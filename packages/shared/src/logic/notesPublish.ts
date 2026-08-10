@@ -31,6 +31,7 @@ code{padding:2px 5px;border-radius:4px}
 pre{padding:16px;border:1px solid var(--border);border-radius:8px;overflow:auto}
 pre code{padding:0;background:transparent}
 blockquote{border-left:3px solid var(--action-text);padding-left:16px;color:var(--tertiary-text)}
+.tlon-inline-quote{border-left:3px solid var(--action-text);padding-left:8px;color:var(--tertiary-text)}
 hr{border:0;border-top:1px solid var(--border);margin:2em 0}
 img,video{max-width:100%;border-radius:8px}
 .tlon-table-scroll{max-width:100%;overflow-x:auto}
@@ -160,6 +161,8 @@ function renderInlineToHtml(inline: InlineData): string {
       const tag = inlineStyleTags[inline.style];
       return `<${tag}>${children}</${tag}>`;
     }
+    case 'blockquote':
+      return `<span class="tlon-inline-quote">${renderInlinesToHtml(inline.children)}</span>`;
   }
 }
 

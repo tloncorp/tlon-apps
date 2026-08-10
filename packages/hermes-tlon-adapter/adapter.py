@@ -95,6 +95,7 @@ from .mention import (
     extract_profile_avatar,
     extract_profile_nickname,
 )
+from .migration import MigrationCommandController, is_migrate_command
 from .owner_listen import (
     SETTINGS_DESK,
     SETTINGS_KEY_GROUP_CHANNELS,
@@ -102,6 +103,7 @@ from .owner_listen import (
     apply_owner_listen_command,
     apply_owner_listen_group_command,
     apply_owner_listen_settings_event,
+    canonicalize_nest,
     canonical_nest_set,
     is_owner_listen_command,
     owner_listen_active,
@@ -177,6 +179,7 @@ from .tlon_api import (
     TlonChannelError,
     TlonCLI,
     TlonConfig,
+    TlonDeadlineCallback,
     TlonGatewayStatus,
     TlonIncomingMessage,
     TlonReaction,
@@ -209,10 +212,15 @@ from .tlon_tool import (
     CREDENTIAL_FLAGS_WITH_VALUE,
     TLON_TOOL_DESCRIPTION,
     TLON_TOOL_SCHEMA,
+    clear_diary_migration_notification_sender,
     check_tlon_tool_requirements,
+    diary_target_blocked_message,
     handle_tlon_tool,
     resolve_tlon_skill_path,
+    set_diary_migration_notification_sender,
     split_tlon_command,
+    start_diary_migration_discovery,
+    wait_for_pending_discovery,
 )
 
 logger = logging.getLogger(__name__)
@@ -859,6 +867,12 @@ class TlonAdapter(BasePlatformAdapter):
         self.tlon_config = TlonConfig.from_env(config.extra or {})
         self._telemetry = TlonTelemetry(self.tlon_config, extra=config.extra or {})
         self._cli = TlonCLI(self.tlon_config, observer=self._telemetry.observe_cli)
+        self._migration = MigrationCommandController(
+            run_command=self._run_migration_command,
+            send_dm=self._send_migration_dm,
+            emit_event=self._telemetry.migration_event,
+        )
+        self._diary_notification_sender = self._send_migration_dm
         self._connected_at = 0.0
         self._sse: Optional[TlonSSEClient] = None
         self._stream_task: Optional[asyncio.Task] = None
@@ -1037,6 +1051,12 @@ class TlonAdapter(BasePlatformAdapter):
             self._stream_task = asyncio.create_task(self._run_stream())
             self._computing_presence.bind_loop(asyncio.get_running_loop())
             set_active_computing_presence_tracker(self._computing_presence)
+            set_diary_migration_notification_sender(
+                self._diary_notification_sender,
+                bot_ship=self.tlon_config.ship_name,
+                owner_ship=self.tlon_config.owner_ship,
+                title_lookup=self._lookup_diary_channel_title,
+            )
             self._mark_connected()
             self._connected_at = time.monotonic()
             hermes_permissions = _hermes_tool_permission_snapshot()
@@ -1117,6 +1137,9 @@ class TlonAdapter(BasePlatformAdapter):
         clear_active_telemetry(self._telemetry)
         clear_active_computing_presence_tracker(self._computing_presence)
         clear_active_recorder(self._lens)
+        clear_diary_migration_notification_sender(
+            self._diary_notification_sender
+        )
         if self._stream_task is not None:
             self._stream_task.cancel()
             try:
@@ -1802,6 +1825,36 @@ class TlonAdapter(BasePlatformAdapter):
                 operation="owner_notification",
             )
 
+    async def _run_migration_command(
+        self,
+        args: Sequence[str],
+        timeout: float,
+        on_deadline: TlonDeadlineCallback,
+    ):
+        with cli_context("migration"):
+            return await self._cli.run_command(
+                args, timeout=timeout, on_deadline=on_deadline
+            )
+
+    async def _send_migration_dm(
+        self, text: str, blob: Optional[str]
+    ) -> bool:
+        owner = self.tlon_config.owner_ship
+        if not owner:
+            return False
+        args: list[str] = ["posts", "send", owner, text]
+        if blob:
+            args.extend(["--blob", blob])
+        with cli_context("migration"):
+            result = await self._cli.run_command(args)
+        if not result.success:
+            logger.warning(
+                "[tlon] migration notification to %s failed: %s",
+                owner,
+                result.error,
+            )
+        return result.success
+
     async def _persist_pending_approvals(self) -> None:
         # JSON string, not a raw list of dicts: %settings values cannot hold
         # objects (the poke would be nacked). Matches OpenClaw's encoding.
@@ -2321,6 +2374,24 @@ class TlonAdapter(BasePlatformAdapter):
                     ctx_nest=ctx_nest,
                     reply_chat_id=message.chat_id,
                     reply_parent_id=reply_parent_id,
+                )
+            return True
+        if is_migrate_command(command_text):
+            if self._mark_seen(message):
+                self._telemetry.control_command("migrate")
+
+                async def send_reply(text: str) -> None:
+                    await self._send_control_reply(
+                        message.chat_id,
+                        reply_parent_id,
+                        text,
+                    )
+
+                await self._migration.handle(
+                    command_text,
+                    bot_ship=self.tlon_config.ship_name,
+                    owner_ship=self.tlon_config.owner_ship,
+                    send_reply=send_reply,
                 )
             return True
         if is_tlon_command(command_text):
@@ -3353,6 +3424,93 @@ class TlonAdapter(BasePlatformAdapter):
             and nest.split("/", 1)[0] in ("chat", "heap", "diary")
         }
 
+    async def _lookup_diary_channel_title(self, nest: str) -> Optional[str]:
+        canonical = canonicalize_nest(nest)
+        if canonical is None:
+            return None
+        if self._sse is None:
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "SSE client is not connected",
+            )
+            return None
+        try:
+            init = await self._sse.scry("/groups-ui/v7/init")
+        except Exception as exc:
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                exc,
+            )
+            return None
+        if not isinstance(init, Mapping):
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "init payload is not a mapping",
+            )
+            return None
+        groups = init.get("groups")
+        if not isinstance(groups, Mapping):
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "groups payload is not a mapping",
+            )
+            return None
+
+        discovered_title: Optional[str] = None
+        usable_group = False
+        usable_channels = False
+        for group_data in groups.values():
+            if not isinstance(group_data, Mapping):
+                continue
+            usable_group = True
+            channels = group_data.get("channels")
+            if not isinstance(channels, Mapping):
+                continue
+            usable_channels = True
+            for channel_nest, channel_data in channels.items():
+                if not isinstance(channel_nest, str) or not isinstance(
+                    channel_data, Mapping
+                ):
+                    continue
+                channel_canonical = canonicalize_nest(channel_nest)
+                if channel_canonical != canonical:
+                    continue
+                meta = channel_data.get("meta")
+                meta_title = meta.get("title") if isinstance(meta, Mapping) else None
+                title = (
+                    meta_title
+                    if meta_title is not None
+                    else channel_data.get("title")
+                )
+                if isinstance(title, str) and title.strip():
+                    discovered_title = title.strip()
+
+        if groups and not usable_group:
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "group entries are not mappings",
+            )
+            return None
+        if groups and not usable_channels:
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "channel payloads are not mappings",
+            )
+            return None
+
+        if discovered_title is None:
+            logger.debug(
+                "[tlon] diary migration title lookup missed nest %s in usable init payload",
+                canonical,
+            )
+        return discovered_title
+
     async def _adopt_group_channels(self, flag: str) -> None:
         """Pull a newly-joined group's channels into the monitored set so the
         bot is addressable there, and persist them to groupChannels."""
@@ -3834,6 +3992,14 @@ class TlonAdapter(BasePlatformAdapter):
         )
 
     async def on_processing_complete(self, event: MessageEvent, outcome: Any) -> None:
+        # Release the presence lease first.  The gateway runs this hook through
+        # a wrapper that swallows every exception, so anything that raises
+        # above this call would leave the run registered and the keepalive
+        # would refresh its lease for the life of the process.
+        await self._computing_presence.stop_run(
+            conversation_id=event.source.chat_id,
+            run_id=self._presence_run_id(event),
+        )
         source = getattr(event, "source", None)
         chat_id = str(getattr(source, "chat_id", "") or "")
         message_id = str(
@@ -3843,10 +4009,6 @@ class TlonAdapter(BasePlatformAdapter):
         )
         if chat_id and message_id:
             self._remove_dispatch_state((chat_id, message_id))
-        await self._computing_presence.stop_run(
-            conversation_id=event.source.chat_id,
-            run_id=self._presence_run_id(event),
-        )
         processing_outcome = _processing_outcome_value(outcome)
         self._telemetry.finish_reply(
             event.source.chat_id,
@@ -3953,6 +4115,19 @@ class TlonAdapter(BasePlatformAdapter):
             result = await self._cli.send_message(
                 chat_id, content, blob=blob, sent_at=sent_at_ms
             )
+        canonical = canonicalize_nest(chat_id)
+        if (
+            not result.success
+            and canonical is not None
+            and canonical.startswith("diary/")
+        ):
+            refusal = diary_target_blocked_message(canonical)
+            result = replace(
+                result,
+                stderr=f"Error: {refusal}\n",
+                error=f"Error: {refusal}",
+            )
+            start_diary_migration_discovery(canonical)
         return result, sent_at_ms
 
     async def _process_block_directives(

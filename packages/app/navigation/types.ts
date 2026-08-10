@@ -67,6 +67,13 @@ export type RootStackParamList = {
     folderId: number;
     folderTitle?: string;
     groupId?: string;
+    // Note to select once the folder opens, for jumping straight to a note
+    // that lives outside the folder currently on screen.
+    noteId?: number;
+  };
+  NotesSearch: {
+    channelId: string;
+    groupId?: string;
   };
   MediaViewer: {
     mediaType: 'image' | 'video';
@@ -208,6 +215,7 @@ export type ChannelStackParamList = {
   Post: RootStackParamList['Post'];
   NotesDetail: RootStackParamList['NotesDetail'];
   NotesFolder: RootStackParamList['NotesFolder'];
+  NotesSearch: RootStackParamList['NotesSearch'];
   MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
   EditProfile: RootStackParamList['EditProfile'];
@@ -222,6 +230,7 @@ export type DesktopChannelStackParamList = Pick<
   | 'Post'
   | 'NotesDetail'
   | 'NotesFolder'
+  | 'NotesSearch'
   | 'MediaViewer'
   | 'UserProfile'
   | 'EditProfile'

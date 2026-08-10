@@ -34,6 +34,7 @@ const NOTES_V1_OPS = [
   'moveFolder',
   'deleteFolder',
   'listMembers',
+  'batchImport',
 ] as const;
 
 type NotesV1Op = (typeof NOTES_V1_OPS)[number];
@@ -120,6 +121,10 @@ function makeDeps(options: MakeDepsOptions = {}) {
       calls.order.push('leaveNotesNotebook');
       await options.leaveNotesNotebook?.(nest);
     },
+    deleteNotesNotebookStrict: async () => undefined,
+    getGroupChannelListings: async () => [],
+    getGroupChannelIds: async () => [],
+    sleep: async () => undefined,
     readFile: (path) => {
       calls.readFile.push(path);
       calls.order.push('readFile');
@@ -458,13 +463,13 @@ describe('notes request status', () => {
       notesV1: {
         getRequest: async () => ({
           requestId: '0verr',
-          body: { type: 'error', message: 'target unavailable' },
+          body: { type: 'error', errorType: 'not-found', message: '' },
         }),
       },
     });
     expect(await run(['request', '0verr'], failed.deps)).toBe(1);
     expect(failed.stdout()).toContain('Status: error');
-    expect(failed.stdout()).toContain('Message: target unavailable');
+    expect(failed.stdout()).toContain('Message: not-found');
   });
 
   it('prints notebook request results', async () => {

@@ -675,11 +675,17 @@ export async function scry<T>({
   }
 }
 
-// Authenticated JSON request to an arbitrary ship path. Reauths once on 403.
+export interface RequestJsonOptions {
+  reauthStatuses?: readonly number[];
+}
+
+// Authenticated JSON request to an arbitrary ship path. Reauths once on 403 by
+// default; callers may opt into additional auth statuses for their endpoint.
 export async function requestJson<T = any>(
   path: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
-  body?: unknown
+  body?: unknown,
+  options: RequestJsonOptions = {}
 ): Promise<T> {
   if (!config.client) {
     throw new Error('Client not initialized');
@@ -687,11 +693,12 @@ export async function requestJson<T = any>(
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
+  const reauthStatuses = options.reauthStatuses ?? [403];
 
   try {
     return await config.client.requestJson<T>(path, method, body);
   } catch (res) {
-    if (res?.status === 403) {
+    if (reauthStatuses.includes(res?.status)) {
       await reauth();
       return await config.client.requestJson<T>(path, method, body);
     }

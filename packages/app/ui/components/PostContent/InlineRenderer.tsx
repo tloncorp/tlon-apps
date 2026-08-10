@@ -1,5 +1,6 @@
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import {
+  BlockquoteInlineData,
   GroupMentionInlineData,
   InlineData,
   InlineFromType,
@@ -215,6 +216,17 @@ export function InlineTask({ inline: node }: { inline: TaskInlineData }) {
   );
 }
 
+export function InlineBlockquote({ inline }: { inline: BlockquoteInlineData }) {
+  return (
+    <Text color="$tertiaryText">
+      {' > '}
+      {inline.children.map((child, i) => (
+        <InlineRenderer inline={child} key={i} />
+      ))}{' '}
+    </Text>
+  );
+}
+
 export type InlineRenderer<T extends InlineData> = React.ComponentType<{
   inline: T;
   color?: ColorTokens;
@@ -232,6 +244,7 @@ export const defaultInlineRenderers: InlineRendererConfig = {
   lineBreak: InlineLineBreak,
   link: InlineLink,
   task: InlineTask,
+  blockquote: InlineBlockquote,
 };
 
 const InlineRendererContext = React.createContext<

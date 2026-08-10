@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Story } from '../../urbit/channel';
 import { convertContent } from '../postContent';
+import { parseGroupMentions } from './groupMentionPlugin';
 import { markdownToStory } from './parse';
 import {
   blockToMarkdown,
@@ -45,6 +47,16 @@ describe('parseShipMentions', () => {
     const result = parseShipMentions('Hello world');
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({ type: 'text', value: 'Hello world' });
+  });
+});
+
+describe('parseGroupMentions', () => {
+  it('parses an isolated term-shaped role mention', () => {
+    expect(parseGroupMentions('Hello @admin!')).toEqual([
+      { type: 'text', value: 'Hello ' },
+      { type: 'groupMention', value: 'admin' },
+      { type: 'text', value: '!' },
+    ]);
   });
 });
 
@@ -95,7 +107,7 @@ describe('markdownToStory', () => {
     it('converts ship mentions in paragraphs', () => {
       const result = markdownToStory('Hello ~sampel-palnet!');
       expect(result).toEqual([
-        { inline: ['Hello ', { ship: 'sampel-palnet' }, '!'] },
+        { inline: ['Hello ', { ship: '~sampel-palnet' }, '!'] },
       ]);
     });
   });
@@ -137,6 +149,22 @@ describe('markdownToStory', () => {
       ]);
     });
 
+    it('preserves a ship mention in a link label', () => {
+      const result = markdownToStory('[~zod](https://example.com)');
+      expect(result).toEqual([
+        {
+          inline: [
+            {
+              link: {
+                href: 'https://example.com',
+                content: '~zod',
+              },
+            },
+          ],
+        },
+      ]);
+    });
+
     it('handles nested formatting (bold inside italic)', () => {
       const result = markdownToStory('*italic **bold** text*');
       expect(result).toEqual([
@@ -154,23 +182,23 @@ describe('markdownToStory', () => {
   describe('ship mentions', () => {
     it('handles galaxy names', () => {
       const result = markdownToStory('~zod');
-      expect(result).toEqual([{ inline: [{ ship: 'zod' }] }]);
+      expect(result).toEqual([{ inline: [{ ship: '~zod' }] }]);
     });
 
     it('handles star names', () => {
       const result = markdownToStory('~marzod');
-      expect(result).toEqual([{ inline: [{ ship: 'marzod' }] }]);
+      expect(result).toEqual([{ inline: [{ ship: '~marzod' }] }]);
     });
 
     it('handles planet names', () => {
       const result = markdownToStory('~sampel-palnet');
-      expect(result).toEqual([{ inline: [{ ship: 'sampel-palnet' }] }]);
+      expect(result).toEqual([{ inline: [{ ship: '~sampel-palnet' }] }]);
     });
 
     it('handles moon names', () => {
       const result = markdownToStory('~dozzod-dozzod-sampel-palnet');
       expect(result).toEqual([
-        { inline: [{ ship: 'dozzod-dozzod-sampel-palnet' }] },
+        { inline: [{ ship: '~dozzod-dozzod-sampel-palnet' }] },
       ]);
     });
 
@@ -178,7 +206,7 @@ describe('markdownToStory', () => {
       const result = markdownToStory('~zod and ~bus are ships');
       expect(result).toEqual([
         {
-          inline: [{ ship: 'zod' }, ' and ', { ship: 'bus' }, ' are ships'],
+          inline: [{ ship: '~zod' }, ' and ', { ship: '~bus' }, ' are ships'],
         },
       ]);
     });
@@ -187,7 +215,7 @@ describe('markdownToStory', () => {
       const result = markdownToStory('Hello **~sampel-palnet**!');
       expect(result).toEqual([
         {
-          inline: ['Hello ', { bold: [{ ship: 'sampel-palnet' }] }, '!'],
+          inline: ['Hello ', { bold: [{ ship: '~sampel-palnet' }] }, '!'],
         },
       ]);
     });
@@ -312,6 +340,115 @@ describe('markdownToStory', () => {
         },
       ]);
     });
+
+    it('preserves a checked item after a plain item', () => {
+      expect(markdownToStory('- plain\n- [x] done')).toEqual([
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'tasklist',
+                contents: [],
+                items: [
+                  { item: ['plain'] },
+                  { item: [{ task: { checked: true, content: ['done'] } }] },
+                ],
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    // A checked parent task containing a sub-list takes a different code path
+    // from a flat task item, and that path previously had no coverage of its
+    // checked state.
+    it('preserves the checked state of a parent task with a nested list', () => {
+      const result = markdownToStory('- [x] parent task\n  - child') as never;
+      const parent = (result as any)[0].block.listing.list.items[0];
+      expect(parent.list.contents[0]).toEqual({
+        task: { checked: true, content: ['parent task'] },
+      });
+      expect(parent.list.items).toEqual([{ item: ['child'] }]);
+    });
+
+    it('keeps a plain item after a checked item plain', () => {
+      expect(markdownToStory('- [x] done\n- plain')).toEqual([
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'tasklist',
+                contents: [],
+                items: [
+                  { item: [{ task: { checked: true, content: ['done'] } }] },
+                  { item: ['plain'] },
+                ],
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    it('preserves checked and unchecked items mixed with plain items', () => {
+      expect(
+        markdownToStory('- plain before\n- [ ] todo\n- [x] done\n- plain after')
+      ).toEqual([
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'tasklist',
+                contents: [],
+                items: [
+                  { item: ['plain before'] },
+                  { item: [{ task: { checked: false, content: ['todo'] } }] },
+                  { item: [{ task: { checked: true, content: ['done'] } }] },
+                  { item: ['plain after'] },
+                ],
+              },
+            },
+          },
+        },
+      ]);
+    });
+
+    it('classifies a nested list as a task list when only its last item is checked', () => {
+      expect(
+        markdownToStory(
+          '- parent\n  - first plain\n  - second plain\n  - [x] last'
+        )
+      ).toEqual([
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'unordered',
+                contents: [],
+                items: [
+                  {
+                    list: {
+                      type: 'tasklist',
+                      contents: ['parent'],
+                      items: [
+                        { item: ['first plain'] },
+                        { item: ['second plain'] },
+                        {
+                          item: [
+                            { task: { checked: true, content: ['last'] } },
+                          ],
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ]);
+    });
   });
 
   describe('blockquote conversion', () => {
@@ -324,6 +461,66 @@ describe('markdownToStory', () => {
       const result = markdownToStory('> **bold** quote');
       expect(result).toEqual([
         { inline: [{ blockquote: [{ bold: ['bold'] }, ' quote'] }] },
+      ]);
+    });
+
+    it('preserves a quoted list as visible Markdown', () => {
+      const result = markdownToStory('> - first\n> - second');
+      expect(result).toEqual([
+        { inline: [{ blockquote: ['* first\n* second'] }] },
+      ]);
+    });
+
+    it('preserves a quoted heading as visible Markdown', () => {
+      const result = markdownToStory('> ## Quoted heading');
+      expect(result).toEqual([
+        { inline: [{ blockquote: ['## Quoted heading'] }] },
+      ]);
+    });
+
+    it('preserves a quoted rule as visible Markdown', () => {
+      const result = markdownToStory('> ---');
+      expect(result).toEqual([{ inline: [{ blockquote: ['***'] }] }]);
+    });
+
+    it('preserves a quoted table as visible Markdown', () => {
+      const result = markdownToStory(
+        '> | A | B |\n> | :--- | ---: |\n> | 1 | 2 |'
+      );
+      expect(result).toEqual([
+        {
+          inline: [
+            {
+              blockquote: ['| A | B |\n| :--- | ---: |\n| 1 | 2 |'],
+            },
+          ],
+        },
+      ]);
+    });
+
+    it('preserves a quoted HTML block as visible text', () => {
+      const result = markdownToStory('> <div>quoted html</div>');
+      expect(result).toEqual([
+        { inline: [{ blockquote: ['<div>quoted html</div>'] }] },
+      ]);
+    });
+
+    it('separates surrounding paragraphs from a quoted block child', () => {
+      const result = markdownToStory('> intro\n>\n> - listed\n>\n> outro');
+      expect(result).toEqual([
+        {
+          inline: [
+            {
+              blockquote: [
+                'intro',
+                { break: null },
+                '* listed',
+                { break: null },
+                'outro',
+              ],
+            },
+          ],
+        },
       ]);
     });
   });
@@ -406,6 +603,367 @@ describe('markdownToStory', () => {
   });
 });
 
+describe('Story to Markdown to Story structural round trips', () => {
+  function expectRoundTrip(story: Story, expected: Story = story): void {
+    expect(markdownToStory(storyToMarkdown(story, { strict: true }))).toEqual(
+      expected
+    );
+  }
+
+  it('preserves a nested quote with a block separator', () => {
+    expectRoundTrip(
+      [
+        {
+          inline: [
+            {
+              blockquote: ['outer', { blockquote: ['inner'] }],
+            },
+          ],
+        },
+      ],
+      [
+        {
+          inline: [
+            {
+              blockquote: ['outer', { break: null }, { blockquote: ['inner'] }],
+            },
+          ],
+        },
+      ]
+    );
+  });
+
+  it('preserves code inside a quote with block separators', () => {
+    expectRoundTrip(
+      [
+        {
+          inline: [
+            {
+              blockquote: [
+                'before quoted code',
+                { code: 'quoted-code()' },
+                'after quoted code',
+              ],
+            },
+          ],
+        },
+      ],
+      [
+        {
+          inline: [
+            {
+              blockquote: [
+                'before quoted code',
+                { break: null },
+                { code: 'quoted-code()' },
+                { break: null },
+                'after quoted code',
+              ],
+            },
+          ],
+        },
+      ]
+    );
+  });
+
+  it('preserves code inside a list item with block separators', () => {
+    expectRoundTrip(
+      [
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'unordered',
+                contents: [],
+                items: [
+                  {
+                    item: [
+                      'before listed code',
+                      { code: 'listed-code()' },
+                      'after listed code',
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ],
+      [
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'unordered',
+                contents: [],
+                items: [
+                  {
+                    item: [
+                      'before listed code',
+                      { break: null },
+                      { code: 'listed-code()' },
+                      { break: null },
+                      'after listed code',
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ]
+    );
+  });
+
+  it('preserves code inside task content with block separators', () => {
+    expectRoundTrip(
+      [
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'tasklist',
+                contents: [],
+                items: [
+                  {
+                    item: [
+                      {
+                        task: {
+                          checked: true,
+                          content: [
+                            'before task code',
+                            { code: 'task-code()' },
+                            'after task code',
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ],
+      [
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'tasklist',
+                contents: [],
+                items: [
+                  {
+                    item: [
+                      {
+                        task: {
+                          checked: true,
+                          content: [
+                            'before task code',
+                            { break: null },
+                            { code: 'task-code()' },
+                            { break: null },
+                            'after task code',
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ]
+    );
+  });
+
+  it('preserves a quoted ship mention', () => {
+    expectRoundTrip([
+      {
+        inline: [
+          {
+            blockquote: ['quoted ', { ship: '~zod' }],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('preserves a backend-wire-shaped ship mention', () => {
+    expectRoundTrip([{ inline: [{ ship: '~zod' }] }]);
+  });
+
+  it('preserves ship and group mentions in a link label', () => {
+    expectRoundTrip([
+      {
+        inline: [
+          {
+            link: {
+              href: 'https://example.com',
+              content: '~zod and @wire-admin',
+            },
+          },
+        ],
+      },
+    ]);
+  });
+
+  // Story link content is a plain string, so raw inline HTML in a label has
+  // nowhere to go. remark yields the tags as sibling `html` nodes around the
+  // visible `text`; emitting their values would surface `<span>label</span>`
+  // to the reader as the link's text.
+  it('drops raw inline HTML from a link label, keeping the visible text', () => {
+    expect(
+      markdownToStory('[<span>label</span>](https://example.com)')
+    ).toEqual([
+      {
+        inline: [{ link: { href: 'https://example.com', content: 'label' } }],
+      },
+    ]);
+  });
+
+  it('keeps image alt text as the visible content of a link label', () => {
+    expect(
+      markdownToStory('[![diagram](image.png)](https://example.com)')
+    ).toEqual([
+      {
+        inline: [
+          {
+            link: { href: 'https://example.com', content: 'diagram' },
+          },
+        ],
+      },
+    ]);
+  });
+
+  // KNOWN LIMITATION, pinned deliberately. `%sect` now survives Story → Markdown
+  // as `@all` / `@role` text (previously it was deleted outright), but the
+  // Markdown parser does not install the group-mention plugin, so it returns as
+  // plain text rather than a `%sect` inline. Installing that plugin would make
+  // every isolated `@word` in ordinary prose a role mention across the whole
+  // app, which nothing in this change needs. If that trade is revisited, the
+  // narrow fix is an allowed-role-ID option supplied by each caller.
+  it.each([
+    {
+      name: 'null sect',
+      story: [{ inline: [{ sect: null }] }] as Story,
+      text: '@all',
+    },
+    {
+      name: 'named sect',
+      story: [{ inline: [{ sect: 'wire-admin' }] }] as Story,
+      text: '@wire-admin',
+    },
+  ])(
+    'renders $name forward but returns it as plain text',
+    ({ story, text }) => {
+      const markdown = storyToMarkdown(story);
+      expect(markdown.trim()).toBe(text);
+      expect(markdownToStory(markdown)).toEqual([{ inline: [text] }]);
+    }
+  );
+
+  it('preserves a hard break inside a blockquote', () => {
+    expectRoundTrip([
+      {
+        inline: [
+          {
+            blockquote: ['a', { break: null }, 'b'],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it.each([
+    {
+      name: 'unordered parent with ordered child',
+      story: [
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'unordered',
+                contents: [],
+                items: [
+                  {
+                    list: {
+                      type: 'ordered',
+                      contents: ['unordered parent'],
+                      items: [{ item: ['ordered child'] }],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ] as Story,
+    },
+    {
+      name: 'ordered parent with unordered child',
+      story: [
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'ordered',
+                contents: [],
+                items: [
+                  {
+                    list: {
+                      type: 'unordered',
+                      contents: ['ordered parent'],
+                      items: [{ item: ['unordered child'] }],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ] as Story,
+    },
+    {
+      name: 'tasklist parent with ordered child',
+      story: [
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'tasklist',
+                contents: [],
+                items: [
+                  {
+                    item: [
+                      {
+                        task: {
+                          checked: true,
+                          content: ['task item'],
+                        },
+                      },
+                    ],
+                  },
+                  {
+                    list: {
+                      type: 'ordered',
+                      contents: ['tasklist parent'],
+                      items: [{ item: ['ordered child'] }],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ] as Story,
+    },
+  ])('preserves mixed list types: $name', ({ story }) => {
+    expectRoundTrip(story);
+  });
+});
+
 describe('storyToMarkdown', () => {
   it('converts empty story', () => {
     expect(storyToMarkdown([])).toBe('');
@@ -437,6 +995,10 @@ describe('storyToMarkdown', () => {
   it('converts ship mention', () => {
     expect(storyToMarkdown([{ inline: [{ ship: 'zod' }] }])).toBe('~zod');
   });
+
+  it('converts a backend-shaped ship mention with exactly one sigil', () => {
+    expect(storyToMarkdown([{ inline: [{ ship: '~zod' }] }])).toBe('~zod');
+  });
 });
 
 describe('inlinesToMarkdown', () => {
@@ -450,6 +1012,10 @@ describe('inlinesToMarkdown', () => {
 
   it('converts ship mention', () => {
     expect(inlinesToMarkdown([{ ship: 'zod' }])).toBe('~zod');
+  });
+
+  it('converts a backend-shaped ship mention with exactly one sigil', () => {
+    expect(inlinesToMarkdown([{ ship: '~zod' }])).toBe('~zod');
   });
 });
 

@@ -9,6 +9,7 @@ import type {
 export type DriverName = 'hermes' | 'openclaw';
 
 export type RuntimeCapability =
+  | 'cron'
   | 'image_search'
   | 'upload_storage'
   | 'media_blob'
@@ -99,7 +100,7 @@ export interface ComposeHandle {
   env: Record<string, string>;
 
   build(services?: string[]): Promise<void>;
-  up(services?: string[]): Promise<void>;
+  up(services?: string[], opts?: { timeoutMs?: number }): Promise<void>;
   ps(opts?: { timeoutMs?: number }): Promise<ComposeServiceState[]>;
   logs(
     services?: string[],
@@ -156,6 +157,15 @@ export interface SendMessageArgs {
   message: string;
 }
 
+export interface CreateCronJobArgs {
+  /** Unique per scenario; used for ID lookup and pre-ID teardown fallback. */
+  name: string;
+  /** Must embed the fired-turn [tlon-test:KEY] tag. */
+  firedPrompt: string;
+  /** Visible confirmation reply to the owner. */
+  finalText: string;
+}
+
 export interface ModelScript {
   steps: Step[];
   options?: ScriptOptions;
@@ -193,4 +203,11 @@ export interface ModelScriptAdapter {
   sendMessage(args: SendMessageArgs): ModelScript;
   readOrAdmin(command: string, finalText?: string): ModelScript;
   imageSearch(query: string): ModelScript;
+  /** Owner-initiated cron job creation via the runtime's cron tool. */
+  createCronJob(args: CreateCronJobArgs): ModelScript;
+  /**
+   * Text reply without baseline advertised-tools expectations. Used when the
+   * runtime's advertised tool set differs from the baseline partition.
+   */
+  looseReplyText(text: string): ModelScript;
 }

@@ -90,6 +90,8 @@ When enabled, the plugin captures `TlonBot Gateway Connected` after subscription
 
 Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Changed` when a job is added/updated/removed (schedule metadata plus job counts), `TlonBot Cron Run` when a run finishes (`cronStatus` of `ok`/`error`/`skipped`, truncated error text, duration, delivery outcome, model/provider), and `TlonBot Cron Snapshot` once per boot with job counts by schedule kind, including event-driven `on-exit` jobs on newer OpenClaw hosts. Job-count events also update `tlonCronActiveJobCount`/`tlonCronTotalJobCount` person properties so the current count per owner is queryable directly. Job prompts (`payload.text`), on-exit watched commands/directories, and run output (`summary`) are never sent.
 
+Diary migration (`/migrate`) emits `TlonBot Diary Migration` per accepted CLI run: `started`, then `completed`, `failed` (with error text truncated to 500 chars), or `consent_required` (the CLI's write-widening refusal — the owner is expected to accept and re-run, so it is not counted as a failure). Events share a `migrationId` and carry `action` (apply/cleanup), `durationMs` on terminals, and `deadlineExceeded` when the run outlived its advisory reporting deadline. A gateway death mid-run leaves a `started` with no terminal — count those as unresolved, not failed. Error text is CLI output, so like the package's other error-carrying events it can name channel nests; message and post content are never sent.
+
 The plugin does not enable telemetry automatically just because an API key is present. `enabled: true` is required so open-source installs do not phone home by default.
 
 ## Approval System
@@ -146,10 +148,12 @@ This plugin bundles [@tloncorp/tlon-skill](https://www.npmjs.com/package/@tlonco
 -   Channel listing and history
 -   Group administration
 -   Message posting and reactions
--   Notes channel management and note CRUD
+-   Notes channel management, note CRUD, and diary-to-notes migration
 -   Settings management
 
 The skill is automatically available to your agent. For standalone usage, see the [tlon-skill repo](https://github.com/tloncorp/tlon-skill).
+
+`%diary` channels are deprecated, but OpenClaw can still read and send to their `diary/~host/name` nests directly. The model tool does not manage diary notebooks. The configured owner can type `/migrate <diary-nest> [--allow-write-widening]` to migrate directly to a fresh `%notes` notebook. Migration renames the source with `-ARCHIVE`; it does not make that source read-only.
 
 ## Documentation
 

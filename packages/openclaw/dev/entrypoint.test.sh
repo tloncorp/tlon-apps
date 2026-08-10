@@ -97,6 +97,27 @@ if [ -f "$TLON_BIN_DIR/tlon" ]; then
   echo "==> tlon CLI available at $TLON_BIN_DIR/tlon"
 fi
 
+# When the shared harness stages a workspace-built tlon binary (see
+# tlon-bot-e2e openclaw driver beforeComposeBuild), lay it over the
+# registry-installed CLI so e2e exercises in-branch CLI code: the loader
+# (bin/tlon.js) prefers a local bin/tlon over the registry platform package.
+# Same env-plus-file double opt-in as the api tarball above, so a stale
+# staged binary can never leak into legacy (non-harness) runs.
+WORKSPACE_TLON_BIN=/workspace/tlon/dev/tlon-skill-workspace-bin/tlon
+if [ "${OPENCLAW_WORKSPACE_SKILL_BIN:-0}" = "1" ] && [ -f "$WORKSPACE_TLON_BIN" ]; then
+  SKILL_PKG_DIR=/workspace/tlon/node_modules/@tloncorp/tlon-skill
+  if [ ! -d "$SKILL_PKG_DIR" ]; then
+    echo "FATAL: @tloncorp/tlon-skill is not installed; cannot override its binary"
+    exit 1
+  fi
+  mkdir -p "$SKILL_PKG_DIR/bin"
+  cp "$WORKSPACE_TLON_BIN" "$SKILL_PKG_DIR/bin/tlon"
+  chmod +x "$SKILL_PKG_DIR/bin/tlon"
+  echo "[tlon-e2e] workspace-tlon-cli-sha256=$(sha256sum "$SKILL_PKG_DIR/bin/tlon" | cut -d' ' -f1)"
+elif [ -f "$WORKSPACE_TLON_BIN" ]; then
+  echo "==> Ignoring workspace tlon CLI binary (no harness opt-in); using registry"
+fi
+
 # tlon-skill comes in as plugin dependency (see package.json)
 echo "==> Checking tlon-skill from plugin dependencies..."
 ls -la /workspace/tlon/node_modules/@tloncorp/tlon-skill/ 2>/dev/null || echo "  (in container node_modules volume)"

@@ -98,4 +98,21 @@ export default {
     );
   },
   DeliveryStates: <PostVariantsFixture post={content.postWithText} />,
+  // TLON-6284: nested quotes and quoted code blocks, which used to render as
+  // "Unknown content type". Checks the Text-in-Text inline path on native.
+  NestedBlockquote: () => {
+    const nested = content.postWithNestedBlockquote;
+    return (
+      <FixtureWrapper fillWidth safeArea>
+        <ScrollView automaticallyAdjustContentInsets>
+          <NotebookContentRenderer
+            marginTop="$-l"
+            marginHorizontal="$-l"
+            paddingHorizontal="$xl"
+            content={convertContent(nested.content, nested.blob)}
+          />
+        </ScrollView>
+      </FixtureWrapper>
+    );
+  },
 };

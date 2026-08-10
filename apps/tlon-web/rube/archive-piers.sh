@@ -794,6 +794,8 @@ core.*
 .urb/dev-*
 .run
 .bin/*
+._*
+.DS_Store
 EOF
 
     # Create the archive (exclude problematic files using exclude file)
@@ -805,6 +807,14 @@ EOF
         # Archive just the pier dir as "<ship>/" so the archive root matches what
         # rube expects. Try different tar options based on what's available.
         # Redirect stderr to suppress extended attributes warnings
+        #
+        # Never embed macOS resource forks/xattrs: BSD tar stores them as
+        # AppleDouble entries that GNU tar inside the Linux containers
+        # materializes as literal ._* files throughout the piers — including
+        # the mounted %groups desk, which then never matches a clean
+        # assembly (observed breaking the bot-e2e desk apply on v28).
+        # COPYFILE_DISABLE covers BSD tar; it is harmless for the GNU paths.
+        export COPYFILE_DISABLE=1
         if tar --version 2>/dev/null | grep -q "GNU tar"; then
             # GNU tar
             tar --exclude-from="$exclude_file" --format=gnu -czf "$archive_path" "$pier_name/" 2>/dev/null
@@ -813,7 +823,7 @@ EOF
             gtar --exclude-from="$exclude_file" --format=gnu -czf "$archive_path" "$pier_name/" 2>/dev/null
         else
             # BSD tar (macOS default) - use -X flag for exclude file
-            tar -X "$exclude_file" -czf "$archive_path" "$pier_name/" 2>/dev/null
+            tar --no-mac-metadata -X "$exclude_file" -czf "$archive_path" "$pier_name/" 2>/dev/null
         fi
     )
 

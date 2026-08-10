@@ -29,6 +29,7 @@ export function ChatInput({
   const isWindowNarrow = useIsWindowNarrow();
   const showWayfindingTooltip = store.useShowChatInputWayfinding(channel.id);
   const showBotMentionTooltip = store.useShowBotMentionWayfinding(channel.id);
+  const slashCommandManifest = store.useBotSlashCommandManifest(channel);
 
   return (
     <SafeAreaView edges={['right', 'left', 'bottom']}>
@@ -53,6 +54,7 @@ export function ChatInput({
           showAttachmentButton
           showWayfindingTooltip={showWayfindingTooltip}
           showBotMentionTooltip={showBotMentionTooltip}
+          slashCommandManifest={slashCommandManifest}
         />
       </ParentAgnosticKeyboardAvoidingView>
     </SafeAreaView>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
 import { DIARY_REMOVED, NOTES_CHANNEL_CONTENT_UNSUPPORTED } from '../cli-utils';
-import type { StoryVerse } from '../story';
+import type { StoryVerse } from '../markdown';
 import { commandError } from './command';
 import {
   type ExistingPost,
@@ -297,6 +297,176 @@ describe('posts send', () => {
         content: [{ inline: ['Hello there'] }],
         blob: undefined,
       },
+    ]);
+  });
+
+  it('sends a markdown list as a listing block', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '- a\n- b'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              contents: [],
+              items: [{ item: ['a'] }, { item: ['b'] }],
+            },
+          },
+        },
+      },
+    ]);
+  });
+
+  it('sends a ship mention with its ~ sigil', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'hi ~sampel-palnet'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: ['hi ', { ship: '~sampel-palnet' }] },
+    ]);
+  });
+
+  it('fails loudly when the message converts to nothing', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '<div>hello</div>'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('fails loudly when the message converts to an empty wrapper shell', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '> [l][i]\n\n[i]: https://x'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('fails loudly when the message is a whitespace-labeled link', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '[ ](https://example.com)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses an image mixed into a text line', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'caption ![alt](https://x/y.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('own line');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses an image inside header content', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '# head ![a](https://u/i.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('own line');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a standalone image with a relative target', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '![plot](./plot.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('http(s)');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a standalone image with a file:// target', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '![plot](file:///tmp/x.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('http(s)');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('still sends a standalone image line as an image block', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '![alt](https://x/y.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      {
+        block: {
+          image: { src: 'https://x/y.png', alt: 'alt', width: 0, height: 0 },
+        },
+      },
+    ]);
+  });
+
+  it('sends a link with a real label', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '[real](https://example.com)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: [{ link: { href: 'https://example.com', content: 'real' } }] },
+    ]);
+  });
+
+  it('still sends a bare horizontal rule with no text leaves', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '---'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { block: { rule: null } },
     ]);
   });
 
@@ -1034,6 +1204,39 @@ describe('posts edit', () => {
       expect(context.stderr()).not.toContain('Usage:');
       expectNoAuthOrApi(context);
     }
+  });
+
+  it('refuses to erase a post when the message converts to nothing', async () => {
+    const context = makeDeps({ getChannelPosts: withExistingPost(null) });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', '<div>hello</div>'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.editPost).toEqual([]);
+  });
+
+  it('refuses to erase a post when the message converts to an empty wrapper shell', async () => {
+    const context = makeDeps({ getChannelPosts: withExistingPost(existing) });
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        '**[label][id]**\n\n[id]: https://example.com',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.editPost).toEqual([]);
   });
 
   it('edits with a markdown message and preserves existing metadata', async () => {
