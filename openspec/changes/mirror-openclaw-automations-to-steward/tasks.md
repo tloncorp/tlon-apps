@@ -48,7 +48,7 @@
 
 ## 3. OpenClaw Harness Projection
 
-- [ ] 3.1 Add task normalization that preserves supported definition
+- [x] 3.1 Add task normalization that preserves supported definition
         fields, omits execution state, and produces complete Steward
         `%project` payloads.
 - [ ] 3.2 Add a local Steward adapter that submits `%project`
