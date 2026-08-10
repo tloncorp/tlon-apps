@@ -10,6 +10,7 @@ import {
   DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS,
   StewardAutomationCronUnavailableError,
   StewardAutomationReconciler,
+  StewardAutomationReconciliationCancelledError,
   reconcileStewardAutomation,
   registerStewardAutomationReconciliationHooks,
 } from './steward-automation-reconciliation.js';
@@ -170,7 +171,7 @@ describe('StewardAutomationReconciler', () => {
     const list3 = vi.fn().mockResolvedValue([job('latest-follow-up')]);
     const reconciler = new StewardAutomationReconciler();
 
-    const first = reconciler.trigger(() => ({ list: list1 }));
+    const first = reconciler.start(() => ({ list: list1 }));
     const stale = Array.from({ length: 8 }, () =>
       reconciler.trigger(() => ({ list: list2 }))
     );
@@ -207,7 +208,7 @@ describe('StewardAutomationReconciler', () => {
     const nextContext = cronContext([job('newer')]);
     const reconciler = new StewardAutomationReconciler();
 
-    const first = reconciler.trigger(firstContext.context.getCron);
+    const first = reconciler.start(firstContext.context.getCron);
     await vi.waitFor(() => {
       expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
     });
@@ -239,7 +240,7 @@ describe('StewardAutomationReconciler', () => {
     const reconciler = new StewardAutomationReconciler(reconcile);
     let secondSettled = false;
 
-    const first = reconciler.trigger(undefined);
+    const first = reconciler.start(undefined);
     const second = first.then(() =>
       reconciler.trigger(undefined).then(() => {
         secondSettled = true;
@@ -268,7 +269,7 @@ describe('StewardAutomationReconciler', () => {
     let firstSettled = false;
     let pendingSettled = false;
 
-    const first = reconciler.trigger(undefined).then(() => {
+    const first = reconciler.start(undefined).then(() => {
       firstSettled = true;
     });
     const pending = reconciler.trigger(undefined).then(() => {
@@ -305,7 +306,7 @@ describe('StewardAutomationReconciler', () => {
         delay
       );
 
-      const initial = reconciler.trigger(unavailable);
+      const initial = reconciler.start(unavailable);
       await vi.waitFor(() => expect(delay).toHaveBeenCalledOnce());
       const repair = reconciler.trigger(recovered.context.getCron);
 
@@ -330,7 +331,7 @@ describe('StewardAutomationReconciler', () => {
       delay
     );
 
-    const result = reconciler.trigger(() => ({ list }));
+    const result = reconciler.start(() => ({ list }));
     await vi.waitFor(() => expect(delay).toHaveBeenCalledOnce());
     expect(submitStewardAutomationProject).not.toHaveBeenCalled();
 
@@ -363,7 +364,7 @@ describe('StewardAutomationReconciler', () => {
       delay
     );
 
-    const result = reconciler.trigger(() => ({ list }));
+    const result = reconciler.start(() => ({ list }));
     await vi.waitFor(() => expect(delay).toHaveBeenCalledTimes(1));
     expect(submitStewardAutomationProject).not.toHaveBeenCalled();
     waits[0].resolve();
@@ -392,7 +393,7 @@ describe('StewardAutomationReconciler', () => {
       delay
     );
 
-    const initial = reconciler.trigger(() => ({ list: firstList }));
+    const initial = reconciler.start(() => ({ list: firstList }));
     const stale = Array.from({ length: 6 }, () =>
       reconciler.trigger(() => ({ list: staleList }))
     );
@@ -422,7 +423,7 @@ describe('StewardAutomationReconciler', () => {
       delay
     );
 
-    const result = reconciler.trigger(() => ({ list }));
+    const result = reconciler.start(() => ({ list }));
     await vi.waitFor(() => expect(delay).toHaveBeenCalledOnce());
     expect(submitStewardAutomationProject).not.toHaveBeenCalled();
 
@@ -433,9 +434,170 @@ describe('StewardAutomationReconciler', () => {
       project: { tasks: [] },
     });
   });
+
+  it('cancels an active retry delay and does not start another attempt', async () => {
+    const retryStarted = deferred<void>();
+    const delay = vi.fn((_delayMs: number, signal?: AbortSignal) => {
+      retryStarted.resolve();
+      return new Promise<void>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        });
+      });
+    });
+    const reconcile = vi.fn().mockRejectedValue(new Error('offline'));
+    const reconciler = new StewardAutomationReconciler(reconcile, delay);
+
+    const result = reconciler.start(undefined);
+    const cancelled = expect(result).rejects.toBeInstanceOf(
+      StewardAutomationReconciliationCancelledError
+    );
+    await retryStarted.promise;
+    reconciler.stop();
+    await cancelled;
+
+    expect(reconcile).toHaveBeenCalledOnce();
+    expect(delay).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+  });
+
+  it('stops during an outstanding list without submitting or retrying', async () => {
+    const listed = deferred<PluginHookGatewayCronJob[]>();
+    const list = vi.fn(() => listed.promise);
+    const delay = vi.fn();
+    const reconciler = new StewardAutomationReconciler(
+      reconcileStewardAutomation,
+      delay
+    );
+
+    const result = reconciler.start(() => ({ list }));
+    const cancelled = expect(result).rejects.toMatchObject({
+      name: 'StewardAutomationReconciliationCancelledError',
+      reason: 'gateway-stop',
+    });
+    reconciler.stop();
+    listed.resolve([]);
+    await cancelled;
+    await vi.waitFor(() => expect(list).toHaveBeenCalledOnce());
+
+    expect(delay).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+  });
+
+  it('checks the active epoch at an injected pre-submit boundary', async () => {
+    const atBoundary = deferred<void>();
+    const releaseBoundary = deferred<void>();
+    const reconcile = (
+      getCron: Parameters<typeof reconcileStewardAutomation>[0],
+      _beforeSubmit?: () => void | Promise<void>,
+      assertCanSubmit?: () => void
+    ) =>
+      reconcileStewardAutomation(
+        getCron,
+        async () => {
+          atBoundary.resolve();
+          await releaseBoundary.promise;
+        },
+        assertCanSubmit
+      );
+    const reconciler = new StewardAutomationReconciler(reconcile);
+    const { context } = cronContext([job('stale')]);
+
+    const result = reconciler.start(context.getCron);
+    const cancelled = expect(result).rejects.toBeInstanceOf(
+      StewardAutomationReconciliationCancelledError
+    );
+    await atBoundary.promise;
+    reconciler.stop();
+    releaseBoundary.resolve();
+    await cancelled;
+
+    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+  });
+
+  it('clears coalesced pending triggers when the gateway stops', async () => {
+    const listed = deferred<PluginHookGatewayCronJob[]>();
+    const firstList = vi.fn(() => listed.promise);
+    const pendingList = vi.fn().mockResolvedValue([]);
+    const reconciler = new StewardAutomationReconciler();
+
+    const first = reconciler.start(() => ({ list: firstList }));
+    const pending1 = reconciler.trigger(() => ({ list: pendingList }));
+    const pending2 = reconciler.trigger(() => ({ list: pendingList }));
+    const cancellations = [first, pending1, pending2].map((promise) =>
+      expect(promise).rejects.toBeInstanceOf(
+        StewardAutomationReconciliationCancelledError
+      )
+    );
+
+    reconciler.stop();
+    listed.resolve([]);
+    await Promise.all(cancellations);
+    await vi.waitFor(() => expect(firstList).toHaveBeenCalledOnce());
+
+    expect(pendingList).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+  });
+
+  it('restarts with one fresh snapshot and blocks the stale prior epoch', async () => {
+    const staleListResult = deferred<PluginHookGatewayCronJob[]>();
+    const staleList = vi.fn(() => staleListResult.promise);
+    const freshList = vi.fn().mockResolvedValue([job('fresh')]);
+    const reconciler = new StewardAutomationReconciler();
+
+    const stale = reconciler.start(() => ({ list: staleList }));
+    const staleCancelled = expect(stale).rejects.toMatchObject({
+      name: 'StewardAutomationReconciliationCancelledError',
+      reason: 'gateway-stop',
+    });
+    reconciler.stop();
+    const fresh = reconciler.start(() => ({ list: freshList }));
+
+    staleListResult.resolve([job('stale')]);
+    await staleCancelled;
+    await fresh;
+
+    expect(staleList).toHaveBeenCalledOnce();
+    expect(freshList).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProject).toHaveBeenCalledWith({
+      project: { tasks: [expect.objectContaining({ id: 'fresh' })] },
+    });
+  });
 });
 
 describe('registerStewardAutomationReconciliationHooks', () => {
+  it('registers gateway_stop and ignores cron changes while inactive', async () => {
+    const api = createFakeHookApi();
+    const { context, list } = cronContext(jobs);
+    registerStewardAutomationReconciliationHooks(
+      api as unknown as Parameters<
+        typeof registerStewardAutomationReconciliationHooks
+      >[0]
+    );
+
+    expect(api.on).toHaveBeenCalledWith('gateway_stop', expect.any(Function));
+    await api.fire(
+      'cron_changed',
+      { action: 'added', jobId: 'disabled-job' },
+      context
+    );
+    expect(list).not.toHaveBeenCalled();
+
+    await api.fire('gateway_start', { port: 3000 }, context);
+    await api.fire('gateway_stop', { reason: 'shutdown' }, context);
+    list.mockClear();
+    vi.mocked(submitStewardAutomationProject).mockClear();
+
+    await api.fire(
+      'cron_changed',
+      { action: 'removed', jobId: 'disabled-job' },
+      context
+    );
+    expect(list).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+  });
+
   it('reconciles after gateway_start', async () => {
     const api = createFakeHookApi();
     const { context, list } = cronContext(jobs);
@@ -465,6 +627,10 @@ describe('registerStewardAutomationReconciliationHooks', () => {
         typeof registerStewardAutomationReconciliationHooks
       >[0]
     );
+
+    await api.fire('gateway_start', { port: 3000 }, context);
+    list.mockClear();
+    vi.mocked(submitStewardAutomationProject).mockClear();
 
     await api.fire('cron_changed', { action, jobId: 'disabled-job' }, context);
 

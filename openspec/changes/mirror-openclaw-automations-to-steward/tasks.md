@@ -63,7 +63,7 @@
 - [x] 3.5 Retry unavailable cron reads and failed Steward
         submissions while the gateway remains active, preserving the
         last successful projection.
-- [ ] 3.6 Stop new reconciliation and retry activity on
+- [x] 3.6 Stop new reconciliation and retry activity on
         `gateway_stop` without clearing the durable Steward snapshot.
 - [ ] 3.7 Replace the temporary diagnostic handler with projection
         registration while keeping cron telemetry failures isolated.

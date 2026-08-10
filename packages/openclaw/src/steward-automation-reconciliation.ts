@@ -13,14 +13,24 @@ export type StewardAutomationCronAccessor =
   | (() => StewardAutomationCronService | undefined)
   | undefined;
 
+type StewardAutomationSubmissionGuard = () => void | Promise<void>;
+
+type StewardAutomationReconciliation = (
+  getCron: StewardAutomationCronAccessor,
+  beforeSubmit?: StewardAutomationSubmissionGuard,
+  assertCanSubmit?: () => void
+) => Promise<void>;
+
 interface ReconciliationWaiter {
   resolve: () => void;
   reject: (error: unknown) => void;
 }
 
 interface PendingReconciliation {
+  epoch: number;
   getCron: StewardAutomationCronAccessor;
   waiters: ReconciliationWaiter[];
+  settled: boolean;
 }
 
 export const DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS = 5_000;
@@ -63,9 +73,26 @@ export class StewardAutomationCronUnavailableError extends Error {
   }
 }
 
+export class StewardAutomationReconciliationCancelledError extends Error {
+  readonly retryable = false;
+
+  constructor(
+    readonly epoch: number,
+    readonly reason: 'gateway-stop' | 'gateway-restart'
+  ) {
+    super(
+      `Steward automation reconciliation for gateway epoch ${epoch} was ` +
+        `cancelled by ${reason}`
+    );
+    this.name = 'StewardAutomationReconciliationCancelledError';
+  }
+}
+
 /** Read and submit one complete snapshot from the pinned gateway cron API. */
 export async function reconcileStewardAutomation(
-  getCron: StewardAutomationCronAccessor
+  getCron: StewardAutomationCronAccessor,
+  beforeSubmit?: StewardAutomationSubmissionGuard,
+  assertCanSubmit?: () => void
 ): Promise<void> {
   if (!getCron) {
     throw new StewardAutomationCronUnavailableError('missing-accessor');
@@ -78,39 +105,75 @@ export async function reconcileStewardAutomation(
 
   const jobs = await cron.list({ includeDisabled: true });
   const action = normalizeStewardAutomationProject(jobs);
+  await beforeSubmit?.();
+  // Keep this synchronous check adjacent to invoking the adapter. Awaiting a
+  // lifecycle guard here would reopen a microtask-sized stale-submit race.
+  assertCanSubmit?.();
   await submitStewardAutomationProject(action);
 }
 
 /**
- * Serializes complete reconciliations and collapses a busy-period burst into
- * one follow-up using the latest trigger's cron accessor.
+ * Owns serialized reconciliation for reusable gateway lifecycle epochs.
  *
- * Failed attempts wait once before retrying the complete read, normalization,
- * and submission. Triggers received during that delay do not wake it early;
- * they join the failed batch, and the next attempt uses the latest accessor.
- * Every joined trigger remains pending until that covering snapshot succeeds.
+ * `start` replaces any active epoch and requests its full snapshot. Triggers
+ * received while active are coalesced. `stop` cancels retry delay, rejects
+ * outstanding promises with a typed cancellation, and leaves durable Steward
+ * state untouched. A stopped reconciler ignores later change triggers until a
+ * new `start` creates a fresh epoch.
  */
 export class StewardAutomationReconciler {
   private pending: PendingReconciliation | null = null;
+  private current: PendingReconciliation | null = null;
   private running = false;
+  private epoch = 0;
+  private activeEpoch: number | null = null;
+  private retryController: AbortController | null = null;
 
   constructor(
-    private readonly reconcile: (
-      getCron: StewardAutomationCronAccessor
-    ) => Promise<void> = reconcileStewardAutomation,
+    private readonly reconcile: StewardAutomationReconciliation = reconcileStewardAutomation,
     private readonly retryDelay: StewardAutomationRetryDelay = waitForRetryDelay,
-    private readonly retryDelayMs = DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS,
-    private readonly retrySignal?: AbortSignal
+    private readonly retryDelayMs = DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS
   ) {}
 
+  start(getCron: StewardAutomationCronAccessor): Promise<void> {
+    if (this.activeEpoch !== null) {
+      this.deactivate('gateway-restart');
+    }
+
+    const epoch = ++this.epoch;
+    this.activeEpoch = epoch;
+    this.retryController = new AbortController();
+    return this.enqueue(epoch, getCron);
+  }
+
+  /** Ignore cron changes safely while no gateway epoch is active. */
   trigger(getCron: StewardAutomationCronAccessor): Promise<void> {
+    if (this.activeEpoch === null) {
+      return Promise.resolve();
+    }
+    return this.enqueue(this.activeEpoch, getCron);
+  }
+
+  stop(): void {
+    this.deactivate('gateway-stop');
+  }
+
+  private enqueue(
+    epoch: number,
+    getCron: StewardAutomationCronAccessor
+  ): Promise<void> {
     const promise = new Promise<void>((resolve, reject) => {
       const waiter = { resolve, reject };
-      if (this.pending) {
+      if (this.pending?.epoch === epoch) {
         this.pending.getCron = getCron;
         this.pending.waiters.push(waiter);
       } else {
-        this.pending = { getCron, waiters: [waiter] };
+        this.pending = {
+          epoch,
+          getCron,
+          waiters: [waiter],
+          settled: false,
+        };
       }
     });
 
@@ -122,48 +185,113 @@ export class StewardAutomationReconciler {
     return promise;
   }
 
-  private async drain(): Promise<void> {
-    for (;;) {
-      const batch = this.takePending();
-      if (!batch) {
-        break;
-      }
+  private deactivate(reason: 'gateway-stop' | 'gateway-restart'): void {
+    const epoch = this.activeEpoch;
+    if (epoch === null) {
+      return;
+    }
 
+    const cancellation = new StewardAutomationReconciliationCancelledError(
+      epoch,
+      reason
+    );
+    this.activeEpoch = null;
+    this.retryController?.abort(cancellation);
+    this.retryController = null;
+
+    if (this.current?.epoch === epoch) {
+      this.rejectBatch(this.current, cancellation);
+    }
+    if (this.pending?.epoch === epoch) {
+      const pending = this.takePending();
+      if (pending) {
+        this.rejectBatch(pending, cancellation);
+      }
+    }
+  }
+
+  private async drain(): Promise<void> {
+    try {
       for (;;) {
-        try {
-          await this.reconcile(batch.getCron);
-          for (const waiter of batch.waiters) {
-            waiter.resolve();
-          }
+        const batch = this.takePending();
+        if (!batch) {
           break;
-        } catch {
-          try {
-            await this.retryDelay(this.retryDelayMs, this.retrySignal);
-          } catch (delayError) {
-            this.rejectBatch(batch, delayError);
-            const pending = this.takePending();
-            if (pending) {
-              this.rejectBatch(pending, delayError);
-            }
+        }
+        this.current = batch;
+
+        for (;;) {
+          if (!this.isActiveEpoch(batch.epoch)) {
+            this.rejectBatch(batch, this.cancellationFor(batch.epoch));
             break;
           }
 
-          // Wait for the single scheduled delay even if more triggers arrive.
-          // They then join this retry, so no stale intermediate accessor is
-          // read and all covered promises settle with the successful retry.
-          const pending = this.takePending();
-          if (pending) {
-            batch.getCron = pending.getCron;
-            batch.waiters.push(...pending.waiters);
+          try {
+            await this.reconcile(batch.getCron, undefined, () =>
+              this.assertActiveEpoch(batch.epoch)
+            );
+            this.assertActiveEpoch(batch.epoch);
+            this.resolveBatch(batch);
+            break;
+          } catch (error) {
+            if (!this.isActiveEpoch(batch.epoch)) {
+              this.rejectBatch(batch, this.cancellationFor(batch.epoch));
+              break;
+            }
+
+            try {
+              await this.retryDelay(
+                this.retryDelayMs,
+                this.retryController?.signal
+              );
+            } catch (delayError) {
+              this.rejectBatch(batch, delayError);
+              break;
+            }
+
+            if (!this.isActiveEpoch(batch.epoch)) {
+              this.rejectBatch(batch, this.cancellationFor(batch.epoch));
+              break;
+            }
+
+            // Triggers received during the delay join this retry. A pending
+            // batch from a newer restarted epoch remains separate.
+            if (this.pending?.epoch === batch.epoch) {
+              const pending = this.takePending();
+              if (pending) {
+                batch.getCron = pending.getCron;
+                batch.waiters.push(...pending.waiters);
+              }
+            }
           }
         }
-      }
-    }
 
-    // The loop condition and this assignment execute without an await between
-    // them. A later trigger therefore either becomes pending before the loop
-    // drains or observes running=false and starts a new worker.
-    this.running = false;
+        if (this.current === batch) {
+          this.current = null;
+        }
+      }
+    } finally {
+      this.current = null;
+      // No await separates the empty-queue observation from this assignment,
+      // so a later trigger either joined the loop or starts a fresh worker.
+      this.running = false;
+    }
+  }
+
+  private isActiveEpoch(epoch: number): boolean {
+    return this.activeEpoch === epoch;
+  }
+
+  private assertActiveEpoch(epoch: number): void {
+    if (!this.isActiveEpoch(epoch)) {
+      throw this.cancellationFor(epoch);
+    }
+  }
+
+  private cancellationFor(epoch: number) {
+    return new StewardAutomationReconciliationCancelledError(
+      epoch,
+      this.activeEpoch === null ? 'gateway-stop' : 'gateway-restart'
+    );
   }
 
   private takePending(): PendingReconciliation | null {
@@ -172,25 +300,37 @@ export class StewardAutomationReconciler {
     return pending;
   }
 
+  private resolveBatch(batch: PendingReconciliation): void {
+    if (batch.settled) {
+      return;
+    }
+    batch.settled = true;
+    for (const waiter of batch.waiters) {
+      waiter.resolve();
+    }
+  }
+
   private rejectBatch(batch: PendingReconciliation, error: unknown): void {
+    if (batch.settled) {
+      return;
+    }
+    batch.settled = true;
     for (const waiter of batch.waiters) {
       waiter.reject(error);
     }
   }
 }
 
-/**
- * Register complete-snapshot triggers. Each hook promise remains pending
- * across retryable reconciliation failures and resolves after delivery; the
- * eventual index wrapper owns logging and isolation from other hook consumers.
- */
+/** Register full-snapshot work against explicit gateway lifecycle hooks. */
 export function registerStewardAutomationReconciliationHooks(
   api: Pick<OpenClawPluginApi, 'on'>
-): void {
+): StewardAutomationReconciler {
   const reconciler = new StewardAutomationReconciler();
-  const trigger = (ctx: Pick<PluginHookGatewayContext, 'getCron'>) =>
-    reconciler.trigger(ctx.getCron);
+  const getCron = (ctx: Pick<PluginHookGatewayContext, 'getCron'>) =>
+    ctx.getCron;
 
-  api.on('gateway_start', (_event, ctx) => trigger(ctx));
-  api.on('cron_changed', (_event, ctx) => trigger(ctx));
+  api.on('gateway_start', (_event, ctx) => reconciler.start(getCron(ctx)));
+  api.on('cron_changed', (_event, ctx) => reconciler.trigger(getCron(ctx)));
+  api.on('gateway_stop', () => reconciler.stop());
+  return reconciler;
 }
