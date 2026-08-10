@@ -16,6 +16,7 @@ export function SearchBar({
   autoFocus = false,
   placeholder,
   onChangeQuery,
+  onChangeValue,
   debounceTime = 300,
   onPressCancel,
   inputProps,
@@ -24,6 +25,10 @@ export function SearchBar({
   autoFocus?: boolean;
   placeholder?: string;
   onChangeQuery: (query: string) => void;
+  // Receives the input's raw value immediately, before onChangeQuery's
+  // debounce. Consumers can use it to hide results belonging to an older
+  // committed query.
+  onChangeValue?: (value: string) => void;
   debounceTime?: number;
   onPressCancel?: () => void;
   inputProps?: ComponentProps<typeof TextInput>;
@@ -57,6 +62,7 @@ export function SearchBar({
       // we update the input display immediately, but debounce for consumers
       // of the search bar
       setValue(text);
+      onChangeValue?.(text);
       const newValue = text.trim();
       if (newValue === '') {
         // if value was cleared, update immediately
@@ -71,7 +77,7 @@ export function SearchBar({
         debouncedOnChangeQuery(newValue);
       }
     },
-    [debounceTime, debouncedOnChangeQuery, onChangeQuery]
+    [debounceTime, debouncedOnChangeQuery, onChangeQuery, onChangeValue]
   );
 
   return (
