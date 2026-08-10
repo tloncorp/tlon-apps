@@ -37,11 +37,22 @@ export function BotOpenAISubscriptionScreen(props: Props) {
   const providerStatus = getOpenAIAuthStatus(queries.llmAuthStatusQuery.data);
   const connected = isLLMAuthProviderConnected(providerStatus?.status);
   const hasApiKey = Boolean(queries.providerConfig.keys?.openai);
+  const statusUnavailable =
+    queries.llmAuthStatusQuery.isError &&
+    queries.llmAuthStatusQuery.data === undefined;
 
   const handleComplete = useCallback(async () => {
+    if (hasApiKey) {
+      await deleteProviderKey.mutateAsync({ provider: 'openai' });
+    }
     await queries.llmAuthStatusQuery.refetch();
     props.navigation.navigate('BotModelSettings', { mode: 'default' });
-  }, [props.navigation, queries.llmAuthStatusQuery]);
+  }, [
+    deleteProviderKey,
+    hasApiKey,
+    props.navigation,
+    queries.llmAuthStatusQuery,
+  ]);
 
   const auth = useOpenAISubscriptionAuth({
     ship: queries.ship,
@@ -62,13 +73,12 @@ export function BotOpenAISubscriptionScreen(props: Props) {
 
   const handleSwitch = useCallback(async () => {
     try {
-      await deleteProviderKey.mutateAsync({ provider: 'openai' });
       setConfirmSwitch(false);
       await auth.start();
     } catch {
       // The mutation error is rendered below.
     }
-  }, [auth, deleteProviderKey]);
+  }, [auth]);
 
   const handleDisconnect = useCallback(async () => {
     try {
@@ -105,6 +115,28 @@ export function BotOpenAISubscriptionScreen(props: Props) {
           <Text size="$label/m" color="$secondaryText">
             Checking OpenAI connection…
           </Text>
+        </YStack>
+      ) : statusUnavailable ? (
+        <YStack
+          flex={1}
+          alignItems="center"
+          justifyContent="center"
+          gap="$l"
+          padding="$xl"
+        >
+          <Text size="$label/l" textAlign="center">
+            Could not check your OpenAI subscription.
+          </Text>
+          <Text size="$label/s" color="$secondaryText" textAlign="center">
+            {getErrorMessage(queries.llmAuthStatusQuery.error) ??
+              'Check your connection and try again.'}
+          </Text>
+          <Button
+            preset="primary"
+            label="Try again"
+            loading={queries.llmAuthStatusQuery.isFetching}
+            onPress={() => void queries.llmAuthStatusQuery.refetch()}
+          />
         </YStack>
       ) : connected && auth.state.phase === 'idle' ? (
         <SettingsContentScrollView
@@ -168,7 +200,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
         onOpenChange={setConfirmSwitch}
         destructive
         title="Replace the OpenAI API key?"
-        description="OpenAI API-key access and subscription access are alternatives. Connecting your subscription will remove the saved OpenAI API key."
+        description="OpenAI API-key access and subscription access are alternatives. The saved API key will be removed after your subscription connects."
         confirmText="Replace and connect"
         onConfirm={handleSwitch}
       />

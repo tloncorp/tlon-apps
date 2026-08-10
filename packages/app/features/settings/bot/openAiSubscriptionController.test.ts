@@ -26,12 +26,14 @@ const connectedStatus: TlawnLLMAuthStatus = {
 
 function makeController({
   flow = awaitingFlow,
+  status = connectedStatus,
   poll = async () => ({
     flow: { ...flow, status: 'complete' as const },
   }),
   onComplete = () => {},
 }: {
   flow?: TlawnLLMAuthFlow;
+  status?: TlawnLLMAuthStatus;
   poll?: (flowId: string) => Promise<{ flow: TlawnLLMAuthFlow }>;
   onComplete?: () => void | Promise<void>;
 } = {}) {
@@ -42,7 +44,7 @@ function makeController({
     cancel: (timer) => clearTimeout(timer),
     start: async () => ({ flow }),
     poll,
-    loadStatus: async () => connectedStatus,
+    loadStatus: async () => status,
     onComplete: async (models) => {
       completedModels = models;
       await onComplete();
@@ -129,13 +131,35 @@ describe('OpenAIAuthController', () => {
     });
   });
 
-  it('expires locally without making another provider-auth request', async () => {
+  it('retries a transient polling failure without replacing the flow', async () => {
+    const poll = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Temporary gateway failure.'))
+      .mockResolvedValueOnce({
+        flow: { ...awaitingFlow, status: 'complete' as const },
+      });
+    const { controller } = makeController({ poll });
+    await controller.start();
+
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(controller.getState()).toEqual({
+      phase: 'active',
+      flow: awaitingFlow,
+    });
+
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(controller.getState()).toEqual({ phase: 'idle' });
+    expect(poll).toHaveBeenCalledTimes(2);
+  });
+
+  it('polls once at the deadline before expiring a pending flow', async () => {
     let pollCount = 0;
+    const expiringFlow = { ...awaitingFlow, expiresAt: 1_100 };
     const { controller } = makeController({
-      flow: { ...awaitingFlow, expiresAt: 1_100 },
+      flow: expiringFlow,
       poll: async () => {
         pollCount += 1;
-        return { flow: awaitingFlow };
+        return { flow: expiringFlow };
       },
     });
     await controller.start();
@@ -147,7 +171,67 @@ describe('OpenAIAuthController', () => {
       message: 'This connection attempt expired.',
       restartable: true,
     });
-    expect(pollCount).toBe(0);
+    expect(pollCount).toBe(1);
+  });
+
+  it('accepts completion returned by the final deadline poll', async () => {
+    const expiringFlow = { ...awaitingFlow, expiresAt: 1_100 };
+    const { controller, getCompletedModels } = makeController({
+      flow: expiringFlow,
+      poll: async () => ({
+        flow: { ...expiringFlow, status: 'complete' },
+      }),
+    });
+    await controller.start();
+
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(controller.getState()).toEqual({ phase: 'idle' });
+    expect(getCompletedModels()).toEqual([
+      { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra' },
+    ]);
+  });
+
+  it('shows a retryable error instead of completing without models', async () => {
+    const onComplete = vi.fn();
+    const { controller } = makeController({
+      flow: { ...awaitingFlow, status: 'complete' },
+      status: { ...connectedStatus, subscriptionModels: {} },
+      onComplete,
+    });
+
+    await controller.start();
+
+    expect(controller.getState()).toMatchObject({
+      phase: 'error',
+      restartable: true,
+      message: expect.stringContaining(
+        'No subscription models are available yet.'
+      ),
+    });
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it('retries post-auth completion without starting a new flow', async () => {
+    const onComplete = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Could not finish setup.'))
+      .mockResolvedValueOnce(undefined);
+    const { controller } = makeController({
+      flow: { ...awaitingFlow, status: 'complete' },
+      onComplete,
+    });
+
+    await controller.start();
+    expect(controller.getState()).toMatchObject({
+      phase: 'error',
+      flow: { status: 'complete' },
+    });
+
+    await controller.retry();
+
+    expect(controller.getState()).toEqual({ phase: 'idle' });
+    expect(onComplete).toHaveBeenCalledTimes(2);
   });
 
   it('does not publish scheduled work after disposal', async () => {

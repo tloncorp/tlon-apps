@@ -44,6 +44,26 @@ function currentFlow(state: OpenAIAuthState): TlawnLLMAuthFlow | undefined {
   return 'flow' in state ? state.flow : undefined;
 }
 
+function mergeFlowUpdate(
+  state: OpenAIAuthState,
+  nextFlow: TlawnLLMAuthFlow
+): TlawnLLMAuthFlow {
+  const previousFlow = currentFlow(state);
+  if (
+    !previousFlow ||
+    previousFlow.id !== nextFlow.id ||
+    previousFlow.provider !== nextFlow.provider
+  ) {
+    return nextFlow;
+  }
+  return {
+    ...previousFlow,
+    ...nextFlow,
+    userCode: nextFlow.userCode ?? previousFlow.userCode,
+    verificationUrl: nextFlow.verificationUrl ?? previousFlow.verificationUrl,
+  };
+}
+
 export function reduceOpenAIAuthState(
   state: OpenAIAuthState,
   event: OpenAIAuthEvent
@@ -72,32 +92,57 @@ export function reduceOpenAIAuthState(
         flow,
       };
     }
-    case 'flow':
-      if (event.flow.status === 'complete') {
-        return { phase: 'complete', flow: event.flow };
+    case 'flow': {
+      const flow = mergeFlowUpdate(state, event.flow);
+      if (flow.status === 'complete') {
+        return { phase: 'complete', flow };
       }
-      if (event.flow.expiresAt <= event.now) {
+      if (flow.expiresAt <= event.now) {
         return {
           phase: 'error',
           message: 'This connection attempt expired.',
           restartable: true,
-          flow: event.flow,
+          flow,
         };
       }
-      if (event.flow.status === 'error') {
+      if (flow.status === 'error') {
         return {
           phase: 'error',
-          message: event.flow.error ?? 'Connection failed.',
+          message: flow.error ?? 'Connection failed.',
           restartable: true,
-          flow: event.flow,
+          flow,
         };
       }
-      return { phase: 'active', flow: event.flow };
+      return { phase: 'active', flow };
+    }
   }
 }
 
 export const isLLMAuthProviderConnected = (status?: string): boolean =>
   status === 'ok' || status === 'static' || status === 'expiring';
+
+export function getLLMAuthStatusRefetchInterval(
+  status?: TlawnLLMAuthStatus,
+  now = Date.now()
+): number {
+  const defaultIntervalMs = 60_000;
+  const nextExpiry = status?.providers.reduce<number | undefined>(
+    (earliest, provider) => {
+      const expiry = provider.expiry?.at;
+      if (
+        typeof expiry !== 'number' ||
+        !Number.isFinite(expiry) ||
+        expiry <= now
+      ) {
+        return earliest;
+      }
+      return earliest === undefined ? expiry : Math.min(earliest, expiry);
+    },
+    undefined
+  );
+  if (nextExpiry === undefined) return defaultIntervalMs;
+  return Math.max(1_000, Math.min(defaultIntervalMs, nextExpiry - now));
+}
 
 export function getOpenAIAuthStatus(
   status?: TlawnLLMAuthStatus

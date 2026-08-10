@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canDismissOpenAIAuth,
   copyOpenAIUserCode,
+  getLLMAuthStatusRefetchInterval,
   getOpenAIAuthStatus,
   getOpenAICredentialSwitch,
   getOpenAIDisconnectQueryKeys,
@@ -100,6 +101,30 @@ describe('OpenAI subscription auth state', () => {
     ).toEqual({ phase: 'complete', flow: completeFlow });
   });
 
+  it('retains device-code details across partial pending updates', () => {
+    expect(
+      reduceOpenAIAuthState(
+        { phase: 'active', flow: awaitingFlow },
+        {
+          type: 'flow',
+          flow: {
+            id: awaitingFlow.id,
+            provider: 'openai',
+            status: 'authenticating',
+            expiresAt: awaitingFlow.expiresAt,
+          },
+          now: 2_000,
+        }
+      )
+    ).toEqual({
+      phase: 'active',
+      flow: {
+        ...awaitingFlow,
+        status: 'authenticating',
+      },
+    });
+  });
+
   it('turns an expired active flow into a restartable error', () => {
     expect(
       reduceOpenAIAuthState(
@@ -146,6 +171,25 @@ describe('OpenAI subscription status and models', () => {
     expect(isLLMAuthProviderConnected('expiring')).toBe(true);
     expect(isLLMAuthProviderConnected('expired')).toBe(false);
     expect(isLLMAuthProviderConnected('missing')).toBe(false);
+  });
+
+  it('refreshes status by the next credential expiry', () => {
+    expect(
+      getLLMAuthStatusRefetchInterval(
+        {
+          ts: 1,
+          providers: [
+            {
+              provider: 'openai',
+              status: 'expiring',
+              expiry: { at: 31_000, remainingMs: 30_000, label: '30s' },
+            },
+          ],
+        },
+        1_000
+      )
+    ).toBe(30_000);
+    expect(getLLMAuthStatusRefetchInterval(undefined, 1_000)).toBe(60_000);
   });
 
   it('selects OpenAI status and subscription models', () => {

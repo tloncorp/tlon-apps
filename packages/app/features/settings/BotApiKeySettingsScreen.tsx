@@ -83,7 +83,6 @@ export function BotApiKeySettingsScreen(props: Props) {
       provider: providerId,
       key: key.trim(),
     });
-    setKey('');
   }, [key, providerId, saveProviderKey]);
 
   const handleSave = useCallback(async () => {
@@ -106,6 +105,7 @@ export function BotApiKeySettingsScreen(props: Props) {
     }
     try {
       await saveKey();
+      setKey('');
     } catch {
       // surfaced via saveProviderKey.error below
     }
@@ -113,8 +113,9 @@ export function BotApiKeySettingsScreen(props: Props) {
 
   const handleSwitch = useCallback(async () => {
     try {
-      await disconnectOpenAISubscription.mutateAsync();
       await saveKey();
+      await disconnectOpenAISubscription.mutateAsync();
+      setKey('');
       setConfirmSwitch(false);
     } catch {
       // surfaced via mutation errors below

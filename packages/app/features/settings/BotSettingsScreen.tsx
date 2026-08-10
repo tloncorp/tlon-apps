@@ -124,11 +124,14 @@ export function BotSettingsScreen(props: Props) {
   );
   const openAISubscriptionSummary = queries.llmAuthStatusQuery.isLoading
     ? 'Checking…'
-    : openAISubscriptionConnected
-      ? 'Connected'
-      : openAIAuthStatus?.status === 'expired'
-        ? 'Expired'
-        : 'Not connected';
+    : queries.llmAuthStatusQuery.isError &&
+        queries.llmAuthStatusQuery.data === undefined
+      ? 'Unavailable'
+      : openAISubscriptionConnected
+        ? 'Connected'
+        : openAIAuthStatus?.status === 'expired'
+          ? 'Expired'
+          : 'Not connected';
   // Keep the Default model section reachable even when the key backing a custom
   // model was removed: provider keys and model choices are stored separately, so
   // hiding it would strand the bot on an unusable model with no way to switch

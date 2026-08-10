@@ -378,7 +378,19 @@ function SplashSequenceComponent(props: {
   }, [props.splashSequenceMode, shouldDeferTlonbotSetup]);
 
   const handleSubscriptionComplete = useCallback(
-    (models: api.TlawnSubscriptionModel[]) => {
+    async (models: api.TlawnSubscriptionModel[]) => {
+      if (hasOpenAIKey) {
+        const userId = await db.hostingUserId.getValue();
+        if (!userId) {
+          throw new Error('Could not remove the replaced OpenAI API key.');
+        }
+        await api.deleteTlawnProviderKey(
+          userId,
+          'openai',
+          userShipId ?? undefined
+        );
+        setHasOpenAIKey(false);
+      }
       const initialized = initializeOpenAISubscriptionModels(
         models,
         botPrimaryModel
@@ -389,7 +401,7 @@ function SplashSequenceComponent(props: {
       setConfigError(null);
       setCurrentPane(SplashPane.BotModel);
     },
-    [botPrimaryModel]
+    [botPrimaryModel, hasOpenAIKey, userShipId]
   );
   const subscriptionAuth = useOpenAISubscriptionAuth({
     ship: userShipId ? desig(userShipId) : '',
@@ -399,19 +411,6 @@ function SplashSequenceComponent(props: {
   const handleStartSubscription = useCallback(async () => {
     setConfigError(null);
     try {
-      if (hasOpenAIKey) {
-        const userId = await db.hostingUserId.getValue();
-        if (!userId) {
-          setConfigError('Could not replace the OpenAI API key. Try again.');
-          return;
-        }
-        await api.deleteTlawnProviderKey(
-          userId,
-          'openai',
-          userShipId ?? undefined
-        );
-        setHasOpenAIKey(false);
-      }
       await subscriptionAuth.start();
     } catch (error) {
       logger.trackError('Wayfinding OpenAI Subscription Start Failed', {
@@ -419,7 +418,7 @@ function SplashSequenceComponent(props: {
       });
       setConfigError('Could not start OpenAI sign-in. Please try again.');
     }
-  }, [hasOpenAIKey, subscriptionAuth, userShipId]);
+  }, [subscriptionAuth]);
 
   const handleAvatarUrlChange = useCallback(
     (url: string | null, uploadIntent?: Attachment.UploadIntent | null) => {
@@ -679,6 +678,10 @@ function SplashSequenceComponent(props: {
 
       if (selected?.requiresKey) {
         try {
+          await api.setTlawnProviderKey(userId, provider, botApiKey);
+          if (provider === 'openai') {
+            setHasOpenAIKey(true);
+          }
           if (provider === 'openai' && connectedOpenAISubscription) {
             const shipId = await db.hostedUserNodeId.getValue();
             if (!shipId) {
@@ -686,10 +689,6 @@ function SplashSequenceComponent(props: {
             }
             await api.disconnectTlawnLLMAuth(shipId, 'openai');
             setConnectedOpenAISubscription(false);
-          }
-          await api.setTlawnProviderKey(userId, provider, botApiKey);
-          if (provider === 'openai') {
-            setHasOpenAIKey(true);
           }
           logger.trackEvent('Wayfinding Bot Provider Key Sync Succeeded', {
             provider,

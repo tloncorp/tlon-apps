@@ -28,6 +28,7 @@ import {
   toBackendModel,
 } from './helpers';
 import {
+  getLLMAuthStatusRefetchInterval,
   getOpenAIDisconnectQueryKeys,
   getOpenAISubscriptionModels,
   mergeProviderModels,
@@ -153,6 +154,8 @@ export function useBotSettingsQueries() {
     enabled: Boolean(ship) && botReady && isFocused,
     retry: false,
     staleTime: 60 * 1000,
+    refetchInterval: (query) =>
+      getLLMAuthStatusRefetchInterval(query.state.data),
   });
 
   const oauthProvidersQuery = useQuery({

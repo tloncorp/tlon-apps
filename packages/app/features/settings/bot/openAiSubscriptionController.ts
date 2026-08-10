@@ -91,6 +91,21 @@ export class OpenAIAuthController {
     }
   }
 
+  async retry(): Promise<void> {
+    if (
+      this.state.phase === 'error' &&
+      this.state.flow?.status === 'complete'
+    ) {
+      const flow = this.state.flow;
+      this.cancelTimer();
+      this.completionHandled = false;
+      const generation = ++this.generation;
+      await this.acceptFlow(flow, generation);
+      return;
+    }
+    await this.start();
+  }
+
   pause(): void {
     this.paused = true;
     this.cancelTimer();
@@ -146,14 +161,18 @@ export class OpenAIAuthController {
     try {
       const status = await this.deps.loadStatus();
       if (!this.canPublish(generation)) return;
-      await this.deps.onComplete(getOpenAISubscriptionModels(status), status);
+      const models = getOpenAISubscriptionModels(status);
+      if (models.length === 0) {
+        throw new Error('No subscription models are available yet.');
+      }
+      await this.deps.onComplete(models, status);
       if (!this.canPublish(generation)) return;
       this.reset();
     } catch (error) {
       if (!this.canPublish(generation)) return;
       this.transition({
         type: 'failure',
-        message: `Subscription connected, but models could not be loaded: ${getErrorMessage(error)}`,
+        message: `Subscription connected, but setup could not be finished: ${getErrorMessage(error)}`,
       });
     }
   }
@@ -180,10 +199,6 @@ export class OpenAIAuthController {
     }
     const generation = this.generation;
     const flow = this.state.flow;
-    if (flow.expiresAt <= this.deps.now()) {
-      this.transition({ type: 'expired', now: this.deps.now() });
-      return;
-    }
 
     try {
       const response = await this.deps.poll(flow.id);
@@ -191,11 +206,17 @@ export class OpenAIAuthController {
       await this.acceptFlow(response.flow, generation);
     } catch (error) {
       if (!this.canPublish(generation) || this.paused) return;
-      this.transition({
-        type: 'failure',
-        message: getErrorMessage(error),
-        notFound: isNotFound(error),
-      });
+      if (isNotFound(error)) {
+        this.transition({
+          type: 'failure',
+          message: getErrorMessage(error),
+          notFound: true,
+        });
+      } else if (flow.expiresAt <= this.deps.now()) {
+        this.transition({ type: 'expired', now: this.deps.now() });
+      } else {
+        this.schedulePoll();
+      }
     }
   }
 

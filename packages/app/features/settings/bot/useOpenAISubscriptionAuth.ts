@@ -93,9 +93,8 @@ export function useOpenAISubscriptionAuth({
   }, []);
 
   const restart = useCallback(async () => {
-    controllerRef.current?.reset();
-    await start();
-  }, [start]);
+    await controllerRef.current?.retry();
+  }, []);
 
   const dismiss = useCallback(() => {
     setBrowserError(null);
