@@ -11,14 +11,13 @@ import { useCurrentUserId } from '../../../contexts/appDataContext';
 import useOnEmojiSelect from '../../../hooks/useOnEmojiSelect';
 import { ReactionDetails, useReactionDetails } from '../../../utils/postUtils';
 import { EmojiPickerSheet } from '../../Emoji/EmojiPickerSheet';
+import {
+  LAST_SLOT_PLACEHOLDER,
+  resolveSlotEmoji,
+  selectFrequentEmojis,
+} from './quickEmojis';
 
 const logger = createDevLogger('EmojiToolbar', false);
-
-/** Number of slots given to the user's most-used emoji. */
-const FREQUENT_SLOT_COUNT = 3;
-
-/** Fills the frequent slots until the user has enough reaction history. */
-const DEFAULT_QUICK_EMOJIS = ['+1', 'heart', 'laughing'];
 
 /**
  * Keeps testIDs tied to emoji identity rather than slot position, since the
@@ -29,16 +28,6 @@ const TEST_ID_NAMES: Record<string, string> = {
   heart: 'heart',
   laughing: 'laughing',
 };
-
-/**
- * A slot holds either one of the default shortcodes or a native glyph pulled
- * from reaction history. History entries are already native and were validated
- * when the reaction was sent, so fall back to the stored glyph rather than
- * dropping the slot if `getNativeEmoji` doesn't recognize it.
- */
-function resolveSlotEmoji(slot: string) {
-  return getNativeEmoji(slot) ?? slot;
-}
 
 function getTestID(emoji: string) {
   const native = resolveSlotEmoji(emoji);
@@ -78,32 +67,18 @@ export function EmojiToolbar({
 
   const usage = db.emojiUsage.useValue();
 
-  const frequentEmojis = useMemo(() => {
-    const seen = new Set<string>();
-    const slots: string[] = [];
-    const take = (emoji: string) => {
-      const native = resolveSlotEmoji(emoji);
-      if (seen.has(native)) {
-        return;
-      }
-      seen.add(native);
-      slots.push(emoji);
-    };
-
-    db.sortEmojisByUsage(usage).forEach(take);
-    // Backfill any unused slots so the toolbar is never short.
-    DEFAULT_QUICK_EMOJIS.forEach(take);
-
-    return slots.slice(0, FREQUENT_SLOT_COUNT);
-  }, [usage]);
+  const frequentEmojis = useMemo(
+    () => selectFrequentEmojis(db.sortEmojisByUsage(usage)),
+    [usage]
+  );
 
   const lastShortCode =
     details.self.didReact &&
-    !['🌀', ...frequentEmojis].some(
+    ![LAST_SLOT_PLACEHOLDER, ...frequentEmojis].some(
       (code) => resolveSlotEmoji(code) === details.self.value
     )
       ? details.self.value
-      : '🌀';
+      : LAST_SLOT_PLACEHOLDER;
 
   const handleSheetOpen = useCallback(() => {
     if (openExternalSheet) {
