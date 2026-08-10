@@ -131,6 +131,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         setNeedsLayout()
         layoutIfNeeded()
         isPresenting = true
+        setAccessoryInteractionEnabled(false)
 
         previewContainer.frame = sourceFrame
         sourceSnapshot.frame = previewContainer.bounds
@@ -178,6 +179,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
                 return
             }
             self.applyTargetLayout()
+            self.setAccessoryInteractionEnabled(true)
         }
 
         animateScaleBounce()
@@ -205,6 +207,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         isPresenting = false
         applyPresentedAppearance()
         applyTargetLayout()
+        setAccessoryInteractionEnabled(true)
         dimView.backgroundColor = Self.backdropColor
         reactionBar?.alpha = 1
         announcePresentation()
@@ -479,6 +482,11 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         reactionBar?.frame = targetReactionFrame
     }
 
+    private func setAccessoryInteractionEnabled(_ enabled: Bool) {
+        actionList.isUserInteractionEnabled = enabled
+        reactionBar?.isUserInteractionEnabled = enabled
+    }
+
     private func actionFrame(attachedTo previewFrame: CGRect) -> CGRect {
         CGRect(
             x: targetActionFrame.minX,
@@ -545,6 +553,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         }
 
         isDismissing = true
+        setAccessoryInteractionEnabled(false)
         actionList.updateHighlight(at: nil)
         reactionBar?.updateHighlight(at: nil)
         previewContainer.layer.removeAnimation(forKey: "tlonScaleBounce")
@@ -631,6 +640,9 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         _: UIGestureRecognizer,
         shouldReceive touch: UITouch
     ) -> Bool {
+        guard !isPresenting, !isDismissing else {
+            return false
+        }
         guard let touchedView = touch.view else {
             return true
         }
