@@ -268,7 +268,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
     }
 
     func updateGesture(at windowPoint: CGPoint, isSelecting: Bool) {
-        guard isSelecting else {
+        guard isSelecting, !isPresenting else {
             actionList.updateHighlight(at: nil)
             reactionBar?.updateHighlight(at: nil)
             return
@@ -283,7 +283,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
     }
 
     func finishGesture(at windowPoint: CGPoint, shouldSelect: Bool) {
-        guard shouldSelect else {
+        guard shouldSelect, !isPresenting else {
             actionList.updateHighlight(at: nil)
             reactionBar?.updateHighlight(at: nil)
             return

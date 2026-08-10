@@ -314,8 +314,8 @@ const Scroller = forwardRef(
             onPressReplies={onPressReplies}
             onPressPost={onPressPost}
             onLongPressPost={handlePostLongPressed}
-            onShowEmojiPicker={() => {
-              setActiveMessage(post);
+            onShowEmojiPicker={(livePost) => {
+              setActiveMessage(livePost);
               setEmojiPickerOpen(true);
             }}
             onPressEdit={(livePost) => {
