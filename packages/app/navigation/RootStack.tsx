@@ -36,6 +36,7 @@ import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../features/top/MediaViewerScreen';
 import { NotesDetailScreen } from '../features/top/NotesDetailScreen';
 import { NotesFolderScreen } from '../features/top/NotesFolderScreen';
+import { NotesSearchScreen } from '../features/top/NotesSearchScreen';
 import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
@@ -97,6 +98,7 @@ export function RootStack() {
       <Root.Screen name="Post" component={PostScreen} />
       <Root.Screen name="NotesDetail" component={NotesDetailScreen} />
       <Root.Screen name="NotesFolder" component={NotesFolderScreen} />
+      <Root.Screen name="NotesSearch" component={NotesSearchScreen} />
       <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
       <Root.Screen
         name="MediaViewer"

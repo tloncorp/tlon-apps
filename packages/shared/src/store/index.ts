@@ -25,6 +25,7 @@ export * from './inviteActions';
 export * from './hostingActions';
 export * from './lanyardActions';
 export * from './notesActions';
+export * from './useNotesSearch';
 export * from './settingsActions';
 export * from './systemContactActions';
 export * from './blockingActions';
