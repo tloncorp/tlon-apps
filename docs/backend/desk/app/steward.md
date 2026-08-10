@@ -6,36 +6,48 @@ Ship-native umbrella agent: the durable, always-on ship-side half of an ephemera
 
 `%steward` is built around **modules**, each a cohesive feature area. Each module is independently versioned and owns its own protocol types and mark family, so modules can evolve without dragging each other along:
 
-| Module    | sur file                  | marks                                                  |
-|-----------|---------------------------|--------------------------------------------------------|
-| (core)    | `sur/steward.hoon`        | `%steward-action-1`                                    |
-| `lens`    | `sur/steward/lens.hoon`   | `%steward-lens-action-1`, `%steward-lens-update-1`     |
-| `gateway` | `sur/steward/gateway.hoon`| `%steward-gateway-action-1`, `%steward-gateway-update-1` |
+| Module       | sur file                         | marks                                                                    |
+|--------------|----------------------------------|--------------------------------------------------------------------------|
+| (core)       | `sur/steward.hoon`               | `%steward-action-1`                                                      |
+| `lens`       | `sur/steward/lens.hoon`          | `%steward-lens-action-1`, `%steward-lens-update-1`                       |
+| `gateway`    | `sur/steward/gateway.hoon`       | `%steward-gateway-action-1`, `%steward-gateway-update-1`                 |
+| `automation` | `sur/steward/automation.hoon`    | `%steward-automation-action-1`, `%steward-automation-task-map-1`         |
 
 Each sur file is versioned on its own (`++v1`), referenced by callers as `action:v1:lens`, `update:v1:gateway`, etc. The core `sur/steward.hoon` carries only cross-cutting config (currently just `%configure`); each module's protocol lives in its own file.
 
 Modules:
 
-| Module    | Purpose                                                                |
-|-----------|------------------------------------------------------------------------|
-| `lens`    | Per-run bot introspection (folded in from the former `%context-lens`). |
-| `gateway` | Harness liveness tracking + offline DM auto-replies.                   |
+| Module       | Purpose                                                                |
+|--------------|------------------------------------------------------------------------|
+| `lens`       | Per-run bot introspection (folded in from the former `%context-lens`). |
+| `gateway`    | Harness liveness tracking + offline DM auto-replies.                   |
+| `automation` | Durable best-effort mirror of OpenClaw cron task definitions.          |
 
-The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
+The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway, and `au-core` for automation. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
 
 ## state model
 
-State is a single `state-0`, defined in the app file (the agent is greenfield, so there is no migration — an unreadable state just resets to bunt). Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
+`%steward` is released and loads a `versioned-state` union. The released shape remains `state-0`; fresh installs and migrated agents use the current `state-1`:
 
 ```
-state-0
-  owner    (unit ship)                  shared config: bot sends runs to it / its DMs are watched; ~ = inert
-  bots     (set ship)                   owner-side trusted bots: who may send lens %entry pokes cross-ship
-  lens     state:v1:lens                 stored lens run records (owner role)
-  gateway  state:v1:gateway              harness liveness + auto-reply bookkeeping
+state-0 (%0, released)
+  owner       (unit ship)        shared owner config; ~ = inert
+  bots        (set ship)         owner-side trusted lens bots
+  lens        state:v1:lens      stored lens run records
+  gateway     state:v1:gateway   liveness + auto-reply bookkeeping
+
+state-1 (%1, current)
+  owner       (unit ship)        copied unchanged from state-0
+  bots        (set ship)         copied unchanged from state-0
+  lens        state:v1:lens      copied unchanged from state-0
+  gateway     state:v1:gateway   copied unchanged from state-0
+  automation  state:v1:automation
+    tasks     (map @t task)      latest accepted complete projection
 ```
 
 `owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to. `bots` is the owner-side allowlist of ships permitted to fan lens runs in (see the `%entry` gate below); managed via the core `%trust-bot`/`%untrust-bot` pokes.
+
+`on-load` decodes the persisted vase as `versioned-state`. A current `%1` state is restored unchanged. Loading a released `%0` state runs the explicit `state-0-to-1` migration: `owner`, `bots`, `lens`, and `gateway` are copied unchanged, and `automation` starts with an empty task map. `on-save` always writes the current `state-1` shape, so a migrated state remains current on later save/load cycles. A malformed or unrecognized persisted state fails visibly during decode; it is not replaced with bunt state. This is intentional protection against silent loss of released Steward data.
 
 `run` (in `sur/steward/lens.hoon`):
 
@@ -78,9 +90,69 @@ While the gateway is not live, a DM from the configured `owner` triggers a canne
 
 `owner` is the shared top-level `(unit ship)`, set via the core `%configure`. This matches `%gateway-status`'s original single-owner model. The gateway action's own `%configure` carries only timing (`active-window`, `reply-cooldown`); the owner is set once at the core level.
 
+## module: automation
+
+Stores the latest complete OpenClaw cron definition set successfully submitted by the local harness. OpenClaw remains authoritative for scheduling and execution; this module is a durable, locally readable, best-effort mirror and must not be treated as continuously fresh while the harness is offline or reconciliation is failing.
+
+The v1 state is `tasks=(map @t task)`. The OpenClaw job ID is used only as the map key. A stored `task` value has no ID field, so the ID is neither duplicated in state nor inside the JSON value returned by the scry. Every supported definition field is optional and retains its presence or absence:
+
+| Task field | Hoon value | JSON field |
+|------------|------------|------------|
+| agent assignment | `(unit @t)` | `agentId` |
+| display metadata | `(unit @t)` for name and description | `name`, `description` |
+| enabled state | `(unit ?)` | `enabled` |
+| schedule | `(unit cron-schedule)` | `schedule` |
+| execution target | `(unit @t)` for each value | `sessionTarget`, `wakeMode` |
+| payload definition | optional `kind` and `text` | `payload` |
+| definition timestamps | `(unit @da)` for each value | `createdAtMs`, `updatedAtMs` |
+
+Supported schedules are `cron` (`expr`, `tz`, and `staggerMs`), `at` (`at`), and `every` (`everyMs` and `anchorMs`). Millisecond duration and timestamp fields cross the JSON boundary as non-negative integer milliseconds. Pinned OpenClaw returns an `at` timestamp as ISO text; the TypeScript normalizer validates and converts it to Unix milliseconds before `%steward` receives it.
+
+### projection behavior
+
+The inbound action and outbound task map use separate, independently versioned marks so their JSON shapes can evolve separately. `%steward-automation-action-1` accepts one action, `%project`, from the local Gall source only (`src.bowl == our.bowl`). Its JSON shape is:
+
+```json
+{
+  "project": {
+    "tasks": [
+      {
+        "id": "job-id",
+        "agentId": "main",
+        "name": "Daily status",
+        "enabled": false,
+        "schedule": {
+          "kind": "cron",
+          "expr": "0 9 * * *",
+          "tz": "UTC"
+        },
+        "payload": {
+          "kind": "agentTurn",
+          "text": "Send the daily status."
+        }
+      }
+    ]
+  }
+}
+```
+
+The list is the complete projection, not a delta. The action mark parses and validates the JSON fields, while `au-build-task-map` rejects duplicate IDs and constructs the entire replacement map before the agent assigns it to state. Any invalid field, unsupported schedule, duplicate ID, foreign source, or other validation failure leaves the previous map unchanged. A valid action replaces the whole map in one state transition: omitted IDs are removed, an empty `tasks` list clears the projection, and repeating the same logical snapshot produces the same state without duplicate records. After ingestion, each inbound `id` exists only as its map key.
+
+Automation intentionally has no mutation or owner administration surface and no subscription. It also excludes cron execution state, execution events, run history, delivery data, session keys, `deleteAfterRun`, and other runtime-only OpenClaw fields. Those values do not enter the Hoon task type or the automation JSON scry.
+
+### OpenClaw reconciliation
+
+The implementation targets pinned OpenClaw `2026.5.28`, which provides `gateway_start`, `cron_changed`, `gateway_stop`, and `getCron()`, but not `cron_reconciled`. On `gateway_start` and on every `cron_changed` action—including execution-related `started` and `finished` actions—the Tlon plugin calls `getCron().list({ includeDisabled: true })`, normalizes the complete result, and submits one `%project` poke. A genuinely successful empty list therefore clears the projection; unavailable cron access or a failed read does not masquerade as an empty list.
+
+Reconciliation is serialized so an older snapshot cannot overtake a newer one. Triggers that arrive while listing or waiting for poke acknowledgement are coalesced into one follow-up read using the latest cron accessor. Cron access, normalization, connection, read, and poke-acknowledgement failures retry the complete operation after a delay while the gateway epoch remains active. Until a later operation succeeds, the ship retains its last successful projection.
+
+`gateway_stop` cancels retry delays, rejects queued work, and prevents new cron-change work without clearing Steward state. An epoch check immediately before invoking the poke adapter prevents a list from an ended gateway epoch from starting a stale submission. A later `gateway_start` begins a fresh epoch and complete read. The reconciler itself lives in process-shared state and is reused across OpenClaw discovery, full activation, and prewarm registration passes; each pass binds its own hooks to that one process-lifetime worker. Projection errors and cron telemetry errors are observed independently, so neither path suppresses the other.
+
+These triggers repair missed changes when a later complete operation succeeds, but they do not provide exact continuous freshness. A process crash, missed event, offline OpenClaw instance, or repeated failure can leave the mirror stale.
+
 ## poke surface
 
-Three inbound marks, each ownership-gated to admit exactly the right source.
+Four inbound marks, each ownership-gated to admit exactly the right source.
 
 ### `%steward-action-1` (core config) — `src == our`
 
@@ -127,14 +199,25 @@ Only the local gateway drives liveness, so this requires `src == our`.
 [%gateway-stop boot-id=@t reason=@t]                 graceful stop (boot-id must match)
 ```
 
+### `%steward-automation-action-1` (automation) — `src == our`
+
+Only the local harness may replace the automation projection.
+
+```
+[%project tasks=(list identified-task:v1:automation)]
+```
+
+Each `identified-task` is `[id=@t task]` on the noun side. The mark's JSON form and complete-replacement behavior are described under [projection behavior](#projection-behavior).
+
 ## subscription surface
 
 - `/v1/lens` (local only, `?> =(src our)`): `%steward-lens-update-1` facts (`update:v1:lens`, a tagged union) — `%entry` (a stored run, one per insert; the owner-side client reads these) and `%retry-requested` (emitted on the bot ship for its local gateway to re-dispatch). No initial backfill fact — clients scry `/x/v1/lens/recent` for backfill.
 - `/v1/gateway` (local only): `%steward-gateway-update-1` facts (`update:v1:gateway`) — `%status` (on lifecycle transitions, plus an initial fact on subscribe), `%owner-activity`, and `%auto-reply`.
+- Automation has no subscription surface. Clients read its complete map from the dedicated scry.
 
 ## scry surface
 
-All lens scries return the `%steward-lens-update-1` mark so the HTTP client reads them as JSON.
+All scries are local only because `on-peek` requires `src.bowl == our.bowl`. Lens scries return the `%steward-lens-update-1` mark so the HTTP client reads them as JSON.
 
 - `/x/v1/lens/recent` → `[%recent entries]` — newest 50 runs across all bots, for backfill. Grows to `{ "recent": [ entry, … ] }` (a JSON array of entry objects).
 - `/x/v1/lens/recent/[count]` → `[%recent entries]` — newest `count` runs.
@@ -142,6 +225,23 @@ All lens scries return the `%steward-lens-update-1` mark so the HTTP client read
 - `/x/v1/lens/run/[ship]/[id]` → `[%entry entry]`, or empty (`[~ ~]`) when absent.
 - `/x/v1/gateway/status` → `%noun` `[status:v1:gateway (unit @da)]` — current liveness and lease expiry.
 - `/x/v1/gateway/owner-activity` → `%noun` `@da` — timestamp of the most recent owner DM.
+- `/x/v1/automation/tasks` → `%steward-automation-task-map-1` `(map @t task:v1:automation)` — the complete latest accepted automation projection.
+
+The automation task-map mark grows to a JSON object whose property names are the sole serialized task IDs:
+
+```json
+{
+  "tasks": {
+    "job-id": {
+      "agentId": "main",
+      "enabled": false,
+      "schedule": { "kind": "every", "everyMs": 60000 }
+    }
+  }
+}
+```
+
+With no stored tasks the exact JSON shape is `{ "tasks": {} }`. Task values use the supported OpenClaw field names listed above, omit absent optional fields, and never contain `id` or runtime cron state. A foreign Gall source is rejected before the automation peek runs.
 
 `entry` is `[bot=ship id=@t run]`. The `%entry` update grows to JSON for Eyre, embedding the stored payload directly:
 
@@ -151,10 +251,10 @@ All lens scries return the `%steward-lens-update-1` mark so the HTTP client read
 
 ## lifecycle and invariants
 
-- `on-init` subscribes to `%activity /v5` for the gateway module and seeds the default lens retention cap. There is no prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` accepts the single `state-0`, else resets to bunt (re-seeding the cap and re-subscribing to `%activity`). The agent is greenfield/unreleased, so there are no migration arms — versioned state + migrations get added back when something actually ships.
+- `on-init` creates `state-1`, subscribes to `%activity /v5` for the gateway module, seeds the default lens retention cap, and leaves automation empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
+- `on-load` decodes `versioned-state`: current `state-1` loads directly and released `state-0` migrates through `state-0-to-1`. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-1`.
 - Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
-- `on-watch` and `on-peek` assert `=(src our)` — no cross-ship subscriptions or foreign scries. Only the lens poke is ownership-gated (to admit a bot's runs).
+- `on-watch` and `on-peek` assert `=(src our)` — no cross-ship subscriptions or foreign scries. Core, gateway, and automation pokes are local only; lens applies its per-action source rules to admit trusted bot runs and owner relays.
 
 ## integration notes
 

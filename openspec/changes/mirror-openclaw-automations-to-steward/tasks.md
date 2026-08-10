@@ -89,7 +89,7 @@
 
 ## 5. Documentation and Validation
 
-- [ ] 5.1 Document the Steward automation state, migration, local
+- [x] 5.1 Document the Steward automation state, migration, local
         harness `%project` action and atomic projection-commit
         semantics, best-effort OpenClaw flow, exclusions, and JSON
         scry.
