@@ -297,6 +297,7 @@ clurd
 /packages/openclaw/**/.pnpm-store/
 /packages/openclaw/**/.publish/
 /packages/openclaw/**/*.tgz
+/packages/openclaw/dev/tlon-skill-workspace-bin/
 # From packages/openclaw/.prettierignore
 /packages/openclaw/**/SECURITY-AUDIT.md
 /packages/openclaw/**/SECURITY.md

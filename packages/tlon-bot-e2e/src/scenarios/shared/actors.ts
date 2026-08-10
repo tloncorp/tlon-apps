@@ -1,6 +1,7 @@
 import type { RuntimeContext, ShipEndpoint } from '../../drivers/types.js';
 import {
   type BotProfileInput,
+  type ChannelKind,
   type PostRef,
   type PromptResult,
   type StateReader,
@@ -38,6 +39,7 @@ export interface ScenarioActor {
     channelId: string;
     content: StoryInput;
     blob?: string;
+    metadata?: { title?: string; image?: string };
     botProfile?: BotProfileInput;
   }): Promise<PostRef>;
   replyToPost(params: {
@@ -51,6 +53,8 @@ export interface ScenarioActor {
   createGroupWithChannel(params: {
     title: string;
     members?: string[];
+    channelKind?: ChannelKind;
+    channelTitle?: string;
   }): Promise<{ groupId: string; chatChannel: string }>;
   setSettingsEntry(params: {
     bucket: string;

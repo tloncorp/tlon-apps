@@ -48,6 +48,7 @@ import {
 const NEGATIVE_SETTLE_MS = 12_000;
 const MODEL_CALL_WAIT_MS = 90_000;
 const BOT_REPLY_WAIT_MS = 90_000;
+const MIGRATION_RESULT_WAIT_MS = 120_000;
 const LOOP_TIMEOUT_MARGIN_MS = 60_000;
 const CRON_CREATE_PROMPT_WAIT_MS = 120_000;
 const CRON_FIRED_WAIT_MS = {
@@ -407,6 +408,121 @@ export const commonScenarios: readonly SharedScenario[] = [
 
       expectPromptSuccess(result, 'Global owner-listen is now on');
       await waitForSettingsEntries(actors, { ownerListenEnabled: true });
+      await expectNoModelCallsAfterSettle(
+        ctx.fakeModel,
+        benignModelCallPredicate(driver)
+      );
+    }
+  ),
+
+  testScenario(
+    'migrate-happy-path',
+    {
+      timeoutMs: 300_000,
+    },
+    async ({ ctx, driver, actors }) => {
+      const uniqueTitle = scenarioKey('migrate-src');
+      const firstTitle = 'First titled migration note';
+      const secondTitle = 'Second titled migration note';
+      const firstBody = `First seeded migration body ${uniqueTitle}.`;
+      const secondBody = `Second seeded migration body ${uniqueTitle}.`;
+      const fallbackBody = `Untitled migration fallback ${uniqueTitle}.`;
+      const { groupId, chatChannel: diaryNest } =
+        await actors.bot.createGroupWithChannel({
+          title: `Migration fixture ${uniqueTitle}`,
+          channelKind: 'diary',
+          channelTitle: uniqueTitle,
+        });
+
+      const seededPosts = [
+        await actors.bot.sendChannelPost({
+          channelId: diaryNest,
+          content: firstBody,
+          metadata: { title: firstTitle },
+        }),
+        await actors.bot.sendChannelPost({
+          channelId: diaryNest,
+          content: secondBody,
+          metadata: { title: secondTitle },
+        }),
+        await actors.bot.sendChannelPost({
+          channelId: diaryNest,
+          content: fallbackBody,
+        }),
+      ];
+
+      const ack = await actors.owner.prompt(`/migrate ${diaryNest}`, {
+        timeoutMs: 60_000,
+      });
+      actors.bot.teardown(
+        async () => {
+          const notebooks = await actors.bot.state.listNotebooks();
+          for (const notebook of notebooks) {
+            if (notebook.notebook.title === uniqueTitle) {
+              await actors.bot.state.deleteNotebook(
+                `notes/${notebook.host}/${notebook.flagName}`
+              );
+            }
+          }
+        },
+        { label: `delete notebook titled ${uniqueTitle}` }
+      );
+      if (!ack.success) {
+        throw new Error(ack.error ?? 'Migration prompt failed.');
+      }
+      expect(ack.text).toMatch(/Migration (started for|complete)/);
+
+      await waitForDmBotReply(actors.owner, actors.bot.ship, 'renamed with an');
+      const result = await waitForDmBotReply(
+        actors.owner,
+        actors.bot.ship,
+        'Migration complete.',
+        MIGRATION_RESULT_WAIT_MS
+      );
+      expect(result.text).toContain('Notes imported: 3');
+
+      const targetNest = result.text.match(
+        /\bnotes\/~[a-z-]+\/[a-zA-Z0-9-]+\b/
+      )?.[0];
+      if (!targetNest) {
+        throw new Error(`Migration result omitted target nest: ${result.text}`);
+      }
+      actors.bot.teardown(() => actors.bot.state.deleteNotebook(targetNest), {
+        label: `delete notebook ${targetNest}`,
+      });
+
+      const expectedNotes = [
+        { title: firstTitle, body: firstBody },
+        { title: secondTitle, body: secondBody },
+        { title: fallbackBody, body: fallbackBody },
+      ];
+      const notes = await actors.bot.state.listNotes(targetNest);
+      expect(notes).toHaveLength(3);
+      expect(notes.map((note) => note.title).toSorted()).toEqual(
+        expectedNotes.map((note) => note.title).toSorted()
+      );
+      for (const expectedNote of expectedNotes) {
+        const note = notes.find(({ title }) => title === expectedNote.title);
+        expect(note?.bodyMd).toContain(expectedNote.body);
+        expect(
+          note?.bodyMd?.startsWith(`*Originally posted by ${actors.bot.ship}`)
+        ).toBe(true);
+        expect(note?.bodyMd).toContain(`tlon-migrate: ${diaryNest}`);
+      }
+
+      const group = await actors.bot.state.scry<{
+        channels: Record<string, { meta: { title: string } }>;
+      }>('groups', `/v2/ui/groups/${groupId}`);
+      expect(group.channels[targetNest]?.meta.title).toBe(uniqueTitle);
+      expect(group.channels[diaryNest]?.meta.title).toBe(
+        `${uniqueTitle}-ARCHIVE`
+      );
+
+      const sourcePosts = await actors.bot.state.channelPosts(diaryNest, 10);
+      expect(sourcePosts).toHaveLength(3);
+      expect(sourcePosts.map(({ id }) => id).toSorted()).toEqual(
+        seededPosts.map(({ id }) => id).toSorted()
+      );
       await expectNoModelCallsAfterSettle(
         ctx.fakeModel,
         benignModelCallPredicate(driver)
@@ -1793,7 +1909,8 @@ async function expectNoBotThreadReply(
 async function waitForDmBotReply(
   actor: ScenarioActor,
   botShip: string,
-  expectedText: string
+  expectedText: string,
+  timeoutMs = BOT_REPLY_WAIT_MS
 ): Promise<ChannelPost> {
   return waitFor(
     async () => {
@@ -1801,7 +1918,7 @@ async function waitForDmBotReply(
       return replies[0];
     },
     {
-      timeoutMs: BOT_REPLY_WAIT_MS,
+      timeoutMs,
       intervalMs: 500,
       description: `DM reply containing ${JSON.stringify(expectedText)}`,
     }

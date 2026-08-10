@@ -100,7 +100,7 @@ export interface ComposeHandle {
   env: Record<string, string>;
 
   build(services?: string[]): Promise<void>;
-  up(services?: string[]): Promise<void>;
+  up(services?: string[], opts?: { timeoutMs?: number }): Promise<void>;
   ps(opts?: { timeoutMs?: number }): Promise<ComposeServiceState[]>;
   logs(
     services?: string[],
