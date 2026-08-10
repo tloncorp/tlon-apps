@@ -318,8 +318,8 @@ const Scroller = forwardRef(
               setActiveMessage(post);
               setEmojiPickerOpen(true);
             }}
-            onPressEdit={() => {
-              setEditingPost?.(post);
+            onPressEdit={(livePost) => {
+              setEditingPost?.(livePost);
 
               setActiveMessage(null);
             }}

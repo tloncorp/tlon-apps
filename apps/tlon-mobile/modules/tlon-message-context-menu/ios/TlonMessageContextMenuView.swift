@@ -49,6 +49,14 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         }
     }
 
+    var reactionKey = "" {
+        didSet {
+            if reactionKey != oldValue {
+                presentationView?.dismiss()
+            }
+        }
+    }
+
     var alignment: TlonMessageMenuAlignment = .leading
     var previewBackgroundColor: UIColor = .secondarySystemBackground
 
@@ -237,7 +245,9 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         initialGestureLocation = location
         gestureExitedDeadZone = false
         let presentedContentKey = contentKey
+        let presentedReactionKey = reactionKey
         let presentedActions = actions
+        let presentedSelectedReaction = selectedReaction
 
         let presentation = TlonMessageMenuPresentationView(
             sourceView: self,
@@ -262,7 +272,10 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
                 // merely the same stable ID (for example, Hide versus Show).
                 let presentedAction = presentedActions.first { $0.id == id }
                 let currentAction = actions.first { $0.id == id }
+                let reactionSnapshotMatches = id != "viewReactions"
+                    || reactionKey == presentedReactionKey
                 if contentKey == presentedContentKey,
+                   reactionSnapshotMatches,
                    let presentedAction,
                    let currentAction,
                    Self.actionsMatch(presentedAction, currentAction)
@@ -270,7 +283,9 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
                     onAction(["id": id])
                 }
             case let .reaction(value):
-                if reactions.contains(value) {
+                if selectedReaction == presentedSelectedReaction,
+                   reactions.contains(value)
+                {
                     onReaction(["value": value])
                 }
             case .moreReactions:

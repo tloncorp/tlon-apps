@@ -67,6 +67,8 @@ private final class TlonMessageActionRowView: UIView {
         addSubview(iconView)
         titleLabel.font = .preferredFont(forTextStyle: .body)
         titleLabel.adjustsFontForContentSizeCategory = true
+        titleLabel.numberOfLines = 0
+        titleLabel.lineBreakMode = .byWordWrapping
         titleLabel.isUserInteractionEnabled = false
         addSubview(titleLabel)
         separator.backgroundColor = UIColor.white.withAlphaComponent(0.14)
@@ -122,6 +124,16 @@ private final class TlonMessageActionRowView: UIView {
         iconView.tintColor = foregroundColor
         setNeedsLayout()
     }
+
+    func requiredHeight(for width: CGFloat) -> CGFloat {
+        let horizontalInset: CGFloat = 16
+        let iconWidth: CGFloat = iconView.image == nil ? 0 : 36
+        let titleWidth = max(0, width - horizontalInset * 2 - iconWidth)
+        let titleHeight = titleLabel.sizeThatFits(
+            CGSize(width: titleWidth, height: .greatestFiniteMagnitude)
+        ).height
+        return max(50, ceil(titleHeight) + 28)
+    }
 }
 
 final class TlonMessageActionListView: UIView, TlonMessageMenuButtonCollection {
@@ -130,17 +142,14 @@ final class TlonMessageActionListView: UIView, TlonMessageMenuButtonCollection {
     )
     private let scrollView = UIScrollView()
     private let stackView = UIStackView()
+    private var rowHeights: [CGFloat] = []
     var buttons: [(payload: String, button: UIButton)] = []
 
     var onSelection: ((String) -> Void)?
 
     let menuWidth: CGFloat = 252
-    private let rowHeight = max(
-        50,
-        ceil(UIFont.preferredFont(forTextStyle: .body).lineHeight + 28)
-    )
     var contentHeight: CGFloat {
-        CGFloat(buttons.count) * rowHeight
+        rowHeights.reduce(0, +)
     }
 
     init(actions: [TlonMessageMenuAction]) {
@@ -163,6 +172,8 @@ final class TlonMessageActionListView: UIView, TlonMessageMenuButtonCollection {
         for (index, action) in actions.enumerated() {
             let row = makeRow(action: action, showsSeparator: index < actions.count - 1)
             stackView.addArrangedSubview(row)
+            let rowHeight = row.requiredHeight(for: menuWidth)
+            rowHeights.append(rowHeight)
             row.heightAnchor.constraint(equalToConstant: rowHeight).isActive = true
         }
 
@@ -196,7 +207,7 @@ final class TlonMessageActionListView: UIView, TlonMessageMenuButtonCollection {
     private func makeRow(
         action: TlonMessageMenuAction,
         showsSeparator: Bool
-    ) -> UIView {
+    ) -> TlonMessageActionRowView {
         let row = TlonMessageActionRowView(showsSeparator: showsSeparator)
         let button = row.button
         button.accessibilityLabel = action.title

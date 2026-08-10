@@ -27,6 +27,10 @@ public class TlonMessageContextMenuModule: Module {
                 view.contentKey = contentKey
             }
 
+            Prop("reactionKey") { (view, reactionKey: String) in
+                view.reactionKey = reactionKey
+            }
+
             Prop("alignment") { (view, alignment: String?) in
                 view.alignment = alignment == "trailing" ? .trailing : .leading
             }
