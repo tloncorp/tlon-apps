@@ -31,6 +31,7 @@ export const NOTES_V1_OPS = [
   'createNotebook',
   'createGroupNotebook',
   'listNotes',
+  'searchNotes',
   'getNote',
   'createNote',
   'updateNoteBody',
