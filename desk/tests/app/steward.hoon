@@ -1,26 +1,47 @@
-::  tests for %steward agent (lens module + gateway module)
+::  tests for %steward agent modules
 ::
 /-  s=steward, a=activity, av=activity-ver
-/-  l=steward-lens
-/-  g=steward-gateway
+/-  l=steward-lens, g=steward-gateway, au=steward-automation
 /+  *test-agent
 /=  agent  /app/steward
 |%
 ++  dap  %steward
-::  agent state — single version (greenfield, no migration). `bots` is the
-::  owner-side trusted set.
+::  Current agent state. The released state-0 migration remains deliberately
+::  stubbed while the state-1 automation API is exercised.
 ::
-+$  state-0
-  $:  %0
++$  state-1
+  $:  %1
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:l
       gateway=state:v1:g
+      automation=state:v1:au
   ==
 ::  lens run payloads are opaque $json; a simple value suffices for tests
 ::
 ++  payload   ^-  json  s+'run-record'
 ++  payload2  ^-  json  s+'partial'
+++  automation-task
+  |=  name=@t
+  ^-  task:v1:au
+  :*  ~
+      `name
+      ~
+      `&
+      ~
+      ~
+      ~
+      ~
+      ~
+      ~
+  ==
+++  project-automation
+  |=  tasks=(list identified-task:v1:au)
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m
+    (do-poke %steward-automation-action-1 !>(`action:v1:au`[%project tasks]))
+  (pure:m ~)
 ::
 ::  our ship in tests is ~dev (set via +setup below). +moon stands in for a
 ::  remote bot ship; the %entry gate is now an explicit trusted-bots set
@@ -84,6 +105,75 @@
   [/activity [~dev %activity] [%fact %activity-update-5 !>(`update:v9:av`update)]]
 ::
 ::  ==========================================================
+::  AUTOMATION MODULE TESTS
+::  ==========================================================
+::
+++  test-automation-project-populates-id-keyed-map
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  task-b=task:v1:au  (automation-task 'Task B')
+  ;<  ~  bind:m  setup
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  ;<  ~  bind:m
+    (ex-equal !>(tasks.automation.st) !>(*(map @t task:v1:au)))
+  ;<  ~  bind:m
+    (project-automation ~[['task-a' task-a] ['task-b' task-b]])
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  =/  expected=(map @t task:v1:au)
+    %-  ~(gas by *(map @t task:v1:au))
+    ~[['task-a' task-a] ['task-b' task-b]]
+  (ex-equal !>(tasks.automation.st) !>(expected))
+::
+++  test-automation-project-repeats-omits-and-clears
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  task-b=task:v1:au  (automation-task 'Task B')
+  =/  both=(list identified-task:v1:au)
+    ~[['task-a' task-a] ['task-b' task-b]]
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (project-automation both)
+  ;<  ~  bind:m  (project-automation both)
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  =/  expected=(map @t task:v1:au)
+    %-  ~(gas by *(map @t task:v1:au))
+    both
+  ;<  ~  bind:m  (ex-equal !>(tasks.automation.st) !>(expected))
+  ;<  ~  bind:m  (project-automation ~[['task-b' task-b]])
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  =/  expected=(map @t task:v1:au)
+    (~(put by *(map @t task:v1:au)) 'task-b' task-b)
+  ;<  ~  bind:m  (ex-equal !>(tasks.automation.st) !>(expected))
+  ;<  ~  bind:m  (project-automation ~)
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  (ex-equal !>(tasks.automation.st) !>(*(map @t task:v1:au)))
+::
+++  test-automation-project-rejects-duplicate-without-mutation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  task-b=task:v1:au  (automation-task 'Task B')
+  =/  initial=(list identified-task:v1:au)  ~[['task-a' task-a]]
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (project-automation initial)
+  ;<  ~  bind:m
+    (ex-fail (project-automation ~[['duplicate' task-a] ['duplicate' task-b]]))
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  =/  expected=(map @t task:v1:au)
+    (~(put by *(map @t task:v1:au)) 'task-a' task-a)
+  (ex-equal !>(tasks.automation.st) !>(expected))
+::
+::  ==========================================================
 ::  LENS MODULE TESTS
 ::  ==========================================================
 ::
@@ -96,7 +186,7 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
 ::
 ::  a completely foreign ship (not ourselves) must crash the local-only
@@ -359,7 +449,7 @@
   ;<  *  bind:m
     (do-poke %steward-lens-action-1 !>(`action:v1:l`[%configure 1]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   (ex-equal !>(~(wyt by runs.lens.st)) !>(1))
 ::
 ::  /x/v1/lens/since/[da] returns entries with received >= cutoff, newest
@@ -499,7 +589,7 @@
     :~  (ex-task /activity [~dev %activity] %watch /v5)
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`3.000))
 ::
 ++  test-watch-rejects-foreign-ship
@@ -549,7 +639,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup-gateway
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(active-window.gateway.st) !>(~m5))
   (ex-equal !>(reply-cooldown.gateway.st) !>(~m5))
 ::
@@ -575,7 +665,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(lease-until.gateway.st) !>(`lease-time))
 ::
@@ -593,7 +683,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(|))
   (ex-equal !>(lease-until.gateway.st) !>(`new-lease))
@@ -609,7 +699,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -624,7 +714,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-old' 'stale']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(`'boot-1'))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
@@ -643,7 +733,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(~))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
@@ -659,7 +749,7 @@
   ;<  ~  bind:m  (wait ~s91)
   ;<  *  bind:m  (do-arvo /gateway/lease-check [%behn %wake ~])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -755,13 +845,13 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(&))
   =/  lease-time-2  (add ~2024.1.1 ~m4)
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-2' lease-time-2]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
 ::

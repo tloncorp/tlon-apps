@@ -143,6 +143,11 @@
   ::
       %steward-gateway-action-1
     (ga-poke-action:ga-core !<(action:v1:sg vase))
+  ::
+  ::  automation snapshots. Local-source authorization is added separately.
+  ::
+      %steward-automation-action-1
+    (au-poke-action:au-core !<(action:v1:sa vase))
   ==
 ::
 ++  watch
@@ -643,9 +648,32 @@
       (ga-send-dm sender 'Your Tlon bot is offline right now, so replies are paused. I\'ll let you know when I\'m back. 🛰️')
     (ga-give-update [%auto-reply sender now.bowl])
   --
-::  |au-core: automation
+::  |au-core: automation projection module
 ::
 ++  au-core
   |%
+  ++  au-poke-action
+    |=  =action:v1:sa
+    ^+  cor
+    ?-  -.action
+        %project
+      =/  projected  (au-build-task-map tasks.action)
+      cor(tasks.automation.state projected)
+    ==
+  ::  Build the complete replacement before mutating state. A duplicate ID
+  ::  crashes here, leaving the previous projection untouched.
+  ::
+  ++  au-build-task-map
+    |=  entries=(list identified-task:v1:sa)
+    ^-  (map @t task:v1:sa)
+    =/  projected=(map @t task:v1:sa)  *(map @t task:v1:sa)
+    |-
+    ?~  entries  projected
+    =/  entry=identified-task:v1:sa  i.entries
+    ?>  ?=(~ (~(get by projected) id.entry))
+    %=  $
+      entries    t.entries
+      projected  (~(put by projected) id.entry task.entry)
+    ==
   --
 --

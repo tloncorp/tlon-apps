@@ -17,7 +17,7 @@
         released-state migration to fail visibly, and use a nuked
         disposable development agent while validating the new state
         shape.
-- [ ] 2.2 Implement atomic `%project` commits keyed by task ID,
+- [x] 2.2 Implement atomic `%project` commits keyed by task ID,
         including empty and repeated projections, removal by omission,
         duplicate-ID rejection, and unchanged state after invalid
         input.
