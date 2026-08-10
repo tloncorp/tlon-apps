@@ -147,6 +147,8 @@ export class OpenAIAuthController {
       const status = await this.deps.loadStatus();
       if (!this.canPublish(generation)) return;
       await this.deps.onComplete(getOpenAISubscriptionModels(status), status);
+      if (!this.canPublish(generation)) return;
+      this.reset();
     } catch (error) {
       if (!this.canPublish(generation)) return;
       this.transition({

@@ -29,9 +29,11 @@ function makeController({
   poll = async () => ({
     flow: { ...flow, status: 'complete' as const },
   }),
+  onComplete = () => {},
 }: {
   flow?: TlawnLLMAuthFlow;
   poll?: (flowId: string) => Promise<{ flow: TlawnLLMAuthFlow }>;
+  onComplete?: () => void | Promise<void>;
 } = {}) {
   let completedModels: TlawnSubscriptionModel[] | null = null;
   const controller = new OpenAIAuthController({
@@ -41,8 +43,9 @@ function makeController({
     start: async () => ({ flow }),
     poll,
     loadStatus: async () => connectedStatus,
-    onComplete: (models) => {
+    onComplete: async (models) => {
       completedModels = models;
+      await onComplete();
     },
   });
   return { controller, getCompletedModels: () => completedModels };
@@ -58,7 +61,7 @@ describe('OpenAIAuthController', () => {
     vi.useRealTimers();
   });
 
-  it('starts, polls, and reports subscription models on completion', async () => {
+  it('starts, polls, reports subscription models, and resets', async () => {
     const { controller, getCompletedModels } = makeController();
 
     await controller.start();
@@ -69,10 +72,32 @@ describe('OpenAIAuthController', () => {
 
     await vi.advanceTimersByTimeAsync(1_500);
 
-    expect(controller.getState()).toMatchObject({ phase: 'complete' });
+    expect(controller.getState()).toEqual({ phase: 'idle' });
     expect(getCompletedModels()).toEqual([
       { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra' },
     ]);
+  });
+
+  it('stays complete until completion handling finishes', async () => {
+    let finishCompletion: () => void = () => {};
+    const completion = new Promise<void>((resolve) => {
+      finishCompletion = resolve;
+    });
+    const { controller } = makeController({
+      flow: { ...awaitingFlow, status: 'complete' },
+      onComplete: () => completion,
+    });
+
+    const start = controller.start();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(controller.getState().phase).toBe('complete');
+
+    finishCompletion();
+    await start;
+
+    expect(controller.getState().phase).toBe('idle');
   });
 
   it('pauses scheduled polling and polls immediately on resume', async () => {
@@ -84,7 +109,7 @@ describe('OpenAIAuthController', () => {
     expect(controller.getState().phase).toBe('active');
 
     await controller.resume();
-    expect(controller.getState().phase).toBe('complete');
+    expect(controller.getState().phase).toBe('idle');
   });
 
   it('maps a missing flow to a restartable gateway-loss error', async () => {
