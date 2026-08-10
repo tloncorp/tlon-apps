@@ -1439,6 +1439,59 @@ describe('posts edit', () => {
     });
   });
 
+  // An edit resubmits the whole essay, so the CLI must hand back the existing
+  // post's authorship shape or a bot post silently loses its Bot tag.
+  it('preserves bot authorship when editing a bot-authored post', async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({ ...existing, isBot: true }),
+    });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost[0].botProfile).toEqual({
+      nickname: null,
+      avatar: null,
+    });
+  });
+
+  it('leaves a human-authored post bare-authored on edit', async () => {
+    for (const post of [
+      { ...existing, isBot: false },
+      // A record with no isBot at all must not be upgraded either.
+      existing,
+    ]) {
+      const context = makeDeps({ getChannelPosts: withExistingPost(post) });
+
+      const exitCode = await run(
+        ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+        context.deps
+      );
+
+      expect(exitCode).toBe(0);
+      expect('botProfile' in context.calls.editPost[0]).toBe(false);
+    }
+  });
+
+  it('omits bot authorship when the existing-post lookup fails', async () => {
+    const context = makeDeps({
+      getChannelPosts: async () => {
+        throw new Error('lookup boom');
+      },
+    });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect('botProfile' in context.calls.editPost[0]).toBe(false);
+  });
+
   it('treats every token after the post id as the message', async () => {
     const context = makeDeps({ getChannelPosts: withExistingPost(null) });
 

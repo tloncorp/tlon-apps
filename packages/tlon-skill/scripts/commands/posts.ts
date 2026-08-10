@@ -127,6 +127,7 @@ export interface PostEditInput {
   sentAt: number;
   content: Story;
   metadata: PostEditMetadata;
+  botProfile?: BotAuthorProfile;
 }
 
 export interface PostSendInput {
@@ -164,6 +165,7 @@ export interface ExistingPost {
   image?: string | null;
   description?: string | null;
   cover?: string | null;
+  isBot?: boolean | null;
 }
 
 export interface PostLookupResult {
@@ -787,6 +789,13 @@ async function editPost(
     sentAt: deps.now(),
     content: markdownToStory(parsed.message),
     metadata,
+    // An edit resubmits the whole essay, so authorship shape is preserved from
+    // the existing post rather than re-derived: a bot post stays bot-authored,
+    // a human post stays bare. When the lookup fails there is nothing to
+    // preserve, so the edit behaves as it always has.
+    ...(existing?.isBot
+      ? { botProfile: { nickname: null, avatar: null } }
+      : {}),
   });
 }
 
