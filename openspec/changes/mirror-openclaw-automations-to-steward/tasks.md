@@ -38,7 +38,7 @@
         realistic normalized `%project` JSON fixtures derived from
         captured OpenClaw traces while retaining focused conversion
         boundary tests.
-- [ ] 2.7 After the state shape, storage behavior, marks, and scry
+- [x] 2.7 After the state shape, storage behavior, marks, and scry
         have been validated in practice, implement released-state
         migration preserving populated core, trusted-bot, lens, and
         gateway values while initializing automation empty.

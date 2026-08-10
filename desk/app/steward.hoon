@@ -15,8 +15,8 @@
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
-::  Versioned persisted state. state-0 is released and remains decodable until
-::  its migration is implemented. Fresh installs use state-1.
+::  Versioned persisted state. state-0 is released and remains decodable for
+::  migration. Fresh installs and migrated agents use state-1.
 ::
 ::    .owner: shared owner ship (lens send target, gateway owner-DM tracking)
 ::    .bots:  owner-side trusted bots — ships allowed to send lens %entry
@@ -68,15 +68,18 @@
         =?  old  ?=(%0 -.old)  (state-0-to-1 old)
         ?>  ?=(%1 -.old)
         `this(state old)
-    ::  Deliberate task-2.1 stub. Do not invent migration behavior while the
-    ::  new state and API are still changing; task 2.7 replaces this crash with
-    ::  the released-state migration after those shapes are validated.
+    ::  Preserve every released field and initialize the new module empty.
     ::
     ++  state-0-to-1
       |=  old=state-0
       ^-  state-1
-      ~|  'steward: state-0 migration intentionally not implemented'
-      !!
+      :*  %1
+          owner.old
+          bots.old
+          lens.old
+          gateway.old
+          *state:v1:sa
+      ==
     --
   ++  on-poke
     |=  [=mark =vase]
