@@ -83,7 +83,7 @@
         arrival during submission, and the worker-exit race.
 - [x] 4.5 Test read failures, submission failures, retry behavior,
         acknowledgement failures, and gateway shutdown.
-- [ ] 4.6 Add ship-level verification that additions, updates,
+- [x] 4.6 Add ship-level verification that additions, updates,
         removals, disabled tasks, and restart reconciliation appear in
         the automation JSON scry.
 
