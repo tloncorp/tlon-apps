@@ -6,6 +6,7 @@ import {
   buildFolderDestinationRows,
   buildFolderNoteCounts,
   buildFolderRows,
+  buildFolderUnreadCounts,
   filterNotesTreeData,
   getFolderPath,
   getNextNoteIdAfterDelete,
@@ -238,5 +239,50 @@ describe('notes tree helpers', () => {
         selectedNoteId: 2,
       })
     ).toBeNull();
+  });
+});
+
+describe('buildFolderUnreadCounts', () => {
+  test('rolls an unread note up through every ancestor folder', () => {
+    // root(1) -> Projects(2) -> Backlog(4); note in Backlog
+    const folders = [root, projects, archive, backlog];
+    const notes = [
+      makeNote(1, 4, 'Deep'),
+      makeNote(2, 3, 'Archived'),
+      makeNote(3, 1, 'Top'),
+    ];
+
+    const counts = buildFolderUnreadCounts(folders, notes, new Set([1]));
+
+    expect(counts.get(4)).toBe(1);
+    expect(counts.get(2)).toBe(1);
+    expect(counts.get(1)).toBe(1);
+    expect(counts.get(3)).toBe(0);
+  });
+
+  test('sums multiple unread notes at shared ancestors', () => {
+    const folders = [root, projects, archive, backlog];
+    const notes = [
+      makeNote(1, 4, 'Deep'),
+      makeNote(2, 2, 'Mid'),
+      makeNote(3, 3, 'Archived'),
+    ];
+
+    const counts = buildFolderUnreadCounts(folders, notes, new Set([1, 2, 3]));
+
+    expect(counts.get(4)).toBe(1);
+    expect(counts.get(2)).toBe(2);
+    expect(counts.get(3)).toBe(1);
+    expect(counts.get(1)).toBe(3);
+  });
+
+  test('returns zero counts when nothing is unread', () => {
+    const folders = [root, projects];
+    const notes = [makeNote(1, 2, 'Alpha')];
+
+    const counts = buildFolderUnreadCounts(folders, notes, new Set());
+
+    expect(counts.get(2)).toBe(0);
+    expect(counts.get(1)).toBe(0);
   });
 });

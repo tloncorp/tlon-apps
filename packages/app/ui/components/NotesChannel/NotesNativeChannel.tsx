@@ -19,6 +19,7 @@ import {
   renameNotebookFolder,
   trackEvent,
   unpublishNotebookNote,
+  useLiveThreadUnreadsByChannel,
   useMutableCallback,
   usePublishedNotesForNotebook,
 } from '@tloncorp/shared';
@@ -68,6 +69,7 @@ import {
   buildFolderDestinationRows,
   buildFolderNoteCounts,
   buildFolderRows,
+  buildFolderUnreadCounts,
   getFolderLabel,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
@@ -112,12 +114,14 @@ export function NotesNativeChannel({
   folderId,
   groupId,
   notebookFlag,
+  initialNoteId,
 }: {
   channelId: string;
   channelTitle?: string;
   folderId?: number | null;
   groupId?: string | null;
   notebookFlag: string | null | undefined;
+  initialNoteId?: number;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isFocused = useIsFocused();
@@ -210,6 +214,22 @@ export function NotesNativeChannel({
     () => buildFolderNoteCounts(folders, notes),
     [folders, notes]
   );
+  // Per-note unreads ride thread unreads keyed by the raw note id; roll them
+  // up the folder tree so every ancestor of an unread note shows a dot.
+  const { data: noteUnreads } = useLiveThreadUnreadsByChannel(channelId);
+  const unreadNoteIds = useMemo(() => {
+    const ids = new Set<number>();
+    noteUnreads?.forEach((unread) => {
+      if ((unread.count ?? 0) > 0) {
+        ids.add(Number(unread.threadId));
+      }
+    });
+    return ids;
+  }, [noteUnreads]);
+  const folderUnreadCounts = useMemo(
+    () => buildFolderUnreadCounts(folders, notes, unreadNoteIds),
+    [folders, notes, unreadNoteIds]
+  );
   const activeFolderId = folderId ?? rootFolderId;
   const displayedFolderId =
     folderId != null && folders.some((folder) => folder.folderId === folderId)
@@ -287,10 +307,25 @@ export function NotesNativeChannel({
 
   useEffect(() => {
     if (!useDesktopSplit || selectedNoteId !== null) return;
+    // a notification/activity target that hasn't synced yet takes
+    // precedence — auto-selecting the first note here would mark an
+    // unrelated note read before the target appears
+    if (
+      initialNoteId != null &&
+      consumedInitialNoteRef.current !== initialNoteId
+    ) {
+      return;
+    }
     const firstNote = treeRows.find((row) => row.type === 'note')?.note;
     if (!firstNote) return;
     selectNoteInPane(firstNote.noteId);
-  }, [selectNoteInPane, selectedNoteId, treeRows, useDesktopSplit]);
+  }, [
+    selectNoteInPane,
+    selectedNoteId,
+    treeRows,
+    useDesktopSplit,
+    initialNoteId,
+  ]);
 
   useEffect(() => {
     if (
@@ -327,6 +362,19 @@ export function NotesNativeChannel({
       });
     }
   );
+
+  // a notification or activity press targets a specific note; open it once
+  // its record has synced (the notes dep keeps this retrying until the note
+  // appears, then the ref consumes the target)
+  const consumedInitialNoteRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (initialNoteId == null) return;
+    if (consumedInitialNoteRef.current === initialNoteId) return;
+    const note = notes.find((n) => n.noteId === initialNoteId);
+    if (!note) return;
+    consumedInitialNoteRef.current = initialNoteId;
+    openNote(note);
+  }, [initialNoteId, notes, openNote]);
 
   const handleTitleAutoFocused = useMutableCallback(() => {
     setFocusTitleNoteId(null);
@@ -823,6 +871,7 @@ export function NotesNativeChannel({
   const notesTreePane = (
     <NotesTreePane
       canEdit={canEdit}
+      folderUnreadCounts={folderUnreadCounts}
       getPublishedNoteUrl={getPublishedNoteUrl}
       isDeletingFolder={isDeletingFolder}
       isNotePublished={isNotePublished}
@@ -830,6 +879,7 @@ export function NotesNativeChannel({
       publishDisabled={publishingAction !== null}
       selectedNoteId={useDesktopSplit ? selectedNoteId : null}
       treeRows={treeRows}
+      unreadNoteIds={unreadNoteIds}
       onDeleteFolder={handleDeleteFolder}
       onDeleteNote={handleDeleteNote}
       onMoveFolder={openMoveFolderDialog}

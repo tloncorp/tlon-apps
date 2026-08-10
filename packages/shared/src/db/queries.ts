@@ -39,6 +39,7 @@ import {
   or,
   sql,
 } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 
 import { trackEvent } from '../analytics';
 import { createDevLogger } from '../debug';
@@ -1288,7 +1289,10 @@ export const getChats = createReadQuery(
       pin: g.pin,
       timestamp: g.haveInvite
         ? g.unread?.updatedAt ?? 0
-        : g.lastPostAt ?? g.unread?.updatedAt ?? 0,
+        : // whichever is newer: the latest post, or the activity summary's
+          // recency — activity that isn't a post (e.g. a note in a notebook
+          // channel) also reorders the sidebar
+          Math.max(g.lastPostAt ?? 0, g.unread?.updatedAt ?? 0),
       volumeSettings: g.volumeSettings,
       unreadCount: g.unread?.count ?? 0,
       group: g,
@@ -1952,11 +1956,21 @@ export const getThreadPosts = createReadQuery(
 
 export const getThreadUnreadState = createReadQuery(
   'getThreadUnreadState',
-  ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
+  (
+    { parentId, channelId }: { parentId: string; channelId?: string },
+    ctx: QueryCtx
+  ) => {
     if (!parentId) return Promise.resolve(null);
 
+    // note thread ids are small decimals that repeat across notebooks, so
+    // callers that know the channel should pin it to avoid collisions
     return ctx.db.query.threadUnreads.findFirst({
-      where: eq($threadUnreads.threadId, parentId),
+      where: channelId
+        ? and(
+            eq($threadUnreads.threadId, parentId),
+            eq($threadUnreads.channelId, channelId)
+          )
+        : eq($threadUnreads.threadId, parentId),
     });
   },
   ['threadUnreads']
@@ -5718,6 +5732,9 @@ export const getLatestActivityEvent = createReadQuery(
 export const getUnreadUnseenActivityEvents = createReadQuery(
   'getUnreadUnseenActivityEvents',
   async ({ seenMarker }: { seenMarker: number }, ctx: QueryCtx) => {
+    // note events carry their per-note unread as a thread row keyed by the
+    // note id (postId), not parentId, so they need their own join
+    const $noteThreadUnreads = alias($threadUnreads, 'noteThreadUnreads');
     return ctx.db
       .select()
       .from($activityEvents)
@@ -5728,6 +5745,13 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
       .leftJoin(
         $threadUnreads,
         eq($threadUnreads.threadId, $activityEvents.parentId)
+      )
+      .leftJoin(
+        $noteThreadUnreads,
+        and(
+          eq($noteThreadUnreads.channelId, $activityEvents.channelId),
+          eq($noteThreadUnreads.threadId, $activityEvents.postId)
+        )
       )
       .leftJoin(
         $groupUnreads,
@@ -5748,6 +5772,13 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
                 and(
                   eq($activityEvents.type, 'post'),
                   gt($channelUnreads.count, 0)
+                ),
+                and(
+                  or(
+                    eq($activityEvents.type, 'note-create'),
+                    eq($activityEvents.type, 'note-edit')
+                  ),
+                  gt($noteThreadUnreads.count, 0)
                 ),
                 // reacts don't bump an unread count (unreads=|), so gate on the
                 // source's notify flag instead: a notified react lights the bell
@@ -5775,7 +5806,10 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
         )
       );
   },
-  ['activityEvents']
+  // the predicate reads all three unread tables, so clearing an unread
+  // (e.g. reading a note) must re-run this even when no activity event
+  // row changed
+  ['activityEvents', 'channelUnreads', 'threadUnreads', 'groupUnreads']
 );
 
 export const checkActivityEmpty = createReadQuery(
