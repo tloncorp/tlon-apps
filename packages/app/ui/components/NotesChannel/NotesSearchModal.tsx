@@ -1,4 +1,5 @@
 import { useNotesSearch } from '@tloncorp/shared';
+import { noteSearchQueryIsCurrent } from '@tloncorp/shared/logic';
 import { Pressable, TlonText } from '@tloncorp/ui';
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -65,7 +66,7 @@ export function NotesSearchModal({
 
   // What's typed hasn't been searched yet, so `notes` still belongs to the
   // previous term.
-  const queryIsStale = inputValue.trim() !== query;
+  const queryIsCurrent = noteSearchQueryIsCurrent(inputValue, query);
 
   const { notes, loading, errored, hasMore, loadMore, searchComplete } =
     useNotesSearch(open ? notebookFlag : null, open ? query : '');
@@ -73,6 +74,23 @@ export function NotesSearchModal({
   const search = useMemo(
     () => ({ loading, errored, hasMore, loadMore, searchComplete }),
     [loading, errored, hasMore, loadMore, searchComplete]
+  );
+  const visibleNotes = useMemo(
+    () => (queryIsCurrent ? notes : []),
+    [notes, queryIsCurrent]
+  );
+  const visibleSearch = useMemo(
+    () =>
+      queryIsCurrent
+        ? search
+        : {
+            ...search,
+            loading: true,
+            errored: false,
+            hasMore: false,
+            searchComplete: false,
+          },
+    [queryIsCurrent, search]
   );
 
   // Cleared on close rather than on open: the input remounts empty, and a query
@@ -89,16 +107,16 @@ export function NotesSearchModal({
   // Keep the highlight on the first result as pages stream in, and drop it if
   // the note it pointed at is no longer in the list.
   useEffect(() => {
-    if (notes.length === 0) {
+    if (visibleNotes.length === 0) {
       setSelectedNoteId(null);
       return;
     }
     setSelectedNoteId((current) =>
-      current !== null && notes.some((note) => note.noteId === current)
+      current !== null && visibleNotes.some((note) => note.noteId === current)
         ? current
-        : notes[0].noteId
+        : visibleNotes[0].noteId
     );
-  }, [notes]);
+  }, [visibleNotes]);
 
   const close = useCallback(() => onOpenChange(false), [onOpenChange]);
 
@@ -112,22 +130,22 @@ export function NotesSearchModal({
 
   const moveSelection = useCallback(
     (delta: number) => {
-      if (notes.length === 0) return;
-      const currentIndex = notes.findIndex(
+      if (visibleNotes.length === 0) return;
+      const currentIndex = visibleNotes.findIndex(
         (note) => note.noteId === selectedNoteId
       );
       const nextIndex = Math.min(
-        notes.length - 1,
+        visibleNotes.length - 1,
         Math.max(0, (currentIndex === -1 ? 0 : currentIndex) + delta)
       );
-      setSelectedNoteId(notes[nextIndex].noteId);
+      setSelectedNoteId(visibleNotes[nextIndex].noteId);
       // Arrowing to the end is the same "give me more" signal as scrolling to
       // it, and the list's own onEndReached can't see keyboard movement.
-      if (nextIndex === notes.length - 1 && hasMore && !loading) {
+      if (nextIndex === visibleNotes.length - 1 && hasMore && !loading) {
         loadMore();
       }
     },
-    [hasMore, loadMore, loading, notes, selectedNoteId]
+    [hasMore, loadMore, loading, selectedNoteId, visibleNotes]
   );
 
   const handleNavigationKey = useCallback(
@@ -143,14 +161,16 @@ export function NotesSearchModal({
           close();
           break;
         case 'Enter': {
-          if (queryIsStale) {
-            // Mid-debounce the visible results belong to the previous term, so
-            // Enter searches what's typed instead of opening a hit from it.
+          if (!queryIsCurrent) {
+            // Mid-debounce the current results are hidden because they belong
+            // to the previous term. Enter commits what's typed immediately.
             commitQuery.cancel();
             setQuery(inputValue.trim());
             break;
           }
-          const selected = notes.find((note) => note.noteId === selectedNoteId);
+          const selected = visibleNotes.find(
+            (note) => note.noteId === selectedNoteId
+          );
           if (selected) {
             selectNote(selected);
           }
@@ -163,10 +183,10 @@ export function NotesSearchModal({
       commitQuery,
       inputValue,
       moveSelection,
-      notes,
-      queryIsStale,
+      queryIsCurrent,
       selectNote,
       selectedNoteId,
+      visibleNotes,
     ]
   );
 
@@ -254,9 +274,9 @@ export function NotesSearchModal({
           <YStack flex={1} minHeight={0}>
             <NotesSearchResults
               getFolderPath={getFolderPath}
-              notes={notes}
-              query={query}
-              search={search}
+              notes={visibleNotes}
+              query={inputValue.trim()}
+              search={visibleSearch}
               selectedNoteId={selectedNoteId}
               onPressNote={selectNote}
             />

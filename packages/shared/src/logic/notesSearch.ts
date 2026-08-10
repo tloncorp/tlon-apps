@@ -24,6 +24,18 @@ const SNIPPET_CONTEXT = 80;
 // Cap for a snippet with no match to anchor on (title-only hits).
 const SNIPPET_LEAD = 160;
 
+/**
+ * Whether the visible input is the query that produced the current results.
+ * Search inputs keep their raw value while the backend query is trimmed, so
+ * surrounding whitespace does not make an otherwise-current result stale.
+ */
+export function noteSearchQueryIsCurrent(
+  inputValue: string,
+  query: string
+): boolean {
+  return inputValue.trim() === query;
+}
+
 function findMatches(haystack: string, needle: string): [number, number][] {
   if (!needle) return [];
   const lowerHaystack = haystack.toLowerCase();

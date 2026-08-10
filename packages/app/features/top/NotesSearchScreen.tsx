@@ -8,6 +8,7 @@ import {
   useNotesSearch,
   useNotesSearchSupported,
 } from '@tloncorp/shared';
+import { noteSearchQueryIsCurrent } from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SizableText, XStack, YStack } from 'tamagui';
 
@@ -27,6 +28,7 @@ export function NotesSearchScreen(props: Props) {
   // The header hides its search button on an older backend, but a deep link or
   // a route restored from a previous session can still land here.
   const searchSupported = useNotesSearchSupported();
+  const [inputValue, setInputValue] = useState('');
   const [query, setQuery] = useState('');
   const { notes, loading, errored, hasMore, loadMore, searchComplete } =
     useNotesSearch(notebookFlag, query);
@@ -35,6 +37,20 @@ export function NotesSearchScreen(props: Props) {
   const search = useMemo(
     () => ({ loading, errored, hasMore, loadMore, searchComplete }),
     [loading, errored, hasMore, loadMore, searchComplete]
+  );
+  const queryIsCurrent = noteSearchQueryIsCurrent(inputValue, query);
+  const visibleSearch = useMemo(
+    () =>
+      queryIsCurrent
+        ? search
+        : {
+            ...search,
+            loading: true,
+            errored: false,
+            hasMore: false,
+            searchComplete: false,
+          },
+    [queryIsCurrent, search]
   );
 
   // Local reads, only for labeling which folder a hit lives in — the search
@@ -79,6 +95,7 @@ export function NotesSearchScreen(props: Props) {
           <XStack marginHorizontal="$m">
             <SearchBar
               onChangeQuery={setQuery}
+              onChangeValue={setInputValue}
               placeholder="Search notes"
               inputProps={{ autoFocus: true }}
               onPressCancel={() => props.navigation.pop()}
@@ -86,9 +103,9 @@ export function NotesSearchScreen(props: Props) {
           </XStack>
           <NotesSearchResults
             getFolderPath={getFolderPath}
-            notes={notes}
-            query={query}
-            search={search}
+            notes={queryIsCurrent ? notes : []}
+            query={inputValue.trim()}
+            search={visibleSearch}
             onPressNote={handlePressNote}
           />
         </View>
