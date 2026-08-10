@@ -834,6 +834,58 @@ CommandRunner = Callable[
 # Called after every CLI invocation with (args, duration_ms, result).
 CliObserver = Callable[[Sequence[str], int, "TlonSendResult"], None]
 
+# `posts|dms send|reply`: the CLI invocations that author a message, and so the
+# ones that take the bot-author flags.
+SEND_OPERATIONS = frozenset(
+    {
+        ("posts", "send"),
+        ("posts", "reply"),
+        ("dms", "send"),
+        ("dms", "reply"),
+    }
+)
+
+CREDENTIAL_FLAGS_WITH_VALUE = frozenset(
+    {"--config", "--url", "--ship", "--code", "--cookie"}
+)
+
+
+def find_subcommand_index(args: Sequence[str]) -> int:
+    """Index of the command family, skipping leading global credential flags."""
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg.startswith("--") and "=" in arg:
+            flag = arg.split("=", 1)[0]
+            if flag in CREDENTIAL_FLAGS_WITH_VALUE:
+                i += 1
+                continue
+        if arg in CREDENTIAL_FLAGS_WITH_VALUE:
+            i += 2
+            continue
+        return i
+    return -1
+
+
+# The adapter is git-refreshed on every container start while the `tlon` CLI is
+# a baked image binary, so a newer adapter routinely runs against a CLI that
+# does not know the bot-author flags. That CLI would fold `--bot` into the
+# message text, so capability is probed once per CLI instance off its own help
+# output (cheap, no network, no credentials) and decoration is skipped when the
+# flag is absent — degrading to bare-ship authors rather than corrupting sends.
+BOT_FLAG_PROBE_ARGS = ("posts", "send", "--help")
+BOT_FLAG = "--bot"
+# `--bot` as its own token: bracketed/comma'd in usage lines, but never a prefix
+# of `--bot-nickname`/`--bottle`, which say nothing about `--bot` itself.
+_BOT_FLAG_TOKEN = re.compile(r"(?<![\w-])--bot(?![\w-])")
+
+
+def _bot_flag_value(value: str | None) -> str | None:
+    """Flag values are emitted inline (`--bot-nickname=…`), so any non-empty
+    value survives — including one that looks like an option token."""
+    text = (value or "").strip()
+    return text or None
+
 
 class TlonCLI:
     def __init__(
@@ -842,10 +894,91 @@ class TlonCLI:
         *,
         runner: CommandRunner | None = None,
         observer: CliObserver | None = None,
+        as_bot: bool = False,
+        bot_nickname: str | None = None,
+        bot_avatar: str | None = None,
     ) -> None:
         self.config = config
         self._runner = runner or self._run_subprocess
         self._observer = observer
+        self.as_bot = as_bot
+        self._bot_nickname = bot_nickname
+        self._bot_avatar = bot_avatar
+        self._bot_flags_supported: bool | None = None
+        # Created on first use so the lock binds to the loop that probes.
+        self._bot_flag_probe_lock: asyncio.Lock | None = None
+
+    def set_bot_profile(
+        self, *, nickname: str | None, avatar: str | None
+    ) -> None:
+        """Track the bot's published nickname/avatar for `--bot-*` decoration.
+        Called whenever the adapter reconciles its self contact."""
+        self._bot_nickname = nickname
+        self._bot_avatar = avatar
+
+    def _bot_flags(self) -> list[str]:
+        # Inline `--flag=value`: the separated form refuses a value that looks
+        # like an option token, which a nickname legitimately can.
+        flags = [BOT_FLAG]
+        nickname = _bot_flag_value(self._bot_nickname)
+        if nickname:
+            flags.append(f"--bot-nickname={nickname}")
+        avatar = _bot_flag_value(self._bot_avatar)
+        if avatar:
+            flags.append(f"--bot-avatar={avatar}")
+        return flags
+
+    async def _supports_bot_flags(self) -> bool:
+        """Whether the installed CLI knows the bot-author flags. Probed once per
+        instance; an unsupported or unreachable CLI degrades to undecorated
+        sends (bare-ship authors) rather than posting `--bot` as message text."""
+        if self._bot_flags_supported is not None:
+            return self._bot_flags_supported
+
+        if self._bot_flag_probe_lock is None:
+            self._bot_flag_probe_lock = asyncio.Lock()
+        async with self._bot_flag_probe_lock:
+            # Concurrent first sends queue here; the winner's answer serves all
+            # of them, so the CLI is probed — and the error logged — only once.
+            if self._bot_flags_supported is not None:
+                return self._bot_flags_supported
+
+            # Unobserved so a help invocation never lands in CLI telemetry.
+            result = await self._run_unobserved(BOT_FLAG_PROBE_ARGS)
+            # A probe that did not run cleanly says nothing about support: only
+            # a successful help listing `--bot` as its own token counts.
+            supported = bool(result.success) and bool(
+                _BOT_FLAG_TOKEN.search(f"{result.stdout}\n{result.stderr}")
+            )
+            self._bot_flags_supported = supported
+            if not supported:
+                logger.error(
+                    "[tlon] installed tlon CLI (%s) does not support %s "
+                    "(probe rc=%s) — sending with bare ship authors, so "
+                    "messages will NOT carry the bot profile or render the Bot "
+                    "tag. Rebuild the image with a tlon CLI that has the "
+                    "bot-author flags.",
+                    self.config.cli,
+                    BOT_FLAG,
+                    result.returncode,
+                )
+            return supported
+
+    async def _decorate(self, args: Sequence[str]) -> tuple[str, ...]:
+        """Append the bot-author flags to every message-authoring invocation.
+        Centralized here so raw `run_command` tuples are covered too; the flags
+        are registered CLI options, so trailing them never eats message text."""
+        if not self.as_bot:
+            return tuple(args)
+        idx = find_subcommand_index(args)
+        if idx < 0 or idx + 1 >= len(args):
+            return tuple(args)
+        if (args[idx], args[idx + 1]) not in SEND_OPERATIONS:
+            return tuple(args)
+        # Probed only here, so non-send usage never pays for it.
+        if not await self._supports_bot_flags():
+            return tuple(args)
+        return (*args, *self._bot_flags())
 
     async def send_message(
         self,
@@ -899,6 +1032,9 @@ class TlonCLI:
         timeout: float | None = None,
         on_deadline: TlonDeadlineCallback | None = None,
     ) -> TlonSendResult:
+        args = await self._decorate(args)
+        # Timed after decoration so the one-time capability probe is not
+        # reported as this invocation's latency.
         started = time.monotonic()
         result = await self._run_unobserved(
             args, timeout=timeout, on_deadline=on_deadline

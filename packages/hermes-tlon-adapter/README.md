@@ -355,6 +355,12 @@ The `tlon` tool remains owner-only except that non-owner Tlon sessions may use `
 
 Replies post **top-level** in the conversation (Tlon conversations are linear), and messages that arrive inside a thread are answered in that thread, attached to the thread root — this holds for both group channels and DMs (a reply to a DM-thread message lands in that thread, not the main DM). Gallery (`heap/`) conversations always anchor replies to the triggering post as comments. Set `TLON_REPLY_IN_THREAD=true` to instead start a thread on every non-gallery triggering message.
 
+## Bot Authorship
+
+Every outbound message is authored as a bot: `TlonCLI` is constructed with `as_bot=True` at all three sites (the adapter instance, the model-facing `tlon` tool, and the standalone/cron sender) and appends `--bot` to every `posts|dms send|reply` it runs, including raw arg tuples passed to `run_command`. The bot's scried nickname and avatar ride along as `--bot-nickname=`/`--bot-avatar=` on the adapter's own sends and are refreshed whenever the self contact changes. This makes the message carry an author object rather than a bare ship, which is what clients read as "this is a bot" — the "Bot" tag and the bot-conversation affordances that gate on it. Non-send commands are never decorated.
+
+The adapter is git-refreshed on container start while the `tlon` CLI is a baked image binary, so a newer adapter regularly runs against a CLI that predates these flags — one that would post `--bot` as message text. Before its first decorated send, each `TlonCLI` therefore probes the installed binary once (`tlon posts send --help`, no network or credentials) and caches the answer. If the flags are missing, or the probe itself fails, the adapter logs a loud error naming the CLI and sends **undecorated** — messages keep bare-ship authors and no "Bot" tag, exactly as before this feature, rather than being corrupted. Decoration resumes by itself once the image ships a bot-flag-capable CLI.
+
 ## Group Message Context
 
 When the bot wakes in a group channel it prepends recent history to the dispatched message so it can answer in context: the last `TLON_CONTEXT_MESSAGES` channel messages (default 20) for top-level wakes, or the parent post plus thread replies for thread wakes. Context fetches use the same `/channels/v4` scries as OpenClaw and degrade gracefully — on failure the bare message is dispatched. Set `TLON_CONTEXT_MESSAGES=0` to disable.

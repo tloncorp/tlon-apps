@@ -866,7 +866,11 @@ class TlonAdapter(BasePlatformAdapter):
         super().__init__(config=config, platform=Platform("tlon"))
         self.tlon_config = TlonConfig.from_env(config.extra or {})
         self._telemetry = TlonTelemetry(self.tlon_config, extra=config.extra or {})
-        self._cli = TlonCLI(self.tlon_config, observer=self._telemetry.observe_cli)
+        self._cli = TlonCLI(
+            self.tlon_config,
+            observer=self._telemetry.observe_cli,
+            as_bot=True,
+        )
         self._migration = MigrationCommandController(
             run_command=self._run_migration_command,
             send_dm=self._send_migration_dm,
@@ -2491,6 +2495,9 @@ class TlonAdapter(BasePlatformAdapter):
         if avatar != self._bot_avatar:
             self._bot_avatar = avatar
             logger.info("[tlon] bot avatar %s", "updated" if avatar else "cleared")
+        # Outbound sends stamp this profile on the author object; the CLI reads
+        # it at invocation time, so a later profile edit applies immediately.
+        self._cli.set_bot_profile(nickname=nickname, avatar=avatar)
 
     def _handle_contacts_event(self, raw: Any) -> None:
         if not isinstance(raw, dict):
@@ -4677,7 +4684,7 @@ async def _standalone_send(
             "chat_id": chat_id,
             "message_id": None,
         }
-    cli = TlonCLI(tlon)
+    cli = TlonCLI(tlon, as_bot=True)
     if thread_id:
         parent_author = chat_id if _is_dm_chat_id(chat_id) else None
         result = await cli.send_reply(chat_id, thread_id, message, parent_author=parent_author)

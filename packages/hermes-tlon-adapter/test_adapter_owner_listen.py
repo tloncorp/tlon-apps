@@ -635,8 +635,9 @@ class AdapterOwnerListenTests(unittest.TestCase):
         class FakeStandaloneCLI:
             instances = []
 
-            def __init__(self, config):
+            def __init__(self, config, **kwargs):
                 self.config = config
+                self.kwargs = kwargs
                 self.messages = []
                 self.replies = []
                 self.instances.append(self)

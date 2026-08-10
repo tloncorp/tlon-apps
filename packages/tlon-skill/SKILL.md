@@ -422,6 +422,8 @@ tlon dms decline ~sampel                                 # Decline DM invite
 # Group DM (club) sends
 tlon dms send 0v5.abcde "hello"                          # Send to a group DM
 tlon dms send 0v5.abcde "look" --image https://...       # Send with an image
+tlon dms send 0v5.abcde "beep" --bot                     # Author as a bot
+tlon dms reply 0v5.abcde ~author/170.141... "boop" --bot # Bot-authored reply
 
 # One-to-one proactive DMs use posts, not dms
 tlon posts send ~sampel "hello"                           # Send to a 1:1 DM
@@ -456,6 +458,7 @@ tlon posts send ~sampel "Hello"                          # Send a 1:1 DM
 tlon posts send chat/~host/slug "Look" --image https://storage.../x.png # Send with an image
 tlon posts send chat/~host/slug --image https://...      # Image only (no caption)
 tlon posts send heap/~host/gallery "A link or caption" --title "Gallery item" # New gallery item
+tlon posts send chat/~host/slug "Beep" --bot             # Author as a bot
 tlon posts reply heap/~host/gallery 170.141... "Nice work" # Comment on a gallery post
 tlon posts react chat/~host/slug 170.141... "👍"         # React to a post
 tlon posts unreact chat/~host/slug 170.141...            # Remove reaction
@@ -465,6 +468,14 @@ tlon posts edit chat/~host/slug 170.141... "New text"    # Edit a post's message
 tlon posts delete chat/~host/slug 170.141...             # Delete a post
 tlon posts delete heap/~host/gallery 170.141...          # Delete a gallery post
 ```
+
+`--bot` marks a `posts send`/`posts reply`/`dms send`/`dms reply` message as
+bot-authored: the message carries an author object instead of a bare ship,
+which is what makes clients render the "Bot" tag. `--bot-nickname <text>` and
+`--bot-avatar <url>` set the displayed bot profile and each imply `--bot`;
+both also accept the inline `--bot-nickname=<text>` form, which is the only
+way to pass a value that itself starts with `--`.
+Opt-in on purpose — messages you send as yourself must not be bot-tagged.
 
 Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
 

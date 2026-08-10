@@ -769,6 +769,281 @@ describe('posts reply', () => {
   });
 });
 
+describe('posts bot author flags', () => {
+  it('sends with a bare --bot as a bot with an empty profile', async () => {
+    const context = makeDeps({ currentUserId: '~bot', now: 42 });
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'beep', '--bot'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        authorId: '~bot',
+        sentAt: 42,
+        content: [{ inline: ['beep'] }],
+        blob: undefined,
+        botProfile: { nickname: null, avatar: null },
+      },
+    ]);
+  });
+
+  it('treats --bot-nickname and --bot-avatar as implying --bot', async () => {
+    const nicknameOnly = makeDeps({ currentUserId: '~bot', now: 42 });
+    await run(
+      ['send', 'chat/~host/channel', 'beep', '--bot-nickname', 'Botly'],
+      nicknameOnly.deps
+    );
+    expect(nicknameOnly.calls.sendPost[0].botProfile).toEqual({
+      nickname: 'Botly',
+      avatar: null,
+    });
+
+    const avatarOnly = makeDeps({ currentUserId: '~bot', now: 42 });
+    await run(
+      ['send', 'chat/~host/channel', 'beep', '--bot-avatar', 'https://x/y.png'],
+      avatarOnly.deps
+    );
+    expect(avatarOnly.calls.sendPost[0].botProfile).toEqual({
+      nickname: null,
+      avatar: 'https://x/y.png',
+    });
+
+    const both = makeDeps({ currentUserId: '~bot', now: 42 });
+    await run(
+      [
+        'send',
+        'chat/~host/channel',
+        'beep',
+        '--bot',
+        '--bot-nickname',
+        'Botly',
+        '--bot-avatar',
+        'https://x/y.png',
+      ],
+      both.deps
+    );
+    expect(both.calls.sendPost[0].botProfile).toEqual({
+      nickname: 'Botly',
+      avatar: 'https://x/y.png',
+    });
+  });
+
+  it('omits botProfile entirely without a bot flag', async () => {
+    const context = makeDeps();
+    await run(['send', 'chat/~host/channel', 'beep'], context.deps);
+
+    expect('botProfile' in context.calls.sendPost[0]).toBe(false);
+  });
+
+  it('replies as a bot', async () => {
+    const context = makeDeps({ currentUserId: '~bot', now: 7 });
+    const exitCode = await run(
+      [
+        'reply',
+        'chat/~host/channel',
+        '~sampel/170141184',
+        'boop',
+        '--bot-nickname',
+        'Botly',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendReply).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        parentId: '170.141.184',
+        parentAuthor: '~bot',
+        content: [{ inline: ['boop'] }],
+        sentAt: 7,
+        authorId: '~bot',
+        blob: undefined,
+        botProfile: { nickname: 'Botly', avatar: null },
+      },
+    ]);
+  });
+
+  it('keeps trailing bot flags out of the message text', async () => {
+    const send = makeDeps();
+    await run(
+      [
+        'send',
+        'chat/~host/channel',
+        'hello',
+        'there',
+        'friend',
+        '--bot',
+        '--bot-nickname',
+        'Botly',
+      ],
+      send.deps
+    );
+    expect(send.calls.sendPost[0].content).toEqual([
+      { inline: ['hello there friend'] },
+    ]);
+
+    const reply = makeDeps();
+    await run(
+      [
+        'reply',
+        'chat/~host/channel',
+        '170.141',
+        'hello',
+        'there',
+        'friend',
+        '--bot-avatar',
+        'https://x/y.png',
+      ],
+      reply.deps
+    );
+    expect(reply.calls.sendReply[0].content).toEqual([
+      { inline: ['hello there friend'] },
+    ]);
+  });
+
+  it('treats an inline bot flag as a message boundary', async () => {
+    const send = makeDeps();
+    await run(
+      [
+        'send',
+        'chat/~host/channel',
+        'hello',
+        'there',
+        '--bot-nickname=Botly',
+        '--bot-avatar=https://x/y.png',
+      ],
+      send.deps
+    );
+    expect(send.calls.sendPost[0].content).toEqual([
+      { inline: ['hello there'] },
+    ]);
+
+    const reply = makeDeps();
+    await run(
+      [
+        'reply',
+        'chat/~host/channel',
+        '170.141',
+        'hello',
+        'there',
+        '--bot-avatar=https://x/y.png',
+      ],
+      reply.deps
+    );
+    expect(reply.calls.sendReply[0].content).toEqual([
+      { inline: ['hello there'] },
+    ]);
+  });
+
+  it('accepts the inline --flag=value form on send and reply', async () => {
+    const send = makeDeps({ currentUserId: '~bot', now: 42 });
+    await run(
+      [
+        'send',
+        'chat/~host/channel',
+        'beep',
+        '--bot-nickname=Botly',
+        '--bot-avatar=https://x/y.png',
+      ],
+      send.deps
+    );
+    expect(send.calls.sendPost[0].botProfile).toEqual({
+      nickname: 'Botly',
+      avatar: 'https://x/y.png',
+    });
+    expect(send.calls.sendPost[0].content).toEqual([{ inline: ['beep'] }]);
+
+    const reply = makeDeps({ currentUserId: '~bot', now: 7 });
+    await run(
+      [
+        'reply',
+        'chat/~host/channel',
+        '170.141',
+        'boop',
+        '--bot-nickname=Botly',
+      ],
+      reply.deps
+    );
+    expect(reply.calls.sendReply[0].botProfile).toEqual({
+      nickname: 'Botly',
+      avatar: null,
+    });
+    expect(reply.calls.sendReply[0].content).toEqual([{ inline: ['boop'] }]);
+  });
+
+  it('carries an option-looking nickname through the inline form', async () => {
+    const context = makeDeps();
+    await run(
+      ['send', 'chat/~host/channel', 'beep', '--bot-nickname=--weird'],
+      context.deps
+    );
+
+    expect(context.calls.sendPost[0].botProfile).toEqual({
+      nickname: '--weird',
+      avatar: null,
+    });
+  });
+
+  it('rejects a bot flag with a missing or option-token value before auth', async () => {
+    const cases: [string[], string][] = [
+      [
+        ['send', 'chat/~host/channel', 'hi', '--bot-nickname'],
+        POSTS_COMMAND_HELP.send,
+      ],
+      [
+        ['send', 'chat/~host/channel', 'hi', '--bot-avatar'],
+        POSTS_COMMAND_HELP.send,
+      ],
+      [
+        ['send', 'chat/~host/channel', 'hi', '--bot-nickname', '--sent-at'],
+        POSTS_COMMAND_HELP.send,
+      ],
+      [
+        ['reply', 'chat/~host/channel', '170.141', 'hi', '--bot-nickname'],
+        POSTS_COMMAND_HELP.reply,
+      ],
+      [
+        [
+          'reply',
+          'chat/~host/channel',
+          '170.141',
+          'hi',
+          '--bot-avatar',
+          '--bot',
+        ],
+        POSTS_COMMAND_HELP.reply,
+      ],
+      // Inline form with an empty value, and the valueless flag given one.
+      [
+        ['send', 'chat/~host/channel', 'hi', '--bot-nickname='],
+        POSTS_COMMAND_HELP.send,
+      ],
+      [
+        ['send', 'chat/~host/channel', 'hi', '--bot=Botly'],
+        POSTS_COMMAND_HELP.send,
+      ],
+      [
+        ['reply', 'chat/~host/channel', '170.141', 'hi', '--bot-avatar='],
+        POSTS_COMMAND_HELP.reply,
+      ],
+    ];
+
+    for (const [args, usage] of cases) {
+      const context = makeDeps();
+      const exitCode = await run(args, context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(`${usage}\n`);
+      expectNoAuthOrApi(context);
+    }
+  });
+});
+
 describe('posts react', () => {
   it('fails missing react args before auth or API work', async () => {
     const cases = [
