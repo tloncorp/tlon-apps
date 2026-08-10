@@ -54,7 +54,7 @@
 - [x] 3.2 Add a local Steward adapter that submits `%project`
         through the monitor-published ship connection and requires
         successful poke acknowledgement.
-- [ ] 3.3 Trigger complete reads with disabled tasks included after
+- [x] 3.3 Trigger complete reads with disabled tasks included after
         `gateway_start` and every `cron_changed` event using the
         pinned OpenClaw cron access.
 - [ ] 3.4 Serialize reconciliation, coalesce triggers received while
