@@ -93,7 +93,7 @@
         harness `%project` action and atomic projection-commit
         semantics, best-effort OpenClaw flow, exclusions, and JSON
         scry.
-- [ ] 5.2 Run the targeted Hoon tests, applicable backend suite, and
+- [x] 5.2 Run the targeted Hoon tests, applicable backend suite, and
         desk compilation on the development ship.
 - [ ] 5.3 Run OpenClaw formatting, linting, type checking, unit
         tests, and relevant integration tests against the existing
