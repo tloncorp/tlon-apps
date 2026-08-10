@@ -72,6 +72,30 @@ public final class ScrollEdgeElementContainer: ExpoView {
         attachToScrollViewIfPossible()
     }
 
+    override public func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        guard let hitView = super.hitTest(point, with: event) else {
+            return nil
+        }
+
+        // GlassContainer fills the composer row so its surfaces can merge, but
+        // its empty area should not block gestures bound for the scroll view.
+        // A hit inside a GlassView is real input chrome; reaching its parent
+        // GlassContainer first means the hit is only on the decorative host.
+        var ancestor: UIView? = hitView
+        while let view = ancestor, view !== self {
+            switch NSStringFromClass(type(of: view)) {
+            case "ExpoGlassEffect.GlassView":
+                return hitView
+            case "ExpoGlassEffect.GlassContainer":
+                return nil
+            default:
+                ancestor = view.superview
+            }
+        }
+
+        return hitView
+    }
+
     func setScrollViewNativeID(_ nativeID: String?) {
         guard scrollViewNativeID != nativeID else {
             return
