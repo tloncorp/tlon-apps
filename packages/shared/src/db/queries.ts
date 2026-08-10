@@ -3771,7 +3771,9 @@ export const insertChanges = createWriteQuery(
             );
             await perfTime(
               'insertChanges.contacts',
-              () => insertContacts(input.contacts, txCtx),
+              // Changes contacts come from the v1 changes scry and are
+              // authoritative for namespaced fields like bot-commands.
+              () => insertContacts({ v1Contacts: input.contacts }, txCtx),
               { count: input.contacts.length }
             );
             await perfTime(
@@ -5309,10 +5311,26 @@ export const insertContact = createWriteQuery(
   ['contacts']
 );
 
+export interface InsertContactsInput {
+  // Rows sourced from the lossy v0 `/all` peers scry, which strips
+  // namespaced contact keys like `bot-commands`. They carry no signal about
+  // the advertised command manifest, so an existing `botCommands` value is
+  // preserved on conflict instead of being clobbered to null.
+  v0Peers?: Contact[];
+  // Rows sourced from authoritative v1 paths (`/v1/book`, `/v1/news`
+  // subscription facts, targeted `/v1/contact/{ship}` fetches). These are
+  // authoritative for `botCommands`: a present value replaces, an absent one
+  // clears (the bot stopped advertising).
+  v1Contacts?: Contact[];
+}
+
 export const insertContacts = createWriteQuery(
   'insertContacts',
-  async (contactsData: Contact[], ctx: QueryCtx) => {
+  async (input: InsertContactsInput, ctx: QueryCtx) => {
     const currentUserId = getCurrentUserId();
+    const v0Peers = input.v0Peers ?? [];
+    const v1Contacts = input.v1Contacts ?? [];
+    const contactsData = [...v0Peers, ...v1Contacts];
     if (contactsData.length === 0) {
       return;
     }
@@ -5343,8 +5361,20 @@ export const insertContacts = createWriteQuery(
       // Batch size to avoid SQLite variable limits
       const BATCH_SIZE = 100;
 
-      for (let i = 0; i < contactsData.length; i += BATCH_SIZE) {
-        const batch = contactsData.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < v0Peers.length; i += BATCH_SIZE) {
+        const batch = v0Peers.slice(i, i + BATCH_SIZE);
+
+        await txCtx.db
+          .insert($contacts)
+          .values(batch)
+          .onConflictDoUpdate({
+            target: $contacts.id,
+            set: conflictUpdateSetAll($contacts, ['isBlocked', 'botCommands']),
+          });
+      }
+
+      for (let i = 0; i < v1Contacts.length; i += BATCH_SIZE) {
+        const batch = v1Contacts.slice(i, i + BATCH_SIZE);
 
         await txCtx.db
           .insert($contacts)
@@ -5402,8 +5432,8 @@ export const insertContacts = createWriteQuery(
       }
     });
   },
-  (contacts) =>
-    contacts.length
+  (input) =>
+    (input.v0Peers?.length ?? 0) + (input.v1Contacts?.length ?? 0) > 0
       ? ['contacts', 'groups', 'contactGroups', 'contactAttestations']
       : []
 );

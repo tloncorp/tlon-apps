@@ -140,6 +140,10 @@ Fingerprint: fp1:8aa23ca2bc8d
 Source: no git checkout
 ```
 
+### Slash command manifest
+
+At monitor boot the plugin advertises its slash commands in the bot's own contact profile (key `bot-commands`, compare-then-poke), so Tlon clients suggest exactly the commands this plugin registers. The registry in `src/commands-registry.ts` is the single source of truth for both registration and the advertised manifest; the committed fixture is `fixtures/command-manifest.json`. OpenClaw _core_ commands (`/status`, `/help`, `/new`) are not advertised because the core's builtin command registry is not exported from the pinned `openclaw` package and cannot be parity-asserted in CI. Wire contract and clear-to-null rollback procedure: [docs/bot-command-manifests.md](../../docs/bot-command-manifests.md).
+
 ## Bundled Skill
 
 This plugin bundles [@tloncorp/tlon-skill](https://www.npmjs.com/package/@tloncorp/tlon-skill) which provides CLI commands for:

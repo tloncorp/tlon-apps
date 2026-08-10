@@ -12,7 +12,22 @@ import {
 } from './useSlashCommands';
 
 const openclaw = getStaticSlashCommandManifest('openclaw').commands;
-const hermes = getStaticSlashCommandManifest('hermes').commands;
+// Local fixture standing in for a non-static command list (the old static
+// hermes manifest was deleted once bots started advertising their own).
+const advertised: SlashCommandOption[] = [
+  {
+    command: '/compress',
+    title: 'Compress context',
+    keywords: ['compact', 'context', 'summarize'],
+    priority: 1,
+  },
+  {
+    command: '/model',
+    title: 'Model',
+    keywords: ['model', 'provider'],
+    priority: 2,
+  },
+];
 
 const commandNames = (options: SlashCommandOption[]) =>
   options.map((o) => o.command);
@@ -134,8 +149,10 @@ describe('rankSlashCommands', () => {
     expect(rankSlashCommands(openclaw, 'STAT')[0].command).toBe('/status');
   });
 
-  test('hermes /compress is found via the compact keyword', () => {
-    expect(rankSlashCommands(hermes, 'compact')[0].command).toBe('/compress');
+  test('/compress is found via the compact keyword', () => {
+    expect(rankSlashCommands(advertised, 'compact')[0].command).toBe(
+      '/compress'
+    );
   });
 });
 

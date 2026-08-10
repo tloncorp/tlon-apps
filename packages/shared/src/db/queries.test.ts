@@ -426,9 +426,67 @@ test('inserts contacts without overriding block data', async () => {
     contacts.find((c) => c.id === '~fonrym-radfur-nocsyx-lassul')
   ).toBeFalsy();
   // insert contacts
-  await queries.insertContacts(contacts);
+  await queries.insertContacts({ v0Peers: contacts });
   const newBlockedUsers = await queries.getBlockedUsers();
   expect(newBlockedUsers.map((b) => b.id)).toEqual(blocks);
+});
+
+describe('insertContacts botCommands provenance', () => {
+  const ship = '~bot-commands-provenance';
+  const manifest = JSON.stringify({
+    v: 1,
+    commands: [{ command: '/allow', title: 'Allow' }],
+  });
+  const updatedManifest = JSON.stringify({
+    v: 1,
+    commands: [{ command: '/pending', title: 'Pending' }],
+  });
+
+  test('v0-sourced rows preserve an existing manifest', async () => {
+    await queries.insertContacts({
+      v1Contacts: [{ id: ship, botCommands: manifest }],
+    });
+    expect((await queries.getContact({ id: ship }))?.botCommands).toBe(
+      manifest
+    );
+
+    // The lossy v0 /all scry carries no bot-commands signal; re-syncing the
+    // same peer must not clobber the learned manifest.
+    await queries.insertContacts({ v0Peers: [{ id: ship }] });
+    expect((await queries.getContact({ id: ship }))?.botCommands).toBe(
+      manifest
+    );
+  });
+
+  test('v1-sourced rows replace an existing manifest', async () => {
+    await queries.insertContacts({
+      v1Contacts: [{ id: ship, botCommands: manifest }],
+    });
+    await queries.insertContacts({
+      v1Contacts: [{ id: ship, botCommands: updatedManifest }],
+    });
+    expect((await queries.getContact({ id: ship }))?.botCommands).toBe(
+      updatedManifest
+    );
+  });
+
+  test('v1-sourced rows clear the manifest when the key is missing', async () => {
+    await queries.insertContacts({
+      v1Contacts: [{ id: ship, botCommands: manifest }],
+    });
+    // The bot stopped advertising: the v1 fact arrives without the key.
+    await queries.insertContacts({ v1Contacts: [{ id: ship }] });
+    expect((await queries.getContact({ id: ship }))?.botCommands).toBeNull();
+  });
+
+  test('upsertContact sets and clears the manifest (subscription path)', async () => {
+    await queries.upsertContact({ id: ship, botCommands: manifest });
+    expect((await queries.getContact({ id: ship }))?.botCommands).toBe(
+      manifest
+    );
+    await queries.upsertContact({ id: ship, botCommands: null });
+    expect((await queries.getContact({ id: ship }))?.botCommands).toBeNull();
+  });
 });
 
 const refDate = Date.now();

@@ -2,6 +2,7 @@ import * as api from '@tloncorp/api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
+import * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import * as GroupActions from './groupActions';
@@ -9,6 +10,83 @@ import { syncContacts } from './sync/syncContacts';
 import { syncGroup } from './sync/syncGroup';
 
 const logger = createDevLogger('ContactActions', false);
+
+// Cold-start backfill for advertised bot-command manifests (fresh install /
+// DB reset): the initial v0 `/all` peers scry strips the namespaced
+// `bot-commands` key, and waiting for the bot's next republish could take
+// weeks. Fetch the ship's full v1 profile on demand instead.
+const BOT_COMMANDS_BACKFILL_MAX_ATTEMPTS = 3;
+// Session-scoped bookkeeping, keyed by `${currentUserId}:${ship}` so a
+// switched account starts fresh.
+const botCommandsBackfillInFlight = new Set<string>();
+const botCommandsBackfillAttempts = new Map<string, number>();
+
+export async function ensureBotCommandsSynced(ship: string): Promise<void> {
+  let reservedKey: string | null = null;
+  try {
+    const currentUserId = api.getCurrentUserId();
+    const key = `${currentUserId}:${ship}`;
+    // Dedupe in-flight attempts; the %meet poke and scry are otherwise
+    // repeated on every hook evaluation while the query is settled.
+    if (botCommandsBackfillInFlight.has(key)) {
+      return;
+    }
+    const attempts = botCommandsBackfillAttempts.get(key) ?? 0;
+    if (attempts >= BOT_COMMANDS_BACKFILL_MAX_ATTEMPTS) {
+      return;
+    }
+    // Reserved before the first await: two callers that both got past the
+    // check above would otherwise both reach the network and share one
+    // attempt count.
+    botCommandsBackfillInFlight.add(key);
+    reservedKey = key;
+
+    const contact = await db.getContact({ id: ship });
+    // Only a *usable* manifest means there is nothing to fetch: a stale,
+    // malformed or wrong-version value reads as no manifest everywhere else
+    // (the hook falls back to the static list), so it must not pin the
+    // backfill off either.
+    if (domain.parseBotCommandManifest(contact?.botCommands)) {
+      return;
+    }
+    // Only a row known to be a non-contact (`isContact === false`, not merely
+    // absent or null — the column is nullable and partial rows really occur,
+    // e.g. blocked-contact inserts) is backfillable. Anything less proves
+    // nothing yet — during a fresh-start sync the bot may still turn out to be
+    // a contact-book entry, whose per-ship scry merges the user's own `mod`
+    // overlay and must never become the manifest source. Contact-book bots
+    // also already arrive lossless via the v1 /book sync.
+    if (!contact || contact.isContact !== false) {
+      return;
+    }
+
+    // Counted before the network work, so a failure mid-flight still burns an
+    // attempt; success or empty results are never cached as done, so later
+    // hook evaluations retry up to the cap.
+    botCommandsBackfillAttempts.set(key, attempts + 1);
+    // Ensure we are subscribed to the ship's profile updates (%meet). The
+    // first scry can race the remote watch and miss; when it does, the
+    // subscription delivers the profile later and failures stay retryable.
+    await api.syncUserProfiles([ship]);
+    const profile = await api.getContactProfile(ship);
+    if (profile) {
+      await db.upsertContact(profile);
+    }
+  } catch (e) {
+    // Silent by design — the popup degrades to the static fallback.
+    logger.log('ensureBotCommandsSynced failed', e);
+  } finally {
+    if (reservedKey !== null) {
+      botCommandsBackfillInFlight.delete(reservedKey);
+    }
+  }
+}
+
+/** Test-only: clear the session-scoped backfill bookkeeping. */
+export function resetBotCommandsBackfillState() {
+  botCommandsBackfillInFlight.clear();
+  botCommandsBackfillAttempts.clear();
+}
 
 export async function addContact(contactId: string) {
   logger.trackEvent(AnalyticsEvent.ActionContactAdded, { count: 1 });

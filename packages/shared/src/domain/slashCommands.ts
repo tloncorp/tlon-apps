@@ -1,4 +1,4 @@
-export type BotAgentType = 'openclaw' | 'hermes';
+export type BotAgentType = 'openclaw';
 
 export interface SlashCommandOption {
   command: `/${string}`;
@@ -16,9 +16,174 @@ export interface SlashCommandOption {
 }
 
 export interface SlashCommandManifest {
-  agent: BotAgentType;
+  // Only the static fallback manifests carry an agent; manifests advertised
+  // by bots through their contact profile omit it.
+  agent?: BotAgentType;
   commands: SlashCommandOption[];
 }
+
+// ── Advertised command manifests ────────────────────────────────────────────
+// Bots publish their slash-command manifest in their own contact profile,
+// under BOT_COMMANDS_CONTACT_KEY, as a %text value whose text is JSON:
+//   { "v": 1, "commands": [{ "command": "/allow", "title": "Allow", ... }] }
+// Array order is the ranking priority; the client assigns priority = index+1
+// at parse time. See docs/bot-command-manifests.md for the wire contract.
+
+export const BOT_COMMANDS_CONTACT_KEY = 'bot-commands';
+
+// Manifest-local ceilings. The backend additionally caps the whole jammed
+// profile (all fields) at 10kB, so publishers treat poke rejection as a
+// real, non-fatal outcome.
+export const BOT_COMMANDS_MAX_RAW_BYTES = 6000;
+export const BOT_COMMANDS_MAX_ENTRIES = 32;
+export const BOT_COMMANDS_MAX_COMMAND_CHARS = 32;
+export const BOT_COMMANDS_MAX_TITLE_CHARS = 64;
+export const BOT_COMMANDS_MAX_SUBTITLE_CHARS = 160;
+export const BOT_COMMANDS_MAX_ICON_CHARS = 32;
+export const BOT_COMMANDS_MAX_KEYWORDS = 8;
+export const BOT_COMMANDS_MAX_KEYWORD_CHARS = 32;
+export const BOT_COMMANDS_MAX_INSERT_TEXT_CHARS = 128;
+
+// Any token that does not match this shape can never trigger the slash
+// command popup (see computeSlashCommandState), so such entries are dropped
+// at parse time.
+const BOT_COMMAND_TOKEN_PATTERN = new RegExp(
+  `^\\/[a-zA-Z0-9-]{1,${BOT_COMMANDS_MAX_COMMAND_CHARS}}$`
+);
+
+export function utf8ByteLength(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
+}
+
+/**
+ * Parse an advertised bot-command manifest off a synced contact record.
+ * Takes `unknown` — the value comes from the network and the TS declaration
+ * of the contact field proves nothing at runtime. Returns null when the
+ * manifest is absent, malformed, or has no valid entries; callers fall back
+ * to the static manifest in that case.
+ */
+export function parseBotCommandManifest(
+  raw: unknown
+): SlashCommandManifest | null {
+  if (typeof raw !== 'string') {
+    return null;
+  }
+  if (utf8ByteLength(raw) > BOT_COMMANDS_MAX_RAW_BYTES) {
+    return null;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return null;
+  }
+
+  const manifest = parsed as Record<string, unknown>;
+  if (manifest.v !== 1) {
+    return null;
+  }
+  if (!Array.isArray(manifest.commands)) {
+    return null;
+  }
+
+  const commands: SlashCommandOption[] = [];
+  const seenCommands = new Set<string>();
+  // The cap is on wire entries, not survivors: entries past the first 32 are
+  // never read, so invalid or duplicate ones inside the window do not let a
+  // later entry through.
+  for (const entry of manifest.commands.slice(0, BOT_COMMANDS_MAX_ENTRIES)) {
+    const option = parseBotCommandEntry(entry);
+    if (option === null) {
+      continue;
+    }
+    // Duplicate tokens: keep the first occurrence.
+    if (seenCommands.has(option.command)) {
+      continue;
+    }
+    seenCommands.add(option.command);
+    option.priority = commands.length + 1;
+    commands.push(option);
+  }
+
+  if (commands.length === 0) {
+    return null;
+  }
+  return { commands };
+}
+
+function parseBotCommandEntry(entry: unknown): SlashCommandOption | null {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+    return null;
+  }
+  const record = entry as Record<string, unknown>;
+
+  if (
+    typeof record.command !== 'string' ||
+    !BOT_COMMAND_TOKEN_PATTERN.test(record.command)
+  ) {
+    return null;
+  }
+  if (!isCappedString(record.title, BOT_COMMANDS_MAX_TITLE_CHARS)) {
+    return null;
+  }
+
+  const option: SlashCommandOption = {
+    command: record.command as `/${string}`,
+    title: record.title,
+    priority: 0,
+  };
+
+  if (record.subtitle !== undefined) {
+    if (!isCappedString(record.subtitle, BOT_COMMANDS_MAX_SUBTITLE_CHARS)) {
+      return null;
+    }
+    option.subtitle = record.subtitle;
+  }
+  if (record.icon !== undefined) {
+    if (!isCappedString(record.icon, BOT_COMMANDS_MAX_ICON_CHARS)) {
+      return null;
+    }
+    option.icon = record.icon;
+  }
+  if (record.insertText !== undefined) {
+    if (
+      !isCappedString(record.insertText, BOT_COMMANDS_MAX_INSERT_TEXT_CHARS)
+    ) {
+      return null;
+    }
+    option.insertText = record.insertText;
+  }
+  if (record.keywords !== undefined) {
+    if (!Array.isArray(record.keywords)) {
+      return null;
+    }
+    if (record.keywords.length > BOT_COMMANDS_MAX_KEYWORDS) {
+      return null;
+    }
+    const keywords: string[] = [];
+    for (const keyword of record.keywords) {
+      if (!isCappedString(keyword, BOT_COMMANDS_MAX_KEYWORD_CHARS)) {
+        return null;
+      }
+      keywords.push(keyword);
+    }
+    option.keywords = keywords;
+  }
+
+  return option;
+}
+
+// Caps count code points, not UTF-16 code units: an astral character (emoji,
+// most CJK extensions) is one character to a publisher but two `.length` units.
+function isCappedString(value: unknown, maxChars: number): value is string {
+  return typeof value === 'string' && Array.from(value).length <= maxChars;
+}
+
+// ── Static fallback manifest ────────────────────────────────────────────────
 
 const OPENCLAW_COMMANDS: SlashCommandOption[] = [
   {
@@ -111,96 +276,20 @@ const OPENCLAW_COMMANDS: SlashCommandOption[] = [
   },
 ];
 
-const HERMES_COMMANDS: SlashCommandOption[] = [
-  {
-    command: '/new',
-    title: 'New session',
-    subtitle: 'Start a fresh Hermes session',
-    icon: 'Add',
-    keywords: ['reset', 'session', 'hermes'],
-    priority: 1,
-  },
-  {
-    command: '/reset',
-    title: 'Reset session',
-    subtitle: 'Clear the current conversation and start over',
-    icon: 'Refresh',
-    keywords: ['clear', 'restart', 'session'],
-    priority: 2,
-  },
-  {
-    command: '/stop',
-    title: 'Stop',
-    subtitle: 'Interrupt the current Hermes response',
-    icon: 'Stop',
-    keywords: ['cancel', 'interrupt', 'halt'],
-    priority: 3,
-  },
-  {
-    command: '/status',
-    title: 'Status',
-    subtitle: 'Show the current Hermes session status',
-    icon: 'Info',
-    keywords: ['hermes', 'session', 'model'],
-    priority: 4,
-  },
-  {
-    command: '/help',
-    title: 'Help',
-    subtitle: 'Show available Hermes commands',
-    icon: 'Info',
-    keywords: ['hermes', 'commands'],
-    priority: 5,
-  },
-  {
-    command: '/compress',
-    title: 'Compress context',
-    subtitle: 'Summarize the conversation to free up context',
-    icon: 'Filter',
-    keywords: ['compact', 'context', 'summarize'],
-    priority: 6,
-  },
-  {
-    command: '/model',
-    title: 'Model',
-    subtitle: 'Show or change the active model',
-    icon: 'Settings',
-    keywords: ['model', 'provider', 'llm'],
-    priority: 7,
-  },
-  {
-    command: '/usage',
-    title: 'Usage',
-    subtitle: 'Show token usage for the current session',
-    icon: 'Clock',
-    keywords: ['tokens', 'cost', 'consumption'],
-    priority: 8,
-  },
-  {
-    command: '/version',
-    title: 'Version',
-    subtitle: 'Show the installed Hermes version',
-    icon: 'Command',
-    keywords: ['version', 'hermes'],
-    priority: 9,
-  },
-];
-
 const STATIC_MANIFESTS: Record<BotAgentType, SlashCommandManifest> = {
   openclaw: { agent: 'openclaw', commands: OPENCLAW_COMMANDS },
-  hermes: { agent: 'hermes', commands: HERMES_COMMANDS },
 };
 
 export function isBotAgentType(value: unknown): value is BotAgentType {
-  return value === 'openclaw' || value === 'hermes';
+  return value === 'openclaw';
 }
 
 export function getStaticSlashCommandManifest(
   agent: BotAgentType
 ): SlashCommandManifest {
-  // Defensive: a stale persisted keyValue is as untrusted as a network
-  // response if the enum ever evolves, so fall back to openclaw for any
-  // unrecognized agent value.
+  // Defensive: a stale persisted value is as untrusted as a network response
+  // if the enum ever evolves, so fall back to openclaw for any unrecognized
+  // agent value.
   return isBotAgentType(agent)
     ? STATIC_MANIFESTS[agent]
     : STATIC_MANIFESTS.openclaw;

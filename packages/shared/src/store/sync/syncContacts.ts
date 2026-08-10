@@ -12,14 +12,18 @@ export const syncContacts = async (
   yieldWriter?: boolean
 ) => {
   const contacts = await syncQueue.add('contacts', ctx, () =>
-    api.getContacts()
+    api.getContactsByProvenance()
   );
-  logger.log('got contacts from api', contacts.length, 'contacts');
+  logger.log(
+    'got contacts from api',
+    contacts.v0Peers.length + contacts.v1Contacts.length,
+    'contacts'
+  );
 
   const writer = async () => {
     try {
       await db.insertContacts(contacts, queryCtx);
-      LocalCache.cacheContacts(contacts);
+      LocalCache.cacheContacts([...contacts.v0Peers, ...contacts.v1Contacts]);
     } catch (e) {
       logger.error('error inserting contacts', e);
     }

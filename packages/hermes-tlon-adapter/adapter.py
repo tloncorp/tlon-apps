@@ -74,6 +74,13 @@ from .channel_access import (
     parse_channel_rules,
 )
 from .cite import resolve_cites
+from .commands import (
+    BOT_COMMANDS_CONTACT_MARK,
+    build_bot_commands_poke,
+    build_command_manifest_json,
+    command_detection_regex,
+    extract_bot_commands_value,
+)
 from .history import (
     MessageCache,
     build_channel_context,
@@ -335,7 +342,8 @@ def _is_dm_chat_id(chat_id: str) -> bool:
 
 # `/tlon ...` debug namespace. Does not match `/tlon-version` (legacy alias)
 # because "-" is neither whitespace nor end-of-string after "tlon".
-_TLON_COMMAND_RE = re.compile(r"^/tlon(?:\s|$)", re.IGNORECASE)
+# Detection lives in the command registry (commands.py).
+_TLON_COMMAND_RE = command_detection_regex("tlon")
 _HOSTED_URL_SUFFIXES = ("tlon.network", ".test.tlon.systems")
 
 
@@ -1041,7 +1049,11 @@ class TlonAdapter(BasePlatformAdapter):
                 {"adapterVersion": adapter_version, "adapterFingerprint": fingerprint}
             )
             set_active_telemetry(self._telemetry)
-            await self._load_bot_profile()
+            self_contact = await self._load_bot_profile()
+            # Advertise the adapter's control-command manifest now that the
+            # SSE client is live and the current self-contact is in hand
+            # (enables compare-before-poke idempotence).
+            await self._publish_bot_command_manifest(self_contact)
             settings_loaded = await self._load_settings_state()
             self._nudge_settings_ready = settings_loaded
             if not settings_loaded:
@@ -2463,17 +2475,60 @@ class TlonAdapter(BasePlatformAdapter):
         if not result.success:
             logger.warning("[tlon] control command reply failed: %s", result.error)
 
-    async def _load_bot_profile(self) -> None:
+    async def _load_bot_profile(self) -> Optional[dict[str, Any]]:
+        """Fetch and apply the self contact; return the raw map so callers
+        can compare the advertised bot-commands value before poking.
+
+        Returns None when the read did not produce a contact map — callers
+        must treat that as "current value unknown", never as "key absent"."""
         if self._sse is None:
-            return
+            return None
         try:
             profile = await self._sse.scry("/contacts/v1/self.json")
         except Exception as exc:
             logger.debug("[tlon] could not fetch self profile: %s", exc)
-            return
+            return None
         if not isinstance(profile, dict):
-            return
+            return None
         self._apply_self_contact(profile)
+        return profile
+
+    async def _publish_bot_command_manifest(
+        self, self_contact: Optional[Mapping[str, Any]]
+    ) -> None:
+        """Advertise the adapter's control commands in the bot's own contact
+        profile: compare the current ``bot-commands`` value against the
+        computed manifest and poke only on difference. Non-fatal — the client
+        falls back to its static list until the next successful publish."""
+        if self._sse is None:
+            return
+        if self_contact is None:
+            # The self-contact read failed: the current value is unknown, so
+            # there is nothing to compare against. Poking blind here would
+            # defeat compare-then-poke exactly when the ship is unhealthy.
+            logger.debug(
+                "[tlon] skipping bot command manifest publish: self contact unread"
+            )
+            return
+        try:
+            desired = build_command_manifest_json()
+            if extract_bot_commands_value(self_contact) == desired:
+                return
+            await self._sse.poke(
+                "contacts", BOT_COMMANDS_CONTACT_MARK, build_bot_commands_poke(desired)
+            )
+            logger.info("[tlon] published bot command manifest")
+        except Exception as exc:
+            logger.warning("[tlon] could not publish bot command manifest: %s", exc)
+
+    async def _clear_bot_command_manifest(self) -> None:
+        """Clear the advertised manifest (rollback/retirement procedure):
+        contact keys die only by explicit null."""
+        if self._sse is None:
+            return
+        await self._sse.poke(
+            "contacts", BOT_COMMANDS_CONTACT_MARK, build_bot_commands_poke(None)
+        )
 
     def _apply_self_contact(self, contact: Any) -> None:
         """Reconcile bot nickname/avatar state from a self contact map.
@@ -2635,8 +2690,11 @@ class TlonAdapter(BasePlatformAdapter):
                                 "[tlon] reconnect invite catch-up failed: %s", exc
                             )
                         # Contacts facts do not replay either; catch up on renames
-                        # (or clears) missed while disconnected.
-                        await self._load_bot_profile()
+                        # (or clears) missed while disconnected, and re-check the
+                        # advertised command manifest (e.g. a registry edit that
+                        # has not been published yet).
+                        self_contact = await self._load_bot_profile()
+                        await self._publish_bot_command_manifest(self_contact)
                     except BaseException:
                         await self._close_sse(graceful=False)
                         raise

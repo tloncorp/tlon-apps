@@ -163,6 +163,10 @@ export const contacts = sqliteTable(
     status: text('status'),
     color: text('color'),
     coverImage: text('coverImage'),
+    // Raw JSON of the bot's self-advertised slash-command manifest, published
+    // in its contact profile. Validated at read; see
+    // docs/bot-command-manifests.md.
+    botCommands: text('bot_commands'),
     isBlocked: boolean('blocked'),
     isContact: boolean('isContact'),
     isContactSuggestion: boolean('isContactSuggestion'),

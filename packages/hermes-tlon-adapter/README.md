@@ -307,6 +307,10 @@ The seven keys above are the full "dashboard edit works" set. Everything else Tl
 
 Nothing is generated or checked in; identity is resolved at runtime. The same summary is logged at gateway startup.
 
+## Slash command manifest
+
+At connect (and on reconnect catch-up) the adapter advertises its owner control commands in the bot's own contact profile (key `bot-commands`, compare-then-poke), so Tlon clients suggest exactly the commands this adapter handles. The registry in `commands.py` is the single source of truth for detection and the advertised manifest, and holds the shared usage constants that already existed (`/owner-listen`, `/channel-access`, `/migrate`); the remaining commands still carry their usage text in their handlers. the committed fixture is `fixtures/command-manifest.json`. Hermes _core_ chat commands are never advertised (not verifiable from this repo); `/tlon-version` is handled but hidden (legacy alias of `/tlon version`). Wire contract and clear-to-null rollback procedure: [docs/bot-command-manifests.md](../../docs/bot-command-manifests.md).
+
 ## Telemetry
 
 Opt-in PostHog telemetry (official `posthog` SDK): set `TLON_TELEMETRY=true` and `TLON_TELEMETRY_API_KEY` (optional `TLON_TELEMETRY_HOST`). Disabled by default and zero-cost when off.

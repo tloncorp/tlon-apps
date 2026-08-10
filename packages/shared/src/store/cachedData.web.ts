@@ -31,7 +31,11 @@ export async function loadCachedContacts(): Promise<boolean> {
       return false;
     }
 
-    await db.insertContacts(contacts);
+    // The cache mixes v0 and v1 sourced rows without provenance, so treat it
+    // as lossy: preserve any bot-command manifests learned since the cache
+    // was written rather than clobbering them. The authoritative contact
+    // sync that follows reconciles the column.
+    await db.insertContacts({ v0Peers: contacts });
     return true;
   } catch (e) {
     console.error('Failed to load cached contacts', e);

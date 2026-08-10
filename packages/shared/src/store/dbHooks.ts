@@ -194,11 +194,13 @@ export const useCanUpload = () => {
   );
 };
 
-export const useContact = (options: { id: string }) => {
+export const useContact = (options: { id: string; enabled?: boolean }) => {
   const deps = useKeyFromQueryDeps(db.getContact, options);
+  const { enabled = true, ...queryOptions } = options;
   return useQuery({
+    enabled,
     queryKey: [['contact', options.id], deps],
-    queryFn: () => db.getContact(options),
+    queryFn: () => db.getContact(queryOptions),
   });
 };
 

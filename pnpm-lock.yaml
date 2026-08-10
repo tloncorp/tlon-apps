@@ -1123,6 +1123,9 @@ importers:
         specifier: ^4.4.1
         version: 4.4.3
     devDependencies:
+      '@tloncorp/shared':
+        specifier: workspace:^
+        version: link:../shared
       '@types/node':
         specifier: ^25.4.0
         version: 25.9.3

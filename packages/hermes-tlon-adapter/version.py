@@ -7,8 +7,9 @@ Nothing here is generated or checked in; identity is resolved when asked:
 - a content fingerprint over the runtime files, which identifies copied
   installs and hand-patched trees that a baked commit constant cannot
 
-This module deliberately has no package-relative imports so the fingerprint
-can be recomputed standalone at any checkout:
+Its only package-relative import is the command registry, and that one is
+guarded on ``__package__`` so the fingerprint can still be recomputed from a
+standalone (non-package) import at any checkout:
 
     python3 -c "import version; print(version.content_fingerprint())"
 """
@@ -26,7 +27,17 @@ FINGERPRINT_RULE = "fp1"
 FINGERPRINT_HEX_CHARS = 12
 PACKAGE_DIR = Path(__file__).resolve().parent
 
-_COMMAND_RE = re.compile(r"^/tlon-version(?:\s|$)", re.IGNORECASE)
+# Detection lives in the command registry (commands.py). The fallback is
+# selected on import *mode*, not on exception: only a standalone (non-package)
+# import lacks the registry. Catching ImportError broadly would silently swap
+# in an independent regex if `commands.py` itself failed to import, defeating
+# the registry-object identity the parity tests rely on.
+if __package__:
+    from .commands import command_detection_regex
+
+    _COMMAND_RE = command_detection_regex("tlon-version")
+else:  # standalone `import version` — see the module docstring
+    _COMMAND_RE = re.compile(r"^/tlon-version(?:\s|$)", re.IGNORECASE)
 
 
 def is_tlon_version_command(text: str) -> bool:

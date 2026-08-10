@@ -95,6 +95,10 @@ export interface ContactBookProfile {
   ['lanyard-phone-0-sign']?: AttestationSignature;
   ['lanyard-twitter-0-url']?: AttestationProviderUrl;
   ['lanyard-phone-0-url']?: AttestationProviderUrl;
+  // Self-published bot slash-command manifest (JSON-in-text). Declared as
+  // %text but treated as untrusted at runtime — any ship can publish any
+  // value type under an unknown key.
+  ['bot-commands']?: ContactFieldText;
 }
 
 export interface ContactBookProfileEdit {

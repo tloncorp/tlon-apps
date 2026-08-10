@@ -159,10 +159,16 @@ class StreamLoopTests(unittest.TestCase):
         async def record_profile():
             calls.append("profile")
 
+        async def record_publish(self_contact):
+            calls.append("publish")
+
         return [
             patch.object(adapter, "_load_settings_state", record_settings),
             patch.object(adapter, "_process_pending_dm_invites", record_invites),
             patch.object(adapter, "_load_bot_profile", record_profile),
+            patch.object(
+                adapter, "_publish_bot_command_manifest", record_publish
+            ),
         ]
 
     def test_transport_error_resumes_same_client(self):
@@ -203,7 +209,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -248,7 +254,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -300,7 +306,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", FailingConnectSSE):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -462,7 +468,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", RebuildSSE):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -471,7 +477,25 @@ class StreamLoopTests(unittest.TestCase):
         self.assertEqual(sse_instances[0].close_calls, [False])
         rebuild_events = [e for e in telemetry_events if e.get("mode") == "rebuild"]
         self.assertEqual(len(rebuild_events), 1)
-        self.assertEqual(calls, ["settings", "invites", "profile", "settings", "invites", "profile"])
+        # The manifest republish is bound to the reconnect catch-up here: drop
+        # the call site in _run_stream and this sequence loses its "publish".
+        self.assertEqual(
+            calls,
+            [
+                "settings",
+                "invites",
+                "profile",
+                "publish",
+                "settings",
+                "invites",
+                "profile",
+                "publish",
+            ],
+        )
+        # Re-read then republish, in that order, on every reconnect.
+        for index, name in enumerate(calls):
+            if name == "profile":
+                self.assertEqual(calls[index + 1], "publish")
         sub_apps = [s[0] for s in sse_instances[1].subscribe_calls]
         self.assertIn("steward", sub_apps)
 
@@ -509,7 +533,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -561,7 +585,7 @@ class StreamLoopTests(unittest.TestCase):
 
                 with patch.object(adapter_mod, "TlonSSEClient", AuthSSE):
                     async def run():
-                        with patches[0], patches[1], patches[2]:
+                        with patches[0], patches[1], patches[2], patches[3]:
                             await adapter._run_stream()
                     with patch("asyncio.sleep", _instant_sleep):
                         asyncio.run(run())
@@ -599,7 +623,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -722,7 +746,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", ReapSSE):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -787,6 +811,55 @@ class StreamLoopTests(unittest.TestCase):
             result = asyncio.run(adapter.connect())
         self.assertEqual(connect_attempted, [True])
         return adapter, result, errors
+
+    def test_connect_publishes_the_command_manifest_once(self):
+        """Binds publication to the connect() lifecycle. Every other publisher
+        test drives _publish_bot_command_manifest directly, so deleting the
+        call site would make publication dead code with no failing test."""
+        adapter = self.make_adapter()
+        published = []
+
+        async def anoop(*a, **k):
+            return None
+
+        async def load_profile():
+            return {"nickname": {"type": "text", "value": "Bot"}}
+
+        async def record_publish(self_contact):
+            published.append(self_contact)
+
+        adapter._connect_sse = anoop
+        adapter._load_bot_profile = load_profile
+        adapter._publish_bot_command_manifest = record_publish
+        adapter._load_settings_state = anoop
+        adapter._process_pending_dm_invites = anoop
+        adapter._process_pending_group_invites = anoop
+        adapter._start_gateway_status = anoop
+        adapter._start_lens = anoop
+        adapter._start_event_worker = lambda *a, **k: None
+        adapter._start_nudge_settings_retry = lambda *a, **k: None
+        adapter._run_stream = anoop
+        adapter._nudge_scheduler = types.SimpleNamespace(
+            start=lambda *a, **k: None
+        )
+        adapter._telemetry = types.SimpleNamespace(
+            set_common=lambda *a, **kw: None,
+            gateway_connected=lambda *a, **kw: None,
+            error=lambda *a, **kw: None,
+        )
+
+        with (
+            patch.object(adapter_mod, "AIOHTTP_AVAILABLE", True),
+            patch.object(adapter_mod, "_cli_available", return_value=True),
+            patch.object(adapter_mod, "set_active_telemetry", lambda *a: None),
+            patch.object(adapter_mod, "git_source", anoop),
+            patch.object(adapter_mod, "content_fingerprint", lambda *a: "fp1:x"),
+        ):
+            result = asyncio.run(adapter.connect())
+
+        self.assertTrue(result)
+        # Exactly once, against the self contact just read.
+        self.assertEqual(published, [{"nickname": {"type": "text", "value": "Bot"}}])
 
     def test_connect_fixed_cookie_terminal_auth_is_fatal(self):
         # A rejected fixed cookie surfaces at STARTUP via connect()->_connect_sse
@@ -919,7 +992,7 @@ class StreamLoopTests(unittest.TestCase):
         with patch.object(adapter_mod, "TlonSSEClient", DedupRebuildSSE), \
              patch.object(adapter, "_dispatch_message", record_dispatch):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -960,7 +1033,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -1007,7 +1080,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", FailingSetupSSE):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 with self.assertLogs(adapter_mod.logger.name, level="WARNING") as cm:

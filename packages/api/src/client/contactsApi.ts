@@ -11,7 +11,17 @@ import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('contactsApi', false);
 
-export const getContacts = async () => {
+export interface ContactsData {
+  // Peers from the legacy v0 `/all` scry. Lossy: the v0 mark strips
+  // namespaced keys (e.g. `bot-commands`), so these rows carry no signal
+  // about fields like the advertised command manifest.
+  v0Peers: db.Contact[];
+  // Contact-book entries from the v1 `/book` scry. Authoritative: full
+  // peer-published profile plus user overrides.
+  v1Contacts: db.Contact[];
+}
+
+export const getContactsByProvenance = async (): Promise<ContactsData> => {
   // this is all peers we know about, with merged profile data for
   // contacts
   const peersResponse = await scry<ub.ContactRolodex>({
@@ -37,6 +47,11 @@ export const getContacts = async () => {
   });
 };
 
+export const getContacts = async (): Promise<db.Contact[]> => {
+  const { v0Peers, v1Contacts } = await getContactsByProvenance();
+  return [...v0Peers, ...v1Contacts];
+};
+
 export const toContactsData = ({
   peersResponse,
   contactsResponse,
@@ -45,7 +60,7 @@ export const toContactsData = ({
   peersResponse: ub.ContactRolodex;
   contactsResponse: ub.ContactBookScryResult1;
   suggestionsResponse: string[];
-}) => {
+}): ContactsData => {
   const skipContacts = new Set(Object.keys(contactsResponse));
   const contactSuggestions = new Set(suggestionsResponse);
 
@@ -57,7 +72,7 @@ export const toContactsData = ({
     contactSuggestions,
   });
 
-  return [...peerProfiles, ...contactProfiles];
+  return { v0Peers: peerProfiles, v1Contacts: contactProfiles };
 };
 
 export const removeContactSuggestion = async (contactId: string) => {
@@ -464,6 +479,46 @@ function parseContactAttestations(
   return finalAttests;
 }
 
+/**
+ * The `bot-commands` contact field is self-published by bot ships and its TS
+ * declaration proves nothing at runtime — an arbitrary profile can publish it
+ * as %set/%numb/%look or any JSON shape. Accept only a %text field carrying a
+ * string; everything else maps to null so one bad peer profile cannot break a
+ * contacts sync batch.
+ */
+export const extractBotCommandsValue = (field: unknown): string | null => {
+  if (!field || typeof field !== 'object' || Array.isArray(field)) {
+    return null;
+  }
+  const candidate = field as { type?: unknown; value?: unknown };
+  if (candidate.type !== 'text' || typeof candidate.value !== 'string') {
+    return null;
+  }
+  return candidate.value;
+};
+
+// Fetch a single peer's full v1 contact profile. Used to backfill the
+// advertised command manifest for bots, which the lossy v0 `/all` peers scry
+// strips. Returns null when the ship is unknown (404) or the scry fails.
+export const getContactProfile = async (
+  ship: string
+): Promise<db.Contact | null> => {
+  try {
+    // No `.json` suffix — the transport appends it.
+    const contact = await scry<ub.ContactBookProfile>({
+      app: 'contacts',
+      path: `/v1/contact/${ship}`,
+    });
+    if (!contact || typeof contact !== 'object') {
+      return null;
+    }
+    return v1PeerToClientProfile(ship, contact);
+  } catch (e) {
+    logger.log('getContactProfile failed', e);
+    return null;
+  }
+};
+
 export const v1PeersToClientProfiles = (
   peers: ub.ContactsAllScryResult1,
   config?: {
@@ -500,6 +555,7 @@ export const v1PeerToClientProfile = (
         contactId: id,
       })) ?? [],
     attestations: parseContactAttestations(id, contact),
+    botCommands: extractBotCommandsValue(contact['bot-commands']),
     isContact: config?.isContact,
     isContactSuggestion:
       config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
@@ -548,6 +604,9 @@ export const contactToClientProfile = (
         contactId: userId,
       })) ?? [],
     attestations: parseContactAttestations(userId, base),
+    // The manifest is the bot's own published property: read it from the
+    // peer-published base contact only, never the user's `mod` overlay.
+    botCommands: extractBotCommandsValue(base['bot-commands']),
     isContact: !!overrides,
     isContactSuggestion: false,
   };

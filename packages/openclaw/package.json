@@ -59,6 +59,7 @@
     "zod": "^4.4.1"
   },
   "devDependencies": {
+    "@tloncorp/shared": "workspace:^",
     "@types/node": "^25.4.0",
     "@urbit/nockjs": "^1.6.0",
     "dotenv": "^17.2.4",

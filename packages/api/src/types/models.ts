@@ -93,6 +93,9 @@ export interface Contact extends WithId {
   systemContactId?: string | null;
   pinnedGroups?: ContactPinnedGroups | null;
   attestations?: any[] | null;
+  // Raw JSON of the bot's self-advertised slash-command manifest, as
+  // published in its contact profile. Validated at read (parse time).
+  botCommands?: string | null;
 }
 
 export type ContactPinnedGroups = any[];

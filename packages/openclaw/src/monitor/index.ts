@@ -13,6 +13,11 @@ import {
   recordAuthRetryFailure,
 } from '../auth-retry-state.js';
 import {
+  type SelfContactRead,
+  syncBotCommandManifest,
+} from '../bot-command-manifest.js';
+import { buildCommandManifestJson } from '../commands-registry.js';
+import {
   findRecentContextLensById,
   publishContextLensEvent,
   setContextLensEventCapacity,
@@ -540,6 +545,37 @@ export async function monitorTlonProvider(
 
   let api: UrbitSSEClient | null = null;
   let cookie: string;
+  // Set by the boot self-contact scry; reconnect publishes re-read instead.
+  let bootSelfContactRead: SelfContactRead | undefined;
+
+  // Advertise the plugin's slash-command manifest in the bot's own contact
+  // profile: compare-then-poke, non-fatal, skipped when the self-contact read
+  // failed (see syncBotCommandManifest). Declared here — before the SSE client
+  // that can call it on reconnect — and hoisted so that callback is safe.
+  async function publishBotCommandManifestNow(reason: 'boot' | 'reconnect') {
+    if (!api) {
+      return;
+    }
+    try {
+      // The builder throws when the registry serializes past the byte cap, and
+      // boot awaits this call — so it has to be inside the guard too, or a
+      // registry that grew too large would take the bot offline instead of
+      // just going unadvertised.
+      const result = await syncBotCommandManifest(
+        api,
+        buildCommandManifestJson(),
+        reason === 'boot' ? bootSelfContactRead : undefined
+      );
+      if (result !== 'unchanged') {
+        runtime.log?.(`[tlon] Bot command manifest ${result} (${reason})`);
+      }
+    } catch (e) {
+      runtime.error?.(
+        `[tlon] Bot command manifest publish failed (${reason})`,
+        e
+      );
+    }
+  }
   // Stream-watchdog thresholds are normally hardcoded defaults in the client.
   // The E2E harness overrides them via env so a detached-network fault surfaces
   // within the scenario's wait window (see TLON_NUDGE_TICK_INTERVAL_MS for the
@@ -611,6 +647,10 @@ export async function monitorTlonProvider(
       // hung socket) is invisible in PostHog — only stdout.
       onStreamRecovery: (event) => {
         if (event.phase === 'reconnected') {
+          // Catch-up publish, mirroring Hermes's reconnect path: a failed boot
+          // publish, or a key cleared while this process stayed alive, would
+          // otherwise persist until a restart. Fire-and-forget and non-fatal.
+          void publishBotCommandManifestNow('reconnect');
           if (event.attempt > 0 || (event.downtimeMs ?? 0) > 0) {
             capturePluginError(
               'sse_stream',
@@ -985,6 +1025,7 @@ export async function monitorTlonProvider(
     // Fetch bot's nickname and all contacts
     try {
       const selfProfile = await api.scry('/contacts/v1/self.json');
+      bootSelfContactRead = { ok: true, contact: selfProfile };
       if (selfProfile && typeof selfProfile === 'object') {
         const profile = selfProfile as {
           nickname?: { value?: string };
@@ -998,10 +1039,15 @@ export async function monitorTlonProvider(
         }
       }
     } catch (error: any) {
+      bootSelfContactRead = { ok: false, error };
       runtime.log?.(
         `[tlon] Could not fetch self profile: ${error?.message ?? String(error)}`
       );
     }
+
+    // Compare-then-poke against the self-contact just scried; %self is a
+    // merge, so nickname/avatar survive.
+    await publishBotCommandManifestNow('boot');
 
     // Fetch all contacts to populate nickname cache
     try {
