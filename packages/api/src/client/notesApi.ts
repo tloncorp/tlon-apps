@@ -325,6 +325,19 @@ export interface NotesV1NoteRevision {
   bodyMd?: string;
 }
 
+// One page of bounded search results. The walk is bounded by notes *examined*,
+// not hits returned, so a page can be empty and still have more to search:
+// `last` is the id the walk stopped at, and 0 means the notebook is exhausted.
+export interface NotesV1SearchPage {
+  last: number;
+  notes: NotesV1Note[];
+}
+
+export interface NotesSearchPage {
+  last: number;
+  notes: NotesNote[];
+}
+
 export interface NotesV1MemberRecord {
   ship: string;
   roles: NotesRole[];
@@ -429,6 +442,24 @@ function membersV1Path(flag: NotesFlag): string {
   return `${notebookV1Path(flag)}/members`;
 }
 
+// Search params ride in the query string rather than the path: the URL parser
+// splits a trailing dot-group off the last path segment as a file extension,
+// which would search a truncated needle. encodeURIComponent's escapes (and its
+// unreserved set) are exactly what the backend's query parser accepts.
+function searchV1Path(
+  flag: NotesFlag,
+  { needle, from, tries }: { needle: string; from?: number; tries?: number }
+): string {
+  const params = [`needle=${encodeURIComponent(needle)}`];
+  if (from !== undefined) {
+    params.push(`from=${from}`);
+  }
+  if (tries !== undefined) {
+    params.push(`tries=${tries}`);
+  }
+  return `${notebookV1Path(flag)}/search/bounded/text?${params.join('&')}`;
+}
+
 // --- response normalization ------------------------------------------------
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -524,6 +555,17 @@ function normalizeNoteV1(raw: any): NotesV1Note {
     createdAt: raw.createdAt,
     updatedBy: raw.updatedBy,
     updatedAt: raw.updatedAt,
+  };
+}
+
+function normalizeSearchPageV1(raw: unknown): NotesV1SearchPage {
+  const res = requireObject(raw);
+  if (typeof res.last !== 'number') {
+    throw new Error('%notes response missing required field: search.last');
+  }
+  return {
+    last: res.last,
+    notes: requireArray(res.notes, normalizeNoteV1),
   };
 }
 
@@ -914,6 +956,25 @@ async function listNotesV1(target: NotesTarget): Promise<NotesV1Note[]> {
   return requireArray(res, normalizeNoteV1);
 }
 
+async function searchNotesV1({
+  flag,
+  needle,
+  from,
+  tries,
+}: {
+  flag: NotesTarget;
+  needle: string;
+  from?: number;
+  tries?: number;
+}): Promise<NotesV1SearchPage> {
+  const normalized = normalizeNotesTarget(flag);
+  const res = await requestJson(
+    searchV1Path(normalized, { needle, from, tries }),
+    'GET'
+  );
+  return normalizeSearchPageV1(res);
+}
+
 async function getNoteV1({
   flag,
   noteId,
@@ -1187,6 +1248,19 @@ async function listNotes(target: NotesTarget): Promise<NotesNote[]> {
   return rawNotes.map((note) => toClientNotesNote(target, note));
 }
 
+async function searchNotes(input: {
+  flag: NotesTarget;
+  needle: string;
+  from?: number;
+  tries?: number;
+}): Promise<NotesSearchPage> {
+  const page = await searchNotesV1(input);
+  return {
+    last: page.last,
+    notes: page.notes.map((note) => toClientNotesNote(input.flag, note)),
+  };
+}
+
 async function getNote({
   flag,
   noteId,
@@ -1364,6 +1438,7 @@ export type NotesV1Api = {
   createNotebook: typeof createNotebookV1;
   createGroupNotebook: typeof createGroupNotebookV1;
   listNotes: typeof listNotesV1;
+  searchNotes: typeof searchNotesV1;
   getNote: typeof getNoteV1;
   createNote: typeof createNoteV1;
   batchImport: typeof batchImportNotesV1;
@@ -1388,6 +1463,7 @@ export type NotesApi = {
   createNotebook: typeof createNotebook;
   createGroupNotebook: typeof createGroupNotebook;
   listNotes: typeof listNotes;
+  searchNotes: typeof searchNotes;
   getNote: typeof getNote;
   createNote: typeof createNoteV1;
   batchImport: typeof batchImportNotesV1;
@@ -1415,6 +1491,7 @@ export const notesV1: NotesV1Api = {
   createNotebook: createNotebookV1,
   createGroupNotebook: createGroupNotebookV1,
   listNotes: listNotesV1,
+  searchNotes: searchNotesV1,
   getNote: getNoteV1,
   createNote: createNoteV1,
   batchImport: batchImportNotesV1,
@@ -1439,6 +1516,7 @@ export const notes: NotesApi = {
   createNotebook,
   createGroupNotebook,
   listNotes,
+  searchNotes,
   getNote,
   createNote: createNoteV1,
   batchImport: batchImportNotesV1,

@@ -353,6 +353,44 @@ export function getFolderLabel(folder: db.NotesFolder | null | undefined) {
   return folder.name === '/' ? 'Root' : folder.name;
 }
 
+/**
+ * Label a search hit with the path of folders holding it ("Specs / Wire
+ * formats"), for the results list. Two notes named the same in sibling folders
+ * are only distinguishable by the whole path, not the immediate parent.
+ *
+ * The root is dropped from the path — every note is under it, so naming it says
+ * nothing — which leaves a note sitting directly in the root unlabeled.
+ *
+ * Paths are indexed once per folder set rather than resolved per row, since the
+ * list calls this for every hit.
+ */
+export function makeNotesFolderPathLabeler({
+  folders,
+  rootFolderId,
+}: {
+  folders: db.NotesFolder[];
+  rootFolderId: number | null;
+}) {
+  const rows = buildFolderRows(folders, rootFolderId, { includeRoot: true });
+  const root = findRootFolder(folders, rootFolderId);
+  const pathsByFolderId = new Map(
+    rows.map((row) => [row.folder.folderId, row.path])
+  );
+  const rootPath = root ? pathsByFolderId.get(root.folderId) : undefined;
+  const rootPrefix = rootPath ? `${rootPath} / ` : null;
+
+  return (note: { folderId?: number | null }): string | null => {
+    const folderId = note.folderId ?? null;
+    if (folderId == null || (root && folderId === root.folderId)) return null;
+
+    const path = pathsByFolderId.get(folderId);
+    if (!path) return null;
+    return rootPrefix && path.startsWith(rootPrefix)
+      ? path.slice(rootPrefix.length)
+      : path;
+  };
+}
+
 export function normalizeSearchText(value: string | null | undefined) {
   return (value ?? '').trim().toLowerCase();
 }

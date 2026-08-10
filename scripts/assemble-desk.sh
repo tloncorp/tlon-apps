@@ -33,10 +33,15 @@ if [ ! -d desk-deps ]; then
 fi
 
 mkdir -p "$target"
+# Finder droppings have no Clay mark and fail the desk commit outright
+# (observed as a silent kiln no-op that reads as a hung |commit).
+# --delete-excluded also purges any .DS_Store already present in an
+# existing target (a mounted desk): plain --delete would protect it,
+# since --exclude keeps it out of rsync's deletion candidate list.
 # 1. vendored deps first, clearing anything stale in the target
-rsync -aL --delete desk-deps/ "$target/"
+rsync -aL --delete --delete-excluded --exclude=.DS_Store desk-deps/ "$target/"
 # 2. our own source on top (wins on overlap)
-rsync -aL desk/ "$target/"
+rsync -aL --exclude=.DS_Store desk/ "$target/"
 
 # stamp the build commit, like the deploy pipeline does
 git rev-parse --short HEAD > "$target/commit.txt" 2>/dev/null || true
