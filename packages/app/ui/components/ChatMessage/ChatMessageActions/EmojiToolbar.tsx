@@ -88,10 +88,9 @@ export function EmojiToolbar({
 
   const lastShortCode =
     details.self.didReact &&
-    !['🌀', ...frequentEmojis].some((code) => {
-      const native = getNativeEmoji(code);
-      return !!native && details.self.value.includes(native);
-    })
+    !['🌀', ...frequentEmojis].some(
+      (code) => getNativeEmoji(code) === details.self.value
+    )
       ? details.self.value
       : '🌀';
 
@@ -156,13 +155,15 @@ function EmojiToolbarButton({
   testID: string;
 }) {
   // Reactions are stored as native glyphs, so a shortcode slot has to be
-  // resolved before it can be compared against the user's reaction.
+  // resolved before it can be compared against the user's reaction. The match
+  // must be exact — a substring check would light up 👍 for a 👍🏽 reaction, or
+  // ❤️ for ❤️‍🔥, which tapping then replaces rather than removes.
   const native = getNativeEmoji(shortCode) ?? shortCode;
   return (
     <Pressable
       padding="$xs"
       backgroundColor={
-        details.self.didReact && details.self.value.includes(native)
+        details.self.didReact && details.self.value === native
           ? '$positiveBackground'
           : undefined
       }

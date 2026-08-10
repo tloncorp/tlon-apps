@@ -971,7 +971,14 @@ export async function addPostReaction(
     return;
   }
 
-  await db.recordEmojiUsage(emoji, Date.now());
+  // Local personalization only — keep it off the critical path so a full or
+  // unavailable key/value store can't stop the user from reacting.
+  db.recordEmojiUsage(emoji, Date.now()).catch((e) => {
+    logger.trackError('Failed to record emoji usage', {
+      emoji,
+      error: e.toString(),
+    });
+  });
 
   const channel = await db.getChannel({ id: post.channelId });
   let group = null;
