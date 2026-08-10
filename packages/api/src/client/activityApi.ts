@@ -524,6 +524,7 @@ export type ActivityEvent =
       itemId: string;
       itemType: string;
     }
+  | { type: 'clearChannelThreadUnreads'; channelId: string }
   | {
       type: 'updatePushNotificationsSetting';
       value: ub.PushNotificationsSetting;
@@ -711,6 +712,47 @@ export function subscribeToActivity(
             });
           }
         }
+      }
+
+      // handle deleted sources: the summary push accompanying a delete
+      // fixes the rollups, but it's upsert-only — the removed source's
+      // own rows must be cleared explicitly or their dots outlive it
+      if ('del' in update) {
+        const source = update.del;
+        if ('note' in source) {
+          return handler({
+            type: 'updateThreadUnread',
+            activity: {
+              channelId: `notes/${source.note.notebook}`,
+              threadId: source.note.id.replace(/\./g, ''),
+              updatedAt: 0,
+              count: 0,
+              notify: false,
+              firstUnreadPostId: null,
+              firstUnreadPostReceivedAt: null,
+            },
+          });
+        }
+        if ('notebook' in source) {
+          const channelId = `notes/${source.notebook.flag}`;
+          handler({ type: 'clearChannelThreadUnreads', channelId });
+          return handler({
+            type: 'updateChannelUnread',
+            activity: {
+              channelId,
+              type: 'channel',
+              updatedAt: 0,
+              count: 0,
+              notify: false,
+              countWithoutThreads: 0,
+              firstUnreadPostId: null,
+              firstUnreadPostReceivedAt: null,
+            },
+          });
+        }
+        // other source kinds keep their pre-existing behavior (their
+        // deletion flows remove the backing models entirely)
+        return;
       }
 
       // handle push notification settings
@@ -1282,6 +1324,7 @@ export type ActivityUpdateQueue = {
   groupUnreads: db.GroupUnread[];
   channelUnreads: db.ChannelUnread[];
   threadUnreads: db.ThreadUnreadState[];
+  threadUnreadChannelClears: string[];
   volumeUpdates: db.VolumeSettings[];
   volumeRemovals: string[];
   activityEvents: db.ActivityEvent[];

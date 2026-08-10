@@ -1427,6 +1427,9 @@ const handleActivityUpdate = async (
         case 'removeItemVolume':
           memo.volumeRemovals.push(event.itemId);
           break;
+        case 'clearChannelThreadUnreads':
+          memo.threadUnreadChannelClears.push(event.channelId);
+          break;
         case 'addActivityEvent':
           memo.activityEvents.push(...event.events);
           break;
@@ -1441,6 +1444,7 @@ const handleActivityUpdate = async (
       groupUnreads: [],
       channelUnreads: [],
       threadUnreads: [],
+      threadUnreadChannelClears: [],
       volumeUpdates: [],
       volumeRemovals: [],
       activityEvents: [],
@@ -1462,6 +1466,11 @@ const handleActivityUpdate = async (
   }
   await db.insertGroupUnreads(activitySnapshot.groupUnreads, ctx);
   await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
+  // clears before upserts so a delete and an update for the same channel
+  // in one batch resolve to the update
+  for (const channelId of activitySnapshot.threadUnreadChannelClears) {
+    await db.clearChannelThreadUnreads({ channelId }, ctx);
+  }
   await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
   await db.setVolumes({ volumes: activitySnapshot.volumeUpdates }, ctx);
 
