@@ -98,5 +98,5 @@
 - [x] 5.3 Run OpenClaw formatting, linting, type checking, unit
         tests, and relevant integration tests against the existing
         pinned runtime.
-- [ ] 5.4 Run strict OpenSpec validation and verify implementation
+- [x] 5.4 Run strict OpenSpec validation and verify implementation
         coverage for every capability scenario.
