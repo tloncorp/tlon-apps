@@ -9,59 +9,32 @@ Use the `tlon` command for reading data, managing channels/groups/contacts, and 
 
 ## Hermes
 
-When running as a Hermes plugin skill, the `tlon` tool is a wrapper around the
-`tlon` CLI for reading data, administration, management, and proactive posts.
+When running as a Hermes plugin skill, the `tlon` tool is a wrapper around the `tlon` CLI for reading data, administration, management, and proactive posts.
 
-For exact command syntax, use the command sections below or run
-`tlon <subcommand> --help` through the tool.
+For exact command syntax, use the command sections below or run `tlon <subcommand> --help` through the tool.
 
-When a Tlon user asks you to create a group for them, use
-`tlon groups create-owned "Name" --owner ~requester [--description "..."]`.
-This invites the requester and makes them an admin. Do not use plain
-`tlon groups create` for user-requested groups; that creates a bot-owned group
-that does not automatically include the requester.
+When a Tlon user asks you to create a group for them, use `tlon groups create-owned "Name" --owner ~requester [--description "..."]`. This invites the requester and makes them an admin. Do not use plain `tlon groups create` for user-requested groups; that creates a bot-owned group that does not automatically include the requester.
 
-For a normal text reply in the current Tlon conversation, respond with final
-assistant text and let Hermes deliver it through `TlonAdapter.send()`. To post
-to a different channel or one-to-one DM (a proactive send), use `posts send`
-with that target (`chat/~host/slug` for channels, `~ship` for one-to-one DMs).
-Reserve `dms send <club-id>` for group DMs, whose club IDs start with `0v`.
+For a normal text reply in the current Tlon conversation, respond with final assistant text and let Hermes deliver it through `TlonAdapter.send()`. To post to a different channel or one-to-one DM (a proactive send), use `posts send` with that target (`chat/~host/slug` for channels, `~ship` for one-to-one DMs). Reserve `dms send <club-id>` for group DMs, whose club IDs start with `0v`.
 
-Gallery channels use `heap/~host/name`. A normal reply in a gallery becomes a
-comment on the triggering post. Use `posts send heap/~host/name "..."` to
-create a distinct new top-level gallery item, including when that gallery is
-the current conversation; gallery items can use `--title "..."`.
+Gallery channels use `heap/~host/name`. A normal reply in a gallery becomes a comment on the triggering post. Use `posts send heap/~host/name "..."` to create a distinct new top-level gallery item, including when that gallery is the current conversation; gallery items can use `--title "..."`.
 
-Blocked in Hermes' `tlon` tool: plain-text `posts reply`/`dms send`/`dms reply`
-and `posts send` to a current chat/DM conversation (reply normally instead).
-Current-gallery `posts send` creates a new item and is allowed. Image sends
-(`--image`) are allowed anywhere,
-including the current conversation: `tlon upload <direct-image-url>`, then
-`posts send <target> [caption] --image <uploaded-url>`.
+Blocked in Hermes' `tlon` tool: plain-text `posts reply`/`dms send`/`dms reply` and `posts send` to a current chat/DM conversation (reply normally instead). Current-gallery `posts send` creates a new item and is allowed. Image sends (`--image`) are allowed anywhere, including the current conversation: `tlon upload <direct-image-url>`, then `posts send <target> [caption] --image <uploaded-url>`.
 
 ## OpenClaw
 
 When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
 
-**Images are the exception: upload them first.** The `message` tool's `media=`
-parameter takes only an uploaded https URL — never a local file path, unlike
-other OpenClaw channels. `tlon upload` accepts a URL, a local file path, or
-stdin, and prints the uploaded URL:
+**Images are the exception: upload them first.** The `message` tool's `media=` parameter takes only an uploaded https URL — never a local file path, unlike other OpenClaw channels. `tlon upload` accepts a URL, a local file path, or stdin, and prints the uploaded URL:
 
 ```bash
 tlon upload ./generated-chart.png      # local file — prints the uploaded URL
 tlon upload https://example.com/x.png  # remote URL
 ```
 
-Pass that printed URL as `media=`. On hosted deployments the upload must run
-through the owner ship's config (the bot's own ship has no storage):
-`tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`.
+Pass that printed URL as `media=`. On hosted deployments the upload must run through the owner ship's config (the bot's own ship has no storage): `tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`.
 
-> **Deprecated: diary channels.** `%diary` is not managed by the CLI:
-> `tlon notebook`, `--kind diary`, and `diary/...` targets fail with guidance
-> toward `%notes`. Use the `tlon notes` family for Markdown notebooks. An owner
-> can preview a legacy diary with `tlon notes migrate-plan <diary-nest>` and
-> migrate it with `tlon notes migrate-apply <diary-nest> --yes`.
+> **Deprecated: diary channels.** `%diary` is not managed by the CLI: `tlon notebook`, `--kind diary`, and `diary/...` targets fail with guidance toward `%notes`. Use the `tlon notes` family for Markdown notebooks. An owner can preview a legacy diary with `tlon notes migrate-plan <diary-nest>` and migrate it with `tlon notes migrate-apply <diary-nest> --yes`.
 
 ## Installation
 
@@ -138,8 +111,8 @@ export URBIT_CODE="sampel-ticlyt-migfun-falmel"
 
 **Cookie vs Code:**
 
-- **Cookie-based:** Uses pre-authenticated session cookie. Ship is parsed from the cookie name (`urbauth-~ship=...`). Fastest option.
-- **Code-based:** Performs login to get a fresh session cookie. Requires URL + ship + code.
+-   **Cookie-based:** Uses pre-authenticated session cookie. Ship is parsed from the cookie name (`urbauth-~ship=...`). Fastest option.
+-   **Code-based:** Performs login to get a fresh session cookie. Requires URL + ship + code.
 
 You can provide both cookie and code — cookie is used first, code serves as fallback if cookie expires.
 
@@ -166,10 +139,10 @@ $ tlon --ship ~bus contacts self
 
 **Cache behavior:**
 
-- Cached cookies are URL-specific (won't use a cookie for the wrong host)
-- If only one ship is cached, it's auto-selected (no flags needed)
-- If multiple ships are cached, you'll be prompted to specify with `--ship`
-- Code login and code fallback cache fresh cookies; provided-cookie flows do not copy cookies into cache
+-   Cached cookies are URL-specific (won't use a cookie for the wrong host)
+-   If only one ship is cached, it's auto-selected (no flags needed)
+-   If multiple ships are cached, you'll be prompted to specify with `--ship`
+-   Code login and code fallback cache fresh cookies; provided-cookie flows do not copy cookies into cache
 
 **Clear cache:** `rm ~/.tlon/cache/*.json`
 
@@ -177,9 +150,9 @@ $ tlon --ship ~bus contacts self
 
 If you have credentials for multiple ships, you can use this skill to operate on behalf of any of them. This is useful for:
 
-- **Managing multiple identities** — switch between ships without changing environment variables
-- **Bot operations** — act as a bot ship while authenticated as yourself
-- **Moon management** — operate moons from their parent planet
+-   **Managing multiple identities** — switch between ships without changing environment variables
+-   **Bot operations** — act as a bot ship while authenticated as yourself
+-   **Moon management** — operate moons from their parent planet
 
 Simply pass the target ship's credentials via CLI flags:
 
@@ -242,9 +215,9 @@ tlon channels rename --help
 
 Notes on permissions:
 
-- Empty writers list = anyone in the group can post (default for chat)
-- Empty readers list = anyone in the group can view (default)
-- Roles must exist in the group (use `tlon groups add-role` first)
+-   Empty writers list = anyone in the group can post (default for chat)
+-   Empty readers list = anyone in the group can view (default)
+-   Roles must exist in the group (use `tlon groups add-role` first)
 
 ### Contacts
 
@@ -332,10 +305,11 @@ tlon groups add-channel --help
 Group format: `~host-ship/group-slug`
 
 Join behavior:
-- `join` first checks whether you are already a member, then checks foreign/unjoined group state for a valid invite.
-- Invited groups and public groups use the backend join action.
-- Private groups without an invite use the invite-request action.
-- Secret groups require an invite.
+
+-   `join` first checks whether you are already a member, then checks foreign/unjoined group state for a valid invite.
+-   Invited groups and public groups use the backend join action.
+-   Private groups without an invite use the invite-request action.
+-   Secret groups require an invite.
 
 ### Hooks
 
@@ -365,23 +339,23 @@ tlon hooks rest 0v1a                                     # Stop cron job
 
 Notes:
 
-- Hook IDs are @uv format (e.g., `0v1a.2b3c4...`)
-- Schedules use @dr format: `~h1` (1 hour), `~m30` (30 minutes), `~d1` (1 day)
-- Hooks run in order when triggered; use `order` to set priority
-- Use `config` to pass channel-specific settings to a hook instance
+-   Hook IDs are @uv format (e.g., `0v1a.2b3c4...`)
+-   Schedules use @dr format: `~h1` (1 hour), `~m30` (30 minutes), `~d1` (1 day)
+-   Hooks run in order when triggered; use `order` to set priority
+-   Use `config` to pass channel-specific settings to a hook instance
 
 **Writing Hooks:** See `references/hooks.md` for full documentation on writing hooks, including:
 
-- Event types (`on-post`, `on-reply`, `cron`, `wake`)
-- Bowl context (channel, group, config access)
-- Effects (channel actions, group actions, scheduled wakes)
-- Config handling with clam (`;;`)
+-   Event types (`on-post`, `on-reply`, `cron`, `wake`)
+-   Bowl context (channel, group, config access)
+-   Effects (channel actions, group actions, scheduled wakes)
+-   Config handling with clam (`;;`)
 
 **Examples:** See `references/hooks-examples/` for starter templates:
 
-- `auto-react.hoon` — React to new posts with emoji
-- `delete-old-posts.hoon` — Cron job to clean up old messages
-- `word-filter.hoon` — Block posts containing banned words
+-   `auto-react.hoon` — React to new posts with emoji
+-   `delete-old-posts.hoon` — Cron job to clean up old messages
+-   `word-filter.hoon` — Block posts containing banned words
 
 ### Messages
 
@@ -397,12 +371,9 @@ tlon messages post chat/~host/slug 170.141...            # Fetch single post wit
 
 Options: `--limit N`, `--resolve-cites`
 
-The `context` command fetches N messages before and after a given post ID — useful for
-finding surrounding conversation when you have a post from search or activity.
-For DMs, use the ship name as the channel: `tlon messages context ~sampel 170.141...`
+The `context` command fetches N messages before and after a given post ID — useful for finding surrounding conversation when you have a post from search or activity. For DMs, use the ship name as the channel: `tlon messages context ~sampel 170.141...`
 
-The `post` command fetches a single post with its replies/thread. For DM posts,
-pass `--author ~ship` (required for DM lookups).
+The `post` command fetches a single post with its replies/thread. For DM posts, pass `--author ~ship` (required for DM lookups).
 
 **Tip:** Use `search` to find a message, then `context` with its ID to see the surrounding conversation.
 
@@ -443,8 +414,8 @@ tlon expose url heap/~host/gallery/170.141...            # Get the public URL
 
 Cite path formats:
 
-- Simplified: `chat/~host/channel/170.141...` (auto-expands)
-- Full: `/1/chan/chat/~host/channel/msg/170.141...`
+-   Simplified: `chat/~host/channel/170.141...` (auto-expands)
+-   Full: `/1/chan/chat/~host/channel/msg/170.141...`
 
 Channel kinds map to content types: chat→msg, heap→curio
 
@@ -469,28 +440,17 @@ tlon posts delete chat/~host/slug 170.141...             # Delete a post
 tlon posts delete heap/~host/gallery 170.141...          # Delete a gallery post
 ```
 
-`--bot` marks a `posts send`/`posts reply`/`dms send`/`dms reply` message as
-bot-authored: the message carries an author object instead of a bare ship,
-which is what makes clients render the "Bot" tag. `--bot-nickname <text>` and
-`--bot-avatar <url>` set the displayed bot profile and each imply `--bot`;
-both also accept the inline `--bot-nickname=<text>` form, which is the only
-way to pass a value that itself starts with `--`.
-Opt-in on purpose — messages you send as yourself must not be bot-tagged.
+`--bot` marks a `posts send`/`posts reply`/`dms send`/`dms reply` message as bot-authored: the message carries an author object instead of a bare ship, which is what makes clients render the "Bot" tag. Bot display names come from contact sync, not from the message, so the flag takes no value. Opt-in on purpose — messages you send as yourself must not be bot-tagged. Edits need no flag: `posts edit` preserves the existing post's authorship, so a bot-authored post keeps its "Bot" tag and a human-authored one stays bare.
 
 Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
 
-`posts edit` edits message text only. The former notebook-only
-`--title`/`--image`/`--content` edit flags are removed (they refuse with an
-explanatory error). Deprecated diary channels are unmanaged by the CLI except
-through the owner-run `tlon notes migrate-plan <diary-nest>` and
-`tlon notes migrate-apply <diary-nest> --yes` paths.
+`posts edit` edits message text only. The former notebook-only `--title`/`--image`/`--content` edit flags are removed (they refuse with an explanatory error). Deprecated diary channels are unmanaged by the CLI except through the owner-run `tlon notes migrate-plan <diary-nest>` and `tlon notes migrate-apply <diary-nest> --yes` paths.
 
 Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported.
 
 ### Notes
 
-Manage %notes notebooks (Markdown-first). Notebooks are nests of the form
-`notes/~host/name`; note bodies are plain Markdown (not Tlon Story).
+Manage %notes notebooks (Markdown-first). Notebooks are nests of the form `notes/~host/name`; note bodies are plain Markdown (not Tlon Story).
 
 ```bash
 tlon notes status                                        # Check %notes reachability
@@ -521,18 +481,9 @@ tlon notes migrate-apply diary/~host/name --yes          # Owner-gated migration
 tlon notes notebook-delete notes/~host/name --yes        # Owner-gated migration recovery
 ```
 
-Note bodies come from exactly one content source. `note-create` accepts
-`--body <file>`, `--markdown <file>` (alias), or `--stdin`. `note-update`
-accepts `--body <file>` or `--stdin`; use `--body`, not `--markdown`, for
-file-backed updates. `note-create` places the note in a folder id, or `root`
-(resolved to the notebook's root folder). `--expected-revision` on `note-update`
-is optional (last-write-wins by default).
+Note bodies come from exactly one content source. `note-create` accepts `--body <file>`, `--markdown <file>` (alias), or `--stdin`. `note-update` accepts `--body <file>` or `--stdin`; use `--body`, not `--markdown`, for file-backed updates. `note-create` places the note in a folder id, or `root` (resolved to the notebook's root folder). `--expected-revision` on `note-update` is optional (last-write-wins by default).
 
-To create a **group-backed** notes channel for the Tlon app, use `tlon channels
-create ~host/slug "Title" --kind notes` — %notes owns the listing, so
-`--description` and writer roles aren't accepted there. Do not use
-`tlon notes create` for app/group channels; it creates a standalone %notes
-notebook only.
+To create a **group-backed** notes channel for the Tlon app, use `tlon channels create ~host/slug "Title" --kind notes` — %notes owns the listing, so `--description` and writer roles aren't accepted there. Do not use `tlon notes create` for app/group channels; it creates a standalone %notes notebook only.
 
 ### Upload
 
@@ -578,12 +529,12 @@ tlon settings deauthorize-ship ~ship                     # Remove from auth
 
 ## Notes
 
-- Ship names should include `~` prefix
-- Post IDs are @ud format with dots (e.g. `170.141.184.507...`)
-- DM post IDs include author prefix (`~ship/170.141...`)
-- Channel nests: `<kind>/~<host>/<name>` (chat, heap, or notes)
+-   Ship names should include `~` prefix
+-   Post IDs are @ud format with dots (e.g. `170.141.184.507...`)
+-   DM post IDs include author prefix (`~ship/170.141...`)
+-   Channel nests: `<kind>/~<host>/<name>` (chat, heap, or notes)
 
 ## Limits
 
-- Activity: max 25 items
-- Messages: max 50 items
+-   Activity: max 25 items
+-   Messages: max 50 items

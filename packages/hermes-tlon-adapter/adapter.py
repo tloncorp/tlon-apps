@@ -2550,9 +2550,6 @@ class TlonAdapter(BasePlatformAdapter):
         if avatar != self._bot_avatar:
             self._bot_avatar = avatar
             logger.info("[tlon] bot avatar %s", "updated" if avatar else "cleared")
-        # Outbound sends stamp this profile on the author object; the CLI reads
-        # it at invocation time, so a later profile edit applies immediately.
-        self._cli.set_bot_profile(nickname=nickname, avatar=avatar)
 
     def _handle_contacts_event(self, raw: Any) -> None:
         if not isinstance(raw, dict):

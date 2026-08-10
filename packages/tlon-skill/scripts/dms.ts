@@ -58,14 +58,11 @@ Commands:
   decline <ship>                  Decline a DM invite
 
 Send options:
-  --bot                  Author the message as a bot (renders the "Bot" tag)
-  --bot-nickname <text>  Bot display name; implies --bot. Takes --flag=value too
-  --bot-avatar <url>     Bot avatar URL; implies --bot. Takes --flag=value too`;
+  --bot                  Author the message as a bot (renders the "Bot" tag)`;
 
 const DMS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon dms send <club-id> [message] [--image <url>] [--bot] [--bot-nickname <text>] [--bot-avatar <url>] (message optional with --image)',
-  reply:
-    'Usage: tlon dms reply <club-id> <post-id> <message> [--bot] [--bot-nickname <text>] [--bot-avatar <url>]',
+  send: 'Usage: tlon dms send <club-id> [message] [--image <url>] [--bot] (message optional with --image)',
+  reply: 'Usage: tlon dms reply <club-id> <post-id> <message> [--bot]',
   react: 'Usage: tlon dms react <ship> <post-id> <emoji> [--parent <post-id>]',
   unreact: 'Usage: tlon dms unreact <ship> <post-id> [--parent <post-id>]',
   delete: 'Usage: tlon dms delete <ship> <post-id>',

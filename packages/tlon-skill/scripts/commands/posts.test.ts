@@ -790,47 +790,6 @@ describe('posts bot author flags', () => {
     ]);
   });
 
-  it('treats --bot-nickname and --bot-avatar as implying --bot', async () => {
-    const nicknameOnly = makeDeps({ currentUserId: '~bot', now: 42 });
-    await run(
-      ['send', 'chat/~host/channel', 'beep', '--bot-nickname', 'Botly'],
-      nicknameOnly.deps
-    );
-    expect(nicknameOnly.calls.sendPost[0].botProfile).toEqual({
-      nickname: 'Botly',
-      avatar: null,
-    });
-
-    const avatarOnly = makeDeps({ currentUserId: '~bot', now: 42 });
-    await run(
-      ['send', 'chat/~host/channel', 'beep', '--bot-avatar', 'https://x/y.png'],
-      avatarOnly.deps
-    );
-    expect(avatarOnly.calls.sendPost[0].botProfile).toEqual({
-      nickname: null,
-      avatar: 'https://x/y.png',
-    });
-
-    const both = makeDeps({ currentUserId: '~bot', now: 42 });
-    await run(
-      [
-        'send',
-        'chat/~host/channel',
-        'beep',
-        '--bot',
-        '--bot-nickname',
-        'Botly',
-        '--bot-avatar',
-        'https://x/y.png',
-      ],
-      both.deps
-    );
-    expect(both.calls.sendPost[0].botProfile).toEqual({
-      nickname: 'Botly',
-      avatar: 'https://x/y.png',
-    });
-  });
-
   it('omits botProfile entirely without a bot flag', async () => {
     const context = makeDeps();
     await run(['send', 'chat/~host/channel', 'beep'], context.deps);
@@ -841,14 +800,7 @@ describe('posts bot author flags', () => {
   it('replies as a bot', async () => {
     const context = makeDeps({ currentUserId: '~bot', now: 7 });
     const exitCode = await run(
-      [
-        'reply',
-        'chat/~host/channel',
-        '~sampel/170141184',
-        'boop',
-        '--bot-nickname',
-        'Botly',
-      ],
+      ['reply', 'chat/~host/channel', '~sampel/170141184', 'boop', '--bot'],
       context.deps
     );
 
@@ -862,41 +814,31 @@ describe('posts bot author flags', () => {
         sentAt: 7,
         authorId: '~bot',
         blob: undefined,
-        botProfile: { nickname: 'Botly', avatar: null },
+        botProfile: { nickname: null, avatar: null },
       },
     ]);
   });
 
-  it('keeps trailing bot flags out of the message text', async () => {
+  it('keeps a trailing bot flag out of the message text', async () => {
     const send = makeDeps();
     await run(
+      ['send', 'chat/~host/channel', 'hello', 'there', 'friend', '--bot'],
+      send.deps
+    );
+    expect(send.calls.sendPost[0].content).toEqual([
+      { inline: ['hello there friend'] },
+    ]);
+
+    const reply = makeDeps();
+    await run(
       [
-        'send',
+        'reply',
         'chat/~host/channel',
+        '170.141',
         'hello',
         'there',
         'friend',
         '--bot',
-        '--bot-nickname',
-        'Botly',
-      ],
-      send.deps
-    );
-    expect(send.calls.sendPost[0].content).toEqual([
-      { inline: ['hello there friend'] },
-    ]);
-
-    const reply = makeDeps();
-    await run(
-      [
-        'reply',
-        'chat/~host/channel',
-        '170.141',
-        'hello',
-        'there',
-        'friend',
-        '--bot-avatar',
-        'https://x/y.png',
       ],
       reply.deps
     );
@@ -905,129 +847,14 @@ describe('posts bot author flags', () => {
     ]);
   });
 
-  it('treats an inline bot flag as a message boundary', async () => {
-    const send = makeDeps();
-    await run(
-      [
-        'send',
-        'chat/~host/channel',
-        'hello',
-        'there',
-        '--bot-nickname=Botly',
-        '--bot-avatar=https://x/y.png',
-      ],
-      send.deps
-    );
-    expect(send.calls.sendPost[0].content).toEqual([
-      { inline: ['hello there'] },
-    ]);
-
-    const reply = makeDeps();
-    await run(
-      [
-        'reply',
-        'chat/~host/channel',
-        '170.141',
-        'hello',
-        'there',
-        '--bot-avatar=https://x/y.png',
-      ],
-      reply.deps
-    );
-    expect(reply.calls.sendReply[0].content).toEqual([
-      { inline: ['hello there'] },
-    ]);
-  });
-
-  it('accepts the inline --flag=value form on send and reply', async () => {
-    const send = makeDeps({ currentUserId: '~bot', now: 42 });
-    await run(
-      [
-        'send',
-        'chat/~host/channel',
-        'beep',
-        '--bot-nickname=Botly',
-        '--bot-avatar=https://x/y.png',
-      ],
-      send.deps
-    );
-    expect(send.calls.sendPost[0].botProfile).toEqual({
-      nickname: 'Botly',
-      avatar: 'https://x/y.png',
-    });
-    expect(send.calls.sendPost[0].content).toEqual([{ inline: ['beep'] }]);
-
-    const reply = makeDeps({ currentUserId: '~bot', now: 7 });
-    await run(
-      [
-        'reply',
-        'chat/~host/channel',
-        '170.141',
-        'boop',
-        '--bot-nickname=Botly',
-      ],
-      reply.deps
-    );
-    expect(reply.calls.sendReply[0].botProfile).toEqual({
-      nickname: 'Botly',
-      avatar: null,
-    });
-    expect(reply.calls.sendReply[0].content).toEqual([{ inline: ['boop'] }]);
-  });
-
-  it('carries an option-looking nickname through the inline form', async () => {
-    const context = makeDeps();
-    await run(
-      ['send', 'chat/~host/channel', 'beep', '--bot-nickname=--weird'],
-      context.deps
-    );
-
-    expect(context.calls.sendPost[0].botProfile).toEqual({
-      nickname: '--weird',
-      avatar: null,
-    });
-  });
-
-  it('rejects a bot flag with a missing or option-token value before auth', async () => {
+  it('rejects a value on the valueless --bot flag before auth', async () => {
     const cases: [string[], string][] = [
-      [
-        ['send', 'chat/~host/channel', 'hi', '--bot-nickname'],
-        POSTS_COMMAND_HELP.send,
-      ],
-      [
-        ['send', 'chat/~host/channel', 'hi', '--bot-avatar'],
-        POSTS_COMMAND_HELP.send,
-      ],
-      [
-        ['send', 'chat/~host/channel', 'hi', '--bot-nickname', '--sent-at'],
-        POSTS_COMMAND_HELP.send,
-      ],
-      [
-        ['reply', 'chat/~host/channel', '170.141', 'hi', '--bot-nickname'],
-        POSTS_COMMAND_HELP.reply,
-      ],
-      [
-        [
-          'reply',
-          'chat/~host/channel',
-          '170.141',
-          'hi',
-          '--bot-avatar',
-          '--bot',
-        ],
-        POSTS_COMMAND_HELP.reply,
-      ],
-      // Inline form with an empty value, and the valueless flag given one.
-      [
-        ['send', 'chat/~host/channel', 'hi', '--bot-nickname='],
-        POSTS_COMMAND_HELP.send,
-      ],
       [
         ['send', 'chat/~host/channel', 'hi', '--bot=Botly'],
         POSTS_COMMAND_HELP.send,
       ],
       [
-        ['reply', 'chat/~host/channel', '170.141', 'hi', '--bot-avatar='],
+        ['reply', 'chat/~host/channel', '170.141', 'hi', '--bot=Botly'],
         POSTS_COMMAND_HELP.reply,
       ],
     ];
@@ -1610,6 +1437,59 @@ describe('posts edit', () => {
       description: undefined,
       cover: undefined,
     });
+  });
+
+  // An edit resubmits the whole essay, so the CLI must hand back the existing
+  // post's authorship shape or a bot post silently loses its Bot tag.
+  it('preserves bot authorship when editing a bot-authored post', async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({ ...existing, isBot: true }),
+    });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost[0].botProfile).toEqual({
+      nickname: null,
+      avatar: null,
+    });
+  });
+
+  it('leaves a human-authored post bare-authored on edit', async () => {
+    for (const post of [
+      { ...existing, isBot: false },
+      // A record with no isBot at all must not be upgraded either.
+      existing,
+    ]) {
+      const context = makeDeps({ getChannelPosts: withExistingPost(post) });
+
+      const exitCode = await run(
+        ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+        context.deps
+      );
+
+      expect(exitCode).toBe(0);
+      expect('botProfile' in context.calls.editPost[0]).toBe(false);
+    }
+  });
+
+  it('omits bot authorship when the existing-post lookup fails', async () => {
+    const context = makeDeps({
+      getChannelPosts: async () => {
+        throw new Error('lookup boom');
+      },
+    });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect('botProfile' in context.calls.editPost[0]).toBe(false);
   });
 
   it('treats every token after the post id as the message', async () => {

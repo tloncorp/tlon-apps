@@ -42,8 +42,6 @@ Send options:
                        derives from it. Applies to send and reply.
   --bot                Author the message as a bot (renders the "Bot" tag).
                        Applies to send and reply.
-  --bot-nickname <text>  Bot display name; implies --bot. Takes --flag=value too
-  --bot-avatar <url>     Bot avatar URL; implies --bot. Takes --flag=value too
 
 Examples:
   tlon posts send chat/~host/channel "Hello from tlon"
@@ -56,9 +54,9 @@ Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 export const POSTS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--title <text>] [--sent-at <ms>] [--bot] [--bot-nickname <text>] [--bot-avatar <url>] (message optional with --image)',
+  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--title <text>] [--sent-at <ms>] [--bot] (message optional with --image)',
   reply:
-    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship] [--blob <json>] [--sent-at <ms>] [--bot] [--bot-nickname <text>] [--bot-avatar <url>]',
+    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship] [--blob <json>] [--sent-at <ms>] [--bot]',
   react:
     'Usage: tlon posts react <channel> <post-id> <emoji> [--parent <post-id>]',
   unreact: 'Usage: tlon posts unreact <channel> <post-id> [--parent <post-id>]',
@@ -129,6 +127,7 @@ export interface PostEditInput {
   sentAt: number;
   content: Story;
   metadata: PostEditMetadata;
+  botProfile?: BotAuthorProfile;
 }
 
 export interface PostSendInput {
@@ -166,6 +165,7 @@ export interface ExistingPost {
   image?: string | null;
   description?: string | null;
   cover?: string | null;
+  isBot?: boolean | null;
 }
 
 export interface PostLookupResult {
@@ -789,6 +789,13 @@ async function editPost(
     sentAt: deps.now(),
     content: markdownToStory(parsed.message),
     metadata,
+    // An edit resubmits the whole essay, so authorship shape is preserved from
+    // the existing post rather than re-derived: a bot post stays bot-authored,
+    // a human post stays bare. When the lookup fails there is nothing to
+    // preserve, so the edit behaves as it always has.
+    ...(existing?.isBot
+      ? { botProfile: { nickname: null, avatar: null } }
+      : {}),
   });
 }
 

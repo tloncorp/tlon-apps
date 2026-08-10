@@ -875,16 +875,9 @@ def find_subcommand_index(args: Sequence[str]) -> int:
 # flag is absent — degrading to bare-ship authors rather than corrupting sends.
 BOT_FLAG_PROBE_ARGS = ("posts", "send", "--help")
 BOT_FLAG = "--bot"
-# `--bot` as its own token: bracketed/comma'd in usage lines, but never a prefix
-# of `--bot-nickname`/`--bottle`, which say nothing about `--bot` itself.
+# `--bot` as its own token: bracketed/comma'd in usage lines, but never matched
+# inside a longer flag such as `--bottle`, which says nothing about `--bot`.
 _BOT_FLAG_TOKEN = re.compile(r"(?<![\w-])--bot(?![\w-])")
-
-
-def _bot_flag_value(value: str | None) -> str | None:
-    """Flag values are emitted inline (`--bot-nickname=…`), so any non-empty
-    value survives — including one that looks like an option token."""
-    text = (value or "").strip()
-    return text or None
 
 
 class TlonCLI:
@@ -895,38 +888,19 @@ class TlonCLI:
         runner: CommandRunner | None = None,
         observer: CliObserver | None = None,
         as_bot: bool = False,
-        bot_nickname: str | None = None,
-        bot_avatar: str | None = None,
     ) -> None:
         self.config = config
         self._runner = runner or self._run_subprocess
         self._observer = observer
         self.as_bot = as_bot
-        self._bot_nickname = bot_nickname
-        self._bot_avatar = bot_avatar
         self._bot_flags_supported: bool | None = None
         # Created on first use so the lock binds to the loop that probes.
         self._bot_flag_probe_lock: asyncio.Lock | None = None
 
-    def set_bot_profile(
-        self, *, nickname: str | None, avatar: str | None
-    ) -> None:
-        """Track the bot's published nickname/avatar for `--bot-*` decoration.
-        Called whenever the adapter reconciles its self contact."""
-        self._bot_nickname = nickname
-        self._bot_avatar = avatar
-
     def _bot_flags(self) -> list[str]:
-        # Inline `--flag=value`: the separated form refuses a value that looks
-        # like an option token, which a nickname legitimately can.
-        flags = [BOT_FLAG]
-        nickname = _bot_flag_value(self._bot_nickname)
-        if nickname:
-            flags.append(f"--bot-nickname={nickname}")
-        avatar = _bot_flag_value(self._bot_avatar)
-        if avatar:
-            flags.append(f"--bot-avatar={avatar}")
-        return flags
+        # Bare `--bot` only: display names come from contact sync, so the CLI
+        # takes no per-message profile values.
+        return [BOT_FLAG]
 
     async def _supports_bot_flags(self) -> bool:
         """Whether the installed CLI knows the bot-author flags. Probed once per
