@@ -940,7 +940,7 @@ class TlonCLITests(unittest.TestCase):
     # predates them — what the capability probe reads.
     NEW_CLI_HELP = (
         "Usage: tlon posts send <channel> [message] [--blob <json>] "
-        "[--image <url>] [--bot] [--bot-nickname <text>] [--bot-avatar <url>]\n"
+        "[--image <url>] [--bot]\n"
     )
     OLD_CLI_HELP = (
         "Usage: tlon posts send <channel> [message] [--blob <json>] "
@@ -1011,41 +1011,6 @@ class TlonCLITests(unittest.TestCase):
         )
         # Probed once, then cached for the life of the instance.
         self.assertEqual(len(probes), 1)
-
-    def test_as_bot_carries_profile_and_tracks_updates(self):
-        cli, calls, _probes = self._bot_cli(
-            bot_nickname="Botly", bot_avatar="https://x/y.png"
-        )
-
-        async def run():
-            await cli.send_message("chat/~zod/general", "hi")
-            cli.set_bot_profile(nickname="Renamed", avatar=None)
-            await cli.send_message("chat/~zod/general", "hi")
-            cli.set_bot_profile(nickname=None, avatar=None)
-            await cli.send_message("chat/~zod/general", "hi")
-
-        asyncio.run(run())
-
-        self.assertEqual(
-            calls[0][-3:],
-            ("--bot", "--bot-nickname=Botly", "--bot-avatar=https://x/y.png"),
-        )
-        self.assertEqual(calls[1][-2:], ("--bot", "--bot-nickname=Renamed"))
-        self.assertEqual(calls[2][-1:], ("--bot",))
-
-    def test_as_bot_keeps_option_looking_profile_values(self):
-        # The inline form carries a value the separated form could not express;
-        # only an empty/whitespace value is dropped.
-        cli, calls, _probes = self._bot_cli(
-            bot_nickname="--sneaky", bot_avatar="  "
-        )
-
-        asyncio.run(cli.send_message("chat/~zod/general", "hi"))
-
-        self.assertEqual(
-            calls[0][-2:], ("--bot", "--bot-nickname=--sneaky")
-        )
-        self.assertNotIn("--bot-avatar", " ".join(calls[0]))
 
     def test_as_bot_decorates_raw_send_tuples_through_run_command(self):
         cli, calls, _probes = self._bot_cli()
@@ -1133,9 +1098,7 @@ class TlonCLITests(unittest.TestCase):
         self.assertEqual(probes, [])
 
     def test_old_cli_without_bot_flag_sends_undecorated(self):
-        cli, calls, probes = self._bot_cli(
-            help_text=self.OLD_CLI_HELP, bot_nickname="Botly"
-        )
+        cli, calls, probes = self._bot_cli(help_text=self.OLD_CLI_HELP)
 
         async def run():
             await cli.send_message("chat/~zod/general", "hi")
@@ -1269,7 +1232,7 @@ class TlonCLITests(unittest.TestCase):
             return tlon_api.TlonProcessResult(returncode=0, stdout="")
 
         async def run():
-            cli = tlon_api.TlonCLI(cfg, runner=runner, bot_nickname="Botly")
+            cli = tlon_api.TlonCLI(cfg, runner=runner)
             await cli.send_message("chat/~zod/general", "hi")
 
         asyncio.run(run())

@@ -310,32 +310,9 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     stderrIncludes: ['--image must be an http(s) image URL'],
   },
   usageErrorCase(
-    'posts send missing bot nickname value',
-    ['posts', 'send', 'chat/~host/channel', 'message', '--bot-nickname'],
-    'Usage: tlon posts send'
-  ),
-  usageErrorCase(
-    'posts send rejects an empty inline bot nickname',
-    ['posts', 'send', 'chat/~host/channel', 'message', '--bot-nickname='],
-    'Usage: tlon posts send'
-  ),
-  usageErrorCase(
     'posts send rejects a value on the valueless --bot flag',
     ['posts', 'send', 'chat/~host/channel', 'message', '--bot=Botly'],
     'Usage: tlon posts send'
-  ),
-  usageErrorCase(
-    'posts reply rejects an option token as a bot avatar value',
-    [
-      'posts',
-      'reply',
-      'chat/~host/channel',
-      '170.141',
-      'message',
-      '--bot-avatar',
-      '--bot',
-    ],
-    'Usage: tlon posts reply'
   ),
   usageErrorCase(
     'dms send missing image value',
@@ -343,13 +320,8 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'Usage: tlon dms send'
   ),
   usageErrorCase(
-    'dms send missing bot nickname value',
-    ['dms', 'send', '0v5.abcde', 'message', '--bot-nickname'],
-    'Usage: tlon dms send'
-  ),
-  usageErrorCase(
-    'dms reply missing bot avatar value',
-    ['dms', 'reply', '0v5.abcde', '~pen/170.141', 'message', '--bot-avatar'],
+    'dms reply rejects a value on the valueless --bot flag',
+    ['dms', 'reply', '0v5.abcde', '~pen/170.141', 'message', '--bot=Botly'],
     'Usage: tlon dms reply'
   ),
   {

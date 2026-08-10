@@ -192,7 +192,7 @@ function expectUsageExit(run: () => unknown): void {
 }
 
 describe('dms bot author flags', () => {
-  it('parses the accept matrix, implying --bot from a value flag', async () => {
+  it('parses --bot and rejects a value on it', async () => {
     const dms = await loadDms();
     const help = 'usage';
 
@@ -202,51 +202,19 @@ describe('dms bot author flags', () => {
     ).toEqual({ nickname: null, avatar: null });
     expect(
       dms.dmBotProfile(
-        ['send', '0v5.abcde', 'hi', '--bot-nickname', 'Botly'],
+        ['reply', '0v5.abcde', '~pen/170.141', 'hi', '--bot'],
         help
       )
-    ).toEqual({ nickname: 'Botly', avatar: null });
-    expect(
-      dms.dmBotProfile(
-        ['send', '0v5.abcde', 'hi', '--bot-avatar', 'https://x/y.png'],
-        help
-      )
-    ).toEqual({ nickname: null, avatar: 'https://x/y.png' });
-    expect(
-      dms.dmBotProfile(
-        [
-          'reply',
-          '0v5.abcde',
-          '~pen/170.141',
-          'hi',
-          '--bot',
-          '--bot-nickname',
-          'Botly',
-          '--bot-avatar',
-          'https://x/y.png',
-        ],
-        help
-      )
-    ).toEqual({ nickname: 'Botly', avatar: 'https://x/y.png' });
-  });
-
-  it('rejects a bot flag with a missing or option-token value', async () => {
-    const dms = await loadDms();
-    const cases = [
-      ['send', '0v5.abcde', 'hi', '--bot-nickname'],
-      ['send', '0v5.abcde', 'hi', '--bot-avatar'],
-      ['send', '0v5.abcde', 'hi', '--bot-nickname', '--bot'],
-      ['reply', '0v5.abcde', '~pen/170.141', 'hi', '--bot-avatar'],
-    ];
-    for (const args of cases) {
-      expectUsageExit(() => dms.dmBotProfile(args, 'usage'));
-    }
+    ).toEqual({ nickname: null, avatar: null });
+    expectUsageExit(() =>
+      dms.dmBotProfile(['send', '0v5.abcde', 'hi', '--bot=Botly'], 'usage')
+    );
   });
 
   it('rejects a malformed bot flag during send/reply validation', async () => {
     const dms = await loadDms();
     expectUsageExit(() =>
-      dms.validateDmsArgs(['send', '0v5.abcde', 'hi', '--bot-nickname'])
+      dms.validateDmsArgs(['send', '0v5.abcde', 'hi', '--bot=Botly'])
     );
     expectUsageExit(() =>
       dms.validateDmsArgs([
@@ -254,12 +222,12 @@ describe('dms bot author flags', () => {
         '0v5.abcde',
         '~pen/170.141',
         'hi',
-        '--bot-avatar',
+        '--bot=Botly',
       ])
     );
   });
 
-  it('keeps trailing bot flags out of the message text', async () => {
+  it('keeps a trailing bot flag out of the message text', async () => {
     const dms = await loadDms();
 
     expect(
@@ -270,8 +238,6 @@ describe('dms bot author flags', () => {
         'there',
         'friend',
         '--bot',
-        '--bot-nickname',
-        'Botly',
       ])
     ).toBe('hello there friend');
     expect(
@@ -293,8 +259,7 @@ describe('dms bot author flags', () => {
         'hello',
         'there',
         'friend',
-        '--bot-avatar',
-        'https://x/y.png',
+        '--bot',
       ])
     ).toBe('hello there friend');
   });
@@ -318,7 +283,7 @@ describe('dms bot author flags', () => {
         '0v5.abcde',
         'hi',
         undefined,
-        { nickname: 'Botly', avatar: null },
+        { nickname: null, avatar: null },
         deps as never
       )
     ).toEqual({ success: true });
@@ -327,16 +292,13 @@ describe('dms bot author flags', () => {
         '0v5.abcde',
         '~pen/170.141',
         'hi',
-        { nickname: null, avatar: 'https://x/y.png' },
+        { nickname: null, avatar: null },
         deps as never
       )
     ).toEqual({ success: true });
 
-    expect(posts[0].botProfile).toEqual({ nickname: 'Botly', avatar: null });
-    expect(replies[0].botProfile).toEqual({
-      nickname: null,
-      avatar: 'https://x/y.png',
-    });
+    expect(posts[0].botProfile).toEqual({ nickname: null, avatar: null });
+    expect(replies[0].botProfile).toEqual({ nickname: null, avatar: null });
   });
 
   it('omits botProfile entirely without a bot flag', async () => {
@@ -370,62 +332,6 @@ describe('dms bot author flags', () => {
 
     expect('botProfile' in posts[0]).toBe(false);
     expect('botProfile' in replies[0]).toBe(false);
-  });
-
-  it('accepts the inline --flag=value form, including option-looking values', async () => {
-    const dms = await loadDms();
-    const help = 'usage';
-
-    expect(
-      dms.dmBotProfile(
-        [
-          'send',
-          '0v5.abcde',
-          'hi',
-          '--bot-nickname=Botly',
-          '--bot-avatar=https://x/y.png',
-        ],
-        help
-      )
-    ).toEqual({ nickname: 'Botly', avatar: 'https://x/y.png' });
-    expect(
-      dms.dmBotProfile(
-        ['reply', '0v5.abcde', '~pen/170.141', 'hi', '--bot-nickname=--weird'],
-        help
-      )
-    ).toEqual({ nickname: '--weird', avatar: null });
-
-    for (const args of [
-      ['send', '0v5.abcde', 'hi', '--bot-nickname='],
-      ['send', '0v5.abcde', 'hi', '--bot=Botly'],
-      ['reply', '0v5.abcde', '~pen/170.141', 'hi', '--bot-avatar='],
-    ]) {
-      expectUsageExit(() => dms.dmBotProfile(args, help));
-    }
-  });
-
-  it('treats an inline bot flag as a message boundary', async () => {
-    const dms = await loadDms();
-
-    expect(
-      dms.getDmSendMessage([
-        'send',
-        '0v5.abcde',
-        'hello',
-        'there',
-        '--bot-nickname=Botly',
-      ])
-    ).toBe('hello there');
-    expect(
-      dms.getDmReplyMessage([
-        'reply',
-        '0v5.abcde',
-        '~pen/170.141',
-        'hello',
-        'there',
-        '--bot-avatar=https://x/y.png',
-      ])
-    ).toBe('hello there');
   });
 });
 
@@ -486,15 +392,7 @@ function makeRunDeps() {
 describe('dms run', () => {
   it('sends a group DM with the parsed bot profile', async () => {
     const { posts } = await runDms(
-      [
-        'send',
-        '0v5.abcde',
-        'hello',
-        'there',
-        '--bot-nickname',
-        'Botly',
-        '--bot-avatar=https://x/y.png',
-      ],
+      ['send', '0v5.abcde', 'hello', 'there', '--bot'],
       makeRunDeps()
     );
 
@@ -504,7 +402,7 @@ describe('dms run', () => {
         authorId: '~bot',
         sentAt: expect.any(Number),
         content: [{ inline: ['hello there'] }],
-        botProfile: { nickname: 'Botly', avatar: 'https://x/y.png' },
+        botProfile: { nickname: null, avatar: null },
       },
     ]);
   });

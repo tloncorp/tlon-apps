@@ -42,8 +42,6 @@ Send options:
                        derives from it. Applies to send and reply.
   --bot                Author the message as a bot (renders the "Bot" tag).
                        Applies to send and reply.
-  --bot-nickname <text>  Bot display name; implies --bot. Takes --flag=value too
-  --bot-avatar <url>     Bot avatar URL; implies --bot. Takes --flag=value too
 
 Examples:
   tlon posts send chat/~host/channel "Hello from tlon"
@@ -56,9 +54,9 @@ Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 export const POSTS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--title <text>] [--sent-at <ms>] [--bot] [--bot-nickname <text>] [--bot-avatar <url>] (message optional with --image)',
+  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--title <text>] [--sent-at <ms>] [--bot] (message optional with --image)',
   reply:
-    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship] [--blob <json>] [--sent-at <ms>] [--bot] [--bot-nickname <text>] [--bot-avatar <url>]',
+    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship] [--blob <json>] [--sent-at <ms>] [--bot]',
   react:
     'Usage: tlon posts react <channel> <post-id> <emoji> [--parent <post-id>]',
   unreact: 'Usage: tlon posts unreact <channel> <post-id> [--parent <post-id>]',

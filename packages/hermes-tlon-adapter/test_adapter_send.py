@@ -1604,14 +1604,8 @@ class BotAuthorDecorationTests(unittest.TestCase):
             asyncio.run(adapter._send_nudge_dm("nudge", 1234))
 
         for call in calls:
-            self.assertEqual(
-                call[-3:],
-                (
-                    "--bot",
-                    "--bot-nickname=Botly",
-                    "--bot-avatar=https://x/y.png",
-                ),
-            )
+            self.assertEqual(call[-1], "--bot")
+            self.assertNotIn("--bot-nickname=Botly", call)
         self.assertEqual(calls[0][1:3], ("posts", "send"))
 
     def test_adapter_cli_degrades_when_installed_cli_predates_the_flags(self):
