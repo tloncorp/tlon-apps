@@ -173,6 +173,26 @@
     (~(put by *(map @t task:v1:au)) 'task-a' task-a)
   (ex-equal !>(tasks.automation.st) !>(expected))
 ::
+++  test-automation-project-rejects-foreign-without-mutation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  task-b=task:v1:au  (automation-task 'Task B')
+  =/  initial=(list identified-task:v1:au)  ~[['task-a' task-a]]
+  =/  foreign=(list identified-task:v1:au)  ~[['task-b' task-b]]
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (project-automation initial)
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~zod)
+    (project-automation foreign)
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  =/  expected=(map @t task:v1:au)
+    (~(put by *(map @t task:v1:au)) 'task-a' task-a)
+  (ex-equal !>(tasks.automation.st) !>(expected))
+::
 ::  ==========================================================
 ::  LENS MODULE TESTS
 ::  ==========================================================

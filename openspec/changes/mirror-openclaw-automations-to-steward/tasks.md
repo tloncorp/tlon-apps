@@ -21,7 +21,7 @@
         including empty and repeated projections, removal by omission,
         duplicate-ID rejection, and unchanged state after invalid
         input.
-- [ ] 2.3 Enforce the local Gall source boundary for `%project` and
+- [x] 2.3 Enforce the local Gall source boundary for `%project` and
         reject foreign sources without changing state.
 - [ ] 2.4 Add the versioned automation action mark and dedicated
         task-map scry mark with validated `%project` JSON/noun

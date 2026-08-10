@@ -144,7 +144,7 @@
       %steward-gateway-action-1
     (ga-poke-action:ga-core !<(action:v1:sg vase))
   ::
-  ::  automation snapshots. Local-source authorization is added separately.
+  ::  automation snapshots. Authorization is enforced in au-poke-action.
   ::
       %steward-automation-action-1
     (au-poke-action:au-core !<(action:v1:sa vase))
@@ -655,6 +655,7 @@
   ++  au-poke-action
     |=  =action:v1:sa
     ^+  cor
+    ?>  =(src.bowl our.bowl)
     ?-  -.action
         %project
       =/  projected  (au-build-task-map tasks.action)
