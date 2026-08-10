@@ -54,6 +54,8 @@ The automation model will cover the supported OpenClaw task-definition fields an
 
 A typed model gives `%steward` a versioned, validated contract and prevents execution tracking from entering scope implicitly.
 
+Testing will preserve the projection boundary. TypeScript normalization tests will consume JSON fixtures captured from actual `getCron().list()` traces, including fields intentionally omitted from the projection. Once the production JSON marks exist, Hoon contract tests will parse normalized `%project` JSON through the production `dejs` path and serialize updates through the production `enjs` path. Hand-constructed tests will remain only for focused primitive conversion boundaries.
+
 **Alternative considered:** Storing opaque OpenClaw JSON would reduce conversion work but would weaken validation, obscure compatibility changes, and couple the backend to unrelated runtime fields.
 
 ### 5. Separate write and read contracts

@@ -12,7 +12,7 @@
 - [ ] 2.4 Enforce the local Gall source boundary for `%project` and reject foreign sources without changing state.
 - [ ] 2.5 Add the versioned automation action and update marks with validated `%project` JSON/noun conversion and no cron job state.
 - [ ] 2.6 Add the local `/x/v1/automation/tasks` scry with deterministic task ordering and `{ "tasks": [] }` for empty state.
-- [ ] 2.7 Extend Steward tests for populated, empty, repeated, invalid, and foreign `%project` submissions, supported task fields, persistence, JSON conversion, and scry behavior.
+- [ ] 2.7 After the production JSON marks exist, replace the hand-constructed contract and schedule tests from 1.3 with tests that parse realistic normalized `%project` JSON fixtures derived from captured OpenClaw traces. Retain the focused conversion boundary tests, and cover populated, empty, repeated, invalid, and foreign submissions, persistence, update serialization, and scry behavior.
 
 ## 3. OpenClaw Harness Projection
 
@@ -26,7 +26,7 @@
 
 ## 4. Projection Verification
 
-- [ ] 4.1 Test normalization of optional fields and all supported schedules, inclusion of disabled tasks, and omission of cron job state.
+- [ ] 4.1 Using captured OpenClaw `getCron().list()` trace fixtures, test normalization of optional fields and all supported schedules, inclusion of disabled tasks, and omission of cron job state.
 - [ ] 4.2 Test startup reconciliation when cron access is ready, temporarily unavailable, empty, and restored after a stale period.
 - [ ] 4.3 Test complete rereads after definition-related and execution-related `cron_changed` events.
 - [ ] 4.4 Test serialized delivery, coalesced triggers, trigger arrival during submission, and the worker-exit race.
