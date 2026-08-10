@@ -95,7 +95,7 @@
         scry.
 - [x] 5.2 Run the targeted Hoon tests, applicable backend suite, and
         desk compilation on the development ship.
-- [ ] 5.3 Run OpenClaw formatting, linting, type checking, unit
+- [x] 5.3 Run OpenClaw formatting, linting, type checking, unit
         tests, and relevant integration tests against the existing
         pinned runtime.
 - [ ] 5.4 Run strict OpenSpec validation and verify implementation
