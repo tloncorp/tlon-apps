@@ -6,23 +6,32 @@
 ::    the bot itself runs steward as well as the bot's owner, so that things
 ::    like lens data can be scried locally by the owner.
 ::
-::    modules keep their own sur (sur/steward/{lens,gateway}.hoon) and marks
-::    (%steward-{lens,gateway}-{action,update}-1); %steward-action-1 carries
-::    only cross-cutting config (the shared owner).
+::    modules keep their own sur
+::    (sur/steward/{lens,gateway,automation}.hoon) and mark families;
+::    %steward-action-1 carries only cross-cutting config (the shared owner).
 ::
 /-  s=steward, a=activity, av=activity-ver, cv=chat-ver, st=story
-/-  sl=steward-lens, sg=steward-gateway
+/-  sl=steward-lens, sg=steward-gateway, sa=steward-automation
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
-::  %steward is greenfield (unreleased), so it has a single state version and
-::  no migration — an unreadable state just resets to bunt.
+::  Versioned persisted state. state-0 is released and remains decodable until
+::  its migration is implemented. Fresh installs use state-1.
 ::
 ::    .owner: shared owner ship (lens send target, gateway owner-DM tracking)
 ::    .bots:  owner-side trusted bots — ships allowed to send lens %entry
 ::            pokes cross-ship. explicit and ship-class-agnostic; an empty
 ::            set means only local pokes are accepted.
 ::
++$  versioned-state  $%(state-1 state-0)
++$  state-1
+  $:  %1
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:sl
+      gateway=state:v1:sg
+      automation=state:v1:sa
+  ==
 +$  state-0
   $:  %0
       owner=(unit ship)
@@ -37,7 +46,7 @@
 ::
 ++  default-max-runs-per-bot  3.000
 --
-=|  state-0
+=|  state-1
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -53,13 +62,22 @@
     [~[watch-activity:cor] this]
   ++  on-save  !>(state)
   ++  on-load
-    |=  ole=vase
-    ^-  (quip card _this)
-    ::  greenfield single state — load it directly. an incompatible state is
-    ::  only reachable pre-release; let it crash so we nuke rather than
-    ::  silently wipe.
+    |^  |=  ole=vase
+        ^-  (quip card _this)
+        =/  old=versioned-state  !<(versioned-state ole)
+        =?  old  ?=(%0 -.old)  (state-0-to-1 old)
+        ?>  ?=(%1 -.old)
+        `this(state old)
+    ::  Deliberate task-2.1 stub. Do not invent migration behavior while the
+    ::  new state and API are still changing; task 2.7 replaces this crash with
+    ::  the released-state migration after those shapes are validated.
     ::
-    `this(state !<(state-0 ole))
+    ++  state-0-to-1
+      |=  old=state-0
+      ^-  state-1
+      ~|  'steward: state-0 migration intentionally not implemented'
+      !!
+    --
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)

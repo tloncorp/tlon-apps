@@ -12,7 +12,7 @@
 
 ## 2. Steward State, Storage, and JSON API
 
-- [ ] 2.1 Introduce the new current Steward state version with an
+- [x] 2.1 Introduce the new current Steward state version with an
         empty automation slice for fresh initialization. Stub the
         released-state migration to fail visibly, and use a nuked
         disposable development agent while validating the new state
