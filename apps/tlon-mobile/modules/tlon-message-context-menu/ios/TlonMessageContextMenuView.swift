@@ -25,8 +25,22 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         }
     }
 
-    var reactions: [String] = []
-    var selectedReaction: String?
+    var reactions: [String] = [] {
+        didSet {
+            if reactions != oldValue {
+                presentationView?.dismiss()
+            }
+        }
+    }
+
+    var selectedReaction: String? {
+        didSet {
+            if selectedReaction != oldValue {
+                presentationView?.dismiss()
+            }
+        }
+    }
+
     var alignment: TlonMessageMenuAlignment = .leading
     var previewBackgroundColor: UIColor = .secondarySystemBackground
 
