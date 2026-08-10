@@ -156,8 +156,10 @@ function SummaryMessageRaw({
 
   if (relevancy === 'noteAdded' || relevancy === 'noteEdited') {
     const verb = relevancy === 'noteAdded' ? 'added' : 'edited';
+    // note events group per note source, so multiple events here are
+    // always repeat edits of the same note, never distinct notes
     const message =
-      count === 1 ? ` ${verb} a note:` : ` ${verb} ${count} notes:`;
+      count === 1 ? ` ${verb} a note:` : ` ${verb} a note ${count} times:`;
     return (
       <SummaryText>
         <ActivitySummaryAuthorList contactIds={authors} />
