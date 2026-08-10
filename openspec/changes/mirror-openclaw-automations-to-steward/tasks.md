@@ -1,6 +1,6 @@
-## 1. Automation Contract and Conversions
+## 1. Automation Types and Conversions
 
-- [x] 1.1 Finalize the v1 automation types for supported task definitions, automation state, complete `%project` actions, and task-list updates, excluding cron job state and execution events.
+- [x] 1.1 Finalize the v1 automation types for supported task definitions, automation state, complete `%project` actions, and task-list scry results, excluding cron job state and execution events.
 - [x] 1.2 Complete the Hoon millisecond, date, and duration conversions required by supported schedule and timestamp fields.
 - [x] 1.3 Extend conversion tests with boundary, round-trip, optional-field, and supported-schedule cases.
 
@@ -10,9 +10,9 @@
 - [ ] 2.2 Add migration tests for populated released state, fresh initialization, persistence, and visible failure instead of silent reset.
 - [ ] 2.3 Implement atomic `%project` commits keyed by task ID, including empty and repeated projections, removal by omission, duplicate-ID rejection, and unchanged state after invalid input.
 - [ ] 2.4 Enforce the local Gall source boundary for `%project` and reject foreign sources without changing state.
-- [ ] 2.5 Add the versioned automation action and update marks with validated `%project` JSON/noun conversion and no cron job state.
+- [ ] 2.5 Add the versioned automation action mark and dedicated task-list scry mark with validated `%project` JSON/noun conversion, `{ "tasks": [...] }` JSON serialization, and no cron job state.
 - [ ] 2.6 Add the local `/x/v1/automation/tasks` scry with deterministic task ordering and `{ "tasks": [] }` for empty state.
-- [ ] 2.7 After the production JSON marks exist, replace the hand-constructed contract and schedule tests from 1.3 with tests that parse realistic normalized `%project` JSON fixtures derived from captured OpenClaw traces. Retain the focused conversion boundary tests, and cover populated, empty, repeated, invalid, and foreign submissions, persistence, update serialization, and scry behavior.
+- [ ] 2.7 After the production JSON marks exist, replace the hand-constructed type and schedule tests from 1.3 with tests that parse realistic normalized `%project` JSON fixtures derived from captured OpenClaw traces. Retain the focused conversion boundary tests, and cover populated, empty, repeated, invalid, and foreign submissions, persistence, task-list serialization, and scry behavior.
 
 ## 3. OpenClaw Harness Projection
 

@@ -26,7 +26,7 @@ None.
 
 ## Impact
 
-- Backend: a versioned `%steward` state migration, automation dispatch, a new automation protocol and mark, JSON conversion, local scry handling, and Hoon tests.
+- Backend: a versioned `%steward` state migration, automation dispatch, new automation action and task-list marks, JSON conversion, local scry handling, and Hoon tests.
 - OpenClaw plugin: `gateway_start`/`cron_changed` full-snapshot reconciliation, serialized retry behavior, snapshot encoding and poking, and TypeScript tests.
-- Documentation: `%steward` automation module state, poke, and scry contracts.
+- Documentation: `%steward` automation module state, poke interface, and scry interface.
 - Compatibility: existing deployed `%steward` state must migrate without losing core, lens, or gateway data. Existing marks remain unchanged, and OpenClaw remains the sole source of truth for scheduling and execution.
