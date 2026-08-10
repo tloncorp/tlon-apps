@@ -157,10 +157,16 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
     }
 
     func gestureRecognizer(
-        _: UIGestureRecognizer,
-        shouldRecognizeSimultaneouslyWith _: UIGestureRecognizer
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
-        true
+        // The short press indication and menu long press deliberately overlap.
+        // Every other recognizer, especially the chat list pan, should arbitrate
+        // normally so scrolling cannot continue behind an open menu.
+        (gestureRecognizer === pressIndicationGestureRecognizer
+            && otherGestureRecognizer === longPressGestureRecognizer)
+            || (gestureRecognizer === longPressGestureRecognizer
+                && otherGestureRecognizer === pressIndicationGestureRecognizer)
     }
 
     func gestureRecognizer(

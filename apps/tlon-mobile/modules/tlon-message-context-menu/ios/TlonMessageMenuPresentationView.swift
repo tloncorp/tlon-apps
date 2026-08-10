@@ -62,6 +62,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
     private var targetPreviewFrame = CGRect.zero
     private var targetActionFrame = CGRect.zero
     private var targetReactionFrame = CGRect.zero
+    private var presentedBoundsSize = CGSize.zero
     private var isPresenting = false
     private var isDismissing = false
     private var appDidEnterBackgroundObserver: NSObjectProtocol?
@@ -117,8 +118,12 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
     }
 
     func present(in window: UIWindow) {
+        // The window-level overlay cannot track React Native's keyboard inset.
+        // Dismiss the keyboard before resolving the menu's available space.
+        window.endEditing(true)
         frame = window.bounds
         autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        presentedBoundsSize = window.bounds.size
         sourceFrame = sourceView?.convert(sourceView?.bounds ?? .zero, to: window) ?? .zero
 
         window.addSubview(self)
@@ -289,6 +294,17 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
 
     override func layoutSubviews() {
         super.layoutSubviews()
+
+        // The source snapshot and its resting frame belong to the geometry in
+        // which the menu opened. Closing on rotation or split-view resizing is
+        // safer than animating toward stale coordinates.
+        if !isDismissing,
+           presentedBoundsSize != .zero,
+           bounds.size != presentedBoundsSize
+        {
+            dismissImmediately()
+            return
+        }
 
         dimView.frame = bounds
 
@@ -546,6 +562,17 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
             self.removeFromSuperview()
             self.completion(selection)
         }
+    }
+
+    private func dismissImmediately() {
+        guard !isDismissing else {
+            return
+        }
+        isDismissing = true
+        layer.removeAllAnimations()
+        sourceView?.isHidden = false
+        removeFromSuperview()
+        completion(nil)
     }
 
     @objc
