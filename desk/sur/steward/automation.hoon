@@ -2,8 +2,8 @@
 ::
 |%
 ::  $cron-schedule: the supported OpenClaw schedule variants. OpenClaw uses
-::  integer milliseconds at the boundary; the Hoon contract stores dates and
-::  durations in their native atom types.
+::  integer milliseconds at the boundary; the Hoon representation stores dates
+::  and durations in their native atom types.
 ::
 +$  cron-schedule
   $%  [%cron expr=(unit @t) tz=(unit @t) stagger=(unit @dr)]
@@ -45,10 +45,8 @@
 +$  action
   $%  [%project tasks=(list cron-job)]
   ==
-::  $update: automation scry result.
+::  $task-list: the ordered task list returned by the automation scry.
 ::
-+$  update
-  $%  [%tasks tasks=(list cron-job)]
-  ==
++$  task-list  (list cron-job)
 ++  v1  .
 --

@@ -1,4 +1,4 @@
-::  steward automation contract and time conversion tests
+::  steward automation type and time conversion tests
 ::
 /-  a=steward-automation
 /+  *test, au=steward-automation
@@ -68,7 +68,7 @@
     !>  (date-to-unix-milliseconds:au (unix-milliseconds-to-date:au 1.704.067.200.000))
   ==
 ::
-++  test-v1-contract-optional-fields
+++  test-v1-types-and-optional-fields
   =/  empty=cron-job:v1:a
     :*  ''
         ~
@@ -84,11 +84,11 @@
     ==
   =/  job=cron-job:v1:a  populated-job
   =/  action=action:v1:a  [%project ~[job]]
-  =/  update=update:v1:a  [%tasks ~[job]]
+  =/  task-list=task-list:v1:a  ~[job]
   ;:  weld
     (expect-eq !>(empty) !>(*cron-job:v1:a))
     (expect-eq !>(`action:v1:a`[%project ~[job]]) !>(action))
-    (expect-eq !>(`update:v1:a`[%tasks ~[job]]) !>(update))
+    (expect-eq !>(`task-list:v1:a`~[job]) !>(task-list))
   ==
 ::
 ++  test-schedule-variants-and-optional-fields
