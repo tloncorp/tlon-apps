@@ -4,6 +4,7 @@ import type {
   PluginHookGatewayCronService,
 } from 'openclaw/plugin-sdk/types';
 
+import { sharedSlot } from './shared-state.js';
 import { submitStewardAutomationProject } from './steward-automation-adapter.js';
 import { normalizeStewardAutomationProject } from './steward-automation-projection.js';
 
@@ -115,8 +116,9 @@ export async function reconcileStewardAutomation(
 /**
  * Owns serialized reconciliation for reusable gateway lifecycle epochs.
  *
- * `start` replaces any active epoch and requests its full snapshot. Triggers
- * received while active are coalesced. `stop` cancels retry delay, rejects
+ * `start` creates an epoch and requests its full snapshot, while duplicate
+ * starts during that epoch are ignored. Active triggers are coalesced. `stop`
+ * cancels retry delay, rejects
  * outstanding promises with a typed cancellation, and leaves durable Steward
  * state untouched. A stopped reconciler ignores later change triggers until a
  * new `start` creates a fresh epoch.
@@ -136,8 +138,11 @@ export class StewardAutomationReconciler {
   ) {}
 
   start(getCron: StewardAutomationCronAccessor): Promise<void> {
+    // registerFull can bind this process-lifetime reconciler into several hook
+    // registries. A duplicate gateway_start from another registry belongs to
+    // the already-active gateway lifecycle and must not restart its worker.
     if (this.activeEpoch !== null) {
-      this.deactivate('gateway-restart');
+      return Promise.resolve();
     }
 
     const epoch = ++this.epoch;
@@ -321,16 +326,92 @@ export class StewardAutomationReconciler {
   }
 }
 
-/** Register full-snapshot work against explicit gateway lifecycle hooks. */
+const reconcilerSlot = sharedSlot<StewardAutomationReconciler>(
+  'stewardAutomation.reconciler'
+);
+
+export function getStewardAutomationReconciler(): StewardAutomationReconciler | null {
+  return reconcilerSlot.get();
+}
+
+export function setStewardAutomationReconciler(
+  reconciler: StewardAutomationReconciler | null
+): void {
+  reconcilerSlot.set(reconciler);
+}
+
+export interface RegisterStewardAutomationReconciliationHooksOptions {
+  logger: { warn: (message: string) => void };
+}
+
+function isExpectedCancellation(error: unknown): boolean {
+  if (error instanceof StewardAutomationReconciliationCancelledError) {
+    return true;
+  }
+  // The shared reconciler can originate in another plugin module-loader
+  // context, where instanceof observes a different copy of this class.
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  const candidate = error as {
+    name?: unknown;
+    reason?: unknown;
+    retryable?: unknown;
+  };
+  return (
+    candidate.name === 'StewardAutomationReconciliationCancelledError' &&
+    candidate.retryable === false &&
+    (candidate.reason === 'gateway-stop' ||
+      candidate.reason === 'gateway-restart')
+  );
+}
+
+function observeProjectionWork(
+  work: Promise<void>,
+  logger: RegisterStewardAutomationReconciliationHooksOptions['logger']
+): void {
+  void work.catch((error) => {
+    if (isExpectedCancellation(error)) {
+      return;
+    }
+    try {
+      logger.warn(
+        `[tlon] Steward automation projection failed: ${String(error)}`
+      );
+    } catch {
+      // A host logger failure must not turn this rejection observer into a new
+      // unhandled rejection or interfere with another hook consumer.
+    }
+  });
+}
+
+/**
+ * Bind the current registration pass to one process-lifetime reconciler.
+ * Hook handlers deliberately return void so projection retries and terminal
+ * failures cannot block or reject OpenClaw's independent hook consumers.
+ */
 export function registerStewardAutomationReconciliationHooks(
-  api: Pick<OpenClawPluginApi, 'on'>
+  api: Pick<OpenClawPluginApi, 'on'>,
+  options: RegisterStewardAutomationReconciliationHooksOptions
 ): StewardAutomationReconciler {
-  const reconciler = new StewardAutomationReconciler();
+  const reconciler =
+    getStewardAutomationReconciler() ??
+    (() => {
+      const created = new StewardAutomationReconciler();
+      setStewardAutomationReconciler(created);
+      return created;
+    })();
   const getCron = (ctx: Pick<PluginHookGatewayContext, 'getCron'>) =>
     ctx.getCron;
 
-  api.on('gateway_start', (_event, ctx) => reconciler.start(getCron(ctx)));
-  api.on('cron_changed', (_event, ctx) => reconciler.trigger(getCron(ctx)));
-  api.on('gateway_stop', () => reconciler.stop());
+  api.on('gateway_start', (_event, ctx) => {
+    observeProjectionWork(reconciler.start(getCron(ctx)), options.logger);
+  });
+  api.on('cron_changed', (_event, ctx) => {
+    observeProjectionWork(reconciler.trigger(getCron(ctx)), options.logger);
+  });
+  api.on('gateway_stop', () => {
+    reconciler.stop();
+  });
   return reconciler;
 }

@@ -65,7 +65,7 @@
         last successful projection.
 - [x] 3.6 Stop new reconciliation and retry activity on
         `gateway_stop` without clearing the durable Steward snapshot.
-- [ ] 3.7 Replace the temporary diagnostic handler with projection
+- [x] 3.7 Replace the temporary diagnostic handler with projection
         registration while keeping cron telemetry failures isolated.
 
 ## 4. Projection Verification

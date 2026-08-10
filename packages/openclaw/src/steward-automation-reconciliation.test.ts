@@ -3,7 +3,7 @@ import type {
   PluginHookGatewayContext,
   PluginHookGatewayCronJob,
 } from 'openclaw/plugin-sdk/types';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { submitStewardAutomationProject } from './steward-automation-adapter.js';
 import {
@@ -11,8 +11,10 @@ import {
   StewardAutomationCronUnavailableError,
   StewardAutomationReconciler,
   StewardAutomationReconciliationCancelledError,
+  getStewardAutomationReconciler,
   reconcileStewardAutomation,
   registerStewardAutomationReconciliationHooks,
+  setStewardAutomationReconciler,
 } from './steward-automation-reconciliation.js';
 
 vi.mock('./steward-automation-adapter.js', () => ({
@@ -86,8 +88,15 @@ const jobs = [
 ] satisfies PluginHookGatewayCronJob[];
 
 beforeEach(() => {
+  getStewardAutomationReconciler()?.stop();
+  setStewardAutomationReconciler(null);
   vi.mocked(submitStewardAutomationProject).mockReset();
   vi.mocked(submitStewardAutomationProject).mockResolvedValue(undefined);
+});
+
+afterEach(() => {
+  getStewardAutomationReconciler()?.stop();
+  setStewardAutomationReconciler(null);
 });
 
 describe('reconcileStewardAutomation', () => {
@@ -567,13 +576,17 @@ describe('StewardAutomationReconciler', () => {
 });
 
 describe('registerStewardAutomationReconciliationHooks', () => {
+  const registrationOptions = () => ({
+    logger: { warn: vi.fn() },
+  });
   it('registers gateway_stop and ignores cron changes while inactive', async () => {
     const api = createFakeHookApi();
     const { context, list } = cronContext(jobs);
     registerStewardAutomationReconciliationHooks(
       api as unknown as Parameters<
         typeof registerStewardAutomationReconciliationHooks
-      >[0]
+      >[0],
+      registrationOptions()
     );
 
     expect(api.on).toHaveBeenCalledWith('gateway_stop', expect.any(Function));
@@ -585,6 +598,9 @@ describe('registerStewardAutomationReconciliationHooks', () => {
     expect(list).not.toHaveBeenCalled();
 
     await api.fire('gateway_start', { port: 3000 }, context);
+    await vi.waitFor(() => {
+      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    });
     await api.fire('gateway_stop', { reason: 'shutdown' }, context);
     list.mockClear();
     vi.mocked(submitStewardAutomationProject).mockClear();
@@ -604,13 +620,16 @@ describe('registerStewardAutomationReconciliationHooks', () => {
     registerStewardAutomationReconciliationHooks(
       api as unknown as Parameters<
         typeof registerStewardAutomationReconciliationHooks
-      >[0]
+      >[0],
+      registrationOptions()
     );
 
     await api.fire('gateway_start', { port: 3000 }, context);
+    await vi.waitFor(() => {
+      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    });
 
     expect(list).toHaveBeenCalledWith({ includeDisabled: true });
-    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
   });
 
   it.each<PluginHookCronChangedEvent['action']>([
@@ -625,16 +644,198 @@ describe('registerStewardAutomationReconciliationHooks', () => {
     registerStewardAutomationReconciliationHooks(
       api as unknown as Parameters<
         typeof registerStewardAutomationReconciliationHooks
-      >[0]
+      >[0],
+      registrationOptions()
     );
 
     await api.fire('gateway_start', { port: 3000 }, context);
+    await vi.waitFor(() => {
+      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    });
     list.mockClear();
     vi.mocked(submitStewardAutomationProject).mockClear();
 
     await api.fire('cron_changed', { action, jobId: 'disabled-job' }, context);
+    await vi.waitFor(() => {
+      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    });
 
     expect(list).toHaveBeenCalledWith({ includeDisabled: true });
+  });
+
+  it('reuses one reconciler across discovery, full, and prewarm registries', async () => {
+    const discoveryApi = createFakeHookApi();
+    const fullApi = createFakeHookApi();
+    const prewarmApi = createFakeHookApi();
+    const options = registrationOptions();
+    const discovery = registerStewardAutomationReconciliationHooks(
+      discoveryApi as unknown as Parameters<
+        typeof registerStewardAutomationReconciliationHooks
+      >[0],
+      options
+    );
+    const full = registerStewardAutomationReconciliationHooks(
+      fullApi as unknown as Parameters<
+        typeof registerStewardAutomationReconciliationHooks
+      >[0],
+      options
+    );
+    const initial = cronContext([job('initial')]);
+
+    expect(full).toBe(discovery);
+    expect(getStewardAutomationReconciler()).toBe(discovery);
+    await fullApi.fire('gateway_start', { port: 3000 }, initial.context);
+    await vi.waitFor(() => {
+      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    });
+
+    const prewarm = registerStewardAutomationReconciliationHooks(
+      prewarmApi as unknown as Parameters<
+        typeof registerStewardAutomationReconciliationHooks
+      >[0],
+      options
+    );
+    const changed = cronContext([job('changed')]);
+    expect(prewarm).toBe(discovery);
+    await prewarmApi.fire(
+      'cron_changed',
+      { action: 'updated', jobId: 'changed' },
+      changed.context
+    );
+    await vi.waitFor(() => {
+      expect(submitStewardAutomationProject).toHaveBeenCalledTimes(2);
+    });
+
+    await prewarmApi.fire(
+      'gateway_stop',
+      { reason: 'shutdown' },
+      changed.context
+    );
+    const ignored = cronContext([job('ignored')]);
+    await discoveryApi.fire(
+      'cron_changed',
+      { action: 'removed', jobId: 'changed' },
+      ignored.context
+    );
+    expect(ignored.list).not.toHaveBeenCalled();
+
+    const restarted = cronContext([job('restarted')]);
+    await discoveryApi.fire('gateway_start', { port: 3001 }, restarted.context);
+    await vi.waitFor(() => {
+      expect(submitStewardAutomationProject).toHaveBeenCalledTimes(3);
+    });
+    expect(restarted.list).toHaveBeenCalledOnce();
+  });
+
+  it('treats duplicate gateway_start delivery as idempotent', async () => {
+    const api1 = createFakeHookApi();
+    const api2 = createFakeHookApi();
+    const options = registrationOptions();
+    registerStewardAutomationReconciliationHooks(
+      api1 as unknown as Parameters<
+        typeof registerStewardAutomationReconciliationHooks
+      >[0],
+      options
+    );
+    registerStewardAutomationReconciliationHooks(
+      api2 as unknown as Parameters<
+        typeof registerStewardAutomationReconciliationHooks
+      >[0],
+      options
+    );
+    const initial = cronContext([job('initial')]);
+    const duplicate = cronContext([job('duplicate')]);
+
+    await api1.fire('gateway_start', { port: 3000 }, initial.context);
+    await vi.waitFor(() => {
+      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    });
+    await api2.fire('gateway_start', { port: 3000 }, duplicate.context);
+    await Promise.resolve();
+
+    expect(initial.list).toHaveBeenCalledOnce();
+    expect(duplicate.list).not.toHaveBeenCalled();
     expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+  });
+
+  it('dispatches projection work without awaiting an outstanding list', async () => {
+    const api = createFakeHookApi();
+    const options = registrationOptions();
+    const listed = deferred<PluginHookGatewayCronJob[]>();
+    const list = vi.fn(() => listed.promise);
+    registerStewardAutomationReconciliationHooks(
+      api as unknown as Parameters<
+        typeof registerStewardAutomationReconciliationHooks
+      >[0],
+      options
+    );
+
+    await api.fire(
+      'gateway_start',
+      { port: 3000 },
+      {
+        getCron: () => ({ list }),
+      }
+    );
+
+    expect(list).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+    await api.fire('gateway_stop', { reason: 'shutdown' }, {});
+    listed.resolve([]);
+    await Promise.resolve();
+    expect(options.logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('suppresses cancellation but logs unexpected terminal errors without suppressing another hook', async () => {
+    const api = createFakeHookApi();
+    const options = registrationOptions();
+    const terminal = new Error('terminal projection failure');
+    const injected = {
+      start: vi.fn().mockRejectedValue(terminal),
+      trigger: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn(),
+    } as unknown as StewardAutomationReconciler;
+    setStewardAutomationReconciler(injected);
+    const telemetry = vi.fn();
+    registerStewardAutomationReconciliationHooks(
+      api as unknown as Parameters<
+        typeof registerStewardAutomationReconciliationHooks
+      >[0],
+      options
+    );
+    api.on('gateway_start', telemetry);
+
+    await api.fire('gateway_start', { port: 3000 }, { getCron: undefined });
+
+    expect(telemetry).toHaveBeenCalledOnce();
+    await vi.waitFor(() => {
+      expect(options.logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('terminal projection failure')
+      );
+    });
+    expect(getStewardAutomationReconciler()).toBe(injected);
+  });
+
+  it('contains a logger failure while observing a terminal rejection', async () => {
+    const api = createFakeHookApi();
+    const terminal = new Error('terminal projection failure');
+    const injected = {
+      start: vi.fn().mockRejectedValue(terminal),
+      trigger: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn(),
+    } as unknown as StewardAutomationReconciler;
+    const warn = vi.fn(() => {
+      throw new Error('logger unavailable');
+    });
+    setStewardAutomationReconciler(injected);
+    registerStewardAutomationReconciliationHooks(
+      api as unknown as Parameters<
+        typeof registerStewardAutomationReconciliationHooks
+      >[0],
+      { logger: { warn } }
+    );
+
+    await api.fire('gateway_start', { port: 3000 }, { getCron: undefined });
+    await vi.waitFor(() => expect(warn).toHaveBeenCalledOnce());
   });
 });

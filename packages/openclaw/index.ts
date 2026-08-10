@@ -35,6 +35,7 @@ import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { handleOwnerListenCommand } from './src/owner-listen-command.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
+import { registerStewardAutomationReconciliationHooks } from './src/steward-automation-reconciliation.js';
 import { parseTlonTarget } from './src/targets.js';
 import {
   type TlonDiagnosticLogAttributes,
@@ -1366,9 +1367,8 @@ export default defineBundledChannelEntry({
       }
     });
 
-    api.on('cron_changed', async (event, ctx) => {
-        api.logger.info('[steward auto] testing');
-        api.logger.info(`[steward auto] ${JSON.stringify(event, null, 2)}`);
+    registerStewardAutomationReconciliationHooks(api, {
+      logger: { warn: (message) => api.logger.warn(message) },
     });
 
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
