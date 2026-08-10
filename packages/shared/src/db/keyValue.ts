@@ -502,32 +502,42 @@ export const alreadyPromptedLocaleDownloads = createStorageItem<Set<string>>({
 export type EmojiUsage = Record<string, { count: number; lastUsedAt: number }>;
 
 /** Cap on tracked emoji, so a long tail of one-offs can't grow without bound. */
-const MAX_TRACKED_EMOJIS = 100;
+export const MAX_TRACKED_EMOJIS = 100;
 
 export const emojiUsage = createStorageItem<EmojiUsage>({
   key: 'emojiUsage',
   defaultValue: {},
 });
 
+/** Records one use of `emoji`, evicting the least-used glyph if over the cap. */
+export function applyEmojiUsage(
+  current: EmojiUsage,
+  emoji: string,
+  usedAt: number
+): EmojiUsage {
+  const next = {
+    ...current,
+    [emoji]: {
+      count: (current[emoji]?.count ?? 0) + 1,
+      lastUsedAt: usedAt,
+    },
+  };
+  if (Object.keys(next).length <= MAX_TRACKED_EMOJIS) {
+    return next;
+  }
+  // Evict from the rest, never the emoji just used. Ranking the new entry
+  // against a full set would drop it at count 1 on every press, so a newly
+  // favored emoji could never accumulate enough usage to earn a slot.
+  const kept = sortEmojisByUsage(next)
+    .filter((key) => key !== emoji)
+    .slice(0, MAX_TRACKED_EMOJIS - 1);
+  return Object.fromEntries([...kept, emoji].map((key) => [key, next[key]]));
+}
+
 export async function recordEmojiUsage(emoji: string, usedAt: number) {
-  return emojiUsage.setValue((current) => {
-    const next = {
-      ...current,
-      [emoji]: {
-        count: (current[emoji]?.count ?? 0) + 1,
-        lastUsedAt: usedAt,
-      },
-    };
-    const keys = Object.keys(next);
-    if (keys.length <= MAX_TRACKED_EMOJIS) {
-      return next;
-    }
-    return Object.fromEntries(
-      sortEmojisByUsage(next)
-        .slice(0, MAX_TRACKED_EMOJIS)
-        .map((key) => [key, next[key]])
-    );
-  });
+  return emojiUsage.setValue((current) =>
+    applyEmojiUsage(current, emoji, usedAt)
+  );
 }
 
 /** Emoji glyphs ordered by use count, ties broken by most recently used. */
