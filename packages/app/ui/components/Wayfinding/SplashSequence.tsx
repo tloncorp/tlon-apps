@@ -91,6 +91,7 @@ import { TlonBotSetupPaneView } from './TlonBotSetupPaneView';
 import {
   BotCredentialOption,
   buildBotCredentialOptions,
+  startBotReadinessPolling,
 } from './botProviderOptions';
 import { validateProviderKey } from './providerKeyValidation';
 import {
@@ -280,25 +281,22 @@ function SplashSequenceComponent(props: {
   // Fetch bot info and provider config from hosting API on mount
   useEffect(() => {
     let cancelled = false;
+    let stopReadinessPolling: (() => void) | undefined;
     (async () => {
       try {
         const shipId = await db.hostedUserNodeId.getValue();
         const userId = await db.hostingUserId.getValue();
         if (shipId) {
           setUserShipId(`~${shipId}`);
-          const [
-            botInfo,
-            providerConfig,
-            botReady,
-            userContact,
-            cachedNickname,
-          ] = await Promise.all([
-            api.getTlawnBotInfo(shipId).catch(() => null),
-            userId ? api.getTlawnProviderKeys(userId).catch(() => null) : null,
-            api.checkNodeIsTlonbotReady(shipId).catch(() => false),
-            db.getContact({ id: `~${shipId}` }).catch(() => null),
-            db.splashNickname.getValue().catch(() => null),
-          ]);
+          const [botInfo, providerConfig, userContact, cachedNickname] =
+            await Promise.all([
+              api.getTlawnBotInfo(shipId).catch(() => null),
+              userId
+                ? api.getTlawnProviderKeys(userId).catch(() => null)
+                : null,
+              db.getContact({ id: `~${shipId}` }).catch(() => null),
+              db.splashNickname.getValue().catch(() => null),
+            ]);
           if (!cancelled) {
             const resolvedUserNickname =
               cachedNickname?.trim() || userContact?.nickname?.trim();
@@ -330,7 +328,7 @@ function SplashSequenceComponent(props: {
             };
             const providers = buildBotCredentialOptions({
               providerConfig: resolvedProviderConfig,
-              botReady,
+              botReady: false,
               mode: props.splashSequenceMode,
             });
             setProviderOptions(providers);
@@ -342,6 +340,31 @@ function SplashSequenceComponent(props: {
             if (includedProvider) {
               setBotCredentialId((current) => current || includedProvider.id);
             }
+
+            if (props.splashSequenceMode === 'signup') {
+              let loggedReadinessError = false;
+              stopReadinessPolling = startBotReadinessPolling({
+                checkReadiness: () => api.checkNodeIsTlonbotReady(shipId),
+                onReady: () => {
+                  setProviderOptions(
+                    buildBotCredentialOptions({
+                      providerConfig: resolvedProviderConfig,
+                      botReady: true,
+                      mode: props.splashSequenceMode,
+                    })
+                  );
+                },
+                onError: (error) => {
+                  if (!loggedReadinessError) {
+                    loggedReadinessError = true;
+                    logger.trackError(
+                      'TlonBot provider readiness check failed',
+                      { error }
+                    );
+                  }
+                },
+              });
+            }
           }
         }
       } catch {
@@ -350,6 +373,7 @@ function SplashSequenceComponent(props: {
     })();
     return () => {
       cancelled = true;
+      stopReadinessPolling?.();
     };
   }, [props.splashSequenceMode, shouldDeferTlonbotSetup]);
 

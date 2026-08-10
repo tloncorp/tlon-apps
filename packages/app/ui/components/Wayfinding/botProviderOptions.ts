@@ -12,6 +12,58 @@ export type BotCredentialOption = {
   recommendationLabel?: string;
 };
 
+type TimerHandle = ReturnType<typeof setTimeout>;
+
+export function startBotReadinessPolling({
+  checkReadiness,
+  onReady,
+  onError,
+  intervalMs = 5000,
+  schedule = (callback, delayMs) => setTimeout(callback, delayMs),
+  cancel = (timer) => clearTimeout(timer),
+}: {
+  checkReadiness: () => Promise<boolean>;
+  onReady: () => void;
+  onError?: (error: unknown) => void;
+  intervalMs?: number;
+  schedule?: (callback: () => void, delayMs: number) => TimerHandle;
+  cancel?: (timer: TimerHandle) => void;
+}): () => void {
+  let stopped = false;
+  let timer: TimerHandle | null = null;
+
+  const poll = async () => {
+    try {
+      const ready = await checkReadiness();
+      if (stopped) return;
+      if (ready) {
+        onReady();
+        return;
+      }
+    } catch (error) {
+      if (stopped) return;
+      onError?.(error);
+    }
+
+    if (!stopped) {
+      timer = schedule(() => {
+        timer = null;
+        void poll();
+      }, intervalMs);
+    }
+  };
+
+  void poll();
+
+  return () => {
+    stopped = true;
+    if (timer !== null) {
+      cancel(timer);
+      timer = null;
+    }
+  };
+}
+
 const PROVIDER_LABELS: Record<string, string> = {
   basic: 'GPT-5.6 Luna',
   anthropic: 'Anthropic',
