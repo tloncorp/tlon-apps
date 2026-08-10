@@ -293,7 +293,7 @@ function BotProviderPaneFixture() {
           },
           {
             id: 'openai:subscription',
-            label: 'OpenAI — ChatGPT subscription',
+            label: 'ChatGPT subscription',
             provider: 'openai',
             credentialMode: 'subscription',
             requiresKey: false,

@@ -37,7 +37,7 @@ function getErrorMessage(error: unknown): string {
   ) {
     return error.message;
   }
-  return 'Could not connect your OpenAI subscription.';
+  return 'Could not connect your ChatGPT subscription.';
 }
 
 function isNotFound(error: unknown): boolean {

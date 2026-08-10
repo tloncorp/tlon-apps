@@ -237,7 +237,7 @@ export function BotSettingsScreen(props: Props) {
 
           <BotSettingsSection title="Model providers">
             <BotSettingsRow
-              label="OpenAI subscription"
+              label="ChatGPT subscription"
               value={openAISubscriptionSummary}
               icon="Link"
               disabled={applying || !queries.botReady || !providerKeysReady}

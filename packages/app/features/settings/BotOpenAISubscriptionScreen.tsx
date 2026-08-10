@@ -98,7 +98,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
       'Failed to remove the OpenAI API key.'
     : disconnectOpenAISubscription.error
       ? getErrorMessage(disconnectOpenAISubscription.error) ??
-        'Failed to disconnect the OpenAI subscription.'
+        'Failed to disconnect the ChatGPT subscription.'
       : null;
 
   return (
@@ -110,7 +110,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
           props.navigation.goBack();
         }}
         backDisabled={!canDismissOpenAIAuth(auth.state.phase)}
-        title="OpenAI subscription"
+        title="ChatGPT subscription"
       />
       {queries.llmAuthStatusQuery.isLoading ? (
         <YStack flex={1} alignItems="center" justifyContent="center" gap="$m">
@@ -128,7 +128,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
           padding="$xl"
         >
           <Text size="$label/l" textAlign="center">
-            Could not check your OpenAI subscription.
+            Could not check your ChatGPT subscription.
           </Text>
           <Text size="$label/s" color="$secondaryText" textAlign="center">
             {getErrorMessage(queries.llmAuthStatusQuery.error) ??
@@ -153,7 +153,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
               description="Tlonbot can use models included with your ChatGPT subscription."
             >
               <YStack padding="$l" gap="$s">
-                <Text size="$label/m">OpenAI subscription</Text>
+                <Text size="$label/m">ChatGPT subscription</Text>
                 <Text size="$label/s" color="$secondaryText">
                   Status: {providerStatus?.status ?? 'connected'}
                 </Text>
@@ -203,7 +203,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
         onOpenChange={setConfirmSwitch}
         destructive
         title="Replace the OpenAI API key?"
-        description="OpenAI API-key access and subscription access are alternatives. The saved API key will be removed after your subscription connects."
+        description="OpenAI API-key access and ChatGPT subscription access are alternatives. The saved API key will be removed after your subscription connects."
         confirmText="Replace and connect"
         onConfirm={handleSwitch}
       />
@@ -211,7 +211,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
         open={confirmDisconnect}
         onOpenChange={setConfirmDisconnect}
         destructive
-        title="Disconnect OpenAI subscription?"
+        title="Disconnect ChatGPT subscription?"
         description="Tlonbot will no longer be able to use models from this subscription."
         confirmText="Disconnect"
         onConfirm={handleDisconnect}

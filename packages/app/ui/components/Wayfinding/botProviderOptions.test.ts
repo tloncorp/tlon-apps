@@ -31,6 +31,7 @@ describe('bot credential choices', () => {
         requiresKey: true,
       }),
     ]);
+    expect(openAIOptions[0]?.label).toBe('ChatGPT subscription');
     expect(openAIOptions[0]?.recommendationLabel).toBe('Recommended');
     expect(openAIOptions[1]?.recommendationLabel).toBeUndefined();
   });

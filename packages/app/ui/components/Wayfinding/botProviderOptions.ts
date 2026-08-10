@@ -107,12 +107,7 @@ export function buildBotCredentialOptions({
   }
 
   if (mode === 'signup' && botReady) {
-    add(
-      'openai',
-      'subscription',
-      'OpenAI — ChatGPT subscription',
-      'Recommended'
-    );
+    add('openai', 'subscription', 'ChatGPT subscription', 'Recommended');
   }
 
   add('openai', 'api-key', 'OpenAI — API key');

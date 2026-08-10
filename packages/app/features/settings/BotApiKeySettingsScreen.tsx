@@ -172,7 +172,7 @@ export function BotApiKeySettingsScreen(props: Props) {
       : null) ??
     (disconnectOpenAISubscription.error
       ? getErrorMessage(disconnectOpenAISubscription.error) ??
-        'Failed to disconnect the OpenAI subscription.'
+        'Failed to disconnect the ChatGPT subscription.'
       : null);
 
   return (
@@ -236,8 +236,8 @@ export function BotApiKeySettingsScreen(props: Props) {
               >
                 {openAIStatusError
                   ? getErrorMessage(queries.llmAuthStatusQuery.error) ??
-                    'Could not check your OpenAI subscription.'
-                  : 'Checking your OpenAI subscription…'}
+                    'Could not check your ChatGPT subscription.'
+                  : 'Checking your ChatGPT subscription…'}
               </Text>
               {openAIStatusError ? (
                 <Button
@@ -284,8 +284,8 @@ export function BotApiKeySettingsScreen(props: Props) {
         open={confirmSwitch}
         onOpenChange={setConfirmSwitch}
         destructive
-        title="Replace the OpenAI subscription?"
-        description="OpenAI subscription access and API-key access are alternatives. Saving this key will disconnect the OpenAI subscription."
+        title="Replace the ChatGPT subscription?"
+        description="ChatGPT subscription access and OpenAI API-key access are alternatives. Saving this key will disconnect the ChatGPT subscription."
         confirmText="Replace and save"
         onConfirm={handleSwitch}
       />
