@@ -6,8 +6,7 @@
 /=  agent  /app/steward
 |%
 ++  dap  %steward
-::  Current agent state. The released state-0 migration remains deliberately
-::  stubbed while the state-1 automation API is exercised.
+::  Current state and the released state shape accepted by +on-load.
 ::
 +$  state-1
   $:  %1
@@ -16,6 +15,13 @@
       lens=state:v1:l
       gateway=state:v1:g
       automation=state:v1:au
+  ==
++$  state-0
+  $:  %0
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:l
+      gateway=state:v1:g
   ==
 ::  lens run payloads are opaque $json; a simple value suffices for tests
 ::
@@ -118,6 +124,91 @@
   =/  =event:a  [[%dm-post message-key [%ship sender] ~[[%inline ~['hello']]] %.n] %.n %.n]
   =/  =update:a  [%add source t event]
   [/activity [~dev %activity] [%fact %activity-update-5 !>(`update:v9:av`update)]]
+::
+++  populate-released-slices
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%configure 17]))
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'migrated-run' payload &]))
+  ;<  *  bind:m
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%configure ~m7 ~m9]))
+  ;<  *  bind:m
+    %+  do-poke  %steward-gateway-action-1
+    !>(`action:v1:g`[%gateway-start 'migrated-boot' (add ~2024.1.1 ~m3)])
+  ;<  *  bind:m  (do-agent (make-dm-fact ~bus (add ~2024.1.1 ~s10)))
+  (pure:m ~)
+::
+++  as-released-state
+  |=  current=state-1
+  ^-  state-0
+  :*  %0
+      owner.current
+      bots.current
+      lens.current
+      gateway.current
+  ==
+::
+++  assert-migrated-state
+  |=  [old=state-0 current=state-1]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (ex-equal !>(owner.current) !>(owner.old))
+  ;<  ~  bind:m  (ex-equal !>(bots.current) !>(bots.old))
+  ;<  ~  bind:m  (ex-equal !>(lens.current) !>(lens.old))
+  ;<  ~  bind:m  (ex-equal !>(gateway.current) !>(gateway.old))
+  (ex-equal !>(tasks.automation.current) !>(*(map @t task:v1:au)))
+::
+::  ==========================================================
+::  RELEASED STATE MIGRATION TESTS
+::  ==========================================================
+::
+++  test-migration-preserves-populated-released-state
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  populate-released-slices
+  ;<  before-res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  before=state-1  !<(state-1 !<(vase q.before-res))
+  =/  old=state-0  (as-released-state before)
+  ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  after-res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  after=state-1  !<(state-1 !<(vase q.after-res))
+  (assert-migrated-state old after)
+::
+++  test-migration-persists-through-current-save-load
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  populate-released-slices
+  ;<  before-res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  old=state-0
+    (as-released-state !<(state-1 !<(vase q.before-res)))
+  ;<  *  bind:m  (do-load agent `!>(old))
+  ;<  *  bind:m  (do-load agent ~)
+  ;<  after-res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  after=state-1  !<(state-1 !<(vase q.after-res))
+  (assert-migrated-state old after)
+::
+++  test-migration-malformed-state-fails-without-reset
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  populate-released-slices
+  ;<  before-res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  before=state-1  !<(state-1 !<(vase q.before-res))
+  ;<  ~  bind:m  (ex-fail (do-load agent `!>([%0 'malformed'])))
+  ;<  after-res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  after=state-1  !<(state-1 !<(vase q.after-res))
+  (ex-equal !>(after) !>(before))
 ::
 ::  ==========================================================
 ::  AUTOMATION MODULE TESTS
@@ -669,9 +760,9 @@
   %-  (do-as ~zod)
   (do-poke %steward-lens-action-1 !>(`action:v1:l`[%retry ~dev 'lens-r']))
 ::
-::  on-init subscribes to %activity and seeds the default retention cap
+::  Fresh initialization uses current state, seeds lens, and starts empty.
 ::
-++  test-init-arms-activity-and-cap
+++  test-migration-fresh-initialization
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -684,7 +775,10 @@
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-1 !<(vase q.res))
-  (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`3.000))
+  ;<  ~  bind:m  (ex-equal !>(-.st) !>(%1))
+  ;<  ~  bind:m
+    (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`3.000))
+  (ex-equal !>(tasks.automation.st) !>(*(map @t task:v1:au)))
 ::
 ++  test-watch-rejects-foreign-ship
   %-  eval-mare

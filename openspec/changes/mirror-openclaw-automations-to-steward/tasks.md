@@ -42,7 +42,7 @@
         have been validated in practice, implement released-state
         migration preserving populated core, trusted-bot, lens, and
         gateway values while initializing automation empty.
-- [ ] 2.8 Add migration tests for populated released state, fresh
+- [x] 2.8 Add migration tests for populated released state, fresh
         initialization, persistence, and visible failure instead of
         silent reset.
 
