@@ -69,6 +69,7 @@ export interface Post {
   author?: any;
   images?: any[] | null;
   reactions?: any[] | null;
+  rawReactionCount?: number | null;
   replies?: any[] | null;
   threadUnread?: ThreadUnreadState | null;
 }

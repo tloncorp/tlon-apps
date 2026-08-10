@@ -4,8 +4,10 @@ import type { RuntimeContext } from '../drivers/types.js';
 import {
   type DockerCommandRunner,
   connectComposeNetwork,
+  copyIntoComposeService,
   disconnectComposeNetwork,
   execInComposeService,
+  execInContainer,
   readComposeServiceLogs,
   resolveComposeContainer,
   restartComposeService,
@@ -91,6 +93,64 @@ describe('direct Docker compose-service helpers', () => {
         run
       )
     ).resolves.toMatchObject({ exitCode: 17, stderr: 'cron failed' });
+  });
+
+  test('copies a runner directory into the resolved service container', async () => {
+    const run = commandRunner([{ stdout: 'container-id\n' }, {}]);
+
+    await copyIntoComposeService(
+      context(),
+      'ships',
+      '/tmp/desk/.',
+      '/tmp/staged-desk',
+      run
+    );
+    expect(run).toHaveBeenLastCalledWith(
+      'docker',
+      ['cp', '/tmp/desk/.', 'container-id:/tmp/staged-desk'],
+      expect.objectContaining({ timeoutMs: 60_000 })
+    );
+  });
+
+  test('uses one timeout budget for container resolution and exec', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const run: DockerCommandRunner = vi.fn(async (_command, args, opts) => {
+      if (args[0] === 'container') {
+        expect(opts.timeoutMs).toBe(50);
+        vi.setSystemTime(40);
+        return { stdout: 'container-id\n', stderr: '', exitCode: 0 };
+      }
+      expect(opts.timeoutMs).toBe(10);
+      vi.setSystemTime(50);
+      throw new Error('docker exec timed out after its remaining 10ms budget');
+    });
+
+    await expect(
+      execInComposeService(
+        context(),
+        'bot',
+        ['echo', 'cron'],
+        { timeoutMs: 50 },
+        run
+      )
+    ).rejects.toThrow(/remaining 10ms budget/);
+    expect(run).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  test('executes in a pre-resolved container without another lookup', async () => {
+    const run = commandRunner([{ stdout: 'ok' }]);
+
+    await expect(
+      execInContainer(context(), 'known-container', ['echo', 'cron'], {}, run)
+    ).resolves.toMatchObject({ stdout: 'ok' });
+    expect(run).toHaveBeenCalledWith(
+      'docker',
+      ['exec', 'known-container', 'echo', 'cron'],
+      expect.objectContaining({ timeoutMs: 60_000 })
+    );
+    expect(run).toHaveBeenCalledTimes(1);
   });
 
   test('disconnects a service from the compose network', async () => {

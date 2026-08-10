@@ -152,6 +152,8 @@ export enum AnalyticsEvent {
   NotesFolderMoved = 'Notes Folder Moved',
   NotesFolderDeleted = 'Notes Folder Deleted',
   NotesImportCompleted = 'Notes Import Completed',
+  NotesSearchOpened = 'Notes Search Opened',
+  NotesSearchResultSelected = 'Notes Search Result Selected',
   MediaDownloaded = 'Media Downloaded',
   PostOpened = 'Post Opened',
   MediaOpened = 'Media Opened',

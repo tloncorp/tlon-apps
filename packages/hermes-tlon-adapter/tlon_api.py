@@ -136,6 +136,8 @@ def _env_first(
     extra_names: Sequence[str],
     default: str = "",
 ) -> str:
+    # Hermes declares process environment as its primary platform config;
+    # PlatformConfig.extra is the fallback used by embedded/test deployments.
     for name in names:
         value = env.get(name)
         if value is not None and str(value).strip():
@@ -711,6 +713,18 @@ class TlonConfig:
 
     def cli_env(self, base: Mapping[str, str] | None = None) -> dict[str, str]:
         env = dict(base or os.environ)
+        for key in (
+            "TLON_CONFIG_FILE",
+            "URBIT_COOKIE",
+            "TLON_COOKIE",
+            "URBIT_URL",
+            "TLON_URL",
+            "URBIT_SHIP",
+            "TLON_SHIP",
+            "URBIT_CODE",
+            "TLON_CODE",
+        ):
+            env.pop(key, None)
         if self.ship_url:
             env["TLON_NODE_URL"] = self.ship_url
             env["TLON_SHIP_URL"] = self.ship_url
@@ -788,10 +802,33 @@ class TlonSendResult:
     returncode: int = 0
     message_id: Optional[str] = None
     error: Optional[str] = None
+    timed_out: bool = False
 
 
+class TlonProcessTimeout(asyncio.TimeoutError):
+    """A killed CLI process with the output captured before termination."""
+
+    def __init__(self, stdout: str = "", stderr: str = "") -> None:
+        super().__init__()
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+@dataclass(frozen=True)
+class TlonDeadlineOutput:
+    stdout: str
+    stderr: str
+
+
+TlonDeadlineCallback = Callable[[TlonDeadlineOutput], Awaitable[None]]
 CommandRunner = Callable[
-    [Sequence[str], Mapping[str, str], float], Awaitable[TlonProcessResult]
+    [
+        Sequence[str],
+        Mapping[str, str],
+        float,
+        Optional[TlonDeadlineCallback],
+    ],
+    Awaitable[TlonProcessResult],
 ]
 
 # Called after every CLI invocation with (args, duration_ms, result).
@@ -844,12 +881,28 @@ class TlonCLI:
             args.extend(["--sent-at", str(sent_at)])
         return await self._run(tuple(args))
 
-    async def run_command(self, args: Sequence[str]) -> TlonSendResult:
-        return await self._run(tuple(args))
+    async def run_command(
+        self,
+        args: Sequence[str],
+        *,
+        timeout: float | None = None,
+        on_deadline: TlonDeadlineCallback | None = None,
+    ) -> TlonSendResult:
+        return await self._run(
+            tuple(args), timeout=timeout, on_deadline=on_deadline
+        )
 
-    async def _run(self, args: Sequence[str]) -> TlonSendResult:
+    async def _run(
+        self,
+        args: Sequence[str],
+        *,
+        timeout: float | None = None,
+        on_deadline: TlonDeadlineCallback | None = None,
+    ) -> TlonSendResult:
         started = time.monotonic()
-        result = await self._run_unobserved(args)
+        result = await self._run_unobserved(
+            args, timeout=timeout, on_deadline=on_deadline
+        )
         if self._observer is not None:
             try:
                 self._observer(args, int((time.monotonic() - started) * 1000), result)
@@ -857,20 +910,33 @@ class TlonCLI:
                 logger.debug("[tlon] CLI observer failed: %s", exc)
         return result
 
-    async def _run_unobserved(self, args: Sequence[str]) -> TlonSendResult:
+    async def _run_unobserved(
+        self,
+        args: Sequence[str],
+        *,
+        timeout: float | None = None,
+        on_deadline: TlonDeadlineCallback | None = None,
+    ) -> TlonSendResult:
         command = (self.config.cli, *args)
+        effective_timeout = (
+            self.config.cli_timeout if timeout is None else float(timeout)
+        )
         try:
             proc = await self._runner(
                 command,
                 self.config.cli_env(),
-                self.config.cli_timeout,
+                effective_timeout,
+                on_deadline,
             )
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as exc:
             return TlonSendResult(
                 success=False,
                 command=command,
-                error=f"tlon CLI timed out after {self.config.cli_timeout:g}s",
+                stdout=str(getattr(exc, "stdout", "") or ""),
+                stderr=str(getattr(exc, "stderr", "") or ""),
+                error=f"tlon CLI timed out after {effective_timeout:g}s",
                 returncode=124,
+                timed_out=True,
             )
         except FileNotFoundError:
             return TlonSendResult(
@@ -911,6 +977,7 @@ class TlonCLI:
         command: Sequence[str],
         env: Mapping[str, str],
         timeout: float,
+        on_deadline: TlonDeadlineCallback | None = None,
     ) -> TlonProcessResult:
         proc = await asyncio.create_subprocess_exec(
             *command,
@@ -918,19 +985,53 @@ class TlonCLI:
             stderr=asyncio.subprocess.PIPE,
             env=dict(env),
         )
+        assert proc.stdout is not None
+        assert proc.stderr is not None
+        stdout_buffer = bytearray()
+        stderr_buffer = bytearray()
+
+        async def drain(
+            stream: asyncio.StreamReader, buffer: bytearray
+        ) -> None:
+            while True:
+                chunk = await stream.read(64 * 1024)
+                if not chunk:
+                    return
+                buffer.extend(chunk)
+
+        def decode(buffer: bytearray) -> str:
+            return bytes(buffer).decode("utf-8", errors="replace")
+
+        stdout_task = asyncio.create_task(drain(proc.stdout, stdout_buffer))
+        stderr_task = asyncio.create_task(drain(proc.stderr, stderr_buffer))
+        wait_task = asyncio.create_task(proc.wait())
         try:
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                proc.communicate(),
-                timeout=timeout,
-            )
+            await asyncio.wait_for(asyncio.shield(wait_task), timeout=timeout)
         except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
-            raise
+            if on_deadline is not None:
+                try:
+                    await on_deadline(
+                        TlonDeadlineOutput(
+                            stdout=decode(stdout_buffer),
+                            stderr=decode(stderr_buffer),
+                        )
+                    )
+                except Exception:
+                    logger.exception("[tlon] CLI deadline callback failed")
+                await wait_task
+            else:
+                proc.kill()
+                await wait_task
+                await asyncio.gather(stdout_task, stderr_task)
+                raise TlonProcessTimeout(
+                    decode(stdout_buffer),
+                    decode(stderr_buffer),
+                )
+        await asyncio.gather(stdout_task, stderr_task)
         return TlonProcessResult(
             returncode=proc.returncode or 0,
-            stdout=stdout_bytes.decode("utf-8", errors="replace"),
-            stderr=stderr_bytes.decode("utf-8", errors="replace"),
+            stdout=decode(stdout_buffer),
+            stderr=decode(stderr_buffer),
         )
 
     @staticmethod

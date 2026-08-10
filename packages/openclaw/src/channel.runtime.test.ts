@@ -119,17 +119,42 @@ describe('sendMedia', () => {
     prepareOutboundMedia.mockRejectedValue(
       new Error('Local file paths are not supported on this channel')
     );
+    const { startTlonAgentTurn } = await import('./turn-recorder.js');
+    const turn = startTlonAgentTurn(
+      {
+        accountId: 'hosted',
+        agentId: 'main',
+        destinationKind: 'dm',
+        runId: 'media-failure',
+        sessionKey: 'agent:main:tlon:direct:~nec',
+        ship: '~zod',
+        trigger: 'dm',
+      },
+      {
+        observer: {
+          recordStarted: () => undefined,
+          recordTerminal: () => undefined,
+        },
+      }
+    );
 
     await expect(
-      tlonRuntimeOutbound.sendMedia({
-        ...baseCtx,
-        mediaUrl: '/pier/secret.png',
-      })
+      turn.run(() =>
+        tlonRuntimeOutbound.sendMedia({
+          ...baseCtx,
+          mediaUrl: '/pier/secret.png',
+        })
+      )
     ).rejects.toThrow('Local file paths are not supported');
 
     expect(sendDm).not.toHaveBeenCalled();
     expect(sendDmWithStory).not.toHaveBeenCalled();
     expect(sendChannelPost).not.toHaveBeenCalled();
+    expect(turn.finalize({ durationMs: 10 })).toMatchObject({
+      delivery: 'failed',
+      deliveryFailureCount: 1,
+      deliverySuccessCount: 0,
+    });
   });
 
   it('posts exactly once with valid https URL', async () => {
@@ -137,13 +162,38 @@ describe('sendMedia', () => {
       url: 'https://example.com/img.png',
       isImage: true,
     });
+    const { startTlonAgentTurn } = await import('./turn-recorder.js');
+    const turn = startTlonAgentTurn(
+      {
+        accountId: 'hosted',
+        agentId: 'main',
+        destinationKind: 'dm',
+        runId: 'media-success',
+        sessionKey: 'agent:main:tlon:direct:~nec',
+        ship: '~zod',
+        trigger: 'dm',
+      },
+      {
+        observer: {
+          recordStarted: () => undefined,
+          recordTerminal: () => undefined,
+        },
+      }
+    );
 
-    await tlonRuntimeOutbound.sendMedia({
-      ...baseCtx,
-      mediaUrl: 'https://example.com/img.png',
-    });
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendMedia({
+        ...baseCtx,
+        mediaUrl: 'https://example.com/img.png',
+      })
+    );
 
     expect(sendDmWithStory).toHaveBeenCalledTimes(1);
     expect(sendChannelPost).not.toHaveBeenCalled();
+    expect(turn.finalize({ durationMs: 10 })).toMatchObject({
+      delivery: 'delivered',
+      deliveryFailureCount: 0,
+      deliverySuccessCount: 1,
+    });
   });
 });

@@ -176,6 +176,20 @@
     $(caz t.caz)
   =/  rh=response-header:http  !<(response-header:http +.+>+.i.caz)
   `status-code.rh
+::  +http-body: extract the response body from an %http-response-data fact
+::  card, if any. Axis lark as in +http-status.
+::
+++  http-body
+  |=  caz=(list card)
+  ^-  (unit @t)
+  |-  ^-  (unit @t)
+  ?~  caz  ~
+  ?.  ?=([%give %fact * *] i.caz)  $(caz t.caz)
+  ?.  =(`mark`-.+>+.i.caz %http-response-data)
+    $(caz t.caz)
+  =/  dat=(unit octs)  !<((unit octs) +.+>+.i.caz)
+  ?~  dat  ~
+  `q.u.dat
 ::  Card introspection helpers. Hoon's `?=` narrowing on a $% card type
 ::  doesn't propagate inner `=face` shorthand through the union, so we
 ::  reach into the card by axis lark and compare raw nouns. (`;;` casts
@@ -2938,4 +2952,345 @@
   :~  (ex-fact ~ %notes-denied !>(~))
       (ex-card [%give %kick ~ ~])
   ==
+::
+::  search tests
+::
+::  primarily use search through scry.
+::  setup convention: notebook w/ id 1, root folder w/ id 2,
+::  notes are ids 3, 4, 5, ... in creation order.
+::
+::  +init-nb: init as ~zod and create a notebook, yielding its flag
+::
+++  init-nb
+  |=  title=@t
+  =/  m  (mare ,flag:n)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m  (poke-a [%create-notebook title])
+  (pure:m (nb-flag our.bowl title 1))
+::  +mk-note: create a note in the root folder
+::
+++  mk-note
+  |=  [=flag:n title=@t body=@t]
+  (poke-a [%notebook flag [%create-note 2 title body]])
+::  +mk-n-notes: create .n identical notes in the root folder
+::
+++  mk-n-notes
+  |=  [=flag:n n=@ud title=@t body=@t]
+  =/  m  (mare ,~)
+  |-  ^-  form:m
+  ?:  =(0 n)  (pure:m ~)
+  =/  rest=form:m  $(n (dec n))
+  ;<  *  bind:m  (mk-note flag title body)
+  rest
+::  +search-path: construct search scry path from args
+::
+++  search-path
+  |=  [=flag:n from=(unit @ud) tries=@ud nedl=@t]
+  ^-  path
+  :~  %x  %v0  %search  (scot %p ship.flag)  name.flag
+      %bounded  %text
+      ?~(from %$ (scot %ud u.from))
+      (scot %ud tries)
+      (scot %t nedl)
+  ==
+::  +peek-search: scam from search scry
+::
+++  peek-search
+  |=  [=flag:n q=[from=(unit @ud) tries=@ud nedl=@t]]
+  =/  m  (mare ,scam:n)
+  ^-  form:m
+  |=  s=state
+  =/  pax=path  (search-path flag from.q tries.q nedl.q)
+  =/  peek=(unit (unit cage))  (~(on-peek agent.s bowl.s) pax)
+  ?~  peek  |+~['search scry path invalid' (spat pax)]
+  ?~  u.peek  |+~['search scry unexpectedly empty' (spat pax)]
+  ?.  =(p.u.u.peek %notes-scam)
+    |+~['expected notes-scam mark from search scry']
+  &+[!<(scam:n q.u.u.peek) s]
+::  +ex-search: expect post ids in search result
+::
+++  ex-search
+  |=  $:  =flag:n
+          q=[from=(unit @ud) tries=@ud nedl=@t]
+          want=[last=@ud ids=(list @ud)]
+      ==
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  =scam:n  bind:m  (peek-search flag q)
+  |=  s=state
+  =/  got=(list @ud)  (turn scan.scam |=(nt=note:n id.nt))
+  ?.  =(got ids.want)
+    |+~[(crip "search {<nedl.q>}: expected ids {<ids.want>}, got {<got>}")]
+  ?.  =(last.scam last.want)
+    |+~[(crip "search {<nedl.q>}: last {<last.want>}, got {<last.scam>}")]
+  &+[~ s]
+::  +test-search-matches-title-and-body
+::
+::  needle must be searched for in both title and body
+::
+++  test-search-matches-title-and-body
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Matching')
+  ;<  *  b  (mk-note f 'needle in title' 'plain body')
+  ;<  *  b  (mk-note f 'plain title' 'has a needle inside')
+  ;<  *  b  (mk-note f 'plain title' 'plain body')
+  (ex-search f [~ 3 'needle'] [0 ~[4 3]])
+::  +test-search-includes-newest-note
+::
+::  search without .from argument must include latest note
+::
+++  test-search-includes-newest-note
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Newest')
+  ;<  *  b  (mk-note f 'first' 'plain')
+  ;<  *  b  (mk-note f 'second' 'plain')
+  ;<  *  b  (mk-note f 'newest' 'plain')
+  (ex-search f [~ 3 'newest'] [0 ~[5]])
+::  +test-search-cursor-resume-covers-every-note-once
+::
+::  .last in search results must paginate correctly when passed in continuation
+::
+++  test-search-cursor-resume-covers-every-note-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Paging')
+  ;<  *  b  (mk-note f 'n1' 'hay')
+  ;<  *  b  (mk-note f 'n2' 'hay')
+  ;<  *  b  (mk-note f 'n3' 'hay')
+  ;<  *  b  (mk-note f 'n4' 'hay')
+  ;<  *  b  (mk-note f 'n5' 'hay')
+  ;<  ~  b  (ex-search f [~ 2 'hay'] [6 ~[7 6]])
+  ;<  ~  b  (ex-search f [`6 2 'hay'] [4 ~[5 4]])
+  (ex-search f [`4 2 'hay'] [0 ~[3]])
+::  +test-search-tries-one-advances
+::
+::  even when trying only one result, .last must advance correctly
+::
+++  test-search-tries-one-advances
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'OneAtATime')
+  ;<  *  b  (mk-note f 'a' 'hay')
+  ;<  *  b  (mk-note f 'b' 'hay')
+  ;<  *  b  (mk-note f 'c' 'hay')
+  ;<  ~  b  (ex-search f [~ 1 'hay'] [5 ~[5]])
+  ;<  ~  b  (ex-search f [`5 1 'hay'] [4 ~[4]])
+  (ex-search f [`4 1 'hay'] [0 ~[3]])
+::  +test-search-tries-bounds-notes-examined-not-hits
+::
+::  search should be bounded by tries, not hits
+::
+++  test-search-tries-bounds-notes-examined-not-hits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Budget')
+  ;<  *  b  (mk-note f 'needle' 'plain')
+  ;<  *  b  (mk-note f 'plain' 'plain')
+  ;<  *  b  (mk-note f 'plain' 'plain')
+  ;<  ~  b  (ex-search f [~ 1 'needle'] [5 ~])
+  ;<  ~  b  (ex-search f [`5 1 'needle'] [4 ~])
+  (ex-search f [`4 1 'needle'] [0 ~[3]])
+::  +test-search-exhaustion-returns-zero-with-final-hits
+::
+::  last page of search results must produce last=0
+::
+++  test-search-exhaustion-returns-zero-with-final-hits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'TheEnd')
+  ;<  *  b  (mk-note f 'oldest' 'needle here')
+  ;<  *  b  (mk-note f 'newer' 'plain')
+  (ex-search f [~ 10 'needle'] [0 ~[3]])
+::  +test-search-empty-notebook
+::
+++  test-search-empty-notebook
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Empty')
+  (ex-search f [~ 5 'anything'] [0 ~])
+::  +test-search-cursor-at-oldest-id-excludes-it
+::
+++  test-search-cursor-at-oldest-id-excludes-it
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Boundary')
+  ;<  *  b  (mk-note f 'a' 'hay')
+  ;<  *  b  (mk-note f 'b' 'hay')
+  ;<  *  b  (mk-note f 'c' 'hay')
+  (ex-search f [`3 5 'hay'] [0 ~])
+::  +test-search-case-insensitive
+::
+++  test-search-case-insensitive
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Casing')
+  ;<  *  b  (mk-note f 'UPPER' 'x')
+  ;<  *  b  (mk-note f 'y' 'lower')
+  ;<  ~  b  (ex-search f [~ 2 'upper'] [0 ~[3]])
+  (ex-search f [~ 2 'LOWER'] [0 ~[4]])
+::  +test-search-skips-deleted-note
+::
+++  test-search-skips-deleted-note
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Deleting')
+  ;<  *  b  (mk-note f 'keep' 'find-me')
+  ;<  *  b  (mk-note f 'gone' 'find-me')
+  ;<  *  b  (poke-a [%notebook f [%note 4 [%delete ~]]])
+  (ex-search f [~ 5 'find-me'] [0 ~[3]])
+::  +search-url: construct a v1 HTTP search url from args. Search params
+::  are query args, so the needle goes over the wire as (url-encoded)
+::  plain text and .from/.tries are optional.
+::
+++  search-url
+  |=  [=flag:n from=(unit @ud) tries=(unit @ud) nedl=tape]
+  ^-  @t
+  %-  crip
+  ;:  weld
+    "/notes/~/v1/notebooks/{<`@p`ship.flag>}/{(trip name.flag)}"
+    "/search/bounded/text?needle={nedl}"
+    ?~(from "" "&from={(trip (scot %ud u.from))}")
+    ?~(tries "" "&tries={(trip (scot %ud u.tries))}")
+  ==
+::  +api-key-header: x-api-key header for the freshly-initialized ship
+::
+++  api-key-header
+  =/  m  (mare ,(list [@t @t]))
+  ^-  form:m
+  ;<  sv=vase  bind:m  get-save
+  =/  s=state-15:n  !<(state-15:n sv)
+  (pure:m ~[['x-api-key' ?~(api-key.s '' u.api-key.s)]])
+::  +ex-get-search: GET a v1 search url and assert 200 plus the `last`
+::  cursor and note ids in the JSON response body.
+::
+++  ex-get-search
+  |=  $:  hdrs=(list [@t @t])
+          url=@t
+          want=[last=@ud ids=(list @ud)]
+      ==
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  caz=(list card)  bind:m  (http-get-v1 hdrs url)
+  |=  s=state
+  ?.  =((http-status caz) `200)
+    |+~[(crip "GET {(trip url)} expected 200, got {<(http-status caz)>}")]
+  ?~  body=(http-body caz)
+    |+~[(crip "GET {(trip url)}: no response body")]
+  ?~  jon=(de:json:html u.body)
+    |+~[(crip "GET {(trip url)}: body not json: {(trip u.body)}")]
+  =/  got=[last=@ud ids=(list @ud)]
+    %.  u.jon
+    %-  ot:dejs:format
+    :~  ['last' ni:dejs:format]
+        ['notes' (ar:dejs:format (ot:dejs:format ~[['id' ni:dejs:format]]))]
+    ==
+  ?.  =(ids.got ids.want)
+    |+~[(crip "GET {(trip url)}: expected ids {<ids.want>}, got {<ids.got>}")]
+  ?.  =(last.got last.want)
+    |+~[(crip "GET {(trip url)}: expected last {<last.want>}, got {<last.got>}")]
+  &+[~ s]
+::  +test-search-v1-http-initial
+::
+::  should behave identically to scry search, and resume from the returned
+::  .last when it's fed back in as .from.
+::
+++  test-search-v1-http-initial
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'HttpSearch')
+  ;<  *  b  (mk-note f 'needle' 'plain')
+  ;<  *  b  (mk-note f 'plain' 'needle')
+  ;<  hdr=(list [@t @t])  b  api-key-header
+  ;<  ~  b  (ex-get-search hdr (search-url f ~ `1 "needle") [4 ~[4]])
+  ;<  ~  b  (ex-get-search hdr (search-url f `4 `5 "needle") [0 ~[3]])
+  ::  no .tries: the default budget covers this notebook whole
+  (ex-get-search hdr (search-url f ~ ~ "needle") [0 ~[4 3]])
+::  +test-search-v1-http-needle-is-plain-text
+::
+::  the needle is a query arg, so it survives dots (which the URL parser
+::  would otherwise take for a file extension) and url-encoded spaces.
+::
+++  test-search-v1-http-needle-is-plain-text
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'DottedNeedle')
+  ;<  *  b  (mk-note f 'shipped v1.0 today' 'plain')
+  ;<  *  b  (mk-note f 'plain' 'say hello world to it')
+  ;<  *  b  (mk-note f 'plain' 'nothing to see')
+  ;<  hdr=(list [@t @t])  b  api-key-header
+  ;<  ~  b  (ex-get-search hdr (search-url f ~ ~ "v1.0") [0 ~[3]])
+  ::  a dotted needle must not match on its truncated prefix
+  ;<  ~  b  (ex-get-search hdr (search-url f ~ ~ "v1.9") [0 ~])
+  (ex-get-search hdr (search-url f ~ ~ "hello%20world") [0 ~[4]])
+::  +test-search-v1-http-needle-required
+::
+::  a search without a needle is not a search
+::
+++  test-search-v1-http-needle-required
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'NoNeedle')
+  ;<  *  b  (mk-note f 'whatever' 'plain')
+  ;<  hdr=(list [@t @t])  b  api-key-header
+  =/  base=tape
+    "/notes/~/v1/notebooks/{<`@p`ship.f>}/{(trip name.f)}"
+  ;<  caz=(list card)  b
+    (http-get-v1 hdr (crip "{base}/search/bounded/text"))
+  |=  s=state
+  ?.  =((http-status caz) `404)
+    |+~[(crip "expected 404 from needle-less search, got {<(http-status caz)>}")]
+  &+[~ s]
+::  +test-search-scans-many-large-bodies
+::
+::  search should perform reasonably on large content bodies.
+::  keep an eye on timings in test output!
+::
+++  test-search-scans-many-large-bodies
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  body-size=@ud   10.000
+  =/  filler-count=@ud  9
+  =/  filler=@t  (fil 3 body-size 'x')
+  ::  needle-bearing body: filler first, needle last (+cat puts `b` low, and
+  ::  cords run low-byte-first), so the scan can't short-circuit early
+  =/  hay=@t  (cat 3 filler 'zzfindmezz')
+  ;<  f=flag:n  b  (init-nb 'BigBodies')
+  ::  oldest note, id 3 — the only one that matches
+  ;<  *  b  (mk-note f 'big' hay)
+  ::  ids 4 .. 12, same filler body, no match
+  ;<  ~  b  (mk-n-notes f filler-count 'big' filler)
+  ::  tries covers all 10 notes, so the walk exhausts and reports the end
+  (ex-search f [~ +(filler-count) 'zzfindmezz'] [0 ~[3]])
 --

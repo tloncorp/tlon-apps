@@ -11,6 +11,7 @@ import {
   getFolderPath,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
+  makeNotesFolderPathLabeler,
 } from './notesTree';
 
 const makeFolder = (folderId: number, name: string, parentId: number | null) =>
@@ -55,6 +56,46 @@ const rowsFor = (
     notes,
     rootFolderId: 1,
   });
+
+describe('makeNotesFolderPathLabeler', () => {
+  const folders = [root, projects, archive, backlog];
+  const label = makeNotesFolderPathLabeler({ folders, rootFolderId: 1 });
+
+  test('gives the whole path, with the root dropped', () => {
+    expect(label({ folderId: 4 })).toBe('Projects / Backlog');
+    expect(label({ folderId: 2 })).toBe('Projects');
+  });
+
+  test('leaves a note in the root unlabeled', () => {
+    expect(label({ folderId: 1 })).toBeNull();
+  });
+
+  test('handles a missing or unknown folder', () => {
+    expect(label({ folderId: null })).toBeNull();
+    expect(label({})).toBeNull();
+    expect(label({ folderId: 999 })).toBeNull();
+  });
+
+  test('distinguishes same-named folders under different parents', () => {
+    const projectsDrafts = makeFolder(5, 'Drafts', 2);
+    const archiveDrafts = makeFolder(6, 'Drafts', 3);
+    const deepLabel = makeNotesFolderPathLabeler({
+      folders: [...folders, projectsDrafts, archiveDrafts],
+      rootFolderId: 1,
+    });
+
+    expect(deepLabel({ folderId: 5 })).toBe('Projects / Drafts');
+    expect(deepLabel({ folderId: 6 })).toBe('Archive / Drafts');
+  });
+
+  test('falls back to the raw path when there is no root to strip', () => {
+    expect(
+      makeNotesFolderPathLabeler({ folders, rootFolderId: null })({
+        folderId: 4,
+      })
+    ).toContain('Backlog');
+  });
+});
 
 describe('notes tree helpers', () => {
   test('builds a folder path for note metadata', () => {

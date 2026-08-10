@@ -1,7 +1,10 @@
+import { tryParse, valid } from '@urbit/aura';
+
 import { createDevLogger } from '../lib/logger';
 import type * as models from '../types/models';
 import { formatUd } from './apiUtils';
 import {
+  type RequestJsonOptions,
   poke,
   requestJson,
   scry,
@@ -322,6 +325,19 @@ export interface NotesV1NoteRevision {
   bodyMd?: string;
 }
 
+// One page of bounded search results. The walk is bounded by notes *examined*,
+// not hits returned, so a page can be empty and still have more to search:
+// `last` is the id the walk stopped at, and 0 means the notebook is exhausted.
+export interface NotesV1SearchPage {
+  last: number;
+  notes: NotesV1Note[];
+}
+
+export interface NotesSearchPage {
+  last: number;
+  notes: NotesNote[];
+}
+
 export interface NotesV1MemberRecord {
   ship: string;
   roles: NotesRole[];
@@ -399,8 +415,10 @@ export class NotesV1PendingWriteError extends Error {
   }
 }
 
+const NOTES_V1_PATH = '/notes/~/v1';
 const NOTEBOOKS_V1_PATH = '/notes/~/v1/notebooks';
 const REQUESTS_V1_PATH = '/notes/~/v1/request';
+const NOTES_AUTH_FAILURE_STATUSES = [401, 403] as const;
 
 function notebookV1Path(flag: NotesFlag): string {
   return `${NOTEBOOKS_V1_PATH}/${flag.host}/${flag.name}`;
@@ -422,6 +440,24 @@ function folderV1Path(flag: NotesFlag, folderId: number): string {
 }
 function membersV1Path(flag: NotesFlag): string {
   return `${notebookV1Path(flag)}/members`;
+}
+
+// Search params ride in the query string rather than the path: the URL parser
+// splits a trailing dot-group off the last path segment as a file extension,
+// which would search a truncated needle. encodeURIComponent's escapes (and its
+// unreserved set) are exactly what the backend's query parser accepts.
+function searchV1Path(
+  flag: NotesFlag,
+  { needle, from, tries }: { needle: string; from?: number; tries?: number }
+): string {
+  const params = [`needle=${encodeURIComponent(needle)}`];
+  if (from !== undefined) {
+    params.push(`from=${from}`);
+  }
+  if (tries !== undefined) {
+    params.push(`tries=${tries}`);
+  }
+  return `${notebookV1Path(flag)}/search/bounded/text?${params.join('&')}`;
 }
 
 // --- response normalization ------------------------------------------------
@@ -519,6 +555,17 @@ function normalizeNoteV1(raw: any): NotesV1Note {
     createdAt: raw.createdAt,
     updatedBy: raw.updatedBy,
     updatedAt: raw.updatedAt,
+  };
+}
+
+function normalizeSearchPageV1(raw: unknown): NotesV1SearchPage {
+  const res = requireObject(raw);
+  if (typeof res.last !== 'number') {
+    throw new Error('%notes response missing required field: search.last');
+  }
+  return {
+    last: res.last,
+    notes: requireArray(res.notes, normalizeNoteV1),
   };
 }
 
@@ -719,7 +766,10 @@ function errorMessageText(raw: any): string {
 }
 
 function notesEnvelopeErrorMessage(body: any): string {
-  const detail = errorMessageText(body?.message);
+  const message = errorMessageText(body?.message);
+  const errorType =
+    typeof body?.errorType === 'string' ? body.errorType.trim() : '';
+  const detail = message || errorType;
   return `%notes error: ${detail || 'backend returned an error without details'}`;
 }
 
@@ -805,16 +855,36 @@ function unwrapNotebookEnvelope(
   }
 }
 
-// Void writes: a *present* envelope body must be ok/no-change/notebook (else
-// error/pending/unexpected throw). A bare/empty non-envelope JSON body (e.g. a
-// folder object from a convenience route) is accepted and ignored —
-// `requestJson` already throws on HTTP failure.
-function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
-  const body = res?.body;
-  if (!body || typeof body.type !== 'string') {
-    return;
+function describeNotesResponseValue(value: unknown): string {
+  if (value === undefined) {
+    return 'undefined';
   }
-  switch (body.type) {
+  return JSON.stringify(value) ?? String(value);
+}
+
+// Void writes: in the current backend every v1 write response is an envelope
+// whose `body` carries a string `type`. `response:v1:enjs`
+// (desk/lib/notes/json.hoon) emits one for all six variants, and every write —
+// the envelope POST (`handle-v1-post`) and the REST convenience routes
+// (`handle-v1-write`) — funnels through `dispatch-v1-action` →
+// `finalize-request`/`finalize-pending` → `give-http-response`
+// (desk/app/notes.hoon). A missing or typeless body is therefore a protocol
+// violation, not a shape to tolerate. ok/no-change/notebook succeed;
+// everything else throws. `requestJson` has already rejected any non-200.
+function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
+  const body: unknown = res?.body;
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw new Error(
+      `Unexpected %notes write response body: ${describeNotesResponseValue(body)}`
+    );
+  }
+  const type = (body as Record<string, unknown>).type;
+  if (typeof type !== 'string') {
+    throw new Error(
+      `Unexpected %notes write response body.type: ${describeNotesResponseValue(type)} (body: ${describeNotesResponseValue(body)})`
+    );
+  }
+  switch (type) {
     case 'ok':
     case 'no-change':
     case 'notebook':
@@ -824,7 +894,9 @@ function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
     case 'pending':
       throw pendingWriteError(res, checks);
     default:
-      throw new Error(`Unexpected %notes response type: ${body.type}`);
+      throw new Error(
+        `Unexpected %notes response type: ${describeNotesResponseValue(type)}`
+      );
   }
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -882,6 +954,25 @@ async function listNotesV1(target: NotesTarget): Promise<NotesV1Note[]> {
   const flag = normalizeNotesTarget(target);
   const res = await requestJson(notesV1Path(flag), 'GET');
   return requireArray(res, normalizeNoteV1);
+}
+
+async function searchNotesV1({
+  flag,
+  needle,
+  from,
+  tries,
+}: {
+  flag: NotesTarget;
+  needle: string;
+  from?: number;
+  tries?: number;
+}): Promise<NotesV1SearchPage> {
+  const normalized = normalizeNotesTarget(flag);
+  const res = await requestJson(
+    searchV1Path(normalized, { needle, from, tries }),
+    'GET'
+  );
+  return normalizeSearchPageV1(res);
 }
 
 async function getNoteV1({
@@ -1028,9 +1119,12 @@ async function listNoteHistoryV1({
 
 // --- folder helpers --------------------------------------------------------
 
-async function listFoldersV1(target: NotesTarget): Promise<NotesV1Folder[]> {
+async function listFoldersV1(
+  target: NotesTarget,
+  options?: RequestJsonOptions
+): Promise<NotesV1Folder[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson(foldersV1Path(flag), 'GET');
+  const res = await requestJson(foldersV1Path(flag), 'GET', undefined, options);
   return requireArray(res, normalizeFolderV1);
 }
 
@@ -1154,6 +1248,19 @@ async function listNotes(target: NotesTarget): Promise<NotesNote[]> {
   return rawNotes.map((note) => toClientNotesNote(target, note));
 }
 
+async function searchNotes(input: {
+  flag: NotesTarget;
+  needle: string;
+  from?: number;
+  tries?: number;
+}): Promise<NotesSearchPage> {
+  const page = await searchNotesV1(input);
+  return {
+    last: page.last,
+    notes: page.notes.map((note) => toClientNotesNote(input.flag, note)),
+  };
+}
+
 async function getNote({
   flag,
   noteId,
@@ -1192,6 +1299,98 @@ async function getFolder({
 async function listMembers(target: NotesTarget): Promise<NotesMember[]> {
   const rawMembers = await listMembersV1(target);
   return rawMembers.flatMap((member) => toClientNotesMembers(target, member));
+}
+
+export class NotesInvalidRequestIdError extends Error {
+  readonly requestId: string;
+
+  constructor(requestId: string, reason: 'invalid' | 'zero' = 'invalid') {
+    super(
+      reason === 'zero'
+        ? `Invalid @uv request id: ${requestId}; request id must be non-zero`
+        : `Invalid @uv request id: ${requestId}`
+    );
+    this.name = 'NotesInvalidRequestIdError';
+    this.requestId = requestId;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export class NotesUnknownFolderError extends Error {
+  readonly flag: string;
+  readonly folderId: number;
+
+  constructor(flag: string, folderId: number) {
+    super(`%notes folder ${folderId} does not exist in ${flag}`);
+    this.name = 'NotesUnknownFolderError';
+    this.flag = flag;
+    this.folderId = folderId;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+// ===========================================================================
+// Batch-import submit over the v1 envelope
+// ===========================================================================
+
+export async function batchImportNotesV1({
+  flag,
+  folder,
+  notes,
+  requestId,
+}: {
+  flag: string;
+  folder: number;
+  notes: { title: string; body: string }[];
+  requestId: string;
+}): Promise<string> {
+  const parsedRequestId = tryParse('uv', requestId);
+  if (!valid('uv', requestId) || parsedRequestId === null) {
+    throw new NotesInvalidRequestIdError(requestId);
+  }
+  if (parsedRequestId === 0n) {
+    throw new NotesInvalidRequestIdError(requestId, 'zero');
+  }
+
+  const normalized = normalizeNotesTarget(flag);
+  const canonicalFlag = formatNotesFlag(normalized);
+
+  // %notes se-batch-import assigns the folder id into every imported note
+  // without resolving it (unlike se-create-note), so a stale id would
+  // persist a whole batch of notes invisible to folder traversal. Resolve
+  // it here before submitting; the backend-side check is TLON-6307.
+  const folders = await listFoldersV1(normalized, {
+    reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
+  });
+  if (!folders.some((existing) => existing.id === folder)) {
+    throw new NotesUnknownFolderError(canonicalFlag, folder);
+  }
+
+  const body = {
+    requestId,
+    action: {
+      type: 'notebook' as const,
+      flag: canonicalFlag,
+      action: {
+        type: 'batch-import' as const,
+        folder,
+        notes,
+      },
+    },
+  };
+
+  const res = await requestJson(NOTES_V1_PATH, 'POST', body, {
+    reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
+  });
+
+  const serverRequestId = envelopeRequestId(res);
+  if (!serverRequestId) {
+    throw new Error('%notes batch-import response missing requestId');
+  }
+
+  assertWriteOk(res, noteCreateChecks(notesChannelId(normalized)));
+
+  return serverRequestId;
 }
 
 async function listPublished(): Promise<NotesPublishedRecord[]> {
@@ -1239,8 +1438,10 @@ export type NotesV1Api = {
   createNotebook: typeof createNotebookV1;
   createGroupNotebook: typeof createGroupNotebookV1;
   listNotes: typeof listNotesV1;
+  searchNotes: typeof searchNotesV1;
   getNote: typeof getNoteV1;
   createNote: typeof createNoteV1;
+  batchImport: typeof batchImportNotesV1;
   updateNoteBody: typeof updateNoteBodyV1;
   renameNote: typeof renameNoteV1;
   moveNote: typeof moveNoteV1;
@@ -1262,8 +1463,10 @@ export type NotesApi = {
   createNotebook: typeof createNotebook;
   createGroupNotebook: typeof createGroupNotebook;
   listNotes: typeof listNotes;
+  searchNotes: typeof searchNotes;
   getNote: typeof getNote;
   createNote: typeof createNoteV1;
+  batchImport: typeof batchImportNotesV1;
   updateNoteBody: typeof updateNoteBodyV1;
   renameNote: typeof renameNoteV1;
   moveNote: typeof moveNoteV1;
@@ -1288,8 +1491,10 @@ export const notesV1: NotesV1Api = {
   createNotebook: createNotebookV1,
   createGroupNotebook: createGroupNotebookV1,
   listNotes: listNotesV1,
+  searchNotes: searchNotesV1,
   getNote: getNoteV1,
   createNote: createNoteV1,
+  batchImport: batchImportNotesV1,
   updateNoteBody: updateNoteBodyV1,
   renameNote: renameNoteV1,
   moveNote: moveNoteV1,
@@ -1311,8 +1516,10 @@ export const notes: NotesApi = {
   createNotebook,
   createGroupNotebook,
   listNotes,
+  searchNotes,
   getNote,
   createNote: createNoteV1,
+  batchImport: batchImportNotesV1,
   updateNoteBody: updateNoteBodyV1,
   renameNote: renameNoteV1,
   moveNote: moveNoteV1,

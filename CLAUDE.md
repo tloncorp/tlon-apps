@@ -226,7 +226,7 @@ To identify which component to modify:
 ## Key Technologies
 
 -   **Frontend**: React, TypeScript, React Native, Expo, Electron
--   **UI**: Tamagui, Tailwind CSS
+-   **UI**: Tamagui
 -   **State Management**: Zustand, React Query
 -   **Database**: SQLite (web: SQLocal, mobile: op-sqlite, desktop: better-sqlite3)
 -   **Backend**: Urbit (Hoon)

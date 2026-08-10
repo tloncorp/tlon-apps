@@ -1,8 +1,9 @@
-import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useBranch, useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { RootStackParamList } from '@tloncorp/app/navigation/types';
-import { useTypedReset } from '@tloncorp/app/navigation/utils';
+import {
+  getTopLevelTabRoute,
+  useTypedReset,
+} from '@tloncorp/app/navigation/utils';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useEffect, useRef } from 'react';
@@ -10,7 +11,6 @@ import { useEffect, useRef } from 'react';
 const logger = createDevLogger('deeplinkHandler', true);
 
 export const useDeepLinkListener = () => {
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isHandlingLinkRef = useRef(false);
   const { ship } = useShip();
   const signupParams = useSignupParams();
@@ -40,9 +40,7 @@ export const useDeepLinkListener = () => {
               if (inviter) {
                 logger.log(`handling deep link to user`, inviter);
                 reset([
-                  {
-                    name: 'Contacts',
-                  },
+                  getTopLevelTabRoute('Contacts'),
                   {
                     name: 'UserProfile',
                     params: { userId: inviter },
@@ -63,12 +61,7 @@ export const useDeepLinkListener = () => {
               });
               const previewGroupId = lure.invitedGroupId || lure.group;
               if (previewGroupId) {
-                reset([
-                  {
-                    name: 'ChatList',
-                    params: { previewGroupId },
-                  },
-                ]);
+                reset([getTopLevelTabRoute('ChatList', { previewGroupId })]);
               }
             }
           }
@@ -80,5 +73,5 @@ export const useDeepLinkListener = () => {
         }
       })();
     }
-  }, [ship, signupParams, clearLure, lure, navigation, reset]);
+  }, [ship, signupParams, clearLure, lure, reset]);
 };

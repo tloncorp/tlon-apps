@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { copyFile, mkdtemp, readdir, rm } from 'node:fs/promises';
+import { chmod, copyFile, mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -49,13 +49,29 @@ const LEGACY_OPENCLAW_TOOLS = [
   'message',
 ] as const;
 const BASELINE_OPENCLAW_TOOLS = ['tlon', 'message'] as const;
+const OPENCLAW_CRON_AT_OFFSET_MS = 180_000;
 
 export function workspaceApiTarballPath(packageDir: string): string {
   return path.join(packageDir, 'dev', 'tlon-api-workspace.tgz');
 }
 
+export function workspaceSkillBinaryPath(packageDir: string): string {
+  return path.join(packageDir, 'dev', 'tlon-skill-workspace-bin', 'tlon');
+}
+
 export const openclawDriver: BotDriver = {
   name: 'openclaw',
+
+  // On a clean EOF OpenClaw logs only "[SSE] Stream ended..." then
+  // "[SSE] Reconnection attempt..." ("Stream error:" fires only after the
+  // reconnect loop returns — never while the network is down); on a silent
+  // hang nothing appears until the watchdog logs "[SSE] Stream stale...". All
+  // three cover both the detach (hang) and RST cases.
+  streamFaultLogMarkers: [
+    '[SSE] Stream stale',
+    '[SSE] Stream ended',
+    '[SSE] Reconnection attempt',
+  ],
 
   packageDir(seed) {
     return path.join(seed.repoRoot, 'packages/openclaw');
@@ -123,6 +139,58 @@ export const openclawDriver: BotDriver = {
     } finally {
       await rm(tmpDir, { recursive: true, force: true });
     }
+
+    // The migrate command shells out to the `tlon` CLI, which the container
+    // resolves from the npm registry — a publish that can predate in-branch
+    // CLI changes. Cross-compile the workspace CLI for the container platform
+    // (bun compiles standalone binaries cross-target, bundling the workspace
+    // @tloncorp/api) and stage it in dev/; the entrypoint lays it over the
+    // installed package's bin/tlon, which the CLI loader prefers over the
+    // registry platform package. Same env-plus-file double opt-in as the api
+    // tarball above.
+    const skillDir = path.join(ctx.repoRoot, 'packages/tlon-skill');
+    // The container runs on the Docker daemon's platform, which need not
+    // match this Node process (Rosetta node on an arm64 Mac, a remote
+    // docker context), so ask the daemon rather than trusting process.arch.
+    const archProbe = await runCommand(
+      'docker',
+      ['version', '--format', '{{.Server.Arch}}'],
+      { cwd: ctx.repoRoot, env }
+    );
+    if (archProbe.exitCode !== 0) {
+      throw new Error(
+        `docker version failed while resolving the container arch (exit ${archProbe.exitCode}):\n${archProbe.stderr}`
+      );
+    }
+    const daemonArch = archProbe.stdout.trim();
+    const bunArch: Record<string, string> = { amd64: 'x64', arm64: 'arm64' };
+    const mappedArch = bunArch[daemonArch];
+    if (!mappedArch) {
+      throw new Error(
+        `Unsupported Docker daemon architecture for the tlon CLI build: ${daemonArch}`
+      );
+    }
+    const target = `linux-${mappedArch}`;
+    console.log(`==> Building workspace tlon CLI for ${target}...`);
+    const skillBuild = await runCommand(
+      'node',
+      ['scripts/build-all.js', `--target=${target}`],
+      { cwd: skillDir, env }
+    );
+    if (skillBuild.exitCode !== 0) {
+      throw new Error(
+        `tlon-skill build-all.js --target=${target} failed (exit ${skillBuild.exitCode}):\n${skillBuild.stderr}`
+      );
+    }
+    const builtBinary = path.join(skillDir, 'npm', target, 'tlon');
+    if (!existsSync(builtBinary)) {
+      throw new Error(`tlon-skill build-all.js did not produce ${builtBinary}`);
+    }
+    const stagedBinary = workspaceSkillBinaryPath(ctx.packageDir);
+    await mkdir(path.dirname(stagedBinary), { recursive: true });
+    await copyFile(builtBinary, stagedBinary);
+    await chmod(stagedBinary, 0o755);
+    console.log(`==> Workspace tlon CLI binary: ${stagedBinary}`);
   },
 
   resolveRuntime(seed): DriverRuntimeSpec {
@@ -182,8 +250,16 @@ export const openclawDriver: BotDriver = {
         // the tarball file so a stale tarball can never leak into legacy
         // (non-harness) container runs.
         OPENCLAW_WORKSPACE_API_TARBALL: '1',
+        // Same double opt-in for the workspace-built tlon CLI binary.
+        OPENCLAW_WORKSPACE_SKILL_BIN: '1',
         TLON_MAX_CONSECUTIVE_BOT_RESPONSES: maxConsecutiveBotResponses,
         TLON_NUDGE_TICK_INTERVAL_MS: '5000',
+        // The fake-ship SSE stream emits no idle heartbeats, so a detached
+        // network is a silent hang. Drop the stale-stream watchdog threshold
+        // (production default 180s) so the fault surfaces within the
+        // sse-resume scenario's 120s marker wait. Above the ~30s heartbeat
+        // pulse, so idle scenarios don't trip spurious reconnects.
+        TLON_SSE_STALE_THRESHOLD_MS: '60000',
         TEST_LIVE_TOOL_TRACE: liveToolTrace ?? '0',
         TEST_LIVE_TOOL_TRACE_CONTENTS: liveToolTraceContents ?? '0',
         VERBOSE: process.env.VERBOSE ?? '0',
@@ -315,6 +391,45 @@ export const openclawDriver: BotDriver = {
           advertisedTools: { include: ['image_search'] },
           expectedCallCount: 1,
         },
+      };
+    },
+
+    createCronJob({ name, firedPrompt, finalText }) {
+      return {
+        steps: [
+          {
+            kind: 'tool_call',
+            name: 'cron',
+            args: {
+              action: 'add',
+              job: {
+                name,
+                schedule: {
+                  kind: 'at',
+                  at: new Date(
+                    Date.now() + OPENCLAW_CRON_AT_OFFSET_MS
+                  ).toISOString(),
+                },
+                payload: { kind: 'agentTurn', message: firedPrompt },
+                sessionTarget: 'isolated',
+                deleteAfterRun: true,
+              },
+            },
+          },
+          { kind: 'text', content: finalText },
+        ],
+        expectations: {
+          advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+          expectedCallCount: 2,
+          toolEffectOnly: true,
+        },
+      };
+    },
+
+    looseReplyText(text) {
+      return {
+        steps: [{ kind: 'text', content: text }],
+        expectations: { expectedCallCount: 1 },
       };
     },
   },
@@ -716,6 +831,9 @@ function openClawToolsForPartition(seed: RuntimeSeed): string[] {
 function openClawToolsForCapability(
   capability: RuntimeCapability
 ): readonly string[] {
+  if (capability === 'cron') {
+    return ['cron'];
+  }
   if (capability === 'image_search') {
     return ['image_search'];
   }

@@ -265,14 +265,11 @@
   ?:  ?=([%notes %~.~ %v1 *] site)
     =/  pax=(list @t)  t.t.t.site
     ::  other /notes/~/v1/* — GET reads, POST/PATCH/DELETE first-class writes
-    ?:  =(%'GET' method)  (handle-v1-read eyre-id pax inbound-request)
+    ?:  =(%'GET' method)  (handle-v1-read eyre-id pax args inbound-request)
     ::  vere's runtime HTTP server rejects PATCH (400 before reaching the
     ::  agent), so note-body updates use PUT.
     ?:  ?=(?(%'POST' %'PUT' %'DELETE') method)
-      =/  recursive=?
-        %+  lien  args
-        |=  [key=@t value=@t]
-        &(=(key 'recursive') =(value 'true'))
+      =/  recursive=?  =((query-cord args 'recursive') `'true')
       (handle-v1-write eyre-id method pax recursive inbound-request)
     (http-error eyre-id 405 'method not allowed')
   ::  PWA-related static assets: manifest, service worker, icons.
@@ -428,10 +425,15 @@
 ::    /notes/~/v1/notebooks/{host}/{name}/notes/{id}
 ::    /notes/~/v1/notebooks/{host}/{name}/notes/{id}/history
 ::    /notes/~/v1/notebooks/{host}/{name}/members
+::    /notes/~/v1/notebooks/{host}/{name}/search/bounded/text?needle&from&tries
 ::    /notes/~/v1/invites
 ::
 ++  handle-v1-read
-  |=  [eyre-id=@ta pax=(list @t) =inbound-request:eyre]
+  |=  $:  eyre-id=@ta
+          pax=(list @t)
+          args=(list [key=@t value=@t])
+          =inbound-request:eyre
+      ==
   ^+  cor
   ?.  (request-authorized inbound-request)
     (http-error eyre-id 401 'unauthorized')
@@ -450,10 +452,30 @@
     =/  =flag:n  [(slav %p i.t.path) `@tas`i.t.t.path]
     ?~  (~(get by books) flag)
       (http-error eyre-id 404 'notebook not found')
-    ?~  jon=(no-read-json:(no-abed:no-core flag) t.t.t.path)
+    ?~  jon=(no-read-json:(no-abed:no-core flag) t.t.t.path args)
       (http-error eyre-id 404 'not found')
     (give-json-response eyre-id u.jon)
   ==
+::  +query-cord / +query-ud: read one key out of the URL's query args.
+::  de-purl already percent-decoded the values, so a query param can carry
+::  arbitrary text — unlike a path segment, which apat splits a trailing
+::  dot-group off of as a file extension.
+::
+++  query-cord
+  |=  [args=(list [key=@t value=@t]) key=@t]
+  ^-  (unit @t)
+  ?~  args  ~
+  ?:  =(key key.i.args)  `value.i.args
+  $(args t.args)
+::
+++  query-ud
+  |=  [args=(list [key=@t value=@t]) key=@t]
+  ^-  (unit @ud)
+  ?~  val=(query-cord args key)  ~
+  ::  accept a plain decimal ("1234") as well as the dot-grouped hoon @ud
+  ::  literal ("1.234"), so a client can echo an id straight back at us.
+  ?^  plain=(rush u.val dum:ag)  plain
+  (slaw %ud u.val)
 ::  +field-cord / +field-ud: lenient reads of one key from a json object
 ::  for the write endpoints. Return ~ on a missing key or wrong json shape,
 ::  so a cheap model sending a slightly-off body gets a 400, not a 500.
@@ -2883,6 +2905,16 @@
         |=  [who=ship r=role:n]
         [who r]
       ``notes-members+!>(mrecords)
+    ::
+        %search
+      ?.  ?=([%bounded %text from=@ tries=@ nedl=@ ~] rest)
+        ~
+      :^  ~  ~  %notes-scam  !>
+      %^    no-search
+          ?:  =(%$ from.rest)  ~
+          `(slav %ud from.rest)
+        (slav %ud tries.rest)
+      (slav %t nedl.rest)
     ==
   ::  +no-watch: handle local UI stream subscription for this notebook
   ::
@@ -2895,11 +2927,11 @@
     notes-response+!>(`response:n`[%snapshot flag visibility.notebook-state notebook-state])
   ::  +no-read-json: per-notebook read surface for the v1 GET API. Same
   ::  data as +no-peek but JSON-encoded for HTTP. `rest` is the path
-  ::  remainder after /notes/~/v1/notebooks/{host}/{name}. Membership-
-  ::  gated like no-peek.
+  ::  remainder after /notes/~/v1/notebooks/{host}/{name}, `args` the
+  ::  URL's query args. Membership-gated like no-peek.
   ::
   ++  no-read-json
-    |=  rest=path
+    |=  [rest=path args=(list [key=@t value=@t])]
     ^-  (unit json)
     ::  our.bowl, not src.bowl — see read-notebooks-json. The HTTP auth
     ::  gate already ran; identity is the ship.
@@ -2939,6 +2971,88 @@
         |=  [who=ship r=role:n]
         [who r]
       `(member-records:enjs:notes-json mrecords)
+    ::
+        [%search %bounded %text ~]
+      ::  search params ride in the query string, not the path: the needle is
+      ::  free text, and as a path segment its trailing dot-group would be
+      ::  eaten as a file extension (see the /request/{id} branch of
+      ::  +serve-http). `needle` is required, `from` defaults to the newest
+      ::  note and `tries` to a budget that keeps one call cheap.
+      ?~  nedl=(query-cord args 'needle')  ~
+      :-  ~
+      %-  scam:enjs:notes-json
+      %^    no-search
+          (query-ud args 'from')
+        (fall (query-ud args 'tries') default-search-tries)
+      u.nedl
     ==
+  ::
+  ::  +default-search-tries: budget for a v1 search that didn't ask for one.
+  ::  Small enough that a single unbounded-looking request stays cheap.
+  ::
+  ++  default-search-tries  100
+  ::
+  ::  +no-search: backwards bounded search
+  ::
+  ++  no-search
+    |=  [from=(unit @ud) tries=@ud nedl=@t]
+    ^-  scam:n
+    =/  notes=(list [nid=@ud =note:n])
+      ::NOTE  filtering for u.from prior to sort actually slightly slower
+      ::      (in tested cases)
+      %+  sort  ~(tap by notes.notebook-state)
+      |=([[a=@ud *] [b=@ud *]] (gth a b))
+    =/  from=@ud
+      (fall from ?~(notes 0 +(nid.i.notes)))
+    =|  found=(list note:n)
+    =*  done  [from (flop found)]
+    ?:  =(0 from)       done
+    |^  ?~  notes       =.(from 0 done)
+        ?:  =(0 tries)  done  ::  compute out of bounds
+        ?:  (gte nid.i.notes from)
+          $(notes t.notes)    ::  move into range
+        =.  from   nid.i.notes
+        =.  tries  (dec tries)
+        ?.  ?|  (find nedl title.note.i.notes)
+                (find nedl body-md.note.i.notes)  ::NOTE  treats *markdown* opaquely
+            ==
+          $(notes t.notes)
+        $(notes t.notes, found [note.i.notes found])
+    ::
+    ::NOTE  +find and co from /app/channels, never case-sensitive
+    ++  find
+      |=  [nedl=@t hay=@t]
+      ~>  %spin.['find']
+      ^-  ?
+      =/  nlen  (met 3 nedl)
+      =/  hlen  (met 3 hay)
+      ?:  (lth hlen nlen)
+        |
+      =.  nedl  (cass nedl)
+      =.  hay   (cass hay)
+      =/  pos   0
+      =/  lim   (sub hlen nlen)
+      |-
+      ?:  (gth pos lim)
+        |
+      ?:  =(nedl (cut 3 [pos nlen] hay))
+        &
+      $(pos +(pos))
+    ::
+    ::NOTE  :(cork trip ^cass crip) may be _very slightly_ faster,
+    ::      but not enough to matter
+    ++  cass
+      |=  text=@t
+      ~>  %spin.['cass']
+      ^-  @t
+      %^    run
+          3
+        text
+      |=  dat=@
+      ^-  @
+      ?.  &((gth dat 64) (lth dat 91))
+        dat
+      (add dat 32)
+    --
   --
 --

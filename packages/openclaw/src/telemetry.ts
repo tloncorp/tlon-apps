@@ -8,6 +8,7 @@ import type {
   TlonProfileUpdateField,
   TlonToolCallContext,
 } from './tlon-tool-command.js';
+import type { TlonAgentTurnSummary } from './turn-recorder.js';
 import type { TlonTelemetryConfig } from './types.js';
 import { getTlonVersionIdentity } from './version.js';
 
@@ -185,6 +186,7 @@ export type TlonReplyOutcomeEvent = {
   model: string | null;
   thinkLevel: string | null;
   toolUsage: ToolUsageSummary;
+  turnSummary: TlonAgentTurnSummary | null;
 };
 
 export type TlonReplyTelemetryStart = {
@@ -244,6 +246,7 @@ export type TlonReplyTelemetryResult = {
   provider: string | null;
   model: string | null;
   thinkLevel: string | null;
+  turnSummary?: TlonAgentTurnSummary;
   dispatchError?: unknown;
 };
 
@@ -425,6 +428,22 @@ export type TlonCronSnapshotEvent = TlonCronCountFields & {
   scheduleKindOnExitCount: number | null;
 };
 
+/**
+ * Diary migration lifecycle (`/migrate`). One event per accepted CLI run,
+ * correlated by `migrationId`; `action` separates apply from cleanup.
+ */
+export type TlonMigrationEvent = {
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  migrationEvent: 'started' | 'completed' | 'failed' | 'consent_required';
+  action: 'apply' | 'cleanup';
+  migrationId: string;
+  durationMs: number | null;
+  deadlineExceeded: boolean | null;
+  errorText: string | null;
+};
+
 export type TlonHarnessErrorScope =
   | 'harness'
   | 'model'
@@ -595,6 +614,7 @@ export interface TlonTelemetryClient {
   captureCronJobChanged(event: TlonCronJobChangedEvent): void;
   captureCronRun(event: TlonCronRunEvent): void;
   captureCronSnapshot(event: TlonCronSnapshotEvent): void;
+  captureMigration(event: TlonMigrationEvent): void;
   captureOutboundRoute(
     event: TlonOutboundRouteEvent & {
       ownerShip?: string | null;
@@ -620,6 +640,8 @@ const TLON_HEARTBEAT_REENGAGED_EVENT = 'TlonBot Heartbeat Nudge Reengaged';
 const TLON_CRON_JOB_CHANGED_EVENT = 'TlonBot Cron Job Changed';
 const TLON_CRON_RUN_EVENT = 'TlonBot Cron Run';
 const TLON_CRON_SNAPSHOT_EVENT = 'TlonBot Cron Snapshot';
+const TLON_MIGRATION_EVENT = 'TlonBot Diary Migration';
+const MIGRATION_ERROR_MAX_CHARS = 500;
 const TLON_TELEMETRY_LOG_SOURCE = 'openclawPlugin';
 const TOOL_TRACE_TTL_MS = 60 * 60 * 1000;
 const MAX_TOOL_CALLS_PER_SESSION = 200;
@@ -1419,6 +1441,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
             activeTrace.params.sessionKey,
             activeTrace.toolTraceCursor
           ),
+          turnSummary: result.turnSummary ?? null,
         });
       },
     };
@@ -1476,6 +1499,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         trace.params.sessionKey,
         trace.toolTraceCursor
       ),
+      turnSummary: null,
     });
   }
 
@@ -1546,6 +1570,12 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         provider: event.provider,
         model: event.model,
         thinkLevel: event.thinkLevel,
+        execution: event.turnSummary?.execution ?? null,
+        result: event.turnSummary?.result ?? null,
+        delivery: event.turnSummary?.delivery ?? null,
+        finalErrorReplyCount: event.turnSummary?.finalErrorReplyCount ?? null,
+        reason: event.turnSummary?.reason ?? null,
+        trigger: event.turnSummary?.trigger ?? null,
         toolCount: event.toolUsage.calls.length,
         toolNames: event.toolUsage.names,
         toolTotalDurationMs: event.toolUsage.totalDurationMs,
@@ -1815,6 +1845,35 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           scheduleKindAtCount: event.scheduleKindAtCount,
           scheduleKindOnExitCount: event.scheduleKindOnExitCount,
           ...this.cronCountPersonProps(event),
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
+  captureMigration(event: TlonMigrationEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+    // Truncated here rather than at the call sites so no caller can forget.
+    const errorText = event.errorText
+      ? event.errorText.slice(0, MIGRATION_ERROR_MAX_CHARS)
+      : null;
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_MIGRATION_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          migrationEvent: event.migrationEvent,
+          action: event.action,
+          migrationId: event.migrationId,
+          durationMs: event.durationMs,
+          deadlineExceeded: event.deadlineExceeded,
+          errorText,
         },
         { omitNullish: true }
       ),
@@ -2208,6 +2267,15 @@ export type TlonCronTelemetryReport =
 
 export type CronTelemetryReporter = (report: TlonCronTelemetryReport) => void;
 
+export type TlonMigrationReportInput = Omit<
+  TlonMigrationEvent,
+  'accountId' | 'ownerShip' | 'botShip'
+>;
+
+export type MigrationTelemetryReporter = (
+  event: TlonMigrationReportInput
+) => void;
+
 export type TlonSessionLifecycleReportInput = {
   lifecycleEvent: 'session_start' | 'session_end';
   sessionKey?: string | null;
@@ -2379,6 +2447,9 @@ const debugTelemetryReporterSlot = sharedSlot<DebugTelemetryReporter>(
 const cronTelemetryReporterSlot = sharedSlot<CronTelemetryReporter>(
   'telemetry.cronTelemetryReporter'
 );
+const migrationTelemetryReporterSlot = sharedSlot<MigrationTelemetryReporter>(
+  'telemetry.migrationTelemetryReporter'
+);
 
 export function setOutboundRouteReporter(
   reporter: OutboundRouteReporter | null
@@ -2426,6 +2497,22 @@ export function reportCronRun(event: TlonCronRunReportInput): void {
 
 export function reportCronSnapshot(event: TlonCronSnapshotReportInput): void {
   cronTelemetryReporterSlot.get()?.({ kind: 'snapshot', event });
+}
+
+export function setMigrationTelemetryReporter(
+  reporter: MigrationTelemetryReporter | null
+): void {
+  migrationTelemetryReporterSlot.set(reporter);
+}
+
+export function reportMigration(event: TlonMigrationReportInput): void {
+  // Callers sit inside the migration task, whose catch DMs the owner a
+  // failure — a telemetry throw must not fabricate one.
+  try {
+    migrationTelemetryReporterSlot.get()?.(event);
+  } catch {
+    // Swallowed deliberately.
+  }
 }
 
 function optionalString(value: string | null | undefined): string | null {
@@ -2480,32 +2567,40 @@ function normalizeLogAttributes(
 }
 
 export function formatTlonTelemetryErrorText(error: unknown): string {
-  if (error instanceof Error) {
-    return error.stack || error.message || String(error);
-  }
-
-  if (typeof error === 'string') {
-    return error;
-  }
-
-  if (error === null) {
-    return 'null';
-  }
-
-  if (error === undefined) {
-    return 'undefined';
-  }
-
+  // Total by construction: `stack` can be a throwing getter (or poisoned via
+  // a process-global `Error.prepareStackTrace`), and `String(error)` invokes
+  // arbitrary `toString`. Callers sit on failure paths where a second throw
+  // would abort the surrounding error handling.
   try {
-    const json = JSON.stringify(error);
-    if (json) {
-      return json;
+    if (error instanceof Error) {
+      return error.stack || error.message || String(error);
     }
-  } catch {
-    // Fall through to String(error).
-  }
 
-  return String(error);
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    if (error === null) {
+      return 'null';
+    }
+
+    if (error === undefined) {
+      return 'undefined';
+    }
+
+    try {
+      const json = JSON.stringify(error);
+      if (json) {
+        return json;
+      }
+    } catch {
+      // Fall through to String(error).
+    }
+
+    return String(error);
+  } catch {
+    return '[unformattable error]';
+  }
 }
 
 export function reportSessionTurnCreated(

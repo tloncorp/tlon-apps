@@ -8,6 +8,7 @@ export interface WaitForOptions {
    */
   attemptTimeoutMs?: number;
   description: string;
+  rethrowError?: (error: unknown) => boolean;
 }
 
 export const DEFAULT_ATTEMPT_TIMEOUT_MS = 10_000;
@@ -20,7 +21,7 @@ export function attemptSignal(opts: WaitForOptions): AbortSignal {
 
 export async function waitFor<T>(
   fn: () => Promise<T | undefined | false | null>,
-  { timeoutMs, intervalMs = 1_000, description }: WaitForOptions
+  { timeoutMs, intervalMs = 1_000, description, rethrowError }: WaitForOptions
 ): Promise<T> {
   const started = Date.now();
   let lastError = '';
@@ -31,6 +32,9 @@ export async function waitFor<T>(
         return result;
       }
     } catch (error) {
+      if (rethrowError?.(error)) {
+        throw error;
+      }
       lastError = error instanceof Error ? error.message : String(error);
     }
     await sleep(intervalMs);

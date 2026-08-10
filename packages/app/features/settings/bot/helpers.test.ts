@@ -115,12 +115,16 @@ describe('provider config', () => {
       models: [],
       defaultKeys: { basic: { key: 'x' } },
     });
-    // only the shared default MODEL on openrouter maps to Basic
+    // The current shared default model on openrouter maps to Basic.
+    expect(
+      toDisplayProviderId(config, 'openrouter', 'openai/gpt-5.6-luna')
+    ).toBe('basic');
+    // Keep recognizing the previous shared default for stored legacy configs.
     expect(
       toDisplayProviderId(config, 'openrouter', 'minimax/minimax-m3')
     ).toBe('basic');
-    // a custom openrouter model must stay openrouter (else a save would pin it
-    // to minimax and silently rewrite the user's real model)
+    // A custom openrouter model must stay openrouter (otherwise a save would
+    // pin it to the current Basic default and rewrite the user's real model).
     expect(
       toDisplayProviderId(config, 'openrouter', 'anthropic/claude-3.5')
     ).toBe('openrouter');
@@ -414,7 +418,7 @@ describe('channel model overrides', () => {
     expect(entries).toEqual([
       {
         provider: 'basic',
-        model: 'minimax/minimax-m3',
+        model: 'openai/gpt-5.6-luna',
         channels: ['chat/~zod/general'],
       },
     ]);
@@ -432,7 +436,7 @@ describe('channel model overrides', () => {
     expect(entries).toEqual([
       {
         provider: 'basic',
-        model: 'minimax/minimax-m3',
+        model: 'openai/gpt-5.6-luna',
         channels: ['chat/~zod/general'],
       },
     ]);
@@ -455,12 +459,12 @@ describe('toBackendModel', () => {
   it('persists basic as its own provider and pins the model to the default', () => {
     expect(toBackendModel('basic', '')).toEqual({
       provider: 'basic',
-      model: 'minimax/minimax-m3',
+      model: 'openai/gpt-5.6-luna',
     });
     // a stale/leftover model on a Basic pick is ignored
     expect(toBackendModel('basic', 'anthropic/claude-1')).toEqual({
       provider: 'basic',
-      model: 'minimax/minimax-m3',
+      model: 'openai/gpt-5.6-luna',
     });
   });
 

@@ -21,6 +21,7 @@ import {
   unpublishNotebookNote,
   useLiveThreadUnreadsByChannel,
   useMutableCallback,
+  useNotesSearchSupported,
   usePublishedNotesForNotebook,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -60,6 +61,8 @@ import {
   type NotesNoteDraftSnapshot,
   getNotesNoteDraftSnapshot,
 } from './NotesNoteDetail';
+import { NotesSearchModal } from './NotesSearchModal';
+import type { NotesSearchResultNote } from './NotesSearchResults';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import { canSelectNotesImportSources } from './notesImport';
 import { trackNotesActionError } from './notesTelemetry';
@@ -73,6 +76,7 @@ import {
   getFolderLabel,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
+  makeNotesFolderPathLabeler,
 } from './notesTree';
 import { useNotesImportController } from './useNotesImportController';
 
@@ -113,15 +117,19 @@ export function NotesNativeChannel({
   channelTitle,
   folderId,
   groupId,
-  notebookFlag,
   initialNoteId,
+  notebookFlag,
 }: {
   channelId: string;
   channelTitle?: string;
   folderId?: number | null;
   groupId?: string | null;
+  // Note to select on mount, so opening a note whose folder isn't the one on
+  // screen lands with the tree showing that folder and the note selected in
+  // it. Also carries notification/activity targets (via selectedPostId): if
+  // the note hasn't synced yet, the open effect below retries until it lands.
+  initialNoteId?: number | null;
   notebookFlag: string | null | undefined;
-  initialNoteId?: number;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isFocused = useIsFocused();
@@ -138,7 +146,9 @@ export function NotesNativeChannel({
   const showToast = useToast();
   const useDesktopSplit = Platform.OS === 'web' && !isWindowNarrow;
   const notebookSidebarSourceId = `${channelId}/${folderId ?? 'root'}`;
-  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(
+    initialNoteId ?? null
+  );
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderParentId, setNewFolderParentId] = useState<number | null>(
     null
@@ -148,6 +158,7 @@ export function NotesNativeChannel({
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newActionSheetOpen, setNewActionSheetOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [publishingAction, setPublishingAction] =
     useState<PublishingAction>(null);
   const [renameFolderName, setRenameFolderName] = useState('');
@@ -180,6 +191,7 @@ export function NotesNativeChannel({
   const [startEditNoteId, setStartEditNoteId] = useState<number | null>(null);
   const activeNoteDraftRef = useRef<NotesNoteDraftSnapshot | null>(null);
 
+  const searchSupported = useNotesSearchSupported();
   const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
     notebookFlag,
     { syncEnabled: isFocused }
@@ -328,44 +340,57 @@ export function NotesNativeChannel({
   ]);
 
   useEffect(() => {
+    // While the notebook is still gated, `notes` isn't authoritative yet —
+    // clearing here would drop a selection seeded from the route before its
+    // note had a chance to load.
+    if (gate) return;
     if (
       selectedNoteId !== null &&
       !notes.some((note) => note.noteId === selectedNoteId)
     ) {
       setSelectedNoteId(null);
     }
-  }, [notes, selectedNoteId]);
+  }, [gate, notes, selectedNoteId]);
 
-  const openNote = useMutableCallback(
+  const openNoteId = useMutableCallback(
     (
-      note: db.NotesNote,
+      noteId: number,
       options?: { focusTitle?: boolean; startInEdit?: boolean }
     ) => {
       if (options?.focusTitle) {
-        setFocusTitleNoteId(note.noteId);
+        setFocusTitleNoteId(noteId);
       }
       if (options?.startInEdit) {
-        setStartEditNoteId(note.noteId);
+        setStartEditNoteId(noteId);
       }
 
       if (useDesktopSplit) {
-        selectNoteInPane(note.noteId);
+        selectNoteInPane(noteId);
         return;
       }
 
       navigation.navigate('NotesDetail', {
         channelId,
         groupId: groupId ?? undefined,
-        noteId: note.noteId,
+        noteId,
         focusTitle: options?.focusTitle,
         startInEdit: options?.startInEdit,
       });
     }
   );
 
+  const openNote = useMutableCallback(
+    (
+      note: db.NotesNote,
+      options?: { focusTitle?: boolean; startInEdit?: boolean }
+    ) => openNoteId(note.noteId, options)
+  );
+
   // a notification or activity press targets a specific note; open it once
   // its record has synced (the notes dep keeps this retrying until the note
-  // appears, then the ref consumes the target)
+  // appears, then the ref consumes the target). The state initializer above
+  // covers already-synced notes on desktop; this also handles late sync and
+  // narrow-mode navigation.
   const consumedInitialNoteRef = useRef<number | null>(null);
   useEffect(() => {
     if (initialNoteId == null) return;
@@ -379,6 +404,92 @@ export function NotesNativeChannel({
   const handleTitleAutoFocused = useMutableCallback(() => {
     setFocusTitleNoteId(null);
   });
+
+  // The split view keeps search in an overlay so the tree and the open note
+  // stay in place; a stacked layout has room for a screen of its own.
+  const openSearch = useMutableCallback(() => {
+    if (useDesktopSplit) {
+      trackEvent(AnalyticsEvent.NotesSearchOpened);
+      setSearchOpen(true);
+      return;
+    }
+
+    // The search screen reports the open itself, so this path doesn't.
+    navigation.navigate('NotesSearch', {
+      channelId,
+      groupId: groupId ?? undefined,
+    });
+  });
+
+  // A search hit comes off the wire rather than out of the local tree, so it's
+  // opened by id — the note may not be in `notes` yet on a thin client.
+  //
+  // The tree shows one folder's contents, so a hit from a different folder
+  // would otherwise be selected somewhere the sidebar can't show. Open that
+  // folder instead, carrying the note along, so the sidebar matches the note
+  // and its header still walks back the way folder navigation does.
+  const handleSelectSearchResult = useMutableCallback(
+    (note: NotesSearchResultNote) => {
+      trackEvent(AnalyticsEvent.NotesSearchResultSelected);
+
+      const noteFolderId = note.folderId ?? rootFolderId;
+      if (
+        !useDesktopSplit ||
+        noteFolderId == null ||
+        noteFolderId === activeFolderId
+      ) {
+        openNoteId(note.noteId);
+        return;
+      }
+
+      const folder = folders.find(
+        (candidate) => candidate.folderId === noteFolderId
+      );
+      navigation.dispatch(
+        StackActions.push('NotesFolder', {
+          channelId,
+          folderId: noteFolderId,
+          folderTitle:
+            noteFolderId === rootFolderId
+              ? channelTitle ?? 'Notebook'
+              : getFolderLabel(folder),
+          groupId: groupId ?? undefined,
+          noteId: note.noteId,
+        })
+      );
+    }
+  );
+
+  const getSearchResultFolderPath = useMemo(
+    () => makeNotesFolderPathLabeler({ folders, rootFolderId }),
+    [folders, rootFolderId]
+  );
+
+  useEffect(() => {
+    if (!useDesktopSplit || !isFocused || !searchSupported) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // ⌘⇧F matches the standalone notes PWA's search shortcut. ⌘K is already
+      // taken by the app-wide quick jump.
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === 'f'
+      ) {
+        event.preventDefault();
+        // Routed through openSearch so a shortcut open is reported like a
+        // header-button one.
+        if (searchOpen) {
+          setSearchOpen(false);
+        } else {
+          openSearch();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isFocused, openSearch, searchOpen, searchSupported, useDesktopSplit]);
 
   const openFolder = useMutableCallback((folder: db.NotesFolder) => {
     navigation.dispatch(
@@ -861,10 +972,18 @@ export function NotesNativeChannel({
       <NotesHeaderActions
         canEdit={canEdit}
         onNew={() => setNewActionSheetOpen(true)}
+        onSearch={searchSupported ? openSearch : undefined}
         primaryActionVariant={useDesktopSplit ? 'icon' : 'text'}
       />
     );
-  }, [canEdit, gate, notebookFlag, useDesktopSplit]);
+  }, [
+    canEdit,
+    gate,
+    notebookFlag,
+    openSearch,
+    searchSupported,
+    useDesktopSplit,
+  ]);
 
   useRegisterChannelHeaderItem(useDesktopSplit ? null : headerActions);
 
@@ -1028,6 +1147,15 @@ export function NotesNativeChannel({
         onOpenChange={handleMoveFolderOpenChange}
         open={movingFolder !== null}
       />
+      {useDesktopSplit ? (
+        <NotesSearchModal
+          getFolderPath={getSearchResultFolderPath}
+          notebookFlag={notebookFlag}
+          onOpenChange={setSearchOpen}
+          onSelectNote={handleSelectSearchResult}
+          open={searchOpen}
+        />
+      ) : null}
     </YStack>
   );
 }
