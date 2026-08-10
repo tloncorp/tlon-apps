@@ -3,6 +3,9 @@
 set -eu
 
 # Always run in ./backend so the cookie cache has a predictable location.
+# Preserve the caller's directory so a relative boot directory is resolved as
+# users expect rather than relative to ./backend.
+caller_dir=$PWD
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 
 fatal() {
@@ -38,24 +41,30 @@ find_download() {
 
 usage() {
     cat <<EOF
-Usage: $0 [-bt] <ship>
+Usage: $0 [-bt] [-d directory] <ship>
 
 Generate a moon for a live-network ship. Supply the ship without a leading ~.
 
 Options:
     -b  boot the generated moon
+    -d  create the booted moon's pier under this directory (implies -b)
     -t  use Tlon hosted mode (tlon.network instead of arvo.network)
 EOF
 }
 
 boot=false
 hosted=false
+boot_dir=.
 
-while getopts ":bt" opt
+while getopts ":bd:t" opt
 do
     case "$opt" in
         b)
             boot=true
+            ;;
+        d)
+            boot=true
+            boot_dir=$OPTARG
             ;;
         t)
             hosted=true
@@ -80,6 +89,11 @@ then
 fi
 
 ship=$1
+
+if [[ $boot_dir != /* ]]
+then
+    boot_dir="$caller_dir/$boot_dir"
+fi
 
 if [[ ! $ship =~ ^[a-z-]+$ ]]
 then
@@ -276,9 +290,9 @@ if [[ ! -x $vere_bin ]]; then chmod +x $vere_bin; fi
 
 boot_moon() {
 
-    if (( $# != 1 ))
+    if (( $# != 2 ))
     then
-        fatal "boot_moon(): expected the gen-moon JSON response"
+        fatal "boot_moon(): expected the gen-moon JSON response and boot directory"
     fi
 
     if ! command -v jq > /dev/null
@@ -291,6 +305,8 @@ boot_moon() {
     local moon_name
     local moon_key
     local key_file
+    local boot_root=$2
+    local moon_path
 
     if ! moon_id=$(printf '%s' "$result" | jq -er \
         '.ship | strings | select(test("^~[a-z-]+$"))')
@@ -305,9 +321,11 @@ boot_moon() {
     fi
 
     moon_name=${moon_id#\~}
-    if [[ -e $moon_name ]]
+    mkdir -p -- "$boot_root"
+    moon_path="$boot_root/$moon_name"
+    if [[ -e $moon_path ]]
     then
-        fatal "Cannot boot $moon_id: $moon_name already exists"
+        fatal "Cannot boot $moon_id: $moon_path already exists"
     fi
 
     umask 077
@@ -315,8 +333,8 @@ boot_moon() {
     trap 'rm -f "$key_file"' EXIT
     printf '%s\n' "$moon_key" > "$key_file"
 
-    echo "Booting $moon_id in $moon_name/" >&2
-    if ! $vere -w "$moon_name" -k "$key_file" -c "$moon_name"
+    echo "Booting $moon_id in $moon_path/" >&2
+    if ! $vere -w "$moon_name" -k "$key_file" -c "$moon_path"
     then
         fatal "Failed to boot $moon_id"
     fi
@@ -330,5 +348,5 @@ printf '%s\n' "$result"
 
 if $boot
 then
-    boot_moon "$result"
+    boot_moon "$result" "$boot_dir"
 fi
