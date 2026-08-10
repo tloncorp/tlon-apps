@@ -4,6 +4,7 @@ import {
   ConfirmDialog,
   Icon,
   Pressable,
+  Text,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -69,6 +70,12 @@ export function BotApiKeySettingsScreen(props: Props) {
   const subscriptionConnected = isLLMAuthProviderConnected(
     getOpenAIAuthStatus(queries.llmAuthStatusQuery.data)?.status
   );
+  const openAIStatusKnown =
+    providerId !== 'openai' || queries.llmAuthStatusQuery.data !== undefined;
+  const openAIStatusError =
+    providerId === 'openai' &&
+    !openAIStatusKnown &&
+    queries.llmAuthStatusQuery.isError;
   const busy =
     saveProviderKey.isPending ||
     deleteProviderKey.isPending ||
@@ -86,6 +93,12 @@ export function BotApiKeySettingsScreen(props: Props) {
   }, [key, providerId, saveProviderKey]);
 
   const handleSave = useCallback(async () => {
+    // Do not infer that the subscription is disconnected while its status is
+    // loading or unavailable. Otherwise this bypasses the replacement flow and
+    // can leave both OpenAI credential modes configured.
+    if (!openAIStatusKnown) {
+      return;
+    }
     const validation = validateProviderKey(providerId, key);
     if (validation) {
       setValidationError(validation);
@@ -109,7 +122,14 @@ export function BotApiKeySettingsScreen(props: Props) {
     } catch {
       // surfaced via saveProviderKey.error below
     }
-  }, [isConfigured, key, providerId, saveKey, subscriptionConnected]);
+  }, [
+    isConfigured,
+    key,
+    openAIStatusKnown,
+    providerId,
+    saveKey,
+    subscriptionConnected,
+  ]);
 
   const handleSwitch = useCallback(async () => {
     try {
@@ -206,11 +226,36 @@ export function BotApiKeySettingsScreen(props: Props) {
             </YStack>
           </BotSettingsSection>
 
+          {!openAIStatusKnown ? (
+            <YStack gap="$m">
+              <Text
+                size="$label/s"
+                color={
+                  openAIStatusError ? '$negativeActionText' : '$secondaryText'
+                }
+              >
+                {openAIStatusError
+                  ? getErrorMessage(queries.llmAuthStatusQuery.error) ??
+                    'Could not check your OpenAI subscription.'
+                  : 'Checking your OpenAI subscription…'}
+              </Text>
+              {openAIStatusError ? (
+                <Button
+                  preset="secondary"
+                  label="Try again"
+                  centered
+                  loading={queries.llmAuthStatusQuery.isFetching}
+                  onPress={() => void queries.llmAuthStatusQuery.refetch()}
+                />
+              ) : null}
+            </YStack>
+          ) : null}
+
           <Button
             preset="primary"
             label="Save key"
             centered
-            disabled={busy || !key.trim()}
+            disabled={busy || !key.trim() || !openAIStatusKnown}
             loading={saveProviderKey.isPending}
             onPress={handleSave}
           />

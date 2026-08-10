@@ -1,3 +1,4 @@
+import { usePreventRemove } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button, ConfirmDialog, LoadingSpinner, Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
@@ -58,6 +59,8 @@ export function BotOpenAISubscriptionScreen(props: Props) {
     ship: queries.ship,
     onComplete: handleComplete,
   });
+
+  usePreventRemove(!canDismissOpenAIAuth(auth.state.phase), () => undefined);
 
   const beginConnection = useCallback(() => {
     const credentialSwitch = getOpenAICredentialSwitch(
