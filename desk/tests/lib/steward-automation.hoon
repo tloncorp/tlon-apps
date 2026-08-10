@@ -3,10 +3,9 @@
 /-  a=steward-automation
 /+  *test, au=steward-automation
 |%
-++  populated-job
-  ^-  cron-job:v1:a
-  :*  'task-1'
-      (some 'agent-1')
+++  populated-task
+  ^-  task:v1:a
+  :*  (some 'agent-1')
       (some 'Daily summary')
       (some 'Send the daily summary')
       (some %.y)
@@ -69,9 +68,8 @@
   ==
 ::
 ++  test-v1-types-and-optional-fields
-  =/  empty=cron-job:v1:a
-    :*  ''
-        ~
+  =/  empty=task:v1:a
+    :*  ~
         ~
         ~
         ~
@@ -82,13 +80,27 @@
         ~
         ~
     ==
-  =/  job=cron-job:v1:a  populated-job
-  =/  action=action:v1:a  [%project ~[job]]
-  =/  task-list=task-list:v1:a  ~[job]
+  =/  task=task:v1:a  populated-task
+  =/  identified=identified-task:v1:a  ['task-1' task]
+  =/  tasks=(map @t task:v1:a)
+    (~(put by *(map @t task:v1:a)) 'task-1' task)
+  =/  state=state:v1:a  tasks
+  =/  action=action:v1:a  [%project ~[identified]]
+  =/  task-map=task-map:v1:a  tasks
   ;:  weld
-    (expect-eq !>(empty) !>(*cron-job:v1:a))
-    (expect-eq !>(`action:v1:a`[%project ~[job]]) !>(action))
-    (expect-eq !>(`task-list:v1:a`~[job]) !>(task-list))
+    (expect-eq !>(empty) !>(*task:v1:a))
+    %+  expect-eq
+      !>(`identified-task:v1:a`['task-1' task])
+    !>(identified)
+    %+  expect-eq
+      !>(`state:v1:a`tasks)
+    !>(state)
+    %+  expect-eq
+      !>(`action:v1:a`[%project ~[identified]])
+    !>(action)
+    %+  expect-eq
+      !>(`task-map:v1:a`tasks)
+    !>(task-map)
   ==
 ::
 ++  test-schedule-variants-and-optional-fields

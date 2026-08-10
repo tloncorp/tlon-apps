@@ -16,13 +16,12 @@
   $:  kind=(unit @t)
       text=(unit @t)
   ==
-::  $cron-job: the supported definition-only subset of
-::  PluginHookGatewayCronJob. Runtime job state and execution history are not
-::  part of the automation protocol.
+::  $task: the supported definition-only subset of
+::  PluginHookGatewayCronJob. The OpenClaw ID is stored separately as the map
+::  key. Runtime job state and execution history are not represented.
 ::
-+$  cron-job
-  $:  id=@t
-      agent-id=(unit @t)
++$  task
+  $:  agent-id=(unit @t)
       name=(unit @t)
       description=(unit @t)
       enabled=(unit ?)
@@ -33,20 +32,26 @@
       created-at=(unit @da)
       updated-at=(unit @da)
   ==
+::  $identified-task: an inbound task paired with its OpenClaw ID.
+::
++$  identified-task
+  $:  id=@t
+      =task
+  ==
 ::  $state: the latest complete task projection, keyed by OpenClaw task ID.
 ::
 +$  state
-  $:  tasks=(map @t cron-job)
+  $:  tasks=(map @t task)
   ==
 ::  $action: inbound automation actions from the local harness.
 ::
 ::    %project: atomically replace the complete task projection.
 ::
 +$  action
-  $%  [%project tasks=(list cron-job)]
+  $%  [%project tasks=(list identified-task)]
   ==
-::  $task-list: the ordered task list returned by the automation scry.
+::  $task-map: the ID-keyed task map returned by the automation scry.
 ::
-+$  task-list  (list cron-job)
++$  task-map  (map @t task)
 ++  v1  .
 --
