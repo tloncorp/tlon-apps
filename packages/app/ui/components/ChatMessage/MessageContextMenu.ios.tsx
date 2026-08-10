@@ -99,6 +99,7 @@ function EnabledMessageContextMenu({
         post.description,
         post.cover,
         post.isDeleted,
+        post.reactions,
       ])}
       alignment={post.authorId === currentUserId ? 'trailing' : 'leading'}
       previewBackgroundColor={theme.secondaryBackground.val}

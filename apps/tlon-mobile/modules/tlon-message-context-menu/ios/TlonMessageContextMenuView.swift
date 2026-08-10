@@ -237,6 +237,7 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         initialGestureLocation = location
         gestureExitedDeadZone = false
         let presentedContentKey = contentKey
+        let presentedActions = actions
 
         let presentation = TlonMessageMenuPresentationView(
             sourceView: self,
@@ -256,10 +257,15 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
 
             switch selection {
             case let .action(id):
-                // Props can change while dismissal is finishing. Never dispatch
-                // an action that is no longer present in the latest model.
+                // Props can change while dismissal is finishing. Require the
+                // selected action to have the same meaning the user saw, not
+                // merely the same stable ID (for example, Hide versus Show).
+                let presentedAction = presentedActions.first { $0.id == id }
+                let currentAction = actions.first { $0.id == id }
                 if contentKey == presentedContentKey,
-                   actions.contains(where: { $0.id == id })
+                   let presentedAction,
+                   let currentAction,
+                   Self.actionsMatch(presentedAction, currentAction)
                 {
                     onAction(["id": id])
                 }
