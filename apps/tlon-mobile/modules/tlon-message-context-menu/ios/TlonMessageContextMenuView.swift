@@ -41,6 +41,14 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         }
     }
 
+    var contentKey = "" {
+        didSet {
+            if contentKey != oldValue {
+                presentationView?.dismiss()
+            }
+        }
+    }
+
     var alignment: TlonMessageMenuAlignment = .leading
     var previewBackgroundColor: UIColor = .secondarySystemBackground
 
@@ -228,6 +236,7 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         let location = recognizer.location(in: window)
         initialGestureLocation = location
         gestureExitedDeadZone = false
+        let presentedContentKey = contentKey
 
         let presentation = TlonMessageMenuPresentationView(
             sourceView: self,
@@ -249,13 +258,19 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
             case let .action(id):
                 // Props can change while dismissal is finishing. Never dispatch
                 // an action that is no longer present in the latest model.
-                if actions.contains(where: { $0.id == id }) {
+                if contentKey == presentedContentKey,
+                   actions.contains(where: { $0.id == id })
+                {
                     onAction(["id": id])
                 }
             case let .reaction(value):
-                onReaction(["value": value])
+                if reactions.contains(value) {
+                    onReaction(["value": value])
+                }
             case .moreReactions:
-                onMoreReactions([:])
+                if !reactions.isEmpty {
+                    onMoreReactions([:])
+                }
             case nil:
                 break
             }

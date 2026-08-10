@@ -23,6 +23,10 @@ public class TlonMessageContextMenuModule: Module {
                 view.selectedReaction = selectedReaction
             }
 
+            Prop("contentKey") { (view, contentKey: String) in
+                view.contentKey = contentKey
+            }
+
             Prop("alignment") { (view, alignment: String?) in
                 view.alignment = alignment == "trailing" ? .trailing : .leading
             }

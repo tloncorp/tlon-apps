@@ -17,6 +17,7 @@ interface NativeMessageContextMenuProps extends ViewProps {
   actions: MessageMenuActionDescriptor[];
   reactions: string[];
   selectedReaction?: string;
+  contentKey: string;
   alignment: 'leading' | 'trailing';
   previewBackgroundColor: string;
   onAction: (event: NativeSyntheticEvent<{ id: MessageMenuActionId }>) => void;
@@ -90,6 +91,15 @@ function EnabledMessageContextMenu({
       selectedReaction={
         reactionDetails.self.didReact ? reactionDetails.self.value : undefined
       }
+      contentKey={JSON.stringify([
+        post.content,
+        post.textContent,
+        post.title,
+        post.image,
+        post.description,
+        post.cover,
+        post.isDeleted,
+      ])}
       alignment={post.authorId === currentUserId ? 'trailing' : 'leading'}
       previewBackgroundColor={theme.secondaryBackground.val}
       onAction={(event) => performAction(event.nativeEvent.id)}

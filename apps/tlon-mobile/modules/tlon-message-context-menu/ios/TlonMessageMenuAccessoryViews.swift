@@ -38,6 +38,9 @@ extension TlonMessageMenuButtonCollection where Self: UIView {
     }
 
     func selectedButton(at point: CGPoint) -> (payload: Payload, button: UIButton)? {
+        guard bounds.contains(point) else {
+            return nil
+        }
         for (payload, button) in buttons {
             let localPoint = button.convert(point, from: self)
             if button.bounds.contains(localPoint) {
