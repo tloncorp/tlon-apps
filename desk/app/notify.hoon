@@ -19,12 +19,38 @@
   ==
 ++  clear-interval  ~d7
 ++  daily-stats-interval  ~d1
+::  +device-ttl: how long a registration counts toward the push capability gate
 ::
-+$  client-state
+::    Every app launch re-registers the device's push token, so a device that
+::    has been silent this long is either gone or reinstalled under a new
+::    token. Aging it out keeps a rotated-away token from pinning the gate shut
+::    forever; the cost is that a device that really is still reachable can
+::    receive one unrenderable notification, which is what it gets today.
+::
+++  device-ttl  ~d30
+::
++$  client-state-0
   $:  providers=(jug @p term)
   ==
 ::
+::  $device: a registered push target and what its app build can render
+::
++$  device
+  $:  caps=push-caps
+      last=@da
+  ==
+::
++$  client-state
+  $:  providers=(jug @p term)
+      devices=(map @t device)
+  ==
+::
 +$  base-state-0
+  $:  =provider-state
+      client-state=client-state-0
+  ==
+::
++$  base-state-10
   $:  =provider-state
       =client-state
   ==
@@ -94,6 +120,13 @@
       base-state-0
   ==
 ::
++$  state-10
+  $:  %10
+      last-timer=time
+      notifications=(map time-id:av event-9)
+      base-state-10
+  ==
+::
 +$  event-7
   $:  =event:v8:av
       ::TODO  if we poked the provider instead, we could track time-to-ack
@@ -123,9 +156,10 @@
       state-7
       state-8
       state-9
+      state-10
   ==
 ::
-+$  current-state  state-9
++$  current-state  state-10
 ::
 ++  migrate-state
   |=  old=versioned-state
@@ -140,7 +174,8 @@
     %6  $(old (migrate-6-to-7 old))
     %7  $(old (migrate-7-to-8 old))
     %8  $(old (migrate-8-to-9 old))
-    %9  old
+    %9  $(old (migrate-9-to-10 old))
+    %10  old
   ==
 ::
 ++  migrate-0-to-1
@@ -187,6 +222,17 @@
   |=  old=state-8
   ^-  state-9
   [%9 last-timer notifications |3]:old
+::
+++  migrate-9-to-10
+  |=  old=state-9
+  ^-  state-10
+  :*  %10
+      last-timer.old
+      notifications.old
+      provider-state.old
+      providers.client-state.old
+      ~
+  ==
 ::
 ::  +log: specialized wrapper for logging library
 ::
@@ -377,6 +423,10 @@
         =*  binding  'apn'
         =.  providers.client-state
           (~(put ju providers.client-state) who.act service.act)
+        =.  devices.client-state
+          %+  ~(put by (prune-devices:do devices.client-state))
+            address.act
+          [~ now.bowl]
         =/  pact=provider-action  [%client-join service.act address.act binding]
         :_  state
         [(poke:pass [who.act %notify] %notify-provider-action !>(pact))]~
@@ -384,6 +434,10 @@
           %connect-provider-with-binding
         =.  providers.client-state
           (~(put ju providers.client-state) who.act service.act)
+        =.  devices.client-state
+          %+  ~(put by (prune-devices:do devices.client-state))
+            address.act
+          [caps.act now.bowl]
         =/  pact=provider-action  [%client-join service.act address.act binding.act]
         :_  state
         [(poke:pass [who.act %notify] %notify-provider-action !>(pact))]~
@@ -537,6 +591,11 @@
     ::
         [%x %provider-state ~]  ``noun+!>(provider-state)
         [%x %client-state ~]    ``client-state+!>(client-state)
+    ::
+    ::  would a push requiring this capability reach every live device?
+    ::
+        [%x %push-eligible cap=@t ~]
+      ``noun+!>((can-push:do `cap.pole))
     ==
   ::
   ++  on-agent
@@ -557,6 +616,14 @@
         ?.  ?=(%activity-event-2 p.cage.sign)
           `this
         =+  !<([=time-id:av =event:v10:av] q.cage.sign)
+        ::  a push we send is a push the device must display, so withhold it
+        ::  when this event's kind needs a capability some device lacks. the
+        ::  event is still recorded, for the note endpoint and in-app activity.
+        ::
+        ?.  (can-push:do (push-cap:do event))
+          %-  (tell:l %info 'notify: withheld push, device lacks capability' ~)
+          :_  this(notifications (~(put by notifications) time-id [event ~]))
+          ~
         =+  .^(=activity:v10:av %gx (scry:io %activity /v6/activity/activity-summary-6))
         =/  notify-count=@ud
           notify-count:(~(gut by activity) [%base ~] *activity-summary:v10:av)
@@ -760,6 +827,59 @@
     [(~(on-fail logs bowl /logs) term tang)]~
   --
 |_  bowl=bowl:gall
+::
+::  +gated-kinds: event kind -> the capability a device must declare for it
+::
+::    Empty means no kind is gated: every kind that exists today predates
+::    capability declarations, so it goes to every device exactly as before.
+::    Add an entry here when a new kind's notification cannot be rendered by
+::    already-released clients, and declare the same tag in the client's
+::    PUSH_CAPABILITIES. An entry can stay forever; it costs one lookup.
+::
+++  gated-kinds
+  ^-  (map @tas @t)
+  ~
+::
+::  +push-cap: the capability this event's notification needs, if any
+::
+++  push-cap
+  |=  =event:v10:av
+  ^-  (unit @t)
+  (~(get by gated-kinds) -<.event)
+::
+::  +can-push: may we push an event needing this capability?
+::
+::    All-or-nothing per ship, which is the granularity the provider gives us:
+::    it addresses the notification by identity and the push service fans it
+::    out to every binding the ship has. So one device that cannot render the
+::    kind withholds it from all of them.
+::
+++  can-push
+  |=  need=(unit @t)
+  ^-  ?
+  ?~  need  &
+  %-  ~(all by devices.client-state)
+  |=  =device
+  ?|  (stale-device device)
+      (~(has in caps.device) u.need)
+  ==
+::
+++  stale-device
+  |=  =device
+  ^-  ?
+  (lth (add last.device device-ttl) now.bowl)
+::
+::  +prune-devices: drop registrations that have aged out
+::
+::    Called when a device registers, which is the only time this map grows.
+::
+++  prune-devices
+  |=  devices=(map @t device)
+  ^-  (map @t device)
+  %-  ~(gas by *(map @t device))
+  %+  skip  ~(tap by devices)
+  |=  [@t =device]
+  (stale-device device)
 ::
 ++  is-whitelisted
   |=  [who=@p entry=provider-entry]
