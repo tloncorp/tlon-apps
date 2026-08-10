@@ -329,6 +329,53 @@ describe('StewardAutomationReconciler', () => {
     }
   );
 
+  it('preserves a delivered snapshot until unavailable startup recovers', async () => {
+    const { delay, waits } = controlledRetryDelay();
+    const previous = cronContext([job('previous')]);
+    const latest = cronContext([job('latest')]);
+    const reconciler = new StewardAutomationReconciler(
+      reconcileStewardAutomation,
+      delay
+    );
+
+    await reconciler.start(previous.context.getCron);
+    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProject).toHaveBeenLastCalledWith({
+      project: { tasks: [expect.objectContaining({ id: 'previous' })] },
+    });
+
+    reconciler.stop();
+    let startupSettled = false;
+    const startup = reconciler.start(undefined).then(() => {
+      startupSettled = true;
+    });
+    await vi.waitFor(() => expect(delay).toHaveBeenCalledOnce());
+
+    let recoverySettled = false;
+    const recovery = reconciler.trigger(latest.context.getCron).then(() => {
+      recoverySettled = true;
+    });
+    expect(startupSettled).toBe(false);
+    expect(recoverySettled).toBe(false);
+    expect(latest.list).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProject).toHaveBeenLastCalledWith({
+      project: { tasks: [expect.objectContaining({ id: 'previous' })] },
+    });
+
+    waits[0].resolve();
+    await Promise.all([startup, recovery]);
+
+    expect(startupSettled).toBe(true);
+    expect(recoverySettled).toBe(true);
+    expect(latest.list).toHaveBeenCalledOnce();
+    expect(latest.list).toHaveBeenCalledWith({ includeDisabled: true });
+    expect(submitStewardAutomationProject).toHaveBeenCalledTimes(2);
+    expect(submitStewardAutomationProject).toHaveBeenLastCalledWith({
+      project: { tasks: [expect.objectContaining({ id: 'latest' })] },
+    });
+  });
+
   it('retries a failed list without submitting an empty projection', async () => {
     const { delay, waits } = controlledRetryDelay();
     const list = vi

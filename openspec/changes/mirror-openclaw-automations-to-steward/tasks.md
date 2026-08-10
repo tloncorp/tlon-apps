@@ -74,7 +74,7 @@
         test normalization of optional fields and all supported
         schedules, inclusion of disabled tasks, and omission of cron
         job state.
-- [ ] 4.2 Test startup reconciliation when cron access is ready,
+- [x] 4.2 Test startup reconciliation when cron access is ready,
         temporarily unavailable, empty, and restored after a stale
         period.
 - [ ] 4.3 Test complete rereads after definition-related and
