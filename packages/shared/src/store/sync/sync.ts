@@ -880,23 +880,37 @@ export const syncChannelThreadUnreads = async (
     return;
   }
 
-  let staleCount = 0;
   for (const stale of staleUnreads) {
     if (stale.threadId) {
       await db.clearThreadUnread({ channelId, threadId: stale.threadId });
-      staleCount += stale.count ?? 0;
     }
   }
-  // the cleared notes were rolled up into the channel/group counts too —
-  // decrement them so the sidebar badge doesn't keep counting notes that
-  // were read elsewhere (same shape as markNoteRead's optimistic update)
-  if (staleCount > 0) {
-    await db.updateChannelUnreadCount({ channelId, decrement: staleCount });
-    if (channel.groupId) {
-      await db.updateGroupUnreadCount({
-        groupId: channel.groupId,
-        decrement: staleCount,
-      });
+  // the cleared rows were rolled up into the channel/group counts too. A
+  // notebook's channel count is by construction the sum of its notes
+  // (notebooks have no events of their own) and the scry response is the
+  // authoritative full set, so SET the channel row from it rather than
+  // decrementing by the stale rows — the rollup may already have been
+  // corrected by a summary push or changes sync, and arithmetic would
+  // double-subtract. The group rollup has no cheap authoritative read, so
+  // apply the channel row's own correction as a bounded delta (channel
+  // and group staleness always move together in the summary pushes).
+  if (staleUnreads.length > 0) {
+    const authoritativeCount = unreads.reduce(
+      (sum, unread) => sum + (unread.count ?? 0),
+      0
+    );
+    const existingChannelUnread = await db.getChannelUnread({ channelId });
+    const existingCount = existingChannelUnread?.count ?? 0;
+    if (existingChannelUnread && existingCount > authoritativeCount) {
+      await db.insertChannelUnreads([
+        { ...existingChannelUnread, count: authoritativeCount },
+      ]);
+      if (channel.groupId) {
+        await db.updateGroupUnreadCount({
+          groupId: channel.groupId,
+          decrement: existingCount - authoritativeCount,
+        });
+      }
     }
   }
   if (newUnreads.length > 0) {
