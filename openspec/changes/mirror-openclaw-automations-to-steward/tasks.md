@@ -51,7 +51,7 @@
 - [x] 3.1 Add task normalization that preserves supported definition
         fields, omits execution state, and produces complete Steward
         `%project` payloads.
-- [ ] 3.2 Add a local Steward adapter that submits `%project`
+- [x] 3.2 Add a local Steward adapter that submits `%project`
         through the monitor-published ship connection and requires
         successful poke acknowledgement.
 - [ ] 3.3 Trigger complete reads with disabled tasks included after
