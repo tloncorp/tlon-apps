@@ -174,10 +174,13 @@ public class TalkApi {
     }
 
     public void fetchActivityEvent(String uid, TalkObjectCallback callback) {
-        // activity-event-1 is the v9-native mark (carries reacts); activity-event
-        // (v8) 404s on reacts. Use v9 only when the app has confirmed the backend
-        // supports it — otherwise an old backend would 404 every notification.
-        String mark = SecureStorage.getBoolean(SecureStorage.ACTIVITY_SUPPORTS_REACTIONS_KEY)
+        // activity-event-2 is the v10-native mark (carries notes events),
+        // activity-event-1 the v9 one (reacts), activity-event (v8) the oldest.
+        // Use the newest mark the app has confirmed the backend supports —
+        // otherwise an old backend would 404 every notification.
+        String mark = SecureStorage.getBoolean(SecureStorage.ACTIVITY_SUPPORTS_NOTES_KEY)
+                ? "activity-event-2"
+                : SecureStorage.getBoolean(SecureStorage.ACTIVITY_SUPPORTS_REACTIONS_KEY)
                 ? "activity-event-1" : "activity-event";
         fetchObject("/apps/groups/~/notify/note/" + uid + "/" + mark, callback);
     }
