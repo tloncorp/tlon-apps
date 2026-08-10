@@ -23,6 +23,31 @@ interface PendingReconciliation {
   waiters: ReconciliationWaiter[];
 }
 
+export const DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS = 5_000;
+
+export type StewardAutomationRetryDelay = (
+  delayMs: number,
+  signal?: AbortSignal
+) => Promise<void>;
+
+const waitForRetryDelay: StewardAutomationRetryDelay = (delayMs, signal) =>
+  new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const timeout = setTimeout(onElapsed, delayMs);
+    function onElapsed() {
+      signal?.removeEventListener('abort', onAborted);
+      resolve();
+    }
+    function onAborted() {
+      clearTimeout(timeout);
+      reject(signal?.reason);
+    }
+    signal?.addEventListener('abort', onAborted, { once: true });
+  });
+
 export class StewardAutomationCronUnavailableError extends Error {
   readonly retryable = true;
 
@@ -60,10 +85,10 @@ export async function reconcileStewardAutomation(
  * Serializes complete reconciliations and collapses a busy-period burst into
  * one follow-up using the latest trigger's cron accessor.
  *
- * Each trigger promise belongs to the batch that covers that trigger. A batch
- * failure rejects only that batch's promises; an already-pending follow-up is
- * still drained and settles independently. This keeps failures visible without
- * losing newer repair triggers and leaves retry policy to task 3.5.
+ * Failed attempts wait once before retrying the complete read, normalization,
+ * and submission. Triggers received during that delay do not wake it early;
+ * they join the failed batch, and the next attempt uses the latest accessor.
+ * Every joined trigger remains pending until that covering snapshot succeeds.
  */
 export class StewardAutomationReconciler {
   private pending: PendingReconciliation | null = null;
@@ -72,7 +97,10 @@ export class StewardAutomationReconciler {
   constructor(
     private readonly reconcile: (
       getCron: StewardAutomationCronAccessor
-    ) => Promise<void> = reconcileStewardAutomation
+    ) => Promise<void> = reconcileStewardAutomation,
+    private readonly retryDelay: StewardAutomationRetryDelay = waitForRetryDelay,
+    private readonly retryDelayMs = DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS,
+    private readonly retrySignal?: AbortSignal
   ) {}
 
   trigger(getCron: StewardAutomationCronAccessor): Promise<void> {
@@ -95,18 +123,39 @@ export class StewardAutomationReconciler {
   }
 
   private async drain(): Promise<void> {
-    while (this.pending) {
-      const batch = this.pending;
-      this.pending = null;
+    for (;;) {
+      const batch = this.takePending();
+      if (!batch) {
+        break;
+      }
 
-      try {
-        await this.reconcile(batch.getCron);
-        for (const waiter of batch.waiters) {
-          waiter.resolve();
-        }
-      } catch (error) {
-        for (const waiter of batch.waiters) {
-          waiter.reject(error);
+      for (;;) {
+        try {
+          await this.reconcile(batch.getCron);
+          for (const waiter of batch.waiters) {
+            waiter.resolve();
+          }
+          break;
+        } catch {
+          try {
+            await this.retryDelay(this.retryDelayMs, this.retrySignal);
+          } catch (delayError) {
+            this.rejectBatch(batch, delayError);
+            const pending = this.takePending();
+            if (pending) {
+              this.rejectBatch(pending, delayError);
+            }
+            break;
+          }
+
+          // Wait for the single scheduled delay even if more triggers arrive.
+          // They then join this retry, so no stale intermediate accessor is
+          // read and all covered promises settle with the successful retry.
+          const pending = this.takePending();
+          if (pending) {
+            batch.getCron = pending.getCron;
+            batch.waiters.push(...pending.waiters);
+          }
         }
       }
     }
@@ -116,12 +165,24 @@ export class StewardAutomationReconciler {
     // drains or observes running=false and starts a new worker.
     this.running = false;
   }
+
+  private takePending(): PendingReconciliation | null {
+    const pending = this.pending;
+    this.pending = null;
+    return pending;
+  }
+
+  private rejectBatch(batch: PendingReconciliation, error: unknown): void {
+    for (const waiter of batch.waiters) {
+      waiter.reject(error);
+    }
+  }
 }
 
 /**
- * Register complete-snapshot triggers. Errors deliberately reject the hook
- * promise so task 3.5 can retry them; the eventual index wrapper owns logging
- * and isolation from other hook consumers.
+ * Register complete-snapshot triggers. Each hook promise remains pending
+ * across retryable reconciliation failures and resolves after delivery; the
+ * eventual index wrapper owns logging and isolation from other hook consumers.
  */
 export function registerStewardAutomationReconciliationHooks(
   api: Pick<OpenClawPluginApi, 'on'>

@@ -60,7 +60,7 @@
 - [x] 3.4 Serialize reconciliation, coalesce triggers received while
         busy into one follow-up, and prevent snapshots from overtaking
         one another.
-- [ ] 3.5 Retry unavailable cron reads and failed Steward
+- [x] 3.5 Retry unavailable cron reads and failed Steward
         submissions while the gateway remains active, preserving the
         last successful projection.
 - [ ] 3.6 Stop new reconciliation and retry activity on

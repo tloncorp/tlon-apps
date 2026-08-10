@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { submitStewardAutomationProject } from './steward-automation-adapter.js';
 import {
+  DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS,
   StewardAutomationCronUnavailableError,
   StewardAutomationReconciler,
   reconcileStewardAutomation,
@@ -57,6 +58,17 @@ function job(id: string): PluginHookGatewayCronJob {
     enabled: true,
     payload: { kind: 'agentTurn', text: id },
   };
+}
+
+function controlledRetryDelay() {
+  const waits: ReturnType<typeof deferred<void>>[] = [];
+  const delay = vi.fn((delayMs: number) => {
+    expect(delayMs).toBe(DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS);
+    const wait = deferred<void>();
+    waits.push(wait);
+    return wait.promise;
+  });
+  return { delay, waits };
 }
 
 const jobs = [
@@ -244,32 +256,182 @@ describe('StewardAutomationReconciler', () => {
     expect(secondSettled).toBe(true);
   });
 
-  it('rejects a failed batch but still drains an already-pending batch', async () => {
+  it('keeps covered promises pending until a failed attempt retries successfully', async () => {
     const firstRun = deferred<void>();
     const secondRun = deferred<void>();
+    const { delay, waits } = controlledRetryDelay();
     const reconcile = vi
       .fn<() => Promise<void>>()
       .mockImplementationOnce(() => firstRun.promise)
       .mockImplementationOnce(() => secondRun.promise);
-    const reconciler = new StewardAutomationReconciler(reconcile);
-    const failure = new Error('first reconciliation failed');
+    const reconciler = new StewardAutomationReconciler(reconcile, delay);
+    let firstSettled = false;
     let pendingSettled = false;
 
-    const failed = reconciler.trigger(undefined);
+    const first = reconciler.trigger(undefined).then(() => {
+      firstSettled = true;
+    });
     const pending = reconciler.trigger(undefined).then(() => {
       pendingSettled = true;
     });
-    firstRun.reject(failure);
+    firstRun.reject(new Error('first reconciliation failed'));
 
-    await expect(failed).rejects.toBe(failure);
-    await vi.waitFor(() => {
-      expect(reconcile).toHaveBeenCalledTimes(2);
-    });
+    await vi.waitFor(() => expect(delay).toHaveBeenCalledOnce());
+    expect(firstSettled).toBe(false);
+    expect(pendingSettled).toBe(false);
+    expect(reconcile).toHaveBeenCalledOnce();
+
+    waits[0].resolve();
+    await vi.waitFor(() => expect(reconcile).toHaveBeenCalledTimes(2));
+    expect(firstSettled).toBe(false);
     expect(pendingSettled).toBe(false);
 
     secondRun.resolve();
-    await pending;
+    await Promise.all([first, pending]);
+    expect(firstSettled).toBe(true);
     expect(pendingSettled).toBe(true);
+  });
+
+  it.each([
+    ['missing accessor', undefined],
+    ['missing service', () => undefined],
+  ])(
+    'recovers from an initially %s using the latest accessor',
+    async (_label, unavailable) => {
+      const { delay, waits } = controlledRetryDelay();
+      const recovered = cronContext([job('recovered')]);
+      const reconciler = new StewardAutomationReconciler(
+        reconcileStewardAutomation,
+        delay
+      );
+
+      const initial = reconciler.trigger(unavailable);
+      await vi.waitFor(() => expect(delay).toHaveBeenCalledOnce());
+      const repair = reconciler.trigger(recovered.context.getCron);
+
+      expect(recovered.list).not.toHaveBeenCalled();
+      expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+      waits[0].resolve();
+      await Promise.all([initial, repair]);
+
+      expect(recovered.list).toHaveBeenCalledOnce();
+      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    }
+  );
+
+  it('retries a failed list without submitting an empty projection', async () => {
+    const { delay, waits } = controlledRetryDelay();
+    const list = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('cron unavailable'))
+      .mockResolvedValueOnce([job('after-list-recovery')]);
+    const reconciler = new StewardAutomationReconciler(
+      reconcileStewardAutomation,
+      delay
+    );
+
+    const result = reconciler.trigger(() => ({ list }));
+    await vi.waitFor(() => expect(delay).toHaveBeenCalledOnce());
+    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+
+    waits[0].resolve();
+    await result;
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProject).toHaveBeenCalledWith({
+      project: {
+        tasks: [expect.objectContaining({ id: 'after-list-recovery' })],
+      },
+    });
+  });
+
+  it('retries normalization and submission failures as complete operations', async () => {
+    const { delay, waits } = controlledRetryDelay();
+    const invalid = {
+      ...job('invalid'),
+      schedule: { kind: 'future-schedule' },
+    } as unknown as PluginHookGatewayCronJob;
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce([invalid])
+      .mockResolvedValue([job('valid')]);
+    vi.mocked(submitStewardAutomationProject)
+      .mockRejectedValueOnce(new Error('poke nack'))
+      .mockResolvedValueOnce(undefined);
+    const reconciler = new StewardAutomationReconciler(
+      reconcileStewardAutomation,
+      delay
+    );
+
+    const result = reconciler.trigger(() => ({ list }));
+    await vi.waitFor(() => expect(delay).toHaveBeenCalledTimes(1));
+    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+    waits[0].resolve();
+
+    await vi.waitFor(() => expect(delay).toHaveBeenCalledTimes(2));
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    waits[1].resolve();
+
+    await result;
+    expect(list).toHaveBeenCalledTimes(3);
+    expect(submitStewardAutomationProject).toHaveBeenCalledTimes(2);
+    expect(submitStewardAutomationProject).toHaveBeenLastCalledWith({
+      project: { tasks: [expect.objectContaining({ id: 'valid' })] },
+    });
+  });
+
+  it('schedules one delay for a failed burst and retries with only the latest accessor', async () => {
+    const failedList = deferred<PluginHookGatewayCronJob[]>();
+    const { delay, waits } = controlledRetryDelay();
+    const firstList = vi.fn(() => failedList.promise);
+    const staleList = vi.fn().mockResolvedValue([job('stale')]);
+    const latestList = vi.fn().mockResolvedValue([job('latest')]);
+    const reconciler = new StewardAutomationReconciler(
+      reconcileStewardAutomation,
+      delay
+    );
+
+    const initial = reconciler.trigger(() => ({ list: firstList }));
+    const stale = Array.from({ length: 6 }, () =>
+      reconciler.trigger(() => ({ list: staleList }))
+    );
+    failedList.reject(new Error('list failed'));
+    await vi.waitFor(() => expect(delay).toHaveBeenCalledOnce());
+    const latest = reconciler.trigger(() => ({ list: latestList }));
+
+    expect(staleList).not.toHaveBeenCalled();
+    expect(latestList).not.toHaveBeenCalled();
+    waits[0].resolve();
+    await Promise.all([initial, ...stale, latest]);
+
+    expect(delay).toHaveBeenCalledOnce();
+    expect(staleList).not.toHaveBeenCalled();
+    expect(latestList).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+  });
+
+  it('submits an empty project only after an actual successful empty list', async () => {
+    const { delay, waits } = controlledRetryDelay();
+    const list = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('read failed'))
+      .mockResolvedValueOnce([]);
+    const reconciler = new StewardAutomationReconciler(
+      reconcileStewardAutomation,
+      delay
+    );
+
+    const result = reconciler.trigger(() => ({ list }));
+    await vi.waitFor(() => expect(delay).toHaveBeenCalledOnce());
+    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+
+    waits[0].resolve();
+    await result;
+    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProject).toHaveBeenCalledWith({
+      project: { tasks: [] },
+    });
   });
 });
 
