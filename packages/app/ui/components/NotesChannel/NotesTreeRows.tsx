@@ -1,5 +1,8 @@
 import * as db from '@tloncorp/shared/db';
-import { getNoteReferencePath } from '@tloncorp/shared/logic';
+import {
+  getNoteBodyPreview,
+  getNoteReferencePath,
+} from '@tloncorp/shared/logic';
 import { Icon, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -481,23 +484,6 @@ function TreeRowPressable({
       {children}
     </Pressable>
   );
-}
-
-function getNoteBodyPreview(bodyMd: string | null | undefined) {
-  const preview = (bodyMd ?? '')
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, ' ')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/^>\s?/gm, '')
-    .replace(/^[\s>*+-]*\[[ x]\]\s+/gim, '')
-    .replace(/^[\s>*+-]+/gm, '')
-    .replace(/[*_~#|]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  return preview || null;
 }
 
 function formatNoteCount(noteCount: number) {

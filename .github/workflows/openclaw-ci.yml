@@ -7,6 +7,10 @@ on:
       - "packages/tlon-bot-e2e/**"
       - "packages/api/**"
       - "packages/tlon-skill/**"
+      - "desk/**"
+      - "peru.yaml"
+      - "scripts/assemble-desk.sh"
+      - "scripts/sync-deps.sh"
       - "pnpm-lock.yaml"
       - ".github/workflows/openclaw-ci.yml"
 
@@ -53,7 +57,11 @@ jobs:
   integration-test:
     name: Shared E2E
     runs-on: blacksmith-8vcpu-ubuntu-2204
-    timeout-minutes: 45
+    # Three runtimes boot fresh stacks and re-apply the branch %groups desk
+    # (baseline and cron scenario partitions, then the package suite; ~8-9
+    # minutes per apply on native runners when the desk has drifted). The
+    # previous budgets were exceeded at exactly that arithmetic.
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: .
@@ -61,10 +69,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install peru
+        run: pipx install --force peru
+
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+
+      # The harness cross-compiles the workspace tlon CLI for the container
+      # (openclaw driver beforeComposeBuild). Pin matches tlon-skill-publish.yml.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v3
@@ -86,7 +104,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/tlon-bot-e2e/fake-ships
-          key: tlon-bot-e2e-fake-ships-v1
+          # Keyed on the compose file so a pier-generation bump rolls the
+          # cache: Actions caches are immutable, and a stale exact-key hit
+          # would leave every job re-downloading ~1GB of archives forever.
+          key: tlon-bot-e2e-fake-ships-${{ hashFiles('packages/tlon-bot-e2e/docker/docker-compose.base.yml') }}
 
       - name: Prepare fake ship cache
         run: mkdir -p .cache/tlon-bot-e2e/fake-ships
