@@ -162,8 +162,9 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
-    [%x %v1 %lens *]     (le-peek:le-core [%v1 t.t.t.path])
-    [%x %v1 %gateway *]  (ga-peek:ga-core [%v1 t.t.t.path])
+    [%x %v1 %lens *]        (le-peek:le-core [%v1 t.t.t.path])
+    [%x %v1 %gateway *]     (ga-peek:ga-core [%v1 t.t.t.path])
+    [%x %v1 %automation *]  (au-peek:au-core [%v1 t.t.t.path])
   ==
 ::
 ++  agent
@@ -660,6 +661,13 @@
         %project
       =/  projected  (au-build-task-map tasks.action)
       cor(tasks.automation.state projected)
+    ==
+  ++  au-peek
+    |=  =path
+    ^-  (unit (unit cage))
+    ?+  path  [~ ~]
+      [%v1 %tasks ~]
+    ``steward-automation-task-map-1+!>(tasks.automation.state)
     ==
   ::  Build the complete replacement before mutating state. A duplicate ID
   ::  crashes here, leaving the previous projection untouched.

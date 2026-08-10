@@ -193,6 +193,48 @@
     (~(put by *(map @t task:v1:au)) 'task-a' task-a)
   (ex-equal !>(tasks.automation.st) !>(expected))
 ::
+++  test-automation-tasks-scry-empty
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  res=cage  bind:m  (got-peek /x/v1/automation/tasks)
+  ;<  ~  bind:m
+    (ex-equal !>(p.res) !>(%steward-automation-task-map-1))
+  =/  actual=task-map:v1:au  !<(task-map:v1:au q.res)
+  (ex-equal !>(actual) !>(*(map @t task:v1:au)))
+::
+++  test-automation-tasks-scry-populated
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  task-b=task:v1:au  (automation-task 'Task B')
+  =/  projected=(list identified-task:v1:au)
+    ~[['task-a' task-a] ['task-b' task-b]]
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (project-automation projected)
+  ;<  res=cage  bind:m  (got-peek /x/v1/automation/tasks)
+  ;<  ~  bind:m
+    (ex-equal !>(p.res) !>(%steward-automation-task-map-1))
+  =/  actual=task-map:v1:au  !<(task-map:v1:au q.res)
+  =/  expected=(map @t task:v1:au)
+    (~(gas by *(map @t task:v1:au)) projected)
+  (ex-equal !>(actual) !>(expected))
+::
+++  test-automation-tasks-scry-rejects-foreign
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (set-src ~zod)
+  |=  s=state
+  =/  result
+    (mule |.((~(on-peek agent.s bowl.s) /x/v1/automation/tasks)))
+  ?:  ?=(%& -.result)
+    |+~['expected foreign /x/v1/automation/tasks peek to crash']
+  &+[~ s]
+::
 ::  ==========================================================
 ::  LENS MODULE TESTS
 ::  ==========================================================

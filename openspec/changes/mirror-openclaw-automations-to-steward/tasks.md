@@ -28,7 +28,7 @@
         conversion, `{ "tasks": { "<id>": <task>, ... } }` JSON
         serialization, no duplicated IDs in task values, and no cron
         job state.
-- [ ] 2.5 Add the local `/x/v1/automation/tasks` scry that returns
+- [x] 2.5 Add the local `/x/v1/automation/tasks` scry that returns
         the stored task map and `{ "tasks": {} }` for empty state.
 - [ ] 2.6 Test the fresh-state implementation through the production
         marks and scry: populated, empty, repeated, invalid, and
