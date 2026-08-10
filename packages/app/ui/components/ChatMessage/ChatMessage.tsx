@@ -113,12 +113,16 @@ const ChatMessage = ({
   // JS action sheet - the same path Android and web already use - so the
   // actions stay available.
   const isScreenReaderEnabled = useIsScreenReaderEnabled();
-  const usesNativeContextMenu = Platform.OS === 'ios' && !isScreenReaderEnabled;
+  const usesNativeContextMenu =
+    Platform.OS === 'ios' &&
+    !isScreenReaderEnabled &&
+    Boolean(onLongPress) &&
+    post.type !== 'notice';
 
   return (
     <MaskedChatMessage post={post}>
       <MessageContextMenu
-        enabled={Boolean(onLongPress) && usesNativeContextMenu}
+        enabled={usesNativeContextMenu}
         post={post}
         postActionIds={postActionIds}
         canReact={canWrite}

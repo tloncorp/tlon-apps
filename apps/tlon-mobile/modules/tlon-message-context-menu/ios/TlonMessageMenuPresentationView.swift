@@ -240,10 +240,11 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
             return
         }
 
-        let localPoint = convert(windowPoint, from: window)
-        actionList.updateHighlight(at: actionList.convert(localPoint, from: self))
+        actionList.updateHighlight(at: presentationPoint(windowPoint, in: actionList))
         if let reactionBar {
-            reactionBar.updateHighlight(at: reactionBar.convert(localPoint, from: self))
+            reactionBar.updateHighlight(
+                at: presentationPoint(windowPoint, in: reactionBar)
+            )
         }
     }
 
@@ -254,22 +255,32 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
             return
         }
 
-        let localPoint = convert(windowPoint, from: window)
         if let reactionBar {
-            let point = reactionBar.convert(localPoint, from: self)
+            let point = presentationPoint(windowPoint, in: reactionBar)
             if let selection = reactionBar.selection(at: point) {
                 dismiss(with: selection)
                 return
             }
         }
 
-        let actionPoint = actionList.convert(localPoint, from: self)
+        let actionPoint = presentationPoint(windowPoint, in: actionList)
         if let actionId = actionList.selection(at: actionPoint) {
             dismiss(with: .action(actionId))
             return
         }
 
         dismiss()
+    }
+
+    private func presentationPoint(_ windowPoint: CGPoint, in view: UIView) -> CGPoint {
+        guard let window,
+              let windowLayer = window.layer.presentation(),
+              let viewLayer = view.layer.presentation()
+        else {
+            return view.convert(windowPoint, from: window)
+        }
+
+        return viewLayer.convert(windowPoint, from: windowLayer)
     }
 
     func dismiss() {

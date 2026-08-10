@@ -36,6 +36,7 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
             action: #selector(handlePressIndication(_:))
         )
         recognizer.minimumPressDuration = Animation.pressIndicationDelay
+        recognizer.allowableMovement = gestureDeadZoneRadius
         recognizer.cancelsTouchesInView = false
         recognizer.delegate = self
         return recognizer
@@ -47,6 +48,7 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
             action: #selector(handleLongPress(_:))
         )
         recognizer.minimumPressDuration = Animation.menuDelay
+        recognizer.allowableMovement = gestureDeadZoneRadius
         recognizer.cancelsTouchesInView = true
         recognizer.delegate = self
         return recognizer
@@ -159,6 +161,22 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         shouldRecognizeSimultaneouslyWith _: UIGestureRecognizer
     ) -> Bool {
         true
+    }
+
+    func gestureRecognizer(
+        _: UIGestureRecognizer,
+        shouldReceive touch: UITouch
+    ) -> Bool {
+        var touchedView = touch.view
+        while let view = touchedView, view !== self {
+            // Reaction pills own their long press so users can inspect who
+            // reacted instead of opening the message-level action menu.
+            if view.accessibilityIdentifier?.hasPrefix("ReactionDisplay") == true {
+                return false
+            }
+            touchedView = view.superview
+        }
+        return true
     }
 
     private func presentMenu(for recognizer: UILongPressGestureRecognizer) {
