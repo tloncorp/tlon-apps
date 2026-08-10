@@ -4,6 +4,7 @@ import {
   buildNoteSnippet,
   buildNoteTitleSegments,
   noteSearchListState,
+  noteSearchQueryIsCurrent,
 } from './notesSearch';
 
 function render(segments: { text: string; match: boolean }[]): string {
@@ -150,5 +151,16 @@ describe('noteSearchListState', () => {
     expect(
       noteSearchListState({ ...base, resultCount: 3, errored: true })
     ).toBe('results');
+  });
+});
+
+describe('noteSearchQueryIsCurrent', () => {
+  test('accepts the committed query and ignores surrounding input whitespace', () => {
+    expect(noteSearchQueryIsCurrent('needle', 'needle')).toBe(true);
+    expect(noteSearchQueryIsCurrent('  needle  ', 'needle')).toBe(true);
+  });
+
+  test('rejects results from the previous debounced query', () => {
+    expect(noteSearchQueryIsCurrent('new query', 'old query')).toBe(false);
   });
 });
