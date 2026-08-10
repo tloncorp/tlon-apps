@@ -30,8 +30,18 @@ const TEST_ID_NAMES: Record<string, string> = {
   laughing: 'laughing',
 };
 
+/**
+ * A slot holds either one of the default shortcodes or a native glyph pulled
+ * from reaction history. History entries are already native and were validated
+ * when the reaction was sent, so fall back to the stored glyph rather than
+ * dropping the slot if `getNativeEmoji` doesn't recognize it.
+ */
+function resolveSlotEmoji(slot: string) {
+  return getNativeEmoji(slot) ?? slot;
+}
+
 function getTestID(emoji: string) {
-  const native = getNativeEmoji(emoji) ?? emoji;
+  const native = resolveSlotEmoji(emoji);
   const named = Object.keys(TEST_ID_NAMES).find(
     (code) => getNativeEmoji(code) === native
   );
@@ -53,14 +63,15 @@ export function EmojiToolbar({
 
   const handlePress = useOnEmojiSelect(post, onDismiss);
 
-  const handleToolbarPress = useCallback(
-    (shortCode: string) => {
-      const nativeEmoji = getNativeEmoji(shortCode);
-      if (!nativeEmoji) {
-        logger.trackError(`No native emoji found`, { shortCode });
-        return;
+  const handleFrequentPress = useCallback(
+    (slot: string) => {
+      if (!getNativeEmoji(slot)) {
+        // Slots are either known-good shortcodes or glyphs we recorded from a
+        // sent reaction, so an unrecognized one means the validator is too
+        // strict. Report it, but still send the glyph rather than eat the tap.
+        logger.trackError('No native emoji found', { shortCode: slot });
       }
-      handlePress(nativeEmoji);
+      handlePress(resolveSlotEmoji(slot));
     },
     [handlePress]
   );
@@ -71,8 +82,8 @@ export function EmojiToolbar({
     const seen = new Set<string>();
     const slots: string[] = [];
     const take = (emoji: string) => {
-      const native = getNativeEmoji(emoji);
-      if (!native || seen.has(native)) {
+      const native = resolveSlotEmoji(emoji);
+      if (seen.has(native)) {
         return;
       }
       seen.add(native);
@@ -89,7 +100,7 @@ export function EmojiToolbar({
   const lastShortCode =
     details.self.didReact &&
     !['🌀', ...frequentEmojis].some(
-      (code) => getNativeEmoji(code) === details.self.value
+      (code) => resolveSlotEmoji(code) === details.self.value
     )
       ? details.self.value
       : '🌀';
@@ -120,14 +131,14 @@ export function EmojiToolbar({
             key={shortCode}
             details={details}
             shortCode={shortCode}
-            handlePress={handleToolbarPress}
+            handlePress={handleFrequentPress}
             testID={getTestID(shortCode)}
           />
         ))}
         <EmojiToolbarButton
           details={details}
           shortCode={lastShortCode}
-          handlePress={handleToolbarPress}
+          handlePress={handleFrequentPress}
           testID="EmojiToolbarButton-last"
         />
         <Pressable padding="$xs" onPress={handleSheetOpen}>
@@ -158,7 +169,7 @@ function EmojiToolbarButton({
   // resolved before it can be compared against the user's reaction. The match
   // must be exact — a substring check would light up 👍 for a 👍🏽 reaction, or
   // ❤️ for ❤️‍🔥, which tapping then replaces rather than removes.
-  const native = getNativeEmoji(shortCode) ?? shortCode;
+  const native = resolveSlotEmoji(shortCode);
   return (
     <Pressable
       padding="$xs"
