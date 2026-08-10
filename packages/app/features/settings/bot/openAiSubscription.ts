@@ -27,7 +27,7 @@ export type OpenAIAuthEvent =
 
 export const canDismissOpenAIAuth = (
   phase: OpenAIAuthState['phase']
-): boolean => phase !== 'starting' && phase !== 'complete';
+): boolean => phase !== 'complete';
 
 export async function copyOpenAIUserCode(
   code: string | undefined,
@@ -73,6 +73,9 @@ export function reduceOpenAIAuthState(
       };
     }
     case 'flow':
+      if (event.flow.status === 'complete') {
+        return { phase: 'complete', flow: event.flow };
+      }
       if (event.flow.expiresAt <= event.now) {
         return {
           phase: 'error',
@@ -80,9 +83,6 @@ export function reduceOpenAIAuthState(
           restartable: true,
           flow: event.flow,
         };
-      }
-      if (event.flow.status === 'complete') {
-        return { phase: 'complete', flow: event.flow };
       }
       if (event.flow.status === 'error') {
         return {

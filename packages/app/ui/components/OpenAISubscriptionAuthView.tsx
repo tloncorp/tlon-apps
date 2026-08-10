@@ -28,6 +28,7 @@ export function OpenAISubscriptionAuthView({
   onOpenBrowser,
   onRetry,
   onCancel,
+  showBackButton = true,
 }: {
   state: OpenAIAuthState;
   browserError?: string | null;
@@ -35,6 +36,7 @@ export function OpenAISubscriptionAuthView({
   onOpenBrowser: () => void;
   onRetry: () => void;
   onCancel: () => void;
+  showBackButton?: boolean;
 }) {
   const flow = flowFromState(state);
   const error = state.phase === 'error' ? state.message : browserError;
@@ -49,9 +51,11 @@ export function OpenAISubscriptionAuthView({
 
   return (
     <YStack flex={1} paddingTop="$2xl">
-      <View paddingHorizontal="$xl">
-        <ScreenHeader.BackButton onPress={canGoBack ? onCancel : undefined} />
-      </View>
+      {showBackButton ? (
+        <View paddingHorizontal="$xl">
+          <ScreenHeader.BackButton disabled={!canGoBack} onPress={onCancel} />
+        </View>
+      ) : null}
       <YStack gap="$3xl" padding="$xl" flex={1} justifyContent="center">
         <YStack gap="$xl" alignItems="center">
           <Text size="$label/2xl" fontWeight="600" textAlign="center">

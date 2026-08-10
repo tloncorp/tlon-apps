@@ -12,6 +12,7 @@ import {
 import { BotSettingsSection } from './bot/BotSettingsUI';
 import { getErrorMessage } from './bot/helpers';
 import {
+  canDismissOpenAIAuth,
   getOpenAIAuthStatus,
   getOpenAICredentialSwitch,
   isLLMAuthProviderConnected,
@@ -91,7 +92,11 @@ export function BotOpenAISubscriptionScreen(props: Props) {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
-        backAction={() => props.navigation.goBack()}
+        backAction={() => {
+          auth.dismiss();
+          props.navigation.goBack();
+        }}
+        backDisabled={!canDismissOpenAIAuth(auth.state.phase)}
         title="OpenAI subscription"
       />
       {queries.llmAuthStatusQuery.isLoading ? (
@@ -150,6 +155,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
             onStart={beginConnection}
             onOpenBrowser={() => void auth.openVerificationUrl()}
             onRetry={() => void auth.restart()}
+            showBackButton={false}
             onCancel={() => {
               auth.dismiss();
               props.navigation.goBack();

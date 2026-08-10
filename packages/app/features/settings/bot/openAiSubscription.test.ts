@@ -55,9 +55,9 @@ describe('OpenAI subscription auth state', () => {
 
   it('allows leaving only interruptible auth phases', () => {
     expect(canDismissOpenAIAuth('idle')).toBe(true);
+    expect(canDismissOpenAIAuth('starting')).toBe(true);
     expect(canDismissOpenAIAuth('active')).toBe(true);
     expect(canDismissOpenAIAuth('error')).toBe(true);
-    expect(canDismissOpenAIAuth('starting')).toBe(false);
     expect(canDismissOpenAIAuth('complete')).toBe(false);
   });
 
@@ -83,6 +83,21 @@ describe('OpenAI subscription auth state', () => {
       phase: 'complete',
       flow: { ...active.flow, status: 'complete' },
     });
+  });
+
+  it('accepts a completed server flow even after its local expiry', () => {
+    const completeFlow = { ...awaitingFlow, status: 'complete' as const };
+
+    expect(
+      reduceOpenAIAuthState(
+        { phase: 'active', flow: awaitingFlow },
+        {
+          type: 'flow',
+          flow: completeFlow,
+          now: completeFlow.expiresAt + 1,
+        }
+      )
+    ).toEqual({ phase: 'complete', flow: completeFlow });
   });
 
   it('turns an expired active flow into a restartable error', () => {
