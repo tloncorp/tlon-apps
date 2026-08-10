@@ -57,7 +57,7 @@
 - [x] 3.3 Trigger complete reads with disabled tasks included after
         `gateway_start` and every `cron_changed` event using the
         pinned OpenClaw cron access.
-- [ ] 3.4 Serialize reconciliation, coalesce triggers received while
+- [x] 3.4 Serialize reconciliation, coalesce triggers received while
         busy into one follow-up, and prevent snapshots from overtaking
         one another.
 - [ ] 3.5 Retry unavailable cron reads and failed Steward
