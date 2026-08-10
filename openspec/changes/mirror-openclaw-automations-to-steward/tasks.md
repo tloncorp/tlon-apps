@@ -81,7 +81,7 @@
         execution-related `cron_changed` events.
 - [x] 4.4 Test serialized delivery, coalesced triggers, trigger
         arrival during submission, and the worker-exit race.
-- [ ] 4.5 Test read failures, submission failures, retry behavior,
+- [x] 4.5 Test read failures, submission failures, retry behavior,
         acknowledgement failures, and gateway shutdown.
 - [ ] 4.6 Add ship-level verification that additions, updates,
         removals, disabled tasks, and restart reconciliation appear in
