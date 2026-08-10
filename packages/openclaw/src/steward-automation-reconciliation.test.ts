@@ -679,36 +679,91 @@ describe('registerStewardAutomationReconciliationHooks', () => {
     expect(list).toHaveBeenCalledWith({ includeDisabled: true });
   });
 
-  it.each<PluginHookCronChangedEvent['action']>([
-    'added',
-    'updated',
-    'removed',
-    'started',
-    'finished',
-  ])('reconciles after the %s cron_changed action', async (action) => {
-    const api = createFakeHookApi();
-    const { context, list } = cronContext(jobs);
-    registerStewardAutomationReconciliationHooks(
-      api as unknown as Parameters<
-        typeof registerStewardAutomationReconciliationHooks
-      >[0],
-      registrationOptions()
-    );
+  it.each<{
+    category: 'definition' | 'execution';
+    action: PluginHookCronChangedEvent['action'];
+  }>([
+    { category: 'definition', action: 'added' },
+    { category: 'definition', action: 'updated' },
+    { category: 'definition', action: 'removed' },
+    { category: 'execution', action: 'started' },
+    { category: 'execution', action: 'finished' },
+  ])(
+    'rereads the complete list after the $category $action event',
+    async ({ action }) => {
+      const api = createFakeHookApi();
+      const completeJobs = [
+        {
+          id: 'complete-enabled',
+          enabled: true,
+          payload: { kind: 'agentTurn', text: 'first in complete list' },
+        },
+        {
+          id: 'complete-disabled',
+          enabled: false,
+          payload: { kind: 'agentTurn', text: 'second in complete list' },
+        },
+      ] satisfies PluginHookGatewayCronJob[];
+      const { context, list } = cronContext(completeJobs);
+      registerStewardAutomationReconciliationHooks(
+        api as unknown as Parameters<
+          typeof registerStewardAutomationReconciliationHooks
+        >[0],
+        registrationOptions()
+      );
 
-    await api.fire('gateway_start', { port: 3000 }, context);
-    await vi.waitFor(() => {
+      await api.fire('gateway_start', { port: 3000 }, context);
+      await vi.waitFor(() => {
+        expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+      });
+      list.mockClear();
+      vi.mocked(submitStewardAutomationProject).mockClear();
+
+      await api.fire(
+        'cron_changed',
+        {
+          action,
+          jobId: 'event-only',
+          job: {
+            id: 'event-only',
+            enabled: true,
+            payload: { kind: 'agentTurn', text: 'event delta' },
+            state: { lastRunStatus: 'ok' },
+          },
+        },
+        context
+      );
+      await vi.waitFor(() => {
+        expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+      });
+
+      expect(list).toHaveBeenCalledOnce();
+      expect(list).toHaveBeenCalledWith({ includeDisabled: true });
       expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
-    });
-    list.mockClear();
-    vi.mocked(submitStewardAutomationProject).mockClear();
-
-    await api.fire('cron_changed', { action, jobId: 'disabled-job' }, context);
-    await vi.waitFor(() => {
-      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
-    });
-
-    expect(list).toHaveBeenCalledWith({ includeDisabled: true });
-  });
+      expect(submitStewardAutomationProject).toHaveBeenCalledWith({
+        project: {
+          tasks: [
+            {
+              id: 'complete-enabled',
+              enabled: true,
+              payload: {
+                kind: 'agentTurn',
+                text: 'first in complete list',
+              },
+            },
+            {
+              id: 'complete-disabled',
+              enabled: false,
+              payload: {
+                kind: 'agentTurn',
+                text: 'second in complete list',
+              },
+            },
+          ],
+        },
+      });
+    }
+  );
 
   it('reuses one reconciler across discovery, full, and prewarm registries', async () => {
     const discoveryApi = createFakeHookApi();

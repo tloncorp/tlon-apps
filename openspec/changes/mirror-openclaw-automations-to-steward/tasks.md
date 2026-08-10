@@ -77,7 +77,7 @@
 - [x] 4.2 Test startup reconciliation when cron access is ready,
         temporarily unavailable, empty, and restored after a stale
         period.
-- [ ] 4.3 Test complete rereads after definition-related and
+- [x] 4.3 Test complete rereads after definition-related and
         execution-related `cron_changed` events.
 - [ ] 4.4 Test serialized delivery, coalesced triggers, trigger
         arrival during submission, and the worker-exit race.
