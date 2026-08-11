@@ -7,7 +7,7 @@
  * - Ship normalization consistency
  * - Bot mention detection boundaries
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   extractMessageText,
@@ -15,6 +15,8 @@ import {
   isChannelRestricted,
   isDmAllowed,
   isGroupInviteAllowed,
+  parseBlockedShips,
+  resolveGroupInviteAction,
   sanitizeMessageText,
 } from './monitor/utils.js';
 import { normalizeShip } from './targets.js';
@@ -145,6 +147,146 @@ describe('Security: Group Invite Allowlist', () => {
     it('handles whitespace in allowlist entries', () => {
       const allowlist = [' ~nocsyx-lassul ', '~malmur-halmex'];
       expect(isGroupInviteAllowed('~nocsyx-lassul', allowlist)).toBe(true);
+    });
+  });
+
+  describe('resolveGroupInviteAction', () => {
+    const owner = '~nocsyx-lassul';
+    const inviter = '~sampel-palnet';
+
+    function makeFetchBlockedShips(blocked: string[] = []) {
+      return vi.fn().mockResolvedValue(blocked);
+    }
+
+    it('auto-accepts the owner without consulting the block list', async () => {
+      const fetchBlockedShips = makeFetchBlockedShips();
+      const result = await resolveGroupInviteAction(
+        { inviterShip: owner, ownerShip: owner, allowlist: [] },
+        { fetchBlockedShips }
+      );
+      expect(result).toEqual({ action: 'accept', reason: 'owner' });
+      // Owner path must stay scry-free
+      expect(fetchBlockedShips).not.toHaveBeenCalled();
+    });
+
+    it('auto-accepts an allowlisted ship when the block list confirms it clean', async () => {
+      const fetchBlockedShips = makeFetchBlockedShips(['~malicious-actor']);
+      const result = await resolveGroupInviteAction(
+        { inviterShip: inviter, ownerShip: owner, allowlist: [inviter] },
+        { fetchBlockedShips }
+      );
+      expect(result).toEqual({ action: 'accept', reason: 'allowlisted' });
+      expect(fetchBlockedShips).toHaveBeenCalledTimes(1);
+    });
+
+    it('silently ignores an allowlisted ship the block list confirms blocked (not queue)', async () => {
+      const fetchBlockedShips = makeFetchBlockedShips([inviter]);
+      const result = await resolveGroupInviteAction(
+        { inviterShip: inviter, ownerShip: owner, allowlist: [inviter] },
+        { fetchBlockedShips }
+      );
+      // Confirmed-blocked is a distinct outcome: silent ignore, never a card
+      expect(result).toEqual({ action: 'ignore', reason: 'blocked' });
+      expect(result.action).not.toBe('queue');
+      expect(fetchBlockedShips).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls through to queue when the block-list lookup rejects — never accept', async () => {
+      // CRITICAL (fail-closed): a failed/timed-out scry means "unknown",
+      // which must never become an auto-join.
+      const fetchBlockedShips = vi
+        .fn()
+        .mockRejectedValue(new Error('blocked list scry timeout'));
+      const result = await resolveGroupInviteAction(
+        { inviterShip: inviter, ownerShip: owner, allowlist: [inviter] },
+        { fetchBlockedShips }
+      );
+      expect(result.action).toBe('queue');
+      expect(result).not.toEqual(expect.objectContaining({ action: 'accept' }));
+      expect(fetchBlockedShips).toHaveBeenCalledTimes(1);
+    });
+
+    it('matches allowlist entries via normalization (delegates to isGroupInviteAllowed)', async () => {
+      const fetchBlockedShips = makeFetchBlockedShips();
+      const result = await resolveGroupInviteAction(
+        // Entry spelled without the leading ~
+        {
+          inviterShip: inviter,
+          ownerShip: owner,
+          allowlist: ['sampel-palnet'],
+        },
+        { fetchBlockedShips }
+      );
+      expect(result).toEqual({ action: 'accept', reason: 'allowlisted' });
+    });
+
+    it('queues an unknown inviter when an owner is configured, without a block-list lookup', async () => {
+      const fetchBlockedShips = makeFetchBlockedShips();
+      const result = await resolveGroupInviteAction(
+        {
+          inviterShip: inviter,
+          ownerShip: owner,
+          allowlist: ['~someone-else'],
+        },
+        { fetchBlockedShips }
+      );
+      expect(result).toEqual({ action: 'queue' });
+      // Non-allowlisted path must stay scry-free (queue does its own lookup)
+      expect(fetchBlockedShips).not.toHaveBeenCalled();
+    });
+
+    it('ignores an unknown inviter when no owner is configured, without a block-list lookup', async () => {
+      const fetchBlockedShips = makeFetchBlockedShips();
+      const result = await resolveGroupInviteAction(
+        { inviterShip: inviter, ownerShip: null, allowlist: ['~someone-else'] },
+        { fetchBlockedShips }
+      );
+      expect(result).toEqual({ action: 'ignore', reason: 'no-owner' });
+      expect(fetchBlockedShips).not.toHaveBeenCalled();
+    });
+
+    it('queues a non-owner invite when the allowlist is empty (fail-safe)', async () => {
+      const fetchBlockedShips = makeFetchBlockedShips();
+      const result = await resolveGroupInviteAction(
+        { inviterShip: inviter, ownerShip: owner, allowlist: [] },
+        { fetchBlockedShips }
+      );
+      // Empty allowlist must deny everyone but the owner — never accept-all
+      expect(result).toEqual({ action: 'queue' });
+      expect(fetchBlockedShips).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('parseBlockedShips', () => {
+    // The block list decides whether an allowlisted ship may auto-join, so a
+    // payload we cannot understand must throw (=> "unknown" => approval card)
+    // rather than coerce to [] (=> "nobody blocked" => auto-join).
+    it('accepts a well-formed ship array', () => {
+      expect(parseBlockedShips(['~zod', '~sampel-palnet'])).toEqual([
+        '~zod',
+        '~sampel-palnet',
+      ]);
+    });
+
+    it('accepts an empty array — a genuinely empty block list is not an error', () => {
+      expect(parseBlockedShips([])).toEqual([]);
+    });
+
+    it.each([
+      ['null', null],
+      ['undefined', undefined],
+      ['an object', { blocked: ['~zod'] }],
+      ['a string', '~zod'],
+      ['a number', 0],
+    ])('throws on %s rather than reporting "nobody blocked"', (_label, raw) => {
+      expect(() => parseBlockedShips(raw)).toThrow();
+    });
+
+    it('keeps readable ships and drops a non-string entry, rather than failing the whole list', () => {
+      // Throwing here would be worse than the lenient behavior this replaced:
+      // isShipBlocked/getBlockedShips catch and fail open, so one bad element
+      // would report every genuinely blocked ship as unblocked.
+      expect(parseBlockedShips(['~zod', 42, '~bus'])).toEqual(['~zod', '~bus']);
     });
   });
 });
