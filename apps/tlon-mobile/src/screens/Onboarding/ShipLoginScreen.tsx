@@ -65,14 +65,10 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     const urlPattern =
       /^(https?:\/\/)?(localhost|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|[\w.-]+\.([a-z]{2,}))(:\d+)?$/i;
     const hostedPattern = /tlon\.network/i;
-    const isConfiguredDevelopmentShip =
-      __DEV__ &&
-      DEFAULT_SHIP_LOGIN_URL.length > 0 &&
-      url.replace(/\/$/, '') === DEFAULT_SHIP_LOGIN_URL.replace(/\/$/, '');
     if (!urlPattern.test(url)) {
       return false;
     }
-    if (hostedPattern.test(url) && !isConfiguredDevelopmentShip) {
+    if (hostedPattern.test(url)) {
       return 'hosted';
     }
     return true;
