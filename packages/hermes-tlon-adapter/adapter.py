@@ -233,6 +233,11 @@ from .tlon_tool import (
 logger = logging.getLogger(__name__)
 
 RECONNECT_BACKOFF_SECONDS = (2, 5, 10, 30, 60)
+# A transient poke failure would otherwise leave a healthy long-lived bot
+# unadvertised until an unrelated reconnect or a restart, so the write is
+# retried in place. Reads are never retried: a failed read skips entirely.
+BOT_COMMANDS_PUBLISH_ATTEMPTS = 3
+BOT_COMMANDS_PUBLISH_BACKOFF_SECONDS = (2, 8)
 CITE_RESOLUTION_BUDGET_SECONDS = 5.0
 RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000
 # Window in which a repeated retry request for the same lensId is a no-op
@@ -2514,10 +2519,30 @@ class TlonAdapter(BasePlatformAdapter):
             desired = build_command_manifest_json()
             if extract_bot_commands_value(self_contact) == desired:
                 return
-            await self._sse.poke(
-                "contacts", BOT_COMMANDS_CONTACT_MARK, build_bot_commands_poke(desired)
-            )
-            logger.info("[tlon] published bot command manifest")
+            payload = build_bot_commands_poke(desired)
+            for attempt in range(1, BOT_COMMANDS_PUBLISH_ATTEMPTS + 1):
+                try:
+                    await self._sse.poke(
+                        "contacts", BOT_COMMANDS_CONTACT_MARK, payload
+                    )
+                    logger.info("[tlon] published bot command manifest")
+                    return
+                except Exception as exc:
+                    if attempt >= BOT_COMMANDS_PUBLISH_ATTEMPTS:
+                        raise
+                    logger.debug(
+                        "[tlon] bot command manifest publish attempt %d failed: %s",
+                        attempt,
+                        exc,
+                    )
+                    await asyncio.sleep(
+                        BOT_COMMANDS_PUBLISH_BACKOFF_SECONDS[
+                            min(
+                                attempt - 1,
+                                len(BOT_COMMANDS_PUBLISH_BACKOFF_SECONDS) - 1,
+                            )
+                        ]
+                    )
         except Exception as exc:
             logger.warning("[tlon] could not publish bot command manifest: %s", exc)
 

@@ -15,6 +15,20 @@ export interface BotCommandManifestScryApi {
 
 export const SELF_CONTACT_SCRY_PATH = '/contacts/v1/self.json';
 
+// A poke that fails transiently would otherwise leave a healthy long-lived bot
+// unadvertised until an unrelated SSE reconnect or a restart, so the write is
+// retried in place. Reads are never retried: a failed read is handled by
+// skipping entirely (see SelfContactRead).
+export const BOT_COMMANDS_PUBLISH_ATTEMPTS = 3;
+export const BOT_COMMANDS_PUBLISH_BACKOFF_MS: readonly number[] = [
+  2_000, 8_000,
+];
+
+export type Sleeper = (ms: number) => Promise<void>;
+
+const defaultSleep: Sleeper = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
 // A self-contact read that failed is not the same as one that succeeded
 // without the key: only the latter proves the key is absent. Publishing on a
 // failed read defeats compare-then-poke exactly when the ship is unhealthy.
@@ -55,21 +69,39 @@ export function readBotCommandsValue(selfContact: unknown): string | null {
 // is a merge, so nickname/avatar survive. Passing null clears the key (the
 // documented rollback/retirement procedure — see
 // docs/bot-command-manifests.md): contact keys only die by explicit null.
+// Retried up to BOT_COMMANDS_PUBLISH_ATTEMPTS with bounded backoff; the last
+// failure rethrows so callers keep today's non-fatal log-and-continue.
 export async function publishBotCommandManifest(
   api: BotCommandManifestPokeApi,
-  desiredValue: string | null
+  desiredValue: string | null,
+  sleep: Sleeper = defaultSleep
 ): Promise<BotCommandManifestPublishResult> {
-  await api.poke({
-    app: 'contacts',
-    mark: 'contact-action-1',
-    json: {
-      self: {
-        [BOT_COMMANDS_CONTACT_KEY]:
-          desiredValue === null ? null : { type: 'text', value: desiredValue },
-      },
-    },
-  });
-  return desiredValue === null ? 'cleared' : 'published';
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await api.poke({
+        app: 'contacts',
+        mark: 'contact-action-1',
+        json: {
+          self: {
+            [BOT_COMMANDS_CONTACT_KEY]:
+              desiredValue === null
+                ? null
+                : { type: 'text', value: desiredValue },
+          },
+        },
+      });
+      return desiredValue === null ? 'cleared' : 'published';
+    } catch (error) {
+      if (attempt >= BOT_COMMANDS_PUBLISH_ATTEMPTS) {
+        throw error;
+      }
+      await sleep(
+        BOT_COMMANDS_PUBLISH_BACKOFF_MS[
+          Math.min(attempt - 1, BOT_COMMANDS_PUBLISH_BACKOFF_MS.length - 1)
+        ]
+      );
+    }
+  }
 }
 
 // Compare-then-poke: only write when the advertised value actually changed.
@@ -80,7 +112,8 @@ export async function publishBotCommandManifest(
 export async function maybePublishBotCommandManifest(
   api: BotCommandManifestPokeApi,
   selfContact: SelfContactRead,
-  desiredValue: string
+  desiredValue: string,
+  sleep: Sleeper = defaultSleep
 ): Promise<BotCommandManifestPublishResult | 'skipped'> {
   if (!selfContact.ok) {
     return 'skipped';
@@ -89,7 +122,7 @@ export async function maybePublishBotCommandManifest(
   if (currentValue === desiredValue) {
     return 'unchanged';
   }
-  return publishBotCommandManifest(api, desiredValue);
+  return publishBotCommandManifest(api, desiredValue, sleep);
 }
 
 // Boot and reconnect both land here: read the self-contact, compare, poke on
@@ -99,13 +132,15 @@ export async function maybePublishBotCommandManifest(
 export async function syncBotCommandManifest(
   api: BotCommandManifestPokeApi & BotCommandManifestScryApi,
   desiredValue: string,
-  selfContact?: SelfContactRead
+  selfContact?: SelfContactRead,
+  sleep: Sleeper = defaultSleep
 ): Promise<BotCommandManifestPublishResult | 'skipped'> {
   try {
     return await maybePublishBotCommandManifest(
       api,
       selfContact ?? (await readSelfContact(api)),
-      desiredValue
+      desiredValue,
+      sleep
     );
   } catch {
     return 'skipped';

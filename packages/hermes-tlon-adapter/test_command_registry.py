@@ -7,7 +7,7 @@ import types
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 
 PACKAGE_DIR = Path(__file__).parent
@@ -171,6 +171,9 @@ class FakeSSE:
         self.scries = []
         self.pokes = []
         self.fail_pokes = False
+        # Transient-failure simulation for the publish retry.
+        self.fail_first_pokes = 0
+        self.poke_attempts = 0
 
     async def scry(self, path):
         self.scries.append(path)
@@ -179,7 +182,8 @@ class FakeSSE:
         raise ConnectionError(f"no payload for {path}")
 
     async def poke(self, app, mark, json_payload):
-        if self.fail_pokes:
+        self.poke_attempts += 1
+        if self.fail_pokes or self.poke_attempts <= self.fail_first_pokes:
             raise ConnectionError("poke rejected")
         self.pokes.append((app, mark, json_payload))
         return 1
@@ -531,7 +535,64 @@ class PublishTests(unittest.TestCase):
     def test_publish_failure_is_non_fatal(self):
         adapter = self.make_adapter()
         adapter._sse.fail_pokes = True
-        asyncio.run(adapter._publish_bot_command_manifest({}))
+        with patch("asyncio.sleep", new_callable=AsyncMock) as sleeps:
+            # The terminal failure must surface as the caller-visible warning:
+            # swallowing it (or returning instead of raising internally) would
+            # hide a permanently unadvertised bot.
+            with self.assertLogs(adapter_mod.logger, level="WARNING") as logged:
+                asyncio.run(adapter._publish_bot_command_manifest({}))
+        # Every attempt was spent before giving up, and nothing was published.
+        self.assertEqual(
+            adapter._sse.poke_attempts, adapter_mod.BOT_COMMANDS_PUBLISH_ATTEMPTS
+        )
+        self.assertEqual(adapter._sse.pokes_for("contact-action-1"), [])
+        self.assertTrue(
+            any("could not publish" in line for line in logged.output),
+            logged.output,
+        )
+        # Sleeps were *awaited* (await_args_list catches a dropped await, which
+        # call_args_list would not), only between attempts — never after the
+        # final failure.
+        self.assertEqual(
+            [c.args[0] for c in sleeps.await_args_list],
+            list(adapter_mod.BOT_COMMANDS_PUBLISH_BACKOFF_SECONDS),
+        )
+
+    def test_publish_retries_a_transient_poke_failure(self):
+        adapter = self.make_adapter()
+        adapter._sse.fail_first_pokes = 2
+        with patch("asyncio.sleep", new_callable=AsyncMock) as sleeps:
+            asyncio.run(adapter._publish_bot_command_manifest({}))
+        # Published on the third attempt, with backoff only between attempts.
+        self.assertEqual(len(adapter._sse.pokes_for("contact-action-1")), 1)
+        self.assertEqual(
+            adapter._sse.poke_attempts, adapter_mod.BOT_COMMANDS_PUBLISH_ATTEMPTS
+        )
+        self.assertEqual(
+            [c.args[0] for c in sleeps.await_args_list],
+            list(adapter_mod.BOT_COMMANDS_PUBLISH_BACKOFF_SECONDS),
+        )
+
+    def test_publish_does_not_retry_when_the_read_failed(self):
+        adapter = self.make_adapter()
+        adapter._sse.fail_pokes = True
+        with patch("asyncio.sleep", new_callable=AsyncMock) as sleeps:
+            asyncio.run(adapter._publish_bot_command_manifest(None))
+        self.assertEqual(adapter._sse.poke_attempts, 0)
+        self.assertEqual(sleeps.call_count, 0)
+
+    def test_publish_does_not_retry_an_unchanged_value(self):
+        adapter = self.make_adapter()
+        self_contact = {
+            "bot-commands": {
+                "type": "text",
+                "value": commands.build_command_manifest_json(),
+            }
+        }
+        with patch("asyncio.sleep", new_callable=AsyncMock) as sleeps:
+            asyncio.run(adapter._publish_bot_command_manifest(self_contact))
+        self.assertEqual(adapter._sse.poke_attempts, 0)
+        self.assertEqual(sleeps.call_count, 0)
 
     def test_publish_skipped_when_self_contact_unread(self):
         # A failed read is not evidence the key is absent, so poking blind

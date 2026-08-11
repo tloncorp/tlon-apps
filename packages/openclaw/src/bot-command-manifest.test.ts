@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  BOT_COMMANDS_PUBLISH_ATTEMPTS,
+  BOT_COMMANDS_PUBLISH_BACKOFF_MS,
   type BotCommandManifestPokeApi,
   SELF_CONTACT_SCRY_PATH,
   type SelfContactRead,
@@ -143,6 +145,129 @@ describe('maybePublishBotCommandManifest', () => {
   });
 });
 
+// A transient poke failure must not leave a healthy long-lived bot
+// unadvertised until an unrelated reconnect or a restart.
+describe('publish retry', () => {
+  // Injected so the backoff never actually delays the suite.
+  const recordingSleeper = () => {
+    const slept: number[] = [];
+    return {
+      slept,
+      sleep: async (ms: number) => {
+        slept.push(ms);
+      },
+    };
+  };
+
+  const flakyPoke = (failures: number) => {
+    let calls = 0;
+    return vi.fn(async () => {
+      calls += 1;
+      if (calls <= failures) {
+        throw new Error(`poke nacked ${calls}`);
+      }
+    });
+  };
+
+  it('retries a failing poke and succeeds on the third attempt', async () => {
+    const poke = flakyPoke(2);
+    const { slept, sleep } = recordingSleeper();
+
+    await expect(
+      maybePublishBotCommandManifest({ poke }, read({}), manifestValue, sleep)
+    ).resolves.toBe('published');
+    expect(poke).toHaveBeenCalledTimes(BOT_COMMANDS_PUBLISH_ATTEMPTS);
+    expect(slept).toEqual([...BOT_COMMANDS_PUBLISH_BACKOFF_MS]);
+  });
+
+  it('awaits each backoff before the next attempt', async () => {
+    // A recording sleeper cannot tell an awaited sleep from a dropped one: if
+    // the publisher forgot `await`, retries would fire immediately and the
+    // 2s/8s timers would escape the publish call. Deferred sleepers pin the
+    // ordering — the next poke must not happen until the delay is released.
+    const poke = flakyPoke(2);
+    const releases: Array<() => void> = [];
+    const sleep = vi.fn(
+      (_ms: number) =>
+        new Promise<void>((resolve) => {
+          releases.push(resolve);
+        })
+    );
+    const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+    const result = maybePublishBotCommandManifest(
+      { poke },
+      read({}),
+      manifestValue,
+      sleep
+    );
+
+    await flush();
+    expect(poke).toHaveBeenCalledTimes(1);
+    expect(releases).toHaveLength(1);
+
+    releases[0]();
+    await flush();
+    expect(poke).toHaveBeenCalledTimes(2);
+    expect(releases).toHaveLength(2);
+
+    releases[1]();
+    await expect(result).resolves.toBe('published');
+    expect(poke).toHaveBeenCalledTimes(3);
+    // No sleep is requested after the attempt that succeeds.
+    expect(sleep).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives up after the attempt cap, non-fatally', async () => {
+    const poke = flakyPoke(Number.POSITIVE_INFINITY);
+    const { slept, sleep } = recordingSleeper();
+
+    await expect(
+      syncBotCommandManifest(
+        { poke, scry: vi.fn(async () => ({})) },
+        manifestValue,
+        undefined,
+        sleep
+      )
+    ).resolves.toBe('skipped');
+    expect(poke).toHaveBeenCalledTimes(BOT_COMMANDS_PUBLISH_ATTEMPTS);
+    // Backoff only *between* attempts, never after the last one.
+    expect(slept).toHaveLength(BOT_COMMANDS_PUBLISH_ATTEMPTS - 1);
+  });
+
+  it('does not retry when the read failed', async () => {
+    const poke = flakyPoke(Number.POSITIVE_INFINITY);
+    const { slept, sleep } = recordingSleeper();
+
+    await expect(
+      maybePublishBotCommandManifest(
+        { poke },
+        { ok: false, error: new Error('scry failed') },
+        manifestValue,
+        sleep
+      )
+    ).resolves.toBe('skipped');
+    expect(poke).not.toHaveBeenCalled();
+    expect(slept).toEqual([]);
+  });
+
+  it('does not retry when the compare says unchanged', async () => {
+    const poke = flakyPoke(Number.POSITIVE_INFINITY);
+    const { slept, sleep } = recordingSleeper();
+
+    await expect(
+      maybePublishBotCommandManifest(
+        { poke },
+        read(selfContactWith({ type: 'text', value: manifestValue })),
+        manifestValue,
+        sleep
+      )
+    ).resolves.toBe('unchanged');
+    expect(poke).not.toHaveBeenCalled();
+    expect(slept).toEqual([]);
+  });
+});
+
 // B-3: a failed self-contact read is not evidence that the key is absent.
 describe('failed self-contact reads', () => {
   it('skips the poke when the read failed', async () => {
@@ -245,9 +370,10 @@ describe('syncBotCommandManifest', () => {
     });
     const api = { poke, scry: vi.fn(async () => ({})) };
 
-    await expect(syncBotCommandManifest(api, manifestValue)).resolves.toBe(
-      'skipped'
-    );
+    // Sleeper injected so the publish retry's backoff does not delay the suite.
+    await expect(
+      syncBotCommandManifest(api, manifestValue, undefined, async () => {})
+    ).resolves.toBe('skipped');
   });
 });
 
