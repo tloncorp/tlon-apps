@@ -100,6 +100,10 @@ function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+function retryDelay(attempt: number) {
+  return Math.min(POLL_DELAY_MS * 2 ** Math.min(attempt, 2), 1_000);
+}
+
 function normalizeHost(host: string) {
   const normalized = host.toLowerCase();
   return normalized.startsWith('~') ? normalized : `~${normalized}`;
@@ -265,14 +269,6 @@ function grantRead(capability: string, host: string, objectId: string) {
   );
 }
 
-function deleteObject(capability: string, host: string, objectId: string) {
-  return brokerRequest<unknown>(`/objects/${encodeURIComponent(objectId)}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${capability}` },
-    body: JSON.stringify({ host: hostName(host) }),
-  });
-}
-
 async function waitForCapability<T>(operation: () => Promise<T>): Promise<T> {
   let lastError: unknown;
   for (let attempt = 0; attempt < CAPABILITY_ATTEMPTS; attempt += 1) {
@@ -280,17 +276,46 @@ async function waitForCapability<T>(operation: () => Promise<T>): Promise<T> {
       return await operation();
     } catch (error) {
       lastError = error;
-      if (
-        !(error instanceof BucketsBrokerError) ||
-        error.status !== 403 ||
-        error.code !== 'capability_denied'
-      ) {
+      const retryable =
+        error instanceof BucketsBrokerError &&
+        (error.retryable ||
+          (error.status === 403 && error.code === 'capability_denied'));
+      if (!retryable) {
         throw error;
       }
-      await delay(POLL_DELAY_MS);
+      if (attempt + 1 < CAPABILITY_ATTEMPTS) {
+        await delay(retryDelay(attempt));
+      }
     }
   }
   throw lastError;
+}
+
+async function waitForBucketUpdate<T>(
+  target: BucketTarget,
+  priorRevision: number,
+  operation: string,
+  select: (snapshot: BucketsSnapshot) => T | undefined
+): Promise<T> {
+  for (let attempt = 0; attempt < STATE_ATTEMPTS; attempt += 1) {
+    const snapshot = await getSnapshot(target);
+    if (snapshot.state.revision > priorRevision) {
+      const selected = select(snapshot);
+      if (selected !== undefined) return selected;
+    }
+    await delay(POLL_DELAY_MS);
+  }
+  throw commandError(`The Bucket host did not confirm ${operation} in time`);
+}
+
+function sameStrings(left: string[], right: string[]) {
+  const normalize = (values: string[]) => [...new Set(values)].sort();
+  const normalizedLeft = normalize(left);
+  const normalizedRight = normalize(right);
+  return (
+    normalizedLeft.length === normalizedRight.length &&
+    normalizedLeft.every((value, index) => value === normalizedRight[index])
+  );
 }
 
 async function waitForUploadSession(
@@ -370,7 +395,11 @@ function isTextMime(mime: string) {
 }
 
 async function privateReadUrl(target: BucketTarget, entry: BucketsFileEntry) {
-  if (entry.file.objectUrl) return entry.file.objectUrl;
+  if (entry.file.objectUrl) {
+    throw commandError(
+      `File ${entry.id} uses a legacy external object URL. Bot reads require broker-managed Bucket storage.`
+    );
+  }
   const capability = createCapability();
   await sendBucketsAction({
     type: 'issue-read',
@@ -382,23 +411,6 @@ async function privateReadUrl(target: BucketTarget, entry: BucketsFileEntry) {
     grantRead(capability, target.flag.host, entry.file.objectKey)
   );
   return grant.readUrl;
-}
-
-async function deletePrivateFile(
-  target: BucketTarget,
-  entry: BucketsFileEntry
-) {
-  if (entry.file.objectUrl || entry.file.status !== 'ready') return;
-  const capability = createCapability();
-  await sendBucketsAction({
-    type: 'issue-delete',
-    capability,
-    flag: target.flag,
-    id: entry.id,
-  });
-  await waitForCapability(() =>
-    deleteObject(capability, target.flag.host, entry.file.objectKey)
-  );
 }
 
 function createBucketsOperations(): BucketsOperations {
@@ -472,13 +484,33 @@ function createBucketsOperations(): BucketsOperations {
 
     async createFolder({ target, parentId, name }) {
       const folderName = validateDisplayName(name, 'Folder name');
+      const current = await getSnapshot(target);
+      const priorIds = new Set(current.state.entries.map((entry) => entry.id));
       await sendBucketsAction({
         type: 'create-folder',
         flag: target.flag,
         name: folderName,
         parentId,
       });
-      return { created: folderName, nest: target.nest, parentId };
+      const created = await waitForBucketUpdate(
+        target,
+        current.state.revision,
+        `folder creation for ${folderName}`,
+        (snapshot) =>
+          snapshot.state.entries.find(
+            (entry) =>
+              entry.kind === 'folder' &&
+              !priorIds.has(entry.id) &&
+              entry.name === folderName &&
+              entry.parentId === parentId
+          )
+      );
+      return {
+        created: created.name,
+        id: created.id,
+        nest: target.nest,
+        parentId: created.parentId,
+      };
     },
 
     async upload({ target, filePath, parentId, name, mime }) {
@@ -608,54 +640,61 @@ function createBucketsOperations(): BucketsOperations {
 
     async rename(target, id, name) {
       const displayName = validateDisplayName(name, 'Entry name');
+      const current = await getSnapshot(target);
+      const entry = requireEntry(current, id);
+      if (entry.name === displayName) {
+        return { id, name: displayName, nest: target.nest };
+      }
       await sendBucketsAction({
         type: 'rename-entry',
         flag: target.flag,
         id,
         name: displayName,
       });
+      await waitForBucketUpdate(
+        target,
+        current.state.revision,
+        `rename of entry ${id}`,
+        (snapshot) =>
+          snapshot.state.entries.find(
+            (candidate) => candidate.id === id && candidate.name === displayName
+          )
+      );
       return { id, name: displayName, nest: target.nest };
     },
 
     async move(target, id, parentId) {
+      const current = await getSnapshot(target);
+      const entry = requireEntry(current, id);
+      if (entry.parentId === parentId) {
+        return { id, nest: target.nest, parentId };
+      }
       await sendBucketsAction({
         type: 'move-entry',
         flag: target.flag,
         id,
         parentId,
       });
+      await waitForBucketUpdate(
+        target,
+        current.state.revision,
+        `move of entry ${id}`,
+        (snapshot) =>
+          snapshot.state.entries.find(
+            (candidate) =>
+              candidate.id === id && candidate.parentId === parentId
+          )
+      );
       return { id, nest: target.nest, parentId };
     },
 
     async delete(target, id, recursive) {
       const snapshot = await getSnapshot(target);
       const root = requireEntry(snapshot, id);
-      const ids = new Set([id]);
-      if (root.kind === 'folder' && recursive) {
-        let changed = true;
-        while (changed) {
-          changed = false;
-          for (const entry of snapshot.state.entries) {
-            if (
-              entry.parentId !== null &&
-              ids.has(entry.parentId) &&
-              !ids.has(entry.id)
-            ) {
-              ids.add(entry.id);
-              changed = true;
-            }
-          }
-        }
-      }
-      const privateFiles = snapshot.state.entries.filter(
-        (entry): entry is BucketsFileEntry =>
-          ids.has(entry.id) &&
-          entry.kind === 'file' &&
-          entry.file.status === 'ready' &&
-          !entry.file.objectUrl
-      );
-      for (const entry of privateFiles) {
-        await deletePrivateFile(target, entry);
+      if (root.kind === 'file' || recursive) {
+        throw commandError(
+          'Bot deletion of Bucket files and recursive folders is temporarily disabled until object storage and metadata can be deleted atomically.'
+        );
       }
       await sendBucketsAction({
         type: 'delete-entry',
@@ -663,15 +702,35 @@ function createBucketsOperations(): BucketsOperations {
         id,
         recursive,
       });
+      await waitForBucketUpdate(
+        target,
+        snapshot.state.revision,
+        `deletion of folder ${id}`,
+        (updated) =>
+          updated.state.entries.some((entry) => entry.id === id)
+            ? undefined
+            : true
+      );
       return { deleted: id, nest: target.nest, recursive };
     },
 
     async setWriters(target, writers) {
+      const current = await getSnapshot(target);
+      if (sameStrings(current.state.writers, writers)) {
+        return { nest: target.nest, writers };
+      }
       await sendBucketsAction({
         type: 'set-writers',
         flag: target.flag,
         writers,
       });
+      await waitForBucketUpdate(
+        target,
+        current.state.revision,
+        'writer update',
+        (snapshot) =>
+          sameStrings(snapshot.state.writers, writers) ? true : undefined
+      );
       return { nest: target.nest, writers };
     },
   };

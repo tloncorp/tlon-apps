@@ -64,6 +64,50 @@ describe('buckets command', () => {
     expect(context.calls.authenticate).toBe(0);
   });
 
+  it('rejects unknown options before authenticating', async () => {
+    const context = makeDeps();
+    expect(
+      await run(
+        ['mkdir', 'buckets/~zod/project-files', 'Drafts', '--parnet', '7'],
+        context.deps
+      )
+    ).toBe(1);
+    expect(context.stderr()).toContain('Unexpected argument: --parnet');
+    expect(context.calls.authenticate).toBe(0);
+  });
+
+  it('rejects extra positional arguments before authenticating', async () => {
+    const context = makeDeps();
+    expect(
+      await run(
+        ['upload', 'buckets/~zod/project-files', './plan.md', 'extra'],
+        context.deps
+      )
+    ).toBe(1);
+    expect(context.stderr()).toContain('Unexpected argument: extra');
+    expect(context.calls.authenticate).toBe(0);
+  });
+
+  it('rejects duplicate option aliases before authenticating', async () => {
+    const context = makeDeps();
+    expect(
+      await run(
+        [
+          'upload',
+          'buckets/~zod/project-files',
+          './plan.md',
+          '-t',
+          'text/plain',
+          '--type',
+          'text/markdown',
+        ],
+        context.deps
+      )
+    ).toBe(1);
+    expect(context.stderr()).toContain('-t may be given only once');
+    expect(context.calls.authenticate).toBe(0);
+  });
+
   it('normalizes the bot-visible Bucket target and root parent', async () => {
     const context = makeDeps();
     expect(

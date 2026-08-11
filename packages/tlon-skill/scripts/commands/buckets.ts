@@ -33,7 +33,10 @@ Examples:
   tlon buckets list
   tlon buckets files buckets/~host/project-files --parent root
   tlon buckets upload buckets/~host/project-files ./plan.md -t text/markdown
-  tlon buckets read buckets/~host/project-files 12`;
+  tlon buckets read buckets/~host/project-files 12
+
+During the preview, delete supports empty folders only. File and recursive
+deletion remain disabled until object storage and metadata deletion are atomic.`;
 
 const HELP_BY_COMMAND: Record<string, string> = {
   list: 'Usage: tlon buckets list',
@@ -182,23 +185,47 @@ function parseParent(value: string | undefined, usage: string) {
   return parseId(value, 'parent id', usage);
 }
 
-function optionValue(
+type OptionSpec = {
+  key: string;
+  names: string[];
+  takesValue: boolean;
+};
+
+function parseOptions(
   args: string[],
-  flags: string[],
+  start: number,
+  specs: OptionSpec[],
   usage: string
-): string | undefined {
-  const indexes = args
-    .map((arg, index) => (flags.includes(arg) ? index : -1))
-    .filter((index) => index >= 0);
-  if (indexes.length > 1) {
-    throw usageError(`${flags[0]} may be given only once`, usage);
+) {
+  const parsed = new Map<string, string | true>();
+  for (let index = start; index < args.length; index += 1) {
+    const arg = args[index];
+    const spec = specs.find((candidate) => candidate.names.includes(arg));
+    if (!spec) throw usageError(`Unexpected argument: ${arg}`, usage);
+    if (parsed.has(spec.key)) {
+      throw usageError(`${spec.names[0]} may be given only once`, usage);
+    }
+    if (!spec.takesValue) {
+      parsed.set(spec.key, true);
+      continue;
+    }
+    const value = args[index + 1];
+    if (!value || value.startsWith('-')) {
+      throw usageError(`${arg} requires a value`, usage);
+    }
+    parsed.set(spec.key, value);
+    index += 1;
   }
-  if (indexes.length === 0) return undefined;
-  const value = args[indexes[0] + 1];
-  if (!value || value.startsWith('--')) {
-    throw usageError(`${args[indexes[0]]} requires a value`, usage);
+  return parsed;
+}
+
+function requireArgCount(args: string[], count: number, usage: string) {
+  if (args.length !== count) {
+    const unexpected = args[count];
+    throw unexpected
+      ? usageError(`Unexpected argument: ${unexpected}`, usage)
+      : usageError(usage);
   }
-  return value;
 }
 
 function hasHelp(args: string[]) {
@@ -216,17 +243,26 @@ function parseArgs(args: string[]): ParsedArgs {
 
   switch (command) {
     case 'list':
+      requireArgCount(args, 1, help);
       return { kind: 'list' };
     case 'show':
-      if (!args[1]) throw usageError(help);
+      requireArgCount(args, 2, help);
       return { kind: 'show', target: parseBucketNest(args[1], help) };
     case 'files': {
       if (!args[1]) throw usageError(help);
-      const parent = optionValue(args, ['--parent'], help);
+      const options = parseOptions(
+        args,
+        2,
+        [{ key: 'parent', names: ['--parent'], takesValue: true }],
+        help
+      );
       return {
         kind: 'files',
         target: parseBucketNest(args[1], help),
-        parentId: parseParent(parent, help),
+        parentId: parseParent(
+          options.get('parent') as string | undefined,
+          help
+        ),
       };
     }
     case 'search': {
@@ -239,11 +275,19 @@ function parseArgs(args: string[]): ParsedArgs {
     }
     case 'create': {
       if (!args[1] || !args[2]) throw usageError(help);
-      const name = optionValue(args, ['--name'], help);
-      const optionIndex = args.indexOf('--name');
+      const optionIndex = args.findIndex(
+        (arg, index) => index >= 2 && arg.startsWith('-')
+      );
       const titleEnd = optionIndex === -1 ? args.length : optionIndex;
       const title = args.slice(2, titleEnd).join(' ').trim();
       if (!title) throw usageError(help);
+      const options = parseOptions(
+        args,
+        titleEnd,
+        [{ key: 'name', names: ['--name'], takesValue: true }],
+        help
+      );
+      const name = options.get('name') as string | undefined;
       return {
         kind: 'create',
         group: parseGroup(args[1], help),
@@ -253,19 +297,37 @@ function parseArgs(args: string[]): ParsedArgs {
     }
     case 'mkdir': {
       if (!args[1] || !args[2]) throw usageError(help);
-      const parent = optionValue(args, ['--parent'], help);
+      const options = parseOptions(
+        args,
+        3,
+        [{ key: 'parent', names: ['--parent'], takesValue: true }],
+        help
+      );
       return {
         kind: 'mkdir',
         target: parseBucketNest(args[1], help),
         name: args[2],
-        parentId: parseParent(parent, help),
+        parentId: parseParent(
+          options.get('parent') as string | undefined,
+          help
+        ),
       };
     }
     case 'upload': {
       if (!args[1] || !args[2]) throw usageError(help);
-      const parent = optionValue(args, ['--parent'], help);
-      const name = optionValue(args, ['--name'], help);
-      const mime = optionValue(args, ['-t', '--type'], help);
+      const options = parseOptions(
+        args,
+        3,
+        [
+          { key: 'parent', names: ['--parent'], takesValue: true },
+          { key: 'name', names: ['--name'], takesValue: true },
+          { key: 'mime', names: ['-t', '--type'], takesValue: true },
+        ],
+        help
+      );
+      const parent = options.get('parent') as string | undefined;
+      const name = options.get('name') as string | undefined;
+      const mime = options.get('mime') as string | undefined;
       return {
         kind: 'upload',
         target: parseBucketNest(args[1], help),
@@ -276,14 +338,14 @@ function parseArgs(args: string[]): ParsedArgs {
       };
     }
     case 'read':
-      if (!args[1]) throw usageError(help);
+      requireArgCount(args, 3, help);
       return {
         kind: 'read',
         target: parseBucketNest(args[1], help),
         id: parseId(args[2], 'file id', help),
       };
     case 'rename':
-      if (!args[1] || !args[3]) throw usageError(help);
+      requireArgCount(args, 4, help);
       return {
         kind: 'rename',
         target: parseBucketNest(args[1], help),
@@ -291,23 +353,35 @@ function parseArgs(args: string[]): ParsedArgs {
         name: args[3],
       };
     case 'move':
-      if (!args[1] || !args[3]) throw usageError(help);
+      requireArgCount(args, 4, help);
       return {
         kind: 'move',
         target: parseBucketNest(args[1], help),
         id: parseId(args[2], 'entry id', help),
         parentId: parseParent(args[3], help),
       };
-    case 'delete':
-      if (!args[1]) throw usageError(help);
+    case 'delete': {
+      if (!args[1] || !args[2]) throw usageError(help);
+      const options = parseOptions(
+        args,
+        3,
+        [{ key: 'recursive', names: ['--recursive'], takesValue: false }],
+        help
+      );
       return {
         kind: 'delete',
         target: parseBucketNest(args[1], help),
         id: parseId(args[2], 'entry id', help),
-        recursive: args.includes('--recursive'),
+        recursive: options.has('recursive'),
       };
+    }
     case 'set-writers':
       if (!args[1]) throw usageError(help);
+      for (const writer of args.slice(2)) {
+        if (writer.startsWith('-')) {
+          throw usageError(`Unexpected argument: ${writer}`, help);
+        }
+      }
       return {
         kind: 'set-writers',
         target: parseBucketNest(args[1], help),
