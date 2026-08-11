@@ -19,7 +19,7 @@ import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { KeyboardAvoidingView, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import {
@@ -829,111 +829,114 @@ export function Channel({
                           }}
                         />
                       )}
-                      <XStack
-                        alignItems="stretch"
-                        flex={1}
-                        paddingTop={floatingHeaderHeight || undefined}
-                        position="relative"
-                      >
-                        <YStack alignItems="stretch" flex={1} minWidth={0}>
-                          {includeJoinRequestNotice && (
-                            <SystemNotices.ConnectedJoinRequestNotice
-                              group={group}
-                              onViewRequests={goToGroupSettings}
-                            />
-                          )}
-                          <AnimatePresence>
-                            {draftInputPresentationMode !== 'fullscreen' && (
-                              <View flex={1}>
-                                <PostCollectionContext.Provider
-                                  value={{
-                                    contentInsets: postCollectionInsets,
-                                    channel,
-                                    collectionConfiguration:
-                                      channel.contentConfiguration == null
-                                        ? undefined
-                                        : ChannelContentConfiguration.defaultPostCollectionRenderer(
-                                            channel.contentConfiguration
-                                          ).configuration,
-                                    editingPost,
-                                    goToMediaViewer,
-                                    goToPost,
-                                    inspectContextLensPost:
-                                      contextLensAvailable && contextLensOpen
-                                        ? inspectContextLensPost
-                                        : undefined,
-                                    openContextLensForPost:
-                                      contextLensAvailable && !isNarrow
-                                        ? openContextLensForPost
-                                        : undefined,
-                                    contextLensSelectedPostId:
-                                      contextLensAvailable &&
-                                      contextLensOpen &&
-                                      !isNarrow
-                                        ? selectedContextLensMessage?.id ?? null
-                                        : null,
-                                    goToBotRun:
-                                      contextLensAvailable && isNarrow
-                                        ? goToContextLensRun
-                                        : undefined,
-                                    hasNewerPosts,
-                                    hasOlderPosts,
-                                    initialChannelUnread,
-                                    isLoadingPosts: shouldShowPostLoading,
-                                    loadPostsError,
-                                    onPressDelete,
-                                    onPressRetrySend,
-                                    onPressRetryLoad,
-                                    onLoadNewerPosts,
-                                    onLoadOlderPosts,
-                                    posts: posts ?? undefined,
-                                    scrollToBottom: onPressScrollToBottom,
-                                    selectedPostId,
-                                    setEditingPost,
-                                    LegacyPostView: PostView,
-                                    PostView: ConnectedPostView,
-                                  }}
-                                >
-                                  <PostCollectionView
-                                    collectionRef={collectionRef}
-                                    channel={channel}
-                                  />
-                                </PostCollectionContext.Provider>
-                              </View>
+                      <KeyboardAvoidingView enabled={Platform.OS === 'ios'}>
+                        <XStack
+                          alignItems="stretch"
+                          flex={1}
+                          paddingTop={floatingHeaderHeight || undefined}
+                          position="relative"
+                        >
+                          <YStack alignItems="stretch" flex={1} minWidth={0}>
+                            {includeJoinRequestNotice && (
+                              <SystemNotices.ConnectedJoinRequestNotice
+                                group={group}
+                                onViewRequests={goToGroupSettings}
+                              />
                             )}
-                          </AnimatePresence>
+                            <AnimatePresence>
+                              {draftInputPresentationMode !== 'fullscreen' && (
+                                <View flex={1}>
+                                  <PostCollectionContext.Provider
+                                    value={{
+                                      contentInsets: postCollectionInsets,
+                                      channel,
+                                      collectionConfiguration:
+                                        channel.contentConfiguration == null
+                                          ? undefined
+                                          : ChannelContentConfiguration.defaultPostCollectionRenderer(
+                                              channel.contentConfiguration
+                                            ).configuration,
+                                      editingPost,
+                                      goToMediaViewer,
+                                      goToPost,
+                                      inspectContextLensPost:
+                                        contextLensAvailable && contextLensOpen
+                                          ? inspectContextLensPost
+                                          : undefined,
+                                      openContextLensForPost:
+                                        contextLensAvailable && !isNarrow
+                                          ? openContextLensForPost
+                                          : undefined,
+                                      contextLensSelectedPostId:
+                                        contextLensAvailable &&
+                                        contextLensOpen &&
+                                        !isNarrow
+                                          ? selectedContextLensMessage?.id ??
+                                            null
+                                          : null,
+                                      goToBotRun:
+                                        contextLensAvailable && isNarrow
+                                          ? goToContextLensRun
+                                          : undefined,
+                                      hasNewerPosts,
+                                      hasOlderPosts,
+                                      initialChannelUnread,
+                                      isLoadingPosts: shouldShowPostLoading,
+                                      loadPostsError,
+                                      onPressDelete,
+                                      onPressRetrySend,
+                                      onPressRetryLoad,
+                                      onLoadNewerPosts,
+                                      onLoadOlderPosts,
+                                      posts: posts ?? undefined,
+                                      scrollToBottom: onPressScrollToBottom,
+                                      selectedPostId,
+                                      setEditingPost,
+                                      LegacyPostView: PostView,
+                                      PostView: ConnectedPostView,
+                                    }}
+                                  >
+                                    <PostCollectionView
+                                      collectionRef={collectionRef}
+                                      channel={channel}
+                                    />
+                                  </PostCollectionContext.Provider>
+                                </View>
+                              )}
+                            </AnimatePresence>
 
-                          {readOnlyNoticeType ? (
-                            <ReadOnlyNotice type={readOnlyNoticeType} />
-                          ) : draftInputType ? (
-                            <DraftInputView
-                              draftInputContext={draftInputContext}
-                              type={draftInputType}
-                              onFloatingHeightChange={onFloatingHeightChange}
-                            />
-                          ) : null}
+                            {readOnlyNoticeType ? (
+                              <ReadOnlyNotice type={readOnlyNoticeType} />
+                            ) : draftInputType ? (
+                              <DraftInputView
+                                draftInputContext={draftInputContext}
+                                type={draftInputType}
+                                onFloatingHeightChange={onFloatingHeightChange}
+                              />
+                            ) : null}
 
-                          {channel.isDmInvite && (
-                            <DmInviteOptions
-                              channel={channel}
-                              goBack={goBack}
-                            />
-                          )}
-                        </YStack>
-                        {contextLensAvailable &&
-                          contextLensOpen &&
-                          !isNarrow && (
-                            <ContextLensPanel
-                              events={contextLensStream.events}
-                              streamStatus={contextLensStream.status}
-                              selectedMessage={selectedContextLensMessage}
-                              onClearSelectedMessage={
-                                clearSelectedContextLensMessage
-                              }
-                              channelId={channel.id}
-                            />
-                          )}
-                      </XStack>
+                            {channel.isDmInvite && (
+                              <DmInviteOptions
+                                channel={channel}
+                                goBack={goBack}
+                              />
+                            )}
+                          </YStack>
+                          {contextLensAvailable &&
+                            contextLensOpen &&
+                            !isNarrow && (
+                              <ContextLensPanel
+                                events={contextLensStream.events}
+                                streamStatus={contextLensStream.status}
+                                selectedMessage={selectedContextLensMessage}
+                                onClearSelectedMessage={
+                                  clearSelectedContextLensMessage
+                                }
+                                channelId={channel.id}
+                              />
+                            )}
+                        </XStack>
+                      </KeyboardAvoidingView>
                       <GroupPreviewSheet
                         group={groupPreview ?? undefined}
                         open={!!groupPreview}

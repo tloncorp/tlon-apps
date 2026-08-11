@@ -1,6 +1,5 @@
 import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
 
@@ -36,30 +35,28 @@ export function ChatInput({
     <SafeAreaView
       edges={isWeb ? ['right', 'left', 'bottom'] : ['right', 'left']}
     >
-      <ParentAgnosticKeyboardAvoidingView>
-        <BareChatInput
-          ref={draftInputRef}
-          shouldBlur={shouldBlur}
-          setShouldBlur={setShouldBlur}
-          sendPostFromDraft={sendPostFromDraft}
-          groupId={channel.groupId}
-          channelId={channel.id}
-          groupMembers={group?.members ?? []}
-          groupRoles={group?.roles ?? []}
-          storeDraft={storeDraft}
-          clearDraft={clearDraft}
-          getDraft={getDraft}
-          editingPost={editingPost}
-          setEditingPost={setEditingPost}
-          channelType={channel.type}
-          shouldAutoFocus={!!editingPost || (isWeb && !isWindowNarrow)}
-          showInlineAttachments
-          showAttachmentButton
-          showWayfindingTooltip={showWayfindingTooltip}
-          showBotMentionTooltip={showBotMentionTooltip}
-          slashCommandManifest={slashCommandManifest}
-        />
-      </ParentAgnosticKeyboardAvoidingView>
+      <BareChatInput
+        ref={draftInputRef}
+        shouldBlur={shouldBlur}
+        setShouldBlur={setShouldBlur}
+        sendPostFromDraft={sendPostFromDraft}
+        groupId={channel.groupId}
+        channelId={channel.id}
+        groupMembers={group?.members ?? []}
+        groupRoles={group?.roles ?? []}
+        storeDraft={storeDraft}
+        clearDraft={clearDraft}
+        getDraft={getDraft}
+        editingPost={editingPost}
+        setEditingPost={setEditingPost}
+        channelType={channel.type}
+        shouldAutoFocus={!!editingPost || (isWeb && !isWindowNarrow)}
+        showInlineAttachments
+        showAttachmentButton
+        showWayfindingTooltip={showWayfindingTooltip}
+        showBotMentionTooltip={showBotMentionTooltip}
+        slashCommandManifest={slashCommandManifest}
+      />
     </SafeAreaView>
   );
 }
