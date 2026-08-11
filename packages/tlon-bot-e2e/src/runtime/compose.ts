@@ -69,8 +69,10 @@ export function createComposeHandle(
       await runCompose(['build', ...services]);
     },
 
-    async up(services = []) {
-      await runCompose(['up', '-d', ...services]);
+    async up(services = [], opts = {}) {
+      await runCompose(['up', '-d', ...services], {
+        timeoutMs: opts.timeoutMs,
+      });
     },
 
     async ps(opts = {}): Promise<ComposeServiceState[]> {
@@ -217,6 +219,15 @@ export function runCommand(
     cwd: string;
     stream?: boolean;
     timeoutMs?: number;
+    /**
+     * Kill the whole process tree on timeout, not just the spawned child.
+     * Opt-in: the child becomes its own process-group leader, which also
+     * detaches it from terminal signals (Ctrl-C on a local run would no
+     * longer reach it), so only callers whose command spawns descendants
+     * that inherit the stdio pipes should set this — a SIGKILLed parent
+     * with live grandchildren otherwise leaves 'close' pending forever.
+     */
+    killTree?: boolean;
   }
 ): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
@@ -224,7 +235,19 @@ export function runCommand(
       cwd: opts.cwd,
       env: opts.env,
       stdio: ['ignore', 'pipe', 'pipe'],
+      detached: opts.killTree === true,
     });
+    const killChild = (signal: NodeJS.Signals) => {
+      try {
+        if (opts.killTree === true && typeof child.pid === 'number') {
+          process.kill(-child.pid, signal);
+        } else {
+          child.kill(signal);
+        }
+      } catch {
+        // Already gone (ESRCH) — nothing left to kill.
+      }
+    };
     let stdout = '';
     let stderr = '';
     let settled = false;
@@ -261,9 +284,14 @@ export function runCommand(
         stderr +=
           `\n${command} ${args.join(' ')} timed out after ` +
           `${opts.timeoutMs}ms.`;
-        child.kill('SIGTERM');
+        killChild('SIGTERM');
         killTimeout = setTimeout(() => {
-          child.kill('SIGKILL');
+          killChild('SIGKILL');
+          // Settlement rides on 'close', which needs the stdio pipes to end.
+          // Destroy them so a surviving descendant holding the FDs cannot
+          // keep the promise pending past the bound.
+          child.stdout.destroy();
+          child.stderr.destroy();
         }, 1_000);
       }, opts.timeoutMs);
     }

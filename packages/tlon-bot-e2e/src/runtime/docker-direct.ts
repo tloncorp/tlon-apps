@@ -144,6 +144,22 @@ export async function execInContainer(
   );
 }
 
+export async function copyIntoComposeService(
+  ctx: RuntimeContext,
+  service: string,
+  source: string,
+  destination: string,
+  run: DockerCommandRunner = runCommand
+): Promise<void> {
+  const container = await resolveComposeContainer(ctx, service, run);
+  const result = await runDocker(
+    ctx,
+    ['cp', source, `${container}:${destination}`],
+    run
+  );
+  requireSuccess(result, `copy into service ${service}`);
+}
+
 function remainingTimeoutMs(deadlineAtMs: number, action: string): number {
   const remainingMs = deadlineAtMs - Date.now();
   if (remainingMs <= 0) {
