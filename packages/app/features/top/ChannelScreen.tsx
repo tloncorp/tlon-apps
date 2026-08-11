@@ -128,36 +128,38 @@ export default function ChannelScreen(props: Props) {
       unread: db.ChannelUnread | null;
     } | null>(null);
   const isFocused = useIsFocused();
-  useEffect(() => {
-    let isCurrent = true;
+  useFocusEffect(
+    useCallback(() => {
+      let isCurrent = true;
+      setInitialChannelUnreadSnapshot(null);
 
-    async function initializeChannelUnread() {
-      let unread: db.ChannelUnread | null | undefined;
-      try {
-        unread = await db.getChannelUnread({ channelId: currentChannelId });
-      } catch (error) {
-        logger.trackError('failed to initialize channel unread', error);
+      async function initializeChannelUnread() {
+        let unread: db.ChannelUnread | null | undefined;
+        try {
+          unread = await db.getChannelUnread({ channelId: currentChannelId });
+        } catch (error) {
+          logger.trackError('failed to initialize channel unread', error);
+        }
+
+        if (isCurrent) {
+          setInitialChannelUnreadSnapshot({
+            channelId: currentChannelId,
+            unread: unread ?? null,
+          });
+        }
       }
 
-      if (isCurrent) {
-        setInitialChannelUnreadSnapshot({
-          channelId: currentChannelId,
-          unread: unread ?? null,
-        });
-      }
-    }
-
-    if (isFocused) {
       void initializeChannelUnread();
-    }
 
-    return () => {
-      isCurrent = false;
-    };
-  }, [currentChannelId, isFocused]);
+      return () => {
+        isCurrent = false;
+        setInitialChannelUnreadSnapshot(null);
+      };
+    }, [currentChannelId])
+  );
 
   const unreadDidInitialize =
-    initialChannelUnreadSnapshot?.channelId === currentChannelId;
+    isFocused && initialChannelUnreadSnapshot?.channelId === currentChannelId;
   const initialChannelUnread = unreadDidInitialize
     ? initialChannelUnreadSnapshot.unread
     : null;
