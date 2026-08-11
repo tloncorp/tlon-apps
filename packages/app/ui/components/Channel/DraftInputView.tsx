@@ -72,7 +72,9 @@ export function ConversationComposerPlacement({
   if (enabled && supportsFloatingComposer) {
     return (
       <KeyboardStickyView
-        offset={{ closed: 0, opened: -insets.bottom }}
+        // The container keeps its home-indicator padding while the keyboard is
+        // open, so cancel that padding to place the visible input at its edge.
+        offset={{ closed: 0, opened: insets.bottom }}
         style={styles.floatingInput}
       >
         <ScrollEdgeElementContainer
