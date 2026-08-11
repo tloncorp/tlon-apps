@@ -71,8 +71,8 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         sourceView: UIView,
         restingSourceFrame: CGRect?,
         actions: [TlonMessageMenuAction],
-        reactions: [String],
-        selectedReaction: String?,
+        reactions: [TlonMessageMenuReaction],
+        moreReactionsToken: String?,
         alignment: TlonMessageMenuAlignment,
         previewBackgroundColor: UIColor,
         completion: @escaping (TlonMessageMenuSelection?) -> Void
@@ -85,7 +85,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
             ? nil
             : TlonMessageReactionBarView(
                 reactions: reactions,
-                selectedReaction: selectedReaction
+                moreReactionsToken: moreReactionsToken
             )
         self.alignment = alignment
         self.previewBackgroundColor = previewBackgroundColor
@@ -93,14 +93,11 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
 
         super.init(frame: .zero)
 
-        actionList.onSelection = { [weak self] id in
-            self?.dismiss(with: .action(id))
+        actionList.onSelection = { [weak self] selection in
+            self?.dismiss(with: selection)
         }
-        reactionBar?.onReaction = { [weak self] value in
-            self?.dismiss(with: .reaction(value))
-        }
-        reactionBar?.onMoreReactions = { [weak self] in
-            self?.dismiss(with: .moreReactions)
+        reactionBar?.onSelection = { [weak self] selection in
+            self?.dismiss(with: selection)
         }
 
         configureView()
@@ -298,8 +295,8 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         }
 
         let actionPoint = presentationPoint(windowPoint, in: actionList)
-        if let actionId = actionList.selection(at: actionPoint) {
-            dismiss(with: .action(actionId))
+        if let selection = actionList.selection(at: actionPoint) {
+            dismiss(with: selection)
             return
         }
 
@@ -596,9 +593,7 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
             self.actionMotionView.frame = self.actionFrame(attachedTo: destinationFrame)
             self.reactionBar?.frame = self.reactionFrame(attachedTo: destinationFrame)
         } completion: { _ in
-            self.sourceView?.isHidden = false
-            self.removeFromSuperview()
-            self.completion(selection)
+            self.finishDismissal(with: selection)
         }
     }
 
@@ -624,8 +619,13 @@ final class TlonMessageMenuPresentationView: UIView, UIGestureRecognizerDelegate
         }
         isDismissing = true
         layer.removeAllAnimations()
+        setAccessoryInteractionEnabled(false)
         actionList.updateHighlight(at: nil)
         reactionBar?.updateHighlight(at: nil)
+        finishDismissal(with: selection)
+    }
+
+    private func finishDismissal(with selection: TlonMessageMenuSelection?) {
         sourceView?.isHidden = false
         removeFromSuperview()
         completion(selection)

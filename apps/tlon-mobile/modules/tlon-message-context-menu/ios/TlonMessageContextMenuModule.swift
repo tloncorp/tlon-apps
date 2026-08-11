@@ -5,34 +5,22 @@ public class TlonMessageContextMenuModule: Module {
         Name("TlonMessageContextMenu")
 
         View(TlonMessageContextMenuView.self) {
-            Events(
-                "onAction",
-                "onReaction",
-                "onMoreReactions"
-            )
-
-            Prop("postId") { (view, postId: String) in
-                view.postId = postId
-            }
+            Events("onSelect")
 
             Prop("actions") { (view, actions: [TlonMessageMenuAction]) in
                 view.actions = actions
             }
 
-            Prop("reactions") { (view, reactions: [String]) in
+            Prop("reactions") { (view, reactions: [TlonMessageMenuReaction]) in
                 view.reactions = reactions
             }
 
-            Prop("selectedReaction") { (view, selectedReaction: String?) in
-                view.selectedReaction = selectedReaction
+            Prop("moreReactionsToken") { (view, token: String?) in
+                view.moreReactionsToken = token
             }
 
-            Prop("contentKey") { (view, contentKey: String) in
-                view.contentKey = contentKey
-            }
-
-            Prop("reactionKey") { (view, reactionKey: String) in
-                view.reactionKey = reactionKey
+            Prop("presentationKey") { (view, key: String) in
+                view.presentationKey = key
             }
 
             Prop("alignment") { (view, alignment: String?) in
@@ -42,6 +30,42 @@ public class TlonMessageContextMenuModule: Module {
             Prop("previewBackgroundColor") { (view, color: UIColor?) in
                 view.previewBackgroundColor = color ?? .secondarySystemBackground
             }
+        }
+    }
+}
+
+struct TlonMessageMenuAction: Record {
+    @Field var id: String = ""
+    @Field var title: String = ""
+    @Field var systemImage: String? = nil
+    @Field var destructive: Bool = false
+    @Field var token: String = ""
+}
+
+struct TlonMessageMenuReaction: Record {
+    @Field var value: String = ""
+    @Field var selected: Bool = false
+    @Field var token: String = ""
+}
+
+enum TlonMessageMenuAlignment {
+    case leading
+    case trailing
+}
+
+enum TlonMessageMenuSelection {
+    case action(id: String, token: String)
+    case reaction(value: String, token: String)
+    case moreReactions(token: String)
+
+    var eventPayload: [String: String] {
+        switch self {
+        case let .action(id, token):
+            ["kind": "action", "value": id, "token": token]
+        case let .reaction(value, token):
+            ["kind": "reaction", "value": value, "token": token]
+        case let .moreReactions(token):
+            ["kind": "moreReactions", "value": "", "token": token]
         }
     }
 }

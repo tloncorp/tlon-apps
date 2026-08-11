@@ -12,54 +12,14 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         static let pressRestoreDuration: TimeInterval = 0.18
     }
 
-    let onAction = EventDispatcher()
-    let onReaction = EventDispatcher()
-    let onMoreReactions = EventDispatcher()
+    let onSelect = EventDispatcher()
 
-    var postId = "" {
+    var actions: [TlonMessageMenuAction] = []
+    var reactions: [TlonMessageMenuReaction] = []
+    var moreReactionsToken: String?
+    var presentationKey = "" {
         didSet {
-            if postId != oldValue {
-                presentationView?.dismiss()
-            }
-        }
-    }
-
-    var actions: [TlonMessageMenuAction] = [] {
-        didSet {
-            guard !actions.elementsEqual(oldValue, by: Self.actionsMatch) else {
-                return
-            }
-            presentationView?.dismiss()
-        }
-    }
-
-    var reactions: [String] = [] {
-        didSet {
-            if reactions != oldValue {
-                presentationView?.dismiss()
-            }
-        }
-    }
-
-    var selectedReaction: String? {
-        didSet {
-            if selectedReaction != oldValue {
-                presentationView?.dismiss()
-            }
-        }
-    }
-
-    var contentKey = "" {
-        didSet {
-            if contentKey != oldValue {
-                presentationView?.dismiss()
-            }
-        }
-    }
-
-    var reactionKey = "" {
-        didSet {
-            if reactionKey != oldValue {
+            if presentationKey != oldValue {
                 presentationView?.dismiss()
             }
         }
@@ -252,18 +212,12 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         let location = recognizer.location(in: window)
         initialGestureLocation = location
         gestureExitedDeadZone = false
-        let presentedPostId = postId
-        let presentedContentKey = contentKey
-        let presentedReactionKey = reactionKey
-        let presentedActions = actions
-        let presentedSelectedReaction = selectedReaction
-
         let presentation = TlonMessageMenuPresentationView(
             sourceView: self,
             restingSourceFrame: indicationRestingFrameInWindow,
             actions: actions,
             reactions: reactions,
-            selectedReaction: selectedReaction,
+            moreReactionsToken: moreReactionsToken,
             alignment: alignment,
             previewBackgroundColor: previewBackgroundColor
         ) { [weak self] selection in
@@ -273,42 +227,8 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
 
             presentationView = nil
             resetGestureState()
-
-            // React Native may recycle and rebind this host while its overlay
-            // is still dismissing. Never route that selection to another post.
-            guard postId == presentedPostId else {
-                return
-            }
-
-            switch selection {
-            case let .action(id):
-                // Props can change while dismissal is finishing. Require the
-                // selected action to have the same meaning the user saw, not
-                // merely the same stable ID (for example, Hide versus Show).
-                let presentedAction = presentedActions.first { $0.id == id }
-                let currentAction = actions.first { $0.id == id }
-                let reactionSnapshotMatches = id != "viewReactions"
-                    || reactionKey == presentedReactionKey
-                if contentKey == presentedContentKey,
-                   reactionSnapshotMatches,
-                   let presentedAction,
-                   let currentAction,
-                   Self.actionsMatch(presentedAction, currentAction)
-                {
-                    onAction(["id": id])
-                }
-            case let .reaction(value):
-                if selectedReaction == presentedSelectedReaction,
-                   reactions.contains(value)
-                {
-                    onReaction(["value": value])
-                }
-            case .moreReactions:
-                if !reactions.isEmpty {
-                    onMoreReactions([:])
-                }
-            case nil:
-                break
+            if let selection {
+                onSelect(selection.eventPayload)
             }
         }
         indicationRestingFrameInWindow = nil
@@ -320,16 +240,6 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         feedback.impactOccurred(intensity: 0.8)
 
         presentation.present(in: window)
-    }
-
-    private static func actionsMatch(
-        _ lhs: TlonMessageMenuAction,
-        _ rhs: TlonMessageMenuAction
-    ) -> Bool {
-        lhs.id == rhs.id
-            && lhs.title == rhs.title
-            && lhs.systemImage == rhs.systemImage
-            && lhs.destructive == rhs.destructive
     }
 
     private func updateGesture(for recognizer: UILongPressGestureRecognizer) {

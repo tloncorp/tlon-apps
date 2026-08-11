@@ -22,7 +22,18 @@ import {
   DraftInputContext,
   useDraftInputContext,
 } from '../../draftInputs/shared';
-import { isMessageActionVisible } from './messageActionVisibility';
+import {
+  MessageMenuActionDescriptor,
+  MessageMenuActionId,
+  isMessageActionVisible,
+  messageActionToken,
+  messageContentKey,
+} from './messageActionModel';
+
+export type {
+  MessageMenuActionDescriptor,
+  MessageMenuActionId,
+} from './messageActionModel';
 
 const ENABLE_COPY_JSON = __DEV__;
 
@@ -93,16 +104,6 @@ export default function MessageActions({
   );
 }
 
-export type MessageMenuActionId = ChannelAction.Id | 'viewBotRun';
-
-export interface MessageMenuActionDescriptor {
-  id: MessageMenuActionId;
-  title: string;
-  systemImage?: string;
-  destructive?: boolean;
-  actionType?: ReturnType<typeof ChannelAction.staticSpecForId>['actionType'];
-}
-
 const systemImageForAction: Partial<Record<MessageMenuActionId, string>> = {
   startThread: 'arrowshape.turn.up.left',
   replyToComment: 'arrowshape.turn.up.left',
@@ -157,85 +158,88 @@ export function useMessageActionModel({
       getOwnContextLensStamp(post, ownedBotShips ?? [])
   );
 
-  const visibleActionIds = useMemo(() => {
+  const contentKey = messageContentKey(post);
+  const actions = useMemo<MessageMenuActionDescriptor[]>(() => {
     const isConnected = connectionStatus === 'Connected';
     const canStartDraft = Boolean(draftInputContext?.canStartDraft);
-    const visibilityPost = {
-      id: post.id,
-      authorId: post.authorId,
-      parentId: post.parentId,
-      deliveryStatus: post.deliveryStatus,
-      replyCount: post.replyCount,
-      reactionCount: post.reactions?.length ?? 0,
-    };
-    return postActionIds.filter((actionId) =>
-      isMessageActionVisible(actionId, {
-        isNetworkDependent: Boolean(
-          ChannelAction.staticSpecForId(actionId).isNetworkDependent
-        ),
-        isConnected,
-        currentUserId,
-        currentUserIsAdmin,
-        canStartDraft,
-        channelType: channel.type,
-        pinnedPostId,
-        post: visibilityPost,
-      })
-    );
-  }, [
-    postActionIds,
-    connectionStatus,
-    post.deliveryStatus,
-    post.parentId,
-    post.replyCount,
-    post.authorId,
-    post.id,
-    post.reactions?.length,
-    currentUserId,
-    channel.type,
-    pinnedPostId,
-    currentUserIsAdmin,
-    draftInputContext,
-  ]);
-
-  const actions = useMemo<MessageMenuActionDescriptor[]>(() => {
-    const descriptors: MessageMenuActionDescriptor[] = visibleActionIds.map(
+    const descriptors = postActionIds.flatMap<MessageMenuActionDescriptor>(
       (id) => {
         const action = ChannelAction.staticSpecForId(id);
+        if (
+          !isMessageActionVisible(id, {
+            isNetworkDependent: Boolean(action.isNetworkDependent),
+            isConnected,
+            currentUserId,
+            currentUserIsAdmin,
+            canStartDraft,
+            channelType: channel.type,
+            pinnedPostId,
+            post: {
+              id: post.id,
+              authorId: post.authorId,
+              parentId: post.parentId,
+              deliveryStatus: post.deliveryStatus,
+              replyCount: post.replyCount,
+              reactionCount: post.reactions?.length ?? 0,
+            },
+          })
+        ) {
+          return [];
+        }
         const { label } = displaySpecForChannelActionId(id, {
           post,
           channel,
           currentUserId,
           currentUserIsAdmin,
         });
-        return {
+        const descriptor = {
           id,
           title: label,
           systemImage: systemImageForAction[id],
           destructive: id === 'delete' || id === 'report',
           actionType: action.actionType,
         };
+        return [
+          {
+            ...descriptor,
+            token: messageActionToken(post, contentKey, descriptor),
+          },
+        ];
       }
     );
     if (showViewBotRun) {
-      descriptors.push({
+      const descriptor = {
         id: 'viewBotRun',
         title: 'View bot run',
         systemImage: systemImageForAction.viewBotRun,
+      } as const;
+      descriptors.push({
+        ...descriptor,
+        token: messageActionToken(post, contentKey, descriptor),
       });
     }
     return descriptors;
   }, [
-    visibleActionIds,
+    postActionIds,
+    connectionStatus,
     showViewBotRun,
     post,
+    contentKey,
     channel,
     currentUserId,
     currentUserIsAdmin,
+    pinnedPostId,
+    draftInputContext?.canStartDraft,
   ]);
 
   const performAction = useCallback(
-    (id: MessageMenuActionId) => {
+    (id: MessageMenuActionId, token?: string) => {
+      if (
+        token &&
+        actions.find((action) => action.id === id)?.token !== token
+      ) {
+        return;
+      }
       if (id === 'viewBotRun') {
         if (!onViewBotRun) {
           return;
@@ -276,6 +280,7 @@ export function useMessageActionModel({
     },
     [
       addAttachment,
+      actions,
       channel,
       currentUserId,
       dismiss,
@@ -290,7 +295,7 @@ export function useMessageActionModel({
     ]
   );
 
-  return { actions, performAction };
+  return { actions, contentKey, performAction };
 }
 
 function CopyJsonAction({ post }: { post: db.Post }) {

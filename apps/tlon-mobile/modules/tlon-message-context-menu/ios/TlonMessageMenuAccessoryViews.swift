@@ -143,9 +143,9 @@ final class TlonMessageActionListView: UIView, TlonMessageMenuButtonCollection {
     private let scrollView = UIScrollView()
     private let stackView = UIStackView()
     private var rowHeights: [CGFloat] = []
-    var buttons: [(payload: String, button: UIButton)] = []
+    var buttons: [(payload: TlonMessageMenuSelection, button: UIButton)] = []
 
-    var onSelection: ((String) -> Void)?
+    var onSelection: ((TlonMessageMenuSelection) -> Void)?
 
     let menuWidth: CGFloat = 252
     var contentHeight: CGFloat {
@@ -200,7 +200,7 @@ final class TlonMessageActionListView: UIView, TlonMessageMenuButtonCollection {
         scrollView.contentSize = stackView.bounds.size
     }
 
-    func selection(at point: CGPoint) -> String? {
+    func selection(at point: CGPoint) -> TlonMessageMenuSelection? {
         selectedButton(at: point)?.payload
     }
 
@@ -223,7 +223,7 @@ final class TlonMessageActionListView: UIView, TlonMessageMenuButtonCollection {
             foregroundColor: foregroundColor
         )
 
-        buttons.append((action.id, button))
+        buttons.append((.action(id: action.id, token: action.token), button))
         return row
     }
 
@@ -241,17 +241,19 @@ final class TlonMessageReactionBarView: UIView, TlonMessageMenuButtonCollection 
         effect: UIBlurEffect(style: .systemMaterialDark)
     )
     private let stackView = UIStackView()
-    var buttons: [(payload: String?, button: UIButton)] = []
+    var buttons: [(payload: TlonMessageMenuSelection, button: UIButton)] = []
 
-    var onReaction: ((String) -> Void)?
-    var onMoreReactions: (() -> Void)?
+    var onSelection: ((TlonMessageMenuSelection) -> Void)?
 
     let barHeight: CGFloat = 58
     var barWidth: CGFloat {
         min(300, CGFloat(buttons.count) * 46 + 16)
     }
 
-    init(reactions: [String], selectedReaction: String?) {
+    init(
+        reactions: [TlonMessageMenuReaction],
+        moreReactionsToken: String?
+    ) {
         super.init(frame: .zero)
 
         layer.cornerRadius = barHeight / 2
@@ -267,22 +269,31 @@ final class TlonMessageReactionBarView: UIView, TlonMessageMenuButtonCollection 
 
         for reaction in reactions {
             let button = makeButton(
-                title: reaction,
-                value: reaction,
-                selected: reaction == selectedReaction
+                title: reaction.value,
+                selection: .reaction(
+                    value: reaction.value,
+                    token: reaction.token
+                ),
+                selected: reaction.selected
             )
             stackView.addArrangedSubview(button)
         }
 
-        let moreButton = makeButton(title: "", value: nil, selected: false)
-        moreButton.setImage(UIImage(systemName: "chevron.down"), for: .normal)
-        moreButton.setPreferredSymbolConfiguration(
-            UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold),
-            forImageIn: .normal
-        )
-        moreButton.tintColor = .white
-        moreButton.accessibilityLabel = "More reactions"
-        stackView.addArrangedSubview(moreButton)
+        if let moreReactionsToken {
+            let moreButton = makeButton(
+                title: "",
+                selection: .moreReactions(token: moreReactionsToken),
+                selected: false
+            )
+            moreButton.setImage(UIImage(systemName: "chevron.down"), for: .normal)
+            moreButton.setPreferredSymbolConfiguration(
+                UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold),
+                forImageIn: .normal
+            )
+            moreButton.tintColor = .white
+            moreButton.accessibilityLabel = "More reactions"
+            stackView.addArrangedSubview(moreButton)
+        }
     }
 
     @available(*, unavailable)
@@ -297,25 +308,19 @@ final class TlonMessageReactionBarView: UIView, TlonMessageMenuButtonCollection 
     }
 
     func selection(at point: CGPoint) -> TlonMessageMenuSelection? {
-        guard let selection = selectedButton(at: point) else {
-            return nil
-        }
-        if let value = selection.payload {
-            return .reaction(value)
-        }
-        return .moreReactions
+        selectedButton(at: point)?.payload
     }
 
     private func makeButton(
         title: String,
-        value: String?,
+        selection: TlonMessageMenuSelection,
         selected: Bool
     ) -> UIButton {
         let button = TlonMessageMenuButton(type: .custom)
         button.setTitle(title, for: .normal)
         button.setTitleColor(.white, for: .normal)
         button.titleLabel?.font = .systemFont(ofSize: 26)
-        button.accessibilityLabel = value ?? "More reactions"
+        button.accessibilityLabel = title
         button.accessibilityTraits = .button
         button.layer.cornerRadius = 20
         button.layer.cornerCurve = .continuous
@@ -324,7 +329,7 @@ final class TlonMessageReactionBarView: UIView, TlonMessageMenuButtonCollection 
             : .clear
         button.tag = buttons.count
         button.addTarget(self, action: #selector(reactionPressed(_:)), for: .touchUpInside)
-        buttons.append((value, button))
+        buttons.append((selection, button))
         return button
     }
 
@@ -333,10 +338,6 @@ final class TlonMessageReactionBarView: UIView, TlonMessageMenuButtonCollection 
         guard sender.tag < buttons.count else {
             return
         }
-        if let value = buttons[sender.tag].payload {
-            onReaction?(value)
-        } else {
-            onMoreReactions?()
-        }
+        onSelection?(buttons[sender.tag].payload)
     }
 }

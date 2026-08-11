@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import {
   MessageActionVisibilityContext,
   isMessageActionVisible,
-} from './messageActionVisibility';
+} from './messageActionModel';
 
 const CURRENT_USER = 'current-user-id';
 const OTHER_USER = 'other-user-id';

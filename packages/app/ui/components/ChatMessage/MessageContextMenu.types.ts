@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import { ReactNode } from 'react';
 
 export interface MessageContextMenuProps {
-  children: ReactNode;
+  children: (usesNativeMenu: boolean) => ReactNode;
   enabled: boolean;
   post: db.Post;
   postActionIds: ChannelAction.Id[];

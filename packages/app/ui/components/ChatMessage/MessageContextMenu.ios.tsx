@@ -4,6 +4,7 @@ import { NativeSyntheticEvent, StyleSheet, ViewProps } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
+import { useIsScreenReaderEnabled } from '../../hooks/useIsScreenReaderEnabled';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { useReactionDetails } from '../../utils/postUtils';
 import {
@@ -14,18 +15,26 @@ import {
 import { MessageContextMenuProps } from './MessageContextMenu.types';
 
 interface NativeMessageContextMenuProps extends ViewProps {
-  postId: string;
   actions: MessageMenuActionDescriptor[];
-  reactions: string[];
-  selectedReaction?: string;
-  contentKey: string;
-  reactionKey: string;
+  reactions: NativeMessageMenuReaction[];
+  moreReactionsToken?: string;
+  presentationKey: string;
   alignment: 'leading' | 'trailing';
   previewBackgroundColor: string;
-  onAction: (event: NativeSyntheticEvent<{ id: MessageMenuActionId }>) => void;
-  onReaction: (event: NativeSyntheticEvent<{ value: string }>) => void;
-  onMoreReactions?: () => void;
+  onSelect: (event: NativeSyntheticEvent<NativeMessageMenuSelection>) => void;
 }
+
+interface NativeMessageMenuReaction {
+  value: string;
+  selected: boolean;
+  token: string;
+}
+
+type NativeMessageMenuSelection = {
+  kind: 'action' | 'reaction' | 'moreReactions';
+  value: string;
+  token: string;
+};
 
 const NativeMessageContextMenu =
   requireNativeViewManager<NativeMessageContextMenuProps>(
@@ -37,8 +46,9 @@ const noop = () => {};
 const runImmediately = (action: () => void) => action();
 
 export function MessageContextMenu(props: MessageContextMenuProps) {
-  if (!props.enabled) {
-    return props.children;
+  const isScreenReaderEnabled = useIsScreenReaderEnabled();
+  if (!props.enabled || isScreenReaderEnabled) {
+    return props.children(false);
   }
 
   return <EnabledMessageContextMenu {...props} />;
@@ -62,7 +72,7 @@ function EnabledMessageContextMenu({
     currentUserId
   );
   const onEmojiSelect = useOnEmojiSelect(post, noop);
-  const { actions, performAction } = useMessageActionModel({
+  const { actions, contentKey, performAction } = useMessageActionModel({
     post,
     postActionIds,
     dismiss: noop,
@@ -73,7 +83,7 @@ function EnabledMessageContextMenu({
     onViewBotRun,
   });
 
-  const reactions = useMemo(() => {
+  const reactionValues = useMemo(() => {
     if (!canReact) {
       return [];
     }
@@ -86,34 +96,66 @@ function EnabledMessageContextMenu({
     return [...defaultReactions, lastReaction];
   }, [canReact, reactionDetails.self.didReact, reactionDetails.self.value]);
 
-  const contentKey = JSON.stringify([
-    post.content,
-    post.textContent,
-    post.title,
-    post.image,
-    post.description,
-    post.cover,
-    post.isDeleted,
+  const selectedReaction = reactionDetails.self.didReact
+    ? reactionDetails.self.value
+    : undefined;
+  const reactions = useMemo(
+    () =>
+      reactionValues.map((value) => ({
+        value,
+        selected: value === selectedReaction,
+        token: JSON.stringify([
+          post.id,
+          'reaction',
+          value,
+          selectedReaction,
+          canReact,
+        ]),
+      })),
+    [canReact, post.id, reactionValues, selectedReaction]
+  );
+  const moreReactionsToken = canReact
+    ? JSON.stringify([post.id, 'moreReactions'])
+    : undefined;
+  const alignment = post.authorId === currentUserId ? 'trailing' : 'leading';
+  const previewBackgroundColor = theme.secondaryBackground.val;
+  const presentationKey = JSON.stringify([
+    contentKey,
+    actions,
+    post.reactions,
+    reactions,
+    moreReactionsToken,
+    alignment,
+    previewBackgroundColor,
   ]);
 
   return (
     <NativeMessageContextMenu
-      postId={post.id}
       actions={actions}
       reactions={reactions}
-      selectedReaction={
-        reactionDetails.self.didReact ? reactionDetails.self.value : undefined
-      }
-      contentKey={contentKey}
-      reactionKey={JSON.stringify(post.reactions)}
-      alignment={post.authorId === currentUserId ? 'trailing' : 'leading'}
-      previewBackgroundColor={theme.secondaryBackground.val}
-      onAction={(event) => performAction(event.nativeEvent.id)}
-      onReaction={(event) => onEmojiSelect(event.nativeEvent.value)}
-      onMoreReactions={onShowEmojiPicker}
+      moreReactionsToken={moreReactionsToken}
+      presentationKey={presentationKey}
+      alignment={alignment}
+      previewBackgroundColor={previewBackgroundColor}
+      onSelect={(event) => {
+        const { kind, value, token } = event.nativeEvent;
+        if (kind === 'action') {
+          performAction(value as MessageMenuActionId, token);
+        } else if (kind === 'reaction') {
+          if (
+            reactions.some(
+              (reaction) => reaction.value === value && reaction.token === token
+            )
+          ) {
+            onEmojiSelect(value);
+          }
+        } else if (token === moreReactionsToken) {
+          onShowEmojiPicker?.();
+        }
+      }}
       style={styles.host}
     >
-      {children}
+      {children(true)}
     </NativeMessageContextMenu>
   );
 }
