@@ -53,7 +53,7 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@tloncorp/api": "workspace:^",
-    "@tloncorp/tlon-skill": "workspace:^",
+    "@tloncorp/tlon-skill": "workspace:0.5.1-buckets.0",
     "@urbit/aura": "^3.0.0",
     "posthog-node": "^5.28.9",
     "zod": "^4.4.1"
