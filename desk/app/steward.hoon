@@ -6,7 +6,7 @@
 ::    the bot itself runs steward as well as the bot's owner, so that things
 ::    like lens data can be scried locally by the owner.
 ::
-::    Modules keep their own sur
+::    modules keep their own sur
 ::    (sur/steward/{lens,gateway,automation}.hoon) and mark families;
 ::    %steward-action-1 carries only cross-cutting config (the shared owner).
 ::
@@ -15,8 +15,8 @@
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
-::  Versioned persisted state. The released state-0 remains decodable for
-::  migration; fresh installs and migrated agents use state-1.
+::  Versioned persisted state. state-0 is released and remains decodable for
+::  migration. Fresh installs and migrated agents use state-1.
 ::
 ::    .owner: shared owner ship (lens send target, gateway owner-DM tracking)
 ::    .bots:  owner-side trusted bots — ships allowed to send lens %entry
@@ -147,7 +147,7 @@
       %steward-gateway-action-1
     (ga-poke-action:ga-core !<(action:v1:sg vase))
   ::
-  ::  Automation snapshots. Authorization is enforced in au-poke-action.
+  ::  automation snapshots. Authorization is enforced in au-poke-action.
   ::
       %steward-automation-action-1
     (au-poke-action:au-core !<(action:v1:sa vase))
@@ -652,7 +652,7 @@
       (ga-send-dm sender 'Your Tlon bot is offline right now, so replies are paused. I\'ll let you know when I\'m back. 🛰️')
     (ga-give-update [%auto-reply sender now.bowl])
   --
-::  |au-core: Automation projection module.
+::  |au-core: automation projection module
 ::
 ++  au-core
   |%

@@ -1,4 +1,4 @@
-::  Tests for %steward agent modules.
+::  tests for %steward agent modules
 ::
 /-  s=steward, a=activity, av=activity-ver
 /-  l=steward-lens, g=steward-gateway, au=steward-automation

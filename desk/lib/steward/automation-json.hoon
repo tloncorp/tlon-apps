@@ -1,4 +1,4 @@
-::  JSON conversion helpers for %steward automation marks.
+::  JSON conversion helpers for steward automation marks.
 ::
 ::  Pinned OpenClaw exposes the %at schedule's `at` as an ISO string. The
 ::  normalized Steward boundary deliberately uses integer Unix milliseconds

@@ -1,4 +1,4 @@
-::  Steward automation production JSON codec tests.
+::  steward automation production JSON codec tests
 ::
 /-  a=steward-automation
 /+  *test, aj=steward-automation-json, au=steward-automation
