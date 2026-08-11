@@ -57,12 +57,23 @@ export function HeaderTextButton({
   );
 }
 
-export const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
+export const HeaderBackButton = ({
+  disabled = false,
+  onPress,
+}: {
+  disabled?: boolean;
+  onPress?: () => void;
+}) => {
   return (
     <HeaderIconButton
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      color={disabled ? '$tertiaryText' : '$primaryText'}
+      cursor={disabled ? 'default' : 'pointer'}
+      disabled={disabled}
       testID="HeaderBackButton"
       type="ChevronLeft"
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
     />
   );
 };

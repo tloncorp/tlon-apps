@@ -45,6 +45,7 @@ interface SharedScreenHeaderProps {
   leftActions?: ScreenHeaderAction[];
   rightActions?: ScreenHeaderAction[];
   backAction?: () => void;
+  backDisabled?: boolean;
   borderBottom?: boolean;
   onTitlePress?: () => void;
   useHorizontalTitleLayout?: boolean;
@@ -80,6 +81,7 @@ export const ScreenHeaderComponent = ({
   leftActions,
   rightActions,
   backAction,
+  backDisabled = false,
   borderBottom,
   onTitlePress,
   useHorizontalTitleLayout = false,
@@ -255,6 +257,7 @@ export const ScreenHeaderComponent = ({
             icon: 'ChevronLeft' as const,
             label: 'Back',
             onPress: backAction,
+            disabled: backDisabled,
           },
         ]
       : []),
@@ -336,7 +339,9 @@ export const ScreenHeaderComponent = ({
           );
         }}
       >
-        {backAction ? <HeaderBackButton onPress={backAction} /> : null}
+        {backAction ? (
+          <HeaderBackButton onPress={backAction} disabled={backDisabled} />
+        ) : null}
         {leftControls}
         {leftActions ? (
           <ScreenHeaderItemElements actions={leftActions} />
