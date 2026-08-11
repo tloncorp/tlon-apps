@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import * as db from '../../db';
 import { getLatestChannelPostsInitialPage, queryKeyPrefix } from './queries';
 
-type TestPageParam = { mode: string; cursorPostId?: string };
+type TestPageParam = { mode: string; cursorPostId?: string; count?: number };
 
 const data = (...entries: [string, TestPageParam][]) => ({
   pages: entries.map(([page]) => page),
@@ -17,15 +17,46 @@ describe('getLatestChannelPostsInitialPage', () => {
     db.queryClient.clear();
   });
 
-  it('returns data from the newest completed mount', () => {
+  it('returns the most recently completed matching data', () => {
     const queryKey = [...queryKeyPrefix, 'channel', undefined, false];
 
-    db.queryClient.setQueryData([...queryKey, 10], data(['older', newest]));
-    db.queryClient.setQueryData([...queryKey, 30], data(['newer', newest]));
-    db.queryClient.setQueryData([...queryKey, 20], data(['middle', newest]));
+    db.queryClient.setQueryData([...queryKey, 30], data(['older', newest]), {
+      updatedAt: 10,
+    });
+    db.queryClient.setQueryData([...queryKey, 10], data(['newer', newest]), {
+      updatedAt: 30,
+    });
+    db.queryClient.setQueryData([...queryKey, 20], data(['middle', newest]), {
+      updatedAt: 20,
+    });
 
     expect(getLatestChannelPostsInitialPage(queryKey, newest)).toEqual(
       data(['newer', newest])
+    );
+  });
+
+  it('does not reuse an initial page with a different requested count', () => {
+    const queryKey = [...queryKeyPrefix, 'channel', 'first-unread', false];
+    const thirtyPosts = {
+      mode: 'around',
+      cursorPostId: 'first-unread',
+      count: 30,
+    };
+    const fiftyPosts = { ...thirtyPosts, count: 50 };
+
+    db.queryClient.setQueryData(
+      [...queryKey, 10],
+      data(['thirty', thirtyPosts]),
+      { updatedAt: 20 }
+    );
+    db.queryClient.setQueryData(
+      [...queryKey, 20],
+      data(['fifty', fiftyPosts]),
+      { updatedAt: 30 }
+    );
+
+    expect(getLatestChannelPostsInitialPage(queryKey, thirtyPosts)).toEqual(
+      data(['thirty', thirtyPosts])
     );
   });
 

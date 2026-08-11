@@ -6,13 +6,18 @@ export const queryKeyPrefix = ['channelPosts'];
 
 export function getLatestChannelPostsInitialPage<
   TPage,
-  TPageParam extends { mode?: unknown; cursorPostId?: unknown },
+  TPageParam extends {
+    mode?: unknown;
+    cursorPostId?: unknown;
+    count?: unknown;
+  },
 >(
   queryKey: readonly unknown[],
   initialPageParam: TPageParam
 ): InfiniteData<TPage, TPageParam> | undefined {
-  let latestMountTime = -1;
+  let latestDataUpdatedAt = -1;
   let latestData: InfiniteData<TPage, TPageParam> | undefined;
+  let latestInitialPageIndex = -1;
 
   for (const query of db.queryClient
     .getQueryCache()
@@ -21,14 +26,24 @@ export function getLatestChannelPostsInitialPage<
       continue;
     }
 
-    const mountTime = query.queryKey.at(-1);
+    if (query.state.data === undefined) {
+      continue;
+    }
+
+    const data = query.state.data as InfiniteData<TPage, TPageParam>;
+    const initialPageIndex = data.pageParams.findIndex(
+      (pageParam) =>
+        pageParam.mode === initialPageParam.mode &&
+        pageParam.cursorPostId === initialPageParam.cursorPostId &&
+        pageParam.count === initialPageParam.count
+    );
     if (
-      typeof mountTime === 'number' &&
-      mountTime > latestMountTime &&
-      query.state.data !== undefined
+      initialPageIndex !== -1 &&
+      query.state.dataUpdatedAt > latestDataUpdatedAt
     ) {
-      latestMountTime = mountTime;
-      latestData = query.state.data as InfiniteData<TPage, TPageParam>;
+      latestDataUpdatedAt = query.state.dataUpdatedAt;
+      latestData = data;
+      latestInitialPageIndex = initialPageIndex;
     }
   }
 
@@ -36,21 +51,15 @@ export function getLatestChannelPostsInitialPage<
     return undefined;
   }
 
-  const initialPageIndex = latestData.pageParams.findIndex(
-    (pageParam) =>
-      pageParam.mode === initialPageParam.mode &&
-      pageParam.cursorPostId === initialPageParam.cursorPostId
-  );
-  if (initialPageIndex === -1) {
-    return undefined;
-  }
-
   return {
     ...latestData,
-    pages: latestData.pages.slice(initialPageIndex, initialPageIndex + 1),
+    pages: latestData.pages.slice(
+      latestInitialPageIndex,
+      latestInitialPageIndex + 1
+    ),
     pageParams: latestData.pageParams.slice(
-      initialPageIndex,
-      initialPageIndex + 1
+      latestInitialPageIndex,
+      latestInitialPageIndex + 1
     ),
   };
 }
