@@ -182,6 +182,26 @@ export function ActivityScreenView({
             goToUserProfile(event.contactUserId);
           }
           break;
+        case 'note-create':
+        case 'note-edit': {
+          // open the notebook channel on the specific note (the note id
+          // rides postId; the notes collection consumes selectedPostId)
+          const channel =
+            event.channel ??
+            (event.channelId
+              ? await db.getChannel({ id: event.channelId })
+              : null);
+          if (channel) {
+            logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+              ...logic.getModelAnalytics({ channel }),
+              type: 'notebookNote',
+            });
+            goToChannel(channel, event.postId ?? undefined);
+          } else {
+            console.warn('No channel found for note event', event);
+          }
+          break;
+        }
         default:
           break;
       }

@@ -299,10 +299,14 @@ export const useLiveThreadUnread = (unread: db.ThreadUnreadState | null) => {
       depsKey,
       'thread',
       unread ? unread.threadId : null,
+      unread ? unread.channelId : null,
     ],
     queryFn: async () => {
       if (unread) {
-        return db.getThreadUnreadState({ parentId: unread.threadId ?? '' });
+        return db.getThreadUnreadState({
+          parentId: unread.threadId ?? '',
+          channelId: unread.channelId ?? undefined,
+        });
       }
       return null;
     },
