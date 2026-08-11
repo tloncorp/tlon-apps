@@ -55,7 +55,7 @@
 ++  project-automation-json
   |=  body=@t
   =/  action=action:v1:au
-    (action-from-json:aj (parse-json body))
+    (action:dejs:aj (parse-json body))
   (project-automation tasks.action)
 ++  trace-project-json
   ^-  @t
@@ -325,7 +325,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  action=action:v1:au
-    (action-from-json:aj (parse-json trace-project-json))
+    (action:dejs:aj (parse-json trace-project-json))
   =/  projected=(list identified-task:v1:au)  tasks.action
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (project-automation-json trace-project-json)
@@ -337,7 +337,7 @@
     (~(gas by *(map @t task:v1:au)) projected)
   ;<  ~  bind:m  (ex-equal !>(actual) !>(expected))
   %+  ex-equal
-    !>((task-map-to-json:aj actual))
+    !>((task-map:enjs:aj actual))
   !>((parse-json trace-task-map-json))
 ::
 ++  test-automation-project-persists-through-save-load
@@ -345,7 +345,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   =/  action=action:v1:au
-    (action-from-json:aj (parse-json trace-project-json))
+    (action:dejs:aj (parse-json trace-project-json))
   =/  expected=(map @t task:v1:au)
     (~(gas by *(map @t task:v1:au)) tasks.action)
   ;<  ~  bind:m  setup
@@ -365,7 +365,7 @@
   ;<  ~  bind:m
     (ex-equal !>(p.res) !>(%steward-automation-task-map-1))
   =/  actual=task-map:v1:au  !<(task-map:v1:au q.res)
-  (ex-equal !>((task-map-to-json:aj actual)) !>((parse-json expected)))
+  (ex-equal !>((task-map:enjs:aj actual)) !>((parse-json expected)))
 ::
 ++  test-automation-json-scry-reconciles-and-persists
   %-  eval-mare

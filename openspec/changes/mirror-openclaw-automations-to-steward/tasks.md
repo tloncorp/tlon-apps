@@ -102,3 +102,5 @@
         coverage for every capability scenario.
 - [x] 5.5 Normalize all automation Hoon comments to the repository's
         lowercase style.
+- [x] 5.6 Group automation JSON codecs under conventional `+dejs`
+        and `+enjs` helper cores.

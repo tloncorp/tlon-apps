@@ -10,7 +10,7 @@
 ++  parse-action
   |=  body=@t
   ^-  action:v1:a
-  (action-from-json:aj (parse-json body))
+  (action:dejs:aj (parse-json body))
 ++  empty-task
   ^-  task:v1:a
   :*  ~
@@ -100,7 +100,7 @@
     (expect-eq !>(trace-action) !>(actual))
     %+  expect-eq
       !>((parse-json trace-project-json))
-    !>((action-to-json:aj actual))
+    !>((action:enjs:aj actual))
   ==
 ::
 ::  no cron-expression job was present in the captured runtime history. keep
@@ -113,14 +113,14 @@
   =/  actual=action:v1:a  (parse-action body)
   ;:  weld
     (expect-eq !>(expected) !>(actual))
-    (expect-eq !>((parse-json body)) !>((action-to-json:aj actual)))
+    (expect-eq !>((parse-json body)) !>((action:enjs:aj actual)))
   ==
 ++  test-empty-action-grab-and-grow
   =/  body=@t  '{"project":{"tasks":[]}}'
   =/  actual=action:v1:a  (parse-action body)
   ;:  weld
     (expect-eq !>(`action:v1:a`[%project ~]) !>(actual))
-    (expect-eq !>((parse-json body)) !>((action-to-json:aj actual)))
+    (expect-eq !>((parse-json body)) !>((action:enjs:aj actual)))
   ==
 ++  test-absent-optionals-roundtrip
   =/  expected=action:v1:a  [%project ~[['empty' empty-task]]]
@@ -130,7 +130,7 @@
     (expect-eq !>(expected) !>(actual))
     %+  expect-eq
       !>((parse-json '{"project":{"tasks":[{"id":"empty"}]}}'))
-    !>((action-to-json:aj actual))
+    !>((action:enjs:aj actual))
   ==
 ++  test-invalid-json-rejected
   %-  expect-fail
@@ -144,26 +144,26 @@
   |.  %-  parse-action
       '{"project":{"tasks":[{"id":"bad","schedule":{"kind":"once"}}]}}'
 ++  test-trace-task-map-grows-ids-as-keys-only
-  =/  actual=json  (task-map-to-json:aj trace-task-map)
+  =/  actual=json  (task-map:enjs:aj trace-task-map)
   ;:  weld
     (expect-eq !>((parse-json trace-task-map-json)) !>(actual))
-    (expect-eq !>(trace-task-map) !>((task-map-from-json:aj actual)))
+    (expect-eq !>(trace-task-map) !>((task-map:dejs:aj actual)))
   ==
 ++  test-populated-task-map-serializes-id-as-key-only
   =/  tasks=(map @t task:v1:a)
     (~(put by *(map @t task:v1:a)) 'map-id' named-task)
   =/  expected=json
     (parse-json '{"tasks":{"map-id":{"name":"Named task"}}}')
-  =/  actual=json  (task-map-to-json:aj tasks)
+  =/  actual=json  (task-map:enjs:aj tasks)
   ;:  weld
     (expect-eq !>(expected) !>(actual))
-    (expect-eq !>(tasks) !>((task-map-from-json:aj actual)))
+    (expect-eq !>(tasks) !>((task-map:dejs:aj actual)))
   ==
 ++  test-empty-task-map-serializes-as-empty-object
   =/  tasks=task-map:v1:a  *(map @t task:v1:a)
   =/  expected=json  (parse-json '{"tasks":{}}')
   ;:  weld
-    (expect-eq !>(expected) !>((task-map-to-json:aj tasks)))
-    (expect-eq !>(tasks) !>((task-map-from-json:aj expected)))
+    (expect-eq !>(expected) !>((task-map:enjs:aj tasks)))
+    (expect-eq !>(tasks) !>((task-map:dejs:aj expected)))
   ==
 --

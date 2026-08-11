@@ -7,11 +7,11 @@
 ++  grow
   |%
   ++  noun  tasks
-  ++  json  (task-map-to-json:aj tasks)
+  ++  json  (task-map:enjs:aj tasks)
   --
 ++  grab
   |%
   ++  noun  task-map:v1:a
-  ++  json  task-map-from-json:aj
+  ++  json  task-map:dejs:aj
   --
 --

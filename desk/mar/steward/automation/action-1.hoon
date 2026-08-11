@@ -7,11 +7,11 @@
 ++  grow
   |%
   ++  noun  action
-  ++  json  (action-to-json:aj action)
+  ++  json  (action:enjs:aj action)
   --
 ++  grab
   |%
   ++  noun  action:v1:a
-  ++  json  action-from-json:aj
+  ++  json  action:dejs:aj
   --
 --
