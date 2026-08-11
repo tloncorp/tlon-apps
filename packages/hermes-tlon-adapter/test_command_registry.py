@@ -1,4 +1,12 @@
 import asyncio
+# Imported for the side effect, and it must happen before any
+# patch.dict(sys.modules, ...) takes its snapshot: mock restores sys.modules by
+# clear+update, so if importlib.metadata first gets imported *inside* a patched
+# block (Python 3.10 does not preload it; 3.12 does), the restore evicts it —
+# and every later patch("importlib.metadata.version") then patches a different
+# module object than the one resolve_harness_version re-imports, silently
+# unmocking the fallback path.
+import importlib.metadata  # noqa: F401
 import importlib.util
 import json
 import os
