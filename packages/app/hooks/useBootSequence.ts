@@ -337,7 +337,12 @@ export function useBootSequence() {
         }
       }, 5000);
 
-      return lureMeta?.kit ? NodeBootPhase.INSTALLING_KIT : NodeBootPhase.READY;
+      // only install a personal copy for kit-flavored links that don't point
+      // at an existing group — joining a kit-made group must not also
+      // instantiate one of your own
+      return lureMeta?.kit && !lureMeta.invitedGroupId
+        ? NodeBootPhase.INSTALLING_KIT
+        : NodeBootPhase.READY;
     }
 
     //
@@ -345,7 +350,7 @@ export function useBootSequence() {
     // invite link. Non-fatal: any failure or timeout continues to READY.
     //
     if (bootPhase === NodeBootPhase.INSTALLING_KIT) {
-      if (!lureMeta?.kit) {
+      if (!lureMeta?.kit || lureMeta.invitedGroupId) {
         return NodeBootPhase.READY;
       }
 

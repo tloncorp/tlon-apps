@@ -48,7 +48,10 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
       />
       <OnboardingTextBlock marginTop="$5xl" gap="$5xl">
         <ArvosDiscussing width="100%" height={200} />
-        <BootStepDisplay bootPhase={signupContext.bootPhase} />
+        <BootStepDisplay
+          bootPhase={signupContext.bootPhase}
+          withKit={Boolean(lureMeta?.kit && !lureMeta?.invitedGroupId)}
+        />
       </OnboardingTextBlock>
     </View>
   );
@@ -81,10 +84,24 @@ const DISPLAY_STEPS: DisplayStep[] = [
   },
 ];
 
-function BootStepDisplay(props: { bootPhase: NodeBootPhase }) {
+// Shown only when the signup rode a kit-bearing personal invite link.
+const KIT_DISPLAY_STEP: DisplayStep = {
+  description: 'Installing your kit',
+  icon: 'SmushStar',
+  startExclusive: NodeBootPhase.ACCEPTING_INVITES,
+  endInclusive: NodeBootPhase.INSTALLING_KIT,
+};
+
+function BootStepDisplay(props: {
+  bootPhase: NodeBootPhase;
+  withKit: boolean;
+}) {
+  const steps = props.withKit
+    ? [...DISPLAY_STEPS, KIT_DISPLAY_STEP]
+    : DISPLAY_STEPS;
   return (
     <YStack width="100%">
-      {DISPLAY_STEPS.map((step, index) => {
+      {steps.map((step, index) => {
         const isOnStep =
           props.bootPhase > step.startExclusive &&
           props.bootPhase <= step.endInclusive;

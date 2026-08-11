@@ -8,7 +8,7 @@ import { getMessagesFilter } from '@tloncorp/api';
 import { referenceLookupId } from '@tloncorp/api/client/references';
 import * as ub from '@tloncorp/api/urbit';
 import { isMatch, pick } from 'lodash';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
@@ -164,6 +164,77 @@ export const useContextLensBotShips = () => {
   return useQuery({
     queryKey: ['contextLensBotShips', deps],
     queryFn: () => db.getContextLensBotShips(),
+  });
+};
+
+/**
+ * The first kit entry from a group's blob install config, or null when the
+ * group wasn't made by (or no longer carries) a kit.
+ */
+export const useGroupKit = (
+  group: db.Group | null | undefined
+): api.GroupKitEntry | null => {
+  const blob = group?.blob;
+  return useMemo(() => {
+    const config = api.parseGroupKitConfig(blob);
+    return config?.kits[0] ?? null;
+  }, [blob]);
+};
+
+/** The %kits install ledger, keyed by group flag. */
+export const useKitInstalls = () => {
+  return useQuery({
+    queryKey: ['kitInstalls'],
+    queryFn: () => api.getInstalls(),
+  });
+};
+
+const KIT_MANIFEST_FETCH_BUDGET = 20 * 1000;
+
+/**
+ * A kit's manifest from the local %kits library. If the kit isn't in the
+ * library yet, asks the publisher for it once and polls (with backoff) for
+ * its arrival for up to ~20s.
+ */
+export const useKitManifest = (
+  publisher?: string | null,
+  id?: string | null
+) => {
+  const requestedFetchAt = useRef<number | null>(null);
+  return useQuery({
+    enabled: Boolean(publisher && id),
+    queryKey: ['kitManifest', publisher, id],
+    queryFn: async (): Promise<api.KitManifest | null> => {
+      if (!publisher || !id) {
+        return null;
+      }
+      const kit = await api.getKit(id);
+      if (kit) {
+        return kit.manifest;
+      }
+      if (requestedFetchAt.current == null) {
+        requestedFetchAt.current = Date.now();
+        await api.fetchKit(publisher, id);
+      }
+      return null;
+    },
+    refetchInterval: (query) => {
+      if (query.state.data) {
+        return false;
+      }
+      const startedAt = requestedFetchAt.current;
+      if (
+        startedAt == null ||
+        Date.now() - startedAt > KIT_MANIFEST_FETCH_BUDGET
+      ) {
+        return false;
+      }
+      // 1s, 2s, 4s, ... capped at 5s between polls
+      return Math.min(
+        1000 * 2 ** Math.max(query.state.dataUpdateCount - 1, 0),
+        5000
+      );
+    },
   });
 };
 

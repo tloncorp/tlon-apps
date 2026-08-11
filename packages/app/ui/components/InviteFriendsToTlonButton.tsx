@@ -19,10 +19,17 @@ export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
   const inviteService = useInviteService();
+  // kit-made groups mint kit-flavored invite links so new signups get the
+  // kit threaded through onboarding
+  const groupKit = store.useGroupKit(group);
+  const kit = groupKit
+    ? `${groupKit.kit.publisher}/${groupKit.kit.id}`
+    : undefined;
   const { status, shareUrl } = store.useLure({
     flag: group?.id ?? '',
     inviteServiceEndpoint: inviteService.endpoint,
     inviteServiceIsDev: inviteService.isDev,
+    kit,
   });
   const { doCopy, didCopy } = useCopy(shareUrl || '');
   const displayUrl = useMemo(

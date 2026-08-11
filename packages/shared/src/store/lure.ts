@@ -182,11 +182,14 @@ export function useLure({
   flag,
   inviteServiceEndpoint,
   inviteServiceIsDev,
+  kit,
   disableLoading = false,
 }: {
   flag: string;
   inviteServiceEndpoint: string;
   inviteServiceIsDev: boolean;
+  /** kit reference ("<publisher>/<id>") to carry on the invite link */
+  kit?: string;
   disableLoading?: boolean;
 }) {
   const [lastLoggedStatus, setLastLoggedStatus] = useState('');
@@ -202,7 +205,7 @@ export function useLure({
 
   lureLogger.crumb('lure fetcher', canCheckForUpdate);
   useQuery({
-    queryKey: ['lureFetcher', flag],
+    queryKey: ['lureFetcher', flag, kit],
     queryFn: async () => {
       lureLogger.crumb(
         'fetching',
@@ -210,7 +213,7 @@ export function useLure({
         inviteServiceEndpoint,
         inviteServiceIsDev
       );
-      await fetchLure(flag, inviteServiceEndpoint, inviteServiceIsDev);
+      await fetchLure(flag, inviteServiceEndpoint, inviteServiceIsDev, kit);
       return true;
     },
     enabled: canCheckForUpdate,
