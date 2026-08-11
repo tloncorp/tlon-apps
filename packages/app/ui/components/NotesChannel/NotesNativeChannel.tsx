@@ -163,6 +163,9 @@ export function NotesNativeChannel({
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newActionSheetOpen, setNewActionSheetOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [pendingDesktopNoteId, setPendingDesktopNoteId] = useState<
+    number | null
+  >(null);
   const [publishingAction, setPublishingAction] =
     useState<PublishingAction>(null);
   const [renameFolderName, setRenameFolderName] = useState('');
@@ -207,10 +210,8 @@ export function NotesNativeChannel({
     });
 
   useEffect(() => {
-    if (useDesktopSplit) {
-      setDesktopFolderId(folderId ?? null);
-    }
-  }, [folderId, useDesktopSplit]);
+    setDesktopFolderId(folderId ?? null);
+  }, [folderId]);
 
   // Derived, never stored: the selected folder is the folder of the note
   // selected in the split pane — the only selection the tree makes visible.
@@ -388,6 +389,7 @@ export function NotesNativeChannel({
         setStartEditNoteId(noteId);
       }
 
+      setPendingDesktopNoteId(null);
       if (useDesktopSplit) {
         selectNoteInPane(noteId);
         return;
@@ -409,6 +411,13 @@ export function NotesNativeChannel({
       options?: { focusTitle?: boolean; startInEdit?: boolean }
     ) => openNoteId(note.noteId, options)
   );
+
+  useEffect(() => {
+    if (pendingDesktopNoteId == null) return;
+    if (!notes.some((note) => note.noteId === pendingDesktopNoteId)) return;
+
+    openNoteId(pendingDesktopNoteId);
+  }, [notes, openNoteId, pendingDesktopNoteId]);
 
   // a notification or activity press targets a specific note; open it once
   // its record has synced (the notes dep keeps this retrying until the note
@@ -456,17 +465,20 @@ export function NotesNativeChannel({
       trackEvent(AnalyticsEvent.NotesSearchResultSelected);
 
       const noteFolderId = note.folderId ?? rootFolderId;
-      if (
-        !useDesktopSplit ||
-        noteFolderId == null ||
-        noteFolderId === activeFolderId
-      ) {
+      if (!useDesktopSplit) {
         openNoteId(note.noteId);
         return;
       }
 
-      setDesktopFolderId(noteFolderId === rootFolderId ? null : noteFolderId);
-      openNoteId(note.noteId);
+      if (noteFolderId != null && noteFolderId !== activeFolderId) {
+        setDesktopFolderId(noteFolderId === rootFolderId ? null : noteFolderId);
+      }
+
+      if (notes.some((candidate) => candidate.noteId === note.noteId)) {
+        openNoteId(note.noteId);
+      } else {
+        setPendingDesktopNoteId(note.noteId);
+      }
     }
   );
 
@@ -621,7 +633,7 @@ export function NotesNativeChannel({
     isDragImportActive,
     isImportingNotes,
   } = useNotesImportController({
-    activeFolderId: folderId ?? null,
+    activeFolderId,
     canDropImportNotes,
     canEdit,
     folders,
