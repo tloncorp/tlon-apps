@@ -13,6 +13,11 @@ describe('tlon tool guard', () => {
       expect(formatAllowedTlonSubcommands()).toContain('notes');
     });
 
+    it('allows Bucket commands through the tlon tool gate', () => {
+      expect(isAllowedTlonSubcommand('buckets')).toBe(true);
+      expect(formatAllowedTlonSubcommands()).toContain('buckets');
+    });
+
     it('keeps notebook allowed for skill-level removal guidance', () => {
       expect(isAllowedTlonSubcommand('notebook')).toBe(true);
     });
@@ -124,6 +129,12 @@ describe('tlon tool guard', () => {
   });
 
   describe('allows other subcommands', () => {
+    it('allows buckets', () => {
+      expect(
+        checkBlockedSendOperation(['buckets', 'files', 'buckets/~host/slug'])
+      ).toBeNull();
+    });
+
     it('allows notes', () => {
       expect(
         checkBlockedSendOperation(['notes', 'list', 'notes/~host/slug'])

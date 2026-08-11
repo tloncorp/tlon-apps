@@ -8,6 +8,7 @@
 
 export const ALLOWED_TLON_COMMANDS = [
   'activity',
+  'buckets',
   'channels',
   'contacts',
   'dms',

@@ -1044,9 +1044,9 @@ export default defineBundledChannelEntry({
       name: 'tlon',
       label: 'Tlon CLI',
       description:
-        'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
+        'Tlon/Urbit API for reading data and administration: activity, Buckets shared files, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
         'DO NOT use this tool to send messages — use the `message` tool instead. ' +
-        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'",
+        "Examples: 'activity mentions --limit 10', 'buckets list', 'channels groups', 'contacts self', 'groups list', 'notes list'",
       parameters: {
         type: 'object',
         properties: {
@@ -1055,7 +1055,7 @@ export default defineBundledChannelEntry({
             description:
               'The tlon command and arguments (read/admin operations). ' +
               'To send messages, use the `message` tool, not this tool. ' +
-              "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
+              "Examples: 'activity mentions --limit 10', 'buckets list', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
           },
         },
         required: ['command'],
