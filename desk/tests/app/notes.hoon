@@ -2446,9 +2446,10 @@
   ?.  =([ship.f name.f] notebook.ev)
     |+['expected event notebook flag']~
   &+[~ s]
-::  self-authored changes submit nothing
+::  self-authored changes don't notify, they just bump the notebook's
+::  recency — immediately, since a bump adds no event and can't notify
 ::
-++  test-activity-self-note-silent
+++  test-activity-self-note-bumps
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
@@ -2464,10 +2465,90 @@
   =/  acts  (weld (activity-actions caz) (activity-actions caz2))
   =/  timers  (weld (edit-timer-wires caz) (edit-timer-wires caz2))
   |=  s=state
-  ?.  =(~ acts)
-    |+['expected no activity submissions for self-authored changes']~
+  ?.  =(2 (lent acts))
+    |+['expected a bump for each self-authored change']~
   ?.  =(~ timers)
     |+['expected no debounce timers for self-authored changes']~
+  |-
+  ?~  acts  &+[~ s]
+  =/  act  i.acts
+  ?.  ?=(%bump -.act)
+    |+['expected self-authored changes to submit a %bump']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected the bump to name the notebook source']~
+  ?.  =([ship.f name.f] flag.source.act)
+    |+['expected the bumped notebook flag']~
+  ?.  =(~ group.source.act)
+    |+['expected no group on a solo notebook source']~
+  $(acts t.acts)
+::  creating a notebook gives it an %activity source right away, so its
+::  notes have a parent to hang off and roll their unreads up into
+::
+++  test-activity-notebook-create-inits-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  caz=(list card)  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  =/  acts  (activity-actions caz)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected exactly one activity submission on notebook create']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%bump -.act)
+    |+['expected a %bump to init the notebook source']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected the bump to name the notebook source']~
+  ?.  =([ship.f name.f] flag.source.act)
+    |+['expected the created notebook flag']~
+  &+[~ s]
+::  joining someone else's notebook inits its source too — the snapshot is
+::  the first point the group (and so the source) is known
+::
+++  test-activity-join-inits-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  ~  b  (set-scry-gate activity-scry)
+  =/  f=flag:n  [~bus %shared]
+  ;<  caz0=(list card)  b  (poke-a [%join f])
+  =/  req-watch=(unit wire)  (find-watch-wire caz0)
+  ~|  %no-join-request-watch-wire
+  ?>  ?=(^ req-watch)
+  ;<  *  b
+    %+  do-agent-drain  u.req-watch
+    :-  [~bus %notes]
+    :+  %fact  %notes-response-update-1
+    !>(`response-update:v1:n`[`@uv`0v0 [%ok *@da [%member-joined ~zod %viewer]]])
+  =/  nb=notebook:n  [1 'NB' ~bus *@da *@da ~bus]
+  =/  root=folder:n  [1 1 'root' ~ ~bus *@da *@da ~bus]
+  =/  nb-state=notebook-state:n
+    :*  nb
+        (~(gas by *members:n) ~[[~bus %owner] [~zod %viewer]])
+        %public
+        (~(gas by *(map @ud folder:n)) ~[[1 root]])
+        ~  ~  ~
+    ==
+  ;<  caz=(list card)  b
+    %+  do-agent  /notes/sub/(scot %p ~bus)/shared
+    [[~bus %notes] [%fact %notes-response !>(`response:n`[%snapshot f %public nb-state])]]
+  =/  acts  (activity-actions caz)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected exactly one activity submission on join snapshot']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%bump -.act)
+    |+['expected a %bump to init the joined notebook source']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected the bump to name the notebook source']~
+  ?.  =([ship.f name.f] flag.source.act)
+    |+['expected the joined notebook flag']~
   &+[~ s]
 ::  changes don't submit immediately: each one (re)arms a debounce timer,
 ::  and only the timer armed against the note's latest change submits
@@ -2880,6 +2961,10 @@
   |=  [synced=? allowed=?]
   ^-  scry
   |=  pax=path
+  ::  creating the notebook probes %activity liveness; answer it like
+  ::  +base-scry so these tests see no activity cards
+  ?:  ?=([%gu @ %activity @ %$ ~] pax)
+    `!>(|)
   ?:  ?=([%gu @ %groups @ %groups @ @ ~] pax)
     `!>(synced)
   ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)

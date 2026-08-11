@@ -1191,11 +1191,12 @@
   ==
 ::  +note-activity: translate an applied u-note into %activity actions.
 ::
-::    %created / %updated -> (re)arm the trailing debounce timer; the
-::                 event is submitted by +note-activity-wake once the
-::                 change settles. Creates debounce too: the client
-::                 creates a note and immediately titles/edits it, which
-::                 would otherwise notify twice in quick succession.
+::    %created / %updated -> ours just bump the notebook's recency;
+::                 anyone else's (re)arm the trailing debounce timer and
+::                 +note-activity-wake submits the event once the change
+::                 settles. Creates debounce too: the client creates a
+::                 note and immediately titles/edits it, which would
+::                 otherwise notify twice in quick succession.
 ::    %deleted  -> %del the note source (regardless of author)
 ::
 ++  note-activity
@@ -1203,7 +1204,8 @@
   ^+  cor
   ?-  -.upd
       ?(%created %updated)
-    ?:  =(our.bowl updated-by.note.upd)  cor
+    ?:  =(our.bowl updated-by.note.upd)
+      (notebook-activity-bump flag group)
     ::  the wire carries the updated-at this timer was armed against, so
     ::  +note-activity-wake can tell whether it is the note's latest
     ::  change — no timer bookkeeping needed, stale timers just no-op
@@ -1252,6 +1254,16 @@
   ?:  =(created-at.u.note updated-at.u.note)
     [%add %note-create ev]
   [%add %note-edit ev]
+::  +notebook-activity-bump: move a notebook's recency without adding an
+::  event. %activity's +bump creates the source if absent, so this inits it.
+::
+++  notebook-activity-bump
+  |=  [=flag:n group=(unit flag:n)]
+  ^+  cor
+  %-  submit-activity
+  :+  %bump  %notebook
+  :-  flag
+  (bind group |=(f=flag:n [ship.f name.f]))
 ::  +notebook-activity-gone: a notebook was deleted or left; drop its
 ::  %activity source (note children included).
 ::
@@ -1908,6 +1920,7 @@
       =/  =wire    /notes/(scot %p ship.flag)/[name.flag]/create
       (emit %pass wire %agent dock %poke group-action-4+!>(action))
     =.  se-core  (emit notebooks-changed-card)
+    =.  cor  (notebook-activity-bump flag group)
     (se-update [%created notebook %private])
   ::  +se-poke: dispatch a c-notes command to the right handler
   ::
@@ -2718,6 +2731,7 @@
       =.  cards  [notebooks-changed-card cards]
       ::  the snapshot carries the host's notebook-state, so group is now
       ::  known — report active to %groups (no-op if not a group channel).
+      =.  cor  (notebook-activity-bump flag group.notebook-state)
       =/  stream=card
         :*  %give  %fact  [/v0/notes/(scot %p ship.flag)/[name.flag]/stream]~
             notes-response+!>(response)
