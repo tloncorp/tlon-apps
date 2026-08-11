@@ -52,16 +52,16 @@
   ==
 ++  cron-task
   ^-  task:v1:a
-  :*  (some 'agent-1')
-      (some 'Daily summary')
-      (some 'Send the daily summary')
-      (some %.y)
-      (some [%cron (some '0 9 * * *') (some 'UTC') (some ~s30)])
+  :*  (some 'dev')
+      (some 'Captured weekday reminder')
+      (some 'Captured cron expression fixture')
+      (some %.n)
+      (some [%cron (some '17 4 * * 1-5') (some 'America/New_York') (some ~s45)])
       (some 'isolated')
       (some 'now')
-      (some [(some 'agentTurn') (some 'Summarize activity')])
-      (some ~2024.1.1)
-      (some ~2024.1.2)
+      (some [(some 'agentTurn') (some 'Send a weekday reminder.')])
+      (some (unix-milliseconds-to-date:au 1.786.416.589.889))
+      (some (unix-milliseconds-to-date:au 1.786.416.589.889))
   ==
 ++  named-task
   ^-  task:v1:a
@@ -187,8 +187,7 @@
     !>((action:enjs:aj actual))
   ==
 ::
-::  no cron-expression job was present in the captured runtime history. keep
-::  this synthetic case focused on the third supported schedule codec
+::  this case is normalized from a live pinned OpenClaw cron-expression capture
 ::
 ++  test-focused-cron-schedule-codec
   =/  body=@t
@@ -197,31 +196,31 @@
       "project": {
         "tasks": [
           {
-            "id": "cron-focused",
-            "agentId": "agent-1",
-            "name": "Daily summary",
-            "description": "Send the daily summary",
-            "enabled": true,
+            "id": "trace-cron-1",
+            "agentId": "dev",
+            "name": "Captured weekday reminder",
+            "description": "Captured cron expression fixture",
+            "enabled": false,
             "schedule": {
               "kind": "cron",
-              "expr": "0 9 * * *",
-              "tz": "UTC",
-              "staggerMs": 30000
+              "expr": "17 4 * * 1-5",
+              "tz": "America/New_York",
+              "staggerMs": 45000
             },
             "sessionTarget": "isolated",
             "wakeMode": "now",
             "payload": {
               "kind": "agentTurn",
-              "text": "Summarize activity"
+              "text": "Send a weekday reminder."
             },
-            "createdAtMs": 1704067200000,
-            "updatedAtMs": 1704153600000
+            "createdAtMs": 1786416589889,
+            "updatedAtMs": 1786416589889
           }
         ]
       }
     }
     '''
-  =/  expected=action:v1:a  [%project ~[['cron-focused' cron-task]]]
+  =/  expected=action:v1:a  [%project ~[['trace-cron-1' cron-task]]]
   =/  actual=action:v1:a  (parse-action body)
   ;:  weld
     (expect-eq !>(expected) !>(actual))

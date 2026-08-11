@@ -12,7 +12,7 @@ function runtimeJob(value: unknown): HookCronJob {
 }
 
 describe('Steward automation projection normalization', () => {
-  it('normalizes captured at/every jobs with their optional fields', () => {
+  it('normalizes captured at/every/cron jobs with their optional fields', () => {
     const result = normalizeStewardAutomationProject(
       capturedCronJobs.map(runtimeJob)
     );
@@ -54,11 +54,33 @@ describe('Steward automation projection normalization', () => {
             createdAtMs: 1_785_735_243_782,
             updatedAtMs: 1_785_740_230_441,
           },
+          {
+            id: 'trace-cron-1',
+            agentId: 'dev',
+            name: 'Captured weekday reminder',
+            description: 'Captured cron expression fixture',
+            enabled: false,
+            schedule: {
+              kind: 'cron',
+              expr: '17 4 * * 1-5',
+              tz: 'America/New_York',
+              staggerMs: 45_000,
+            },
+            sessionTarget: 'isolated',
+            wakeMode: 'now',
+            payload: {
+              kind: 'agentTurn',
+              text: 'Send a weekday reminder.',
+            },
+            createdAtMs: 1_786_416_589_889,
+            updatedAtMs: 1_786_416_589_889,
+          },
         ],
       },
     });
+    expect(result.project.tasks[0]).not.toHaveProperty('description');
+    expect(result.project.tasks[1]).not.toHaveProperty('description');
     for (const task of result.project.tasks) {
-      expect(task).not.toHaveProperty('description');
       expect(task).not.toHaveProperty('state');
       expect(task).not.toHaveProperty('delivery');
       expect(task).not.toHaveProperty('deleteAfterRun');

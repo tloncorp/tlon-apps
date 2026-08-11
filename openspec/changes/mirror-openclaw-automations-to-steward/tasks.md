@@ -108,3 +108,5 @@
         and align tests, specifications, and documentation.
 - [x] 5.8 Format Hoon JSON fixture strings as readable triple-quoted
         blocks.
+- [x] 5.9 Capture a genuine pinned OpenClaw cron-expression job and
+        use its normalized shape in the focused Hoon codec test.
