@@ -131,9 +131,10 @@ channel_access = load_module("channel_access")
 approval = load_module("approval")
 migration = load_module("migration")
 version = load_module("version")
+bot_info = load_module("bot_info")
 adapter_mod = load_module("adapter")
 
-FIXTURE_PATH = PACKAGE_DIR / "fixtures" / "command-manifest.json"
+FIXTURE_PATH = PACKAGE_DIR / "fixtures" / "commands.json"
 
 ALL_TOKENS = [
     "/owner-listen",
@@ -321,57 +322,27 @@ class CommandRegistryTests(unittest.TestCase):
         for name, token in expected.items():
             self.assertEqual(rows[name].telemetry_token, token, name)
 
-    def test_build_manifest_matches_fixture(self):
-        fixture = FIXTURE_PATH.read_text(encoding="utf-8").strip()
-        self.assertEqual(commands.build_command_manifest_json(), fixture)
+    # The fixture is what the client's drift contract reads
+    # (packages/shared/src/domain/runtimeCommandContract.test.ts). Regenerating
+    # it is the deliberate step that says "the client's static list must change
+    # too".
+    def test_build_tokens_matches_fixture(self):
+        fixture = FIXTURE_PATH.read_text(encoding="utf-8")
+        self.assertEqual(commands.build_command_tokens_json(), fixture)
         # Byte-stable across calls.
         self.assertEqual(
-            commands.build_command_manifest_json(),
-            commands.build_command_manifest_json(),
+            commands.build_command_tokens_json(),
+            commands.build_command_tokens_json(),
         )
 
-    def test_fixture_wire_shape(self):
-        manifest = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
-        self.assertEqual(manifest["v"], 1)
+    def test_fixture_names_every_advertised_row_and_nothing_else(self):
+        tokens = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
         self.assertEqual(
-            [entry["command"] for entry in manifest["commands"]],
-            [row.token for row in commands.advertised_command_rows()],
+            tokens, [row.token for row in commands.advertised_command_rows()]
         )
-        self.assertLessEqual(
-            len(FIXTURE_PATH.read_bytes()), commands.BOT_COMMANDS_MAX_MANIFEST_BYTES
-        )
-
-    def test_extract_bot_commands_value_shape_checks(self):
-        manifest = commands.build_command_manifest_json()
-        self.assertEqual(
-            commands.extract_bot_commands_value(
-                {"bot-commands": {"type": "text", "value": manifest}}
-            ),
-            manifest,
-        )
-        self.assertIsNone(commands.extract_bot_commands_value({}))
-        self.assertIsNone(
-            commands.extract_bot_commands_value(
-                {"bot-commands": {"type": "set", "value": []}}
-            )
-        )
-        self.assertIsNone(
-            commands.extract_bot_commands_value(
-                {"bot-commands": {"type": "text", "value": 42}}
-            )
-        )
-        self.assertIsNone(commands.extract_bot_commands_value({"bot-commands": manifest}))
-        self.assertIsNone(commands.extract_bot_commands_value(None))
-
-    def test_build_bot_commands_poke(self):
-        self.assertEqual(
-            commands.build_bot_commands_poke("value"),
-            {"self": {"bot-commands": {"type": "text", "value": "value"}}},
-        )
-        self.assertEqual(
-            commands.build_bot_commands_poke(None),
-            {"self": {"bot-commands": None}},
-        )
+        self.assertEqual(commands.command_tokens(), tokens)
+        # The hidden alias is handled but never named to the client.
+        self.assertNotIn("/tlon-version", tokens)
 
 
 class DispatcherParityTests(unittest.TestCase):
@@ -424,14 +395,6 @@ class DispatcherParityTests(unittest.TestCase):
             )
         )
 
-    def test_every_advertised_row_has_an_icon(self):
-        # The popup renders a leading glyph per row; a row without an icon
-        # falls back to the generic command glyph and breaks visual parity
-        # with the static list, silently.
-        for row in commands.advertised_command_rows():
-            with self.subTest(command=row.token):
-                self.assertTrue(row.icon, row.token)
-
     def test_dispatch_cases_cover_exactly_the_advertised_rows(self):
         # Closes the parity loop: without this, an advertised-but-undispatched
         # row is invisible because the test below only iterates DISPATCH_CASES.
@@ -481,7 +444,31 @@ class DispatcherParityTests(unittest.TestCase):
         self.assertTrue(self.dispatch(adapter, "/tlon-version please"))
 
 
+# Deliberately values nothing in the tree can produce, so a hardcoded literal
+# in adapter.py cannot masquerade as correct sourcing. Using the *real* current
+# versions here would make `build_bot_info_json("0.15.0", "0.17.0 (2026.6.19)")`
+# at the call site indistinguishable from reading them. The real resolver has
+# its own tests in BotInfoClaimTests.
+FAKE_HARNESS_VERSION = "harness-sentinel-9.9.9 (2099-01-01)"
+FAKE_PLUGIN_VERSION = "plugin-sentinel-8.8.8"
+
+
+def expected_claim(_adapter):
+    # Sourced the way the adapter must source it: its own package version plus
+    # the host's. Hardcoding either in adapter.py would fail this.
+    return bot_info.build_bot_info_json(
+        FAKE_PLUGIN_VERSION, FAKE_HARNESS_VERSION
+    )
+
+
 class PublishTests(unittest.TestCase):
+    def setUp(self):
+        patcher = patch.object(
+            adapter_mod, "plugin_version", return_value=FAKE_PLUGIN_VERSION
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def make_adapter(self):
         base = {
             "node_url": "https://pen.tlon.network",
@@ -494,11 +481,12 @@ class PublishTests(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             adapter = adapter_mod.TlonAdapter(PlatformConfig(extra=base))
         adapter._sse = FakeSSE()
+        adapter._harness_version_cache = FAKE_HARNESS_VERSION
         return adapter
 
     def test_publish_on_diff(self):
         adapter = self.make_adapter()
-        asyncio.run(adapter._publish_bot_command_manifest({"nickname": {"type": "text", "value": "Bot"}}))
+        asyncio.run(adapter._publish_bot_info({"nickname": {"type": "text", "value": "Bot"}}))
         pokes = adapter._sse.pokes_for("contact-action-1")
         self.assertEqual(len(pokes), 1)
         app, mark, payload = pokes[0]
@@ -507,9 +495,9 @@ class PublishTests(unittest.TestCase):
             payload,
             {
                 "self": {
-                    "bot-commands": {
+                    "bot-info": {
                         "type": "text",
-                        "value": commands.build_command_manifest_json(),
+                        "value": expected_claim(adapter),
                     }
                 }
             },
@@ -518,18 +506,15 @@ class PublishTests(unittest.TestCase):
     def test_skip_on_match(self):
         adapter = self.make_adapter()
         self_contact = {
-            "bot-commands": {
-                "type": "text",
-                "value": commands.build_command_manifest_json(),
-            }
+            "bot-info": {"type": "text", "value": expected_claim(adapter)}
         }
-        asyncio.run(adapter._publish_bot_command_manifest(self_contact))
+        asyncio.run(adapter._publish_bot_info(self_contact))
         self.assertEqual(adapter._sse.pokes_for("contact-action-1"), [])
 
     def test_republish_over_wrong_shape(self):
         adapter = self.make_adapter()
-        self_contact = {"bot-commands": {"type": "numb", "value": "0x1"}}
-        asyncio.run(adapter._publish_bot_command_manifest(self_contact))
+        self_contact = {"bot-info": {"type": "numb", "value": "0x1"}}
+        asyncio.run(adapter._publish_bot_info(self_contact))
         self.assertEqual(len(adapter._sse.pokes_for("contact-action-1")), 1)
 
     def test_publish_failure_is_non_fatal(self):
@@ -540,10 +525,10 @@ class PublishTests(unittest.TestCase):
             # swallowing it (or returning instead of raising internally) would
             # hide a permanently unadvertised bot.
             with self.assertLogs(adapter_mod.logger, level="WARNING") as logged:
-                asyncio.run(adapter._publish_bot_command_manifest({}))
+                asyncio.run(adapter._publish_bot_info({}))
         # Every attempt was spent before giving up, and nothing was published.
         self.assertEqual(
-            adapter._sse.poke_attempts, adapter_mod.BOT_COMMANDS_PUBLISH_ATTEMPTS
+            adapter._sse.poke_attempts, adapter_mod.BOT_INFO_PUBLISH_ATTEMPTS
         )
         self.assertEqual(adapter._sse.pokes_for("contact-action-1"), [])
         self.assertTrue(
@@ -555,42 +540,39 @@ class PublishTests(unittest.TestCase):
         # final failure.
         self.assertEqual(
             [c.args[0] for c in sleeps.await_args_list],
-            list(adapter_mod.BOT_COMMANDS_PUBLISH_BACKOFF_SECONDS),
+            list(adapter_mod.BOT_INFO_PUBLISH_BACKOFF_SECONDS),
         )
 
     def test_publish_retries_a_transient_poke_failure(self):
         adapter = self.make_adapter()
         adapter._sse.fail_first_pokes = 2
         with patch("asyncio.sleep", new_callable=AsyncMock) as sleeps:
-            asyncio.run(adapter._publish_bot_command_manifest({}))
+            asyncio.run(adapter._publish_bot_info({}))
         # Published on the third attempt, with backoff only between attempts.
         self.assertEqual(len(adapter._sse.pokes_for("contact-action-1")), 1)
         self.assertEqual(
-            adapter._sse.poke_attempts, adapter_mod.BOT_COMMANDS_PUBLISH_ATTEMPTS
+            adapter._sse.poke_attempts, adapter_mod.BOT_INFO_PUBLISH_ATTEMPTS
         )
         self.assertEqual(
             [c.args[0] for c in sleeps.await_args_list],
-            list(adapter_mod.BOT_COMMANDS_PUBLISH_BACKOFF_SECONDS),
+            list(adapter_mod.BOT_INFO_PUBLISH_BACKOFF_SECONDS),
         )
 
     def test_publish_does_not_retry_when_the_read_failed(self):
         adapter = self.make_adapter()
         adapter._sse.fail_pokes = True
         with patch("asyncio.sleep", new_callable=AsyncMock) as sleeps:
-            asyncio.run(adapter._publish_bot_command_manifest(None))
+            asyncio.run(adapter._publish_bot_info(None))
         self.assertEqual(adapter._sse.poke_attempts, 0)
         self.assertEqual(sleeps.call_count, 0)
 
     def test_publish_does_not_retry_an_unchanged_value(self):
         adapter = self.make_adapter()
         self_contact = {
-            "bot-commands": {
-                "type": "text",
-                "value": commands.build_command_manifest_json(),
-            }
+            "bot-info": {"type": "text", "value": expected_claim(adapter)}
         }
         with patch("asyncio.sleep", new_callable=AsyncMock) as sleeps:
-            asyncio.run(adapter._publish_bot_command_manifest(self_contact))
+            asyncio.run(adapter._publish_bot_info(self_contact))
         self.assertEqual(adapter._sse.poke_attempts, 0)
         self.assertEqual(sleeps.call_count, 0)
 
@@ -598,13 +580,13 @@ class PublishTests(unittest.TestCase):
         # A failed read is not evidence the key is absent, so poking blind
         # would defeat compare-then-poke exactly when the ship is unhealthy.
         adapter = self.make_adapter()
-        asyncio.run(adapter._publish_bot_command_manifest(None))
+        asyncio.run(adapter._publish_bot_info(None))
         self.assertEqual(adapter._sse.pokes_for("contact-action-1"), [])
 
     def test_publish_on_successful_empty_self_contact(self):
         # A successful read of a contact map without the key *is* evidence.
         adapter = self.make_adapter()
-        asyncio.run(adapter._publish_bot_command_manifest({}))
+        asyncio.run(adapter._publish_bot_info({}))
         self.assertEqual(len(adapter._sse.pokes_for("contact-action-1")), 1)
 
     def test_rejected_scry_publishes_nothing_end_to_end(self):
@@ -615,22 +597,22 @@ class PublishTests(unittest.TestCase):
 
         adapter._sse.scry = failing_scry
         self_contact = asyncio.run(adapter._load_bot_profile())
-        asyncio.run(adapter._publish_bot_command_manifest(self_contact))
+        asyncio.run(adapter._publish_bot_info(self_contact))
         self.assertEqual(adapter._sse.pokes_for("contact-action-1"), [])
 
     def test_successful_empty_scry_publishes_once_end_to_end(self):
         adapter = self.make_adapter()
         adapter._sse.payloads["/contacts/v1/self.json"] = {}
         self_contact = asyncio.run(adapter._load_bot_profile())
-        asyncio.run(adapter._publish_bot_command_manifest(self_contact))
+        asyncio.run(adapter._publish_bot_info(self_contact))
         self.assertEqual(len(adapter._sse.pokes_for("contact-action-1")), 1)
 
     def test_clear_pokes_null(self):
         adapter = self.make_adapter()
-        asyncio.run(adapter._clear_bot_command_manifest())
+        asyncio.run(adapter._clear_bot_info())
         pokes = adapter._sse.pokes_for("contact-action-1")
         self.assertEqual(len(pokes), 1)
-        self.assertEqual(pokes[0][2], {"self": {"bot-commands": None}})
+        self.assertEqual(pokes[0][2], {"self": {"bot-info": None}})
 
     def test_load_bot_profile_returns_raw_self_contact(self):
         adapter = self.make_adapter()
@@ -644,30 +626,127 @@ class PublishTests(unittest.TestCase):
         self.assertIsNone(asyncio.run(adapter._load_bot_profile()))
 
 
-class ManifestSizeTests(unittest.TestCase):
-    """The self-cap is on UTF-8 bytes, not characters — the ship's jam budget
-    counts bytes, and non-ASCII command copy is 2-4x its character length."""
+class BotInfoClaimTests(unittest.TestCase):
+    def test_claim_shape(self):
+        self.assertEqual(
+            json.loads(bot_info.build_bot_info_json("0.4.2", "0.17.0 (2026.6.19)")),
+            {
+                "v": 1,
+                "harness": "hermes",
+                "version": "0.4.2",
+                "harnessVersion": "0.17.0 (2026.6.19)",
+            },
+        )
+
+    def test_claim_is_byte_stable(self):
+        self.assertEqual(
+            bot_info.build_bot_info_json("0.4.2", "x"),
+            bot_info.build_bot_info_json("0.4.2", "x"),
+        )
+
+    def test_missing_harness_version_is_omitted_not_fatal(self):
+        for absent in (None, "", "   "):
+            with self.subTest(harness_version=absent):
+                self.assertEqual(
+                    json.loads(bot_info.build_bot_info_json("0.4.2", absent)),
+                    {"v": 1, "harness": "hermes", "version": "0.4.2"},
+                )
 
     def test_cap_counts_utf8_bytes_not_characters(self):
-        row = commands.COMMAND_REGISTRY[0]
-        # Multi-byte title whose character count stays under the patched
-        # ceiling while its UTF-8 encoding goes over it.
-        wide = commands.CommandRow(**{**row.__dict__, "title": "☃" * 40})
-        registry = [wide]
-        rendered = None
-
-        with patch.object(commands, "COMMAND_REGISTRY", registry):
-            rendered = commands.build_command_manifest_json()
-
+        """The self-cap is on UTF-8 bytes, not characters — the ship's jam
+        budget counts bytes, and non-ASCII is 2-4x its character length."""
+        wide = "☃" * 40
+        rendered = bot_info.build_bot_info_json(wide)
         self.assertGreater(len(rendered.encode("utf-8")), len(rendered))
 
-        # A ceiling between the two counts must reject on the byte count.
         ceiling = (len(rendered) + len(rendered.encode("utf-8"))) // 2
-        with patch.object(commands, "COMMAND_REGISTRY", registry), patch.object(
-            commands, "BOT_COMMANDS_MAX_MANIFEST_BYTES", ceiling
-        ):
+        with patch.object(bot_info, "BOT_INFO_MAX_BYTES", ceiling):
             with self.assertRaises(ValueError):
-                commands.build_command_manifest_json()
+                bot_info.build_bot_info_json(wide)
+
+    def test_extract_bot_info_value_shape_checks(self):
+        claim = bot_info.build_bot_info_json("0.4.2")
+        self.assertEqual(
+            bot_info.extract_bot_info_value(
+                {"bot-info": {"type": "text", "value": claim}}
+            ),
+            claim,
+        )
+        self.assertIsNone(bot_info.extract_bot_info_value({}))
+        self.assertIsNone(
+            bot_info.extract_bot_info_value({"bot-info": {"type": "set", "value": []}})
+        )
+        self.assertIsNone(
+            bot_info.extract_bot_info_value({"bot-info": {"type": "text", "value": 42}})
+        )
+        self.assertIsNone(bot_info.extract_bot_info_value({"bot-info": claim}))
+        self.assertIsNone(bot_info.extract_bot_info_value(None))
+
+    def test_build_bot_info_poke(self):
+        self.assertEqual(
+            bot_info.build_bot_info_poke("value"),
+            {"self": {"bot-info": {"type": "text", "value": "value"}}},
+        )
+        self.assertEqual(
+            bot_info.build_bot_info_poke(None),
+            {"self": {"bot-info": None}},
+        )
+
+    def test_harness_version_prefers_the_hosts_own_constants(self):
+        module = types.ModuleType("hermes_cli")
+        module.__version__ = "0.17.0"
+        module.__release_date__ = "2026.6.19"
+        with patch.dict(sys.modules, {"hermes_cli": module}):
+            self.assertEqual(
+                bot_info.resolve_harness_version(), "0.17.0 (2026.6.19)"
+            )
+
+    def test_harness_version_falls_back_to_distribution_metadata(self):
+        with patch.dict(sys.modules, {"hermes_cli": None}):
+            with patch("importlib.metadata.version", return_value="0.17.0"):
+                self.assertEqual(bot_info.resolve_harness_version(), "0.17.0")
+
+    def test_half_the_host_constants_is_a_loud_fallback_not_a_value(self):
+        # A present __version__ with an empty __release_date__ means the host
+        # convention moved. Publishing the bare SemVer would look like success
+        # while silently dropping the release identifier — and it is exactly
+        # what the distribution fallback yields anyway, so the preferred source
+        # must warn and fall through rather than return a degraded value.
+        for version_value, release_date in (
+            ("0.17.0", ""),
+            ("", "2026.6.19"),
+        ):
+            with self.subTest(version=version_value, release=release_date):
+                module = types.ModuleType("hermes_cli")
+                module.__version__ = version_value
+                module.__release_date__ = release_date
+                with patch.dict(sys.modules, {"hermes_cli": module}):
+                    with patch(
+                        "importlib.metadata.version", return_value="9.9.9-dist"
+                    ):
+                        with self.assertLogs(
+                            bot_info.logger, level="WARNING"
+                        ) as logged:
+                            self.assertEqual(
+                                bot_info.resolve_harness_version(), "9.9.9-dist"
+                            )
+                self.assertTrue(
+                    any("incomplete" in line for line in logged.output),
+                    logged.output,
+                )
+
+    def test_harness_version_is_none_and_loud_when_nothing_is_available(self):
+        def no_metadata(_name):
+            raise LookupError("not installed")
+
+        with patch.dict(sys.modules, {"hermes_cli": None}):
+            with patch("importlib.metadata.version", no_metadata):
+                with self.assertLogs(bot_info.logger, level="WARNING") as logged:
+                    self.assertIsNone(bot_info.resolve_harness_version())
+        self.assertTrue(
+            any("no Hermes version available" in line for line in logged.output),
+            logged.output,
+        )
 
 
 class StandaloneVersionImportTests(unittest.TestCase):

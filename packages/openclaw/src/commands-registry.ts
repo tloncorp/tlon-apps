@@ -12,24 +12,6 @@ import {
 import { resolveBridgeForCommand } from './monitor/command-auth.js';
 import { handleOwnerListenCommand } from './owner-listen-command.js';
 
-// Contact-profile key under which the bot advertises its slash-command
-// manifest (wire contract: docs/bot-command-manifests.md in tlon-apps).
-export const BOT_COMMANDS_CONTACT_KEY = 'bot-commands';
-// The client rejects raw manifests above this size; the backend's 10kB jam
-// cap covers the whole profile, so a publish failure is a real, non-fatal
-// outcome regardless.
-export const BOT_COMMANDS_MAX_MANIFEST_BYTES = 6000;
-
-export interface TlonCommandManifestEntry {
-  title: string;
-  subtitle?: string;
-  // Name of a glyph in the client's built-in icon set; unknown or absent
-  // names render the generic command glyph (docs/bot-command-manifests.md).
-  icon?: string;
-  keywords?: string[];
-  insertText?: string;
-}
-
 // What the inline handlers used to capture from registerFull's scope.
 export interface TlonCommandDeps {
   renderTlonVersion: () => Promise<{ text: string }>;
@@ -41,9 +23,6 @@ export interface TlonCommandRegistryEntry {
   name: string;
   description: string;
   acceptsArgs?: boolean;
-  // `false` means handled-but-not-advertised. All current OpenClaw plugin
-  // commands are advertised.
-  manifest: TlonCommandManifestEntry | false;
   handler: (
     ctx: PluginCommandContext,
     deps: TlonCommandDeps
@@ -51,27 +30,23 @@ export interface TlonCommandRegistryEntry {
 }
 
 // The single source of truth for the plugin's slash commands: registration
-// (index.ts registerFull) and the advertised manifest both derive from this
-// table, so the manifest can only list commands that are actually
-// registered.
+// (index.ts registerFull) and the committed token fixture both derive from
+// this table.
 //
-// OpenClaw CORE commands (/status, /help, /new) are deliberately absent:
-// the core's builtin command registry is not exported from the `openclaw`
-// npm package at the pinned version (2026.5.28), so their presence cannot
-// be parity-asserted in CI, and advertising unverifiable commands is the
-// exact bug this manifest exists to prevent. They still work when typed;
-// they just are not suggested. Revisit if the core ever exports its
-// command registry.
+// The table carries no popup metadata (titles, subtitles, icons, keywords):
+// the Tlon client owns the editorial surface, in its own static per-harness
+// lists. What this side owes the client is the token set, and only that —
+// which is what fixtures/commands.json holds and what the client's drift
+// contract (packages/shared/src/domain/runtimeCommandContract.test.ts) pins
+// against those lists.
+//
+// OpenClaw CORE commands (/status, /help, /new) are absent by construction:
+// this plugin neither registers nor dispatches them. They are carried on the
+// client's static list as audit-pinned constants.
 export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
   {
     name: 'tlon-version',
     description: 'Show Tlon plugin version.',
-    manifest: {
-      title: 'Tlon plugin version',
-      icon: 'Info',
-      subtitle: 'Show the installed OpenClaw Tlon plugin version',
-      keywords: ['version', 'plugin', 'openclaw'],
-    },
     handler: async (_ctx, deps) => {
       return deps.renderTlonVersion();
     },
@@ -80,12 +55,6 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     name: 'tlon',
     description: 'Tlon plugin diagnostics. Usage: /tlon version',
     acceptsArgs: true,
-    manifest: {
-      title: 'Tlon diagnostics',
-      icon: 'Info',
-      subtitle: 'Tlon plugin diagnostics. Usage: /tlon version',
-      keywords: ['tlon', 'diagnostics', 'version'],
-    },
     handler: async (ctx, deps) => {
       const args = (ctx.args ?? '').trim().toLowerCase();
       if (args !== 'version') {
@@ -103,12 +72,6 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     name: 'allow',
     description: 'Allow a pending DM/channel/group request',
     acceptsArgs: true,
-    manifest: {
-      title: 'Allow request',
-      icon: 'Checkmark',
-      subtitle: 'Approve a pending request by id',
-      keywords: ['approve', 'approval', 'request'],
-    },
     handler: async (ctx) => {
       const result = resolveBridgeForCommand(ctx);
       if ('error' in result) {
@@ -126,12 +89,6 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     name: 'reject',
     description: 'Reject a pending DM/channel/group request',
     acceptsArgs: true,
-    manifest: {
-      title: 'Reject request',
-      icon: 'Close',
-      subtitle: 'Decline a pending request by id',
-      keywords: ['deny', 'decline', 'approval', 'request'],
-    },
     handler: async (ctx) => {
       const result = resolveBridgeForCommand(ctx);
       if ('error' in result) {
@@ -149,12 +106,6 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     name: 'ban',
     description: 'Ban a ship and deny its pending request',
     acceptsArgs: true,
-    manifest: {
-      title: 'Ban request',
-      icon: 'EyeClosed',
-      subtitle: 'Block a ship and deny its pending request',
-      keywords: ['block', 'deny', 'ship', 'approval'],
-    },
     handler: async (ctx) => {
       const result = resolveBridgeForCommand(ctx);
       if ('error' in result) {
@@ -171,12 +122,6 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
   {
     name: 'pending',
     description: 'List pending approval requests',
-    manifest: {
-      title: 'Pending approvals',
-      icon: 'Clock',
-      subtitle: 'List pending DM, channel, and group requests',
-      keywords: ['approval', 'requests', 'owner'],
-    },
     handler: async (ctx) => {
       const result = resolveBridgeForCommand(ctx);
       if ('error' in result) {
@@ -188,12 +133,6 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
   {
     name: 'banned',
     description: 'List banned ships',
-    manifest: {
-      title: 'Banned ships',
-      icon: 'EyeClosed',
-      subtitle: 'List currently banned ships',
-      keywords: ['blocked', 'ships', 'list'],
-    },
     handler: async (ctx) => {
       const result = resolveBridgeForCommand(ctx);
       if ('error' in result) {
@@ -206,12 +145,6 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     name: 'unban',
     description: 'Unban a ship (e.g. /unban ~sampel-palnet)',
     acceptsArgs: true,
-    manifest: {
-      title: 'Unban ship',
-      icon: 'EyeOpen',
-      subtitle: 'Remove a ship from the ban list',
-      keywords: ['unblock', 'ship', 'allow'],
-    },
     handler: async (ctx) => {
       const result = resolveBridgeForCommand(ctx);
       if ('error' in result) {
@@ -231,12 +164,6 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
       'Usage: /owner-listen [on|off|status|list] [<channel-nest>]; ' +
       '/owner-listen all [on|off] for the global kill switch.',
     acceptsArgs: true,
-    manifest: {
-      title: 'Owner listen',
-      icon: 'Command',
-      subtitle: 'Let the owner session listen in this channel',
-      keywords: ['owner', 'listen', 'agent'],
-    },
     handler: async (ctx) => {
       const result = resolveBridgeForCommand(ctx);
       if ('error' in result) {
@@ -257,12 +184,6 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
       '/migrate <diary-nest> [--allow-write-widening] | ' +
       '/migrate cleanup <notes-nest>',
     acceptsArgs: true,
-    manifest: {
-      title: 'Migrate diary to notes',
-      icon: 'Copy',
-      subtitle: 'Run or clean up a diary-to-notes migration',
-      keywords: ['migrate', 'diary', 'notes', 'migration'],
-    },
     handler: async (ctx, deps) => {
       return {
         text: await routeMigrateCommand(
@@ -278,7 +199,7 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
 
 // Register every command in the table. Called from registerFull; the
 // previous inline api.registerCommand calls all live in the table now so
-// registration and the advertised manifest cannot drift apart.
+// registration and the published token list cannot drift apart.
 export function registerTlonCommands(
   api: Pick<OpenClawPluginApi, 'registerCommand'>,
   deps: TlonCommandDeps
@@ -293,39 +214,14 @@ export function registerTlonCommands(
   }
 }
 
-// Serialize the advertised manifest (wire format v:1). Byte-stable: JSON
-// key order follows construction order, which is fixed by the table.
-// Array order is the client's ranking priority.
-export function buildCommandManifestJson(): string {
-  const commands = TLON_COMMAND_REGISTRY.flatMap((entry) => {
-    if (entry.manifest === false) {
-      return [];
-    }
-    const wireEntry: Record<string, unknown> = {
-      command: `/${entry.name}`,
-      title: entry.manifest.title,
-    };
-    if (entry.manifest.subtitle !== undefined) {
-      wireEntry.subtitle = entry.manifest.subtitle;
-    }
-    if (entry.manifest.icon !== undefined) {
-      wireEntry.icon = entry.manifest.icon;
-    }
-    if (entry.manifest.keywords !== undefined) {
-      wireEntry.keywords = entry.manifest.keywords;
-    }
-    if (entry.manifest.insertText !== undefined) {
-      wireEntry.insertText = entry.manifest.insertText;
-    }
-    return [wireEntry];
-  });
+export function commandTokens(): string[] {
+  return TLON_COMMAND_REGISTRY.map((entry) => `/${entry.name}`);
+}
 
-  const value = JSON.stringify({ v: 1, commands });
-  const bytes = new TextEncoder().encode(value).byteLength;
-  if (bytes > BOT_COMMANDS_MAX_MANIFEST_BYTES) {
-    throw new Error(
-      `bot command manifest exceeds ${BOT_COMMANDS_MAX_MANIFEST_BYTES} UTF-8 bytes: ${bytes}`
-    );
-  }
-  return value;
+// The committed fixture's exact bytes (fixtures/commands.json). Nothing sends
+// this anywhere: it is the CI artifact the client's drift contract reads, so
+// only its content and its stability matter. Matches Python's
+// `json.dumps(tokens, indent=2)` so both runtimes' fixtures look alike.
+export function buildCommandTokensJson(): string {
+  return `${JSON.stringify(commandTokens(), null, 2)}\n`;
 }

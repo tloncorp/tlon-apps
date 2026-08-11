@@ -1,74 +1,69 @@
-export type BotAgentType = 'openclaw';
+export type BotAgentType = 'openclaw' | 'hermes';
 
 export interface SlashCommandOption {
   command: `/${string}`;
   title: string;
   subtitle?: string;
   // Icon NAME string, not an IconType: the shared layer must not depend on
-  // @tloncorp/ui, and future hosting-served manifests carry icons as strings.
-  // The popup maps the string to an IconType with a 'Command' fallback.
+  // @tloncorp/ui. The popup maps the string to an IconType with a 'Command'
+  // fallback; packages/app's icon test asserts every name here resolves.
   icon?: string;
   keywords?: string[];
   // Static tiebreaker only; ranking is otherwise driven by the query match.
+  // This — not array position — is what orders the popup (rankSlashCommands).
   priority: number;
   // Defaults to `${command} ` when omitted.
   insertText?: string;
 }
 
 export interface SlashCommandManifest {
-  // Only the static fallback manifests carry an agent; manifests advertised
-  // by bots through their contact profile omit it.
   agent?: BotAgentType;
   commands: SlashCommandOption[];
 }
 
-// ── Advertised command manifests ────────────────────────────────────────────
-// Bots publish their slash-command manifest in their own contact profile,
-// under BOT_COMMANDS_CONTACT_KEY, as a %text value whose text is JSON:
-//   { "v": 1, "commands": [{ "command": "/allow", "title": "Allow", ... }] }
-// Array order is the ranking priority; the client assigns priority = index+1
-// at parse time. See docs/bot-command-manifests.md for the wire contract.
+// ── The bot-info identity claim ─────────────────────────────────────────────
+// A bot publishes who it is — harness and versions — in its own contact
+// profile, under BOT_INFO_CONTACT_KEY, as a %text value whose text is JSON:
+//   {"v":1,"harness":"openclaw","version":"0.19.0","harnessVersion":"..."}
+// The command lists themselves are app-static (below), selected by `harness`.
+// See docs/bot-info.md for the wire contract.
 
-export const BOT_COMMANDS_CONTACT_KEY = 'bot-commands';
+export const BOT_INFO_CONTACT_KEY = 'bot-info';
 
-// Manifest-local ceilings. The backend additionally caps the whole jammed
-// profile (all fields) at 10kB, so publishers treat poke rejection as a
-// real, non-fatal outcome.
-export const BOT_COMMANDS_MAX_RAW_BYTES = 6000;
-export const BOT_COMMANDS_MAX_ENTRIES = 32;
-export const BOT_COMMANDS_MAX_COMMAND_CHARS = 32;
-export const BOT_COMMANDS_MAX_TITLE_CHARS = 64;
-export const BOT_COMMANDS_MAX_SUBTITLE_CHARS = 160;
-export const BOT_COMMANDS_MAX_ICON_CHARS = 32;
-export const BOT_COMMANDS_MAX_KEYWORDS = 8;
-export const BOT_COMMANDS_MAX_KEYWORD_CHARS = 32;
-export const BOT_COMMANDS_MAX_INSERT_TEXT_CHARS = 128;
+// The claim is three short strings. These are abuse bounds on an identity
+// field, not a data budget: nothing here should ever grow toward them.
+export const BOT_INFO_MAX_RAW_BYTES = 512;
+export const BOT_INFO_MAX_FIELD_CHARS = 64;
 
-// Any token that does not match this shape can never trigger the slash
-// command popup (see computeSlashCommandState), so such entries are dropped
-// at parse time.
-const BOT_COMMAND_TOKEN_PATTERN = new RegExp(
-  `^\\/[a-zA-Z0-9-]{1,${BOT_COMMANDS_MAX_COMMAND_CHARS}}$`
-);
+export interface BotInfo {
+  // Matched case-sensitively against known harness ids by isBotAgentType.
+  // Unknown values are kept (they are what the bot claims) but select the
+  // fallback command list.
+  harness: string;
+  // The plugin/adapter's own version — first-party knowledge.
+  version: string;
+  // The underlying agent runtime's version. Optional by design: it is a
+  // diagnostic rider on an identity claim, and a missing rider must never
+  // invalidate the claim.
+  harnessVersion?: string;
+}
 
 export function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).byteLength;
 }
 
 /**
- * Parse an advertised bot-command manifest off a synced contact record.
- * Takes `unknown` — the value comes from the network and the TS declaration
- * of the contact field proves nothing at runtime. Returns null when the
- * manifest is absent, malformed, or has no valid entries; callers fall back
- * to the static manifest in that case.
+ * Parse a bot's identity claim off a synced contact record. Takes `unknown` —
+ * the value comes from the network and the TS declaration of the contact field
+ * proves nothing at runtime. Returns null when the claim is absent, malformed,
+ * over-long, or the wrong version; callers then treat the bot as unidentified
+ * and fall back to the default command list.
  */
-export function parseBotCommandManifest(
-  raw: unknown
-): SlashCommandManifest | null {
+export function parseBotInfo(raw: unknown): BotInfo | null {
   if (typeof raw !== 'string') {
     return null;
   }
-  if (utf8ByteLength(raw) > BOT_COMMANDS_MAX_RAW_BYTES) {
+  if (utf8ByteLength(raw) > BOT_INFO_MAX_RAW_BYTES) {
     return null;
   }
 
@@ -82,110 +77,57 @@ export function parseBotCommandManifest(
     return null;
   }
 
-  const manifest = parsed as Record<string, unknown>;
-  if (manifest.v !== 1) {
-    return null;
-  }
-  if (!Array.isArray(manifest.commands)) {
+  const claim = parsed as Record<string, unknown>;
+  if (claim.v !== 1) {
     return null;
   }
 
-  const commands: SlashCommandOption[] = [];
-  const seenCommands = new Set<string>();
-  // The cap is on wire entries, not survivors: entries past the first 32 are
-  // never read, so invalid or duplicate ones inside the window do not let a
-  // later entry through.
-  for (const entry of manifest.commands.slice(0, BOT_COMMANDS_MAX_ENTRIES)) {
-    const option = parseBotCommandEntry(entry);
-    if (option === null) {
-      continue;
-    }
-    // Duplicate tokens: keep the first occurrence.
-    if (seenCommands.has(option.command)) {
-      continue;
-    }
-    seenCommands.add(option.command);
-    option.priority = commands.length + 1;
-    commands.push(option);
-  }
-
-  if (commands.length === 0) {
-    return null;
-  }
-  return { commands };
-}
-
-function parseBotCommandEntry(entry: unknown): SlashCommandOption | null {
-  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
-    return null;
-  }
-  const record = entry as Record<string, unknown>;
-
-  if (
-    typeof record.command !== 'string' ||
-    !BOT_COMMAND_TOKEN_PATTERN.test(record.command)
-  ) {
-    return null;
-  }
-  if (!isCappedString(record.title, BOT_COMMANDS_MAX_TITLE_CHARS)) {
+  const harness = readClaimField(claim.harness);
+  const version = readClaimField(claim.version);
+  if (harness === null || version === null) {
     return null;
   }
 
-  const option: SlashCommandOption = {
-    command: record.command as `/${string}`,
-    title: record.title,
-    priority: 0,
-  };
-
-  if (record.subtitle !== undefined) {
-    if (!isCappedString(record.subtitle, BOT_COMMANDS_MAX_SUBTITLE_CHARS)) {
+  const info: BotInfo = { harness, version };
+  // Absent is fine; present-but-unusable is not — a claim carrying a number,
+  // an array, or an empty string where a version string belongs is malformed.
+  // Unknown object fields are ignored (forward compatibility).
+  if (claim.harnessVersion !== undefined) {
+    const harnessVersion = readClaimField(claim.harnessVersion);
+    if (harnessVersion === null) {
       return null;
     }
-    option.subtitle = record.subtitle;
+    info.harnessVersion = harnessVersion;
   }
-  if (record.icon !== undefined) {
-    if (!isCappedString(record.icon, BOT_COMMANDS_MAX_ICON_CHARS)) {
-      return null;
-    }
-    option.icon = record.icon;
-  }
-  if (record.insertText !== undefined) {
-    if (
-      !isCappedString(record.insertText, BOT_COMMANDS_MAX_INSERT_TEXT_CHARS)
-    ) {
-      return null;
-    }
-    option.insertText = record.insertText;
-  }
-  if (record.keywords !== undefined) {
-    if (!Array.isArray(record.keywords)) {
-      return null;
-    }
-    if (record.keywords.length > BOT_COMMANDS_MAX_KEYWORDS) {
-      return null;
-    }
-    const keywords: string[] = [];
-    for (const keyword of record.keywords) {
-      if (!isCappedString(keyword, BOT_COMMANDS_MAX_KEYWORD_CHARS)) {
-        return null;
-      }
-      keywords.push(keyword);
-    }
-    option.keywords = keywords;
-  }
-
-  return option;
+  return info;
 }
 
 // Caps count code points, not UTF-16 code units: an astral character (emoji,
 // most CJK extensions) is one character to a publisher but two `.length` units.
-function isCappedString(value: unknown, maxChars: number): value is string {
-  return typeof value === 'string' && Array.from(value).length <= maxChars;
+function readClaimField(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length === 0) {
+    return null;
+  }
+  return Array.from(value).length <= BOT_INFO_MAX_FIELD_CHARS ? value : null;
 }
 
-// ── Static fallback manifest ────────────────────────────────────────────────
+// ── Static per-harness command lists ────────────────────────────────────────
+// Each list is split into two explicitly named parts:
+//
+//   *_RUNTIME_COMMANDS — what the runtime itself handles. CI-bound: the shared
+//     drift contract (runtimeCommandContract.test.ts) asserts these tokens
+//     equal the runtime's committed token fixture, so adding, removing, or
+//     duplicating a command in a runtime turns the contract red.
+//   *_CORE_COMMANDS — host-provided commands the runtime neither registers nor
+//     dispatches. No CI binding is possible (neither host exposes its registry
+//     to us), so these are deliberate, audit-pinned constants: changing one
+//     means re-auditing the host first.
+//
+// The split is display-neutral. Presentation order comes from `priority`
+// (rankSlashCommands sorts by it and never by array position), so membership
+// lives in the two arrays and ordering lives in the priorities.
 
-const OPENCLAW_COMMANDS: SlashCommandOption[] = [
+const OPENCLAW_RUNTIME_COMMANDS: SlashCommandOption[] = [
   {
     command: '/owner-listen',
     title: 'Owner listen',
@@ -193,30 +135,6 @@ const OPENCLAW_COMMANDS: SlashCommandOption[] = [
     icon: 'Command',
     keywords: ['owner', 'listen', 'agent'],
     priority: 1,
-  },
-  {
-    command: '/status',
-    title: 'Status',
-    subtitle: 'Show the current OpenClaw session status',
-    icon: 'Info',
-    keywords: ['openclaw', 'session', 'model'],
-    priority: 2,
-  },
-  {
-    command: '/help',
-    title: 'Help',
-    subtitle: 'Show available OpenClaw commands',
-    icon: 'Info',
-    keywords: ['openclaw', 'commands'],
-    priority: 3,
-  },
-  {
-    command: '/new',
-    title: 'New session',
-    subtitle: 'Start a fresh OpenClaw session',
-    icon: 'Add',
-    keywords: ['reset', 'session', 'openclaw'],
-    priority: 4,
   },
   {
     command: '/pending',
@@ -274,23 +192,233 @@ const OPENCLAW_COMMANDS: SlashCommandOption[] = [
     keywords: ['version', 'plugin', 'openclaw'],
     priority: 11,
   },
+  {
+    command: '/tlon',
+    title: 'Tlon diagnostics',
+    subtitle: 'Tlon plugin diagnostics. Usage: /tlon version',
+    icon: 'Info',
+    keywords: ['tlon', 'diagnostics', 'version'],
+    priority: 12,
+  },
+  {
+    command: '/migrate',
+    title: 'Migrate diary to notes',
+    subtitle: 'Run or clean up a diary-to-notes migration',
+    icon: 'Copy',
+    keywords: ['migrate', 'diary', 'notes', 'migration'],
+    priority: 13,
+  },
 ];
 
-const STATIC_MANIFESTS: Record<BotAgentType, SlashCommandManifest> = {
-  openclaw: { agent: 'openclaw', commands: OPENCLAW_COMMANDS },
+// OpenClaw core. Audit-verified against core at the plugin's dev pin
+// (2026.5.28): the keys "help", "status", "new" in core's builtin command
+// registry (src/auto-reply/commands-registry.shared.ts), which is exported from
+// neither the package entry nor plugin-sdk and offers no runtime enumeration —
+// hence a pinned constant rather than a CI-bound list. The plugin supports
+// hosts >= 2026.5.7, older than the audited pin.
+const OPENCLAW_CORE_COMMANDS: SlashCommandOption[] = [
+  {
+    command: '/status',
+    title: 'Status',
+    subtitle: 'Show the current OpenClaw session status',
+    icon: 'Info',
+    keywords: ['openclaw', 'session', 'model'],
+    priority: 2,
+  },
+  {
+    command: '/help',
+    title: 'Help',
+    subtitle: 'Show available OpenClaw commands',
+    icon: 'Info',
+    keywords: ['openclaw', 'commands'],
+    priority: 3,
+  },
+  {
+    command: '/new',
+    title: 'New session',
+    subtitle: 'Start a fresh OpenClaw session',
+    icon: 'Add',
+    keywords: ['reset', 'session', 'openclaw'],
+    priority: 4,
+  },
+];
+
+const HERMES_RUNTIME_COMMANDS: SlashCommandOption[] = [
+  {
+    command: '/owner-listen',
+    title: 'Owner listen',
+    subtitle: 'Let the owner session listen in this channel',
+    icon: 'Command',
+    keywords: ['owner', 'listen', 'agent'],
+    priority: 4,
+  },
+  {
+    command: '/migrate',
+    title: 'Migrate diary to notes',
+    subtitle: 'Run or clean up a diary-to-notes migration',
+    icon: 'Copy',
+    keywords: ['migrate', 'diary', 'notes', 'migration'],
+    priority: 5,
+  },
+  {
+    command: '/tlon',
+    title: 'Tlon diagnostics',
+    subtitle: 'Tlon adapter diagnostics. Usage: /tlon version',
+    icon: 'Info',
+    keywords: ['tlon', 'diagnostics', 'version', 'status'],
+    priority: 6,
+  },
+  {
+    command: '/allow',
+    title: 'Allow request',
+    subtitle: 'Approve a pending request by id',
+    icon: 'Checkmark',
+    keywords: ['approve', 'approval', 'request'],
+    priority: 7,
+  },
+  {
+    command: '/reject',
+    title: 'Reject request',
+    subtitle: 'Decline a pending request by id',
+    icon: 'Close',
+    keywords: ['deny', 'decline', 'approval', 'request'],
+    priority: 8,
+  },
+  {
+    command: '/ban',
+    title: 'Ban request',
+    subtitle: 'Block a ship and deny its pending request',
+    icon: 'EyeClosed',
+    keywords: ['block', 'deny', 'ship', 'approval'],
+    priority: 9,
+  },
+  {
+    command: '/unban',
+    title: 'Unban ship',
+    subtitle: 'Remove a ship from the ban list',
+    icon: 'EyeOpen',
+    keywords: ['unblock', 'ship', 'allow'],
+    priority: 10,
+  },
+  {
+    command: '/pending',
+    title: 'Pending approvals',
+    subtitle: 'List pending DM, channel, and group requests',
+    icon: 'Clock',
+    keywords: ['approval', 'requests', 'owner'],
+    priority: 11,
+  },
+  {
+    command: '/banned',
+    title: 'Banned ships',
+    subtitle: 'List currently banned ships',
+    icon: 'EyeClosed',
+    keywords: ['blocked', 'ships', 'list'],
+    priority: 12,
+  },
+  {
+    command: '/channel-access',
+    title: 'Channel access',
+    subtitle: 'Open or restrict a channel, or show its access status',
+    icon: 'Lock',
+    keywords: ['channel', 'access', 'open', 'restricted'],
+    priority: 13,
+  },
+];
+
+// Hermes core. Verified user-invocable by a source audit of the pinned
+// hermes-agent runtime (tag v2026.6.19, commit 2bd1977): each is defined in
+// core's command registry (hermes_cli/commands.py), dispatched by the gateway
+// (gateway/run.py), not cli_only, and carries no per-command
+// gateway_config_gate. Hermes' standard slash-access policy
+// (gateway/slash_access.py) still applies on top: /help is always allowed, the
+// other five can require admin or allowlisting — the same ceiling the adapter's
+// own owner-only commands already sit under, so it changes nothing here. The
+// ~40 other verified core commands work when typed but are not suggested.
+const HERMES_CORE_COMMANDS: SlashCommandOption[] = [
+  {
+    command: '/help',
+    title: 'Help',
+    subtitle: 'Show available Hermes commands',
+    icon: 'Info',
+    keywords: ['hermes', 'commands'],
+    priority: 1,
+  },
+  {
+    command: '/status',
+    title: 'Status',
+    subtitle: 'Show the current Hermes session status',
+    icon: 'Info',
+    keywords: ['hermes', 'session', 'model'],
+    priority: 2,
+  },
+  {
+    command: '/new',
+    title: 'New session',
+    subtitle: 'Start a fresh Hermes session',
+    icon: 'Add',
+    keywords: ['reset', 'session', 'hermes'],
+    priority: 3,
+  },
+  {
+    command: '/stop',
+    title: 'Stop',
+    subtitle: 'Stop the work currently in flight',
+    icon: 'Stop',
+    keywords: ['halt', 'cancel', 'interrupt'],
+    priority: 14,
+  },
+  {
+    command: '/usage',
+    title: 'Token usage',
+    subtitle: 'Show token usage for this session',
+    icon: 'Info',
+    keywords: ['tokens', 'cost', 'usage'],
+    priority: 15,
+  },
+  {
+    command: '/model',
+    title: 'Switch model',
+    subtitle: 'Show or change the active model',
+    icon: 'Settings',
+    keywords: ['model', 'provider', 'switch'],
+    priority: 16,
+  },
+];
+
+// The CI-bound half of each list, keyed by harness. The drift contract reads
+// this; nothing else should need it.
+export const RUNTIME_COMMANDS: Record<BotAgentType, SlashCommandOption[]> = {
+  openclaw: OPENCLAW_RUNTIME_COMMANDS,
+  hermes: HERMES_RUNTIME_COMMANDS,
+};
+
+// Concatenation order is arbitrary — `priority` is what users see.
+export const STATIC_MANIFESTS: Record<BotAgentType, SlashCommandManifest> = {
+  openclaw: {
+    agent: 'openclaw',
+    commands: [...OPENCLAW_RUNTIME_COMMANDS, ...OPENCLAW_CORE_COMMANDS],
+  },
+  hermes: {
+    agent: 'hermes',
+    commands: [...HERMES_RUNTIME_COMMANDS, ...HERMES_CORE_COMMANDS],
+  },
 };
 
 export function isBotAgentType(value: unknown): value is BotAgentType {
-  return value === 'openclaw';
+  return value === 'openclaw' || value === 'hermes';
 }
 
+/**
+ * The command list for a harness id, as claimed in a bot's `bot-info`. An
+ * unknown or absent harness gets the OpenClaw list: a claim we cannot place is
+ * as untrusted as no claim at all, and third-party bots cannot advertise their
+ * own commands under this design.
+ */
 export function getStaticSlashCommandManifest(
-  agent: BotAgentType
+  harness: string | null | undefined
 ): SlashCommandManifest {
-  // Defensive: a stale persisted value is as untrusted as a network response
-  // if the enum ever evolves, so fall back to openclaw for any unrecognized
-  // agent value.
-  return isBotAgentType(agent)
-    ? STATIC_MANIFESTS[agent]
+  return isBotAgentType(harness)
+    ? STATIC_MANIFESTS[harness]
     : STATIC_MANIFESTS.openclaw;
 }

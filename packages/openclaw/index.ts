@@ -1396,8 +1396,8 @@ export default defineBundledChannelEntry({
 
     // ── Slash commands for approval & admin ────────────────────────────
     // All plugin commands live in one table (commands-registry.ts) that both
-    // registers the handlers and serializes as the manifest advertised in the
-    // bot's contact profile at monitor boot.
+    // registers the handlers and serializes as fixtures/commands.json, the
+    // token list the Tlon client's drift contract pins its static list against.
     registerTlonCommands(api, {
       renderTlonVersion,
       handleMigrateCommand,

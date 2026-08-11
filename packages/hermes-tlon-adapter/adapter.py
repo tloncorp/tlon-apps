@@ -74,13 +74,14 @@ from .channel_access import (
     parse_channel_rules,
 )
 from .cite import resolve_cites
-from .commands import (
-    BOT_COMMANDS_CONTACT_MARK,
-    build_bot_commands_poke,
-    build_command_manifest_json,
-    command_detection_regex,
-    extract_bot_commands_value,
+from .bot_info import (
+    BOT_INFO_CONTACT_MARK,
+    build_bot_info_json,
+    build_bot_info_poke,
+    extract_bot_info_value,
+    resolve_harness_version,
 )
+from .commands import command_detection_regex
 from .history import (
     MessageCache,
     build_channel_context,
@@ -234,10 +235,13 @@ logger = logging.getLogger(__name__)
 
 RECONNECT_BACKOFF_SECONDS = (2, 5, 10, 30, 60)
 # A transient poke failure would otherwise leave a healthy long-lived bot
-# unadvertised until an unrelated reconnect or a restart, so the write is
+# unidentified until an unrelated reconnect or a restart, so the write is
 # retried in place. Reads are never retried: a failed read skips entirely.
-BOT_COMMANDS_PUBLISH_ATTEMPTS = 3
-BOT_COMMANDS_PUBLISH_BACKOFF_SECONDS = (2, 8)
+BOT_INFO_PUBLISH_ATTEMPTS = 3
+BOT_INFO_PUBLISH_BACKOFF_SECONDS = (2, 8)
+# Distinguishes "not resolved yet" from a resolved-but-absent host version, so
+# a missing version is looked up once rather than on every publish.
+_UNSET_HARNESS_VERSION = object()
 CITE_RESOLUTION_BUDGET_SECONDS = 5.0
 RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000
 # Window in which a repeated retry request for the same lensId is a no-op
@@ -975,6 +979,7 @@ class TlonAdapter(BasePlatformAdapter):
         self._mention_matcher = self._build_mention_matcher()
         self._bot_nickname: str = ""
         self._bot_avatar: str = ""
+        self._harness_version_cache: Any = _UNSET_HARNESS_VERSION
         self._participated_threads: set[str] = set()
         self._known_bot_ships: set[str] = set()
         self._known_bot_consecutive_by_channel: dict[str, int] = {}
@@ -1055,10 +1060,10 @@ class TlonAdapter(BasePlatformAdapter):
             )
             set_active_telemetry(self._telemetry)
             self_contact = await self._load_bot_profile()
-            # Advertise the adapter's control-command manifest now that the
-            # SSE client is live and the current self-contact is in hand
-            # (enables compare-before-poke idempotence).
-            await self._publish_bot_command_manifest(self_contact)
+            # Publish the bot's identity claim now that the SSE client is live
+            # and the current self-contact is in hand (enables
+            # compare-before-poke idempotence).
+            await self._publish_bot_info(self_contact)
             settings_loaded = await self._load_settings_state()
             self._nudge_settings_ready = settings_loaded
             if not settings_loaded:
@@ -2482,7 +2487,7 @@ class TlonAdapter(BasePlatformAdapter):
 
     async def _load_bot_profile(self) -> Optional[dict[str, Any]]:
         """Fetch and apply the self contact; return the raw map so callers
-        can compare the advertised bot-commands value before poking.
+        can compare the published bot-info value before poking.
 
         Returns None when the read did not produce a contact map — callers
         must treat that as "current value unknown", never as "key absent"."""
@@ -2498,62 +2503,66 @@ class TlonAdapter(BasePlatformAdapter):
         self._apply_self_contact(profile)
         return profile
 
-    async def _publish_bot_command_manifest(
+    async def _publish_bot_info(
         self, self_contact: Optional[Mapping[str, Any]]
     ) -> None:
-        """Advertise the adapter's control commands in the bot's own contact
-        profile: compare the current ``bot-commands`` value against the
-        computed manifest and poke only on difference. Non-fatal — the client
-        falls back to its static list until the next successful publish."""
+        """Publish the bot's identity claim in its own contact profile:
+        compare the current ``bot-info`` value against the computed claim and
+        poke only on difference. Non-fatal — the client falls back to treating
+        the bot as unidentified until the next successful publish."""
         if self._sse is None:
             return
         if self_contact is None:
             # The self-contact read failed: the current value is unknown, so
             # there is nothing to compare against. Poking blind here would
             # defeat compare-then-poke exactly when the ship is unhealthy.
-            logger.debug(
-                "[tlon] skipping bot command manifest publish: self contact unread"
-            )
+            logger.debug("[tlon] skipping bot info publish: self contact unread")
             return
         try:
-            desired = build_command_manifest_json()
-            if extract_bot_commands_value(self_contact) == desired:
+            desired = build_bot_info_json(
+                plugin_version(), self._harness_version()
+            )
+            if extract_bot_info_value(self_contact) == desired:
                 return
-            payload = build_bot_commands_poke(desired)
-            for attempt in range(1, BOT_COMMANDS_PUBLISH_ATTEMPTS + 1):
+            payload = build_bot_info_poke(desired)
+            for attempt in range(1, BOT_INFO_PUBLISH_ATTEMPTS + 1):
                 try:
-                    await self._sse.poke(
-                        "contacts", BOT_COMMANDS_CONTACT_MARK, payload
-                    )
-                    logger.info("[tlon] published bot command manifest")
+                    await self._sse.poke("contacts", BOT_INFO_CONTACT_MARK, payload)
+                    logger.info("[tlon] published bot info")
                     return
                 except Exception as exc:
-                    if attempt >= BOT_COMMANDS_PUBLISH_ATTEMPTS:
+                    if attempt >= BOT_INFO_PUBLISH_ATTEMPTS:
                         raise
                     logger.debug(
-                        "[tlon] bot command manifest publish attempt %d failed: %s",
+                        "[tlon] bot info publish attempt %d failed: %s",
                         attempt,
                         exc,
                     )
                     await asyncio.sleep(
-                        BOT_COMMANDS_PUBLISH_BACKOFF_SECONDS[
+                        BOT_INFO_PUBLISH_BACKOFF_SECONDS[
                             min(
                                 attempt - 1,
-                                len(BOT_COMMANDS_PUBLISH_BACKOFF_SECONDS) - 1,
+                                len(BOT_INFO_PUBLISH_BACKOFF_SECONDS) - 1,
                             )
                         ]
                     )
         except Exception as exc:
-            logger.warning("[tlon] could not publish bot command manifest: %s", exc)
+            logger.warning("[tlon] could not publish bot info: %s", exc)
 
-    async def _clear_bot_command_manifest(self) -> None:
-        """Clear the advertised manifest (rollback/retirement procedure):
-        contact keys die only by explicit null."""
+    def _harness_version(self) -> Optional[str]:
+        """Resolved once per process: a function-local import reads Python's
+        already-cached module, so deferring the read buys no freshness — an
+        edit to the host's constants needs a restart either way."""
+        if self._harness_version_cache is _UNSET_HARNESS_VERSION:
+            self._harness_version_cache = resolve_harness_version()
+        return self._harness_version_cache
+
+    async def _clear_bot_info(self) -> None:
+        """Clear the published claim (rollback/retirement procedure): contact
+        keys die only by explicit null."""
         if self._sse is None:
             return
-        await self._sse.poke(
-            "contacts", BOT_COMMANDS_CONTACT_MARK, build_bot_commands_poke(None)
-        )
+        await self._sse.poke("contacts", BOT_INFO_CONTACT_MARK, build_bot_info_poke(None))
 
     def _apply_self_contact(self, contact: Any) -> None:
         """Reconcile bot nickname/avatar state from a self contact map.
@@ -2713,10 +2722,10 @@ class TlonAdapter(BasePlatformAdapter):
                             )
                         # Contacts facts do not replay either; catch up on renames
                         # (or clears) missed while disconnected, and re-check the
-                        # advertised command manifest (e.g. a registry edit that
-                        # has not been published yet).
+                        # published identity claim (e.g. a version bump that has
+                        # not been published yet).
                         self_contact = await self._load_bot_profile()
-                        await self._publish_bot_command_manifest(self_contact)
+                        await self._publish_bot_info(self_contact)
                     except BaseException:
                         await self._close_sse(graceful=False)
                         raise

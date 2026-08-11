@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as db from '../../db';
 import {
-  ensureBotCommandsSynced,
-  resetBotCommandsBackfillState,
+  ensureBotInfoSynced,
+  resetBotInfoBackfillState,
 } from '../contactActions';
 import { handleContactUpdate } from '../sync/sync';
 
@@ -30,16 +30,17 @@ vi.mock('../../db', async (importOriginal) => {
 });
 
 const ship = '~bot';
-const manifest = JSON.stringify({
+const claim = JSON.stringify({
   v: 1,
-  commands: [{ command: '/allow', title: 'Allow' }],
+  harness: 'openclaw',
+  version: '0.19.0',
 });
 
 // The C-3 recovery carrier: a `/v1/news` %peer fact mapped by the real
 // contacts mapper and written by the real sync handler.
-async function deliverPeerFact(who: string, botCommands: string) {
+async function deliverPeerFact(who: string, botInfo: string) {
   const contact = api.v1PeerToClientProfile(who, {
-    'bot-commands': { type: 'text', value: botCommands },
+    'bot-info': { type: 'text', value: botInfo },
   } as never);
   await handleContactUpdate({ type: 'upsertContact', contact });
 }
@@ -54,10 +55,10 @@ function nonContactRow(overrides: Record<string, unknown> = {}) {
   } as unknown as Awaited<ReturnType<typeof db.getContact>>;
 }
 
-describe('ensureBotCommandsSynced', () => {
+describe('ensureBotInfoSynced', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resetBotCommandsBackfillState();
+    resetBotInfoBackfillState();
     vi.mocked(db.getContact).mockResolvedValue(nonContactRow());
     vi.mocked(api.getContactProfile).mockResolvedValue(null);
   });
@@ -65,15 +66,15 @@ describe('ensureBotCommandsSynced', () => {
   it('meets the ship and upserts the fetched profile', async () => {
     vi.mocked(api.getContactProfile).mockResolvedValue({
       id: ship,
-      botCommands: manifest,
+      botInfo: claim,
     } as db.Contact);
 
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
 
     expect(api.syncUserProfiles).toHaveBeenCalledWith([ship]);
     expect(api.getContactProfile).toHaveBeenCalledWith(ship);
     expect(db.upsertContact).toHaveBeenCalledWith(
-      expect.objectContaining({ id: ship, botCommands: manifest })
+      expect.objectContaining({ id: ship, botInfo: claim })
     );
   });
 
@@ -91,8 +92,8 @@ describe('ensureBotCommandsSynced', () => {
     });
 
     const both = Promise.all([
-      ensureBotCommandsSynced(ship),
-      ensureBotCommandsSynced(ship),
+      ensureBotInfoSynced(ship),
+      ensureBotInfoSynced(ship),
     ]);
     releaseContact!();
     await both;
@@ -104,61 +105,61 @@ describe('ensureBotCommandsSynced', () => {
   it('retries after a scry miss (first scry races the %meet watch)', async () => {
     vi.mocked(api.getContactProfile).mockResolvedValueOnce(null);
 
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
     expect(db.upsertContact).not.toHaveBeenCalled();
 
     // The profile arrives on a later attempt (scry or subscription-fed).
     vi.mocked(api.getContactProfile).mockResolvedValueOnce({
       id: ship,
-      botCommands: manifest,
+      botInfo: claim,
     } as db.Contact);
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
     expect(db.upsertContact).toHaveBeenCalledTimes(1);
   });
 
   it('scry misses, then the profile lands via the subscription path', async () => {
     // First attempt races the %meet watch: the scry 404s.
     vi.mocked(api.getContactProfile).mockResolvedValueOnce(null);
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
     expect(db.upsertContact).not.toHaveBeenCalled();
 
     // The %peer fact then arrives through the real contacts subscription and
     // is written by the real sync handler — no hand-rolled upsert here, so
     // breaking either carrier fails this test.
-    await deliverPeerFact(ship, manifest);
+    await deliverPeerFact(ship, claim);
     expect(db.upsertContact).toHaveBeenCalledWith(
-      expect.objectContaining({ id: ship, botCommands: manifest }),
+      expect.objectContaining({ id: ship, botInfo: claim }),
       undefined
     );
 
-    // A later hook evaluation sees the stored manifest and stops fetching.
+    // A later hook evaluation sees the stored claim and stops fetching.
     vi.mocked(db.getContact).mockResolvedValueOnce(
-      nonContactRow({ botCommands: manifest })
+      nonContactRow({ botInfo: claim })
     );
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
     expect(api.getContactProfile).toHaveBeenCalledTimes(1);
   });
 
   it('retries after a failure; failures are not cached as done', async () => {
     vi.mocked(api.getContactProfile)
       .mockRejectedValueOnce(new Error('404'))
-      .mockResolvedValueOnce({ id: ship, botCommands: manifest } as db.Contact);
+      .mockResolvedValueOnce({ id: ship, botInfo: claim } as db.Contact);
 
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
     expect(db.upsertContact).not.toHaveBeenCalled();
 
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
     expect(db.upsertContact).toHaveBeenCalledTimes(1);
   });
 
   it('bounds retries per ship per session', async () => {
     vi.mocked(api.getContactProfile).mockResolvedValue(null);
 
-    await ensureBotCommandsSynced(ship);
-    await ensureBotCommandsSynced(ship);
-    await ensureBotCommandsSynced(ship);
-    await ensureBotCommandsSynced(ship);
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
+    await ensureBotInfoSynced(ship);
+    await ensureBotInfoSynced(ship);
+    await ensureBotInfoSynced(ship);
+    await ensureBotInfoSynced(ship);
 
     expect(api.getContactProfile).toHaveBeenCalledTimes(3);
   });
@@ -169,26 +170,26 @@ describe('ensureBotCommandsSynced', () => {
       isContact: true,
     } as unknown as Awaited<ReturnType<typeof db.getContact>>);
 
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
 
     expect(api.syncUserProfiles).not.toHaveBeenCalled();
     expect(api.getContactProfile).not.toHaveBeenCalled();
   });
 
-  it('skips ships that already advertise a usable manifest', async () => {
+  it('skips ships that already published a usable claim', async () => {
     vi.mocked(db.getContact).mockResolvedValue(
-      nonContactRow({ botCommands: manifest })
+      nonContactRow({ botInfo: claim })
     );
 
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
 
     expect(api.syncUserProfiles).not.toHaveBeenCalled();
     expect(api.getContactProfile).not.toHaveBeenCalled();
   });
 
-  it('refreshes a stored value that does not parse as a manifest', async () => {
+  it('refreshes a stored value that does not parse as a claim', async () => {
     // A v0 `/all` sync preserves whatever was there; if that value is stale
-    // junk, wrong-version or oversized, every reader treats it as no manifest,
+    // junk, wrong-version or oversized, every reader treats it as no claim,
     // so it must not pin the backfill off.
     for (const stored of [
       'not json',
@@ -196,20 +197,20 @@ describe('ensureBotCommandsSynced', () => {
       JSON.stringify({ v: 1, commands: [] }),
     ]) {
       vi.clearAllMocks();
-      resetBotCommandsBackfillState();
+      resetBotInfoBackfillState();
       vi.mocked(db.getContact).mockResolvedValue(
-        nonContactRow({ botCommands: stored })
+        nonContactRow({ botInfo: stored })
       );
       vi.mocked(api.getContactProfile).mockResolvedValue({
         id: ship,
-        botCommands: manifest,
+        botInfo: claim,
       } as db.Contact);
 
-      await ensureBotCommandsSynced(ship);
+      await ensureBotInfoSynced(ship);
 
       expect(api.getContactProfile).toHaveBeenCalledWith(ship);
       expect(db.upsertContact).toHaveBeenCalledWith(
-        expect.objectContaining({ id: ship, botCommands: manifest })
+        expect.objectContaining({ id: ship, botInfo: claim })
       );
     }
   });
@@ -219,7 +220,7 @@ describe('ensureBotCommandsSynced', () => {
     // contact-book entry, whose per-ship scry merges the user's mod overlay.
     vi.mocked(db.getContact).mockResolvedValue(null);
 
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
 
     expect(api.syncUserProfiles).not.toHaveBeenCalled();
     expect(api.getContactProfile).not.toHaveBeenCalled();
@@ -231,10 +232,10 @@ describe('ensureBotCommandsSynced', () => {
     // as proven false — the same mod-overlay hazard as the absent-row case.
     for (const isContact of [null, undefined]) {
       vi.clearAllMocks();
-      resetBotCommandsBackfillState();
+      resetBotInfoBackfillState();
       vi.mocked(db.getContact).mockResolvedValue(nonContactRow({ isContact }));
 
-      await ensureBotCommandsSynced(ship);
+      await ensureBotInfoSynced(ship);
 
       expect(api.syncUserProfiles).not.toHaveBeenCalled();
       expect(api.getContactProfile).not.toHaveBeenCalled();
@@ -247,23 +248,23 @@ describe('ensureBotCommandsSynced', () => {
     vi.mocked(db.getContact).mockResolvedValue(
       nonContactRow({ isContact: null })
     );
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
     expect(api.syncUserProfiles).not.toHaveBeenCalled();
 
     vi.mocked(db.getContact).mockResolvedValue(nonContactRow());
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
     expect(api.syncUserProfiles).toHaveBeenCalledWith([ship]);
     expect(api.getContactProfile).toHaveBeenCalledWith(ship);
   });
 
-  it('keeps skipping contact-book rows even when their stored manifest is invalid', async () => {
+  it('keeps skipping contact-book rows even when their stored claim is invalid', async () => {
     // The B-1 parse gate must not leak contact-book rows into the fetch path:
     // an unusable stored value on an isContact row still means "no backfill".
     vi.mocked(db.getContact).mockResolvedValue(
-      nonContactRow({ isContact: true, botCommands: 'not json' })
+      nonContactRow({ isContact: true, botInfo: 'not json' })
     );
 
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
 
     expect(api.syncUserProfiles).not.toHaveBeenCalled();
     expect(api.getContactProfile).not.toHaveBeenCalled();
@@ -271,13 +272,13 @@ describe('ensureBotCommandsSynced', () => {
 
   it('scopes backfill state by current user', async () => {
     vi.mocked(api.getContactProfile).mockResolvedValue(null);
-    await ensureBotCommandsSynced(ship);
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
+    await ensureBotInfoSynced(ship);
     expect(api.getContactProfile).toHaveBeenCalledTimes(2);
 
     // Switching account resets the per-session bookkeeping.
     vi.mocked(api.getCurrentUserId).mockReturnValueOnce('~bus');
-    await ensureBotCommandsSynced(ship);
+    await ensureBotInfoSynced(ship);
     expect(api.getContactProfile).toHaveBeenCalledTimes(3);
   });
 });

@@ -4,72 +4,104 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  BOT_COMMANDS_PUBLISH_ATTEMPTS,
-  BOT_COMMANDS_PUBLISH_BACKOFF_MS,
-  type BotCommandManifestPokeApi,
+  BOT_INFO_CONTACT_KEY,
+  BOT_INFO_MAX_BYTES,
+  BOT_INFO_PUBLISH_ATTEMPTS,
+  BOT_INFO_PUBLISH_BACKOFF_MS,
+  type BotInfoPokeApi,
   SELF_CONTACT_SCRY_PATH,
   type SelfContactRead,
+  buildBotInfoJson,
   defaultSleep,
-  maybePublishBotCommandManifest,
-  publishBotCommandManifest,
-  readBotCommandsValue,
+  maybePublishBotInfo,
+  publishBotInfo,
+  readBotInfoValue,
   readSelfContact,
-  syncBotCommandManifest,
-} from './bot-command-manifest.js';
-import { BOT_COMMANDS_CONTACT_KEY } from './commands-registry.js';
+  syncBotInfo,
+} from './bot-info.js';
 
-const manifestValue = JSON.stringify({
-  v: 1,
-  commands: [{ command: '/allow', title: 'Allow' }],
+const infoValue = buildBotInfoJson({
+  version: '0.19.0',
+  harnessVersion: '2026.5.28',
+});
+
+describe('buildBotInfoJson', () => {
+  it('names the harness, the plugin version, and the host version', () => {
+    expect(JSON.parse(infoValue)).toEqual({
+      v: 1,
+      harness: 'openclaw',
+      version: '0.19.0',
+      harnessVersion: '2026.5.28',
+    });
+  });
+
+  it('is byte-stable, so compare-then-poke does not false-positive', () => {
+    expect(
+      buildBotInfoJson({ version: '0.19.0', harnessVersion: '2026.5.28' })
+    ).toBe(infoValue);
+  });
+
+  it('omits an unavailable host version rather than invalidating the claim', () => {
+    for (const harnessVersion of [undefined, null, '', '   ']) {
+      const value = buildBotInfoJson({ version: '0.19.0', harnessVersion });
+      expect(JSON.parse(value)).toEqual({
+        v: 1,
+        harness: 'openclaw',
+        version: '0.19.0',
+      });
+    }
+  });
+
+  it('throws rather than publishing past the client parse ceiling', () => {
+    expect(() =>
+      buildBotInfoJson({ version: 'x'.repeat(BOT_INFO_MAX_BYTES) })
+    ).toThrow(/exceeds/);
+  });
 });
 
 const selfContactWith = (value: unknown) => ({
   nickname: { type: 'text', value: 'Bot' },
-  [BOT_COMMANDS_CONTACT_KEY]: value,
+  [BOT_INFO_CONTACT_KEY]: value,
 });
 
 // A successful read of the given contact map.
 const read = (contact: unknown): SelfContactRead => ({ ok: true, contact });
 
-describe('readBotCommandsValue', () => {
+describe('readBotInfoValue', () => {
   it('reads a well-formed text field', () => {
     expect(
-      readBotCommandsValue(
-        selfContactWith({ type: 'text', value: manifestValue })
-      )
-    ).toBe(manifestValue);
+      readBotInfoValue(selfContactWith({ type: 'text', value: infoValue }))
+    ).toBe(infoValue);
   });
 
   it('returns null for absent or wrong-shaped fields', () => {
     expect(
-      readBotCommandsValue({ nickname: { type: 'text', value: 'Bot' } })
+      readBotInfoValue({ nickname: { type: 'text', value: 'Bot' } })
     ).toBeNull();
     expect(
-      readBotCommandsValue(selfContactWith({ type: 'set', value: [] }))
+      readBotInfoValue(selfContactWith({ type: 'set', value: [] }))
     ).toBeNull();
     expect(
-      readBotCommandsValue(selfContactWith({ type: 'text', value: 42 }))
+      readBotInfoValue(selfContactWith({ type: 'text', value: 42 }))
     ).toBeNull();
-    expect(readBotCommandsValue(selfContactWith(manifestValue))).toBeNull();
-    expect(readBotCommandsValue(null)).toBeNull();
-    expect(readBotCommandsValue('not-a-contact')).toBeNull();
+    expect(readBotInfoValue(selfContactWith(infoValue))).toBeNull();
+    expect(readBotInfoValue(null)).toBeNull();
+    expect(readBotInfoValue('not-a-contact')).toBeNull();
   });
 });
 
-describe('publishBotCommandManifest', () => {
-  it('pokes the manifest as a contact-action-1 self text field', async () => {
+describe('publishBotInfo', () => {
+  it('pokes the claim as a contact-action-1 self text field', async () => {
     const poke = vi.fn(async () => {});
-    const api: BotCommandManifestPokeApi = { poke };
+    const api: BotInfoPokeApi = { poke };
 
-    await expect(publishBotCommandManifest(api, manifestValue)).resolves.toBe(
-      'published'
-    );
+    await expect(publishBotInfo(api, infoValue)).resolves.toBe('published');
     expect(poke).toHaveBeenCalledWith({
       app: 'contacts',
       mark: 'contact-action-1',
       json: {
         self: {
-          [BOT_COMMANDS_CONTACT_KEY]: { type: 'text', value: manifestValue },
+          [BOT_INFO_CONTACT_KEY]: { type: 'text', value: infoValue },
         },
       },
     });
@@ -77,41 +109,46 @@ describe('publishBotCommandManifest', () => {
 
   it('pokes null to clear the key (rollback/retirement)', async () => {
     const poke = vi.fn(async () => {});
-    const api: BotCommandManifestPokeApi = { poke };
+    const api: BotInfoPokeApi = { poke };
 
-    await expect(publishBotCommandManifest(api, null)).resolves.toBe('cleared');
+    await expect(publishBotInfo(api, null)).resolves.toBe('cleared');
     expect(poke).toHaveBeenCalledWith({
       app: 'contacts',
       mark: 'contact-action-1',
-      json: { self: { [BOT_COMMANDS_CONTACT_KEY]: null } },
+      json: { self: { [BOT_INFO_CONTACT_KEY]: null } },
     });
   });
 });
 
-describe('maybePublishBotCommandManifest', () => {
+describe('maybePublishBotInfo', () => {
   it('publishes when the current value differs', async () => {
     const poke = vi.fn(async () => {});
-    const api: BotCommandManifestPokeApi = { poke };
+    const api: BotInfoPokeApi = { poke };
 
     await expect(
-      maybePublishBotCommandManifest(
+      maybePublishBotInfo(
         api,
-        read(selfContactWith({ type: 'text', value: '{"v":1,"commands":[]}' })),
-        manifestValue
+        read(
+          selfContactWith({
+            type: 'text',
+            value: '{"v":1,"harness":"openclaw","version":"0.18.0"}',
+          })
+        ),
+        infoValue
       )
     ).resolves.toBe('published');
     expect(poke).toHaveBeenCalledTimes(1);
   });
 
-  it('publishes when no manifest is currently advertised', async () => {
+  it('publishes when nothing is currently published', async () => {
     const poke = vi.fn(async () => {});
-    const api: BotCommandManifestPokeApi = { poke };
+    const api: BotInfoPokeApi = { poke };
 
     await expect(
-      maybePublishBotCommandManifest(
+      maybePublishBotInfo(
         api,
         read({ nickname: { type: 'text', value: 'Bot' } }),
-        manifestValue
+        infoValue
       )
     ).resolves.toBe('published');
     expect(poke).toHaveBeenCalledTimes(1);
@@ -119,13 +156,13 @@ describe('maybePublishBotCommandManifest', () => {
 
   it('skips the poke when the value already matches', async () => {
     const poke = vi.fn(async () => {});
-    const api: BotCommandManifestPokeApi = { poke };
+    const api: BotInfoPokeApi = { poke };
 
     await expect(
-      maybePublishBotCommandManifest(
+      maybePublishBotInfo(
         api,
-        read(selfContactWith({ type: 'text', value: manifestValue })),
-        manifestValue
+        read(selfContactWith({ type: 'text', value: infoValue })),
+        infoValue
       )
     ).resolves.toBe('unchanged');
     expect(poke).not.toHaveBeenCalled();
@@ -133,13 +170,13 @@ describe('maybePublishBotCommandManifest', () => {
 
   it('republishes over a wrong-shaped stored value', async () => {
     const poke = vi.fn(async () => {});
-    const api: BotCommandManifestPokeApi = { poke };
+    const api: BotInfoPokeApi = { poke };
 
     await expect(
-      maybePublishBotCommandManifest(
+      maybePublishBotInfo(
         api,
         read(selfContactWith({ type: 'numb', value: '0x1' })),
-        manifestValue
+        infoValue
       )
     ).resolves.toBe('published');
     expect(poke).toHaveBeenCalledTimes(1);
@@ -175,10 +212,10 @@ describe('publish retry', () => {
     const { slept, sleep } = recordingSleeper();
 
     await expect(
-      maybePublishBotCommandManifest({ poke }, read({}), manifestValue, sleep)
+      maybePublishBotInfo({ poke }, read({}), infoValue, sleep)
     ).resolves.toBe('published');
-    expect(poke).toHaveBeenCalledTimes(BOT_COMMANDS_PUBLISH_ATTEMPTS);
-    expect(slept).toEqual([...BOT_COMMANDS_PUBLISH_BACKOFF_MS]);
+    expect(poke).toHaveBeenCalledTimes(BOT_INFO_PUBLISH_ATTEMPTS);
+    expect(slept).toEqual([...BOT_INFO_PUBLISH_BACKOFF_MS]);
   });
 
   it('awaits each backoff before the next attempt', async () => {
@@ -196,12 +233,7 @@ describe('publish retry', () => {
     );
     const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
-    const result = maybePublishBotCommandManifest(
-      { poke },
-      read({}),
-      manifestValue,
-      sleep
-    );
+    const result = maybePublishBotInfo({ poke }, read({}), infoValue, sleep);
 
     await flush();
     expect(poke).toHaveBeenCalledTimes(1);
@@ -224,23 +256,23 @@ describe('publish retry', () => {
     const { slept, sleep } = recordingSleeper();
 
     await expect(
-      syncBotCommandManifest(
+      syncBotInfo(
         { poke, scry: vi.fn(async () => ({})) },
-        manifestValue,
+        infoValue,
         undefined,
         sleep
       )
     ).resolves.toBe('skipped');
-    expect(poke).toHaveBeenCalledTimes(BOT_COMMANDS_PUBLISH_ATTEMPTS);
+    expect(poke).toHaveBeenCalledTimes(BOT_INFO_PUBLISH_ATTEMPTS);
     // Backoff only *between* attempts, never after the last one.
-    expect(slept).toHaveLength(BOT_COMMANDS_PUBLISH_ATTEMPTS - 1);
+    expect(slept).toHaveLength(BOT_INFO_PUBLISH_ATTEMPTS - 1);
   });
 
   it('stops retrying when aborted during the backoff', async () => {
     // Shutdown/config-reload during the 2s/8s window: the retired monitor must
     // not keep the retry loop alive against its stale SSE client. The abortable
     // default sleeper rejects on abort; the rejection surfaces through
-    // syncBotCommandManifest's catch as a non-fatal 'skipped'.
+    // syncBotInfo's catch as a non-fatal 'skipped'.
     const poke = flakyPoke(Number.POSITIVE_INFINITY);
     const controller = new AbortController();
     // Honors the signal the way defaultSleep does, without real timers.
@@ -255,9 +287,9 @@ describe('publish retry', () => {
         })
     );
 
-    const result = syncBotCommandManifest(
+    const result = syncBotInfo(
       { poke, scry: vi.fn(async () => ({})) },
-      manifestValue,
+      infoValue,
       undefined,
       sleep,
       controller.signal
@@ -277,9 +309,9 @@ describe('publish retry', () => {
 
     // Default sleeper + a 2s backoff: without abort handling this test would
     // time out; with it, the abort rejects promptly and the timer is cleared.
-    const pending = publishBotCommandManifest(
+    const pending = publishBotInfo(
       { poke },
-      manifestValue,
+      infoValue,
       undefined,
       controller.signal
     );
@@ -349,10 +381,10 @@ describe('publish retry', () => {
     const { slept, sleep } = recordingSleeper();
 
     await expect(
-      maybePublishBotCommandManifest(
+      maybePublishBotInfo(
         { poke },
         { ok: false, error: new Error('scry failed') },
-        manifestValue,
+        infoValue,
         sleep
       )
     ).resolves.toBe('skipped');
@@ -365,10 +397,10 @@ describe('publish retry', () => {
     const { slept, sleep } = recordingSleeper();
 
     await expect(
-      maybePublishBotCommandManifest(
+      maybePublishBotInfo(
         { poke },
-        read(selfContactWith({ type: 'text', value: manifestValue })),
-        manifestValue,
+        read(selfContactWith({ type: 'text', value: infoValue })),
+        infoValue,
         sleep
       )
     ).resolves.toBe('unchanged');
@@ -381,13 +413,13 @@ describe('publish retry', () => {
 describe('failed self-contact reads', () => {
   it('skips the poke when the read failed', async () => {
     const poke = vi.fn(async () => {});
-    const api: BotCommandManifestPokeApi = { poke };
+    const api: BotInfoPokeApi = { poke };
 
     await expect(
-      maybePublishBotCommandManifest(
+      maybePublishBotInfo(
         api,
         { ok: false, error: new Error('scry failed') },
-        manifestValue
+        infoValue
       )
     ).resolves.toBe('skipped');
     expect(poke).not.toHaveBeenCalled();
@@ -395,11 +427,11 @@ describe('failed self-contact reads', () => {
 
   it('publishes when the read succeeded with an empty contact map', async () => {
     const poke = vi.fn(async () => {});
-    const api: BotCommandManifestPokeApi = { poke };
+    const api: BotInfoPokeApi = { poke };
 
-    await expect(
-      maybePublishBotCommandManifest(api, read({}), manifestValue)
-    ).resolves.toBe('published');
+    await expect(maybePublishBotInfo(api, read({}), infoValue)).resolves.toBe(
+      'published'
+    );
     expect(poke).toHaveBeenCalledTimes(1);
   });
 
@@ -424,7 +456,7 @@ describe('failed self-contact reads', () => {
 
 // B-4: reconnect catch-up. A boot publish that failed, or a key cleared while
 // this process stayed alive, must not wait for a restart.
-describe('syncBotCommandManifest', () => {
+describe('syncBotInfo', () => {
   const makeApi = (scryImpl: () => Promise<unknown>) => {
     const poke = vi.fn(async () => {});
     const scry = vi.fn(scryImpl);
@@ -434,21 +466,17 @@ describe('syncBotCommandManifest', () => {
   it('re-reads the self-contact and publishes when it differs', async () => {
     const { api, poke, scry } = makeApi(async () => ({}));
 
-    await expect(syncBotCommandManifest(api, manifestValue)).resolves.toBe(
-      'published'
-    );
+    await expect(syncBotInfo(api, infoValue)).resolves.toBe('published');
     expect(scry).toHaveBeenCalledWith(SELF_CONTACT_SCRY_PATH);
     expect(poke).toHaveBeenCalledTimes(1);
   });
 
   it('re-reads and skips the poke when the value already matches', async () => {
     const { api, poke } = makeApi(async () =>
-      selfContactWith({ type: 'text', value: manifestValue })
+      selfContactWith({ type: 'text', value: infoValue })
     );
 
-    await expect(syncBotCommandManifest(api, manifestValue)).resolves.toBe(
-      'unchanged'
-    );
+    await expect(syncBotInfo(api, infoValue)).resolves.toBe('unchanged');
     expect(poke).not.toHaveBeenCalled();
   });
 
@@ -457,18 +485,16 @@ describe('syncBotCommandManifest', () => {
       throw new Error('ship unreachable');
     });
 
-    await expect(syncBotCommandManifest(api, manifestValue)).resolves.toBe(
-      'skipped'
-    );
+    await expect(syncBotInfo(api, infoValue)).resolves.toBe('skipped');
     expect(poke).not.toHaveBeenCalled();
   });
 
   it('reuses a supplied read instead of scrying again (boot path)', async () => {
     const { api, poke, scry } = makeApi(async () => ({}));
 
-    await expect(
-      syncBotCommandManifest(api, manifestValue, read({}))
-    ).resolves.toBe('published');
+    await expect(syncBotInfo(api, infoValue, read({}))).resolves.toBe(
+      'published'
+    );
     expect(scry).not.toHaveBeenCalled();
     expect(poke).toHaveBeenCalledTimes(1);
   });
@@ -481,7 +507,7 @@ describe('syncBotCommandManifest', () => {
 
     // Sleeper injected so the publish retry's backoff does not delay the suite.
     await expect(
-      syncBotCommandManifest(api, manifestValue, undefined, async () => {})
+      syncBotInfo(api, infoValue, undefined, async () => {})
     ).resolves.toBe('skipped');
   });
 });
@@ -501,28 +527,35 @@ describe('monitor lifecycle call sites', () => {
   );
 
   it('publishes on boot and again on reconnect', () => {
-    expect(monitorSource).toMatch(/publishBotCommandManifestNow\('boot'\)/);
-    expect(monitorSource).toMatch(
-      /publishBotCommandManifestNow\('reconnect'\)/
-    );
+    expect(monitorSource).toMatch(/publishBotInfoNow\('boot'\)/);
+    expect(monitorSource).toMatch(/publishBotInfoNow\('reconnect'\)/);
   });
 
-  it('builds the manifest inside the failure guard', () => {
+  it('builds the claim inside the failure guard', () => {
     const body = monitorSource.slice(
-      monitorSource.indexOf('async function publishBotCommandManifestNow')
+      monitorSource.indexOf('async function publishBotInfoNow')
     );
     const end = body.indexOf('\n  }\n');
     expect(end).toBeGreaterThan(0);
     const fn = body.slice(0, end);
 
-    // The builder throws when the registry serializes past the byte cap, and
-    // boot awaits this call: outside the guard, an oversized registry would
-    // take the bot offline instead of just going unadvertised.
+    // The builder throws when the claim serializes past the byte cap, and boot
+    // awaits this call: outside the guard, an oversized value would take the
+    // bot offline instead of just leaving it unidentified.
     expect(fn).toMatch(/catch/);
     expect(fn.indexOf('try {')).toBeGreaterThan(-1);
-    expect(fn.indexOf('try {')).toBeLessThan(
-      fn.indexOf('buildCommandManifestJson(')
+    expect(fn.indexOf('try {')).toBeLessThan(fn.indexOf('buildBotInfoJson('));
+  });
+
+  it('sources both versions from the plugin identity and the host', () => {
+    // buildBotInfoJson is pure, so only the call site can bind the claim to the
+    // real versions; hardcoding or dropping either would pass every other test.
+    const body = monitorSource.slice(
+      monitorSource.indexOf('async function publishBotInfoNow')
     );
+    const fn = body.slice(0, body.indexOf('\n  }\n'));
+    expect(fn).toMatch(/version: getTlonVersionIdentity\(\)\.pluginVersion/);
+    expect(fn).toMatch(/harnessVersion: core\.version/);
   });
 
   it('forwards the monitor abort signal into the publish call', () => {
@@ -531,9 +564,9 @@ describe('monitor lifecycle call sites', () => {
     // this call would revive the retired-monitor backoff zombie with every
     // other test green.
     const body = monitorSource.slice(
-      monitorSource.indexOf('async function publishBotCommandManifestNow')
+      monitorSource.indexOf('async function publishBotInfoNow')
     );
     const fn = body.slice(0, body.indexOf('\n  }\n'));
-    expect(fn).toMatch(/syncBotCommandManifest\([\s\S]*?opts\.abortSignal/);
+    expect(fn).toMatch(/syncBotInfo\([\s\S]*?opts\.abortSignal/);
   });
 });

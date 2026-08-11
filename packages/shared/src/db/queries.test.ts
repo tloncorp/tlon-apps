@@ -431,61 +431,57 @@ test('inserts contacts without overriding block data', async () => {
   expect(newBlockedUsers.map((b) => b.id)).toEqual(blocks);
 });
 
-describe('insertContacts botCommands provenance', () => {
-  const ship = '~bot-commands-provenance';
-  const manifest = JSON.stringify({
+describe('insertContacts botInfo provenance', () => {
+  const ship = '~bot-info-provenance';
+  const claim = JSON.stringify({
     v: 1,
-    commands: [{ command: '/allow', title: 'Allow' }],
+    harness: 'openclaw',
+    version: '0.19.0',
   });
-  const updatedManifest = JSON.stringify({
+  const updatedClaim = JSON.stringify({
     v: 1,
-    commands: [{ command: '/pending', title: 'Pending' }],
+    harness: 'openclaw',
+    version: '0.20.0',
   });
 
-  test('v0-sourced rows preserve an existing manifest', async () => {
+  test('v0-sourced rows preserve an existing claim', async () => {
     await queries.insertContacts({
-      v1Contacts: [{ id: ship, botCommands: manifest }],
+      v1Contacts: [{ id: ship, botInfo: claim }],
     });
-    expect((await queries.getContact({ id: ship }))?.botCommands).toBe(
-      manifest
-    );
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBe(claim);
 
-    // The lossy v0 /all scry carries no bot-commands signal; re-syncing the
-    // same peer must not clobber the learned manifest.
+    // The lossy v0 /all scry carries no bot-info signal; re-syncing the
+    // same peer must not clobber the learned claim.
     await queries.insertContacts({ v0Peers: [{ id: ship }] });
-    expect((await queries.getContact({ id: ship }))?.botCommands).toBe(
-      manifest
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBe(claim);
+  });
+
+  test('v1-sourced rows replace an existing claim', async () => {
+    await queries.insertContacts({
+      v1Contacts: [{ id: ship, botInfo: claim }],
+    });
+    await queries.insertContacts({
+      v1Contacts: [{ id: ship, botInfo: updatedClaim }],
+    });
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBe(
+      updatedClaim
     );
   });
 
-  test('v1-sourced rows replace an existing manifest', async () => {
+  test('v1-sourced rows clear the claim when the key is missing', async () => {
     await queries.insertContacts({
-      v1Contacts: [{ id: ship, botCommands: manifest }],
-    });
-    await queries.insertContacts({
-      v1Contacts: [{ id: ship, botCommands: updatedManifest }],
-    });
-    expect((await queries.getContact({ id: ship }))?.botCommands).toBe(
-      updatedManifest
-    );
-  });
-
-  test('v1-sourced rows clear the manifest when the key is missing', async () => {
-    await queries.insertContacts({
-      v1Contacts: [{ id: ship, botCommands: manifest }],
+      v1Contacts: [{ id: ship, botInfo: claim }],
     });
     // The bot stopped advertising: the v1 fact arrives without the key.
     await queries.insertContacts({ v1Contacts: [{ id: ship }] });
-    expect((await queries.getContact({ id: ship }))?.botCommands).toBeNull();
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBeNull();
   });
 
-  test('upsertContact sets and clears the manifest (subscription path)', async () => {
-    await queries.upsertContact({ id: ship, botCommands: manifest });
-    expect((await queries.getContact({ id: ship }))?.botCommands).toBe(
-      manifest
-    );
-    await queries.upsertContact({ id: ship, botCommands: null });
-    expect((await queries.getContact({ id: ship }))?.botCommands).toBeNull();
+  test('upsertContact sets and clears the claim (subscription path)', async () => {
+    await queries.upsertContact({ id: ship, botInfo: claim });
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBe(claim);
+    await queries.upsertContact({ id: ship, botInfo: null });
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBeNull();
   });
 });
 

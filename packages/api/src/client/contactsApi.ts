@@ -13,8 +13,8 @@ const logger = createDevLogger('contactsApi', false);
 
 export interface ContactsData {
   // Peers from the legacy v0 `/all` scry. Lossy: the v0 mark strips
-  // namespaced keys (e.g. `bot-commands`), so these rows carry no signal
-  // about fields like the advertised command manifest.
+  // namespaced keys (e.g. `bot-info`), so these rows carry no signal
+  // about fields like the bot's identity claim.
   v0Peers: db.Contact[];
   // Contact-book entries from the v1 `/book` scry. Authoritative: full
   // peer-published profile plus user overrides.
@@ -480,13 +480,13 @@ function parseContactAttestations(
 }
 
 /**
- * The `bot-commands` contact field is self-published by bot ships and its TS
+ * The `bot-info` contact field is self-published by bot ships and its TS
  * declaration proves nothing at runtime — an arbitrary profile can publish it
  * as %set/%numb/%look or any JSON shape. Accept only a %text field carrying a
  * string; everything else maps to null so one bad peer profile cannot break a
  * contacts sync batch.
  */
-export const extractBotCommandsValue = (field: unknown): string | null => {
+export const extractBotInfoValue = (field: unknown): string | null => {
   if (!field || typeof field !== 'object' || Array.isArray(field)) {
     return null;
   }
@@ -498,7 +498,7 @@ export const extractBotCommandsValue = (field: unknown): string | null => {
 };
 
 // Fetch a single peer's full v1 contact profile. Used to backfill the
-// advertised command manifest for bots, which the lossy v0 `/all` peers scry
+// identity claim for bots, which the lossy v0 `/all` peers scry
 // strips. Returns null when the ship is unknown (404) or the scry fails.
 export const getContactProfile = async (
   ship: string
@@ -555,7 +555,7 @@ export const v1PeerToClientProfile = (
         contactId: id,
       })) ?? [],
     attestations: parseContactAttestations(id, contact),
-    botCommands: extractBotCommandsValue(contact['bot-commands']),
+    botInfo: extractBotInfoValue(contact['bot-info']),
     isContact: config?.isContact,
     isContactSuggestion:
       config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
@@ -604,9 +604,9 @@ export const contactToClientProfile = (
         contactId: userId,
       })) ?? [],
     attestations: parseContactAttestations(userId, base),
-    // The manifest is the bot's own published property: read it from the
+    // The claim is the bot's own published property: read it from the
     // peer-published base contact only, never the user's `mod` overlay.
-    botCommands: extractBotCommandsValue(base['bot-commands']),
+    botInfo: extractBotInfoValue(base['bot-info']),
     isContact: !!overrides,
     isContactSuggestion: false,
   };

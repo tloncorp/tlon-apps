@@ -5,18 +5,18 @@ import type { PluginCommandContext } from 'openclaw/plugin-sdk/core';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  BOT_COMMANDS_CONTACT_KEY,
   TLON_COMMAND_REGISTRY,
   type TlonCommandDeps,
-  buildCommandManifestJson,
+  buildCommandTokensJson,
+  commandTokens,
   registerTlonCommands,
 } from './commands-registry.js';
 
 const fixturePath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../fixtures/command-manifest.json'
+  '../fixtures/commands.json'
 );
-const fixtureJson = fs.readFileSync(fixturePath, 'utf8').trim();
+const fixtureJson = fs.readFileSync(fixturePath, 'utf8');
 
 const makeDeps = (): TlonCommandDeps => ({
   renderTlonVersion: async () => ({ text: 'tlon version' }),
@@ -26,7 +26,7 @@ const makeDeps = (): TlonCommandDeps => ({
 });
 
 describe('command registry', () => {
-  it('advertises exactly the ten plugin commands', () => {
+  it('holds exactly the ten plugin commands', () => {
     expect(TLON_COMMAND_REGISTRY.map((entry) => entry.name)).toEqual([
       'tlon-version',
       'tlon',
@@ -39,12 +39,12 @@ describe('command registry', () => {
       'owner-listen',
       'migrate',
     ]);
-    // OpenClaw core commands (/status, /help, /new) are not advertised: the
-    // core's builtin command registry is not exported from the pinned
-    // `openclaw` package, so they cannot be parity-asserted in CI.
-    for (const entry of TLON_COMMAND_REGISTRY) {
-      expect(entry.manifest).not.toBe(false);
-    }
+    // OpenClaw core commands (/status, /help, /new) are absent by
+    // construction: this plugin neither registers nor dispatches them. The
+    // client carries them on its static list as audit-pinned constants.
+    expect(TLON_COMMAND_REGISTRY.map((entry) => entry.name)).not.toContain(
+      'status'
+    );
   });
 
   it('registers exactly the registry rows (exact-equality parity)', () => {
@@ -71,20 +71,8 @@ describe('command registry', () => {
 
   // Closes the parity loop at the boundary the previous test cannot see: it
   // drives registerTlonCommands directly, so an `api.registerCommand` added
-  // straight to registerFull would register an unadvertised command and stay
-  // green. The registry loop is the only registration site.
-  // The popup renders a leading glyph per row; a row without an icon falls
-  // back to the generic command glyph and breaks visual parity with the
-  // static list, silently.
-  it('gives every advertised row an icon', () => {
-    for (const entry of TLON_COMMAND_REGISTRY) {
-      if (entry.manifest === false) {
-        continue;
-      }
-      expect(entry.manifest.icon, entry.name).toBeTruthy();
-    }
-  });
-
+  // straight to registerFull would register a command the fixture never names
+  // and stay green. The registry loop is the only registration site.
   it('registers commands only through the registry (index.ts boundary)', () => {
     const indexSource = fs.readFileSync(
       path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../index.ts'),
@@ -92,7 +80,13 @@ describe('command registry', () => {
     );
 
     expect(indexSource).toMatch(/registerTlonCommands\s*\(/);
+    // Every spelling that reaches the SDK method, not just dot-call: bracket
+    // access and a detached reference register just as well and would
+    // otherwise slip a command past the registry, the fixture, and the app's
+    // static list — the exact drift this contract exists to stop.
     expect(indexSource).not.toMatch(/\.registerCommand\s*\(/);
+    expect(indexSource).not.toMatch(/\[\s*['"`]registerCommand['"`]\s*\]/);
+    expect(indexSource).not.toMatch(/\bregisterCommand\b(?!\s*[,:)}])/);
   });
 
   it('wires registered handlers through the registry deps', async () => {
@@ -111,16 +105,21 @@ describe('command registry', () => {
   });
 });
 
-describe('buildCommandManifestJson', () => {
+// The fixture is what the client's drift contract reads
+// (packages/shared/src/domain/runtimeCommandContract.test.ts). Regenerating it
+// is the deliberate step that says "the client's static list must change too".
+describe('buildCommandTokensJson', () => {
   it('matches the committed fixture byte-for-byte', () => {
-    expect(buildCommandManifestJson()).toBe(fixtureJson);
+    expect(buildCommandTokensJson()).toBe(fixtureJson);
   });
 
   it('is byte-stable across calls', () => {
-    expect(buildCommandManifestJson()).toBe(buildCommandManifestJson());
+    expect(buildCommandTokensJson()).toBe(buildCommandTokensJson());
   });
 
-  it('uses the wire contract contact key', () => {
-    expect(BOT_COMMANDS_CONTACT_KEY).toBe('bot-commands');
+  it('names every registered command, and nothing else', () => {
+    expect(commandTokens()).toEqual(
+      TLON_COMMAND_REGISTRY.map((entry) => `/${entry.name}`)
+    );
   });
 });

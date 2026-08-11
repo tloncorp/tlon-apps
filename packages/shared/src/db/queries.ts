@@ -3772,7 +3772,7 @@ export const insertChanges = createWriteQuery(
             await perfTime(
               'insertChanges.contacts',
               // Changes contacts come from the v1 changes scry and are
-              // authoritative for namespaced fields like bot-commands.
+              // authoritative for namespaced fields like bot-info.
               () => insertContacts({ v1Contacts: input.contacts }, txCtx),
               { count: input.contacts.length }
             );
@@ -5313,14 +5313,14 @@ export const insertContact = createWriteQuery(
 
 export interface InsertContactsInput {
   // Rows sourced from the lossy v0 `/all` peers scry, which strips
-  // namespaced contact keys like `bot-commands`. They carry no signal about
-  // the advertised command manifest, so an existing `botCommands` value is
+  // namespaced contact keys like `bot-info`. They carry no signal about
+  // the bot's identity claim, so an existing `botInfo` value is
   // preserved on conflict instead of being clobbered to null.
   v0Peers?: Contact[];
   // Rows sourced from authoritative v1 paths (`/v1/book`, `/v1/news`
   // subscription facts, targeted `/v1/contact/{ship}` fetches). These are
-  // authoritative for `botCommands`: a present value replaces, an absent one
-  // clears (the bot stopped advertising).
+  // authoritative for `botInfo`: a present value replaces, an absent one
+  // clears (the bot stopped publishing one).
   v1Contacts?: Contact[];
 }
 
@@ -5369,7 +5369,7 @@ export const insertContacts = createWriteQuery(
           .values(batch)
           .onConflictDoUpdate({
             target: $contacts.id,
-            set: conflictUpdateSetAll($contacts, ['isBlocked', 'botCommands']),
+            set: conflictUpdateSetAll($contacts, ['isBlocked', 'botInfo']),
           });
       }
 

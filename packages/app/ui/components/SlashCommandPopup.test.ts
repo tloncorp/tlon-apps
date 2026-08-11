@@ -1,6 +1,5 @@
+import { STATIC_MANIFESTS } from '@tloncorp/shared/domain';
 import * as icons from '@tloncorp/ui/assets/icons';
-import fs from 'node:fs';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { makeIconResolver, toIconType } from './slashCommandIcon';
@@ -75,38 +74,30 @@ describe('toIconType', () => {
   });
 });
 
-// The runtimes' committed manifest fixtures name icons from the client's
-// bundled set. Registry-side tests assert every advertised row *has* an icon,
-// but only the client knows whether a name resolves — a typo like "Chekmark"
-// would pass both runtimes' suites and silently degrade to the generic glyph.
-// This is the only package that depends on the icon set, so the resolvability
-// contract lives here, reading the fixtures by relative path (same pattern as
-// openclaw's nudge-settings contract test).
-describe('runtime manifest fixtures', () => {
-  const here = __dirname;
-  const fixtures = [
-    ['openclaw', '../../../openclaw/fixtures/command-manifest.json'],
-    [
-      'hermes-tlon-adapter',
-      '../../../hermes-tlon-adapter/fixtures/command-manifest.json',
-    ],
-  ] as const;
+// The static command lists name icons from the client's bundled set. The
+// shared package asserts every entry *has* an icon, but only this package
+// knows whether a name resolves — a typo like "Chekmark" would pass there and
+// silently degrade to the generic glyph. This is the only package that depends
+// on the icon set, so the resolvability contract lives here.
+describe('static command lists', () => {
+  const harnesses = Object.keys(
+    STATIC_MANIFESTS
+  ) as (keyof typeof STATIC_MANIFESTS)[];
 
-  it.each(fixtures)(
-    'every %s fixture icon resolves to a real glyph',
-    (_name, rel) => {
-      const manifest = JSON.parse(
-        fs.readFileSync(path.resolve(here, rel), 'utf8')
-      ) as { commands: { command: string; icon?: string }[] };
+  it('covers every harness', () => {
+    expect(harnesses).toEqual(['openclaw', 'hermes']);
+  });
 
-      expect(manifest.commands.length).toBeGreaterThan(0);
-      for (const entry of manifest.commands) {
-        expect(entry.icon, `${entry.command} must carry an icon`).toBeTruthy();
-        expect(
-          toIconType(entry.icon),
-          `${entry.command} icon "${entry.icon}" must resolve, not fall back`
-        ).toBe(entry.icon);
-      }
+  it.each(harnesses)('every %s icon resolves to a real glyph', (harness) => {
+    const { commands } = STATIC_MANIFESTS[harness];
+
+    expect(commands.length).toBeGreaterThan(0);
+    for (const entry of commands) {
+      expect(entry.icon, `${entry.command} must carry an icon`).toBeTruthy();
+      expect(
+        toIconType(entry.icon),
+        `${entry.command} icon "${entry.icon}" must resolve, not fall back`
+      ).toBe(entry.icon);
     }
-  );
+  });
 });

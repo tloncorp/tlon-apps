@@ -1,28 +1,31 @@
-import { BOT_COMMANDS_CONTACT_KEY } from './commands-registry.js';
+// Contact-profile key under which the bot publishes its identity claim (wire
+// contract: docs/bot-info.md in tlon-apps).
+export const BOT_INFO_CONTACT_KEY = 'bot-info';
+// The client rejects raw claims above this size. The backend's 10kB jam cap
+// covers the whole profile, so a publish failure is a real, non-fatal outcome
+// regardless.
+export const BOT_INFO_MAX_BYTES = 512;
 
-export type BotCommandManifestPublishResult =
-  | 'published'
-  | 'cleared'
-  | 'unchanged';
+const HARNESS = 'openclaw';
 
-export interface BotCommandManifestPokeApi {
+export type BotInfoPublishResult = 'published' | 'cleared' | 'unchanged';
+
+export interface BotInfoPokeApi {
   poke(params: { app: string; mark: string; json: unknown }): Promise<unknown>;
 }
 
-export interface BotCommandManifestScryApi {
+export interface BotInfoScryApi {
   scry(path: string): Promise<unknown>;
 }
 
 export const SELF_CONTACT_SCRY_PATH = '/contacts/v1/self.json';
 
 // A poke that fails transiently would otherwise leave a healthy long-lived bot
-// unadvertised until an unrelated SSE reconnect or a restart, so the write is
+// unidentified until an unrelated SSE reconnect or a restart, so the write is
 // retried in place. Reads are never retried: a failed read is handled by
 // skipping entirely (see SelfContactRead).
-export const BOT_COMMANDS_PUBLISH_ATTEMPTS = 3;
-export const BOT_COMMANDS_PUBLISH_BACKOFF_MS: readonly number[] = [
-  2_000, 8_000,
-];
+export const BOT_INFO_PUBLISH_ATTEMPTS = 3;
+export const BOT_INFO_PUBLISH_BACKOFF_MS: readonly number[] = [2_000, 8_000];
 
 // The signal is the monitor's opts.abortSignal: a shutdown or config-reload
 // restart during the 2s/8s backoff must cancel the pending timer and stop the
@@ -49,6 +52,33 @@ export const defaultSleep: Sleeper = (ms, signal) =>
     signal?.addEventListener('abort', onAbort, { once: true });
   });
 
+// Serialize the identity claim. Byte-stable: JSON key order follows
+// construction order, which is fixed here, so compare-then-poke does not
+// false-positive.
+//
+// `harnessVersion` is a diagnostic rider: it is omitted when the host does not
+// report a version, never allowed to invalidate the claim. Callers log that
+// omission — for this runtime it always means something is broken.
+export function buildBotInfoJson(params: {
+  version: string;
+  harnessVersion?: string | null;
+}): string {
+  const harnessVersion = params.harnessVersion?.trim();
+  const value = JSON.stringify({
+    v: 1,
+    harness: HARNESS,
+    version: params.version,
+    ...(harnessVersion ? { harnessVersion } : {}),
+  });
+  const bytes = new TextEncoder().encode(value).byteLength;
+  if (bytes > BOT_INFO_MAX_BYTES) {
+    throw new Error(
+      `bot info exceeds ${BOT_INFO_MAX_BYTES} UTF-8 bytes: ${bytes}`
+    );
+  }
+  return value;
+}
+
 // A self-contact read that failed is not the same as one that succeeded
 // without the key: only the latter proves the key is absent. Publishing on a
 // failed read defeats compare-then-poke exactly when the ship is unhealthy.
@@ -57,7 +87,7 @@ export type SelfContactRead =
   | { ok: false; error: unknown };
 
 export async function readSelfContact(
-  api: BotCommandManifestScryApi
+  api: BotInfoScryApi
 ): Promise<SelfContactRead> {
   try {
     return { ok: true, contact: await api.scry(SELF_CONTACT_SCRY_PATH) };
@@ -66,15 +96,13 @@ export async function readSelfContact(
   }
 }
 
-// Runtime shape check for the `bot-commands` field on a self-contact map:
-// only a %text field carrying a string is a published manifest value.
-export function readBotCommandsValue(selfContact: unknown): string | null {
+// Runtime shape check for the `bot-info` field on a self-contact map: only a
+// %text field carrying a string is a published claim.
+export function readBotInfoValue(selfContact: unknown): string | null {
   if (!selfContact || typeof selfContact !== 'object') {
     return null;
   }
-  const field = (selfContact as Record<string, unknown>)[
-    BOT_COMMANDS_CONTACT_KEY
-  ];
+  const field = (selfContact as Record<string, unknown>)[BOT_INFO_CONTACT_KEY];
   if (!field || typeof field !== 'object' || Array.isArray(field)) {
     return null;
   }
@@ -85,18 +113,18 @@ export function readBotCommandsValue(selfContact: unknown): string | null {
   return candidate.value;
 }
 
-// Poke the advertised manifest into the bot's own contact profile. `%self`
-// is a merge, so nickname/avatar survive. Passing null clears the key (the
-// documented rollback/retirement procedure — see
-// docs/bot-command-manifests.md): contact keys only die by explicit null.
-// Retried up to BOT_COMMANDS_PUBLISH_ATTEMPTS with bounded backoff; the last
-// failure rethrows so callers keep today's non-fatal log-and-continue.
-export async function publishBotCommandManifest(
-  api: BotCommandManifestPokeApi,
+// Poke the identity claim into the bot's own contact profile. `%self` is a
+// merge, so nickname/avatar survive. Passing null clears the key (the
+// documented rollback/retirement procedure — see docs/bot-info.md): contact
+// keys only die by explicit null. Retried up to BOT_INFO_PUBLISH_ATTEMPTS with
+// bounded backoff; the last failure rethrows so callers keep today's non-fatal
+// log-and-continue.
+export async function publishBotInfo(
+  api: BotInfoPokeApi,
   desiredValue: string | null,
   sleep: Sleeper = defaultSleep,
   abortSignal?: AbortSignal
-): Promise<BotCommandManifestPublishResult> {
+): Promise<BotInfoPublishResult> {
   for (let attempt = 1; ; attempt++) {
     try {
       await api.poke({
@@ -104,7 +132,7 @@ export async function publishBotCommandManifest(
         mark: 'contact-action-1',
         json: {
           self: {
-            [BOT_COMMANDS_CONTACT_KEY]:
+            [BOT_INFO_CONTACT_KEY]:
               desiredValue === null
                 ? null
                 : { type: 'text', value: desiredValue },
@@ -113,14 +141,14 @@ export async function publishBotCommandManifest(
       });
       return desiredValue === null ? 'cleared' : 'published';
     } catch (error) {
-      if (attempt >= BOT_COMMANDS_PUBLISH_ATTEMPTS) {
+      if (attempt >= BOT_INFO_PUBLISH_ATTEMPTS) {
         throw error;
       }
-      // An aborted sleep rejects, which lands in syncBotCommandManifest's
-      // catch as a non-fatal 'skipped' — the retired monitor stops retrying.
+      // An aborted sleep rejects, which lands in syncBotInfo's catch as a
+      // non-fatal 'skipped' — the retired monitor stops retrying.
       await sleep(
-        BOT_COMMANDS_PUBLISH_BACKOFF_MS[
-          Math.min(attempt - 1, BOT_COMMANDS_PUBLISH_BACKOFF_MS.length - 1)
+        BOT_INFO_PUBLISH_BACKOFF_MS[
+          Math.min(attempt - 1, BOT_INFO_PUBLISH_BACKOFF_MS.length - 1)
         ],
         abortSignal
       );
@@ -128,41 +156,41 @@ export async function publishBotCommandManifest(
   }
 }
 
-// Compare-then-poke: only write when the advertised value actually changed.
+// Compare-then-poke: only write when the published value actually changed.
 // Content comparison is the version/change detection — no fingerprint
 // persistence. Non-fatal: callers log and continue (next boot retries).
 // A failed self-contact read yields 'skipped': the current value is unknown,
 // so there is nothing to compare against.
-export async function maybePublishBotCommandManifest(
-  api: BotCommandManifestPokeApi,
+export async function maybePublishBotInfo(
+  api: BotInfoPokeApi,
   selfContact: SelfContactRead,
   desiredValue: string,
   sleep: Sleeper = defaultSleep,
   abortSignal?: AbortSignal
-): Promise<BotCommandManifestPublishResult | 'skipped'> {
+): Promise<BotInfoPublishResult | 'skipped'> {
   if (!selfContact.ok) {
     return 'skipped';
   }
-  const currentValue = readBotCommandsValue(selfContact.contact);
+  const currentValue = readBotInfoValue(selfContact.contact);
   if (currentValue === desiredValue) {
     return 'unchanged';
   }
-  return publishBotCommandManifest(api, desiredValue, sleep, abortSignal);
+  return publishBotInfo(api, desiredValue, sleep, abortSignal);
 }
 
 // Boot and reconnect both land here: read the self-contact, compare, poke on
 // difference. Reconnect matters because a failed boot publish — or a key
 // cleared while the monitor stays alive — would otherwise persist until the
 // process restarts. Never throws; the result is for logging only.
-export async function syncBotCommandManifest(
-  api: BotCommandManifestPokeApi & BotCommandManifestScryApi,
+export async function syncBotInfo(
+  api: BotInfoPokeApi & BotInfoScryApi,
   desiredValue: string,
   selfContact?: SelfContactRead,
   sleep: Sleeper = defaultSleep,
   abortSignal?: AbortSignal
-): Promise<BotCommandManifestPublishResult | 'skipped'> {
+): Promise<BotInfoPublishResult | 'skipped'> {
   try {
-    return await maybePublishBotCommandManifest(
+    return await maybePublishBotInfo(
       api,
       selfContact ?? (await readSelfContact(api)),
       desiredValue,

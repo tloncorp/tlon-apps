@@ -32,7 +32,7 @@ export async function loadCachedContacts(): Promise<boolean> {
     }
 
     // The cache mixes v0 and v1 sourced rows without provenance, so treat it
-    // as lossy: preserve any bot-command manifests learned since the cache
+    // as lossy: preserve any bot identity claims learned since the cache
     // was written rather than clobbering them. The authoritative contact
     // sync that follows reconciles the column.
     await db.insertContacts({ v0Peers: contacts });

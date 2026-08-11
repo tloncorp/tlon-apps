@@ -167,7 +167,7 @@ class StreamLoopTests(unittest.TestCase):
             patch.object(adapter, "_process_pending_dm_invites", record_invites),
             patch.object(adapter, "_load_bot_profile", record_profile),
             patch.object(
-                adapter, "_publish_bot_command_manifest", record_publish
+                adapter, "_publish_bot_info", record_publish
             ),
         ]
 
@@ -477,7 +477,7 @@ class StreamLoopTests(unittest.TestCase):
         self.assertEqual(sse_instances[0].close_calls, [False])
         rebuild_events = [e for e in telemetry_events if e.get("mode") == "rebuild"]
         self.assertEqual(len(rebuild_events), 1)
-        # The manifest republish is bound to the reconnect catch-up here: drop
+        # The bot-info republish is bound to the reconnect catch-up here: drop
         # the call site in _run_stream and this sequence loses its "publish".
         self.assertEqual(
             calls,
@@ -812,10 +812,10 @@ class StreamLoopTests(unittest.TestCase):
         self.assertEqual(connect_attempted, [True])
         return adapter, result, errors
 
-    def test_connect_publishes_the_command_manifest_once(self):
+    def test_connect_publishes_the_bot_info_once(self):
         """Binds publication to the connect() lifecycle. Every other publisher
-        test drives _publish_bot_command_manifest directly, so deleting the
-        call site would make publication dead code with no failing test."""
+        test drives _publish_bot_info directly, so deleting the call site would
+        make publication dead code with no failing test."""
         adapter = self.make_adapter()
         published = []
 
@@ -830,7 +830,7 @@ class StreamLoopTests(unittest.TestCase):
 
         adapter._connect_sse = anoop
         adapter._load_bot_profile = load_profile
-        adapter._publish_bot_command_manifest = record_publish
+        adapter._publish_bot_info = record_publish
         adapter._load_settings_state = anoop
         adapter._process_pending_dm_invites = anoop
         adapter._process_pending_group_invites = anoop

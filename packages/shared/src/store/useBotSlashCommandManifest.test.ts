@@ -5,17 +5,13 @@ import { getStaticSlashCommandManifest } from '../domain';
 import {
   resolveBotManifestShipId,
   selectBotSlashCommandManifest,
-  shouldBackfillBotCommands,
+  shouldBackfillBotInfo,
 } from './useBotSlashCommandManifest';
 
 const staticOpenclaw = getStaticSlashCommandManifest('openclaw');
-const manifestJson = JSON.stringify({
-  v: 1,
-  commands: [
-    { command: '/allow', title: 'Allow' },
-    { command: '/pending', title: 'Pending' },
-  ],
-});
+const staticHermes = getStaticSlashCommandManifest('hermes');
+const claim = (harness: string) =>
+  JSON.stringify({ v: 1, harness, version: '0.1.0' });
 
 const dmChannel = (contactId: string | null) =>
   ({ type: 'dm', contactId, id: contactId ?? '' }) as db.Channel;
@@ -27,38 +23,41 @@ const homeGroupChatChannel = () =>
   }) as db.Channel;
 
 describe('selectBotSlashCommandManifest', () => {
-  test('prefers the advertised manifest', () => {
-    const manifest = selectBotSlashCommandManifest({
-      enabled: true,
-      botCommands: manifestJson,
-    });
-    expect(manifest?.commands.map((c) => c.command)).toEqual([
-      '/allow',
-      '/pending',
-    ]);
-    expect(manifest?.agent).toBeUndefined();
-  });
-
-  test('falls back to the static list when no manifest is stored', () => {
+  test("the claimed harness selects that harness's list", () => {
     expect(
-      selectBotSlashCommandManifest({ enabled: true, botCommands: null })
-    ).toBe(staticOpenclaw);
-    expect(
-      selectBotSlashCommandManifest({ enabled: true, botCommands: undefined })
-    ).toBe(staticOpenclaw);
-  });
-
-  test('falls back to the static list when the manifest is invalid', () => {
+      selectBotSlashCommandManifest({ enabled: true, botInfo: claim('hermes') })
+    ).toBe(staticHermes);
     expect(
       selectBotSlashCommandManifest({
         enabled: true,
-        botCommands: 'not-json',
+        botInfo: claim('openclaw'),
+      })
+    ).toBe(staticOpenclaw);
+  });
+
+  test('falls back to the openclaw list when no claim is stored', () => {
+    expect(
+      selectBotSlashCommandManifest({ enabled: true, botInfo: null })
+    ).toBe(staticOpenclaw);
+    expect(
+      selectBotSlashCommandManifest({ enabled: true, botInfo: undefined })
+    ).toBe(staticOpenclaw);
+  });
+
+  test('falls back when the claim is invalid or names an unknown harness', () => {
+    expect(
+      selectBotSlashCommandManifest({ enabled: true, botInfo: 'not-json' })
+    ).toBe(staticOpenclaw);
+    expect(
+      selectBotSlashCommandManifest({
+        enabled: true,
+        botInfo: JSON.stringify({ v: 2, harness: 'hermes', version: '1' }),
       })
     ).toBe(staticOpenclaw);
     expect(
       selectBotSlashCommandManifest({
         enabled: true,
-        botCommands: JSON.stringify({ v: 2, commands: [] }),
+        botInfo: claim('third-party-bot'),
       })
     ).toBe(staticOpenclaw);
   });
@@ -67,7 +66,7 @@ describe('selectBotSlashCommandManifest', () => {
     expect(
       selectBotSlashCommandManifest({
         enabled: false,
-        botCommands: manifestJson,
+        botInfo: claim('hermes'),
       })
     ).toBeNull();
   });
@@ -78,11 +77,11 @@ describe('resolveBotManifestShipId', () => {
     expect(resolveBotManifestShipId(dmChannel('~bot'))).toBe('~bot');
   });
 
-  test('home-group chat (a group channel) resolves to null: static fallback', () => {
+  test('home-group chat (a group channel) resolves to null: default list', () => {
     expect(resolveBotManifestShipId(homeGroupChatChannel())).toBeNull();
-    // No ship to look up, so selection stays on the static list.
+    // No ship to look up, so selection stays on the default list.
     expect(
-      selectBotSlashCommandManifest({ enabled: true, botCommands: undefined })
+      selectBotSlashCommandManifest({ enabled: true, botInfo: undefined })
     ).toBe(staticOpenclaw);
   });
 
@@ -92,35 +91,33 @@ describe('resolveBotManifestShipId', () => {
   });
 });
 
-describe('shouldBackfillBotCommands', () => {
+describe('shouldBackfillBotInfo', () => {
   const base = {
     enabled: true,
     botShipId: '~bot',
     contactQuerySettled: true,
-    hasAdvertisedManifest: false,
+    hasBotInfo: false,
   };
 
-  test('fires once the contact query settled without a manifest', () => {
-    expect(shouldBackfillBotCommands(base)).toBe(true);
+  test('fires once the contact query settled without a claim', () => {
+    expect(shouldBackfillBotInfo(base)).toBe(true);
   });
 
   test('does not fire while the contact query is still loading', () => {
-    expect(
-      shouldBackfillBotCommands({ ...base, contactQuerySettled: false })
-    ).toBe(false);
+    expect(shouldBackfillBotInfo({ ...base, contactQuerySettled: false })).toBe(
+      false
+    );
   });
 
-  test('does not fire when a manifest is already present', () => {
-    expect(
-      shouldBackfillBotCommands({ ...base, hasAdvertisedManifest: true })
-    ).toBe(false);
+  test('does not fire when a claim is already present', () => {
+    expect(shouldBackfillBotInfo({ ...base, hasBotInfo: true })).toBe(false);
   });
 
   test('does not fire when the channel is not bot-enabled', () => {
-    expect(shouldBackfillBotCommands({ ...base, enabled: false })).toBe(false);
+    expect(shouldBackfillBotInfo({ ...base, enabled: false })).toBe(false);
   });
 
   test('does not fire without a bot ship to fetch (home-group chat)', () => {
-    expect(shouldBackfillBotCommands({ ...base, botShipId: null })).toBe(false);
+    expect(shouldBackfillBotInfo({ ...base, botShipId: null })).toBe(false);
   });
 });

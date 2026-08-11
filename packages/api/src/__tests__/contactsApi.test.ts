@@ -3,7 +3,7 @@ import { describe, expect, test, vi } from 'vitest';
 import {
   type ContactsUpdate,
   contactToClientProfile,
-  extractBotCommandsValue,
+  extractBotInfoValue,
   getContactProfile,
   subscribeToContactUpdates,
   v0PeerToClientProfile,
@@ -74,25 +74,26 @@ test('converts an array of contacts from server to client format', () => {
   ).toStrictEqual([outputContact]);
 });
 
-describe('bot-commands contact field', () => {
-  const manifestJson = JSON.stringify({
+describe('bot-info contact field', () => {
+  const claimJson = JSON.stringify({
     v: 1,
-    commands: [{ command: '/allow', title: 'Allow' }],
+    harness: 'openclaw',
+    version: '0.19.0',
   });
 
   test('v1 peer mapper carries a well-formed text field', () => {
     const contact = v1PeerToClientProfile('~bot', {
       nickname: { type: 'text', value: 'Bot' },
-      'bot-commands': { type: 'text', value: manifestJson },
+      'bot-info': { type: 'text', value: claimJson },
     });
-    expect(contact.botCommands).toBe(manifestJson);
+    expect(contact.botInfo).toBe(claimJson);
   });
 
   test('v1 peer mapper clears (null) when the field is absent', () => {
     const contact = v1PeerToClientProfile('~bot', {
       nickname: { type: 'text', value: 'Bot' },
     });
-    expect(contact.botCommands).toBeNull();
+    expect(contact.botInfo).toBeNull();
   });
 
   test.each([
@@ -101,56 +102,62 @@ describe('bot-commands contact field', () => {
     ['look field', { type: 'look', value: 'https://example.com' }],
     ['text field with non-string value', { type: 'text', value: 42 }],
     ['text field missing value', { type: 'text' }],
-    ['bare string', manifestJson],
-    ['array', [{ type: 'text', value: manifestJson }]],
+    ['bare string', claimJson],
+    ['array', [{ type: 'text', value: claimJson }]],
     ['null', null],
   ])('v1 peer mapper rejects wrong shape: %s', (_label, field) => {
     const contact = v1PeerToClientProfile('~bot', {
-      'bot-commands': field,
+      'bot-info': field,
     } as unknown as ContactBookProfile);
-    expect(contact.botCommands).toBeNull();
+    expect(contact.botInfo).toBeNull();
   });
 
   test('book mapper reads the base contact, not the mod overlay', () => {
     const contact = contactToClientProfile('~bot', [
-      { 'bot-commands': { type: 'text', value: manifestJson } },
-      { 'bot-commands': { type: 'text', value: '{"v":1,"commands":[]}' } },
+      { 'bot-info': { type: 'text', value: claimJson } },
+      {
+        'bot-info': {
+          type: 'text',
+          value: '{"v":1,"harness":"hermes","version":"9"}',
+        },
+      },
     ]);
-    expect(contact.botCommands).toBe(manifestJson);
+    expect(contact.botInfo).toBe(claimJson);
   });
 
   test('book mapper carries the base field when there is no overlay', () => {
     const contact = contactToClientProfile('~bot', [
-      { 'bot-commands': { type: 'text', value: manifestJson } },
+      { 'bot-info': { type: 'text', value: claimJson } },
       null,
     ]);
-    expect(contact.botCommands).toBe(manifestJson);
+    expect(contact.botInfo).toBe(claimJson);
   });
 
-  test('book mapper ignores a manifest that only exists in the overlay', () => {
+  test('book mapper ignores a claim that only exists in the overlay', () => {
     const contact = contactToClientProfile('~bot', [
       {},
-      { 'bot-commands': { type: 'text', value: manifestJson } },
+      { 'bot-info': { type: 'text', value: claimJson } },
     ]);
-    expect(contact.botCommands).toBeNull();
+    expect(contact.botInfo).toBeNull();
   });
 
-  test('extractBotCommandsValue accepts only text-shaped fields', () => {
-    expect(extractBotCommandsValue({ type: 'text', value: manifestJson })).toBe(
-      manifestJson
+  test('extractBotInfoValue accepts only text-shaped fields', () => {
+    expect(extractBotInfoValue({ type: 'text', value: claimJson })).toBe(
+      claimJson
     );
-    expect(extractBotCommandsValue(undefined)).toBeNull();
-    expect(extractBotCommandsValue({ type: 'text', value: null })).toBeNull();
-    expect(extractBotCommandsValue({ value: manifestJson })).toBeNull();
+    expect(extractBotInfoValue(undefined)).toBeNull();
+    expect(extractBotInfoValue({ type: 'text', value: null })).toBeNull();
+    expect(extractBotInfoValue({ value: claimJson })).toBeNull();
   });
 });
 
-// The two carriers that recover an advertised manifest after the lossy v0
+// The two carriers that recover a bot's identity claim after the lossy v0
 // `/all` sync: the live `/v1/news` subscription and the targeted v1 scry.
-describe('bot-commands sync carriers', () => {
-  const manifest = JSON.stringify({
+describe('bot-info sync carriers', () => {
+  const claim = JSON.stringify({
     v: 1,
-    commands: [{ command: '/allow', title: 'Allow' }],
+    harness: 'openclaw',
+    version: '0.19.0',
   });
 
   function capturedNewsHandler() {
@@ -162,54 +169,54 @@ describe('bot-commands sync carriers', () => {
     return { updates, onEvent: onEvent as (event: unknown) => void };
   }
 
-  test('a %peer fact carries the manifest through the subscription', () => {
+  test('a %peer fact carries the claim through the subscription', () => {
     const { updates, onEvent } = capturedNewsHandler();
 
     onEvent({
       peer: {
         who: '~bot',
-        contact: { 'bot-commands': { type: 'text', value: manifest } },
+        contact: { 'bot-info': { type: 'text', value: claim } },
       },
     });
 
     expect(updates).toHaveLength(1);
     expect(updates[0]).toMatchObject({
       type: 'upsertContact',
-      contact: { id: '~bot', botCommands: manifest },
+      contact: { id: '~bot', botInfo: claim },
     });
   });
 
-  test('a %page fact carries the manifest from the base contact', () => {
+  test('a %page fact carries the claim from the base contact', () => {
     const { updates, onEvent } = capturedNewsHandler();
 
     onEvent({
       page: {
         kip: '~bot',
-        contact: { 'bot-commands': { type: 'text', value: manifest } },
+        contact: { 'bot-info': { type: 'text', value: claim } },
         mod: null,
       },
     });
 
     expect(updates[0]).toMatchObject({
       type: 'upsertContact',
-      contact: { id: '~bot', botCommands: manifest },
+      contact: { id: '~bot', botInfo: claim },
     });
   });
 
-  test('a fact without the key clears the stored manifest', () => {
+  test('a fact without the key clears the stored claim', () => {
     const { updates, onEvent } = capturedNewsHandler();
 
     onEvent({ peer: { who: '~bot', contact: { nickname: 'Bot' } } });
 
     expect(updates[0]).toMatchObject({
       type: 'upsertContact',
-      contact: { id: '~bot', botCommands: null },
+      contact: { id: '~bot', botInfo: null },
     });
   });
 
   test('getContactProfile scries the un-suffixed v1 contact path', async () => {
     scryMock.mockResolvedValueOnce({
-      'bot-commands': { type: 'text', value: manifest },
+      'bot-info': { type: 'text', value: claim },
     });
 
     const contact = await getContactProfile('~bot');
@@ -219,7 +226,7 @@ describe('bot-commands sync carriers', () => {
       app: 'contacts',
       path: '/v1/contact/~bot',
     });
-    expect(contact?.botCommands).toBe(manifest);
+    expect(contact?.botInfo).toBe(claim);
   });
 
   test('getContactProfile returns null when the scry fails', async () => {

@@ -140,9 +140,11 @@ Fingerprint: fp1:8aa23ca2bc8d
 Source: no git checkout
 ```
 
-### Slash command manifest
+### Bot info
 
-At monitor boot the plugin advertises its slash commands in the bot's own contact profile (key `bot-commands`, compare-then-poke), so Tlon clients suggest exactly the commands this plugin registers. The registry in `src/commands-registry.ts` is the single source of truth for both registration and the advertised manifest; the committed fixture is `fixtures/command-manifest.json`. OpenClaw _core_ commands (`/status`, `/help`, `/new`) are not advertised because the core's builtin command registry is not exported from the pinned `openclaw` package and cannot be parity-asserted in CI. Wire contract and clear-to-null rollback procedure: [docs/bot-command-manifests.md](../../docs/bot-command-manifests.md).
+At monitor boot (and on reconnect catch-up) the plugin publishes the bot's identity — harness, plugin version, host version — in the bot's own contact profile under `bot-info`, compare-then-poke. Tlon clients use the claimed harness to pick which of _their_ static slash-command lists to suggest; this plugin publishes no command list of its own. Wire contract and clear-to-null rollback procedure: [docs/bot-info.md](../../docs/bot-info.md).
+
+The registry in `src/commands-registry.ts` is the single source of truth for registration, and `fixtures/commands.json` is its committed token list. That fixture is a CI artifact, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the commands the client's OpenClaw list suggests, so adding or removing a command here fails until the client list changes too. **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
 
 ## Bundled Skill
 

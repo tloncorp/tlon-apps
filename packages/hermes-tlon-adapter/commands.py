@@ -5,10 +5,14 @@ Every control command the adapter detects in chat is one row of
 three shapes that exist today are reproduced exactly — they are
 behavior-relevant: ``/pending 2`` must keep falling through to the model,
 ``/tlon-version please`` must keep matching), its usage text (the existing
-module constants moved here verbatim), its telemetry token, and the fields
-of the slash-command manifest the bot advertises in its own contact profile
-under ``bot-commands`` (wire contract: docs/bot-command-manifests.md in
-tlon-apps).
+module constants moved here verbatim), and its telemetry token.
+
+It deliberately carries no popup metadata (titles, subtitles, icons,
+keywords): the Tlon client owns the editorial surface, in its own static
+per-harness lists. What this side owes the client is the token set, and only
+that — which is what ``fixtures/commands.json`` holds and what the client's
+drift contract (packages/shared/src/domain/runtimeCommandContract.test.ts)
+pins against those lists.
 
 Feature modules (owner_listen, channel_access, migration, version,
 approval, adapter) take their compiled detection regexes from
@@ -23,16 +27,9 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Mapping, Optional
-
-BOT_COMMANDS_CONTACT_KEY = "bot-commands"
-BOT_COMMANDS_CONTACT_MARK = "contact-action-1"
-# Client-side parse ceiling for the raw manifest; the backend's 10kB jam cap
-# covers the whole profile, so a rejected poke is a real, non-fatal outcome
-# regardless.
-BOT_COMMANDS_MAX_MANIFEST_BYTES = 6000
+from typing import Optional
 
 # Usage strings moved here verbatim from their former homes; existing tests
 # pin them literally.
@@ -67,14 +64,9 @@ class CommandRow:
     shape: CommandShape
     # Dispatcher/telemetry name (token without the leading slash).
     name: str
-    title: str
-    subtitle: str = ""
-    # Name of a glyph in the client's built-in icon set; unknown or absent
-    # names render the generic command glyph (docs/bot-command-manifests.md).
-    icon: str = ""
-    keywords: tuple[str, ...] = field(default_factory=tuple)
-    insert_text: str = ""
     usage: Optional[str] = None
+    # False means handled but never named to the client (the client's static
+    # list must not suggest it); the reason is required alongside.
     advertise: bool = True
     do_not_advertise_reason: str = ""
     # Dispatcher-level telemetry token; None where the dispatcher emits none
@@ -82,17 +74,13 @@ class CommandRow:
     telemetry_token: Optional[str] = None
 
 
-# Dispatcher order (adapter._maybe_handle_control_command). Array order in
-# the advertised manifest is the client's ranking priority.
+# Dispatcher order (adapter._maybe_handle_control_command). Order is this
+# side's own concern: the client sorts its popup by its own priorities.
 COMMAND_REGISTRY: tuple[CommandRow, ...] = (
     CommandRow(
         token="/owner-listen",
         shape=CommandShape.PREFIX,
         name="owner-listen",
-        title="Owner listen",
-        subtitle="Let the owner session listen in this channel",
-        icon="Command",
-        keywords=("owner", "listen", "agent"),
         usage=OWNER_LISTEN_USAGE,
         telemetry_token="owner-listen",
     ),
@@ -100,10 +88,6 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         token="/migrate",
         shape=CommandShape.PREFIX,
         name="migrate",
-        title="Migrate diary to notes",
-        subtitle="Run or clean up a diary-to-notes migration",
-        icon="Copy",
-        keywords=("migrate", "diary", "notes", "migration"),
         usage=MIGRATE_USAGE,
         telemetry_token="migrate",
     ),
@@ -111,20 +95,12 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         token="/tlon",
         shape=CommandShape.PREFIX,
         name="tlon",
-        title="Tlon diagnostics",
-        subtitle="Tlon adapter diagnostics. Usage: /tlon version",
-        icon="Info",
-        keywords=("tlon", "diagnostics", "version", "status"),
         telemetry_token=None,
     ),
     CommandRow(
         token="/tlon-version",
         shape=CommandShape.PREFIX,
         name="tlon-version",
-        title="Tlon adapter version",
-        subtitle="Show the installed Hermes Tlon adapter version",
-        icon="Info",
-        keywords=("version", "adapter", "hermes"),
         advertise=False,
         do_not_advertise_reason="legacy alias of /tlon version",
         telemetry_token="tlon-version",
@@ -133,70 +109,42 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         token="/allow",
         shape=CommandShape.ANCHORED_OPTIONAL_ARG,
         name="allow",
-        title="Allow request",
-        subtitle="Approve a pending request by id",
-        icon="Checkmark",
-        keywords=("approve", "approval", "request"),
         telemetry_token="allow",
     ),
     CommandRow(
         token="/reject",
         shape=CommandShape.ANCHORED_OPTIONAL_ARG,
         name="reject",
-        title="Reject request",
-        subtitle="Decline a pending request by id",
-        icon="Close",
-        keywords=("deny", "decline", "approval", "request"),
         telemetry_token="reject",
     ),
     CommandRow(
         token="/ban",
         shape=CommandShape.ANCHORED_OPTIONAL_ARG,
         name="ban",
-        title="Ban request",
-        subtitle="Block a ship and deny its pending request",
-        icon="EyeClosed",
-        keywords=("block", "deny", "ship", "approval"),
         telemetry_token="ban",
     ),
     CommandRow(
         token="/unban",
         shape=CommandShape.ANCHORED_OPTIONAL_ARG,
         name="unban",
-        title="Unban ship",
-        subtitle="Remove a ship from the ban list",
-        icon="EyeOpen",
-        keywords=("unblock", "ship", "allow"),
         telemetry_token="unban",
     ),
     CommandRow(
         token="/pending",
         shape=CommandShape.STRICT_NO_ARG,
         name="pending",
-        title="Pending approvals",
-        subtitle="List pending DM, channel, and group requests",
-        icon="Clock",
-        keywords=("approval", "requests", "owner"),
         telemetry_token="pending",
     ),
     CommandRow(
         token="/banned",
         shape=CommandShape.STRICT_NO_ARG,
         name="banned",
-        title="Banned ships",
-        subtitle="List currently banned ships",
-        icon="EyeClosed",
-        keywords=("blocked", "ships", "list"),
         telemetry_token="banned",
     ),
     CommandRow(
         token="/channel-access",
         shape=CommandShape.PREFIX,
         name="channel-access",
-        title="Channel access",
-        subtitle="Open or restrict a channel, or show its access status",
-        icon="Lock",
-        keywords=("channel", "access", "open", "restricted"),
         usage=CHANNEL_ACCESS_USAGE,
         telemetry_token="channel-access",
     ),
@@ -240,63 +188,14 @@ def advertised_command_rows() -> list[CommandRow]:
     return [row for row in COMMAND_REGISTRY if row.advertise]
 
 
-def build_command_manifest_json() -> str:
-    """Serialize the advertised manifest (wire format v:1). Stable ordering
-    (registry order, sorted JSON keys) so compare-before-poke does not
-    false-positive. Adapter commands only — hermes-core chat commands are
-    not verifiable from this repo and are never advertised."""
-    commands = []
-    for row in advertised_command_rows():
-        entry: dict[str, Any] = {"command": row.token, "title": row.title}
-        if row.subtitle:
-            entry["subtitle"] = row.subtitle
-        if row.icon:
-            entry["icon"] = row.icon
-        if row.keywords:
-            entry["keywords"] = list(row.keywords)
-        if row.insert_text:
-            entry["insertText"] = row.insert_text
-        commands.append(entry)
-    # ensure_ascii=False keeps non-ASCII literal, matching the TS builder's
-    # JSON.stringify output and making the byte cap count real UTF-8 bytes
-    # rather than \uXXXX escapes.
-    value = json.dumps(
-        {"v": 1, "commands": commands},
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-    )
-    size = len(value.encode("utf-8"))
-    if size > BOT_COMMANDS_MAX_MANIFEST_BYTES:
-        raise ValueError(
-            f"bot command manifest exceeds {BOT_COMMANDS_MAX_MANIFEST_BYTES} "
-            f"UTF-8 bytes: {size}"
-        )
-    return value
+def command_tokens() -> list[str]:
+    return [row.token for row in advertised_command_rows()]
 
 
-def extract_bot_commands_value(self_contact: Any) -> Optional[str]:
-    """Runtime shape check for the ``bot-commands`` field on a self-contact
-    map: only a %text field carrying a string is a published manifest."""
-    if not isinstance(self_contact, Mapping):
-        return None
-    candidate = self_contact.get(BOT_COMMANDS_CONTACT_KEY)
-    if not isinstance(candidate, Mapping):
-        return None
-    if candidate.get("type") != "text":
-        return None
-    value = candidate.get("value")
-    return value if isinstance(value, str) else None
-
-
-def build_bot_commands_poke(value: Optional[str]) -> dict[str, Any]:
-    """The contact-action-1 self poke advertising (or, with None, clearing)
-    the manifest. Keys die only by explicit null — see
-    docs/bot-command-manifests.md for the rollback procedure."""
-    return {
-        "self": {
-            BOT_COMMANDS_CONTACT_KEY: None
-            if value is None
-            else {"type": "text", "value": value}
-        }
-    }
+def build_command_tokens_json() -> str:
+    """The committed fixture's exact bytes (fixtures/commands.json). Nothing
+    sends this anywhere: it is the CI artifact the client's drift contract
+    reads, so only its content and its stability matter. Matches the TS
+    builder's ``JSON.stringify(tokens, null, 2)`` so both runtimes' fixtures
+    look alike."""
+    return json.dumps(command_tokens(), indent=2) + "\n"

@@ -14,9 +14,9 @@ import {
 } from '../auth-retry-state.js';
 import {
   type SelfContactRead,
-  syncBotCommandManifest,
-} from '../bot-command-manifest.js';
-import { buildCommandManifestJson } from '../commands-registry.js';
+  buildBotInfoJson,
+  syncBotInfo,
+} from '../bot-info.js';
 import {
   findRecentContextLensById,
   publishContextLensEvent,
@@ -106,6 +106,7 @@ import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
   formatTlonVersionIdentity,
+  getTlonVersionIdentity,
   resolveTlonSkillVersion,
 } from '../version.js';
 import {
@@ -548,34 +549,42 @@ export async function monitorTlonProvider(
   // Set by the boot self-contact scry; reconnect publishes re-read instead.
   let bootSelfContactRead: SelfContactRead | undefined;
 
-  // Advertise the plugin's slash-command manifest in the bot's own contact
-  // profile: compare-then-poke, non-fatal, skipped when the self-contact read
-  // failed (see syncBotCommandManifest). Declared here — before the SSE client
-  // that can call it on reconnect — and hoisted so that callback is safe.
-  async function publishBotCommandManifestNow(reason: 'boot' | 'reconnect') {
+  // Publish the bot's identity claim in its own contact profile:
+  // compare-then-poke, non-fatal, skipped when the self-contact read failed
+  // (see syncBotInfo). Declared here — before the SSE client that can call it
+  // on reconnect — and hoisted so that callback is safe.
+  async function publishBotInfoNow(reason: 'boot' | 'reconnect') {
     if (!api) {
       return;
     }
     try {
-      // The builder throws when the registry serializes past the byte cap, and
-      // boot awaits this call — so it has to be inside the guard too, or a
-      // registry that grew too large would take the bot offline instead of
-      // just going unadvertised.
-      const result = await syncBotCommandManifest(
+      // The host always reports a version; an empty one means the SDK contract
+      // moved under us. The claim still stands without it (the field is a
+      // diagnostic rider), but say so loudly.
+      if (!core.version) {
+        runtime.error?.(
+          '[tlon] Host reported no version; publishing bot info without harnessVersion'
+        );
+      }
+      // The builder throws when the claim serializes past the byte cap, and
+      // boot awaits this call — so it has to be inside the guard too, or an
+      // oversized value would take the bot offline instead of just leaving it
+      // unidentified.
+      const result = await syncBotInfo(
         api,
-        buildCommandManifestJson(),
+        buildBotInfoJson({
+          version: getTlonVersionIdentity().pluginVersion,
+          harnessVersion: core.version,
+        }),
         reason === 'boot' ? bootSelfContactRead : undefined,
         undefined,
         opts.abortSignal
       );
       if (result !== 'unchanged') {
-        runtime.log?.(`[tlon] Bot command manifest ${result} (${reason})`);
+        runtime.log?.(`[tlon] Bot info ${result} (${reason})`);
       }
     } catch (e) {
-      runtime.error?.(
-        `[tlon] Bot command manifest publish failed (${reason})`,
-        e
-      );
+      runtime.error?.(`[tlon] Bot info publish failed (${reason})`, e);
     }
   }
   // Stream-watchdog thresholds are normally hardcoded defaults in the client.
@@ -652,7 +661,7 @@ export async function monitorTlonProvider(
           // Catch-up publish, mirroring Hermes's reconnect path: a failed boot
           // publish, or a key cleared while this process stayed alive, would
           // otherwise persist until a restart. Fire-and-forget and non-fatal.
-          void publishBotCommandManifestNow('reconnect');
+          void publishBotInfoNow('reconnect');
           if (event.attempt > 0 || (event.downtimeMs ?? 0) > 0) {
             capturePluginError(
               'sse_stream',
@@ -1049,7 +1058,7 @@ export async function monitorTlonProvider(
 
     // Compare-then-poke against the self-contact just scried; %self is a
     // merge, so nickname/avatar survive.
-    await publishBotCommandManifestNow('boot');
+    await publishBotInfoNow('boot');
 
     // Fetch all contacts to populate nickname cache
     try {
