@@ -234,10 +234,13 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   const refresh = useCallback(async () => {
     const next = selectSnapshot(await getBuckets());
     const current = snapshotRef.current;
+    // Revisions are monotonic only within one Bucket incarnation. Deleting
+    // and recreating the same flag allocates a new bucket id at revision 0.
     if (
       next &&
       current &&
       matchesFlag(next.flag, current.flag) &&
+      next.state.bucket.id === current.state.bucket.id &&
       next.state.revision <= current.state.revision
     ) {
       return current;

@@ -1,5 +1,6 @@
 import {
   StructuredChannelDescriptionPayload,
+  scry,
   toClientGroupV7,
 } from '@tloncorp/api';
 import '@tloncorp/api';
@@ -64,6 +65,28 @@ const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
 const groupsInitData = rawGroupsInitData as unknown as GroupsInit6;
 const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit6;
 const headsData = rawHeadsData as unknown as CombinedHeads;
+
+function setInitSyncScryOutputs({
+  heads,
+  init,
+}: {
+  heads?: CombinedHeads;
+  init: GroupsInit6;
+}) {
+  vi.mocked(scry).mockImplementation(async ({ app, path }) => {
+    if (app === 'buckets' && path === '/v1/buckets') {
+      return [];
+    }
+    if (app === 'groups-ui' && /^\/v\d+\/init$/.test(path)) {
+      return init;
+    }
+    if (app === 'groups-ui' && path.startsWith('/v4/heads')) {
+      if (!heads) throw new Error(`Unexpected heads scry: ${app}${path}`);
+      return heads;
+    }
+    throw new Error(`Unexpected scry: ${app}${path}`);
+  });
+}
 
 setupDatabaseTestSuite();
 
@@ -554,7 +577,7 @@ const testGroupData: db.Group = {
 // });
 
 test('syncs init data', async () => {
-  setScryOutput(rawGroupsInitData);
+  setInitSyncScryOutputs({ init: groupsInitData });
   await syncInitData();
   const groups = await db.getGroups({});
   expect(groups.length).toEqual(Object.values(groupsInitData.groups).length);
@@ -576,7 +599,7 @@ test('syncs init data', async () => {
 });
 
 test('syncs last posts', async () => {
-  setScryOutputs([groupsInitData2, headsData]);
+  setInitSyncScryOutputs({ init: groupsInitData2, heads: headsData });
   await syncInitData();
   await syncLatestPosts();
   const chats = await db.getChats();
@@ -606,7 +629,7 @@ test('init data repairs latest posts that arrived before channel rows', async ()
   if (!client) throw new Error('test db not initialized');
 
   await db.headsSyncedAt.resetValue();
-  setScryOutputs([headsData, groupsInitData2]);
+  setInitSyncScryOutputs({ init: groupsInitData2, heads: headsData });
 
   await syncLatestPosts();
   await syncInitData();
