@@ -19,7 +19,7 @@ import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { KeyboardAvoidingView, useIsWindowNarrow } from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import {
@@ -65,7 +65,10 @@ import {
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { ContextLensPanel, useContextLensController } from './ContextLens';
 import { DmInviteOptions } from './DmInviteOptions';
-import { DraftInputView } from './DraftInputView';
+import {
+  ConversationKeyboardAvoidingView,
+  DraftInputView,
+} from './DraftInputView';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
@@ -838,11 +841,8 @@ export function Channel({
                           }}
                         />
                       )}
-                      <KeyboardAvoidingView
-                        enabled={
-                          Platform.OS === 'ios' &&
-                          draftInputType === DraftInputId.chat
-                        }
+                      <ConversationKeyboardAvoidingView
+                        enabled={draftInputType === DraftInputId.chat}
                       >
                         <XStack
                           alignItems="stretch"
@@ -950,7 +950,7 @@ export function Channel({
                               />
                             )}
                         </XStack>
-                      </KeyboardAvoidingView>
+                      </ConversationKeyboardAvoidingView>
                       <GroupPreviewSheet
                         group={groupPreview ?? undefined}
                         open={!!groupPreview}

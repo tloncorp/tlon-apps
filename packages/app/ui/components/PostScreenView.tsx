@@ -12,7 +12,6 @@ import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
-import { KeyboardAvoidingView } from '@tloncorp/ui';
 import {
   createContext,
   memo,
@@ -48,6 +47,7 @@ import {
 } from './Channel/ContextLens';
 import {
   ConversationComposerPlacement,
+  ConversationKeyboardAvoidingView,
   DraftInputView,
 } from './Channel/DraftInputView';
 import { ScrollAnchor } from './Channel/Scroller';
@@ -379,7 +379,7 @@ export function PostScreenView({
               flex={1}
               onAssetsDropped={attachAssets}
             >
-              <KeyboardAvoidingView>
+              <ConversationKeyboardAvoidingView enabled>
                 <YStack flex={1} backgroundColor={'$background'}>
                   <ConnectedHeader
                     channel={channel}
@@ -497,7 +497,7 @@ export function PostScreenView({
                     onActionComplete={handleGroupAction}
                   />
                 </YStack>
-              </KeyboardAvoidingView>
+              </ConversationKeyboardAvoidingView>
             </FileDrop>
           </FocusedPostContext.Provider>
         </ChannelProvider>

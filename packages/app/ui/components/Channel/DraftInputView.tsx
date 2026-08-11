@@ -1,4 +1,5 @@
 import { DraftInputId } from '@tloncorp/api';
+import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { ComponentProps, PropsWithChildren } from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,6 +44,24 @@ export function DraftInputView({
       </ConversationComposerPlacement>
     );
   }
+}
+
+/** Keeps the conversation viewport above the iOS keyboard from any nav offset. */
+export function ConversationKeyboardAvoidingView({
+  children,
+  enabled,
+}: PropsWithChildren<{ enabled: boolean }>) {
+  if (Platform.OS === 'ios' && enabled) {
+    return (
+      <ParentAgnosticKeyboardAvoidingView
+        contentContainerStyle={styles.keyboardAvoidingContent}
+      >
+        {children}
+      </ParentAgnosticKeyboardAvoidingView>
+    );
+  }
+
+  return <View style={styles.keyboardAvoidingContent}>{children}</View>;
 }
 
 const supportsFloatingComposer = Platform.OS !== 'web';
@@ -109,6 +128,9 @@ export function ConversationComposerPlacement({
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoidingContent: {
+    flex: 1,
+  },
   floatingInput: {
     position: 'absolute',
     bottom: 0,
