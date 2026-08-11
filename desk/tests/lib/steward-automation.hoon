@@ -1,4 +1,4 @@
-::  steward automation time conversion tests
+::  Steward automation time conversion tests.
 ::
 /+  *test, au=steward-automation
 |%

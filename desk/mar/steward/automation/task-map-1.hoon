@@ -1,4 +1,4 @@
-::  %steward-automation-task-map-1: ID-keyed automation scry result
+::  %steward-automation-task-map-1: ID-keyed automation scry result.
 ::
 /-  a=steward-automation
 /+  aj=steward-automation-json

@@ -1,4 +1,4 @@
-::  %steward-automation-action-1: complete task projection action
+::  %steward-automation-action-1: Complete task projection action.
 ::
 /-  a=steward-automation
 /+  aj=steward-automation-json
