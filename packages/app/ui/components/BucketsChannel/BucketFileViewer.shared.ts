@@ -9,7 +9,7 @@ export type BucketFileViewerItem = {
   name: string;
   mimeType?: string;
   sizeLabel?: string;
-  uri: string;
+  uri?: string;
   textContent?: string;
 };
 

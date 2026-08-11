@@ -9,6 +9,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
@@ -27,7 +28,9 @@ import {
 } from './ChannelHeader.helpers';
 
 export interface ChannelHeaderItemsContextValue {
+  registerHeaderHider: () => { remove: () => void };
   registerItem: (options: { item: ReactElement }) => { remove: () => void };
+  headerHidden: boolean;
   setLoadingSubtitle: (subtitle: string | null) => void;
   items: readonly ReactElement[];
   loadingSubtitle: string | null;
@@ -52,6 +55,7 @@ export function ChannelHeaderItemsProvider({
   children: ReactElement;
 }) {
   const [items, setItems] = useState<ReactElement[]>([]);
+  const [headerHiderCount, setHeaderHiderCount] = useState(0);
   const [loadingSubtitle, setLoadingSubtitle] = useState<string | null>(null);
   const registerItem = useCallback(
     ({ item }: { item: ReactElement }) => {
@@ -64,13 +68,43 @@ export function ChannelHeaderItemsProvider({
     },
     [setItems]
   );
+  const registerHeaderHider = useCallback(() => {
+    let removed = false;
+    setHeaderHiderCount((count) => count + 1);
+    return {
+      remove: () => {
+        if (removed) return;
+        removed = true;
+        setHeaderHiderCount((count) => Math.max(0, count - 1));
+      },
+    };
+  }, []);
   return (
     <ChannelHeaderItemsContext.Provider
-      value={{ registerItem, setLoadingSubtitle, items, loadingSubtitle }}
+      value={{
+        registerHeaderHider,
+        registerItem,
+        headerHidden: headerHiderCount > 0,
+        setLoadingSubtitle,
+        items,
+        loadingSubtitle,
+      }}
     >
       {children}
     </ChannelHeaderItemsContext.Provider>
   );
+}
+
+export function useHideChannelHeader(hidden: boolean) {
+  const registerHeaderHider = useContext(
+    ChannelHeaderItemsContext
+  )?.registerHeaderHider;
+
+  useLayoutEffect(() => {
+    if (!hidden || !registerHeaderHider) return;
+    const { remove } = registerHeaderHider();
+    return remove;
+  }, [hidden, registerHeaderHider]);
 }
 
 export function useRegisterChannelHeaderItem(item: ReactElement | null) {
@@ -371,6 +405,10 @@ export function ChannelHeader({
 
     return undefined;
   }, [channel.type, goToProfile, goToChatDetails]);
+
+  if (context?.headerHidden) {
+    return null;
+  }
 
   return (
     <ScreenHeader

@@ -11,6 +11,7 @@ import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
+import { calculateBucketUploadProgress } from '../../../utils/bucketUploadProgress';
 import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { Badge } from '../Badge';
 import { TextInput } from '../Form';
@@ -38,6 +39,7 @@ export type BucketItem = {
   textContent?: string;
   uploadError?: string;
   uploadProgress?: number;
+  uploadSize?: number;
   uploadState?: BucketUploadState;
 };
 
@@ -208,6 +210,8 @@ export function BucketsPane({
   rootLabel = 'Project Files',
   selectedItemId,
   state = 'populated',
+  uploadAggregateProgress,
+  uploadItems,
   onDeleteItem,
   onDownloadItem,
   onCancelUpload,
@@ -224,6 +228,8 @@ export function BucketsPane({
   rootLabel?: string;
   selectedItemId?: string | null;
   state?: BucketsPaneState;
+  uploadAggregateProgress?: number;
+  uploadItems?: BucketItem[];
   onDeleteItem?: (item: BucketItem) => void;
   onDownloadItem?: (item: BucketItem) => void;
   onCancelUpload?: (item: BucketItem) => void;
@@ -238,7 +244,7 @@ export function BucketsPane({
   const selectedIndex = selectedItemId
     ? items.findIndex((item) => item.id === selectedItemId)
     : -1;
-  const uploadItems = items.filter((item) => uploadStateFor(item));
+  const trayItems = uploadItems ?? items.filter((item) => uploadStateFor(item));
 
   useEffect(() => {
     if (selectedIndex < 0 || !viewportHeight) {
@@ -312,9 +318,10 @@ export function BucketsPane({
             {list}
           </YStack>
         </ScrollView>
-        {uploadItems.length > 0 ? (
+        {trayItems.length > 0 ? (
           <BucketsUploadTray
-            items={uploadItems}
+            aggregateProgress={uploadAggregateProgress}
+            items={trayItems}
             onRetryUpload={onRetryUpload}
           />
         ) : null}
@@ -826,9 +833,11 @@ function UploadProgress({ progress }: { progress: number }) {
 }
 
 function BucketsUploadTray({
+  aggregateProgress,
   items,
   onRetryUpload,
 }: {
+  aggregateProgress?: number;
   items: BucketItem[];
   onRetryUpload?: (item: BucketItem) => void;
 }) {
@@ -836,14 +845,13 @@ function BucketsUploadTray({
   const failedItems = items.filter((item) => uploadStateFor(item) === 'failed');
   const activeItems = items.filter((item) => uploadStateFor(item) !== 'failed');
   const activeProgress =
-    activeItems.length === 0
-      ? 0
-      : Math.round(
-          activeItems.reduce(
-            (sum, item) => sum + (item.uploadProgress ?? 0),
-            0
-          ) / activeItems.length
-        );
+    aggregateProgress ??
+    calculateBucketUploadProgress(
+      activeItems.map((item) => ({
+        progress: item.uploadProgress ?? 0,
+        size: item.uploadSize ?? 0,
+      }))
+    );
   const title =
     activeItems.length > 0
       ? `${activeItems.length} ${

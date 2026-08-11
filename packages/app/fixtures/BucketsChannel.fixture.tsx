@@ -135,6 +135,7 @@ const sampleUploadQueue: BucketItem[] = [
       'image/jpeg'
     ),
     uploadProgress: 62,
+    uploadSize: 4.8 * 1024 * 1024,
     uploadState: 'uploading',
   },
   {
@@ -147,6 +148,7 @@ const sampleUploadQueue: BucketItem[] = [
       'application/zip'
     ),
     uploadProgress: 0,
+    uploadSize: 184 * 1024 * 1024,
     uploadState: 'queued',
   },
   {
@@ -159,6 +161,7 @@ const sampleUploadQueue: BucketItem[] = [
       'application/pdf'
     ),
     uploadError: 'Connection lost',
+    uploadSize: 8.1 * 1024 * 1024,
     uploadState: 'failed',
   },
 ];
@@ -359,6 +362,7 @@ function BucketsFixture({
         ),
         uploadError: uploadState === 'failed' ? 'Connection lost' : undefined,
         uploadProgress: uploadState === 'failed' ? undefined : index * 22 + 18,
+        uploadSize: candidate.size,
         uploadState,
       };
     });

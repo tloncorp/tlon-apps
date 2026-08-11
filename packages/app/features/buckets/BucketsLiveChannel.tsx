@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { ReactElement, useMemo, useState } from 'react';
+import { ReactElement, useCallback, useMemo, useRef, useState } from 'react';
 import { Linking, useWindowDimensions } from 'react-native';
 
 import {
@@ -23,6 +23,7 @@ import {
   getBucketPreviewKind,
   useCanWrite,
   useCurrentUserId,
+  useHideChannelHeader,
   useIsWindowNarrow,
   useRegisterChannelHeaderItem,
 } from '../../ui';
@@ -63,6 +64,7 @@ function toItem(entry: BucketsEntry, entries: BucketsEntry[]): BucketItem {
         ? entry.file.objectUrl ?? undefined
         : undefined,
     sizeLabel: formatFileSize(entry.file.size),
+    uploadSize: entry.file.status === 'pending' ? entry.file.size : undefined,
     uploadError:
       entry.file.status === 'failed'
         ? 'The object was not finalized'
@@ -122,7 +124,11 @@ export function BucketsLiveChannel({
   const [searchOrigin, setSearchOrigin] = useState<SearchOrigin | null>(null);
   const [query, setQuery] = useState('');
   const [previewItem, setPreviewItem] = useState<BucketItem | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const previewRequestId = useRef(0);
   const [operationError, setOperationError] = useState<string | null>(null);
+  useHideChannelHeader(embedded && previewItem !== null);
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
   const entries = useMemo(
@@ -204,43 +210,59 @@ export function BucketsLiveChannel({
     }
   };
 
-  const openItem = async (item: BucketItem) => {
+  const loadPreview = async (item: BucketItem) => {
+    const requestId = ++previewRequestId.current;
+    setPreviewItem(item);
+    setPreviewLoading(true);
+    setPreviewError(null);
+
+    try {
+      const previewUri =
+        item.previewUri ?? (await live.readUrl(Number(item.id)));
+      if (previewRequestId.current !== requestId) return;
+
+      const readableItem = { ...item, previewUri };
+      setPreviewItem(readableItem);
+
+      if (
+        getBucketPreviewKind(readableItem) === 'text' &&
+        readableItem.textContent === undefined
+      ) {
+        const response = await fetch(previewUri);
+        if (!response.ok) {
+          throw new Error(`File request failed (${response.status})`);
+        }
+        const textContent = await response.text();
+        if (previewRequestId.current !== requestId) return;
+        setPreviewItem({ ...readableItem, textContent });
+      }
+
+      if (previewRequestId.current === requestId) {
+        setPreviewLoading(false);
+      }
+    } catch (cause) {
+      if (previewRequestId.current !== requestId) return;
+      setPreviewLoading(false);
+      setPreviewError(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+
+  const openItem = (item: BucketItem) => {
     if (item.kind === 'folder') {
       setActiveFolderId(Number(item.id));
       setSelectedItemId(null);
       return;
     }
     setSelectedItemId(item.id);
-    let previewUri = item.previewUri;
-    if (!previewUri) {
-      try {
-        setOperationError(null);
-        previewUri = await live.readUrl(Number(item.id));
-      } catch (cause) {
-        setOperationError(
-          cause instanceof Error ? cause.message : String(cause)
-        );
-        return;
-      }
-    }
+    setOperationError(null);
+    void loadPreview(item);
+  };
 
-    const readableItem = { ...item, previewUri };
-    setPreviewItem(readableItem);
-    if (
-      getBucketPreviewKind(readableItem) === 'text' &&
-      !readableItem.textContent
-    ) {
-      try {
-        const response = await fetch(previewUri);
-        if (!response.ok) return;
-        const textContent = await response.text();
-        setPreviewItem((current) =>
-          current?.id === item.id ? { ...current, textContent } : current
-        );
-      } catch {
-        // The viewer can still offer the external open action.
-      }
-    }
+  const closePreview = () => {
+    previewRequestId.current += 1;
+    setPreviewItem(null);
+    setPreviewLoading(false);
+    setPreviewError(null);
   };
 
   const chooseUploads = async () => {
@@ -293,11 +315,15 @@ export function BucketsLiveChannel({
     }
   };
 
-  const openSearch = () => {
+  const openNewSheet = useCallback(() => {
+    setNewSheetOpen(true);
+  }, []);
+
+  const openSearch = useCallback(() => {
     setSearchOrigin({ activeFolderId, selectedItemId });
     setSearchOpen(true);
     setQuery('');
-  };
+  }, [activeFolderId, selectedItemId]);
 
   const closeSearch = () => {
     if (searchOrigin) {
@@ -341,6 +367,8 @@ export function BucketsLiveChannel({
     rootLabel,
     selectedItemId,
     state: live.loading ? ('loading' as const) : ('populated' as const),
+    uploadAggregateProgress: live.uploadAggregateProgress,
+    uploadItems: live.localItems,
     onCancelUpload: (item: BucketItem) => void live.cancelUpload(item.id),
     onDeleteItem: (item: BucketItem) =>
       void reportOperation(
@@ -383,8 +411,9 @@ export function BucketsLiveChannel({
       backgroundColor="$background"
     >
       <MaybeChannelHeaderItemsProvider embedded={embedded}>
-        {previewItem?.previewUri ? (
+        {previewItem ? (
           <BucketFileViewer
+            error={previewError}
             item={{
               name: previewItem.name,
               mimeType: previewItem.mimeType,
@@ -392,10 +421,14 @@ export function BucketsLiveChannel({
               textContent: previewItem.textContent,
               uri: previewItem.previewUri,
             }}
-            onClose={() => setPreviewItem(null)}
-            onOpenExternally={() =>
-              void Linking.openURL(previewItem.previewUri!)
+            loading={previewLoading}
+            onClose={closePreview}
+            onOpenExternally={
+              previewItem.previewUri
+                ? () => void Linking.openURL(previewItem.previewUri!)
+                : undefined
             }
+            onRetry={() => void loadPreview(previewItem)}
           />
         ) : searchOpen ? (
           <BucketsSearchScreen
@@ -411,7 +444,7 @@ export function BucketsLiveChannel({
             <RegisteredLiveHeaderActions
               canEdit={canEdit}
               showSearch={embedded}
-              onNew={() => setNewSheetOpen(true)}
+              onNew={openNewSheet}
               onSearch={openSearch}
             />
             {!embedded ? (

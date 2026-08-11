@@ -28,6 +28,13 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { BucketItem, BucketUploadCandidate } from '../../ui';
+import {
+  calculateBucketUploadProgress,
+  completeBucketUploadInBatch,
+  removeBucketUploadFromBatch,
+} from '../../utils/bucketUploadProgress';
+import type { BucketUploadBatchItem } from '../../utils/bucketUploadProgress';
+import { reconcileUploadsWithSnapshot } from './bucketUploadReconciliation';
 import { createBucketUploadTask } from './bucketUploadTask';
 import type { BucketUploadTask } from './bucketUploadTask.types';
 
@@ -40,6 +47,7 @@ type LocalUpload = {
   id: string;
   parentId: number | null;
   progress: number;
+  priorSessionIds?: string[];
   serverEntryId?: number;
   sessionId?: string;
   state: 'queued' | 'uploading' | 'failed';
@@ -158,12 +166,18 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploads, setUploads] = useState<LocalUpload[]>([]);
+  const [uploadBatch, setUploadBatch] = useState<BucketUploadBatchItem[]>([]);
   const snapshotRef = useRef<BucketsSnapshot | null>(null);
   const tasksRef = useRef(new Map<string, BucketUploadTask>());
   const cancelledRef = useRef(new Set<string>());
 
   const commitSnapshot = useCallback((next: BucketsSnapshot | null) => {
     snapshotRef.current = next;
+    if (next) {
+      setUploads((current) =>
+        reconcileUploadsWithSnapshot(current, next, getCurrentUserId())
+      );
+    }
     setSnapshot(next);
     if (next) {
       const channelId = formatBucketsChannelId(next.flag);
@@ -241,6 +255,24 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           upload.id === id ? { ...upload, ...patch } : upload
         )
       );
+      if (patch.progress !== undefined || patch.state !== undefined) {
+        setUploadBatch((current) =>
+          current.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  progress: patch.progress ?? item.progress,
+                  state:
+                    patch.state === undefined
+                      ? item.state
+                      : patch.state === 'failed'
+                        ? 'failed'
+                        : 'active',
+                }
+              : item
+          )
+        );
+      }
     },
     []
   );
@@ -318,6 +350,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
             capability,
             error: undefined,
             progress: 1,
+            priorSessionIds: [...priorSessionIds],
             state: 'uploading',
           });
           await sendBucketsAction({
@@ -404,6 +437,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         }
         updateLocalUpload(id, { progress: 100 });
         await refresh();
+        setUploadBatch((current) => completeBucketUploadInBatch(current, id));
         setUploads((currentUploads) =>
           currentUploads.filter((candidateUpload) => candidateUpload.id !== id)
         );
@@ -436,36 +470,80 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   const addUploads = useCallback(
     (candidates: BucketUploadCandidate[], parentId: number | null) => {
       const now = Date.now();
-      candidates.forEach((candidate, index) => {
-        const upload: LocalUpload = {
+      const nextUploads = candidates.map(
+        (candidate, index): LocalUpload => ({
           candidate,
           id: `local-upload-${now}-${index}`,
           parentId,
           progress: 0,
           state: 'queued',
-        };
-        setUploads((current) => [...current, upload]);
-        void runUpload(upload);
-      });
+        })
+      );
+      setUploads((current) => [...current, ...nextUploads]);
+      setUploadBatch((current) => [
+        ...current,
+        ...nextUploads.map((upload) => ({
+          id: upload.id,
+          progress: 0,
+          size: upload.candidate.size,
+          state: 'active' as const,
+        })),
+      ]);
+      nextUploads.forEach((upload) => void runUpload(upload));
     },
     [runUpload]
   );
 
   const cancelUpload = useCallback(
     async (id: string) => {
-      cancelledRef.current.add(id);
+      const upload = uploads.find((candidate) => candidate.id === id);
+      const parsedEntryId = Number(id);
+      const serverEntryId =
+        upload?.serverEntryId ??
+        (Number.isSafeInteger(parsedEntryId) && parsedEntryId >= 0
+          ? parsedEntryId
+          : undefined);
+      const sessionId =
+        upload?.sessionId ??
+        snapshotRef.current?.state.sessions.find(
+          (session) =>
+            session.fileId === serverEntryId && session.status === 'pending'
+        )?.id;
+
+      if (upload) {
+        cancelledRef.current.add(id);
+      }
       await tasksRef.current
         .get(id)
         ?.cancel()
         .catch(() => undefined);
       tasksRef.current.delete(id);
-      const upload = uploads.find((candidate) => candidate.id === id);
-      if (upload?.sessionId) {
+
+      setUploads((current) =>
+        current.filter((candidate) => candidate.id !== id)
+      );
+      setUploadBatch((current) => removeBucketUploadFromBatch(current, id));
+      if (serverEntryId !== undefined && snapshotRef.current) {
+        commitSnapshot({
+          ...snapshotRef.current,
+          state: {
+            ...snapshotRef.current.state,
+            entries: snapshotRef.current.state.entries.filter(
+              (entry) => entry.id !== serverEntryId
+            ),
+            sessions: snapshotRef.current.state.sessions.filter(
+              (session) => session.fileId !== serverEntryId
+            ),
+          },
+        });
+      }
+
+      if (sessionId) {
         await sendBucketsAction({
           type: 'fail-upload',
           flag,
           reason: 'Cancelled',
-          sessionId: upload.sessionId,
+          sessionId,
         }).catch(() => undefined);
       }
       if (upload?.brokerReservationId) {
@@ -473,20 +551,17 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           () => undefined
         );
       }
-      if (upload?.serverEntryId) {
+      if (serverEntryId !== undefined) {
         await sendBucketsAction({
           type: 'delete-entry',
           flag,
-          id: upload.serverEntryId,
+          id: serverEntryId,
           recursive: false,
         }).catch(() => undefined);
       }
-      setUploads((current) =>
-        current.filter((candidate) => candidate.id !== id)
-      );
       void refresh();
     },
-    [flag, refresh, uploads]
+    [commitSnapshot, flag, refresh, uploads]
   );
 
   const retryUpload = useCallback(
@@ -516,12 +591,20 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           : undefined,
         capability: isPrivateRetry ? upload.capability : undefined,
         progress: 0,
+        priorSessionIds: isPrivateRetry ? upload.priorSessionIds : undefined,
         serverEntryId: isPrivateRetry ? upload.serverEntryId : undefined,
         sessionId: isPrivateRetry ? upload.sessionId : undefined,
         state: 'queued' as const,
       };
       setUploads((current) =>
         current.map((candidate) => (candidate.id === id ? next : candidate))
+      );
+      setUploadBatch((current) =>
+        current.map((item) =>
+          item.id === id
+            ? { ...item, progress: 0, state: 'active' as const }
+            : item
+        )
       );
       void runUpload(next);
     },
@@ -538,11 +621,19 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         modifiedLabel: upload.state === 'failed' ? 'Failed' : 'Uploading',
         name: upload.candidate.name,
         sizeLabel: formatFileSize(upload.candidate.size),
+        uploadSize: upload.candidate.size,
         uploadError: upload.error,
         uploadProgress: upload.progress,
         uploadState: upload.state,
       })),
     [snapshot?.state.bucket.updatedBy, uploads]
+  );
+  const uploadAggregateProgress = useMemo(
+    () =>
+      uploadBatch.length > 0
+        ? calculateBucketUploadProgress(uploadBatch)
+        : undefined,
+    [uploadBatch]
   );
 
   return {
@@ -613,6 +704,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     refresh,
     retryUpload,
     snapshot,
+    uploadAggregateProgress,
     uploads,
   };
 }

@@ -2,7 +2,7 @@ import { FilePreview, Image, Pressable, Text } from '@tloncorp/ui';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { ScrollView, View, YStack } from 'tamagui';
+import { ScrollView, Spinner, View, YStack } from 'tamagui';
 
 import { useWebView } from '../../../hooks/useWebview';
 import { ScreenHeader } from '../ScreenHeader';
@@ -12,13 +12,19 @@ import {
 } from './BucketFileViewer.shared';
 
 export function BucketFileViewer({
+  error,
   item,
+  loading = false,
   onClose,
   onOpenExternally,
+  onRetry,
 }: {
+  error?: string | null;
   item: BucketFileViewerItem;
+  loading?: boolean;
   onClose: () => void;
-  onOpenExternally: () => void;
+  onOpenExternally?: () => void;
+  onRetry?: () => void;
 }) {
   const previewKind = getBucketPreviewKind(item);
   const webview = useWebView();
@@ -29,16 +35,24 @@ export function BucketFileViewer({
         backAction={onClose}
         borderBottom
         rightControls={
-          <ScreenHeader.TextButton onPress={onOpenExternally}>
-            Open
-          </ScreenHeader.TextButton>
+          item.uri && onOpenExternally ? (
+            <ScreenHeader.TextButton onPress={onOpenExternally}>
+              Open
+            </ScreenHeader.TextButton>
+          ) : null
         }
         showSubtitle
         subtitle={item.sizeLabel ?? 'File'}
         title={item.name}
       />
       <View flex={1} minHeight={0} backgroundColor="$secondaryBackground">
-        {previewKind === 'image' ? (
+        {loading ? (
+          <LoadingPreview />
+        ) : error ? (
+          <FailedPreview onRetry={onRetry} />
+        ) : !item.uri ? (
+          <FailedPreview onRetry={onRetry} />
+        ) : previewKind === 'image' ? (
           <Image
             source={{ uri: item.uri }}
             width="100%"
@@ -50,7 +64,7 @@ export function BucketFileViewer({
           <NativeVideoPreview uri={item.uri} />
         ) : previewKind === 'pdf' && Platform.OS === 'ios' && webview ? (
           <WebView webview={webview} source={{ uri: item.uri }} />
-        ) : previewKind === 'text' && item.textContent ? (
+        ) : previewKind === 'text' && item.textContent !== undefined ? (
           <ScrollView flex={1}>
             <Text
               color="$primaryText"
@@ -71,6 +85,51 @@ export function BucketFileViewer({
           />
         )}
       </View>
+    </YStack>
+  );
+}
+
+function LoadingPreview() {
+  return (
+    <YStack flex={1} alignItems="center" justifyContent="center" gap="$m">
+      <Spinner size="large" color="$secondaryText" />
+      <Text color="$secondaryText" size="$label/m">
+        Loading file…
+      </Text>
+    </YStack>
+  );
+}
+
+function FailedPreview({ onRetry }: { onRetry?: () => void }) {
+  return (
+    <YStack
+      flex={1}
+      alignItems="center"
+      justifyContent="center"
+      gap="$l"
+      padding="$2xl"
+    >
+      <YStack alignItems="center" gap="$xs">
+        <Text color="$primaryText" size="$label/l">
+          Couldn’t load this file
+        </Text>
+        <Text color="$tertiaryText" size="$label/m" textAlign="center">
+          Check your connection and try again.
+        </Text>
+      </YStack>
+      {onRetry ? (
+        <Pressable
+          backgroundColor="$primaryText"
+          borderRadius="$xl"
+          onPress={onRetry}
+          paddingHorizontal="$xl"
+          paddingVertical="$m"
+        >
+          <Text color="$background" size="$label/l">
+            Try again
+          </Text>
+        </Pressable>
+      ) : null}
     </YStack>
   );
 }
@@ -99,7 +158,7 @@ function UnsupportedPreview({
 }: {
   isAndroidPdf: boolean;
   item: BucketFileViewerItem;
-  onOpen: () => void;
+  onOpen?: () => void;
 }) {
   return (
     <YStack
@@ -128,17 +187,19 @@ function UnsupportedPreview({
             : 'Open this file in another app to view it.'}
         </Text>
       </YStack>
-      <Pressable
-        backgroundColor="$primaryText"
-        borderRadius="$xl"
-        onPress={onOpen}
-        paddingHorizontal="$xl"
-        paddingVertical="$m"
-      >
-        <Text color="$background" size="$label/l">
-          Open file
-        </Text>
-      </Pressable>
+      {onOpen ? (
+        <Pressable
+          backgroundColor="$primaryText"
+          borderRadius="$xl"
+          onPress={onOpen}
+          paddingHorizontal="$xl"
+          paddingVertical="$m"
+        >
+          <Text color="$background" size="$label/l">
+            Open file
+          </Text>
+        </Pressable>
+      ) : null}
     </YStack>
   );
 }
