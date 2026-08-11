@@ -1,4 +1,5 @@
 import type { PluginHookGatewayCronJob } from 'openclaw/plugin-sdk/types';
+import { z } from 'zod';
 
 export type StewardAutomationSchedule =
   | {
@@ -92,6 +93,11 @@ function optionalNaturalNumber(
   return value;
 }
 
+const IsoTimestampMillisecondsSchema = z.iso
+  .datetime({ offset: true })
+  .transform(Date.parse)
+  .pipe(z.number().int().safe().nonnegative());
+
 function optionalIsoTimestamp(
   value: unknown,
   field: string
@@ -99,34 +105,11 @@ function optionalIsoTimestamp(
   if (value === undefined) {
     return undefined;
   }
-  const timestamp = requiredString(value, field);
-  const parts =
-    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(?:Z|[+-](\d{2}):(\d{2}))$/.exec(
-      timestamp
-    );
-  const milliseconds = Date.parse(timestamp);
-  if (!parts || !Number.isSafeInteger(milliseconds) || milliseconds < 0) {
+  const parsed = IsoTimestampMillisecondsSchema.safeParse(value);
+  if (!parsed.success) {
     throw new Error(`Invalid ${field}: expected an ISO timestamp`);
   }
-  const [, yearText, monthText, dayText, hourText, minuteText, secondText] =
-    parts;
-  const year = Number(yearText);
-  const month = Number(monthText);
-  const day = Number(dayText);
-  const validCalendarDate =
-    month >= 1 &&
-    month <= 12 &&
-    day >= 1 &&
-    day <= new Date(Date.UTC(year, month, 0)).getUTCDate() &&
-    Number(hourText) <= 23 &&
-    Number(minuteText) <= 59 &&
-    Number(secondText) <= 59 &&
-    (parts[7] === undefined || Number(parts[7]) <= 23) &&
-    (parts[8] === undefined || Number(parts[8]) <= 59);
-  if (!validCalendarDate) {
-    throw new Error(`Invalid ${field}: expected an ISO timestamp`);
-  }
-  return milliseconds;
+  return parsed.data;
 }
 
 function normalizeSchedule(

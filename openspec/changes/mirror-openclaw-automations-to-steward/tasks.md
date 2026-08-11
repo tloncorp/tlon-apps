@@ -112,3 +112,5 @@
         use its normalized shape in the focused Hoon codec test.
 - [x] 5.10 Rename `$cron-payload` to the clearer `$task-payload`
          throughout the automation types and codecs.
+- [x] 5.11 Replace the hand-written ISO timestamp parser with Zod's
+         ISO datetime validation and focused projection tests.

@@ -149,11 +149,22 @@ describe('Steward automation projection normalization', () => {
     });
   });
 
+  it('normalizes an ISO datetime with a timezone offset', () => {
+    expect(
+      normalizeStewardAutomationProject([
+        runtimeJob({
+          id: 'offset-at',
+          schedule: { kind: 'at', at: '2026-08-01T14:30:00+02:00' },
+        }),
+      ]).project.tasks[0]?.schedule
+    ).toEqual({ kind: 'at', at: 1_785_587_400_000 });
+  });
+
   it.each([
     [
-      'invalid at date',
+      'impossible at date',
       { id: 'bad-at', schedule: { kind: 'at', at: '2026-02-31T00:00:00Z' } },
-      /expected an ISO timestamp/,
+      /cron job bad-at schedule\.at: expected an ISO timestamp/,
     ],
     [
       'invalid number',
