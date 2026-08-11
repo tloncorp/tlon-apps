@@ -390,7 +390,7 @@ export async function monitorTlonProvider(
     throw new Error('Tlon account ship is empty after normalization');
   }
   const tlonSkillVersion = await resolveTlonSkillVersion();
-  let effectiveOwnerShip: string | null = account.ownerShip
+  const effectiveOwnerShip: string | null = account.ownerShip
     ? normalizeShip(account.ownerShip)
     : null;
   setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
@@ -1149,11 +1149,6 @@ export async function monitorTlonProvider(
           fileValue: account.showModelSignature,
           settingsValue: currentSettings.showModelSig,
         },
-        {
-          key: 'ownerShip',
-          fileValue: account.ownerShip,
-          settingsValue: currentSettings.ownerShip,
-        },
       ];
 
       for (const { key, fileValue, settingsValue } of migrations) {
@@ -1259,13 +1254,6 @@ export async function monitorTlonProvider(
         effectiveGroupInviteAllowlist = currentSettings.groupInviteAllowlist;
         runtime.log?.(
           `[tlon] Using groupInviteAllowlist from settings store: ${effectiveGroupInviteAllowlist.join(', ')}`
-        );
-      }
-      if (currentSettings.ownerShip) {
-        effectiveOwnerShip = normalizeShip(currentSettings.ownerShip);
-        setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
-        runtime.log?.(
-          `[tlon] Using ownerShip from settings store: ${effectiveOwnerShip}`
         );
       }
       if (currentSettings.ownerListenEnabled !== undefined) {
@@ -4712,23 +4700,13 @@ export async function monitorTlonProvider(
           );
         }
 
-        // ownerShip is applied on both live subscription and refresh.
         // pendingNudge is only rehydrated from the store during startup load. Once the
         // monitor is running, the in-memory pending state is authoritative so refreshes
         // cannot clobber live state or resurrect stale store echoes.
         const sync = resolveSettingsMirrorSync({
           prevSettings,
           newSettings,
-          fileConfigOwnerShip: account.ownerShip
-            ? normalizeShip(account.ownerShip)
-            : null,
         });
-
-        if (sync.ownerShipChanged) {
-          effectiveOwnerShip = sync.effectiveOwnerShip;
-          runtime.log?.(`[tlon] Settings: ownerShip = ${effectiveOwnerShip}`);
-          setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
-        }
 
         // Reconcile the scheduler's owner-activity shadow with live settings
         // changes. Subscription events are authoritative (real-time ship echo
