@@ -219,6 +219,31 @@ Notes on permissions:
 -   Empty readers list = anyone in the group can view (default)
 -   Roles must exist in the group (use `tlon groups add-role` first)
 
+### Buckets
+
+Work with shared `%buckets` file channels. A Bucket is a group filesystem, not a chat attachment or gallery post. Always use `tlon buckets ...` for files that belong in a Bucket; do not upload them with the generic `tlon upload` command.
+
+```bash
+tlon buckets list                                         # List readable Buckets
+tlon buckets show buckets/~host/project-files             # Show Bucket metadata and manifest
+tlon buckets files buckets/~host/project-files             # List the root folder
+tlon buckets files buckets/~host/project-files --parent 7  # List folder 7
+tlon buckets search buckets/~host/project-files "launch"   # Search file/folder metadata
+tlon buckets create ~host/group "Project Files"            # Create as a group admin
+tlon buckets mkdir buckets/~host/project-files "Drafts"    # Create a root folder
+tlon buckets upload buckets/~host/project-files ./plan.md -t text/markdown
+tlon buckets read buckets/~host/project-files 12           # Read a text file
+tlon buckets rename buckets/~host/project-files 12 "final-plan.md"
+tlon buckets move buckets/~host/project-files 12 7          # Move entry 12 into folder 7
+tlon buckets delete buckets/~host/project-files 12          # Delete a file
+tlon buckets delete buckets/~host/project-files 7 --recursive
+tlon buckets set-writers buckets/~host/project-files admin bots
+```
+
+Bucket authorization is based on the current ship's group membership and reader/writer roles. The current ship asks `%buckets` for a short-lived, single-operation storage capability; the command never needs the group host's login, the owner's login, or object-storage credentials. If the current ship lacks access, report that role/permission failure rather than asking for storage credentials.
+
+`buckets read` intentionally returns only text-like files up to 2 MiB. The regular upload command below is for message/profile media and other standalone URLs, not for placing files in a Bucket.
+
 ### Contacts
 
 Manage contacts and profiles.
@@ -497,6 +522,8 @@ To create a **group-backed** notes channel for the Tlon app, use `tlon channels 
 
 Upload files to Tlon storage from a URL, local path, or stdin.
 
+This is the legacy standalone-media path used by posts and profiles. It does not add a file to a `%buckets` channel. Use `tlon buckets upload ...` for shared group files.
+
 ```bash
 tlon upload https://example.com/image.png         # Upload from URL
 tlon upload ./photo.jpg                            # Upload local file
@@ -541,6 +568,7 @@ tlon settings deauthorize-ship ~ship                     # Remove from auth
 -   Post IDs are @ud format with dots (e.g. `170.141.184.507...`)
 -   DM post IDs include author prefix (`~ship/170.141...`)
 -   Channel nests: `<kind>/~<host>/<name>` (chat, heap, or notes)
+-   Channel nests: `<kind>/~<host>/<name>` (chat, heap, notes, or buckets)
 
 ## Limits
 

@@ -334,6 +334,20 @@ describe('checkBlockedTlonOperation', () => {
 
 const documentedActionOperations = {
   activity: ['mentions', 'replies', 'all', 'unreads'],
+  buckets: [
+    'list',
+    'show',
+    'files',
+    'search',
+    'create',
+    'mkdir',
+    'upload',
+    'read',
+    'rename',
+    'move',
+    'delete',
+    'set-writers',
+  ],
   channels: [
     'dms',
     'group-dms',
@@ -457,6 +471,40 @@ const documentedActionOperations = {
 } as const;
 
 describe('tlon tool telemetry summarizer', () => {
+  it('classifies Bucket reads, uploads, and destructive operations without leaking paths', () => {
+    const read = summarizeTlonCommand(
+      'buckets read buckets/~zod/private-files 12'
+    );
+    expect(read).toMatchObject({
+      channelKind: 'buckets',
+      intent: 'read',
+      operation: 'read',
+      subcommand: 'buckets',
+    });
+
+    const upload = summarizeTlonCommand(
+      'buckets upload buckets/~zod/private-files ./secret-plan.md -t text/markdown'
+    );
+    expect(upload).toMatchObject({
+      channelKind: 'buckets',
+      contentTypeProvided: true,
+      intent: 'write',
+      operation: 'upload',
+      uploadSource: 'local',
+    });
+    expect(JSON.stringify(upload)).not.toContain('secret-plan.md');
+    expect(JSON.stringify(upload)).not.toContain('private-files');
+
+    const deletion = summarizeTlonCommand(
+      'buckets delete buckets/~zod/private-files 12'
+    );
+    expect(deletion).toMatchObject({
+      channelKind: 'buckets',
+      intent: 'admin',
+      operation: 'delete',
+    });
+  });
+
   it('accounts for documented tlon action operations', () => {
     for (const [subcommand, operations] of Object.entries(
       documentedActionOperations
