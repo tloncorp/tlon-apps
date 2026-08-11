@@ -129,10 +129,12 @@ export default function ChannelScreen(props: Props) {
     } | null>(null);
   const [unreadSnapshotIsFresh, setUnreadSnapshotIsFresh] =
     React.useState(false);
+  const [clearedCursor, setClearedCursor] = React.useState(false);
   const isFocused = useIsFocused();
   useFocusEffect(
     useCallback(() => {
       let isCurrent = true;
+      setClearedCursor(false);
       setUnreadSnapshotIsFresh(false);
 
       async function initializeChannelUnread() {
@@ -204,8 +206,6 @@ export default function ChannelScreen(props: Props) {
 
   // If scroll to bottom is pressed, it's most straighforward to ignore
   // existing cursor
-  const [clearedCursor, setClearedCursor] = React.useState(false);
-
   // A selected post or channel navigation establishes a new cursor scope.
   useEffect(() => {
     setClearedCursor(false);
