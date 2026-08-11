@@ -28,7 +28,7 @@
 |_  =bowl:gall
 +*  this  .
     def   ~(. (default-agent this %|) bowl)
-    cor   ~(. +> [bowl ~])
+    cor   ~(. +> [bowl ~ ~])
 ::
 ++  on-init
   ^-  (quip card _this)
@@ -88,7 +88,11 @@
 --
 ::  helper core
 ::
-|_  [=bowl:gall cards=(list card)]
+|_  $:  =bowl:gall
+        cards=(list card)
+        ::  notebooks already bumped this event, see +notebook-activity-bump
+        bumped=(set [=flag:n group=(unit flag:n)])
+    ==
 ++  dummy  'freeze-requests-13-snapshot-v1'
 ++  abet  [(flop cards) state]
 ++  cor   .
@@ -1257,9 +1261,16 @@
 ::  +notebook-activity-bump: move a notebook's recency without adding an
 ::  event. %activity's +bump creates the source if absent, so this inits it.
 ::
+::  A bump sets the source's time to now.bowl, which is fixed for the whole
+::  event, so repeats within one event are redundant — collapse them. A
+::  batch import calls +se-update once per note, and would otherwise poke
+::  %activity (and re-fan-out its summaries) once per imported file.
+::
 ++  notebook-activity-bump
   |=  [=flag:n group=(unit flag:n)]
   ^+  cor
+  ?:  (~(has in bumped) [flag group])  cor
+  =.  bumped  (~(put in bumped) [flag group])
   %-  submit-activity
   :+  %bump  %notebook
   :-  flag
@@ -2725,13 +2736,18 @@
     ^+  no-core
     ?-  -.response
         %snapshot
+      ::  a rewatch re-sends the whole snapshot, and bumping on those would
+      ::  promote the notebook on every reconnect. +join-remote-v1's
+      ::  placeholder has notebook id 0; a resubscribe already has the host's.
+      =/  first-snapshot=?  =(0 id.notebook.notebook-state)
       =.  notebook-state  notebook-state.response
       ?>  ?=(%sub -.net)
       =.  net  net(init &)
       =.  cards  [notebooks-changed-card cards]
       ::  the snapshot carries the host's notebook-state, so group is now
       ::  known — report active to %groups (no-op if not a group channel).
-      =.  cor  (notebook-activity-bump flag group.notebook-state)
+      =?  cor  first-snapshot
+        (notebook-activity-bump flag group.notebook-state)
       =/  stream=card
         :*  %give  %fact  [/v0/notes/(scot %p ship.flag)/[name.flag]/stream]~
             notes-response+!>(response)

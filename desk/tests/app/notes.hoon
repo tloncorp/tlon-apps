@@ -2535,13 +2535,21 @@
         (~(gas by *(map @ud folder:n)) ~[[1 root]])
         ~  ~  ~
     ==
+  =/  =response:n  [%snapshot f %public nb-state]
   ;<  caz=(list card)  b
     %+  do-agent  /notes/sub/(scot %p ~bus)/shared
-    [[~bus %notes] [%fact %notes-response !>(`response:n`[%snapshot f %public nb-state])]]
+    [[~bus %notes] [%fact %notes-response !>(response)]]
+  ::  a rewatch re-sends the same snapshot; it must not bump again
+  ;<  caz2=(list card)  b
+    %+  do-agent  /notes/sub/(scot %p ~bus)/shared
+    [[~bus %notes] [%fact %notes-response !>(response)]]
   =/  acts  (activity-actions caz)
+  =/  acts2  (activity-actions caz2)
   |=  s=state
   ?.  =(1 (lent acts))
     |+['expected exactly one activity submission on join snapshot']~
+  ?.  =(~ acts2)
+    |+['expected no activity submission on a resubscribe snapshot']~
   =/  act  (snag 0 acts)
   ?.  ?=(%bump -.act)
     |+['expected a %bump to init the joined notebook source']~
@@ -2549,6 +2557,33 @@
     |+['expected the bump to name the notebook source']~
   ?.  =([ship.f name.f] flag.source.act)
     |+['expected the joined notebook flag']~
+  &+[~ s]
+::  a batch import calls +se-update per note; the redundant per-note bumps
+::  collapse into one for the whole event
+::
+++  test-activity-batch-import-bumps-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  caz=(list card)  b
+    %^  poke-a  %notebook  f
+    :-  %batch-import
+    [2 ~[['A' 'a'] ['B' 'b'] ['C' 'c']]]
+  =/  acts  (activity-actions caz)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected one bump for the whole import, not one per note']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%bump -.act)
+    |+['expected the import to submit a %bump']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected the bump to name the notebook source']~
   &+[~ s]
 ::  changes don't submit immediately: each one (re)arms a debounce timer,
 ::  and only the timer armed against the note's latest change submits
