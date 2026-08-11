@@ -293,7 +293,9 @@ export const GroupChannelsScreenView = React.memo(
             title={notebookSidebarContent.title}
             testID="NotebookSidebarBackHeader"
             borderBottom
-            backAction={handleDismissNotebookSidebar}
+            backAction={
+              notebookSidebarContent.backAction ?? handleDismissNotebookSidebar
+            }
             rightControls={notebookSidebarContent.actions}
           />
           <YStack flex={1} minHeight={0}>

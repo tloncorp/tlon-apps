@@ -9,6 +9,7 @@ import React, {
 
 export type NotebookSidebarContent = {
   actions?: ReactNode;
+  backAction?: () => void;
   channelId: string;
   content: ReactNode;
   groupId?: string | null;

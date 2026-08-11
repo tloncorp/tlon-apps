@@ -76,6 +76,7 @@ import {
   getFolderLabel,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
+  getNotesSidebarParentFolderId,
   makeNotesFolderPathLabeler,
 } from './notesTree';
 import { useNotesImportController } from './useNotesImportController';
@@ -146,6 +147,9 @@ export function NotesNativeChannel({
   const showToast = useToast();
   const useDesktopSplit = Platform.OS === 'web' && !isWindowNarrow;
   const notebookSidebarSourceId = `${channelId}/${folderId ?? 'root'}`;
+  const [desktopFolderId, setDesktopFolderId] = useState<number | null>(
+    folderId ?? null
+  );
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(
     initialNoteId ?? null
   );
@@ -202,6 +206,12 @@ export function NotesNativeChannel({
       enabled: Boolean(notebookFlag),
     });
 
+  useEffect(() => {
+    if (useDesktopSplit) {
+      setDesktopFolderId(folderId ?? null);
+    }
+  }, [folderId, useDesktopSplit]);
+
   // Derived, never stored: the selected folder is the folder of the note
   // selected in the split pane — the only selection the tree makes visible.
   // Storing it separately let side effects (folder opens, moves) leave stale
@@ -242,10 +252,14 @@ export function NotesNativeChannel({
     () => buildFolderUnreadCounts(folders, notes, unreadNoteIds),
     [folders, notes, unreadNoteIds]
   );
-  const activeFolderId = folderId ?? rootFolderId;
+  const activeFolderId = useDesktopSplit
+    ? desktopFolderId ?? rootFolderId
+    : folderId ?? rootFolderId;
   const displayedFolderId =
-    folderId != null && folders.some((folder) => folder.folderId === folderId)
-      ? folderId
+    activeFolderId != null &&
+    activeFolderId !== rootFolderId &&
+    folders.some((folder) => folder.folderId === activeFolderId)
+      ? activeFolderId
       : null;
   useEffect(() => {
     if (displayedFolderId !== null) {
@@ -317,8 +331,16 @@ export function NotesNativeChannel({
     setSelectedNoteId(noteId);
   });
 
+  const didAutoSelectInitialNoteRef = useRef(false);
   useEffect(() => {
-    if (!useDesktopSplit || selectedNoteId !== null) return;
+    if (
+      !useDesktopSplit ||
+      gate ||
+      selectedNoteId !== null ||
+      didAutoSelectInitialNoteRef.current
+    ) {
+      return;
+    }
     // a notification/activity target that hasn't synced yet takes
     // precedence — auto-selecting the first note here would mark an
     // unrelated note read before the target appears
@@ -328,6 +350,7 @@ export function NotesNativeChannel({
     ) {
       return;
     }
+    didAutoSelectInitialNoteRef.current = true;
     const firstNote = treeRows.find((row) => row.type === 'note')?.note;
     if (!firstNote) return;
     selectNoteInPane(firstNote.noteId);
@@ -337,6 +360,7 @@ export function NotesNativeChannel({
     treeRows,
     useDesktopSplit,
     initialNoteId,
+    gate,
   ]);
 
   useEffect(() => {
@@ -425,9 +449,8 @@ export function NotesNativeChannel({
   // opened by id — the note may not be in `notes` yet on a thin client.
   //
   // The tree shows one folder's contents, so a hit from a different folder
-  // would otherwise be selected somewhere the sidebar can't show. Open that
-  // folder instead, carrying the note along, so the sidebar matches the note
-  // and its header still walks back the way folder navigation does.
+  // also moves the desktop sidebar there. The detail pane stays mounted and
+  // changes only because the user explicitly selected this search result.
   const handleSelectSearchResult = useMutableCallback(
     (note: NotesSearchResultNote) => {
       trackEvent(AnalyticsEvent.NotesSearchResultSelected);
@@ -442,21 +465,8 @@ export function NotesNativeChannel({
         return;
       }
 
-      const folder = folders.find(
-        (candidate) => candidate.folderId === noteFolderId
-      );
-      navigation.dispatch(
-        StackActions.push('NotesFolder', {
-          channelId,
-          folderId: noteFolderId,
-          folderTitle:
-            noteFolderId === rootFolderId
-              ? channelTitle ?? 'Notebook'
-              : getFolderLabel(folder),
-          groupId: groupId ?? undefined,
-          noteId: note.noteId,
-        })
-      );
+      setDesktopFolderId(noteFolderId === rootFolderId ? null : noteFolderId);
+      openNoteId(note.noteId);
     }
   );
 
@@ -492,12 +502,32 @@ export function NotesNativeChannel({
   }, [isFocused, openSearch, searchOpen, searchSupported, useDesktopSplit]);
 
   const openFolder = useMutableCallback((folder: db.NotesFolder) => {
+    if (useDesktopSplit) {
+      setDesktopFolderId(folder.folderId);
+      return;
+    }
+
     navigation.dispatch(
       StackActions.push('NotesFolder', {
         channelId,
         folderId: folder.folderId,
         folderTitle: getFolderLabel(folder),
         groupId: groupId ?? undefined,
+      })
+    );
+  });
+
+  const activeSidebarFolder = folders.find(
+    (folder) => folder.folderId === activeFolderId
+  );
+  const sidebarIsNested =
+    activeFolderId != null && activeFolderId !== rootFolderId;
+  const handleSidebarBack = useMutableCallback(() => {
+    setDesktopFolderId(
+      getNotesSidebarParentFolderId({
+        folderId: activeFolderId,
+        folders,
+        rootFolderId,
       })
     );
   });
@@ -1020,9 +1050,12 @@ export function NotesNativeChannel({
       ? {
           channelId,
           actions: headerActions,
+          backAction: sidebarIsNested ? handleSidebarBack : undefined,
           content: notesTreePane,
           groupId,
-          title: channelTitle ?? 'Notebook',
+          title: sidebarIsNested
+            ? getFolderLabel(activeSidebarFolder)
+            : channelTitle ?? 'Notebook',
         }
       : null,
     notebookSidebarSourceId
