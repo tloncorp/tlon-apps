@@ -106,7 +106,7 @@ function MainInner() {
 function Main() {
   return (
     <RootErrorBoundary>
-      <KeyboardProvider preload={false}>
+      <KeyboardProvider>
         <MainInner />
       </KeyboardProvider>
     </RootErrorBoundary>
