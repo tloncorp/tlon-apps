@@ -563,11 +563,11 @@ Use this section as a compact checklist when changing blob behavior.
 
 ### Checklist
 
-1. Add a named schema and inferred type in `packages/api/src/lib/content-helpers.ts`, then register it in `postBlobDataEntryDefinitions`.
+1. Add a named schema and inferred type in `packages/api/src/client/content-helpers.ts`, then register it in `postBlobDataEntryDefinitions`.
 2. Add an `appendXToPostBlob` helper if the new entry will be written from more than one place.
-3. Update the relevant attachment unions in `packages/api/src/types/attachment.ts`, then update `toPostData` in `packages/api/src/lib/content-helpers.ts` to write the new entry type.
+3. Update the relevant attachment unions in `packages/api/src/types/attachment.ts`, then update `toPostData` in `packages/api/src/client/content-helpers.ts` to write the new entry type.
 4. Do not add ad hoc `parsePostBlob` branches. Once the schema is in `postBlobDataEntryDefinitions`, the shared parser handles it.
-5. Update `convertContent` and the `PostContent` block types in `packages/api/src/lib/postContent.ts`.
+5. Update `convertContent` and the `PostContent` block types in `packages/api/src/client/postContent.ts`.
 6. If the new block renders in the app, register it in `packages/app/ui/components/PostContent/BlockRenderer.tsx`.
 7. Add tests for valid payloads and malformed payloads.
 8. Preserve graceful degradation. Unknown entries should continue to render the "Upgrade your app" blockquote.
