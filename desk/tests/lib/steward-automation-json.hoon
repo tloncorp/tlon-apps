@@ -90,9 +90,9 @@
   %-  ~(gas by *(map @t task:v1:a))
   ~[['trace-at-1' trace-at-task] ['trace-every-1' trace-every-task]]
 ::
-::  The two production marks are deliberately thin wrappers around these
-::  helpers. Importing /mar files as test libraries is not supported by the
-::  desk build, so these tests call the exact ++grab:json/++grow:json targets.
+::  the two production marks are deliberately thin wrappers around these
+::  helpers. importing /mar files as test libraries is not supported by the
+::  desk build, so these tests call the exact ++grab:json/++grow:json targets
 ::
 ++  test-trace-derived-action-grab-and-grow
   =/  actual=action:v1:a  (parse-action trace-project-json)
@@ -103,8 +103,8 @@
     !>((action-to-json:aj actual))
   ==
 ::
-::  No cron-expression job was present in the captured runtime history. Keep
-::  this synthetic case focused on the third supported schedule codec.
+::  no cron-expression job was present in the captured runtime history. keep
+::  this synthetic case focused on the third supported schedule codec
 ::
 ++  test-focused-cron-schedule-codec
   =/  body=@t

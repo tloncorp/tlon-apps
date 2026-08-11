@@ -100,3 +100,5 @@
         pinned runtime.
 - [x] 5.4 Run strict OpenSpec validation and verify implementation
         coverage for every capability scenario.
+- [x] 5.5 Normalize all automation Hoon comments to the repository's
+        lowercase style.

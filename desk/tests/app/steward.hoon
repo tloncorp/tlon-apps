@@ -6,7 +6,7 @@
 /=  agent  /app/steward
 |%
 ++  dap  %steward
-::  Current state and the released state shape accepted by +on-load.
+::  current state and the released state shape accepted by +on-load
 ::
 +$  state-1
   $:  %1
@@ -176,7 +176,7 @@
   (ex-equal !>(tasks.automation.current) !>(*(map @t task:v1:au)))
 ::
 ::  ==========================================================
-::  RELEASED STATE MIGRATION TESTS
+::  released state migration tests
 ::  ==========================================================
 ::
 ++  test-migration-preserves-populated-released-state
@@ -223,7 +223,7 @@
   (ex-equal !>(after) !>(before))
 ::
 ::  ==========================================================
-::  AUTOMATION MODULE TESTS
+::  automation module tests
 ::  ==========================================================
 ::
 ++  test-automation-project-populates-id-keyed-map
@@ -799,7 +799,7 @@
   %-  (do-as ~zod)
   (do-poke %steward-lens-action-1 !>(`action:v1:l`[%retry ~dev 'lens-r']))
 ::
-::  Fresh initialization uses current state, seeds lens, and starts empty.
+::  fresh initialization uses current state, seeds lens, and starts empty
 ::
 ++  test-migration-fresh-initialization
   %-  eval-mare

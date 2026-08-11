@@ -15,8 +15,8 @@
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
-::  Versioned persisted state. state-0 is released and remains decodable for
-::  migration. Fresh installs and migrated agents use state-1.
+::  versioned persisted state. state-0 is released and remains decodable for
+::  migration. fresh installs and migrated agents use state-1.
 ::
 ::    .owner: shared owner ship (lens send target, gateway owner-DM tracking)
 ::    .bots:  owner-side trusted bots — ships allowed to send lens %entry
@@ -68,7 +68,7 @@
         =?  old  ?=(%0 -.old)  (state-0-to-1 old)
         ?>  ?=(%1 -.old)
         `this(state old)
-    ::  Preserve every released field and initialize the new module empty.
+    ::  preserve every released field and initialize the new module empty
     ::
     ++  state-0-to-1
       |=  old=state-0
@@ -147,7 +147,7 @@
       %steward-gateway-action-1
     (ga-poke-action:ga-core !<(action:v1:sg vase))
   ::
-  ::  automation snapshots. Authorization is enforced in au-poke-action.
+  ::  automation snapshots. authorization is enforced in au-poke-action
   ::
       %steward-automation-action-1
     (au-poke-action:au-core !<(action:v1:sa vase))
@@ -672,8 +672,8 @@
       [%v1 %tasks ~]
     ``steward-automation-task-map-1+!>(tasks.automation.state)
     ==
-  ::  Build the complete replacement before mutating state. A duplicate ID
-  ::  crashes here, leaving the previous projection untouched.
+  ::  build the complete replacement before mutating state. a duplicate ID
+  ::  crashes here, leaving the previous projection untouched
   ::
   ++  au-build-task-map
     |=  entries=(list identified-task:v1:sa)

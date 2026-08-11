@@ -1,6 +1,6 @@
-::  JSON conversion helpers for steward automation marks.
+::  json conversion helpers for steward automation marks
 ::
-::  Pinned OpenClaw exposes the %at schedule's `at` as an ISO string. The
+::  pinned OpenClaw exposes the %at schedule's `at` as an ISO string. the
 ::  normalized Steward boundary deliberately uses integer Unix milliseconds
 ::  under the same `at` key, so all absolute dates cross this boundary as
 ::  integers and the TypeScript normalizer owns ISO parsing.
@@ -21,7 +21,7 @@
   ?~  value  ~
   (some (wit u.value))
 ++  schedule-from-json
-  ::  OpenClaw schedules use a `kind` field, not a tagged JSON object.
+  ::  schedules from OpenClaw use a `kind` field, not a tagged JSON object
   |=  jon=json
   ^-  cron-schedule:v1:a
   ?>  ?=([%o *] jon)
