@@ -3,7 +3,10 @@ import { useMemo } from 'react';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useScrollDirectionTracker } from '../../../contexts/scroll';
+import {
+  useConversationScrollViewNativeID,
+  useScrollDirectionTracker,
+} from '../../../contexts/scroll';
 import { useAnchorScrollLock } from '../useAnchorScrollLock';
 import {
   PostListComponent,
@@ -43,6 +46,7 @@ export const PostList: PostListComponent = React.forwardRef(
   ) => {
     const listRef =
       React.useRef<React.ElementRef<typeof Animated.FlatList>>(null);
+    const scrollViewNativeID = useConversationScrollViewNativeID();
     const selectedAnchor = anchor?.type === 'selected' ? anchor : null;
     const insets = useSafeAreaInsets();
     const scrollIndicatorInsets = React.useMemo(() => {
@@ -130,6 +134,7 @@ export const PostList: PostListComponent = React.forwardRef(
     return (
       <Animated.FlatList<PostWithNeighbors>
         ref={listRef}
+        testID={scrollViewNativeID}
         data={postsWithNeighbors}
         scrollEnabled={scrollEnabled}
         renderItem={renderItemWithExtraProps}
