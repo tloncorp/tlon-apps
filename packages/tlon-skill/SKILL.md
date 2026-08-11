@@ -567,7 +567,6 @@ tlon settings deauthorize-ship ~ship                     # Remove from auth
 -   Ship names should include `~` prefix
 -   Post IDs are @ud format with dots (e.g. `170.141.184.507...`)
 -   DM post IDs include author prefix (`~ship/170.141...`)
--   Channel nests: `<kind>/~<host>/<name>` (chat, heap, or notes)
 -   Channel nests: `<kind>/~<host>/<name>` (chat, heap, notes, or buckets)
 
 ## Limits
