@@ -365,6 +365,8 @@ const Scroller = forwardRef(
     const insets = useSafeAreaInsets();
     const rootVerticalPadding = getTokens().space.l.val;
     const composerBottomInset = contentInsets.bottom;
+    const standaloneBottomSafeArea =
+      composerBottomInset > 0 ? 0 : insets.bottom;
     const scrollButtonBottom =
       composerBottomInset > 0
         ? composerBottomInset + getTokens().space.s.val
@@ -380,7 +382,9 @@ const Scroller = forwardRef(
               flexGrow: 1,
               paddingTop: rootVerticalPadding + contentInsets.top,
               paddingBottom:
-                insets.bottom + rootVerticalPadding + contentInsets.bottom,
+                standaloneBottomSafeArea +
+                rootVerticalPadding +
+                contentInsets.bottom,
             };
           }
           return {
@@ -405,7 +409,9 @@ const Scroller = forwardRef(
               gap: '$l',
               paddingTop: rootVerticalPadding + contentInsets.top,
               paddingBottom:
-                insets.bottom + rootVerticalPadding + contentInsets.bottom,
+                standaloneBottomSafeArea +
+                rootVerticalPadding +
+                contentInsets.bottom,
             };
           }
 
@@ -415,12 +421,14 @@ const Scroller = forwardRef(
               gap: '$l',
               paddingTop: rootVerticalPadding + contentInsets.top,
               paddingBottom:
-                insets.bottom + rootVerticalPadding + contentInsets.bottom,
+                standaloneBottomSafeArea +
+                rootVerticalPadding +
+                contentInsets.bottom,
             };
           }
         }
       }, [
-        insets.bottom,
+        standaloneBottomSafeArea,
         posts?.length,
         collectionLayoutType,
         contentInsets.bottom,
