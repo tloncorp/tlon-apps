@@ -18,6 +18,7 @@ import { BotChannelRuleSettingsScreen } from '../features/settings/BotChannelRul
 import { BotChannelRulesScreen } from '../features/settings/BotChannelRulesScreen';
 import { BotMcpSettingsScreen } from '../features/settings/BotMcpSettingsScreen';
 import { BotModelSettingsScreen } from '../features/settings/BotModelSettingsScreen';
+import { BotOpenAISubscriptionScreen } from '../features/settings/BotOpenAISubscriptionScreen';
 import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
 import { BotShipListSettingsScreen } from '../features/settings/BotShipListSettingsScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
@@ -130,6 +131,11 @@ export function RootStack() {
       <Root.Screen
         name="BotApiKeySettings"
         component={BotApiKeySettingsScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotOpenAISubscription"
+        component={BotOpenAISubscriptionScreen}
         options={{ gestureEnabled: false }}
       />
       <Root.Screen
