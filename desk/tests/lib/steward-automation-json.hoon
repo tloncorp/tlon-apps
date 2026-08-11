@@ -78,10 +78,94 @@
   ==
 ++  trace-project-json
   ^-  @t
-  '{"project":{"tasks":[{"id":"trace-at-1","agentId":"dev","name":"Captured one-shot reminder","enabled":true,"schedule":{"kind":"at","at":1785734301000},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send a short reminder."},"createdAtMs":1785734006665,"updatedAtMs":1785734006665},{"id":"trace-every-1","agentId":"dev","name":"Captured interval reminder","enabled":true,"schedule":{"kind":"every","everyMs":120000,"anchorMs":1785735243782},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send a playful reminder."},"createdAtMs":1785735243782,"updatedAtMs":1785740230441}]}}'
+  '''
+  {
+    "project": {
+      "tasks": [
+        {
+          "id": "trace-at-1",
+          "agentId": "dev",
+          "name": "Captured one-shot reminder",
+          "enabled": true,
+          "schedule": {
+            "kind": "at",
+            "at": 1785734301000
+          },
+          "sessionTarget": "isolated",
+          "wakeMode": "now",
+          "payload": {
+            "kind": "agentTurn",
+            "text": "Send a short reminder."
+          },
+          "createdAtMs": 1785734006665,
+          "updatedAtMs": 1785734006665
+        },
+        {
+          "id": "trace-every-1",
+          "agentId": "dev",
+          "name": "Captured interval reminder",
+          "enabled": true,
+          "schedule": {
+            "kind": "every",
+            "everyMs": 120000,
+            "anchorMs": 1785735243782
+          },
+          "sessionTarget": "isolated",
+          "wakeMode": "now",
+          "payload": {
+            "kind": "agentTurn",
+            "text": "Send a playful reminder."
+          },
+          "createdAtMs": 1785735243782,
+          "updatedAtMs": 1785740230441
+        }
+      ]
+    }
+  }
+  '''
 ++  trace-task-map-json
   ^-  @t
-  '{"tasks":{"trace-at-1":{"agentId":"dev","name":"Captured one-shot reminder","enabled":true,"schedule":{"kind":"at","at":1785734301000},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send a short reminder."},"createdAtMs":1785734006665,"updatedAtMs":1785734006665},"trace-every-1":{"agentId":"dev","name":"Captured interval reminder","enabled":true,"schedule":{"kind":"every","everyMs":120000,"anchorMs":1785735243782},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send a playful reminder."},"createdAtMs":1785735243782,"updatedAtMs":1785740230441}}}'
+  '''
+  {
+    "tasks": {
+      "trace-at-1": {
+        "agentId": "dev",
+        "name": "Captured one-shot reminder",
+        "enabled": true,
+        "schedule": {
+          "kind": "at",
+          "at": 1785734301000
+        },
+        "sessionTarget": "isolated",
+        "wakeMode": "now",
+        "payload": {
+          "kind": "agentTurn",
+          "text": "Send a short reminder."
+        },
+        "createdAtMs": 1785734006665,
+        "updatedAtMs": 1785734006665
+      },
+      "trace-every-1": {
+        "agentId": "dev",
+        "name": "Captured interval reminder",
+        "enabled": true,
+        "schedule": {
+          "kind": "every",
+          "everyMs": 120000,
+          "anchorMs": 1785735243782
+        },
+        "sessionTarget": "isolated",
+        "wakeMode": "now",
+        "payload": {
+          "kind": "agentTurn",
+          "text": "Send a playful reminder."
+        },
+        "createdAtMs": 1785735243782,
+        "updatedAtMs": 1785740230441
+      }
+    }
+  }
+  '''
 ++  trace-action
   ^-  action:v1:a
   [%project ~[['trace-at-1' trace-at-task] ['trace-every-1' trace-every-task]]]
@@ -108,7 +192,35 @@
 ::
 ++  test-focused-cron-schedule-codec
   =/  body=@t
-    '{"project":{"tasks":[{"id":"cron-focused","agentId":"agent-1","name":"Daily summary","description":"Send the daily summary","enabled":true,"schedule":{"kind":"cron","expr":"0 9 * * *","tz":"UTC","staggerMs":30000},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Summarize activity"},"createdAtMs":1704067200000,"updatedAtMs":1704153600000}]}}'
+    '''
+    {
+      "project": {
+        "tasks": [
+          {
+            "id": "cron-focused",
+            "agentId": "agent-1",
+            "name": "Daily summary",
+            "description": "Send the daily summary",
+            "enabled": true,
+            "schedule": {
+              "kind": "cron",
+              "expr": "0 9 * * *",
+              "tz": "UTC",
+              "staggerMs": 30000
+            },
+            "sessionTarget": "isolated",
+            "wakeMode": "now",
+            "payload": {
+              "kind": "agentTurn",
+              "text": "Summarize activity"
+            },
+            "createdAtMs": 1704067200000,
+            "updatedAtMs": 1704153600000
+          }
+        ]
+      }
+    }
+    '''
   =/  expected=action:v1:a  [%project ~[['cron-focused' cron-task]]]
   =/  actual=action:v1:a  (parse-action body)
   ;:  weld
@@ -116,33 +228,82 @@
     (expect-eq !>((parse-json body)) !>((action:enjs:aj actual)))
   ==
 ++  test-empty-action-grab-and-grow
-  =/  body=@t  '{"project":{"tasks":[]}}'
+  =/  body=@t
+    '''
+    {
+      "project": {
+        "tasks": []
+      }
+    }
+    '''
   =/  actual=action:v1:a  (parse-action body)
   ;:  weld
     (expect-eq !>(`action:v1:a`[%project ~]) !>(actual))
     (expect-eq !>((parse-json body)) !>((action:enjs:aj actual)))
   ==
 ++  test-absent-optionals-roundtrip
+  =/  body=@t
+    '''
+    {
+      "project": {
+        "tasks": [
+          {
+            "id": "empty"
+          }
+        ]
+      }
+    }
+    '''
   =/  expected=action:v1:a  [%project ~[['empty' empty-task]]]
-  =/  actual=action:v1:a
-    (parse-action '{"project":{"tasks":[{"id":"empty"}]}}')
+  =/  actual=action:v1:a  (parse-action body)
   ;:  weld
     (expect-eq !>(expected) !>(actual))
     %+  expect-eq
-      !>((parse-json '{"project":{"tasks":[{"id":"empty"}]}}'))
+      !>((parse-json body))
     !>((action:enjs:aj actual))
   ==
 ++  test-invalid-json-rejected
+  =/  body=@t
+    '''
+    {
+      "project":
+    '''
   %-  expect-fail
-  |.  (parse-action '{"project":')
+  |.  (parse-action body)
 ++  test-duplicate-action-ids-rejected
   %-  expect-fail
   |.  %-  parse-action
-      '{"project":{"tasks":[{"id":"same"},{"id":"same"}]}}'
+      '''
+      {
+        "project": {
+          "tasks": [
+            {
+              "id": "same"
+            },
+            {
+              "id": "same"
+            }
+          ]
+        }
+      }
+      '''
 ++  test-invalid-schedule-kind-rejected
   %-  expect-fail
   |.  %-  parse-action
-      '{"project":{"tasks":[{"id":"bad","schedule":{"kind":"once"}}]}}'
+      '''
+      {
+        "project": {
+          "tasks": [
+            {
+              "id": "bad",
+              "schedule": {
+                "kind": "once"
+              }
+            }
+          ]
+        }
+      }
+      '''
 ++  test-trace-task-map-grows-ids-as-keys-only
   =/  actual=json  (task-map:enjs:aj trace-task-map)
   ;:  weld
@@ -153,7 +314,16 @@
   =/  tasks=(map @t task:v1:a)
     (~(put by *(map @t task:v1:a)) 'map-id' named-task)
   =/  expected=json
-    (parse-json '{"tasks":{"map-id":{"name":"Named task"}}}')
+    %-  parse-json
+    '''
+    {
+      "tasks": {
+        "map-id": {
+          "name": "Named task"
+        }
+      }
+    }
+    '''
   =/  actual=json  (task-map:enjs:aj tasks)
   ;:  weld
     (expect-eq !>(expected) !>(actual))
@@ -161,7 +331,13 @@
   ==
 ++  test-empty-task-map-serializes-as-empty-object
   =/  tasks=task-map:v1:a  *(map @t task:v1:a)
-  =/  expected=json  (parse-json '{"tasks":{}}')
+  =/  expected=json
+    %-  parse-json
+    '''
+    {
+      "tasks": {}
+    }
+    '''
   ;:  weld
     (expect-eq !>(expected) !>((task-map:enjs:aj tasks)))
     (expect-eq !>(tasks) !>((task-map:dejs:aj expected)))

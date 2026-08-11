@@ -106,3 +106,5 @@
         and `+enjs` helper cores.
 - [x] 5.7 Remove impossible foreign-source checks from dotket scries
         and align tests, specifications, and documentation.
+- [x] 5.8 Format Hoon JSON fixture strings as readable triple-quoted
+        blocks.

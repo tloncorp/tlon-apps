@@ -59,22 +59,280 @@
   (project-automation tasks.action)
 ++  trace-project-json
   ^-  @t
-  '{"project":{"tasks":[{"id":"trace-at-1","agentId":"dev","name":"Captured one-shot reminder","enabled":true,"schedule":{"kind":"at","at":1785734301000},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send a short reminder."},"createdAtMs":1785734006665,"updatedAtMs":1785734006665},{"id":"trace-every-1","agentId":"dev","name":"Captured interval reminder","enabled":true,"schedule":{"kind":"every","everyMs":120000,"anchorMs":1785735243782},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send a playful reminder."},"createdAtMs":1785735243782,"updatedAtMs":1785740230441}]}}'
+  '''
+  {
+    "project": {
+      "tasks": [
+        {
+          "id": "trace-at-1",
+          "agentId": "dev",
+          "name": "Captured one-shot reminder",
+          "enabled": true,
+          "schedule": {
+            "kind": "at",
+            "at": 1785734301000
+          },
+          "sessionTarget": "isolated",
+          "wakeMode": "now",
+          "payload": {
+            "kind": "agentTurn",
+            "text": "Send a short reminder."
+          },
+          "createdAtMs": 1785734006665,
+          "updatedAtMs": 1785734006665
+        },
+        {
+          "id": "trace-every-1",
+          "agentId": "dev",
+          "name": "Captured interval reminder",
+          "enabled": true,
+          "schedule": {
+            "kind": "every",
+            "everyMs": 120000,
+            "anchorMs": 1785735243782
+          },
+          "sessionTarget": "isolated",
+          "wakeMode": "now",
+          "payload": {
+            "kind": "agentTurn",
+            "text": "Send a playful reminder."
+          },
+          "createdAtMs": 1785735243782,
+          "updatedAtMs": 1785740230441
+        }
+      ]
+    }
+  }
+  '''
 ++  trace-task-map-json
   ^-  @t
-  '{"tasks":{"trace-at-1":{"agentId":"dev","name":"Captured one-shot reminder","enabled":true,"schedule":{"kind":"at","at":1785734301000},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send a short reminder."},"createdAtMs":1785734006665,"updatedAtMs":1785734006665},"trace-every-1":{"agentId":"dev","name":"Captured interval reminder","enabled":true,"schedule":{"kind":"every","everyMs":120000,"anchorMs":1785735243782},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send a playful reminder."},"createdAtMs":1785735243782,"updatedAtMs":1785740230441}}}'
+  '''
+  {
+    "tasks": {
+      "trace-at-1": {
+        "agentId": "dev",
+        "name": "Captured one-shot reminder",
+        "enabled": true,
+        "schedule": {
+          "kind": "at",
+          "at": 1785734301000
+        },
+        "sessionTarget": "isolated",
+        "wakeMode": "now",
+        "payload": {
+          "kind": "agentTurn",
+          "text": "Send a short reminder."
+        },
+        "createdAtMs": 1785734006665,
+        "updatedAtMs": 1785734006665
+      },
+      "trace-every-1": {
+        "agentId": "dev",
+        "name": "Captured interval reminder",
+        "enabled": true,
+        "schedule": {
+          "kind": "every",
+          "everyMs": 120000,
+          "anchorMs": 1785735243782
+        },
+        "sessionTarget": "isolated",
+        "wakeMode": "now",
+        "payload": {
+          "kind": "agentTurn",
+          "text": "Send a playful reminder."
+        },
+        "createdAtMs": 1785735243782,
+        "updatedAtMs": 1785740230441
+      }
+    }
+  }
+  '''
 ++  reconcile-initial-project-json
   ^-  @t
-  '{"project":{"tasks":[{"id":"daily-status","agentId":"main","name":"Daily status","enabled":true,"schedule":{"kind":"cron","expr":"0 9 * * *","tz":"UTC","staggerMs":0},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send the daily status."},"createdAtMs":1785734000000,"updatedAtMs":1785734000000},{"id":"disabled-reminder","agentId":"main","name":"Paused reminder","enabled":false,"schedule":{"kind":"every","everyMs":120000,"anchorMs":1785735243782},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send the paused reminder."},"createdAtMs":1785735243782,"updatedAtMs":1785735243782}]}}'
+  '''
+  {
+    "project": {
+      "tasks": [
+        {
+          "id": "daily-status",
+          "agentId": "main",
+          "name": "Daily status",
+          "enabled": true,
+          "schedule": {
+            "kind": "cron",
+            "expr": "0 9 * * *",
+            "tz": "UTC",
+            "staggerMs": 0
+          },
+          "sessionTarget": "isolated",
+          "wakeMode": "now",
+          "payload": {
+            "kind": "agentTurn",
+            "text": "Send the daily status."
+          },
+          "createdAtMs": 1785734000000,
+          "updatedAtMs": 1785734000000
+        },
+        {
+          "id": "disabled-reminder",
+          "agentId": "main",
+          "name": "Paused reminder",
+          "enabled": false,
+          "schedule": {
+            "kind": "every",
+            "everyMs": 120000,
+            "anchorMs": 1785735243782
+          },
+          "sessionTarget": "isolated",
+          "wakeMode": "now",
+          "payload": {
+            "kind": "agentTurn",
+            "text": "Send the paused reminder."
+          },
+          "createdAtMs": 1785735243782,
+          "updatedAtMs": 1785735243782
+        }
+      ]
+    }
+  }
+  '''
 ++  reconcile-initial-task-map-json
   ^-  @t
-  '{"tasks":{"daily-status":{"agentId":"main","name":"Daily status","enabled":true,"schedule":{"kind":"cron","expr":"0 9 * * *","tz":"UTC","staggerMs":0},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send the daily status."},"createdAtMs":1785734000000,"updatedAtMs":1785734000000},"disabled-reminder":{"agentId":"main","name":"Paused reminder","enabled":false,"schedule":{"kind":"every","everyMs":120000,"anchorMs":1785735243782},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send the paused reminder."},"createdAtMs":1785735243782,"updatedAtMs":1785735243782}}}'
+  '''
+  {
+    "tasks": {
+      "daily-status": {
+        "agentId": "main",
+        "name": "Daily status",
+        "enabled": true,
+        "schedule": {
+          "kind": "cron",
+          "expr": "0 9 * * *",
+          "tz": "UTC",
+          "staggerMs": 0
+        },
+        "sessionTarget": "isolated",
+        "wakeMode": "now",
+        "payload": {
+          "kind": "agentTurn",
+          "text": "Send the daily status."
+        },
+        "createdAtMs": 1785734000000,
+        "updatedAtMs": 1785734000000
+      },
+      "disabled-reminder": {
+        "agentId": "main",
+        "name": "Paused reminder",
+        "enabled": false,
+        "schedule": {
+          "kind": "every",
+          "everyMs": 120000,
+          "anchorMs": 1785735243782
+        },
+        "sessionTarget": "isolated",
+        "wakeMode": "now",
+        "payload": {
+          "kind": "agentTurn",
+          "text": "Send the paused reminder."
+        },
+        "createdAtMs": 1785735243782,
+        "updatedAtMs": 1785735243782
+      }
+    }
+  }
+  '''
 ++  reconcile-current-project-json
   ^-  @t
-  '{"project":{"tasks":[{"id":"daily-status","agentId":"main","name":"Daily status updated","enabled":true,"schedule":{"kind":"cron","expr":"30 9 * * *","tz":"UTC","staggerMs":0},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send the updated daily status."},"createdAtMs":1785734000000,"updatedAtMs":1785740000000},{"id":"one-shot-reminder","agentId":"main","name":"One-shot reminder","enabled":true,"schedule":{"kind":"at","at":1785740301000},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send the one-shot reminder."},"createdAtMs":1785740000000,"updatedAtMs":1785740000000}]}}'
+  '''
+  {
+    "project": {
+      "tasks": [
+        {
+          "id": "daily-status",
+          "agentId": "main",
+          "name": "Daily status updated",
+          "enabled": true,
+          "schedule": {
+            "kind": "cron",
+            "expr": "30 9 * * *",
+            "tz": "UTC",
+            "staggerMs": 0
+          },
+          "sessionTarget": "isolated",
+          "wakeMode": "now",
+          "payload": {
+            "kind": "agentTurn",
+            "text": "Send the updated daily status."
+          },
+          "createdAtMs": 1785734000000,
+          "updatedAtMs": 1785740000000
+        },
+        {
+          "id": "one-shot-reminder",
+          "agentId": "main",
+          "name": "One-shot reminder",
+          "enabled": true,
+          "schedule": {
+            "kind": "at",
+            "at": 1785740301000
+          },
+          "sessionTarget": "isolated",
+          "wakeMode": "now",
+          "payload": {
+            "kind": "agentTurn",
+            "text": "Send the one-shot reminder."
+          },
+          "createdAtMs": 1785740000000,
+          "updatedAtMs": 1785740000000
+        }
+      ]
+    }
+  }
+  '''
 ++  reconcile-current-task-map-json
   ^-  @t
-  '{"tasks":{"daily-status":{"agentId":"main","name":"Daily status updated","enabled":true,"schedule":{"kind":"cron","expr":"30 9 * * *","tz":"UTC","staggerMs":0},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send the updated daily status."},"createdAtMs":1785734000000,"updatedAtMs":1785740000000},"one-shot-reminder":{"agentId":"main","name":"One-shot reminder","enabled":true,"schedule":{"kind":"at","at":1785740301000},"sessionTarget":"isolated","wakeMode":"now","payload":{"kind":"agentTurn","text":"Send the one-shot reminder."},"createdAtMs":1785740000000,"updatedAtMs":1785740000000}}}'
+  '''
+  {
+    "tasks": {
+      "daily-status": {
+        "agentId": "main",
+        "name": "Daily status updated",
+        "enabled": true,
+        "schedule": {
+          "kind": "cron",
+          "expr": "30 9 * * *",
+          "tz": "UTC",
+          "staggerMs": 0
+        },
+        "sessionTarget": "isolated",
+        "wakeMode": "now",
+        "payload": {
+          "kind": "agentTurn",
+          "text": "Send the updated daily status."
+        },
+        "createdAtMs": 1785734000000,
+        "updatedAtMs": 1785740000000
+      },
+      "one-shot-reminder": {
+        "agentId": "main",
+        "name": "One-shot reminder",
+        "enabled": true,
+        "schedule": {
+          "kind": "at",
+          "at": 1785740301000
+        },
+        "sessionTarget": "isolated",
+        "wakeMode": "now",
+        "payload": {
+          "kind": "agentTurn",
+          "text": "Send the one-shot reminder."
+        },
+        "createdAtMs": 1785740000000,
+        "updatedAtMs": 1785740000000
+      }
+    }
+  }
+  '''
 ::
 ::  our ship in tests is ~dev (set via +setup below). +moon stands in for a
 ::  remote bot ship; the %entry gate is now an explicit trusted-bots set
