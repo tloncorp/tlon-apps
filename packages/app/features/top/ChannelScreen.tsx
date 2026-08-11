@@ -127,11 +127,13 @@ export default function ChannelScreen(props: Props) {
       channelId: string;
       unread: db.ChannelUnread | null;
     } | null>(null);
+  const [unreadSnapshotIsFresh, setUnreadSnapshotIsFresh] =
+    React.useState(false);
   const isFocused = useIsFocused();
   useFocusEffect(
     useCallback(() => {
       let isCurrent = true;
-      setInitialChannelUnreadSnapshot(null);
+      setUnreadSnapshotIsFresh(false);
 
       async function initializeChannelUnread() {
         let unread: db.ChannelUnread | null | undefined;
@@ -146,6 +148,7 @@ export default function ChannelScreen(props: Props) {
             channelId: currentChannelId,
             unread: unread ?? null,
           });
+          setUnreadSnapshotIsFresh(true);
         }
       }
 
@@ -153,16 +156,22 @@ export default function ChannelScreen(props: Props) {
 
       return () => {
         isCurrent = false;
-        setInitialChannelUnreadSnapshot(null);
+        setUnreadSnapshotIsFresh(false);
       };
     }, [currentChannelId])
   );
 
   const unreadDidInitialize =
-    isFocused && initialChannelUnreadSnapshot?.channelId === currentChannelId;
-  const initialChannelUnread = unreadDidInitialize
-    ? initialChannelUnreadSnapshot.unread
-    : null;
+    isFocused &&
+    unreadSnapshotIsFresh &&
+    initialChannelUnreadSnapshot?.channelId === currentChannelId;
+  // Retain the prior focused entry's snapshot while its replacement loads.
+  // This preserves Channel-local draft state without enabling unread work
+  // until the new snapshot is ready.
+  const initialChannelUnread =
+    initialChannelUnreadSnapshot?.channelId === currentChannelId
+      ? initialChannelUnreadSnapshot.unread
+      : null;
 
   const {
     navigateToImage,
@@ -380,13 +389,13 @@ export default function ChannelScreen(props: Props) {
   );
 
   const handleMarkRead = useCallback(async () => {
-    if (channel && !channel.isPendingChannel) {
+    if (unreadDidInitialize && channel && !channel.isPendingChannel) {
       store.markChannelRead({
         id: channel.id,
         groupId: channel.groupId ?? undefined,
       });
     }
-  }, [channel?.type, channel?.id, channel?.groupId]);
+  }, [channel?.type, channel?.id, channel?.groupId, unreadDidInitialize]);
 
   const handlePressInvite = useCallback(
     (groupId: string) => {
@@ -437,7 +446,10 @@ export default function ChannelScreen(props: Props) {
     [currentChannelId, routeGroupId, channel?.groupId]
   );
 
-  if (!channel || !unreadDidInitialize) {
+  if (
+    !channel ||
+    initialChannelUnreadSnapshot?.channelId !== currentChannelId
+  ) {
     return null;
   }
 

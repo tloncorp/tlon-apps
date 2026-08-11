@@ -395,6 +395,7 @@ const ConversationPostListAttempt = React.forwardRef<
       listHeaderComponent,
       listBottomComponent,
       isLoading = false,
+      hasNewerPosts = false,
       anchorIndex,
       didTimeoutWaitingForAnchor,
       isInitialAnchorReady,
@@ -485,8 +486,10 @@ const ConversationPostListAttempt = React.forwardRef<
           initialScrollIndex === undefined
         }
         initialScrollIndex={initialScrollIndex}
-        maintainScrollAtEnd={anchorToEnd}
-        maintainScrollAtEndThreshold={anchorToEnd ? 0.1 : undefined}
+        maintainScrollAtEnd={anchorToEnd && !hasNewerPosts}
+        maintainScrollAtEndThreshold={
+          anchorToEnd && !hasNewerPosts ? 0.1 : undefined
+        }
         maintainVisibleContentPosition={
           collectionLayout.shouldMaintainVisibleContentPosition || undefined
         }
@@ -504,7 +507,9 @@ const ConversationPostListAttempt = React.forwardRef<
         style={[
           { flex: 1 },
           style,
-          isInitialAnchorReady && didFinishInitialScroll
+          isInitialAnchorReady &&
+          (didFinishInitialScroll ||
+            (isLoading && postsWithNeighbors.length === 0))
             ? undefined
             : { opacity: 0 },
         ]}
