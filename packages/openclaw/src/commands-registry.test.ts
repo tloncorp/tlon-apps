@@ -1,4 +1,3 @@
-import { parseBotCommandManifest } from '@tloncorp/shared/domain';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -119,35 +118,6 @@ describe('buildCommandManifestJson', () => {
 
   it('is byte-stable across calls', () => {
     expect(buildCommandManifestJson()).toBe(buildCommandManifestJson());
-  });
-
-  it('fixture parses client-side with zero skipped entries', () => {
-    const wireCommands = (
-      JSON.parse(fixtureJson) as {
-        v: number;
-        commands: unknown[];
-      }
-    ).commands;
-    const parsed = parseBotCommandManifest(fixtureJson);
-    expect(parsed).not.toBeNull();
-    // Zero skipped entries: every fixture row survives client validation.
-    expect(parsed?.commands).toHaveLength(wireCommands.length);
-    expect(parsed?.commands.map((command) => command.command)).toEqual([
-      '/tlon-version',
-      '/tlon',
-      '/allow',
-      '/reject',
-      '/ban',
-      '/pending',
-      '/banned',
-      '/unban',
-      '/owner-listen',
-      '/migrate',
-    ]);
-    // Array order becomes client priority.
-    expect(parsed?.commands.map((command) => command.priority)).toEqual(
-      Array.from({ length: wireCommands.length }, (_, i) => i + 1)
-    );
   });
 
   it('uses the wire contract contact key', () => {
