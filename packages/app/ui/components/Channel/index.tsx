@@ -48,7 +48,10 @@ import { supportsLiquidGlass } from '../GlassSurface';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PostCollectionView } from '../PostCollectionView';
 import SystemNotices from '../SystemNotices';
-import { useConversationInsets } from '../conversationScrollChrome';
+import {
+  floatingPinnedPostBannerClearance,
+  useConversationInsets,
+} from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
 import {
   DraftInputContextProvider,
@@ -727,9 +730,10 @@ export function Channel({
   const isPinnedPostBannerDismissed =
     !!pinnedPostId && dismissedPinnedPostBannerIds.includes(pinnedPostId);
   const shouldShowPinnedPostBanner = useMemo(() => {
-    if (!pinnedPostId) return false;
-    if (!isNotebookOrGallery) return true;
-    return editingPost == null && draftInputPresentationMode !== 'fullscreen';
+    if (!pinnedPostId || draftInputPresentationMode === 'fullscreen') {
+      return false;
+    }
+    return !isNotebookOrGallery || editingPost == null;
   }, [
     pinnedPostId,
     isNotebookOrGallery,
@@ -756,14 +760,19 @@ export function Channel({
       hasTransparentHeader: isChatChannel,
       hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
     });
+  const sharedTopInset =
+    floatingHeaderHeight +
+    (shouldReservePinnedPostBannerSpace
+      ? floatingPinnedPostBannerClearance
+      : 0);
   const postCollectionInsets = useMemo(
     () => ({
       ...contentInsets,
-      // The channel container clears the transparent navigation header so
-      // notices and side panels share the list's visible content boundary.
-      top: Math.max(0, contentInsets.top - floatingHeaderHeight),
+      // The channel container clears floating top chrome so notices and side
+      // panels share the list's visible content boundary.
+      top: Math.max(0, contentInsets.top - sharedTopInset),
     }),
-    [contentInsets, floatingHeaderHeight]
+    [contentInsets, sharedTopInset]
   );
 
   return (
@@ -833,7 +842,7 @@ export function Channel({
                         <XStack
                           alignItems="stretch"
                           flex={1}
-                          paddingTop={floatingHeaderHeight || undefined}
+                          paddingTop={sharedTopInset || undefined}
                           position="relative"
                         >
                           <YStack alignItems="stretch" flex={1} minWidth={0}>
