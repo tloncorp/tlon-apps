@@ -1,7 +1,7 @@
 import { DraftInputId } from '@tloncorp/api';
-import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { ComponentProps, PropsWithChildren } from 'react';
 import { Platform, StyleSheet } from 'react-native';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'tamagui';
 
@@ -10,7 +10,6 @@ import {
   useConversationScrollToBottomControl,
   useConversationScrollViewNativeID,
 } from '../../contexts/scroll';
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
 import { floatingScrollControlClearance } from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
@@ -46,24 +45,6 @@ export function DraftInputView({
   }
 }
 
-/** Keeps the conversation viewport above the iOS keyboard from any nav offset. */
-export function ConversationKeyboardAvoidingView({
-  children,
-  enabled,
-}: PropsWithChildren<{ enabled: boolean }>) {
-  if (Platform.OS === 'ios' && enabled) {
-    return (
-      <ParentAgnosticKeyboardAvoidingView
-        contentContainerStyle={styles.keyboardAvoidingContent}
-      >
-        {children}
-      </ParentAgnosticKeyboardAvoidingView>
-    );
-  }
-
-  return <View style={styles.keyboardAvoidingContent}>{children}</View>;
-}
-
 const supportsFloatingComposer = Platform.OS !== 'web';
 
 /** Owns the native floating placement and its matching scroll-content inset. */
@@ -80,7 +61,6 @@ export function ConversationComposerPlacement({
   inlineID?: string;
 }>) {
   const insets = useSafeAreaInsets();
-  const keyboardHeight = useKeyboardHeight();
   const scrollViewNativeID = useConversationScrollViewNativeID();
   const scrollToBottomControl = useConversationScrollToBottomControl();
   const content = contentProps ? (
@@ -91,28 +71,30 @@ export function ConversationComposerPlacement({
 
   if (enabled && supportsFloatingComposer) {
     return (
-      <ScrollEdgeElementContainer
-        edge="bottom"
-        scrollViewNativeID={scrollViewNativeID}
-        style={[
-          styles.floatingInput,
-          { paddingBottom: keyboardHeight > 0 ? 0 : insets.bottom },
-        ]}
-        onLayout={(event) => {
-          const scrollControlClearance =
-            Platform.OS === 'ios' && scrollToBottomControl?.visible
-              ? floatingScrollControlClearance
-              : 0;
-          onFloatingHeightChange?.(
-            Math.max(
-              0,
-              event.nativeEvent.layout.height - scrollControlClearance
-            )
-          );
-        }}
+      <KeyboardStickyView
+        offset={{ closed: 0, opened: -insets.bottom }}
+        style={styles.floatingInput}
       >
-        {content}
-      </ScrollEdgeElementContainer>
+        <ScrollEdgeElementContainer
+          edge="bottom"
+          scrollViewNativeID={scrollViewNativeID}
+          style={{ paddingBottom: insets.bottom }}
+          onLayout={(event) => {
+            const scrollControlClearance =
+              Platform.OS === 'ios' && scrollToBottomControl?.visible
+                ? floatingScrollControlClearance
+                : 0;
+            onFloatingHeightChange?.(
+              Math.max(
+                0,
+                event.nativeEvent.layout.height - scrollControlClearance
+              )
+            );
+          }}
+        >
+          {content}
+        </ScrollEdgeElementContainer>
+      </KeyboardStickyView>
     );
   }
 
@@ -128,9 +110,6 @@ export function ConversationComposerPlacement({
 }
 
 const styles = StyleSheet.create({
-  keyboardAvoidingContent: {
-    flex: 1,
-  },
   floatingInput: {
     position: 'absolute',
     bottom: 0,

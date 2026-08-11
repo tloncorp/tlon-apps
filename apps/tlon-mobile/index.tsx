@@ -19,6 +19,7 @@ import 'expo-dev-client';
 import { useEffect, useRef } from 'react';
 import { AppState, Platform, TurboModuleRegistry } from 'react-native';
 import 'react-native-get-random-values';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import {
   ReanimatedLogLevel,
   configureReanimatedLogger,
@@ -105,7 +106,9 @@ function MainInner() {
 function Main() {
   return (
     <RootErrorBoundary>
-      <MainInner />
+      <KeyboardProvider preload={false}>
+        <MainInner />
+      </KeyboardProvider>
     </RootErrorBoundary>
   );
 }

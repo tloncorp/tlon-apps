@@ -47,7 +47,6 @@ import {
 } from './Channel/ContextLens';
 import {
   ConversationComposerPlacement,
-  ConversationKeyboardAvoidingView,
   DraftInputView,
 } from './Channel/DraftInputView';
 import { ScrollAnchor } from './Channel/Scroller';
@@ -379,7 +378,7 @@ export function PostScreenView({
               flex={1}
               onAssetsDropped={attachAssets}
             >
-              <ConversationKeyboardAvoidingView enabled>
+              <View flex={1}>
                 <YStack flex={1} backgroundColor={'$background'}>
                   <ConnectedHeader
                     channel={channel}
@@ -497,7 +496,7 @@ export function PostScreenView({
                     onActionComplete={handleGroupAction}
                   />
                 </YStack>
-              </ConversationKeyboardAvoidingView>
+              </View>
             </FileDrop>
           </FocusedPostContext.Provider>
         </ChannelProvider>

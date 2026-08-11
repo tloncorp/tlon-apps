@@ -65,10 +65,7 @@ import {
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { ContextLensPanel, useContextLensController } from './ContextLens';
 import { DmInviteOptions } from './DmInviteOptions';
-import {
-  ConversationKeyboardAvoidingView,
-  DraftInputView,
-} from './DraftInputView';
+import { DraftInputView } from './DraftInputView';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
@@ -841,9 +838,7 @@ export function Channel({
                           }}
                         />
                       )}
-                      <ConversationKeyboardAvoidingView
-                        enabled={draftInputType === DraftInputId.chat}
-                      >
+                      <View flex={1}>
                         <XStack
                           alignItems="stretch"
                           flex={1}
@@ -950,7 +945,7 @@ export function Channel({
                               />
                             )}
                         </XStack>
-                      </ConversationKeyboardAvoidingView>
+                      </View>
                       <GroupPreviewSheet
                         group={groupPreview ?? undefined}
                         open={!!groupPreview}

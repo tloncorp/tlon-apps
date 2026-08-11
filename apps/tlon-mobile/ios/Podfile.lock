@@ -1882,6 +1882,51 @@ PODS:
     - React-Core
   - react-native-get-random-values (1.11.0):
     - React-Core
+  - react-native-keyboard-controller (1.22.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - react-native-keyboard-controller/common (= 1.22.0)
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
+  - react-native-keyboard-controller/common (1.22.0):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - react-native-netinfo (12.0.1):
     - hermes-engine
     - RCTRequired
@@ -3099,6 +3144,7 @@ DEPENDENCIES:
   - react-native-context-menu-view (from `../../../node_modules/react-native-context-menu-view`)
   - "react-native-cookies (from `../../../node_modules/@react-native-cookies/cookies`)"
   - react-native-get-random-values (from `../../../node_modules/react-native-get-random-values`)
+  - react-native-keyboard-controller (from `../../../node_modules/react-native-keyboard-controller`)
   - "react-native-netinfo (from `../../../node_modules/@react-native-community/netinfo`)"
   - "react-native-paste-input (from `../../../node_modules/@mattermost/react-native-paste-input`)"
   - react-native-safe-area-context (from `../../../node_modules/react-native-safe-area-context`)
@@ -3384,6 +3430,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/@react-native-cookies/cookies"
   react-native-get-random-values:
     :path: "../../../node_modules/react-native-get-random-values"
+  react-native-keyboard-controller:
+    :path: "../../../node_modules/react-native-keyboard-controller"
   react-native-netinfo:
     :path: "../../../node_modules/@react-native-community/netinfo"
   react-native-paste-input:
@@ -3569,7 +3617,7 @@ SPEC CHECKSUMS:
   FirebaseSharedSwift: 3d1e448b7202e36821a492941c84592d1308ea14
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 4f2618a4a1e762a1ee134a1e2323bba9843e06da
-  hermes-engine: 048b5038c28975ec1557e77b6b272cbdc46b0b2c
+  hermes-engine: e0f21a6e684281cda960109489e7fbaaffb100b6
   libavif: 5f8e715bea24debec477006f21ef9e95432e254d
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
@@ -3620,6 +3668,7 @@ SPEC CHECKSUMS:
   react-native-context-menu-view: c7477ad2a9b5005eb45dd168c2dcdd64526dba77
   react-native-cookies: d648ab7025833b977c0b19e142503034f5f29411
   react-native-get-random-values: d16467cf726c618e9c7a8c3c39c31faa2244bbba
+  react-native-keyboard-controller: 7035cde04633689d349fa197e755ad0111d7c26d
   react-native-netinfo: a05f9b897e76ad24b53f615fed1cbb731932363d
   react-native-paste-input: 55e08aa0f7893d454350c074d6944b0fbd7a7672
   react-native-safe-area-context: ba7283e541a5f57c6b27a7e33f2c40b8977888c0

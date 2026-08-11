@@ -1,5 +1,5 @@
+import { KeyboardAwareLegendList } from '@legendapp/list/keyboard';
 import { type LegendListRef } from '@legendapp/list/react-native';
-import { AnimatedLegendList } from '@legendapp/list/reanimated';
 import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
 import { Platform } from 'react-native';
@@ -533,7 +533,7 @@ const ConversationPostListAttempt = React.forwardRef<
     );
 
     return (
-      <AnimatedLegendList<PostWithNeighbors>
+      <KeyboardAwareLegendList<PostWithNeighbors>
         ref={listRef}
         dataKey={channel.id}
         data={postsWithNeighbors}
@@ -565,9 +565,11 @@ const ConversationPostListAttempt = React.forwardRef<
         contentInsetAdjustmentBehavior={
           Platform.OS === 'ios' ? 'never' : undefined
         }
+        keyboardLiftBehavior="always"
+        keyboardOffset={insets.bottom}
         scrollIndicatorInsets={{ top: 0, bottom: insets.bottom }}
         automaticallyAdjustsScrollIndicatorInsets={false}
-        keyboardDismissMode="on-drag"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         scrollEnabled={scrollEnabled}
         style={[
           { flex: 1 },

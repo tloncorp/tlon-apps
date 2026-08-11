@@ -28,12 +28,7 @@ export function ParentAgnosticKeyboardAvoidingView({
   const containerRef = React.useRef<React.ElementRef<typeof View>>(null);
   const [keyboardFrame, setKeyboardFrame] = React.useState<{
     screenY: number;
-  } | null>(() => {
-    const metrics = Keyboard.metrics?.();
-    return metrics?.screenY === 0 && metrics.height === 0
-      ? null
-      : metrics ?? null;
-  });
+  } | null>(null);
   const keyboardAnimationDurationRef = React.useRef<number | null>(null);
   const [containerFrame, setContainerFrame] = React.useState<{
     pageY: number;
@@ -102,12 +97,7 @@ export function ParentAgnosticKeyboardAvoidingView({
   }, [contentContainerStyle, adjustmentPaddingBottom]);
 
   return (
-    <View
-      {...passedProps}
-      onLayout={measure}
-      style={combinedStyle}
-      ref={containerRef}
-    >
+    <View {...passedProps} style={combinedStyle} ref={containerRef}>
       {children}
     </View>
   );
