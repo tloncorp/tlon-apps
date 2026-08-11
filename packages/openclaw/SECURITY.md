@@ -53,19 +53,34 @@ If no mode is specified, default to "restricted" — NEVER "open"
 
 ## 3. Group Invite Authorization
 
-**Principle:** When auto-accepting invites, validate the inviter.
+**Principle:** Validate the inviter before auto-accepting; auto-accept requires positive confirmation.
 
-| Scenario                                                      | Expected Behavior                |
-| ------------------------------------------------------------- | -------------------------------- |
-| `autoAcceptGroupInvites` = false                              | ❌ Don't auto-accept any invites |
-| `autoAcceptGroupInvites` = true, `groupInviteAllowlist` empty | ❌ Reject all (fail-safe)        |
-| `autoAcceptGroupInvites` = true, inviter ON allowlist         | ✅ Accept invite                 |
-| `autoAcceptGroupInvites` = true, inviter NOT on allowlist     | ❌ Reject invite                 |
+Evaluated in this order per unprocessed valid invite:
 
-**Critical Invariant:**
+| #   | Condition                                          | Action                                    | Blocked lookup?     |
+| --- | -------------------------------------------------- | ----------------------------------------- | ------------------- |
+| 1   | Inviter is owner                                   | ✅ Auto-accept                            | no                  |
+| 2   | Not on `groupInviteAllowlist`, owner configured    | Queue approval card                       | no                  |
+| 3   | Not on allowlist, no owner configured              | Log + ignore                              | no                  |
+| 4   | On allowlist, **confirmed not blocked**            | ✅ Auto-accept                            | yes                 |
+| 5   | On allowlist, **confirmed blocked**                | Silent ignore (no card), mark processed   | yes                 |
+| 6   | On allowlist, lookup failed/timed out (_unknown_)  | Fall through to row 2/3 (card, or ignore) | yes (attempted)     |
+
+The `autoAcceptGroupInvites` flag no longer governs invite authorization; it
+remains a persistence input (auto-detected channels are persisted to
+`groupChannels` only when it is true).
+
+**Critical Invariants:**
 
 ```
-If groupInviteAllowlist is empty/undefined, fail-safe to DENY — NEVER accept
+If groupInviteAllowlist is empty/undefined, fail-safe to DENY — only the owner auto-accepts.
+
+Auto-accept requires a positive "not blocked" confirmation (fail-closed):
+every non-confirmation lands somewhere that is not a join.
+
+Confirmed-blocked and lookup-unknown are DISTINCT outcomes: a confirmed-blocked
+inviter is silently ignored directly (never carded); only an unknown lookup
+falls through to the approval path.
 ```
 
 **Why This Matters:**

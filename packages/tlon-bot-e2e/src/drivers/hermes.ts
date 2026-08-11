@@ -5,6 +5,7 @@ import type {
   BotDriver,
   ComposeHandle,
   DriverRuntimeSpec,
+  RuntimeCapability,
   RuntimeContext,
   RuntimeSeed,
 } from './types.js';
@@ -30,6 +31,10 @@ const FORBIDDEN_CONTAINER_ENV = [
 export const hermesDriver: BotDriver = {
   name: 'hermes',
 
+  // The adapter logs "[tlon] SSE stream error: ..." on a sock_read timeout or
+  // an immediate reset/EOF.
+  streamFaultLogMarkers: ['SSE stream error'],
+
   packageDir(seed) {
     return path.join(seed.repoRoot, 'packages/hermes-tlon-adapter');
   },
@@ -40,6 +45,7 @@ export const hermesDriver: BotDriver = {
     const homeChannel = seed.endpoints.ships.ten.ship;
     const knownBotUsers = knownBotUsersForSharedLoop(seed);
     const maxConsecutiveBotResponses = sharedLoopLimitEnv();
+    const cronEnabled = hasCapability(seed, 'cron');
 
     return {
       packageDir,
@@ -75,11 +81,15 @@ export const hermesDriver: BotDriver = {
         TLON_ALLOW_ALL_USERS: 'false',
         TLON_HOME_CHANNEL: homeChannel,
         TLON_GATEWAY_STATUS: 'false',
+        TLON_REENGAGEMENT_ENABLED: 'true',
+        TLON_NUDGE_TICK_INTERVAL_MS: '5000',
         TLON_TELEMETRY: 'false',
         TLON_CONTEXT_MESSAGES: '4',
-        // The fake-ship SSE stream does not emit idle heartbeats. Match the
-        // adapter's production default instead of forcing a reconnect every
-        // 15 seconds during otherwise idle scenario setup/settles.
+        // Eyre emits an SSE keepalive (a ':' comment line) every ~20s, even on
+        // an idle channel. The read timeout must sit above that interval or it
+        // fires before each heartbeat and tears the stream down on a ~15s loop
+        // through otherwise idle scenario setup/settles. 60 (the adapter's
+        // production default) clears the 20s heartbeat; the old 15 undercut it.
         TLON_SSE_READ_TIMEOUT_SECONDS: '60',
         TLON_KNOWN_BOT_USERS: knownBotUsers,
         TLON_MAX_CONSECUTIVE_BOT_RESPONSES: maxConsecutiveBotResponses,
@@ -89,6 +99,7 @@ export const hermesDriver: BotDriver = {
         HERMES_MODEL_API_KEY: 'no-key-required',
         HERMES_MODEL_API_MODE: 'chat_completions',
         HERMES_GATEWAY_ARGS: '--replace -v',
+        HERMES_E2E_ENABLE_CRONJOB: cronEnabled ? '1' : '0',
         ...(process.env.FAKE_SHIP_CACHE_DIR
           ? { FAKE_SHIP_CACHE_DIR: process.env.FAKE_SHIP_CACHE_DIR }
           : {}),
@@ -112,12 +123,14 @@ export const hermesDriver: BotDriver = {
   async waitReady(ctx, compose) {
     await waitForHermesLog(ctx, compose);
     await assertHermesConfig(ctx, compose);
+    await assertHermesNudgeConfig(ctx, compose);
     await assertHermesSetup(ctx, compose);
     await assertForbiddenContainerEnv(ctx, compose);
   },
 
   async assertRuntimeConfig(ctx, compose) {
     await assertHermesConfig(ctx, compose);
+    await assertHermesNudgeConfig(ctx, compose);
     await assertForbiddenContainerEnv(ctx, compose);
   },
 
@@ -194,6 +207,46 @@ export const hermesDriver: BotDriver = {
         },
       };
     },
+
+    createCronJob({ name, firedPrompt, finalText }) {
+      return {
+        steps: [
+          {
+            kind: 'tool_call',
+            name: 'cronjob',
+            args: {
+              action: 'create',
+              name,
+              schedule: '1m',
+              prompt: firedPrompt,
+              deliver: 'origin',
+            },
+          },
+          { kind: 'text', content: finalText },
+        ],
+        options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
+        expectations: {
+          advertisedTools: { include: ['cronjob', 'tlon'] },
+          expectedCallCount: 2,
+          expectedCallSequence: [
+            { kind: 'model_request' },
+            { kind: 'tool_call', toolName: 'cronjob' },
+            { kind: 'model_request' },
+            { kind: 'final_model_text' },
+          ],
+          toolLoopResult: true,
+          streamedToolLoop: true,
+        },
+      };
+    },
+
+    looseReplyText(text) {
+      return {
+        steps: [{ kind: 'text', content: text }],
+        options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
+        expectations: { expectedCallCount: 1 },
+      };
+    },
   },
 };
 
@@ -233,6 +286,10 @@ async function assertHermesConfig(
   const expectedLoopLimit = Number(
     ctx.composeEnv.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ?? '3'
   );
+  const cronEnabled = hasCapability(ctx, 'cron');
+  const expectedTlonToolsets = cronEnabled
+    ? ['tlon', 'cronjob', 'no_mcp']
+    : ['tlon', 'no_mcp'];
 
   expectConfig(model.provider === 'custom', 'model.provider must be custom');
   expectConfig(
@@ -253,8 +310,8 @@ async function assertHermesConfig(
   );
   expectConfig(
     JSON.stringify(platformToolsets.tlon) ===
-      JSON.stringify(['tlon', 'no_mcp']),
-    'platform_toolsets.tlon must be exactly [tlon, no_mcp]'
+      JSON.stringify(expectedTlonToolsets),
+    `platform_toolsets.tlon must be exactly [${expectedTlonToolsets.join(', ')}]`
   );
   expectConfig(
     isEmptyObject(config.mcp_servers),
@@ -270,8 +327,10 @@ async function assertHermesConfig(
   );
   expectConfig(
     Array.isArray(agent.disabled_toolsets) &&
-      agent.disabled_toolsets.includes('cronjob'),
-    'agent.disabled_toolsets must include cronjob'
+      agent.disabled_toolsets.includes('cronjob') !== cronEnabled,
+    cronEnabled
+      ? 'agent.disabled_toolsets must not include cronjob in the cron partition'
+      : 'agent.disabled_toolsets must include cronjob'
   );
   expectConfig(
     expectedKnownBots.includes(ctx.endpoints.ships.mug.ship),
@@ -302,6 +361,44 @@ async function assertHermesConfig(
     if (!condition) {
       failures.push(message);
     }
+  }
+}
+
+async function assertHermesNudgeConfig(
+  ctx: RuntimeContext,
+  compose: ComposeHandle
+): Promise<void> {
+  const script = String.raw`
+import json
+import os
+import sys
+
+sys.path.insert(0, os.environ["TLON_ADAPTER_DIR"])
+from tlon_api import TlonConfig
+
+config = TlonConfig.from_env()
+print(json.dumps({
+    "reengagement_enabled": config.reengagement_enabled,
+    "nudge_tick_interval_ms": config.nudge_tick_interval_ms,
+}))
+`;
+  const result = await compose.exec(ctx.services.bot, [
+    'python3',
+    '-c',
+    script,
+  ]);
+  assertExecOk(result, 'Hermes nudge config probe');
+  const config = JSON.parse(result.stdout.trim()) as {
+    reengagement_enabled: boolean;
+    nudge_tick_interval_ms: number;
+  };
+  if (
+    config.reengagement_enabled !== true ||
+    config.nudge_tick_interval_ms !== 5000
+  ) {
+    throw new Error(
+      `Hermes nudge config is ineffective: ${JSON.stringify(config)}`
+    );
   }
 }
 
@@ -468,6 +565,13 @@ function knownBotUsersForSharedLoop(seed: RuntimeSeed): string {
     ...shipCsv(process.env.TLON_KNOWN_BOT_USERS),
   ]);
   return [...ships].join(',');
+}
+
+function hasCapability(
+  seed: Pick<RuntimeSeed, 'capabilityPartition'>,
+  capability: RuntimeCapability
+): boolean {
+  return seed.capabilityPartition?.capabilities.includes(capability) ?? false;
 }
 
 function shipCsv(value: string | undefined): string[] {

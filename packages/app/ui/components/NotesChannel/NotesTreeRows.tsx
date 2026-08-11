@@ -1,4 +1,8 @@
 import * as db from '@tloncorp/shared/db';
+import {
+  getNoteBodyPreview,
+  getNoteReferencePath,
+} from '@tloncorp/shared/logic';
 import { Icon, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -11,6 +15,7 @@ import type { ActionGroup } from '../ActionSheet';
 import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
+import { UnreadDot } from '../UnreadDot';
 import { NotesActionMenu } from './NotesActions';
 import { noteTimestampMs } from './notesTree';
 
@@ -20,6 +25,7 @@ export function FolderTreeRow({
   isDeleting,
   label,
   noteCount,
+  unread = false,
   onDelete,
   onCreateFolder,
   onCreateNote,
@@ -32,6 +38,7 @@ export function FolderTreeRow({
   isDeleting: boolean;
   label: string;
   noteCount: number;
+  unread?: boolean;
   onDelete: (folder: db.NotesFolder) => void;
   onCreateFolder: (folder: db.NotesFolder) => void;
   onCreateNote: (folder: db.NotesFolder) => void;
@@ -84,7 +91,7 @@ export function FolderTreeRow({
   );
   const { actionsMenu, rowActionProps } = useRowActions({
     actionGroups,
-    canEdit,
+    enabled: canEdit,
     header: {
       icon: 'Folder',
       title: label,
@@ -112,6 +119,7 @@ export function FolderTreeRow({
       </ListItem.MainContent>
       <ListItem.EndContent>
         <XStack alignItems="center" gap="$xs">
+          {unread ? <UnreadDot testID={`NotesFolderUnread-${label}`} /> : null}
           {actionsMenu}
           <Icon type="ChevronRight" color="$tertiaryText" size="$m" />
         </XStack>
@@ -127,6 +135,7 @@ export function NoteRow({
   publishDisabled,
   publishedUrl,
   selected = false,
+  unread = false,
   onDelete,
   onMove,
   onPress,
@@ -141,6 +150,7 @@ export function NoteRow({
   publishDisabled: boolean;
   publishedUrl?: string | null;
   selected?: boolean;
+  unread?: boolean;
   onDelete: () => void;
   onMove: () => void;
   onPress: () => void;
@@ -153,7 +163,7 @@ export function NoteRow({
   const bodyPreview = getNoteBodyPreview(note.bodyMd);
 
   const actionGroups = createActionGroups(
-    [
+    canEdit && [
       'neutral',
       {
         title: 'Rename note',
@@ -178,30 +188,45 @@ export function NoteRow({
       },
     ]
   );
+  // pasteable in-app reference; chat inputs convert it to a note citation
+  const referenceSection = (
+    <ActionSheet.ActionGroup accent="neutral">
+      <ActionSheet.CopyAction
+        action={{ title: 'Copy link to note', startIcon: 'Copy' }}
+        copyText={getNoteReferencePath(
+          `notes/${note.notebookFlag}`,
+          note.noteId
+        )}
+        testID={`NotesCopyReferenceAction-${note.noteId}`}
+      />
+    </ActionSheet.ActionGroup>
+  );
   // Rendered outside NotesActionGroupList's dismiss-on-press wrapper: the
   // sheet stays open, so the switch flips and the published-note actions
   // appear in place instead of the sheet vanishing mid-operation.
   const publishSection = (
     <ActionSheet.ActionGroup accent="neutral">
-      <ActionSheet.Action
-        action={{
-          title: 'Publish to web',
-          startIcon: 'EyeOpen',
-          // Visual-only: the row press drives the toggle. Letting the Switch
-          // handle taps double-fires with the row action, and its taps get
-          // eaten by the sheet's pan gesture on Android (see
-          // ChannelPermissions.tsx for the same workaround).
-          endIcon: (
-            <View pointerEvents="none">
-              <Switch value={isPublished} disabled={publishDisabled} />
-            </View>
-          ),
-          action: isPublished ? onUnpublish : onPublish,
-          disabled: publishDisabled,
-        }}
-        testID={`NotesPublishToggleAction-${note.noteId}`}
-      />
-      {isPublished ? (
+      {canEdit ? (
+        <ActionSheet.Action
+          action={{
+            title: 'Publish to web',
+            startIcon: 'EyeOpen',
+            // Visual-only: the row press drives the toggle. Letting the Switch
+            // handle taps double-fires with the row action, and its taps get
+            // eaten by the sheet's pan gesture on Android (see
+            // ChannelPermissions.tsx for the same workaround).
+            endIcon: (
+              <View pointerEvents="none">
+                <Switch value={isPublished} disabled={publishDisabled} />
+              </View>
+            ),
+            action: isPublished ? onUnpublish : onPublish,
+            disabled: publishDisabled,
+          }}
+          testID={`NotesPublishToggleAction-${note.noteId}`}
+        />
+      ) : null}
+      {canEdit && isPublished ? (
         <ActionSheet.Action
           action={{
             title: 'Update published note',
@@ -233,13 +258,18 @@ export function NoteRow({
   );
   const { actionsMenu, rowActionProps } = useRowActions({
     actionGroups,
-    canEdit,
+    enabled: true,
     header: {
       icon: 'ChannelNote',
       title: note.title || 'Untitled',
       subtitle: bodyPreview || 'Note',
     },
-    bottomContent: publishSection,
+    bottomContent: (
+      <>
+        {referenceSection}
+        {canEdit || (isPublished && publishedUrl) ? publishSection : null}
+      </>
+    ),
   });
 
   return (
@@ -263,9 +293,12 @@ export function NoteRow({
           <ListItem.Subtitle>{bodyPreview}</ListItem.Subtitle>
         ) : null}
       </ListItem.MainContent>
-      {updatedAt || actionsMenu ? (
+      {updatedAt || actionsMenu || unread ? (
         <ListItem.EndContent>
           <XStack alignItems="center" gap="$xs">
+            {unread ? (
+              <UnreadDot testID={`NotesNoteUnread-${note.noteId}`} />
+            ) : null}
             {updatedAt ? (
               <ListItem.Time time={updatedAt} letterSpacing={0} />
             ) : null}
@@ -279,12 +312,12 @@ export function NoteRow({
 
 function useRowActions({
   actionGroups,
-  canEdit,
+  enabled,
   header,
   bottomContent,
 }: {
   actionGroups: ActionGroup[];
-  canEdit: boolean;
+  enabled: boolean;
   header: {
     icon: IconType;
     subtitle?: string;
@@ -297,7 +330,7 @@ function useRowActions({
   const { closeAfterAnimation, cancel: cancelPendingAction } =
     useSheetCloseAfterAnimation();
   const openActions = () => {
-    if (canEdit) {
+    if (enabled) {
       cancelPendingAction();
       setOpen(true);
     }
@@ -333,7 +366,7 @@ function useRowActions({
         }
       : {};
   const actionsTrigger =
-    canEdit && Platform.OS === 'web' && (open || isHovered) ? (
+    enabled && Platform.OS === 'web' && (open || isHovered) ? (
       <OverflowTriggerButton
         paddingHorizontal="$xs"
         paddingVertical="$xs"
@@ -354,7 +387,7 @@ function useRowActions({
 
   return {
     actionsMenu:
-      canEdit && (open || actionsTrigger) ? (
+      enabled && (open || actionsTrigger) ? (
         <NotesActionMenu
           groups={actionGroups}
           header={header}
@@ -367,7 +400,7 @@ function useRowActions({
       ) : null,
     rowActionProps: {
       ...hoverProps,
-      onOpenMenu: canEdit ? openActions : undefined,
+      onOpenMenu: enabled ? openActions : undefined,
     },
   };
 }
@@ -460,23 +493,6 @@ function TreeRowPressable({
       {children}
     </Pressable>
   );
-}
-
-function getNoteBodyPreview(bodyMd: string | null | undefined) {
-  const preview = (bodyMd ?? '')
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, ' ')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/^>\s?/gm, '')
-    .replace(/^[\s>*+-]*\[[ x]\]\s+/gim, '')
-    .replace(/^[\s>*+-]+/gm, '')
-    .replace(/[*_~#|]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  return preview || null;
 }
 
 function formatNoteCount(noteCount: number) {

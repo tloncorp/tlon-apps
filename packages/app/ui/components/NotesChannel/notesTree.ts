@@ -348,9 +348,101 @@ export function buildFolderNoteCounts(
   return counts;
 }
 
+// Rolls unread notes up their folder ancestry, so an unread note in D puts a
+// dot on A -> B -> C -> D. Same ancestor walk as buildFolderNoteCounts.
+export function buildFolderUnreadCounts(
+  folders: db.NotesFolder[],
+  notes: db.NotesNote[],
+  unreadNoteIds: Set<number>
+) {
+  const counts = new Map<number, number>();
+  const parentByFolderId = new Map<number, number | null>();
+  folders.forEach((folder) => {
+    counts.set(folder.folderId, 0);
+    parentByFolderId.set(folder.folderId, folder.parentFolderId ?? null);
+  });
+
+  notes.forEach((note) => {
+    if (!unreadNoteIds.has(note.noteId)) {
+      return;
+    }
+    const visited = new Set<number>();
+    let folderId: number | null = note.folderId;
+    while (
+      folderId !== null &&
+      counts.has(folderId) &&
+      !visited.has(folderId)
+    ) {
+      visited.add(folderId);
+      counts.set(folderId, (counts.get(folderId) ?? 0) + 1);
+      folderId = parentByFolderId.get(folderId) ?? null;
+    }
+  });
+
+  return counts;
+}
+
 export function getFolderLabel(folder: db.NotesFolder | null | undefined) {
   if (!folder) return 'Folder';
   return folder.name === '/' ? 'Root' : folder.name;
+}
+
+export function getNotesSidebarParentFolderId({
+  folderId,
+  folders,
+  rootFolderId,
+}: {
+  folderId: number | null;
+  folders: db.NotesFolder[];
+  rootFolderId: number | null;
+}) {
+  if (folderId == null || folderId === rootFolderId) return null;
+
+  const parentFolderId = folders.find(
+    (folder) => folder.folderId === folderId
+  )?.parentFolderId;
+
+  return parentFolderId == null || parentFolderId === rootFolderId
+    ? null
+    : parentFolderId;
+}
+
+/**
+ * Label a search hit with the path of folders holding it ("Specs / Wire
+ * formats"), for the results list. Two notes named the same in sibling folders
+ * are only distinguishable by the whole path, not the immediate parent.
+ *
+ * The root is dropped from the path — every note is under it, so naming it says
+ * nothing — which leaves a note sitting directly in the root unlabeled.
+ *
+ * Paths are indexed once per folder set rather than resolved per row, since the
+ * list calls this for every hit.
+ */
+export function makeNotesFolderPathLabeler({
+  folders,
+  rootFolderId,
+}: {
+  folders: db.NotesFolder[];
+  rootFolderId: number | null;
+}) {
+  const rows = buildFolderRows(folders, rootFolderId, { includeRoot: true });
+  const root = findRootFolder(folders, rootFolderId);
+  const pathsByFolderId = new Map(
+    rows.map((row) => [row.folder.folderId, row.path])
+  );
+  const rootPath = root ? pathsByFolderId.get(root.folderId) : undefined;
+  const rootPrefix = rootPath ? `${rootPath} / ` : null;
+
+  return (note: { folderId?: number | null }): string | null => {
+    const folderId = note.folderId ?? null;
+    if (folderId == null || (root && folderId === root.folderId)) return null;
+
+    const path = pathsByFolderId.get(folderId);
+    if (!path) return null;
+    return rootPrefix && path.startsWith(rootPrefix)
+      ? path.slice(rootPrefix.length)
+      : path;
+  };
 }
 
 export function normalizeSearchText(value: string | null | undefined) {

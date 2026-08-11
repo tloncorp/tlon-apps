@@ -1,3 +1,5 @@
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { uploadFile } from '../client/storageApi';
@@ -23,6 +25,8 @@ vi.mock('@aws-sdk/s3-request-presigner', () => ({
 
 const scryMock = vi.mocked(scry);
 const isHostedMock = vi.mocked(getCurrentUserIsHosted);
+const getSignedUrlMock = vi.mocked(getSignedUrl);
+const putObjectCommandMock = vi.mocked(PutObjectCommand);
 const fetchMock = vi.fn();
 
 const S3_CREDS = {
@@ -101,6 +105,8 @@ afterEach(() => {
   fetchMock.mockReset();
   scryMock.mockReset();
   isHostedMock.mockReset();
+  putObjectCommandMock.mockClear();
+  getSignedUrlMock.mockClear();
 });
 
 describe('uploadFile default detection (node-url, unchanged)', () => {
@@ -124,13 +130,80 @@ describe('uploadFile default detection (node-url, unchanged)', () => {
     expect(genuineScryCount()).toBe(0);
   });
 
-  test('custom S3 creds upload directly', async () => {
+  test('non-DO endpoint sends Content-Type and Cache-Control without x-amz-acl', async () => {
     isHostedMock.mockReturnValue(false);
     mockShip({ service: 'credentials', credentials: S3_CREDS });
+    const signedUrl = 'https://bucket.example.com/signed?sig=x';
+    getSignedUrlMock.mockResolvedValueOnce(signedUrl);
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
 
+    const expectedHeaders = {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'public, max-age=3600',
+    };
+
     const result = await uploadFile({ blob, fileName: 'x.png' });
+
     expect(result.url).toBe('https://bucket.example.com/signed');
+    expect(getSignedUrlMock).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.anything(),
+      {
+        expiresIn: 3600,
+        signableHeaders: new Set(Object.keys(expectedHeaders)),
+      }
+    );
+    expect(fetchMock.mock.calls).toEqual([
+      [
+        signedUrl,
+        {
+          method: 'PUT',
+          body: blob,
+          headers: expectedHeaders,
+        },
+      ],
+    ]);
+  });
+
+  test('DO endpoint sends x-amz-acl wire header on the ACL attempt', async () => {
+    isHostedMock.mockReturnValue(false);
+    mockShip({
+      service: 'credentials',
+      credentials: { ...S3_CREDS, endpoint: 'nyc3.digitaloceanspaces.com' },
+    });
+    const signedUrl = 'https://bucket.nyc3.digitaloceanspaces.com/signed?sig=x';
+    getSignedUrlMock.mockResolvedValueOnce(signedUrl);
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
+
+    const expectedHeaders = {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'public, max-age=3600',
+      'x-amz-acl': 'public-read',
+    };
+
+    const result = await uploadFile({ blob, fileName: 'x.png' });
+
+    expect(result.url).toBe(
+      'https://bucket.nyc3.digitaloceanspaces.com/signed'
+    );
+    expect(getSignedUrlMock).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.anything(),
+      {
+        expiresIn: 3600,
+        signableHeaders: new Set(Object.keys(expectedHeaders)),
+      }
+    );
+    expect(fetchMock.mock.calls).toEqual([
+      [
+        signedUrl,
+        {
+          method: 'PUT',
+          body: blob,
+          headers: expectedHeaders,
+        },
+      ],
+    ]);
   });
 });
 
@@ -167,5 +240,67 @@ describe('uploadFile assume-hosted override (TLON_HOSTING)', () => {
     mockShip({ service: 'presigned-url', genuine: false });
 
     await expect(uploadFile({ blob, ...forced })).rejects.toThrow();
+  });
+});
+
+describe('uploadFile custom-S3 ACL retry', () => {
+  function setupCustomS3() {
+    isHostedMock.mockReturnValue(false);
+    mockShip({ service: 'credentials', credentials: S3_CREDS });
+  }
+
+  test('400 on first attempt retries without ACL', async () => {
+    setupCustomS3();
+    getSignedUrlMock
+      .mockResolvedValueOnce('https://bucket.example.com/first-path?sig=x')
+      .mockResolvedValueOnce('https://bucket.example.com/retry-path?sig=y');
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 400 })
+      .mockResolvedValueOnce({ ok: true, status: 200 });
+
+    const result = await uploadFile({ blob, fileName: 'x.png' });
+
+    expect(result.url).toBe('https://bucket.example.com/retry-path');
+    expect(getSignedUrlMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    expect(putObjectCommandMock.mock.calls[0][0]).toHaveProperty(
+      'ACL',
+      'public-read'
+    );
+    expect(putObjectCommandMock.mock.calls[1][0]).not.toHaveProperty('ACL');
+
+    expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty('x-amz-acl');
+    expect(fetchMock.mock.calls[1][1].headers).not.toHaveProperty('x-amz-acl');
+  });
+
+  test('403 on first attempt does not retry', async () => {
+    setupCustomS3();
+    getSignedUrlMock.mockResolvedValueOnce(
+      'https://bucket.example.com/signed?sig=x'
+    );
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 403 });
+
+    await expect(uploadFile({ blob, fileName: 'x.png' })).rejects.toThrow(
+      'Upload failed: 403'
+    );
+
+    expect(getSignedUrlMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('500 on first attempt does not retry', async () => {
+    setupCustomS3();
+    getSignedUrlMock.mockResolvedValueOnce(
+      'https://bucket.example.com/signed?sig=x'
+    );
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500 });
+
+    await expect(uploadFile({ blob, fileName: 'x.png' })).rejects.toThrow(
+      'Upload failed: 500'
+    );
+
+    expect(getSignedUrlMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

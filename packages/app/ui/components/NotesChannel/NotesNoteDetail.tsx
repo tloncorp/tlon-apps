@@ -1,10 +1,14 @@
+import * as api from '@tloncorp/api';
 import {
+  AnalyticsEvent,
   NotesNoteConflictError,
   adoptNotebookNoteRemote,
   convertContent,
+  markNoteRead,
   markdownToStory,
   normalizeNotebookNoteTitle,
   saveNotebookNote,
+  trackEvent,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
@@ -16,6 +20,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import {
   AppState,
@@ -269,11 +274,32 @@ export function NotesNoteDetail({
     notebookFlag,
     { syncEnabled }
   );
+  // Every path that displays a note lands here (desktop split pane, mobile
+  // detail screen, deep links), so this is the single mark-read hook point.
+  // markNoteRead no-ops until the backend's notes capability resolves, so
+  // rerun when the capability epoch changes (e.g. a note opened from cache
+  // during startup, before app-info sync).
+  const activityCapabilitiesEpoch = useSyncExternalStore(
+    api.onActivityCapabilitiesChange,
+    api.getActivityCapabilitiesEpoch
+  );
+  useEffect(() => {
+    if (!notebookFlag || noteId === null) {
+      return;
+    }
+    markNoteRead({ notebookFlag, noteId });
+  }, [notebookFlag, noteId, activityCapabilitiesEpoch]);
   const selectedNote =
     noteId === null
       ? null
       : notes.find((note) => note.noteId === noteId) ?? null;
   const selectedNoteRowId = selectedNote?.id ?? null;
+
+  useEffect(() => {
+    if (selectedNoteRowId !== null) {
+      trackEvent(AnalyticsEvent.NoteOpened);
+    }
+  }, [selectedNoteRowId]);
 
   const draftsMatchSelectedNote = draftBase?.id === selectedNote?.id;
   const isDirty = Boolean(
@@ -1166,9 +1192,6 @@ export function NotesNoteDetail({
                   editable={canEdit}
                   frameStyle={{
                     flex: 1,
-                    // Bleed the frame left by its own padding + border so
-                    // the text inside aligns with the note text column.
-                    marginLeft: -(getTokenValue('$xl', 'space') + 1),
                   }}
                   testID="NotesTitleInput"
                 />

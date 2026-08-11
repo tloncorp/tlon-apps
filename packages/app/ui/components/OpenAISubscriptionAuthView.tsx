@@ -1,0 +1,155 @@
+import {
+  Button,
+  Icon,
+  LoadingSpinner,
+  Pressable,
+  Text,
+  useCopy,
+  useToast,
+} from '@tloncorp/ui';
+import { useCallback } from 'react';
+import { View, YStack } from 'tamagui';
+
+import {
+  type OpenAIAuthState,
+  canDismissOpenAIAuth,
+  copyOpenAIUserCode,
+} from '../../features/settings/bot/openAiSubscription';
+import { ScreenHeader } from './ScreenHeader';
+
+function flowFromState(state: OpenAIAuthState) {
+  return 'flow' in state ? state.flow : undefined;
+}
+
+export function OpenAISubscriptionAuthView({
+  state,
+  browserError,
+  onStart,
+  onOpenBrowser,
+  onRetry,
+  onCancel,
+  showBackButton = true,
+}: {
+  state: OpenAIAuthState;
+  browserError?: string | null;
+  onStart: () => void;
+  onOpenBrowser: () => void;
+  onRetry: () => void;
+  onCancel: () => void;
+  showBackButton?: boolean;
+}) {
+  const flow = flowFromState(state);
+  const error = state.phase === 'error' ? state.message : browserError;
+  const canGoBack = canDismissOpenAIAuth(state.phase);
+  const { doCopy, didCopy } = useCopy(flow?.userCode ?? '');
+  const showToast = useToast();
+  const handleCopyCode = useCallback(async () => {
+    await copyOpenAIUserCode(flow?.userCode, doCopy, () => {
+      showToast({ message: 'Copied', duration: 1500 });
+    });
+  }, [doCopy, flow?.userCode, showToast]);
+
+  return (
+    <YStack flex={1} paddingTop="$2xl">
+      {showBackButton ? (
+        <View paddingHorizontal="$xl">
+          <ScreenHeader.BackButton disabled={!canGoBack} onPress={onCancel} />
+        </View>
+      ) : null}
+      <YStack gap="$3xl" padding="$xl" flex={1} justifyContent="center">
+        <YStack gap="$xl" alignItems="center">
+          <Text size="$label/2xl" fontWeight="600" textAlign="center">
+            Connect your ChatGPT subscription
+          </Text>
+          <Text size="$body" color="$secondaryText" textAlign="center">
+            OpenAI will ask you to enter a one-time code. Once confirmed, your
+            subscription will be linked.
+          </Text>
+        </YStack>
+
+        {state.phase === 'idle' ? (
+          <Button preset="primary" label="Connect OpenAI" onPress={onStart} />
+        ) : null}
+
+        {state.phase === 'starting' ? (
+          <YStack alignItems="center" gap="$m">
+            <LoadingSpinner />
+            <Text size="$label/m" color="$secondaryText">
+              Starting secure sign-in…
+            </Text>
+          </YStack>
+        ) : null}
+
+        {state.phase === 'active' ? (
+          <YStack gap="$2xl">
+            {flow?.userCode ? (
+              <Pressable
+                width="100%"
+                testID="OpenAISubscriptionUserCode"
+                accessibilityRole="button"
+                accessibilityLabel={didCopy ? 'Copied' : 'Copy one-time code'}
+                onPress={() => void handleCopyCode()}
+                pressStyle={{ opacity: 0.7 }}
+              >
+                <YStack
+                  width="100%"
+                  position="relative"
+                  borderWidth={1}
+                  borderColor="$border"
+                  borderRadius="$xl"
+                  padding="$xl"
+                  alignItems="center"
+                  gap="$s"
+                >
+                  <Icon
+                    type={didCopy ? 'Checkmark' : 'Copy'}
+                    color="$secondaryText"
+                    customSize={[18, 18]}
+                    position="absolute"
+                    top="$l"
+                    right="$l"
+                  />
+                  <Text size="$label/s" color="$secondaryText">
+                    One-time code
+                  </Text>
+                  <Text size="$title/l" fontWeight="700">
+                    {flow.userCode}
+                  </Text>
+                </YStack>
+              </Pressable>
+            ) : (
+              <YStack alignItems="center">
+                <LoadingSpinner />
+              </YStack>
+            )}
+            <Button
+              preset="primary"
+              label="Open OpenAI sign-in"
+              disabled={!flow?.verificationUrl}
+              onPress={onOpenBrowser}
+            />
+          </YStack>
+        ) : null}
+
+        {state.phase === 'complete' ? (
+          <YStack alignItems="center" gap="$m">
+            <LoadingSpinner />
+            <Text size="$label/l" color="$positiveActionText">
+              Connected. Loading your models…
+            </Text>
+          </YStack>
+        ) : null}
+
+        {error ? (
+          <Text size="$label/s" color="$negativeActionText" textAlign="center">
+            {error}
+          </Text>
+        ) : null}
+
+        {state.phase === 'error' ? (
+          <Button preset="primary" label="Try again" onPress={onRetry} />
+        ) : null}
+      </YStack>
+    </YStack>
+  );
+}

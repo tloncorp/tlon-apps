@@ -33,6 +33,16 @@ export function extractClientVolumes(
       settings.push({ itemId: entityId, itemType: 'channel', level });
     }
 
+    if (sourceType === 'notebook') {
+      // notebook sources ride the corresponding notes channel's volume row
+      const level = getLevelFromVolumeMap(volumeMap);
+      settings.push({
+        itemId: `notes/${entityId}`,
+        itemType: 'channel',
+        level,
+      });
+    }
+
     if (sourceType === 'thread' || sourceType === 'dm-thread') {
       const postId = rest[rest.length - 1];
       const level = getLevelFromVolumeMap(volumeMap);

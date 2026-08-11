@@ -430,6 +430,7 @@ export type GetChannelPostsOptions = {
   mode: 'older' | 'newer' | 'around' | 'newest';
   cursor?: Cursor;
   sequenceBoundary?: number | null;
+  skipGapFill?: boolean;
 };
 
 export interface GetChannelPostsResponse {
@@ -466,6 +467,7 @@ export const getChannelPosts = async ({
   count = 20,
   includeReplies = false,
   sequenceBoundary = null,
+  skipGapFill = false,
 }: GetChannelPostsOptions) => {
   // third-party channels (e.g. notes) are served by their backing agent, not
   // %channels. Rendering is delegated to that agent's WebView, so skip post
@@ -510,10 +512,12 @@ export const getChannelPosts = async ({
     { posts: [] }
   );
   const postsResponse = toPagedPostsData(channelId, response);
-  const { posts: finalPosts, numStubs } = fillSequenceGaps(
-    postsResponse.posts,
-    { upperBound: null, lowerBound: null }
-  );
+  const { posts: finalPosts, numStubs } = skipGapFill
+    ? { posts: postsResponse.posts, numStubs: 0 }
+    : fillSequenceGaps(postsResponse.posts, {
+        upperBound: null,
+        lowerBound: null,
+      });
 
   return {
     ...postsResponse,
@@ -1328,6 +1332,7 @@ export function toPostData(
   if ('seq' in post.seal) {
     sequenceNum = Number(post.seal.seq);
   }
+  const rawReacts = post?.seal.reacts ?? {};
 
   return {
     id,
@@ -1356,11 +1361,11 @@ export function toPostData(
     replyTime: post?.seal.meta.lastReply,
     replyContactIds: post?.seal.meta.lastRepliers,
     images: getContentImages(id, post.essay?.content),
+    rawReactionCount: Object.keys(rawReacts).length,
     reactions: (() => {
-      const reacts = post?.seal.reacts ?? {};
       // Check for shortcodes in initial post reactions
-      if (Object.keys(reacts).length > 0) {
-        const shortcodeReactions = Object.entries(reacts).filter(
+      if (Object.keys(rawReacts).length > 0) {
+        const shortcodeReactions = Object.entries(rawReacts).filter(
           ([, v]) => typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
         );
 
@@ -1372,12 +1377,12 @@ export function toPostData(
               user: k,
               value: v,
             })),
-            allReacts: reacts,
+            allReacts: rawReacts,
             context: 'initial_post_load',
           });
         }
       }
-      return toReactionsData(reacts, id);
+      return toReactionsData(rawReacts, id);
     })(),
     replies: replyData,
     deliveryStatus: null,
@@ -1571,6 +1576,21 @@ export function toUrbitStory(content: PostContent): Story {
 export function toContentReference(cite: ub.Cite): ContentReference | null {
   if ('chan' in cite) {
     const channelId = cite.chan.nest;
+    // notes channels cite individual notes as /note/<id>, where the id
+    // may be dot-grouped urbit-style (1.234)
+    if (channelId.startsWith('notes/')) {
+      const noteMatch = cite.chan.where.match(/^\/note\/(\d[\d.]*)/);
+      if (!noteMatch) {
+        console.error('found invalid notes ref', cite);
+        return null;
+      }
+      return {
+        type: 'reference',
+        referenceType: 'note',
+        channelId,
+        noteId: noteMatch[1].replace(/\./g, ''),
+      };
+    }
     // I've seen these forms of reference path:
     // /msg/170141184506828851385935487131294105600
     // /msg/170141184506312077223314290444316180480/170141184506312235291442423303751335936
@@ -1626,6 +1646,13 @@ export function contentReferenceToCite(reference: ContentReference): ub.Cite {
       desk: {
         flag: `${reference.userId}/${reference.appId}`,
         where: '',
+      },
+    };
+  } else if (reference.referenceType === 'note') {
+    return {
+      chan: {
+        nest: reference.channelId,
+        where: `/note/${reference.noteId}`,
       },
     };
   }

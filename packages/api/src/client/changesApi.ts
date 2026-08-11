@@ -6,7 +6,11 @@ import { toClientUnreads } from './activityApi';
 import { contactToClientProfile } from './contactsApi';
 import { toClientGroupsV7 } from './groupsApi';
 import { toPostsData } from './postsApi';
-import { checkIsNodeBusyWithHints, scry } from './urbit';
+import {
+  checkIsNodeBusyWithHints,
+  getActivitySupportsNotes,
+  scry,
+} from './urbit';
 
 export async function fetchChangesSince(timestamp: number): Promise<
   db.ChangesResult & {
@@ -16,9 +20,13 @@ export async function fetchChangesSince(timestamp: number): Promise<
 > {
   const busyResult = await checkIsNodeBusyWithHints();
   const encodedTimestamp = render('da', da.fromUnix(timestamp));
+  // /v10/changes embeds v10-native activity (notebook/note sources); /v8
+  // embeds the v4 conversion, which drops them. Only request what the
+  // backend is known to support.
+  const changesVersion = getActivitySupportsNotes() ? 'v10' : 'v8';
   const response = await scry<ub.ChangesV8>({
     app: 'groups-ui',
-    path: `/v8/changes/${encodedTimestamp}`,
+    path: `/${changesVersion}/changes/${encodedTimestamp}`,
   });
 
   const nodeBusyStatus = await Promise.race([busyResult, timedOutDefault(500)]);

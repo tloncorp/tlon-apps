@@ -1,0 +1,5 @@
+# The build context only needs Dockerfile.test and the entrypoint scripts.
+# Harness-staged artifacts reach the container via the bind mount, not the
+# context; excluding them avoids shipping ~430MB to the builder.
+tlon-skill-workspace-bin/
+*.tgz

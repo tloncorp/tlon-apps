@@ -1,5 +1,6 @@
 import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
 import { JSONContent, Story } from '@tloncorp/api/urbit';
+import type { PostSendOptions } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import { Button, FloatingActionButton, Icon } from '@tloncorp/ui';
@@ -19,16 +20,25 @@ import {
 
 import { useAttachmentContext } from '../../contexts/attachment';
 import { MentionOption } from '../BareChatInput/useMentions';
+import {
+  type SlashCommandManifest,
+  type SlashCommandOption,
+} from '../BareChatInput/useSlashCommands';
 import { MentionPopupRef } from '../MentionPopup';
+import { type SlashCommandPopupRef } from '../SlashCommandPopup';
 import Notices from '../Wayfinding/Notices';
 import { GalleryDraftType, useDraftInputContext } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
+import InputSlashCommandPopup from './InputSlashCommandPopup';
 
 export interface MessageInputProps {
   shouldBlur: boolean;
   setShouldBlur: (shouldBlur: boolean) => void;
-  sendPostFromDraft: (draft: domain.PostDataDraft) => Promise<void>;
+  sendPostFromDraft: (
+    draft: domain.PostDataDraft,
+    options?: PostSendOptions
+  ) => Promise<void>;
   channelId: string;
   groupId?: string | null;
   groupMembers: db.ChatMember[];
@@ -45,6 +55,9 @@ export interface MessageInputProps {
   showAttachmentButton?: boolean;
   showWayfindingTooltip?: boolean;
   showBotMentionTooltip?: boolean;
+  // When present, the input offers bot slash commands. Consumers that omit it
+  // (e.g. threads via PostScreenView) get no slash commands.
+  slashCommandManifest?: SlashCommandManifest | null;
   floatingActionButton?: boolean;
   paddingHorizontal?: SpaceTokens;
   backgroundColor?: ThemeTokens;
@@ -85,6 +98,7 @@ export const MessageInputContainer = memo(
     containerHeight,
     sendError,
     isMentionModeActive = false,
+    isSlashCommandModeActive = false,
     showAttachmentButton = true,
     floatingActionButton = false,
     showWayfindingTooltip = false,
@@ -93,13 +107,17 @@ export const MessageInputContainer = memo(
     isSending = false,
     mentionText,
     mentionOptions,
+    slashCommandOptions = [],
     onSelectMention,
+    onSelectSlashCommand,
     onDismissMentions,
+    onDismissSlashCommands,
     isEditing = false,
     cancelEditing,
     onPressEdit,
     goBack,
     mentionRef,
+    slashCommandRef,
     frameless = false,
   }: PropsWithChildren<{
     setShouldBlur: (shouldBlur: boolean) => void;
@@ -107,6 +125,7 @@ export const MessageInputContainer = memo(
     containerHeight: number;
     sendError: boolean;
     isMentionModeActive?: boolean;
+    isSlashCommandModeActive?: boolean;
     showAttachmentButton?: boolean;
     floatingActionButton?: boolean;
     showWayfindingTooltip?: boolean;
@@ -115,13 +134,17 @@ export const MessageInputContainer = memo(
     isSending?: boolean;
     mentionText?: string;
     mentionOptions: MentionOption[];
+    slashCommandOptions?: SlashCommandOption[];
     onSelectMention: (option: MentionOption) => void;
+    onSelectSlashCommand?: (option: SlashCommandOption) => void;
     onDismissMentions?: () => void;
+    onDismissSlashCommands?: () => void;
     isEditing?: boolean;
     cancelEditing?: () => void;
     onPressEdit?: () => void;
     goBack?: () => void;
     mentionRef?: MentionPopupRef;
+    slashCommandRef?: SlashCommandPopupRef;
     frameless?: boolean;
   }>) => {
     const { canUpload } = useAttachmentContext();
@@ -157,6 +180,17 @@ export const MessageInputContainer = memo(
           onDismiss={onDismissMentions}
           ref={mentionRef}
         />
+        {onSelectSlashCommand ? (
+          <InputSlashCommandPopup
+            containerHeight={containerHeight}
+            inputBarHeight={measuredInputHeight}
+            isSlashCommandModeActive={isSlashCommandModeActive}
+            options={slashCommandOptions}
+            onSelectSlashCommand={onSelectSlashCommand}
+            onDismiss={onDismissSlashCommands}
+            ref={slashCommandRef}
+          />
+        ) : null}
         {!frameless ? (
           <XStack
             paddingVertical="$s"

@@ -1,5 +1,4 @@
 import * as db from '@tloncorp/shared/db';
-import { KeyboardAvoidingView } from '@tloncorp/ui';
 import { useCallback, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -71,59 +70,57 @@ export function EditChannelMetaScreenView({
   );
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }}>
-      <ChannelEditFormLayout
-        title="Edit channel info"
-        channel={channel}
-        group={group}
-        onGoBack={onGoBack}
-        isLoading={isLoading}
-        rightControls={
-          <ScreenHeader.TextButton
-            onPress={runSubmit}
-            color="$positiveActionText"
-            disabled={!isValid}
-            testID="ChannelSettingsSaveButton"
-          >
-            Save
-          </ScreenHeader.TextButton>
-        }
-      >
-        <FormFrame paddingBottom="$2xl" flex={1} backgroundType="secondary">
-          <ControlledTextField
-            name="title"
-            label="Name"
-            control={control}
-            inputProps={{
-              placeholder: 'Channel name',
-              testID: 'ChannelTitleInput',
-            }}
-            rules={{
-              maxLength: {
-                value: 30,
-                message: 'Your channel name is limited to 30 characters',
-              },
-            }}
-          />
-          <ControlledTextareaField
-            name="description"
-            label="Description"
-            control={control}
-            inputProps={{
-              placeholder: 'About this channel',
-              numberOfLines: 5,
-              testID: 'ChannelDescriptionInput',
-              multiline: true,
-            }}
-            rules={{
-              maxLength: {
-                value: 300,
-                message: 'Description is limited to 300 characters',
-              },
-            }}
-          />
-        </FormFrame>
-      </ChannelEditFormLayout>
-    </KeyboardAvoidingView>
+    <ChannelEditFormLayout
+      title="Edit channel info"
+      channel={channel}
+      group={group}
+      onGoBack={onGoBack}
+      isLoading={isLoading}
+      rightControls={
+        <ScreenHeader.TextButton
+          onPress={runSubmit}
+          color="$positiveActionText"
+          disabled={!isValid}
+          testID="ChannelSettingsSaveButton"
+        >
+          Save
+        </ScreenHeader.TextButton>
+      }
+    >
+      <FormFrame paddingBottom="$2xl" flex={1} backgroundType="secondary">
+        <ControlledTextField
+          name="title"
+          label="Name"
+          control={control}
+          inputProps={{
+            placeholder: 'Channel name',
+            testID: 'ChannelTitleInput',
+          }}
+          rules={{
+            maxLength: {
+              value: 30,
+              message: 'Your channel name is limited to 30 characters',
+            },
+          }}
+        />
+        <ControlledTextareaField
+          name="description"
+          label="Description"
+          control={control}
+          inputProps={{
+            placeholder: 'About this channel',
+            numberOfLines: 5,
+            testID: 'ChannelDescriptionInput',
+            multiline: true,
+          }}
+          rules={{
+            maxLength: {
+              value: 300,
+              message: 'Description is limited to 300 characters',
+            },
+          }}
+        />
+      </FormFrame>
+    </ChannelEditFormLayout>
   );
 }

@@ -243,6 +243,8 @@ export async function uploadFile(
 
   const endpointUrl = prefixEndpoint(credentials.endpoint);
   const client = new S3Client({
+    // Keep the AWS S3 SDK lockfile resolution at 3.190.0. Newer checksum
+    // defaults break interoperability with GCS-compatible endpoints.
     // AWS SDK v3 can mis-reconstruct object-form endpoints for custom S3
     // providers, so keep this as a normalized string URL.
     endpoint: endpointUrl,
@@ -254,34 +256,61 @@ export async function uploadFile(
     forcePathStyle: true,
   });
 
-  const headers: Record<string, string> = {
-    'Content-Type': contentType,
-    'Cache-Control': 'public, max-age=3600',
-    'x-amz-acl': 'public-read',
+  // ACL travels in the signed query string only (the presigner hoists it;
+  // SignedHeaders=host). Unsigned x-amz-* wire headers are forbidden by AWS
+  // SigV4, so we never send an ACL header — except DO Spaces, whose legacy
+  // wire shape includes it. Content-Type/Cache-Control are ordinary unsigned
+  // metadata headers. GCS uniform-bucket-level-access rejects any ACL with
+  // 400, hence the single retry without it.
+  const isDO = new URL(endpointUrl).hostname.endsWith(
+    '.digitaloceanspaces.com'
+  );
+
+  const presign = async (includeAcl: boolean) => {
+    const headers: Record<string, string> = {
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=3600',
+    };
+    if (includeAcl && isDO) {
+      headers['x-amz-acl'] = 'public-read';
+    }
+
+    const command = new PutObjectCommand({
+      Bucket: config.currentBucket,
+      Key: fileKey,
+      ContentType: headers['Content-Type'],
+      CacheControl: headers['Cache-Control'],
+      ...(includeAcl ? { ACL: 'public-read' as const } : {}),
+    });
+
+    const signedUrl = await getSignedUrl(client, command, {
+      expiresIn: 3600,
+      signableHeaders: new Set(Object.keys(headers)),
+    });
+
+    return { signedUrl, headers };
   };
 
-  const command = new PutObjectCommand({
-    Bucket: config.currentBucket,
-    Key: fileKey,
-    ContentType: headers['Content-Type'],
-    CacheControl: headers['Cache-Control'],
-    ACL: 'public-read',
-  });
+  const attempt = async (includeAcl: boolean) => {
+    const { signedUrl, headers } = await presign(includeAcl);
+    const res = await fetch(signedUrl, {
+      method: 'PUT',
+      body: params.blob,
+      headers,
+    });
+    return { res, signedUrl };
+  };
 
-  const signedUrl = await getSignedUrl(client, command, {
-    expiresIn: 3600,
-    signableHeaders: new Set(Object.keys(headers)),
-  });
-
-  const isDigitalOcean = signedUrl.includes('digitaloceanspaces.com');
-
-  await fetch(signedUrl, {
-    method: 'PUT',
-    body: params.blob,
-    headers: isDigitalOcean ? headers : undefined,
-  }).then((res) => {
-    if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-  });
+  let { res, signedUrl } = await attempt(true);
+  if (res.status === 400) {
+    logger.log(
+      'ACL rejected (400); retrying upload without ACL for uniform-access buckets'
+    );
+    ({ res, signedUrl } = await attempt(false));
+  }
+  if (!res.ok) {
+    throw new Error(`Upload failed: ${res.status}`);
+  }
 
   const publicUrl = config.publicUrlBase
     ? new URL(fileKey, config.publicUrlBase).toString()

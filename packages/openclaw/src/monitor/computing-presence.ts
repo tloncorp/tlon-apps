@@ -93,8 +93,11 @@ export function createComputingPresenceTracker(trackerOpts?: {
   const conversations = new Map<string, Map<string, RunState>>();
   const lastPublishedState = new Map<string, PublishedState>();
   const lastPublishedAt = new Map<string, number>();
-  const pendingState = new Map<string, PublishedState>();
+  const desiredState = new Map<string, PublishedState>();
+  const desiredRevision = new Map<string, number>();
   const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const scheduledConversations = new Set<string>();
+  const publishingConversations = new Set<string>();
   const stoppedRuns = new Map<string, Set<string>>();
 
   const markRunStopped = (conversationId: string, runId: string) => {
@@ -157,96 +160,126 @@ export function createComputingPresenceTracker(trackerOpts?: {
     return true;
   };
 
-  const clearPending = (conversationId: string) => {
+  const clearPendingTimer = (conversationId: string) => {
     const timer = pendingTimers.get(conversationId);
     if (timer) {
       clearTimeout(timer);
       pendingTimers.delete(conversationId);
     }
-
-    pendingState.delete(conversationId);
   };
 
-  const publishNow = async (conversationId: string, state: PublishedState) => {
-    clearPending(conversationId);
-    await reporter.publish({
-      conversationId,
-      ...state,
+  const schedulePublish = (conversationId: string) => {
+    if (
+      publishingConversations.has(conversationId) ||
+      scheduledConversations.has(conversationId) ||
+      pendingTimers.has(conversationId)
+    ) {
+      return;
+    }
+
+    // Lifecycle hooks only enqueue state. Starting the worker in a microtask
+    // keeps ship I/O out of the OpenClaw callback stack entirely.
+    scheduledConversations.add(conversationId);
+    queueMicrotask(() => {
+      scheduledConversations.delete(conversationId);
+      void publishDesiredState(conversationId);
     });
-    if (!state.thinking) {
-      // idle is the terminal state; drop the records so the maps do not grow
-      // unboundedly across the gateway's lifetime
-      lastPublishedState.delete(conversationId);
-      lastPublishedAt.delete(conversationId);
-      return;
-    }
-    lastPublishedState.set(conversationId, clonePublishedState(state));
-    lastPublishedAt.set(conversationId, Date.now());
   };
 
-  const flushPending = async (conversationId: string) => {
-    const nextState = pendingState.get(conversationId);
-    clearPending(conversationId);
-
-    if (!nextState) {
-      return;
-    }
-
-    if (statesEqual(lastPublishedState.get(conversationId), nextState)) {
-      return;
-    }
-
-    await publishNow(conversationId, nextState);
+  const enqueueState = (conversationId: string, state: PublishedState) => {
+    desiredState.set(conversationId, clonePublishedState(state));
+    desiredRevision.set(
+      conversationId,
+      (desiredRevision.get(conversationId) ?? 0) + 1
+    );
+    clearPendingTimer(conversationId);
+    schedulePublish(conversationId);
   };
 
-  const publishThrottled = async (
-    conversationId: string,
-    state: PublishedState
-  ) => {
-    if (statesEqual(lastPublishedState.get(conversationId), state)) {
+  async function publishDesiredState(conversationId: string) {
+    if (publishingConversations.has(conversationId)) {
+      return;
+    }
+
+    const state = desiredState.get(conversationId);
+    const revision = desiredRevision.get(conversationId);
+    if (!state || revision === undefined) {
+      return;
+    }
+
+    const previousState = lastPublishedState.get(conversationId);
+    if (statesEqual(previousState, state)) {
       const publishedAt = lastPublishedAt.get(conversationId) ?? 0;
-      if (Date.now() - publishedAt < maxPublishAgeMs) {
-        clearPending(conversationId);
+      if (!state.thinking || Date.now() - publishedAt < maxPublishAgeMs) {
         return;
       }
-      // fall through: re-publish before the ship-side presence expires
+      // Re-publish before the ship-side active presence expires.
     }
 
-    if (minUpdateIntervalMs === 0) {
-      await publishNow(conversationId, state);
-      return;
+    if (previousState?.thinking && state.thinking && minUpdateIntervalMs > 0) {
+      const nextAllowedAt =
+        (lastPublishedAt.get(conversationId) ?? 0) + minUpdateIntervalMs;
+      const delayMs = nextAllowedAt - Date.now();
+      if (delayMs > 0) {
+        const timer = setTimeout(() => {
+          pendingTimers.delete(conversationId);
+          schedulePublish(conversationId);
+        }, delayMs);
+        pendingTimers.set(conversationId, timer);
+        return;
+      }
     }
 
-    const now = Date.now();
-    const nextAllowedAt =
-      (lastPublishedAt.get(conversationId) ?? 0) + minUpdateIntervalMs;
-    if (now >= nextAllowedAt) {
-      await publishNow(conversationId, state);
-      return;
-    }
-
-    pendingState.set(conversationId, clonePublishedState(state));
-    if (pendingTimers.has(conversationId)) {
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      pendingTimers.delete(conversationId);
-      void safelySync(conversationId, 'flush', async () => {
-        await flushPending(conversationId);
+    publishingConversations.add(conversationId);
+    let published = false;
+    try {
+      await reporter.publish({
+        conversationId,
+        ...state,
       });
-    }, nextAllowedAt - now);
-    pendingTimers.set(conversationId, timer);
-  };
+      published = true;
+    } catch (error) {
+      runtime?.error?.(
+        `[tlon] Failed to publish computing presence for ${conversationId}: ${describeError(error)}`
+      );
+    } finally {
+      publishingConversations.delete(conversationId);
+    }
 
-  const syncConversation = async (conversationId: string) => {
+    if (published) {
+      lastPublishedState.set(conversationId, clonePublishedState(state));
+      lastPublishedAt.set(conversationId, Date.now());
+
+      if (
+        !state.thinking &&
+        statesEqual(desiredState.get(conversationId), state)
+      ) {
+        // Idle is terminal. Drop the records so these maps stay bounded over
+        // the gateway lifetime once the latest desired state is cleared.
+        desiredState.delete(conversationId);
+        desiredRevision.delete(conversationId);
+        lastPublishedState.delete(conversationId);
+        lastPublishedAt.delete(conversationId);
+      }
+    }
+
+    // A single in-flight request owns each conversation. If lifecycle events
+    // superseded it, publish only the newest desired state next.
+    if (desiredRevision.get(conversationId) !== revision) {
+      schedulePublish(conversationId);
+    }
+  }
+
+  const syncConversation = (conversationId: string) => {
     const runs = conversations.get(conversationId);
-    const previousState = lastPublishedState.get(conversationId);
 
     if (!runs || runs.size === 0) {
       conversations.delete(conversationId);
-      if (previousState?.thinking) {
-        await publishNow(conversationId, {
+      const currentState =
+        desiredState.get(conversationId) ??
+        lastPublishedState.get(conversationId);
+      if (currentState?.thinking) {
+        enqueueState(conversationId, {
           thinking: false,
           toolNames: [],
         });
@@ -274,11 +307,7 @@ export function createComputingPresenceTracker(trackerOpts?: {
       toolNames,
     };
 
-    if (!previousState || !previousState.thinking) {
-      await publishNow(conversationId, currentState);
-    } else {
-      await publishThrottled(conversationId, currentState);
-    }
+    enqueueState(conversationId, currentState);
   };
 
   const getRun = (conversationId: string, runId: string) =>
@@ -302,33 +331,17 @@ export function createComputingPresenceTracker(trackerOpts?: {
     return run;
   };
 
-  const safelySync = async (
-    conversationId: string,
-    action: string,
-    fn: () => Promise<void>
-  ) => {
-    try {
-      await fn();
-    } catch (error) {
-      runtime?.error?.(
-        `[tlon] Failed to ${action} computing presence for ${conversationId}: ${describeError(error)}`
-      );
-    }
-  };
-
   return {
-    refreshRun: async (params: { conversationId: string; runId: string }) => {
+    refreshRun: (params: { conversationId: string; runId: string }) => {
       if (isRunStopped(params.conversationId, params.runId)) {
         return;
       }
 
-      await safelySync(params.conversationId, 'refresh', async () => {
-        ensureRun(params.conversationId, params.runId);
-        await syncConversation(params.conversationId);
-      });
+      ensureRun(params.conversationId, params.runId);
+      syncConversation(params.conversationId);
     },
 
-    addToolCall: async (params: {
+    addToolCall: (params: {
       conversationId: string;
       runId: string;
       toolName?: string | null;
@@ -338,53 +351,36 @@ export function createComputingPresenceTracker(trackerOpts?: {
         return;
       }
 
-      await safelySync(params.conversationId, 'update', async () => {
-        // real activity resumes a previously stopped run
-        clearRunStopped(params.conversationId, params.runId);
-        const run = ensureRun(params.conversationId, params.runId);
-        if (!run.toolNames.includes(toolName)) {
-          run.toolNames.push(toolName);
-        }
-        await syncConversation(params.conversationId);
-      });
+      // real activity resumes a previously stopped run
+      clearRunStopped(params.conversationId, params.runId);
+      const run = ensureRun(params.conversationId, params.runId);
+      if (!run.toolNames.includes(toolName)) {
+        run.toolNames.push(toolName);
+      }
+      syncConversation(params.conversationId);
     },
 
-    clearToolCalls: async (params: {
-      conversationId: string;
-      runId: string;
-    }) => {
-      await safelySync(params.conversationId, 'clear tools for', async () => {
-        const run = getRun(params.conversationId, params.runId);
-        if (!run || run.toolNames.length === 0) {
-          return;
-        }
+    clearToolCalls: (params: { conversationId: string; runId: string }) => {
+      const run = getRun(params.conversationId, params.runId);
+      if (!run || run.toolNames.length === 0) {
+        return;
+      }
 
-        run.toolNames = [];
-        await syncConversation(params.conversationId);
-      });
+      run.toolNames = [];
+      syncConversation(params.conversationId);
     },
 
-    stopRun: async (params: { conversationId: string; runId: string }) => {
+    stopRun: (params: { conversationId: string; runId: string }) => {
       markRunStopped(params.conversationId, params.runId);
-      await safelySync(params.conversationId, 'clear', async () => {
-        const runs = conversations.get(params.conversationId);
-        if (!runs) {
-          if (lastPublishedState.get(params.conversationId)?.thinking) {
-            await publishNow(params.conversationId, {
-              thinking: false,
-              toolNames: [],
-            });
-          }
-          return;
-        }
-
+      const runs = conversations.get(params.conversationId);
+      if (runs) {
         runs.delete(params.runId);
         if (runs.size === 0) {
           conversations.delete(params.conversationId);
         }
+      }
 
-        await syncConversation(params.conversationId);
-      });
+      syncConversation(params.conversationId);
     },
   };
 }

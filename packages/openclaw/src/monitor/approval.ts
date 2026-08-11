@@ -70,7 +70,13 @@ export type DisplayContext = {
 };
 
 export type ApprovalA2UIOptions = {
-  includeSourceNavigation?: boolean;
+  /**
+   * Whether the notification recipient can open messages that live only in
+   * the bot's own DM history (i.e. the recipient shares the bot's account).
+   * Channel-mention sources live in the group channel, so they stay
+   * navigable for a separate owner regardless. Defaults to true.
+   */
+  recipientSeesBotDms?: boolean;
 };
 
 function displayShipName(ship: string, ctx?: DisplayContext): string {
@@ -541,6 +547,17 @@ function approvalSourceTarget(
   return undefined;
 }
 
+function approvalSourceTargetForRecipient(
+  approval: PendingApproval,
+  ctx: DisplayContext | undefined,
+  options: ApprovalA2UIOptions
+): A2UI.NavigationTarget | undefined {
+  if (approval.type === 'dm' && options.recipientSeesBotDms === false) {
+    return undefined;
+  }
+  return approvalSourceTarget(approval, ctx);
+}
+
 export function buildApprovalA2UIBlob(
   approval: PendingApproval,
   ctx?: DisplayContext,
@@ -563,10 +580,7 @@ export function buildApprovalA2UIBlob(
       approval.groupTitle,
       ctx
     ),
-    sourceTarget:
-      options.includeSourceNavigation === false
-        ? undefined
-        : approvalSourceTarget(approval, ctx),
+    sourceTarget: approvalSourceTargetForRecipient(approval, ctx, options),
   });
 }
 
@@ -615,7 +629,8 @@ function pendingItemFields(
 
 export function buildPendingApprovalsA2UIBlob(
   approvals: PendingApproval[],
-  ctx?: DisplayContext
+  ctx?: DisplayContext,
+  options: ApprovalA2UIOptions = {}
 ): TlonA2UIBlob | undefined {
   const active = pruneExpired(approvals);
   if (!shouldUsePendingApprovalsA2UI(active)) {
@@ -662,11 +677,17 @@ export function buildPendingApprovalsA2UIBlob(
     text('allowLabel', 'Allow'),
     text('rejectLabel', 'Reject'),
     text('blockLabel', 'Block'),
+    text('viewMessageLabel', 'View message'),
   ];
 
   for (const [index, approval] of active.entries()) {
     const prefix = `item${index}`;
     const fields = pendingItemFields(approval, ctx);
+    const sourceTarget = approvalSourceTargetForRecipient(
+      approval,
+      ctx,
+      options
+    );
 
     if (index > 0) {
       const dividerId = `${prefix}Divider`;
@@ -691,10 +712,34 @@ export function buildPendingApprovalsA2UIBlob(
       ...(fields.preview
         ? [text(`${prefix}Preview`, fields.preview, 'caption')]
         : []),
+      // The view button shares the actions row (instead of getting its own
+      // row like the single-approval card) to stay under the a2ui
+      // 50-component limit at the 4-approval maximum.
+      ...(sourceTarget
+        ? ([
+            {
+              id: `${prefix}View`,
+              component: 'Button',
+              variant: 'secondary',
+              child: 'viewMessageLabel',
+              action: {
+                event: {
+                  name: A2UI.action.navigate,
+                  context: { target: sourceTarget },
+                },
+              },
+            },
+          ] satisfies A2UI.Component[])
+        : []),
       {
         id: `${prefix}Actions`,
         component: 'Row',
-        children: [`${prefix}Allow`, `${prefix}Reject`, `${prefix}Block`],
+        children: [
+          `${prefix}Allow`,
+          `${prefix}Reject`,
+          `${prefix}Block`,
+          ...(sourceTarget ? [`${prefix}View`] : []),
+        ],
       },
       button(
         `${prefix}Allow`,
@@ -719,7 +764,8 @@ export function buildPendingApprovalsResponse(
   approvals: PendingApproval[],
   ctx: DisplayContext | undefined,
   serializeBlob: (blob: TlonA2UIBlob) => string | undefined,
-  onError?: (error: unknown) => void
+  onError?: (error: unknown) => void,
+  options: ApprovalA2UIOptions = {}
 ): { text: string; mode: 'text' } | { text: string; mode: 'ui'; blob: string } {
   const text = formatPendingList(approvals, ctx);
   if (!shouldUsePendingApprovalsA2UI(approvals)) {
@@ -727,7 +773,7 @@ export function buildPendingApprovalsResponse(
   }
 
   try {
-    const blob = buildPendingApprovalsA2UIBlob(approvals, ctx);
+    const blob = buildPendingApprovalsA2UIBlob(approvals, ctx, options);
     const serialized = blob ? serializeBlob(blob) : undefined;
     return serialized
       ? { text, blob: serialized, mode: 'ui' }

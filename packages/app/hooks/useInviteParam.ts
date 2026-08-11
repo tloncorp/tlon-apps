@@ -1,19 +1,20 @@
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { useNavigation } from '@react-navigation/native';
 import {
+  AnalyticsEvent,
   createDevLogger,
   getMetadataFromInviteToken,
+  trackEvent,
   withRetry,
 } from '@tloncorp/shared';
+import * as store from '@tloncorp/shared/store';
 import { useEffect } from 'react';
 
 import { ActualRootDrawerParamList } from '../navigation/types';
-import { useStore } from '../ui';
 
 const logger = createDevLogger('useInviteParam', true);
 
 export function useInviteParam() {
-  const store = useStore();
   const navigation =
     useNavigation<DrawerNavigationProp<ActualRootDrawerParamList>>();
 
@@ -36,6 +37,7 @@ export function useInviteParam() {
         return;
       }
       logger.trackEvent('found metadata for invite token', { inviteToken });
+      trackEvent(AnalyticsEvent.InviteOpened);
 
       if (meta.invitedGroupId) {
         await withRetry(() => store.redeemInviteIfNeeded(meta), {
@@ -68,5 +70,5 @@ export function useInviteParam() {
     }
 
     runEffect();
-  }, [navigation, store]);
+  }, [navigation]);
 }

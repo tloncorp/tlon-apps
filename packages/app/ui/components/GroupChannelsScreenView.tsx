@@ -156,11 +156,19 @@ export const GroupChannelsScreenView = React.memo(
 
       // Add regular channels - either by section or by recency
       if (sortBy === 'recency') {
-        // Sort channels by recency
+        // Sort channels by recency: whichever is newer of the latest post
+        // or the activity summary's recency — non-post activity (e.g. a
+        // note in a notebook channel, which never has posts) also counts
         const channelsSortedByRecency = [...group.channels].sort((a, b) => {
-          const aLastPostAt = a.lastPostAt || 0;
-          const bLastPostAt = b.lastPostAt || 0;
-          return bLastPostAt - aLastPostAt;
+          const aRecency = Math.max(
+            a.lastPostAt ?? 0,
+            a.unread?.updatedAt ?? 0
+          );
+          const bRecency = Math.max(
+            b.lastPostAt ?? 0,
+            b.unread?.updatedAt ?? 0
+          );
+          return bRecency - aRecency;
         });
 
         if (channelsSortedByRecency.length > 0) {
@@ -285,7 +293,9 @@ export const GroupChannelsScreenView = React.memo(
             title={notebookSidebarContent.title}
             testID="NotebookSidebarBackHeader"
             borderBottom
-            backAction={handleDismissNotebookSidebar}
+            backAction={
+              notebookSidebarContent.backAction ?? handleDismissNotebookSidebar
+            }
             rightControls={notebookSidebarContent.actions}
           />
           <YStack flex={1} minHeight={0}>

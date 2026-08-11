@@ -1,6 +1,9 @@
 import {
   type NotesV1Api,
   NotesV1PendingWriteError,
+  deleteNotesNotebookStrict,
+  getGroup,
+  getGroups,
   joinNotesChannel,
   leaveNotesChannel,
   notesV1,
@@ -10,6 +13,7 @@ import * as fs from 'fs';
 import { ensureClient } from './api-client';
 import { commandError, errorMessage } from './commands/command';
 import type { NotesDeps } from './commands/notes';
+import { mapGroupChannelIds } from './notes-channel-runtime';
 import type { NotesPendingWriteErrorLike } from './notes-pending-write';
 
 const STDIN_TIMEOUT_MS = 30_000;
@@ -73,16 +77,17 @@ function wrapNotesV1(): NotesV1Api {
 }
 
 export function createNotesDeps(): NotesDeps {
+  let _migration: import('./notes-migrate').MigrationDeps | undefined;
   return {
     ...createProcessCommandDeps(),
     // No subscriptions: %notes CRUD is request/response over the v1 HTTP API.
+    // Membership uses the %notes action wrappers (not the v0 app-sync helpers).
     authenticate: async () => {
       await ensureClient();
     },
     notesV1: wrapNotesV1(),
     isPendingWriteError: (error): error is NotesPendingWriteErrorLike =>
       error instanceof NotesV1PendingWriteError,
-    // Membership uses the %notes action wrappers (not the v0 app-sync helpers).
     joinNotesNotebook: async (nest: string) => {
       try {
         await joinNotesChannel(nest);
@@ -97,7 +102,45 @@ export function createNotesDeps(): NotesDeps {
         throw commandError(notesRuntimeErrorMessage(error));
       }
     },
+    deleteNotesNotebookStrict: async (nest: string) => {
+      try {
+        await deleteNotesNotebookStrict(nest);
+      } catch (error) {
+        throw commandError(notesRuntimeErrorMessage(error));
+      }
+    },
+    getGroupChannelListings: async () => {
+      const groups: unknown = await getGroups();
+      if (!Array.isArray(groups)) {
+        throw new Error('Groups response is malformed: expected an array');
+      }
+      return groups.map((group, index) => {
+        if (!group || typeof group !== 'object') {
+          throw new Error(`Group listing ${index}: group is malformed`);
+        }
+        const groupId = (group as { id?: unknown }).id;
+        if (typeof groupId !== 'string') {
+          throw new Error(`Group listing ${index}: group id is malformed`);
+        }
+        return {
+          groupId,
+          channelIds: mapGroupChannelIds(group, groupId),
+        };
+      });
+    },
+    getGroupChannelIds: async (groupId: string) => {
+      const group = await getGroup(groupId);
+      return mapGroupChannelIds(group, groupId);
+    },
+    sleep: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
     readFile: (path: string) => fs.readFileSync(path, 'utf-8'),
     readStdin,
+    get migration() {
+      if (!_migration) {
+        const { createMigrationDeps } = require('./notes-migrate-runtime');
+        _migration = createMigrationDeps();
+      }
+      return _migration;
+    },
   };
 }

@@ -1,4 +1,4 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -15,7 +15,6 @@ import {
 import { View, XStack, isWeb, useStyle } from 'tamagui';
 
 import { NavigationProvider } from '../../contexts/navigation';
-import { useStore } from '../../contexts/storeContext';
 import { useIsDarkTheme } from '../../utils/colorUtils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
@@ -54,7 +53,6 @@ export function ActivityScreenView({
   onInviteFriends?: () => void;
   scrollRef?: React.RefObject<FlatList | null>;
 }) {
-  const store = useStore();
   const { data: activitySeenMarker } = store.useActivitySeenMarker();
   const [activeTab, setActiveTab] = useState<db.ActivityBucket>('all');
   const currentFetcher = bucketFetchers[activeTab];
@@ -72,7 +70,7 @@ export function ActivityScreenView({
     setTimeout(() => {
       store.advanceActivitySeenMarker(newestTimestamp);
     }, 1000);
-  }, [newestTimestamp, store]);
+  }, [newestTimestamp]);
 
   useEffect(() => {
     if (
@@ -184,6 +182,26 @@ export function ActivityScreenView({
             goToUserProfile(event.contactUserId);
           }
           break;
+        case 'note-create':
+        case 'note-edit': {
+          // open the notebook channel on the specific note (the note id
+          // rides postId; the notes collection consumes selectedPostId)
+          const channel =
+            event.channel ??
+            (event.channelId
+              ? await db.getChannel({ id: event.channelId })
+              : null);
+          if (channel) {
+            logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+              ...logic.getModelAnalytics({ channel }),
+              type: 'notebookNote',
+            });
+            goToChannel(channel, event.postId ?? undefined);
+          } else {
+            console.warn('No channel found for note event', event);
+          }
+          break;
+        }
         default:
           break;
       }
@@ -199,6 +217,9 @@ export function ActivityScreenView({
   const handleTabPress = useCallback(
     (tab: db.ActivityBucket) => {
       if (tab !== activeTab) {
+        trackEvent(AnalyticsEvent.ActivityFilterSelected, {
+          tab,
+        });
         setActiveTab(tab);
       }
     },
@@ -311,6 +332,7 @@ export function ActivityScreenContent({
       await setBadgeCountAsync(0);
     }
     await store.markAllRead();
+    trackEvent(AnalyticsEvent.ActivityMarkedAllRead);
   }, []);
 
   const handleInviteFriends = useCallback(() => {

@@ -26,6 +26,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   buildCacheProvider:
     process.env.TLON_EAS_CACHE_DISABLED === '1' ? undefined : 'eas',
+  experiments: {
+    reactCompiler: true,
+  },
   extra: {
     eas: {
       projectId,

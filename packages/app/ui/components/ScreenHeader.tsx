@@ -45,6 +45,7 @@ export const ScreenHeaderComponent = ({
   leftControls,
   rightControls,
   backAction,
+  backDisabled = false,
   borderBottom,
   onTitlePress,
   useHorizontalTitleLayout = false,
@@ -59,6 +60,7 @@ export const ScreenHeaderComponent = ({
   leftControls?: ReactNode | null;
   rightControls?: ReactNode | null;
   backAction?: () => void;
+  backDisabled?: boolean;
   borderBottom?: boolean;
   onTitlePress?: () => void;
   useHorizontalTitleLayout?: boolean;
@@ -269,7 +271,9 @@ export const ScreenHeaderComponent = ({
           );
         }}
       >
-        {backAction ? <HeaderBackButton onPress={backAction} /> : null}
+        {backAction ? (
+          <HeaderBackButton onPress={backAction} disabled={backDisabled} />
+        ) : null}
         {leftControls}
       </HeaderControls>
       <HeaderControls
@@ -556,12 +560,22 @@ function HeaderTextButton({
   );
 }
 
-const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
+const HeaderBackButton = ({
+  disabled = false,
+  onPress,
+}: {
+  disabled?: boolean;
+  onPress?: () => void;
+}) => {
   return (
     <HeaderIconButton
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      color={disabled ? '$tertiaryText' : '$primaryText'}
+      cursor={disabled ? 'default' : 'pointer'}
       testID="HeaderBackButton"
       type="ChevronLeft"
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
     />
   );
 };

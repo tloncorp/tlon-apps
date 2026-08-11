@@ -1,9 +1,12 @@
 import { expect } from 'vitest';
 
-import type { RuntimeContext } from '../../drivers/types.js';
+import type { DriverName, RuntimeContext } from '../../drivers/types.js';
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import {
+  connectComposeNetwork,
+  disconnectComposeNetwork,
   execInComposeService,
+  readComposeServiceLogs,
   startComposeService,
   stopComposeService,
 } from '../../runtime/docker-direct.js';
@@ -15,16 +18,26 @@ import type {
 } from '../../tlon/index.js';
 import { normalizeShip } from '../../tlon/index.js';
 import type { ScenarioActor, ScenarioActors } from './actors.js';
+import {
+  type CronCleanupTarget,
+  cleanupCronJobAndArtifacts,
+  settleCronJobCreation,
+  waitForCronJobCreated,
+  waitForCronJobRemoved,
+} from './cron.js';
 import { type SharedScenario, testScenario } from './dsl.js';
 import {
   allowDmFrom,
   monitorGroupChannels,
   settingsBucket,
   waitForSettingsEntries,
+  waitForSettingsKeysAbsent,
+  withNudgeSettingsIsolation,
   withSettingsEntry,
 } from './isolation.js';
 import {
   type BenignModelCallPredicate,
+  MODEL_EXPECTATION_SETTLE_MS,
   benignModelCallPredicate,
   expectModelExpectations,
   expectNoModelCalls,
@@ -35,7 +48,18 @@ import {
 const NEGATIVE_SETTLE_MS = 12_000;
 const MODEL_CALL_WAIT_MS = 90_000;
 const BOT_REPLY_WAIT_MS = 90_000;
+const MIGRATION_RESULT_WAIT_MS = 120_000;
 const LOOP_TIMEOUT_MARGIN_MS = 60_000;
+const CRON_CREATE_PROMPT_WAIT_MS = 120_000;
+const CRON_FIRED_WAIT_MS = {
+  hermes: 150_000,
+  openclaw: 240_000,
+} satisfies Record<DriverName, number>;
+const CRON_JOB_REMOVAL_WAIT_MS = 15_000;
+const CRON_SCENARIO_SETUP_MARGIN_MS = 60_000;
+const NUDGE_DELIVERY_WAIT_MS = 90_000;
+const NUDGE_CLEANUP_WAIT_MS = 45_000;
+const NUDGE_DUPLICATE_WINDOW_MS = 15_000;
 const REACTION_PROVENANCE_BY_DRIVER = {
   hermes: 'latest-user',
   openclaw: 'latest-user',
@@ -384,6 +408,121 @@ export const commonScenarios: readonly SharedScenario[] = [
 
       expectPromptSuccess(result, 'Global owner-listen is now on');
       await waitForSettingsEntries(actors, { ownerListenEnabled: true });
+      await expectNoModelCallsAfterSettle(
+        ctx.fakeModel,
+        benignModelCallPredicate(driver)
+      );
+    }
+  ),
+
+  testScenario(
+    'migrate-happy-path',
+    {
+      timeoutMs: 300_000,
+    },
+    async ({ ctx, driver, actors }) => {
+      const uniqueTitle = scenarioKey('migrate-src');
+      const firstTitle = 'First titled migration note';
+      const secondTitle = 'Second titled migration note';
+      const firstBody = `First seeded migration body ${uniqueTitle}.`;
+      const secondBody = `Second seeded migration body ${uniqueTitle}.`;
+      const fallbackBody = `Untitled migration fallback ${uniqueTitle}.`;
+      const { groupId, chatChannel: diaryNest } =
+        await actors.bot.createGroupWithChannel({
+          title: `Migration fixture ${uniqueTitle}`,
+          channelKind: 'diary',
+          channelTitle: uniqueTitle,
+        });
+
+      const seededPosts = [
+        await actors.bot.sendChannelPost({
+          channelId: diaryNest,
+          content: firstBody,
+          metadata: { title: firstTitle },
+        }),
+        await actors.bot.sendChannelPost({
+          channelId: diaryNest,
+          content: secondBody,
+          metadata: { title: secondTitle },
+        }),
+        await actors.bot.sendChannelPost({
+          channelId: diaryNest,
+          content: fallbackBody,
+        }),
+      ];
+
+      const ack = await actors.owner.prompt(`/migrate ${diaryNest}`, {
+        timeoutMs: 60_000,
+      });
+      actors.bot.teardown(
+        async () => {
+          const notebooks = await actors.bot.state.listNotebooks();
+          for (const notebook of notebooks) {
+            if (notebook.notebook.title === uniqueTitle) {
+              await actors.bot.state.deleteNotebook(
+                `notes/${notebook.host}/${notebook.flagName}`
+              );
+            }
+          }
+        },
+        { label: `delete notebook titled ${uniqueTitle}` }
+      );
+      if (!ack.success) {
+        throw new Error(ack.error ?? 'Migration prompt failed.');
+      }
+      expect(ack.text).toMatch(/Migration (started for|complete)/);
+
+      await waitForDmBotReply(actors.owner, actors.bot.ship, 'renamed with an');
+      const result = await waitForDmBotReply(
+        actors.owner,
+        actors.bot.ship,
+        'Migration complete.',
+        MIGRATION_RESULT_WAIT_MS
+      );
+      expect(result.text).toContain('Notes imported: 3');
+
+      const targetNest = result.text.match(
+        /\bnotes\/~[a-z-]+\/[a-zA-Z0-9-]+\b/
+      )?.[0];
+      if (!targetNest) {
+        throw new Error(`Migration result omitted target nest: ${result.text}`);
+      }
+      actors.bot.teardown(() => actors.bot.state.deleteNotebook(targetNest), {
+        label: `delete notebook ${targetNest}`,
+      });
+
+      const expectedNotes = [
+        { title: firstTitle, body: firstBody },
+        { title: secondTitle, body: secondBody },
+        { title: fallbackBody, body: fallbackBody },
+      ];
+      const notes = await actors.bot.state.listNotes(targetNest);
+      expect(notes).toHaveLength(3);
+      expect(notes.map((note) => note.title).toSorted()).toEqual(
+        expectedNotes.map((note) => note.title).toSorted()
+      );
+      for (const expectedNote of expectedNotes) {
+        const note = notes.find(({ title }) => title === expectedNote.title);
+        expect(note?.bodyMd).toContain(expectedNote.body);
+        expect(
+          note?.bodyMd?.startsWith(`*Originally posted by ${actors.bot.ship}`)
+        ).toBe(true);
+        expect(note?.bodyMd).toContain(`tlon-migrate: ${diaryNest}`);
+      }
+
+      const group = await actors.bot.state.scry<{
+        channels: Record<string, { meta: { title: string } }>;
+      }>('groups', `/v2/ui/groups/${groupId}`);
+      expect(group.channels[targetNest]?.meta.title).toBe(uniqueTitle);
+      expect(group.channels[diaryNest]?.meta.title).toBe(
+        `${uniqueTitle}-ARCHIVE`
+      );
+
+      const sourcePosts = await actors.bot.state.channelPosts(diaryNest, 10);
+      expect(sourcePosts).toHaveLength(3);
+      expect(sourcePosts.map(({ id }) => id).toSorted()).toEqual(
+        seededPosts.map(({ id }) => id).toSorted()
+      );
       await expectNoModelCallsAfterSettle(
         ctx.fakeModel,
         benignModelCallPredicate(driver)
@@ -903,8 +1042,8 @@ export const commonScenarios: readonly SharedScenario[] = [
     expect(settledReplies[0]?.parentId).toBe(botReply.id);
   }),
 
-  // TLON-6150 (https://linear.app/tlon/issue/TLON-6150) tracks the model-driven,
-  // cron-enabled capability partition intentionally excluded from this scenario.
+  // TLON-6150 (https://linear.app/tlon/issue/TLON-6150) adds the model-driven
+  // cron partition below; this scenario remains the no-agent sender-path check.
   testScenario(
     'hermes-cron-delivery-targets-home-conversation',
     { drivers: ['hermes'] },
@@ -981,6 +1120,140 @@ export const commonScenarios: readonly SharedScenario[] = [
         ctx.fakeModel,
         isBenign,
         modelBaseline
+      );
+    }
+  ),
+
+  testScenario(
+    'cron-model-driven-turn-delivers-to-origin',
+    { capabilities: ['cron'], timeoutMs: cronModelDrivenScenarioTimeoutMs },
+    async ({ ctx, driver, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      await allowDmFrom(actors, actors.thirdParty.ship);
+      const routeKey = scenarioKey('cron-mdl-route');
+      const routeReply = `Third-party route seed ${routeKey}`;
+      const routeScript = driver.model.looseReplyText(routeReply);
+      const routeTag = await registerModelScript(
+        ctx.fakeModel,
+        routeKey,
+        routeScript
+      );
+      const routeResult = await actors.thirdParty.prompt(
+        `${routeTag} Establish the competing DM route.`,
+        { timeoutMs: BOT_REPLY_WAIT_MS }
+      );
+      expectPromptSuccess(routeResult, routeReply);
+      await expectModelExpectations(ctx.fakeModel, routeKey, routeScript);
+
+      const isBenign = benignModelCallPredicate(driver);
+      const modelBaseline = await modelCallCount(ctx.fakeModel, isBenign);
+      const expectedFinalModelCallCount = modelBaseline + 3;
+      const ownerBaseline = await conversationBaseline(
+        actors.owner,
+        actors.bot.ship
+      );
+      const thirdPartyBaseline = await conversationBaseline(
+        actors.thirdParty,
+        actors.bot.ship
+      );
+      const channelBaseline = await conversationBaseline(
+        actors.owner,
+        fixture.channelId
+      );
+
+      const firedKey = scenarioKey('cron-mdl-fired');
+      const marker = `Cron fired marker ${firedKey}`;
+      const firedScript = driver.model.looseReplyText(marker);
+      const firedTag = await registerModelScript(
+        ctx.fakeModel,
+        firedKey,
+        firedScript
+      );
+
+      const jobName = `shared-cron-${scenarioKey('job')}`;
+      const cleanupTarget: CronCleanupTarget = {
+        name: jobName,
+        creationSettled: Promise.resolve(),
+      };
+      actors.bot.teardown(
+        async () => {
+          await cleanupCronJobAndArtifacts(ctx, driver.name, cleanupTarget);
+        },
+        { label: `remove cron job artifacts ${jobName}` }
+      );
+
+      const createKey = scenarioKey('cron-mdl-create');
+      const confirmText = `Cron job scheduled ${createKey}`;
+      const createScript = driver.model.createCronJob({
+        name: jobName,
+        firedPrompt: `${firedTag} Reply with the scripted cron marker text.`,
+        finalText: confirmText,
+      });
+      const createTag = await registerModelScript(
+        ctx.fakeModel,
+        createKey,
+        createScript
+      );
+
+      const createResultPromise = actors.owner.prompt(
+        `${createTag} Schedule the scripted one-shot cron job.`,
+        { timeoutMs: CRON_CREATE_PROMPT_WAIT_MS }
+      );
+      const createdJobPromise = waitForCronJobCreated(
+        ctx,
+        driver.name,
+        jobName,
+        CRON_CREATE_PROMPT_WAIT_MS
+      ).then((job) => {
+        cleanupTarget.id = job.id;
+        return job;
+      });
+      const [createResult, createdJob] = await settleCronJobCreation(
+        cleanupTarget,
+        createResultPromise,
+        createdJobPromise
+      );
+      expectPromptSuccess(createResult, confirmText);
+      await expectModelExpectations(ctx.fakeModel, createKey, createScript);
+
+      const firedCalls = await waitForModelCalls(
+        ctx.fakeModel,
+        firedKey,
+        1,
+        CRON_FIRED_WAIT_MS[driver.name]
+      );
+      expect(firedCalls[0]?.provenance).toBe('latest-user');
+
+      await waitForConversationTextAfterBaseline(
+        actors.owner,
+        actors.bot.ship,
+        marker,
+        ownerBaseline
+      );
+      await expectNoConversationTextAfterBaseline(
+        actors.thirdParty,
+        actors.bot.ship,
+        marker,
+        thirdPartyBaseline
+      );
+      await expectNoConversationTextAfterBaseline(
+        actors.owner,
+        fixture.channelId,
+        marker,
+        channelBaseline
+      );
+
+      await waitForCronJobRemoved(
+        ctx,
+        driver.name,
+        createdJob.id,
+        CRON_JOB_REMOVAL_WAIT_MS
+      );
+      await expectModelExpectations(ctx.fakeModel, firedKey, firedScript);
+      await expectNoNewModelCallsAfterSettle(
+        ctx.fakeModel,
+        isBenign,
+        expectedFinalModelCallCount
       );
     }
   ),
@@ -1198,7 +1471,244 @@ export const commonScenarios: readonly SharedScenario[] = [
       await expectNoModelCalls(ctx.fakeModel, droppedKey);
     }
   ),
+  testScenario(
+    'sse-resume-replays-events-missed-while-disconnected',
+    { orderDependent: true, timeoutMs: 300_000 },
+    async ({ ctx, driver, actors }) => {
+      const fixture = await createOwnerHostedChannelFixture(actors);
+      await openChannelAccess(actors, fixture.channelId);
+
+      const key = scenarioKey('sse-resume');
+      const reply = `SSE resume reply ${key}`;
+      const script = driver.model.replyText(reply);
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
+
+      const baseline = await botChannelBaseline(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship
+      );
+
+      const since = new Date().toISOString();
+
+      await disconnectComposeNetwork(ctx, ctx.services.bot);
+      let reconnected = false;
+      actors.bot.teardown(
+        async () => {
+          if (!reconnected) {
+            await connectComposeNetwork(ctx, ctx.services.bot);
+          }
+        },
+        { label: `reconnect network for ${ctx.services.bot}` }
+      );
+
+      await actors.owner.sendChannelPost({
+        channelId: fixture.channelId,
+        content: storyWithMention(
+          actors.bot.ship,
+          `${tag} Mention while the bot is disconnected.`
+        ),
+      });
+
+      // The stream fault surfaces differently per driver. Hermes logs
+      // "SSE stream error" on its sock_read timeout (~60s, see
+      // TLON_SSE_READ_TIMEOUT_SECONDS in drivers/hermes.ts) or an immediate
+      // reset/EOF. OpenClaw logs "[SSE] Stream ended..." then
+      // "[SSE] Reconnection attempt..." on a clean EOF, but a silent network
+      // hang surfaces nothing until its stale-stream watchdog fires
+      // "[SSE] Stream stale..." (TLON_SSE_STALE_THRESHOLD_MS=60s in
+      // drivers/openclaw.ts). The driver supplies the markers; the wait
+      // resolves when any one of them appears.
+      await waitFor(
+        async () => {
+          const logs = await readComposeServiceLogs(ctx, ctx.services.bot, {
+            since,
+          });
+          return driver.streamFaultLogMarkers.some((marker) =>
+            logs.includes(marker)
+          )
+            ? true
+            : undefined;
+        },
+        {
+          timeoutMs: 120_000,
+          intervalMs: 2_000,
+          description:
+            'SSE stream fault marker in bot logs (confirms the fault occurred)',
+        }
+      );
+
+      await connectComposeNetwork(ctx, ctx.services.bot);
+      reconnected = true;
+
+      await waitForModelCalls(ctx.fakeModel, key);
+      await waitForBotChannelReply(
+        actors.owner,
+        fixture.channelId,
+        actors.bot.ship,
+        reply,
+        baseline
+      );
+      await expectModelExpectations(ctx.fakeModel, key, script);
+    }
+  ),
+
+  testScenario(
+    'nudge-delivery-and-reengagement',
+    {
+      timeoutMs: () =>
+        NUDGE_DELIVERY_WAIT_MS +
+        NUDGE_CLEANUP_WAIT_MS * 2 +
+        MODEL_CALL_WAIT_MS +
+        NUDGE_DUPLICATE_WINDOW_MS +
+        LOOP_TIMEOUT_MARGIN_MS,
+    },
+    async ({ ctx, driver, actors }) => {
+      const isolation = await withNudgeSettingsIsolation(actors);
+      const sentinelAt = Date.now();
+      await isolation.set('lastOwnerMessageAt', sentinelAt);
+      await isolation.set(
+        'lastOwnerMessageDate',
+        new Date(sentinelAt).toISOString().slice(0, 10)
+      );
+      await waitForSettingsEntries(actors, {
+        lastOwnerMessageAt: sentinelAt,
+      });
+
+      await isolation.set('nudgeActiveHoursStart', '00:00');
+      await isolation.set('nudgeActiveHoursEnd', '00:00');
+      await waitForSettingsEntries(actors, {
+        nudgeActiveHoursStart: '00:00',
+        nudgeActiveHoursEnd: '00:00',
+      });
+      isolation.confirmClosedWindow();
+      await isolation.delete('lastNudgeStage');
+      await isolation.delete('pendingNudge');
+      await waitForSettingsKeysAbsent(actors, [
+        'lastNudgeStage',
+        'pendingNudge',
+      ]);
+
+      const dmBaseline = await actors.owner.state.latestSequenceFrom(
+        actors.bot.ship,
+        actors.bot.ship
+      );
+      const idleAt = Date.now() - 8 * 24 * 60 * 60 * 1000;
+      await isolation.set('lastOwnerMessageAt', idleAt);
+      await isolation.set(
+        'lastOwnerMessageDate',
+        new Date(idleAt).toISOString().slice(0, 10)
+      );
+      await isolation.set('nudgeActiveHoursEnd', '24:00');
+
+      const nudge = await waitFor(
+        async () => {
+          const posts = await actors.owner.state.channelPosts(
+            actors.bot.ship,
+            40
+          );
+          return posts.find(
+            (post) =>
+              post.authorId === actors.bot.ship &&
+              typeof post.sequenceNum === 'number' &&
+              post.sequenceNum > dmBaseline &&
+              post.text.includes('Hey! Quick ideas for your week:')
+          );
+        },
+        {
+          timeoutMs: NUDGE_DELIVERY_WAIT_MS,
+          intervalMs: 500,
+          description: 'stage-1 re-engagement nudge DM',
+        }
+      );
+      const nudgeSequence = nudge.sequenceNum ?? dmBaseline;
+      await waitFor(
+        async () => {
+          const bucket = await settingsBucket(actors);
+          const pending = parsePendingNudge(bucket.pendingNudge);
+          return bucket.lastNudgeStage === 1 && pending?.stage === 1
+            ? true
+            : undefined;
+        },
+        {
+          timeoutMs: NUDGE_CLEANUP_WAIT_MS,
+          intervalMs: 500,
+          description: 'persisted stage-1 pending nudge',
+        }
+      );
+
+      const key = scenarioKey('nudge-reengagement');
+      const reply = `Nudge re-engagement reply ${key}`;
+      const script = driver.model.replyText(reply);
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
+      const replyAt = Date.now();
+      await actors.owner.sendDm(`${tag} Re-engaging after the nudge.`);
+
+      await waitFor(
+        async () => {
+          const bucket = await settingsBucket(actors);
+          return typeof bucket.lastOwnerMessageAt === 'number' &&
+            bucket.lastOwnerMessageAt >= replyAt &&
+            !Object.prototype.hasOwnProperty.call(bucket, 'lastNudgeStage') &&
+            !Object.prototype.hasOwnProperty.call(bucket, 'pendingNudge')
+            ? true
+            : undefined;
+        },
+        {
+          timeoutMs: NUDGE_CLEANUP_WAIT_MS,
+          intervalMs: 500,
+          description: 'nudge re-engagement cleanup',
+        }
+      );
+      const calls = await waitForModelCalls(ctx.fakeModel, key);
+      if (
+        !calls.some((call) =>
+          call.userText.includes('[Context: You recently sent')
+        )
+      ) {
+        throw new Error(
+          'Expected owner re-engagement model request to include nudge context.'
+        );
+      }
+      await expectModelExpectations(ctx.fakeModel, key, script);
+
+      const started = Date.now();
+      while (Date.now() - started < NUDGE_DUPLICATE_WINDOW_MS) {
+        await sleep(500);
+        const posts = await actors.owner.state.channelPosts(
+          actors.bot.ship,
+          40
+        );
+        const duplicate = posts.find(
+          (post) =>
+            post.authorId === actors.bot.ship &&
+            typeof post.sequenceNum === 'number' &&
+            post.sequenceNum > nudgeSequence &&
+            post.text.includes('Hey! Quick ideas for your week:')
+        );
+        if (duplicate) {
+          throw new Error('Received a duplicate stage-1 re-engagement nudge.');
+        }
+      }
+    }
+  ),
 ];
+
+function parsePendingNudge(value: unknown): { stage?: unknown } | undefined {
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return parsed && typeof parsed === 'object'
+        ? (parsed as { stage?: unknown })
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return value && typeof value === 'object'
+    ? (value as { stage?: unknown })
+    : undefined;
+}
 
 function scenarioKey(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random()
@@ -1249,7 +1759,8 @@ async function expectNoDirectReply(
 async function waitForModelCalls(
   fakeModel: FakeModelClient,
   key: string,
-  minCalls = 1
+  minCalls = 1,
+  timeoutMs = MODEL_CALL_WAIT_MS
 ): Promise<ReceivedCall[]> {
   return waitFor(
     async () => {
@@ -1258,7 +1769,7 @@ async function waitForModelCalls(
       return primaryCalls.length >= minCalls ? primaryCalls : undefined;
     },
     {
-      timeoutMs: MODEL_CALL_WAIT_MS,
+      timeoutMs,
       intervalMs: 500,
       description: `model call(s) for ${key}`,
     }
@@ -1398,7 +1909,8 @@ async function expectNoBotThreadReply(
 async function waitForDmBotReply(
   actor: ScenarioActor,
   botShip: string,
-  expectedText: string
+  expectedText: string,
+  timeoutMs = BOT_REPLY_WAIT_MS
 ): Promise<ChannelPost> {
   return waitFor(
     async () => {
@@ -1406,7 +1918,7 @@ async function waitForDmBotReply(
       return replies[0];
     },
     {
-      timeoutMs: BOT_REPLY_WAIT_MS,
+      timeoutMs,
       intervalMs: 500,
       description: `DM reply containing ${JSON.stringify(expectedText)}`,
     }
@@ -1773,6 +2285,23 @@ function knownBotLoopScenarioTimeoutMs(ctx: RuntimeContext): number {
     (allowedBotTurns + 2) * (MODEL_CALL_WAIT_MS + BOT_REPLY_WAIT_MS);
   const settleBudget = NEGATIVE_SETTLE_MS * 3;
   return dispatchWaitBudget + settleBudget + LOOP_TIMEOUT_MARGIN_MS;
+}
+
+function cronModelDrivenScenarioTimeoutMs(): number {
+  const promptBudget = BOT_REPLY_WAIT_MS + CRON_CREATE_PROMPT_WAIT_MS;
+  const cronBudget =
+    Math.max(...Object.values(CRON_FIRED_WAIT_MS)) +
+    BOT_REPLY_WAIT_MS +
+    CRON_JOB_REMOVAL_WAIT_MS;
+  const negativeSettleBudget = NEGATIVE_SETTLE_MS * 3;
+  const modelExpectationBudget = MODEL_EXPECTATION_SETTLE_MS * 2 * 3;
+  return (
+    promptBudget +
+    cronBudget +
+    negativeSettleBudget +
+    modelExpectationBudget +
+    CRON_SCENARIO_SETUP_MARGIN_MS
+  );
 }
 
 async function waitForBotChannelReply(

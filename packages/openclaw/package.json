@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/openclaw",
-  "version": "0.10.0",
+  "version": "0.20.0",
   "description": "OpenClaw Tlon/Urbit channel plugin",
   "license": "MIT",
   "repository": {
@@ -51,6 +51,7 @@
     "publish:clean": "npm run prepare:publish && npm publish .publish --access public"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
     "@tloncorp/api": "workspace:^",
     "@tloncorp/tlon-skill": "workspace:^",
     "@urbit/aura": "^3.0.0",

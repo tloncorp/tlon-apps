@@ -15,6 +15,7 @@ import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import {
   createTypedReset,
   getMainGroupRoute,
+  getTopLevelTabRoute,
   screenNameFromChannelId,
 } from '@tloncorp/app/navigation/utils';
 import { useIsWindowNarrow } from '@tloncorp/app/ui';
@@ -65,13 +66,10 @@ type RouteStack = {
 // state (see ChatListScreen / groupInvitePreview).
 export function groupInvitePreviewRouteStack(groupId: string): RouteStack {
   return [
-    {
-      name: 'ChatList',
-      params: {
-        previewGroupId: groupId,
-        previewGroupFromInviteNotification: true,
-      },
-    },
+    getTopLevelTabRoute('ChatList', {
+      previewGroupId: groupId,
+      previewGroupFromInviteNotification: true,
+    }),
   ];
 }
 
@@ -268,7 +266,8 @@ export default function useNotificationListener() {
     }
 
     async function goToContacts() {
-      navigation.navigate('Contacts', undefined, { pop: true });
+      const route = getTopLevelTabRoute('Contacts');
+      navigation.navigate(route.name, route.params, { pop: true });
       setNotifToProcess(null);
       return true;
     }
@@ -282,7 +281,11 @@ export default function useNotificationListener() {
       return true;
     }
 
-    async function gotToChannel(channelId: string, postInfo?: PostInfo | null) {
+    async function gotToChannel(
+      channelId: string,
+      postInfo?: PostInfo | null,
+      selectedPostId?: string
+    ) {
       const channel = await db.getChannelWithRelations({ id: channelId });
       if (!channel) {
         return false;
@@ -297,7 +300,7 @@ export default function useNotificationListener() {
         initialLastPostId: channel.lastPostId ?? null,
       });
 
-      const routeStack: RouteStack = [{ name: 'ChatList' }];
+      const routeStack: RouteStack = [getTopLevelTabRoute('ChatList')];
       if (channel.groupId) {
         const mainGroupRoute = await getMainGroupRoute(
           channel.groupId,
@@ -311,8 +314,14 @@ export default function useNotificationListener() {
         const screenName = screenNameFromChannelId(channelId);
         routeStack.push({
           name: screenName,
-          params: { channelId: channel.id },
+          params: { channelId: channel.id, selectedPostId },
         });
+      } else if (selectedPostId) {
+        const channelRoute = routeStack[routeStack.length - 1] as {
+          name: 'Channel';
+          params: { channelId: string; selectedPostId?: string | null };
+        };
+        channelRoute.params = { ...channelRoute.params, selectedPostId };
       }
 
       // if we have a post id, try to navigate to the thread
@@ -395,7 +404,8 @@ export default function useNotificationListener() {
             return () =>
               gotToChannel(
                 notificationData.channelId,
-                notificationData.postInfo
+                notificationData.postInfo,
+                notificationData.selectedPostId
               );
         }
       })();

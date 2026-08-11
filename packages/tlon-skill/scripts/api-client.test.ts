@@ -68,6 +68,46 @@ afterEach(() => {
 });
 
 describe('ensureClient auth/cache policy', () => {
+  // OpenClaw pipes stderr and relays it verbatim into an owner DM on failure
+  // (migrate-command.ts). Advice about shortening the next shell invocation is
+  // noise there, so the note is for a terminal only.
+  it('does not print the cached-credentials note when stderr is not a TTY', async () => {
+    const resolved = resolution({
+      config: { cookie: 'urbauth-~zod=0v-cookie', code: 'fallback-code' },
+      authKind: 'cookie',
+      fallbackCode: 'fallback-code',
+      mayWriteAuthCache: true,
+    });
+    const { deps, cacheWrites } = makeDeps(resolved, {
+      cookieValid: false,
+      freshCookie: 'urbauth-~zod=0v-fresh',
+    });
+
+    const originalIsTTY = process.stderr.isTTY;
+    const originalError = console.error;
+    const written: string[] = [];
+    console.error = (...args: unknown[]) => {
+      written.push(args.map(String).join(' '));
+    };
+    try {
+      Object.defineProperty(process.stderr, 'isTTY', {
+        value: false,
+        configurable: true,
+      });
+      await ensureClient([], deps);
+    } finally {
+      console.error = originalError;
+      Object.defineProperty(process.stderr, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+
+    // The cookie is still cached; only the advisory is suppressed.
+    expect(cacheWrites).toHaveLength(1);
+    expect(written.join('\n')).not.toContain('Credentials cached');
+  });
+
   it('uses provided cookie first and does not cache it when validation succeeds', async () => {
     const resolved = resolution({
       config: { cookie: 'urbauth-~zod=0v-cookie', code: 'fallback-code' },
