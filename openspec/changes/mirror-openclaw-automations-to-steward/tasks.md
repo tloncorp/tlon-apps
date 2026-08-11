@@ -110,3 +110,5 @@
         blocks.
 - [x] 5.9 Capture a genuine pinned OpenClaw cron-expression job and
         use its normalized shape in the focused Hoon codec test.
+- [x] 5.10 Rename `$cron-payload` to the clearer `$task-payload`
+         throughout the automation types and codecs.

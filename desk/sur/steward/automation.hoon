@@ -10,9 +10,9 @@
       [%at at=(unit @da)]
       [%every every=(unit @dr) anchor=(unit @da)]
   ==
-::  $cron-payload: the definition fields of an OpenClaw task payload
+::  $task-payload: the definition fields of an OpenClaw task payload
 ::
-+$  cron-payload
++$  task-payload
   $:  kind=(unit @t)
       text=(unit @t)
   ==
@@ -28,7 +28,7 @@
       schedule=(unit cron-schedule)
       session-target=(unit @t)
       wake-mode=(unit @t)
-      payload=(unit cron-payload)
+      payload=(unit task-payload)
       created-at=(unit @da)
       updated-at=(unit @da)
   ==

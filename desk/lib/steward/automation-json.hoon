@@ -43,7 +43,7 @@
     ~|(bad-schedule-kind+kind !!)
   ++  payload
     |=  jon=json
-    ^-  cron-payload:v1:a
+    ^-  task-payload:v1:a
     :*  (optional 'kind' so jon)
         (optional 'text' so jon)
     ==
@@ -130,7 +130,7 @@
       (pairs fields)
     ==
   ++  payload
-    |=  payload=cron-payload:v1:a
+    |=  payload=task-payload:v1:a
     ^-  json
     =/  fields=(list [@t json])  ~
     =.  fields  ?~(kind.payload fields [['kind' s+u.kind.payload] fields])
