@@ -16,6 +16,7 @@ import {
   ContactListItem,
   GroupMemberProfileSheet,
   Icon,
+  KitDetailSheet,
   ListItem,
   PaddedBlock,
   Pressable,
@@ -378,6 +379,9 @@ export function SettingsSection({
 
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
+  const groupKit = store.useGroupKit(entityType === 'group' ? group : null);
+  const [kitSheetOpen, setKitSheetOpen] = useState(false);
+
   const connectionStatus = useShipConnectionStatus(group?.hostUserId ?? '', {
     enabled: entityType === 'group' && !!group,
   });
@@ -436,8 +440,20 @@ export function SettingsSection({
       onPress: handlePressNotificationSettings,
     };
 
+    // visible to all members, not just admins: any member can inspect the
+    // kit powering their group
+    const kitAction: SettingsActionProps | null = groupKit
+      ? {
+          title: 'Kit',
+          endValue: groupKit.kit.id,
+          testID: 'GroupKit',
+          disabled: false,
+          onPress: () => setKitSheetOpen(true),
+        }
+      : null;
+
     if (!currentUserIsAdmin) {
-      return [notificationAction];
+      return [...(kitAction ? [kitAction] : []), notificationAction];
     }
 
     if (entityType === 'group' && group) {
@@ -464,6 +480,7 @@ export function SettingsSection({
           disabled: !actionsEnabled,
           onPress: handlePressManageChannels,
         },
+        ...(kitAction ? [kitAction] : []),
         notificationAction,
       ];
     }
@@ -498,6 +515,7 @@ export function SettingsSection({
     handlePressManageChannels,
     handlePressEditChannelPrivacy,
     groupRoles,
+    groupKit,
   ]);
 
   return (
@@ -523,6 +541,18 @@ export function SettingsSection({
           />
         ))}
       </ActionSheet.ActionGroup>
+      {groupKit && group ? (
+        <KitDetailSheet
+          open={kitSheetOpen}
+          onOpenChange={setKitSheetOpen}
+          kit={{
+            id: groupKit.kit.id,
+            publisher: groupKit.kit.publisher,
+            version: groupKit.kit.version,
+          }}
+          contextGroup={group}
+        />
+      ) : null}
     </View>
   );
 }

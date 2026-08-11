@@ -44,6 +44,8 @@ export * from './components/GroupMembersScreenView';
 export * from './components/GroupPreviewSheet';
 export * from './components/InviteUsersSheet';
 export * from './components/InviteUsersWidget';
+export * from './components/KitCard';
+export * from './components/KitDetailSheet';
 export * from './components/ListItem';
 export * from './components/listItems';
 export * from './components/LongPressDisclosure';

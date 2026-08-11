@@ -51,6 +51,7 @@ import {
 } from '../ContentReference/types';
 import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
+import { KitCard } from '../KitCard';
 import { VideoPreview } from '../VideoPreview';
 import { A2UIBlock } from './A2UIBlock';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
@@ -474,6 +475,13 @@ export function FileUploadBlock({
   'file'
 >) {
   return <FileUploadPreview file={block.file} {...passedProps} />;
+}
+
+export function KitCardBlock({
+  block,
+  ...passedProps
+}: ForwardingProps<typeof KitCard, { block: cn.KitCardBlockData }, 'kit'>) {
+  return <KitCard kit={block.kit} {...passedProps} />;
 }
 
 export function BigEmojiBlock({
@@ -973,6 +981,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   file: FileUploadBlock,
   voicememo: VoiceMemoBlock,
   table: TableBlock,
+  'kit-card': KitCardBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -997,6 +1006,7 @@ export type DefaultRendererProps = {
   file: BlockSettings<typeof FileUploadBlock>;
   voicememo: BlockSettings<typeof VoiceMemoBlock>;
   table: BlockSettings<typeof TableBlock>;
+  'kit-card': BlockSettings<typeof KitCardBlock>;
 };
 
 interface BlockRendererContextValue {

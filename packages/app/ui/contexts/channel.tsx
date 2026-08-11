@@ -19,6 +19,16 @@ export const useChannelContext = () => {
   return context.channel;
 };
 
+/**
+ * Like `useChannelContext`, but returns null instead of throwing when no
+ * `ChannelProvider` is present. For components that can render both inside
+ * and outside a channel.
+ */
+export const useMaybeChannelContext = () => {
+  const context = useContext(Context);
+  return context?.channel ?? null;
+};
+
 export const ChannelProvider = ({
   children,
   value,

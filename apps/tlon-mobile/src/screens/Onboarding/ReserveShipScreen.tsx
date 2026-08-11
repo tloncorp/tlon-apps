@@ -53,6 +53,7 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
         <BootStepDisplay
           bootPhase={signupContext.bootPhase}
           withInvites={Boolean(lureMeta)}
+          withKit={Boolean(lureMeta?.kit && !lureMeta?.invitedGroupId)}
         />
       </OnboardingTextBlock>
     </View>
@@ -68,6 +69,7 @@ interface DisplayStep {
 function BootStepDisplay(props: {
   bootPhase: NodeBootPhase;
   withInvites: boolean;
+  withKit: boolean;
 }) {
   const displaySteps = useMemo(() => {
     const steps: DisplayStep[] = [
@@ -92,8 +94,17 @@ function BootStepDisplay(props: {
       endInclusive: NodeBootPhase.ACCEPTING_INVITES,
     });
 
+    if (props.withKit) {
+      steps.push({
+        description: 'Installing your kit',
+        icon: 'SmushStar',
+        startExclusive: NodeBootPhase.ACCEPTING_INVITES,
+        endInclusive: NodeBootPhase.INSTALLING_KIT,
+      });
+    }
+
     return steps;
-  }, [props.withInvites]);
+  }, [props.withInvites, props.withKit]);
 
   return (
     <YStack width="100%">
