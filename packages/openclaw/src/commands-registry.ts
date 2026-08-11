@@ -23,6 +23,9 @@ export const BOT_COMMANDS_MAX_MANIFEST_BYTES = 6000;
 export interface TlonCommandManifestEntry {
   title: string;
   subtitle?: string;
+  // Name of a glyph in the client's built-in icon set; unknown or absent
+  // names render the generic command glyph (docs/bot-command-manifests.md).
+  icon?: string;
   keywords?: string[];
   insertText?: string;
 }
@@ -65,6 +68,7 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     description: 'Show Tlon plugin version.',
     manifest: {
       title: 'Tlon plugin version',
+      icon: 'Info',
       subtitle: 'Show the installed OpenClaw Tlon plugin version',
       keywords: ['version', 'plugin', 'openclaw'],
     },
@@ -78,6 +82,7 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     acceptsArgs: true,
     manifest: {
       title: 'Tlon diagnostics',
+      icon: 'Info',
       subtitle: 'Tlon plugin diagnostics. Usage: /tlon version',
       keywords: ['tlon', 'diagnostics', 'version'],
     },
@@ -100,6 +105,7 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     acceptsArgs: true,
     manifest: {
       title: 'Allow request',
+      icon: 'Checkmark',
       subtitle: 'Approve a pending request by id',
       keywords: ['approve', 'approval', 'request'],
     },
@@ -122,6 +128,7 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     acceptsArgs: true,
     manifest: {
       title: 'Reject request',
+      icon: 'Close',
       subtitle: 'Decline a pending request by id',
       keywords: ['deny', 'decline', 'approval', 'request'],
     },
@@ -144,6 +151,7 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     acceptsArgs: true,
     manifest: {
       title: 'Ban request',
+      icon: 'EyeClosed',
       subtitle: 'Block a ship and deny its pending request',
       keywords: ['block', 'deny', 'ship', 'approval'],
     },
@@ -165,6 +173,7 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     description: 'List pending approval requests',
     manifest: {
       title: 'Pending approvals',
+      icon: 'Clock',
       subtitle: 'List pending DM, channel, and group requests',
       keywords: ['approval', 'requests', 'owner'],
     },
@@ -181,6 +190,7 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     description: 'List banned ships',
     manifest: {
       title: 'Banned ships',
+      icon: 'EyeClosed',
       subtitle: 'List currently banned ships',
       keywords: ['blocked', 'ships', 'list'],
     },
@@ -198,6 +208,7 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     acceptsArgs: true,
     manifest: {
       title: 'Unban ship',
+      icon: 'EyeOpen',
       subtitle: 'Remove a ship from the ban list',
       keywords: ['unblock', 'ship', 'allow'],
     },
@@ -222,6 +233,7 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     acceptsArgs: true,
     manifest: {
       title: 'Owner listen',
+      icon: 'Command',
       subtitle: 'Let the owner session listen in this channel',
       keywords: ['owner', 'listen', 'agent'],
     },
@@ -247,6 +259,7 @@ export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
     acceptsArgs: true,
     manifest: {
       title: 'Migrate diary to notes',
+      icon: 'Copy',
       subtitle: 'Run or clean up a diary-to-notes migration',
       keywords: ['migrate', 'diary', 'notes', 'migration'],
     },
@@ -294,6 +307,9 @@ export function buildCommandManifestJson(): string {
     };
     if (entry.manifest.subtitle !== undefined) {
       wireEntry.subtitle = entry.manifest.subtitle;
+    }
+    if (entry.manifest.icon !== undefined) {
+      wireEntry.icon = entry.manifest.icon;
     }
     if (entry.manifest.keywords !== undefined) {
       wireEntry.keywords = entry.manifest.keywords;

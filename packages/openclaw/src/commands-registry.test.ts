@@ -74,6 +74,18 @@ describe('command registry', () => {
   // drives registerTlonCommands directly, so an `api.registerCommand` added
   // straight to registerFull would register an unadvertised command and stay
   // green. The registry loop is the only registration site.
+  // The popup renders a leading glyph per row; a row without an icon falls
+  // back to the generic command glyph and breaks visual parity with the
+  // static list, silently.
+  it('gives every advertised row an icon', () => {
+    for (const entry of TLON_COMMAND_REGISTRY) {
+      if (entry.manifest === false) {
+        continue;
+      }
+      expect(entry.manifest.icon, entry.name).toBeTruthy();
+    }
+  });
+
   it('registers commands only through the registry (index.ts boundary)', () => {
     const indexSource = fs.readFileSync(
       path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../index.ts'),

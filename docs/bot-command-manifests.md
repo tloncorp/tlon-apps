@@ -24,6 +24,7 @@ No Hoon/desk changes are involved: a v1 contact is an open key-value map (`+$ co
       "command": "/allow",
       "title": "Allow",
       "subtitle": "Approve a pending request",
+      "icon": "Checkmark",
       "keywords": ["approve"],
       "insertText": "/allow "
     }
@@ -41,6 +42,28 @@ No Hoon/desk changes are involved: a v1 contact is an open key-value map (`+$ co
 | `commands[].icon`       | `string` (optional) | Icon name, ≤ 32 chars. Unknown names degrade to the generic command icon.                 |
 | `commands[].keywords`   | `string[]` (optional)| ≤ 8 entries, each ≤ 32 chars.                                                             |
 | `commands[].insertText` | `string` (optional) | ≤ 128 chars. Defaults to `"<command> "` when omitted.                                     |
+
+### Icons
+
+`icon` is the **name** of a glyph in the client's built-in icon set
+(`packages/ui/src/assets/icons`) — not a URL and not an image. The client
+resolves the name to a bundled glyph; a name it does not recognise, or an
+absent `icon`, renders the generic command glyph instead. An unknown name is
+never an error and never blocks the entry.
+
+Names used by the two in-repo runtimes, as a starting set:
+
+| icon        | used for                          |
+| ----------- | --------------------------------- |
+| `Checkmark` | `/allow`                          |
+| `Close`     | `/reject`                         |
+| `EyeClosed` | `/ban`, `/banned`                 |
+| `EyeOpen`   | `/unban`                          |
+| `Clock`     | `/pending`                        |
+| `Command`   | `/owner-listen`                   |
+| `Info`      | `/tlon`, `/tlon-version`          |
+| `Copy`      | `/migrate`                        |
+| `Lock`      | `/channel-access`                 |
 
 Unknown fields are ignored at every level (forward compatibility). Invalid entries are skipped; duplicate `command` tokens keep the first occurrence. A manifest with zero valid entries is treated as absent.
 

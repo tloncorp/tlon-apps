@@ -69,6 +69,9 @@ class CommandRow:
     name: str
     title: str
     subtitle: str = ""
+    # Name of a glyph in the client's built-in icon set; unknown or absent
+    # names render the generic command glyph (docs/bot-command-manifests.md).
+    icon: str = ""
     keywords: tuple[str, ...] = field(default_factory=tuple)
     insert_text: str = ""
     usage: Optional[str] = None
@@ -88,6 +91,7 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         name="owner-listen",
         title="Owner listen",
         subtitle="Let the owner session listen in this channel",
+        icon="Command",
         keywords=("owner", "listen", "agent"),
         usage=OWNER_LISTEN_USAGE,
         telemetry_token="owner-listen",
@@ -98,6 +102,7 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         name="migrate",
         title="Migrate diary to notes",
         subtitle="Run or clean up a diary-to-notes migration",
+        icon="Copy",
         keywords=("migrate", "diary", "notes", "migration"),
         usage=MIGRATE_USAGE,
         telemetry_token="migrate",
@@ -108,6 +113,7 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         name="tlon",
         title="Tlon diagnostics",
         subtitle="Tlon adapter diagnostics. Usage: /tlon version",
+        icon="Info",
         keywords=("tlon", "diagnostics", "version", "status"),
         telemetry_token=None,
     ),
@@ -117,6 +123,7 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         name="tlon-version",
         title="Tlon adapter version",
         subtitle="Show the installed Hermes Tlon adapter version",
+        icon="Info",
         keywords=("version", "adapter", "hermes"),
         advertise=False,
         do_not_advertise_reason="legacy alias of /tlon version",
@@ -128,6 +135,7 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         name="allow",
         title="Allow request",
         subtitle="Approve a pending request by id",
+        icon="Checkmark",
         keywords=("approve", "approval", "request"),
         telemetry_token="allow",
     ),
@@ -137,6 +145,7 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         name="reject",
         title="Reject request",
         subtitle="Decline a pending request by id",
+        icon="Close",
         keywords=("deny", "decline", "approval", "request"),
         telemetry_token="reject",
     ),
@@ -146,6 +155,7 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         name="ban",
         title="Ban request",
         subtitle="Block a ship and deny its pending request",
+        icon="EyeClosed",
         keywords=("block", "deny", "ship", "approval"),
         telemetry_token="ban",
     ),
@@ -155,6 +165,7 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         name="unban",
         title="Unban ship",
         subtitle="Remove a ship from the ban list",
+        icon="EyeOpen",
         keywords=("unblock", "ship", "allow"),
         telemetry_token="unban",
     ),
@@ -164,6 +175,7 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         name="pending",
         title="Pending approvals",
         subtitle="List pending DM, channel, and group requests",
+        icon="Clock",
         keywords=("approval", "requests", "owner"),
         telemetry_token="pending",
     ),
@@ -173,6 +185,7 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         name="banned",
         title="Banned ships",
         subtitle="List currently banned ships",
+        icon="EyeClosed",
         keywords=("blocked", "ships", "list"),
         telemetry_token="banned",
     ),
@@ -182,6 +195,7 @@ COMMAND_REGISTRY: tuple[CommandRow, ...] = (
         name="channel-access",
         title="Channel access",
         subtitle="Open or restrict a channel, or show its access status",
+        icon="Lock",
         keywords=("channel", "access", "open", "restricted"),
         usage=CHANNEL_ACCESS_USAGE,
         telemetry_token="channel-access",
@@ -236,6 +250,8 @@ def build_command_manifest_json() -> str:
         entry: dict[str, Any] = {"command": row.token, "title": row.title}
         if row.subtitle:
             entry["subtitle"] = row.subtitle
+        if row.icon:
+            entry["icon"] = row.icon
         if row.keywords:
             entry["keywords"] = list(row.keywords)
         if row.insert_text:

@@ -420,6 +420,14 @@ class DispatcherParityTests(unittest.TestCase):
             )
         )
 
+    def test_every_advertised_row_has_an_icon(self):
+        # The popup renders a leading glyph per row; a row without an icon
+        # falls back to the generic command glyph and breaks visual parity
+        # with the static list, silently.
+        for row in commands.advertised_command_rows():
+            with self.subTest(command=row.token):
+                self.assertTrue(row.icon, row.token)
+
     def test_dispatch_cases_cover_exactly_the_advertised_rows(self):
         # Closes the parity loop: without this, an advertised-but-undispatched
         # row is invisible because the test below only iterates DISPATCH_CASES.
