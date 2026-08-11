@@ -220,30 +220,27 @@ fails.
 - **THEN** loading fails visibly rather than silently replacing
     existing data with default state
 
-### Requirement: Local JSON task scry
+### Requirement: JSON task scry
 
-`%steward` SHALL expose a local-only scry at `/x/v1/automation/tasks`
-that returns the complete currently stored task projection as JSON.
-The response SHALL contain a `tasks` object keyed by OpenClaw task ID.
-Each value SHALL use the supported OpenClaw field names and JSON value
-shapes while omitting the task ID and cron job state; the property
-name SHALL be the sole serialized task ID.
+`%steward` SHALL expose a scry at `/x/v1/automation/tasks` that
+returns the complete currently stored task projection as JSON. The
+dotket scry SHALL execute locally against the current agent state and
+SHALL NOT authorize a caller source. The response SHALL contain a
+`tasks` object keyed by OpenClaw task ID. Each value SHALL use the
+supported OpenClaw field names and JSON value shapes while omitting
+the task ID and cron job state; the property name SHALL be the sole
+serialized task ID.
 
 #### Scenario: Stored tasks are read
 
-- **WHEN** a local client scries `/x/v1/automation/tasks` after a
-    snapshot has been accepted
+- **WHEN** a client scries `/x/v1/automation/tasks` after a snapshot
+    has been accepted
 - **THEN** it receives a JSON object whose `tasks` object contains
     one property per stored task ID and whose values do not duplicate
     those IDs
 
 #### Scenario: No tasks are stored
 
-- **WHEN** a local client scries `/x/v1/automation/tasks` while the
+- **WHEN** a client scries `/x/v1/automation/tasks` while the
     projection is empty
 - **THEN** it receives `{ "tasks": {} }`
-
-#### Scenario: Foreign client attempts to read tasks
-
-- **WHEN** a non-local source attempts the automation task scry
-- **THEN** `%steward` rejects the request

@@ -134,9 +134,10 @@ evolve independently.
 
 The OpenClaw harness is the submitting actor. `%steward` does not
 authenticate a distinct harness identity in this increment; it
-authorizes the submission through the existing local Gall source
-boundary and rejects foreign sources. The scry uses the same local
-boundary.
+authorizes `%project` pokes through the existing local Gall source
+boundary and rejects foreign poke sources. Dotket scries execute
+locally against the current agent state and have no foreign source to
+authorize.
 
 **Alternative considered:** Reusing one mark for both directions would
 conflate action parsing with scry serialization. A tagged scry-result

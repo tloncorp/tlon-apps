@@ -104,3 +104,5 @@
         lowercase style.
 - [x] 5.6 Group automation JSON codecs under conventional `+dejs`
         and `+enjs` helper cores.
+- [x] 5.7 Remove impossible foreign-source checks from dotket scries
+        and align tests, specifications, and documentation.

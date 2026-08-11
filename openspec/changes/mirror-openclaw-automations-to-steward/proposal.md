@@ -14,9 +14,9 @@ work.
     definitions.
 - Migrate existing deployed `%steward` state to initialize the
     automation module without losing core, lens, or gateway state.
-- Add a local, independently versioned `%project` automation action
-    that atomically commits a complete task projection as the current
-    stored snapshot.
+- Add an independently versioned `%project` automation action that
+    accepts only the local Gall poke source and atomically commits a
+    complete task projection as the current stored snapshot.
 - After OpenClaw `gateway_start`, have the OpenClaw harness read all
     jobs, including disabled jobs, and submit the complete snapshot
     through `%project`.
@@ -30,9 +30,10 @@ work.
     `cron_reconciled`, this is a best-effort mirror repaired on
     gateway startup and subsequent cron changes rather than an
     authoritative external projection.
-- Add a local `%steward` scry that returns the complete stored task
-    projection as a JSON object keyed by task ID, without duplicating
-    IDs inside task values.
+- Add a `%steward` dotket scry, which executes locally against the
+    current agent state without caller-source authorization, that
+    returns the complete stored task projection as a JSON object keyed
+    by task ID without duplicating IDs inside task values.
 - Exclude execution tracking, run history, owner-ship replication,
     owner-client integration, cron manipulation, and non-OpenClaw
     harnesses from this change.
@@ -53,7 +54,7 @@ None.
 
 - Backend: a versioned `%steward` state migration, automation
     dispatch, new automation action and task-map marks, JSON
-    conversion, local scry handling, and Hoon tests.
+    conversion, scry handling, and Hoon tests.
 - OpenClaw plugin: `gateway_start`/`cron_changed` full-snapshot
     reconciliation, serialized retry behavior, snapshot encoding and
     poking, and TypeScript tests.

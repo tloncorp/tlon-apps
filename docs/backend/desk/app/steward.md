@@ -217,7 +217,7 @@ Each `identified-task` is `[id=@t task]` on the noun side. The mark's JSON form 
 
 ## scry surface
 
-All scries are local only because `on-peek` requires `src.bowl == our.bowl`. Lens scries return the `%steward-lens-update-1` mark so the HTTP client reads them as JSON.
+Dotket scries execute locally against the agent's current state and do not carry a foreign caller source to authorize. Lens scries return the `%steward-lens-update-1` mark so the HTTP client reads them as JSON.
 
 - `/x/v1/lens/recent` → `[%recent entries]` — newest 50 runs across all bots, for backfill. Grows to `{ "recent": [ entry, … ] }` (a JSON array of entry objects).
 - `/x/v1/lens/recent/[count]` → `[%recent entries]` — newest `count` runs.
@@ -241,7 +241,7 @@ The automation task-map mark grows to a JSON object whose property names are the
 }
 ```
 
-With no stored tasks the exact JSON shape is `{ "tasks": {} }`. Task values use the supported OpenClaw field names listed above, omit absent optional fields, and never contain `id` or runtime cron state. A foreign Gall source is rejected before the automation peek runs.
+With no stored tasks the exact JSON shape is `{ "tasks": {} }`. Task values use the supported OpenClaw field names listed above, omit absent optional fields, and never contain `id` or runtime cron state.
 
 `entry` is `[bot=ship id=@t run]`. The `%entry` update grows to JSON for Eyre, embedding the stored payload directly:
 
@@ -254,7 +254,7 @@ With no stored tasks the exact JSON shape is `{ "tasks": {} }`. Task values use 
 - `on-init` creates `state-1`, subscribes to `%activity /v5` for the gateway module, seeds the default lens retention cap, and leaves automation empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
 - `on-load` decodes `versioned-state`: current `state-1` loads directly and released `state-0` migrates through `state-0-to-1`. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-1`.
 - Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
-- `on-watch` and `on-peek` assert `=(src our)` — no cross-ship subscriptions or foreign scries. Core, gateway, and automation pokes are local only; lens applies its per-action source rules to admit trusted bot runs and owner relays.
+- `on-watch` asserts `=(src our)`, so subscriptions are local-only. Dotket `on-peek` calls execute locally against current state without caller-source authorization. Core, gateway, and automation pokes are local only; lens applies its per-action source rules to admit trusted bot runs and owner relays.
 
 ## integration notes
 

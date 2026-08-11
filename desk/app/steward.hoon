@@ -95,7 +95,6 @@
   ++  on-peek
     |=  =path
     ^-  (unit (unit cage))
-    ?>  =(src our):bowl
     (peek:cor path)
   ++  on-agent
     |=  [=wire =sign:agent:gall]

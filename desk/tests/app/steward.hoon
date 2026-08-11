@@ -384,19 +384,6 @@
   ;<  *  bind:m  (do-load agent ~)
   (assert-automation-task-map-json reconcile-current-task-map-json)
 ::
-++  test-automation-tasks-scry-rejects-foreign
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (set-src ~zod)
-  |=  s=state
-  =/  result
-    (mule |.((~(on-peek agent.s bowl.s) /x/v1/automation/tasks)))
-  ?:  ?=(%& -.result)
-    |+~['expected foreign /x/v1/automation/tasks peek to crash']
-  &+[~ s]
-::
 ::  ==========================================================
 ::  LENS MODULE TESTS
 ::  ==========================================================
@@ -827,24 +814,6 @@
   %-  ex-fail
   %-  (do-as ~zod)
   (do-watch /v1/lens)
-::  +get-peek calls +on-peek bare (no +mock), so a ?> crash would take
-::  down the runner; mule the calls directly instead of using +ex-fail
-::
-++  test-peek-rejects-foreign-ship
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (set-src ~zod)
-  |=  s=state
-  =/  recent  (mule |.((~(on-peek agent.s bowl.s) /x/v1/lens/recent)))
-  ?:  ?=(%& -.recent)
-    |+~['expected foreign /x/v1/lens/recent peek to crash']
-  =/  run  (mule |.((~(on-peek agent.s bowl.s) /x/v1/lens/run/(scot %p ~zod)/lens-1)))
-  ?:  ?=(%& -.run)
-    |+~['expected foreign /x/v1/lens/run peek to crash']
-  &+[~ s]
-::
 ::  ==========================================================
 ::  GATEWAY MODULE TESTS
 ::  ==========================================================
