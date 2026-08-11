@@ -60,10 +60,12 @@ export const syncInitData = async (
   // the init endpoint version is capability-picked and this can run before
   // syncAppInfo on a fresh boot — apply the persisted capabilities first
   await syncReactionSupport();
-  const initData = await syncQueue.add('init', syncCtx, () =>
-    api.getInitData()
-  );
-  const bucketSnapshots = await api.getBuckets().catch(() => []);
+  // Buckets is optional on desk-less ships. Fetch it beside init so a slow or
+  // failing Bucket scry never extends the cold-start critical path.
+  const [initData, bucketSnapshots] = await Promise.all([
+    syncQueue.add('init', syncCtx, () => api.getInitData()),
+    api.getBuckets().catch(() => []),
+  ]);
   logger.crumb('got init data from api');
   initializeJoinedSet(initData.unreads);
   useLureState.getState().start();

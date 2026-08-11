@@ -1,7 +1,7 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 
 import { getBuckets, subscribeToBuckets } from '../client/bucketsApi';
-import { scry, subscribe } from '../client/urbit';
+import { scry, subscribe, unsubscribe } from '../client/urbit';
 import type { BucketsResponse, BucketsSnapshot } from '../urbit/buckets';
 
 vi.mock('../client/urbit', () => ({
@@ -33,6 +33,7 @@ const legacySnapshot = {
 beforeEach(() => {
   vi.mocked(scry).mockReset();
   vi.mocked(subscribe).mockReset();
+  vi.mocked(unsubscribe).mockReset();
 });
 
 test('getBuckets gives legacy snapshots their implicit writer roles', async () => {
@@ -57,4 +58,19 @@ test('subscribeToBuckets normalizes legacy snapshot events', async () => {
       state: expect.objectContaining({ writers: ['member'] }),
     })
   );
+});
+
+test('subscribeToBuckets unsubscribes the replacement id after a reset', async () => {
+  vi.mocked(subscribe).mockImplementationOnce(
+    async (_endpoint, _onUpdate, options) => {
+      options?.onSubscriptionId?.(7);
+      options?.onSubscriptionId?.(19);
+      return 7;
+    }
+  );
+
+  const stop = await subscribeToBuckets(vi.fn());
+  await stop();
+
+  expect(unsubscribe).toHaveBeenCalledWith(19);
 });

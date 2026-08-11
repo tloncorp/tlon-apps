@@ -39,13 +39,15 @@ type SearchOrigin = {
   selectedItemId: string | null;
 };
 
-function toItem(entry: BucketsEntry, entries: BucketsEntry[]): BucketItem {
+function toItem(
+  entry: BucketsEntry,
+  childCounts: ReadonlyMap<number, number>
+): BucketItem {
   if (entry.kind === 'folder') {
     return {
       author: entry.updatedBy,
       id: String(entry.id),
-      itemCount: entries.filter((candidate) => candidate.parentId === entry.id)
-        .length,
+      itemCount: childCounts.get(entry.id) ?? 0,
       kind: 'folder',
       modifiedLabel: formatBucketTimestamp(entry.updatedAt),
       name: entry.name,
@@ -88,13 +90,13 @@ function sortItems(items: BucketItem[]) {
 
 function pathLabelFor(
   entry: BucketsEntry,
-  entries: BucketsEntry[],
+  entriesById: ReadonlyMap<number, BucketsEntry>,
   rootLabel: string
 ) {
   const names: string[] = [];
   let parentId = entry.parentId;
   while (parentId !== null) {
-    const parent = entries.find((candidate) => candidate.id === parentId);
+    const parent = entriesById.get(parentId);
     if (!parent) break;
     names.unshift(parent.name);
     parentId = parent.parentId;
@@ -135,6 +137,19 @@ export function BucketsLiveChannel({
     () => live.snapshot?.state.entries ?? [],
     [live.snapshot?.state.entries]
   );
+  const entriesById = useMemo(
+    () => new Map(entries.map((entry) => [entry.id, entry])),
+    [entries]
+  );
+  const childCounts = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const entry of entries) {
+      if (entry.parentId !== null) {
+        counts.set(entry.parentId, (counts.get(entry.parentId) ?? 0) + 1);
+      }
+    }
+    return counts;
+  }, [entries]);
   const suppressedIds = useMemo(
     () =>
       new Set(
@@ -149,31 +164,34 @@ export function BucketsLiveChannel({
     [entries, suppressedIds]
   );
   const rootLabel = live.snapshot?.state.bucket.title ?? 'Bucket';
-  const activeFolder = entries.find(
-    (entry) => entry.kind === 'folder' && entry.id === activeFolderId
-  );
+  const activeFolderCandidate =
+    activeFolderId === null ? undefined : entriesById.get(activeFolderId);
+  const activeFolder =
+    activeFolderCandidate?.kind === 'folder'
+      ? activeFolderCandidate
+      : undefined;
   const rootFolders = serverEntries.filter(
     (entry) => entry.kind === 'folder' && entry.parentId === null
   );
   const visibleServerItems = serverEntries
     .filter((entry) => entry.parentId === activeFolderId)
-    .map((entry) => toItem(entry, entries));
+    .map((entry) => toItem(entry, childCounts));
   const visibleLocalItems = live.uploads
     .filter((upload) => upload.parentId === activeFolderId)
     .map((upload) => live.localItems.find((item) => item.id === upload.id))
     .filter((item): item is BucketItem => item !== undefined);
   const visibleItems = sortItems([...visibleLocalItems, ...visibleServerItems]);
   const sidebarItems = sortItems(
-    rootFolders.map((entry) => toItem(entry, entries))
+    rootFolders.map((entry) => toItem(entry, childCounts))
   );
   const allSearchResults = useMemo<BucketSearchResult[]>(
     () =>
       serverEntries.map((entry) => ({
-        ...toItem(entry, entries),
+        ...toItem(entry, childCounts),
         parentFolderId: entry.parentId === null ? null : String(entry.parentId),
-        pathLabel: pathLabelFor(entry, entries, rootLabel),
+        pathLabel: pathLabelFor(entry, entriesById, rootLabel),
       })),
-    [entries, rootLabel, serverEntries]
+    [childCounts, entriesById, rootLabel, serverEntries]
   );
   const normalizedQuery = query.trim().toLowerCase();
   const searchResults = normalizedQuery

@@ -208,14 +208,14 @@
   =/  session-list=(list upload-session:bu)  ~(val by sessions.bs)
   =/  ses=upload-session:bu  ?~(session-list !! i.session-list)
   ;<  *  b
-    (do-poke %buckets-action-1 !>(`action:bu`[%finish-upload flag id.ses 'https://objects.test/meadow.png']))
+    (do-poke %buckets-action-1 !>(`action:bu`[%finish-upload flag id.ses 'https://storage.googleapis.com/tlon-test-memex-assets/meadow.png']))
   ;<  sv2=vase  b  get-save
   =/  st2=state-2:bu  !<(state-2:bu sv2)
   =/  bs2=bucket-state:bu  (state-for st2 flag)
   =/  ent=entry:bu  (~(got by entries.bs2) 3)
   =/  fil=file:bu  (file-of ent)
   =/  ses2=upload-session:bu  (~(got by sessions.bs2) id.ses)
-  =/  expected-url=(unit @t)  (some 'https://objects.test/meadow.png')
+  =/  expected-url=(unit @t)  (some 'https://storage.googleapis.com/tlon-test-memex-assets/meadow.png')
   =/  expected-parent=(unit @ud)  (some 2)
   (ex-equal !>([revision.bs2 status.fil status.ses2 object-url.fil parent.ent]) !>([3 %ready %complete expected-url expected-parent]))
 ::
@@ -349,6 +349,69 @@
           &
           &
       ==
+::
+::  Legacy completion accepts only live sessions and Tlon-managed Memex URLs.
+::
+++  test-legacy-upload-completion-is-bounded
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b
+    (do-poke %buckets-action-1 !>(`action:bu`[%begin-upload flag ~ 'unsafe.txt' 'text/plain' 4 ~ 'legacy-security-capability-000000000000']))
+  ;<  sv=vase  b  get-save
+  =/  st=state-2:bu  !<(state-2:bu sv)
+  =/  bs=bucket-state:bu  (state-for st flag)
+  =/  sessions=(list upload-session:bu)  ~(val by sessions.bs)
+  =/  ses=upload-session:bu  ?~(sessions !! i.sessions)
+  ;<  *  b
+    %-  ex-fail
+    (do-poke %buckets-action-1 !>(`action:bu`[%finish-upload flag id.ses 'https://attacker.example/tracker']))
+  ;<  *  b
+    %-  ex-fail
+    (do-poke %buckets-action-1 !>(`action:bu`[%finish-upload flag id.ses 'https://storage.googleapis.com/tlon-attacker/path/-memex-assets/tracker']))
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now ~2026.1.1..02.00.00)))
+  %-  ex-fail
+  (do-poke %buckets-action-1 !>(`action:bu`[%finish-upload flag id.ses 'https://storage.googleapis.com/tlon-test-memex-assets/expired.txt']))
+::
+::  Broker callbacks whose capability outlives a deleted Bucket deny softly
+::  instead of crashing the Pioneer thread.
+::
+++  test-broker-command-after-delete-is-soft-denied
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  cap=@t  'delete-race-capability-0000000000000000'
+  =/  rid=@t  '00000000-0000-0000-0000-000000000009'
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b
+    (do-poke %buckets-action-1 !>(`action:bu`[%begin-upload flag ~ 'race.pdf' 'application/pdf' 42 ~ cap]))
+  ;<  *  b
+    (do-poke %buckets-action-1 !>(`action:bu`[%delete-bucket flag]))
+  ;<  caz=(list card)  b
+    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload cap rid]))
+  (ex-cards caz ~)
+::
+::  Reader changes are revisioned into the Bucket replica as well as %groups.
+::
+++  test-set-readers-updates-bucket-state
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  readers=(set @tas)  (silt `(list @tas)`~[%member %guest])
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b
+    (do-poke %buckets-action-1 !>(`action:bu`[%set-readers flag readers]))
+  ;<  sv=vase  b  get-save
+  =/  st=state-2:bu  !<(state-2:bu sv)
+  =/  bs=bucket-state:bu  (state-for st flag)
+  (ex-equal !>([readers.bs revision.bs]) !>([readers 1]))
 ::
 ::  Folder parents must exist and must themselves be folders.
 ::

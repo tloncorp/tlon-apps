@@ -106,6 +106,12 @@
         %bucket-updated
       (pairs ~[['type' s+'bucket-updated'] ['bucket' (bucket bucket.upd)]])
     ::
+        %readers-updated
+      =/  roles=(list json)
+        %+  turn  ~(tap in readers.upd)
+        |=(role=@tas s+(scot %tas role))
+      (pairs ~[['type' s+'readers-updated'] ['readers' [%a roles]]])
+    ::
         %writers-updated
       =/  roles=(list json)
         %+  turn  ~(tap in writers.upd)
@@ -201,13 +207,20 @@
     ?~  val  ~
     ((mu ni) u.val)
   ::
+  ++  knot
+    |=  txt=@t
+    ^-  @tas
+    =/  parsed=(unit @tas)  (slaw %tas txt)
+    ?~  parsed  ~|(invalid-buckets-knot+txt !!)
+    u.parsed
+  ::
   ++  flag
     |=  jon=json
     ^-  flag:b
     =/  raw
       %.  jon
       (ot ~[['host' (su ;~(pfix sig fed:ag))] ['name' so]])
-    [-.raw `@tas`+.raw]
+    [-.raw (knot +.raw)]
   ::
   ++  readers
     |=  jon=json
@@ -222,7 +235,7 @@
     ?+  typ  ~|(unknown-buckets-action+typ !!)
         %'create'
       :*  %create
-          `@tas`(so (get 'name' jon))
+          (knot (so (get 'name' jon)))
           (so (get 'title' jon))
           (flag (get 'group' jon))
           (readers (get 'readers' jon))
@@ -236,6 +249,12 @@
       :*  %set-title
           (flag (get 'flag' jon))
           (so (get 'title' jon))
+      ==
+    ::
+        %'set-readers'
+      :*  %set-readers
+          (flag (get 'flag' jon))
+          (readers (get 'readers' jon))
       ==
     ::
         %'set-writers'

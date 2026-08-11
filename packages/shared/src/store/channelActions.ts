@@ -23,6 +23,7 @@ const BUCKETS_CHANNEL_LISTING_ATTEMPTS = 20;
 const BUCKETS_CHANNEL_LISTING_DELAY_MS = 250;
 
 class NotesChannelListingUnverifiedError extends Error {}
+class BucketsChannelListingUnverifiedError extends Error {}
 
 export async function createChannel({
   groupId,
@@ -189,7 +190,10 @@ async function createBucketsChannel({
     return newChannel;
   } catch (e) {
     await db.deleteChannels([channelId]).catch(() => undefined);
-    if (created) {
+    // A successful create followed by an inconclusive listing read is not
+    // evidence that creation failed. Keep the host-owned Bucket intact so a
+    // slow or temporarily unavailable %groups read cannot destroy live data.
+    if (created && !(e instanceof BucketsChannelListingUnverifiedError)) {
       await api
         .sendBucketsAction({ type: 'delete-bucket', flag })
         .catch((rollbackError) =>
@@ -219,7 +223,9 @@ async function waitForBucketsChannelListing(
       await wait(BUCKETS_CHANNEL_LISTING_DELAY_MS);
     }
   }
-  throw new Error(`Bucket channel listing did not appear: ${channelId}`);
+  throw new BucketsChannelListingUnverifiedError(
+    `Bucket channel listing did not appear: ${channelId}`
+  );
 }
 
 async function createNotesChannel({
@@ -544,6 +550,11 @@ export async function updateChannel({
         type: 'set-title',
         flag: bucketFlag,
         title: channel.title ?? '',
+      });
+      await api.sendBucketsAction({
+        type: 'set-readers',
+        flag: bucketFlag,
+        readers,
       });
       await api.sendBucketsAction({
         type: 'set-writers',

@@ -182,6 +182,7 @@
     %create          ~|(%create-has-no-flag !!)
     %delete-bucket   flag.act
     %set-title       flag.act
+    %set-readers     flag.act
     %set-writers     flag.act
     %create-folder   flag.act
     %begin-upload    flag.act
@@ -255,6 +256,7 @@
     %create          ~|(%cannot-forward-create !!)
     %delete-bucket   (delete-bucket flag.act)
     %set-title       (set-title flag.act title.act)
+    %set-readers     (set-readers flag.act readers.act)
     %set-writers     (set-writers flag.act writers.act)
     %create-folder   (create-folder flag.act parent.act name.act)
     %begin-upload    (begin-upload flag.act parent.act name.act mime.act size.act checksum.act capability.act)
@@ -309,6 +311,13 @@
   =.  writers.st  writers
   (commit-update flag st [%writers-updated writers])
 ::
+++  set-readers
+  |=  [=flag:b readers=(set @tas)]
+  ^+  cor
+  =/  st=bucket-state:b  (need-state flag)
+  =.  readers.st  readers
+  (commit-update flag st [%readers-updated readers])
+::
 ++  create-folder
   |=  [=flag:b parent=(unit @ud) name=@t]
   ^+  cor
@@ -360,6 +369,8 @@
   =/  ses=upload-session:b  (~(got by sessions.st) sid)
   ?>  =(%pending status.ses)
   ?>  =(requested-by.ses src.bowl)
+  ?>  (gth expires-at.ses now.bowl)
+  ?>  (valid-legacy-object-url object-url)
   =/  ent=entry:b  (~(got by entries.st) file-id.ses)
   =/  fil=file:b  (entry-file ent)
   =.  fil  fil(object-url `object-url, status %ready)
@@ -368,6 +379,15 @@
   =.  entries.st   (~(put by entries.st) id.ent ent)
   =.  sessions.st  (~(put by sessions.st) sid ses)
   (commit-update flag st [%upload-ready ses ent])
+::
+++  valid-legacy-object-url
+  |=  object-url=@t
+  ^-  ?
+  =/  url=tape  (trip object-url)
+  ?|  =(`0 (find "https://storage.googleapis.com/tlon-prod-memex-assets/" url))
+      =(`0 (find "https://storage.googleapis.com/tlon-staging-memex-assets/" url))
+      =(`0 (find "https://storage.googleapis.com/tlon-test-memex-assets/" url))
+  ==
 ::
 ++  fail-upload
   |=  [=flag:b sid=@uv reason=@t]
@@ -436,7 +456,9 @@
   ?.  =(%upload broker-kind.aut)  cor
   ?.  (gth expires-at.aut now.bowl)  cor
   ?~  sid=session.aut  cor
-  =/  st=bucket-state:b  (need-state flag.aut)
+  ?~  sp=(~(get by spaces) flag.aut)  cor
+  ?~  st-unit=state.u.sp  cor
+  =/  st=bucket-state:b  u.st-unit
   ?~  ses=(~(get by sessions.st) u.sid)  cor
   ?.  =(%pending status.u.ses)  cor
   ?.  (group-can-write group.st flag.aut writers.st actor.aut)  cor
@@ -467,8 +489,11 @@
   ?~  got=(~(get by broker-capabilities) u.cap)  cor
   =/  aut=broker-capability:b  u.got
   ?.  =(%upload broker-kind.aut)  cor
+  ?.  (gth expires-at.aut now.bowl)  cor
   ?~  sid=session.aut  cor
-  =/  st=bucket-state:b  (need-state flag.aut)
+  ?~  sp=(~(get by spaces) flag.aut)  cor
+  ?~  st-unit=state.u.sp  cor
+  =/  st=bucket-state:b  u.st-unit
   ?.  (group-can-write group.st flag.aut writers.st actor.aut)  cor
   ?~  ses-unit=(~(get by sessions.st) u.sid)  cor
   =/  ses=upload-session:b  u.ses-unit
@@ -638,6 +663,7 @@
     %create          |
     %delete-bucket   (group-is-admin group.st flag who)
     %set-title       (group-is-admin group.st flag who)
+    %set-readers     (group-is-admin group.st flag who)
     %set-writers     (group-is-admin group.st flag who)
     %issue-read      (group-can-read group.st flag who)
     %create-folder   (group-can-write group.st flag writers.st who)
@@ -924,6 +950,13 @@
     ?>  =(%sub net.sp)
     ?~  state.sp  cor
     =/  st=bucket-state:b  u.state.sp
+    ::  Ignore duplicates and re-establish the subscription on a gap. The
+    ::  replacement watch begins with a full snapshot, so later deltas cannot
+    ::  be applied to a stale replica.
+    ?:  (lte revision.res revision.st)  cor
+    ?.  =(revision.res +(revision.st))
+      =.  cor  (stop-sub flag.res)
+      (start-sub flag.res group.st)
     ?:  =(%bucket-deleted -.update.res)
       =.  cor  (give [%fact ~[/v1] buckets-response-1+!>(res)])
       =.  cor  (emil (drop (report-active flag.res sp |)))
@@ -946,6 +979,9 @@
   ::
       %bucket-updated
     st(bucket bucket.upd)
+  ::
+      %readers-updated
+    st(readers readers.upd)
   ::
       %writers-updated
     st(writers writers.upd)

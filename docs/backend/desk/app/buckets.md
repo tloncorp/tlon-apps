@@ -14,7 +14,7 @@ The channel nest is `buckets/~host/name`. The Bucket host is authoritative, whil
 -   Gall persists only the manifest, bounded upload-session metadata, and opaque short-lived broker capabilities. Object bytes, storage credentials, and signed URLs must not travel over Ames or enter Gall state.
 -   Object keys are host-generated and independent of display names, so rename and move operations only change manifest metadata.
 
-Hosted clients use the private Ylem/Memex broker path described below. `%finish-upload` remains available for the legacy public Memex fallback while the private broker is rolled out by canary.
+Hosted clients use the private Ylem/Memex broker path described below. `%finish-upload` is retained only for compatibility with older clients; it accepts live sessions and Tlon-managed Memex object URLs, never arbitrary origins.
 
 ## State
 
@@ -41,10 +41,11 @@ Local clients poke `%buckets-action-1`. The mark accepts JSON and noun input.
 | `%create`        | Create a host-owned Bucket and register the channel with `%groups`                                                  |
 | `%delete-bucket` | Delete the Bucket and remove its `%groups` channel registration                                                     |
 | `%set-title`     | Update the Bucket's authoritative title; group metadata is updated separately through `%groups`                     |
+| `%set-readers`   | Mirror the group channel's reader-role set into Bucket snapshots                                                    |
 | `%set-writers`   | Replace the group-role writer set                                                                                   |
 | `%create-folder` | Add a folder beneath an existing folder or the root                                                                 |
 | `%begin-upload`  | Allocate a pending file, opaque object key, one-hour upload session, and bind the caller's opaque broker capability |
-| `%finish-upload` | Mark the requester's pending upload ready                                                                           |
+| `%finish-upload` | Legacy-only completion for a live session and a Tlon-managed Memex object URL                                       |
 | `%fail-upload`   | Mark the requester's pending upload failed                                                                          |
 | `%issue-read`    | Bind a ten-minute read capability to a ready file and the requesting ship                                           |
 | `%issue-delete`  | Bind a ten-minute delete capability to a ready file and the requesting ship                                         |
@@ -85,7 +86,7 @@ Completion is idempotent. Re-exchanging an upload capability with the same reser
 
 For a private read, the client sends `%issue-read`, exchanges the capability at Memex, and receives a short-lived read URL after `%pioneer-buckets-authorize-read` re-checks live group access. Delete follows the same pattern through `%issue-delete` and `%pioneer-buckets-authorize-delete` before the manifest entry is removed.
 
-The client falls back to the legacy public Memex upload only when the private endpoint reports that the feature is disabled, unavailable, or absent. Authorization failures do not fall back.
+Current clients require the private broker. Broker unavailability fails the upload cleanly and marks the Gall session failed; clients do not fall back to uploader-owned storage or ask for owner credentials.
 
 ## Pioneer thread contract
 
@@ -108,6 +109,9 @@ Authorization failures return `{result: "denied"}` and expired capabilities retu
 -   Private reservation binding and verified completion, including idempotent retries
 -   Exact upload/read/delete broker verdicts and denial for a mismatched object ID
 -   Lazy cleanup of expired capabilities and their reservation bindings
+-   Expiry and origin checks for legacy upload completion
+-   Soft broker denial after a Bucket is deleted
+-   Reader-role replica updates
 -   Rejection of nonexistent folder parents
 -   Rejection of a remote write after the live `%groups` permission gate denies access
 -   Acceptance of a remote write only when the member has a configured writer role

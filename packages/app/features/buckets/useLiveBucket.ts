@@ -14,15 +14,12 @@ import {
 import {
   BucketsBrokerError,
   brokerRequiredHeaders,
-  canFallBackFromBucketsBroker,
   cancelBucketUpload,
   completeBucketUpload,
   createBucketCapability,
   deleteBucketObject,
-  getMemexUpload,
   grantBucketRead,
   grantBucketUpload,
-  retryBucketUpload,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -34,12 +31,14 @@ import {
   removeBucketUploadFromBatch,
 } from '../../utils/bucketUploadProgress';
 import type { BucketUploadBatchItem } from '../../utils/bucketUploadProgress';
-import { reconcileUploadsWithSnapshot } from './bucketUploadReconciliation';
+import {
+  bucketResponseHasRevisionGap,
+  reconcileUploadsWithSnapshot,
+} from './bucketUploadReconciliation';
 import { createBucketUploadTask } from './bucketUploadTask';
 import type { BucketUploadTask } from './bucketUploadTask.types';
 
 type LocalUpload = {
-  brokerBytesUploaded?: boolean;
   brokerReservationId?: string;
   candidate: BucketUploadCandidate;
   capability?: string;
@@ -84,6 +83,7 @@ function reduceBucketResponse(
   let entries = current.state.entries;
   let sessions = current.state.sessions;
   let bucket = current.state.bucket;
+  let readers = current.state.readers;
   let writers = current.state.writers ?? current.state.readers;
 
   switch (update.type) {
@@ -93,6 +93,9 @@ function reduceBucketResponse(
       break;
     case 'writers-updated':
       writers = update.writers;
+      break;
+    case 'readers-updated':
+      readers = update.readers;
       break;
     case 'folder-created':
     case 'entry-updated':
@@ -122,6 +125,7 @@ function reduceBucketResponse(
       bucket,
       entries,
       revision: response.revision,
+      readers,
       sessions,
       writers,
     },
@@ -166,36 +170,60 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploads, setUploads] = useState<LocalUpload[]>([]);
+  const uploadsRef = useRef<LocalUpload[]>([]);
   const [uploadBatch, setUploadBatch] = useState<BucketUploadBatchItem[]>([]);
   const snapshotRef = useRef<BucketsSnapshot | null>(null);
   const tasksRef = useRef(new Map<string, BucketUploadTask>());
   const cancelledRef = useRef(new Set<string>());
+  const claimedEntryIdsRef = useRef(new Set<number>());
+  const lastSessionRefreshAtRef = useRef(0);
+  const sessionRefreshRef = useRef<Promise<BucketsSnapshot | null> | null>(
+    null
+  );
 
-  const commitSnapshot = useCallback((next: BucketsSnapshot | null) => {
-    snapshotRef.current = next;
-    if (next) {
-      setUploads((current) =>
-        reconcileUploadsWithSnapshot(current, next, getCurrentUserId())
-      );
-    }
-    setSnapshot(next);
-    if (next) {
-      const channelId = formatBucketsChannelId(next.flag);
-      void db.updateChannel({
-        id: channelId,
-        readerRoles: next.state.readers.map((roleId) => ({
-          channelId,
-          roleId,
-        })),
-        writerRoles: (next.state.writers ?? next.state.readers).map(
-          (roleId) => ({
+  const setCurrentUploads = useCallback(
+    (update: (current: LocalUpload[]) => LocalUpload[]) => {
+      const next = update(uploadsRef.current);
+      uploadsRef.current = next;
+      setUploads(next);
+      return next;
+    },
+    []
+  );
+
+  const commitSnapshot = useCallback(
+    (next: BucketsSnapshot | null) => {
+      snapshotRef.current = next;
+      if (next) {
+        setCurrentUploads((current) =>
+          reconcileUploadsWithSnapshot(
+            current,
+            next,
+            getCurrentUserId(),
+            claimedEntryIdsRef.current
+          )
+        );
+      }
+      setSnapshot(next);
+      if (next) {
+        const channelId = formatBucketsChannelId(next.flag);
+        void db.updateChannel({
+          id: channelId,
+          readerRoles: next.state.readers.map((roleId) => ({
             channelId,
             roleId,
-          })
-        ),
-      });
-    }
-  }, []);
+          })),
+          writerRoles: (next.state.writers ?? next.state.readers).map(
+            (roleId) => ({
+              channelId,
+              roleId,
+            })
+          ),
+        });
+      }
+    },
+    [setCurrentUploads]
+  );
 
   const selectSnapshot = useCallback(
     (snapshots: BucketsSnapshot[]) =>
@@ -205,19 +233,49 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
 
   const refresh = useCallback(async () => {
     const next = selectSnapshot(await getBuckets());
+    const current = snapshotRef.current;
+    if (
+      next &&
+      current &&
+      matchesFlag(next.flag, current.flag) &&
+      next.state.revision <= current.state.revision
+    ) {
+      return current;
+    }
+    if (!next && !current) return null;
     commitSnapshot(next);
     return next;
   }, [commitSnapshot, selectSnapshot]);
 
+  const refreshUploadSessions = useCallback(() => {
+    if (sessionRefreshRef.current) return sessionRefreshRef.current;
+    const now = Date.now();
+    if (snapshotRef.current && now - lastSessionRefreshAtRef.current < 2_000) {
+      return Promise.resolve(snapshotRef.current);
+    }
+    lastSessionRefreshAtRef.current = now;
+    const request = refresh().finally(() => {
+      if (sessionRefreshRef.current === request) {
+        sessionRefreshRef.current = null;
+      }
+    });
+    sessionRefreshRef.current = request;
+    return request;
+  }, [refresh]);
+
   useEffect(() => {
     let active = true;
     let stopSubscription: (() => Promise<void>) | undefined;
-    const uploadTasks = tasksRef.current;
-
     const start = async () => {
       try {
         stopSubscription = await subscribeToBuckets((response) => {
           if (!active || !matchesFlag(response.flag, flag)) return;
+          if (bucketResponseHasRevisionGap(snapshotRef.current, response)) {
+            void refresh().catch((cause) => {
+              if (active) setError(errorMessage(cause));
+            });
+            return;
+          }
           const next = reduceBucketResponse(snapshotRef.current, response);
           commitSnapshot(next);
           setLoading(false);
@@ -243,14 +301,12 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     return () => {
       active = false;
       if (stopSubscription) void stopSubscription();
-      uploadTasks.forEach((task) => void task.cancel());
-      uploadTasks.clear();
     };
   }, [commitSnapshot, flag, flagKey, refresh]);
 
   const updateLocalUpload = useCallback(
     (id: string, patch: Partial<LocalUpload>) => {
-      setUploads((current) =>
+      setCurrentUploads((current) =>
         current.map((upload) =>
           upload.id === id ? { ...upload, ...patch } : upload
         )
@@ -274,49 +330,75 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         );
       }
     },
-    []
+    [setCurrentUploads]
   );
 
   const waitForSession = useCallback(
     async (
       candidate: BucketUploadCandidate,
+      localUploadId: string,
       parentId: number | null,
       priorSessionIds: Set<string>
     ) => {
-      for (let attempt = 0; attempt < 40; attempt += 1) {
-        const next = selectSnapshot(await getBuckets());
-        if (next) commitSnapshot(next);
-        const entry = next?.state.entries.find(
-          (candidateEntry): candidateEntry is BucketsFileEntry =>
-            candidateEntry.kind === 'file' &&
-            candidateEntry.name === candidate.name &&
-            candidateEntry.parentId === parentId &&
-            next.state.sessions.some(
-              (session) =>
-                session.fileId === candidateEntry.id &&
-                !priorSessionIds.has(session.id)
-            )
-        );
-        const session = next?.state.sessions.find(
-          (candidateSession) =>
-            candidateSession.fileId === entry?.id &&
-            !priorSessionIds.has(candidateSession.id)
-        );
-        if (entry && session) return { entry, session };
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        let next = snapshotRef.current;
+        // Subscription facts normally satisfy this immediately. A shared
+        // fallback scry every two seconds keeps uploads progressing while
+        // the channel screen is unmounted or a fact was missed, without one
+        // 250ms network loop per file.
+        if (!next || attempt % 8 === 7) {
+          next = await refreshUploadSessions();
+        }
+        if (next) {
+          const activeUploads = uploadsRef.current.map((upload) =>
+            upload.id === localUploadId
+              ? { ...upload, priorSessionIds: [...priorSessionIds] }
+              : upload
+          );
+          const reconciled = reconcileUploadsWithSnapshot(
+            activeUploads,
+            next,
+            getCurrentUserId(),
+            claimedEntryIdsRef.current
+          );
+          const matched = reconciled.find(
+            (upload) => upload.id === localUploadId
+          );
+          if (
+            matched &&
+            matched.serverEntryId !== undefined &&
+            matched.sessionId
+          ) {
+            const entry = next.state.entries.find(
+              (candidateEntry): candidateEntry is BucketsFileEntry =>
+                candidateEntry.kind === 'file' &&
+                candidateEntry.id === matched.serverEntryId
+            );
+            const session = next.state.sessions.find(
+              (candidateSession) =>
+                candidateSession.id === matched.sessionId &&
+                candidateSession.fileId === matched.serverEntryId
+            );
+            if (entry && session) {
+              claimedEntryIdsRef.current.add(entry.id);
+              setCurrentUploads(() => reconciled);
+              return { entry, session };
+            }
+          }
+        }
         await delay(250);
       }
       throw new Error('The ship did not start the upload in time');
     },
-    [commitSnapshot, selectSnapshot]
+    [refreshUploadSessions, setCurrentUploads]
   );
 
   const runUpload = useCallback(
     async (upload: LocalUpload) => {
       const { candidate, id, parentId } = upload;
-      let sessionId = upload.sessionId;
-      let serverEntryId = upload.serverEntryId;
-      let brokerReservationId = upload.brokerReservationId;
-      let brokerBytesUploaded = upload.brokerBytesUploaded ?? false;
+      let sessionId: string | undefined;
+      let serverEntryId: number | undefined;
+      let brokerReservationId: string | undefined;
       let brokerCompleted = false;
 
       try {
@@ -324,98 +406,62 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           throw new Error('The file size could not be determined');
         }
         const mimeType = candidate.mimeType ?? 'application/octet-stream';
-        let privateGrant:
-          | Awaited<ReturnType<typeof grantBucketUpload>>
-          | undefined;
-        let legacyGrant: Awaited<ReturnType<typeof getMemexUpload>> | undefined;
+        const current = snapshotRef.current ?? (await refresh());
+        if (!current) throw new Error(`Bucket ${flagKey} was not found`);
+        const priorSessionIds = new Set(
+          current.state.sessions.map((session) => session.id)
+        );
+        const capability = createBucketCapability();
 
-        if (brokerReservationId && sessionId && serverEntryId) {
-          updateLocalUpload(id, {
-            error: undefined,
-            progress: brokerBytesUploaded ? 96 : 5,
-            state: 'uploading',
-          });
-          if (!brokerBytesUploaded) {
-            privateGrant = await retryBucketUpload(brokerReservationId);
-          }
-        } else {
-          const current = snapshotRef.current ?? (await refresh());
-          if (!current) throw new Error(`Bucket ${flagKey} was not found`);
-          const priorSessionIds = new Set(
-            current.state.sessions.map((session) => session.id)
-          );
-          const capability = createBucketCapability();
+        updateLocalUpload(id, {
+          capability,
+          error: undefined,
+          progress: 1,
+          priorSessionIds: [...priorSessionIds],
+          state: 'uploading',
+        });
+        await sendBucketsAction({
+          type: 'begin-upload',
+          checksum: null,
+          capability,
+          flag,
+          mime: mimeType,
+          name: candidate.name,
+          parentId,
+          size: candidate.size,
+        });
+        const begun = await waitForSession(
+          candidate,
+          id,
+          parentId,
+          priorSessionIds
+        );
+        sessionId = begun.session.id;
+        serverEntryId = begun.entry.id;
+        updateLocalUpload(id, { progress: 3, serverEntryId, sessionId });
 
-          updateLocalUpload(id, {
-            capability,
-            error: undefined,
-            progress: 1,
-            priorSessionIds: [...priorSessionIds],
-            state: 'uploading',
-          });
-          await sendBucketsAction({
-            type: 'begin-upload',
-            checksum: null,
-            capability,
-            flag,
-            mime: mimeType,
-            name: candidate.name,
-            parentId,
-            size: candidate.size,
-          });
-          const begun = await waitForSession(
-            candidate,
-            parentId,
-            priorSessionIds
-          );
-          sessionId = begun.session.id;
-          serverEntryId = begun.entry.id;
-          updateLocalUpload(id, { progress: 3, serverEntryId, sessionId });
-
-          if (cancelledRef.current.has(id)) {
-            throw new Error('Upload cancelled');
-          }
-
-          try {
-            privateGrant = await waitForBrokerCapability(() =>
-              grantBucketUpload(capability, flag.host)
-            );
-          } catch (cause) {
-            if (!canFallBackFromBucketsBroker(cause)) throw cause;
-          }
-
-          legacyGrant = privateGrant
-            ? undefined
-            : await getMemexUpload({
-                contentLength: candidate.size,
-                contentType: mimeType,
-                fileName: `${getCurrentUserId().replace(/^~/, '')}/buckets/${flag.name}/${Date.now()}-${candidate.name.replace(/[/\\]/g, '-')}`,
-              });
-          brokerReservationId = privateGrant?.reservationId;
-          updateLocalUpload(id, { brokerReservationId, progress: 5 });
+        if (cancelledRef.current.has(id)) {
+          throw new Error('Upload cancelled');
         }
 
-        if (!brokerBytesUploaded) {
-          const task = createBucketUploadTask(
-            privateGrant?.uploadUrl ?? legacyGrant!.uploadUrl,
-            candidate,
-            privateGrant
-              ? brokerRequiredHeaders(privateGrant)
-              : {
-                  'Cache-Control': 'public, max-age=3600',
-                  'Content-Type': mimeType,
-                },
-            (progress) =>
-              updateLocalUpload(id, {
-                progress: Math.max(5, Math.round(5 + progress * 0.9)),
-              })
-          );
-          tasksRef.current.set(id, task);
-          await task.upload;
-          tasksRef.current.delete(id);
-          brokerBytesUploaded = Boolean(brokerReservationId);
-          updateLocalUpload(id, { brokerBytesUploaded });
-        }
+        const privateGrant = await waitForBrokerCapability(() =>
+          grantBucketUpload(capability, flag.host)
+        );
+        brokerReservationId = privateGrant.reservationId;
+        updateLocalUpload(id, { brokerReservationId, progress: 5 });
+
+        const task = createBucketUploadTask(
+          privateGrant.uploadUrl,
+          candidate,
+          brokerRequiredHeaders(privateGrant),
+          (progress) =>
+            updateLocalUpload(id, {
+              progress: Math.max(5, Math.round(5 + progress * 0.9)),
+            })
+        );
+        tasksRef.current.set(id, task);
+        await task.upload;
+        tasksRef.current.delete(id);
 
         if (cancelledRef.current.has(id)) {
           throw new Error('Upload cancelled');
@@ -424,26 +470,17 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           throw new Error('The upload session was lost');
         }
         updateLocalUpload(id, { progress: 96 });
-        if (brokerReservationId) {
-          await completeBucketUpload(brokerReservationId);
-          brokerCompleted = true;
-        } else {
-          await sendBucketsAction({
-            type: 'finish-upload',
-            flag,
-            objectUrl: legacyGrant!.hostedUrl,
-            sessionId,
-          });
-        }
+        await completeBucketUpload(brokerReservationId);
+        brokerCompleted = true;
         updateLocalUpload(id, { progress: 100 });
         await refresh();
         setUploadBatch((current) => completeBucketUploadInBatch(current, id));
-        setUploads((currentUploads) =>
+        setCurrentUploads((currentUploads) =>
           currentUploads.filter((candidateUpload) => candidateUpload.id !== id)
         );
       } catch (cause) {
         tasksRef.current.delete(id);
-        if (sessionId && !brokerReservationId && !brokerCompleted) {
+        if (sessionId && !brokerCompleted) {
           await sendBucketsAction({
             type: 'fail-upload',
             flag,
@@ -451,20 +488,28 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
             sessionId,
           }).catch(() => undefined);
         }
+        if (brokerReservationId && !brokerCompleted) {
+          await cancelBucketUpload(brokerReservationId).catch(() => undefined);
+        }
         if (!cancelledRef.current.has(id)) {
           updateLocalUpload(id, {
+            brokerReservationId: undefined,
             error: errorMessage(cause),
-            brokerBytesUploaded,
-            brokerReservationId,
             progress: 0,
             serverEntryId,
-            sessionId,
             state: 'failed',
           });
         }
       }
     },
-    [flag, flagKey, refresh, updateLocalUpload, waitForSession]
+    [
+      flag,
+      flagKey,
+      refresh,
+      setCurrentUploads,
+      updateLocalUpload,
+      waitForSession,
+    ]
   );
 
   const addUploads = useCallback(
@@ -479,7 +524,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           state: 'queued',
         })
       );
-      setUploads((current) => [...current, ...nextUploads]);
+      setCurrentUploads((current) => [...current, ...nextUploads]);
       setUploadBatch((current) => [
         ...current,
         ...nextUploads.map((upload) => ({
@@ -491,7 +536,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       ]);
       nextUploads.forEach((upload) => void runUpload(upload));
     },
-    [runUpload]
+    [runUpload, setCurrentUploads]
   );
 
   const cancelUpload = useCallback(
@@ -519,7 +564,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         .catch(() => undefined);
       tasksRef.current.delete(id);
 
-      setUploads((current) =>
+      setCurrentUploads((current) =>
         current.filter((candidate) => candidate.id !== id)
       );
       setUploadBatch((current) => removeBucketUploadFromBatch(current, id));
@@ -561,7 +606,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       }
       void refresh();
     },
-    [commitSnapshot, flag, refresh, uploads]
+    [commitSnapshot, flag, refresh, setCurrentUploads, uploads]
   );
 
   const retryUpload = useCallback(
@@ -569,10 +614,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const upload = uploads.find((candidate) => candidate.id === id);
       if (!upload) return;
       cancelledRef.current.delete(id);
-      const isPrivateRetry = Boolean(
-        upload.brokerReservationId && upload.sessionId && upload.serverEntryId
-      );
-      if (!isPrivateRetry && upload.serverEntryId) {
+      if (upload.serverEntryId) {
         await sendBucketsAction({
           type: 'delete-entry',
           flag,
@@ -583,20 +625,15 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const next = {
         ...upload,
         error: undefined,
-        brokerBytesUploaded: isPrivateRetry
-          ? upload.brokerBytesUploaded
-          : undefined,
-        brokerReservationId: isPrivateRetry
-          ? upload.brokerReservationId
-          : undefined,
-        capability: isPrivateRetry ? upload.capability : undefined,
+        capability: undefined,
+        brokerReservationId: undefined,
         progress: 0,
-        priorSessionIds: isPrivateRetry ? upload.priorSessionIds : undefined,
-        serverEntryId: isPrivateRetry ? upload.serverEntryId : undefined,
-        sessionId: isPrivateRetry ? upload.sessionId : undefined,
+        priorSessionIds: undefined,
+        serverEntryId: undefined,
+        sessionId: undefined,
         state: 'queued' as const,
       };
-      setUploads((current) =>
+      setCurrentUploads((current) =>
         current.map((candidate) => (candidate.id === id ? next : candidate))
       );
       setUploadBatch((current) =>
@@ -608,7 +645,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       );
       void runUpload(next);
     },
-    [flag, runUpload, uploads]
+    [flag, runUpload, setCurrentUploads, uploads]
   );
 
   const localItems = useMemo<BucketItem[]>(

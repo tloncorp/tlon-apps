@@ -59,6 +59,7 @@ export function sendBucketsAction(action: BucketsAction) {
 export async function subscribeToBuckets(
   handler: (response: BucketsResponse) => void
 ) {
+  let activeSubscriptionId: number | null = null;
   const subscriptionId = await subscribe<BucketsResponse>(
     { app: BUCKETS_APP, path: '/v1' },
     (response) =>
@@ -66,8 +67,17 @@ export async function subscribeToBuckets(
         response.type === 'snapshot'
           ? normalizeBucketsSnapshot(response)
           : response
-      )
+      ),
+    {
+      onSubscriptionId: (id) => {
+        activeSubscriptionId = id;
+      },
+    }
   );
+  activeSubscriptionId ??= subscriptionId;
 
-  return () => unsubscribe(subscriptionId);
+  return () =>
+    activeSubscriptionId === null
+      ? Promise.resolve()
+      : unsubscribe(activeSubscriptionId);
 }

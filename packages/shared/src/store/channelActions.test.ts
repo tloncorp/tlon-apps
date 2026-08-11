@@ -468,6 +468,76 @@ test('createChannel lets a non-host admin create a group-hosted Bucket', async (
   });
 });
 
+test('createChannel preserves a created Bucket when its group listing is delayed', async () => {
+  vi.useFakeTimers();
+  await insertGroup();
+  vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~zod');
+  const sendBucketsAction = vi
+    .spyOn(api, 'sendBucketsAction')
+    .mockResolvedValue(1);
+  vi.spyOn(api, 'getGroup').mockResolvedValue({
+    id: groupId,
+    channels: [],
+  } as unknown as db.Group);
+
+  const createPromise = createChannel({
+    customSlug: 'slow-project-files',
+    groupId,
+    title: 'Slow project files',
+    channelType: 'buckets',
+  });
+  const assertion = expect(createPromise).rejects.toThrow(
+    'Failed to add Buckets channel to group'
+  );
+  await vi.runAllTimersAsync();
+  await assertion;
+
+  expect(sendBucketsAction).toHaveBeenCalledTimes(1);
+  expect(sendBucketsAction).toHaveBeenCalledWith(
+    expect.objectContaining({ type: 'create', name: 'slow-project-files' })
+  );
+  expect(sendBucketsAction).not.toHaveBeenCalledWith(
+    expect.objectContaining({ type: 'delete-bucket' })
+  );
+});
+
+test('updateChannel mirrors Bucket reader and writer roles to %buckets', async () => {
+  const bucketsChannelId = 'buckets/~zod/project-files';
+  await insertGroupAndChannel({ id: bucketsChannelId, type: 'buckets' });
+  const channel = await db.getChannelWithRelations({ id: bucketsChannelId });
+  if (!channel) throw new Error('test channel not initialized');
+
+  vi.spyOn(api, 'updateChannel').mockResolvedValue(1);
+  const sendBucketsAction = vi
+    .spyOn(api, 'sendBucketsAction')
+    .mockResolvedValue(1);
+
+  await updateChannel({
+    groupId,
+    sectionId: 'default',
+    readers: ['member'],
+    writers: ['admin'],
+    join: true,
+    channel: { ...channel, title: 'Project files' },
+  });
+
+  expect(sendBucketsAction).toHaveBeenNthCalledWith(1, {
+    type: 'set-title',
+    flag: { host: '~zod', name: 'project-files' },
+    title: 'Project files',
+  });
+  expect(sendBucketsAction).toHaveBeenNthCalledWith(2, {
+    type: 'set-readers',
+    flag: { host: '~zod', name: 'project-files' },
+    readers: ['member'],
+  });
+  expect(sendBucketsAction).toHaveBeenNthCalledWith(3, {
+    type: 'set-writers',
+    flag: { host: '~zod', name: 'project-files' },
+    writers: ['admin'],
+  });
+});
+
 test('joinGroupChannel routes notes channels through the notes API', async () => {
   const notesChannelId = 'notes/~zod/native-notes';
   await insertGroupAndChannel({ id: notesChannelId, type: 'notes' });

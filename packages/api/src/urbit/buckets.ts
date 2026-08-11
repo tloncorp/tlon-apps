@@ -71,6 +71,7 @@ export type BucketsUpdate =
   | { type: 'bucket-created'; bucket: BucketsBucket }
   | { type: 'bucket-deleted' }
   | { type: 'bucket-updated'; bucket: BucketsBucket }
+  | { type: 'readers-updated'; readers: string[] }
   | { type: 'writers-updated'; writers: string[] }
   | { type: 'folder-created'; entry: BucketsFolderEntry }
   | {
@@ -112,6 +113,7 @@ export type BucketsAction =
     }
   | { type: 'delete-bucket'; flag: BucketsFlag }
   | { type: 'set-title'; flag: BucketsFlag; title: string }
+  | { type: 'set-readers'; flag: BucketsFlag; readers: string[] }
   | { type: 'set-writers'; flag: BucketsFlag; writers: string[] }
   | {
       type: 'create-folder';

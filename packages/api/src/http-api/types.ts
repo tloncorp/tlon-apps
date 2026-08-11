@@ -211,6 +211,11 @@ export interface SubscriptionRequestInterface extends SubscriptionInterface {
    * Whether to resubscribe this exact subscription on quit
    */
   resubOnQuit?: boolean;
+  /**
+   * Receives the active subscription id, including replacement ids allocated
+   * when Airlock automatically re-subscribes after an Eyre channel reset.
+   */
+  onSubscriptionId?(id: number): void;
   ship?: string;
 }
 

@@ -91,6 +91,11 @@ interface UrbitEndpoint {
   path: string;
 }
 
+type SubscribeOptions = {
+  onSubscriptionId?: (id: number) => void;
+  resubOnQuit?: boolean;
+};
+
 export interface ClientParams {
   shipName: string;
   shipUrl: string;
@@ -316,7 +321,8 @@ function printEndpoint(endpoint: UrbitEndpoint) {
 
 export async function subscribe<T>(
   endpoint: UrbitEndpoint,
-  handler: (update: T, id?: number) => void
+  handler: (update: T, id?: number) => void,
+  options: SubscribeOptions = {}
 ): Promise<number> {
   const doSub = async (err?: (error: any, id: string) => void) => {
     if (!config.client) {
@@ -329,6 +335,8 @@ export async function subscribe<T>(
     return config.client.subscribe({
       app: endpoint.app,
       path: endpoint.path,
+      onSubscriptionId: options.onSubscriptionId,
+      resubOnQuit: options.resubOnQuit,
       event: (event: any, mark: string, id?: number) => {
         logger.debug(
           `got subscription event on ${printEndpoint(endpoint)}:`,

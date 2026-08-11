@@ -1,3 +1,4 @@
+import { FlashList, FlashListRef } from '@shopify/flash-list';
 import {
   Button,
   FilePreview,
@@ -9,7 +10,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, XStack, YStack } from 'tamagui';
+import { ScrollView, View, XStack, YStack, getTokenValue } from 'tamagui';
 
 import { calculateBucketUploadProgress } from '../../../utils/bucketUploadProgress';
 import { ActionSheet, createActionGroups } from '../ActionSheet';
@@ -184,17 +185,21 @@ export function BucketsSearchScreen({
                 Entire Bucket
               </Text>
             </XStack>
-            <ScrollView flex={1}>
-              <YStack gap="$xs" paddingBottom="$2xl">
-                {results.map((result) => (
-                  <BucketSearchRow
-                    key={`${result.parentFolderId ?? 'root'}-${result.id}`}
-                    result={result}
-                    onOpenResult={onOpenResult}
-                  />
-                ))}
-              </YStack>
-            </ScrollView>
+            <FlashList
+              data={results}
+              contentContainerStyle={{
+                paddingBottom: getTokenValue('$2xl', 'size'),
+              }}
+              ItemSeparatorComponent={() => (
+                <View height={getTokenValue('$xs', 'space')} />
+              )}
+              keyExtractor={(result) =>
+                `${result.parentFolderId ?? 'root'}-${result.id}`
+              }
+              renderItem={({ item: result }) => (
+                <BucketSearchRow result={result} onOpenResult={onOpenResult} />
+              )}
+            />
           </YStack>
         )}
       </YStack>
@@ -239,54 +244,28 @@ export function BucketsPane({
   onRenameItem?: (item: BucketItem) => void;
   onRetryUpload?: (item: BucketItem) => void;
 }) {
-  const scrollViewRef = useRef<ScrollView>(null);
-  const [viewportHeight, setViewportHeight] = useState(0);
+  const listRef = useRef<FlashListRef<BucketItem>>(null);
   const selectedIndex = selectedItemId
     ? items.findIndex((item) => item.id === selectedItemId)
     : -1;
   const trayItems = uploadItems ?? items.filter((item) => uploadStateFor(item));
 
   useEffect(() => {
-    if (selectedIndex < 0 || !viewportHeight) {
-      return;
-    }
-
-    const itemOffset = selectedIndex * (bucketRowHeight + bucketRowGap);
-    const targetY = Math.max(
-      0,
-      itemOffset - (viewportHeight - bucketRowHeight) / 2
-    );
+    if (selectedIndex < 0) return;
     const timer = setTimeout(() => {
-      scrollViewRef.current?.scrollTo({ animated: true, y: targetY });
+      listRef.current?.scrollToIndex({
+        animated: true,
+        index: selectedIndex,
+        viewPosition: 0.5,
+      });
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [selectedIndex, viewportHeight]);
+  }, [selectedIndex]);
 
-  const list =
-    state === 'loading' ? (
-      <BucketsLoadingRows />
-    ) : state === 'empty' || items.length === 0 ? (
-      <BucketsEmptyState canEdit={canEdit} />
-    ) : (
-      <YStack gap="$xs">
-        {items.map((item) => (
-          <BucketRow
-            key={item.id}
-            canEdit={canEdit}
-            item={item}
-            selected={selectedItemId === item.id}
-            onDeleteItem={onDeleteItem}
-            onDownloadItem={onDownloadItem}
-            onCancelUpload={onCancelUpload}
-            onMoveItem={onMoveItem}
-            onOpenItem={onOpenItem}
-            onRenameItem={onRenameItem}
-            onRetryUpload={onRetryUpload}
-          />
-        ))}
-      </YStack>
-    );
+  const populated = state === 'populated' && items.length > 0;
+  const horizontalPadding = getTokenValue('$l', 'size');
+  const topPadding = getTokenValue(currentFolder ? '$xs' : '$m', 'size');
 
   return (
     <BucketsDropTarget
@@ -300,24 +279,57 @@ export function BucketsPane({
         {currentFolder ? (
           <BucketBreadcrumb rootLabel={rootLabel} folderLabel={currentFolder} />
         ) : null}
-        <ScrollView
-          ref={scrollViewRef}
-          flex={1}
-          onLayout={(event) =>
-            setViewportHeight(event.nativeEvent.layout.height)
-          }
-        >
-          <YStack
-            width="100%"
-            maxWidth={layout === 'takeover' ? 'unset' : 760}
-            marginHorizontal="auto"
-            paddingHorizontal="$l"
-            paddingTop={currentFolder ? '$xs' : '$m'}
-            paddingBottom="$2xl"
-          >
-            {list}
-          </YStack>
-        </ScrollView>
+        {populated ? (
+          <FlashList
+            ref={listRef}
+            data={items}
+            contentContainerStyle={{
+              paddingBottom: getTokenValue('$2xl', 'size'),
+              paddingTop: topPadding,
+            }}
+            extraData={selectedItemId}
+            ItemSeparatorComponent={() => <View height={bucketRowGap} />}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <YStack
+                width="100%"
+                maxWidth={layout === 'takeover' ? 'unset' : 760}
+                marginHorizontal="auto"
+                paddingHorizontal={horizontalPadding}
+              >
+                <BucketRow
+                  canEdit={canEdit}
+                  item={item}
+                  selected={selectedItemId === item.id}
+                  onDeleteItem={onDeleteItem}
+                  onDownloadItem={onDownloadItem}
+                  onCancelUpload={onCancelUpload}
+                  onMoveItem={onMoveItem}
+                  onOpenItem={onOpenItem}
+                  onRenameItem={onRenameItem}
+                  onRetryUpload={onRetryUpload}
+                />
+              </YStack>
+            )}
+          />
+        ) : (
+          <ScrollView flex={1}>
+            <YStack
+              width="100%"
+              maxWidth={layout === 'takeover' ? 'unset' : 760}
+              marginHorizontal="auto"
+              paddingHorizontal="$l"
+              paddingTop={currentFolder ? '$xs' : '$m'}
+              paddingBottom="$2xl"
+            >
+              {state === 'loading' ? (
+                <BucketsLoadingRows />
+              ) : (
+                <BucketsEmptyState canEdit={canEdit} />
+              )}
+            </YStack>
+          </ScrollView>
+        )}
         {trayItems.length > 0 ? (
           <BucketsUploadTray
             aggregateProgress={uploadAggregateProgress}

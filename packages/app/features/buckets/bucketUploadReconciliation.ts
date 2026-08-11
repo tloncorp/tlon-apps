@@ -1,4 +1,15 @@
-import type { BucketsSnapshot } from '@tloncorp/api';
+import type { BucketsResponse, BucketsSnapshot } from '@tloncorp/api';
+
+export function bucketResponseHasRevisionGap(
+  snapshot: BucketsSnapshot | null,
+  response: BucketsResponse
+) {
+  return (
+    response.type === 'update' &&
+    snapshot !== null &&
+    response.revision > snapshot.state.revision + 1
+  );
+}
 
 type ReconcileableUpload = {
   candidate: {
@@ -15,13 +26,14 @@ type ReconcileableUpload = {
 export function reconcileUploadsWithSnapshot<T extends ReconcileableUpload>(
   uploads: T[],
   snapshot: BucketsSnapshot,
-  requestedBy: string
+  requestedBy: string,
+  alreadyClaimedEntryIds: ReadonlySet<number> = new Set()
 ): T[] {
-  const usedEntryIds = new Set(
-    uploads
-      .map((upload) => upload.serverEntryId)
-      .filter((id): id is number => id !== undefined)
-  );
+  const usedEntryIds = new Set(alreadyClaimedEntryIds);
+  uploads
+    .map((upload) => upload.serverEntryId)
+    .filter((id): id is number => id !== undefined)
+    .forEach((id) => usedEntryIds.add(id));
   let changed = false;
 
   const reconciled = uploads.map((upload) => {

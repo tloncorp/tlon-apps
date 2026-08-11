@@ -76,6 +76,7 @@ export const useBucketsDeskAvailable = () => {
         return false;
       }
     },
+    retry: false,
     staleTime: 60_000,
   });
 };

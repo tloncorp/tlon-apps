@@ -1,7 +1,10 @@
 import type { BucketsSnapshot } from '@tloncorp/api';
 import { describe, expect, it } from 'vitest';
 
-import { reconcileUploadsWithSnapshot } from './bucketUploadReconciliation';
+import {
+  bucketResponseHasRevisionGap,
+  reconcileUploadsWithSnapshot,
+} from './bucketUploadReconciliation';
 
 const snapshot = {
   flag: { host: '~zod', name: 'project-files' },
@@ -163,5 +166,55 @@ describe('reconcileUploadsWithSnapshot', () => {
       { serverEntryId: 10, sessionId: 'new-session' },
       { serverEntryId: 11, sessionId: 'second-session' },
     ]);
+  });
+
+  it('does not reuse an entry already claimed by another waiter', () => {
+    const upload = {
+      candidate: {
+        mimeType: 'image/heic',
+        name: 'IMG_0111.heic',
+        size: 42,
+      },
+      id: 'second-local-upload',
+      parentId: null,
+      priorSessionIds: [] as string[],
+    };
+
+    expect(
+      reconcileUploadsWithSnapshot([upload], snapshot, '~zod', new Set([10]))[0]
+    ).toBe(upload);
+  });
+});
+
+describe('bucketResponseHasRevisionGap', () => {
+  it('requests a refresh when an update skips a revision', () => {
+    expect(
+      bucketResponseHasRevisionGap(snapshot, {
+        type: 'update',
+        actor: '~zod',
+        flag: snapshot.flag,
+        revision: snapshot.state.revision + 2,
+        update: { type: 'bucket-updated', bucket: snapshot.state.bucket },
+      })
+    ).toBe(true);
+  });
+
+  it('accepts the next revision and replacement snapshots', () => {
+    expect(
+      bucketResponseHasRevisionGap(snapshot, {
+        type: 'update',
+        actor: '~zod',
+        flag: snapshot.flag,
+        revision: snapshot.state.revision + 1,
+        update: { type: 'bucket-updated', bucket: snapshot.state.bucket },
+      })
+    ).toBe(false);
+    expect(
+      bucketResponseHasRevisionGap(snapshot, {
+        type: 'snapshot',
+        flag: snapshot.flag,
+        state: snapshot.state,
+      })
+    ).toBe(false);
   });
 });
