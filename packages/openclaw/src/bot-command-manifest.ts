@@ -24,10 +24,30 @@ export const BOT_COMMANDS_PUBLISH_BACKOFF_MS: readonly number[] = [
   2_000, 8_000,
 ];
 
-export type Sleeper = (ms: number) => Promise<void>;
+// The signal is the monitor's opts.abortSignal: a shutdown or config-reload
+// restart during the 2s/8s backoff must cancel the pending timer and stop the
+// retry loop, or a retired monitor lingers and retries against its stale SSE
+// client (same pattern as the authentication backoff in monitor/index.ts).
+export type Sleeper = (ms: number, signal?: AbortSignal) => Promise<void>;
 
-const defaultSleep: Sleeper = (ms) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+// Exported for the timer/listener-cleanup tests; production always reaches it
+// through the Sleeper default.
+export const defaultSleep: Sleeper = (ms, signal) =>
+  new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error('Aborted'));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new Error('Aborted'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 
 // A self-contact read that failed is not the same as one that succeeded
 // without the key: only the latter proves the key is absent. Publishing on a
@@ -74,7 +94,8 @@ export function readBotCommandsValue(selfContact: unknown): string | null {
 export async function publishBotCommandManifest(
   api: BotCommandManifestPokeApi,
   desiredValue: string | null,
-  sleep: Sleeper = defaultSleep
+  sleep: Sleeper = defaultSleep,
+  abortSignal?: AbortSignal
 ): Promise<BotCommandManifestPublishResult> {
   for (let attempt = 1; ; attempt++) {
     try {
@@ -95,10 +116,13 @@ export async function publishBotCommandManifest(
       if (attempt >= BOT_COMMANDS_PUBLISH_ATTEMPTS) {
         throw error;
       }
+      // An aborted sleep rejects, which lands in syncBotCommandManifest's
+      // catch as a non-fatal 'skipped' — the retired monitor stops retrying.
       await sleep(
         BOT_COMMANDS_PUBLISH_BACKOFF_MS[
           Math.min(attempt - 1, BOT_COMMANDS_PUBLISH_BACKOFF_MS.length - 1)
-        ]
+        ],
+        abortSignal
       );
     }
   }
@@ -113,7 +137,8 @@ export async function maybePublishBotCommandManifest(
   api: BotCommandManifestPokeApi,
   selfContact: SelfContactRead,
   desiredValue: string,
-  sleep: Sleeper = defaultSleep
+  sleep: Sleeper = defaultSleep,
+  abortSignal?: AbortSignal
 ): Promise<BotCommandManifestPublishResult | 'skipped'> {
   if (!selfContact.ok) {
     return 'skipped';
@@ -122,7 +147,7 @@ export async function maybePublishBotCommandManifest(
   if (currentValue === desiredValue) {
     return 'unchanged';
   }
-  return publishBotCommandManifest(api, desiredValue, sleep);
+  return publishBotCommandManifest(api, desiredValue, sleep, abortSignal);
 }
 
 // Boot and reconnect both land here: read the self-contact, compare, poke on
@@ -133,14 +158,16 @@ export async function syncBotCommandManifest(
   api: BotCommandManifestPokeApi & BotCommandManifestScryApi,
   desiredValue: string,
   selfContact?: SelfContactRead,
-  sleep: Sleeper = defaultSleep
+  sleep: Sleeper = defaultSleep,
+  abortSignal?: AbortSignal
 ): Promise<BotCommandManifestPublishResult | 'skipped'> {
   try {
     return await maybePublishBotCommandManifest(
       api,
       selfContact ?? (await readSelfContact(api)),
       desiredValue,
-      sleep
+      sleep,
+      abortSignal
     );
   } catch {
     return 'skipped';

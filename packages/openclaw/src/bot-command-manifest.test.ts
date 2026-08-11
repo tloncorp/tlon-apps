@@ -9,6 +9,7 @@ import {
   type BotCommandManifestPokeApi,
   SELF_CONTACT_SCRY_PATH,
   type SelfContactRead,
+  defaultSleep,
   maybePublishBotCommandManifest,
   publishBotCommandManifest,
   readBotCommandsValue,
@@ -235,6 +236,114 @@ describe('publish retry', () => {
     expect(slept).toHaveLength(BOT_COMMANDS_PUBLISH_ATTEMPTS - 1);
   });
 
+  it('stops retrying when aborted during the backoff', async () => {
+    // Shutdown/config-reload during the 2s/8s window: the retired monitor must
+    // not keep the retry loop alive against its stale SSE client. The abortable
+    // default sleeper rejects on abort; the rejection surfaces through
+    // syncBotCommandManifest's catch as a non-fatal 'skipped'.
+    const poke = flakyPoke(Number.POSITIVE_INFINITY);
+    const controller = new AbortController();
+    // Honors the signal the way defaultSleep does, without real timers.
+    const sleep = vi.fn(
+      (_ms: number, signal?: AbortSignal) =>
+        new Promise<void>((_resolve, reject) => {
+          signal?.addEventListener(
+            'abort',
+            () => reject(new Error('Aborted')),
+            { once: true }
+          );
+        })
+    );
+
+    const result = syncBotCommandManifest(
+      { poke, scry: vi.fn(async () => ({})) },
+      manifestValue,
+      undefined,
+      sleep,
+      controller.signal
+    );
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(poke).toHaveBeenCalledTimes(1);
+
+    controller.abort();
+    await expect(result).resolves.toBe('skipped');
+    // The abort ended the loop: no further pokes were attempted.
+    expect(poke).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels the pending default-sleeper timer on abort', async () => {
+    const controller = new AbortController();
+    const poke = flakyPoke(Number.POSITIVE_INFINITY);
+
+    // Default sleeper + a 2s backoff: without abort handling this test would
+    // time out; with it, the abort rejects promptly and the timer is cleared.
+    const pending = publishBotCommandManifest(
+      { poke },
+      manifestValue,
+      undefined,
+      controller.signal
+    );
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    controller.abort();
+
+    await expect(pending).rejects.toThrow('Aborted');
+    expect(poke).toHaveBeenCalledTimes(1);
+  });
+
+  // Cleanup proofs for the sleeper itself: rejecting promptly is not enough —
+  // a cleared rejection with a leaked timer keeps the retired monitor's event
+  // loop alive for the full backoff anyway, and a leaked abort listener
+  // accumulates across publishes on a long-lived signal.
+  describe('defaultSleep cleanup', () => {
+    it('clears the pending timer the moment the signal aborts', async () => {
+      vi.useFakeTimers();
+      try {
+        const controller = new AbortController();
+        const pending = defaultSleep(2_000, controller.signal);
+        expect(vi.getTimerCount()).toBe(1);
+
+        controller.abort();
+        expect(vi.getTimerCount()).toBe(0);
+        await expect(pending).rejects.toThrow('Aborted');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('allocates no timer for an already-aborted signal', async () => {
+      vi.useFakeTimers();
+      try {
+        const controller = new AbortController();
+        controller.abort();
+        const pending = defaultSleep(2_000, controller.signal);
+        expect(vi.getTimerCount()).toBe(0);
+        await expect(pending).rejects.toThrow('Aborted');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('removes its abort listener when the timer wins', async () => {
+      vi.useFakeTimers();
+      try {
+        const controller = new AbortController();
+        const removed = vi.spyOn(controller.signal, 'removeEventListener');
+        const pending = defaultSleep(2_000, controller.signal);
+
+        vi.advanceTimersByTime(2_000);
+        await expect(pending).resolves.toBeUndefined();
+        expect(removed).toHaveBeenCalledWith('abort', expect.any(Function));
+
+        // A later abort is a no-op: the promise already settled and no
+        // listener remains to fire (an unhandled rejection here would fail
+        // the run).
+        controller.abort();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   it('does not retry when the read failed', async () => {
     const poke = flakyPoke(Number.POSITIVE_INFINITY);
     const { slept, sleep } = recordingSleeper();
@@ -414,5 +523,17 @@ describe('monitor lifecycle call sites', () => {
     expect(fn.indexOf('try {')).toBeLessThan(
       fn.indexOf('buildCommandManifestJson(')
     );
+  });
+
+  it('forwards the monitor abort signal into the publish call', () => {
+    // The abort-loop unit test injects a signal directly, so it cannot catch
+    // the monitor forgetting to pass its own: dropping opts.abortSignal from
+    // this call would revive the retired-monitor backoff zombie with every
+    // other test green.
+    const body = monitorSource.slice(
+      monitorSource.indexOf('async function publishBotCommandManifestNow')
+    );
+    const fn = body.slice(0, body.indexOf('\n  }\n'));
+    expect(fn).toMatch(/syncBotCommandManifest\([\s\S]*?opts\.abortSignal/);
   });
 });

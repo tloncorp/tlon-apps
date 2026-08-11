@@ -564,7 +564,9 @@ export async function monitorTlonProvider(
       const result = await syncBotCommandManifest(
         api,
         buildCommandManifestJson(),
-        reason === 'boot' ? bootSelfContactRead : undefined
+        reason === 'boot' ? bootSelfContactRead : undefined,
+        undefined,
+        opts.abortSignal
       );
       if (result !== 'unchanged') {
         runtime.log?.(`[tlon] Bot command manifest ${result} (${reason})`);
