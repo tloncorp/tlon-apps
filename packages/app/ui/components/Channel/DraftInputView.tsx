@@ -9,6 +9,7 @@ import {
   useConversationScrollToBottomControl,
   useConversationScrollViewNativeID,
 } from '../../contexts/scroll';
+import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
 import { floatingScrollControlClearance } from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
@@ -60,6 +61,7 @@ export function ConversationComposerPlacement({
   inlineID?: string;
 }>) {
   const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboardHeight();
   const scrollViewNativeID = useConversationScrollViewNativeID();
   const scrollToBottomControl = useConversationScrollToBottomControl();
   const content = contentProps ? (
@@ -73,7 +75,10 @@ export function ConversationComposerPlacement({
       <ScrollEdgeElementContainer
         edge="bottom"
         scrollViewNativeID={scrollViewNativeID}
-        style={[styles.floatingInput, { paddingBottom: insets.bottom }]}
+        style={[
+          styles.floatingInput,
+          { paddingBottom: keyboardHeight > 0 ? 0 : insets.bottom },
+        ]}
         onLayout={(event) => {
           const scrollControlClearance =
             Platform.OS === 'ios' && scrollToBottomControl?.visible

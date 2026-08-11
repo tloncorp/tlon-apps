@@ -838,7 +838,12 @@ export function Channel({
                           }}
                         />
                       )}
-                      <KeyboardAvoidingView enabled={Platform.OS === 'ios'}>
+                      <KeyboardAvoidingView
+                        enabled={
+                          Platform.OS === 'ios' &&
+                          draftInputType === DraftInputId.chat
+                        }
+                      >
                         <XStack
                           alignItems="stretch"
                           flex={1}
