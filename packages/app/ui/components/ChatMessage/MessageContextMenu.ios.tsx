@@ -12,6 +12,10 @@ import {
   MessageMenuActionId,
   useMessageActionModel,
 } from './ChatMessageActions/MessageActions';
+import {
+  resolveReactionSlot,
+  selectLastReactionSlot,
+} from './ChatMessageActions/quickEmojis';
 import { MessageContextMenuProps } from './MessageContextMenu.types';
 
 interface NativeMessageContextMenuProps extends ViewProps {
@@ -83,36 +87,38 @@ function EnabledMessageContextMenu({
     onViewBotRun,
   });
 
-  const reactionValues = useMemo(() => {
-    if (!canReact) {
-      return [];
-    }
-    const ownReaction = reactionDetails.self.value;
-    const lastReaction =
-      reactionDetails.self.didReact &&
-      ![...defaultReactions, '🌀'].includes(ownReaction)
-        ? ownReaction
-        : '🌀';
-    return [...defaultReactions, lastReaction];
-  }, [canReact, reactionDetails.self.didReact, reactionDetails.self.value]);
-
   const selectedReaction = reactionDetails.self.didReact
     ? reactionDetails.self.value
     : undefined;
-  const reactions = useMemo(
-    () =>
-      reactionValues.map((value) => ({
-        value,
-        selected: value === selectedReaction,
+  const reactionSlots = useMemo(() => {
+    if (!canReact) {
+      return [];
+    }
+    const lastReaction = selectLastReactionSlot(
+      defaultReactions,
+      selectedReaction
+    );
+    return [...defaultReactions, lastReaction].map((slot) => {
+      const reaction = resolveReactionSlot(slot, selectedReaction);
+      return {
+        ...reaction,
         token: JSON.stringify([
           post.id,
           'reaction',
-          value,
+          reaction.value,
+          reaction.actionValue,
           selectedReaction,
           canReact,
         ]),
-      })),
-    [canReact, post.id, reactionValues, selectedReaction]
+      };
+    });
+  }, [canReact, post.id, selectedReaction]);
+  const reactions = useMemo<NativeMessageMenuReaction[]>(
+    () =>
+      reactionSlots.map(
+        ({ actionValue: _actionValue, ...reaction }) => reaction
+      ),
+    [reactionSlots]
   );
   const moreReactionsToken = canReact
     ? JSON.stringify([post.id, 'moreReactions'])
@@ -142,12 +148,12 @@ function EnabledMessageContextMenu({
         if (kind === 'action') {
           performAction(value as MessageMenuActionId, token);
         } else if (kind === 'reaction') {
-          if (
-            reactions.some(
-              (reaction) => reaction.value === value && reaction.token === token
-            )
-          ) {
-            onEmojiSelect(value);
+          const reaction = reactionSlots.find(
+            (candidate) =>
+              candidate.value === value && candidate.token === token
+          );
+          if (reaction) {
+            onEmojiSelect(reaction.actionValue);
           }
         } else if (token === moreReactionsToken) {
           onShowEmojiPicker?.();

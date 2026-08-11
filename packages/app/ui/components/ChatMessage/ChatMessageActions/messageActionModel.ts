@@ -55,6 +55,9 @@ export function messageContentKey(post: db.Post) {
     post.description,
     post.cover,
     post.isDeleted,
+    post.replyCount,
+    post.replyTime,
+    post.replyContactIds,
   ]);
 }
 

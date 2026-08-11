@@ -1,8 +1,10 @@
+import * as db from '@tloncorp/shared/db';
 import { describe, expect, test } from 'vitest';
 
 import {
   MessageActionVisibilityContext,
   isMessageActionVisible,
+  messageContentKey,
 } from './messageActionModel';
 
 const CURRENT_USER = 'current-user-id';
@@ -305,4 +307,26 @@ describe('composer-dependent actions', () => {
 
 test('actions without a rule are visible by default', () => {
   expect(isMessageActionVisible('copyText', context())).toBe(true);
+});
+
+test('message content revisions include the visible reply summary', () => {
+  const post = {
+    content: null,
+    textContent: 'message',
+    title: null,
+    image: null,
+    description: null,
+    cover: null,
+    isDeleted: false,
+    replyCount: 1,
+    replyTime: 100,
+    replyContactIds: ['~zod'],
+  } as db.Post;
+
+  const original = messageContentKey(post);
+  expect(messageContentKey({ ...post, replyCount: 2 })).not.toBe(original);
+  expect(messageContentKey({ ...post, replyTime: 200 })).not.toBe(original);
+  expect(messageContentKey({ ...post, replyContactIds: ['~nec'] })).not.toBe(
+    original
+  );
 });
