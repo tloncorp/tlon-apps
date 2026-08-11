@@ -110,3 +110,4 @@ export * from './presenceApi';
 export * from './gatewayStatusApi';
 export * from './lensApi';
 export * from './kitsApi';
+export * from './groupKitConfig';

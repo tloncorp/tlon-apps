@@ -692,11 +692,29 @@ export type PostBlobDataEntryContextLens = z.infer<
   typeof PostBlobDataEntryContextLensSchema
 >;
 
+export const PostBlobDataEntryKitSchema = definePostBlobDataEntrySchema(
+  'kit',
+  1,
+  {
+    id: z.string().min(1),
+    /** publisher ship, e.g. `~sampel-palnet` */
+    publisher: z.string().min(1),
+    /** the kit's own semver, distinct from this entry's schema `version` */
+    kitVersion: z.string().min(1),
+    name: z.string().min(1),
+    description: z.string().optional().default(''),
+    image: z.string().nullish(),
+  }
+);
+
+export type PostBlobDataEntryKit = z.infer<typeof PostBlobDataEntryKitSchema>;
+
 const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
   PostBlobDataEntryVideoSchema,
   PostBlobDataEntryContextLensSchema,
+  PostBlobDataEntryKitSchema,
   A2UI.blobEntrySchema,
 ] as const;
 
@@ -803,6 +821,31 @@ export function appendVideoToPostBlob(
     height: opts.height,
     duration: opts.duration,
     posterUri: opts.posterUri,
+  });
+}
+
+export function appendKitToPostBlob(
+  blob: string | undefined,
+  opts: {
+    id: string;
+    /** publisher ship, e.g. `~sampel-palnet` */
+    publisher: string;
+    /** the kit's own semver, distinct from the entry schema version */
+    kitVersion: string;
+    name: string;
+    description?: string;
+    image?: string | null;
+  }
+) {
+  return appendToPostBlob(blob, {
+    type: 'kit',
+    version: 1,
+    id: opts.id,
+    publisher: opts.publisher,
+    kitVersion: opts.kitVersion,
+    name: opts.name,
+    description: opts.description ?? '',
+    image: opts.image,
   });
 }
 

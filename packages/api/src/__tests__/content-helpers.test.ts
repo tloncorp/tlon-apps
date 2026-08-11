@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 
 import {
   appendFileUploadToPostBlob,
+  appendKitToPostBlob,
   appendToPostBlob,
   appendVideoToPostBlob,
   contentToTextAndMentions,
@@ -102,6 +103,77 @@ describe('post blob helpers', () => {
     expect(
       parsePostBlob(
         JSON.stringify([{ type: 'tlon-context-lens', version: 1, lensId: '' }])
+      )
+    ).toEqual([{ type: 'unknown' }]);
+  });
+
+  test('parsePostBlob parses kit entries', () => {
+    const blob = appendKitToPostBlob(undefined, {
+      id: 'book-club',
+      publisher: '~sampel-palnet',
+      kitVersion: '0.1.0',
+      name: 'Book Club',
+      description: 'A monthly book club, batteries included',
+      image: 'https://cdn.example.com/book-club.png',
+    });
+
+    expect(parsePostBlob(blob)).toEqual([
+      {
+        type: 'kit',
+        version: 1,
+        id: 'book-club',
+        publisher: '~sampel-palnet',
+        kitVersion: '0.1.0',
+        name: 'Book Club',
+        description: 'A monthly book club, batteries included',
+        image: 'https://cdn.example.com/book-club.png',
+      },
+    ]);
+  });
+
+  test('parsePostBlob defaults kit description and tolerates absent image', () => {
+    expect(
+      parsePostBlob(
+        JSON.stringify([
+          {
+            type: 'kit',
+            version: 1,
+            id: 'book-club',
+            publisher: '~sampel-palnet',
+            kitVersion: '0.1.0',
+            name: 'Book Club',
+          },
+        ])
+      )
+    ).toEqual([
+      {
+        type: 'kit',
+        version: 1,
+        id: 'book-club',
+        publisher: '~sampel-palnet',
+        kitVersion: '0.1.0',
+        name: 'Book Club',
+        description: '',
+      },
+    ]);
+  });
+
+  test('parsePostBlob rejects malformed kit entries', () => {
+    expect(
+      parsePostBlob(JSON.stringify([{ type: 'kit', version: 1 }]))
+    ).toEqual([{ type: 'unknown' }]);
+    expect(
+      parsePostBlob(
+        JSON.stringify([
+          {
+            type: 'kit',
+            version: 1,
+            id: '',
+            publisher: '~sampel-palnet',
+            kitVersion: '0.1.0',
+            name: 'Book Club',
+          },
+        ])
       )
     ).toEqual([{ type: 'unknown' }]);
   });
