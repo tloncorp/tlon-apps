@@ -2,12 +2,12 @@ import { NavigationContext } from '@react-navigation/native';
 import { useContext, useMemo } from 'react';
 import { Platform, type ScrollViewProps } from 'react-native';
 
-import { useIsDarkMode } from '../../hooks/useDarkMode';
 import {
   getNativeHeaderScrollOptions,
   nativeHeaderScrollResetOptions,
 } from '../../navigation/nativeHeaderOptions';
 import { useInstalledNavigationOptions } from '../../navigation/useInstalledNavigationOptions';
+import { supportsLiquidGlass } from './GlassSurface';
 
 type ScreenScrollProps = Pick<
   ScrollViewProps,
@@ -16,21 +16,23 @@ type ScreenScrollProps = Pick<
 
 interface UseScreenScrollPropsOptions {
   enabled?: boolean;
+  bottomEdgeEffect?: 'hidden' | 'soft';
 }
 
 export function useScreenScrollProps({
   enabled = true,
+  bottomEdgeEffect = 'hidden',
 }: UseScreenScrollPropsOptions = {}): ScreenScrollProps {
   const navigation = useContext(NavigationContext);
-  const isDarkMode = useIsDarkMode();
   const options = useMemo(
     () =>
       getNativeHeaderScrollOptions({
-        isDarkMode,
         platform: Platform.OS,
         platformVersion: Platform.Version,
+        liquidGlassAvailable: supportsLiquidGlass(),
+        bottomEdgeEffect,
       }),
-    [isDarkMode]
+    [bottomEdgeEffect]
   );
 
   useInstalledNavigationOptions(
