@@ -5,8 +5,11 @@ import { getLatestChannelPostsInitialPage, queryKeyPrefix } from './queries';
 
 type TestPageParam = { mode: string; cursorPostId?: string; count?: number };
 
-const data = (...entries: [string, TestPageParam][]) => ({
-  pages: entries.map(([page]) => page),
+const data = (...entries: [string, TestPageParam, number?][]) => ({
+  pages: entries.map(([label, _pageParam, fetchedAt = 0]) => ({
+    label,
+    fetchedAt,
+  })),
   pageParams: entries.map(([, pageParam]) => pageParam),
 });
 
@@ -20,18 +23,15 @@ describe('getLatestChannelPostsInitialPage', () => {
   it('returns the most recently completed matching data', () => {
     const queryKey = [...queryKeyPrefix, 'channel', undefined, false];
 
-    db.queryClient.setQueryData([...queryKey, 30], data(['older', newest]), {
-      updatedAt: 10,
-    });
-    db.queryClient.setQueryData([...queryKey, 10], data(['newer', newest]), {
-      updatedAt: 30,
-    });
-    db.queryClient.setQueryData([...queryKey, 20], data(['middle', newest]), {
-      updatedAt: 20,
-    });
+    db.queryClient.setQueryData([...queryKey, 30], data(['older', newest, 10]));
+    db.queryClient.setQueryData([...queryKey, 10], data(['newer', newest, 30]));
+    db.queryClient.setQueryData(
+      [...queryKey, 20],
+      data(['middle', newest, 20])
+    );
 
     expect(getLatestChannelPostsInitialPage(queryKey, newest)).toEqual(
-      data(['newer', newest])
+      data(['newer', newest, 30])
     );
   });
 
@@ -46,17 +46,37 @@ describe('getLatestChannelPostsInitialPage', () => {
 
     db.queryClient.setQueryData(
       [...queryKey, 10],
-      data(['thirty', thirtyPosts]),
+      data(['thirty', thirtyPosts, 20]),
       { updatedAt: 20 }
     );
     db.queryClient.setQueryData(
       [...queryKey, 20],
-      data(['fifty', fiftyPosts]),
+      data(['fifty', fiftyPosts, 30]),
       { updatedAt: 30 }
     );
 
     expect(getLatestChannelPostsInitialPage(queryKey, thirtyPosts)).toEqual(
-      data(['thirty', thirtyPosts])
+      data(['thirty', thirtyPosts, 20])
+    );
+  });
+
+  it('does not treat pagination as a fresher initial page', () => {
+    const queryKey = [...queryKeyPrefix, 'channel', undefined, false];
+    const older = { mode: 'older' };
+
+    db.queryClient.setQueryData(
+      [...queryKey, 10],
+      data(['stale-initial', newest, 10], ['fresh-pagination', older, 40]),
+      { updatedAt: 40 }
+    );
+    db.queryClient.setQueryData(
+      [...queryKey, 20],
+      data(['fresh-initial', newest, 30]),
+      { updatedAt: 30 }
+    );
+
+    expect(getLatestChannelPostsInitialPage(queryKey, newest)).toEqual(
+      data(['fresh-initial', newest, 30])
     );
   });
 

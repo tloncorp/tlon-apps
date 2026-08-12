@@ -5,7 +5,7 @@ import * as db from '../../db';
 export const queryKeyPrefix = ['channelPosts'];
 
 export function getLatestChannelPostsInitialPage<
-  TPage,
+  TPage extends { fetchedAt: number },
   TPageParam extends {
     mode?: unknown;
     cursorPostId?: unknown;
@@ -15,7 +15,7 @@ export function getLatestChannelPostsInitialPage<
   queryKey: readonly unknown[],
   initialPageParam: TPageParam
 ): InfiniteData<TPage, TPageParam> | undefined {
-  let latestDataUpdatedAt = -1;
+  let latestPageFetchedAt = -1;
   let latestData: InfiniteData<TPage, TPageParam> | undefined;
   let latestInitialPageIndex = -1;
 
@@ -39,9 +39,9 @@ export function getLatestChannelPostsInitialPage<
     );
     if (
       initialPageIndex !== -1 &&
-      query.state.dataUpdatedAt > latestDataUpdatedAt
+      data.pages[initialPageIndex].fetchedAt > latestPageFetchedAt
     ) {
-      latestDataUpdatedAt = query.state.dataUpdatedAt;
+      latestPageFetchedAt = data.pages[initialPageIndex].fetchedAt;
       latestData = data;
       latestInitialPageIndex = initialPageIndex;
     }

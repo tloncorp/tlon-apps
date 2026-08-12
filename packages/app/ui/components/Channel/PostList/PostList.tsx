@@ -267,6 +267,7 @@ function useInitialConversationScroll({
   const didStartInitialScrollRef = React.useRef(false);
   const initialScrollFrameRef = React.useRef<number | undefined>(undefined);
   const userHasScrolledRef = React.useRef(false);
+  const [hasUserScrolled, setHasUserScrolled] = React.useState(false);
   const [didFinishInitialScroll, setDidFinishInitialScroll] =
     React.useState(false);
   const { anchorPosition, appliedAnchorPositionRef, applyAnchorPosition } =
@@ -359,10 +360,12 @@ function useInitialConversationScroll({
 
   const markUserScrolled = React.useCallback(() => {
     userHasScrolledRef.current = true;
+    setHasUserScrolled(true);
   }, []);
 
   return {
     didFinishInitialScroll,
+    hasUserScrolled,
     markUserScrolled,
     scheduleInitialScroll,
   };
@@ -415,26 +418,37 @@ const ConversationPostListAttempt = React.forwardRef<
       didTimeoutWaitingForAnchor,
       listRef,
     });
-    const { didFinishInitialScroll, markUserScrolled, scheduleInitialScroll } =
-      useInitialConversationScroll({
-        anchorTarget,
-        isInitialAnchorReady,
-        isLoading,
-        itemCount: postsWithNeighbors.length,
-        onInitialScrollCompleted,
-      });
-    const { initialScrollIndex } = anchorTarget;
-    const { onScroll: handleScroll } = useScrollDirectionTracker({
-      atBottomThreshold: onScrolledToBottomThreshold,
-      bottomAtEnd: true,
+    const {
+      didFinishInitialScroll,
+      hasUserScrolled,
+      markUserScrolled,
+      scheduleInitialScroll,
+    } = useInitialConversationScroll({
+      anchorTarget,
+      isInitialAnchorReady,
+      isLoading,
+      itemCount: postsWithNeighbors.length,
+      onInitialScrollCompleted,
     });
+    const { initialScrollIndex } = anchorTarget;
+    const { onScroll: handleScroll, isAtBottom: isWithinBottomThreshold } =
+      useScrollDirectionTracker({
+        atBottomThreshold: onScrolledToBottomThreshold,
+        bottomAtEnd: true,
+      });
     // LegendList recalculates this when scrolling, content, or row measurements
     // change. React Native onScroll can retain an intermediate value while the
     // initial anchor settles, briefly showing the scroll-to-bottom control.
-    const isAtBottom = useLegendListIsNearEnd(listRef);
+    const isNearEnd = useLegendListIsNearEnd(listRef);
     // The list is hidden while its initial anchor settles, so do not publish
-    // transient geometry that could show external scroll chrome first.
-    usePostListBottomCallbacks(!didFinishInitialScroll || isAtBottom, {
+    // transient geometry that could show external scroll chrome first. Until
+    // the first user-driven navigation, LegendList's settled state also guards
+    // against a stale intermediate React Native scroll event.
+    const isAtBottom =
+      !didFinishInitialScroll ||
+      (!hasUserScrolled && isNearEnd) ||
+      isWithinBottomThreshold;
+    usePostListBottomCallbacks(isAtBottom, {
       onScrolledToBottom,
       onScrolledAwayFromBottom,
     });
@@ -442,13 +456,17 @@ const ConversationPostListAttempt = React.forwardRef<
     React.useImperativeHandle(
       forwardedRef,
       (): PostListMethods => ({
-        scrollToStart: (opts) =>
+        scrollToStart: (opts) => {
+          markUserScrolled();
           void listRef.current?.scrollToOffset({
             offset: 0,
             animated: opts.animated,
-          }),
-        scrollToEnd: (opts) =>
-          void listRef.current?.scrollToEnd({ animated: opts.animated }),
+          });
+        },
+        scrollToEnd: (opts) => {
+          markUserScrolled();
+          void listRef.current?.scrollToEnd({ animated: opts.animated });
+        },
         scrollToPost: ({ postId, animated, viewPosition }) => {
           const index = postsWithNeighbors.findIndex(
             ({ post }) => post.id === postId
@@ -457,6 +475,7 @@ const ConversationPostListAttempt = React.forwardRef<
             return;
           }
 
+          markUserScrolled();
           void listRef.current?.scrollToIndex({
             index,
             animated,
@@ -464,7 +483,7 @@ const ConversationPostListAttempt = React.forwardRef<
           });
         },
       }),
-      [postsWithNeighbors]
+      [markUserScrolled, postsWithNeighbors]
     );
 
     return (

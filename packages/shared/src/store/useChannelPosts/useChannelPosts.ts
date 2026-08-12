@@ -23,6 +23,8 @@ const postsLogger = createDevLogger('useChannelPosts', false);
 
 type PostQueryPage = {
   posts: db.Post[];
+  /** Completion time for this page, independent of later pagination. */
+  fetchedAt: number;
   /**
    * False when a sync page reports that there are no more newer posts.
    * Obviously, new posts can be made after this is set: in practice, we
@@ -129,6 +131,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
       return {
         posts,
+        fetchedAt: Date.now(),
         canFetchNewerPosts,
       };
     },
