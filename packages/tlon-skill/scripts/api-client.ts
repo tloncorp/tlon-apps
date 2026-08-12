@@ -162,6 +162,18 @@ async function setupSubscriptions(subs: SubscriptionApp[]): Promise<void> {
     await subscribe({ app: 'groups', path: '/v1/groups' }, (e) =>
       logSubscriptionUpdate('groups', e)
     );
+    // Group mutations in @tloncorp/api are tracked against /v2/groups. Keep
+    // the v1 subscription for older ships, but also feed the endpoint whose
+    // watcher must resolve before updateGroupMeta and related calls return.
+    try {
+      await subscribe({ app: 'groups', path: '/v2/groups' }, (e) =>
+        logSubscriptionUpdate('groups v2', e)
+      );
+    } catch (err) {
+      if (isVerbose()) {
+        console.error('groups /v2 subscription unavailable:', err);
+      }
+    }
   }
 
   if (subs.includes('channels')) {
