@@ -2762,8 +2762,10 @@
   ::
   ++  di-vouch-status
     ^-  ?(%unknown %real %bot)
-    ?.  .^(? %gu (scry-path %vouch /$))  %unknown
-    .^(?(%unknown %real %bot) %gx (scry-path %vouch /status/(scot %p ship)))
+    =/  res
+      %-  mule
+      |.  .^(?(%unknown %real %bot) %gx (scry-path %vouch /status/(scot %p ship)/noun))
+    ?:(?=(%& -.res) p.res %unknown)
   ++  di-proxy
     |=  =diff:dm:c
     ~>  %spin.['di-proxy']

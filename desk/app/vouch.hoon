@@ -76,9 +76,10 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  [~ ~]
-  ::  /x/status/<moon> -> the moon's status (%unknown if no record)
+  ::  /x/status/<moon> -> the moon's status (%unknown if no record). the
+  ::  trailing element (a mark like %noun on a gall %gx scry) is ignored.
   ::
-      [%x %status @ ~]
+      [%x %status @ *]
     =/  moon  (slav %p i.t.t.path)
     =/  =status:v  (~(gut by moons) moon %unknown)
     ``noun+!>(status)
