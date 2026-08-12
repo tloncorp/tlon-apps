@@ -26,6 +26,10 @@ export type StorageItem<T> = {
   useValue: () => T;
   useStorageItem: () => {
     value: T;
+    /** True until the stored value has hydrated; `value` is the default. */
+    isLoading: boolean;
+    /** True when hydration failed and `value` is only the default. */
+    isError: boolean;
     setValue: (value: T | ((curr: T) => T)) => Promise<void>;
     resetValue: () => Promise<T>;
   };
@@ -57,7 +61,19 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
     deserialize = JSON.parse,
   } = config;
   const storage = getStorageMethods(config);
-  let updateLock = Promise.resolve();
+  let updateLock: Promise<void> = Promise.resolve();
+
+  const enqueueUpdate = <R>(operation: () => Promise<R>): Promise<R> => {
+    const result = updateLock.then(operation);
+    // Keep the queue tail fulfilled even when this caller's operation fails.
+    // The caller still receives `result` and its rejection, while a later
+    // write gets a fresh attempt instead of inheriting a poisoned lock.
+    updateLock = result.then(
+      () => undefined,
+      () => undefined
+    );
+    return result;
+  };
 
   const getValue = async (waitForLock = false): Promise<T> => {
     if (waitForLock) {
@@ -101,7 +117,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   };
 
   const resetValue = async (): Promise<T> => {
-    updateLock = updateLock.then(async () => {
+    await enqueueUpdate(async () => {
       await storage.setItem(key, serialize(defaultValue));
       queryClient.invalidateQueries({ queryKey: [key] });
       storageItemListeners.get(key)?.forEach((listener) => {
@@ -109,12 +125,11 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
       });
       logger.log(`reset value ${key}`);
     });
-    await updateLock;
     return defaultValue;
   };
 
   const setValue = async (valueInput: T | ((curr: T) => T)): Promise<void> => {
-    updateLock = updateLock.then(async () => {
+    await enqueueUpdate(async () => {
       let newValue: T;
       if (valueInput instanceof Function) {
         const currValue = await getValue();
@@ -132,7 +147,6 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
       });
       logger.log(`set value ${key}`, newValue);
     });
-    await updateLock;
   };
 
   function useValue() {
@@ -144,15 +158,23 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   }
 
   function useStorageItem() {
-    const { data: value, isLoading: queryIsLoading } = useQuery({
+    const {
+      data: value,
+      isLoading: queryIsLoading,
+      isError,
+    } = useQuery({
       queryKey: [key],
       queryFn: () => getValue(),
     });
-    // Treat undefined data as still loading to prevent brief flashes of default value
-    const isLoading = queryIsLoading || value === undefined;
+    // Treat undefined data as still loading to prevent brief flashes of the
+    // default value — but never past a failed read: `data` stays undefined
+    // on error, and callers that hold UI (or a lock) while loading must not
+    // hold it forever because storage misbehaved once.
+    const isLoading = !isError && (queryIsLoading || value === undefined);
     return {
       value: value === undefined ? defaultValue : value,
       isLoading,
+      isError,
       setValue,
       resetValue,
     };
