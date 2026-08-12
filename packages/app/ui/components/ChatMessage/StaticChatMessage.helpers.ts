@@ -25,5 +25,12 @@ export function resolveA2UIContent(
   if (!content.some((block) => block.type === 'a2ui')) {
     return content;
   }
-  return content.filter((block) => block.type !== 'paragraph');
+  let removedFallback = false;
+  return content.filter((block) => {
+    if (!removedFallback && block.type === 'paragraph') {
+      removedFallback = true;
+      return false;
+    }
+    return true;
+  });
 }

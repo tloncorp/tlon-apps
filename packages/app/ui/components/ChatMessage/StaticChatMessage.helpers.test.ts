@@ -40,12 +40,20 @@ describe('resolveA2UIContent', () => {
     const content = [
       { type: 'a2ui', a2ui: {} },
       { type: 'paragraph', content: [] },
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'keep this explanation' }],
+      },
       { type: 'code', content: 'keep me' },
       { type: 'link', url: 'https://example.com' },
     ] as unknown as BlockData[];
 
     expect(resolveA2UIContent(content, true)).toEqual([
       { type: 'a2ui', a2ui: {} },
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'keep this explanation' }],
+      },
       { type: 'code', content: 'keep me' },
       { type: 'link', url: 'https://example.com' },
     ]);

@@ -149,14 +149,14 @@ export function EmptyChannelNotice({
   }, [openedAt]);
   const openingIsRecent =
     openedAt != null && now - openedAt < AGENT_OPENING_GRACE_MS;
+  const isActiveOnboardingGroup = onboardingGroupId === channel.groupId;
   const awaitingAgentOpening =
     couldBeAgentOpening &&
     (agentRecordsLoading ||
       markerLoading ||
       openedAtLoading ||
-      (openingIsRecent &&
-        (agentGroupAgents[channel.groupId!] != null ||
-          onboardingGroupId === channel.groupId)));
+      isActiveOnboardingGroup ||
+      (openingIsRecent && agentGroupAgents[channel.groupId!] != null));
 
   if (isDefaultPersonalChannel) {
     return <WayfindingNotice.EmptyChannel channel={channel} />;
