@@ -333,13 +333,13 @@ test('message content revisions include the visible reply summary', () => {
   expect(
     messageContentKey({
       ...post,
-      threadUnread: { count: 1, notify: false },
+      threadUnread: { updatedAt: 100, count: 1, notify: false },
     })
   ).not.toBe(original);
   expect(
     messageContentKey({
       ...post,
-      threadUnread: { count: 1, notify: true },
+      threadUnread: { updatedAt: 100, count: 1, notify: true },
     })
   ).not.toBe(original);
 });
