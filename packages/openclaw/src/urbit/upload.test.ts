@@ -175,9 +175,10 @@ describe('prepareOutboundMedia', () => {
 
   /**
    * A bot moon as actually deployed: reached over localhost/proxy (so not a
-   * hosted node by URL), no credentials, and `service` at its bunted default of
-   * `presigned-url`. `uploadFile` would throw for this ship, so we must not
-   * call it.
+   * hosted node by URL), no credentials. Fresh ships bunt `service` to
+   * `%credentials`; the mock sets `presigned-url` to model a moon that has
+   * been poked by the hosted entrypoint. `uploadFile` would throw for this
+   * ship, so we must not call it.
    */
   function mockMoonShaped() {
     mockIsHosted.mockReturnValue(false);
@@ -251,7 +252,7 @@ describe('prepareOutboundMedia', () => {
       'throws LOCAL_MEDIA_ERROR for %s without fetching',
       async (input) => {
         await expect(prepareOutboundMedia(input)).rejects.toThrow(
-          "Local file paths are not supported on this channel — upload the file first (e.g. `tlon upload <path>` using your owner ship's credentials), then resend with the returned https URL."
+          'Local file paths are not supported on this channel — upload the file first (e.g. `tlon upload <path>`) and resend with the returned https URL.'
         );
         expect(mockFetchGuard).not.toHaveBeenCalled();
       }
@@ -607,7 +608,7 @@ describe('prepareOutboundMedia', () => {
       vi.unstubAllEnvs();
     });
 
-    it('does not call uploadFile, hotlinks', async () => {
+    it('uploads via uploadFile with assume-hosted', async () => {
       vi.stubEnv('TLON_HOSTING', 'true');
       mockImageFetch();
       mockScry.mockImplementation(async ({ path }: { path: string }) => {
@@ -624,16 +625,61 @@ describe('prepareOutboundMedia', () => {
         }
         return {
           'storage-update': {
-            configuration: { currentBucket: '' },
+            configuration: { service: 'presigned-url', currentBucket: '' },
           },
         };
+      });
+      mockUploadFile.mockResolvedValue({
+        url: 'https://storage.example.com/uploaded.png',
       });
 
       const result = await prepareOutboundMedia(
         'https://example.com/image.png'
       );
-      expect(mockUploadFile).not.toHaveBeenCalled();
-      expect(result.url).toBe('https://example.com/image.png');
+      expect(mockUploadFile).toHaveBeenCalledTimes(1);
+      expect(mockUploadFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hostedDetection: 'assume-hosted',
+        })
+      );
+      expect(result.url).toBe('https://storage.example.com/uploaded.png');
+    });
+
+    it('TLON_HOSTING=1 + moon-shaped scries (service credentials, no creds) → uploads', async () => {
+      vi.stubEnv('TLON_HOSTING', '1');
+      mockImageFetch();
+      mockScry.mockImplementation(async ({ path }: { path: string }) => {
+        if (path === '/credentials') {
+          return {
+            'storage-update': {
+              credentials: {
+                accessKeyId: '',
+                endpoint: '',
+                secretAccessKey: '',
+              },
+            },
+          };
+        }
+        return {
+          'storage-update': {
+            configuration: { service: 'credentials', currentBucket: '' },
+          },
+        };
+      });
+      mockUploadFile.mockResolvedValue({
+        url: 'https://storage.example.com/moon-uploaded.png',
+      });
+
+      const result = await prepareOutboundMedia(
+        'https://example.com/image.png'
+      );
+      expect(mockUploadFile).toHaveBeenCalledTimes(1);
+      expect(mockUploadFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hostedDetection: 'assume-hosted',
+        })
+      );
+      expect(result.url).toBe('https://storage.example.com/moon-uploaded.png');
     });
   });
 
@@ -665,7 +711,7 @@ describe('prepareOutboundMedia', () => {
       expect(result.url).toBe('https://example.com/image.png');
     });
 
-    it('moon-shaped (not hosted, default presigned service, no creds) → hotlink, no uploadFile', async () => {
+    it('moon-shaped (not hosted, poked to presigned-url, no creds) → hotlink, no uploadFile', async () => {
       mockImageFetch();
       mockMoonShaped();
 

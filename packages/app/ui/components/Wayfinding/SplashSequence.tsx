@@ -184,6 +184,9 @@ function SplashSequenceComponent(props: {
   const [providerOptions, setProviderOptions] = React.useState<
     BotCredentialOption[]
   >([]);
+  const [loadingProviderOptions, setLoadingProviderOptions] = React.useState(
+    props.splashSequenceMode === 'signup'
+  );
   const [hasOpenAIKey, setHasOpenAIKey] = React.useState(false);
   const [connectedOpenAISubscription, setConnectedOpenAISubscription] =
     React.useState(false);
@@ -282,6 +285,15 @@ function SplashSequenceComponent(props: {
   useEffect(() => {
     let cancelled = false;
     let stopReadinessPolling: (() => void) | undefined;
+    let initialReadinessSettled = false;
+    const shouldCheckReadiness = props.splashSequenceMode === 'signup';
+    setLoadingProviderOptions(shouldCheckReadiness);
+    const settleInitialReadiness = () => {
+      if (!cancelled && !initialReadinessSettled) {
+        initialReadinessSettled = true;
+        setLoadingProviderOptions(false);
+      }
+    };
     (async () => {
       try {
         const shipId = await db.hostedUserNodeId.getValue();
@@ -341,10 +353,21 @@ function SplashSequenceComponent(props: {
               setBotCredentialId((current) => current || includedProvider.id);
             }
 
-            if (props.splashSequenceMode === 'signup') {
+            if (shouldCheckReadiness) {
               let loggedReadinessError = false;
               stopReadinessPolling = startBotReadinessPolling({
-                checkReadiness: () => api.checkNodeIsTlonbotReady(shipId),
+                checkReadiness: async () => {
+                  try {
+                    const ready = await api.checkNodeIsTlonbotReady(shipId);
+                    if (!ready) {
+                      settleInitialReadiness();
+                    }
+                    return ready;
+                  } catch (error) {
+                    settleInitialReadiness();
+                    throw error;
+                  }
+                },
                 onReady: () => {
                   setProviderOptions(
                     buildBotCredentialOptions({
@@ -353,6 +376,7 @@ function SplashSequenceComponent(props: {
                       mode: props.splashSequenceMode,
                     })
                   );
+                  settleInitialReadiness();
                 },
                 onError: (error) => {
                   if (!loggedReadinessError) {
@@ -369,6 +393,10 @@ function SplashSequenceComponent(props: {
         }
       } catch {
         // Best-effort
+      } finally {
+        if (!stopReadinessPolling) {
+          settleInitialReadiness();
+        }
       }
     })();
     return () => {
@@ -954,6 +982,7 @@ function SplashSequenceComponent(props: {
           <BotProviderPane
             model={botCredentialId}
             providers={providerOptions}
+            loadingProviders={loadingProviderOptions}
             loading={savingConfig}
             error={configError}
             onModelChange={setBotCredentialId}
@@ -1477,6 +1506,7 @@ function BotSubscriptionAuthPane({ children }: { children: React.ReactNode }) {
 export function BotProviderPane(props: {
   model: string;
   providers: BotCredentialOption[];
+  loadingProviders?: boolean;
   loading?: boolean;
   error?: string | null;
   onModelChange: (model: string) => void;
@@ -1486,6 +1516,7 @@ export function BotProviderPane(props: {
   const {
     model,
     providers,
+    loadingProviders,
     loading,
     error,
     onModelChange,
@@ -1507,54 +1538,60 @@ export function BotProviderPane(props: {
         <SplashTitle>
           Choose a <Text color="$positiveActionText">brain.</Text>
         </SplashTitle>
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-          contentContainerStyle={{
-            paddingHorizontal: getTokenValue('$xl', 'size'),
-            gap: getTokenValue('$s', 'size'),
-            paddingBottom: getTokenValue('$6xl', 'size'),
-          }}
-        >
-          <SplashParagraph marginHorizontal={0} marginBottom="$m">
-            {providers.some(
-              (option) => option.credentialMode === 'subscription'
-            )
-              ? 'Choose included access, connect your ChatGPT subscription, or bring an API key.'
-              : providers.some((option) => !option.requiresKey)
-                ? 'A free model is included. Bring your own API key to use a different provider.'
-                : 'Pick a provider, then enter your API key on the next screen.'}
-          </SplashParagraph>
-          {providers.map((option) => (
-            <ModelOptionCard
-              key={option.id}
-              testID={`bot-provider-option-${option.id}`}
-              option={{
-                label: option.label,
-                description:
-                  option.credentialMode === 'subscription'
-                    ? undefined
-                    : option.requiresKey
-                      ? 'Requires API key'
-                      : 'Default (free, used as fallback)',
-                recommendationLabel: option.recommendationLabel,
-              }}
-              selected={model === option.id}
-              onPress={() => onModelChange(option.id)}
-            />
-          ))}
-          {error ? (
-            <Text
-              size="$label/m"
-              color="$negativeActionText"
-              paddingHorizontal="$xl"
-              paddingTop="$l"
-            >
-              {error}
-            </Text>
-          ) : null}
-        </ScrollView>
+        {loadingProviders ? (
+          <YStack flex={1} alignItems="center" justifyContent="center">
+            <LoadingSpinner size="large" />
+          </YStack>
+        ) : (
+          <ScrollView
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            contentContainerStyle={{
+              paddingHorizontal: getTokenValue('$xl', 'size'),
+              gap: getTokenValue('$s', 'size'),
+              paddingBottom: getTokenValue('$6xl', 'size'),
+            }}
+          >
+            <SplashParagraph marginHorizontal={0} marginBottom="$m">
+              {providers.some(
+                (option) => option.credentialMode === 'subscription'
+              )
+                ? 'Choose included access, connect your ChatGPT subscription, or bring an API key.'
+                : providers.some((option) => !option.requiresKey)
+                  ? 'A free model is included. Bring your own API key to use a different provider.'
+                  : 'Pick a provider, then enter your API key on the next screen.'}
+            </SplashParagraph>
+            {providers.map((option) => (
+              <ModelOptionCard
+                key={option.id}
+                testID={`bot-provider-option-${option.id}`}
+                option={{
+                  label: option.label,
+                  description:
+                    option.credentialMode === 'subscription'
+                      ? undefined
+                      : option.requiresKey
+                        ? 'Requires API key'
+                        : 'Default (free, used as fallback)',
+                  recommendationLabel: option.recommendationLabel,
+                }}
+                selected={model === option.id}
+                onPress={() => onModelChange(option.id)}
+              />
+            ))}
+            {error ? (
+              <Text
+                size="$label/m"
+                color="$negativeActionText"
+                paddingHorizontal="$xl"
+                paddingTop="$l"
+              >
+                {error}
+              </Text>
+            ) : null}
+          </ScrollView>
+        )}
       </YStack>
       <Button
         data-testid="bot-provider-next"
@@ -1563,7 +1600,7 @@ export function BotProviderPane(props: {
         label={loading ? 'Validating...' : 'Next'}
         preset="hero"
         loading={loading}
-        disabled={loading || !model}
+        disabled={loading || loadingProviders || !model}
         marginHorizontal="$xl"
         marginTop="$xl"
       />
