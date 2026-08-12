@@ -1,9 +1,8 @@
 import * as db from '@tloncorp/shared/db';
-import type { ThreadUnreadMap } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { ReactNode, createContext, useContext, useMemo } from 'react';
 
-const Context = createContext<ThreadUnreadMap | null>(null);
+const Context = createContext<Map<string, db.ThreadUnreadState> | null>(null);
 
 export const useThreadUnreads = () => useContext(Context);
 

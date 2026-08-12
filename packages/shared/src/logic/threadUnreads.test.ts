@@ -1,18 +1,12 @@
 import { describe, expect, test } from 'vitest';
 
-import type { ThreadUnreadState } from '../db/types';
 import { resolveThreadUnread } from './threadUnreads';
 
-function unread(threadId: string, count: number): ThreadUnreadState {
-  return {
-    channelId: 'chat/~zod/test',
-    threadId,
-    count,
-    notify: false,
-    updatedAt: 0,
-    firstUnreadPostId: null,
-    firstUnreadPostReceivedAt: null,
-  } as ThreadUnreadState;
+// Structural stand-in for db.ThreadUnreadState — logic/ may not import db/.
+type TestUnread = { threadId: string; count: number };
+
+function unread(threadId: string, count: number): TestUnread {
+  return { threadId, count };
 }
 
 describe('resolveThreadUnread', () => {
@@ -25,7 +19,7 @@ describe('resolveThreadUnread', () => {
     // The live query excludes read threads, so a thread the user just read
     // drops out of the map while the post object may still carry the old row.
     // Falling back here would light the dot again.
-    const map = new Map<string, ThreadUnreadState>();
+    const map = new Map<string, TestUnread>();
     const resolved = resolveThreadUnread(map, {
       id: 'post-1',
       threadUnread: unread('post-1', 5),
@@ -42,6 +36,6 @@ describe('resolveThreadUnread', () => {
   });
 
   test('returns null when there is no map and no post relation', () => {
-    expect(resolveThreadUnread(null, { id: 'post-1' })).toBeNull();
+    expect(resolveThreadUnread<TestUnread>(null, { id: 'post-1' })).toBeNull();
   });
 });

@@ -1,8 +1,3 @@
-import type { ThreadUnreadState } from '../db/types';
-
-/** Thread unreads for one channel, keyed by the parent post's id. */
-export type ThreadUnreadMap = Map<string, ThreadUnreadState>;
-
 /**
  * Decide which thread-unread record drives a post's reply-summary dot.
  *
@@ -12,14 +7,17 @@ export type ThreadUnreadMap = Map<string, ThreadUnreadState>;
  * read threads, so falling back to the post's own copy would resurrect a dot
  * for a thread the user has already read.
  *
- * `null` means no map is in scope (surfaces outside a channel, e.g. a
+ * A `null` map means none is in scope (surfaces outside a channel, e.g. a
  * forwarded-post preview), in which case the post's own relation is all we
  * have.
+ *
+ * Generic over the unread record so this stays free of db imports; callers
+ * supply `db.ThreadUnreadState`.
  */
-export function resolveThreadUnread(
-  unreads: ThreadUnreadMap | null,
-  post: { id: string; threadUnread?: ThreadUnreadState | null }
-): ThreadUnreadState | null {
+export function resolveThreadUnread<T>(
+  unreads: Map<string, T> | null,
+  post: { id: string; threadUnread?: T | null }
+): T | null {
   if (!unreads) {
     return post.threadUnread ?? null;
   }
