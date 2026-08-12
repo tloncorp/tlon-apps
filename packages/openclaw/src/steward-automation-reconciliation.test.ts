@@ -5,7 +5,7 @@ import type {
 } from 'openclaw/plugin-sdk/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { submitStewardAutomationProject } from './steward-automation-adapter.js';
+import { submitStewardAutomationProjection } from './steward-automation-adapter.js';
 import {
   DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS,
   StewardAutomationCronUnavailableError,
@@ -18,7 +18,7 @@ import {
 } from './steward-automation-reconciliation.js';
 
 vi.mock('./steward-automation-adapter.js', () => ({
-  submitStewardAutomationProject: vi.fn(),
+  submitStewardAutomationProjection: vi.fn(),
 }));
 
 type HookHandler = (event: unknown, context: unknown) => unknown;
@@ -90,8 +90,8 @@ const jobs = [
 beforeEach(() => {
   getStewardAutomationReconciler()?.stop();
   setStewardAutomationReconciler(null);
-  vi.mocked(submitStewardAutomationProject).mockReset();
-  vi.mocked(submitStewardAutomationProject).mockResolvedValue(undefined);
+  vi.mocked(submitStewardAutomationProjection).mockReset();
+  vi.mocked(submitStewardAutomationProjection).mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -100,15 +100,15 @@ afterEach(() => {
 });
 
 describe('reconcileStewardAutomation', () => {
-  it('reads the complete list including disabled jobs and submits its normalized project', async () => {
+  it('reads the complete list including disabled jobs and submits its normalized projection', async () => {
     const { context, list } = cronContext(jobs);
 
     await reconcileStewardAutomation(context.getCron);
 
     expect(list).toHaveBeenCalledOnce();
     expect(list).toHaveBeenCalledWith({ includeDisabled: true });
-    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
-    expect(submitStewardAutomationProject).toHaveBeenCalledWith({
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledWith({
       project: {
         tasks: [
           {
@@ -125,12 +125,12 @@ describe('reconcileStewardAutomation', () => {
     });
   });
 
-  it('submits an empty complete project after a successful empty read', async () => {
+  it('submits an empty complete projection after a successful empty read', async () => {
     const { context } = cronContext([]);
 
     await reconcileStewardAutomation(context.getCron);
 
-    expect(submitStewardAutomationProject).toHaveBeenCalledWith({
+    expect(submitStewardAutomationProjection).toHaveBeenCalledWith({
       project: { tasks: [] },
     });
   });
@@ -146,23 +146,23 @@ describe('reconcileStewardAutomation', () => {
     await expect(reconcileStewardAutomation(getCron)).rejects.toBeInstanceOf(
       StewardAutomationCronUnavailableError
     );
-    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
   });
 
-  it('propagates read failures without submitting an empty project', async () => {
+  it('propagates read failures without submitting an empty projection', async () => {
     const readError = new Error('cron list unavailable');
     const list = vi.fn().mockRejectedValue(readError);
 
     await expect(reconcileStewardAutomation(() => ({ list }))).rejects.toBe(
       readError
     );
-    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
   });
 
   it('propagates submission failures for later retry', async () => {
     const submissionError = new Error('poke nack');
     const { context } = cronContext(jobs);
-    vi.mocked(submitStewardAutomationProject).mockRejectedValue(
+    vi.mocked(submitStewardAutomationProjection).mockRejectedValue(
       submissionError
     );
 
@@ -197,11 +197,11 @@ describe('StewardAutomationReconciler', () => {
     expect(list1).toHaveBeenCalledOnce();
     expect(list2).not.toHaveBeenCalled();
     expect(list3).toHaveBeenCalledOnce();
-    expect(submitStewardAutomationProject).toHaveBeenCalledTimes(2);
-    expect(submitStewardAutomationProject).toHaveBeenNthCalledWith(1, {
+    expect(submitStewardAutomationProjection).toHaveBeenCalledTimes(2);
+    expect(submitStewardAutomationProjection).toHaveBeenNthCalledWith(1, {
       project: { tasks: [expect.objectContaining({ id: 'first' })] },
     });
-    expect(submitStewardAutomationProject).toHaveBeenNthCalledWith(2, {
+    expect(submitStewardAutomationProjection).toHaveBeenNthCalledWith(2, {
       project: {
         tasks: [expect.objectContaining({ id: 'latest-follow-up' })],
       },
@@ -210,7 +210,7 @@ describe('StewardAutomationReconciler', () => {
 
   it('waits for submission before starting a triggered follow-up', async () => {
     const firstAcknowledgement = deferred<unknown>();
-    vi.mocked(submitStewardAutomationProject)
+    vi.mocked(submitStewardAutomationProjection)
       .mockImplementationOnce(() => firstAcknowledgement.promise.then(() => {}))
       .mockResolvedValueOnce(undefined);
     const firstContext = cronContext([job('older')]);
@@ -219,23 +219,23 @@ describe('StewardAutomationReconciler', () => {
 
     const first = reconciler.start(firstContext.context.getCron);
     await vi.waitFor(() => {
-      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
     });
     const next = reconciler.trigger(nextContext.context.getCron);
 
     expect(nextContext.list).not.toHaveBeenCalled();
-    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
 
     firstAcknowledgement.resolve(undefined);
     await first;
     await next;
 
     expect(nextContext.list).toHaveBeenCalledOnce();
-    expect(submitStewardAutomationProject).toHaveBeenCalledTimes(2);
-    expect(submitStewardAutomationProject).toHaveBeenNthCalledWith(1, {
+    expect(submitStewardAutomationProjection).toHaveBeenCalledTimes(2);
+    expect(submitStewardAutomationProjection).toHaveBeenNthCalledWith(1, {
       project: { tasks: [expect.objectContaining({ id: 'older' })] },
     });
-    expect(submitStewardAutomationProject).toHaveBeenNthCalledWith(2, {
+    expect(submitStewardAutomationProjection).toHaveBeenNthCalledWith(2, {
       project: { tasks: [expect.objectContaining({ id: 'newer' })] },
     });
   });
@@ -320,12 +320,12 @@ describe('StewardAutomationReconciler', () => {
       const repair = reconciler.trigger(recovered.context.getCron);
 
       expect(recovered.list).not.toHaveBeenCalled();
-      expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+      expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
       waits[0].resolve();
       await Promise.all([initial, repair]);
 
       expect(recovered.list).toHaveBeenCalledOnce();
-      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
     }
   );
 
@@ -339,8 +339,8 @@ describe('StewardAutomationReconciler', () => {
     );
 
     await reconciler.start(previous.context.getCron);
-    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
-    expect(submitStewardAutomationProject).toHaveBeenLastCalledWith({
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenLastCalledWith({
       project: { tasks: [expect.objectContaining({ id: 'previous' })] },
     });
 
@@ -358,8 +358,8 @@ describe('StewardAutomationReconciler', () => {
     expect(startupSettled).toBe(false);
     expect(recoverySettled).toBe(false);
     expect(latest.list).not.toHaveBeenCalled();
-    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
-    expect(submitStewardAutomationProject).toHaveBeenLastCalledWith({
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenLastCalledWith({
       project: { tasks: [expect.objectContaining({ id: 'previous' })] },
     });
 
@@ -370,8 +370,8 @@ describe('StewardAutomationReconciler', () => {
     expect(recoverySettled).toBe(true);
     expect(latest.list).toHaveBeenCalledOnce();
     expect(latest.list).toHaveBeenCalledWith({ includeDisabled: true });
-    expect(submitStewardAutomationProject).toHaveBeenCalledTimes(2);
-    expect(submitStewardAutomationProject).toHaveBeenLastCalledWith({
+    expect(submitStewardAutomationProjection).toHaveBeenCalledTimes(2);
+    expect(submitStewardAutomationProjection).toHaveBeenLastCalledWith({
       project: { tasks: [expect.objectContaining({ id: 'latest' })] },
     });
   });
@@ -389,13 +389,13 @@ describe('StewardAutomationReconciler', () => {
 
     const result = reconciler.start(() => ({ list }));
     await vi.waitFor(() => expect(delay).toHaveBeenCalledOnce());
-    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
 
     waits[0].resolve();
     await result;
     expect(list).toHaveBeenCalledTimes(2);
-    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
-    expect(submitStewardAutomationProject).toHaveBeenCalledWith({
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledWith({
       project: {
         tasks: [expect.objectContaining({ id: 'after-list-recovery' })],
       },
@@ -412,7 +412,7 @@ describe('StewardAutomationReconciler', () => {
       .fn()
       .mockResolvedValueOnce([invalid])
       .mockResolvedValue([job('valid')]);
-    vi.mocked(submitStewardAutomationProject)
+    vi.mocked(submitStewardAutomationProjection)
       .mockRejectedValueOnce(new Error('poke nack'))
       .mockResolvedValueOnce(undefined);
     const reconciler = new StewardAutomationReconciler(
@@ -422,18 +422,18 @@ describe('StewardAutomationReconciler', () => {
 
     const result = reconciler.start(() => ({ list }));
     await vi.waitFor(() => expect(delay).toHaveBeenCalledTimes(1));
-    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
     waits[0].resolve();
 
     await vi.waitFor(() => expect(delay).toHaveBeenCalledTimes(2));
     expect(list).toHaveBeenCalledTimes(2);
-    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
     waits[1].resolve();
 
     await result;
     expect(list).toHaveBeenCalledTimes(3);
-    expect(submitStewardAutomationProject).toHaveBeenCalledTimes(2);
-    expect(submitStewardAutomationProject).toHaveBeenLastCalledWith({
+    expect(submitStewardAutomationProjection).toHaveBeenCalledTimes(2);
+    expect(submitStewardAutomationProjection).toHaveBeenLastCalledWith({
       project: { tasks: [expect.objectContaining({ id: 'valid' })] },
     });
   });
@@ -465,10 +465,10 @@ describe('StewardAutomationReconciler', () => {
     expect(delay).toHaveBeenCalledOnce();
     expect(staleList).not.toHaveBeenCalled();
     expect(latestList).toHaveBeenCalledOnce();
-    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
   });
 
-  it('submits an empty project only after an actual successful empty list', async () => {
+  it('submits an empty projection only after an actual successful empty list', async () => {
     const { delay, waits } = controlledRetryDelay();
     const list = vi
       .fn()
@@ -481,12 +481,12 @@ describe('StewardAutomationReconciler', () => {
 
     const result = reconciler.start(() => ({ list }));
     await vi.waitFor(() => expect(delay).toHaveBeenCalledOnce());
-    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
 
     waits[0].resolve();
     await result;
-    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
-    expect(submitStewardAutomationProject).toHaveBeenCalledWith({
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledWith({
       project: { tasks: [] },
     });
   });
@@ -514,7 +514,7 @@ describe('StewardAutomationReconciler', () => {
 
     expect(reconcile).toHaveBeenCalledOnce();
     expect(delay).toHaveBeenCalledOnce();
-    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
   });
 
   it('stops during an outstanding list without submitting or retrying', async () => {
@@ -537,7 +537,7 @@ describe('StewardAutomationReconciler', () => {
     await vi.waitFor(() => expect(list).toHaveBeenCalledOnce());
 
     expect(delay).not.toHaveBeenCalled();
-    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
   });
 
   it('checks the active epoch at an injected pre-submit boundary', async () => {
@@ -568,7 +568,7 @@ describe('StewardAutomationReconciler', () => {
     releaseBoundary.resolve();
     await cancelled;
 
-    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
   });
 
   it('clears coalesced pending triggers when the gateway stops', async () => {
@@ -592,7 +592,7 @@ describe('StewardAutomationReconciler', () => {
     await vi.waitFor(() => expect(firstList).toHaveBeenCalledOnce());
 
     expect(pendingList).not.toHaveBeenCalled();
-    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
   });
 
   it('restarts with one fresh snapshot and blocks the stale prior epoch', async () => {
@@ -615,8 +615,8 @@ describe('StewardAutomationReconciler', () => {
 
     expect(staleList).toHaveBeenCalledOnce();
     expect(freshList).toHaveBeenCalledOnce();
-    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
-    expect(submitStewardAutomationProject).toHaveBeenCalledWith({
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledWith({
       project: { tasks: [expect.objectContaining({ id: 'fresh' })] },
     });
   });
@@ -646,11 +646,11 @@ describe('registerStewardAutomationReconciliationHooks', () => {
 
     await api.fire('gateway_start', { port: 3000 }, context);
     await vi.waitFor(() => {
-      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
     });
     await api.fire('gateway_stop', { reason: 'shutdown' }, context);
     list.mockClear();
-    vi.mocked(submitStewardAutomationProject).mockClear();
+    vi.mocked(submitStewardAutomationProjection).mockClear();
 
     await api.fire(
       'cron_changed',
@@ -658,7 +658,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
       context
     );
     expect(list).not.toHaveBeenCalled();
-    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
   });
 
   it('reconciles after gateway_start', async () => {
@@ -673,7 +673,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
 
     await api.fire('gateway_start', { port: 3000 }, context);
     await vi.waitFor(() => {
-      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
     });
 
     expect(list).toHaveBeenCalledWith({ includeDisabled: true });
@@ -714,10 +714,10 @@ describe('registerStewardAutomationReconciliationHooks', () => {
 
       await api.fire('gateway_start', { port: 3000 }, context);
       await vi.waitFor(() => {
-        expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+        expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
       });
       list.mockClear();
-      vi.mocked(submitStewardAutomationProject).mockClear();
+      vi.mocked(submitStewardAutomationProjection).mockClear();
 
       await api.fire(
         'cron_changed',
@@ -734,13 +734,13 @@ describe('registerStewardAutomationReconciliationHooks', () => {
         context
       );
       await vi.waitFor(() => {
-        expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+        expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
       });
 
       expect(list).toHaveBeenCalledOnce();
       expect(list).toHaveBeenCalledWith({ includeDisabled: true });
-      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
-      expect(submitStewardAutomationProject).toHaveBeenCalledWith({
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+      expect(submitStewardAutomationProjection).toHaveBeenCalledWith({
         project: {
           tasks: [
             {
@@ -788,7 +788,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
     expect(getStewardAutomationReconciler()).toBe(discovery);
     await fullApi.fire('gateway_start', { port: 3000 }, initial.context);
     await vi.waitFor(() => {
-      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
     });
 
     const prewarm = registerStewardAutomationReconciliationHooks(
@@ -805,7 +805,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
       changed.context
     );
     await vi.waitFor(() => {
-      expect(submitStewardAutomationProject).toHaveBeenCalledTimes(2);
+      expect(submitStewardAutomationProjection).toHaveBeenCalledTimes(2);
     });
 
     await prewarmApi.fire(
@@ -824,7 +824,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
     const restarted = cronContext([job('restarted')]);
     await discoveryApi.fire('gateway_start', { port: 3001 }, restarted.context);
     await vi.waitFor(() => {
-      expect(submitStewardAutomationProject).toHaveBeenCalledTimes(3);
+      expect(submitStewardAutomationProjection).toHaveBeenCalledTimes(3);
     });
     expect(restarted.list).toHaveBeenCalledOnce();
   });
@@ -850,14 +850,14 @@ describe('registerStewardAutomationReconciliationHooks', () => {
 
     await api1.fire('gateway_start', { port: 3000 }, initial.context);
     await vi.waitFor(() => {
-      expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
     });
     await api2.fire('gateway_start', { port: 3000 }, duplicate.context);
     await Promise.resolve();
 
     expect(initial.list).toHaveBeenCalledOnce();
     expect(duplicate.list).not.toHaveBeenCalled();
-    expect(submitStewardAutomationProject).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
   });
 
   it('dispatches projection work without awaiting an outstanding list', async () => {
@@ -881,7 +881,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
     );
 
     expect(list).toHaveBeenCalledOnce();
-    expect(submitStewardAutomationProject).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
     await api.fire('gateway_stop', { reason: 'shutdown' }, {});
     listed.resolve([]);
     await Promise.resolve();

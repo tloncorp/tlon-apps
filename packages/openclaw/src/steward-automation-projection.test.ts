@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import capturedCronJobs from './fixtures/openclaw-2026.5.28-cron-jobs.sanitized.json';
-import { normalizeStewardAutomationProject } from './steward-automation-projection.js';
+import { normalizeStewardAutomationProjection } from './steward-automation-projection.js';
 
 type HookCronJob = Parameters<
-  typeof normalizeStewardAutomationProject
+  typeof normalizeStewardAutomationProjection
 >[0][number];
 
 function runtimeJob(value: unknown): HookCronJob {
@@ -13,7 +13,7 @@ function runtimeJob(value: unknown): HookCronJob {
 
 describe('Steward automation projection normalization', () => {
   it('normalizes captured at/every/cron jobs with their optional fields', () => {
-    const result = normalizeStewardAutomationProject(
+    const result = normalizeStewardAutomationProjection(
       capturedCronJobs.map(runtimeJob)
     );
 
@@ -90,7 +90,7 @@ describe('Steward automation projection normalization', () => {
   });
 
   it('prefers canonical message and preserves false and zero', () => {
-    const result = normalizeStewardAutomationProject([
+    const result = normalizeStewardAutomationProjection([
       runtimeJob({
         id: 'disabled-zero',
         enabled: false,
@@ -139,7 +139,7 @@ describe('Steward automation projection normalization', () => {
 
   it('uses compatibility text when canonical message is absent', () => {
     expect(
-      normalizeStewardAutomationProject([
+      normalizeStewardAutomationProjection([
         runtimeJob({
           id: 'compatibility-text',
           payload: { kind: 'agentTurn', text: 'fallback message' },
@@ -149,7 +149,7 @@ describe('Steward automation projection normalization', () => {
   });
 
   it('omits explicitly undefined task and schedule fields', () => {
-    const tasks = normalizeStewardAutomationProject([
+    const tasks = normalizeStewardAutomationProjection([
       runtimeJob({
         id: 'undefined-task-fields',
         agentId: undefined,
@@ -209,21 +209,21 @@ describe('Steward automation projection normalization', () => {
     expect(tasks[2]?.schedule).not.toHaveProperty('anchorMs');
   });
 
-  it('preserves input order and returns a complete empty project', () => {
+  it('preserves input order and returns a complete empty projection', () => {
     expect(
-      normalizeStewardAutomationProject([
+      normalizeStewardAutomationProjection([
         runtimeJob({ id: 'second' }),
         runtimeJob({ id: 'first' }),
       ]).project.tasks.map(({ id }) => id)
     ).toEqual(['second', 'first']);
-    expect(normalizeStewardAutomationProject([])).toEqual({
+    expect(normalizeStewardAutomationProjection([])).toEqual({
       project: { tasks: [] },
     });
   });
 
   it('normalizes an ISO datetime with a timezone offset', () => {
     expect(
-      normalizeStewardAutomationProject([
+      normalizeStewardAutomationProjection([
         runtimeJob({
           id: 'offset-at',
           schedule: { kind: 'at', at: '2026-08-01T14:30:00+02:00' },
@@ -270,14 +270,14 @@ describe('Steward automation projection normalization', () => {
       /payload.message: expected a string/,
     ],
   ])('rejects %s', (_name, job, error) => {
-    expect(() => normalizeStewardAutomationProject([runtimeJob(job)])).toThrow(
-      error
-    );
+    expect(() =>
+      normalizeStewardAutomationProjection([runtimeJob(job)])
+    ).toThrow(error);
   });
 
-  it('rejects duplicate IDs before producing a project action', () => {
+  it('rejects duplicate IDs before producing a projection action', () => {
     expect(() =>
-      normalizeStewardAutomationProject([
+      normalizeStewardAutomationProjection([
         runtimeJob({ id: 'duplicate' }),
         runtimeJob({ id: 'duplicate' }),
       ])

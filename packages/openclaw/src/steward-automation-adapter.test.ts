@@ -7,13 +7,13 @@ import {
 import { sharedSlot } from './shared-state.js';
 import {
   StewardAutomationConnectionUnavailableError,
-  submitStewardAutomationProject,
+  submitStewardAutomationProjection,
 } from './steward-automation-adapter.js';
-import type { StewardAutomationProjectAction } from './steward-automation-projection.js';
+import type { StewardAutomationProjection } from './steward-automation-projection.js';
 
 const paramsSlot = sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT);
 
-const action: StewardAutomationProjectAction = {
+const projection: StewardAutomationProjection = {
   project: {
     tasks: [
       {
@@ -35,7 +35,7 @@ function paramsWithPoke(
   };
 }
 
-describe('submitStewardAutomationProject', () => {
+describe('submitStewardAutomationProjection', () => {
   beforeEach(() => {
     paramsSlot.set(null);
   });
@@ -48,18 +48,18 @@ describe('submitStewardAutomationProject', () => {
     const poke = vi.fn().mockResolvedValue(42);
     paramsSlot.set(paramsWithPoke(poke));
 
-    await submitStewardAutomationProject(action);
+    await submitStewardAutomationProjection(projection);
 
     expect(poke).toHaveBeenCalledOnce();
     expect(poke).toHaveBeenCalledWith({
       app: 'steward',
       mark: 'steward-automation-action-1',
-      json: action,
+      json: projection,
     });
   });
 
   it('fails with a retryable availability error when no connection is published', async () => {
-    const submission = submitStewardAutomationProject(action);
+    const submission = submitStewardAutomationProjection(projection);
 
     await expect(submission).rejects.toMatchObject({
       name: 'StewardAutomationConnectionUnavailableError',
@@ -81,9 +81,11 @@ describe('submitStewardAutomationProject', () => {
     paramsSlot.set(paramsWithPoke(poke));
     let settled = false;
 
-    const submission = submitStewardAutomationProject(action).then(() => {
-      settled = true;
-    });
+    const submission = submitStewardAutomationProjection(projection).then(
+      () => {
+        settled = true;
+      }
+    );
     await Promise.resolve();
 
     expect(poke).toHaveBeenCalledOnce();
@@ -99,7 +101,9 @@ describe('submitStewardAutomationProject', () => {
     const poke = vi.fn().mockRejectedValue(nack);
     paramsSlot.set(paramsWithPoke(poke));
 
-    await expect(submitStewardAutomationProject(action)).rejects.toBe(nack);
+    await expect(submitStewardAutomationProjection(projection)).rejects.toBe(
+      nack
+    );
   });
 
   it('looks up the current slot value for every submission', async () => {
@@ -107,16 +111,16 @@ describe('submitStewardAutomationProject', () => {
     const currentPoke = vi.fn().mockResolvedValue(2);
 
     paramsSlot.set(paramsWithPoke(stalePoke));
-    await submitStewardAutomationProject(action);
+    await submitStewardAutomationProjection(projection);
     paramsSlot.set(paramsWithPoke(currentPoke));
-    await submitStewardAutomationProject(action);
+    await submitStewardAutomationProjection(projection);
 
     expect(stalePoke).toHaveBeenCalledOnce();
     expect(currentPoke).toHaveBeenCalledOnce();
     expect(currentPoke).toHaveBeenCalledWith({
       app: 'steward',
       mark: 'steward-automation-action-1',
-      json: action,
+      json: projection,
     });
   });
 });

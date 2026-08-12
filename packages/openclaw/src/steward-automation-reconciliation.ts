@@ -5,8 +5,8 @@ import type {
 } from 'openclaw/plugin-sdk/types';
 
 import { sharedSlot } from './shared-state.js';
-import { submitStewardAutomationProject } from './steward-automation-adapter.js';
-import { normalizeStewardAutomationProject } from './steward-automation-projection.js';
+import { submitStewardAutomationProjection } from './steward-automation-adapter.js';
+import { normalizeStewardAutomationProjection } from './steward-automation-projection.js';
 
 type StewardAutomationCronService = Pick<PluginHookGatewayCronService, 'list'>;
 
@@ -105,12 +105,12 @@ export async function reconcileStewardAutomation(
   }
 
   const jobs = await cron.list({ includeDisabled: true });
-  const action = normalizeStewardAutomationProject(jobs);
+  const projection = normalizeStewardAutomationProjection(jobs);
   await beforeSubmit?.();
   // Keep this synchronous check adjacent to invoking the adapter. Awaiting a
   // lifecycle guard here would reopen a microtask-sized stale-submit race.
   assertCanSubmit?.();
-  await submitStewardAutomationProject(action);
+  await submitStewardAutomationProjection(projection);
 }
 
 /**

@@ -37,7 +37,7 @@ export interface StewardAutomationTask {
   updatedAtMs?: number;
 }
 
-export interface StewardAutomationProjectAction {
+export interface StewardAutomationProjection {
   project: {
     tasks: StewardAutomationTask[];
   };
@@ -205,9 +205,9 @@ function normalizeTask(job: PluginHookGatewayCronJob): StewardAutomationTask {
 }
 
 /** Normalize one complete OpenClaw cron list into Steward's `%project` JSON. */
-export function normalizeStewardAutomationProject(
+export function normalizeStewardAutomationProjection(
   jobs: readonly PluginHookGatewayCronJob[]
-): StewardAutomationProjectAction {
+): StewardAutomationProjection {
   const seenIds = new Set<string>();
   const tasks = jobs.map((job) => {
     const task = normalizeTask(job);

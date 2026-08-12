@@ -118,3 +118,5 @@
          complete Zod task, schedule, and payload schemas.
 - [ ] 5.13 Make OpenClaw `message` the canonical agent-turn payload
          field, retaining `text` only as a compatibility fallback.
+- [x] 5.14 Rename TypeScript `Project` terminology to `Projection`
+         while preserving the `%project` wire action.
