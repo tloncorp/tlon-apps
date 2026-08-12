@@ -29,6 +29,7 @@ import {
   ONBOARDING_TIMEZONE_PREFIX,
   deterministicSetupFromDescription,
 } from './agent-onboarding-coordinator.js';
+import { fetchChannelHistory } from './history.js';
 
 /**
  * Agent onboarding, bot side: the pickers the agent posts into a group that
@@ -489,7 +490,10 @@ export function servicesCardFallbackText(): string {
 }
 
 type ScryApi = { scry: (path: string) => Promise<unknown> } | null;
-type Runtime = { error?: (message: string) => void };
+type Runtime = {
+  log?: (message: string) => void;
+  error?: (message: string) => void;
+};
 type RawGroup = {
   meta?: { description?: unknown };
   channels?: Record<string, unknown>;
@@ -616,22 +620,66 @@ export async function findConfiguredAgentGroupRoutes(
     description: string;
   }>
 > {
-  if (!ownerShip) {
+  if (!ownerShip || !api) {
     return [];
   }
   const groups = await scryGroups(api, runtime, 'configured agent groups');
-  return Object.entries(groups ?? {}).flatMap(([flag, group]) => {
+  const routes: Array<{
+    flag: string;
+    chatNest: string;
+    notebookNest: string | null;
+    description: string;
+  }> = [];
+  for (const [flag, group] of Object.entries(groups ?? {})) {
     const description = descriptionOf(group);
     if (
       hostOf(flag) !== ownerShip ||
       !descriptionHasConfiguredJob(description)
     ) {
-      return [];
+      continue;
     }
     const nests = nestsOf(group);
-    const chatNest = nests.find((key) => key.startsWith('chat/'));
+    const chatNests = nests.filter((key) => key.startsWith('chat/'));
+    let chatNest: string | undefined;
+    const deterministicHomeChat = homeGroupChatNestFor(ownerShip);
+    if (
+      flag === homeGroupFlagFor(ownerShip) &&
+      chatNests.includes(deterministicHomeChat)
+    ) {
+      chatNest = deterministicHomeChat;
+    } else if (chatNests.length === 1) {
+      chatNest = chatNests[0];
+    } else {
+      // Closing recovery belongs in the chat that actually hosted the
+      // onboarding transcript, never whichever channel the group lists first.
+      for (const candidate of chatNests) {
+        try {
+          const history = await fetchChannelHistory(
+            api,
+            candidate,
+            100,
+            runtime,
+            { throwOnError: true }
+          );
+          if (
+            history.some(
+              (entry) =>
+                entry.content.startsWith(PURPOSE_PICKER_PROMPT) ||
+                entry.content.startsWith(TOPICS_PICKER_PROMPT)
+            )
+          ) {
+            chatNest = candidate;
+            break;
+          }
+        } catch (error) {
+          runtime.error?.(
+            `[tlon] Failed to inspect onboarding chat ${candidate}: ${String(error)}`
+          );
+        }
+      }
+    }
     if (!chatNest) {
-      return [];
+      continue;
     }
     const liveNotebookNests = nests.filter((key) => key.startsWith('notes/'));
     const configuredNotebookNest =
@@ -641,15 +689,9 @@ export async function findConfiguredAgentGroupRoutes(
       liveNotebookNests.includes(configuredNotebookNest)
         ? configuredNotebookNest
         : liveNotebookNests[0] ?? null;
-    return [
-      {
-        flag,
-        chatNest,
-        notebookNest,
-        description,
-      },
-    ];
-  });
+    routes.push({ flag, chatNest, notebookNest, description });
+  }
+  return routes;
 }
 
 /**

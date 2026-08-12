@@ -827,6 +827,60 @@ describe('findConfiguredAgentGroupRoutes', () => {
       },
     ]);
   });
+
+  test('selects the chat containing the onboarding transcript', async () => {
+    const completedDescription = configEntry({
+      templateId: 'agent-daily-digest',
+      purpose: 'Keeps up with bread.',
+      jobs: [{ id: 'agent-daily-digest', cronJobId: 'cron-1' }],
+      onboarding: {
+        state: 'complete',
+        topics: 'bread',
+        timezone: 'UTC',
+        cronJobId: 'cron-1',
+        notebookNest: 'notes/~ten/output',
+        noteId: 'note-1',
+      },
+    });
+    const groups = {
+      '~ten/multi-chat': {
+        meta: { description: completedDescription },
+        'active-channels': [
+          'chat/~ten/unrelated',
+          'chat/~ten/onboarding',
+          'notes/~ten/output',
+        ],
+      },
+    };
+    const api = {
+      scry: async (path: string) => {
+        if (path === '/groups/v2/groups.json') {
+          return groups;
+        }
+        if (path.includes('chat/~ten/onboarding')) {
+          return [
+            {
+              essay: {
+                author: '~bot',
+                content: [{ inline: [purposePickerFallbackText()] }],
+                sent: 1,
+              },
+            },
+          ];
+        }
+        return [];
+      },
+    };
+
+    expect(await findConfiguredAgentGroupRoutes(api, {}, '~ten')).toEqual([
+      {
+        flag: '~ten/multi-chat',
+        chatNest: 'chat/~ten/onboarding',
+        notebookNest: 'notes/~ten/output',
+        description: completedDescription,
+      },
+    ]);
+  });
 });
 
 describe('services card', () => {

@@ -263,7 +263,7 @@ export async function fetchChannelHistory(
   api: { scry: (path: string) => Promise<unknown> },
   channelNest: string,
   count = 50,
-  runtime?: RuntimeEnv,
+  runtime?: { log?: (message: string) => void },
   opts?: {
     /**
      * Rethrow scry failures instead of returning `[]`. For callers that make

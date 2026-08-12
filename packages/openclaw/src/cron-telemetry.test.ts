@@ -495,6 +495,23 @@ describe('cron telemetry hook handling', () => {
     expect(reports).toEqual([]);
   });
 
+  it('does not let a stale gateway clear a replacement accessor', async () => {
+    const staleService = makeCronService([{ ...makeJob(), id: 'stale-job' }]);
+    const replacementService = makeCronService([
+      { ...makeJob(), id: 'replacement-job' },
+    ]);
+    const staleAccessor = () => staleService;
+    const replacementAccessor = () => replacementService;
+    setCronServiceAccessor(staleAccessor);
+    setCronServiceAccessor(replacementAccessor);
+
+    clearCronServiceAccessor(staleAccessor);
+
+    await expect(emitCronSnapshot()).resolves.toBe(true);
+    expect(staleService.list).not.toHaveBeenCalled();
+    expect(replacementService.list).toHaveBeenCalledOnce();
+  });
+
   it('retries the boot snapshot once the accessor appears', async () => {
     vi.useFakeTimers();
     scheduleCronSnapshot();

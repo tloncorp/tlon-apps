@@ -1250,13 +1250,19 @@ export default defineBundledChannelEntry({
     // by the monitor's cron reporter (setCronTelemetryReporter). The
     // gateway_start handler publishes the cron service accessor so the monitor
     // can emit its boot-time job-count snapshot without a hook context.
+    let registryCronAccessor:
+      | Parameters<typeof setCronServiceAccessor>[0]
+      | undefined;
     api.on('gateway_start', (_event, ctx) => {
       if (ctx.getCron) {
-        setCronServiceAccessor(ctx.getCron);
+        registryCronAccessor = ctx.getCron;
+        setCronServiceAccessor(registryCronAccessor);
       }
     });
     api.on('gateway_stop', () => {
-      clearCronServiceAccessor();
+      if (registryCronAccessor) {
+        clearCronServiceAccessor(registryCronAccessor);
+      }
       // Do not clear shared onboarding callbacks here. OpenClaw can deliver a
       // stale registry's stop after a newer registry is already active.
       resetTlonCronObservability();

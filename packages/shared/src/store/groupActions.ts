@@ -427,12 +427,30 @@ export async function updateGroupMeta(
   // config). An unreadable ship fails the whole update rather than falling
   // back to the local copy: writing the stale bytes anyway is exactly the
   // clobber this path exists to prevent, and a meta edit is retryable.
-  const agentGroups = await db.agentGroupAgents
-    .getValue()
-    .catch((): Record<string, string> => ({}));
+  const localConfigProvesAgentGroup = Boolean(
+    parseGroupAgentConfig(existingGroup?.description)
+  );
+  let agentGroups: Record<string, string>;
+  try {
+    agentGroups = await db.agentGroupAgents.getValue();
+  } catch (error) {
+    if (!localConfigProvesAgentGroup) {
+      logger.error(
+        'Skipping group meta update: agent identity is unreadable and stale metadata could clobber remote config',
+        group.id,
+        error
+      );
+      if (config?.shouldThrow) {
+        throw new Error(
+          'Could not update the group right now — try again in a moment.'
+        );
+      }
+      return;
+    }
+    agentGroups = {};
+  }
   const isAgentGroup =
-    Boolean(agentGroups[group.id]) ||
-    Boolean(parseGroupAgentConfig(existingGroup?.description));
+    Boolean(agentGroups[group.id]) || localConfigProvesAgentGroup;
   let description = group.description ?? '';
   let remoteMeta: Awaited<ReturnType<typeof api.getGroup>> | null = null;
   if (isAgentGroup) {
