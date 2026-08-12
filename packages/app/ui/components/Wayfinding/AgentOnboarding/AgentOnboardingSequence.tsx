@@ -30,7 +30,16 @@ export function AgentOnboardingSequence(props: {
       // back to the standard splash immediately. Without this, the retry
       // below makes every bot-less account sit on a spinner for its full
       // duration, waiting out a lookup that can only ever return null.
-      const botEnabled = await db.hostingBotEnabled.getValue();
+      let botEnabled: boolean | null;
+      try {
+        botEnabled = await db.hostingBotEnabled.getValue();
+      } catch (error) {
+        logger.trackError('Failed to read hosted bot status', { error });
+        if (!cancelled) {
+          setHomeGroupMissing(true);
+        }
+        return;
+      }
       if (cancelled || redirectedRef.current) {
         return;
       }

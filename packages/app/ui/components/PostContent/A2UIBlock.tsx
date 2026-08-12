@@ -49,9 +49,9 @@ function SmallChoicePills({
 }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [freeText, setFreeText] = useState('');
-  // One-shot: a double tap on submit would post the reply twice, and the
-  // second copy lands as ordinary chat racing the setup turn the first one
-  // started.
+  // In-flight only: block a double tap while transport is sending, then allow
+  // retry. Transport success is not coordinator acknowledgement; the monitor
+  // may have missed a message during a restart or unreadable-group window.
   const [submitted, setSubmitted] = useState(false);
 
   const toggle = useCallback((id: string) => {
@@ -80,6 +80,9 @@ function SmallChoicePills({
     try {
       await onSubmit(messageForSelection);
     } catch {
+      // The transport reports failures elsewhere; this surface only needs to
+      // become available again so the owner can retry.
+    } finally {
       setSubmitted(false);
     }
   }, [messageForSelection, onSubmit, submitted]);

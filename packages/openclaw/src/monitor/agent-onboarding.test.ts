@@ -496,6 +496,15 @@ describe('pendingTopicsOfferFromHistory', () => {
     // A bare card-title message with no picker below it is just text.
     expect(pendingTopicsOfferFromHistory([tap(2)], BOT, OWNER)).toBeUndefined();
   });
+
+  test('ignores owner messages from before the opening picker', () => {
+    expect(
+      pendingTopicsOfferFromHistory([tap(1), opening(2)], BOT, OWNER)
+    ).toBeUndefined();
+    expect(
+      pendingTopicsOfferFromHistory([tap(1), opening(2), tap(3)], BOT, OWNER)
+    ).toEqual({ purposeId: 'agent-daily-digest' });
+  });
 });
 
 describe('setupOutputNotebookNest', () => {

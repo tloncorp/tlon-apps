@@ -706,7 +706,6 @@ export function pendingTopicsOfferFromHistory(
     (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0)
   );
   let tappedPurpose: OnboardingPurposeSelection | undefined;
-  let sawOpening = false;
   for (const entry of newestFirst) {
     const content = entry.content.trim();
     if (entry.author === botShip) {
@@ -716,7 +715,9 @@ export function pendingTopicsOfferFromHistory(
         return undefined;
       }
       if (content.startsWith(PURPOSE_PICKER_PROMPT)) {
-        sawOpening = true;
+        // Only owner messages encountered before this point are newer than
+        // the picker. Anything below it is bootstrap/history, not an answer.
+        return tappedPurpose;
       }
       continue;
     }
@@ -724,11 +725,10 @@ export function pendingTopicsOfferFromHistory(
       if (tappedPurpose === undefined) {
         tappedPurpose = purposeSelectionForReply(content);
       }
-      // Older owner messages don't change the answer; keep scanning for
-      // the opening below.
+      // Keep the newest owner answer while scanning back to its picker.
     }
   }
-  return sawOpening ? tappedPurpose : undefined;
+  return undefined;
 }
 
 export function derivePendingPurposeFromHistory(

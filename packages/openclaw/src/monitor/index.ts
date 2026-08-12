@@ -882,6 +882,8 @@ export async function monitorTlonProvider(
       string,
       OnboardingPurposeSelection & { topics: string; groupFlag: string }
     >();
+    /** Valid timezone replies currently being applied to deterministic setup. */
+    const onboardingTimezoneInFlight = new Map<string, string>();
     /**
      * Channels whose deterministic setup has started but not yet closed with
      * the invite card.
@@ -1223,7 +1225,9 @@ export async function monitorTlonProvider(
       traceOnboardingStep(traceBase, 'post_opening', 'started');
       let recentPosts: Awaited<ReturnType<typeof fetchChannelHistory>>;
       try {
-        recentPosts = await fetchChannelHistory(api, nest, 10, runtime);
+        recentPosts = await fetchChannelHistory(api, nest, 10, runtime, {
+          throwOnError: true,
+        });
         traceOnboardingStep(traceBase, 'read_recent_history', 'succeeded', {
           historyPostCount: recentPosts.length,
         });
@@ -6438,6 +6442,21 @@ export async function monitorTlonProvider(
         // Deterministic onboarding consumes topic and timezone replies before
         // ordinary agent dispatch. The model never sees these as operational
         // instructions and therefore cannot improvise the side effects.
+        const inFlightTimezone = onboardingTimezoneInFlight.get(nest);
+        if (
+          inFlightTimezone &&
+          isOwner(senderShip) &&
+          isTopLevelTextMessage &&
+          !isThreadReply &&
+          !parentId &&
+          normalizeIanaTimezone(rawText ?? '') === inFlightTimezone
+        ) {
+          runtime.log?.(
+            `[tlon] Dropping duplicate timezone reply in ${nest} while setup is in flight`
+          );
+          return;
+        }
+
         const pendingTimezone = onboardingTimezonePending.get(nest);
         if (
           pendingTimezone &&
@@ -6476,6 +6495,7 @@ export async function monitorTlonProvider(
             });
             return;
           }
+          onboardingTimezoneInFlight.set(nest, timezone);
           onboardingTimezonePending.delete(nest);
           onboardingSetupPending.delete(nest);
           traceOnboardingStep(
@@ -6519,6 +6539,8 @@ export async function monitorTlonProvider(
               nest,
               'I hit a setup problem before anything was published. Tap your timezone again and I’ll retry safely.'
             ).catch(() => {});
+          } finally {
+            onboardingTimezoneInFlight.delete(nest);
           }
           return;
         }
