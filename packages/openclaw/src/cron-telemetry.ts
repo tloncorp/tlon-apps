@@ -79,7 +79,10 @@ export function setCronServiceAccessor(
   cronServiceAccessorSlot.set(accessor);
 }
 
-export function clearCronServiceAccessor(): void {
+export function clearCronServiceAccessor(expected?: CronServiceAccessor): void {
+  if (expected && cronServiceAccessorSlot.get() !== expected) {
+    return;
+  }
   cronServiceAccessorSlot.set(null);
 }
 
