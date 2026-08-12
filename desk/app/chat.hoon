@@ -1,5 +1,5 @@
 /-  c=chat, cv=chat-ver, d=channels, dv=channels-ver, g=groups
-/-  u=ui, e=epic, a=activity, av=activity-ver, s=story, meta
+/-  u=ui, e=epic, a=activity, av=activity-ver, s=story, meta, se=search
 /-  contacts
 /+  default-agent, verb, dbug,
     guard,
@@ -12,6 +12,7 @@
 /+  wood-lib=wood
 ::  performance, keep warm
 /+  chat-json
+/+  sh=search
 ::
 /*  desk-bill  %bill  /desk/bill  ::  keep warm
 ::
@@ -268,6 +269,119 @@
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:guard (emit %give gift))
 ++  now-id   `id:c`[our now]:bowl
+::  +search-running: is the local index agent installed?
+::
+++  search-running  .^(? %gu (scry-path %search /$))
+::  +submit-search-list: hand %search references to what changed
+::
+::    the pokes name the changes and stop there; %search tokenizes and
+::    indexes them in a later event, so sending a message never pays for
+::    indexing.
+::
+::    %search-action-1 isn't in /lib/rail's mark table, so the poke rides
+::    out as an unsafe cage; it arrives at %search as an ordinary poke.
+::
+++  submit-search-list
+  |=  acts=(list action:v1:se)
+  ^+  cor
+  ?~  acts  cor
+  ?.  search-running  cor
+  %-  emil
+  %+  turn  acts
+  |=(a=action:v1:se (unsafe:guard (submit:sh our.bowl a)))
+::  +chat-entry: an index submission for one message or reply
+::
+++  chat-entry
+  |=  $:  =whom:c
+          id=id:c
+          reply=(unit id:c)
+          context=@t
+          =story:d
+          =author:c
+          sent=time
+      ==
+  ^-  entry:v1:se
+  :*  `target:v1:se`[%chat whom id reply]
+      ''
+      context
+      (flatten:utils story)
+      `?@(author author ship.author)
+      sent
+  ==
+::  +chat-index-acts: which submissions a writ response implies
+::
+::    reactions carry no text, so they produce nothing.
+::
+++  chat-index-acts
+  |=  [=whom:c context=@t =response:writs:c]
+  ^-  (list action:v1:se)
+  =*  id   id.response
+  =*  del  response.response
+  ?-    -.del
+      %add
+    =*  e  essay.del
+    ~[[%touch ~[(chat-entry whom id ~ context content.e author.e sent.e)]]]
+  ::
+      %del
+    ~[[%erase ~[`target:v1:se`[%chat whom id ~]]]]
+  ::
+      %reply
+    =*  rid  id.del
+    ?-    -.delta.del
+        %add
+      =*  re  reply-essay.delta.del
+      :_  ~
+      :-  %touch
+      ~[(chat-entry whom id `rid context content.re author.re sent.re)]
+    ::
+        %del
+      ~[[%erase ~[`target:v1:se`[%chat whom id `rid]]]]
+    ::
+        ?(%add-react %del-react)
+      ~
+    ==
+  ::
+      ?(%add-react %del-react)
+    ~
+  ==
+::  +submit-writs: submit every message and reply in one conversation
+::
+++  submit-writs
+  |=  [=whom:c context=@t =writs:c]
+  ^+  cor
+  =/  entries=(list entry:v1:se)
+    %-  zing
+    %+  turn  (tap:on:writs:c writs)
+    |=  [=time m=(may:c writ:c)]
+    ^-  (list entry:v1:se)
+    ?:  ?=(%| -.m)  ~
+    =*  w  +.m
+    :-  (chat-entry whom id.w ~ context content.w author.w sent.w)
+    %+  murn  (tap:on:replies:c replies.w)
+    |=  [rt=^time mr=(may:c reply:c)]
+    ^-  (unit entry:v1:se)
+    ?:  ?=(%| -.mr)  ~
+    =*  r  +.mr
+    `(chat-entry whom id.w `id.r context content.r author.r sent.r)
+  ?~  entries  cor
+  (submit-search-list ~[[%touch entries]])
+::  +search-rebuild: resubmit every message we hold
+::
+++  search-rebuild
+  ^+  cor
+  ?.  search-running  cor
+  =.  cor
+    =/  dl  ~(tap by dms)
+    |-  ^+  cor
+    ?~  dl  cor
+    =.  cor  (submit-writs [%ship p.i.dl] (scot %p p.i.dl) wit.pact.q.i.dl)
+    $(dl t.dl)
+  =/  cl  ~(tap by clubs)
+  |-  ^+  cor
+  ?~  cl  cor
+  =.  cor  (submit-writs [%club p.i.cl] title.met.crew.q.i.cl wit.pact.q.i.cl)
+  $(cl t.cl)
+::
 ++  scry-path
   |=  [agent=term =path]
   ~>  %spin.['scry-path']
@@ -821,6 +935,14 @@
         %chat-trim
       ?>  from-self
       trim:migrate
+    ::
+        %search-action-1
+      ::  %search asking us to resubmit everything we hold. it sends the
+      ::  whole action type; %rebuild is the only variant meant for us.
+      ?>  from-self
+      =+  !<(act=action:v1:se q.cage.rail)
+      ?.  ?=(%rebuild -.act)  cor
+      search-rebuild
     ==
   ?+    -.rail  ~|(bad-poke/-.rail !!)
       %chat-negotiate
@@ -2079,6 +2201,8 @@
     ?~  response
       =.  cor  (emit (tell-log %error ~['+diff-to-response miss (cu)'] ~))
       cu-core
+    =.  cor
+      (submit-search-list (chat-index-acts whom title.met.crew.club u.response))
     =/  old-response-3=[whom:v3:cv response:writs:v3:cv]
       :-  whom
       %-  v3:response-writs:v5:cc
@@ -2600,6 +2724,8 @@
     ?~  response
       =.  cor  (emit (tell-log %error ~['+diff-to-response miss (di)'] ~))
       di-core
+    =.  cor
+      (submit-search-list (chat-index-acts whom (scot %p ship) u.response))
     =/  old-response-3=[whom:v3:cv response:writs:v3:cv]
       :-  whom
       %-  v3:response-writs:v5:cc

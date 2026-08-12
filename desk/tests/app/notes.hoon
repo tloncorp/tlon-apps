@@ -306,6 +306,8 @@
   |=  pax=path
   ?:  ?=([%gu @ %activity @ %$ ~] pax)
     `!>(|)
+  ?:  ?=([%gu @ %search @ %$ ~] pax)
+    `!>(|)
   ~
 ::  +activity-scry: %activity is running; used by activity-submission tests.
 ::
@@ -314,6 +316,8 @@
   |=  pax=path
   ?:  ?=([%gu @ %activity @ %$ ~] pax)
     `!>(&)
+  ?:  ?=([%gu @ %search @ %$ ~] pax)
+    `!>(|)
   ~
 ::  +nb-flag: flag for notebook with title+nid under ship who
 ::  Applies the same slug algorithm as ++slugify in app/notes.hoon.
@@ -625,12 +629,14 @@
   =/  can-read-allow=scry
     |=  pax=path
     ?:  ?=([%gu @ %activity @ %$ ~] pax)  `!>(|)
+    ?:  ?=([%gu @ %search @ %$ ~] pax)  `!>(|)
     ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)  ~
     `!>(|=([who=ship =nest:n] =(who ~bus)))
   ::  revoked: can-read denies everyone (host self-shortcuts in group-can-read).
   =/  can-read-deny=scry
     |=  pax=path
     ?:  ?=([%gu @ %activity @ %$ ~] pax)  `!>(|)
+    ?:  ?=([%gu @ %search @ %$ ~] pax)  `!>(|)
     ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)  ~
     `!>(|=([who=ship =nest:n] |))
   ;<  ~  b  init-zod
@@ -2882,6 +2888,8 @@
   |=  pax=path
   ?:  ?=([%gu @ %groups @ %groups @ @ ~] pax)
     `!>(synced)
+  ?:  ?=([%gu @ %search @ %$ ~] pax)
+    `!>(|)
   ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)
     ~
   `!>(|=([who=ship =nest:n] allowed))

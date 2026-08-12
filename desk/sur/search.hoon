@@ -86,12 +86,16 @@
 ::    .grams  trigram -> terms containing it, for fuzzy and prefix matching
 ::    .trail  document -> its terms, so a document can be fully retracted
 ::    .docs   document -> its stored record
+::    .kids   post/message -> its replies, which are documents in their own
+::            right; deleting the parent has to take them with it, or a
+::            delete leaves results pointing at nothing
 ::
 +$  index
   $:  terms=(map key postings)
       grams=(jug gram key)
       trail=(map tid (set key))
       docs=(map tid doc)
+      kids=(jug tid tid)
   ==
 ::  $job: one queued unit of deferred index work
 ::

@@ -9,7 +9,8 @@
 ::    we can have resubscribe loop protection.
 ::
 /-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, a=activity, av=activity-ver, story
-/-  meta
+/-  meta, se=search
+/+  sh=search
 /+  default-agent, verb, dbug,
     guard,
     neg=negotiate, discipline, logs,
@@ -263,6 +264,33 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:guard (emit %give gift))
+::  +search-running: is the local index agent installed?
+::
+++  search-running  .^(? %gu (scry-path %search /$))
+::  +submit-search: hand %search a reference to what changed
+::
+::    the poke names the change and stops there; %search tokenizes and
+::    indexes it in a later event, so a post never pays for indexing.
+::
+::    %search-action-1 isn't in /lib/rail's mark table, so the poke rides
+::    out as an unsafe cage; it arrives at %search as an ordinary poke.
+::
+++  submit-search
+  |=  =action:v1:se
+  ^+  cor
+  ?.  search-running  cor
+  (emit (unsafe:guard (submit:sh our.bowl action)))
+::  +search-rebuild: resubmit every post and reply we hold
+::
+++  search-rebuild
+  ^+  cor
+  ?.  search-running  cor
+  =/  nests=(list nest:c)  ~(tap in ~(key by v-channels))
+  |-  ^+  cor
+  ?~  nests  cor
+  =.  cor  ca-abet:ca-index-all:(ca-abed:ca-core i.nests)
+  $(nests t.nests)
+::
 ++  server  (cat 3 dap.bowl '-server')
 ++  log
   |=  msg=(trap tape)
@@ -1002,6 +1030,14 @@
   ::
       %unsafe
     ?+  p.cage.rail  ~|(bad-poke+mark !!)
+        %search-action-1
+      ::  %search asking us to resubmit everything we hold. it sends the
+      ::  whole action type; %rebuild is the only variant meant for us.
+      ?>  =(our src):bowl
+      =+  !<(act=action:v1:se q.cage.rail)
+      ?.  ?=(%rebuild -.act)  cor
+      search-rebuild
+    ::
         %channel-migration
       ?>  =(our src):bowl
       =+  !<(new-channels=v-channels:c q.cage.rail)
@@ -1754,6 +1790,113 @@
   ++  ca-sub-wire  (weld ca-area /updates)
   ++  ca-give-unread
     (give %fact ~[/unreads /v0/unreads /v1/unreads] channel-unread-update+[nest ca-unread])
+  ::  +ca-entry: an index submission for one post or reply
+  ::
+  ::    .context is the channel slug; the target already carries the nest,
+  ::    so this only has to be good enough to label a result.
+  ::
+  ++  ca-entry
+    |=  $:  id=id-post:c
+            reply=(unit id-reply:c)
+            title=@t
+            =story:c
+            =author:c
+            sent=time
+        ==
+    ^-  entry:v1:se
+    :*  `target:v1:se`[%channel nest id reply]
+        title
+        name.nest
+        (flatten:utils story)
+        `?@(author author ship.author)
+        sent
+    ==
+  ::
+  ++  ca-title
+    |=  meta=(unit data:meta)
+    ^-  @t
+    ?~(meta '' title.u.meta)
+  ::  +ca-index: mirror a channel change into the search index
+  ::
+  ++  ca-index
+    |=  =r-channel:c
+    ^+  ca-core
+    ?.  search-running  ca-core
+    =/  acts=(list action:v1:se)  (ca-index-acts r-channel)
+    ?~  acts  ca-core
+    %-  emil
+    (turn acts |=(a=action:v1:se (unsafe:guard (submit:sh our.bowl a))))
+  ::  +ca-index-acts: which submissions a response implies
+  ::
+  ::    a tombstone retracts the document; anything else (re)indexes it.
+  ::    reacts and metadata changes carry no text, so they are ignored.
+  ::
+  ++  ca-index-acts
+    |=  =r-channel:c
+    ^-  (list action:v1:se)
+    ?+    r-channel  ~
+        [%post * %set *]
+      =*  m  post.r-post.r-channel
+      ?:  ?=(%| -.m)
+        ~[[%erase ~[`target:v1:se`[%channel nest id.r-channel ~]]]]
+      =*  p  +.m
+      ~[[%touch ~[(ca-entry id.p ~ (ca-title meta.p) content.p author.p sent.p)]]]
+    ::
+        [%post * %essay *]
+      =*  e  essay.r-post.r-channel
+      :_  ~
+      :-  %touch
+      ~[(ca-entry id.r-channel ~ (ca-title meta.e) content.e author.e sent.e)]
+    ::
+        [%post * %reply * * %set *]
+      =*  m  reply.r-reply.r-post.r-channel
+      =/  rid  id.r-post.r-channel
+      ?:  ?=(%| -.m)
+        ~[[%erase ~[`target:v1:se`[%channel nest id.r-channel `rid]]]]
+      =*  r  +.m
+      :_  ~
+      :-  %touch
+      ~[(ca-entry id.r-channel `rid '' content.r author.r sent.r)]
+    ::
+        [%posts *]
+      =/  pl  (tap:on-posts:c posts.r-channel)
+      =/  live=(list entry:v1:se)
+        %+  murn  pl
+        |=  [id=id-post:c m=(may:c post:c)]
+        ^-  (unit entry:v1:se)
+        ?:  ?=(%| -.m)  ~
+        =*  p  +.m
+        `(ca-entry id.p ~ (ca-title meta.p) content.p author.p sent.p)
+      =/  dead=(list target:v1:se)
+        %+  murn  pl
+        |=  [id=id-post:c m=(may:c post:c)]
+        ^-  (unit target:v1:se)
+        ?:(?=(%& -.m) ~ ``target:v1:se`[%channel nest id ~])
+      ;:  weld
+        ?~(live ~ ~[`action:v1:se`[%touch live]])
+        ?~(dead ~ ~[`action:v1:se`[%erase dead]])
+      ==
+    ==
+  ::  +ca-index-all: submit every post and reply in this channel
+  ::
+  ++  ca-index-all
+    ^+  ca-core
+    =/  entries=(list entry:v1:se)
+      %-  zing
+      %+  turn  (tap:on-v-posts:c posts.channel)
+      |=  [id=id-post:c m=(may:c v-post:c)]
+      ^-  (list entry:v1:se)
+      ?:  ?=(%| -.m)  ~
+      =*  p  +.m
+      :-  (ca-entry id.p ~ (ca-title meta.p) content.p author.p sent.p)
+      %+  murn  (tap:on-v-replies:c replies.p)
+      |=  [rid=id-reply:c mr=(may:c v-reply:c)]
+      ^-  (unit entry:v1:se)
+      ?:  ?=(%| -.mr)  ~
+      =*  r  +.mr
+      `(ca-entry id.p `id.r '' content.r author.r sent.r)
+    ?~  entries  ca-core
+    (emit (unsafe:guard (submit:sh our.bowl [%touch entries])))
   ::
   ++  ca-activity
     =,  v9:av
@@ -2704,6 +2847,10 @@
   ++  ca-response
     |=  =r-channel:c
     ~>  %spin.['ca-response']
+    ::  every content change funnels through here, so this is the one
+    ::  place the index has to be told about
+    ::
+    =.  ca-core  (ca-index r-channel)
     =/  r-channels-10=r-channels:v10:cv
       [nest r-channel]
     =.  ca-core

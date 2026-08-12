@@ -32,6 +32,7 @@
   |=  =(pole knot)
   ?+  pole  ~|(`path`pole !!)
     [%gu ship=@t %activity @ ~ ~]  `!>(|)
+    [%gu ship=@t %search @ ~ ~]  `!>(|)
     [%gx @ %groups @ %v2 %groups host=@ term=@ %noun ~]  `!>(*group:v9:gv)
   ==
 ::

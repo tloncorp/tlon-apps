@@ -131,6 +131,16 @@
   |=  txt=@t
   ^-  @t
   (clip snippet-len txt)
+::  +parent-of: the post or message a reply hangs off, if this is one
+::
+++  parent-of
+  |=  =target:v1:se
+  ^-  (unit target:v1:se)
+  ?-  -.target
+    %channel  ?~(reply.target ~ `target(reply ~))
+    %chat     ?~(reply.target ~ `target(reply ~))
+    %note     ~
+  ==
 ::  +digest: a target's index key
 ::
 ++  digest
@@ -242,6 +252,8 @@
       ==
     =.  docs.ix   (~(put by docs.ix) tid doc)
     =.  trail.ix  (~(put by trail.ix) tid ks)
+    =/  par=(unit target:v1:se)  (parent-of target.entry)
+    =?  kids.ix  ?=(^ par)  (~(put ju kids.ix) (digest u.par) tid)
     =.  terms.ix
       =/  wl=(list [k=key:v1:se r=rank:v1:se])  ~(tap by weights)
       =/  ts  terms.ix
@@ -251,12 +263,32 @@
       $(wl t.wl, ts (~(put by ts) k.i.wl (~(put by ps) tid r.i.wl)))
     =.  grams.ix  (sow fresh)
     ix
+  ::  +retract: remove a document and every reply hanging off it
+  ::
+  ::    +strip alone is what a re-index wants — an edited message keeps
+  ::    its replies. a deletion wants this, so the replies don't survive
+  ::    as results pointing at a message that no longer exists.
+  ::
+  ++  retract
+    |=  =tid:v1:se
+    ^+  ix
+    =/  par=(unit tid:v1:se)
+      ?~  d=(~(get by docs.ix) tid)  ~
+      ?~  p=(parent-of target.u.d)  ~
+      `(digest u.p)
+    =/  children=(list tid:v1:se)  ~(tap in (~(get ju kids.ix) tid))
+    =.  ix       (strip tid)
+    =.  kids.ix  (~(del by kids.ix) tid)
+    =?  kids.ix  ?=(^ par)  (~(del ju kids.ix) u.par tid)
+    |-  ^+  ix
+    ?~  children  ix
+    $(children t.children, ix (retract i.children))
   ::  +erase: retract a document by target
   ::
   ++  erase
     |=  =target:v1:se
     ^+  ix
-    (strip (digest target))
+    (retract (digest target))
   ::  +purge: retract every document owned by one source
   ::
   ++  purge
@@ -269,7 +301,7 @@
       ?.(=(source (owner target.doc)) ~ `tid)
     |-  ^+  ix
     ?~  tl  ix
-    $(tl t.tl, ix (strip i.tl))
+    $(tl t.tl, ix (retract i.tl))
   ::  +nearby: stored terms sharing enough trigrams with .term
   ::
   ++  nearby

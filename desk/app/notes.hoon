@@ -1,7 +1,8 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
-/-  n=notes, mcp-proxy, av=activity-ver
+/-  n=notes, mcp-proxy, av=activity-ver, se=search
 /+  default-agent, dbug, verb, server, logs, notes-json
+/+  sh=search
 ::  static web assets, imported straight from files and served as-is. The
 ::  agent sets each response's content-type explicitly (see below), so the
 ::  import marks only need to carry the raw bytes.
@@ -198,6 +199,14 @@
       ?>  (~(has by books) flag)
       se-abet:(se-poke-v1:(se-abed:se-core flag) rid c-notebook.cmd)
     ==
+  ::
+      %search-action-1
+    ::  %search asking us to resubmit everything we hold. it sends the
+    ::  whole action type; %rebuild is the only variant meant for us.
+    ?>  =(our.bowl src.bowl)
+    =+  !<(act=action:v1:se vase)
+    ?.  ?=(%rebuild -.act)  cor
+    search-rebuild
   ::
       %group-channel-join
     ::  channel-host convention: %groups auto-joins this notes nest as the
@@ -1189,6 +1198,81 @@
       %agent  [our.bowl %activity]
       %poke  activity-action-2+!>(action)
   ==
+::  +search-running: is the local index agent installed?
+::
+++  search-running
+  =/  base=path  /(scot %p our.bowl)/search/(scot %da now.bowl)
+  .^(? %gu (weld base /$))
+::
+++  submit-search
+  |=  =action:v1:se
+  ^+  cor
+  ?.  search-running  cor
+  (emit (submit:sh our.bowl action))
+::  +note-search: translate an applied u-note into an index submission.
+::
+::    the poke only names what changed; %search tokenizes it later on its
+::    own timer, so this costs the write event one card and nothing else.
+::
+++  note-search
+  |=  [=flag:n context=@t id=@ud upd=u-note:n]
+  ^+  cor
+  ?-  -.upd
+      ?(%created %updated)
+    %-  submit-search
+    :-  %touch
+    :_  ~
+    :*  `target:v1:se`[%note flag id]
+        title.note.upd
+        context
+        body-md.note.upd
+        `updated-by.note.upd
+        updated-at.note.upd
+    ==
+  ::
+      %deleted
+    (submit-search [%erase ~[`target:v1:se`[%note flag id]]])
+  ::
+      ?(%published %unpublished %history-archived)
+    cor
+  ==
+::  +notebook-search-gone: a notebook went away; drop its notes from the index
+::
+++  notebook-search-gone
+  |=  [=flag:n ids=(list @ud)]
+  ^+  cor
+  ?~  ids  cor
+  %-  submit-search
+  :-  %erase
+  %+  turn  ids
+  |=(id=@ud `target:v1:se`[%note flag id])
+::  +search-rebuild: resubmit every note we hold
+::
+::    one poke per notebook rather than one per note: %search drains its
+::    queue in small batches regardless, and this keeps the rebuild event
+::    itself down to a card per notebook.
+::
+++  search-rebuild
+  ^+  cor
+  ?.  search-running  cor
+  =/  bl  ~(tap by books)
+  |-  ^+  cor
+  ?~  bl  cor
+  =/  =flag:n  p.i.bl
+  =/  nbs=notebook-state:n  notebook-state.q.i.bl
+  =/  entries=(list entry:v1:se)
+    %+  turn  ~(val by notes.nbs)
+    |=  =note:n
+    ^-  entry:v1:se
+    :*  `target:v1:se`[%note flag id.note]
+        title.note
+        title.notebook.nbs
+        body-md.note
+        `updated-by.note
+        updated-at.note
+    ==
+  =?  cor  ?=(^ entries)  (submit-search [%touch entries])
+  $(bl t.bl)
 ::  +note-activity: translate an applied u-note into %activity actions.
 ::
 ::    %created / %updated -> (re)arm the trailing debounce timer; the
@@ -1746,6 +1830,8 @@
     ^+  cor
     =?  cor  gone
       (notebook-activity-gone flag group.notebook-state)
+    =?  cor  gone
+      (notebook-search-gone flag ~(tap in ~(key by notes.notebook-state)))
     =.  books
       ?:  gone
         (~(del by books) flag)
@@ -1772,6 +1858,8 @@
     =.  last-update  `[ts upd]
     =?  cor  ?=(%note -.upd)
       (note-activity flag group.notebook-state [id u-note]:upd)
+    =?  cor  ?=(%note -.upd)
+      (note-search flag title.notebook.notebook-state [id u-note]:upd)
     %-  give
     :+  %fact  ~[se-sub-path (weld se-area /stream)]
     notes-response+!>(`response:n`[%update flag [ts upd]])
@@ -2472,6 +2560,8 @@
     ^+  cor
     =?  cor  gone
       (notebook-activity-gone flag group.notebook-state)
+    =?  cor  gone
+      (notebook-search-gone flag ~(tap in ~(key by notes.notebook-state)))
     =.  books
       ?:  gone
         (~(del by books) flag)

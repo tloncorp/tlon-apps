@@ -74,6 +74,7 @@
   ^-  (unit vase)
   ?+    path  ~
     [%gu @ %activity @ %$ ~]         `!>(&)
+    [%gu @ %search @ %$ ~]           `!>(|)
     [%gu @ %groups @ *]           `!>(&)
     [%gx @ %groups @ %volume *]   `!>(%soft)
   ::
