@@ -321,6 +321,7 @@ function sameStrings(left: string[], right: string[]) {
 async function waitForUploadSession(
   target: BucketTarget,
   priorSessionIds: Set<string>,
+  objectId: string,
   parentId: number | null,
   name: string
 ) {
@@ -329,6 +330,7 @@ async function waitForUploadSession(
     const entry = snapshot.state.entries.find(
       (candidate): candidate is BucketsFileEntry =>
         candidate.kind === 'file' &&
+        candidate.file.objectKey === objectId &&
         candidate.parentId === parentId &&
         candidate.name === name &&
         snapshot.state.sessions.some(
@@ -344,6 +346,35 @@ async function waitForUploadSession(
     await delay(POLL_DELAY_MS);
   }
   throw commandError('The Bucket host did not start the upload in time');
+}
+
+async function readBoundedText(response: Response, fileId: number) {
+  if (!response.body) {
+    throw commandError(`File ${fileId} returned an empty response body`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let text = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytesRead += value.byteLength;
+      if (bytesRead > MAX_TEXT_READ_BYTES) {
+        await reader.cancel();
+        throw commandError(
+          `File ${fileId} exceeded the ${MAX_TEXT_READ_BYTES}-byte text read limit`
+        );
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    return text + decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 async function waitForReadyFile(target: BucketTarget, id: number) {
@@ -367,6 +398,16 @@ function mimeFromPath(filePath: string) {
     MIME_BY_EXTENSION[path.extname(filePath).toLowerCase()] ||
     'application/octet-stream'
   );
+}
+
+function fileUploadBody(filePath: string): Blob {
+  const runtime = globalThis as typeof globalThis & {
+    Bun?: { file(path: string): Blob };
+  };
+  if (!runtime.Bun) {
+    throw commandError('Bucket uploads require the Bun-based tlon binary');
+  }
+  return runtime.Bun.file(filePath);
 }
 
 function pathForEntry(entry: BucketsEntry, entries: BucketsEntry[]) {
@@ -456,23 +497,33 @@ function createBucketsOperations(): BucketsOperations {
 
     async create({ group, title, name }) {
       const bucketName = validateBucketName(name ?? defaultBucketName());
+      const bucketTitle = title.trim();
       const normalizedGroup = {
         host: normalizeHost(group.host),
         name: group.name,
       };
+      const flag = { host: normalizedGroup.host, name: bucketName };
+      const nest = bucketNest(flag);
+      const existing = (await getBuckets()).find((snapshot) =>
+        flagsMatch(snapshot.flag, flag)
+      );
+      if (existing) {
+        throw commandError(`Bucket ${nest} already exists`);
+      }
       await sendBucketsAction({
         type: 'create',
         group: normalizedGroup,
         name: bucketName,
         readers: [],
-        title: title.trim(),
+        title: bucketTitle,
         writers: [],
       });
-      const flag = { host: normalizedGroup.host, name: bucketName };
-      const nest = bucketNest(flag);
       for (let attempt = 0; attempt < STATE_ATTEMPTS; attempt += 1) {
-        const found = (await getBuckets()).some((snapshot) =>
-          flagsMatch(snapshot.flag, flag)
+        const found = (await getBuckets()).find(
+          (snapshot) =>
+            flagsMatch(snapshot.flag, flag) &&
+            flagsMatch(snapshot.state.group, normalizedGroup) &&
+            snapshot.state.bucket.title === bucketTitle
         );
         if (found) return { nest };
         await delay(POLL_DELAY_MS);
@@ -520,7 +571,6 @@ function createBucketsOperations(): BucketsOperations {
       }
       const stat = fs.statSync(resolvedPath);
       if (!stat.isFile()) throw commandError(`Not a file: ${resolvedPath}`);
-      const data = fs.readFileSync(resolvedPath);
       const displayName = validateDisplayName(
         name ?? path.basename(resolvedPath),
         'File name'
@@ -540,19 +590,21 @@ function createBucketsOperations(): BucketsOperations {
         mime: contentType,
         name: displayName,
         parentId,
-        size: data.byteLength,
+        size: stat.size,
       });
-      const begun = await waitForUploadSession(
-        target,
-        priorSessionIds,
-        parentId,
-        displayName
-      );
 
       let completionAttempted = false;
+      let begun: Awaited<ReturnType<typeof waitForUploadSession>> | undefined;
       try {
         const grant = await waitForCapability(() =>
           grantUpload(capability, target.flag.host)
+        );
+        begun = await waitForUploadSession(
+          target,
+          priorSessionIds,
+          grant.objectId,
+          parentId,
+          displayName
         );
         const requiredHeaders = Object.fromEntries(grant.requiredHeaders);
         const uploadResponse = await fetch(grant.uploadUrl, {
@@ -561,7 +613,10 @@ function createBucketsOperations(): BucketsOperations {
           // Content-Type with different casing: Fetch coalesces duplicate
           // header names and invalidates the signed canonical request.
           headers: requiredHeaders,
-          body: data,
+          // Bun.file is a lazy Blob. Fetch streams it from disk while retaining
+          // a known content length, so large workspace files are not buffered
+          // in the hosted bot's heap.
+          body: fileUploadBody(resolvedPath),
         });
         if (!uploadResponse.ok) {
           const body = await uploadResponse.text().catch(() => '');
@@ -585,7 +640,7 @@ function createBucketsOperations(): BucketsOperations {
           status: ready.file.status,
         };
       } catch (error) {
-        if (!completionAttempted) {
+        if (!completionAttempted && begun) {
           await sendBucketsAction({
             type: 'fail-upload',
             flag: target.flag,
@@ -629,13 +684,7 @@ function createBucketsOperations(): BucketsOperations {
           `File download failed: ${response.status} ${response.statusText}${detail ? ` (${detail})` : ''}`
         );
       }
-      const bytes = new Uint8Array(await response.arrayBuffer());
-      if (bytes.byteLength > MAX_TEXT_READ_BYTES) {
-        throw commandError(
-          `File ${id} exceeded the ${MAX_TEXT_READ_BYTES}-byte text read limit`
-        );
-      }
-      return new TextDecoder().decode(bytes);
+      return readBoundedText(response, id);
     },
 
     async rename(target, id, name) {

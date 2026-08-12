@@ -113,6 +113,14 @@ export const mockedGetGroup = {
   impl: async (..._args: unknown[]): Promise<unknown> => ({ channels: [] }),
 };
 
+export const mockedGetBuckets = {
+  impl: async (..._args: unknown[]): Promise<unknown> => [],
+};
+
+export const mockedSendBucketsAction = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
 export class MockUrbit {
   cookie = '';
   nodeId = '';
@@ -147,6 +155,9 @@ mock.module('@tloncorp/api', () => ({
   notesV1: mockedNotesV1,
   getGroups: (...args: unknown[]) => mockedGetGroups.impl(...args),
   getGroup: (...args: unknown[]) => mockedGetGroup.impl(...args),
+  getBuckets: (...args: unknown[]) => mockedGetBuckets.impl(...args),
+  sendBucketsAction: (...args: unknown[]) =>
+    mockedSendBucketsAction.impl(...args),
   deleteNotesNotebookStrict: async () => undefined,
   joinNotesChannel: async () => undefined,
   leaveNotesChannel: async () => undefined,

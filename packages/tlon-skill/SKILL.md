@@ -235,12 +235,13 @@ tlon buckets upload buckets/~host/project-files ./plan.md -t text/markdown
 tlon buckets read buckets/~host/project-files 12           # Read a text file
 tlon buckets rename buckets/~host/project-files 12 "final-plan.md"
 tlon buckets move buckets/~host/project-files 12 7          # Move entry 12 into folder 7
-tlon buckets delete buckets/~host/project-files 12          # Delete a file
-tlon buckets delete buckets/~host/project-files 7 --recursive
+tlon buckets delete buckets/~host/project-files 7            # Delete an empty folder
 tlon buckets set-writers buckets/~host/project-files admin bots
 ```
 
 Bucket authorization is based on the current ship's group membership and reader/writer roles. The current ship asks `%buckets` for a short-lived, single-operation storage capability; the command never needs the group host's login, the owner's login, or object-storage credentials. If the current ship lacks access, report that role/permission failure rather than asking for storage credentials.
+
+During the preview, `buckets delete` only removes empty folders. File deletion and recursive folder deletion are disabled until the host and broker can coordinate them atomically.
 
 `buckets read` intentionally returns only text-like files up to 2 MiB. The regular upload command below is for message/profile media and other standalone URLs, not for placing files in a Bucket.
 
