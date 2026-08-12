@@ -438,6 +438,7 @@ function deterministicOnboardingCronNest(
 /** Remove stable onboarding jobs whose owning chat no longer exists. */
 export async function removeOrphanedDeterministicCronJobs(params: {
   liveChatNests: Iterable<string>;
+  retainedCronJobIds?: Iterable<string>;
   abortSignal?: AbortSignal;
   trace?: DeterministicCronTracer;
 }): Promise<string[]> {
@@ -452,10 +453,15 @@ export async function removeOrphanedDeterministicCronJobs(params: {
     return [];
   }
   const liveChatNests = new Set(params.liveChatNests);
+  const retainedCronJobIds = new Set(params.retainedCronJobIds);
   const jobs = await cron.list({ includeDisabled: true });
   const orphaned = jobs.filter((job) => {
     const nest = deterministicOnboardingCronNest(job);
-    return nest !== null && !liveChatNests.has(nest);
+    return (
+      nest !== null &&
+      !liveChatNests.has(nest) &&
+      !retainedCronJobIds.has(job.id ?? '')
+    );
   });
   const removedIds: string[] = [];
   for (const job of orphaned) {

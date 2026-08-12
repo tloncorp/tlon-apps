@@ -593,6 +593,11 @@ describe('cron creation', () => {
         id: 'orphan-cron',
         description: 'tlon-agent-onboarding:chat/~zod/deleted:agent-research',
       },
+      {
+        id: 'retained-cron',
+        description:
+          'tlon-agent-onboarding:chat/~zod/deleted-chat:agent-research',
+      },
       { id: 'ordinary-cron', description: 'something else' },
     ];
     const remove = vi.fn(async (id: string) => {
@@ -615,11 +620,16 @@ describe('cron creation', () => {
     await expect(
       removeOrphanedDeterministicCronJobs({
         liveChatNests: ['chat/~zod/live'],
+        retainedCronJobIds: ['retained-cron'],
       })
     ).resolves.toEqual(['orphan-cron']);
     expect(remove).toHaveBeenCalledTimes(1);
     expect(remove).toHaveBeenCalledWith('orphan-cron');
-    expect(jobs.map((job) => job.id)).toEqual(['live-cron', 'ordinary-cron']);
+    expect(jobs.map((job) => job.id)).toEqual([
+      'live-cron',
+      'retained-cron',
+      'ordinary-cron',
+    ]);
   });
 });
 

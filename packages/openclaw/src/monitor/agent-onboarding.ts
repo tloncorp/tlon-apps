@@ -698,11 +698,11 @@ export async function findConfiguredAgentGroupRoutes(
  * Every live chat in an owner-hosted group. Null means the authoritative
  * groups snapshot was unreadable and callers must not infer deletions.
  */
-export async function findOwnerGroupChatNests(
+export async function findOwnerGroupOnboardingState(
   api: ScryApi,
   runtime: Runtime,
   ownerShip: string | null
-): Promise<string[] | null> {
+): Promise<{ chatNests: string[]; cronJobIds: string[] } | null> {
   if (!ownerShip || !api) {
     return null;
   }
@@ -710,15 +710,29 @@ export async function findOwnerGroupChatNests(
   if (groups === null) {
     return null;
   }
-  return [
-    ...new Set(
-      Object.entries(groups)
-        .filter(([flag]) => hostOf(flag) === ownerShip)
-        .flatMap(([, group]) =>
+  const ownerGroups = Object.entries(groups).filter(
+    ([flag]) => hostOf(flag) === ownerShip
+  );
+  return {
+    chatNests: [
+      ...new Set(
+        ownerGroups.flatMap(([, group]) =>
           nestsOf(group).filter((nest) => nest.startsWith('chat/'))
         )
-    ),
-  ];
+      ),
+    ],
+    cronJobIds: [
+      ...new Set(
+        ownerGroups
+          .map(
+            ([, group]) =>
+              deterministicSetupFromDescription(descriptionOf(group))?.record
+                .cronJobId
+          )
+          .filter((id): id is string => Boolean(id))
+      ),
+    ],
+  };
 }
 
 /**

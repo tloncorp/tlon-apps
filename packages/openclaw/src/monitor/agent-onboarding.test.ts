@@ -30,7 +30,7 @@ import {
   findChatNestForGroup,
   findConfiguredAgentGroupRoutes,
   findGroupForChannel,
-  findOwnerGroupChatNests,
+  findOwnerGroupOnboardingState,
   homeGroupAwaitingOpening,
   isFirstConfiguredSetup,
   isHomeGroupFlag,
@@ -436,14 +436,28 @@ describe('group/channel resolution', () => {
     expect(await findChatNestForGroup(null, nest, {})).toBe(null);
   });
 
-  test('lists only live owner-hosted chat nests and fails closed', async () => {
-    expect(await findOwnerGroupChatNests(apiWith(groups), {}, '~ten')).toEqual([
-      nest,
-    ]);
+  test('lists live chats and configured cron ids, and fails closed', async () => {
     expect(
-      await findOwnerGroupChatNests(
+      await findOwnerGroupOnboardingState(apiWith(groups), {}, '~ten')
+    ).toEqual({ chatNests: [nest], cronJobIds: [] });
+    expect(
+      await findOwnerGroupOnboardingState(
         apiWith({
           ...groups,
+          '~ten/notebook-only': {
+            meta: {
+              description: configEntry({
+                templateId: 'agent-research',
+                onboarding: {
+                  state: 'complete',
+                  topics: 'Bread',
+                  timezone: 'UTC',
+                  cronJobId: 'cron-kept',
+                },
+              }),
+            },
+            'active-channels': ['notes/~ten/notebook'],
+          },
           '~zod/other': {
             'active-channels': ['chat/~zod/other'],
           },
@@ -451,8 +465,8 @@ describe('group/channel resolution', () => {
         {},
         '~ten'
       )
-    ).toEqual([nest]);
-    expect(await findOwnerGroupChatNests(failing, {}, '~ten')).toBeNull();
+    ).toEqual({ chatNests: [nest], cronJobIds: ['cron-kept'] });
+    expect(await findOwnerGroupOnboardingState(failing, {}, '~ten')).toBeNull();
   });
 
   test('channelHasNoPosts: true only for a readable empty channel', async () => {

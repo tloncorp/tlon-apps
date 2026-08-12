@@ -3,6 +3,7 @@ import {
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
 import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useState } from 'react';
 
 import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
@@ -98,6 +99,7 @@ function WebTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
 
 export function TopLevelTabNavigator() {
   const showSplash = useShowWebSplashModal();
+  const [splashDismissed, setSplashDismissed] = useState(false);
   return (
     <>
       <Tabs.Navigator
@@ -110,7 +112,14 @@ export function TopLevelTabNavigator() {
         <Tabs.Screen name="Activity" component={ActivityScreen} />
         <Tabs.Screen name="Contacts" component={ContactsScreen} />
       </Tabs.Navigator>
-      <SplashModal open={showSplash} setOpen={() => {}} />
+      <SplashModal
+        open={showSplash && !splashDismissed}
+        setOpen={(open) => {
+          if (!open) {
+            setSplashDismissed(true);
+          }
+        }}
+      />
     </>
   );
 }

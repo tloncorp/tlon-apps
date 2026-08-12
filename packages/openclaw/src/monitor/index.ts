@@ -160,7 +160,7 @@ import {
   findChatNestForGroup,
   findConfiguredAgentGroupRoutes,
   findGroupForChannel,
-  findOwnerGroupChatNests,
+  findOwnerGroupOnboardingState,
   homeGroupAwaitingOpening,
   homeGroupChatNestFor,
   homeGroupFlagFor,
@@ -1830,13 +1830,22 @@ export async function monitorTlonProvider(
         const recentPosts = await fetchChannelHistory(api, nest, 20, runtime, {
           throwOnError: true,
         });
+        if (opts.abortSignal?.aborted) {
+          throw new Error('Onboarding research status aborted with monitor');
+        }
         const alreadyPosted = recentPosts.some(
           (entry) =>
             entry.author === botShipName &&
             entry.content === RESEARCHING_NOTEBOOK_LINE
         );
         if (!alreadyPosted) {
+          if (opts.abortSignal?.aborted) {
+            throw new Error('Onboarding research status aborted with monitor');
+          }
           await postToChannel(nest, RESEARCHING_NOTEBOOK_LINE);
+          if (opts.abortSignal?.aborted) {
+            throw new Error('Onboarding research status aborted with monitor');
+          }
         }
         traceOnboardingStep(
           traceBase,
@@ -1863,6 +1872,10 @@ export async function monitorTlonProvider(
             ...onboardingErrorFields(error),
           }
         );
+      }
+      if (opts.abortSignal?.aborted) {
+        deterministicResearchInFlight.delete(nest);
+        return;
       }
       const researching: DeterministicSetup = {
         ...deterministic,
@@ -2696,9 +2709,15 @@ export async function monitorTlonProvider(
         );
         const topicsBlob = buildTopicsPickerBlob(nest, purposeId);
         const postStartedAt = Date.now();
+        if (opts.abortSignal?.aborted) {
+          throw new Error('Onboarding topics picker aborted with monitor');
+        }
         await postToChannel(nest, topicsPickerFallbackText(purposeId), {
           ...(topicsBlob ? { blob: serializeBlobField(topicsBlob) } : {}),
         });
+        if (opts.abortSignal?.aborted) {
+          throw new Error('Onboarding topics picker aborted with monitor');
+        }
         traceOnboardingStep(traceBase, 'post_picker', 'succeeded', {
           groupFlag: group.flag,
           durationMs: Date.now() - postStartedAt,
@@ -3149,9 +3168,25 @@ export async function monitorTlonProvider(
           // recovery above, so it reports as opened and keeps its place in
           // the sweep until the config lands (which drops it from the
           // candidate list on its own).
-          const verdict = descriptionHasConfiguredJob(info.description)
-            ? 'settled'
-            : 'opened';
+          const establishedHomeGroup = Boolean(
+            effectiveOwnerShip &&
+              isHomeGroupFlag(groupFlag, effectiveOwnerShip) &&
+              channelOpenable === false &&
+              probeHistory?.some(
+                (entry) => entry.author === effectiveOwnerShip
+              ) &&
+              !probeHistory.some(
+                (entry) =>
+                  entry.author === botShipName &&
+                  (entry.content.startsWith(PURPOSE_PICKER_PROMPT) ||
+                    entry.content.startsWith(TOPICS_PICKER_PROMPT))
+              )
+          );
+          const verdict =
+            descriptionHasConfiguredJob(info.description) ||
+            establishedHomeGroup
+              ? 'settled'
+              : 'opened';
           traceOnboarding({
             nest: info.nest,
             groupFlag,
@@ -8170,14 +8205,15 @@ export async function monitorTlonProvider(
               closingRecoveryChecked.add(route.flag);
             }
           }
-          const liveChatNests = await findOwnerGroupChatNests(
+          const liveOnboardingState = await findOwnerGroupOnboardingState(
             api,
             runtime,
             effectiveOwnerShip
           );
-          if (liveChatNests !== null) {
+          if (liveOnboardingState !== null) {
             const removed = await removeOrphanedDeterministicCronJobs({
-              liveChatNests,
+              liveChatNests: liveOnboardingState.chatNests,
+              retainedCronJobIds: liveOnboardingState.cronJobIds,
               abortSignal: opts.abortSignal,
             });
             if (removed.length > 0) {
