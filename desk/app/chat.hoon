@@ -2756,6 +2756,14 @@
     di-core
   ::  +di-proxy: send a message
   ::
+  ::  +di-vouch-status: ask the %vouch store what we believe .ship is. Returns
+  ::  %unknown when %vouch isn't installed. Used to route a plain DM to a bot
+  ::  moon through its host without an explicit vouched-action first.
+  ::
+  ++  di-vouch-status
+    ^-  ?(%unknown %real %bot)
+    ?.  .^(? %gu (scry-path %vouch /$))  %unknown
+    .^(?(%unknown %real %bot) %gx (scry-path %vouch /status/(scot %p ship)))
   ++  di-proxy
     |=  =diff:dm:c
     ~>  %spin.['di-proxy']
@@ -2779,11 +2787,17 @@
     =?  di-core  ?=(%invited net.dm)
       (di-send-rsvp &)
     ::  a vouched moon isn't running: deliver to its host, which relays
-    ::  to the bot runner
+    ::  to the bot runner. we route there when we already have a cached host
+    ::  (.vouched-dms), or when %vouch classifies .ship as a bot moon -- in
+    ::  which case the host is its sponsor. a moon %vouch calls real (or one
+    ::  we know nothing about) is delivered directly, as normal.
     =.  cor
-      =/  vouched  di-vouched
-      ?~  vouched  (emit (proxy:di-pass diff))
-      (emit (proxy-vouched:di-pass u.vouched diff))
+      =/  host=(unit @p)  di-vouched
+      =?  host  &(?=(~ host) ?=(%earl (clan:title ship)))
+        ?:  =(%bot di-vouch-status)  `(^sein:title ship)
+        host
+      ?~  host  (emit (proxy:di-pass diff))
+      (emit (proxy-vouched:di-pass u.host diff))
     di-core
   ::
   ++  di-archive
