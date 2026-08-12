@@ -16,6 +16,9 @@ export interface MinimalNotificationData extends BaseNotificationData {
   type?: undefined;
   channelId: string;
   postInfo: PostInfo | null;
+  // notes channels: the note to open, forwarded as the channel screen's
+  // selectedPostId (the notes collection consumes it as the note id)
+  selectedPostId?: string;
 }
 
 export interface DMInviteNotificationData extends BaseNotificationData {
@@ -223,6 +226,22 @@ export function parseNotificationPayload(
             type: 'dmInvite',
             channelId: whom.club,
             whomType: 'club',
+          };
+        }
+
+        case is(ev, 'note-create'):
+        // fallthrough
+        case is(ev, 'note-edit'): {
+          const note = is(ev, 'note-create')
+            ? ev['note-create']
+            : ev['note-edit'];
+          return {
+            ...baseNotificationData,
+            channelId: `notes/${note.notebook}`,
+            postInfo: null,
+            // note ids serialize @ud-style with dot grouping; the client
+            // uses the plain decimal
+            selectedPostId: note.id.replace(/\./g, ''),
           };
         }
 

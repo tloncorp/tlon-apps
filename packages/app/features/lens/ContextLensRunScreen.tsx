@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useA2UINavigation } from '../../hooks/useA2UINavigation';
 import type { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader, ScrollView, SizableText, YStack } from '../../ui';
+import { ScreenHeader, ScreenScrollView, SizableText, YStack } from '../../ui';
 import {
   type LensMessageTarget,
   RunInspector,
@@ -88,9 +88,10 @@ export function ContextLensRunScreen(props: Props) {
         title="Bot run"
         backAction={props.navigation.goBack}
         borderBottom
+        placement="navigation"
       />
       {lens ? (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScreenScrollView showsVerticalScrollIndicator={false}>
           <YStack gap="$m" padding="$l" paddingBottom="$2xl">
             <RunSummary
               lens={lens}
@@ -98,7 +99,7 @@ export function ContextLensRunScreen(props: Props) {
             />
             <RunInspector lens={lens} onPressMessage={handlePressMessage} />
           </YStack>
-        </ScrollView>
+        </ScreenScrollView>
       ) : (
         <YStack
           alignItems="center"

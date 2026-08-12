@@ -118,6 +118,7 @@ def load_module(name):
 tlon_api = load_module("tlon_api")
 lens = load_module("lens")
 adapter_mod = load_module("adapter")
+tlon_tool = sys.modules[f"{PACKAGE_NAME}.tlon_tool"]
 
 
 def cli_result(
@@ -176,6 +177,19 @@ class FakeSSE:
     async def close(self, *, graceful=True):
         del graceful
         return None
+
+
+class FakeTitleSSE:
+    def __init__(self, payload=None, error=None):
+        self.payload = payload
+        self.error = error
+        self.scries = []
+
+    async def scry(self, path):
+        self.scries.append(path)
+        if self.error is not None:
+            raise self.error
+        return self.payload
 
 
 def make_adapter(results=None, extra=None):
@@ -407,6 +421,298 @@ class ChunkingTests(unittest.TestCase):
         result = asyncio.run(adapter.send("~alice", "hello"))
         self.assertFalse(result.success)
         self.assertEqual(result.error, "boom")
+
+    def test_diary_delivery_refusal_dms_owner_once_with_real_nest(self):
+        adapter = make_adapter(
+            [
+                cli_result(
+                    success=False,
+                    message_id=None,
+                    error="generic diary refusal",
+                    returncode=1,
+                )
+            ]
+        )
+        sender = adapter._diary_notification_sender
+        title_lookups = []
+
+        async def title_lookup(lookup_nest):
+            title_lookups.append(lookup_nest)
+            return "Transport diary"
+
+        adapter_mod.set_diary_migration_notification_sender(
+            sender,
+            bot_ship=adapter.tlon_config.ship_name,
+            owner_ship=adapter.tlon_config.owner_ship,
+            title_lookup=title_lookup,
+        )
+        self.addCleanup(
+            adapter_mod.clear_diary_migration_notification_sender,
+            sender,
+        )
+        nest = "diary/~pen/discovery-transport"
+
+        async def run():
+            first = await adapter.send(nest, "hello")
+            await adapter_mod.wait_for_pending_discovery()
+            second = await adapter.send(nest, "hello again")
+            await adapter_mod.wait_for_pending_discovery()
+            return first, second
+
+        first, second = asyncio.run(run())
+
+        self.assertFalse(first.success)
+        self.assertFalse(second.success)
+        self.assertIn(f"/migrate {nest}", first.error)
+        self.assertNotIn("<diary-nest>", first.error)
+        self.assertEqual(title_lookups, [nest])
+        self.assertEqual(len(adapter._cli.commands), 1)
+        command = adapter._cli.commands[0]
+        self.assertEqual(command[:3], ("posts", "send", "~mug"))
+        self.assertEqual(command[3], 'Diary migration available for "Transport diary"')
+        blob = command[5]
+        entry = json.loads(blob)[0]
+        components = entry["messages"][1]["updateComponents"]["components"]
+        button = next(
+            component
+            for component in components
+            if component["component"] == "Button"
+        )
+        self.assertEqual(
+            button["action"]["event"]["context"]["text"],
+            f"/migrate {nest}",
+        )
+
+    def test_diary_delivery_refusal_returns_before_notification_resolves(self):
+        adapter = make_adapter(
+            [
+                cli_result(
+                    success=False,
+                    message_id=None,
+                    error="generic diary refusal",
+                    returncode=1,
+                )
+            ]
+        )
+        calls = []
+
+        async def run():
+            started = asyncio.Event()
+            release = asyncio.Event()
+
+            async def send_dm(text, blob):
+                calls.append((text, blob))
+                started.set()
+                await release.wait()
+                return True
+
+            async def title_lookup(_nest):
+                return "Detached transport diary"
+
+            adapter_mod.set_diary_migration_notification_sender(
+                send_dm,
+                bot_ship=adapter.tlon_config.ship_name,
+                owner_ship=adapter.tlon_config.owner_ship,
+                title_lookup=title_lookup,
+            )
+            try:
+                send = asyncio.create_task(
+                    adapter.send("diary/~pen/detached-transport", "hello")
+                )
+                await started.wait()
+                returned_before_release = send.done()
+                release.set()
+                result = await send
+                await adapter_mod.wait_for_pending_discovery()
+                return returned_before_release, result
+            finally:
+                adapter_mod.clear_diary_migration_notification_sender(send_dm)
+
+        returned_before_release, result = asyncio.run(run())
+
+        self.assertTrue(returned_before_release)
+        self.assertFalse(result.success)
+        self.assertEqual(len(calls), 1)
+
+    def test_fresh_diary_title_bypasses_stale_sibling_discovery_cache(self):
+        adapter = make_adapter()
+        nest = "diary/~pen/second"
+        adapter._sse = FakeTitleSSE(
+            {
+                "groups": {
+                    "~pen/first": {
+                        "channels": {
+                            "diary/~pen/first": {"title": "  First diary  "},
+                        }
+                    },
+                    "~pen/second": {
+                        "channels": {
+                            "diary/PEN/second": {
+                                "meta": {"title": "  Journal  "},
+                                "title": "Ignored fallback",
+                            },
+                        }
+                    },
+                }
+            }
+        )
+        calls = []
+
+        async def send_dm(text, blob):
+            calls.append((text, blob))
+            return True
+
+        async def run():
+            first = await adapter._lookup_diary_channel_title(
+                "diary/~pen/first"
+            )
+            adapter._sse.payload = {
+                "groups": {
+                    "~pen/second": {
+                        "channels": {
+                            nest: {"title": "Journal-ARCHIVE"},
+                        }
+                    }
+                }
+            }
+            notified = await tlon_tool.notify_diary_migration_discovery(
+                nest,
+                sender=send_dm,
+                bot_ship="~pen",
+                owner_ship="~mug",
+                title_lookup=adapter._lookup_diary_channel_title,
+            )
+            return first, notified
+
+        first, notified = asyncio.run(run())
+
+        self.assertEqual(first, "First diary")
+        self.assertTrue(notified)
+        self.assertEqual(
+            adapter._sse.scries,
+            ["/groups-ui/v7/init", "/groups-ui/v7/init"],
+        )
+        self.assertEqual(
+            calls,
+            [
+                (
+                    f"Found legacy diary `{nest}`, but its title already ends in "
+                    "`-ARCHIVE`, so it looks like it has already been migrated "
+                    "and no action was offered. If it has not been migrated, "
+                    "rename the channel to remove `-ARCHIVE` and it can be "
+                    "migrated again.",
+                    None,
+                )
+            ],
+        )
+
+    def test_diary_title_lookup_does_not_memoize_misses(self):
+        adapter = make_adapter()
+        adapter._sse = FakeTitleSSE({"groups": {}})
+        nest = "diary/~pen/retry-title"
+
+        with self.assertLogs(adapter_mod.logger, level="DEBUG"):
+            first = asyncio.run(adapter._lookup_diary_channel_title(nest))
+        adapter._sse.payload = {
+            "groups": {
+                "~pen/group": {
+                    "channels": {nest: {"title": "Retry diary"}},
+                }
+            }
+        }
+        second = asyncio.run(adapter._lookup_diary_channel_title(nest))
+
+        self.assertIsNone(first)
+        self.assertEqual(second, "Retry diary")
+        self.assertEqual(
+            adapter._sse.scries,
+            ["/groups-ui/v7/init", "/groups-ui/v7/init"],
+        )
+
+    def test_diary_title_lookup_uses_nullish_not_truthy_title_fallback(self):
+        adapter = make_adapter()
+        nest = "diary/~pen/empty-meta-title"
+        adapter._sse = FakeTitleSSE(
+            {
+                "groups": {
+                    "~pen/group": {
+                        "channels": {
+                            nest: {
+                                "meta": {"title": ""},
+                                "title": "Must not be used",
+                            }
+                        }
+                    }
+                }
+            }
+        )
+
+        with self.assertLogs(adapter_mod.logger, level="DEBUG"):
+            title = asyncio.run(adapter._lookup_diary_channel_title(nest))
+
+        self.assertIsNone(title)
+
+    def test_diary_title_lookup_logs_systemic_failures_distinctly(self):
+        nest = "diary/~pen/systemic"
+        cases = (
+            (
+                None,
+                f"[tlon] diary migration title lookup unavailable for {nest}: SSE client is not connected",
+            ),
+            (
+                FakeTitleSSE(error=RuntimeError("scry down")),
+                f"[tlon] diary migration title lookup unavailable for {nest}: scry down",
+            ),
+            (
+                FakeTitleSSE(None),
+                f"[tlon] diary migration title lookup unavailable for {nest}: init payload is not a mapping",
+            ),
+            (
+                FakeTitleSSE({"groups": []}),
+                f"[tlon] diary migration title lookup unavailable for {nest}: groups payload is not a mapping",
+            ),
+            (
+                FakeTitleSSE({"groups": {"~pen/group": {"channels": []}}}),
+                f"[tlon] diary migration title lookup unavailable for {nest}: channel payloads are not mappings",
+            ),
+        )
+        for sse, expected in cases:
+            with self.subTest(expected=expected):
+                adapter = make_adapter()
+                adapter._sse = sse
+                with self.assertLogs(adapter_mod.logger, level="DEBUG") as logs:
+                    title = asyncio.run(adapter._lookup_diary_channel_title(nest))
+                self.assertIsNone(title)
+                self.assertEqual(
+                    [record.getMessage() for record in logs.records],
+                    [expected],
+                )
+
+    def test_diary_title_lookup_logs_absent_nest_as_normal_miss(self):
+        adapter = make_adapter()
+        adapter._sse = FakeTitleSSE(
+            {
+                "groups": {
+                    "~nec/foreign": {
+                        "channels": {
+                            "diary/~nec/other": {"title": "Other diary"},
+                        }
+                    }
+                }
+            }
+        )
+        nest = "diary/~pen/absent"
+
+        with self.assertLogs(adapter_mod.logger, level="DEBUG") as logs:
+            title = asyncio.run(adapter._lookup_diary_channel_title(nest))
+
+        self.assertIsNone(title)
+        self.assertEqual(
+            [record.getMessage() for record in logs.records],
+            [
+                f"[tlon] diary migration title lookup missed nest {nest} in usable init payload"
+            ],
+        )
 
 
 class BlockDirectiveSendTests(unittest.TestCase):

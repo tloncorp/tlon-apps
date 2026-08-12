@@ -7,6 +7,7 @@ import { useCallback, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
+import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -64,7 +65,8 @@ export function GroupChannelsScreenContent({
 
   const handleGoBackPressed = useCallback(() => {
     if (isWindowNarrow) {
-      navigation.navigate('ChatList', undefined, { pop: true });
+      const route = getTopLevelTabRoute('ChatList');
+      navigation.navigate(route.name, route.params, { pop: true });
     } else {
       // Reset is necessary on desktop to ensure that the ChannelStack is cleared
       navigation.reset({

@@ -18,6 +18,7 @@ import { BotChannelRuleSettingsScreen } from '../features/settings/BotChannelRul
 import { BotChannelRulesScreen } from '../features/settings/BotChannelRulesScreen';
 import { BotMcpSettingsScreen } from '../features/settings/BotMcpSettingsScreen';
 import { BotModelSettingsScreen } from '../features/settings/BotModelSettingsScreen';
+import { BotOpenAISubscriptionScreen } from '../features/settings/BotOpenAISubscriptionScreen';
 import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
 import { BotShipListSettingsScreen } from '../features/settings/BotShipListSettingsScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
@@ -28,27 +29,32 @@ import { PushNotificationSettingsScreen } from '../features/settings/PushNotific
 import SettingsScreen from '../features/settings/SettingsScreen';
 import { ThemeScreen } from '../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../features/settings/UserBugReportScreen';
-import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChannelScreen from '../features/top/ChannelScreen';
 import ChannelSearchScreen from '../features/top/ChannelSearchScreen';
 import { ChatDetailsScreen } from '../features/top/ChatDetailsScreen';
-import ChatListScreen from '../features/top/ChatListScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
-import ContactsScreen from '../features/top/ContactsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../features/top/MediaViewerScreen';
 import { NotesDetailScreen } from '../features/top/NotesDetailScreen';
 import { NotesFolderScreen } from '../features/top/NotesFolderScreen';
+import { NotesSearchScreen } from '../features/top/NotesSearchScreen';
 import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
-import { useIsDarkMode } from '../hooks/useIsDarkMode';
+import { useIsDarkMode } from '../hooks/useDarkMode';
 import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
+import { TopLevelTabNavigator } from './TopLevelTabNavigator';
+import { nativeHeaderPresentationOptions } from './nativeHeaderOptions';
 import type { RootStackParamList } from './types';
 import { mediaViewerScreenOptions } from './utils';
 
 const Root = createNativeStackNavigator<RootStackParamList>();
+// Static options keep the RootStack-owned header mounted before native
+// transitions begin. Unmigrated routes retain the content-owned default.
+const nativeHeaderScreenOptions = {
+  headerShown: Platform.OS !== 'web',
+} as const;
 
 export function RootStack() {
   const isDarkMode = useIsDarkMode();
@@ -66,32 +72,29 @@ export function RootStack() {
 
   return (
     <Root.Navigator
-      initialRouteName={'ChatList'}
+      initialRouteName="MainTabs"
       screenOptions={{
+        ...nativeHeaderPresentationOptions,
+        headerBackVisible: false,
         headerShown: false,
         contentStyle: { backgroundColor: theme.background?.val },
       }}
     >
       {/* top level tabs */}
       <Root.Screen
-        name="Contacts"
-        component={ContactsScreen}
-        options={{ animation: 'none', gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="ChatList"
-        component={ChatListScreen}
-        options={{ animation: 'none', gestureEnabled: false }}
-      />
-      <Root.Screen
-        name="Activity"
-        component={ActivityScreen}
-        options={{ animation: 'none', gestureEnabled: false }}
+        name="MainTabs"
+        component={TopLevelTabNavigator}
+        options={{
+          ...nativeHeaderScreenOptions,
+          animation: 'none',
+          gestureEnabled: false,
+        }}
       />
       <Root.Screen
         name="Settings"
         component={SettingsScreen}
         options={{
+          ...nativeHeaderScreenOptions,
           animation: contactsTabEnabled ? undefined : 'none',
           gestureEnabled: false,
         }}
@@ -104,18 +107,35 @@ export function RootStack() {
       <Root.Screen name="DM" component={ChannelScreen} />
       <Root.Screen name="GroupDM" component={ChannelScreen} />
       <Root.Screen name="ChannelSearch" component={ChannelSearchScreen} />
-      <Root.Screen name="ContextLensRuns" component={ContextLensRunsScreen} />
-      <Root.Screen name="ContextLensRun" component={ContextLensRunScreen} />
+      <Root.Screen
+        name="ContextLensRuns"
+        component={ContextLensRunsScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="ContextLensRun"
+        component={ContextLensRunScreen}
+        options={nativeHeaderScreenOptions}
+      />
       <Root.Screen name="Post" component={PostScreen} />
       <Root.Screen name="NotesDetail" component={NotesDetailScreen} />
       <Root.Screen name="NotesFolder" component={NotesFolderScreen} />
-      <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
+      <Root.Screen name="NotesSearch" component={NotesSearchScreen} />
+      <Root.Screen
+        name="GroupChannels"
+        component={GroupChannelsScreen}
+        options={nativeHeaderScreenOptions}
+      />
       <Root.Screen
         name="MediaViewer"
         component={MediaViewerScreen}
         options={mediaViewerScreenOptions}
       />
-      <Root.Screen name="ChatDetails" component={ChatDetailsScreen} />
+      <Root.Screen
+        name="ChatDetails"
+        component={ChatDetailsScreen}
+        options={nativeHeaderScreenOptions}
+      />
       <Root.Screen name="ChatVolume" component={ChatVolumeScreen} />
       <Root.Screen
         name="ManageAccount"
@@ -125,52 +145,86 @@ export function RootStack() {
       <Root.Screen
         name="BotSettings"
         component={BotSettingsScreen}
-        options={{ gestureEnabled: false }}
+        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
       />
       <Root.Screen
         name="BotMcpSettings"
         component={BotMcpSettingsScreen}
-        options={{ gestureEnabled: false }}
+        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
       />
       <Root.Screen
         name="BotModelSettings"
         component={BotModelSettingsScreen}
-        options={{ gestureEnabled: false }}
+        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
       />
       <Root.Screen
         name="BotApiKeySettings"
         component={BotApiKeySettingsScreen}
-        options={{ gestureEnabled: false }}
+        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotOpenAISubscription"
+        component={BotOpenAISubscriptionScreen}
+        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
       />
       <Root.Screen
         name="BotShipListSettings"
         component={BotShipListSettingsScreen}
-        options={{ gestureEnabled: false }}
+        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
       />
       <Root.Screen
         name="BotChannelRulesSettings"
         component={BotChannelRulesScreen}
-        options={{ gestureEnabled: false }}
+        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
       />
       <Root.Screen
         name="BotChannelRuleSettings"
         component={BotChannelRuleSettingsScreen}
-        options={{ gestureEnabled: false }}
+        options={{ ...nativeHeaderScreenOptions, gestureEnabled: false }}
       />
-      <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />
-      <Root.Screen name="Theme" component={ThemeScreen} />
-      <Root.Screen name="AppInfo" component={AppInfoScreen} />
-      <Root.Screen name="FeatureFlags" component={FeatureFlagScreen} />
+      <Root.Screen
+        name="BlockedUsers"
+        component={BlockedUsersScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="Theme"
+        component={ThemeScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="AppInfo"
+        component={AppInfoScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="FeatureFlags"
+        component={FeatureFlagScreen}
+        options={nativeHeaderScreenOptions}
+      />
       <Root.Screen
         name="PushNotificationSettings"
         component={PushNotificationSettingsScreen}
+        options={nativeHeaderScreenOptions}
       />
       <Root.Screen name="UserProfile" component={UserProfileScreen} />
       <Root.Screen name="Attestation" component={AttestationScreen} />
       <Root.Screen name="EditProfile" component={EditProfileScreen} />
-      <Root.Screen name="WompWomp" component={UserBugReportScreen} />
-      <Root.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
-      <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
+      <Root.Screen
+        name="WompWomp"
+        component={UserBugReportScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="PrivacySettings"
+        component={PrivacySettingsScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="ChannelMembers"
+        component={ChannelMembersScreen}
+        options={nativeHeaderScreenOptions}
+      />
       <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
       <Root.Screen name="ChannelTemplate" component={ChannelTemplateScreen} />
       <Root.Screen

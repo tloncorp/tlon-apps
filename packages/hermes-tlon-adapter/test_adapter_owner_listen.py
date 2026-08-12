@@ -236,7 +236,7 @@ class FakeCLI:
         self.version_stdout = version_stdout
         self.version_error = version_error
 
-    async def run_command(self, args):
+    async def run_command(self, args, *, timeout=None, on_deadline=None):
         self.commands.append(tuple(args))
         if self.version_error:
             return tlon_api.TlonSendResult(
@@ -314,6 +314,84 @@ class AdapterOwnerListenTests(unittest.TestCase):
         asyncio.run(adapter._handle_settings_event(event))
 
     # ── owner-listen attention ───────────────────────────────────────────
+
+    def test_production_construction_resolves_env_then_scrubs_spawn_env(self):
+        extra_base = {
+            "node_url": "https://pen.tlon.network",
+            "node_id": "~pen",
+            "owner_ship": "~mug",
+        }
+        with patch.dict(os.environ, {"TLON_COOKIE": "ambient-cookie"}, clear=True):
+            env_cookie = adapter_mod.TlonAdapter(
+                PlatformConfig(extra={**extra_base, "access_code": "extra-code"})
+            )
+        with patch.dict(os.environ, {"URBIT_CODE": "ambient-code"}, clear=True):
+            env_code = adapter_mod.TlonAdapter(
+                PlatformConfig(
+                    extra={
+                        **extra_base,
+                        "access_code": "extra-code",
+                        "cookie": "extra-cookie",
+                    }
+                )
+            )
+        with patch.dict(
+            os.environ,
+            {
+                "TLON_NODE_URL": "https://pen.tlon.network",
+                "TLON_NODE_ID": "~pen",
+                "TLON_COOKIE": "configured-cookie",
+                "TLON_OWNER_SHIP": "~mug",
+            },
+            clear=True,
+        ):
+            cookie_only = adapter_mod.TlonAdapter(PlatformConfig())
+            os.environ.update(
+                {
+                    "URBIT_URL": "https://stale.tlon.network",
+                    "URBIT_SHIP": "~stale",
+                    "URBIT_CODE": "stale-code",
+                }
+            )
+            spawned = cookie_only._cli.config.cli_env()
+
+        resolver_keys = {
+            "URBIT_URL",
+            "TLON_URL",
+            "URBIT_SHIP",
+            "TLON_SHIP",
+            "URBIT_COOKIE",
+            "TLON_COOKIE",
+            "URBIT_CODE",
+            "TLON_CODE",
+        }
+        self.assertEqual(
+            {
+                "env_cookie_config": (
+                    env_cookie.tlon_config.ship_code,
+                    env_cookie.tlon_config.cookie,
+                ),
+                "env_code_config": (
+                    env_code.tlon_config.ship_code,
+                    env_code.tlon_config.cookie,
+                ),
+                "spawned_resolver_env": {
+                    key: spawned[key] for key in resolver_keys if key in spawned
+                },
+            },
+            {
+                "env_cookie_config": ("extra-code", "ambient-cookie"),
+                "env_code_config": ("ambient-code", "extra-cookie"),
+                "spawned_resolver_env": {
+                    "URBIT_URL": "https://pen.tlon.network",
+                    "TLON_URL": "https://pen.tlon.network",
+                    "URBIT_SHIP": "~pen",
+                    "TLON_SHIP": "~pen",
+                    "URBIT_COOKIE": "configured-cookie",
+                    "TLON_COOKIE": "configured-cookie",
+                },
+            },
+        )
 
     def test_owner_heard_without_mention_in_bot_hosted_channel(self):
         adapter = self.make_adapter({})
@@ -1046,6 +1124,44 @@ class AdapterOwnerListenTests(unittest.TestCase):
         self.assertEqual(default_writes[-1]["value"], "all")
 
     # ── /tlon-version ────────────────────────────────────────────────────
+
+    def test_migrate_command_is_owner_only_and_acks_before_apply(self):
+        adapter = self.make_adapter({})
+        adapter._cli = FakeCLI()
+
+        events = self.dispatches(
+            adapter, channel_event("/migrate diary/~pen/log")
+        )
+
+        self.assertEqual(events, [])
+        self.assertIn("Migration started", adapter._cli.messages[0][1])
+        self.assertIn(
+            "comments, reactions, post references, and link blocks",
+            adapter._cli.messages[0][1],
+        )
+        self.assertIn(
+            ("notes", "migrate-apply", "diary/~pen/log", "--yes"),
+            adapter._cli.commands,
+        )
+
+    def test_migrate_command_from_non_owner_is_not_intercepted(self):
+        adapter = self.make_adapter({"allowed_users": ["~ten"]})
+        adapter._cli = FakeCLI()
+
+        events = self.dispatches(
+            adapter,
+            channel_event(
+                "~pen /migrate diary/~pen/log",
+                author="~ten",
+            ),
+        )
+
+        self.assertEqual(
+            [event.text for event in events],
+            ["/migrate diary/~pen/log"],
+        )
+        self.assertEqual(adapter._cli.messages, [])
+        self.assertEqual(adapter._cli.commands, [])
 
     def test_version_command_replies_with_field_lines(self):
         adapter = self.make_adapter({})

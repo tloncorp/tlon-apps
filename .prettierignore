@@ -40,6 +40,7 @@ dump.sqlite3
 clurd
 .obsidian
 .pi
+/docs/superpowers/
 # From apps/tlon-desktop/.gitignore
 /apps/tlon-desktop/build/
 /apps/tlon-desktop/dist/
@@ -85,8 +86,6 @@ clurd
 /apps/tlon-mobile/ios/assets/*
 /apps/tlon-mobile/ios/Landscape.xcworkspace/xcshareddata/swiftpm
 /apps/tlon-mobile/**/.tamagui
-/apps/tlon-mobile/**/tailwind.css
-/apps/tlon-mobile/**/tailwind.json
 /apps/tlon-mobile/**/.DS_Store
 /apps/tlon-mobile/**/.AppleDouble
 /apps/tlon-mobile/**/.LSOverride
@@ -298,6 +297,7 @@ clurd
 /packages/openclaw/**/.pnpm-store/
 /packages/openclaw/**/.publish/
 /packages/openclaw/**/*.tgz
+/packages/openclaw/dev/tlon-skill-workspace-bin/
 # From packages/openclaw/.prettierignore
 /packages/openclaw/**/SECURITY-AUDIT.md
 /packages/openclaw/**/SECURITY.md

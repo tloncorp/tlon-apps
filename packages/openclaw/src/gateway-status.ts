@@ -1,5 +1,5 @@
 import {
-  configureGatewayStatus,
+  configureStewardGateway,
   gatewayHeartbeat,
   gatewayStart,
   gatewayStop,
@@ -497,7 +497,7 @@ export async function runGatewayStatusActivation(
     }
     try {
       await withActivationTimeout(
-        configureGatewayStatus({
+        configureStewardGateway({
           owner,
           activeWindowSecs: ACTIVE_WINDOW_SECS,
           offlineReplyCooldownSecs: OFFLINE_REPLY_COOLDOWN_SECS,

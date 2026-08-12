@@ -1,4 +1,3 @@
-import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +13,7 @@ import { publishContextLensEvent } from './src/context-lens-events.js';
 import { registerContextLensRoutes } from './src/context-lens-routes.js';
 import { initContextLensShipSync } from './src/context-lens-ship-sync.js';
 import { initContextLensStore } from './src/context-lens-store.js';
+import { detailToolParams } from './src/context-lens-tool-params.js';
 import {
   ensureBackgroundContextLensForSession,
   recordContextLensToolResultForSession,
@@ -33,7 +33,12 @@ import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
 } from './src/diagnostic-subscriptions.js';
+import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
+import {
+  createMigrateCommandHandler,
+  routeMigrateCommand,
+} from './src/migrate-command.js';
 import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { handleOwnerListenCommand } from './src/owner-listen-command.js';
@@ -56,15 +61,13 @@ import {
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import {
-  findTlonSubcommandIndex,
-  shellSplitCommand,
+  DEFAULT_TLON_CLI_TIMEOUT_MS,
+  runTlonCommand,
+} from './src/tlon-command-runner.js';
+import {
+  createTlonToolExecutor,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
-import {
-  checkBlockedSendOperation,
-  formatAllowedTlonSubcommands,
-  isAllowedTlonSubcommand,
-} from './src/tlon-tool-guard.js';
 import {
   formatToolTraceEvent,
   liveToolTraceContentsEnabled,
@@ -101,8 +104,6 @@ function readToolCallId(event: unknown): string | undefined {
 }
 const require = createRequire(import.meta.url);
 
-const DEFAULT_TLON_CLI_TIMEOUT_MS = 45_000;
-
 function summarizeToolParams(params: unknown): string | undefined {
   if (params === null || params === undefined) {
     return undefined;
@@ -120,107 +121,6 @@ function summarizeToolParams(params: unknown): string | undefined {
     return `${keys.length} key${keys.length === 1 ? '' : 's'}: ${shown}${suffix}`;
   }
   return typeof params;
-}
-
-const MAX_TOOL_PARAM_DETAIL_CHARS = 2000;
-
-function detailToolParams(params: unknown): string | undefined {
-  if (params === null || params === undefined) {
-    return undefined;
-  }
-  let serialized: string | undefined;
-  try {
-    serialized = JSON.stringify(params, null, 1);
-  } catch {
-    return undefined;
-  }
-  if (!serialized) {
-    return undefined;
-  }
-  if (serialized.length > MAX_TOOL_PARAM_DETAIL_CHARS) {
-    return `${serialized.slice(0, MAX_TOOL_PARAM_DETAIL_CHARS)}… [truncated]`;
-  }
-  return serialized;
-}
-
-/**
- * Run the tlon command and return the result
- */
-function runTlonCommand(
-  binary: string,
-  args: string[],
-  credentials?: { url: string; ship: string; code: string },
-  options?: { timeoutMs?: number }
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const env = { ...process.env };
-    if (credentials) {
-      env.URBIT_SHIP = credentials.ship;
-      env.URBIT_URL = credentials.url;
-      env.URBIT_CODE = credentials.code;
-    }
-
-    const child = spawn(binary, args, { env });
-    let stdout = '';
-    let stderr = '';
-    let settled = false;
-    let killTimer: ReturnType<typeof setTimeout> | null = null;
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-    const timeoutMs = options?.timeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
-
-    const cleanup = () => {
-      if (timeout) {
-        clearTimeout(timeout);
-        timeout = null;
-      }
-      if (killTimer) {
-        clearTimeout(killTimer);
-        killTimer = null;
-      }
-    };
-
-    child.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    child.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    child.on('error', (err) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      cleanup();
-      reject(new Error(`Failed to run tlon: ${err.message}`));
-    });
-
-    if (timeoutMs > 0) {
-      timeout = setTimeout(() => {
-        if (settled) {
-          return;
-        }
-        settled = true;
-        child.kill('SIGTERM');
-        killTimer = setTimeout(() => child.kill('SIGKILL'), 2_000);
-        reject(new Error(`tlon command timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
-    }
-
-    child.on('close', (code) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      cleanup();
-      if (code !== 0) {
-        reject(new Error(stderr || `tlon exited with code ${code}`));
-      } else {
-        resolve(stdout);
-      }
-    });
-  });
 }
 
 function firstLine(value: string): string {
@@ -1037,6 +937,14 @@ export default defineBundledChannelEntry({
         : undefined;
     const toolTimeoutMs =
       account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
+    const handleMigrateCommand = createMigrateCommandHandler({
+      runCommand: (args, commandCredentials, timeoutMs, onDeadline) =>
+        runTlonCommand(tlonBinary, args, commandCredentials, {
+          timeoutMs,
+          onDeadline,
+        }),
+      logError: (message) => api.logger.warn(`[tlon] ${message}`),
+    });
 
     if (credentials) {
       api.logger.info(`[tlon] Credentials available for ${account.ship}`);
@@ -1046,12 +954,24 @@ export default defineBundledChannelEntry({
       );
     }
 
+    const executeTlonTool = createTlonToolExecutor({
+      runCommand: (args) =>
+        runTlonCommand(tlonBinary, args, credentials, {
+          timeoutMs: toolTimeoutMs,
+        }),
+      notifyDiaryMigrationDiscovery: (nest) =>
+        notifyDiaryMigrationDiscovery(nest, api.config),
+      logError: (message) => api.logger.warn(`[tlon] ${message}`),
+    });
+
     api.registerTool({
       name: 'tlon',
       label: 'Tlon CLI',
       description:
         'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
         'DO NOT use this tool to send messages — use the `message` tool instead. ' +
+        '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
+        'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
         "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'",
       parameters: {
         type: 'object',
@@ -1061,54 +981,14 @@ export default defineBundledChannelEntry({
             description:
               'The tlon command and arguments (read/admin operations). ' +
               'To send messages, use the `message` tool, not this tool. ' +
+              'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
+              'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
               "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
           },
         },
         required: ['command'],
       },
-      async execute(_id: string, params: { command: string }) {
-        try {
-          const args = shellSplitCommand(params.command);
-
-          const subIdx = findTlonSubcommandIndex(args);
-          const subcommand = subIdx >= 0 ? args[subIdx] : undefined;
-          if (!isAllowedTlonSubcommand(subcommand)) {
-            return {
-              content: [
-                {
-                  type: 'text' as const,
-                  text: `Error: Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${formatAllowedTlonSubcommands()}`,
-                },
-              ],
-              details: { error: true },
-            };
-          }
-
-          // Check for blocked send operations (uses args from subcommand onward)
-          const blocked = checkBlockedSendOperation(args.slice(subIdx));
-          if (blocked) {
-            return {
-              content: [{ type: 'text' as const, text: blocked }],
-              details: { blocked: true, reason: 'send_operation' },
-            };
-          }
-
-          const output = await runTlonCommand(tlonBinary, args, credentials, {
-            timeoutMs: toolTimeoutMs,
-          });
-          return {
-            content: [{ type: 'text' as const, text: output }],
-            details: undefined,
-          };
-        } catch (error: unknown) {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          return {
-            content: [{ type: 'text' as const, text: `Error: ${message}` }],
-            details: { error: true },
-          };
-        }
-      },
+      execute: executeTlonTool,
     });
 
     // Tool access control: block sensitive tools for non-owners
@@ -1639,6 +1519,25 @@ export default defineBundledChannelEntry({
           ctx.from
         );
         return { text };
+      },
+    });
+
+    api.registerCommand({
+      name: 'migrate',
+      description:
+        'Run or clean up a diary-to-notes migration. Usage: ' +
+        '/migrate <diary-nest> [--allow-write-widening] | ' +
+        '/migrate cleanup <notes-nest>',
+      acceptsArgs: true,
+      handler: async (ctx) => {
+        return {
+          text: await routeMigrateCommand(
+            ctx,
+            ctx.args,
+            handleMigrateCommand,
+            api.config
+          ),
+        };
       },
     });
   },

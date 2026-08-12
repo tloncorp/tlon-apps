@@ -12,6 +12,7 @@ import AuthorRow from '../AuthorRow';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { MaskedChatMessage } from '../PostModeration';
 import { ChatMessageActions } from './ChatMessageActions/Component';
+import { MessageContextMenu } from './MessageContextMenu';
 import { StaticChatMessage } from './StaticChatMessage';
 
 /**
@@ -107,60 +108,82 @@ const ChatMessage = ({
 
   return (
     <MaskedChatMessage post={post}>
-      <Pressable
-        // avoid setting the top level press handler at all unless we need to
-        onPress={shouldHandlePress ? handlePress : undefined}
-        onLongPress={handleLongPress}
-        onMouseEnter={handleHoverIn}
-        onMouseLeave={handleHoverOut}
-        pressStyle={{}}
-        cursor="default"
-        testID="Post"
-        borderRadius={'$m'}
-        overflow="hidden"
-        backgroundColor={
-          isWeb && isHovered ? '$secondaryBackground' : 'transparent'
-        }
+      <MessageContextMenu
+        enabled={Boolean(onLongPress) && post.type !== 'notice'}
+        previewKey={JSON.stringify([
+          showAuthor,
+          showReplies,
+          isHighlighted,
+          displayDebugMode,
+          searchQuery,
+        ])}
+        post={post}
+        postActionIds={postActionIds}
+        canReact={canWrite}
+        onReply={handleRepliesPressed}
+        onEdit={handleEditPressed}
+        onViewReactions={setViewReactionsPost}
+        onViewBotRun={onPressBotRun}
+        onShowEmojiPicker={handleEmojiPickerPressed}
       >
-        <StaticChatMessage
-          {...{
-            displayDebugMode,
-            hideProfilePreview,
-            hideSentAtTimestamp: hideOverflowMenu || !isHovered,
-            isHighlighted,
-            onLongPress,
-            onPressBotRun,
-            onPressImage,
-            onPressReplies,
-            onPressRetry,
-            post,
-            searchQuery,
-            setViewReactionsPost,
-            showAuthor,
-            showReplies,
-          }}
-        />
-        {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
-          <View position="absolute" top={showAuthor ? 8 : 2} right={12}>
-            <ChatMessageActions
-              post={post}
-              postActionIds={postActionIds}
-              onDismiss={() => {
-                setIsPopoverOpen(false);
-                setIsHovered(false);
+        {(usesNativeContextMenu) => (
+          <Pressable
+            onPress={shouldHandlePress ? handlePress : undefined}
+            onLongPress={usesNativeContextMenu ? undefined : handleLongPress}
+            onMouseEnter={handleHoverIn}
+            onMouseLeave={handleHoverOut}
+            pressStyle={{}}
+            cursor="default"
+            testID="Post"
+            borderRadius={'$m'}
+            overflow="hidden"
+            backgroundColor={
+              isWeb && isHovered ? '$secondaryBackground' : 'transparent'
+            }
+          >
+            <StaticChatMessage
+              {...{
+                displayDebugMode,
+                hideProfilePreview,
+                hideSentAtTimestamp: hideOverflowMenu || !isHovered,
+                isHighlighted,
+                onLongPress: usesNativeContextMenu ? undefined : onLongPress,
+                onPressBotRun,
+                onPressImage,
+                onPressReplies,
+                onPressRetry,
+                post,
+                searchQuery,
+                setViewReactionsPost,
+                showAuthor,
+                showReplies,
               }}
-              onOpenChange={setIsPopoverOpen}
-              onReply={handleRepliesPressed}
-              onEdit={handleEditPressed}
-              onViewReactions={setViewReactionsPost}
-              onViewBotRun={onPressBotRun}
-              onShowEmojiPicker={handleEmojiPickerPressed}
-              trigger={<OverflowTriggerButton testID="MessageActionsTrigger" />}
-              mode="await-trigger"
             />
-          </View>
+            {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
+              <View position="absolute" top={showAuthor ? 8 : 2} right={12}>
+                <ChatMessageActions
+                  post={post}
+                  postActionIds={postActionIds}
+                  onDismiss={() => {
+                    setIsPopoverOpen(false);
+                    setIsHovered(false);
+                  }}
+                  onOpenChange={setIsPopoverOpen}
+                  onReply={handleRepliesPressed}
+                  onEdit={handleEditPressed}
+                  onViewReactions={setViewReactionsPost}
+                  onViewBotRun={onPressBotRun}
+                  onShowEmojiPicker={handleEmojiPickerPressed}
+                  trigger={
+                    <OverflowTriggerButton testID="MessageActionsTrigger" />
+                  }
+                  mode="await-trigger"
+                />
+              </View>
+            )}
+          </Pressable>
         )}
-      </Pressable>
+      </MessageContextMenu>
     </MaskedChatMessage>
   );
 };

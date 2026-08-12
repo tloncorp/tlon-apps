@@ -14,10 +14,14 @@ class UrbitModule: NSObject {
     @objc(setUrbit:shipUrl:authCookie:)
     func setUrbit(shipName: String, shipUrl: String, authCookie _: String) {
         try? UrbitModule.loginStore.save(Login(shipName: shipName, shipUrl: shipUrl))
-        // reset the cached backend capability for the new login; JS re-resolves
-        // it from the ship's version. avoids using a prior ship's v9 mark.
+        // reset the cached backend capabilities for the new login; JS
+        // re-resolves them from the ship's version. avoids using a prior
+        // ship's v9/v10 marks.
         UserDefaults.forDefaultAppGroup.removeObject(
             forKey: SettingsStore.activitySupportsReactionsKey
+        )
+        UserDefaults.forDefaultAppGroup.removeObject(
+            forKey: SettingsStore.activitySupportsNotesKey
         )
 
         Task {
@@ -30,10 +34,13 @@ class UrbitModule: NSObject {
 
     @objc func clearUrbit() {
         try? UrbitModule.loginStore.delete()
-        // clear cached backend capability so a later login to an older backend
-        // doesn't keep fetching the v9 notification mark (which it would 404)
+        // clear cached backend capabilities so a later login to an older
+        // backend doesn't keep fetching newer notification marks (404s)
         UserDefaults.forDefaultAppGroup.removeObject(
             forKey: SettingsStore.activitySupportsReactionsKey
+        )
+        UserDefaults.forDefaultAppGroup.removeObject(
+            forKey: SettingsStore.activitySupportsNotesKey
         )
     }
 
@@ -45,6 +52,11 @@ class UrbitModule: NSObject {
     @objc(setActivitySupportsReactions:)
     func setActivitySupportsReactions(supported: Bool) {
         UserDefaults.forDefaultAppGroup.set(supported, forKey: SettingsStore.activitySupportsReactionsKey)
+    }
+
+    @objc(setActivitySupportsNotes:)
+    func setActivitySupportsNotes(supported: Bool) {
+        UserDefaults.forDefaultAppGroup.set(supported, forKey: SettingsStore.activitySupportsNotesKey)
     }
 
     @objc(updateBadgeCount:uid:)

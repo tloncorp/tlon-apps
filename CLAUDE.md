@@ -65,6 +65,16 @@ broke compilation on new kelvins.
     To build against a different kernel, change the rev there on your branch.
 -   `desk/lib/verb.hoon` is a locally-patched variant and stays committed — do
     NOT add patched or repo-owned files to the peru pick lists.
+-   **Never hand-edit files in a mounted pier desk.** The only supported flow
+    for getting code onto a ship is: edit sources in `desk/`, run
+    `./scripts/assemble-desk.sh <target>`, rsync the assembled output into the
+    mounted desk (`rsync -a --delete <target>/ <pier>/<desk>/`), then
+    `|commit`. Writing or stubbing files directly in the pier desk makes the
+    ship's clay diverge from the repo in ways later syncs won't detect or
+    repair. If a ship's clay has stale files the sync can't remove (e.g.
+    leftovers from another branch), fix it in clay — `|rm` the file, or
+    `|unmount` + `|mount` to reset mount tracking and re-rsync — rather than
+    overwriting the file in place.
 
 ### Database Migrations
 
@@ -148,7 +158,7 @@ When using the `=<` + helper core pattern with `^+  cor`, be aware that type-nar
 #### Mark Conventions
 
 -   **Versioned marks**: `action-1.hoon`, `update-1.hoon` in `desk/mar/<agent-name>/`
--   **Mark naming**: `%gateway-status-action-1` (agent name + mark name + version)
+-   **Mark naming**: `%steward-gateway-action-1` (agent name + module/mark name + version)
 -   **JSON serialization for `@da`/`@dr`/`@p`**: Use `scot`/`se` pairs, not `numb`/`ni`:
     -   Grow: `s+(scot %da lease-until)`, `s+(scot %dr active-window)`, `s+(scot %p owner)`
     -   Grab: `(se %da)`, `(se %dr)`, `(se %p)`
@@ -216,7 +226,7 @@ To identify which component to modify:
 ## Key Technologies
 
 -   **Frontend**: React, TypeScript, React Native, Expo, Electron
--   **UI**: Tamagui, Tailwind CSS
+-   **UI**: Tamagui
 -   **State Management**: Zustand, React Query
 -   **Database**: SQLite (web: SQLocal, mobile: op-sqlite, desktop: better-sqlite3)
 -   **Backend**: Urbit (Hoon)

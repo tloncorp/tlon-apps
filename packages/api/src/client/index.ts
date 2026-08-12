@@ -62,6 +62,10 @@ export {
   getTlawnBotInfo,
   getTlawnOAuthProviders,
   getTlawnOAuthStatus,
+  getTlawnLLMAuthStatus,
+  startTlawnLLMAuth,
+  getTlawnLLMAuthFlow,
+  disconnectTlawnLLMAuth,
   startTlawnOAuth,
   deleteTlawnOAuthGrant,
   getTlawnNickname,
@@ -101,11 +105,18 @@ export type {
   TlawnOAuthStartRequest,
   TlawnOAuthStartResponse,
   TlawnOAuthUpstream,
+  TlawnLLMAuthFlow,
+  TlawnLLMAuthFlowResponse,
+  TlawnLLMAuthFlowStatus,
+  TlawnLLMAuthProvider,
+  TlawnLLMAuthProviderStatus,
+  TlawnLLMAuthStatus,
+  TlawnSubscriptionModel,
 } from '../types/hosting';
 export * from './apiUtils';
 export * from './metagrabApi';
 export * from './changesApi';
 export * from './computingStatus';
 export * from './presenceApi';
-export * from './gatewayStatusApi';
+export * from './stewardGatewayApi';
 export * from './lensApi';

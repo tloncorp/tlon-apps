@@ -53,6 +53,11 @@ export type TaskInlineData = {
   children: InlineData[];
 };
 
+export type BlockquoteInlineData = {
+  type: 'blockquote';
+  children: InlineData[];
+};
+
 export type InlineData =
   | StyleInlineData
   | TextInlineData
@@ -60,7 +65,8 @@ export type InlineData =
   | GroupMentionInlineData
   | LineBreakInlineData
   | LinkInlineData
-  | TaskInlineData;
+  | TaskInlineData
+  | BlockquoteInlineData;
 
 export type InlineType = InlineData['type'];
 
@@ -356,13 +362,70 @@ function plaintextPreviewOfListData(
   return out.join(config.blockSeparator);
 }
 
+// Whether an inline's serialized text begins/ends at a quote boundary. `style`
+// and `task` flatten their children into the surrounding string, so a quote at
+// a wrapper's edge is adjacent in the *output* even though it is not an
+// adjacent sibling in the tree. `task` emits its `[x] ` marker first, so it can
+// never start with a quote.
+//
+// These walk the literal edge child, not the first child that actually renders
+// anything, so a zero-output sibling (an empty style, an empty text) masks the
+// boundary behind it and the separator is skipped. Reaching that needs an empty
+// wrapper adjacent to a quote inside another wrapper — no Markdown or editor
+// path produces it — so it is left alone rather than pushing edge-walking
+// through empty nodes.
+function opensWithQuote(inline: InlineData): boolean {
+  if (inline.type === 'blockquote') return true;
+  if (inline.type === 'style') {
+    const first = inline.children[0];
+    return first != null && opensWithQuote(first);
+  }
+  return false;
+}
+
+function closesWithQuote(inline: InlineData): boolean {
+  if (inline.type === 'blockquote') return true;
+  if (inline.type === 'style' || inline.type === 'task') {
+    const last = inline.children.at(-1);
+    return last != null && closesWithQuote(last);
+  }
+  return false;
+}
+
+// A leading line break supplies its own delimiter, through wrappers too.
+function opensWithBreak(inline: InlineData): boolean {
+  if (inline.type === 'lineBreak') return true;
+  if (inline.type === 'style') {
+    const first = inline.children[0];
+    return first != null && opensWithBreak(first);
+  }
+  return false;
+}
+
 export function plaintextPreviewOfInlineString(
   inlines: InlineData[],
   config: PlaintextPreviewConfig
 ): string {
-  return inlines
-    .map((inline) => plaintextPreviewOfInline(inline, config))
-    .join('');
+  let out = '';
+  inlines.forEach((inline, i) => {
+    // A quote boundary that is already delimited does not get another
+    // delimiter: skip the separator when the output already ends in a
+    // separator or newline, or when this inline opens with its own break.
+    const previous = i > 0 ? inlines[i - 1] : null;
+    const isQuoteBoundary =
+      opensWithQuote(inline) || (previous != null && closesWithQuote(previous));
+    if (
+      isQuoteBoundary &&
+      !opensWithBreak(inline) &&
+      out.length > 0 &&
+      !out.endsWith(config.blockSeparator) &&
+      !out.endsWith('\n')
+    ) {
+      out += config.blockSeparator;
+    }
+    out += plaintextPreviewOfInline(inline, config);
+  });
+  return out;
 }
 export function plaintextPreviewOfInline(
   inline: InlineData,
@@ -386,6 +449,8 @@ export function plaintextPreviewOfInline(
       out += plaintextPreviewOfInlineString(inline.children, config);
       return out;
     }
+    case 'blockquote':
+      return `> ${plaintextPreviewOfInlineString(inline.children, config)}`;
   }
 }
 

@@ -1,6 +1,5 @@
 import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
 
@@ -29,32 +28,35 @@ export function ChatInput({
   const isWindowNarrow = useIsWindowNarrow();
   const showWayfindingTooltip = store.useShowChatInputWayfinding(channel.id);
   const showBotMentionTooltip = store.useShowBotMentionWayfinding(channel.id);
+  const slashCommandManifest = store.useBotSlashCommandManifest(channel);
 
   return (
-    <SafeAreaView edges={['right', 'left', 'bottom']}>
-      <ParentAgnosticKeyboardAvoidingView>
-        <BareChatInput
-          ref={draftInputRef}
-          shouldBlur={shouldBlur}
-          setShouldBlur={setShouldBlur}
-          sendPostFromDraft={sendPostFromDraft}
-          groupId={channel.groupId}
-          channelId={channel.id}
-          groupMembers={group?.members ?? []}
-          groupRoles={group?.roles ?? []}
-          storeDraft={storeDraft}
-          clearDraft={clearDraft}
-          getDraft={getDraft}
-          editingPost={editingPost}
-          setEditingPost={setEditingPost}
-          channelType={channel.type}
-          shouldAutoFocus={!!editingPost || (isWeb && !isWindowNarrow)}
-          showInlineAttachments
-          showAttachmentButton
-          showWayfindingTooltip={showWayfindingTooltip}
-          showBotMentionTooltip={showBotMentionTooltip}
-        />
-      </ParentAgnosticKeyboardAvoidingView>
+    // ConversationComposerPlacement owns the native bottom safe-area inset.
+    <SafeAreaView
+      edges={isWeb ? ['right', 'left', 'bottom'] : ['right', 'left']}
+    >
+      <BareChatInput
+        ref={draftInputRef}
+        shouldBlur={shouldBlur}
+        setShouldBlur={setShouldBlur}
+        sendPostFromDraft={sendPostFromDraft}
+        groupId={channel.groupId}
+        channelId={channel.id}
+        groupMembers={group?.members ?? []}
+        groupRoles={group?.roles ?? []}
+        storeDraft={storeDraft}
+        clearDraft={clearDraft}
+        getDraft={getDraft}
+        editingPost={editingPost}
+        setEditingPost={setEditingPost}
+        channelType={channel.type}
+        shouldAutoFocus={!!editingPost || (isWeb && !isWindowNarrow)}
+        showInlineAttachments
+        showAttachmentButton
+        showWayfindingTooltip={showWayfindingTooltip}
+        showBotMentionTooltip={showBotMentionTooltip}
+        slashCommandManifest={slashCommandManifest}
+      />
     </SafeAreaView>
   );
 }

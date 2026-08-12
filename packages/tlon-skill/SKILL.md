@@ -53,14 +53,17 @@ tlon upload ./generated-chart.png      # local file — prints the uploaded URL
 tlon upload https://example.com/x.png  # remote URL
 ```
 
-Pass that printed URL as `media=`. On hosted deployments the upload must run
-through the owner ship's config (the bot's own ship has no storage):
+Pass that printed URL as `media=`. On Tlon-hosted deployments (where
+`TLON_HOSTING` is set) the bot's own ship uploads through Tlon file hosting.
+If the upload fails (e.g. self-hosted moons, which have no storage), retry
+through the owner ship's config:
 `tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`.
 
-> **Removed: diary/notebook channels.** The `%diary` backend has been removed.
-> `tlon notebook`, `--kind diary`, and any `diary/...` nest now fail with an
-> explanatory error pointing at `%notes`. Use the `tlon notes` family for
-> Markdown notebooks instead.
+> **Deprecated: diary channels.** `%diary` is not managed by the CLI:
+> `tlon notebook`, `--kind diary`, and `diary/...` targets fail with guidance
+> toward `%notes`. Use the `tlon notes` family for Markdown notebooks. An owner
+> can preview a legacy diary with `tlon notes migrate-plan <diary-nest>` and
+> migrate it with `tlon notes migrate-apply <diary-nest> --yes`.
 
 ## Installation
 
@@ -469,7 +472,11 @@ Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL ret
 
 `posts edit` edits message text only. The former notebook-only
 `--title`/`--image`/`--content` edit flags are removed (they refuse with an
-explanatory error) along with diary/notebook channels.
+explanatory error). Deprecated diary channels are unmanaged by the CLI except
+through the owner-run `tlon notes migrate-plan <diary-nest>` and
+`tlon notes migrate-apply <diary-nest> --yes` paths.
+
+Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported.
 
 ### Notes
 
@@ -500,6 +507,9 @@ tlon notes folder-delete notes/~host/name 4 --recursive  # Delete a folder (--re
 tlon notes members notes/~host/name                      # List notebook members
 tlon notes join notes/~host/name                         # Join a notebook
 tlon notes leave notes/~host/name                        # Leave a notebook
+tlon notes migrate-plan diary/~host/name                 # Read-only diary migration plan
+tlon notes migrate-apply diary/~host/name --yes          # Owner-gated migration write
+tlon notes notebook-delete notes/~host/name --yes        # Owner-gated migration recovery
 ```
 
 Note bodies come from exactly one content source. `note-create` accepts

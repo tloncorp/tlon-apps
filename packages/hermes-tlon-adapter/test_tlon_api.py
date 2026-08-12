@@ -2,6 +2,7 @@ import asyncio
 import importlib.util
 import json
 import sys
+import time
 import types
 import unittest
 from pathlib import Path
@@ -48,6 +49,132 @@ class TlonConfigTests(unittest.TestCase):
         self.assertEqual(env["URBIT_SHIP"], "~zod")
         self.assertEqual(env["TLON_CODE"], "code")
         self.assertEqual(env["URBIT_CODE"], "code")
+
+    def test_cli_env_scrubs_config_file_and_preserves_unrelated_base_value(self):
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.tlon.network",
+            ship_name="~zod",
+            ship_code="code",
+        )
+
+        env = cfg.cli_env(
+            base={
+                "TLON_CONFIG_FILE": "/tmp/hostile-config.json",
+                "UNRELATED_ENV": "preserved",
+            }
+        )
+
+        self.assertNotIn("TLON_CONFIG_FILE", env)
+        self.assertEqual(env["UNRELATED_ENV"], "preserved")
+
+    def test_cli_env_scrubs_stale_cookies_for_code_auth(self):
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.tlon.network",
+            ship_name="~zod",
+            ship_code="code",
+        )
+
+        env = cfg.cli_env(
+            base={
+                "URBIT_COOKIE": "stale-urbit-cookie",
+                "TLON_COOKIE": "stale-tlon-cookie",
+            }
+        )
+
+        self.assertTrue({"URBIT_COOKIE", "TLON_COOKIE"}.isdisjoint(env))
+
+    def test_cli_env_reinjects_config_cookie_after_scrubbing_base(self):
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.tlon.network",
+            ship_name="~zod",
+            cookie="config-cookie",
+        )
+
+        env = cfg.cli_env(
+            base={
+                "TLON_CONFIG_FILE": "/tmp/hostile-config.json",
+                "URBIT_COOKIE": "stale-urbit-cookie",
+                "TLON_COOKIE": "stale-tlon-cookie",
+            }
+        )
+
+        self.assertNotIn("TLON_CONFIG_FILE", env)
+        self.assertEqual(
+            (env.get("URBIT_COOKIE"), env.get("TLON_COOKIE")),
+            ("config-cookie", "config-cookie"),
+        )
+
+    def test_cli_env_scrubs_stale_code_for_cookie_only_auth(self):
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.tlon.network",
+            ship_name="~zod",
+            cookie="config-cookie",
+        )
+
+        env = cfg.cli_env(
+            base={
+                "TLON_CODE": "stale-tlon-code",
+                "URBIT_CODE": "stale-urbit-code",
+            }
+        )
+
+        self.assertTrue({"TLON_CODE", "URBIT_CODE"}.isdisjoint(env))
+
+    def test_cli_env_scrubs_stale_url_and_ship_when_config_omits_them(self):
+        cfg = tlon_api.TlonConfig(
+            ship_url="",
+            ship_name="",
+            cookie="config-cookie",
+        )
+
+        env = cfg.cli_env(
+            base={
+                "URBIT_URL": "https://stale.tlon.network",
+                "URBIT_SHIP": "~stale",
+            }
+        )
+
+        self.assertTrue({"URBIT_URL", "URBIT_SHIP"}.isdisjoint(env))
+
+    def test_cli_env_scrubs_before_injecting_all_config_values(self):
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.tlon.network",
+            ship_name="~zod",
+            ship_code="code",
+            hosting=True,
+        )
+        expected = {
+            "TLON_NODE_URL": "https://zod.tlon.network",
+            "TLON_SHIP_URL": "https://zod.tlon.network",
+            "TLON_URL": "https://zod.tlon.network",
+            "URBIT_URL": "https://zod.tlon.network",
+            "TLON_NODE_ID": "~zod",
+            "TLON_SHIP_NAME": "~zod",
+            "TLON_SHIP": "~zod",
+            "URBIT_SHIP": "~zod",
+            "TLON_ACCESS_CODE": "code",
+            "TLON_SHIP_CODE": "code",
+            "TLON_CODE": "code",
+            "URBIT_CODE": "code",
+            "TLON_HOSTING": "true",
+        }
+
+        env = cfg.cli_env(
+            base={
+                "TLON_CONFIG_FILE": "/tmp/hostile-config.json",
+                "URBIT_COOKIE": "stale-urbit-cookie",
+                "TLON_COOKIE": "stale-tlon-cookie",
+                "TLON_URL": "https://nec.tlon.network",
+                "URBIT_URL": "https://bus.tlon.network",
+                "TLON_SHIP": "~nec",
+                "URBIT_SHIP": "~bus",
+                "TLON_CODE": "stale-code",
+                "URBIT_CODE": "stale-urbit-code",
+            }
+        )
+
+        self.assertEqual({key: env.get(key) for key in expected}, expected)
+        self.assertNotIn("TLON_CONFIG_FILE", env)
 
     def test_from_env_accepts_openclaw_style_aliases(self):
         cfg = tlon_api.TlonConfig.from_env(
@@ -752,7 +879,8 @@ class TlonCLITests(unittest.TestCase):
             }
         )
 
-        async def runner(command, env, timeout):
+        async def runner(command, env, timeout, on_deadline):
+            self.assertIsNone(on_deadline)
             calls.append((tuple(command), dict(env), timeout))
             return tlon_api.TlonProcessResult(returncode=0, stdout="Message sent\n")
 
@@ -795,7 +923,7 @@ class TlonCLITests(unittest.TestCase):
             }
         )
 
-        async def runner(command, env, timeout):
+        async def runner(command, env, timeout, _on_deadline):
             calls.append(tuple(command))
             return tlon_api.TlonProcessResult(returncode=0, stdout="✓ Message sent\n")
 
@@ -831,7 +959,7 @@ class TlonCLITests(unittest.TestCase):
             }
         )
 
-        async def runner(command, env, timeout):
+        async def runner(command, env, timeout, _on_deadline):
             calls.append((tuple(command), dict(env), timeout))
             return tlon_api.TlonProcessResult(returncode=0, stdout="~zod\n")
 
@@ -845,6 +973,152 @@ class TlonCLITests(unittest.TestCase):
         self.assertEqual(result.stdout, "~zod\n")
         self.assertEqual(calls[0][0], ("tlon-test", "contacts", "self"))
         self.assertEqual(calls[0][1]["TLON_NODE_ID"], "~zod")
+
+    def test_run_command_scrubs_ambient_resolver_credentials_before_runner(self):
+        calls = []
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.tlon.network",
+            ship_name="~zod",
+            ship_code="config-code",
+            cli="tlon-test",
+        )
+        ambient = {
+            "TLON_CONFIG_FILE": "/tmp/hostile-config.json",
+            "URBIT_COOKIE": "stale-urbit-cookie",
+            "TLON_COOKIE": "stale-tlon-cookie",
+            "TLON_URL": "https://nec.tlon.network",
+            "TLON_SHIP": "~nec",
+            "TLON_CODE": "stale-code",
+        }
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(dict(env))
+            return tlon_api.TlonProcessResult(returncode=0)
+
+        async def run():
+            cli = tlon_api.TlonCLI(cfg, runner=runner)
+            return await cli.run_command(("contacts", "self"))
+
+        with patch.dict(tlon_api.os.environ, ambient, clear=True):
+            asyncio.run(run())
+
+        resolver_keys = {
+            "TLON_CONFIG_FILE",
+            "URBIT_COOKIE",
+            "TLON_COOKIE",
+            "URBIT_URL",
+            "TLON_URL",
+            "URBIT_SHIP",
+            "TLON_SHIP",
+            "URBIT_CODE",
+            "TLON_CODE",
+        }
+        self.assertEqual(
+            {key: calls[0][key] for key in resolver_keys if key in calls[0]},
+            {
+                "TLON_URL": "https://zod.tlon.network",
+                "URBIT_URL": "https://zod.tlon.network",
+                "TLON_SHIP": "~zod",
+                "URBIT_SHIP": "~zod",
+                "TLON_CODE": "config-code",
+                "URBIT_CODE": "config-code",
+            },
+        )
+
+    def test_run_command_override_timeout_preserves_timeout_output(self):
+        calls = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+            }
+        )
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(timeout)
+            raise tlon_api.TlonProcessTimeout(
+                "Target notebook created: notes/~zod/log\n", "still working\n"
+            )
+
+        async def run():
+            cli = tlon_api.TlonCLI(cfg, runner=runner)
+            return await cli.run_command(
+                ("notes", "migrate-apply", "diary/~zod/log", "--yes"),
+                timeout=1800,
+            )
+
+        result = asyncio.run(run())
+        self.assertFalse(result.success)
+        self.assertTrue(result.timed_out)
+        self.assertEqual(calls, [1800])
+        self.assertIn("notes/~zod/log", result.stdout)
+        self.assertEqual(result.stderr, "still working\n")
+
+    def test_subprocess_timeout_kills_and_drains_buffered_stdout(self):
+        async def run():
+            return await tlon_api.TlonCLI._run_subprocess(
+                (
+                    sys.executable,
+                    "-c",
+                    (
+                        "import time; "
+                        "print('Target notebook created: notes/~zod/log', flush=True); "
+                        "time.sleep(10)"
+                    ),
+                ),
+                {},
+                0.05,
+            )
+
+        started = time.monotonic()
+        with self.assertRaises(tlon_api.TlonProcessTimeout) as raised:
+            asyncio.run(run())
+        self.assertLess(time.monotonic() - started, 2)
+        self.assertIn("notes/~zod/log", raised.exception.stdout)
+
+    def test_deadline_reports_partial_chunks_without_signalling_and_returns_result(self):
+        deadline_outputs = []
+        cfg = tlon_api.TlonConfig(
+            ship_url="https://zod.test",
+            ship_name="~zod",
+            ship_code="code",
+            cli=sys.executable,
+        )
+
+        async def on_deadline(output):
+            deadline_outputs.append(output)
+
+        async def run():
+            cli = tlon_api.TlonCLI(cfg)
+            return await cli.run_command(
+                (
+                    "-c",
+                    (
+                        "import sys,time; "
+                        "print('stdout-before', flush=True); "
+                        "print('stderr-before', file=sys.stderr, flush=True); "
+                        "time.sleep(0.4); "
+                        "print('stdout-after', flush=True); "
+                        "print('stderr-after', file=sys.stderr, flush=True)"
+                    ),
+                ),
+                timeout=0.15,
+                on_deadline=on_deadline,
+            )
+
+        command_result = asyncio.run(run())
+        self.assertTrue(command_result.success)
+        self.assertEqual(command_result.returncode, 0)
+        self.assertEqual(len(deadline_outputs), 1)
+        self.assertEqual(deadline_outputs[0].stdout, "stdout-before\n")
+        self.assertEqual(deadline_outputs[0].stderr, "stderr-before\n")
+        self.assertEqual(
+            command_result.stdout, "stdout-before\nstdout-after\n"
+        )
+        self.assertEqual(
+            command_result.stderr, "stderr-before\nstderr-after\n"
+        )
 
 
 class FakeGatewayStatusClient:
@@ -894,25 +1168,26 @@ class TlonGatewayStatusTests(unittest.TestCase):
         self.assertTrue(fake.authenticated)
         self.assertTrue(fake.opened)
         self.assertTrue(fake.closed)
-        self.assertEqual([poke[0] for poke in fake.pokes], ["gateway-status"] * 3)
+        self.assertEqual([poke[0] for poke in fake.pokes], ["steward"] * 4)
         self.assertEqual(
             [poke[1] for poke in fake.pokes],
-            ["gateway-status-action-1"] * 3,
+            ["steward-action-1"] + ["steward-gateway-action-1"] * 3,
         )
+        # The owner rides the core mark; only the timings are the module's own.
+        self.assertEqual(fake.pokes[0][2], {"configure": {"owner": "~mug"}})
         self.assertEqual(
-            fake.pokes[0][2],
+            fake.pokes[1][2],
             {
                 "configure": {
-                    "owner": "~mug",
                     "active-window": "~s300",
                     "offline-reply-cooldown": "~s300",
                 }
             },
         )
-        self.assertEqual(fake.pokes[1][2]["gateway-start"]["boot-id"], "boot-test")
-        self.assertTrue(fake.pokes[1][2]["gateway-start"]["lease-until"].startswith("~"))
+        self.assertEqual(fake.pokes[2][2]["gateway-start"]["boot-id"], "boot-test")
+        self.assertTrue(fake.pokes[2][2]["gateway-start"]["lease-until"].startswith("~"))
         self.assertEqual(
-            fake.pokes[2][2],
+            fake.pokes[3][2],
             {"gateway-stop": {"boot-id": "boot-test", "reason": "unit-test"}},
         )
 

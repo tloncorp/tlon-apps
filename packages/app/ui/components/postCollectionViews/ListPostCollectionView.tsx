@@ -23,12 +23,13 @@ import { useShouldShowThinkingState } from '../Channel/useShouldShowThinkingStat
 import { IPostCollectionView } from './shared';
 
 interface ScrollerHandle {
-  scrollToIndex: (params: {
-    index: number;
+  scrollToPost: (params: {
+    postId: string;
     animated?: boolean;
     viewPosition?: number;
   }) => void;
   scrollToStart: (params: { animated?: boolean }) => void;
+  scrollToEnd: (params: { animated?: boolean }) => void;
 }
 
 export const ListPostCollection: IPostCollectionView = forwardRef(
@@ -45,6 +46,12 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     const collectionLayout = useMemo(
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
+    );
+    const anchorToEnd = collectionLayout.scrollDirection === 'bottom-to-top';
+    const renderOrderedPosts = useMemo(
+      () =>
+        ctx.posts && anchorToEnd ? [...ctx.posts].reverse() : ctx.posts ?? null,
+      [anchorToEnd, ctx.posts]
     );
     const listBottomComponent = useMemo(
       () =>
@@ -104,15 +111,22 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     }, []);
 
     useImperativeHandle(forwardedRef, () => ({
-      scrollToPostAtIndex(index: number, viewPosition?: number) {
-        scrollerRef.current?.scrollToIndex({
-          index,
+      scrollToPost(postId: string, viewPosition?: number) {
+        scrollerRef.current?.scrollToPost({
+          postId,
           animated: false,
           viewPosition,
         });
       },
       scrollToStart(opts: { animated?: boolean }) {
         scrollerRef.current?.scrollToStart(opts);
+      },
+      scrollToLatest(opts: { animated?: boolean }) {
+        if (anchorToEnd) {
+          scrollerRef.current?.scrollToEnd(opts);
+        } else {
+          scrollerRef.current?.scrollToStart(opts);
+        }
       },
       highlightPost(postId: string) {
         if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
@@ -150,12 +164,11 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     ]);
     return (
       <Scroller
-        key={scrollerAnchor?.postId}
-        inverted={collectionLayout.scrollDirection === 'bottom-to-top'}
+        anchorToEnd={anchorToEnd}
         renderItem={ctx.LegacyPostView}
         renderEmptyComponent={renderEmptyComponent}
         anchor={scrollerAnchor}
-        posts={ctx.posts ?? null}
+        posts={renderOrderedPosts}
         hasNewerPosts={ctx.hasNewerPosts}
         hasOlderPosts={ctx.hasOlderPosts}
         editingPost={ctx.editingPost}
@@ -175,8 +188,10 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         }
         onPressReplies={ctx.goToPost}
         onPressImage={ctx.goToMediaViewer}
-        onEndReached={ctx.onScrollEndReached}
-        onStartReached={ctx.onScrollStartReached}
+        onEndReached={anchorToEnd ? ctx.onLoadNewerPosts : ctx.onLoadOlderPosts}
+        onStartReached={
+          anchorToEnd ? ctx.onLoadOlderPosts : ctx.onLoadNewerPosts
+        }
         onPressRetry={ctx.onPressRetrySend}
         onPressDelete={ctx.onPressDelete}
         activeMessage={activeMessage}
@@ -189,6 +204,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         contextLensSelectedPostId={ctx.contextLensSelectedPostId}
         highlightPostId={highlightPostId}
         listBottomComponent={listBottomComponent}
+        contentInsets={ctx.contentInsets}
       />
     );
   }

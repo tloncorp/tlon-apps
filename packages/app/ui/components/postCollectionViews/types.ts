@@ -1,6 +1,7 @@
 export interface PostCollectionHandle {
-  scrollToPostAtIndex?: (index: number, viewPosition?: number) => void;
+  scrollToPost?: (postId: string, viewPosition?: number) => void;
   scrollToStart?: (opts: { animated?: boolean }) => void;
+  scrollToLatest?: (opts: { animated?: boolean }) => void;
   highlightPost?: (postId: string) => void;
 }
 
