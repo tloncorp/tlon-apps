@@ -345,7 +345,9 @@ async function waitForUploadSession(
     if (entry && session) return { entry, session };
     await delay(POLL_DELAY_MS);
   }
-  throw commandError('The Bucket host did not start the upload in time');
+  throw commandError(
+    "The Bucket host authorized the upload, but this ship's Bucket replica did not receive the upload session in time"
+  );
 }
 
 async function readBoundedText(response: Response, fileId: number) {
@@ -594,11 +596,13 @@ function createBucketsOperations(): BucketsOperations {
       });
 
       let completionAttempted = false;
+      let hostAuthorized = false;
       let begun: Awaited<ReturnType<typeof waitForUploadSession>> | undefined;
       try {
         const grant = await waitForCapability(() =>
           grantUpload(capability, target.flag.host)
         );
+        hostAuthorized = true;
         begun = await waitForUploadSession(
           target,
           priorSessionIds,
@@ -655,7 +659,9 @@ function createBucketsOperations(): BucketsOperations {
           }).catch(() => undefined);
         }
         throw commandError(
-          `Bucket upload failed after the host authorized ${displayName}: ${errorMessage(error)}`
+          hostAuthorized
+            ? `Bucket upload failed after the host authorized ${displayName}: ${errorMessage(error)}`
+            : `Bucket host did not authorize ${displayName}: ${errorMessage(error)}`
         );
       }
     },

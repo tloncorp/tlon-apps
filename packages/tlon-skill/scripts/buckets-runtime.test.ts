@@ -156,11 +156,14 @@ describe('Buckets runtime hardening', () => {
     mockedSendBucketsAction.impl = async (action: unknown) => {
       const typed = action as BucketsAction;
       actions.push(typed);
-      if (typed.type === 'begin-upload') phase = 'pending';
     };
     globalThis.fetch = (async (input, init) => {
       const url = String(input);
       if (url.endsWith('/uploads/grant')) {
+        // Broker authorization is the authoritative acknowledgement from the
+        // host. Only expose the replicated session after that acknowledgement
+        // so this test fails if the CLI regresses to scry-first polling.
+        phase = 'pending';
         return Response.json({
           reservationId: 'reservation-mine',
           objectId: 'object-mine',
@@ -194,6 +197,41 @@ describe('Buckets runtime hardening', () => {
         name: 'plan.md',
         size: Buffer.byteLength(contents),
       });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('reports broker rejection as an authorization failure, not a replica timeout', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'tlon-buckets-upload-'));
+    const filePath = path.join(directory, 'plan.md');
+    writeFileSync(filePath, '# Project\n');
+    mockedGetBuckets.impl = async () => [snapshot()];
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      if (url.endsWith('/uploads/grant')) {
+        return Response.json(
+          {
+            code: 'permission_denied',
+            message: 'The Bucket host rejected this actor',
+            retryable: false,
+          },
+          { status: 403 }
+        );
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      await expect(
+        createBucketsDeps().buckets.upload({
+          target: TARGET,
+          filePath,
+          parentId: null,
+        })
+      ).rejects.toThrow(
+        'Bucket host did not authorize plan.md: The Bucket host rejected this actor'
+      );
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
