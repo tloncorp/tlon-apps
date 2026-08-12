@@ -80,7 +80,7 @@ export async function createAgentGroup(params?: {
       });
     });
 
-  grantAgentAdmin(group.id, botShipId).catch((error) => {
+  ensureAgentAdminForGroup(group.id, botShipId).catch((error) => {
     logger.trackError('Failed to grant agent admin', {
       error,
       groupId: group.id,
@@ -346,6 +346,28 @@ async function grantAgentAdmin(
   throw new Error(
     `Could not grant ${botShipId} admin in ${groupId}: ${String(lastError ?? 'agent seat unavailable')}`
   );
+}
+
+const agentAdminEnsuring = new Map<string, Promise<void>>();
+
+/**
+ * Reconcile the agent's admin seat, sharing concurrent runs. The app-level
+ * group observer calls this again when membership sync changes, so an agent
+ * that joins after the initial bounded retry still receives the role.
+ */
+export function ensureAgentAdminForGroup(
+  groupId: string,
+  botShipId: string
+): Promise<void> {
+  const existing = agentAdminEnsuring.get(groupId);
+  if (existing) {
+    return existing;
+  }
+  const run = grantAgentAdmin(groupId, botShipId).finally(() => {
+    agentAdminEnsuring.delete(groupId);
+  });
+  agentAdminEnsuring.set(groupId, run);
+  return run;
 }
 
 export const _testing = { grantAgentAdmin };

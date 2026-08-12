@@ -59,17 +59,22 @@ export function parseOnboardingNotesListing(output: string): string | null {
     return null;
   }
 
-  let newestId: bigint | null = null;
-  for (const match of trimmed.matchAll(/^#(\d+)(?:\s|$)/gm)) {
-    const id = BigInt(match[1]!);
-    if (newestId === null || id > newestId) {
-      newestId = id;
-    }
-  }
-  if (newestId === null) {
+  const ids = parseOnboardingNoteIds(output);
+  if (ids.length === 0) {
     throw new Error('Unexpected output from `tlon notes notes`');
   }
-  return newestId.toString();
+  return ids[0]!;
+}
+
+/** Note ids in newest-first order from the stable notes listing. */
+export function parseOnboardingNoteIds(output: string): string[] {
+  const trimmed = output.trim();
+  if (trimmed === 'No notes.') {
+    return [];
+  }
+  return [...trimmed.matchAll(/^#(\d+)(?:\s|$)/gm)]
+    .map((match) => match[1]!)
+    .sort((a, b) => (BigInt(a) > BigInt(b) ? -1 : 1));
 }
 
 /** Read the newest note id through %notes rather than legacy %channels. */
@@ -86,6 +91,36 @@ export async function readOnboardingNotebookNewestId(
     notesNest,
   ]);
   return parseOnboardingNotesListing(output);
+}
+
+export async function listOnboardingNotebookNoteIds(
+  notesNest: string
+): Promise<string[]> {
+  const host = notesNest.split('/')[1];
+  if (!host) {
+    throw new Error(`The onboarding notebook nest has no host: ${notesNest}`);
+  }
+  const output = await runOnboardingTlonCommand(host, [
+    'notes',
+    'notes',
+    notesNest,
+  ]);
+  const ids = parseOnboardingNoteIds(output);
+  if (ids.length === 0 && output.trim() !== 'No notes.') {
+    throw new Error('Unexpected output from `tlon notes notes`');
+  }
+  return ids;
+}
+
+export async function readOnboardingNotebookNote(
+  notesNest: string,
+  noteId: string
+): Promise<string> {
+  const host = notesNest.split('/')[1];
+  if (!host) {
+    throw new Error(`The onboarding notebook nest has no host: ${notesNest}`);
+  }
+  return runOnboardingTlonCommand(host, ['notes', 'note', notesNest, noteId]);
 }
 
 export function clearOnboardingOperations(): void {

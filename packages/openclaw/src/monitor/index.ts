@@ -44,7 +44,9 @@ import {
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
 import {
+  listOnboardingNotebookNoteIds,
   readOnboardingNotebookNewestId,
+  readOnboardingNotebookNote,
   runOnboardingTlonCommand,
 } from '../onboarding-operations.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
@@ -1446,21 +1448,55 @@ export async function monitorTlonProvider(
       }
     };
 
-    const waitForNotebookEntryAfter = async (
+    const onboardingNoteWithMarker = async (
       notesNest: string,
-      baseline: string | null | undefined
-    ): ReturnType<typeof notebookNewestEntry> => {
-      let observed = await notebookNewestEntry(notesNest);
+      baseline: string | null | undefined,
+      marker: string
+    ): Promise<
+      | { readable: false; error: unknown }
+      | { readable: true; noteId: string | null }
+    > => {
+      try {
+        const ids = await listOnboardingNotebookNoteIds(notesNest);
+        const baselineId = baseline == null ? null : BigInt(baseline);
+        let readError: unknown;
+        for (const id of ids) {
+          if (baselineId !== null && BigInt(id) <= baselineId) {
+            continue;
+          }
+          try {
+            const note = await readOnboardingNotebookNote(notesNest, id);
+            if (note.includes(marker)) {
+              return { readable: true, noteId: id };
+            }
+          } catch (error) {
+            readError = error;
+          }
+        }
+        return readError
+          ? { readable: false, error: readError }
+          : { readable: true, noteId: null };
+      } catch (error) {
+        return { readable: false, error };
+      }
+    };
+
+    const waitForOnboardingNote = async (
+      notesNest: string,
+      baseline: string | null | undefined,
+      marker: string
+    ): ReturnType<typeof onboardingNoteWithMarker> => {
+      let observed = await onboardingNoteWithMarker(
+        notesNest,
+        baseline,
+        marker
+      );
       for (const delay of [250, 750, 1_500]) {
-        if (
-          observed.readable &&
-          observed.newestId !== null &&
-          observed.newestId !== baseline
-        ) {
+        if (observed.readable && observed.noteId !== null) {
           return observed;
         }
         await new Promise((resolve) => setTimeout(resolve, delay));
-        observed = await notebookNewestEntry(notesNest);
+        observed = await onboardingNoteWithMarker(notesNest, baseline, marker);
       }
       return observed;
     };
@@ -1645,33 +1681,55 @@ export async function monitorTlonProvider(
         durationMs: Date.now() - newestStartedAt,
         reason: state.newestId ? 'entry_present' : 'notebook_empty',
       });
-      if (
-        deterministic.record.state === 'writing-note' &&
-        state.newestId !== null &&
-        state.newestId !== deterministic.record.noteBaseline
-      ) {
-        const complete: DeterministicSetup = {
-          ...deterministic,
-          record: {
-            ...deterministic.record,
-            state: 'complete',
-            notebookNest: notesNest,
-            noteId: state.newestId,
-          },
-        };
-        await writeAndVerifyOnboardingDescription(
-          nest,
-          group.flag,
-          buildDeterministicSetupDescription(complete),
-          { onboardingAttemptId, onboardingSource: 'note_write_recovery' }
+      if (deterministic.record.state === 'writing-note') {
+        const marker = `tlon-agent-onboarding:${group.flag}:${deterministic.record.cronJobId}`;
+        const recovered = await onboardingNoteWithMarker(
+          notesNest,
+          deterministic.record.noteBaseline,
+          marker
         );
-        traceOnboardingStep(traceBase, 'recover_ambiguous_write', 'succeeded', {
-          onboardingStage: 'note',
-          onboardingState: 'writing-note',
-          onboardingNextState: 'complete',
-          notebookNest: notesNest,
-        });
-        return;
+        if (!recovered.readable) {
+          traceOnboardingStep(
+            traceBase,
+            'verify_ambiguous_write',
+            'failed_retryable',
+            {
+              onboardingStage: 'note',
+              notebookNest: notesNest,
+              ...onboardingErrorFields(recovered.error),
+            }
+          );
+          return;
+        }
+        if (recovered.noteId) {
+          const complete: DeterministicSetup = {
+            ...deterministic,
+            record: {
+              ...deterministic.record,
+              state: 'complete',
+              notebookNest: notesNest,
+              noteId: recovered.noteId,
+            },
+          };
+          await writeAndVerifyOnboardingDescription(
+            nest,
+            group.flag,
+            buildDeterministicSetupDescription(complete),
+            { onboardingAttemptId, onboardingSource: 'note_write_recovery' }
+          );
+          traceOnboardingStep(
+            traceBase,
+            'recover_ambiguous_write',
+            'succeeded',
+            {
+              onboardingStage: 'note',
+              onboardingState: 'writing-note',
+              onboardingNextState: 'complete',
+              notebookNest: notesNest,
+            }
+          );
+          return;
+        }
       }
       if (deterministicResearchInFlight.has(nest)) {
         traceOnboardingStep(traceBase, 'run_research_agent', 'deduplicated', {
@@ -1783,6 +1841,8 @@ export async function monitorTlonProvider(
           ...researching,
           record: { ...researching.record, state: 'writing-note' },
         };
+        const noteMarker = `tlon-agent-onboarding:${group.flag}:${writing.record.cronJobId}`;
+        const markedMarkdown = `${markdown}\n\n<!-- ${noteMarker} -->`;
         try {
           await writeAndVerifyOnboardingDescription(
             nest,
@@ -1791,10 +1851,23 @@ export async function monitorTlonProvider(
             { onboardingAttemptId, onboardingSource: 'research_output' }
           );
           if (!writtenNoteId) {
+            const existing = await onboardingNoteWithMarker(
+              notesNest,
+              writing.record.noteBaseline,
+              noteMarker
+            );
+            if (!existing.readable) {
+              throw existing.error;
+            }
+            if (existing.noteId) {
+              writtenNoteId = existing.noteId;
+            }
+          }
+          if (!writtenNoteId) {
             const directory = await mkdtemp(join(tmpdir(), 'tlon-onboarding-'));
             try {
               const markdownPath = join(directory, 'entry.md');
-              await writeFile(markdownPath, markdown, 'utf8');
+              await writeFile(markdownPath, markedMarkdown, 'utf8');
               const noteWriteStartedAt = Date.now();
               traceOnboardingStep(traceBase, 'create_note', 'started', {
                 onboardingStage: 'note',
@@ -1813,22 +1886,20 @@ export async function monitorTlonProvider(
                   '--markdown',
                   markdownPath,
                 ]);
-                const observed = await waitForNotebookEntryAfter(
+                const observed = await waitForOnboardingNote(
                   notesNest,
-                  writing.record.noteBaseline
+                  writing.record.noteBaseline,
+                  noteMarker
                 );
                 if (!observed.readable) {
                   throw observed.error;
                 }
-                if (
-                  observed.newestId === null ||
-                  observed.newestId === writing.record.noteBaseline
-                ) {
+                if (observed.noteId === null) {
                   throw new Error(
                     'The created onboarding note was not visible in %notes'
                   );
                 }
-                writtenNoteId = observed.newestId;
+                writtenNoteId = observed.noteId;
                 traceOnboardingStep(traceBase, 'create_note', 'succeeded', {
                   onboardingStage: 'note',
                   onboardingState: 'writing-note',
@@ -1901,9 +1972,10 @@ export async function monitorTlonProvider(
           // before asking for a retry, or an ambiguous timeout becomes a
           // duplicate entry. If a post appeared after our recorded
           // baseline, commit that durable evidence and finish.
-          const observed = await waitForNotebookEntryAfter(
+          const observed = await waitForOnboardingNote(
             notesNest,
-            writing.record.noteBaseline
+            writing.record.noteBaseline,
+            noteMarker
           );
           if (!observed.readable) {
             traceOnboardingStep(
@@ -1918,11 +1990,7 @@ export async function monitorTlonProvider(
               }
             );
           }
-          if (
-            observed.readable &&
-            observed.newestId !== null &&
-            observed.newestId !== writing.record.noteBaseline
-          ) {
+          if (observed.readable && observed.noteId !== null) {
             try {
               await writeAndVerifyOnboardingDescription(
                 nest,
@@ -1933,7 +2001,7 @@ export async function monitorTlonProvider(
                     ...writing.record,
                     state: 'complete',
                     notebookNest: notesNest,
-                    noteId: observed.newestId,
+                    noteId: observed.noteId,
                   },
                 }),
                 {

@@ -29,6 +29,8 @@ export function AppDataProvider({
   const session = store.useCurrentSession();
   const contactsQuery = store.useContacts();
   const calmSettingsQuery = store.useCalmSettings();
+  const groupsQuery = store.useGroups({});
+  const { value: agentGroupAgents } = db.agentGroupAgents.useStorageItem();
 
   // The home group's agent record is what lets the bot's onboarding cards
   // render as trusted. The splash writes it at signup, but that's once per
@@ -45,6 +47,26 @@ export function AppDataProvider({
       // agent, which the next session mount retries.
     });
   }, [hasSession]);
+
+  // Notebook creation and admin-seat repair are group lifecycle work, not
+  // screen lifecycle work. Reconcile whenever group sync changes so later
+  // agent groups finish even if the owner navigates away, and so a moon that
+  // joins after the initial retry window still gains the role it needs to
+  // persist setup state.
+  useEffect(() => {
+    for (const group of groupsQuery.data ?? []) {
+      store.ensureAgentNotebookForGroup(group).catch(() => {
+        // Logged inside; a later group update retries failed reconciliation.
+      });
+      const agent = agentGroupAgents[group.id];
+      if (agent) {
+        store.ensureAgentAdminForGroup(group.id, agent).catch(() => {
+          // Logged by the caller that created the group; membership sync will
+          // trigger another pass if the agent had not joined yet.
+        });
+      }
+    }
+  }, [agentGroupAgents, groupsQuery.data]);
 
   // links cached by older versions carry the old share domain. the
   // onboarding boot sequence never runs for signed-in updaters, so the
