@@ -888,6 +888,31 @@ BOT_FLAG = "--bot"
 _BOT_FLAG_TOKEN = re.compile(r"(?<![\w-])--bot(?![\w-])")
 
 
+def _is_bot_flag_token(arg: str) -> bool:
+    """`--bot` and the joined form the CLI rejects as a usage error. Both have
+    to be recognized here: an older CLI has no bot-flag parser to reject them,
+    so anything left behind is folded into the outbound message instead."""
+    return arg == BOT_FLAG or arg.startswith(f"{BOT_FLAG}=")
+
+
+def _without_bot_flags(args: Sequence[str]) -> tuple[str, ...]:
+    """Strip bot-flag syntax for a CLI that cannot parse it. `--bot` takes no
+    value, so a bare token following it is a stray the caller mistyped, not
+    message text — leaving it behind would post it."""
+    kept: list[str] = []
+    skip_next_bare = False
+    for arg in args:
+        if _is_bot_flag_token(arg):
+            skip_next_bare = arg == BOT_FLAG
+            continue
+        if skip_next_bare and not arg.startswith("--"):
+            skip_next_bare = False
+            continue
+        skip_next_bare = False
+        kept.append(arg)
+    return tuple(kept)
+
+
 class TlonCLI:
     def __init__(
         self,
@@ -968,10 +993,8 @@ class TlonCLI:
         # gates it, because a CLI without the flag has no option to consume it
         # and folds the token into the message body instead — passing a caller's
         # flag through unprobed would corrupt the post rather than degrade it.
-        if BOT_FLAG in args:
-            return tuple(args) if supported else tuple(
-                arg for arg in args if arg != BOT_FLAG
-            )
+        if any(_is_bot_flag_token(arg) for arg in args):
+            return tuple(args) if supported else _without_bot_flags(args)
         if not supported:
             return tuple(args)
         return (*args, *self._bot_flags())

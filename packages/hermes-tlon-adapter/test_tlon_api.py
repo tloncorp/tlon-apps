@@ -1442,6 +1442,56 @@ class TlonCLITests(unittest.TestCase):
         )
         self.assertNotIn(tlon_api.BOT_FLAG, sends[0])
 
+    def test_malformed_bot_flags_never_reach_an_old_cli(self):
+        # A CLI predating the flag has no bot-flag parser, so anything left
+        # behind is folded into the message body. Stripping only the exact
+        # token leaks `--bot=Botly` whole and leaves `Botly` from the separated
+        # form — both would post. The strip mirrors the CLI parser's rule:
+        # `--bot` takes no value, and only a long option may follow it.
+        for tail, expected in (
+            (("--bot",), ()),
+            (("--bot", "Botly"), ()),
+            (("--bot=Botly",), ()),
+            (("--bot", "-1"), ()),
+            (("--bot", "--bot", "Botly"), ()),
+            (("--bot", "--parent", "x"), ("--parent", "x")),
+        ):
+            with self.subTest(tail=tail):
+                calls = []
+
+                async def runner(command, env, timeout, _on_deadline):
+                    calls.append(tuple(command[1:]))
+                    if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                        # Help output from a CLI that never had the flag.
+                        return tlon_api.TlonProcessResult(
+                            returncode=0, stdout="options: --parent"
+                        )
+                    return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+                cfg = tlon_api.TlonConfig.from_env(
+                    env={
+                        "TLON_NODE_URL": "https://zod.tlon.network",
+                        "TLON_NODE_ID": "~zod",
+                        "TLON_ACCESS_CODE": "code",
+                        "TLON_CLI": "tlon-test",
+                    }
+                )
+                cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+                with self.assertLogs(tlon_api.logger, level="ERROR"):
+                    asyncio.run(
+                        cli.run_command(
+                            ("posts", "send", "chat/~zod/general", "hi", *tail)
+                        )
+                    )
+
+                sends = [
+                    c for c in calls if c != tlon_api.BOT_FLAG_PROBE_ARGS
+                ]
+                self.assertEqual(
+                    sends,
+                    [("posts", "send", "chat/~zod/general", "hi", *expected)],
+                )
+
     def test_without_as_bot_nothing_is_appended(self):
         calls = []
         cfg = tlon_api.TlonConfig.from_env(
