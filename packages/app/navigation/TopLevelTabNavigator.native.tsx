@@ -13,8 +13,10 @@ import {
   useImage,
 } from '@shopify/react-native-skia';
 import * as store from '@tloncorp/shared/store';
+import { makeSigil } from '@tloncorp/ui';
+import { toHex } from 'color2k';
 import { useEffect, useMemo, useState } from 'react';
-import { type ImageSourcePropType, Platform } from 'react-native';
+import { type ImageSourcePropType, PixelRatio, Platform } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import { ActivityScreen } from '../features/top/ActivityScreen';
@@ -22,7 +24,7 @@ import ChatListScreen from '../features/top/ChatListScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
 import { useTopLevelTabController } from '../hooks/useTopLevelTabController';
 import ProfileStatusSheet from '../ui/components/ProfileStatusSheet';
-import { useIsDarkTheme } from '../ui/utils/colorUtils';
+import { useIsDarkTheme, useSigilColors } from '../ui/utils/colorUtils';
 import { TOP_LEVEL_TABS, trackTopLevelTabSelection } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
@@ -31,8 +33,9 @@ const Tabs = createNativeBottomTabNavigator<TopLevelTabParamList>();
 type TabIconName = 'home' | 'activity' | 'profile';
 
 const TAB_AVATAR_SIZE = 20;
-const TAB_AVATAR_SCALE = 3;
+const TAB_AVATAR_SCALE = PixelRatio.get() * 2;
 const TAB_AVATAR_RADIUS = 6;
+const TAB_SIGIL_SIZE = 12;
 
 const tabIcons = {
   home: {
@@ -68,7 +71,17 @@ function avatarTabIcon(source: ImageSourcePropType | undefined) {
   };
 }
 
-function useRoundedAvatarSource(avatarImage: string | null | undefined) {
+function useRoundedAvatarSource({
+  avatarImage,
+  contactId,
+  backgroundColor,
+  foregroundColor,
+}: {
+  avatarImage: string | null | undefined;
+  contactId: string;
+  backgroundColor: string;
+  foregroundColor: string;
+}) {
   const supportedAvatarImage =
     Platform.OS === 'ios' && avatarImage && !avatarImage.endsWith('.svg')
       ? avatarImage
@@ -77,7 +90,7 @@ function useRoundedAvatarSource(avatarImage: string | null | undefined) {
   const [source, setSource] = useState<ImageSourcePropType>();
 
   useEffect(() => {
-    if (!image || !supportedAvatarImage) {
+    if (Platform.OS !== 'ios') {
       setSource(undefined);
       return;
     }
@@ -91,14 +104,6 @@ function useRoundedAvatarSource(avatarImage: string | null | undefined) {
 
     const canvas = surface.getCanvas();
     const destination = rect(0, 0, pixelSize, pixelSize);
-    const sourceSize = Math.min(image.width(), image.height());
-    const sourceRect = rect(
-      (image.width() - sourceSize) / 2,
-      (image.height() - sourceSize) / 2,
-      sourceSize,
-      sourceSize
-    );
-    const paint = Skia.Paint();
 
     canvas.clear(Skia.Color('transparent'));
     canvas.clipRRect(
@@ -110,14 +115,63 @@ function useRoundedAvatarSource(avatarImage: string | null | undefined) {
       ClipOp.Intersect,
       true
     );
-    canvas.drawImageRectCubic(
-      image,
-      sourceRect,
-      destination,
-      1 / 3,
-      1 / 3,
-      paint
-    );
+
+    if (image && supportedAvatarImage) {
+      const sourceSize = Math.min(image.width(), image.height());
+      const sourceRect = rect(
+        (image.width() - sourceSize) / 2,
+        (image.height() - sourceSize) / 2,
+        sourceSize,
+        sourceSize
+      );
+      const paint = Skia.Paint();
+      canvas.drawImageRectCubic(
+        image,
+        sourceRect,
+        destination,
+        1 / 3,
+        1 / 3,
+        paint
+      );
+      paint.dispose();
+    } else {
+      canvas.drawColor(Skia.Color(backgroundColor));
+
+      if (contactId.length <= 14) {
+        try {
+          const sigilPixelSize = TAB_SIGIL_SIZE * TAB_AVATAR_SCALE;
+          // Skia's SVG parser doesn't reliably support the hsla() strings
+          // returned by the theme color helpers, so use plain hex in the SVG.
+          const sigilXml = makeSigil({
+            point: contactId,
+            detail: 'none',
+            size: sigilPixelSize,
+            space: 'none',
+            foreground: toHex(foregroundColor),
+            background: toHex(backgroundColor),
+          });
+          const sigil = Skia.SVG.MakeFromString(sigilXml);
+
+          if (sigil) {
+            try {
+              const sigilOffset = (pixelSize - sigilPixelSize) / 2;
+              canvas.save();
+              try {
+                canvas.translate(sigilOffset, sigilOffset);
+                canvas.drawSvg(sigil, sigilPixelSize, sigilPixelSize);
+              } finally {
+                canvas.restore();
+              }
+            } finally {
+              sigil.dispose();
+            }
+          }
+        } catch {
+          // A tab icon should never take down navigation. The profile color
+          // already painted above remains as a safe fallback.
+        }
+      }
+    }
     surface.flush();
 
     const roundedImage = surface.makeImageSnapshot();
@@ -126,12 +180,18 @@ function useRoundedAvatarSource(avatarImage: string | null | undefined) {
       uri: `data:image/png;base64,${base64}`,
       width: TAB_AVATAR_SIZE,
       height: TAB_AVATAR_SIZE,
+      scale: TAB_AVATAR_SCALE,
     });
 
-    paint.dispose();
     roundedImage.dispose();
     surface.dispose();
-  }, [image, supportedAvatarImage]);
+  }, [
+    backgroundColor,
+    contactId,
+    foregroundColor,
+    image,
+    supportedAvatarImage,
+  ]);
 
   return source;
 }
@@ -163,9 +223,15 @@ export function TopLevelTabNavigator() {
     useTopLevelTabController();
   const { data: currentUser } = store.useContact({ id: currentUserId });
   const { data: calmSettings } = store.useCalmSettings();
-  const roundedAvatarSource = useRoundedAvatarSource(
-    calmSettings?.disableAvatars ? undefined : currentUser?.avatarImage
-  );
+  const sigilColors = useSigilColors(currentUser?.color);
+  const roundedAvatarSource = useRoundedAvatarSource({
+    avatarImage: calmSettings?.disableAvatars
+      ? undefined
+      : currentUser?.avatarImage,
+    contactId: currentUserId,
+    backgroundColor: sigilColors.backgroundColor,
+    foregroundColor: sigilColors.foregroundColor,
+  });
   return (
     <NavigationThemeProvider value={navigationTheme}>
       <Tabs.Navigator
