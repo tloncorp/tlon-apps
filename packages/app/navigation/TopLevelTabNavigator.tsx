@@ -3,13 +3,16 @@ import {
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
 import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useState } from 'react';
 
 import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
+import { useShowWebSplashModal } from '../hooks/useShowWebSplashModal';
 import { useTopLevelTabController } from '../hooks/useTopLevelTabController';
 import { AvatarNavIcon, NavBar, NavIcon } from '../ui/components/NavBar';
 import ProfileStatusSheet from '../ui/components/ProfileStatusSheet';
+import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
 import { TopLevelTabName, trackTopLevelTabSelection } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
@@ -95,16 +98,28 @@ function WebTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export function TopLevelTabNavigator() {
+  const showSplash = useShowWebSplashModal();
+  const [splashDismissed, setSplashDismissed] = useState(false);
   return (
-    <Tabs.Navigator
-      initialRouteName="ChatList"
-      backBehavior="history"
-      screenOptions={{ headerShown: false }}
-      tabBar={WebTopLevelTabBar}
-    >
-      <Tabs.Screen name="ChatList" component={ChatListScreen} />
-      <Tabs.Screen name="Activity" component={ActivityScreen} />
-      <Tabs.Screen name="Contacts" component={ContactsScreen} />
-    </Tabs.Navigator>
+    <>
+      <Tabs.Navigator
+        initialRouteName="ChatList"
+        backBehavior="history"
+        screenOptions={{ headerShown: false }}
+        tabBar={WebTopLevelTabBar}
+      >
+        <Tabs.Screen name="ChatList" component={ChatListScreen} />
+        <Tabs.Screen name="Activity" component={ActivityScreen} />
+        <Tabs.Screen name="Contacts" component={ContactsScreen} />
+      </Tabs.Navigator>
+      <SplashModal
+        open={showSplash && !splashDismissed}
+        setOpen={(open) => {
+          if (!open) {
+            setSplashDismissed(true);
+          }
+        }}
+      />
+    </>
   );
 }
