@@ -157,7 +157,7 @@ import {
   descriptionHasConfiguredJob,
   findAgentGroupsAwaitingOpening,
   findChatNestForGroup,
-  findConfiguredAgentGroups,
+  findConfiguredAgentGroupRoutes,
   findGroupForChannel,
   homeGroupChatNestFor,
   homeGroupFlagFor,
@@ -1518,16 +1518,21 @@ export async function monitorTlonProvider(
     /** Reconcile the deterministic setup once the owner's notebook exists. */
     const reconcileDeterministicSetup = async (
       nest: string,
-      group: { flag: string; description: string }
+      group: { flag: string; description: string },
+      discoveredNotesNest?: string | null
     ): Promise<void> => {
-      if (!onboardingInvitePending.has(nest)) {
-        return;
-      }
       const onboardingAttemptId = randomUUID();
       const reconcileStartedAt = Date.now();
       const deterministic = deterministicSetupFromDescription(
         group.description
       );
+      const repairsCompletedRouting =
+        deterministic?.record.state === 'complete' &&
+        Boolean(discoveredNotesNest) &&
+        discoveredNotesNest !== deterministic.record.notebookNest;
+      if (!onboardingInvitePending.has(nest) && !repairsCompletedRouting) {
+        return;
+      }
       const traceBase = {
         nest,
         groupFlag: group.flag,
@@ -1579,7 +1584,10 @@ export async function monitorTlonProvider(
         );
         return;
       }
-      let notesNest = deterministic.record.notebookNest ?? null;
+      let notesNest =
+        discoveredNotesNest === undefined
+          ? deterministic.record.notebookNest ?? null
+          : discoveredNotesNest;
       if (!notesNest) {
         const discoverStartedAt = Date.now();
         try {
@@ -1662,6 +1670,34 @@ export async function monitorTlonProvider(
         durationMs: Date.now() - cronOutputStartedAt,
       });
       if (isComplete) {
+        if (notesNest !== deterministic.record.notebookNest) {
+          const repaired: DeterministicSetup = {
+            ...deterministic,
+            record: {
+              ...deterministic.record,
+              notebookNest: notesNest,
+            },
+          };
+          await writeAndVerifyOnboardingDescription(
+            nest,
+            group.flag,
+            buildDeterministicSetupDescription(repaired),
+            {
+              onboardingAttemptId,
+              onboardingSource: 'notebook_routing_repair',
+            }
+          );
+          traceOnboardingStep(
+            traceBase,
+            'persist_notebook_routing',
+            'succeeded',
+            {
+              onboardingStage: 'schedule',
+              onboardingState: 'complete',
+              notebookNest: notesNest,
+            }
+          );
+        }
         traceOnboardingStep(traceBase, 'reconcile_setup', 'skipped', {
           onboardingStage: 'closing',
           onboardingState: 'complete',
@@ -8000,9 +8036,10 @@ export async function monitorTlonProvider(
           // The check recovers its own state from the transcript, so it
           // only needs to be *called* — walk the owner's configured groups
           // and let it settle each one. `inviteSettled` makes every pass
-          // after the first a no-op, so this costs one nest lookup per
-          // group per process.
-          for (const groupFlag of await findConfiguredAgentGroups(
+          // after the first a no-op. The same groups snapshot also exposes
+          // notebook replacements so completed cron/config routing can be
+          // repaired without waiting for another conversation turn.
+          for (const route of await findConfiguredAgentGroupRoutes(
             api,
             runtime,
             effectiveOwnerShip
@@ -8010,25 +8047,36 @@ export async function monitorTlonProvider(
             if (opts.abortSignal?.aborted) {
               return sawWork;
             }
-            if (closingRecoveryChecked.has(groupFlag)) {
+            const configured = deterministicSetupFromDescription(
+              route.description
+            );
+            if (
+              configured?.record.state === 'complete' &&
+              route.notebookNest &&
+              route.notebookNest !== configured.record.notebookNest
+            ) {
+              sawWork = true;
+              await reconcileDeterministicSetup(
+                route.chatNest,
+                { flag: route.flag, description: route.description },
+                route.notebookNest
+              );
+            }
+            if (closingRecoveryChecked.has(route.flag)) {
               continue;
             }
-            const info = await findChatNestForGroup(api, groupFlag, runtime);
-            if (!info) {
-              continue;
-            }
-            if (onboardingInvitePending.has(info.nest)) {
+            if (onboardingInvitePending.has(route.chatNest)) {
               // Already owned by the loop above.
               continue;
             }
             sawWork = true;
-            await postInviteCardIfSetupComplete(info.nest);
+            await postInviteCardIfSetupComplete(route.chatNest);
             // Settled is the only finish line. "No longer pending" also
             // describes a setup still waiting on its notebook, and
             // retiring on that retired the very groups this pass exists to
             // rescue.
-            if (inviteSettled.has(info.nest)) {
-              closingRecoveryChecked.add(groupFlag);
+            if (inviteSettled.has(route.chatNest)) {
+              closingRecoveryChecked.add(route.flag);
             }
           }
           return sawWork;

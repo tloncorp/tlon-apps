@@ -28,6 +28,7 @@ import {
   descriptionHasConfiguredJob,
   findAgentGroupsAwaitingOpening,
   findChatNestForGroup,
+  findConfiguredAgentGroupRoutes,
   findGroupForChannel,
   homeGroupAwaitingOpening,
   isFirstConfiguredSetup,
@@ -741,6 +742,39 @@ describe('findAgentGroupsAwaitingOpening', () => {
       )
     ).toEqual([]);
     expect(errors).toHaveLength(1);
+  });
+});
+
+describe('findConfiguredAgentGroupRoutes', () => {
+  test('reports the live notebook alongside completed config', async () => {
+    const completedDescription = configEntry({
+      purpose: 'Keeps up with sourdough.',
+      jobs: [{ id: 'agent-daily-digest', cronJobId: 'cron-1' }],
+    });
+    const api = {
+      scry: async () => ({
+        '~ten/agent-group': {
+          meta: { description: completedDescription },
+          'active-channels': [
+            'chat/~ten/agent-chat',
+            'notes/~ten/replacement-notebook',
+          ],
+        },
+        '~ten/plain-group': {
+          meta: { description: '' },
+          'active-channels': ['chat/~ten/plain-chat'],
+        },
+      }),
+    };
+
+    expect(await findConfiguredAgentGroupRoutes(api, {}, '~ten')).toEqual([
+      {
+        flag: '~ten/agent-group',
+        chatNest: 'chat/~ten/agent-chat',
+        notebookNest: 'notes/~ten/replacement-notebook',
+        description: completedDescription,
+      },
+    ]);
   });
 });
 

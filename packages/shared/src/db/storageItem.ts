@@ -61,7 +61,19 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
     deserialize = JSON.parse,
   } = config;
   const storage = getStorageMethods(config);
-  let updateLock = Promise.resolve();
+  let updateLock: Promise<void> = Promise.resolve();
+
+  const enqueueUpdate = <R>(operation: () => Promise<R>): Promise<R> => {
+    const result = updateLock.then(operation);
+    // Keep the queue tail fulfilled even when this caller's operation fails.
+    // The caller still receives `result` and its rejection, while a later
+    // write gets a fresh attempt instead of inheriting a poisoned lock.
+    updateLock = result.then(
+      () => undefined,
+      () => undefined
+    );
+    return result;
+  };
 
   const getValue = async (waitForLock = false): Promise<T> => {
     if (waitForLock) {
@@ -105,7 +117,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   };
 
   const resetValue = async (): Promise<T> => {
-    updateLock = updateLock.then(async () => {
+    await enqueueUpdate(async () => {
       await storage.setItem(key, serialize(defaultValue));
       queryClient.invalidateQueries({ queryKey: [key] });
       storageItemListeners.get(key)?.forEach((listener) => {
@@ -113,12 +125,11 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
       });
       logger.log(`reset value ${key}`);
     });
-    await updateLock;
     return defaultValue;
   };
 
   const setValue = async (valueInput: T | ((curr: T) => T)): Promise<void> => {
-    updateLock = updateLock.then(async () => {
+    await enqueueUpdate(async () => {
       let newValue: T;
       if (valueInput instanceof Function) {
         const currValue = await getValue();
@@ -136,7 +147,6 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
       });
       logger.log(`set value ${key}`, newValue);
     });
-    await updateLock;
   };
 
   function useValue() {

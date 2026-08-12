@@ -601,22 +601,44 @@ export async function findAgentGroupsAwaitingOpening(
  * it — and the closing check is transcript-idempotent precisely so it can
  * be re-run from a list like this and settle on its own.
  */
-export async function findConfiguredAgentGroups(
+export async function findConfiguredAgentGroupRoutes(
   api: ScryApi,
   runtime: Runtime,
   ownerShip: string | null
-): Promise<string[]> {
+): Promise<
+  Array<{
+    flag: string;
+    chatNest: string;
+    notebookNest: string | null;
+    description: string;
+  }>
+> {
   if (!ownerShip) {
     return [];
   }
   const groups = await scryGroups(api, runtime, 'configured agent groups');
-  return Object.entries(groups ?? {})
-    .filter(
-      ([flag, group]) =>
-        hostOf(flag) === ownerShip &&
-        descriptionHasConfiguredJob(descriptionOf(group))
-    )
-    .map(([flag]) => flag);
+  return Object.entries(groups ?? {}).flatMap(([flag, group]) => {
+    const description = descriptionOf(group);
+    if (
+      hostOf(flag) !== ownerShip ||
+      !descriptionHasConfiguredJob(description)
+    ) {
+      return [];
+    }
+    const nests = nestsOf(group);
+    const chatNest = nests.find((key) => key.startsWith('chat/'));
+    if (!chatNest) {
+      return [];
+    }
+    return [
+      {
+        flag,
+        chatNest,
+        notebookNest: nests.find((key) => key.startsWith('notes/')) ?? null,
+        description,
+      },
+    ];
+  });
 }
 
 /**
