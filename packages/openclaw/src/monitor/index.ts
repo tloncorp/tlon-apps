@@ -134,6 +134,7 @@ import {
   createOnboardingWriteQueue,
   deterministicSetupFromDescription,
   ensureDeterministicCronJob,
+  ensureDeterministicCronOutputNest,
   normalizeIanaTimezone,
   onboardingCompletionSequenceBlocker,
   onboardingResearchSequenceBlocker,
@@ -1514,31 +1515,19 @@ export async function monitorTlonProvider(
         });
         return;
       }
-      if (deterministic.record.state === 'complete') {
-        const completionBlocker =
-          onboardingCompletionSequenceBlocker(deterministic);
+      const isComplete = deterministic.record.state === 'complete';
+      const sequenceBlocker = isComplete
+        ? onboardingCompletionSequenceBlocker(deterministic)
+        : onboardingResearchSequenceBlocker(deterministic);
+      if (sequenceBlocker) {
         traceOnboardingStep(
           traceBase,
-          'reconcile_setup',
-          completionBlocker ? 'failed' : 'skipped',
+          isComplete ? 'reconcile_setup' : 'verify_sequence_prerequisites',
+          isComplete ? 'failed' : 'waiting',
           {
-            onboardingStage: 'closing',
-            onboardingState: 'complete',
-            reason: completionBlocker ?? 'already_complete',
-          }
-        );
-        return;
-      }
-      const researchBlocker = onboardingResearchSequenceBlocker(deterministic);
-      if (researchBlocker) {
-        traceOnboardingStep(
-          traceBase,
-          'verify_sequence_prerequisites',
-          'waiting',
-          {
-            onboardingStage: 'research',
+            onboardingStage: isComplete ? 'closing' : 'research',
             onboardingState: deterministic.record.state,
-            reason: researchBlocker,
+            reason: sequenceBlocker,
           }
         );
         return;
@@ -1574,6 +1563,63 @@ export async function monitorTlonProvider(
         );
       }
       if (!notesNest) {
+        return;
+      }
+      const cronOutputStartedAt = Date.now();
+      try {
+        await ensureDeterministicCronOutputNest({
+          cronJobId: deterministic.record.cronJobId!,
+          purposeId: deterministic.purposeId,
+          purpose: deterministic.purpose,
+          topics: deterministic.topics,
+          outputNest: notesNest,
+          trace: (event) => {
+            traceOnboardingStep(
+              traceBase,
+              `cron_output_${event.operation}`,
+              event.outcome,
+              {
+                onboardingStage: 'schedule',
+                onboardingState: deterministic.record.state,
+                cronJobId: event.cronJobId ?? deterministic.record.cronJobId,
+                notebookNest: notesNest,
+                retryAttempt: event.attempt ?? null,
+                retryDelayMs: event.retryDelayMs ?? null,
+                durationMs: event.durationMs ?? null,
+                ...onboardingErrorFields(event.error),
+              }
+            );
+          },
+        });
+      } catch (error) {
+        traceOnboardingStep(
+          traceBase,
+          'ensure_cron_output_nest',
+          'failed_retryable',
+          {
+            onboardingStage: 'schedule',
+            onboardingState: deterministic.record.state,
+            cronJobId: deterministic.record.cronJobId,
+            notebookNest: notesNest,
+            durationMs: Date.now() - cronOutputStartedAt,
+            ...onboardingErrorFields(error),
+          }
+        );
+        return;
+      }
+      traceOnboardingStep(traceBase, 'ensure_cron_output_nest', 'succeeded', {
+        onboardingStage: 'schedule',
+        onboardingState: deterministic.record.state,
+        cronJobId: deterministic.record.cronJobId,
+        notebookNest: notesNest,
+        durationMs: Date.now() - cronOutputStartedAt,
+      });
+      if (isComplete) {
+        traceOnboardingStep(traceBase, 'reconcile_setup', 'skipped', {
+          onboardingStage: 'closing',
+          onboardingState: 'complete',
+          reason: 'already_complete',
+        });
         return;
       }
       const newestStartedAt = Date.now();
@@ -2043,6 +2089,12 @@ export async function monitorTlonProvider(
         const deterministic = deterministicSetupFromDescription(
           group.description
         );
+        // A completed setup can still owe an idempotent cron repair when an
+        // earlier plugin build, restart, or lost update left the notebook
+        // destination out of the recurring prompt.
+        if (deterministic?.record.state === 'complete') {
+          await reconcileDeterministicSetup(nest, group);
+        }
         const completionBlocker = deterministic
           ? onboardingCompletionSequenceBlocker(deterministic)
           : null;

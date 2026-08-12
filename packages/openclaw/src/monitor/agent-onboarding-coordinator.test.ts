@@ -16,6 +16,7 @@ import {
   createOnboardingWriteQueue,
   deterministicSetupFromDescription,
   ensureDeterministicCronJob,
+  ensureDeterministicCronOutputNest,
   normalizeIanaTimezone,
   onboardingCompletionSequenceBlocker,
   onboardingResearchSequenceBlocker,
@@ -106,6 +107,9 @@ describe('deterministic onboarding config', () => {
       })
     )[0];
     expect(complete.jobs[0].outputNest).toBe('notes/~zod/daily');
+    expect(complete.jobs[0].prompt).toContain(
+      'Configured notebook output nest: notes/~zod/daily'
+    );
   });
 });
 
@@ -290,6 +294,7 @@ describe('cron creation', () => {
     expect(service.add).toHaveBeenCalledTimes(1);
     expect(service.add.mock.calls[0]![0]).toMatchObject({
       sessionTarget: 'isolated',
+      delivery: { mode: 'none' },
       payload: {
         kind: 'agentTurn',
         text: expect.stringContaining('Mycology'),
@@ -301,6 +306,7 @@ describe('cron creation', () => {
       message?: string;
     };
     expect(addedPayload.message).toBe(addedPayload.text);
+    expect(addedPayload.message).toContain('Scheduled update complete.');
     expect(trace).toHaveBeenCalledWith(
       expect.objectContaining({
         operation: 'add_job',
@@ -349,6 +355,90 @@ describe('cron creation', () => {
         timezone: 'America/New_York',
       })
     ).resolves.toBe('cron-after-timeout');
+  });
+
+  test('updates the stored recurring prompt with the discovered notebook nest', async () => {
+    const jobs: PluginHookGatewayCronJob[] = [
+      {
+        id: 'cron-1',
+        payload: {
+          kind: 'agentTurn',
+          text: PURPOSE_JOBS['agent-research'].prompt.replace(
+            '{{topics}}',
+            'Mycology'
+          ),
+        },
+      },
+    ];
+    const update = vi.fn(async (id: string, patch: unknown) => {
+      const job = jobs.find((candidate) => candidate.id === id)!;
+      Object.assign(job, patch);
+    });
+    setCronServiceAccessor(
+      () =>
+        ({
+          list: vi.fn(async () => jobs),
+          add: vi.fn(),
+          update,
+          remove: vi.fn(),
+        }) as never
+    );
+
+    const params = {
+      cronJobId: 'cron-1',
+      purposeId: 'agent-research',
+      topics: 'Mycology',
+      outputNest: 'notes/~zod/research',
+    };
+    await expect(ensureDeterministicCronOutputNest(params)).resolves.toBe(
+      undefined
+    );
+    await expect(ensureDeterministicCronOutputNest(params)).resolves.toBe(
+      undefined
+    );
+
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update).toHaveBeenCalledWith(
+      'cron-1',
+      expect.objectContaining({
+        delivery: { mode: 'none' },
+        payload: expect.objectContaining({
+          text: expect.stringContaining(
+            'Configured notebook output nest: notes/~zod/research'
+          ),
+          message: expect.stringContaining(
+            'Configured notebook output nest: notes/~zod/research'
+          ),
+        }),
+      })
+    );
+  });
+
+  test('verifies an output-nest update whose response was lost', async () => {
+    const jobs: PluginHookGatewayCronJob[] = [
+      { id: 'cron-1', payload: { kind: 'agentTurn', text: 'old prompt' } },
+    ];
+    setCronServiceAccessor(
+      () =>
+        ({
+          list: vi.fn(async () => jobs),
+          add: vi.fn(),
+          update: vi.fn(async (_id: string, patch: unknown) => {
+            Object.assign(jobs[0], patch);
+            throw new Error('response lost');
+          }),
+          remove: vi.fn(),
+        }) as never
+    );
+
+    await expect(
+      ensureDeterministicCronOutputNest({
+        cronJobId: 'cron-1',
+        purposeId: 'agent-research',
+        topics: 'Mycology',
+        outputNest: 'notes/~zod/research',
+      })
+    ).resolves.toBe(undefined);
   });
 });
 

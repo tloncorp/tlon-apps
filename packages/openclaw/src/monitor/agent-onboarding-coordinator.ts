@@ -1,4 +1,8 @@
-import type { PluginHookGatewayCronJob } from 'openclaw/plugin-sdk/types';
+import type {
+  PluginHookGatewayCronCreateInput,
+  PluginHookGatewayCronJob,
+  PluginHookGatewayCronUpdateInput,
+} from 'openclaw/plugin-sdk/types';
 
 import { getCronService } from '../cron-telemetry.js';
 import { PURPOSE_JOBS, PURPOSE_OPTIONS } from './agent-onboarding-config.js';
@@ -85,6 +89,26 @@ const CONFIG_TYPE = 'tlon-group-agent-config';
 
 const fill = (template: string, topics: string, purpose = '') =>
   template.replaceAll('{{topics}}', topics).replaceAll('{{purpose}}', purpose);
+
+const OUTPUT_NEST_MARKER = 'Configured notebook output nest:';
+
+/** Render the recurring prompt with a durable notebook destination once known. */
+export function renderDeterministicCronPrompt(params: {
+  purposeId: string;
+  purpose?: string;
+  topics: string;
+  outputNest?: string | null;
+}): string {
+  const template = PURPOSE_JOBS[params.purposeId];
+  if (!template) {
+    throw new Error(`Unknown onboarding purpose: ${params.purposeId}`);
+  }
+  const prompt = `${fill(template.prompt, params.topics, params.purpose)}\nAfter the note-create (or chat fallback) succeeds, return exactly: Scheduled update complete.`;
+  const outputNest = params.outputNest?.trim();
+  return outputNest
+    ? `${prompt}\n\n${OUTPUT_NEST_MARKER} ${outputNest}\nUse this exact nest for every note-create command.`
+    : prompt;
+}
 
 export function normalizeIanaTimezone(value: string): string | null {
   const candidate = value
@@ -206,7 +230,15 @@ export function buildDeterministicSetupDescription(
             expr: job.schedule,
             tz: setup.timezone,
           },
-          prompt: fill(job.prompt, setup.topics, setup.purpose),
+          prompt: renderDeterministicCronPrompt({
+            purposeId: setup.purposeId,
+            purpose: setup.purpose,
+            topics: setup.topics,
+            outputNest:
+              setup.record.state === 'complete'
+                ? setup.record.notebookNest
+                : null,
+          }),
           outputNest:
             setup.record.state === 'complete'
               ? setup.record.notebookNest ?? ''
@@ -435,7 +467,11 @@ export async function ensureDeterministicCronJob(params: {
   const addStartedAt = Date.now();
   emit('add_job', 'started');
   try {
-    const prompt = fill(template.prompt, params.topics, params.purpose);
+    const prompt = renderDeterministicCronPrompt({
+      purposeId: params.purposeId,
+      purpose: params.purpose,
+      topics: params.topics,
+    });
     // Older plugin SDKs consume `text`; newer cron persistence requires
     // `message`. Keep both fields for cross-version compatibility.
     const payload = {
@@ -456,7 +492,10 @@ export async function ensureDeterministicCronJob(params: {
       sessionTarget: 'isolated',
       wakeMode: 'now',
       payload,
-    });
+      // The agent writes directly to the notebook; a second delivery attempt
+      // has no chat target and would incorrectly mark a successful run failed.
+      delivery: { mode: 'none' },
+    } as PluginHookGatewayCronCreateInput);
     emit('add_job', 'succeeded', {
       durationMs: Date.now() - addStartedAt,
     });
@@ -521,6 +560,137 @@ export async function ensureDeterministicCronJob(params: {
     error: finalError,
   });
   throw finalError;
+}
+
+type CronPayloadWithMessage = NonNullable<
+  PluginHookGatewayCronJob['payload']
+> & {
+  message?: string;
+};
+
+type CronJobWithDelivery = PluginHookGatewayCronJob & {
+  delivery?: { mode?: string };
+};
+
+function cronPrompt(job: PluginHookGatewayCronJob): string {
+  const payload = job.payload as CronPayloadWithMessage | undefined;
+  return payload?.message ?? payload?.text ?? '';
+}
+
+function hasNotebookOnlyDelivery(job: PluginHookGatewayCronJob): boolean {
+  return (job as CronJobWithDelivery).delivery?.mode === 'none';
+}
+
+/**
+ * Persist the notebook destination in the recurring prompt after the client
+ * creates the notebook. OpenClaw's cron schema does not retain arbitrary job
+ * fields, so embedding the exact nest in the stored prompt is the durable
+ * equivalent of the declarative config's `outputNest` field.
+ */
+export async function ensureDeterministicCronOutputNest(params: {
+  cronJobId: string;
+  purposeId: string;
+  purpose?: string;
+  topics: string;
+  outputNest: string;
+  trace?: DeterministicCronTracer;
+}): Promise<void> {
+  const startedAt = Date.now();
+  const trace = params.trace;
+  const emit = (
+    operation: string,
+    outcome: string,
+    details: Partial<
+      Omit<DeterministicCronTraceEvent, 'operation' | 'outcome'>
+    > = {}
+  ) => trace?.({ operation, outcome, ...details });
+  const outputNest = params.outputNest.trim();
+  if (!outputNest) {
+    throw new Error('The onboarding notebook nest is empty');
+  }
+  const cron = getCronService();
+  if (!cron) {
+    throw new Error('OpenClaw cron service is unavailable');
+  }
+  const prompt = renderDeterministicCronPrompt({
+    purposeId: params.purposeId,
+    purpose: params.purpose,
+    topics: params.topics,
+    outputNest,
+  });
+
+  emit('list_output_job', 'started');
+  let jobs = await cron.list({ includeDisabled: true });
+  const existing = jobs.find((job) => job.id === params.cronJobId);
+  if (!existing) {
+    throw new Error(`The onboarding cron job is missing: ${params.cronJobId}`);
+  }
+  if (cronPrompt(existing) === prompt && hasNotebookOnlyDelivery(existing)) {
+    emit('reuse_output_nest', 'succeeded', {
+      cronJobId: params.cronJobId,
+      durationMs: Date.now() - startedAt,
+    });
+    return;
+  }
+
+  const payload = {
+    kind: existing.payload?.kind ?? 'agentTurn',
+    text: prompt,
+    message: prompt,
+  };
+  emit('update_output_nest', 'started', { cronJobId: params.cronJobId });
+  try {
+    await cron.update(params.cronJobId, {
+      payload,
+      delivery: { mode: 'none' },
+    } as PluginHookGatewayCronUpdateInput);
+    emit('update_output_nest', 'succeeded', {
+      cronJobId: params.cronJobId,
+      durationMs: Date.now() - startedAt,
+    });
+  } catch (error) {
+    // The update response can be lost after persistence, so list is the source
+    // of truth below rather than treating this error as final.
+    emit('update_output_nest', 'failed_ambiguous', {
+      cronJobId: params.cronJobId,
+      durationMs: Date.now() - startedAt,
+      error,
+    });
+  }
+
+  let attempt = 0;
+  for (const delay of [0, 250, 1_000, 2_000]) {
+    attempt += 1;
+    if (delay) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+    emit('verify_output_nest', 'started', {
+      attempt,
+      cronJobId: params.cronJobId,
+    });
+    jobs = await cron.list({ includeDisabled: true });
+    const stored = jobs.find((job) => job.id === params.cronJobId);
+    if (
+      stored &&
+      cronPrompt(stored) === prompt &&
+      hasNotebookOnlyDelivery(stored)
+    ) {
+      emit('verify_output_nest', 'succeeded', {
+        attempt,
+        cronJobId: params.cronJobId,
+        durationMs: Date.now() - startedAt,
+      });
+      return;
+    }
+    emit('verify_output_nest', 'missing', {
+      attempt,
+      cronJobId: params.cronJobId,
+      durationMs: Date.now() - startedAt,
+    });
+  }
+  throw new Error(
+    `The onboarding cron output nest could not be verified: ${params.cronJobId}`
+  );
 }
 
 export function renderDeterministicResearchDirective(params: {

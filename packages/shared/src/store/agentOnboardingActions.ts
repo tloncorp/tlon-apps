@@ -214,34 +214,139 @@ export async function ensureAgentNotebookForGroup(group: {
   agentNotebookEnsuring.delete(group.id);
 }
 
+type GrantAgentAdminDeps = {
+  delays?: number[];
+  timeoutMs?: number;
+  sleep?: (ms: number) => Promise<unknown>;
+  getGroup?: typeof api.getGroup;
+  addMembersToRole?: typeof api.addMembersToRole;
+};
+
+function agentHasAdminRole(
+  group: Awaited<ReturnType<typeof api.getGroup>>,
+  botShipId: string
+) {
+  const agent = group.members?.find(
+    (member) => member.contactId === botShipId && member.status !== 'invited'
+  );
+  return Boolean(
+    agent?.roles?.some((role: unknown) => {
+      if (typeof role === 'string') {
+        return role === 'admin';
+      }
+      if (!role || typeof role !== 'object') {
+        return false;
+      }
+      const candidate = role as { roleId?: unknown; id?: unknown };
+      return candidate.roleId === 'admin' || candidate.id === 'admin';
+    })
+  );
+}
+
+function agentHasJoined(
+  group: Awaited<ReturnType<typeof api.getGroup>>,
+  botShipId: string
+) {
+  return Boolean(
+    group.members?.some(
+      (member) => member.contactId === botShipId && member.status !== 'invited'
+    )
+  );
+}
+
+async function withTimeout<T>(operation: () => Promise<T>, timeoutMs: number) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`Timed out after ${timeoutMs}ms`)),
+          timeoutMs
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 /** Retry the admin grant across the agent's invite-accept window. */
-async function grantAgentAdmin(groupId: string, botShipId: string) {
-  const delays = [0, 3_000, 5_000, 10_000, 20_000, 30_000];
+async function grantAgentAdmin(
+  groupId: string,
+  botShipId: string,
+  deps: GrantAgentAdminDeps = {}
+) {
+  const delays = deps.delays ?? [0, 1_000, 2_000, 3_000, 5_000, 8_000, 13_000];
+  const timeoutMs = deps.timeoutMs ?? 5_000;
+  const wait = deps.sleep ?? sleep;
+  const getGroup = deps.getGroup ?? api.getGroup;
+  const addMembersToRole = deps.addMembersToRole ?? api.addMembersToRole;
+  let lastError: unknown;
+
   for (const delay of delays) {
     if (delay) {
-      await sleep(delay);
+      await wait(delay);
     }
+    let group: Awaited<ReturnType<typeof api.getGroup>>;
     try {
-      await api.addMembersToRole({
-        groupId,
-        roleId: 'admin',
-        ships: [botShipId],
-      });
-      const synced = await db.getGroup({ id: groupId });
-      const agent = synced?.members?.find(
-        (member) => member.contactId === botShipId
-      );
-      if (agent?.roles?.some((role) => role.roleId === 'admin')) {
-        return;
-      }
+      group = await withTimeout(() => getGroup(groupId), timeoutMs);
     } catch (error) {
+      lastError = error;
+      logger.trackError('Agent admin seat check failed', {
+        error,
+        groupId,
+      });
+      continue;
+    }
+    if (agentHasAdminRole(group, botShipId)) {
+      return;
+    }
+    if (!agentHasJoined(group, botShipId)) {
+      continue;
+    }
+
+    try {
+      await withTimeout(
+        () =>
+          addMembersToRole({
+            groupId,
+            roleId: 'admin',
+            ships: [botShipId],
+          }),
+        timeoutMs
+      );
+    } catch (error) {
+      // A lost ack is ambiguous: the role may already have landed. Verify
+      // remotely below before deciding whether another poke is necessary.
+      lastError = error;
       logger.trackError('Agent admin grant attempt failed', {
         error,
         groupId,
       });
     }
+
+    try {
+      group = await withTimeout(() => getGroup(groupId), timeoutMs);
+      if (agentHasAdminRole(group, botShipId)) {
+        return;
+      }
+    } catch (error) {
+      lastError = error;
+      logger.trackError('Agent admin grant verification failed', {
+        error,
+        groupId,
+      });
+    }
   }
+  throw new Error(
+    `Could not grant ${botShipId} admin in ${groupId}: ${String(lastError ?? 'agent seat unavailable')}`
+  );
 }
+
+export const _testing = { grantAgentAdmin };
 
 /** Resolve the hosting API's moon prefix to one unambiguous full ship. */
 async function resolveTlawnBot(): Promise<{
