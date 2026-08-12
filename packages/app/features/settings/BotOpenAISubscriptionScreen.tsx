@@ -105,6 +105,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
+        placement="navigation"
         backAction={() => {
           auth.dismiss();
           props.navigation.goBack();

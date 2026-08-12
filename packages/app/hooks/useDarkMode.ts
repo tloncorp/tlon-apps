@@ -7,13 +7,14 @@ import {
   Platform,
   useColorScheme,
 } from 'react-native';
+import { useTheme } from 'tamagui';
 
 // Native module that queries Android's Configuration directly, bypassing
 // React Native's Appearance module which can return stale values when the
 // system theme changes while the app is backgrounded.
 const TlonTheme = NativeModules.TlonTheme;
 
-export const useIsDarkMode = () => {
+export const useIsSystemDarkMode = () => {
   const colorScheme = useColorScheme();
   // Platform-specific workarounds for color scheme detection:
   //
@@ -86,3 +87,16 @@ export const useIsDarkMode = () => {
 
   return isDarkMode;
 };
+
+export const useIsDarkMode = (): boolean => {
+  const theme = useTheme();
+  return isDarkBackground(theme.background?.val);
+};
+
+function isDarkBackground(hexValue: string): boolean {
+  const r = parseInt(hexValue.slice(1, 3), 16);
+  const g = parseInt(hexValue.slice(3, 5), 16);
+  const b = parseInt(hexValue.slice(5, 7), 16);
+
+  return r * 0.299 + g * 0.587 + b * 0.114 < 186;
+}
