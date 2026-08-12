@@ -115,43 +115,62 @@ function shapeSummary(params: unknown, size: number): string | undefined {
   return safeStringify({ __tooLarge__: size, keyCount });
 }
 
+// Deliberately not a type predicate: narrowing the negative branch would make
+// the still-useful `serialized?.length` reads below unreachable-typed.
+function fits(serialized: string | undefined): boolean {
+  return (
+    serialized !== undefined && serialized.length <= MAX_TOOL_PARAM_DETAIL_CHARS
+  );
+}
+
+// Concessions in order of what they cost a consumer, cheapest first: keys the
+// model left empty carry no information beyond having been present, so drop
+// those before clamping any real value. Anything that fits is returned as-is.
 export function detailToolParams(params: unknown): string | undefined {
   if (params === null || params === undefined) {
     return undefined;
   }
 
-  // Verbatim first. Eliding is a concession to the budget, so paying for it
-  // when the real params already fit would throw away exactly what consumers
-  // match on — a 300-char message body would arrive as a 200-char placeholder.
+  // 1. Everything, exactly as passed.
   const verbatim = safeStringify(params);
-  if (verbatim && verbatim.length <= MAX_TOOL_PARAM_DETAIL_CHARS) {
+  if (fits(verbatim)) {
     return verbatim;
   }
 
-  // Over budget (or unserializable — elision also breaks reference cycles).
+  if (isPlainRecord(params)) {
+    const lean = withoutEmptyToolParamValues(params);
+    const omitted = Object.keys(params).length - Object.keys(lean).length;
+    const marked = (value: Record<string, unknown>) =>
+      omitted > 0 ? { ...value, __emptyKeysOmitted__: omitted } : value;
+
+    // 2. Padding dropped, every remaining value still exact. Only worth trying
+    //    when there was padding to drop — otherwise this is step 1 again.
+    if (omitted > 0) {
+      const leanVerbatim = safeStringify(marked(lean));
+      if (fits(leanVerbatim)) {
+        return leanVerbatim;
+      }
+    }
+
+    // 3. Padding dropped and long values clamped. Strictly better than eliding
+    //    with the padding still in place, so there is no all-keys elided step.
+    const leanElided = safeStringify(
+      marked(elideToolParamValues(lean) as Record<string, unknown>)
+    );
+    if (fits(leanElided)) {
+      return leanElided;
+    }
+    return shapeSummary(params, verbatim?.length ?? leanElided?.length ?? 0);
+  }
+
+  // Non-records (an array of params) have no padding to drop. Elision also
+  // breaks reference cycles, which is why this can succeed where step 1 threw.
   const elided = safeStringify(elideToolParamValues(params));
   if (!elided) {
     return undefined;
   }
-  if (elided.length <= MAX_TOOL_PARAM_DETAIL_CHARS) {
+  if (fits(elided)) {
     return elided;
   }
-
-  // Still over: drop the schema padding and record how much went missing.
-  if (isPlainRecord(params)) {
-    const lean = withoutEmptyToolParamValues(params);
-    const omitted = Object.keys(params).length - Object.keys(lean).length;
-    const leanSerialized = safeStringify({
-      ...(elideToolParamValues(lean) as Record<string, unknown>),
-      ...(omitted > 0 ? { __emptyKeysOmitted__: omitted } : {}),
-    });
-    if (
-      leanSerialized &&
-      leanSerialized.length <= MAX_TOOL_PARAM_DETAIL_CHARS
-    ) {
-      return leanSerialized;
-    }
-  }
-
   return shapeSummary(params, elided.length);
 }

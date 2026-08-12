@@ -176,6 +176,19 @@ describe('detailToolParams', () => {
     expect(args.message).toBe(message);
   });
 
+  it('drops padding before clamping a real value', () => {
+    // Over budget only because of the empty optional keys: the body must
+    // survive exactly, since dropping padding costs a consumer nothing and
+    // clamping the message costs it the predicate it matches on.
+    const message = 'y'.repeat(500);
+    const args = parsed(
+      detailToolParams({ ...paddedMessageParams(), message })
+    );
+    expect(args.message).toBe(message);
+    expect(args.action).toBe('send');
+    expect(args.__emptyKeysOmitted__).toBeTypeOf('number');
+  });
+
   it('elides a long value instead of the document', () => {
     const args = parsed(
       detailToolParams({
