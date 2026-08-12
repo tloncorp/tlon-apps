@@ -139,7 +139,12 @@ function scheduleAgentNotebookRetry(groupId: string): void {
         return;
       }
       const config = parseGroupAgentConfig(remote.description);
-      if (config?.onboarding?.state !== 'awaiting-notebook') {
+      const needsNotebook =
+        Boolean(config?.jobs?.[0]) &&
+        (config?.onboarding?.state === 'awaiting-notebook' ||
+          config?.onboarding?.state === 'complete') &&
+        !remote.channels?.some((channel) => channel.type === 'notes');
+      if (!needsNotebook) {
         return;
       }
       await ensureAgentNotebookForGroup(remote);
@@ -253,7 +258,10 @@ export async function ensureAgentNotebookForGroup(group: {
         });
       }
     }
-    if (config.onboarding.state === 'awaiting-notebook') {
+    if (
+      config.onboarding.state === 'awaiting-notebook' ||
+      config.onboarding.state === 'complete'
+    ) {
       scheduleAgentNotebookRetry(group.id);
     }
   } finally {

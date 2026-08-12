@@ -1,3 +1,4 @@
+import { parseGroupAgentConfig } from '@tloncorp/api/types/groupAgentConfig';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import { extractNormalizedInviteLink } from '@tloncorp/shared/logic';
@@ -58,7 +59,12 @@ export function AppDataProvider({
       store.ensureAgentNotebookForGroup(group).catch(() => {
         // Logged inside; a later group update retries failed reconciliation.
       });
-      const agent = agentGroupAgents[group.id];
+      // The description is authoritative and survives a failed local identity
+      // write or a new-device login. The storage record remains the early
+      // trust signal before the coordinator has written its full config.
+      const agent =
+        agentGroupAgents[group.id] ??
+        parseGroupAgentConfig(group.description)?.agents?.[0];
       if (agent) {
         store.ensureAgentAdminForGroup(group.id, agent).catch(() => {
           // Logged by the caller that created the group; membership sync will

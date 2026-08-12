@@ -458,15 +458,17 @@ describe('cron creation', () => {
 
     const params = {
       cronJobId: 'cron-1',
+      nest: 'chat/~zod/home-group-chat',
       purposeId: 'agent-research',
       topics: 'Mycology',
+      timezone: 'America/New_York',
       outputNest: 'notes/~zod/research',
     };
     await expect(ensureDeterministicCronOutputNest(params)).resolves.toBe(
-      undefined
+      'cron-1'
     );
     await expect(ensureDeterministicCronOutputNest(params)).resolves.toBe(
-      undefined
+      'cron-1'
     );
 
     expect(update).toHaveBeenCalledTimes(1);
@@ -501,8 +503,10 @@ describe('cron creation', () => {
     await expect(
       ensureDeterministicCronOutputNest({
         cronJobId: 'cron-1',
+        nest: 'chat/~zod/home-group-chat',
         purposeId: 'agent-research',
         topics: 'Mycology',
+        timezone: 'America/New_York',
         outputNest: 'notes/~zod/research',
         abortSignal: controller.signal,
       })
@@ -531,11 +535,52 @@ describe('cron creation', () => {
     await expect(
       ensureDeterministicCronOutputNest({
         cronJobId: 'cron-1',
+        nest: 'chat/~zod/home-group-chat',
         purposeId: 'agent-research',
         topics: 'Mycology',
+        timezone: 'America/New_York',
         outputNest: 'notes/~zod/research',
       })
-    ).resolves.toBe(undefined);
+    ).resolves.toBe('cron-1');
+  });
+
+  test('recreates and routes a missing persisted cron job', async () => {
+    const jobs: PluginHookGatewayCronJob[] = [];
+    const service = {
+      list: vi.fn(async () => jobs),
+      add: vi.fn(async (input: PluginHookGatewayCronCreateInput) => {
+        jobs.push({
+          id: 'cron-replacement',
+          ...input,
+        } as PluginHookGatewayCronJob);
+      }),
+      update: vi.fn(async (id: string, patch: unknown) => {
+        Object.assign(jobs.find((job) => job.id === id)!, patch);
+      }),
+      remove: vi.fn(),
+    };
+    setCronServiceAccessor(() => service as never);
+
+    await expect(
+      ensureDeterministicCronOutputNest({
+        cronJobId: 'cron-missing',
+        nest: 'chat/~zod/home-group-chat',
+        purposeId: 'agent-research',
+        topics: 'Mycology',
+        timezone: 'America/New_York',
+        outputNest: 'notes/~zod/research',
+      })
+    ).resolves.toBe('cron-replacement');
+    expect(service.add).toHaveBeenCalledTimes(1);
+    expect(jobs[0]).toMatchObject({
+      id: 'cron-replacement',
+      enabled: true,
+      payload: {
+        message: expect.stringContaining(
+          'Configured notebook output nest: notes/~zod/research'
+        ),
+      },
+    });
   });
 
   test('removes only onboarding cron jobs whose chats disappeared', async () => {

@@ -1633,12 +1633,15 @@ export async function monitorTlonProvider(
         return;
       }
       const cronOutputStartedAt = Date.now();
+      let reconciledCronJobId: string;
       try {
-        await ensureDeterministicCronOutputNest({
+        reconciledCronJobId = await ensureDeterministicCronOutputNest({
           cronJobId: deterministic.record.cronJobId!,
+          nest,
           purposeId: deterministic.purposeId,
           purpose: deterministic.purpose,
           topics: deterministic.topics,
+          timezone: deterministic.timezone,
           outputNest: notesNest,
           abortSignal: opts.abortSignal,
           trace: (event) => {
@@ -1675,10 +1678,22 @@ export async function monitorTlonProvider(
         );
         return;
       }
+      if (reconciledCronJobId !== deterministic.record.cronJobId) {
+        deterministic.record.cronJobId = reconciledCronJobId;
+        await writeAndVerifyOnboardingDescription(
+          nest,
+          group.flag,
+          buildDeterministicSetupDescription(deterministic),
+          {
+            onboardingAttemptId,
+            onboardingSource: 'cron_job_recovery',
+          }
+        );
+      }
       traceOnboardingStep(traceBase, 'ensure_cron_output_nest', 'succeeded', {
         onboardingStage: 'schedule',
         onboardingState: deterministic.record.state,
-        cronJobId: deterministic.record.cronJobId,
+        cronJobId: reconciledCronJobId,
         notebookNest: notesNest,
         durationMs: Date.now() - cronOutputStartedAt,
       });

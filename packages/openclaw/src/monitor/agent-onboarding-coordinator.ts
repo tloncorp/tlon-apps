@@ -745,13 +745,15 @@ function hasNotebookOnlyDelivery(job: PluginHookGatewayCronJob): boolean {
  */
 export async function ensureDeterministicCronOutputNest(params: {
   cronJobId: string;
+  nest: string;
   purposeId: string;
   purpose?: string;
   topics: string;
+  timezone: string;
   outputNest: string;
   abortSignal?: AbortSignal;
   trace?: DeterministicCronTracer;
-}): Promise<void> {
+}): Promise<string> {
   const startedAt = Date.now();
   const trace = params.trace;
   const emit = (
@@ -785,9 +787,24 @@ export async function ensureDeterministicCronOutputNest(params: {
   emit('list_output_job', 'started');
   assertActive();
   let jobs = await cron.list({ includeDisabled: true });
-  const existing = jobs.find((job) => job.id === params.cronJobId);
+  let cronJobId = params.cronJobId;
+  let existing = jobs.find((job) => job.id === cronJobId);
   if (!existing) {
-    throw new Error(`The onboarding cron job is missing: ${params.cronJobId}`);
+    cronJobId = await ensureDeterministicCronJob({
+      nest: params.nest,
+      purposeId: params.purposeId,
+      purpose: params.purpose,
+      topics: params.topics,
+      timezone: params.timezone,
+      abortSignal: params.abortSignal,
+      trace: params.trace,
+    });
+    assertActive();
+    jobs = await cron.list({ includeDisabled: true });
+    existing = jobs.find((job) => job.id === cronJobId);
+    if (!existing) {
+      throw new Error(`The onboarding cron job is missing: ${cronJobId}`);
+    }
   }
   if (
     existing.enabled === true &&
@@ -795,10 +812,10 @@ export async function ensureDeterministicCronOutputNest(params: {
     hasNotebookOnlyDelivery(existing)
   ) {
     emit('reuse_output_nest', 'succeeded', {
-      cronJobId: params.cronJobId,
+      cronJobId,
       durationMs: Date.now() - startedAt,
     });
-    return;
+    return cronJobId;
   }
 
   const payload = {
@@ -806,23 +823,23 @@ export async function ensureDeterministicCronOutputNest(params: {
     text: prompt,
     message: prompt,
   };
-  emit('update_output_nest', 'started', { cronJobId: params.cronJobId });
+  emit('update_output_nest', 'started', { cronJobId });
   try {
     assertActive();
-    await cron.update(params.cronJobId, {
+    await cron.update(cronJobId, {
       enabled: true,
       payload,
       delivery: { mode: 'none' },
     } as PluginHookGatewayCronUpdateInput);
     emit('update_output_nest', 'succeeded', {
-      cronJobId: params.cronJobId,
+      cronJobId,
       durationMs: Date.now() - startedAt,
     });
   } catch (error) {
     // The update response can be lost after persistence, so list is the source
     // of truth below rather than treating this error as final.
     emit('update_output_nest', 'failed_ambiguous', {
-      cronJobId: params.cronJobId,
+      cronJobId,
       durationMs: Date.now() - startedAt,
       error,
     });
@@ -838,11 +855,11 @@ export async function ensureDeterministicCronOutputNest(params: {
     }
     emit('verify_output_nest', 'started', {
       attempt,
-      cronJobId: params.cronJobId,
+      cronJobId,
     });
     assertActive();
     jobs = await cron.list({ includeDisabled: true });
-    const stored = jobs.find((job) => job.id === params.cronJobId);
+    const stored = jobs.find((job) => job.id === cronJobId);
     if (
       stored &&
       stored.enabled === true &&
@@ -851,19 +868,19 @@ export async function ensureDeterministicCronOutputNest(params: {
     ) {
       emit('verify_output_nest', 'succeeded', {
         attempt,
-        cronJobId: params.cronJobId,
+        cronJobId,
         durationMs: Date.now() - startedAt,
       });
-      return;
+      return cronJobId;
     }
     emit('verify_output_nest', 'missing', {
       attempt,
-      cronJobId: params.cronJobId,
+      cronJobId,
       durationMs: Date.now() - startedAt,
     });
   }
   throw new Error(
-    `The onboarding cron output nest could not be verified: ${params.cronJobId}`
+    `The onboarding cron output nest could not be verified: ${cronJobId}`
   );
 }
 

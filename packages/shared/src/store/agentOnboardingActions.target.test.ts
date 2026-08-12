@@ -170,6 +170,40 @@ test('schedules another notebook reconciliation after the bounded window', async
   expect(mocks.createChannel).toHaveBeenCalledTimes(1);
 });
 
+test('retains notebook retry debt for a completed group replacement', async () => {
+  vi.useFakeTimers();
+  const description = deterministicDescription(
+    'Daily digest: Updates',
+    'complete'
+  );
+  mocks.getRemoteGroup
+    .mockRejectedValueOnce(new Error('outage 1'))
+    .mockRejectedValueOnce(new Error('outage 2'))
+    .mockRejectedValueOnce(new Error('outage 3'))
+    .mockRejectedValueOnce(new Error('outage 4'))
+    .mockResolvedValue({
+      id: '~zod/complete-retry',
+      description,
+      currentUserIsMember: true,
+      channels: [],
+    });
+  mocks.createChannel.mockResolvedValue({
+    id: 'notes/~zod/complete-retry/notebook',
+  });
+
+  const ensuring = ensureAgentNotebookForGroup({
+    id: '~zod/complete-retry',
+    description,
+    channels: [],
+  });
+  await vi.advanceTimersByTimeAsync(22_000);
+  await ensuring;
+  await vi.advanceTimersByTimeAsync(60_000);
+  await vi.runAllTicks();
+
+  expect(mocks.createChannel).toHaveBeenCalledTimes(1);
+});
+
 test('retains notebook retry debt while remote verification is unreadable', async () => {
   vi.useFakeTimers();
   mocks.createChannel
