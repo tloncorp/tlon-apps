@@ -13,8 +13,9 @@ const logger = createDevLogger('AgentOnboarding', false);
  * onboarding there (its bootstrap prompt owns the script), so this component
  * just lands the user in that channel: it arms the `agentOnboardingLanding`
  * handoff (consumed on chat list mount) and dismisses the splash. When no
- * home group exists (self-hosted, or provisioning hasn't delivered it yet)
- * it renders `fallback` — the standard splash — instead.
+ * no hosted bot exists it renders `fallback` — the standard splash — instead.
+ * Hosted provisioning is asynchronous, so an enabled account keeps waiting
+ * for the real home-group target rather than treating a short delay as absence.
  */
 export function AgentOnboardingSequence(props: {
   onCompleted: () => void;
@@ -47,26 +48,26 @@ export function AgentOnboardingSequence(props: {
         setHomeGroupMissing(true);
         return;
       }
-      // The Urbit client is configured by a parent effect, which may not have
-      // run yet on a cold mount — and an unconfigured client makes the lookup
-      // return null, indistinguishable from "no home group". Retry briefly
-      // before giving up, or a fresh signup falls back to the old splash
-      // permanently (this effect never runs again).
-      let target = await store.getHomeGroupOnboardingTarget();
-      for (let attempt = 0; !target && attempt < 10; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
+      // The Urbit client and hosted home group are configured asynchronously.
+      // A null lookup cannot distinguish an unfinished provision from a
+      // missing group, so keep waiting while this enabled onboarding surface
+      // is mounted instead of permanently latching the legacy fallback.
+      let resolution = await store.resolveHomeGroupOnboarding();
+      while (resolution.status === 'pending') {
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
         if (cancelled || redirectedRef.current) {
           return;
         }
-        target = await store.getHomeGroupOnboardingTarget();
+        resolution = await store.resolveHomeGroupOnboarding();
       }
       if (cancelled || redirectedRef.current) {
         return;
       }
-      if (!target) {
+      if (resolution.status === 'fallback') {
         setHomeGroupMissing(true);
         return;
       }
+      const { target } = resolution;
       logger.trackEvent('Agent Onboarding In-Channel Handoff', target);
       try {
         await db.agentOnboardingLanding.setValue(target);

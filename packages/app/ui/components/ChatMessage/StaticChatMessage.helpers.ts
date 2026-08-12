@@ -14,7 +14,7 @@ export function resolveA2UISendText(
     : trimmed;
 }
 
-/** Replace only the plain paragraph fallback duplicated by an A2UI surface. */
+/** Hide unsupported A2UI blocks without discarding adjacent message prose. */
 export function resolveA2UIContent(
   content: BlockData[],
   canRenderA2UI: boolean
@@ -22,15 +22,5 @@ export function resolveA2UIContent(
   if (!canRenderA2UI) {
     return content.filter((block) => block.type !== 'a2ui');
   }
-  if (!content.some((block) => block.type === 'a2ui')) {
-    return content;
-  }
-  let removedFallback = false;
-  return content.filter((block) => {
-    if (!removedFallback && block.type === 'paragraph') {
-      removedFallback = true;
-      return false;
-    }
-    return true;
-  });
+  return content;
 }

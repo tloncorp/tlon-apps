@@ -90,27 +90,138 @@ export async function createAgentGroup(params?: {
   if (hostedShipId) {
     // The same resolved moon the invite went to — see `resolveTlawnBot`.
     const moon = desig(botShipId);
-    // Fire-and-forget: the group already exists and the invite is out.
-    (async () => {
-      try {
-        await api.addTlawnToCordon(hostedShipId, group.id, moon);
-      } catch (error) {
-        // Fails when the moon is already allowed; the join is what matters.
-        logger.trackError('Failed to add agent moon to cordon', { error });
-      }
-      try {
-        await sleep(1500);
-        await api.joinTlawnGroup(hostedShipId, group.id, moon);
-      } catch (error) {
-        logger.trackError('Failed to join agent to group', {
-          error,
-          groupId: group.id,
-        });
-      }
-    })();
+    // Fire-and-forget: the group already exists and the invite is out. The
+    // reconciler retains retry debt and verifies the remote seat after joins.
+    ensureHostedAgentJoined({
+      hostedShipId,
+      groupId: group.id,
+      moon,
+      botShipId,
+    }).catch((error) => {
+      logger.trackError('Failed to join agent to group', {
+        error,
+        groupId: group.id,
+      });
+    });
   }
 
   return { group, channelId };
+}
+
+type HostedAgentJoin = {
+  hostedShipId: string;
+  groupId: string;
+  moon: string;
+  botShipId: string;
+};
+
+type HostedAgentJoinDeps = {
+  delays?: number[];
+  sleep?: (ms: number) => Promise<unknown>;
+  addToCordon?: typeof api.addTlawnToCordon;
+  joinGroup?: typeof api.joinTlawnGroup;
+  getGroup?: typeof api.getGroup;
+};
+
+const hostedAgentJoinEnsuring = new Map<string, Promise<void>>();
+const hostedAgentJoinRetryTimers = new Map<
+  string,
+  ReturnType<typeof setTimeout>
+>();
+const HOSTED_AGENT_JOIN_RETRY_DELAY_MS = 60_000;
+
+function scheduleHostedAgentJoinRetry(params: HostedAgentJoin): void {
+  if (hostedAgentJoinRetryTimers.has(params.groupId)) {
+    return;
+  }
+  const timer = setTimeout(() => {
+    hostedAgentJoinRetryTimers.delete(params.groupId);
+    ensureHostedAgentJoined(params).catch((error) => {
+      logger.trackError('Failed to reconcile hosted agent join', {
+        error,
+        groupId: params.groupId,
+      });
+    });
+  }, HOSTED_AGENT_JOIN_RETRY_DELAY_MS);
+  (timer as unknown as { unref?: () => void }).unref?.();
+  hostedAgentJoinRetryTimers.set(params.groupId, timer);
+}
+
+async function reconcileHostedAgentJoin(
+  params: HostedAgentJoin,
+  deps: HostedAgentJoinDeps = {}
+): Promise<void> {
+  const delays = deps.delays ?? [1_500, 2_000, 5_000, 15_000];
+  const wait = deps.sleep ?? sleep;
+  const addToCordon = deps.addToCordon ?? api.addTlawnToCordon;
+  const joinGroup = deps.joinGroup ?? api.joinTlawnGroup;
+  const getGroup = deps.getGroup ?? api.getGroup;
+  let lastError: unknown;
+
+  for (const delay of delays) {
+    if (delay) {
+      await wait(delay);
+    }
+    try {
+      const group = await getGroup(params.groupId);
+      if (agentHasJoined(group, params.botShipId)) {
+        return;
+      }
+    } catch (error) {
+      lastError = error;
+      logger.trackError('Failed to verify hosted agent seat', {
+        error,
+        groupId: params.groupId,
+      });
+    }
+
+    try {
+      await addToCordon(params.hostedShipId, params.groupId, params.moon);
+    } catch (error) {
+      // The moon may already be allowed; the verified join below decides.
+      lastError = error;
+      logger.trackError('Failed to add agent moon to cordon', { error });
+    }
+    try {
+      await joinGroup(params.hostedShipId, params.groupId, params.moon);
+    } catch (error) {
+      lastError = error;
+      logger.trackError('Hosted agent join attempt failed', {
+        error,
+        groupId: params.groupId,
+      });
+    }
+
+    try {
+      const group = await getGroup(params.groupId);
+      if (agentHasJoined(group, params.botShipId)) {
+        return;
+      }
+    } catch (error) {
+      lastError = error;
+      logger.trackError('Hosted agent join verification failed', {
+        error,
+        groupId: params.groupId,
+      });
+    }
+  }
+
+  scheduleHostedAgentJoinRetry(params);
+  throw new Error(
+    `Could not verify ${params.botShipId} joined ${params.groupId}: ${String(lastError ?? 'seat unavailable')}`
+  );
+}
+
+function ensureHostedAgentJoined(params: HostedAgentJoin): Promise<void> {
+  const existing = hostedAgentJoinEnsuring.get(params.groupId);
+  if (existing) {
+    return existing;
+  }
+  const run = reconcileHostedAgentJoin(params).finally(() => {
+    hostedAgentJoinEnsuring.delete(params.groupId);
+  });
+  hostedAgentJoinEnsuring.set(params.groupId, run);
+  return run;
 }
 
 const agentNotebookEnsuring = new Set<string>();
@@ -444,11 +555,18 @@ export function ensureAgentAdminForGroup(
 
 export const _testing = {
   grantAgentAdmin,
+  reconcileHostedAgentJoin,
   clearAgentNotebookRetries: () => {
     for (const timer of agentNotebookRetryTimers.values()) {
       clearTimeout(timer);
     }
     agentNotebookRetryTimers.clear();
+  },
+  clearHostedAgentJoinRetries: () => {
+    for (const timer of hostedAgentJoinRetryTimers.values()) {
+      clearTimeout(timer);
+    }
+    hostedAgentJoinRetryTimers.clear();
   },
 };
 
@@ -523,11 +641,18 @@ export async function ensureHomeGroupAgentRecorded(): Promise<void> {
   }
 }
 
-/** Resolve only after the provisioned home-group channel is actually visible. */
-export async function getHomeGroupOnboardingTarget(): Promise<{
+type HomeGroupOnboardingTarget = {
   groupId: string;
   channelId: string;
-} | null> {
+};
+
+export type HomeGroupOnboardingResolution =
+  | { status: 'pending' }
+  | { status: 'fallback' }
+  | { status: 'target'; target: HomeGroupOnboardingTarget };
+
+/** Distinguish asynchronous provisioning from a home group already in use. */
+export async function resolveHomeGroupOnboarding(): Promise<HomeGroupOnboardingResolution> {
   try {
     const currentUserId = api.getCurrentUserId();
     const groupId = `${currentUserId}/${BotHomeGroupSlugs.slug}`;
@@ -549,7 +674,7 @@ export async function getHomeGroupOnboardingTarget(): Promise<{
     };
     const hostingBotEnabled = await db.hostingBotEnabled.getValue();
     if (!hostingBotEnabled) {
-      return null;
+      return { status: 'fallback' };
     }
     // Sync may trail provisioning, but a ship scry can prove the target exists.
     // If it cannot, keep the splash fallback instead of arming an endless
@@ -557,13 +682,13 @@ export async function getHomeGroupOnboardingTarget(): Promise<{
     const remoteGroup = await api.getGroup(groupId);
     const target = targetFor(remoteGroup);
     if (!target) {
-      return null;
+      return { status: 'pending' };
     }
     const config = parseGroupAgentConfig(remoteGroup.description);
     if (config) {
       return config.onboarding && config.onboarding.state !== 'complete'
-        ? target
-        : null;
+        ? { status: 'target', target }
+        : { status: 'fallback' };
     }
     const history = await api.getChannelPosts({
       channelId: target.channelId,
@@ -571,12 +696,18 @@ export async function getHomeGroupOnboardingTarget(): Promise<{
       count: 20,
     });
     return history.posts.some((post) => post.authorId === currentUserId)
-      ? null
-      : target;
+      ? { status: 'fallback' }
+      : { status: 'target', target };
   } catch (error) {
     logger.trackError('Failed to resolve home group onboarding target', {
       error,
     });
-    return null;
+    return { status: 'pending' };
   }
+}
+
+/** Resolve only after the provisioned home-group channel is actually visible. */
+export async function getHomeGroupOnboardingTarget(): Promise<HomeGroupOnboardingTarget | null> {
+  const resolution = await resolveHomeGroupOnboarding();
+  return resolution.status === 'target' ? resolution.target : null;
 }

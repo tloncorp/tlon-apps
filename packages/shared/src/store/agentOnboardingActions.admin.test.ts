@@ -67,3 +67,39 @@ describe('agent onboarding admin grant', () => {
     expect(getGroup).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('hosted agent join reconciliation', () => {
+  test('retries a failed join and verifies membership before completing', async () => {
+    let joined = false;
+    const getGroup = vi.fn(async () =>
+      groupWithAgent(joined ? 'joined' : 'invited')
+    );
+    const addToCordon = vi.fn(async () => undefined);
+    const joinGroup = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('gateway unavailable'))
+      .mockImplementationOnce(async () => {
+        joined = true;
+      });
+
+    await expect(
+      _testing.reconcileHostedAgentJoin(
+        {
+          hostedShipId: '~ten',
+          groupId: '~ten/group',
+          moon: 'dozzod',
+          botShipId: '~zod',
+        },
+        {
+          delays: [0, 0],
+          getGroup: getGroup as never,
+          addToCordon: addToCordon as never,
+          joinGroup: joinGroup as never,
+        }
+      )
+    ).resolves.toBeUndefined();
+
+    expect(joinGroup).toHaveBeenCalledTimes(2);
+    expect(getGroup).toHaveBeenCalledTimes(4);
+  });
+});

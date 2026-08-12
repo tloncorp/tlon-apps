@@ -36,7 +36,7 @@ describe('resolveA2UISendText', () => {
 });
 
 describe('resolveA2UIContent', () => {
-  test('removes only the paragraph fallback beside a rendered surface', () => {
+  test('preserves prose beside a rendered surface', () => {
     const content = [
       { type: 'a2ui', a2ui: {} },
       { type: 'paragraph', content: [] },
@@ -48,15 +48,7 @@ describe('resolveA2UIContent', () => {
       { type: 'link', url: 'https://example.com' },
     ] as unknown as BlockData[];
 
-    expect(resolveA2UIContent(content, true)).toEqual([
-      { type: 'a2ui', a2ui: {} },
-      {
-        type: 'paragraph',
-        content: [{ type: 'text', text: 'keep this explanation' }],
-      },
-      { type: 'code', content: 'keep me' },
-      { type: 'link', url: 'https://example.com' },
-    ]);
+    expect(resolveA2UIContent(content, true)).toEqual(content);
     expect(resolveA2UIContent(content, false)).toEqual(content.slice(1));
   });
 });

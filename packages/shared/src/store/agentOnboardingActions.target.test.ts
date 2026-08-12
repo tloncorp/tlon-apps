@@ -4,6 +4,7 @@ import {
   _testing,
   ensureAgentNotebookForGroup,
   getHomeGroupOnboardingTarget,
+  resolveHomeGroupOnboarding,
 } from './agentOnboardingActions';
 
 const mocks = vi.hoisted(() => ({
@@ -111,6 +112,9 @@ describe('getHomeGroupOnboardingTarget', () => {
     mocks.getRemoteGroup.mockRejectedValue(new Error('not provisioned'));
 
     await expect(getHomeGroupOnboardingTarget()).resolves.toBeNull();
+    await expect(resolveHomeGroupOnboarding()).resolves.toEqual({
+      status: 'pending',
+    });
   });
 
   test('rejects a configured or owner-used home group', async () => {
@@ -122,6 +126,17 @@ describe('getHomeGroupOnboardingTarget', () => {
       ),
     });
     await expect(getHomeGroupOnboardingTarget()).resolves.toBeNull();
+
+    mocks.getRemoteGroup.mockResolvedValueOnce({
+      ...homeGroup(),
+      description: deterministicDescription(
+        'Daily digest: Updates',
+        'complete'
+      ),
+    });
+    await expect(resolveHomeGroupOnboarding()).resolves.toEqual({
+      status: 'fallback',
+    });
 
     mocks.getRemoteGroup.mockResolvedValueOnce(homeGroup());
     mocks.getChannelPosts.mockResolvedValueOnce({
