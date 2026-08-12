@@ -79,13 +79,10 @@ export function parseOnboardingNoteIds(output: string): string[] {
 
 /** Read the newest note id through %notes rather than legacy %channels. */
 export async function readOnboardingNotebookNewestId(
+  runnerShip: string,
   notesNest: string
 ): Promise<string | null> {
-  const host = notesNest.split('/')[1];
-  if (!host) {
-    throw new Error(`The onboarding notebook nest has no host: ${notesNest}`);
-  }
-  const output = await runOnboardingTlonCommand(host, [
+  const output = await runOnboardingTlonCommand(runnerShip, [
     'notes',
     'notes',
     notesNest,
@@ -94,13 +91,10 @@ export async function readOnboardingNotebookNewestId(
 }
 
 export async function listOnboardingNotebookNoteIds(
+  runnerShip: string,
   notesNest: string
 ): Promise<string[]> {
-  const host = notesNest.split('/')[1];
-  if (!host) {
-    throw new Error(`The onboarding notebook nest has no host: ${notesNest}`);
-  }
-  const output = await runOnboardingTlonCommand(host, [
+  const output = await runOnboardingTlonCommand(runnerShip, [
     'notes',
     'notes',
     notesNest,
@@ -113,14 +107,16 @@ export async function listOnboardingNotebookNoteIds(
 }
 
 export async function readOnboardingNotebookNote(
+  runnerShip: string,
   notesNest: string,
   noteId: string
 ): Promise<string> {
-  const host = notesNest.split('/')[1];
-  if (!host) {
-    throw new Error(`The onboarding notebook nest has no host: ${notesNest}`);
-  }
-  return runOnboardingTlonCommand(host, ['notes', 'note', notesNest, noteId]);
+  return runOnboardingTlonCommand(runnerShip, [
+    'notes',
+    'note',
+    notesNest,
+    noteId,
+  ]);
 }
 
 export function clearOnboardingOperations(): void {

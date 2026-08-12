@@ -28,6 +28,8 @@ export type StorageItem<T> = {
     value: T;
     /** True until the stored value has hydrated; `value` is the default. */
     isLoading: boolean;
+    /** True when hydration failed and `value` is only the default. */
+    isError: boolean;
     setValue: (value: T | ((curr: T) => T)) => Promise<void>;
     resetValue: () => Promise<T>;
   };
@@ -162,6 +164,7 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
     return {
       value: value === undefined ? defaultValue : value,
       isLoading,
+      isError,
       setValue,
       resetValue,
     };

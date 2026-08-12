@@ -241,20 +241,28 @@ export function ChatListScreenView({
 
       const fastUntil = Date.now() + 30_000;
       let slowSyncLogged = false;
+      let navigated = false;
       while (active) {
         if (await db.getChannel({ id: landing.channelId })) {
-          if (!consumedOnboardingLanding.current) {
-            consumedOnboardingLanding.current = true;
+          if (!navigated) {
+            navigated = true;
             resetToChannelRef.current(landing.channelId, {
               groupId: landing.groupId,
             });
-            void db.agentOnboardingLanding.resetValue().catch((error) =>
-              logger.trackError('Failed to clear onboarding landing', {
-                error,
-              })
-            );
           }
-          return;
+          try {
+            await db.agentOnboardingLanding.resetValue();
+            consumedOnboardingLanding.current = true;
+            return;
+          } catch (error) {
+            logger.trackError('Failed to clear onboarding landing', {
+              error,
+            });
+            // Stay in this loop until the durable acknowledgement lands. The
+            // navigation is one-shot, so retries cannot bounce the user.
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            continue;
+          }
         }
 
         const slow = Date.now() > fastUntil;
@@ -268,9 +276,7 @@ export function ChatListScreenView({
           const armed = await db.agentOnboardingLanding.getValue();
           if (!armed || armed.channelId !== landing.channelId) return;
         }
-        await new Promise((resolve) =>
-          setTimeout(resolve, slow ? 5_000 : 500)
-        );
+        await new Promise((resolve) => setTimeout(resolve, slow ? 5_000 : 500));
       }
     };
     void land().catch((error) =>

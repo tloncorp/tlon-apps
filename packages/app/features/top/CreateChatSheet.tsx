@@ -493,13 +493,16 @@ function TypeSelectionContent({
   isCreating?: boolean;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
-  const { value: hostingBotEnabled, isLoading: hostingBotLoading } =
-    db.hostingBotEnabled.useStorageItem();
+  const {
+    value: hostingBotEnabled,
+    isLoading: hostingBotLoading,
+    isError: hostingBotError,
+  } = db.hostingBotEnabled.useStorageItem();
   // Until the stored bot flag hydrates, it reads as its default — and this
   // action creates a group on first tap, so a hosted account must not act on
   // the wrong flavor during that window. The row stays disabled until it has
   // loaded (see `groupFlavorKnown` below).
-  const groupFlavorKnown = !hostingBotLoading;
+  const groupFlavorKnown = !hostingBotLoading && !hostingBotError;
   const hasAgent =
     groupFlavorKnown && ((hostingBotEnabled ?? false) || !!AGENT_SHIP_OVERRIDE);
   const actions = useMemo(

@@ -1054,7 +1054,7 @@ export async function monitorTlonProvider(
           retryAttempt,
         });
         try {
-          await runOnboardingTlonCommand(groupFlag.split('/')[0]!, [
+          await runOnboardingTlonCommand(botShipName, [
             'groups',
             'update',
             groupFlag,
@@ -1441,7 +1441,10 @@ export async function monitorTlonProvider(
       try {
         return {
           readable: true,
-          newestId: await readOnboardingNotebookNewestId(notesNest),
+          newestId: await readOnboardingNotebookNewestId(
+            botShipName,
+            notesNest
+          ),
         };
       } catch (error) {
         return { readable: false, error };
@@ -1457,7 +1460,7 @@ export async function monitorTlonProvider(
       | { readable: true; noteId: string | null }
     > => {
       try {
-        const ids = await listOnboardingNotebookNoteIds(notesNest);
+        const ids = await listOnboardingNotebookNoteIds(botShipName, notesNest);
         const baselineId = baseline == null ? null : BigInt(baseline);
         let readError: unknown;
         for (const id of ids) {
@@ -1465,7 +1468,11 @@ export async function monitorTlonProvider(
             continue;
           }
           try {
-            const note = await readOnboardingNotebookNote(notesNest, id);
+            const note = await readOnboardingNotebookNote(
+              botShipName,
+              notesNest,
+              id
+            );
             if (note.includes(marker)) {
               return { readable: true, noteId: id };
             }
@@ -1877,7 +1884,7 @@ export async function monitorTlonProvider(
                 draftMarkdownCharCount: markdown.length,
               });
               try {
-                await runOnboardingTlonCommand(notesNest.split('/')[1]!, [
+                await runOnboardingTlonCommand(botShipName, [
                   'notes',
                   'note-create',
                   notesNest,

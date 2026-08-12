@@ -137,83 +137,85 @@ export async function ensureAgentNotebookForGroup(group: {
     return;
   }
   agentNotebookEnsuring.add(group.id);
-  // "Daily digest: Nootropics, Coffee" names the notebook "Daily digest".
-  const jobTitle = typeof job.title === 'string' ? job.title : '';
-  const title = jobTitle.split(':')[0]?.trim() || 'Notebook';
-  // The calling effect will not rerun after a failure, so retry here.
-  const delays = [0, 2_000, 5_000, 15_000];
-  for (const delay of delays) {
-    if (delay) {
-      await sleep(delay);
-    }
-    // Check the ship before every create, including the first attempt. A
-    // previous process or device may already have created the notebook even
-    // though this local store has never observed it.
-    let remote;
-    try {
-      remote = await api.getGroup(group.id);
-    } catch (error) {
-      // Never create while an earlier result is unknowable, but retain the
-      // retry debt: a later scry may prove whether creation is still needed.
-      logger.trackError('Failed to verify agent notebook retry', {
-        error,
-        groupId: group.id,
-      });
-      continue;
-    }
-    const remoteNotebook = remote.channels?.find(
-      (channel) => channel.type === 'notes'
-    );
-    if (remoteNotebook) {
+  try {
+    // "Daily digest: Nootropics, Coffee" names the notebook "Daily digest".
+    const jobTitle = typeof job.title === 'string' ? job.title : '';
+    const title = jobTitle.split(':')[0]?.trim() || 'Notebook';
+    // The calling effect will not rerun after a failure, so retry here.
+    const delays = [0, 2_000, 5_000, 15_000];
+    for (const delay of delays) {
+      if (delay) {
+        await sleep(delay);
+      }
+      // Check the ship before every create, including the first attempt. A
+      // previous process or device may already have created the notebook even
+      // though this local store has never observed it.
+      let remote;
       try {
-        const adopted = await hydrateExistingNotesChannel(remote);
-        const flag = api.parseNotesChannelId(adopted?.id);
-        if (flag) {
-          syncNotesNotebook(flag).catch((error) => {
-            logger.trackError('Failed to sync adopted agent notebook', {
-              error,
-              groupId: group.id,
-              channelId: adopted?.id,
-            });
-          });
-        }
-        logger.trackEvent('Agent Notebook Adopted', {
-          groupId: group.id,
-          channelId: adopted?.id,
-        });
-        return;
+        remote = await api.getGroup(group.id);
       } catch (error) {
-        // The remote notebook is real, so never call create again here.
-        // Retry only the local adoption on the next delay.
-        logger.trackError('Failed to adopt existing agent notebook', {
+        // Never create while an earlier result is unknowable, but retain the
+        // retry debt: a later scry may prove whether creation is still needed.
+        logger.trackError('Failed to verify agent notebook retry', {
           error,
           groupId: group.id,
-          channelId: remoteNotebook.id,
         });
         continue;
       }
+      const remoteNotebook = remote.channels?.find(
+        (channel) => channel.type === 'notes'
+      );
+      if (remoteNotebook) {
+        try {
+          const adopted = await hydrateExistingNotesChannel(remote);
+          const flag = api.parseNotesChannelId(adopted?.id);
+          if (flag) {
+            syncNotesNotebook(flag).catch((error) => {
+              logger.trackError('Failed to sync adopted agent notebook', {
+                error,
+                groupId: group.id,
+                channelId: adopted?.id,
+              });
+            });
+          }
+          logger.trackEvent('Agent Notebook Adopted', {
+            groupId: group.id,
+            channelId: adopted?.id,
+          });
+          return;
+        } catch (error) {
+          // The remote notebook is real, so never call create again here.
+          // Retry only the local adoption on the next delay.
+          logger.trackError('Failed to adopt existing agent notebook', {
+            error,
+            groupId: group.id,
+            channelId: remoteNotebook.id,
+          });
+          continue;
+        }
+      }
+      try {
+        await createChannel({
+          groupId: group.id,
+          title,
+          channelType: 'notes',
+        });
+        logger.trackEvent('Agent Notebook Created', { groupId: group.id });
+        return;
+      } catch (error) {
+        logger.trackError('Failed to create agent notebook', {
+          error,
+          groupId: group.id,
+          willRetry: delay !== delays[delays.length - 1],
+        });
+      }
     }
-    try {
-      await createChannel({
-        groupId: group.id,
-        title,
-        channelType: 'notes',
-      });
-      logger.trackEvent('Agent Notebook Created', { groupId: group.id });
-      // Guard stays set: from here the notes-channel check above is the
-      // durable one.
-      return;
-    } catch (error) {
-      logger.trackError('Failed to create agent notebook', {
-        error,
-        groupId: group.id,
-        willRetry: delay !== delays[delays.length - 1],
-      });
-    }
+  } finally {
+    // The durable remote/local channel checks prevent duplicates. This guard
+    // only serializes one reconciliation run; retaining it after success
+    // would prevent repair if the notebook is later deleted or replaced.
+    agentNotebookEnsuring.delete(group.id);
   }
-  // Every attempt failed. Release the guard so a later config sync — or the
-  // owner reopening the group — can start over.
-  agentNotebookEnsuring.delete(group.id);
 }
 
 type GrantAgentAdminDeps = {

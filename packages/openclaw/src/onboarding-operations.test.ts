@@ -44,7 +44,7 @@ describe('onboarding notebook reads', () => {
     });
 
     await expect(
-      readOnboardingNotebookNewestId('notes/~zod/daily')
+      readOnboardingNotebookNewestId('~zod', 'notes/~zod/daily')
     ).resolves.toBe('42');
     expect(calls).toEqual([['notes', 'notes', 'notes/~zod/daily']]);
   });
@@ -54,10 +54,10 @@ describe('onboarding notebook reads', () => {
     setOnboardingCommandRunner('~nec', async () => '#9  Nec  (rev 1)\n');
 
     await expect(
-      readOnboardingNotebookNewestId('notes/~zod/daily')
+      readOnboardingNotebookNewestId('~zod', 'notes/~zod/daily')
     ).resolves.toBe('1');
     await expect(
-      readOnboardingNotebookNewestId('notes/~nec/daily')
+      readOnboardingNotebookNewestId('~nec', 'notes/~nec/daily')
     ).resolves.toBe('9');
   });
 
@@ -71,10 +71,10 @@ describe('onboarding notebook reads', () => {
     });
 
     await expect(
-      listOnboardingNotebookNoteIds('notes/~zod/daily')
+      listOnboardingNotebookNoteIds('~zod', 'notes/~zod/daily')
     ).resolves.toEqual(['4', '3']);
     await expect(
-      readOnboardingNotebookNote('notes/~zod/daily', '3')
+      readOnboardingNotebookNote('~zod', 'notes/~zod/daily', '3')
     ).resolves.toContain('tlon-agent-onboarding:marker');
     expect(calls).toEqual([
       ['notes', 'notes', 'notes/~zod/daily'],

@@ -26,45 +26,10 @@ import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
-import { resolveA2UISendText } from './StaticChatMessage.helpers';
-
-/**
- * Blocks that survive when a post's A2UI surface renders. The surface
- * duplicates the story's *text* (the plain fallback for clients that can't
- * render it), so text blocks are dropped — but attachments are not
- * duplicates: file/video/voicememo arrive via the blob, and images via
- * story image blocks, and all of them belong on screen alongside the
- * surface.
- */
-const BLOB_BLOCK_TYPES = new Set([
-  'a2ui',
-  'file',
-  'image',
-  'video',
-  'voicememo',
-]);
-
-/**
- * Pick between a post's A2UI surface and its story.
- *
- * A post carrying A2UI writes the same message twice: the interactive surface
- * in the blob, and a plain-text rendering of it in the story, so clients that
- * can't render the surface still show something. Exactly one of them belongs
- * on screen — showing both prints the message twice, which is what the sender
- * was trying to avoid.
- */
-function resolveA2UIContent(
-  content: ReturnType<typeof usePostContent>,
-  canRenderA2UI: boolean
-) {
-  if (!canRenderA2UI) {
-    return content.filter((block) => block.type !== 'a2ui');
-  }
-  if (!content.some((block) => block.type === 'a2ui')) {
-    return content;
-  }
-  return content.filter((block) => BLOB_BLOCK_TYPES.has(block.type));
-}
+import {
+  resolveA2UIContent,
+  resolveA2UISendText,
+} from './StaticChatMessage.helpers';
 
 /**
  * Renders a chat message with minimal interactivity (no pressable, no overflow
