@@ -632,31 +632,30 @@
 ::
 ++  group-permissions
   |=  [group=flag:b =flag:b who=ship]
-  ^-  [admin=? roles=(set @tas)]
-  ?:  =(who ship.flag)  [& ~]
+  ^-  (unit [admin=? roles=(set @tas)])
+  ?:  =(who ship.flag)  `[& ~]
   =/  pax=path
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.group)/[name.group]/channels/buckets/(scot %p ship.flag)/[name.flag]/can-write/(scot %p who)/noun
-  =/  permissions=(unit [admin=? roles=(set @tas)])
-    .^((unit [admin=? roles=(set @tas)]) %gx pax)
-  ?~  permissions  [| ~]
-  u.permissions
+  .^((unit [admin=? roles=(set @tas)]) %gx pax)
 ::
 ++  group-is-admin
   |=  [group=flag:b =flag:b who=ship]
   ^-  ?
-  =/  permissions=[admin=? roles=(set @tas)]
+  =/  permissions=(unit [admin=? roles=(set @tas)])
     (group-permissions group flag who)
-  admin.permissions
+  ?~  permissions  |
+  admin.u.permissions
 ::
 ++  group-can-write
   |=  [group=flag:b =flag:b writers=(set @tas) who=ship]
   ^-  ?
   ?.  (group-can-read group flag who)  |
-  =/  permissions=[admin=? roles=(set @tas)]
+  =/  permissions=(unit [admin=? roles=(set @tas)])
     (group-permissions group flag who)
-  ?|  admin.permissions
+  ?~  permissions  |
+  ?|  admin.u.permissions
       =(~ writers)
-      !=(~ (~(int in writers) roles.permissions))
+      !=(~ (~(int in writers) roles.u.permissions))
   ==
 ::
 ++  action-authorized
