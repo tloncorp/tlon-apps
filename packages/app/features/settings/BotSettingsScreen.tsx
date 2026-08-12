@@ -4,7 +4,7 @@ import * as db from '@tloncorp/shared/db';
 import { Text, pluralize, useIsWindowNarrow } from '@tloncorp/ui';
 import { ConfirmDialog } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { View, YStack } from 'tamagui';
 
 import { useHandleLogout } from '../../hooks/useHandleLogout';
@@ -166,9 +166,10 @@ export function BotSettingsScreen(props: Props) {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
+        backAction={
+          Platform.OS !== 'web' || isWindowNarrow ? handleBack : undefined
+        }
         title="Bot settings"
-        placement="navigation"
       />
       <SettingsContentScrollView
         paddingHorizontal="$l"

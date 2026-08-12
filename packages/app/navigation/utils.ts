@@ -12,6 +12,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useGlobalSearch, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
 
 import type {
   DesktopBasePathStackParamList,
@@ -483,8 +484,9 @@ export function useRootNavigation() {
     navigationRef.current.goBack();
   }, [navigationRef]);
 
+  const useNestedSettings = Platform.OS === 'web' && !isWindowNarrow;
   const navigateToBotSettings = useCallback(() => {
-    if (isWindowNarrow) {
+    if (!useNestedSettings) {
       navigationRef.current.navigate('BotSettings');
       return;
     }
@@ -496,7 +498,7 @@ export function useRootNavigation() {
     navigateToNestedSettings('Settings', {
       screen: 'BotSettings',
     });
-  }, [isWindowNarrow, navigationRef]);
+  }, [useNestedSettings, navigationRef]);
 
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
@@ -583,13 +585,10 @@ export async function getMainGroupRoute(
   groupId: string,
   isWindowNarrow: boolean
 ) {
-  // This route decision already needs the full group. Populate the same query
-  // cache used by GroupChannels so its first render does not repeat the DB read
-  // during the native push animation.
-  const [group, lastVisitedChannelId] = await Promise.all([
-    store.fetchGroup(groupId),
-    isWindowNarrow ? null : db.lastVisitedChannelId(groupId).getValue(),
-  ]);
+  const group = await db.getGroup({ id: groupId });
+  const lastVisitedChannelId = await db
+    .lastVisitedChannelId(groupId)
+    .getValue();
   if (
     group &&
     group.channels &&

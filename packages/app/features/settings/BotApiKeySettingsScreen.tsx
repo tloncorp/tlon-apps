@@ -8,6 +8,7 @@ import {
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
@@ -179,9 +180,10 @@ export function BotApiKeySettingsScreen(props: Props) {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
+        backAction={
+          Platform.OS !== 'web' || isWindowNarrow ? handleBack : undefined
+        }
         title={`${provider.label} API key`}
-        placement="navigation"
       />
       <SettingsContentScrollView
         paddingHorizontal="$l"
