@@ -120,6 +120,8 @@ function makeDeps(options: MakeDepsOptions = {}) {
         return (await options.getChannelPosts?.(query)) ?? { posts: [] };
       },
     },
+    // The edit path sleeps between lookup attempts; tests must not.
+    sleep: async () => {},
   };
 
   return {
@@ -1291,6 +1293,14 @@ describe('posts edit', () => {
     });
   }
 
+  // Edits refuse to proceed when the post cannot be read, so tests exercising
+  // anything *else* about edit need the lookup to succeed.
+  const READABLE_POST: ExistingPost = {
+    id: '170.141.184',
+    isBot: false,
+  } as ExistingPost;
+  const lookupSucceeds = () => withExistingPost(READABLE_POST);
+
   it('fails missing channel/post id before auth or API work', async () => {
     for (const args of [['edit'], ['edit', 'chat/~host/channel']]) {
       const context = makeDeps();
@@ -1347,7 +1357,7 @@ describe('posts edit', () => {
   });
 
   it('refuses to erase a post when the message converts to nothing', async () => {
-    const context = makeDeps({ getChannelPosts: withExistingPost(null) });
+    const context = makeDeps({ getChannelPosts: lookupSucceeds() });
 
     const exitCode = await run(
       ['edit', 'chat/~host/channel', '170.141.184', '<div>hello</div>'],
@@ -1437,7 +1447,9 @@ describe('posts edit', () => {
     });
   });
 
-  it('uses undefined metadata fields when the lookup returns null', async () => {
+  it('refuses to edit a post it cannot read, rather than wiping it', async () => {
+    // %edit submits the whole essay, so editing on a failed lookup silently
+    // replaces authorship and metadata with nothing. Retried once, then refused.
     const context = makeDeps({
       getChannelPosts: withExistingPost(null),
     });
@@ -1447,16 +1459,15 @@ describe('posts edit', () => {
       context.deps
     );
 
-    expect(exitCode).toBe(0);
-    expect(context.calls.editPost[0].metadata).toEqual({
-      title: undefined,
-      image: undefined,
-      description: undefined,
-      cover: undefined,
-    });
+    expect(exitCode).toBe(1);
+    expect(context.calls.editPost).toHaveLength(0);
+    expect(context.calls.getChannelPosts).toHaveLength(2);
+    expect(context.stderr()).toContain('may not be readable yet');
   });
 
-  it('treats a failed existing-post lookup as no existing metadata', async () => {
+  it('refuses the edit when the lookup throws, not just when it misses', async () => {
+    // A thrown lookup is indistinguishable from an absent post, and both mean
+    // the authorship and metadata to preserve are unknown.
     const context = makeDeps({
       getChannelPosts: async () => {
         throw new Error('lookup boom');
@@ -1468,13 +1479,9 @@ describe('posts edit', () => {
       context.deps
     );
 
-    expect(exitCode).toBe(0);
-    expect(context.calls.editPost[0].metadata).toEqual({
-      title: undefined,
-      image: undefined,
-      description: undefined,
-      cover: undefined,
-    });
+    expect(exitCode).toBe(1);
+    expect(context.calls.editPost).toHaveLength(0);
+    expect(context.stderr()).toContain('may not be readable yet');
   });
 
   // An edit resubmits the whole essay, so the CLI must hand back the existing
@@ -1514,10 +1521,17 @@ describe('posts edit', () => {
     }
   });
 
-  it('omits bot authorship when the existing-post lookup fails', async () => {
+  it('recovers when the post becomes readable on the retry', async () => {
+    // The window this retry exists for: %channels proxies the add to the host
+    // and the scry only sees it once that returns, so a post created moments
+    // ago misses the first look and lands on the second.
+    let attempt = 0;
     const context = makeDeps({
       getChannelPosts: async () => {
-        throw new Error('lookup boom');
+        attempt += 1;
+        return attempt === 1
+          ? { posts: [] }
+          : { posts: [{ id: '170.141.184', isBot: true } as ExistingPost] };
       },
     });
 
@@ -1527,11 +1541,16 @@ describe('posts edit', () => {
     );
 
     expect(exitCode).toBe(0);
-    expect('botProfile' in context.calls.editPost[0]).toBe(false);
+    expect(context.calls.getChannelPosts).toHaveLength(2);
+    // And the authorship the retry recovered is the whole point.
+    expect(context.calls.editPost[0].botProfile).toEqual({
+      nickname: null,
+      avatar: null,
+    });
   });
 
   it('treats every token after the post id as the message', async () => {
-    const context = makeDeps({ getChannelPosts: withExistingPost(null) });
+    const context = makeDeps({ getChannelPosts: lookupSucceeds() });
 
     const exitCode = await run(
       ['edit', 'chat/~host/channel', '170.141.184', 'keep', 'this', 'message'],
@@ -1545,7 +1564,7 @@ describe('posts edit', () => {
   });
 
   it('treats --help in the message slot as edit content reaching the API', async () => {
-    const context = makeDeps({ getChannelPosts: withExistingPost(null) });
+    const context = makeDeps({ getChannelPosts: lookupSucceeds() });
 
     const exitCode = await run(
       ['edit', 'chat/~host/channel', '170.141.184', '--help'],
@@ -1561,7 +1580,7 @@ describe('posts edit', () => {
   it('passes the injected clock through to the editPost payload', async () => {
     const context = makeDeps({
       now: 999,
-      getChannelPosts: withExistingPost(null),
+      getChannelPosts: lookupSucceeds(),
     });
 
     await run(
@@ -1574,7 +1593,7 @@ describe('posts edit', () => {
 
   it('routes facade failures through the shared command-error path', async () => {
     const context = makeDeps({
-      getChannelPosts: withExistingPost(null),
+      getChannelPosts: lookupSucceeds(),
       editPost: async () => {
         throw commandError('edit failed');
       },
