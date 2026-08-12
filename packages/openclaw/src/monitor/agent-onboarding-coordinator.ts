@@ -388,7 +388,7 @@ function cronJobMatchesDesired(
   };
   return (
     job.name === desired.name &&
-    job.enabled === true &&
+    job.enabled === desired.enabled &&
     schedule?.kind === desiredSchedule.kind &&
     schedule?.expr === desiredSchedule.expr &&
     schedule?.tz === desiredSchedule.tz &&
@@ -413,6 +413,91 @@ export type DeterministicCronTraceEvent = {
 export type DeterministicCronTracer = (
   event: DeterministicCronTraceEvent
 ) => void;
+
+function deterministicOnboardingCronNest(
+  job: PluginHookGatewayCronJob
+): string | null {
+  const description = job.description;
+  if (typeof description !== 'string') {
+    return null;
+  }
+  const prefix = 'tlon-agent-onboarding:';
+  if (!description.startsWith(prefix)) {
+    return null;
+  }
+  for (const purposeId of Object.keys(PURPOSE_JOBS)) {
+    const suffix = `:${purposeId}`;
+    if (description.endsWith(suffix)) {
+      const nest = description.slice(prefix.length, -suffix.length).trim();
+      return nest || null;
+    }
+  }
+  return null;
+}
+
+/** Remove stable onboarding jobs whose owning chat no longer exists. */
+export async function removeOrphanedDeterministicCronJobs(params: {
+  liveChatNests: Iterable<string>;
+  abortSignal?: AbortSignal;
+  trace?: DeterministicCronTracer;
+}): Promise<string[]> {
+  const assertActive = () => {
+    if (params.abortSignal?.aborted) {
+      throw new Error('Onboarding cron cleanup aborted with monitor');
+    }
+  };
+  assertActive();
+  const cron = getCronService();
+  if (!cron) {
+    return [];
+  }
+  const liveChatNests = new Set(params.liveChatNests);
+  const jobs = await cron.list({ includeDisabled: true });
+  const orphaned = jobs.filter((job) => {
+    const nest = deterministicOnboardingCronNest(job);
+    return nest !== null && !liveChatNests.has(nest);
+  });
+  const removedIds: string[] = [];
+  for (const job of orphaned) {
+    assertActive();
+    if (!job.id) {
+      continue;
+    }
+    try {
+      await cron.remove(job.id);
+    } catch (error) {
+      // A remove response can be lost after persistence. The authoritative
+      // list below decides whether this remains actionable.
+      params.trace?.({
+        operation: 'remove_orphaned_job',
+        outcome: 'failed_ambiguous',
+        cronJobId: job.id,
+        error,
+      });
+    }
+    removedIds.push(job.id);
+  }
+  if (removedIds.length === 0) {
+    return [];
+  }
+  assertActive();
+  const remaining = await cron.list({ includeDisabled: true });
+  const remainingIds = new Set(remaining.map((job) => job.id));
+  const unremoved = removedIds.filter((id) => remainingIds.has(id));
+  if (unremoved.length > 0) {
+    throw new Error(
+      `Orphaned onboarding cron jobs could not be removed: ${unremoved.join(', ')}`
+    );
+  }
+  for (const id of removedIds) {
+    params.trace?.({
+      operation: 'remove_orphaned_job',
+      outcome: 'succeeded',
+      cronJobId: id,
+    });
+  }
+  return removedIds;
+}
 
 /** Create once, then prove the scheduler can list the stored job. */
 export async function ensureDeterministicCronJob(params: {
@@ -497,7 +582,9 @@ export async function ensureDeterministicCronJob(params: {
     return {
       name: fill(template.title, params.topics, params.purpose),
       description,
-      enabled: true,
+      // The setup has no safe destination until the notebook exists. Output
+      // reconciliation enables the job together with its durable nest.
+      enabled: Boolean(outputNest),
       schedule: {
         kind: 'cron',
         expr: template.schedule,
@@ -702,7 +789,11 @@ export async function ensureDeterministicCronOutputNest(params: {
   if (!existing) {
     throw new Error(`The onboarding cron job is missing: ${params.cronJobId}`);
   }
-  if (cronPrompt(existing) === prompt && hasNotebookOnlyDelivery(existing)) {
+  if (
+    existing.enabled === true &&
+    cronPrompt(existing) === prompt &&
+    hasNotebookOnlyDelivery(existing)
+  ) {
     emit('reuse_output_nest', 'succeeded', {
       cronJobId: params.cronJobId,
       durationMs: Date.now() - startedAt,
@@ -719,6 +810,7 @@ export async function ensureDeterministicCronOutputNest(params: {
   try {
     assertActive();
     await cron.update(params.cronJobId, {
+      enabled: true,
       payload,
       delivery: { mode: 'none' },
     } as PluginHookGatewayCronUpdateInput);
@@ -753,6 +845,7 @@ export async function ensureDeterministicCronOutputNest(params: {
     const stored = jobs.find((job) => job.id === params.cronJobId);
     if (
       stored &&
+      stored.enabled === true &&
       cronPrompt(stored) === prompt &&
       hasNotebookOnlyDelivery(stored)
     ) {

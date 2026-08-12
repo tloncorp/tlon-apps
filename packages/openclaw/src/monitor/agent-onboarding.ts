@@ -695,6 +695,33 @@ export async function findConfiguredAgentGroupRoutes(
 }
 
 /**
+ * Every live chat in an owner-hosted group. Null means the authoritative
+ * groups snapshot was unreadable and callers must not infer deletions.
+ */
+export async function findOwnerGroupChatNests(
+  api: ScryApi,
+  runtime: Runtime,
+  ownerShip: string | null
+): Promise<string[] | null> {
+  if (!ownerShip || !api) {
+    return null;
+  }
+  const groups = await scryGroups(api, runtime, 'owner group chat channels');
+  if (groups === null) {
+    return null;
+  }
+  return [
+    ...new Set(
+      Object.entries(groups)
+        .filter(([flag]) => hostOf(flag) === ownerShip)
+        .flatMap(([, group]) =>
+          nestsOf(group).filter((nest) => nest.startsWith('chat/'))
+        )
+    ),
+  ];
+}
+
+/**
  * The owner-hosted notes channel for a group, or null until the client has
  * created it from the configured job.
  *

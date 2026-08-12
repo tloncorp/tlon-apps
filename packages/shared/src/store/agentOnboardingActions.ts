@@ -114,6 +114,46 @@ export async function createAgentGroup(params?: {
 }
 
 const agentNotebookEnsuring = new Set<string>();
+const agentNotebookRetryTimers = new Map<
+  string,
+  ReturnType<typeof setTimeout>
+>();
+const AGENT_NOTEBOOK_RETRY_DELAY_MS = 60_000;
+
+function scheduleAgentNotebookRetry(groupId: string): void {
+  if (agentNotebookRetryTimers.has(groupId)) {
+    return;
+  }
+  const timer = setTimeout(() => {
+    agentNotebookRetryTimers.delete(groupId);
+    void (async () => {
+      let remote;
+      try {
+        remote = await api.getGroup(groupId);
+      } catch (error) {
+        logger.trackError('Failed to read agent notebook retry state', {
+          error,
+          groupId,
+        });
+        scheduleAgentNotebookRetry(groupId);
+        return;
+      }
+      const config = parseGroupAgentConfig(remote.description);
+      if (config?.onboarding?.state !== 'awaiting-notebook') {
+        return;
+      }
+      await ensureAgentNotebookForGroup(remote);
+    })().catch((error) => {
+      logger.trackError('Failed to retry agent notebook reconciliation', {
+        error,
+        groupId,
+      });
+      scheduleAgentNotebookRetry(groupId);
+    });
+  }, AGENT_NOTEBOOK_RETRY_DELAY_MS);
+  (timer as unknown as { unref?: () => void }).unref?.();
+  agentNotebookRetryTimers.set(groupId, timer);
+}
 
 /** Ensure the configured job has one owner-hosted notes channel. */
 export async function ensureAgentNotebookForGroup(group: {
@@ -212,6 +252,9 @@ export async function ensureAgentNotebookForGroup(group: {
           willRetry: delay !== delays[delays.length - 1],
         });
       }
+    }
+    if (config.onboarding.state === 'awaiting-notebook') {
+      scheduleAgentNotebookRetry(group.id);
     }
   } finally {
     // The durable remote/local channel checks prevent duplicates. This guard
@@ -375,7 +418,15 @@ export function ensureAgentAdminForGroup(
   return run;
 }
 
-export const _testing = { grantAgentAdmin };
+export const _testing = {
+  grantAgentAdmin,
+  clearAgentNotebookRetries: () => {
+    for (const timer of agentNotebookRetryTimers.values()) {
+      clearTimeout(timer);
+    }
+    agentNotebookRetryTimers.clear();
+  },
+};
 
 /** Resolve the hosting API's moon prefix to one unambiguous full ship. */
 async function resolveTlawnBot(): Promise<{
@@ -492,7 +543,7 @@ export async function getHomeGroupOnboardingTarget(): Promise<{
     }
     const history = await api.getChannelPosts({
       channelId: target.channelId,
-      mode: 'older',
+      mode: 'newest',
       count: 20,
     });
     return history.posts.some((post) => post.authorId === currentUserId)

@@ -141,6 +141,7 @@ import {
   onboardingCompletionSequenceBlocker,
   onboardingResearchSequenceBlocker,
   parseDeterministicResearchDraft,
+  removeOrphanedDeterministicCronJobs,
   renderDeterministicResearchDirective,
 } from './agent-onboarding-coordinator.js';
 import {
@@ -159,6 +160,7 @@ import {
   findChatNestForGroup,
   findConfiguredAgentGroupRoutes,
   findGroupForChannel,
+  findOwnerGroupChatNests,
   homeGroupAwaitingOpening,
   homeGroupChatNestFor,
   homeGroupFlagFor,
@@ -8082,11 +8084,12 @@ export async function monitorTlonProvider(
           // after the first a no-op. The same groups snapshot also exposes
           // notebook replacements so completed cron/config routing can be
           // repaired without waiting for another conversation turn.
-          for (const route of await findConfiguredAgentGroupRoutes(
+          const configuredRoutes = await findConfiguredAgentGroupRoutes(
             api,
             runtime,
             effectiveOwnerShip
-          )) {
+          );
+          for (const route of configuredRoutes) {
             if (opts.abortSignal?.aborted) {
               return sawWork;
             }
@@ -8120,6 +8123,23 @@ export async function monitorTlonProvider(
             // rescue.
             if (inviteSettled.has(route.chatNest)) {
               closingRecoveryChecked.add(route.flag);
+            }
+          }
+          const liveChatNests = await findOwnerGroupChatNests(
+            api,
+            runtime,
+            effectiveOwnerShip
+          );
+          if (liveChatNests !== null) {
+            const removed = await removeOrphanedDeterministicCronJobs({
+              liveChatNests,
+              abortSignal: opts.abortSignal,
+            });
+            if (removed.length > 0) {
+              sawWork = true;
+              runtime.log?.(
+                `[tlon] Removed ${removed.length} orphaned onboarding cron job(s)`
+              );
             }
           }
           return sawWork;

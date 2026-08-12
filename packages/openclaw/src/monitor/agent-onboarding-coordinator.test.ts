@@ -21,6 +21,7 @@ import {
   onboardingCompletionSequenceBlocker,
   onboardingResearchSequenceBlocker,
   parseDeterministicResearchDraft,
+  removeOrphanedDeterministicCronJobs,
   renderDeterministicResearchDirective,
 } from './agent-onboarding-coordinator.js';
 
@@ -293,6 +294,7 @@ describe('cron creation', () => {
     await expect(ensureDeterministicCronJob(params)).resolves.toBe('cron-1');
     expect(service.add).toHaveBeenCalledTimes(1);
     expect(service.add.mock.calls[0]![0]).toMatchObject({
+      enabled: false,
       sessionTarget: 'isolated',
       delivery: { mode: 'none' },
       payload: {
@@ -388,7 +390,7 @@ describe('cron creation', () => {
     );
     expect(update).toHaveBeenCalledTimes(1);
     expect(jobs[0]).toMatchObject({
-      enabled: true,
+      enabled: false,
       schedule: {
         kind: 'cron',
         expr: PURPOSE_JOBS['agent-research'].schedule,
@@ -471,6 +473,7 @@ describe('cron creation', () => {
     expect(update).toHaveBeenCalledWith(
       'cron-1',
       expect.objectContaining({
+        enabled: true,
         delivery: { mode: 'none' },
         payload: expect.objectContaining({
           text: expect.stringContaining(
@@ -533,6 +536,45 @@ describe('cron creation', () => {
         outputNest: 'notes/~zod/research',
       })
     ).resolves.toBe(undefined);
+  });
+
+  test('removes only onboarding cron jobs whose chats disappeared', async () => {
+    const jobs: PluginHookGatewayCronJob[] = [
+      {
+        id: 'live-cron',
+        description: 'tlon-agent-onboarding:chat/~zod/live:agent-research',
+      },
+      {
+        id: 'orphan-cron',
+        description: 'tlon-agent-onboarding:chat/~zod/deleted:agent-research',
+      },
+      { id: 'ordinary-cron', description: 'something else' },
+    ];
+    const remove = vi.fn(async (id: string) => {
+      jobs.splice(
+        jobs.findIndex((job) => job.id === id),
+        1
+      );
+      return { removed: true };
+    });
+    setCronServiceAccessor(
+      () =>
+        ({
+          list: vi.fn(async () => jobs),
+          add: vi.fn(),
+          update: vi.fn(),
+          remove,
+        }) as never
+    );
+
+    await expect(
+      removeOrphanedDeterministicCronJobs({
+        liveChatNests: ['chat/~zod/live'],
+      })
+    ).resolves.toEqual(['orphan-cron']);
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(remove).toHaveBeenCalledWith('orphan-cron');
+    expect(jobs.map((job) => job.id)).toEqual(['live-cron', 'ordinary-cron']);
   });
 });
 

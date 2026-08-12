@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import {
+  _testing,
   ensureAgentNotebookForGroup,
   getHomeGroupOnboardingTarget,
 } from './agentOnboardingActions';
@@ -80,6 +81,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  _testing.clearAgentNotebookRetries();
   vi.useRealTimers();
 });
 
@@ -126,7 +128,46 @@ describe('getHomeGroupOnboardingTarget', () => {
       posts: [{ authorId: '~zod' }],
     });
     await expect(getHomeGroupOnboardingTarget()).resolves.toBeNull();
+    expect(mocks.getChannelPosts).toHaveBeenCalledWith({
+      channelId: 'chat/~zod/home-group-chat',
+      mode: 'newest',
+      count: 20,
+    });
   });
+});
+
+test('schedules another notebook reconciliation after the bounded window', async () => {
+  vi.useFakeTimers();
+  const description = deterministicDescription('Daily digest: Updates');
+  mocks.getRemoteGroup
+    .mockRejectedValueOnce(new Error('outage 1'))
+    .mockRejectedValueOnce(new Error('outage 2'))
+    .mockRejectedValueOnce(new Error('outage 3'))
+    .mockRejectedValueOnce(new Error('outage 4'))
+    .mockResolvedValue({
+      id: '~zod/retry-later',
+      description,
+      currentUserIsMember: true,
+      channels: [],
+    });
+  mocks.createChannel.mockResolvedValue({
+    id: 'notes/~zod/retry-later/notebook',
+  });
+
+  const ensuring = ensureAgentNotebookForGroup({
+    id: '~zod/retry-later',
+    description,
+    channels: [],
+  });
+  await vi.advanceTimersByTimeAsync(22_000);
+  await ensuring;
+  expect(mocks.createChannel).not.toHaveBeenCalled();
+
+  await vi.advanceTimersByTimeAsync(60_000);
+  await vi.runAllTicks();
+
+  expect(mocks.getRemoteGroup).toHaveBeenCalledTimes(6);
+  expect(mocks.createChannel).toHaveBeenCalledTimes(1);
 });
 
 test('retains notebook retry debt while remote verification is unreadable', async () => {

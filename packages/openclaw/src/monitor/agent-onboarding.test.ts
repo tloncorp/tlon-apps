@@ -30,6 +30,7 @@ import {
   findChatNestForGroup,
   findConfiguredAgentGroupRoutes,
   findGroupForChannel,
+  findOwnerGroupChatNests,
   homeGroupAwaitingOpening,
   isFirstConfiguredSetup,
   isHomeGroupFlag,
@@ -433,6 +434,25 @@ describe('group/channel resolution', () => {
     expect(await findGroupForChannel(null, nest, {})).toBeNull();
     expect(await findChatNestForGroup(failing, nest, {})).toBe(null);
     expect(await findChatNestForGroup(null, nest, {})).toBe(null);
+  });
+
+  test('lists only live owner-hosted chat nests and fails closed', async () => {
+    expect(await findOwnerGroupChatNests(apiWith(groups), {}, '~ten')).toEqual([
+      nest,
+    ]);
+    expect(
+      await findOwnerGroupChatNests(
+        apiWith({
+          ...groups,
+          '~zod/other': {
+            'active-channels': ['chat/~zod/other'],
+          },
+        }),
+        {},
+        '~ten'
+      )
+    ).toEqual([nest]);
+    expect(await findOwnerGroupChatNests(failing, {}, '~ten')).toBeNull();
   });
 
   test('channelHasNoPosts: true only for a readable empty channel', async () => {
