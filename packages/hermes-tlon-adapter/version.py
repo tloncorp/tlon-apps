@@ -125,11 +125,17 @@ def format_version_reply(
     source: Optional[str],
     fingerprint: str,
     cli_version: str,
+    harness_version: Optional[str] = None,
     markdown: bool = True,
 ) -> str:
     """Field-per-line version summary. For the chat reply keys are italicized
     and values bolded (Tlon markdown) for scannability; pass ``markdown=False``
-    for plain log output."""
+    for plain log output.
+
+    ``harness_version`` is the running Hermes Agent's own version, taken by the
+    caller (the adapter resolves and caches it). It renders as ``unknown`` when
+    the host reports nothing, matching OpenClaw: the row always appears, so the
+    two harnesses' replies stay line-for-line comparable."""
 
     def row(label: str, value: str) -> str:
         return f"*{label}*: **{value}**" if markdown else f"{label}: {value}"
@@ -137,6 +143,7 @@ def format_version_reply(
     return "\n".join(
         [
             row("Harness", "Hermes"),
+            row("Harness Version", (harness_version or "").strip() or "unknown"),
             row("Adapter Version", adapter_version),
             row("Tlon Skill", cli_version),
             row("Fingerprint", fingerprint),

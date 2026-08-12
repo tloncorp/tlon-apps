@@ -293,6 +293,7 @@ The seven keys above are the full "dashboard edit works" set. Everything else Tl
 
 ```
 *Harness*: **Hermes**
+*Harness Version*: **0.17.0 (2026.6.19)**
 *Adapter Version*: **0.1.0**
 *Tlon Skill*: **0.3.2**
 *Fingerprint*: **fp1:3f9a2c1b8d02**
@@ -300,6 +301,7 @@ The seven keys above are the full "dashboard edit works" set. Everything else Tl
 ```
 
 -   **Harness** — always `Hermes`; identifies which bot framework is running this node at a glance.
+-   **Harness Version** — the running Hermes Agent's own version, read from its `__version__` and `__release_date__` constants (the same source its `/version` command uses), with the installed distribution's metadata as a fallback. Reads `unknown` when the host reports neither, so the row is never dropped and the reply stays line-for-line comparable with OpenClaw's.
 -   **Adapter Version** — semver from this package's `package.json`, bumped at releases.
 -   **Tlon Skill** — version of the packaged `@tloncorp/tlon-skill` CLI (first line of `tlon --version`).
 -   **Fingerprint** — sha256 over the runtime files (non-test `*.py`, `plugin.yaml`, `prompts/`), so copied or hand-patched installs are still identifiable. To match a fingerprint to a commit, recompute it at a candidate checkout: `python3 -c "import version; print(version.content_fingerprint())"` from this directory.
