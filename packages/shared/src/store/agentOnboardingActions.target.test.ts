@@ -47,6 +47,26 @@ const homeGroup = (channelId = 'chat/~zod/home-group-chat') => ({
   channels: [{ id: channelId, type: 'chat' }],
 });
 
+const deterministicDescription = (title: string) =>
+  JSON.stringify([
+    {
+      type: 'tlon-group-agent-config',
+      version: 1,
+      templateId: 'agent-daily-digest',
+      purpose: 'Watch updates',
+      instructions: '',
+      agents: ['~bot'],
+      jobs: [{ title }],
+      onboarding: {
+        state: 'awaiting-notebook',
+        topics: 'Updates',
+        timezone: 'UTC',
+        cronJobId: 'cron-1',
+      },
+      updatedAt: 1,
+    },
+  ]);
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.getLocalGroup.mockResolvedValue(null);
@@ -105,17 +125,7 @@ test('retains notebook retry debt while remote verification is unreadable', asyn
 
   const ensuring = ensureAgentNotebookForGroup({
     id: '~zod/retry',
-    description: JSON.stringify([
-      {
-        type: 'tlon-group-agent-config',
-        version: 1,
-        purpose: 'Watch updates',
-        instructions: '',
-        agents: ['~bot'],
-        jobs: [{ title: 'Daily digest: Updates' }],
-        updatedAt: 1,
-      },
-    ]),
+    description: deterministicDescription('Daily digest: Updates'),
     channels: [],
   });
   await vi.runAllTimersAsync();
@@ -135,6 +145,17 @@ test('adopts a remotely existing notebook before the first create', async () => 
 
   await ensureAgentNotebookForGroup({
     id: '~zod/existing',
+    description: deterministicDescription('Daily digest: Updates'),
+    channels: [],
+  });
+
+  expect(mocks.hydrateExistingNotesChannel).toHaveBeenCalledWith(remote);
+  expect(mocks.createChannel).not.toHaveBeenCalled();
+});
+
+test('does not provision a notebook for a legacy config', async () => {
+  await ensureAgentNotebookForGroup({
+    id: '~zod/legacy',
     description: JSON.stringify([
       {
         type: 'tlon-group-agent-config',
@@ -149,6 +170,6 @@ test('adopts a remotely existing notebook before the first create', async () => 
     channels: [],
   });
 
-  expect(mocks.hydrateExistingNotesChannel).toHaveBeenCalledWith(remote);
+  expect(mocks.getRemoteGroup).not.toHaveBeenCalled();
   expect(mocks.createChannel).not.toHaveBeenCalled();
 });

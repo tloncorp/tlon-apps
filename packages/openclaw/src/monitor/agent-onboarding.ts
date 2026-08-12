@@ -709,7 +709,11 @@ export async function findChatNestForGroup(
   const groups = await scryGroups(api, runtime, `chat channel for ${flag}`);
   const group = groups?.[flag];
   const nests = group ? nestsOf(group) : [];
-  const nest = nests.find((key) => key.startsWith('chat/'));
+  const homeChatNest = homeGroupChatNestFor(hostOf(flag));
+  const nest =
+    flag === homeGroupFlagFor(hostOf(flag)) && nests.includes(homeChatNest)
+      ? homeChatNest
+      : nests.find((key) => key.startsWith('chat/'));
   if (!group || !nest) {
     return null;
   }

@@ -126,6 +126,9 @@ export async function ensureAgentNotebookForGroup(group: {
     return;
   }
   const config = parseGroupAgentConfig(group.description);
+  if (!config?.onboarding) {
+    return;
+  }
   const job = config?.jobs?.[0] as { title?: unknown } | undefined;
   if (!job) {
     return;

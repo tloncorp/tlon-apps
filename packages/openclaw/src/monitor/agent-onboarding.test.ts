@@ -397,6 +397,21 @@ describe('group/channel resolution', () => {
       description: 'a group about bread',
       channelCount: 1,
     });
+    expect(
+      await findChatNestForGroup(
+        apiWith({
+          '~ten/home-group': {
+            meta: {},
+            'active-channels': [
+              'chat/~ten/other-chat',
+              'chat/~ten/home-group-chat',
+            ],
+          },
+        }),
+        '~ten/home-group',
+        {}
+      )
+    ).toMatchObject({ nest: 'chat/~ten/home-group-chat' });
     // Null for a group not in the scry yet (callers poll) or with no chat.
     expect(await findChatNestForGroup(apiWith(groups), '~ten/nope', {})).toBe(
       null

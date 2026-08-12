@@ -1049,8 +1049,14 @@ export async function monitorTlonProvider(
         cronJobId: setup?.record.cronJobId ?? null,
         notebookNest: setup?.record.notebookNest ?? null,
       };
+      const assertMonitorActive = () => {
+        if (opts.abortSignal?.aborted) {
+          throw new Error('Onboarding description write aborted with monitor');
+        }
+      };
       let lastError: unknown;
       for (let attempt = 0; attempt < 3; attempt++) {
+        assertMonitorActive();
         const retryAttempt = attempt + 1;
         const commandStartedAt = Date.now();
         traceOnboardingStep(traceBase, 'write_description', 'started', {
@@ -1079,6 +1085,7 @@ export async function monitorTlonProvider(
         }
         let verifyAttempt = 0;
         for (const delay of [250, 750, 1_500]) {
+          assertMonitorActive();
           verifyAttempt += 1;
           traceOnboardingStep(traceBase, 'verify_description', 'waiting', {
             retryAttempt,
@@ -1086,6 +1093,7 @@ export async function monitorTlonProvider(
             reason: `verification_attempt_${verifyAttempt}`,
           });
           await new Promise((resolve) => setTimeout(resolve, delay));
+          assertMonitorActive();
           const verifyStartedAt = Date.now();
           let stored: Awaited<ReturnType<typeof findGroupForChannel>>;
           try {

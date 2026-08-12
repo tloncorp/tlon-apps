@@ -236,7 +236,19 @@ export function ChatListScreenView({
   useEffect(() => {
     let active = true;
     const land = async () => {
-      const landing = await db.agentOnboardingLanding.getValue();
+      let landing: Awaited<
+        ReturnType<typeof db.agentOnboardingLanding.getValue>
+      > = null;
+      while (active) {
+        try {
+          landing = await db.agentOnboardingLanding.getValue();
+          break;
+        } catch (error) {
+          logger.trackError('Failed to read onboarding landing', { error });
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      }
+      if (!active) return;
       if (!landing) return;
 
       const fastUntil = Date.now() + 30_000;
