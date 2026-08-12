@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useMemo } from 'react';
+import { Platform } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -141,6 +142,9 @@ export const PostList: PostListComponent = React.forwardRef(
         ListEmptyComponent={renderEmptyComponent}
         keyExtractor={getPostId}
         keyboardDismissMode="on-drag"
+        // Conversation composers float above these fallback notebook/gallery
+        // lists, so iOS must add the keyboard to the scrollable inset too.
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         contentContainerStyle={contentContainerStyle}
         columnWrapperStyle={
           // FlatList raises an error if `columnWrapperStyle` is provided
