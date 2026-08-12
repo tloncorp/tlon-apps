@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { InlineData } from '../postContent';
 import { extractTablesFromContent } from './extractTables';
 
 describe('extractTablesFromContent', () => {
@@ -407,6 +408,224 @@ describe('extractTablesFromContent', () => {
         ],
       },
     ]);
+  });
+
+  describe('mention boundary during cell reassembly', () => {
+    function singleCellTable(cell: InlineData[]) {
+      return extractTablesFromContent([
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: '| A |' },
+            { type: 'lineBreak' },
+            { type: 'text', text: '|---|' },
+            { type: 'lineBreak' },
+            { type: 'text', text: '| ' },
+            ...cell,
+            { type: 'text', text: ' |' },
+          ],
+        },
+      ]);
+    }
+
+    function firstCell(result: ReturnType<typeof extractTablesFromContent>) {
+      const table = result[0];
+      if (table.type !== 'table') throw new Error('unreachable');
+      return table.rows[0].cells[0].content;
+    }
+
+    it('keeps a mention and following text separate', () => {
+      const result = singleCellTable([
+        { type: 'mention', contactId: '~zod' },
+        { type: 'text', text: 'abc' },
+      ]);
+      expect(firstCell(result)).toEqual([
+        { type: 'mention', contactId: '~zod' },
+        { type: 'text', text: 'abc' },
+      ]);
+    });
+
+    it.each([
+      ['2fast', 'digit-leading'],
+      ['ABC', 'uppercase'],
+      ['-monster', 'hyphen-leading'],
+    ])('keeps a mention separate from %s (%s)', (text) => {
+      const result = singleCellTable([
+        { type: 'mention', contactId: '~zod' },
+        { type: 'text', text },
+      ]);
+      expect(firstCell(result)).toEqual([
+        { type: 'mention', contactId: '~zod' },
+        { type: 'text', text },
+      ]);
+    });
+
+    it('keeps the mention when followed by a dotted email local part', () => {
+      const result = singleCellTable([
+        { type: 'mention', contactId: '~zod' },
+        { type: 'text', text: '.foo@example.com' },
+      ]);
+      const content = firstCell(result);
+      expect(content[0]).toEqual({ type: 'mention', contactId: '~zod' });
+      // The follower may come back as a mailto link (GFM autolinks a
+      // dotted-domain email even with a dot-leading local part); assert only
+      // that the mention survives.
+      expect(JSON.stringify(content)).not.toContain('~zod.foo');
+    });
+
+    it('keeps the mention before an undotted email control literal', () => {
+      const result = singleCellTable([
+        { type: 'mention', contactId: '~zod' },
+        { type: 'text', text: '.foo@example' },
+      ]);
+      expect(firstCell(result)).toEqual([
+        { type: 'mention', contactId: '~zod' },
+        { type: 'text', text: '.foo@example' },
+      ]);
+    });
+
+    it('preserves both a mention and an adjacent group mention', () => {
+      const result = singleCellTable([
+        { type: 'mention', contactId: '~zod' },
+        { type: 'groupMention', group: 'admin' },
+      ]);
+      expect(firstCell(result)).toEqual([
+        { type: 'mention', contactId: '~zod' },
+        { type: 'groupMention', group: 'admin' },
+      ]);
+    });
+
+    it('needs no separator before a space-leading follower', () => {
+      const result = singleCellTable([
+        { type: 'mention', contactId: '~zod' },
+        { type: 'text', text: ' x' },
+      ]);
+      expect(firstCell(result)).toEqual([
+        { type: 'mention', contactId: '~zod' },
+        { type: 'text', text: ' x' },
+      ]);
+    });
+
+    it('separates a mention inside a bold cell', () => {
+      const result = singleCellTable([
+        {
+          type: 'style',
+          style: 'bold',
+          children: [
+            { type: 'mention', contactId: '~zod' },
+            { type: 'text', text: 'abc' },
+          ],
+        },
+      ]);
+      expect(firstCell(result)).toEqual([
+        {
+          type: 'style',
+          style: 'bold',
+          children: [
+            { type: 'mention', contactId: '~zod' },
+            { type: 'text', text: 'abc' },
+          ],
+        },
+      ]);
+    });
+
+    it('separates recursively through a doubly nested style', () => {
+      const result = singleCellTable([
+        {
+          type: 'style',
+          style: 'bold',
+          children: [
+            {
+              type: 'style',
+              style: 'italic',
+              children: [
+                { type: 'mention', contactId: '~zod' },
+                { type: 'text', text: 'abc' },
+              ],
+            },
+          ],
+        },
+      ]);
+      const content = firstCell(result);
+      expect(JSON.stringify(content)).toContain('"contactId":"~zod"');
+      expect(JSON.stringify(content)).toContain('"text":"abc"');
+      expect(JSON.stringify(content)).not.toContain('~zodabc');
+    });
+
+    it('keeps a nested mention intact before a nested mark', () => {
+      const result = singleCellTable([
+        {
+          type: 'style',
+          style: 'bold',
+          children: [
+            { type: 'mention', contactId: '~zod' },
+            {
+              type: 'style',
+              style: 'italic',
+              children: [{ type: 'text', text: '!lead' }],
+            },
+          ],
+        },
+      ]);
+      const content = firstCell(result);
+      expect(JSON.stringify(content)).not.toMatch(/&#/);
+      expect(JSON.stringify(content)).toContain('"contactId":"~zod"');
+      expect(JSON.stringify(content)).not.toContain('~zo"');
+    });
+
+    it('skips empty text when finding the next top-level sibling', () => {
+      const result = singleCellTable([
+        { type: 'mention', contactId: '~zod' },
+        { type: 'text', text: '' },
+        { type: 'text', text: 'abc' },
+      ]);
+      expect(firstCell(result)).toEqual([
+        { type: 'mention', contactId: '~zod' },
+        { type: 'text', text: 'abc' },
+      ]);
+    });
+
+    it('skips empty text inside a bold child list', () => {
+      const result = singleCellTable([
+        {
+          type: 'style',
+          style: 'bold',
+          children: [
+            { type: 'mention', contactId: '~zod' },
+            { type: 'text', text: '' },
+            { type: 'text', text: 'abc' },
+          ],
+        },
+      ]);
+      expect(firstCell(result)).toEqual([
+        {
+          type: 'style',
+          style: 'bold',
+          children: [
+            { type: 'mention', contactId: '~zod' },
+            { type: 'text', text: 'abc' },
+          ],
+        },
+      ]);
+    });
+
+    it('flattens a task cell to literal text with no mention', () => {
+      const result = singleCellTable([
+        {
+          type: 'task',
+          checked: true,
+          children: [
+            { type: 'mention', contactId: '~zod' },
+            { type: 'text', text: 'abc' },
+          ],
+        },
+      ]);
+      const content = firstCell(result);
+      // The task degrades to a plain text marker by design; the base
+      // manufactured a wrong ~zodabc mention here, which must not return.
+      expect(JSON.stringify(content)).not.toContain('"mention"');
+      expect(JSON.stringify(content)).toContain('[x] ~zodabc');
+    });
   });
 
   it('degrades a nested blockquote in a cell to "> "-prefixed text', () => {

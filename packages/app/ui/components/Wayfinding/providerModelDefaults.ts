@@ -1,4 +1,4 @@
-import type { TlawnProviderModel } from '@tloncorp/api';
+import type { TlawnProviderModel, TlawnSubscriptionModel } from '@tloncorp/api';
 
 export const OPENAI_ONBOARDING_DEFAULT_MODEL = 'gpt-5.6-luna';
 
@@ -17,4 +17,21 @@ export function resolveInitialProviderModel(
     return OPENAI_ONBOARDING_DEFAULT_MODEL;
   }
   return '';
+}
+
+export function initializeOpenAISubscriptionModels(
+  models: TlawnSubscriptionModel[],
+  currentModel: string
+): { providerModels: TlawnProviderModel[]; primaryModel: string } {
+  const providerModels: TlawnProviderModel[] = models.map((model) => ({
+    ...model,
+  }));
+  return {
+    providerModels,
+    primaryModel: resolveInitialProviderModel(
+      'openai',
+      providerModels,
+      currentModel
+    ),
+  };
 }

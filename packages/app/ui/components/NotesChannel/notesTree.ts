@@ -387,6 +387,26 @@ export function getFolderLabel(folder: db.NotesFolder | null | undefined) {
   return folder.name === '/' ? 'Root' : folder.name;
 }
 
+export function getNotesSidebarParentFolderId({
+  folderId,
+  folders,
+  rootFolderId,
+}: {
+  folderId: number | null;
+  folders: db.NotesFolder[];
+  rootFolderId: number | null;
+}) {
+  if (folderId == null || folderId === rootFolderId) return null;
+
+  const parentFolderId = folders.find(
+    (folder) => folder.folderId === folderId
+  )?.parentFolderId;
+
+  return parentFolderId == null || parentFolderId === rootFolderId
+    ? null
+    : parentFolderId;
+}
+
 /**
  * Label a search hit with the path of folders holding it ("Specs / Wire
  * formats"), for the results list. Two notes named the same in sibling folders
