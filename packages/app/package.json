@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
+    "@legendapp/list": "3.3.3",
     "@mattermost/react-native-paste-input": "2.0.1",
     "@tloncorp/api": "workspace:*",
     "@tloncorp/editor": "workspace:*",

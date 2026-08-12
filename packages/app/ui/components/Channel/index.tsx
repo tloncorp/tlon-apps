@@ -267,8 +267,8 @@ interface ChannelProps {
   goToContextLensRuns?: () => void;
   goToContextLensRun?: (params: { botShip: string; lensId: string }) => void;
   goToUserProfile: (userId: string) => void;
-  onScrollEndReached?: () => void;
-  onScrollStartReached?: () => void;
+  onLoadNewerPosts?: () => void;
+  onLoadOlderPosts?: () => void;
   isLoadingPosts?: boolean;
   loadPostsError?: Error | null;
   onPressRef: (channel: db.Channel, post: db.Post) => void;
@@ -309,8 +309,8 @@ export function Channel({
   goToDm,
   goToUserProfile,
   goToGroupSettings,
-  onScrollEndReached,
-  onScrollStartReached,
+  onLoadNewerPosts,
+  onLoadOlderPosts,
   isLoadingPosts,
   loadPostsError,
   markRead,
@@ -481,15 +481,17 @@ export function Channel({
 
   const handleRefPress = useCallback(
     (refChannel: db.Channel, post: db.Post) => {
-      const anchorIndex = posts?.findIndex((p) => p.id === post.id) ?? -1;
+      const postIsLoaded = posts?.some(
+        (loadedPost) => loadedPost.id === post.id
+      );
 
       if (
         refChannel.id === channel.id &&
-        anchorIndex !== -1 &&
+        postIsLoaded &&
         collectionRef.current
       ) {
         // If the post is already loaded, scroll to it and highlight
-        collectionRef.current?.scrollToPostAtIndex?.(anchorIndex, 0.5);
+        collectionRef.current?.scrollToPost?.(post.id, 0.5);
         collectionRef.current?.highlightPost?.(post.id);
         return;
       }
@@ -556,7 +558,7 @@ export function Channel({
   // Helper to scroll to new message - shared by sendPost and sendPostFromDraft
   const scrollToNewMessage = useCallback(() => {
     requestAnimationFrame(() => {
-      collectionRef.current?.scrollToStart?.({ animated: true });
+      collectionRef.current?.scrollToLatest?.({ animated: true });
     });
   }, []);
 
@@ -811,8 +813,8 @@ export function Channel({
                                     onPressDelete,
                                     onPressRetrySend,
                                     onPressRetryLoad,
-                                    onScrollEndReached,
-                                    onScrollStartReached,
+                                    onLoadNewerPosts,
+                                    onLoadOlderPosts,
                                     posts: posts ?? undefined,
                                     scrollToBottom: onPressScrollToBottom,
                                     selectedPostId,
