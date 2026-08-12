@@ -636,7 +636,10 @@
   ?:  =(who ship.flag)  [& ~]
   =/  pax=path
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.group)/[name.group]/channels/buckets/(scot %p ship.flag)/[name.flag]/can-write/(scot %p who)/noun
-  .^([admin=? roles=(set @tas)] %gx pax)
+  =/  permissions=(unit [admin=? roles=(set @tas)])
+    .^((unit [admin=? roles=(set @tas)]) %gx pax)
+  ?~  permissions  [| ~]
+  u.permissions
 ::
 ++  group-is-admin
   |=  [group=flag:b =flag:b who=ship]

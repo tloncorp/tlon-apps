@@ -67,7 +67,15 @@
   ?:  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)
     `!>(|=([who=ship =nest:bu] &))
   ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %buckets @ @ %can-write @ %noun ~] pax)  ~
-  `!>([admin=| roles=(silt ~[%editor])])
+  `!>(`(unit [admin=? roles=(set @tas)])`[~ [admin=| roles=(silt ~[%editor])]])
+::
+++  missing-group-permission-scries
+  |=  pax=path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)
+    `!>(|=([who=ship =nest:bu] &))
+  ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %buckets @ @ %can-write @ %noun ~] pax)  ~
+  `!>(`(unit [admin=? roles=(set @tas)])`~)
 ::
 ++  allow-admin-create-scries
   |=  pax=path
@@ -436,6 +444,22 @@
   ;<  ~  b  setup
   ;<  ~  b  create
   ;<  ~  b  (set-scry-gate deny-group-scries)
+  %-  ex-fail
+  %-  (do-as ~bus)
+  %+  do-poke  %buckets-command-1
+  !>([[%create-folder flag ~ 'Denied']])
+::
+::  %groups represents a missing/banned seat as a null permission record.
+::  Buckets must deny that write instead of crashing while decoding the scry.
+::
+++  test-remote-write-without-seat
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate missing-group-permission-scries)
   %-  ex-fail
   %-  (do-as ~bus)
   %+  do-poke  %buckets-command-1
