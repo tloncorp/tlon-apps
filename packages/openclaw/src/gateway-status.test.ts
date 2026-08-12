@@ -1,5 +1,5 @@
 import {
-  configureGatewayStatus,
+  configureStewardGateway,
   gatewayHeartbeat,
   gatewayStart,
   gatewayStop,
@@ -26,7 +26,7 @@ import { sharedSlot } from './shared-state.js';
 import { configureTlonApiWithPoke } from './urbit/api-client.js';
 
 vi.mock('@tloncorp/api', () => ({
-  configureGatewayStatus: vi.fn().mockResolvedValue(undefined),
+  configureStewardGateway: vi.fn().mockResolvedValue(undefined),
   gatewayStart: vi.fn().mockResolvedValue(undefined),
   gatewayHeartbeat: vi.fn().mockResolvedValue(undefined),
   gatewayStop: vi.fn().mockResolvedValue(undefined),
@@ -99,7 +99,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   // These resolve with the poke response id (a number); the value itself is
   // never asserted on, only that the call happened.
-  vi.mocked(configureGatewayStatus).mockClear().mockResolvedValue(1);
+  vi.mocked(configureStewardGateway).mockClear().mockResolvedValue(1);
   vi.mocked(gatewayStart).mockClear().mockResolvedValue(1);
   vi.mocked(gatewayHeartbeat).mockClear().mockResolvedValue(1);
   vi.mocked(gatewayStop).mockClear().mockResolvedValue(1);
@@ -403,7 +403,7 @@ describe('gateway-status: runGatewayStatusActivation', () => {
       registerHeartbeatStop,
     });
 
-    expect(configureGatewayStatus).toHaveBeenCalledTimes(1);
+    expect(configureStewardGateway).toHaveBeenCalledTimes(1);
     expect(gatewayStart).toHaveBeenCalledTimes(1);
     expect(vi.mocked(gatewayStart).mock.calls[0][0]).toMatchObject({
       bootId: lc.bootId,
@@ -411,7 +411,7 @@ describe('gateway-status: runGatewayStatusActivation', () => {
     expect(registerHeartbeatStop).toHaveBeenCalledTimes(1);
 
     // configure must precede gateway-start
-    const configureOrder = vi.mocked(configureGatewayStatus).mock
+    const configureOrder = vi.mocked(configureStewardGateway).mock
       .invocationCallOrder[0];
     const startOrder = vi.mocked(gatewayStart).mock.invocationCallOrder[0];
     expect(configureOrder).toBeLessThan(startOrder);
@@ -467,10 +467,10 @@ describe('gateway-status: runGatewayStatusActivation', () => {
   it('stop during %configure: no %gateway-start, no heartbeat, no stop handle', async () => {
     const configureCalled = deferred<void>();
     const configureResult = deferred<void>();
-    vi.mocked(configureGatewayStatus).mockImplementationOnce(() => {
+    vi.mocked(configureStewardGateway).mockImplementationOnce(() => {
       configureCalled.resolve();
       return configureResult.promise as unknown as ReturnType<
-        typeof configureGatewayStatus
+        typeof configureStewardGateway
       >;
     });
     const registerHeartbeatStop = vi.fn();
@@ -534,7 +534,7 @@ describe('gateway-status: runGatewayStatusActivation', () => {
       isTornDown: () => true,
       registerHeartbeatStop: vi.fn(),
     });
-    expect(configureGatewayStatus).not.toHaveBeenCalled();
+    expect(configureStewardGateway).not.toHaveBeenCalled();
   });
 
   it('returns silently (no telemetry) when aborted while waiting for the lifecycle to start', async () => {
@@ -550,7 +550,7 @@ describe('gateway-status: runGatewayStatusActivation', () => {
     });
     controller.abort();
     await activation;
-    expect(configureGatewayStatus).not.toHaveBeenCalled();
+    expect(configureStewardGateway).not.toHaveBeenCalled();
     expect(onActivationError).not.toHaveBeenCalled();
   });
 
@@ -575,7 +575,7 @@ describe('gateway-status: runGatewayStatusActivation', () => {
     // Watchdog timer was cleared on abort — advancing well past it fires nothing.
     await vi.advanceTimersByTimeAsync(GATEWAY_STATUS_START_WATCHDOG_MS * 2);
     expect(onWatchdogTimeout).not.toHaveBeenCalled();
-    expect(configureGatewayStatus).not.toHaveBeenCalled();
+    expect(configureStewardGateway).not.toHaveBeenCalled();
   });
 
   it('watchdog: fires once (log/telemetry-only), never activates, and clears on abort', async () => {
@@ -592,7 +592,7 @@ describe('gateway-status: runGatewayStatusActivation', () => {
 
     await vi.advanceTimersByTimeAsync(GATEWAY_STATUS_START_WATCHDOG_MS);
     expect(onWatchdogTimeout).toHaveBeenCalledTimes(1);
-    expect(configureGatewayStatus).not.toHaveBeenCalled();
+    expect(configureStewardGateway).not.toHaveBeenCalled();
 
     // One-shot: it does not fire again on further elapsed time.
     await vi.advanceTimersByTimeAsync(GATEWAY_STATUS_START_WATCHDOG_MS * 2);
@@ -600,7 +600,7 @@ describe('gateway-status: runGatewayStatusActivation', () => {
 
     controller.abort();
     await activation;
-    expect(configureGatewayStatus).not.toHaveBeenCalled();
+    expect(configureStewardGateway).not.toHaveBeenCalled();
   });
 
   it('watchdog timer is cleared once the lifecycle starts (no timeout fires after)', async () => {

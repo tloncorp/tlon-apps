@@ -16,13 +16,15 @@ import * as sync from '../sync';
 import { SyncPriority } from '../syncQueue';
 import { useDetectSequenceRegression } from '../useDetectSequenceRegression';
 import { mergePendingPosts } from '../useMergePendingPosts';
-import { queryKeyPrefix } from './queries';
+import { getLatestChannelPostsInitialPage, queryKeyPrefix } from './queries';
 import { useDeletedPosts, useNewPostListener } from './subscriptions';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
 
 type PostQueryPage = {
   posts: db.Post[];
+  /** Completion time for this page, independent of later pagination. */
+  fetchedAt: number;
   /**
    * False when a sync page reports that there are no more newer posts.
    * Obviously, new posts can be made after this is set: in practice, we
@@ -49,15 +51,19 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   const { enabled } = options;
 
-  const queryKey = useMemo(
+  const queryKeyWithoutMountTime = useMemo(
     () => [
       ...queryKeyPrefix,
       options.channelId,
       options.cursorPostId,
       options.filterDeleted,
-      mountTime,
     ],
-    [options.channelId, options.cursorPostId, options.filterDeleted, mountTime]
+    [options.channelId, options.cursorPostId, options.filterDeleted]
+  );
+
+  const queryKey = useMemo(
+    () => [...queryKeyWithoutMountTime, mountTime],
+    [queryKeyWithoutMountTime, mountTime]
   );
 
   const initialPageParam = useMemo(() => {
@@ -68,7 +74,22 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       mode: options.mode ?? 'newest',
       filterDeleted: options.filterDeleted ?? false,
     } as UseChannelPostsPageParams;
-  }, [options]);
+  }, [
+    options.channelId,
+    options.cursorPostId,
+    options.filterDeleted,
+    options.firstPageCount,
+    options.mode,
+  ]);
+
+  const placeholderData = useMemo(
+    () =>
+      getLatestChannelPostsInitialPage<PostQueryPage, PageParam>(
+        queryKeyWithoutMountTime,
+        initialPageParam
+      ),
+    [initialPageParam, queryKeyWithoutMountTime]
+  );
 
   const abortControllerRef = useRef<AbortController | null>(
     new AbortController()
@@ -86,6 +107,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   const query = useInfiniteQuery({
     enabled,
     initialPageParam,
+    placeholderData,
     refetchOnMount: false,
     retry(failureCount, error) {
       postsLogger.trackError('failed to load posts', error);
@@ -97,7 +119,8 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
     retryDelay: () => 500,
     queryFn: async (ctx): Promise<PostQueryPage> => {
       const queryOptions = await normalizeCursor(
-        ctx.pageParam || initialPageParam
+        (ctx.pageParam as UseChannelPostsPageParams | undefined) ??
+          initialPageParam
       );
 
       const posts = await getLocalFirstPosts(queryOptions);
@@ -108,6 +131,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
       return {
         posts,
+        fetchedAt: Date.now(),
         canFetchNewerPosts,
       };
     },
@@ -391,9 +415,14 @@ function useTrackReady(
   const hasEnoughPosts = postsLength > 30;
   const isLoading = query.isLoading || query.isPending;
   const canLoadMore = query.hasNextPage || query.hasPreviousPage;
+  const hasResolvedCurrentQuery = !query.isPlaceholderData;
 
   useEffect(() => {
-    if (!alreadyTracked && (hasEnoughPosts || (!isLoading && !canLoadMore))) {
+    if (
+      !alreadyTracked &&
+      hasResolvedCurrentQuery &&
+      (hasEnoughPosts || (!isLoading && !canLoadMore))
+    ) {
       loadTracked.current = true;
       postsLogger.trackEvent(AnalyticsEvent.ChannelLoadComplete, {
         channelType: getChannelIdType(channelId),
@@ -405,6 +434,7 @@ function useTrackReady(
     canLoadMore,
     channelId,
     hasEnoughPosts,
+    hasResolvedCurrentQuery,
     isLoading,
     postsLength,
   ]);

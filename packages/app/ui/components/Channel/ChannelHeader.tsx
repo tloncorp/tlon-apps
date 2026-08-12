@@ -1,7 +1,11 @@
-import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
+import {
+  isChatChannel,
+  useConnectionStatus,
+  useDebouncedValue,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useContact, useNotesDeskAvailable } from '@tloncorp/shared/store';
-import { Pressable as TlonPressable, useIsWindowNarrow } from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   Fragment,
   ReactElement,
@@ -20,19 +24,22 @@ import { getChannelHost, useChatDescription, useChatTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
 import ConnectionStatus from '../ConnectionStatus';
 import { GroupAvatar } from '../GroupAvatar';
-import { ScreenHeader } from '../ScreenHeader';
+import { ScreenHeader, type ScreenHeaderAction } from '../ScreenHeader';
+import { useScreenScrollProps } from '../useScreenScrollProps';
 import {
   getChannelConnectionStatusText,
   getChannelHeaderLoadingSubtitle,
   isHostedChannelType,
 } from './ChannelHeader.helpers';
 
-export interface ChannelHeaderItemsContextValue {
-  registerHeaderHider: () => { remove: () => void };
-  registerItem: (options: { item: ReactElement }) => { remove: () => void };
+type ChannelHeaderItem = ReactElement | ScreenHeaderAction[];
+
+interface ChannelHeaderItemsContextValue {
+  registerItem: (item: ChannelHeaderItem) => () => void;
+  registerHeaderHider: () => () => void;
   headerHidden: boolean;
   setLoadingSubtitle: (subtitle: string | null) => void;
-  items: readonly ReactElement[];
+  items: readonly ChannelHeaderItem[];
   loadingSubtitle: string | null;
 }
 
@@ -54,29 +61,22 @@ export function ChannelHeaderItemsProvider({
 }: {
   children: ReactElement;
 }) {
-  const [items, setItems] = useState<ReactElement[]>([]);
+  const [items, setItems] = useState<ChannelHeaderItem[]>([]);
   const [headerHiderCount, setHeaderHiderCount] = useState(0);
   const [loadingSubtitle, setLoadingSubtitle] = useState<string | null>(null);
-  const registerItem = useCallback(
-    ({ item }: { item: ReactElement }) => {
-      setItems((prev) => [...prev, item]);
-      return {
-        remove: () => {
-          setItems((prev) => prev.filter((i) => i !== item));
-        },
-      };
-    },
-    [setItems]
-  );
+  const registerItem = useCallback((item: ChannelHeaderItem) => {
+    setItems((prev) => [...prev, item]);
+    return () => {
+      setItems((prev) => prev.filter((registered) => registered !== item));
+    };
+  }, []);
   const registerHeaderHider = useCallback(() => {
     let removed = false;
     setHeaderHiderCount((count) => count + 1);
-    return {
-      remove: () => {
-        if (removed) return;
-        removed = true;
-        setHeaderHiderCount((count) => Math.max(0, count - 1));
-      },
+    return () => {
+      if (removed) return;
+      removed = true;
+      setHeaderHiderCount((count) => Math.max(0, count - 1));
     };
   }, []);
   return (
@@ -102,26 +102,24 @@ export function useHideChannelHeader(hidden: boolean) {
 
   useLayoutEffect(() => {
     if (!hidden || !registerHeaderHider) return;
-    const { remove } = registerHeaderHider();
-    return remove;
+    return registerHeaderHider();
   }, [hidden, registerHeaderHider]);
 }
 
-export function useRegisterChannelHeaderItem(item: ReactElement | null) {
+export function useRegisterChannelHeaderItem(
+  item: ReactElement | ScreenHeaderAction[] | null
+) {
   const registerItem = useContext(ChannelHeaderItemsContext)?.registerItem;
 
-  // NB: Since we're mutating the ChannelHeaderItemsContext in this effect, we
-  // need to be careful about the dependencies to avoid recursively updating on
-  // every change to the context. We avoid this by (1) defining `registerItem`
-  // using a `useCallback`, and (2) only listing `registerItem` as a dependency
-  // of the effect (and importantly not `items` nor the full context value).
+  // Depend on the stable registration callbacks rather than the full context;
+  // the context value changes whenever an item registers.
   useEffect(() => {
-    if (registerItem == null || item == null) {
+    if (item == null) {
       return;
     }
-    const { remove } = registerItem({ item });
-    return remove;
-  }, [registerItem, item]);
+
+    return registerItem?.(item);
+  }, [item, registerItem]);
 }
 
 export function useRegisterChannelHeaderLoadingSubtitle(
@@ -212,7 +210,13 @@ export function ChannelHeader({
   );
 
   const context = useContext(ChannelHeaderItemsContext);
-  const contextItems = context?.items ?? [];
+  const registeredItems = context?.items ?? [];
+  const contextItems = registeredItems.filter(
+    (item): item is ReactElement => !Array.isArray(item)
+  );
+  const contextActions = registeredItems.flatMap((item) =>
+    Array.isArray(item) ? item : []
+  );
   const registeredLoadingSubtitle = context?.loadingSubtitle ?? null;
   const isWindowNarrow = useIsWindowNarrow();
 
@@ -406,77 +410,91 @@ export function ChannelHeader({
     return undefined;
   }, [channel.type, goToProfile, goToChatDetails]);
 
+  const headerProps = {
+    title: headerTitle,
+    titleIcon: hideIdentity ? null : (
+      <>
+        {avatarElement || titleIcon}
+        {channelHost && !isWindowNarrow && (
+          <ConnectionStatus contactId={channelHost} type="indicator" />
+        )}
+      </>
+    ),
+    subtitle: hideIdentity ? undefined : displaySubtitle,
+    testID: 'ChannelHeaderTitle',
+    showSubtitle: !hideIdentity,
+    borderBottom: true,
+    loadingSubtitle:
+      hideIdentity && !registeredLoadingSubtitle ? null : headerLoadingSubtitle,
+    onTitlePress: hideIdentity ? undefined : handleTitlePress,
+    useHorizontalTitleLayout: !isWindowNarrow,
+  };
+  const rightActions: ScreenHeaderAction[] = [
+    {
+      id: 'channel-search',
+      icon: 'Search',
+      label: 'Search',
+      onPress: goToSearch,
+      visible: showSearchButton,
+    },
+    ...contextActions,
+    {
+      id: 'channel-edit',
+      text: 'Edit',
+      onPress: goToEdit,
+      testID: 'ChannelHeaderEditButton',
+      visible: showEditButton,
+    },
+    {
+      id: 'channel-context-lens',
+      icon: 'RightSidebar',
+      label: 'Toggle context lens',
+      onPress: onToggleContextLens,
+      testID: 'ContextLensHeaderButton',
+      tint: contextLensActive ? '$positiveActionText' : undefined,
+      backgroundTint: contextLensOpen ? '$secondaryBackground' : undefined,
+      visible: !!onToggleContextLens,
+    },
+  ];
+  const usesNavigationHeader = isChatChannel(channel);
+  // The conversation list owns its scroll props, but this call installs the
+  // matching native scroll-edge options on the navigator.
+  useScreenScrollProps({
+    enabled: usesNavigationHeader,
+    bottomEdgeEffect: 'soft',
+  });
+
   if (context?.headerHidden) {
     return null;
   }
 
+  if (usesNavigationHeader) {
+    // Native navigation headers accept declarative actions only. Element-style
+    // registrations are reserved for inline notebook and gallery headers.
+    return (
+      <ScreenHeader
+        {...headerProps}
+        placement="navigation"
+        backAction={goBack}
+        rightActions={rightActions}
+      />
+    );
+  }
+
   return (
     <ScreenHeader
-      title={headerTitle}
-      titleIcon={
-        hideIdentity ? null : (
-          <>
-            {avatarElement || titleIcon}
-            {channelHost && !isWindowNarrow && (
-              <ConnectionStatus contactId={channelHost} type="indicator" />
-            )}
-          </>
-        )
-      }
-      subtitle={hideIdentity ? undefined : displaySubtitle}
-      testID="ChannelHeaderTitle"
-      showSubtitle={!hideIdentity}
-      borderBottom
-      loadingSubtitle={
-        hideIdentity && !registeredLoadingSubtitle
-          ? null
-          : headerLoadingSubtitle
-      }
-      onTitlePress={hideIdentity ? undefined : handleTitlePress}
-      useHorizontalTitleLayout={!isWindowNarrow}
-      leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
+      {...headerProps}
+      backAction={goBack}
+      rightActions={rightActions}
       rightControls={
-        <>
-          {showSearchButton && (
-            <TlonPressable
-              accessibilityLabel="Search"
-              accessibilityRole="button"
-              alignItems="center"
-              height="$4xl"
-              justifyContent="center"
-              onPress={goToSearch}
-              pressStyle={{ opacity: 0.5 }}
-              testID="ChannelHeaderSearchButton"
-              width="$4xl"
-            >
-              <ScreenHeader.IconButton pointerEvents="none" type="Search" />
-            </TlonPressable>
-          )}
-          {/* this fragment/map is necessary to be able to provide a key to the items */}
-          {contextItems.map((item, index) => (
-            <Fragment key={index}>{item}</Fragment>
-          ))}
-          {showEditButton && (
-            <ScreenHeader.TextButton
-              onPress={goToEdit}
-              testID="ChannelHeaderEditButton"
-              color="$primaryText"
-            >
-              Edit
-            </ScreenHeader.TextButton>
-          )}
-          {onToggleContextLens && (
-            <ScreenHeader.IconButton
-              type="RightSidebar"
-              onPress={onToggleContextLens}
-              testID="ContextLensHeaderButton"
-              color={contextLensActive ? '$positiveActionText' : '$primaryText'}
-              backgroundColor={
-                contextLensOpen ? '$secondaryBackground' : 'transparent'
-              }
-            />
-          )}
-        </>
+        contextItems.length ? (
+          <>
+            {/* this fragment/map is necessary to be able to provide a key to the items */}
+            {contextItems.map((item, index) => (
+              <Fragment key={index}>{item}</Fragment>
+            ))}
+          </>
+        ) : null
       }
     />
   );

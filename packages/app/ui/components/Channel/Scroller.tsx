@@ -10,8 +10,6 @@ import * as store from '@tloncorp/shared/store';
 import {
   DESKTOP_SIDEBAR_WIDTH,
   DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
-  FloatingActionButton,
-  Icon,
   LoadingSpinner,
   Modal,
   useIsWindowNarrow,
@@ -27,6 +25,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -34,6 +33,7 @@ import React, {
 import {
   LayoutChangeEvent,
   ListRenderItem,
+  Platform,
   View as RNView,
   StyleProp,
   ViewStyle,
@@ -44,20 +44,23 @@ import { View, getTokens, styled, useStyle, useTheme } from 'tamagui';
 
 import { useLivePost } from '../../../hooks/useLivePost';
 import type { RenderItemType } from '../../contexts/componentsKits';
+import { useSetConversationScrollToBottomControl } from '../../contexts/scroll';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';
+import { supportsLiquidGlass } from '../GlassSurface';
+import { ConversationScrollToBottomButton } from '../conversationScrollChrome';
 import { ChannelDivider } from './ChannelDivider';
 import { ContextLensRunSheet } from './ContextLens/ContextLensRunSheet';
-import { PostList, PostListMethods } from './PostList';
+import {
+  ConversationContentInsets,
+  PostList,
+  PostListMethods,
+  PostWithNeighbors,
+} from './PostList';
+import { getPostListScopeKey } from './PostList/postListInitialization';
 import type { ScrollAnchor } from './scrollerTypes';
-
-interface PostWithNeighbors {
-  post: db.Post;
-  newer: db.Post | null;
-  older: db.Post | null;
-}
 
 const logger = createDevLogger('scroller', false);
 
@@ -66,7 +69,7 @@ export type { ScrollAnchor } from './scrollerTypes';
 /**
  * This scroller makes some assumptions you should not break!
  * - Posts and unread state should be be loaded before the scroller is rendered
- * - Posts should be sorted in descending order
+ * - Posts should be supplied in their visual top-to-bottom order
  * - If we're scrolling to an anchor, that anchor should be in the first page of posts
  */
 const Scroller = forwardRef(
@@ -74,7 +77,7 @@ const Scroller = forwardRef(
     {
       anchor,
       showDividers = true,
-      inverted,
+      anchorToEnd,
       renderItem,
       renderEmptyComponent,
       posts,
@@ -103,10 +106,11 @@ const Scroller = forwardRef(
       onGoToBotRun,
       onOpenContextLens,
       contextLensSelectedPostId,
+      contentInsets = { top: 0, bottom: 0 },
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
-      inverted: boolean;
+      anchorToEnd: boolean;
       renderItem: RenderItemType;
       renderEmptyComponent?: () => ReactElement;
       posts: db.Post[] | null;
@@ -128,8 +132,8 @@ const Scroller = forwardRef(
       activeMessage: db.Post | null;
       setActiveMessage: (post: db.Post | null) => void;
       ref?: RefObject<{
-        scrollToIndex: (params: {
-          index: number;
+        scrollToPost: (params: {
+          postId: string;
           animated?: boolean;
           viewPosition?: number;
         }) => void;
@@ -144,6 +148,7 @@ const Scroller = forwardRef(
       onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
       onOpenContextLens?: (post: db.Post) => void;
       contextLensSelectedPostId?: string | null;
+      contentInsets?: ConversationContentInsets;
     },
     ref
   ) => {
@@ -157,6 +162,7 @@ const Scroller = forwardRef(
     );
     const { width } = useWindowDimensions();
     const isWindowNarrow = useIsWindowNarrow();
+    const setScrollToBottomControl = useSetConversationScrollToBottomControl();
     const availableSpace = useMemo(() => {
       const sidebarsTotalWidth = isWindowNarrow
         ? 0
@@ -199,31 +205,27 @@ const Scroller = forwardRef(
     const listRef = useRef<PostListMethods>(null);
 
     useImperativeHandle(ref, () => ({
-      scrollToIndex: (params: {
-        index: number;
+      scrollToPost: (params: {
+        postId: string;
         animated?: boolean;
         viewPosition?: number;
-      }) => listRef.current?.scrollToIndex(params),
+      }) => listRef.current?.scrollToPost(params),
       scrollToStart: (params: { animated?: boolean }) =>
         listRef.current?.scrollToStart(params),
       scrollToEnd: (params: { animated?: boolean }) =>
         listRef.current?.scrollToEnd(params),
     }));
 
-    const pressedGoToBottom = () => {
+    const pressedGoToBottom = useCallback(() => {
       setHasPressedGoToBottom(true);
       onPressScrollToBottom?.();
 
       if (listRef.current && !isLoading) {
         requestAnimationFrame(() => {
-          if (inverted) {
-            listRef.current?.scrollToStart({ animated: true });
-          } else {
-            listRef.current?.scrollToEnd({ animated: true });
-          }
+          listRef.current?.scrollToEnd({ animated: true });
         });
       }
-    };
+    }, [isLoading, onPressScrollToBottom]);
 
     const activeMessageRefs = useRef<Record<string, RefObject<RNView | null>>>(
       {}
@@ -250,15 +252,10 @@ const Scroller = forwardRef(
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
       () =>
         posts?.map((post, postIndex, posts) => {
-          const newerIndex = postIndex - 1;
-          const olderIndex = postIndex + 1;
-          const newerPost = newerIndex >= 0 ? posts[newerIndex] : null;
-          const olderPost =
-            olderIndex < posts.length ? posts[olderIndex] : null;
           return {
             post,
-            newer: newerPost,
-            older: olderPost,
+            previous: postIndex > 0 ? posts[postIndex - 1] : null,
+            next: postIndex + 1 < posts.length ? posts[postIndex + 1] : null,
           };
         }),
       [posts]
@@ -271,26 +268,24 @@ const Scroller = forwardRef(
     }, [theme.background.val]);
 
     const listRenderItem: ListRenderItem<PostWithNeighbors> = useCallback(
-      ({ item: { post, newer, older, ...rest }, index }) => {
-        const previousItem = inverted ? older : newer;
-        const nextItem = inverted ? newer : older;
+      ({ item: { post, previous, next, ...rest }, index }) => {
         const isFirstPostOfDay = !isSameDay(
           post.receivedAt ?? 0,
-          previousItem?.receivedAt ?? 0
+          previous?.receivedAt ?? 0
         );
         const isLastPostOfBlock =
           post.type !== 'notice' &&
           (post.type === 'chat' || post.type === 'reply') &&
-          nextItem != null &&
-          (nextItem.authorId !== post.authorId ||
-            !isSameDay(post.receivedAt ?? 0, nextItem.receivedAt ?? 0));
+          next != null &&
+          (next.authorId !== post.authorId ||
+            !isSameDay(post.receivedAt ?? 0, next.receivedAt ?? 0));
         const showAuthor =
           post.type === 'note' ||
           post.type === 'block' ||
-          !previousItem ||
-          previousItem?.authorId !== post.authorId ||
-          previousItem?.type === 'notice' ||
-          previousItem?.isDeleted === true ||
+          !previous ||
+          previous?.authorId !== post.authorId ||
+          previous?.type === 'notice' ||
+          previous?.isDeleted === true ||
           isFirstPostOfDay;
         const isFirstUnread = post.id === firstUnreadId;
         const isSelected =
@@ -319,12 +314,12 @@ const Scroller = forwardRef(
             onPressReplies={onPressReplies}
             onPressPost={onPressPost}
             onLongPressPost={handlePostLongPressed}
-            onShowEmojiPicker={() => {
-              setActiveMessage(post);
+            onShowEmojiPicker={(livePost) => {
+              setActiveMessage(livePost);
               setEmojiPickerOpen(true);
             }}
-            onPressEdit={() => {
-              setEditingPost?.(post);
+            onPressEdit={(livePost) => {
+              setEditingPost?.(livePost);
 
               setActiveMessage(null);
             }}
@@ -334,7 +329,7 @@ const Scroller = forwardRef(
             itemAspectRatio={collectionLayout.itemAspectRatio ?? undefined}
             itemWidth={itemWidth}
             columnCount={columns}
-            previousPost={previousItem}
+            previousPost={previous}
             {...rest}
           />
         );
@@ -345,7 +340,6 @@ const Scroller = forwardRef(
         highlightPostId,
         contextLensSelectedPostId,
         firstUnreadId,
-        inverted,
         renderItem,
         unreadCount,
         showReplies,
@@ -370,7 +364,13 @@ const Scroller = forwardRef(
 
     const insets = useSafeAreaInsets();
     const rootVerticalPadding = getTokens().space.l.val;
-
+    const composerBottomInset = contentInsets.bottom;
+    const standaloneBottomSafeArea =
+      composerBottomInset > 0 ? 0 : insets.bottom;
+    const scrollButtonBottom =
+      composerBottomInset > 0
+        ? composerBottomInset + getTokens().space.s.val
+        : getTokens().space.m.val;
     const contentContainerStyle = useStyle(
       useMemo(() => {
         if (!posts?.length) {
@@ -380,17 +380,26 @@ const Scroller = forwardRef(
           ) {
             return {
               flexGrow: 1,
-              paddingTop: rootVerticalPadding,
-              paddingBottom: insets.bottom + rootVerticalPadding,
+              paddingTop: rootVerticalPadding + contentInsets.top,
+              paddingBottom:
+                standaloneBottomSafeArea +
+                rootVerticalPadding +
+                contentInsets.bottom,
             };
           }
-          return { flexGrow: 1 };
+          return {
+            flexGrow: 1,
+            paddingTop: contentInsets.top,
+            paddingBottom: contentInsets.bottom,
+          };
         }
 
         switch (collectionLayoutType) {
           case 'compact-list-bottom-to-top': {
             return {
               paddingHorizontal: '$m',
+              paddingTop: contentInsets.top,
+              paddingBottom: contentInsets.bottom,
             };
           }
 
@@ -398,8 +407,11 @@ const Scroller = forwardRef(
             return {
               paddingHorizontal: '$m',
               gap: '$l',
-              paddingTop: rootVerticalPadding,
-              paddingBottom: insets.bottom + rootVerticalPadding,
+              paddingTop: rootVerticalPadding + contentInsets.top,
+              paddingBottom:
+                standaloneBottomSafeArea +
+                rootVerticalPadding +
+                contentInsets.bottom,
             };
           }
 
@@ -407,15 +419,20 @@ const Scroller = forwardRef(
             return {
               paddingHorizontal: '$m',
               gap: '$l',
-              paddingTop: rootVerticalPadding,
-              paddingBottom: insets.bottom + rootVerticalPadding,
+              paddingTop: rootVerticalPadding + contentInsets.top,
+              paddingBottom:
+                standaloneBottomSafeArea +
+                rootVerticalPadding +
+                contentInsets.bottom,
             };
           }
         }
       }, [
-        insets.bottom,
+        standaloneBottomSafeArea,
         posts?.length,
         collectionLayoutType,
+        contentInsets.bottom,
+        contentInsets.top,
         rootVerticalPadding,
       ])
     ) as StyleProp<ViewStyle>;
@@ -434,7 +451,16 @@ const Scroller = forwardRef(
       onStartReached: false,
     });
 
-    const [readyToDisplayPosts, setReadyToDisplayPosts] = useState(false);
+    const anchorKey = getPostListScopeKey(channel.id, anchor);
+    const [completedAnchorKey, setCompletedAnchorKey] = useState<string | null>(
+      null
+    );
+    const readyToDisplayPosts = completedAnchorKey === anchorKey;
+
+    useLayoutEffect(() => {
+      pendingEvents.current.onEndReached = false;
+      pendingEvents.current.onStartReached = false;
+    }, [anchorKey]);
 
     // We don't want to trigger onEndReached or onStartReached until we've found
     // the anchor as additional page loads during the initial render can wreak
@@ -482,12 +508,12 @@ const Scroller = forwardRef(
 
       const shouldShowForUnreads =
         collectionLayoutType === 'compact-list-bottom-to-top' &&
-        inverted &&
+        anchorToEnd &&
         unreadCount &&
         !isAtBottom;
       const shouldShowForScroll =
         collectionLayoutType === 'compact-list-bottom-to-top' &&
-        inverted &&
+        anchorToEnd &&
         !isAtBottom &&
         (!hasPressedGoToBottom || isLoading || hasNewerPosts);
 
@@ -496,7 +522,7 @@ const Scroller = forwardRef(
       isAtBottom,
       hasPressedGoToBottom,
       collectionLayoutType,
-      inverted,
+      anchorToEnd,
       unreadCount,
       isLoading,
       hasNewerPosts,
@@ -513,25 +539,46 @@ const Scroller = forwardRef(
       setIsAtBottom(false);
     }, []);
     const onInitialScrollCompleted = useCallback(() => {
-      setReadyToDisplayPosts(true);
+      setCompletedAnchorKey(anchorKey);
+    }, [anchorKey]);
+    const onInitialScrollPending = useCallback(() => {
+      setCompletedAnchorKey(null);
     }, []);
+    // The control is outside the list's initialization opacity boundary. Keep
+    // it hidden until the exact anchor position is ready to display.
+    const showScrollButton =
+      readyToDisplayPosts && Boolean(shouldShowScrollButton());
+    const hostsScrollButtonInComposer =
+      supportsLiquidGlass() && composerBottomInset > 0;
+
+    useLayoutEffect(() => {
+      setScrollToBottomControl(
+        hostsScrollButtonInComposer
+          ? {
+              isLoading: Boolean(isLoading && hasPressedGoToBottom),
+              onPress: pressedGoToBottom,
+              visible: showScrollButton,
+            }
+          : null
+      );
+    }, [
+      hasPressedGoToBottom,
+      hostsScrollButtonInComposer,
+      isLoading,
+      pressedGoToBottom,
+      setScrollToBottomControl,
+      showScrollButton,
+    ]);
+
+    useEffect(
+      () => () => {
+        setScrollToBottomControl(null);
+      },
+      [setScrollToBottomControl]
+    );
 
     return (
       <View flex={1}>
-        {shouldShowScrollButton() && (
-          <View position="absolute" bottom={'$m'} right={'$l'} zIndex={1000}>
-            <FloatingActionButton
-              icon={
-                isLoading && hasPressedGoToBottom ? (
-                  <LoadingSpinner size="small" />
-                ) : (
-                  <Icon type="ChevronDown" size="$m" />
-                )
-              }
-              onPress={pressedGoToBottom}
-            />
-          </View>
-        )}
         {postsWithNeighbors != null && (
           <PostList
             anchor={anchor}
@@ -540,13 +587,15 @@ const Scroller = forwardRef(
             columnWrapperStyle={columnWrapperStyle}
             contentContainerStyle={contentContainerStyle}
             hasNewerPosts={hasNewerPosts}
-            inverted={inverted}
+            isLoading={isLoading}
+            anchorToEnd={anchorToEnd}
             // This is needed so that we can force a refresh of the list when
             // we need to switch from 1 to 2 columns or vice versa.
             key={channel.type + '-' + columns}
             numColumns={columns}
             onEndReached={handleEndReached}
             onEndReachedThreshold={1}
+            onInitialScrollPending={onInitialScrollPending}
             onInitialScrollCompleted={onInitialScrollCompleted}
             onScrolledAwayFromBottom={onScrolledAwayFromBottom}
             onScrolledToBottom={onScrolledToBottom}
@@ -563,7 +612,38 @@ const Scroller = forwardRef(
             style={style}
             listHeaderComponent={listHeaderComponent}
             listBottomComponent={listBottomComponent}
+            contentInsets={contentInsets}
           />
+        )}
+        {postsWithNeighbors != null &&
+          postsWithNeighbors.length > 0 &&
+          !readyToDisplayPosts && (
+            <View
+              position="absolute"
+              inset={0}
+              alignItems="center"
+              justifyContent="center"
+              pointerEvents="auto"
+            >
+              <LoadingSpinner size="small" />
+            </View>
+          )}
+        {!hostsScrollButtonInComposer && (
+          <View
+            position="absolute"
+            bottom={scrollButtonBottom}
+            left={Platform.OS === 'web' ? undefined : 0}
+            right={Platform.OS === 'web' ? '$l' : 0}
+            alignItems={Platform.OS === 'web' ? undefined : 'center'}
+            pointerEvents={showScrollButton ? 'box-none' : 'none'}
+            zIndex={1000}
+          >
+            <ConversationScrollToBottomButton
+              loading={Boolean(isLoading && hasPressedGoToBottom)}
+              onPress={pressedGoToBottom}
+              visible={showScrollButton}
+            />
+          </View>
         )}
         {activeMessage !== null && !emojiPickerOpen && (
           <Modal

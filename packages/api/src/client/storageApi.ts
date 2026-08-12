@@ -138,6 +138,14 @@ export const getStorageCredentials = async (): Promise<StorageCredentials> => {
 
 const MEMEX_BASE_URL = 'https://memex.tlon.network';
 
+function memexBaseUrl(): string {
+  if (typeof process !== 'undefined') {
+    const override = process.env?.TLON_MEMEX_URL?.trim();
+    if (override) return override.replace(/\/+$/, '');
+  }
+  return MEMEX_BASE_URL;
+}
+
 const mimeToExt: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/jpg': '.jpg',
@@ -334,7 +342,7 @@ async function getMemexUploadUrl(params: {
     path: '/secret',
   });
 
-  const endpoint = `${MEMEX_BASE_URL}/v1/${desig(currentUser)}/upload`;
+  const endpoint = `${memexBaseUrl()}/v1/${desig(currentUser)}/upload`;
   const response = await fetch(endpoint, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },

@@ -3,7 +3,9 @@ import { describe, expect, test, vi } from 'vitest';
 import {
   FREQUENT_SLOT_COUNT,
   LAST_SLOT_PLACEHOLDER,
+  resolveReactionSlot,
   selectFrequentEmojis,
+  selectLastReactionSlot,
 } from './quickEmojis';
 
 // Enough of a resolver to exercise slot selection — the real `getNativeEmoji`
@@ -52,5 +54,25 @@ describe('selectFrequentEmojis', () => {
   test('always returns a full set of slots', () => {
     expect(selectFrequentEmojis([])).toHaveLength(FREQUENT_SLOT_COUNT);
     expect(selectFrequentEmojis(['🫡'])).toHaveLength(FREQUENT_SLOT_COUNT);
+  });
+});
+
+describe('reaction slots', () => {
+  test('displays a legacy shortcode as emoji but preserves it for removal', () => {
+    expect(resolveReactionSlot('❤️', 'heart')).toEqual({
+      value: '❤️',
+      selected: true,
+      actionValue: 'heart',
+    });
+  });
+
+  test('does not duplicate a selected shortcode already in the visible slots', () => {
+    expect(selectLastReactionSlot(['👍', '❤️', '😂'], 'heart')).toBe(
+      LAST_SLOT_PLACEHOLDER
+    );
+  });
+
+  test('uses a custom selected reaction as the final slot', () => {
+    expect(selectLastReactionSlot(['👍', '❤️', '😂'], '🫡')).toBe('🫡');
   });
 });

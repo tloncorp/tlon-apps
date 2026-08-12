@@ -1,15 +1,19 @@
-import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
 import { useMemo } from 'react';
+import { Platform } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useScrollDirectionTracker } from '../../../contexts/scroll';
+import {
+  useConversationScrollViewNativeID,
+  useScrollDirectionTracker,
+} from '../../../contexts/scroll';
 import { useAnchorScrollLock } from '../useAnchorScrollLock';
 import {
   PostListComponent,
   PostListMethods,
   PostWithNeighbors,
+  usePostListBottomCallbacks,
 } from './shared';
 
 function getPostId({ post }: PostWithNeighbors) {
@@ -22,7 +26,6 @@ export const PostList: PostListComponent = React.forwardRef(
       postsWithNeighbors,
       scrollEnabled = true,
       numColumns,
-      inverted,
       contentContainerStyle,
       columnWrapperStyle,
       style,
@@ -33,8 +36,6 @@ export const PostList: PostListComponent = React.forwardRef(
       onEndReached,
       onEndReachedThreshold,
       anchor,
-      hasNewerPosts,
-      collectionLayoutType,
       onInitialScrollCompleted,
       onScrolledToBottom,
       onScrolledToBottomThreshold = 1,
@@ -44,12 +45,10 @@ export const PostList: PostListComponent = React.forwardRef(
     },
     forwardedRef
   ) => {
-    const collectionLayout = React.useMemo(
-      () => layoutForType(collectionLayoutType),
-      [collectionLayoutType]
-    );
     const listRef =
       React.useRef<React.ElementRef<typeof Animated.FlatList>>(null);
+    const scrollViewNativeID = useConversationScrollViewNativeID();
+    const selectedAnchor = anchor?.type === 'selected' ? anchor : null;
     const insets = useSafeAreaInsets();
     const scrollIndicatorInsets = React.useMemo(() => {
       return {
@@ -66,12 +65,8 @@ export const PostList: PostListComponent = React.forwardRef(
       flatlistProps: anchorScrollLockFlatlistProps,
     } = useAnchorScrollLock({
       posts: postsWithNeighbors.map((x) => x.post),
-      anchor,
+      anchor: selectedAnchor,
       flatListRef: listRef,
-      hasNewerPosts,
-      shouldMaintainVisibleContentPosition:
-        collectionLayout.shouldMaintainVisibleContentPosition,
-      collectionLayoutType,
       columnsCount: numColumns,
     });
 
@@ -84,13 +79,10 @@ export const PostList: PostListComponent = React.forwardRef(
     const { onScroll: handleScroll, isAtBottom } = useScrollDirectionTracker({
       atBottomThreshold: onScrolledToBottomThreshold,
     });
-    React.useEffect(() => {
-      if (isAtBottom) {
-        onScrolledToBottom?.();
-      } else {
-        onScrolledAwayFromBottom?.();
-      }
-    }, [onScrolledToBottom, onScrolledAwayFromBottom, isAtBottom]);
+    usePostListBottomCallbacks(isAtBottom, {
+      onScrolledToBottom,
+      onScrolledAwayFromBottom,
+    });
 
     const renderItemWithExtraProps = React.useCallback<typeof renderItem>(
       ({ item, index }) =>
@@ -120,9 +112,17 @@ export const PostList: PostListComponent = React.forwardRef(
             listRef.current.scrollToEnd({ animated: opts.animated });
           }
         },
-        scrollToIndex: ({ index, animated, viewPosition }) => {
-          if (listRef.current) {
-            listRef.current.scrollToIndex({ index, animated, viewPosition });
+        scrollToPost: ({ postId, animated, viewPosition }) => {
+          const rawIndex = postsWithNeighbors.findIndex(
+            ({ post }) => post.id === postId
+          );
+          if (listRef.current && rawIndex !== -1) {
+            listRef.current.scrollToIndex({
+              index:
+                numColumns > 1 ? Math.floor(rawIndex / numColumns) : rawIndex,
+              animated,
+              viewPosition,
+            });
           }
         },
       })
@@ -132,20 +132,19 @@ export const PostList: PostListComponent = React.forwardRef(
       return [style, readyToDisplayPosts ? null : { opacity: 0 }];
     }, [readyToDisplayPosts, style]);
 
-    // https://github.com/facebook/react-native/issues/21196
-    // Disable `inverted` when list is empty to avoid RN rendering bugs.
-    const effectiveInverted =
-      (postsWithNeighbors?.length || 0) === 0 ? false : inverted;
-
     return (
       <Animated.FlatList<PostWithNeighbors>
         ref={listRef}
+        testID={scrollViewNativeID}
         data={postsWithNeighbors}
         scrollEnabled={scrollEnabled}
         renderItem={renderItemWithExtraProps}
         ListEmptyComponent={renderEmptyComponent}
         keyExtractor={getPostId}
         keyboardDismissMode="on-drag"
+        // Conversation composers float above these fallback notebook/gallery
+        // lists, so iOS must add the keyboard to the scrollable inset too.
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         contentContainerStyle={contentContainerStyle}
         columnWrapperStyle={
           // FlatList raises an error if `columnWrapperStyle` is provided
@@ -154,13 +153,8 @@ export const PostList: PostListComponent = React.forwardRef(
             ? undefined
             : columnWrapperStyle
         }
-        inverted={effectiveInverted}
-        ListFooterComponent={
-          effectiveInverted ? listHeaderComponent : listBottomComponent
-        }
-        ListHeaderComponent={
-          effectiveInverted ? listBottomComponent : listHeaderComponent
-        }
+        ListFooterComponent={listBottomComponent}
+        ListHeaderComponent={listHeaderComponent}
         maxToRenderPerBatch={15}
         windowSize={11}
         numColumns={numColumns}

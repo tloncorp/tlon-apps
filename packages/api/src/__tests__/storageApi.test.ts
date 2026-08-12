@@ -243,6 +243,99 @@ describe('uploadFile assume-hosted override (TLON_HOSTING)', () => {
   });
 });
 
+describe('uploadFile TLON_MEMEX_URL override', () => {
+  const forced = { hostedDetection: 'assume-hosted' as const };
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  test('TLON_MEMEX_URL custom endpoint is used for memex token request', async () => {
+    vi.stubEnv('TLON_MEMEX_URL', 'https://memex.test.tlon.systems');
+    isHostedMock.mockReturnValue(false);
+    mockShip({ service: 'presigned-url' });
+
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).startsWith('https://memex.test.tlon.systems/')) {
+        return {
+          ok: true,
+          json: async () => ({
+            url: 'https://presigned-put.example.com/upload-here',
+            filePath: 'https://storage.tlon.network/~zod/file.png',
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    const result = await uploadFile({ blob, ...forced });
+
+    expect(result.url).toBe('https://storage.tlon.network/~zod/file.png');
+    const memexCall = fetchMock.mock.calls.find((c) =>
+      String(c[0]).startsWith('https://memex.test.tlon.systems/')
+    );
+    expect(memexCall).toBeDefined();
+    expect(memexCall![0]).toBe('https://memex.test.tlon.systems/v1/zod/upload');
+  });
+
+  test('trailing slash on TLON_MEMEX_URL is normalized', async () => {
+    vi.stubEnv('TLON_MEMEX_URL', 'https://memex.test.tlon.systems/');
+    isHostedMock.mockReturnValue(false);
+    mockShip({ service: 'presigned-url' });
+
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).startsWith('https://memex.test.tlon.systems/')) {
+        return {
+          ok: true,
+          json: async () => ({
+            url: 'https://presigned-put.example.com/upload-here',
+            filePath: 'https://storage.tlon.network/~zod/file.png',
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    const result = await uploadFile({ blob, ...forced });
+
+    expect(result.url).toBe('https://storage.tlon.network/~zod/file.png');
+    const memexCall = fetchMock.mock.calls.find((c) =>
+      String(c[0]).startsWith('https://memex.test.tlon.systems/')
+    );
+    expect(memexCall).toBeDefined();
+    // Should be /v1/ not //v1/
+    expect(memexCall![0]).toBe('https://memex.test.tlon.systems/v1/zod/upload');
+  });
+
+  test('unset TLON_MEMEX_URL falls back to default memex.tlon.network', async () => {
+    isHostedMock.mockReturnValue(false);
+    mockShip({ service: 'presigned-url' });
+    mockMemexResponse();
+
+    const result = await uploadFile({ blob, ...forced });
+
+    expect(result.url).toBe('https://storage.tlon.network/~zod/file.png');
+    const memexCall = fetchMock.mock.calls.find((c) =>
+      String(c[0]).startsWith('https://memex.tlon.network/')
+    );
+    expect(memexCall).toBeDefined();
+  });
+
+  test('blank/whitespace TLON_MEMEX_URL falls back to default', async () => {
+    vi.stubEnv('TLON_MEMEX_URL', '   ');
+    isHostedMock.mockReturnValue(false);
+    mockShip({ service: 'presigned-url' });
+    mockMemexResponse();
+
+    const result = await uploadFile({ blob, ...forced });
+
+    expect(result.url).toBe('https://storage.tlon.network/~zod/file.png');
+    const memexCall = fetchMock.mock.calls.find((c) =>
+      String(c[0]).startsWith('https://memex.tlon.network/')
+    );
+    expect(memexCall).toBeDefined();
+  });
+});
 describe('uploadFile custom-S3 ACL retry', () => {
   function setupCustomS3() {
     isHostedMock.mockReturnValue(false);

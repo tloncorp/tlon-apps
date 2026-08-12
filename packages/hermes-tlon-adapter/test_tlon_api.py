@@ -1168,25 +1168,26 @@ class TlonGatewayStatusTests(unittest.TestCase):
         self.assertTrue(fake.authenticated)
         self.assertTrue(fake.opened)
         self.assertTrue(fake.closed)
-        self.assertEqual([poke[0] for poke in fake.pokes], ["gateway-status"] * 3)
+        self.assertEqual([poke[0] for poke in fake.pokes], ["steward"] * 4)
         self.assertEqual(
             [poke[1] for poke in fake.pokes],
-            ["gateway-status-action-1"] * 3,
+            ["steward-action-1"] + ["steward-gateway-action-1"] * 3,
         )
+        # The owner rides the core mark; only the timings are the module's own.
+        self.assertEqual(fake.pokes[0][2], {"configure": {"owner": "~mug"}})
         self.assertEqual(
-            fake.pokes[0][2],
+            fake.pokes[1][2],
             {
                 "configure": {
-                    "owner": "~mug",
                     "active-window": "~s300",
                     "offline-reply-cooldown": "~s300",
                 }
             },
         )
-        self.assertEqual(fake.pokes[1][2]["gateway-start"]["boot-id"], "boot-test")
-        self.assertTrue(fake.pokes[1][2]["gateway-start"]["lease-until"].startswith("~"))
+        self.assertEqual(fake.pokes[2][2]["gateway-start"]["boot-id"], "boot-test")
+        self.assertTrue(fake.pokes[2][2]["gateway-start"]["lease-until"].startswith("~"))
         self.assertEqual(
-            fake.pokes[2][2],
+            fake.pokes[3][2],
             {"gateway-stop": {"boot-id": "boot-test", "reason": "unit-test"}},
         )
 

@@ -35,5 +35,5 @@ export * from './lanyard';
 export * from './metagrab';
 export * from './meta';
 export * from './presence';
-export * from './gatewayStatus';
+export * from './stewardGateway';
 export * from './lens';
