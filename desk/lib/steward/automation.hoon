@@ -4,7 +4,6 @@
 ::  integer milliseconds. these wrappers use the standard conversions supplied
 ::  by zuse.
 ::
-=*  z  ..zuse
 |%
 ::  +milliseconds-to-duration: convert integer milliseconds to an Urbit duration
 ::
@@ -17,17 +16,17 @@
 ++  duration-to-milliseconds
   |=  duration=@dr
   ^-  @ud
-  (msec:milly:z duration)
+  (msec:milly duration)
 ::  +unix-milliseconds-to-date: convert Unix epoch milliseconds to an Urbit date
 ::
 ++  unix-milliseconds-to-date
   |=  milliseconds=@ud
   ^-  @da
-  (from-unix-ms:chrono:userlib:z milliseconds)
+  (from-unix-ms:chrono:userlib milliseconds)
 ::  +date-to-unix-milliseconds: convert an Urbit date to Unix epoch milliseconds
 ::
 ++  date-to-unix-milliseconds
   |=  date=@da
   ^-  @ud
-  (unm:chrono:userlib:z date)
+  (unm:chrono:userlib date)
 --

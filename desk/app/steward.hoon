@@ -671,8 +671,9 @@
       [%v1 %tasks ~]
     ``steward-automation-task-map-1+!>(tasks.automation.state)
     ==
-  ::  build the complete replacement before mutating state. a duplicate ID
-  ::  crashes here, leaving the previous projection untouched
+  ::  build the complete replacement before mutating state. a payload
+  ::  with a duplicate ID crashes here, leaving the previous projection
+  ::  untouched.
   ::
   ++  au-build-task-map
     |=  entries=(list identified-task:v1:sa)
