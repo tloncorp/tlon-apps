@@ -162,6 +162,20 @@ describe('detailToolParams', () => {
     );
   });
 
+  it('keeps values verbatim when the real params already fit', () => {
+    // Eliding is a concession to the budget; paying it early would replace the
+    // exact `message` a fixture matches on with a placeholder.
+    const message = 'x'.repeat(300);
+    const args = parsed(
+      detailToolParams({
+        action: 'send',
+        target: 'chat/~zod/x-general',
+        message,
+      })
+    );
+    expect(args.message).toBe(message);
+  });
+
   it('elides a long value instead of the document', () => {
     const args = parsed(
       detailToolParams({
@@ -212,6 +226,22 @@ describe('detailToolParams', () => {
     expect(args.keys).toHaveLength(40);
   });
 
+  it('keeps the shape summary within budget when key names are huge', () => {
+    // An oversized summary would be sliced again downstream by ship-sync's own
+    // truncation, recreating the unparseable record this module prevents.
+    const params = Object.fromEntries(
+      Array.from({ length: 200 }, (_, i) => [
+        `absurdlyLongParameterName${'x'.repeat(300)}${i}`,
+        `value-${i}`,
+      ])
+    );
+    const detail = detailToolParams(params);
+    expect(detail!.length).toBeLessThanOrEqual(MAX_TOOL_PARAM_DETAIL_CHARS);
+    const args = parsed(detail);
+    expect(args.__tooLarge__).toBeTypeOf('number');
+    expect(args.keyCount).toBe(200);
+  });
+
   it('survives a circular payload — the depth cap breaks the cycle', () => {
     const circular: Record<string, unknown> = { action: 'send' };
     circular.self = circular;
@@ -226,9 +256,15 @@ describe('detailToolParams', () => {
       { a: { b: { c: { d: { e: { f: 'deep' } } } } } },
       { list: [{ nested: ['x', { deeper: true }] }] },
       paddedMessageParams(),
+      { message: 'x'.repeat(50_000) },
+      Object.fromEntries(
+        Array.from({ length: 300 }, (_, i) => [`k${'y'.repeat(200)}${i}`, 'v'])
+      ),
+      Array.from({ length: 400 }, (_, i) => `item-${i}`),
     ]) {
       const detail = detailToolParams(params);
       expect(() => JSON.parse(detail as string)).not.toThrow();
+      expect(detail!.length).toBeLessThanOrEqual(MAX_TOOL_PARAM_DETAIL_CHARS);
     }
   });
 });

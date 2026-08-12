@@ -9,9 +9,10 @@
 // overflows the budget, the document is cut mid-key, and the consumer loses
 // every argument rather than the one long value that caused the overflow.
 //
-// Instead: serialize compactly, shrink individual values, and — if still over
-// budget — drop keys the model left empty and say how many were dropped. Every
-// path returns parseable JSON or undefined.
+// Instead, in order, stopping at the first result that fits: serialize the
+// params compactly and verbatim; shrink individual values; drop the keys the
+// model left empty, reporting how many; describe the shape. Every path returns
+// parseable JSON that is within budget, or undefined.
 
 export const MAX_TOOL_PARAM_DETAIL_CHARS = 2000;
 // Values longer than this are elided individually. Generous enough to keep the
@@ -20,6 +21,7 @@ export const MAX_TOOL_PARAM_VALUE_CHARS = 200;
 export const MAX_TOOL_PARAM_ARRAY_ITEMS = 10;
 const MAX_TOOL_PARAM_DEPTH = 4;
 const MAX_SHAPE_KEYS = 40;
+const MAX_SHAPE_KEY_NAME_CHARS = 40;
 
 export function elideToolParamValues(value: unknown, depth = 0): unknown {
   if (typeof value === 'string') {
@@ -80,20 +82,62 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+// Describes params we could not fit, as JSON that is itself guaranteed to fit.
+// Key names can be arbitrarily long, so clamp each one and halve the list until
+// the document is within budget — an oversized summary would be sliced again by
+// the ship-sync layer, recreating the unparseable record this module exists to
+// prevent.
+function shapeSummary(params: unknown, size: number): string | undefined {
+  if (!isPlainRecord(params)) {
+    return safeStringify({ __tooLarge__: size });
+  }
+  const keyCount = Object.keys(params).length;
+  const names = Object.keys(params).map((key) =>
+    key.length > MAX_SHAPE_KEY_NAME_CHARS
+      ? `${key.slice(0, MAX_SHAPE_KEY_NAME_CHARS)}…`
+      : key
+  );
+  for (
+    let shown = Math.min(names.length, MAX_SHAPE_KEYS);
+    shown > 0;
+    shown = Math.floor(shown / 2)
+  ) {
+    const candidate = safeStringify({
+      __tooLarge__: size,
+      keyCount,
+      keys: names.slice(0, shown),
+    });
+    if (candidate && candidate.length <= MAX_TOOL_PARAM_DETAIL_CHARS) {
+      return candidate;
+    }
+  }
+  // Fixed-size floor: no key names at all.
+  return safeStringify({ __tooLarge__: size, keyCount });
+}
+
 export function detailToolParams(params: unknown): string | undefined {
   if (params === null || params === undefined) {
     return undefined;
   }
 
-  const direct = safeStringify(elideToolParamValues(params));
-  if (!direct) {
-    return undefined;
-  }
-  if (direct.length <= MAX_TOOL_PARAM_DETAIL_CHARS) {
-    return direct;
+  // Verbatim first. Eliding is a concession to the budget, so paying for it
+  // when the real params already fit would throw away exactly what consumers
+  // match on — a 300-char message body would arrive as a 200-char placeholder.
+  const verbatim = safeStringify(params);
+  if (verbatim && verbatim.length <= MAX_TOOL_PARAM_DETAIL_CHARS) {
+    return verbatim;
   }
 
-  // Over budget: drop the schema padding and record how much went missing.
+  // Over budget (or unserializable — elision also breaks reference cycles).
+  const elided = safeStringify(elideToolParamValues(params));
+  if (!elided) {
+    return undefined;
+  }
+  if (elided.length <= MAX_TOOL_PARAM_DETAIL_CHARS) {
+    return elided;
+  }
+
+  // Still over: drop the schema padding and record how much went missing.
   if (isPlainRecord(params)) {
     const lean = withoutEmptyToolParamValues(params);
     const omitted = Object.keys(params).length - Object.keys(lean).length;
@@ -109,13 +153,5 @@ export function detailToolParams(params: unknown): string | undefined {
     }
   }
 
-  // Last resort: describe the shape we could not fit, still as valid JSON.
-  return safeStringify(
-    isPlainRecord(params)
-      ? {
-          __tooLarge__: direct.length,
-          keys: Object.keys(params).slice(0, MAX_SHAPE_KEYS),
-        }
-      : { __tooLarge__: direct.length }
-  );
+  return shapeSummary(params, elided.length);
 }
