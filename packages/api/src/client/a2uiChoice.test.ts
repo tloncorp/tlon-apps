@@ -235,6 +235,16 @@ describe('SmallChoice message building', () => {
     expect(buildSmallChoiceMessage(component, [], '   ')).toBe('');
   });
 
+  test('bounds the composed runtime message to the send-action limit', () => {
+    const message = buildSmallChoiceMessage(
+      component,
+      ['news'],
+      'x'.repeat(2_000)
+    );
+    expect(message).toHaveLength(1_000);
+    expect(message).toMatch(/^News, x+/);
+  });
+
   test('freeTextPlaceholder validates as an optional bounded string', () => {
     expect(valid(smallChoice({ freeTextPlaceholder: 'Add your own…' }))).toBe(
       true

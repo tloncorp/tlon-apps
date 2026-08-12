@@ -161,6 +161,7 @@ function SmallChoicePills({
           testID="A2UISmallChoiceFreeText"
           value={freeText}
           onChangeText={setFreeText}
+          maxLength={1000}
           placeholder={component.freeTextPlaceholder}
           placeholderTextColor="$tertiaryText"
           disabled={disabled}

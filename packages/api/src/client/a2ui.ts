@@ -814,7 +814,10 @@ export function buildSmallChoiceMessage(
     return '';
   }
   const prefix = component.action.event.context.text.trim();
-  return [prefix, labels.join(', ')].filter(Boolean).join(' ');
+  return [prefix, labels.join(', ')]
+    .filter(Boolean)
+    .join(' ')
+    .slice(0, LIMITS.maxButtonMessageLength);
 }
 
 /**

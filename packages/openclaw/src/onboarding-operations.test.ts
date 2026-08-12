@@ -7,12 +7,27 @@ import {
   parseOnboardingNotesListing,
   readOnboardingNotebookNewestId,
   readOnboardingNotebookNote,
+  runOnboardingTlonCommand,
   setOnboardingCommandRunner,
 } from './onboarding-operations.js';
 
 afterEach(() => clearOnboardingOperations());
 
 describe('onboarding notebook reads', () => {
+  test('forwards cancellation to the trusted command runner', async () => {
+    const controller = new AbortController();
+    let observed: AbortSignal | undefined;
+    setOnboardingCommandRunner('~zod', async (_args, options) => {
+      observed = options?.abortSignal;
+      return '';
+    });
+
+    await runOnboardingTlonCommand('~zod', ['groups', 'update'], {
+      abortSignal: controller.signal,
+    });
+    expect(observed).toBe(controller.signal);
+  });
+
   test('recognizes an empty %notes notebook', () => {
     expect(parseOnboardingNotesListing('No notes.\n')).toBeNull();
   });

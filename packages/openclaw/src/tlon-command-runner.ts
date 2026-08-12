@@ -34,6 +34,7 @@ export type TlonCommandDeadlineOutput = {
 export type TlonCommandRunnerOptions = {
   timeoutMs?: number;
   onDeadline?: (output: TlonCommandDeadlineOutput) => void;
+  abortSignal?: AbortSignal;
 };
 
 /**
@@ -45,6 +46,9 @@ export function runTlonCommand(
   credentials?: { url: string; ship: string; code: string },
   options?: TlonCommandRunnerOptions
 ): Promise<string> {
+  if (options?.abortSignal?.aborted) {
+    return Promise.reject(new TlonCommandError('tlon command aborted'));
+  }
   return new Promise((resolve, reject) => {
     const env = { ...process.env };
     if (credentials) {
@@ -76,6 +80,18 @@ export function runTlonCommand(
     const onChildError = (error: Error) => {
       spawnError = error;
     };
+    const terminateChild = () => {
+      child.kill('SIGTERM');
+      killTimer = setTimeout(() => child.kill('SIGKILL'), 2_000);
+    };
+    const onAbort = () => {
+      if (completionSettled) {
+        return;
+      }
+      completionSettled = true;
+      terminateChild();
+      reject(new TlonCommandError('tlon command aborted', { stdout, stderr }));
+    };
     const teardownAfterClose = () => {
       if (timeout) {
         clearTimeout(timeout);
@@ -89,6 +105,7 @@ export function runTlonCommand(
       child.stderr.removeListener('data', onStderrData);
       child.removeListener('error', onChildError);
       child.removeListener('close', onChildClose);
+      options?.abortSignal?.removeEventListener('abort', onAbort);
       stdout = '';
       stderr = '';
     };
@@ -126,6 +143,11 @@ export function runTlonCommand(
     child.stderr.on('data', onStderrData);
     child.on('error', onChildError);
     child.on('close', onChildClose);
+    options?.abortSignal?.addEventListener('abort', onAbort, { once: true });
+    // Close the tiny race between the pre-spawn check and listener install.
+    if (options?.abortSignal?.aborted) {
+      onAbort();
+    }
 
     if (timeoutMs > 0) {
       timeout = setTimeout(() => {
@@ -138,8 +160,7 @@ export function runTlonCommand(
           return;
         }
         completionSettled = true;
-        child.kill('SIGTERM');
-        killTimer = setTimeout(() => child.kill('SIGKILL'), 2_000);
+        terminateChild();
         reject(
           new TlonCommandError(`tlon command timed out after ${timeoutMs}ms`, {
             stdout,

@@ -44,6 +44,19 @@ afterEach(() => {
 });
 
 describe('runTlonCommand timeout output capture', () => {
+  it('terminates and rejects when its abort signal fires', async () => {
+    const controller = new AbortController();
+    const command = runTlonCommand(
+      process.execPath,
+      ['-e', 'setTimeout(() => process.exit(0), 5000)'],
+      undefined,
+      { timeoutMs: 10_000, abortSignal: controller.signal }
+    );
+    setTimeout(() => controller.abort(), 50);
+
+    await expect(command).rejects.toThrow('tlon command aborted');
+  });
+
   it('terminates and rejects near the timeout when no deadline callback is supplied', async () => {
     const timeoutMs = 300;
     const script = [

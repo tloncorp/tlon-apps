@@ -1065,13 +1065,11 @@ export async function monitorTlonProvider(
           retryAttempt,
         });
         try {
-          await runOnboardingTlonCommand(botShipName, [
-            'groups',
-            'update',
-            groupFlag,
-            '--description',
-            description,
-          ]);
+          await runOnboardingTlonCommand(
+            botShipName,
+            ['groups', 'update', groupFlag, '--description', description],
+            { abortSignal: opts.abortSignal }
+          );
           lastError = undefined;
           traceOnboardingStep(traceBase, 'write_description', 'succeeded', {
             retryAttempt,
@@ -1961,15 +1959,19 @@ export async function monitorTlonProvider(
                 draftMarkdownCharCount: markdown.length,
               });
               try {
-                await runOnboardingTlonCommand(botShipName, [
-                  'notes',
-                  'note-create',
-                  notesNest,
-                  'root',
-                  title,
-                  '--markdown',
-                  markdownPath,
-                ]);
+                await runOnboardingTlonCommand(
+                  botShipName,
+                  [
+                    'notes',
+                    'note-create',
+                    notesNest,
+                    'root',
+                    title,
+                    '--markdown',
+                    markdownPath,
+                  ],
+                  { abortSignal: opts.abortSignal }
+                );
                 if (opts.abortSignal?.aborted) {
                   return false;
                 }

@@ -967,9 +967,10 @@ export default defineBundledChannelEntry({
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
     });
 
-    setOnboardingCommandRunner(account.ship ?? '*', (args) =>
+    setOnboardingCommandRunner(account.ship ?? '*', (args, options) =>
       runTlonCommand(tlonBinary, args, credentials, {
         timeoutMs: toolTimeoutMs,
+        abortSignal: options?.abortSignal,
       })
     );
 

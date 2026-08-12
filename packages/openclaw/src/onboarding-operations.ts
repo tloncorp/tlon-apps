@@ -1,6 +1,10 @@
 import { sharedMap } from './shared-state.js';
 
-type TlonCommandRunner = (args: string[]) => Promise<string>;
+type OnboardingCommandOptions = { abortSignal?: AbortSignal };
+type TlonCommandRunner = (
+  args: string[],
+  options?: OnboardingCommandOptions
+) => Promise<string>;
 
 const commandRunners = sharedMap<string, TlonCommandRunner>(
   'agentOnboarding.commandRunners'
@@ -35,7 +39,8 @@ export function setOnboardingCommandRunner(
 
 export async function runOnboardingTlonCommand(
   ship: string,
-  args: string[]
+  args: string[],
+  options?: OnboardingCommandOptions
 ): Promise<string> {
   const runner =
     commandRunners.get(normalizeShip(ship)) ??
@@ -45,7 +50,7 @@ export async function runOnboardingTlonCommand(
       'The deterministic onboarding command runner is unavailable'
     );
   }
-  return runner(args);
+  return runner(args, options);
 }
 
 /**

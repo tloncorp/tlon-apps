@@ -498,13 +498,48 @@ function TypeSelectionContent({
     isLoading: hostingBotLoading,
     isError: hostingBotError,
   } = db.hostingBotEnabled.useStorageItem();
+  const [recoveredHostingBotEnabled, setRecoveredHostingBotEnabled] = useState<
+    boolean | undefined
+  >();
+  useEffect(() => {
+    if (!hostingBotError) {
+      setRecoveredHostingBotEnabled(undefined);
+      return;
+    }
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const retry = async () => {
+      try {
+        const value = await db.hostingBotEnabled.getValue();
+        if (!cancelled) {
+          setRecoveredHostingBotEnabled(value);
+        }
+      } catch {
+        if (!cancelled) {
+          retryTimer = setTimeout(retry, 2_000);
+        }
+      }
+    };
+    void retry();
+    return () => {
+      cancelled = true;
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+      }
+    };
+  }, [hostingBotError]);
   // Until the stored bot flag hydrates, it reads as its default — and this
   // action creates a group on first tap, so a hosted account must not act on
   // the wrong flavor during that window. The row stays disabled until it has
   // loaded (see `groupFlavorKnown` below).
-  const groupFlavorKnown = !hostingBotLoading && !hostingBotError;
+  const groupFlavorKnown =
+    !hostingBotLoading &&
+    (!hostingBotError || recoveredHostingBotEnabled !== undefined);
+  const effectiveHostingBotEnabled =
+    recoveredHostingBotEnabled ?? hostingBotEnabled;
   const hasAgent =
-    groupFlavorKnown && ((hostingBotEnabled ?? false) || !!AGENT_SHIP_OVERRIDE);
+    groupFlavorKnown &&
+    ((effectiveHostingBotEnabled ?? false) || !!AGENT_SHIP_OVERRIDE);
   const actions = useMemo(
     () => createTypeActions(onSelectType, hasAgent, groupFlavorKnown),
     [onSelectType, hasAgent, groupFlavorKnown]
