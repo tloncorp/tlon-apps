@@ -459,6 +459,7 @@ export async function getHomeGroupOnboardingTarget(): Promise<{
     const targetFor = (
       group: {
         currentUserIsMember?: boolean | null;
+        description?: string | null;
         channels?: { id: string; type?: string | null }[] | null;
       } | null
     ) => {
@@ -471,10 +472,6 @@ export async function getHomeGroupOnboardingTarget(): Promise<{
         ) ?? group.channels?.find((channel) => channel.type === 'chat');
       return chatChannel ? { groupId, channelId: chatChannel.id } : null;
     };
-    const localTarget = targetFor(await db.getGroup({ id: groupId }));
-    if (localTarget) {
-      return localTarget;
-    }
     const hostingBotEnabled = await db.hostingBotEnabled.getValue();
     if (!hostingBotEnabled) {
       return null;
@@ -482,7 +479,25 @@ export async function getHomeGroupOnboardingTarget(): Promise<{
     // Sync may trail provisioning, but a ship scry can prove the target exists.
     // If it cannot, keep the splash fallback instead of arming an endless
     // landing poll for a synthetic channel that may never be created.
-    return targetFor(await api.getGroup(groupId));
+    const remoteGroup = await api.getGroup(groupId);
+    const target = targetFor(remoteGroup);
+    if (!target) {
+      return null;
+    }
+    const config = parseGroupAgentConfig(remoteGroup.description);
+    if (config) {
+      return config.onboarding && config.onboarding.state !== 'complete'
+        ? target
+        : null;
+    }
+    const history = await api.getChannelPosts({
+      channelId: target.channelId,
+      mode: 'older',
+      count: 20,
+    });
+    return history.posts.some((post) => post.authorId === currentUserId)
+      ? null
+      : target;
   } catch (error) {
     logger.trackError('Failed to resolve home group onboarding target', {
       error,

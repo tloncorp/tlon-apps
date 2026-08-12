@@ -231,15 +231,21 @@ export function ChatListScreenView({
   }, [chats]);
 
   const consumedOnboardingLanding = useRef(false);
+  const {
+    value: onboardingLanding,
+    isLoading: onboardingLandingLoading,
+    isError: onboardingLandingError,
+  } = db.agentOnboardingLanding.useStorageItem();
   const resetToChannelRef = useRef(resetToChannel);
   resetToChannelRef.current = resetToChannel;
   useEffect(() => {
+    if (onboardingLandingLoading) {
+      return;
+    }
     let active = true;
     const land = async () => {
-      let landing: Awaited<
-        ReturnType<typeof db.agentOnboardingLanding.getValue>
-      > = null;
-      while (active) {
+      let landing = onboardingLanding;
+      while (active && onboardingLandingError) {
         try {
           landing = await db.agentOnboardingLanding.getValue();
           break;
@@ -297,7 +303,7 @@ export function ChatListScreenView({
     return () => {
       active = false;
     };
-  }, []);
+  }, [onboardingLanding, onboardingLandingError, onboardingLandingLoading]);
 
   const createChatSheetRef = useRef<CreateChatSheetMethods | null>(null);
   const onPressChat = useCallback(

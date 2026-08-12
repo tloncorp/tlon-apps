@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getCurrentUserId: vi.fn(() => '~zod'),
   getLocalGroup: vi.fn(),
   getRemoteGroup: vi.fn(),
+  getChannelPosts: vi.fn(),
   getHostingBotEnabled: vi.fn(),
   createChannel: vi.fn(),
   hydrateExistingNotesChannel: vi.fn(),
@@ -18,6 +19,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@tloncorp/api', () => ({
   getCurrentUserId: mocks.getCurrentUserId,
   getGroup: mocks.getRemoteGroup,
+  getChannelPosts: mocks.getChannelPosts,
   parseNotesChannelId: (id: string | undefined) =>
     id?.startsWith('notes/') ? id.slice('notes/'.length) : null,
 }));
@@ -47,7 +49,10 @@ const homeGroup = (channelId = 'chat/~zod/home-group-chat') => ({
   channels: [{ id: channelId, type: 'chat' }],
 });
 
-const deterministicDescription = (title: string) =>
+const deterministicDescription = (
+  title: string,
+  state: 'awaiting-notebook' | 'complete' = 'awaiting-notebook'
+) =>
   JSON.stringify([
     {
       type: 'tlon-group-agent-config',
@@ -58,7 +63,7 @@ const deterministicDescription = (title: string) =>
       agents: ['~bot'],
       jobs: [{ title }],
       onboarding: {
-        state: 'awaiting-notebook',
+        state,
         topics: 'Updates',
         timezone: 'UTC',
         cronJobId: 'cron-1',
@@ -71,6 +76,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.getLocalGroup.mockResolvedValue(null);
   mocks.getHostingBotEnabled.mockResolvedValue(true);
+  mocks.getChannelPosts.mockResolvedValue({ posts: [] });
 });
 
 afterEach(() => {
@@ -78,14 +84,15 @@ afterEach(() => {
 });
 
 describe('getHomeGroupOnboardingTarget', () => {
-  test('uses a synced local home-group channel', async () => {
+  test('uses a ship-verified home-group channel', async () => {
     mocks.getLocalGroup.mockResolvedValue(homeGroup());
+    mocks.getRemoteGroup.mockResolvedValue(homeGroup());
 
     await expect(getHomeGroupOnboardingTarget()).resolves.toEqual({
       groupId: '~zod/home-group',
       channelId: 'chat/~zod/home-group-chat',
     });
-    expect(mocks.getRemoteGroup).not.toHaveBeenCalled();
+    expect(mocks.getRemoteGroup).toHaveBeenCalledWith('~zod/home-group');
   });
 
   test('accepts a ship-visible channel while local sync trails', async () => {
@@ -101,6 +108,23 @@ describe('getHomeGroupOnboardingTarget', () => {
   test('does not invent a landing target for a missing home group', async () => {
     mocks.getRemoteGroup.mockRejectedValue(new Error('not provisioned'));
 
+    await expect(getHomeGroupOnboardingTarget()).resolves.toBeNull();
+  });
+
+  test('rejects a configured or owner-used home group', async () => {
+    mocks.getRemoteGroup.mockResolvedValueOnce({
+      ...homeGroup(),
+      description: deterministicDescription(
+        'Daily digest: Updates',
+        'complete'
+      ),
+    });
+    await expect(getHomeGroupOnboardingTarget()).resolves.toBeNull();
+
+    mocks.getRemoteGroup.mockResolvedValueOnce(homeGroup());
+    mocks.getChannelPosts.mockResolvedValueOnce({
+      posts: [{ authorId: '~zod' }],
+    });
     await expect(getHomeGroupOnboardingTarget()).resolves.toBeNull();
   });
 });

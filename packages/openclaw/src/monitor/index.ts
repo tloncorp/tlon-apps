@@ -1638,6 +1638,7 @@ export async function monitorTlonProvider(
           purpose: deterministic.purpose,
           topics: deterministic.topics,
           outputNest: notesNest,
+          abortSignal: opts.abortSignal,
           trace: (event) => {
             traceOnboardingStep(
               traceBase,

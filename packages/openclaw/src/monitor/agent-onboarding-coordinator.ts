@@ -662,6 +662,7 @@ export async function ensureDeterministicCronOutputNest(params: {
   purpose?: string;
   topics: string;
   outputNest: string;
+  abortSignal?: AbortSignal;
   trace?: DeterministicCronTracer;
 }): Promise<void> {
   const startedAt = Date.now();
@@ -673,6 +674,12 @@ export async function ensureDeterministicCronOutputNest(params: {
       Omit<DeterministicCronTraceEvent, 'operation' | 'outcome'>
     > = {}
   ) => trace?.({ operation, outcome, ...details });
+  const assertActive = () => {
+    if (params.abortSignal?.aborted) {
+      throw new Error('Onboarding cron output repair aborted with monitor');
+    }
+  };
+  assertActive();
   const outputNest = params.outputNest.trim();
   if (!outputNest) {
     throw new Error('The onboarding notebook nest is empty');
@@ -689,6 +696,7 @@ export async function ensureDeterministicCronOutputNest(params: {
   });
 
   emit('list_output_job', 'started');
+  assertActive();
   let jobs = await cron.list({ includeDisabled: true });
   const existing = jobs.find((job) => job.id === params.cronJobId);
   if (!existing) {
@@ -709,6 +717,7 @@ export async function ensureDeterministicCronOutputNest(params: {
   };
   emit('update_output_nest', 'started', { cronJobId: params.cronJobId });
   try {
+    assertActive();
     await cron.update(params.cronJobId, {
       payload,
       delivery: { mode: 'none' },
@@ -729,14 +738,17 @@ export async function ensureDeterministicCronOutputNest(params: {
 
   let attempt = 0;
   for (const delay of [0, 250, 1_000, 2_000]) {
+    assertActive();
     attempt += 1;
     if (delay) {
       await new Promise((resolve) => setTimeout(resolve, delay));
+      assertActive();
     }
     emit('verify_output_nest', 'started', {
       attempt,
       cronJobId: params.cronJobId,
     });
+    assertActive();
     jobs = await cron.list({ includeDisabled: true });
     const stored = jobs.find((job) => job.id === params.cronJobId);
     if (

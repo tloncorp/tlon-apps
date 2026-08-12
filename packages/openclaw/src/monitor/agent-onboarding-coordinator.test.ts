@@ -484,6 +484,30 @@ describe('cron creation', () => {
     );
   });
 
+  test('does not repair cron output after the monitor aborts', async () => {
+    const controller = new AbortController();
+    const service = {
+      list: vi.fn(),
+      add: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+    };
+    setCronServiceAccessor(() => service as never);
+    controller.abort();
+
+    await expect(
+      ensureDeterministicCronOutputNest({
+        cronJobId: 'cron-1',
+        purposeId: 'agent-research',
+        topics: 'Mycology',
+        outputNest: 'notes/~zod/research',
+        abortSignal: controller.signal,
+      })
+    ).rejects.toThrow('aborted with monitor');
+    expect(service.list).not.toHaveBeenCalled();
+    expect(service.update).not.toHaveBeenCalled();
+  });
+
   test('verifies an output-nest update whose response was lost', async () => {
     const jobs: PluginHookGatewayCronJob[] = [
       { id: 'cron-1', payload: { kind: 'agentTurn', text: 'old prompt' } },
