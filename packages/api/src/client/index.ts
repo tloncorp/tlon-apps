@@ -5,6 +5,7 @@ export * from './channelsApi';
 export * from './chatApi';
 export * from './contactsApi';
 export * from './groupsApi';
+export * from './globalSearchApi';
 export * from './landscapeApi';
 export * from './notesApi';
 export * from './postsApi';

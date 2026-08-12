@@ -1,9 +1,13 @@
+import * as api from '@tloncorp/api';
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import * as store from '@tloncorp/shared/store';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
 
 import {
+  Pressable,
+  SectionListHeader,
   TextInput,
   TextInputRef,
   TlonText,
@@ -16,7 +20,7 @@ import { FilteredChatList, FilteredChatListRef } from './FilteredChatList';
 
 export interface GlobalSearchProps {
   navigateToGroup: (id: string) => void;
-  navigateToChannel: (channel: db.Channel) => void;
+  navigateToChannel: (channel: db.Channel, selectedPostId?: string) => void;
 }
 
 export function GlobalSearch({
@@ -27,6 +31,11 @@ export function GlobalSearch({
   const [searchQuery, setSearchQuery] = useState('');
   const inputRef = useRef<TextInputRef>(null);
   const listRef = useRef<FilteredChatListRef>(null);
+  const { data: channels } = store.useAllChannels({ enabled: isOpen });
+  const channelsById = useMemo(
+    () => new Map((channels ?? []).map((channel) => [channel.id, channel])),
+    [channels]
+  );
 
   const onPressItem = useCallback(
     async (item: db.Chat) => {
@@ -41,6 +50,17 @@ export function GlobalSearch({
       setIsOpen(false);
     },
     [navigateToGroup, navigateToChannel, setIsOpen]
+  );
+
+  const onPressMessage = useCallback(
+    (hit: api.GlobalSearchHit) => {
+      const channelId = api.globalSearchChannelId(hit.ref.source);
+      const channel = channelsById.get(channelId);
+      if (!channel) return;
+      navigateToChannel(channel, hit.ref.reply ?? hit.ref.top);
+      setIsOpen(false);
+    },
+    [channelsById, navigateToChannel, setIsOpen]
   );
 
   const handleNavigationKey = useCallback(
@@ -174,11 +194,18 @@ export function GlobalSearch({
         />
         <YStack gap="$m" style={{ maxHeight: 400, overflowY: 'scroll' }}>
           {isOpen && (
-            <FilteredChatList
-              searchQuery={searchQuery}
-              ref={listRef}
-              onPressItem={onPressItem}
-            />
+            <>
+              <FilteredChatList
+                searchQuery={searchQuery}
+                ref={listRef}
+                onPressItem={onPressItem}
+              />
+              <GlobalMessageSearchResults
+                query={searchQuery}
+                channelsById={channelsById}
+                onPress={onPressMessage}
+              />
+            </>
           )}
         </YStack>
 
@@ -216,5 +243,107 @@ export function GlobalSearch({
         </XStack>
       </YStack>
     </>
+  );
+}
+
+function GlobalMessageSearchResults({
+  query,
+  channelsById,
+  onPress,
+}: {
+  query: string;
+  channelsById: Map<string, db.Channel>;
+  onPress: (hit: api.GlobalSearchHit) => void;
+}) {
+  const [page, setPage] = useState<api.GlobalSearchPage | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setPage(null);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    const timer = setTimeout(() => {
+      api
+        .searchGlobally({ query: trimmed })
+        .then((result) => {
+          if (!cancelled) setPage(result);
+        })
+        .catch(() => {
+          if (!cancelled) setPage(null);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 200);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query]);
+
+  const loadMore = useCallback(async () => {
+    if (!page?.next || loading) return;
+    setLoading(true);
+    try {
+      const next = await api.searchGlobally({
+        query: query.trim(),
+        cursor: page.next,
+      });
+      setPage({ ...next, hits: [...page.hits, ...next.hits] });
+    } finally {
+      setLoading(false);
+    }
+  }, [loading, page, query]);
+
+  if (!query.trim()) return null;
+  if (!page?.hits.length) {
+    return loading ? (
+      <TlonText.Text size="$label/s" color="$secondaryText" padding="$m">
+        Searching messages…
+      </TlonText.Text>
+    ) : null;
+  }
+
+  return (
+    <YStack>
+      <SectionListHeader>
+        <SectionListHeader.Text>Messages</SectionListHeader.Text>
+      </SectionListHeader>
+      {page.hits.map((hit) => {
+        const channelId = api.globalSearchChannelId(hit.ref.source);
+        const channel = channelsById.get(channelId);
+        return (
+          <Pressable
+            key={`${channelId}:${hit.ref.top}:${hit.ref.reply ?? ''}`}
+            disabled={!channel}
+            onPress={() => onPress(hit)}
+            paddingHorizontal="$l"
+            paddingVertical="$m"
+            borderBottomWidth="$2xs"
+            borderColor="$border"
+            hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+          >
+            <TlonText.Text size="$label/s" color="$secondaryText">
+              {channel?.title ?? channelId} · {hit.author}
+            </TlonText.Text>
+            <TlonText.Text numberOfLines={2}>{hit.snippet}</TlonText.Text>
+          </Pressable>
+        );
+      })}
+      {page.next && (
+        <Pressable onPress={loadMore} padding="$m" alignItems="center">
+          <TlonText.Text color="$positiveActionText">
+            {loading ? 'Loading…' : 'Load more'}
+          </TlonText.Text>
+        </Pressable>
+      )}
+    </YStack>
   );
 }

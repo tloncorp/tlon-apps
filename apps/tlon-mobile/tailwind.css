@@ -1,0 +1,31 @@
+.absolute {
+  position: absolute
+}
+
+.inline {
+  display: inline
+}
+
+.flex {
+  display: flex
+}
+
+.\!table {
+  display: table !important
+}
+
+.table {
+  display: table
+}
+
+.hidden {
+  display: none
+}
+
+.border {
+  border-width: 1px
+}
+
+.underline {
+  text-decoration-line: underline
+}
