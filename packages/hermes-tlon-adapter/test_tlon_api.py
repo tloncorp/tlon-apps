@@ -1216,6 +1216,129 @@ class TlonCLITests(unittest.TestCase):
         )
         self.assertEqual(len(probes), 1)
 
+    def _hung_probe_cli(self):
+        """A bot CLI whose probe hangs until its own deadline, recording the
+        timeout every invocation is given. Returns (cli, clock, timeouts)."""
+        clock = {"now": 0.0}
+        timeouts: list[tuple[tuple[str, ...], float]] = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout, _on_deadline):
+            timeouts.append((tuple(command[1:]), timeout))
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                # A wedged CLI: burns every second it is allowed, then is killed.
+                clock["now"] += timeout
+                raise tlon_api.TlonProcessTimeout("", "")
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+        return cli, clock, timeouts
+
+    def test_hung_probe_is_capped_not_given_the_callers_timeout(self):
+        # The probe used to inherit the full configured CLI timeout, so a wedged
+        # CLI made a nominal 20s send take 20s of probing and then 20s of
+        # sending. It gets the cap instead — a flat bound, deliberately not a
+        # deduction from the caller's budget.
+        cli, clock, timeouts = self._hung_probe_cli()
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            with self.assertLogs(tlon_api.logger, level="ERROR"):
+                result = asyncio.run(
+                    cli.run_command(
+                        ("posts", "send", "~mug", "hi"), timeout=20.0
+                    )
+                )
+
+        self.assertEqual(
+            timeouts,
+            [
+                (
+                    tlon_api.BOT_FLAG_PROBE_ARGS,
+                    tlon_api.BOT_FLAG_PROBE_TIMEOUT_SECONDS,
+                ),
+                (("posts", "send", "~mug", "hi"), 20.0),
+            ],
+        )
+        # Degradation is unchanged: a probe that did not run cleanly means
+        # unsupported, so the send goes out undecorated rather than failing.
+        self.assertTrue(result.success)
+        self.assertEqual(timeouts[1][0][-1], "hi")
+
+    def test_a_timed_out_probe_is_cached_and_logged_once(self):
+        # The failed answer has to stick: without caching, every later send on
+        # this instance pays the cap again and re-logs the same loud error.
+        cli, clock, timeouts = self._hung_probe_cli()
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            with self.assertLogs(tlon_api.logger, level="ERROR") as logged:
+                first = asyncio.run(
+                    cli.run_command(("posts", "send", "~mug", "one"))
+                )
+                second = asyncio.run(
+                    cli.run_command(("posts", "send", "~mug", "two"))
+                )
+
+        probes = [args for args, _ in timeouts if args == tlon_api.BOT_FLAG_PROBE_ARGS]
+        self.assertEqual(len(probes), 1)
+        self.assertEqual(len(logged.output), 1)
+        # Both sends still go out, undecorated.
+        self.assertTrue(first.success)
+        self.assertTrue(second.success)
+        self.assertEqual(
+            [args for args, _ in timeouts if args != tlon_api.BOT_FLAG_PROBE_ARGS],
+            [
+                ("posts", "send", "~mug", "one"),
+                ("posts", "send", "~mug", "two"),
+            ],
+        )
+
+    def test_probe_is_capped_below_the_configured_cli_timeout(self):
+        # config.cli_timeout is the value the probe used to inherit; the cap has
+        # to be what reaches the runner even when no explicit timeout is passed.
+        cli, clock, timeouts = self._hung_probe_cli()
+        self.assertGreater(
+            cli.config.cli_timeout, tlon_api.BOT_FLAG_PROBE_TIMEOUT_SECONDS
+        )
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            with self.assertLogs(tlon_api.logger, level="ERROR"):
+                asyncio.run(cli.run_command(("posts", "send", "~mug", "hi")))
+
+        self.assertEqual(
+            timeouts,
+            [
+                (
+                    tlon_api.BOT_FLAG_PROBE_ARGS,
+                    tlon_api.BOT_FLAG_PROBE_TIMEOUT_SECONDS,
+                ),
+                (("posts", "send", "~mug", "hi"), cli.config.cli_timeout),
+            ],
+        )
+
+    def test_unprobed_commands_keep_their_budget_exactly(self):
+        # No probe runs for non-send commands, and the timeout reaches the
+        # runner exactly as the caller set it.
+        cli, clock, timeouts = self._hung_probe_cli()
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            asyncio.run(cli.run_command(("contacts", "self"), timeout=12.5))
+            asyncio.run(cli.run_command(("posts", "react", "~mug", "1", "👍")))
+
+        self.assertEqual(
+            timeouts,
+            [
+                (("contacts", "self"), 12.5),
+                (("posts", "react", "~mug", "1", "👍"), cli.config.cli_timeout),
+            ],
+        )
+
     def test_without_as_bot_nothing_is_appended(self):
         calls = []
         cfg = tlon_api.TlonConfig.from_env(

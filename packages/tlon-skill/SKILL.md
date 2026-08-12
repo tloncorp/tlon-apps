@@ -440,7 +440,7 @@ tlon posts delete chat/~host/slug 170.141...             # Delete a post
 tlon posts delete heap/~host/gallery 170.141...          # Delete a gallery post
 ```
 
-`--bot` marks a `posts send`/`posts reply`/`dms send`/`dms reply` message as bot-authored: the message carries an author object instead of a bare ship, which is what makes clients render the "Bot" tag. Bot display names come from contact sync, not from the message, so the flag takes no value. Opt-in on purpose — messages you send as yourself must not be bot-tagged. Edits need no flag: `posts edit` preserves the existing post's authorship, so a bot-authored post keeps its "Bot" tag and a human-authored one stays bare.
+`--bot` marks a `posts send`/`posts reply`/`dms send`/`dms reply` message as bot-authored: the message carries an author object instead of a bare ship, which is what makes clients render the "Bot" tag. Bot display names come from contact sync, not from the message, so the flag takes no value: `--bot=Name`, `--bot Name`, and a repeated `--bot` are all usage errors rather than message text. Opt-in on purpose — messages you send as yourself must not be bot-tagged. Edits need no flag: `posts edit` preserves the existing post's authorship, so a bot-authored post keeps its "Bot" tag and a human-authored one stays bare.
 
 Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
 

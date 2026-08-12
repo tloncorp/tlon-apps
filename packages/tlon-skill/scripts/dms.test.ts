@@ -211,6 +211,77 @@ describe('dms bot author flags', () => {
     );
   });
 
+  // Table-driven so each accepted/rejected form is pinned individually: a
+  // parser that rejected only bare alphabetic tokens, or dropped the duplicate
+  // check, passed every hand-written case above.
+  it.each([
+    { args: ['--bot'], ok: true, why: 'flag alone' },
+    {
+      args: ['--bot', '--parent', '~pen/170.141'],
+      ok: true,
+      why: 'long option follows',
+    },
+    {
+      args: ['--bot', '--unknownopt'],
+      ok: true,
+      why: 'unknown long option is not our concern',
+    },
+    { args: ['--bot', 'Botly'], ok: false, why: 'bare value' },
+    { args: ['--bot', '-1'], ok: false, why: 'single-dash value' },
+    { args: ['--bot', '--bot'], ok: false, why: 'repeated flag' },
+    {
+      args: ['--bot', '--bot', 'Botly'],
+      ok: false,
+      why: 'value hidden behind a repeat',
+    },
+    { args: ['--bot=Botly'], ok: false, why: 'joined value' },
+  ])('$why: --bot form is accepted=$ok', async ({ args, ok }) => {
+    const dms = await loadDms();
+    const call = () =>
+      dms.dmBotProfile(['send', '0v5.abcde', 'hi', ...args], 'usage');
+    if (ok) {
+      expect(call()).toEqual({ nickname: null, avatar: null });
+    } else {
+      expectUsageExit(call);
+    }
+  });
+
+  it('rejects a separated value on --bot instead of truncating the message', async () => {
+    const dms = await loadDms();
+
+    // `--bot Botly` used to parse fine, and because the flag is a message
+    // boundary the send went out as "hello" with "world Botly" dropped.
+    expect(
+      dms.getDmSendMessage([
+        'send',
+        '0v5.abcde',
+        'hello',
+        'world',
+        '--bot',
+        'Botly',
+      ])
+    ).toBe('hello world');
+    expectUsageExit(() =>
+      dms.dmBotProfile(
+        ['send', '0v5.abcde', 'hello', 'world', '--bot', 'Botly'],
+        'usage'
+      )
+    );
+    expectUsageExit(() =>
+      dms.dmBotProfile(
+        ['reply', '0v5.abcde', '~pen/170.141', 'hi', '--bot', 'Botly'],
+        'usage'
+      )
+    );
+    // A following option is the next flag, not a value.
+    expect(
+      dms.dmBotProfile(
+        ['send', '0v5.abcde', 'hi', '--bot', '--image', 'https://x/y.png'],
+        'usage'
+      )
+    ).toEqual({ nickname: null, avatar: null });
+  });
+
   it('rejects a malformed bot flag during send/reply validation', async () => {
     const dms = await loadDms();
     expectUsageExit(() =>
@@ -223,6 +294,19 @@ describe('dms bot author flags', () => {
         '~pen/170.141',
         'hi',
         '--bot=Botly',
+      ])
+    );
+    expectUsageExit(() =>
+      dms.validateDmsArgs(['send', '0v5.abcde', 'hi', '--bot', 'Botly'])
+    );
+    expectUsageExit(() =>
+      dms.validateDmsArgs([
+        'reply',
+        '0v5.abcde',
+        '~pen/170.141',
+        'hi',
+        '--bot',
+        'Botly',
       ])
     );
   });

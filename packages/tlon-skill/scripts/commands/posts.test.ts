@@ -790,6 +790,26 @@ describe('posts bot author flags', () => {
     ]);
   });
 
+  it('accepts an option following --bot', async () => {
+    const context = makeDeps({ currentUserId: '~bot' });
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'beep', '--bot', '--sent-at', '99'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        authorId: '~bot',
+        sentAt: 99,
+        content: [{ inline: ['beep'] }],
+        blob: undefined,
+        botProfile: { nickname: null, avatar: null },
+      },
+    ]);
+  });
+
   it('omits botProfile entirely without a bot flag', async () => {
     const context = makeDeps();
     await run(['send', 'chat/~host/channel', 'beep'], context.deps);
@@ -855,6 +875,24 @@ describe('posts bot author flags', () => {
       ],
       [
         ['reply', 'chat/~host/channel', '170.141', 'hi', '--bot=Botly'],
+        POSTS_COMMAND_HELP.reply,
+      ],
+      // The separated form used to parse, and since the flag is a message
+      // boundary the post went out truncated with the value discarded.
+      [
+        ['send', 'chat/~host/channel', 'hello', 'world', '--bot', 'Botly'],
+        POSTS_COMMAND_HELP.send,
+      ],
+      [
+        [
+          'reply',
+          'chat/~host/channel',
+          '170.141',
+          'hello',
+          'world',
+          '--bot',
+          'Botly',
+        ],
         POSTS_COMMAND_HELP.reply,
       ],
     ];

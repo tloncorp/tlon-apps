@@ -874,6 +874,14 @@ def find_subcommand_index(args: Sequence[str]) -> int:
 # output (cheap, no network, no credentials) and decoration is skipped when the
 # flag is absent — degrading to bare-ship authors rather than corrupting sends.
 BOT_FLAG_PROBE_ARGS = ("posts", "send", "--help")
+# The probe prints local help, so seconds are already generous. The cap exists
+# so a hung CLI cannot spend the caller's whole timeout before the real command
+# starts: the send that pays for it is delayed by at most this, once per
+# process, instead of being doubled. Deliberately a flat cap and not a deduction
+# from the caller's budget — billing it back means bounding the wait on another
+# task's in-flight probe too, and that lock-and-deadline bookkeeping is more
+# failure-prone than the doubling it prevents.
+BOT_FLAG_PROBE_TIMEOUT_SECONDS = 5.0
 BOT_FLAG = "--bot"
 # `--bot` as its own token: bracketed/comma'd in usage lines, but never matched
 # inside a longer flag such as `--bottle`, which says nothing about `--bot`.
@@ -905,7 +913,8 @@ class TlonCLI:
     async def _supports_bot_flags(self) -> bool:
         """Whether the installed CLI knows the bot-author flags. Probed once per
         instance; an unsupported or unreachable CLI degrades to undecorated
-        sends (bare-ship authors) rather than posting `--bot` as message text."""
+        sends (bare-ship authors) rather than posting `--bot` as message text.
+        A probe that outruns the cap is one of those unreachable CLIs."""
         if self._bot_flags_supported is not None:
             return self._bot_flags_supported
 
@@ -918,7 +927,9 @@ class TlonCLI:
                 return self._bot_flags_supported
 
             # Unobserved so a help invocation never lands in CLI telemetry.
-            result = await self._run_unobserved(BOT_FLAG_PROBE_ARGS)
+            result = await self._run_unobserved(
+                BOT_FLAG_PROBE_ARGS, timeout=BOT_FLAG_PROBE_TIMEOUT_SECONDS
+            )
             # A probe that did not run cleanly says nothing about support: only
             # a successful help listing `--bot` as its own token counts.
             supported = bool(result.success) and bool(
