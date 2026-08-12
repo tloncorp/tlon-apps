@@ -172,7 +172,7 @@
   ;<  caz=(list card)  bind:m
     %+  do-poke  %chat-dm-vouched-diff-2
     !>(`vouched-diff:dm:c`[moon diff])
-  =/  invite-action=action:activity  [%add %dm-invite [%ship moon]]
+  =/  invite-action=action:v9:av  [%add %dm-invite [%ship moon]]
   %+  ex-cards  caz
   %+  welp
     :~  (ex-poke /activity/submit [~bus %activity] activity-action-1+!>(invite-action))
