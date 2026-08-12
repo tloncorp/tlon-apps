@@ -1,4 +1,5 @@
 /-  cv=channels-ver, t=contacts, ch=chat, g=groups, gv=groups-ver, s=story
+/-  nv=notes
 /+  mp=mop-extensions
 |%
 ::  $stream: the activity stream comprised of events from various agents
@@ -108,6 +109,8 @@
       [%flag-post key=message-key channel=nest:cv group=flag:gv]
       [%flag-reply key=message-key parent=message-key channel=nest:cv group=flag:gv]
       [%contact contact-event]
+      [%note-create note-event]
+      [%note-edit note-event]
   ==
 ::
 +$  post-event
@@ -162,6 +165,18 @@
   $:  who=ship
       update=(pair @tas value:t)
   ==
+::  $note-event: a note created or edited in a notebook
+::
+::    .group is set when the notebook is a group channel.
+::
++$  note-event
+  $:  id=@ud
+      folder=@ud
+      notebook=flag:nv
+      group=(unit flag:gv)
+      title=@t
+      author=ship
+  ==
 ::
 ::  $source: where the activity is happening
 +$  source
@@ -172,6 +187,8 @@
       [%dm =whom]
       [%dm-thread key=message-key =whom]
       [%contact who=ship]
+      [%notebook =flag:nv group=(unit flag:gv)]
+      [%note id=@ud notebook=flag:nv group=(unit flag:gv)]
   ==
 ::
 ::  $index: the stream of activity and read state for a source
@@ -199,14 +216,13 @@
 ::    $children: the sources nested under this source
 ::
 +$  activity-summary
-  $~  [*@da 0 0 | ~ ~ ~]
+  $~  [*@da 0 0 | ~ ~]
   $:  newest=time
       count=@ud
       notify-count=@ud
       notify=_|
       unread=(unit unread-point)
       children=(set source)
-      reads=*  ::  DO NOT USE, 🚨 ⚠️ REMOVE
   ==
 +$  unread-point  [message-key count=@ud notify=_|]
 +$  volume  [unreads=? notify=?]
@@ -246,6 +262,8 @@
       %flag-post
       %flag-reply
       %contact
+      %note-create
+      %note-edit
   ==
 +$  time-event  [=time =event]
 ++  on-event        ((on time event) lte)
@@ -274,13 +292,22 @@
       [%group-join & |]
       [%group-role & |]
       [%contact | |]
+      [%note-create & &]
+      [%note-edit & &]
   ==
 ++  old-volumes
   ^~
+  ::  templates for the default maps old versions wrote. maps stored by
+  ::  pre-notes versions never contained the note keys (and migrations
+  ::  deliberately leave them absent), so the templates must exclude
+  ::  them or the equality checks against stored maps never match
+  =/  base=volume-map
+    %.  %note-edit
+    ~(del by (~(del by `volume-map`default-volumes) %note-create))
   %-  my
-  :~  [%soft (~(put by default-volumes) %post [& |])]
-      [%loud (~(run by default-volumes) |=([u=? *] [u &]))]
-      [%hush (~(run by default-volumes) |=([u=? *] [u |]))]
+  :~  [%soft (~(put by base) %post [& |])]
+      [%loud (~(run by base) |=([u=? *] [u &]))]
+      [%hush (~(run by base) |=([u=? *] [u |]))]
   ==
 ++  mute
   ^~

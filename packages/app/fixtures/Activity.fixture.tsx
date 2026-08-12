@@ -6,6 +6,7 @@ import {
   ActivityEmptyState,
   ActivityScreenContent,
   AppDataContextProvider,
+  ScreenHeader,
 } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import { activityItems } from './activityHelpers';
@@ -87,6 +88,7 @@ const countVariants = counts.map((count) => activityItems.groupPost(count));
 const EmptyStateFixture = () => {
   return (
     <ActivityFixtureWrapper>
+      <ScreenHeader title="Activity" />
       <ActivityEmptyState
         onInviteFriends={() => Alert.alert('Invite friends pressed')}
         onNavigateToContacts={() => Alert.alert('Navigate to contacts pressed')}

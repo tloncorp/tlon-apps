@@ -19,6 +19,7 @@ import type {
 } from 'mdast';
 import { gfmToMarkdown } from 'mdast-util-gfm';
 import { toMarkdown } from 'mdast-util-to-markdown';
+import type { Node } from 'unist';
 
 import { assertNever } from '../../lib/assertNever';
 import { Story, Verse, VerseBlock, VerseInline } from '../../urbit/channel';
@@ -47,12 +48,13 @@ import {
   Task,
 } from '../../urbit/content';
 import type { GroupMention } from './groupMentionPlugin';
+import { separateShipMentionsFromFusableSiblings } from './serialize';
 import type { ShipMention } from './shipMentionPlugin';
 
 const tableMentionHandlers = {
   handlers: {
     shipMention(node: { value: string }) {
-      return `~${node.value}`;
+      return node.value;
     },
     groupMention(node: { value: string }) {
       return `@${node.value}`;
@@ -84,14 +86,14 @@ function isGroupMention(node: unknown): node is GroupMention {
 
 /**
  * Flatten mdast link-label children to Story's string-only link content.
- * Formatting contributes its visible text, while custom mention nodes restore
- * the sigils omitted from their mdast `value` fields.
+ * Formatting contributes its visible text; ship mention values already carry
+ * their sigil, while group mention values restore their `@`.
  */
 function linkLabelToText(nodes: PhrasingContent[]): string {
   return nodes
     .map((node) => {
       if (isShipMention(node)) {
-        return `~${(node as unknown as ShipMention).value}`;
+        return (node as unknown as ShipMention).value;
       }
       if (isGroupMention(node)) {
         return `@${(node as unknown as GroupMention).value}`;
@@ -144,6 +146,9 @@ function getListType(list: MdastList): 'ordered' | 'unordered' | 'tasklist' {
 }
 
 function blockContentToMarkdown(node: BlockContent): string {
+  // A mention adjacent to text would fuse into a different ship when this
+  // fragment is reserialized and reparsed, so separate them first.
+  separateShipMentionsFromFusableSiblings(node as unknown as Node);
   return toMarkdown(node as Parameters<typeof toMarkdown>[0], {
     extensions: [
       gfmToMarkdown({
@@ -242,7 +247,7 @@ export function phrasingToInlines(nodes: PhrasingContent[]): Inline[] {
     // Check for ship mention first (custom node type)
     if (isShipMention(node)) {
       const ship: Ship = {
-        ship: `~${(node as unknown as ShipMention).value}`,
+        ship: (node as unknown as ShipMention).value,
       };
       result.push(ship);
       continue;
@@ -506,6 +511,9 @@ function blockquoteToVerse(blockquote: MdastBlockquote): VerseInline {
 function tableToVerse(node: RootContent): VerseInline | null {
   if (node.type !== 'table') return null;
 
+  // A mention adjacent to text in a cell would fuse into a different ship
+  // when the table is reserialized and reparsed, so separate them first.
+  separateShipMentionsFromFusableSiblings(node);
   const tableText = toMarkdown(node as Parameters<typeof toMarkdown>[0], {
     extensions: [
       gfmToMarkdown({

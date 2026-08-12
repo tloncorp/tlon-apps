@@ -691,6 +691,16 @@ export async function markChannelRead({
   groupId?: string;
   includeThreads?: boolean;
 }) {
+  // per-note unreads ride thread rows, so a notes channel read is only
+  // meaningful deep — otherwise the note dots (and their backend sources)
+  // survive the channel badge being cleared
+  includeThreads = includeThreads || id.startsWith('notes/');
+  // the notebook read poke can't be sent until the notes capability
+  // resolves (or ever, on a backend below the gate) — skip the optimistic
+  // clear too, or local state diverges from the ship with no retry
+  if (id.startsWith('notes/') && !api.getActivitySupportsNotes()) {
+    return false;
+  }
   logger.log(`marking channel as read`, id, 'includeThreads', includeThreads);
   // optimistic update
   const existingUnread = await db.getChannelUnread({ channelId: id });
