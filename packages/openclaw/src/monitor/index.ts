@@ -2875,7 +2875,13 @@ export async function monitorTlonProvider(
         onboardingInvitePending.add(nest);
         const waitingPostStartedAt = Date.now();
         try {
+          if (opts.abortSignal?.aborted) {
+            throw new Error('Onboarding waiting status aborted with monitor');
+          }
           await postToChannel(nest, WAITING_FOR_NOTEBOOK_LINE);
+          if (opts.abortSignal?.aborted) {
+            throw new Error('Onboarding waiting status aborted with monitor');
+          }
           traceOnboardingStep(traceBase, 'post_waiting_status', 'succeeded', {
             onboardingStage: 'notebook',
             onboardingState: 'awaiting-notebook',
@@ -2895,6 +2901,9 @@ export async function monitorTlonProvider(
               ...onboardingErrorFields(error),
             }
           );
+        }
+        if (opts.abortSignal?.aborted) {
+          return;
         }
         traceOnboardingStep(traceBase, 'begin_setup', 'succeeded', {
           onboardingStage: 'schedule',

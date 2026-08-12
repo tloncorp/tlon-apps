@@ -112,6 +112,32 @@ describe('deterministic onboarding config', () => {
       'Configured notebook output nest: notes/~zod/daily'
     );
   });
+
+  test('rejects invalid persisted onboarding scalar fields and states', () => {
+    const valid = JSON.parse(
+      buildAwaitingTimezoneDescription({
+        purposeId: 'agent-research',
+        topics: 'Mycology',
+        agentShip: '~bot',
+      })
+    );
+    const invalidValues: Array<[string, unknown]> = [
+      ['state', 'unknown'],
+      ['timezone', 123],
+      ['cronJobId', 123],
+      ['notebookNest', 123],
+      ['noteBaseline', 123],
+      ['noteId', 123],
+    ];
+
+    for (const [field, value] of invalidValues) {
+      const description = structuredClone(valid);
+      description[0].onboarding[field] = value;
+      expect(
+        deterministicSetupFromDescription(JSON.stringify(description))
+      ).toBe(null);
+    }
+  });
 });
 
 describe('onboarding sequence guards', () => {

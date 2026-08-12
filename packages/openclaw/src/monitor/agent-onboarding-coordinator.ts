@@ -17,6 +17,15 @@ export type DeterministicOnboardingState =
   | 'writing-note'
   | 'complete';
 
+const DETERMINISTIC_ONBOARDING_STATES = new Set<unknown>([
+  'awaiting-topics',
+  'awaiting-timezone',
+  'awaiting-notebook',
+  'researching',
+  'writing-note',
+  'complete',
+]);
+
 export type DeterministicOnboardingRecord = {
   state: DeterministicOnboardingState;
   topics: string;
@@ -330,14 +339,26 @@ export function deterministicSetupFromDescription(
     if (!entry || typeof entry.templateId !== 'string') {
       return null;
     }
-    const record = entry.onboarding as Partial<DeterministicOnboardingRecord>;
+    const record = entry.onboarding as
+      | Partial<Record<keyof DeterministicOnboardingRecord, unknown>>
+      | null
+      | undefined;
     const agentShip = Array.isArray(entry.agents)
       ? entry.agents.find((agent): agent is string => typeof agent === 'string')
       : undefined;
     if (
       !record ||
-      typeof record.state !== 'string' ||
+      !DETERMINISTIC_ONBOARDING_STATES.has(record.state) ||
       typeof record.topics !== 'string' ||
+      (record.timezone !== undefined && typeof record.timezone !== 'string') ||
+      (record.cronJobId !== undefined &&
+        typeof record.cronJobId !== 'string') ||
+      (record.notebookNest !== undefined &&
+        typeof record.notebookNest !== 'string') ||
+      (record.noteBaseline !== undefined &&
+        record.noteBaseline !== null &&
+        typeof record.noteBaseline !== 'string') ||
+      (record.noteId !== undefined && typeof record.noteId !== 'string') ||
       !agentShip ||
       !PURPOSE_JOBS[entry.templateId]
     ) {

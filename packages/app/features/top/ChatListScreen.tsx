@@ -259,9 +259,24 @@ export function ChatListScreenView({
 
       const fastUntil = Date.now() + 30_000;
       let slowSyncLogged = false;
+      let channelReadErrorLogged = false;
       let navigated = false;
       while (active) {
-        if (await db.getChannel({ id: landing.channelId })) {
+        let channel: Awaited<ReturnType<typeof db.getChannel>>;
+        try {
+          channel = await db.getChannel({ id: landing.channelId });
+        } catch (error) {
+          if (!channelReadErrorLogged) {
+            channelReadErrorLogged = true;
+            logger.trackError('Failed to read onboarding landing channel', {
+              error,
+              ...landing,
+            });
+          }
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          continue;
+        }
+        if (channel) {
           if (!navigated) {
             navigated = true;
             resetToChannelRef.current(landing.channelId, {
