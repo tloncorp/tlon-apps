@@ -134,7 +134,6 @@ export default function ChannelScreen(props: Props) {
   useFocusEffect(
     useCallback(() => {
       let isCurrent = true;
-      setClearedCursor(false);
       setUnreadSnapshotIsFresh(false);
 
       async function initializeChannelUnread() {
@@ -167,6 +166,13 @@ export default function ChannelScreen(props: Props) {
     isFocused &&
     unreadSnapshotIsFresh &&
     initialChannelUnreadSnapshot?.channelId === currentChannelId;
+  useEffect(() => {
+    if (unreadDidInitialize) {
+      // Keep the retained visit's query mode stable while its replacement
+      // unread snapshot loads, then allow the fresh cursor to take over.
+      setClearedCursor(false);
+    }
+  }, [unreadDidInitialize]);
   // Retain the prior focused entry's snapshot while its replacement loads.
   // This preserves Channel-local draft state without enabling unread work
   // until the new snapshot is ready.
