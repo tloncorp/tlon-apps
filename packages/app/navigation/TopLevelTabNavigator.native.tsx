@@ -1,10 +1,5 @@
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
 import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider as NavigationThemeProvider,
-} from '@react-navigation/native';
-import {
   ClipOp,
   ImageFormat,
   Skia,
@@ -13,7 +8,7 @@ import {
   useImage,
 } from '@shopify/react-native-skia';
 import * as store from '@tloncorp/shared/store';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { type ImageSourcePropType, Platform } from 'react-native';
 import { useTheme } from 'tamagui';
 
@@ -22,7 +17,6 @@ import ChatListScreen from '../features/top/ChatListScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
 import { useTopLevelTabController } from '../hooks/useTopLevelTabController';
 import ProfileStatusSheet from '../ui/components/ProfileStatusSheet';
-import { useIsDarkTheme } from '../ui/utils/colorUtils';
 import { TOP_LEVEL_TABS, trackTopLevelTabSelection } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
@@ -138,27 +132,6 @@ function useRoundedAvatarSource(avatarImage: string | null | undefined) {
 
 export function TopLevelTabNavigator() {
   const theme = useTheme();
-  const isDarkTheme = useIsDarkTheme();
-  const navigationTheme = useMemo(() => {
-    const baseTheme = isDarkTheme ? DarkTheme : DefaultTheme;
-
-    return {
-      ...baseTheme,
-      colors: {
-        ...baseTheme.colors,
-        background: theme.background?.val ?? baseTheme.colors.background,
-        card: theme.background?.val ?? baseTheme.colors.card,
-        text: theme.primaryText?.val ?? baseTheme.colors.text,
-        border: theme.border?.val ?? baseTheme.colors.border,
-        primary: theme.primaryText?.val ?? baseTheme.colors.primary,
-      },
-    };
-  }, [
-    isDarkTheme,
-    theme.background?.val,
-    theme.border?.val,
-    theme.primaryText?.val,
-  ]);
   const { currentUserId, haveUnreadActivity, statusSheet } =
     useTopLevelTabController();
   const { data: currentUser } = store.useContact({ id: currentUserId });
@@ -167,7 +140,7 @@ export function TopLevelTabNavigator() {
     calmSettings?.disableAvatars ? undefined : currentUser?.avatarImage
   );
   return (
-    <NavigationThemeProvider value={navigationTheme}>
+    <>
       <Tabs.Navigator
         initialRouteName="ChatList"
         backBehavior="history"
@@ -233,6 +206,6 @@ export function TopLevelTabNavigator() {
           onUpdateStatus={statusSheet.updateStatus}
         />
       )}
-    </NavigationThemeProvider>
+    </>
   );
 }

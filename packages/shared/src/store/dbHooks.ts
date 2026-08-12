@@ -299,10 +299,14 @@ export const useLiveThreadUnread = (unread: db.ThreadUnreadState | null) => {
       depsKey,
       'thread',
       unread ? unread.threadId : null,
+      unread ? unread.channelId : null,
     ],
     queryFn: async () => {
       if (unread) {
-        return db.getThreadUnreadState({ parentId: unread.threadId ?? '' });
+        return db.getThreadUnreadState({
+          parentId: unread.threadId ?? '',
+          channelId: unread.channelId ?? undefined,
+        });
       }
       return null;
     },
@@ -450,18 +454,25 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   });
 };
 
+const getGroupQueryOptions = (id?: string) => ({
+  queryKey: [['group', id], keyFromQueryDeps(db.getGroup, id)],
+  queryFn: () => {
+    if (!id) {
+      throw new Error('missing group id');
+    }
+    return db.getGroup({ id });
+  },
+});
+
 export const useGroup = ({ id }: { id?: string }) => {
   return useQuery({
+    ...getGroupQueryOptions(id),
     enabled: !!id,
-    queryKey: [['group', id], useKeyFromQueryDeps(db.getGroup, id)],
-    queryFn: () => {
-      if (!id) {
-        throw new Error('missing group id');
-      }
-      return db.getGroup({ id });
-    },
   });
 };
+
+export const fetchGroup = (id: string) =>
+  db.queryClient.fetchQuery(getGroupQueryOptions(id));
 
 export const useGroupUnread = ({ groupId }: { groupId: string }) => {
   return useQuery({

@@ -213,7 +213,7 @@ function collectInlinePayloads(
         disposition: 'preserved',
         markdownValue,
         mdastProperty: 'value',
-        mdastValue: inline.ship.replace(/^~/, ''),
+        mdastValue: markdownValue,
         nodeType: 'shipMention',
         sourcePath: `${inlinePath}.ship`,
         variant: 'ship',

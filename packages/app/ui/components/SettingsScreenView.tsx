@@ -7,10 +7,11 @@ import {
 } from '@tloncorp/ui';
 import { PropsWithChildren, ReactElement } from 'react';
 import { Alert } from 'react-native';
-import { AlertDialog, ScrollView, View, XStack, YStack, isWeb } from 'tamagui';
+import { AlertDialog, View, XStack, YStack, isWeb } from 'tamagui';
 
 import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
+import { ScreenScrollView } from './ScreenScrollView';
 import { TlonLogo } from './TlonLogo';
 
 interface Props {
@@ -69,8 +70,9 @@ export function SettingsScreenView(props: Props) {
         title="Settings"
         backAction={props.onBackPressed}
         borderBottom={isWindowNarrow}
+        placement="navigation"
       />
-      <ScrollView>
+      <ScreenScrollView>
         <YStack flex={1} padding="$l" gap="$s">
           <SettingsAction
             title="Notification settings"
@@ -167,7 +169,7 @@ export function SettingsScreenView(props: Props) {
             />
           ) : null}
         </YStack>
-      </ScrollView>
+      </ScreenScrollView>
     </>
   );
 }

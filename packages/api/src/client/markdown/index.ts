@@ -17,7 +17,7 @@ export {
 export type { StoryToMdastOptions } from './storyToMdast';
 
 // Ship mention plugin
-export { remarkShipMentions, parseShipMentions } from './shipMentionPlugin';
+export { remarkShipMentions } from './shipMentionPlugin';
 export type { ShipMention } from './shipMentionPlugin';
 
 // Group mention plugin

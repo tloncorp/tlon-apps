@@ -34,6 +34,7 @@ import { useCurrentUserId } from '../contexts/appDataContext';
 import { useAttachmentContext } from '../contexts/attachment';
 import { ChannelProvider } from '../contexts/channel';
 import { NavigationProvider } from '../contexts/navigation';
+import { ScrollContextProvider } from '../contexts/scroll';
 import * as utils from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
@@ -62,7 +63,7 @@ const HIGHLIGHT_DURATION_MS = 5000;
 
 interface ChatThreadHandle {
   posts: db.Post[];
-  scrollToPostAtIndex: (index: number, viewPosition?: number) => void;
+  scrollToPost: (postId: string, viewPosition?: number) => void;
   highlightPost: (postId: string) => void;
 }
 
@@ -338,11 +339,9 @@ export function PostScreenView({
         const isSameThread =
           post.parentId === parentPost?.id || post.id === parentPost?.id;
         if (isSameChannel && isSameThread) {
-          const anchorIndex = threadHandle.posts.findIndex(
-            (p) => p.id === post.id
-          );
-          if (anchorIndex !== -1) {
-            threadHandle.scrollToPostAtIndex(anchorIndex, 0.5);
+          const hasPost = threadHandle.posts.some((p) => p.id === post.id);
+          if (hasPost) {
+            threadHandle.scrollToPost(post.id, 0.5);
             threadHandle.highlightPost(post.id);
             return;
           }
@@ -421,35 +420,37 @@ export function PostScreenView({
                             />
                           </YStack>
                         ) : mode === 'single' ? (
-                          <SinglePostView
-                            {...{
-                              channel,
-                              chatThreadHandleRef,
-                              editingPost,
-                              goBack,
-                              group,
-                              handleGoToImage,
-                              inspectContextLensPost:
-                                contextLensAvailable && contextLensOpen
-                                  ? inspectContextLensPost
-                                  : undefined,
-                              openContextLensForPost:
-                                contextLensAvailable && !isWindowNarrow
-                                  ? openContextLensForPost
-                                  : undefined,
-                              onGoToBotRun:
-                                contextLensAvailable && isWindowNarrow
-                                  ? goToContextLensRun
-                                  : undefined,
-                              negotiationMatch,
-                              onPressDelete,
-                              onPressRetry,
-                              parentEditDraftCallbacks,
-                              parentPost,
-                              selectedPostId,
-                              setEditingPost,
-                            }}
-                          />
+                          <ScrollContextProvider>
+                            <SinglePostView
+                              {...{
+                                channel,
+                                chatThreadHandleRef,
+                                editingPost,
+                                goBack,
+                                group,
+                                handleGoToImage,
+                                inspectContextLensPost:
+                                  contextLensAvailable && contextLensOpen
+                                    ? inspectContextLensPost
+                                    : undefined,
+                                openContextLensForPost:
+                                  contextLensAvailable && !isWindowNarrow
+                                    ? openContextLensForPost
+                                    : undefined,
+                                onGoToBotRun:
+                                  contextLensAvailable && isWindowNarrow
+                                    ? goToContextLensRun
+                                    : undefined,
+                                negotiationMatch,
+                                onPressDelete,
+                                onPressRetry,
+                                parentEditDraftCallbacks,
+                                parentPost,
+                                selectedPostId,
+                                setEditingPost,
+                              }}
+                            />
+                          </ScrollContextProvider>
                         ) : (
                           <CarouselPostScreenContent
                             flex={1}
@@ -627,8 +628,8 @@ function SinglePostView({
   const scrollerRef = useRef<{
     scrollToStart: (opts: { animated?: boolean }) => void;
     scrollToEnd: (opts: { animated?: boolean }) => void;
-    scrollToIndex: (params: {
-      index: number;
+    scrollToPost: (params: {
+      postId: string;
       animated?: boolean;
       viewPosition?: number;
     }) => void;
@@ -656,11 +657,12 @@ function SinglePostView({
   );
   const hasThreadUnreadActivity = hasUnreadActivity(liveThreadUnread);
 
-  const { data: threadPosts } = store.useThreadPosts({
-    postId: parentPost.id,
-    authorId: parentPost.authorId,
-    channelId: channel.id,
-  });
+  const { data: threadPosts, isLoading: isLoadingThreadPosts } =
+    store.useThreadPosts({
+      postId: parentPost.id,
+      authorId: parentPost.authorId,
+      channelId: channel.id,
+    });
 
   const posts = useMemo(() => {
     return parentPost ? [...(threadPosts ?? []), parentPost] : null;
@@ -703,9 +705,9 @@ function SinglePostView({
     if (isChatChannel && posts) {
       chatThreadHandleRef.current = {
         posts,
-        scrollToPostAtIndex: (index: number, viewPosition?: number) => {
-          scrollerRef.current?.scrollToIndex({
-            index,
+        scrollToPost: (postId: string, viewPosition?: number) => {
+          scrollerRef.current?.scrollToPost({
+            postId,
             animated: true,
             viewPosition,
           });
@@ -731,8 +733,8 @@ function SinglePostView({
   }, []);
 
   // Compute a ScrollAnchor from selectedPostId for chat threads.
-  // This wires into useAnchorScrollLock via Scroller, giving us retry/recovery
-  // for unmeasured items instead of a one-shot scrollToIndex.
+  // This wires into Scroller's anchor initialization, giving us retry/recovery
+  // for unmeasured items instead of a one-shot imperative scroll.
   const threadAnchor: ScrollAnchor | null = useMemo(() => {
     if (isChatChannel && selectedPostId) {
       return { type: 'selected', postId: selectedPostId };
@@ -761,13 +763,9 @@ function SinglePostView({
   }, [isChatChannel]);
   const scrollToNewReply = useCallback(() => {
     requestAnimationFrame(() => {
-      if (isChatChannel) {
-        scrollerRef.current?.scrollToStart({ animated: true });
-      } else {
-        scrollerRef.current?.scrollToEnd({ animated: true });
-      }
+      scrollerRef.current?.scrollToEnd({ animated: true });
     });
-  }, [isChatChannel]);
+  }, []);
 
   const hasLoadedReplies = !!(posts && channel && parentPost);
   // Only mark thread as read when user is actively using the app (not idle)
@@ -875,6 +873,7 @@ function SinglePostView({
             inspectContextLensPost={inspectContextLensPost}
             onOpenContextLens={openContextLensForPost}
             onGoToBotRun={onGoToBotRun}
+            isLoading={isLoadingThreadPosts}
           />
         ) : null}
 
@@ -1096,13 +1095,15 @@ function _CarouselPost({
 }: { channel: db.Channel; parentPost: db.Post } & ChannelContext) {
   return (
     <Carousel.Item flex={1}>
-      <SinglePostView
-        {...{
-          channel,
-          ...channelContext,
-          parentPost,
-        }}
-      />
+      <ScrollContextProvider>
+        <SinglePostView
+          {...{
+            channel,
+            ...channelContext,
+            parentPost,
+          }}
+        />
+      </ScrollContextProvider>
     </Carousel.Item>
   );
 }

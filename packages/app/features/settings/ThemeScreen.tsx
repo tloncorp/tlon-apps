@@ -2,10 +2,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useEffect, useState } from 'react';
-import { YStack } from 'tamagui';
-import { useTheme } from 'tamagui';
+import { YStack, useTheme } from 'tamagui';
 
-import { useIsDarkMode } from '../../hooks/useIsDarkMode';
 import { RootStackParamList } from '../../navigation/types';
 import { AppTheme } from '../../types/theme';
 import {
@@ -26,7 +24,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 export function ThemeScreen(props: Props) {
   const theme = useTheme();
   const { data: storedTheme, isLoading } = useThemeSettings();
-  const isDarkMode = useIsDarkMode();
   const [selectedTheme, setSelectedTheme] = useState<AppTheme>('auto');
   const [loadingTheme, setLoadingTheme] = useState<AppTheme | null>(null);
 
@@ -34,7 +31,7 @@ export function ThemeScreen(props: Props) {
     {
       title: 'Auto',
       value: 'auto',
-      subtitle: `Uses system ${isDarkMode ? 'dark' : 'light'} theme`,
+      subtitle: 'Uses your system appearance',
     },
     { title: 'Tlon Light', value: 'light' },
     { title: 'Tlon Dark', value: 'dark' },
@@ -77,6 +74,7 @@ export function ThemeScreen(props: Props) {
         backAction={
           isWindowNarrow ? () => props.navigation.goBack() : undefined
         }
+        placement="navigation"
       />
       <SettingsContentScrollView>
         <YStack flex={1} padding="$l">

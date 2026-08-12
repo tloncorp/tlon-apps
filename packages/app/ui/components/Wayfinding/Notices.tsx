@@ -154,7 +154,7 @@ function CustomizeGroup() {
   );
 }
 
-export function HomeAddTooltip() {
+export function HomeAddTooltip({ top = 36 }: { top?: number }) {
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
   const botEnabled = isHostedUser && hostingBotEnabled;
@@ -167,7 +167,7 @@ export function HomeAddTooltip() {
   }, []);
 
   return (
-    <View position="absolute" top={36} right={18}>
+    <View position="absolute" top={top} right={18} zIndex={100}>
       <YStack alignItems="flex-end">
         <Pressable
           testID="HomeAddWayfindingTooltip"

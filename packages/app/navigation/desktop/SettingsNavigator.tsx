@@ -15,6 +15,7 @@ import { BotChannelRuleSettingsScreen } from '../../features/settings/BotChannel
 import { BotChannelRulesScreen } from '../../features/settings/BotChannelRulesScreen';
 import { BotMcpSettingsScreen } from '../../features/settings/BotMcpSettingsScreen';
 import { BotModelSettingsScreen } from '../../features/settings/BotModelSettingsScreen';
+import { BotOpenAISubscriptionScreen } from '../../features/settings/BotOpenAISubscriptionScreen';
 import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
 import { BotShipListSettingsScreen } from '../../features/settings/BotShipListSettingsScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
@@ -166,6 +167,10 @@ export const SettingsNavigator = () => {
       <SettingsDrawer.Screen
         name="BotApiKeySettings"
         component={BotApiKeySettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotOpenAISubscription"
+        component={BotOpenAISubscriptionScreen}
       />
       <SettingsDrawer.Screen
         name="BotShipListSettings"

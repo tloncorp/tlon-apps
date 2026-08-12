@@ -1,13 +1,6 @@
 import { useDebouncedValue } from '@tloncorp/shared';
-import { Icon, Text, Pressable as TlonPressable, View } from '@tloncorp/ui';
-import {
-  Children,
-  PropsWithChildren,
-  ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { Icon, Text, View } from '@tloncorp/ui';
+import { Children, ReactNode, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -25,15 +18,56 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  ColorTokens,
   XStack,
   getVariableValue,
-  styled,
   useTheme,
   withStaticProperties,
 } from 'tamagui';
 
-import { LongPressDisclosure } from './LongPressDisclosure';
+import { LongPressDisclosure } from '../LongPressDisclosure';
+import type { ScreenHeaderAction } from './actions';
+import {
+  HeaderBackButton,
+  HeaderControls,
+  HeaderIconButton,
+  HeaderTextButton,
+  HeaderTitleText,
+  ScreenHeaderItemElements,
+} from './primitives';
+import { useNativeHeader } from './useNativeHeader';
+
+interface SharedScreenHeaderProps {
+  title?: string | ReactNode;
+  titleIcon?: ReactNode;
+  subtitle?: string | ReactNode;
+  showSubtitle?: boolean;
+  backgroundColor?: string;
+  leftActions?: ScreenHeaderAction[];
+  rightActions?: ScreenHeaderAction[];
+  backAction?: () => void;
+  backDisabled?: boolean;
+  borderBottom?: boolean;
+  onTitlePress?: () => void;
+  useHorizontalTitleLayout?: boolean;
+  loadingSubtitle?: string | null;
+  testID?: string;
+}
+
+type ScreenHeaderProps = SharedScreenHeaderProps &
+  (
+    | {
+        placement?: 'content';
+        children?: ReactNode;
+        leftControls?: ReactNode | null;
+        rightControls?: ReactNode | null;
+      }
+    | {
+        placement: 'navigation';
+        children?: never;
+        leftControls?: never;
+        rightControls?: never;
+      }
+  );
 
 export const ScreenHeaderComponent = ({
   children,
@@ -44,27 +78,17 @@ export const ScreenHeaderComponent = ({
   backgroundColor,
   leftControls,
   rightControls,
+  leftActions,
+  rightActions,
   backAction,
+  backDisabled = false,
   borderBottom,
   onTitlePress,
   useHorizontalTitleLayout = false,
   loadingSubtitle,
   testID,
-}: PropsWithChildren<{
-  title?: string | ReactNode;
-  titleIcon?: ReactNode;
-  subtitle?: string | ReactNode;
-  showSubtitle?: boolean;
-  backgroundColor?: string;
-  leftControls?: ReactNode | null;
-  rightControls?: ReactNode | null;
-  backAction?: () => void;
-  borderBottom?: boolean;
-  onTitlePress?: () => void;
-  useHorizontalTitleLayout?: boolean;
-  loadingSubtitle?: string | null;
-  testID?: string;
-}>) => {
+  placement = 'content',
+}: ScreenHeaderProps) => {
   const { top } = useSafeAreaInsets();
   const [headerWidth, setHeaderWidth] = useState(0);
   const [leftControlsWidth, setLeftControlsWidth] = useState(0);
@@ -225,6 +249,52 @@ export const ScreenHeaderComponent = ({
     titleContent
   );
 
+  const navigationLeftActions: ScreenHeaderAction[] = [
+    ...(backAction
+      ? [
+          {
+            id: 'screen-header-back',
+            icon: 'ChevronLeft' as const,
+            label: 'Back',
+            onPress: backAction,
+            disabled: backDisabled,
+          },
+        ]
+      : []),
+    ...(leftActions ?? []),
+  ];
+  // Ordinary subtitles belong to the content/desktop layout. Native custom
+  // titles are reserved for elements the native string title cannot express.
+  const usesCustomNativeTitle =
+    typeof title !== 'string' ||
+    titleIcon != null ||
+    onTitlePress != null ||
+    loadingSubtitle !== undefined;
+  const titlePresentationKey = JSON.stringify({
+    title: typeof title === 'string' ? title : null,
+    hasTitleIcon: titleIcon != null,
+    subtitle: resolvedSubtitle,
+    loadingText: displayLoadingText,
+    isLoadingActive,
+    showSubtitle,
+    useHorizontalTitleLayout,
+    isInteractive: onTitlePress != null,
+  });
+  const shouldUseNativeHeader = useNativeHeader({
+    enabled: placement === 'navigation',
+    title: typeof title === 'string' ? title : '',
+    titleElement: interactiveTitleContent,
+    titlePresentationKey,
+    usesCustomTitle: usesCustomNativeTitle,
+    backgroundColor,
+    left: navigationLeftActions,
+    right: rightActions ?? [],
+  });
+
+  if (shouldUseNativeHeader) {
+    return null;
+  }
+
   return (
     <View
       paddingTop={top}
@@ -269,8 +339,13 @@ export const ScreenHeaderComponent = ({
           );
         }}
       >
-        {backAction ? <HeaderBackButton onPress={backAction} /> : null}
+        {backAction ? (
+          <HeaderBackButton onPress={backAction} disabled={backDisabled} />
+        ) : null}
         {leftControls}
+        {leftActions ? (
+          <ScreenHeaderItemElements actions={leftActions} />
+        ) : null}
       </HeaderControls>
       <HeaderControls
         side="right"
@@ -282,6 +357,9 @@ export const ScreenHeaderComponent = ({
         }}
       >
         {rightControls}
+        {rightActions ? (
+          <ScreenHeaderItemElements actions={rightActions} />
+        ) : null}
       </HeaderControls>
       {children}
     </View>
@@ -514,81 +592,6 @@ function HeaderAnimatedTitle({
     </View>
   );
 }
-
-const HeaderIconButton = styled(Icon, {
-  customSize: ['$3xl', '$2xl'],
-  borderRadius: '$m',
-  cursor: 'pointer',
-  pressStyle: {
-    opacity: 0.5,
-  },
-});
-
-function HeaderTextButton({
-  children,
-  color = '$primaryText',
-  disabled,
-  onPress,
-  testID,
-}: PropsWithChildren<{
-  color?: ColorTokens;
-  disabled?: boolean;
-  onPress?: () => void;
-  testID?: string;
-}>) {
-  return (
-    <TlonPressable
-      accessibilityRole="button"
-      alignItems="center"
-      cursor={disabled ? 'default' : 'pointer'}
-      disabled={disabled}
-      height="$4xl"
-      justifyContent="center"
-      onPress={disabled ? undefined : onPress}
-      paddingHorizontal="$s"
-      paddingTop="$xs"
-      testID={testID}
-    >
-      <Text size="$label/2xl" color={disabled ? '$tertiaryText' : color}>
-        {children}
-      </Text>
-    </TlonPressable>
-  );
-}
-
-const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
-  return (
-    <HeaderIconButton
-      testID="HeaderBackButton"
-      type="ChevronLeft"
-      onPress={onPress}
-    />
-  );
-};
-
-const HeaderTitleText = styled(Text, {
-  size: '$label/2xl',
-  numberOfLines: 1,
-});
-
-const HeaderControls = styled(XStack, {
-  position: 'absolute',
-  bottom: 0,
-  height: '$4xl',
-  alignItems: 'center',
-  gap: '$l',
-  zIndex: 1,
-  variants: {
-    side: {
-      left: {
-        left: '$xl',
-      },
-      right: {
-        right: '$xl',
-      },
-    },
-  } as const,
-});
 
 export const ScreenHeader = withStaticProperties(ScreenHeaderComponent, {
   Controls: HeaderControls,

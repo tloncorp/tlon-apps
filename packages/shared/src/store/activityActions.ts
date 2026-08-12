@@ -286,25 +286,43 @@ export async function setChannelVolumeLevel(params: {
     channelId: params.channel.id,
   });
   const isGroupChannel = isGroupChannelId(params.channel.id);
+  const isNotesChannel = params.channel.id.startsWith('notes/');
   const isMultiDm = whomIsMultiDm(params.channel.id);
-  const source: ub.Source = isGroupChannel
+  // note events live under %notebook sources, not %channel, so a notes
+  // channel's volume must target the notebook source to take effect
+  const source: ub.Source = isNotesChannel
     ? {
-        channel: {
-          nest: params.channel.id,
-          group: params.channel.groupId ?? '',
+        notebook: {
+          flag: params.channel.id.slice('notes/'.length),
+          group: params.channel.groupId ?? null,
         },
       }
-    : isMultiDm
+    : isGroupChannel
       ? {
-          dm: {
-            club: params.channel.id,
+          channel: {
+            nest: params.channel.id,
+            group: params.channel.groupId ?? '',
           },
         }
-      : {
-          dm: {
-            ship: params.channel.id,
-          },
-        };
+      : isMultiDm
+        ? {
+            dm: {
+              club: params.channel.id,
+            },
+          }
+        : {
+            dm: {
+              ship: params.channel.id,
+            },
+          };
+
+  // a backend below the notes activity gate can't parse %notebook sources
+  // — and if the capability just hasn't resolved yet, a local-only write
+  // would silently diverge from the ship. Fail before the optimistic
+  // update so the UI keeps showing the real setting.
+  if (isNotesChannel && !api.getActivitySupportsNotes()) {
+    return false;
+  }
 
   // optimistic update
   if (!params.level) {
