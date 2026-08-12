@@ -2232,8 +2232,14 @@ export async function monitorTlonProvider(
         onboardingSource: 'closing_reconciliation',
         onboardingStage: 'closing',
       };
+      const assertMonitorActive = () => {
+        if (opts.abortSignal?.aborted) {
+          throw new Error('Onboarding closing aborted with monitor');
+        }
+      };
       traceOnboardingStep(traceBase, 'close_setup', 'started');
       try {
+        assertMonitorActive();
         const group = await findGroupForChannel(api, nest, runtime);
         if (!group) {
           traceOnboardingStep(traceBase, 'resolve_group', 'failed_retryable', {
@@ -2307,6 +2313,7 @@ export async function monitorTlonProvider(
         const history = await fetchChannelHistory(api, nest, 100, runtime, {
           throwOnError: true,
         });
+        assertMonitorActive();
         const botPosted = (needle: string) =>
           history.some(
             (entry) =>
@@ -2326,7 +2333,9 @@ export async function monitorTlonProvider(
           }
         }
         if (!botPosted(ONBOARDING_COMPLETE_LINE)) {
+          assertMonitorActive();
           await postToChannel(nest, ONBOARDING_COMPLETE_LINE);
+          assertMonitorActive();
           traceOnboardingStep(
             traceBase,
             'post_completion_status',
@@ -2344,11 +2353,13 @@ export async function monitorTlonProvider(
         // the group's info screen.
         if (!INVITE_CARD_LEADS.some(botPosted)) {
           const blob = buildInviteCardBlob(nest, group.flag);
+          assertMonitorActive();
           await postToChannel(
             nest,
             inviteCardFallbackText(),
             blob ? { blob: serializeBlobField(blob) } : {}
           );
+          assertMonitorActive();
           traceOnboardingStep(traceBase, 'post_invite_card', 'succeeded', {
             groupFlag: group.flag,
           });
@@ -2377,11 +2388,13 @@ export async function monitorTlonProvider(
           }
           if (isFirstSetup) {
             const servicesBlob = buildServicesCardBlob(nest);
+            assertMonitorActive();
             await postToChannel(
               nest,
               servicesCardFallbackText(),
               servicesBlob ? { blob: serializeBlobField(servicesBlob) } : {}
             );
+            assertMonitorActive();
             traceOnboardingStep(traceBase, 'post_services_card', 'succeeded', {
               groupFlag: group.flag,
             });
@@ -2392,11 +2405,14 @@ export async function monitorTlonProvider(
         // on a client that can't render the invite slot, this is the whole
         // ending.
         if (!botPosted(INVITE_FOLLOWUP_MESSAGE)) {
+          assertMonitorActive();
           await postToChannel(nest, INVITE_FOLLOWUP_MESSAGE);
+          assertMonitorActive();
           traceOnboardingStep(traceBase, 'post_followup', 'succeeded', {
             groupFlag: group.flag,
           });
         }
+        assertMonitorActive();
         onboardingInvitePending.delete(nest);
         inviteSettled.add(nest);
         traceOnboardingStep(traceBase, 'close_setup', 'succeeded', {
@@ -6687,7 +6703,7 @@ export async function monitorTlonProvider(
         if (pendingSetup && answersTopicsPicker) {
           const topicsAttemptId = randomUUID();
           const topicsStartedAt = Date.now();
-          const topics = rawText!.trim();
+          const topics = rawText!.trim().slice(0, 1_000);
           const topicsTraceBase = {
             nest,
             purposeId: pendingSetup.purposeId,
