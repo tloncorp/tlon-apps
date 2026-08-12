@@ -330,6 +330,51 @@ describe('cron creation', () => {
     );
   });
 
+  test('repairs a matching cron whose schedule or prompt is stale', async () => {
+    const jobs: PluginHookGatewayCronJob[] = [];
+    const update = vi.fn(async (id: string, patch: unknown) => {
+      Object.assign(jobs.find((job) => job.id === id)!, patch);
+    });
+    const service = {
+      list: vi.fn(async () => jobs),
+      add: vi.fn(async (input: PluginHookGatewayCronCreateInput) => {
+        jobs.push({ id: 'cron-stale', ...input } as PluginHookGatewayCronJob);
+      }),
+      update,
+      remove: vi.fn(),
+    };
+    setCronServiceAccessor(() => service as never);
+    const params = {
+      nest: 'chat/~zod/home-group-chat',
+      purposeId: 'agent-research',
+      topics: 'Mycology',
+      timezone: 'America/New_York',
+    };
+
+    await ensureDeterministicCronJob(params);
+    Object.assign(jobs[0]!, {
+      enabled: false,
+      schedule: { kind: 'cron', expr: '0 1 * * *', tz: 'UTC' },
+      payload: { kind: 'agentTurn', text: 'old prompt', message: 'old prompt' },
+    });
+
+    await expect(ensureDeterministicCronJob(params)).resolves.toBe(
+      'cron-stale'
+    );
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(jobs[0]).toMatchObject({
+      enabled: true,
+      schedule: {
+        kind: 'cron',
+        expr: PURPOSE_JOBS['agent-research'].schedule,
+        tz: 'America/New_York',
+      },
+      payload: {
+        message: expect.stringContaining('Mycology'),
+      },
+    });
+  });
+
   test('accepts a stored job when the add response itself fails', async () => {
     const jobs: PluginHookGatewayCronJob[] = [];
     setCronServiceAccessor(

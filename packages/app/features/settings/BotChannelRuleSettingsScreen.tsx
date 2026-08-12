@@ -9,6 +9,7 @@ import {
 } from '@tloncorp/ui';
 import { valid } from '@urbit/aura';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
@@ -302,7 +303,9 @@ export function BotChannelRuleSettingsScreen(props: Props) {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
+        backAction={
+          Platform.OS !== 'web' || isWindowNarrow ? handleBack : undefined
+        }
         title={channelLabel || 'Channel'}
       />
       {!ready ? (

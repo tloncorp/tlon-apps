@@ -35,6 +35,17 @@ export async function hydrateExistingNotesChannel(
     return null;
   }
   await db.insertGroups({ groups: [group] });
+  await db.insertChannelPerms([
+    {
+      channelId: notebook.id,
+      readers:
+        notebook.readerRoles?.map((role: { roleId: string }) => role.roleId) ??
+        [],
+      writers:
+        notebook.writerRoles?.map((role: { roleId: string }) => role.roleId) ??
+        [],
+    },
+  ]);
   return notebook;
 }
 

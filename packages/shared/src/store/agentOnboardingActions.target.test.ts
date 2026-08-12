@@ -12,11 +12,14 @@ const mocks = vi.hoisted(() => ({
   getHostingBotEnabled: vi.fn(),
   createChannel: vi.fn(),
   hydrateExistingNotesChannel: vi.fn(),
+  syncNotesNotebook: vi.fn(async () => undefined),
 }));
 
 vi.mock('@tloncorp/api', () => ({
   getCurrentUserId: mocks.getCurrentUserId,
   getGroup: mocks.getRemoteGroup,
+  parseNotesChannelId: (id: string | undefined) =>
+    id?.startsWith('notes/') ? id.slice('notes/'.length) : null,
 }));
 
 vi.mock('../db', () => ({
@@ -34,7 +37,9 @@ vi.mock('./channelActions', () => ({
 }));
 
 vi.mock('./groupActions', () => ({ createDefaultGroup: vi.fn() }));
-vi.mock('./notesActions', () => ({ syncNotesNotebook: vi.fn() }));
+vi.mock('./notesActions', () => ({
+  syncNotesNotebook: mocks.syncNotesNotebook,
+}));
 
 const homeGroup = (channelId = 'chat/~zod/home-group-chat') => ({
   id: '~zod/home-group',
@@ -91,6 +96,11 @@ test('retains notebook retry debt while remote verification is unreadable', asyn
       id: '~zod/retry',
       currentUserIsMember: true,
       channels: [],
+    })
+    .mockResolvedValueOnce({
+      id: '~zod/retry',
+      currentUserIsMember: true,
+      channels: [],
     });
 
   const ensuring = ensureAgentNotebookForGroup({
@@ -111,6 +121,34 @@ test('retains notebook retry debt while remote verification is unreadable', asyn
   await vi.runAllTimersAsync();
   await ensuring;
 
-  expect(mocks.getRemoteGroup).toHaveBeenCalledTimes(2);
+  expect(mocks.getRemoteGroup).toHaveBeenCalledTimes(3);
   expect(mocks.createChannel).toHaveBeenCalledTimes(2);
+});
+
+test('adopts a remotely existing notebook before the first create', async () => {
+  const remote = {
+    id: '~zod/existing',
+    channels: [{ id: 'notes/~zod/daily', type: 'notes' }],
+  };
+  mocks.getRemoteGroup.mockResolvedValue(remote);
+  mocks.hydrateExistingNotesChannel.mockResolvedValue(remote.channels[0]);
+
+  await ensureAgentNotebookForGroup({
+    id: '~zod/existing',
+    description: JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        purpose: 'Watch updates',
+        instructions: '',
+        agents: ['~bot'],
+        jobs: [{ title: 'Daily digest: Updates' }],
+        updatedAt: 1,
+      },
+    ]),
+    channels: [],
+  });
+
+  expect(mocks.hydrateExistingNotesChannel).toHaveBeenCalledWith(remote);
+  expect(mocks.createChannel).not.toHaveBeenCalled();
 });

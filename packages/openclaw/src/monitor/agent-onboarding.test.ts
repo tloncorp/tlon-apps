@@ -16,6 +16,7 @@ import {
   onboardingPluginDiagnostic,
 } from './agent-onboarding-config.js';
 import {
+  agentGroupAwaitingOpening,
   buildInviteCardBlob,
   buildPurposePickerBlob,
   buildServicesCardBlob,
@@ -611,11 +612,23 @@ describe('findAgentGroupsAwaitingOpening', () => {
       '~ten/prose-group': { description: 'a group about bread' },
       // Setup already happened; nothing owed.
       '~ten/configured-group': { description: configured },
+      // A persisted timezone transition remains a sweep candidate until its
+      // picker is visible and answered.
+      '~ten/timezone-owed': {
+        description: configEntry({
+          purpose: 'Daily research',
+          onboarding: {
+            state: 'awaiting-timezone',
+            topics: 'Mycology',
+          },
+        }),
+      },
       // Someone else's group, whatever it carries.
       '~bus/their-agent-group': { description: marker },
     });
     expect(await findAgentGroupsAwaitingOpening(api, {}, '~ten')).toEqual([
       '~ten/fresh-agent-group',
+      '~ten/timezone-owed',
     ]);
     expect(await findAgentGroupsAwaitingOpening(api, {}, null)).toEqual([]);
   });
@@ -643,6 +656,35 @@ describe('findAgentGroupsAwaitingOpening', () => {
       homeGroupAwaitingOpening(
         [legacyWelcome, { author: BOT, content: purposePickerFallbackText() }],
         BOT
+      )
+    ).toBe(false);
+  });
+
+  test('owner bootstrap posts do not block a new agent group opening', () => {
+    const BOT = '~pinser-botter-forhep-tanmel';
+    const OWNER = '~forhep-tanmel';
+    expect(
+      agentGroupAwaitingOpening(
+        [
+          { author: OWNER, content: 'Creating this group' },
+          { author: BOT, content: 'Plugin diagnostic' },
+        ],
+        BOT,
+        OWNER
+      )
+    ).toBe(true);
+    expect(
+      agentGroupAwaitingOpening(
+        [{ author: '~someone-else', content: 'hello' }],
+        BOT,
+        OWNER
+      )
+    ).toBe(false);
+    expect(
+      agentGroupAwaitingOpening(
+        [{ author: BOT, content: purposePickerFallbackText() }],
+        BOT,
+        OWNER
       )
     ).toBe(false);
   });

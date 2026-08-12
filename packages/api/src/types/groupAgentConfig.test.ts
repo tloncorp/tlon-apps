@@ -265,4 +265,26 @@ describe('config tolerance', () => {
       )
     ).toBeUndefined();
   });
+
+  test('keeps onboarding state when legacy topics exceed the current limit', () => {
+    const description = JSON.stringify([
+      {
+        type: 'tlon-group-agent-config',
+        version: 1,
+        purpose: 'Daily research',
+        instructions: '',
+        agents: ['~bot'],
+        jobs: [],
+        onboarding: {
+          state: 'awaiting-timezone',
+          topics: 'x'.repeat(1200),
+        },
+        updatedAt: 1,
+      },
+    ]);
+
+    const parsed = parseGroupAgentConfig(description);
+    expect(parsed?.onboarding?.state).toBe('awaiting-timezone');
+    expect(parsed?.onboarding?.topics).toHaveLength(1000);
+  });
 });

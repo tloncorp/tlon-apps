@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import { View, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
@@ -134,7 +135,9 @@ export function BotShipListSettingsScreen(props: Props) {
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
         borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
+        backAction={
+          Platform.OS !== 'web' || isWindowNarrow ? handleBack : undefined
+        }
         title={meta.title}
         rightControls={
           ready ? (

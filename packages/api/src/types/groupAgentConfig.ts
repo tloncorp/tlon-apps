@@ -56,7 +56,10 @@ const GroupAgentConfigEntrySchema = z.object({
         'writing-note',
         'complete',
       ]),
-      topics: z.string().max(1000),
+      topics: z
+        .string()
+        .catch('')
+        .transform((topics) => topics.slice(0, 1000)),
       timezone: z.string().max(100).optional(),
       cronJobId: z.string().max(500).optional(),
       notebookNest: z.string().max(500).optional(),

@@ -154,8 +154,9 @@ export function EmptyChannelNotice({
     (agentRecordsLoading ||
       markerLoading ||
       openedAtLoading ||
-      (agentGroupAgents[channel.groupId!] != null && openingIsRecent) ||
-      onboardingGroupId === channel.groupId);
+      (openingIsRecent &&
+        (agentGroupAgents[channel.groupId!] != null ||
+          onboardingGroupId === channel.groupId)));
 
   if (isDefaultPersonalChannel) {
     return <WayfindingNotice.EmptyChannel channel={channel} />;

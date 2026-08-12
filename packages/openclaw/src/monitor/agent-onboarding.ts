@@ -372,6 +372,25 @@ export function homeGroupAwaitingOpening(
 }
 
 /**
+ * A newly created agent group may already contain owner-authored bootstrap
+ * posts by the time the agent joins. Those posts must not permanently block
+ * the opening; only a third-party participant or an already-posted picker
+ * proves that the conversation has moved on.
+ */
+export function agentGroupAwaitingOpening(
+  history: Array<{ author: string; content: string }>,
+  botShipName: string,
+  ownerShip: string
+): boolean {
+  return (
+    history.every(
+      (entry) => entry.author === botShipName || entry.author === ownerShip
+    ) &&
+    !history.some((entry) => entry.content.startsWith(PURPOSE_PICKER_PROMPT))
+  );
+}
+
+/**
  * Whether `flag` names the owner's hosted home group — the venue hosting
  * provisioning uses for the account's initial onboarding. Deterministic
  * because provisioning creates it with a fixed slug on the owner's own ship;
@@ -548,6 +567,14 @@ export async function findAgentGroupsAwaitingOpening(
         return false;
       }
       const description = descriptionOf(group);
+      const awaitingPicker = agentConfigEntries(description).some(
+        (entry) =>
+          entry.onboarding?.state === 'awaiting-topics' ||
+          entry.onboarding?.state === 'awaiting-timezone'
+      );
+      if (awaitingPicker) {
+        return true;
+      }
       // The hosted home group never carries the marker (provisioning
       // writes none) but its flag is deterministic, so an existing,
       // not-yet-set-up home group is always a candidate — its moon is
@@ -905,9 +932,12 @@ export function descriptionHasConfiguredJob(
  * malformed JSON — anything unparseable reads as "no config", matching
  * `parseGroupAgentConfig` in @tloncorp/api.
  */
-function agentConfigEntries(
-  description: string | null | undefined
-): { purpose?: unknown; templateId?: unknown; jobs?: unknown }[] {
+function agentConfigEntries(description: string | null | undefined): {
+  purpose?: unknown;
+  templateId?: unknown;
+  jobs?: unknown;
+  onboarding?: { state?: unknown };
+}[] {
   const trimmed = description?.trim();
   if (!trimmed?.startsWith('[')) {
     return [];

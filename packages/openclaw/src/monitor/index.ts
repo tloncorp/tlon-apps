@@ -143,6 +143,7 @@ import {
 } from './agent-onboarding-coordinator.js';
 import {
   type OnboardingPurposeSelection,
+  agentGroupAwaitingOpening,
   agentHasAdminSeat,
   buildInviteCardBlob,
   buildPurposePickerBlob,
@@ -156,7 +157,6 @@ import {
   findChatNestForGroup,
   findConfiguredAgentGroups,
   findGroupForChannel,
-  homeGroupAwaitingOpening,
   homeGroupChatNestFor,
   homeGroupFlagFor,
   inviteCardFallbackText,
@@ -1052,7 +1052,7 @@ export async function monitorTlonProvider(
           retryAttempt,
         });
         try {
-          await runOnboardingTlonCommand([
+          await runOnboardingTlonCommand(groupFlag.split('/')[0]!, [
             'groups',
             'update',
             groupFlag,
@@ -1804,7 +1804,7 @@ export async function monitorTlonProvider(
                 draftMarkdownCharCount: markdown.length,
               });
               try {
-                await runOnboardingTlonCommand([
+                await runOnboardingTlonCommand(notesNest.split('/')[1]!, [
                   'notes',
                   'note-create',
                   notesNest,
@@ -2338,8 +2338,10 @@ export async function monitorTlonProvider(
         // behind the owner-listen drop below — the closing normally runs
         // at the end of an engaged turn, and a muted channel never has
         // one. The check is idempotent and settles itself.
-        void postInviteCardIfSetupComplete(nest);
-        onboardingRecoveryChecked.add(nest);
+        await postInviteCardIfSetupComplete(nest);
+        if (inviteSettled.has(nest)) {
+          onboardingRecoveryChecked.add(nest);
+        }
         return 'ok';
       }
       // Deliberately NOT the has-any-setup predicate: a purpose-only config
@@ -2434,10 +2436,9 @@ export async function monitorTlonProvider(
      */
     /**
      * Post the topic pills and arm the pending setup, shared by the live
-     * tap handler and the sweep's missed-tap recovery. The visible picker is
-     * posted before its state write: if the post fails there is no pending
-     * reply to consume; if only the state write fails, the transcript still
-     * provides restart recovery for the picker the owner actually saw.
+     * tap handler and the sweep's missed-tap recovery. Persist the state
+     * before exposing a control that can advance it, so a restart or a fast
+     * reply can never be overtaken by a late awaiting-topics write.
      */
     const postTopicsPickerOffer = async (
       nest: string,
@@ -2468,6 +2469,28 @@ export async function monitorTlonProvider(
           groupFlag: group.flag,
           durationMs: Date.now() - lookupStartedAt,
         });
+        const adminStartedAt = Date.now();
+        const adminSeatReady = await waitForOnboardingAdminSeat(group.flag);
+        traceOnboardingStep(
+          traceBase,
+          'wait_for_admin_seat',
+          adminSeatReady ? 'succeeded' : 'timed_out',
+          {
+            groupFlag: group.flag,
+            durationMs: Date.now() - adminStartedAt,
+            reason: adminSeatReady ? null : 'admin_seat_not_observed',
+          }
+        );
+        await writeAndVerifyOnboardingDescription(
+          nest,
+          group.flag,
+          buildAwaitingTopicsDescription({
+            purposeId,
+            purpose,
+            agentShip: botShipName,
+          }),
+          { onboardingAttemptId, onboardingSource: 'purpose_reply' }
+        );
         const topicsBlob = buildTopicsPickerBlob(nest, purposeId);
         const postStartedAt = Date.now();
         await postToChannel(nest, topicsPickerFallbackText(purposeId), {
@@ -2477,58 +2500,6 @@ export async function monitorTlonProvider(
           groupFlag: group.flag,
           durationMs: Date.now() - postStartedAt,
         });
-        try {
-          const adminStartedAt = Date.now();
-          const adminSeatReady = await waitForOnboardingAdminSeat(group.flag);
-          traceOnboardingStep(
-            traceBase,
-            'wait_for_admin_seat',
-            adminSeatReady ? 'succeeded' : 'timed_out',
-            {
-              groupFlag: group.flag,
-              durationMs: Date.now() - adminStartedAt,
-              reason: adminSeatReady ? null : 'admin_seat_not_observed',
-            }
-          );
-          const latest = await findGroupForChannel(api, nest, runtime);
-          if (!latest) {
-            throw new Error('Could not re-read the group before state write');
-          }
-          const latestSetup = deterministicSetupFromDescription(
-            latest.description
-          );
-          if (latestSetup && latestSetup.record.state !== 'awaiting-topics') {
-            // The owner answered while the admin seat was still settling;
-            // never overwrite the newer transition with this late write.
-            return true;
-          }
-          await writeAndVerifyOnboardingDescription(
-            nest,
-            group.flag,
-            buildAwaitingTopicsDescription({
-              purposeId,
-              purpose,
-              agentShip: botShipName,
-            }),
-            { onboardingAttemptId, onboardingSource: 'purpose_reply' }
-          );
-        } catch (error) {
-          // The picker itself is durable and recovery can derive this state
-          // from the transcript, so do not retract the live pending record.
-          runtime.error?.(
-            `[tlon] Topics picker posted but its state write failed in ${nest}: ${String(error)}`
-          );
-          traceOnboardingStep(
-            traceBase,
-            'persist_awaiting_topics',
-            'failed_recoverable',
-            {
-              groupFlag: group.flag,
-              onboardingState: 'awaiting-topics',
-              ...onboardingErrorFields(error),
-            }
-          );
-        }
         traceOnboardingStep(traceBase, 'offer_topics', 'succeeded', {
           groupFlag: group.flag,
           onboardingState: 'awaiting-topics',
@@ -2764,23 +2735,16 @@ export async function monitorTlonProvider(
           }
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
-        // The home group gets a softer probe: provisioning historically
-        // posted a legacy welcome into it *as the bot*, and a message can't
-        // be unsent — the strict empty-channel line would permanently block
-        // the opening for every already-provisioned account. Bot-authored
-        // posts alone don't make it a conversation; anyone else speaking
-        // (or an opening already present) still keeps this out. Unreadable
-        // history reads as blocked — another trigger retries.
+        // Agent groups get a softer probe: client/provisioning bootstrap may
+        // have posted as the owner or bot before the agent joined. Those
+        // posts do not make the channel an established conversation; a
+        // third-party participant or an existing picker does.
         let channelOpenable = isNew;
         let probeUnreadable = false;
         let probeHistory: Awaited<
           ReturnType<typeof fetchChannelHistory>
         > | null = null;
-        if (
-          channelOpenable === false &&
-          effectiveOwnerShip &&
-          isHomeGroupFlag(groupFlag, effectiveOwnerShip)
-        ) {
+        if (channelOpenable === false && effectiveOwnerShip) {
           try {
             probeHistory = await fetchChannelHistory(
               api,
@@ -2789,16 +2753,94 @@ export async function monitorTlonProvider(
               runtime,
               { throwOnError: true }
             );
-            channelOpenable = homeGroupAwaitingOpening(
+            channelOpenable = agentGroupAwaitingOpening(
               probeHistory,
-              botShipName
+              botShipName,
+              effectiveOwnerShip
             );
           } catch (error) {
             runtime.log?.(
-              `[tlon] Could not read the home group transcript for ${groupFlag}: ${String(error)}`
+              `[tlon] Could not read the agent group transcript for ${groupFlag}: ${String(error)}`
             );
             channelOpenable = false;
             probeUnreadable = true;
+          }
+        }
+        const persistedSetup = deterministicSetupFromDescription(
+          info.description
+        );
+        if (persistedSetup?.record.state === 'awaiting-topics') {
+          try {
+            const history =
+              probeHistory ??
+              (await fetchChannelHistory(api, info.nest, 20, runtime, {
+                throwOnError: true,
+              }));
+            onboardingSetupPending.set(info.nest, {
+              purposeId: persistedSetup.purposeId,
+              purpose: persistedSetup.purpose,
+            });
+            const prompt = topicsPickerFallbackText(persistedSetup.purposeId);
+            const pickerPosted = history.some(
+              (entry) =>
+                entry.author === botShipName && entry.content.startsWith(prompt)
+            );
+            if (!pickerPosted) {
+              const topicsBlob = buildTopicsPickerBlob(
+                info.nest,
+                persistedSetup.purposeId
+              );
+              await postToChannel(info.nest, prompt, {
+                ...(topicsBlob ? { blob: serializeBlobField(topicsBlob) } : {}),
+              });
+              runtime.log?.(
+                `[tlon] Re-posted the owed topics picker in ${info.nest}`
+              );
+            }
+            onboardingTopicsOffered.add(info.nest);
+            return 'opened';
+          } catch (error) {
+            runtime.error?.(
+              `[tlon] Could not recover the topics picker in ${info.nest}: ${String(error)}`
+            );
+            return 'retry';
+          }
+        }
+        if (persistedSetup?.record.state === 'awaiting-timezone') {
+          try {
+            const history =
+              probeHistory ??
+              (await fetchChannelHistory(api, info.nest, 20, runtime, {
+                throwOnError: true,
+              }));
+            onboardingTimezonePending.set(info.nest, {
+              purposeId: persistedSetup.purposeId,
+              purpose: persistedSetup.purpose,
+              topics: persistedSetup.topics,
+              groupFlag,
+            });
+            const prompt = timezonePickerFallbackText();
+            const pickerPosted = history.some(
+              (entry) =>
+                entry.author === botShipName && entry.content.startsWith(prompt)
+            );
+            if (!pickerPosted) {
+              const timezoneBlob = buildTimezonePickerBlob(info.nest);
+              await postToChannel(info.nest, prompt, {
+                ...(timezoneBlob
+                  ? { blob: serializeBlobField(timezoneBlob) }
+                  : {}),
+              });
+              runtime.log?.(
+                `[tlon] Re-posted the owed timezone picker in ${info.nest}`
+              );
+            }
+            return 'opened';
+          } catch (error) {
+            runtime.error?.(
+              `[tlon] Could not recover the timezone picker in ${info.nest}: ${String(error)}`
+            );
+            return 'retry';
           }
         }
         // A tap that landed while the gateway was restarting leaves the
@@ -6465,12 +6507,67 @@ export async function monitorTlonProvider(
             );
             return;
           }
+          const pendingTimezone = {
+            ...pendingSetup,
+            topics,
+            groupFlag: group.flag,
+          };
+          onboardingTimezonePending.set(nest, pendingTimezone);
           try {
-            onboardingTimezonePending.set(nest, {
-              ...pendingSetup,
-              topics,
-              groupFlag: group.flag,
-            });
+            const adminStartedAt = Date.now();
+            const adminSeatReady = await waitForOnboardingAdminSeat(group.flag);
+            traceOnboardingStep(
+              topicsTraceBase,
+              'wait_for_admin_seat',
+              adminSeatReady ? 'succeeded' : 'timed_out',
+              {
+                groupFlag: group.flag,
+                durationMs: Date.now() - adminStartedAt,
+                reason: adminSeatReady ? null : 'admin_seat_not_observed',
+              }
+            );
+            await writeAndVerifyOnboardingDescription(
+              nest,
+              group.flag,
+              buildAwaitingTimezoneDescription({
+                purposeId: pendingSetup.purposeId,
+                purpose: pendingSetup.purpose,
+                topics,
+                agentShip: botShipName,
+              }),
+              {
+                onboardingAttemptId: topicsAttemptId,
+                onboardingSource: 'topics_reply',
+              }
+            );
+            traceOnboardingStep(
+              topicsTraceBase,
+              'persist_awaiting_timezone',
+              'succeeded',
+              {
+                groupFlag: group.flag,
+                onboardingState: 'awaiting-timezone',
+              }
+            );
+          } catch (error) {
+            onboardingTimezonePending.delete(nest);
+            onboardingSetupPending.set(nest, pendingSetup);
+            runtime.error?.(
+              `[tlon] Could not persist timezone state for ${nest}: ${String(error)}`
+            );
+            traceOnboardingStep(
+              topicsTraceBase,
+              'persist_awaiting_timezone',
+              'failed_retryable',
+              {
+                groupFlag: group.flag,
+                reason: 'pending_topics_restored',
+                ...onboardingErrorFields(error, [topics]),
+              }
+            );
+            return;
+          }
+          try {
             const timezoneBlob = buildTimezonePickerBlob(nest);
             await postToChannel(nest, timezonePickerFallbackText(), {
               ...(timezoneBlob
@@ -6482,83 +6579,10 @@ export async function monitorTlonProvider(
               onboardingNextState: 'awaiting-timezone',
               durationMs: Date.now() - topicsStartedAt,
             });
-            void (async () => {
-              const adminStartedAt = Date.now();
-              const adminSeatReady = await waitForOnboardingAdminSeat(
-                group.flag
-              );
-              traceOnboardingStep(
-                topicsTraceBase,
-                'wait_for_admin_seat',
-                adminSeatReady ? 'succeeded' : 'timed_out',
-                {
-                  groupFlag: group.flag,
-                  durationMs: Date.now() - adminStartedAt,
-                  reason: adminSeatReady ? null : 'admin_seat_not_observed',
-                }
-              );
-              const latest = await findGroupForChannel(api, nest, runtime);
-              const latestSetup = deterministicSetupFromDescription(
-                latest?.description
-              );
-              if (
-                latestSetup &&
-                latestSetup.record.state !== 'awaiting-topics' &&
-                latestSetup.record.state !== 'awaiting-timezone'
-              ) {
-                traceOnboardingStep(
-                  topicsTraceBase,
-                  'persist_awaiting_timezone',
-                  'skipped',
-                  {
-                    groupFlag: group.flag,
-                    onboardingState: latestSetup.record.state,
-                    reason: 'setup_already_advanced',
-                  }
-                );
-                return;
-              }
-              await writeAndVerifyOnboardingDescription(
-                nest,
-                group.flag,
-                buildAwaitingTimezoneDescription({
-                  purposeId: pendingSetup.purposeId,
-                  purpose: pendingSetup.purpose,
-                  topics,
-                  agentShip: botShipName,
-                }),
-                {
-                  onboardingAttemptId: topicsAttemptId,
-                  onboardingSource: 'topics_reply_background',
-                }
-              );
-              traceOnboardingStep(
-                topicsTraceBase,
-                'persist_awaiting_timezone',
-                'succeeded',
-                {
-                  groupFlag: group.flag,
-                  onboardingState: 'awaiting-timezone',
-                }
-              );
-            })().catch((error) => {
-              runtime.error?.(
-                `[tlon] Could not persist background timezone state for ${nest}: ${String(error)}`
-              );
-              traceOnboardingStep(
-                topicsTraceBase,
-                'persist_awaiting_timezone',
-                'failed_recoverable',
-                {
-                  groupFlag: group.flag,
-                  onboardingState: 'awaiting-timezone',
-                  ...onboardingErrorFields(error, [topics]),
-                }
-              );
-            });
           } catch (error) {
-            onboardingTimezonePending.delete(nest);
-            onboardingSetupPending.set(nest, pendingSetup);
+            // The durable state remains awaiting-timezone; the onboarding
+            // sweep will re-post the missing picker after this transient
+            // delivery failure or a process restart.
             runtime.error?.(
               `[tlon] Could not post the timezone picker for ${nest}: ${String(error)}`
             );
@@ -6568,8 +6592,7 @@ export async function monitorTlonProvider(
               'failed_retryable',
               {
                 groupFlag: group.flag,
-                durationMs: Date.now() - topicsStartedAt,
-                reason: 'pending_topics_restored',
+                reason: 'timezone_picker_owed',
                 ...onboardingErrorFields(error, [topics]),
               }
             );

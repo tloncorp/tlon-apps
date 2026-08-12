@@ -474,7 +474,11 @@ export async function updateGroupMeta(
       visual(existingGroup?.coverImage, existingGroup?.coverImageColor)
       ? visual(remoteMeta.coverImage, remoteMeta.coverImageColor)
       : editedCover;
-  const groupWithMergedDescription = { ...group, description };
+  const title =
+    remoteMeta && (group.title ?? '') === (existingGroup?.title ?? '')
+      ? remoteMeta.title ?? ''
+      : group.title ?? '';
+  const groupWithMergedDescription = { ...group, title, description };
 
   // optimistic update
   await db.updateGroup(groupWithMergedDescription);
@@ -483,7 +487,7 @@ export async function updateGroupMeta(
     await api.updateGroupMeta({
       groupId: group.id,
       meta: {
-        title: group.title ?? '',
+        title,
         description,
         cover,
         image,

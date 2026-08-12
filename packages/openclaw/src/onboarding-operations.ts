@@ -1,10 +1,19 @@
-import { sharedSlot } from './shared-state.js';
+import { sharedMap } from './shared-state.js';
 
 type TlonCommandRunner = (args: string[]) => Promise<string>;
 
-const commandRunnerSlot = sharedSlot<TlonCommandRunner>(
-  'agentOnboarding.commandRunner'
+const commandRunners = sharedMap<string, TlonCommandRunner>(
+  'agentOnboarding.commandRunners'
 );
+const DEFAULT_RUNNER = '*';
+
+const normalizeShip = (ship: string): string => {
+  const trimmed = ship.trim().toLowerCase();
+  if (trimmed === DEFAULT_RUNNER) {
+    return DEFAULT_RUNNER;
+  }
+  return trimmed.startsWith('~') ? trimmed : `~${trimmed}`;
+};
 
 /**
  * Install the trusted, argv-based Tlon runner used by onboarding. The
@@ -13,15 +22,24 @@ const commandRunnerSlot = sharedSlot<TlonCommandRunner>(
  * involved.
  */
 export function setOnboardingCommandRunner(
+  ship: string,
   runner: TlonCommandRunner | null
 ): void {
-  commandRunnerSlot.set(runner);
+  const key = normalizeShip(ship);
+  if (runner) {
+    commandRunners.set(key, runner);
+  } else {
+    commandRunners.delete(key);
+  }
 }
 
 export async function runOnboardingTlonCommand(
+  ship: string,
   args: string[]
 ): Promise<string> {
-  const runner = commandRunnerSlot.get();
+  const runner =
+    commandRunners.get(normalizeShip(ship)) ??
+    commandRunners.get(DEFAULT_RUNNER);
   if (!runner) {
     throw new Error(
       'The deterministic onboarding command runner is unavailable'
@@ -58,10 +76,18 @@ export function parseOnboardingNotesListing(output: string): string | null {
 export async function readOnboardingNotebookNewestId(
   notesNest: string
 ): Promise<string | null> {
-  const output = await runOnboardingTlonCommand(['notes', 'notes', notesNest]);
+  const host = notesNest.split('/')[1];
+  if (!host) {
+    throw new Error(`The onboarding notebook nest has no host: ${notesNest}`);
+  }
+  const output = await runOnboardingTlonCommand(host, [
+    'notes',
+    'notes',
+    notesNest,
+  ]);
   return parseOnboardingNotesListing(output);
 }
 
 export function clearOnboardingOperations(): void {
-  commandRunnerSlot.set(null);
+  commandRunners.clear();
 }

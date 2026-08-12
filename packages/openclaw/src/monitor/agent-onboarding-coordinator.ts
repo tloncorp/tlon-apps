@@ -367,6 +367,38 @@ function cronJobMatches(
   return job.description === description && typeof job.id === 'string';
 }
 
+function cronOutputNest(job: PluginHookGatewayCronJob): string | undefined {
+  const match = cronPrompt(job).match(
+    new RegExp(`${OUTPUT_NEST_MARKER}\\s+([^\\s]+)`)
+  );
+  return match?.[1];
+}
+
+function cronJobMatchesDesired(
+  job: PluginHookGatewayCronJob,
+  desired: PluginHookGatewayCronCreateInput
+): boolean {
+  const schedule = job.schedule as
+    | { kind?: string; expr?: string; tz?: string }
+    | undefined;
+  const desiredSchedule = desired.schedule as {
+    kind?: string;
+    expr?: string;
+    tz?: string;
+  };
+  return (
+    job.name === desired.name &&
+    job.enabled === true &&
+    schedule?.kind === desiredSchedule.kind &&
+    schedule?.expr === desiredSchedule.expr &&
+    schedule?.tz === desiredSchedule.tz &&
+    job.sessionTarget === desired.sessionTarget &&
+    job.wakeMode === desired.wakeMode &&
+    cronPrompt(job) === cronPrompt(desired as PluginHookGatewayCronJob) &&
+    hasNotebookOnlyDelivery(job)
+  );
+}
+
 export type DeterministicCronTraceEvent = {
   operation: string;
   outcome: string;
@@ -437,6 +469,37 @@ export async function ensureDeterministicCronJob(params: {
     durationMs: Date.now() - startedAt,
   });
   const description = cronDescription(params.nest, params.purposeId);
+  const basePrompt = renderDeterministicCronPrompt({
+    purposeId: params.purposeId,
+    purpose: params.purpose,
+    topics: params.topics,
+  });
+  const desiredInput = (
+    outputNest?: string
+  ): PluginHookGatewayCronCreateInput => {
+    const prompt = outputNest
+      ? renderDeterministicCronPrompt({
+          purposeId: params.purposeId,
+          purpose: params.purpose,
+          topics: params.topics,
+          outputNest,
+        })
+      : basePrompt;
+    return {
+      name: fill(template.title, params.topics, params.purpose),
+      description,
+      enabled: true,
+      schedule: {
+        kind: 'cron',
+        expr: template.schedule,
+        tz: params.timezone,
+      },
+      sessionTarget: 'isolated',
+      wakeMode: 'now',
+      payload: { kind: 'agentTurn', text: prompt, message: prompt },
+      delivery: { mode: 'none' },
+    } as PluginHookGatewayCronCreateInput;
+  };
   const initialListStartedAt = Date.now();
   emit('list_existing', 'started');
   let initialJobs: PluginHookGatewayCronJob[];
@@ -455,6 +518,24 @@ export async function ensureDeterministicCronJob(params: {
   }
   const existing = initialJobs.find((job) => cronJobMatches(job, description));
   if (existing?.id) {
+    const desired = desiredInput(cronOutputNest(existing));
+    if (!cronJobMatchesDesired(existing, desired)) {
+      emit('update_existing', 'started', { cronJobId: existing.id });
+      await cron.update(
+        existing.id,
+        desired as PluginHookGatewayCronUpdateInput
+      );
+      const updated = (await cron.list({ includeDisabled: true })).find(
+        (job) => job.id === existing.id
+      );
+      if (!updated || !cronJobMatchesDesired(updated, desired)) {
+        throw new Error(`The scheduled job update could not be verified`);
+      }
+      emit('update_existing', 'succeeded', {
+        cronJobId: existing.id,
+        durationMs: Date.now() - startedAt,
+      });
+    }
     emit('reuse_existing', 'succeeded', {
       durationMs: Date.now() - startedAt,
       cronJobId: existing.id,
@@ -467,35 +548,7 @@ export async function ensureDeterministicCronJob(params: {
   const addStartedAt = Date.now();
   emit('add_job', 'started');
   try {
-    const prompt = renderDeterministicCronPrompt({
-      purposeId: params.purposeId,
-      purpose: params.purpose,
-      topics: params.topics,
-    });
-    // Older plugin SDKs consume `text`; newer cron persistence requires
-    // `message`. Keep both fields for cross-version compatibility.
-    const payload = {
-      kind: 'agentTurn',
-      text: prompt,
-      message: prompt,
-    };
-
-    await cron.add({
-      name: fill(template.title, params.topics, params.purpose),
-      description,
-      enabled: true,
-      schedule: {
-        kind: 'cron',
-        expr: template.schedule,
-        tz: params.timezone,
-      },
-      sessionTarget: 'isolated',
-      wakeMode: 'now',
-      payload,
-      // The agent writes directly to the notebook; a second delivery attempt
-      // has no chat target and would incorrectly mark a successful run failed.
-      delivery: { mode: 'none' },
-    } as PluginHookGatewayCronCreateInput);
+    await cron.add(desiredInput());
     emit('add_job', 'succeeded', {
       durationMs: Date.now() - addStartedAt,
     });

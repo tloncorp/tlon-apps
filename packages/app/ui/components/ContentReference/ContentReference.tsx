@@ -347,7 +347,6 @@ export function GroupReference({
               <ListItem.GroupIcon model={data} />
               <ListItem.MainContent>
                 <ListItem.Title>{title}</ListItem.Title>
-                <ListItem.Subtitle>{data.description}</ListItem.Subtitle>
               </ListItem.MainContent>
             </ListItem>
           )}

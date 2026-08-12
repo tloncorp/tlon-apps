@@ -239,11 +239,8 @@ export function ChannelHeader({
 
       // If it's a single-channel group
       if (!hasMultipleChannels) {
-        // If group has title and description, use description
-        if (group.title && group.title.trim() !== '' && group.description) {
-          return group.description;
-        }
-        // If it's a single-channel group without explicit title/description, show member count
+        // Group descriptions temporarily carry machine-readable agent config,
+        // so use a human-facing fallback here.
         const memberCount = group.members?.length ?? 0;
         const result = `Chat with ${memberCount} members`;
         return result;

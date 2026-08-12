@@ -30,7 +30,7 @@ describe('onboarding notebook reads', () => {
 
   test('queries the trusted %notes CLI command', async () => {
     const calls: string[][] = [];
-    setOnboardingCommandRunner(async (args) => {
+    setOnboardingCommandRunner('~zod', async (args) => {
       calls.push(args);
       return '#42  Daily brief  (rev 1)\n';
     });
@@ -39,5 +39,17 @@ describe('onboarding notebook reads', () => {
       readOnboardingNotebookNewestId('notes/~zod/daily')
     ).resolves.toBe('42');
     expect(calls).toEqual([['notes', 'notes', 'notes/~zod/daily']]);
+  });
+
+  test('uses the command runner for the notebook host', async () => {
+    setOnboardingCommandRunner('~zod', async () => '#1  Zod  (rev 1)\n');
+    setOnboardingCommandRunner('~nec', async () => '#9  Nec  (rev 1)\n');
+
+    await expect(
+      readOnboardingNotebookNewestId('notes/~zod/daily')
+    ).resolves.toBe('1');
+    await expect(
+      readOnboardingNotebookNewestId('notes/~nec/daily')
+    ).resolves.toBe('9');
   });
 });

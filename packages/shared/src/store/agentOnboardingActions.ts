@@ -145,50 +145,52 @@ export async function ensureAgentNotebookForGroup(group: {
   for (const delay of delays) {
     if (delay) {
       await sleep(delay);
-      // Remote read-back prevents duplicates after an ambiguous create.
-      let remote;
+    }
+    // Check the ship before every create, including the first attempt. A
+    // previous process or device may already have created the notebook even
+    // though this local store has never observed it.
+    let remote;
+    try {
+      remote = await api.getGroup(group.id);
+    } catch (error) {
+      // Never create while an earlier result is unknowable, but retain the
+      // retry debt: a later scry may prove whether creation is still needed.
+      logger.trackError('Failed to verify agent notebook retry', {
+        error,
+        groupId: group.id,
+      });
+      continue;
+    }
+    const remoteNotebook = remote.channels?.find(
+      (channel) => channel.type === 'notes'
+    );
+    if (remoteNotebook) {
       try {
-        remote = await api.getGroup(group.id);
+        const adopted = await hydrateExistingNotesChannel(remote);
+        const flag = api.parseNotesChannelId(adopted?.id);
+        if (flag) {
+          syncNotesNotebook(flag).catch((error) => {
+            logger.trackError('Failed to sync adopted agent notebook', {
+              error,
+              groupId: group.id,
+              channelId: adopted?.id,
+            });
+          });
+        }
+        logger.trackEvent('Agent Notebook Adopted', {
+          groupId: group.id,
+          channelId: adopted?.id,
+        });
+        return;
       } catch (error) {
-        // Never create while an earlier result is unknowable, but retain the
-        // retry debt: a later scry may prove whether creation is still needed.
-        logger.trackError('Failed to verify agent notebook retry', {
+        // The remote notebook is real, so never call create again here.
+        // Retry only the local adoption on the next delay.
+        logger.trackError('Failed to adopt existing agent notebook', {
           error,
           groupId: group.id,
+          channelId: remoteNotebook.id,
         });
         continue;
-      }
-      const remoteNotebook = remote.channels?.find(
-        (channel) => channel.type === 'notes'
-      );
-      if (remoteNotebook) {
-        try {
-          const adopted = await hydrateExistingNotesChannel(remote);
-          const flag = api.parseNotesChannelId(adopted?.id);
-          if (flag) {
-            syncNotesNotebook(flag).catch((error) => {
-              logger.trackError('Failed to sync adopted agent notebook', {
-                error,
-                groupId: group.id,
-                channelId: adopted?.id,
-              });
-            });
-          }
-          logger.trackEvent('Agent Notebook Adopted', {
-            groupId: group.id,
-            channelId: adopted?.id,
-          });
-          return;
-        } catch (error) {
-          // The remote notebook is real, so never call create again here.
-          // Retry only the local adoption on the next delay.
-          logger.trackError('Failed to adopt existing agent notebook', {
-            error,
-            groupId: group.id,
-            channelId: remoteNotebook.id,
-          });
-          continue;
-        }
       }
     }
     try {
@@ -382,10 +384,16 @@ export async function recordHomeGroupAgent(groupId: string): Promise<void> {
     if (!botShipId) {
       return;
     }
-    await db.agentGroupAgents.setValue((current) => ({
-      ...current,
-      [groupId]: botShipId,
-    }));
+    await Promise.all([
+      db.agentGroupAgents.setValue((current) => ({
+        ...current,
+        [groupId]: botShipId,
+      })),
+      db.agentGroupOpenedAt.setValue((current) => ({
+        ...current,
+        [groupId]: Date.now(),
+      })),
+    ]);
   } catch (error) {
     logger.trackError('Failed to record home group agent', {
       error,

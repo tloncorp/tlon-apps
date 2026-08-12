@@ -58,7 +58,6 @@ export function AgentOnboardingSequence(props: {
         setHomeGroupMissing(true);
         return;
       }
-      redirectedRef.current = true;
       logger.trackEvent('Agent Onboarding In-Channel Handoff', target);
       try {
         await db.agentOnboardingLanding.setValue(target);
@@ -67,7 +66,16 @@ export function AgentOnboardingSequence(props: {
         await db.agentOnboardingGroupId.setValue(target.groupId);
       } catch (error) {
         logger.trackError('Failed to arm in-channel onboarding', { error });
+        await Promise.allSettled([
+          db.agentOnboardingLanding.resetValue(),
+          db.agentOnboardingGroupId.resetValue(),
+        ]);
+        if (!cancelled) {
+          setHomeGroupMissing(true);
+        }
+        return;
       }
+      redirectedRef.current = true;
       // The client didn't seat this agent (provisioning did), so learn its
       // ship from the hosting config — that record is what lets the bot's
       // opening cards render as trusted before the group has any config.
