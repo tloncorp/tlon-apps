@@ -1083,7 +1083,7 @@ importers:
         specifier: workspace:^
         version: link:../api
       '@tloncorp/tlon-skill':
-        specifier: workspace:0.5.1-buckets.1
+        specifier: workspace:^
         version: link:../tlon-skill
       '@urbit/aura':
         specifier: ^3.0.0
