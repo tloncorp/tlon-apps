@@ -750,8 +750,12 @@ const copyDesks = async (): Promise<string[]> => {
       }
 
       console.log(`Copying desk changes to ${ship.ship}`);
+      // --checksum because we got here on a CONTENT mismatch: rsync's default
+      // quick check skips files whose size and mtime match, so a same-size,
+      // same-mtime edit would be detected by desksMatch and then silently not
+      // transferred, and the |commit below would publish stale Hoon.
       childProcess.execSync(
-        `rsync -aL --delete "${DESK_STAGING_DIR}/" "${groupsDir}/"`,
+        `rsync -aL --delete --checksum "${DESK_STAGING_DIR}/" "${groupsDir}/"`,
         { stdio: 'inherit' }
       );
       shipsNeedingUpdates.push(ship.ship);
