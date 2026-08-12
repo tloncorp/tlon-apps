@@ -12,7 +12,7 @@ const SOURCE_IMAGE_URL =
   'https://storage.googleapis.com/tlon-test-ci-shared/test-images/openclaw-image.png';
 
 const LOCAL_MEDIA_ERROR_TEXT =
-  "Local file paths are not supported on this channel — upload the file first (e.g. `tlon upload <path>` using your owner ship's credentials), then resend with the returned https URL.";
+  'Local file paths are not supported on this channel — upload the file first (e.g. `tlon upload <path>`) and resend with the returned https URL.';
 
 // Poke mark verified against fakezod — see plan §1b.
 // JSON keys must be kebab-case (storage-json/hoon), not camelCase.
