@@ -4,7 +4,10 @@ import { useMemo } from 'react';
 import { NativeSyntheticEvent, StyleSheet, ViewProps } from 'react-native';
 import { useTheme } from 'tamagui';
 
-import { useCurrentUserId } from '../../contexts/appDataContext';
+import {
+  useContactIndex,
+  useCurrentUserId,
+} from '../../contexts/appDataContext';
 import { useIsScreenReaderEnabled } from '../../hooks/useIsScreenReaderEnabled';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { useReactionDetails } from '../../utils/postUtils';
@@ -73,6 +76,7 @@ function EnabledMessageContextMenu({
 }: MessageContextMenuProps) {
   const theme = useTheme();
   const currentUserId = useCurrentUserId();
+  const contactIndex = useContactIndex();
   const reactionDetails = useReactionDetails(
     post.reactions ?? [],
     currentUserId
@@ -132,6 +136,14 @@ function EnabledMessageContextMenu({
     : undefined;
   const alignment = post.authorId === currentUserId ? 'trailing' : 'leading';
   const previewBackgroundColor = theme.secondaryBackground.val;
+  const contactPresentationKey = useMemo(
+    () =>
+      [post.authorId, ...(post.replyContactIds ?? [])].map((contactId) => {
+        const contact = contactIndex?.[contactId];
+        return [contactId, contact?.nickname, contact?.avatarImage];
+      }),
+    [contactIndex, post.authorId, post.replyContactIds]
+  );
   const presentationKey = JSON.stringify([
     previewKey,
     contentKey,
@@ -141,6 +153,7 @@ function EnabledMessageContextMenu({
     moreReactionsToken,
     alignment,
     previewBackgroundColor,
+    contactPresentationKey,
   ]);
 
   return (
