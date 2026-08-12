@@ -137,6 +137,67 @@ describe('Steward automation projection normalization', () => {
     expect(task.payload).not.toHaveProperty('message');
   });
 
+  it('omits explicitly undefined task and schedule fields', () => {
+    const tasks = normalizeStewardAutomationProject([
+      runtimeJob({
+        id: 'undefined-task-fields',
+        agentId: undefined,
+        name: '',
+        description: undefined,
+        enabled: false,
+        schedule: {
+          kind: 'cron',
+          expr: undefined,
+          tz: '',
+          staggerMs: 0,
+        },
+        sessionTarget: undefined,
+        wakeMode: undefined,
+        payload: undefined,
+        createdAtMs: undefined,
+        updatedAtMs: 0,
+      }),
+      runtimeJob({
+        id: 'undefined-at-field',
+        schedule: { kind: 'at', at: undefined },
+      }),
+      runtimeJob({
+        id: 'undefined-every-fields',
+        schedule: {
+          kind: 'every',
+          everyMs: undefined,
+          anchorMs: undefined,
+        },
+      }),
+    ]).project.tasks;
+
+    expect(tasks).toStrictEqual([
+      {
+        id: 'undefined-task-fields',
+        name: '',
+        enabled: false,
+        schedule: { kind: 'cron', tz: '', staggerMs: 0 },
+        updatedAtMs: 0,
+      },
+      { id: 'undefined-at-field', schedule: { kind: 'at' } },
+      { id: 'undefined-every-fields', schedule: { kind: 'every' } },
+    ]);
+    for (const field of [
+      'agentId',
+      'description',
+      'sessionTarget',
+      'wakeMode',
+      'payload',
+      'createdAtMs',
+    ]) {
+      expect(tasks[0]).not.toHaveProperty(field);
+    }
+    expect(tasks[0]?.schedule).not.toHaveProperty('expr');
+    expect(tasks[1]?.schedule).not.toHaveProperty('at');
+    expect(tasks[2]?.schedule).not.toHaveProperty('everyMs');
+    expect(tasks[2]?.schedule).not.toHaveProperty('anchorMs');
+  });
+
   it('preserves input order and returns a complete empty project', () => {
     expect(
       normalizeStewardAutomationProject([
@@ -161,6 +222,17 @@ describe('Steward automation projection normalization', () => {
   });
 
   it.each([
+    ['non-object job', null, /Invalid cron job: expected an object/],
+    [
+      'non-object schedule',
+      { id: 'bad-schedule', schedule: [] },
+      /cron job bad-schedule schedule: expected an object/,
+    ],
+    [
+      'non-object payload',
+      { id: 'bad-payload', payload: null },
+      /cron job bad-payload payload: expected an object/,
+    ],
     [
       'impossible at date',
       { id: 'bad-at', schedule: { kind: 'at', at: '2026-02-31T00:00:00Z' } },

@@ -114,3 +114,5 @@
          throughout the automation types and codecs.
 - [x] 5.11 Replace the hand-written ISO timestamp parser with Zod's
          ISO datetime validation and focused projection tests.
+- [x] 5.12 Replace the remaining projection field helpers with
+         complete Zod task, schedule, and payload schemas.
