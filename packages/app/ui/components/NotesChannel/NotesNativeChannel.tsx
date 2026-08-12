@@ -899,6 +899,7 @@ export function NotesNativeChannel({
       flex={1}
       backgroundColor="$background"
       position="relative"
+      testID="NotesChannelRoot"
       {...dropImportProps}
     >
       {error ? <NotesBanner message={error} tone="negative" /> : null}
