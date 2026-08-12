@@ -20,7 +20,7 @@ export type StewardAutomationSchedule =
 
 export interface StewardAutomationPayload {
   kind?: string;
-  text?: string;
+  message?: string;
 }
 
 export interface StewardAutomationTask {
@@ -64,16 +64,16 @@ const IsoTimestampMillisecondsSchema = z.iso
 const PayloadSchema = z
   .object({
     kind: ExpectedStringSchema.optional(),
-    text: ExpectedStringSchema.optional(),
     message: ExpectedStringSchema.optional(),
+    text: ExpectedStringSchema.optional(),
   })
-  .transform(({ kind, text: declaredText, message: runtimeMessage }) => {
-    // The pinned declaration says `text`; captured 2026.5.28 runtime values
-    // use `message`. Validate both aliases and expose only Steward's `text`.
-    const text = declaredText ?? runtimeMessage;
+  .transform(({ kind, message: currentMessage, text: fallbackText }) => {
+    // Current OpenClaw runtime values use `message`. Accept `text` only as a
+    // fallback for the stale pinned 2026.5.28 plugin declaration.
+    const message = currentMessage ?? fallbackText;
     return {
       ...(kind === undefined ? {} : { kind }),
-      ...(text === undefined ? {} : { text }),
+      ...(message === undefined ? {} : { message }),
     } satisfies StewardAutomationPayload;
   });
 

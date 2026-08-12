@@ -116,3 +116,5 @@
          ISO datetime validation and focused projection tests.
 - [x] 5.12 Replace the remaining projection field helpers with
          complete Zod task, schedule, and payload schemas.
+- [ ] 5.13 Make OpenClaw `message` the canonical agent-turn payload
+         field, retaining `text` only as a compatibility fallback.

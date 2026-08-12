@@ -45,7 +45,7 @@
     |=  jon=json
     ^-  task-payload:v1:a
     :*  (optional 'kind' so jon)
-        (optional 'text' so jon)
+        (optional 'message' so jon)
     ==
   ++  task
     |=  jon=json
@@ -134,7 +134,7 @@
     ^-  json
     =/  fields=(list [@t json])  ~
     =.  fields  ?~(kind.payload fields [['kind' s+u.kind.payload] fields])
-    =.  fields  ?~(text.payload fields [['text' s+u.text.payload] fields])
+    =.  fields  ?~(message.payload fields [['message' s+u.message.payload] fields])
     (pairs fields)
   ++  task
     |=  =task:v1:a

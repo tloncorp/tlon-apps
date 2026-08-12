@@ -19,7 +19,7 @@ const action: StewardAutomationProjectAction = {
       {
         id: 'job-1',
         enabled: false,
-        payload: { kind: 'agentTurn', text: 'check status' },
+        payload: { kind: 'agentTurn', message: 'check status' },
       },
     ],
   },

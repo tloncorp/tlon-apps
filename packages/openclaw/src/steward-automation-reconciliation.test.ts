@@ -59,7 +59,7 @@ function job(id: string): PluginHookGatewayCronJob {
   return {
     id,
     enabled: true,
-    payload: { kind: 'agentTurn', text: id },
+    payload: { kind: 'agentTurn', message: id },
   };
 }
 
@@ -81,7 +81,7 @@ const jobs = [
     name: 'Nightly status',
     enabled: false,
     schedule: { kind: 'cron', expr: '0 1 * * *', tz: 'UTC' },
-    payload: { kind: 'agentTurn', text: 'check status' },
+    payload: { kind: 'agentTurn', message: 'check status' },
     state: { lastRunStatus: 'ok', lastRunAtMs: 1_777_000_000_000 },
     createdAtMs: 1_700_000_000_000,
   },
@@ -117,7 +117,7 @@ describe('reconcileStewardAutomation', () => {
             name: 'Nightly status',
             enabled: false,
             schedule: { kind: 'cron', expr: '0 1 * * *', tz: 'UTC' },
-            payload: { kind: 'agentTurn', text: 'check status' },
+            payload: { kind: 'agentTurn', message: 'check status' },
             createdAtMs: 1_700_000_000_000,
           },
         ],
@@ -696,12 +696,12 @@ describe('registerStewardAutomationReconciliationHooks', () => {
         {
           id: 'complete-enabled',
           enabled: true,
-          payload: { kind: 'agentTurn', text: 'first in complete list' },
+          payload: { kind: 'agentTurn', message: 'first in complete list' },
         },
         {
           id: 'complete-disabled',
           enabled: false,
-          payload: { kind: 'agentTurn', text: 'second in complete list' },
+          payload: { kind: 'agentTurn', message: 'second in complete list' },
         },
       ] satisfies PluginHookGatewayCronJob[];
       const { context, list } = cronContext(completeJobs);
@@ -727,7 +727,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
           job: {
             id: 'event-only',
             enabled: true,
-            payload: { kind: 'agentTurn', text: 'event delta' },
+            payload: { kind: 'agentTurn', message: 'event delta' },
             state: { lastRunStatus: 'ok' },
           },
         },
@@ -748,7 +748,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
               enabled: true,
               payload: {
                 kind: 'agentTurn',
-                text: 'first in complete list',
+                message: 'first in complete list',
               },
             },
             {
@@ -756,7 +756,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
               enabled: false,
               payload: {
                 kind: 'agentTurn',
-                text: 'second in complete list',
+                message: 'second in complete list',
               },
             },
           ],

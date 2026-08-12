@@ -95,7 +95,7 @@
           "wakeMode": "now",
           "payload": {
             "kind": "agentTurn",
-            "text": "Send a short reminder."
+            "message": "Send a short reminder."
           },
           "createdAtMs": 1785734006665,
           "updatedAtMs": 1785734006665
@@ -114,7 +114,7 @@
           "wakeMode": "now",
           "payload": {
             "kind": "agentTurn",
-            "text": "Send a playful reminder."
+            "message": "Send a playful reminder."
           },
           "createdAtMs": 1785735243782,
           "updatedAtMs": 1785740230441
@@ -140,7 +140,7 @@
         "wakeMode": "now",
         "payload": {
           "kind": "agentTurn",
-          "text": "Send a short reminder."
+          "message": "Send a short reminder."
         },
         "createdAtMs": 1785734006665,
         "updatedAtMs": 1785734006665
@@ -158,7 +158,7 @@
         "wakeMode": "now",
         "payload": {
           "kind": "agentTurn",
-          "text": "Send a playful reminder."
+          "message": "Send a playful reminder."
         },
         "createdAtMs": 1785735243782,
         "updatedAtMs": 1785740230441
@@ -211,7 +211,7 @@
             "wakeMode": "now",
             "payload": {
               "kind": "agentTurn",
-              "text": "Send a weekday reminder."
+              "message": "Send a weekday reminder."
             },
             "createdAtMs": 1786416589889,
             "updatedAtMs": 1786416589889

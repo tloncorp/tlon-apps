@@ -103,7 +103,7 @@ The v1 state is `tasks=(map @t task)`. The OpenClaw job ID is used only as the m
 | enabled state | `(unit ?)` | `enabled` |
 | schedule | `(unit cron-schedule)` | `schedule` |
 | execution target | `(unit @t)` for each value | `sessionTarget`, `wakeMode` |
-| payload definition | optional `kind` and `text` | `payload` |
+| payload definition | optional `kind` and `message` | `payload` |
 | definition timestamps | `(unit @da)` for each value | `createdAtMs`, `updatedAtMs` |
 
 Supported schedules are `cron` (`expr`, `tz`, and `staggerMs`), `at` (`at`), and `every` (`everyMs` and `anchorMs`). Millisecond duration and timestamp fields cross the JSON boundary as non-negative integer milliseconds. Pinned OpenClaw returns an `at` timestamp as ISO text; the TypeScript normalizer validates and converts it to Unix milliseconds before `%steward` receives it.
@@ -128,7 +128,7 @@ The inbound action and outbound task map use separate, independently versioned m
         },
         "payload": {
           "kind": "agentTurn",
-          "text": "Send the daily status."
+          "message": "Send the daily status."
         }
       }
     ]

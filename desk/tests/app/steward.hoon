@@ -76,7 +76,7 @@
           "wakeMode": "now",
           "payload": {
             "kind": "agentTurn",
-            "text": "Send a short reminder."
+            "message": "Send a short reminder."
           },
           "createdAtMs": 1785734006665,
           "updatedAtMs": 1785734006665
@@ -95,7 +95,7 @@
           "wakeMode": "now",
           "payload": {
             "kind": "agentTurn",
-            "text": "Send a playful reminder."
+            "message": "Send a playful reminder."
           },
           "createdAtMs": 1785735243782,
           "updatedAtMs": 1785740230441
@@ -121,7 +121,7 @@
         "wakeMode": "now",
         "payload": {
           "kind": "agentTurn",
-          "text": "Send a short reminder."
+          "message": "Send a short reminder."
         },
         "createdAtMs": 1785734006665,
         "updatedAtMs": 1785734006665
@@ -139,7 +139,7 @@
         "wakeMode": "now",
         "payload": {
           "kind": "agentTurn",
-          "text": "Send a playful reminder."
+          "message": "Send a playful reminder."
         },
         "createdAtMs": 1785735243782,
         "updatedAtMs": 1785740230441
@@ -168,7 +168,7 @@
           "wakeMode": "now",
           "payload": {
             "kind": "agentTurn",
-            "text": "Send the daily status."
+            "message": "Send the daily status."
           },
           "createdAtMs": 1785734000000,
           "updatedAtMs": 1785734000000
@@ -187,7 +187,7 @@
           "wakeMode": "now",
           "payload": {
             "kind": "agentTurn",
-            "text": "Send the paused reminder."
+            "message": "Send the paused reminder."
           },
           "createdAtMs": 1785735243782,
           "updatedAtMs": 1785735243782
@@ -215,7 +215,7 @@
         "wakeMode": "now",
         "payload": {
           "kind": "agentTurn",
-          "text": "Send the daily status."
+          "message": "Send the daily status."
         },
         "createdAtMs": 1785734000000,
         "updatedAtMs": 1785734000000
@@ -233,7 +233,7 @@
         "wakeMode": "now",
         "payload": {
           "kind": "agentTurn",
-          "text": "Send the paused reminder."
+          "message": "Send the paused reminder."
         },
         "createdAtMs": 1785735243782,
         "updatedAtMs": 1785735243782
@@ -262,7 +262,7 @@
           "wakeMode": "now",
           "payload": {
             "kind": "agentTurn",
-            "text": "Send the updated daily status."
+            "message": "Send the updated daily status."
           },
           "createdAtMs": 1785734000000,
           "updatedAtMs": 1785740000000
@@ -280,7 +280,7 @@
           "wakeMode": "now",
           "payload": {
             "kind": "agentTurn",
-            "text": "Send the one-shot reminder."
+            "message": "Send the one-shot reminder."
           },
           "createdAtMs": 1785740000000,
           "updatedAtMs": 1785740000000
@@ -308,7 +308,7 @@
         "wakeMode": "now",
         "payload": {
           "kind": "agentTurn",
-          "text": "Send the updated daily status."
+          "message": "Send the updated daily status."
         },
         "createdAtMs": 1785734000000,
         "updatedAtMs": 1785740000000
@@ -325,7 +325,7 @@
         "wakeMode": "now",
         "payload": {
           "kind": "agentTurn",
-          "text": "Send the one-shot reminder."
+          "message": "Send the one-shot reminder."
         },
         "createdAtMs": 1785740000000,
         "updatedAtMs": 1785740000000

@@ -14,7 +14,7 @@
 ::
 +$  task-payload
   $:  kind=(unit @t)
-      text=(unit @t)
+      message=(unit @t)
   ==
 ::  $task: the supported definition-only PluginHookGatewayCronJob subset; the ID
 ::  from OpenClaw is stored separately as the map key. runtime job state and

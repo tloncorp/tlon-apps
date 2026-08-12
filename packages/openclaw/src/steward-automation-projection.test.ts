@@ -30,7 +30,7 @@ describe('Steward automation projection normalization', () => {
             wakeMode: 'now',
             payload: {
               kind: 'agentTurn',
-              text: 'Send a short reminder.',
+              message: 'Send a short reminder.',
             },
             createdAtMs: 1_785_734_006_665,
             updatedAtMs: 1_785_734_006_665,
@@ -49,7 +49,7 @@ describe('Steward automation projection normalization', () => {
             wakeMode: 'now',
             payload: {
               kind: 'agentTurn',
-              text: 'Send a playful reminder.',
+              message: 'Send a playful reminder.',
             },
             createdAtMs: 1_785_735_243_782,
             updatedAtMs: 1_785_740_230_441,
@@ -70,7 +70,7 @@ describe('Steward automation projection normalization', () => {
             wakeMode: 'now',
             payload: {
               kind: 'agentTurn',
-              text: 'Send a weekday reminder.',
+              message: 'Send a weekday reminder.',
             },
             createdAtMs: 1_786_416_589_889,
             updatedAtMs: 1_786_416_589_889,
@@ -85,11 +85,11 @@ describe('Steward automation projection normalization', () => {
       expect(task).not.toHaveProperty('delivery');
       expect(task).not.toHaveProperty('deleteAfterRun');
       expect(task).not.toHaveProperty('sessionKey');
-      expect(task.payload).not.toHaveProperty('message');
+      expect(task.payload).not.toHaveProperty('text');
     }
   });
 
-  it('includes a synthetic disabled cron job and preserves false and zero', () => {
+  it('prefers canonical message and preserves false and zero', () => {
     const result = normalizeStewardAutomationProject([
       runtimeJob({
         id: 'disabled-zero',
@@ -102,8 +102,8 @@ describe('Steward automation projection normalization', () => {
         },
         payload: {
           kind: '',
-          text: 'declared text',
-          message: 'runtime message',
+          text: 'compatibility text',
+          message: 'canonical message',
           unknown: 'drop me',
         },
         createdAtMs: 0,
@@ -122,7 +122,7 @@ describe('Steward automation projection normalization', () => {
             id: 'disabled-zero',
             enabled: false,
             schedule: { kind: 'cron', expr: '', tz: '', staggerMs: 0 },
-            payload: { kind: '', text: 'declared text' },
+            payload: { kind: '', message: 'canonical message' },
             createdAtMs: 0,
             updatedAtMs: 0,
           },
@@ -134,7 +134,18 @@ describe('Steward automation projection normalization', () => {
     expect(task).not.toHaveProperty('delivery');
     expect(task).not.toHaveProperty('deleteAfterRun');
     expect(task).not.toHaveProperty('sessionKey');
-    expect(task.payload).not.toHaveProperty('message');
+    expect(task.payload).not.toHaveProperty('text');
+  });
+
+  it('uses compatibility text when canonical message is absent', () => {
+    expect(
+      normalizeStewardAutomationProject([
+        runtimeJob({
+          id: 'compatibility-text',
+          payload: { kind: 'agentTurn', text: 'fallback message' },
+        }),
+      ]).project.tasks[0]?.payload
+    ).toEqual({ kind: 'agentTurn', message: 'fallback message' });
   });
 
   it('omits explicitly undefined task and schedule fields', () => {
@@ -249,12 +260,12 @@ describe('Steward automation projection normalization', () => {
       /unsupported value on-exit/,
     ],
     [
-      'invalid declared payload text',
-      { id: 'bad-text', payload: { text: 1, message: 'fallback' } },
+      'invalid compatibility payload text',
+      { id: 'bad-text', payload: { text: 1 } },
       /payload.text: expected a string/,
     ],
     [
-      'invalid runtime payload message',
+      'invalid canonical payload message',
       { id: 'bad-message', payload: { message: false } },
       /payload.message: expected a string/,
     ],
