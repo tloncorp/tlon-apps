@@ -288,8 +288,15 @@ export async function fetchChannelHistory(
         const essay = item.essay || item['r-post']?.set?.essay;
         const seal = item.seal || item['r-post']?.set?.seal;
 
+        // A bot posting with a profile carries an author *object*; every
+        // consumer compares ships, so unwrap here or the bot never
+        // recognizes its own posts in history.
+        const rawAuthor = essay?.author;
         return {
-          author: essay?.author || 'unknown',
+          author:
+            typeof rawAuthor === 'string'
+              ? rawAuthor
+              : rawAuthor?.ship || 'unknown',
           content: extractMessageText(essay?.content || []),
           timestamp: essay?.sent || Date.now(),
           id: seal?.id,
