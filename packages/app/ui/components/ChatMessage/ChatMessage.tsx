@@ -110,6 +110,13 @@ const ChatMessage = ({
     <MaskedChatMessage post={post}>
       <MessageContextMenu
         enabled={Boolean(onLongPress) && post.type !== 'notice'}
+        previewKey={JSON.stringify([
+          showAuthor,
+          showReplies,
+          isHighlighted,
+          displayDebugMode,
+          searchQuery,
+        ])}
         post={post}
         postActionIds={postActionIds}
         canReact={canWrite}

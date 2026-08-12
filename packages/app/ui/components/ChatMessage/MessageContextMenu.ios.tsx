@@ -61,6 +61,7 @@ export function MessageContextMenu(props: MessageContextMenuProps) {
 
 function EnabledMessageContextMenu({
   children,
+  previewKey,
   post,
   postActionIds,
   canReact,
@@ -132,6 +133,7 @@ function EnabledMessageContextMenu({
   const alignment = post.authorId === currentUserId ? 'trailing' : 'leading';
   const previewBackgroundColor = theme.secondaryBackground.val;
   const presentationKey = JSON.stringify([
+    previewKey,
     contentKey,
     actions,
     post.reactions,

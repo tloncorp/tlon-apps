@@ -5,6 +5,7 @@ import { ReactNode } from 'react';
 export interface MessageContextMenuProps {
   children: (usesNativeMenu: boolean) => ReactNode;
   enabled: boolean;
+  previewKey: string;
   post: db.Post;
   postActionIds: ChannelAction.Id[];
   canReact: boolean;
