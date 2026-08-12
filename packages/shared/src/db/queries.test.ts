@@ -2177,3 +2177,69 @@ describe('pins reordering (TLON-5948)', () => {
     });
   });
 });
+
+describe('thread unreads by channel', () => {
+  const channelId = 'chat/~zod/thread-unread-contract';
+
+  function threadUnread(
+    threadId: string,
+    overrides: Partial<ThreadUnreadState> = {}
+  ): ThreadUnreadState {
+    return {
+      channelId,
+      threadId,
+      count: 1,
+      notify: false,
+      updatedAt: 1,
+      firstUnreadPostId: null,
+      firstUnreadPostReceivedAt: null,
+      ...overrides,
+    } as ThreadUnreadState;
+  }
+
+  // The channel-scoped thread-unread overlay keys its map on threadId and
+  // matches it against post ids, so these rows have to come back keyed that
+  // way. If this contract moves, the reply-summary dot silently stops
+  // resolving.
+  test('returns rows keyed by the parent post id', async () => {
+    await queries.insertThreadUnreads([threadUnread('parent-post-1')]);
+
+    const result = await queries.getThreadUnreadsByChannel({ channelId });
+
+    expect(result.map((u) => u.threadId)).toEqual(['parent-post-1']);
+    expect(result[0].count).toBe(1);
+  });
+
+  test('excludeRead drops threads with no unread activity', async () => {
+    await queries.insertThreadUnreads([
+      threadUnread('unread-thread', { count: 2 }),
+      threadUnread('read-thread', { count: 0, notify: false }),
+      threadUnread('notifying-thread', { count: 0, notify: true }),
+    ]);
+
+    const active = await queries.getThreadUnreadsByChannel({
+      channelId,
+      excludeRead: true,
+    });
+
+    // A read thread drops out entirely — which is why the overlay treats a
+    // missing entry as "no dot" rather than falling back to the post's own
+    // stale copy. A notifying row is kept but carries count 0, so it still
+    // renders no dot.
+    expect(active.map((u) => u.threadId).sort()).toEqual([
+      'notifying-thread',
+      'unread-thread',
+    ]);
+  });
+
+  test('scopes results to the requested channel', async () => {
+    await queries.insertThreadUnreads([
+      threadUnread('mine'),
+      threadUnread('theirs', { channelId: 'chat/~zod/other' }),
+    ]);
+
+    const result = await queries.getThreadUnreadsByChannel({ channelId });
+
+    expect(result.map((u) => u.threadId)).toEqual(['mine']);
+  });
+});
