@@ -332,6 +332,38 @@ test('message content revisions include the visible reply summary', () => {
   );
 });
 
+test('message content revisions include rendered delivery and edit state', () => {
+  const post = {
+    content: null,
+    textContent: 'message',
+    deliveryStatus: null,
+    editStatus: null,
+    deleteStatus: null,
+    isEdited: false,
+    lastEditContent: null,
+    lastEditTitle: null,
+    lastEditImage: null,
+  } as db.Post;
+
+  const original = messageContentKey(post);
+  expect(messageContentKey({ ...post, deliveryStatus: 'failed' })).not.toBe(
+    original
+  );
+  expect(messageContentKey({ ...post, editStatus: 'failed' })).not.toBe(
+    original
+  );
+  expect(messageContentKey({ ...post, deleteStatus: 'failed' })).not.toBe(
+    original
+  );
+  expect(messageContentKey({ ...post, isEdited: true })).not.toBe(original);
+  expect(
+    messageContentKey({
+      ...post,
+      lastEditContent: [{ type: 'text', text: 'old' }],
+    })
+  ).not.toBe(original);
+});
+
 test('message action revisions ignore reply-summary-only changes', () => {
   const post = {
     content: null,

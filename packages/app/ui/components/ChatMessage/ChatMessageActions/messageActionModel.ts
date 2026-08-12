@@ -62,6 +62,13 @@ export function messageActionContentKey(post: db.Post) {
 export function messageContentKey(post: db.Post) {
   return JSON.stringify([
     messageActionContentKey(post),
+    post.deliveryStatus,
+    post.editStatus,
+    post.deleteStatus,
+    post.isEdited,
+    post.lastEditContent,
+    post.lastEditTitle,
+    post.lastEditImage,
     post.replyCount,
     post.replyTime,
     post.replyContactIds,
