@@ -71,7 +71,13 @@ export const PostList: PostListComponent = React.forwardRef(
     return usesConversationPostList(props) ? (
       <ConversationPostList {...props} ref={forwardedRef} />
     ) : (
-      <PostListFlatList {...props} ref={forwardedRef} />
+      <PostListFlatList
+        // FlatList rows may retain their layouts when selection changes, so a
+        // fresh selected anchor needs a fresh measurement/scroll attempt.
+        key={props.anchor?.type === 'selected' ? props.anchor.postId : undefined}
+        {...props}
+        ref={forwardedRef}
+      />
     );
   }
 );
