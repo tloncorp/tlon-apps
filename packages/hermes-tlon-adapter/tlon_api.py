@@ -960,6 +960,12 @@ class TlonCLI:
             return tuple(args)
         if (args[idx], args[idx + 1]) not in SEND_OPERATIONS:
             return tuple(args)
+        # A caller that already passed the flag has said what decoration would
+        # say. Appending anyway produces `--bot --bot`, which the CLI rejects as
+        # a repeat — so the model following the documented `--bot` usage would
+        # have its send fail rather than go out bot-authored.
+        if BOT_FLAG in args:
+            return tuple(args)
         # Probed only here, so non-send usage never pays for it.
         if not await self._supports_bot_flags():
             return tuple(args)

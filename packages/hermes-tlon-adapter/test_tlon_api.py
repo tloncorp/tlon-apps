@@ -1339,6 +1339,71 @@ class TlonCLITests(unittest.TestCase):
             ],
         )
 
+    def test_a_caller_supplied_bot_flag_is_not_duplicated(self):
+        # The model is documented to pass `--bot` itself. Appending a second one
+        # produces `--bot --bot`, which the CLI rejects as a repeated flag, so
+        # the send fails outright instead of going out bot-authored.
+        calls = []
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command[1:]))
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                return tlon_api.TlonProcessResult(
+                    returncode=0, stdout="options: --bot"
+                )
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+        asyncio.run(
+            cli.run_command(("posts", "send", "chat/~zod/general", "hi", "--bot"))
+        )
+
+        sends = [c for c in calls if c != tlon_api.BOT_FLAG_PROBE_ARGS]
+        self.assertEqual(
+            sends,
+            [("posts", "send", "chat/~zod/general", "hi", "--bot")],
+        )
+        self.assertEqual(sends[0].count(tlon_api.BOT_FLAG), 1)
+
+    def test_an_undecorated_send_still_gets_the_flag(self):
+        # The idempotence guard must not swallow the normal path.
+        calls = []
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command[1:]))
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                return tlon_api.TlonProcessResult(
+                    returncode=0, stdout="options: --bot"
+                )
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+        asyncio.run(
+            cli.run_command(("posts", "send", "chat/~zod/general", "hi"))
+        )
+
+        sends = [c for c in calls if c != tlon_api.BOT_FLAG_PROBE_ARGS]
+        self.assertEqual(
+            sends,
+            [("posts", "send", "chat/~zod/general", "hi", tlon_api.BOT_FLAG)],
+        )
+
     def test_without_as_bot_nothing_is_appended(self):
         calls = []
         cfg = tlon_api.TlonConfig.from_env(
