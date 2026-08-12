@@ -35,18 +35,18 @@ export interface MessageActionVisibilityContext {
 
 export function messageActionToken(
   post: db.Post,
-  contentKey: string,
+  actionContentKey: string,
   descriptor: Omit<MessageMenuActionDescriptor, 'token'>
 ) {
   return JSON.stringify([
     post.id,
-    contentKey,
+    actionContentKey,
     descriptor,
     descriptor.id === 'viewReactions' ? post.reactions : null,
   ]);
 }
 
-export function messageContentKey(post: db.Post) {
+export function messageActionContentKey(post: db.Post) {
   return JSON.stringify([
     post.content,
     post.textContent,
@@ -54,7 +54,14 @@ export function messageContentKey(post: db.Post) {
     post.image,
     post.description,
     post.cover,
+    post.blob,
     post.isDeleted,
+  ]);
+}
+
+export function messageContentKey(post: db.Post) {
+  return JSON.stringify([
+    messageActionContentKey(post),
     post.replyCount,
     post.replyTime,
     post.replyContactIds,

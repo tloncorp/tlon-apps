@@ -1,3 +1,4 @@
+import * as db from '@tloncorp/shared/db';
 import { requireNativeViewManager } from 'expo-modules-core';
 import { useMemo } from 'react';
 import { NativeSyntheticEvent, StyleSheet, ViewProps } from 'react-native';
@@ -14,6 +15,7 @@ import {
 } from './ChatMessageActions/MessageActions';
 import {
   resolveReactionSlot,
+  selectFrequentEmojis,
   selectLastReactionSlot,
 } from './ChatMessageActions/quickEmojis';
 import { MessageContextMenuProps } from './MessageContextMenu.types';
@@ -45,7 +47,6 @@ const NativeMessageContextMenu =
     'TlonMessageContextMenu'
   );
 
-const defaultReactions = ['👍', '❤️', '😂'];
 const noop = () => {};
 const runImmediately = (action: () => void) => action();
 
@@ -75,6 +76,11 @@ function EnabledMessageContextMenu({
     post.reactions ?? [],
     currentUserId
   );
+  const emojiUsage = db.emojiUsage.useValue();
+  const frequentReactions = useMemo(
+    () => selectFrequentEmojis(db.sortEmojisByUsage(emojiUsage)),
+    [emojiUsage]
+  );
   const onEmojiSelect = useOnEmojiSelect(post, noop);
   const { actions, contentKey, performAction } = useMessageActionModel({
     post,
@@ -95,10 +101,10 @@ function EnabledMessageContextMenu({
       return [];
     }
     const lastReaction = selectLastReactionSlot(
-      defaultReactions,
+      frequentReactions,
       selectedReaction
     );
-    return [...defaultReactions, lastReaction].map((slot) => {
+    return [...frequentReactions, lastReaction].map((slot) => {
       const reaction = resolveReactionSlot(slot, selectedReaction);
       return {
         ...reaction,
@@ -112,7 +118,7 @@ function EnabledMessageContextMenu({
         ]),
       };
     });
-  }, [canReact, post.id, selectedReaction]);
+  }, [canReact, frequentReactions, post.id, selectedReaction]);
   const reactions = useMemo<NativeMessageMenuReaction[]>(
     () =>
       reactionSlots.map(

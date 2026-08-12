@@ -26,6 +26,7 @@ import {
   MessageMenuActionDescriptor,
   MessageMenuActionId,
   isMessageActionVisible,
+  messageActionContentKey,
   messageActionToken,
   messageContentKey,
 } from './messageActionModel';
@@ -159,6 +160,7 @@ export function useMessageActionModel({
   );
 
   const contentKey = messageContentKey(post);
+  const actionContentKey = messageActionContentKey(post);
   const actions = useMemo<MessageMenuActionDescriptor[]>(() => {
     const isConnected = connectionStatus === 'Connected';
     const canStartDraft = Boolean(draftInputContext?.canStartDraft);
@@ -202,7 +204,7 @@ export function useMessageActionModel({
         return [
           {
             ...descriptor,
-            token: messageActionToken(post, contentKey, descriptor),
+            token: messageActionToken(post, actionContentKey, descriptor),
           },
         ];
       }
@@ -215,7 +217,7 @@ export function useMessageActionModel({
       } as const;
       descriptors.push({
         ...descriptor,
-        token: messageActionToken(post, contentKey, descriptor),
+        token: messageActionToken(post, actionContentKey, descriptor),
       });
     }
     return descriptors;
@@ -224,7 +226,7 @@ export function useMessageActionModel({
     connectionStatus,
     showViewBotRun,
     post,
-    contentKey,
+    actionContentKey,
     channel,
     currentUserId,
     currentUserIsAdmin,

@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 import {
   MessageActionVisibilityContext,
   isMessageActionVisible,
+  messageActionContentKey,
   messageContentKey,
 } from './messageActionModel';
 
@@ -328,5 +329,45 @@ test('message content revisions include the visible reply summary', () => {
   expect(messageContentKey({ ...post, replyTime: 200 })).not.toBe(original);
   expect(messageContentKey({ ...post, replyContactIds: ['~nec'] })).not.toBe(
     original
+  );
+});
+
+test('message action revisions ignore reply-summary-only changes', () => {
+  const post = {
+    content: null,
+    textContent: 'message',
+    title: null,
+    image: null,
+    description: null,
+    cover: null,
+    blob: null,
+    isDeleted: false,
+    replyCount: 1,
+    replyTime: 100,
+    replyContactIds: ['~zod'],
+  } as db.Post;
+
+  const original = messageActionContentKey(post);
+  expect(messageActionContentKey({ ...post, replyCount: 2 })).toBe(original);
+  expect(messageActionContentKey({ ...post, replyTime: 200 })).toBe(original);
+  expect(
+    messageActionContentKey({
+      ...post,
+      replyContactIds: ['~nec'],
+    })
+  ).toBe(original);
+});
+
+test('message content and action revisions include blob changes', () => {
+  const post = {
+    content: null,
+    textContent: 'message',
+    blob: 'pending-upload',
+  } as db.Post;
+  const updatedPost = { ...post, blob: 'completed-upload' };
+
+  expect(messageContentKey(updatedPost)).not.toBe(messageContentKey(post));
+  expect(messageActionContentKey(updatedPost)).not.toBe(
+    messageActionContentKey(post)
   );
 });
