@@ -33,6 +33,7 @@ import { ScreenHeader } from './ScreenHeader';
 import SystemNotices from './SystemNotices';
 import WayfindingNotice from './Wayfinding/Notices';
 import { ChannelListItem } from './listItems/ChannelListItem';
+import { useScreenScrollProps } from './useScreenScrollProps';
 
 type SectionHeaderData = { type: 'sectionHeader'; title: string; id: string };
 type ChannelListData = db.Channel | SectionHeaderData;
@@ -126,6 +127,9 @@ export const GroupChannelsScreenView = React.memo(
       notebookSidebarContent.groupId === group?.id &&
       notebookSidebarContent.channelId === focusedChannelId &&
       dismissedNotebookSidebarChannelId !== notebookSidebarContent.channelId;
+    const screenScrollProps = useScreenScrollProps({
+      enabled: !shouldShowNotebookSidebar && (group?.channels?.length ?? 0) > 0,
+    });
 
     useEffect(() => {
       setDismissedNotebookSidebarChannelId(null);
@@ -156,11 +160,19 @@ export const GroupChannelsScreenView = React.memo(
 
       // Add regular channels - either by section or by recency
       if (sortBy === 'recency') {
-        // Sort channels by recency
+        // Sort channels by recency: whichever is newer of the latest post
+        // or the activity summary's recency — non-post activity (e.g. a
+        // note in a notebook channel, which never has posts) also counts
         const channelsSortedByRecency = [...group.channels].sort((a, b) => {
-          const aLastPostAt = a.lastPostAt || 0;
-          const bLastPostAt = b.lastPostAt || 0;
-          return bLastPostAt - aLastPostAt;
+          const aRecency = Math.max(
+            a.lastPostAt ?? 0,
+            a.unread?.updatedAt ?? 0
+          );
+          const bRecency = Math.max(
+            b.lastPostAt ?? 0,
+            b.unread?.updatedAt ?? 0
+          );
+          return bRecency - aRecency;
         });
 
         if (channelsSortedByRecency.length > 0) {
@@ -285,8 +297,11 @@ export const GroupChannelsScreenView = React.memo(
             title={notebookSidebarContent.title}
             testID="NotebookSidebarBackHeader"
             borderBottom
-            backAction={handleDismissNotebookSidebar}
-            rightControls={notebookSidebarContent.actions}
+            backAction={
+              notebookSidebarContent.backAction ?? handleDismissNotebookSidebar
+            }
+            placement="navigation"
+            rightActions={notebookSidebarContent.headerActions}
           />
           <YStack flex={1} minHeight={0}>
             {notebookSidebarContent.content}
@@ -298,12 +313,6 @@ export const GroupChannelsScreenView = React.memo(
     return (
       <View flex={1}>
         <ScreenHeader
-          // When we're fetching the group from the local database, this component
-          // will initially mount with group undefined, then very quickly load the
-          // group in. Keeping the key consistent as long as the ID is prevents a
-          // full re-render / animation triggering almost immediately after the
-          // component mounts.
-          key={group?.id}
           title={title}
           titleIcon={group ? <GroupAvatar model={group} size="$2xl" /> : null}
           testID="GroupChannelsHeaderTrigger"
@@ -312,20 +321,25 @@ export const GroupChannelsScreenView = React.memo(
           borderBottom={isWindowNarrow}
           backAction={onBackPressed}
           onTitlePress={handleTitlePress}
-          rightControls={
-            group && isGroupAdmin ? (
-              <ScreenHeader.IconButton
-                type="EditList"
-                onPress={() => onPressManageChannels(group.id, false)}
-                disabled={!canEdit}
-                aria-label="Edit channels"
-              />
-            ) : null
-          }
+          rightActions={[
+            {
+              id: 'edit-channels',
+              icon: 'EditList',
+              label: 'Edit channels',
+              onPress: group
+                ? () => onPressManageChannels(group.id, false)
+                : undefined,
+              disabled: !canEdit,
+              visible: !!group && isGroupAdmin,
+            },
+          ]}
+          placement="navigation"
         />
-        {isPersonalGroup && group && (
-          <WayfindingNotice.GroupChannels group={group} />
-        )}
+        {isPersonalGroup &&
+          group &&
+          (!group.channels || group.channels.length === 0) && (
+            <WayfindingNotice.GroupChannels group={group} />
+          )}
         {group && group.joinStatus === 'joining' ? (
           // Show loading spinner while group is syncing
           <YStack flex={1} justifyContent="center" alignItems="center">
@@ -333,15 +347,23 @@ export const GroupChannelsScreenView = React.memo(
           </YStack>
         ) : group && group.channels && group.channels.length > 0 ? (
           <YStack flex={1} minHeight={0}>
-            <SystemNotices.ConnectedJoinRequestNotice
-              group={group}
-              onViewRequests={onGoToGroupMembers}
-            />
             <FlashList
               data={listItems}
               renderItem={renderItem}
               keyExtractor={keyExtractor}
               getItemType={getItemType}
+              {...screenScrollProps}
+              ListHeaderComponent={
+                <>
+                  {isPersonalGroup ? (
+                    <WayfindingNotice.GroupChannels group={group} />
+                  ) : null}
+                  <SystemNotices.ConnectedJoinRequestNotice
+                    group={group}
+                    onViewRequests={onGoToGroupMembers}
+                  />
+                </>
+              }
               contentContainerStyle={{
                 paddingTop: getTokenValue('$l'),
                 paddingHorizontal: getTokenValue('$l'),

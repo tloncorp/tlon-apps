@@ -188,7 +188,9 @@ import {
   isDmAllowed,
   isOwnerListenSlashCommand,
   isSummarizationRequest,
+  parseBlockedShips,
   prepareInboundText,
+  resolveGroupInviteAction,
   sanitizeMessageText,
   shouldEngageInGroup,
   stripBotMentionOutsidePlaceholders,
@@ -396,7 +398,7 @@ export async function monitorTlonProvider(
     throw new Error('Tlon account ship is empty after normalization');
   }
   const tlonSkillVersion = await resolveTlonSkillVersion();
-  let effectiveOwnerShip: string | null = account.ownerShip
+  const effectiveOwnerShip: string | null = account.ownerShip
     ? normalizeShip(account.ownerShip)
     : null;
   setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
@@ -1206,11 +1208,6 @@ export async function monitorTlonProvider(
           fileValue: account.showModelSignature,
           settingsValue: currentSettings.showModelSig,
         },
-        {
-          key: 'ownerShip',
-          fileValue: account.ownerShip,
-          settingsValue: currentSettings.ownerShip,
-        },
       ];
 
       for (const { key, fileValue, settingsValue } of migrations) {
@@ -1311,18 +1308,13 @@ export async function monitorTlonProvider(
       // An explicit empty settings list is authoritative (the admin cleared the
       // allowlist), not a signal to fall back to the file config — otherwise
       // clearing it in the form would keep auto-accepting invites from the old
-      // file list. Only `undefined` (never set) defers to the file value.
+      // file list. Only `undefined` (never set / deleted) defers to the file
+      // value; see the matching re-derivation in the settings subscription.
+      effectiveGroupInviteAllowlist =
+        currentSettings.groupInviteAllowlist ?? account.groupInviteAllowlist;
       if (currentSettings.groupInviteAllowlist !== undefined) {
-        effectiveGroupInviteAllowlist = currentSettings.groupInviteAllowlist;
         runtime.log?.(
-          `[tlon] Using groupInviteAllowlist from settings store: ${effectiveGroupInviteAllowlist.join(', ')}`
-        );
-      }
-      if (currentSettings.ownerShip) {
-        effectiveOwnerShip = normalizeShip(currentSettings.ownerShip);
-        setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
-        runtime.log?.(
-          `[tlon] Using ownerShip from settings store: ${effectiveOwnerShip}`
+          `[tlon] Using groupInviteAllowlist from settings store: ${effectiveGroupInviteAllowlist.length > 0 ? effectiveGroupInviteAllowlist.join(', ') : '(empty)'}`
         );
       }
       if (currentSettings.ownerListenEnabled !== undefined) {
@@ -1500,7 +1492,9 @@ export async function monitorTlonProvider(
       effectiveAutoDiscoverChannels ||
       account.groupChannels.length > 0 ||
       Boolean(currentSettings.groupChannels?.length) ||
-      effectiveAutoAcceptGroupInvites;
+      effectiveAutoAcceptGroupInvites ||
+      Boolean(effectiveOwnerShip) ||
+      effectiveGroupInviteAllowlist.length > 0;
     if (shouldFetchGroupMetadata) {
       try {
         const initData = await fetchInitData(api, runtime);
@@ -1717,7 +1711,7 @@ export async function monitorTlonProvider(
     const SCRY_TIMEOUT_MS = 15_000;
 
     async function scryBlockedShips(): Promise<string[]> {
-      const blocked = (await Promise.race([
+      const blocked = await Promise.race([
         api!.scry('/chat/blocked.json'),
         new Promise<never>((_, reject) =>
           setTimeout(
@@ -1725,8 +1719,13 @@ export async function monitorTlonProvider(
             SCRY_TIMEOUT_MS
           )
         ),
-      ])) as string[] | undefined;
-      return Array.isArray(blocked) ? blocked : [];
+      ]);
+      // Throws on a malformed payload rather than coercing it to "nobody is
+      // blocked" — resolveGroupInviteAction treats a successful result as a
+      // positive not-blocked confirmation and would otherwise auto-accept an
+      // allowlisted ship on a garbled response. Callers that only display or
+      // fail open (isShipBlocked, getBlockedShips) already catch.
+      return parseBlockedShips(blocked);
     }
 
     // Check if a ship is blocked using Tlon's native block list
@@ -4729,14 +4728,28 @@ export async function monitorTlonProvider(
           );
         }
 
-        // Update group invite allowlist. An explicit empty list is authoritative
-        // (the admin cleared it) — don't fall back to the file list, or clearing
-        // the allowlist would keep auto-accepting invites from the old entries.
-        if (newSettings.groupInviteAllowlist !== undefined) {
-          effectiveGroupInviteAllowlist = newSettings.groupInviteAllowlist;
-          runtime.log?.(
-            `[tlon] Settings: groupInviteAllowlist updated to ${effectiveGroupInviteAllowlist.join(', ')}`
-          );
+        // Re-derive the allowlist from every snapshot rather than only when the
+        // key is present. An explicit empty list is authoritative (the admin
+        // cleared it) so it must not fall back to the file list; but `undefined`
+        // — a del-entry, or a malformed value that `applySettingsUpdate`
+        // normalizes away — must fall back to the file config rather than
+        // leaving the previous in-memory list in place. Keeping the stale list
+        // would let a ship removed from the allowlist go on auto-joining groups
+        // until the gateway restarted.
+        {
+          const nextAllowlist =
+            newSettings.groupInviteAllowlist ?? account.groupInviteAllowlist;
+          const changed =
+            nextAllowlist.length !== effectiveGroupInviteAllowlist.length ||
+            nextAllowlist.some(
+              (ship, i) => ship !== effectiveGroupInviteAllowlist[i]
+            );
+          effectiveGroupInviteAllowlist = nextAllowlist;
+          if (changed) {
+            runtime.log?.(
+              `[tlon] Settings: groupInviteAllowlist updated to ${effectiveGroupInviteAllowlist.length > 0 ? effectiveGroupInviteAllowlist.join(', ') : '(empty)'}`
+            );
+          }
         }
 
         if (newSettings.defaultAuthorizedShips !== undefined) {
@@ -4769,23 +4782,13 @@ export async function monitorTlonProvider(
           );
         }
 
-        // ownerShip is applied on both live subscription and refresh.
         // pendingNudge is only rehydrated from the store during startup load. Once the
         // monitor is running, the in-memory pending state is authoritative so refreshes
         // cannot clobber live state or resurrect stale store echoes.
         const sync = resolveSettingsMirrorSync({
           prevSettings,
           newSettings,
-          fileConfigOwnerShip: account.ownerShip
-            ? normalizeShip(account.ownerShip)
-            : null,
         });
-
-        if (sync.ownerShipChanged) {
-          effectiveOwnerShip = sync.effectiveOwnerShip;
-          runtime.log?.(`[tlon] Settings: ownerShip = ${effectiveOwnerShip}`);
-          setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
-        }
 
         // Reconcile the scheduler's owner-activity shadow with live settings
         // changes. Subscription events are authoritative (real-time ship echo
@@ -5079,6 +5082,15 @@ export async function monitorTlonProvider(
             return;
           }
 
+          // One block-list scry per batch, shared by every invite in it and
+          // fetched lazily so a batch with no allowlisted inviter costs none.
+          // Without this a startup backlog of N allowlisted invites would issue
+          // N sequential scries — up to 15s each — before the foreigns
+          // subscription is even established.
+          let blockedShipsOnce: Promise<string[]> | null = null;
+          const fetchBlockedShips = () =>
+            (blockedShipsOnce ??= scryBlockedShips());
+
           for (const [groupFlag, foreign] of Object.entries(foreigns)) {
             if (processedGroupInvites.has(groupFlag)) {
               continue;
@@ -5093,10 +5105,24 @@ export async function monitorTlonProvider(
             }
 
             const inviterShip = validInvite.from;
-            const normalizedInviter = normalizeShip(inviterShip);
 
-            // Owner invites are always accepted
-            if (isOwner(inviterShip)) {
+            const decision = await resolveGroupInviteAction(
+              {
+                inviterShip,
+                ownerShip: effectiveOwnerShip,
+                allowlist: effectiveGroupInviteAllowlist,
+              },
+              {
+                // SECURITY: pass the scryBlockedShips-backed fetcher (rejects
+                // on failure or a malformed payload), NOT isShipBlocked (which
+                // swallows errors to "not blocked"). A rejection means
+                // "unknown" and must never auto-accept — see
+                // resolveGroupInviteAction.
+                fetchBlockedShips,
+              }
+            );
+
+            if (decision.action === 'accept') {
               try {
                 await api.poke({
                   app: 'groups',
@@ -5106,87 +5132,51 @@ export async function monitorTlonProvider(
                     'join-all': true,
                   },
                 });
+                // Mark processed only on success — failure retries on the
+                // next foreigns event.
                 processedGroupInvites.add(groupFlag);
                 runtime.log?.(
-                  `[tlon] Auto-accepted group invite from owner: ${groupFlag}`
+                  `[tlon] Auto-accepted group invite (${decision.reason}): ${groupFlag} (from ${inviterShip})`
                 );
               } catch (err) {
                 runtime.error?.(
-                  `[tlon] Failed to accept group invite from owner: ${String(err)}`
+                  `[tlon] Failed to accept group invite (${decision.reason}) ${groupFlag}: ${String(err)}`
                 );
               }
               continue;
             }
 
-            // Skip if auto-accept is disabled
-            if (!effectiveAutoAcceptGroupInvites) {
-              // If owner is configured, queue approval
-              if (effectiveOwnerShip) {
-                const approval = createPendingApproval(
-                  {
-                    type: 'group',
-                    requestingShip: inviterShip,
-                    groupFlag,
-                    groupTitle: validInvite.preview?.meta?.title,
-                  },
-                  pendingApprovals.map((a) => a.id)
-                );
-                await queueApprovalRequest(approval);
-                processedGroupInvites.add(groupFlag);
-              }
-              continue;
-            }
-
-            // Check if inviter is on allowlist
-            const isAllowed =
-              effectiveGroupInviteAllowlist.length > 0
-                ? effectiveGroupInviteAllowlist
-                    .map((s) => normalizeShip(s))
-                    .some((s) => s === normalizedInviter)
-                : false; // Fail-safe: empty allowlist means deny
-
-            if (!isAllowed) {
-              // If owner is configured, queue approval
-              if (effectiveOwnerShip) {
-                const approval = createPendingApproval(
-                  {
-                    type: 'group',
-                    requestingShip: inviterShip,
-                    groupFlag,
-                    groupTitle: validInvite.preview?.meta?.title,
-                  },
-                  pendingApprovals.map((a) => a.id)
-                );
-                await queueApprovalRequest(approval);
-                processedGroupInvites.add(groupFlag);
-              } else {
-                runtime.log?.(
-                  `[tlon] Rejected group invite from ${inviterShip} (not in groupInviteAllowlist): ${groupFlag}`
-                );
-                processedGroupInvites.add(groupFlag);
-              }
-              continue;
-            }
-
-            // Inviter is on allowlist - accept the invite
-            try {
-              await api.poke({
-                app: 'groups',
-                mark: 'group-join',
-                json: {
-                  flag: groupFlag,
-                  'join-all': true,
+            if (decision.action === 'queue') {
+              const approval = createPendingApproval(
+                {
+                  type: 'group',
+                  requestingShip: inviterShip,
+                  groupFlag,
+                  groupTitle: validInvite.preview?.meta?.title,
                 },
-              });
+                pendingApprovals.map((a) => a.id)
+              );
+              await queueApprovalRequest(approval);
               processedGroupInvites.add(groupFlag);
-              runtime.log?.(
-                `[tlon] Auto-accepted group invite: ${groupFlag} (from ${validInvite.from})`
-              );
-            } catch (err) {
-              runtime.error?.(
-                `[tlon] Failed to auto-accept group ${groupFlag}: ${String(err)}`
-              );
+              continue;
             }
+
+            if (decision.reason === 'blocked') {
+              // Confirmed blocked: silent ignore, no approval card. Routing
+              // this through queueApprovalRequest would re-ask the fail-open
+              // isShipBlocked and could card a ship known to be blocked.
+              runtime.log?.(
+                `[tlon] Ignoring group invite from blocked ship ${inviterShip}: ${groupFlag}`
+              );
+              processedGroupInvites.add(groupFlag);
+              continue;
+            }
+
+            // ignore/no-owner: log but leave unprocessed so a later allowlist
+            // edit can pick the invite up on the next foreigns event.
+            runtime.log?.(
+              `[tlon] Ignoring group invite from ${inviterShip} (not in groupInviteAllowlist, no owner configured): ${groupFlag}`
+            );
           }
         };
 

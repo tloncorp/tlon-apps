@@ -15,64 +15,12 @@ function makeNudge(overrides?: Partial<PendingNudge>): PendingNudge {
 }
 
 describe('resolveSettingsMirrorSync', () => {
-  describe('ownerShip transitions', () => {
-    it('detects ownerShip set to new value', () => {
-      const result = resolveSettingsMirrorSync({
-        prevSettings: {},
-        newSettings: { ownerShip: 'sampel-palnet' },
-        fileConfigOwnerShip: '~file-owner',
-      });
-      expect(result.ownerShipChanged).toBe(true);
-      expect(result.effectiveOwnerShip).toBe('~sampel-palnet');
-    });
-
-    it('detects ownerShip changed to different value', () => {
-      const result = resolveSettingsMirrorSync({
-        prevSettings: { ownerShip: '~old-owner' },
-        newSettings: { ownerShip: '~new-owner' },
-        fileConfigOwnerShip: '~file-owner',
-      });
-      expect(result.ownerShipChanged).toBe(true);
-      expect(result.effectiveOwnerShip).toBe('~new-owner');
-    });
-
-    it('detects ownerShip set to falsy — falls back to file config', () => {
-      const result = resolveSettingsMirrorSync({
-        prevSettings: { ownerShip: '~old-owner' },
-        newSettings: { ownerShip: '' },
-        fileConfigOwnerShip: '~file-owner',
-      });
-      expect(result.ownerShipChanged).toBe(true);
-      expect(result.effectiveOwnerShip).toBe('~file-owner');
-    });
-
-    it('detects ownerShip deleted (undefined) — falls back to file config', () => {
-      const result = resolveSettingsMirrorSync({
-        prevSettings: { ownerShip: '~old-owner' },
-        newSettings: {},
-        fileConfigOwnerShip: '~file-owner',
-      });
-      expect(result.ownerShipChanged).toBe(true);
-      expect(result.effectiveOwnerShip).toBe('~file-owner');
-    });
-
-    it('unchanged ownerShip returns false', () => {
-      const result = resolveSettingsMirrorSync({
-        prevSettings: { ownerShip: '~same-owner' },
-        newSettings: { ownerShip: '~same-owner' },
-        fileConfigOwnerShip: '~file-owner',
-      });
-      expect(result.ownerShipChanged).toBe(false);
-    });
-  });
-
   describe('pendingNudge transitions', () => {
     it('detects pendingNudge added', () => {
       const nudge = makeNudge();
       const result = resolveSettingsMirrorSync({
         prevSettings: {},
         newSettings: { pendingNudge: nudge },
-        fileConfigOwnerShip: null,
       });
       expect(result.pendingNudgeChanged).toBe(true);
       expect(result.pendingNudge).toEqual(nudge);
@@ -83,7 +31,6 @@ describe('resolveSettingsMirrorSync', () => {
       const result = resolveSettingsMirrorSync({
         prevSettings: { pendingNudge: nudge },
         newSettings: {},
-        fileConfigOwnerShip: null,
       });
       expect(result.pendingNudgeChanged).toBe(true);
       expect(result.pendingNudge).toBeNull();
@@ -95,7 +42,6 @@ describe('resolveSettingsMirrorSync', () => {
       const result = resolveSettingsMirrorSync({
         prevSettings: settings,
         newSettings: settings,
-        fileConfigOwnerShip: null,
       });
       expect(result.pendingNudgeChanged).toBe(false);
     });
@@ -106,7 +52,6 @@ describe('resolveSettingsMirrorSync', () => {
       const result = resolveSettingsMirrorSync({
         prevSettings: { pendingNudge: old },
         newSettings: { pendingNudge: replacement },
-        fileConfigOwnerShip: null,
       });
       expect(result.pendingNudgeChanged).toBe(true);
       expect(result.pendingNudge).toEqual(replacement);
@@ -117,11 +62,14 @@ describe('resolveSettingsMirrorSync', () => {
     it('first onChange after startup with no new fields', () => {
       const result = resolveSettingsMirrorSync({
         prevSettings: {},
-        newSettings: { dmAllowlist: ['~ship'] },
-        fileConfigOwnerShip: null,
+        newSettings: {
+          dmAllowlist: ['~ship'],
+          ownerShip: '~stale-settings-owner',
+        },
       });
       expect(result.pendingNudgeChanged).toBe(false);
-      expect(result.ownerShipChanged).toBe(false);
+      expect(result).not.toHaveProperty('ownerShipChanged');
+      expect(result).not.toHaveProperty('effectiveOwnerShip');
     });
   });
 });

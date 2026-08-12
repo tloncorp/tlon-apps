@@ -269,7 +269,9 @@ function BotAvatarPaneFixture() {
 }
 
 function BotProviderPaneFixture() {
-  const [model, setModel] = useValue('Provider', { defaultValue: 'basic' });
+  const [model, setModel] = useValue('Provider', {
+    defaultValue: 'basic:included',
+  });
   const handleAction = React.useCallback(() => {
     console.log('BotProvider pane action pressed');
   }, []);
@@ -282,10 +284,42 @@ function BotProviderPaneFixture() {
       <BotProviderPane
         model={model}
         providers={[
-          { label: 'GPT-5.6 Luna', provider: 'basic', requiresKey: false },
-          { label: 'Anthropic', provider: 'anthropic', requiresKey: true },
-          { label: 'OpenAI', provider: 'openai', requiresKey: true },
-          { label: 'OpenRouter', provider: 'openrouter', requiresKey: true },
+          {
+            id: 'basic:included',
+            label: 'GPT-5.6 Luna',
+            provider: 'basic',
+            credentialMode: 'included',
+            requiresKey: false,
+          },
+          {
+            id: 'openai:subscription',
+            label: 'ChatGPT subscription',
+            provider: 'openai',
+            credentialMode: 'subscription',
+            requiresKey: false,
+            recommendationLabel: 'Recommended',
+          },
+          {
+            id: 'anthropic:api-key',
+            label: 'Anthropic',
+            provider: 'anthropic',
+            credentialMode: 'api-key',
+            requiresKey: true,
+          },
+          {
+            id: 'openai:api-key',
+            label: 'OpenAI — API key',
+            provider: 'openai',
+            credentialMode: 'api-key',
+            requiresKey: true,
+          },
+          {
+            id: 'openrouter:api-key',
+            label: 'OpenRouter',
+            provider: 'openrouter',
+            credentialMode: 'api-key',
+            requiresKey: true,
+          },
         ]}
         onModelChange={setModel}
         onBackPress={handleBack}

@@ -22,8 +22,8 @@ export interface PostCollectionContextValue {
   onPressDelete: (post: db.Post) => void;
   onPressRetryLoad: () => void;
   onPressRetrySend: (post: db.Post) => Promise<void>;
-  onScrollEndReached?: () => void;
-  onScrollStartReached?: () => void;
+  onLoadNewerPosts?: () => void;
+  onLoadOlderPosts?: () => void;
   posts?: db.Post[];
   scrollToBottom?: () => void;
   selectedPostId?: string | null;

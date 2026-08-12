@@ -218,14 +218,14 @@ function ChannelWithControlledPostLoading() {
 
   const [shouldLoadOnScrollBoundaries, setShouldLoadOnScrollBoundaries] =
     useState(false);
-  const onScrollStartReached = useMemo(
+  const onLoadNewerPosts = useMemo(
     () =>
       shouldLoadOnScrollBoundaries
         ? () => loadMore({ limit: 5, insertionPoint: 'start' })
         : undefined,
     [shouldLoadOnScrollBoundaries, loadMore]
   );
-  const onScrollEndReached = useMemo(
+  const onLoadOlderPosts = useMemo(
     () =>
       shouldLoadOnScrollBoundaries
         ? () => loadMore({ limit: 5, insertionPoint: 'end' })
@@ -246,8 +246,8 @@ function ChannelWithControlledPostLoading() {
             post: anchorPost,
           }),
           hasNewerPosts: true,
-          onScrollStartReached,
-          onScrollEndReached,
+          onLoadNewerPosts,
+          onLoadOlderPosts,
         })}
       />
       <FixtureToolbar>

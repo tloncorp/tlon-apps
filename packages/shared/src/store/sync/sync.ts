@@ -13,7 +13,10 @@ import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
-import { activityVersionSupportsReactions } from '../../logic';
+import {
+  activityVersionSupportsNotes,
+  activityVersionSupportsReactions,
+} from '../../logic';
 import { perfMark, perfTime } from '../../perfLog';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -54,6 +57,9 @@ export const syncInitData = async (
   queryCtx?: QueryCtx,
   yieldWriter?: boolean
 ): Promise<() => Promise<void>> => {
+  // the init endpoint version is capability-picked and this can run before
+  // syncAppInfo on a fresh boot — apply the persisted capabilities first
+  await syncReactionSupport();
   const initData = await syncQueue.add('init', syncCtx, () =>
     api.getInitData()
   );
@@ -321,6 +327,12 @@ export const syncLatestChanges = async ({
     };
   }
 
+  // this runs before syncStart's syncAppInfo on a fresh boot, and the
+  // changes endpoint version is capability-picked — apply the persisted
+  // capabilities first so a notes-capable ship's first window doesn't
+  // fetch v8 (which drops note sources) and advance the cursor past them
+  await syncReactionSupport();
+
   const perfStop = perfMark('syncLatestChanges.total');
   const result = await perfTime(
     'syncLatestChanges.fetch',
@@ -512,16 +524,23 @@ export const syncAppInfo = async (ctx?: SyncCtx) => {
   api.setActivitySupportsReactions(
     activityVersionSupportsReactions(appInfo?.groupsVersion)
   );
+  api.setActivitySupportsNotes(
+    activityVersionSupportsNotes(appInfo?.groupsVersion)
+  );
   return db.appInfo.setValue(appInfo);
 };
 
-// Resolves the backend's reaction capability from the last-known (persisted)
-// groups version and applies it to the activity client before it picks endpoint
-// versions. A fresh version is fetched by syncAppInfo, which also updates this.
+// Resolves the backend's reaction/notes capabilities from the last-known
+// (persisted) groups version and applies them to the activity client before
+// it picks endpoint versions. A fresh version is fetched by syncAppInfo,
+// which also updates this.
 export const syncReactionSupport = async () => {
   const appInfo = await db.appInfo.getValue();
   api.setActivitySupportsReactions(
     activityVersionSupportsReactions(appInfo?.groupsVersion)
+  );
+  api.setActivitySupportsNotes(
+    activityVersionSupportsNotes(appInfo?.groupsVersion)
   );
 };
 
@@ -823,6 +842,12 @@ export const syncChannelThreadUnreads = async (
   const unreads = await syncQueue.add('thread unreads', ctx, () =>
     api.getThreadUnreadsByChannel(channel)
   );
+  if (unreads === null) {
+    // the backend couldn't be queried (e.g. notes capability not yet
+    // resolved at startup) — bail rather than reconciling against an
+    // answer we never got
+    return;
+  }
   const existingUnreads = await db.getThreadUnreadsByChannel({ channelId });
 
   // filter out any unreads that we already have in the db so we can avoid
@@ -839,11 +864,58 @@ export const syncChannelThreadUnreads = async (
     return !_.isEqual(unread, existing);
   });
 
-  if (newUnreads.length === 0) {
+  // the notes scry returns the notebook's full set of per-note unreads, so
+  // a local row missing from the response is stale (read from another
+  // client) and must be cleared or its note/folder dots stay lit
+  const staleUnreads =
+    channel.type === 'notes'
+      ? existingUnreads.filter(
+          (existing) =>
+            (existing.count ?? 0) > 0 &&
+            !unreads.some((u) => u.threadId === existing.threadId)
+        )
+      : [];
+
+  if (newUnreads.length === 0 && staleUnreads.length === 0) {
     return;
   }
 
-  await db.insertThreadUnreads(newUnreads);
+  for (const stale of staleUnreads) {
+    if (stale.threadId) {
+      await db.clearThreadUnread({ channelId, threadId: stale.threadId });
+    }
+  }
+  // the cleared rows were rolled up into the channel/group counts too. A
+  // notebook's channel count is by construction the sum of its notes
+  // (notebooks have no events of their own) and the scry response is the
+  // authoritative full set, so SET the channel row from it rather than
+  // decrementing by the stale rows — the rollup may already have been
+  // corrected by a summary push or changes sync, and arithmetic would
+  // double-subtract. The group rollup has no cheap authoritative read, so
+  // apply the channel row's own correction as a bounded delta (channel
+  // and group staleness always move together in the summary pushes).
+  if (staleUnreads.length > 0) {
+    const authoritativeCount = unreads.reduce(
+      (sum, unread) => sum + (unread.count ?? 0),
+      0
+    );
+    const existingChannelUnread = await db.getChannelUnread({ channelId });
+    const existingCount = existingChannelUnread?.count ?? 0;
+    if (existingChannelUnread && existingCount > authoritativeCount) {
+      await db.insertChannelUnreads([
+        { ...existingChannelUnread, count: authoritativeCount },
+      ]);
+      if (channel.groupId) {
+        await db.updateGroupUnreadCount({
+          groupId: channel.groupId,
+          decrement: existingCount - authoritativeCount,
+        });
+      }
+    }
+  }
+  if (newUnreads.length > 0) {
+    await db.insertThreadUnreads(newUnreads);
+  }
 };
 
 export async function syncPostReference(options: {
@@ -1369,6 +1441,9 @@ const handleActivityUpdate = async (
         case 'removeItemVolume':
           memo.volumeRemovals.push(event.itemId);
           break;
+        case 'clearChannelThreadUnreads':
+          memo.threadUnreadChannelClears.push(event.channelId);
+          break;
         case 'addActivityEvent':
           memo.activityEvents.push(...event.events);
           break;
@@ -1383,6 +1458,7 @@ const handleActivityUpdate = async (
       groupUnreads: [],
       channelUnreads: [],
       threadUnreads: [],
+      threadUnreadChannelClears: [],
       volumeUpdates: [],
       volumeRemovals: [],
       activityEvents: [],
@@ -1404,6 +1480,11 @@ const handleActivityUpdate = async (
   }
   await db.insertGroupUnreads(activitySnapshot.groupUnreads, ctx);
   await db.insertChannelUnreads(activitySnapshot.channelUnreads, ctx);
+  // clears before upserts so a delete and an update for the same channel
+  // in one batch resolve to the update
+  for (const channelId of activitySnapshot.threadUnreadChannelClears) {
+    await db.clearChannelThreadUnreads({ channelId }, ctx);
+  }
   await db.insertThreadUnreads(activitySnapshot.threadUnreads, ctx);
   await db.setVolumes({ volumes: activitySnapshot.volumeUpdates }, ctx);
 

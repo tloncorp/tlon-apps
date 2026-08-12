@@ -1,6 +1,6 @@
 ::  notes: shared notebook Gall agent (dual-mode host/subscriber)
 ::
-/-  n=notes, mcp-proxy
+/-  n=notes, mcp-proxy, av=activity-ver
 /+  default-agent, dbug, verb, server, logs, notes-json
 ::  static web assets, imported straight from files and served as-is. The
 ::  agent sets each response's content-type explicitly (see below), so the
@@ -28,7 +28,7 @@
 |_  =bowl:gall
 +*  this  .
     def   ~(. (default-agent this %|) bowl)
-    cor   ~(. +> [bowl ~])
+    cor   ~(. +> [bowl ~ ~])
 ::
 ++  on-init
   ^-  (quip card _this)
@@ -88,7 +88,11 @@
 --
 ::  helper core
 ::
-|_  [=bowl:gall cards=(list card)]
+|_  $:  =bowl:gall
+        cards=(list card)
+        ::  notebooks already bumped this event, see +notebook-activity-bump
+        bumped=(set [=flag:n group=(unit flag:n)])
+    ==
 ++  dummy  'freeze-requests-13-snapshot-v1'
 ++  abet  [(flop cards) state]
 ++  cor   .
@@ -104,7 +108,6 @@
   =.  api-key  `(scot %uv eny.bowl)
   %-  emil
   :~  [%pass /eyre/notes %arvo %e %connect [~ /notes] %notes]
-      [%pass /cleanup/requests %arvo %b %wait (add now.bowl ~m5)]
       ::  watch %groups so we can revoke read access on group-mode notebooks
       ::  when the fleet/roles change (see +recheck-group-access).
       [%pass /groups %agent [our.bowl %groups] %watch /v1/groups]
@@ -136,11 +139,7 @@
   ::  %notes over a suspended standalone desk, whose eyre binding was torn
   ::  down), so without this the HTTP + MCP surface 404/500s. Re-connecting an
   ::  already-bound path is harmless — eyre's %bound ack is ignored in +arvo.
-  ::  Also (re)start the request cleanup timer (stacking timers is fine).
-  %-  emil
-  :~  [%pass /eyre/notes %arvo %e %connect [~ /notes] %notes]
-      [%pass /cleanup/requests %arvo %b %wait (add now.bowl ~m5)]
-  ==
+  (emit [%pass /eyre/notes %arvo %e %connect [~ /notes] %notes])
   ::
   +$  any-state
     $%  state-15:n
@@ -354,7 +353,11 @@
       `@uv`eny.bowl
     =/  parsed=(each @uv tang)  (mule |.((slav %uv p.u.rj)))
     ?:(?=(%& -.parsed) p.parsed `@uv`eny.bowl)
-  ::  register with eyre-id so the in-flight HTTP request is tracked
+  ::  register with eyre-id so the in-flight HTTP request is tracked.
+  ::  this put replaces any record under a reused rid, so it can't go
+  ::  through +register-request's insert-if-missing — sweep here too,
+  ::  since HTTP is the main source of request records
+  =.  requests  (cleanup-requests now.bowl)
   =.  requests
     %+  ~(put by requests)  rid
     [rid `eyre-id %sending ~ ~ |]
@@ -626,6 +629,8 @@
   ?~  act=(build-write-action method ;;(path pax) obj recursive)
     (http-error eyre-id 400 'unsupported write — check method, path, and required fields')
   =/  rid=request-id:v1:n  `@uv`eny.bowl
+  ::  sweep terminated records at registration (see +handle-v1-post)
+  =.  requests  (cleanup-requests now.bowl)
   =.  requests  (~(put by requests) rid [rid `eyre-id %sending ~ ~ |])
   (dispatch-v1-action [rid u.act])
 ::
@@ -879,6 +884,14 @@
       ?~  p.sign  cor
       ((slog leaf+"mcp-proxy register/refresh failed" u.p.sign) cor)
     ==
+  ::  fire-and-forget %activity submissions; log nacks
+  ::
+      [%activity %submit ~]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ((slog leaf+"notes: activity submission failed" u.p.sign) cor)
+    ==
   ==
 ::
 ++  arvo
@@ -889,11 +902,12 @@
     =/  pole  ;;((pole knot) wire)
     ?+  pole  ~|(bad-arvo-wire+wire !!)
         [%cleanup %requests ~]
-      ::  reschedule and run the cleanup pass. timer behaves the same
-      ::  whether the requests map is empty or populated.
-      =.  requests  (cleanup-requests now.bowl)
-      %-  emit
-      [%pass /cleanup/requests %arvo %b %wait (add now.bowl ~m5)]
+      ::  tombstone: eviction now happens lazily in +register-request, but
+      ::  ships that ran the timer version have self-perpetuating behn
+      ::  chains on this wire (one per agent reload — +load used to arm a
+      ::  fresh one every time without resting the old). Handle the wake
+      ::  without re-arming so each surviving chain drains on its next fire.
+      cor(requests (cleanup-requests now.bowl))
     ::
         [%notes %rewatch ship=@ name=@ ~]
       =/  =flag:n  [(slav %p ship.pole) `@tas`name.pole]
@@ -908,6 +922,13 @@
       ::  late-arriving response on the SSE path.
       =/  rid=request-id:v1:n  (slav %uv id.pole)
       (finalize-pending rid)
+    ::
+        [%activity %edit ship=@ name=@ id=@ t=@ ~]
+      ::  note-activity debounce window closed (see +note-activity)
+      %^    note-activity-wake
+          [(slav %p ship.pole) `@tas`name.pole]
+        (slav %ud id.pole)
+      (slav %da t.pole)
     ==
   ~|(bad-arvo-sign+wire !!)
 ::  utility arms
@@ -1146,6 +1167,152 @@
   i.matches
 ::  +notebooks-changed-card: a fact telling subscribed UIs to re-scry notebooks
 ::
+::  %activity integration. Every ship that applies a note mutation (the
+::  host via +se-update, subscribers via +no-response) submits activity
+::  events to its own %activity agent, so unread state is local per member.
+::  Self-authored changes submit nothing.
+::
+::  +edit-activity-window: trailing debounce for %note-edit submissions.
+::  The editor autosaves every few seconds, so an editing session is a
+::  stream of %updated events; each one (re)arms a quiet window, and the
+::  event is only submitted once the window passes with no further edits —
+::  one event per editing session, sent after the edit has settled.
+::
+++  edit-activity-window  ~m2
+::
+++  activity-running
+  =/  base=path  /(scot %p our.bowl)/activity/(scot %da now.bowl)
+  .^(? %gu (weld base /$))
+::
+++  submit-activity
+  |=  action=action:v10:av
+  ^+  cor
+  ?.  activity-running  cor
+  %-  emit
+  :*  %pass  /activity/submit
+      %agent  [our.bowl %activity]
+      %poke  activity-action-2+!>(action)
+  ==
+::  +note-activity: translate an applied u-note into %activity actions.
+::
+::    %created / %updated -> ours just bump the notebook's recency;
+::                 anyone else's (re)arm the trailing debounce timer and
+::                 +note-activity-wake submits the event once the change
+::                 settles. Creates debounce too: the client creates a
+::                 note and immediately titles/edits it, which would
+::                 otherwise notify twice in quick succession.
+::    %deleted  -> %del the note source (regardless of author)
+::
+++  note-activity
+  |=  [=flag:n group=(unit flag:n) id=@ud upd=u-note:n]
+  ^+  cor
+  ?-  -.upd
+      ?(%created %updated)
+    ?:  =(our.bowl updated-by.note.upd)
+      (notebook-activity-bump flag group)
+    ::  the wire carries the updated-at this timer was armed against, so
+    ::  +note-activity-wake can tell whether it is the note's latest
+    ::  change — no timer bookkeeping needed, stale timers just no-op
+    %-  emit
+    :*  %pass
+        %+  weld
+          /activity/edit/(scot %p ship.flag)/[name.flag]
+        /(scot %ud id)/(scot %da updated-at.note.upd)
+        %arvo  %b  %wait
+        (add updated-at.note.upd edit-activity-window)
+    ==
+  ::
+      %deleted
+    %-  submit-activity
+    :^    %del
+        %note
+      id
+    [flag (bind group |=(f=flag:n [ship.f name.f]))]
+  ::
+      ?(%published %unpublished %history-archived)
+    cor
+  ==
+::  +note-activity-wake: a debounce timer fired. Submit an event only if
+::  the timer was armed against the note's latest change; a newer change
+::  re-armed the window with its own timer, so a mismatch means this one
+::  is stale and stays quiet. Event content is read fresh from the note
+::  record: an untouched-since-creation note submits %note-create, one
+::  changed after creation %note-edit (a create followed by edits within
+::  the window resolves to a single %note-edit). Notes or notebooks
+::  deleted mid-window fall out naturally.
+::
+++  note-activity-wake
+  |=  [=flag:n nid=@ud t=@da]
+  ^+  cor
+  ?~  entry=(~(get by books) flag)  cor
+  =*  nbs  notebook-state.u.entry
+  ?~  note=(~(get by notes.nbs) nid)  cor
+  ?.  =(updated-at.u.note t)  cor
+  ?:  =(our.bowl updated-by.u.note)  cor
+  =/  ev=note-event:v10:av
+    :*  nid  folder-id.u.note  flag
+        (bind group.nbs |=(f=flag:n [ship.f name.f]))
+        title.u.note  updated-by.u.note
+    ==
+  %-  submit-activity
+  ?:  =(created-at.u.note updated-at.u.note)
+    [%add %note-create ev]
+  [%add %note-edit ev]
+::  +notebook-activity-bump: move a notebook's recency without adding an
+::  event. %activity's +bump creates the source if absent, so this inits it.
+::
+::  A bump sets the source's time to now.bowl, which is fixed for the whole
+::  event, so repeats within one event are redundant — collapse them. A
+::  batch import calls +se-update once per note, and would otherwise poke
+::  %activity (and re-fan-out its summaries) once per imported file.
+::
+++  notebook-activity-bump
+  |=  [=flag:n group=(unit flag:n)]
+  ^+  cor
+  ?:  (~(has in bumped) [flag group])  cor
+  =.  bumped  (~(put in bumped) [flag group])
+  %-  submit-activity
+  :+  %bump  %notebook
+  :-  flag
+  (bind group |=(f=flag:n [ship.f name.f]))
+::  +notebook-activity-gone: a notebook was deleted or left; drop its
+::  %activity source (note children included).
+::
+++  notebook-activity-gone
+  |=  [=flag:n group=(unit flag:n)]
+  ^+  cor
+  %-  submit-activity
+  :+  %del  %notebook
+  :-  flag
+  (bind group |=(f=flag:n [ship.f name.f]))
+::  +subtree-folder-ids: a folder id plus all its descendants
+::
+++  subtree-folder-ids
+  |=  [folders=(map @ud folder:n) root=@ud]
+  ^-  (set @ud)
+  =/  acc=(set @ud)  (silt ~[root])
+  =/  queue=(list @ud)  ~[root]
+  |-
+  ?~  queue  acc
+  =/  children=(list @ud)
+    %+  murn  ~(tap by folders)
+    |=  [fid=@ud fld=folder:n]
+    ?~  parent-folder-id.fld  ~
+    ?:(=(u.parent-folder-id.fld i.queue) `fid ~)
+  %=  $
+    queue  (weld t.queue children)
+    acc    (~(gas in acc) children)
+  ==
+::  +note-ids-in-folders: ids of the notes living in any of the folders
+::
+++  note-ids-in-folders
+  |=  [notes=(map @ud note:n) fids=(set @ud)]
+  ^-  (set @ud)
+  %-  silt
+  %+  murn  ~(tap by notes)
+  |=  [nid=@ud =note:n]
+  ?:((~(has in fids) folder-id.note) `nid ~)
+::
 ++  notebooks-changed-card
   ^-  card
   [%give %fact [/v0/inbox/stream]~ notes-inbox-update+!>(`u-inbox:n`[%notebooks-changed ~])]
@@ -1256,6 +1423,9 @@
   ^+  cor
   =/  existing=(unit incoming-request:v1:n)  (~(get by requests) rid)
   ?^  existing  cor
+  ::  evict terminated records while we're here — the map only grows on
+  ::  registration, so sweeping at add time bounds it without a timer
+  =.  requests  (cleanup-requests now.bowl)
   =.  requests
     (~(put by requests) rid [rid eyre-id %sending ~ ~ |])
   cor
@@ -1597,6 +1767,8 @@
   ::
   ++  se-abet
     ^+  cor
+    =?  cor  gone
+      (notebook-activity-gone flag group.notebook-state)
     =.  books
       ?:  gone
         (~(del by books) flag)
@@ -1621,6 +1793,8 @@
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =.  log  (put:log-on:n log [ts upd])
     =.  last-update  `[ts upd]
+    =?  cor  ?=(%note -.upd)
+      (note-activity flag group.notebook-state [id u-note]:upd)
     %-  give
     :+  %fact  ~[se-sub-path (weld se-area /stream)]
     notes-response+!>(`response:n`[%update flag [ts upd]])
@@ -1757,6 +1931,7 @@
       =/  =wire    /notes/(scot %p ship.flag)/[name.flag]/create
       (emit %pass wire %agent dock %poke group-action-4+!>(action))
     =.  se-core  (emit notebooks-changed-card)
+    =.  cor  (notebook-activity-bump flag group)
     (se-update [%created notebook %private])
   ::  +se-poke: dispatch a c-notes command to the right handler
   ::
@@ -1978,6 +2153,16 @@
         %-  ~(rep in del-nids)
         |=  [n=@ud acc=_published]
         (~(del by acc) [flag n])
+      ::  the wire update only names the folder, so clean up the removed
+      ::  notes' %activity sources here, where the ids are still known
+      =.  cor
+        =/  nids  ~(tap in del-nids)
+        |-  ^+  cor
+        ?~  nids  cor
+        %=  $
+          nids  t.nids
+          cor   (note-activity flag group.notebook-state i.nids [%deleted ~])
+        ==
       (se-update [%folder fid [%deleted ~]])
     ::  non-recursive: fail if has children
     =/  children=(list @ud)
@@ -2247,25 +2432,12 @@
   ++  se-subtree-folder-ids
     |=  folder-id=@ud
     ^-  (set @ud)
-    =/  acc=(set @ud)  (silt ~[folder-id])
-    =/  queue=(list @ud)  ~[folder-id]
-    |-
-    ?~  queue  acc
-    =/  children=(list @ud)  (se-folder-children-ids i.queue)
-    %=  $
-      queue  (weld t.queue children)
-      acc    (~(gas in acc) children)
-    ==
+    (subtree-folder-ids folders.notebook-state folder-id)
   ::
   ++  se-note-ids-in-folder-set
     |=  fids=(set @ud)
     ^-  (set @ud)
-    %-  silt
-    %+  murn  ~(tap by notes.notebook-state)
-    |=  [nid=@ud =note:n]
-    ?:  (~(has in fids) folder-id.note)
-      `nid
-    ~
+    (note-ids-in-folders notes.notebook-state fids)
   ::
   ++  se-notes-in-folder
     |=  folder-id=@ud
@@ -2322,6 +2494,8 @@
   ::
   ++  no-abet
     ^+  cor
+    =?  cor  gone
+      (notebook-activity-gone flag group.notebook-state)
     =.  books
       ?:  gone
         (~(del by books) flag)
@@ -2562,12 +2736,18 @@
     ^+  no-core
     ?-  -.response
         %snapshot
+      ::  a rewatch re-sends the whole snapshot, and bumping on those would
+      ::  promote the notebook on every reconnect. +join-remote-v1's
+      ::  placeholder has notebook id 0; a resubscribe already has the host's.
+      =/  first-snapshot=?  =(0 id.notebook.notebook-state)
       =.  notebook-state  notebook-state.response
       ?>  ?=(%sub -.net)
       =.  net  net(init &)
       =.  cards  [notebooks-changed-card cards]
       ::  the snapshot carries the host's notebook-state, so group is now
       ::  known — report active to %groups (no-op if not a group channel).
+      =?  cor  first-snapshot
+        (notebook-activity-bump flag group.notebook-state)
       =/  stream=card
         :*  %give  %fact  [/v0/notes/(scot %p ship.flag)/[name.flag]/stream]~
             notes-response+!>(response)
@@ -2576,6 +2756,13 @@
       (emil ?~(rep ~[stream] ~[stream u.rep]))
     ::
         %update
+      =?  cor  ?=(%note -.u-notebook.update.response)
+        %:  note-activity
+          flag
+          group.notebook-state
+          id.u-notebook.update.response
+          u-note.u-notebook.update.response
+        ==
       =.  no-core  (no-apply-update flag.response update.response)
       %-  give
       [%fact [/v0/notes/(scot %p ship.flag)/[name.flag]/stream]~ notes-response+!>(response)]
@@ -2638,8 +2825,35 @@
         (~(put by folders.notebook-state) fid folder.upd)
       no-core
         %deleted
+      ::  a recursive delete removes the folder's whole subtree on the
+      ::  host, but the wire update only names the folder — mirror the
+      ::  removal from local state and clear the removed notes'
+      ::  %activity sources (a non-recursive delete has no descendants,
+      ::  so this degrades to just dropping the folder record)
+      =/  del-fids=(set @ud)
+        (subtree-folder-ids folders.notebook-state fid)
+      =/  del-nids=(set @ud)
+        (note-ids-in-folders notes.notebook-state del-fids)
       =.  folders.notebook-state
-        (~(del by folders.notebook-state) fid)
+        %-  ~(rep in del-fids)
+        |=  [f=@ud acc=_folders.notebook-state]
+        (~(del by acc) f)
+      =.  notes.notebook-state
+        %-  ~(rep in del-nids)
+        |=  [n=@ud acc=_notes.notebook-state]
+        (~(del by acc) n)
+      =.  history.notebook-state
+        %-  ~(rep in del-nids)
+        |=  [n=@ud acc=_history.notebook-state]
+        (~(del by acc) n)
+      =.  cor
+        =/  nids  ~(tap in del-nids)
+        |-  ^+  cor
+        ?~  nids  cor
+        %=  $
+          nids  t.nids
+          cor   (note-activity flag group.notebook-state i.nids [%deleted ~])
+        ==
       no-core
     ==
   ::

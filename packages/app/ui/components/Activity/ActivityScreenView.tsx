@@ -2,7 +2,7 @@ import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
+import { Button, ConfirmDialog, LoadingSpinner, Text } from '@tloncorp/ui';
 import { setBadgeCountAsync } from 'expo-notifications';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -14,13 +14,15 @@ import {
 } from 'react-native';
 import { View, XStack, isWeb, useStyle } from 'tamagui';
 
+import { useIsDarkMode } from '../../../hooks/useDarkMode';
+import { useTopLevelTabBarContentInset } from '../../../navigation/useTopLevelTabBarContentInset';
 import { NavigationProvider } from '../../contexts/navigation';
-import { useIsDarkTheme } from '../../utils/colorUtils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';
 import { ScreenHeader } from '../ScreenHeader';
-import { ActivityHeader } from './ActivityHeader';
+import type { ScreenHeaderAction } from '../ScreenHeader';
 import { ActivityListItem } from './ActivityListItem';
+import { ActivityTabs } from './ActivityTabs';
 
 const logger = createDevLogger('ActivityScreenView', false);
 
@@ -182,6 +184,26 @@ export function ActivityScreenView({
             goToUserProfile(event.contactUserId);
           }
           break;
+        case 'note-create':
+        case 'note-edit': {
+          // open the notebook channel on the specific note (the note id
+          // rides postId; the notes collection consumes selectedPostId)
+          const channel =
+            event.channel ??
+            (event.channelId
+              ? await db.getChannel({ id: event.channelId })
+              : null);
+          if (channel) {
+            logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+              ...logic.getModelAnalytics({ channel }),
+              type: 'notebookNote',
+            });
+            goToChannel(channel, event.postId ?? undefined);
+          } else {
+            console.warn('No channel found for note event', event);
+          }
+          break;
+        }
         default:
           break;
       }
@@ -293,8 +315,11 @@ export function ActivityScreenContent({
   onInviteFriends?: () => void;
   scrollRef?: React.RefObject<FlatList | null>;
 }) {
+  const bottomContentInset = useTopLevelTabBarContentInset();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
+  const [markAllReadConfirmationOpen, setMarkAllReadConfirmationOpen] =
+    useState(false);
 
   const handleGroupAction = useCallback(
     (action: GroupPreviewAction, group: db.Group) => {
@@ -314,6 +339,28 @@ export function ActivityScreenContent({
     await store.markAllRead();
     trackEvent(AnalyticsEvent.ActivityMarkedAllRead);
   }, []);
+
+  const requestMarkAllRead = useCallback(() => {
+    setMarkAllReadConfirmationOpen(true);
+  }, []);
+
+  const activityHeaderActions = useMemo<ScreenHeaderAction[]>(
+    () => [
+      {
+        id: 'activity-options',
+        icon: 'Overflow',
+        label: 'Activity options',
+        items: [
+          {
+            id: 'mark-all-read',
+            label: 'Mark all as read',
+            onPress: requestMarkAllRead,
+          },
+        ],
+      },
+    ],
+    [requestMarkAllRead]
+  );
 
   const handleInviteFriends = useCallback(() => {
     setPersonalInviteOpen(false);
@@ -345,10 +392,18 @@ export function ActivityScreenContent({
     padding: '$l',
     gap: '$l',
   }) as StyleProp<ViewStyle>;
+  const nativeTabInsetStyle = { paddingBottom: bottomContentInset };
 
   return (
     <NavigationProvider onPressGroupRef={setSelectedGroup}>
       <View flex={1}>
+        <ScreenHeader
+          title="Activity"
+          subtitle={subtitle}
+          loadingSubtitle={loadingSubtitle}
+          rightActions={activityHeaderActions}
+          placement="navigation"
+        />
         {allTabsAreEmpty ? (
           <ActivityEmptyState
             onInviteFriends={() => setPersonalInviteOpen(true)}
@@ -356,13 +411,7 @@ export function ActivityScreenContent({
           />
         ) : (
           <>
-            <ActivityHeader
-              activeTab={activeTab}
-              onTabPress={onPressTab}
-              markAllRead={markAllRead}
-              subtitle={subtitle}
-              loadingSubtitle={loadingSubtitle}
-            />
+            <ActivityTabs activeTab={activeTab} onTabPress={onPressTab} />
             {currentTabIsEmpty ? (
               <XStack flex={1} justifyContent="center" paddingTop="$6xl">
                 <Text fontSize="$l" color="$tertiaryText">
@@ -375,7 +424,7 @@ export function ActivityScreenContent({
                 data={events}
                 renderItem={renderItem}
                 keyExtractor={keyExtractor}
-                contentContainerStyle={containerStyle}
+                contentContainerStyle={[containerStyle, nativeTabInsetStyle]}
                 onEndReached={onEndReached}
                 ListFooterComponent={isFetching ? <LoadingSpinner /> : null}
                 refreshControl={
@@ -399,6 +448,14 @@ export function ActivityScreenContent({
           onOpenChange={setPersonalInviteOpen}
           onPressInviteFriends={handleInviteFriends}
         />
+        <ConfirmDialog
+          open={markAllReadConfirmationOpen}
+          onOpenChange={setMarkAllReadConfirmationOpen}
+          title="Mark all as read"
+          description="Are you sure you want to mark all conversations and notifications as read?"
+          confirmText="Mark all read"
+          onConfirm={markAllRead}
+        />
       </View>
     </NavigationProvider>
   );
@@ -411,7 +468,7 @@ export function ActivityEmptyState({
   onInviteFriends: () => void;
   onNavigateToContacts?: () => void;
 }) {
-  const isDark = useIsDarkTheme();
+  const isDark = useIsDarkMode();
 
   const blocksImage = isDark
     ? isWeb
@@ -422,38 +479,35 @@ export function ActivityEmptyState({
       : require(`../../assets/raster/blocks.png`);
 
   return (
-    <>
-      <ScreenHeader title="Activity" />
-      <View
-        flex={1}
-        justifyContent="center"
-        alignItems="center"
-        padding="$xl"
-        gap="$2xl"
+    <View
+      flex={1}
+      justifyContent="center"
+      alignItems="center"
+      padding="$xl"
+      gap="$2xl"
+    >
+      <Image
+        style={{ width: 130, height: 130 }}
+        resizeMode="contain"
+        source={blocksImage}
+      />
+      <Text
+        size="$label/m"
+        color="$tertiaryText"
+        textAlign="center"
+        maxWidth={350}
+        paddingBottom={'$m'}
       >
-        <Image
-          style={{ width: 130, height: 130 }}
-          resizeMode="contain"
-          source={blocksImage}
-        />
-        <Text
-          size="$label/m"
-          color="$tertiaryText"
-          textAlign="center"
-          maxWidth={350}
-          paddingBottom={'$m'}
-        >
-          There is no activity... yet.{'\n'}Invite some of your contacts to
-          {'\n'}
-          Tlon Messenger to get started.
-        </Text>
-        <View gap="$s" width="100%" maxWidth={300}>
-          <Button label="Invite Friends" onPress={onInviteFriends} />
-          {onNavigateToContacts && (
-            <Button label="View Contacts" onPress={onNavigateToContacts} />
-          )}
-        </View>
+        There is no activity... yet.{'\n'}Invite some of your contacts to
+        {'\n'}
+        Tlon Messenger to get started.
+      </Text>
+      <View gap="$s" width="100%" maxWidth={300}>
+        <Button label="Invite Friends" onPress={onInviteFriends} />
+        {onNavigateToContacts && (
+          <Button label="View Contacts" onPress={onNavigateToContacts} />
+        )}
       </View>
-    </>
+    </View>
   );
 }

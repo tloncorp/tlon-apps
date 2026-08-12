@@ -281,7 +281,11 @@ export default function useNotificationListener() {
       return true;
     }
 
-    async function gotToChannel(channelId: string, postInfo?: PostInfo | null) {
+    async function gotToChannel(
+      channelId: string,
+      postInfo?: PostInfo | null,
+      selectedPostId?: string
+    ) {
       const channel = await db.getChannelWithRelations({ id: channelId });
       if (!channel) {
         return false;
@@ -310,8 +314,14 @@ export default function useNotificationListener() {
         const screenName = screenNameFromChannelId(channelId);
         routeStack.push({
           name: screenName,
-          params: { channelId: channel.id },
+          params: { channelId: channel.id, selectedPostId },
         });
+      } else if (selectedPostId) {
+        const channelRoute = routeStack[routeStack.length - 1] as {
+          name: 'Channel';
+          params: { channelId: string; selectedPostId?: string | null };
+        };
+        channelRoute.params = { ...channelRoute.params, selectedPostId };
       }
 
       // if we have a post id, try to navigate to the thread
@@ -394,7 +404,8 @@ export default function useNotificationListener() {
             return () =>
               gotToChannel(
                 notificationData.channelId,
-                notificationData.postInfo
+                notificationData.postInfo,
+                notificationData.selectedPostId
               );
         }
       })();
