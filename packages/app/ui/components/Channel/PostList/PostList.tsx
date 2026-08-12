@@ -45,6 +45,24 @@ function getPostId({ post }: PostWithNeighbors) {
   return post.id;
 }
 
+function runImperativeScroll(scroll: () => Promise<void> | undefined) {
+  const attempt = () => {
+    try {
+      return scroll() ?? Promise.resolve();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  };
+
+  void attempt().catch(() => {
+    // LegendList can reject while data or measurements are changing. Retry
+    // once after the next layout opportunity and contain a second failure.
+    requestAnimationFrame(() => {
+      void attempt().catch(() => {});
+    });
+  });
+}
+
 type IndexedAnchorPosition = {
   index: number;
   viewPosition: number;
@@ -414,6 +432,7 @@ const ConversationPostListAttempt = React.forwardRef<
     forwardedRef
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
+    const postsWithNeighborsRef = React.useRef(postsWithNeighbors);
     const insets = useSafeAreaInsets();
     const collectionLayout = React.useMemo(
       () => layoutForType(collectionLayoutType),
@@ -439,6 +458,9 @@ const ConversationPostListAttempt = React.forwardRef<
       onInitialScrollCompleted,
     });
     const { initialScrollIndex } = anchorTarget;
+    React.useLayoutEffect(() => {
+      postsWithNeighborsRef.current = postsWithNeighbors;
+    }, [postsWithNeighbors]);
     const { onScroll: handleScroll, isAtBottom: isWithinBottomThreshold } =
       useScrollDirectionTracker({
         atBottomThreshold: onScrolledToBottomThreshold,
@@ -466,32 +488,37 @@ const ConversationPostListAttempt = React.forwardRef<
       (): PostListMethods => ({
         scrollToStart: (opts) => {
           markUserScrolled();
-          void listRef.current?.scrollToOffset({
-            offset: 0,
-            animated: opts.animated,
-          });
+          runImperativeScroll(() =>
+            listRef.current?.scrollToOffset({
+              offset: 0,
+              animated: opts.animated,
+            })
+          );
         },
         scrollToEnd: (opts) => {
           markUserScrolled();
-          void listRef.current?.scrollToEnd({ animated: opts.animated });
+          runImperativeScroll(() =>
+            listRef.current?.scrollToEnd({ animated: opts.animated })
+          );
         },
         scrollToPost: ({ postId, animated, viewPosition }) => {
-          const index = postsWithNeighbors.findIndex(
-            ({ post }) => post.id === postId
-          );
-          if (index === -1) {
-            return;
-          }
-
           markUserScrolled();
-          void listRef.current?.scrollToIndex({
-            index,
-            animated,
-            viewPosition,
+          runImperativeScroll(() => {
+            const index = postsWithNeighborsRef.current.findIndex(
+              ({ post }) => post.id === postId
+            );
+            if (index === -1) {
+              return undefined;
+            }
+            return listRef.current?.scrollToIndex({
+              index,
+              animated,
+              viewPosition,
+            });
           });
         },
       }),
-      [markUserScrolled, postsWithNeighbors]
+      [markUserScrolled]
     );
 
     return (

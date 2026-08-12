@@ -210,16 +210,25 @@ export default function ChannelScreen(props: Props) {
     }
   }, [channel?.id, cursor]);
 
-  // If scroll to bottom is pressed, it's most straighforward to ignore
-  // existing cursor
-  // A selected post or channel navigation establishes a new cursor scope.
+  // Channel navigation establishes a new cursor scope.
   useEffect(() => {
     setClearedCursor(false);
-  }, [currentChannelId, selectedPostId]);
+  }, [currentChannelId]);
+
+  // A newly selected post establishes a new cursor scope. Clearing an existing
+  // selection below must not immediately restore the cursor we just retired.
+  useEffect(() => {
+    if (selectedPostId) {
+      setClearedCursor(false);
+    }
+  }, [selectedPostId]);
 
   const handleScrollToBottom = useCallback(() => {
     setClearedCursor(true);
-  }, []);
+    if (selectedPostId) {
+      props.navigation.setParams({ selectedPostId: undefined });
+    }
+  }, [props.navigation, selectedPostId]);
 
   const channelConfiguration = useMemo(
     () => configurationFromChannel(channel),
@@ -479,7 +488,7 @@ export default function ChannelScreen(props: Props) {
           group={group}
           groupIsLoading={groupIsLoading}
           posts={filteredPosts ?? null}
-          selectedPostId={selectedPostId}
+          selectedPostId={clearedCursor ? undefined : selectedPostId}
           goBack={navigationRef.current.goBack}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}

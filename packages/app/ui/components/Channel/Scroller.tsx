@@ -571,7 +571,7 @@ const Scroller = forwardRef(
               inset={0}
               alignItems="center"
               justifyContent="center"
-              pointerEvents="none"
+              pointerEvents="auto"
             >
               <LoadingSpinner size="small" />
             </View>

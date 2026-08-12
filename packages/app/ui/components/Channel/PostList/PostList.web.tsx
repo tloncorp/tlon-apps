@@ -21,7 +21,13 @@ export const PostList: PostListComponent = React.forwardRef(
     return props.numColumns === 1 ? (
       <PostListSingleColumn {...props} ref={forwardedRef} />
     ) : (
-      <PostListFlatList {...props} ref={forwardedRef} />
+      <PostListFlatList
+        key={
+          props.anchor?.type === 'selected' ? props.anchor.postId : undefined
+        }
+        {...props}
+        ref={forwardedRef}
+      />
     );
   }
 );
