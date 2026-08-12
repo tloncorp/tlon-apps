@@ -1455,7 +1455,7 @@ ClientFactory = Callable[[TlonConfig], TlonSSEClient]
 
 
 class TlonGatewayStatus:
-    """Heartbeat bridge for the desk %gateway-status agent."""
+    """Heartbeat bridge for the desk %steward agent's gateway module."""
 
     def __init__(
         self,
@@ -1547,10 +1547,13 @@ class TlonGatewayStatus:
                 self._report_error("heartbeat", exc)
 
     async def _configure(self) -> None:
+        # The owner is shared across all of %steward's modules, so it rides the
+        # core mark; only the timings belong to the gateway module. Owner first:
+        # the module refuses start/heartbeat/stop until the core owner is set.
+        await self._poke_core({"configure": {"owner": self.owner}})
         await self._poke(
             {
                 "configure": {
-                    "owner": self.owner,
                     "active-window": _format_dr_seconds(
                         self.config.gateway_status_active_window_seconds
                     ),
@@ -1587,7 +1590,12 @@ class TlonGatewayStatus:
     async def _poke(self, json_payload: Any) -> None:
         if self._client is None:
             raise RuntimeError("gateway-status client is not started")
-        await self._client.poke("gateway-status", "gateway-status-action-1", json_payload)
+        await self._client.poke("steward", "steward-gateway-action-1", json_payload)
+
+    async def _poke_core(self, json_payload: Any) -> None:
+        if self._client is None:
+            raise RuntimeError("gateway-status client is not started")
+        await self._client.poke("steward", "steward-action-1", json_payload)
 
     def _lease_until_da(self) -> str:
         lease_until = (time.time() + self.config.gateway_status_lease_seconds) * 1000.0

@@ -187,12 +187,12 @@ optional_env:
     password: false
   - name: TLON_GATEWAY_STATUS
     description:
-      'Enable %gateway-status start/heartbeat/stop pokes (true/false)'
+      'Enable %steward gateway start/heartbeat/stop pokes (true/false)'
     prompt: 'Gateway status heartbeat?'
     password: false
   - name: TLON_GATEWAY_STATUS_OWNER
     description:
-      'Optional owner ship override for %gateway-status offline replies;
+      'Optional owner ship override for %steward gateway offline replies;
       defaults to TLON_OWNER_SHIP'
     prompt: 'Gateway status owner'
     password: false

@@ -157,7 +157,7 @@ Restart the Hermes gateway after changing these.
 
 **Not the same as gateway status**
 
-`TLON_GATEWAY_STATUS` still pokes the legacy `%gateway-status` agent for online/offline notices. Context Lens uses `%steward`. A ship slog of `steward: gateway lease expired…` means steward is alive and a lease timed out; it does not mean Context Lens is disabled.
+`TLON_GATEWAY_STATUS` drives `%steward`'s gateway module for online/offline notices; Context Lens uses the same agent's lens module. A ship slog of `steward: gateway lease expired…` means steward is alive and a lease timed out; it does not mean Context Lens is disabled.
 
 The adapter also accepts the older `TLON_SHIP_*`, `TLON_URL/TLON_SHIP/TLON_CODE`, and `URBIT_*` aliases and passes them through to the CLI, so it works with the credential resolver in `@tloncorp/tlon-skill`.
 
@@ -369,6 +369,6 @@ The bot can also send images in messages: `tlon upload <direct-image-url>` then 
 
 When `BRAVE_SEARCH_API_KEY` or `BRAVE_API_KEY` is configured, the adapter registers `image_search` under the Tlon toolset. Use this for user-requested images rather than asking the model to infer direct image URLs from ordinary web search results.
 
-When `TLON_GATEWAY_STATUS` is enabled, the adapter pokes `%gateway-status` on connect, heartbeat, and disconnect. `TLON_GATEWAY_STATUS_OWNER` defaults to `TLON_OWNER_SHIP` when omitted.
+When `TLON_GATEWAY_STATUS` is enabled, the adapter pokes `%steward`'s gateway module on connect, heartbeat, and disconnect. `TLON_GATEWAY_STATUS_OWNER` defaults to `TLON_OWNER_SHIP` when omitted.
 
 The adapter reconnects its Eyre SSE channel when no bytes arrive for `TLON_SSE_READ_TIMEOUT_SECONDS`. This is meant to recover stale sleep/wake sockets and mirrors the byte timeout behavior in `@tloncorp/api`.
