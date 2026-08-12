@@ -8221,6 +8221,7 @@ export async function monitorTlonProvider(
           );
           if (liveOnboardingState !== null) {
             const removed = await removeOrphanedDeterministicCronJobs({
+              ownerShip: effectiveOwnerShip!,
               liveChatNests: liveOnboardingState.chatNests,
               retainedCronJobIds: liveOnboardingState.cronJobIds,
               abortSignal: opts.abortSignal,

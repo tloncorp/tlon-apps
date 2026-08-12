@@ -51,8 +51,8 @@ export function GroupMetaScreen(props: Props) {
   });
 
   const handleSubmit = useCallback(
-    (data: db.ClientMeta) => {
-      setGroupMetadata(data);
+    (data: db.ClientMeta, originalMeta: db.ClientMeta) => {
+      setGroupMetadata(data, originalMeta);
 
       if (fromBlankChannel) {
         navigation.goBack();

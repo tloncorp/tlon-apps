@@ -74,7 +74,7 @@ import {
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
 import { recordActiveTlonTurnToolCall } from './src/turn-recorder.js';
-import { resolveTlonAccount } from './src/types.js';
+import { listRunnableTlonAccountIds, resolveTlonAccount } from './src/types.js';
 import {
   formatTlonVersionIdentity,
   resolveTlonSkillVersion,
@@ -967,12 +967,32 @@ export default defineBundledChannelEntry({
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
     });
 
-    setOnboardingCommandRunner(account.ship ?? '*', (args, options) =>
-      runTlonCommand(tlonBinary, args, credentials, {
-        timeoutMs: toolTimeoutMs,
-        abortSignal: options?.abortSignal,
-      })
-    );
+    const runnerAccountIds = listRunnableTlonAccountIds(api.config);
+    if (runnerAccountIds.length === 0) {
+      setOnboardingCommandRunner('*', (args, options) =>
+        runTlonCommand(tlonBinary, args, credentials, {
+          timeoutMs: toolTimeoutMs,
+          abortSignal: options?.abortSignal,
+        })
+      );
+    } else {
+      for (const accountId of runnerAccountIds) {
+        const runnerAccount = resolveTlonAccount(api.config, accountId);
+        const runnerCredentials = {
+          url: runnerAccount.url!,
+          ship: runnerAccount.ship!,
+          code: runnerAccount.code!,
+        };
+        const runnerTimeoutMs =
+          runnerAccount.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
+        setOnboardingCommandRunner(runnerAccount.ship!, (args, options) =>
+          runTlonCommand(tlonBinary, args, runnerCredentials, {
+            timeoutMs: runnerTimeoutMs,
+            abortSignal: options?.abortSignal,
+          })
+        );
+      }
+    }
 
     if (credentials) {
       api.logger.info(`[tlon] Credentials available for ${account.ship}`);

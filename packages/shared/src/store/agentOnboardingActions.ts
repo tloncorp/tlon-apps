@@ -121,6 +121,8 @@ type HostedAgentJoinDeps = {
   addToCordon?: typeof api.addTlawnToCordon;
   joinGroup?: typeof api.joinTlawnGroup;
   getGroup?: typeof api.getGroup;
+  getLocalGroup?: typeof db.getGroup;
+  getCurrentUserId?: typeof api.getCurrentUserId;
 };
 
 const hostedAgentJoinEnsuring = new Map<string, Promise<void>>();
@@ -156,7 +158,25 @@ async function reconcileHostedAgentJoin(
   const addToCordon = deps.addToCordon ?? api.addTlawnToCordon;
   const joinGroup = deps.joinGroup ?? api.joinTlawnGroup;
   const getGroup = deps.getGroup ?? api.getGroup;
+  const getLocalGroup = deps.getLocalGroup ?? db.getGroup;
+  const getCurrentUserId = deps.getCurrentUserId ?? api.getCurrentUserId;
   let lastError: unknown;
+
+  const localGroupOwner = params.groupId.split('/')[0];
+  if (localGroupOwner !== getCurrentUserId()) {
+    return;
+  }
+  try {
+    if (!(await getLocalGroup({ id: params.groupId }))) {
+      return;
+    }
+  } catch (error) {
+    logger.trackError('Failed to verify active hosted agent group', {
+      error,
+      groupId: params.groupId,
+    });
+    return;
+  }
 
   for (const delay of delays) {
     if (delay) {

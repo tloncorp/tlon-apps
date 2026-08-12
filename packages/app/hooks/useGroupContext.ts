@@ -75,12 +75,15 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
   }, [groupNavSections, groupChannels]);
 
   const setGroupMetadata = useCallback(
-    async (metadata: db.ClientMeta) => {
+    async (metadata: db.ClientMeta, originalMeta?: db.ClientMeta) => {
       if (group) {
-        await store.updateGroupMeta({
-          ...group,
-          ...metadata,
-        });
+        await store.updateGroupMeta(
+          {
+            ...group,
+            ...metadata,
+          },
+          { originalMeta }
+        );
       }
     },
     [group]

@@ -92,6 +92,8 @@ describe('hosted agent join reconciliation', () => {
         },
         {
           delays: [0, 0],
+          getCurrentUserId: () => '~ten',
+          getLocalGroup: vi.fn(async () => ({ id: '~ten/group' })) as never,
           getGroup: getGroup as never,
           addToCordon: addToCordon as never,
           joinGroup: joinGroup as never,
@@ -101,5 +103,31 @@ describe('hosted agent join reconciliation', () => {
 
     expect(joinGroup).toHaveBeenCalledTimes(2);
     expect(getGroup).toHaveBeenCalledTimes(4);
+  });
+
+  test('stops before retrying a deleted or previous-account group', async () => {
+    const addToCordon = vi.fn();
+    const joinGroup = vi.fn();
+
+    await expect(
+      _testing.reconcileHostedAgentJoin(
+        {
+          hostedShipId: '~ten',
+          groupId: '~ten/deleted',
+          moon: 'dozzod',
+          botShipId: '~zod',
+        },
+        {
+          delays: [0],
+          getCurrentUserId: () => '~ten',
+          getLocalGroup: vi.fn(async () => null) as never,
+          addToCordon: addToCordon as never,
+          joinGroup: joinGroup as never,
+        }
+      )
+    ).resolves.toBeUndefined();
+
+    expect(addToCordon).not.toHaveBeenCalled();
+    expect(joinGroup).not.toHaveBeenCalled();
   });
 });

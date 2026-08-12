@@ -53,7 +53,13 @@ export function AgentOnboardingSequence(props: {
       // missing group, so keep waiting while this enabled onboarding surface
       // is mounted instead of permanently latching the legacy fallback.
       let resolution = await store.resolveHomeGroupOnboarding();
+      const provisioningDeadline = Date.now() + 2 * 60_000;
       while (resolution.status === 'pending') {
+        if (Date.now() >= provisioningDeadline) {
+          logger.trackError('Hosted home group provisioning timed out');
+          setHomeGroupMissing(true);
+          return;
+        }
         await new Promise((resolve) => setTimeout(resolve, 1_000));
         if (cancelled || redirectedRef.current) {
           return;

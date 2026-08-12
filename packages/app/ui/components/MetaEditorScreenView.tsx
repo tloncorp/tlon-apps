@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { useForm } from 'react-hook-form';
@@ -33,13 +34,14 @@ export function MetaEditorScreenView({
   currentUserId,
 }: PropsWithChildren<{
   title: string;
-  onSubmit: (meta: db.ClientMeta) => void;
+  onSubmit: (meta: db.ClientMeta, originalMeta: db.ClientMeta) => void;
   goBack: () => void;
   chat?: db.Group | db.Channel | null;
   currentUserId: string;
 }>) {
   const [modelLoaded, setModelLoaded] = useState(!!chat);
   const defaultValues = useMemo(() => getMetaWithDefaults(chat), [chat]);
+  const originalValues = useRef(defaultValues);
   const isGroup = !!chat && logic.isGroup(chat);
   const hostStatus = useShipConnectionStatus(isGroup ? chat.hostUserId : '', {
     enabled: isGroup,
@@ -69,12 +71,13 @@ export function MetaEditorScreenView({
   useEffect(() => {
     if (!modelLoaded && chat) {
       setModelLoaded(true);
+      originalValues.current = defaultValues;
       reset(defaultValues);
     }
   }, [chat, modelLoaded, reset, defaultValues]);
 
   const runSubmit = useCallback(
-    () => handleSubmit(onSubmit)(),
+    () => handleSubmit((data) => onSubmit(data, originalValues.current))(),
     [handleSubmit, onSubmit]
   );
 

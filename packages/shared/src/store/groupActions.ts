@@ -399,7 +399,7 @@ export async function updateGroupPrivacy(
 
 export async function updateGroupMeta(
   group: db.Group,
-  config?: { shouldThrow?: boolean }
+  config?: { shouldThrow?: boolean; originalMeta?: db.ClientMeta }
 ) {
   logger.log('updating group', group.id);
   logger.trackEvent(AnalyticsEvent.ActionCustomizedGroup, {
@@ -480,20 +480,21 @@ export async function updateGroupMeta(
     image ?? color ?? '';
   const editedImage = visual(group.iconImage, group.iconImageColor);
   const editedCover = visual(group.coverImage, group.coverImageColor);
+  const originalMeta = config?.originalMeta ?? existingGroup;
   const image =
     remoteMeta &&
     editedImage ===
-      visual(existingGroup?.iconImage, existingGroup?.iconImageColor)
+      visual(originalMeta?.iconImage, originalMeta?.iconImageColor)
       ? visual(remoteMeta.iconImage, remoteMeta.iconImageColor)
       : editedImage;
   const cover =
     remoteMeta &&
     editedCover ===
-      visual(existingGroup?.coverImage, existingGroup?.coverImageColor)
+      visual(originalMeta?.coverImage, originalMeta?.coverImageColor)
       ? visual(remoteMeta.coverImage, remoteMeta.coverImageColor)
       : editedCover;
   const title =
-    remoteMeta && (group.title ?? '') === (existingGroup?.title ?? '')
+    remoteMeta && (group.title ?? '') === (originalMeta?.title ?? '')
       ? remoteMeta.title ?? ''
       : group.title ?? '';
   const groupWithMergedDescription = { ...group, title, description };

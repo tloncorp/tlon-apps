@@ -550,7 +550,10 @@ function TypeSelectionContent({
         {actions.map((action, index) => (
           <ActionSheet.Action
             key={index}
-            action={action}
+            action={{
+              ...action,
+              disabled: Boolean(isCreating || action.disabled),
+            }}
             testID={action.testID}
             paddingHorizontal={'$xl'}
           />
@@ -572,6 +575,7 @@ function TypeSelectionContent({
           intent="secondary"
           size="small"
           onPress={() => onSelectType('joinGroup')}
+          disabled={isCreating}
           label={CHAT_TYPE_CONFIG.joinGroup.actionTitle}
         />
       </View>
