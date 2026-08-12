@@ -421,6 +421,7 @@ export async function ensureDeterministicCronJob(params: {
   purpose?: string;
   topics: string;
   timezone: string;
+  abortSignal?: AbortSignal;
   trace?: DeterministicCronTracer;
 }): Promise<string> {
   const trace = params.trace;
@@ -431,7 +432,13 @@ export async function ensureDeterministicCronJob(params: {
       Omit<DeterministicCronTraceEvent, 'operation' | 'outcome'>
     > = {}
   ) => trace?.({ operation, outcome, ...details });
+  const assertActive = () => {
+    if (params.abortSignal?.aborted) {
+      throw new Error('Onboarding cron setup aborted with monitor');
+    }
+  };
   const startedAt = Date.now();
+  assertActive();
   emit('resolve_service', 'started');
   const template = PURPOSE_JOBS[params.purposeId];
   if (!template) {
@@ -444,6 +451,7 @@ export async function ensureDeterministicCronJob(params: {
   let cron = getCronService();
   let serviceAttempt = 0;
   for (const delay of [250, 750, 1_500]) {
+    assertActive();
     if (cron) {
       break;
     }
@@ -454,6 +462,7 @@ export async function ensureDeterministicCronJob(params: {
       durationMs: Date.now() - startedAt,
     });
     await new Promise((resolve) => setTimeout(resolve, delay));
+    assertActive();
     cron = getCronService();
   }
   if (!cron) {
@@ -504,6 +513,7 @@ export async function ensureDeterministicCronJob(params: {
   emit('list_existing', 'started');
   let initialJobs: PluginHookGatewayCronJob[];
   try {
+    assertActive();
     initialJobs = await cron.list({ includeDisabled: true });
     emit('list_existing', 'succeeded', {
       durationMs: Date.now() - initialListStartedAt,
@@ -520,11 +530,13 @@ export async function ensureDeterministicCronJob(params: {
   if (existing?.id) {
     const desired = desiredInput(cronOutputNest(existing));
     if (!cronJobMatchesDesired(existing, desired)) {
+      assertActive();
       emit('update_existing', 'started', { cronJobId: existing.id });
       await cron.update(
         existing.id,
         desired as PluginHookGatewayCronUpdateInput
       );
+      assertActive();
       const updated = (await cron.list({ includeDisabled: true })).find(
         (job) => job.id === existing.id
       );
@@ -548,6 +560,7 @@ export async function ensureDeterministicCronJob(params: {
   const addStartedAt = Date.now();
   emit('add_job', 'started');
   try {
+    assertActive();
     await cron.add(desiredInput());
     emit('add_job', 'succeeded', {
       durationMs: Date.now() - addStartedAt,
@@ -564,6 +577,7 @@ export async function ensureDeterministicCronJob(params: {
 
   let verifyAttempt = 0;
   for (const delay of [0, 250, 1_000, 2_000]) {
+    assertActive();
     verifyAttempt += 1;
     if (delay) {
       emit('verify_job', 'retrying', {
@@ -572,6 +586,7 @@ export async function ensureDeterministicCronJob(params: {
         durationMs: Date.now() - startedAt,
       });
       await new Promise((resolve) => setTimeout(resolve, delay));
+      assertActive();
     }
     const verifyStartedAt = Date.now();
     emit('verify_job', 'started', {
@@ -579,6 +594,7 @@ export async function ensureDeterministicCronJob(params: {
     });
     let jobs: PluginHookGatewayCronJob[];
     try {
+      assertActive();
       jobs = await cron.list({ includeDisabled: true });
     } catch (error) {
       emit('verify_job', 'failed', {

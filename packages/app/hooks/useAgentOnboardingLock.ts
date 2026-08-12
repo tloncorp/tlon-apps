@@ -24,8 +24,11 @@ export function useAgentOnboardingLock(
   groupId?: string | null,
   groupDescription?: string | null
 ): boolean {
-  const { value: onboardingGroupId, isLoading: markerLoading } =
-    db.agentOnboardingGroupId.useStorageItem();
+  const {
+    value: onboardingGroupId,
+    isLoading: markerLoading,
+    isError: markerError,
+  } = db.agentOnboardingGroupId.useStorageItem();
   const isOnboardingGroup = Boolean(
     groupId && onboardingGroupId && groupId === onboardingGroupId
   );
@@ -46,7 +49,7 @@ export function useAgentOnboardingLock(
   // any group channel that isn't demonstrably finished; for the guided group
   // that's simply correct early, and for every other group it's a one-query
   // flicker on the rare cold start that lands directly in a channel.
-  if (markerLoading) {
+  if (markerLoading || markerError) {
     return Boolean(groupId) && !setupComplete;
   }
 

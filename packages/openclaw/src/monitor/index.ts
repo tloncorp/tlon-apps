@@ -2754,6 +2754,7 @@ export async function monitorTlonProvider(
             purpose: params.purpose,
             topics: params.topics,
             timezone: params.timezone,
+            abortSignal: opts.abortSignal,
             trace: (event) =>
               traceOnboardingStep(
                 traceBase,

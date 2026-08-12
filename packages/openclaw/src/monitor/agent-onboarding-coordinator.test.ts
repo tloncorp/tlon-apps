@@ -330,6 +330,31 @@ describe('cron creation', () => {
     );
   });
 
+  test('does not mutate the scheduler after the monitor aborts', async () => {
+    const controller = new AbortController();
+    const service = {
+      list: vi.fn(async () => []),
+      add: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+    };
+    setCronServiceAccessor(() => service as never);
+    controller.abort();
+
+    await expect(
+      ensureDeterministicCronJob({
+        nest: 'chat/~zod/home-group-chat',
+        purposeId: 'agent-research',
+        topics: 'Mycology',
+        timezone: 'America/New_York',
+        abortSignal: controller.signal,
+      })
+    ).rejects.toThrow('aborted with monitor');
+    expect(service.list).not.toHaveBeenCalled();
+    expect(service.add).not.toHaveBeenCalled();
+    expect(service.update).not.toHaveBeenCalled();
+  });
+
   test('repairs a matching cron whose schedule or prompt is stale', async () => {
     const jobs: PluginHookGatewayCronJob[] = [];
     const update = vi.fn(async (id: string, patch: unknown) => {
