@@ -71,6 +71,8 @@ The Gall delete action removes the manifest and `%groups` registration, but stor
 
 Direct scries are self-only. Remote consumers subscribe to the host's update path, where the host can apply the live group authorization check. Subscriber agents report joined/left state to local `%groups` using `%group-channel-active`.
 
+Bucket snapshots are replica observations, not command acknowledgements. In particular, an uploader must present its capability to the private broker after `%begin-upload`; a successful broker grant proves that the host authorized and persisted the upload. Only then should the uploader wait for the corresponding session to appear in its local replica. A broker denial is a host-authorization failure, while a missing local session after a successful grant is replica lag. Bucket channels must never be sent through `%activity` post/thread scries because they do not contain posts or threads.
+
 ## Hosted private-broker flow
 
 1. The client generates an opaque capability and sends it with `%begin-upload` through its local `%buckets` agent.

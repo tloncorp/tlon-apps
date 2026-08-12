@@ -1,3 +1,4 @@
+import * as api from '@tloncorp/api';
 import {
   StructuredChannelDescriptionPayload,
   scry,
@@ -42,6 +43,7 @@ import {
 import rawGroupsInit2 from '../../test/init.json';
 import {
   ensureDmInviteChannel,
+  syncChannelThreadUnreads,
   syncChannelWithBackoff,
   syncDms,
   syncGroups,
@@ -89,6 +91,21 @@ function setInitSyncScryOutputs({
 }
 
 setupDatabaseTestSuite();
+
+test('does not sync thread unreads for Buckets', async () => {
+  const getThreadUnreads = vi.spyOn(api, 'getThreadUnreadsByChannel');
+  await db.insertChannels([
+    {
+      id: 'buckets/~zod/project-files',
+      type: 'buckets',
+    },
+  ]);
+
+  await syncChannelThreadUnreads('buckets/~zod/project-files');
+
+  expect(getThreadUnreads).not.toHaveBeenCalled();
+  getThreadUnreads.mockRestore();
+});
 
 const inputData = [
   '0v4.00000.qd4mk.d4htu.er4b8.eao21',

@@ -853,6 +853,11 @@ export const syncChannelThreadUnreads = async (
     );
     return;
   }
+  // Buckets are file manifests, not post collections. They have no activity
+  // thread endpoint, so never enqueue a thread-unread scry for them.
+  if (channel.type === 'buckets') {
+    return;
+  }
   const unreads = await syncQueue.add('thread unreads', ctx, () =>
     api.getThreadUnreadsByChannel(channel)
   );

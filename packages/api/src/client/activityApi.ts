@@ -38,6 +38,12 @@ export async function getGroupAndChannelUnreads() {
 export async function getThreadUnreadsByChannel(
   channel: db.Channel
 ): Promise<db.ThreadUnreadState[] | null> {
+  // Buckets are group channels for navigation and permissions, but they do
+  // not contain posts or threads. Keep them out of the chat-shaped activity
+  // scries even if a caller reaches this API without the screen-level guard.
+  if (channel.type === 'buckets') {
+    return null;
+  }
   if (channel.type === 'notes') {
     // notes channels track per-note unreads instead of thread unreads; the
     // chat-shaped threads scry below doesn't exist for them. Before the
