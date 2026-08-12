@@ -159,6 +159,7 @@ import {
   findChatNestForGroup,
   findConfiguredAgentGroupRoutes,
   findGroupForChannel,
+  homeGroupAwaitingOpening,
   homeGroupChatNestFor,
   homeGroupFlagFor,
   inviteCardFallbackText,
@@ -1346,6 +1347,7 @@ export async function monitorTlonProvider(
           prompt: text,
           timeoutMs: normalizeRunTimeoutMs(account.lifecycle.runTimeoutMs),
           runId: randomUUID(),
+          abortSignal: opts.abortSignal,
           disableMessageTool: true,
           toolsAllow: ['web_search', 'web_fetch'],
         });
@@ -1876,6 +1878,9 @@ export async function monitorTlonProvider(
         title,
         markdown,
       }: DeterministicResearchDraft): Promise<boolean> => {
+        if (opts.abortSignal?.aborted) {
+          return false;
+        }
         const draftStartedAt = Date.now();
         traceOnboardingStep(traceBase, 'receive_research_draft', 'started', {
           onboardingStage: 'note',
@@ -1897,6 +1902,9 @@ export async function monitorTlonProvider(
             buildDeterministicSetupDescription(writing),
             { onboardingAttemptId, onboardingSource: 'research_output' }
           );
+          if (opts.abortSignal?.aborted) {
+            return false;
+          }
           if (!writtenNoteId) {
             const existing = await onboardingNoteWithMarker(
               notesNest,
@@ -1909,6 +1917,9 @@ export async function monitorTlonProvider(
             if (existing.noteId) {
               writtenNoteId = existing.noteId;
             }
+          }
+          if (opts.abortSignal?.aborted) {
+            return false;
           }
           if (!writtenNoteId) {
             const directory = await mkdtemp(join(tmpdir(), 'tlon-onboarding-'));
@@ -1933,11 +1944,17 @@ export async function monitorTlonProvider(
                   '--markdown',
                   markdownPath,
                 ]);
+                if (opts.abortSignal?.aborted) {
+                  return false;
+                }
                 const observed = await waitForOnboardingNote(
                   notesNest,
                   writing.record.noteBaseline,
                   noteMarker
                 );
+                if (opts.abortSignal?.aborted) {
+                  return false;
+                }
                 if (!observed.readable) {
                   throw observed.error;
                 }
@@ -1981,6 +1998,9 @@ export async function monitorTlonProvider(
               noteId: writtenNoteId,
             },
           };
+          if (opts.abortSignal?.aborted) {
+            return false;
+          }
           await writeAndVerifyOnboardingDescription(
             nest,
             group.flag,
@@ -2015,6 +2035,9 @@ export async function monitorTlonProvider(
               ...onboardingErrorFields(error, [title, markdown]),
             }
           );
+          if (opts.abortSignal?.aborted) {
+            return false;
+          }
           // A timed-out note poke often landed. Read the owner notebook
           // before asking for a retry, or an ambiguous timeout becomes a
           // duplicate entry. If a post appeared after our recorded
@@ -2105,6 +2128,15 @@ export async function monitorTlonProvider(
             onboardingState: 'researching',
             notebookNest: notesNest,
             reason: 'agent_run_or_output_failed',
+          });
+          return;
+        }
+        if (opts.abortSignal?.aborted) {
+          traceOnboardingStep(traceBase, 'run_directive', 'cancelled', {
+            onboardingStage: 'research',
+            onboardingState: 'researching',
+            notebookNest: notesNest,
+            reason: 'monitor_aborted',
           });
           return;
         }
@@ -2850,10 +2882,9 @@ export async function monitorTlonProvider(
           }
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
-        // Agent groups get a softer probe: client/provisioning bootstrap may
-        // have posted as the owner or bot before the agent joined. Those
-        // posts do not make the channel an established conversation; a
-        // third-party participant or an existing picker does.
+        // Client-created agent groups get a softer probe because owner
+        // bootstrap posts can precede the agent join. The hosted home group
+        // is stricter: only bot-authored provisioning history is ignorable.
         let channelOpenable = isNew;
         let probeUnreadable = false;
         let probeHistory: Awaited<
@@ -2868,11 +2899,13 @@ export async function monitorTlonProvider(
               runtime,
               { throwOnError: true }
             );
-            channelOpenable = agentGroupAwaitingOpening(
-              probeHistory,
-              botShipName,
-              effectiveOwnerShip
-            );
+            channelOpenable = isHomeGroupFlag(groupFlag, effectiveOwnerShip)
+              ? homeGroupAwaitingOpening(probeHistory, botShipName)
+              : agentGroupAwaitingOpening(
+                  probeHistory,
+                  botShipName,
+                  effectiveOwnerShip
+                );
           } catch (error) {
             runtime.log?.(
               `[tlon] Could not read the agent group transcript for ${groupFlag}: ${String(error)}`

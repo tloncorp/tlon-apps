@@ -748,8 +748,30 @@ describe('findAgentGroupsAwaitingOpening', () => {
 describe('findConfiguredAgentGroupRoutes', () => {
   test('reports the live notebook alongside completed config', async () => {
     const completedDescription = configEntry({
+      templateId: 'agent-daily-digest',
       purpose: 'Keeps up with sourdough.',
       jobs: [{ id: 'agent-daily-digest', cronJobId: 'cron-1' }],
+      onboarding: {
+        state: 'complete',
+        topics: 'sourdough',
+        timezone: 'UTC',
+        cronJobId: 'cron-1',
+        notebookNest: 'notes/~ten/deleted-notebook',
+        noteId: 'note-1',
+      },
+    });
+    const multipleNotebooksDescription = configEntry({
+      templateId: 'agent-daily-digest',
+      purpose: 'Keeps up with bread.',
+      jobs: [{ id: 'agent-daily-digest', cronJobId: 'cron-2' }],
+      onboarding: {
+        state: 'complete',
+        topics: 'bread',
+        timezone: 'UTC',
+        cronJobId: 'cron-2',
+        notebookNest: 'notes/~ten/configured-notebook',
+        noteId: 'note-2',
+      },
     });
     const api = {
       scry: async () => ({
@@ -764,6 +786,14 @@ describe('findConfiguredAgentGroupRoutes', () => {
           meta: { description: '' },
           'active-channels': ['chat/~ten/plain-chat'],
         },
+        '~ten/multi-group': {
+          meta: { description: multipleNotebooksDescription },
+          'active-channels': [
+            'chat/~ten/multi-chat',
+            'notes/~ten/unrelated-notebook',
+            'notes/~ten/configured-notebook',
+          ],
+        },
       }),
     };
 
@@ -773,6 +803,12 @@ describe('findConfiguredAgentGroupRoutes', () => {
         chatNest: 'chat/~ten/agent-chat',
         notebookNest: 'notes/~ten/replacement-notebook',
         description: completedDescription,
+      },
+      {
+        flag: '~ten/multi-group',
+        chatNest: 'chat/~ten/multi-chat',
+        notebookNest: 'notes/~ten/configured-notebook',
+        description: multipleNotebooksDescription,
       },
     ]);
   });

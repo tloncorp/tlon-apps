@@ -1,7 +1,13 @@
 import { A2UI, type A2UIBlockData } from '@tloncorp/shared/logic';
 import { useGroup } from '@tloncorp/shared/store';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
-import React, { ComponentProps, useCallback, useMemo, useState } from 'react';
+import React, {
+  ComponentProps,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Input, View, XStack, YStack } from 'tamagui';
 
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
@@ -53,6 +59,7 @@ function SmallChoicePills({
   // retry. Transport success is not coordinator acknowledgement; the monitor
   // may have missed a message during a restart or unreadable-group window.
   const [submitted, setSubmitted] = useState(false);
+  const submittingRef = useRef(false);
 
   const toggle = useCallback((id: string) => {
     setSelectedIds((previous) =>
@@ -69,13 +76,14 @@ function SmallChoicePills({
   );
 
   const handleSubmit = useCallback(async () => {
-    if (!messageForSelection || submitted) {
+    if (!messageForSelection || submittingRef.current) {
       return;
     }
     // Disable first so a double tap can't send twice, but put it back if
     // the send fails: the picker is the only way to answer the setup, and
     // a card disabled over a message that never posted leaves the owner
     // looking at their own selection with nothing to do about it.
+    submittingRef.current = true;
     setSubmitted(true);
     try {
       await onSubmit(messageForSelection);
@@ -83,9 +91,10 @@ function SmallChoicePills({
       // The transport reports failures elsewhere; this surface only needs to
       // become available again so the owner can retry.
     } finally {
+      submittingRef.current = false;
       setSubmitted(false);
     }
-  }, [messageForSelection, onSubmit, submitted]);
+  }, [messageForSelection, onSubmit]);
 
   /**
    * Availability has to be judged against the message that would actually be

@@ -25,7 +25,10 @@ import {
   TOPICS_PICKER_PROMPT,
   TOPICS_PICKER_SUBMIT_LABEL,
 } from './agent-onboarding-config.js';
-import { ONBOARDING_TIMEZONE_PREFIX } from './agent-onboarding-coordinator.js';
+import {
+  ONBOARDING_TIMEZONE_PREFIX,
+  deterministicSetupFromDescription,
+} from './agent-onboarding-coordinator.js';
 
 /**
  * Agent onboarding, bot side: the pickers the agent posts into a group that
@@ -630,11 +633,19 @@ export async function findConfiguredAgentGroupRoutes(
     if (!chatNest) {
       return [];
     }
+    const liveNotebookNests = nests.filter((key) => key.startsWith('notes/'));
+    const configuredNotebookNest =
+      deterministicSetupFromDescription(description)?.record.notebookNest;
+    const notebookNest =
+      configuredNotebookNest &&
+      liveNotebookNests.includes(configuredNotebookNest)
+        ? configuredNotebookNest
+        : liveNotebookNests[0] ?? null;
     return [
       {
         flag,
         chatNest,
-        notebookNest: nests.find((key) => key.startsWith('notes/')) ?? null,
+        notebookNest,
         description,
       },
     ];
