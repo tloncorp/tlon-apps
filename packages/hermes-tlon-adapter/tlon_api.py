@@ -836,14 +836,18 @@ CliObserver = Callable[[Sequence[str], int, "TlonSendResult"], None]
 
 # `posts|dms send|reply`: the CLI invocations that author a message, and so the
 # ones that take the bot-author flags.
-SEND_OPERATIONS = frozenset(
-    {
-        ("posts", "send"),
-        ("posts", "reply"),
-        ("dms", "send"),
-        ("dms", "reply"),
-    }
-)
+# Each send operation, mapped to how many positional arguments follow it before
+# the option region begins. `posts send <channel> <message>` is two; the reply
+# forms take a parent id as well. This is the CLI's positional contract, which
+# cannot change without breaking every existing caller — unlike the per-command
+# option lists, which grow.
+SEND_OPERATION_POSITIONALS: dict[tuple[str, str], int] = {
+    ("posts", "send"): 2,
+    ("posts", "reply"): 3,
+    ("dms", "send"): 2,
+    ("dms", "reply"): 3,
+}
+SEND_OPERATIONS = frozenset(SEND_OPERATION_POSITIONALS)
 
 CREDENTIAL_FLAGS_WITH_VALUE = frozenset(
     {"--config", "--url", "--ship", "--code", "--cookie"}
@@ -993,8 +997,18 @@ class TlonCLI:
         # gates it, because a CLI without the flag has no option to consume it
         # and folds the token into the message body instead — passing a caller's
         # flag through unprobed would corrupt the post rather than degrade it.
-        if any(_is_bot_flag_token(arg) for arg in args):
-            return tuple(args) if supported else _without_bot_flags(args)
+        # Only the option region is inspected. The message is a positional
+        # argument, and a bot answering questions about this very CLI can send
+        # text that is exactly `--bot`; scanning the whole command would treat
+        # that content as a flag and either eat it or strip it away.
+        options_from = idx + 2 + SEND_OPERATION_POSITIONALS[(args[idx], args[idx + 1])]
+        head, options = tuple(args[:options_from]), tuple(args[options_from:])
+        if any(_is_bot_flag_token(arg) for arg in options):
+            return (
+                tuple(args)
+                if supported
+                else head + _without_bot_flags(options)
+            )
         if not supported:
             return tuple(args)
         return (*args, *self._bot_flags())
