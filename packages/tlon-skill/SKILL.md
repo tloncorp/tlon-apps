@@ -53,8 +53,10 @@ tlon upload ./generated-chart.png      # local file — prints the uploaded URL
 tlon upload https://example.com/x.png  # remote URL
 ```
 
-Pass that printed URL as `media=`. On hosted deployments the upload must run
-through the owner ship's config (the bot's own ship has no storage):
+Pass that printed URL as `media=`. On Tlon-hosted deployments (where
+`TLON_HOSTING` is set) the bot's own ship uploads through Tlon file hosting.
+If the upload fails (e.g. self-hosted moons, which have no storage), retry
+through the owner ship's config:
 `tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`.
 
 > **Deprecated: diary channels.** `%diary` is not managed by the CLI:
