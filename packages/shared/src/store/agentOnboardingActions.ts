@@ -127,6 +127,9 @@ function scheduleAgentNotebookRetry(groupId: string): void {
   const timer = setTimeout(() => {
     agentNotebookRetryTimers.delete(groupId);
     void (async () => {
+      if (groupId.split('/')[0] !== api.getCurrentUserId()) {
+        return;
+      }
       let remote;
       try {
         remote = await api.getGroup(groupId);
@@ -135,7 +138,20 @@ function scheduleAgentNotebookRetry(groupId: string): void {
           error,
           groupId,
         });
-        scheduleAgentNotebookRetry(groupId);
+        try {
+          const localGroup = await db.getGroup({ id: groupId });
+          if (localGroup) {
+            scheduleAgentNotebookRetry(groupId);
+          }
+        } catch (localError) {
+          // An unreadable local database cannot prove deletion. Preserve the
+          // debt until a later retry can make the ownership decision.
+          logger.trackError('Failed to verify local agent group retry state', {
+            error: localError,
+            groupId,
+          });
+          scheduleAgentNotebookRetry(groupId);
+        }
         return;
       }
       const config = parseGroupAgentConfig(remote.description);

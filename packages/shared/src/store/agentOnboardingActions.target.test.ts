@@ -204,6 +204,26 @@ test('retains notebook retry debt for a completed group replacement', async () =
   expect(mocks.createChannel).toHaveBeenCalledTimes(1);
 });
 
+test('drops notebook retry debt after the group disappears locally', async () => {
+  vi.useFakeTimers();
+  const description = deterministicDescription('Daily digest: Updates');
+  mocks.getRemoteGroup.mockRejectedValue(new Error('group missing'));
+  mocks.getLocalGroup.mockResolvedValue(null);
+
+  const ensuring = ensureAgentNotebookForGroup({
+    id: '~zod/deleted',
+    description,
+    channels: [],
+  });
+  await vi.advanceTimersByTimeAsync(22_000);
+  await ensuring;
+  await vi.advanceTimersByTimeAsync(60_000);
+  await vi.advanceTimersByTimeAsync(180_000);
+
+  expect(mocks.getRemoteGroup).toHaveBeenCalledTimes(5);
+  expect(mocks.getLocalGroup).toHaveBeenCalledWith({ id: '~zod/deleted' });
+});
+
 test('retains notebook retry debt while remote verification is unreadable', async () => {
   vi.useFakeTimers();
   mocks.createChannel

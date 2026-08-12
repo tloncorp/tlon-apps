@@ -1246,6 +1246,12 @@ export async function monitorTlonProvider(
         });
         throw error;
       }
+      const assertMonitorActive = () => {
+        if (opts.abortSignal?.aborted) {
+          throw new Error('Onboarding opening aborted with monitor');
+        }
+      };
+      assertMonitorActive();
       const pluginDiagnostic = onboardingPluginDiagnostic(
         getTlonVersionIdentity().pluginCommit
       );
@@ -1259,7 +1265,9 @@ export async function monitorTlonProvider(
           entry.content.startsWith(GROUP_INTRO_MESSAGE)
       );
       if (!diagnosticAlreadyPosted) {
+        assertMonitorActive();
         await postToChannel(nest, pluginDiagnostic);
+        assertMonitorActive();
         traceOnboardingStep(traceBase, 'post_plugin_diagnostic', 'succeeded');
       } else {
         traceOnboardingStep(traceBase, 'post_plugin_diagnostic', 'skipped', {
@@ -1267,16 +1275,20 @@ export async function monitorTlonProvider(
         });
       }
       if (!introAlreadyPosted) {
+        assertMonitorActive();
         await postToChannel(nest, GROUP_INTRO_MESSAGE);
+        assertMonitorActive();
         traceOnboardingStep(traceBase, 'post_intro', 'succeeded');
       } else {
         traceOnboardingStep(traceBase, 'post_intro', 'skipped', {
           reason: 'already_posted',
         });
       }
+      assertMonitorActive();
       await postToChannel(nest, purposePickerFallbackText(), {
         blob: serializeBlobField(buildPurposePickerBlob(nest)),
       });
+      assertMonitorActive();
       traceOnboardingStep(traceBase, 'post_purpose_picker', 'succeeded');
       traceOnboardingStep(traceBase, 'post_opening', 'succeeded', {
         durationMs: Date.now() - startedAt,
