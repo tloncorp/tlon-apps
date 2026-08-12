@@ -46,6 +46,9 @@ EVENT_SSE_RECONNECT = "TlonBot SSE Reconnect"
 EVENT_APPROVAL = "TlonBot Approval Event"
 EVENT_CONTROL_COMMAND = "TlonBot Control Command"
 EVENT_TELEMETRY_TEST = "TlonBot Telemetry Test"
+EVENT_HEARTBEAT_NUDGE_SENT = "TlonBot Heartbeat Nudge Sent"
+EVENT_HEARTBEAT_NUDGE_REENGAGED = "TlonBot Heartbeat Nudge Reengaged"
+EVENT_MIGRATION = "TlonBot Diary Migration"
 
 HARNESS = "hermes"
 
@@ -66,6 +69,9 @@ ERROR_DETAIL_MAX_CHARS = 200
 # a real error + stack is never truncated, bounded only against pathological
 # output bloating the PostHog event.
 ERROR_DETAIL_FULL_MAX_CHARS = 8000
+# The per-call CLI event already carries the full stderr; this copy only has to
+# identify the failure, so it takes a tighter cap.
+MIGRATION_ERROR_MAX_CHARS = 500
 
 _SHIP_RE = re.compile(r"~[a-zA-Z0-9.\-]+")
 
@@ -310,6 +316,7 @@ class TlonTelemetry:
         self._capture_warned = False
         self._missing_owner_warned = False
         self._identified = False
+        self._identified_owners: set[str] = set()
         self._identified_as = ""
         self._events_captured = 0
         self._last_event = ""
@@ -379,7 +386,13 @@ class TlonTelemetry:
         """Merge identity properties stamped on every event (version info)."""
         self._common.update(props)
 
-    def capture(self, event: str, properties: Optional[Mapping[str, Any]] = None) -> None:
+    def capture(
+        self,
+        event: str,
+        properties: Optional[Mapping[str, Any]] = None,
+        *,
+        distinct_id: Optional[str] = None,
+    ) -> None:
         """Capture an event against the owner's PostHog person.
 
         Mirrors OpenClaw: the owner ship is the distinct id (so bot events
@@ -388,7 +401,9 @@ class TlonTelemetry:
         """
         if self._client is None:
             return
-        owner = self.config.owner_ship
+        # An empty per-event override is meaningful: OpenClaw drops it rather
+        # than attributing the event to the currently configured owner.
+        owner = self.config.owner_ship if distinct_id is None else distinct_id
         if not owner:
             if not self._missing_owner_warned:
                 self._missing_owner_warned = True
@@ -428,7 +443,7 @@ class TlonTelemetry:
 
     def _ensure_identified(self, owner: str) -> None:
         """One-time identify so the owner person carries bot attributes."""
-        if self._identified:
+        if owner in self._identified_owners:
             return
         self._identified = True
         props = {
@@ -454,6 +469,7 @@ class TlonTelemetry:
                 )
                 return
             self._identified_as = owner
+            self._identified_owners.add(owner)
             logger.info(
                 "[tlon] telemetry identify enqueued (%s): owner %s (bot %s)",
                 method,
@@ -693,7 +709,7 @@ class TlonTelemetry:
             {"uptimeSeconds": uptime_seconds, "reason": reason},
         )
 
-    def sse_reconnect(self, *, attempt: int, delay_seconds: float, error: Any) -> None:
+    def sse_reconnect(self, *, attempt: int, delay_seconds: float, error: Any, mode: str = "rebuild") -> None:
         self.capture(
             EVENT_SSE_RECONNECT,
             {
@@ -701,6 +717,7 @@ class TlonTelemetry:
                 "delaySeconds": delay_seconds,
                 "errorType": type(error).__name__ if error is not None else None,
                 "detail": scrub_detail(error),
+                "mode": mode,
             },
         )
 
@@ -724,6 +741,84 @@ class TlonTelemetry:
 
     def control_command(self, command: str) -> None:
         self.capture(EVENT_CONTROL_COMMAND, {"command": command})
+
+    def nudge_sent(
+        self,
+        *,
+        stage: int,
+        target: str,
+        success: bool,
+        message_id: Optional[str],
+        sent_at_ms: Optional[int],
+    ) -> None:
+        self.capture(
+            EVENT_HEARTBEAT_NUDGE_SENT,
+            {
+                "trigger": "heartbeat",
+                "nudgeStage": stage,
+                "nudgeTarget": target,
+                "channel": "tlon",
+                "success": success,
+                "accountId": "hermes",
+                "messageId": message_id,
+                "nudgeSentAtMs": sent_at_ms,
+            },
+        )
+
+    def migration_event(
+        self,
+        *,
+        event: str,
+        action: str,
+        migration_id: str,
+        duration_ms: Optional[int] = None,
+        deadline_exceeded: Optional[bool] = None,
+        error_text: Any = None,
+    ) -> None:
+        """Diary migration lifecycle (``/migrate``) — converting a diary channel
+        to a notes channel, not ship or hosting migration. One ``started`` plus one
+        terminal (``completed``/``failed``/``consent_required``) per accepted run,
+        correlated by ``migration_id``; ``action`` separates apply from cleanup.
+        Terminal-only fields are omitted rather than sent as null."""
+        properties: dict[str, Any] = {
+            "migrationEvent": event,
+            "action": action,
+            "migrationId": migration_id,
+        }
+        if duration_ms is not None:
+            properties["durationMs"] = duration_ms
+        if deadline_exceeded is not None:
+            properties["deadlineExceeded"] = deadline_exceeded
+        if error_text:
+            # Scrubbed and capped here, not at the call site, so no caller can
+            # forget.
+            properties["errorText"] = scrub_full(
+                error_text, MIGRATION_ERROR_MAX_CHARS
+            )
+        self.capture(EVENT_MIGRATION, properties)
+
+    def nudge_reengaged(
+        self,
+        *,
+        stage: int,
+        nudge_sent_at: float,
+        reengaged_at: int,
+        account_id: str,
+        owner_ship: str,
+    ) -> None:
+        self.capture(
+            EVENT_HEARTBEAT_NUDGE_REENGAGED,
+            {
+                "nudgeStage": stage,
+                "nudgeSentAt": nudge_sent_at,
+                "reengagedAt": reengaged_at,
+                "reengagementDelayMs": reengaged_at - nudge_sent_at,
+                "channel": "tlon",
+                "accountId": account_id,
+                "ownerShip": owner_ship,
+            },
+            distinct_id=owner_ship,
+        )
 
     # ── diagnostics ──────────────────────────────────────────────────────
 

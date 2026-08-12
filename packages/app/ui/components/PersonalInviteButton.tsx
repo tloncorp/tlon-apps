@@ -1,16 +1,11 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import {
-  LoadingSpinner,
-  Pressable,
-  triggerHaptic,
-  useCopy,
-} from '@tloncorp/ui';
+import { Button, useCopy } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Share } from 'react-native';
-import { View, isWeb } from 'tamagui';
+import { XStack, YStack, isWeb } from 'tamagui';
 
-import { ListItem } from './ListItem';
+import { TextInput } from './Form';
 
 const logger = createDevLogger('PersonalInviteButton', true);
 
@@ -19,71 +14,85 @@ export function PersonalInviteButton() {
   const isLoading = !inviteLink;
   const { doCopy, didCopy } = useCopy(inviteLink ?? '');
 
-  const handleInviteButtonPress = useCallback(async () => {
+  const trackInviteShared = useCallback(() => {
+    if (!inviteLink) return;
+
+    logger.trackEvent(AnalyticsEvent.InviteShared, {
+      inviteId: inviteLink.split('/').pop() ?? null,
+      inviteType: 'user',
+    });
+  }, [inviteLink]);
+
+  const handleCopyInviteLink = useCallback(async () => {
     if (isLoading || !inviteLink) return;
 
-    if (isWeb) {
-      doCopy();
-      return;
-    }
+    await doCopy();
+    trackInviteShared();
+  }, [doCopy, inviteLink, isLoading, trackInviteShared]);
+
+  const handleShareInviteLink = useCallback(async () => {
+    if (isLoading || !inviteLink) return;
 
     try {
-      triggerHaptic('baseButtonClick');
-      const result = await Share.share({
-        message: inviteLink,
-      });
-
-      if (result.action === Share.sharedAction) {
-        logger.trackEvent(AnalyticsEvent.InviteShared, {
-          inviteId: inviteLink.split('/').pop() ?? null,
-          inviteType: 'user',
+      if (isWeb) {
+        if (typeof navigator.share === 'function') {
+          await navigator.share({ url: inviteLink });
+        } else {
+          await doCopy();
+        }
+      } else {
+        const result = await Share.share({
+          message: inviteLink,
         });
+
+        if (result.action !== Share.sharedAction) return;
       }
+
+      trackInviteShared();
     } catch (error) {
       console.error('Error sharing:', error);
     }
-    return;
-  }, [doCopy, inviteLink, isLoading]);
+  }, [doCopy, inviteLink, isLoading, trackInviteShared]);
 
   return (
-    <Pressable onPress={handleInviteButtonPress} disabled={isLoading}>
-      <ListItem backgroundColor="$primaryText" opacity={isLoading ? 0.6 : 1}>
-        {isLoading ? (
-          <View
-            width="$4xl"
-            height="$4xl"
-            borderRadius="$s"
-            justifyContent="center"
-            alignItems="center"
-            flexShrink={0}
-            alignSelf="center"
-          >
-            <LoadingSpinner size="small" color="$background" />
-          </View>
-        ) : (
-          <ListItem.SystemIcon
-            icon="Send"
-            color="$background"
-            backgroundColor="unset"
-          />
-        )}
-        <ListItem.MainContent>
-          <ListItem.Title color="$background">
-            {isLoading
-              ? 'Preparing invite link'
-              : didCopy
-                ? 'Copied'
-                : 'Share Invite Link'}
-          </ListItem.Title>
-        </ListItem.MainContent>
-        <ListItem.EndContent>
-          <ListItem.SystemIcon
-            icon="ChevronRight"
-            color="$background"
-            backgroundColor="unset"
-          />
-        </ListItem.EndContent>
-      </ListItem>
-    </Pressable>
+    <YStack width="100%" gap="$s">
+      <XStack width="100%">
+        <TextInput
+          value={inviteLink ?? ''}
+          placeholder="Preparing invite link"
+          accent="positive"
+          editable={false}
+          selectTextOnFocus={!isLoading}
+          frameStyle={{
+            flex: 1,
+            height: 44,
+            borderTopRightRadius: 0,
+            borderBottomRightRadius: 0,
+            borderRightWidth: 0,
+          }}
+        />
+        <Button
+          intent="positive"
+          size="small"
+          width={44}
+          borderTopLeftRadius={0}
+          borderBottomLeftRadius={0}
+          icon={didCopy ? 'Checkmark' : 'Copy'}
+          accessibilityLabel={didCopy ? 'Copied' : 'Copy invite link'}
+          loading={isLoading}
+          disabled={isLoading}
+          onPress={handleCopyInviteLink}
+        />
+      </XStack>
+      <Button
+        intent="positive"
+        fill="outline"
+        size="small"
+        label="Share link"
+        leadingIcon="Send"
+        disabled={isLoading}
+        onPress={handleShareInviteLink}
+      />
+    </YStack>
   );
 }

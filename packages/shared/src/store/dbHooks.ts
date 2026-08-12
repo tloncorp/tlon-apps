@@ -299,10 +299,14 @@ export const useLiveThreadUnread = (unread: db.ThreadUnreadState | null) => {
       depsKey,
       'thread',
       unread ? unread.threadId : null,
+      unread ? unread.channelId : null,
     ],
     queryFn: async () => {
       if (unread) {
-        return db.getThreadUnreadState({ parentId: unread.threadId ?? '' });
+        return db.getThreadUnreadState({
+          parentId: unread.threadId ?? '',
+          channelId: unread.channelId ?? undefined,
+        });
       }
       return null;
     },
@@ -347,6 +351,27 @@ export const useLiveThreadUnreadsByChannel = (channelId: string | null) => {
         channelId,
         excludeRead: true,
       });
+    },
+  });
+};
+
+export const useChannelHasBotPost = ({
+  channelId,
+  authorId,
+}: {
+  channelId?: string | null;
+  authorId?: string | null;
+}) => {
+  const depsKey = useKeyFromQueryDeps(db.getChannelHasBotPost);
+
+  return useQuery({
+    enabled: !!channelId && !!authorId,
+    queryKey: ['channelHasBotPost', depsKey, channelId, authorId],
+    queryFn: async () => {
+      if (!channelId || !authorId) {
+        return false;
+      }
+      return db.getChannelHasBotPost({ channelId, authorId });
     },
   });
 };
@@ -604,6 +629,25 @@ export const usePostReference = ({
     },
   });
   return postQuery;
+};
+
+export const useNoteReference = ({
+  channelId,
+  noteId,
+  enabled = true,
+}: {
+  channelId: string;
+  noteId: string;
+  enabled?: boolean;
+}) => {
+  return useQuery({
+    queryKey: ['noteReference', channelId, noteId],
+    enabled: enabled && !!noteId,
+    // null = denied or missing, which can flip once the user joins the
+    // notebook or gains group access — let remounts refetch after 30s
+    staleTime: 30_000,
+    queryFn: () => api.getNoteReference({ channelId, noteId }),
+  });
 };
 
 export const useGroupsHostedBy = (userId: string, disabled?: boolean) => {

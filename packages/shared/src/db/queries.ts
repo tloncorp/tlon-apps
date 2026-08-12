@@ -39,7 +39,9 @@ import {
   or,
   sql,
 } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 
+import { trackEvent } from '../analytics';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
@@ -529,11 +531,40 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
         NOTES_SNAPSHOT_BATCH_SIZE
       );
 
+      // Snapshots race the save path's immediate write-through (which
+      // persists a note the moment a PUT succeeds): a sync that fetched
+      // before the save but lands after it would silently regress the row.
+      // Revisions are monotonic per note, so an incoming revision below the
+      // stored one proves the snapshot is stale for that note — keep the
+      // stored row wholesale. Splicing only some newer fields onto the
+      // stale copy would fabricate a row that never existed on the host
+      // (e.g. new revision + old title). Read inside the transaction so
+      // the comparison can't itself race the write-through.
+      const currentNotes = await txCtx.db.query.notesNotes.findMany({
+        where: eq($notesNotes.notebookFlag, notebook.id),
+      });
+      const currentByNoteId = new Map(
+        currentNotes.map((note) => [note.noteId, note])
+      );
+      // Renames and moves don't bump the revision, so equal revisions are
+      // ordered by updatedAt (both stamped by the host clock).
+      const mergedNotes = notes.map((incoming) => {
+        const current = currentByNoteId.get(incoming.noteId);
+        const currentIsNewer =
+          current &&
+          (current.revision > incoming.revision ||
+            (current.revision === incoming.revision &&
+              (current.updatedAt ?? 0) > (incoming.updatedAt ?? 0)));
+        return currentIsNewer
+          ? { ...current, syncedAt: incoming.syncedAt }
+          : incoming;
+      });
+
       await txCtx.db
         .delete($notesNotes)
         .where(eq($notesNotes.notebookFlag, notebook.id));
       await batchAction(
-        notes,
+        mergedNotes,
         async (batch) => {
           await txCtx.db.insert($notesNotes).values(batch);
         },
@@ -553,6 +584,59 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
     });
   },
   ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+// Revision-monotonic note write. When the update carries a `revision`, the
+// row is only written if it hasn't already advanced past it (equal revisions
+// break ties on `updatedAt` when the update carries one, mirroring the
+// snapshot merge — renames/moves don't bump the revision). The guard lives
+// in the UPDATE's WHERE clause so the comparison and the write are one
+// atomic statement: a check-then-write across separate queries would race
+// concurrent sync writes. Updates without a `revision` (metadata-only
+// fallbacks) apply unconditionally.
+export const updateNotesNote = createWriteQuery(
+  'updateNotesNote',
+  async (
+    {
+      notebookFlag,
+      noteId,
+      ...update
+    }: {
+      notebookFlag: string;
+      noteId: number;
+    } & Partial<
+      Pick<
+        NotesNote,
+        'bodyMd' | 'folderId' | 'revision' | 'title' | 'updatedAt' | 'updatedBy'
+      >
+    >,
+    ctx: QueryCtx
+  ) => {
+    const conditions = [
+      eq($notesNotes.notebookFlag, notebookFlag),
+      eq($notesNotes.noteId, noteId),
+    ];
+    if (update.revision != null) {
+      const equalRevision =
+        update.updatedAt != null
+          ? and(
+              eq($notesNotes.revision, update.revision),
+              or(
+                isNull($notesNotes.updatedAt),
+                lte($notesNotes.updatedAt, update.updatedAt)
+              )
+            )
+          : eq($notesNotes.revision, update.revision);
+      conditions.push(
+        or(lt($notesNotes.revision, update.revision), equalRevision)!
+      );
+    }
+    return ctx.db
+      .update($notesNotes)
+      .set(update)
+      .where(and(...conditions));
+  },
+  ['notesNotes']
 );
 
 export const deleteNotesNote = createWriteQuery(
@@ -1205,7 +1289,10 @@ export const getChats = createReadQuery(
       pin: g.pin,
       timestamp: g.haveInvite
         ? g.unread?.updatedAt ?? 0
-        : g.lastPostAt ?? g.unread?.updatedAt ?? 0,
+        : // whichever is newer: the latest post, or the activity summary's
+          // recency — activity that isn't a post (e.g. a note in a notebook
+          // channel) also reorders the sidebar
+          Math.max(g.lastPostAt ?? 0, g.unread?.updatedAt ?? 0),
       volumeSettings: g.volumeSettings,
       unreadCount: g.unread?.count ?? 0,
       group: g,
@@ -1848,6 +1935,25 @@ export const insertChannelOrder = createWriteQuery(
   ['channels']
 );
 
+export const getChannelHasBotPost = createReadQuery(
+  'getChannelHasBotPost',
+  async (
+    { channelId, authorId }: { channelId: string; authorId: string },
+    ctx: QueryCtx
+  ) => {
+    const post = await ctx.db.query.posts.findFirst({
+      where: and(
+        eq($posts.channelId, channelId),
+        eq($posts.authorId, authorId),
+        eq($posts.isBot, true)
+      ),
+      columns: { id: true },
+    });
+    return !!post;
+  },
+  ['posts']
+);
+
 export const getThreadPosts = createReadQuery(
   'getThreadPosts',
   ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
@@ -1869,11 +1975,21 @@ export const getThreadPosts = createReadQuery(
 
 export const getThreadUnreadState = createReadQuery(
   'getThreadUnreadState',
-  ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
+  (
+    { parentId, channelId }: { parentId: string; channelId?: string },
+    ctx: QueryCtx
+  ) => {
     if (!parentId) return Promise.resolve(null);
 
+    // note thread ids are small decimals that repeat across notebooks, so
+    // callers that know the channel should pin it to avoid collisions
     return ctx.db.query.threadUnreads.findFirst({
-      where: eq($threadUnreads.threadId, parentId),
+      where: channelId
+        ? and(
+            eq($threadUnreads.threadId, parentId),
+            eq($threadUnreads.channelId, channelId)
+          )
+        : eq($threadUnreads.threadId, parentId),
     });
   },
   ['threadUnreads']
@@ -3767,6 +3883,40 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     posts.map((p) => [p.id, p.channelId])
   );
 
+  const failedEdits = await ctx.db
+    .select({
+      id: $posts.id,
+      editStatus: $posts.editStatus,
+      lastEditContent: $posts.lastEditContent,
+      lastEditTitle: $posts.lastEditTitle,
+      lastEditImage: $posts.lastEditImage,
+    })
+    .from($posts)
+    .where(
+      and(
+        inArray(
+          $posts.id,
+          posts.map((post) => post.id)
+        ),
+        eq($posts.editStatus, 'failed'),
+        isNotNull($posts.lastEditContent)
+      )
+    );
+  const incomingPosts = new Map(posts.map((post) => [post.id, post]));
+  const confirmedEdits = failedEdits.filter((edit) => {
+    const incoming = incomingPosts.get(edit.id);
+    return (
+      incoming?.isEdited === true &&
+      incoming.content === edit.lastEditContent &&
+      (incoming.title ?? '') === (edit.lastEditTitle ?? '') &&
+      (incoming.image ?? '') === (edit.lastEditImage ?? '')
+    );
+  });
+  const confirmedEditIds = new Set(confirmedEdits.map((edit) => edit.id));
+  const unconfirmedEdits = failedEdits.filter(
+    (edit) => !confirmedEditIds.has(edit.id)
+  );
+
   const uniqueChannels = new Set(posts.map((p) => p.channelId)).size;
   await perfTime(
     'insertPostsBatch.total',
@@ -3796,6 +3946,22 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
               set: conflictUpdateSetAll($posts, ['hidden']),
             }),
         { count: posts.length, channels: uniqueChannels }
+      );
+
+      // A sync can carry an older server copy before a timed-out edit lands.
+      // Keep the retry marker until the incoming post matches that edit.
+      await Promise.all(
+        unconfirmedEdits.map((edit) =>
+          ctx.db
+            .update($posts)
+            .set({
+              editStatus: edit.editStatus,
+              lastEditContent: edit.lastEditContent,
+              lastEditTitle: edit.lastEditTitle,
+              lastEditImage: edit.lastEditImage,
+            })
+            .where(eq($posts.id, edit.id))
+        )
       );
 
       const reactions = posts
@@ -3845,6 +4011,9 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
         )
       );
       logger.log('clear matched pending');
+      confirmedEdits.forEach(() =>
+        trackEvent(domain.AnalyticsEvent.PostEditCompleted)
+      );
     },
     { count: posts.length, channels: uniqueChannels }
   );
@@ -5582,6 +5751,9 @@ export const getLatestActivityEvent = createReadQuery(
 export const getUnreadUnseenActivityEvents = createReadQuery(
   'getUnreadUnseenActivityEvents',
   async ({ seenMarker }: { seenMarker: number }, ctx: QueryCtx) => {
+    // note events carry their per-note unread as a thread row keyed by the
+    // note id (postId), not parentId, so they need their own join
+    const $noteThreadUnreads = alias($threadUnreads, 'noteThreadUnreads');
     return ctx.db
       .select()
       .from($activityEvents)
@@ -5592,6 +5764,13 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
       .leftJoin(
         $threadUnreads,
         eq($threadUnreads.threadId, $activityEvents.parentId)
+      )
+      .leftJoin(
+        $noteThreadUnreads,
+        and(
+          eq($noteThreadUnreads.channelId, $activityEvents.channelId),
+          eq($noteThreadUnreads.threadId, $activityEvents.postId)
+        )
       )
       .leftJoin(
         $groupUnreads,
@@ -5612,6 +5791,13 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
                 and(
                   eq($activityEvents.type, 'post'),
                   gt($channelUnreads.count, 0)
+                ),
+                and(
+                  or(
+                    eq($activityEvents.type, 'note-create'),
+                    eq($activityEvents.type, 'note-edit')
+                  ),
+                  gt($noteThreadUnreads.count, 0)
                 ),
                 // reacts don't bump an unread count (unreads=|), so gate on the
                 // source's notify flag instead: a notified react lights the bell
@@ -5639,7 +5825,10 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
         )
       );
   },
-  ['activityEvents']
+  // the predicate reads all three unread tables, so clearing an unread
+  // (e.g. reading a note) must re-run this even when no activity event
+  // row changed
+  ['activityEvents', 'channelUnreads', 'threadUnreads', 'groupUnreads']
 );
 
 export const checkActivityEmpty = createReadQuery(

@@ -420,14 +420,18 @@ describe('Round-trip: Story → Markdown → Story', () => {
   });
 
   describe('ship mentions (@mentions)', () => {
-    it('preserves Ship structure', () => {
+    it('canonicalizes a bare Ship to the sigiled wire form', () => {
       const story: Story = [{ inline: ['Hello ', { ship: 'zod' } as Ship] }];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
-      expect(result).toEqual(story);
+      // desk/lib/story-json.hoon decodes ships with `pfix sig`, so tolerated
+      // bare inputs must canonicalize to the wire-valid sigiled form.
+      expect(result).toEqual([
+        { inline: ['Hello ', { ship: '~zod' } as Ship] },
+      ]);
     });
 
-    it('preserves multiple Ship structures', () => {
+    it('canonicalizes multiple bare Ships to the sigiled wire form', () => {
       const story: Story = [
         {
           inline: [
@@ -440,16 +444,27 @@ describe('Round-trip: Story → Markdown → Story', () => {
       ];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
-      expect(result).toEqual(story);
+      expect(result).toEqual([
+        {
+          inline: [
+            { ship: '~zod' } as Ship,
+            ' and ',
+            { ship: '~bus' } as Ship,
+            ' are ships',
+          ],
+        },
+      ]);
     });
 
-    it('preserves planet name Ship', () => {
+    it('canonicalizes a bare planet Ship to the sigiled wire form', () => {
       const story: Story = [
         { inline: ['Hello ', { ship: 'sampel-palnet' } as Ship, '!'] },
       ];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
-      expect(result).toEqual(story);
+      expect(result).toEqual([
+        { inline: ['Hello ', { ship: '~sampel-palnet' } as Ship, '!'] },
+      ]);
     });
   });
 
@@ -682,7 +697,7 @@ describe('Round-trip: Story → Markdown → Story', () => {
   });
 
   describe('mixed content', () => {
-    it('preserves complex Story structure', () => {
+    it('preserves complex Story structure while canonicalizing its Ship', () => {
       const story: Story = [
         { block: { header: { tag: 'h1', content: ['Welcome'] } } as Header },
         { inline: ['Hello ', { ship: 'zod' } as Ship, '!'] },
@@ -702,7 +717,23 @@ describe('Round-trip: Story → Markdown → Story', () => {
       ];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
-      expect(result).toEqual(story);
+      expect(result).toEqual([
+        { block: { header: { tag: 'h1', content: ['Welcome'] } } as Header },
+        { inline: ['Hello ', { ship: '~zod' } as Ship, '!'] },
+        { block: { rule: null } as Rule },
+        {
+          block: {
+            listing: {
+              list: {
+                type: 'unordered',
+                contents: [],
+                items: [{ item: ['One'] }, { item: ['Two'] }],
+              },
+            },
+          } as ListingBlock,
+        },
+        { inline: [{ blockquote: ['Important'] } as Blockquote] },
+      ]);
     });
   });
 });

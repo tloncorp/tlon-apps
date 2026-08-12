@@ -4,7 +4,11 @@ import { driverForName } from '../drivers/index.js';
 import { runtimeContextFromEnv } from '../runtime/context.js';
 import { createScenarioActors, runScenarioTeardowns } from './shared/actors.js';
 import { commonScenarios } from './shared/common.js';
-import { scenarioTimeoutMs, scenariosForPartition } from './shared/dsl.js';
+import {
+  scenarioTestName,
+  scenarioTimeoutMs,
+  scenariosForPartition,
+} from './shared/dsl.js';
 import { resetBaselineIsolation } from './shared/isolation.js';
 
 const ctx = runtimeContextFromEnv();
@@ -75,13 +79,17 @@ describe(`common ${ctx.driverName} scenarios (${partition})`, () => {
       ctx,
       DEFAULT_SCENARIO_TIMEOUT_MS
     );
-    test(
-      scenario.name,
-      async () => {
-        await scenario.run({ ctx, driver, actors });
-      },
-      timeoutMs
-    );
+    if (scenario.skipReason) {
+      test.skip(scenarioTestName(scenario), () => {}, timeoutMs);
+    } else {
+      test(
+        scenarioTestName(scenario),
+        async () => {
+          await scenario.run({ ctx, driver, actors });
+        },
+        timeoutMs
+      );
+    }
   }
 });
 
@@ -92,7 +100,9 @@ logProgress(
 );
 
 function scenarioForTestName(testName: string) {
-  return scenarios.find((scenario) => testName.endsWith(scenario.name));
+  return scenarios.find((scenario) =>
+    testName.endsWith(scenarioTestName(scenario))
+  );
 }
 
 function logProgress(message: string): void {

@@ -26,6 +26,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   buildCacheProvider:
     process.env.TLON_EAS_CACHE_DISABLED === '1' ? undefined : 'eas',
+  experiments: {
+    reactCompiler: true,
+  },
   extra: {
     eas: {
       projectId,
@@ -122,7 +125,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-contacts',
       {
-        contactsPermission: 'Allow Tlon Messenger to access your contacts.',
+        contactsPermission:
+          'Tlon Messenger uses your contacts to help you find people you know who are already on the network and to invite others via SMS or email. Your contacts are never uploaded — only anonymous, hashed identifiers are sent to our server for matching.',
       },
     ],
     'expo-audio',

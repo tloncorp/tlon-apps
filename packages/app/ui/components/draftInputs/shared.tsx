@@ -1,5 +1,6 @@
 import { JSONContent } from '@tloncorp/api/urbit';
 import { JSONValue } from '@tloncorp/shared';
+import type { PostSendOptions } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import {
@@ -61,7 +62,10 @@ export interface DraftInputContext {
   onPresentationModeChange?: (
     presentationMode: 'inline' | 'fullscreen'
   ) => void;
-  sendPostFromDraft: (draft: domain.PostDataDraft) => Promise<void>;
+  sendPostFromDraft: (
+    draft: domain.PostDataDraft,
+    options?: PostSendOptions
+  ) => Promise<void>;
   setEditingPost?: (update: db.Post | undefined) => void;
   setShouldBlur: Dispatch<SetStateAction<boolean>>;
   shouldBlur: boolean;

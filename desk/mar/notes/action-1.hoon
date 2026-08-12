@@ -1,7 +1,7 @@
 ::  notes-action-1: HTTP / request-id wrapped action
 ::
 /-  n=notes
-/=  notes-json  /lib/notes/json
+/+  notes-json
 |_  =action:v1:n
 ++  grad  %noun
 ++  grab

@@ -16,6 +16,7 @@ import {
 import { monitorTlonProvider } from './monitor/index.js';
 import { tlonSetupWizard } from './setup-surface.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
+import { observeActiveTlonTurnDelivery } from './turn-recorder.js';
 import { resolveTlonAccount } from './types.js';
 import { withAuthenticatedTlonApi } from './urbit/api-client.js';
 import { authenticate } from './urbit/auth.js';
@@ -28,11 +29,9 @@ import {
   sendChannelPost,
   sendDm,
   sendDmWithStory,
-  sendVouchedDm,
-  sendVouchedDmWithStory,
 } from './urbit/send.js';
 import { markdownToStory } from './urbit/story.js';
-import { uploadImageFromUrl } from './urbit/upload.js';
+import { prepareOutboundMedia } from './urbit/upload.js';
 
 type ResolvedTlonAccount = ReturnType<typeof resolveTlonAccount>;
 type ConfiguredTlonAccount = ResolvedTlonAccount & {
@@ -80,24 +79,6 @@ async function getBotProfile(ship: string): Promise<BotProfile | undefined> {
   }
 
   return undefined;
-}
-
-// Resolve the identity to author outbound content as. When a `moon` is
-// configured the plugin runs on the host (`account.ship`) but speaks as the
-// moon: author = the moon, with a bot-meta object so it's flagged as a bot
-// (display name/avatar resolve from the host's published profile). Without a
-// moon we keep the legacy behavior of acting as the connected ship itself.
-async function resolveOutboundIdentity(
-  account: ConfiguredTlonAccount
-): Promise<{ fromShip: string; botProfile?: BotProfile }> {
-  if (account.moon) {
-    return {
-      fromShip: normalizeShip(account.moon),
-      botProfile: { nickname: '', avatar: '' },
-    };
-  }
-  const fromShip = normalizeShip(account.ship);
-  return { fromShip, botProfile: await getBotProfile(fromShip) };
 }
 
 function resolveOutboundContext(params: {
@@ -208,7 +189,7 @@ function recordOutboundLensDelivery(
   recordBackgroundContextLensOutput(target.lensId, output);
 }
 
-export const tlonRuntimeOutbound: Pick<
+const unobservedTlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
   'sendText' | 'sendMedia'
 > = {
@@ -222,8 +203,9 @@ export const tlonRuntimeOutbound: Pick<
         allowPrivateNetwork: account.allowPrivateNetwork ?? undefined,
       },
       async () => {
-        const { fromShip, botProfile } = await resolveOutboundIdentity(account);
+        const fromShip = normalizeShip(account.ship);
         const replyId = resolveReplyId(replyToId, threadId);
+        const botProfile = await getBotProfile(fromShip);
         if (parsed.kind === 'dm') {
           const conversationId = normalizeShip(parsed.ship);
           const target = resolveOutboundLensTarget(
@@ -231,24 +213,14 @@ export const tlonRuntimeOutbound: Pick<
             fromShip,
             conversationId
           );
-          // As a moon, route DMs through the vouched [moon,human] path so they
-          // don't commingle with the host's own DMs.
-          const result = account.moon
-            ? await sendVouchedDm({
-                as: fromShip,
-                toShip: parsed.ship,
-                text,
-                blob: target?.blob,
-                botProfile,
-              })
-            : await sendDm({
-                fromShip,
-                toShip: parsed.ship,
-                text,
-                blob: target?.blob,
-                replyToId: replyId,
-                botProfile,
-              });
+          const result = await sendDm({
+            fromShip,
+            toShip: parsed.ship,
+            text,
+            blob: target?.blob,
+            replyToId: replyId,
+            botProfile,
+          });
           recordOutboundLensDelivery(target, {
             messageId: result.messageId,
             conversationId,
@@ -299,12 +271,13 @@ export const tlonRuntimeOutbound: Pick<
         allowPrivateNetwork: account.allowPrivateNetwork ?? undefined,
       },
       async () => {
-        const uploadedUrl = mediaUrl
-          ? await uploadImageFromUrl(mediaUrl)
+        const media = mediaUrl
+          ? await prepareOutboundMedia(mediaUrl)
           : undefined;
-        const { fromShip, botProfile } = await resolveOutboundIdentity(account);
-        const story = buildMediaStory(text, uploadedUrl);
+        const fromShip = normalizeShip(account.ship);
+        const story = buildMediaStory(text, media);
         const replyId = resolveReplyId(replyToId, threadId);
+        const botProfile = await getBotProfile(fromShip);
         if (parsed.kind === 'dm') {
           const conversationId = normalizeShip(parsed.ship);
           const target = resolveOutboundLensTarget(
@@ -312,22 +285,14 @@ export const tlonRuntimeOutbound: Pick<
             fromShip,
             conversationId
           );
-          const result = account.moon
-            ? await sendVouchedDmWithStory({
-                as: fromShip,
-                toShip: parsed.ship,
-                story,
-                blob: target?.blob,
-                botProfile,
-              })
-            : await sendDmWithStory({
-                fromShip,
-                toShip: parsed.ship,
-                story,
-                blob: target?.blob,
-                replyToId: replyId,
-                botProfile,
-              });
+          const result = await sendDmWithStory({
+            fromShip,
+            toShip: parsed.ship,
+            story,
+            blob: target?.blob,
+            replyToId: replyId,
+            botProfile,
+          });
           recordOutboundLensDelivery(target, {
             messageId: result.messageId,
             conversationId,
@@ -360,6 +325,20 @@ export const tlonRuntimeOutbound: Pick<
       }
     );
   },
+};
+
+export const tlonRuntimeOutbound: Pick<
+  ChannelOutboundAdapter,
+  'sendText' | 'sendMedia'
+> = {
+  sendText: (params) =>
+    observeActiveTlonTurnDelivery(() =>
+      unobservedTlonRuntimeOutbound.sendText!(params)
+    ),
+  sendMedia: (params) =>
+    observeActiveTlonTurnDelivery(() =>
+      unobservedTlonRuntimeOutbound.sendMedia!(params)
+    ),
 };
 
 export async function probeTlonAccount(account: ConfiguredTlonAccount) {

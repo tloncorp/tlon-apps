@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import {
+  type ComputingPresenceReporter,
   createComputingPresenceReporter,
   createComputingPresenceTracker,
 } from './computing-presence.js';
@@ -32,6 +33,12 @@ vi.mock('@tloncorp/api', () => ({
   serializeComputingStatus,
   setConversationPresence,
 }));
+
+async function flushPresenceQueue() {
+  for (let index = 0; index < 8; index += 1) {
+    await Promise.resolve();
+  }
+}
 
 describe('createComputingPresenceTracker', () => {
   beforeEach(() => {
@@ -118,10 +125,11 @@ describe('createComputingPresenceTracker', () => {
 
     const tracker = createComputingPresenceTracker({ reporter });
 
-    await tracker.refreshRun({
+    tracker.refreshRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
     expect(reporter.publish).toHaveBeenCalledWith({
       conversationId: '~nec',
@@ -129,10 +137,11 @@ describe('createComputingPresenceTracker', () => {
       toolNames: [],
     });
 
-    await tracker.stopRun({
+    tracker.stopRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
     expect(reporter.publish).toHaveBeenLastCalledWith({
       conversationId: '~nec',
@@ -151,24 +160,26 @@ describe('createComputingPresenceTracker', () => {
 
       const tracker = createComputingPresenceTracker({ reporter });
 
-      await tracker.refreshRun({
+      tracker.refreshRun({
         conversationId: '~nec',
         runId: 'run-1',
       });
+      await flushPresenceQueue();
 
       expect(reporter.publish).toHaveBeenCalledTimes(1);
 
-      await tracker.addToolCall({
+      tracker.addToolCall({
         conversationId: '~nec',
         runId: 'run-1',
         toolName: 'web_fetch',
       });
 
-      await tracker.addToolCall({
+      tracker.addToolCall({
         conversationId: '~nec',
         runId: 'run-1',
         toolName: 'exec',
       });
+      await flushPresenceQueue();
 
       expect(reporter.publish).toHaveBeenCalledTimes(1);
 
@@ -182,10 +193,11 @@ describe('createComputingPresenceTracker', () => {
         toolNames: ['web_fetch', 'exec'],
       });
 
-      await tracker.clearToolCalls({
+      tracker.clearToolCalls({
         conversationId: '~nec',
         runId: 'run-1',
       });
+      await flushPresenceQueue();
 
       expect(reporter.publish).toHaveBeenCalledTimes(2);
 
@@ -207,15 +219,17 @@ describe('createComputingPresenceTracker', () => {
 
     const tracker = createComputingPresenceTracker({ reporter });
 
-    await tracker.refreshRun({
+    tracker.refreshRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
-    await tracker.refreshRun({
+    tracker.refreshRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
     expect(reporter.publish).toHaveBeenCalledTimes(1);
   });
@@ -230,26 +244,29 @@ describe('createComputingPresenceTracker', () => {
 
       const tracker = createComputingPresenceTracker({ reporter });
 
-      await tracker.refreshRun({
+      tracker.refreshRun({
         conversationId: '~nec',
         runId: 'run-1',
       });
+      await flushPresenceQueue();
 
       expect(reporter.publish).toHaveBeenCalledTimes(1);
 
       await vi.advanceTimersByTimeAsync(29_999);
-      await tracker.refreshRun({
+      tracker.refreshRun({
         conversationId: '~nec',
         runId: 'run-1',
       });
+      await flushPresenceQueue();
 
       expect(reporter.publish).toHaveBeenCalledTimes(1);
 
       await vi.advanceTimersByTimeAsync(1);
-      await tracker.refreshRun({
+      tracker.refreshRun({
         conversationId: '~nec',
         runId: 'run-1',
       });
+      await flushPresenceQueue();
 
       expect(reporter.publish).toHaveBeenCalledTimes(2);
       expect(reporter.publish).toHaveBeenLastCalledWith({
@@ -272,25 +289,29 @@ describe('createComputingPresenceTracker', () => {
       minUpdateIntervalMs: 0,
     });
 
-    await tracker.refreshRun({
+    tracker.refreshRun({
       conversationId: 'chat/~bus/general',
       runId: 'run-1',
     });
-    await tracker.addToolCall({
+    await flushPresenceQueue();
+    tracker.addToolCall({
       conversationId: 'chat/~bus/general',
       runId: 'run-1',
       toolName: 'web_fetch',
     });
+    await flushPresenceQueue();
 
-    await tracker.refreshRun({
+    tracker.refreshRun({
       conversationId: 'chat/~bus/general',
       runId: 'run-2',
     });
-    await tracker.addToolCall({
+    await flushPresenceQueue();
+    tracker.addToolCall({
       conversationId: 'chat/~bus/general',
       runId: 'run-2',
       toolName: 'exec',
     });
+    await flushPresenceQueue();
 
     expect(reporter.publish).toHaveBeenLastCalledWith({
       conversationId: 'chat/~bus/general',
@@ -298,10 +319,11 @@ describe('createComputingPresenceTracker', () => {
       toolNames: ['web_fetch', 'exec'],
     });
 
-    await tracker.stopRun({
+    tracker.stopRun({
       conversationId: 'chat/~bus/general',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
     expect(reporter.publish).toHaveBeenLastCalledWith({
       conversationId: 'chat/~bus/general',
@@ -322,15 +344,17 @@ describe('createComputingPresenceTracker', () => {
       minUpdateIntervalMs: 0,
     });
 
-    await tracker.refreshRun({
+    tracker.refreshRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
-    await tracker.stopRun({
+    tracker.stopRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
     expect(reporter.publish).toHaveBeenLastCalledWith({
       conversationId: '~nec',
@@ -338,10 +362,11 @@ describe('createComputingPresenceTracker', () => {
       toolNames: [],
     });
 
-    await tracker.refreshRun({
+    tracker.refreshRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
     expect(reporter.publish).toHaveBeenCalledTimes(2);
   });
@@ -356,21 +381,24 @@ describe('createComputingPresenceTracker', () => {
       minUpdateIntervalMs: 0,
     });
 
-    await tracker.refreshRun({
+    tracker.refreshRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
-    await tracker.stopRun({
+    tracker.stopRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
-    await tracker.addToolCall({
+    tracker.addToolCall({
       conversationId: '~nec',
       runId: 'run-1',
       toolName: 'exec',
     });
+    await flushPresenceQueue();
 
     expect(reporter.publish).toHaveBeenLastCalledWith({
       conversationId: '~nec',
@@ -378,15 +406,17 @@ describe('createComputingPresenceTracker', () => {
       toolNames: ['exec'],
     });
 
-    await tracker.refreshRun({
+    tracker.refreshRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
-    await tracker.stopRun({
+    tracker.stopRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
     expect(reporter.publish).toHaveBeenLastCalledWith({
       conversationId: '~nec',
@@ -405,21 +435,87 @@ describe('createComputingPresenceTracker', () => {
       minUpdateIntervalMs: 0,
     });
 
-    await tracker.refreshRun({
+    tracker.refreshRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
-    await tracker.stopRun({
+    tracker.stopRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
-    await tracker.stopRun({
+    tracker.stopRun({
       conversationId: '~nec',
       runId: 'run-1',
     });
+    await flushPresenceQueue();
 
     expect(reporter.publish).toHaveBeenCalledTimes(2);
+  });
+
+  test('lifecycle updates return immediately and coalesce behind a stalled publish', async () => {
+    let resolveFirstPublish: (() => void) | undefined;
+    const firstPublish = new Promise<void>((resolve) => {
+      resolveFirstPublish = resolve;
+    });
+    const reporter = {
+      publish: vi
+        .fn<ComputingPresenceReporter['publish']>()
+        .mockImplementationOnce(() => firstPublish)
+        .mockResolvedValue(undefined),
+    };
+    const tracker = createComputingPresenceTracker({
+      reporter,
+      minUpdateIntervalMs: 0,
+    });
+
+    expect(
+      tracker.refreshRun({ conversationId: '~nec', runId: 'run-1' })
+    ).toBeUndefined();
+    expect(reporter.publish).not.toHaveBeenCalled();
+
+    await flushPresenceQueue();
+    expect(reporter.publish).toHaveBeenCalledTimes(1);
+
+    expect(
+      tracker.addToolCall({
+        conversationId: '~nec',
+        runId: 'run-1',
+        toolName: 'web_fetch',
+      })
+    ).toBeUndefined();
+    expect(
+      tracker.clearToolCalls({ conversationId: '~nec', runId: 'run-1' })
+    ).toBeUndefined();
+    expect(
+      tracker.addToolCall({
+        conversationId: '~nec',
+        runId: 'run-1',
+        toolName: 'exec',
+      })
+    ).toBeUndefined();
+    expect(reporter.publish).toHaveBeenCalledTimes(1);
+
+    resolveFirstPublish?.();
+    await flushPresenceQueue();
+    expect(reporter.publish).toHaveBeenLastCalledWith({
+      conversationId: '~nec',
+      thinking: true,
+      toolNames: ['exec'],
+    });
+    expect(reporter.publish).toHaveBeenCalledTimes(2);
+
+    expect(
+      tracker.stopRun({ conversationId: '~nec', runId: 'run-1' })
+    ).toBeUndefined();
+    await flushPresenceQueue();
+    expect(reporter.publish).toHaveBeenLastCalledWith({
+      conversationId: '~nec',
+      thinking: false,
+      toolNames: [],
+    });
   });
 });

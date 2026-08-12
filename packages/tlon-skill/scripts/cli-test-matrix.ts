@@ -277,6 +277,24 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     ['posts', 'send', 'chat/~host/channel', 'message', '--image'],
     'Usage: tlon posts send'
   ),
+  usageErrorCase(
+    'posts send missing gallery title value',
+    ['posts', 'send', 'heap/~host/gallery', 'message', '--title'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send rejects an option token as a gallery title value',
+    [
+      'posts',
+      'send',
+      'heap/~zod/gallery',
+      'caption',
+      '--title',
+      '--sent-at',
+      '1234',
+    ],
+    'Usage: tlon posts send'
+  ),
   {
     name: 'posts send rejects non-http image url',
     args: ['posts', 'send', 'chat/~host/channel', '--image', 'ftp://x/y.png'],
@@ -627,6 +645,14 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     '--blob',
     '[{"type":"a2ui","version":1,"messages":[]}]',
   ]),
+  authRequiredCase('posts send heap title reaches auth', [
+    'posts',
+    'send',
+    'heap/~host/gallery',
+    'message',
+    '--title',
+    'Gallery item',
+  ]),
   authRequiredCase('posts send image-only reaches auth', [
     'posts',
     'send',
@@ -809,6 +835,24 @@ export const POSTS_FAMILY_CASES: CliCase[] = [
     '170.141',
     'Updated message',
   ]),
+  {
+    ...usageErrorCase(
+      'posts send title on chat nest refuses before auth',
+      [
+        'posts',
+        'send',
+        'chat/~host/channel',
+        'message',
+        '--title',
+        'Chat title',
+      ],
+      '--title is only supported for gallery (heap/) posts'
+    ),
+    stderrIncludes: [
+      '--title is only supported for gallery (heap/) posts',
+      'Usage: tlon posts send',
+    ],
+  },
   // The minimal help-literal: `--help` in the message slot is treated as edit
   // message content, so this reaches auth instead of printing help.
   authRequiredCase('posts edit minimal help-literal reaches auth', [

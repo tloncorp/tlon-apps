@@ -20,7 +20,7 @@ import {
 import { createDevLogger } from '@tloncorp/shared';
 import { Button } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useFormState } from 'react-hook-form';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
@@ -77,6 +77,12 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
     defaultValues: {
       email: DEFAULT_TLON_LOGIN_EMAIL ?? '',
     },
+  });
+  const { isValid: isPhoneValid } = useFormState({
+    control: phoneForm.control,
+  });
+  const { errors: emailErrors, isValid: isEmailValid } = useFormState({
+    control: emailForm.control,
   });
 
   const onSubmit = useCallback(async () => {
@@ -207,10 +213,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                   },
                 }}
                 render={({ field: { onChange, onBlur, value } }) => (
-                  <Field
-                    label="Email"
-                    error={emailForm.formState.errors.email?.message}
-                  >
+                  <Field label="Email" error={emailErrors.email?.message}>
                     <TextInput
                       placeholder="Email Address"
                       onBlur={() => {
@@ -238,9 +241,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
               loading={isSubmitting}
               disabled={
                 isSubmitting ||
-                (otpMethod === 'phone'
-                  ? !phoneForm.formState.isValid
-                  : !emailForm.formState.isValid)
+                (otpMethod === 'phone' ? !isPhoneValid : !isEmailValid)
               }
               label="Send code to log in"
               centered

@@ -1,28 +1,43 @@
 import { normalizeShip } from '../targets.js';
 
-// Cite types for message references
-export interface ChanCite {
-  chan: { nest: string; where: string };
-}
-export interface GroupCite {
-  group: string;
-}
-export interface DeskCite {
-  desk: { flag: string; where: string };
-}
-export interface BaitCite {
-  bait: { group: string; graph: string; where: string };
-}
-export type Cite = ChanCite | GroupCite | DeskCite | BaitCite;
-
 export interface ParsedCite {
   type: 'chan' | 'group' | 'desk' | 'bait';
   nest?: string;
-  author?: string;
   postId?: string;
+  replyId?: string;
   group?: string;
   flag?: string;
   where?: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+export function parseChannelWhere(where: unknown): {
+  postId?: string;
+  replyId?: string;
+} {
+  if (typeof where !== 'string') {
+    return {};
+  }
+
+  const legacyMatch = /^\/msg\/~[a-z-]+\/([^/]+)$/.exec(where);
+  if (legacyMatch) {
+    return { postId: legacyMatch[1] };
+  }
+
+  const currentMatch = /^\/(?:msg|note|curio)\/([^/]+)(?:\/([^/]+))?$/.exec(
+    where
+  );
+  if (!currentMatch) {
+    return {};
+  }
+
+  return {
+    postId: currentMatch[1],
+    ...(currentMatch[2] ? { replyId: currentMatch[2] } : {}),
+  };
 }
 
 // Extract all cites from message content
@@ -34,33 +49,47 @@ export function extractCites(content: unknown): ParsedCite[] {
   const cites: ParsedCite[] = [];
 
   for (const verse of content) {
-    if (verse?.block?.cite && typeof verse.block.cite === 'object') {
+    if (
+      isRecord(verse) &&
+      isRecord(verse.block) &&
+      isRecord(verse.block.cite)
+    ) {
       const cite = verse.block.cite;
 
-      if (cite.chan && typeof cite.chan === 'object') {
-        const { nest, where } = cite.chan;
-        const whereMatch = where?.match(/\/msg\/(~[a-z-]+)\/(.+)/);
+      if (isRecord(cite.chan)) {
+        const nest = cite.chan.nest;
+        const where = cite.chan.where;
+        const parsedWhere = parseChannelWhere(where);
         cites.push({
           type: 'chan',
-          nest,
-          where,
-          author: whereMatch?.[1],
-          postId: whereMatch?.[2],
+          ...(typeof nest === 'string' ? { nest } : {}),
+          ...(typeof where === 'string' ? { where } : {}),
+          ...parsedWhere,
         });
       } else if (cite.group && typeof cite.group === 'string') {
         cites.push({ type: 'group', group: cite.group });
-      } else if (cite.desk && typeof cite.desk === 'object') {
+      } else if (isRecord(cite.desk)) {
         cites.push({
           type: 'desk',
-          flag: cite.desk.flag,
-          where: cite.desk.where,
+          ...(typeof cite.desk.flag === 'string'
+            ? { flag: cite.desk.flag }
+            : {}),
+          ...(typeof cite.desk.where === 'string'
+            ? { where: cite.desk.where }
+            : {}),
         });
-      } else if (cite.bait && typeof cite.bait === 'object') {
+      } else if (isRecord(cite.bait)) {
         cites.push({
           type: 'bait',
-          group: cite.bait.group,
-          nest: cite.bait.graph,
-          where: cite.bait.where,
+          ...(typeof cite.bait.group === 'string'
+            ? { group: cite.bait.group }
+            : {}),
+          ...(typeof cite.bait.graph === 'string'
+            ? { nest: cite.bait.graph }
+            : {}),
+          ...(typeof cite.bait.where === 'string'
+            ? { where: cite.bait.where }
+            : {}),
         });
       }
     }
@@ -214,6 +243,58 @@ export function stripBotMention(
   return messageText.replace(normalizeShip(botShipName), '').trim();
 }
 
+/**
+ * Whether a line is one of extractMessageText's rendered cite placeholders.
+ *
+ * Cite nests and references are sender-controlled, so callers that search the
+ * rendered message must treat these lines as metadata rather than live text.
+ */
+export function isCitePlaceholderLine(line: string): boolean {
+  return (
+    /^> \[quoted from .+\]$/.test(line) ||
+    line === '> [quoted message]' ||
+    /^> \[ref: .+\]$/.test(line)
+  );
+}
+
+/**
+ * Strip the first bot-ship occurrence outside extractMessageText cite
+ * placeholders. Cite nests are sender-controlled, so a placeholder must not
+ * consume the mention that the sender put in the current message.
+ *
+ * A user-authored line that happens to match a placeholder is treated as a
+ * placeholder too. That ambiguity is acceptable because the rendered format
+ * has no provenance once it reaches this helper.
+ */
+export function stripBotMentionOutsidePlaceholders(
+  messageText: string,
+  botShipName: string
+): string {
+  if (!messageText || !botShipName) {
+    return messageText;
+  }
+
+  const normalizedBotShip = normalizeShip(botShipName);
+  let stripped = false;
+  const text = messageText
+    .split('\n')
+    .map((line) => {
+      if (
+        stripped ||
+        isCitePlaceholderLine(line) ||
+        !line.includes(normalizedBotShip)
+      ) {
+        return line;
+      }
+
+      stripped = true;
+      return line.replace(normalizedBotShip, '');
+    })
+    .join('\n');
+
+  return text.trim();
+}
+
 export function isDmAllowed(
   senderShip: string,
   allowlist: string[] | undefined
@@ -228,11 +309,15 @@ export function isDmAllowed(
 }
 
 /**
- * Check if a group invite from a ship should be auto-accepted.
+ * Check if a ship is on the group-invite allowlist.
+ *
+ * Used by resolveGroupInviteAction: allowlist membership (plus a positive
+ * "not blocked" confirmation) is sufficient for auto-accept. The
+ * autoAcceptGroupInvites flag no longer governs invite authorization.
  *
  * SECURITY: Fail-safe to deny. If allowlist is empty or undefined,
- * ALL invites are rejected - even if autoAcceptGroupInvites is enabled.
- * This prevents misconfigured bots from accepting malicious invites.
+ * ALL invites are rejected. This prevents misconfigured bots from
+ * accepting malicious invites.
  */
 export function isGroupInviteAllowed(
   inviterShip: string,
@@ -246,6 +331,117 @@ export function isGroupInviteAllowed(
   return allowlist
     .map((ship) => normalizeShip(ship))
     .some((ship) => ship === normalizedInviter);
+}
+
+/**
+ * Parse a `/chat/blocked.json` scry payload into a ship list.
+ *
+ * SECURITY: throws when the payload is not an array. The block list decides
+ * whether an allowlisted ship may auto-join, so "we could not understand the
+ * response" must stay distinguishable from "nobody is blocked" — coercing a
+ * malformed payload to `[]` would read as positive confirmation that the
+ * inviter is not blocked and auto-accept them.
+ *
+ * Individual non-string entries are dropped rather than failing the whole
+ * array. Throwing on a partially-malformed list would be *less* safe than the
+ * lenient behavior it replaced: callers that fail open (`isShipBlocked`,
+ * `getBlockedShips`) would catch the throw and report "not blocked", so one
+ * bad element could unblock every genuinely blocked ship in the list.
+ * Dropping bad elements keeps every ship we can actually read.
+ *
+ * The %ships mark serializes an empty block list as `[]`, so a well-formed
+ * empty response is a valid array and is NOT an error.
+ */
+export function parseBlockedShips(raw: unknown): string[] {
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      `blocked list scry returned ${raw === null ? 'null' : typeof raw}, expected an array`
+    );
+  }
+  return raw.filter((ship): ship is string => typeof ship === 'string');
+}
+
+/**
+ * The action to take for a pending group invite.
+ *
+ * - `accept/owner`: inviter is the configured owner — auto-accept.
+ * - `accept/allowlisted`: inviter is on `groupInviteAllowlist` and a
+ *   block-list lookup positively confirmed they are not blocked — auto-accept.
+ * - `queue`: inviter is not authorized (or authorization could not be
+ *   confirmed) and an owner is configured — send an approval card.
+ * - `ignore/blocked`: a block-list lookup positively confirmed the inviter
+ *   is blocked — silently drop, no card.
+ * - `ignore/no-owner`: inviter is not authorized and no owner is
+ *   configured — silently drop.
+ */
+export type GroupInviteAction =
+  | { action: 'accept'; reason: 'owner' | 'allowlisted' }
+  | { action: 'queue' }
+  | { action: 'ignore'; reason: 'blocked' | 'no-owner' };
+
+/**
+ * Resolve what to do with a group invite, fail-closed.
+ *
+ * SECURITY: auto-accept requires a positive "not blocked" confirmation.
+ * `deps.fetchBlockedShips` must reject (not swallow) on failure — a
+ * rejection means "unknown", which falls through to the queue/no-owner
+ * path and must never auto-accept. The gate passes `scryBlockedShips`
+ * (rejects on failure), not `isShipBlocked` (swallows errors to
+ * "not blocked").
+ *
+ * Confirmed-blocked and lookup-unknown are distinct outcomes: a
+ * confirmed-blocked inviter dispatches straight to silent ignore (routing
+ * it through the queue path would re-ask a fail-open blocked lookup and
+ * could card a ship already known to be blocked); only unknown falls
+ * through to the queue path, where that second lookup is a genuine
+ * recovery attempt.
+ */
+export async function resolveGroupInviteAction(
+  params: {
+    inviterShip: string;
+    ownerShip: string | null; // normalized effective owner; null ⇒ no owner
+    allowlist: string[];
+  },
+  deps: {
+    /** Resolves the block list. MUST reject (not swallow) on failure —
+     *  a rejection means "unknown", which must never auto-accept. */
+    fetchBlockedShips: () => Promise<string[]>;
+  }
+): Promise<GroupInviteAction> {
+  const { inviterShip, ownerShip, allowlist } = params;
+  const hasOwner = ownerShip !== null;
+
+  // Owner invites are always accepted, without consulting the block list
+  // (keeps the owner path scry-free and preserves the existing ordering).
+  if (hasOwner && normalizeShip(inviterShip) === ownerShip) {
+    return { action: 'accept', reason: 'owner' };
+  }
+
+  const queueOrIgnore: GroupInviteAction = hasOwner
+    ? { action: 'queue' }
+    : { action: 'ignore', reason: 'no-owner' };
+
+  if (!isGroupInviteAllowed(inviterShip, allowlist)) {
+    return queueOrIgnore;
+  }
+
+  // Allowlisted: auto-accept only on a positive "not blocked" confirmation.
+  let blockedShips: string[];
+  try {
+    blockedShips = await deps.fetchBlockedShips();
+  } catch {
+    // Lookup failed or timed out — unknown. Fall through to queue/no-owner;
+    // never auto-accept on an unconfirmed lookup.
+    return queueOrIgnore;
+  }
+
+  const normalizedInviter = normalizeShip(inviterShip);
+  if (blockedShips.some((s) => normalizeShip(s) === normalizedInviter)) {
+    // Confirmed blocked — silent ignore directly, not the queue path.
+    return { action: 'ignore', reason: 'blocked' };
+  }
+
+  return { action: 'accept', reason: 'allowlisted' };
 }
 
 /**
@@ -299,7 +495,10 @@ function extractInlineText(items: any[]): string {
     .join('');
 }
 
-export function extractMessageText(content: unknown): string {
+export function extractMessageText(
+  content: unknown,
+  opts: { omitCites?: boolean } = {}
+): string {
   if (!content || !Array.isArray(content)) {
     return '';
   }
@@ -382,18 +581,18 @@ export function extractMessageText(content: unknown): string {
 
         // Cite/quote blocks - parse the reference structure
         if (block.cite && typeof block.cite === 'object') {
+          if (opts.omitCites) {
+            return '';
+          }
           const cite = block.cite;
 
           // ChanCite - reference to a channel message
           if (cite.chan && typeof cite.chan === 'object') {
             const { nest, where } = cite.chan;
-            // where is typically /msg/~author/timestamp
-            const whereMatch = where?.match(/\/msg\/(~[a-z-]+)\/(.+)/);
-            if (whereMatch) {
-              const [, author, _postId] = whereMatch;
-              return `\n> [quoted: ${author} in ${nest}]\n`;
+            if (typeof nest === 'string' && nest.length > 0) {
+              return `\n> [quoted from ${nest}]\n`;
             }
-            return `\n> [quoted from ${nest}]\n`;
+            return '\n> [quoted message]\n';
           }
 
           // GroupCite - reference to a group
@@ -419,6 +618,20 @@ export function extractMessageText(content: unknown): string {
     })
     .join('\n')
     .trim();
+}
+
+export function prepareInboundText(
+  content: unknown,
+  botShipName: string,
+  nickname?: string
+): { rawText: string; engagementText: string; mentioned: boolean } {
+  const rawText = extractMessageText(content);
+  const engagementText = extractMessageText(content, { omitCites: true });
+  return {
+    rawText,
+    engagementText,
+    mentioned: isBotMentioned(engagementText, botShipName, nickname),
+  };
 }
 
 export function isSummarizationRequest(messageText: string): boolean {

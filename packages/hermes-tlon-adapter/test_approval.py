@@ -281,6 +281,123 @@ class A2UICardTests(unittest.TestCase):
         update = card["messages"][1]["updateComponents"]
         return {component["id"]: component for component in update["components"]}, update
 
+    def test_migration_cards_have_one_exact_action(self):
+        for command, expected_copy in (
+            (
+                "/migrate diary/~bot/log --allow-write-widening",
+                (
+                    "Write access",
+                    'Migrate "Field Notes" to %notes with wider write access?',
+                    "The diary permissions cannot be preserved without widening write access.",
+                    "Every reader will become an editor and will be able to edit every note in the migrated notebook.",
+                    "Accept widening and proceed — every reader becomes an editor",
+                ),
+            ),
+            (
+                "/migrate diary/~bot/log",
+                (
+                    "Diary migration",
+                    'Migrate "Field Notes" to %notes?',
+                    "%diary is deprecated; migrating lets the bot read and post in this channel.",
+                    approval.MIGRATION_CARD_WARNING,
+                    "Migrate diary",
+                ),
+            ),
+            (
+                "/migrate cleanup notes/~bot/log",
+                (
+                    "Migration cleanup",
+                    'Delete migrated notebook "Field Notes"?',
+                    "Use this after a failed migration leaves a partial %notes notebook.",
+                    "The migrated notebook will be deleted; the archived diary will not be changed.",
+                    "Delete notebook",
+                ),
+            ),
+        ):
+            eyebrow, title, context, allow_note, expected_label = expected_copy
+            card = json.loads(
+                approval.build_migrate_card(command, title="  Field Notes  ")
+            )[0]
+            self.assertTrue(approval.validate_a2ui_card(card))
+            components, _ = self.card_components(card)
+            self.assertEqual(components["root"]["child"], "body")
+            self.assertEqual(
+                components["body"]["children"],
+                [
+                    "eyebrow",
+                    "title",
+                    "titleDivider",
+                    "context0",
+                    "context1",
+                    "divider",
+                    "details",
+                    "actions",
+                ],
+            )
+            self.assertEqual(components["eyebrow"]["variant"], "caption")
+            self.assertEqual(components["eyebrow"]["text"], eyebrow)
+            self.assertEqual(components["title"]["variant"], "h3")
+            self.assertEqual(components["title"]["text"], title)
+            self.assertEqual(components["context0"]["text"], context)
+            self.assertEqual(components["context1"]["text"], f"Command: {command}")
+            self.assertEqual(components["details"]["children"], ["allowNote"])
+            self.assertEqual(components["allowNote"]["text"], allow_note)
+            self.assertEqual(components["actions"]["children"], ["action"])
+            buttons = [
+                component
+                for component in components.values()
+                if component["component"] == "Button"
+            ]
+            self.assertEqual(len(buttons), 1)
+            button = buttons[0]
+            self.assertEqual(
+                button["action"]["event"]["context"]["text"],
+                command,
+            )
+            self.assertEqual(
+                components[button["child"]]["text"],
+                expected_label,
+            )
+
+    def test_migration_card_truncates_title_and_command_like_reference(self):
+        command = f"/migrate {'c' * 983}"
+        card = json.loads(
+            approval.build_migrate_card(command, title="t" * 61)
+        )[0]
+        components, _ = self.card_components(card)
+
+        self.assertEqual(
+            components["title"]["text"],
+            f'Migrate "{"t" * 57}..." to %notes?',
+        )
+        self.assertEqual(
+            components["context1"]["text"],
+            f"Command: {command[:988]}...",
+        )
+        self.assertEqual(len(components["context1"]["text"]), 1000)
+
+    def test_migration_card_keeps_31_emoji_title_intact(self):
+        title = "\U0001f600" * 31
+        card = json.loads(
+            approval.build_migrate_card("/migrate diary/~pen/log", title=title)
+        )[0]
+        components, _ = self.card_components(card)
+
+        self.assertEqual(
+            components["title"]["text"],
+            f'Migrate "{title}" to %notes?',
+        )
+
+    def test_migration_card_rejects_failed_validation(self):
+        original = approval.validate_a2ui_card
+        approval.validate_a2ui_card = lambda _card: False
+        self.addCleanup(setattr, approval, "validate_a2ui_card", original)
+
+        with self.assertRaisesRegex(ValueError, "invalid migration"):
+            approval.build_migrate_card(
+                "/migrate cleanup notes/~bot/log"
+            )
+
     def test_blob_envelope(self):
         card = approval.build_approval_card(make_approval())
         self.assertEqual(card["type"], "a2ui")

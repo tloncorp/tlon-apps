@@ -1,4 +1,4 @@
-/-  c=chat, cv=chat-ver, ch=channels, contacts, activity
+/-  c=chat, cv=chat-ver, ch=channels, contacts, av=activity-ver
 /+  *test-agent, cc=chat-conv
 /=  agent  /app/chat
 |%
@@ -233,7 +233,7 @@
     [whom (v5:response-writs:v7:cc response)]
   =/  old-response-6=[whom:v6:cv response:writs:v6:cv]
     [whom (v6:response-writs:v7:cc response)]
-  =/  activity-action=action:activity
+  =/  activity-action=action:v9:av
     [%add %dm-post [[~zod now.bw] now.bw] [%ship ~zod] ~[verse] &]
   ;<  *  bind:m  (ex-scry-result /x/unreads !>(unreads))
   :: ~&  'have unreads'

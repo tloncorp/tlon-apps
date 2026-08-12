@@ -1,8 +1,10 @@
 import {
   Urbit,
+  addReaction,
   configureClient,
   createGroup,
   deleteGroup,
+  deleteNotesNotebookBestEffort,
   getChannelPosts,
   getCurrentUserId,
   getGroup,
@@ -11,12 +13,13 @@ import {
   getSettings,
   inviteGroupMembers,
   joinGroup,
+  notesV1,
   poke,
   scry,
   sendPost,
   sendReply,
 } from '@tloncorp/api';
-import type { Story } from '@tloncorp/api';
+import type { NotesV1Note, NotesV1NotebookSummary, Story } from '@tloncorp/api';
 import { markdownToStory } from '@tloncorp/api/client/markdown';
 
 import { randomId, requireEnv } from '../runtime/util.js';
@@ -42,6 +45,19 @@ export interface PromptResult {
 
 export type StoryInput = Story | string;
 
+/** Channel kinds a scenario can seed. The value is the Urbit nest prefix. */
+export type ChannelKind = 'chat' | 'diary';
+
+const CHANNEL_KIND_DB_TYPES: Record<ChannelKind, 'chat' | 'notebook'> = {
+  chat: 'chat',
+  diary: 'notebook',
+};
+
+const CHANNEL_KIND_DESCRIPTIONS: Record<ChannelKind, string> = {
+  chat: 'General chat',
+  diary: 'General notebook',
+};
+
 export interface BotProfileInput {
   nickname: string;
   avatar: string;
@@ -50,10 +66,26 @@ export interface BotProfileInput {
 export interface ChannelPost {
   id?: string;
   authorId?: string;
+  parentId?: string | null;
   sentAt?: number;
   sequenceNum?: number | null;
   text: string;
   content?: unknown;
+}
+
+export interface PostWithReplies {
+  root: {
+    id: string;
+    author: string;
+    text: string;
+    parentId?: string;
+  };
+  replies: Array<{
+    id: string;
+    author: string;
+    text: string;
+    parentId?: string;
+  }>;
 }
 
 export interface PostRef {
@@ -74,7 +106,15 @@ export interface StateReader {
     desk: string,
     bucket: string
   ): Promise<Record<string, unknown>>;
+  listNotebooks(): Promise<NotesV1NotebookSummary[]>;
+  listNotes(target: string): Promise<NotesV1Note[]>;
+  deleteNotebook(target: string): Promise<void>;
   channelPosts(channelId: string, count?: number): Promise<ChannelPost[]>;
+  postWithReplies(params: {
+    channelId: string;
+    rootId: string;
+    rootAuthor: string;
+  }): Promise<PostWithReplies>;
   latestSequenceFrom(
     peerShip: string,
     authorShip: string,
@@ -225,6 +265,7 @@ export class TlonActorClient {
     channelId: string;
     content: StoryInput;
     blob?: string;
+    metadata?: { title?: string; image?: string };
     botProfile?: BotProfileInput;
   }): Promise<PostRef> {
     const sentAt = Date.now();
@@ -236,6 +277,7 @@ export class TlonActorClient {
         sentAt,
         content,
         blob: params.blob,
+        metadata: params.metadata,
         botProfile: params.botProfile,
       });
     });
@@ -285,15 +327,44 @@ export class TlonActorClient {
     return ref;
   }
 
+  async addReact(params: {
+    channelId: string;
+    postId: string;
+    react: string;
+    postAuthor: string;
+    parentId?: string;
+    parentAuthorId?: string;
+  }): Promise<void> {
+    await this.withClient(async () => {
+      await addReaction({
+        channelId: params.channelId,
+        postId: params.postId,
+        emoji: params.react,
+        our: this.shipName,
+        postAuthor: normalizeShip(params.postAuthor),
+        parentId: params.parentId,
+        parentAuthorId: params.parentAuthorId
+          ? normalizeShip(params.parentAuthorId)
+          : undefined,
+      });
+    });
+  }
+
   async createGroupWithChannel(params: {
     title: string;
     members?: string[];
+    channelKind?: ChannelKind;
+    channelTitle?: string;
   }): Promise<{ groupId: string; chatChannel: string }> {
+    const channelKind = params.channelKind ?? 'chat';
+    const channelTitle = params.channelTitle ?? 'General';
     const slug = slugify(
       `${params.title}-${Date.now().toString(36)}-${randomId()}`
     );
     const groupId = `${this.shipName}/${slug}`;
-    const chatChannel = `chat/${this.shipName}/${slug}-general`;
+    // The nest prefix is the only thing that carries the channel kind on the
+    // wire: createGroup transmits channelId + meta and drops `type`.
+    const chatChannel = `${channelKind}/${this.shipName}/${slug}-general`;
     const memberIds = params.members?.map(normalizeShip);
 
     await this.withClient(async () => {
@@ -309,9 +380,9 @@ export class TlonActorClient {
           channels: [
             {
               id: chatChannel,
-              title: 'General',
-              description: 'General chat',
-              type: 'chat',
+              title: channelTitle,
+              description: CHANNEL_KIND_DESCRIPTIONS[channelKind],
+              type: CHANNEL_KIND_DB_TYPES[channelKind],
               groupId,
             },
           ],
@@ -413,6 +484,20 @@ export class TlonActorClient {
         return raw?.all?.[desk]?.[bucket] ?? raw?.desk?.[bucket] ?? {};
       },
 
+      listNotebooks: async () => {
+        return this.withClient(async () => notesV1.listNotebooks());
+      },
+
+      listNotes: async (target: string) => {
+        return this.withClient(async () => notesV1.listNotes(target));
+      },
+
+      deleteNotebook: async (target: string) => {
+        await this.withClient(async () => {
+          await deleteNotesNotebookBestEffort(target);
+        });
+      },
+
       channelPosts: async (channelId: string, count = 20) => {
         return this.withClient(async () => {
           const result = await getChannelPosts({
@@ -421,6 +506,22 @@ export class TlonActorClient {
             mode: 'newest',
           });
           return (result.posts ?? []).map(postFromApi);
+        });
+      },
+
+      postWithReplies: async ({ channelId, rootId, rootAuthor }) => {
+        return this.withClient(async () => {
+          const post = await getPostWithReplies({
+            channelId,
+            postId: rootId,
+            authorId: normalizeShip(rootAuthor),
+          });
+          return {
+            root: normalizedThreadPost(post),
+            replies: ((post as { replies?: unknown[] }).replies ?? []).map(
+              normalizedThreadPost
+            ),
+          };
         });
       },
 
@@ -637,6 +738,7 @@ function postFromApi(post: unknown): ChannelPost {
   const raw = post as {
     id?: string;
     authorId?: string;
+    parentId?: string | null;
     sentAt?: number;
     sequenceNum?: number | null;
     textContent?: string | null;
@@ -647,10 +749,29 @@ function postFromApi(post: unknown): ChannelPost {
     authorId: raw.authorId,
     sentAt: raw.sentAt,
     sequenceNum: raw.sequenceNum,
+    parentId: raw.parentId,
     text: (
       raw.textContent ?? storyInputText((raw.content ?? []) as Story)
     ).trim(),
     content: raw.content,
+  };
+}
+
+function normalizedThreadPost(post: unknown): {
+  id: string;
+  author: string;
+  text: string;
+  parentId?: string;
+} {
+  const normalized = postFromApi(post);
+  if (!normalized.id || !normalized.authorId) {
+    throw new Error('Expected fetched post to include an id and author.');
+  }
+  return {
+    id: normalized.id,
+    author: normalized.authorId,
+    text: normalized.text,
+    ...(normalized.parentId ? { parentId: normalized.parentId } : {}),
   };
 }
 

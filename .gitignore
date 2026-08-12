@@ -51,3 +51,7 @@ dump.sqlite3
 clurd
 
 .obsidian
+.pi
+
+# Local Superpowers planning artifacts
+/docs/superpowers/

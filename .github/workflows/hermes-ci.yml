@@ -7,6 +7,10 @@ on:
       - "packages/tlon-bot-e2e/**"
       - "packages/tlon-skill/**"
       - "packages/api/**"
+      - "desk/**"
+      - "peru.yaml"
+      - "scripts/assemble-desk.sh"
+      - "scripts/sync-deps.sh"
       - "pnpm-lock.yaml"
       - ".github/workflows/hermes-ci.yml"
 
@@ -14,10 +18,17 @@ jobs:
   shared-e2e:
     name: Shared E2E
     runs-on: blacksmith-8vcpu-ubuntu-2204
-    timeout-minutes: 35
+    # Three runtimes boot fresh stacks and re-apply the branch %groups desk
+    # (baseline and cron scenario partitions, then the package suite; ~8-9
+    # minutes per apply on native runners when the desk has drifted). The
+    # previous budgets were exceeded at exactly that arithmetic.
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install peru
+        run: pipx install --force peru
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v4
@@ -35,7 +46,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/tlon-bot-e2e/fake-ships
-          key: tlon-bot-e2e-fake-ships-v1
+          # Keyed on the compose file so a pier-generation bump rolls the
+          # cache: Actions caches are immutable, and a stale exact-key hit
+          # would leave every job re-downloading ~1GB of archives forever.
+          key: tlon-bot-e2e-fake-ships-${{ hashFiles('packages/tlon-bot-e2e/docker/docker-compose.base.yml') }}
 
       - name: Prepare fake ship cache
         run: mkdir -p .cache/tlon-bot-e2e/fake-ships
@@ -52,6 +66,15 @@ jobs:
             ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
           TLON_BOT_E2E_RUN_ID:
             ${{ github.run_id }}-${{ github.run_attempt }}-hermes
+        run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:hermes
+
+      - name: Run Hermes cron partition E2E
+        env:
+          FAKE_SHIP_CACHE_DIR:
+            ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
+          TLON_BOT_E2E_RUN_ID:
+            ${{ github.run_id }}-${{ github.run_attempt }}-hermes-cron
+          TLON_BOT_E2E_SCENARIO_PARTITIONS: cron
         run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:hermes
 
       - name: Run Hermes package smoke E2E

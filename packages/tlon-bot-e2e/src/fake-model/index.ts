@@ -6,6 +6,7 @@ export {
 } from './client.js';
 export type {
   FakeModelReceivedResponse,
+  ModelAuxiliaryCallKind,
   ReceivedCall,
   ScriptOptions,
   Step,

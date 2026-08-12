@@ -8,6 +8,7 @@ import type { NotesTreeRow } from './notesTree';
 
 export function NotesTreePane({
   canEdit,
+  folderUnreadCounts,
   getPublishedNoteUrl,
   isDeletingFolder,
   isNotePublished,
@@ -15,6 +16,7 @@ export function NotesTreePane({
   publishDisabled,
   selectedNoteId,
   treeRows,
+  unreadNoteIds,
   onCreateFolderInFolder,
   onCreateNoteInFolder,
   onDeleteFolder,
@@ -30,6 +32,7 @@ export function NotesTreePane({
   onViewPublishedNote,
 }: {
   canEdit: boolean;
+  folderUnreadCounts?: Map<number, number>;
   getPublishedNoteUrl?: (note: db.NotesNote) => string | null;
   isDeletingFolder: boolean;
   isNotePublished: (noteId: number) => boolean;
@@ -37,6 +40,7 @@ export function NotesTreePane({
   publishDisabled: boolean;
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
+  unreadNoteIds?: Set<number>;
   onCreateFolderInFolder: (folder: db.NotesFolder) => void;
   onCreateNoteInFolder: (folder: db.NotesFolder) => void;
   onDeleteFolder: (folder: db.NotesFolder) => void;
@@ -76,6 +80,7 @@ export function NotesTreePane({
             isDeleting={isDeletingFolder}
             label={getFolderLabel(row.folder)}
             noteCount={row.noteCount}
+            unread={(folderUnreadCounts?.get(row.folder.folderId) ?? 0) > 0}
             onDelete={onDeleteFolder}
             onCreateFolder={onCreateFolderInFolder}
             onCreateNote={onCreateNoteInFolder}
@@ -96,6 +101,7 @@ export function NotesTreePane({
                 : null
             }
             selected={selectedNoteId === row.note.noteId}
+            unread={unreadNoteIds?.has(row.note.noteId) ?? false}
             onDelete={() => onDeleteNote(row.note)}
             onMove={() => onMoveNote(row.note)}
             onPress={() => onOpenNote(row.note)}

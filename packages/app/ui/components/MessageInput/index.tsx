@@ -509,6 +509,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         const draft: domain.PostDataDraft = {
           channelId,
           content: inlines,
+          // Chat keeps a multi-selection together in one post. Gallery splits
+          // its attachment selection before reaching sendPostFromDraft.
           attachments,
           channelType,
           title,

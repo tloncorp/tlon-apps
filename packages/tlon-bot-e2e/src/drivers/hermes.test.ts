@@ -50,6 +50,7 @@ describe('Hermes driver runtime spec', () => {
       HERMES_MODEL_API_MODE: 'chat_completions',
       TLON_GATEWAY_STATUS: 'false',
       TLON_TELEMETRY: 'false',
+      TLON_SSE_READ_TIMEOUT_SECONDS: '60',
       TLON_KNOWN_BOT_USERS: '~mug',
       TLON_MAX_CONSECUTIVE_BOT_RESPONSES: '3',
     });
@@ -64,11 +65,10 @@ describe('Hermes driver runtime spec', () => {
   test('model adapter returns script objects with baseline tool expectations', () => {
     expect(hermesDriver.model.replyText('hello')).toMatchObject({
       steps: [{ kind: 'text', content: 'hello' }],
-      options: { allowExtraCalls: 1 },
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
       expectations: {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 1,
-        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     });
 
@@ -87,19 +87,88 @@ describe('Hermes driver runtime spec', () => {
           { kind: 'final_model_text' },
         ],
         streamedToolLoop: true,
-        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     });
 
     expect(
       hermesDriver.model.sendMessage({ target: '~ten', message: 'hello' })
     ).toMatchObject({
-      options: { allowExtraCalls: 1 },
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
       expectations: {
         advertisedTools: { exact: ['tlon'] },
         expectedCallCount: 1,
-        allowedAuxiliaryCalls: ['hermes_title_generation'],
       },
     });
+
+    expect(hermesDriver.model.replyTexts(['one', 'two'])).toMatchObject({
+      steps: [
+        { kind: 'text', content: 'one' },
+        { kind: 'text', content: 'two' },
+      ],
+      options: { allowedAuxiliaryCalls: ['hermes_title_generation'] },
+      expectations: { expectedCallCount: 2 },
+    });
+
+    expect(
+      hermesDriver.model.createCronJob({
+        name: 'scheduled-job',
+        firedPrompt: '[tlon-test:fired] Reply with the marker.',
+        finalText: 'Scheduled.',
+      })
+    ).toMatchObject({
+      steps: [
+        {
+          kind: 'tool_call',
+          name: 'cronjob',
+          args: {
+            action: 'create',
+            name: 'scheduled-job',
+            schedule: '1m',
+            prompt: '[tlon-test:fired] Reply with the marker.',
+            deliver: 'origin',
+          },
+        },
+        { kind: 'text', content: 'Scheduled.' },
+      ],
+      expectations: {
+        advertisedTools: { include: ['cronjob', 'tlon'] },
+        expectedCallCount: 2,
+      },
+    });
+    expect(hermesDriver.model.looseReplyText('loose')).toMatchObject({
+      steps: [{ kind: 'text', content: 'loose' }],
+      expectations: { expectedCallCount: 1 },
+    });
+  });
+
+  test('enables cronjob only for the cron capability partition', async () => {
+    const endpoints = await allocateRuntimeEndpoints({
+      fakeModel: 4200,
+      zod: 4201,
+      ten: 4202,
+      mug: 4203,
+    });
+    const base = {
+      driverName: 'hermes' as const,
+      repoRoot: path.resolve('/repo'),
+      runId: 'cron-unit',
+      endpoints,
+    };
+
+    expect(
+      hermesDriver.resolveRuntime({
+        ...base,
+        capabilityPartition: { key: 'cron', capabilities: ['cron'] },
+      }).composeEnv.HERMES_E2E_ENABLE_CRONJOB
+    ).toBe('1');
+    expect(
+      hermesDriver.resolveRuntime({
+        ...base,
+        capabilityPartition: { key: 'baseline', capabilities: [] },
+      }).composeEnv.HERMES_E2E_ENABLE_CRONJOB
+    ).toBe('0');
+    expect(
+      hermesDriver.resolveRuntime(base).composeEnv.HERMES_E2E_ENABLE_CRONJOB
+    ).toBe('0');
   });
 });

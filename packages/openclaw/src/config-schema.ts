@@ -1,7 +1,7 @@
 import { buildChannelConfigSchema } from 'openclaw/plugin-sdk/core';
 import { z } from 'zod';
 
-const ShipSchema = z.string().min(1);
+const ShipSchema = z.string().trim().min(1);
 const ChannelNestSchema = z.string().min(1);
 
 export const TlonChannelRuleSchema = z.object({
@@ -127,7 +127,7 @@ export const TlonAccountSchema = z.object({
   showModelSignature: z.boolean().optional(),
   // Auto-accept settings
   autoAcceptDmInvites: z.boolean().optional(), // Auto-accept DMs from ships in dmAllowlist
-  autoAcceptGroupInvites: z.boolean().optional(), // Auto-accept all group invites
+  autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization (groupInviteAllowlist does); retained for channel persistence and back-compat
   // Owner ship for approval system
   ownerShip: ShipSchema.optional(), // Ship that receives approval requests and can approve/deny
   // Reaction level: off (no reactions), ack (notify only), minimal (react sparingly), extensive (react freely)
@@ -169,7 +169,7 @@ export const TlonConfigSchema = z.object({
   accounts: z.record(z.string(), TlonAccountSchema).optional(),
   // Auto-accept settings
   autoAcceptDmInvites: z.boolean().optional(), // Auto-accept DMs from ships in dmAllowlist
-  autoAcceptGroupInvites: z.boolean().optional(), // Auto-accept all group invites
+  autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization (groupInviteAllowlist does); retained for channel persistence and back-compat
   // Owner ship for approval system
   ownerShip: ShipSchema.optional(), // Ship that receives approval requests and can approve/deny
   // Reaction level: off (no reactions), ack (notify only), minimal (react sparingly), extensive (react freely)

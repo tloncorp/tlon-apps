@@ -35,15 +35,26 @@ export function useHomeGroupInviteLink({ enabled }: { enabled: boolean }) {
   });
 
   // links cached by older versions carry the old share domain — normalize
-  // in place so updaters share canonical links (mirrors verifyUserInviteLink)
+  // in place so updaters share canonical links. same logout guard as the
+  // personal-link migration: never write back after a session wipe
   useEffect(() => {
     if (!cachedInviteLink) {
       return;
     }
     const normalized = extractNormalizedInviteLink(cachedInviteLink);
-    if (normalized && normalized !== cachedInviteLink) {
-      db.homeGroupInviteLink.setValue(normalized);
+    if (!normalized || normalized === cachedInviteLink) {
+      return;
     }
+    let cancelled = false;
+    void db.homeGroupInviteLink.getValue(true).then((current) => {
+      if (cancelled || current !== cachedInviteLink) {
+        return;
+      }
+      void db.homeGroupInviteLink.setValue(normalized);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [cachedInviteLink]);
 
   const shouldRecoverFromLure = enabled && !cachedInviteLink && !!homeGroup?.id;

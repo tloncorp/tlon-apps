@@ -23,12 +23,10 @@ import {
   ReanimatedLogLevel,
   configureReanimatedLogger,
 } from 'react-native-reanimated';
-import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';
 import { useDbReady } from './src/hooks/useDbReady';
 import { initializeBackgroundSync } from './src/lib/backgroundSync';
-import utilities from './tailwind.json';
 
 // Extend BigInt so serialization will never crash in JSON.parse
 (BigInt.prototype as any).toJSON = function () {
@@ -101,11 +99,7 @@ function MainInner() {
 
   useJsHeartbeat(isDbReady);
 
-  return (
-    <TailwindProvider utilities={utilities}>
-      {isDbReady ? <App /> : null}
-    </TailwindProvider>
-  );
+  return isDbReady ? <App /> : null;
 }
 
 function Main() {

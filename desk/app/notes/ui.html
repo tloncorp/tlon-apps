@@ -1648,6 +1648,9 @@
             <button id="unpublish-btn" onclick="unpublishNote();" style="display:none">
               <span class="menu-icon"><svg class="icon"><use href="#i-globe"/></svg></span>Unpublish
             </button>
+            <button onclick="copyNoteReference(); closeOverflow();">
+              <span class="menu-icon"><svg class="icon"><use href="#i-link"/></svg></span>Copy Tlon reference
+            </button>
             <button onclick="deleteNote();" class="danger">
               <span class="menu-icon"><svg class="icon"><use href="#i-trash"/></svg></span>Delete note
             </button>
@@ -5307,6 +5310,23 @@ async function copyShareLink() {
     }
   } catch(_) {
     prompt("Share link:", link);
+  }
+}
+
+async function copyNoteReference() {
+  if (!activeNotebookFlag || !activeNoteId) return;
+  // pasting this into a Tlon chat input turns it into a note citation
+  const ref = `/1/chan/notes/${activeNotebookFlag}/note/${activeNoteId}`;
+  try {
+    await navigator.clipboard.writeText(ref);
+    const el = document.getElementById("save-status");
+    if (el) {
+      const prev = el.textContent;
+      el.textContent = "Reference copied";
+      setTimeout(() => { if (el.textContent === "Reference copied") el.textContent = prev; }, 1500);
+    }
+  } catch(_) {
+    prompt("Tlon reference:", ref);
   }
 }
 

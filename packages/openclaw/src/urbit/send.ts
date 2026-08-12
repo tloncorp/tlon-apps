@@ -8,12 +8,7 @@ import {
 } from '@tloncorp/api';
 import { da, scot } from '@urbit/aura';
 
-import {
-  type Story,
-  createImageBlock,
-  isImageUrl,
-  markdownToStory,
-} from './story.js';
+import { type Story, createImageBlock, markdownToStory } from './story.js';
 
 // --- Helpers ---
 
@@ -260,27 +255,27 @@ export function buildMediaText(
 }
 
 /**
- * Build a story with text and optional media (image)
+ * Build a story with text and optional media (image or link)
  */
 export function buildMediaStory(
   text: string | undefined,
-  mediaUrl: string | undefined
+  media: { url: string; isImage: boolean } | undefined
 ): Story {
   const story: Story = [];
   const cleanText = text?.trim() ?? '';
-  const cleanUrl = mediaUrl?.trim() ?? '';
 
-  // Add text content if present
   if (cleanText) {
     story.push(...markdownToStory(cleanText));
   }
 
-  // Add image block if URL looks like an image
-  if (cleanUrl && isImageUrl(cleanUrl)) {
-    story.push(createImageBlock(cleanUrl, ''));
-  } else if (cleanUrl) {
-    // For non-image URLs, add as a link
-    story.push({ inline: [{ link: { href: cleanUrl, content: cleanUrl } }] });
+  if (media) {
+    if (media.isImage) {
+      story.push(createImageBlock(media.url, ''));
+    } else {
+      story.push({
+        inline: [{ link: { href: media.url, content: media.url } }],
+      });
+    }
   }
 
   return story.length > 0 ? story : [{ inline: [''] }];

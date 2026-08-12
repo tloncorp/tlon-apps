@@ -1,6 +1,9 @@
 import { existsSync } from 'node:fs';
+import { chmod, copyFile, mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 
+import { runCommand } from '../runtime/compose.js';
 import {
   attemptSignal,
   waitFor,
@@ -46,12 +49,148 @@ const LEGACY_OPENCLAW_TOOLS = [
   'message',
 ] as const;
 const BASELINE_OPENCLAW_TOOLS = ['tlon', 'message'] as const;
+const OPENCLAW_CRON_AT_OFFSET_MS = 180_000;
+
+export function workspaceApiTarballPath(packageDir: string): string {
+  return path.join(packageDir, 'dev', 'tlon-api-workspace.tgz');
+}
+
+export function workspaceSkillBinaryPath(packageDir: string): string {
+  return path.join(packageDir, 'dev', 'tlon-skill-workspace-bin', 'tlon');
+}
 
 export const openclawDriver: BotDriver = {
   name: 'openclaw',
 
+  // On a clean EOF OpenClaw logs only "[SSE] Stream ended..." then
+  // "[SSE] Reconnection attempt..." ("Stream error:" fires only after the
+  // reconnect loop returns — never while the network is down); on a silent
+  // hang nothing appears until the watchdog logs "[SSE] Stream stale...". All
+  // three cover both the detach (hang) and RST cases.
+  streamFaultLogMarkers: [
+    '[SSE] Stream stale',
+    '[SSE] Stream ended',
+    '[SSE] Reconnection attempt',
+  ],
+
   packageDir(seed) {
     return path.join(seed.repoRoot, 'packages/openclaw');
+  },
+
+  async beforeComposeBuild(ctx) {
+    const env = processEnvRecord();
+    const tarballPath = workspaceApiTarballPath(ctx.packageDir);
+
+    console.log('==> Building @tloncorp/api...');
+    const build = await runCommand(
+      'pnpm',
+      ['--filter', '@tloncorp/api', 'build'],
+      {
+        cwd: ctx.repoRoot,
+        env,
+      }
+    );
+    if (build.exitCode !== 0) {
+      throw new Error(
+        `pnpm --filter @tloncorp/api build failed (exit ${build.exitCode}):\n${build.stderr}`
+      );
+    }
+
+    const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'tlon-api-pack-'));
+    try {
+      console.log('==> Packing @tloncorp/api...');
+      const pack = await runCommand(
+        'pnpm',
+        ['--filter', '@tloncorp/api', 'pack', '--pack-destination', tmpDir],
+        { cwd: ctx.repoRoot, env }
+      );
+      if (pack.exitCode !== 0) {
+        throw new Error(
+          `pnpm --filter @tloncorp/api pack failed (exit ${pack.exitCode}):\n${pack.stderr}`
+        );
+      }
+
+      const entries = await readdir(tmpDir);
+      const tgzName = entries.find((entry) => entry.endsWith('.tgz'));
+      if (!tgzName) {
+        throw new Error(
+          `pnpm --filter @tloncorp/api pack produced no .tgz in ${tmpDir}`
+        );
+      }
+      const packedPath = path.join(tmpDir, tgzName);
+
+      const verify = await runCommand('tar', ['-tzf', packedPath], {
+        cwd: tmpDir,
+        env,
+        stream: false,
+      });
+      if (verify.exitCode !== 0 || !verify.stdout.includes('dist/')) {
+        throw new Error(
+          `Packed @tloncorp/api tarball does not contain dist/. ` +
+            `Check packages/api/package.json "files" field.\n` +
+            `tar listing:\n${verify.stdout}`
+        );
+      }
+
+      // copyFile, not rename: os.tmpdir() can sit on a different filesystem
+      // than the checkout (devcontainers), where rename fails with EXDEV.
+      await copyFile(packedPath, tarballPath);
+      console.log(`==> Workspace @tloncorp/api tarball: ${tarballPath}`);
+    } finally {
+      await rm(tmpDir, { recursive: true, force: true });
+    }
+
+    // The migrate command shells out to the `tlon` CLI, which the container
+    // resolves from the npm registry — a publish that can predate in-branch
+    // CLI changes. Cross-compile the workspace CLI for the container platform
+    // (bun compiles standalone binaries cross-target, bundling the workspace
+    // @tloncorp/api) and stage it in dev/; the entrypoint lays it over the
+    // installed package's bin/tlon, which the CLI loader prefers over the
+    // registry platform package. Same env-plus-file double opt-in as the api
+    // tarball above.
+    const skillDir = path.join(ctx.repoRoot, 'packages/tlon-skill');
+    // The container runs on the Docker daemon's platform, which need not
+    // match this Node process (Rosetta node on an arm64 Mac, a remote
+    // docker context), so ask the daemon rather than trusting process.arch.
+    const archProbe = await runCommand(
+      'docker',
+      ['version', '--format', '{{.Server.Arch}}'],
+      { cwd: ctx.repoRoot, env }
+    );
+    if (archProbe.exitCode !== 0) {
+      throw new Error(
+        `docker version failed while resolving the container arch (exit ${archProbe.exitCode}):\n${archProbe.stderr}`
+      );
+    }
+    const daemonArch = archProbe.stdout.trim();
+    const bunArch: Record<string, string> = { amd64: 'x64', arm64: 'arm64' };
+    const mappedArch = bunArch[daemonArch];
+    if (!mappedArch) {
+      throw new Error(
+        `Unsupported Docker daemon architecture for the tlon CLI build: ${daemonArch}`
+      );
+    }
+    const target = `linux-${mappedArch}`;
+    console.log(`==> Building workspace tlon CLI for ${target}...`);
+    const skillBuild = await runCommand(
+      'node',
+      ['scripts/build-all.js', `--target=${target}`],
+      { cwd: skillDir, env }
+    );
+    if (skillBuild.exitCode !== 0) {
+      throw new Error(
+        `tlon-skill build-all.js --target=${target} failed (exit ${skillBuild.exitCode}):\n${skillBuild.stderr}`
+      );
+    }
+    const builtBinary = path.join(skillDir, 'npm', target, 'tlon');
+    if (!existsSync(builtBinary)) {
+      throw new Error(`tlon-skill build-all.js did not produce ${builtBinary}`);
+    }
+    const stagedBinary = workspaceSkillBinaryPath(ctx.packageDir);
+    await mkdir(path.dirname(stagedBinary), { recursive: true });
+    await copyFile(builtBinary, stagedBinary);
+    await chmod(stagedBinary, 0o755);
+    console.log(`==> Workspace tlon CLI binary: ${stagedBinary}`);
   },
 
   resolveRuntime(seed): DriverRuntimeSpec {
@@ -106,8 +245,21 @@ export const openclawDriver: BotDriver = {
         OPENCLAW_TEST_TOOLS_ALLOW_JSON: JSON.stringify(
           openClawToolsForPartition(seed)
         ),
+        // Explicit opt-in for the workspace @tloncorp/api tarball packed by
+        // beforeComposeBuild. The entrypoint requires this flag in addition to
+        // the tarball file so a stale tarball can never leak into legacy
+        // (non-harness) container runs.
+        OPENCLAW_WORKSPACE_API_TARBALL: '1',
+        // Same double opt-in for the workspace-built tlon CLI binary.
+        OPENCLAW_WORKSPACE_SKILL_BIN: '1',
         TLON_MAX_CONSECUTIVE_BOT_RESPONSES: maxConsecutiveBotResponses,
         TLON_NUDGE_TICK_INTERVAL_MS: '5000',
+        // The fake-ship SSE stream emits no idle heartbeats, so a detached
+        // network is a silent hang. Drop the stale-stream watchdog threshold
+        // (production default 180s) so the fault surfaces within the
+        // sse-resume scenario's 120s marker wait. Above the ~30s heartbeat
+        // pulse, so idle scenarios don't trip spurious reconnects.
+        TLON_SSE_STALE_THRESHOLD_MS: '60000',
         TEST_LIVE_TOOL_TRACE: liveToolTrace ?? '0',
         TEST_LIVE_TOOL_TRACE_CONTENTS: liveToolTraceContents ?? '0',
         VERBOSE: process.env.VERBOSE ?? '0',
@@ -155,6 +307,7 @@ export const openclawDriver: BotDriver = {
   async assertRuntimeConfig(ctx, compose) {
     await assertOpenClawConfig(ctx, compose);
     await assertOpenClawContainerEnv(ctx, compose);
+    await assertOpenClawWorkspaceApi(ctx, compose);
   },
 
   isBenignModelCall(call) {
@@ -172,6 +325,16 @@ export const openclawDriver: BotDriver = {
         expectations: {
           advertisedTools: { exact: ['message', 'tlon'] },
           expectedCallCount: 1,
+        },
+      };
+    },
+
+    replyTexts(texts) {
+      return {
+        steps: texts.map((content) => ({ kind: 'text' as const, content })),
+        expectations: {
+          advertisedTools: { exact: ['message', 'tlon'] },
+          expectedCallCount: texts.length,
         },
       };
     },
@@ -228,6 +391,45 @@ export const openclawDriver: BotDriver = {
           advertisedTools: { include: ['image_search'] },
           expectedCallCount: 1,
         },
+      };
+    },
+
+    createCronJob({ name, firedPrompt, finalText }) {
+      return {
+        steps: [
+          {
+            kind: 'tool_call',
+            name: 'cron',
+            args: {
+              action: 'add',
+              job: {
+                name,
+                schedule: {
+                  kind: 'at',
+                  at: new Date(
+                    Date.now() + OPENCLAW_CRON_AT_OFFSET_MS
+                  ).toISOString(),
+                },
+                payload: { kind: 'agentTurn', message: firedPrompt },
+                sessionTarget: 'isolated',
+                deleteAfterRun: true,
+              },
+            },
+          },
+          { kind: 'text', content: finalText },
+        ],
+        expectations: {
+          advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+          expectedCallCount: 2,
+          toolEffectOnly: true,
+        },
+      };
+    },
+
+    looseReplyText(text) {
+      return {
+        steps: [{ kind: 'text', content: text }],
+        expectations: { expectedCallCount: 1 },
       };
     },
   },
@@ -435,6 +637,79 @@ console.log(JSON.stringify({ found, model: process.env.MODEL || null, brave: Boo
   }
 }
 
+async function assertOpenClawWorkspaceApi(
+  ctx: RuntimeContext,
+  compose: ComposeHandle
+): Promise<void> {
+  if (ctx.composeEnv.OPENCLAW_WORKSPACE_API_TARBALL !== '1') {
+    return;
+  }
+
+  const probeScript = `const fs = require('fs');
+function readJson(p) {
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; }
+}
+const pkg = readJson('/workspace/tlon/package.json') || {};
+const api = readJson('/workspace/tlon/node_modules/@tloncorp/api/package.json');
+const sdk = readJson('/workspace/tlon/node_modules/@aws-sdk/client-s3/package.json');
+let workspaceYaml = '';
+try { workspaceYaml = fs.readFileSync('/workspace/tlon/pnpm-workspace.yaml', 'utf8'); } catch {}
+console.log(JSON.stringify({
+  dep: (pkg.dependencies || {})['@tloncorp/api'] ?? null,
+  apiVersion: api ? api.version : null,
+  sdkVersion: sdk ? sdk.version : null,
+  tarballExists: fs.existsSync('/workspace/tlon/dev/tlon-api-workspace.tgz'),
+  overridesInWorkspaceYaml: workspaceYaml.includes('@aws-sdk/client-s3'),
+}));`;
+
+  const result = await compose.exec(ctx.services.bot, [
+    'node',
+    '-e',
+    probeScript,
+  ]);
+  assertExecOk(result, 'OpenClaw workspace-api probe');
+  const raw = result.stdout.trim();
+  const parsed = JSON.parse(raw) as {
+    dep: string | null;
+    apiVersion: string | null;
+    sdkVersion: string | null;
+    tarballExists: boolean;
+    overridesInWorkspaceYaml: boolean;
+  };
+
+  const failures: string[] = [];
+  expectWorkspaceApi(
+    parsed.dep === 'file:dev/tlon-api-workspace.tgz',
+    `package.json dependency @tloncorp/api must be file:dev/tlon-api-workspace.tgz, got ${parsed.dep}`
+  );
+  expectWorkspaceApi(
+    parsed.sdkVersion === '3.190.0',
+    `@aws-sdk/client-s3 version must be 3.190.0, got ${parsed.sdkVersion}`
+  );
+  expectWorkspaceApi(
+    parsed.tarballExists === true,
+    'workspace @tloncorp/api tarball /workspace/tlon/dev/tlon-api-workspace.tgz must exist'
+  );
+  expectWorkspaceApi(
+    parsed.overridesInWorkspaceYaml === true,
+    'pnpm-workspace.yaml must override @aws-sdk/client-s3'
+  );
+
+  if (failures.length > 0) {
+    throw new Error(
+      `OpenClaw workspace-api assertion failed:\n` +
+        failures.map((failure) => `- ${failure}`).join('\n') +
+        `\nRaw probe output:\n${raw}`
+    );
+  }
+
+  function expectWorkspaceApi(condition: boolean, message: string) {
+    if (!condition) {
+      failures.push(message);
+    }
+  }
+}
+
 function assertExecOk(
   result: { exitCode: number; stderr: string },
   label: string
@@ -556,6 +831,9 @@ function openClawToolsForPartition(seed: RuntimeSeed): string[] {
 function openClawToolsForCapability(
   capability: RuntimeCapability
 ): readonly string[] {
+  if (capability === 'cron') {
+    return ['cron'];
+  }
   if (capability === 'image_search') {
     return ['image_search'];
   }
@@ -580,4 +858,14 @@ function optionalEnvAllowedForCapabilities(
     return capabilities.has('upload_storage') || capabilities.has('media_blob');
   }
   return true;
+}
+
+function processEnvRecord(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined) {
+      env[key] = value;
+    }
+  }
+  return env;
 }

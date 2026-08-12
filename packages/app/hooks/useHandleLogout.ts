@@ -2,7 +2,7 @@
 // Branch context and methods removed here because a) it's not used and
 // b) it breaks the web build because it relies on react-native-branch,
 // which isn't made for web.
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import { clearAuthInfo, isElectronEnv } from '@tloncorp/shared';
 import { queryClient } from '@tloncorp/shared';
 import { clearSessionStorageItems } from '@tloncorp/shared/db';
@@ -44,6 +44,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
       logger.trackError('could not reset db on logout');
       return;
     }
+    trackEvent(AnalyticsEvent.LogoutCompleted);
     // delay DB reset to next tick to avoid race conditions
     setTimeout(() => resetDb());
 

@@ -9,7 +9,11 @@ import {
 } from 'vitest';
 
 import {
+  NotesInvalidRequestIdError,
+  NotesUnknownFolderError,
   NotesV1PendingWriteError,
+  NotesV1WriteError,
+  batchImportNotesV1,
   deleteNotesNotebookBestEffort,
   deleteNotesNotebookStrict,
   formatNotesFlag,
@@ -250,6 +254,51 @@ describe('notesV1 reads', () => {
     ]);
   });
 
+  test('searchNotes percent-encodes the needle and omits absent bounds', async () => {
+    requestJsonMock.mockResolvedValue({ last: 0, notes: [] });
+
+    await notesV1.searchNotes({
+      flag: 'notes/~zod/blog',
+      needle: 'hello world & v1.0',
+    });
+    await notesV1.searchNotes({
+      flag: 'notes/~zod/blog',
+      needle: 'needle',
+      from: 12,
+      tries: 50,
+    });
+
+    expect(requestJsonMock.mock.calls.map((c) => [c[0], c[1]])).toEqual([
+      [
+        '/notes/~/v1/notebooks/~zod/blog/search/bounded/text?needle=hello%20world%20%26%20v1.0',
+        'GET',
+      ],
+      [
+        '/notes/~/v1/notebooks/~zod/blog/search/bounded/text?needle=needle&from=12&tries=50',
+        'GET',
+      ],
+    ]);
+  });
+
+  test('searchNotes rejects a body missing the last cursor or notes', async () => {
+    requestJsonMock.mockResolvedValue({ notes: [] });
+    await expect(
+      notesV1.searchNotes({ flag: 'notes/~zod/blog', needle: 'x' })
+    ).rejects.toThrow('search.last');
+
+    requestJsonMock.mockResolvedValue({ last: 0 });
+    await expect(
+      notesV1.searchNotes({ flag: 'notes/~zod/blog', needle: 'x' })
+    ).rejects.toThrow('expected an array');
+  });
+
+  test('searchNotes keeps an empty page with a live cursor distinct from the end', async () => {
+    requestJsonMock.mockResolvedValue({ last: 7, notes: [] });
+    await expect(
+      notesV1.searchNotes({ flag: 'notes/~zod/blog', needle: 'x' })
+    ).resolves.toEqual({ last: 7, notes: [] });
+  });
+
   test('getRequest reads a pending request status by id', async () => {
     requestJsonMock.mockResolvedValue({
       requestId: '0vabc',
@@ -269,11 +318,11 @@ describe('notesV1 reads', () => {
   test('getRequest returns terminal error and notebook bodies', async () => {
     requestJsonMock.mockResolvedValueOnce({
       requestId: '0verr',
-      body: { type: 'error', message: 'target ship is unavailable' },
+      body: { type: 'error', errorType: 'not-found', message: [] },
     });
     await expect(notesV1.getRequest('0verr')).resolves.toEqual({
       requestId: '0verr',
-      body: { type: 'error', message: 'target ship is unavailable' },
+      body: { type: 'error', errorType: 'not-found', message: '' },
     });
 
     requestJsonMock.mockResolvedValueOnce({
@@ -426,6 +475,28 @@ describe('notes app facade', () => {
     expect(note.revision).toBeUndefined();
   });
 
+  test('searchNotes returns client notes alongside the resume cursor', async () => {
+    requestJsonMock.mockResolvedValue({
+      last: 8,
+      notes: [{ id: 12, title: 'First', bodyMd: 'a needle here' }],
+    });
+
+    await expect(
+      notes.searchNotes({ flag: 'notes/~zod/blog', needle: 'needle' })
+    ).resolves.toEqual({
+      last: 8,
+      notes: [
+        expect.objectContaining({
+          id: '~zod/blog/note/12',
+          notebookFlag: '~zod/blog',
+          noteId: 12,
+          title: 'First',
+          bodyMd: 'a needle here',
+        }),
+      ],
+    });
+  });
+
   test('listMembers flattens roles and preserves role-less members', async () => {
     requestJsonMock.mockResolvedValue([
       { ship: '~zod', roles: ['owner', 'editor'] },
@@ -441,6 +512,12 @@ describe('notes app facade', () => {
 });
 
 describe('notesV1 writes send pinned v1 HTTP bodies', () => {
+  // Every v1 write response is an envelope; tests that only assert on the
+  // outgoing request still need one for assertWriteOk to accept.
+  beforeEach(() => {
+    requestJsonMock.mockResolvedValue({ body: { type: 'ok' } });
+  });
+
   test('createNotebook unwraps the notebook envelope', async () => {
     requestJsonMock.mockResolvedValue({
       requestId: 'r',
@@ -487,7 +564,7 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
 
   test('createNotebook rejects error/unexpected envelopes', async () => {
     for (const body of [
-      { type: 'error', message: 'no' },
+      { type: 'error', message: ['no'] },
       { type: 'api-key' },
     ]) {
       requestJsonMock.mockResolvedValue({ body });
@@ -516,7 +593,7 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
   });
 
   test('createNotebook reports empty error envelopes with fallback detail', async () => {
-    requestJsonMock.mockResolvedValue({ body: { type: 'error', message: '' } });
+    requestJsonMock.mockResolvedValue({ body: { type: 'error', message: [] } });
 
     await expect(notesV1.createNotebook({ title: 'B' })).rejects.toThrow(
       '%notes error: backend returned an error without details'
@@ -585,6 +662,173 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
       '/notes/~/v1/notebooks/~zod/blog/notes/12',
       'PUT',
       { body: 'x' }
+    );
+  });
+
+  test('updateNoteBody distinguishes applied writes from no-change', async () => {
+    requestJsonMock.mockResolvedValue({ body: { type: 'ok' } });
+    await expect(
+      notesV1.updateNoteBody({ flag: 'notes/~zod/blog', noteId: 12, body: 'x' })
+    ).resolves.toMatchObject({ status: 'ok', note: null });
+
+    requestJsonMock.mockResolvedValue({ body: { type: 'no-change' } });
+    await expect(
+      notesV1.updateNoteBody({ flag: 'notes/~zod/blog', noteId: 12, body: 'x' })
+    ).resolves.toMatchObject({ status: 'no-change', note: null });
+  });
+
+  test('note writes extract the applied note from the ok envelope', async () => {
+    // Mirrors the v1 encoder exactly: response %update wraps the
+    // notebook-scoped u-notebook ({type: 'note-update', noteUpdate}) whose
+    // inner u-note carries the applied note (lib/notes/json.hoon).
+    const envelope = {
+      requestId: '0vok',
+      body: {
+        type: 'ok',
+        response: {
+          type: 'update',
+          host: '~zod',
+          flagName: 'blog',
+          time: 1700000000000,
+          update: {
+            type: 'note-update',
+            host: '~zod',
+            flagName: 'blog',
+            noteUpdate: {
+              type: 'note-updated',
+              id: 12,
+              note: {
+                id: 12,
+                title: 'T',
+                bodyMd: 'x',
+                revision: 4,
+                updatedAt: 1234,
+                updatedBy: '~zod',
+              },
+            },
+          },
+        },
+      },
+    };
+
+    requestJsonMock.mockResolvedValue(envelope);
+    await expect(
+      notesV1.updateNoteBody({ flag: 'notes/~zod/blog', noteId: 12, body: 'x' })
+    ).resolves.toMatchObject({
+      status: 'ok',
+      note: { id: 12, revision: 4, updatedAt: 1234, updatedBy: '~zod' },
+    });
+
+    await expect(
+      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'T' })
+    ).resolves.toMatchObject({ id: 12, updatedAt: 1234 });
+
+    // A flat (unwrapped) update payload is not the wire shape — it must
+    // degrade to null rather than be mistaken for the applied note.
+    requestJsonMock.mockResolvedValue({
+      body: {
+        type: 'ok',
+        response: {
+          type: 'update',
+          update: {
+            type: 'note-updated',
+            id: 12,
+            note: { id: 12, title: 'T' },
+          },
+        },
+      },
+    });
+    await expect(
+      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'T' })
+    ).resolves.toBeNull();
+
+    // Malformed payloads degrade to null, never throw past a passing write.
+    requestJsonMock.mockResolvedValue({
+      body: {
+        type: 'ok',
+        response: {
+          type: 'update',
+          update: {
+            type: 'note-update',
+            noteUpdate: {
+              type: 'note-updated',
+              id: 12,
+              note: { title: 'no id' },
+            },
+          },
+        },
+      },
+    });
+    await expect(
+      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'T' })
+    ).resolves.toBeNull();
+  });
+
+  test('updateNoteBody surfaces a typed conflict error with a tang message', async () => {
+    requestJsonMock.mockResolvedValue({
+      requestId: '0vconflict',
+      body: {
+        type: 'error',
+        errorType: 'conflict',
+        message: [
+          'revision-mismatch: expected 2, current 3',
+          'refresh and retry',
+        ],
+      },
+    });
+
+    const error = await rejectionError(
+      notesV1.updateNoteBody({
+        flag: 'notes/~zod/blog',
+        noteId: 12,
+        body: 'x',
+        expectedRevision: 2,
+      })
+    );
+
+    expect(error).toBeInstanceOf(NotesV1WriteError);
+    const writeError = error as NotesV1WriteError;
+    expect(writeError.errorType).toBe('conflict');
+    expect(writeError.message).toBe(
+      '%notes error: revision-mismatch: expected 2, current 3\nrefresh and retry'
+    );
+  });
+
+  test('empty tang messages fall back to errorType', async () => {
+    requestJsonMock.mockResolvedValue({
+      body: { type: 'error', errorType: 'conflict', message: [] },
+    });
+
+    const error = await rejectionError(
+      notesV1.updateNoteBody({
+        flag: 'notes/~zod/blog',
+        noteId: 12,
+        body: 'x',
+      })
+    );
+
+    expect(error).toBeInstanceOf(NotesV1WriteError);
+    expect((error as NotesV1WriteError).errorType).toBe('conflict');
+    expect((error as NotesV1WriteError).message).toBe('%notes error: conflict');
+  });
+
+  test('error envelopes without errorType still throw with a message', async () => {
+    requestJsonMock.mockResolvedValue({
+      body: { type: 'error', message: 'not-authorized' },
+    });
+
+    const error = await rejectionError(
+      notesV1.updateNoteBody({
+        flag: 'notes/~zod/blog',
+        noteId: 12,
+        body: 'x',
+      })
+    );
+
+    expect(error).toBeInstanceOf(NotesV1WriteError);
+    expect((error as NotesV1WriteError).errorType).toBeUndefined();
+    expect((error as NotesV1WriteError).message).toBe(
+      '%notes error: not-authorized'
     );
   });
 
@@ -659,33 +903,59 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     );
   });
 
-  test('void writes accept bare/empty success but reject error/pending/unexpected', async () => {
-    // bare folder object from a convenience route
-    requestJsonMock.mockResolvedValue({ id: 5, folderName: 'Drafts' });
-    await expect(
-      notesV1.createFolder({ flag: 'notes/~zod/blog', name: 'Drafts' })
-    ).resolves.toBeUndefined();
-    // empty/undefined
-    requestJsonMock.mockResolvedValue(undefined);
-    await expect(
-      notesV1.deleteNote({ flag: 'notes/~zod/blog', noteId: 1 })
-    ).resolves.toBeUndefined();
-    // explicit ok envelope
-    requestJsonMock.mockResolvedValue({ body: { type: 'ok' } });
-    await expect(
-      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 1, title: 'x' })
-    ).resolves.toBeUndefined();
-    // error / pending / unexpected envelopes reject
+  test('void writes require an envelope body and reject error/pending/unexpected', async () => {
+    const renameNote = () =>
+      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 1, title: 'x' });
+
+    // A missing, null, array, or primitive body is a protocol violation, not
+    // a shape to tolerate. `res?.body` is read before any shape test, so a
+    // top-level object with no `body` key reports an undefined body rather
+    // than an undefined body.type.
+    const malformed: { response: unknown; expected: RegExp }[] = [
+      { response: undefined, expected: /write response body: undefined/ },
+      {
+        response: { requestId: '0v1' },
+        expected: /write response body: undefined/,
+      },
+      { response: { body: null }, expected: /write response body: null/ },
+      { response: { body: [] }, expected: /write response body: \[\]/ },
+      { response: { body: 'ok' }, expected: /write response body: "ok"/ },
+      {
+        response: { body: { id: 5, folderName: 'Drafts' } },
+        expected:
+          /write response body\.type: undefined \(body: {"id":5,"folderName":"Drafts"}\)/,
+      },
+      {
+        response: { body: { type: 'mystery' } },
+        expected: /Unexpected %notes response type: "mystery"/,
+      },
+      {
+        response: { body: { type: 'api-key' } },
+        expected: /Unexpected %notes response type: "api-key"/,
+      },
+    ];
+    for (const { response, expected } of malformed) {
+      requestJsonMock.mockResolvedValue(response);
+      await expect(renameNote()).rejects.toThrow(expected);
+    }
+
+    // ok / no-change / notebook are the accepted write outcomes.
     for (const body of [
-      { type: 'error', message: 'nope' },
-      { type: 'pending' },
-      { type: 'api-key' },
+      { type: 'ok' },
+      { type: 'no-change' },
+      { type: 'notebook', notebook: { host: '~zod', flagName: 'blog' } },
     ]) {
       requestJsonMock.mockResolvedValue({ body });
-      await expect(
-        notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 1, title: 'x' })
-      ).rejects.toThrow();
+      await expect(renameNote()).resolves.toBeNull();
     }
+
+    requestJsonMock.mockResolvedValue({
+      body: { type: 'error', message: ['nope'] },
+    });
+    await expect(renameNote()).rejects.toBeInstanceOf(NotesV1WriteError);
+
+    requestJsonMock.mockResolvedValue({ body: { type: 'pending' } });
+    await expect(renameNote()).rejects.toBeInstanceOf(NotesV1PendingWriteError);
   });
 
   test('pending note and folder writes point at affected objects structurally', async () => {
@@ -719,7 +989,7 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
 
   test('void writes report empty error envelopes with fallback detail', async () => {
     requestJsonMock.mockResolvedValue({
-      body: { type: 'error', message: '  ' },
+      body: { type: 'error', message: ['  '] },
     });
 
     await expect(
@@ -831,5 +1101,198 @@ describe('join/leave channel membership go through %notes', () => {
       mark: 'notes-action',
       json: { type: 'leave', ship: '~zod', name: 'blog' },
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Batch-import
+// ---------------------------------------------------------------------------
+
+describe('batchImportNotesV1', () => {
+  // The import pre-flights a GET of the notebook's folders (the backend's
+  // se-batch-import does not resolve the folder id itself; TLON-6307), so
+  // every test that reaches the POST must serve the folders listing too.
+  const mockFoldersThenImport = (
+    importResponse: unknown,
+    folderIds: number[] = [3, 7]
+  ) => {
+    requestJsonMock.mockImplementation((_path: string, method: string) =>
+      method === 'GET'
+        ? Promise.resolve(
+            folderIds.map((id) => ({
+              id,
+              name: `folder-${id}`,
+              parentFolderId: null,
+            }))
+          )
+        : Promise.resolve(importResponse)
+    );
+  };
+
+  test('is registered on the notesV1 and notes API objects', () => {
+    expect(notesV1.batchImport).toBe(batchImportNotesV1);
+    expect(notes.batchImport).toBe(notesV1.batchImport);
+  });
+
+  test('sends exact envelope shape with string flag, caller requestId, and non-zero folder', async () => {
+    mockFoldersThenImport({
+      requestId: '0v1',
+      body: { type: 'ok' },
+    });
+
+    const result = await batchImportNotesV1({
+      flag: '~zod/blog',
+      folder: 7,
+      notes: [
+        { title: 'Note A', body: 'body-a' },
+        { title: 'Note B', body: 'body-b' },
+      ],
+      requestId: '0v1',
+    });
+
+    expect(result).toBe('0v1');
+
+    // The fourth argument is the whole of the reauth contract notesApi owns;
+    // replaying the POST on 401/403 is requestJson's behavior, covered in
+    // src/__tests__/requestJson.test.ts.
+    expect(requestJsonMock).toHaveBeenCalledWith(
+      '/notes/~/v1',
+      'POST',
+      {
+        requestId: '0v1',
+        action: {
+          type: 'notebook',
+          flag: '~zod/blog',
+          action: {
+            type: 'batch-import',
+            folder: 7,
+            notes: [
+              { title: 'Note A', body: 'body-a' },
+              { title: 'Note B', body: 'body-b' },
+            ],
+          },
+        },
+      },
+      { reauthStatuses: [401, 403] }
+    );
+
+    // The folders pre-flight runs before the POST and shares the import's
+    // reauth policy (%notes v1 reads 401 on expired sessions).
+    expect(requestJsonMock.mock.calls[0][0]).toBe(
+      '/notes/~/v1/notebooks/~zod/blog/folders'
+    );
+    expect(requestJsonMock.mock.calls[0][1]).toBe('GET');
+    expect(requestJsonMock.mock.calls[0][3]).toEqual({
+      reauthStatuses: [401, 403],
+    });
+    const sent = requestJsonMock.mock.calls[1][2];
+    expect(sent.action.flag).toBe('~zod/blog');
+    expect(typeof sent.action.flag).toBe('string');
+    expect(sent.action.action.folder).toBe(7);
+  });
+
+  test('returns server-reported requestId so caller can assert match', async () => {
+    mockFoldersThenImport({
+      requestId: '0v3',
+      body: { type: 'ok' },
+    });
+
+    const result = await batchImportNotesV1({
+      flag: '~zod/blog',
+      folder: 3,
+      notes: [],
+      requestId: '0v2',
+    });
+
+    expect(result).toBe('0v3');
+  });
+
+  test('throws when server omits requestId', async () => {
+    mockFoldersThenImport({ body: { type: 'ok' } });
+
+    await expect(
+      batchImportNotesV1({
+        flag: '~zod/blog',
+        folder: 3,
+        notes: [],
+        requestId: '0v1',
+      })
+    ).rejects.toThrow(/missing requestId/);
+  });
+
+  // Malformed envelope bodies are assertWriteOk's job now; its full table
+  // lives in 'void writes require an envelope body ...' above. This only pins
+  // that batch import delegates to it.
+  test('delegates envelope validation to assertWriteOk', async () => {
+    mockFoldersThenImport({ requestId: '0v1', body: 'ok' });
+
+    await expect(
+      batchImportNotesV1({
+        flag: '~zod/blog',
+        folder: 3,
+        notes: [],
+        requestId: '0v1',
+      })
+    ).rejects.toThrow(/Unexpected %notes write response body: "ok"/);
+  });
+
+  test('throws on error envelope', async () => {
+    mockFoldersThenImport({
+      requestId: '0v1',
+      body: { type: 'error', errorType: 'not-found', message: [] },
+    });
+
+    const err = await batchImportNotesV1({
+      flag: '~zod/blog',
+      folder: 3,
+      notes: [],
+      requestId: '0v1',
+    }).catch((e) => e);
+
+    expect(err).toBeInstanceOf(NotesV1WriteError);
+    expect(err.message).toMatch(/not-found/);
+  });
+
+  test('rejects an unknown destination folder before submitting', async () => {
+    mockFoldersThenImport({ requestId: '0v1', body: { type: 'ok' } }, [1, 2]);
+
+    const err = await batchImportNotesV1({
+      flag: '~zod/blog',
+      folder: 7,
+      notes: [{ title: 'Note A', body: 'body-a' }],
+      requestId: '0v1',
+    }).catch((e) => e);
+
+    expect(err).toBeInstanceOf(NotesUnknownFolderError);
+    expect(err.message).toBe('%notes folder 7 does not exist in ~zod/blog');
+    expect(err.folderId).toBe(7);
+    expect(err.flag).toBe('~zod/blog');
+    // The pre-flight GET is the only request; nothing was submitted.
+    expect(requestJsonMock.mock.calls.map((c: any[]) => c[1])).toEqual(['GET']);
+  });
+
+  test('rejects non-@uv requestId before fetching', async () => {
+    const err = await batchImportNotesV1({
+      flag: '~zod/blog',
+      folder: 3,
+      notes: [],
+      requestId: 'req-42',
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(NotesInvalidRequestIdError);
+    expect(err.message).toMatch(/req-42/);
+    expect(requestJsonMock).not.toHaveBeenCalled();
+  });
+
+  test('rejects zero @uv requestId before fetching', async () => {
+    const err = await batchImportNotesV1({
+      flag: '~zod/blog',
+      folder: 3,
+      notes: [],
+      requestId: '0v0',
+    }).catch((e) => e);
+
+    expect(err).toBeInstanceOf(NotesInvalidRequestIdError);
+    expect(err.message).toMatch(/non-zero/);
+    expect(requestJsonMock).not.toHaveBeenCalled();
   });
 });

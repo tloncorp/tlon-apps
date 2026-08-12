@@ -6,10 +6,12 @@ import {
   buildFolderDestinationRows,
   buildFolderNoteCounts,
   buildFolderRows,
+  buildFolderUnreadCounts,
   filterNotesTreeData,
   getFolderPath,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
+  makeNotesFolderPathLabeler,
 } from './notesTree';
 
 const makeFolder = (folderId: number, name: string, parentId: number | null) =>
@@ -54,6 +56,46 @@ const rowsFor = (
     notes,
     rootFolderId: 1,
   });
+
+describe('makeNotesFolderPathLabeler', () => {
+  const folders = [root, projects, archive, backlog];
+  const label = makeNotesFolderPathLabeler({ folders, rootFolderId: 1 });
+
+  test('gives the whole path, with the root dropped', () => {
+    expect(label({ folderId: 4 })).toBe('Projects / Backlog');
+    expect(label({ folderId: 2 })).toBe('Projects');
+  });
+
+  test('leaves a note in the root unlabeled', () => {
+    expect(label({ folderId: 1 })).toBeNull();
+  });
+
+  test('handles a missing or unknown folder', () => {
+    expect(label({ folderId: null })).toBeNull();
+    expect(label({})).toBeNull();
+    expect(label({ folderId: 999 })).toBeNull();
+  });
+
+  test('distinguishes same-named folders under different parents', () => {
+    const projectsDrafts = makeFolder(5, 'Drafts', 2);
+    const archiveDrafts = makeFolder(6, 'Drafts', 3);
+    const deepLabel = makeNotesFolderPathLabeler({
+      folders: [...folders, projectsDrafts, archiveDrafts],
+      rootFolderId: 1,
+    });
+
+    expect(deepLabel({ folderId: 5 })).toBe('Projects / Drafts');
+    expect(deepLabel({ folderId: 6 })).toBe('Archive / Drafts');
+  });
+
+  test('falls back to the raw path when there is no root to strip', () => {
+    expect(
+      makeNotesFolderPathLabeler({ folders, rootFolderId: null })({
+        folderId: 4,
+      })
+    ).toContain('Backlog');
+  });
+});
 
 describe('notes tree helpers', () => {
   test('builds a folder path for note metadata', () => {
@@ -238,5 +280,50 @@ describe('notes tree helpers', () => {
         selectedNoteId: 2,
       })
     ).toBeNull();
+  });
+});
+
+describe('buildFolderUnreadCounts', () => {
+  test('rolls an unread note up through every ancestor folder', () => {
+    // root(1) -> Projects(2) -> Backlog(4); note in Backlog
+    const folders = [root, projects, archive, backlog];
+    const notes = [
+      makeNote(1, 4, 'Deep'),
+      makeNote(2, 3, 'Archived'),
+      makeNote(3, 1, 'Top'),
+    ];
+
+    const counts = buildFolderUnreadCounts(folders, notes, new Set([1]));
+
+    expect(counts.get(4)).toBe(1);
+    expect(counts.get(2)).toBe(1);
+    expect(counts.get(1)).toBe(1);
+    expect(counts.get(3)).toBe(0);
+  });
+
+  test('sums multiple unread notes at shared ancestors', () => {
+    const folders = [root, projects, archive, backlog];
+    const notes = [
+      makeNote(1, 4, 'Deep'),
+      makeNote(2, 2, 'Mid'),
+      makeNote(3, 3, 'Archived'),
+    ];
+
+    const counts = buildFolderUnreadCounts(folders, notes, new Set([1, 2, 3]));
+
+    expect(counts.get(4)).toBe(1);
+    expect(counts.get(2)).toBe(2);
+    expect(counts.get(3)).toBe(1);
+    expect(counts.get(1)).toBe(3);
+  });
+
+  test('returns zero counts when nothing is unread', () => {
+    const folders = [root, projects];
+    const notes = [makeNote(1, 2, 'Alpha')];
+
+    const counts = buildFolderUnreadCounts(folders, notes, new Set());
+
+    expect(counts.get(2)).toBe(0);
+    expect(counts.get(1)).toBe(0);
   });
 });
