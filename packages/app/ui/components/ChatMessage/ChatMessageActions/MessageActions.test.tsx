@@ -330,6 +330,18 @@ test('message content revisions include the visible reply summary', () => {
   expect(messageContentKey({ ...post, replyContactIds: ['~nec'] })).not.toBe(
     original
   );
+  expect(
+    messageContentKey({
+      ...post,
+      threadUnread: { count: 1, notify: false },
+    })
+  ).not.toBe(original);
+  expect(
+    messageContentKey({
+      ...post,
+      threadUnread: { count: 1, notify: true },
+    })
+  ).not.toBe(original);
 });
 
 test('message content revisions include rendered delivery and edit state', () => {

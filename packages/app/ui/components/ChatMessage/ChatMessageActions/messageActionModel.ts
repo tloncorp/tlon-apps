@@ -72,6 +72,8 @@ export function messageContentKey(post: db.Post) {
     post.replyCount,
     post.replyTime,
     post.replyContactIds,
+    post.threadUnread?.count,
+    post.threadUnread?.notify,
   ]);
 }
 
