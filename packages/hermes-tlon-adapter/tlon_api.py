@@ -960,14 +960,19 @@ class TlonCLI:
             return tuple(args)
         if (args[idx], args[idx + 1]) not in SEND_OPERATIONS:
             return tuple(args)
-        # A caller that already passed the flag has said what decoration would
-        # say. Appending anyway produces `--bot --bot`, which the CLI rejects as
-        # a repeat — so the model following the documented `--bot` usage would
-        # have its send fail rather than go out bot-authored.
-        if BOT_FLAG in args:
-            return tuple(args)
         # Probed only here, so non-send usage never pays for it.
-        if not await self._supports_bot_flags():
+        supported = await self._supports_bot_flags()
+        # A caller that already passed the flag has said what decoration would
+        # say, so appending is skipped: `--bot --bot` is a repeat the CLI
+        # rejects, failing a send the model asked for correctly. The probe still
+        # gates it, because a CLI without the flag has no option to consume it
+        # and folds the token into the message body instead — passing a caller's
+        # flag through unprobed would corrupt the post rather than degrade it.
+        if BOT_FLAG in args:
+            return tuple(args) if supported else tuple(
+                arg for arg in args if arg != BOT_FLAG
+            )
+        if not supported:
             return tuple(args)
         return (*args, *self._bot_flags())
 

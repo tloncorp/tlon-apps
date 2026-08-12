@@ -1404,6 +1404,44 @@ class TlonCLITests(unittest.TestCase):
             [("posts", "send", "chat/~zod/general", "hi", tlon_api.BOT_FLAG)],
         )
 
+    def test_an_old_cli_never_receives_a_caller_supplied_bot_flag(self):
+        # The corruption case the probe exists for: a CLI predating the flag has
+        # no option to consume `--bot`, so the token lands in the message body.
+        # A caller-supplied flag must be stripped, not passed through — the send
+        # degrades to a bare author instead of posting "hi --bot".
+        calls = []
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command[1:]))
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                # Help output from a CLI that has never heard of --bot.
+                return tlon_api.TlonProcessResult(
+                    returncode=0, stdout="options: --parent --image"
+                )
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+        with self.assertLogs(tlon_api.logger, level="ERROR"):
+            asyncio.run(
+                cli.run_command(
+                    ("posts", "send", "chat/~zod/general", "hi", "--bot")
+                )
+            )
+
+        sends = [c for c in calls if c != tlon_api.BOT_FLAG_PROBE_ARGS]
+        self.assertEqual(
+            sends, [("posts", "send", "chat/~zod/general", "hi")]
+        )
+        self.assertNotIn(tlon_api.BOT_FLAG, sends[0])
+
     def test_without_as_bot_nothing_is_appended(self):
         calls = []
         cfg = tlon_api.TlonConfig.from_env(
