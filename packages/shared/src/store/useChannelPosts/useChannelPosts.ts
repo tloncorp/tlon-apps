@@ -16,7 +16,11 @@ import * as sync from '../sync';
 import { SyncPriority } from '../syncQueue';
 import { useDetectSequenceRegression } from '../useDetectSequenceRegression';
 import { mergePendingPosts } from '../useMergePendingPosts';
-import { getLatestChannelPostsInitialPage, queryKeyPrefix } from './queries';
+import {
+  getLatestChannelPostsInitialPage,
+  queryKeyPrefix,
+  supportsChangedPostsRefresh,
+} from './queries';
 import { useDeletedPosts, useNewPostListener } from './subscriptions';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
@@ -509,6 +513,10 @@ function useRefreshPosts(channelId: string, posts: db.Post[] | null) {
 
   const pendingStalePosts = useRef(new Set<string>());
   useEffect(() => {
+    if (!supportsChangedPostsRefresh(channelId)) {
+      return;
+    }
+
     const toSync =
       posts?.filter(
         (post) =>
@@ -527,23 +535,32 @@ function useRefreshPosts(channelId: string, posts: db.Post[] | null) {
     }
 
     postsLogger.log('chunked', chunked.length);
-    chunked.forEach((chunk, i) => {
+    chunked.forEach((chunk) => {
       const startCursor = chunk[chunk.length - 1].id;
       const endCursor = chunk[0].id;
+      const pendingIds = chunk.map((post) => post.id);
       postsLogger.log('syncing chunk', startCursor, 'through', endCursor);
-      sync.syncUpdatedPosts(
-        {
-          channelId,
-          startCursor,
-          endCursor,
-          afterTime: new Date(session?.startTime ?? 0),
-        },
-        { priority: 4 }
-      );
       pendingStalePosts.current = new Set<string>([
-        ...chunk.map((p) => p.id),
+        ...pendingIds,
         ...pendingStalePosts.current,
       ]);
+      void sync
+        .syncUpdatedPosts(
+          {
+            channelId,
+            startCursor,
+            endCursor,
+            afterTime: new Date(session?.startTime ?? 0),
+          },
+          { priority: 4 }
+        )
+        .catch((error) => {
+          pendingIds.forEach((id) => pendingStalePosts.current.delete(id));
+          postsLogger.trackError(
+            'failed to refresh stale posts',
+            error instanceof Error ? error : { error }
+          );
+        });
     });
   }, [channelId, posts, session]);
 }
