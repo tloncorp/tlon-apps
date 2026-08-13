@@ -1,5 +1,6 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as api from '@tloncorp/api';
 import { Story } from '@tloncorp/api/urbit';
 import {
   configurationFromChannel,
@@ -15,6 +16,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
@@ -106,6 +108,15 @@ export default function ChannelScreen(props: Props) {
   const channelThreadAbortController = useRef<AbortController | null>(
     new AbortController()
   );
+  const activityCapabilitiesEpoch = useSyncExternalStore(
+    api.onActivityCapabilitiesChange,
+    api.getActivityCapabilitiesEpoch
+  );
+  // A cached notes channel can mount before app-info resolves notes activity
+  // support. In that case the initial per-note unread sync intentionally
+  // returns no answer; retry once the capability becomes available.
+  const notesActivityCapabilitiesEpoch =
+    channel?.type === 'notes' ? activityCapabilitiesEpoch : 0;
 
   useEffect(() => {
     if (!channelIsPending) {
@@ -118,7 +129,7 @@ export default function ChannelScreen(props: Props) {
         abortSignal: channelThreadAbortController.current?.signal,
       });
     }
-  }, [channelIsPending, channelId]);
+  }, [channelIsPending, channelId, notesActivityCapabilitiesEpoch]);
 
   // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
   // time
