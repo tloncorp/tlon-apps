@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   bucketResponseHasRevisionGap,
+  findUploadShadowEntryIds,
   includePendingUploadForReconciliation,
   reconcileUploadsWithSnapshot,
+  removeEntryFromBucketSnapshot,
 } from './bucketUploadReconciliation';
 
 const snapshot = {
@@ -280,6 +282,71 @@ describe('includePendingUploadForReconciliation', () => {
     expect(
       includePendingUploadForReconciliation([visible], pending, ['old-session'])
     ).toEqual([{ ...visible, priorSessionIds: ['old-session'] }]);
+  });
+});
+
+describe('findUploadShadowEntryIds', () => {
+  it('hides a unique pending server entry before the broker object ID arrives', () => {
+    const upload = {
+      candidate: {
+        mimeType: 'image/heic',
+        name: 'IMG_0111.heic',
+        size: 42,
+      },
+      id: 'local-upload',
+      parentId: null,
+      priorSessionIds: [] as string[],
+    };
+
+    expect(findUploadShadowEntryIds([upload], snapshot, '~zod')).toEqual(
+      new Set([10])
+    );
+    expect(upload).not.toHaveProperty('serverEntryId');
+  });
+
+  it('does not hide an ambiguous metadata-only match', () => {
+    const ambiguousSnapshot: BucketsSnapshot = {
+      ...snapshot,
+      state: {
+        ...snapshot.state,
+        entries: [
+          ...snapshot.state.entries,
+          { ...snapshot.state.entries[0], id: 11 },
+        ],
+        sessions: [
+          ...snapshot.state.sessions,
+          {
+            ...snapshot.state.sessions[0],
+            fileId: 11,
+            id: 'second-session',
+          },
+        ],
+      },
+    };
+    const upload = {
+      candidate: {
+        mimeType: 'image/heic',
+        name: 'IMG_0111.heic',
+        size: 42,
+      },
+      id: 'local-upload',
+      parentId: null,
+      priorSessionIds: [] as string[],
+    };
+
+    expect(
+      findUploadShadowEntryIds([upload], ambiguousSnapshot, '~zod')
+    ).toEqual(new Set());
+  });
+});
+
+describe('removeEntryFromBucketSnapshot', () => {
+  it('optimistically removes an entry and its upload session', () => {
+    const next = removeEntryFromBucketSnapshot(snapshot, 10);
+
+    expect(next.state.entries).toEqual([]);
+    expect(next.state.sessions).toEqual([]);
+    expect(next.state.bucket).toBe(snapshot.state.bucket);
   });
 });
 

@@ -104,3 +104,50 @@ export function reconcileUploadsWithSnapshot<T extends ReconcileableUpload>(
 
   return changed ? reconciled : uploads;
 }
+
+/**
+ * Finds server entries that are already represented by optimistic upload rows.
+ * Before Memex returns an object ID, a unique metadata/session match is safe for
+ * display deduplication only; permanent reconciliation still requires the
+ * broker object ID.
+ */
+export function findUploadShadowEntryIds<T extends ReconcileableUpload>(
+  uploads: T[],
+  snapshot: BucketsSnapshot | null,
+  requestedBy: string
+): Set<number> {
+  if (!snapshot) {
+    return new Set(
+      uploads
+        .map((upload) => upload.serverEntryId)
+        .filter((id): id is number => id !== undefined)
+    );
+  }
+
+  const displayUploads = uploads.map((upload) =>
+    upload.serverEntryId === undefined && !upload.brokerObjectId
+      ? { ...upload, allowMetadataFallback: true }
+      : upload
+  );
+  return new Set(
+    reconcileUploadsWithSnapshot(displayUploads, snapshot, requestedBy)
+      .map((upload) => upload.serverEntryId)
+      .filter((id): id is number => id !== undefined)
+  );
+}
+
+export function removeEntryFromBucketSnapshot(
+  snapshot: BucketsSnapshot,
+  entryId: number
+): BucketsSnapshot {
+  return {
+    ...snapshot,
+    state: {
+      ...snapshot.state,
+      entries: snapshot.state.entries.filter((entry) => entry.id !== entryId),
+      sessions: snapshot.state.sessions.filter(
+        (session) => session.fileId !== entryId
+      ),
+    },
+  };
+}

@@ -28,6 +28,7 @@ import {
   useRegisterChannelHeaderItem,
 } from '../../ui';
 import { imagePickerAssetsToBucketUploadCandidates } from './bucketMediaPicker';
+import { findUploadShadowEntryIds } from './bucketUploadReconciliation';
 import {
   formatBucketTimestamp,
   formatFileSize,
@@ -132,6 +133,7 @@ export function BucketsLiveChannel({
   const [operationError, setOperationError] = useState<string | null>(null);
   const [folderPendingDeletion, setFolderPendingDeletion] =
     useState<BucketItem | null>(null);
+  const currentUserId = useCurrentUserId();
   useHideChannelHeader(embedded && previewItem !== null);
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
@@ -153,13 +155,8 @@ export function BucketsLiveChannel({
     return counts;
   }, [entries]);
   const suppressedIds = useMemo(
-    () =>
-      new Set(
-        live.uploads
-          .map((upload) => upload.serverEntryId)
-          .filter((id): id is number => id !== undefined)
-      ),
-    [live.uploads]
+    () => findUploadShadowEntryIds(live.uploads, live.snapshot, currentUserId),
+    [currentUserId, live.snapshot, live.uploads]
   );
   const serverEntries = useMemo(
     () => entries.filter((entry) => !suppressedIds.has(entry.id)),
@@ -217,7 +214,6 @@ export function BucketsLiveChannel({
     [flag.host, flag.name, rootLabel]
   );
   const channel = providedChannel ?? fallbackChannel;
-  const currentUserId = useCurrentUserId();
   const canEdit = useCanWrite(channel, currentUserId);
 
   const reportOperation = async (operation: Promise<unknown>) => {

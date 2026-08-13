@@ -37,6 +37,7 @@ import {
   bucketResponseHasRevisionGap,
   includePendingUploadForReconciliation,
   reconcileUploadsWithSnapshot,
+  removeEntryFromBucketSnapshot,
 } from './bucketUploadReconciliation';
 import { createBucketUploadTask } from './bucketUploadTask';
 import type { BucketUploadTask } from './bucketUploadTask.types';
@@ -620,18 +621,9 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       );
       setUploadBatch((current) => removeBucketUploadFromBatch(current, id));
       if (serverEntryId !== undefined && snapshotRef.current) {
-        commitSnapshot({
-          ...snapshotRef.current,
-          state: {
-            ...snapshotRef.current.state,
-            entries: snapshotRef.current.state.entries.filter(
-              (entry) => entry.id !== serverEntryId
-            ),
-            sessions: snapshotRef.current.state.sessions.filter(
-              (session) => session.fileId !== serverEntryId
-            ),
-          },
-        });
+        commitSnapshot(
+          removeEntryFromBucketSnapshot(snapshotRef.current, serverEntryId)
+        );
       }
 
       if (sessionId) {
@@ -665,7 +657,15 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const upload = uploads.find((candidate) => candidate.id === id);
       if (!upload) return;
       cancelledRef.current.delete(id);
-      if (upload.serverEntryId) {
+      if (upload.serverEntryId !== undefined) {
+        if (snapshotRef.current) {
+          commitSnapshot(
+            removeEntryFromBucketSnapshot(
+              snapshotRef.current,
+              upload.serverEntryId
+            )
+          );
+        }
         await sendBucketsAction({
           type: 'delete-entry',
           flag,
@@ -697,7 +697,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       );
       void runUpload(next);
     },
-    [flag, runUpload, setCurrentUploads, uploads]
+    [commitSnapshot, flag, runUpload, setCurrentUploads, uploads]
   );
 
   const localItems = useMemo<BucketItem[]>(
