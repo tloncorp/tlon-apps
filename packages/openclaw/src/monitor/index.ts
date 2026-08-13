@@ -104,6 +104,10 @@ import {
   resolveTlonSkillVersion,
 } from '../version.js';
 import {
+  handleAgentOnboardingRequest,
+  scanAgentOnboardingChannel,
+} from './agent-onboarding.js';
+import {
   type DisplayContext,
   type PendingApproval,
   buildApprovalA2UIBlob,
@@ -650,7 +654,12 @@ export async function monitorTlonProvider(
   }
 
   // Configure @tloncorp/api's global client to use the SSE client's poke for all send operations
-  configureTlonApiWithPoke(api.poke.bind(api), botShipName, account.url);
+  configureTlonApiWithPoke(
+    api.poke.bind(api),
+    botShipName,
+    account.url,
+    ({ app, path }) => api.scry(`/~/scry/${app}${path}.json`)
+  );
 
   // Publish the SSE-bound poke + ship coords so other module contexts (e.g.
   // the gateway-status heartbeat) can configure their own @tloncorp/api
@@ -3586,6 +3595,41 @@ export async function monitorTlonProvider(
     const watchedChannels = new Set<string>(groupChannels);
     const _watchedDMs = new Set<string>();
 
+    const mergeDiscoveredChannels = async () => {
+      const initData = await fetchInitData(api, runtime);
+      for (const [nest, groupFlag] of initData.channelToGroup) {
+        channelToGroup.set(nest, groupFlag);
+      }
+      for (const [nest, title] of initData.channelNames) {
+        channelNameCache.set(nest, title);
+      }
+      for (const [flag, title] of initData.groupNames) {
+        groupNameCache.set(flag, title);
+      }
+      return initData.channels;
+    };
+
+    const scanAgentOnboardingNest = async (nest: string) => {
+      if (!nest.startsWith('chat/')) return;
+      const groupId = channelToGroup.get(nest);
+      if (!groupId) return;
+      try {
+        await scanAgentOnboardingChannel({
+          api,
+          botShip: botShipName,
+          botProfile: getBotProfile(),
+          channelNest: nest,
+          groupId,
+          ownerShip: effectiveOwnerShip,
+          log: (message) => runtime.log?.(message),
+        });
+      } catch (error) {
+        runtime.error?.(
+          `[tlon] Failed to reconcile onboarding in ${nest}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    };
+
     // Firehose handler for all channel messages (/v4)
     const handleChannelsFirehose = async (event: ChannelFirehoseEvent) => {
       try {
@@ -3605,6 +3649,8 @@ export async function monitorTlonProvider(
         ) {
           watchedChannels.add(nest);
           runtime.log?.(`[tlon] Auto-watching channel from firehose: ${nest}`);
+          await mergeDiscoveredChannels();
+          await scanAgentOnboardingNest(nest);
         }
 
         // Only process channels we're watching
@@ -3771,6 +3817,26 @@ export async function monitorTlonProvider(
 
         // Skip processing bot's own messages (but they're already cached above)
         if (senderShip === botShipName) {
+          return;
+        }
+
+        if (
+          await handleAgentOnboardingRequest({
+            api,
+            botShip: botShipName,
+            botProfile: getBotProfile(),
+            channelNest: nest,
+            groupId: channelToGroup.get(nest),
+            ownerShip: effectiveOwnerShip,
+            senderShip,
+            rawText,
+            blob: content.blob,
+            log: (message) => runtime.log?.(message),
+          })
+        ) {
+          // Onboarding requests and deterministic picker replies are
+          // control-plane messages. Their visible text remains transcript
+          // history but never wakes the model.
           return;
         }
 
@@ -4889,6 +4955,8 @@ export async function monitorTlonProvider(
                       runtime.log?.(
                         `[tlon] Auto-detected new channel (invite accepted): ${channelNest}`
                       );
+                      await mergeDiscoveredChannels();
+                      await scanAgentOnboardingNest(channelNest);
 
                       // Persist to settings store so it survives restarts
                       if (effectiveAutoAcceptGroupInvites) {
@@ -4947,6 +5015,8 @@ export async function monitorTlonProvider(
                         runtime.log?.(
                           `[tlon] Auto-detected joined channel: ${channelNest}`
                         );
+                        await mergeDiscoveredChannels();
+                        await scanAgentOnboardingNest(channelNest);
 
                         // Persist to settings store
                         if (effectiveAutoAcceptGroupInvites) {
@@ -5183,6 +5253,9 @@ export async function monitorTlonProvider(
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      for (const channelNest of watchedChannels) {
+        await scanAgentOnboardingNest(channelNest);
+      }
       const webSearchRuntime = core.webSearch;
       const webSearchStatus = probeWebSearchBootStatus({
         searchConfig: cfg.tools?.web?.search,
@@ -5231,13 +5304,14 @@ export async function monitorTlonProvider(
           if (!opts.abortSignal?.aborted) {
             try {
               if (effectiveAutoDiscoverChannels) {
-                const discoveredChannels = await fetchAllChannels(api, runtime);
+                const discoveredChannels = await mergeDiscoveredChannels();
                 for (const channelNest of discoveredChannels) {
                   if (!watchedChannels.has(channelNest)) {
                     watchedChannels.add(channelNest);
                     runtime.log?.(
                       `[tlon] Now watching new channel: ${channelNest}`
                     );
+                    await scanAgentOnboardingNest(channelNest);
                   }
                 }
               }

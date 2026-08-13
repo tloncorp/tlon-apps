@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const getNotebook = vi.fn();
+const createNote = vi.fn();
+
+vi.mock('@tloncorp/api', () => ({
+  notes: { getNotebook, createNote },
+  scry: vi.fn(),
+}));
+
 vi.mock('./urbit/upload.js', () => ({
   prepareOutboundMedia: vi.fn(),
 }));
@@ -195,5 +203,43 @@ describe('sendMedia', () => {
       deliveryFailureCount: 0,
       deliverySuccessCount: 1,
     });
+  });
+});
+
+describe('notes delivery', () => {
+  let tlonRuntimeOutbound: typeof import('./channel.runtime.js').tlonRuntimeOutbound;
+  let sendChannelPost: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    getNotebook.mockResolvedValue({ rootFolderId: 17 });
+    createNote.mockResolvedValue(undefined);
+    ({ tlonRuntimeOutbound } = await import('./channel.runtime.js'));
+    ({ sendChannelPost } = await import('./urbit/send.js'));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('creates a Markdown note in the notebook root folder', async () => {
+    const result = await tlonRuntimeOutbound.sendText({
+      cfg: {} as never,
+      to: 'notes/~ten/updates',
+      text: '# Tuesday briefing\n\nThe full report.',
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+    });
+
+    expect(getNotebook).toHaveBeenCalledWith('notes/~ten/updates');
+    expect(createNote).toHaveBeenCalledWith({
+      flag: 'notes/~ten/updates',
+      folder: 17,
+      title: 'Tuesday briefing',
+      body: '# Tuesday briefing\n\nThe full report.',
+    });
+    expect(sendChannelPost).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ channel: 'tlon' });
   });
 });
