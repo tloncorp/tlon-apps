@@ -1,6 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { BlockData, InlineData, prependInline } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { Icon } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
@@ -24,10 +25,11 @@ export function ActivitySourceContent({
   unreadCount,
   pressHandler,
 }: ActivitySourceContentProps) {
-  const isReply = !!summary.newest.parentId;
-  const isChatPost =
-    summary.newest.channel?.type !== 'gallery' &&
-    summary.newest.channel?.type !== 'notebook';
+  const { data: liveChannel } = store.useChannel({
+    id: summary.newest.channel
+      ? undefined
+      : summary.newest.channelId ?? undefined,
+  });
 
   if (summary.newest.type === 'contact') {
     return (
@@ -38,21 +40,37 @@ export function ActivitySourceContent({
     );
   }
 
+  const channel = summary.newest.channel ?? liveChannel;
+  // Activity can hydrate before its channel relations immediately after a
+  // logout/login database reset. Channel-aware content (notably group
+  // mentions) must wait rather than rendering beneath a null provider.
+  if (!channel) {
+    return null;
+  }
+
+  const isReply = !!summary.newest.parentId;
+  const isChatPost = channel.type !== 'gallery' && channel.type !== 'notebook';
+  const hydratedSummary = summary.newest.channel
+    ? summary
+    : {
+        ...summary,
+        newest: {
+          ...summary.newest,
+          channel,
+        },
+      };
+
   return (
-    <ChannelProvider
-      value={
-        summary.newest.channel ? { channel: summary.newest.channel } : null
-      }
-    >
+    <ChannelProvider value={{ channel }}>
       {isReply || isChatPost ? (
         <ChatContentRenderer
-          summary={summary}
+          summary={hydratedSummary}
           pressHandler={pressHandler}
           unreadCount={unreadCount}
         />
       ) : (
         <NotebookOrGalleryContentRenderer
-          summary={summary}
+          summary={hydratedSummary}
           pressHandler={pressHandler}
         />
       )}
