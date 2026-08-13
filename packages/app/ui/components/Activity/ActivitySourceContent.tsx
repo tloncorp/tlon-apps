@@ -1,6 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import { BlockData, InlineData, prependInline } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { Icon } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
@@ -24,6 +25,12 @@ export function ActivitySourceContent({
   unreadCount,
   pressHandler,
 }: ActivitySourceContentProps) {
+  const { data: liveChannel } = store.useChannel({
+    id: summary.newest.channel
+      ? undefined
+      : summary.newest.channelId ?? undefined,
+  });
+
   if (summary.newest.type === 'contact') {
     return (
       <ContactUpdateContentRenderer
@@ -33,7 +40,7 @@ export function ActivitySourceContent({
     );
   }
 
-  const channel = summary.newest.channel;
+  const channel = summary.newest.channel ?? liveChannel;
   // Activity can hydrate before its channel relations immediately after a
   // logout/login database reset. Channel-aware content (notably group
   // mentions) must wait rather than rendering beneath a null provider.
@@ -43,18 +50,27 @@ export function ActivitySourceContent({
 
   const isReply = !!summary.newest.parentId;
   const isChatPost = channel.type !== 'gallery' && channel.type !== 'notebook';
+  const hydratedSummary = summary.newest.channel
+    ? summary
+    : {
+        ...summary,
+        newest: {
+          ...summary.newest,
+          channel,
+        },
+      };
 
   return (
     <ChannelProvider value={{ channel }}>
       {isReply || isChatPost ? (
         <ChatContentRenderer
-          summary={summary}
+          summary={hydratedSummary}
           pressHandler={pressHandler}
           unreadCount={unreadCount}
         />
       ) : (
         <NotebookOrGalleryContentRenderer
-          summary={summary}
+          summary={hydratedSummary}
           pressHandler={pressHandler}
         />
       )}

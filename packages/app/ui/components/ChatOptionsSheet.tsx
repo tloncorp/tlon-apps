@@ -15,6 +15,7 @@ import React, {
 import { Popover, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
+import { ChatOptionsContext } from '../contexts/chatOptions/context';
 import { useChatOptions } from '../contexts/chatOptions/useChatOptions';
 import { useChatVolumeOptions } from '../contexts/chatOptions/useChatVolumeOptions';
 import * as utils from '../utils';
@@ -142,7 +143,8 @@ export function GroupOptionsSheetLoader({
   const [pane, setPane] = useState<
     'initial' | 'notifications' | 'sort' | 'edit'
   >('initial');
-  const { group } = useChatOptions();
+  const chatOptions = useChatOptions();
+  const { group } = chatOptions;
 
   const handlePressNotifications = useCallback(() => {
     setPane('notifications');
@@ -223,27 +225,32 @@ export function GroupOptionsSheetLoader({
 
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange} modal>
-      {pane === 'notifications' ? (
-        <NotificationsSheetContent chatTitle={title} onPressBack={resetPane} />
-      ) : pane === 'edit' ? (
-        <EditGroupSheetContent
-          chatTitle={title}
-          onPressBack={resetPane}
-          onOpenChange={onOpenChange}
-        />
-      ) : pane === 'sort' ? (
-        <SortChannelsSheetContent chatTitle={title} onPressBack={resetPane} />
-      ) : (
-        <GroupOptionsSheetContent
-          groupUnread={groupUnread ?? null}
-          currentUserIsAdmin={currentUserIsAdmin}
-          onPressNotifications={handlePressNotifications}
-          onPressSort={handlePressSort}
-          chatTitle={title}
-          group={group || groupData!}
-          onOpenChange={onOpenChange}
-        />
-      )}
+      <ChatOptionsContext.Provider value={chatOptions}>
+        {pane === 'notifications' ? (
+          <NotificationsSheetContent
+            chatTitle={title}
+            onPressBack={resetPane}
+          />
+        ) : pane === 'edit' ? (
+          <EditGroupSheetContent
+            chatTitle={title}
+            onPressBack={resetPane}
+            onOpenChange={onOpenChange}
+          />
+        ) : pane === 'sort' ? (
+          <SortChannelsSheetContent chatTitle={title} onPressBack={resetPane} />
+        ) : (
+          <GroupOptionsSheetContent
+            groupUnread={groupUnread ?? null}
+            currentUserIsAdmin={currentUserIsAdmin}
+            onPressNotifications={handlePressNotifications}
+            onPressSort={handlePressSort}
+            chatTitle={title}
+            group={group || groupData!}
+            onOpenChange={onOpenChange}
+          />
+        )}
+      </ChatOptionsContext.Provider>
     </ActionSheet>
   );
 }
@@ -516,6 +523,7 @@ const ChannelOptionsSheetLoader = memo(
     trigger?: React.ReactNode;
   }) => {
     const [pane, setPane] = useState<ChannelPanes>('initial');
+    const chatOptions = useChatOptions();
     const channelQuery = store.useChannel({
       id: channelId,
     });
@@ -590,19 +598,21 @@ const ChannelOptionsSheetLoader = memo(
 
     return (
       <ActionSheet open={open} onOpenChange={onOpenChange} modal>
-        {pane === 'notifications' ? (
-          <NotificationsSheetContent
-            chatTitle={chatTitle}
-            onPressBack={resetPane}
-          />
-        ) : (
-          <ChannelOptionsSheetContent
-            chatTitle={chatTitle}
-            channel={channel}
-            onPressNotifications={handlePressNotifications}
-            onOpenChange={onOpenChange}
-          />
-        )}
+        <ChatOptionsContext.Provider value={chatOptions}>
+          {pane === 'notifications' ? (
+            <NotificationsSheetContent
+              chatTitle={chatTitle}
+              onPressBack={resetPane}
+            />
+          ) : (
+            <ChannelOptionsSheetContent
+              chatTitle={chatTitle}
+              channel={channel}
+              onPressNotifications={handlePressNotifications}
+              onOpenChange={onOpenChange}
+            />
+          )}
+        </ChatOptionsContext.Provider>
       </ActionSheet>
     );
   }
