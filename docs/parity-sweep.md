@@ -45,12 +45,14 @@ Intentional behavioral divergence is documented in the shared e2e harness's per-
 -   **Reaction-based approvals** (👍/👎/🛑 on approval DMs) are OpenClaw-legacy and intentionally not ported — A2UI approval cards supersede them.
 -   **Hermes-only surfaces** accepted as reverse divergence: `/channel-access`, extended owner-listen modes, `/tlon status` diagnostics, native block-list pre-check, in-package `image_search`.
 -   **OpenClaw-only** session/route persistence machinery (webchat-leak prevention) is architecture-specific and has no Hermes analogue by design.
+-   **Outbound story construction** is OpenClaw-only (`src/urbit/story.ts` text→story conversion). Hermes sends raw text through the `tlon` CLI, which converts via the shared `packages/api` markdown converter (out of sweep scope). Fixes to OpenClaw's converter have no Hermes twin; shared-converter gaps are filed against `packages/api` (e.g. TLON-6334).
+-   **Blank-ship config failure mode**: both runtimes guarantee a blank/whitespace ship is never used, but OpenClaw rejects at config-parse time while Hermes treats it as "not configured" (`is_complete()` false) — deliberate, since Hermes' `from_env` is probed speculatively on unconfigured environments.
 
 If a swept commit _changes_ one of these declared divergences, that IS reportable (this list may need updating).
 
 ## Standing open gaps (report only status changes)
 
-Known, already-filed gaps. Do not re-report their existence. Report a standing-gap update only when a swept commit suggests one **appears implemented** (cite the SHA; humans must verify and close the issue — code evidence is not issue status) or **appears widened**. Last human review of this list: 2026-08-08.
+Known, already-filed gaps. Do not re-report their existence. Report a standing-gap update only when a swept commit suggests one **appears implemented** (cite the SHA; humans must verify and close the issue — code evidence is not issue status) or **appears widened**. Last human review of this list: 2026-08-13.
 
 -   Restart-replay dedup across process restarts — TLON-6098 (shared e2e scenario `restart-no-double-reply` registered but skipped).
 -   Inbound sanitization coverage for enriched media text — TLON-6169 (see Linear for details).
@@ -61,8 +63,10 @@ Known, already-filed gaps. Do not re-report their existence. Report a standing-g
 -   SSE reap detection (event-id regression, per-poke floor ledger) and watchdog env knobs on Hermes — TLON-6319.
 -   `Harness Version` field in Hermes `/tlon version` — TLON-6320.
 -   Approval-card source-navigation links + component-limit trimming on Hermes — TLON-6321.
--   Unverified small twins — TLON-6322 (drop after 2026-10-01 if still unverified): @p-validated mention formatting, blank-ship-string rejection, authorless cite path forms with engagement/authorization gating.
 -   OpenClaw→Hermes harness migration tooling — TLON-5934.
+-   Blob-only _reply_ cites render `[📎 …]` on Hermes, nothing on OpenClaw (`history.py` keeps the blob for reply payloads, `history.ts` drops it) — undecided disagreement flagged during TLON-6322; whichever runtime changes, report it.
+
+Resolved 2026-08-13 (remove after PR #6276 merges): the TLON-6322 "unverified small twins" entry — mention @p validation (n/a on Hermes, residual shared-converter gap filed as TLON-6334), blank-ship rejection (equivalent guarantee, declared divergence above), authorless cite paths/gating (verified; three small divergences fixed).
 
 ## Evidence rules
 
