@@ -5,6 +5,7 @@ import {
   ThemeProvider as NavigationThemeProvider,
 } from '@react-navigation/native';
 import {
+  BlendMode,
   ClipOp,
   ImageFormat,
   Skia,
@@ -33,11 +34,15 @@ const Tabs = createNativeBottomTabNavigator<TopLevelTabParamList>();
 type TabIconName = 'home' | 'activity' | 'profile';
 
 const TAB_AVATAR_SIZE = Platform.OS === 'android' ? 20 : 18;
-const TAB_ICON_CANVAS_SIZE =
-  Platform.OS === 'android' ? 24 : TAB_AVATAR_SIZE;
+const TAB_ICON_CANVAS_SIZE = Platform.OS === 'android' ? 24 : TAB_AVATAR_SIZE;
 const TAB_AVATAR_SCALE = PixelRatio.get() * 2;
 const TAB_AVATAR_RADIUS = 4;
 const TAB_SIGIL_SIZE = 12;
+const TAB_ACTIVITY_ICON_SIZE = 24;
+const TAB_ACTIVITY_DOT_X = 19.5;
+const TAB_ACTIVITY_DOT_Y = 4.5;
+const TAB_ACTIVITY_DOT_RADIUS = 4;
+const TAB_ACTIVITY_DOT_CLEAR_RADIUS = 3.25;
 
 const tabIcons = {
   home: {
@@ -71,6 +76,126 @@ function avatarTabIcon(source: ImageSourcePropType | undefined) {
     source,
     tinted: false,
   };
+}
+
+function originalTabIcon(
+  source: ImageSourcePropType | undefined,
+  focused: boolean
+) {
+  if (!source) {
+    return tabIcon('activity', focused);
+  }
+
+  return {
+    type: 'image' as const,
+    source,
+    tinted: false,
+  };
+}
+
+function useUnreadActivityIconSources({
+  activeColor,
+  inactiveColor,
+}: {
+  activeColor: string;
+  inactiveColor: string;
+}) {
+  const regularImage = useImage(tabIcons.activity.regular);
+  const selectedImage = useImage(tabIcons.activity.selected);
+  const [sources, setSources] = useState<{
+    regular?: ImageSourcePropType;
+    selected?: ImageSourcePropType;
+  }>({});
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !regularImage || !selectedImage) {
+      setSources({});
+      return;
+    }
+
+    const renderSource = (
+      image: NonNullable<typeof regularImage>,
+      color: string
+    ) => {
+      const pixelSize = TAB_ACTIVITY_ICON_SIZE * TAB_AVATAR_SCALE;
+      const destination = rect(0, 0, pixelSize, pixelSize);
+      const surface = Skia.Surface.MakeOffscreen(pixelSize, pixelSize);
+      if (!surface) {
+        return undefined;
+      }
+
+      const canvas = surface.getCanvas();
+      const imagePaint = Skia.Paint();
+      const tintPaint = Skia.Paint();
+      const clearPaint = Skia.Paint();
+      const dotPaint = Skia.Paint();
+
+      try {
+        canvas.clear(Skia.Color('transparent'));
+        canvas.drawImageRectCubic(
+          image,
+          rect(0, 0, image.width(), image.height()),
+          destination,
+          1 / 3,
+          1 / 3,
+          imagePaint
+        );
+
+        tintPaint.setColor(Skia.Color(color));
+        tintPaint.setBlendMode(BlendMode.SrcIn);
+        canvas.drawRect(destination, tintPaint);
+
+        // Cut a small transparent ring out of the bell so the blue dot stays
+        // legible over both outline and filled variants on every theme.
+        clearPaint.setBlendMode(BlendMode.Clear);
+        clearPaint.setAntiAlias(true);
+        canvas.drawCircle(
+          TAB_ACTIVITY_DOT_X * TAB_AVATAR_SCALE,
+          TAB_ACTIVITY_DOT_Y * TAB_AVATAR_SCALE,
+          TAB_ACTIVITY_DOT_CLEAR_RADIUS * TAB_AVATAR_SCALE,
+          clearPaint
+        );
+
+        dotPaint.setColor(Skia.Color(getTokenValue('$blue', 'color')));
+        dotPaint.setAntiAlias(true);
+        canvas.drawCircle(
+          TAB_ACTIVITY_DOT_X * TAB_AVATAR_SCALE,
+          TAB_ACTIVITY_DOT_Y * TAB_AVATAR_SCALE,
+          TAB_ACTIVITY_DOT_RADIUS * TAB_AVATAR_SCALE,
+          dotPaint
+        );
+        surface.flush();
+
+        const dottedImage = surface.makeImageSnapshot();
+        try {
+          return {
+            uri: `data:image/png;base64,${dottedImage.encodeToBase64(
+              ImageFormat.PNG,
+              100
+            )}`,
+            width: TAB_ACTIVITY_ICON_SIZE,
+            height: TAB_ACTIVITY_ICON_SIZE,
+            scale: TAB_AVATAR_SCALE,
+          } satisfies ImageSourcePropType;
+        } finally {
+          dottedImage.dispose();
+        }
+      } finally {
+        imagePaint.dispose();
+        tintPaint.dispose();
+        clearPaint.dispose();
+        dotPaint.dispose();
+        surface.dispose();
+      }
+    };
+
+    setSources({
+      regular: renderSource(regularImage, inactiveColor),
+      selected: renderSource(selectedImage, activeColor),
+    });
+  }, [activeColor, inactiveColor, regularImage, selectedImage]);
+
+  return sources;
 }
 
 function useRoundedAvatarSource({
@@ -230,6 +355,10 @@ export function TopLevelTabNavigator() {
   const { data: currentUser } = store.useContact({ id: currentUserId });
   const { data: calmSettings } = store.useCalmSettings();
   const sigilColors = useSigilColors(currentUser?.color);
+  const unreadActivityIconSources = useUnreadActivityIconSources({
+    activeColor: theme.primaryText?.val ?? navigationTheme.colors.text,
+    inactiveColor: theme.secondaryText?.val ?? navigationTheme.colors.text,
+  });
   const roundedAvatarSource = useRoundedAvatarSource({
     avatarImage: calmSettings?.disableAvatars
       ? undefined
@@ -282,8 +411,17 @@ export function TopLevelTabNavigator() {
           component={ActivityScreen}
           options={{
             title: TOP_LEVEL_TABS.Activity.title,
-            tabBarBadge: haveUnreadActivity ? '' : undefined,
-            tabBarIcon: ({ focused }) => tabIcon('activity', focused),
+            tabBarBadge:
+              Platform.OS === 'android' && haveUnreadActivity ? '' : undefined,
+            tabBarIcon: ({ focused }) =>
+              Platform.OS === 'ios' && haveUnreadActivity
+                ? originalTabIcon(
+                    focused
+                      ? unreadActivityIconSources.selected
+                      : unreadActivityIconSources.regular,
+                    focused
+                  )
+                : tabIcon('activity', focused),
           }}
         />
         <Tabs.Screen
