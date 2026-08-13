@@ -37,6 +37,7 @@ from .approval import (
     SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS,
     SETTINGS_KEY_DM_ALLOWLIST,
     SETTINGS_KEY_GROUP_INVITE_ALLOWLIST,
+    MAX_PENDING_APPROVALS_A2UI,
     SETTINGS_KEY_PENDING_APPROVALS,
     approval_group_flag,
     approval_id,
@@ -60,6 +61,7 @@ from .approval import (
     remove_approval,
     serialize_blob,
     settings_bool,
+    validate_a2ui_card,
 )
 from .attention import AttentionFacts, resolve_attention
 from .channel_access import (
@@ -80,6 +82,7 @@ from .history import (
     build_thread_context,
     fetch_channel_history,
     fetch_post,
+    fetch_post_author,
     fetch_reply,
     fetch_thread_context,
 )
@@ -945,6 +948,9 @@ class TlonAdapter(BasePlatformAdapter):
         self._seen_order: list[str] = []
         self._reaction_state = ReactionState()
         self._message_cache = MessageCache()
+        # Channel nest -> owning group flag, rebuilt from `/groups-ui/v7/init`
+        # the first time an approval card needs a `groupId` and on every miss.
+        self._nest_to_group: dict[str, str] = {}
         self._pending_reaction_notes: OrderedDict[str, deque[str]] = OrderedDict()
         # Maps a top-level own-post reaction's synthetic `react/…` dispatch
         # id to the real reactable post it was about, so send()'s
@@ -1169,6 +1175,7 @@ class TlonAdapter(BasePlatformAdapter):
         self._executed_block_directives.clear()
         self._reaction_state.clear()
         self._message_cache.clear()
+        self._nest_to_group.clear()
         self._pending_reaction_notes.clear()
         self._reaction_reply_targets.clear()
         self._processed_dm_invites.clear()
@@ -1659,6 +1666,40 @@ class TlonAdapter(BasePlatformAdapter):
         preview = strip_block_directives(preview).strip()
         return preview or "[attachment]"
 
+    async def _parent_author_for(
+        self, message: TlonIncomingMessage, *, allow_scry: bool
+    ) -> Optional[str]:
+        """Author of the thread parent an approval request replied to.
+
+        Without it a View-message button on a thread reply silently no-ops
+        whenever the owner's client has not already synced the parent post.
+        Cache first (the ``"unknown"`` sentinel is not an author); the exact
+        post scry is the channel-side fallback only — DM parents are in the
+        bot's own recent cache.
+        """
+        parent_id = message.reply_to_message_id
+        if not parent_id:
+            return None
+        cached = self._message_cache.lookup(message.chat_id, parent_id)
+        if cached is not None and cached.author and cached.author != "unknown":
+            return normalize_ship(cached.author) or None
+        if not allow_scry or self._sse is None:
+            return None
+        author = await fetch_post_author(self._sse.scry, message.chat_id, parent_id)
+        return normalize_ship(author or "") or None
+
+    def _recipient_sees_bot_dms(self) -> bool:
+        """Whether the notified owner can open the bot's own DM conversations.
+
+        Only when the owner *is* the bot ship: on a hosted deployment the
+        owner is a separate ship whose client has no copy of the bot's DM
+        channel, so a DM source link would dead-end. Sender-side heuristic,
+        matching OpenClaw — no permission scry.
+        """
+        return normalize_ship(self.tlon_config.owner_ship) == normalize_ship(
+            self.tlon_config.ship_name
+        )
+
     async def _queue_dm_approval(
         self, message: TlonIncomingMessage, clean_text: str
     ) -> None:
@@ -1672,6 +1713,9 @@ class TlonAdapter(BasePlatformAdapter):
             return
         original = self._original_message_payload(message)
         original["messageText"] = clean_text
+        parent_author = await self._parent_author_for(message, allow_scry=False)
+        if parent_author:
+            original["parentAuthorId"] = parent_author
         await self._queue_approval(
             approval_kind="dm",
             requesting_ship=message.user_id,
@@ -1692,6 +1736,9 @@ class TlonAdapter(BasePlatformAdapter):
             return
         original = self._original_message_payload(message)
         original["messageText"] = clean_text
+        parent_author = await self._parent_author_for(message, allow_scry=True)
+        if parent_author:
+            original["parentAuthorId"] = parent_author
         if normalize_ship(message.user_id) in self._known_bot_ships:
             # The triggering message may carry a plain-string author even
             # though the ship was already learned as a bot, and the learned
@@ -1785,12 +1832,38 @@ class TlonAdapter(BasePlatformAdapter):
         owner = self.tlon_config.owner_ship
         if not owner:
             return
-        text = format_approval_request(approval)
-        blob = serialize_blob(build_approval_card(approval))
-        with cli_context("owner_notification"):
-            result = await self._cli.run_command(
-                ("posts", "send", owner, text, "--blob", blob)
+        text = format_approval_request(approval)[:MAX_MESSAGE_LENGTH]
+        # The text notification is self-sufficient, so a card that cannot be
+        # built or does not validate costs the owner the buttons, never the
+        # request itself.
+        blob: Optional[str] = None
+        card_error: Any = None
+        try:
+            card = build_approval_card(
+                approval,
+                recipient_sees_bot_dms=self._recipient_sees_bot_dms(),
+                channel_groups=await self._channel_groups_for([approval]),
             )
+            if validate_a2ui_card(card):
+                blob = serialize_blob(card)
+            else:
+                card_error = "approval card failed validation"
+        except Exception as exc:
+            card_error = exc
+        if card_error is not None:
+            logger.warning(
+                "[tlon] approval card unavailable for %s: %s",
+                approval_id(approval),
+                card_error,
+            )
+            self._telemetry.error(
+                "approval", card_error, requestType=approval_type(approval)
+            )
+        args: list[str] = ["posts", "send", owner, text]
+        if blob:
+            args.extend(["--blob", blob])
+        with cli_context("owner_notification"):
+            result = await self._cli.run_command(args)
         if not result.success:
             logger.warning(
                 "[tlon] approval notification to %s failed: %s", owner, result.error
@@ -1964,9 +2037,23 @@ class TlonAdapter(BasePlatformAdapter):
 
         blob_fields: tuple[str | None, ...] = ()
         if action == "pending":
+            is_dm_reply = _is_dm_chat_id(reply_chat_id)
+            # Group flags only decorate the card, so don't scry for them when
+            # no card will be built (non-DM reply, or outside the 1..4 item
+            # card budget — the list is already pruned above).
+            wants_card = (
+                is_dm_reply
+                and 0 < len(self._pending_approvals) <= MAX_PENDING_APPROVALS_A2UI
+            )
             reply, pending_blob = build_pending_approvals_response(
                 self._pending_approvals,
-                is_dm=_is_dm_chat_id(reply_chat_id),
+                is_dm=is_dm_reply,
+                recipient_sees_bot_dms=self._recipient_sees_bot_dms(),
+                channel_groups=(
+                    await self._channel_groups_for(self._pending_approvals)
+                    if wants_card
+                    else {}
+                ),
             )
             if pending_blob is not None:
                 blob_fields = (pending_blob,)
@@ -3422,6 +3509,61 @@ class TlonAdapter(BasePlatformAdapter):
             for nest in channels
             if isinstance(nest, str)
             and nest.split("/", 1)[0] in ("chat", "heap", "diary")
+        }
+
+    async def _refresh_nest_to_group(self) -> None:
+        """Rebuild the nest -> group-flag map from `/groups-ui/v7/init`.
+
+        The same payload the group lookups above walk. On failure the previous
+        map is kept — a stale flag beats none, and the next render retries.
+        """
+        if self._sse is None:
+            return
+        try:
+            init = await self._sse.scry("/groups-ui/v7/init")
+        except Exception as exc:
+            logger.debug("[tlon] could not scry nest-to-group map: %s", exc)
+            return
+        groups = init.get("groups") if isinstance(init, Mapping) else None
+        if not isinstance(groups, Mapping):
+            return
+        resolved: dict[str, str] = {}
+        for flag, group in groups.items():
+            if not isinstance(flag, str) or not isinstance(group, Mapping):
+                continue
+            channels = group.get("channels")
+            if not isinstance(channels, Mapping):
+                continue
+            for channel_nest in channels:
+                if isinstance(channel_nest, str) and channel_nest:
+                    resolved[channel_nest] = flag
+        self._nest_to_group = resolved
+
+    async def _channel_groups_for(
+        self, approvals: Iterable[Mapping[str, Any]]
+    ) -> dict[str, str]:
+        """nest -> group flag for the channel approvals about to be rendered.
+
+        Resolved at render time rather than stored on the approval record, so
+        the `pendingApprovals` schema OpenClaw shares stays unchanged and
+        already-persisted approvals gain the link too. At most one scry per
+        render: the map is rebuilt once when any nest is missing from it, and
+        nests still unresolved after that are omitted (a nest whose group the
+        bot has left has no navigable group anyway).
+        """
+        nests: list[str] = []
+        for approval in approvals:
+            nest = approval_nest(approval)
+            if approval_type(approval) == "channel" and nest and nest not in nests:
+                nests.append(nest)
+        if not nests:
+            return {}
+        if any(nest not in self._nest_to_group for nest in nests):
+            await self._refresh_nest_to_group()
+        return {
+            nest: self._nest_to_group[nest]
+            for nest in nests
+            if self._nest_to_group.get(nest)
         }
 
     async def _lookup_diary_channel_title(self, nest: str) -> Optional[str]:
