@@ -41,6 +41,10 @@ import { ChatListSearch } from '../chat-list/ChatListSearch';
 import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
 import {
+  canClaimAgentOnboardingLanding,
+  claimAgentOnboardingLanding,
+} from './agentOnboardingLanding';
+import {
   getGroupInviteSheetState,
   isGroupInviteReady,
 } from './groupInvitePreview';
@@ -100,7 +104,12 @@ export function ChatListScreenView({
   const resetToChannelRef = useRef(resetToChannel);
   resetToChannelRef.current = resetToChannel;
   useEffect(() => {
-    if (!onboardingLanding || consumedOnboardingLanding.current) return;
+    if (
+      !canClaimAgentOnboardingLanding(onboardingLanding) ||
+      consumedOnboardingLanding.current
+    ) {
+      return;
+    }
     let active = true;
 
     void (async () => {
@@ -110,21 +119,18 @@ export function ChatListScreenView({
             id: onboardingLanding.channelId,
           });
           if (channel) {
+            // Claim this handoff durably before resetting navigation. The reset
+            // remounts ChatListScreen, so component-local state alone cannot
+            // prevent the new instance from consuming the same handoff again.
+            await db.agentOnboardingLanding.setValue(
+              claimAgentOnboardingLanding(onboardingLanding)
+            );
             consumedOnboardingLanding.current = true;
             resetToChannelRef.current(onboardingLanding.channelId, {
               backToGroupIndex: true,
               disableTransition: true,
               groupId: onboardingLanding.groupId,
             });
-            // Let the reset commit behind the onboarding cover before clearing
-            // the handoff. AgentOnboardingSequence removes the cover only after
-            // observing this value clear.
-            await new Promise<void>((resolve) => {
-              requestAnimationFrame(() =>
-                requestAnimationFrame(() => resolve())
-              );
-            });
-            await db.agentOnboardingLanding.resetValue();
             return;
           }
         } catch (error) {
