@@ -453,14 +453,18 @@ export const splashNickname = createStorageItem<string>({
   defaultValue: '',
 });
 
-/** One-shot handoff from the pre-navigation splash into the agent chat. */
-export const agentOnboardingLanding = createStorageItem<{
+export type AgentOnboardingLanding = {
   groupId: string;
   channelId: string;
-} | null>({
-  key: 'agentOnboardingLandingV2',
-  defaultValue: null,
-});
+  status?: 'pending' | 'claimed';
+};
+
+/** One-shot handoff from the pre-navigation splash into the agent chat. */
+export const agentOnboardingLanding =
+  createStorageItem<AgentOnboardingLanding | null>({
+    key: 'agentOnboardingLandingV2',
+    defaultValue: null,
+  });
 
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   key: 'wayfindingProgress',
