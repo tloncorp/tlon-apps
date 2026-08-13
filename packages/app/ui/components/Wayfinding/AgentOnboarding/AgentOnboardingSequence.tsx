@@ -62,6 +62,7 @@ export function AgentOnboardingSequence(props: {
           await db.agentOnboardingLanding.setValue({
             groupId,
             channelId: furnished.chatChannelId,
+            status: 'pending',
           });
           completedRef.current = true;
           logger.trackEvent('Agent Onboarding V2 In-Channel Handoff', {
