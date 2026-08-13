@@ -39,6 +39,10 @@ import {
   createMigrateCommandHandler,
   routeMigrateCommand,
 } from './src/migrate-command.js';
+import {
+  handleAgentOnboardingCronChanged,
+  handleAgentOnboardingMessageSent,
+} from './src/monitor/agent-onboarding.js';
 import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { handleOwnerListenCommand } from './src/owner-listen-command.js';
@@ -1237,6 +1241,7 @@ export default defineBundledChannelEntry({
     api.on('cron_changed', async (event, ctx) => {
       try {
         await handleCronChangedEvent(event, ctx);
+        await handleAgentOnboardingCronChanged(event);
       } catch (error) {
         api.logger.warn(
           `[tlon] Telemetry observer failed (cron_changed:${event.action}): ${String(error)}`
@@ -1314,6 +1319,11 @@ export default defineBundledChannelEntry({
     });
 
     api.on('message_sent', (event, ctx) => {
+      void handleAgentOnboardingMessageSent(event).catch((error) => {
+        api.logger.error(
+          `[tlon] agent onboarding delivery completion failed: ${String(error)}`
+        );
+      });
       safeTelemetryObserver({
         logger: api.logger,
         telemetrySource: 'message_sent',
