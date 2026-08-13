@@ -122,3 +122,5 @@
          while preserving the `%project` wire action.
 - [x] 5.15 Simplify the Steward automation TypeScript without
          weakening validation, lifecycle, or race guarantees.
+- [x] 5.16 Inline the single-use reconciler deactivation logic into
+         `stop()`.

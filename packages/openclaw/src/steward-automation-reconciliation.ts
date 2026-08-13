@@ -157,7 +157,28 @@ export class StewardAutomationReconciler {
   }
 
   stop(): void {
-    this.deactivate();
+    const epoch = this.activeEpoch;
+    if (epoch === null) {
+      return;
+    }
+
+    const cancellation = new StewardAutomationReconciliationCancelledError(
+      epoch,
+      'gateway-stop'
+    );
+    this.activeEpoch = null;
+    this.retryController?.abort(cancellation);
+    this.retryController = null;
+
+    if (this.current?.epoch === epoch) {
+      this.rejectBatch(this.current, cancellation);
+    }
+    if (this.pending?.epoch === epoch) {
+      const pending = this.takePending();
+      if (pending) {
+        this.rejectBatch(pending, cancellation);
+      }
+    }
   }
 
   private enqueue(
@@ -185,31 +206,6 @@ export class StewardAutomationReconciler {
     }
 
     return promise;
-  }
-
-  private deactivate(): void {
-    const epoch = this.activeEpoch;
-    if (epoch === null) {
-      return;
-    }
-
-    const cancellation = new StewardAutomationReconciliationCancelledError(
-      epoch,
-      'gateway-stop'
-    );
-    this.activeEpoch = null;
-    this.retryController?.abort(cancellation);
-    this.retryController = null;
-
-    if (this.current?.epoch === epoch) {
-      this.rejectBatch(this.current, cancellation);
-    }
-    if (this.pending?.epoch === epoch) {
-      const pending = this.takePending();
-      if (pending) {
-        this.rejectBatch(pending, cancellation);
-      }
-    }
   }
 
   private async drain(): Promise<void> {
