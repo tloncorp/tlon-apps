@@ -17,6 +17,7 @@ import { Popover, isWeb } from 'tamagui';
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { useChatOptions } from '../contexts/chatOptions/useChatOptions';
 import { useChatVolumeOptions } from '../contexts/chatOptions/useChatVolumeOptions';
+import { useSheetCloseAfterAnimation } from '../hooks/useSheetCloseAfterAnimation';
 import * as utils from '../utils';
 import {
   Action,
@@ -55,6 +56,26 @@ type ChatOptionsSheetProps = {
   trigger?: React.ReactNode;
 };
 
+function useChatOptionsSheetAction(
+  onOpenChange: (open: boolean, clearChat?: boolean) => void
+) {
+  const { closeAfterAnimation } = useSheetCloseAfterAnimation();
+
+  return useCallback(
+    (action: () => void, clearChat = true) => {
+      if (clearChat) {
+        action();
+        onOpenChange(false, true);
+        return;
+      }
+
+      onOpenChange(false, false);
+      closeAfterAnimation(action);
+    },
+    [closeAfterAnimation, onOpenChange]
+  );
+}
+
 export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   chat,
   open: propOpen,
@@ -62,6 +83,8 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   trigger,
 }: ChatOptionsSheetProps) {
   const { open: contextOpen, setChat, group } = useChatOptions();
+  const { closeAfterAnimation, cancel: cancelPendingClose } =
+    useSheetCloseAfterAnimation();
 
   // Use props for explicit control (popovers)
   // For sheets, this will be false and context.open will handle state
@@ -70,28 +93,28 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   // Handle open state changes
   const handleOpenChange = useCallback(
     (open: boolean, clearChat = true) => {
-      if (open && chat) {
-        // Set chat state for both popovers and sheets
-        contextOpen(chat.id, chat.type);
-      } else if (!open) {
-        // Close both popover and sheet states
-        if (propOnOpenChange) {
-          propOnOpenChange(false);
+      if (open) {
+        cancelPendingClose();
+        if (chat) {
+          contextOpen(chat.id, chat.type);
         }
-        // Clear chat state after a short delay to allow handlers to complete
-        if (clearChat) {
-          setTimeout(() => {
-            setChat(null);
-          }, 100);
-        }
+        propOnOpenChange?.(true);
+        return;
       }
 
-      // Call provided handler for popovers
-      if (propOnOpenChange) {
-        propOnOpenChange(open);
+      propOnOpenChange?.(false);
+      if (clearChat) {
+        closeAfterAnimation(() => setChat(null));
       }
     },
-    [chat, contextOpen, setChat, propOnOpenChange]
+    [
+      cancelPendingClose,
+      chat,
+      closeAfterAnimation,
+      contextOpen,
+      propOnOpenChange,
+      setChat,
+    ]
   );
 
   if (!chat || (!isOpen && !trigger)) {
@@ -274,20 +297,13 @@ export function GroupOptionsSheetContent({
   const isErrored = group?.joinStatus === 'errored';
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
-  const wrappedAction = useCallback(
-    (action: () => void, clearChat = true) => {
-      action();
-      onOpenChange(false, clearChat);
-    },
-    [onOpenChange]
-  );
+  const wrappedAction = useChatOptionsSheetAction(onOpenChange);
 
   const wrappedInviteAction = useCallback(() => {
-    // Just call the invite handler - let the context manage the sheet lifecycle
     if (onPressInvite) {
-      onPressInvite();
+      wrappedAction(onPressInvite, false);
     }
-  }, [onPressInvite]);
+  }, [onPressInvite, wrappedAction]);
 
   const handlePressChatDetails = useCallback(() => {
     onPressChatDetails({ type: 'group', id: group.id });
@@ -444,13 +460,7 @@ function EditGroupSheetContent({
   const { onPressGroupMeta, onPressManageChannels, onPressGroupPrivacy } =
     useChatOptions();
 
-  const wrappedAction = useCallback(
-    (action: () => void, clearChat = true) => {
-      action();
-      onOpenChange(false, clearChat);
-    },
-    [onOpenChange]
-  );
+  const wrappedAction = useChatOptionsSheetAction(onOpenChange);
 
   const editActions = useMemo(
     () =>
@@ -658,13 +668,7 @@ export function ChannelOptionsSheetContent({
     });
   }, [channel.id, channel.groupId, onPressChatDetails]);
 
-  const wrappedAction = useCallback(
-    (action: () => void, clearChat = true) => {
-      action();
-      onOpenChange(false, clearChat);
-    },
-    [onOpenChange]
-  );
+  const wrappedAction = useChatOptionsSheetAction(onOpenChange);
 
   const notificationTitle = useMemo(
     () => getNotificationTitle(channel.volumeSettings, baseVolumeLevel),
@@ -728,7 +732,7 @@ export function ChannelOptionsSheetContent({
             title: 'Use channel as template',
             description: 'Create a new channel based on this one',
             endIcon: 'Copy',
-            action: wrappedAction.bind(null, onPressChannelTemplate),
+            action: wrappedAction.bind(null, onPressChannelTemplate, false),
           },
         ],
         currentUserIsChannelHost && [

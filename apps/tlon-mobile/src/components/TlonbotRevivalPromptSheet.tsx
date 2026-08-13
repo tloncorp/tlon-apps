@@ -1,5 +1,6 @@
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { ActionSheet, YStack } from '@tloncorp/app/ui';
+import { useSheetCloseAfterAnimation } from '@tloncorp/app/ui/hooks/useSheetCloseAfterAnimation';
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
@@ -18,6 +19,7 @@ const logger = createDevLogger('TlonbotRevivalPromptSheet', true);
 
 export function useTlonbotRevivalPrompt() {
   const { authCookie, authType, setShip, ship, shipUrl } = useShip();
+  const { closeAfterAnimation } = useSheetCloseAfterAnimation();
   const [open, setOpen] = useState(false);
   const [snoozed, setSnoozed] = useState(false);
 
@@ -64,28 +66,31 @@ export function useTlonbotRevivalPrompt() {
       severity: AnalyticsSeverity.High,
     });
 
-    setShip({
-      authCookie,
-      authType: authType ?? 'hosted',
-      needsSplashSequence: true,
-      ship,
-      shipUrl,
-      splashSequenceMode: 'tlonbotRevival',
-    });
-
-    store
-      .clearShipRevivalStatus()
-      .then(() => {
-        logger.trackEvent('Toggled Hosting Revival Status');
-      })
-      .catch((e) => {
-        logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
-          error: e,
-          context: 'failed to clear revival status after authenticated prompt',
-          severity: AnalyticsSeverity.High,
-        });
+    closeAfterAnimation(() => {
+      setShip({
+        authCookie,
+        authType: authType ?? 'hosted',
+        needsSplashSequence: true,
+        ship,
+        shipUrl,
+        splashSequenceMode: 'tlonbotRevival',
       });
-  }, [authCookie, authType, setShip, ship, shipUrl]);
+
+      store
+        .clearShipRevivalStatus()
+        .then(() => {
+          logger.trackEvent('Toggled Hosting Revival Status');
+        })
+        .catch((e) => {
+          logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+            error: e,
+            context:
+              'failed to clear revival status after authenticated prompt',
+            severity: AnalyticsSeverity.High,
+          });
+        });
+    });
+  }, [authCookie, authType, closeAfterAnimation, setShip, ship, shipUrl]);
 
   const promptSheet = (
     <TlonbotRevivalPromptSheet

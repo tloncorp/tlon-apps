@@ -105,9 +105,6 @@ export default function ChannelScreen(props: Props) {
     }, [groupId, channelId])
   );
 
-  const channelThreadAbortController = useRef<AbortController | null>(
-    new AbortController()
-  );
   const activityCapabilitiesEpoch = useSyncExternalStore(
     api.onActivityCapabilitiesChange,
     api.getActivityCapabilitiesEpoch
@@ -119,16 +116,23 @@ export default function ChannelScreen(props: Props) {
     channel?.type === 'notes' ? activityCapabilitiesEpoch : 0;
 
   useEffect(() => {
-    if (!channelIsPending) {
-      if (channelThreadAbortController.current) {
-        channelThreadAbortController.current.abort();
-      }
-      channelThreadAbortController.current = new AbortController();
-      store.syncChannelThreadUnreads(channelId, {
-        priority: store.SyncPriority.High,
-        abortSignal: channelThreadAbortController.current?.signal,
-      });
+    if (channelIsPending) {
+      return;
     }
+
+    const abortController = new AbortController();
+    void store
+      .syncChannelThreadUnreads(channelId, {
+        priority: store.SyncPriority.High,
+        abortSignal: abortController.signal,
+      })
+      .catch((error) => {
+        if (!abortController.signal.aborted) {
+          logger.error('Failed to sync channel thread unreads', error);
+        }
+      });
+
+    return () => abortController.abort();
   }, [channelIsPending, channelId, notesActivityCapabilitiesEpoch]);
 
   // for the unread channel divider, we care about the unread state when you enter but don't want it to update over

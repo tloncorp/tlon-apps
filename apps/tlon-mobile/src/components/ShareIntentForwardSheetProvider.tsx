@@ -189,6 +189,7 @@ export function ShareIntentForwardSheetProvider({
     onForwardToChannel: routeShareIntentToChannel,
     successMessage: () => null,
     failureMessage: 'Failed to open channel',
+    closeBeforeForward: true,
   });
 
   return (
