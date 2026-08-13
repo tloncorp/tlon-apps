@@ -312,8 +312,9 @@ export function StaticChatMessage({
     }
     const matched = parsePostBlob(post.blob).some(
       (entry) =>
-        entry.type === 'tlon-agent-provision-ack' &&
-        entry.provisionId === onboardingMarker.provision?.provisionId
+        entry.type === 'tlon-agent-post-marker' &&
+        entry.key ===
+          `first-entry-ping:${onboardingMarker.provision?.provisionId}`
     );
     if (!matched) return;
     void db.agentGroupOnboardingLocks.setValue((current) => {
