@@ -241,6 +241,8 @@ tlon buckets set-writers buckets/~host/project-files admin bots
 
 Bucket authorization is based on the current ship's group membership and reader/writer roles. The current ship asks `%buckets` for a short-lived, single-operation storage capability; the command never needs the group host's login, the owner's login, or object-storage credentials. If the current ship lacks access, report that role/permission failure rather than asking for storage credentials.
 
+Bucket creation currently requires a planet-hosted group. A Moon may invoke `buckets create` as an authorized group admin, but the group host—and therefore the resulting Bucket host—must be a planet. If the group host is a Moon, report that Bucket creation is unsupported. Never substitute the Moon's owner planet or another member's planet.
+
 During the preview, `buckets delete` only removes empty folders. File deletion and recursive folder deletion are disabled until the host and broker can coordinate them atomically.
 
 `buckets read` intentionally returns only text-like files up to 2 MiB. The regular upload command below is for message/profile media and other standalone URLs, not for placing files in a Bucket.

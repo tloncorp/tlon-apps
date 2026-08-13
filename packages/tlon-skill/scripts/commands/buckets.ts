@@ -1,4 +1,5 @@
 import type { BucketsEntry, BucketsFlag, BucketsSnapshot } from '@tloncorp/api';
+import { p } from '@urbit/aura';
 
 import {
   type CommandDeps,
@@ -170,7 +171,20 @@ function parseGroup(group: string, usage: string): BucketsFlag {
   if (!rawHost || !name || rest.length > 0 || !/^~?[a-z-]+$/i.test(rawHost)) {
     throw usageError(`Invalid group id: ${group}. Expected ~host/name.`, usage);
   }
-  return { host: normalizeShip(rawHost), name };
+  const host = normalizeShip(rawHost);
+  let hostKind: p.size;
+  try {
+    hostKind = p.kind(host);
+  } catch {
+    throw usageError(`Invalid group host: ${rawHost}.`, usage);
+  }
+  if (hostKind !== 'planet') {
+    throw usageError(
+      'Buckets are currently available only in groups hosted by a planet. Do not substitute a Moon owner or another member ship.',
+      usage
+    );
+  }
+  return { host, name };
 }
 
 function parseId(value: string | undefined, label: string, usage: string) {
