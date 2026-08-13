@@ -5,6 +5,7 @@ import {
   ThemeProvider as NavigationThemeProvider,
 } from '@react-navigation/native';
 import {
+  BlendMode,
   ClipOp,
   ImageFormat,
   Skia,
@@ -38,6 +39,10 @@ const TAB_ICON_CANVAS_SIZE =
 const TAB_AVATAR_SCALE = PixelRatio.get() * 2;
 const TAB_AVATAR_RADIUS = 4;
 const TAB_SIGIL_SIZE = 12;
+const TAB_ICON_SIZE = 24;
+const ACTIVITY_ICON_HEIGHT = 30;
+const ACTIVITY_DOT_RADIUS = 2;
+const ACTIVITY_DOT_CENTER_Y = 28;
 
 const tabIcons = {
   home: {
@@ -71,6 +76,104 @@ function avatarTabIcon(source: ImageSourcePropType | undefined) {
     source,
     tinted: false,
   };
+}
+
+function useActivityIconSources({
+  activeColor,
+  inactiveColor,
+  notificationColor,
+  unread,
+}: {
+  activeColor: string;
+  inactiveColor: string;
+  notificationColor: string;
+  unread: boolean;
+}) {
+  const regularImage = useImage(tabIcons.activity.regular);
+  const selectedImage = useImage(tabIcons.activity.selected);
+  const [sources, setSources] = useState<{
+    regular: ImageSourcePropType;
+    selected: ImageSourcePropType;
+  }>();
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios' || !unread || !regularImage || !selectedImage) {
+      setSources(undefined);
+      return;
+    }
+
+    // UIKit badges are count bubbles in the icon's top-right corner. Compose
+    // the unread dot into the icon to preserve our centered, below-bell mark.
+    const pixelWidth = TAB_ICON_SIZE * TAB_AVATAR_SCALE;
+    const pixelHeight = ACTIVITY_ICON_HEIGHT * TAB_AVATAR_SCALE;
+    const render = (image: NonNullable<typeof regularImage>, color: string) => {
+      const surface = Skia.Surface.MakeOffscreen(pixelWidth, pixelHeight);
+      if (!surface) {
+        return undefined;
+      }
+
+      const canvas = surface.getCanvas();
+      const source = rect(0, 0, image.width(), image.height());
+      const destination = rect(0, 0, pixelWidth, pixelWidth);
+      const iconPaint = Skia.Paint();
+      const colorFilter = Skia.ColorFilter.MakeBlend(
+        Skia.Color(color),
+        BlendMode.SrcIn
+      );
+      iconPaint.setColorFilter(colorFilter);
+      canvas.clear(Skia.Color('transparent'));
+      canvas.drawImageRectCubic(
+        image,
+        source,
+        destination,
+        1 / 3,
+        1 / 3,
+        iconPaint
+      );
+
+      const dotPaint = Skia.Paint();
+      dotPaint.setAntiAlias(true);
+      dotPaint.setColor(Skia.Color(notificationColor));
+      canvas.drawCircle(
+        (TAB_ICON_SIZE / 2) * TAB_AVATAR_SCALE,
+        ACTIVITY_DOT_CENTER_Y * TAB_AVATAR_SCALE,
+        ACTIVITY_DOT_RADIUS * TAB_AVATAR_SCALE,
+        dotPaint
+      );
+      surface.flush();
+
+      const renderedImage = surface.makeImageSnapshot();
+      const imageSource = {
+        uri: `data:image/png;base64,${renderedImage.encodeToBase64(
+          ImageFormat.PNG,
+          100
+        )}`,
+        width: TAB_ICON_SIZE,
+        height: ACTIVITY_ICON_HEIGHT,
+        scale: TAB_AVATAR_SCALE,
+      };
+
+      renderedImage.dispose();
+      dotPaint.dispose();
+      colorFilter.dispose();
+      iconPaint.dispose();
+      surface.dispose();
+      return imageSource;
+    };
+
+    const regular = render(regularImage, inactiveColor);
+    const selected = render(selectedImage, activeColor);
+    setSources(regular && selected ? { regular, selected } : undefined);
+  }, [
+    activeColor,
+    inactiveColor,
+    notificationColor,
+    regularImage,
+    selectedImage,
+    unread,
+  ]);
+
+  return sources;
 }
 
 function useRoundedAvatarSource({
@@ -227,6 +330,12 @@ export function TopLevelTabNavigator() {
   ]);
   const { currentUserId, haveUnreadActivity, statusSheet } =
     useTopLevelTabController();
+  const activityIconSources = useActivityIconSources({
+    activeColor: theme.primaryText?.val ?? '#000000',
+    inactiveColor: theme.secondaryText?.val ?? '#808080',
+    notificationColor: getTokenValue('$blue', 'color'),
+    unread: haveUnreadActivity,
+  });
   const { data: currentUser } = store.useContact({ id: currentUserId });
   const { data: calmSettings } = store.useCalmSettings();
   const sigilColors = useSigilColors(currentUser?.color);
@@ -282,8 +391,17 @@ export function TopLevelTabNavigator() {
           component={ActivityScreen}
           options={{
             title: TOP_LEVEL_TABS.Activity.title,
-            tabBarBadge: haveUnreadActivity ? '' : undefined,
-            tabBarIcon: ({ focused }) => tabIcon('activity', focused),
+            tabBarBadge:
+              Platform.OS === 'android' && haveUnreadActivity ? '' : undefined,
+            tabBarIcon: ({ focused }) => {
+              const source = focused
+                ? activityIconSources?.selected
+                : activityIconSources?.regular;
+
+              return source
+                ? { type: 'image', source, tinted: false }
+                : tabIcon('activity', focused);
+            },
           }}
         />
         <Tabs.Screen
