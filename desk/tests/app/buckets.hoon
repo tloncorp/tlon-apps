@@ -275,7 +275,7 @@
   ;<  ~  b
     (ex-equal !>(broker-reservation-id.aut) !>(`rid))
   =/  receipt=broker-receipt:bu
-    [rid object-key.fil 'zod' (scot %ud id.bucket.bs) 42 'application/pdf']
+    [rid object-key.fil 'sampel-palnet' (scot %ud id.bucket.bs) 42 'application/pdf']
   ;<  *  b
     (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
   ::  Completion retries are idempotent.
