@@ -53,6 +53,7 @@ export function PostContentRenderer({
 
 function ContentRenderer({
   content,
+  groupId,
   onPressImage,
   getImageViewerId,
   onLongPress,
@@ -68,6 +69,7 @@ function ContentRenderer({
 }) {
   return (
     <ContentContext.Provider
+      groupId={groupId}
       onPressImage={onPressImage}
       getImageViewerId={getImageViewerId}
       onLongPress={onLongPress}
