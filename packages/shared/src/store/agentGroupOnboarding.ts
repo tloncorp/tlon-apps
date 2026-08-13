@@ -1,16 +1,19 @@
 import * as api from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
+import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
 import { createChannel } from './channelActions';
-import { createDefaultGroup } from './groupActions';
+import { createDefaultGroup, updateGroupMeta } from './groupActions';
 import { finalizeAndSendPost } from './postActions';
 
 const logger = createDevLogger('agentGroupOnboarding', false);
 const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
+const DEFAULT_AGENT_GROUP_TITLE = 'My agent group';
+const MAX_GENERATED_GROUP_TITLE_LENGTH = 80;
 
 export type AgentGroupFurnishing = {
   group: db.Group;
@@ -46,7 +49,7 @@ export async function ensureAgentGroupFurnished(
     ? await adoptGroup(params.groupId)
     : await createDefaultGroup({
         memberIds: [resolved.agentShipId],
-        title: params.title ?? 'My agent group',
+        title: params.title ?? DEFAULT_AGENT_GROUP_TITLE,
       });
   const chatChannel = await ensureChatChannel(group);
   const notebook = await ensureSingleNotesChannel(group.id);
@@ -54,6 +57,11 @@ export async function ensureAgentGroupFurnished(
     ...group,
     channels: [...(group.channels ?? []), notebook],
   };
+  const initialGroupTitle = group.title ?? null;
+  const canRenameGroup = params.groupId
+    ? group.id.endsWith(`/${BotHomeGroupSlugs.slug}`) &&
+      logic.botHomeGroupHasDefaultTitle(group)
+    : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE;
 
   await Promise.all([
     db.agentGroupAgents.setValue((current) => ({
@@ -62,7 +70,13 @@ export async function ensureAgentGroupFurnished(
     })),
     db.agentGroupOnboardingLocks.setValue((current) => ({
       ...current,
-      [group.id]: current[group.id] ?? { createdAt: Date.now() },
+      [group.id]: {
+        ...current[group.id],
+        createdAt: current[group.id]?.createdAt ?? Date.now(),
+        initialGroupTitle:
+          current[group.id]?.initialGroupTitle ?? initialGroupTitle,
+        canRenameGroup: current[group.id]?.canRenameGroup ?? canRenameGroup,
+      },
     })),
   ]);
 
@@ -93,6 +107,62 @@ export async function ensureAgentGroupFurnished(
     agentShipId: resolved.agentShipId,
     tail,
   };
+}
+
+export function buildAgentGroupTitle({
+  purposeId,
+  topics,
+}: {
+  purposeId: string;
+  topics: readonly string[];
+}) {
+  const suffix =
+    purposeId === 'agent-daily-digest'
+      ? 'Digest'
+      : purposeId === 'agent-tracking'
+        ? 'Tracker'
+        : 'Research';
+  const cleanTopics = topics.map((topic) => topic.trim()).filter(Boolean);
+  const topicSummary =
+    cleanTopics.length <= 1
+      ? cleanTopics[0] || 'New'
+      : cleanTopics.length === 2
+        ? `${cleanTopics[0]} + ${cleanTopics[1]}`
+        : `${cleanTopics[0]} + ${cleanTopics.length - 1} more`;
+  const maxTopicLength = MAX_GENERATED_GROUP_TITLE_LENGTH - suffix.length - 1;
+  const clippedTopic =
+    topicSummary.length > maxTopicLength
+      ? `${topicSummary.slice(0, maxTopicLength - 1).trimEnd()}…`
+      : topicSummary;
+  return `${clippedTopic} ${suffix}`;
+}
+
+/** Rename only the untouched placeholder created or adopted for onboarding. */
+export async function renameAgentGroupFromOnboarding({
+  groupId,
+  purposeId,
+  topics,
+}: {
+  groupId: string;
+  purposeId: string;
+  topics: readonly string[];
+}) {
+  try {
+    const lock = (await db.agentGroupOnboardingLocks.getValue())[groupId];
+    if (!lock?.canRenameGroup) return;
+    const group = await db.getGroup({ id: groupId });
+    if (!group || (group.title ?? null) !== lock.initialGroupTitle) return;
+
+    const title = buildAgentGroupTitle({ purposeId, topics });
+    if (title === group.title) return;
+    await updateGroupMeta({ ...group, title });
+  } catch (error) {
+    // Naming is cosmetic and must never prevent the provision request.
+    logger.trackError('Failed to name agent onboarding group', {
+      error,
+      groupId,
+    });
+  }
 }
 
 async function adoptGroup(groupId: string): Promise<db.Group> {
