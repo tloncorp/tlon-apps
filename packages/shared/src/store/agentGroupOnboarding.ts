@@ -116,19 +116,27 @@ export function buildAgentGroupTitle({
   purposeId: string;
   topics: readonly string[];
 }) {
-  const suffix =
-    purposeId === 'agent-daily-digest'
-      ? 'Digest'
-      : purposeId === 'agent-tracking'
-        ? 'Tracker'
-        : 'Research';
   const cleanTopics = topics.map((topic) => topic.trim()).filter(Boolean);
+  const fallbackTopic =
+    purposeId === 'agent-learning' ? 'Something new' : 'New';
   const topicSummary =
     cleanTopics.length <= 1
-      ? cleanTopics[0] || 'New'
+      ? cleanTopics[0] || fallbackTopic
       : cleanTopics.length === 2
         ? `${cleanTopics[0]} + ${cleanTopics[1]}`
         : `${cleanTopics[0]} + ${cleanTopics.length - 1} more`;
+
+  if (purposeId === 'agent-learning') {
+    const prefix = 'Learning ';
+    const maxTopicLength = MAX_GENERATED_GROUP_TITLE_LENGTH - prefix.length;
+    const clippedTopic =
+      topicSummary.length > maxTopicLength
+        ? `${topicSummary.slice(0, maxTopicLength - 1).trimEnd()}…`
+        : topicSummary;
+    return `${prefix}${clippedTopic}`;
+  }
+
+  const suffix = purposeId === 'agent-daily-digest' ? 'Digest' : 'Research';
   const maxTopicLength = MAX_GENERATED_GROUP_TITLE_LENGTH - suffix.length - 1;
   const clippedTopic =
     topicSummary.length > maxTopicLength

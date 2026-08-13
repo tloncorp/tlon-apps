@@ -12,10 +12,10 @@ describe('buildAgentGroupTitle', () => {
     ).toBe('Peptides Digest');
     expect(
       buildAgentGroupTitle({
-        purposeId: 'agent-tracking',
-        topics: ['Fermentation'],
+        purposeId: 'agent-learning',
+        topics: ['Music theory'],
       })
-    ).toBe('Fermentation Tracker');
+    ).toBe('Learning Music theory');
     expect(
       buildAgentGroupTitle({
         purposeId: 'agent-research',

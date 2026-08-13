@@ -384,19 +384,18 @@ export function Channel({
                 : 'channel-mismatch'
             : null;
   const canRenderDraftInput = readOnlyNoticeType == null && !channel.isDmInvite;
-  const draftInputType =
-    !canRenderDraftInput || hideDraftInput
-      ? null
-      : channel.contentConfiguration != null
-        ? ChannelContentConfiguration.draftInput(channel.contentConfiguration)
-            .id
-        : isChatChannel
-          ? DraftInputId.chat
-          : channel.type === 'gallery'
-            ? DraftInputId.gallery
-            : channel.type === 'notebook'
-              ? DraftInputId.notebook
-              : null;
+  const availableDraftInputType = !canRenderDraftInput
+    ? null
+    : channel.contentConfiguration != null
+      ? ChannelContentConfiguration.draftInput(channel.contentConfiguration).id
+      : isChatChannel
+        ? DraftInputId.chat
+        : channel.type === 'gallery'
+          ? DraftInputId.gallery
+          : channel.type === 'notebook'
+            ? DraftInputId.notebook
+            : null;
+  const draftInputType = hideDraftInput ? null : availableDraftInputType;
   // For DMs, get the other participant's ID
   const dmRecipientId = useMemo(() => {
     if (isDM && channel.members) {
@@ -769,10 +768,18 @@ export function Channel({
   const usesFloatingPinnedPostBanner = isChatChannel && supportsLiquidGlass();
   const shouldReservePinnedPostBannerSpace =
     usesFloatingPinnedPostBanner && shouldRenderPinnedPostBanner;
+  // Agent onboarding hides the composer while its durable controls are live.
+  // Reserve the same floating-composer inset throughout that transition so
+  // the final setup copy does not jump underneath the composer when it returns.
+  const reservesHiddenChatComposer =
+    Boolean(hideDraftInput) && availableDraftInputType === DraftInputId.chat;
   const { contentInsets, floatingHeaderHeight, onFloatingHeightChange } =
     useConversationInsets({
-      hasFloatingComposer: draftInputType === DraftInputId.chat,
-      hasBottomSafeAreaClearance: Boolean(hideDraftInput),
+      hasFloatingComposer:
+        draftInputType === DraftInputId.chat || reservesHiddenChatComposer,
+      hasBottomSafeAreaClearance: Boolean(
+        hideDraftInput && !reservesHiddenChatComposer
+      ),
       hasTransparentHeader: isChatChannel,
       hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
     });
