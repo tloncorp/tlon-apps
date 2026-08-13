@@ -60,7 +60,7 @@ const homeGroup: db.Group = {
   id: groupId,
   hostUserId: owner.id,
   currentUserIsHost: true,
-  title: 'Home',
+  title: 'Open hardware + Space weather Digest',
   channels: [homeChannel, updatesNotebook],
   description: JSON.stringify([
     {
@@ -120,7 +120,7 @@ const purposePicker = makeA2UI('onboarding-purpose-fixture', [
   {
     id: 'prompt',
     component: 'Text',
-    text: "Let's set up your first group. What should it do?",
+    text: 'What should this group do?',
   },
   {
     id: 'choices',
@@ -261,7 +261,7 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-02-purpose',
     author: tlonbot,
-    text: "Let's set up your first group. What should it do? Reply “A daily digest”, “Tracking”, “Research” — or just tell me.",
+    text: 'What should this group do? Reply “A daily digest”, “Tracking”, “Research” — or just tell me.',
     a2ui: purposePicker,
     minute: 2,
   }),

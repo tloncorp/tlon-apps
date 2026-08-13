@@ -7,7 +7,10 @@ import {
   getRandomId,
   parsePostBlob,
 } from '@tloncorp/shared/logic';
-import { useGroup } from '@tloncorp/shared/store';
+import {
+  renameAgentGroupFromOnboarding,
+  useGroup,
+} from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useEffect, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
@@ -153,9 +156,16 @@ export function StaticChatMessage({
         notebookNest: notebooks[0].id,
       });
 
+      await renameAgentGroupFromOnboarding({
+        groupId,
+        purposeId: plan.purposeId,
+        topics: plan.topics,
+      });
+
       await db.agentGroupOnboardingLocks.setValue((current) => ({
         ...current,
         [groupId]: {
+          ...current[groupId],
           createdAt: current[groupId]?.createdAt ?? Date.now(),
           provision: {
             type: 'tlon-agent-provision',
