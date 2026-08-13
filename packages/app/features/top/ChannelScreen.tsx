@@ -32,6 +32,7 @@ import {
   InviteUsersSheet,
   useIsWindowNarrow,
 } from '../../ui';
+import { shouldAcknowledgeAgentOnboardingLanding } from './agentOnboardingLanding';
 
 const logger = createDevLogger('ChannelScreen', false);
 
@@ -50,6 +51,25 @@ export default function ChannelScreen(props: Props) {
     startDraft: false,
     groupId: undefined,
   };
+
+  const onboardingLanding = db.agentOnboardingLanding.useValue();
+  useEffect(() => {
+    if (
+      !shouldAcknowledgeAgentOnboardingLanding(onboardingLanding, channelId)
+    ) {
+      return;
+    }
+
+    // The destination is mounted, so it is now safe for the onboarding cover
+    // to disappear. Clearing here avoids relying on ChatListScreen after its
+    // navigation reset has replaced that component.
+    void db.agentOnboardingLanding.resetValue().catch((error) => {
+      logger.trackError('Failed to acknowledge agent onboarding landing', {
+        error,
+        ...onboardingLanding,
+      });
+    });
+  }, [channelId, onboardingLanding]);
 
   useEffect(() => {
     if (!disableTransition) return;
