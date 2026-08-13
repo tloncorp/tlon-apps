@@ -136,13 +136,12 @@ const purposePicker = makeA2UI('onboarding-purpose-fixture', [
         action: action('A daily digest'),
       },
       {
-        id: 'agent-tracking',
-        label: 'Tracking',
-        description:
-          'You log a thing as it happens. I keep the running picture over time.',
+        id: 'agent-learning',
+        label: 'Learn something',
+        description: 'Build your understanding with a short daily explainer.',
         icon: 'Clock',
         accent: 'green',
-        action: action('Tracking'),
+        action: action('Learn something'),
       },
       {
         id: 'agent-research',
@@ -261,7 +260,7 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-02-purpose',
     author: tlonbot,
-    text: 'What should this group do? Reply “A daily digest”, “Tracking”, “Research” — or just tell me.',
+    text: 'What should this group do? Reply “A daily digest”, “Learn something”, “Research” — or just tell me.',
     a2ui: purposePicker,
     minute: 2,
   }),
@@ -287,13 +286,13 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-06-ack',
     author: tlonbot,
-    text: 'Open hardware and Space weather—got it. You’re all set — your first entry is coming shortly.',
+    text: 'Open hardware and Space weather—got it. I’ll publish a fresh digest here each day. Your first entry is coming shortly.',
     minute: 6,
   }),
   transcriptPost({
     id: 'onboarding-07-closing',
     author: tlonbot,
-    text: 'A few things to know:\n\n- This conversation stays with you if you switch models or move Tlon to your own server.\n- You can rename me whenever you like.\n- Ask me about anything I find, or tell me what to do next.\n\nI can draw on more than the web. Connect your other services — calendars, docs, notes — and what they know flows into these digests too:',
+    text: 'A few things to know:\n\n- This conversation stays with you if you switch models or move Tlon to your own server.\n- You can rename me whenever you like.\n- Ask me about anything I find, or tell me what to do next.\n\nI can draw on more than the web. Connect your other services — calendars, docs, notes — and what they know can inform what I make for you too:',
     minute: 7,
   }),
   transcriptPost({
