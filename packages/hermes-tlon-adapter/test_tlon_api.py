@@ -190,6 +190,73 @@ class TlonConfigTests(unittest.TestCase):
         self.assertEqual(cfg.ship_name, "~pen")
         self.assertEqual(cfg.ship_code, "code")
 
+    def test_blank_ship_env_is_treated_as_unset(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_URL": "http://host.docker.internal:8080",
+                "TLON_CODE": "code",
+                "TLON_SHIP": "   ",
+            }
+        )
+
+        self.assertEqual(cfg.ship_name, "")
+        self.assertFalse(cfg.is_complete())
+        self.assertNotIn("TLON_SHIP", cfg.cli_env(base={}))
+
+    def test_ship_env_is_trimmed_before_normalization(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_URL": "http://host.docker.internal:8080",
+                "TLON_CODE": "code",
+                "TLON_SHIP": "  ~zod  ",
+            }
+        )
+
+        self.assertEqual(cfg.ship_name, "~zod")
+        self.assertTrue(cfg.is_complete())
+        self.assertEqual(cfg.cli_env(base={})["TLON_SHIP"], "~zod")
+
+    def test_blank_ship_extra_is_treated_as_unset(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            extra={
+                "url": "http://host.docker.internal:8080",
+                "code": "code",
+                "ship": "   ",
+            },
+            env={},
+        )
+
+        self.assertEqual(cfg.ship_name, "")
+        self.assertFalse(cfg.is_complete())
+        self.assertNotIn("TLON_SHIP", cfg.cli_env(base={}))
+
+    def test_blank_owner_fields_are_treated_as_unset(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_OWNER_SHIP": "  ",
+                "TLON_GATEWAY_STATUS_OWNER": "   ",
+                "TLON_CONTEXT_LENS_OWNER": " ",
+            }
+        )
+
+        self.assertEqual(cfg.owner_ship, "")
+        self.assertEqual(cfg.gateway_status_owner, "")
+        self.assertEqual(cfg.context_lens_owner, "")
+
+    def test_allowed_users_csv_drops_blank_entries(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            env={"TLON_ALLOWED_USERS": "~zod, ,~ten,  "}
+        )
+
+        self.assertEqual(cfg.allowed_users, frozenset({"~zod", "~ten"}))
+
+    def test_blank_high_priority_ship_alias_falls_through(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            env={"TLON_NODE_ID": "  ", "TLON_SHIP": "~ten"}
+        )
+
+        self.assertEqual(cfg.ship_name, "~ten")
+
     def test_extra_config_is_used_when_env_is_empty(self):
         cfg = tlon_api.TlonConfig.from_env(
             extra={
