@@ -1052,6 +1052,7 @@ class TlonAdapter(BasePlatformAdapter):
                     source=source,
                     fingerprint=fingerprint,
                     cli_version=cli_version,
+                    harness_version=self._harness_version(),
                     markdown=False,
                 ).replace("\n", " | "),
             )
@@ -2272,6 +2273,7 @@ class TlonAdapter(BasePlatformAdapter):
             source=await git_source(),
             fingerprint=content_fingerprint(),
             cli_version=await self._cli_version(),
+            harness_version=self._harness_version(),
         )
 
     async def _cli_version(self) -> str:
