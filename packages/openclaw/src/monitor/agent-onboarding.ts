@@ -67,8 +67,7 @@ const postOnceFlights = new Map<string, Promise<void>>();
 const GROUP_INTRO_MESSAGE =
   "I'm your Tlonbot. I can research things, track changes, and write " +
   'updates for you.';
-const PURPOSE_PICKER_PROMPT =
-  "Let's set up your first group. What should it do?";
+const PURPOSE_PICKER_PROMPT = 'What should this group do?';
 const HANDOFF_MESSAGE =
   'A few things to know:\n\n' +
   '- This conversation stays with you if you switch models or move Tlon ' +

@@ -170,6 +170,10 @@ export const tlonbotRevivalDeferredConfig =
 export type AgentGroupOnboardingLock = {
   provision?: PostBlobDataEntryAgentProvision;
   createdAt: number;
+  /** Title observed before onboarding, used to avoid overwriting later edits. */
+  initialGroupTitle?: string | null;
+  /** True only when the initial title was supplied by onboarding/hosting. */
+  canRenameGroup?: boolean;
 };
 
 /** Agent identity recorded from client-owned furnishing, keyed by group id. */
