@@ -1,3 +1,4 @@
+import type { PostBlobDataEntryAgentProvision } from '@tloncorp/api/client/content-helpers';
 import type { StorageConfiguration } from '@tloncorp/api/client/upload';
 import * as ub from '@tloncorp/api/urbit';
 import type { AppThemeName } from '@tloncorp/api/urbit/settings';
@@ -165,6 +166,25 @@ export const tlonbotRevivalDeferredConfig =
     key: 'tlonbotRevivalDeferredConfig',
     defaultValue: {},
   });
+
+export type AgentGroupOnboardingLock = {
+  provision?: PostBlobDataEntryAgentProvision;
+  createdAt: number;
+};
+
+/** Agent identity recorded from client-owned furnishing, keyed by group id. */
+export const agentGroupAgents = createStorageItem<Record<string, string>>({
+  key: 'agentGroupAgents',
+  defaultValue: {},
+});
+
+/** One-way onboarding navigation locks, keyed by group id. */
+export const agentGroupOnboardingLocks = createStorageItem<
+  Record<string, AgentGroupOnboardingLock>
+>({
+  key: 'agentGroupOnboardingLocks',
+  defaultValue: {},
+});
 
 export const didClearPreviousInstall = createStorageItem<boolean>({
   key: 'didClearPreviousInstall',
@@ -427,6 +447,15 @@ export const userHasPersonalGroup = createStorageItem<boolean>({
 export const splashNickname = createStorageItem<string>({
   key: 'splashNickname',
   defaultValue: '',
+});
+
+/** One-shot handoff from the pre-navigation splash into the agent chat. */
+export const agentOnboardingLanding = createStorageItem<{
+  groupId: string;
+  channelId: string;
+} | null>({
+  key: 'agentOnboardingLandingV2',
+  defaultValue: null,
 });
 
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({

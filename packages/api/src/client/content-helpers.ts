@@ -692,11 +692,60 @@ export type PostBlobDataEntryContextLens = z.infer<
   typeof PostBlobDataEntryContextLensSchema
 >;
 
+export const PostBlobDataEntryAgentIntroRequestSchema =
+  definePostBlobDataEntrySchema('tlon-agent-intro-request', 1, {
+    groupId: z.string().min(1).max(512),
+  });
+
+export type PostBlobDataEntryAgentIntroRequest = z.infer<
+  typeof PostBlobDataEntryAgentIntroRequestSchema
+>;
+
+export const PostBlobDataEntryAgentProvisionSchema =
+  definePostBlobDataEntrySchema('tlon-agent-provision', 1, {
+    provisionId: z.string().min(1).max(128),
+    groupId: z.string().min(1).max(512),
+    purposeId: z.string().min(1).max(128),
+    purpose: z.string().min(1).max(200),
+    topics: z.array(z.string().min(1).max(200)).min(1).max(12),
+    timezone: z.string().min(1).max(100),
+    scheduleHour: z.number().int().min(0).max(23),
+    scheduleMinute: z.number().int().min(0).max(59),
+    notebookNest: z.string().min(1).max(512),
+  });
+
+export type PostBlobDataEntryAgentProvision = z.infer<
+  typeof PostBlobDataEntryAgentProvisionSchema
+>;
+
+export const PostBlobDataEntryAgentProvisionAckSchema =
+  definePostBlobDataEntrySchema('tlon-agent-provision-ack', 1, {
+    provisionId: z.string().min(1).max(128),
+    cronJobId: z.string().min(1).max(128),
+  });
+
+export type PostBlobDataEntryAgentProvisionAck = z.infer<
+  typeof PostBlobDataEntryAgentProvisionAckSchema
+>;
+
+export const PostBlobDataEntryAgentPostMarkerSchema =
+  definePostBlobDataEntrySchema('tlon-agent-post-marker', 1, {
+    key: z.string().min(1).max(256),
+  });
+
+export type PostBlobDataEntryAgentPostMarker = z.infer<
+  typeof PostBlobDataEntryAgentPostMarkerSchema
+>;
+
 const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
   PostBlobDataEntryVideoSchema,
   PostBlobDataEntryContextLensSchema,
+  PostBlobDataEntryAgentIntroRequestSchema,
+  PostBlobDataEntryAgentProvisionSchema,
+  PostBlobDataEntryAgentProvisionAckSchema,
+  PostBlobDataEntryAgentPostMarkerSchema,
   A2UI.blobEntrySchema,
 ] as const;
 
@@ -829,6 +878,7 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
 
 export function toPostData({
   attachments,
+  blob: initialBlob,
   content,
   image,
   channelType,
@@ -836,12 +886,13 @@ export function toPostData({
 }: {
   content: (Inline | Block)[];
   attachments: FinalizedAttachment[];
+  blob?: string;
   channelType: ChannelType;
   title?: string;
   image?: string;
 }): { story: Story; metadata: PostMetadata; blob?: string } {
   const blocks: Block[] = [];
-  let blob: string | undefined = undefined;
+  let blob = initialBlob;
 
   attachments
     // For notebooks, skip header image - it goes in metadata only, not content
