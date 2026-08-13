@@ -112,7 +112,17 @@ export function ChatListScreenView({
           if (channel) {
             consumedOnboardingLanding.current = true;
             resetToChannelRef.current(onboardingLanding.channelId, {
+              backToGroupIndex: true,
+              disableTransition: true,
               groupId: onboardingLanding.groupId,
+            });
+            // Let the reset commit behind the onboarding cover before clearing
+            // the handoff. AgentOnboardingSequence removes the cover only after
+            // observing this value clear.
+            await new Promise<void>((resolve) => {
+              requestAnimationFrame(() =>
+                requestAnimationFrame(() => resolve())
+              );
             });
             await db.agentOnboardingLanding.resetValue();
             return;

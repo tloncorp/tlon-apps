@@ -19,6 +19,10 @@ export const useChannelContext = () => {
   return context.channel;
 };
 
+export const useOptionalChannelContext = () => {
+  return useContext(Context)?.channel ?? null;
+};
+
 export const ChannelProvider = ({
   children,
   value,
