@@ -24,11 +24,6 @@ export function ActivitySourceContent({
   unreadCount,
   pressHandler,
 }: ActivitySourceContentProps) {
-  const isReply = !!summary.newest.parentId;
-  const isChatPost =
-    summary.newest.channel?.type !== 'gallery' &&
-    summary.newest.channel?.type !== 'notebook';
-
   if (summary.newest.type === 'contact') {
     return (
       <ContactUpdateContentRenderer
@@ -38,12 +33,19 @@ export function ActivitySourceContent({
     );
   }
 
+  const channel = summary.newest.channel;
+  // Activity can hydrate before its channel relations immediately after a
+  // logout/login database reset. Channel-aware content (notably group
+  // mentions) must wait rather than rendering beneath a null provider.
+  if (!channel) {
+    return null;
+  }
+
+  const isReply = !!summary.newest.parentId;
+  const isChatPost = channel.type !== 'gallery' && channel.type !== 'notebook';
+
   return (
-    <ChannelProvider
-      value={
-        summary.newest.channel ? { channel: summary.newest.channel } : null
-      }
-    >
+    <ChannelProvider value={{ channel }}>
       {isReply || isChatPost ? (
         <ChatContentRenderer
           summary={summary}
