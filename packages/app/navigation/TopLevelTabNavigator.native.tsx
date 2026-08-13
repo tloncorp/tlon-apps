@@ -39,10 +39,10 @@ const TAB_AVATAR_SCALE = PixelRatio.get() * 2;
 const TAB_AVATAR_RADIUS = 4;
 const TAB_SIGIL_SIZE = 12;
 const TAB_ACTIVITY_ICON_SIZE = 24;
-const TAB_ACTIVITY_DOT_X = 19.5;
-const TAB_ACTIVITY_DOT_Y = 4.5;
-const TAB_ACTIVITY_DOT_RADIUS = 4;
-const TAB_ACTIVITY_DOT_CLEAR_RADIUS = TAB_ACTIVITY_DOT_RADIUS + 0.75;
+const TAB_ACTIVITY_ICON_HEIGHT = 30;
+const TAB_ACTIVITY_DOT_X = TAB_ACTIVITY_ICON_SIZE / 2;
+const TAB_ACTIVITY_DOT_Y = 28;
+const TAB_ACTIVITY_DOT_RADIUS = 2;
 
 const tabIcons = {
   home: {
@@ -117,9 +117,10 @@ function useUnreadActivityIconSources({
       image: NonNullable<typeof regularImage>,
       color: string
     ) => {
-      const pixelSize = TAB_ACTIVITY_ICON_SIZE * TAB_AVATAR_SCALE;
-      const destination = rect(0, 0, pixelSize, pixelSize);
-      const surface = Skia.Surface.MakeOffscreen(pixelSize, pixelSize);
+      const pixelWidth = TAB_ACTIVITY_ICON_SIZE * TAB_AVATAR_SCALE;
+      const pixelHeight = TAB_ACTIVITY_ICON_HEIGHT * TAB_AVATAR_SCALE;
+      const destination = rect(0, 0, pixelWidth, pixelWidth);
+      const surface = Skia.Surface.MakeOffscreen(pixelWidth, pixelHeight);
       if (!surface) {
         return undefined;
       }
@@ -127,7 +128,6 @@ function useUnreadActivityIconSources({
       const canvas = surface.getCanvas();
       const imagePaint = Skia.Paint();
       const tintPaint = Skia.Paint();
-      const clearPaint = Skia.Paint();
       const dotPaint = Skia.Paint();
 
       try {
@@ -144,17 +144,6 @@ function useUnreadActivityIconSources({
         tintPaint.setColor(Skia.Color(color));
         tintPaint.setBlendMode(BlendMode.SrcIn);
         canvas.drawRect(destination, tintPaint);
-
-        // Cut a small transparent ring out of the bell so the blue dot stays
-        // legible over both outline and filled variants on every theme.
-        clearPaint.setBlendMode(BlendMode.Clear);
-        clearPaint.setAntiAlias(true);
-        canvas.drawCircle(
-          TAB_ACTIVITY_DOT_X * TAB_AVATAR_SCALE,
-          TAB_ACTIVITY_DOT_Y * TAB_AVATAR_SCALE,
-          TAB_ACTIVITY_DOT_CLEAR_RADIUS * TAB_AVATAR_SCALE,
-          clearPaint
-        );
 
         dotPaint.setColor(Skia.Color(getTokenValue('$blue', 'color')));
         dotPaint.setAntiAlias(true);
@@ -174,7 +163,7 @@ function useUnreadActivityIconSources({
               100
             )}`,
             width: TAB_ACTIVITY_ICON_SIZE,
-            height: TAB_ACTIVITY_ICON_SIZE,
+            height: TAB_ACTIVITY_ICON_HEIGHT,
             scale: TAB_AVATAR_SCALE,
           } satisfies ImageSourcePropType;
         } finally {
@@ -183,7 +172,6 @@ function useUnreadActivityIconSources({
       } finally {
         imagePaint.dispose();
         tintPaint.dispose();
-        clearPaint.dispose();
         dotPaint.dispose();
         surface.dispose();
       }
