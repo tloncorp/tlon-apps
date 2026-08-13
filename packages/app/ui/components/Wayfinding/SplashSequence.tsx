@@ -88,6 +88,7 @@ import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
 import { BotChatPreview } from './BotChatPreview';
 import { TlonBotSetupPaneView } from './TlonBotSetupPaneView';
+import { getDefaultBotName } from './botName';
 import {
   BotCredentialOption,
   buildBotCredentialOptions,
@@ -139,15 +140,6 @@ export type TlonbotSplashConfig = {
   botModel?: string;
   stage?: db.TlonbotRevivalStage;
 };
-
-function getPreviewBotName(userNickname?: string | null) {
-  const trimmedNickname = userNickname?.trim();
-  if (!trimmedNickname) {
-    return 'Tlonbot';
-  }
-
-  return `${trimmedNickname}'s Tlonbot 🌱`;
-}
 
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
@@ -1274,7 +1266,7 @@ export function BotNamePane(props: {
                 autoFocus
                 placeholder={
                   props.userNickname
-                    ? getPreviewBotName(props.userNickname)
+                    ? getDefaultBotName(props.userNickname)
                     : 'My Tlonbot'
                 }
                 frameStyle={{

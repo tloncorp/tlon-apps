@@ -118,6 +118,28 @@ describe('agent onboarding requests', () => {
     expect(sendPost).toHaveBeenCalledTimes(2);
   });
 
+  it('recognizes an unmarked legacy intro without suppressing other steps', () => {
+    const history = [
+      {
+        author: '~bot',
+        content:
+          "I'm your Tlonbot. I can go off and do things — look things up, " +
+          'keep track of what changes, and write it down for you.',
+        timestamp: 1,
+      },
+    ];
+
+    expect(agentOnboardingTesting.hasPostMarker(history, '~bot', 'intro')).toBe(
+      true
+    );
+    expect(
+      agentOnboardingTesting.hasPostMarker(history, '~bot', 'purpose-picker')
+    ).toBe(false);
+    expect(
+      agentOnboardingTesting.hasPostMarker(history, '~other', 'intro')
+    ).toBe(false);
+  });
+
   it('posts each picker as a durable channel message', async () => {
     const sent: Array<{ story: unknown; blob?: string }> = [];
     const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
@@ -321,9 +343,9 @@ describe('agent onboarding requests', () => {
   it.each([
     ['A daily digest', 'posts a fresh morning digest', 'What should it cover?'],
     [
-      'Tracking',
-      'keeps a running picture of what you log over time',
-      'What do you want to track?',
+      'Learn something',
+      'builds your understanding over time',
+      'What should we explore?',
     ],
     [
       'Research',
@@ -334,6 +356,19 @@ describe('agent onboarding requests', () => {
     const purpose = agentOnboardingTesting.purposeForReply(reply);
     expect(purpose.topicsPrompt).toContain(detail);
     expect(purpose.topicsPrompt).toContain(question);
+  });
+
+  it.each([
+    ['agent-daily-digest', 'publish a fresh digest here each day'],
+    [
+      'agent-learning',
+      'publish a short explainer on one topic each day, rotating through your list',
+    ],
+    ['agent-research', 'publish a fresh research update here each day'],
+  ])('explains the ongoing cadence for %s', (purposeId, expectation) => {
+    expect(agentOnboardingTesting.provisionCadence(purposeId)).toContain(
+      expectation
+    );
   });
 });
 
@@ -404,6 +439,23 @@ describe('primary onboarding cron slot', () => {
     expect(agentOnboardingTesting.buildRecurringPrompt(provision)).toContain(
       provision.topics.join(', ')
     );
+  });
+
+  it('builds a progressive entry for the learning flow', () => {
+    const prompt = agentOnboardingTesting.buildRecurringPrompt({
+      ...provision,
+      purposeId: 'agent-learning',
+      purpose: 'Learn something',
+      topics: ['Music theory', 'Cryptography'],
+    });
+    expect(prompt).toContain(
+      'topics, in rotation order, are: Music theory, Cryptography'
+    );
+    expect(prompt).toContain('Cover exactly one topic per entry');
+    expect(prompt).toContain('never combine or force connections');
+    expect(prompt).toContain('use the next topic in the list');
+    expect(prompt).toContain('the next useful idea');
+    expect(prompt).not.toContain('baseline');
   });
 
   it('uses the current host payload schema and explicit Notes delivery', async () => {
@@ -548,7 +600,7 @@ describe('provision coordinator ordering', () => {
 
     expect(sendPost).toHaveBeenCalledOnce();
     expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
-      'Your new group is ready. Its first entry is up:'
+      "Your group's first entry is ready:"
     );
     expect(sendPost.mock.calls[0]?.[0].story).toContainEqual({
       block: {

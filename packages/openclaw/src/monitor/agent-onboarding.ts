@@ -64,6 +64,7 @@ type AgentOnboardingScanContext = Omit<
 >;
 
 const postOnceFlights = new Map<string, Promise<void>>();
+const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
 const GROUP_INTRO_MESSAGE =
   "I'm your Tlonbot. I can research things, track changes, and write " +
   'updates for you.';
@@ -75,8 +76,8 @@ const HANDOFF_MESSAGE =
   '- You can rename me whenever you like.\n' +
   '- Ask me about anything I find, or tell me what to do next.\n\n' +
   'I can draw on more than the web. Connect your other services — ' +
-  'calendars, docs, notes — and what they know flows into these ' +
-  'digests too:';
+  'calendars, docs, notes — and what they know can inform what I make ' +
+  'for you too:';
 const TOPICS_PICKER_FALLBACK_INSTRUCTION =
   'You can also just tell me here in the chat.';
 const TIMEZONE_PICKER_QUESTION =
@@ -105,25 +106,24 @@ const PURPOSE_OPTIONS = [
     ],
   },
   {
-    id: 'agent-tracking',
-    label: 'Tracking',
-    description:
-      'You log a thing as it happens. I keep the running picture over time.',
+    id: 'agent-learning',
+    label: 'Learn something',
+    description: 'Build your understanding with a short daily explainer.',
     icon: 'Clock',
     accent: 'green',
-    scheduleHour: 18,
+    scheduleHour: 9,
     topicsPrompt:
-      'Good. I’ll create a group that keeps a running picture of what you ' +
-      'log over time. What do you want to track? Pick any that fit.',
+      'Good. I’ll create a group that builds your understanding over time. ' +
+      'What should we explore? Pick any that fit.',
     topics: [
-      'HRV',
-      'Cold plunges',
-      'Sauna',
-      'Fasting',
-      'Supplements',
-      'Blood glucose',
-      'VO2 max',
-      'Dreams',
+      'Music theory',
+      'Genetics',
+      'Astronomy',
+      'Philosophy',
+      'Architecture',
+      'Economics',
+      'Cryptography',
+      'How computers work',
     ],
   },
   {
@@ -532,7 +532,8 @@ async function provision(
       async () => ({
         text:
           `${formatTopicList(request.topics)}—got it. ` +
-          'You’re all set — your first entry is coming shortly.',
+          `${provisionCadence(request.purposeId)} ` +
+          'Your first entry is coming shortly.',
         entries: [
           {
             type: 'tlon-agent-provision-ack',
@@ -633,9 +634,8 @@ async function completeFirstRun(
         const newest = [...listed].sort(
           (a, b) => (b.createdAt ?? b.noteId) - (a.createdAt ?? a.noteId)
         )[0];
-        const story = markdownToStory(
-          'Your new group is ready. Its first entry is up:'
-        );
+        const message = "Your group's first entry is ready:";
+        const story = markdownToStory(message);
         if (newest) {
           story.push({
             block: {
@@ -649,7 +649,7 @@ async function completeFirstRun(
           } as never);
         }
         return {
-          text: 'Your new group is ready. Its first entry is up:',
+          text: message,
           story,
         };
       },
@@ -780,14 +780,25 @@ function hasPostMarker(
   botShip: string,
   key: string
 ) {
-  return history.some(
-    (post) =>
-      post.author === botShip &&
+  return history.some((post) => {
+    if (post.author !== botShip) return false;
+    // The original onboarding plugin deduped its intro by visible copy and did
+    // not attach a post marker. Preserve that one-way migration path so a
+    // gateway restart does not greet existing hosted groups a second time.
+    if (
+      key === 'intro' &&
+      post.content.trimStart().startsWith(LEGACY_GROUP_INTRO_PREFIX)
+    ) {
+      return true;
+    }
+    return Boolean(
       post.blob &&
-      parsePostBlob(post.blob).some(
-        (entry) => entry.type === 'tlon-agent-post-marker' && entry.key === key
-      )
-  );
+        parsePostBlob(post.blob).some(
+          (entry) =>
+            entry.type === 'tlon-agent-post-marker' && entry.key === key
+        )
+    );
+  });
 }
 
 function findAckJobId(
@@ -904,12 +915,14 @@ function jobMatches(
 }
 
 function buildRecurringPrompt(request: PostBlobDataEntryAgentProvision) {
+  if (request.purposeId === 'agent-learning') {
+    return `Build the next entry in a progressive learning series. The topics, in rotation order, are: ${request.topics.join(', ')}. First inspect the existing entries with \`tlon notes notes ${request.notebookNest}\`. Cover exactly one topic per entry; never combine or force connections between topics. If the notebook is empty, use the first topic. Otherwise, identify the topic covered most recently and use the next topic in the list, wrapping back to the beginning. Put that topic in the note title so the rotation remains clear on later runs. Explain the next useful idea for that topic, building on its earlier entries without repeating them. Keep it concise, use concrete examples, search the web for reliable information, and cite useful sources. Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note; do not post it or call a messaging tool. The coordinator will publish your final response exactly once.`;
+  }
+
   const firstRun =
-    request.purposeId === 'agent-tracking'
-      ? 'If the notebook is empty, establish a useful current baseline. Otherwise, report what changed since its newest entry.'
-      : request.purposeId === 'agent-research'
-        ? 'If the notebook is empty, write an introductory survey of the field. Otherwise, focus on meaningful work published since its newest entry.'
-        : 'If the notebook is empty, make this a self-contained first entry. Otherwise, write the next current update without repeating the newest entry.';
+    request.purposeId === 'agent-research'
+      ? 'If the notebook is empty, write an introductory survey of the field. Otherwise, focus on meaningful work published since its newest entry.'
+      : 'If the notebook is empty, make this a self-contained first entry. Otherwise, write the next current update without repeating the newest entry.';
   return `Write ${request.purpose.toLowerCase()} about ${request.topics.join(', ')}. First inspect the existing entries with \`tlon notes notes ${request.notebookNest}\`. ${firstRun} Search the web for current information and cite useful sources. Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note; do not post it or call a messaging tool. The coordinator will publish your final response exactly once.`;
 }
 
@@ -969,6 +982,17 @@ function formatTopicList(topics: readonly string[]): string {
   if (topics.length <= 1) return topics[0] ?? '';
   if (topics.length === 2) return `${topics[0]} and ${topics[1]}`;
   return `${topics.slice(0, -1).join(', ')}, and ${topics[topics.length - 1]}`;
+}
+
+function provisionCadence(purposeId: string) {
+  switch (purposeId) {
+    case 'agent-learning':
+      return 'I’ll publish a short explainer on one topic each day, rotating through your list.';
+    case 'agent-research':
+      return 'I’ll publish a fresh research update here each day.';
+    default:
+      return 'I’ll publish a fresh digest here each day.';
+  }
 }
 
 function timezonePickerPrompt(topics: readonly string[]): string {
@@ -1118,6 +1142,7 @@ export const agentOnboardingTesting = {
   hasPostMarker,
   jobMatches,
   purposeForReply,
+  provisionCadence,
   rememberFirstRun,
   upsertPrimaryJob,
 };

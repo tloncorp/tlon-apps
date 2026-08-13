@@ -2,10 +2,14 @@ import * as api from '@tloncorp/api';
 import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { LoadingSpinner } from '@tloncorp/ui';
 import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'tamagui';
+
+import { AGENT_SHIP_OVERRIDE } from '../../../../lib/envVars';
+import { getDefaultBotName } from '../botName';
 
 const logger = createDevLogger('AgentOnboardingSequence', false);
 const wait = (ms: number) =>
@@ -21,6 +25,28 @@ async function waitForLandingConsumption(isCancelled: () => boolean) {
     await wait(50);
   }
   return false;
+}
+
+async function syncInitialBotName() {
+  const ownerShip = api.getCurrentUserId();
+  const [hostedShipId, cachedNickname, ownerContact] = await Promise.all([
+    db.hostedUserNodeId.getValue(),
+    db.splashNickname.getValue().catch(() => ''),
+    db.getContact({ id: ownerShip }).catch(() => null),
+  ]);
+  const userNickname =
+    cachedNickname.trim() || ownerContact?.nickname?.trim() || '';
+  if (!hostedShipId || !userNickname) {
+    return;
+  }
+
+  const botName = getDefaultBotName(userNickname);
+  await withRetry(() => api.setTlawnNickname(hostedShipId, botName), {
+    startingDelay: 500,
+    numOfAttempts: 3,
+    maxDelay: 2_000,
+  });
+  logger.trackEvent('Agent Onboarding Bot Nickname Sync Succeeded');
 }
 
 /**
@@ -52,13 +78,24 @@ export function AgentOnboardingSequence(props: {
         return;
       }
 
+      try {
+        await syncInitialBotName();
+      } catch (error) {
+        logger.trackError('Agent onboarding bot nickname sync failed', {
+          error,
+        });
+      }
+
       const groupId = `${api.getCurrentUserId()}/${BotHomeGroupSlugs.slug}`;
       const deadline = Date.now() + 2 * 60_000;
       let lastError: unknown;
 
       while (!cancelled && !completedRef.current && Date.now() < deadline) {
         try {
-          const furnished = await store.ensureAgentGroupFurnished({ groupId });
+          const furnished = await store.ensureAgentGroupFurnished({
+            groupId,
+            agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+          });
           await db.agentOnboardingLanding.setValue({
             groupId,
             channelId: furnished.chatChannelId,

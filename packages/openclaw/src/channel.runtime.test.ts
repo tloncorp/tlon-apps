@@ -236,9 +236,27 @@ describe('notes delivery', () => {
       flag: 'notes/~ten/updates',
       folder: 17,
       title: 'Tuesday briefing',
-      body: '# Tuesday briefing\n\nThe full report.',
+      body: 'The full report.',
     });
     expect(sendChannelPost).not.toHaveBeenCalled();
     expect(result).toMatchObject({ channel: 'tlon' });
+  });
+
+  it('preserves a non-heading first line in the note body', async () => {
+    await tlonRuntimeOutbound.sendText({
+      cfg: {} as never,
+      to: 'notes/~ten/updates',
+      text: 'Tuesday briefing\n\nThe full report.',
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+    });
+
+    expect(createNote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Tuesday briefing',
+        body: 'Tuesday briefing\n\nThe full report.',
+      })
+    );
   });
 });

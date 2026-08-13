@@ -132,6 +132,23 @@ function notesTitle(markdown: string): string {
   return (title || 'Update').slice(0, 120);
 }
 
+function notesBody(markdown: string): string {
+  const lines = markdown.split(/\r?\n/);
+  const headingIndex = lines.findIndex((line) => line.trim());
+  if (
+    headingIndex === -1 ||
+    !/^\s{0,3}#{1,6}\s+\S/.test(lines[headingIndex] ?? '')
+  ) {
+    return markdown;
+  }
+
+  lines.splice(headingIndex, 1);
+  while (lines[0]?.trim() === '') {
+    lines.shift();
+  }
+  return lines.join('\n');
+}
+
 async function sendNotesEntry({
   fromShip,
   nest,
@@ -146,7 +163,7 @@ async function sendNotesEntry({
     flag: nest,
     folder: notebook.rootFolderId,
     title: notesTitle(text),
-    body: text,
+    body: notesBody(text),
   });
   return {
     channel: 'tlon' as const,
