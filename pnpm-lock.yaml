@@ -379,8 +379,8 @@ importers:
         specifier: 19.2.3
         version: 19.2.3
       react-hook-form:
-        specifier: ^7.52.0
-        version: 7.52.0(react@19.2.3)
+        specifier: ^7.85.0
+        version: 7.85.0(react@19.2.3)
       react-native:
         specifier: 0.86.0
         version: 0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3)
@@ -1313,8 +1313,8 @@ importers:
         specifier: ^0.28.1
         version: 0.28.1(react-dom@19.2.3(react@19.2.3))(react-native-reanimated@4.5.0(patch_hash=dca1e6927879993905550e8e56f8fa98423ff51ce87750ea4478bd40a4341f7f)(react-native-worklets@0.10.3(@babel/core@7.29.0)(@react-native/metro-config@0.86.0)(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react@19.2.3)
       react-hook-form:
-        specifier: ^7.52.0
-        version: 7.52.0(react@19.2.3)
+        specifier: ^7.85.0
+        version: 7.85.0(react@19.2.3)
       react-native-gesture-image-viewer:
         specifier: 2.4.0
         version: 2.4.0(cc528632b745d562f569e1a413c9eba2)
@@ -11424,9 +11424,9 @@ packages:
     peerDependencies:
       react: 19.2.3
 
-  react-hook-form@7.52.0:
-    resolution: {integrity: sha512-mJX506Xc6mirzLsmXUJyqlAI3Kj9Ph2RhplYhUVffeOQSnubK2uVqBFOBJmvKikvbFV91pxVXmDiR+QMF19x6A==}
-    engines: {node: '>=12.22.0'}
+  react-hook-form@7.85.0:
+    resolution: {integrity: sha512-U2MTriFXnclmV4rOE20p2DcRFv5WEg3FIcBFOKcOLFHDVvGIMPvLTkTWefUsonmlaVy23khVDxDWym6uJVGOzw==}
+    engines: {node: '>=18.0.0'}
     peerDependencies:
       react: 19.2.3
 
@@ -26488,7 +26488,7 @@ snapshots:
       react-fast-compare: 3.2.0
       react-side-effect: 2.1.2(react@19.2.3)
 
-  react-hook-form@7.52.0(react@19.2.3):
+  react-hook-form@7.85.0(react@19.2.3):
     dependencies:
       react: 19.2.3
 
