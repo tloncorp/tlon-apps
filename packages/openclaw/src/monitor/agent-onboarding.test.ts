@@ -227,6 +227,97 @@ describe('agent onboarding requests', () => {
     );
   });
 
+  it('consumes picker replies from production-shaped history before model dispatch', async () => {
+    const sent: Array<{ story: unknown; blob?: string }> = [];
+    const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
+      sent.push(post);
+      return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+    });
+    const introBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~ten/group',
+    });
+    const base = {
+      api: { scry: vi.fn() },
+      botShip: '~bot',
+      botProfile: { nickname: "Napdet's Tlonbot", avatar: '' },
+      channelNest: 'chat/~ten/general',
+      groupId: '~ten/group',
+      ownerShip: '~ten',
+      senderShip: '~ten',
+    };
+
+    await handleAgentOnboardingRequest(
+      { ...base, blob: introBlob },
+      {
+        fetchHistory: vi.fn(async () => [
+          {
+            author: '~ten',
+            content: "Let's get set up.",
+            timestamp: 1,
+            blob: introBlob,
+          },
+        ]),
+        sendPost,
+      }
+    );
+
+    base.api.scry.mockResolvedValue({
+      posts: {
+        intro: {
+          seal: { id: 'intro' },
+          essay: {
+            author: {
+              ship: '~bot',
+              nickname: "Napdet's Tlonbot",
+              avatar: '',
+            },
+            sent: 2,
+            content: [{ inline: ['intro'] }],
+            blob: sent[0].blob,
+          },
+        },
+        purpose: {
+          seal: { id: 'purpose' },
+          essay: {
+            author: {
+              ship: '~bot',
+              nickname: "Napdet's Tlonbot",
+              avatar: '',
+            },
+            sent: 3,
+            content: [{ inline: ['What should this group do?'] }],
+            blob: sent[1].blob,
+          },
+        },
+        reply: {
+          seal: { id: 'reply' },
+          essay: {
+            author: '~ten',
+            sent: 4,
+            content: [{ inline: ['A daily digest'] }],
+          },
+        },
+      },
+    });
+
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          ...base,
+          rawText: 'A daily digest',
+          blob: undefined,
+        },
+        { sendPost }
+      )
+    ).resolves.toBe(true);
+    expect(sent).toHaveLength(3);
+    expect(JSON.stringify(parsePostBlob(sent[2].blob))).toContain(
+      'tlon.provisionAgent'
+    );
+  });
+
   it.each([
     ['A daily digest', 'posts a fresh morning digest', 'What should it cover?'],
     [
