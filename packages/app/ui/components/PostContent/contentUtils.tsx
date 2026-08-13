@@ -26,6 +26,7 @@ export function usePostLastEditContent(post: Post): BlockData[] {
 }
 
 export interface ContentContextProps {
+  groupId?: string | null;
   isNotice?: boolean;
   onPressImage?: (src: string) => void;
   getImageViewerId?: (src: string) => string | undefined;
