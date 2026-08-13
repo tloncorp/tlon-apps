@@ -3545,9 +3545,12 @@ class TlonAdapter(BasePlatformAdapter):
     ) -> tuple[str, PreparedMedia]:
         cite_block = ""
         if self._sse is not None and message.content:
+            partial: list[str] = []
             try:
                 cite_block = await asyncio.wait_for(
-                    resolve_cites(self._sse.scry, message.content),
+                    resolve_cites(
+                        self._sse.scry, message.content, collected=partial
+                    ),
                     CITE_RESOLUTION_BUDGET_SECONDS,
                 )
             except (Exception, asyncio.TimeoutError) as exc:
@@ -3557,6 +3560,8 @@ class TlonAdapter(BasePlatformAdapter):
                     exc,
                 )
                 self._telemetry.error("cite_resolve", exc)
+                if isinstance(exc, asyncio.TimeoutError) and partial:
+                    cite_block = "\n".join(partial)
         try:
             prepared = await prepare_inbound_media(message.content, message.blob)
         except Exception as exc:
