@@ -119,7 +119,12 @@ function useUnreadActivityIconSources({
     ) => {
       const pixelWidth = TAB_ACTIVITY_ICON_SIZE * TAB_AVATAR_SCALE;
       const pixelHeight = TAB_ACTIVITY_ICON_HEIGHT * TAB_AVATAR_SCALE;
-      const destination = rect(0, 0, pixelWidth, pixelWidth);
+      // UIKit centers the taller dotted image as a whole. Offset the bell
+      // within it so its visual position matches the undotted 24pt icon.
+      const iconOffsetY =
+        ((TAB_ACTIVITY_ICON_HEIGHT - TAB_ACTIVITY_ICON_SIZE) / 2) *
+        TAB_AVATAR_SCALE;
+      const destination = rect(0, iconOffsetY, pixelWidth, pixelWidth);
       const surface = Skia.Surface.MakeOffscreen(pixelWidth, pixelHeight);
       if (!surface) {
         return undefined;
