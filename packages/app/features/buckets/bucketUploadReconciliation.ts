@@ -12,6 +12,8 @@ export function bucketResponseHasRevisionGap(
 }
 
 type ReconcileableUpload = {
+  allowMetadataFallback?: boolean;
+  brokerObjectId?: string;
   candidate: {
     mimeType?: string;
     name: string;
@@ -22,6 +24,17 @@ type ReconcileableUpload = {
   serverEntryId?: number;
   sessionId?: string;
 };
+
+export function includePendingUploadForReconciliation<
+  T extends { id: string; priorSessionIds?: readonly string[] },
+>(uploads: T[], pending: T, priorSessionIds: readonly string[]): T[] {
+  const withPriorSessions = { ...pending, priorSessionIds };
+  const index = uploads.findIndex((upload) => upload.id === pending.id);
+  if (index === -1) return [...uploads, withPriorSessions];
+  return uploads.map((upload, candidateIndex) =>
+    candidateIndex === index ? { ...upload, priorSessionIds } : upload
+  );
+}
 
 export function reconcileUploadsWithSnapshot<T extends ReconcileableUpload>(
   uploads: T[],
@@ -37,15 +50,21 @@ export function reconcileUploadsWithSnapshot<T extends ReconcileableUpload>(
   let changed = false;
 
   const reconciled = uploads.map((upload) => {
-    if (upload.serverEntryId !== undefined || !upload.priorSessionIds) {
+    if (
+      upload.serverEntryId !== undefined ||
+      !upload.priorSessionIds ||
+      (!upload.brokerObjectId && !upload.allowMetadataFallback)
+    ) {
       return upload;
     }
 
     const priorSessionIds = new Set(upload.priorSessionIds);
-    const entry = snapshot.state.entries.find(
+    const entries = snapshot.state.entries.filter(
       (candidate) =>
         candidate.kind === 'file' &&
         !usedEntryIds.has(candidate.id) &&
+        (!upload.brokerObjectId ||
+          candidate.file.objectKey === upload.brokerObjectId) &&
         candidate.parentId === upload.parentId &&
         candidate.name === upload.candidate.name &&
         candidate.file.mime ===
@@ -58,6 +77,12 @@ export function reconcileUploadsWithSnapshot<T extends ReconcileableUpload>(
             !priorSessionIds.has(session.id)
         )
     );
+    // The broker object ID is the Gall object's opaque key and is the only
+    // safe discriminator for normal uploads. The metadata-only path is
+    // opt-in for cleanup after a failed grant and only succeeds when it
+    // identifies exactly one entry.
+    const entry =
+      entries.length === 1 || upload.brokerObjectId ? entries[0] : undefined;
     if (!entry) return upload;
 
     const session = snapshot.state.sessions.find(

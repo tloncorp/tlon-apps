@@ -5,6 +5,7 @@ import {
   canFallBackFromBucketsBroker,
   completeBucketUpload,
   grantBucketUpload,
+  isBucketObjectAlreadyDeleted,
 } from './bucketsBroker';
 
 afterEach(() => {
@@ -86,6 +87,39 @@ describe('Buckets broker client', () => {
       canFallBackFromBucketsBroker(
         new BucketsBrokerError(
           'capability denied',
+          403,
+          'capability_denied',
+          false
+        )
+      )
+    ).toBe(false);
+  });
+
+  test('only treats the broker missing-object response as an idempotent delete', () => {
+    expect(
+      isBucketObjectAlreadyDeleted(
+        new BucketsBrokerError(
+          'object was not found',
+          409,
+          'invalid_state',
+          false
+        )
+      )
+    ).toBe(true);
+    expect(
+      isBucketObjectAlreadyDeleted(
+        new BucketsBrokerError(
+          'the capability conflicts with an existing exchange',
+          409,
+          'invalid_state',
+          false
+        )
+      )
+    ).toBe(false);
+    expect(
+      isBucketObjectAlreadyDeleted(
+        new BucketsBrokerError(
+          'object was not found',
           403,
           'capability_denied',
           false

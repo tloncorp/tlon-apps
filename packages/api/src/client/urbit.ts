@@ -336,7 +336,7 @@ export async function subscribe<T>(
       app: endpoint.app,
       path: endpoint.path,
       onSubscriptionId: options.onSubscriptionId,
-      resubOnQuit: options.resubOnQuit,
+      resubOnQuit: options.resubOnQuit ?? true,
       event: (event: any, mark: string, id?: number) => {
         logger.debug(
           `got subscription event on ${printEndpoint(endpoint)}:`,

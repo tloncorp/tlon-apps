@@ -20,6 +20,7 @@ import {
   deleteBucketObject,
   grantBucketRead,
   grantBucketUpload,
+  isBucketObjectAlreadyDeleted,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -31,14 +32,17 @@ import {
   removeBucketUploadFromBatch,
 } from '../../utils/bucketUploadProgress';
 import type { BucketUploadBatchItem } from '../../utils/bucketUploadProgress';
+import { deletePrivateBucketFiles } from './bucketDeletion';
 import {
   bucketResponseHasRevisionGap,
+  includePendingUploadForReconciliation,
   reconcileUploadsWithSnapshot,
 } from './bucketUploadReconciliation';
 import { createBucketUploadTask } from './bucketUploadTask';
 import type { BucketUploadTask } from './bucketUploadTask.types';
 
 type LocalUpload = {
+  brokerObjectId?: string;
   brokerReservationId?: string;
   candidate: BucketUploadCandidate;
   capability?: string;
@@ -338,10 +342,13 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
 
   const waitForSession = useCallback(
     async (
+      pendingUpload: LocalUpload,
       candidate: BucketUploadCandidate,
       localUploadId: string,
       parentId: number | null,
-      priorSessionIds: Set<string>
+      priorSessionIds: Set<string>,
+      brokerObjectId?: string,
+      allowMetadataFallback = false
     ) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
         let next = snapshotRef.current;
@@ -353,9 +360,13 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           next = await refreshUploadSessions();
         }
         if (next) {
-          const activeUploads = uploadsRef.current.map((upload) =>
+          const activeUploads = includePendingUploadForReconciliation(
+            uploadsRef.current,
+            pendingUpload,
+            [...priorSessionIds]
+          ).map((upload) =>
             upload.id === localUploadId
-              ? { ...upload, priorSessionIds: [...priorSessionIds] }
+              ? { ...upload, allowMetadataFallback, brokerObjectId }
               : upload
           );
           const reconciled = reconcileUploadsWithSnapshot(
@@ -384,7 +395,9 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
             );
             if (entry && session) {
               claimedEntryIdsRef.current.add(entry.id);
-              setCurrentUploads(() => reconciled);
+              if (!cancelledRef.current.has(localUploadId)) {
+                setCurrentUploads(() => reconciled);
+              }
               return { entry, session };
             }
           }
@@ -401,6 +414,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const { candidate, id, parentId } = upload;
       let sessionId: string | undefined;
       let serverEntryId: number | undefined;
+      let brokerObjectId: string | undefined;
       let brokerReservationId: string | undefined;
       let brokerCompleted = false;
 
@@ -433,25 +447,50 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           parentId,
           size: candidate.size,
         });
+        let privateGrant: Awaited<ReturnType<typeof grantBucketUpload>>;
+        try {
+          privateGrant = await waitForBrokerCapability(() =>
+            grantBucketUpload(capability, flag.host)
+          );
+        } catch (grantCause) {
+          // A failed grant can still leave a pending Gall entry. Metadata is
+          // only used here when it identifies one unambiguous entry, so this
+          // cleanup cannot fail another identical upload from the same ship.
+          const begun = await waitForSession(
+            upload,
+            candidate,
+            id,
+            parentId,
+            priorSessionIds,
+            undefined,
+            true
+          ).catch(() => undefined);
+          sessionId = begun?.session.id;
+          serverEntryId = begun?.entry.id;
+          throw grantCause;
+        }
+        brokerObjectId = privateGrant.objectId;
+        brokerReservationId = privateGrant.reservationId;
+        updateLocalUpload(id, {
+          brokerObjectId,
+          brokerReservationId,
+          progress: 3,
+        });
         const begun = await waitForSession(
+          { ...upload, brokerObjectId, brokerReservationId },
           candidate,
           id,
           parentId,
-          priorSessionIds
+          priorSessionIds,
+          brokerObjectId
         );
         sessionId = begun.session.id;
         serverEntryId = begun.entry.id;
-        updateLocalUpload(id, { progress: 3, serverEntryId, sessionId });
+        updateLocalUpload(id, { progress: 5, serverEntryId, sessionId });
 
         if (cancelledRef.current.has(id)) {
           throw new Error('Upload cancelled');
         }
-
-        const privateGrant = await waitForBrokerCapability(() =>
-          grantBucketUpload(capability, flag.host)
-        );
-        brokerReservationId = privateGrant.reservationId;
-        updateLocalUpload(id, { brokerReservationId, progress: 5 });
 
         const task = createBucketUploadTask(
           privateGrant.uploadUrl,
@@ -483,6 +522,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         );
       } catch (cause) {
         tasksRef.current.delete(id);
+        const cancelled = cancelledRef.current.has(id);
         if (sessionId && !brokerCompleted) {
           await sendBucketsAction({
             type: 'fail-upload',
@@ -494,7 +534,15 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         if (brokerReservationId && !brokerCompleted) {
           await cancelBucketUpload(brokerReservationId).catch(() => undefined);
         }
-        if (!cancelledRef.current.has(id)) {
+        if (cancelled && serverEntryId !== undefined) {
+          await sendBucketsAction({
+            type: 'delete-entry',
+            flag,
+            id: serverEntryId,
+            recursive: false,
+          }).catch(() => undefined);
+        }
+        if (!cancelled) {
           updateLocalUpload(id, {
             brokerReservationId: undefined,
             error: errorMessage(cause),
@@ -630,6 +678,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         error: undefined,
         capability: undefined,
         brokerReservationId: undefined,
+        brokerObjectId: undefined,
         progress: 0,
         priorSessionIds: undefined,
         serverEntryId: undefined,
@@ -704,17 +753,49 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           entry.file.status === 'ready' &&
           !entry.file.objectUrl
       );
-      for (const entry of privateFiles ?? []) {
-        const capability = createBucketCapability();
-        await sendBucketsAction({
-          type: 'issue-delete',
-          capability,
-          flag,
-          id: entry.id,
-        });
-        await waitForBrokerCapability(() =>
-          deleteBucketObject(capability, flag.host, entry.file.objectKey)
-        );
+      await deletePrivateBucketFiles(privateFiles ?? [], flag, {
+        createCapability: createBucketCapability,
+        deleteManifestEntry: (deletedId) =>
+          sendBucketsAction({
+            type: 'delete-entry',
+            flag,
+            id: deletedId,
+            recursive: false,
+          }),
+        deleteObject: (capability, host, objectId) =>
+          waitForBrokerCapability(() =>
+            deleteBucketObject(capability, host, objectId)
+          ),
+        isAlreadyDeleted: isBucketObjectAlreadyDeleted,
+        issueDelete: (capability, entryId) =>
+          sendBucketsAction({
+            type: 'issue-delete',
+            capability,
+            flag,
+            id: entryId,
+          }),
+        onManifestDelete: (deletedId) => {
+          const latest = snapshotRef.current;
+          if (!latest) return;
+          commitSnapshot({
+            ...latest,
+            state: {
+              ...latest.state,
+              entries: latest.state.entries.filter(
+                (entry) => entry.id !== deletedId
+              ),
+              sessions: latest.state.sessions.filter(
+                (session) => session.fileId !== deletedId
+              ),
+            },
+          });
+        },
+      });
+      if (
+        root?.kind === 'file' &&
+        privateFiles?.some((entry) => entry.id === id)
+      ) {
+        return;
       }
       return sendBucketsAction({ type: 'delete-entry', flag, id, recursive });
     },

@@ -1,6 +1,6 @@
 import type { BucketsEntry, BucketsFlag } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import { Text } from '@tloncorp/ui';
+import { ConfirmDialog, Text } from '@tloncorp/ui';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { ReactElement, useCallback, useMemo, useRef, useState } from 'react';
@@ -130,6 +130,8 @@ export function BucketsLiveChannel({
   const [previewError, setPreviewError] = useState<string | null>(null);
   const previewRequestId = useRef(0);
   const [operationError, setOperationError] = useState<string | null>(null);
+  const [folderPendingDeletion, setFolderPendingDeletion] =
+    useState<BucketItem | null>(null);
   useHideChannelHeader(embedded && previewItem !== null);
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
@@ -235,8 +237,12 @@ export function BucketsLiveChannel({
     setPreviewError(null);
 
     try {
-      const previewUri =
-        item.previewUri ?? (await live.readUrl(Number(item.id)));
+      const entry = entriesById.get(Number(item.id));
+      const isPrivateFile =
+        entry?.kind === 'file' && entry.file.objectUrl === null;
+      const previewUri = isPrivateFile
+        ? await live.readUrl(Number(item.id))
+        : item.previewUri ?? (await live.readUrl(Number(item.id)));
       if (previewRequestId.current !== requestId) return;
 
       const readableItem = { ...item, previewUri };
@@ -388,10 +394,13 @@ export function BucketsLiveChannel({
     uploadAggregateProgress: live.uploadAggregateProgress,
     uploadItems: live.localItems,
     onCancelUpload: (item: BucketItem) => void live.cancelUpload(item.id),
-    onDeleteItem: (item: BucketItem) =>
-      void reportOperation(
-        live.deleteEntry(Number(item.id), item.kind === 'folder')
-      ),
+    onDeleteItem: (item: BucketItem) => {
+      if (item.kind === 'folder') {
+        setFolderPendingDeletion(item);
+        return;
+      }
+      void reportOperation(live.deleteEntry(Number(item.id), false));
+    },
     onDownloadItem: (item: BucketItem) => {
       void live
         .readUrl(Number(item.id))
@@ -527,6 +536,24 @@ export function BucketsLiveChannel({
           </XStack>
         )}
       </MaybeChannelHeaderItemsProvider>
+      <ConfirmDialog
+        open={folderPendingDeletion !== null}
+        onOpenChange={(open) => {
+          if (!open) setFolderPendingDeletion(null);
+        }}
+        title={`Delete ${folderPendingDeletion?.name ?? 'folder'}?`}
+        description="This folder and everything inside it will be permanently deleted for everyone. This cannot be undone."
+        confirmText="Delete folder"
+        cancelText="Cancel"
+        destructive
+        onConfirm={() => {
+          const item = folderPendingDeletion;
+          setFolderPendingDeletion(null);
+          if (item) {
+            void reportOperation(live.deleteEntry(Number(item.id), true));
+          }
+        }}
+      />
     </YStack>
   );
 }

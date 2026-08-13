@@ -86,7 +86,7 @@ Bucket snapshots are replica observations, not command acknowledgements. In part
 
 Completion is idempotent. Re-exchanging an upload capability with the same reservation is also idempotent; a different reservation is denied.
 
-For a private read, the client sends `%issue-read`, exchanges the capability at Memex, and receives a short-lived read URL after `%pioneer-buckets-authorize-read` re-checks live group access. Delete follows the same pattern through `%issue-delete` and `%pioneer-buckets-authorize-delete` before the manifest entry is removed.
+For a private read, the client sends `%issue-read`, exchanges the capability at Memex, and receives a short-lived read URL after `%pioneer-buckets-authorize-read` re-checks live group access. Delete follows the same pattern through `%issue-delete` and `%pioneer-buckets-authorize-delete` before the manifest entry is removed. Recursive client deletion commits each private file's manifest removal immediately after Memex confirms its object deletion and treats Memex's exact already-deleted response as idempotent success. This keeps retries safe and prevents later failures in the tree from leaving previously deleted objects advertised as ready. A host-authorized server-side bulk-delete operation remains the durable atomic implementation.
 
 Current clients require the private broker. Broker unavailability fails the upload cleanly and marks the Gall session failed; clients do not fall back to uploader-owned storage or ask for owner credentials.
 

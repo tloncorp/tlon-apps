@@ -143,6 +143,15 @@ export function deleteBucketObject(
   );
 }
 
+export function isBucketObjectAlreadyDeleted(cause: unknown) {
+  return (
+    cause instanceof BucketsBrokerError &&
+    cause.status === 409 &&
+    cause.code === 'invalid_state' &&
+    cause.message.toLowerCase().includes('object was not found')
+  );
+}
+
 export function brokerRequiredHeaders(grant: BucketUploadGrant) {
   return Object.fromEntries(grant.requiredHeaders);
 }

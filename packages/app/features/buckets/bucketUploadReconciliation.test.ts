@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   bucketResponseHasRevisionGap,
+  includePendingUploadForReconciliation,
   reconcileUploadsWithSnapshot,
 } from './bucketUploadReconciliation';
 
@@ -58,6 +59,7 @@ const snapshot = {
 describe('reconcileUploadsWithSnapshot', () => {
   it('associates the optimistic upload with the matching ship entry', () => {
     const upload = {
+      allowMetadataFallback: true,
       candidate: {
         mimeType: 'image/heic',
         name: 'IMG_0111.heic',
@@ -79,6 +81,7 @@ describe('reconcileUploadsWithSnapshot', () => {
 
   it('does not associate an entry from a session that predates the upload', () => {
     const upload = {
+      allowMetadataFallback: true,
       candidate: {
         mimeType: 'image/heic',
         name: 'IMG_0111.heic',
@@ -96,6 +99,7 @@ describe('reconcileUploadsWithSnapshot', () => {
 
   it('does not associate an upload session requested by another member', () => {
     const upload = {
+      allowMetadataFallback: true,
       candidate: {
         mimeType: 'image/heic',
         name: 'IMG_0111.heic',
@@ -111,7 +115,24 @@ describe('reconcileUploadsWithSnapshot', () => {
     ).toBe(upload);
   });
 
-  it('matches identical concurrent uploads one-to-one', () => {
+  it('waits for the broker object ID before normal reconciliation', () => {
+    const upload = {
+      candidate: {
+        mimeType: 'image/heic',
+        name: 'IMG_0111.heic',
+        size: 42,
+      },
+      id: 'local-upload',
+      parentId: null,
+      priorSessionIds: [] as string[],
+    };
+
+    expect(reconcileUploadsWithSnapshot([upload], snapshot, '~zod')[0]).toBe(
+      upload
+    );
+  });
+
+  it('matches identical concurrent uploads by broker object ID', () => {
     const secondSnapshot: BucketsSnapshot = {
       ...snapshot,
       state: {
@@ -136,6 +157,7 @@ describe('reconcileUploadsWithSnapshot', () => {
     };
     const uploads = [
       {
+        brokerObjectId: 'second',
         candidate: {
           mimeType: 'image/heic',
           name: 'IMG_0111.heic',
@@ -146,6 +168,7 @@ describe('reconcileUploadsWithSnapshot', () => {
         priorSessionIds: [] as string[],
       },
       {
+        brokerObjectId: 'first',
         candidate: {
           mimeType: 'image/heic',
           name: 'IMG_0111.heic',
@@ -163,13 +186,54 @@ describe('reconcileUploadsWithSnapshot', () => {
       '~zod'
     );
     expect(reconciled).toMatchObject([
-      { serverEntryId: 10, sessionId: 'new-session' },
       { serverEntryId: 11, sessionId: 'second-session' },
+      { serverEntryId: 10, sessionId: 'new-session' },
     ]);
+  });
+
+  it('does not guess when metadata-only reconciliation is ambiguous', () => {
+    const secondSnapshot: BucketsSnapshot = {
+      ...snapshot,
+      state: {
+        ...snapshot.state,
+        entries: [
+          ...snapshot.state.entries,
+          {
+            ...snapshot.state.entries[0],
+            id: 11,
+            file: { ...snapshot.state.entries[0].file, objectKey: 'second' },
+          },
+        ],
+        sessions: [
+          ...snapshot.state.sessions,
+          {
+            ...snapshot.state.sessions[0],
+            fileId: 11,
+            id: 'second-session',
+          },
+        ],
+      },
+    };
+    const upload = {
+      allowMetadataFallback: true,
+      candidate: {
+        mimeType: 'image/heic',
+        name: 'IMG_0111.heic',
+        size: 42,
+      },
+      id: 'local-upload',
+      parentId: null,
+      priorSessionIds: [] as string[],
+    };
+
+    expect(
+      reconcileUploadsWithSnapshot([upload], secondSnapshot, '~zod')[0]
+    ).toBe(upload);
   });
 
   it('does not reuse an entry already claimed by another waiter', () => {
     const upload = {
+      allowMetadataFallback: true,
       candidate: {
         mimeType: 'image/heic',
         name: 'IMG_0111.heic',
@@ -183,6 +247,39 @@ describe('reconcileUploadsWithSnapshot', () => {
     expect(
       reconcileUploadsWithSnapshot([upload], snapshot, '~zod', new Set([10]))[0]
     ).toBe(upload);
+  });
+});
+
+describe('includePendingUploadForReconciliation', () => {
+  it('retains a canceled upload as a private reconciliation probe', () => {
+    const pending = {
+      id: 'local-upload',
+      priorSessionIds: undefined,
+      state: 'uploading' as const,
+    };
+
+    expect(
+      includePendingUploadForReconciliation([], pending, ['old-session'])
+    ).toEqual([{ ...pending, priorSessionIds: ['old-session'] }]);
+  });
+
+  it('updates the visible upload without duplicating it', () => {
+    const pending: {
+      id: string;
+      priorSessionIds: undefined;
+      progress: number;
+      state: 'queued' | 'uploading';
+    } = {
+      id: 'local-upload',
+      priorSessionIds: undefined,
+      progress: 0,
+      state: 'queued',
+    };
+    const visible = { ...pending, progress: 5, state: 'uploading' } as const;
+
+    expect(
+      includePendingUploadForReconciliation([visible], pending, ['old-session'])
+    ).toEqual([{ ...visible, priorSessionIds: ['old-session'] }]);
   });
 });
 
