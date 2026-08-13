@@ -113,6 +113,7 @@
     =+  cmd=!<(command:b vase)
     =/  act=action:b  action.cmd
     ?:  ?=(%create -.act)
+      ?>  ?=(%duke (clan:title ship.group.act))
       ?>  =(ship.group.act our.bowl)
       ?>  (group-is-admin-for-create group.act src.bowl)
       (create-bucket name.act title.act group.act readers.act writers.act src.bowl)
@@ -148,6 +149,7 @@
   ^+  cor
   ?+  -.act  (dispatch-existing act)
     %create
+  ?>  ?=(%duke (clan:title ship.group.act))
   ?>  (group-is-admin-for-create group.act our.bowl)
   ?:  =(ship.group.act our.bowl)
     (create-bucket name.act title.act group.act readers.act writers.act our.bowl)

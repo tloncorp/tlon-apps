@@ -9,16 +9,16 @@
 ::
 ++  flag
   ^-  flag:bu
-  [~zod %project-files]
+  [~sampel-palnet %project-files]
 ::
 ++  group
   ^-  flag:bu
-  [~zod %test-group]
+  [~sampel-palnet %test-group]
 ::
 ++  setup
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod)))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~sampel-palnet, src ~sampel-palnet)))
   ;<  *  bind:m  (do-init dap buckets-agent)
   ;<  ~  bind:m
     (jab-bowl |=(b=bowl b(now ~2026.1.1, eny 0v1234)))
@@ -105,12 +105,28 @@
     (do-poke %buckets-action-1 !>(act))
   %+  ex-cards  caz
   :~  %-  ex-poke
-      :*  /buckets/cmd/create/~zod/project-files
-          [~zod %buckets]
+      :*  /buckets/cmd/create/~sampel-palnet/project-files
+          [~sampel-palnet %buckets]
           %buckets-command-1
           !>(`command:bu`[act])
       ==
   ==
+::
+::  A Moon cannot own Bucket storage, even when it hosts the group and the
+::  caller is an admin. This fails before forwarding or allocating state.
+::
+++  test-moon-host-cannot-create
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  moon=ship  ~pinser-botter-sampel-palnet
+  =/  moon-group=flag:bu  [moon %test-group]
+  ;<  ~  b  (setup-as moon)
+  ;<  ~  b  (set-scry-gate allow-admin-create-scries)
+  %-  ex-fail
+  %+  do-poke  %buckets-action-1
+  !>(`action:bu`[%create %project-files 'Project Files' moon-group ~ ~])
 ::
 ::  The authoritative group host accepts a live remote admin, owns the Bucket,
 ::  and records the initiating admin as its creator.
@@ -132,7 +148,7 @@
   =/  bs=bucket-state:bu  (state-for st fl)
   %+  ex-equal
   !>([ship.fl created-by.bucket.bs updated-by.bucket.bs group.bs])
-  !>([~zod ~bus ~bus group])
+  !>([~sampel-palnet ~bus ~bus group])
 ::
 ::  A stale or forged admin request is rejected by the group host's own
 ::  authoritative group state.
@@ -179,7 +195,7 @@
   ^-  form:m
   ;<  ~  b  setup
   =/  legacy-bucket=bucket:bu
-    [41 'Legacy Files' ~zod ~2025.1.1 ~zod ~2025.1.2]
+    [41 'Legacy Files' ~sampel-palnet ~2025.1.1 ~sampel-palnet ~2025.1.2]
   =/  legacy-readers=(set @tas)
     (~(put in (~(put in *(set @tas)) %editor)) %member)
   =/  legacy-state=bucket-state-1:bu

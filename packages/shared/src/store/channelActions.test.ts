@@ -18,6 +18,7 @@ import { markGroupRead } from './groupActions';
 setupDatabaseTestSuite();
 
 const groupId = '~zod/stale-notify';
+const bucketGroupId = '~sampel-palnet/stale-notify';
 const channelId = 'chat/~zod/stale-notify/general';
 
 async function insertGroupAndChannel({
@@ -372,24 +373,24 @@ test('updateChannel saves notes readers without sending writer actions', async (
 });
 
 test('createChannel creates a Bucket with independent reader and writer roles', async () => {
-  await insertGroup();
+  await insertGroup(bucketGroupId);
   vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~zod');
   const sendBucketsAction = vi
     .spyOn(api, 'sendBucketsAction')
     .mockResolvedValue(1);
   vi.spyOn(api, 'getGroup').mockResolvedValue({
-    id: groupId,
+    id: bucketGroupId,
     channels: [
       {
-        id: 'buckets/~zod/project-files',
+        id: 'buckets/~sampel-palnet/project-files',
         title: 'Project files',
         type: 'buckets',
-        groupId,
+        groupId: bucketGroupId,
         currentUserIsMember: true,
         currentUserIsHost: true,
         readerRoles: [
           {
-            channelId: 'buckets/~zod/project-files',
+            channelId: 'buckets/~sampel-palnet/project-files',
             roleId: 'member',
           },
         ],
@@ -399,7 +400,7 @@ test('createChannel creates a Bucket with independent reader and writer roles', 
 
   const channel = await createChannel({
     customSlug: 'project-files',
-    groupId,
+    groupId: bucketGroupId,
     title: 'Project files',
     channelType: 'buckets',
     readers: ['member'],
@@ -408,14 +409,14 @@ test('createChannel creates a Bucket with independent reader and writer roles', 
 
   expect(sendBucketsAction).toHaveBeenCalledWith({
     type: 'create',
-    group: { host: '~zod', name: 'stale-notify' },
+    group: { host: '~sampel-palnet', name: 'stale-notify' },
     name: 'project-files',
     readers: ['member'],
     title: 'Project files',
     writers: ['editor'],
   });
   expect(channel).toMatchObject({
-    id: 'buckets/~zod/project-files',
+    id: 'buckets/~sampel-palnet/project-files',
     type: 'buckets',
   });
   await expect(
@@ -427,19 +428,19 @@ test('createChannel creates a Bucket with independent reader and writer roles', 
 });
 
 test('createChannel lets a non-host admin create a group-hosted Bucket', async () => {
-  await insertGroup();
+  await insertGroup(bucketGroupId);
   vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~solfer-magfed');
   const sendBucketsAction = vi
     .spyOn(api, 'sendBucketsAction')
     .mockResolvedValue(1);
   vi.spyOn(api, 'getGroup').mockResolvedValue({
-    id: groupId,
+    id: bucketGroupId,
     channels: [
       {
-        id: 'buckets/~zod/project-files',
+        id: 'buckets/~sampel-palnet/project-files',
         title: 'Project files',
         type: 'buckets',
-        groupId,
+        groupId: bucketGroupId,
         currentUserIsMember: true,
         currentUserIsHost: false,
       },
@@ -448,41 +449,60 @@ test('createChannel lets a non-host admin create a group-hosted Bucket', async (
 
   const channel = await createChannel({
     customSlug: 'project-files',
-    groupId,
+    groupId: bucketGroupId,
     title: 'Project files',
     channelType: 'buckets',
   });
 
   expect(sendBucketsAction).toHaveBeenCalledWith({
     type: 'create',
-    group: { host: '~zod', name: 'stale-notify' },
+    group: { host: '~sampel-palnet', name: 'stale-notify' },
     name: 'project-files',
     readers: [],
     title: 'Project files',
     writers: [],
   });
   expect(channel).toMatchObject({
-    id: 'buckets/~zod/project-files',
+    id: 'buckets/~sampel-palnet/project-files',
     currentUserIsHost: false,
     type: 'buckets',
   });
 });
 
+test('createChannel rejects a Bucket in a Moon-hosted group before poking Gall', async () => {
+  const moonGroupId = '~pinser-botter-sampel-palnet/files';
+  await insertGroup(moonGroupId);
+  const sendBucketsAction = vi.spyOn(api, 'sendBucketsAction');
+
+  await expect(
+    createChannel({
+      customSlug: 'project-files',
+      groupId: moonGroupId,
+      title: 'Project files',
+      channelType: 'buckets',
+    })
+  ).rejects.toThrow(
+    'Buckets are currently available only in groups hosted by a planet.'
+  );
+
+  expect(sendBucketsAction).not.toHaveBeenCalled();
+});
+
 test('createChannel preserves a created Bucket when its group listing is delayed', async () => {
   vi.useFakeTimers();
-  await insertGroup();
+  await insertGroup(bucketGroupId);
   vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~zod');
   const sendBucketsAction = vi
     .spyOn(api, 'sendBucketsAction')
     .mockResolvedValue(1);
   vi.spyOn(api, 'getGroup').mockResolvedValue({
-    id: groupId,
+    id: bucketGroupId,
     channels: [],
   } as unknown as db.Group);
 
   const createPromise = createChannel({
     customSlug: 'slow-project-files',
-    groupId,
+    groupId: bucketGroupId,
     title: 'Slow project files',
     channelType: 'buckets',
   });

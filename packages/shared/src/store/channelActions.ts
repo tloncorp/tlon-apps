@@ -5,6 +5,7 @@ import {
 } from '@tloncorp/api';
 import { TimeoutError } from '@tloncorp/api';
 import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
+import { p } from '@urbit/aura';
 import { isEqual } from 'lodash';
 
 import { trackEvent } from '../analytics';
@@ -24,6 +25,17 @@ const BUCKETS_CHANNEL_LISTING_DELAY_MS = 250;
 
 class NotesChannelListingUnverifiedError extends Error {}
 class BucketsChannelListingUnverifiedError extends Error {}
+
+export const BUCKETS_PLANET_HOST_REQUIRED_MESSAGE =
+  'Buckets are currently available only in groups hosted by a planet.';
+
+export function canShipHostBuckets(ship: string) {
+  try {
+    return p.kind(ship) === 'planet';
+  } catch {
+    return false;
+  }
+}
 
 export async function createChannel({
   groupId,
@@ -145,6 +157,9 @@ async function createBucketsChannel({
   const [groupHost, groupName, ...rest] = groupId.split('/');
   if (!groupHost || !groupName || rest.length > 0) {
     throw new Error(`Invalid group id: ${groupId}`);
+  }
+  if (!canShipHostBuckets(groupHost)) {
+    throw new Error(BUCKETS_PLANET_HOST_REQUIRED_MESSAGE);
   }
 
   const name = customSlug || getRandomId();

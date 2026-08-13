@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
+  canShipHostBuckets,
   createChannel,
   useBucketsDeskAvailable,
   useNotesDeskAvailable,
@@ -108,7 +109,9 @@ export function CreateChannelSheet({
   const isNonHostAdmin = isGroupAdmin && !group.currentUserIsHost;
   const { data: notesAvailable = false } = useNotesDeskAvailable();
   const { data: bucketsDeskAvailable = false } = useBucketsDeskAvailable();
-  const bucketsAvailable = bucketsDeskAvailable && isGroupAdmin;
+  const bucketsHostSupported = canShipHostBuckets(group.hostUserId);
+  const bucketsAvailable =
+    bucketsDeskAvailable && isGroupAdmin && bucketsHostSupported;
   const channelTypes = useMemo(
     () => buildChannelTypes(notesAvailable, bucketsAvailable),
     [bucketsAvailable, notesAvailable]
@@ -204,6 +207,16 @@ export function CreateChannelSheet({
               name={'channelType'}
             />
           </ActionSheet.FormBlock>
+          {bucketsDeskAvailable && isGroupAdmin && !bucketsHostSupported && (
+            <ActionSheet.FormBlock>
+              <SystemNotices.NoticeFrame>
+                <SystemNotices.NoticeBody>
+                  Buckets are currently available only in groups hosted by a
+                  planet.
+                </SystemNotices.NoticeBody>
+              </SystemNotices.NoticeFrame>
+            </ActionSheet.FormBlock>
+          )}
           {isNonHostAdmin && (
             <ActionSheet.FormBlock>
               <SystemNotices.NonHostAdminChannelNotice
