@@ -69,7 +69,7 @@ export function ChatListScreenView({
   previewGroupFromInviteNotification?: boolean;
   focusedChannelId?: string;
 }) {
-  const { navigation, navigateToGroup, navigateToChannel } =
+  const { navigation, navigateToGroup, navigateToChannel, resetToChannel } =
     useRootNavigation();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const personalInvite = db.personalInviteLink.useValue();
@@ -94,6 +94,43 @@ export function ChatListScreenView({
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
+
+  const onboardingLanding = db.agentOnboardingLanding.useValue();
+  const consumedOnboardingLanding = useRef(false);
+  const resetToChannelRef = useRef(resetToChannel);
+  resetToChannelRef.current = resetToChannel;
+  useEffect(() => {
+    if (!onboardingLanding || consumedOnboardingLanding.current) return;
+    let active = true;
+
+    void (async () => {
+      while (active && !consumedOnboardingLanding.current) {
+        try {
+          const channel = await db.getChannel({
+            id: onboardingLanding.channelId,
+          });
+          if (channel) {
+            consumedOnboardingLanding.current = true;
+            resetToChannelRef.current(onboardingLanding.channelId, {
+              groupId: onboardingLanding.groupId,
+            });
+            await db.agentOnboardingLanding.resetValue();
+            return;
+          }
+        } catch (error) {
+          logger.trackError('Failed to consume agent onboarding landing', {
+            error,
+            ...onboardingLanding,
+          });
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [onboardingLanding]);
   const { performGroupAction } = useGroupActions();
 
   const handleInviteFriends = useCallback(() => {

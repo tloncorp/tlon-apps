@@ -10,8 +10,14 @@ import { ReactElement, createContext, useContext } from 'react';
 import { DraftInputContext } from '../../components/draftInputs';
 import { IPostCollectionView } from '../../components/postCollectionViews/types';
 
+export type A2UIActionCompletion = {
+  provisionAgent: boolean;
+  sendMessage: boolean;
+};
+
 type RenderItemProps = {
   post: db.Post;
+  a2uiActionCompletion?: A2UIActionCompletion;
   showAuthor?: boolean;
   showReplies?: boolean;
   onPress?: (post: db.Post) => void;
@@ -40,6 +46,7 @@ export type RenderItemType =
 
 export type MinimalRenderItemProps = {
   post: db.Post;
+  a2uiActionCompletion?: A2UIActionCompletion;
   showAuthor?: boolean;
   showReplies?: boolean;
   onPress?: (post: db.Post) => void;

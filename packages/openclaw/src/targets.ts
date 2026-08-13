@@ -4,7 +4,7 @@ export type TlonTarget =
 
 const SHIP_RE = /^~?[a-z-]+$/i;
 const NEST_RE = /^([^/]+)\/([^/]+)\/([^/]+)$/i;
-const CHANNEL_NEST_PREFIXES = new Set(['chat', 'heap', 'diary']);
+const CHANNEL_NEST_PREFIXES = new Set(['chat', 'heap', 'diary', 'notes']);
 
 type NestPrefix = 'chat' | 'heap' | 'diary' | 'notes';
 
@@ -118,7 +118,8 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
     return null;
   }
 
-  // Direct nest format: chat/~host/channel, heap/~host/channel, diary/~host/channel
+  // Direct nest format: chat/~host/channel, heap/~host/channel,
+  // diary/~host/channel, notes/~host/notebook
   const parsedNest = parseNest(withoutPrefix);
   if (parsedNest) {
     return {
@@ -138,5 +139,5 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
 }
 
 export function formatTargetHint(): string {
-  return 'dm/~ship | ~ship | chat/~host/channel | heap/~host/channel | diary/~host/channel';
+  return 'dm/~ship | ~ship | chat/~host/channel | heap/~host/channel | diary/~host/channel | notes/~host/notebook';
 }

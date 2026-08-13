@@ -4,6 +4,7 @@ import {
   floatingComposerEstimatedHeight,
   floatingPinnedPostBannerClearance,
   getConversationContentInsets,
+  unobscuredConversationBottomGap,
 } from './conversationInsets';
 
 describe('getConversationContentInsets', () => {
@@ -16,6 +17,7 @@ describe('getConversationContentInsets', () => {
         bottomSafeArea: 34,
         measuredComposerHeight: 98,
         hasFloatingComposer: true,
+        hasBottomSafeAreaClearance: false,
         hasTransparentHeader: true,
         hasFloatingPinnedPostBanner: true,
       },
@@ -32,6 +34,7 @@ describe('getConversationContentInsets', () => {
         bottomSafeArea: 21,
         measuredComposerHeight: null,
         hasFloatingComposer: true,
+        hasBottomSafeAreaClearance: false,
         hasTransparentHeader: true,
         hasFloatingPinnedPostBanner: false,
       },
@@ -48,6 +51,7 @@ describe('getConversationContentInsets', () => {
         bottomSafeArea: 24,
         measuredComposerHeight: 88,
         hasFloatingComposer: true,
+        hasBottomSafeAreaClearance: false,
         hasTransparentHeader: true,
         hasFloatingPinnedPostBanner: true,
       },
@@ -61,6 +65,7 @@ describe('getConversationContentInsets', () => {
         bottomSafeArea: 0,
         measuredComposerHeight: 64,
         hasFloatingComposer: true,
+        hasBottomSafeAreaClearance: false,
         hasTransparentHeader: true,
         hasFloatingPinnedPostBanner: true,
       },
@@ -68,5 +73,20 @@ describe('getConversationContentInsets', () => {
     },
   ])('$name', ({ input, expected }) => {
     expect(getConversationContentInsets(input)).toEqual(expected);
+  });
+
+  it('keeps unobscured native content above the bottom safe area', () => {
+    expect(
+      getConversationContentInsets({
+        platform: 'ios',
+        headerHeight: 103,
+        bottomSafeArea: 34,
+        measuredComposerHeight: null,
+        hasFloatingComposer: false,
+        hasBottomSafeAreaClearance: true,
+        hasTransparentHeader: true,
+        hasFloatingPinnedPostBanner: false,
+      }).bottom
+    ).toBe(34 + unobscuredConversationBottomGap);
   });
 });

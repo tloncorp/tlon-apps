@@ -72,6 +72,7 @@ export * from './components/StoppedNodePushSheet';
 export * from './components/Tabs';
 export * from './components/TwtitterAttestationPane';
 export * from './components/UserProfileScreenView';
+export * from './components/Wayfinding/AgentOnboarding/AgentOnboardingSequence';
 export * from './components/Wayfinding/SplashSequence';
 export * from './components/WebAppSplashSheet';
 export * from './components/Wayfinding/TlonBotSetupPaneView';

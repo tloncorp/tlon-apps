@@ -7,6 +7,9 @@ describe('canonicalizeNest', () => {
     expect(canonicalizeNest('chat/~zod/general')).toBe('chat/~zod/general');
     expect(canonicalizeNest('heap/~bus/links')).toBe('heap/~bus/links');
     expect(canonicalizeNest('diary/~zod/notes')).toBe('diary/~zod/notes');
+    expect(canonicalizeNest('notes/~zod/field-notes')).toBe(
+      'notes/~zod/field-notes'
+    );
   });
 
   it('adds missing ~ on host ship', () => {
@@ -29,11 +32,13 @@ describe('canonicalizeNest', () => {
     );
   });
 
-  it('canonicalizes an explicitly requested notes nest without treating it as a channel', () => {
+  it('canonicalizes a notes nest as a supported outbound channel', () => {
     expect(canonicalizeNest('Notes/ZOD/Field-Notes', 'notes')).toBe(
       'notes/~zod/Field-Notes'
     );
-    expect(canonicalizeNest('Notes/ZOD/Field-Notes')).toBeNull();
+    expect(canonicalizeNest('Notes/ZOD/Field-Notes')).toBe(
+      'notes/~zod/Field-Notes'
+    );
   });
 
   it('preserves channel-name case', () => {

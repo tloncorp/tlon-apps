@@ -4,9 +4,11 @@ import * as store from '@tloncorp/shared/store';
 import { ComponentPropsWithoutRef, useCallback, useMemo } from 'react';
 
 import { useLivePost } from '../../../hooks/useLivePost';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import type { RenderItemType } from '../../contexts/componentsKits';
 import { usePostCollectionContext } from '../../contexts/postCollection';
 import { PostView } from '../Channel/PostView';
+import { getA2UIActionCompletion } from '../ChatMessage/a2uiActionCompletion';
 import { IPostCollectionView, PostCollectionHandle } from './types';
 
 export type { IPostCollectionView, PostCollectionHandle };
@@ -16,6 +18,7 @@ export function ConnectedPostView({
   ...overrides
 }: { post: db.Post } & Partial<ComponentPropsWithoutRef<typeof PostView>>) {
   const ctx = usePostCollectionContext();
+  const currentUserId = useCurrentUserId();
 
   // this code is duplicated in packages/ui/components/Channel/PostView.tsx
   const standardConfig = useMemo(() => {
@@ -39,10 +42,22 @@ export function ConnectedPostView({
   }, []);
 
   const livePost = useLivePost(post);
+  const a2uiActionCompletion = useMemo(() => {
+    const postIndex = ctx.posts?.findIndex(
+      (candidate) => candidate.id === livePost.id
+    );
+    return getA2UIActionCompletion(
+      postIndex == null || postIndex < 0
+        ? []
+        : ctx.posts?.slice(0, postIndex) ?? [],
+      currentUserId
+    );
+  }, [ctx.posts, currentUserId, livePost.id]);
 
   const postProps = useMemo(
     () => ({
       post: livePost,
+      a2uiActionCompletion,
       onPress: ctx.goToPost,
       isHighlighted: ctx.selectedPostId === livePost.id,
       onPressRetry: () => ctx.onPressRetrySend(livePost),
@@ -55,7 +70,7 @@ export function ConnectedPostView({
 
       ...(standardConfig ?? {}),
     }),
-    [ctx, livePost, overrides, standardConfig, editPost]
+    [ctx, livePost, overrides, standardConfig, editPost, a2uiActionCompletion]
   );
 
   return <PostView {...postProps} />;

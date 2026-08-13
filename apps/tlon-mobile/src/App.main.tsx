@@ -22,6 +22,7 @@ import { useAppNavigationTheme } from '@tloncorp/app/navigation/useAppNavigation
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
+  AgentOnboardingSequence,
   LoadingSpinner,
   SplashSequence,
   Text,
@@ -142,6 +143,16 @@ const MainApp = () => {
 
   useEffect(() => () => setActiveNotificationRoute(undefined), []);
 
+  const splash = (
+    <SplashSequence
+      onCompleted={handleClearSplash}
+      inviteSystemContacts={inviteSystemContacts}
+      hostingBotEnabled={hostingBotEnabled}
+      splashSequenceMode={activeSplashSequenceMode}
+      onLogout={handleSplashLogout}
+    />
+  );
+
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
       {connected ? (
@@ -151,13 +162,14 @@ const MainApp = () => {
           </View>
         ) : showSplashSequence ? (
           <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-            <SplashSequence
-              onCompleted={handleClearSplash}
-              inviteSystemContacts={inviteSystemContacts}
-              hostingBotEnabled={hostingBotEnabled}
-              splashSequenceMode={activeSplashSequenceMode}
-              onLogout={handleSplashLogout}
-            />
+            {activeSplashSequenceMode === 'tlonbotRevival' ? (
+              splash
+            ) : (
+              <AgentOnboardingSequence
+                onCompleted={handleClearSplash}
+                fallback={splash}
+              />
+            )}
           </AppDataProvider>
         ) : showAuthenticatedApp ? (
           <AuthenticatedApp />
