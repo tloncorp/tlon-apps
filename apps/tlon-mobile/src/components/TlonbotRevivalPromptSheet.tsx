@@ -111,7 +111,7 @@ export function TlonbotRevivalPromptSheet({
   open: boolean;
 }) {
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
+    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
       <ActionSheet.SimpleHeader title="Ready for Tlonbot?" />
       <ActionSheet.Content marginHorizontal="$xl">
         <ActionSheet.ContentBlock>

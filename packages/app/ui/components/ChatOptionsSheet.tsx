@@ -222,7 +222,7 @@ export function GroupOptionsSheetLoader({
   }
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
+    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
       {pane === 'notifications' ? (
         <NotificationsSheetContent chatTitle={title} onPressBack={resetPane} />
       ) : pane === 'edit' ? (
@@ -589,7 +589,7 @@ const ChannelOptionsSheetLoader = memo(
     }
 
     return (
-      <ActionSheet open={open} onOpenChange={onOpenChange}>
+      <ActionSheet open={open} onOpenChange={onOpenChange} modal>
         {pane === 'notifications' ? (
           <NotificationsSheetContent
             chatTitle={chatTitle}

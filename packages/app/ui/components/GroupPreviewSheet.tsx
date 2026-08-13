@@ -77,7 +77,7 @@ function GroupPreviewSheetComponent({
   );
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
+    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
       {group ? (
         <GroupPreviewPane group={group} onActionComplete={actionHandler} />
       ) : (
