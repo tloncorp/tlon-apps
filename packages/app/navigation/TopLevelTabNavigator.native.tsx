@@ -30,11 +30,13 @@ import type { TopLevelTabParamList } from './types';
 
 const Tabs = createNativeBottomTabNavigator<TopLevelTabParamList>();
 
-type TabIconName = 'home' | 'activity' | 'contacts';
+type TabIconName = 'home' | 'activity' | 'profile';
 
-const TAB_AVATAR_SIZE = 20;
+const TAB_AVATAR_SIZE = Platform.OS === 'android' ? 20 : 18;
+const TAB_ICON_CANVAS_SIZE =
+  Platform.OS === 'android' ? 24 : TAB_AVATAR_SIZE;
 const TAB_AVATAR_SCALE = PixelRatio.get() * 2;
-const TAB_AVATAR_RADIUS = 6;
+const TAB_AVATAR_RADIUS = 4;
 const TAB_SIGIL_SIZE = 12;
 
 const tabIcons = {
@@ -46,9 +48,9 @@ const tabIcons = {
     regular: require('./assets/tab-notifications.png'),
     selected: require('./assets/tab-notifications-filled.png'),
   },
-  contacts: {
-    regular: require('./assets/tab-contacts.png'),
-    selected: require('./assets/tab-contacts.png'),
+  profile: {
+    regular: require('./assets/tab-profile.png'),
+    selected: require('./assets/tab-profile.png'),
   },
 } as const;
 
@@ -61,7 +63,7 @@ function tabIcon(name: TabIconName, focused: boolean) {
 
 function avatarTabIcon(source: ImageSourcePropType | undefined) {
   if (!source) {
-    return tabIcon('contacts', false);
+    return tabIcon('profile', false);
   }
 
   return {
@@ -83,27 +85,30 @@ function useRoundedAvatarSource({
   foregroundColor: string;
 }) {
   const supportedAvatarImage =
-    Platform.OS === 'ios' && avatarImage && !avatarImage.endsWith('.svg')
-      ? avatarImage
-      : null;
+    avatarImage && !avatarImage.endsWith('.svg') ? avatarImage : null;
   const image = useImage(supportedAvatarImage);
   const [source, setSource] = useState<ImageSourcePropType>();
 
   useEffect(() => {
-    if (Platform.OS !== 'ios') {
-      setSource(undefined);
-      return;
-    }
-
-    const pixelSize = TAB_AVATAR_SIZE * TAB_AVATAR_SCALE;
-    const surface = Skia.Surface.MakeOffscreen(pixelSize, pixelSize);
+    const canvasPixelSize = TAB_ICON_CANVAS_SIZE * TAB_AVATAR_SCALE;
+    const avatarPixelSize = TAB_AVATAR_SIZE * TAB_AVATAR_SCALE;
+    const avatarOffset = (canvasPixelSize - avatarPixelSize) / 2;
+    const surface = Skia.Surface.MakeOffscreen(
+      canvasPixelSize,
+      canvasPixelSize
+    );
     if (!surface) {
       setSource(undefined);
       return;
     }
 
     const canvas = surface.getCanvas();
-    const destination = rect(0, 0, pixelSize, pixelSize);
+    const destination = rect(
+      avatarOffset,
+      avatarOffset,
+      avatarPixelSize,
+      avatarPixelSize
+    );
 
     canvas.clear(Skia.Color('transparent'));
     canvas.clipRRect(
@@ -154,7 +159,7 @@ function useRoundedAvatarSource({
 
           if (sigil) {
             try {
-              const sigilOffset = (pixelSize - sigilPixelSize) / 2;
+              const sigilOffset = (canvasPixelSize - sigilPixelSize) / 2;
               canvas.save();
               try {
                 canvas.translate(sigilOffset, sigilOffset);
@@ -178,8 +183,8 @@ function useRoundedAvatarSource({
     const base64 = roundedImage.encodeToBase64(ImageFormat.PNG, 100);
     setSource({
       uri: `data:image/png;base64,${base64}`,
-      width: TAB_AVATAR_SIZE,
-      height: TAB_AVATAR_SIZE,
+      width: TAB_ICON_CANVAS_SIZE,
+      height: TAB_ICON_CANVAS_SIZE,
       scale: TAB_AVATAR_SCALE,
     });
 
@@ -286,10 +291,7 @@ export function TopLevelTabNavigator() {
           component={ContactsScreen}
           options={{
             title: TOP_LEVEL_TABS.Contacts.title,
-            tabBarIcon: ({ focused }) =>
-              Platform.OS === 'ios'
-                ? avatarTabIcon(roundedAvatarSource)
-                : tabIcon('contacts', focused),
+            tabBarIcon: () => avatarTabIcon(roundedAvatarSource),
           }}
         />
       </Tabs.Navigator>
