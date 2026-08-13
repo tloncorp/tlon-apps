@@ -30,7 +30,7 @@ import type { TopLevelTabParamList } from './types';
 
 const Tabs = createNativeBottomTabNavigator<TopLevelTabParamList>();
 
-type TabIconName = 'home' | 'activity' | 'profile';
+type TabIconName = 'home' | 'activity' | 'contacts';
 
 const TAB_AVATAR_SIZE = 20;
 const TAB_AVATAR_SCALE = PixelRatio.get() * 2;
@@ -46,9 +46,9 @@ const tabIcons = {
     regular: require('./assets/tab-notifications.png'),
     selected: require('./assets/tab-notifications-filled.png'),
   },
-  profile: {
-    regular: require('./assets/tab-profile.png'),
-    selected: require('./assets/tab-profile.png'),
+  contacts: {
+    regular: require('./assets/tab-contacts.png'),
+    selected: require('./assets/tab-contacts.png'),
   },
 } as const;
 
@@ -61,7 +61,7 @@ function tabIcon(name: TabIconName, focused: boolean) {
 
 function avatarTabIcon(source: ImageSourcePropType | undefined) {
   if (!source) {
-    return tabIcon('profile', false);
+    return tabIcon('contacts', false);
   }
 
   return {
@@ -288,7 +288,7 @@ export function TopLevelTabNavigator() {
             tabBarIcon: ({ focused }) =>
               Platform.OS === 'ios'
                 ? avatarTabIcon(roundedAvatarSource)
-                : tabIcon('profile', focused),
+                : tabIcon('contacts', focused),
           }}
         />
       </Tabs.Navigator>
