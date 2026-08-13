@@ -289,7 +289,10 @@ export async function fetchChannelHistory(
         const seal = item.seal || item['r-post']?.set?.seal;
 
         return {
-          author: essay?.author || 'unknown',
+          // v8 channel history returns bot authors as profile objects while
+          // ordinary ships (and older test piers) return strings. Everything
+          // downstream keys identity by ship, so normalize both shapes here.
+          author: parsePostAuthor(essay?.author) ?? 'unknown',
           content: extractMessageText(essay?.content || []),
           timestamp: essay?.sent || Date.now(),
           id: seal?.id,
