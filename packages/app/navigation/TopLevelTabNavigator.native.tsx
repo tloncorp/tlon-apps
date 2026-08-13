@@ -17,7 +17,7 @@ import { makeSigil } from '@tloncorp/ui';
 import { toHex } from 'color2k';
 import { useEffect, useMemo, useState } from 'react';
 import { type ImageSourcePropType, PixelRatio, Platform } from 'react-native';
-import { useTheme } from 'tamagui';
+import { getTokenValue, useTheme } from 'tamagui';
 
 import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
@@ -211,6 +211,7 @@ export function TopLevelTabNavigator() {
         text: theme.primaryText?.val ?? baseTheme.colors.text,
         border: theme.border?.val ?? baseTheme.colors.border,
         primary: theme.primaryText?.val ?? baseTheme.colors.primary,
+        notification: getTokenValue('$blue', 'color'),
       },
     };
   }, [
