@@ -41,7 +41,9 @@ Intentional behavioral divergence is documented in the shared e2e harness's per-
 -   **Reply/thread placement**: the runtimes anchor replies and reaction acks differently; Hermes runs with `reply_in_thread` off.
 -   **Tool shapes**: OpenClaw sends via its `message` tool and schedules via `cron`; Hermes sends via `tlon posts send` and schedules via `cronjob`. Advertised toolsets differ accordingly.
 -   **Background model noise**: OpenClaw heartbeat polls vs Hermes title generation.
--   **SSE fault markers and env knobs** differ by design (`TLON_SSE_STALE_THRESHOLD_MS`/watchdog vs `TLON_SSE_READ_TIMEOUT_SECONDS`).
+-   **SSE fault marker strings** differ by design (`[SSE] Stream stale`/`Stream ended`/`Reconnection attempt` vs `SSE stream error`/`SSE stream stale`); both harnesses now have staleness watchdogs and validated knobs, in each one's unit convention (`*_MS` ints vs `*_SECONDS` floats).
+-   **Hermes' liveness clock excludes Eyre keepalives** (frame-level, probe-poke driven) by design — richer than OpenClaw's keepalive-fed `lastEventAt`, not a gap. OpenClaw's on-channel gateway heartbeat plays the probe's role there.
+-   **Pending-subscription retry** is OpenClaw-only by design: Hermes has no dynamic subscription surface (all subscriptions happen in unpublished all-or-retry `_connect_sse` setup), so the failure mode it covers is unreachable there.
 -   **Reaction-based approvals** (👍/👎/🛑 on approval DMs) are OpenClaw-legacy and intentionally not ported — A2UI approval cards supersede them.
 -   **Hermes-only surfaces** accepted as reverse divergence: `/channel-access`, extended owner-listen modes, `/tlon status` diagnostics, native block-list pre-check, in-package `image_search`.
 -   **OpenClaw-only** session/route persistence machinery (webchat-leak prevention) is architecture-specific and has no Hermes analogue by design.
@@ -59,13 +61,14 @@ Known, already-filed gaps. Do not re-report their existence. Report a standing-g
 -   Summarization trigger + model signature — TLON-6097.
 -   Telemetry schema catch-up on Hermes: cron events, agent-turn outcome taxonomies, auth-failure events, web_search availability fields — TLON-6099.
 -   Fail-loud outbound media contract + hosted/Memex upload routing on Hermes — TLON-6318 (`prepareOutboundMedia` / `shipCanStoreUploads`).
--   SSE reap detection (event-id regression, per-poke floor ledger) and watchdog env knobs on Hermes — TLON-6319.
 -   `Harness Version` field in Hermes `/tlon version` — TLON-6320.
 -   Approval-card source-navigation links + component-limit trimming on Hermes — TLON-6321.
 -   OpenClaw→Hermes harness migration tooling — TLON-5934.
 -   Blob-only _reply_ cites render `[📎 …]` on Hermes, nothing on OpenClaw (`history.py` keeps the blob for reply payloads, `history.ts` drops it) — undecided disagreement flagged during TLON-6322; whichever runtime changes, report it.
 
 Resolved 2026-08-13 (remove after PR #6276 merges): the TLON-6322 "unverified small twins" entry — mention @p validation (n/a on Hermes, residual shared-converter gap filed as TLON-6334), blank-ship rejection (equivalent guarantee, declared divergence above), authorless cite paths/gating (verified; three small divergences fixed).
+
+Resolved 2026-08-13 (remove after PR #6282 merges): the TLON-6319 SSE reap-detection/watchdog entry — Hermes gains event-id regression + per-action floor + genesis-action detectors and a probe-driven staleness watchdog with validated `TLON_SSE_STALE_THRESHOLD_SECONDS`/`TLON_SSE_WATCHDOG_INTERVAL_SECONDS`; pending-subscription retry assessed not-applicable (declared divergence above).
 
 ## Evidence rules
 
