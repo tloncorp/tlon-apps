@@ -57,7 +57,6 @@ Known, already-filed gaps. Do not re-report their existence. Report a standing-g
 -   Restart-replay dedup across process restarts — TLON-6098 (shared e2e scenario `restart-no-double-reply` registered but skipped).
 -   Inbound sanitization coverage for enriched media text — TLON-6169 (see Linear for details).
 -   Summarization trigger + model signature — TLON-6097.
--   Hermes twin for DM source-reply visibility policy — TLON-6317 (`packages/openclaw/src/monitor/source-reply-delivery.ts`).
 -   Telemetry schema catch-up on Hermes: cron events, agent-turn outcome taxonomies, auth-failure events, web_search availability fields — TLON-6099.
 -   Fail-loud outbound media contract + hosted/Memex upload routing on Hermes — TLON-6318 (`prepareOutboundMedia` / `shipCanStoreUploads`).
 -   SSE reap detection (event-id regression, per-poke floor ledger) and watchdog env knobs on Hermes — TLON-6319.
