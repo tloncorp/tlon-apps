@@ -15,9 +15,9 @@ import React, {
 import { Popover, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
+import { ChatOptionsContext } from '../contexts/chatOptions/context';
 import { useChatOptions } from '../contexts/chatOptions/useChatOptions';
 import { useChatVolumeOptions } from '../contexts/chatOptions/useChatVolumeOptions';
-import { useSheetCloseAfterAnimation } from '../hooks/useSheetCloseAfterAnimation';
 import * as utils from '../utils';
 import {
   Action,
@@ -56,26 +56,6 @@ type ChatOptionsSheetProps = {
   trigger?: React.ReactNode;
 };
 
-function useChatOptionsSheetAction(
-  onOpenChange: (open: boolean, clearChat?: boolean) => void
-) {
-  const { closeAfterAnimation } = useSheetCloseAfterAnimation();
-
-  return useCallback(
-    (action: () => void, clearChat = true) => {
-      if (clearChat) {
-        action();
-        onOpenChange(false, true);
-        return;
-      }
-
-      onOpenChange(false, false);
-      closeAfterAnimation(action);
-    },
-    [closeAfterAnimation, onOpenChange]
-  );
-}
-
 export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   chat,
   open: propOpen,
@@ -83,8 +63,6 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   trigger,
 }: ChatOptionsSheetProps) {
   const { open: contextOpen, setChat, group } = useChatOptions();
-  const { closeAfterAnimation, cancel: cancelPendingClose } =
-    useSheetCloseAfterAnimation();
 
   // Use props for explicit control (popovers)
   // For sheets, this will be false and context.open will handle state
@@ -93,28 +71,28 @@ export const ChatOptionsSheet = React.memo(function ChatOptionsSheet({
   // Handle open state changes
   const handleOpenChange = useCallback(
     (open: boolean, clearChat = true) => {
-      if (open) {
-        cancelPendingClose();
-        if (chat) {
-          contextOpen(chat.id, chat.type);
+      if (open && chat) {
+        // Set chat state for both popovers and sheets
+        contextOpen(chat.id, chat.type);
+      } else if (!open) {
+        // Close both popover and sheet states
+        if (propOnOpenChange) {
+          propOnOpenChange(false);
         }
-        propOnOpenChange?.(true);
-        return;
+        // Clear chat state after a short delay to allow handlers to complete
+        if (clearChat) {
+          setTimeout(() => {
+            setChat(null);
+          }, 100);
+        }
       }
 
-      propOnOpenChange?.(false);
-      if (clearChat) {
-        closeAfterAnimation(() => setChat(null));
+      // Call provided handler for popovers
+      if (propOnOpenChange) {
+        propOnOpenChange(open);
       }
     },
-    [
-      cancelPendingClose,
-      chat,
-      closeAfterAnimation,
-      contextOpen,
-      propOnOpenChange,
-      setChat,
-    ]
+    [chat, contextOpen, setChat, propOnOpenChange]
   );
 
   if (!chat || (!isOpen && !trigger)) {
@@ -165,7 +143,8 @@ export function GroupOptionsSheetLoader({
   const [pane, setPane] = useState<
     'initial' | 'notifications' | 'sort' | 'edit'
   >('initial');
-  const { group } = useChatOptions();
+  const chatOptions = useChatOptions();
+  const { group } = chatOptions;
 
   const handlePressNotifications = useCallback(() => {
     setPane('notifications');
@@ -246,27 +225,32 @@ export function GroupOptionsSheetLoader({
 
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange} modal>
-      {pane === 'notifications' ? (
-        <NotificationsSheetContent chatTitle={title} onPressBack={resetPane} />
-      ) : pane === 'edit' ? (
-        <EditGroupSheetContent
-          chatTitle={title}
-          onPressBack={resetPane}
-          onOpenChange={onOpenChange}
-        />
-      ) : pane === 'sort' ? (
-        <SortChannelsSheetContent chatTitle={title} onPressBack={resetPane} />
-      ) : (
-        <GroupOptionsSheetContent
-          groupUnread={groupUnread ?? null}
-          currentUserIsAdmin={currentUserIsAdmin}
-          onPressNotifications={handlePressNotifications}
-          onPressSort={handlePressSort}
-          chatTitle={title}
-          group={group || groupData!}
-          onOpenChange={onOpenChange}
-        />
-      )}
+      <ChatOptionsContext.Provider value={chatOptions}>
+        {pane === 'notifications' ? (
+          <NotificationsSheetContent
+            chatTitle={title}
+            onPressBack={resetPane}
+          />
+        ) : pane === 'edit' ? (
+          <EditGroupSheetContent
+            chatTitle={title}
+            onPressBack={resetPane}
+            onOpenChange={onOpenChange}
+          />
+        ) : pane === 'sort' ? (
+          <SortChannelsSheetContent chatTitle={title} onPressBack={resetPane} />
+        ) : (
+          <GroupOptionsSheetContent
+            groupUnread={groupUnread ?? null}
+            currentUserIsAdmin={currentUserIsAdmin}
+            onPressNotifications={handlePressNotifications}
+            onPressSort={handlePressSort}
+            chatTitle={title}
+            group={group || groupData!}
+            onOpenChange={onOpenChange}
+          />
+        )}
+      </ChatOptionsContext.Provider>
     </ActionSheet>
   );
 }
@@ -297,13 +281,20 @@ export function GroupOptionsSheetContent({
   const isErrored = group?.joinStatus === 'errored';
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
-  const wrappedAction = useChatOptionsSheetAction(onOpenChange);
+  const wrappedAction = useCallback(
+    (action: () => void, clearChat = true) => {
+      action();
+      onOpenChange(false, clearChat);
+    },
+    [onOpenChange]
+  );
 
   const wrappedInviteAction = useCallback(() => {
+    // Just call the invite handler - let the context manage the sheet lifecycle
     if (onPressInvite) {
-      wrappedAction(onPressInvite, false);
+      onPressInvite();
     }
-  }, [onPressInvite, wrappedAction]);
+  }, [onPressInvite]);
 
   const handlePressChatDetails = useCallback(() => {
     onPressChatDetails({ type: 'group', id: group.id });
@@ -460,7 +451,13 @@ function EditGroupSheetContent({
   const { onPressGroupMeta, onPressManageChannels, onPressGroupPrivacy } =
     useChatOptions();
 
-  const wrappedAction = useChatOptionsSheetAction(onOpenChange);
+  const wrappedAction = useCallback(
+    (action: () => void, clearChat = true) => {
+      action();
+      onOpenChange(false, clearChat);
+    },
+    [onOpenChange]
+  );
 
   const editActions = useMemo(
     () =>
@@ -526,6 +523,7 @@ const ChannelOptionsSheetLoader = memo(
     trigger?: React.ReactNode;
   }) => {
     const [pane, setPane] = useState<ChannelPanes>('initial');
+    const chatOptions = useChatOptions();
     const channelQuery = store.useChannel({
       id: channelId,
     });
@@ -600,19 +598,21 @@ const ChannelOptionsSheetLoader = memo(
 
     return (
       <ActionSheet open={open} onOpenChange={onOpenChange} modal>
-        {pane === 'notifications' ? (
-          <NotificationsSheetContent
-            chatTitle={chatTitle}
-            onPressBack={resetPane}
-          />
-        ) : (
-          <ChannelOptionsSheetContent
-            chatTitle={chatTitle}
-            channel={channel}
-            onPressNotifications={handlePressNotifications}
-            onOpenChange={onOpenChange}
-          />
-        )}
+        <ChatOptionsContext.Provider value={chatOptions}>
+          {pane === 'notifications' ? (
+            <NotificationsSheetContent
+              chatTitle={chatTitle}
+              onPressBack={resetPane}
+            />
+          ) : (
+            <ChannelOptionsSheetContent
+              chatTitle={chatTitle}
+              channel={channel}
+              onPressNotifications={handlePressNotifications}
+              onOpenChange={onOpenChange}
+            />
+          )}
+        </ChatOptionsContext.Provider>
       </ActionSheet>
     );
   }
@@ -668,7 +668,13 @@ export function ChannelOptionsSheetContent({
     });
   }, [channel.id, channel.groupId, onPressChatDetails]);
 
-  const wrappedAction = useChatOptionsSheetAction(onOpenChange);
+  const wrappedAction = useCallback(
+    (action: () => void, clearChat = true) => {
+      action();
+      onOpenChange(false, clearChat);
+    },
+    [onOpenChange]
+  );
 
   const notificationTitle = useMemo(
     () => getNotificationTitle(channel.volumeSettings, baseVolumeLevel),
@@ -732,7 +738,7 @@ export function ChannelOptionsSheetContent({
             title: 'Use channel as template',
             description: 'Create a new channel based on this one',
             endIcon: 'Copy',
-            action: wrappedAction.bind(null, onPressChannelTemplate, false),
+            action: wrappedAction.bind(null, onPressChannelTemplate),
           },
         ],
         currentUserIsChannelHost && [
