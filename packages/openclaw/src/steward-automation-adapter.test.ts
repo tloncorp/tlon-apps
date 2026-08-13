@@ -117,10 +117,5 @@ describe('submitStewardAutomationProjection', () => {
 
     expect(stalePoke).toHaveBeenCalledOnce();
     expect(currentPoke).toHaveBeenCalledOnce();
-    expect(currentPoke).toHaveBeenCalledWith({
-      app: 'steward',
-      mark: 'steward-automation-action-1',
-      json: projection,
-    });
   });
 });

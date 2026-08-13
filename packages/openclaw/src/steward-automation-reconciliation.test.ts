@@ -1,3 +1,4 @@
+import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 import type {
   PluginHookCronChangedEvent,
   PluginHookGatewayContext,
@@ -22,10 +23,13 @@ vi.mock('./steward-automation-adapter.js', () => ({
 }));
 
 type HookHandler = (event: unknown, context: unknown) => unknown;
+type FakeHookApi = Pick<OpenClawPluginApi, 'on'> & {
+  fire: (name: string, event: unknown, context: unknown) => Promise<void>;
+};
 
-function createFakeHookApi() {
+function createFakeHookApi(): FakeHookApi {
   const handlers = new Map<string, HookHandler[]>();
-  return {
+  const api = {
     on: vi.fn((name: string, handler: HookHandler) => {
       handlers.set(name, [...(handlers.get(name) ?? []), handler]);
     }),
@@ -35,6 +39,7 @@ function createFakeHookApi() {
       }
     },
   };
+  return api as unknown as FakeHookApi;
 }
 
 function cronContext(jobs: PluginHookGatewayCronJob[]) {
@@ -629,12 +634,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
   it('registers gateway_stop and ignores cron changes while inactive', async () => {
     const api = createFakeHookApi();
     const { context, list } = cronContext(jobs);
-    registerStewardAutomationReconciliationHooks(
-      api as unknown as Parameters<
-        typeof registerStewardAutomationReconciliationHooks
-      >[0],
-      registrationOptions()
-    );
+    registerStewardAutomationReconciliationHooks(api, registrationOptions());
 
     expect(api.on).toHaveBeenCalledWith('gateway_stop', expect.any(Function));
     await api.fire(
@@ -664,12 +664,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
   it('reconciles after gateway_start', async () => {
     const api = createFakeHookApi();
     const { context, list } = cronContext(jobs);
-    registerStewardAutomationReconciliationHooks(
-      api as unknown as Parameters<
-        typeof registerStewardAutomationReconciliationHooks
-      >[0],
-      registrationOptions()
-    );
+    registerStewardAutomationReconciliationHooks(api, registrationOptions());
 
     await api.fire('gateway_start', { port: 3000 }, context);
     await vi.waitFor(() => {
@@ -705,12 +700,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
         },
       ] satisfies PluginHookGatewayCronJob[];
       const { context, list } = cronContext(completeJobs);
-      registerStewardAutomationReconciliationHooks(
-        api as unknown as Parameters<
-          typeof registerStewardAutomationReconciliationHooks
-        >[0],
-        registrationOptions()
-      );
+      registerStewardAutomationReconciliationHooks(api, registrationOptions());
 
       await api.fire('gateway_start', { port: 3000 }, context);
       await vi.waitFor(() => {
@@ -771,17 +761,10 @@ describe('registerStewardAutomationReconciliationHooks', () => {
     const prewarmApi = createFakeHookApi();
     const options = registrationOptions();
     const discovery = registerStewardAutomationReconciliationHooks(
-      discoveryApi as unknown as Parameters<
-        typeof registerStewardAutomationReconciliationHooks
-      >[0],
+      discoveryApi,
       options
     );
-    const full = registerStewardAutomationReconciliationHooks(
-      fullApi as unknown as Parameters<
-        typeof registerStewardAutomationReconciliationHooks
-      >[0],
-      options
-    );
+    const full = registerStewardAutomationReconciliationHooks(fullApi, options);
     const initial = cronContext([job('initial')]);
 
     expect(full).toBe(discovery);
@@ -792,9 +775,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
     });
 
     const prewarm = registerStewardAutomationReconciliationHooks(
-      prewarmApi as unknown as Parameters<
-        typeof registerStewardAutomationReconciliationHooks
-      >[0],
+      prewarmApi,
       options
     );
     const changed = cronContext([job('changed')]);
@@ -833,18 +814,8 @@ describe('registerStewardAutomationReconciliationHooks', () => {
     const api1 = createFakeHookApi();
     const api2 = createFakeHookApi();
     const options = registrationOptions();
-    registerStewardAutomationReconciliationHooks(
-      api1 as unknown as Parameters<
-        typeof registerStewardAutomationReconciliationHooks
-      >[0],
-      options
-    );
-    registerStewardAutomationReconciliationHooks(
-      api2 as unknown as Parameters<
-        typeof registerStewardAutomationReconciliationHooks
-      >[0],
-      options
-    );
+    registerStewardAutomationReconciliationHooks(api1, options);
+    registerStewardAutomationReconciliationHooks(api2, options);
     const initial = cronContext([job('initial')]);
     const duplicate = cronContext([job('duplicate')]);
 
@@ -865,12 +836,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
     const options = registrationOptions();
     const listed = deferred<PluginHookGatewayCronJob[]>();
     const list = vi.fn(() => listed.promise);
-    registerStewardAutomationReconciliationHooks(
-      api as unknown as Parameters<
-        typeof registerStewardAutomationReconciliationHooks
-      >[0],
-      options
-    );
+    registerStewardAutomationReconciliationHooks(api, options);
 
     await api.fire(
       'gateway_start',
@@ -899,12 +865,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
     } as unknown as StewardAutomationReconciler;
     setStewardAutomationReconciler(injected);
     const telemetry = vi.fn();
-    registerStewardAutomationReconciliationHooks(
-      api as unknown as Parameters<
-        typeof registerStewardAutomationReconciliationHooks
-      >[0],
-      options
-    );
+    registerStewardAutomationReconciliationHooks(api, options);
     api.on('gateway_start', telemetry);
 
     await api.fire('gateway_start', { port: 3000 }, { getCron: undefined });
@@ -930,12 +891,7 @@ describe('registerStewardAutomationReconciliationHooks', () => {
       throw new Error('logger unavailable');
     });
     setStewardAutomationReconciler(injected);
-    registerStewardAutomationReconciliationHooks(
-      api as unknown as Parameters<
-        typeof registerStewardAutomationReconciliationHooks
-      >[0],
-      { logger: { warn } }
-    );
+    registerStewardAutomationReconciliationHooks(api, { logger: { warn } });
 
     await api.fire('gateway_start', { port: 3000 }, { getCron: undefined });
     await vi.waitFor(() => expect(warn).toHaveBeenCalledOnce());

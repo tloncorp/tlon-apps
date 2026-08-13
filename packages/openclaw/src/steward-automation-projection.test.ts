@@ -250,9 +250,24 @@ describe('Steward automation projection normalization', () => {
       /cron job bad-at schedule\.at: expected an ISO timestamp/,
     ],
     [
-      'invalid number',
-      { id: 'bad-every', schedule: { kind: 'every', everyMs: -1 } },
-      /expected a non-negative safe integer/,
+      'non-number natural number',
+      { id: 'bad-number-type', createdAtMs: '1' },
+      /createdAtMs: expected a number/,
+    ],
+    [
+      'fractional natural number',
+      { id: 'bad-fraction', schedule: { kind: 'every', everyMs: 1.5 } },
+      /everyMs: expected a safe integer/,
+    ],
+    [
+      'unsafe natural number',
+      { id: 'bad-unsafe', updatedAtMs: Number.MAX_SAFE_INTEGER + 1 },
+      /updatedAtMs: expected a safe integer/,
+    ],
+    [
+      'negative natural number',
+      { id: 'bad-negative', schedule: { kind: 'every', everyMs: -1 } },
+      /everyMs: expected a non-negative number/,
     ],
     [
       'unsupported schedule',

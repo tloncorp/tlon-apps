@@ -1,64 +1,27 @@
 import type { PluginHookGatewayCronJob } from 'openclaw/plugin-sdk/types';
 import { z } from 'zod';
 
-export type StewardAutomationSchedule =
-  | {
-      kind: 'cron';
-      expr?: string;
-      tz?: string;
-      staggerMs?: number;
-    }
-  | {
-      kind: 'at';
-      at?: number;
-    }
-  | {
-      kind: 'every';
-      everyMs?: number;
-      anchorMs?: number;
-    };
-
-export interface StewardAutomationPayload {
-  kind?: string;
-  message?: string;
-}
-
-export interface StewardAutomationTask {
-  id: string;
-  agentId?: string;
-  name?: string;
-  description?: string;
-  enabled?: boolean;
-  schedule?: StewardAutomationSchedule;
-  sessionTarget?: string;
-  wakeMode?: string;
-  payload?: StewardAutomationPayload;
-  createdAtMs?: number;
-  updatedAtMs?: number;
-}
-
-export interface StewardAutomationProjection {
-  project: {
-    tasks: StewardAutomationTask[];
-  };
-}
+const EXPECTED_NUMBER = 'expected a number';
+const EXPECTED_SAFE_INTEGER = 'expected a safe integer';
+const EXPECTED_NON_NEGATIVE_NUMBER = 'expected a non-negative number';
+const EXPECTED_ISO_TIMESTAMP = 'expected an ISO timestamp';
 
 const ExpectedStringSchema = z.string({ error: 'expected a string' });
-const ExpectedBooleanSchema = z.boolean({ error: 'expected a boolean' });
 const NaturalNumberSchema = z
-  .number({ error: 'expected a non-negative safe integer' })
-  .int({ error: 'expected a non-negative safe integer' })
-  .safe({ error: 'expected a non-negative safe integer' })
-  .nonnegative({ error: 'expected a non-negative safe integer' });
+  .int({
+    error: (issue) =>
+      issue.code === 'invalid_type' && issue.expected === 'number'
+        ? EXPECTED_NUMBER
+        : EXPECTED_SAFE_INTEGER,
+  })
+  .nonnegative({ error: EXPECTED_NON_NEGATIVE_NUMBER });
 const IsoTimestampMillisecondsSchema = z.iso
-  .datetime({ offset: true, error: 'expected an ISO timestamp' })
+  .datetime({ offset: true, error: EXPECTED_ISO_TIMESTAMP })
   .transform(Date.parse)
   .pipe(
     z
-      .number({ error: 'expected an ISO timestamp' })
-      .int({ error: 'expected an ISO timestamp' })
-      .safe({ error: 'expected an ISO timestamp' })
-      .nonnegative({ error: 'expected an ISO timestamp' })
+      .int({ error: EXPECTED_ISO_TIMESTAMP })
+      .nonnegative({ error: EXPECTED_ISO_TIMESTAMP })
   );
 
 const PayloadSchema = z
@@ -74,7 +37,7 @@ const PayloadSchema = z
     return {
       ...(kind === undefined ? {} : { kind }),
       ...(message === undefined ? {} : { message }),
-    } satisfies StewardAutomationPayload;
+    };
   });
 
 const CronScheduleSchema = z
@@ -125,7 +88,7 @@ const CronJobSchema = z
     agentId: ExpectedStringSchema.optional(),
     name: ExpectedStringSchema.optional(),
     description: ExpectedStringSchema.optional(),
-    enabled: ExpectedBooleanSchema.optional(),
+    enabled: z.boolean({ error: 'expected a boolean' }).optional(),
     schedule: ScheduleSchema.optional(),
     sessionTarget: ExpectedStringSchema.optional(),
     wakeMode: ExpectedStringSchema.optional(),
@@ -161,7 +124,15 @@ const CronJobSchema = z
     })
   );
 
-type NormalizedCronJob = z.infer<typeof CronJobSchema>;
+export type StewardAutomationSchedule = z.output<typeof ScheduleSchema>;
+export type StewardAutomationPayload = z.output<typeof PayloadSchema>;
+export type StewardAutomationTask = z.output<typeof CronJobSchema>;
+
+export interface StewardAutomationProjection {
+  project: {
+    tasks: StewardAutomationTask[];
+  };
+}
 
 const CronJobIdentitySchema = z.object({ id: z.string() });
 const ScheduleKindSchema = z.object({
@@ -200,8 +171,7 @@ function normalizeTask(job: PluginHookGatewayCronJob): StewardAutomationTask {
   if (!parsed.success) {
     throw formatCronJobError(parsed.error, job);
   }
-  const task: NormalizedCronJob = parsed.data;
-  return task;
+  return parsed.data;
 }
 
 /** Normalize one complete OpenClaw cron list into Steward's `%project` JSON. */

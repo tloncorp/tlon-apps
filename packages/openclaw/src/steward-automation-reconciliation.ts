@@ -1,8 +1,5 @@
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
-import type {
-  PluginHookGatewayContext,
-  PluginHookGatewayCronService,
-} from 'openclaw/plugin-sdk/types';
+import type { PluginHookGatewayCronService } from 'openclaw/plugin-sdk/types';
 
 import { sharedSlot } from './shared-state.js';
 import { submitStewardAutomationProjection } from './steward-automation-adapter.js';
@@ -160,7 +157,7 @@ export class StewardAutomationReconciler {
   }
 
   stop(): void {
-    this.deactivate('gateway-stop');
+    this.deactivate();
   }
 
   private enqueue(
@@ -190,7 +187,7 @@ export class StewardAutomationReconciler {
     return promise;
   }
 
-  private deactivate(reason: 'gateway-stop' | 'gateway-restart'): void {
+  private deactivate(): void {
     const epoch = this.activeEpoch;
     if (epoch === null) {
       return;
@@ -198,7 +195,7 @@ export class StewardAutomationReconciler {
 
     const cancellation = new StewardAutomationReconciliationCancelledError(
       epoch,
-      reason
+      'gateway-stop'
     );
     this.activeEpoch = null;
     this.retryController?.abort(cancellation);
@@ -394,21 +391,17 @@ export function registerStewardAutomationReconciliationHooks(
   api: Pick<OpenClawPluginApi, 'on'>,
   options: RegisterStewardAutomationReconciliationHooksOptions
 ): StewardAutomationReconciler {
-  const reconciler =
-    getStewardAutomationReconciler() ??
-    (() => {
-      const created = new StewardAutomationReconciler();
-      setStewardAutomationReconciler(created);
-      return created;
-    })();
-  const getCron = (ctx: Pick<PluginHookGatewayContext, 'getCron'>) =>
-    ctx.getCron;
+  let reconciler = getStewardAutomationReconciler();
+  if (!reconciler) {
+    reconciler = new StewardAutomationReconciler();
+    setStewardAutomationReconciler(reconciler);
+  }
 
   api.on('gateway_start', (_event, ctx) => {
-    observeProjectionWork(reconciler.start(getCron(ctx)), options.logger);
+    observeProjectionWork(reconciler.start(ctx.getCron), options.logger);
   });
   api.on('cron_changed', (_event, ctx) => {
-    observeProjectionWork(reconciler.trigger(getCron(ctx)), options.logger);
+    observeProjectionWork(reconciler.trigger(ctx.getCron), options.logger);
   });
   api.on('gateway_stop', () => {
     reconciler.stop();
