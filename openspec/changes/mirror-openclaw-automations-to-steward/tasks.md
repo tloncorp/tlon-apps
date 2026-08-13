@@ -116,7 +116,9 @@
          ISO datetime validation and focused projection tests.
 - [x] 5.12 Replace the remaining projection field helpers with
          complete Zod task, schedule, and payload schemas.
-- [ ] 5.13 Make OpenClaw `message` the canonical agent-turn payload
+- [x] 5.13 Make OpenClaw `message` the canonical agent-turn payload
          field, retaining `text` only as a compatibility fallback.
 - [x] 5.14 Rename TypeScript `Project` terminology to `Projection`
          while preserving the `%project` wire action.
+- [ ] 5.15 Simplify the Steward automation TypeScript without
+         weakening validation, lifecycle, or race guarantees.
