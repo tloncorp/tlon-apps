@@ -10,6 +10,18 @@ import { View } from 'tamagui';
 const logger = createDevLogger('AgentOnboardingSequence', false);
 const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
+const LANDING_CONSUMPTION_TIMEOUT_MS = 10_000;
+
+async function waitForLandingConsumption(isCancelled: () => boolean) {
+  const deadline = Date.now() + LANDING_CONSUMPTION_TIMEOUT_MS;
+  while (!isCancelled() && Date.now() < deadline) {
+    if ((await db.agentOnboardingLanding.getValue()) === null) {
+      return true;
+    }
+    await wait(50);
+  }
+  return false;
+}
 
 /**
  * Bridges the post-readiness splash into the real, provisioned home group.
@@ -56,8 +68,31 @@ export function AgentOnboardingSequence(props: {
             groupId,
             channelId: furnished.chatChannelId,
           });
+          // The onboarding conversation already teaches the bot interaction
+          // model. Keep the legacy mention coach mark disarmed before the
+          // authenticated navigator mounts so it cannot flash over the chat.
+          await db.wayfindingProgress.setValue((progress) => ({
+            ...progress,
+            tappedHomeGroupHint: true,
+          }));
+
+          // The authenticated navigator is mounted behind this full-screen
+          // cover. Keep the cover in place until it has built the final stack,
+          // so the user lands in the chat instead of watching it navigate in.
+          const landingConsumed = await waitForLandingConsumption(
+            () => cancelled
+          );
+          if (cancelled) return;
+          if (!landingConsumed) {
+            logger.trackError('Agent onboarding landing was not consumed', {
+              groupId,
+              channelId: furnished.chatChannelId,
+            });
+          }
           props.onCompleted();
-          void store.completeWayfindingSplash();
+          void store.completeWayfindingSplash({
+            showBotMentionHint: false,
+          });
           void furnished.tail.catch((error) => {
             logger.trackError('Agent standing reconciliation failed', {
               error,

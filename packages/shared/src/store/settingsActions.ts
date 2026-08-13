@@ -54,7 +54,9 @@ export async function updateCalmSetting(
   }
 }
 
-export async function completeWayfindingSplash() {
+export async function completeWayfindingSplash({
+  showBotMentionHint = true,
+}: { showBotMentionHint?: boolean } = {}) {
   await db.wayfindingProgress.setValue((prev) => ({
     ...prev,
     viewedPersonalGroup: false,
@@ -65,7 +67,7 @@ export async function completeWayfindingSplash() {
     tappedAddNote: false,
     tappedAddCollection: false,
     tappedChatInput: false,
-    tappedHomeGroupHint: false,
+    tappedHomeGroupHint: !showBotMentionHint,
   }));
 
   // optimistic update
