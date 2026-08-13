@@ -46,6 +46,11 @@ const CRON_ERROR_MAX_CHARS = 500;
 const SNAPSHOT_RETRY_DELAY_MS = 20_000;
 
 type CronServiceAccessor = () => PluginHookGatewayCronService | undefined;
+
+export type TlonCronService = PluginHookGatewayCronService & {
+  run?: (id: string, mode?: 'due' | 'force') => Promise<unknown>;
+  enqueueRun?: (id: string, mode?: 'due' | 'force') => Promise<unknown>;
+};
 type CronObservabilityOptions = {
   observer?: TlonCronOtelObserver;
 };
@@ -81,6 +86,10 @@ export function setCronServiceAccessor(
 
 export function clearCronServiceAccessor(): void {
   cronServiceAccessorSlot.set(null);
+}
+
+export function getTlonCronService(): TlonCronService | undefined {
+  return cronServiceAccessorSlot.get()?.() as TlonCronService | undefined;
 }
 
 function optionalString(value: string | null | undefined): string | null {

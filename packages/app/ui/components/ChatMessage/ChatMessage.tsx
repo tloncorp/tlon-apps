@@ -7,6 +7,7 @@ import { View, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
+import type { A2UIActionCompletion } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
@@ -23,6 +24,7 @@ import { StaticChatMessage } from './StaticChatMessage';
  */
 const ChatMessage = ({
   post,
+  a2uiActionCompletion,
   showAuthor,
   hideProfilePreview,
   onPressReplies,
@@ -41,6 +43,7 @@ const ChatMessage = ({
   searchQuery,
 }: {
   post: db.Post;
+  a2uiActionCompletion?: A2UIActionCompletion;
   showAuthor?: boolean;
   hideProfilePreview?: boolean;
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
@@ -153,6 +156,7 @@ const ChatMessage = ({
                 onPressReplies,
                 onPressRetry,
                 post,
+                a2uiActionCompletion,
                 searchQuery,
                 setViewReactionsPost,
                 showAuthor,

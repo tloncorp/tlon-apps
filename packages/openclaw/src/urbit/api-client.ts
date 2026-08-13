@@ -11,13 +11,23 @@ type PokeFn = (params: {
   json: unknown;
 }) => Promise<unknown>;
 type ScryFn = (params: { app: string; path: string }) => Promise<unknown>;
+type RequestJsonFn = <T>(
+  path: string,
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  body?: unknown
+) => Promise<T>;
 
 /**
  * Create a minimal Urbit-compatible shim that delegates poke() to the given function.
  * The @tloncorp/api configureClient accepts a `client` that looks like an Urbit instance.
  * Includes stubs for connect/eventSource/scryWithInfo so configureClient never crashes.
  */
-function createClientShim(pokeFn: PokeFn, shipUrl: string, scryFn?: ScryFn) {
+function createClientShim(
+  pokeFn: PokeFn,
+  shipUrl: string,
+  scryFn?: ScryFn,
+  requestJsonFn?: RequestJsonFn
+) {
   return {
     poke: (params: { app: string; mark: string; json: unknown }) =>
       pokeFn(params),
@@ -40,6 +50,15 @@ function createClientShim(pokeFn: PokeFn, shipUrl: string, scryFn?: ScryFn) {
         }
       : async () => {
           throw new Error('Scry not supported on this client shim');
+        },
+    requestJson: requestJsonFn
+      ? <T>(
+          path: string,
+          method?: 'GET' | 'POST' | 'PUT' | 'DELETE',
+          body?: unknown
+        ) => requestJsonFn<T>(path, method, body)
+      : async () => {
+          throw new Error('JSON requests not supported on this client shim');
         },
     // Properties configureClient may access
     verbose: false,
@@ -116,7 +135,48 @@ export async function withAuthenticatedTlonApi<T>(
     }
   };
 
-  const shim = createClientShim(api.poke, params.url, scryFn);
+  const requestJsonFn: RequestJsonFn = async <T>(
+    path: string,
+    method = 'POST',
+    body?: unknown
+  ) => {
+    const headers: Record<string, string> = { Cookie: cookie };
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json';
+    }
+    const { response, release } = await urbitFetch({
+      baseUrl: params.url,
+      path,
+      init: {
+        method,
+        headers,
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      },
+      ssrfPolicy,
+      timeoutMs: 30_000,
+      auditContext: 'tlon-api-request-json',
+    });
+    try {
+      const responseText = await response.text();
+      if (!response.ok) {
+        const error = new Error(responseText || `HTTP ${response.status}`);
+        Object.assign(error, {
+          status: response.status,
+          body: responseText,
+          text: async () => responseText,
+        });
+        throw error;
+      }
+      if (!responseText.trim()) {
+        return undefined as T;
+      }
+      return JSON.parse(responseText) as T;
+    } finally {
+      await release();
+    }
+  };
+
+  const shim = createClientShim(api.poke, params.url, scryFn, requestJsonFn);
   configureClient({
     shipName: params.ship.replace(/^~/, ''),
     shipUrl: params.url,

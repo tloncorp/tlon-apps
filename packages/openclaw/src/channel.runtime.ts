@@ -1,4 +1,4 @@
-import { scry } from '@tloncorp/api';
+import { notes, scry } from '@tloncorp/api';
 import crypto from 'node:crypto';
 import type {
   ChannelAccountSnapshot,
@@ -26,6 +26,7 @@ import { urbitFetch } from './urbit/fetch.js';
 import {
   type BotProfile,
   buildMediaStory,
+  buildMediaText,
   sendChannelPost,
   sendDm,
   sendDmWithStory,
@@ -114,6 +115,45 @@ type OutboundLensTarget = {
   blob: string;
   foreground: boolean;
 };
+
+function notesTitle(markdown: string): string {
+  const firstLine = markdown
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean);
+  if (!firstLine) {
+    return 'Update';
+  }
+  const title = firstLine
+    .replace(/^#{1,6}\s+/, '')
+    .replace(/^[-*+]\s+/, '')
+    .replace(/^\*\*(.+)\*\*$/, '$1')
+    .trim();
+  return (title || 'Update').slice(0, 120);
+}
+
+async function sendNotesEntry({
+  fromShip,
+  nest,
+  text,
+}: {
+  fromShip: string;
+  nest: string;
+  text: string;
+}) {
+  const notebook = await notes.getNotebook(nest);
+  await notes.createNote({
+    flag: nest,
+    folder: notebook.rootFolderId,
+    title: notesTitle(text),
+    body: text,
+  });
+  return {
+    channel: 'tlon' as const,
+    messageId: `${fromShip}/notes-${crypto.randomUUID()}`,
+    sentAt: Date.now(),
+  };
+}
 
 /**
  * Resolve the context lens an outbound send should attach to.
@@ -230,6 +270,13 @@ const unobservedTlonRuntimeOutbound: Pick<
           });
           return result;
         }
+        if (parsed.nest.startsWith('notes/')) {
+          return await sendNotesEntry({
+            fromShip,
+            nest: parsed.nest,
+            text,
+          });
+        }
         const target = resolveOutboundLensTarget(
           account,
           fromShip,
@@ -301,6 +348,13 @@ const unobservedTlonRuntimeOutbound: Pick<
             text,
           });
           return result;
+        }
+        if (parsed.nest.startsWith('notes/')) {
+          return await sendNotesEntry({
+            fromShip,
+            nest: parsed.nest,
+            text: buildMediaText(text, media?.url),
+          });
         }
         const target = resolveOutboundLensTarget(
           account,

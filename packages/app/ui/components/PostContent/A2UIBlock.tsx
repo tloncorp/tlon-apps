@@ -1,14 +1,385 @@
 import { A2UI, type A2UIBlockData } from '@tloncorp/shared/logic';
-import { Button, Text } from '@tloncorp/ui';
-import React, { ComponentProps, useCallback, useMemo } from 'react';
+import { useGroup } from '@tloncorp/shared/store';
+import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
+import React, {
+  ComponentProps,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
+import { ActionSheet } from '../ActionSheet';
+import { TextInput } from '../Form';
+import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
+import { AgentOnboardingSurface } from './AgentOnboardingSurface';
 import { useContentContext } from './contentUtils';
 
 type RenderOptions = {
   cardDepth?: number;
   parentAlign?: A2UI.Container['align'];
+  standaloneControlTopMargin?: boolean;
 };
+
+/**
+ * Accent pairs for Choice option icons: a soft tile behind the icon in its
+ * saturated colour, matching the design's choice cards.
+ */
+const CHOICE_ACCENT_COLORS: Record<
+  NonNullable<A2UI.ChoiceOption['accent']>,
+  {
+    soft: ComponentProps<typeof View>['backgroundColor'];
+    strong: ComponentProps<typeof Icon>['color'];
+  }
+> = {
+  blue: { soft: '$blueSoft', strong: '$blue' },
+  green: { soft: '$greenSoft', strong: '$green' },
+  indigo: { soft: '$indigoSoft', strong: '$indigo' },
+  neutral: { soft: '$secondaryBackground', strong: '$secondaryText' },
+};
+
+// Cardless choice controls sit alongside ordinary chat text inside the same
+// A2UI post. Keep that outer rhythm identical around cards and pill groups.
+const CHOICE_CONTROL_OUTER_MARGIN = 15;
+const SMALL_CHOICE_SUBMIT_GAP = '$s';
+
+function SmallChoicePill({
+  disabled,
+  isSelected,
+  label,
+  onPress,
+  showAddIcon = false,
+  showRemoveIcon = false,
+  testID,
+}: {
+  disabled: boolean;
+  isSelected: boolean;
+  label: string;
+  onPress: () => void;
+  showAddIcon?: boolean;
+  showRemoveIcon?: boolean;
+  testID: string;
+}) {
+  // Selected inverts the pill instead of tinting it, so a chosen topic reads
+  // at a glance across a wrapped row. Hoisted out of JSX: an inline ternary on
+  // these props gets dropped by Tamagui's compiler.
+  const pillEdge = isSelected ? '$primaryText' : '$border';
+  const pillFill = isSelected ? '$primaryText' : '$background';
+  const pillLabel = isSelected ? '$background' : '$primaryText';
+
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityLabel={
+        showAddIcon
+          ? `Add ${label}`
+          : showRemoveIcon
+            ? `Remove ${label}`
+            : label
+      }
+      accessibilityState={{ selected: isSelected }}
+      disabled={disabled}
+      onPress={disabled ? undefined : onPress}
+    >
+      <XStack
+        borderWidth={1}
+        borderColor={pillEdge}
+        backgroundColor={pillFill}
+        borderRadius="$2xl"
+        paddingVertical="$s"
+        paddingHorizontal="$l"
+        opacity={disabled ? 0.5 : 1}
+        alignItems="center"
+        gap="$xs"
+        maxWidth={260}
+      >
+        {showAddIcon ? (
+          <Icon type="Add" color={pillLabel} customSize={[14, 14]} />
+        ) : null}
+        <Text
+          size="$label/m"
+          color={pillLabel}
+          trimmed={false}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+        {showRemoveIcon ? (
+          <Icon type="Close" color={pillLabel} customSize={[12, 12]} />
+        ) : null}
+      </XStack>
+    </Pressable>
+  );
+}
+
+/**
+ * A wrapping list of pills the user can multi-select, plus the submit that
+ * posts the selection as one message. Selection is local until submit — no
+ * per-tap posting — so it lives in a child component with its own state
+ * rather than in the render callback.
+ */
+function SmallChoicePills({
+  component,
+  canSend,
+  isActionAvailable,
+  isActionConsumed,
+  onSubmit,
+}: {
+  component: A2UI.SmallChoice;
+  /** false when there is no action handler at all */
+  canSend: boolean;
+  isActionAvailable?: (action: A2UI.ButtonAction) => boolean;
+  isActionConsumed?: (action: A2UI.ButtonAction) => boolean;
+  onSubmit: (action: A2UI.ButtonAction) => void | Promise<void>;
+}) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [customTopics, setCustomTopics] = useState<string[]>([]);
+  const [customDraft, setCustomDraft] = useState('');
+  const [customInputOpen, setCustomInputOpen] = useState(false);
+  // In-flight only: block a double tap while transport is sending, then allow
+  // retry. Transport success is not coordinator acknowledgement; the monitor
+  // may have missed a message during a restart or unreadable-group window.
+  const [submitted, setSubmitted] = useState(false);
+  const [consumedLocally, setConsumedLocally] = useState(false);
+  const submittingRef = useRef(false);
+
+  const toggle = useCallback((id: string) => {
+    setSelectedIds((previous) =>
+      previous.includes(id)
+        ? previous.filter((selected) => selected !== id)
+        : [...previous, id]
+    );
+  }, []);
+
+  const messageForSelection = A2UI.buildSmallChoiceMessage(
+    component,
+    selectedIds,
+    customTopics.join(', ')
+  );
+  const topicsForSelection = [
+    ...component.options
+      .filter((option) => selectedIds.includes(option.id))
+      .map((option) => option.label),
+    ...customTopics,
+  ];
+  const actionForSelection: A2UI.ButtonAction =
+    component.action.event.name === A2UI.action.provisionAgent
+      ? {
+          event: {
+            ...component.action.event,
+            context: {
+              ...component.action.event.context,
+              topics: topicsForSelection,
+            },
+          },
+        }
+      : {
+          event: {
+            name: A2UI.action.sendMessage,
+            context: { text: messageForSelection },
+          },
+        };
+
+  const handleSubmit = useCallback(async () => {
+    if (!messageForSelection || submittingRef.current) {
+      return;
+    }
+    // Disable first so a double tap can't send twice, but put it back if
+    // the send fails: the picker is the only way to answer the setup, and
+    // a card disabled over a message that never posted leaves the owner
+    // looking at their own selection with nothing to do about it.
+    submittingRef.current = true;
+    setSubmitted(true);
+    try {
+      await onSubmit(actionForSelection);
+      setConsumedLocally(true);
+    } catch {
+      // The transport reports failures elsewhere; this surface only needs to
+      // become available again so the owner can retry.
+    } finally {
+      submittingRef.current = false;
+      setSubmitted(false);
+    }
+  }, [actionForSelection, messageForSelection, onSubmit]);
+
+  /**
+   * Availability has to be judged against the message that would actually be
+   * sent, not against `component.action`: for a SmallChoice that action's text
+   * is only a prefix and is usually empty, which an availability check written
+   * for Button (where the text *is* the whole message) reads as "nothing to
+   * send" and disables the whole picker.
+   *
+   * So probe with every option selected — always non-empty — to decide whether
+   * the surface can send at all, and check the real selection for the submit.
+   */
+  const probe = (action: A2UI.ButtonAction): boolean =>
+    canSend && isActionAvailable?.(action) !== false;
+  const probeAction: A2UI.ButtonAction =
+    component.action.event.name === A2UI.action.provisionAgent
+      ? component.action
+      : {
+          event: {
+            name: A2UI.action.sendMessage,
+            context: { text: A2UI.smallChoiceProbeMessage(component) },
+          },
+        };
+
+  const disabled = submitted || !probe(probeAction);
+  const submitDisabled =
+    disabled || !messageForSelection || !probe(actionForSelection);
+  const submitAction = messageForSelection ? actionForSelection : probeAction;
+  const actionConsumed =
+    consumedLocally || isActionConsumed?.(submitAction) === true;
+  const showSubmit = !actionConsumed && Boolean(messageForSelection);
+  const customChoiceLabel =
+    component.freeTextPlaceholder?.replace(/…+$/, '') || '';
+
+  const openCustomInput = useCallback(() => {
+    setCustomDraft('');
+    setCustomInputOpen(true);
+  }, []);
+
+  const saveCustomInput = useCallback(() => {
+    const topic = customDraft.trim();
+    if (!topic) return;
+
+    const matchingOption = component.options.find(
+      (option) => option.label.toLocaleLowerCase() === topic.toLocaleLowerCase()
+    );
+    if (matchingOption) {
+      setSelectedIds((previous) =>
+        previous.includes(matchingOption.id)
+          ? previous
+          : [...previous, matchingOption.id]
+      );
+    } else {
+      setCustomTopics((previous) =>
+        previous.some(
+          (existing) =>
+            existing.toLocaleLowerCase() === topic.toLocaleLowerCase()
+        )
+          ? previous
+          : [...previous, topic]
+      );
+    }
+    setCustomInputOpen(false);
+  }, [component.options, customDraft]);
+
+  const removeCustomTopic = useCallback((topic: string) => {
+    setCustomTopics((previous) =>
+      previous.filter((existing) => existing !== topic)
+    );
+  }, []);
+
+  return (
+    <>
+      <YStack width="100%">
+        <XStack
+          flexWrap="wrap"
+          gap="$s"
+          width="100%"
+          marginBottom={!actionConsumed ? SMALL_CHOICE_SUBMIT_GAP : undefined}
+        >
+          {component.options.map((option) => {
+            const isSelected = selectedIds.includes(option.id);
+            return (
+              <SmallChoicePill
+                key={option.id}
+                testID={`A2UISmallChoice-${option.id}`}
+                label={option.label}
+                isSelected={isSelected}
+                disabled={disabled}
+                onPress={() => toggle(option.id)}
+              />
+            );
+          })}
+          {customTopics.map((topic, index) => (
+            <SmallChoicePill
+              key={topic}
+              testID={`A2UISmallChoiceCustom-${index}`}
+              label={topic}
+              isSelected
+              showRemoveIcon
+              disabled={disabled}
+              onPress={() => removeCustomTopic(topic)}
+            />
+          ))}
+          {component.freeTextPlaceholder ? (
+            <SmallChoicePill
+              testID="A2UISmallChoiceCustom"
+              label={customChoiceLabel}
+              showAddIcon
+              isSelected={false}
+              disabled={disabled}
+              onPress={openCustomInput}
+            />
+          ) : null}
+        </XStack>
+        {!actionConsumed ? (
+          <YStack
+            height={44}
+            alignItems="flex-start"
+            opacity={showSubmit ? 1 : 0}
+            pointerEvents={showSubmit ? 'auto' : 'none'}
+            accessibilityElementsHidden={!showSubmit}
+            importantForAccessibility={
+              showSubmit ? 'auto' : 'no-hide-descendants'
+            }
+          >
+            <Button.Frame
+              size="medium"
+              fill="solid"
+              intent="positive"
+              alignSelf="flex-start"
+              height={44}
+              paddingHorizontal="$xl"
+              testID="A2UISmallChoiceSubmit"
+              disabled={submitDisabled}
+              dimmed={submitDisabled}
+              onPress={submitDisabled ? undefined : handleSubmit}
+            >
+              <Button.Text size="medium">{component.submitLabel}</Button.Text>
+            </Button.Frame>
+          </YStack>
+        ) : null}
+      </YStack>
+      {component.freeTextPlaceholder ? (
+        <ActionSheet
+          moveOnKeyboardChange
+          modal
+          open={customInputOpen}
+          onOpenChange={setCustomInputOpen}
+          unmountOnClose
+        >
+          <ActionSheet.SimpleHeader title="Add your own" />
+          <ActionSheet.Content testID="A2UISmallChoiceCustomSheet">
+            <ActionSheet.FormBlock>
+              <TextInput
+                testID="A2UISmallChoiceFreeText"
+                autoFocus
+                value={customDraft}
+                onChangeText={setCustomDraft}
+                maxLength={1000}
+                placeholder={component.freeTextPlaceholder}
+                returnKeyType="done"
+                onSubmitEditing={saveCustomInput}
+              />
+            </ActionSheet.FormBlock>
+            <ActionSheet.FormBlock>
+              <Button
+                preset="primary"
+                label="Save"
+                centered
+                onPress={saveCustomInput}
+              />
+            </ActionSheet.FormBlock>
+          </ActionSheet.Content>
+        </ActionSheet>
+      ) : null}
+    </>
+  );
+}
 
 function getTextSize(component: A2UI.Text) {
   switch (component.variant) {
@@ -124,18 +495,52 @@ function getComponentText(
         .map((child) => getComponentText(components.get(child), components))
         .filter(Boolean)
         .join(' ');
+    case 'Choice':
+    case 'SmallChoice':
+      // Text extraction feeds previews and labels: the option titles are the
+      // meaningful summary of a choice group.
+      return component.options.map((option) => option.label).join(', ');
+    case 'AgentOnboarding':
+      return component.purposes.map((purpose) => purpose.label).join(', ');
     case 'Divider':
       return '';
   }
+}
+
+/**
+ * An A2UI button carrying `tlon.inviteLink` is a slot, not a control: the
+ * card asks for the group's invite link, and the client fills it with the
+ * same invite affordance the rest of the app uses. Nothing about the link
+ * travels through the card, so it can't go stale and the sender never has to
+ * mint one.
+ */
+function A2UIInviteLink({ groupId }: { groupId: string }) {
+  const { data: group } = useGroup({ id: groupId });
+  if (!group) {
+    return null;
+  }
+  return <InviteFriendsToTlonButton group={group} />;
 }
 
 export function A2UIBlock({
   block,
   ...props
 }: { block: A2UIBlockData } & ComponentProps<typeof YStack>) {
-  const { isA2UIActionAvailable, onA2UIAction } = useContentContext();
+  const {
+    isA2UIActionAvailable,
+    isA2UIActionConsumed,
+    onA2UIAction,
+    onAgentOnboardingConfirm,
+  } = useContentContext();
+  const [locallyConsumedComponentIds, setLocallyConsumedComponentIds] =
+    useState<string[]>([]);
   const update = A2UI.getUpdateMessage(block.a2ui);
   const root = A2UI.getRootComponentId(block.a2ui);
+  const surfaceId =
+    block.a2ui.messages.find(
+      (message): message is A2UI.CreateSurfaceMessage =>
+        'createSurface' in message
+    )?.createSurface.surfaceId ?? 'unknown-surface';
   const components = useMemo(() => {
     return new Map(
       update?.updateComponents.components.map((component) => [
@@ -146,7 +551,7 @@ export function A2UIBlock({
   }, [update]);
 
   const handleButtonPress = useCallback(
-    (component: A2UI.Button) => {
+    async (component: A2UI.Button) => {
       if (
         component.action.event.name === A2UI.action.sendMessage &&
         !component.action.event.context.text.trim()
@@ -154,8 +559,30 @@ export function A2UIBlock({
         return;
       }
 
-      onA2UIAction?.(component.action);
+      await onA2UIAction?.(component.action);
+      setLocallyConsumedComponentIds((previous) =>
+        previous.includes(component.id) ? previous : [...previous, component.id]
+      );
     },
+    [onA2UIAction]
+  );
+
+  const handleChoicePress = useCallback(
+    (action: A2UI.ChoiceOption['action']) => {
+      if (
+        action.event.name === A2UI.action.sendMessage &&
+        !action.event.context.text.trim()
+      ) {
+        return;
+      }
+
+      onA2UIAction?.(action);
+    },
+    [onA2UIAction]
+  );
+
+  const handleSmallChoiceSubmit = useCallback(
+    (action: A2UI.ButtonAction) => onA2UIAction?.(action),
     [onA2UIAction]
   );
 
@@ -194,10 +621,16 @@ export function A2UIBlock({
               width="100%"
               flex={getComponentFlex(component)}
             >
-              {component.children.map((child) =>
+              {component.children.map((child, index) =>
                 renderComponent(child, {
                   cardDepth: options.cardDepth,
                   parentAlign: component.align,
+                  standaloneControlTopMargin:
+                    !options.cardDepth &&
+                    index > 0 &&
+                    components.get(component.children[index - 1])?.component ===
+                      'Text' &&
+                    components.get(child)?.component === 'Button',
                 })
               )}
             </XStack>
@@ -256,6 +689,27 @@ export function A2UIBlock({
             />
           );
         case 'Button': {
+          if (component.action.event.name === A2UI.action.inviteLink) {
+            // Mounting this control turns the group's invite links on, so an
+            // untrusted or mismatched card renders as nothing rather than as
+            // a dead button — the surrounding text still explains the ask.
+            if (isA2UIActionAvailable?.(component.action) === false) {
+              return null;
+            }
+            return (
+              <A2UIInviteLink
+                key={component.id}
+                groupId={component.action.event.context.groupId}
+              />
+            );
+          }
+          const actionConsumed =
+            component.variant === 'primary' &&
+            (locallyConsumedComponentIds.includes(component.id) ||
+              isA2UIActionConsumed?.(component.action) === true);
+          if (actionConsumed) {
+            return null;
+          }
           const disabled =
             component.disabled ||
             !onA2UIAction ||
@@ -274,6 +728,11 @@ export function A2UIBlock({
               alignSelf={
                 options.parentAlign === 'center' ? 'center' : 'flex-start'
               }
+              marginTop={
+                options.standaloneControlTopMargin
+                  ? CHOICE_CONTROL_OUTER_MARGIN
+                  : undefined
+              }
               height={44}
               paddingHorizontal="$xl"
               flex={getComponentFlex(component)}
@@ -287,9 +746,120 @@ export function A2UIBlock({
             </Button.Frame>
           );
         }
+        case 'Choice': {
+          return (
+            <YStack
+              key={component.id}
+              gap="$m"
+              width="100%"
+              marginTop={CHOICE_CONTROL_OUTER_MARGIN}
+            >
+              {component.options.map((option) => {
+                const accent = CHOICE_ACCENT_COLORS[option.accent ?? 'neutral'];
+                const disabled =
+                  !onA2UIAction ||
+                  isA2UIActionAvailable?.(option.action) === false;
+                return (
+                  <Pressable
+                    key={option.id}
+                    testID={`A2UIChoice-${option.id}`}
+                    accessibilityLabel={option.label}
+                    disabled={disabled}
+                    onPress={
+                      disabled
+                        ? undefined
+                        : () => handleChoicePress(option.action)
+                    }
+                  >
+                    <XStack
+                      borderWidth={1}
+                      borderColor="$border"
+                      borderRadius="$xl"
+                      backgroundColor="$background"
+                      paddingVertical="$l"
+                      paddingHorizontal="$l"
+                      gap="$l"
+                      alignItems="flex-start"
+                      opacity={disabled ? 0.5 : 1}
+                    >
+                      {option.icon ? (
+                        <View
+                          width={32}
+                          height={32}
+                          borderRadius="$m"
+                          backgroundColor={accent.soft}
+                          alignItems="center"
+                          justifyContent="center"
+                          flexShrink={0}
+                        >
+                          <Icon
+                            type={option.icon}
+                            color={accent.strong}
+                            customSize={[18, 18]}
+                          />
+                        </View>
+                      ) : null}
+                      <YStack flex={1} minWidth={0} gap="$2xs">
+                        <Text size="$label/l" fontWeight="500" trimmed={false}>
+                          {option.label}
+                        </Text>
+                        {option.description ? (
+                          <Text
+                            size="$label/m"
+                            color="$secondaryText"
+                            trimmed={false}
+                          >
+                            {option.description}
+                          </Text>
+                        ) : null}
+                      </YStack>
+                    </XStack>
+                  </Pressable>
+                );
+              })}
+            </YStack>
+          );
+        }
+        case 'SmallChoice': {
+          return (
+            <YStack
+              key={component.id}
+              width="100%"
+              marginTop={CHOICE_CONTROL_OUTER_MARGIN}
+            >
+              <SmallChoicePills
+                component={component}
+                canSend={Boolean(onA2UIAction)}
+                isActionAvailable={isA2UIActionAvailable}
+                isActionConsumed={isA2UIActionConsumed}
+                onSubmit={handleSmallChoiceSubmit}
+              />
+            </YStack>
+          );
+        }
+        case 'AgentOnboarding':
+          return (
+            <AgentOnboardingSurface
+              key={component.id}
+              component={component}
+              surfaceId={surfaceId}
+              onConfirm={onAgentOnboardingConfirm}
+            />
+          );
       }
     },
-    [components, handleButtonPress, isA2UIActionAvailable, onA2UIAction]
+    [
+      components,
+      handleButtonPress,
+      handleChoicePress,
+      handleSmallChoiceSubmit,
+      isA2UIActionAvailable,
+      isA2UIActionConsumed,
+      locallyConsumedComponentIds,
+      onA2UIAction,
+      onAgentOnboardingConfirm,
+      surfaceId,
+    ]
   );
 
   if (!root) {

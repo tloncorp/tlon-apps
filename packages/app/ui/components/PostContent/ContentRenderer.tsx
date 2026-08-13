@@ -58,6 +58,8 @@ function ContentRenderer({
   onLongPress,
   onA2UIAction,
   isA2UIActionAvailable,
+  isA2UIActionConsumed,
+  onAgentOnboardingConfirm,
   isNotice,
   searchQuery,
   ...rest
@@ -71,6 +73,8 @@ function ContentRenderer({
       onLongPress={onLongPress}
       onA2UIAction={onA2UIAction}
       isA2UIActionAvailable={isA2UIActionAvailable}
+      isA2UIActionConsumed={isA2UIActionConsumed}
+      onAgentOnboardingConfirm={onAgentOnboardingConfirm}
       isNotice={isNotice}
       searchQuery={searchQuery}
     >

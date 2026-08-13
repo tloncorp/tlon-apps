@@ -32,6 +32,10 @@ export interface ContentContextProps {
   onLongPress?: () => void;
   onA2UIAction?: (action: A2UI.Button['action']) => void | Promise<void>;
   isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
+  isA2UIActionConsumed?: (action: A2UI.Button['action']) => boolean;
+  onAgentOnboardingConfirm?: (
+    plan: A2UI.AgentOnboardingPlan
+  ) => void | Promise<void>;
   searchQuery?: string;
 }
 

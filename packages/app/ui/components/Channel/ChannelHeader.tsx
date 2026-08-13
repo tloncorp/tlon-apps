@@ -16,6 +16,8 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View } from 'tamagui';
 
 import { useShipConnectionStatus } from '../../../features/top/useShipConnectionStatus';
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -127,6 +129,7 @@ export function ChannelHeader({
   showSpinner,
   loadingSubtitle = 'Loading messages…',
   hideIdentity = false,
+  hideContents = false,
   showSearchButton = false,
   showEditButton = false,
   preferProvidedTitle = false,
@@ -148,11 +151,13 @@ export function ChannelHeader({
   showSpinner?: boolean;
   loadingSubtitle?: string | null;
   hideIdentity?: boolean;
+  hideContents?: boolean;
   showSearchButton?: boolean;
   showEditButton?: boolean;
   preferProvidedTitle?: boolean;
   post?: db.Post;
 }) {
+  const { top: safeAreaTop } = useSafeAreaInsets();
   const connectionStatus = useConnectionStatus();
   const chatTitle = useChatTitle(channel, group);
   const chatDescription = useChatDescription(channel, group);
@@ -433,6 +438,10 @@ export function ChannelHeader({
     enabled: usesNavigationHeader,
     bottomEdgeEffect: 'soft',
   });
+
+  if (hideContents) {
+    return <View paddingTop={safeAreaTop} />;
+  }
 
   if (usesNavigationHeader) {
     // Native navigation headers accept declarative actions only. Element-style

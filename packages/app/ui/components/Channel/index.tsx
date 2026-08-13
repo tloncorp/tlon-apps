@@ -19,7 +19,7 @@ import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Button, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import {
@@ -264,6 +264,8 @@ interface ChannelProps {
   group: db.Group | null;
   groupIsLoading?: boolean;
   goBack: () => void;
+  hideDraftInput?: boolean;
+  hideHeaderContents?: boolean;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
@@ -306,6 +308,8 @@ export function Channel({
   group,
   groupIsLoading,
   goBack,
+  hideDraftInput,
+  hideHeaderContents,
   goToChatDetails,
   goToSearch,
   goToContextLensRuns,
@@ -373,17 +377,19 @@ export function Channel({
                 : 'channel-mismatch'
             : null;
   const canRenderDraftInput = readOnlyNoticeType == null && !channel.isDmInvite;
-  const draftInputType = !canRenderDraftInput
-    ? null
-    : channel.contentConfiguration != null
-      ? ChannelContentConfiguration.draftInput(channel.contentConfiguration).id
-      : isChatChannel
-        ? DraftInputId.chat
-        : channel.type === 'gallery'
-          ? DraftInputId.gallery
-          : channel.type === 'notebook'
-            ? DraftInputId.notebook
-            : null;
+  const draftInputType =
+    !canRenderDraftInput || hideDraftInput
+      ? null
+      : channel.contentConfiguration != null
+        ? ChannelContentConfiguration.draftInput(channel.contentConfiguration)
+            .id
+        : isChatChannel
+          ? DraftInputId.chat
+          : channel.type === 'gallery'
+            ? DraftInputId.gallery
+            : channel.type === 'notebook'
+              ? DraftInputId.notebook
+              : null;
   // For DMs, get the other participant's ID
   const dmRecipientId = useMemo(() => {
     if (isDM && channel.members) {
@@ -578,6 +584,8 @@ export function Channel({
 
   const draftInputRef = useRef<DraftInputHandle>(null);
 
+  // The onboarding lock hides the free-form composer below, but its A2UI
+  // choices still send ordinary channel posts through this draft context.
   const canStartDraft =
     canRead &&
     canWrite &&
@@ -757,6 +765,7 @@ export function Channel({
   const { contentInsets, floatingHeaderHeight, onFloatingHeightChange } =
     useConversationInsets({
       hasFloatingComposer: draftInputType === DraftInputId.chat,
+      hasBottomSafeAreaClearance: Boolean(hideDraftInput),
       hasTransparentHeader: isChatChannel,
       hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
     });
@@ -802,6 +811,7 @@ export function Channel({
                         group={group}
                         title={title ?? ''}
                         description={''}
+                        hideContents={hideHeaderContents}
                         goBack={
                           isNarrow ||
                           draftInputPresentationMode === 'fullscreen'

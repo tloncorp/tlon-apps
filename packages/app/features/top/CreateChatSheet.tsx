@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
 import useGroupSearch from '../../hooks/useGroupSearch';
+import { AGENT_SHIP_OVERRIDE } from '../../lib/envVars';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   Action,
@@ -37,7 +38,7 @@ import {
   GroupTypeSelectionSheet,
 } from '../groups/GroupTypeSelectionSheet';
 
-type ChatType = 'dm' | 'group' | 'joinGroup';
+type ChatType = 'dm' | 'group' | 'agent' | 'joinGroup';
 type Step =
   | 'initial'
   | 'selectType'
@@ -47,6 +48,7 @@ type Step =
 
 export type CreateChatParams =
   | { type: 'dm'; contactId: string }
+  | { type: 'agent' }
   | {
       type: 'group';
       contactIds: string[];
@@ -61,7 +63,11 @@ export type CreateChatSheetMethods = {
 
 const logger = createDevLogger('CreateChatSheet', true);
 
-function createTypeActions(onSelectType: (type: ChatType) => void): Action[] {
+function createTypeActions(
+  onSelectType: (type: ChatType) => void,
+  hasAgent: boolean,
+  agentStatusLoading: boolean
+): Action[] {
   return [
     {
       title: CHAT_TYPE_CONFIG.dm.actionTitle,
@@ -69,12 +75,20 @@ function createTypeActions(onSelectType: (type: ChatType) => void): Action[] {
       action: () => onSelectType('dm'),
       startIcon: <ListItem.SystemIcon icon="Send" />,
     },
-    {
-      title: CHAT_TYPE_CONFIG.group.actionTitle,
-      description: CHAT_TYPE_CONFIG.group.actionDescription,
-      action: () => onSelectType('group'),
-      startIcon: <ListItem.SystemIcon icon="Channel" />,
-    },
+    hasAgent
+      ? {
+          title: CHAT_TYPE_CONFIG.agent.actionTitle,
+          description: CHAT_TYPE_CONFIG.agent.actionDescription,
+          action: () => onSelectType('agent'),
+          startIcon: <ListItem.SystemIcon icon="SmushStar" />,
+        }
+      : {
+          title: CHAT_TYPE_CONFIG.group.actionTitle,
+          description: CHAT_TYPE_CONFIG.group.actionDescription,
+          action: () => onSelectType('group'),
+          startIcon: <ListItem.SystemIcon icon="Channel" />,
+          disabled: agentStatusLoading,
+        },
   ];
 }
 
@@ -91,6 +105,12 @@ const CHAT_TYPE_CONFIG = {
     actionTitle: 'New group',
     actionDescription: 'Create a customizable group chat',
   },
+  agent: {
+    title: 'New agent group',
+    subtitle: '',
+    actionTitle: 'New group',
+    actionDescription: 'Start a group with your agent',
+  },
   joinGroup: {
     title: 'Join a group',
     subtitle: 'Join a group chat with a code (reference)',
@@ -100,7 +120,7 @@ const CHAT_TYPE_CONFIG = {
 } as const;
 
 interface CreateChatFormContentProps {
-  chatType: ChatType;
+  chatType: 'dm' | 'group';
   isCreating: boolean;
   onSelectDmContact: (contactId: string) => void;
   onSelectedChange: (contactIds: string[]) => void;
@@ -322,18 +342,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     [step]
   );
 
-  const handleTypeSelected = useCallback((type: ChatType) => {
-    trackEvent(AnalyticsEvent.CreateOptionSelected, {
-      option: type,
-    });
-    if (type === 'group') {
-      // Navigate to group type selection instead of directly to member selection
-      setStep('selectGroupType');
-    } else {
-      setStep(`create${capitalize(type)}` as Step);
-    }
-  }, []);
-
   const handleGroupTypeSelected = useCallback(
     (groupType: GroupType, templateId?: store.GroupTemplateId) => {
       trackEvent(AnalyticsEvent.CreateOptionSelected, {
@@ -375,6 +383,22 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       }
     },
     [createChat, isCreatingChat]
+  );
+
+  const handleTypeSelected = useCallback(
+    (type: ChatType) => {
+      trackEvent(AnalyticsEvent.CreateOptionSelected, {
+        option: type,
+      });
+      if (type === 'agent') {
+        void handleSubmit({ type: 'agent' });
+      } else if (type === 'group') {
+        setStep('selectGroupType');
+      } else {
+        setStep(`create${capitalize(type)}` as Step);
+      }
+    },
+    [handleSubmit]
   );
 
   useImperativeHandle(
@@ -469,7 +493,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       >
         <View flex={1} padding="$m">
           <CreateChatFormContent
-            chatType={chatType}
+            chatType={step === 'createDm' ? 'dm' : 'group'}
             isCreating={isCreatingChat}
             onSelectDmContact={handleSelectDmContact}
             onSelectedChange={setSelectedContactIds}
@@ -518,9 +542,17 @@ function TypeSelectionContent({
   onSelectType: (type: ChatType) => void;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
+  const { value: hasAgent, isLoading: agentStatusLoading } =
+    db.hostingBotEnabled.useStorageItem();
+  const hasAvailableAgent = Boolean(AGENT_SHIP_OVERRIDE) || hasAgent;
   const actions = useMemo(
-    () => createTypeActions(onSelectType),
-    [onSelectType]
+    () =>
+      createTypeActions(
+        onSelectType,
+        hasAvailableAgent,
+        !AGENT_SHIP_OVERRIDE && agentStatusLoading
+      ),
+    [agentStatusLoading, hasAvailableAgent, onSelectType]
   );
   return (
     <>
@@ -681,6 +713,19 @@ function useCreateChat() {
         if (params.type === 'dm') {
           const channel = await store.upsertDmChannel({
             participants: [params.contactId],
+          });
+          navigateToChannel(channel);
+        } else if (params.type === 'agent') {
+          const furnishing = await store.ensureAgentGroupFurnished({
+            agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+          });
+          const channel = await db.getChannel({ id: furnishing.chatChannelId });
+          if (!channel) {
+            throw new Error('The new agent chat is not available yet.');
+          }
+          furnishing.tail.catch(() => {
+            // The furnishing core is complete. Tail failures are retried by
+            // later reconciliation and must not pull the user out of chat.
           });
           navigateToChannel(channel);
         } else {
