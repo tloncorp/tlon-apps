@@ -273,6 +273,7 @@ interface ChannelProps {
   goBack: () => void;
   hideDraftInput?: boolean;
   hideHeaderContents?: boolean;
+  reserveThinkingStateSpace?: boolean;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
@@ -317,6 +318,7 @@ export function Channel({
   goBack,
   hideDraftInput,
   hideHeaderContents,
+  reserveThinkingStateSpace,
   goToChatDetails,
   goToSearch,
   goToContextLensRuns,
@@ -944,6 +946,7 @@ export function Channel({
                                         onLoadNewerPosts,
                                         onLoadOlderPosts,
                                         posts: posts ?? undefined,
+                                        reserveThinkingStateSpace,
                                         scrollToBottom: onPressScrollToBottom,
                                         selectedPostId,
                                         setEditingPost,
