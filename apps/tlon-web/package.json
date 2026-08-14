@@ -23,6 +23,7 @@
     "mock": "vite --mode mock",
     "serve-sw": "vite preview --mode sw",
     "tsc": "tsc --noEmit",
+    "test": "vitest --watch false",
     "cosmos": "cosmos",
     "rube:compile": "bash ./rube/compile-rube.sh",
     "rube": "./rube-runner.sh",
