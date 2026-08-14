@@ -34,6 +34,7 @@ import {
   printUsageAndExit,
   wantsHelp,
 } from './cli-utils';
+import { UsageError } from './commands/command';
 import {
   fetchImageVerse,
   imageFlagIndex,
@@ -66,6 +67,27 @@ function getDmsHelp(command?: string): string {
   return command ? DMS_COMMAND_HELP[command] ?? DMS_HELP : DMS_HELP;
 }
 
+// The shared `--image` parsing (image-attach.ts) reports failures by throwing
+// UsageError/CommandError so both `posts send` and `dms send` share one
+// implementation. This module is the legacy exit-style entry point, so it
+// translates those back into the usage/error output it has always produced.
+function exitFromError(error: unknown): never {
+  if (error instanceof UsageError) {
+    printUsageAndExit(
+      error.message ? `Error: ${error.message}\n\n${error.help}` : error.help
+    );
+  }
+  printErrorAndExit(error);
+}
+
+function dmsImageFlag(args: string[]): string | undefined {
+  try {
+    return validatedImageFlag(args, DMS_COMMAND_HELP.send);
+  } catch (error) {
+    exitFromError(error);
+  }
+}
+
 function firstDmSendFlagIndex(args: string[]): number {
   const idx = imageFlagIndex(args);
   return idx !== -1 ? idx : args.length;
@@ -96,7 +118,7 @@ export function validateDmsArgs(args: string[]): void {
     case 'send': {
       const clubId = args[1];
       const message = getDmSendMessage(args);
-      const image = validatedImageFlag(args, DMS_COMMAND_HELP.send);
+      const image = dmsImageFlag(args);
       if (!clubId || (!message && !image)) {
         printUsageAndExit(DMS_COMMAND_HELP.send);
       }
@@ -436,7 +458,7 @@ export async function main() {
     case 'send': {
       const clubId = args[1];
       const message = getDmSendMessage(args);
-      const imageUrl = validatedImageFlag(args, DMS_COMMAND_HELP.send);
+      const imageUrl = dmsImageFlag(args);
       if (!clubId || (!message && !imageUrl)) {
         printUsageAndExit(DMS_COMMAND_HELP.send);
       }
@@ -584,5 +606,5 @@ export async function main() {
 // retains the source filename in argv[1]. Keep both entry styles working and
 // leave imports side-effect free for the command-level tests.
 if (/(?:^|[\\/])dms\.(?:ts|js)$/.test(process.argv[1] ?? '')) {
-  main().catch(printErrorAndExit);
+  main().catch(exitFromError);
 }

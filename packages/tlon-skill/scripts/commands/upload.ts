@@ -1,7 +1,11 @@
 import {
+  USERINFO_ERROR,
+  classifyMediaUrl,
+  strictPostableUrl,
+} from '../media-guard';
+import {
   type CommandDeps,
   commandError,
-  errorMessage,
   handleExpectedCommandError,
   isHelpArg,
   usageError,
@@ -10,6 +14,40 @@ import {
 } from './command';
 
 export const DEFAULT_CONTENT_TYPE = 'application/octet-stream';
+
+/**
+ * `tlon upload` is a general file uploader (video, audio, PDF, archives), not
+ * just the image flow, so it does not inherit the `--image` media budget. These
+ * limits mirror the adapter's inbound blob ceiling and also fix today's
+ * unbounded buffering of a remote response.
+ */
+export const UPLOAD_FETCH_DEADLINE_MS = 120_000;
+export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+
+/** The `upload <url>` guard budget, exported so tests lock the limits. */
+export const UPLOAD_GUARD_OPTIONS = {
+  maxBytes: MAX_UPLOAD_BYTES,
+  deadlineMs: UPLOAD_FETCH_DEADLINE_MS,
+  maxRedirects: 3,
+  // The source URL is never posted — the postable output is the storage URL —
+  // so plain http sources stay allowed here (unlike `--image`).
+  requireHttps: false,
+} as const;
+
+export const CANNOT_STORE_UPLOADS_ERROR =
+  'This ship cannot store uploads (no custom S3 credentials and not a ' +
+  'Tlon-hosted node). Pass a direct https image URL to `posts send --image` ' +
+  'instead, or configure storage (or set TLON_HOSTING on hosted deployments).';
+
+export const NO_BUCKET_SELECTED_ERROR =
+  'This ship has custom S3 credentials but no storage bucket selected — ' +
+  'choose a bucket in storage settings. For images you can instead pass a ' +
+  'direct https image URL to `posts send --image`.';
+
+export const UNPOSTABLE_UPLOAD_URL_ERROR =
+  'Storage accepted the upload but returned a URL that cannot be posted — it ' +
+  'must be a credential-free https URL. Check the storage configuration; a ' +
+  'non-https `publicUrlBase` is the usual cause.';
 
 export const UPLOAD_HELP = `Usage: tlon upload <url-or-path> [options]
        tlon upload --stdin [-t mime/type]
@@ -71,11 +109,51 @@ export interface UploadBlobLike {
   size?: number;
 }
 
-export interface UploadFetchResponse {
-  ok: boolean;
-  status: number;
-  statusText: string;
-  blob: () => Promise<UploadBlobLike>;
+export interface UploadSourceBytes {
+  bytes: Uint8Array;
+  contentType?: string;
+}
+
+export interface StorageCredentials {
+  accessKeyId?: string;
+  endpoint?: string;
+  secretAccessKey?: string;
+}
+
+export interface StorageConfiguration {
+  service?: string;
+  currentBucket?: string;
+}
+
+/**
+ * Whether `uploadFile` could actually store bytes for this ship.
+ *
+ * Exact mirror of `@tloncorp/api`'s own backend routing (`storageApi.ts`):
+ * Memex when the client is a hosted node and either the service is
+ * `presigned-url` or custom S3 credentials are absent; otherwise custom S3
+ * credentials plus a current bucket for the S3 operation itself.
+ */
+export function shipCanStoreUploads(input: {
+  hosted: boolean;
+  credentials?: StorageCredentials | null;
+  configuration?: StorageConfiguration | null;
+}): boolean {
+  const credentials = input.credentials ?? {};
+  const configuration = input.configuration ?? {};
+  const hasCustomS3 = Boolean(
+    credentials.accessKeyId &&
+      credentials.endpoint &&
+      credentials.secretAccessKey
+  );
+
+  if (
+    input.hosted &&
+    (configuration.service === 'presigned-url' || !hasCustomS3)
+  ) {
+    return true;
+  }
+
+  return hasCustomS3 && Boolean(configuration.currentBucket);
 }
 
 export interface UploadFileSystem {
@@ -94,10 +172,26 @@ export interface UploadApi {
   }) => Promise<{ url: string }>;
 }
 
+/**
+ * Pre-flight outcome. A definitive "cannot store" carries the reason so the
+ * fixed error names the operator's actual problem (a missing bucket is fixed
+ * in storage settings; missing storage is a different situation entirely).
+ */
+export type UploadPreflight =
+  | { canStore: true }
+  | { canStore: false; reason: 'no-bucket' | 'no-storage' };
+
 export interface UploadDeps extends CommandDeps {
   authenticate: () => Promise<void>;
+  /**
+   * Pre-flight capability check. `null` means the storage scries could not be
+   * read — the check is skipped in that case so `uploadFile`'s own error stays
+   * authoritative and a transient scry failure never becomes a false
+   * "cannot store".
+   */
+  canStoreUploads: () => Promise<UploadPreflight | null>;
   readStdin: () => Promise<Uint8Array>;
-  fetch: (url: string) => Promise<UploadFetchResponse>;
+  fetchSource: (canonicalUrl: string) => Promise<UploadSourceBytes>;
   fileSystem: UploadFileSystem;
   createBlob: (data: Uint8Array, contentType: string) => UploadBlobLike;
   uploadApi: UploadApi;
@@ -180,34 +274,54 @@ function parseArgs(args: string[]): ParsedUploadArgs {
   return { kind: 'input', input: positional[0], contentType };
 }
 
+/**
+ * Canonical form of a remote upload source. Embedded credentials are refused
+ * (they would be sent to a third party and can leak through logs); plain http
+ * stays allowed because the source URL is never posted.
+ */
+function canonicalUploadSource(input: string): string {
+  const classified = classifyMediaUrl(input);
+  if (classified.kind === 'userinfo') {
+    throw commandError(USERINFO_ERROR);
+  }
+  if (classified.kind === 'https') {
+    return classified.canonical;
+  }
+  if (classified.kind === 'http') {
+    const parsed = parseUrl(input);
+    if (
+      parsed.username ||
+      parsed.password ||
+      /^http:\/\/[^/?#\\]*@/i.test(input.trim())
+    ) {
+      throw commandError(USERINFO_ERROR);
+    }
+    return parsed.href;
+  }
+  throw commandError(`Invalid URL: ${input}`);
+}
+
+/** Media type without parameters (`image/png; charset=x` → `image/png`). */
+function mediaTypeOnly(header: string | undefined): string | undefined {
+  const value = (header ?? '').split(';')[0].trim().toLowerCase();
+  return value || undefined;
+}
+
 async function uploadFromUrl(
-  imageUrl: string,
+  sourceUrl: string,
   contentType: string | undefined,
   deps: UploadDeps
 ): Promise<string> {
-  const url = parseUrl(imageUrl);
+  const canonical = canonicalUploadSource(sourceUrl);
+  const url = parseUrl(canonical);
 
-  let response: UploadFetchResponse;
-  try {
-    response = await deps.fetch(imageUrl);
-  } catch (error) {
-    throw commandError(`Failed to fetch: ${errorMessage(error)}`);
-  }
+  const source = await deps.fetchSource(canonical);
 
-  if (!response.ok) {
-    throw commandError(
-      `Failed to fetch: ${response.status} ${response.statusText}`
-    );
-  }
-
-  let blob: UploadBlobLike;
-  try {
-    blob = await response.blob();
-  } catch (error) {
-    throw commandError(`Failed to read response body: ${errorMessage(error)}`);
-  }
-
-  const ct = contentType || blob.type || mimeFromPath(imageUrl, deps);
+  const ct =
+    contentType ||
+    mediaTypeOnly(source.contentType) ||
+    mimeFromPath(canonical, deps);
+  const blob = deps.createBlob(source.bytes, ct);
   const fileName = deps.fileSystem.basename(url.pathname);
   const uploadInput = fileName
     ? { blob, contentType: ct, fileName }
@@ -261,6 +375,18 @@ export async function run(args: string[], deps: UploadDeps): Promise<number> {
 
     await deps.authenticate();
 
+    // Pre-flight before any bytes are read or fetched: a ship that cannot
+    // store uploads should fail instantly and instructively rather than
+    // downloading a file and dying on a cryptic storage error.
+    const preflight = await deps.canStoreUploads();
+    if (preflight && !preflight.canStore) {
+      throw commandError(
+        preflight.reason === 'no-bucket'
+          ? NO_BUCKET_SELECTED_ERROR
+          : CANNOT_STORE_UPLOADS_ERROR
+      );
+    }
+
     const uploadedUrl =
       parsed.kind === 'stdin'
         ? await uploadFromStdin(parsed.contentType, deps)
@@ -268,7 +394,16 @@ export async function run(args: string[], deps: UploadDeps): Promise<number> {
           ? await uploadFromUrl(parsed.input, parsed.contentType, deps)
           : await uploadFromFile(parsed.input, parsed.contentType, deps);
 
-    writeLine(deps.stdout, uploadedUrl);
+    // Neither backend validates its own return path (Memex returns `filePath`
+    // as-is; custom S3 derives from `publicUrlBase`), so an http or
+    // credential-bearing URL could be printed and then rejected downstream by
+    // `--image`. Fail here instead.
+    const postable = strictPostableUrl(uploadedUrl);
+    if (!postable) {
+      throw commandError(UNPOSTABLE_UPLOAD_URL_ERROR);
+    }
+
+    writeLine(deps.stdout, postable);
     return 0;
   } catch (error) {
     const handled = handleExpectedCommandError(error, deps);

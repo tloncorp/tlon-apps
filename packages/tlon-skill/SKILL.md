@@ -39,6 +39,13 @@ Current-gallery `posts send` creates a new item and is allowed. Image sends
 including the current conversation: `tlon upload <direct-image-url>`, then
 `posts send <target> [caption] --image <uploaded-url>`.
 
+**Never say an image was posted unless both commands returned success** — `tlon
+upload` (when used) and the `posts send`/`dms send` that carries `--image`. Both
+fail loudly; neither degrades to a plain link. If `upload` reports that the ship
+cannot store uploads (self-hosted moons have no storage), you do not need it:
+pass the direct **https** image URL straight to `--image`, which posts without
+uploading.
+
 ## OpenClaw
 
 When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
@@ -55,9 +62,12 @@ tlon upload https://example.com/x.png  # remote URL
 
 Pass that printed URL as `media=`. On Tlon-hosted deployments (where
 `TLON_HOSTING` is set) the bot's own ship uploads through Tlon file hosting.
-If the upload fails (e.g. self-hosted moons, which have no storage), retry
-through the owner ship's config:
-`tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`.
+Self-hosted moons have no storage, so `upload` refuses immediately with
+`This ship cannot store uploads …`; for a local file, retry through the owner
+ship's config: `tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`. For a
+source that is already a public https URL, `media=` takes it directly — no
+upload needed. Never claim an image was sent unless the upload and the send
+both returned success.
 
 > **Deprecated: diary channels.** `%diary` is not managed by the CLI:
 > `tlon notebook`, `--kind diary`, and `diary/...` targets fail with guidance
@@ -468,7 +478,16 @@ tlon posts delete chat/~host/slug 170.141...             # Delete a post
 tlon posts delete heap/~host/gallery 170.141...          # Delete a gallery post
 ```
 
-Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
+Send `--image` takes a **direct https** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
+
+`--image` is https-only and fails loudly rather than posting a broken block:
+local file paths, `file://`, plain `http://`, URLs with embedded credentials,
+and malformed URLs are each refused with their own message **before anything is
+posted**. Accepted URLs are fetched through an SSRF guard (private-network
+targets blocked) under a 30s deadline and a 10 MiB cap, and the decision to
+attach an image is made from the fetched bytes — the file extension is never
+consulted. Nothing is posted when any of that fails, so never report an image
+as delivered unless the command returned success.
 
 `posts edit` edits message text only. The former notebook-only
 `--title`/`--image`/`--content` edit flags are removed (they refuse with an
@@ -541,7 +560,24 @@ Options: `-t`/`--type` (override MIME type), `--stdin` (read from stdin)
 
 Content type is auto-detected from file extension for local files. For stdin, `-t` is recommended (defaults to `application/octet-stream`).
 
-Returns the uploaded URL for use in posts, profiles, etc.
+Returns the uploaded URL for use in posts, profiles, etc. The printed URL is
+always a credential-free https URL; if storage returns anything else the
+command fails instead of printing it (usually a misconfigured `publicUrlBase`).
+
+Before reading any bytes, `upload` checks whether the ship can actually store
+them — Tlon-hosted nodes upload through Memex, otherwise custom S3 credentials
+**and** a selected bucket are required. A ship with neither fails immediately
+with `This ship cannot store uploads …` (typical for self-hosted moons). That
+is not a dead end: `posts send --image <direct https URL>` never uploads, so
+pass the source URL to `--image` directly. Set `TLON_HOSTING` on hosted
+deployments whose node URL is reached over localhost/proxy so the hosted path
+is used.
+
+Remote (URL) uploads go through the same SSRF guard as `--image`, with
+general-file limits: `http` and `https` sources are both accepted, URLs with
+embedded credentials are refused, private-network targets are blocked, and the
+download is bounded by a 120s deadline and a 100 MiB cap. Local-path and stdin
+uploads are unaffected.
 
 ### Settings (OpenClaw)
 

@@ -1866,21 +1866,79 @@ class AdapterAttentionTests(unittest.TestCase):
         f = adapter_mod.format_storage_status
         # forced hosting + presigned + token → memex
         r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=True,
-              service="presigned-url", has_s3_creds=False, genuine_reachable=True)
+              service="presigned-url", has_s3_creds=False, current_bucket="",
+              genuine_reachable=True)
         self.assertIn("*Upload path*: **memex (hosted)**", r)
         # forced hosting but no token → memex would fail
         r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=True,
-              service="presigned-url", has_s3_creds=False, genuine_reachable=False)
+              service="presigned-url", has_s3_creds=False, current_bucket="",
+              genuine_reachable=False)
         self.assertIn("would FAIL: no %genuine token", r)
         # not hosted, no creds → fails (the bug screenshot)
         r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=False,
-              service="presigned-url", has_s3_creds=False, genuine_reachable=True)
+              service="presigned-url", has_s3_creds=False, current_bucket="",
+              genuine_reachable=True)
         self.assertIn("would FAIL: no storage credentials", r)
         self.assertIn("*TLON_HOSTING*: **unset**", r)
-        # custom S3 creds → S3
+        # custom S3 creds + a selected bucket → S3
         r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=False,
-              service="credentials", has_s3_creds=True, genuine_reachable=False)
+              service="credentials", has_s3_creds=True, current_bucket="media",
+              genuine_reachable=False)
         self.assertIn("*Upload path*: **S3 (custom credentials)**", r)
+        self.assertIn("*Current bucket*: **media**", r)
+        # custom S3 creds without a bucket → the S3 PUT has no target
+        r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=False,
+              service="credentials", has_s3_creds=True, current_bucket="",
+              genuine_reachable=False)
+        self.assertIn("*Upload path*: **would FAIL: no storage bucket selected**", r)
+        self.assertIn("*Current bucket*: **none**", r)
+        # configuration scry failed → indeterminate, never a confident
+        # missing-bucket verdict (the ship may well have a bucket selected)
+        r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=False,
+              service="unknown", has_s3_creds=True, current_bucket="",
+              genuine_reachable=False, config_known=False)
+        self.assertIn("*Upload path*: **unknown — storage configuration scry failed**", r)
+        self.assertIn("*Current bucket*: **unknown**", r)
+        self.assertNotIn("no storage bucket selected", r)
+
+    def test_storage_status_reply_reports_the_current_bucket(self):
+        class PathSSE:
+            def __init__(self, payloads):
+                self.payloads = payloads
+
+            async def scry(self, path):
+                if path in self.payloads:
+                    return self.payloads[path]
+                raise ConnectionError(f"no payload for {path}")
+
+        adapter = self.make_adapter({})
+        adapter._sse = PathSSE(
+            {
+                "/storage/configuration": {
+                    "storage-update": {
+                        "configuration": {
+                            "service": "credentials",
+                            "currentBucket": "tlon-media",
+                        }
+                    }
+                },
+                "/storage/credentials": {
+                    "storage-update": {
+                        "credentials": {
+                            "accessKeyId": "AKIA",
+                            "endpoint": "https://s3.example",
+                            "secretAccessKey": "secret",
+                        }
+                    }
+                },
+                "/genuine/secret": "token",
+            }
+        )
+
+        reply = asyncio.run(adapter._storage_status_reply())
+
+        self.assertIn("*Current bucket*: **tlon-media**", reply)
+        self.assertIn("*Upload path*: **S3 (custom credentials)**", reply)
 
     def test_env_enablement_does_not_infer_home_channel_from_allowlist(self):
         with patch.dict(

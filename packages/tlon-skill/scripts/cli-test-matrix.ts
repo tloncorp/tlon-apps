@@ -296,18 +296,51 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'Usage: tlon posts send'
   ),
   {
-    name: 'posts send rejects non-http image url',
+    name: 'posts send rejects an invalid image url',
     args: ['posts', 'send', 'chat/~host/channel', '--image', 'ftp://x/y.png'],
     expectedExitCode: 1,
     stdout: '',
-    stderrIncludes: ['--image must be an http(s) image URL'],
+    stderrIncludes: ['Invalid media URL — pass a public https URL'],
   },
   {
-    name: 'posts send rejects non-http equals image url',
+    name: 'posts send rejects an invalid equals image url',
     args: ['posts', 'send', 'chat/~host/channel', '--image=ftp://x/y.png'],
     expectedExitCode: 1,
     stdout: '',
-    stderrIncludes: ['--image must be an http(s) image URL'],
+    stderrIncludes: ['Invalid media URL — pass a public https URL'],
+  },
+  {
+    name: 'posts send rejects a plain-http image url',
+    args: ['posts', 'send', 'chat/~host/channel', '--image', 'http://x/y.png'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Only https media URLs are supported.'],
+  },
+  {
+    name: 'posts send rejects a local image path',
+    args: [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      '--image',
+      '/pier/generated.png',
+    ],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Local file paths are not supported for --image'],
+  },
+  {
+    name: 'posts send rejects an image url with embedded credentials',
+    args: [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      '--image',
+      'https://u:p@x/y.png',
+    ],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Media URLs with embedded credentials are not supported.'],
   },
   usageErrorCase(
     'dms send missing image value',
@@ -315,11 +348,18 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'Usage: tlon dms send'
   ),
   {
-    name: 'dms send rejects non-http equals image url',
+    name: 'dms send rejects an invalid equals image url',
     args: ['dms', 'send', '0v5.abcde', '--image=ftp://x/y.png'],
     expectedExitCode: 1,
     stdout: '',
-    stderrIncludes: ['--image must be an http(s) image URL'],
+    stderrIncludes: ['Invalid media URL — pass a public https URL'],
+  },
+  {
+    name: 'dms send rejects a plain-http image url',
+    args: ['dms', 'send', '0v5.abcde', '--image', 'http://x/y.png'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['Only https media URLs are supported.'],
   },
   usageErrorCase(
     'settings set missing args',

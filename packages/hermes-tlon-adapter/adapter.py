@@ -553,11 +553,15 @@ def format_storage_status(
     hosting_forced: bool,
     service: str,
     has_s3_creds: bool,
+    current_bucket: str,
     genuine_reachable: bool,
+    config_known: bool = True,
 ) -> str:
     """Diagnostic for image uploads — mirrors the decision in
     @tloncorp/api uploadFile so an operator can see why a push would route
-    where it does."""
+    where it does. ``config_known=False`` means the configuration scry
+    failed: bucket/service facts are indeterminate, and the diagnostic must
+    say so rather than render a confident false verdict."""
     is_hosted = hosting_forced or url_hosted
     use_memex = is_hosted and (service == "presigned-url" or not has_s3_creds)
     if use_memex:
@@ -566,8 +570,15 @@ def format_storage_status(
             if genuine_reachable
             else "memex — would FAIL: no %genuine token"
         )
-    elif has_s3_creds:
+    elif has_s3_creds and current_bucket:
         path = "S3 (custom credentials)"
+    elif has_s3_creds and not config_known:
+        path = "unknown — storage configuration scry failed"
+    elif has_s3_creds:
+        # uploadFile does not check the bucket itself — it lets the S3 PUT
+        # fail. The CLI pre-flight is deliberately stricter, so the diagnostic
+        # names the missing bucket rather than promising a working upload.
+        path = "would FAIL: no storage bucket selected"
     else:
         path = "would FAIL: no storage credentials configured"
     rows = [
@@ -576,6 +587,7 @@ def format_storage_status(
         ("TLON_HOSTING", "set" if hosting_forced else "unset"),
         ("Storage service", service or "unknown"),
         ("Custom S3 creds", "yes" if has_s3_creds else "no"),
+        ("Current bucket", current_bucket or ("unknown" if not config_known else "none")),
         ("%genuine token", "reachable" if genuine_reachable else "unavailable"),
         ("Upload path", path),
     ]
@@ -2311,8 +2323,10 @@ class TlonAdapter(BasePlatformAdapter):
 
     async def _storage_status_reply(self) -> str:
         service = "unknown"
+        current_bucket = ""
         has_s3_creds = False
         genuine_reachable = False
+        config_known = False
         if self._sse is not None:
             try:
                 config = await self._sse.scry("/storage/configuration")
@@ -2320,6 +2334,8 @@ class TlonAdapter(BasePlatformAdapter):
                 configuration = update.get("configuration") if isinstance(update, dict) else None
                 if isinstance(configuration, dict):
                     service = str(configuration.get("service") or "unknown")
+                    current_bucket = str(configuration.get("currentBucket") or "")
+                    config_known = True
             except Exception as exc:
                 logger.debug("[tlon] storage configuration scry failed: %s", exc)
             try:
@@ -2345,7 +2361,9 @@ class TlonAdapter(BasePlatformAdapter):
             hosting_forced=self.tlon_config.hosting,
             service=service,
             has_s3_creds=has_s3_creds,
+            current_bucket=current_bucket,
             genuine_reachable=genuine_reachable,
+            config_known=config_known,
         )
 
     async def _maybe_handle_control_command(
@@ -4664,7 +4682,19 @@ async def _standalone_send(
     media_files: Optional[list[str]] = None,
     force_document: bool = False,
 ) -> Dict[str, Any]:
-    del media_files, force_document
+    del force_document
+    if media_files:
+        # The standalone/cron send path is text-only (TlonCLI.send_message takes
+        # no image argument). Dropping the media and delivering the text alone
+        # would report success for a message the recipient never sees in full —
+        # the exact fabricated-delivery failure this path must not have.
+        return {
+            "error": (
+                "tlon standalone send: media attachments are not supported on "
+                "this path — upload the image with `tlon upload` and send it "
+                "with `tlon posts send <target> [caption] --image <url>`"
+            )
+        }
     extra = getattr(pconfig, "extra", {}) or {}
     tlon = TlonConfig.from_env(extra)
     if not tlon.is_complete():
@@ -4811,6 +4841,11 @@ def register(ctx) -> None:
             "<post-id>. To send an image anywhere — including the "
             "current conversation — first 'tlon upload <direct-image-url>', then "
             "'tlon posts send <target> [caption] --image <uploaded-url>'. "
+            "--image takes only a public https URL (upload itself also accepts "
+            "local paths and http sources); never claim an image was posted "
+            "unless every command returned success — if upload reports the ship "
+            "cannot store uploads, pass the direct https image URL to --image "
+            "instead. "
             "The platform adapter directly handles owner chat commands for "
             "access and configuration: /owner-listen (no-mention listening), "
             "/channel-access (per-channel open access), /pending, /allow, "
