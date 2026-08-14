@@ -184,6 +184,7 @@ from .tlon_api import (
     TlonIncomingMessage,
     TlonReaction,
     TlonSSEClient,
+    TlonStreamStaleError,
     ChannelReactsSnapshot,
     TlonTerminalActionError,
     format_post_id,
@@ -273,6 +274,8 @@ OPTIONAL_ENV = [
     "TLON_TELEMETRY_DEBUG",
     "TLON_CLI",
     "TLON_SSE_READ_TIMEOUT_SECONDS",
+    "TLON_SSE_STALE_THRESHOLD_SECONDS",
+    "TLON_SSE_WATCHDOG_INTERVAL_SECONDS",
     "TLON_GATEWAY_STATUS",
     "TLON_GATEWAY_STATUS_OWNER",
     "TLON_REENGAGEMENT_ENABLED",
@@ -878,6 +881,22 @@ class TlonAdapter(BasePlatformAdapter):
         self._stream_task: Optional[asyncio.Task] = None
         self._event_queue: Optional[asyncio.Queue[_StreamWorkItem]] = None
         self._event_worker_task: Optional[asyncio.Task] = None
+        self._sse_watchdog_task: Optional[asyncio.Task] = None
+        self._sse_probe_task: Optional[asyncio.Task] = None
+        # Delivered-probe state for the current silence: epoch_at is the
+        # probe's START time (frame-order validity — its own ack can be parsed
+        # before poke() returns), success_at is when the PUT completed (grace
+        # runs from delivery), both set only on send success. Epoch validity
+        # is a comparison, not bookkeeping: a probe only counts for
+        # condemnation if it started after the last frame heard and was sent
+        # on the current client.
+        self._sse_probe_epoch_at: Optional[float] = None
+        self._sse_probe_success_at: Optional[float] = None
+        self._sse_probe_client: Optional[TlonSSEClient] = None
+        # Set while the reader is parked on the bounded event queue; the
+        # watchdog stands down during backpressure because stream liveness is
+        # unknowable there.
+        self._route_blocked = False
         self._nudge_snapshot = NudgeSettingsSnapshot()
         self._nudge_owner_activity: Optional[tuple[int, str]] = None
         self._nudge_stage_shadow = 0
@@ -2534,7 +2553,7 @@ class TlonAdapter(BasePlatformAdapter):
 
     async def _connect_sse(self) -> None:
         await self._close_sse()
-        sse = TlonSSEClient(self.tlon_config)
+        sse = TlonSSEClient(self.tlon_config, reap_detection=True)
         try:
             await sse.authenticate()
             await sse.open()
@@ -2560,6 +2579,19 @@ class TlonAdapter(BasePlatformAdapter):
         self._sse = sse
 
     async def _close_sse(self, *, graceful: bool = True) -> None:
+        # Settle any in-flight watchdog probe first — rebuilds reach here
+        # without the disconnect path's watchdog shutdown, and a probe still
+        # inside its PUT could otherwise race the teardown and re-create the
+        # channel it targets. A pending probe is either for this client or
+        # stale cross-client garbage; both are safe to cancel.
+        probe = self._sse_probe_task
+        if probe is not None:
+            probe.cancel()
+            try:
+                await probe
+            except asyncio.CancelledError:
+                pass
+            self._sse_probe_task = None
         if self._sse is not None:
             try:
                 await self._sse.close(graceful=graceful)
@@ -2694,11 +2726,17 @@ class TlonAdapter(BasePlatformAdapter):
                         "[tlon] SSE stream error (resuming from event %s): %s",
                         self._sse.last_heard_event_id, exc,
                     )
-                    await _backoff_and_report(exc, mode="resume")
+                    mode = (
+                        "watchdog_stale"
+                        if isinstance(exc, TlonStreamStaleError)
+                        else "resume"
+                    )
+                    await _backoff_and_report(exc, mode=mode)
 
     def _start_event_worker(self) -> None:
         self._event_queue = asyncio.Queue(maxsize=_STREAM_EVENT_QUEUE_MAXSIZE)
         self._event_worker_task = asyncio.create_task(self._run_event_worker())
+        self._sse_watchdog_task = asyncio.create_task(self._run_sse_watchdog())
 
     async def _stop_event_worker(self) -> None:
         if self._event_worker_task is not None:
@@ -2709,6 +2747,134 @@ class TlonAdapter(BasePlatformAdapter):
                 pass
             self._event_worker_task = None
         self._event_queue = None
+        await self._stop_sse_watchdog()
+
+    async def _stop_sse_watchdog(self) -> None:
+        # Runs before _close_sse in the disconnect sequence so no probe can
+        # race the client's teardown. The loop goes first so it cannot launch
+        # a fresh probe while the pending one is being drained.
+        if self._sse_watchdog_task is not None:
+            self._sse_watchdog_task.cancel()
+            try:
+                await self._sse_watchdog_task
+            except asyncio.CancelledError:
+                pass
+            self._sse_watchdog_task = None
+        if self._sse_probe_task is not None:
+            self._sse_probe_task.cancel()
+            try:
+                await self._sse_probe_task
+            except asyncio.CancelledError:
+                pass
+            self._sse_probe_task = None
+
+    async def _run_sse_watchdog(self) -> None:
+        # Always runs, even when staleness condemnation is disabled
+        # (threshold 0): the probe pokes are the reap detectors' only
+        # guaranteed main-channel traffic on an idle bot.
+        interval = self.tlon_config.sse_watchdog_interval_seconds
+        threshold = self.tlon_config.sse_stale_threshold_seconds
+        if 0 < threshold < interval:
+            # Legal but pathological: staleness cannot fire until a probe has
+            # been sent (>= one interval) and given a grace interval, so the
+            # effective recovery time is bounded by ~2x the interval, not the
+            # threshold.
+            logger.warning(
+                "[tlon] SSE stale threshold (%.0fs) is below the watchdog "
+                "interval (%.0fs); staleness recovery will take up to ~%.0fs",
+                threshold,
+                interval,
+                2 * interval,
+            )
+        while self._running:
+            await asyncio.sleep(interval)
+            if not self._running:
+                return
+            try:
+                self._sse_watchdog_tick(time.monotonic(), interval)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.warning("[tlon] SSE watchdog tick failed: %s", exc)
+
+    def _sse_watchdog_tick(self, now: float, interval: float) -> None:
+        # Backpressure gate: while the reader is parked on the bounded queue,
+        # frames age without reaching the parser and a condemn would needlessly
+        # resume a healthy stream once the stall clears.
+        if self._route_blocked:
+            return
+        sse = self._sse
+        # While unbound, the resume/rebuild loop owns recovery — and probes
+        # must never fire at an unbound channel, so they cannot themselves
+        # revive a reaped channel during an outage window.
+        if sse is None or not sse.stream_bound:
+            return
+        probe = self._sse_probe_task
+        if probe is not None and self._sse_probe_client is not sse:
+            probe.cancel()
+            self._sse_probe_task = None
+        idle = now - sse.last_event_frame_at
+        if idle < interval:
+            return
+        threshold = self.tlon_config.sse_stale_threshold_seconds
+        epoch_at = self._sse_probe_epoch_at
+        success_at = self._sse_probe_success_at
+        epoch_valid = (
+            epoch_at is not None
+            and success_at is not None
+            and self._sse_probe_client is sse
+            and epoch_at > sse.last_event_frame_at
+        )
+        if (
+            threshold > 0
+            and idle >= threshold
+            and epoch_valid
+            # Condemnation additionally requires a full grace interval since
+            # the delivered probe: an arithmetic relationship between the
+            # knobs cannot guarantee probe-before-condemn, so it is tracked.
+            and now - success_at >= interval
+        ):
+            logger.warning(
+                "[tlon] SSE stream stale: no events for %.0fs (threshold %.0fs); "
+                "forcing reconnect",
+                idle,
+                threshold,
+            )
+            sse.condemn(
+                TlonStreamStaleError(
+                    f"Tlon SSE stream stale: no events for {idle:.0f}s "
+                    f"(threshold {threshold:.0f}s)"
+                )
+            )
+            return
+        if self._sse_probe_task is None and not epoch_valid:
+            task = asyncio.create_task(self._send_sse_probe(sse))
+            self._sse_probe_task = task
+            task.add_done_callback(self._sse_probe_task_done)
+
+    def _sse_probe_task_done(self, task: "asyncio.Task") -> None:
+        if self._sse_probe_task is task:
+            self._sse_probe_task = None
+
+    async def _send_sse_probe(self, sse: TlonSSEClient) -> None:
+        # Frame-order validity must use the probe's START time: on a single
+        # event loop the probe's own ack can be parsed (refreshing
+        # last_event_frame_at) before poke() returns, and a post-PUT epoch
+        # would then postdate the answering ack and condemn a healthy stream
+        # in the next silence.
+        started_at = time.monotonic()
+        try:
+            await sse.poke("hood", "helm-hi", "Hermes SSE liveness probe")
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            # A failed PUT arms nothing: otherwise a broken outbound path
+            # would let the grace clock condemn a healthy inbound stream.
+            logger.debug("[tlon] SSE liveness probe failed: %s", exc)
+            return
+        self._sse_probe_epoch_at = started_at
+        self._sse_probe_success_at = time.monotonic()
+        self._sse_probe_client = sse
 
     async def _drain_event_worker(self) -> None:
         """Wait for pre-reconnect SSE work before applying a full snapshot."""
@@ -2814,7 +2980,11 @@ class TlonAdapter(BasePlatformAdapter):
             logger.warning("[tlon] %s event fast-tap failed: %s", app, exc)
             self._telemetry.error("event_fast_tap", exc, app=app)
         if self._event_queue is not None:
-            await self._event_queue.put(item)
+            self._route_blocked = True
+            try:
+                await self._event_queue.put(item)
+            finally:
+                self._route_blocked = False
         else:
             await self._process_stream_item(item)
 

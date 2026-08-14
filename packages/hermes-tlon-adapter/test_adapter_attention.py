@@ -1774,7 +1774,7 @@ class AdapterAttentionTests(unittest.TestCase):
         subscriptions = []
 
         class RecordingSSE:
-            def __init__(self, config):
+            def __init__(self, config, *, reap_detection=False):
                 pass
 
             async def authenticate(self):

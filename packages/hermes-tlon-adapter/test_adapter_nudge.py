@@ -130,7 +130,7 @@ class FailThenHeldScrySSE(HeldScrySSE):
 class SlowAuthenticateSSE:
     instances = []
 
-    def __init__(self, _config):
+    def __init__(self, _config, *, reap_detection=False):
         self.authenticate_started = asyncio.Event()
         self.release_authenticate = asyncio.Event()
         self.ready = False
