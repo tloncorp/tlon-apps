@@ -124,3 +124,6 @@
          weakening validation, lifecycle, or race guarantees.
 - [x] 5.16 Inline the single-use reconciler deactivation logic into
          `stop()`.
+- [x] 5.17 Bound hung cron reads and Steward submissions, fence late
+         list completion, and allow a stopped gateway epoch to be
+         replaced without waiting for abandoned promises.

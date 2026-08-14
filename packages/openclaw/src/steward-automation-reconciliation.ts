@@ -16,7 +16,8 @@ type StewardAutomationSubmissionGuard = () => void | Promise<void>;
 type StewardAutomationReconciliation = (
   getCron: StewardAutomationCronAccessor,
   beforeSubmit?: StewardAutomationSubmissionGuard,
-  assertCanSubmit?: () => void
+  assertCanSubmit?: () => void,
+  signal?: AbortSignal
 ) => Promise<void>;
 
 interface ReconciliationWaiter {
@@ -26,12 +27,97 @@ interface ReconciliationWaiter {
 
 interface PendingReconciliation {
   epoch: number;
+  controller: AbortController;
   getCron: StewardAutomationCronAccessor;
   waiters: ReconciliationWaiter[];
   settled: boolean;
 }
 
 export const DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS = 5_000;
+export const DEFAULT_STEWARD_AUTOMATION_OPERATION_TIMEOUT_MS = 30_000;
+
+export class StewardAutomationReconciliationTimeoutError extends Error {
+  readonly retryable = true;
+
+  constructor(
+    readonly phase: 'read' | 'submission',
+    readonly timeoutMs: number
+  ) {
+    super(
+      `Steward automation ${phase} timed out after ${timeoutMs}ms; ` +
+        'the complete reconciliation will be retried'
+    );
+    this.name = 'StewardAutomationReconciliationTimeoutError';
+  }
+}
+
+function withReconciliationDeadline<T>(
+  operation: (signal: AbortSignal) => Promise<T>,
+  epochSignal: AbortSignal,
+  timeoutMs: number,
+  getPhase: () => 'read' | 'submission'
+): Promise<T> {
+  const controller = new AbortController();
+  const abortFromEpoch = () => controller.abort(epochSignal.reason);
+
+  if (epochSignal.aborted) {
+    abortFromEpoch();
+  } else {
+    epochSignal.addEventListener('abort', abortFromEpoch, { once: true });
+  }
+
+  const timeout = setTimeout(() => {
+    controller.abort(
+      new StewardAutomationReconciliationTimeoutError(getPhase(), timeoutMs)
+    );
+  }, timeoutMs);
+  timeout.unref?.();
+
+  let work: Promise<T>;
+  try {
+    work = operation(controller.signal);
+  } catch (error) {
+    work = Promise.reject(error);
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      epochSignal.removeEventListener('abort', abortFromEpoch);
+      controller.signal.removeEventListener('abort', onAbort);
+    };
+    const settle = (callback: () => void) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      callback();
+    };
+    const onAbort = () =>
+      settle(() =>
+        reject(
+          controller.signal.reason ??
+            new Error('Steward automation reconciliation was aborted')
+        )
+      );
+
+    if (controller.signal.aborted) {
+      onAbort();
+    } else {
+      controller.signal.addEventListener('abort', onAbort, { once: true });
+    }
+
+    // Keep handlers attached after an abort or timeout so a late rejection
+    // from a transport that cannot be cancelled is still observed.
+    work.then(
+      (value) => settle(() => resolve(value)),
+      (error) => settle(() => reject(error))
+    );
+  });
+}
 
 export type StewardAutomationRetryDelay = (
   delayMs: number,
@@ -90,8 +176,10 @@ export class StewardAutomationReconciliationCancelledError extends Error {
 export async function reconcileStewardAutomation(
   getCron: StewardAutomationCronAccessor,
   beforeSubmit?: StewardAutomationSubmissionGuard,
-  assertCanSubmit?: () => void
+  assertCanSubmit?: () => void,
+  signal?: AbortSignal
 ): Promise<void> {
+  signal?.throwIfAborted();
   if (!getCron) {
     throw new StewardAutomationCronUnavailableError('missing-accessor');
   }
@@ -102,10 +190,12 @@ export async function reconcileStewardAutomation(
   }
 
   const jobs = await cron.list({ includeDisabled: true });
+  signal?.throwIfAborted();
   const projection = normalizeStewardAutomationProjection(jobs);
   await beforeSubmit?.();
-  // Keep this synchronous check adjacent to invoking the adapter. Awaiting a
-  // lifecycle guard here would reopen a microtask-sized stale-submit race.
+  signal?.throwIfAborted();
+  // Keep these synchronous checks adjacent to invoking the adapter. Awaiting
+  // a lifecycle guard here would reopen a microtask-sized stale-submit race.
   assertCanSubmit?.();
   await submitStewardAutomationProjection(projection);
 }
@@ -115,10 +205,12 @@ export async function reconcileStewardAutomation(
  *
  * `start` creates an epoch and requests its full snapshot, while duplicate
  * starts during that epoch are ignored. Active triggers are coalesced. `stop`
- * cancels retry delay, rejects
+ * cancels retry delays and abandons in-flight operation waits, rejects
  * outstanding promises with a typed cancellation, and leaves durable Steward
- * state untouched. A stopped reconciler ignores later change triggers until a
- * new `start` creates a fresh epoch.
+ * state untouched. Each read-and-submit attempt also has a deadline so a hung
+ * dependency cannot own the process-lifetime worker forever. A stopped
+ * reconciler ignores later change triggers until a new `start` creates a fresh
+ * epoch.
  */
 export class StewardAutomationReconciler {
   private pending: PendingReconciliation | null = null;
@@ -126,12 +218,13 @@ export class StewardAutomationReconciler {
   private running = false;
   private epoch = 0;
   private activeEpoch: number | null = null;
-  private retryController: AbortController | null = null;
+  private activeController: AbortController | null = null;
 
   constructor(
     private readonly reconcile: StewardAutomationReconciliation = reconcileStewardAutomation,
     private readonly retryDelay: StewardAutomationRetryDelay = waitForRetryDelay,
-    private readonly retryDelayMs = DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS
+    private readonly retryDelayMs = DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS,
+    private readonly operationTimeoutMs = DEFAULT_STEWARD_AUTOMATION_OPERATION_TIMEOUT_MS
   ) {}
 
   start(getCron: StewardAutomationCronAccessor): Promise<void> {
@@ -143,17 +236,18 @@ export class StewardAutomationReconciler {
     }
 
     const epoch = ++this.epoch;
+    const controller = new AbortController();
     this.activeEpoch = epoch;
-    this.retryController = new AbortController();
-    return this.enqueue(epoch, getCron);
+    this.activeController = controller;
+    return this.enqueue(epoch, controller, getCron);
   }
 
   /** Ignore cron changes safely while no gateway epoch is active. */
   trigger(getCron: StewardAutomationCronAccessor): Promise<void> {
-    if (this.activeEpoch === null) {
+    if (this.activeEpoch === null || this.activeController === null) {
       return Promise.resolve();
     }
-    return this.enqueue(this.activeEpoch, getCron);
+    return this.enqueue(this.activeEpoch, this.activeController, getCron);
   }
 
   stop(): void {
@@ -167,8 +261,8 @@ export class StewardAutomationReconciler {
       'gateway-stop'
     );
     this.activeEpoch = null;
-    this.retryController?.abort(cancellation);
-    this.retryController = null;
+    this.activeController?.abort(cancellation);
+    this.activeController = null;
 
     if (this.current?.epoch === epoch) {
       this.rejectBatch(this.current, cancellation);
@@ -183,16 +277,31 @@ export class StewardAutomationReconciler {
 
   private enqueue(
     epoch: number,
+    controller: AbortController,
     getCron: StewardAutomationCronAccessor
   ): Promise<void> {
     const promise = new Promise<void>((resolve, reject) => {
       const waiter = { resolve, reject };
-      if (this.pending?.epoch === epoch) {
+
+      if (this.pending) {
+        if (
+          this.pending.epoch !== epoch ||
+          this.pending.controller !== controller
+        ) {
+          reject(
+            new Error(
+              `Reconciler invariant violated: pending epoch ` +
+                `${this.pending.epoch}, requested epoch ${epoch}`
+            )
+          );
+          return;
+        }
         this.pending.getCron = getCron;
         this.pending.waiters.push(waiter);
       } else {
         this.pending = {
           epoch,
+          controller,
           getCron,
           waiters: [waiter],
           settled: false,
@@ -224,8 +333,24 @@ export class StewardAutomationReconciler {
           }
 
           try {
-            await this.reconcile(batch.getCron, undefined, () =>
-              this.assertActiveEpoch(batch.epoch)
+            let phase: 'read' | 'submission' = 'read';
+            // The deadline bounds our wait; it cannot revoke a remote side
+            // effect after the adapter has issued it. Keeping the late work
+            // observed prevents unhandled rejections, while the next attempt
+            // rereads the complete authoritative snapshot.
+            await withReconciliationDeadline(
+              (signal) =>
+                this.reconcile(
+                  batch.getCron,
+                  () => {
+                    phase = 'submission';
+                  },
+                  () => this.assertActiveEpoch(batch.epoch),
+                  signal
+                ),
+              batch.controller.signal,
+              this.operationTimeoutMs,
+              () => phase
             );
             this.assertActiveEpoch(batch.epoch);
             this.resolveBatch(batch);
@@ -237,10 +362,7 @@ export class StewardAutomationReconciler {
             }
 
             try {
-              await this.retryDelay(
-                this.retryDelayMs,
-                this.retryController?.signal
-              );
+              await this.retryDelay(this.retryDelayMs, batch.controller.signal);
             } catch (delayError) {
               this.rejectBatch(batch, delayError);
               break;

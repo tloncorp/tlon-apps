@@ -496,6 +496,70 @@ describe('StewardAutomationReconciler', () => {
     });
   });
 
+  it('times out a hung list, fences its late result, and retries', async () => {
+    const hungList = deferred<PluginHookGatewayCronJob[]>();
+    const { delay, waits } = controlledRetryDelay();
+    const list = vi
+      .fn()
+      .mockImplementationOnce(() => hungList.promise)
+      .mockResolvedValueOnce([job('recovered')]);
+    const reconciler = new StewardAutomationReconciler(
+      reconcileStewardAutomation,
+      delay,
+      DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS,
+      10
+    );
+
+    const result = reconciler.start(() => ({ list }));
+    await vi.waitFor(() => expect(delay).toHaveBeenCalledOnce());
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
+
+    hungList.resolve([job('stale')]);
+    waits[0].resolve();
+    await result;
+
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledWith({
+      project: { tasks: [expect.objectContaining({ id: 'recovered' })] },
+    });
+  });
+
+  it('times out a hung submission and retries the complete operation', async () => {
+    const hungSubmission = deferred<void>();
+    const { delay, waits } = controlledRetryDelay();
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce([job('first')])
+      .mockResolvedValueOnce([job('recovered')]);
+    vi.mocked(submitStewardAutomationProjection)
+      .mockImplementationOnce(() => hungSubmission.promise)
+      .mockResolvedValueOnce(undefined);
+    const reconciler = new StewardAutomationReconciler(
+      reconcileStewardAutomation,
+      delay,
+      DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS,
+      10
+    );
+
+    const result = reconciler.start(() => ({ list }));
+    await vi.waitFor(() => expect(delay).toHaveBeenCalledOnce());
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+
+    waits[0].resolve();
+    await result;
+
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(submitStewardAutomationProjection).toHaveBeenCalledTimes(2);
+    expect(submitStewardAutomationProjection).toHaveBeenLastCalledWith({
+      project: { tasks: [expect.objectContaining({ id: 'recovered' })] },
+    });
+
+    // The deadline observer must consume a rejection from abandoned work.
+    hungSubmission.reject(new Error('late poke failure'));
+    await Promise.resolve();
+  });
+
   it('cancels an active retry delay and does not start another attempt', async () => {
     const retryStarted = deferred<void>();
     const delay = vi.fn((_delayMs: number, signal?: AbortSignal) => {
@@ -598,6 +662,62 @@ describe('StewardAutomationReconciler', () => {
 
     expect(pendingList).not.toHaveBeenCalled();
     expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
+  });
+
+  it('restarts without waiting for a hung prior-epoch list', async () => {
+    const hungList = deferred<PluginHookGatewayCronJob[]>();
+    const staleList = vi.fn(() => hungList.promise);
+    const freshList = vi.fn().mockResolvedValue([job('fresh')]);
+    const reconciler = new StewardAutomationReconciler();
+
+    const stale = reconciler.start(() => ({ list: staleList }));
+    const staleCancelled = expect(stale).rejects.toMatchObject({
+      name: 'StewardAutomationReconciliationCancelledError',
+      reason: 'gateway-stop',
+    });
+    reconciler.stop();
+    const fresh = reconciler.start(() => ({ list: freshList }));
+
+    await staleCancelled;
+    await fresh;
+
+    expect(staleList).toHaveBeenCalledOnce();
+    expect(freshList).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledWith({
+      project: { tasks: [expect.objectContaining({ id: 'fresh' })] },
+    });
+  });
+
+  it('restarts without waiting for a hung prior-epoch submission', async () => {
+    const hungSubmission = deferred<void>();
+    vi.mocked(submitStewardAutomationProjection)
+      .mockImplementationOnce(() => hungSubmission.promise)
+      .mockResolvedValueOnce(undefined);
+    const stale = cronContext([job('stale')]);
+    const fresh = cronContext([job('fresh')]);
+    const reconciler = new StewardAutomationReconciler();
+
+    const staleResult = reconciler.start(stale.context.getCron);
+    const staleCancelled = expect(staleResult).rejects.toMatchObject({
+      name: 'StewardAutomationReconciliationCancelledError',
+      reason: 'gateway-stop',
+    });
+    await vi.waitFor(() => {
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+    });
+    reconciler.stop();
+    const freshResult = reconciler.start(fresh.context.getCron);
+
+    await staleCancelled;
+    await freshResult;
+
+    expect(stale.list).toHaveBeenCalledOnce();
+    expect(fresh.list).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledTimes(2);
+    expect(submitStewardAutomationProjection).toHaveBeenLastCalledWith({
+      project: { tasks: [expect.objectContaining({ id: 'fresh' })] },
+    });
   });
 
   it('restarts with one fresh snapshot and blocks the stale prior epoch', async () => {
