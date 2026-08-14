@@ -1,5 +1,6 @@
 import { configureClient } from '@tloncorp/api';
 
+import { sharedMap } from '../shared-state.js';
 import { authenticate } from './auth.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from './context.js';
 import { urbitFetch } from './fetch.js';
@@ -11,6 +12,31 @@ type PokeFn = (params: {
   json: unknown;
 }) => Promise<unknown>;
 type ScryFn = (params: { app: string; path: string }) => Promise<unknown>;
+
+type ApiClientLockState = { tail: Promise<void> };
+const apiClientLockStates = sharedMap<string, ApiClientLockState>(
+  'urbit.api-client-lock'
+);
+const API_CLIENT_LOCK_KEY = 'global';
+
+async function withApiClientLock<T>(fn: () => Promise<T>): Promise<T> {
+  let state = apiClientLockStates.get(API_CLIENT_LOCK_KEY);
+  if (!state) {
+    state = { tail: Promise.resolve() };
+    apiClientLockStates.set(API_CLIENT_LOCK_KEY, state);
+  }
+  const previous = state.tail;
+  let release!: () => void;
+  state.tail = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  try {
+    return await fn();
+  } finally {
+    release();
+  }
+}
 
 /**
  * Create a minimal Urbit-compatible shim that delegates poke() to the given function.
@@ -67,6 +93,25 @@ export function configureTlonApiWithPoke(
 }
 
 /**
+ * Run one operation against @tloncorp/api's process-global client without
+ * allowing another account to reconfigure it mid-flight.
+ */
+export async function withTlonApiClient<T>(
+  params: {
+    poke: PokeFn;
+    ship: string;
+    url: string;
+    scry?: ScryFn;
+  },
+  fn: () => Promise<T>
+): Promise<T> {
+  return await withApiClientLock(async () => {
+    configureTlonApiWithPoke(params.poke, params.ship, params.url, params.scry);
+    return await fn();
+  });
+}
+
+/**
  * Create an authenticated HTTP-only client, configure @tloncorp/api, run fn, clean up.
  * Use this for one-shot outbound operations (channel.ts, actions.ts).
  * Supports both poke and scry (needed for uploadFile).
@@ -116,16 +161,17 @@ export async function withAuthenticatedTlonApi<T>(
     }
   };
 
-  const shim = createClientShim(api.poke, params.url, scryFn);
-  configureClient({
-    shipName: params.ship.replace(/^~/, ''),
-    shipUrl: params.url,
-    client: shim,
-    getCode: async () => params.code,
-  });
-
   try {
-    return await fn();
+    return await withApiClientLock(async () => {
+      const shim = createClientShim(api.poke, params.url, scryFn);
+      configureClient({
+        shipName: params.ship.replace(/^~/, ''),
+        shipUrl: params.url,
+        client: shim,
+        getCode: async () => params.code,
+      });
+      return await fn();
+    });
   } finally {
     try {
       await api.delete();

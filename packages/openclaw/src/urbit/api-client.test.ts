@@ -79,4 +79,46 @@ describe('api client shim', () => {
       })
     );
   });
+
+  it('serializes account client configuration across concurrent operations', async () => {
+    const { withTlonApiClient } = await import('./api-client.js');
+    const events: string[] = [];
+    let releaseAlpha!: () => void;
+    const alphaGate = new Promise<void>((resolve) => {
+      releaseAlpha = resolve;
+    });
+
+    const alpha = withTlonApiClient(
+      { poke: vi.fn(), ship: '~alpha', url: 'http://alpha' },
+      async () => {
+        events.push('alpha:start');
+        await alphaGate;
+        events.push('alpha:end');
+      }
+    );
+    await vi.waitFor(() => expect(events).toEqual(['alpha:start']));
+
+    const beta = withTlonApiClient(
+      { poke: vi.fn(), ship: '~beta', url: 'http://beta' },
+      async () => {
+        events.push('beta:start');
+        events.push('beta:end');
+      }
+    );
+    await Promise.resolve();
+    expect(events).toEqual(['alpha:start']);
+
+    releaseAlpha();
+    await Promise.all([alpha, beta]);
+    expect(events).toEqual([
+      'alpha:start',
+      'alpha:end',
+      'beta:start',
+      'beta:end',
+    ]);
+    expect(configureClient.mock.calls.map(([call]) => call.shipName)).toEqual([
+      'alpha',
+      'beta',
+    ]);
+  });
 });

@@ -6,11 +6,39 @@ describe('Tlon config schema', () => {
   it('supports an explicit non-default monolithic deployment mode', () => {
     expect(TlonConfigSchema.parse({}).deploymentMode).toBeUndefined();
     expect(
-      TlonConfigSchema.parse({ deploymentMode: 'monolithic' }).deploymentMode
+      TlonConfigSchema.parse({
+        deploymentMode: 'monolithic',
+        accounts: {
+          alpha: { ship: '~alpha', url: 'http://alpha', code: 'secret' },
+        },
+      }).deploymentMode
     ).toBe('monolithic');
     expect(() =>
       TlonConfigSchema.parse({ deploymentMode: 'shared' })
     ).toThrow();
+  });
+
+  it('requires complete per-account credentials in monolithic mode', () => {
+    expect(() =>
+      TlonConfigSchema.parse({
+        deploymentMode: 'monolithic',
+        ship: '~fallback',
+        url: 'http://fallback',
+        code: 'fallback-code',
+        accounts: { alpha: { ownerShip: '~zod' } },
+      })
+    ).toThrow(/configured per account|is required/);
+  });
+
+  it('continues allowing named accounts to inherit standalone credentials', () => {
+    expect(
+      TlonConfigSchema.parse({
+        ship: '~fallback',
+        url: 'http://fallback',
+        code: 'fallback-code',
+        accounts: { alpha: { ownerShip: '~zod' } },
+      }).accounts?.alpha?.ownerShip
+    ).toBe('~zod');
   });
 
   it('accepts channelRules with string keys', () => {

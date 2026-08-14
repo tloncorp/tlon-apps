@@ -84,7 +84,10 @@ import {
   startTlonAgentTurn,
 } from '../turn-recorder.js';
 import { isMonolithicTlonDeployment, resolveTlonAccount } from '../types.js';
-import { configureTlonApiWithPoke } from '../urbit/api-client.js';
+import {
+  configureTlonApiWithPoke,
+  withTlonApiClient,
+} from '../urbit/api-client.js';
 import {
   authenticate,
   isPermanentAuthenticationFailure,
@@ -96,7 +99,11 @@ import {
 import { ssrfPolicyFromAllowPrivateNetwork } from '../urbit/context.js';
 import { describeError } from '../urbit/errors.js';
 import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
-import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
+import {
+  type BotProfile,
+  sendChannelPost as sendChannelPostWithConfiguredApi,
+  sendDm as sendDmWithConfiguredApi,
+} from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
@@ -129,7 +136,10 @@ import {
   removeBridge,
   setBridge,
 } from './command-bridge.js';
-import { createComputingPresenceTracker } from './computing-presence.js';
+import {
+  createComputingPresenceReporter,
+  createComputingPresenceTracker,
+} from './computing-presence.js';
 import { fetchAllChannels, fetchInitData } from './discovery.js';
 import { dmReactionReplyParentId } from './dm-reactions.js';
 import {
@@ -667,8 +677,27 @@ export async function monitorTlonProvider(
     throw error;
   }
 
-  // Configure @tloncorp/api's global client to use the SSE client's poke for all send operations
-  configureTlonApiWithPoke(api.poke.bind(api), botShipName, account.url);
+  const runWithAccountApi = <T>(fn: () => Promise<T>) =>
+    withTlonApiClient(
+      {
+        poke: api.poke.bind(api),
+        ship: botShipName,
+        url: accountUrl,
+        scry: ({ path }) => api.scry(path),
+      },
+      fn
+    );
+  const sendDm = (params: Parameters<typeof sendDmWithConfiguredApi>[0]) =>
+    runWithAccountApi(() => sendDmWithConfiguredApi(params));
+  const sendChannelPost = (
+    params: Parameters<typeof sendChannelPostWithConfiguredApi>[0]
+  ) => runWithAccountApi(() => sendChannelPostWithConfiguredApi(params));
+
+  // Preserve the legacy ambient client for standalone integrations. Every
+  // monolithic send uses the exclusive account wrapper above instead.
+  if (!isMonolithicTlonDeployment(cfg)) {
+    configureTlonApiWithPoke(api.poke.bind(api), botShipName, account.url);
+  }
 
   // Publish the SSE-bound poke + ship coords so other module contexts (e.g.
   // the gateway-status heartbeat) can configure their own @tloncorp/api
@@ -771,7 +800,14 @@ export async function monitorTlonProvider(
   // orphaned. This outer finally catches all of those and runs cleanup
   // unconditionally.
   try {
-    const computingPresence = createComputingPresenceTracker({ runtime });
+    const accountPresenceReporter = createComputingPresenceReporter();
+    const computingPresence = createComputingPresenceTracker({
+      runtime,
+      reporter: {
+        publish: (params) =>
+          runWithAccountApi(() => accountPresenceReporter.publish(params)),
+      },
+    });
     const contextLensConfig = account.contextLens;
     const contextLensEnabled =
       !isMonolithicTlonDeployment(cfg) &&

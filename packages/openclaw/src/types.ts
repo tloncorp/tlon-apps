@@ -222,10 +222,17 @@ export function resolveTlonAccount(
 
   const useDefault = !accountId || accountId === 'default';
   const account = useDefault ? base : base.accounts?.[accountId];
+  const inheritBaseCredentials = useDefault || !isMonolithicTlonDeployment(cfg);
 
-  const ship = (account?.ship ?? base.ship ?? null) as string | null;
-  const url = (account?.url ?? base.url ?? null) as string | null;
-  const code = (account?.code ?? base.code ?? null) as string | null;
+  const ship = (account?.ship ??
+    (inheritBaseCredentials ? base.ship : null) ??
+    null) as string | null;
+  const url = (account?.url ??
+    (inheritBaseCredentials ? base.url : null) ??
+    null) as string | null;
+  const code = (account?.code ??
+    (inheritBaseCredentials ? base.code : null) ??
+    null) as string | null;
   const accountNetwork = (
     account as { network?: { dangerouslyAllowPrivateNetwork?: boolean } }
   )?.network;
@@ -351,6 +358,9 @@ export function listTlonAccountIds(cfg: OpenClawConfig): string[] {
     return [];
   }
   const accounts = base.accounts ?? {};
+  if (isMonolithicTlonDeployment(cfg)) {
+    return Object.keys(accounts);
+  }
   return [...(base.ship ? ['default'] : []), ...Object.keys(accounts)];
 }
 

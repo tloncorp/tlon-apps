@@ -138,53 +138,87 @@ export const TlonAccountSchema = z.object({
   ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
 });
 
-export const TlonConfigSchema = z.object({
-  name: z.string().optional(),
-  enabled: z.boolean().optional(),
-  // Self-hosted installs keep the existing single-gateway behavior by
-  // default. Central hosting must opt in so multitenant-only restrictions and
-  // control-plane behavior never surprise existing users.
-  deploymentMode: z.enum(['standalone', 'monolithic']).optional(),
-  ship: ShipSchema.optional(),
-  url: z.string().optional(),
-  code: z.string().optional(),
-  network: TlonNetworkSchema.optional(),
-  /** @deprecated Use `network.dangerouslyAllowPrivateNetwork`. Migrated by `openclaw doctor --fix`. */
-  allowPrivateNetwork: z.boolean().optional(),
-  groupChannels: z.array(ChannelNestSchema).optional(),
-  dmAllowlist: z.array(ShipSchema).optional(),
-  groupInviteAllowlist: z.array(ShipSchema).optional(),
-  autoDiscoverChannels: z.boolean().optional(),
-  showModelSignature: z.boolean().optional(),
-  authorization: TlonAuthorizationSchema.optional(),
-  defaultAuthorizedShips: z.array(ShipSchema).optional(),
-  accounts: z.record(z.string(), TlonAccountSchema).optional(),
-  // Auto-accept settings
-  autoAcceptDmInvites: z.boolean().optional(), // Auto-accept DMs from ships in dmAllowlist
-  autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization (groupInviteAllowlist does); retained for channel persistence and back-compat
-  // Owner ship for approval system
-  ownerShip: ShipSchema.optional(), // Ship that receives approval requests and can approve/deny
-  // Reaction level: off (no reactions), ack (notify only), minimal (react sparingly), extensive (react freely)
-  reactionLevel: ReactionLevelSchema.optional(),
-  // Rate limiting for bot-to-bot responses
-  maxConsecutiveBotResponses: z.number().int().min(0).optional(), // Max consecutive responses to another bot (default: 3)
-  telemetry: TlonTelemetrySchema.optional(),
-  lifecycle: TlonLifecycleSchema.optional(),
-  contextLens: TlonContextLensSchema.optional(),
-  // Opt-in hosted-only re-engagement nudges; absent/false keeps the
-  // scheduler off even when ownerShip is configured.
-  reengagement: TlonReengagementSchema.optional(),
-  // Optional static file-config override for the plugin scheduler's
-  // active hours. See TlonNudgeActiveHoursSchema for precedence.
-  nudgeActiveHours: TlonNudgeActiveHoursSchema.optional(),
-  // Owner-listen: in channels hosted by the owner or the bot itself, engage
-  // on owner messages without requiring an @-mention. Default: enabled.
-  ownerListenEnabled: z.boolean().optional(),
-  // Channels (chat/heap/diary nests) opted out of owner-listen even when the
-  // global toggle is on. Owner messages in these channels still require an
-  // @-mention to engage the bot.
-  ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
-});
+export const TlonConfigSchema = z
+  .object({
+    name: z.string().optional(),
+    enabled: z.boolean().optional(),
+    // Self-hosted installs keep the existing single-gateway behavior by
+    // default. Central hosting must opt in so multitenant-only restrictions and
+    // control-plane behavior never surprise existing users.
+    deploymentMode: z.enum(['standalone', 'monolithic']).optional(),
+    ship: ShipSchema.optional(),
+    url: z.string().optional(),
+    code: z.string().optional(),
+    network: TlonNetworkSchema.optional(),
+    /** @deprecated Use `network.dangerouslyAllowPrivateNetwork`. Migrated by `openclaw doctor --fix`. */
+    allowPrivateNetwork: z.boolean().optional(),
+    groupChannels: z.array(ChannelNestSchema).optional(),
+    dmAllowlist: z.array(ShipSchema).optional(),
+    groupInviteAllowlist: z.array(ShipSchema).optional(),
+    autoDiscoverChannels: z.boolean().optional(),
+    showModelSignature: z.boolean().optional(),
+    authorization: TlonAuthorizationSchema.optional(),
+    defaultAuthorizedShips: z.array(ShipSchema).optional(),
+    accounts: z.record(z.string(), TlonAccountSchema).optional(),
+    // Auto-accept settings
+    autoAcceptDmInvites: z.boolean().optional(), // Auto-accept DMs from ships in dmAllowlist
+    autoAcceptGroupInvites: z.boolean().optional(), // No longer governs group-invite authorization (groupInviteAllowlist does); retained for channel persistence and back-compat
+    // Owner ship for approval system
+    ownerShip: ShipSchema.optional(), // Ship that receives approval requests and can approve/deny
+    // Reaction level: off (no reactions), ack (notify only), minimal (react sparingly), extensive (react freely)
+    reactionLevel: ReactionLevelSchema.optional(),
+    // Rate limiting for bot-to-bot responses
+    maxConsecutiveBotResponses: z.number().int().min(0).optional(), // Max consecutive responses to another bot (default: 3)
+    telemetry: TlonTelemetrySchema.optional(),
+    lifecycle: TlonLifecycleSchema.optional(),
+    contextLens: TlonContextLensSchema.optional(),
+    // Opt-in hosted-only re-engagement nudges; absent/false keeps the
+    // scheduler off even when ownerShip is configured.
+    reengagement: TlonReengagementSchema.optional(),
+    // Optional static file-config override for the plugin scheduler's
+    // active hours. See TlonNudgeActiveHoursSchema for precedence.
+    nudgeActiveHours: TlonNudgeActiveHoursSchema.optional(),
+    // Owner-listen: in channels hosted by the owner or the bot itself, engage
+    // on owner messages without requiring an @-mention. Default: enabled.
+    ownerListenEnabled: z.boolean().optional(),
+    // Channels (chat/heap/diary nests) opted out of owner-listen even when the
+    // global toggle is on. Owner messages in these channels still require an
+    // @-mention to engage the bot.
+    ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.deploymentMode !== 'monolithic') {
+      return;
+    }
+    for (const field of ['ship', 'url', 'code'] as const) {
+      if (value[field] !== undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [field],
+          message: `${field} must be configured per account in monolithic mode`,
+        });
+      }
+    }
+    if (!value.accounts || Object.keys(value.accounts).length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['accounts'],
+        message: 'monolithic mode requires at least one named account',
+      });
+      return;
+    }
+    for (const [accountId, account] of Object.entries(value.accounts)) {
+      for (const field of ['ship', 'url', 'code'] as const) {
+        if (!account[field]) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['accounts', accountId, field],
+            message: `${field} is required in monolithic mode`,
+          });
+        }
+      }
+    }
+  });
 
 // Cast bridges a type-only mismatch: this repo's zod and openclaw's bundled
 // zod can resolve to different minors (e.g. under pnpm 9, which doesn't dedup
