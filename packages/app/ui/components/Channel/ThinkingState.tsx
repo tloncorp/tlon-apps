@@ -10,22 +10,35 @@ const MAX_VISIBLE_AVATARS = 3;
 export function ThinkingState({
   conversationId,
   channelType,
+  reserveSpace = false,
 }: {
   conversationId: string;
   channelType: db.Channel['type'];
+  reserveSpace?: boolean;
 }) {
   const computingState = useConversationComputingState(conversationId);
 
-  if (!computingState) {
+  if (!computingState && !reserveSpace) {
     return null;
   }
 
-  const showAvatars = channelType !== 'dm' || computingState.ships.length >= 2;
-  const visibleShips = computingState.ships.slice(0, MAX_VISIBLE_AVATARS);
-  const overflowCount = computingState.ships.length - visibleShips.length;
+  const showAvatars = Boolean(
+    computingState && (channelType !== 'dm' || computingState.ships.length >= 2)
+  );
+  const visibleShips =
+    computingState?.ships.slice(0, MAX_VISIBLE_AVATARS) ?? [];
+  const overflowCount =
+    (computingState?.ships.length ?? 0) - visibleShips.length;
 
   return (
-    <View paddingHorizontal="$l" paddingTop="$xs" paddingBottom="$s">
+    <View
+      height={52}
+      justifyContent="center"
+      opacity={computingState ? 1 : 0}
+      paddingHorizontal="$l"
+      pointerEvents="none"
+      transition="quick"
+    >
       <XStack alignItems="center" gap="$s">
         {showAvatars && (
           <XStack alignItems="center">
@@ -54,7 +67,7 @@ export function ThinkingState({
         )}
         <Spinner size="small" color="$tertiaryText" />
         <Text size="$label/m" color="$tertiaryText" flexShrink={1}>
-          {computingState.label}
+          {computingState?.label ?? 'Thinking...'}
         </Text>
       </XStack>
     </View>
