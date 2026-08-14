@@ -369,3 +369,10 @@ export function listRunnableTlonAccountIds(cfg: OpenClawConfig): string[] {
     return account.enabled && account.configured;
   });
 }
+
+export function isMonolithicTlonDeployment(cfg: OpenClawConfig): boolean {
+  return (
+    (cfg.channels?.tlon as { deploymentMode?: string } | undefined)
+      ?.deploymentMode === 'monolithic'
+  );
+}

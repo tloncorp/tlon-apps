@@ -712,6 +712,22 @@ describe('gateway-status: gateGatewayStatusActivation (per-monitor gate)', () =>
     expect(onMultiAccountSkip).toHaveBeenCalledWith(2);
   });
 
+  it('does NOT activate legacy single-account gateway status in monolithic mode', () => {
+    const result = gateGatewayStatusActivation({
+      cfg: {
+        channels: {
+          tlon: { ...oneAccount.channels?.tlon, deploymentMode: 'monolithic' },
+        },
+      } as OpenClawConfig,
+      coordinator,
+      effectiveOwnerShip: '~zod',
+      isTornDown: () => false,
+      registerHeartbeatStop: vi.fn(),
+    });
+    expect(result).toBeNull();
+    expect(gatewayStart).not.toHaveBeenCalled();
+  });
+
   it('does NOT activate with a 0-account snapshot and does not report a multi-account skip', () => {
     const onMultiAccountSkip = vi.fn();
     const result = gateGatewayStatusActivation({

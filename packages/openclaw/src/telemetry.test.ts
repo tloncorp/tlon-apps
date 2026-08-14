@@ -1826,6 +1826,62 @@ describe('telemetry tool tracking', () => {
   });
 });
 
+describe('account-scoped telemetry reporters', () => {
+  beforeEach(() => {
+    setErrorTelemetryReporter(null);
+  });
+
+  it('routes account-tagged reports to only that account', () => {
+    const alpha = vi.fn();
+    const beta = vi.fn();
+    const cleanupAlpha = setErrorTelemetryReporter('alpha', alpha);
+    const cleanupBeta = setErrorTelemetryReporter('beta', beta);
+
+    reportPluginError({
+      pluginErrorSource: 'chat_firehose',
+      accountId: 'beta',
+      errorText: 'beta failed',
+    });
+
+    expect(alpha).not.toHaveBeenCalled();
+    expect(beta).toHaveBeenCalledOnce();
+    cleanupAlpha();
+    cleanupBeta();
+  });
+
+  it('does not let stale cleanup remove a replacement reporter', () => {
+    const stale = vi.fn();
+    const current = vi.fn();
+    const cleanupStale = setErrorTelemetryReporter('alpha', stale);
+    const cleanupCurrent = setErrorTelemetryReporter('alpha', current);
+
+    cleanupStale();
+    reportPluginError({
+      pluginErrorSource: 'chat_firehose',
+      accountId: 'alpha',
+      errorText: 'still connected',
+    });
+
+    expect(stale).not.toHaveBeenCalled();
+    expect(current).toHaveBeenCalledOnce();
+    cleanupCurrent();
+  });
+
+  it('drops ambiguous gateway-global reports in a multi-account process', () => {
+    const alpha = vi.fn();
+    const beta = vi.fn();
+    const cleanupAlpha = setCronTelemetryReporter('alpha', alpha);
+    const cleanupBeta = setCronTelemetryReporter('beta', beta);
+
+    reportCronSnapshot({ jobCount: 2, enabledJobCount: 2 });
+
+    expect(alpha).not.toHaveBeenCalled();
+    expect(beta).not.toHaveBeenCalled();
+    cleanupAlpha();
+    cleanupBeta();
+  });
+});
+
 describe('outbound route telemetry', () => {
   beforeEach(() => {
     _testing.clearSessionContexts();

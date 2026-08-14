@@ -111,6 +111,8 @@ export const TlonAccountSchema = z.object({
   groupChannels: z.array(ChannelNestSchema).optional(),
   dmAllowlist: z.array(ShipSchema).optional(),
   groupInviteAllowlist: z.array(ShipSchema).optional(),
+  authorization: TlonAuthorizationSchema.optional(),
+  defaultAuthorizedShips: z.array(ShipSchema).optional(),
   autoDiscoverChannels: z.boolean().optional(),
   showModelSignature: z.boolean().optional(),
   // Auto-accept settings
@@ -125,6 +127,8 @@ export const TlonAccountSchema = z.object({
   telemetry: TlonTelemetrySchema.optional(),
   lifecycle: TlonLifecycleSchema.optional(),
   contextLens: TlonContextLensSchema.optional(),
+  reengagement: TlonReengagementSchema.optional(),
+  nudgeActiveHours: TlonNudgeActiveHoursSchema.optional(),
   // Owner-listen: in channels hosted by the owner or the bot itself, engage
   // on owner messages without requiring an @-mention. Default: enabled.
   ownerListenEnabled: z.boolean().optional(),
@@ -137,6 +141,10 @@ export const TlonAccountSchema = z.object({
 export const TlonConfigSchema = z.object({
   name: z.string().optional(),
   enabled: z.boolean().optional(),
+  // Self-hosted installs keep the existing single-gateway behavior by
+  // default. Central hosting must opt in so multitenant-only restrictions and
+  // control-plane behavior never surprise existing users.
+  deploymentMode: z.enum(['standalone', 'monolithic']).optional(),
   ship: ShipSchema.optional(),
   url: z.string().optional(),
   code: z.string().optional(),

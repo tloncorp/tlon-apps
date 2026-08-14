@@ -2,7 +2,7 @@ import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 import { PostHog } from 'posthog-node';
 
 import type { TlonAuthPhase } from './auth-retry-state.js';
-import { sharedMap, sharedSlot } from './shared-state.js';
+import { sharedMap } from './shared-state.js';
 import type {
   TlonChannelKind,
   TlonProfileUpdateField,
@@ -2432,84 +2432,202 @@ export type TlonTelemetryErrorReportInput = {
   errorText: string;
 };
 
-const outboundRouteReporterSlot = sharedSlot<OutboundRouteReporter>(
+const outboundRouteReporters = sharedMap<string, OutboundRouteReporter>(
   'telemetry.outboundRouteReporter'
 );
-const sessionTelemetryReporterSlot = sharedSlot<SessionTelemetryReporter>(
+const sessionTelemetryReporters = sharedMap<string, SessionTelemetryReporter>(
   'telemetry.sessionTelemetryReporter'
 );
-const errorTelemetryReporterSlot = sharedSlot<ErrorTelemetryReporter>(
+const errorTelemetryReporters = sharedMap<string, ErrorTelemetryReporter>(
   'telemetry.errorTelemetryReporter'
 );
-const debugTelemetryReporterSlot = sharedSlot<DebugTelemetryReporter>(
+const debugTelemetryReporters = sharedMap<string, DebugTelemetryReporter>(
   'telemetry.debugTelemetryReporter'
 );
-const cronTelemetryReporterSlot = sharedSlot<CronTelemetryReporter>(
+const cronTelemetryReporters = sharedMap<string, CronTelemetryReporter>(
   'telemetry.cronTelemetryReporter'
 );
-const migrationTelemetryReporterSlot = sharedSlot<MigrationTelemetryReporter>(
-  'telemetry.migrationTelemetryReporter'
-);
+const migrationTelemetryReporters = sharedMap<
+  string,
+  MigrationTelemetryReporter
+>('telemetry.migrationTelemetryReporter');
+
+const LEGACY_REPORTER_KEY = '__legacy__';
+
+function installReporter<Reporter>(
+  reporters: Map<string, Reporter>,
+  accountIdOrReporter: string | Reporter | null,
+  accountReporter?: Reporter | null
+): () => void {
+  const accountScoped = typeof accountIdOrReporter === 'string';
+  const key = accountScoped ? accountIdOrReporter.trim() : LEGACY_REPORTER_KEY;
+  const reporter = accountScoped
+    ? accountReporter ?? null
+    : accountIdOrReporter;
+
+  // Preserve the old global reset behavior for tests and legacy callers. New
+  // monitor code always removes only its own account registration.
+  if (!accountScoped && reporter === null) {
+    reporters.clear();
+    return () => {};
+  }
+  if (!key || reporter === null) {
+    reporters.delete(key);
+    return () => {};
+  }
+
+  reporters.set(key, reporter as Reporter);
+  return () => {
+    if (reporters.get(key) === reporter) {
+      reporters.delete(key);
+    }
+  };
+}
+
+function selectReporter<Reporter>(
+  reporters: Map<string, Reporter>,
+  accountId?: string | null
+): Reporter | null {
+  const key = accountId?.trim();
+  if (key) {
+    return reporters.get(key) ?? reporters.get(LEGACY_REPORTER_KEY) ?? null;
+  }
+  const legacy = reporters.get(LEGACY_REPORTER_KEY);
+  if (legacy) {
+    return legacy;
+  }
+  // Gateway-global events are safe to attribute only when exactly one account
+  // monitor exists. In a multitenant process ambiguity must fail closed.
+  return reporters.size === 1 ? reporters.values().next().value ?? null : null;
+}
 
 export function setOutboundRouteReporter(
   reporter: OutboundRouteReporter | null
-): void {
-  outboundRouteReporterSlot.set(reporter);
+): () => void;
+export function setOutboundRouteReporter(
+  accountId: string,
+  reporter: OutboundRouteReporter | null
+): () => void;
+export function setOutboundRouteReporter(
+  accountIdOrReporter: string | OutboundRouteReporter | null,
+  reporter?: OutboundRouteReporter | null
+): () => void {
+  return installReporter(outboundRouteReporters, accountIdOrReporter, reporter);
 }
 
-export function reportOutboundRoute(event: TlonOutboundRouteEvent): void {
-  outboundRouteReporterSlot.get()?.(event);
+export function reportOutboundRoute(
+  event: TlonOutboundRouteEvent,
+  sessionKey?: string | null
+): void {
+  const accountId = lookupTlonSessionContext(sessionKey)?.accountId;
+  selectReporter(outboundRouteReporters, accountId)?.(event);
 }
 
 export function setSessionTelemetryReporter(
   reporter: SessionTelemetryReporter | null
-): void {
-  sessionTelemetryReporterSlot.set(reporter);
+): () => void;
+export function setSessionTelemetryReporter(
+  accountId: string,
+  reporter: SessionTelemetryReporter | null
+): () => void;
+export function setSessionTelemetryReporter(
+  accountIdOrReporter: string | SessionTelemetryReporter | null,
+  reporter?: SessionTelemetryReporter | null
+): () => void {
+  return installReporter(
+    sessionTelemetryReporters,
+    accountIdOrReporter,
+    reporter
+  );
 }
 
 export function setErrorTelemetryReporter(
   reporter: ErrorTelemetryReporter | null
-): void {
-  errorTelemetryReporterSlot.set(reporter);
+): () => void;
+export function setErrorTelemetryReporter(
+  accountId: string,
+  reporter: ErrorTelemetryReporter | null
+): () => void;
+export function setErrorTelemetryReporter(
+  accountIdOrReporter: string | ErrorTelemetryReporter | null,
+  reporter?: ErrorTelemetryReporter | null
+): () => void {
+  return installReporter(
+    errorTelemetryReporters,
+    accountIdOrReporter,
+    reporter
+  );
 }
 
 export function setDebugTelemetryReporter(
   reporter: DebugTelemetryReporter | null
-): void {
-  debugTelemetryReporterSlot.set(reporter);
+): () => void;
+export function setDebugTelemetryReporter(
+  accountId: string,
+  reporter: DebugTelemetryReporter | null
+): () => void;
+export function setDebugTelemetryReporter(
+  accountIdOrReporter: string | DebugTelemetryReporter | null,
+  reporter?: DebugTelemetryReporter | null
+): () => void {
+  return installReporter(
+    debugTelemetryReporters,
+    accountIdOrReporter,
+    reporter
+  );
 }
 
 export function setCronTelemetryReporter(
   reporter: CronTelemetryReporter | null
-): void {
-  cronTelemetryReporterSlot.set(reporter);
+): () => void;
+export function setCronTelemetryReporter(
+  accountId: string,
+  reporter: CronTelemetryReporter | null
+): () => void;
+export function setCronTelemetryReporter(
+  accountIdOrReporter: string | CronTelemetryReporter | null,
+  reporter?: CronTelemetryReporter | null
+): () => void {
+  return installReporter(cronTelemetryReporters, accountIdOrReporter, reporter);
 }
 
 export function reportCronJobChanged(
   event: TlonCronJobChangedReportInput
 ): void {
-  cronTelemetryReporterSlot.get()?.({ kind: 'jobChanged', event });
+  selectReporter(cronTelemetryReporters)?.({ kind: 'jobChanged', event });
 }
 
 export function reportCronRun(event: TlonCronRunReportInput): void {
-  cronTelemetryReporterSlot.get()?.({ kind: 'run', event });
+  selectReporter(cronTelemetryReporters)?.({ kind: 'run', event });
 }
 
 export function reportCronSnapshot(event: TlonCronSnapshotReportInput): void {
-  cronTelemetryReporterSlot.get()?.({ kind: 'snapshot', event });
+  selectReporter(cronTelemetryReporters)?.({ kind: 'snapshot', event });
 }
 
 export function setMigrationTelemetryReporter(
   reporter: MigrationTelemetryReporter | null
-): void {
-  migrationTelemetryReporterSlot.set(reporter);
+): () => void;
+export function setMigrationTelemetryReporter(
+  accountId: string,
+  reporter: MigrationTelemetryReporter | null
+): () => void;
+export function setMigrationTelemetryReporter(
+  accountIdOrReporter: string | MigrationTelemetryReporter | null,
+  reporter?: MigrationTelemetryReporter | null
+): () => void {
+  return installReporter(
+    migrationTelemetryReporters,
+    accountIdOrReporter,
+    reporter
+  );
 }
 
 export function reportMigration(event: TlonMigrationReportInput): void {
   // Callers sit inside the migration task, whose catch DMs the owner a
   // failure — a telemetry throw must not fabricate one.
   try {
-    migrationTelemetryReporterSlot.get()?.(event);
+    selectReporter(migrationTelemetryReporters)?.(event);
   } catch {
     // Swallowed deliberately.
   }
@@ -2645,7 +2763,11 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
     return;
   }
 
-  errorTelemetryReporterSlot.get()?.({
+  const accountId = context?.accountId ?? optionalString(event.accountId);
+  selectReporter(
+    errorTelemetryReporters,
+    accountId
+  )?.({
     kind: 'harness',
     event: {
       harness: 'openclaw',
@@ -2654,7 +2776,7 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
       sessionKey,
       sessionId: context?.sessionId ?? optionalString(event.sessionId),
       runId,
-      accountId: context?.accountId ?? optionalString(event.accountId),
+      accountId,
       agentId: optionalString(event.agentId) ?? context?.agentId ?? null,
       ownerShip: context?.ownerShip ?? optionalString(event.ownerShip),
       botShip: context?.botShip ?? optionalString(event.botShip) ?? '',
@@ -2690,14 +2812,18 @@ export function reportHarnessDebug(event: TlonHarnessDebugReportInput): void {
 
   const logAttributes = normalizeLogAttributes(event.logAttributes);
   const snapshot = updateHarnessDebugSnapshot(context.sessionKey, event);
-  debugTelemetryReporterSlot.get()?.({
+  const accountId = context.accountId ?? optionalString(event.accountId);
+  selectReporter(
+    debugTelemetryReporters,
+    accountId
+  )?.({
     harness: 'openclaw',
     harnessEventType: event.harnessEventType,
     debugEventKind: event.debugEventKind,
     sessionKey: context.sessionKey,
     sessionId: context.sessionId,
     runId: optionalString(event.runId) ?? context.runId,
-    accountId: context.accountId ?? optionalString(event.accountId),
+    accountId,
     agentId: optionalString(event.agentId) ?? context.agentId,
     ownerShip: context.ownerShip ?? optionalString(event.ownerShip),
     botShip: context.botShip ?? optionalString(event.botShip) ?? '',
@@ -2747,7 +2873,10 @@ export function reportHarnessDebug(event: TlonHarnessDebugReportInput): void {
 }
 
 export function reportPluginError(event: TlonPluginErrorReportInput): void {
-  errorTelemetryReporterSlot.get()?.({
+  selectReporter(
+    errorTelemetryReporters,
+    event.accountId
+  )?.({
     kind: 'plugin',
     event,
   });
@@ -2765,7 +2894,11 @@ export function reportTelemetryError(
       })
     : null;
 
-  errorTelemetryReporterSlot.get()?.({
+  const accountId = event.accountId ?? context?.accountId ?? null;
+  selectReporter(
+    errorTelemetryReporters,
+    accountId
+  )?.({
     kind: 'telemetry',
     event: {
       ...event,
@@ -2773,7 +2906,7 @@ export function reportTelemetryError(
       sessionId: context?.sessionId ?? optionalString(event.sessionId),
       runId: optionalString(event.runId) ?? context?.runId ?? null,
       agentId: optionalString(event.agentId) ?? context?.agentId ?? null,
-      accountId: event.accountId ?? context?.accountId ?? null,
+      accountId,
       ownerShip: event.ownerShip ?? context?.ownerShip ?? null,
       botShip: event.botShip ?? context?.botShip ?? null,
       sourceEventName: optionalString(event.sourceEventName),
@@ -2793,7 +2926,10 @@ export function reportSessionLifecycle(
     return;
   }
 
-  sessionTelemetryReporterSlot.get()?.({
+  selectReporter(
+    sessionTelemetryReporters,
+    context.accountId
+  )?.({
     kind: 'lifecycle',
     event: {
       lifecycleEvent: event.lifecycleEvent,
@@ -2831,7 +2967,10 @@ export function reportSessionDiagnostic(
   );
 
   if (event.type === 'session.stalled' || event.type === 'session.stuck') {
-    sessionTelemetryReporterSlot.get()?.({
+    selectReporter(
+      sessionTelemetryReporters,
+      context.accountId
+    )?.({
       kind: 'watchdog',
       event: {
         diagnosticType: event.type,
@@ -2866,7 +3005,10 @@ export function reportSessionDiagnostic(
     }
   >;
 
-  sessionTelemetryReporterSlot.get()?.({
+  selectReporter(
+    sessionTelemetryReporters,
+    context.accountId
+  )?.({
     kind: 'recovery',
     event: {
       diagnosticType: recoveryEvent.type,

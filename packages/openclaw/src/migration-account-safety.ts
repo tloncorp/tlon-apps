@@ -1,7 +1,10 @@
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import { getAllBridges } from './monitor/command-bridge.js';
-import { listRunnableTlonAccountIds } from './types.js';
+import {
+  isMonolithicTlonDeployment,
+  listRunnableTlonAccountIds,
+} from './types.js';
 
 /**
  * Migration uses process-global Tlon API state, so it is unsafe whenever
@@ -12,5 +15,9 @@ import { listRunnableTlonAccountIds } from './types.js';
  * credentials while a single monitor bridge supplies command routing.
  */
 export function hasAmbiguousMigrationAccount(cfg: OpenClawConfig): boolean {
-  return listRunnableTlonAccountIds(cfg).length > 1 || getAllBridges().size > 1;
+  return (
+    isMonolithicTlonDeployment(cfg) ||
+    listRunnableTlonAccountIds(cfg).length > 1 ||
+    getAllBridges().size > 1
+  );
 }

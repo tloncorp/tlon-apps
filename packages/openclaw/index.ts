@@ -68,13 +68,14 @@ import {
   createTlonToolExecutor,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
+import { resolveTlonToolAccountId } from './src/tool-account.js';
 import {
   formatToolTraceEvent,
   liveToolTraceContentsEnabled,
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
 import { recordActiveTlonTurnToolCall } from './src/turn-recorder.js';
-import { resolveTlonAccount } from './src/types.js';
+import { isMonolithicTlonDeployment, resolveTlonAccount } from './src/types.js';
 import {
   formatTlonVersionIdentity,
   resolveTlonSkillVersion,
@@ -918,8 +919,13 @@ export default defineBundledChannelEntry({
       },
     });
 
-    const contextLensRoutesEnabled = registerContextLensRoutes(api);
-    const contextLensShipSyncEnabled = initContextLensShipSync(api);
+    const monolithicDeployment = isMonolithicTlonDeployment(api.config);
+    const contextLensRoutesEnabled = monolithicDeployment
+      ? false
+      : registerContextLensRoutes(api);
+    const contextLensShipSyncEnabled = monolithicDeployment
+      ? false
+      : initContextLensShipSync(api);
     // Recording and the disk store run when at least one reader path is
     // live: authed gateway routes or %context-lens ship sync.
     const contextLensEnabled =
@@ -928,15 +934,6 @@ export default defineBundledChannelEntry({
       initContextLensStore(api);
     }
 
-    // Register the tlon tool
-    // Capture credentials from config at registration time
-    const account = resolveTlonAccount(api.config);
-    const credentials =
-      account.configured && account.url && account.ship && account.code
-        ? { url: account.url, ship: account.ship, code: account.code }
-        : undefined;
-    const toolTimeoutMs =
-      account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
     const handleMigrateCommand = createMigrateCommandHandler({
       runCommand: (args, commandCredentials, timeoutMs, onDeadline) =>
         runTlonCommand(tlonBinary, args, commandCredentials, {
@@ -946,50 +943,91 @@ export default defineBundledChannelEntry({
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
     });
 
-    if (credentials) {
-      api.logger.info(`[tlon] Credentials available for ${account.ship}`);
-    } else {
-      api.logger.warn(
-        `[tlon] No credentials configured - tlon tool will rely on env vars`
-      );
-    }
-
-    const executeTlonTool = createTlonToolExecutor({
-      runCommand: (args) =>
-        runTlonCommand(tlonBinary, args, credentials, {
-          timeoutMs: toolTimeoutMs,
-        }),
-      notifyDiaryMigrationDiscovery: (nest) =>
-        notifyDiaryMigrationDiscovery(nest, api.config),
-      logError: (message) => api.logger.warn(`[tlon] ${message}`),
-    });
-
-    api.registerTool({
-      name: 'tlon',
-      label: 'Tlon CLI',
-      description:
-        'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
-        'DO NOT use this tool to send messages — use the `message` tool instead. ' +
-        '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
-        'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
-        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'",
-      parameters: {
-        type: 'object',
-        properties: {
-          command: {
-            type: 'string',
-            description:
-              'The tlon command and arguments (read/admin operations). ' +
-              'To send messages, use the `message` tool, not this tool. ' +
-              'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
-              'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
-              "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
+    // Tool factories receive trusted agent/session routing context from
+    // OpenClaw. Resolve credentials for every run from that context and the
+    // latest config; capturing the default account here would let every agent
+    // in a multitenant gateway operate on the same ship.
+    api.registerTool(
+      (toolContext) => {
+        const currentConfig = () =>
+          toolContext.getRuntimeConfig?.() ??
+          toolContext.runtimeConfig ??
+          toolContext.config ??
+          api.config;
+        const resolveExecution = () => {
+          const cfg = currentConfig();
+          const accountId = resolveTlonToolAccountId({
+            cfg,
+            agentId: toolContext.agentId,
+            deliveryContext: toolContext.deliveryContext,
+          });
+          const account = resolveTlonAccount(cfg, accountId);
+          const credentials =
+            accountId &&
+            account.configured &&
+            account.url &&
+            account.ship &&
+            account.code
+              ? {
+                  url: account.url,
+                  ship: account.ship,
+                  code: account.code,
+                }
+              : undefined;
+          if (accountId && !credentials) {
+            throw new Error('The active Tlon account has no credentials.');
+          }
+          return { accountId, account, cfg, credentials };
+        };
+        const executeTlonTool = createTlonToolExecutor({
+          runCommand: (args) => {
+            const { account, credentials } = resolveExecution();
+            return runTlonCommand(tlonBinary, args, credentials, {
+              timeoutMs:
+                account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS,
+            });
           },
-        },
-        required: ['command'],
+          notifyDiaryMigrationDiscovery: (nest) => {
+            const { accountId, cfg } = resolveExecution();
+            return notifyDiaryMigrationDiscovery(
+              nest,
+              cfg,
+              undefined,
+              accountId ?? undefined
+            );
+          },
+          logError: (message) => api.logger.warn(`[tlon] ${message}`),
+        });
+
+        return {
+          name: 'tlon',
+          label: 'Tlon CLI',
+          description:
+            'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
+            'DO NOT use this tool to send messages — use the `message` tool instead. ' +
+            '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
+            'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
+            "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'",
+          parameters: {
+            type: 'object',
+            properties: {
+              command: {
+                type: 'string',
+                description:
+                  'The tlon command and arguments (read/admin operations). ' +
+                  'To send messages, use the `message` tool, not this tool. ' +
+                  'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
+                  'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
+                  "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
+              },
+            },
+            required: ['command'],
+          },
+          execute: executeTlonTool,
+        };
       },
-      execute: executeTlonTool,
-    });
+      { name: 'tlon' }
+    );
 
     // Tool access control: block sensitive tools for non-owners
     const ownerOnlyTools = new Set(['tlon', 'cron', 'read']);
@@ -1292,7 +1330,10 @@ export default defineBundledChannelEntry({
                 ? 'group'
                 : 'unknown';
 
-          reportOutboundRoute({ resolvedChannel, routedToTlon, targetKind });
+          reportOutboundRoute(
+            { resolvedChannel, routedToTlon, targetKind },
+            ctx.sessionKey
+          );
 
           if (isRouteDebugEnabled()) {
             api.logger.info(

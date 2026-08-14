@@ -3,6 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { TlonAuthorizationSchema, TlonConfigSchema } from './config-schema.js';
 
 describe('Tlon config schema', () => {
+  it('supports an explicit non-default monolithic deployment mode', () => {
+    expect(TlonConfigSchema.parse({}).deploymentMode).toBeUndefined();
+    expect(
+      TlonConfigSchema.parse({ deploymentMode: 'monolithic' }).deploymentMode
+    ).toBe('monolithic');
+    expect(() =>
+      TlonConfigSchema.parse({ deploymentMode: 'shared' })
+    ).toThrow();
+  });
+
   it('accepts channelRules with string keys', () => {
     const parsed = TlonAuthorizationSchema.parse({
       channelRules: {

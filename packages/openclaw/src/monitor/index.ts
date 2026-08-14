@@ -83,7 +83,7 @@ import {
   recordActiveTlonTurnSourceReply,
   startTlonAgentTurn,
 } from '../turn-recorder.js';
-import { resolveTlonAccount } from '../types.js';
+import { isMonolithicTlonDeployment, resolveTlonAccount } from '../types.js';
 import { configureTlonApiWithPoke } from '../urbit/api-client.js';
 import {
   authenticate,
@@ -324,23 +324,41 @@ function extractAuthorShip(author: Author | undefined | null): string {
 function resolveChannelAuthorization(
   cfg: OpenClawConfig,
   channelNest: string,
-  settings?: TlonSettingsStore
+  settings?: TlonSettingsStore,
+  accountId?: string | null
 ): { mode: 'restricted' | 'allowlist' | 'open'; allowedShips: string[] } {
   const tlonConfig = cfg.channels?.tlon as
     | {
         authorization?: { channelRules?: Record<string, ChannelAuthorization> };
         defaultAuthorizedShips?: string[];
+        accounts?: Record<
+          string,
+          {
+            authorization?: {
+              channelRules?: Record<string, ChannelAuthorization>;
+            };
+            defaultAuthorizedShips?: string[];
+          }
+        >;
       }
     | undefined;
+  const accountConfig =
+    accountId && accountId !== 'default'
+      ? tlonConfig?.accounts?.[accountId]
+      : undefined;
 
   // Merge channel rules: settings override file config
-  const fileRules = tlonConfig?.authorization?.channelRules ?? {};
+  const fileRules =
+    accountConfig?.authorization?.channelRules ??
+    tlonConfig?.authorization?.channelRules ??
+    {};
   const settingsRules = settings?.channelRules ?? {};
   const rule = settingsRules[channelNest] ?? fileRules[channelNest];
 
   // Merge default authorized ships: settings override file config
   const defaultShips =
     settings?.defaultAuthorizedShips ??
+    accountConfig?.defaultAuthorizedShips ??
     tlonConfig?.defaultAuthorizedShips ??
     [];
 
@@ -744,6 +762,8 @@ export async function monitorTlonProvider(
     once: true,
   });
 
+  const cleanupTelemetryReporters: Array<() => void> = [];
+
   // Outer try/finally wraps everything from slot publication onward.
   // A synchronous throw between slot publication and the inner try
   // (constructor, queue setup, bridge setup, channel discovery, future
@@ -753,10 +773,9 @@ export async function monitorTlonProvider(
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
     const contextLensConfig = account.contextLens;
-    const contextLensEnabled = isContextLensEffectivelyEnabled(
-      cfg,
-      opts.accountId ?? undefined
-    );
+    const contextLensEnabled =
+      !isMonolithicTlonDeployment(cfg) &&
+      isContextLensEffectivelyEnabled(cfg, opts.accountId ?? undefined);
     const contextLenses = createContextLensRegistry({
       ttlMs: contextLensConfig.ttlMs ?? undefined,
       maxEntries: contextLensConfig.maxEntries ?? undefined,
@@ -846,109 +865,121 @@ export async function monitorTlonProvider(
     // Bridge route-resolution telemetry from the global `message_sending` hook
     // to this account's telemetry client. Reports every route-dependent send so
     // we can measure how often a reply lands on webchat instead of Tlon.
-    setOutboundRouteReporter((event) =>
-      telemetry?.captureOutboundRoute({
-        ...event,
-        ownerShip:
-          getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip,
-        botShip: botShipName,
+    cleanupTelemetryReporters.push(
+      setOutboundRouteReporter(account.accountId, (event) =>
+        telemetry?.captureOutboundRoute({
+          ...event,
+          ownerShip:
+            getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip,
+          botShip: botShipName,
+        })
+      )
+    );
+    cleanupTelemetryReporters.push(
+      setSessionTelemetryReporter(account.accountId, (report) => {
+        switch (report.kind) {
+          case 'lifecycle':
+            telemetry?.captureSessionLifecycle(report.event);
+            break;
+          case 'watchdog':
+            telemetry?.captureSessionWatchdog(report.event);
+            break;
+          case 'recovery':
+            telemetry?.captureSessionRecovery(report.event);
+            break;
+        }
       })
     );
-    setSessionTelemetryReporter((report) => {
-      switch (report.kind) {
-        case 'lifecycle':
-          telemetry?.captureSessionLifecycle(report.event);
-          break;
-        case 'watchdog':
-          telemetry?.captureSessionWatchdog(report.event);
-          break;
-        case 'recovery':
-          telemetry?.captureSessionRecovery(report.event);
-          break;
-      }
-    });
-    setDebugTelemetryReporter((event) => {
-      telemetry?.captureHarnessDebug({
-        ...event,
-        accountId: event.accountId ?? account.accountId,
-        ownerShip: event.ownerShip ?? currentTelemetryOwnerShip(),
-        botShip: event.botShip || botShipName,
-      });
-    });
+    cleanupTelemetryReporters.push(
+      setDebugTelemetryReporter(account.accountId, (event) => {
+        telemetry?.captureHarnessDebug({
+          ...event,
+          accountId: event.accountId ?? account.accountId,
+          ownerShip: event.ownerShip ?? currentTelemetryOwnerShip(),
+          botShip: event.botShip || botShipName,
+        });
+      })
+    );
     // Bridge cron lifecycle/run telemetry from the global `cron_changed` hook
     // to this account's telemetry client. Cron jobs are gateway-global, so
-    // events are attributed to this account's owner (same last-writer-wins
-    // semantics as the other global-hook reporters above).
-    setCronTelemetryReporter((report) => {
-      const identity = {
-        accountId: account.accountId,
-        ownerShip: currentTelemetryOwnerShip(),
-        botShip: botShipName,
-      };
-      switch (report.kind) {
-        case 'jobChanged':
-          telemetry?.captureCronJobChanged({ ...report.event, ...identity });
-          break;
-        case 'run':
-          telemetry?.captureCronRun({ ...report.event, ...identity });
-          break;
-        case 'snapshot':
-          telemetry?.captureCronSnapshot({ ...report.event, ...identity });
-          break;
-      }
-    });
+    // events are attributed only when the reporter registry can resolve one
+    // unambiguous account. Multitenant gateway-global events are skipped.
+    cleanupTelemetryReporters.push(
+      setCronTelemetryReporter(account.accountId, (report) => {
+        const identity = {
+          accountId: account.accountId,
+          ownerShip: currentTelemetryOwnerShip(),
+          botShip: botShipName,
+        };
+        switch (report.kind) {
+          case 'jobChanged':
+            telemetry?.captureCronJobChanged({ ...report.event, ...identity });
+            break;
+          case 'run':
+            telemetry?.captureCronRun({ ...report.event, ...identity });
+            break;
+          case 'snapshot':
+            telemetry?.captureCronSnapshot({ ...report.event, ...identity });
+            break;
+        }
+      })
+    );
     // Bridge diary migration lifecycle events from the `/migrate` command
     // handler (a separate plugin module context) to this account's client.
-    setMigrationTelemetryReporter((event) => {
-      telemetry?.captureMigration({
-        ...event,
-        accountId: account.accountId,
-        ownerShip: currentTelemetryOwnerShip(),
-        botShip: botShipName,
-      });
-    });
-    setErrorTelemetryReporter((report) => {
-      switch (report.kind) {
-        case 'harness':
-          telemetry?.captureHarnessError({
-            ...report.event,
-            accountId: report.event.accountId ?? account.accountId,
-            ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
-            botShip: report.event.botShip || botShipName,
-          });
-          break;
-        case 'plugin':
-          telemetry?.capturePluginError({
-            harness: 'openclaw',
-            pluginErrorSource: report.event.pluginErrorSource,
-            accountId: report.event.accountId ?? account.accountId,
-            ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
-            botShip: report.event.botShip ?? botShipName,
-            errorKind: report.event.errorKind ?? null,
-            errorText: report.event.errorText,
-            attempt: report.event.attempt ?? null,
-            downMs: report.event.downMs ?? null,
-            authPhase: report.event.authPhase ?? null,
-          });
-          break;
-        case 'telemetry':
-          telemetry?.captureTelemetryError({
-            harness: 'openclaw',
-            telemetrySource: report.event.telemetrySource,
-            sourceEventName: report.event.sourceEventName ?? null,
-            sessionKey: report.event.sessionKey ?? null,
-            sessionId: report.event.sessionId ?? null,
-            runId: report.event.runId ?? null,
-            accountId: report.event.accountId ?? account.accountId,
-            agentId: report.event.agentId ?? null,
-            ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
-            botShip: report.event.botShip ?? botShipName,
-            errorKind: report.event.errorKind ?? null,
-            errorText: report.event.errorText,
-          });
-          break;
-      }
-    });
+    cleanupTelemetryReporters.push(
+      setMigrationTelemetryReporter(account.accountId, (event) => {
+        telemetry?.captureMigration({
+          ...event,
+          accountId: account.accountId,
+          ownerShip: currentTelemetryOwnerShip(),
+          botShip: botShipName,
+        });
+      })
+    );
+    cleanupTelemetryReporters.push(
+      setErrorTelemetryReporter(account.accountId, (report) => {
+        switch (report.kind) {
+          case 'harness':
+            telemetry?.captureHarnessError({
+              ...report.event,
+              accountId: report.event.accountId ?? account.accountId,
+              ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
+              botShip: report.event.botShip || botShipName,
+            });
+            break;
+          case 'plugin':
+            telemetry?.capturePluginError({
+              harness: 'openclaw',
+              pluginErrorSource: report.event.pluginErrorSource,
+              accountId: report.event.accountId ?? account.accountId,
+              ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
+              botShip: report.event.botShip ?? botShipName,
+              errorKind: report.event.errorKind ?? null,
+              errorText: report.event.errorText,
+              attempt: report.event.attempt ?? null,
+              downMs: report.event.downMs ?? null,
+              authPhase: report.event.authPhase ?? null,
+            });
+            break;
+          case 'telemetry':
+            telemetry?.captureTelemetryError({
+              harness: 'openclaw',
+              telemetrySource: report.event.telemetrySource,
+              sourceEventName: report.event.sourceEventName ?? null,
+              sessionKey: report.event.sessionKey ?? null,
+              sessionId: report.event.sessionId ?? null,
+              runId: report.event.runId ?? null,
+              accountId: report.event.accountId ?? account.accountId,
+              agentId: report.event.agentId ?? null,
+              ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
+              botShip: report.event.botShip ?? botShipName,
+              errorKind: report.event.errorKind ?? null,
+              errorText: report.event.errorText,
+            });
+            break;
+        }
+      })
+    );
 
     // Track threads we've participated in (by parentId) - respond without mention requirement
     const participatedThreads = new Set<string>();
@@ -2729,7 +2760,8 @@ export async function monitorTlonProvider(
             api,
             groupChannel,
             50,
-            runtime
+            runtime,
+            opts.accountId
           );
           contextLenses.recordContext(lens.lensId, {
             channelMessages: history.length,
@@ -3425,6 +3457,7 @@ export async function monitorTlonProvider(
                           });
                           recordSentTlonReply({
                             botShipName,
+                            accountId: opts.accountId,
                             contextLenses,
                             deliveredMessageCount,
                             groupChannel,
@@ -3644,7 +3677,8 @@ export async function monitorTlonProvider(
                 nest,
                 targetPostId,
                 targetRootPostId,
-                runtime
+                runtime,
+                opts.accountId
               ),
             handleReaction: async ({
               emoji: reactEmoji,
@@ -3751,13 +3785,17 @@ export async function monitorTlonProvider(
         }
 
         // Cache ALL messages (including bot's own) so reaction lookups have context
-        cacheMessage(nest, {
-          author: senderShip,
-          content: rawText,
-          timestamp: content.sent || Date.now(),
-          id: messageId,
-          blob: content.blob ?? null,
-        });
+        cacheMessage(
+          nest,
+          {
+            author: senderShip,
+            content: rawText,
+            timestamp: content.sent || Date.now(),
+            id: messageId,
+            blob: content.blob ?? null,
+          },
+          opts.accountId
+        );
 
         // Check if sender is a bot (BotProfile object has ship, nickname, avatar)
         const authorRaw = content?.author;
@@ -3897,7 +3935,8 @@ export async function monitorTlonProvider(
           const { mode, allowedShips } = resolveChannelAuthorization(
             cfg,
             nest,
-            currentSettings
+            currentSettings,
+            opts.accountId
           );
           if (isChannelRestricted(mode)) {
             const normalizedAllowed = allowedShips.map(normalizeShip);
@@ -3905,7 +3944,7 @@ export async function monitorTlonProvider(
               // If owner is configured, queue approval request
               if (effectiveOwnerShip) {
                 const cachedParentAuthor = parentId
-                  ? lookupCachedMessage(nest, parentId)?.author
+                  ? lookupCachedMessage(nest, parentId, opts.accountId)?.author
                   : undefined;
                 const parentAuthor = parentId
                   ? cachedParentAuthor && cachedParentAuthor !== 'unknown'
@@ -4115,7 +4154,11 @@ export async function monitorTlonProvider(
 
               // Look up cached DM message for context
               const dmCacheKey = `dm/${whom}`;
-              const cached = lookupCachedMessage(dmCacheKey, messageId);
+              const cached = lookupCachedMessage(
+                dmCacheKey,
+                messageId,
+                opts.accountId
+              );
               const action = isAdd ? 'added' : 'removed';
 
               // If reacting to the bot's own message, dispatch as a real message
@@ -4212,13 +4255,17 @@ export async function monitorTlonProvider(
         const rawCacheText = rawText;
         const hasDmBlob = Boolean(dmContent.blob);
         if (rawCacheText.trim() || hasDmBlob) {
-          cacheMessage(dmCacheKey, {
-            author: authorShip,
-            content: rawCacheText,
-            timestamp: dmContent.sent || Date.now(),
-            id: effectiveMessageId,
-            blob: dmContent.blob ?? null,
-          });
+          cacheMessage(
+            dmCacheKey,
+            {
+              author: authorShip,
+              content: rawCacheText,
+              timestamp: dmContent.sent || Date.now(),
+              id: effectiveMessageId,
+              blob: dmContent.blob ?? null,
+            },
+            opts.accountId
+          );
         }
 
         // Skip processing bot's own messages (but they're already cached above)
@@ -4261,7 +4308,11 @@ export async function monitorTlonProvider(
                   timestamp: dmContent.sent || Date.now(),
                   parentId: dmReplyParentId,
                   parentAuthorId: dmReplyParentId
-                    ? lookupCachedMessage(dmCacheKey, dmReplyParentId)?.author
+                    ? lookupCachedMessage(
+                        dmCacheKey,
+                        dmReplyParentId,
+                        opts.accountId
+                      )?.author
                     : undefined,
                   isThreadReply: isDmThreadReply,
                   blob: dmContent.blob ?? undefined,
@@ -5360,12 +5411,9 @@ export async function monitorTlonProvider(
       await ownerReplyPersistence.flush();
       await pendingNudgePersistence.flush();
       clearShadowsForAccount(account.accountId);
-      setOutboundRouteReporter(null);
-      setSessionTelemetryReporter(null);
-      setDebugTelemetryReporter(null);
-      setErrorTelemetryReporter(null);
-      setCronTelemetryReporter(null);
-      setMigrationTelemetryReporter(null);
+      for (const cleanupReporter of cleanupTelemetryReporters) {
+        cleanupReporter();
+      }
       await telemetry?.close();
       try {
         await api?.close();
@@ -5381,6 +5429,9 @@ export async function monitorTlonProvider(
     // after the helper definitions). Anything that throws before the
     // inner finally can run hits this one. Idempotent via the helper.
     cleanupGatewayStatus();
+    for (const cleanupReporter of cleanupTelemetryReporters) {
+      cleanupReporter();
+    }
     // Remove the early abort listener so the host's signal does not
     // retain `cleanupGatewayStatus` (which transitively pins
     // `myApiClientParams.poke` and the SSE client) after the monitor

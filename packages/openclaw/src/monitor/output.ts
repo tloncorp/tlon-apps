@@ -3,6 +3,7 @@ import { cacheMessage } from './history.js';
 
 export function recordSentTlonReply({
   botShipName,
+  accountId,
   contextLenses,
   deliveredMessageCount,
   groupChannel,
@@ -15,6 +16,7 @@ export function recordSentTlonReply({
   senderShip,
 }: {
   botShipName: string;
+  accountId?: string | null;
   contextLenses: Pick<ContextLensRegistry, 'recordOutput'>;
   deliveredMessageCount: number;
   groupChannel: string | undefined;
@@ -31,13 +33,17 @@ export function recordSentTlonReply({
   }
 
   if (!isGroup) {
-    cacheMessage(`dm/${senderShip}`, {
-      author: botShipName,
-      content: replyText,
-      timestamp: Date.now(),
-      id: outputMessageId,
-      blob: replyBlob,
-    });
+    cacheMessage(
+      `dm/${senderShip}`,
+      {
+        author: botShipName,
+        content: replyText,
+        timestamp: Date.now(),
+        id: outputMessageId,
+        blob: replyBlob,
+      },
+      accountId
+    );
   }
 
   contextLenses.recordOutput(lensId, {

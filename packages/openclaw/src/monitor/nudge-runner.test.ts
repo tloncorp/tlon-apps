@@ -847,6 +847,22 @@ describe('shouldStartNudgeRunner', () => {
     expect(decision.start).toBe(true);
   });
 
+  it('refuses to start the legacy runner in monolithic mode', () => {
+    const decision = shouldStartNudgeRunner(
+      cfg({
+        deploymentMode: 'monolithic',
+        ship: '~nec',
+        url: 'https://urbit',
+        code: 'c',
+        reengagement: { enabled: true },
+      })
+    );
+    expect(decision.start).toBe(false);
+    if (!decision.start) {
+      expect(decision.detail).toMatch(/not account-safe/);
+    }
+  });
+
   it('starts when flag is true and exactly one account lives under accounts.*', () => {
     const decision = shouldStartNudgeRunner(
       cfg({

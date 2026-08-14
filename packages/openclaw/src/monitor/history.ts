@@ -134,6 +134,13 @@ const MAX_CACHED_REACTION_TARGETS = 20;
 const REACTION_TARGET_FETCH_ATTEMPTS = 3;
 const REACTION_TARGET_FETCH_RETRY_DELAY_MS = 50;
 
+function accountCacheKey(
+  channelNest: string,
+  accountId?: string | null
+): string {
+  return `${accountId?.trim() || 'default'}\u0000${channelNest}`;
+}
+
 function findCachedMessage(
   cache: TlonHistoryEntry[] | undefined,
   messageId: string
@@ -162,11 +169,13 @@ function removeCachedMessage(
 
 export function lookupCachedMessage(
   channelNest: string,
-  messageId: string
+  messageId: string,
+  accountId?: string | null
 ): TlonHistoryEntry | undefined {
+  const key = accountCacheKey(channelNest, accountId);
   return (
-    findCachedMessage(messageCache.get(channelNest), messageId) ??
-    findCachedMessage(reactionTargetCache.get(channelNest), messageId)
+    findCachedMessage(messageCache.get(key), messageId) ??
+    findCachedMessage(reactionTargetCache.get(key), messageId)
   );
 }
 
@@ -180,9 +189,11 @@ export async function lookupOrFetchCachedChannelMessage(
   channelNest: string,
   messageId: string,
   rootPostId?: string,
-  runtime?: RuntimeEnv
+  runtime?: RuntimeEnv,
+  accountId?: string | null
 ): Promise<TlonHistoryEntry | undefined> {
-  const cached = lookupCachedMessage(channelNest, messageId);
+  const key = accountCacheKey(channelNest, accountId);
+  const cached = lookupCachedMessage(channelNest, messageId, accountId);
   if (cached) {
     return cached;
   }
@@ -198,14 +209,11 @@ export async function lookupOrFetchCachedChannelMessage(
         )
       : (await fetchParentPost(api, channelNest, messageId, runtime))?.entry;
     if (fetched?.author && fetched.author !== 'unknown') {
-      const echoed = findCachedMessage(
-        messageCache.get(channelNest),
-        messageId
-      );
+      const echoed = findCachedMessage(messageCache.get(key), messageId);
       if (echoed) {
         return echoed;
       }
-      cacheReactionTarget(channelNest, fetched);
+      cacheReactionTarget(channelNest, fetched, accountId);
       return fetched;
     }
     if (attempt < REACTION_TARGET_FETCH_ATTEMPTS - 1) {
@@ -218,20 +226,25 @@ export async function lookupOrFetchCachedChannelMessage(
   return undefined;
 }
 
-export function cacheMessage(channelNest: string, message: TlonHistoryEntry) {
-  if (!messageCache.has(channelNest)) {
-    messageCache.set(channelNest, []);
+export function cacheMessage(
+  channelNest: string,
+  message: TlonHistoryEntry,
+  accountId?: string | null
+) {
+  const key = accountCacheKey(channelNest, accountId);
+  if (!messageCache.has(key)) {
+    messageCache.set(key, []);
   }
-  const cache = messageCache.get(channelNest);
+  const cache = messageCache.get(key);
   if (!cache) {
     return;
   }
   removeCachedMessage(cache, message.id ?? '');
-  const targets = reactionTargetCache.get(channelNest);
+  const targets = reactionTargetCache.get(key);
   if (targets) {
     removeCachedMessage(targets, message.id ?? '');
     if (targets.length === 0) {
-      reactionTargetCache.delete(channelNest);
+      reactionTargetCache.delete(key);
     }
   }
   cache.unshift(message);
@@ -242,12 +255,14 @@ export function cacheMessage(channelNest: string, message: TlonHistoryEntry) {
 
 function cacheReactionTarget(
   channelNest: string,
-  message: TlonHistoryEntry
+  message: TlonHistoryEntry,
+  accountId?: string | null
 ): void {
-  if (!reactionTargetCache.has(channelNest)) {
-    reactionTargetCache.set(channelNest, []);
+  const key = accountCacheKey(channelNest, accountId);
+  if (!reactionTargetCache.has(key)) {
+    reactionTargetCache.set(key, []);
   }
-  const cache = reactionTargetCache.get(channelNest);
+  const cache = reactionTargetCache.get(key);
   if (!cache) {
     return;
   }
@@ -312,9 +327,10 @@ export async function getChannelHistory(
   api: { scry: (path: string) => Promise<unknown> },
   channelNest: string,
   count = 50,
-  runtime?: RuntimeEnv
+  runtime?: RuntimeEnv,
+  accountId?: string | null
 ): Promise<TlonHistoryEntry[]> {
-  const cache = messageCache.get(channelNest) ?? [];
+  const cache = messageCache.get(accountCacheKey(channelNest, accountId)) ?? [];
   if (cache.length >= count) {
     runtime?.log?.(`[tlon] Using cached messages (${cache.length} available)`);
     return cache.slice(0, count);

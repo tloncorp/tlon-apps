@@ -23,7 +23,10 @@ import {
 import type { PendingNudge } from '../pending-nudge.js';
 import { type TlonSettingsStore, parseSettingsResponse } from '../settings.js';
 import type { TlonTelemetryClient } from '../telemetry.js';
-import { listRunnableTlonAccountIds } from '../types.js';
+import {
+  isMonolithicTlonDeployment,
+  listRunnableTlonAccountIds,
+} from '../types.js';
 import type { BotProfile } from '../urbit/send.js';
 import type { UrbitSSEClient } from '../urbit/sse-client.js';
 import type { LastNudgeStageShadow, LastOwnerActivity } from './nudge-state.js';
@@ -59,6 +62,13 @@ export function shouldStartNudgeRunner(
       start: false,
       reason: 'flag-disabled',
       detail: 'channels.tlon.reengagement.enabled is not true',
+    };
+  }
+  if (isMonolithicTlonDeployment(cfg)) {
+    return {
+      start: false,
+      reason: 'multi-account',
+      detail: 're-engagement is not account-safe in monolithic mode',
     };
   }
   // Count *runnable* accounts (enabled + fully configured). Disabled or

@@ -203,6 +203,29 @@ describe('renderHistoryContent', () => {
 });
 
 describe('cacheMessage', () => {
+  it('isolates identical nests and message ids by account', () => {
+    const channel = `chat/~host/shared-${Date.now().toString(36)}`;
+    const messageId = '170141184507123';
+    cacheMessage(
+      channel,
+      makeEntry({ author: '~alpha', content: 'alpha', id: messageId }),
+      'alpha'
+    );
+    cacheMessage(
+      channel,
+      makeEntry({ author: '~beta', content: 'beta', id: messageId }),
+      'beta'
+    );
+
+    expect(lookupCachedMessage(channel, messageId, 'alpha')?.content).toBe(
+      'alpha'
+    );
+    expect(lookupCachedMessage(channel, messageId, 'beta')?.content).toBe(
+      'beta'
+    );
+    expect(lookupCachedMessage(channel, messageId)).toBeUndefined();
+  });
+
   it('normalizes DM writ ids at the cache boundary and deduplicates the echo', async () => {
     const channel = `dm/~owner-${Date.now().toString(36)}`;
     const dottedTimestamp = '170.141.184.507.123';

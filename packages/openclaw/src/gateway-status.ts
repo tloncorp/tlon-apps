@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import { sharedSlot } from './shared-state.js';
-import { listTlonAccountIds } from './types.js';
+import { isMonolithicTlonDeployment, listTlonAccountIds } from './types.js';
 import { configureTlonApiWithPoke } from './urbit/api-client.js';
 
 // Shared-state slot for the @tloncorp/api client params. The monitor
@@ -58,7 +58,9 @@ export function computeLeaseUntil(): number {
  * because the global @tloncorp/api client can't target multiple ships;
  * with >1 account, every eligible monitor would race the same client. */
 export function isGatewayStatusEligible(cfg: OpenClawConfig): boolean {
-  return listTlonAccountIds(cfg).length === 1;
+  return (
+    !isMonolithicTlonDeployment(cfg) && listTlonAccountIds(cfg).length === 1
+  );
 }
 
 // ── Generation-aware coordinator ─────────────────────────────

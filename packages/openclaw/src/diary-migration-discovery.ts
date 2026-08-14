@@ -4,6 +4,7 @@ import { hasAmbiguousMigrationAccount } from './migration-account-safety.js';
 import {
   type ApprovalCommandBridge,
   getAllBridges,
+  getBridge,
 } from './monitor/command-bridge.js';
 import {
   type BuildMigrateCard,
@@ -48,36 +49,47 @@ export class DiaryMigrationDiscoveryNotifier {
   async notify(
     nest: string,
     sendOwnerNotification?: SendOwnerNotification,
-    sourceTitle?: string
+    sourceTitle?: string,
+    accountId?: string
   ): Promise<boolean> {
     const canonical = canonicalizeNest(nest);
     if (
       !sendOwnerNotification ||
       !canonical?.startsWith('diary/') ||
-      this.notified.has(canonical)
+      !canonical
     ) {
       return false;
     }
+    const cacheKey = accountId ? `${accountId}\u0000${canonical}` : canonical;
+    if (this.notified.has(cacheKey)) {
+      return false;
+    }
 
-    const pending = this.inFlight.get(canonical);
+    const pending = this.inFlight.get(cacheKey);
     if (pending) {
       await pending;
       return false;
     }
 
-    const task = this.send(canonical, sendOwnerNotification, sourceTitle);
-    this.inFlight.set(canonical, task);
+    const task = this.send(
+      canonical,
+      cacheKey,
+      sendOwnerNotification,
+      sourceTitle
+    );
+    this.inFlight.set(cacheKey, task);
     try {
       return await task;
     } finally {
-      if (this.inFlight.get(canonical) === task) {
-        this.inFlight.delete(canonical);
+      if (this.inFlight.get(cacheKey) === task) {
+        this.inFlight.delete(cacheKey);
       }
     }
   }
 
   private async send(
     nest: string,
+    cacheKey: string,
     sendOwnerNotification: SendOwnerNotification,
     sourceTitle?: string
   ): Promise<boolean> {
@@ -119,7 +131,7 @@ export class DiaryMigrationDiscoveryNotifier {
       if (!messageId) {
         return false;
       }
-      this.notified.set(nest, true);
+      this.notified.set(cacheKey, true);
       return true;
     } catch (error) {
       this.logError?.(
@@ -135,21 +147,26 @@ export const diaryMigrationDiscoveryNotifier =
 
 function resolveDiaryMigrationBridge(
   nest: string,
-  cfg: OpenClawConfig
+  cfg: OpenClawConfig,
+  accountId?: string
 ): ApprovalCommandBridge | null {
-  if (hasAmbiguousMigrationAccount(cfg)) {
-    return null;
-  }
-  const bridges = [...getAllBridges().values()];
-  if (bridges.length !== 1) {
-    return null;
-  }
-
   const hostShip = parseNest(nest)?.hostShip;
   if (!hostShip) {
     return null;
   }
-  const bridge = bridges[0];
+  let bridge: ApprovalCommandBridge | null = null;
+  if (accountId) {
+    bridge = getBridge(accountId);
+  } else {
+    if (hasAmbiguousMigrationAccount(cfg)) {
+      return null;
+    }
+    const bridges = [...getAllBridges().values()];
+    if (bridges.length !== 1) {
+      return null;
+    }
+    bridge = bridges[0] ?? null;
+  }
   return bridge &&
     (normalizeShip(bridge.botShip) === hostShip ||
       (bridge.ownerShip != null &&
@@ -161,14 +178,16 @@ function resolveDiaryMigrationBridge(
 export async function notifyDiaryMigrationDiscovery(
   nest: string,
   cfg: OpenClawConfig,
-  notifier = diaryMigrationDiscoveryNotifier
+  notifier = diaryMigrationDiscoveryNotifier,
+  accountId?: string
 ): Promise<boolean> {
-  const bridge = resolveDiaryMigrationBridge(nest, cfg);
+  const bridge = resolveDiaryMigrationBridge(nest, cfg, accountId);
   return notifier.notify(
     nest,
     bridge?.ownerShip
       ? (message, blob) => bridge.sendOwnerNotification(message, blob)
       : undefined,
-    bridge?.getChannelTitle(nest)
+    bridge?.getChannelTitle(nest),
+    accountId
   );
 }
