@@ -75,7 +75,13 @@ _CONFIGURE_MARK = "steward-action-1"
 _LENS_MARK = "steward-lens-action-1"
 # Existence probe: a %steward lens scry that any installed agent answers (and
 # our own ship is always allowed to peek). A ship without %steward nacks it.
-_STEWARD_PROBE_PATH = "/x/v1/lens/recent"
+#
+# Eyre HTTP scry URLs are /~/scry/<app><path>.json — care (%x) is applied by
+# Gall/Eyre, not written into the path. Using "/x/v1/..." made the first path
+# segment look like the app name (%x), so the probe always 404'd even when
+# %steward was running. Correct form matches other modern agents
+# (contacts/v1/..., activity/v4/...): app in the path, no care letter.
+_STEWARD_PROBE_PATH = "/steward/v1/lens/recent"
 
 
 def _now_ms() -> int:

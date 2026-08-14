@@ -16,10 +16,12 @@ export async function changeMessageFilter(filter: TalkSidebarFilter) {
   try {
     // optimistic update
     await db.insertSettings({ messagesFilter: filter });
-    return api.setSetting('messagesFilter', filter);
+    await api.setSetting('messagesFilter', filter);
+    return true;
   } catch (e) {
     console.error('Failed to change message filter', e);
     await db.insertSettings({ messagesFilter: oldFilter });
+    return false;
   }
 }
 
@@ -213,6 +215,7 @@ export async function updateDisableTlonInfraEnhancement(disabled: boolean) {
       severity: AnalyticsSeverity.Medium,
     });
     await db.insertSettings({ disableTlonInfraEnhancement: oldValue });
+    throw e;
   }
 }
 
@@ -224,6 +227,7 @@ export async function updateEnableTelemetry(value: boolean) {
     // optimistic update
     await db.insertSettings({ enableTelemetry: value });
     await api.setSetting('enableTelemetry', value);
+    return true;
   } catch (e) {
     logger.trackError('Error updating telemetry setting', {
       error: e,
@@ -231,6 +235,7 @@ export async function updateEnableTelemetry(value: boolean) {
       severity: AnalyticsSeverity.Medium,
     });
     await db.insertSettings({ enableTelemetry: oldValue });
+    return false;
   }
 }
 

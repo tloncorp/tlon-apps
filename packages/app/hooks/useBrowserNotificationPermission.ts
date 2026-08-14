@@ -1,3 +1,4 @@
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { isElectron } from './useIsElectron';
@@ -40,6 +41,11 @@ export function useBrowserNotificationPermission() {
 
     const nextPermission = await window.Notification.requestPermission();
     setPermission(nextPermission);
+    trackEvent(AnalyticsEvent.ActionsNotifPermsChecked, {
+      isGranted: nextPermission === 'granted',
+      canAskAgain: nextPermission === 'default',
+      $set: { pushNotifsGranted: nextPermission === 'granted' },
+    });
     return nextPermission;
   }, []);
 

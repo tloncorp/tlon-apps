@@ -2,8 +2,6 @@ import { useAsyncStorageDevTools } from '@dev-plugins/async-storage';
 import { useReactNavigationDevTools } from '@dev-plugins/react-navigation';
 import { useReactQueryDevTools } from '@dev-plugins/react-query';
 import {
-  DarkTheme,
-  DefaultTheme,
   NavigationContainer,
   NavigationContainerRefWithCurrent,
   NavigationState,
@@ -13,13 +11,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useRequiredUpdate } from '@tloncorp/app/hooks/useRequiredUpdate';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
+import { useAppNavigationTheme } from '@tloncorp/app/navigation/useAppNavigationTheme';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
@@ -174,12 +173,32 @@ const MainApp = () => {
   );
 };
 
-export default function ConnectedApp() {
-  const isDarkMode = useIsDarkMode();
+type MigrationState = ReturnType<typeof useMigrations>;
+
+export function ConnectedAppContent({
+  migrationState,
+}: {
+  migrationState: MigrationState;
+}) {
+  const splashIsHidden = useSplashHider();
+
+  return (
+    <FeatureFlagConnectedInstrumentationProvider>
+      <BaseProviderStack migrationState={migrationState}>
+        <ConnectedNavigationContent splashIsHidden={splashIsHidden} />
+      </BaseProviderStack>
+    </FeatureFlagConnectedInstrumentationProvider>
+  );
+}
+
+function ConnectedNavigationContent({
+  splashIsHidden,
+}: {
+  splashIsHidden: boolean;
+}) {
+  const navigationTheme = useAppNavigationTheme();
   const navigationContainerRef = useNavigationContainerRef();
   const routeNameRef = useRef<string>(undefined);
-  const migrationState = useMigrations();
-  const splashIsHidden = useSplashHider();
   const navigationLogging = useNavigationLogging();
 
   const onReady = () => {
@@ -205,32 +224,34 @@ export default function ConnectedApp() {
   };
 
   return (
-    <FeatureFlagConnectedInstrumentationProvider>
-      <NavigationContainer
-        theme={isDarkMode ? DarkTheme : DefaultTheme}
-        ref={navigationContainerRef}
-        onReady={onReady}
-        onStateChange={onStateChange}
-        navigationInChildEnabled
-      >
-        <BaseProviderStack migrationState={migrationState}>
-          <ErrorBoundary>
-            <BranchProvider>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <SignupProvider>
-                  {splashIsHidden ? <App /> : null}
+    <NavigationContainer
+      theme={navigationTheme}
+      ref={navigationContainerRef}
+      onReady={onReady}
+      onStateChange={onStateChange}
+      navigationInChildEnabled
+    >
+      <ErrorBoundary>
+        <BranchProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <SignupProvider>
+              {splashIsHidden ? <App /> : null}
 
-                  {__DEV__ && (
-                    <DevTools navigationContainerRef={navigationContainerRef} />
-                  )}
-                </SignupProvider>
-              </GestureHandlerRootView>
-            </BranchProvider>
-          </ErrorBoundary>
-        </BaseProviderStack>
-      </NavigationContainer>
-    </FeatureFlagConnectedInstrumentationProvider>
+              {__DEV__ && (
+                <DevTools navigationContainerRef={navigationContainerRef} />
+              )}
+            </SignupProvider>
+          </GestureHandlerRootView>
+        </BranchProvider>
+      </ErrorBoundary>
+    </NavigationContainer>
   );
+}
+
+export default function ConnectedApp() {
+  const migrationState = useMigrations();
+
+  return <ConnectedAppContent migrationState={migrationState} />;
 }
 
 // This is rendered as a component because I didn't have any better ideas

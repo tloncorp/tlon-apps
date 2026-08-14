@@ -17,6 +17,7 @@
     "dist",
     "scripts/**/*.test.ts",
     "scripts/**/*.spec.ts",
+    "scripts/tloncorp-api-mock.ts",
     "tests/**/*.ts"
   ]
 }

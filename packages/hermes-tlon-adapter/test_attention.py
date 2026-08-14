@@ -18,6 +18,7 @@ class AttentionTests(unittest.TestCase):
             "is_authorized": True,
             "has_text": True,
             "is_mentioned": False,
+            "is_owner_blob": False,
             "is_free_response": False,
             "is_participated_thread": False,
         }
@@ -42,6 +43,39 @@ class AttentionTests(unittest.TestCase):
         self.assertTrue(self.decide(is_mentioned=True).dispatch)
         self.assertTrue(self.decide(is_free_response=True).dispatch)
         self.assertTrue(self.decide(is_participated_thread=True).dispatch)
+
+    def test_owner_blob_dispatches_in_group(self):
+        decision = self.decide(is_owner_blob=True)
+
+        self.assertTrue(decision.dispatch)
+        self.assertEqual(decision.reason, "owner-blob")
+
+    def test_owner_blob_preserves_existing_attention_reasons(self):
+        self.assertEqual(
+            self.decide(is_owner_blob=True, is_mentioned=True).reason,
+            "mention",
+        )
+        self.assertEqual(
+            self.decide(is_owner_blob=True, is_owner_listen=True).reason,
+            "owner-listen",
+        )
+        self.assertEqual(
+            self.decide(is_owner_blob=True, is_participated_thread=True).reason,
+            "participated-thread",
+        )
+        self.assertEqual(
+            self.decide(is_owner_blob=True, is_free_response=True).reason,
+            "free-response",
+        )
+
+    def test_owner_blob_respects_authorization_and_content_guards(self):
+        unauthorized = self.decide(is_owner_blob=True, is_authorized=False)
+        empty = self.decide(is_owner_blob=True, has_text=False)
+
+        self.assertFalse(unauthorized.dispatch)
+        self.assertEqual(unauthorized.reason, "unauthorized")
+        self.assertFalse(empty.dispatch)
+        self.assertEqual(empty.reason, "empty")
 
     def test_unaddressed_or_empty_group_drops(self):
         self.assertFalse(self.decide().dispatch)

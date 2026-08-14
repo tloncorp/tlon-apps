@@ -15,11 +15,13 @@ import os
 import re
 import shutil
 import time
+import unicodedata
 import uuid
-from dataclasses import replace
+from collections import OrderedDict, deque
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional, Sequence
+from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (
@@ -73,9 +75,12 @@ from .channel_access import (
 )
 from .cite import resolve_cites
 from .history import (
+    MessageCache,
     build_channel_context,
     build_thread_context,
     fetch_channel_history,
+    fetch_post,
+    fetch_reply,
     fetch_thread_context,
 )
 from .media import (
@@ -90,6 +95,7 @@ from .mention import (
     extract_profile_avatar,
     extract_profile_nickname,
 )
+from .migration import MigrationCommandController, is_migrate_command
 from .owner_listen import (
     SETTINGS_DESK,
     SETTINGS_KEY_GROUP_CHANNELS,
@@ -97,6 +103,7 @@ from .owner_listen import (
     apply_owner_listen_command,
     apply_owner_listen_group_command,
     apply_owner_listen_settings_event,
+    canonicalize_nest,
     canonical_nest_set,
     is_owner_listen_command,
     owner_listen_active,
@@ -107,6 +114,26 @@ from .owner_listen import (
     parse_settings_event,
     settings_group_channels,
     settings_put_entry,
+)
+from .nudge import (
+    ActiveHoursBaseline,
+    NudgeSettingsSnapshot,
+    OwnerActivityPersistence,
+    PendingNudge,
+    PendingNudgePersistence,
+    SETTINGS_KEY_LAST_NUDGE_STAGE,
+    SETTINGS_KEY_LAST_OWNER_MESSAGE_AT,
+    SETTINGS_KEY_LAST_OWNER_MESSAGE_DATE,
+    SETTINGS_KEY_NUDGE_ACTIVE_HOURS_END,
+    SETTINGS_KEY_NUDGE_ACTIVE_HOURS_START,
+    SETTINGS_KEY_NUDGE_ACTIVE_HOURS_TIMEZONE,
+    SETTINGS_KEY_PENDING_NUDGE,
+    TlonNudgeScheduler,
+    _valid_epoch_ms,
+    is_nudge_eligible,
+    owner_activity_from_snapshot,
+    parse_last_nudge_stage,
+    parse_pending_nudge,
 )
 from .image_search import (
     IMAGE_SEARCH_TOOL_DESCRIPTION,
@@ -149,14 +176,22 @@ from .tlon_api import (
     DEFAULT_CONTEXT_MESSAGES,
     MAX_MESSAGE_LENGTH,
     TlonAuthError,
+    TlonChannelError,
     TlonCLI,
     TlonConfig,
+    TlonDeadlineCallback,
     TlonGatewayStatus,
     TlonIncomingMessage,
+    TlonReaction,
     TlonSSEClient,
+    TlonStreamStaleError,
+    ChannelReactsSnapshot,
+    TlonTerminalActionError,
     format_post_id,
     normalize_ship,
+    parse_channel_reacts_snapshot,
     parse_channel_message,
+    parse_dm_reaction,
     parse_dm_message,
 )
 from .presence import (
@@ -167,12 +202,26 @@ from .presence import (
     handle_pre_tool_call,
     set_active_computing_presence_tracker,
 )
+from .sanitize import (
+    ends_with_directive_prefix,
+    find_executable_block_directives,
+    find_block_directives,
+    strip_block_directives,
+    strip_trailing_directive_prefix,
+)
 from .tlon_tool import (
+    CREDENTIAL_FLAGS_WITH_VALUE,
     TLON_TOOL_DESCRIPTION,
     TLON_TOOL_SCHEMA,
+    clear_diary_migration_notification_sender,
     check_tlon_tool_requirements,
+    diary_target_blocked_message,
     handle_tlon_tool,
     resolve_tlon_skill_path,
+    set_diary_migration_notification_sender,
+    split_tlon_command,
+    start_diary_migration_discovery,
+    wait_for_pending_discovery,
 )
 
 logger = logging.getLogger(__name__)
@@ -218,18 +267,59 @@ OPTIONAL_ENV = [
     "TLON_OWNER_LISTEN_DISABLED_CHANNELS",
     "TLON_OWNER_LISTEN_ENABLED_CHANNELS",
     "TLON_CONTEXT_MESSAGES",
+    "TLON_REACTION_LEVEL",
     "TLON_TELEMETRY",
     "TLON_TELEMETRY_API_KEY",
     "TLON_TELEMETRY_HOST",
     "TLON_TELEMETRY_DEBUG",
     "TLON_CLI",
     "TLON_SSE_READ_TIMEOUT_SECONDS",
+    "TLON_SSE_STALE_THRESHOLD_SECONDS",
+    "TLON_SSE_WATCHDOG_INTERVAL_SECONDS",
     "TLON_GATEWAY_STATUS",
     "TLON_GATEWAY_STATUS_OWNER",
+    "TLON_REENGAGEMENT_ENABLED",
+    "TLON_NUDGE_TICK_INTERVAL_MS",
+    "TLON_NUDGE_ACTIVE_HOURS_START",
+    "TLON_NUDGE_ACTIVE_HOURS_END",
+    "TLON_NUDGE_ACTIVE_HOURS_TIMEZONE",
+    "TLON_TIMEZONE",
     "BRAVE_SEARCH_API_KEY",
     "BRAVE_API_KEY",
 ]
 _TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
+
+
+@dataclass(frozen=True)
+class _NudgeHookResult:
+    pending: Optional[PendingNudge] = None
+    inject_context: bool = False
+
+
+@dataclass(frozen=True)
+class _StreamWorkItem:
+    app: str
+    raw: Any
+    message: Optional[TlonIncomingMessage] = None
+    nudge_hook: _NudgeHookResult = _NudgeHookResult()
+    nudge_settings_handled: bool = False
+
+
+_NUDGE_SNAPSHOT_FIELDS = {
+    SETTINGS_KEY_LAST_OWNER_MESSAGE_AT: "last_owner_message_at",
+    SETTINGS_KEY_LAST_OWNER_MESSAGE_DATE: "last_owner_message_date",
+    SETTINGS_KEY_PENDING_NUDGE: "pending_nudge_raw",
+    SETTINGS_KEY_LAST_NUDGE_STAGE: "last_nudge_stage",
+    SETTINGS_KEY_NUDGE_ACTIVE_HOURS_START: "active_hours_start",
+    SETTINGS_KEY_NUDGE_ACTIVE_HOURS_END: "active_hours_end",
+    SETTINGS_KEY_NUDGE_ACTIVE_HOURS_TIMEZONE: "active_hours_timezone",
+}
+
+# Absorb a normal slow dispatch without stalling SSE ingestion, but apply
+# transport backpressure rather than accumulating unbounded work under
+# sustained overload.
+_STREAM_EVENT_QUEUE_MAXSIZE = 1024
+_OWNER_BLOCK_REASON_MAX_CHARS = 500
 
 try:
     import aiohttp as _aiohttp  # noqa: F401
@@ -241,7 +331,9 @@ except ImportError:
 
 def _is_dm_chat_id(chat_id: str) -> bool:
     chat = str(chat_id or "").strip()
-    return bool(chat.startswith("~") and normalize_ship(chat) == chat)
+    return bool(
+        chat.startswith("~") and "/" not in chat and normalize_ship(chat) == chat
+    )
 
 
 # `/tlon ...` debug namespace. Does not match `/tlon-version` (legacy alias)
@@ -517,8 +609,10 @@ def _processing_outcome_value(outcome: Any) -> Optional[str]:
 # ContextLensTrigger union the client renders (context-lens.ts).
 _LENS_TRIGGER_MAP = {
     "dm": "dm",
+    "reaction": "reaction",
     "mention": "mention",
     "owner-listen": "owner-listen",
+    "owner-blob": "owner-blob",
     "participated-thread": "thread",
     "retry": "retry",
     # A free (unprompted) channel response has no dedicated trigger in the
@@ -537,7 +631,9 @@ def _lens_trigger(dispatch_reason: str, *, is_dm: bool) -> str:
 
 
 def _lens_run_kind(dispatch_reason: str) -> str:
-    return "owner_listen" if dispatch_reason == "owner-listen" else "conversation"
+    if dispatch_reason in ("owner-listen", "owner-blob"):
+        return "owner_listen"
+    return "conversation"
 
 
 def _lens_final_status(
@@ -570,6 +666,23 @@ def _epoch_ms(value: Any) -> Optional[int]:
     return None
 
 
+def _nudge_reply_context(nudge: PendingNudge, text: str) -> str:
+    sent_at = (
+        datetime.fromtimestamp(nudge.sent_at / 1000, timezone.utc)
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
+    )
+    content = (
+        f"Message content:\n\n{nudge.content}\n\n" if nudge.content else ""
+    )
+    return (
+        f"[Context: You recently sent {nudge.owner_ship} a stage-{nudge.stage} "
+        f"re-engagement nudge at {sent_at}. {content}"
+        "The owner's reply below may be responding to that nudge.]\n\n"
+        f"{text}"
+    )
+
+
 def _cli_available(cli: str | None = None) -> bool:
     candidate = cli or os.getenv("TLON_CLI", "tlon")
     if not candidate:
@@ -594,8 +707,147 @@ def is_connected(config) -> bool:
     return TlonConfig.from_env(extra).is_complete()
 
 
+def _reaction_state_value(emoji: str) -> str:
+    """Bound comparison value for a wire react, preserving ordinary emojis."""
+    value = str(emoji)
+    if len(value) <= 256:
+        return value
+    return "sha256:" + hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _reaction_wire_metadata(wire_key: str) -> tuple[str, bool]:
+    """Recover actor metadata from the stable state key for removal events."""
+    if "/" in wire_key:
+        return normalize_ship(wire_key.split("/", 1)[0]), True
+    return normalize_ship(wire_key), False
+
+
+class ReactionState:
+    """Bounded reaction state that turns snapshots/deltas into transitions."""
+
+    def __init__(self, *, posts_per_conversation: int = 200, conversations: int = 64) -> None:
+        self.posts_per_conversation = posts_per_conversation
+        self.conversations = conversations
+        # Values are exact short reacts / digests. None is a DM removal tombstone.
+        self._conversations: OrderedDict[
+            str, OrderedDict[str, dict[str, Optional[str]]]
+        ] = OrderedDict()
+
+    @staticmethod
+    def _conversation_key(chat_type: str, chat_id: str) -> str:
+        return f"{chat_type}:{chat_id}"
+
+    def _post_entries(self, chat_type: str, chat_id: str, post_id: str) -> dict[str, Optional[str]]:
+        key = self._conversation_key(chat_type, chat_id)
+        posts = self._conversations.get(key)
+        if posts is None:
+            posts = OrderedDict()
+            self._conversations[key] = posts
+        self._conversations.move_to_end(key)
+        entries = posts.get(str(post_id))
+        if entries is None:
+            entries = {}
+            posts[str(post_id)] = entries
+        posts.move_to_end(str(post_id))
+        while len(posts) > self.posts_per_conversation:
+            posts.popitem(last=False)
+        while len(self._conversations) > self.conversations:
+            self._conversations.popitem(last=False)
+        return entries
+
+    def apply_channel_snapshot(self, snapshot: ChannelReactsSnapshot) -> list[TlonReaction]:
+        prior = dict(self._post_entries("group", snapshot.chat_id, snapshot.post_id))
+        current = {
+            key: _reaction_state_value(emoji)
+            for key, (emoji, _reactor, _is_bot) in snapshot.entries.items()
+        }
+        transitions: list[TlonReaction] = []
+
+        # A changed map value is a removal followed by a new add, preserving
+        # the state-machine edge instead of treating snapshots as event deltas.
+        for wire_key, prior_emoji in prior.items():
+            if current.get(wire_key) == prior_emoji:
+                continue
+            reactor, reactor_is_bot = _reaction_wire_metadata(wire_key)
+            transitions.append(
+                TlonReaction(
+                    chat_type="group",
+                    chat_id=snapshot.chat_id,
+                    post_id=snapshot.post_id,
+                    parent_id=snapshot.parent_id,
+                    wire_key=wire_key,
+                    reactor=reactor,
+                    reactor_is_bot=reactor_is_bot,
+                    emoji=prior_emoji or "",
+                    added=False,
+                    raw=snapshot.raw,
+                )
+            )
+        for wire_key, (emoji, reactor, reactor_is_bot) in snapshot.entries.items():
+            if prior.get(wire_key) == current[wire_key]:
+                continue
+            transitions.append(
+                TlonReaction(
+                    chat_type="group",
+                    chat_id=snapshot.chat_id,
+                    post_id=snapshot.post_id,
+                    parent_id=snapshot.parent_id,
+                    wire_key=wire_key,
+                    reactor=reactor,
+                    reactor_is_bot=reactor_is_bot,
+                    emoji=emoji,
+                    added=True,
+                    raw=snapshot.raw,
+                )
+            )
+
+        entries = self._post_entries("group", snapshot.chat_id, snapshot.post_id)
+        entries.clear()
+        entries.update(current)
+        return transitions
+
+    def forget_entry(
+        self, chat_type: str, chat_id: str, post_id: str, wire_key: str
+    ) -> None:
+        """Drop one committed entry so a later snapshot re-emits it as an add.
+
+        Snapshots commit before their transitions are handled, so when an
+        added reaction's target classification is unresolved (exact scry
+        failure), the entry must be forgotten — otherwise a redelivered or
+        later diff treats it as already-seen and a reaction on the bot's own
+        post is permanently misfiled as a passive note.
+        """
+        posts = self._conversations.get(self._conversation_key(chat_type, chat_id))
+        if not posts:
+            return
+        entries = posts.get(str(post_id))
+        if entries:
+            entries.pop(wire_key, None)
+
+    def apply_dm_delta(self, reaction: TlonReaction) -> list[TlonReaction]:
+        entries = self._post_entries("dm", reaction.chat_id, reaction.post_id)
+        if reaction.added:
+            value = _reaction_state_value(reaction.emoji)
+            if reaction.wire_key in entries and entries[reaction.wire_key] == value:
+                return []
+            entries[reaction.wire_key] = value
+            return [reaction]
+
+        # An absent remove is real first-observed history, while a None entry
+        # is a tombstone proving this exact delta was already surfaced.
+        if reaction.wire_key in entries and entries[reaction.wire_key] is None:
+            return []
+        entries[reaction.wire_key] = None
+        return [reaction]
+
+    def clear(self) -> None:
+        self._conversations.clear()
+
+
 class TlonAdapter(BasePlatformAdapter):
     MAX_MESSAGE_LENGTH = MAX_MESSAGE_LENGTH
+    SUPPORTS_MESSAGE_EDITING = False
+    _DISPATCH_STATE_CAPACITY = 1000
     # Tell Hermes' DeliveryRouter not to truncate before calling send(); this
     # adapter preserves oversized replies by splitting them into Tlon posts.
     splits_long_messages = True
@@ -618,9 +870,74 @@ class TlonAdapter(BasePlatformAdapter):
         self.tlon_config = TlonConfig.from_env(config.extra or {})
         self._telemetry = TlonTelemetry(self.tlon_config, extra=config.extra or {})
         self._cli = TlonCLI(self.tlon_config, observer=self._telemetry.observe_cli)
+        self._migration = MigrationCommandController(
+            run_command=self._run_migration_command,
+            send_dm=self._send_migration_dm,
+            emit_event=self._telemetry.migration_event,
+        )
+        self._diary_notification_sender = self._send_migration_dm
         self._connected_at = 0.0
         self._sse: Optional[TlonSSEClient] = None
         self._stream_task: Optional[asyncio.Task] = None
+        self._event_queue: Optional[asyncio.Queue[_StreamWorkItem]] = None
+        self._event_worker_task: Optional[asyncio.Task] = None
+        self._sse_watchdog_task: Optional[asyncio.Task] = None
+        self._sse_probe_task: Optional[asyncio.Task] = None
+        # Delivered-probe state for the current silence: epoch_at is the
+        # probe's START time (frame-order validity — its own ack can be parsed
+        # before poke() returns), success_at is when the PUT completed (grace
+        # runs from delivery), both set only on send success. Epoch validity
+        # is a comparison, not bookkeeping: a probe only counts for
+        # condemnation if it started after the last frame heard and was sent
+        # on the current client.
+        self._sse_probe_epoch_at: Optional[float] = None
+        self._sse_probe_success_at: Optional[float] = None
+        self._sse_probe_client: Optional[TlonSSEClient] = None
+        # Set while the reader is parked on the bounded event queue; the
+        # watchdog stands down during backpressure because stream liveness is
+        # unknowable there.
+        self._route_blocked = False
+        self._nudge_snapshot = NudgeSettingsSnapshot()
+        self._nudge_owner_activity: Optional[tuple[int, str]] = None
+        self._nudge_stage_shadow = 0
+        self._pending_nudge: Optional[PendingNudge] = None
+        self._pending_nudge_rehydrated = False
+        self._nudge_seen_ids: set[str] = set()
+        self._nudge_seen_order: list[str] = []
+        self._nudge_load_seeded = False
+        self._nudge_settings_ready = False
+        self._nudge_settings_retry_task: Optional[asyncio.Task] = None
+        self._nudge_load_lock = asyncio.Lock()
+        self._nudge_load_generation = 0
+        self._nudge_activity_persistence = OwnerActivityPersistence(
+            poke=self._nudge_poke,
+            error=lambda message: logger.warning("%s", message),
+        )
+        self._pending_nudge_persistence = PendingNudgePersistence(
+            poke=self._nudge_poke,
+            error=lambda message: logger.warning("%s", message),
+        )
+        self._nudge_scheduler = TlonNudgeScheduler(
+            enabled=self.tlon_config.reengagement_enabled,
+            owner_ship=self.tlon_config.owner_ship,
+            bot_ship=self.tlon_config.ship_name,
+            interval_ms=self.tlon_config.nudge_tick_interval_ms,
+            get_snapshot=lambda: self._nudge_snapshot,
+            settings_ready=lambda: self._nudge_settings_ready,
+            get_activity=lambda: self._nudge_owner_activity,
+            set_activity=self._set_nudge_owner_activity,
+            get_stage=lambda: self._nudge_stage_shadow,
+            set_stage=self._set_nudge_stage,
+            get_active_hours_baseline=self._nudge_active_hours_baseline,
+            get_pending=lambda: self._pending_nudge,
+            set_pending=self._set_pending_nudge,
+            send_dm=self._send_nudge_dm,
+            activity_persistence=self._nudge_activity_persistence,
+            pending_persistence=self._pending_nudge_persistence,
+            poke=self._nudge_poke,
+            telemetry=self._telemetry,
+            error=lambda message: logger.warning("%s", message),
+        )
         self._gateway_status = TlonGatewayStatus(
             self.tlon_config,
             on_error=lambda operation, exc: self._telemetry.error(
@@ -645,6 +962,17 @@ class TlonAdapter(BasePlatformAdapter):
         )
         self._seen_ids: set[str] = set()
         self._seen_order: list[str] = []
+        self._reaction_state = ReactionState()
+        self._message_cache = MessageCache()
+        self._pending_reaction_notes: OrderedDict[str, deque[str]] = OrderedDict()
+        # Maps a top-level own-post reaction's synthetic `react/…` dispatch
+        # id to the real reactable post it was about, so send()'s
+        # reply_in_thread fallback (which otherwise threads on the trigger
+        # id) can thread on the actual wire post instead of the synthetic,
+        # nonexistent one. Retained until the bounded cache evicts it or the
+        # adapter disconnects, so retries and additional sends stay anchored
+        # to the real post.
+        self._reaction_reply_targets: OrderedDict[str, str] = OrderedDict()
         self._monitored_channels = set(self.tlon_config.channels)
         self._mention_matcher = self._build_mention_matcher()
         self._bot_nickname: str = ""
@@ -653,6 +981,10 @@ class TlonAdapter(BasePlatformAdapter):
         self._known_bot_ships: set[str] = set()
         self._known_bot_consecutive_by_channel: dict[str, int] = {}
         self._pending_bot_cap_addendum: dict[str, tuple[str, str]] = {}
+        self._inflight_senders: OrderedDict[tuple[str, str], str] = OrderedDict()
+        self._executed_block_directives: OrderedDict[
+            tuple[str, str, str], None
+        ] = OrderedDict()
         # Lens output IDs derive from --sent-at. Reserve strictly increasing
         # values so quick consecutive sends cannot collide on the same post ID.
         self._last_lens_sent_at = 0
@@ -725,14 +1057,25 @@ class TlonAdapter(BasePlatformAdapter):
             )
             set_active_telemetry(self._telemetry)
             await self._load_bot_profile()
-            await self._load_settings_state()
+            settings_loaded = await self._load_settings_state()
+            self._nudge_settings_ready = settings_loaded
+            if not settings_loaded:
+                self._start_nudge_settings_retry()
             await self._process_pending_dm_invites()
             await self._process_pending_group_invites()
             await self._start_gateway_status()
             await self._start_lens()
+            self._start_event_worker()
+            self._nudge_scheduler.start()
             self._stream_task = asyncio.create_task(self._run_stream())
             self._computing_presence.bind_loop(asyncio.get_running_loop())
             set_active_computing_presence_tracker(self._computing_presence)
+            set_diary_migration_notification_sender(
+                self._diary_notification_sender,
+                bot_ship=self.tlon_config.ship_name,
+                owner_ship=self.tlon_config.owner_ship,
+                title_lookup=self._lookup_diary_channel_title,
+            )
             self._mark_connected()
             self._connected_at = time.monotonic()
             hermes_permissions = _hermes_tool_permission_snapshot()
@@ -778,13 +1121,32 @@ class TlonAdapter(BasePlatformAdapter):
             self._set_fatal_error("auth", str(exc), retryable=False)
             return False
         except Exception as exc:
-            logger.error("[tlon] connect failed: %s", exc, exc_info=True)
-            self._telemetry.error("connect", exc)
+            # A fixed cookie the ship rejects surfaces here at startup —
+            # open()/subscribe() raise TlonTerminalActionError (401/403), which
+            # is a ConnectionError subclass, not TlonAuthError, so it lands in
+            # this generic handler rather than the fatal branch above. Without
+            # this check the gateway would restart-loop against a dead cookie.
+            fatal_auth = self._is_fatal_auth_rejection(exc)
+            if fatal_auth:
+                logger.error("[tlon] connect failed, credentials rejected: %s", exc)
+                self._telemetry.error("connect", exc, operation="channel")
+            else:
+                logger.error("[tlon] connect failed: %s", exc, exc_info=True)
+                self._telemetry.error("connect", exc)
+            await self._stop_nudge_collaborators()
+            await self._stop_event_worker()
             await self._close_sse(graceful=False)
+            self._reset_nudge_state()
+            if fatal_auth:
+                self._set_fatal_error("auth", str(exc), retryable=False)
             return False
 
     async def disconnect(self) -> None:
         self._mark_disconnected()
+        self._nudge_settings_ready = False
+        self._nudge_load_generation += 1
+        await self._stop_nudge_settings_retry()
+        await self._nudge_scheduler.stop()
         if self._connected_at:
             self._telemetry.gateway_disconnected(
                 uptime_seconds=int(time.monotonic() - self._connected_at),
@@ -794,9 +1156,9 @@ class TlonAdapter(BasePlatformAdapter):
         clear_active_telemetry(self._telemetry)
         clear_active_computing_presence_tracker(self._computing_presence)
         clear_active_recorder(self._lens)
-        await self._computing_presence.close()
-        await self._stop_gateway_status("shutdown")
-        await self._stop_lens()
+        clear_diary_migration_notification_sender(
+            self._diary_notification_sender
+        )
         if self._stream_task is not None:
             self._stream_task.cancel()
             try:
@@ -804,13 +1166,30 @@ class TlonAdapter(BasePlatformAdapter):
             except asyncio.CancelledError:
                 pass
             self._stream_task = None
+        await self._stop_event_worker()
+        await self._nudge_activity_persistence.flush(final=True)
+        await self._pending_nudge_persistence.flush(final=True)
+        await self._computing_presence.close()
+        await self._stop_gateway_status("shutdown")
+        await self._stop_lens()
         await self._close_sse()
+        self._reset_nudge_state()
         self._seen_ids.clear()
         self._seen_order.clear()
         self._participated_threads.clear()
         self._known_bot_ships.clear()
         self._known_bot_consecutive_by_channel.clear()
         self._pending_bot_cap_addendum.clear()
+        for message_key in list(self._inflight_senders):
+            self._remove_dispatch_state(message_key)
+        for directive_key in list(self._executed_block_directives):
+            self._remove_dispatch_state(directive_key[:2])
+        self._inflight_senders.clear()
+        self._executed_block_directives.clear()
+        self._reaction_state.clear()
+        self._message_cache.clear()
+        self._pending_reaction_notes.clear()
+        self._reaction_reply_targets.clear()
         self._processed_dm_invites.clear()
         self._processed_group_invites.clear()
         self._telemetry.flush()
@@ -840,7 +1219,66 @@ class TlonAdapter(BasePlatformAdapter):
         owner = self.tlon_config.owner_ship
         return bool(owner) and normalize_ship(ship) == owner
 
-    async def _load_settings_state(self) -> None:
+    def _nudge_active_hours_baseline(self) -> ActiveHoursBaseline:
+        return ActiveHoursBaseline(
+            start=self.tlon_config.nudge_active_hours_start,
+            end=self.tlon_config.nudge_active_hours_end,
+            timezone=self.tlon_config.nudge_active_hours_timezone,
+            user_timezone=self.tlon_config.user_timezone,
+        )
+
+    def _set_nudge_owner_activity(
+        self, activity: Optional[tuple[int, str]]
+    ) -> None:
+        self._nudge_owner_activity = activity
+
+    def _set_nudge_stage(self, stage: int) -> None:
+        self._nudge_stage_shadow = stage if stage in (1, 2, 3) else 0
+
+    def _set_pending_nudge(self, nudge: Optional[PendingNudge]) -> None:
+        self._pending_nudge = nudge
+        self._pending_nudge_rehydrated = True
+
+    async def _current_sse_poke(self, app: str, mark: str, payload: Any) -> Any:
+        if self._sse is None:
+            raise ConnectionError("Tlon SSE is unavailable")
+        return await self._sse.poke(app, mark, payload)
+
+    async def _nudge_poke(
+        self,
+        app: str,
+        mark: str,
+        payload: Any,
+    ) -> Any:
+        try:
+            return await self._current_sse_poke(app, mark, payload)
+        except TlonTerminalActionError:
+            raise
+        except (ConnectionError, OSError) as exc:
+            raise ConnectionError(str(exc)) from exc
+        except Exception as exc:
+            if self._sse is None or type(exc).__module__.startswith("aiohttp"):
+                raise ConnectionError(str(exc)) from exc
+            raise
+
+    async def _send_nudge_dm(self, text: str, sent_at_ms: int) -> Any:
+        with cli_context("owner_notification"):
+            return await self._cli.send_message(
+                self.tlon_config.owner_ship, text, sent_at=sent_at_ms
+            )
+
+    def _reset_nudge_state(self) -> None:
+        self._nudge_snapshot = NudgeSettingsSnapshot()
+        self._nudge_owner_activity = None
+        self._nudge_stage_shadow = 0
+        self._pending_nudge = None
+        self._pending_nudge_rehydrated = False
+        self._nudge_seen_ids.clear()
+        self._nudge_seen_order.clear()
+        self._nudge_load_seeded = False
+        self._nudge_settings_ready = False
+
+    async def _load_settings_state(self) -> bool:
         """Load adapter state from the ship's %settings store.
 
         The settings store is the durable source of truth (owner-listen
@@ -850,50 +1288,58 @@ class TlonAdapter(BasePlatformAdapter):
         has no entry.
         """
         if self._sse is None:
-            return
+            return False
         defaults = self._owner_listen_env_defaults()
-        try:
-            payload = await self._sse.scry("/settings/all")
-        except Exception as exc:
-            # Keep the current snapshot (env defaults at boot, plus any toggles
-            # applied since) rather than resetting it.
-            logger.warning("[tlon] settings load failed; keeping current state: %s", exc)
-            self._telemetry.error("settings", exc, operation="load")
-            return
-        bucket = parse_settings_bucket(payload)
-        self._owner_listen = owner_listen_state_from_settings(bucket, defaults=defaults)
-        new_group_channels = settings_group_channels(bucket)
-        removed_group_channels = (
-            self._settings_group_channels
-            - new_group_channels
-            - set(self.tlon_config.channels)
-        )
-        self._monitored_channels.difference_update(removed_group_channels)
-        self._monitored_channels.update(new_group_channels)
-        self._settings_group_channels = new_group_channels
-        self._pending_approvals = prune_expired(
-            parse_pending_approvals(bucket.get(SETTINGS_KEY_PENDING_APPROVALS)),
-            time.time() * 1000.0,
-        )
-        self._settings_dm_allowlist = parse_dm_allowlist(
-            bucket.get(SETTINGS_KEY_DM_ALLOWLIST)
-        )
-        if SETTINGS_KEY_GROUP_INVITE_ALLOWLIST in bucket:
-            self._settings_group_invite_allowlist = parse_dm_allowlist(
-                bucket.get(SETTINGS_KEY_GROUP_INVITE_ALLOWLIST)
+        async with self._nudge_load_lock:
+            generation = self._nudge_load_generation
+            sse = self._sse
+            if sse is None:
+                return False
+            try:
+                payload = await sse.scry("/settings/all")
+            except Exception as exc:
+                # Keep the current snapshot (env defaults at boot, plus any toggles
+                # applied since) rather than resetting it.
+                logger.warning("[tlon] settings load failed; keeping current state: %s", exc)
+                self._telemetry.error("settings", exc, operation="load")
+                return False
+            if generation != self._nudge_load_generation or sse is not self._sse:
+                return False
+            bucket = parse_settings_bucket(payload)
+            self._owner_listen = owner_listen_state_from_settings(bucket, defaults=defaults)
+            new_group_channels = settings_group_channels(bucket)
+            removed_group_channels = (
+                self._settings_group_channels
+                - new_group_channels
+                - set(self.tlon_config.channels)
             )
-        self._channel_rules = parse_channel_rules(bucket.get(SETTINGS_KEY_CHANNEL_RULES))
-        self._settings_default_authorized_ships = parse_ship_list(
-            bucket.get(SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS)
-        )
-        self._auto_accept_dm_invites = settings_bool(
-            bucket.get(SETTINGS_KEY_AUTO_ACCEPT_DM_INVITES), False
-        )
-        self._auto_discover = settings_bool(
-            bucket.get(SETTINGS_KEY_AUTO_DISCOVER_CHANNELS),
-            self.tlon_config.auto_discover,
-        )
-        self._settings_loaded = True
+            self._monitored_channels.difference_update(removed_group_channels)
+            self._monitored_channels.update(new_group_channels)
+            self._settings_group_channels = new_group_channels
+            self._pending_approvals = prune_expired(
+                parse_pending_approvals(bucket.get(SETTINGS_KEY_PENDING_APPROVALS)),
+                time.time() * 1000.0,
+            )
+            self._settings_dm_allowlist = parse_dm_allowlist(
+                bucket.get(SETTINGS_KEY_DM_ALLOWLIST)
+            )
+            if SETTINGS_KEY_GROUP_INVITE_ALLOWLIST in bucket:
+                self._settings_group_invite_allowlist = parse_dm_allowlist(
+                    bucket.get(SETTINGS_KEY_GROUP_INVITE_ALLOWLIST)
+                )
+            self._channel_rules = parse_channel_rules(bucket.get(SETTINGS_KEY_CHANNEL_RULES))
+            self._settings_default_authorized_ships = parse_ship_list(
+                bucket.get(SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS)
+            )
+            self._auto_accept_dm_invites = settings_bool(
+                bucket.get(SETTINGS_KEY_AUTO_ACCEPT_DM_INVITES), False
+            )
+            self._auto_discover = settings_bool(
+                bucket.get(SETTINGS_KEY_AUTO_DISCOVER_CHANNELS),
+                self.tlon_config.auto_discover,
+            )
+            self._apply_nudge_settings_bucket(bucket)
+            self._settings_loaded = True
         logger.info(
             "[tlon] settings loaded: owner-listen=%s muted=%s enabled-channels=%s "
             "pending-approvals=%d approved-dms=%d channel-rules=%d "
@@ -908,6 +1354,109 @@ class TlonAdapter(BasePlatformAdapter):
             self._auto_accept_dm_invites,
             self._auto_discover,
         )
+        return True
+
+    async def _load_nudge_settings_only(self) -> bool:
+        if self._sse is None:
+            return False
+        async with self._nudge_load_lock:
+            generation = self._nudge_load_generation
+            sse = self._sse
+            if sse is None:
+                return False
+            try:
+                payload = await sse.scry("/settings/all")
+            except Exception as exc:
+                logger.warning("[tlon] nudge settings reload failed: %s", exc)
+                self._telemetry.error("settings", exc, operation="nudge_reload")
+                return False
+            if generation != self._nudge_load_generation or sse is not self._sse:
+                return False
+            self._apply_nudge_settings_bucket(parse_settings_bucket(payload))
+        return True
+
+    def _apply_nudge_settings_bucket(
+        self,
+        bucket: Mapping[str, Any],
+    ) -> None:
+        """Atomically load settings while keeping scheduler shadows monotonic.
+
+        Scries can race our local settings pokes, so a seeded load only adopts
+        a newer owner activity or a higher nudge stage. A snapshot with newer
+        activity also adopts its stage wholesale; live subscription events
+        remain authoritative in both directions and are handled separately
+        below.
+        """
+        incoming = NudgeSettingsSnapshot.from_bucket(bucket)
+        incoming_activity = owner_activity_from_snapshot(incoming)
+        incoming_stage = parse_last_nudge_stage(incoming.last_nudge_stage) or 0
+
+        # The settings snapshot is last-writer-wins for active-hours and is
+        # still the raw source for pendingNudge hydration.  The two shadows the
+        # scheduler reads are reconciled independently below.
+        self._nudge_snapshot = incoming
+        if not self._nudge_load_seeded:
+            self._nudge_owner_activity = incoming_activity
+            self._set_nudge_stage(incoming_stage)
+            self._nudge_load_seeded = True
+        else:
+            current_activity = self._nudge_owner_activity
+            incoming_activity_is_newer = incoming_activity is not None and (
+                current_activity is None or incoming_activity[0] > current_activity[0]
+            )
+            if incoming_activity_is_newer:
+                self._set_nudge_owner_activity(incoming_activity)
+                # Both harnesses persist activity put-entries before the stage
+                # del-entry, so strictly newer activity marks a newer owner
+                # cycle: adopt its stage even when it clears or lowers. A
+                # stale scry can only carry activity <= our shadow and stays
+                # on the raise-only path. Caveat: if we already observed the
+                # activity put live and then missed the ordered stage
+                # deletion (disconnect mid-batch), the equal-activity load
+                # retains the old stage until still-newer owner activity.
+                self._set_nudge_stage(incoming_stage)
+            elif incoming_stage > self._nudge_stage_shadow:
+                self._set_nudge_stage(incoming_stage)
+
+        if not self._pending_nudge_rehydrated:
+            pending = parse_pending_nudge(self._nudge_snapshot.pending_nudge_raw)
+            self._set_pending_nudge(pending)
+            if pending is not None and not is_nudge_eligible(
+                pending, int(time.time() * 1000)
+            ):
+                self._set_pending_nudge(None)
+                self._pending_nudge_persistence.enqueue(None)
+
+    def _start_nudge_settings_retry(self) -> None:
+        if self._nudge_settings_retry_task is None or self._nudge_settings_retry_task.done():
+            self._nudge_settings_retry_task = asyncio.create_task(
+                self._retry_nudge_settings_load()
+            )
+
+    async def _retry_nudge_settings_load(self) -> None:
+        delay = 1.0
+        while self._sse is not None and not self._nudge_settings_ready:
+            await asyncio.sleep(delay)
+            if await self._load_nudge_settings_only():
+                self._nudge_settings_ready = True
+                return
+            delay = min(delay * 2, 30.0)
+
+    async def _stop_nudge_settings_retry(self) -> None:
+        if self._nudge_settings_retry_task is not None:
+            self._nudge_settings_retry_task.cancel()
+            try:
+                await self._nudge_settings_retry_task
+            except asyncio.CancelledError:
+                pass
+            self._nudge_settings_retry_task = None
+
+    async def _stop_nudge_collaborators(self) -> None:
+        self._nudge_settings_ready = False
+        await self._stop_nudge_settings_retry()
+        await self._nudge_scheduler.stop()
+        await self._nudge_activity_persistence.flush(final=True)
+        await self._pending_nudge_persistence.flush(final=True)
 
     async def _persist_settings_entry(self, key: str, value: Any) -> bool:
         if self._sse is None:
@@ -921,7 +1470,9 @@ class TlonAdapter(BasePlatformAdapter):
             self._telemetry.error("settings", exc, operation="persist", key=key)
             return False
 
-    async def _handle_settings_event(self, raw: Any) -> None:
+    async def _handle_settings_event(
+        self, raw: Any, *, nudge_handled: bool = False
+    ) -> None:
         """Hot-reload owner-listen state from live %settings updates.
 
         Covers writes from outside this process (Landscape, an OpenClaw
@@ -931,6 +1482,8 @@ class TlonAdapter(BasePlatformAdapter):
         event = parse_settings_event(raw)
         if event is None:
             return
+        if not nudge_handled:
+            self._apply_nudge_settings_event(event)
         if event.key == SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS:
             self._settings_default_authorized_ships = parse_ship_list(event.value)
             return
@@ -996,6 +1549,67 @@ class TlonAdapter(BasePlatformAdapter):
                 sorted(self._owner_listen.enabled_channels),
             )
 
+    def _apply_nudge_settings_event(self, event: Any) -> bool:
+        key = getattr(event, "key", "")
+        if key not in _NUDGE_SNAPSHOT_FIELDS:
+            return False
+        value = getattr(event, "value", None)
+        if (
+            key == SETTINGS_KEY_LAST_OWNER_MESSAGE_AT
+            and value is not None
+            and _valid_epoch_ms(value) is None
+        ):
+            # Ignore a malformed activity instant entirely.  It is a handled
+            # settings event, so the ordered worker does not retry it after
+            # the fast tap and accidentally apply a poisoned snapshot.
+            return True
+        # Subscription events are trusted and fully authoritative, including
+        # deletes and external backdates. Only the scry/load path is
+        # monotonic, because a scry can be stale relative to local writes.
+        # Invalidate an already-started load before applying every snapshot
+        # field: the load replaces the entire snapshot, not only the scheduler
+        # shadows, so it could otherwise restore stale active hours or pending
+        # nudge data.
+        candidate = replace(self._nudge_snapshot)
+        candidate.apply(key, value)
+        activity: Optional[tuple[int, str]] = None
+        stage: Optional[int] = None
+        pending: Optional[PendingNudge] = None
+        clear_expired_pending = False
+        if key in (
+            SETTINGS_KEY_LAST_OWNER_MESSAGE_AT,
+            SETTINGS_KEY_LAST_OWNER_MESSAGE_DATE,
+        ):
+            activity = owner_activity_from_snapshot(candidate)
+        elif key == SETTINGS_KEY_LAST_NUDGE_STAGE:
+            stage = parse_last_nudge_stage(candidate.last_nudge_stage) or 0
+        elif key == SETTINGS_KEY_PENDING_NUDGE and not self._pending_nudge_rehydrated:
+            pending = parse_pending_nudge(candidate.pending_nudge_raw)
+            if pending is not None:
+                clear_expired_pending = not is_nudge_eligible(
+                    pending, int(time.time() * 1000)
+                )
+
+        # Do all candidate derivation before publishing any part of the live
+        # state. If a future parser or derivation raises above, the fast-tap
+        # fallback can safely leave this prior state in place for the worker.
+        self._nudge_snapshot = candidate
+        self._nudge_load_seeded = True
+        self._nudge_load_generation += 1
+        if key in (
+            SETTINGS_KEY_LAST_OWNER_MESSAGE_AT,
+            SETTINGS_KEY_LAST_OWNER_MESSAGE_DATE,
+        ):
+            self._set_nudge_owner_activity(activity)
+        elif key == SETTINGS_KEY_LAST_NUDGE_STAGE:
+            self._set_nudge_stage(stage or 0)
+        elif pending is not None:
+            self._set_pending_nudge(pending)
+            if clear_expired_pending:
+                self._set_pending_nudge(None)
+                self._pending_nudge_persistence.enqueue(None)
+        return True
+
     def _user_authorized(self, ship: str, *, is_dm: bool, nest: str = "") -> bool:
         """Env/owner authorization plus settings-store grants.
 
@@ -1045,7 +1659,9 @@ class TlonAdapter(BasePlatformAdapter):
         ``clean_text`` is the inbound text BEFORE media/context enrichment, so a
         retry re-runs _prepare_dispatch_payload / _with_group_context cleanly.
         """
-        seed: dict[str, Any] = {"messageText": clean_text or ""}
+        seed: dict[str, Any] = {
+            "messageText": strip_block_directives(clean_text)
+        }
         if message.blob:
             seed["blobField"] = message.blob
         if message.content is not None:
@@ -1059,17 +1675,27 @@ class TlonAdapter(BasePlatformAdapter):
     @staticmethod
     def _message_preview_text(message: TlonIncomingMessage, text: str) -> str:
         preview = render_content_with_blob(text, message.blob, compact=False).strip()
+        preview = strip_block_directives(preview).strip()
         return preview or "[attachment]"
 
-    async def _queue_dm_approval(self, message: TlonIncomingMessage) -> None:
+    async def _queue_dm_approval(
+        self, message: TlonIncomingMessage, clean_text: str
+    ) -> None:
         if not self.tlon_config.owner_ship:
             logger.info("[tlon] ignoring unauthorized ship %s", message.user_id)
             return
+        if not clean_text.strip() and not message.blob:
+            logger.info(
+                "[tlon] ignoring empty request after sanitization from unauthorized ship"
+            )
+            return
+        original = self._original_message_payload(message)
+        original["messageText"] = clean_text
         await self._queue_approval(
             approval_kind="dm",
             requesting_ship=message.user_id,
-            message_preview=self._message_preview_text(message, message.text),
-            original_message=self._original_message_payload(message),
+            message_preview=self._message_preview_text(message, clean_text),
+            original_message=original,
         )
 
     async def _queue_channel_approval(
@@ -1077,6 +1703,11 @@ class TlonAdapter(BasePlatformAdapter):
     ) -> None:
         if not self.tlon_config.owner_ship:
             logger.info("[tlon] ignoring unauthorized ship %s", message.user_id)
+            return
+        if not clean_text.strip() and not message.blob:
+            logger.info(
+                "[tlon] ignoring empty request after sanitization from unauthorized ship"
+            )
             return
         original = self._original_message_payload(message)
         original["messageText"] = clean_text
@@ -1189,12 +1820,81 @@ class TlonAdapter(BasePlatformAdapter):
                 requestType=approval_type(approval),
             )
 
+    async def _notify_owner(
+        self, target: str, reason: str, *, block_succeeded: bool = True
+    ) -> None:
+        owner = self.tlon_config.owner_ship
+        if not owner:
+            return
+        if block_succeeded:
+            action = f"Blocked {target}"
+        else:
+            action = f"Tried to block {target} but the block failed."
+        reason = str(reason or "")
+        if len(reason) > _OWNER_BLOCK_REASON_MAX_CHARS:
+            reason = reason[: _OWNER_BLOCK_REASON_MAX_CHARS - 1].rstrip() + "…"
+        text = f"[Agent Action] {action}\nReason: {reason}"[:MAX_MESSAGE_LENGTH]
+        with cli_context("owner_notification"):
+            result = await self._cli.run_command(("posts", "send", owner, text))
+        if not result.success:
+            logger.warning("[tlon] block notification to owner failed")
+            self._telemetry.error(
+                "moderation",
+                result.error or "notification send failed",
+                operation="owner_notification",
+            )
+
+    async def _run_migration_command(
+        self,
+        args: Sequence[str],
+        timeout: float,
+        on_deadline: TlonDeadlineCallback,
+    ):
+        with cli_context("migration"):
+            return await self._cli.run_command(
+                args, timeout=timeout, on_deadline=on_deadline
+            )
+
+    async def _send_migration_dm(
+        self, text: str, blob: Optional[str]
+    ) -> bool:
+        owner = self.tlon_config.owner_ship
+        if not owner:
+            return False
+        args: list[str] = ["posts", "send", owner, text]
+        if blob:
+            args.extend(["--blob", blob])
+        with cli_context("migration"):
+            result = await self._cli.run_command(args)
+        if not result.success:
+            logger.warning(
+                "[tlon] migration notification to %s failed: %s",
+                owner,
+                result.error,
+            )
+        return result.success
+
     async def _persist_pending_approvals(self) -> None:
         # JSON string, not a raw list of dicts: %settings values cannot hold
         # objects (the poke would be nacked). Matches OpenClaw's encoding.
         await self._persist_settings_entry(
             SETTINGS_KEY_PENDING_APPROVALS, json.dumps(self._pending_approvals)
         )
+
+    async def _drop_pending_approvals_for(
+        self, ship: str, *, types: tuple[str, ...] | None = None
+    ) -> int:
+        remaining = [
+            item
+            for item in self._pending_approvals
+            if approval_ship(item) != ship
+            or (types is not None and approval_type(item) not in types)
+        ]
+        removed = len(self._pending_approvals) - len(remaining)
+        if removed:
+            self._pending_approvals = remaining
+            await self._persist_pending_approvals()
+        return removed
 
     async def _persist_channel_rules(self) -> bool:
         return await self._persist_settings_entry(
@@ -1443,19 +2143,8 @@ class TlonAdapter(BasePlatformAdapter):
         if not await self._block_ship(ship):
             return f"Could not block {ship}."
         await self._remove_from_dm_allowlist(ship)
-        removed = [
-            item
-            for item in self._pending_approvals
-            if approval_ship(item) == ship
-        ]
-        if removed:
-            self._pending_approvals = [
-                item
-                for item in self._pending_approvals
-                if approval_ship(item) != ship
-            ]
-            await self._persist_pending_approvals()
-        suffix = f" Removed {len(removed)} pending request(s)." if removed else ""
+        removed = await self._drop_pending_approvals_for(ship)
+        suffix = f" Removed {removed} pending request(s)." if removed else ""
         self._telemetry.approval_event("banned", "ship")
         return f"Blocked {ship}.{suffix}"
 
@@ -1694,6 +2383,8 @@ class TlonAdapter(BasePlatformAdapter):
         if not self._is_owner(message.user_id):
             return False
         reply_parent_id = None if ctx_nest is None else message.reply_to_message_id
+        if ctx_nest and ctx_nest.startswith("heap/") and not reply_parent_id:
+            reply_parent_id = message.message_id
         if is_owner_listen_command(command_text):
             if self._mark_seen(message):
                 self._telemetry.control_command("owner-listen")
@@ -1702,6 +2393,24 @@ class TlonAdapter(BasePlatformAdapter):
                     ctx_nest=ctx_nest,
                     reply_chat_id=message.chat_id,
                     reply_parent_id=reply_parent_id,
+                )
+            return True
+        if is_migrate_command(command_text):
+            if self._mark_seen(message):
+                self._telemetry.control_command("migrate")
+
+                async def send_reply(text: str) -> None:
+                    await self._send_control_reply(
+                        message.chat_id,
+                        reply_parent_id,
+                        text,
+                    )
+
+                await self._migration.handle(
+                    command_text,
+                    bot_ship=self.tlon_config.ship_name,
+                    owner_ship=self.tlon_config.owner_ship,
+                    send_reply=send_reply,
                 )
             return True
         if is_tlon_command(command_text):
@@ -1844,55 +2553,127 @@ class TlonAdapter(BasePlatformAdapter):
 
     async def _connect_sse(self) -> None:
         await self._close_sse()
-        self._sse = TlonSSEClient(self.tlon_config)
-        await self._sse.authenticate()
-        await self._sse.open()
-        await self._sse.subscribe("channels", "/v2")
-        await self._sse.subscribe("chat", "/v3")
-        await self._sse.subscribe("settings", f"/desk/{SETTINGS_DESK}")
-        await self._sse.subscribe("groups", "/v1/foreigns")
-        await self._sse.subscribe("contacts", "/v1/news")
-        # Owner-requested retries arrive as %steward /v1/lens facts. Optional:
-        # if %steward isn't installed the nack is skipped, not fatal.
-        if self._lens.enabled:
-            await self._sse.subscribe("steward", "/v1/lens", optional=True)
+        sse = TlonSSEClient(self.tlon_config, reap_detection=True)
+        try:
+            await sse.authenticate()
+            await sse.open()
+            await sse.subscribe("channels", "/v2")
+            await sse.subscribe("chat", "/v3")
+            await sse.subscribe("settings", f"/desk/{SETTINGS_DESK}")
+            await sse.subscribe("groups", "/v1/foreigns")
+            await sse.subscribe("contacts", "/v1/news")
+            # Owner-requested retries arrive as %steward /v1/lens facts.
+            # Optional: if %steward isn't installed the nack is skipped, not
+            # fatal.
+            if self._lens.enabled:
+                await sse.subscribe("steward", "/v1/lens", optional=True)
+        except BaseException:
+            try:
+                await sse.close(graceful=False)
+            except BaseException:
+                pass
+            raise
+        # The persistence queues resolve this pointer at poke time.  Do not
+        # expose the client until its authentication, channel open, and
+        # subscriptions have all completed.
+        self._sse = sse
 
     async def _close_sse(self, *, graceful: bool = True) -> None:
+        # Settle any in-flight watchdog probe first — rebuilds reach here
+        # without the disconnect path's watchdog shutdown, and a probe still
+        # inside its PUT could otherwise race the teardown and re-create the
+        # channel it targets. A pending probe is either for this client or
+        # stale cross-client garbage; both are safe to cancel.
+        probe = self._sse_probe_task
+        if probe is not None:
+            probe.cancel()
+            try:
+                await probe
+            except asyncio.CancelledError:
+                pass
+            self._sse_probe_task = None
         if self._sse is not None:
             try:
                 await self._sse.close(graceful=graceful)
             finally:
                 self._sse = None
 
+    def _can_reauthenticate(self) -> bool:
+        return not bool(self.tlon_config.cookie)
+
+    def _is_fatal_auth_rejection(self, exc: BaseException) -> bool:
+        """A 401/403 on the channel GET (``TlonChannelError``) or on an
+        open/subscribe PUT (``TlonTerminalActionError``) is unrecoverable when
+        the config cannot mint fresh credentials — i.e. a fixed ``TLON_COOKIE``
+        the ship rejects. Retrying such a config only hammers the ship, so it
+        must be surfaced as fatal from both the initial ``connect()`` and the
+        ``_run_stream`` reconnect loop."""
+        return (
+            isinstance(exc, (TlonChannelError, TlonTerminalActionError))
+            and getattr(exc, "status", None) in (401, 403)
+            and not self._can_reauthenticate()
+        )
+
     async def _run_stream(self) -> None:
         backoff_idx = 0
+
+        def _established() -> None:
+            nonlocal backoff_idx
+            backoff_idx = 0
+
+        async def _backoff_and_report(exc: BaseException, *, mode: str) -> None:
+            nonlocal backoff_idx
+            delay = RECONNECT_BACKOFF_SECONDS[
+                min(backoff_idx, len(RECONNECT_BACKOFF_SECONDS) - 1)
+            ]
+            backoff_idx += 1
+            self._telemetry.sse_reconnect(
+                attempt=backoff_idx, delay_seconds=delay, error=exc, mode=mode
+            )
+            await asyncio.sleep(delay)
+
         while self._running:
             try:
                 if self._sse is None:
-                    await self._connect_sse()
-                    # Settings events do not replay, so re-sync owner-listen
-                    # state after every reconnect.
-                    await self._load_settings_state()
-                    # Native DM invites are likewise missed while disconnected
-                    # (an unknown ship, a now-allowlisted ship, or a flag flip
-                    # that happened during the outage). Catch up, but don't let
-                    # a failure here masquerade as a stream error and cycle
-                    # reconnects.
                     try:
-                        await self._process_pending_dm_invites()
-                    except Exception as exc:
-                        logger.warning(
-                            "[tlon] reconnect invite catch-up failed: %s", exc
-                        )
-                    # Contacts facts do not replay either; catch up on renames
-                    # (or clears) missed while disconnected.
-                    await self._load_bot_profile()
+                        await self._connect_sse()
+                        # Settings events do not replay, so re-sync owner-listen
+                        # state after every reconnect.  The worker may still be
+                        # processing facts captured before the disconnect; drain
+                        # those first so this ordinary full snapshot cannot make
+                        # authorization/approval/owner-listen decisions for an
+                        # earlier queued message observe future state.
+                        await self._drain_event_worker()
+                        loaded = await self._load_settings_state()
+                        self._nudge_settings_ready = loaded
+                        if not loaded:
+                            self._start_nudge_settings_retry()
+                        # Native DM invites are likewise missed while disconnected
+                        # (an unknown ship, a now-allowlisted ship, or a flag flip
+                        # that happened during the outage). Catch up, but don't let
+                        # a failure here masquerade as a stream error and cycle
+                        # reconnects.
+                        try:
+                            await self._process_pending_dm_invites()
+                        except Exception as exc:
+                            logger.warning(
+                                "[tlon] reconnect invite catch-up failed: %s", exc
+                            )
+                        # Contacts facts do not replay either; catch up on renames
+                        # (or clears) missed while disconnected.
+                        await self._load_bot_profile()
+                    except BaseException:
+                        await self._close_sse(graceful=False)
+                        raise
                 assert self._sse is not None
-                async for event in self._sse.events():
-                    if not self._running:
-                        return
-                    backoff_idx = 0
-                    await self._route_stream_event(event)
+                stream = self._sse.events(on_open=_established)
+                try:
+                    async for event in stream:
+                        if not self._running:
+                            return
+                        await self._route_stream_event(event)
+                finally:
+                    await stream.aclose()
             except asyncio.CancelledError:
                 return
             except TlonAuthError as exc:
@@ -1905,47 +2686,603 @@ class TlonAdapter(BasePlatformAdapter):
                 self._telemetry.error("sse", exc, operation="authenticate")
                 self._set_fatal_error("auth", str(exc), retryable=False)
                 return
+            except TlonChannelError as exc:
+                if not self._running:
+                    return
+                self._nudge_settings_ready = False
+                self._nudge_load_generation += 1
+                await self._stop_nudge_settings_retry()
+                if self._is_fatal_auth_rejection(exc):
+                    await self._close_sse(graceful=False)
+                    self._telemetry.error("sse", exc, operation="channel")
+                    self._set_fatal_error("auth", str(exc), retryable=False)
+                    return
+                logger.warning("[tlon] SSE channel lost, rebuilding: %s", exc)
+                await self._close_sse(graceful=False)
+                await _backoff_and_report(exc, mode="rebuild")
             except Exception as exc:
                 if not self._running:
                     return
-                logger.warning("[tlon] SSE stream error: %s", exc)
-                await self._close_sse(graceful=False)
-                delay = RECONNECT_BACKOFF_SECONDS[min(backoff_idx, len(RECONNECT_BACKOFF_SECONDS) - 1)]
-                backoff_idx += 1
-                self._telemetry.sse_reconnect(
-                    attempt=backoff_idx, delay_seconds=delay, error=exc
-                )
-                await asyncio.sleep(delay)
+                if self._sse is None:
+                    self._nudge_settings_ready = False
+                    self._nudge_load_generation += 1
+                    await self._stop_nudge_settings_retry()
+                    if self._is_fatal_auth_rejection(exc):
+                        # Setup rejects auth in open()/subscribe() (a channel
+                        # PUT) rather than on the SSE GET, so it never reaches
+                        # the TlonChannelError branch. Same policy applies: a
+                        # configured cookie the ship rejects can never succeed,
+                        # and retrying forever just hammers the ship.
+                        logger.error(
+                            "[tlon] SSE setup auth rejected, stopping: %s", exc
+                        )
+                        self._telemetry.error("sse", exc, operation="setup")
+                        self._set_fatal_error("auth", str(exc), retryable=False)
+                        return
+                    logger.warning("[tlon] SSE setup failed, retrying: %s", exc)
+                    await _backoff_and_report(exc, mode="rebuild")
+                else:
+                    logger.warning(
+                        "[tlon] SSE stream error (resuming from event %s): %s",
+                        self._sse.last_heard_event_id, exc,
+                    )
+                    mode = (
+                        "watchdog_stale"
+                        if isinstance(exc, TlonStreamStaleError)
+                        else "resume"
+                    )
+                    await _backoff_and_report(exc, mode=mode)
 
-    async def _route_stream_event(self, event: Any) -> None:
-        """Dispatch one SSE event; a handler bug must not masquerade as a
-        stream error (which would trigger a spurious reconnect). The bad event
-        is reported and skipped, and the stream keeps flowing."""
+    def _start_event_worker(self) -> None:
+        self._event_queue = asyncio.Queue(maxsize=_STREAM_EVENT_QUEUE_MAXSIZE)
+        self._event_worker_task = asyncio.create_task(self._run_event_worker())
+        self._sse_watchdog_task = asyncio.create_task(self._run_sse_watchdog())
+
+    async def _stop_event_worker(self) -> None:
+        if self._event_worker_task is not None:
+            self._event_worker_task.cancel()
+            try:
+                await self._event_worker_task
+            except asyncio.CancelledError:
+                pass
+            self._event_worker_task = None
+        self._event_queue = None
+        await self._stop_sse_watchdog()
+
+    async def _stop_sse_watchdog(self) -> None:
+        # Runs before _close_sse in the disconnect sequence so no probe can
+        # race the client's teardown. The loop goes first so it cannot launch
+        # a fresh probe while the pending one is being drained.
+        if self._sse_watchdog_task is not None:
+            self._sse_watchdog_task.cancel()
+            try:
+                await self._sse_watchdog_task
+            except asyncio.CancelledError:
+                pass
+            self._sse_watchdog_task = None
+        if self._sse_probe_task is not None:
+            self._sse_probe_task.cancel()
+            try:
+                await self._sse_probe_task
+            except asyncio.CancelledError:
+                pass
+            self._sse_probe_task = None
+
+    async def _run_sse_watchdog(self) -> None:
+        # Always runs, even when staleness condemnation is disabled
+        # (threshold 0): the probe pokes are the reap detectors' only
+        # guaranteed main-channel traffic on an idle bot.
+        interval = self.tlon_config.sse_watchdog_interval_seconds
+        threshold = self.tlon_config.sse_stale_threshold_seconds
+        if 0 < threshold < interval:
+            # Legal but pathological: staleness cannot fire until a probe has
+            # been sent (>= one interval) and given a grace interval, so the
+            # effective recovery time is bounded by ~2x the interval, not the
+            # threshold.
+            logger.warning(
+                "[tlon] SSE stale threshold (%.0fs) is below the watchdog "
+                "interval (%.0fs); staleness recovery will take up to ~%.0fs",
+                threshold,
+                interval,
+                2 * interval,
+            )
+        while self._running:
+            await asyncio.sleep(interval)
+            if not self._running:
+                return
+            try:
+                self._sse_watchdog_tick(time.monotonic(), interval)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.warning("[tlon] SSE watchdog tick failed: %s", exc)
+
+    def _sse_watchdog_tick(self, now: float, interval: float) -> None:
+        # Backpressure gate: while the reader is parked on the bounded queue,
+        # frames age without reaching the parser and a condemn would needlessly
+        # resume a healthy stream once the stall clears.
+        if self._route_blocked:
+            return
+        sse = self._sse
+        # While unbound, the resume/rebuild loop owns recovery — and probes
+        # must never fire at an unbound channel, so they cannot themselves
+        # revive a reaped channel during an outage window.
+        if sse is None or not sse.stream_bound:
+            return
+        probe = self._sse_probe_task
+        if probe is not None and self._sse_probe_client is not sse:
+            probe.cancel()
+            self._sse_probe_task = None
+        idle = now - sse.last_event_frame_at
+        if idle < interval:
+            return
+        threshold = self.tlon_config.sse_stale_threshold_seconds
+        epoch_at = self._sse_probe_epoch_at
+        success_at = self._sse_probe_success_at
+        epoch_valid = (
+            epoch_at is not None
+            and success_at is not None
+            and self._sse_probe_client is sse
+            and epoch_at > sse.last_event_frame_at
+        )
+        if (
+            threshold > 0
+            and idle >= threshold
+            and epoch_valid
+            # Condemnation additionally requires a full grace interval since
+            # the delivered probe: an arithmetic relationship between the
+            # knobs cannot guarantee probe-before-condemn, so it is tracked.
+            and now - success_at >= interval
+        ):
+            logger.warning(
+                "[tlon] SSE stream stale: no events for %.0fs (threshold %.0fs); "
+                "forcing reconnect",
+                idle,
+                threshold,
+            )
+            sse.condemn(
+                TlonStreamStaleError(
+                    f"Tlon SSE stream stale: no events for {idle:.0f}s "
+                    f"(threshold {threshold:.0f}s)"
+                )
+            )
+            return
+        if self._sse_probe_task is None and not epoch_valid:
+            task = asyncio.create_task(self._send_sse_probe(sse))
+            self._sse_probe_task = task
+            task.add_done_callback(self._sse_probe_task_done)
+
+    def _sse_probe_task_done(self, task: "asyncio.Task") -> None:
+        if self._sse_probe_task is task:
+            self._sse_probe_task = None
+
+    async def _send_sse_probe(self, sse: TlonSSEClient) -> None:
+        # Frame-order validity must use the probe's START time: on a single
+        # event loop the probe's own ack can be parsed (refreshing
+        # last_event_frame_at) before poke() returns, and a post-PUT epoch
+        # would then postdate the answering ack and condemn a healthy stream
+        # in the next silence.
+        started_at = time.monotonic()
         try:
-            if event.app == "channels":
-                await self._handle_channel_event(event.json)
-            elif event.app == "chat":
-                await self._handle_dm_event(event.json)
-            elif event.app == "settings":
-                await self._handle_settings_event(event.json)
-            elif event.app == "groups":
-                await self._handle_foreigns(event.json)
-            elif event.app == "contacts":
-                self._handle_contacts_event(event.json)
-            elif event.app == "steward":
-                await self._handle_steward_event(event.json)
+            await sse.poke("hood", "helm-hi", "Hermes SSE liveness probe")
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            logger.exception("[tlon] %s event handler failed", event.app)
-            self._telemetry.error("event_handler", exc, app=event.app)
+            # A failed PUT arms nothing: otherwise a broken outbound path
+            # would let the grace clock condemn a healthy inbound stream.
+            logger.debug("[tlon] SSE liveness probe failed: %s", exc)
+            return
+        self._sse_probe_epoch_at = started_at
+        self._sse_probe_success_at = time.monotonic()
+        self._sse_probe_client = sse
 
-    async def _handle_channel_event(self, raw: Any) -> None:
+    async def _drain_event_worker(self) -> None:
+        """Wait for pre-reconnect SSE work before applying a full snapshot."""
+        queue = self._event_queue
+        worker = self._event_worker_task
+        if queue is not None and worker is not None and not worker.done():
+            await queue.join()
+
+    async def _run_event_worker(self) -> None:
+        assert self._event_queue is not None
+        while True:
+            item = await self._event_queue.get()
+            try:
+                await self._process_stream_item(item)
+            except asyncio.CancelledError:
+                raise
+            finally:
+                self._event_queue.task_done()
+
+    async def _process_stream_item(self, item: _StreamWorkItem) -> None:
+        try:
+            if item.app == "channels":
+                if self._event_queue is None:
+                    await self._handle_channel_event(item.raw)
+                else:
+                    await self._handle_channel_event(
+                        item.raw, message=item.message, nudge_hook=item.nudge_hook
+                    )
+            elif item.app == "chat":
+                if self._event_queue is None:
+                    await self._handle_dm_event(item.raw)
+                else:
+                    await self._handle_dm_event(
+                        item.raw, message=item.message, nudge_hook=item.nudge_hook
+                    )
+            elif item.app == "settings":
+                await self._handle_settings_event(
+                    item.raw, nudge_handled=item.nudge_settings_handled
+                )
+            elif item.app == "groups":
+                await self._handle_foreigns(item.raw)
+            elif item.app == "contacts":
+                self._handle_contacts_event(item.raw)
+            elif item.app == "steward":
+                await self._handle_steward_event(item.raw)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.exception("[tlon] %s event handler failed", item.app)
+            self._telemetry.error("event_handler", exc, app=item.app)
+
+    async def _route_stream_event(self, event: Any) -> None:
+        """Apply nudge-critical state before the bounded ordered worker queue.
+
+        The queue cap makes sustained overload backpressure the SSE reader.
+        Nudge state must remain fresh even while enqueueing blocks, so its
+        synchronous fast-tap always runs before the queue operation.
+        """
+        app = getattr(event, "app", "")
+        raw = getattr(event, "json", None)
+        item = _StreamWorkItem(app=app, raw=raw)
+        try:
+            if app == "channels" and isinstance(raw, dict):
+                message = parse_channel_message(
+                    raw, self_ship=self.tlon_config.ship_name, include_self=True
+                )
+                if message is not None:
+                    item = _StreamWorkItem(
+                        app=app,
+                        raw=raw,
+                        message=message,
+                        nudge_hook=self._observe_nudge_owner_message(
+                            message, is_dm=False
+                        ),
+                    )
+            elif app == "chat" and not isinstance(raw, list):
+                message = parse_dm_message(
+                    raw, self_ship=self.tlon_config.ship_name, include_self=True
+                )
+                if message is not None:
+                    item = _StreamWorkItem(
+                        app=app,
+                        raw=raw,
+                        message=message,
+                        nudge_hook=self._observe_nudge_owner_message(
+                            message, is_dm=True
+                        ),
+                    )
+            elif app == "settings":
+                settings_event = parse_settings_event(raw)
+                handled = settings_event is not None and self._apply_nudge_settings_event(
+                    settings_event
+                )
+                item = _StreamWorkItem(
+                    app=app, raw=raw, nudge_settings_handled=handled
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            # A malformed fast-tap must not escape to _run_stream, where it
+            # would be treated as a failed SSE connection. Keep the plain item
+            # so the existing guarded worker can log and skip its dispatch.
+            logger.warning("[tlon] %s event fast-tap failed: %s", app, exc)
+            self._telemetry.error("event_fast_tap", exc, app=app)
+        if self._event_queue is not None:
+            self._route_blocked = True
+            try:
+                await self._event_queue.put(item)
+            finally:
+                self._route_blocked = False
+        else:
+            await self._process_stream_item(item)
+
+    def _mark_nudge_seen(self, message: TlonIncomingMessage) -> bool:
+        key = f"{message.chat_type}:{message.chat_id}:{message.message_id}"
+        if key in self._nudge_seen_ids:
+            return False
+        self._nudge_seen_ids.add(key)
+        self._nudge_seen_order.append(key)
+        if len(self._nudge_seen_order) > 1000:
+            self._nudge_seen_ids.discard(self._nudge_seen_order.pop(0))
+        return True
+
+    def _observe_nudge_owner_message(
+        self, message: TlonIncomingMessage, *, is_dm: bool
+    ) -> _NudgeHookResult:
+        # DM parses set user_id to the conversation partner and author_id to
+        # the actual sender, so with include_self=True the bot's own outbound
+        # echo carries user_id=owner. Gate on the true author — a self echo
+        # (including the nudge DM itself) must never count as owner activity
+        # or clear just-written stage/pending state.
+        author = normalize_ship(message.author_id or message.user_id)
+        if (
+            author == normalize_ship(self.tlon_config.ship_name)
+            or not self._is_owner(author)
+            or not self._mark_nudge_seen(message)
+        ):
+            return _NudgeHookResult()
+        at = _epoch_ms(message.sent_at)
+        if at is None:
+            return _NudgeHookResult()
+        # Advance-only, like the load path. Post edits re-deliver `r-post.set`
+        # with the ORIGINAL creation `sent`, so an owner editing an old post
+        # (with the dedup ring empty after a restart) would otherwise backdate
+        # the activity shadow — and persist that stale instant — making an
+        # active owner look idle for 7/14/30 days. A strictly older instant
+        # never advances state; same-instant messages still process normally.
+        current_activity = self._nudge_owner_activity
+        if current_activity is not None and at < current_activity[0]:
+            return _NudgeHookResult()
+        date = datetime.fromtimestamp(at / 1000, timezone.utc).date().isoformat()
+        # Owner activity is trusted just like a live settings event.  It can
+        # arrive while a boot/retry scry is in flight, so make a later load
+        # reconcile against this shadow (or discard the already-started one).
+        self._nudge_load_seeded = True
+        self._nudge_load_generation += 1
+        self._nudge_owner_activity = (at, date)
+        self._nudge_snapshot.last_owner_message_at = at
+        self._nudge_snapshot.last_owner_message_date = date
+        pending = self._pending_nudge
+        was_rehydrated = self._pending_nudge_rehydrated
+        will_clear = self._nudge_stage_shadow > 0 or pending is not None or not was_rehydrated
+        if will_clear:
+            self._set_nudge_stage(0)
+        self._nudge_activity_persistence.enqueue(at, date, will_clear)
+        eligible = bool(pending and is_nudge_eligible(pending, at))
+        if pending is not None:
+            if eligible:
+                self._telemetry.nudge_reengaged(
+                    stage=pending.stage,
+                    nudge_sent_at=pending.sent_at,
+                    reengaged_at=at,
+                    account_id=pending.account_id,
+                    owner_ship=pending.owner_ship,
+                )
+            self._set_pending_nudge(None)
+            self._pending_nudge_persistence.enqueue(None)
+        elif not was_rehydrated:
+            self._set_pending_nudge(None)
+            self._pending_nudge_persistence.enqueue(None)
+        return _NudgeHookResult(
+            pending=pending,
+            inject_context=bool(pending is not None and eligible and is_dm),
+        )
+
+    @staticmethod
+    def _reaction_conversation_key(chat_type: str, chat_id: str) -> str:
+        return f"{chat_type}:{chat_id}"
+
+    @staticmethod
+    def _collapse_reaction_text(value: Any, limit: int, *, structural: bool = False) -> str:
+        # Every Unicode Cc control (C0 *and* C1, e.g. U+009B) collapses to a
+        # space; format/mark characters like ZWJ (Cf) and emoji variation
+        # selectors (Mn) are untouched, so multi-codepoint emoji survive.
+        raw = str(value or "")
+        text = "".join(
+            " " if unicodedata.category(ch) == "Cc" else ch for ch in raw
+        )
+        text = " ".join(text.split())
+        if structural:
+            text = text.replace("[", "(").replace("]", ")")
+        return text[:limit]
+
+    def _encode_reaction_note(self, reaction: TlonReaction, target: Any) -> str:
+        action = "added" if reaction.added else "removed"
+        emoji = self._collapse_reaction_text(reaction.emoji, 32, structural=True)
+        reactor = self._collapse_reaction_text(reaction.reactor, 80, structural=True)
+        post_id = self._collapse_reaction_text(reaction.post_id, 80, structural=True)
+        author = self._collapse_reaction_text(
+            getattr(target, "author", "unknown"), 80, structural=True
+        )
+        snippet = self._collapse_reaction_text(
+            getattr(target, "content", ""), 200, structural=True
+        )
+        kind = "DM " if reaction.chat_type == "dm" else ""
+        note = (
+            f"Tlon {kind}reaction {action}: {emoji or '(unknown)'} by {reactor} "
+            f"on message {post_id} (by {author})"
+        )
+        if snippet:
+            note += f' (message: "{snippet}")'
+        return note[:300]
+
+    def _queue_reaction_note(self, reaction: TlonReaction, target: Any) -> None:
+        key = self._reaction_conversation_key(reaction.chat_type, reaction.chat_id)
+        notes = self._pending_reaction_notes.get(key)
+        if notes is None:
+            notes = deque(maxlen=10)
+            self._pending_reaction_notes[key] = notes
+        self._pending_reaction_notes.move_to_end(key)
+        notes.append(self._encode_reaction_note(reaction, target))
+        while len(self._pending_reaction_notes) > 64:
+            self._pending_reaction_notes.popitem(last=False)
+
+    async def _lookup_reaction_target(
+        self, reaction: TlonReaction, snapshot_cache: Optional[dict] = None
+    ) -> Any:
+        # `snapshot_cache` — when supplied by the caller — memoizes the
+        # lookup (including a failed/None result) for the lifetime of one
+        # SSE event's transitions, so a snapshot with several authorized
+        # entries for the same post makes at most one exact scry instead of
+        # one per transition (a failing scry has a 30s timeout, and the SSE
+        # reader processes events serially). It is never persisted beyond
+        # that one call, so a later event still retries a prior failure.
+        cache_key = (reaction.chat_type, reaction.chat_id, reaction.post_id)
+        if snapshot_cache is not None and cache_key in snapshot_cache:
+            return snapshot_cache[cache_key]
+
+        cached = self._message_cache.lookup(reaction.chat_id, reaction.post_id)
+        if cached is not None or reaction.chat_type != "group" or self._sse is None:
+            if snapshot_cache is not None:
+                snapshot_cache[cache_key] = cached
+            return cached
+        if reaction.parent_id:
+            fetched = await fetch_reply(
+                self._sse.scry,
+                reaction.chat_id,
+                reaction.parent_id,
+                reaction.post_id,
+            )
+        else:
+            fetched = await fetch_post(self._sse.scry, reaction.chat_id, reaction.post_id)
+        # A failed scry, or one that can't identify the author, remains a
+        # cache miss so a later event retries exact classification; only
+        # entries with a decodable author become durable cache knowledge
+        # (an "unknown"-author entry can't classify ownership, so caching it
+        # would permanently misclassify the post — F-3).
+        if fetched is not None and fetched.author and fetched.author != "unknown":
+            self._message_cache.record(
+                reaction.chat_id, fetched.post_id or reaction.post_id, fetched.author, fetched.content
+            )
+        if snapshot_cache is not None:
+            snapshot_cache[cache_key] = fetched
+        return fetched
+
+    def _is_own_reaction_target(self, reaction: TlonReaction, target: Any) -> bool:
+        bot = normalize_ship(self.tlon_config.ship_name)
+        if reaction.chat_type == "dm":
+            author = str(reaction.post_id).split("/", 1)[0]
+            return normalize_ship(author) == bot
+        return normalize_ship(str(getattr(target, "author", ""))) == bot
+
+    async def _handle_reaction(
+        self, reaction: TlonReaction, snapshot_cache: Optional[dict] = None
+    ) -> None:
+        if reaction.reactor == normalize_ship(self.tlon_config.ship_name):
+            return
+        if reaction.reactor_is_bot:
+            self._learn_known_bot_ship(reaction.reactor)
+        is_dm = reaction.chat_type == "dm"
+        if not self._user_authorized(
+            reaction.reactor, is_dm=is_dm, nest="" if is_dm else reaction.chat_id
+        ):
+            logger.info("[tlon] ignoring unauthorized reaction from %s", reaction.reactor)
+            return
+        if is_dm and await self._is_ship_blocked(reaction.reactor):
+            logger.info("[tlon] ignoring DM reaction from blocked ship")
+            return
+
+        target = await self._lookup_reaction_target(reaction, snapshot_cache)
+        if self._is_own_reaction_target(reaction, target) and reaction.added:
+            emoji = self._collapse_reaction_text(reaction.emoji, 32)
+            snippet = self._collapse_reaction_text(
+                getattr(target, "content", ""), 200
+            )
+            text = f'{emoji} (reacting to: "{snippet}")' if snippet else emoji
+            message = TlonIncomingMessage(
+                chat_id=reaction.chat_id,
+                chat_name=reaction.chat_id,
+                chat_type=reaction.chat_type,
+                user_id=reaction.reactor,
+                user_name=reaction.reactor,
+                text=text,
+                message_id=(
+                    # Event identity only (decision 10) — never shown to the
+                    # model or resolved on the wire. The react component is
+                    # arbitrary `@t`, so it is bounded the same way
+                    # `_reaction_state_value` bounds reaction state (digest
+                    # over 256 chars), keeping this id (which flows into
+                    # LensRun.message_id and presence run ids) from growing
+                    # unbounded while staying deterministic.
+                    f"react/{reaction.post_id}/{reaction.reactor}/"
+                    f"{_reaction_state_value(reaction.emoji)}"
+                ),
+                reply_to_message_id=reaction.parent_id,
+                sent_at=datetime.now(tz=timezone.utc),
+                raw=reaction.raw,
+                author_is_bot=reaction.reactor_is_bot,
+                author_id=reaction.reactor,
+                reactable_target_id=reaction.post_id,
+            )
+            if not is_dm and not self._passes_group_loop_safety(message):
+                return
+            await self._dispatch_message(
+                message,
+                is_dm=is_dm,
+                mark_seen=False,
+                dispatch_reason="reaction",
+            )
+            return
+
+        # An unresolved channel classification (scry failed, or the payload
+        # had no decodable author) must stay retryable: the snapshot already
+        # committed this entry, so without forgetting it a later reacts diff
+        # on the post is a no-op and an own-post reaction would be lost as a
+        # passive note forever. Forgetting the entry makes the next diff
+        # re-emit the add and retry exact classification once the scry
+        # recovers. Resolved non-own targets are final — no rollback.
+        if reaction.added and not is_dm:
+            author = str(getattr(target, "author", "") or "")
+            if target is None or not author or author == "unknown":
+                self._reaction_state.forget_entry(
+                    reaction.chat_type,
+                    reaction.chat_id,
+                    reaction.post_id,
+                    reaction.wire_key,
+                )
+
+        self._queue_reaction_note(reaction, target)
+
+    async def _dispatch_reaction_transitions(self, transitions: list) -> None:
+        """Handle every transition from one snapshot/delta event.
+
+        Transitions for one event (all naming the same post) share a single
+        target lookup (I1) instead of one exact scry per transition, and a
+        failure handling one transition is logged and does not stop the
+        remaining transitions of the same, already-committed snapshot from
+        being handled (I2) — the SSE reader only ever sees this one event as
+        having succeeded, so a raise here would otherwise lose the rest of
+        the snapshot permanently (redelivery is a no-op diff once state is
+        committed).
+        """
+        if not transitions:
+            return
+        snapshot_cache: dict = {}
+        for reaction in transitions:
+            try:
+                await self._handle_reaction(reaction, snapshot_cache)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.exception(
+                    "[tlon] reaction handler failed for %s in %s",
+                    reaction.post_id,
+                    reaction.chat_id,
+                )
+                self._telemetry.error(
+                    "reaction_handler", exc, chat_type=reaction.chat_type
+                )
+
+    async def _handle_channel_event(
+        self,
+        raw: Any,
+        *,
+        message: Optional[TlonIncomingMessage] = None,
+        nudge_hook: _NudgeHookResult = _NudgeHookResult(),
+    ) -> None:
         if not isinstance(raw, dict):
             return
         nest = raw.get("nest")
         if not isinstance(nest, str) or not nest:
             return
+        if message is None:
+            message = parse_channel_message(
+                raw, self_ship=self.tlon_config.ship_name, include_self=True
+            )
+            if message is not None:
+                nudge_hook = self._observe_nudge_owner_message(message, is_dm=False)
         if nest not in self._monitored_channels:
             if self._auto_discover and (nest.startswith("chat/") or nest.startswith("heap/")):
                 self._monitored_channels.add(nest)
@@ -1953,8 +3290,20 @@ class TlonAdapter(BasePlatformAdapter):
             else:
                 return
 
-        message = parse_channel_message(raw, self_ship=self.tlon_config.ship_name)
         if message is None:
+            snapshot = parse_channel_reacts_snapshot(raw)
+            if snapshot is not None:
+                await self._dispatch_reaction_transitions(
+                    self._reaction_state.apply_channel_snapshot(snapshot)
+                )
+            return
+        self._message_cache.record(
+            message.chat_id,
+            message.message_id,
+            message.author_id or message.user_id,
+            message.text,
+        )
+        if message.author_id == normalize_ship(self.tlon_config.ship_name):
             return
         if message.author_is_bot:
             self._learn_known_bot_ship(message.user_id)
@@ -1970,6 +3319,7 @@ class TlonAdapter(BasePlatformAdapter):
             message, clean_text, ctx_nest=message.chat_id
         ):
             return
+        sanitized_text = strip_block_directives(clean_text)
 
         is_authorized = self._user_authorized(
             message.user_id, is_dm=False, nest=message.chat_id
@@ -1980,6 +3330,7 @@ class TlonAdapter(BasePlatformAdapter):
             owner_ship=self.tlon_config.owner_ship,
             bot_ship=self.tlon_config.ship_name,
         )
+        is_owner_blob = bool(message.blob) and self._is_owner(message.user_id)
         is_participated_thread = self._is_participated_thread(message)
         is_free_response = self.tlon_config.group_free_response_enabled(message.chat_id)
         decision = resolve_attention(
@@ -1989,6 +3340,7 @@ class TlonAdapter(BasePlatformAdapter):
                 has_text=bool(clean_text or message.blob),
                 is_mentioned=is_mentioned,
                 is_owner_listen=is_owner_listen,
+                is_owner_blob=is_owner_blob,
                 is_free_response=is_free_response,
                 is_participated_thread=is_participated_thread,
             )
@@ -1996,7 +3348,7 @@ class TlonAdapter(BasePlatformAdapter):
         if not decision.dispatch:
             if decision.reason == "unauthorized":
                 if is_mentioned and _is_patp(message.user_id):
-                    await self._queue_channel_approval(message, clean_text)
+                    await self._queue_channel_approval(message, sanitized_text)
                 else:
                     logger.info("[tlon] ignoring unauthorized ship %s", message.user_id)
             return
@@ -2016,36 +3368,68 @@ class TlonAdapter(BasePlatformAdapter):
             mark_seen=False,
             dispatch_reason=decision.reason,
             prepared_media=prepared_media,
-            retry_seed=self._build_retry_seed(message, clean_text),
+            pending_nudge=nudge_hook.inject_context,
+            retry_seed=self._build_retry_seed(message, sanitized_text),
         )
 
-    async def _handle_dm_event(self, raw: Any) -> None:
+    async def _handle_dm_event(
+        self,
+        raw: Any,
+        *,
+        message: Optional[TlonIncomingMessage] = None,
+        nudge_hook: _NudgeHookResult = _NudgeHookResult(),
+    ) -> None:
         if isinstance(raw, list):
             await self._handle_dm_invites(raw)
             return
-        message = parse_dm_message(raw, self_ship=self.tlon_config.ship_name)
         if message is None:
+            message = parse_dm_message(
+                raw, self_ship=self.tlon_config.ship_name, include_self=True
+            )
+            if message is not None:
+                nudge_hook = self._observe_nudge_owner_message(message, is_dm=True)
+        if message is None:
+            reaction = parse_dm_reaction(raw, self_ship=self.tlon_config.ship_name)
+            if reaction is not None:
+                await self._dispatch_reaction_transitions(
+                    self._reaction_state.apply_dm_delta(reaction)
+                )
+            return
+        self._message_cache.record(
+            message.chat_id,
+            message.message_id,
+            message.author_id or message.user_id,
+            message.text,
+        )
+        if message.author_id == normalize_ship(self.tlon_config.ship_name):
             return
         if await self._maybe_handle_control_command(
             message, message.text.strip(), ctx_nest=None
         ):
             return
+        sanitized_text = strip_block_directives(message.text)
         if not self._user_authorized(message.user_id, is_dm=True):
             if _is_patp(message.user_id):
-                await self._queue_dm_approval(message)
+                await self._queue_dm_approval(message, sanitized_text)
             else:
                 logger.info(
                     "[tlon] ignoring unauthorized message in %s", message.chat_id
                 )
             return
-        retry_seed = self._build_retry_seed(message, message.text)
+        if await self._is_ship_blocked(message.user_id):
+            logger.info("[tlon] ignoring DM from blocked ship")
+            return
+        retry_seed = self._build_retry_seed(message, sanitized_text)
         dispatch_text, prepared_media = await self._prepare_dispatch_payload(
             message, message.text
         )
+        if nudge_hook.inject_context and nudge_hook.pending is not None:
+            dispatch_text = _nudge_reply_context(nudge_hook.pending, dispatch_text)
         await self._dispatch_message(
             replace(message, text=dispatch_text),
             is_dm=True,
             prepared_media=prepared_media,
+            pending_nudge=nudge_hook.inject_context,
             retry_seed=retry_seed,
         )
 
@@ -2210,6 +3594,93 @@ class TlonAdapter(BasePlatformAdapter):
             and nest.split("/", 1)[0] in ("chat", "heap", "diary")
         }
 
+    async def _lookup_diary_channel_title(self, nest: str) -> Optional[str]:
+        canonical = canonicalize_nest(nest)
+        if canonical is None:
+            return None
+        if self._sse is None:
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "SSE client is not connected",
+            )
+            return None
+        try:
+            init = await self._sse.scry("/groups-ui/v7/init")
+        except Exception as exc:
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                exc,
+            )
+            return None
+        if not isinstance(init, Mapping):
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "init payload is not a mapping",
+            )
+            return None
+        groups = init.get("groups")
+        if not isinstance(groups, Mapping):
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "groups payload is not a mapping",
+            )
+            return None
+
+        discovered_title: Optional[str] = None
+        usable_group = False
+        usable_channels = False
+        for group_data in groups.values():
+            if not isinstance(group_data, Mapping):
+                continue
+            usable_group = True
+            channels = group_data.get("channels")
+            if not isinstance(channels, Mapping):
+                continue
+            usable_channels = True
+            for channel_nest, channel_data in channels.items():
+                if not isinstance(channel_nest, str) or not isinstance(
+                    channel_data, Mapping
+                ):
+                    continue
+                channel_canonical = canonicalize_nest(channel_nest)
+                if channel_canonical != canonical:
+                    continue
+                meta = channel_data.get("meta")
+                meta_title = meta.get("title") if isinstance(meta, Mapping) else None
+                title = (
+                    meta_title
+                    if meta_title is not None
+                    else channel_data.get("title")
+                )
+                if isinstance(title, str) and title.strip():
+                    discovered_title = title.strip()
+
+        if groups and not usable_group:
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "group entries are not mappings",
+            )
+            return None
+        if groups and not usable_channels:
+            logger.debug(
+                "[tlon] diary migration title lookup unavailable for %s: %s",
+                canonical,
+                "channel payloads are not mappings",
+            )
+            return None
+
+        if discovered_title is None:
+            logger.debug(
+                "[tlon] diary migration title lookup missed nest %s in usable init payload",
+                canonical,
+            )
+        return discovered_title
+
     async def _adopt_group_channels(self, flag: str) -> None:
         """Pull a newly-joined group's channels into the monitored set so the
         bot is addressable there, and persist them to groupChannels."""
@@ -2244,9 +3715,12 @@ class TlonAdapter(BasePlatformAdapter):
     ) -> tuple[str, PreparedMedia]:
         cite_block = ""
         if self._sse is not None and message.content:
+            partial: list[str] = []
             try:
                 cite_block = await asyncio.wait_for(
-                    resolve_cites(self._sse.scry, message.content),
+                    resolve_cites(
+                        self._sse.scry, message.content, collected=partial
+                    ),
                     CITE_RESOLUTION_BUDGET_SECONDS,
                 )
             except (Exception, asyncio.TimeoutError) as exc:
@@ -2256,6 +3730,8 @@ class TlonAdapter(BasePlatformAdapter):
                     exc,
                 )
                 self._telemetry.error("cite_resolve", exc)
+                if isinstance(exc, asyncio.TimeoutError) and partial:
+                    cite_block = "\n".join(partial)
         try:
             prepared = await prepare_inbound_media(message.content, message.blob)
         except Exception as exc:
@@ -2298,6 +3774,8 @@ class TlonAdapter(BasePlatformAdapter):
                     current_text=clean_text,
                     current_id=message.message_id,
                     limit=limit,
+                    include_ids=self.tlon_config.reaction_level
+                    in {"minimal", "extensive"},
                 )
             else:
                 entries = await fetch_channel_history(scry, message.chat_id, limit)
@@ -2307,6 +3785,8 @@ class TlonAdapter(BasePlatformAdapter):
                     current_id=message.message_id,
                     is_mention=reason == "mention",
                     limit=limit,
+                    include_ids=self.tlon_config.reaction_level
+                    in {"minimal", "extensive"},
                 )
         except Exception as exc:
             logger.debug("[tlon] context fetch failed for %s: %s", message.chat_id, exc)
@@ -2366,6 +3846,7 @@ class TlonAdapter(BasePlatformAdapter):
         mark_seen: bool = True,
         dispatch_reason: str = "dm",
         prepared_media: PreparedMedia | None = None,
+        pending_nudge: bool = False,
         retry_seed: dict[str, Any] | None = None,
         retry_of: str | None = None,
         skip_authorization: bool = False,
@@ -2383,6 +3864,44 @@ class TlonAdapter(BasePlatformAdapter):
         if mark_seen and not self._mark_seen(message):
             return
 
+        message = replace(message, text=strip_block_directives(message.text))
+
+        if (
+            dispatch_reason == "reaction"
+            and message.reactable_target_id
+            and not message.reply_to_message_id
+        ):
+            # Top-level own-post reaction: there is no thread root, so
+            # source.thread_id will be None and send()'s reply_in_thread
+            # fallback would otherwise thread on message.message_id — the
+            # synthetic `react/…` event id, not a real wire post (I3).
+            # Record the real reactable target so send() can recover it.
+            self._reaction_reply_targets[message.message_id] = message.reactable_target_id
+            self._reaction_reply_targets.move_to_end(message.message_id)
+            while len(self._reaction_reply_targets) > 200:
+                self._reaction_reply_targets.popitem(last=False)
+
+        notes_key = self._reaction_conversation_key(message.chat_type, message.chat_id)
+        pending_notes = tuple(self._pending_reaction_notes.get(notes_key, ()))
+        dispatch_text = message.text
+        if pending_notes:
+            dispatch_text = (
+                "[Recent reactions in this conversation]\n"
+                + "\n".join(pending_notes)
+                + "\n\n"
+                + dispatch_text
+            )
+        if self.tlon_config.reaction_level in {"minimal", "extensive"}:
+            target_id = message.reactable_target_id or message.message_id
+            marker = (
+                "reacted message id"
+                if message.reactable_target_id
+                else "message id"
+            )
+            dispatch_text += f"\n\n[{marker}: {target_id}]"
+            if message.reply_to_message_id:
+                dispatch_text += f"\n[thread root: {message.reply_to_message_id}]"
+
         self._telemetry.start_reply(
             message.chat_id,
             chat_type="dm" if is_dm else "groupChannel",
@@ -2394,6 +3913,7 @@ class TlonAdapter(BasePlatformAdapter):
             message,
             is_dm=is_dm,
             dispatch_reason=dispatch_reason,
+            pending_nudge=pending_nudge,
             retry_seed=retry_seed,
             retry_of=retry_of,
         )
@@ -2412,7 +3932,7 @@ class TlonAdapter(BasePlatformAdapter):
             )
             prepared = prepared_media or PreparedMedia()
             event_kwargs = {
-                "text": message.text,
+                "text": dispatch_text,
                 "message_type": _message_type_member(prepared.message_type),
                 "source": source,
                 "raw_message": message.raw,
@@ -2432,12 +3952,30 @@ class TlonAdapter(BasePlatformAdapter):
                 event = MessageEvent(**event_kwargs)
                 setattr(event, "media_urls", media_urls)
                 setattr(event, "media_types", media_types)
+            self._remember_dispatch_sender(
+                (message.chat_id, str(message.message_id)), message.user_id
+            )
             await self.handle_message(event)
+            # Peeked notes are committed only after core accepted the event;
+            # failed/duplicate/unauthorized dispatches leave them untouched.
+            if pending_notes:
+                notes = self._pending_reaction_notes.get(notes_key)
+                if notes is not None:
+                    for note in pending_notes:
+                        if notes and notes[0] == note:
+                            notes.popleft()
+                        else:
+                            break
+                    if not notes:
+                        self._pending_reaction_notes.pop(notes_key, None)
         except Exception:
             # Dispatch raised before on_processing_complete could finalize the
             # run (e.g. _route_stream_event catches and skips handle_message
             # errors). Close it out as an error so the lens UI shows a terminal
             # state and the run doesn't leak until the next prune.
+            self._remove_dispatch_state(
+                (message.chat_id, str(message.message_id))
+            )
             await self._finish_lens_run_on_error(message.chat_id)
             raise
 
@@ -2453,6 +3991,7 @@ class TlonAdapter(BasePlatformAdapter):
         *,
         is_dm: bool,
         dispatch_reason: str,
+        pending_nudge: bool = False,
         retry_seed: dict[str, Any] | None = None,
         retry_of: str | None = None,
     ) -> None:
@@ -2476,6 +4015,7 @@ class TlonAdapter(BasePlatformAdapter):
                 preview=message.text or None,
                 thread_messages=1 if message.reply_to_message_id else 0,
                 emits_telemetry=self._telemetry.enabled,
+                pending_nudge=pending_nudge,
                 retry_seed=retry_seed,
                 retry_of=retry_of,
             )
@@ -2512,7 +4052,7 @@ class TlonAdapter(BasePlatformAdapter):
         Only ``retry-requested`` is actionable here: an owner tapped Retry on a
         finalized run's lens card, so the bot ship should re-dispatch it.
         ``entry`` / ``recent`` facts are our own echoes and are ignored. This
-        runs inline on the (serial) SSE loop, so a retry can't race a live run
+        runs in the serial event worker, so a retry can't race a live run
         in the same conversation.
         """
         if not self._lens.enabled or not isinstance(raw, dict):
@@ -2627,10 +4167,23 @@ class TlonAdapter(BasePlatformAdapter):
         )
 
     async def on_processing_complete(self, event: MessageEvent, outcome: Any) -> None:
+        # Release the presence lease first.  The gateway runs this hook through
+        # a wrapper that swallows every exception, so anything that raises
+        # above this call would leave the run registered and the keepalive
+        # would refresh its lease for the life of the process.
         await self._computing_presence.stop_run(
             conversation_id=event.source.chat_id,
             run_id=self._presence_run_id(event),
         )
+        source = getattr(event, "source", None)
+        chat_id = str(getattr(source, "chat_id", "") or "")
+        message_id = str(
+            getattr(source, "message_id", None)
+            or getattr(event, "message_id", None)
+            or ""
+        )
+        if chat_id and message_id:
+            self._remove_dispatch_state((chat_id, message_id))
         processing_outcome = _processing_outcome_value(outcome)
         self._telemetry.finish_reply(
             event.source.chat_id,
@@ -2647,6 +4200,35 @@ class TlonAdapter(BasePlatformAdapter):
                 delivery_failed=delivery_failed,
             ),
         )
+
+    def _remove_dispatch_state(self, message_key: tuple[str, str]) -> None:
+        self._inflight_senders.pop(message_key, None)
+        stale = [
+            directive_key
+            for directive_key in self._executed_block_directives
+            if directive_key[:2] == message_key
+        ]
+        for directive_key in stale:
+            self._executed_block_directives.pop(directive_key, None)
+
+    def _remember_dispatch_sender(
+        self, message_key: tuple[str, str], sender: str
+    ) -> None:
+        self._remove_dispatch_state(message_key)
+        self._inflight_senders[message_key] = normalize_ship(sender).lower()
+        self._inflight_senders.move_to_end(message_key)
+        while len(self._inflight_senders) > self._DISPATCH_STATE_CAPACITY:
+            oldest = next(iter(self._inflight_senders))
+            self._remove_dispatch_state(oldest)
+
+    def _remember_executed_block(
+        self, directive_key: tuple[str, str, str]
+    ) -> None:
+        self._executed_block_directives[directive_key] = None
+        self._executed_block_directives.move_to_end(directive_key)
+        while len(self._executed_block_directives) > self._DISPATCH_STATE_CAPACITY:
+            oldest = next(iter(self._executed_block_directives))
+            self._remove_dispatch_state(oldest[:2])
 
     @staticmethod
     def _presence_run_id(event: MessageEvent) -> str:
@@ -2708,7 +4290,84 @@ class TlonAdapter(BasePlatformAdapter):
             result = await self._cli.send_message(
                 chat_id, content, blob=blob, sent_at=sent_at_ms
             )
+        canonical = canonicalize_nest(chat_id)
+        if (
+            not result.success
+            and canonical is not None
+            and canonical.startswith("diary/")
+        ):
+            refusal = diary_target_blocked_message(canonical)
+            result = replace(
+                result,
+                stderr=f"Error: {refusal}\n",
+                error=f"Error: {refusal}",
+            )
+            start_diary_migration_discovery(canonical)
         return result, sent_at_ms
+
+    async def _process_block_directives(
+        self,
+        chat_id: str,
+        content: str,
+        reply_to: Optional[str],
+    ) -> tuple[str, bool]:
+        if not find_block_directives(content):
+            return content, False
+
+        directives = find_executable_block_directives(content)
+
+        reply_id = str(reply_to or "")
+        message_key = (chat_id, reply_id)
+        tracked_sender = self._inflight_senders.get(message_key)
+        owner = normalize_ship(self.tlon_config.owner_ship).lower()
+
+        for raw_target, reason in directives:
+            target = normalize_ship(raw_target).lower()
+            if owner and target == owner:
+                logger.warning(
+                    "[tlon] block directive rejected: target is configured owner"
+                )
+                continue
+            if not reply_id:
+                logger.warning(
+                    "[tlon] block directive rejected: missing reply correlation"
+                )
+                continue
+            if tracked_sender is None:
+                logger.warning(
+                    "[tlon] block directive rejected: unknown reply correlation"
+                )
+                continue
+            if not _is_dm_chat_id(chat_id):
+                logger.warning(
+                    "[tlon] block directive rejected: conversation is not a direct message"
+                )
+                continue
+            dm_counterparty = normalize_ship(chat_id).lower()
+            if tracked_sender != dm_counterparty:
+                logger.warning(
+                    "[tlon] block directive rejected: correlated sender is not DM counterparty"
+                )
+                continue
+            if target != tracked_sender:
+                logger.warning(
+                    "[tlon] block directive rejected: target is not correlated sender"
+                )
+                continue
+
+            directive_key = (chat_id, reply_id, target)
+            if directive_key in self._executed_block_directives:
+                continue
+            self._remember_executed_block(directive_key)
+            if not await self._block_ship(target):
+                self._executed_block_directives.pop(directive_key, None)
+                await self._notify_owner(target, reason, block_succeeded=False)
+                continue
+            await self._remove_from_dm_allowlist(target)
+            await self._drop_pending_approvals_for(target, types=("dm",))
+            await self._notify_owner(target, reason)
+
+        return strip_block_directives(content).strip(), True
 
     async def send(
         self,
@@ -2725,21 +4384,65 @@ class TlonAdapter(BasePlatformAdapter):
         accompany non-empty content because the deployed CLI does not support
         blob-only posts.
         """
-        pending = self._pending_bot_cap_addendum.get(chat_id)
-        addendum = ""
-        if pending and reply_to and str(reply_to) == pending[1]:
-            addendum = (
-                "\n\n---\n_This is my last response to "
-                f"{pending[0]} for now. To continue our conversation, "
-                "someone will need to mention me._"
-            )
-        content = (content or "") + addendum
         metadata = metadata or {}
+        content = str(content or "")
+        if metadata.get("expect_edits") and ends_with_directive_prefix(content):
+            return SendResult(success=False, retryable=False)
+
+        incomplete_stripped = False
+        if not metadata.get("expect_edits"):
+            content, incomplete_stripped = strip_trailing_directive_prefix(content)
+
         caller_blob = metadata.get("blob")
         if not (isinstance(caller_blob, str) and caller_blob.strip()):
             # A whitespace-only string is treated as ABSENT, same as None:
             # it never fires the blob-requires-content guard below.
             caller_blob = None
+
+        content, complete_stripped = await self._process_block_directives(
+            chat_id, content, reply_to
+        )
+        directive_syntax_stripped = incomplete_stripped or complete_stripped
+        if directive_syntax_stripped:
+            content = content.rstrip()
+
+        pending = self._pending_bot_cap_addendum.get(chat_id)
+        correlated_pending = (
+            pending
+            if pending is not None and reply_to == pending[1]
+            else None
+        )
+        if directive_syntax_stripped and not content.strip():
+            if caller_blob is None:
+                if (
+                    correlated_pending is not None
+                    and self._pending_bot_cap_addendum.get(chat_id)
+                    == correlated_pending
+                ):
+                    self._pending_bot_cap_addendum.pop(chat_id, None)
+                return SendResult(success=True, retryable=False)
+            blob_error = (
+                "metadata['blob'] requires non-empty content "
+                "(no blob-only CLI transport)"
+            )
+            self._telemetry.record_delivery(chat_id, content=content, success=False)
+            self._lens.record_delivery_failure(chat_id, error=blob_error)
+            return SendResult(
+                success=False,
+                message_id=None,
+                error=blob_error,
+                raw_response={},
+                retryable=False,
+            )
+
+        addendum = ""
+        if correlated_pending is not None:
+            addendum = (
+                "\n\n---\n_This is my last response to "
+                f"{correlated_pending[0]} for now. To continue our conversation, "
+                "someone will need to mention me._"
+            )
+        content += addendum
         if caller_blob is not None and not content.strip():
             blob_error = "metadata['blob'] requires non-empty content (no blob-only CLI transport)"
             self._telemetry.record_delivery(chat_id, content=content, success=False)
@@ -2756,12 +4459,37 @@ class TlonAdapter(BasePlatformAdapter):
         # conversation is already a thread (metadata.thread_id carries the
         # thread ROOT, which is what Tlon replies must attach to). This holds
         # for both group channels and DMs — DM threads thread too.
-        # reply_in_thread=true restores always-thread-on-the-trigger.
+        # reply_in_thread=true restores always-thread-on-the-trigger. Gallery
+        # posts always anchor reactive replies to the trigger: a new heap post
+        # is a separate gallery item, not a conversational reply.
         thread_parent = str(metadata.get("thread_id") or "") or None
-        if thread_parent is None and self.tlon_config.reply_in_thread:
-            thread_parent = reply_to
+        if thread_parent is None and (
+            self.tlon_config.reply_in_thread or chat_id.startswith("heap/")
+        ):
+            # A top-level own-post reaction's `reply_to` is core's generic
+            # trigger anchor, i.e. the synthetic `react/<post>/<reactor>/
+            # <emoji>` event id — never a real wire post. Recover the actual
+            # reacted post recorded by _dispatch_message (I3) so the fallback
+            # threads onto something that exists; anything else (an ordinary
+            # message's own id) has no entry here and falls through as-is.
+            thread_parent = (
+                self._reaction_reply_targets.get(reply_to)
+                if reply_to
+                else None
+            ) or reply_to
         is_thread_reply = bool(thread_parent)
+        # parentAuthor: honor what Hermes passes. For one-to-one DMs the writ
+        # id itself is author-prefixed, so derive that exact prefix when core
+        # did not supply metadata (not the partner default the CLI would
+        # otherwise assume).
         parent_author = metadata.get("parent_author") or None
+        if (
+            not parent_author
+            and is_thread_reply
+            and _is_dm_chat_id(chat_id)
+            and "/" in thread_parent
+        ):
+            parent_author = normalize_ship(thread_parent.split("/", 1)[0])
         # Stamp each delivered chunk with a pointer to its lens run so the
         # client can open the run from the message (badge / message actions),
         # matching OpenClaw. Only when a run is active for this conversation.
@@ -2851,7 +4579,7 @@ class TlonAdapter(BasePlatformAdapter):
         if delivered and is_thread_reply and thread_parent:
             self._participated_threads.add(self._thread_key(chat_id, thread_parent))
         if addendum and (result.success or result.returncode != 124):
-            if self._pending_bot_cap_addendum.get(chat_id) == pending:
+            if self._pending_bot_cap_addendum.get(chat_id) == correlated_pending:
                 self._pending_bot_cap_addendum.pop(chat_id, None)
         return SendResult(
             success=delivered,
@@ -2955,6 +4683,8 @@ def _env_enablement() -> dict | None:
         seed["owner_listen_enabled_channels"] = ",".join(tlon.owner_listen_enabled_channels)
     if tlon.context_messages != DEFAULT_CONTEXT_MESSAGES:
         seed["context_messages"] = tlon.context_messages
+    if tlon.reaction_level != "minimal":
+        seed["reaction_level"] = tlon.reaction_level
     if tlon.telemetry_enabled:
         seed["telemetry"] = True
     if tlon.telemetry_api_key:
@@ -3009,13 +4739,55 @@ def _tool_access_block(message: str) -> dict:
     return {"action": "block", "message": message}
 
 
+def _non_owner_reaction_carveout(args: Optional[dict], config: TlonConfig) -> Optional[str]:
+    """Return None only for a narrowly-scoped current-chat reaction command."""
+    command = str((args or {}).get("command") or "")
+    parsed, parse_error = split_tlon_command(command)
+    if parse_error or len(parsed) < 3:
+        return "Blocked: non-owner Tlon sessions may only react in the current conversation."
+    if any(
+        arg in CREDENTIAL_FLAGS_WITH_VALUE
+        or any(arg.startswith(f"{flag}=") for flag in CREDENTIAL_FLAGS_WITH_VALUE)
+        for arg in parsed
+    ):
+        return (
+            "Blocked: non-owner reactions cannot use credential override flags; "
+            "they must use this bot account in the current conversation."
+        )
+    # Do not use the tool parser's global-flag skipping here: the subcommand
+    # must literally be first, preventing a prefix override from authenticating
+    # the right-looking target as another account.
+    family, action = parsed[0].lower(), parsed[1].lower()
+    if family not in {"posts", "dms"} or action not in {"react", "unreact"}:
+        return "Blocked: non-owner Tlon sessions may only react in the current conversation."
+    if config.reaction_level not in {"minimal", "extensive"}:
+        return (
+            "Blocked: agent reactions are disabled "
+            f'(TLON_REACTION_LEVEL="{config.reaction_level}"). '
+            "Set TLON_REACTION_LEVEL to minimal or extensive to enable."
+        )
+    chat_id = str(_session_env("HERMES_SESSION_CHAT_ID", "")).strip()
+    if not chat_id:
+        return "Blocked: no current Tlon conversation is available for this reaction."
+    expected_family = "dms" if _is_dm_chat_id(chat_id) else "posts"
+    if family != expected_family:
+        return (
+            f"Blocked: use {expected_family} react|unreact for the current "
+            f"{'one-to-one DM' if expected_family == 'dms' else 'channel'} conversation."
+        )
+    target = str(parsed[2] or "").strip()
+    if not target or target.casefold() != chat_id.casefold():
+        return "Blocked: non-owner reactions may target only the current conversation."
+    return None
+
+
 def block_tlon_session_tool(tool_name: str, args: Optional[dict] = None, **_kwargs: Any) -> Optional[dict]:
-    del args
     if _session_env("HERMES_SESSION_PLATFORM", "").lower() != "tlon":
         return None
 
     tool = str(tool_name or "").strip()
-    owner = TlonConfig.from_env().owner_ship
+    tlon = TlonConfig.from_env()
+    owner = tlon.owner_ship
     if not owner:
         return _tool_access_block(
             "Blocked: Tlon owner identity is not configured. Set TLON_OWNER_SHIP "
@@ -3039,6 +4811,21 @@ def block_tlon_session_tool(tool_name: str, args: Optional[dict] = None, **_kwar
             "identity is available."
         )
     if sender != owner:
+        if tool == "tlon":
+            parsed, _parse_error = split_tlon_command(
+                str((args or {}).get("command") or "")
+            )
+            reaction_attempt = any(
+                parsed[index].lower() in {"posts", "dms"}
+                and index + 1 < len(parsed)
+                and parsed[index + 1].lower() in {"react", "unreact"}
+                for index in range(len(parsed))
+            )
+            if reaction_attempt:
+                reaction_block = _non_owner_reaction_carveout(args, tlon)
+                if reaction_block is None:
+                    return None
+                return _tool_access_block(reaction_block)
         return _tool_access_block(f"Blocked: {tool} is owner-only in Tlon chats.")
     return None
 
@@ -3057,6 +4844,14 @@ async def _standalone_send(
     tlon = TlonConfig.from_env(extra)
     if not tlon.is_complete():
         return {"error": "tlon standalone send: TLON node URL/id/access code not configured"}
+    message = strip_block_directives(message).strip()
+    if not message:
+        return {
+            "success": True,
+            "platform": "tlon",
+            "chat_id": chat_id,
+            "message_id": None,
+        }
     cli = TlonCLI(tlon)
     if thread_id:
         parent_author = chat_id if _is_dm_chat_id(chat_id) else None
@@ -3071,6 +4866,31 @@ async def _standalone_send(
         "chat_id": chat_id,
         "message_id": result.message_id,
     }
+
+
+def _reaction_platform_hint(level: str) -> str:
+    if level == "minimal":
+        guidance = (
+            "React ONLY when truly relevant: acknowledge important requests or "
+            "confirmations, and express genuine sentiment sparingly. Avoid routine "
+            "messages and your own replies. Aim for at most one reaction per 5-10 exchanges."
+        )
+    elif level == "extensive":
+        guidance = (
+            "Feel free to react liberally when natural: acknowledge messages, express "
+            "sentiment and personality, react to interesting content or humor, and confirm "
+            "understanding or agreement."
+        )
+    else:
+        return ""
+    return (
+        f" Reactions are enabled for Tlon in {level.upper()} mode. {guidance} "
+        "Message ids and thread roots appear in […] markers. For channels use "
+        "'posts react <nest> <post-id> \"<emoji>\"'; for one-to-one DMs use "
+        "'dms react <ship> <message-id> \"<emoji>\"'. For a thread reply add "
+        "'--parent <thread-root-id>'; use unreact to remove your reaction. Non-owner "
+        "sessions may react only in the current conversation."
+    )
 
 
 def register(ctx) -> None:
@@ -3156,7 +4976,14 @@ def register(ctx) -> None:
             "group you host or a one-to-one DM), use the tlon tool's posts "
             "send with that target; reserve dms send for group-DM club IDs "
             "starting with 0v. Sending plain text to the current conversation "
-            "that way is blocked. To send an image anywhere — including the "
+            "that way is blocked, except that posts send heap/~host/name creates "
+            "a new top-level gallery item. Galleries use heap/~host/name. Reply "
+            "normally in a gallery to comment on the triggering post; posts send "
+            "heap/~host/name \"text or URL\" creates a new top-level item and is "
+            "allowed even in the current gallery (optional --title \"...\"). React "
+            "to a gallery comment with posts react heap/~host/name <comment-id> "
+            "<emoji> --parent <post-id>; delete with posts delete heap/~host/name "
+            "<post-id>. To send an image anywhere — including the "
             "current conversation — first 'tlon upload <direct-image-url>', then "
             "'tlon posts send <target> [caption] --image <uploaded-url>'. "
             "The platform adapter directly handles owner chat commands for "
@@ -3167,5 +4994,6 @@ def register(ctx) -> None:
             "binary — debug info). Point the owner at those commands when asked "
             "rather than changing configuration yourself. "
             "Use concise plain text and basic markdown."
+            + _reaction_platform_hint(TlonConfig.from_env().reaction_level)
         ),
     )

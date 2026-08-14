@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/api",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "type": "module",
   "files": [
     "dist",
@@ -60,8 +60,10 @@
     "exponential-backoff": "^3.1.1",
     "libphonenumber-js": "^1.11.18",
     "lodash": "^4.17.21",
+    "mdast-util-from-markdown": "^2.0.0",
     "mdast-util-gfm": "^3.0.0",
     "mdast-util-to-markdown": "^2.1.2",
+    "micromark-util-types": "^2.0.0",
     "remark-gfm": "^4.0.0",
     "remark-parse": "^11.0.0",
     "remark-stringify": "^11.0.0",

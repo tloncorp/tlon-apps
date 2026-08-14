@@ -2,9 +2,11 @@ import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { createContext, useContext } from 'react';
 
+import type { ConversationContentInsets } from '../components/conversationInsets';
 import type { MinimalRenderItemType, RenderItemType } from './componentsKits';
 
 export interface PostCollectionContextValue {
+  contentInsets?: ConversationContentInsets;
   channel: db.Channel;
   collectionConfiguration?: Record<string, JSONValue>;
   editingPost?: db.Post;
@@ -22,8 +24,8 @@ export interface PostCollectionContextValue {
   onPressDelete: (post: db.Post) => void;
   onPressRetryLoad: () => void;
   onPressRetrySend: (post: db.Post) => Promise<void>;
-  onScrollEndReached?: () => void;
-  onScrollStartReached?: () => void;
+  onLoadNewerPosts?: () => void;
+  onLoadOlderPosts?: () => void;
   posts?: db.Post[];
   scrollToBottom?: () => void;
   selectedPostId?: string | null;

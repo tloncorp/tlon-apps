@@ -24,6 +24,7 @@ export type BotSettingsProviderStatus =
 export interface BotSettingsProviderRow {
   displayName: string;
   id: string;
+  logoUrl?: string;
   status: BotSettingsProviderStatus;
 }
 
@@ -66,10 +67,16 @@ export function BotSettingsScreenView({
         borderBottom
         backAction={isWindowNarrow ? onBackPressed : undefined}
         loadingSubtitle={refreshing && !initialLoading ? 'Refreshing' : null}
-        rightControls={
-          <ScreenHeader.IconButton type="Refresh" onPress={onRefresh} />
-        }
+        rightActions={[
+          {
+            id: 'refresh-providers',
+            icon: 'Refresh',
+            label: 'Refresh providers',
+            onPress: onRefresh,
+          },
+        ]}
         title="Connect MCP"
+        placement="navigation"
       />
       {initialLoading ? (
         <YStack flex={1} alignItems="center" justifyContent="center">
@@ -214,6 +221,7 @@ function ProviderListItem({
         >
           <McpProviderLogo
             displayName={provider.displayName}
+            logoUrl={provider.logoUrl}
             providerId={provider.id}
           />
           <ListItem.MainContent height="auto" minHeight="$4xl">

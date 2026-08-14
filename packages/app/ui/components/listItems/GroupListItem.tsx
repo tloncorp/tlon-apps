@@ -120,6 +120,7 @@ export const GroupListItem = ({
   return (
     <View ref={containerRef}>
       <Pressable
+        data-group-id={model.id}
         borderRadius="$xl"
         onPress={open ? undefined : handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}

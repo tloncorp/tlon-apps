@@ -1,5 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ub from '@tloncorp/api/urbit';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Button } from '@tloncorp/ui';
@@ -17,7 +18,7 @@ import {
   ListItem,
   NotificationLevelSelector,
   ScreenHeader,
-  ScrollView,
+  ScreenScrollView,
   TlonText,
   View,
   YStack,
@@ -54,17 +55,28 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
     async (level: ub.NotificationLevel) => {
       if (level === baseVolumeSetting) return;
       await store.setBaseVolumeLevel({ level });
+      trackEvent(AnalyticsEvent.NotificationPreferenceChanged, {
+        setting: 'default_level',
+        value: level,
+      });
     },
     [baseVolumeSetting]
   );
 
   const removeException = useCallback(
     async (exception: db.Group | db.Channel) => {
-      if (db.isGroup(exception)) {
-        await store.setGroupVolumeLevel({ group: exception, level: null });
-      } else {
-        await store.setChannelVolumeLevel({ channel: exception, level: null });
-      }
+      const didRemove = db.isGroup(exception)
+        ? await store.setGroupVolumeLevel({ group: exception, level: null })
+        : await store.setChannelVolumeLevel({
+            channel: exception,
+            level: null,
+          });
+      if (!didRemove) return;
+
+      trackEvent(AnalyticsEvent.NotificationPreferenceChanged, {
+        setting: 'override_removed',
+        value: db.isGroup(exception) ? 'group' : 'channel',
+      });
     },
     []
   );
@@ -83,8 +95,9 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
           title="Notifications"
           backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
           borderBottom
+          placement="navigation"
         />
-        <ScrollView
+        <ScreenScrollView
           flex={1}
           paddingHorizontal={'$xl'}
           maxWidth={600}
@@ -123,7 +136,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
               removeException={removeException}
             />
           ) : null}
-        </ScrollView>
+        </ScreenScrollView>
       </View>
     </ChatOptionsProvider>
   );

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
 import { DIARY_REMOVED, NOTES_CHANNEL_CONTENT_UNSUPPORTED } from '../cli-utils';
-import type { StoryVerse } from '../story';
+import type { StoryVerse } from '../markdown';
 import { commandError } from './command';
 import {
   type ExistingPost,
@@ -191,6 +191,12 @@ describe('posts command help and shell', () => {
     expectNoAuthOrApi(context);
   });
 
+  it('documents the gallery-only send title option', () => {
+    expect(POSTS_HELP).toContain('--title <text>');
+    expect(POSTS_COMMAND_HELP.send).toContain('--title <text>');
+    expect(POSTS_HELP).toContain('heap/~host/gallery');
+  });
+
   it('returns a family usage error for bare posts without auth/API work', async () => {
     const context = makeDeps();
     const exitCode = await run([], context.deps);
@@ -294,6 +300,176 @@ describe('posts send', () => {
     ]);
   });
 
+  it('sends a markdown list as a listing block', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '- a\n- b'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              contents: [],
+              items: [{ item: ['a'] }, { item: ['b'] }],
+            },
+          },
+        },
+      },
+    ]);
+  });
+
+  it('sends a ship mention with its ~ sigil', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'hi ~sampel-palnet'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: ['hi ', { ship: '~sampel-palnet' }] },
+    ]);
+  });
+
+  it('fails loudly when the message converts to nothing', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '<div>hello</div>'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('fails loudly when the message converts to an empty wrapper shell', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '> [l][i]\n\n[i]: https://x'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('fails loudly when the message is a whitespace-labeled link', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '[ ](https://example.com)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses an image mixed into a text line', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'caption ![alt](https://x/y.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('own line');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses an image inside header content', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '# head ![a](https://u/i.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('own line');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a standalone image with a relative target', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '![plot](./plot.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('http(s)');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a standalone image with a file:// target', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '![plot](file:///tmp/x.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('http(s)');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('still sends a standalone image line as an image block', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '![alt](https://x/y.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      {
+        block: {
+          image: { src: 'https://x/y.png', alt: 'alt', width: 0, height: 0 },
+        },
+      },
+    ]);
+  });
+
+  it('sends a link with a real label', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '[real](https://example.com)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: [{ link: { href: 'https://example.com', content: 'real' } }] },
+    ]);
+  });
+
+  it('still sends a bare horizontal rule with no text leaves', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '---'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { block: { rule: null } },
+    ]);
+  });
+
   it('authenticates against chat for DM and group-DM targets', async () => {
     for (const target of ['~sampel-palnet', '0v5.abcde']) {
       const context = makeDeps();
@@ -342,6 +518,71 @@ describe('posts send', () => {
     );
 
     expect(context.calls.sendPost[0].blob).toBe('[{"type":"a2ui"}]');
+  });
+
+  it('passes a gallery title through as post metadata', async () => {
+    const context = makeDeps({ currentUserId: '~nec', now: 42 });
+    const exitCode = await run(
+      [
+        'send',
+        'heap/~host/gallery',
+        'Gallery caption',
+        '--title',
+        'Gallery title',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost).toEqual([
+      {
+        channelId: 'heap/~host/gallery',
+        authorId: '~nec',
+        sentAt: 42,
+        content: [{ inline: ['Gallery caption'] }],
+        blob: undefined,
+        metadata: { title: 'Gallery title' },
+      },
+    ]);
+  });
+
+  it('rejects --title outside gallery nests before auth', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'caption', '--title', 'Chat title'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain(
+      '--title is only supported for gallery (heap/) posts'
+    );
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects a --title flag with no value before auth', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'heap/~host/gallery', 'caption', '--title'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.send}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects a --title value that is itself an option token before auth', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'heap/~zod/gallery', 'caption', '--title', '--sent-at', '1234'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.send}\n`);
+    expectNoAuthOrApi(context);
   });
 
   it('honors --sent-at over the clock', async () => {
@@ -433,6 +674,26 @@ describe('posts reply', () => {
         parentId: '170.141.184',
         parentAuthor: '~nec',
         content: [{ inline: ['Thread reply'] }],
+        sentAt: 7,
+        authorId: '~nec',
+      },
+    ]);
+  });
+
+  it('replies to a gallery post with the exact heap target input', async () => {
+    const context = makeDeps({ currentUserId: '~nec', now: 7 });
+    const exitCode = await run(
+      ['reply', 'heap/~host/gallery', '170141184', 'Gallery comment'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendReply).toEqual([
+      {
+        channelId: 'heap/~host/gallery',
+        parentId: '170.141.184',
+        parentAuthor: '~nec',
+        content: [{ inline: ['Gallery comment'] }],
         sentAt: 7,
         authorId: '~nec',
       },
@@ -576,6 +837,94 @@ describe('posts react', () => {
       postAuthor: '~nec',
     });
   });
+
+  it('passes --parent through for thread-reply reactions', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['react', 'chat/~host/channel', '170142', '🔥', '--parent', '170141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.addReaction).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        postId: '170.142',
+        emoji: '🔥',
+        our: '~nec',
+        postAuthor: '~nec',
+        parentId: '170.141',
+      },
+    ]);
+  });
+
+  it('passes a gallery comment reaction parent through exactly', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['react', 'heap/~host/gallery', '170142', '🔥', '--parent', '170141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.addReaction).toEqual([
+      {
+        channelId: 'heap/~host/gallery',
+        postId: '170.142',
+        emoji: '🔥',
+        our: '~nec',
+        postAuthor: '~nec',
+        parentId: '170.141',
+      },
+    ]);
+  });
+
+  it('rejects a --parent value that is itself an option token', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['react', 'chat/~host/channel', '170141', '🔥', '--parent', '--bogus'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.react}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects a duplicate --parent flag', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      [
+        'react',
+        'chat/~host/channel',
+        '170142',
+        '🔥',
+        '--parent',
+        '170141',
+        '--parent',
+        '170140',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.react}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects an omitted emoji that lets --parent fill the emoji slot', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['react', 'chat/~host/chan', '170.142', '--parent', '170.141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.react}\n`);
+    expectNoAuthOrApi(context);
+  });
 });
 
 describe('posts unreact', () => {
@@ -640,6 +989,72 @@ describe('posts unreact', () => {
     expect(context.stdout()).toBe('');
     expect(context.stderr()).toBe('Error: remove failed\n');
   });
+
+  it('passes --parent through for thread-reply reaction removal', async () => {
+    const context = makeDeps({ currentUserId: '~bus' });
+    const exitCode = await run(
+      ['unreact', 'chat/~host/channel', '170142', '--parent', '170141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.removeReaction).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        postId: '170.142',
+        our: '~bus',
+        postAuthor: '~bus',
+        parentId: '170.141',
+      },
+    ]);
+  });
+
+  it('rejects a --parent value that is itself an option token', async () => {
+    const context = makeDeps({ currentUserId: '~bus' });
+    const exitCode = await run(
+      ['unreact', 'chat/~host/channel', '170141', '--parent', '--bogus'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.unreact}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects a duplicate --parent flag', async () => {
+    const context = makeDeps({ currentUserId: '~bus' });
+    const exitCode = await run(
+      [
+        'unreact',
+        'chat/~host/channel',
+        '170142',
+        '--parent',
+        '170141',
+        '--parent',
+        '170140',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.unreact}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects an omitted id that lets --parent fill the id slot', async () => {
+    const context = makeDeps({ currentUserId: '~bus' });
+    const exitCode = await run(
+      ['unreact', 'chat/~host/chan', '--parent', '170.141'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.unreact}\n`);
+    expectNoAuthOrApi(context);
+  });
 });
 
 describe('posts delete', () => {
@@ -685,6 +1100,23 @@ describe('posts delete', () => {
         },
       ]);
     }
+  });
+
+  it('deletes a gallery post with the exact heap target input', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    const exitCode = await run(
+      ['delete', 'heap/~host/gallery', '170141184'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.deletePost).toEqual([
+      {
+        channelId: 'heap/~host/gallery',
+        postId: '170.141.184',
+        authorId: '~nec',
+      },
+    ]);
   });
 
   it('routes facade failures through the shared command-error path', async () => {
@@ -772,6 +1204,39 @@ describe('posts edit', () => {
       expect(context.stderr()).not.toContain('Usage:');
       expectNoAuthOrApi(context);
     }
+  });
+
+  it('refuses to erase a post when the message converts to nothing', async () => {
+    const context = makeDeps({ getChannelPosts: withExistingPost(null) });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', '<div>hello</div>'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.editPost).toEqual([]);
+  });
+
+  it('refuses to erase a post when the message converts to an empty wrapper shell', async () => {
+    const context = makeDeps({ getChannelPosts: withExistingPost(existing) });
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        '**[label][id]**\n\n[id]: https://example.com',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.editPost).toEqual([]);
   });
 
   it('edits with a markdown message and preserves existing metadata', async () => {

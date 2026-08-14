@@ -1,6 +1,7 @@
 import type { RuntimeContext, ShipEndpoint } from '../../drivers/types.js';
 import {
   type BotProfileInput,
+  type ChannelKind,
   type PostRef,
   type PromptResult,
   type StateReader,
@@ -26,10 +27,19 @@ export interface ScenarioActor {
   state: StateReader;
   prompt(text: string, opts?: { timeoutMs?: number }): Promise<PromptResult>;
   sendDm(text: string): Promise<void>;
+  addReact(params: {
+    channelId: string;
+    postId: string;
+    react: string;
+    postAuthor: string;
+    parentId?: string;
+    parentAuthorId?: string;
+  }): Promise<void>;
   sendChannelPost(params: {
     channelId: string;
     content: StoryInput;
     blob?: string;
+    metadata?: { title?: string; image?: string };
     botProfile?: BotProfileInput;
   }): Promise<PostRef>;
   replyToPost(params: {
@@ -43,11 +53,18 @@ export interface ScenarioActor {
   createGroupWithChannel(params: {
     title: string;
     members?: string[];
+    channelKind?: ChannelKind;
+    channelTitle?: string;
   }): Promise<{ groupId: string; chatChannel: string }>;
   setSettingsEntry(params: {
     bucket: string;
     key: string;
     value: unknown;
+    desk?: string;
+  }): Promise<void>;
+  deleteSettingsEntry(params: {
+    bucket: string;
+    key: string;
     desk?: string;
   }): Promise<void>;
   uploadBlob?(params: UploadBlobParams): Promise<string>;
@@ -144,6 +161,10 @@ function createScenarioActor(
       await client.sendDm(botShip, text);
     },
 
+    async addReact(params) {
+      await client.addReact(params);
+    },
+
     async sendChannelPost(params) {
       return client.sendChannelPost(params);
     },
@@ -166,6 +187,10 @@ function createScenarioActor(
 
     async setSettingsEntry(params) {
       await client.setSettingsEntry(params);
+    },
+
+    async deleteSettingsEntry(params) {
+      await client.deleteSettingsEntry(params);
     },
 
     teardown(fn, opts = {}) {

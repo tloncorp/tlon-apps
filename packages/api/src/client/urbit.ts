@@ -32,6 +32,7 @@ interface Config
   loggingOut: boolean;
   lastStatus: string;
   activitySupportsReactions: boolean;
+  activitySupportsNotes: boolean;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -118,6 +119,34 @@ const config: Config = {
   // Off until the app confirms the backend's groups version ships reactions.
   // Drives which %activity endpoint versions the client uses (feed/sub/marks).
   activitySupportsReactions: false,
+  // Off until the app confirms the backend's groups version ships notes
+  // activity (v10 %activity endpoints).
+  activitySupportsNotes: false,
+};
+
+// The capability flags below start false every boot and flip when app-info
+// sync resolves the backend version. Long-lived consumers that bake a
+// capability into something at call time (e.g. a subscription's stream
+// version) can subscribe here and redo that work when the flags change.
+let activityCapabilitiesEpoch = 0;
+const activityCapabilityListeners = new Set<() => void>();
+
+export const getActivityCapabilitiesEpoch = (): number => {
+  return activityCapabilitiesEpoch;
+};
+
+export const onActivityCapabilitiesChange = (
+  listener: () => void
+): (() => void) => {
+  activityCapabilityListeners.add(listener);
+  return () => {
+    activityCapabilityListeners.delete(listener);
+  };
+};
+
+const bumpActivityCapabilitiesEpoch = () => {
+  activityCapabilitiesEpoch += 1;
+  activityCapabilityListeners.forEach((listener) => listener());
 };
 
 // Whether the connected backend supports reaction activity (v9 %activity
@@ -125,11 +154,30 @@ const config: Config = {
 // activity client to pick endpoint versions. Defaults false so an old backend
 // gets the pre-reaction (v5 feed / v4 subscription / v8 mark) endpoints.
 export const setActivitySupportsReactions = (value: boolean) => {
+  const changed = config.activitySupportsReactions !== value;
   config.activitySupportsReactions = value;
+  if (changed) {
+    bumpActivityCapabilitiesEpoch();
+  }
 };
 
 export const getActivitySupportsReactions = (): boolean => {
   return config.activitySupportsReactions;
+};
+
+// Whether the connected backend supports notes activity (v10 %activity
+// endpoints: v6 subscription, v7 feed, activity-action-2 mark). Same pattern
+// as reactions above; defaults false so old backends get older endpoints.
+export const setActivitySupportsNotes = (value: boolean) => {
+  const changed = config.activitySupportsNotes !== value;
+  config.activitySupportsNotes = value;
+  if (changed) {
+    bumpActivityCapabilitiesEpoch();
+  }
+};
+
+export const getActivitySupportsNotes = (): boolean => {
+  return config.activitySupportsNotes;
 };
 
 export const client = new Proxy(
@@ -255,6 +303,11 @@ export function internalRemoveClient() {
   config.client?.delete();
   config.client = null;
   config.subWatchers = {};
+  // backend capabilities belong to the ship we were connected to; reset
+  // so an account switch to an older backend doesn't request newer
+  // endpoints until app-info sync resolves the new ship's version
+  setActivitySupportsReactions(false);
+  setActivitySupportsNotes(false);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
@@ -675,11 +728,17 @@ export async function scry<T>({
   }
 }
 
-// Authenticated JSON request to an arbitrary ship path. Reauths once on 403.
+export interface RequestJsonOptions {
+  reauthStatuses?: readonly number[];
+}
+
+// Authenticated JSON request to an arbitrary ship path. Reauths once on 403 by
+// default; callers may opt into additional auth statuses for their endpoint.
 export async function requestJson<T = any>(
   path: string,
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
-  body?: unknown
+  body?: unknown,
+  options: RequestJsonOptions = {}
 ): Promise<T> {
   if (!config.client) {
     throw new Error('Client not initialized');
@@ -687,11 +746,12 @@ export async function requestJson<T = any>(
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
+  const reauthStatuses = options.reauthStatuses ?? [403];
 
   try {
     return await config.client.requestJson<T>(path, method, body);
   } catch (res) {
-    if (res?.status === 403) {
+    if (reauthStatuses.includes(res?.status)) {
       await reauth();
       return await config.client.requestJson<T>(path, method, body);
     }

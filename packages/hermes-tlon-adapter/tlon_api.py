@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -16,6 +17,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Awaitable, Callable, Mapping, Optional, Sequence
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +30,35 @@ DEFAULT_GATEWAY_LEASE_SECONDS = 90.0
 DEFAULT_GATEWAY_ACTIVE_WINDOW_SECONDS = 300
 DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS = 300
 DEFAULT_SSE_READ_TIMEOUT_SECONDS = 60.0
+DEFAULT_SSE_STALE_THRESHOLD_SECONDS = 180.0
+DEFAULT_SSE_WATCHDOG_INTERVAL_SECONDS = 30.0
+# OpenClaw's 2^31-1 ms cap converted to seconds: an upward typo (999999999,
+# 1e300) must not effectively disable the liveness machinery.
+MAX_SSE_SECONDS = 2_147_483.647
+# Eyre emits an SSE keepalive roughly every 20s; the silent-socket clamp
+# must stay above that or a small stale threshold would tear down healthy
+# streams between keepalives.
+KEEPALIVE_SAFE_SECONDS = 30.0
+ACTION_FLOOR_CAP = 4096
 DEFAULT_MAX_CONSECUTIVE_BOT_RESPONSES = 3
 DEFAULT_CONTEXT_MESSAGES = 20
+REACTION_LEVELS = frozenset({"off", "ack", "minimal", "extensive"})
+DEFAULT_REACTION_LEVEL = "minimal"
+
+DEFAULT_NUDGE_TICK_INTERVAL_MS = 15 * 60 * 1000
+
+
+class TlonTerminalActionError(ConnectionError):
+    """A channel action rejected by Eyre, so retrying it cannot help.
+
+    `status` is the rejecting HTTP status when known, so callers can tell an
+    auth rejection (401/403) from a malformed action (400/422) without
+    parsing the message.
+    """
+
+    def __init__(self, message: str, *, status: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.status = status
 
 
 def normalize_ship(ship: str) -> str:
@@ -117,6 +146,8 @@ def _env_first(
     extra_names: Sequence[str],
     default: str = "",
 ) -> str:
+    # Hermes declares process environment as its primary platform config;
+    # PlatformConfig.extra is the fallback used by embedded/test deployments.
     for name in names:
         value = env.get(name)
         if value is not None and str(value).strip():
@@ -159,10 +190,43 @@ def _parse_float(value: Any, default: float) -> float:
     return parsed if parsed > 0 else default
 
 
+def _parse_bounded_float(
+    value: Any, default: float, minimum: float, maximum: float
+) -> float:
+    """Strict positive-float knob parse: non-numeric, NaN, ±inf, non-positive,
+    and out-of-band values all fall back to the default silently, so a typo
+    can neither disable a liveness mechanism nor spin its loop."""
+    try:
+        parsed = float(str(value).strip())
+    except (TypeError, ValueError):
+        return default
+    if (
+        not math.isfinite(parsed)
+        or parsed <= 0
+        or parsed < minimum
+        or parsed > maximum
+    ):
+        return default
+    return parsed
+
+
+def _parse_sse_stale_threshold(value: Any, default: float) -> float:
+    # Only the literal '0' disables staleness detection — checked before
+    # numeric conversion so underflow spellings like '1e-9999' (which Python
+    # silently parses to 0.0) cannot disable the watchdog.
+    raw = str(value).strip()
+    if raw == "0":
+        return 0.0
+    return _parse_bounded_float(raw, default, 1.0, MAX_SSE_SECONDS)
+
+
 def _parse_int(value: Any, default: int) -> int:
     try:
-        parsed = int(float(str(value).strip()))
-    except (TypeError, ValueError):
+        raw = float(str(value).strip())
+        if not math.isfinite(raw):
+            return default
+        parsed = int(raw)
+    except (TypeError, ValueError, OverflowError):
         return default
     return parsed if parsed > 0 else default
 
@@ -186,6 +250,17 @@ def _parse_strict_non_negative_int(value: Any, default: int) -> int:
     if not parsed.is_integer():
         return default
     return int(parsed) if parsed >= 0 else default
+
+
+def _valid_timezone(value: str) -> str:
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    try:
+        ZoneInfo(value)
+    except (ZoneInfoNotFoundError, ValueError):
+        return ""
+    return value
 
 
 def _format_da_from_unix_millis(value: float) -> str:
@@ -234,10 +309,19 @@ class TlonConfig:
     gateway_status_lease_seconds: float = DEFAULT_GATEWAY_LEASE_SECONDS
     gateway_status_active_window_seconds: int = DEFAULT_GATEWAY_ACTIVE_WINDOW_SECONDS
     gateway_status_reply_cooldown_seconds: int = DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS
+    reengagement_enabled: bool = False
+    nudge_tick_interval_ms: int = DEFAULT_NUDGE_TICK_INTERVAL_MS
+    nudge_active_hours_start: Optional[str] = None
+    nudge_active_hours_end: Optional[str] = None
+    nudge_active_hours_timezone: Optional[str] = None
+    user_timezone: Optional[str] = None
     context_lens_enabled: bool = False
     context_lens_owner: str = ""
     context_lens_store_path: str = ""
     sse_read_timeout_seconds: float = DEFAULT_SSE_READ_TIMEOUT_SECONDS
+    sse_stale_threshold_seconds: float = DEFAULT_SSE_STALE_THRESHOLD_SECONDS
+    sse_watchdog_interval_seconds: float = DEFAULT_SSE_WATCHDOG_INTERVAL_SECONDS
+    reaction_level: str = DEFAULT_REACTION_LEVEL
     # Force the hosted (memex) image-upload path. Opt-in: only true when the
     # operator sets TLON_HOSTING. Read once where the env is reliably present
     # (the adapter at startup) and carried via this field into CLI invocations,
@@ -516,6 +600,47 @@ class TlonConfig:
             ),
             DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS,
         )
+        reengagement_enabled = parse_bool_default(
+            _env_or_extra(
+                env,
+                ("TLON_REENGAGEMENT_ENABLED",),
+                extra,
+                ("reengagement_enabled",),
+                "false",
+            ),
+            False,
+        )
+        nudge_tick_interval_ms = _parse_int(
+            _env_or_extra(
+                env,
+                ("TLON_NUDGE_TICK_INTERVAL_MS",),
+                extra,
+                ("nudge_tick_interval_ms",),
+                DEFAULT_NUDGE_TICK_INTERVAL_MS,
+            ),
+            DEFAULT_NUDGE_TICK_INTERVAL_MS,
+        )
+        nudge_active_hours_start = _env_first(
+            env,
+            ("TLON_NUDGE_ACTIVE_HOURS_START",),
+            extra,
+            ("nudge_active_hours_start",),
+        ) or None
+        nudge_active_hours_end = _env_first(
+            env,
+            ("TLON_NUDGE_ACTIVE_HOURS_END",),
+            extra,
+            ("nudge_active_hours_end",),
+        ) or None
+        nudge_active_hours_timezone = _env_first(
+            env,
+            ("TLON_NUDGE_ACTIVE_HOURS_TIMEZONE",),
+            extra,
+            ("nudge_active_hours_timezone",),
+        ) or None
+        user_timezone = _valid_timezone(
+            _env_first(env, ("TLON_TIMEZONE",), extra, ("user_timezone",))
+        ) or None
         context_lens_enabled = parse_bool(
             _env_or_extra(
                 env,
@@ -538,7 +663,7 @@ class TlonConfig:
             extra,
             ("context_lens_store_path",),
         )
-        sse_read_timeout_seconds = _parse_float(
+        sse_read_timeout_seconds = _parse_bounded_float(
             _env_or_extra(
                 env,
                 ("TLON_SSE_READ_TIMEOUT_SECONDS",),
@@ -547,7 +672,47 @@ class TlonConfig:
                 DEFAULT_SSE_READ_TIMEOUT_SECONDS,
             ),
             DEFAULT_SSE_READ_TIMEOUT_SECONDS,
+            # A sub-second read timeout (or an underflow spelling like 1e-300)
+            # would tear the stream down in a reconnect loop.
+            1.0,
+            MAX_SSE_SECONDS,
         )
+        sse_stale_threshold_seconds = _parse_sse_stale_threshold(
+            _env_or_extra(
+                env,
+                ("TLON_SSE_STALE_THRESHOLD_SECONDS",),
+                extra,
+                ("sse_stale_threshold_seconds",),
+                DEFAULT_SSE_STALE_THRESHOLD_SECONDS,
+            ),
+            DEFAULT_SSE_STALE_THRESHOLD_SECONDS,
+        )
+        sse_watchdog_interval_seconds = _parse_bounded_float(
+            _env_or_extra(
+                env,
+                ("TLON_SSE_WATCHDOG_INTERVAL_SECONDS",),
+                extra,
+                ("sse_watchdog_interval_seconds",),
+                DEFAULT_SSE_WATCHDOG_INTERVAL_SECONDS,
+            ),
+            DEFAULT_SSE_WATCHDOG_INTERVAL_SECONDS,
+            1.0,
+            MAX_SSE_SECONDS,
+        )
+        reaction_level = _env_first(
+            env,
+            ("TLON_REACTION_LEVEL",),
+            extra,
+            ("reaction_level",),
+            DEFAULT_REACTION_LEVEL,
+        ).lower()
+        if reaction_level not in REACTION_LEVELS:
+            logger.warning(
+                "[tlon] invalid TLON_REACTION_LEVEL=%r; using %s",
+                reaction_level,
+                DEFAULT_REACTION_LEVEL,
+            )
+            reaction_level = DEFAULT_REACTION_LEVEL
 
         auto_discover = parse_bool(
             _env_or_extra(env, ("TLON_AUTO_DISCOVER",), extra, ("auto_discover",))
@@ -598,10 +763,19 @@ class TlonConfig:
             gateway_status_lease_seconds=gateway_status_lease_seconds,
             gateway_status_active_window_seconds=gateway_status_active_window_seconds,
             gateway_status_reply_cooldown_seconds=gateway_status_reply_cooldown_seconds,
+            reengagement_enabled=reengagement_enabled,
+            nudge_tick_interval_ms=nudge_tick_interval_ms,
+            nudge_active_hours_start=nudge_active_hours_start,
+            nudge_active_hours_end=nudge_active_hours_end,
+            nudge_active_hours_timezone=nudge_active_hours_timezone,
+            user_timezone=user_timezone,
             context_lens_enabled=context_lens_enabled,
             context_lens_owner=context_lens_owner,
             context_lens_store_path=context_lens_store_path,
             sse_read_timeout_seconds=sse_read_timeout_seconds,
+            sse_stale_threshold_seconds=sse_stale_threshold_seconds,
+            sse_watchdog_interval_seconds=sse_watchdog_interval_seconds,
+            reaction_level=reaction_level,
         )
 
     def is_complete(self) -> bool:
@@ -609,6 +783,18 @@ class TlonConfig:
 
     def cli_env(self, base: Mapping[str, str] | None = None) -> dict[str, str]:
         env = dict(base or os.environ)
+        for key in (
+            "TLON_CONFIG_FILE",
+            "URBIT_COOKIE",
+            "TLON_COOKIE",
+            "URBIT_URL",
+            "TLON_URL",
+            "URBIT_SHIP",
+            "TLON_SHIP",
+            "URBIT_CODE",
+            "TLON_CODE",
+        ):
+            env.pop(key, None)
         if self.ship_url:
             env["TLON_NODE_URL"] = self.ship_url
             env["TLON_SHIP_URL"] = self.ship_url
@@ -686,10 +872,33 @@ class TlonSendResult:
     returncode: int = 0
     message_id: Optional[str] = None
     error: Optional[str] = None
+    timed_out: bool = False
 
 
+class TlonProcessTimeout(asyncio.TimeoutError):
+    """A killed CLI process with the output captured before termination."""
+
+    def __init__(self, stdout: str = "", stderr: str = "") -> None:
+        super().__init__()
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+@dataclass(frozen=True)
+class TlonDeadlineOutput:
+    stdout: str
+    stderr: str
+
+
+TlonDeadlineCallback = Callable[[TlonDeadlineOutput], Awaitable[None]]
 CommandRunner = Callable[
-    [Sequence[str], Mapping[str, str], float], Awaitable[TlonProcessResult]
+    [
+        Sequence[str],
+        Mapping[str, str],
+        float,
+        Optional[TlonDeadlineCallback],
+    ],
+    Awaitable[TlonProcessResult],
 ]
 
 # Called after every CLI invocation with (args, duration_ms, result).
@@ -742,12 +951,28 @@ class TlonCLI:
             args.extend(["--sent-at", str(sent_at)])
         return await self._run(tuple(args))
 
-    async def run_command(self, args: Sequence[str]) -> TlonSendResult:
-        return await self._run(tuple(args))
+    async def run_command(
+        self,
+        args: Sequence[str],
+        *,
+        timeout: float | None = None,
+        on_deadline: TlonDeadlineCallback | None = None,
+    ) -> TlonSendResult:
+        return await self._run(
+            tuple(args), timeout=timeout, on_deadline=on_deadline
+        )
 
-    async def _run(self, args: Sequence[str]) -> TlonSendResult:
+    async def _run(
+        self,
+        args: Sequence[str],
+        *,
+        timeout: float | None = None,
+        on_deadline: TlonDeadlineCallback | None = None,
+    ) -> TlonSendResult:
         started = time.monotonic()
-        result = await self._run_unobserved(args)
+        result = await self._run_unobserved(
+            args, timeout=timeout, on_deadline=on_deadline
+        )
         if self._observer is not None:
             try:
                 self._observer(args, int((time.monotonic() - started) * 1000), result)
@@ -755,20 +980,33 @@ class TlonCLI:
                 logger.debug("[tlon] CLI observer failed: %s", exc)
         return result
 
-    async def _run_unobserved(self, args: Sequence[str]) -> TlonSendResult:
+    async def _run_unobserved(
+        self,
+        args: Sequence[str],
+        *,
+        timeout: float | None = None,
+        on_deadline: TlonDeadlineCallback | None = None,
+    ) -> TlonSendResult:
         command = (self.config.cli, *args)
+        effective_timeout = (
+            self.config.cli_timeout if timeout is None else float(timeout)
+        )
         try:
             proc = await self._runner(
                 command,
                 self.config.cli_env(),
-                self.config.cli_timeout,
+                effective_timeout,
+                on_deadline,
             )
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as exc:
             return TlonSendResult(
                 success=False,
                 command=command,
-                error=f"tlon CLI timed out after {self.config.cli_timeout:g}s",
+                stdout=str(getattr(exc, "stdout", "") or ""),
+                stderr=str(getattr(exc, "stderr", "") or ""),
+                error=f"tlon CLI timed out after {effective_timeout:g}s",
                 returncode=124,
+                timed_out=True,
             )
         except FileNotFoundError:
             return TlonSendResult(
@@ -809,6 +1047,7 @@ class TlonCLI:
         command: Sequence[str],
         env: Mapping[str, str],
         timeout: float,
+        on_deadline: TlonDeadlineCallback | None = None,
     ) -> TlonProcessResult:
         proc = await asyncio.create_subprocess_exec(
             *command,
@@ -816,19 +1055,53 @@ class TlonCLI:
             stderr=asyncio.subprocess.PIPE,
             env=dict(env),
         )
+        assert proc.stdout is not None
+        assert proc.stderr is not None
+        stdout_buffer = bytearray()
+        stderr_buffer = bytearray()
+
+        async def drain(
+            stream: asyncio.StreamReader, buffer: bytearray
+        ) -> None:
+            while True:
+                chunk = await stream.read(64 * 1024)
+                if not chunk:
+                    return
+                buffer.extend(chunk)
+
+        def decode(buffer: bytearray) -> str:
+            return bytes(buffer).decode("utf-8", errors="replace")
+
+        stdout_task = asyncio.create_task(drain(proc.stdout, stdout_buffer))
+        stderr_task = asyncio.create_task(drain(proc.stderr, stderr_buffer))
+        wait_task = asyncio.create_task(proc.wait())
         try:
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                proc.communicate(),
-                timeout=timeout,
-            )
+            await asyncio.wait_for(asyncio.shield(wait_task), timeout=timeout)
         except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
-            raise
+            if on_deadline is not None:
+                try:
+                    await on_deadline(
+                        TlonDeadlineOutput(
+                            stdout=decode(stdout_buffer),
+                            stderr=decode(stderr_buffer),
+                        )
+                    )
+                except Exception:
+                    logger.exception("[tlon] CLI deadline callback failed")
+                await wait_task
+            else:
+                proc.kill()
+                await wait_task
+                await asyncio.gather(stdout_task, stderr_task)
+                raise TlonProcessTimeout(
+                    decode(stdout_buffer),
+                    decode(stderr_buffer),
+                )
+        await asyncio.gather(stdout_task, stderr_task)
         return TlonProcessResult(
             returncode=proc.returncode or 0,
-            stdout=stdout_bytes.decode("utf-8", errors="replace"),
-            stderr=stderr_bytes.decode("utf-8", errors="replace"),
+            stdout=decode(stdout_buffer),
+            stderr=decode(stderr_buffer),
         )
 
     @staticmethod
@@ -851,10 +1124,28 @@ class TlonAuthError(ConnectionError):
     """The ship rejected our credentials (bad access code) — unrecoverable."""
 
 
+class TlonChannelError(ConnectionError):
+    """The Eyre channel or one of its subscriptions is gone; the caller must
+    rebuild the channel rather than resume it.
+
+    `status` is the HTTP status when the fault came from the channel GET, and
+    None when it came from a subscription nack/quit.
+    """
+
+    def __init__(self, message: str, *, status: Optional[int] = None) -> None:
+        super().__init__(message)
+        self.status = status
+
+
+class TlonStreamStaleError(ConnectionError):
+    """The stream watchdog judged the channel stale; the caller should resume
+    the same channel rather than rebuild it."""
+
+
 class TlonSSEClient:
     """Eyre SSE channel client for subscriptions."""
 
-    def __init__(self, config: TlonConfig) -> None:
+    def __init__(self, config: TlonConfig, *, reap_detection: bool = False) -> None:
         self.config = config
         self.url = config.ship_url.rstrip("/")
         self.ship = normalize_ship(config.ship_name)
@@ -867,10 +1158,38 @@ class TlonSSEClient:
         # installed). Their nacks/quits are logged and skipped rather than
         # raised, so one dead optional sub can't tear down the whole stream.
         self._optional_subscriptions: set[int] = set()
+        self._last_heard_event_id = -1
         self._last_acked_event_id = -1
         self._ack_threshold = 20
+        # Reap/revival detection is opt-in: gateway-status, lens, and presence
+        # use poke-only clients that never consume events(), and their ledgers
+        # would grow to the cap with no consumer to drain or act on them.
+        self._reap_detection = reap_detection
+        self._last_confirmed_ack_event_id = -1
+        self._confirmed_floor_at_stream_bind = -1
+        self._action_floors: dict[int, int] = {}
+        self._genesis_action_id: Optional[int] = None
+        self._last_event_frame_at: Optional[float] = None
+        self._stream_bound = False
+        self._condemned: Optional[BaseException] = None
+        self._closed = False
+        self._ack_tasks: set[asyncio.Task] = set()
+
+    @property
+    def last_heard_event_id(self) -> int:
+        return self._last_heard_event_id
+
+    @property
+    def last_event_frame_at(self) -> Optional[float]:
+        return self._last_event_frame_at
+
+    @property
+    def stream_bound(self) -> bool:
+        return self._stream_bound
 
     async def authenticate(self) -> str:
+        if self._closed:
+            raise ConnectionError("Tlon SSE client closed")
         import aiohttp
 
         if self._session is None:
@@ -906,14 +1225,32 @@ class TlonSSEClient:
             return cookie
 
     async def open(self) -> None:
+        if self._closed:
+            raise ConnectionError("Tlon SSE client closed")
         if self._session is None:
             await self.authenticate()
         self.channel_id = f"{int(time.time())}-{uuid.uuid4().hex[:8]}"
         self.channel_url = f"{self.url}/~/channel/{self.channel_id}"
+        self._last_heard_event_id = -1
+        self._last_acked_event_id = -1
+        self._subscriptions.clear()
+        self._optional_subscriptions.clear()
+        self._last_confirmed_ack_event_id = -1
+        self._confirmed_floor_at_stream_bind = -1
+        self._action_floors.clear()
+        self._genesis_action_id = None
+        self._last_event_frame_at = None
+        action_id = self._next_action_id()
+        # Every path to a fresh channel goes through open() first, so on a
+        # healthy generation event 0 is always this helm-hi's ack; any other
+        # action acked at event 0 on a virgin cursor proves the channel was
+        # silently re-created by that action's PUT.
+        self._genesis_action_id = action_id
+        self._record_action_floor(action_id)
         await self._send_actions(
             [
                 {
-                    "id": self._next_action_id(),
+                    "id": action_id,
                     "action": "poke",
                     "ship": bare_ship(self.ship),
                     "app": "hood",
@@ -924,12 +1261,15 @@ class TlonSSEClient:
         )
 
     async def subscribe(self, app: str, path: str, *, optional: bool = False) -> int:
+        if self._closed:
+            raise ConnectionError("Tlon SSE client closed")
         if self.channel_url is None:
             await self.open()
         sub_id = self._next_action_id()
         self._subscriptions[sub_id] = (app, path)
         if optional:
             self._optional_subscriptions.add(sub_id)
+        self._record_action_floor(sub_id)
         await self._send_actions(
             [
                 {
@@ -944,9 +1284,12 @@ class TlonSSEClient:
         return sub_id
 
     async def poke(self, app: str, mark: str, json_payload: Any) -> int:
+        if self._closed:
+            raise ConnectionError("Tlon SSE client closed")
         if self.channel_url is None:
             await self.open()
         poke_id = self._next_action_id()
+        self._record_action_floor(poke_id)
         await self._send_actions(
             [
                 {
@@ -962,6 +1305,8 @@ class TlonSSEClient:
         return poke_id
 
     async def scry(self, path: str) -> Any:
+        if self._closed:
+            raise ConnectionError("Tlon SSE client closed")
         import aiohttp
 
         if self._session is None:
@@ -987,7 +1332,11 @@ class TlonSSEClient:
                 raise ConnectionError(f"Tlon scry failed: HTTP {resp.status} {text[:200]}")
             return await resp.json()
 
-    async def events(self) -> AsyncIterator[TlonSSEEvent]:
+    async def events(
+        self, *, on_open: Optional[Callable[[], None]] = None
+    ) -> AsyncIterator[TlonSSEEvent]:
+        if self._closed:
+            raise ConnectionError("Tlon SSE client closed")
         import aiohttp
 
         if self.channel_url is None:
@@ -995,30 +1344,98 @@ class TlonSSEClient:
         assert self._session is not None
         assert self.channel_url is not None
 
+        headers = {"Accept": "text/event-stream"}
+        if self._last_heard_event_id >= 0:
+            headers["Last-Event-ID"] = str(self._last_heard_event_id)
+        # Snapshot the confirmed-ack floor immediately before the GET, not
+        # after the 200: Eyre binds the replay before pruning, so an ack
+        # confirmed during the handshake may legitimately reappear in it.
+        self._confirmed_floor_at_stream_bind = self._last_confirmed_ack_event_id
+        read_timeout = self.config.sse_read_timeout_seconds
+        stale_threshold = self.config.sse_stale_threshold_seconds
+        if stale_threshold > 0:
+            # A totally silent socket must fault within the stale threshold
+            # even when the read-timeout knob was raised above it (the
+            # in-band condemn latch needs payloads to raise); floored at the
+            # keepalive interval so a small threshold cannot tear down a
+            # healthy stream between keepalives.
+            read_timeout = min(
+                read_timeout, max(stale_threshold, KEEPALIVE_SAFE_SECONDS)
+            )
         async with self._session.get(
             self.channel_url,
-            headers={"Accept": "text/event-stream"},
+            headers=headers,
             timeout=aiohttp.ClientTimeout(
                 total=None,
-                sock_read=self.config.sse_read_timeout_seconds,
+                sock_read=read_timeout,
                 connect=60,
             ),
         ) as resp:
+            if resp.status in (404, 410):
+                # _send_actions already treats 404/410 as a stale, reaped
+                # channel; the SSE GET must agree, or a 410 would be
+                # classified as a resumable transport fault and the adapter
+                # would re-GET a dead channel forever.
+                raise TlonChannelError("Tlon channel reaped", status=resp.status)
+            if resp.status in (401, 403):
+                raise TlonChannelError(
+                    f"Tlon channel unauthorized: HTTP {resp.status}", status=resp.status
+                )
+            if resp.status == 500:
+                # Eyre answers 500 for a channel it can no longer serve.
+                # Resuming would re-GET the same dead channel forever, leaving
+                # the bot deaf; @tloncorp/api's client resets the channel on
+                # this status too (packages/api/src/http-api/Urbit.ts:491-494).
+                # Raise before touching the body: a stalled or truncated 500
+                # body would make resp.text() raise a non-channel error, which
+                # falls through to the resume path and defeats the recovery.
+                raise TlonChannelError("Tlon SSE failed: HTTP 500", status=500)
             if resp.status != 200:
                 text = await resp.text()
                 raise ConnectionError(f"Tlon SSE failed: HTTP {resp.status} {text[:200]}")
-
-            buffer = ""
-            async for chunk in resp.content.iter_any():
-                buffer += chunk.decode("utf-8", errors="replace")
-                while "\n\n" in buffer:
-                    payload, buffer = buffer.split("\n\n", 1)
-                    event = await self._parse_sse_payload(payload)
-                    if event is not None:
-                        yield event
-            raise ConnectionError("Tlon SSE stream ended")
+            self._stream_bound = True
+            # Liveness baseline: without it, the first watchdog tick after a
+            # resume following a long outage would condemn a healthy stream
+            # off the ancient pre-outage timestamp.
+            self._last_event_frame_at = time.monotonic()
+            if isinstance(self._condemned, TlonStreamStaleError):
+                # A stale condemnation demands a resume; this successful
+                # re-bind IS that resume (the stream may have EOF'd and
+                # reconnected on its own first). Raising it now would tear
+                # down the recovered stream. Rebuild condemnations
+                # (TlonChannelError) deliberately survive the bind.
+                self._condemned = None
+            try:
+                opened = False
+                buffer = ""
+                async for chunk in resp.content.iter_any():
+                    buffer += chunk.decode("utf-8", errors="replace")
+                    while "\n\n" in buffer:
+                        payload, buffer = buffer.split("\n\n", 1)
+                        event = await self._parse_sse_payload(payload)
+                        if not opened:
+                            # Established only once the body demonstrably
+                            # delivers (keepalives count): a 200 that EOFs
+                            # with zero payloads must escalate backoff, not
+                            # reset it.
+                            opened = True
+                            if on_open is not None:
+                                on_open()
+                        if event is not None:
+                            yield event
+                raise ConnectionError("Tlon SSE stream ended")
+            finally:
+                self._stream_bound = False
 
     async def close(self, *, graceful: bool = True) -> None:
+        self._closed = True
+        if self._ack_tasks:
+            # An unretained task is garbage-collectable mid-flight; ack
+            # success feeds the detection floor, so drain them here.
+            tasks = list(self._ack_tasks)
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
         if graceful and self._session is not None and self.channel_url is not None:
             try:
                 actions = [
@@ -1061,33 +1478,157 @@ class TlonSSEClient:
             timeout=aiohttp.ClientTimeout(total=30),
         ) as resp:
             if resp.status not in (200, 204):
-                text = await resp.text()
-                raise ConnectionError(
-                    f"Tlon channel action failed: HTTP {resp.status} {text[:200]}"
+                status = resp.status
+                # A malformed or unauthorized client action will not recover
+                # by replaying it.  A 404/410 can be a stale, reaped channel
+                # URL and recover after reconnect; rate limits,
+                # request-timeout/too-early responses, server errors, and
+                # other non-4xx responses may also recover.
+                #
+                # Classify from the status alone, BEFORE touching the body: a
+                # stalled/truncated rejection body would otherwise make
+                # resp.text() raise, downgrading a terminal 401/403 to a generic
+                # error and defeating the fixed-cookie fatal handling upstream.
+                terminal = 400 <= status < 500 and status not in (404, 408, 410, 425, 429)
+                try:
+                    text = await resp.text()
+                except Exception:
+                    text = ""
+                message = f"Tlon channel action failed: HTTP {status} {text[:200]}"
+                if terminal:
+                    raise TlonTerminalActionError(message, status=status)
+                raise ConnectionError(message)
+
+    def condemn(self, exc: BaseException) -> None:
+        # A rebuild condemnation (TlonChannelError) outranks a resume one
+        # (TlonStreamStaleError) and is never downgraded; the latch is
+        # consumed only when raised, never cleared at bind, so it survives an
+        # interleaved fault/resume cycle.
+        if self._condemned is None or (
+            isinstance(exc, TlonChannelError)
+            and not isinstance(self._condemned, TlonChannelError)
+        ):
+            self._condemned = exc
+
+    def _record_action_floor(self, action_id: int) -> None:
+        if not self._reap_detection:
+            return
+        if len(self._action_floors) >= ACTION_FLOOR_CAP:
+            # Fail closed: an untracked action must not be the undetectable
+            # reviving one — the forced rebuild clears the world. The action
+            # itself still sends.
+            logger.error(
+                "[tlon] action-floor ledger full (%d); forcing channel rebuild",
+                ACTION_FLOOR_CAP,
+            )
+            self.condemn(
+                TlonChannelError(
+                    "Tlon action-floor ledger full; forcing channel rebuild"
                 )
+            )
+            return
+        # Set-only-if-absent so a same-id retry can't overwrite the original
+        # floor. A failed PUT keeps its entry: delivery is ambiguous, and the
+        # action may have landed and revived a reaped channel.
+        self._action_floors.setdefault(action_id, self._last_heard_event_id)
 
     async def _parse_sse_payload(self, payload: str) -> Optional[TlonSSEEvent]:
+        if isinstance(self._condemned, TlonChannelError):
+            exc, self._condemned = self._condemned, None
+            raise exc
+
         event_id: Optional[int] = None
         data_parts: list[str] = []
         for line in payload.splitlines():
             if line.startswith("id:"):
-                try:
-                    event_id = int(line.split(":", 1)[1].strip())
-                except ValueError:
-                    event_id = None
+                raw_id = line.split(":", 1)[1].strip()
+                # Strict ASCII digits: int() also accepts signs, underscores,
+                # and unicode digits, and a malformed id must not be able to
+                # fake a regression against the detection floors. The length
+                # bound matters too: CPython's int-str conversion limit makes
+                # int() RAISE on ~4300+ digit strings that pass isdigit(),
+                # and that ValueError would kill the stream in a resume loop
+                # that replays the same frame forever.
+                event_id = (
+                    int(raw_id)
+                    if raw_id.isascii() and raw_id.isdigit() and len(raw_id) <= 18
+                    else None
+                )
             elif line.startswith("data:"):
                 data_parts.append(line.split(":", 1)[1].lstrip())
 
-        if event_id is not None and event_id - self._last_acked_event_id > self._ack_threshold:
-            self._last_acked_event_id = event_id
-            asyncio.create_task(self._ack(event_id))
+        if event_id is not None or data_parts:
+            # Event frames only — a keepalive-only payload must not quiet the
+            # staleness clock (deliberate divergence from OpenClaw, whose
+            # clock is keepalive-fed and therefore cannot see an
+            # alive-but-eventless stream).
+            self._last_event_frame_at = time.monotonic()
 
-        if not data_parts:
-            return None
+        if (
+            self._reap_detection
+            and event_id is not None
+            and self._confirmed_floor_at_stream_bind >= 0
+            and event_id <= self._confirmed_floor_at_stream_bind
+        ):
+            raise TlonChannelError(
+                f"Tlon event-id regression (heard {event_id}, confirmed floor "
+                f"{self._confirmed_floor_at_stream_bind}): channel silently recreated"
+            )
 
-        try:
-            raw = json.loads("\n".join(data_parts))
-        except json.JSONDecodeError:
+        raw: Any = None
+        if data_parts:
+            try:
+                raw = json.loads("\n".join(data_parts))
+            except json.JSONDecodeError:
+                raw = None
+
+        if (
+            self._reap_detection
+            and event_id is not None
+            and isinstance(raw, dict)
+            and raw.get("response") in ("poke", "subscribe")
+        ):
+            action_id = raw.get("id")
+            # type() (not isinstance) so a JSON boolean cannot pose as an id.
+            if type(action_id) is int:
+                floor = self._action_floors.get(action_id)
+                if floor is not None and event_id <= floor:
+                    raise TlonChannelError(
+                        f"Tlon action ack regressed (event {event_id} <= floor "
+                        f"{floor}): channel silently recreated"
+                    )
+                if (
+                    event_id == 0
+                    and self._last_heard_event_id == -1
+                    and action_id != self._genesis_action_id
+                ):
+                    raise TlonChannelError(
+                        "Tlon non-genesis action acked at event 0 on a virgin "
+                        "cursor: channel silently recreated"
+                    )
+                # The generation is proven for this action — resolve its entry
+                # whether the frame is an ack or a nack.
+                self._action_floors.pop(action_id, None)
+
+        if self._condemned is not None:
+            # A held resume condemnation raises only after the detectors: this
+            # frame may carry rebuild evidence, and rebuild outranks resume.
+            # Raising before the cursor advance is lossless — the frame was
+            # not acked, so the resume GET redelivers it.
+            exc, self._condemned = self._condemned, None
+            raise exc
+
+        if event_id is not None:
+            if event_id <= self._last_heard_event_id:
+                return None
+            self._last_heard_event_id = event_id
+            if event_id - self._last_acked_event_id > self._ack_threshold:
+                self._last_acked_event_id = event_id
+                task = asyncio.create_task(self._ack(event_id))
+                self._ack_tasks.add(task)
+                task.add_done_callback(self._ack_tasks.discard)
+
+        if raw is None:
             return None
 
         response = raw.get("response")
@@ -1108,7 +1649,7 @@ class TlonSSEClient:
                     self._subscriptions.pop(sub_id, None)
                     self._optional_subscriptions.discard(sub_id)
                     return None
-                raise ConnectionError(
+                raise TlonChannelError(
                     f"Tlon subscription failed for {app} {path}: {str(raw.get('err'))[:200]}"
                 )
             return None
@@ -1121,7 +1662,7 @@ class TlonSSEClient:
                 # WAS established and has now dropped (e.g. an agent/desk
                 # reload), so force the reconnect path to re-subscribe rather
                 # than silently going deaf to future facts.
-                raise ConnectionError(f"Tlon subscription quit for {app} {path}")
+                raise TlonChannelError(f"Tlon subscription quit for {app} {path}")
             return None
 
         if response == "poke":
@@ -1155,6 +1696,7 @@ class TlonSSEClient:
         )
 
     async def _ack(self, event_id: int) -> None:
+        channel_url = self.channel_url
         try:
             await self._send_actions(
                 [
@@ -1167,6 +1709,17 @@ class TlonSSEClient:
             )
         except Exception as exc:
             logger.debug("[tlon] SSE ack failed: %s", exc)
+            return
+        # Only a confirmed-ok ack advances the regression floor, and a stale
+        # ack from a pre-rebuild channel must not repopulate it.
+        if (
+            self._reap_detection
+            and channel_url is not None
+            and self.channel_url == channel_url
+        ):
+            self._last_confirmed_ack_event_id = max(
+                self._last_confirmed_ack_event_id, event_id
+            )
 
     def _next_action_id(self) -> int:
         self._action_counter += 1
@@ -1184,7 +1737,7 @@ ClientFactory = Callable[[TlonConfig], TlonSSEClient]
 
 
 class TlonGatewayStatus:
-    """Heartbeat bridge for the desk %gateway-status agent."""
+    """Heartbeat bridge for the desk %steward agent's gateway module."""
 
     def __init__(
         self,
@@ -1276,10 +1829,13 @@ class TlonGatewayStatus:
                 self._report_error("heartbeat", exc)
 
     async def _configure(self) -> None:
+        # The owner is shared across all of %steward's modules, so it rides the
+        # core mark; only the timings belong to the gateway module. Owner first:
+        # the module refuses start/heartbeat/stop until the core owner is set.
+        await self._poke_core({"configure": {"owner": self.owner}})
         await self._poke(
             {
                 "configure": {
-                    "owner": self.owner,
                     "active-window": _format_dr_seconds(
                         self.config.gateway_status_active_window_seconds
                     ),
@@ -1316,7 +1872,12 @@ class TlonGatewayStatus:
     async def _poke(self, json_payload: Any) -> None:
         if self._client is None:
             raise RuntimeError("gateway-status client is not started")
-        await self._client.poke("gateway-status", "gateway-status-action-1", json_payload)
+        await self._client.poke("steward", "steward-gateway-action-1", json_payload)
+
+    async def _poke_core(self, json_payload: Any) -> None:
+        if self._client is None:
+            raise RuntimeError("gateway-status client is not started")
+        await self._client.poke("steward", "steward-action-1", json_payload)
 
     def _lease_until_da(self) -> str:
         lease_until = (time.time() + self.config.gateway_status_lease_seconds) * 1000.0
@@ -1345,6 +1906,42 @@ class TlonIncomingMessage:
     content: Any = None
     blob: Optional[str] = None
     author_is_bot: bool = False
+    # The essay author is distinct from user_id for self echoes in DMs: the
+    # conversation/user remains the partner while this identifies the sender.
+    author_id: str = ""
+    # Set for a synthetic reaction event so its visible id is the actual
+    # reacted post rather than the synthetic event identity.
+    reactable_target_id: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class TlonReaction:
+    """One decoded reaction transition or snapshot entry.
+
+    ``wire_key`` remains the serialized identity used for state comparisons;
+    ``reactor`` is the ship used for authorization and loop protection.
+    """
+
+    chat_type: str
+    chat_id: str
+    post_id: str
+    parent_id: Optional[str]
+    wire_key: str
+    reactor: str
+    reactor_is_bot: bool
+    emoji: str
+    added: bool
+    raw: Any
+
+
+@dataclass(frozen=True)
+class ChannelReactsSnapshot:
+    chat_id: str
+    post_id: str
+    parent_id: Optional[str]
+    # wire key -> (exact decoded emoji, normalized ship, is bot identity)
+    entries: dict[str, tuple[str, str, bool]]
+    raw: Any
 
 
 def extract_message_text(content: Any) -> str:
@@ -1364,6 +1961,17 @@ def extract_message_text(content: Any) -> str:
                     parts.append(_extract_block_text(block["block"]))
         return " ".join(part for part in parts if part).strip()
     return str(content)
+
+
+def extract_message_title(content: Any) -> str:
+    """Return a user-visible essay title when the wire payload has one."""
+    if not isinstance(content, Mapping):
+        return ""
+    meta = content.get("meta")
+    if not isinstance(meta, Mapping):
+        return ""
+    title = meta.get("title")
+    return title.strip() if isinstance(title, str) else ""
 
 
 def _extract_inline_text(inlines: Any) -> str:
@@ -1394,11 +2002,32 @@ def _extract_inline_text(inlines: Any) -> str:
                 parts.append(str(item["inline-code"]))
             elif "code" in item:
                 parts.append(str(item["code"]))
+            elif "task" in item and isinstance(item["task"], Mapping):
+                task = item["task"]
+                marker = "[x] " if task.get("checked") else "[ ] "
+                parts.append(marker + _extract_inline_text(task.get("content")))
             elif "break" in item:
                 parts.append("\n")
             elif "tag" in item:
                 parts.append(f"#{item['tag']}")
     return "".join(parts)
+
+
+def _extract_listing_text(listing: Any) -> str:
+    """Extract all text carried by recursive story listing nodes."""
+    if not isinstance(listing, Mapping):
+        return ""
+    item = listing.get("item")
+    if isinstance(item, list):
+        return _extract_inline_text(item)
+    list_node = listing.get("list")
+    if not isinstance(list_node, Mapping):
+        return ""
+    parts = [_extract_inline_text(list_node.get("contents"))]
+    items = list_node.get("items")
+    if isinstance(items, list):
+        parts.extend(_extract_listing_text(child) for child in items)
+    return "\n".join(part for part in parts if part)
 
 
 def _extract_block_text(block: dict[str, Any]) -> str:
@@ -1407,6 +2036,20 @@ def _extract_block_text(block: dict[str, Any]) -> str:
         return f"[image: {image.get('alt') or image.get('src') or ''}]"
     if "cite" in block:
         return "[quoted message]"
+    if "link" in block and isinstance(block["link"], Mapping):
+        link = block["link"]
+        url = str(link.get("url") or "").strip()
+        meta = link.get("meta")
+        title = ""
+        if isinstance(meta, Mapping):
+            title = str(meta.get("title") or meta.get("description") or "").strip()
+        if title and url:
+            return f"[link: {title} — {url}]"
+        return f"[link: {url}]" if url else "[link]"
+    if "header" in block and isinstance(block["header"], Mapping):
+        return _extract_inline_text(block["header"].get("content"))
+    if "listing" in block:
+        return _extract_listing_text(block["listing"])
     if "code" in block and isinstance(block["code"], dict):
         code = block["code"]
         lang = code.get("lang") or ""
@@ -1427,10 +2070,159 @@ def author_is_bot_meta(author: Any) -> bool:
     return isinstance(author, Mapping) and bool(author.get("ship"))
 
 
+def _decode_react_value(value: Any) -> str:
+    """Decode Tlon's ``$react`` JSON without silently accepting bad values."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, Mapping) and isinstance(value.get("any"), str):
+        return str(value["any"])
+    raise ValueError("reaction value is not a string or {any: string}")
+
+
+def _reaction_author(author: Any) -> tuple[str, str, bool]:
+    """Return (wire_key, normalized_ship, is_bot) for a reaction author."""
+    if isinstance(author, str) and author.strip():
+        return author, normalize_ship(author), False
+    if isinstance(author, Mapping):
+        ship = normalize_ship(str(author.get("ship") or ""))
+        if not ship:
+            raise ValueError("bot reaction author is missing ship")
+        # nickname is wire type `(unit @t)`: null/missing is legal for bot
+        # profiles without a nickname, so fall back to an empty suffix.
+        nickname = author.get("nickname")
+        suffix = nickname if isinstance(nickname, str) else ""
+        return f"{author.get('ship')}/{suffix}", ship, True
+    raise ValueError("reaction author is not a ship or bot identity")
+
+
+def parse_channel_reacts_snapshot(event: Any) -> Optional[ChannelReactsSnapshot]:
+    """Decode a complete channels /v2 reaction map without applying a diff."""
+    if not isinstance(event, dict):
+        return None
+    nest = event.get("nest")
+    response = event.get("response")
+    if not isinstance(nest, str) or not nest or not isinstance(response, dict):
+        return None
+    post = response.get("post")
+    r_post = post.get("r-post") if isinstance(post, dict) else None
+    if not isinstance(post, dict) or not isinstance(r_post, dict):
+        return None
+
+    post_id = post.get("id")
+    parent_id: Optional[str] = None
+    reacts = r_post.get("reacts")
+    reply = r_post.get("reply")
+    if isinstance(reply, dict):
+        r_reply = reply.get("r-reply")
+        if isinstance(r_reply, dict) and "reacts" in r_reply:
+            reacts = r_reply.get("reacts")
+            post_id = reply.get("id")
+            parent_id = str(post.get("id") or "") or None
+
+    if not isinstance(reacts, dict) or not post_id:
+        return None
+
+    try:
+        entries: dict[str, tuple[str, str, bool]] = {}
+        for wire_key, raw_value in reacts.items():
+            if not isinstance(wire_key, str) or not wire_key:
+                raise ValueError("reaction map key is not a non-empty string")
+            if "/" in wire_key:
+                if not isinstance(raw_value, Mapping):
+                    raise ValueError("bot reaction map entry is not an object")
+                reactor = normalize_ship(str(raw_value.get("ship") or ""))
+                if not reactor:
+                    raise ValueError("bot reaction map entry is missing ship")
+                emoji = _decode_react_value(raw_value.get("react"))
+                entries[wire_key] = (emoji, reactor, True)
+            else:
+                reactor = normalize_ship(wire_key)
+                if not reactor:
+                    raise ValueError("reaction map key is not a ship")
+                entries[wire_key] = (_decode_react_value(raw_value), reactor, False)
+    except (TypeError, ValueError) as exc:
+        logger.warning("[tlon] ignoring malformed channel reaction snapshot: %s", exc)
+        return None
+
+    return ChannelReactsSnapshot(
+        chat_id=nest,
+        post_id=str(post_id),
+        parent_id=parent_id,
+        entries=entries,
+        raw=event,
+    )
+
+
+def _is_plain_patp(ship: Any) -> bool:
+    return bool(re.fullmatch(r"~[a-z][a-z-]*", normalize_ship(str(ship or ""))))
+
+
+def parse_dm_reaction(event: Any, *, self_ship: str) -> Optional[TlonReaction]:
+    """Decode one chat /v3 add-react or del-react transition.
+
+    Legacy group-DM events share this subscription but cannot be delivered by
+    the one-to-one DM send path, so they are intentionally excluded here.
+    """
+    if not isinstance(event, dict):
+        return None
+    whom = event.get("whom")
+    response = event.get("response")
+    if not isinstance(whom, str) or not _is_plain_patp(whom) or not isinstance(response, dict):
+        return None
+    root_id = event.get("id")
+    if not root_id:
+        return None
+
+    delta: Any = response
+    post_id: Any = root_id
+    parent_id: Optional[str] = None
+    reply = response.get("reply")
+    if isinstance(reply, dict) and isinstance(reply.get("delta"), dict):
+        delta = reply["delta"]
+        post_id = reply.get("id")
+        parent_id = str(root_id)
+    if not isinstance(delta, dict) or not post_id:
+        return None
+
+    added = "add-react" in delta
+    removed = "del-react" in delta
+    if added == removed:
+        return None
+    try:
+        if added:
+            payload = delta.get("add-react")
+            if not isinstance(payload, Mapping):
+                raise ValueError("add-react is not an object")
+            wire_key, reactor, reactor_is_bot = _reaction_author(payload.get("author"))
+            emoji = _decode_react_value(payload.get("react"))
+        else:
+            wire_key, reactor, reactor_is_bot = _reaction_author(delta.get("del-react"))
+            emoji = ""
+    except (TypeError, ValueError) as exc:
+        logger.warning("[tlon] ignoring malformed DM reaction: %s", exc)
+        return None
+
+    if reactor == normalize_ship(self_ship):
+        return None
+    return TlonReaction(
+        chat_type="dm",
+        chat_id=normalize_ship(whom),
+        post_id=str(post_id),
+        parent_id=parent_id,
+        wire_key=wire_key,
+        reactor=reactor,
+        reactor_is_bot=reactor_is_bot,
+        emoji=emoji,
+        added=added,
+        raw=event,
+    )
+
+
 def parse_channel_message(
     event: Any,
     *,
     self_ship: str,
+    include_self: bool = False,
 ) -> Optional[TlonIncomingMessage]:
     if not isinstance(event, dict):
         return None
@@ -1472,11 +2264,15 @@ def parse_channel_message(
         return None
 
     sender = extract_author_ship(content.get("author"))
-    if not sender or sender == normalize_ship(self_ship):
+    if not sender or (not include_self and sender == normalize_ship(self_ship)):
         return None
 
     story_content = content.get("content")
     text = extract_message_text(story_content)
+    if nest.startswith("heap/"):
+        title = extract_message_title(content)
+        if title:
+            text = "\n".join(part for part in (title, text) if part)
     raw_blob = content.get("blob")
     blob = raw_blob if isinstance(raw_blob, str) and raw_blob.strip() else None
     if not text.strip() and not blob:
@@ -1504,6 +2300,7 @@ def parse_channel_message(
         content=story_content,
         blob=blob,
         author_is_bot=author_is_bot_meta(content.get("author")),
+        author_id=sender,
     )
 
 
@@ -1511,6 +2308,7 @@ def parse_dm_message(
     event: Any,
     *,
     self_ship: str,
+    include_self: bool = False,
 ) -> Optional[TlonIncomingMessage]:
     if not isinstance(event, dict):
         return None
@@ -1542,7 +2340,7 @@ def parse_dm_message(
         return None
 
     sender = extract_author_ship(content.get("author"))
-    if not sender or sender == normalize_ship(self_ship):
+    if not sender or (not include_self and sender == normalize_ship(self_ship)):
         return None
 
     partner = normalize_ship(str(whom)) if isinstance(whom, str) else ""
@@ -1569,6 +2367,7 @@ def parse_dm_message(
         content=story_content,
         blob=blob,
         author_is_bot=author_is_bot_meta(content.get("author")),
+        author_id=sender,
     )
 
 

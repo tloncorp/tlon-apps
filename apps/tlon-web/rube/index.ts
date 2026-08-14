@@ -6,13 +6,18 @@
 
 /* eslint no-console: 0 */
 import * as childProcess from 'child_process';
-import * as crypto from 'crypto';
 import * as fs from 'fs';
 import fetch from 'node-fetch';
 import * as os from 'os';
 import * as path from 'path';
+import * as stream from 'stream';
 import * as tar from 'tar-fs';
+import { promisify } from 'util';
 import * as zlib from 'zlib';
+
+import { desksMatch } from './deskManifest';
+
+const pipeline = promisify(stream.pipeline);
 
 // Load .env.test file if it exists
 const envTestPath = path.join(__dirname, '..', '..', '.env.test');
@@ -41,6 +46,8 @@ const childrenFile = path.join(rubeDir, '.rube-children.json');
 // Use RUBE_WORKSPACE if set (for container environments with limited disk space)
 const WORKSPACE_DIR = process.env.RUBE_WORKSPACE || __dirname;
 console.log(`Using workspace directory: ${WORKSPACE_DIR}`);
+
+const DESK_STAGING_DIR = path.join(WORKSPACE_DIR, 'desk-staging');
 
 const manifestPath = path.join(
   __dirname,
@@ -340,14 +347,17 @@ const downloadFile = async (url: string, savePath: string) => {
   });
 };
 
-const extractFile = async (filePath: string, extractPath: string) =>
-  new Promise<string>((resolve, reject) => {
-    fs.createReadStream(filePath)
-      .pipe(zlib.createGunzip())
-      .pipe(tar.extract(extractPath))
-      .on('finish', () => resolve(extractPath))
-      .on('error', reject);
-  });
+// pipeline (not .pipe()) so a failure anywhere in the chain rejects — .pipe()
+// does not forward errors, so a truncated archive would surface as an
+// uncaught exception and skip the caller's cleanup of the partial directory.
+const extractFile = async (filePath: string, extractPath: string) => {
+  await pipeline(
+    fs.createReadStream(filePath),
+    zlib.createGunzip(),
+    tar.extract(extractPath)
+  );
+  return extractPath;
+};
 
 const execPromise = (command: string): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -465,11 +475,28 @@ const getPiers = async () => {
 
     // Only extract if ship needs extraction or force extraction is enabled
     if (forceExtraction || shipNeedsExtraction(shipConfig)) {
-      if (fs.existsSync(extractPath)) {
-        fs.rmSync(extractPath, { recursive: true });
-        console.log(`Removed existing ${extractPath}`);
+      // Extract into a sibling temp dir and rename it into place at the end,
+      // so an interrupted extraction never leaves a partial tree at
+      // extractPath that a later run would accept as valid.
+      const tmpExtractPath = `${extractPath}.incomplete`;
+      if (fs.existsSync(tmpExtractPath)) {
+        fs.rmSync(tmpExtractPath, { recursive: true });
       }
-      await extractFile(savePath, extractPath);
+      try {
+        await extractFile(savePath, tmpExtractPath);
+        if (fs.existsSync(extractPath)) {
+          fs.rmSync(extractPath, { recursive: true });
+          console.log(`Removed existing ${extractPath}`);
+        }
+        fs.renameSync(tmpExtractPath, extractPath);
+      } catch (e) {
+        try {
+          fs.rmSync(tmpExtractPath, { recursive: true, force: true });
+        } catch {
+          // best-effort cleanup only; the original error is what matters
+        }
+        throw e;
+      }
       console.log(
         `Extracted ${ship} to ${extractPath}${forceExtraction ? ' (force extraction enabled)' : ''}`
       );
@@ -685,33 +712,63 @@ const syncDeskDeps = () => {
 const copyDesks = async (): Promise<string[]> => {
   const shipsNeedingUpdates: string[] = [];
 
-  // Populate desk-deps/ once before assembling each ship's desk.
+  // Populate desk-deps/ once; the staging assembly below layers it into the
+  // assembled desk.
   syncDeskDeps();
 
+  // Assemble the canonical desk once into a staging dir. assemble-desk.sh
+  // stamps staging's commit.txt with the current HEAD when git metadata is
+  // available; the rsync below copies it onto each ship, so provenance on the
+  // ship matches what a deploy would produce. We synced once above, so skip
+  // the script's own sync.
+  childProcess.execSync(
+    `bash "${REPO_ROOT}/scripts/assemble-desk.sh" "${DESK_STAGING_DIR}"`,
+    { env: { ...process.env, SKIP_SYNC: 'true' }, stdio: 'inherit' }
+  );
+
+  // A ship whose desk we failed to update would silently run the archived
+  // Hoon — exactly the stale-desk failure this comparison exists to prevent.
+  // Collect failures so every selected ship is still attempted, then fail the
+  // run rather than letting tests report against the wrong code.
+  const failures: string[] = [];
+
   for (const ship of Object.values(ships) as Ship[]) {
-    if (targetShip && targetShip !== ship.ship) {
+    // Match the mount/commit/readiness loops below: a skipCommit ship (~bus is
+    // deliberately kept on old Hoon) never runs |commit, so nothing we rsync
+    // reaches its clay and a copy failure there must not fail the run.
+    if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
       continue;
     }
 
-    if (needsDeskUpdate(ship)) {
-      const groupsDir = IN_CONTAINER
-        ? path.join(ship.extractPath, 'groups')
-        : path.join(ship.extractPath, ship.ship, 'groups');
+    const groupsDir = IN_CONTAINER
+      ? path.join(ship.extractPath, 'groups')
+      : path.join(ship.extractPath, ship.ship, 'groups');
 
-      try {
-        console.log(`Copying desk changes to ${ship.ship}`);
-        // assemble-desk.sh layers desk-deps/ (--delete) then desk/ on top, so
-        // the result is exactly the assembled desk with stale files cleared.
-        // We synced once above, so skip the per-ship sync.
-        childProcess.execSync(
-          `bash "${REPO_ROOT}/scripts/assemble-desk.sh" "${groupsDir}"`,
-          { env: { ...process.env, SKIP_SYNC: 'true' }, stdio: 'inherit' }
-        );
-        shipsNeedingUpdates.push(ship.ship);
-      } catch (e) {
-        console.error('Error copying desks', e);
+    try {
+      if (desksMatch(DESK_STAGING_DIR, groupsDir)) {
+        continue;
       }
+
+      console.log(`Copying desk changes to ${ship.ship}`);
+      // --checksum because we got here on a CONTENT mismatch: rsync's default
+      // quick check skips files whose size and mtime match, so a same-size,
+      // same-mtime edit would be detected by desksMatch and then silently not
+      // transferred, and the |commit below would publish stale Hoon.
+      childProcess.execSync(
+        `rsync -aL --delete --checksum "${DESK_STAGING_DIR}/" "${groupsDir}/"`,
+        { stdio: 'inherit' }
+      );
+      shipsNeedingUpdates.push(ship.ship);
+    } catch (e) {
+      console.error(`Error copying desk to ${ship.ship}`, e);
+      failures.push(ship.ship);
     }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(
+      `Failed to copy the assembled desk to: ${failures.join(', ')}`
+    );
   }
 
   if (shipsNeedingUpdates.length === 0) {
@@ -1582,81 +1639,6 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-const getFileHash = (filePath: string): string => {
-  if (!fs.existsSync(filePath)) {
-    return '';
-  }
-  // Read as binary to handle all file types correctly
-  const content = fs.readFileSync(filePath);
-  return crypto
-    .createHash('md5')
-    .update(content as any)
-    .digest('hex');
-};
-
-const compareSourceToTarget = (
-  sourceDirPath: string,
-  targetDirPath: string
-): boolean => {
-  if (!fs.existsSync(sourceDirPath) || !fs.existsSync(targetDirPath)) {
-    return false;
-  }
-
-  const sourceFiles: string[] = [];
-  const walk = (dir: string, basePath: string) => {
-    const items = fs.readdirSync(dir);
-    for (const item of items) {
-      const fullPath = path.join(dir, item);
-      const stat = fs.statSync(fullPath);
-      if (stat.isDirectory()) {
-        walk(fullPath, basePath);
-      } else {
-        const relativePath = path.relative(basePath, fullPath);
-        sourceFiles.push(relativePath);
-      }
-    }
-  };
-
-  walk(sourceDirPath, sourceDirPath);
-
-  // For each file in source, check if it exists in target and has same hash
-  for (const relativeFilePath of sourceFiles) {
-    const sourceFilePath = path.join(sourceDirPath, relativeFilePath);
-    const targetFilePath = path.join(targetDirPath, relativeFilePath);
-
-    // If target file doesn't exist, directories don't match
-    if (!fs.existsSync(targetFilePath)) {
-      return false;
-    }
-
-    // If file contents don't match, directories don't match
-    const sourceHash = getFileHash(sourceFilePath);
-    const targetHash = getFileHash(targetFilePath);
-    if (sourceHash !== targetHash) {
-      return false;
-    }
-  }
-
-  return true;
-};
-
-const needsDeskUpdate = (ship: Ship): boolean => {
-  const sourceDeskPath = path.resolve(__dirname, '../../../../desk');
-  const targetGroupsPath = IN_CONTAINER
-    ? path.join(ship.extractPath, 'groups')
-    : path.join(ship.extractPath, ship.ship, 'groups');
-
-  // If target doesn't exist, we need to update
-  if (!fs.existsSync(targetGroupsPath)) {
-    return true;
-  }
-
-  // Compare only source files (ignore generated files in target)
-  const sourcesMatch = compareSourceToTarget(sourceDeskPath, targetGroupsPath);
-
-  return !sourcesMatch;
-};
-
 const shipNeedsExtraction = (ship: Ship): boolean => {
   const shipPath = IN_CONTAINER
     ? ship.extractPath
@@ -1667,8 +1649,10 @@ const shipNeedsExtraction = (ship: Ship): boolean => {
     return true;
   }
 
-  // Check if the ship directory looks valid (has expected structure)
-  const expectedFiles = ['.urb', '.bin', '.run', 'groups'];
+  // Check if the ship directory looks valid (has expected structure).
+  // archive-piers.sh excludes .run and .bin/* from the tarballs, so no
+  // published archive can ever contain them.
+  const expectedFiles = ['.urb', 'groups'];
   const hasValidStructure = expectedFiles.every((file) =>
     fs.existsSync(path.join(shipPath, file))
   );
@@ -1691,19 +1675,7 @@ const shipNeedsExtraction = (ship: Ship): boolean => {
     }
   }
 
-  // Check if the groups directory matches the desk directory
-  const sourceDeskPath = path.resolve(__dirname, '../../../../desk');
-  const targetGroupsPath = path.join(shipPath, 'groups');
-
-  // If groups directory doesn't exist, we need to extract
-  if (!fs.existsSync(targetGroupsPath)) {
-    return true;
-  }
-
-  // Compare only source files (ignore generated files in target)
-  const sourcesMatch = compareSourceToTarget(sourceDeskPath, targetGroupsPath);
-
-  return !sourcesMatch;
+  return false;
 };
 
 const executeClickCommand = async (
@@ -1884,8 +1856,7 @@ const enableVerb = async () => {
   await new Promise((resolve) => setTimeout(resolve, 2000));
 };
 
-const setStorageConfiguration = async () => {
-  // Check if storage configuration environment variables are set
+const getStorageEnvConfig = () => {
   const s3Endpoint = process.env.E2E_S3_ENDPOINT;
   const s3AccessKeyId = process.env.E2E_S3_ACCESS_KEY_ID;
   const s3SecretAccessKey = process.env.E2E_S3_SECRET_ACCESS_KEY;
@@ -1893,6 +1864,21 @@ const setStorageConfiguration = async () => {
   const s3Region = process.env.E2E_S3_REGION || 'us-east-1';
 
   if (!s3Endpoint || !s3AccessKeyId || !s3SecretAccessKey || !s3BucketName) {
+    return null;
+  }
+
+  return {
+    s3Endpoint,
+    s3AccessKeyId,
+    s3SecretAccessKey,
+    s3BucketName,
+    s3Region,
+  };
+};
+
+const setStorageConfiguration = async () => {
+  const config = getStorageEnvConfig();
+  if (!config) {
     console.log(
       'Storage configuration environment variables not set, skipping S3 setup'
     );
@@ -1902,6 +1888,14 @@ const setStorageConfiguration = async () => {
     );
     return;
   }
+
+  const {
+    s3Endpoint,
+    s3AccessKeyId,
+    s3SecretAccessKey,
+    s3BucketName,
+    s3Region,
+  } = config;
 
   console.log('Configuring S3 storage on all ships');
 
@@ -1945,6 +1939,104 @@ const setStorageConfiguration = async () => {
 
   // Give the commands time to complete
   await new Promise((resolve) => setTimeout(resolve, 2000));
+};
+
+const STORAGE_DIAG_TIMEOUT_MS = 10_000;
+
+// Best-effort timeout for diagnostic scries: the underlying fetch has no
+// timeout of its own, and diagnostics must never wedge ship setup. Late
+// settlement of the losing promise is swallowed.
+const storageDiagWithTimeout = async <T>(
+  promise: Promise<T>,
+  what: string
+): Promise<T> => {
+  promise.catch(() => {});
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        const t = setTimeout(
+          () =>
+            reject(
+              new Error(`${what} timed out after ${STORAGE_DIAG_TIMEOUT_MS}ms`)
+            ),
+          STORAGE_DIAG_TIMEOUT_MS
+        );
+        // Node returns a Timeout with unref(); the app-wide tsc pass uses DOM
+        // typings where setTimeout returns number, so feature-detect via cast.
+        (t as unknown as { unref?: () => void }).unref?.();
+        timer = t;
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+const logStorageState = async (label: string): Promise<void> => {
+  if (!getStorageEnvConfig()) {
+    return;
+  }
+
+  for (const ship of Object.values(ships) as Ship[]) {
+    if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
+      continue;
+    }
+
+    try {
+      const credentialsRaw = await storageDiagWithTimeout(
+        makeRequestWithCookies(
+          ship.ship as ShipName,
+          `http://localhost:${ship.httpPort}/~/scry/storage/credentials.json`,
+          { context: `storage-diag credentials scry for ~${ship.ship}` }
+        ),
+        'credentials scry'
+      );
+      const configurationRaw = await storageDiagWithTimeout(
+        makeRequestWithCookies(
+          ship.ship as ShipName,
+          `http://localhost:${ship.httpPort}/~/scry/storage/configuration.json`,
+          { context: `storage-diag configuration scry for ~${ship.ship}` }
+        ),
+        'configuration scry'
+      );
+
+      let credentials;
+      let configuration;
+      try {
+        credentials = JSON.parse(credentialsRaw);
+        configuration = JSON.parse(configurationRaw);
+      } catch {
+        // Fixed message: a JSON.parse error can quote the raw response,
+        // which for the credentials scry includes the secret access key.
+        console.error(
+          `[storage-diag] ${label} ~${ship.ship} failed: scry response was not valid JSON`
+        );
+        continue;
+      }
+
+      const endpoint = credentials?.['storage-update']?.credentials?.endpoint;
+      const accessKeyId =
+        credentials?.['storage-update']?.credentials?.accessKeyId;
+      const currentBucket =
+        configuration?.['storage-update']?.configuration?.currentBucket;
+      const region = configuration?.['storage-update']?.configuration?.region;
+
+      const accessKeyIdPrefix =
+        typeof accessKeyId === 'string'
+          ? accessKeyId.slice(0, 8)
+          : String(accessKeyId);
+
+      console.log(
+        `[storage-diag] ${label} ~${ship.ship} endpoint=${endpoint} accessKeyId=${accessKeyIdPrefix}... currentBucket=${currentBucket} region=${region}`
+      );
+    } catch (e) {
+      console.error(
+        `[storage-diag] ${label} ~${ship.ship} failed: ${e instanceof Error ? e.message : String(e)}`
+      );
+    }
+  }
 };
 
 const checkExistingInstance = (): boolean => {
@@ -2040,7 +2132,9 @@ const main = async () => {
       if (INCLUDE_OPTIONAL_SHIPS) {
         await setReelServiceShip();
       }
+      await logStorageState('pre-config');
       await setStorageConfiguration();
+      await logStorageState('post-config');
     } else {
       await getStartHashes();
 
@@ -2055,7 +2149,9 @@ const main = async () => {
           'Skipping reel service ship setup (optional ships not included)'
         );
       }
+      await logStorageState('pre-config');
       await setStorageConfiguration();
+      await logStorageState('post-config');
 
       // Mount desks first so Urbit writes its current state to filesystem
       await mountDesks();
@@ -2066,6 +2162,7 @@ const main = async () => {
       // Commit changes so Urbit reads our updates and updates its internal state
       await commitDesks(shipsNeedingUpdates);
       await checkShipReadinessForTests(shipsNeedingUpdates);
+      await logStorageState('post-commit');
     }
 
     // uncomment to enable verb logging for all ships

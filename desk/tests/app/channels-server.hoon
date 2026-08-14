@@ -296,4 +296,73 @@
     =.  save  (slot 3 save)  ::  lib negotiate
     (ex-equal save !>(fixed-state))
   --
+::  deleting a post that is pinned (arranged) must also drop it from
+::  the channel order
+::
+++  test-del-post-removes-from-order
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =/  =nest:c  [%chat ~zod %test]
+  =/  post-id=id-post:c  ~2025.6.25..14.41.11..9300
+  =/  now=@da  ~2025.7.1
+  =/  post=v-post:c
+    :*  [id=post-id seq=1 mod-at=post-id replies=~ reacts=~]
+        rev=0
+        [content=[[%inline 'pinned' ~] ~] author=~zod sent=post-id]
+        [kind=/chat meta=~ blob=~]
+    ==
+  =/  chan=v-channel:c
+    %*  .  *v-channel:c
+      posts  (gas:on-v-posts:c ~ [post-id %& post] ~)
+      count  1
+      order  [rev=1 `~[post-id]]
+    ==
+  ;<  *  bind:m  (do-init dap agent)
+  ::  install state containing the channel with the arranged post.
+  ::  edit carefully to work around lib negotiate state.
+  ::
+  ;<  save=vase  bind:m  get-save
+  =.  save
+    ;:  slop
+      (slot 2 save)  ::  lib discipline
+      (slot 6 save)  ::  lib negotiate
+      !>  ^-  current-state
+      [%15 (~(put by *v-channels:c) nest chan) *hooks:h *pimp:imp]
+    ==
+  ;<  *  bind:m  (do-load agent `save)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl:gall b(now now)))
+  ::  hooks want a group scry when running; pretend %groups is gone
+  ::  so they fall back to a bunt
+  ::
+  ;<  ~  bind:m  %-  set-scry-gate
+                 |=  =path
+                 ?:  ?=([%gu @ %groups @ *] path)
+                   `!>(|)
+                 ~
+  ::  delete the post as its author
+  ::
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %channel-command
+    !>(`c-channels:c`[%channel nest %post %del post-id])
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ::  the post must be tombstoned and dropped from the order, with
+  ::  both changes on the log
+  ::
+  =/  eps=@dr  (div ~s1 (bex 16))
+  =/  =tombstone:c  [post-id ~zod 1 now]
+  =/  expected=v-channel:c
+    %=  chan
+      posts  (gas:on-v-posts:c ~ [post-id %| tombstone] ~)
+      order  [rev=2 ~]
+      log    %+  gas:log-on:c  ~
+             :~  [now %order rev=2 ~]
+                 [(add now eps) %post post-id %set %| tombstone]
+             ==
+    ==
+  ;<  save=vase  bind:m  get-save
+  =.  save  (slot 3 save)  ::  lib discipline
+  =.  save  (slot 3 save)  ::  lib negotiate
+  %+  ex-equal  save
+  !>  ^-  current-state
+  [%15 (~(put by *v-channels:c) nest expected) *hooks:h *pimp:imp]
 --

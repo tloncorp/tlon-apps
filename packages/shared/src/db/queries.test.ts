@@ -3,9 +3,11 @@ import { v0PeersToClientProfiles } from '@tloncorp/api';
 import { toClientGroupsV7 } from '@tloncorp/api';
 import type * as ub from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import * as schema from '../db/schema';
+import { useDebugStore } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import { syncContacts, syncInitData } from '../store/sync';
 import contactBookResponse from '../test/contactBook.json';
 import contactsResponse from '../test/contacts.json';
@@ -27,6 +29,7 @@ const groupsData = toClientGroupsV7(
 );
 
 setupDatabaseTestSuite();
+afterEach(() => useDebugStore.setState({ errorLogger: null }));
 
 test('inserts a group', async () => {
   const groupData = groupsData[3];
@@ -763,6 +766,78 @@ test('insertPosts: keeps cached posts when no matching real post arrives', async
   expect(cachedPosts.length).toBe(2);
   expect(realPosts.length).toBe(1);
   expect(realPosts[0].id).toBe('real-post-different');
+});
+
+async function seedFailedEdit(id: string) {
+  const channelId = `${id}-channel`;
+  const editedContent = JSON.stringify([{ inline: ['Edited message'] }]);
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  const post: Post = {
+    id,
+    type: 'chat',
+    channelId,
+    authorId: '~zod',
+    sentAt: 1000,
+    receivedAt: 1000,
+    sequenceNum: 1,
+    content: JSON.stringify([{ inline: ['Original message'] }]),
+    title: '',
+    image: '',
+    syncedAt: Date.now(),
+  };
+  await queries.insertChannelPosts({ posts: [post] });
+  await queries.updatePost({
+    id: post.id,
+    editStatus: 'failed',
+    lastEditContent: editedContent,
+    lastEditTitle: 'Edited title',
+    lastEditImage: 'edited-image',
+  });
+  return { editedContent, post };
+}
+
+test('insertPosts: tracks a failed edit once matching server content arrives', async () => {
+  const capture = vi.fn();
+  useDebugStore.getState().initializeErrorLogger({ capture });
+  const { editedContent, post } = await seedFailedEdit('edited-post');
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        ...post,
+        content: editedContent,
+        title: 'Edited title',
+        image: 'edited-image',
+        isEdited: true,
+      },
+    ],
+  });
+
+  expect(capture).toHaveBeenCalledWith(AnalyticsEvent.PostEditCompleted, {});
+  expect(await queries.getPost({ postId: post.id })).toMatchObject({
+    content: editedContent,
+    editStatus: null,
+    lastEditContent: null,
+  });
+});
+
+test('insertPosts: retains a failed edit marker across older server content', async () => {
+  const capture = vi.fn();
+  useDebugStore.getState().initializeErrorLogger({ capture });
+  const { editedContent, post } = await seedFailedEdit('pending-edited-post');
+  await queries.insertChannelPosts({
+    posts: [{ ...post, isEdited: true }],
+  });
+
+  expect(capture).not.toHaveBeenCalledWith(
+    AnalyticsEvent.PostEditCompleted,
+    expect.anything()
+  );
+  expect(await queries.getPost({ postId: post.id })).toMatchObject({
+    editStatus: 'failed',
+    lastEditContent: editedContent,
+    lastEditTitle: 'Edited title',
+    lastEditImage: 'edited-image',
+  });
 });
 
 test('insertPosts: removes only matching cached posts', async () => {
@@ -2100,5 +2175,71 @@ describe('pins reordering (TLON-5948)', () => {
       await refetch;
       unsubscribe();
     });
+  });
+});
+
+describe('thread unreads by channel', () => {
+  const channelId = 'chat/~zod/thread-unread-contract';
+
+  function threadUnread(
+    threadId: string,
+    overrides: Partial<ThreadUnreadState> = {}
+  ): ThreadUnreadState {
+    return {
+      channelId,
+      threadId,
+      count: 1,
+      notify: false,
+      updatedAt: 1,
+      firstUnreadPostId: null,
+      firstUnreadPostReceivedAt: null,
+      ...overrides,
+    } as ThreadUnreadState;
+  }
+
+  // The channel-scoped thread-unread overlay keys its map on threadId and
+  // matches it against post ids, so these rows have to come back keyed that
+  // way. If this contract moves, the reply-summary dot silently stops
+  // resolving.
+  test('returns rows keyed by the parent post id', async () => {
+    await queries.insertThreadUnreads([threadUnread('parent-post-1')]);
+
+    const result = await queries.getThreadUnreadsByChannel({ channelId });
+
+    expect(result.map((u) => u.threadId)).toEqual(['parent-post-1']);
+    expect(result[0].count).toBe(1);
+  });
+
+  test('excludeRead drops threads with no unread activity', async () => {
+    await queries.insertThreadUnreads([
+      threadUnread('unread-thread', { count: 2 }),
+      threadUnread('read-thread', { count: 0, notify: false }),
+      threadUnread('notifying-thread', { count: 0, notify: true }),
+    ]);
+
+    const active = await queries.getThreadUnreadsByChannel({
+      channelId,
+      excludeRead: true,
+    });
+
+    // A read thread drops out entirely — which is why the overlay treats a
+    // missing entry as "no dot" rather than falling back to the post's own
+    // stale copy. A notifying row is kept but carries count 0, so it still
+    // renders no dot.
+    expect(active.map((u) => u.threadId).sort()).toEqual([
+      'notifying-thread',
+      'unread-thread',
+    ]);
+  });
+
+  test('scopes results to the requested channel', async () => {
+    await queries.insertThreadUnreads([
+      threadUnread('mine'),
+      threadUnread('theirs', { channelId: 'chat/~zod/other' }),
+    ]);
+
+    const result = await queries.getThreadUnreadsByChannel({ channelId });
+
+    expect(result.map((u) => u.threadId)).toEqual(['mine']);
   });
 });

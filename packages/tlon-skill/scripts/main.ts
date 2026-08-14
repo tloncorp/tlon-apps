@@ -180,6 +180,7 @@ async function main() {
       case 'dms': {
         process.argv = ['tlon', command, ...scriptArgs];
         const mod = await import('./dms');
+        await mod.main();
         break;
       }
       case 'expose': {

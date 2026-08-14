@@ -1,5 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Switch } from 'react-native';
@@ -9,11 +11,11 @@ import { useTelemetry } from '../../hooks/useTelemetry';
 import { RootStackParamList } from '../../navigation/types';
 import {
   ScreenHeader,
+  SettingsContentScrollView,
   SizableText,
   View,
   XStack,
   triggerHaptic,
-  useStore,
 } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PrivacySettings'>;
@@ -27,7 +29,6 @@ interface PrivacyState {
 }
 
 export function PrivacySettingsScreen(props: Props) {
-  const store = useStore();
   const phoneAttest = store.useCurrentUserPhoneAttestation();
   const telemetry = useTelemetry();
   const { data: settings } = store.useSettings();
@@ -73,20 +74,57 @@ export function PrivacySettingsScreen(props: Props) {
       : 'hidden';
     setState((prev) => ({ ...prev, phoneDiscoverable: nextDiscoveryState }));
     try {
-      await store.updateAttestationDiscoverability({
+      const didUpdate = await store.updateAttestationDiscoverability({
         attestation: phoneAttest,
         discoverability: nextDiscoveryValue,
+      });
+      if (!didUpdate) {
+        triggerHaptic('error');
+        setState((prev) => ({
+          ...prev,
+          phoneDiscoverable: !nextDiscoveryState,
+        }));
+        return;
+      }
+      trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+        enabled: nextDiscoveryState,
+        setting: 'phone_discovery',
       });
     } catch (e) {
       triggerHaptic('error');
       setState((prev) => ({ ...prev, phoneDiscoverable: !nextDiscoveryState }));
     }
-  }, [phoneAttest, state.phoneDiscoverable, store]);
+  }, [phoneAttest, state.phoneDiscoverable]);
 
-  const toggleSetTelemetry = useCallback(() => {
+  const toggleSetTelemetry = useCallback(async () => {
     const nextDisabledState = !state.telemetryDisabled;
     setState((prev) => ({ ...prev, telemetryDisabled: nextDisabledState }));
-    telemetry.setDisabled(nextDisabledState);
+
+    const didUpdate = await store.updateEnableTelemetry(!nextDisabledState);
+    if (!didUpdate) {
+      triggerHaptic('error');
+      setState((prev) => ({
+        ...prev,
+        telemetryDisabled: !nextDisabledState,
+      }));
+      return;
+    }
+
+    // Ensure capture is enabled before recording the preference change.
+    if (!nextDisabledState) {
+      await telemetry.setDisabled(false, false);
+    } else {
+      // The optimistic setting observer may already have opted PostHog out.
+      // Re-enable it for this explicit change, then restore the opt-out below.
+      telemetry.optIn();
+    }
+    trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+      enabled: !nextDisabledState,
+      setting: 'usage_statistics',
+    });
+    if (nextDisabledState) {
+      await telemetry.setDisabled(true, false);
+    }
   }, [state.telemetryDisabled, telemetry]);
 
   const toggleDisableNicknames = useCallback(async () => {
@@ -94,33 +132,48 @@ export function PrivacySettingsScreen(props: Props) {
     setState((prev) => ({ ...prev, disableNicknames: nextValue }));
     try {
       await store.updateCalmSetting('disableNicknames', nextValue);
+      trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+        enabled: !nextValue,
+        setting: 'nicknames',
+      });
     } catch (e) {
       triggerHaptic('error');
       setState((prev) => ({ ...prev, disableNicknames: !nextValue }));
     }
-  }, [state.disableNicknames, store]);
+  }, [state.disableNicknames]);
 
   const toggleDisableAvatars = useCallback(async () => {
     const nextValue = !state.disableAvatars;
     setState((prev) => ({ ...prev, disableAvatars: nextValue }));
     try {
       await store.updateCalmSetting('disableAvatars', nextValue);
+      trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+        enabled: !nextValue,
+        setting: 'avatars',
+      });
     } catch (e) {
       triggerHaptic('error');
       setState((prev) => ({ ...prev, disableAvatars: !nextValue }));
     }
-  }, [state.disableAvatars, store]);
+  }, [state.disableAvatars]);
 
   const toggleDisableTlonInfraEnhancement = useCallback(async () => {
     const nextValue = !state.disableTlonInfraEnhancement;
     setState((prev) => ({ ...prev, disableTlonInfraEnhancement: nextValue }));
     try {
       await store.updateDisableTlonInfraEnhancement(nextValue);
+      trackEvent(AnalyticsEvent.PrivacyPreferenceChanged, {
+        enabled: !nextValue,
+        setting: 'tlon_helpers',
+      });
     } catch (e) {
       triggerHaptic('error');
-      setState((prev) => ({ ...prev, disableAvatars: !nextValue }));
+      setState((prev) => ({
+        ...prev,
+        disableTlonInfraEnhancement: !nextValue,
+      }));
     }
-  }, [state.disableTlonInfraEnhancement, store]);
+  }, [state.disableTlonInfraEnhancement]);
 
   const isWindowNarrow = useIsWindowNarrow();
 
@@ -132,14 +185,9 @@ export function PrivacySettingsScreen(props: Props) {
           isWindowNarrow ? () => props.navigation.goBack() : undefined
         }
         title="Privacy Settings"
+        placement="navigation"
       />
-      <View
-        flex={1}
-        width="100%"
-        maxWidth={600}
-        marginHorizontal="auto"
-        paddingHorizontal="$xl"
-      >
+      <SettingsContentScrollView paddingHorizontal="$xl">
         <YStack paddingHorizontal="$l" paddingTop="$2xl" gap="$xl">
           <XStack justifyContent="space-between" alignItems="center">
             <SizableText flexShrink={1}>Share Usage Statistics</SizableText>
@@ -213,7 +261,7 @@ export function PrivacySettingsScreen(props: Props) {
             If enabled, avatar images will be hidden throughout the app.
           </Text>
         </YStack>
-      </View>
+      </SettingsContentScrollView>
     </View>
   );
 }

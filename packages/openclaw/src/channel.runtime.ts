@@ -16,6 +16,7 @@ import {
 import { monitorTlonProvider } from './monitor/index.js';
 import { tlonSetupWizard } from './setup-surface.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
+import { observeActiveTlonTurnDelivery } from './turn-recorder.js';
 import { resolveTlonAccount } from './types.js';
 import { withAuthenticatedTlonApi } from './urbit/api-client.js';
 import { authenticate } from './urbit/auth.js';
@@ -30,7 +31,7 @@ import {
   sendDmWithStory,
 } from './urbit/send.js';
 import { markdownToStory } from './urbit/story.js';
-import { uploadImageFromUrl } from './urbit/upload.js';
+import { prepareOutboundMedia } from './urbit/upload.js';
 
 type ResolvedTlonAccount = ReturnType<typeof resolveTlonAccount>;
 type ConfiguredTlonAccount = ResolvedTlonAccount & {
@@ -188,7 +189,7 @@ function recordOutboundLensDelivery(
   recordBackgroundContextLensOutput(target.lensId, output);
 }
 
-export const tlonRuntimeOutbound: Pick<
+const unobservedTlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
   'sendText' | 'sendMedia'
 > = {
@@ -270,11 +271,11 @@ export const tlonRuntimeOutbound: Pick<
         allowPrivateNetwork: account.allowPrivateNetwork ?? undefined,
       },
       async () => {
-        const uploadedUrl = mediaUrl
-          ? await uploadImageFromUrl(mediaUrl)
+        const media = mediaUrl
+          ? await prepareOutboundMedia(mediaUrl)
           : undefined;
         const fromShip = normalizeShip(account.ship);
-        const story = buildMediaStory(text, uploadedUrl);
+        const story = buildMediaStory(text, media);
         const replyId = resolveReplyId(replyToId, threadId);
         const botProfile = await getBotProfile(fromShip);
         if (parsed.kind === 'dm') {
@@ -324,6 +325,20 @@ export const tlonRuntimeOutbound: Pick<
       }
     );
   },
+};
+
+export const tlonRuntimeOutbound: Pick<
+  ChannelOutboundAdapter,
+  'sendText' | 'sendMedia'
+> = {
+  sendText: (params) =>
+    observeActiveTlonTurnDelivery(() =>
+      unobservedTlonRuntimeOutbound.sendText!(params)
+    ),
+  sendMedia: (params) =>
+    observeActiveTlonTurnDelivery(() =>
+      unobservedTlonRuntimeOutbound.sendMedia!(params)
+    ),
 };
 
 export async function probeTlonAccount(account: ConfiguredTlonAccount) {
@@ -379,6 +394,7 @@ export async function startTlonGatewayAccount(
     runtime: ctx.runtime,
     abortSignal: ctx.abortSignal,
     accountId: account.accountId,
+    cfg: ctx.cfg,
   });
 }
 

@@ -10,8 +10,7 @@ Use the `tlon` command for reading data, managing channels/groups/contacts, and 
 ## Hermes
 
 When running as a Hermes plugin skill, the `tlon` tool is a wrapper around the
-`tlon` CLI for reading data, administration, and management. Do **not** use it
-to send replies or create posts.
+`tlon` CLI for reading data, administration, management, and proactive posts.
 
 For exact command syntax, use the command sections below or run
 `tlon <subcommand> --help` through the tool.
@@ -22,15 +21,21 @@ This invites the requester and makes them an admin. Do not use plain
 `tlon groups create` for user-requested groups; that creates a bot-owned group
 that does not automatically include the requester.
 
-For a normal reply in the current Tlon conversation, respond with final
+For a normal text reply in the current Tlon conversation, respond with final
 assistant text and let Hermes deliver it through `TlonAdapter.send()`. To post
 to a different channel or one-to-one DM (a proactive send), use `posts send`
 with that target (`chat/~host/slug` for channels, `~ship` for one-to-one DMs).
 Reserve `dms send <club-id>` for group DMs, whose club IDs start with `0v`.
 
-Blocked in Hermes' `tlon` tool: plain-text `posts send`/`posts reply`/`dms
-send`/`dms reply` targeting the **current** conversation (reply normally
-instead). Image sends (`--image`) are allowed anywhere,
+Gallery channels use `heap/~host/name`. A normal reply in a gallery becomes a
+comment on the triggering post. Use `posts send heap/~host/name "..."` to
+create a distinct new top-level gallery item, including when that gallery is
+the current conversation; gallery items can use `--title "..."`.
+
+Blocked in Hermes' `tlon` tool: plain-text `posts reply`/`dms send`/`dms reply`
+and `posts send` to a current chat/DM conversation (reply normally instead).
+Current-gallery `posts send` creates a new item and is allowed. Image sends
+(`--image`) are allowed anywhere,
 including the current conversation: `tlon upload <direct-image-url>`, then
 `posts send <target> [caption] --image <uploaded-url>`.
 
@@ -38,10 +43,27 @@ including the current conversation: `tlon upload <direct-image-url>`, then
 
 When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
 
-> **Removed: diary/notebook channels.** The `%diary` backend has been removed.
-> `tlon notebook`, `--kind diary`, and any `diary/...` nest now fail with an
-> explanatory error pointing at `%notes`. Use the `tlon notes` family for
-> Markdown notebooks instead.
+**Images are the exception: upload them first.** The `message` tool's `media=`
+parameter takes only an uploaded https URL — never a local file path, unlike
+other OpenClaw channels. `tlon upload` accepts a URL, a local file path, or
+stdin, and prints the uploaded URL:
+
+```bash
+tlon upload ./generated-chart.png      # local file — prints the uploaded URL
+tlon upload https://example.com/x.png  # remote URL
+```
+
+Pass that printed URL as `media=`. On Tlon-hosted deployments (where
+`TLON_HOSTING` is set) the bot's own ship uploads through Tlon file hosting.
+If the upload fails (e.g. self-hosted moons, which have no storage), retry
+through the owner ship's config:
+`tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`.
+
+> **Deprecated: diary channels.** `%diary` is not managed by the CLI:
+> `tlon notebook`, `--kind diary`, and `diary/...` targets fail with guidance
+> toward `%notes`. Use the `tlon notes` family for Markdown notebooks. An owner
+> can preview a legacy diary with `tlon notes migrate-plan <diary-nest>` and
+> migrate it with `tlon notes migrate-apply <diary-nest> --yes`.
 
 ## Installation
 
@@ -394,6 +416,7 @@ Manage direct messages — reactions, invites, and deletions.
 # Management
 tlon dms react ~sampel ~author/170.141... "👍"           # React to a DM
 tlon dms unreact ~sampel ~author/170.141...              # Remove reaction
+tlon dms react ~sampel ~author/reply-id "👍" --parent ~author/root-id  # React to a DM thread reply
 tlon dms delete ~sampel ~author/170.141...               # Delete a DM
 tlon dms accept ~sampel                                  # Accept DM invite
 tlon dms decline ~sampel                                 # Decline DM invite
@@ -434,17 +457,26 @@ tlon posts send chat/~host/slug "Hello"                  # Send a message
 tlon posts send ~sampel "Hello"                          # Send a 1:1 DM
 tlon posts send chat/~host/slug "Look" --image https://storage.../x.png # Send with an image
 tlon posts send chat/~host/slug --image https://...      # Image only (no caption)
+tlon posts send heap/~host/gallery "A link or caption" --title "Gallery item" # New gallery item
+tlon posts reply heap/~host/gallery 170.141... "Nice work" # Comment on a gallery post
 tlon posts react chat/~host/slug 170.141... "👍"         # React to a post
 tlon posts unreact chat/~host/slug 170.141...            # Remove reaction
+tlon posts react chat/~host/slug reply-id "👍" --parent root-id  # React to a thread reply
+tlon posts react heap/~host/gallery comment-id "🔥" --parent post-id # React to a gallery comment
 tlon posts edit chat/~host/slug 170.141... "New text"    # Edit a post's message text
 tlon posts delete chat/~host/slug 170.141...             # Delete a post
+tlon posts delete heap/~host/gallery 170.141...          # Delete a gallery post
 ```
 
 Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
 
 `posts edit` edits message text only. The former notebook-only
 `--title`/`--image`/`--content` edit flags are removed (they refuse with an
-explanatory error) along with diary/notebook channels.
+explanatory error). Deprecated diary channels are unmanaged by the CLI except
+through the owner-run `tlon notes migrate-plan <diary-nest>` and
+`tlon notes migrate-apply <diary-nest> --yes` paths.
+
+Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported.
 
 ### Notes
 
@@ -475,6 +507,9 @@ tlon notes folder-delete notes/~host/name 4 --recursive  # Delete a folder (--re
 tlon notes members notes/~host/name                      # List notebook members
 tlon notes join notes/~host/name                         # Join a notebook
 tlon notes leave notes/~host/name                        # Leave a notebook
+tlon notes migrate-plan diary/~host/name                 # Read-only diary migration plan
+tlon notes migrate-apply diary/~host/name --yes          # Owner-gated migration write
+tlon notes notebook-delete notes/~host/name --yes        # Owner-gated migration recovery
 ```
 
 Note bodies come from exactly one content source. `note-create` accepts

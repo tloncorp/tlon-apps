@@ -35,6 +35,35 @@ if [ -f .env ]; then
   done < .env
 fi
 
+# Every package-local run owns a distinct Compose project. Respect an explicit
+# caller-provided name for reproducibility, otherwise generate a safe default
+# before the first docker compose command can run.
+requested_project_name="${TEST_COMPOSE_PROJECT_NAME:-${COMPOSE_PROJECT_NAME:-tlon-openclaw-e2e-${UID:-0}-$$}}"
+COMPOSE_PROJECT_NAME="$(printf '%s' "$requested_project_name" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_-' '-')"
+TEST_COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME"
+export COMPOSE_PROJECT_NAME TEST_COMPOSE_PROJECT_NAME
+
+# The image defaults to 5.28. Affected/future versions must carry an explicit
+# prewarm expectation so a missing core marker never silently becomes smoke.
+OPENCLAW_CORE_VERSION="${OPENCLAW_CORE_VERSION:-2026.5.28}"
+case "$OPENCLAW_CORE_VERSION" in
+  2026.5.28) derived_expect_prewarm=0 ;;
+  2026.6.11|2026.7.1) derived_expect_prewarm=1 ;;
+  *)
+    if [ -z "${TEST_EXPECT_OPENCLAW_PREWARM:-}" ]; then
+      echo "Error: TEST_EXPECT_OPENCLAW_PREWARM must be explicit for OpenClaw $OPENCLAW_CORE_VERSION"
+      exit 1
+    fi
+    derived_expect_prewarm="$TEST_EXPECT_OPENCLAW_PREWARM"
+    ;;
+esac
+TEST_EXPECT_OPENCLAW_PREWARM="${TEST_EXPECT_OPENCLAW_PREWARM:-$derived_expect_prewarm}"
+TEST_OPENCLAW_CORE_VERSION="$OPENCLAW_CORE_VERSION"
+export OPENCLAW_CORE_VERSION TEST_OPENCLAW_CORE_VERSION TEST_EXPECT_OPENCLAW_PREWARM
+
+echo "==> Compose project: $COMPOSE_PROJECT_NAME"
+echo "==> OpenClaw core: $OPENCLAW_CORE_VERSION (expect prewarm=$TEST_EXPECT_OPENCLAW_PREWARM)"
+
 # Force the integration suite onto the scripted fake-model. The .env load
 # above intentionally exposes dev creds (OPENROUTER_API_KEY, MODEL=...) so
 # `pnpm dev` works locally; without these overrides those would leak into
@@ -97,11 +126,16 @@ export ZOD_PORT TEN_PORT MUG_PORT FAKE_MODEL_PORT
 TLONBOT_DIR="${TLONBOT_DIR:-$(pwd)/../../../tlonbot}"
 export TLONBOT_DIR
 COMPOSE_FILES="-f dev/docker-compose.test.yml"
+COMPOSE_FILE_PATHS=("$PWD/dev/docker-compose.test.yml")
 if [ -f "dev/docker-compose.local.yml" ] && [ -d "$TLONBOT_DIR" ]; then
   COMPOSE_FILES="$COMPOSE_FILES -f dev/docker-compose.local.yml"
+  COMPOSE_FILE_PATHS+=("$PWD/dev/docker-compose.local.yml")
   export TEST_TLONBOT_MOUNTED=1
   echo "==> Using local tlonbot volume mount ($TLONBOT_DIR)"
 fi
+export TEST_COMPOSE_FILE="${COMPOSE_FILE_PATHS[0]}"
+TEST_COMPOSE_FILES="$(node -e 'console.log(JSON.stringify(process.argv.slice(1)))' "${COMPOSE_FILE_PATHS[@]}")"
+export TEST_COMPOSE_FILES
 
 # Cleanup function - called on exit (normal, error, or signal-initiated)
 cleanup() {
@@ -249,7 +283,6 @@ export TEST_THIRD_PARTY_SHIP="~mug"
 export TEST_THIRD_PARTY_CODE="$MUG_CODE"
 export TEST_MODE="tlon"
 export TEST_GATEWAY_URL="http://localhost:$GATEWAY_PORT"
-export TEST_COMPOSE_FILE="dev/docker-compose.test.yml"
 export FAKE_MODEL_BASE_URL="http://localhost:$FAKE_MODEL_PORT"
 
 # Debug: show env vars
@@ -257,6 +290,8 @@ echo "Env vars:"
 echo "  TLON_URL=$TLON_URL"
 echo "  TLON_SHIP=$TLON_SHIP"
 echo "  TEST_USER_SHIP=$TEST_USER_SHIP"
+echo "  TEST_OPENCLAW_CORE_VERSION=$TEST_OPENCLAW_CORE_VERSION"
+echo "  TEST_COMPOSE_PROJECT_NAME=$TEST_COMPOSE_PROJECT_NAME"
 echo ""
 
 # Run test cases sequentially to avoid overlapping DM prompts

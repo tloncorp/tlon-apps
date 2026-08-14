@@ -1,5 +1,6 @@
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { ActionSheet, YStack, useStore } from '@tloncorp/app/ui';
+import { ActionSheet, YStack } from '@tloncorp/app/ui';
+import { useSheetCloseAfterAnimation } from '@tloncorp/app/ui/hooks/useSheetCloseAfterAnimation';
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
@@ -7,6 +8,7 @@ import {
   createDevLogger,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
@@ -16,8 +18,8 @@ import { refreshHostingAuth } from '../lib/hostingAuth';
 const logger = createDevLogger('TlonbotRevivalPromptSheet', true);
 
 export function useTlonbotRevivalPrompt() {
-  const store = useStore();
   const { authCookie, authType, setShip, ship, shipUrl } = useShip();
+  const { closeAfterAnimation } = useSheetCloseAfterAnimation();
   const [open, setOpen] = useState(false);
   const [snoozed, setSnoozed] = useState(false);
 
@@ -64,28 +66,31 @@ export function useTlonbotRevivalPrompt() {
       severity: AnalyticsSeverity.High,
     });
 
-    setShip({
-      authCookie,
-      authType: authType ?? 'hosted',
-      needsSplashSequence: true,
-      ship,
-      shipUrl,
-      splashSequenceMode: 'tlonbotRevival',
-    });
-
-    store
-      .clearShipRevivalStatus()
-      .then(() => {
-        logger.trackEvent('Toggled Hosting Revival Status');
-      })
-      .catch((e) => {
-        logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
-          error: e,
-          context: 'failed to clear revival status after authenticated prompt',
-          severity: AnalyticsSeverity.High,
-        });
+    closeAfterAnimation(() => {
+      setShip({
+        authCookie,
+        authType: authType ?? 'hosted',
+        needsSplashSequence: true,
+        ship,
+        shipUrl,
+        splashSequenceMode: 'tlonbotRevival',
       });
-  }, [authCookie, authType, setShip, ship, shipUrl, store]);
+
+      store
+        .clearShipRevivalStatus()
+        .then(() => {
+          logger.trackEvent('Toggled Hosting Revival Status');
+        })
+        .catch((e) => {
+          logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+            error: e,
+            context:
+              'failed to clear revival status after authenticated prompt',
+            severity: AnalyticsSeverity.High,
+          });
+        });
+    });
+  }, [authCookie, authType, closeAfterAnimation, setShip, ship, shipUrl]);
 
   const promptSheet = (
     <TlonbotRevivalPromptSheet
@@ -111,7 +116,7 @@ export function TlonbotRevivalPromptSheet({
   open: boolean;
 }) {
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
+    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
       <ActionSheet.SimpleHeader title="Ready for Tlonbot?" />
       <ActionSheet.Content marginHorizontal="$xl">
         <ActionSheet.ContentBlock>

@@ -1,14 +1,15 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { XStack, YStack, isWeb, styled } from 'tamagui';
 
 import { useContactPermissions } from '../../hooks/useContactPermissions';
 import { useNag } from '../../hooks/useNag';
 import { useNotificationPermissions } from '../../lib/notifications';
-import { useStore } from '../contexts/storeContext';
+import { useTopLevelTabBarContentInset } from '../../navigation/useTopLevelTabBarContentInset';
 
 const logger = createDevLogger('SystemNotices', false);
 
@@ -47,6 +48,7 @@ const SystemNotices = {
 export default SystemNotices;
 
 export function NotificationsPrompt() {
+  const tabBarContentInset = useTopLevelTabBarContentInset();
   const notifNag = useNag({
     key: 'notificationsPrompt',
     refreshInterval: 30 * 60 * 1000, // Nag every 30 minutes
@@ -97,7 +99,10 @@ export function NotificationsPrompt() {
   }
 
   return (
-    <NoticeFrame>
+    <NoticeFrame
+      // The iOS liquid-glass tab bar overlays content; Android's bar does not.
+      marginBottom={Platform.OS === 'ios' ? tabBarContentInset : undefined}
+    >
       <YStack gap="$5xl">
         <YStack gap="$xl">
           <NoticeTitle>Enable notifications</NoticeTitle>
@@ -133,7 +138,6 @@ export function ContactBookPrompt(props: {
   onRequestAccess: () => void;
   onOpenSettings: () => void;
 }) {
-  const store = useStore();
   const perms = useContactPermissions();
   const contactBookNag = useNag({
     key: 'contactBookPrompt',
@@ -150,9 +154,10 @@ export function ContactBookPrompt(props: {
         await store.syncSystemContacts().then(() => {
           Alert.alert('Success', 'Your contacts have been synced.');
         });
-        await store.syncContactDiscovery().catch(() => {
-          contactBookNag.eliminate();
-        });
+        const result = await store.syncContactDiscovery().catch(() => null);
+        if (result?.didDiscover) {
+          trackEvent(AnalyticsEvent.ContactDiscoveryCompleted);
+        }
         contactBookNag.eliminate();
       } else {
         contactBookNag.dismiss();
@@ -160,7 +165,7 @@ export function ContactBookPrompt(props: {
     } else {
       perms.openSettings();
     }
-  }, [contactBookNag, perms, store]);
+  }, [contactBookNag, perms]);
 
   if (
     isWeb ||
@@ -178,7 +183,9 @@ export function ContactBookPrompt(props: {
         <YStack gap="$xl">
           <NoticeTitle>Find Friends</NoticeTitle>
           <NoticeBody>
-            Sync your contact book to easily find people you know on Tlon.
+            Sync your contact book to easily find people you know on Tlon. Your
+            contacts are never uploaded — we only send anonymous, hashed
+            identifiers to our server to match you with people you know.
           </NoticeBody>
         </YStack>
         {props.status === 'undetermined' && (
@@ -239,8 +246,6 @@ export function ConnectedJoinRequestNotice({
   group?: db.Group | null;
   onViewRequests: () => void;
 }) {
-  const store = useStore();
-
   // see if we have any pending join requests that haven't been dismissed
   const hasRelevantJoinRequests = useMemo(() => {
     if (group && group.joinRequests && group.joinRequests.length > 0) {
@@ -261,14 +266,14 @@ export function ConnectedJoinRequestNotice({
         dismissedAt: Date.now(),
       });
     }
-  }, [group, store]);
+  }, [group]);
 
   // clear any unread counts for the join requests whenever displayed
   useEffect(() => {
     if (group && hasRelevantJoinRequests) {
       store.markGroupRead(group.id, false);
     }
-  }, [group, hasRelevantJoinRequests, store]);
+  }, [group, hasRelevantJoinRequests]);
 
   if (!hasRelevantJoinRequests) {
     return null;

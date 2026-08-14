@@ -1,7 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useChannel, useChannelSearch, useGroup } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  trackEvent,
+  useChannel,
+  useChannelSearch,
+  useGroup,
+} from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
@@ -38,10 +44,16 @@ export default function ChannelSearchScreen(props: Props) {
   const { posts, loading, errored, hasMore, loadMore, searchedThroughDate } =
     useChannelSearch(channelId, query);
 
-  const { resetToChannel } = useRootNavigation();
+  useEffect(() => {
+    trackEvent(AnalyticsEvent.ChannelSearchOpened);
+  }, [channelId]);
 
+  const { resetToChannel } = useRootNavigation();
   const navigateToPost = useCallback(
     (post: db.Post) => {
+      trackEvent(AnalyticsEvent.ChannelSearchResultSelected, {
+        type: post.parentId ? 'reply' : 'post',
+      });
       if (post.parentId) {
         props.navigation.replace('Post', {
           postId: post.parentId,

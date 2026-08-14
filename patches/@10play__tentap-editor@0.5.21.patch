@@ -188,3 +188,13 @@ index d90e66f1053667fd2df73a7a7f28fa5917a09e34..f1f5d1a579b8a7b7b391007a80bc9a3c
    }
  
  
+diff --git a/ios/TenTapViewManager.mm b/ios/TenTapViewManager.mm
+--- a/ios/TenTapViewManager.mm
++++ b/ios/TenTapViewManager.mm
+@@ -1,5 +1,5 @@
+ #import <React/RCTViewManager.h>
+ #import <React/RCTUIManager.h>
+-#import "RCTBridge.h"
++#import <React/RCTBridge.h>
+ #import "TenTapViewImpl.h"
+ #import "RCTBridgeProvider.h"

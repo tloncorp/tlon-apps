@@ -55,9 +55,11 @@ export function confirmNotesDestructiveAction({
 export function NotesBanner({
   message,
   tone = 'neutral',
+  actions,
 }: {
   message: string;
   tone?: 'neutral' | 'negative';
+  actions?: { label: string; onPress: () => void }[];
 }) {
   const isNegative = tone === 'negative';
   const [showDetails, setShowDetails] = useState(false);
@@ -92,6 +94,17 @@ export function NotesBanner({
         >
           {displayMessage.message}
         </Text>
+        {actions?.map((action) => (
+          <Pressable key={action.label} onPress={action.onPress}>
+            <Text
+              size="$label/s"
+              fontWeight="600"
+              color={isNegative ? '$negativeActionText' : '$secondaryText'}
+            >
+              {action.label}
+            </Text>
+          </Pressable>
+        ))}
         {displayMessage.details ? (
           <Pressable onPress={() => setShowDetails((showing) => !showing)}>
             <Text

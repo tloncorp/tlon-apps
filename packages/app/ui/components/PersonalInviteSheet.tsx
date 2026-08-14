@@ -1,13 +1,16 @@
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Pressable, Text } from '@tloncorp/ui';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import QRCode from 'react-qr-code';
 import { View, YStack, useTheme } from 'tamagui';
 
-import { useStore } from '../contexts/storeContext';
 import { ActionSheet } from './ActionSheet';
 import { ListItem } from './ListItem';
 import { PersonalInviteButton } from './PersonalInviteButton';
+
+const PERSONAL_INVITE_TITLE = 'Invite Friends to Tlon Messenger';
 
 export function PersonalInviteSheet({
   open,
@@ -23,14 +26,21 @@ export function PersonalInviteSheet({
     hasOpenedRef.current = true;
   }
 
+  useEffect(() => {
+    if (open) {
+      trackEvent(AnalyticsEvent.InviteSurfaceOpened);
+    }
+  }, [open]);
+
   return (
     <ActionSheet
       open={open}
       onOpenChange={onOpenChange}
+      title={PERSONAL_INVITE_TITLE}
       snapPointsMode="fit"
       modal
     >
-      <ActionSheet.SimpleHeader title="Invite Friends to Tlon Messenger" />
+      <ActionSheet.SimpleHeader title={PERSONAL_INVITE_TITLE} />
       <ActionSheet.Content flex={1} paddingBottom={0}>
         <ActionSheet.ScrollableContent flex={1}>
           {hasOpenedRef.current && (
@@ -49,7 +59,6 @@ const PersonalInviteSheetContent = ({
 }: {
   onPressInviteFriends: () => void;
 }) => {
-  const store = useStore();
   const inviteLink = db.personalInviteLink.useValue();
   const theme = useTheme();
 

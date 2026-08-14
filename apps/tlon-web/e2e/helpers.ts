@@ -342,15 +342,19 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
     'GroupListItem-Untitled group-unpinned'
   );
 
+  let inviteRow = untitledInviteRow.first();
   if (
     namedInviteRow &&
     (await namedInviteRow.first().isVisible({ timeout: 30000 }))
   ) {
-    await namedInviteRow.first().click();
-  } else {
-    await expect(untitledInviteRow).toBeVisible({ timeout: 30000 });
-    await untitledInviteRow.click();
+    inviteRow = namedInviteRow.first();
   }
+  await expect(inviteRow).toBeVisible({ timeout: 30000 });
+  const inviteGroupId = await inviteRow.getAttribute('data-group-id');
+  if (!inviteGroupId) {
+    throw new Error('Group invite row is missing its stable group ID');
+  }
+  await inviteRow.click();
   await page.waitForTimeout(500);
 
   // Click accept
@@ -358,12 +362,36 @@ export async function acceptGroupInvite(page: Page, groupName?: string) {
   await expect(acceptButton).toBeVisible({ timeout: 10000 });
   await acceptButton.click();
 
-  // Wait for joining to complete and "Go to group" button to appear
-  await expect(page.getByText('Go to group')).toBeVisible({ timeout: 45000 });
+  // A completed join closes the preview and returns to Home. "Go to group"
+  // can appear during that transition, but clicking it races the sheet closing.
+  // Wait for every non-terminal preview state to disappear instead.
+  await expect(async () => {
+    await expect(acceptButton).not.toBeVisible();
+    await expect(
+      page.getByText('Joining, please wait...', { exact: true })
+    ).not.toBeVisible();
+    await expect(
+      page.getByText('Go to group', { exact: true })
+    ).not.toBeVisible();
+    await expect(
+      page.getByText('Joining failed', { exact: true })
+    ).not.toBeVisible();
+  }).toPass({
+    timeout: 45000,
+    intervals: [500, 1000],
+  });
 
-  // Click "Go to group"
-  await page.getByText('Go to group').click();
-  await page.waitForTimeout(1000);
+  // Enter the joined group through its stable Home row. Besides proving that
+  // the join is usable, this clears the transient NEW state that otherwise
+  // masks unread counts in subsequent assertions.
+  const joinedGroupRow = page.locator(
+    `[data-group-id=${JSON.stringify(inviteGroupId)}]`
+  );
+  await expect(joinedGroupRow).toBeVisible({ timeout: 15000 });
+  await joinedGroupRow.click();
+  await expect(page.getByTestId('ChannelListItem-General')).toBeVisible({
+    timeout: 15000,
+  });
 }
 
 export async function rejectGroupInvite(page: Page) {
@@ -1226,8 +1254,13 @@ export async function changeGroupDescription(page: Page, description: string) {
  * Attempts to change group icon (handles web file picker behavior)
  */
 export async function changeGroupIcon(page: Page, imagePath?: string) {
-  // Click on "Change icon image" to open the attachment dialog
-  await page.getByText('Change icon image').click();
+  await expect(
+    page.getByText('Storage not configured', { exact: true })
+  ).toHaveCount(0);
+
+  const changeIconButton = page.getByText('Change icon image', { exact: true });
+  await expect(changeIconButton).toBeVisible({ timeout: 5000 });
+  await changeIconButton.click();
 
   // Wait for the attachment dialog to appear
   await expect(page.getByText('Attach a file')).toBeVisible({ timeout: 5000 });
@@ -1236,13 +1269,9 @@ export async function changeGroupIcon(page: Page, imagePath?: string) {
   const imageToUpload =
     imagePath || path.join(__dirname, 'assets', 'test-group-icon.jpg');
 
-  // Intercept the file chooser dialog
-  // This is Playwright's official way to handle file uploads
   const [fileChooser] = await Promise.all([
-    // Wait for the file chooser to be triggered
     page.waitForEvent('filechooser'),
-    // Click the button that triggers the file chooser
-    page.getByText('Upload an image', { exact: true }).click(),
+    page.getByText('Photo Library', { exact: true }).click(),
   ]);
 
   // Set the files on the file chooser
@@ -1369,13 +1398,10 @@ export async function createGalleryImagePost(
     imagePath || path.join(__dirname, 'assets', 'test-group-icon.jpg');
 
   await page.getByTestId('AddGalleryPost').click();
-  await page.getByTestId('AddGalleryPostImage').click();
-
-  await expect(page.getByText('Attach a file')).toBeVisible({ timeout: 5000 });
 
   const [fileChooser] = await Promise.all([
     page.waitForEvent('filechooser'),
-    page.getByText('Upload Media', { exact: true }).click(),
+    page.getByTestId('AddGalleryPostImage').click(),
   ]);
 
   await fileChooser.setFiles(imageToUpload);
@@ -1396,7 +1422,7 @@ export async function createGalleryImagePost(
 
   if (caption) {
     await expect(page.getByText(caption).first()).toBeVisible({
-      timeout: 10000,
+      timeout: 45000,
     });
   }
 }

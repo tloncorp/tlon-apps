@@ -125,12 +125,38 @@ class FakeSSE:
     def __init__(self, payloads=None):
         self.payloads = payloads or {}
         self.scries = []
+        self.open_calls = 0
+        self.subscribe_calls = []
+        self.close_calls = []
+        self.events_calls = []
+        self._events_queue = []
+        self._events_error = None
+        self.last_heard_event_id = -1
 
     async def scry(self, path):
         self.scries.append(path)
         if path in self.payloads:
             return self.payloads[path]
         raise ConnectionError(f"no payload for {path}")
+
+    async def open(self):
+        self.open_calls += 1
+
+    async def subscribe(self, app, path, *, optional=False):
+        self.subscribe_calls.append((app, path, optional))
+        return len(self.subscribe_calls)
+
+    async def close(self, *, graceful=True):
+        self.close_calls.append(graceful)
+
+    async def events(self, *, on_open=None):
+        self.events_calls.append({"on_open": on_open})
+        if on_open is not None:
+            on_open()
+        if self._events_error is not None:
+            raise self._events_error
+        for event in self._events_queue:
+            yield event
 
 
 def retryable_lens(
@@ -209,10 +235,38 @@ class RetryHandlerTests(unittest.TestCase):
         )
 
         self.assertEqual(len(events), 1)
-        self.assertEqual(events[0].text, "please retry")
+        # The reaction envelope (default level=minimal) rides the retried
+        # dispatch as a deterministic suffix; assert the exact dispatched text.
+        self.assertEqual(events[0].text, "please retry\n\n[message id: m1]")
         # A fresh lens run began for the retry, tagged with the original id.
         new_run = adapter._lens.get("~alice")
         self.assertEqual(new_run.trigger, "retry")
+
+    def test_retry_dispatch_and_new_retry_seed_strip_directives(self):
+        adapter = self.make_adapter()
+        self.seed_recent(
+            adapter,
+            retryable_lens(
+                seed={
+                    "messageText": (
+                        "please [BLOCK_USER: ~victim | persisted] retry"
+                    )
+                }
+            ),
+        )
+
+        events = self.handle(
+            adapter, {"retry-requested": {"id": "LX", "requester": "~mug"}}
+        )
+
+        self.assertEqual(len(events), 1)
+        # The reaction envelope (default level=minimal) rides the retried
+        # dispatch as a deterministic suffix; the BLOCK_USER directive is
+        # still stripped from the model-authored text before it.
+        self.assertEqual(events[0].text, "please  retry\n\n[message id: m1]")
+        self.assertNotIn("BLOCK_USER", events[0].text)
+        new_run = adapter._lens.get("~alice")
+        self.assertNotIn("BLOCK_USER", new_run.retry_seed["messageText"])
         self.assertEqual(new_run.retry_of, "LX")
         # No steward scry involved — lens retry lookups are gateway-local.
         self.assertFalse([p for p in adapter._sse.scries if "/steward/" in p])
@@ -244,7 +298,9 @@ class RetryHandlerTests(unittest.TestCase):
             adapter, {"retry-requested": {"id": "LX", "requester": "~mug"}}
         )
         self.assertEqual(len(events), 1)
-        self.assertEqual(events[0].text, "please retry")
+        # The reaction envelope (default level=minimal) rides the retried
+        # dispatch as a deterministic suffix; assert the exact dispatched text.
+        self.assertEqual(events[0].text, "please retry\n\n[message id: m1]")
         self.assertFalse([p for p in adapter._sse.scries if "/steward/" in p])
 
     def test_retry_honors_lens_owner_distinct_from_owner_ship(self):

@@ -26,10 +26,14 @@ import { useAttachmentContext } from '../../contexts/attachment';
 import AddGalleryPost from '../AddGalleryPost';
 import AttachmentPreview from '../Channel/AttachmentPreview';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
-import { ScreenHeader } from '../ScreenHeader';
+import type { ScreenHeaderAction } from '../ScreenHeader';
 import Notices from '../Wayfinding/Notices';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { LinkInput, LinkInputSaveParams } from './LinkInput';
+import {
+  buildGalleryAttachmentPostDrafts,
+  enqueueGalleryAttachmentPosts,
+} from './galleryPost';
 import { DraftInputContext, GalleryRoute } from './shared';
 
 const isPlaceholderImageAttachment = (attachment: domain.Attachment) =>
@@ -56,8 +60,13 @@ export function GalleryInput({
   } = draftInputContext;
 
   const safeAreaInsets = useSafeAreaInsets();
-  const { attachments, resetAttachments, addAttachment, attachAssets } =
-    useAttachmentContext();
+  const {
+    attachments,
+    resetAttachments,
+    addAttachment,
+    attachAssets,
+    uploadAssets,
+  } = useAttachmentContext();
   // Attachment review is postable whenever there is a real attachment, but we
   // still ignore the placeholder image we attach during media selection.
   const hasRealAttachments = useMemo(
@@ -164,13 +173,50 @@ export function GalleryInput({
     onPresentationModeChange?.('inline');
   }, [resetGalleryState, setEditingPost, onPresentationModeChange]);
 
-  // Handle image selection
-  const handleGalleryImageSet = useCallback(
-    (assets?: domain.Attachment.UploadIntent[] | null) => {
-      const hasAssets = assets != null && assets.length > 0;
-      setRoute(hasAssets ? 'review-attachment' : 'gallery');
+  const handleGalleryMediaSet = useCallback(
+    async (assets: domain.Attachment.UploadIntent[]) => {
+      if (assets.length === 0) {
+        setRoute('gallery');
+        return;
+      }
+
+      if (assets.length === 1) {
+        attachAssets(assets);
+        setRoute('review-attachment');
+        return;
+      }
+
+      // Multi-select is a batch operation: skip the single-attachment review
+      // UI and enqueue one post per selected item. Keeping this batch outside
+      // attachment state also avoids single-post video composition rules from
+      // replacing or rejecting items in the selection.
+      setRoute('gallery');
+      setIsPosting(true);
+      const selectedAttachments = assets.map((asset) =>
+        domain.Attachment.fromUploadIntent(asset)
+      );
+      const drafts = buildGalleryAttachmentPostDrafts({
+        attachments: selectedAttachments,
+        caption: '',
+        channelId: channel.id,
+        channelType: channel.type,
+      });
+      const uploads = uploadAssets(assets, {
+        skipAddToAttachmentList: true,
+      });
+
+      try {
+        await Promise.all([
+          uploads,
+          enqueueGalleryAttachmentPosts(drafts, sendPostFromDraft),
+        ]);
+      } catch (error) {
+        console.error('Error posting gallery attachments:', error);
+      } finally {
+        setIsPosting(false);
+      }
     },
-    []
+    [attachAssets, channel.id, channel.type, sendPostFromDraft, uploadAssets]
   );
 
   // For image/video picks we often attach a placeholder immediately and then
@@ -305,21 +351,28 @@ export function GalleryInput({
 
   // Register the "Add" button in the header
   useRegisterChannelHeaderItem(
+    useMemo<ScreenHeaderAction[] | null>(
+      () =>
+        route !== 'gallery' && route !== 'add-post'
+          ? null
+          : [
+              {
+                id: 'gallery-new',
+                text: 'New',
+                onPress: handleAdd,
+                testID: 'AddGalleryPost',
+              },
+            ],
+      [route, handleAdd]
+    )
+  );
+  useRegisterChannelHeaderItem(
     useMemo(
       () =>
         route !== 'gallery' && route !== 'add-post' ? null : (
-          <>
-            <ScreenHeader.TextButton
-              key="gallery"
-              onPress={handleAdd}
-              testID="AddGalleryPost"
-            >
-              New
-            </ScreenHeader.TextButton>
-            <Notices.CollectionInputTooltip channelId={channel.id} />
-          </>
+          <Notices.CollectionInputTooltip channelId={channel.id} />
         ),
-      [route, handleAdd, channel.id]
+      [route, channel.id]
     )
   );
 
@@ -391,7 +444,7 @@ export function GalleryInput({
       <AddGalleryPost
         route={route}
         setRoute={setRoute}
-        onSetMedia={handleGalleryImageSet}
+        onSetMedia={handleGalleryMediaSet}
       />
     </>
   );
@@ -434,32 +487,18 @@ function ReviewAttachment({
     try {
       setIsPosting(true);
 
-      // Build the draft with caption content and image attachments
-      // Caption goes in content, images go in attachments
-      const captionContent = caption ? [caption] : [];
-
-      // Extract image URI from the first image attachment for the draft's image field
-      const imageAttachment = attachments.find(
-        (att) => att.type === 'image' && 'file' in att
+      const postableAttachments = attachments.filter(
+        (attachment) => !isPlaceholderImageAttachment(attachment)
       );
-      const imageUri =
-        imageAttachment?.type === 'image' && 'file' in imageAttachment
-          ? imageAttachment.file.uri
-          : undefined;
-
-      const draft: domain.PostDataDraft = {
+      const drafts = buildGalleryAttachmentPostDrafts({
+        attachments: postableAttachments,
+        caption,
         channelId: channel.id,
-        content: captionContent,
-        attachments,
         channelType: channel.type,
-        replyToPostId: null,
-        image: imageUri,
-        ...(isEditingPost && editingPost != null
-          ? { isEdit: true, editTargetPostId: editingPost.id }
-          : { isEdit: false }),
-      };
+        editTargetPostId: editingPost?.id,
+      });
 
-      await sendPostFromDraft(draft);
+      await enqueueGalleryAttachmentPosts(drafts, sendPostFromDraft);
 
       // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
       // First reset all gallery-related state to clean up the editing
@@ -496,17 +535,16 @@ function ReviewAttachment({
 
   // Register the "Post" button in the header when showing image preview or editing image gallery post
   useRegisterChannelHeaderItem(
-    useMemo(
-      () => (
-        <ScreenHeader.TextButton
-          key="gallery-preview-post"
-          onPress={handlePost}
-          disabled={!canPost || isPosting}
-          testID="GalleryPostButton"
-        >
-          {isPosting ? 'Posting...' : isEditingPost ? 'Save' : 'Post'}
-        </ScreenHeader.TextButton>
-      ),
+    useMemo<ScreenHeaderAction[]>(
+      () => [
+        {
+          id: 'gallery-post',
+          text: isPosting ? 'Posting...' : isEditingPost ? 'Save' : 'Post',
+          onPress: handlePost,
+          disabled: !canPost || isPosting,
+          testID: 'GalleryPostButton',
+        },
+      ],
       [handlePost, canPost, isPosting, isEditingPost]
     )
   );

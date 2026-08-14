@@ -3,6 +3,7 @@ import { Text } from '@tloncorp/ui';
 import { ReactNode, useMemo } from 'react';
 import { View, YStack, getTokenValue } from 'tamagui';
 
+import type { ConversationContentInsets } from './Channel/PostList';
 import Scroller, { ScrollAnchor } from './Channel/Scroller';
 import { ThinkingState } from './Channel/ThinkingState';
 import { useShouldShowThinkingState } from './Channel/useShouldShowThinkingState';
@@ -33,6 +34,8 @@ export interface DetailViewProps {
     scrollToStart: (opts: { animated?: boolean }) => void;
     scrollToEnd: (opts: { animated?: boolean }) => void;
   } | null>;
+  contentInsets?: ConversationContentInsets;
+  isLoading?: boolean;
 }
 
 export const DetailView = ({
@@ -53,12 +56,14 @@ export const DetailView = ({
   anchor,
   highlightPostId,
   scrollerRef,
+  contentInsets,
+  isLoading,
 }: DetailViewProps) => {
   const channelType = channel.type;
   const isChat = channelType !== 'notebook' && channelType !== 'gallery';
   const resolvedPosts = useMemo(() => {
     if (isChat) {
-      return posts ? [...posts, post] : posts;
+      return posts ? [post, ...[...posts].reverse()] : posts;
     }
     return posts ? [...posts].reverse() : posts;
   }, [posts, post, isChat]);
@@ -118,7 +123,7 @@ export const DetailView = ({
       <Scroller
         ref={scrollerRef}
         anchor={anchor}
-        inverted={isChat}
+        anchorToEnd={isChat}
         renderItem={ChatMessage}
         channel={channel}
         collectionLayoutType="compact-list-bottom-to-top"
@@ -145,6 +150,8 @@ export const DetailView = ({
         setActiveMessage={setActiveMessage}
         listHeaderComponent={listHeaderComponent}
         listBottomComponent={listBottomComponent}
+        contentInsets={contentInsets}
+        isLoading={isLoading}
       />
     </View>
   );

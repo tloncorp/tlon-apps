@@ -1,7 +1,7 @@
 name: tlon-platform
 label: Tlon
 kind: platform
-version: 0.14.0
+version: 0.15.0
 description: >
   Tlon Messenger platform adapter for Hermes Agent. Reads inbound messages from
   an authenticated Eyre SSE channel and sends replies through the
@@ -136,6 +136,12 @@ optional_env:
       (default: 20, 0 disables)'
     prompt: 'Group context messages'
     password: false
+  - name: TLON_REACTION_LEVEL
+    description:
+      'Reaction prompt/tool level: off, ack (reserved/off), minimal (default),
+      or extensive'
+    prompt: 'Reaction level'
+    password: false
   - name: TLON_TELEMETRY
     description:
       'Enable opt-in PostHog telemetry (true/false, default false); requires
@@ -166,6 +172,18 @@ optional_env:
       60)'
     prompt: 'SSE read timeout'
     password: false
+  - name: TLON_SSE_STALE_THRESHOLD_SECONDS
+    description:
+      'Seconds without SSE event frames before the watchdog forces a reconnect
+      (default: 180; 0 disables staleness detection but not the liveness probes)'
+    prompt: 'SSE stale threshold'
+    password: false
+  - name: TLON_SSE_WATCHDOG_INTERVAL_SECONDS
+    description:
+      'Seconds between SSE staleness watchdog ticks and idle liveness probes
+      (default: 30)'
+    prompt: 'SSE watchdog interval'
+    password: false
   - name: TLON_HOSTING
     description:
       'Force the hosted (memex) image-upload path (true/false). Needed for
@@ -181,14 +199,38 @@ optional_env:
     password: false
   - name: TLON_GATEWAY_STATUS
     description:
-      'Enable %gateway-status start/heartbeat/stop pokes (true/false)'
+      'Enable %steward gateway start/heartbeat/stop pokes (true/false)'
     prompt: 'Gateway status heartbeat?'
     password: false
   - name: TLON_GATEWAY_STATUS_OWNER
     description:
-      'Optional owner ship override for %gateway-status offline replies;
+      'Optional owner ship override for %steward gateway offline replies;
       defaults to TLON_OWNER_SHIP'
     prompt: 'Gateway status owner'
+    password: false
+  - name: TLON_REENGAGEMENT_ENABLED
+    description: 'Enable staged owner re-engagement nudges (true/false; default false)'
+    prompt: 'Enable re-engagement nudges?'
+    password: false
+  - name: TLON_NUDGE_TICK_INTERVAL_MS
+    description: 'Optional re-engagement nudge scheduler interval in milliseconds'
+    prompt: 'Nudge tick interval'
+    password: false
+  - name: TLON_NUDGE_ACTIVE_HOURS_START
+    description: 'Optional nudge active-hours start (HH:MM)'
+    prompt: 'Nudge active-hours start'
+    password: false
+  - name: TLON_NUDGE_ACTIVE_HOURS_END
+    description: 'Optional nudge active-hours end (HH:MM; 24:00 allowed)'
+    prompt: 'Nudge active-hours end'
+    password: false
+  - name: TLON_NUDGE_ACTIVE_HOURS_TIMEZONE
+    description: 'Optional nudge active-hours IANA timezone, user, or local'
+    prompt: 'Nudge active-hours timezone'
+    password: false
+  - name: TLON_TIMEZONE
+    description: 'Optional IANA timezone used when nudge active-hours timezone is user'
+    prompt: 'User timezone'
     password: false
   - name: BRAVE_SEARCH_API_KEY
     description:

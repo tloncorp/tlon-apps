@@ -1,7 +1,8 @@
-import React, { useRef, useState } from 'react';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
+import * as store from '@tloncorp/shared/store';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useStore } from '../contexts/storeContext';
 import { ActionSheet } from './ActionSheet';
 import { InviteUsersWidget } from './InviteUsersWidget';
 
@@ -18,9 +19,14 @@ const InviteUsersSheetComponent = ({
 }) => {
   const { bottom } = useSafeAreaInsets();
   const hasOpened = useRef(open);
-  const store = useStore();
   const { data: group } = store.useGroup({ id: groupId });
   const [isScrolling, setIsScrolling] = useState(false);
+
+  useEffect(() => {
+    if (open && groupId) {
+      trackEvent(AnalyticsEvent.InviteSurfaceOpened);
+    }
+  }, [groupId, open]);
 
   if (!hasOpened.current && open) {
     hasOpened.current = true;
@@ -35,6 +41,7 @@ const InviteUsersSheetComponent = ({
       snapPoints={[85]}
       snapPointsMode="percent"
       disableDrag={isScrolling}
+      modal
     >
       <ActionSheet.Content
         // prevent the modal from going off screen

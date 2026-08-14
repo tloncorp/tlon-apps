@@ -6,9 +6,9 @@
 ::  Multi-ship scenarios are NOT covered: test-agent.hoon is a single-bowl
 ::  harness with no cross-agent sign exchange.
 ::
-/-  n=notes
+/-  n=notes, av=activity-ver
 /+  *test-agent
-/=  notes-json  /lib/notes/json
+/+  notes-json
 /=  notes-agent  /app/notes
 |%
 ++  dap  %notes
@@ -176,6 +176,20 @@
     $(caz t.caz)
   =/  rh=response-header:http  !<(response-header:http +.+>+.i.caz)
   `status-code.rh
+::  +http-body: extract the response body from an %http-response-data fact
+::  card, if any. Axis lark as in +http-status.
+::
+++  http-body
+  |=  caz=(list card)
+  ^-  (unit @t)
+  |-  ^-  (unit @t)
+  ?~  caz  ~
+  ?.  ?=([%give %fact * *] i.caz)  $(caz t.caz)
+  ?.  =(`mark`-.+>+.i.caz %http-response-data)
+    $(caz t.caz)
+  =/  dat=(unit octs)  !<((unit octs) +.+>+.i.caz)
+  ?~  dat  ~
+  `q.u.dat
 ::  Card introspection helpers. Hoon's `?=` narrowing on a $% card type
 ::  doesn't propagate inner `=face` shorthand through the union, so we
 ::  reach into the card by axis lark and compare raw nouns. (`;;` casts
@@ -236,6 +250,16 @@
   ?:  ?=([%pass * %agent * %poke *] i.caz)
     `+<.i.caz
   $(caz t.caz)
+::  +find-watch-wire: first %pass %agent %watch card's wire, if any.
+::
+++  find-watch-wire
+  |=  caz=(list card)
+  ^-  (unit wire)
+  |-  ^-  (unit wire)
+  ?~  caz  ~
+  ?:  ?=([%pass * %agent * %watch *] i.caz)
+    `+<.i.caz
+  $(caz t.caz)
 ::  +find-poke-vase: vase of the first %pass %agent %poke card whose cage
 ::  carries the given mark, if any. cage is +>+>+.c (cf. +has-poke-mark,
 ::  which reads its mark via -.); the vase is the cage tail, +..
@@ -249,6 +273,19 @@
       ==
     `+.+>+>+.i.caz
   $(caz t.caz)
+::  +find-fact-vase: vase of the first %give %fact card whose cage
+::  carries the given mark, if any. cage layout per +http-status:
+::  mark at -.+>+, vase at +.+>+.
+::
+++  find-fact-vase
+  |=  [caz=(list card) m=mark]
+  ^-  (unit vase)
+  ?~  caz  ~
+  ?:  ?&  ?=([%give %fact * *] i.caz)
+          =(-.+>+.i.caz m)
+      ==
+    `+.+>+.i.caz
+  $(caz t.caz)
 ::
 ::  +init-zod: init agent as ~zod; discard cards
 ::
@@ -257,7 +294,27 @@
   ^-  form:m
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~zod)))
   ;<  *  bind:m  (do-init dap notes-agent)
+  ;<  ~  bind:m  (set-scry-gate base-scry)
   (pure:m ~)
+::  +base-scry: default scry gate. %notes probes %activity liveness
+::  ([%gu @ %activity @ %$ ~]) before submitting events; answer %.n so
+::  tests that don't care about activity see no extra cards. Tests that
+::  assert activity behavior set a gate answering %.y instead.
+::
+++  base-scry
+  ^-  scry
+  |=  pax=path
+  ?:  ?=([%gu @ %activity @ %$ ~] pax)
+    `!>(|)
+  ~
+::  +activity-scry: %activity is running; used by activity-submission tests.
+::
+++  activity-scry
+  ^-  scry
+  |=  pax=path
+  ?:  ?=([%gu @ %activity @ %$ ~] pax)
+    `!>(&)
+  ~
 ::  +nb-flag: flag for notebook with title+nid under ship who
 ::  Applies the same slug algorithm as ++slugify in app/notes.hoon.
 ::
@@ -378,6 +435,23 @@
   ?~  caz
     |+['expected cards but got none']~
   &+[~ s]
+::  +ex-conflict-response: assert the cards carry a typed
+::  [%error %conflict *] response-update (the stale-revision path), and
+::  no broadcast %notes-response fact (the update must not have applied).
+::
+++  ex-conflict-response
+  |=  caz=(list card)
+  =/  m  (mare ,~)
+  ^-  form:m
+  |=  s=state
+  ?~  van=(find-fact-vase caz %notes-response-update-1)
+    |+['no notes-response-update-1 fact emitted']~
+  =+  !<(ru=response-update:v1:n u.van)
+  ?.  ?=([%error %conflict *] body.ru)
+    |+['response-update body is not %error %conflict']~
+  ?:  (has-fact-mark caz %notes-response)
+    |+['conflicting update was still broadcast to subscribers']~
+  &+[~ s]
 ::  +ex-json: assert cage has mark %json
 ::
 ++  ex-json
@@ -402,8 +476,10 @@
   ?~  res
     &+[~ s]
   |+['expected outer-null scry result for deleted item']~
-::  ====  test-create-notebook  ====
-::  Creates notebook (id=1, root-folder=2); verifies folder and membership exist.
+::  +test-create-notebook
+::
+::  creates notebook (id=1, root-folder=2); verifies folder and membership
+::  exist.
 ::
 ++  test-create-notebook
   %-  eval-mare
@@ -419,8 +495,10 @@
   ;<  ~  b  (ex-mark root %notes-folder)
   ;<  mbrs=cage  b  (peek-mbrs f)
   (ex-mark mbrs %notes-members)
-::  ====  test-create-group-notebook-readers  ====
+::  +test-create-group-notebook-readers
+::
 ::  group-mode create registers the channel with %groups via a
+::
 ::  group-action-4 poke that carries the group role-readers verbatim —
 ::  the privacy fix: readers must not be dropped (else the channel is
 ::  created group-wide readable, defeating the group's can-read gate).
@@ -445,7 +523,7 @@
   ?.  =(readers.channel.act rdrs)
     |+['group channel-add dropped readers']~
   &+[~ s2]
-::  ====  test-rename-notebook  ====
+::  +test-rename-notebook
 ::
 ++  test-rename-notebook
   %-  eval-mare
@@ -460,7 +538,7 @@
   ;<  ~  b  (ex-cards-ne caz)
   ;<  nb=cage  b  (got-peek /x/v0/notebook/(scot %p ship.f)/[name.f])
   (ex-mark nb %notes-notebook)
-::  ====  test-delete-notebook  ====
+::  +test-delete-notebook
 ::
 ++  test-delete-notebook
   %-  eval-mare
@@ -476,7 +554,7 @@
   ;<  res=(unit (unit cage))  b
     (get-peek /x/v0/notebook/(scot %p ship.f)/[name.f])
   (ex-gone res)
-::  ====  test-set-visibility-public  ====
+::  +test-set-visibility-public
 ::
 ++  test-set-visibility-public
   %-  eval-mare
@@ -489,8 +567,11 @@
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
   ;<  caz=(list card)  b  (poke-a [%notebook f [%visibility %public]])
   (ex-cards-ne caz)
-::  ====  test-join-public-accepts  ====
-::  Non-member ~bus sends [%notes-command [flag [%member-join ~]]] to host (~zod);
+::  +test-join-public-accepts
+::
+::  non-member ~bus sends [%notes-command [flag [%member-join ~]]] to host
+::  (~zod);
+::
 ::  must succeed and add ~bus as %editor.
 ::
 ++  test-join-public-accepts
@@ -510,8 +591,9 @@
   ;<  *  b  (set-src our.bowl)
   ;<  mbrs=cage  b  (peek-mbrs f)
   (ex-mark mbrs %notes-members)
-::  ====  test-join-private-rejects-non-member  ====
-::  Non-member ~bus tries joining a private notebook — must crash.
+::  +test-join-private-rejects-non-member
+::
+::  non-member ~bus tries joining a private notebook — must crash.
 ::
 ++  test-join-private-rejects-non-member
   %-  eval-mare
@@ -524,8 +606,11 @@
   =/  f=flag:n  (nb-flag our.bowl 'Private NB' 1)
   ;<  *  b  (set-src ~bus)
   (ex-fail (do-poke-drain %notes-command !>(`command:n`[%notebook f [%member-join ~]])))
-::  ====  test-group-edit-revoked-rejects  ====
-::  A group member recorded as %editor must lose write access when their group
+::  +test-group-edit-revoked-rejects
+::
+::  A group member recorded as %editor must lose write access when their
+::  group
+::
 ::  access is revoked. se-can-edit re-checks the group's live can-read, since
 ::  the members map isn't pruned on revocation (recheck-group-access only kicks
 ::  subscriptions). Regression for the Codex P1 finding.
@@ -539,11 +624,13 @@
   ::  mock the group can-read GATE scry: ~bus permitted.
   =/  can-read-allow=scry
     |=  pax=path
+    ?:  ?=([%gu @ %activity @ %$ ~] pax)  `!>(|)
     ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)  ~
     `!>(|=([who=ship =nest:n] =(who ~bus)))
   ::  revoked: can-read denies everyone (host self-shortcuts in group-can-read).
   =/  can-read-deny=scry
     |=  pax=path
+    ?:  ?=([%gu @ %activity @ %$ ~] pax)  `!>(|)
     ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)  ~
     `!>(|=([who=ship =nest:n] |))
   ;<  ~  b  init-zod
@@ -564,7 +651,7 @@
   ;<  ~  b  (set-scry-gate can-read-deny)
   ;<  *  b  (set-src ~bus)
   (ex-fail (do-poke-drain %notes-command !>(`command:n`[%notebook f [%create-note 2 'T2' 'B2']])))
-::  ====  test-create-folder-at-root  ====
+::  +test-create-folder-at-root
 ::
 ++  test-create-folder-at-root
   %-  eval-mare
@@ -579,8 +666,9 @@
   ;<  ~  b  (ex-cards-ne caz)
   ;<  fld=cage  b  (peek-fld f 3)
   (ex-mark fld %notes-folder)
-::  ====  test-create-folder-nested  ====
-::  Sub-folder under Docs (id=3); new folder gets id=4.
+::  +test-create-folder-nested
+::
+::  sub-folder under Docs (id=3); new folder gets id=4.
 ::
 ++  test-create-folder-nested
   %-  eval-mare
@@ -596,8 +684,10 @@
   ;<  ~  b  (ex-cards-ne caz)
   ;<  sub=cage  b  (peek-fld f 4)
   (ex-mark sub %notes-folder)
-::  ====  test-create-folder-bad-parent-rejected  ====
+::  +test-create-folder-bad-parent-rejected
+::
 ::  parent points at an id that doesn't exist → crash. ex-fail ensures
+::
 ::  the poke failed AND folders.notebook-state is unchanged.
 ::
 ++  test-create-folder-bad-parent-rejected
@@ -617,7 +707,7 @@
   ?.  =(1 ~(wyt by folders.notebook-state.u.entry))
     |+['rejected poke should not have created a folder']~
   &+[~ s2]
-::  ====  test-rename-folder  ====
+::  +test-rename-folder
 ::
 ++  test-rename-folder
   %-  eval-mare
@@ -631,8 +721,7 @@
   ;<  *  b  (poke-a [%notebook f [%create-folder 2 'OldName']])
   ;<  caz=(list card)  b  (poke-a [%notebook f [%folder 3 [%rename 'NewName']]])
   (ex-cards-ne caz)
-::  ====  test-move-folder  ====
-::  FolderA(3) at root, FolderB(4) at root; move B under A.
+::  +test-move-folder: folderA(3) at root, FolderB(4) at root; move B under A.
 ::
 ++  test-move-folder
   %-  eval-mare
@@ -647,7 +736,7 @@
   ;<  *  b  (poke-a [%notebook f [%create-folder 2 'FolderB']])
   ;<  caz=(list card)  b  (poke-a [%notebook f [%folder 4 [%move 3]]])
   (ex-cards-ne caz)
-::  ====  test-delete-empty-folder-succeeds  ====
+::  +test-delete-empty-folder-succeeds
 ::
 ++  test-delete-empty-folder-succeeds
   %-  eval-mare
@@ -665,7 +754,7 @@
     =/  pax=path  /x/v0/folder/(scot %p ship.f)/[name.f]/(scot %ud 3)
     (get-peek pax)
   (ex-gone res)
-::  ====  test-delete-nonempty-folder-nonrecursive-rejects  ====
+::  +test-delete-nonempty-folder-nonrecursive-rejects
 ::
 ++  test-delete-nonempty-folder-nonrecursive-rejects
   %-  eval-mare
@@ -679,7 +768,7 @@
   ;<  *  b  (poke-a [%notebook f [%create-folder 2 'HasNote']])
   ;<  *  b  (poke-a [%notebook f [%create-note 3 'Note' 'body']])
   (ex-fail (poke-a [%notebook f [%folder 3 [%delete %.n]]]))
-::  ====  test-delete-nonempty-folder-recursive-succeeds  ====
+::  +test-delete-nonempty-folder-recursive-succeeds
 ::
 ++  test-delete-nonempty-folder-recursive-succeeds
   %-  eval-mare
@@ -702,7 +791,7 @@
     =/  pax=path  /x/v0/note/(scot %p ship.f)/[name.f]/(scot %ud 4)
     (get-peek pax)
   (ex-gone nt-res)
-::  ====  test-create-note  ====
+::  +test-create-note
 ::
 ++  test-create-note
   %-  eval-mare
@@ -717,7 +806,7 @@
   ;<  ~  b  (ex-cards-ne caz)
   ;<  nt=cage  b  (peek-nt f 3)
   (ex-mark nt %notes-note)
-::  ====  test-rename-note  ====
+::  +test-rename-note
 ::
 ++  test-rename-note
   %-  eval-mare
@@ -731,8 +820,9 @@
   ;<  *  b  (poke-a [%notebook f [%create-note 2 'OldTitle' 'body']])
   ;<  caz=(list card)  b  (poke-a [%notebook f [%note 3 [%rename 'NewTitle']]])
   (ex-cards-ne caz)
-::  ====  test-move-note  ====
-::  FolderA=id=3, note=id=4, FolderB=id=5; moves note from A to B.
+::  +test-move-note
+::
+::  folderA=id=3, note=id=4, FolderB=id=5; moves note from A to B.
 ::
 ++  test-move-note
   %-  eval-mare
@@ -748,8 +838,10 @@
   ;<  *  b  (poke-a [%notebook f [%create-folder 2 'FolderB']])
   ;<  caz=(list card)  b  (poke-a [%notebook f [%note 4 [%move 5]]])
   (ex-cards-ne caz)
-::  ====  test-update-note-matching-revision-succeeds  ====
-::  Correct expected-revision: first edit (0→1) and second (1→2); both succeed.
+::  +test-update-note-matching-revision-succeeds
+::
+::  correct expected-revision: first edit (0→1) and second (1→2); both
+::  succeed.
 ::
 ++  test-update-note-matching-revision-succeeds
   %-  eval-mare
@@ -765,8 +857,10 @@
   ;<  ~  b  (ex-cards-ne caz)
   ;<  caz=(list card)  b  (poke-a [%notebook f [%note 3 [%update 'v3' 1]]])
   (ex-cards-ne caz)
-::  ====  test-delete-note-clears-history  ====
-::  Deleting a note must drop its archived revision history, so a deleted
+::  +test-delete-note-clears-history
+::
+::  deleting a note must drop its archived revision history, so a deleted
+::
 ::  note can't be recovered via the history read path (Codex regression).
 ::
 ++  test-delete-note-clears-history
@@ -784,8 +878,10 @@
   ;<  ~  b  (ex-history-len f 3 1)
   ;<  *  b  (poke-a [%notebook f [%note 3 [%delete ~]]])
   (ex-history-len f 3 0)
-::  ====  test-delete-group-notebook-removes-channel  ====
-::  Deleting a group-mode notebook must poke %groups to remove the channel
+::  +test-delete-group-notebook-removes-channel
+::
+::  deleting a group-mode notebook must poke %groups to remove the channel
+::
 ::  (mirror of the %add on create), so the group stops listing it (Codex).
 ::
 ++  test-delete-group-notebook-removes-channel
@@ -810,7 +906,9 @@
   =+  !<(group-channel-del:n u.van)
   &+[~ s2]
 ::  ====  test-update-note-mismatched-revision-rejects  ====
-::  Stale expected-revision crashes; note still readable after.
+::  Stale expected-revision finalizes a typed %conflict response-update
+::  (not a crash, which would nack the proxying ship's poke and surface
+::  as an opaque %unknown); note untouched and still readable after.
 ::
 ++  test-update-note-mismatched-revision-rejects
   %-  eval-mare
@@ -824,12 +922,14 @@
   ;<  *  b  (poke-a [%notebook f [%create-note 2 'Note' 'v1']])
   ;<  *  b  (poke-a [%notebook f [%note 3 [%update 'v2' 0]]])
   ;<  *  b  (poke-a [%notebook f [%note 3 [%update 'v3' 1]]])
-  ::  revision is now 2; expected-revision=1 is stale — must crash
-  ;<  ~  b  (ex-fail (poke-a [%notebook f [%note 3 [%update 'v4' 1]]]))
+  ::  revision is now 2; expected-revision=1 is stale — typed %conflict
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%note 3 [%update 'v4' 1]]])
+  ;<  ~  b  (ex-conflict-response caz)
   ;<  nt=cage  b  (peek-nt f 3)
   (ex-mark nt %notes-note)
 ::  ====  test-update-note-stale-zero-rejects  ====
-::  expected-revision=0 on a note with revision>0 must crash (strict, no force-update).
+::  expected-revision=0 on a note with revision>0 must reject with a
+::  typed %conflict (strict, no force-update sentinel).
 ::
 ++  test-update-note-stale-zero-rejects
   %-  eval-mare
@@ -842,12 +942,14 @@
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
   ;<  *  b  (poke-a [%notebook f [%create-note 2 'Note' 'v1']])
   ;<  *  b  (poke-a [%notebook f [%note 3 [%update 'v2' 0]]])
-  ::  revision is now 1; expected-revision=0 is stale — must crash
-  ;<  ~  b  (ex-fail (poke-a [%notebook f [%note 3 [%update 'clobbered' 0]]]))
+  ::  revision is now 1; expected-revision=0 is stale — typed %conflict
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%note 3 [%update 'clobbered' 0]]])
+  ;<  ~  b  (ex-conflict-response caz)
   ;<  nt=cage  b  (peek-nt f 3)
   (ex-mark nt %notes-note)
-::  ====  test-update-note-at-revision-zero-succeeds  ====
-::  First edit (revision=0, expected=0) must succeed.
+::  +test-update-note-at-revision-zero-succeeds
+::
+::  first edit (revision=0, expected=0) must succeed.
 ::
 ++  test-update-note-at-revision-zero-succeeds
   %-  eval-mare
@@ -861,7 +963,7 @@
   ;<  *  b  (poke-a [%notebook f [%create-note 2 'Note' 'initial']])
   ;<  caz=(list card)  b  (poke-a [%notebook f [%note 3 [%update 'first-edit' 0]]])
   (ex-cards-ne caz)
-::  ====  test-delete-note  ====
+::  +test-delete-note
 ::
 ++  test-delete-note
   %-  eval-mare
@@ -879,8 +981,7 @@
     =/  pax=path  /x/v0/note/(scot %p ship.f)/[name.f]/(scot %ud 3)
     (get-peek pax)
   (ex-gone res)
-::  ====  test-batch-import  ====
-::  Imports 3 notes into root folder; ids 3, 4, 5 all exist.
+::  +test-batch-import: imports 3 notes into root folder; ids 3, 4, 5 all exist.
 ::
 ++  test-batch-import
   %-  eval-mare
@@ -901,8 +1002,9 @@
   ;<  ~  b  (ex-mark n4 %notes-note)
   ;<  n5=cage  b  (peek-nt f 5)
   (ex-mark n5 %notes-note)
-::  ====  test-batch-import-tree  ====
-::  Subfolder Sub (id=3), NoteA (id=4), NoteB (id=5), Root (id=6).
+::  +test-batch-import-tree
+::
+::  subfolder Sub (id=3), NoteA (id=4), NoteB (id=5), Root (id=6).
 ::
 ++  test-batch-import-tree
   %-  eval-mare
@@ -927,7 +1029,7 @@
   ;<  ~  b  (ex-mark nb-c %notes-note)
   ;<  nr=cage    b  (peek-nt f 6)
   (ex-mark nr %notes-note)
-::  ====  test-publish-note  ====
+::  +test-publish-note
 ::
 ++  test-publish-note
   %-  eval-mare
@@ -945,8 +1047,10 @@
   ;<  *  b  (poke-a [%notebook f [%note 3 [%unpublish ~]]])
   ;<  pub2=cage  b  (got-peek /x/v0/published)
   (ex-mark pub2 %notes-published)
-::  ====  test-publish-note-rejects-non-self  ====
+::  +test-publish-note-rejects-non-self
+::
 ::  ~zod creates a notebook + note. ~bus pokes a publish action — must
+::
 ::  crash because the +poke %notes-action handler asserts =(our src):bowl.
 ::  (Cross-ship state changes go through %notes-command, not %notes-action.)
 ::
@@ -962,8 +1066,9 @@
   ;<  *  b  (poke-a [%notebook f [%create-note 2 'Article' '# Hello']])
   ;<  *  b  (set-src ~bus)
   (ex-fail (poke-a [%notebook f [%note 3 [%publish '<h1>Bad</h1>']]]))
-::  ====  test-publish-note-rejects-unknown-notebook  ====
-::  Publishing under a flag with no books entry must crash via no-abed.
+::  +test-publish-note-rejects-unknown-notebook
+::
+::  publishing under a flag with no books entry must crash via no-abed.
 ::
 ++  test-publish-note-rejects-unknown-notebook
   %-  eval-mare
@@ -974,8 +1079,10 @@
   ;<  =bowl:gall  b  get-bowl
   =/  f=flag:n  [our.bowl 'no-such-notebook']
   (ex-fail (poke-a [%notebook f [%note 1 [%publish '<h1>Ghost</h1>']]]))
-::  ====  test-create-and-update-archives-prior-rev  ====
-::  After a single update, history has exactly one entry containing
+::  +test-create-and-update-archives-prior-rev
+::
+::  after a single update, history has exactly one entry containing
+::
 ::  the prior body. The archive's rev is the rev the snapshot was at (0).
 ::
 ++  test-create-and-update-archives-prior-rev
@@ -999,7 +1106,7 @@
   ?.  =(`(list @ud)`~[0] revs)
     |+~[(crip "expected revs=[0], got {<revs>}")]
   &+[~ s]
-::  ====  test-multiple-updates-newest-first  ====
+::  +test-multiple-updates-newest-first
 ::
 ++  test-multiple-updates-newest-first
   %-  eval-mare
@@ -1024,7 +1131,7 @@
   ?.  =(`(list @ud)`~[2 1 0] revs)
     |+~[(crip "expected revs=[2 1 0], got {<revs>}")]
   &+[~ s]
-::  ====  test-noop-update-does-not-archive  ====
+::  +test-noop-update-does-not-archive
 ::
 ++  test-noop-update-does-not-archive
   %-  eval-mare
@@ -1038,8 +1145,10 @@
   ;<  *  b  (poke-a [%notebook f [%create-note 2 'Note' 'same']])
   ;<  *  b  (poke-a [%notebook f [%note 3 [%update 'same' 0]]])
   (ex-history-len f 3 0)
-::  ====  test-restore-via-update-archives-current  ====
+::  +test-restore-via-update-archives-current
+::
 ::  "Restore" is an update with old content. After restoring 'v1' from
+::
 ::  a v3 note, history has [v3, v2, v1].
 ::
 ++  test-restore-via-update-archives-current
@@ -1062,8 +1171,10 @@
   ?.  =(['v3' 'v2' 'v1' ~] bodies)
     |+~[(crip "expected ['v3' 'v2' 'v1'], got {<bodies>}")]
   &+[~ s]
-::  ====  test-rename-does-not-bump-revision  ====
+::  +test-rename-does-not-bump-revision
+::
 ::  rename-note must not bump the body-md revision counter, otherwise an
+::
 ::  autoSave sequence that fires update-note then rename-note silently
 ::  desyncs the client's expected-revision from the server's actual rev,
 ::  causing later saves to fail with revision-mismatch and lose work.
@@ -1090,7 +1201,7 @@
   ?.  =(revision.nt-val 1)
     |+~[(crip "expected rev=1 after update+rename, got rev={<revision.nt-val>}")]
   &+[~ s]
-::  ====  test-history-empty-on-fresh-note  ====
+::  +test-history-empty-on-fresh-note
 ::
 ++  test-history-empty-on-fresh-note
   %-  eval-mare
@@ -1103,7 +1214,8 @@
   =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
   ;<  *  b  (poke-a [%notebook f [%create-note 2 'Note' 'body']])
   (ex-history-len f 3 0)
-::  ====  test-restore-action  ====
+::  +test-restore-action
+::
 ::  %restore looks up the archived body at rev=0 and re-applies it.
 ::
 ++  test-restore-action
@@ -1123,8 +1235,10 @@
   ;<  ~  b  (ex-cards-ne caz)
   ::  history should now have 3 entries (v1, v2, v3 archived)
   (ex-history-len f 3 3)
-::  ====  test-accept-invite  ====
-::  Seed a state-14 with an invite for a remote flag; accept clears the
+::  +test-accept-invite
+::
+::  seed a state-14 with an invite for a remote flag; accept clears the
+::
 ::  invite and emits a join-remote card.
 ::
 ++  test-accept-invite
@@ -1149,7 +1263,7 @@
   ?.  =(~ invites.s14-after)
     |+['expected empty invites map after accept-invite']~
   &+[~ s]
-::  ====  test-decline-invite  ====
+::  +test-decline-invite
 ::
 ++  test-decline-invite
   %-  eval-mare
@@ -1170,8 +1284,10 @@
   ?.  =(~ invites.s14-after)
     |+['expected empty invites map after decline-invite']~
   &+[~ s]
-::  ====  test-migrate-state-14-to-15  ====
+::  +test-migrate-state-14-to-15
+::
 ::  A state-14 save (carried rid-counter) must load through the 14→15
+::
 ::  migration, which drops rid-counter and preserves every other field.
 ::
 ++  test-migrate-state-14-to-15
@@ -1197,7 +1313,8 @@
   ?.  =(`'0v1.abc' api-key.s15)
     |+['expected api-key preserved across 14→15 migration']~
   &+[~ s2]
-::  ====  JSON wire-format tests  ============================================
+::  json wire-format tests
+::
 ::  These hit notes-json directly without booting the agent. They guard the
 ::  UI ↔ agent contract (field names, nesting, envelope shape).
 ::
@@ -1207,7 +1324,7 @@
 ++  mk-num  |=(n=@ud (numb:enjs:format n))
 ++  mk-arr  |=(items=(list json) [%a items])
 ++  mk-obj  |=(kvs=(list [@t json]) (pairs:enjs:format kvs))
-::  ====  test-json-decode-create-notebook  ====
+::  +test-json-decode-create-notebook
 ::
 ++  test-json-decode-create-notebook
   %-  eval-mare
@@ -1221,7 +1338,7 @@
   =/  parsed=action:n  (action:dejs:notes-json jon)
   =/  expected=action:n  [%create-notebook 'My Book']
   (ex-equal !>(parsed) !>(expected))
-::  ====  test-json-decode-join  ====
+::  +test-json-decode-join
 ::
 ++  test-json-decode-join
   %-  eval-mare
@@ -1236,7 +1353,7 @@
   =/  parsed=action:n  (action:dejs:notes-json jon)
   =/  expected=action:n  [%join [~zod %foo]]
   (ex-equal !>(parsed) !>(expected))
-::  ====  test-json-decode-accept-invite  ====
+::  +test-json-decode-accept-invite
 ::
 ++  test-json-decode-accept-invite
   %-  eval-mare
@@ -1257,7 +1374,7 @@
 ::  decode test for notify-invite here. The cross-ship-invite Playwright
 ::  spec exercises the round-trip end-to-end.
 ::
-::  ====  test-json-decode-notebook-rename  ====
+::  +test-json-decode-notebook-rename
 ::
 ++  test-json-decode-notebook-rename
   %-  eval-mare
@@ -1277,8 +1394,9 @@
   =/  parsed=action:n  (action:dejs:notes-json jon)
   =/  expected=action:n  [%notebook [~zod %foo] [%rename 'New Name']]
   (ex-equal !>(parsed) !>(expected))
-::  ====  test-json-decode-folder-rename-nested  ====
-::  Three-level nesting: notebook → folder id → folder action.
+::  +test-json-decode-folder-rename-nested
+::
+::  three-level nesting: notebook → folder id → folder action.
 ::
 ++  test-json-decode-folder-rename-nested
   %-  eval-mare
@@ -1305,7 +1423,7 @@
   =/  expected=action:n
     [%notebook [~zod %foo] [%folder 7 [%rename 'docs']]]
   (ex-equal !>(parsed) !>(expected))
-::  ====  test-json-decode-note-update-nested  ====
+::  +test-json-decode-note-update-nested
 ::
 ++  test-json-decode-note-update-nested
   %-  eval-mare
@@ -1333,8 +1451,9 @@
   =/  expected=action:n
     [%notebook [~zod %foo] [%note 12 [%update '# Hello' 3]]]
   (ex-equal !>(parsed) !>(expected))
-::  ====  test-json-decode-batch-import-flat  ====
-::  Notes use `body` (not `bodyMd`) on the wire.
+::  +test-json-decode-batch-import-flat
+::
+::  notes use `body` (not `bodyMd`) on the wire.
 ::
 ++  test-json-decode-batch-import-flat
   %-  eval-mare
@@ -1366,8 +1485,11 @@
         ==
     ==
   (ex-equal !>(parsed) !>(expected))
-::  ====  test-json-decode-batch-import-tree  ====
-::  REGRESSION: tree note nodes use `body` (not `bodyMd`). Bug shipped briefly
+::  +test-json-decode-batch-import-tree
+::
+::  REGRESSION: tree note nodes use `body` (not `bodyMd`). Bug shipped
+::  briefly
+::
 ::  where the tree builder sent bodyMd while the decoder expected body.
 ::
 ++  test-json-decode-batch-import-tree
@@ -1403,8 +1525,10 @@
         ==
     ==
   (ex-equal !>(parsed) !>(expected))
-::  ====  test-json-decode-create-folder-no-parent  ====
+::  +test-json-decode-create-folder-no-parent
+::
 ::  parent is required; a create-folder without it must fail to decode
+::
 ::  (the HTTP boundary turns that into a 400) rather than silently
 ::  defaulting a parent.
 ::
@@ -1428,7 +1552,7 @@
   ?:  ?=(%& -.res)
     |+['expected create-folder decode to fail without parent']~
   &+[~ s2]
-::  ====  test-json-decode-create-folder-with-parent  ====
+::  +test-json-decode-create-folder-with-parent
 ::
 ++  test-json-decode-create-folder-with-parent
   %-  eval-mare
@@ -1450,10 +1574,13 @@
   =/  expected=action:n
     [%notebook [~zod %foo] [%create-folder 2 'subdir']]
   (ex-equal !>(parsed) !>(expected))
-::  ====  v1 / request-id surface tests  ====================================
+::  v1 / request-id surface tests
 ::
-::  ====  test-v1-create-notebook-returns-summary  ====
-::  Top-level v1 %create-notebook: the request must finalize with a
+::
+::  +test-v1-create-notebook-returns-summary
+::
+::  top-level v1 %create-notebook: the request must finalize with a
+::
 ::  %notebook body carrying the new notebook's flag + metadata, so a
 ::  caller learns the slugified flag without re-scrying.
 ::
@@ -1484,8 +1611,10 @@
   ?.  (~(has by books.s) f)
     |+['expected notebook to be created via v1 poke']~
   &+[~ s2]
-::  ====  test-v1-post-omitted-requestid-mints-one  ====
+::  +test-v1-post-omitted-requestid-mints-one
+::
 ::  A POST with no requestId (common for LLM tool-callers) must NOT 500
+::
 ::  — the server mints one, creates the notebook, returns 200.
 ::
 ++  test-v1-post-omitted-requestid-mints-one
@@ -1512,7 +1641,41 @@
   ?.  (~(has by books.s) f)
     |+['notebook not created from requestId-less POST']~
   &+[~ s2]
-::  ====  test-v1-post-garbage-requestid-no-500  ====
+::  +test-v1-requests-evicted-on-next-post
+::
+::  Terminated request records are evicted lazily when the next HTTP
+::  request registers — no cleanup timer involved.
+::
+++  test-v1-requests-evicted-on-next-post
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  sv0=vase  b  get-save
+  =/  s0=state-15:n  !<(state-15:n sv0)
+  =/  key=@t  ?~(api-key.s0 '' u.api-key.s0)
+  =/  body1=@t
+    '{"requestId":"0v1","action":{"type":"create-notebook","title":"One"}}'
+  ;<  *  b  (http-post-v1 ~[['x-api-key' key]] body1)
+  ;<  sv1=vase  b  get-save
+  =/  s1=state-15:n  !<(state-15:n sv1)
+  ;<  *  b  (jab-bowl |=(bw=bowl bw(now (add now.bw ~d2))))
+  ::  the next registration sweeps — via the first-class REST write
+  ::  path, which registers directly like the generic POST does
+  ;<  *  b
+    (http-req-v1 %'POST' ~[['x-api-key' key]] '/notes/~/v1/notebooks' '{"title":"Two"}')
+  ;<  sv2=vase  b  get-save
+  =/  s2=state-15:n  !<(state-15:n sv2)
+  |=  s=state
+  ?~  api-key.s0  |+['no api-key after init']~
+  ?.  (~(has by requests.s1) `@uv`0v1)
+    |+['expected first request recorded']~
+  ?:  (~(has by requests.s2) `@uv`0v1)
+    |+['expected stale request evicted on next registration']~
+  &+[~ s]
+::  +test-v1-post-garbage-requestid-no-500
+::
 ::  A non-@uv requestId must be tolerated (server mints), not crash.
 ::
 ++  test-v1-post-garbage-requestid-no-500
@@ -1539,7 +1702,8 @@
   ?.  (~(has by books.s) f)
     |+['notebook not created from garbage-requestId POST']~
   &+[~ s2]
-::  ====  test-rest-create-notebook  ====
+::  +test-rest-create-notebook
+::
 ::  POST /notes/~/v1/notebooks {title} → 200 + notebook created.
 ::
 ++  test-rest-create-notebook
@@ -1564,8 +1728,10 @@
   ?.  (~(has by books.s) f)
     |+['notebook not created via REST POST']~
   &+[~ s2]
-::  ====  test-rest-create-update-delete-note  ====
-::  Full note lifecycle through the first-class endpoints (state-asserted;
+::  +test-rest-create-update-delete-note
+::
+::  full note lifecycle through the first-class endpoints (state-asserted;
+::
 ::  the held-open HTTP response doesn't finalize in test-agent since fact
 ::  delivery isn't simulated, but the drained self-poke mutates state).
 ::
@@ -1613,8 +1779,10 @@
   ?:  (~(has by notes.notebook-state.u.entry-d) 3)
     |+['note still present after DELETE']~
   &+[~ s2]
-::  ====  test-rest-put-folder-rename-and-move  ====
+::  +test-rest-put-folder-rename-and-move
+::
 ::  PUT /folders/{id} with both name and parent applies both changes
+::
 ::  in one update. Setup: notebook 1, root 2; create sub-A=3 under root,
 ::  sub-B=4 under root; PUT folder 3 with new name + new parent=4. Expect
 ::  folder 3 to be renamed and re-parented under 4.
@@ -1649,8 +1817,10 @@
   ?.  =(`4 parent-folder-id.u.fld)
     |+~[(crip "PUT didn't move: parent={<parent-folder-id.u.fld>}")]
   &+[~ s2]
-::  ====  test-rest-put-note-rename-and-move  ====
+::  +test-rest-put-note-rename-and-move
+::
 ::  PUT /notes/{id} with title + folder (no body) renames and moves the
+::
 ::  note in one atomic edit. Setup: notebook 1, root 2, sub=3 under root,
 ::  note=4 under root. PUT note 4 → new title + parent 3.
 ::
@@ -1684,8 +1854,10 @@
   ?.  =(3 folder-id.u.note)
     |+~[(crip "PUT didn't move: folder={<folder-id.u.note>}")]
   &+[~ s2]
-::  ====  test-rest-delete-folder-recursive  ====
+::  +test-rest-delete-folder-recursive
+::
 ::  DELETE /folders/{id}?recursive=true removes folder + descendants.
+::
 ::  Setup: A=3 under root, leaf=4 under A. DELETE A with ?recursive=true.
 ::
 ++  test-rest-delete-folder-recursive
@@ -1715,7 +1887,8 @@
   ?:  (~(has by folders.notebook-state.u.entry) 4)
     |+['leaf folder still present after recursive DELETE']~
   &+[~ s2]
-::  ====  test-v1-regenerate-returns-key  ====
+::  +test-v1-regenerate-returns-key
+::
 ::  %regenerate-api-key must finalize with the new key in an %api-key body.
 ::
 ++  test-v1-regenerate-returns-key
@@ -1740,8 +1913,10 @@
   ?.  =(key.u.result.u.req api-key.s)
     |+['response key does not match stored key']~
   &+[~ s2]
-::  ====  test-v1-read-notebooks  ====
+::  +test-v1-read-notebooks
+::
 ::  GET /notes/~/v1/notebooks with a matching X-Api-Key returns 200 +
+::
 ::  a JSON array of notebook summaries.
 ::
 ++  test-v1-read-notebooks
@@ -1763,7 +1938,8 @@
   ?.  =(st `200)
     |+~[(crip "expected 200 from notebooks read, got {<st>}")]
   &+[~ s2]
-::  ====  test-v1-read-requires-auth  ====
+::  +test-v1-read-requires-auth
+::
 ::  GET read endpoints reject unauthenticated callers.
 ::
 ++  test-v1-read-requires-auth
@@ -1791,8 +1967,10 @@
   ?.  =((http-status caz) `200)
     |+~[(crip "GET {(trip url)} expected 200, got {<(http-status caz)>}")]
   &+[~ s]
-::  ====  test-v1-read-all-endpoints  ====
-::  Exercises every GET read shape (+ POST folders write) in one go. A
+::  +test-v1-read-all-endpoints
+::
+::  exercises every GET read shape (+ POST folders write) in one go. A
+::
 ::  notebook (id 1, root folder 2), a note (id 3) and a sub-folder (id 4)
 ::  are set up, then each read endpoint must 200.
 ::
@@ -1833,8 +2011,10 @@
   ?.  (~(has by folders.notebook-state.u.entry) 4)
     |+['POST .../folders did not create the sub-folder']~
   &+[~ s2]
-::  ====  test-rest-write-requires-auth  ====
-::  Write endpoints reject unauthenticated callers — POST /notebooks with
+::  +test-rest-write-requires-auth
+::
+::  write endpoints reject unauthenticated callers — POST /notebooks with
+::
 ::  no cookie/key → 401 and no notebook created.
 ::
 ++  test-rest-write-requires-auth
@@ -1855,8 +2035,10 @@
   ?:  (~(has by books.s) f)
     |+['unauthorized write created a notebook']~
   &+[~ s2]
-::  ====  test-v1-notebook-action-emits-cards  ====
-::  Notebook-scoped v1 action routes through no-action-v1: must emit a host
+::  +test-v1-notebook-action-emits-cards
+::
+::  notebook-scoped v1 action routes through no-action-v1: must emit a host
+::
 ::  %watch on the per-request path, a %poke with notes-command-1, and a behn
 ::  %wait for the per-request timeout.
 ::
@@ -1885,8 +2067,10 @@
   ?.  (has-wait-on-wire caz exp-wait-wire)
     |+~[(crip "v1: missing behn wait on {<exp-wait-wire>}")]
   &+[~ s]
-::  ====  test-v1-command-emits-response-update-fact  ====
-::  Host-side: poke notes-command-1 from owner; expect se-emit-final-response
+::  +test-v1-command-emits-response-update-fact
+::
+::  host-side: poke notes-command-1 from owner; expect se-emit-final-response
+::
 ::  to give a %fact with mark notes-response-update-1. (Path scoping by src
 ::  is covered in app code, not asserted here — keeps the test resilient to
 ::  internal path tweaks.)
@@ -1907,8 +2091,9 @@
   ?.  (has-fact-mark caz %notes-response-update-1)
     |+['v1: missing notes-response-update-1 fact after command']~
   &+[~ s]
-::  ====  test-v1-action-json-decode  ====
-::  Parse a JSON v1 action and assert request-id + nested a-notes decode.
+::  +test-v1-action-json-decode
+::
+::  parse a JSON v1 action and assert request-id + nested a-notes decode.
 ::
 ++  test-v1-action-json-decode
   %-  eval-mare
@@ -1928,10 +2113,12 @@
   ?.  =(title.a-notes.act 'From JSON')
     |+['expected title preserved through v1 json decode']~
   &+[~ s]
-::  ====  X-Api-Key auth tests  ============================================
+::  x-api-key auth tests
 ::
-::  ====  test-api-key-minted-on-init  ====
-::  Fresh install should populate api-key so the bypass is usable.
+::
+::  +test-api-key-minted-on-init
+::
+::  fresh install should populate api-key so the bypass is usable.
 ::
 ++  test-api-key-minted-on-init
   %-  eval-mare
@@ -1945,7 +2132,8 @@
   ?~  api-key.s
     |+['expected api-key generated on init']~
   &+[~ s2]
-::  ====  test-api-key-regenerate-changes-value  ====
+::  +test-api-key-regenerate-changes-value
+::
 ::  %regenerate-api-key should replace the stored key with a fresh one.
 ::
 ++  test-api-key-regenerate-changes-value
@@ -1970,8 +2158,10 @@
   ?:  =(u.old-key u.api-key.s2)
     |+['api-key unchanged after regenerate']~
   &+[~ s3]
-::  ====  test-register-mcp-emits-cards  ====
+::  +test-register-mcp-emits-cards
+::
 ::  %register-mcp emits two pokes at [%mcp-proxy our] carrying the
+::
 ::  mcp-proxy-action mark: first %add-server, then %refresh-spec.
 ::  Mints the api-key on the way through if missing.
 ::
@@ -1992,7 +2182,7 @@
   ?.  ?=(^ api-key.s)
     |+['api-key not minted by register-mcp']~
   &+[~ s2]
-::  ====  test-api-key-clear-disables-bypass  ====
+::  +test-api-key-clear-disables-bypass
 ::
 ++  test-api-key-clear-disables-bypass
   %-  eval-mare
@@ -2007,8 +2197,10 @@
   ?^  api-key.s
     |+['expected api-key cleared']~
   &+[~ s2]
-::  ====  test-x-api-key-bypasses-cookie  ====
+::  +test-x-api-key-bypasses-cookie
+::
 ::  POST without eyre auth but with the matching X-Api-Key creates the
+::
 ::  notebook end-to-end.
 ::
 ++  test-x-api-key-bypasses-cookie
@@ -2035,8 +2227,10 @@
   ?.  (~(has by books.s2) f)
     |+['expected notebook created via X-Api-Key auth']~
   &+[~ s3]
-::  ====  test-x-api-key-wrong-rejects  ====
+::  +test-x-api-key-wrong-rejects
+::
 ::  POST with a non-matching X-Api-Key must NOT apply the action. We
+::
 ::  rely on state inspection rather than http-response status extraction
 ::  since the agent emits the 401 as %give cards and the assert is the
 ::  same either way (action didn't take).
@@ -2057,8 +2251,10 @@
   ?:  (~(has by books.s) f)
     |+['unauthorized request created a notebook']~
   &+[~ s2]
-::  ====  test-v1-get-request-requires-auth  ====
+::  +test-v1-get-request-requires-auth
+::
 ::  GET /notes/~/v1/request/<uv> must NOT return a request's body to an
+::
 ::  unauthenticated caller. The request-id is not a capability.
 ::
 ++  test-v1-get-request-requires-auth
@@ -2080,8 +2276,10 @@
   ?.  =(u.st 401)
     |+~[(crip "unexpected GET status {<u.st>}, want 401")]
   &+[~ s]
-::  ====  test-v1-get-request-honors-api-key  ====
+::  +test-v1-get-request-honors-api-key
+::
 ::  GET with a matching X-Api-Key must succeed (200) — sanity check
+::
 ::  that the auth gate isn't blocking the legitimate poll path.
 ::
 ++  test-v1-get-request-honors-api-key
@@ -2106,8 +2304,10 @@
   ?.  =(u.st 200)
     |+~[(crip "expected 200 with valid api-key, got {<u.st>}")]
   &+[~ s2]
-::  ====  test-failed-join-cleans-up-placeholder  ====
-::  Pre-join writes a placeholder to books before sending the v1 request.
+::  +test-failed-join-cleans-up-placeholder
+::
+::  pre-join writes a placeholder to books before sending the v1 request.
+::
 ::  If the host nacks the poke, the placeholder must be rolled back so
 ::  the user isn't stuck with a ghost notebook they can't re-join.
 ::
@@ -2143,10 +2343,12 @@
   ?:  (~(has by books.s2) remote-flag)
     |+['placeholder not cleaned up after failed join']~
   &+[~ s3]
-::  ====  JSON encoder tests  ===============================================
+::  json encoder tests
 ::
-::  ====  test-json-encode-snapshot-carries-visibility  ====
-::  Regression: snapshot must include visibility so subscribers can seed it.
+::
+::  +test-json-encode-snapshot-carries-visibility
+::
+::  regression: snapshot must include visibility so subscribers can seed it.
 ::
 ++  test-json-encode-snapshot-carries-visibility
   %-  eval-mare
@@ -2164,5 +2366,1051 @@
   ?~  vis
     |+['snapshot missing visibility field']~
   &+[~ s]
+::  +activity-actions: extract the activity actions poked at %activity
+::  from a card list, in emission order.
 ::
+++  activity-actions
+  |=  caz=(list card)
+  ^-  (list action:v10:av)
+  %+  murn  caz
+  |=  =card
+  ^-  (unit action:v10:av)
+  ?.  ?=([%pass * %agent * %poke *] card)  ~
+  ?.  =(%activity name.q.card)  ~
+  ?.  =(%activity-action-2 p.cage.task.q.card)  ~
+  `!<(action:v10:av q.cage.task.q.card)
+::  +edit-timer-wires: extract the %note-edit debounce timer wires from a
+::  card list, in emission order.
+::
+++  edit-timer-wires
+  |=  caz=(list card)
+  ^-  (list wire)
+  %+  murn  caz
+  |=  =card
+  ^-  (unit wire)
+  ?.  ?=([%pass * %arvo %b %wait *] card)  ~
+  ?.  ?=([%activity %edit *] p.card)  ~
+  `p.card
+::  +setup-shared-notebook: zod hosts a public notebook, ~bus joins as
+::  %editor. Returns the notebook flag. Sets the activity-running gate.
+::
+++  setup-shared-notebook
+  =/  m  (mare ,flag:n)
+  ^-  form:m
+  =*  b  bind:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  *  b  (poke-a [%notebook f [%visibility %public]])
+  ;<  *  b  (set-src ~bus)
+  ;<  *  b
+    %+  do-poke-drain  %notes-command-1
+    !>(`command:v1:n`[`@uv`0v1 [%notebook f [%member-join ~]]])
+  (pure:m f)
+::  creation is debounced like edits; an untouched note's timer submits
+::  %note-create for the creating author
+::
+++  test-activity-note-create-submits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  setup-shared-notebook
+  ;<  *  b  (set-src ~bus)
+  ;<  caz=(list card)  b
+    %+  do-poke-drain  %notes-command-1
+    !>(`command:v1:n`[`@uv`0v2 [%notebook f [%create-note 2 'T' 'B']]])
+  =/  acts  (activity-actions caz)
+  =/  timers  (edit-timer-wires caz)
+  ;<  caz2=(list card)  b  (do-arvo (snag 0 timers) [%behn %wake ~])
+  =/  acts2  (activity-actions caz2)
+  |=  s=state
+  ?.  =(~ acts)
+    |+['expected creation to submit nothing immediately']~
+  ?.  =(1 (lent timers))
+    |+['expected creation to arm a debounce timer']~
+  ?.  =(1 (lent acts2))
+    |+['expected the timer to submit one action']~
+  =/  act  (snag 0 acts2)
+  ?.  ?=(%add -.act)
+    |+['expected an %add submission']~
+  =/  ev  incoming-event.act
+  ?.  ?=(%note-create -.ev)
+    |+['expected a %note-create event']~
+  ?.  =(~bus author.ev)
+    |+['expected event author ~bus']~
+  ?.  =('T' title.ev)
+    |+['expected event title from the note']~
+  ?.  =([ship.f name.f] notebook.ev)
+    |+['expected event notebook flag']~
+  &+[~ s]
+::  self-authored changes don't notify, they just bump the notebook's
+::  recency — immediately, since a bump adds no event and can't notify
+::
+++  test-activity-self-note-bumps
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%create-note 2 'T' 'B']])
+  ;<  caz2=(list card)  b
+    (poke-a [%notebook f [%note 3 [%update 'B2' 0]]])
+  =/  acts  (weld (activity-actions caz) (activity-actions caz2))
+  =/  timers  (weld (edit-timer-wires caz) (edit-timer-wires caz2))
+  |=  s=state
+  ?.  =(2 (lent acts))
+    |+['expected a bump for each self-authored change']~
+  ?.  =(~ timers)
+    |+['expected no debounce timers for self-authored changes']~
+  |-
+  ?~  acts  &+[~ s]
+  =/  act  i.acts
+  ?.  ?=(%bump -.act)
+    |+['expected self-authored changes to submit a %bump']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected the bump to name the notebook source']~
+  ?.  =([ship.f name.f] flag.source.act)
+    |+['expected the bumped notebook flag']~
+  ?.  =(~ group.source.act)
+    |+['expected no group on a solo notebook source']~
+  $(acts t.acts)
+::  creating a notebook gives it an %activity source right away, so its
+::  notes have a parent to hang off and roll their unreads up into
+::
+++  test-activity-notebook-create-inits-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  caz=(list card)  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  =/  acts  (activity-actions caz)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected exactly one activity submission on notebook create']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%bump -.act)
+    |+['expected a %bump to init the notebook source']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected the bump to name the notebook source']~
+  ?.  =([ship.f name.f] flag.source.act)
+    |+['expected the created notebook flag']~
+  &+[~ s]
+::  joining someone else's notebook inits its source too — the snapshot is
+::  the first point the group (and so the source) is known
+::
+++  test-activity-join-inits-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  ~  b  (set-scry-gate activity-scry)
+  =/  f=flag:n  [~bus %shared]
+  ;<  caz0=(list card)  b  (poke-a [%join f])
+  =/  req-watch=(unit wire)  (find-watch-wire caz0)
+  ~|  %no-join-request-watch-wire
+  ?>  ?=(^ req-watch)
+  ;<  *  b
+    %+  do-agent-drain  u.req-watch
+    :-  [~bus %notes]
+    :+  %fact  %notes-response-update-1
+    !>(`response-update:v1:n`[`@uv`0v0 [%ok *@da [%member-joined ~zod %viewer]]])
+  =/  nb=notebook:n  [1 'NB' ~bus *@da *@da ~bus]
+  =/  root=folder:n  [1 1 'root' ~ ~bus *@da *@da ~bus]
+  =/  nb-state=notebook-state:n
+    :*  nb
+        (~(gas by *members:n) ~[[~bus %owner] [~zod %viewer]])
+        %public
+        (~(gas by *(map @ud folder:n)) ~[[1 root]])
+        ~  ~  ~
+    ==
+  =/  =response:n  [%snapshot f %public nb-state]
+  ;<  caz=(list card)  b
+    %+  do-agent  /notes/sub/(scot %p ~bus)/shared
+    [[~bus %notes] [%fact %notes-response !>(response)]]
+  ::  a rewatch re-sends the same snapshot; it must not bump again
+  ;<  caz2=(list card)  b
+    %+  do-agent  /notes/sub/(scot %p ~bus)/shared
+    [[~bus %notes] [%fact %notes-response !>(response)]]
+  =/  acts  (activity-actions caz)
+  =/  acts2  (activity-actions caz2)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected exactly one activity submission on join snapshot']~
+  ?.  =(~ acts2)
+    |+['expected no activity submission on a resubscribe snapshot']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%bump -.act)
+    |+['expected a %bump to init the joined notebook source']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected the bump to name the notebook source']~
+  ?.  =([ship.f name.f] flag.source.act)
+    |+['expected the joined notebook flag']~
+  &+[~ s]
+::  a batch import calls +se-update per note; the redundant per-note bumps
+::  collapse into one for the whole event
+::
+++  test-activity-batch-import-bumps-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  caz=(list card)  b
+    %^  poke-a  %notebook  f
+    :-  %batch-import
+    [2 ~[['A' 'a'] ['B' 'b'] ['C' 'c']]]
+  =/  acts  (activity-actions caz)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected one bump for the whole import, not one per note']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%bump -.act)
+    |+['expected the import to submit a %bump']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected the bump to name the notebook source']~
+  &+[~ s]
+::  changes don't submit immediately: each one (re)arms a debounce timer,
+::  and only the timer armed against the note's latest change submits
+::  when it fires — stale timers (including the creation's, when edits
+::  follow within the window) no-op, and the surviving event is a single
+::  %note-edit
+::
+++  test-activity-edit-debounces
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  setup-shared-notebook
+  ;<  *  b  (set-src ~bus)
+  ;<  caz0=(list card)  b
+    %+  do-poke-drain  %notes-command-1
+    !>(`command:v1:n`[`@uv`0v2 [%notebook f [%create-note 2 'T' 'B']]])
+  ;<  *  b  (jab-bowl |=(bl=bowl bl(now (add now.bl ~s30))))
+  ;<  *  b  (set-src ~bus)
+  ;<  caz1=(list card)  b
+    %+  do-poke-drain  %notes-command-1
+    !>(`command:v1:n`[`@uv`0v3 [%notebook f [%note 3 [%update 'B2' 0]]]])
+  ;<  *  b  (jab-bowl |=(bl=bowl bl(now (add now.bl ~s30))))
+  ;<  *  b  (set-src ~bus)
+  ;<  caz2=(list card)  b
+    %+  do-poke-drain  %notes-command-1
+    !>(`command:v1:n`[`@uv`0v4 [%notebook f [%note 3 [%update 'B3' 1]]]])
+  =/  acts1  (activity-actions caz1)
+  =/  acts2  (activity-actions caz2)
+  =/  timers0  (edit-timer-wires caz0)
+  =/  timers1  (edit-timer-wires caz1)
+  =/  timers2  (edit-timer-wires caz2)
+  ::  the creation's and first edit's timers are stale (a later change
+  ::  re-armed the window)
+  ;<  caz3=(list card)  b  (do-arvo (snag 0 timers0) [%behn %wake ~])
+  ;<  caz4=(list card)  b  (do-arvo (snag 0 timers1) [%behn %wake ~])
+  ::  the second edit's timer is live and submits
+  ;<  caz5=(list card)  b  (do-arvo (snag 0 timers2) [%behn %wake ~])
+  =/  acts3  (activity-actions caz3)
+  =/  acts4  (activity-actions caz4)
+  =/  acts5  (activity-actions caz5)
+  |=  s=state
+  ?.  &(=(~ acts1) =(~ acts2))
+    |+['expected edits to submit nothing immediately']~
+  ?.  &(=(1 (lent timers0)) =(1 (lent timers1)) =(1 (lent timers2)))
+    |+['expected each change to arm a debounce timer']~
+  ?:  =((snag 0 timers1) (snag 0 timers2))
+    |+['expected distinct timer wires per edit']~
+  ?.  &(=(~ acts3) =(~ acts4))
+    |+['expected stale timers to submit nothing']~
+  ?.  =(1 (lent acts5))
+    |+['expected the live timer to submit one action']~
+  =/  a5  (snag 0 acts5)
+  ?.  ?=(%add -.a5)
+    |+['expected the live timer to submit an %add']~
+  =/  ev  incoming-event.a5
+  ?.  ?=(%note-edit -.ev)
+    |+['expected the collapsed event to be a %note-edit']~
+  ?.  =(~bus author.ev)
+    |+['expected event author ~bus']~
+  &+[~ s]
+::  deleting a note drops its activity source, even when self-authored
+::
+++  test-activity-delete-note-dels-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  *  b  (poke-a [%notebook f [%create-note 2 'T' 'B']])
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%note 3 [%delete ~]]])
+  =/  acts  (activity-actions caz)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected exactly one activity submission on delete']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%del -.act)
+    |+['expected a %del submission']~
+  ?.  ?=(%note -.source.act)
+    |+['expected %del of a note source']~
+  ?.  =(3 id.source.act)
+    |+['expected the deleted note id in the source']~
+  &+[~ s]
+::  deleting the whole notebook drops the notebook source
+::
+++  test-activity-notebook-delete-dels-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%delete ~]])
+  =/  acts  (activity-actions caz)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected exactly one activity submission on delete']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%del -.act)
+    |+['expected a %del submission']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected %del of the notebook source']~
+  &+[~ s]
+::  a subscriber receiving %folder %deleted mirrors the host's recursive
+::  subtree removal and %dels the removed notes' activity sources — the
+::  wire update only names the folder
+::
+++  test-activity-subscriber-folder-delete-clears-notes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  ~  b  (set-scry-gate activity-scry)
+  =/  f=flag:n  [~bus %shared]
+  ::  join creates the %sub placeholder book and a request watch on the
+  ::  host; the %ok response makes the agent start its stream watch
+  ;<  caz0=(list card)  b  (poke-a [%join f])
+  =/  req-watch=(unit wire)  (find-watch-wire caz0)
+  ~|  %no-join-request-watch-wire
+  ?>  ?=(^ req-watch)
+  ;<  *  b
+    %+  do-agent-drain  u.req-watch
+    :-  [~bus %notes]
+    :+  %fact  %notes-response-update-1
+    !>(`response-update:v1:n`[`@uv`0v0 [%ok *@da [%member-joined ~zod %viewer]]])
+  ::  host snapshot: root folder 1 with note 4, subfolder 2 with note 5,
+  ::  and nested subfolder 3 (inside 2) with note 6 — deleting folder 2
+  ::  must take the whole subtree with it
+  =/  root=folder:n    [1 1 'root' ~ ~bus *@da *@da ~bus]
+  =/  subf=folder:n    [2 1 'sub' `1 ~bus *@da *@da ~bus]
+  =/  nested=folder:n  [3 1 'nested' `2 ~bus *@da *@da ~bus]
+  =/  kept=note:n      [4 1 1 'kept' ~ 'body' ~bus *@da ~bus *@da 0]
+  =/  doomed=note:n    [5 1 2 'doomed' ~ 'body' ~bus *@da ~bus *@da 0]
+  =/  buried=note:n    [6 1 3 'buried' ~ 'body' ~bus *@da ~bus *@da 0]
+  =/  nb=notebook:n    [1 'NB' ~bus *@da *@da ~bus]
+  =/  nb-state=notebook-state:n
+    :*  nb
+        (~(gas by *members:n) ~[[~bus %owner] [~zod %viewer]])
+        %public
+        (~(gas by *(map @ud folder:n)) ~[[1 root] [2 subf] [3 nested]])
+        (~(gas by *(map @ud note:n)) ~[[4 kept] [5 doomed] [6 buried]])
+        ~  ~
+    ==
+  =/  =wire  /notes/sub/(scot %p ~bus)/shared
+  ;<  *  b
+    %+  do-agent  wire
+    [[~bus %notes] [%fact %notes-response !>(`response:n`[%snapshot f %public nb-state])]]
+  ::  the host deletes the subfolder recursively
+  ;<  caz=(list card)  b
+    %+  do-agent  wire
+    :-  [~bus %notes]
+    [%fact %notes-response !>(`response:n`[%update f [*@da [%folder 2 [%deleted ~]]]])]
+  =/  acts  (activity-actions caz)
+  ;<  sv=vase  b  get-save
+  =/  s15=state-15:n  !<(state-15:n sv)
+  =/  [net:n nbs=notebook-state:n]  (~(got by books.s15) f)
+  |=  s=state
+  ?.  =(2 (lent acts))
+    |+['expected one activity submission per removed note']~
+  =/  del-ids=(set @ud)
+    %-  silt
+    %+  murn  acts
+    |=  act=action:v10:av
+    ^-  (unit @ud)
+    ?.  ?=(%del -.act)  ~
+    ?.  ?=(%note -.source.act)  ~
+    `id.source.act
+  ?.  =((silt ~[5 6]) del-ids)
+    |+['expected %del of both subtree note sources']~
+  ?:  |((~(has by folders.nbs) 2) (~(has by folders.nbs) 3))
+    |+['subtree folders not removed from local state']~
+  ?.  (~(has by folders.nbs) 1)
+    |+['root folder should survive']~
+  ?:  |((~(has by notes.nbs) 5) (~(has by notes.nbs) 6))
+    |+['subtree notes not removed from local state']~
+  ?.  (~(has by notes.nbs) 4)
+    |+['root note should survive']~
+  &+[~ s]
+::  /v0/said: single-shot note reference previews
+::
+::  +said-watch-path: the client-facing watch path for a note preview
+::
+++  said-watch-path
+  |=  [f=flag:n nid=@ud]
+  ^-  path
+  /v0/said/(scot %p ship.f)/[name.f]/note/(scot %ud nid)
+::  +setup-said-notebook: notebook 'NB' + one note ('T' / body 'B', id 3)
+::
+++  setup-said-notebook
+  =/  m  (mare ,[f=flag:n =bowl:gall])
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m  (poke-a %create-notebook 'NB')
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' 'B'])
+  (pure:m f bowl)
+::  +test-said-host-answers-member
+::
+::  host answers its own /v0/said watch with the preview fact + kick
+::
+++  test-said-host-answers-member
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-notebook
+  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 3))
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~
+      [%notes-said !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'NB']])]
+      (ex-card [%give %kick ~ ~])
+  ==
+::  +test-said-private-denies-stranger
+::
+::  a non-member watching a private notebook's /v0/said gets %notes-denied
+::
+++  test-said-private-denies-stranger
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-notebook
+  ;<  caz=(list card)  bind:m
+    ((do-as ~bus) (do-watch (said-watch-path f 3)))
+  %+  ex-cards  caz
+  :~  (ex-fact ~ %notes-denied !>(~))
+      (ex-card [%give %kick ~ ~])
+  ==
+::  +test-said-public-answers-stranger
+::
+::  public notebooks preview for anyone, member or not
+::
+++  test-said-public-answers-stranger
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-notebook
+  ;<  *  bind:m  (poke-a %notebook f [%visibility %public])
+  ;<  caz=(list card)  bind:m
+    ((do-as ~bus) (do-watch (said-watch-path f 3)))
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~
+      [%notes-said !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'NB']])]
+      (ex-card [%give %kick ~ ~])
+  ==
+::  +test-said-missing-note-errors
+::
+::  a missing note for an authorized viewer is an error, not a denial
+::
+++  test-said-missing-note-errors
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-notebook
+  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 999))
+  %+  ex-cards  caz
+  :~  (ex-fact ~ %notes-error !>(~))
+      (ex-card [%give %kick ~ ~])
+  ==
+::  +test-said-proxies-and-relays
+::
+::  a watch for a notebook we don't hold proxies to the host; its fact
+::
+::  is relayed, subscribers kicked, and the upstream sub torn down
+::
+++  test-said-proxies-and-relays
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  =/  f=flag:n  [~bus %nb]
+  =/  pax=path  (said-watch-path f 1)
+  =/  =wire  /said/(scot %p ~bus)/nb/note/1
+  ;<  caz=(list card)  bind:m  (do-watch pax)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    ~[(ex-card [%pass wire %agent [~bus %notes] %watch pax])]
+  =/  sd=said:n  [f [1 'T' 'B' ~bus now.bowl 'NB']]
+  ;<  caz=(list card)  bind:m
+    (do-agent wire [~bus %notes] [%fact %notes-said !>(sd)])
+  %+  ex-cards  caz
+  :~  (ex-fact ~[pax] %notes-said !>(sd))
+      (ex-card [%give %kick ~[pax] ~])
+      (ex-card [%pass wire %agent [~bus %notes] %leave ~])
+  ==
+::  +test-said-nack-becomes-error
+::
+::  a nacked proxy watch is a host-side failure, surfaced as
+::
+::  %notes-error rather than a permission answer
+::
+++  test-said-nack-becomes-error
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  =/  f=flag:n  [~bus %nb]
+  =/  pax=path  (said-watch-path f 1)
+  =/  =wire  /said/(scot %p ~bus)/nb/note/1
+  ;<  *  bind:m  (do-watch pax)
+  ;<  caz=(list card)  bind:m
+    (do-agent wire [~bus %notes] [%watch-ack `~[leaf+"denied"]])
+  %+  ex-cards  caz
+  :~  (ex-fact ~[pax] %notes-error !>(~))
+      (ex-card [%give %kick ~[pax] ~])
+  ==
+::  +test-said-snippet-utf8-boundary: the byte cap never splits utf-8
+::
+::  the 400-byte cut lands two bytes into a 4-byte emoji; the snippet
+::  backs off to the last clean boundary
+::
+++  test-said-snippet-utf8-boundary
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m  (poke-a %create-notebook 'NB')
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  =/  fam=(list @c)
+    :~  `@c`0x1.f468  `@c`0x200d  `@c`0x1.f469  `@c`0x200d
+        `@c`0x1.f467  `@c`0x200d  `@c`0x1.f466
+    ==
+  =/  body=@t  (crip (weld (reap 398 'a') (tufa fam)))
+  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' body])
+  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 3))
+  =/  snip=@t  (crip (reap 398 'a'))
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~
+      [%notes-said !>(`said:n`[f [3 'T' snip our.bowl now.bowl 'NB']])]
+      (ex-card [%give %kick ~ ~])
+  ==
+::  +test-said-snippet-large-body: truncation is byte-bounded
+::
+++  test-said-snippet-large-body
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m  (poke-a %create-notebook 'NB')
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  =/  body=@t  (crip (weld (reap 400 'a') (reap 10.000 'b')))
+  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' body])
+  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 3))
+  =/  snip=@t  (crip (reap 400 'a'))
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~
+      [%notes-said !>(`said:n`[f [3 'T' snip our.bowl now.bowl 'NB']])]
+      (ex-card [%give %kick ~ ~])
+  ==
+::  +test-said-snippet-splits-clusters: documented limitation
+::
+::  the byte cut can land between codepoints of a zwj family; the
+::  result is valid utf-8 with a shortened cluster (the man survives,
+::  the family doesn't)
+::
+++  test-said-snippet-splits-clusters
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m  (poke-a %create-notebook 'NB')
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  =/  fam=(list @c)
+    :~  `@c`0x1.f468  `@c`0x200d  `@c`0x1.f469  `@c`0x200d
+        `@c`0x1.f467  `@c`0x200d  `@c`0x1.f466
+    ==
+  =/  body=@t  (crip (weld (reap 395 'a') (tufa fam)))
+  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' body])
+  ;<  caz=(list card)  bind:m  (do-watch (said-watch-path f 3))
+  =/  snip=@t  (crip (weld (reap 395 'a') (tufa ~[`@c`0x1.f468])))
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~
+      [%notes-said !>(`said:n`[f [3 'T' snip our.bowl now.bowl 'NB']])]
+      (ex-card [%give %kick ~ ~])
+  ==
+::  +test-said-uninit-sub-proxies
+::
+::  a just-joined %sub placeholder (init=|) has no note state; a said
+::
+::  request must proxy to the host rather than answer %notes-denied
+::
+++  test-said-uninit-sub-proxies
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  =/  f=flag:n  [~bus %nb]
+  ;<  *  bind:m  (poke-a %join f)
+  ;<  =bowl:gall  bind:m  get-bowl
+  =/  pax=path  (said-watch-path f 1)
+  =/  =wire  /said/(scot %p ~bus)/nb/note/1
+  ;<  caz=(list card)  bind:m  (do-watch pax)
+  %+  ex-cards  caz
+  ~[(ex-card [%pass wire %agent [~bus %notes] %watch pax])]
+::  +said-group-scry: mock %gu group liveness + %gx can-read for said tests
+::
+++  said-group-scry
+  |=  [synced=? allowed=?]
+  ^-  scry
+  |=  pax=path
+  ::  creating the notebook probes %activity liveness; answer it like
+  ::  +base-scry so these tests see no activity cards
+  ?:  ?=([%gu @ %activity @ %$ ~] pax)
+    `!>(|)
+  ?:  ?=([%gu @ %groups @ %groups @ @ ~] pax)
+    `!>(synced)
+  ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)
+    ~
+  `!>(|=([who=ship =nest:n] allowed))
+::  +setup-said-group-notebook: group notebook 'GNB' + one note (id 3)
+::
+++  setup-said-group-notebook
+  =/  m  (mare ,[f=flag:n =bowl:gall])
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  ~  bind:m  (set-scry-gate (said-group-scry & &))
+  ;<  *  bind:m  (poke-a %create-group-notebook 'GNB' [~zod %grp] ~)
+  =/  f=flag:n  (nb-flag our.bowl 'GNB' 1)
+  ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' 'B'])
+  (pure:m f bowl)
+::  +test-said-group-reader-gets-preview
+::
+::  group notebook, group synced, can-read allows: preview served
+::
+++  test-said-group-reader-gets-preview
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-group-notebook
+  ;<  caz=(list card)  bind:m
+    ((do-as ~bus) (do-watch (said-watch-path f 3)))
+  %+  ex-cards  caz
+  :~  %+  ex-fact  ~
+      [%notes-said !>(`said:n`[f [3 'T' 'B' our.bowl now.bowl 'GNB']])]
+      (ex-card [%give %kick ~ ~])
+  ==
+::  +test-said-group-ignores-public-visibility
+::
+::  a group notebook toggled %public must still gate previews on the
+::
+::  group's can-read — visibility only means something for non-group
+::  notebooks (mirrors +se-member-join)
+::
+++  test-said-group-ignores-public-visibility
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-group-notebook
+  ;<  *  bind:m  (poke-a %notebook f [%visibility %public])
+  ;<  ~  bind:m  (set-scry-gate (said-group-scry & |))
+  ;<  caz=(list card)  bind:m
+    ((do-as ~bus) (do-watch (said-watch-path f 3)))
+  %+  ex-cards  caz
+  :~  (ex-fact ~ %notes-denied !>(~))
+      (ex-card [%give %kick ~ ~])
+  ==
+::  +test-said-group-unsynced-fails-closed
+::
+::  group notebook with an unsynced group must deny previews, even
+::
+::  though +can-view-flag treats the same state as viewable for
+::  subscriptions
+::
+++  test-said-group-unsynced-fails-closed
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  [f=flag:n =bowl:gall]  bind:m  setup-said-group-notebook
+  ;<  ~  bind:m  (set-scry-gate (said-group-scry | &))
+  ;<  caz=(list card)  bind:m
+    ((do-as ~bus) (do-watch (said-watch-path f 3)))
+  %+  ex-cards  caz
+  :~  (ex-fact ~ %notes-denied !>(~))
+      (ex-card [%give %kick ~ ~])
+  ==
+::
+::  search tests
+::
+::  primarily use search through scry.
+::  setup convention: notebook w/ id 1, root folder w/ id 2,
+::  notes are ids 3, 4, 5, ... in creation order.
+::
+::  +init-nb: init as ~zod and create a notebook, yielding its flag
+::
+++  init-nb
+  |=  title=@t
+  =/  m  (mare ,flag:n)
+  ^-  form:m
+  ;<  ~  bind:m  init-zod
+  ;<  =bowl:gall  bind:m  get-bowl
+  ;<  *  bind:m  (poke-a [%create-notebook title])
+  (pure:m (nb-flag our.bowl title 1))
+::  +mk-note: create a note in the root folder
+::
+++  mk-note
+  |=  [=flag:n title=@t body=@t]
+  (poke-a [%notebook flag [%create-note 2 title body]])
+::  +mk-n-notes: create .n identical notes in the root folder
+::
+++  mk-n-notes
+  |=  [=flag:n n=@ud title=@t body=@t]
+  =/  m  (mare ,~)
+  |-  ^-  form:m
+  ?:  =(0 n)  (pure:m ~)
+  =/  rest=form:m  $(n (dec n))
+  ;<  *  bind:m  (mk-note flag title body)
+  rest
+::  +search-path: construct search scry path from args
+::
+++  search-path
+  |=  [=flag:n from=(unit @ud) tries=@ud nedl=@t]
+  ^-  path
+  :~  %x  %v0  %search  (scot %p ship.flag)  name.flag
+      %bounded  %text
+      ?~(from %$ (scot %ud u.from))
+      (scot %ud tries)
+      (scot %t nedl)
+  ==
+::  +peek-search: scam from search scry
+::
+++  peek-search
+  |=  [=flag:n q=[from=(unit @ud) tries=@ud nedl=@t]]
+  =/  m  (mare ,scam:n)
+  ^-  form:m
+  |=  s=state
+  =/  pax=path  (search-path flag from.q tries.q nedl.q)
+  =/  peek=(unit (unit cage))  (~(on-peek agent.s bowl.s) pax)
+  ?~  peek  |+~['search scry path invalid' (spat pax)]
+  ?~  u.peek  |+~['search scry unexpectedly empty' (spat pax)]
+  ?.  =(p.u.u.peek %notes-scam)
+    |+~['expected notes-scam mark from search scry']
+  &+[!<(scam:n q.u.u.peek) s]
+::  +ex-search: expect post ids in search result
+::
+++  ex-search
+  |=  $:  =flag:n
+          q=[from=(unit @ud) tries=@ud nedl=@t]
+          want=[last=@ud ids=(list @ud)]
+      ==
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  =scam:n  bind:m  (peek-search flag q)
+  |=  s=state
+  =/  got=(list @ud)  (turn scan.scam |=(nt=note:n id.nt))
+  ?.  =(got ids.want)
+    |+~[(crip "search {<nedl.q>}: expected ids {<ids.want>}, got {<got>}")]
+  ?.  =(last.scam last.want)
+    |+~[(crip "search {<nedl.q>}: last {<last.want>}, got {<last.scam>}")]
+  &+[~ s]
+::  +test-search-matches-title-and-body
+::
+::  needle must be searched for in both title and body
+::
+++  test-search-matches-title-and-body
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Matching')
+  ;<  *  b  (mk-note f 'needle in title' 'plain body')
+  ;<  *  b  (mk-note f 'plain title' 'has a needle inside')
+  ;<  *  b  (mk-note f 'plain title' 'plain body')
+  (ex-search f [~ 3 'needle'] [0 ~[4 3]])
+::  +test-search-includes-newest-note
+::
+::  search without .from argument must include latest note
+::
+++  test-search-includes-newest-note
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Newest')
+  ;<  *  b  (mk-note f 'first' 'plain')
+  ;<  *  b  (mk-note f 'second' 'plain')
+  ;<  *  b  (mk-note f 'newest' 'plain')
+  (ex-search f [~ 3 'newest'] [0 ~[5]])
+::  +test-search-cursor-resume-covers-every-note-once
+::
+::  .last in search results must paginate correctly when passed in continuation
+::
+++  test-search-cursor-resume-covers-every-note-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Paging')
+  ;<  *  b  (mk-note f 'n1' 'hay')
+  ;<  *  b  (mk-note f 'n2' 'hay')
+  ;<  *  b  (mk-note f 'n3' 'hay')
+  ;<  *  b  (mk-note f 'n4' 'hay')
+  ;<  *  b  (mk-note f 'n5' 'hay')
+  ;<  ~  b  (ex-search f [~ 2 'hay'] [6 ~[7 6]])
+  ;<  ~  b  (ex-search f [`6 2 'hay'] [4 ~[5 4]])
+  (ex-search f [`4 2 'hay'] [0 ~[3]])
+::  +test-search-tries-one-advances
+::
+::  even when trying only one result, .last must advance correctly
+::
+++  test-search-tries-one-advances
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'OneAtATime')
+  ;<  *  b  (mk-note f 'a' 'hay')
+  ;<  *  b  (mk-note f 'b' 'hay')
+  ;<  *  b  (mk-note f 'c' 'hay')
+  ;<  ~  b  (ex-search f [~ 1 'hay'] [5 ~[5]])
+  ;<  ~  b  (ex-search f [`5 1 'hay'] [4 ~[4]])
+  (ex-search f [`4 1 'hay'] [0 ~[3]])
+::  +test-search-tries-bounds-notes-examined-not-hits
+::
+::  search should be bounded by tries, not hits
+::
+++  test-search-tries-bounds-notes-examined-not-hits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Budget')
+  ;<  *  b  (mk-note f 'needle' 'plain')
+  ;<  *  b  (mk-note f 'plain' 'plain')
+  ;<  *  b  (mk-note f 'plain' 'plain')
+  ;<  ~  b  (ex-search f [~ 1 'needle'] [5 ~])
+  ;<  ~  b  (ex-search f [`5 1 'needle'] [4 ~])
+  (ex-search f [`4 1 'needle'] [0 ~[3]])
+::  +test-search-exhaustion-returns-zero-with-final-hits
+::
+::  last page of search results must produce last=0
+::
+++  test-search-exhaustion-returns-zero-with-final-hits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'TheEnd')
+  ;<  *  b  (mk-note f 'oldest' 'needle here')
+  ;<  *  b  (mk-note f 'newer' 'plain')
+  (ex-search f [~ 10 'needle'] [0 ~[3]])
+::  +test-search-empty-notebook
+::
+++  test-search-empty-notebook
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Empty')
+  (ex-search f [~ 5 'anything'] [0 ~])
+::  +test-search-cursor-at-oldest-id-excludes-it
+::
+++  test-search-cursor-at-oldest-id-excludes-it
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Boundary')
+  ;<  *  b  (mk-note f 'a' 'hay')
+  ;<  *  b  (mk-note f 'b' 'hay')
+  ;<  *  b  (mk-note f 'c' 'hay')
+  (ex-search f [`3 5 'hay'] [0 ~])
+::  +test-search-case-insensitive
+::
+++  test-search-case-insensitive
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Casing')
+  ;<  *  b  (mk-note f 'UPPER' 'x')
+  ;<  *  b  (mk-note f 'y' 'lower')
+  ;<  ~  b  (ex-search f [~ 2 'upper'] [0 ~[3]])
+  (ex-search f [~ 2 'LOWER'] [0 ~[4]])
+::  +test-search-skips-deleted-note
+::
+++  test-search-skips-deleted-note
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'Deleting')
+  ;<  *  b  (mk-note f 'keep' 'find-me')
+  ;<  *  b  (mk-note f 'gone' 'find-me')
+  ;<  *  b  (poke-a [%notebook f [%note 4 [%delete ~]]])
+  (ex-search f [~ 5 'find-me'] [0 ~[3]])
+::  +search-url: construct a v1 HTTP search url from args. Search params
+::  are query args, so the needle goes over the wire as (url-encoded)
+::  plain text and .from/.tries are optional.
+::
+++  search-url
+  |=  [=flag:n from=(unit @ud) tries=(unit @ud) nedl=tape]
+  ^-  @t
+  %-  crip
+  ;:  weld
+    "/notes/~/v1/notebooks/{<`@p`ship.flag>}/{(trip name.flag)}"
+    "/search/bounded/text?needle={nedl}"
+    ?~(from "" "&from={(trip (scot %ud u.from))}")
+    ?~(tries "" "&tries={(trip (scot %ud u.tries))}")
+  ==
+::  +api-key-header: x-api-key header for the freshly-initialized ship
+::
+++  api-key-header
+  =/  m  (mare ,(list [@t @t]))
+  ^-  form:m
+  ;<  sv=vase  bind:m  get-save
+  =/  s=state-15:n  !<(state-15:n sv)
+  (pure:m ~[['x-api-key' ?~(api-key.s '' u.api-key.s)]])
+::  +ex-get-search: GET a v1 search url and assert 200 plus the `last`
+::  cursor and note ids in the JSON response body.
+::
+++  ex-get-search
+  |=  $:  hdrs=(list [@t @t])
+          url=@t
+          want=[last=@ud ids=(list @ud)]
+      ==
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  caz=(list card)  bind:m  (http-get-v1 hdrs url)
+  |=  s=state
+  ?.  =((http-status caz) `200)
+    |+~[(crip "GET {(trip url)} expected 200, got {<(http-status caz)>}")]
+  ?~  body=(http-body caz)
+    |+~[(crip "GET {(trip url)}: no response body")]
+  ?~  jon=(de:json:html u.body)
+    |+~[(crip "GET {(trip url)}: body not json: {(trip u.body)}")]
+  =/  got=[last=@ud ids=(list @ud)]
+    %.  u.jon
+    %-  ot:dejs:format
+    :~  ['last' ni:dejs:format]
+        ['notes' (ar:dejs:format (ot:dejs:format ~[['id' ni:dejs:format]]))]
+    ==
+  ?.  =(ids.got ids.want)
+    |+~[(crip "GET {(trip url)}: expected ids {<ids.want>}, got {<ids.got>}")]
+  ?.  =(last.got last.want)
+    |+~[(crip "GET {(trip url)}: expected last {<last.want>}, got {<last.got>}")]
+  &+[~ s]
+::  +test-search-v1-http-initial
+::
+::  should behave identically to scry search, and resume from the returned
+::  .last when it's fed back in as .from.
+::
+++  test-search-v1-http-initial
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'HttpSearch')
+  ;<  *  b  (mk-note f 'needle' 'plain')
+  ;<  *  b  (mk-note f 'plain' 'needle')
+  ;<  hdr=(list [@t @t])  b  api-key-header
+  ;<  ~  b  (ex-get-search hdr (search-url f ~ `1 "needle") [4 ~[4]])
+  ;<  ~  b  (ex-get-search hdr (search-url f `4 `5 "needle") [0 ~[3]])
+  ::  no .tries: the default budget covers this notebook whole
+  (ex-get-search hdr (search-url f ~ ~ "needle") [0 ~[4 3]])
+::  +test-search-v1-http-needle-is-plain-text
+::
+::  the needle is a query arg, so it survives dots (which the URL parser
+::  would otherwise take for a file extension) and url-encoded spaces.
+::
+++  test-search-v1-http-needle-is-plain-text
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'DottedNeedle')
+  ;<  *  b  (mk-note f 'shipped v1.0 today' 'plain')
+  ;<  *  b  (mk-note f 'plain' 'say hello world to it')
+  ;<  *  b  (mk-note f 'plain' 'nothing to see')
+  ;<  hdr=(list [@t @t])  b  api-key-header
+  ;<  ~  b  (ex-get-search hdr (search-url f ~ ~ "v1.0") [0 ~[3]])
+  ::  a dotted needle must not match on its truncated prefix
+  ;<  ~  b  (ex-get-search hdr (search-url f ~ ~ "v1.9") [0 ~])
+  (ex-get-search hdr (search-url f ~ ~ "hello%20world") [0 ~[4]])
+::  +test-search-v1-http-needle-required
+::
+::  a search without a needle is not a search
+::
+++  test-search-v1-http-needle-required
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  (init-nb 'NoNeedle')
+  ;<  *  b  (mk-note f 'whatever' 'plain')
+  ;<  hdr=(list [@t @t])  b  api-key-header
+  =/  base=tape
+    "/notes/~/v1/notebooks/{<`@p`ship.f>}/{(trip name.f)}"
+  ;<  caz=(list card)  b
+    (http-get-v1 hdr (crip "{base}/search/bounded/text"))
+  |=  s=state
+  ?.  =((http-status caz) `404)
+    |+~[(crip "expected 404 from needle-less search, got {<(http-status caz)>}")]
+  &+[~ s]
+::  +test-search-scans-many-large-bodies
+::
+::  search should perform reasonably on large content bodies.
+::  keep an eye on timings in test output!
+::
+++  test-search-scans-many-large-bodies
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  body-size=@ud   10.000
+  =/  filler-count=@ud  9
+  =/  filler=@t  (fil 3 body-size 'x')
+  ::  needle-bearing body: filler first, needle last (+cat puts `b` low, and
+  ::  cords run low-byte-first), so the scan can't short-circuit early
+  =/  hay=@t  (cat 3 filler 'zzfindmezz')
+  ;<  f=flag:n  b  (init-nb 'BigBodies')
+  ::  oldest note, id 3 — the only one that matches
+  ;<  *  b  (mk-note f 'big' hay)
+  ::  ids 4 .. 12, same filler body, no match
+  ;<  ~  b  (mk-n-notes f filler-count 'big' filler)
+  ::  tries covers all 10 notes, so the walk exhausts and reports the end
+  (ex-search f [~ +(filler-count) 'zzfindmezz'] [0 ~[3]])
 --

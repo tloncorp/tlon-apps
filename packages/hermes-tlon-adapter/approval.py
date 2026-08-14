@@ -53,6 +53,12 @@ A2UI_MESSAGE_VERSION = "v0.9"
 A2UI_ACTION_SEND_MESSAGE = "tlon.sendMessage"
 A2UI_ACTION_NAVIGATE = "tlon.navigate"
 
+MIGRATION_CARD_WARNING = (
+    "Migration copies the diary into a new %notes notebook and archives the intact "
+    "source, but comments, reactions, references, metadata, original authorship, "
+    "dates, and ordering are not preserved."
+)
+
 _ALLOW_RE = re.compile(r"^/allow(?:\s+(?P<arg>\S+))?\s*$", re.IGNORECASE)
 _REJECT_RE = re.compile(r"^/reject(?:\s+(?P<arg>\S+))?\s*$", re.IGNORECASE)
 _BAN_RE = re.compile(r"^/ban(?:\s+(?P<arg>\S+))?\s*$", re.IGNORECASE)
@@ -541,6 +547,127 @@ def _send_message_button(
     if variant:
         button["variant"] = variant
     return [button, {"id": f"{button_id}Label", "component": "Text", "text": label}]
+
+
+def _truncate_migrate_card_text(text: str, max_chars: int) -> str:
+    if len(text) <= max_chars:
+        return text
+    return f"{text[: max_chars - 3]}..."
+
+
+def _migrate_card_copy(
+    command: str,
+    title: Optional[str],
+) -> tuple[str, str, list[str], str, str]:
+    clean_title = title.strip() if isinstance(title, str) else ""
+    subject = (
+        f'"{_truncate_migrate_card_text(clean_title, 60)}"'
+        if clean_title
+        else None
+    )
+    command_context = f"Command: {_truncate_migrate_card_text(command, 991)}"
+    if command.startswith("/migrate cleanup "):
+        return (
+            "Migration cleanup",
+            f"Delete migrated notebook {subject}?"
+            if subject
+            else "Delete this migrated notebook?",
+            [
+                "Use this after a failed migration leaves a partial %notes notebook.",
+                command_context,
+            ],
+            "The migrated notebook will be deleted; the archived diary will not be changed.",
+            "Delete notebook",
+        )
+    if " --allow-write-widening" in command:
+        return (
+            "Write access",
+            f"Migrate {subject} to %notes with wider write access?"
+            if subject
+            else "Migrate this diary to %notes with wider write access?",
+            [
+                "The diary permissions cannot be preserved without widening write access.",
+                command_context,
+            ],
+            "Every reader will become an editor and will be able to edit every note in the migrated notebook.",
+            "Accept widening and proceed — every reader becomes an editor",
+        )
+    return (
+        "Diary migration",
+        f"Migrate {subject} to %notes?"
+        if subject
+        else "Migrate this diary to %notes?",
+        [
+            "%diary is deprecated; migrating lets the bot read and post in this channel.",
+            command_context,
+        ],
+        MIGRATION_CARD_WARNING,
+        "Migrate diary",
+    )
+
+
+def build_migrate_card(command: str, title: Optional[str] = None) -> str:
+    eyebrow, card_title, context, allow_note, action_label = _migrate_card_copy(
+        command, title
+    )
+    context_ids = [f"context{index}" for index in range(len(context))]
+    components = [
+        {"id": "root", "component": "Card", "child": "body"},
+        {
+            "id": "body",
+            "component": "Column",
+            "children": [
+                "eyebrow",
+                "title",
+                "titleDivider",
+                *context_ids,
+                "divider",
+                "details",
+                "actions",
+            ],
+        },
+        {
+            "id": "eyebrow",
+            "component": "Text",
+            "variant": "caption",
+            "text": eyebrow,
+        },
+        {
+            "id": "title",
+            "component": "Text",
+            "variant": "h3",
+            "text": card_title,
+        },
+        {"id": "titleDivider", "component": "Divider"},
+        *[
+            {
+                "id": f"context{index}",
+                "component": "Text",
+                "variant": "caption",
+                "text": text,
+            }
+            for index, text in enumerate(context)
+        ],
+        {"id": "divider", "component": "Divider"},
+        {"id": "details", "component": "Column", "children": ["allowNote"]},
+        {
+            "id": "allowNote",
+            "component": "Text",
+            "variant": "caption",
+            "text": allow_note,
+        },
+        {"id": "actions", "component": "Row", "children": ["action"]},
+        *_send_message_button(
+            "action",
+            action_label,
+            command,
+            variant="primary",
+        ),
+    ]
+    card = make_a2ui_blob_entry("migrate-action", "root", components)
+    if not validate_a2ui_card(card):
+        raise ValueError("invalid migration a2ui card")
+    return serialize_blob(card)
 
 
 def _approval_nav_target(approval: Mapping[str, Any]) -> Optional[dict[str, Any]]:

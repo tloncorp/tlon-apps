@@ -1,5 +1,6 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as api from '@tloncorp/api';
 import { Story } from '@tloncorp/api/urbit';
 import {
   configurationFromChannel,
@@ -8,19 +9,14 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import {
-  useCanUpload,
-  useChannelPreview,
-  useGroupPreview,
-  usePostReference,
-  usePostWithRelations,
-} from '@tloncorp/shared/store';
+import { useCanUpload } from '@tloncorp/shared/store';
 import React, {
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
@@ -69,7 +65,6 @@ export default function ChannelScreen(props: Props) {
     channel,
     group,
     groupIsLoading,
-    groupError,
   } = useChannelContext({
     channelId: currentChannelId,
     draftKey: currentChannelId,
@@ -110,40 +105,96 @@ export default function ChannelScreen(props: Props) {
     }, [groupId, channelId])
   );
 
-  const channelThreadAbortController = useRef<AbortController | null>(
-    new AbortController()
+  const activityCapabilitiesEpoch = useSyncExternalStore(
+    api.onActivityCapabilitiesChange,
+    api.getActivityCapabilitiesEpoch
+  );
+  // A cached notes channel can mount before app-info resolves notes activity
+  // support. In that case the initial per-note unread sync intentionally
+  // returns no answer; retry once the capability becomes available.
+  const notesActivityCapabilitiesEpoch =
+    channel?.type === 'notes' ? activityCapabilitiesEpoch : 0;
+
+  useEffect(() => {
+    if (channelIsPending) {
+      return;
+    }
+
+    const abortController = new AbortController();
+    void store
+      .syncChannelThreadUnreads(channelId, {
+        priority: store.SyncPriority.High,
+        abortSignal: abortController.signal,
+      })
+      .catch((error) => {
+        if (!abortController.signal.aborted) {
+          logger.error('Failed to sync channel thread unreads', error);
+        }
+      });
+
+    return () => abortController.abort();
+  }, [channelIsPending, channelId, notesActivityCapabilitiesEpoch]);
+
+  // Snapshot unread state once per focused entry so the divider does not move
+  // as the channel is marked read.
+  const [initialChannelUnreadSnapshot, setInitialChannelUnreadSnapshot] =
+    React.useState<{
+      channelId: string;
+      unread: db.ChannelUnread | null;
+    } | null>(null);
+  const [unreadSnapshotIsFresh, setUnreadSnapshotIsFresh] =
+    React.useState(false);
+  const [clearedCursor, setClearedCursor] = React.useState(false);
+  const isFocused = useIsFocused();
+  useFocusEffect(
+    useCallback(() => {
+      let isCurrent = true;
+      setUnreadSnapshotIsFresh(false);
+
+      async function initializeChannelUnread() {
+        let unread: db.ChannelUnread | null | undefined;
+        try {
+          unread = await db.getChannelUnread({ channelId: currentChannelId });
+        } catch (error) {
+          logger.trackError('failed to initialize channel unread', error);
+        }
+
+        if (isCurrent) {
+          setInitialChannelUnreadSnapshot({
+            channelId: currentChannelId,
+            unread: unread ?? null,
+          });
+          setUnreadSnapshotIsFresh(true);
+        }
+      }
+
+      void initializeChannelUnread();
+
+      return () => {
+        isCurrent = false;
+        setUnreadSnapshotIsFresh(false);
+      };
+    }, [currentChannelId])
   );
 
+  const unreadDidInitialize =
+    isFocused &&
+    unreadSnapshotIsFresh &&
+    initialChannelUnreadSnapshot?.channelId === currentChannelId;
   useEffect(() => {
-    if (!channelIsPending) {
-      if (channelThreadAbortController.current) {
-        channelThreadAbortController.current.abort();
-      }
-      channelThreadAbortController.current = new AbortController();
-      store.syncChannelThreadUnreads(channelId, {
-        priority: store.SyncPriority.High,
-        abortSignal: channelThreadAbortController.current?.signal,
-      });
+    if (unreadDidInitialize) {
+      // Keep the retained visit's query mode stable while its replacement
+      // unread snapshot loads, then allow the fresh cursor to take over.
+      setClearedCursor(false);
     }
-  }, [channelIsPending, channelId]);
-
-  // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
-  // time
-  const [initialChannelUnread, setInitialChannelUnread] =
-    React.useState<db.ChannelUnread | null>(null);
-  const [unreadDidInitialize, setUnreadDidInitialize] = React.useState(false);
-  const isFocused = useIsFocused();
-  useEffect(() => {
-    async function initializeChannelUnread() {
-      const unread = await db.getChannelUnread({ channelId: currentChannelId });
-      setInitialChannelUnread(unread ?? null);
-      setUnreadDidInitialize(true);
-    }
-
-    if (isFocused) {
-      initializeChannelUnread();
-    }
-  }, [currentChannelId, isFocused]);
+  }, [unreadDidInitialize]);
+  // Retain the prior focused entry's snapshot while its replacement loads.
+  // This preserves Channel-local draft state without enabling unread work
+  // until the new snapshot is ready.
+  const initialChannelUnread =
+    initialChannelUnreadSnapshot?.channelId === currentChannelId
+      ? initialChannelUnreadSnapshot.unread
+      : null;
 
   const {
     navigateToImage,
@@ -160,19 +211,13 @@ export default function ChannelScreen(props: Props) {
 
   const { performGroupAction } = useGroupActions();
 
-  const cursor = useMemo(() => {
-    if (!channel) {
-      return undefined;
-    }
-    const firstUnreadId =
-      initialChannelUnread &&
-      (initialChannelUnread.countWithoutThreads ?? 0) > 0 &&
-      initialChannelUnread?.firstUnreadPostId;
-    return selectedPostId || firstUnreadId;
-    // We only want this to rerun when the channel is loaded for the first time OR if
-    // the selected post route param changes
-    // eslint-disable-next-line
-  }, [!!channel, initialChannelUnread, selectedPostId]);
+  const unreadCursor =
+    channel &&
+    initialChannelUnread &&
+    (initialChannelUnread.countWithoutThreads ?? 0) > 0
+      ? initialChannelUnread.firstUnreadPostId
+      : undefined;
+  const cursor = selectedPostId || unreadCursor;
 
   useEffect(() => {
     if (channel?.id) {
@@ -180,19 +225,25 @@ export default function ChannelScreen(props: Props) {
     }
   }, [channel?.id, cursor]);
 
-  // If scroll to bottom is pressed, it's most straighforward to ignore
-  // existing cursor
-  const [clearedCursor, setClearedCursor] = React.useState(false);
-
-  // But if a new post is selected, we should mark the cursor
-  // as uncleared
+  // Channel navigation establishes a new cursor scope.
   useEffect(() => {
     setClearedCursor(false);
+  }, [currentChannelId]);
+
+  // A newly selected post establishes a new cursor scope. Clearing an existing
+  // selection below must not immediately restore the cursor we just retired.
+  useEffect(() => {
+    if (selectedPostId) {
+      setClearedCursor(false);
+    }
   }, [selectedPostId]);
 
   const handleScrollToBottom = useCallback(() => {
     setClearedCursor(true);
-  }, []);
+    if (selectedPostId) {
+      props.navigation.setParams({ selectedPostId: undefined });
+    }
+  }, [props.navigation, selectedPostId]);
 
   const channelConfiguration = useMemo(
     () => configurationFromChannel(channel),
@@ -206,7 +257,9 @@ export default function ChannelScreen(props: Props) {
     loadOlder,
     isLoading: isLoadingPosts,
   } = store.useChannelPosts({
-    enabled: !!channel && !channel?.isPendingChannel,
+    // Capture the unread cursor before loading posts or mounting Channel,
+    // which can mark the channel read as soon as cached posts are available.
+    enabled: unreadDidInitialize && !!channel && !channel?.isPendingChannel,
     channelId: currentChannelId,
     count: 30,
     filterDeleted: !channelConfiguration?.includeDeletedPosts,
@@ -223,8 +276,33 @@ export default function ChannelScreen(props: Props) {
   });
 
   useEffect(() => {
-    // make sure we always load enough posts to fill the screen or
-    // onScrollEndReached might not fire properly
+    // This recovers a failed around-cursor query by issuing a newest query.
+    // Successful queries that temporarily omit the anchor recover in PostList.
+    if (
+      unreadCursor &&
+      !selectedPostId &&
+      !clearedCursor &&
+      postsQuery.isError &&
+      !isLoadingPosts
+    ) {
+      logger.log('unread cursor failed; falling back to newest posts', {
+        channelId: currentChannelId,
+        unreadCursor,
+      });
+      setClearedCursor(true);
+    }
+  }, [
+    clearedCursor,
+    currentChannelId,
+    isLoadingPosts,
+    postsQuery.isError,
+    selectedPostId,
+    unreadCursor,
+  ]);
+
+  useEffect(() => {
+    // Make sure the initial page can fill the screen; otherwise the visual
+    // start boundary may never move far enough to request another older page.
     const ENOUGH_POSTS_TO_FILL_SCREEN = 20;
     if (
       !postsQuery.isFetching &&
@@ -341,13 +419,13 @@ export default function ChannelScreen(props: Props) {
   );
 
   const handleMarkRead = useCallback(async () => {
-    if (channel && !channel.isPendingChannel) {
+    if (unreadDidInitialize && channel && !channel.isPendingChannel) {
       store.markChannelRead({
         id: channel.id,
         groupId: channel.groupId ?? undefined,
       });
     }
-  }, [channel?.type, channel?.id, channel?.groupId]);
+  }, [channel?.type, channel?.id, channel?.groupId, unreadDidInitialize]);
 
   const handlePressInvite = useCallback(
     (groupId: string) => {
@@ -398,14 +476,16 @@ export default function ChannelScreen(props: Props) {
     [currentChannelId, routeGroupId, channel?.groupId]
   );
 
-  if (!channel) {
+  if (
+    !channel ||
+    initialChannelUnreadSnapshot?.channelId !== currentChannelId
+  ) {
     return null;
   }
 
   return (
     <ChatOptionsProvider
       initialChat={initialChat}
-      useGroup={store.useGroup}
       {...chatOptionsNavProps}
       onPressInvite={handlePressInvite}
     >
@@ -422,9 +502,8 @@ export default function ChannelScreen(props: Props) {
           hasOlderPosts={postsQuery.hasNextPage}
           group={group}
           groupIsLoading={groupIsLoading}
-          groupError={groupError}
           posts={filteredPosts ?? null}
-          selectedPostId={selectedPostId}
+          selectedPostId={clearedCursor ? undefined : selectedPostId}
           goBack={navigationRef.current.goBack}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
@@ -435,15 +514,11 @@ export default function ChannelScreen(props: Props) {
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
           goToGroupSettings={handleGoToGroupSettings}
-          onScrollEndReached={loadOlder}
-          onScrollStartReached={loadNewer}
+          onLoadNewerPosts={loadNewer}
+          onLoadOlderPosts={loadOlder}
           onPressRef={navigateToRef}
           markRead={handleMarkRead}
-          usePost={usePostWithRelations}
-          usePostReference={usePostReference}
-          useGroup={useGroupPreview}
           onGroupAction={performGroupAction}
-          useChannel={useChannelPreview}
           storeDraft={storeDraft}
           clearDraft={clearDraft}
           getDraft={getDraft}

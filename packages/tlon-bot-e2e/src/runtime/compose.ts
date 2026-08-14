@@ -10,6 +10,8 @@ import type {
 } from '../drivers/types.js';
 import { buildComposeProcessEnv } from './env.js';
 
+const DEFAULT_DOWN_TIMEOUT_MS = 60_000;
+
 interface RunOptions {
   allowFailure?: boolean;
   env?: Record<string, string>;
@@ -18,7 +20,10 @@ interface RunOptions {
   timeoutMs?: number;
 }
 
-export function createComposeHandle(ctx: RuntimeContext): ComposeHandle {
+export function createComposeHandle(
+  ctx: RuntimeContext,
+  commandRunner: typeof runCommand = runCommand
+): ComposeHandle {
   const composeFiles = ctx.composeFiles.map((file) => path.resolve(file));
   for (const file of composeFiles) {
     if (!path.isAbsolute(file)) {
@@ -35,7 +40,7 @@ export function createComposeHandle(ctx: RuntimeContext): ComposeHandle {
     args: string[],
     opts: RunOptions = {}
   ): Promise<ExecResult> => {
-    const result = await runCommand(
+    const result = await commandRunner(
       'docker',
       ['compose', ...fileArgs(composeFiles), ...args],
       {
@@ -64,8 +69,10 @@ export function createComposeHandle(ctx: RuntimeContext): ComposeHandle {
       await runCompose(['build', ...services]);
     },
 
-    async up(services = []) {
-      await runCompose(['up', '-d', ...services]);
+    async up(services = [], opts = {}) {
+      await runCompose(['up', '-d', ...services], {
+        timeoutMs: opts.timeoutMs,
+      });
     },
 
     async ps(opts = {}): Promise<ComposeServiceState[]> {
@@ -96,7 +103,7 @@ export function createComposeHandle(ctx: RuntimeContext): ComposeHandle {
       const tailArgs =
         typeof opts.tail === 'number' ? [`--tail=${opts.tail}`] : [];
       const result = await runCompose(['logs', ...tailArgs, ...services], {
-        allowFailure: true,
+        allowFailure: opts.allowFailure ?? true,
         stream: false,
         timeoutMs: opts.timeoutMs,
       });
@@ -111,11 +118,93 @@ export function createComposeHandle(ctx: RuntimeContext): ComposeHandle {
     },
 
     async down(opts = {}) {
-      await runCompose(['down', ...(opts.volumes === false ? [] : ['-v'])], {
-        allowFailure: true,
-      });
+      const timeoutMs = opts.timeoutMs ?? DEFAULT_DOWN_TIMEOUT_MS;
+      const deadline = Date.now() + timeoutMs;
+      const remaining = () => Math.max(0, deadline - Date.now());
+      const failures: string[] = [];
+
+      const downResult = await runCompose(
+        ['down', ...(opts.volumes === false ? [] : ['-v'])],
+        { allowFailure: true, timeoutMs: remaining() }
+      );
+      if (downResult.exitCode !== 0 && !opts.allowFailure) {
+        failures.push(
+          `docker compose down failed with exit ${downResult.exitCode}\n` +
+            downResult.stderr.trim()
+        );
+      }
+
+      if (opts.verify) {
+        const projectName = ctx.composeProjectName;
+        const containerListing = await commandRunner(
+          'docker',
+          [
+            'ps',
+            '-a',
+            '--filter',
+            `label=com.docker.compose.project=${projectName}`,
+            '--format',
+            '{{.ID}}\\t{{.Names}}',
+          ],
+          { env, cwd: ctx.packageDir, stream: false, timeoutMs: remaining() }
+        );
+        const volumeListing = await commandRunner(
+          'docker',
+          [
+            'volume',
+            'ls',
+            '--filter',
+            `label=com.docker.compose.project=${projectName}`,
+            '--format',
+            '{{.Name}}',
+          ],
+          { env, cwd: ctx.packageDir, stream: false, timeoutMs: remaining() }
+        );
+
+        if (containerListing.exitCode !== 0) {
+          failures.push(
+            `docker ps -a (verify) failed with exit ` +
+              `${containerListing.exitCode}\n` +
+              containerListing.stderr.trim()
+          );
+        }
+        if (volumeListing.exitCode !== 0) {
+          failures.push(
+            `docker volume ls (verify) failed with exit ` +
+              `${volumeListing.exitCode}\n` +
+              volumeListing.stderr.trim()
+          );
+        }
+
+        const leakedContainers = nonBlankLines(containerListing.stdout);
+        const leakedVolumes = nonBlankLines(volumeListing.stdout);
+        const leakGroups: string[] = [];
+        if (leakedContainers.length > 0) {
+          leakGroups.push(`leaked containers:\n${leakedContainers.join('\n')}`);
+        }
+        if (leakedVolumes.length > 0) {
+          leakGroups.push(`leaked volumes:\n${leakedVolumes.join('\n')}`);
+        }
+        if (leakGroups.length > 0) {
+          failures.push(leakGroups.join('\n'));
+        }
+      }
+
+      if (failures.length > 0) {
+        throw new Error(
+          `compose teardown failed for project ${ctx.composeProjectName}:\n` +
+            failures.join('\n')
+        );
+      }
     },
   };
+}
+
+function nonBlankLines(output: string): string[] {
+  return output
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
 }
 
 function fileArgs(files: string[]): string[] {
@@ -130,6 +219,15 @@ export function runCommand(
     cwd: string;
     stream?: boolean;
     timeoutMs?: number;
+    /**
+     * Kill the whole process tree on timeout, not just the spawned child.
+     * Opt-in: the child becomes its own process-group leader, which also
+     * detaches it from terminal signals (Ctrl-C on a local run would no
+     * longer reach it), so only callers whose command spawns descendants
+     * that inherit the stdio pipes should set this — a SIGKILLed parent
+     * with live grandchildren otherwise leaves 'close' pending forever.
+     */
+    killTree?: boolean;
   }
 ): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
@@ -137,7 +235,19 @@ export function runCommand(
       cwd: opts.cwd,
       env: opts.env,
       stdio: ['ignore', 'pipe', 'pipe'],
+      detached: opts.killTree === true,
     });
+    const killChild = (signal: NodeJS.Signals) => {
+      try {
+        if (opts.killTree === true && typeof child.pid === 'number') {
+          process.kill(-child.pid, signal);
+        } else {
+          child.kill(signal);
+        }
+      } catch {
+        // Already gone (ESRCH) — nothing left to kill.
+      }
+    };
     let stdout = '';
     let stderr = '';
     let settled = false;
@@ -174,9 +284,14 @@ export function runCommand(
         stderr +=
           `\n${command} ${args.join(' ')} timed out after ` +
           `${opts.timeoutMs}ms.`;
-        child.kill('SIGTERM');
+        killChild('SIGTERM');
         killTimeout = setTimeout(() => {
-          child.kill('SIGKILL');
+          killChild('SIGKILL');
+          // Settlement rides on 'close', which needs the stdio pipes to end.
+          // Destroy them so a surviving descendant holding the FDs cannot
+          // keep the promise pending past the bound.
+          child.stdout.destroy();
+          child.stderr.destroy();
         }, 1_000);
       }, opts.timeoutMs);
     }

@@ -11,7 +11,9 @@ import {
   joinGroupChannel,
   leaveGroupChannel,
   markChannelRead,
+  updateChannel,
 } from './channelActions';
+import { markGroupRead } from './groupActions';
 
 setupDatabaseTestSuite();
 
@@ -320,6 +322,55 @@ test('createChannel does not roll back when the notes listing cannot be verified
   expect(deleteNotesNotebookStrict).not.toHaveBeenCalled();
 });
 
+test('updateChannel saves notes readers without sending writer actions', async () => {
+  const notesChannelId = 'notes/~zod/native-notes';
+  await insertGroupAndChannel({ id: notesChannelId, type: 'notes' });
+  await db.insertChannelPerms([
+    {
+      channelId: notesChannelId,
+      readers: ['admin'],
+      writers: ['stale-writer'],
+    },
+  ]);
+
+  const channel = await db.getChannelWithRelations({ id: notesChannelId });
+  if (!channel) throw new Error('test channel not initialized');
+
+  const updateGroupChannel = vi
+    .spyOn(api, 'updateChannel')
+    .mockResolvedValue(1);
+  const addChannelWriters = vi.spyOn(api, 'addChannelWriters');
+  const removeChannelWriters = vi.spyOn(api, 'removeChannelWriters');
+
+  await updateChannel({
+    groupId,
+    sectionId: 'default',
+    readers: ['admin', 'viewer'],
+    writers: ['admin', 'viewer'],
+    join: true,
+    channel,
+  });
+
+  expect(updateGroupChannel).toHaveBeenCalledWith(
+    expect.objectContaining({
+      groupId,
+      channelId: notesChannelId,
+      channel: expect.objectContaining({ readers: ['admin', 'viewer'] }),
+    })
+  );
+  expect(addChannelWriters).not.toHaveBeenCalled();
+  expect(removeChannelWriters).not.toHaveBeenCalled();
+  await expect(
+    db.getChannelWithRelations({ id: notesChannelId })
+  ).resolves.toMatchObject({
+    readerRoles: expect.arrayContaining([
+      expect.objectContaining({ roleId: 'admin' }),
+      expect.objectContaining({ roleId: 'viewer' }),
+    ]),
+    writerRoles: [],
+  });
+});
+
 test('joinGroupChannel routes notes channels through the notes API', async () => {
   const notesChannelId = 'notes/~zod/native-notes';
   await insertGroupAndChannel({ id: notesChannelId, type: 'notes' });
@@ -361,7 +412,7 @@ test('markChannelRead clears stale notification-only group unread after channel 
   await db.insertGroupUnreads([makeGroupUnread()]);
   await db.insertChannelUnreads([makeChannelUnread()]);
 
-  await markChannelRead({ id: channelId, groupId });
+  await expect(markChannelRead({ id: channelId, groupId })).resolves.toBe(true);
 
   expect(await db.getChannelUnread({ channelId })).toMatchObject({
     count: 0,
@@ -371,6 +422,30 @@ test('markChannelRead clears stale notification-only group unread after channel 
     count: 0,
     notify: false,
     notifyCount: 0,
+  });
+});
+
+test('markChannelRead reports failure and restores unread state', async () => {
+  await insertGroupAndChannel();
+  await db.insertChannelUnreads([makeChannelUnread()]);
+  vi.spyOn(api, 'readChannel').mockRejectedValue(new Error('read failed'));
+
+  await expect(markChannelRead({ id: channelId, groupId })).resolves.toBe(
+    false
+  );
+  expect(await db.getChannelUnread({ channelId })).toMatchObject({
+    notify: true,
+  });
+});
+
+test('markGroupRead reports failure and restores unread state', async () => {
+  await insertGroup();
+  await db.insertGroupUnreads([makeGroupUnread()]);
+  vi.spyOn(api, 'readGroup').mockRejectedValue(new Error('read failed'));
+
+  await expect(markGroupRead(groupId)).resolves.toBe(false);
+  expect(await db.getGroupUnread({ groupId })).toMatchObject({
+    notify: true,
   });
 });
 

@@ -16,6 +16,7 @@ console.log(
 );
 
 const TLON_TEST_KEY_RE = /\[tlon-test:([a-zA-Z0-9_.:-]+)\]/g;
+const MAX_SUMMARY_TEXT_LENGTH = 300;
 
 /**
  * Registered scripts: key -> array of steps.
@@ -193,6 +194,7 @@ const server = http.createServer(async (req, res) => {
         stream: body.stream === true,
         messageCount: messages.length,
         userText,
+        messages: summarizeRequestMessages(messages),
         epoch,
         registeredEpoch,
         stale,
@@ -544,4 +546,80 @@ async function readJson(req) {
   }
   const raw = Buffer.concat(chunks).toString('utf8');
   return raw ? JSON.parse(raw) : {};
+}
+
+function summarizeRequestMessages(messages) {
+  return messages.map((message) => {
+    const summary = {
+      role: typeof message?.role === 'string' ? message.role : '<unknown>',
+    };
+    const contentSummary = summarizeContent(message?.content);
+    if (contentSummary) {
+      summary.content = contentSummary;
+    }
+    const toolCalls = summarizeToolCalls(message?.tool_calls);
+    if (toolCalls.length > 0) {
+      summary.tool_calls = toolCalls;
+    }
+    if (typeof message?.tool_call_id === 'string') {
+      summary.tool_call_id = message.tool_call_id;
+    }
+    if (typeof message?.name === 'string') {
+      summary.name = message.name;
+    }
+    return summary;
+  });
+}
+
+function summarizeContent(content) {
+  if (content == null) {
+    return { kind: 'empty' };
+  }
+  if (typeof content === 'string') {
+    return { kind: 'text', text: sanitizePreview(content) };
+  }
+  if (Array.isArray(content)) {
+    return {
+      kind: 'parts',
+      partCount: content.length,
+      text: sanitizePreview(extractText(content)),
+    };
+  }
+  if (typeof content === 'object') {
+    return { kind: 'object', text: sanitizePreview(extractText(content)) };
+  }
+  return { kind: typeof content };
+}
+
+function summarizeToolCalls(toolCalls) {
+  if (!Array.isArray(toolCalls)) {
+    return [];
+  }
+  return toolCalls
+    .filter((toolCall) => toolCall && typeof toolCall === 'object')
+    .map((toolCall) => ({
+      id: typeof toolCall.id === 'string' ? toolCall.id : undefined,
+      type: typeof toolCall.type === 'string' ? toolCall.type : undefined,
+      function: {
+        name:
+          typeof toolCall.function?.name === 'string'
+            ? toolCall.function.name
+            : undefined,
+        arguments:
+          typeof toolCall.function?.arguments === 'string'
+            ? sanitizePreview(toolCall.function.arguments)
+            : undefined,
+      },
+    }));
+}
+
+function sanitizePreview(value) {
+  const normalized = String(value).replace(/\s+/g, ' ').trim();
+  const redacted = normalized.replace(
+    /("(?:api[_-]?key|token|secret|password|credential|code)"\s*:\s*")[^"]+(")/gi,
+    '$1<redacted>$2'
+  );
+  return redacted.length > MAX_SUMMARY_TEXT_LENGTH
+    ? `${redacted.slice(0, MAX_SUMMARY_TEXT_LENGTH)}...`
+    : redacted;
 }

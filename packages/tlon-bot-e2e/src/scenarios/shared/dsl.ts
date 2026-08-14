@@ -11,6 +11,7 @@ export interface ScenarioMetadata {
   capabilities?: readonly ScenarioCapability[];
   orderDependent?: boolean;
   drivers?: readonly BotDriver['name'][];
+  skipReason?: string;
   timeoutMs?: number | ((ctx: RuntimeContext) => number);
 }
 
@@ -26,6 +27,7 @@ export interface SharedScenario {
   capabilities: readonly ScenarioCapability[];
   orderDependent: boolean;
   drivers?: readonly BotDriver['name'][];
+  skipReason?: string;
   timeoutMs?: number | ((ctx: RuntimeContext) => number);
   run(runCtx: ScenarioRunContext): Promise<void>;
 }
@@ -55,9 +57,16 @@ export function testScenario(
     capabilities: normalizeCapabilities(metadata.capabilities ?? []),
     orderDependent: metadata.orderDependent ?? false,
     drivers: metadata.drivers,
+    skipReason: metadata.skipReason,
     timeoutMs: metadata.timeoutMs,
     run,
   };
+}
+
+export function scenarioTestName(scenario: SharedScenario): string {
+  return scenario.skipReason
+    ? `${scenario.name} (skipped: ${scenario.skipReason})`
+    : scenario.name;
 }
 
 export function scenarioTimeoutMs(
@@ -141,12 +150,16 @@ export function scenariosForPartition(
   partitionKeyValue: string,
   driverName?: BotDriver['name']
 ): SharedScenario[] {
-  return scenarios.filter((scenario) => {
-    if (partitionKey(scenario.capabilities) !== partitionKeyValue) {
-      return false;
-    }
-    return scenarioMatchesDriver(scenario, driverName);
+  const matching = scenarios.filter((scenario) => {
+    return (
+      partitionKey(scenario.capabilities) === partitionKeyValue &&
+      scenarioMatchesDriver(scenario, driverName)
+    );
   });
+  return [
+    ...matching.filter((scenario) => !scenario.orderDependent),
+    ...matching.filter((scenario) => scenario.orderDependent),
+  ];
 }
 
 export function partitionKey(

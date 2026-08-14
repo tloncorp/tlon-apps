@@ -1,5 +1,4 @@
 import { faker } from '@faker-js/faker';
-import { useQuery } from '@tanstack/react-query';
 import type { PostContent } from '@tloncorp/api';
 import * as ub from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
@@ -239,6 +238,36 @@ export const postWithBlockquote = makePost(
   {
     replyCount: 0,
     isEdited: true,
+  }
+);
+
+// TLON-6284: a quote nested inside another quote, plus a code block nested in a
+// quote. Both are legal wire inlines that used to render "Unknown content
+// type". The `break` between siblings matches what markdown conversion emits.
+export const postWithNestedBlockquote = makePost(
+  exampleContacts.met,
+  [
+    verse.inline(
+      inline.blockquote(
+        'Outer quote, which contains another quote:',
+        inline.break(),
+        inline.blockquote('Inner quote, nested one level deeper.'),
+        inline.break(),
+        'Back to the outer quote.'
+      )
+    ),
+    verse.inline(
+      inline.blockquote(
+        'A quote containing a code block:',
+        inline.break(),
+        inline.code('nested_code_block()')
+      )
+    ),
+    verse.inline('Trailing paragraph, for spacing reference.'),
+  ],
+  {
+    replyCount: 0,
+    isEdited: false,
   }
 );
 
@@ -692,6 +721,7 @@ export const postsByType = {
   text: postWithText,
   mention: postWithMention,
   blockquote: postWithBlockquote,
+  nestedBlockquote: postWithNestedBlockquote,
   code: postWithCode,
   list: postWithList,
   link: postWithLink,
@@ -709,72 +739,28 @@ export const postsByType = {
   singleEmoji: postWithSingleEmoji,
 };
 
-const postsMap: Record<string, db.Post> = Object.fromEntries(
-  [
-    referencedGalleryPost,
-    referencedChatPost,
-    referencedNotebookPost,
-    postWithImage,
-    postWithText,
-    postWithMention,
-    postWithBlockquote,
-    postWithCode,
-    postWithList,
-    postWithLink,
-    postWithChatReference,
-    postWithImageAndText,
-    postWithGroupReference,
-    postWithGroupReferenceNoAvatar,
-    postWithLongNote,
-    postWithGalleryReference,
-    postWithNotebookReference,
-    postWithVideo,
-    postWithDeleted,
-    postWithHidden,
-    postWithEmoji,
-    postWithSingleEmoji,
-    postWithEverything,
-  ].map((p) => [p.id, p])
-);
-
-const groupsMap: Record<string, db.Group> = Object.fromEntries(
-  [group, groupWithNoColorOrImage].map((g) => [g.id, g])
-);
-
-const channelsMap: Record<string, db.Channel> = Object.fromEntries(
-  [tlonLocalBulletinBoard, tlonLocalGettingStarted, tlonLocalIntros].map(
-    (c) => [c.id, c]
-  )
-);
-
-export const usePost = (options: { id: string }, initialData?: db.Post) => {
-  return useQuery({
-    queryKey: ['post', options.id],
-    staleTime: Infinity,
-    ...(initialData ? { initialData } : {}),
-    queryFn: () => initialData ?? postsMap[options.id] ?? null,
-  });
-};
-
-export const usePostReference = ({
-  postId,
-}: {
-  channelId: string;
-  postId: string;
-  replyId?: string;
-}) =>
-  useQuery({
-    queryKey: ['post', postId],
-    queryFn: () => postsMap[postId] ?? null,
-  });
-
-export const useChannel = ({ id }: { id: string }) =>
-  useQuery({
-    queryKey: ['channel', id],
-    queryFn: () => channelsMap[id] ?? tlonLocalGettingStarted,
-  });
-
-export const useGroup = (id: string) =>
-  useQuery({ queryKey: ['group', id], queryFn: () => groupsMap[id] ?? group });
-
-export const useApp = () => {};
+export const fixturePosts: db.Post[] = [
+  referencedGalleryPost,
+  referencedChatPost,
+  referencedNotebookPost,
+  postWithImage,
+  postWithText,
+  postWithMention,
+  postWithBlockquote,
+  postWithCode,
+  postWithList,
+  postWithLink,
+  postWithChatReference,
+  postWithImageAndText,
+  postWithGroupReference,
+  postWithGroupReferenceNoAvatar,
+  postWithLongNote,
+  postWithGalleryReference,
+  postWithNotebookReference,
+  postWithVideo,
+  postWithDeleted,
+  postWithHidden,
+  postWithEmoji,
+  postWithSingleEmoji,
+  postWithEverything,
+];

@@ -6,201 +6,222 @@ import {
   createNotesChannelInGroup,
 } from './notes-channel';
 
-// A successful PR-7 group-mode create summary.
 const SUMMARY: NotesV1NotebookSummary = {
   host: '~zod',
   flagName: 'newbook',
   notebook: { id: 5, title: 'New' },
 };
 const NEW_NEST = 'notes/~zod/newbook';
+const READERS = ['members'];
 
 interface MakeDepsOptions {
-  createGroupNotesNotebook?: (input: {
-    title: string;
-    group: { host: string; flagName: string };
-    readers: string[];
-  }) => Promise<NotesV1NotebookSummary>;
-  getGroupChannelIds?: (groupId: string) => Promise<string[]>;
-  deleteNotesNotebookStrict?: (nest: string) => Promise<void>;
+  create?: NotesChannelDeps['createGroupNotesNotebook'];
+  channelIds?: NotesChannelDeps['getGroupChannelIds'];
+  readers?: NotesChannelDeps['getChannelReaders'];
 }
 
 function makeDeps(options: MakeDepsOptions = {}) {
   const calls = {
-    createGroupNotesNotebook: [] as unknown[],
-    getGroupChannelIds: [] as string[],
-    deleteNotesNotebookStrict: [] as string[],
+    create: [] as Array<
+      Parameters<NotesChannelDeps['createGroupNotesNotebook']>[0]
+    >,
+    channelIds: [] as string[],
+    readers: [] as [string, string][],
     sleep: [] as number[],
-    log: [] as string[],
   };
-
   const deps: NotesChannelDeps = {
     createGroupNotesNotebook: async (input) => {
-      calls.createGroupNotesNotebook.push(input);
-      return options.createGroupNotesNotebook
-        ? await options.createGroupNotesNotebook(input)
-        : SUMMARY;
+      calls.create.push(input);
+      return options.create ? options.create(input) : SUMMARY;
     },
     getGroupChannelIds: async (groupId) => {
-      calls.getGroupChannelIds.push(groupId);
-      return options.getGroupChannelIds
-        ? await options.getGroupChannelIds(groupId)
-        : [];
+      calls.channelIds.push(groupId);
+      return options.channelIds ? options.channelIds(groupId) : [NEW_NEST];
     },
-    deleteNotesNotebookStrict: async (nest) => {
-      calls.deleteNotesNotebookStrict.push(nest);
-      if (options.deleteNotesNotebookStrict) {
-        await options.deleteNotesNotebookStrict(nest);
-      }
+    getChannelReaders: async (groupId, nest) => {
+      calls.readers.push([groupId, nest]);
+      return options.readers ? options.readers(groupId, nest) : READERS;
     },
     sleep: async (ms) => {
       calls.sleep.push(ms);
     },
-    log: (message) => {
-      calls.log.push(message);
-    },
+    log: () => undefined,
   };
-
-  return { deps, calls };
+  return { calls, deps };
 }
 
 describe('createNotesChannelInGroup', () => {
-  it('creates the group-bound notebook via the API helper and returns the nest', async () => {
-    const { deps, calls } = makeDeps({
-      getGroupChannelIds: async () => [NEW_NEST],
-    });
-
-    const nest = await createNotesChannelInGroup(
-      { groupId: '~zod/group', title: 'New' },
+  it('threads and verifies the exact reader roles', async () => {
+    const { calls, deps } = makeDeps();
+    const target = await createNotesChannelInGroup(
+      { groupId: '~zod/group', title: 'New', readers: READERS },
       deps
     );
 
-    expect(nest).toBe(NEW_NEST);
-    // Routes through the notesV1 API helper — never builds paths or pokes
-    // %channels itself.
-    expect(calls.createGroupNotesNotebook).toEqual([
+    expect(target).toBe(NEW_NEST);
+    expect(calls.create).toEqual([
       {
         title: 'New',
         group: { host: '~zod', flagName: 'group' },
-        readers: [],
+        readers: READERS,
       },
     ]);
-    expect(calls.deleteNotesNotebookStrict).toEqual([]);
+    expect(calls.readers).toEqual([['~zod/group', NEW_NEST]]);
   });
 
-  it('retries the listing check and succeeds once the channel appears', async () => {
-    let attempts = 0;
-    const { deps, calls } = makeDeps({
-      getGroupChannelIds: async () => {
-        attempts += 1;
-        return attempts >= 3 ? [NEW_NEST] : [];
-      },
-    });
-
-    const nest = await createNotesChannelInGroup(
-      { groupId: '~zod/group', title: 'New' },
-      deps
-    );
-
-    expect(nest).toBe(NEW_NEST);
-    expect(calls.getGroupChannelIds).toHaveLength(3);
-    expect(calls.sleep).toHaveLength(2);
-    expect(calls.deleteNotesNotebookStrict).toEqual([]);
-  });
-
-  it('strict-deletes and reports removal when the listing never registers', async () => {
-    const { deps, calls } = makeDeps({ getGroupChannelIds: async () => [] });
-
+  it('accepts an explicitly open reader set after verifying it', async () => {
+    const { deps } = makeDeps({ readers: async () => [] });
     await expect(
-      createNotesChannelInGroup({ groupId: '~zod/group', title: 'New' }, deps)
-    ).rejects.toThrow('Removed the stray notebook');
-
-    expect(calls.deleteNotesNotebookStrict).toEqual([NEW_NEST]);
-    expect(calls.getGroupChannelIds).toHaveLength(5);
-    expect(calls.sleep).toHaveLength(4);
+      createNotesChannelInGroup(
+        { groupId: '~zod/group', title: 'New', readers: [] },
+        deps
+      )
+    ).resolves.toBe(NEW_NEST);
   });
 
-  it('reports manual-cleanup guidance when strict rollback delete rejects', async () => {
-    const { deps, calls } = makeDeps({
-      getGroupChannelIds: async () => [],
-      deleteNotesNotebookStrict: async () => {
-        throw new Error('delete failed');
+  it('compares reader roles as sets rather than by response order', async () => {
+    const { deps } = makeDeps({ readers: async () => ['b', 'a'] });
+    await expect(
+      createNotesChannelInGroup(
+        { groupId: '~zod/group', title: 'New', readers: ['a', 'b'] },
+        deps
+      )
+    ).resolves.toBe(NEW_NEST);
+  });
+
+  it('calls onCreated before post-create verification', async () => {
+    const created: string[] = [];
+    const { deps } = makeDeps({ readers: async () => ['wrong'] });
+    await expect(
+      createNotesChannelInGroup(
+        {
+          groupId: '~zod/group',
+          title: 'New',
+          readers: READERS,
+          onCreated: (nest) => created.push(nest),
+        },
+        deps
+      )
+    ).rejects.toThrow('do not match the approved set');
+    expect(created).toEqual([NEW_NEST]);
+  });
+
+  it('fails closed when the created channel readers cannot be found', async () => {
+    const { deps } = makeDeps({ readers: async () => null });
+    await expect(
+      createNotesChannelInGroup(
+        { groupId: '~zod/group', title: 'New', readers: READERS },
+        deps
+      )
+    ).rejects.toThrow('could not be read for reader verification');
+  });
+
+  it('preserves the created nest and cleanup command when the reader scry fails', async () => {
+    const { deps } = makeDeps({
+      readers: async () => {
+        throw new Error('transient group scry failure');
       },
     });
 
-    let error: Error | undefined;
+    let caught: unknown;
     try {
       await createNotesChannelInGroup(
-        { groupId: '~zod/group', title: 'New' },
+        { groupId: '~zod/group', title: 'New', readers: READERS },
         deps
       );
-    } catch (e) {
-      error = e as Error;
+    } catch (error) {
+      caught = error;
     }
+    expect(caught).toBeInstanceOf(Error);
+    const message = caught instanceof Error ? caught.message : String(caught);
 
-    expect(calls.deleteNotesNotebookStrict).toEqual([NEW_NEST]);
-    expect(error?.message).toContain(NEW_NEST);
-    expect(error?.message).toContain('Manual cleanup');
-    // Must NOT claim the stray notebook was removed.
-    expect(error?.message).not.toContain('Removed the stray notebook');
+    expect(message).toContain(`%notes created ${NEW_NEST}`);
+    expect(message).toContain('transient group scry failure');
+    expect(message).toContain(`tlon notes notebook-delete ${NEW_NEST} --yes`);
   });
 
-  it('does NOT roll back when the listing can not be verified (all reads fail)', async () => {
-    const { deps, calls } = makeDeps({
-      getGroupChannelIds: async () => {
-        throw new Error('group scry failed');
+  it('retries asynchronous listing registration', async () => {
+    let attempt = 0;
+    const { calls, deps } = makeDeps({
+      channelIds: async () => {
+        attempt += 1;
+        return attempt === 3 ? [NEW_NEST] : [];
       },
     });
-
     await expect(
-      createNotesChannelInGroup({ groupId: '~zod/group', title: 'New' }, deps)
+      createNotesChannelInGroup(
+        { groupId: '~zod/group', title: 'New', readers: READERS },
+        deps
+      )
+    ).resolves.toBe(NEW_NEST);
+    expect(calls.channelIds).toHaveLength(3);
+    expect(calls.sleep).toEqual([500, 500]);
+  });
+
+  it('leaves an unverified notebook in place when listing stays absent', async () => {
+    const created: string[] = [];
+    const { calls, deps } = makeDeps({ channelIds: async () => [] });
+    try {
+      await createNotesChannelInGroup(
+        {
+          groupId: '~zod/group',
+          title: 'New',
+          readers: READERS,
+          onCreated: (nest) => created.push(nest),
+        },
+        deps
+      );
+      throw new Error('Expected listing verification to fail');
+    } catch (error) {
+      expect(String(error)).toContain('host may not support group-mode notes');
+      expect(String(error)).not.toContain('PR 7');
+      expect(String(error)).toContain('Left the notebook in place');
+    }
+    expect(created).toEqual([NEW_NEST]);
+    expect(calls.channelIds).toHaveLength(5);
+  });
+
+  it('fails as unverifiable when the final group read fails', async () => {
+    const { deps } = makeDeps({
+      channelIds: async () => {
+        throw new Error('scry failed');
+      },
+    });
+    await expect(
+      createNotesChannelInGroup(
+        { groupId: '~zod/group', title: 'New', readers: READERS },
+        deps
+      )
     ).rejects.toThrow('could not be verified');
-
-    expect(calls.deleteNotesNotebookStrict).toEqual([]);
-    expect(calls.getGroupChannelIds).toHaveLength(5);
   });
 
-  it('treats a trailing read failure as unverifiable, not absent', async () => {
-    let reads = 0;
-    const { deps, calls } = makeDeps({
-      getGroupChannelIds: async () => {
-        reads += 1;
-        if (reads === 1) {
-          return [];
-        }
-        throw new Error('group scry failed');
+  it('propagates create failures without polling', async () => {
+    const { calls, deps } = makeDeps({
+      create: async () => {
+        throw new Error('denied');
       },
     });
-
     await expect(
-      createNotesChannelInGroup({ groupId: '~zod/group', title: 'New' }, deps)
-    ).rejects.toThrow('could not be verified');
-
-    expect(calls.deleteNotesNotebookStrict).toEqual([]);
+      createNotesChannelInGroup(
+        { groupId: '~zod/group', title: 'New', readers: READERS },
+        deps
+      )
+    ).rejects.toThrow('denied');
+    expect(calls.channelIds).toEqual([]);
   });
 
-  it('propagates a create failure from the API helper', async () => {
-    const { deps, calls } = makeDeps({
-      createGroupNotesNotebook: async () => {
-        throw new Error('%notes error: denied');
-      },
-    });
-
+  it('rejects a malformed group before creating', async () => {
+    const { calls, deps } = makeDeps();
     await expect(
-      createNotesChannelInGroup({ groupId: '~zod/group', title: 'New' }, deps)
-    ).rejects.toThrow('%notes error: denied');
-
-    // Never reached the listing verification or any cleanup.
-    expect(calls.getGroupChannelIds).toEqual([]);
-    expect(calls.deleteNotesNotebookStrict).toEqual([]);
-  });
-
-  it('rejects a malformed group id before any request', async () => {
-    const { deps, calls } = makeDeps();
-
-    await expect(
-      createNotesChannelInGroup({ groupId: 'badgroup', title: 'New' }, deps)
+      createNotesChannelInGroup(
+        {
+          groupId: 'bad',
+          title: 'New',
+          readers: READERS,
+        },
+        deps
+      )
     ).rejects.toThrow('Invalid group id');
-
-    expect(calls.createGroupNotesNotebook).toEqual([]);
+    expect(calls.create).toEqual([]);
   });
 });

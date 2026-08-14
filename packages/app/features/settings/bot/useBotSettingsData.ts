@@ -20,12 +20,19 @@ import {
 } from './constants';
 import {
   ModelFormValues,
+  getAvailableProviderIds,
   hasProviderCredential,
   normalizeMoonName,
   normalizeProviderConfig,
   normalizeTlonbotConfig,
   toBackendModel,
 } from './helpers';
+import {
+  getLLMAuthStatusRefetchInterval,
+  getOpenAIDisconnectQueryKeys,
+  getOpenAISubscriptionModels,
+  mergeProviderModels,
+} from './openAiSubscription';
 
 /**
  * Identifiers for the tlonbot hosting endpoints. User-level endpoints
@@ -141,6 +148,16 @@ export function useBotSettingsQueries() {
       botReady && query.state.data !== undefined ? false : RETRY_INTERVAL_MS,
   });
 
+  const llmAuthStatusQuery = useQuery({
+    queryKey: ['tlonbot', 'llm-auth-status', ship],
+    queryFn: () => api.getTlawnLLMAuthStatus(ship),
+    enabled: Boolean(ship) && botReady && isFocused,
+    retry: false,
+    staleTime: 60 * 1000,
+    refetchInterval: (query) =>
+      getLLMAuthStatusRefetchInterval(query.state.data),
+  });
+
   const oauthProvidersQuery = useQuery({
     queryKey: ['tlonbot', 'oauth-providers'],
     queryFn: () => api.getTlawnOAuthProviders(),
@@ -164,6 +181,7 @@ export function useBotSettingsQueries() {
     moonChannelsQuery,
     oauthStatusQuery,
     oauthProvidersQuery,
+    llmAuthStatusQuery,
   };
 }
 
@@ -174,19 +192,22 @@ export type BotSettingsQueries = ReturnType<typeof useBotSettingsQueries>;
  * provider has a single fixed model and doesn't hit the network.
  */
 export function useAllProviderModels(
-  providerConfig: api.TlawnProviderConfigInfo
+  providerConfig: api.TlawnProviderConfigInfo,
+  llmAuthStatus?: api.TlawnLLMAuthStatus
 ) {
   const { hostingUserId } = useBotSettingsIds();
   const providers = useMemo(
-    () =>
-      PROVIDER_OPTIONS.map((option) => option.id).filter((option) =>
-        hasProviderCredential(providerConfig, option)
-      ),
-    [providerConfig]
+    () => getAvailableProviderIds(providerConfig, llmAuthStatus),
+    [llmAuthStatus, providerConfig]
   );
   const fetchableProviders = useMemo(
-    () => providers.filter((provider) => provider !== BASIC_PROVIDER_ID),
-    [providers]
+    () =>
+      PROVIDER_OPTIONS.map((option) => option.id).filter(
+        (provider) =>
+          provider !== BASIC_PROVIDER_ID &&
+          hasProviderCredential(providerConfig, provider)
+      ),
+    [providerConfig]
   );
 
   // `combine` keeps the aggregate referentially stable across renders and
@@ -237,8 +258,16 @@ export function useAllProviderModels(
       loading[BASIC_PROVIDER_ID] = false;
       errors[BASIC_PROVIDER_ID] = null;
     }
+    if (providers.includes('openai')) {
+      models.openai = mergeProviderModels(
+        getOpenAISubscriptionModels(llmAuthStatus),
+        models.openai ?? []
+      );
+      loading.openai = loading.openai ?? false;
+      errors.openai = errors.openai ?? null;
+    }
     return { providers, models, loading, errors };
-  }, [providers, fetched]);
+  }, [providers, fetched, llmAuthStatus]);
 }
 
 export type AllProviderModels = ReturnType<typeof useAllProviderModels>;
@@ -280,11 +309,21 @@ export function useBotSettingsMutations() {
 
   const deleteProviderKey = useMutation({
     mutationFn: ({ provider }: { provider: string }) =>
-      api.deleteTlawnProviderKey(hostingUserId, provider),
+      api.deleteTlawnProviderKey(hostingUserId, provider, ship),
     onSuccess: (data, { provider }) => {
       setProviderConfig(data);
       invalidateProviderModels(provider);
     },
+  });
+
+  const disconnectOpenAISubscription = useMutation({
+    mutationFn: () => api.disconnectTlawnLLMAuth(ship, 'openai'),
+    onSuccess: () =>
+      Promise.all(
+        getOpenAIDisconnectQueryKeys(ship, hostingUserId).map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey })
+        )
+      ),
   });
 
   const updateNickname = useMutation({
@@ -337,6 +376,7 @@ export function useBotSettingsMutations() {
     setProviderConfig,
     saveProviderKey,
     deleteProviderKey,
+    disconnectOpenAISubscription,
     updateNickname,
     savePrimaryModel,
   };

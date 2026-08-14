@@ -7,11 +7,13 @@ import { TimeoutError } from '@tloncorp/api';
 import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
 import { isEqual } from 'lodash';
 
+import { trackEvent } from '../analytics';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
+import { notesPermissionsCompatActive } from '../logic/notesPermissionsCompat';
 import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
@@ -346,6 +348,7 @@ export async function updateChannel({
   channel: db.Channel;
 }) {
   logger.log('updating channel', channel.id, { readers, writers });
+  const managesWriters = !notesPermissionsCompatActive(channel.type);
   const currentChannel = await db.getChannel({
     id: channel.id,
     includeWriters: true,
@@ -354,12 +357,13 @@ export async function updateChannel({
     (role) => role.roleId
   );
   logger.log('currentChannelWriterIds', currentChannelWriterIds);
-  const writersToAdd = writers.filter(
-    (roleId) => !currentChannelWriterIds?.includes(roleId)
-  );
-  const writersToRemove =
-    currentChannelWriterIds?.filter((roleId) => !writers.includes(roleId)) ??
-    [];
+  const writersToAdd = managesWriters
+    ? writers.filter((roleId) => !currentChannelWriterIds?.includes(roleId))
+    : [];
+  const writersToRemove = managesWriters
+    ? currentChannelWriterIds?.filter((roleId) => !writers.includes(roleId)) ??
+      []
+    : [];
 
   const updatedChannel: db.Channel = {
     ...channel,
@@ -367,7 +371,7 @@ export async function updateChannel({
       channelId: channel.id,
       roleId,
     })),
-    writerRoles: writers.map((roleId) => ({
+    writerRoles: (managesWriters ? writers : []).map((roleId) => ({
       channelId: channel.id,
       roleId,
     })),
@@ -462,6 +466,9 @@ export async function pinPostToChannel({
 
   try {
     await api.setOrder(channel.id, nextOrder);
+    trackEvent(AnalyticsEvent.PostPinned, {
+      channelType: channel.type,
+    });
   } catch (e) {
     console.error('Failed to pin post', e);
     // Rollback optimistic update
@@ -496,6 +503,9 @@ export async function unpinPostFromChannel({
 
   try {
     await api.setOrder(channel.id, nextOrder);
+    trackEvent(AnalyticsEvent.PostUnpinned, {
+      channelType: channel.type,
+    });
   } catch (e) {
     console.error('Failed to unpin post', e);
     // Rollback optimistic update
@@ -622,6 +632,7 @@ export async function reorderPinnedItems({
     // stale slot. Only the optimistic write above is the full merged order.
     const after = await db.getPinnedItems();
     await db.setPinnedItemsOrder(normalizeOrder(backendPayload, after));
+    trackEvent(AnalyticsEvent.PinnedChatsReordered);
     return true;
   } catch (e) {
     console.error('Failed to reorder pinned items', e);
@@ -680,6 +691,16 @@ export async function markChannelRead({
   groupId?: string;
   includeThreads?: boolean;
 }) {
+  // per-note unreads ride thread rows, so a notes channel read is only
+  // meaningful deep — otherwise the note dots (and their backend sources)
+  // survive the channel badge being cleared
+  includeThreads = includeThreads || id.startsWith('notes/');
+  // the notebook read poke can't be sent until the notes capability
+  // resolves (or ever, on a backend below the gate) — skip the optimistic
+  // clear too, or local state diverges from the ship with no retry
+  if (id.startsWith('notes/') && !api.getActivitySupportsNotes()) {
+    return false;
+  }
   logger.log(`marking channel as read`, id, 'includeThreads', includeThreads);
   // optimistic update
   const existingUnread = await db.getChannelUnread({ channelId: id });
@@ -771,7 +792,7 @@ export async function markChannelRead({
   }
 
   if (existingChannel.isPendingChannel) {
-    return;
+    return true;
   }
 
   try {
@@ -781,6 +802,7 @@ export async function markChannelRead({
       groupId: existingChannel.groupId,
       deep: !!includeThreads,
     });
+    return true;
   } catch (e) {
     logger.error('Failed to read channel', { id, groupId }, e);
     // rollback optimistic update
@@ -793,6 +815,7 @@ export async function markChannelRead({
     if (didUpdateGroupUnread && existingGroupUnread) {
       await db.insertGroupUnreads([existingGroupUnread]);
     }
+    return false;
   }
 }
 
@@ -920,6 +943,7 @@ export async function leaveGroupChannel(channelId: string) {
     } else {
       await api.leaveChannel(channelId);
     }
+    trackEvent(AnalyticsEvent.ChannelLeft, { type: channel.type });
   } catch (e) {
     console.error('Failed to leave channel', e);
     // Only rollback on actual errors (not TimeoutError)

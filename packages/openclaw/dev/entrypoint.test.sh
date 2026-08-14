@@ -16,6 +16,14 @@ echo "==> OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR"
 echo "==> User: $(whoami)"
 echo "==> Working directory: $(pwd)"
 
+requested_core_version="${OPENCLAW_CORE_VERSION:-2026.5.28}"
+installed_core_version="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version)' "$(npm root -g)/openclaw/package.json")"
+if [ "$installed_core_version" != "$requested_core_version" ]; then
+  echo "FATAL: requested OpenClaw core $requested_core_version but installed $installed_core_version"
+  exit 1
+fi
+echo "[tlon-e2e] openclaw-core-version=$installed_core_version requested=$requested_core_version"
+
 # The mounted package declares workspace:^ deps that only resolve inside the
 # tlon-apps pnpm workspace. Copy it to a container-local dir (also the
 # id-shaped path OpenClaw's path hint expects) and rewrite those deps to
@@ -30,6 +38,20 @@ mkdir -p /workspace/tlon
 echo "==> Installing plugin dependencies..."
 cd /workspace/tlon
 node scripts/resolve-workspace-deps.mjs package.json --registry
+# When the shared harness packs the workspace @tloncorp/api into a tarball
+# (see tlon-bot-e2e openclaw driver beforeComposeBuild), prefer it over the
+# published registry version so e2e tests exercise in-branch api code.
+# Requires BOTH the explicit opt-in env (set only by the shared harness) AND
+# the tarball file: file-existence alone would let a stale tarball from a
+# prior harness run silently contaminate legacy run.sh / standalone runs.
+if [ "${OPENCLAW_WORKSPACE_API_TARBALL:-0}" = "1" ] \
+  && [ -f /workspace/tlon/dev/tlon-api-workspace.tgz ]; then
+  echo "==> Using workspace @tloncorp/api tarball"
+  jq '.dependencies["@tloncorp/api"] = "file:dev/tlon-api-workspace.tgz"' package.json > package.json.tmp \
+    && mv package.json.tmp package.json
+elif [ -f /workspace/tlon/dev/tlon-api-workspace.tgz ]; then
+  echo "==> Ignoring workspace @tloncorp/api tarball (no harness opt-in); using registry"
+fi
 # This is a standalone install of the plugin (no root pnpm-workspace.yaml), so
 # the monorepo's pnpm settings aren't in scope. Generate a container-local
 # workspace file: pnpm reads these settings only from pnpm-workspace.yaml
@@ -50,6 +72,21 @@ dangerouslyAllowAllBuilds: true
 minimumReleaseAge: 0
 verifyDepsBeforeRun: false
 PNPM_EOF
+# The tarball's package.json declares ^3.190.0 for the AWS S3 SDK, so this
+# standalone install (no monorepo lockfile in scope) would float to latest.
+# Pin both packages to the exact monorepo lockfile resolution: newer SDK
+# checksum defaults break GCS-compatible endpoints (see storageApi.ts). The
+# pin must live HERE — pnpm 11 ignores a package.json `pnpm` section (it
+# warns "no longer read by pnpm"). If the workspace ever upgrades the SDK
+# intentionally, this pin moves with it.
+if [ "${OPENCLAW_WORKSPACE_API_TARBALL:-0}" = "1" ] \
+  && [ -f /workspace/tlon/dev/tlon-api-workspace.tgz ]; then
+  cat >> pnpm-workspace.yaml << 'PNPM_EOF'
+overrides:
+  "@aws-sdk/client-s3": 3.190.0
+  "@aws-sdk/s3-request-presigner": 3.190.0
+PNPM_EOF
+fi
 pnpm install
 pnpm build
 
@@ -58,6 +95,27 @@ TLON_BIN_DIR="/workspace/tlon/node_modules/.bin"
 if [ -f "$TLON_BIN_DIR/tlon" ]; then
   export PATH="$PATH:$TLON_BIN_DIR"
   echo "==> tlon CLI available at $TLON_BIN_DIR/tlon"
+fi
+
+# When the shared harness stages a workspace-built tlon binary (see
+# tlon-bot-e2e openclaw driver beforeComposeBuild), lay it over the
+# registry-installed CLI so e2e exercises in-branch CLI code: the loader
+# (bin/tlon.js) prefers a local bin/tlon over the registry platform package.
+# Same env-plus-file double opt-in as the api tarball above, so a stale
+# staged binary can never leak into legacy (non-harness) runs.
+WORKSPACE_TLON_BIN=/workspace/tlon/dev/tlon-skill-workspace-bin/tlon
+if [ "${OPENCLAW_WORKSPACE_SKILL_BIN:-0}" = "1" ] && [ -f "$WORKSPACE_TLON_BIN" ]; then
+  SKILL_PKG_DIR=/workspace/tlon/node_modules/@tloncorp/tlon-skill
+  if [ ! -d "$SKILL_PKG_DIR" ]; then
+    echo "FATAL: @tloncorp/tlon-skill is not installed; cannot override its binary"
+    exit 1
+  fi
+  mkdir -p "$SKILL_PKG_DIR/bin"
+  cp "$WORKSPACE_TLON_BIN" "$SKILL_PKG_DIR/bin/tlon"
+  chmod +x "$SKILL_PKG_DIR/bin/tlon"
+  echo "[tlon-e2e] workspace-tlon-cli-sha256=$(sha256sum "$SKILL_PKG_DIR/bin/tlon" | cut -d' ' -f1)"
+elif [ -f "$WORKSPACE_TLON_BIN" ]; then
+  echo "==> Ignoring workspace tlon CLI binary (no harness opt-in); using registry"
 fi
 
 # tlon-skill comes in as plugin dependency (see package.json)

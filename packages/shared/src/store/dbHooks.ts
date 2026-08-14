@@ -299,10 +299,14 @@ export const useLiveThreadUnread = (unread: db.ThreadUnreadState | null) => {
       depsKey,
       'thread',
       unread ? unread.threadId : null,
+      unread ? unread.channelId : null,
     ],
     queryFn: async () => {
       if (unread) {
-        return db.getThreadUnreadState({ parentId: unread.threadId ?? '' });
+        return db.getThreadUnreadState({
+          parentId: unread.threadId ?? '',
+          channelId: unread.channelId ?? undefined,
+        });
       }
       return null;
     },
@@ -347,6 +351,27 @@ export const useLiveThreadUnreadsByChannel = (channelId: string | null) => {
         channelId,
         excludeRead: true,
       });
+    },
+  });
+};
+
+export const useChannelHasBotPost = ({
+  channelId,
+  authorId,
+}: {
+  channelId?: string | null;
+  authorId?: string | null;
+}) => {
+  const depsKey = useKeyFromQueryDeps(db.getChannelHasBotPost);
+
+  return useQuery({
+    enabled: !!channelId && !!authorId,
+    queryKey: ['channelHasBotPost', depsKey, channelId, authorId],
+    queryFn: async () => {
+      if (!channelId || !authorId) {
+        return false;
+      }
+      return db.getChannelHasBotPost({ channelId, authorId });
     },
   });
 };
@@ -429,18 +454,25 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   });
 };
 
+const getGroupQueryOptions = (id?: string) => ({
+  queryKey: [['group', id], keyFromQueryDeps(db.getGroup, id)],
+  queryFn: () => {
+    if (!id) {
+      throw new Error('missing group id');
+    }
+    return db.getGroup({ id });
+  },
+});
+
 export const useGroup = ({ id }: { id?: string }) => {
   return useQuery({
+    ...getGroupQueryOptions(id),
     enabled: !!id,
-    queryKey: [['group', id], useKeyFromQueryDeps(db.getGroup, id)],
-    queryFn: () => {
-      if (!id) {
-        throw new Error('missing group id');
-      }
-      return db.getGroup({ id });
-    },
   });
 };
+
+export const fetchGroup = (id: string) =>
+  db.queryClient.fetchQuery(getGroupQueryOptions(id));
 
 export const useGroupUnread = ({ groupId }: { groupId: string }) => {
   return useQuery({
@@ -604,6 +636,25 @@ export const usePostReference = ({
     },
   });
   return postQuery;
+};
+
+export const useNoteReference = ({
+  channelId,
+  noteId,
+  enabled = true,
+}: {
+  channelId: string;
+  noteId: string;
+  enabled?: boolean;
+}) => {
+  return useQuery({
+    queryKey: ['noteReference', channelId, noteId],
+    enabled: enabled && !!noteId,
+    // null = denied or missing, which can flip once the user joins the
+    // notebook or gains group access — let remounts refetch after 30s
+    staleTime: 30_000,
+    queryFn: () => api.getNoteReference({ channelId, noteId }),
+  });
 };
 
 export const useGroupsHostedBy = (userId: string, disabled?: boolean) => {
