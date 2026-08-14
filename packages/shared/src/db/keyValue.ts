@@ -169,6 +169,8 @@ export const tlonbotRevivalDeferredConfig =
 
 export type AgentGroupOnboardingLock = {
   provision?: PostBlobDataEntryAgentProvision;
+  /** The bot accepted the plan; navigation is unlocked while its first entry runs. */
+  provisionAcknowledgedAt?: number;
   createdAt: number;
   /** Title observed before onboarding, used to avoid overwriting later edits. */
   initialGroupTitle?: string | null;

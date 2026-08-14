@@ -13,7 +13,7 @@ const logger = createDevLogger('agentGroupOnboarding', false);
 const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 const DEFAULT_AGENT_GROUP_TITLE = 'My agent group';
-const MAX_GENERATED_GROUP_TITLE_LENGTH = 80;
+const MAX_GENERATED_GROUP_TITLE_LENGTH = 48;
 
 export type AgentGroupFurnishing = {
   group: db.Group;
@@ -119,30 +119,29 @@ export function buildAgentGroupTitle({
   const cleanTopics = topics.map((topic) => topic.trim()).filter(Boolean);
   const fallbackTopic =
     purposeId === 'agent-learning' ? 'Something new' : 'New';
-  const topicSummary =
-    cleanTopics.length <= 1
-      ? cleanTopics[0] || fallbackTopic
-      : cleanTopics.length === 2
-        ? `${cleanTopics[0]} + ${cleanTopics[1]}`
-        : `${cleanTopics[0]} + ${cleanTopics.length - 1} more`;
+  const primaryTopic = cleanTopics[0] || fallbackTopic;
+  const countSuffix =
+    cleanTopics.length > 1 ? ` + ${cleanTopics.length - 1} more` : '';
+  const prefix = purposeId === 'agent-learning' ? 'Learning ' : '';
+  const suffix =
+    purposeId === 'agent-learning'
+      ? ''
+      : purposeId === 'agent-daily-digest'
+        ? ' Digest'
+        : ' Research';
+  const maxPrimaryLength = Math.max(
+    1,
+    MAX_GENERATED_GROUP_TITLE_LENGTH -
+      prefix.length -
+      countSuffix.length -
+      suffix.length
+  );
+  const clippedPrimary =
+    primaryTopic.length > maxPrimaryLength
+      ? `${primaryTopic.slice(0, maxPrimaryLength - 1).trimEnd()}…`
+      : primaryTopic;
 
-  if (purposeId === 'agent-learning') {
-    const prefix = 'Learning ';
-    const maxTopicLength = MAX_GENERATED_GROUP_TITLE_LENGTH - prefix.length;
-    const clippedTopic =
-      topicSummary.length > maxTopicLength
-        ? `${topicSummary.slice(0, maxTopicLength - 1).trimEnd()}…`
-        : topicSummary;
-    return `${prefix}${clippedTopic}`;
-  }
-
-  const suffix = purposeId === 'agent-daily-digest' ? 'Digest' : 'Research';
-  const maxTopicLength = MAX_GENERATED_GROUP_TITLE_LENGTH - suffix.length - 1;
-  const clippedTopic =
-    topicSummary.length > maxTopicLength
-      ? `${topicSummary.slice(0, maxTopicLength - 1).trimEnd()}…`
-      : topicSummary;
-  return `${clippedTopic} ${suffix}`;
+  return `${prefix}${clippedPrimary}${countSuffix}${suffix}`;
 }
 
 /** Rename only the untouched placeholder created or adopted for onboarding. */
