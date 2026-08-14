@@ -583,22 +583,38 @@ export function Channel({
 
   const draftInputRef = useRef<DraftInputHandle>(null);
 
+  // Live group refreshes can briefly clear the query result while a new post
+  // is inserted. Keep the channel's last matching group available so trusted
+  // A2UI does not flash its text fallback or disable its controls mid-message.
+  const stableGroupRef = useRef<db.Group | null>(group);
+  if (group && (!channel.groupId || group.id === channel.groupId)) {
+    stableGroupRef.current = group;
+  }
+  const stableGroup =
+    group ??
+    (stableGroupRef.current?.id === channel.groupId
+      ? stableGroupRef.current
+      : null);
+
   // The onboarding lock hides the free-form composer below, but its A2UI
   // choices still send ordinary channel posts through this draft context.
   const canStartDraft =
     canRead &&
     canWrite &&
     negotiationMatch &&
-    !(channel.groupId && !group && !groupIsLoading) &&
+    !(channel.groupId && !stableGroup && !groupIsLoading) &&
     !channel.isDmInvite &&
     !editingPost;
 
-  // Helper to scroll to new message - shared by sendPost and sendPostFromDraft
+  // Onboarding drives its scroll from the durable post list below. Starting
+  // an animated send scroll while that list is preserving its end anchor makes
+  // the two corrections visibly fight.
   const scrollToNewMessage = useCallback(() => {
+    if (hideHeaderContents) return;
     requestAnimationFrame(() => {
       collectionRef.current?.scrollToLatest?.({ animated: true });
     });
-  }, []);
+  }, [hideHeaderContents]);
 
   const handleOpenDraft = useCallback((mode?: 'text' | 'link') => {
     draftInputRef.current?.startDraft?.(mode);
@@ -617,7 +633,7 @@ export function Channel({
       draftInputRef,
       editingPost,
       getDraft,
-      group,
+      group: stableGroup,
       onPresentationModeChange: setDraftInputPresentationMode,
       sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
@@ -639,7 +655,7 @@ export function Channel({
       clearDraft,
       editingPost,
       getDraft,
-      group,
+      stableGroup,
       handleOpenDraft,
       inputShouldBlur,
       setEditingPost,

@@ -78,7 +78,7 @@ function SmallChoicePill({
             ? `Remove ${label}`
             : label
       }
-      accessibilityState={{ selected: isSelected }}
+      accessibilityState={{ disabled, selected: isSelected }}
       disabled={disabled}
       onPress={disabled ? undefined : onPress}
     >
@@ -137,14 +137,17 @@ function SmallChoicePills({
   const [customTopics, setCustomTopics] = useState<string[]>([]);
   const [customDraft, setCustomDraft] = useState('');
   const [customInputOpen, setCustomInputOpen] = useState(false);
-  // In-flight only: block a double tap while transport is sending, then allow
-  // retry. Transport success is not coordinator acknowledgement; the monitor
-  // may have missed a message during a restart or unreadable-group window.
+  // Lock the whole picker synchronously when submit starts. React state alone
+  // leaves a brief window before re-render where a pill can still be toggled.
+  // Keep the lock after success; only release it when the send fails.
   const [submitted, setSubmitted] = useState(false);
   const [consumedLocally, setConsumedLocally] = useState(false);
   const submittingRef = useRef(false);
 
   const toggle = useCallback((id: string) => {
+    if (submittingRef.current) {
+      return;
+    }
     setSelectedIds((previous) =>
       previous.includes(id)
         ? previous.filter((selected) => selected !== id)
@@ -197,7 +200,6 @@ function SmallChoicePills({
     } catch {
       // The transport reports failures elsewhere; this surface only needs to
       // become available again so the owner can retry.
-    } finally {
       submittingRef.current = false;
       setSubmitted(false);
     }
@@ -225,22 +227,31 @@ function SmallChoicePills({
           },
         };
 
-  const disabled = submitted || !probe(probeAction);
-  const submitDisabled =
-    disabled || !messageForSelection || !probe(actionForSelection);
   const submitAction = messageForSelection ? actionForSelection : probeAction;
   const actionConsumed =
     consumedLocally || isActionConsumed?.(submitAction) === true;
+  // A durable owner reply consumes the entire picker, not just its submit
+  // button. Without this guard a remounted historical picker could still
+  // toggle pills after onboarding had already advanced to the next prompt.
+  const disabled = submitted || actionConsumed || !probe(probeAction);
+  const submitDisabled =
+    disabled || !messageForSelection || !probe(actionForSelection);
   const showSubmit = !actionConsumed && Boolean(messageForSelection);
   const customChoiceLabel =
     component.freeTextPlaceholder?.replace(/…+$/, '') || '';
 
   const openCustomInput = useCallback(() => {
+    if (submittingRef.current) {
+      return;
+    }
     setCustomDraft('');
     setCustomInputOpen(true);
   }, []);
 
   const saveCustomInput = useCallback(() => {
+    if (submittingRef.current) {
+      return;
+    }
     const topic = customDraft.trim();
     if (!topic) return;
 
@@ -267,6 +278,9 @@ function SmallChoicePills({
   }, [component.options, customDraft]);
 
   const removeCustomTopic = useCallback((topic: string) => {
+    if (submittingRef.current) {
+      return;
+    }
     setCustomTopics((previous) =>
       previous.filter((existing) => existing !== topic)
     );
@@ -279,7 +293,7 @@ function SmallChoicePills({
           flexWrap="wrap"
           gap="$s"
           width="100%"
-          marginBottom={!actionConsumed ? SMALL_CHOICE_SUBMIT_GAP : undefined}
+          marginBottom={SMALL_CHOICE_SUBMIT_GAP}
         >
           {component.options.map((option) => {
             const isSelected = selectedIds.includes(option.id);
@@ -316,33 +330,31 @@ function SmallChoicePills({
             />
           ) : null}
         </XStack>
-        {!actionConsumed ? (
-          <YStack
+        <YStack
+          height={44}
+          alignItems="flex-start"
+          opacity={showSubmit ? 1 : 0}
+          pointerEvents={showSubmit ? 'auto' : 'none'}
+          accessibilityElementsHidden={!showSubmit}
+          importantForAccessibility={
+            showSubmit ? 'auto' : 'no-hide-descendants'
+          }
+        >
+          <Button.Frame
+            size="medium"
+            fill="solid"
+            intent="positive"
+            alignSelf="flex-start"
             height={44}
-            alignItems="flex-start"
-            opacity={showSubmit ? 1 : 0}
-            pointerEvents={showSubmit ? 'auto' : 'none'}
-            accessibilityElementsHidden={!showSubmit}
-            importantForAccessibility={
-              showSubmit ? 'auto' : 'no-hide-descendants'
-            }
+            paddingHorizontal="$xl"
+            testID="A2UISmallChoiceSubmit"
+            disabled={submitDisabled}
+            dimmed={submitDisabled}
+            onPress={submitDisabled ? undefined : handleSubmit}
           >
-            <Button.Frame
-              size="medium"
-              fill="solid"
-              intent="positive"
-              alignSelf="flex-start"
-              height={44}
-              paddingHorizontal="$xl"
-              testID="A2UISmallChoiceSubmit"
-              disabled={submitDisabled}
-              dimmed={submitDisabled}
-              onPress={submitDisabled ? undefined : handleSubmit}
-            >
-              <Button.Text size="medium">{component.submitLabel}</Button.Text>
-            </Button.Frame>
-          </YStack>
-        ) : null}
+            <Button.Text size="medium">{component.submitLabel}</Button.Text>
+          </Button.Frame>
+        </YStack>
       </YStack>
       {component.freeTextPlaceholder ? (
         <ActionSheet
@@ -534,6 +546,10 @@ export function A2UIBlock({
   } = useContentContext();
   const [locallyConsumedComponentIds, setLocallyConsumedComponentIds] =
     useState<string[]>([]);
+  const [locallyConsumedChoiceIds, setLocallyConsumedChoiceIds] = useState<
+    string[]
+  >([]);
+  const choicePressLocksRef = useRef(new Set<string>());
   const update = A2UI.getUpdateMessage(block.a2ui);
   const root = A2UI.getRootComponentId(block.a2ui);
   const surfaceId =
@@ -568,15 +584,29 @@ export function A2UIBlock({
   );
 
   const handleChoicePress = useCallback(
-    (action: A2UI.ChoiceOption['action']) => {
+    async (componentId: string, action: A2UI.ChoiceOption['action']) => {
       if (
-        action.event.name === A2UI.action.sendMessage &&
-        !action.event.context.text.trim()
+        choicePressLocksRef.current.has(componentId) ||
+        (action.event.name === A2UI.action.sendMessage &&
+          !action.event.context.text.trim())
       ) {
         return;
       }
 
-      onA2UIAction?.(action);
+      // Lock synchronously, before React can re-render, so two rapid taps on
+      // different options still produce exactly one owner reply.
+      choicePressLocksRef.current.add(componentId);
+      setLocallyConsumedChoiceIds((previous) =>
+        previous.includes(componentId) ? previous : [...previous, componentId]
+      );
+      try {
+        await onA2UIAction?.(action);
+      } catch {
+        choicePressLocksRef.current.delete(componentId);
+        setLocallyConsumedChoiceIds((previous) =>
+          previous.filter((id) => id !== componentId)
+        );
+      }
     },
     [onA2UIAction]
   );
@@ -707,10 +737,8 @@ export function A2UIBlock({
             component.variant === 'primary' &&
             (locallyConsumedComponentIds.includes(component.id) ||
               isA2UIActionConsumed?.(component.action) === true);
-          if (actionConsumed) {
-            return null;
-          }
           const disabled =
+            actionConsumed ||
             component.disabled ||
             !onA2UIAction ||
             isA2UIActionAvailable?.(component.action) === false;
@@ -736,6 +764,12 @@ export function A2UIBlock({
               height={44}
               paddingHorizontal="$xl"
               flex={getComponentFlex(component)}
+              opacity={actionConsumed ? 0 : 1}
+              pointerEvents={actionConsumed ? 'none' : 'auto'}
+              accessibilityElementsHidden={actionConsumed}
+              importantForAccessibility={
+                actionConsumed ? 'no-hide-descendants' : 'auto'
+              }
               disabled={disabled}
               dimmed={disabled}
               onPress={
@@ -747,6 +781,11 @@ export function A2UIBlock({
           );
         }
         case 'Choice': {
+          const choiceConsumed =
+            locallyConsumedChoiceIds.includes(component.id) ||
+            component.options.some(
+              (option) => isA2UIActionConsumed?.(option.action) === true
+            );
           return (
             <YStack
               key={component.id}
@@ -757,6 +796,7 @@ export function A2UIBlock({
               {component.options.map((option) => {
                 const accent = CHOICE_ACCENT_COLORS[option.accent ?? 'neutral'];
                 const disabled =
+                  choiceConsumed ||
                   !onA2UIAction ||
                   isA2UIActionAvailable?.(option.action) === false;
                 return (
@@ -764,11 +804,12 @@ export function A2UIBlock({
                     key={option.id}
                     testID={`A2UIChoice-${option.id}`}
                     accessibilityLabel={option.label}
+                    accessibilityState={{ disabled }}
                     disabled={disabled}
                     onPress={
                       disabled
                         ? undefined
-                        : () => handleChoicePress(option.action)
+                        : () => handleChoicePress(component.id, option.action)
                     }
                   >
                     <XStack
@@ -856,6 +897,7 @@ export function A2UIBlock({
       isA2UIActionAvailable,
       isA2UIActionConsumed,
       locallyConsumedComponentIds,
+      locallyConsumedChoiceIds,
       onA2UIAction,
       onAgentOnboardingConfirm,
       surfaceId,

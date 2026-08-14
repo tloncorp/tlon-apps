@@ -7,7 +7,10 @@ export function useAgentGroupOnboardingLock(groupId?: string | null) {
 
   return {
     isLoading,
-    locked: Boolean(groupId && marker),
+    locked: Boolean(groupId && marker && !marker.provisionAcknowledgedAt),
+    awaitingFirstEntry: Boolean(
+      groupId && marker?.provision && marker.provisionAcknowledgedAt
+    ),
     marker,
   };
 }
