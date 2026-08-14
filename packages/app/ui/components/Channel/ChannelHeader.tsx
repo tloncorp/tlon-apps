@@ -16,7 +16,6 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'tamagui';
 
 import { useShipConnectionStatus } from '../../../features/top/useShipConnectionStatus';
@@ -157,7 +156,6 @@ export function ChannelHeader({
   preferProvidedTitle?: boolean;
   post?: db.Post;
 }) {
-  const { top: safeAreaTop } = useSafeAreaInsets();
   const connectionStatus = useConnectionStatus();
   const chatTitle = useChatTitle(channel, group);
   const chatDescription = useChatDescription(channel, group);
@@ -438,31 +436,44 @@ export function ChannelHeader({
     enabled: usesNavigationHeader,
     bottomEdgeEffect: 'soft',
   });
-
-  if (hideContents) {
-    return <View paddingTop={safeAreaTop} />;
-  }
+  // Keep the real header installed while onboarding hides its controls. A
+  // placeholder removes the native navigation header entirely, changing the
+  // conversation viewport when it later returns. Empty, inert contents retain
+  // the exact same header geometry throughout the transition.
+  const displayedHeaderProps = hideContents
+    ? {
+        ...headerProps,
+        title: '',
+        titleIcon: null,
+        subtitle: undefined,
+        showSubtitle: false,
+        loadingSubtitle: undefined,
+        onTitlePress: undefined,
+      }
+    : headerProps;
+  const displayedBackAction = hideContents ? undefined : goBack;
+  const displayedRightActions = hideContents ? [] : rightActions;
 
   if (usesNavigationHeader) {
     // Native navigation headers accept declarative actions only. Element-style
     // registrations are reserved for inline notebook and gallery headers.
     return (
       <ScreenHeader
-        {...headerProps}
+        {...displayedHeaderProps}
         placement="navigation"
-        backAction={goBack}
-        rightActions={rightActions}
+        backAction={displayedBackAction}
+        rightActions={displayedRightActions}
       />
     );
   }
 
   return (
     <ScreenHeader
-      {...headerProps}
-      backAction={goBack}
-      rightActions={rightActions}
+      {...displayedHeaderProps}
+      backAction={displayedBackAction}
+      rightActions={displayedRightActions}
       rightControls={
-        contextItems.length ? (
+        !hideContents && contextItems.length ? (
           <>
             {/* this fragment/map is necessary to be able to provide a key to the items */}
             {contextItems.map((item, index) => (

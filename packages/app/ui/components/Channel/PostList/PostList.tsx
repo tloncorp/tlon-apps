@@ -490,6 +490,14 @@ const ConversationPostListAttempt = React.forwardRef<
       !didFinishInitialScroll ||
       (!hasUserScrolled && isNearEnd) ||
       isWithinBottomThreshold;
+    // Data anchoring and end anchoring choose different items to preserve.
+    // Let end anchoring own updates while the conversation is being followed;
+    // retain data anchoring only after the user has moved away from the end.
+    const maintainVisibleContentPosition =
+      collectionLayout.shouldMaintainVisibleContentPosition &&
+      !(anchorToEnd && isNearEnd)
+        ? true
+        : undefined;
     usePostListBottomCallbacks(isAtBottom, {
       onScrolledToBottom,
       onScrolledAwayFromBottom,
@@ -556,9 +564,7 @@ const ConversationPostListAttempt = React.forwardRef<
         maintainScrollAtEndThreshold={
           anchorToEnd && !hasNewerPosts ? 0.1 : undefined
         }
-        maintainVisibleContentPosition={
-          collectionLayout.shouldMaintainVisibleContentPosition || undefined
-        }
+        maintainVisibleContentPosition={maintainVisibleContentPosition}
         ListEmptyComponent={renderEmptyComponent}
         ListHeaderComponent={listHeaderComponent}
         ListFooterComponent={listBottomComponent}

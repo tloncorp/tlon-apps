@@ -167,6 +167,7 @@ export function StaticChatMessage({
         [groupId]: {
           ...current[groupId],
           createdAt: current[groupId]?.createdAt ?? Date.now(),
+          provisionAcknowledgedAt: undefined,
           provision: {
             type: 'tlon-agent-provision',
             version: 1,
@@ -297,7 +298,23 @@ export function StaticChatMessage({
 
   const groupAgents = db.agentGroupAgents.useValue();
   const onboardingLocks = db.agentGroupOnboardingLocks.useValue();
-  const knownAgent = post.groupId ? groupAgents[post.groupId] : undefined;
+  // A newly delivered post can arrive one render before its denormalized
+  // `groupId`. The surrounding channel is already authoritative for that
+  // relationship, so use it immediately instead of briefly rendering the
+  // textual A2UI fallback and then replacing it with the real control.
+  const resolvedPostGroupId =
+    post.groupId ??
+    (draftInputContext?.channel.id === post.channelId
+      ? draftInputContext.channel.groupId
+      : undefined);
+  const knownAgent = resolvedPostGroupId
+    ? groupAgents[resolvedPostGroupId]
+    : undefined;
+  // `useGroup()` can briefly clear its query result while a live post is
+  // inserted. The surrounding channel already owns the same group, so keep
+  // authorization stable through that refresh instead of flashing the text
+  // fallback before replacing it with A2UI.
+  const currentGroup = group ?? draftInputContext?.group;
   const onboardingMarker = post.groupId
     ? onboardingLocks[post.groupId]
     : undefined;
@@ -306,7 +323,8 @@ export function StaticChatMessage({
       !post.groupId ||
       post.authorId !== knownAgent ||
       !post.blob ||
-      !onboardingMarker?.provision
+      !onboardingMarker?.provision ||
+      onboardingMarker.provisionAcknowledgedAt
     ) {
       return;
     }
@@ -318,16 +336,29 @@ export function StaticChatMessage({
     if (!matched) return;
     void db.agentGroupOnboardingLocks.setValue((current) => {
       if (!post.groupId || !current[post.groupId]) return current;
-      const { [post.groupId]: _released, ...remaining } = current;
-      return remaining;
+      return {
+        ...current,
+        [post.groupId]: {
+          ...current[post.groupId],
+          provisionAcknowledgedAt:
+            current[post.groupId]?.provisionAcknowledgedAt ?? Date.now(),
+        },
+      };
     });
   }, [knownAgent, onboardingMarker, post.authorId, post.blob, post.groupId]);
+  const currentUserHostsPostGroup = Boolean(
+    resolvedPostGroupId &&
+      ((currentGroup?.currentUserIsHost &&
+        currentGroup.id === resolvedPostGroupId &&
+        currentGroup.hostUserId === currentUserId) ||
+        (draftInputContext?.channel.groupId === resolvedPostGroupId &&
+          draftInputContext.channel.currentUserIsHost))
+  );
   const canRenderA2UI =
     isDmChannelId(post.channelId) ||
     Boolean(
-      post.groupId &&
-        group?.currentUserIsHost &&
-        group.hostUserId === currentUserId &&
+      resolvedPostGroupId &&
+        currentUserHostsPostGroup &&
         knownAgent === post.authorId
     );
 
