@@ -3832,6 +3832,20 @@ export async function monitorTlonProvider(
             rawText,
             blob: content.blob,
             log: (message) => runtime.log?.(message),
+            presentation: {
+              startThinking: () => {
+                computingPresence.refreshRun({
+                  conversationId: nest,
+                  runId: `onboarding:${String(messageId)}`,
+                });
+              },
+              stopThinking: () => {
+                computingPresence.stopRun({
+                  conversationId: nest,
+                  runId: `onboarding:${String(messageId)}`,
+                });
+              },
+            },
           })
         ) {
           // Onboarding requests and deterministic picker replies are
