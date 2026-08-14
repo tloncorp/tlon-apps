@@ -249,6 +249,110 @@ describe('agent onboarding requests', () => {
     );
   });
 
+  it('shows thinking and paces consecutive onboarding messages', async () => {
+    let now = 0;
+    const events: string[] = [];
+    const introBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~ten/group',
+    });
+    const sendPost = vi.fn(async ({ blob }: { blob?: string }) => {
+      const marker = parsePostBlob(blob).find(
+        (entry) => entry.type === 'tlon-agent-post-marker'
+      );
+      events.push(
+        `post:${marker?.type === 'tlon-agent-post-marker' ? marker.key : 'unknown'}`
+      );
+      return { channel: 'tlon' as const, messageId: 'post', sentAt: now };
+    });
+
+    await handleAgentOnboardingRequest(
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/general',
+        groupId: '~ten/group',
+        ownerShip: '~ten',
+        senderShip: '~ten',
+        blob: introBlob,
+        presentation: {
+          startThinking: () => events.push('thinking:start'),
+          stopThinking: () => events.push('thinking:stop'),
+        },
+      },
+      {
+        fetchHistory: vi.fn(async () => [
+          {
+            author: '~ten',
+            content: "Let's get set up.",
+            timestamp: 1,
+            blob: introBlob,
+          },
+        ]),
+        now: () => now,
+        sleep: vi.fn(async (ms) => {
+          events.push(`sleep:${ms}`);
+          now += ms;
+        }),
+        sendPost,
+      }
+    );
+
+    expect(events).toEqual([
+      'thinking:start',
+      'sleep:1250',
+      'post:intro',
+      'sleep:1000',
+      'post:purpose-picker',
+      'thinking:stop',
+    ]);
+  });
+
+  it('always clears thinking presence when an onboarding post fails', async () => {
+    const introBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~ten/group',
+    });
+    const startThinking = vi.fn();
+    const stopThinking = vi.fn();
+
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: '~ten/group',
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          blob: introBlob,
+          presentation: {
+            startThinking,
+            stopThinking,
+            minResponseDelayMs: 0,
+          },
+        },
+        {
+          fetchHistory: vi.fn(async () => [
+            {
+              author: '~ten',
+              content: "Let's get set up.",
+              timestamp: 1,
+              blob: introBlob,
+            },
+          ]),
+          sendPost: vi.fn(async () => {
+            throw new Error('send failed');
+          }),
+        }
+      )
+    ).rejects.toThrow('send failed');
+    expect(startThinking).toHaveBeenCalledOnce();
+    expect(stopThinking).toHaveBeenCalledOnce();
+  });
+
   it('consumes picker replies from production-shaped history before model dispatch', async () => {
     const sent: Array<{ story: unknown; blob?: string }> = [];
     const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {

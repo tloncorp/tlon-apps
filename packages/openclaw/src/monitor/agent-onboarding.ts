@@ -33,13 +33,21 @@ type AgentOnboardingContext = {
   rawText?: string;
   blob: string | null | undefined;
   log?: (message: string) => void;
+  presentation?: {
+    startThinking: () => void | Promise<void>;
+    stopThinking: () => void | Promise<void>;
+    minResponseDelayMs?: number;
+    minInterMessageDelayMs?: number;
+  };
 };
 
 type AgentOnboardingDeps = {
   fetchHistory?: typeof fetchChannelHistory;
   getCron?: typeof getTlonCronService;
   getGroup?: (groupId: string) => Promise<OnboardingGroup>;
+  now?: () => number;
   sendPost?: typeof sendChannelPost;
+  sleep?: (ms: number) => Promise<void>;
 };
 
 type AgentOnboardingCronDeps = {
@@ -64,6 +72,8 @@ type AgentOnboardingScanContext = Omit<
 >;
 
 const postOnceFlights = new Map<string, Promise<void>>();
+const DEFAULT_MIN_RESPONSE_DELAY_MS = 1_250;
+const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_000;
 const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
 const GROUP_INTRO_MESSAGE =
   "I'm your Tlonbot. I can research things, track changes, and write " +
@@ -182,6 +192,23 @@ export async function handleAgentOnboardingRequest(
   context: AgentOnboardingContext,
   deps: AgentOnboardingDeps = {}
 ): Promise<boolean> {
+  const presentation = createOnboardingPresentation(context, deps);
+  try {
+    return await handleAgentOnboardingRequestInternal(
+      context,
+      deps,
+      presentation
+    );
+  } finally {
+    await presentation.finish();
+  }
+}
+
+async function handleAgentOnboardingRequestInternal(
+  context: AgentOnboardingContext,
+  deps: AgentOnboardingDeps,
+  presentation: OnboardingPresentation
+): Promise<boolean> {
   const request = parseAgentOnboardingRequest(context.blob);
   if (!request) {
     if (
@@ -197,7 +224,7 @@ export async function handleAgentOnboardingRequest(
       context.channelNest,
       50
     );
-    return advanceDurableConversation(context, history, deps);
+    return advanceDurableConversation(context, history, deps, presentation);
   }
   if (
     !context.ownerShip ||
@@ -217,10 +244,10 @@ export async function handleAgentOnboardingRequest(
     50
   );
   if (request.type === 'tlon-agent-intro-request') {
-    await postIntro(context, history, deps);
+    await postIntro(context, history, deps, presentation);
     return true;
   }
-  await provision(context, history, request, deps);
+  await provision(context, history, request, deps, presentation);
   return true;
 }
 
@@ -327,7 +354,8 @@ function pendingDurableReply(
 async function postIntro(
   context: AgentOnboardingContext,
   history: TlonHistoryEntry[],
-  deps: AgentOnboardingDeps
+  deps: AgentOnboardingDeps,
+  presentation: OnboardingPresentation
 ) {
   await postOnce(
     context,
@@ -336,7 +364,8 @@ async function postIntro(
     async () => ({
       text: GROUP_INTRO_MESSAGE,
     }),
-    deps
+    deps,
+    presentation
   );
   await postOnce(
     context,
@@ -349,14 +378,16 @@ async function postIntro(
         buildPurposePickerSurface(context.groupId!)
       ),
     }),
-    deps
+    deps,
+    presentation
   );
 }
 
 async function advanceDurableConversation(
   context: AgentOnboardingContext,
   history: TlonHistoryEntry[],
-  deps: AgentOnboardingDeps
+  deps: AgentOnboardingDeps,
+  presentation: OnboardingPresentation
 ): Promise<boolean> {
   const text = context.rawText!.trim();
   if (!hasPostMarker(history, context.botShip, 'purpose-picker')) {
@@ -380,7 +411,8 @@ async function advanceDurableConversation(
           ...(surface ? { blob: appendToPostBlob(undefined, surface) } : {}),
         };
       },
-      deps
+      deps,
+      presentation
     );
     return true;
   }
@@ -417,7 +449,8 @@ async function advanceDurableConversation(
         })
       ),
     }),
-    deps
+    deps,
+    presentation
   );
   return true;
 }
@@ -480,8 +513,13 @@ async function provision(
   context: AgentOnboardingContext,
   history: TlonHistoryEntry[],
   request: PostBlobDataEntryAgentProvision,
-  deps: AgentOnboardingDeps
+  deps: AgentOnboardingDeps,
+  presentation: OnboardingPresentation
 ) {
+  // Provisioning can do real work before its acknowledgement is ready. Start
+  // presence immediately so group verification and cron setup both count
+  // toward the response floor instead of adding an artificial delay later.
+  await presentation.start();
   const group = await (
     deps.getGroup ?? ((groupId) => fetchOnboardingGroup(context.api, groupId))
   )(request.groupId);
@@ -555,7 +593,8 @@ async function provision(
           },
         ],
       }),
-      deps
+      deps,
+      presentation
     );
   } else {
     // Older acknowledgements predate the combined handoff. Repair only the
@@ -568,7 +607,8 @@ async function provision(
       async () => ({
         text: HANDOFF_MESSAGE,
       }),
-      deps
+      deps,
+      presentation
     );
     await postOnce(
       context,
@@ -578,7 +618,8 @@ async function provision(
         text: 'Connect services in Settings.',
         blob: appendToPostBlob(undefined, buildServicesSurface()),
       }),
-      deps
+      deps,
+      presentation
     );
   }
 
@@ -747,12 +788,93 @@ type PostOnceContent = {
   entries?: Parameters<typeof appendToPostBlob>[1][];
 };
 
+type OnboardingPresentation = {
+  start: () => Promise<void>;
+  beforePost: () => Promise<void>;
+  afterPost: () => void;
+  finish: () => Promise<void>;
+};
+
+function createOnboardingPresentation(
+  context: AgentOnboardingContext,
+  deps: AgentOnboardingDeps
+): OnboardingPresentation {
+  const config = context.presentation;
+  if (!config) {
+    return {
+      start: async () => {},
+      beforePost: async () => {},
+      afterPost: () => {},
+      finish: async () => {},
+    };
+  }
+
+  const now = deps.now ?? Date.now;
+  const sleep =
+    deps.sleep ??
+    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const minResponseDelayMs = Math.max(
+    0,
+    config.minResponseDelayMs ?? DEFAULT_MIN_RESPONSE_DELAY_MS
+  );
+  const minInterMessageDelayMs = Math.max(
+    0,
+    config.minInterMessageDelayMs ?? DEFAULT_MIN_INTER_MESSAGE_DELAY_MS
+  );
+  let startedAt: number | null = null;
+  let lastPostAt: number | null = null;
+  let active = false;
+
+  const start = async () => {
+    if (active) return;
+    active = true;
+    startedAt = now();
+    try {
+      await config.startThinking();
+    } catch (error) {
+      context.log?.(
+        `[tlon] failed to start onboarding thinking presence: ${String(error)}`
+      );
+    }
+  };
+
+  return {
+    start,
+    beforePost: async () => {
+      await start();
+      const earliestPostAt =
+        lastPostAt === null
+          ? (startedAt ?? now()) + minResponseDelayMs
+          : lastPostAt + minInterMessageDelayMs;
+      const remainingMs = earliestPostAt - now();
+      if (remainingMs > 0) {
+        await sleep(remainingMs);
+      }
+    },
+    afterPost: () => {
+      lastPostAt = now();
+    },
+    finish: async () => {
+      if (!active) return;
+      active = false;
+      try {
+        await config.stopThinking();
+      } catch (error) {
+        context.log?.(
+          `[tlon] failed to stop onboarding thinking presence: ${String(error)}`
+        );
+      }
+    },
+  };
+}
+
 async function postOnce(
   context: AgentOnboardingScanContext,
   history: TlonHistoryEntry[],
   key: string,
   build: () => Promise<PostOnceContent>,
-  deps: AgentOnboardingDeps
+  deps: AgentOnboardingDeps,
+  presentation?: OnboardingPresentation
 ) {
   if (hasPostMarker(history, context.botShip, key)) return;
   const flightKey = `${context.channelNest}:${key}`;
@@ -769,6 +891,7 @@ async function postOnce(
       version: 1,
       key,
     });
+    await presentation?.beforePost();
     try {
       await (deps.sendPost ?? sendChannelPost)({
         fromShip: context.botShip,
@@ -785,6 +908,7 @@ async function postOnce(
       );
       if (!hasPostMarker(reread, context.botShip, key)) throw error;
     }
+    presentation?.afterPost();
   })().finally(() => postOnceFlights.delete(flightKey));
   postOnceFlights.set(flightKey, flight);
   return flight;
