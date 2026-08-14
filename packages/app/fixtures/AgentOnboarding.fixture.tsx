@@ -286,13 +286,13 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-06-ack',
     author: tlonbot,
-    text: 'Open hardware and Space weather—got it. I’ll publish a fresh digest here each day. Your first entry is coming shortly.',
+    text: 'Open hardware and Space weather—got it. I’ll publish a fresh digest here each day. You’re all set. Your first entry is on the way, so feel free to explore the app while I work.',
     minute: 6,
   }),
   transcriptPost({
     id: 'onboarding-07-closing',
     author: tlonbot,
-    text: 'A few things to know:\n\n- This conversation stays with you if you switch models or move Tlon to your own server.\n- You can rename me whenever you like.\n- Ask me about anything I find, or tell me what to do next.\n\nI can draw on more than the web. Connect your other services — calendars, docs, notes — and what they know can inform what I make for you too:',
+    text: 'A few things to know:\n\n- Rename me or ask follow-up questions anytime.\n- Connect calendars, docs, or notes to give me more to work with:',
     minute: 7,
   }),
   transcriptPost({
