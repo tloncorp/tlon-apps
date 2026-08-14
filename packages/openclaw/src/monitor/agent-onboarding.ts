@@ -71,7 +71,7 @@ const GROUP_INTRO_MESSAGE =
 const PURPOSE_PICKER_PROMPT = 'What should this group do?';
 const HANDOFF_MESSAGE =
   'A few things to know:\n\n' +
-  '- Rename me or ask follow-up questions anytime.\n' +
+  '- Ask me here to change what I cover, when I post, or my name.\n' +
   '- Connect calendars, docs, or notes to give me more to work with:';
 const TOPICS_PICKER_FALLBACK_INSTRUCTION =
   'You can also just tell me here in the chat.';
@@ -87,7 +87,7 @@ const PURPOSE_OPTIONS = [
     accent: 'blue',
     scheduleHour: 8,
     topicsPrompt:
-      'Good. I’ll create a group that posts a fresh morning digest about ' +
+      'Good. I’ll set this group up to post one concise morning digest about ' +
       'whatever you choose. What should it cover? Pick any that fit.',
     topics: [
       'Nootropics',
@@ -103,13 +103,13 @@ const PURPOSE_OPTIONS = [
   {
     id: 'agent-learning',
     label: 'Learn something',
-    description: 'Build your understanding with a short daily explainer.',
+    description: 'A short daily idea that builds your understanding over time.',
     icon: 'Clock',
     accent: 'green',
     scheduleHour: 9,
     topicsPrompt:
-      'Good. I’ll create a group that builds your understanding over time. ' +
-      'What should we explore? Pick any that fit.',
+      'Good. I’ll set this group up to share one useful idea at a time and ' +
+      'build on it. What are you curious about? Pick any that fit.',
     topics: [
       'Music theory',
       'Genetics',
@@ -124,14 +124,13 @@ const PURPOSE_OPTIONS = [
   {
     id: 'agent-research',
     label: 'Research',
-    description: 'A standing deep-dive I keep updated as new work comes out.',
+    description: 'A source-backed briefing that follows meaningful new work.',
     icon: 'Search',
     accent: 'indigo',
     scheduleHour: 9,
     topicsPrompt:
-      'Good. I’ll create a standing research notebook that begins with an ' +
-      'overview, then follows meaningful new work. What do you want to learn ' +
-      'about? Pick any that fit.',
+      'Good. I’ll set this group up to track a focused question with sources ' +
+      'and note what changes. What should it investigate? Pick any that fit.',
     topics: [
       'Peptides',
       'Installation art',
@@ -441,7 +440,7 @@ function purposeForReply(text: string): Purpose {
       label: text.slice(0, 200),
       scheduleHour: 9,
       topicsPrompt:
-        'Good. I’ll create a group for that. What should it focus on?',
+        'Good. I’ll set this group up for that. What should it focus on?',
       topics: [],
     }
   );
@@ -520,16 +519,23 @@ async function provision(
   if (!existingAck) {
     if (!cron) throw new Error('cron service is not available');
     jobId = await upsertPrimaryJob(cron, request, context.channelNest);
+    const acknowledgement =
+      `${formatTopicList(request.topics)}—got it. ` +
+      `${provisionCadence(request.purposeId)} ` +
+      'You’re all set. Your first entry is on the way. You can leave this ' +
+      'screen and explore the app while I work.';
     await postOnce(
       context,
       history,
       ackKey,
       async () => ({
         text:
-          `${formatTopicList(request.topics)}—got it. ` +
-          `${provisionCadence(request.purposeId)} ` +
-          'You’re all set. Your first entry is on the way, so feel free to ' +
-          'explore the app while I work.',
+          `${acknowledgement}\n\n${HANDOFF_MESSAGE}\n\n` +
+          'Connect services in Settings.',
+        blob: appendToPostBlob(
+          undefined,
+          buildProvisionHandoffSurface(acknowledgement)
+        ),
         entries: [
           {
             type: 'tlon-agent-provision-ack',
@@ -537,31 +543,44 @@ async function provision(
             provisionId: request.provisionId,
             cronJobId: jobId!,
           },
+          {
+            type: 'tlon-agent-post-marker',
+            version: 1,
+            key: 'handoff',
+          },
+          {
+            type: 'tlon-agent-post-marker',
+            version: 1,
+            key: 'services-card',
+          },
         ],
       }),
       deps
     );
+  } else {
+    // Older acknowledgements predate the combined handoff. Repair only the
+    // pieces their durable history is missing; new acknowledgements carry all
+    // three markers in one post and never take this path.
+    await postOnce(
+      context,
+      history,
+      'handoff',
+      async () => ({
+        text: HANDOFF_MESSAGE,
+      }),
+      deps
+    );
+    await postOnce(
+      context,
+      history,
+      'services-card',
+      async () => ({
+        text: 'Connect services in Settings.',
+        blob: appendToPostBlob(undefined, buildServicesSurface()),
+      }),
+      deps
+    );
   }
-
-  await postOnce(
-    context,
-    history,
-    'handoff',
-    async () => ({
-      text: HANDOFF_MESSAGE,
-    }),
-    deps
-  );
-  await postOnce(
-    context,
-    history,
-    'services-card',
-    async () => ({
-      text: 'Connect services in Settings.',
-      blob: appendToPostBlob(undefined, buildServicesSurface()),
-    }),
-    deps
-  );
 
   if (!existingAck) {
     if (!cron?.enqueueRun) {
@@ -919,7 +938,11 @@ function buildRecurringPrompt(request: PostBlobDataEntryAgentProvision) {
     request.purposeId === 'agent-research'
       ? 'If the notebook is empty, write an introductory survey of the field. Otherwise, focus on meaningful work published since its newest entry.'
       : 'If the notebook is empty, make this a self-contained first entry. Otherwise, write the next current update without repeating the newest entry.';
-  return `Write ${request.purpose.toLowerCase()} about ${request.topics.join(', ')}. First inspect the existing entries with \`tlon notes notes ${request.notebookNest}\`. ${firstRun} Search the web for current information and cite useful sources. Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note; do not post it or call a messaging tool. The coordinator will publish your final response exactly once.`;
+  const purposeGuidance =
+    request.purposeId === 'agent-research'
+      ? 'Prioritize primary sources and direct links. Distinguish publication dates from event dates, label uncertainty or conflicting evidence, and stay tightly within the requested scope. If nothing meaningful changed, say that plainly instead of padding the entry.'
+      : 'Lead with the items most likely to matter today. Distinguish new information from background, order items by urgency, and keep the result concise and scannable.';
+  return `Write ${request.purpose.toLowerCase()} about ${request.topics.join(', ')}. First inspect the existing entries with \`tlon notes notes ${request.notebookNest}\`. ${firstRun} ${purposeGuidance} Search the web for current information and cite useful sources. Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note; do not post it or call a messaging tool. The coordinator will publish your final response exactly once.`;
 }
 
 function choiceAction(text: string): A2UI.SendMessageAction {
@@ -983,11 +1006,11 @@ function formatTopicList(topics: readonly string[]): string {
 function provisionCadence(purposeId: string) {
   switch (purposeId) {
     case 'agent-learning':
-      return 'I’ll publish a short explainer on one topic each day, rotating through your list.';
+      return 'I’ll publish one useful idea each morning, rotating through your list.';
     case 'agent-research':
-      return 'I’ll publish a fresh research update here each day.';
+      return 'I’ll check for new work each morning and publish a source-backed update here.';
     default:
-      return 'I’ll publish a fresh digest here each day.';
+      return 'I’ll publish one fresh digest here each morning.';
   }
 }
 
@@ -1125,6 +1148,51 @@ function buildServicesSurface() {
         },
       },
       { id: 'label', component: 'Text', text: 'Connect services' },
+    ])
+  );
+}
+
+function buildProvisionHandoffSurface(acknowledgement: string) {
+  return withFallbackStory(
+    makeA2UIBlob('agent-provision-handoff', 'root', [
+      {
+        id: 'root',
+        component: 'Column',
+        children: ['acknowledgement', 'heading', 'details', 'services'],
+      },
+      {
+        id: 'acknowledgement',
+        component: 'Text',
+        text: acknowledgement,
+      },
+      {
+        id: 'heading',
+        component: 'Text',
+        text: 'A few things to know:',
+      },
+      {
+        id: 'details',
+        component: 'Text',
+        text:
+          '- Ask me here to change what I cover, when I post, or my name.\n' +
+          '- Connect calendars, docs, or notes to give me more to work with:',
+      },
+      {
+        id: 'services',
+        component: 'Button',
+        child: 'services-label',
+        action: {
+          event: {
+            name: A2UI.action.navigate,
+            context: { target: { type: 'screen', screen: 'botMcpSettings' } },
+          },
+        },
+      },
+      {
+        id: 'services-label',
+        component: 'Text',
+        text: 'Connect services',
+      },
     ])
   );
 }

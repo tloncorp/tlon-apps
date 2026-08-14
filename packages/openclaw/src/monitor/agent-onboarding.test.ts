@@ -210,7 +210,7 @@ describe('agent onboarding requests', () => {
     );
     expect(topicsA2UI).toMatchObject({ storyMode: 'fallback' });
     expect(JSON.stringify(topicsA2UI)).toContain(
-      'posts a fresh morning digest'
+      'set this group up to post one concise morning digest'
     );
     expect(JSON.stringify(topicsA2UI)).not.toContain(
       'tell me here in the chat'
@@ -341,16 +341,20 @@ describe('agent onboarding requests', () => {
   });
 
   it.each([
-    ['A daily digest', 'posts a fresh morning digest', 'What should it cover?'],
+    [
+      'A daily digest',
+      'set this group up to post one concise morning digest',
+      'What should it cover?',
+    ],
     [
       'Learn something',
-      'builds your understanding over time',
-      'What should we explore?',
+      'share one useful idea at a time',
+      'What are you curious about?',
     ],
     [
       'Research',
-      'begins with an overview, then follows meaningful new work',
-      'What do you want to learn about?',
+      'track a focused question with sources',
+      'What should it investigate?',
     ],
   ])('uses purpose-specific topic copy for %s', (reply, detail, question) => {
     const purpose = agentOnboardingTesting.purposeForReply(reply);
@@ -359,12 +363,15 @@ describe('agent onboarding requests', () => {
   });
 
   it.each([
-    ['agent-daily-digest', 'publish a fresh digest here each day'],
+    ['agent-daily-digest', 'publish one fresh digest here each morning'],
     [
       'agent-learning',
-      'publish a short explainer on one topic each day, rotating through your list',
+      'publish one useful idea each morning, rotating through your list',
     ],
-    ['agent-research', 'publish a fresh research update here each day'],
+    [
+      'agent-research',
+      'check for new work each morning and publish a source-backed update here',
+    ],
   ])('explains the ongoing cadence for %s', (purposeId, expectation) => {
     expect(agentOnboardingTesting.provisionCadence(purposeId)).toContain(
       expectation
@@ -433,12 +440,23 @@ describe('primary onboarding cron slot', () => {
   });
 
   it('makes every purpose first-run-aware in the recurring prompt', () => {
-    expect(agentOnboardingTesting.buildRecurringPrompt(provision)).toContain(
-      `tlon notes notes ${provision.notebookNest}`
-    );
-    expect(agentOnboardingTesting.buildRecurringPrompt(provision)).toContain(
-      provision.topics.join(', ')
-    );
+    const prompt = agentOnboardingTesting.buildRecurringPrompt(provision);
+    expect(prompt).toContain(`tlon notes notes ${provision.notebookNest}`);
+    expect(prompt).toContain(provision.topics.join(', '));
+    expect(prompt).toContain('order items by urgency');
+    expect(prompt).toContain('concise and scannable');
+  });
+
+  it('keeps research updates narrow, sourced, and honest about freshness', () => {
+    const prompt = agentOnboardingTesting.buildRecurringPrompt({
+      ...provision,
+      purposeId: 'agent-research',
+      purpose: 'Research',
+    });
+    expect(prompt).toContain('Prioritize primary sources and direct links');
+    expect(prompt).toContain('publication dates from event dates');
+    expect(prompt).toContain('uncertainty or conflicting evidence');
+    expect(prompt).toContain('nothing meaningful changed');
   });
 
   it('builds a progressive entry for the learning flow', () => {
@@ -532,9 +550,13 @@ describe('provision coordinator ordering', () => {
         getCron: () => cron,
         sendPost: vi.fn(async ({ blob }) => {
           const entries = parsePostBlob(blob);
-          const marker = entries.find(
-            (entry) => entry.type === 'tlon-agent-post-marker'
-          );
+          const marker =
+            entries.find(
+              (entry) =>
+                entry.type === 'tlon-agent-post-marker' &&
+                entry.key.startsWith('ack:')
+            ) ??
+            entries.find((entry) => entry.type === 'tlon-agent-post-marker');
           if (marker?.type === 'tlon-agent-post-marker') {
             events.push(`post:${marker.key}`);
           }
@@ -552,10 +574,22 @@ describe('provision coordinator ordering', () => {
     expect(events).toEqual([
       'cron:add',
       'post:ack:provision-1',
-      'post:handoff',
-      'post:services-card',
       'cron:enqueue',
     ]);
+    expect(
+      parsePostBlob(history[0]?.blob).filter(
+        (entry) => entry.type === 'tlon-agent-post-marker'
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'handoff' }),
+        expect.objectContaining({ key: 'services-card' }),
+        expect.objectContaining({ key: 'ack:provision-1' }),
+      ])
+    );
+    expect(JSON.stringify(parsePostBlob(history[0]?.blob))).toContain(
+      'Connect services'
+    );
   });
 
   it('posts a note reference when the correlated first run finishes', async () => {
