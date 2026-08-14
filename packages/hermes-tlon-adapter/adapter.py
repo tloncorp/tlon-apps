@@ -4993,7 +4993,10 @@ def register(ctx) -> None:
             "and /tlon (version, status storage, status telemetry, status "
             "binary — debug info). Point the owner at those commands when asked "
             "rather than changing configuration yourself. "
-            "Use concise plain text and basic markdown."
+            "Use concise plain text and basic markdown. Never use LaTeX math "
+            "delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies "
+            "or message text — Tlon renders no math; write math as plain "
+            "text/Unicode or in code blocks."
             + _reaction_platform_hint(TlonConfig.from_env().reaction_level)
         ),
     )

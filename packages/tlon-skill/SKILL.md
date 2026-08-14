@@ -476,12 +476,20 @@ explanatory error). Deprecated diary channels are unmanaged by the CLI except
 through the owner-run `tlon notes migrate-plan <diary-nest>` and
 `tlon notes migrate-apply <diary-nest> --yes` paths.
 
-Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported.
+Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported. Never use LaTeX math delimiters ($...$, $$...$$, \(...\), \[...\]) — Tlon renders no math; write math as plain text/Unicode or in code blocks.
 
 ### Notes
 
 Manage %notes notebooks (Markdown-first). Notebooks are nests of the form
 `notes/~host/name`; note bodies are plain Markdown (not Tlon Story).
+
+Do not use LaTeX math delimiters (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) in
+note bodies or message text. No Tlon surface renders math: the delimiters
+display literally or get mangled (Markdown emphasis, mentions, and escaping can
+corrupt the text inside and around them), and in a note body the backslashes in
+`\(` and `\[` are silently eaten by Markdown escaping, so those delimiters
+vanish. Write math as plain text/Unicode (`x²`, `E = mc²`, `θ ∈ [0, 2π)`) and
+use code blocks or inline code for complex formulas.
 
 ```bash
 tlon notes status                                        # Check %notes reachability

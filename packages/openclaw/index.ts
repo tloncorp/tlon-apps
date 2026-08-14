@@ -972,6 +972,7 @@ export default defineBundledChannelEntry({
         'DO NOT use this tool to send messages — use the `message` tool instead. ' +
         '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
         'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
+        'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
         "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'",
       parameters: {
         type: 'object',
