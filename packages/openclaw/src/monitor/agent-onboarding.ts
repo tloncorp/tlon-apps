@@ -71,13 +71,8 @@ const GROUP_INTRO_MESSAGE =
 const PURPOSE_PICKER_PROMPT = 'What should this group do?';
 const HANDOFF_MESSAGE =
   'A few things to know:\n\n' +
-  '- This conversation stays with you if you switch models or move Tlon ' +
-  'to your own server.\n' +
-  '- You can rename me whenever you like.\n' +
-  '- Ask me about anything I find, or tell me what to do next.\n\n' +
-  'I can draw on more than the web. Connect your other services — ' +
-  'calendars, docs, notes — and what they know can inform what I make ' +
-  'for you too:';
+  '- Rename me or ask follow-up questions anytime.\n' +
+  '- Connect calendars, docs, or notes to give me more to work with:';
 const TOPICS_PICKER_FALLBACK_INSTRUCTION =
   'You can also just tell me here in the chat.';
 const TIMEZONE_PICKER_QUESTION =
@@ -533,7 +528,8 @@ async function provision(
         text:
           `${formatTopicList(request.topics)}—got it. ` +
           `${provisionCadence(request.purposeId)} ` +
-          'Your first entry is coming shortly.',
+          'You’re all set. Your first entry is on the way, so feel free to ' +
+          'explore the app while I work.',
         entries: [
           {
             type: 'tlon-agent-provision-ack',
