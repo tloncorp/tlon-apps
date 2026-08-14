@@ -24,6 +24,7 @@ export type BotSettingsProviderStatus =
 export interface BotSettingsProviderRow {
   displayName: string;
   id: string;
+  logoUrl?: string;
   status: BotSettingsProviderStatus;
 }
 
@@ -220,6 +221,7 @@ function ProviderListItem({
         >
           <McpProviderLogo
             displayName={provider.displayName}
+            logoUrl={provider.logoUrl}
             providerId={provider.id}
           />
           <ListItem.MainContent height="auto" minHeight="$4xl">
