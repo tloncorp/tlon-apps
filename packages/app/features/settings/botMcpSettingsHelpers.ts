@@ -44,6 +44,7 @@ export function buildProviderRows(
       return {
         displayName: provider.displayName,
         id: provider.id,
+        logoUrl: provider.logoUrl,
         status,
       };
     });

@@ -23,6 +23,7 @@ type ImageLogo = {
 };
 
 const LOGO_SIZE = 28;
+const HOSTING_LOGO_SIZE = 48;
 
 const svgLogos: Partial<Record<string, SvgLogoComponent>> = {
   arena: ArenaLogo,
@@ -42,18 +43,35 @@ const imageLogos: Partial<Record<string, ImageLogo>> = {
 
 export function McpProviderLogo({
   displayName,
+  logoUrl,
   providerId,
 }: {
   displayName: string;
+  logoUrl?: string;
   providerId: string;
 }) {
   const SvgLogo = svgLogos[providerId];
   const imageLogo = imageLogos[providerId];
+  const fallbackLogo = SvgLogo ? (
+    <SvgLogo height={LOGO_SIZE} width={LOGO_SIZE} />
+  ) : imageLogo ? (
+    <Image
+      fallback={null}
+      height={LOGO_SIZE}
+      source={imageLogo.source}
+      width={LOGO_SIZE}
+      contentFit="contain"
+    />
+  ) : (
+    <Text color="$secondaryText" size="$label/l">
+      {displayName.slice(0, 1)}
+    </Text>
+  );
 
   return (
     <View
       alignItems="center"
-      backgroundColor="#FFFFFF"
+      backgroundColor="$secondaryBackground"
       borderColor="$border"
       borderRadius="$s"
       borderWidth={1}
@@ -62,20 +80,16 @@ export function McpProviderLogo({
       overflow="hidden"
       width="$4xl"
     >
-      {SvgLogo ? (
-        <SvgLogo height={LOGO_SIZE} width={LOGO_SIZE} />
-      ) : imageLogo ? (
+      {logoUrl ? (
         <Image
-          fallback={null}
-          height={LOGO_SIZE}
-          source={imageLogo.source}
-          width={LOGO_SIZE}
+          fallback={fallbackLogo}
+          height={HOSTING_LOGO_SIZE}
+          source={logoUrl}
+          width={HOSTING_LOGO_SIZE}
           contentFit="contain"
         />
       ) : (
-        <Text color="$secondaryText" size="$label/l">
-          {displayName.slice(0, 1)}
-        </Text>
+        fallbackLogo
       )}
     </View>
   );
