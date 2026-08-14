@@ -8,6 +8,7 @@ import {
   useChannelContext,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { parsePostBlob } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCanUpload } from '@tloncorp/shared/store';
 import React, {
@@ -37,6 +38,8 @@ import {
 import { shouldAcknowledgeAgentOnboardingLanding } from './agentOnboardingLanding';
 
 const logger = createDevLogger('ChannelScreen', false);
+const FIRST_ENTRY_REFRESH_INTERVAL_MS = 5_000;
+const FIRST_ENTRY_REFRESH_TIMEOUT_MS = 5 * 60_000;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
@@ -371,6 +374,77 @@ export default function ChannelScreen(props: Props) {
         : posts?.filter((p) => !p.isDeleted),
     [posts, channelConfiguration?.includeDeletedPosts]
   );
+
+  const provisionId = agentOnboarding.marker?.provision?.provisionId;
+  const hasOnboardingFirstEntry = useMemo(() => {
+    if (!provisionId) return false;
+    const markerKey = `first-entry-ping:${provisionId}`;
+    return Boolean(
+      filteredPosts?.some(
+        (post) =>
+          post.blob &&
+          parsePostBlob(post.blob).some(
+            (entry) =>
+              entry.type === 'tlon-agent-post-marker' && entry.key === markerKey
+          )
+      )
+    );
+  }, [filteredPosts, provisionId]);
+
+  useEffect(() => {
+    if (!groupId || !hasOnboardingFirstEntry) return;
+    void db.agentGroupOnboardingLocks.setValue((current) => {
+      if (!current[groupId]) return current;
+      const { [groupId]: _completed, ...remaining } = current;
+      return remaining;
+    });
+  }, [groupId, hasOnboardingFirstEntry]);
+
+  useEffect(() => {
+    if (
+      !isFocused ||
+      !agentOnboarding.awaitingFirstEntry ||
+      hasOnboardingFirstEntry
+    ) {
+      return;
+    }
+
+    const acknowledgedAt =
+      agentOnboarding.marker?.provisionAcknowledgedAt ?? Date.now();
+    if (Date.now() - acknowledgedAt >= FIRST_ENTRY_REFRESH_TIMEOUT_MS) {
+      return;
+    }
+
+    let cancelled = false;
+    let refreshInFlight = false;
+    const refresh = async () => {
+      if (cancelled || refreshInFlight) return;
+      if (Date.now() - acknowledgedAt >= FIRST_ENTRY_REFRESH_TIMEOUT_MS) {
+        return;
+      }
+      refreshInFlight = true;
+      try {
+        await store.syncSince({
+          callCtx: { cause: 'agent-onboarding-first-entry' },
+        });
+      } finally {
+        refreshInFlight = false;
+      }
+    };
+
+    void refresh();
+    const interval = setInterval(refresh, FIRST_ENTRY_REFRESH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [
+    agentOnboarding.awaitingFirstEntry,
+    agentOnboarding.marker?.provisionAcknowledgedAt,
+    hasOnboardingFirstEntry,
+    isFocused,
+  ]);
+
   usePushNotifTapTelemetry({
     channelId: currentChannelId,
     posts: filteredPosts,
@@ -555,7 +629,6 @@ export default function ChannelScreen(props: Props) {
           posts={filteredPosts ?? null}
           selectedPostId={clearedCursor ? undefined : selectedPostId}
           goBack={navigationRef.current.goBack}
-          hideDraftInput={agentOnboarding.locked}
           hideHeaderContents={agentOnboarding.locked}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}

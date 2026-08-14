@@ -138,7 +138,8 @@ const purposePicker = makeA2UI('onboarding-purpose-fixture', [
       {
         id: 'agent-learning',
         label: 'Learn something',
-        description: 'Build your understanding with a short daily explainer.',
+        description:
+          'A short daily idea that builds your understanding over time.',
         icon: 'Clock',
         accent: 'green',
         action: action('Learn something'),
@@ -147,7 +148,7 @@ const purposePicker = makeA2UI('onboarding-purpose-fixture', [
         id: 'agent-research',
         label: 'Research',
         description:
-          'A standing deep-dive I keep updated as new work comes out.',
+          'A source-backed briefing that follows meaningful new work.',
         icon: 'Search',
         accent: 'indigo',
         action: action('Research'),
@@ -177,7 +178,7 @@ const topicsPicker = makeA2UI('onboarding-topics-fixture', [
     id: 'prompt',
     component: 'Text',
     text:
-      'Good. I’ll create a group that posts a fresh morning digest about ' +
+      'Good. I’ll set this group up to post one concise morning digest about ' +
       'whatever you choose. What should it cover? Pick any that fit.',
   },
   {
@@ -273,7 +274,7 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-04-topics',
     author: tlonbot,
-    text: 'Good. I’ll create a group that posts a fresh morning digest about whatever you choose. What should it cover? Pick any that fit. Nootropics, Longevity, Psychedelics, Open hardware, Gene editing, Space weather, Fusion, Homesteading — You can also just tell me here in the chat.',
+    text: 'Good. I’ll set this group up to post one concise morning digest about whatever you choose. What should it cover? Pick any that fit. Nootropics, Longevity, Psychedelics, Open hardware, Gene editing, Space weather, Fusion, Homesteading — You can also just tell me here in the chat.',
     a2ui: topicsPicker,
     minute: 4,
   }),
@@ -286,13 +287,13 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-06-ack',
     author: tlonbot,
-    text: 'Open hardware and Space weather—got it. I’ll publish a fresh digest here each day. You’re all set. Your first entry is on the way, so feel free to explore the app while I work.',
+    text: 'Open hardware and Space weather—got it. I’ll publish one fresh digest here each morning. You’re all set. Your first entry is on the way. You can leave this screen and explore the app while I work.',
     minute: 6,
   }),
   transcriptPost({
     id: 'onboarding-07-closing',
     author: tlonbot,
-    text: 'A few things to know:\n\n- Rename me or ask follow-up questions anytime.\n- Connect calendars, docs, or notes to give me more to work with:',
+    text: 'A few things to know:\n\n- Ask me here to change what I cover, when I post, or my name.\n- Connect calendars, docs, or notes to give me more to work with:',
     minute: 7,
   }),
   transcriptPost({

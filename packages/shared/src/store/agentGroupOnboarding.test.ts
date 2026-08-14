@@ -30,7 +30,7 @@ describe('buildAgentGroupTitle', () => {
         purposeId: 'agent-research',
         topics: ['Peptides', 'Mycology'],
       })
-    ).toBe('Peptides + Mycology Research');
+    ).toBe('Peptides + 1 more Research');
     expect(
       buildAgentGroupTitle({
         purposeId: 'agent-research',
@@ -42,6 +42,21 @@ describe('buildAgentGroupTitle', () => {
         purposeId: 'agent-daily-digest',
         topics: ['A'.repeat(200)],
       }).length
-    ).toBeLessThanOrEqual(80);
+    ).toBeLessThanOrEqual(48);
+    expect(
+      buildAgentGroupTitle({
+        purposeId: 'agent-daily-digest',
+        topics: [
+          'Chicago weather and school closures',
+          'CTA delays and service changes',
+        ],
+      })
+    ).toBe('Chicago weather and school clos… + 1 more Digest');
+    expect(
+      buildAgentGroupTitle({
+        purposeId: 'agent-research',
+        topics: ['Private equity ownership of Pennsylvania nursing homes'],
+      })
+    ).toBe('Private equity ownership of Pennsylvan… Research');
   });
 });
