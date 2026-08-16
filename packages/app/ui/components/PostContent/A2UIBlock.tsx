@@ -804,6 +804,15 @@ export function A2UIBlock({
             >
               {component.options.map((option) => {
                 const accent = CHOICE_ACCENT_COLORS[option.accent ?? 'neutral'];
+                // The accent is normally carried by the icon chip. An option
+                // that asks for one without an icon would otherwise render
+                // identically to a neutral card — the accent silently doing
+                // nothing — so let the card itself carry it instead. A single
+                // accented card in a message reads as the thing to tap; the
+                // multi-option pickers all have icons and are untouched.
+                const accentedCard = Boolean(
+                  option.accent && option.accent !== 'neutral' && !option.icon
+                );
                 const disabled =
                   choiceConsumed ||
                   !onA2UIAction ||
@@ -822,8 +831,8 @@ export function A2UIBlock({
                     }
                   >
                     <XStack
-                      borderWidth={1}
-                      borderColor="$border"
+                      borderWidth={accentedCard ? 2 : 1}
+                      borderColor={accentedCard ? accent.strong : '$border'}
                       borderRadius="$xl"
                       backgroundColor="$background"
                       paddingVertical="$l"
