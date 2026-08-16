@@ -195,6 +195,27 @@ async function ensureChatChannel(group: db.Group): Promise<db.Channel> {
   });
 }
 
+/**
+ * Adopt a notebook the ship already lists.
+ *
+ * `insertGroups` (like `insertChannels`) leaves `currentUserIsMember` out of
+ * its conflict-update set, so a row an earlier sync created as a non-member
+ * stays that way no matter how often the group is re-inserted. For a notebook
+ * the owner hosts and the ship reports as readable, that is simply wrong — it
+ * puts their own notebook under "Available Channels" behind a Join button. A
+ * direct update is the only write that clears it.
+ */
+async function adoptNotebook(
+  remote: db.Group,
+  notebook: db.Channel
+): Promise<db.Channel> {
+  await db.insertGroups({ groups: [remote] });
+  if (notebook.currentUserIsMember) {
+    await db.updateChannel({ id: notebook.id, currentUserIsMember: true });
+  }
+  return notebook;
+}
+
 async function ensureSingleNotesChannel(groupId: string): Promise<db.Channel> {
   for (const delay of [0, 300, 800]) {
     if (delay) await wait(delay);
@@ -207,8 +228,7 @@ async function ensureSingleNotesChannel(groupId: string): Promise<db.Channel> {
       );
     }
     if (notebooks.length === 1) {
-      await db.insertGroups({ groups: [remote] });
-      return notebooks[0];
+      return adoptNotebook(remote, notebooks[0]!);
     }
   }
 
@@ -224,8 +244,7 @@ async function ensureSingleNotesChannel(groupId: string): Promise<db.Channel> {
     const notebooks =
       remote.channels?.filter((channel) => channel.type === 'notes') ?? [];
     if (notebooks.length === 1) {
-      await db.insertGroups({ groups: [remote] });
-      return notebooks[0];
+      return adoptNotebook(remote, notebooks[0]!);
     }
     throw error;
   }
