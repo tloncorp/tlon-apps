@@ -348,10 +348,7 @@
       .ring.progress .arc {
         stroke-dasharray: 69.12 69.12;
         stroke-dashoffset: 69.12;
-      }
-
-      .ring.progress.sweep .arc {
-        animation: sweep-66 650ms var(--ease-out) forwards;
+        transition: stroke-dashoffset 650ms var(--ease-out);
       }
 
       .ring.pending {
@@ -492,12 +489,6 @@
         }
       }
 
-      @keyframes sweep-66 {
-        to {
-          stroke-dashoffset: 23.5;
-        }
-      }
-
       @media (max-width: 520px) {
         .controls {
           align-items: flex-start;
@@ -623,6 +614,7 @@
       const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
       const manualOpen = new Map();
       const rowElements = new Map();
+      let autoOpenId;
       let tick = 0;
       let variant = "capsules";
       let themeChoice = "system";
@@ -695,7 +687,12 @@
       }
 
       function isOpen(id) {
-        return manualOpen.get(id) ?? false;
+        return manualOpen.get(id) ?? id === autoOpenId;
+      }
+
+      function updateAutoOpenId() {
+        if (tick === 0) autoOpenId = "map-events";
+        if (tick === 2) autoOpenId = "shape-rows";
       }
 
       function statusGraphic(row) {
@@ -705,10 +702,7 @@
           return `<span class="status-mark failed">${close}</span>`;
         if (row.status === "pending")
           return `<span class="ring pending"><span class="ring-number">${row.sequence}</span></span>`;
-        const progressClass =
-          row.progress == null
-            ? "running"
-            : `progress ${row.progress > 0 ? "sweep" : ""}`;
+        const progressClass = row.progress == null ? "running" : "progress";
         return `
           <span class="ring ${progressClass}">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -786,10 +780,17 @@
         element.querySelector(".meta").textContent = row.meta ?? "";
 
         const graphic = element.querySelector(".status-graphic");
-        const graphicSignature = `${row.status}:${row.progress ?? ""}`;
+        const graphicSignature = `${row.status}:${
+          row.progress == null ? "indeterminate" : "determinate"
+        }`;
         if (graphic.dataset.signature !== graphicSignature) {
           graphic.dataset.signature = graphicSignature;
           graphic.innerHTML = statusGraphic(row);
+        }
+        const progressArc = graphic.querySelector(".ring.progress .arc");
+        if (progressArc) {
+          const progress = Math.max(0, Math.min(row.progress ?? 0, 1));
+          progressArc.style.strokeDashoffset = String(69.12 * (1 - progress));
         }
 
         const pill = element.querySelector(".status-pill-host");
@@ -808,6 +809,7 @@
 
       function render() {
         taskRows.className = variant === "list" ? "list" : "";
+        updateAutoOpenId();
         const rows = rowsForTick();
         const currentIds = new Set(rows.map((row) => row.id));
 
@@ -841,6 +843,7 @@
         window.clearTimeout(timer);
         tick = 0;
         manualOpen.clear();
+        autoOpenId = undefined;
         render();
         advance();
       }
