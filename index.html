@@ -147,8 +147,21 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
+        flex-wrap: wrap;
         gap: 12px;
         margin-bottom: 14px;
+      }
+
+      .theme-picker {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .control-label {
+        color: var(--ink-2);
+        font-size: 12px;
+        line-height: 1;
       }
 
       .segmented {
@@ -462,6 +475,18 @@
         }
       }
 
+      @media (max-width: 520px) {
+        .controls {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .theme-picker {
+          justify-content: space-between;
+          width: 100%;
+        }
+      }
+
       @media (max-width: 420px) {
         main {
           padding-left: 14px;
@@ -475,10 +500,6 @@
 
         .status-pill {
           display: none;
-        }
-
-        .controls {
-          gap: 8px;
         }
 
         .segment {
@@ -536,31 +557,34 @@
             List
           </button>
         </div>
-        <div class="segmented" role="group" aria-label="Color theme">
-          <button
-            class="segment"
-            type="button"
-            data-theme-choice="system"
-            aria-pressed="true"
-          >
-            System
-          </button>
-          <button
-            class="segment"
-            type="button"
-            data-theme-choice="light"
-            aria-pressed="false"
-          >
-            Light
-          </button>
-          <button
-            class="segment"
-            type="button"
-            data-theme-choice="dark"
-            aria-pressed="false"
-          >
-            Dark
-          </button>
+        <div class="theme-picker">
+          <span class="control-label" aria-hidden="true">Theme</span>
+          <div class="segmented" role="group" aria-label="Color theme">
+            <button
+              class="segment"
+              type="button"
+              data-theme-choice="system"
+              aria-pressed="true"
+            >
+              System
+            </button>
+            <button
+              class="segment"
+              type="button"
+              data-theme-choice="light"
+              aria-pressed="false"
+            >
+              Light
+            </button>
+            <button
+              class="segment"
+              type="button"
+              data-theme-choice="dark"
+              aria-pressed="false"
+            >
+              Dark
+            </button>
+          </div>
         </div>
       </div>
 
