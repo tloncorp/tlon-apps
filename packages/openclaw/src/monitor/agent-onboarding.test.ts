@@ -1,4 +1,4 @@
-import { appendToPostBlob, parsePostBlob } from '@tloncorp/api';
+import { A2UI, appendToPostBlob, parsePostBlob } from '@tloncorp/api';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { TlonCronService } from '../cron-telemetry.js';
@@ -57,7 +57,7 @@ describe('agent onboarding requests', () => {
 
   it('keeps onboarding follow-up actions flat', () => {
     const invite = agentOnboardingTesting.buildInviteSurface('~ten/group');
-    const services = agentOnboardingTesting.buildServicesSurface();
+    const services = agentOnboardingTesting.buildServicesSurface('pitch');
     const inviteRoot = invite.messages.find(
       (message) => 'updateComponents' in message
     );
@@ -74,11 +74,27 @@ describe('agent onboarding requests', () => {
       component: 'Column',
       children: ['invite'],
     });
-    expect(
-      servicesRoot &&
-        'updateComponents' in servicesRoot &&
-        servicesRoot.updateComponents.components.find(({ id }) => id === 'root')
-    ).toMatchObject({ id: 'root', component: 'Button', child: 'label' });
+    // The services card is a Choice, not a bare Button: a Button carries only
+    // a text label, and this needs an icon, a title and a description.
+    const servicesComponents =
+      servicesRoot && 'updateComponents' in servicesRoot
+        ? servicesRoot.updateComponents.components
+        : [];
+    expect(servicesComponents.find(({ id }) => id === 'root')).toMatchObject({
+      id: 'root',
+      component: 'Column',
+    });
+    const choice = servicesComponents.find(({ id }) => id === 'cta') as
+      | A2UI.Choice
+      | undefined;
+    expect(choice?.component).toBe('Choice');
+    expect(choice?.options).toHaveLength(1);
+    expect(choice?.options[0]).toMatchObject({
+      label: 'Connect External Services',
+      description: 'Bring your tools into Tlonbot’s context',
+      icon: 'Link',
+    });
+    expect(choice?.options[0]?.action.event.name).toBe(A2UI.action.navigate);
   });
 
   it('catches an intro request that arrived before the channel was watched', async () => {
@@ -291,6 +307,9 @@ describe('agent onboarding requests', () => {
           },
         ]),
         now: () => now,
+        // Fixed at the midpoint so jitter resolves to 1x and the delays are
+        // reproducible; the jitter range itself is asserted below.
+        random: () => 0.5,
         sleep: vi.fn(async (ms) => {
           events.push(`sleep:${ms}`);
           now += ms;
@@ -299,14 +318,81 @@ describe('agent onboarding requests', () => {
       }
     );
 
-    expect(events).toEqual([
-      'thinking:start',
-      'sleep:1250',
+    // Presence must bracket the whole sequence — a pause with no indicator
+    // reads as the app hanging rather than the bot thinking.
+    expect(events[0]).toBe('thinking:start');
+    expect(events.at(-1)).toBe('thinking:stop');
+    expect(events.filter((e) => e.startsWith('post:'))).toEqual([
       'post:intro',
-      'sleep:1000',
       'post:purpose-picker',
-      'thinking:stop',
     ]);
+
+    // Every post is preceded by a pause, and the pause is composed rather than
+    // a flat floor: it scales with the message and stays inside the clamp.
+    const sleeps = events
+      .filter((e) => e.startsWith('sleep:'))
+      .map((e) => Number(e.slice('sleep:'.length)));
+    expect(sleeps).toHaveLength(2);
+    for (const ms of sleeps) {
+      expect(ms).toBeGreaterThanOrEqual(800);
+      expect(ms).toBeLessThanOrEqual(3500);
+    }
+    // The intro is the first reply of the turn, so it also carries read time
+    // for the owner's message; the picker that follows does not.
+    expect(sleeps[0]).toBeGreaterThan(sleeps[1]!);
+  });
+
+  it('jitters pacing so the rhythm is not metronomic', async () => {
+    const delaysFor = async (random: () => number) => {
+      const sleeps: number[] = [];
+      let now = 0;
+      const introBlob = appendToPostBlob(undefined, {
+        type: 'tlon-agent-intro-request',
+        version: 1,
+        groupId: '~ten/group',
+      });
+      await handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: '~ten/group',
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          blob: introBlob,
+          presentation: {
+            startThinking: () => {},
+            stopThinking: () => {},
+          },
+        },
+        {
+          fetchHistory: vi.fn(async () => []),
+          now: () => now,
+          random,
+          sleep: vi.fn(async (ms) => {
+            sleeps.push(ms);
+            now += ms;
+          }),
+          sendPost: vi.fn(async () => ({
+            channel: 'tlon' as const,
+            messageId: 'post',
+            sentAt: now,
+          })),
+        }
+      );
+      return sleeps;
+    };
+
+    const low = await delaysFor(() => 0);
+    const mid = await delaysFor(() => 0.5);
+    const high = await delaysFor(() => 1);
+
+    // ±20% around the composed delay, so two consecutive setups never share a
+    // rhythm — and the clamp still holds at both extremes.
+    expect(low[0]).toBeLessThan(mid[0]!);
+    expect(high[0]).toBeGreaterThan(mid[0]!);
+    expect(low[0]).toBeGreaterThanOrEqual(Math.round(mid[0]! * 0.8) - 1);
+    expect(high[0]).toBeLessThanOrEqual(Math.round(mid[0]! * 1.2) + 1);
   });
 
   it('always clears thinking presence when an onboarding post fails', async () => {
@@ -493,9 +579,9 @@ describe('agent onboarding requests', () => {
     expect(
       agentOnboardingTesting.notebookDisplayName('notes/~zod/daily-digest')
     ).toBe('Daily digest');
-    expect(agentOnboardingTesting.notebookDisplayName('notes/~zod/updates')).toBe(
-      'Updates'
-    );
+    expect(
+      agentOnboardingTesting.notebookDisplayName('notes/~zod/updates')
+    ).toBe('Updates');
   });
 
   it.each([['agent-daily-digest'], ['agent-learning'], ['agent-research']])(
@@ -733,7 +819,9 @@ describe('provision coordinator ordering', () => {
         (entry) => entry.type === 'tlon-agent-post-marker'
       )
     ).toEqual(
-      expect.arrayContaining([expect.objectContaining({ key: 'ack:provision-1' })])
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'ack:provision-1' }),
+      ])
     );
     const ackBlob = JSON.stringify(parsePostBlob(history[0]?.blob));
     expect(ackBlob).not.toContain('Connect services');
@@ -785,22 +873,34 @@ describe('provision coordinator ordering', () => {
       }
     );
 
-    expect(sendPost).toHaveBeenCalledOnce();
-    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
-      "Your group's first entry is ready:"
-    );
-    expect(sendPost.mock.calls[0]?.[0].story).toContainEqual({
+    // Three beats now: the reveal, then the handoff tip, then the services
+    // card. The expansion asks moved here from the acknowledgement so they
+    // land only after the owner has something to look at.
+    expect(sendPost).toHaveBeenCalledTimes(3);
+    const reveal = sendPost.mock.calls[0]?.[0];
+    // The sentence carries the entry on its own — the cite renders as
+    // "Content not available" until the client has synced the notes channel,
+    // so the card is a bonus, not the message.
+    expect(JSON.stringify(reveal.story)).toContain('Your first entry is ready');
+    expect(JSON.stringify(reveal.story)).toContain('First entry');
+    expect(JSON.stringify(reveal.story)).toContain('notebook');
+    expect(reveal.story).toContainEqual({
       block: {
         cite: {
           chan: { nest: provision.notebookNest, where: '/note/12' },
         },
       },
     });
-    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+    // Keyed per channel, not per provision: re-provisioning minted a new id
+    // and let the same reveal post three times in one setup.
+    expect(parsePostBlob(reveal.blob)).toContainEqual(
       expect.objectContaining({
         type: 'tlon-agent-post-marker',
-        key: 'first-entry-ping:provision-1',
+        key: 'first-entry-ping',
       })
+    );
+    expect(JSON.stringify(sendPost.mock.calls[2]?.[0])).toContain(
+      'Connect External Services'
     );
   });
 
@@ -848,7 +948,11 @@ describe('provision coordinator ordering', () => {
       { fetchHistory: vi.fn(async () => []), sendPost }
     );
 
-    expect(sendPost).toHaveBeenCalledOnce();
+    // The reveal plus the two expansion beats that now follow it.
+    expect(sendPost).toHaveBeenCalledTimes(3);
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'Your first entry is ready'
+    );
   });
 
   it('does not mutate cron or post when the sender is not the owner', async () => {
