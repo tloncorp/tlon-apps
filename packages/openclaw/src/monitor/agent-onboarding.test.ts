@@ -538,7 +538,7 @@ describe('agent onboarding requests', () => {
     ],
     [
       'Learn something',
-      'share one useful idea at a time',
+      'one each morning, rather than all at once',
       'What are you curious about?',
     ],
     [
@@ -554,10 +554,7 @@ describe('agent onboarding requests', () => {
 
   it.each([
     ['agent-daily-digest', 'write a fresh digest in Field notes'],
-    [
-      'agent-learning',
-      'write a new entry in Field notes, this group’s notebook — one useful idea at a time',
-    ],
+    ['agent-learning', 'building on the last one'],
     [
       'agent-research',
       'write a source-backed update in Field notes, this group’s notebook',
@@ -568,11 +565,34 @@ describe('agent onboarding requests', () => {
     // in the sidebar having never been told it existed.
     const cadence = agentOnboardingTesting.provisionCadence(
       purposeId,
-      'Field notes'
+      'Field notes',
+      ['Music theory']
     );
     expect(cadence).toContain(expectation);
     expect(cadence).toContain('notebook');
     expect(cadence).not.toContain('publish');
+  });
+
+  it('spells out the rotation when learning has several topics', () => {
+    // "One at a time, rotating through your list" still read as a digest of
+    // everything picked: an owner who chose three topics got one entry and
+    // thought the other two had been dropped. Name the order concretely.
+    const cadence = agentOnboardingTesting.provisionCadence(
+      'agent-learning',
+      'Updates',
+      ['Music theory', 'Architecture', 'Cryptography']
+    );
+    expect(cadence).toContain('One topic each morning, taken in turn');
+    expect(cadence).toContain('Music theory first');
+    expect(cadence).toContain('then Architecture');
+
+    // A single topic has no rotation to explain, so it must not promise one.
+    const single = agentOnboardingTesting.provisionCadence(
+      'agent-learning',
+      'Updates',
+      ['Music theory']
+    );
+    expect(single).not.toContain('taken in turn');
   });
 
   it('derives the notebook name the sidebar shows', () => {

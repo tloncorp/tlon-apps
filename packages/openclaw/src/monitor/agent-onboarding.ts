@@ -123,13 +123,18 @@ const PURPOSE_OPTIONS = [
   {
     id: 'agent-learning',
     label: 'Learn something',
-    description: 'A short daily idea that builds your understanding over time.',
+    // Unlike the other two purposes, this one covers a single topic per entry
+    // and rotates. Say so at every point where the expectation forms — the
+    // card, the picker, and the acknowledgement — because "pick any that fit"
+    // otherwise reads as "these all go in tomorrow's digest".
+    description: 'One idea each morning, taking your topics in turn.',
     icon: 'Clock',
     accent: 'green',
     scheduleHour: 9,
     topicsPrompt:
-      'Good. I’ll set this group up to share one useful idea at a time and ' +
-      'build on it. What are you curious about? Pick any that fit.',
+      'Good. I’ll take one idea at a time and build on it — pick several and ' +
+      'I’ll work through them in turn, one each morning, rather than all at ' +
+      'once. What are you curious about? Pick any that fit.',
     topics: [
       'Music theory',
       'Genetics',
@@ -181,6 +186,7 @@ const firstRunCorrelations = sharedMap<
     notebookName: string;
     provisionId: string;
     purposeId: string;
+    topics: readonly string[];
     /**
      * Bound in the module context that provisioned the run.
      *
@@ -609,7 +615,7 @@ async function provision(
     // before any value had landed.
     const acknowledgement =
       `${formatTopicList(request.topics)}—got it. ` +
-      `${provisionCadence(request.purposeId, notebookName)} ` +
+      `${provisionCadence(request.purposeId, notebookName, request.topics)} ` +
       `${scheduleConfirmation(request)}`;
     await postOnce(
       context,
@@ -731,13 +737,20 @@ async function completeFirstRun(
         // the entry on its own: name the note and where it lives, and let the
         // card be a bonus rather than the whole message.
         const title = newest?.title?.trim();
+        // For a rotating purpose the reveal is where "I picked three, why is
+        // there one?" actually gets asked, so name what comes next.
+        const upNext =
+          correlation.purposeId === 'agent-learning' &&
+          correlation.topics.length > 1
+            ? ` Tomorrow: ${correlation.topics[1]}.`
+            : '';
         const message = title
           ? `Your first entry is ready — “${title}”, in ${notebookName}. ` +
             'That notebook is where everything I write for you lands; this ' +
-            'chat is for talking to me.'
+            `chat is for talking to me.${upNext}`
           : `Your first entry is ready, in ${notebookName}. That notebook is ` +
             'where everything I write for you lands; this chat is for ' +
-            'talking to me.';
+            `talking to me.${upNext}`;
         const story = markdownToStory(message);
         if (newest) {
           story.push({
@@ -821,6 +834,7 @@ function rememberFirstRun(
     notebookName: notebookName ?? notebookDisplayName(request.notebookNest),
     provisionId: request.provisionId,
     purposeId: request.purposeId,
+    topics: request.topics,
     bound: {
       fetchHistory: fetchChannelHistory,
       listNotes: notes.listNotes,
@@ -1294,13 +1308,26 @@ function notebookDisplayName(
  * an owner watched a notebook appear in the sidebar without ever being told
  * it existed or what it was for.
  */
-function provisionCadence(purposeId: string, notebookName: string) {
+function provisionCadence(
+  purposeId: string,
+  notebookName: string,
+  topics: readonly string[] = []
+) {
   switch (purposeId) {
-    case 'agent-learning':
-      return (
-        `Every morning I’ll write a new entry in ${notebookName}, this ` +
-        'group’s notebook — one useful idea at a time, rotating through your list.'
-      );
+    case 'agent-learning': {
+      // Naming the first two by hand is what makes the rotation land. "One at
+      // a time, rotating through your list" was already there and still read
+      // as a digest of everything picked — an owner who chose three topics
+      // saw one entry and thought the other two had been dropped.
+      const rotation =
+        topics.length > 1
+          ? `One topic each morning, taken in turn — ${topics[0]} first, ` +
+            `then ${topics[1]} — each its own entry in ${notebookName}, ` +
+            'this group’s notebook.'
+          : `Every morning I’ll write a new entry in ${notebookName}, this ` +
+            'group’s notebook, building on the last one.';
+      return rotation;
+    }
     case 'agent-research':
       return (
         `Every morning I’ll check for new work and write a source-backed ` +
