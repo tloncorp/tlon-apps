@@ -184,7 +184,8 @@ export namespace A2UI {
     | 'ChannelGalleries'
     | 'Clock'
     | 'Search'
-    | 'Face';
+    | 'Face'
+    | 'Link';
 
   export type ChoiceAccent = 'blue' | 'green' | 'indigo' | 'neutral';
 
@@ -317,6 +318,7 @@ const CHOICE_ICONS = [
   'Clock',
   'Search',
   'Face',
+  'Link',
 ] as const;
 
 const CHOICE_ACCENTS = ['blue', 'green', 'indigo', 'neutral'] as const;
