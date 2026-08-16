@@ -283,6 +283,11 @@
         background: var(--negative-bg);
       }
 
+      .status-graphic,
+      .status-pill-host {
+        display: contents;
+      }
+
       .status-mark,
       .ring {
         position: relative;
@@ -393,11 +398,20 @@
 
       .details-wrap {
         display: grid;
-        grid-template-rows: 1fr;
-        opacity: 1;
+        grid-template-rows: 0fr;
+        opacity: 0;
+        visibility: hidden;
         transition:
           grid-template-rows 300ms var(--ease-toggle),
-          opacity 220ms linear;
+          opacity 220ms linear,
+          visibility 0s linear 300ms;
+      }
+
+      .open .details-wrap {
+        grid-template-rows: 1fr;
+        opacity: 1;
+        visibility: visible;
+        transition-delay: 0s;
       }
 
       .details-inner {
@@ -426,10 +440,19 @@
         align-items: flex-start;
         justify-content: space-between;
         gap: 16px;
+        opacity: 0;
+        transform: translateY(6px);
         font-size: 12px;
         line-height: 18px;
-        animation: fade-up 300ms var(--ease-out) both;
-        animation-delay: calc(120ms + var(--detail-index) * 100ms);
+        transition:
+          opacity 180ms linear,
+          transform 240ms var(--ease-out);
+      }
+
+      .open .detail {
+        opacity: 1;
+        transform: translateY(0);
+        transition-delay: calc(60ms + var(--detail-index) * 45ms);
       }
 
       .detail-label {
@@ -513,8 +536,10 @@
         *::before,
         *::after {
           scroll-behavior: auto !important;
+          animation-delay: 0s !important;
           animation-duration: 0.01ms !important;
           animation-iteration-count: 1 !important;
+          transition-delay: 0s !important;
           transition-duration: 0.01ms !important;
         }
 
@@ -597,10 +622,10 @@
       const themeColor = document.querySelector("#theme-color");
       const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
       const manualOpen = new Map();
+      const rowElements = new Map();
       let tick = 0;
       let variant = "capsules";
       let themeChoice = "system";
-      let initialRender = true;
       let timer;
 
       const check = `
@@ -670,9 +695,7 @@
       }
 
       function isOpen(id) {
-        return manualOpen.has(id)
-          ? manualOpen.get(id)
-          : id === "shape-rows" && tick === 3;
+        return manualOpen.get(id) ?? false;
       }
 
       function statusGraphic(row) {
@@ -704,52 +727,105 @@
         return "";
       }
 
+      function detailMarkup(details) {
+        return details
+          .map(
+            ([label, value], detailIndex) => `
+              <div class="detail" style="--detail-index:${detailIndex}">
+                <span class="detail-label">${label}</span>
+                <span class="detail-value">${value}</span>
+              </div>`,
+          )
+          .join("");
+      }
+
+      function createRow(row, index) {
+        const template = document.createElement("template");
+        template.innerHTML = `
+          <article class="task-row enter" style="--index:${index}" data-id="${row.id}">
+            <button class="task-trigger" type="button">
+              <span class="status-graphic"></span>
+              <span class="task-title"></span>
+              <span class="status-pill-host"></span>
+              <span class="meta"></span>
+              <span class="chevron">${chevron}</span>
+            </button>
+            <div class="details-wrap" aria-hidden="true">
+              <div class="details-inner">
+                <div class="details">
+                  <span class="connector" aria-hidden="true"></span>
+                  <div class="detail-list"></div>
+                </div>
+              </div>
+            </div>
+          </article>`;
+        const element = template.content.firstElementChild;
+        rowElements.set(row.id, element);
+        taskRows.append(element);
+        return element;
+      }
+
+      function updateRow(element, row, index) {
+        const open = isOpen(row.id);
+        const trigger = element.querySelector(".task-trigger");
+        const statusText =
+          row.status === "completed"
+            ? ", completed"
+            : row.status === "failed"
+              ? ", failed"
+              : "";
+
+        element.classList.toggle("open", open);
+        element.style.setProperty("--index", index);
+        trigger.setAttribute("aria-expanded", String(open));
+        trigger.setAttribute("aria-label", `${row.title}${statusText}`);
+        element
+          .querySelector(".details-wrap")
+          .setAttribute("aria-hidden", String(!open));
+        element.querySelector(".task-title").textContent = row.title;
+        element.querySelector(".meta").textContent = row.meta ?? "";
+
+        const graphic = element.querySelector(".status-graphic");
+        const graphicSignature = `${row.status}:${row.progress ?? ""}`;
+        if (graphic.dataset.signature !== graphicSignature) {
+          graphic.dataset.signature = graphicSignature;
+          graphic.innerHTML = statusGraphic(row);
+        }
+
+        const pill = element.querySelector(".status-pill-host");
+        if (pill.dataset.signature !== row.status) {
+          pill.dataset.signature = row.status;
+          pill.innerHTML = statusPill(row.status);
+        }
+
+        const details = element.querySelector(".detail-list");
+        const detailsSignature = JSON.stringify(row.details);
+        if (details.dataset.signature !== detailsSignature) {
+          details.dataset.signature = detailsSignature;
+          details.innerHTML = detailMarkup(row.details);
+        }
+      }
+
       function render() {
         taskRows.className = variant === "list" ? "list" : "";
-        taskRows.innerHTML = rowsForTick()
-          .map((row, index) => {
-            const open = isOpen(row.id);
-            const detailMarkup = row.details
-              .map(
-                ([label, value], detailIndex) => `
-            <div class="detail" style="--detail-index:${detailIndex}">
-              <span class="detail-label">${label}</span>
-              <span class="detail-value">${value}</span>
-            </div>`,
-              )
-              .join("");
-            const statusText =
-              row.status === "completed"
-                ? ", completed"
-                : row.status === "failed"
-                  ? ", failed"
-                  : "";
-            return `
-            <article class="task-row ${open ? "open" : ""} ${initialRender ? "enter" : ""}" style="--index:${index}" data-id="${row.id}">
-              <button class="task-trigger" type="button" aria-expanded="${open}" aria-label="${row.title}${statusText}">
-                ${statusGraphic(row)}
-                <span class="task-title">${row.title}</span>
-                ${statusPill(row.status)}
-                <span class="meta">${row.meta}</span>
-                <span class="chevron">${chevron}</span>
-              </button>
-              ${
-                open
-                  ? `
-                <div class="details-wrap">
-                  <div class="details-inner">
-                    <div class="details">
-                      <span class="connector" aria-hidden="true"></span>
-                      <div class="detail-list">${detailMarkup}</div>
-                    </div>
-                  </div>
-                </div>`
-                  : ""
-              }
-            </article>`;
-          })
-          .join("");
-        initialRender = false;
+        const rows = rowsForTick();
+        const currentIds = new Set(rows.map((row) => row.id));
+
+        rows.forEach((row, index) => {
+          const element = rowElements.get(row.id) ?? createRow(row, index);
+          const expectedElement = taskRows.children[index];
+          if (expectedElement !== element) {
+            taskRows.insertBefore(element, expectedElement ?? null);
+          }
+          updateRow(element, row, index);
+        });
+
+        rowElements.forEach((element, id) => {
+          if (!currentIds.has(id)) {
+            element.remove();
+            rowElements.delete(id);
+          }
+        });
       }
 
       function advance() {
@@ -765,7 +841,6 @@
         window.clearTimeout(timer);
         tick = 0;
         manualOpen.clear();
-        initialRender = true;
         render();
         advance();
       }
