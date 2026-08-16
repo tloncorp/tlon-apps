@@ -467,19 +467,63 @@ describe('agent onboarding requests', () => {
   });
 
   it.each([
-    ['agent-daily-digest', 'publish one fresh digest here each morning'],
+    ['agent-daily-digest', 'write a fresh digest in Field notes'],
     [
       'agent-learning',
-      'publish one useful idea each morning, rotating through your list',
+      'write a new entry in Field notes, this group’s notebook — one useful idea at a time',
     ],
     [
       'agent-research',
-      'check for new work each morning and publish a source-backed update here',
+      'write a source-backed update in Field notes, this group’s notebook',
     ],
   ])('explains the ongoing cadence for %s', (purposeId, expectation) => {
-    expect(agentOnboardingTesting.provisionCadence(purposeId)).toContain(
-      expectation
+    // Every variant has to name the notebook it writes into. "Publish", and
+    // worse "publish here", read as chat — an owner watched a notebook appear
+    // in the sidebar having never been told it existed.
+    const cadence = agentOnboardingTesting.provisionCadence(
+      purposeId,
+      'Field notes'
     );
+    expect(cadence).toContain(expectation);
+    expect(cadence).toContain('notebook');
+    expect(cadence).not.toContain('publish');
+  });
+
+  it('derives the notebook name the sidebar shows', () => {
+    expect(
+      agentOnboardingTesting.notebookDisplayName('notes/~zod/daily-digest')
+    ).toBe('Daily digest');
+    expect(agentOnboardingTesting.notebookDisplayName('notes/~zod/updates')).toBe(
+      'Updates'
+    );
+  });
+
+  it.each([['agent-daily-digest'], ['agent-learning'], ['agent-research']])(
+    'pitches services by benefit, not mechanism, for %s',
+    (purposeId) => {
+      // The old copy named calendars/docs/notes and no reason to connect them,
+      // and read identically whichever purpose the owner picked.
+      const pitch = agentOnboardingTesting.servicesPitch(purposeId);
+      expect(pitch).toMatch(/^Connect your/);
+      expect(pitch).not.toContain('to give me more to work with');
+    }
+  );
+
+  it('says the schedule back so a timezone tap has a receipt', () => {
+    expect(
+      agentOnboardingTesting.scheduleConfirmation({
+        scheduleHour: 8,
+        scheduleMinute: 0,
+        timezone: 'America/New_York',
+      } as never)
+    ).toBe('First one lands at 8:00 AM in America/New_York.');
+    expect(
+      agentOnboardingTesting.scheduleConfirmation({
+        scheduleHour: 0,
+        scheduleMinute: 5,
+        timezone: 'Asia/Tokyo',
+      } as never)
+    ).toBe('First one lands at 12:05 AM in Asia/Tokyo.');
   });
 });
 
@@ -675,9 +719,13 @@ describe('provision coordinator ordering', () => {
       }
     );
 
+    // Two beats now, not one: the acknowledgement, then the "writing it now"
+    // status. The handoff tip and the services pitch are no longer part of
+    // this post at all — they wait until the first entry has actually landed.
     expect(events).toEqual([
       'cron:add',
       'post:ack:provision-1',
+      'post:first-entry-pending',
       'cron:enqueue',
     ]);
     expect(
@@ -685,15 +733,16 @@ describe('provision coordinator ordering', () => {
         (entry) => entry.type === 'tlon-agent-post-marker'
       )
     ).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ key: 'handoff' }),
-        expect.objectContaining({ key: 'services-card' }),
-        expect.objectContaining({ key: 'ack:provision-1' }),
-      ])
+      expect.arrayContaining([expect.objectContaining({ key: 'ack:provision-1' })])
     );
-    expect(JSON.stringify(parsePostBlob(history[0]?.blob))).toContain(
-      'Connect services'
-    );
+    const ackBlob = JSON.stringify(parsePostBlob(history[0]?.blob));
+    expect(ackBlob).not.toContain('Connect services');
+    // The schedule is said back in words, because the timezone arrived from a
+    // button tap that writes nothing to the channel.
+    expect(history[0]?.blob).toBeDefined();
+    expect(
+      history.map((post) => post.blob).filter(Boolean).length
+    ).toBeGreaterThanOrEqual(2);
   });
 
   it('posts a note reference when the correlated first run finishes', async () => {
