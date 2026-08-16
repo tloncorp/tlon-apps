@@ -6,7 +6,16 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#f5f5f5" />
+    <meta name="theme-color" content="#f5f5f5" id="theme-color" />
+    <script>
+      try {
+        const savedTheme = localStorage.getItem("tlon-agent-task-theme");
+        if (savedTheme === "light" || savedTheme === "dark") {
+          document.documentElement.dataset.theme = savedTheme;
+          document.documentElement.style.colorScheme = savedTheme;
+        }
+      } catch {}
+    </script>
     <title>Tlon agent task rows</title>
     <style>
       :root {
@@ -28,8 +37,24 @@
         --ease-toggle: cubic-bezier(0.65, 0, 0.35, 1);
       }
 
+      :root[data-theme="dark"] {
+        --canvas: #1a1818;
+        --surface: #242121;
+        --surface-hover: #322e2e;
+        --ink: #ffffff;
+        --ink-2: #b3b3b3;
+        --ink-3: #808080;
+        --line: #333333;
+        --focus: #ffffff;
+        --positive: #4e91f5;
+        --positive-bg: #143a5e;
+        --negative: #e96a6a;
+        --negative-bg: #4b2525;
+        --shadow: 0 3px 18px rgba(255, 255, 255, 0.05);
+      }
+
       @media (prefers-color-scheme: dark) {
-        :root {
+        :root:not([data-theme]) {
           --canvas: #1a1818;
           --surface: #242121;
           --surface-hover: #322e2e;
@@ -118,10 +143,17 @@
         color: var(--ink);
       }
 
+      .controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
       .segmented {
         display: inline-flex;
         gap: 2px;
-        margin-bottom: 14px;
         padding: 2px;
         border-radius: 999px;
         background: color-mix(in srgb, var(--surface-hover), var(--line) 18%);
@@ -444,6 +476,15 @@
         .status-pill {
           display: none;
         }
+
+        .controls {
+          gap: 8px;
+        }
+
+        .segment {
+          padding-right: 11px;
+          padding-left: 11px;
+        }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -476,23 +517,51 @@
         <button class="replay" type="button" id="replay">Replay</button>
       </header>
 
-      <div class="segmented" role="group" aria-label="Task row presentation">
-        <button
-          class="segment"
-          type="button"
-          data-variant="capsules"
-          aria-pressed="true"
-        >
-          Capsules
-        </button>
-        <button
-          class="segment"
-          type="button"
-          data-variant="list"
-          aria-pressed="false"
-        >
-          List
-        </button>
+      <div class="controls">
+        <div class="segmented" role="group" aria-label="Task row presentation">
+          <button
+            class="segment"
+            type="button"
+            data-variant="capsules"
+            aria-pressed="true"
+          >
+            Capsules
+          </button>
+          <button
+            class="segment"
+            type="button"
+            data-variant="list"
+            aria-pressed="false"
+          >
+            List
+          </button>
+        </div>
+        <div class="segmented" role="group" aria-label="Color theme">
+          <button
+            class="segment"
+            type="button"
+            data-theme-choice="system"
+            aria-pressed="true"
+          >
+            System
+          </button>
+          <button
+            class="segment"
+            type="button"
+            data-theme-choice="light"
+            aria-pressed="false"
+          >
+            Light
+          </button>
+          <button
+            class="segment"
+            type="button"
+            data-theme-choice="dark"
+            aria-pressed="false"
+          >
+            Dark
+          </button>
+        </div>
       </div>
 
       <section id="task-rows" aria-label="Agent tasks"></section>
@@ -501,9 +570,12 @@
     <script>
       const ticks = [600, 900, 2400, 1400, 2400, 600];
       const taskRows = document.querySelector("#task-rows");
+      const themeColor = document.querySelector("#theme-color");
+      const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
       const manualOpen = new Map();
       let tick = 0;
       let variant = "capsules";
+      let themeChoice = "system";
       let initialRender = true;
       let timer;
 
@@ -674,6 +746,32 @@
         advance();
       }
 
+      function applyTheme(choice) {
+        themeChoice = choice;
+        if (choice === "system") {
+          delete document.documentElement.dataset.theme;
+          document.documentElement.style.colorScheme = "light dark";
+        } else {
+          document.documentElement.dataset.theme = choice;
+          document.documentElement.style.colorScheme = choice;
+        }
+
+        try {
+          localStorage.setItem("tlon-agent-task-theme", choice);
+        } catch {}
+
+        document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+          button.setAttribute(
+            "aria-pressed",
+            String(button.dataset.themeChoice === choice),
+          );
+        });
+
+        const dark =
+          choice === "dark" || (choice === "system" && systemDark.matches);
+        themeColor.setAttribute("content", dark ? "#1a1818" : "#f5f5f5");
+      }
+
       taskRows.addEventListener("click", (event) => {
         const trigger = event.target.closest(".task-trigger");
         if (!trigger) return;
@@ -683,17 +781,34 @@
         render();
       });
 
-      document.querySelectorAll(".segment").forEach((button) => {
+      document.querySelectorAll("[data-variant]").forEach((button) => {
         button.addEventListener("click", () => {
           variant = button.dataset.variant;
-          document.querySelectorAll(".segment").forEach((item) => {
+          document.querySelectorAll("[data-variant]").forEach((item) => {
             item.setAttribute("aria-pressed", String(item === button));
           });
           render();
         });
       });
 
+      document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+        button.addEventListener("click", () => {
+          applyTheme(button.dataset.themeChoice);
+        });
+      });
+
+      systemDark.addEventListener("change", () => {
+        if (themeChoice === "system") applyTheme("system");
+      });
+
       document.querySelector("#replay").addEventListener("click", replayDemo);
+      try {
+        const savedTheme = localStorage.getItem("tlon-agent-task-theme");
+        themeChoice = ["system", "light", "dark"].includes(savedTheme)
+          ? savedTheme
+          : "system";
+      } catch {}
+      applyTheme(themeChoice);
       render();
       advance();
     </script>
