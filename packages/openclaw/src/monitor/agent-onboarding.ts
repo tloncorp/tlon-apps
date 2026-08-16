@@ -60,7 +60,7 @@ type AgentOnboardingCronDeps = {
 
 type OnboardingGroup = {
   hostUserId: string;
-  channels?: Array<{ id: string; type: string }>;
+  channels?: Array<{ id: string; type: string; title?: string }>;
   members?: Array<{
     contactId: string;
     status: string;
@@ -178,8 +178,27 @@ const firstRunCorrelations = sharedMap<
   {
     context: AgentOnboardingScanContext;
     notebookNest: string;
+    notebookName: string;
     provisionId: string;
     purposeId: string;
+    /**
+     * Bound in the module context that provisioned the run.
+     *
+     * The completion hooks (`message_sent`, `cron_changed`) fire from the
+     * extension entry, while provisioning runs in the lazy runtime module —
+     * separate module-loader contexts, per `shared-state.ts`. The correlation
+     * itself survives that split because it lives in a `sharedMap`, but
+     * `@tloncorp/api`'s `client` is a module-level proxy, so the entry side
+     * holds a second, unconfigured copy: calling `notes.listNotes` or
+     * `sendChannelPost` from there threw "Client not initialized" and the
+     * first-entry reveal was never posted. Capturing the functions here keeps
+     * the completion on the configured client.
+     */
+    bound: {
+      fetchHistory: typeof fetchChannelHistory;
+      listNotes: typeof notes.listNotes;
+      sendPost: typeof sendChannelPost;
+    };
   }
 >('agentOnboarding.firstRunCorrelations');
 const SLOT_PREFIX = 'tlon-agent-primary:';
@@ -576,10 +595,14 @@ async function provision(
     ? findAckJobId(history, context.botShip, request.provisionId)
     : null;
   const cron = (deps.getCron ?? getTlonCronService)();
+  const notebookName = notebookDisplayName(
+    request.notebookNest,
+    group.channels?.find((channel) => channel.id === request.notebookNest)
+      ?.title
+  );
   if (!existingAck) {
     if (!cron) throw new Error('cron service is not available');
     jobId = await upsertPrimaryJob(cron, request, context.channelNest);
-    const notebookName = notebookDisplayName(request.notebookNest);
     // Two beats, one idea each. These used to arrive as a single block that
     // acknowledged the topics, named the schedule, said "you're all set",
     // listed two tips and pitched connected services — five asks stacked
@@ -628,7 +651,7 @@ async function provision(
       );
     }
     const disposition = await cron.enqueueRun(jobId!, 'force');
-    rememberFirstRun(disposition, context, request);
+    rememberFirstRun(disposition, context, request, notebookName);
   }
 }
 
@@ -671,13 +694,24 @@ async function completeFirstRun(
   // cannot race each other into duplicate chat posts.
   firstRunCorrelations.delete(correlationRunId);
 
+  // Explicit deps win (tests), then the implementations bound in the context
+  // that provisioned this run, and only then this module's own — which, on the
+  // extension-entry side, are backed by an unconfigured client.
+  const bound = correlation.bound;
+  const runDeps: AgentOnboardingCronDeps = {
+    fetchHistory:
+      deps.fetchHistory ?? bound?.fetchHistory ?? fetchChannelHistory,
+    listNotes: deps.listNotes ?? bound?.listNotes ?? notes.listNotes,
+    sendPost: deps.sendPost ?? bound?.sendPost ?? sendChannelPost,
+  };
+
   try {
-    const history = await (deps.fetchHistory ?? fetchChannelHistory)(
+    const history = await runDeps.fetchHistory!(
       correlation.context.api,
       correlation.context.channelNest,
       50
     );
-    const notebookName = notebookDisplayName(correlation.notebookNest);
+    const notebookName = correlation.notebookName;
     // Keyed on the channel, not the provision. Re-provisioning mints a new
     // provisionId, and the old per-provision key let the same reveal post
     // three times in one setup.
@@ -686,9 +720,9 @@ async function completeFirstRun(
       history,
       'first-entry-ping',
       async () => {
-        const listed = await (deps.listNotes ?? notes.listNotes)(
-          correlation.notebookNest
-        ).catch(() => []);
+        const listed = await runDeps.listNotes!(correlation.notebookNest).catch(
+          () => []
+        );
         const newest = [...listed].sort(
           (a, b) => (b.createdAt ?? b.noteId) - (a.createdAt ?? a.noteId)
         )[0];
@@ -722,7 +756,7 @@ async function completeFirstRun(
           story,
         };
       },
-      deps
+      runDeps
     );
     // Expansion asks wait until after the payoff. An owner who never reaches
     // a first entry should never be pitched connected services.
@@ -731,7 +765,7 @@ async function completeFirstRun(
       history,
       'handoff',
       async () => ({ text: HANDOFF_MESSAGE }),
-      deps
+      runDeps
     );
     await postOnce(
       correlation.context,
@@ -744,7 +778,7 @@ async function completeFirstRun(
           buildServicesSurface(servicesPitch(correlation.purposeId))
         ),
       }),
-      deps
+      runDeps
     );
   } catch (error) {
     firstRunCorrelations.set(correlationRunId, correlation);
@@ -770,7 +804,8 @@ function findFirstRunCorrelation(
 function rememberFirstRun(
   disposition: unknown,
   context: AgentOnboardingScanContext,
-  request: PostBlobDataEntryAgentProvision
+  request: PostBlobDataEntryAgentProvision,
+  notebookName?: string
 ) {
   if (!disposition || typeof disposition !== 'object') return;
   const result = disposition as { enqueued?: unknown; runId?: unknown };
@@ -783,8 +818,14 @@ function rememberFirstRun(
   firstRunCorrelations.set(result.runId, {
     context,
     notebookNest: request.notebookNest,
+    notebookName: notebookName ?? notebookDisplayName(request.notebookNest),
     provisionId: request.provisionId,
     purposeId: request.purposeId,
+    bound: {
+      fetchHistory: fetchChannelHistory,
+      listNotes: notes.listNotes,
+      sendPost: sendChannelPost,
+    },
   });
 }
 
@@ -796,7 +837,7 @@ async function fetchOnboardingGroup(
     groups?: Record<
       string,
       {
-        channels?: Record<string, unknown>;
+        channels?: Record<string, { meta?: { title?: unknown } }>;
         seats?: Record<string, { roles?: unknown[] }>;
       }
     >;
@@ -805,9 +846,13 @@ async function fetchOnboardingGroup(
   if (!group) throw new Error(`onboarding group not found: ${groupId}`);
   return {
     hostUserId: groupId.split('/')[0] ?? '',
-    channels: Object.keys(group.channels ?? {}).map((id) => ({
+    channels: Object.entries(group.channels ?? {}).map(([id, channel]) => ({
       id,
       type: id.split('/')[0] ?? '',
+      title:
+        typeof channel?.meta?.title === 'string'
+          ? channel.meta.title
+          : undefined,
     })),
     members: Object.entries(group.seats ?? {}).map(([contactId, seat]) => ({
       contactId,
@@ -1222,11 +1267,20 @@ function formatTopicList(topics: readonly string[]): string {
 }
 
 /**
- * Turn a notes nest into the name the sidebar shows, so chat copy and the
- * channel list agree. `notes/~sampel-palnet/daily-digest` reads back as
- * "Daily digest".
+ * The name the sidebar shows for the notebook, so chat copy and the channel
+ * list agree.
+ *
+ * Prefer the channel's real title. Deriving it from the nest slug is only a
+ * fallback and is not always right: the ship dedupes slugs, so a second
+ * notebook lands at `…/updates-1` while its title stays "Updates" — copy built
+ * from the slug then points at a channel name that appears nowhere on screen.
  */
-function notebookDisplayName(notebookNest: string): string {
+function notebookDisplayName(
+  notebookNest: string,
+  title?: string | null
+): string {
+  const named = title?.trim();
+  if (named) return named;
   const slug = notebookNest.split('/').pop() ?? '';
   const words = slug.split('-').filter(Boolean);
   if (!words.length) return 'the notebook';
@@ -1503,9 +1557,13 @@ export const agentOnboardingTesting = {
   buildServicesSurface,
   findAckJobId,
   hasPostMarker,
+  hasProvisionAck,
   jobMatches,
+  notebookDisplayName,
   purposeForReply,
   provisionCadence,
   rememberFirstRun,
+  scheduleConfirmation,
+  servicesPitch,
   upsertPrimaryJob,
 };
