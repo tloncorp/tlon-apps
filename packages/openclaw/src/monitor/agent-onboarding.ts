@@ -1477,11 +1477,13 @@ function buildInviteSurface(groupId: string) {
 }
 
 /**
- * `variant: 'primary'` is load-bearing, not decoration. The default treatment
- * is `fill: 'outline', intent: 'secondary'`, which on the dark theme is a
- * grey outline on a near-black card — the button was effectively invisible in
- * a recorded run. Primary also opts the button into the consumed/disabled
- * state, which only applies to primary buttons in the renderer.
+ * The services card.
+ *
+ * A `Choice` rather than a `Button`: the same tappable card treatment the
+ * purpose picker uses, which carries an icon, a title and a description
+ * instead of a bare text label. The old bare button also had no `variant`, so
+ * it rendered with the default `fill: 'outline', intent: 'secondary'` — a grey
+ * outline on a near-black card, effectively invisible in a recorded run.
  */
 function buildServicesSurface(pitch: string) {
   return withFallbackStory(
@@ -1490,17 +1492,25 @@ function buildServicesSurface(pitch: string) {
       { id: 'pitch', component: 'Text', text: pitch },
       {
         id: 'cta',
-        component: 'Button',
-        variant: 'primary',
-        child: 'label',
-        action: {
-          event: {
-            name: A2UI.action.navigate,
-            context: { target: { type: 'screen', screen: 'botMcpSettings' } },
+        component: 'Choice',
+        options: [
+          {
+            id: 'connect-services',
+            label: 'Connect External Services',
+            description: 'Bring your tools into Tlonbot’s context',
+            icon: 'Link',
+            accent: 'blue',
+            action: {
+              event: {
+                name: A2UI.action.navigate,
+                context: {
+                  target: { type: 'screen', screen: 'botMcpSettings' },
+                },
+              },
+            },
           },
-        },
+        ],
       },
-      { id: 'label', component: 'Text', text: 'Connect services' },
     ])
   );
 }
