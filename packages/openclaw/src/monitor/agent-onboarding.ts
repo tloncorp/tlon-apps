@@ -1486,33 +1486,47 @@ function buildInviteSurface(groupId: string) {
  * outline on a near-black card, effectively invisible in a recorded run.
  */
 function buildServicesSurface(pitch: string) {
-  return withFallbackStory(
-    makeA2UIBlob('agent-services', 'root', [
-      { id: 'root', component: 'Column', children: ['pitch', 'cta'] },
-      { id: 'pitch', component: 'Text', text: pitch },
-      {
-        id: 'cta',
-        component: 'Choice',
-        options: [
-          {
-            id: 'connect-services',
-            label: 'Connect External Services',
-            description: 'Bring your tools into Tlonbot’s context',
-            icon: 'Link',
-            accent: 'blue',
-            action: {
-              event: {
-                name: A2UI.action.navigate,
-                context: {
-                  target: { type: 'screen', screen: 'botMcpSettings' },
+  const build = (icon?: 'Link') =>
+    withFallbackStory(
+      makeA2UIBlob('agent-services', 'root', [
+        { id: 'root', component: 'Column', children: ['pitch', 'cta'] },
+        { id: 'pitch', component: 'Text', text: pitch },
+        {
+          id: 'cta',
+          component: 'Choice',
+          options: [
+            {
+              id: 'connect-services',
+              label: 'Connect External Services',
+              description: 'Bring your tools into Tlonbot’s context',
+              // Spelled literally for the same reason the purpose options are:
+              // this plugin can build against a published @tloncorp/api that
+              // predates the icon.
+              ...(icon ? { icon: icon as A2UI.ChoiceIcon } : {}),
+              accent: 'blue',
+              action: {
+                event: {
+                  name: A2UI.action.navigate,
+                  context: {
+                    target: { type: 'screen', screen: 'botMcpSettings' },
+                  },
                 },
               },
             },
-          },
-        ],
-      },
-    ])
-  );
+          ],
+        },
+      ])
+    );
+
+  // `makeA2UIBlob` validates against the *running* @tloncorp/api, whose
+  // CHOICE_ICONS allowlist is fixed at publish time. Rather than hold the card
+  // hostage to an api release, fall back to the same card without the icon and
+  // pick the icon up automatically once a build ships that knows it.
+  try {
+    return build('Link');
+  } catch {
+    return build();
+  }
 }
 
 function buildProvisionHandoffSurface(acknowledgement: string) {
