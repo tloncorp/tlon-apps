@@ -712,6 +712,7 @@ export const PostBlobDataEntryAgentProvisionSchema =
     scheduleHour: z.number().int().min(0).max(23),
     scheduleMinute: z.number().int().min(0).max(59),
     notebookNest: z.string().min(1).max(512),
+    notebookTitle: z.string().min(1).max(200).optional(),
   });
 
 export type PostBlobDataEntryAgentProvision = z.infer<

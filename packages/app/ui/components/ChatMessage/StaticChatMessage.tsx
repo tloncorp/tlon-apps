@@ -137,6 +137,7 @@ export function StaticChatMessage({
       if (notebooks.length !== 1) {
         throw new Error('The onboarding group needs exactly one notebook');
       }
+      const notebookTitle = notebooks[0].title ?? 'Updates';
 
       const locks = await db.agentGroupOnboardingLocks.getValue();
       const provisionId =
@@ -154,6 +155,7 @@ export function StaticChatMessage({
         scheduleHour: plan.scheduleHour,
         scheduleMinute: plan.scheduleMinute,
         notebookNest: notebooks[0].id,
+        notebookTitle,
       });
 
       await renameAgentGroupFromOnboarding({
@@ -180,6 +182,7 @@ export function StaticChatMessage({
             scheduleHour: plan.scheduleHour,
             scheduleMinute: plan.scheduleMinute,
             notebookNest: notebooks[0].id,
+            notebookTitle,
           },
         },
       }));

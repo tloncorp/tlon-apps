@@ -272,8 +272,8 @@ interface ChannelProps {
   groupIsLoading?: boolean;
   goBack: () => void;
   hideDraftInput?: boolean;
-  hideHeaderContents?: boolean;
-  reserveThinkingStateSpace?: boolean;
+  disableBackButton?: boolean;
+  suppressAnimatedSendScroll?: boolean;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
@@ -317,8 +317,8 @@ export function Channel({
   groupIsLoading,
   goBack,
   hideDraftInput,
-  hideHeaderContents,
-  reserveThinkingStateSpace,
+  disableBackButton,
+  suppressAnimatedSendScroll,
   goToChatDetails,
   goToSearch,
   goToContextLensRuns,
@@ -619,11 +619,11 @@ export function Channel({
   // an animated send scroll while that list is preserving its end anchor makes
   // the two corrections visibly fight.
   const scrollToNewMessage = useCallback(() => {
-    if (hideHeaderContents) return;
+    if (suppressAnimatedSendScroll) return;
     requestAnimationFrame(() => {
       collectionRef.current?.scrollToLatest?.({ animated: true });
     });
-  }, [hideHeaderContents]);
+  }, [suppressAnimatedSendScroll]);
 
   const handleOpenDraft = useCallback((mode?: 'text' | 'link') => {
     draftInputRef.current?.startDraft?.(mode);
@@ -847,7 +847,7 @@ export function Channel({
                           group={group}
                           title={title ?? ''}
                           description={''}
-                          hideContents={hideHeaderContents}
+                          backDisabled={disableBackButton}
                           goBack={
                             isNarrow ||
                             draftInputPresentationMode === 'fullscreen'
@@ -946,7 +946,6 @@ export function Channel({
                                         onLoadNewerPosts,
                                         onLoadOlderPosts,
                                         posts: posts ?? undefined,
-                                        reserveThinkingStateSpace,
                                         scrollToBottom: onPressScrollToBottom,
                                         selectedPostId,
                                         setEditingPost,

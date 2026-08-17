@@ -96,6 +96,7 @@ describe('post blob helpers', () => {
         scheduleHour: 9,
         scheduleMinute: 30,
         notebookNest: 'notes/~zod/test-updates',
+        notebookTitle: 'Updates',
       },
       {
         type: 'tlon-agent-provision-ack',
