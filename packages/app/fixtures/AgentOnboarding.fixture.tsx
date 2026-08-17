@@ -167,8 +167,6 @@ const topics = [
   'Open hardware',
   'Gene editing',
   'Space weather',
-  'Fusion',
-  'Homesteading',
 ];
 
 const topicsPicker = makeA2UI('onboarding-topics-fixture', [
@@ -220,8 +218,8 @@ const servicesMessage =
 const servicesComponent: A2UI.McpConnect = {
   id: 'providers',
   component: 'McpConnect',
-  maxVisible: 5,
-  seeAllLabel: 'See all',
+  maxVisible: 4,
+  seeAllLabel: 'See all connectors',
   submitLabel: 'Use for this group',
   action: {
     event: {
@@ -254,8 +252,8 @@ const servicesPreviewProviders: McpProviderRow[] = [
     status: 'connected',
   },
   { displayName: 'Gmail', id: 'gmail', status: 'not-connected' },
-  { displayName: 'Linear', id: 'linear', status: 'not-connected' },
   { displayName: 'GitHub', id: 'github', status: 'not-connected' },
+  { displayName: 'Linear', id: 'linear', status: 'not-connected' },
   { displayName: 'Airtable', id: 'airtable', status: 'not-connected' },
   { displayName: 'Sentry', id: 'sentry', status: 'not-connected' },
   { displayName: 'PostHog', id: 'posthog', status: 'not-connected' },
@@ -315,7 +313,7 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-04-topics',
     author: tlonbot,
-    text: 'A daily digest—great. What should I keep an eye on? Pick any that fit. Nootropics, Longevity, Psychedelics, Open hardware, Gene editing, Space weather, Fusion, Homesteading.',
+    text: 'A daily digest—great. What should I keep an eye on? Pick any that fit. Nootropics, Longevity, Psychedelics, Open hardware, Gene editing, Space weather.',
     a2ui: topicsPicker,
     minute: 4,
   }),

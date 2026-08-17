@@ -560,8 +560,15 @@ const ConversationPostListAttempt = React.forwardRef<
         }
         initialScrollIndex={initialScrollIndex}
         maintainScrollAtEnd={anchorToEnd && !hasNewerPosts}
+        // Before the owner deliberately scrolls away, treat the conversation as
+        // end-locked across large row remeasurements (such as a questionnaire
+        // collapsing). Once they drag, restore LegendList's conservative range.
         maintainScrollAtEndThreshold={
-          anchorToEnd && !hasNewerPosts ? 0.1 : undefined
+          anchorToEnd && !hasNewerPosts
+            ? hasUserScrolled
+              ? 0.1
+              : 1
+            : undefined
         }
         maintainVisibleContentPosition={maintainVisibleContentPosition}
         ListEmptyComponent={renderEmptyComponent}

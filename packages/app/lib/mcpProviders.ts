@@ -40,23 +40,40 @@ export function buildProviderRows(
     });
 }
 
-const FEATURED_PROVIDER_NAMES = new Set(['gmail']);
+const FEATURED_PROVIDER_ORDER = new Map(
+  ['gmail', 'google-calendar', 'notion', 'github'].map((id, index) => [
+    id,
+    index,
+  ])
+);
 
-/** Keep connected services and key defaults visible in the collapsed menu. */
+function featuredProviderRank(provider: McpProviderRow): number {
+  const normalizedName = provider.displayName
+    .toLowerCase()
+    .replace(/\s+/g, '-');
+  return (
+    FEATURED_PROVIDER_ORDER.get(provider.id.toLowerCase()) ??
+    FEATURED_PROVIDER_ORDER.get(normalizedName) ??
+    Number.POSITIVE_INFINITY
+  );
+}
+
+/** Keep connected services and the most familiar defaults in the preview. */
 export function prioritizeMcpMenuProviders(
   providers: McpProviderRow[]
 ): McpProviderRow[] {
-  return [
-    ...providers.filter((provider) => provider.status === 'connected'),
-    ...providers.filter(
-      (provider) =>
-        provider.status !== 'connected' &&
-        FEATURED_PROVIDER_NAMES.has(provider.displayName.toLowerCase())
-    ),
-    ...providers.filter(
-      (provider) =>
-        provider.status !== 'connected' &&
-        !FEATURED_PROVIDER_NAMES.has(provider.displayName.toLowerCase())
-    ),
-  ];
+  return providers
+    .map((provider, index) => ({ provider, index }))
+    .sort((left, right) => {
+      const connectedDelta =
+        Number(right.provider.status === 'connected') -
+        Number(left.provider.status === 'connected');
+      if (connectedDelta !== 0) return connectedDelta;
+
+      const featuredDelta =
+        featuredProviderRank(left.provider) -
+        featuredProviderRank(right.provider);
+      return featuredDelta || left.index - right.index;
+    })
+    .map(({ provider }) => provider);
 }

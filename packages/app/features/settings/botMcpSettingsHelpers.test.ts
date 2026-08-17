@@ -51,4 +51,20 @@ describe('buildProviderRows', () => {
       ]).map((provider) => provider.id)
     ).toEqual(['b', 'd', 'gmail', 'a']);
   });
+
+  it('prioritizes the four common preview providers', () => {
+    expect(
+      prioritizeMcpMenuProviders([
+        { displayName: 'Linear', id: 'linear', status: 'not-connected' },
+        { displayName: 'GitHub', id: 'github', status: 'not-connected' },
+        { displayName: 'Notion', id: 'notion', status: 'not-connected' },
+        {
+          displayName: 'Google Calendar',
+          id: 'google-calendar',
+          status: 'not-connected',
+        },
+        { displayName: 'Gmail', id: 'gmail', status: 'not-connected' },
+      ]).map((provider) => provider.id)
+    ).toEqual(['gmail', 'google-calendar', 'notion', 'github', 'linear']);
+  });
 });
