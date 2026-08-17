@@ -757,6 +757,114 @@ describe('primary onboarding cron slot', () => {
 });
 
 describe('provision coordinator ordering', () => {
+  it('reports each funnel step exactly once, in order', async () => {
+    // An unfired analytics event is invisible, so the funnel's shape is worth
+    // pinning: these are the steps a healthy setup must emit, and the order is
+    // what makes drop-off computable.
+    const steps: string[] = [];
+    const trackStep = (report: { step: string; outcome?: string }) =>
+      steps.push(`${report.step}:${report.outcome ?? 'ok'}`);
+    const history: Array<{
+      author: string;
+      content: string;
+      timestamp: number;
+      blob?: string;
+    }> = [];
+    let jobs: Record<string, unknown>[] = [];
+    const cron = {
+      list: vi.fn(async () => jobs),
+      add: vi.fn(async (input) => {
+        jobs = [{ id: 'job-1', ...input }];
+      }),
+      update: vi.fn(),
+      remove: vi.fn(),
+      enqueueRun: vi.fn(async () => ({ enqueued: true, runId: 'run-1' })),
+    } as unknown as TlonCronService;
+
+    await handleAgentOnboardingRequest(
+      {
+        api: {
+          scry: vi.fn(async () => ({
+            groups: {
+              [provision.groupId]: {
+                channels: { [provision.notebookNest]: {} },
+                seats: { '~bot': { roles: ['admin'] } },
+              },
+            },
+          })),
+        },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+        senderShip: '~ten',
+        blob: appendToPostBlob(undefined, provision),
+        trackStep,
+      },
+      {
+        fetchHistory: vi.fn(async () => history),
+        getCron: () => cron,
+        sendPost: vi.fn(async ({ blob }) => {
+          history.push({
+            author: '~bot',
+            content: '',
+            timestamp: Date.now(),
+            blob,
+          });
+          return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+        }),
+      }
+    );
+
+    expect(steps).toEqual([
+      'provision_received:ok',
+      'cron_created:ok',
+      'first_run_enqueued:ok',
+    ]);
+  });
+
+  it('reports a rejected provision as a failed step', async () => {
+    const steps: Array<{ step: string; outcome?: string; errorText?: string }> =
+      [];
+    await handleAgentOnboardingRequest(
+      {
+        api: {
+          // Owner mismatch: the group is hosted by someone else.
+          scry: vi.fn(async () => ({
+            groups: {
+              [provision.groupId]: {
+                channels: { [provision.notebookNest]: {} },
+                seats: { '~bot': { roles: ['admin'] } },
+              },
+            },
+          })),
+        },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+        senderShip: '~ten',
+        blob: appendToPostBlob(undefined, {
+          ...provision,
+          notebookNest: 'notes/~ten/not-a-listed-channel',
+        }),
+        trackStep: (report) => steps.push(report),
+      },
+      {
+        fetchHistory: vi.fn(async () => []),
+        getCron: () => undefined as never,
+        sendPost: vi.fn(),
+      }
+    );
+
+    // The drop-off has to be visible, not just absent from the funnel.
+    expect(steps).toHaveLength(1);
+    expect(steps[0]).toMatchObject({
+      step: 'provision_received',
+      outcome: 'failed',
+    });
+  });
+
   it('posts a durable ack before forcing the first run', async () => {
     const events: string[] = [];
     const history: Array<{
