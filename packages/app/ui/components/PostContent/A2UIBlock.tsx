@@ -656,9 +656,9 @@ export function A2UIBlock({
   } = useContentContext();
   const [locallyConsumedComponentIds, setLocallyConsumedComponentIds] =
     useState<string[]>([]);
-  const [locallyConsumedChoiceIds, setLocallyConsumedChoiceIds] = useState<
-    string[]
-  >([]);
+  const [locallyConsumedChoices, setLocallyConsumedChoices] = useState<
+    Record<string, string>
+  >({});
   const choicePressLocksRef = useRef(new Set<string>());
   const update = A2UI.getUpdateMessage(block.a2ui);
   const root = A2UI.getRootComponentId(block.a2ui);
@@ -698,7 +698,11 @@ export function A2UIBlock({
   );
 
   const handleChoicePress = useCallback(
-    async (componentId: string, action: A2UI.ChoiceOption['action']) => {
+    async (
+      componentId: string,
+      optionId: string,
+      action: A2UI.ChoiceOption['action']
+    ) => {
       if (
         choicePressLocksRef.current.has(componentId) ||
         (action.event.name === A2UI.action.sendMessage &&
@@ -712,18 +716,21 @@ export function A2UIBlock({
       const consumeAction = isConsumableA2UIAction(action);
       choicePressLocksRef.current.add(componentId);
       if (consumeAction) {
-        setLocallyConsumedChoiceIds((previous) =>
-          previous.includes(componentId) ? previous : [...previous, componentId]
-        );
+        setLocallyConsumedChoices((previous) => ({
+          ...previous,
+          [componentId]: optionId,
+        }));
       }
       try {
         await onA2UIAction?.(action);
       } catch {
         choicePressLocksRef.current.delete(componentId);
         if (consumeAction) {
-          setLocallyConsumedChoiceIds((previous) =>
-            previous.filter((id) => id !== componentId)
-          );
+          setLocallyConsumedChoices((previous) => {
+            const next = { ...previous };
+            delete next[componentId];
+            return next;
+          });
         }
       } finally {
         // Navigation and other reusable actions only need an in-flight lock;
@@ -906,92 +913,173 @@ export function A2UIBlock({
           );
         }
         case 'Choice': {
-          const choiceConsumed =
-            locallyConsumedChoiceIds.includes(component.id) ||
-            component.options.some(
+          const selectedOption =
+            component.options.find(
               (option) => isA2UIActionConsumed?.(option.action) === true
+            ) ??
+            component.options.find(
+              (option) => option.id === locallyConsumedChoices[component.id]
             );
+          const choiceConsumed = Boolean(selectedOption);
+          const grouped = component.options.length > 1;
+          const choices = component.options.map((option, index) => {
+            const accent = CHOICE_ACCENT_COLORS[option.accent ?? 'neutral'];
+            // The accent is normally carried by the icon chip. An option
+            // that asks for one without an icon would otherwise render
+            // identically to a neutral card — the accent silently doing
+            // nothing — so let the card itself carry it instead. A single
+            // accented card in a message reads as the thing to tap; the
+            // multi-option pickers all have icons and are untouched.
+            const accentedCard = Boolean(
+              option.accent && option.accent !== 'neutral' && !option.icon
+            );
+            const disabled =
+              choiceConsumed ||
+              !onA2UIAction ||
+              isA2UIActionAvailable?.(option.action) === false;
+            const isLast = index === component.options.length - 1;
+            return (
+              <Pressable
+                key={option.id}
+                testID={`A2UIChoice-${option.id}`}
+                accessibilityLabel={option.label}
+                accessibilityState={{ disabled }}
+                disabled={disabled}
+                onPress={
+                  disabled
+                    ? undefined
+                    : () =>
+                        handleChoicePress(
+                          component.id,
+                          option.id,
+                          option.action
+                        )
+                }
+              >
+                <XStack
+                  minHeight={grouped ? 68 : undefined}
+                  borderWidth={grouped ? 0 : accentedCard ? 2 : 1}
+                  borderBottomWidth={grouped && !isLast ? 1 : undefined}
+                  borderColor={accentedCard ? accent.strong : '$border'}
+                  borderBottomColor="$border"
+                  borderRadius={grouped ? 0 : '$xl'}
+                  backgroundColor="$background"
+                  paddingVertical={grouped ? '$m' : '$l'}
+                  paddingHorizontal={grouped ? '$m' : '$l'}
+                  gap="$m"
+                  alignItems="flex-start"
+                  opacity={disabled ? 0.5 : 1}
+                >
+                  {option.icon ? (
+                    <View
+                      width={32}
+                      height={32}
+                      borderRadius="$m"
+                      backgroundColor={accent.soft}
+                      alignItems="center"
+                      justifyContent="center"
+                      flexShrink={0}
+                    >
+                      <Icon
+                        type={option.icon}
+                        color={accent.strong}
+                        customSize={[18, 18]}
+                      />
+                    </View>
+                  ) : null}
+                  <YStack flex={1} minWidth={0} gap="$2xs">
+                    <Text size="$label/l" fontWeight="500" trimmed={false}>
+                      {option.label}
+                    </Text>
+                    {option.description ? (
+                      <Text
+                        size="$label/m"
+                        color="$secondaryText"
+                        trimmed={false}
+                      >
+                        {option.description}
+                      </Text>
+                    ) : null}
+                  </YStack>
+                </XStack>
+              </Pressable>
+            );
+          });
           return (
             <YStack
               key={component.id}
-              gap="$m"
               width="100%"
               marginTop={CHOICE_CONTROL_OUTER_MARGIN}
+              padding={grouped ? '$m' : undefined}
+              gap={grouped ? undefined : '$m'}
+              borderRadius={grouped ? '$xl' : undefined}
+              backgroundColor={grouped ? '$secondaryBackground' : undefined}
             >
-              {component.options.map((option) => {
-                const accent = CHOICE_ACCENT_COLORS[option.accent ?? 'neutral'];
-                // The accent is normally carried by the icon chip. An option
-                // that asks for one without an icon would otherwise render
-                // identically to a neutral card — the accent silently doing
-                // nothing — so let the card itself carry it instead. A single
-                // accented card in a message reads as the thing to tap; the
-                // multi-option pickers all have icons and are untouched.
-                const accentedCard = Boolean(
-                  option.accent && option.accent !== 'neutral' && !option.icon
-                );
-                const disabled =
-                  choiceConsumed ||
-                  !onA2UIAction ||
-                  isA2UIActionAvailable?.(option.action) === false;
-                return (
-                  <Pressable
-                    key={option.id}
-                    testID={`A2UIChoice-${option.id}`}
-                    accessibilityLabel={option.label}
-                    accessibilityState={{ disabled }}
-                    disabled={disabled}
-                    onPress={
-                      disabled
-                        ? undefined
-                        : () => handleChoicePress(component.id, option.action)
-                    }
-                  >
-                    <XStack
-                      borderWidth={accentedCard ? 2 : 1}
-                      borderColor={accentedCard ? accent.strong : '$border'}
-                      borderRadius="$xl"
-                      backgroundColor="$background"
-                      paddingVertical="$l"
-                      paddingHorizontal="$l"
-                      gap="$l"
-                      alignItems="flex-start"
-                      opacity={disabled ? 0.5 : 1}
+              {grouped && selectedOption ? (
+                <XStack
+                  minHeight={52}
+                  paddingVertical="$m"
+                  paddingHorizontal="$m"
+                  backgroundColor="$background"
+                  borderWidth={1}
+                  borderColor="$border"
+                  borderRadius="$m"
+                  alignItems="center"
+                  gap="$m"
+                >
+                  {selectedOption.icon ? (
+                    <View
+                      width={32}
+                      height={32}
+                      borderRadius="$m"
+                      backgroundColor={
+                        CHOICE_ACCENT_COLORS[selectedOption.accent ?? 'neutral']
+                          .soft
+                      }
+                      alignItems="center"
+                      justifyContent="center"
+                      flexShrink={0}
                     >
-                      {option.icon ? (
-                        <View
-                          width={32}
-                          height={32}
-                          borderRadius="$m"
-                          backgroundColor={accent.soft}
-                          alignItems="center"
-                          justifyContent="center"
-                          flexShrink={0}
-                        >
-                          <Icon
-                            type={option.icon}
-                            color={accent.strong}
-                            customSize={[18, 18]}
-                          />
-                        </View>
-                      ) : null}
-                      <YStack flex={1} minWidth={0} gap="$2xs">
-                        <Text size="$label/l" fontWeight="500" trimmed={false}>
-                          {option.label}
-                        </Text>
-                        {option.description ? (
-                          <Text
-                            size="$label/m"
-                            color="$secondaryText"
-                            trimmed={false}
-                          >
-                            {option.description}
-                          </Text>
-                        ) : null}
-                      </YStack>
-                    </XStack>
-                  </Pressable>
-                );
-              })}
+                      <Icon
+                        type={selectedOption.icon}
+                        color={
+                          CHOICE_ACCENT_COLORS[
+                            selectedOption.accent ?? 'neutral'
+                          ].strong
+                        }
+                        customSize={[18, 18]}
+                      />
+                    </View>
+                  ) : null}
+                  <Text
+                    size="$label/l"
+                    color="$secondaryText"
+                    trimmed={false}
+                    flex={1}
+                    minWidth={0}
+                    numberOfLines={1}
+                  >
+                    {selectedOption.label}
+                  </Text>
+                  <Icon
+                    type="Checkmark"
+                    color="$secondaryText"
+                    customSize={[16, 16]}
+                  />
+                </XStack>
+              ) : grouped ? (
+                <YStack
+                  width="100%"
+                  borderWidth={1}
+                  borderColor="$border"
+                  borderRadius="$m"
+                  overflow="hidden"
+                >
+                  {choices}
+                </YStack>
+              ) : (
+                choices
+              )}
             </YStack>
           );
         }
@@ -1031,7 +1119,7 @@ export function A2UIBlock({
       isA2UIActionAvailable,
       isA2UIActionConsumed,
       locallyConsumedComponentIds,
-      locallyConsumedChoiceIds,
+      locallyConsumedChoices,
       onA2UIAction,
       onAgentOnboardingConfirm,
       surfaceId,

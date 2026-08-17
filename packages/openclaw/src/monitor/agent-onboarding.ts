@@ -108,7 +108,8 @@ const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
 const GROUP_INTRO_MESSAGE =
   "I'm your Tlonbot. I can keep you informed, help you learn, or follow a " +
   'question over time.';
-const PURPOSE_PICKER_PROMPT = 'What would be useful for this group?';
+const FIRST_GROUP_PURPOSE_PICKER_PROMPT = 'What can I help you with?';
+const GROUP_PURPOSE_PICKER_PROMPT = 'What can I help you with?';
 const PURPOSE_OPTIONS = [
   {
     id: 'agent-daily-digest',
@@ -288,7 +289,7 @@ async function handleAgentOnboardingRequestInternal(
     50
   );
   if (request.type === 'tlon-agent-intro-request') {
-    await postIntro(context, history, deps, presentation);
+    await postIntro(context, history, request, deps, presentation);
     return true;
   }
   await provision(context, history, request, deps, presentation);
@@ -400,9 +401,13 @@ function pendingDurableReply(
 async function postIntro(
   context: AgentOnboardingContext,
   history: TlonHistoryEntry[],
+  request: PostBlobDataEntryAgentIntroRequest,
   deps: AgentOnboardingDeps,
   presentation: OnboardingPresentation
 ) {
+  const purposePickerPrompt = request.isFirstGroup
+    ? FIRST_GROUP_PURPOSE_PICKER_PROMPT
+    : GROUP_PURPOSE_PICKER_PROMPT;
   const hadIntro = hasPostMarker(history, context.botShip, 'intro');
   await postOnce(
     context,
@@ -425,10 +430,10 @@ async function postIntro(
     history,
     'purpose-picker',
     async () => ({
-      text: purposePickerFallbackText(),
+      text: purposePickerFallbackText(purposePickerPrompt),
       blob: appendToPostBlob(
         undefined,
-        buildPurposePickerSurface(context.groupId!)
+        buildPurposePickerSurface(context.groupId!, purposePickerPrompt)
       ),
     }),
     deps,
@@ -1260,14 +1265,17 @@ function withFallbackStory(blob: A2UI.BlobEntry): A2UI.BlobEntry {
   return { ...blob, storyMode: 'fallback' };
 }
 
-function purposePickerFallbackText() {
+function purposePickerFallbackText(prompt: string) {
   const labels = PURPOSE_OPTIONS.map((option) => `“${option.label}”`).join(
     ', '
   );
-  return `${PURPOSE_PICKER_PROMPT} Reply ${labels} — or just tell me.`;
+  return `${prompt} Reply ${labels} — or just tell me.`;
 }
 
-function buildPurposePickerSurface(groupId: string): A2UI.BlobEntry {
+function buildPurposePickerSurface(
+  groupId: string,
+  prompt: string
+): A2UI.BlobEntry {
   return withFallbackStory(
     makeA2UIBlob(`agent-onboarding-purpose:${groupId}`, 'root', [
       {
@@ -1275,7 +1283,7 @@ function buildPurposePickerSurface(groupId: string): A2UI.BlobEntry {
         component: 'Column',
         children: ['prompt', 'choices'],
       },
-      { id: 'prompt', component: 'Text', text: PURPOSE_PICKER_PROMPT },
+      { id: 'prompt', component: 'Text', text: prompt },
       {
         id: 'choices',
         component: 'Choice',

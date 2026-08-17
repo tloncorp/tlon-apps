@@ -31,6 +31,8 @@ type FurnishParams = {
   title?: string;
   /** Local/sandbox escape hatch when there is no hosting account. */
   agentShipId?: string;
+  /** Lets the bot introduce the provisioned home group as the user's first. */
+  isFirstGroup?: boolean;
 };
 
 /**
@@ -81,7 +83,11 @@ export async function ensureAgentGroupFurnished(
     })),
   ]);
 
-  await ensureIntroRequest(group.id, chatChannel.id);
+  await ensureIntroRequest(
+    group.id,
+    chatChannel.id,
+    params.isFirstGroup ?? false
+  );
 
   logger.trackEvent('Agent Group Furnish Core Completed', {
     groupId: group.id,
@@ -266,7 +272,11 @@ async function ensureSingleNotesChannelOnce(
   }
 }
 
-async function ensureIntroRequest(groupId: string, channelId: string) {
+async function ensureIntroRequest(
+  groupId: string,
+  channelId: string,
+  isFirstGroup: boolean
+) {
   const currentUserId = api.getCurrentUserId();
   const history = await api.getChannelPosts({
     channelId,
@@ -291,6 +301,7 @@ async function ensureIntroRequest(groupId: string, channelId: string) {
     type: 'tlon-agent-intro-request',
     version: 1,
     groupId,
+    ...(isFirstGroup ? { isFirstGroup: true } : {}),
   });
   await finalizeAndSendPost({
     channelId,
