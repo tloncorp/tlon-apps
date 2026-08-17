@@ -227,6 +227,23 @@ describe('OpenAI subscription status and models', () => {
     ]);
   });
 
+  it('selects Anthropic status and subscription models', () => {
+    const anthropicStatus = {
+      ts: 1,
+      providers: [{ provider: 'anthropic', status: 'ok' }],
+      subscriptionModels: {
+        anthropic: [{ id: 'claude-sonnet-5', name: 'Claude Sonnet 5' }],
+      },
+    };
+    expect(getLLMAuthProviderStatus(anthropicStatus, 'anthropic')).toEqual({
+      provider: 'anthropic',
+      status: 'ok',
+    });
+    expect(getLLMAuthSubscriptionModels(anthropicStatus, 'anthropic')).toEqual([
+      { id: 'claude-sonnet-5', name: 'Claude Sonnet 5' },
+    ]);
+  });
+
   it('deduplicates subscription and API-key models by id', () => {
     expect(
       mergeProviderModels(
@@ -247,7 +264,7 @@ describe('OpenAI subscription status and models', () => {
     expect(getOpenAIVerificationUrl(undefined)).toBeNull();
   });
 
-  it('requires the existing OpenAI credential mode to be removed when switching', () => {
+  it('requires the existing provider credential mode to be removed when switching', () => {
     expect(
       getOpenAICredentialSwitch(
         { hasApiKey: true, subscriptionConnected: false },

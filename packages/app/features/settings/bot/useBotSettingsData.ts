@@ -14,10 +14,10 @@ import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import {
   BASIC_PROVIDER_ID,
   BASIC_PROVIDER_MODEL,
-  DEVICE_AUTH_PROVIDERS,
   EMPTY_PROVIDER_CONFIG,
   PROVIDER_OPTIONS,
   RETRY_INTERVAL_MS,
+  SUBSCRIPTION_PROVIDERS,
 } from './constants';
 import {
   ModelFormValues,
@@ -259,7 +259,7 @@ export function useAllProviderModels(
       loading[BASIC_PROVIDER_ID] = false;
       errors[BASIC_PROVIDER_ID] = null;
     }
-    DEVICE_AUTH_PROVIDERS.forEach((provider) => {
+    SUBSCRIPTION_PROVIDERS.forEach((provider) => {
       if (!providers.includes(provider)) return;
       models[provider] = mergeProviderModels(
         getLLMAuthSubscriptionModels(llmAuthStatus, provider),

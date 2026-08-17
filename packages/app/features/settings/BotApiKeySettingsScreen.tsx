@@ -20,7 +20,7 @@ import {
 import { BotSettingsSection } from './bot/BotSettingsUI';
 import {
   PROVIDER_OPTIONS,
-  isDeviceAuthProvider,
+  isSubscriptionProvider,
   subscriptionLabel,
 } from './bot/constants';
 import {
@@ -71,7 +71,7 @@ export function BotApiKeySettingsScreen(props: Props) {
     [providerId]
   );
   const isConfigured = Boolean(queries.providerConfig.keys?.[providerId]);
-  const supportsSubscription = isDeviceAuthProvider(providerId);
+  const supportsSubscription = isSubscriptionProvider(providerId);
   const subscriptionName = supportsSubscription
     ? subscriptionLabel(providerId)
     : null;
@@ -106,7 +106,7 @@ export function BotApiKeySettingsScreen(props: Props) {
   const handleSave = useCallback(async () => {
     // Do not infer that the subscription is disconnected while its status is
     // loading or unavailable. Otherwise this bypasses the replacement flow and
-    // can leave both OpenAI credential modes configured.
+    // can leave both credential modes configured for the provider.
     if (!subscriptionStatusKnown) {
       return;
     }

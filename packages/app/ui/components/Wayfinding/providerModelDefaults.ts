@@ -5,11 +5,13 @@ import type {
 } from '@tloncorp/api';
 
 export const OPENAI_ONBOARDING_DEFAULT_MODEL = 'gpt-5.6-luna';
+export const ANTHROPIC_ONBOARDING_DEFAULT_MODEL = 'claude-sonnet-5';
 export const XAI_ONBOARDING_DEFAULT_MODEL = 'grok-4.3';
 
 const SUBSCRIPTION_ONBOARDING_DEFAULT_MODELS: Partial<Record<string, string>> =
   {
     openai: OPENAI_ONBOARDING_DEFAULT_MODEL,
+    anthropic: ANTHROPIC_ONBOARDING_DEFAULT_MODEL,
     xai: XAI_ONBOARDING_DEFAULT_MODEL,
   };
 

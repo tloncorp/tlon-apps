@@ -30,17 +30,21 @@ export const PROVIDER_OPTIONS: ProviderOption[] = [
   { id: 'xai', label: 'xAI (Grok)' },
 ];
 
-export const DEVICE_AUTH_PROVIDERS = ['openai', 'xai'] as const;
+export const SUBSCRIPTION_PROVIDERS = ['openai', 'anthropic', 'xai'] as const;
 
-export type DeviceAuthProvider = (typeof DEVICE_AUTH_PROVIDERS)[number];
+export type SubscriptionProvider = (typeof SUBSCRIPTION_PROVIDERS)[number];
 
-export const isDeviceAuthProvider = (
+export const isSubscriptionProvider = (
   providerId: string
-): providerId is DeviceAuthProvider =>
-  DEVICE_AUTH_PROVIDERS.some((provider) => provider === providerId);
+): providerId is SubscriptionProvider =>
+  SUBSCRIPTION_PROVIDERS.some((provider) => provider === providerId);
 
-export const subscriptionLabel = (providerId: DeviceAuthProvider): string =>
-  providerId === 'xai' ? 'Grok subscription' : 'ChatGPT subscription';
+export const subscriptionLabel = (providerId: SubscriptionProvider): string =>
+  providerId === 'anthropic'
+    ? 'Claude subscription'
+    : providerId === 'xai'
+      ? 'Grok subscription'
+      : 'ChatGPT subscription';
 
 export const providerLabel = (providerId: string): string =>
   PROVIDER_OPTIONS.find((option) => option.id === providerId)?.label ||

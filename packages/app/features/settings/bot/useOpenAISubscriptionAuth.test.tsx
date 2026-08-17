@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   openURL: vi.fn(),
   setQueryData: vi.fn(),
   startAuth: vi.fn(),
+  completeAuth: vi.fn(),
   queryClient: null as null | { setQueryData: ReturnType<typeof vi.fn> },
 }));
 
@@ -27,6 +28,7 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('@tloncorp/api', () => ({
   startTlawnLLMAuth: mocks.startAuth,
+  completeTlawnLLMAuth: mocks.completeAuth,
   getTlawnLLMAuthFlow: vi.fn(),
   getTlawnLLMAuthStatus: vi.fn(),
 }));
@@ -140,6 +142,53 @@ describe('useOpenAISubscriptionAuth', () => {
     expect(auth!.state).toMatchObject({
       phase: 'active',
       flow: { provider: 'xai', userCode: 'GROK-CODE' },
+    });
+
+    act(() => renderer!.unmount());
+  });
+
+  it('submits an Anthropic setup token to the active flow', async () => {
+    let auth: ReturnType<typeof useOpenAISubscriptionAuth> | null = null;
+    let renderer: ReactTestRenderer;
+    const awaitingToken = {
+      id: 'flow-anthropic',
+      provider: 'anthropic',
+      status: 'awaiting_token',
+      expiresAt: Date.now() + 60_000,
+    };
+    mocks.startAuth.mockResolvedValue({ flow: awaitingToken });
+    mocks.completeAuth.mockResolvedValue({
+      flow: { ...awaitingToken, status: 'authenticating' },
+    });
+
+    function Harness() {
+      const currentAuth = useOpenAISubscriptionAuth({
+        ship: 'zod',
+        provider: 'anthropic',
+        onComplete: vi.fn(),
+      });
+      React.useEffect(() => {
+        auth = currentAuth;
+      }, [currentAuth]);
+      return null;
+    }
+
+    await act(async () => {
+      renderer = create(<Harness />);
+    });
+    await act(async () => {
+      await auth!.start();
+      await auth!.completeToken(' setup-token ');
+    });
+
+    expect(mocks.completeAuth).toHaveBeenCalledWith(
+      'zod',
+      'flow-anthropic',
+      'setup-token'
+    );
+    expect(auth!.state).toMatchObject({
+      phase: 'active',
+      flow: { provider: 'anthropic', status: 'authenticating' },
     });
 
     act(() => renderer!.unmount());

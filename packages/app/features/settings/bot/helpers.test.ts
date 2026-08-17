@@ -151,6 +151,20 @@ describe('provider config', () => {
     expect(getAvailableProviderIds(config, status)).toEqual(['xai']);
   });
 
+  it('treats a connected Anthropic subscription as a provider credential', () => {
+    const config = normalizeProviderConfig(null);
+    const status = {
+      ts: 1,
+      providers: [{ provider: 'anthropic', status: 'static' }],
+      subscriptionModels: {
+        anthropic: [{ id: 'claude-sonnet-5' }],
+      },
+    };
+
+    expect(hasProviderCredential(config, 'anthropic', status)).toBe(true);
+    expect(getAvailableProviderIds(config, status)).toEqual(['anthropic']);
+  });
+
   it('maps default-key openrouter usage to the basic provider', () => {
     const config = normalizeProviderConfig({
       keys: {},

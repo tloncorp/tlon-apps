@@ -59,8 +59,8 @@ import {
 } from 'tamagui';
 
 import {
-  type DeviceAuthProvider,
-  isDeviceAuthProvider,
+  type SubscriptionProvider,
+  isSubscriptionProvider,
   providerLabel,
   subscriptionLabel,
 } from '../../../features/settings/bot/constants';
@@ -197,7 +197,7 @@ function SplashSequenceComponent(props: {
     Record<string, boolean>
   >({});
   const [connectedSubscriptions, setConnectedSubscriptions] = React.useState<
-    Partial<Record<DeviceAuthProvider, boolean>>
+    Partial<Record<SubscriptionProvider, boolean>>
   >({});
   const [providerModels, setProviderModels] = React.useState<
     api.TlawnProviderModel[]
@@ -215,9 +215,9 @@ function SplashSequenceComponent(props: {
     [botCredentialId, providerOptions]
   );
   const botProvider = selectedCredential?.provider || BASIC_PROVIDER_ID;
-  const subscriptionProvider: DeviceAuthProvider =
+  const subscriptionProvider: SubscriptionProvider =
     selectedCredential?.credentialMode === 'subscription' &&
-    isDeviceAuthProvider(botProvider)
+    isSubscriptionProvider(botProvider)
       ? botProvider
       : 'openai';
 
@@ -745,7 +745,7 @@ function SplashSequenceComponent(props: {
             [provider]: true,
           }));
           if (
-            isDeviceAuthProvider(provider) &&
+            isSubscriptionProvider(provider) &&
             connectedSubscriptions[provider]
           ) {
             const shipId = await db.hostedUserNodeId.getValue();
@@ -1050,6 +1050,7 @@ function SplashSequenceComponent(props: {
               browserError={subscriptionAuth.browserError ?? configError}
               onStart={() => void handleStartSubscription()}
               onOpenBrowser={() => void subscriptionAuth.openVerificationUrl()}
+              onSubmitToken={subscriptionAuth.completeToken}
               onRetry={() => void subscriptionAuth.restart()}
               onCancel={() => {
                 subscriptionAuth.dismiss();
@@ -1057,6 +1058,7 @@ function SplashSequenceComponent(props: {
               }}
               providerLabel={providerLabel(subscriptionProvider)}
               subscriptionLabel={subscriptionLabel(subscriptionProvider)}
+              provider={subscriptionProvider}
             />
           </BotSubscriptionAuthPane>
         )}
@@ -1601,13 +1603,7 @@ export function BotProviderPane(props: {
               {providers.some(
                 (option) => option.credentialMode === 'subscription'
               )
-                ? providers.some(
-                    (option) =>
-                      option.provider === 'xai' &&
-                      option.credentialMode === 'subscription'
-                  )
-                  ? 'Choose included access, connect a ChatGPT or Grok subscription, or bring an API key.'
-                  : 'Choose included access, connect your ChatGPT subscription, or bring an API key.'
+                ? 'Choose included access, connect a ChatGPT, Claude, or Grok subscription, or bring an API key.'
                 : providers.some((option) => !option.requiresKey)
                   ? 'A free model is included. Bring your own API key to use a different provider.'
                   : 'Pick a provider, then enter your API key on the next screen.'}

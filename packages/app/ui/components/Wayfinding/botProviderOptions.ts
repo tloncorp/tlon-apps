@@ -109,6 +109,7 @@ export function buildBotCredentialOptions({
 
   if (mode === 'signup' && botReady) {
     add('openai', 'subscription', 'ChatGPT subscription', 'Recommended');
+    add('anthropic', 'subscription', 'Claude subscription');
     add('xai', 'subscription', 'Grok subscription');
   }
 

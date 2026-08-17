@@ -452,6 +452,18 @@ export async function getTlawnLLMAuthFlow(
   return parseTlawnLLMAuthFlowResponse(response);
 }
 
+export async function completeTlawnLLMAuth(
+  ship: string,
+  flowId: string,
+  token: string
+): Promise<TlawnLLMAuthFlowResponse> {
+  const response = await hostingFetch<Record<string, unknown>>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/llm-auth/complete`,
+    jsonInit('POST', { flowId, token })
+  );
+  return parseTlawnLLMAuthFlowResponse(response);
+}
+
 export async function disconnectTlawnLLMAuth(
   ship: string,
   provider: TlawnLLMAuthProvider

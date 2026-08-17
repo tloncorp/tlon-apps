@@ -59,6 +59,28 @@ describe('bot credential choices', () => {
     ]);
   });
 
+  it('offers Anthropic subscription and API-key choices for ready normal signup', () => {
+    const anthropicOptions = buildBotCredentialOptions({
+      providerConfig: emptyConfig,
+      botReady: true,
+      mode: 'signup',
+    }).filter((option) => option.provider === 'anthropic');
+
+    expect(anthropicOptions).toEqual([
+      expect.objectContaining({
+        id: 'anthropic:subscription',
+        label: 'Claude subscription',
+        credentialMode: 'subscription',
+        requiresKey: false,
+      }),
+      expect.objectContaining({
+        id: 'anthropic:api-key',
+        credentialMode: 'api-key',
+        requiresKey: true,
+      }),
+    ]);
+  });
+
   it('never offers subscription auth during revival', () => {
     expect(
       buildBotCredentialOptions({
@@ -126,6 +148,7 @@ describe('bot credential choices', () => {
     expect(options.map((option) => option.id)).toEqual([
       'basic:included',
       'openai:subscription',
+      'anthropic:subscription',
       'xai:subscription',
       'openai:api-key',
       'xai:api-key',

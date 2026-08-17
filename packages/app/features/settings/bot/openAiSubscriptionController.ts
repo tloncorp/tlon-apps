@@ -22,6 +22,10 @@ type OpenAIAuthControllerDeps = {
   schedule: (callback: () => void, delayMs: number) => TimerHandle;
   cancel: (timer: TimerHandle) => void;
   start: () => Promise<TlawnLLMAuthFlowResponse>;
+  complete: (
+    flowId: string,
+    token: string
+  ) => Promise<TlawnLLMAuthFlowResponse>;
   poll: (flowId: string) => Promise<TlawnLLMAuthFlowResponse>;
   loadStatus: () => Promise<TlawnLLMAuthStatus>;
   onComplete: (
@@ -115,6 +119,35 @@ export class OpenAIAuthController {
       return;
     }
     await this.start();
+  }
+
+  async complete(token: string): Promise<boolean> {
+    if (
+      this.state.phase !== 'active' ||
+      this.state.flow.provider !== 'anthropic' ||
+      this.state.flow.status !== 'awaiting_token'
+    ) {
+      return false;
+    }
+    const trimmedToken = token.trim();
+    if (!trimmedToken) return false;
+
+    this.cancelTimer();
+    const generation = this.generation;
+    const flow = this.state.flow;
+    try {
+      const response = await this.deps.complete(flow.id, trimmedToken);
+      if (!this.canPublish(generation)) return false;
+      await this.acceptFlow(response.flow, generation);
+      return true;
+    } catch (error) {
+      if (!this.canPublish(generation)) return false;
+      this.transition({
+        type: 'tokenFailure',
+        message: getErrorMessage(error, this.deps.provider),
+      });
+      return false;
+    }
   }
 
   pause(): void {

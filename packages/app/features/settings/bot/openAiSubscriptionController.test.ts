@@ -30,11 +30,18 @@ function makeController({
   poll = async () => ({
     flow: { ...flow, status: 'complete' as const },
   }),
+  complete = async () => ({
+    flow: { ...flow, status: 'complete' as const },
+  }),
   onComplete = () => {},
 }: {
   flow?: TlawnLLMAuthFlow;
   status?: TlawnLLMAuthStatus;
   poll?: (flowId: string) => Promise<{ flow: TlawnLLMAuthFlow }>;
+  complete?: (
+    flowId: string,
+    token: string
+  ) => Promise<{ flow: TlawnLLMAuthFlow }>;
   onComplete?: () => void | Promise<void>;
 } = {}) {
   let completedModels: TlawnSubscriptionModel[] | null = null;
@@ -44,6 +51,7 @@ function makeController({
     schedule: (callback, delayMs) => setTimeout(callback, delayMs),
     cancel: (timer) => clearTimeout(timer),
     start: async () => ({ flow }),
+    complete,
     poll,
     loadStatus: async () => status,
     onComplete: async (models) => {
@@ -105,6 +113,64 @@ describe('OpenAIAuthController', () => {
     expect(getCompletedModels()).toEqual([
       { id: 'grok-4.3', name: 'Grok 4.3' },
     ]);
+  });
+
+  it('completes an Anthropic setup-token flow and loads its models', async () => {
+    const anthropicFlow: TlawnLLMAuthFlow = {
+      id: 'flow-anthropic',
+      provider: 'anthropic',
+      status: 'awaiting_token',
+      expiresAt: 10_000,
+    };
+    const anthropicStatus: TlawnLLMAuthStatus = {
+      ts: 2_000,
+      providers: [{ provider: 'anthropic', status: 'ok' }],
+      subscriptionModels: {
+        anthropic: [{ id: 'claude-sonnet-5', name: 'Claude Sonnet 5' }],
+      },
+    };
+    const complete = vi.fn(async () => ({
+      flow: { ...anthropicFlow, status: 'complete' as const },
+    }));
+    const { controller, getCompletedModels } = makeController({
+      flow: anthropicFlow,
+      status: anthropicStatus,
+      complete,
+    });
+
+    await controller.start();
+    await expect(controller.complete(' setup-token ')).resolves.toBe(true);
+
+    expect(complete).toHaveBeenCalledWith('flow-anthropic', 'setup-token');
+    expect(controller.getState()).toEqual({ phase: 'idle' });
+    expect(getCompletedModels()).toEqual([
+      { id: 'claude-sonnet-5', name: 'Claude Sonnet 5' },
+    ]);
+  });
+
+  it('keeps the Anthropic token form active after a rejected token', async () => {
+    const anthropicFlow: TlawnLLMAuthFlow = {
+      id: 'flow-anthropic',
+      provider: 'anthropic',
+      status: 'awaiting_token',
+      expiresAt: 10_000,
+    };
+    const { controller } = makeController({
+      flow: anthropicFlow,
+      complete: async () => {
+        throw new Error('Invalid setup token.');
+      },
+      poll: async () => ({ flow: anthropicFlow }),
+    });
+
+    await controller.start();
+    await expect(controller.complete('bad-token')).resolves.toBe(false);
+
+    expect(controller.getState()).toEqual({
+      phase: 'active',
+      flow: anthropicFlow,
+      error: 'Invalid setup token.',
+    });
   });
 
   it('stays complete until completion handling finishes', async () => {

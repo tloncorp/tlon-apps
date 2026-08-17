@@ -21,8 +21,8 @@ import {
 } from './bot/BotSettingsUI';
 import {
   BASIC_PROVIDER_ID,
-  DEVICE_AUTH_PROVIDERS,
   PROVIDER_OPTIONS,
+  SUBSCRIPTION_PROVIDERS,
   providerLabel,
   subscriptionLabel,
 } from './bot/constants';
@@ -120,7 +120,7 @@ export function BotSettingsScreen(props: Props) {
       option.id !== BASIC_PROVIDER_ID &&
       Boolean(queries.providerConfig.keys?.[option.id])
   );
-  const subscriptionProviders = DEVICE_AUTH_PROVIDERS.map((providerId) => {
+  const subscriptionProviders = SUBSCRIPTION_PROVIDERS.map((providerId) => {
     const status = getLLMAuthProviderStatus(
       queries.llmAuthStatusQuery.data,
       providerId

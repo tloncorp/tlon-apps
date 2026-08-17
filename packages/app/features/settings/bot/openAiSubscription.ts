@@ -10,7 +10,7 @@ import type {
 export type OpenAIAuthState =
   | { phase: 'idle' }
   | { phase: 'starting' }
-  | { phase: 'active'; flow: TlawnLLMAuthFlow }
+  | { phase: 'active'; flow: TlawnLLMAuthFlow; error?: string }
   | { phase: 'complete'; flow: TlawnLLMAuthFlow }
   | {
       phase: 'error';
@@ -22,6 +22,7 @@ export type OpenAIAuthState =
 export type OpenAIAuthEvent =
   | { type: 'start' }
   | { type: 'flow'; flow: TlawnLLMAuthFlow; now: number }
+  | { type: 'tokenFailure'; message: string }
   | { type: 'failure'; message: string; notFound?: boolean }
   | { type: 'expired'; now: number }
   | { type: 'reset' };
@@ -83,6 +84,10 @@ export function reduceOpenAIAuthState(
         restartable: true,
         flow: currentFlow(state),
       };
+    case 'tokenFailure':
+      return state.phase === 'active'
+        ? { ...state, error: event.message }
+        : state;
     case 'expired': {
       const flow = currentFlow(state);
       if (!flow || flow.expiresAt > event.now) return state;

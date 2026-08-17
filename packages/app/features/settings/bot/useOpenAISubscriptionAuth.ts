@@ -40,6 +40,8 @@ export function useOpenAISubscriptionAuth({
       schedule: (callback, delayMs) => setTimeout(callback, delayMs),
       cancel: (timer) => clearTimeout(timer),
       start: () => api.startTlawnLLMAuth(ship, provider),
+      complete: (flowId, token) =>
+        api.completeTlawnLLMAuth(ship, flowId, token),
       poll: (flowId) => api.getTlawnLLMAuthFlow(ship, flowId),
       loadStatus: () => api.getTlawnLLMAuthStatus(ship),
       onComplete: async (models, status) => {
@@ -101,6 +103,10 @@ export function useOpenAISubscriptionAuth({
     await controllerRef.current?.retry();
   }, []);
 
+  const completeToken = useCallback(async (token: string) => {
+    return (await controllerRef.current?.complete(token)) ?? false;
+  }, []);
+
   const dismiss = useCallback(() => {
     setBrowserError(null);
     controllerRef.current?.reset();
@@ -111,6 +117,7 @@ export function useOpenAISubscriptionAuth({
     browserError,
     start,
     restart,
+    completeToken,
     dismiss,
     openVerificationUrl,
   };

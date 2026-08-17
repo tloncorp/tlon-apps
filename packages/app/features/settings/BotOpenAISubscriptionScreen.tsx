@@ -198,6 +198,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
             browserError={auth.browserError ?? mutationError}
             onStart={beginConnection}
             onOpenBrowser={() => void auth.openVerificationUrl()}
+            onSubmitToken={auth.completeToken}
             onRetry={() => void auth.restart()}
             showBackButton={false}
             onCancel={() => {
@@ -206,6 +207,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
             }}
             providerLabel={providerName}
             subscriptionLabel={subscriptionName}
+            provider={providerId}
           />
         </YStack>
       )}

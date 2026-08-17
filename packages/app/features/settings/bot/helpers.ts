@@ -12,7 +12,7 @@ import {
   BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
   PROVIDER_OPTIONS,
-  isDeviceAuthProvider,
+  isSubscriptionProvider,
 } from './constants';
 import {
   getLLMAuthProviderStatus,
@@ -185,7 +185,7 @@ export const hasProviderCredential = (
   providerId === BASIC_PROVIDER_ID
     ? Boolean(config?.defaultKeys?.[BASIC_PROVIDER_ID])
     : Boolean(config?.keys?.[providerId]) ||
-      (isDeviceAuthProvider(providerId) &&
+      (isSubscriptionProvider(providerId) &&
         isLLMAuthProviderConnected(
           getLLMAuthProviderStatus(llmAuthStatus, providerId)?.status
         ));
