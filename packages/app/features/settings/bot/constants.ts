@@ -39,12 +39,17 @@ export const isSubscriptionProvider = (
 ): providerId is SubscriptionProvider =>
   SUBSCRIPTION_PROVIDERS.some((provider) => provider === providerId);
 
-export const subscriptionLabel = (providerId: SubscriptionProvider): string =>
+export const subscriptionProviderLabel = (
+  providerId: SubscriptionProvider
+): string =>
   providerId === 'anthropic'
-    ? 'Claude subscription'
+    ? 'Claude'
     : providerId === 'xai'
-      ? 'Grok subscription'
-      : 'ChatGPT subscription';
+      ? 'Grok'
+      : 'ChatGPT';
+
+export const subscriptionLabel = (providerId: SubscriptionProvider): string =>
+  `${subscriptionProviderLabel(providerId)} subscription`;
 
 export const providerLabel = (providerId: string): string =>
   PROVIDER_OPTIONS.find((option) => option.id === providerId)?.label ||

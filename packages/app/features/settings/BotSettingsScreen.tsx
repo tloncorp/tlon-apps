@@ -24,7 +24,7 @@ import {
   PROVIDER_OPTIONS,
   SUBSCRIPTION_PROVIDERS,
   providerLabel,
-  subscriptionLabel,
+  subscriptionProviderLabel,
 } from './bot/constants';
 import { normalizeShipList, safeKeySummary } from './bot/helpers';
 import {
@@ -132,11 +132,16 @@ export function BotSettingsScreen(props: Props) {
           queries.llmAuthStatusQuery.data === undefined
         ? 'Unavailable'
         : connected
-          ? 'Connected'
-          : status?.status === 'expired'
-            ? 'Expired'
-            : 'Not connected';
+          ? 'Active'
+          : 'Add';
     return { providerId, connected, summary };
+  }).sort((left, right) => Number(right.connected) - Number(left.connected));
+  const apiKeyProviders = PROVIDER_OPTIONS.filter(
+    (option) => option.id !== BASIC_PROVIDER_ID
+  ).sort((left, right) => {
+    const leftConfigured = Boolean(queries.providerConfig.keys?.[left.id]);
+    const rightConfigured = Boolean(queries.providerConfig.keys?.[right.id]);
+    return Number(rightConfigured) - Number(leftConfigured);
   });
   // Keep the Default model section reachable even when the key backing a custom
   // model was removed: provider keys and model choices are stored separately, so
@@ -235,12 +240,16 @@ export function BotSettingsScreen(props: Props) {
             </BotSettingsSection>
           ) : null}
 
-          <BotSettingsSection title="Model providers">
-            {subscriptionProviders.map((provider) => (
+          <BotSettingsSection
+            title="Subscription providers"
+            subtitle="Connect an existing AI subscription to your Tlonbot."
+          >
+            {subscriptionProviders.map((provider, index, list) => (
               <YStack key={`${provider.providerId}:subscription`}>
                 <BotSettingsRow
-                  label={subscriptionLabel(provider.providerId)}
+                  label={subscriptionProviderLabel(provider.providerId)}
                   value={provider.summary}
+                  valueColor={provider.connected ? '$primaryText' : undefined}
                   icon="Link"
                   disabled={applying || !queries.botReady || !providerKeysReady}
                   onPress={() =>
@@ -249,16 +258,24 @@ export function BotSettingsScreen(props: Props) {
                     })
                   }
                 />
-                <BotSettingsDivider />
+                {index < list.length - 1 ? <BotSettingsDivider /> : null}
               </YStack>
             ))}
-            {PROVIDER_OPTIONS.filter(
-              (option) => option.id !== BASIC_PROVIDER_ID
-            ).map((option, index, list) => (
+          </BotSettingsSection>
+
+          <BotSettingsSection
+            title="API key providers"
+            subtitle="Use a developer API key with your Tlonbot."
+          >
+            {apiKeyProviders.map((option, index, list) => (
               <YStack key={option.id}>
                 <BotSettingsRow
                   label={option.label}
-                  value={safeKeySummary(queries.providerConfig, option.id)}
+                  value={
+                    queries.providerConfig.keys?.[option.id]
+                      ? safeKeySummary(queries.providerConfig, option.id)
+                      : 'Add key'
+                  }
                   icon="Lock"
                   disabled={applying || !providerKeysReady}
                   onPress={() =>

@@ -17,23 +17,29 @@ import { ListItem } from '../../../ui/components/ListItem';
 
 export function BotSettingsSection({
   title,
+  subtitle,
   description,
   children,
 }: PropsWithChildren<{
   title?: string;
+  subtitle?: string;
   description?: string;
 }>) {
   return (
     <YStack gap="$m">
-      {title ? (
-        <Text
-          size="$label/m"
-          color="$secondaryText"
-          fontWeight="500"
-          paddingHorizontal="$s"
-        >
-          {title}
-        </Text>
+      {title || subtitle ? (
+        <YStack gap="$xs" paddingHorizontal="$s">
+          {title ? (
+            <Text size="$label/m" color="$secondaryText" fontWeight="500">
+              {title}
+            </Text>
+          ) : null}
+          {subtitle ? (
+            <Text size="$label/s" color="$secondaryText">
+              {subtitle}
+            </Text>
+          ) : null}
+        </YStack>
       ) : null}
       <YStack
         borderWidth={1}
@@ -60,6 +66,7 @@ export function BotSettingsDivider() {
 export function BotSettingsRow({
   label,
   value,
+  valueColor = '$tertiaryText',
   description,
   icon,
   pending,
@@ -69,6 +76,7 @@ export function BotSettingsRow({
 }: PropsWithChildren<{
   label: string;
   value?: string;
+  valueColor?: '$primaryText' | '$secondaryText' | '$tertiaryText';
   description?: string;
   icon?: IconType;
   pending?: boolean;
@@ -89,7 +97,7 @@ export function BotSettingsRow({
         {value ? (
           <Text
             size="$label/m"
-            color="$tertiaryText"
+            color={valueColor}
             numberOfLines={1}
             maxWidth={160}
           >
@@ -243,7 +251,7 @@ export function BotIdentityHeader({
 
 export function ApplyChangesBar({
   changeCount,
-  labels,
+  labels: _labels,
   applying,
   disabled,
   error,
