@@ -296,10 +296,33 @@ export function NotesNoteDetail({
   const selectedNoteRowId = selectedNote?.id ?? null;
 
   useEffect(() => {
-    if (selectedNoteRowId !== null) {
-      trackEvent(AnalyticsEvent.NoteOpened);
+    if (selectedNoteRowId === null) {
+      return;
     }
-  }, [selectedNoteRowId]);
+    trackEvent(AnalyticsEvent.NoteOpened);
+    // Activation for agent onboarding. The plugin reports that it posted the
+    // first entry; only the client knows whether the owner opened one. Counted
+    // once per group and persisted, so it survives a restart and doesn't
+    // re-fire on every note view.
+    void (async () => {
+      try {
+        const channel = await db.getChannel({ id: `notes/${notebookFlag}` });
+        const groupId = channel?.groupId;
+        if (!groupId) return;
+        const agents = await db.agentGroupAgents.getValue();
+        if (!agents[groupId]) return;
+        const alreadyCounted = await db.agentEntryFirstOpened.getValue();
+        if (alreadyCounted[groupId]) return;
+        await db.agentEntryFirstOpened.setValue((current) => ({
+          ...current,
+          [groupId]: true,
+        }));
+        trackEvent(AnalyticsEvent.AgentEntryFirstOpened, { groupId });
+      } catch {
+        // Never let activation reporting interfere with reading a note.
+      }
+    })();
+  }, [selectedNoteRowId, notebookFlag]);
 
   const draftsMatchSelectedNote = draftBase?.id === selectedNote?.id;
   const isDirty = Boolean(

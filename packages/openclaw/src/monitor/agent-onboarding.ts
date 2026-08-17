@@ -13,6 +13,7 @@ import type {
 
 import { type TlonCronService, getTlonCronService } from '../cron-telemetry.js';
 import { sharedMap } from '../shared-state.js';
+import type { TlonOnboardingStep } from '../telemetry.js';
 import { makeA2UIBlob } from '../urbit/blob.js';
 import { type BotProfile, sendChannelPost } from '../urbit/send.js';
 import { markdownToStory } from '../urbit/story.js';
@@ -21,6 +22,18 @@ import { type TlonHistoryEntry, fetchChannelHistory } from './history.js';
 type AgentRequest =
   | PostBlobDataEntryAgentIntroRequest
   | PostBlobDataEntryAgentProvision;
+
+export type OnboardingStepReport = {
+  step: TlonOnboardingStep;
+  outcome?: 'ok' | 'failed';
+  purposeId?: string | null;
+  topicCount?: number | null;
+  timezone?: string | null;
+  cronJobId?: string | null;
+  notebookNest?: string | null;
+  groupFlag?: string | null;
+  errorText?: string | null;
+};
 
 type AgentOnboardingContext = {
   api: { scry: (path: string) => Promise<unknown> };
@@ -33,6 +46,13 @@ type AgentOnboardingContext = {
   rawText?: string;
   blob: string | null | undefined;
   log?: (message: string) => void;
+  /**
+   * Funnel reporting, injected the same way `log` and `presentation` are, so
+   * this module never reaches for the telemetry singleton itself. Every step a
+   * healthy setup passes through reports exactly once; the caller fills in
+   * identity and timing.
+   */
+  trackStep?: (report: OnboardingStepReport) => void;
   presentation?: {
     startThinking: () => void | Promise<void>;
     stopThinking: () => void | Promise<void>;
@@ -394,6 +414,7 @@ async function postIntro(
   deps: AgentOnboardingDeps,
   presentation: OnboardingPresentation
 ) {
+  const hadIntro = hasPostMarker(history, context.botShip, 'intro');
   await postOnce(
     context,
     history,
@@ -404,6 +425,12 @@ async function postIntro(
     deps,
     presentation
   );
+  // Only on the post that actually lands, so a re-entered opening doesn't
+  // inflate the top of the funnel.
+  if (!hadIntro) {
+    context.trackStep?.({ step: 'intro_posted' });
+  }
+  const hadPicker = hasPostMarker(history, context.botShip, 'purpose-picker');
   await postOnce(
     context,
     history,
@@ -418,6 +445,9 @@ async function postIntro(
     deps,
     presentation
   );
+  if (!hadPicker) {
+    context.trackStep?.({ step: 'purpose_picker_posted' });
+  }
 }
 
 async function advanceDurableConversation(
@@ -443,6 +473,7 @@ async function advanceDurableConversation(
 
   if (!hasPostMarker(history, context.botShip, 'topics-picker')) {
     const purpose = purposeForReply(text);
+    context.trackStep?.({ step: 'purpose_chosen', purposeId: purpose.id });
     await postOnce(
       context,
       history,
@@ -461,6 +492,10 @@ async function advanceDurableConversation(
       deps,
       presentation
     );
+    context.trackStep?.({
+      step: 'topics_picker_posted',
+      purposeId: purpose.id,
+    });
     return true;
   }
 
@@ -567,6 +602,12 @@ async function provision(
   // presence immediately so group verification and cron setup both count
   // toward the response floor instead of adding an artificial delay later.
   await presentation.start();
+  const stepFacts = {
+    purposeId: request.purposeId,
+    topicCount: request.topics.length,
+    timezone: request.timezone,
+    notebookNest: request.notebookNest,
+  };
   const group = await (
     deps.getGroup ?? ((groupId) => fetchOnboardingGroup(context.api, groupId))
   )(request.groupId);
@@ -578,6 +619,12 @@ async function provision(
     )
   ) {
     context.log?.('[tlon] rejected agent provision: invalid owner or notebook');
+    context.trackStep?.({
+      step: 'provision_received',
+      outcome: 'failed',
+      ...stepFacts,
+      errorText: 'invalid owner or notebook',
+    });
     return;
   }
   const botMember = group.members?.find(
@@ -592,8 +639,18 @@ async function provision(
   });
   if (!isAdmin) {
     context.log?.('[tlon] rejected agent provision: agent is not an admin');
+    context.trackStep?.({
+      step: 'provision_received',
+      outcome: 'failed',
+      ...stepFacts,
+      errorText: 'agent is not an admin',
+    });
     return;
   }
+  // Emitted once validation has passed, not on entry: a rejected provision
+  // reports the same step as `failed`, and firing both would count one
+  // provision twice at the widest part of the funnel.
+  context.trackStep?.({ step: 'provision_received', ...stepFacts });
 
   const ackKey = `ack:${request.provisionId}`;
   const existingAck = hasPostMarker(history, context.botShip, ackKey);
@@ -609,6 +666,11 @@ async function provision(
   if (!existingAck) {
     if (!cron) throw new Error('cron service is not available');
     jobId = await upsertPrimaryJob(cron, request, context.channelNest);
+    context.trackStep?.({
+      step: 'cron_created',
+      ...stepFacts,
+      cronJobId: jobId,
+    });
     // Two beats, one idea each. These used to arrive as a single block that
     // acknowledged the topics, named the schedule, said "you're all set",
     // listed two tips and pitched connected services — five asks stacked
@@ -658,6 +720,11 @@ async function provision(
     }
     const disposition = await cron.enqueueRun(jobId!, 'force');
     rememberFirstRun(disposition, context, request, notebookName);
+    context.trackStep?.({
+      step: 'first_run_enqueued',
+      ...stepFacts,
+      cronJobId: jobId,
+    });
   }
 }
 
@@ -771,6 +838,14 @@ async function completeFirstRun(
       },
       runDeps
     );
+    // The bot's half of activation: the entry exists and has been announced.
+    // Whether the owner opened it is a client-side event.
+    correlation.context.trackStep?.({
+      step: 'first_entry_revealed',
+      purposeId: correlation.purposeId,
+      topicCount: correlation.topics.length,
+      notebookNest: correlation.notebookNest,
+    });
     // Expansion asks wait until after the payoff. An owner who never reaches
     // a first entry should never be pitched connected services.
     await postOnce(
@@ -793,6 +868,11 @@ async function completeFirstRun(
       }),
       runDeps
     );
+    correlation.context.trackStep?.({
+      step: 'services_offered',
+      purposeId: correlation.purposeId,
+      notebookNest: correlation.notebookNest,
+    });
   } catch (error) {
     firstRunCorrelations.set(correlationRunId, correlation);
     throw error;
