@@ -58,8 +58,10 @@ describe('getA2UIActionCompletion', () => {
     ).toBe(false);
     expect(
       getA2UIActionCompletion([post({ authorId: ownerId, blob })], ownerId)
-        .provisionAgent
-    ).toBe(true);
+    ).toMatchObject({
+      provisionAgent: true,
+      provisionedTopics: ['AI'],
+    });
   });
 
   it('recovers the latest durable provider selection', () => {

@@ -21,6 +21,12 @@ export function getA2UIActionCompletion(
       candidate.blob == null ? [] : parsePostBlob(candidate.blob)
     )
     .find((entry) => entry.type === 'tlon-agent-provider-config');
+  const provision = [...ownerReplies]
+    .reverse()
+    .flatMap((candidate) =>
+      candidate.blob == null ? [] : parsePostBlob(candidate.blob)
+    )
+    .find((entry) => entry.type === 'tlon-agent-provision');
   return {
     sendMessage: ownerReplies.some((candidate) =>
       Boolean(candidate.textContent?.trim())
@@ -32,6 +38,8 @@ export function getA2UIActionCompletion(
           (entry) => entry.type === 'tlon-agent-provision'
         )
     ),
+    provisionedTopics:
+      provision?.type === 'tlon-agent-provision' ? provision.topics : undefined,
     configuredProviderIds:
       providerConfig?.type === 'tlon-agent-provider-config'
         ? providerConfig.providerIds

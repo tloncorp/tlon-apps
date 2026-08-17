@@ -13,6 +13,16 @@ import {
 } from '../../../lib/mcpProviders';
 import { McpProviderLogo } from '../McpProviderLogo';
 
+type McpProviderSnapshot = {
+  providers: api.TlawnOAuthProvider[];
+  status: api.TlawnOAuthStatus;
+};
+
+// Channel screens are normally popped when the owner leaves them, so local
+// component state cannot preserve this historical row's height. Keep the last
+// successful Hosting snapshot for each account and refresh it in place.
+const providerSnapshots = new Map<string, McpProviderSnapshot>();
+
 export function McpConnectControl({
   component,
   configuredProviderIds,
@@ -27,12 +37,20 @@ export function McpConnectControl({
   onNavigate?: (action: A2UI.NavigateAction) => void | Promise<void>;
 }) {
   const currentUserId = useCurrentUserId();
-  const [loading, setLoading] = useState(true);
+  const initialSnapshot = currentUserId
+    ? providerSnapshots.get(currentUserId)
+    : undefined;
+  const [loading, setLoading] = useState(!initialSnapshot);
   const [failed, setFailed] = useState(false);
   const [providerConfigs, setProviderConfigs] = useState<
     api.TlawnOAuthProvider[]
-  >([]);
-  const [status, setStatus] = useState<api.TlawnOAuthStatus | null>(null);
+  >(initialSnapshot?.providers ?? []);
+  const [status, setStatus] = useState<api.TlawnOAuthStatus | null>(
+    initialSnapshot?.status ?? null
+  );
+  const loadedUserIdRef = useRef<string | null>(
+    initialSnapshot ? currentUserId : null
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -47,7 +65,13 @@ export function McpConnectControl({
           return;
         }
 
-        setLoading(true);
+        // Keep the existing rows mounted while refreshing after navigation.
+        // Replacing a full menu with a one-row spinner changes the historical
+        // message height and makes the conversation jump on every refocus.
+        const isInitialLoad = loadedUserIdRef.current !== currentUserId;
+        if (isInitialLoad) {
+          setLoading(true);
+        }
         setFailed(false);
         try {
           const [nextProviders, nextStatus] = await Promise.all([
@@ -55,11 +79,16 @@ export function McpConnectControl({
             api.getTlawnOAuthStatus(currentUserId),
           ]);
           if (active) {
+            providerSnapshots.set(currentUserId, {
+              providers: nextProviders,
+              status: nextStatus,
+            });
             setProviderConfigs(nextProviders);
             setStatus(nextStatus);
+            loadedUserIdRef.current = currentUserId;
           }
         } catch {
-          if (active) {
+          if (active && isInitialLoad) {
             setFailed(true);
           }
         } finally {

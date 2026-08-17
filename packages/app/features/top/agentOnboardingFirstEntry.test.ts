@@ -2,7 +2,10 @@ import type * as db from '@tloncorp/shared/db';
 import { appendToPostBlob } from '@tloncorp/shared/logic';
 import { describe, expect, it } from 'vitest';
 
-import { hasAgentOnboardingFirstEntry } from './agentOnboardingFirstEntry';
+import {
+  hasAgentOnboardingFirstEntry,
+  hasAgentOnboardingFirstEntryFailed,
+} from './agentOnboardingFirstEntry';
 
 function markerPost(key: string): db.Post {
   return {
@@ -40,6 +43,15 @@ describe('hasAgentOnboardingFirstEntry', () => {
         ],
         'provision-1'
       )
+    ).toBe(false);
+  });
+
+  it('recognizes a failed initial run as terminal for setup activity', () => {
+    expect(
+      hasAgentOnboardingFirstEntryFailed([markerPost('first-entry-failed')])
+    ).toBe(true);
+    expect(
+      hasAgentOnboardingFirstEntryFailed([markerPost('first-entry-pending')])
     ).toBe(false);
   });
 });
