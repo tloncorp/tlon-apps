@@ -198,7 +198,11 @@ export function createStateClient(config: StateClientConfig): StateClient {
 
     async createGroup(title: string, memberIds?: string[]) {
       return withClient(async () => {
-        const slug = Math.random().toString(36).slice(2, 10);
+        // Leading letter is load-bearing: urbit terms (group/channel slugs)
+        // must not start with a digit, and toString(36) yields one ~30% of
+        // the time — the group-create spider thread then 500s parsing the
+        // flag ("syntax error {1 6}").
+        const slug = `t${Math.random().toString(36).slice(2, 9)}`;
         const groupId = `~${shipName}/${slug}`;
         const channelSlug = `${slug}-general`;
         const chatChannel = `chat/~${shipName}/${channelSlug}`;
