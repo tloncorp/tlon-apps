@@ -274,6 +274,7 @@ interface ChannelProps {
   hideDraftInput?: boolean;
   disableBackButton?: boolean;
   suppressAnimatedSendScroll?: boolean;
+  pendingThinkingLabel?: string;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
@@ -319,6 +320,7 @@ export function Channel({
   hideDraftInput,
   disableBackButton,
   suppressAnimatedSendScroll,
+  pendingThinkingLabel,
   goToChatDetails,
   goToSearch,
   goToContextLensRuns,
@@ -946,6 +948,7 @@ export function Channel({
                                         onLoadNewerPosts,
                                         onLoadOlderPosts,
                                         posts: posts ?? undefined,
+                                        pendingThinkingLabel,
                                         scrollToBottom: onPressScrollToBottom,
                                         selectedPostId,
                                         setEditingPost,
