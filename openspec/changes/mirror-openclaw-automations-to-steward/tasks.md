@@ -127,3 +127,6 @@
 - [x] 5.17 Bound hung cron reads and Steward submissions, fence late
          list completion, and allow a stopped gateway epoch to be
          replaced without waiting for abandoned promises.
+- [x] 5.18 Disable v1 Steward automation projection unless exactly one
+         Tlon account is runnable, with multi-account and configuration
+         transition coverage.

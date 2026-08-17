@@ -174,6 +174,30 @@ durable projection independently testable and recoverable.
 operation would reduce calls but would couple unrelated failure
 handling and broaden the impact of either subsystem failing.
 
+### 8. Fail closed when multiple Tlon accounts can run
+
+The v1 adapter reads one process-global monitor connection slot and
+cannot identify which account published it. Projection will therefore
+run only when configuration contains exactly one enabled, fully
+configured Tlon account. Zero runnable accounts leave projection
+inactive. More than one runnable account stops the active
+reconciliation epoch, ignores later change triggers, and preserves
+each ship's last accepted Steward snapshot rather than selecting the
+last monitor to publish.
+
+Disabled or incomplete account entries do not make the active
+connection ambiguous and therefore do not disable projection. The
+eligibility check reloads current OpenClaw configuration for every
+gateway-start and cron-change hook, so one-to-zero and one-to-many
+configuration transitions fail closed on the next projection trigger
+even when no replacement account monitor starts.
+
+**Alternative considered:** Indexing monitor connections by account
+and fanning every complete snapshot out to every bot ship would provide
+full multi-account support, but requires per-account delivery,
+acknowledgement, retry, and shutdown state and is outside this v1
+projection.
+
 ## Risks / Trade-offs
 
 - **[Startup can precede cron-service readiness]** → Retry complete

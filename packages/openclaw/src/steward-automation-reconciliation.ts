@@ -1,9 +1,13 @@
-import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
+import type {
+  OpenClawConfig,
+  OpenClawPluginApi,
+} from 'openclaw/plugin-sdk/core';
 import type { PluginHookGatewayCronService } from 'openclaw/plugin-sdk/types';
 
 import { sharedSlot } from './shared-state.js';
 import { submitStewardAutomationProjection } from './steward-automation-adapter.js';
 import { normalizeStewardAutomationProjection } from './steward-automation-projection.js';
+import { listRunnableTlonAccountIds } from './types.js';
 
 type StewardAutomationCronService = Pick<PluginHookGatewayCronService, 'list'>;
 
@@ -455,8 +459,15 @@ export function setStewardAutomationReconciler(
   reconcilerSlot.set(reconciler);
 }
 
+export function isStewardAutomationProjectionEligible(
+  cfg: OpenClawConfig
+): boolean {
+  return listRunnableTlonAccountIds(cfg).length === 1;
+}
+
 export interface RegisterStewardAutomationReconciliationHooksOptions {
   logger: { warn: (message: string) => void };
+  getConfig: () => OpenClawConfig;
 }
 
 function isExpectedCancellation(error: unknown): boolean {
@@ -515,11 +526,55 @@ export function registerStewardAutomationReconciliationHooks(
     setStewardAutomationReconciler(reconciler);
   }
 
+  let reportedIneligibleAccountCount: number | null = null;
+  const warnSafely = (message: string): void => {
+    try {
+      options.logger.warn(message);
+    } catch {
+      // A host logger failure must not bypass the account-safety guard.
+    }
+  };
+  const guardSingleAccount = (): boolean => {
+    let config: OpenClawConfig;
+    try {
+      config = options.getConfig();
+    } catch (error) {
+      reconciler.stop();
+      warnSafely(
+        `[tlon] Steward automation projection disabled: current Tlon ` +
+          `account configuration is unavailable: ${String(error)}`
+      );
+      return false;
+    }
+    if (isStewardAutomationProjectionEligible(config)) {
+      reportedIneligibleAccountCount = null;
+      return true;
+    }
+    const accountCount = listRunnableTlonAccountIds(config).length;
+
+    // The connection slot is process-global, so no ship can be selected
+    // safely when several account monitors can publish into it. Fail closed
+    // and stop any epoch that began under an earlier one-account config.
+    reconciler.stop();
+    if (accountCount > 1 && reportedIneligibleAccountCount !== accountCount) {
+      reportedIneligibleAccountCount = accountCount;
+      warnSafely(
+        `[tlon] Steward automation projection disabled: ${accountCount} ` +
+          'runnable Tlon accounts are configured; v1 requires exactly one'
+      );
+    }
+    return false;
+  };
+
   api.on('gateway_start', (_event, ctx) => {
-    observeProjectionWork(reconciler.start(ctx.getCron), options.logger);
+    if (guardSingleAccount()) {
+      observeProjectionWork(reconciler.start(ctx.getCron), options.logger);
+    }
   });
   api.on('cron_changed', (_event, ctx) => {
-    observeProjectionWork(reconciler.trigger(ctx.getCron), options.logger);
+    if (guardSingleAccount()) {
+      observeProjectionWork(reconciler.trigger(ctx.getCron), options.logger);
+    }
   });
   api.on('gateway_stop', () => {
     reconciler.stop();

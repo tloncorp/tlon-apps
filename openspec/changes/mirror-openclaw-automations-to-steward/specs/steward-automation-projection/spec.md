@@ -110,6 +110,42 @@ starting a concurrent reconciliation.
     reconciliations while preserving the last successfully stored
     `%steward` projection
 
+### Requirement: Projection requires one runnable Tlon account
+
+The OpenClaw harness SHALL enable Steward automation projection only
+when exactly one Tlon account is both enabled and fully configured.
+When zero or multiple accounts are runnable, the harness SHALL NOT
+select a connection from the process-global monitor slot or submit a
+projection. Becoming ineligible SHALL stop active reconciliation
+without clearing any previously stored Steward projection.
+
+#### Scenario: Exactly one account is runnable
+
+- **WHEN** exactly one enabled and fully configured Tlon account exists
+- **THEN** gateway startup and cron changes use that account's local
+    Steward connection for projection
+
+#### Scenario: Multiple accounts are runnable
+
+- **WHEN** more than one enabled and fully configured Tlon account
+    exists when a gateway-start or cron-change trigger is handled
+- **THEN** the harness does not read or submit an automation projection
+    and does not choose whichever monitor last published its connection
+
+#### Scenario: Additional account is disabled or incomplete
+
+- **WHEN** configuration contains additional Tlon account entries but
+    exactly one account is enabled and fully configured
+- **THEN** the harness treats the sole runnable account as eligible for
+    projection
+
+#### Scenario: Configuration becomes ambiguous
+
+- **WHEN** projection is active and a later trigger observes multiple
+    runnable Tlon accounts
+- **THEN** the harness stops the active reconciliation epoch, starts no
+    new projection work, and preserves the last stored Steward snapshot
+
 ### Requirement: Mirror freshness is best-effort
 
 The `%steward` automation state SHALL represent the latest complete

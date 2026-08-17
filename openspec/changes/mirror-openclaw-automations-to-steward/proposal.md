@@ -26,6 +26,9 @@ work.
 - Serialize and coalesce reconciliation so snapshots cannot overtake
     one another, and retry transient failures while the gateway
     remains active.
+- Enable the v1 projection only when exactly one runnable Tlon account
+    is configured; fail closed rather than selecting an arbitrary ship
+    from the process-global monitor connection slot.
 - Keep the current OpenClaw version and document that, without
     `cron_reconciled`, this is a best-effort mirror repaired on
     gateway startup and subsequent cron changes rather than an

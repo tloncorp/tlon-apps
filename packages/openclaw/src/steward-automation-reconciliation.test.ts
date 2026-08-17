@@ -1,4 +1,7 @@
-import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
+import type {
+  OpenClawConfig,
+  OpenClawPluginApi,
+} from 'openclaw/plugin-sdk/core';
 import type {
   PluginHookCronChangedEvent,
   PluginHookGatewayContext,
@@ -13,6 +16,7 @@ import {
   StewardAutomationReconciler,
   StewardAutomationReconciliationCancelledError,
   getStewardAutomationReconciler,
+  isStewardAutomationProjectionEligible,
   reconcileStewardAutomation,
   registerStewardAutomationReconciliationHooks,
   setStewardAutomationReconciler,
@@ -748,9 +752,196 @@ describe('StewardAutomationReconciler', () => {
 });
 
 describe('registerStewardAutomationReconciliationHooks', () => {
-  const registrationOptions = () => ({
+  const oneRunnableAccount = {
+    channels: {
+      tlon: {
+        ship: '~zod',
+        url: 'http://zod.test',
+        code: 'lidlut-tabwed-pillex-ridrup',
+      },
+    },
+  } as OpenClawConfig;
+  const twoRunnableAccounts = {
+    channels: {
+      tlon: {
+        ship: '~zod',
+        url: 'http://zod.test',
+        code: 'lidlut-tabwed-pillex-ridrup',
+        accounts: {
+          second: {
+            ship: '~bus',
+            url: 'http://bus.test',
+            code: 'racmut-batdur-sivhes-nidweb',
+          },
+        },
+      },
+    },
+  } as OpenClawConfig;
+  const oneRunnableWithIncompleteAccount = {
+    channels: {
+      tlon: {
+        accounts: {
+          primary: {
+            ship: '~zod',
+            url: 'http://zod.test',
+            code: 'lidlut-tabwed-pillex-ridrup',
+          },
+          incomplete: {
+            ship: '~bus',
+            url: 'http://bus.test',
+          },
+        },
+      },
+    },
+  } as OpenClawConfig;
+  const zeroRunnableAccounts = { channels: {} } as OpenClawConfig;
+  const registrationOptions = (
+    getConfig: () => OpenClawConfig = () => oneRunnableAccount
+  ) => ({
     logger: { warn: vi.fn() },
+    getConfig,
   });
+
+  it('requires exactly one runnable Tlon account', () => {
+    const disabledSecondAccount = structuredClone(twoRunnableAccounts);
+    const tlon = disabledSecondAccount.channels?.tlon as {
+      accounts: { second: { enabled?: boolean } };
+    };
+    tlon.accounts.second.enabled = false;
+
+    expect(isStewardAutomationProjectionEligible(oneRunnableAccount)).toBe(
+      true
+    );
+    expect(isStewardAutomationProjectionEligible(twoRunnableAccounts)).toBe(
+      false
+    );
+    expect(isStewardAutomationProjectionEligible(disabledSecondAccount)).toBe(
+      true
+    );
+    expect(
+      isStewardAutomationProjectionEligible(oneRunnableWithIncompleteAccount)
+    ).toBe(true);
+    expect(isStewardAutomationProjectionEligible(zeroRunnableAccounts)).toBe(
+      false
+    );
+  });
+
+  it('disables projection when multiple runnable accounts are configured', async () => {
+    const api = createFakeHookApi();
+    const options = registrationOptions(() => twoRunnableAccounts);
+    const { context, list } = cronContext(jobs);
+    registerStewardAutomationReconciliationHooks(api, options);
+
+    await api.fire('gateway_start', { port: 3000 }, context);
+    await api.fire(
+      'cron_changed',
+      { action: 'updated', jobId: 'disabled-job' },
+      context
+    );
+
+    expect(list).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
+    expect(options.logger.warn).toHaveBeenCalledOnce();
+    expect(options.logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('2 runnable Tlon accounts')
+    );
+  });
+
+  it('keeps projection inactive when no account is runnable', async () => {
+    const api = createFakeHookApi();
+    const options = registrationOptions(() => zeroRunnableAccounts);
+    const { context, list } = cronContext(jobs);
+    registerStewardAutomationReconciliationHooks(api, options);
+
+    await api.fire('gateway_start', { port: 3000 }, context);
+
+    expect(list).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
+    expect(options.logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('stops projection after a one-to-many account transition', async () => {
+    let config = oneRunnableAccount;
+    const api = createFakeHookApi();
+    const options = registrationOptions(() => config);
+    const { context, list } = cronContext(jobs);
+    registerStewardAutomationReconciliationHooks(api, options);
+
+    await api.fire('gateway_start', { port: 3000 }, context);
+    await vi.waitFor(() => {
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+    });
+    list.mockClear();
+    vi.mocked(submitStewardAutomationProjection).mockClear();
+
+    config = twoRunnableAccounts;
+    await api.fire(
+      'cron_changed',
+      { action: 'updated', jobId: 'disabled-job' },
+      context
+    );
+
+    expect(list).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
+    expect(options.logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('projection disabled')
+    );
+  });
+
+  it('stops projection after a one-to-zero account transition', async () => {
+    let config = oneRunnableAccount;
+    const api = createFakeHookApi();
+    const options = registrationOptions(() => config);
+    const { context, list } = cronContext(jobs);
+    registerStewardAutomationReconciliationHooks(api, options);
+
+    await api.fire('gateway_start', { port: 3000 }, context);
+    await vi.waitFor(() => {
+      expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+    });
+    list.mockClear();
+    vi.mocked(submitStewardAutomationProjection).mockClear();
+
+    config = zeroRunnableAccounts;
+    await api.fire(
+      'cron_changed',
+      { action: 'updated', jobId: 'disabled-job' },
+      context
+    );
+
+    expect(list).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
+    expect(options.logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('cancels an in-flight epoch when configuration becomes ambiguous', async () => {
+    let config = oneRunnableAccount;
+    const api = createFakeHookApi();
+    const options = registrationOptions(() => config);
+    const listed = deferred<PluginHookGatewayCronJob[]>();
+    const list = vi.fn(() => listed.promise);
+    const context = { getCron: () => ({ list }) };
+    const reconciler = registerStewardAutomationReconciliationHooks(
+      api,
+      options
+    );
+
+    const active = reconciler.start(context.getCron);
+    const cancelled = expect(active).rejects.toBeInstanceOf(
+      StewardAutomationReconciliationCancelledError
+    );
+    config = twoRunnableAccounts;
+    await api.fire(
+      'cron_changed',
+      { action: 'updated', jobId: 'disabled-job' },
+      context
+    );
+
+    await cancelled;
+    expect(list).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
+  });
+
   it('registers gateway_stop and ignores cron changes while inactive', async () => {
     const api = createFakeHookApi();
     const { context, list } = cronContext(jobs);
@@ -999,6 +1190,33 @@ describe('registerStewardAutomationReconciliationHooks', () => {
     expect(getStewardAutomationReconciler()).toBe(injected);
   });
 
+  it('fails closed when live configuration cannot be loaded', async () => {
+    const api = createFakeHookApi();
+    const injected = {
+      start: vi.fn().mockResolvedValue(undefined),
+      trigger: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn(),
+    } as unknown as StewardAutomationReconciler;
+    const warn = vi.fn(() => {
+      throw new Error('logger unavailable');
+    });
+    setStewardAutomationReconciler(injected);
+    registerStewardAutomationReconciliationHooks(api, {
+      logger: { warn },
+      getConfig: () => {
+        throw new Error('config unavailable');
+      },
+    });
+
+    await expect(
+      api.fire('gateway_start', { port: 3000 }, { getCron: undefined })
+    ).resolves.toBeUndefined();
+
+    expect(injected.stop).toHaveBeenCalledOnce();
+    expect(injected.start).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
   it('contains a logger failure while observing a terminal rejection', async () => {
     const api = createFakeHookApi();
     const terminal = new Error('terminal projection failure');
@@ -1011,7 +1229,10 @@ describe('registerStewardAutomationReconciliationHooks', () => {
       throw new Error('logger unavailable');
     });
     setStewardAutomationReconciler(injected);
-    registerStewardAutomationReconciliationHooks(api, { logger: { warn } });
+    registerStewardAutomationReconciliationHooks(api, {
+      logger: { warn },
+      getConfig: () => oneRunnableAccount,
+    });
 
     await api.fire('gateway_start', { port: 3000 }, { getCron: undefined });
     await vi.waitFor(() => expect(warn).toHaveBeenCalledOnce());

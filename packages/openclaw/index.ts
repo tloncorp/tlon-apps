@@ -1369,6 +1369,7 @@ export default defineBundledChannelEntry({
 
     registerStewardAutomationReconciliationHooks(api, {
       logger: { warn: (message) => api.logger.warn(message) },
+      getConfig: () => api.runtime.config.loadConfig(),
     });
 
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
