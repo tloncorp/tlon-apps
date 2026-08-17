@@ -119,7 +119,16 @@ export function reduceOpenAIAuthState(
           flow,
         };
       }
-      return { phase: 'active', flow };
+      const preservesTokenError =
+        state.phase === 'active' &&
+        state.error !== undefined &&
+        state.flow.id === flow.id &&
+        state.flow.provider === flow.provider &&
+        flow.provider === 'anthropic' &&
+        flow.status === 'awaiting_token';
+      return preservesTokenError
+        ? { phase: 'active', flow, error: state.error }
+        : { phase: 'active', flow };
     }
   }
 }

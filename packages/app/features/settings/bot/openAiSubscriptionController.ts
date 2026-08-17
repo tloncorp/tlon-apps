@@ -146,6 +146,7 @@ export class OpenAIAuthController {
         type: 'tokenFailure',
         message: getErrorMessage(error, this.deps.provider),
       });
+      this.schedulePoll();
       return false;
     }
   }

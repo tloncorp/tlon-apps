@@ -128,6 +128,42 @@ describe('OpenAI subscription auth state', () => {
     });
   });
 
+  it('retains a rejected token error while the same flow awaits a token', () => {
+    const anthropicFlow = {
+      id: 'flow-anthropic',
+      provider: 'anthropic' as const,
+      status: 'awaiting_token' as const,
+      expiresAt: 5_000,
+    };
+    const rejected = reduceOpenAIAuthState(
+      { phase: 'active', flow: anthropicFlow },
+      { type: 'tokenFailure', message: 'Invalid setup token.' }
+    );
+
+    expect(
+      reduceOpenAIAuthState(rejected, {
+        type: 'flow',
+        flow: anthropicFlow,
+        now: 2_000,
+      })
+    ).toEqual({
+      phase: 'active',
+      flow: anthropicFlow,
+      error: 'Invalid setup token.',
+    });
+
+    expect(
+      reduceOpenAIAuthState(rejected, {
+        type: 'flow',
+        flow: { ...anthropicFlow, status: 'authenticating' },
+        now: 2_000,
+      })
+    ).toEqual({
+      phase: 'active',
+      flow: { ...anthropicFlow, status: 'authenticating' },
+    });
+  });
+
   it('turns an expired active flow into a restartable error', () => {
     expect(
       reduceOpenAIAuthState(

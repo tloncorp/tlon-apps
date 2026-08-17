@@ -155,12 +155,13 @@ describe('OpenAIAuthController', () => {
       status: 'awaiting_token',
       expiresAt: 10_000,
     };
+    const poll = vi.fn(async () => ({ flow: anthropicFlow }));
     const { controller } = makeController({
       flow: anthropicFlow,
       complete: async () => {
         throw new Error('Invalid setup token.');
       },
-      poll: async () => ({ flow: anthropicFlow }),
+      poll,
     });
 
     await controller.start();
@@ -170,6 +171,41 @@ describe('OpenAIAuthController', () => {
       phase: 'active',
       flow: anthropicFlow,
       error: 'Invalid setup token.',
+    });
+
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(poll).toHaveBeenCalledWith('flow-anthropic');
+    expect(controller.getState()).toEqual({
+      phase: 'active',
+      flow: anthropicFlow,
+      error: 'Invalid setup token.',
+    });
+  });
+
+  it('observes flow expiry after an Anthropic token is rejected', async () => {
+    const anthropicFlow: TlawnLLMAuthFlow = {
+      id: 'flow-anthropic',
+      provider: 'anthropic',
+      status: 'awaiting_token',
+      expiresAt: 4_000,
+    };
+    const { controller } = makeController({
+      flow: anthropicFlow,
+      complete: async () => {
+        throw new Error('Invalid setup token.');
+      },
+      poll: async () => ({ flow: anthropicFlow }),
+    });
+
+    await controller.start();
+    await controller.complete('bad-token');
+    await vi.advanceTimersByTimeAsync(3_000);
+
+    expect(controller.getState()).toMatchObject({
+      phase: 'error',
+      message: 'This connection attempt expired.',
+      restartable: true,
     });
   });
 
