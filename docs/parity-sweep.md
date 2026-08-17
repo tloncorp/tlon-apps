@@ -39,6 +39,7 @@ Finding types for **report**:
 Intentional behavioral divergence is documented in the shared e2e harness's per-driver expectations (`packages/tlon-bot-e2e/src/drivers/{openclaw,hermes}.ts` and driver-branched scenarios in `src/scenarios/shared/common.ts`) and summarized here. The prose summary below is the working list; when it and the harness disagree, flag the discrepancy rather than picking a side.
 
 -   **Reply/thread placement**: the runtimes anchor replies and reaction acks differently; Hermes runs with `reply_in_thread` off.
+-   **Reaction envelope**: OpenClaw's model-visible reaction text names the reacting ship; Hermes deliberately carries the reactor only in message metadata (`MessageEvent.source.user_id`), not in model-visible text. The shared reaction scenarios assert this per driver.
 -   **Tool shapes**: OpenClaw sends via its `message` tool and schedules via `cron`; Hermes sends via `tlon posts send` and schedules via `cronjob`. Advertised toolsets differ accordingly.
 -   **Background model noise**: OpenClaw heartbeat polls vs Hermes title generation.
 -   **SSE fault marker strings** differ by design (`[SSE] Stream stale`/`Stream ended`/`Reconnection attempt` vs `SSE stream error`/`SSE stream stale`); both harnesses now have staleness watchdogs and validated knobs, in each one's unit convention (`*_MS` ints vs `*_SECONDS` floats).
@@ -47,14 +48,14 @@ Intentional behavioral divergence is documented in the shared e2e harness's per-
 -   **Reaction-based approvals** (👍/👎/🛑 on approval DMs) are OpenClaw-legacy and intentionally not ported — A2UI approval cards supersede them.
 -   **Hermes-only surfaces** accepted as reverse divergence: `/channel-access`, extended owner-listen modes, `/tlon status` diagnostics, native block-list pre-check, in-package `image_search`.
 -   **OpenClaw-only** session/route persistence machinery (webchat-leak prevention) is architecture-specific and has no Hermes analogue by design.
--   **Outbound story construction** is OpenClaw-only (`src/urbit/story.ts` text→story conversion). Hermes sends raw text through the `tlon` CLI, which converts via the shared `packages/api` markdown converter (out of sweep scope). Fixes to OpenClaw's converter have no Hermes twin; shared-converter gaps are filed against `packages/api` (e.g. TLON-6334).
+-   **Outbound story construction** is OpenClaw-only (`src/urbit/story.ts` text→story conversion). Hermes sends raw text through the `tlon` CLI, which converts via the shared `packages/api` markdown converter (out of sweep scope). A fix to OpenClaw's converter therefore has no adapter-side Hermes twin — but it MAY have a shared-converter twin: classify converter fixes as **uncertain** ("possible twin in `packages/api` markdown converter — needs a human check"), never **ignore**. Known shared-converter gaps are filed against `packages/api` (e.g. TLON-6334).
 -   **Blank-ship config failure mode**: both runtimes guarantee a blank/whitespace ship is never used, but OpenClaw rejects at config-parse time while Hermes treats it as "not configured" (`is_complete()` false) — deliberate, since Hermes' `from_env` is probed speculatively on unconfigured environments.
 
 If a swept commit _changes_ one of these declared divergences, that IS reportable (this list may need updating).
 
 ## Standing open gaps (report only status changes)
 
-Known, already-filed gaps. Do not re-report their existence. Report a standing-gap update only when a swept commit suggests one **appears implemented** (cite the SHA; humans must verify and close the issue — code evidence is not issue status) or **appears widened**. Last human review of this list: 2026-08-13.
+Known, already-filed gaps. Do not re-report their existence. Report a standing-gap update only when a swept commit suggests one **appears implemented** (cite the SHA; humans must verify and close the issue — code evidence is not issue status) or **appears widened**. Last human review of this list: 2026-08-17.
 
 -   Restart-replay dedup across process restarts — TLON-6098 (shared e2e scenario `restart-no-double-reply` registered but skipped).
 -   Inbound sanitization coverage for enriched media text — TLON-6169 (see Linear for details).
@@ -65,10 +66,6 @@ Known, already-filed gaps. Do not re-report their existence. Report a standing-g
 -   Approval-card source-navigation links + component-limit trimming on Hermes — TLON-6321.
 -   OpenClaw→Hermes harness migration tooling — TLON-5934.
 -   Blob-only _reply_ cites render `[📎 …]` on Hermes, nothing on OpenClaw (`history.py` keeps the blob for reply payloads, `history.ts` drops it) — undecided disagreement flagged during TLON-6322; whichever runtime changes, report it.
-
-Resolved 2026-08-13 (remove after PR #6276 merges): the TLON-6322 "unverified small twins" entry — mention @p validation (n/a on Hermes, residual shared-converter gap filed as TLON-6334), blank-ship rejection (equivalent guarantee, declared divergence above), authorless cite paths/gating (verified; three small divergences fixed).
-
-Resolved 2026-08-13 (remove after PR #6282 merges): the TLON-6319 SSE reap-detection/watchdog entry — Hermes gains event-id regression + per-action floor + genesis-action detectors and a probe-driven staleness watchdog with validated `TLON_SSE_STALE_THRESHOLD_SECONDS`/`TLON_SSE_WATCHDOG_INTERVAL_SECONDS`; pending-subscription retry assessed not-applicable (declared divergence above).
 
 ## Evidence rules
 
