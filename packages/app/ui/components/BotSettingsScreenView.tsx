@@ -10,23 +10,12 @@ import {
 import { useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
+import type { McpProviderRow } from '../../lib/mcpProviders';
 import { useIsWindowNarrow } from '../utils';
 import { ListItem } from './ListItem';
 import { McpProviderLogo } from './McpProviderLogo';
 import { ScreenHeader } from './ScreenHeader';
 import { SettingsContentScrollView } from './SettingsContentScrollView';
-
-export type BotSettingsProviderStatus =
-  | 'connected'
-  | 'expired'
-  | 'not-connected';
-
-export interface BotSettingsProviderRow {
-  displayName: string;
-  id: string;
-  logoUrl?: string;
-  status: BotSettingsProviderStatus;
-}
 
 interface BotSettingsScreenViewProps {
   available: boolean;
@@ -36,7 +25,7 @@ interface BotSettingsScreenViewProps {
   onConnectProvider: (providerId: string) => void;
   onDisconnectProvider: (providerId: string) => void;
   onRefresh: () => void;
-  providers: BotSettingsProviderRow[];
+  providers: McpProviderRow[];
   refreshing: boolean;
   showUnavailableNotice: boolean;
 }
@@ -149,7 +138,7 @@ function ProviderSection({
   loadingProviderId: string | null;
   onConnect: (providerId: string) => void;
   onDisconnect: (providerId: string) => void;
-  providers: BotSettingsProviderRow[];
+  providers: McpProviderRow[];
   title: string;
 }) {
   return (
@@ -184,7 +173,7 @@ function ProviderListItem({
   loading: boolean;
   onConnect: (providerId: string) => void;
   onDisconnect: (providerId: string) => void;
-  provider: BotSettingsProviderRow;
+  provider: McpProviderRow;
 }) {
   const isConnected = provider.status === 'connected';
   const canConnect = !disabled && !isConnected;

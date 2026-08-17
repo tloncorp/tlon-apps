@@ -2,6 +2,7 @@ import type { TlawnOAuthProvider } from '@tloncorp/api';
 import { describe, expect, it } from 'vitest';
 import { vi } from 'vitest';
 
+import { prioritizeMcpMenuProviders } from '../../lib/mcpProviders';
 import { buildProviderRows } from './botMcpSettingsHelpers';
 
 vi.mock('@tloncorp/shared', () => ({
@@ -38,5 +39,16 @@ describe('buildProviderRows', () => {
         status: 'not-connected',
       },
     ]);
+  });
+
+  it('puts connected providers first and keeps Gmail in the default menu', () => {
+    expect(
+      prioritizeMcpMenuProviders([
+        { displayName: 'A', id: 'a', status: 'not-connected' },
+        { displayName: 'B', id: 'b', status: 'connected' },
+        { displayName: 'Gmail', id: 'gmail', status: 'not-connected' },
+        { displayName: 'D', id: 'd', status: 'connected' },
+      ]).map((provider) => provider.id)
+    ).toEqual(['b', 'd', 'gmail', 'a']);
   });
 });

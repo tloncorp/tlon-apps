@@ -720,6 +720,26 @@ export type PostBlobDataEntryAgentProvision = z.infer<
   typeof PostBlobDataEntryAgentProvisionSchema
 >;
 
+export const PostBlobDataEntryAgentProviderConfigSchema =
+  definePostBlobDataEntrySchema('tlon-agent-provider-config', 1, {
+    provisionId: z.string().min(1).max(128),
+    groupId: z.string().min(1).max(512),
+    providerIds: z
+      .array(
+        z
+          .string()
+          .min(1)
+          .max(128)
+          .regex(/^[a-z0-9][a-z0-9._-]*$/i)
+      )
+      .max(12)
+      .refine((ids) => new Set(ids).size === ids.length),
+  });
+
+export type PostBlobDataEntryAgentProviderConfig = z.infer<
+  typeof PostBlobDataEntryAgentProviderConfigSchema
+>;
+
 export const PostBlobDataEntryAgentProvisionAckSchema =
   definePostBlobDataEntrySchema('tlon-agent-provision-ack', 1, {
     provisionId: z.string().min(1).max(128),
@@ -746,6 +766,7 @@ const postBlobDataEntryDefinitions = [
   PostBlobDataEntryContextLensSchema,
   PostBlobDataEntryAgentIntroRequestSchema,
   PostBlobDataEntryAgentProvisionSchema,
+  PostBlobDataEntryAgentProviderConfigSchema,
   PostBlobDataEntryAgentProvisionAckSchema,
   PostBlobDataEntryAgentPostMarkerSchema,
   A2UI.blobEntrySchema,

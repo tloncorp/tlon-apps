@@ -14,6 +14,7 @@ import { ActionSheet } from '../ActionSheet';
 import { TextInput } from '../Form';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 import { AgentOnboardingSurface } from './AgentOnboardingSurface';
+import { McpConnectControl } from './McpConnectControl';
 import { isConsumableA2UIAction } from './a2uiActionConsumption';
 import { useContentContext } from './contentUtils';
 
@@ -622,6 +623,8 @@ function getComponentText(
       // Text extraction feeds previews and labels: the option titles are the
       // meaningful summary of a choice group.
       return component.options.map((option) => option.label).join(', ');
+    case 'McpConnect':
+      return component.seeAllLabel;
     case 'AgentOnboarding':
       return component.purposes.map((purpose) => purpose.label).join(', ');
     case 'Divider':
@@ -651,6 +654,7 @@ export function A2UIBlock({
   const {
     isA2UIActionAvailable,
     isA2UIActionConsumed,
+    configuredAgentProviderIds,
     onA2UIAction,
     onAgentOnboardingConfirm,
   } = useContentContext();
@@ -1100,6 +1104,25 @@ export function A2UIBlock({
             </YStack>
           );
         }
+        case 'McpConnect':
+          return (
+            <YStack
+              key={component.id}
+              width="100%"
+              marginTop={CHOICE_CONTROL_OUTER_MARGIN}
+            >
+              <McpConnectControl
+                component={component}
+                configuredProviderIds={configuredAgentProviderIds}
+                onConfigure={
+                  isA2UIActionAvailable?.(component.configureAction) === false
+                    ? undefined
+                    : onA2UIAction
+                }
+                onNavigate={onA2UIAction}
+              />
+            </YStack>
+          );
         case 'AgentOnboarding':
           return (
             <AgentOnboardingSurface
@@ -1113,6 +1136,7 @@ export function A2UIBlock({
     },
     [
       components,
+      configuredAgentProviderIds,
       handleButtonPress,
       handleChoicePress,
       handleSmallChoiceSubmit,

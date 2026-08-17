@@ -58,7 +58,11 @@ describe('agent onboarding requests', () => {
 
   it('keeps onboarding follow-up actions flat', () => {
     const invite = agentOnboardingTesting.buildInviteSurface('~ten/group');
-    const services = agentOnboardingTesting.buildServicesSurface('pitch');
+    const services = agentOnboardingTesting.buildServicesSurface(
+      'pitch',
+      '~ten/group',
+      'provision-1'
+    );
     const inviteRoot = invite.messages.find(
       (message) => 'updateComponents' in message
     );
@@ -75,8 +79,8 @@ describe('agent onboarding requests', () => {
       component: 'Column',
       children: ['invite'],
     });
-    // The services card is a Choice, not a bare Button: a Button carries only
-    // a text label, and this needs an icon, a title and a description.
+    // Providers and connection status belong to the client; the coordinator
+    // sends only the bounded menu configuration and its navigation target.
     const servicesComponents =
       servicesRoot && 'updateComponents' in servicesRoot
         ? servicesRoot.updateComponents.components
@@ -85,17 +89,26 @@ describe('agent onboarding requests', () => {
       id: 'root',
       component: 'Column',
     });
-    const choice = servicesComponents.find(({ id }) => id === 'cta') as
-      | A2UI.Choice
+    const menu = servicesComponents.find(({ id }) => id === 'providers') as
+      | A2UI.McpConnect
       | undefined;
-    expect(choice?.component).toBe('Choice');
-    expect(choice?.options).toHaveLength(1);
-    expect(choice?.options[0]).toMatchObject({
-      label: 'Connect services',
-      description: 'Use your calendar, documents, and notes',
+    expect(menu).toMatchObject({
+      component: 'McpConnect',
+      maxVisible: 5,
+      seeAllLabel: 'See all',
+      submitLabel: 'Use for this group',
     });
-    expect([undefined, 'Link']).toContain(choice?.options[0]?.icon);
-    expect(choice?.options[0]?.action.event.name).toBe(A2UI.action.navigate);
+    expect(menu?.action.event.name).toBe(A2UI.action.navigate);
+    expect(menu?.configureAction).toMatchObject({
+      event: {
+        name: A2UI.action.configureAgentProviders,
+        context: {
+          groupId: '~ten/group',
+          provisionId: 'provision-1',
+          providerIds: [],
+        },
+      },
+    });
   });
 
   it('catches an intro request that arrived before the channel was watched', async () => {
@@ -775,6 +788,87 @@ describe('primary onboarding cron slot', () => {
       },
     });
   });
+
+  it('adds only the MCP meta-tools and a read-only provider policy', async () => {
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general',
+      ['gmail', 'notion']
+    );
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: {
+        toolsAllow: [
+          'group:web',
+          'mcp_list_upstreams',
+          'mcp_search',
+          'mcp_describe',
+          'mcp_call',
+        ],
+        message: expect.stringMatching(
+          /gmail.*notion.*read-only.*Never create, update, delete, send, publish/s
+        ),
+      },
+    });
+  });
+
+  it('updates the existing group slot from an owner provider config', async () => {
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const history = [
+      {
+        author: '~ten',
+        content: 'AI, Climate',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, provision),
+      },
+      {
+        author: '~bot',
+        content: 'Ready',
+        timestamp: 2,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack',
+          version: 1,
+          provisionId: provision.provisionId,
+          cronJobId: 'job-1',
+        }),
+      },
+    ];
+    await handleAgentOnboardingRequest(
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+        senderShip: '~ten',
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: provision.provisionId,
+          groupId: provision.groupId,
+          providerIds: ['gmail'],
+        }),
+      },
+      {
+        fetchHistory: vi.fn(async () => history),
+        getCron: () => harness.cron,
+      }
+    );
+    expect(harness.getJobs()).toHaveLength(1);
+    expect(harness.cron.update).toHaveBeenCalledOnce();
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: {
+        toolsAllow: expect.arrayContaining(['group:web', 'mcp_call']),
+        message: expect.stringContaining('["gmail"]'),
+      },
+    });
+  });
 });
 
 describe('provision coordinator ordering', () => {
@@ -1050,9 +1144,7 @@ describe('provision coordinator ordering', () => {
         expect.objectContaining({ type: 'a2ui' }),
       ])
     );
-    expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain(
-      'Connect services'
-    );
+    expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain('McpConnect');
   });
 
   it('uses successful Notes delivery when the host drops cron completion', async () => {
