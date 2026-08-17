@@ -6,7 +6,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Button, Icon, Text, useCopy } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Share } from 'react-native';
 import { YStack, isWeb } from 'tamagui';
 
@@ -15,21 +15,7 @@ import { useIsAdmin } from '../utils';
 
 const logger = createDevLogger('InviteButton', false);
 
-export function InviteFriendsToTlonButton({
-  group,
-  ...props
-}: { group?: db.Group } & Omit<
-  ComponentProps<typeof Button>,
-  | 'group'
-  | 'icon'
-  | 'label'
-  | 'leadingIcon'
-  | 'trailingIcon'
-  | 'onPress'
-  | 'loading'
-  | 'disabled'
->) {
-  const { preset = 'primary', ...buttonProps } = props;
+export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
   const inviteService = useInviteService();
@@ -171,8 +157,7 @@ export function InviteFriendsToTlonButton({
         )}
       </Button.Frame>
       <Button
-        {...buttonProps}
-        preset={preset}
+        preset="primary"
         label="Share link"
         centered
         disabled={!linkIsReady}
