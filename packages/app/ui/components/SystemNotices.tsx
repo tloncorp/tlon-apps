@@ -55,7 +55,7 @@ const NoticeCardFrame = styled(YStack, {
   width: '100%',
   backgroundColor: '$background',
   padding: 20,
-  borderRadius: '$2xl',
+  borderRadius: '$xl',
   borderWidth: 1,
   borderColor: '$border',
 });
