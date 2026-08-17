@@ -15,7 +15,10 @@ import { TextInput } from '../Form';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 import { AgentOnboardingSurface } from './AgentOnboardingSurface';
 import { McpConnectControl } from './McpConnectControl';
-import { isConsumableA2UIAction } from './a2uiActionConsumption';
+import {
+  getSmallChoiceCompletionPresentation,
+  isConsumableA2UIAction,
+} from './a2uiActionConsumption';
 import { useContentContext } from './contentUtils';
 
 type RenderOptions = {
@@ -252,11 +255,13 @@ function SmallChoiceControl({
     disabled || !messageForSelection || !probe(actionForSelection);
   const customChoiceLabel =
     component.freeTextPlaceholder?.replace(/…+$/, '') || '';
-  const collapsedTopics = consumedLocally
-    ? topicsForSelection
-    : actionConsumed
-      ? consumedTopics ?? []
-      : [];
+  const completionPresentation = getSmallChoiceCompletionPresentation({
+    actionConsumed,
+    consumedLocally,
+    durableTopics: consumedTopics,
+    localTopics: topicsForSelection,
+  });
+  const collapsedTopics = completionPresentation.topics;
   const collapsedSelection = collapsedTopics.join(', ');
   const selectedCount = collapsedTopics.length;
   const hasSelection = Boolean(messageForSelection);
@@ -316,7 +321,7 @@ function SmallChoiceControl({
         borderRadius="$xl"
         backgroundColor="$secondaryBackground"
       >
-        {consumedLocally && collapsedSelection ? (
+        {completionPresentation.collapsed ? (
           <XStack
             minHeight={52}
             paddingVertical="$m"

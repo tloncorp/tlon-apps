@@ -1,7 +1,10 @@
 import { A2UI } from '@tloncorp/shared/logic';
 import { describe, expect, it } from 'vitest';
 
-import { isConsumableA2UIAction } from './a2uiActionConsumption';
+import {
+  getSmallChoiceCompletionPresentation,
+  isConsumableA2UIAction,
+} from './a2uiActionConsumption';
 
 function action(name: A2UI.ButtonAction['event']['name']) {
   return { event: { name, context: {} } } as A2UI.ButtonAction;
@@ -18,5 +21,32 @@ describe('isConsumableA2UIAction', () => {
   it('keeps client-local actions reusable', () => {
     expect(isConsumableA2UIAction(action(A2UI.action.navigate))).toBe(false);
     expect(isConsumableA2UIAction(action(A2UI.action.inviteLink))).toBe(false);
+  });
+});
+
+describe('getSmallChoiceCompletionPresentation', () => {
+  it('collapses a remounted picker from its durable topics', () => {
+    expect(
+      getSmallChoiceCompletionPresentation({
+        actionConsumed: true,
+        consumedLocally: false,
+        durableTopics: ['Astronomy', 'Geometry'],
+        localTopics: [],
+      })
+    ).toEqual({
+      collapsed: true,
+      topics: ['Astronomy', 'Geometry'],
+    });
+  });
+
+  it('keeps an unconsumed picker expanded', () => {
+    expect(
+      getSmallChoiceCompletionPresentation({
+        actionConsumed: false,
+        consumedLocally: false,
+        durableTopics: ['Astronomy'],
+        localTopics: [],
+      })
+    ).toEqual({ collapsed: false, topics: [] });
   });
 });
