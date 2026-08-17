@@ -135,6 +135,52 @@ describe('agent onboarding requests', () => {
     expect(sendPost).toHaveBeenCalledTimes(2);
   });
 
+  it('describes only the provisioned home group as the first group', async () => {
+    const promptFor = async (isFirstGroup?: boolean) => {
+      const sent: Array<{ blob?: string }> = [];
+      const introBlob = appendToPostBlob(undefined, {
+        type: 'tlon-agent-intro-request',
+        version: 1,
+        groupId: '~ten/group',
+        ...(isFirstGroup ? { isFirstGroup: true } : {}),
+      });
+
+      await handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: '~ten/group',
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          blob: introBlob,
+        },
+        {
+          fetchHistory: vi.fn(async () => [
+            {
+              author: '~ten',
+              content: "Let's get set up.",
+              timestamp: 1,
+              blob: introBlob,
+            },
+          ]),
+          sleep: vi.fn(async () => {}),
+          sendPost: vi.fn(async (post: { blob?: string }) => {
+            sent.push(post);
+            return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+          }),
+        }
+      );
+
+      return JSON.stringify(parsePostBlob(sent[1]?.blob));
+    };
+
+    await expect(promptFor(true)).resolves.toContain(
+      'What can I help you with?'
+    );
+    await expect(promptFor()).resolves.toContain('What can I help you with?');
+  });
+
   it('recognizes an unmarked legacy intro without suppressing other steps', () => {
     const history = [
       {

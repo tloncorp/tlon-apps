@@ -120,7 +120,7 @@ const purposePicker = makeA2UI('onboarding-purpose-fixture', [
   {
     id: 'prompt',
     component: 'Text',
-    text: 'What would be useful for this group?',
+    text: 'What can I help you with?',
   },
   {
     id: 'choices',
@@ -271,7 +271,7 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-02-purpose',
     author: tlonbot,
-    text: 'What would be useful for this group? Reply “A daily digest”, “Learn something”, or “Research”.',
+    text: 'What can I help you with? Reply “A daily digest”, “Learn something”, or “Research”.',
     a2ui: purposePicker,
     minute: 2,
   }),

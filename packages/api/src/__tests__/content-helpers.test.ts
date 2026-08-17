@@ -83,6 +83,7 @@ describe('post blob helpers', () => {
         type: 'tlon-agent-intro-request',
         version: 1,
         groupId: '~zod/test',
+        isFirstGroup: true,
       },
       {
         type: 'tlon-agent-provision',
