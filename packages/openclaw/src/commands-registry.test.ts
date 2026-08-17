@@ -5,10 +5,13 @@ import type { PluginCommandContext } from 'openclaw/plugin-sdk/core';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  CORE_COMMAND_TOKENS,
   TLON_COMMAND_REGISTRY,
   type TlonCommandDeps,
   buildCommandTokensJson,
+  buildEngagementTokensJson,
   commandTokens,
+  engagementTokens,
   registerTlonCommands,
 } from './commands-registry.js';
 
@@ -17,6 +20,12 @@ const fixturePath = path.resolve(
   '../fixtures/commands.json'
 );
 const fixtureJson = fs.readFileSync(fixturePath, 'utf8');
+
+const engagementFixturePath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../fixtures/engagement-tokens.json'
+);
+const engagementFixtureJson = fs.readFileSync(engagementFixturePath, 'utf8');
 
 const makeDeps = (): TlonCommandDeps => ({
   renderTlonVersion: async () => ({ text: 'tlon version' }),
@@ -121,5 +130,38 @@ describe('buildCommandTokensJson', () => {
     expect(commandTokens()).toEqual(
       TLON_COMMAND_REGISTRY.map((entry) => `/${entry.name}`)
     );
+  });
+});
+
+// The engagement fixture is what the client's parity contract reads
+// (packages/shared/src/domain/runtimeCommandContract.test.ts): every token the
+// popup can insert bare must engage bare in the runtime. Same pattern as the
+// commands.json check above.
+describe('core command tokens', () => {
+  it('mirrors the client OPENCLAW_CORE_COMMANDS audit pin', () => {
+    expect(CORE_COMMAND_TOKENS).toEqual(['/status', '/help', '/new']);
+  });
+
+  it('are not registered plugin commands', () => {
+    for (const token of CORE_COMMAND_TOKENS) {
+      expect(commandTokens()).not.toContain(token);
+    }
+  });
+});
+
+describe('buildEngagementTokensJson', () => {
+  it('matches the committed fixture byte-for-byte', () => {
+    expect(buildEngagementTokensJson()).toBe(engagementFixtureJson);
+  });
+
+  it('is byte-stable across calls', () => {
+    expect(buildEngagementTokensJson()).toBe(buildEngagementTokensJson());
+  });
+
+  it('is the registry tokens followed by the core trio', () => {
+    expect(engagementTokens()).toEqual([
+      ...commandTokens(),
+      ...CORE_COMMAND_TOKENS,
+    ]);
   });
 });

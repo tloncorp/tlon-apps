@@ -92,8 +92,8 @@ runnable via each runtime's existing poke path or curl against Eyre. Clients the
 ## Client consumption
 
 -   The raw JSON is stored on the contact row (`contacts.bot_info`) and validated only at read.
--   `useBotSlashCommandManifest` (`packages/shared/src/store/useBotSlashCommandManifest.ts`) resolves the bot ship for DM channels, parses the claim, and passes `harness` to `getStaticSlashCommandManifest`. Gating (which conversations get a popup at all) is unchanged.
--   Cold-start backfill: the legacy v0 `/all` peers scry strips namespaced keys, so the client fetches `/v1/contact/{ship}` on demand for qualifying bot channels that lack a claim.
+-   `useBotSlashCommandManifest` (`packages/shared/src/store/useBotSlashCommandManifest.ts`) resolves the bot ship, parses the claim, and passes `harness` to `getStaticSlashCommandManifest`. DM channels resolve the counterpart ship; group `chat` channels resolve the single qualifying moon member of the group (a joined member that is a moon of the current user — `resolveGroupChannelBotShipId`), so that ship's claim selects the list. With zero or more than one qualifying moon there is no ship: the popup is suppressed in the multi-moon case (a bare command would be answered by every owned bot), and a group channel with no owned moon gets no popup at all. The home-group chat is no longer fixed to the fallback list — it qualifies through the same membership signal and resolves its bot member's claim like any other group channel.
+-   Cold-start backfill: the legacy v0 `/all` peers scry strips namespaced keys, so the client fetches `/v1/contact/{ship}` on demand for qualifying bot channels that lack a claim. Backfill keys on the resolved bot ship, so it applies to group channels exactly as it does to DMs.
 
 ## Command lists
 

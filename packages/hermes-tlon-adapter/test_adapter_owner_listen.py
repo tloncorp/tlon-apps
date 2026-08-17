@@ -1157,10 +1157,15 @@ class AdapterOwnerListenTests(unittest.TestCase):
             ),
         )
 
+        # Not intercepted: the non-owner's text flows to the model as
+        # conversation. The final-boundary guard prepends a newline so the
+        # gateway's startswith("/") classifier cannot execute it as a
+        # command either — commands are owner-only end to end.
         self.assertEqual(
             [event.text for event in events],
-            ["/migrate diary/~pen/log"],
+            ["\n/migrate diary/~pen/log"],
         )
+        self.assertFalse(events[0].text.startswith("/"))
         self.assertEqual(adapter._cli.messages, [])
         self.assertEqual(adapter._cli.commands, [])
 

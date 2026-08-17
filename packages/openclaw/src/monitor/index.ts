@@ -17,6 +17,7 @@ import {
   buildBotInfoJson,
   syncBotInfo,
 } from '../bot-info.js';
+import { engagementTokens } from '../commands-registry.js';
 import {
   findRecentContextLensById,
   publishContextLensEvent,
@@ -187,6 +188,7 @@ import {
   isChannelRestricted,
   isDmAllowed,
   isOwnerListenSlashCommand,
+  isRegisteredCommandText,
   isSummarizationRequest,
   parseBlockedShips,
   prepareInboundText,
@@ -3875,16 +3877,23 @@ export async function monitorTlonProvider(
         // 1. Direct mention always triggers response
         // 2. Thread replies where we've participated - respond if relevant (let agent decide)
         // 3. Owner blob-only message (image/file with no text from owner)
-        // 4. Owner-listen: owner posts in an owner/bot-hosted channel and the
+        // 4. Owner command: owner's bare registered/core slash command in any
+        //    watched chat channel (escape hatch; the popup inserts these bare).
+        //    The chat/ constraint keeps heap/diary behavior unchanged.
+        // 5. Owner-listen: owner posts in an owner/bot-hosted channel and the
         //    channel is not in the per-channel disabled list
         const inParticipatedThread = Boolean(
           isThreadReply && parentId && participatedThreads.has(parentId)
         );
         const isOwnerBlob = hasBlob && isOwner(senderShip);
+        const isOwnerCommand =
+          nest.startsWith('chat/') &&
+          isRegisteredCommandText(rawText, engagementTokens());
         const engageDecision = shouldEngageInGroup({
           mentioned,
           inParticipatedThread,
           isOwnerBlob,
+          isOwnerCommand,
           senderShip,
           ownerShip: effectiveOwnerShip,
           botShipName,
@@ -3897,13 +3906,18 @@ export async function monitorTlonProvider(
           return;
         }
 
+        // 'owner-command' maps onto the existing 'owner-listen' trigger: both
+        // are owner-initiated no-mention engagement, and both trigger unions
+        // (ContextLensTrigger, TlonAgentTurnTrigger) plus the run-kind mapping
+        // already accept it without parallel edits.
         const trigger: ContextLensTrigger = mentioned
           ? 'mention'
           : inParticipatedThread
             ? 'thread'
             : isOwnerBlob
               ? 'owner-blob'
-              : engageDecision.reason === 'owner-owned'
+              : engageDecision.reason === 'owner-owned' ||
+                  engageDecision.reason === 'owner-command'
                 ? 'owner-listen'
                 : 'unknown';
 

@@ -1546,6 +1546,54 @@ class MessageParsingTests(unittest.TestCase):
         self.assertIn("link", text)
         self.assertIn("```py", text)
 
+    def test_extract_inline_message_text_skips_block_renderings(self):
+        story = [
+            {"block": {"cite": {"chan": {"nest": "chat/~x/y", "where": "/msg/1"}}}},
+            {"block": {"image": {"src": "https://x/y.png", "alt": "pic"}}},
+            {"inline": ["/model claude"]},
+        ]
+        self.assertIn("[quoted message]", tlon_api.extract_message_text(story))
+        self.assertEqual(
+            tlon_api.extract_inline_message_text(story), "/model claude"
+        )
+
+    def test_extract_inline_message_text_keeps_all_inline_verses(self):
+        story = [
+            {"block": {"cite": {"group": "~x/some-group"}}},
+            {"inline": ["/new fresh start"]},
+            {"inline": ["and more typed text"]},
+        ]
+        self.assertEqual(
+            tlon_api.extract_inline_message_text(story),
+            "/new fresh start and more typed text",
+        )
+
+    def test_parse_heap_message_inline_text_excludes_title(self):
+        raw = {
+            "nest": "heap/~zod/links",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "set": {
+                            "essay": {
+                                "author": "~nec",
+                                "sent": 1000,
+                                "meta": {"title": "A curated link"},
+                                "content": [{"inline": ["/help"]}],
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        message = tlon_api.parse_channel_message(raw, self_ship="~zod")
+
+        self.assertIsNotNone(message)
+        self.assertIn("A curated link", message.text)
+        self.assertEqual(message.inline_text, "/help")
+
     def test_parse_channel_message(self):
         raw = {
             "nest": "chat/~zod/general",
