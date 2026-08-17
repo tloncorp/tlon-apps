@@ -120,7 +120,7 @@ const purposePicker = makeA2UI('onboarding-purpose-fixture', [
   {
     id: 'prompt',
     component: 'Text',
-    text: 'What should this group do?',
+    text: 'What would be useful for this group?',
   },
   {
     id: 'choices',
@@ -177,9 +177,7 @@ const topicsPicker = makeA2UI('onboarding-topics-fixture', [
   {
     id: 'prompt',
     component: 'Text',
-    text:
-      'Good. I’ll set this group up to post one concise morning digest about ' +
-      'whatever you choose. What should it cover? Pick any that fit.',
+    text: 'A daily digest—great. What should I keep an eye on? Pick any that fit.',
   },
   {
     id: 'topics',
@@ -200,18 +198,30 @@ const topicsPicker = makeA2UI('onboarding-topics-fixture', [
           topics,
           scheduleHour: 8,
           scheduleMinute: 0,
+          notebookNest: updatesNotebook.id,
+          notebookTitle: updatesNotebook.title,
         },
       },
     },
   } as A2UI.Component,
 ]);
 
-const servicesCard = makeA2UI('onboarding-services-fixture', [
+const acknowledgement =
+  'Open hardware and Space weather—got it. Each morning, I’ll add one fresh ' +
+  'digest to Updates, the notebook channel in this group. Notebook channels ' +
+  'keep longer entries organized so they don’t get buried in chat. I’m ' +
+  'working on the first one now. You’re all set—feel free to look around.';
+const servicesMessage =
+  'Want future updates to include your own schedule and work? Connect your ' +
+  'calendar, documents, or notes, and I can use them alongside the public web:';
+const servicesSurface = makeA2UI('onboarding-services-fixture', [
+  { id: 'root', component: 'Column', children: ['benefit', 'action'] },
+  { id: 'benefit', component: 'Text', text: servicesMessage },
   {
-    id: 'root',
+    id: 'action',
     component: 'Button',
     variant: 'primary',
-    child: 'connectLabel',
+    child: 'servicesLabel',
     action: {
       event: {
         name: 'tlon.navigate',
@@ -219,11 +229,11 @@ const servicesCard = makeA2UI('onboarding-services-fixture', [
       },
     },
   } as A2UI.Component,
-  { id: 'connectLabel', component: 'Text', text: 'Connect services' },
+  { id: 'servicesLabel', component: 'Text', text: 'Connect services' },
 ]);
 
 const intro =
-  "I'm your Tlonbot. I can research things, track changes, and write updates for you.";
+  "I'm your Tlonbot. I can keep you informed, help you learn, or follow a question over time.";
 
 function transcriptPost({
   id,
@@ -261,7 +271,7 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-02-purpose',
     author: tlonbot,
-    text: 'What should this group do? Reply “A daily digest”, “Learn something”, “Research” — or just tell me.',
+    text: 'What would be useful for this group? Reply “A daily digest”, “Learn something”, or “Research”.',
     a2ui: purposePicker,
     minute: 2,
   }),
@@ -274,7 +284,7 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-04-topics',
     author: tlonbot,
-    text: 'Good. I’ll set this group up to post one concise morning digest about whatever you choose. What should it cover? Pick any that fit. Nootropics, Longevity, Psychedelics, Open hardware, Gene editing, Space weather, Fusion, Homesteading — You can also just tell me here in the chat.',
+    text: 'A daily digest—great. What should I keep an eye on? Pick any that fit. Nootropics, Longevity, Psychedelics, Open hardware, Gene editing, Space weather, Fusion, Homesteading.',
     a2ui: topicsPicker,
     minute: 4,
   }),
@@ -287,20 +297,20 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-06-ack',
     author: tlonbot,
-    text: 'Open hardware and Space weather—got it. I’ll publish one fresh digest here each morning. You’re all set. Your first entry is on the way. You can leave this screen and explore the app while I work.',
+    text: acknowledgement,
     minute: 6,
   }),
   transcriptPost({
-    id: 'onboarding-07-closing',
+    id: 'onboarding-07-note-ready',
     author: tlonbot,
-    text: 'A few things to know:\n\n- Ask me here to change what I cover, when I post, or my name.\n- Connect calendars, docs, or notes to give me more to work with:',
+    text: 'Your first note is ready in Updates:',
     minute: 7,
   }),
   transcriptPost({
     id: 'onboarding-08-services',
     author: tlonbot,
-    text: 'Connect services in Settings.',
-    a2ui: servicesCard,
+    text: `${servicesMessage}\n\nConnect services in Settings.`,
+    a2ui: servicesSurface,
     minute: 8,
   }),
 ];

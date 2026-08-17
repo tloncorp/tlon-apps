@@ -76,6 +76,7 @@ type AgentOnboardingCronDeps = {
   fetchHistory?: typeof fetchChannelHistory;
   listNotes?: typeof notes.listNotes;
   sendPost?: typeof sendChannelPost;
+  sleep?: (ms: number) => Promise<void>;
 };
 
 type OnboardingGroup = {
@@ -105,18 +106,9 @@ const READ_DELAY_CAP_MS = 1_500;
 const JITTER_RATIO = 0.2;
 const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
 const GROUP_INTRO_MESSAGE =
-  "I'm your Tlonbot. I can research things, track changes, and write " +
-  'updates for you.';
-const PURPOSE_PICKER_PROMPT = 'What should this group do?';
-// The services line moved out into its own beat after the first entry lands,
-// so this is now only the "you can steer me" tip.
-const HANDOFF_MESSAGE =
-  'From here, just ask me in this chat to change what I cover, when I post, ' +
-  'or what I’m called.';
-const TOPICS_PICKER_FALLBACK_INSTRUCTION =
-  'You can also just tell me here in the chat.';
-const TIMEZONE_PICKER_QUESTION =
-  'One last detail: which timezone should I use for the schedule?';
+  "I'm your Tlonbot. I can keep you informed, help you learn, or follow a " +
+  'question over time.';
+const PURPOSE_PICKER_PROMPT = 'What would be useful for this group?';
 const PURPOSE_OPTIONS = [
   {
     id: 'agent-daily-digest',
@@ -127,8 +119,7 @@ const PURPOSE_OPTIONS = [
     accent: 'blue',
     scheduleHour: 8,
     topicsPrompt:
-      'Good. I’ll set this group up to post one concise morning digest about ' +
-      'whatever you choose. What should it cover? Pick any that fit.',
+      'A daily digest—great. What should I keep an eye on? Pick any that fit.',
     topics: [
       'Nootropics',
       'Longevity',
@@ -152,9 +143,7 @@ const PURPOSE_OPTIONS = [
     accent: 'green',
     scheduleHour: 9,
     topicsPrompt:
-      'Good. I’ll take one idea at a time and build on it — pick several and ' +
-      'I’ll work through them in turn, one each morning, rather than all at ' +
-      'once. What are you curious about? Pick any that fit.',
+      'Great. What would you like to understand better? Pick any that fit—I’ll take them one at a time.',
     topics: [
       'Music theory',
       'Genetics',
@@ -174,8 +163,7 @@ const PURPOSE_OPTIONS = [
     accent: 'indigo',
     scheduleHour: 9,
     topicsPrompt:
-      'Good. I’ll set this group up to track a focused question with sources ' +
-      'and note what changes. What should it investigate? Pick any that fit.',
+      'Got it. What question or field should I follow closely? Pick any that fit.',
     topics: [
       'Peptides',
       'Installation art',
@@ -391,10 +379,11 @@ function pendingDurableReply(
   ownerShip: string
 ) {
   if (hasProvisionAck(history, botShip)) return null;
-  if (hasPostMarker(history, botShip, 'timezone-picker')) return null;
-  const active = hasPostMarker(history, botShip, 'topics-picker')
-    ? markerPost(history, botShip, 'topics-picker')
-    : markerPost(history, botShip, 'purpose-picker');
+  // Purpose replies can be recovered from durable text. Topic confirmation
+  // cannot: the owner client must attach its local timezone to the provision
+  // event, so never fall back to a second, user-visible timezone step.
+  if (hasPostMarker(history, botShip, 'topics-picker')) return null;
+  const active = markerPost(history, botShip, 'purpose-picker');
   if (!active) return null;
   return (
     history
@@ -498,43 +487,7 @@ async function advanceDurableConversation(
     });
     return true;
   }
-
-  if (hasPostMarker(history, context.botShip, 'timezone-picker')) {
-    return false;
-  }
-
-  const purpose = findPurposeReply(history, context);
-  if (!purpose) return false;
-  const topics = text
-    .split(',')
-    .map((topic) => topic.trim())
-    .filter(Boolean)
-    .slice(0, 12);
-  if (!topics.length) return false;
-
-  await postOnce(
-    context,
-    history,
-    'timezone-picker',
-    async () => ({
-      text:
-        `${timezonePickerPrompt(topics)} Reply with an IANA timezone such as ` +
-        '`America/New_York`.',
-      blob: appendToPostBlob(
-        undefined,
-        buildTimezonePickerSurface(context.groupId!, {
-          purposeId: purpose.id,
-          purpose: purpose.label,
-          topics,
-          scheduleHour: purpose.scheduleHour,
-          scheduleMinute: 0,
-        })
-      ),
-    }),
-    deps,
-    presentation
-  );
-  return true;
+  return false;
 }
 
 type Purpose = {
@@ -647,11 +600,6 @@ async function provision(
     });
     return;
   }
-  // Emitted once validation has passed, not on entry: a rejected provision
-  // reports the same step as `failed`, and firing both would count one
-  // provision twice at the widest part of the funnel.
-  context.trackStep?.({ step: 'provision_received', ...stepFacts });
-
   const ackKey = `ack:${request.provisionId}`;
   const existingAck = hasPostMarker(history, context.botShip, ackKey);
   let jobId: string | null = existingAck
@@ -661,9 +609,13 @@ async function provision(
   const notebookName = notebookDisplayName(
     request.notebookNest,
     group.channels?.find((channel) => channel.id === request.notebookNest)
-      ?.title
+      ?.title ?? request.notebookTitle
   );
   if (!existingAck) {
+    // Validation succeeded and this provision has not already been
+    // acknowledged. Reconciliation can replay the same durable request, so
+    // emit the successful funnel step only on the first pass.
+    context.trackStep?.({ step: 'provision_received', ...stepFacts });
     if (!cron) throw new Error('cron service is not available');
     jobId = await upsertPrimaryJob(cron, request, context.channelNest);
     context.trackStep?.({
@@ -671,10 +623,22 @@ async function provision(
       ...stepFacts,
       cronJobId: jobId,
     });
-    // Two beats, one idea each. These used to arrive as a single block that
-    // acknowledged the topics, named the schedule, said "you're all set",
-    // listed two tips and pitched connected services — five asks stacked
-    // before any value had landed.
+
+    if (!cron.enqueueRun) {
+      throw new Error(
+        'OpenClaw does not expose enqueueRun through the plugin cron service'
+      );
+    }
+    const disposition = await cron.enqueueRun(jobId, 'force');
+    if (!rememberFirstRun(disposition, context, request, notebookName)) {
+      throw new Error('OpenClaw did not enqueue the first onboarding run');
+    }
+    context.trackStep?.({
+      step: 'first_run_enqueued',
+      ...stepFacts,
+      cronJobId: jobId,
+    });
+
     const acknowledgement =
       `${formatTopicList(request.topics)}—got it. ` +
       `${provisionCadence(request.purposeId, notebookName, request.topics)} ` +
@@ -697,34 +661,18 @@ async function provision(
       deps,
       presentation
     );
-    // Deliberately does not tell them to leave: the first entry is the
-    // activation moment and it lands within a minute or two, so pushing them
-    // out of the channel here is pushing them away from the payoff.
     await postOnce(
       context,
       history,
       'first-entry-pending',
       async () => ({
-        text: `Writing your first entry now — give me a minute.`,
+        text:
+          'I’m writing the first entry now. You’re all set—feel free to ' +
+          'explore while I work.',
       }),
       deps,
       presentation
     );
-  }
-
-  if (!existingAck) {
-    if (!cron?.enqueueRun) {
-      throw new Error(
-        'OpenClaw does not expose enqueueRun through the plugin cron service'
-      );
-    }
-    const disposition = await cron.enqueueRun(jobId!, 'force');
-    rememberFirstRun(disposition, context, request, notebookName);
-    context.trackStep?.({
-      step: 'first_run_enqueued',
-      ...stepFacts,
-      cronJobId: jobId,
-    });
   }
 }
 
@@ -804,20 +752,13 @@ async function completeFirstRun(
         // the entry on its own: name the note and where it lives, and let the
         // card be a bonus rather than the whole message.
         const title = newest?.title?.trim();
-        // For a rotating purpose the reveal is where "I picked three, why is
-        // there one?" actually gets asked, so name what comes next.
-        const upNext =
-          correlation.purposeId === 'agent-learning' &&
-          correlation.topics.length > 1
-            ? ` Tomorrow: ${correlation.topics[1]}.`
-            : '';
         const message = title
-          ? `Your first entry is ready — “${title}”, in ${notebookName}. ` +
-            'That notebook is where everything I write for you lands; this ' +
-            `chat is for talking to me.${upNext}`
-          : `Your first entry is ready, in ${notebookName}. That notebook is ` +
-            'where everything I write for you lands; this chat is for ' +
-            `talking to me.${upNext}`;
+          ? `Your first entry is ready: “${title}” in ${notebookName}, this ` +
+            'group’s notebook. That notebook is where everything I write ' +
+            'for you lands; this chat is for talking to me.'
+          : `Your first entry is ready in ${notebookName}, this group’s ` +
+            'notebook. That notebook is where everything I write for you ' +
+            'lands; this chat is for talking to me.';
         const story = markdownToStory(message);
         if (newest) {
           story.push({
@@ -846,15 +787,9 @@ async function completeFirstRun(
       topicCount: correlation.topics.length,
       notebookNest: correlation.notebookNest,
     });
-    // Expansion asks wait until after the payoff. An owner who never reaches
-    // a first entry should never be pitched connected services.
-    await postOnce(
-      correlation.context,
-      history,
-      'handoff',
-      async () => ({ text: HANDOFF_MESSAGE }),
-      runDeps
-    );
+    await (
+      deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
+    )(DEFAULT_MIN_INTER_MESSAGE_DELAY_MS);
     await postOnce(
       correlation.context,
       history,
@@ -899,10 +834,11 @@ function rememberFirstRun(
   context: AgentOnboardingScanContext,
   request: PostBlobDataEntryAgentProvision,
   notebookName?: string
-) {
-  if (!disposition || typeof disposition !== 'object') return;
+): boolean {
+  if (!disposition || typeof disposition !== 'object') return false;
   const result = disposition as { enqueued?: unknown; runId?: unknown };
-  if (result.enqueued !== true || typeof result.runId !== 'string') return;
+  if (result.enqueued !== true || typeof result.runId !== 'string')
+    return false;
   for (const [pendingRunId, pending] of firstRunCorrelations) {
     if (pending.notebookNest === request.notebookNest) {
       firstRunCorrelations.delete(pendingRunId);
@@ -921,6 +857,7 @@ function rememberFirstRun(
       sendPost: sendChannelPost,
     },
   });
+  return true;
 }
 
 async function fetchOnboardingGroup(
@@ -1066,7 +1003,7 @@ function createOnboardingPresentation(
           : composeMs;
       const earliestPostAt =
         (lastPostAt === null ? startedAt ?? now() : lastPostAt) +
-        jitter(withRead, random);
+        clampDelay(jitter(withRead, random));
       const remainingMs = earliestPostAt - now();
       if (remainingMs > 0) {
         await sleep(remainingMs);
@@ -1209,7 +1146,15 @@ async function upsertPrimaryJob(
     wakeMode: 'now',
     // The host's current agentTurn schema calls this field `message`; the
     // plugin hook projection still exposes the older `text` shape.
-    payload: { kind: 'agentTurn', message: buildRecurringPrompt(request) },
+    payload: {
+      kind: 'agentTurn',
+      message: buildRecurringPrompt(request),
+      // Publishing is deliberately not a model capability. The host delivers
+      // the final response to Notes exactly once, while the model can only
+      // research the public web. This makes the one-note invariant a runtime
+      // boundary instead of a prompt-following convention.
+      toolsAllow: ['group:web'],
+    },
     delivery: {
       mode: 'announce',
       channel: 'tlon',
@@ -1245,7 +1190,7 @@ function jobMatches(
     schedule: { kind: string; expr: string; tz: string };
     sessionTarget: string;
     wakeMode: string;
-    payload: { kind: string; message: string };
+    payload: { kind: string; message: string; toolsAllow: string[] };
     delivery: {
       mode: string;
       channel: string;
@@ -1255,7 +1200,12 @@ function jobMatches(
   }
 ) {
   const runtimeJob = job as typeof job & {
-    payload?: { kind?: string; message?: string; text?: string };
+    payload?: {
+      kind?: string;
+      message?: string;
+      text?: string;
+      toolsAllow?: string[];
+    };
     delivery?: {
       mode?: string;
       channel?: string;
@@ -1274,6 +1224,8 @@ function jobMatches(
     job.wakeMode === desired.wakeMode &&
     runtimeJob.payload?.kind === desired.payload.kind &&
     runtimeJob.payload.message === desired.payload.message &&
+    JSON.stringify(runtimeJob.payload.toolsAllow) ===
+      JSON.stringify(desired.payload.toolsAllow) &&
     runtimeJob.delivery?.mode === desired.delivery.mode &&
     runtimeJob.delivery?.channel === desired.delivery.channel &&
     runtimeJob.delivery?.to === desired.delivery.to &&
@@ -1288,18 +1240,14 @@ function jobMatches(
 
 function buildRecurringPrompt(request: PostBlobDataEntryAgentProvision) {
   if (request.purposeId === 'agent-learning') {
-    return `Build the next entry in a progressive learning series. The topics, in rotation order, are: ${request.topics.join(', ')}. First inspect the existing entries with \`tlon notes notes ${request.notebookNest}\`. Cover exactly one topic per entry; never combine or force connections between topics. If the notebook is empty, use the first topic. Otherwise, identify the topic covered most recently and use the next topic in the list, wrapping back to the beginning. Put that topic in the note title so the rotation remains clear on later runs. Explain the next useful idea for that topic, building on its earlier entries without repeating them. Keep it concise, use concrete examples, search the web for reliable information, and cite useful sources. Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note; do not post it or call a messaging tool. The coordinator will publish your final response exactly once.`;
+    return `Build one entry in a progressive learning series. The topics are: ${request.topics.join(', ')}. Cover exactly one topic; never combine or force connections between topics. Rotate through the list over time, using the current date to vary the topic. Put that topic in the note title. Explain one useful idea for that topic with concrete examples. Keep it concise, search the web for reliable information, and cite useful sources. Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
   }
 
-  const firstRun =
-    request.purposeId === 'agent-research'
-      ? 'If the notebook is empty, write an introductory survey of the field. Otherwise, focus on meaningful work published since its newest entry.'
-      : 'If the notebook is empty, make this a self-contained first entry. Otherwise, write the next current update without repeating the newest entry.';
   const purposeGuidance =
     request.purposeId === 'agent-research'
-      ? 'Prioritize primary sources and direct links. Distinguish publication dates from event dates, label uncertainty or conflicting evidence, and stay tightly within the requested scope. If nothing meaningful changed, say that plainly instead of padding the entry.'
-      : 'Lead with the items most likely to matter today. Distinguish new information from background, order items by urgency, and keep the result concise and scannable.';
-  return `Write ${request.purpose.toLowerCase()} about ${request.topics.join(', ')}. First inspect the existing entries with \`tlon notes notes ${request.notebookNest}\`. ${firstRun} ${purposeGuidance} Search the web for current information and cite useful sources. Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note; do not post it or call a messaging tool. The coordinator will publish your final response exactly once.`;
+      ? 'Focus on meaningful recent work. Prioritize primary sources and direct links. Distinguish publication dates from event dates, label uncertainty or conflicting evidence, and stay tightly within the requested scope. If nothing meaningful changed, say that plainly instead of padding the entry.'
+      : 'Make the entry self-contained. Lead with the items most likely to matter today. Distinguish new information from background, order items by urgency, and keep the result concise and scannable.';
+  return `Write ${request.purpose.toLowerCase()} about ${request.topics.join(', ')}. ${purposeGuidance} Search the web for current information and cite useful sources. Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
 }
 
 function choiceAction(text: string): A2UI.SendMessageAction {
@@ -1348,10 +1296,8 @@ function topicsPickerFallbackText(
   purpose: Pick<Purpose, 'topicsPrompt'>,
   topics: readonly string[]
 ) {
-  if (!topics.length) {
-    return `${purpose.topicsPrompt} ${TOPICS_PICKER_FALLBACK_INSTRUCTION}`;
-  }
-  return `${purpose.topicsPrompt} ${topics.join(', ')} — ${TOPICS_PICKER_FALLBACK_INSTRUCTION}`;
+  if (!topics.length) return purpose.topicsPrompt;
+  return `${purpose.topicsPrompt} ${topics.join(', ')}.`;
 }
 
 function formatTopicList(topics: readonly string[]): string {
@@ -1391,23 +1337,14 @@ function notebookDisplayName(
 function provisionCadence(
   purposeId: string,
   notebookName: string,
-  topics: readonly string[] = []
+  _topics: readonly string[] = []
 ) {
   switch (purposeId) {
-    case 'agent-learning': {
-      // Naming the first two by hand is what makes the rotation land. "One at
-      // a time, rotating through your list" was already there and still read
-      // as a digest of everything picked — an owner who chose three topics
-      // saw one entry and thought the other two had been dropped.
-      const rotation =
-        topics.length > 1
-          ? `One topic each morning, taken in turn — ${topics[0]} first, ` +
-            `then ${topics[1]} — each its own entry in ${notebookName}, ` +
-            'this group’s notebook.'
-          : `Every morning I’ll write a new entry in ${notebookName}, this ` +
-            'group’s notebook, building on the last one.';
-      return rotation;
-    }
+    case 'agent-learning':
+      return (
+        `Every morning I’ll write one useful idea in ${notebookName}, this ` +
+        'group’s notebook, rotating through your topics.'
+      );
     case 'agent-research':
       return (
         `Every morning I’ll check for new work and write a source-backed ` +
@@ -1422,20 +1359,13 @@ function provisionCadence(
 }
 
 /**
- * Say the schedule back in words.
- *
- * The timezone arrives from a tap on "Use my current timezone", which fires a
- * client-side event and writes nothing to the channel. With no trace in chat
- * an owner had no way to know the tap registered — they typed "I clicked the
- * current time zone button" to ask, and the conversational model, which also
- * cannot see A2UI state, replied that it couldn't see the selection either.
- * Naming the resolved time and zone here is the receipt for that tap.
+ * Distinguish the immediate forced entry from the recurring schedule.
  */
 function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
   const hour = request.scheduleHour % 12 === 0 ? 12 : request.scheduleHour % 12;
   const meridiem = request.scheduleHour < 12 ? 'AM' : 'PM';
   const minute = String(request.scheduleMinute).padStart(2, '0');
-  return `First one lands at ${hour}:${minute} ${meridiem} in ${request.timezone}.`;
+  return `After this first entry, new ones arrive at ${hour}:${minute} ${meridiem}.`;
 }
 
 /**
@@ -1448,7 +1378,7 @@ function servicesPitch(purposeId: string) {
   switch (purposeId) {
     case 'agent-learning':
       return (
-        'Connect your calendar or your notes and I can time lessons around ' +
+        'Connect your calendar or notes and I can fit each update around ' +
         'your day and build on what you’re already reading.'
       );
     case 'agent-research':
@@ -1462,10 +1392,6 @@ function servicesPitch(purposeId: string) {
         'your own day — meetings, deadlines, notes — not just the news.'
       );
   }
-}
-
-function timezonePickerPrompt(topics: readonly string[]): string {
-  return `${formatTopicList(topics)}—got it. ${TIMEZONE_PICKER_QUESTION}`;
 }
 
 function buildTopicsPickerSurface(
@@ -1503,43 +1429,6 @@ function buildTopicsPickerSurface(
             },
           },
         },
-      },
-    ])
-  );
-}
-
-function buildTimezonePickerSurface(
-  groupId: string,
-  plan: Omit<A2UI.AgentOnboardingPlan, 'timezone'>
-): A2UI.BlobEntry {
-  return withFallbackStory(
-    makeA2UIBlob(`agent-onboarding-timezone:${groupId}`, 'root', [
-      {
-        id: 'root',
-        component: 'Column',
-        children: ['prompt', 'use-timezone'],
-      },
-      {
-        id: 'prompt',
-        component: 'Text',
-        text: timezonePickerPrompt(plan.topics),
-      },
-      {
-        id: 'use-timezone',
-        component: 'Button',
-        variant: 'primary',
-        child: 'use-timezone-label',
-        action: {
-          event: {
-            name: A2UI.action.provisionAgent,
-            context: { groupId, ...plan },
-          },
-        },
-      },
-      {
-        id: 'use-timezone-label',
-        component: 'Text',
-        text: 'Use my current timezone',
       },
     ])
   );
@@ -1604,8 +1493,8 @@ function buildServicesSurface(pitch: string) {
           options: [
             {
               id: 'connect-services',
-              label: 'Connect External Services',
-              description: 'Bring your tools into Tlonbot’s context',
+              label: 'Connect services',
+              description: 'Use your calendar, documents, and notes',
               // Spelled literally for the same reason the purpose options are:
               // this plugin can build against a published @tloncorp/api that
               // predates the icon.
@@ -1634,51 +1523,6 @@ function buildServicesSurface(pitch: string) {
   } catch {
     return build();
   }
-}
-
-function buildProvisionHandoffSurface(acknowledgement: string) {
-  return withFallbackStory(
-    makeA2UIBlob('agent-provision-handoff', 'root', [
-      {
-        id: 'root',
-        component: 'Column',
-        children: ['acknowledgement', 'heading', 'details', 'services'],
-      },
-      {
-        id: 'acknowledgement',
-        component: 'Text',
-        text: acknowledgement,
-      },
-      {
-        id: 'heading',
-        component: 'Text',
-        text: 'A few things to know:',
-      },
-      {
-        id: 'details',
-        component: 'Text',
-        text:
-          '- Ask me here to change what I cover, when I post, or my name.\n' +
-          '- Connect calendars, docs, or notes to give me more to work with:',
-      },
-      {
-        id: 'services',
-        component: 'Button',
-        child: 'services-label',
-        action: {
-          event: {
-            name: A2UI.action.navigate,
-            context: { target: { type: 'screen', screen: 'botMcpSettings' } },
-          },
-        },
-      },
-      {
-        id: 'services-label',
-        component: 'Text',
-        text: 'Connect services',
-      },
-    ])
-  );
 }
 
 export const agentOnboardingTesting = {
