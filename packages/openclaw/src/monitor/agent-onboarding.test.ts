@@ -332,6 +332,8 @@ describe('agent onboarding requests', () => {
       .filter((e) => e.startsWith('sleep:'))
       .map((e) => Number(e.slice('sleep:'.length)));
     expect(sleeps).toHaveLength(2);
+    expect(sleeps[0]).toBeGreaterThanOrEqual(2_000);
+    expect(sleeps[1]).toBeGreaterThanOrEqual(1_750);
     for (const ms of sleeps) {
       expect(ms).toBeGreaterThanOrEqual(800);
       expect(ms).toBeLessThanOrEqual(3500);

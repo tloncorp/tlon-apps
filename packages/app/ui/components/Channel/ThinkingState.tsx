@@ -12,10 +12,12 @@ export function ThinkingState({
   conversationId,
   channelType,
   latestPostId,
+  forcedLabel,
 }: {
   conversationId: string;
   channelType: db.Channel['type'];
   latestPostId?: string;
+  forcedLabel?: string;
 }) {
   const computingState = useConversationComputingState(conversationId);
   const [holdUntilResponse, setHoldUntilResponse] = useState(false);
@@ -64,7 +66,9 @@ export function ThinkingState({
   const responseHasArrived =
     holdUntilResponse && latestPostId !== postIdWhenThinkingStarted.current;
   const visible =
-    Boolean(computingState) || (holdUntilResponse && !responseHasArrived);
+    Boolean(forcedLabel) ||
+    Boolean(computingState) ||
+    (holdUntilResponse && !responseHasArrived);
 
   const showAvatars = Boolean(
     computingState && (channelType !== 'dm' || computingState.ships.length >= 2)
@@ -117,7 +121,7 @@ export function ThinkingState({
         )}
         <Spinner size="small" color="$tertiaryText" />
         <Text size="$label/m" color="$tertiaryText" flexShrink={1}>
-          {computingState?.label ?? 'Thinking...'}
+          {forcedLabel ?? computingState?.label ?? 'Thinking...'}
         </Text>
       </XStack>
     </View>
