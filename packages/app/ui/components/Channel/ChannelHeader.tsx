@@ -128,7 +128,7 @@ export function ChannelHeader({
   showSpinner,
   loadingSubtitle = 'Loading messages…',
   hideIdentity = false,
-  hideContents = false,
+  backDisabled = false,
   showSearchButton = false,
   showEditButton = false,
   preferProvidedTitle = false,
@@ -150,7 +150,7 @@ export function ChannelHeader({
   showSpinner?: boolean;
   loadingSubtitle?: string | null;
   hideIdentity?: boolean;
-  hideContents?: boolean;
+  backDisabled?: boolean;
   showSearchButton?: boolean;
   showEditButton?: boolean;
   preferProvidedTitle?: boolean;
@@ -436,44 +436,28 @@ export function ChannelHeader({
     enabled: usesNavigationHeader,
     bottomEdgeEffect: 'soft',
   });
-  // Keep the real header installed while onboarding hides its controls. A
-  // placeholder removes the native navigation header entirely, changing the
-  // conversation viewport when it later returns. Empty, inert contents retain
-  // the exact same header geometry throughout the transition.
-  const displayedHeaderProps = hideContents
-    ? {
-        ...headerProps,
-        title: '',
-        titleIcon: null,
-        subtitle: undefined,
-        showSubtitle: false,
-        loadingSubtitle: undefined,
-        onTitlePress: undefined,
-      }
-    : headerProps;
-  const displayedBackAction = hideContents ? undefined : goBack;
-  const displayedRightActions = hideContents ? [] : rightActions;
-
   if (usesNavigationHeader) {
     // Native navigation headers accept declarative actions only. Element-style
     // registrations are reserved for inline notebook and gallery headers.
     return (
       <ScreenHeader
-        {...displayedHeaderProps}
+        {...headerProps}
         placement="navigation"
-        backAction={displayedBackAction}
-        rightActions={displayedRightActions}
+        backAction={goBack}
+        backDisabled={backDisabled}
+        rightActions={rightActions}
       />
     );
   }
 
   return (
     <ScreenHeader
-      {...displayedHeaderProps}
-      backAction={displayedBackAction}
-      rightActions={displayedRightActions}
+      {...headerProps}
+      backAction={goBack}
+      backDisabled={backDisabled}
+      rightActions={rightActions}
       rightControls={
-        !hideContents && contextItems.length ? (
+        contextItems.length ? (
           <>
             {/* this fragment/map is necessary to be able to provide a key to the items */}
             {contextItems.map((item, index) => (

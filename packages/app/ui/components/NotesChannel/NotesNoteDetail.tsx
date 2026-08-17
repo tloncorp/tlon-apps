@@ -295,6 +295,7 @@ export function NotesNoteDetail({
       ? null
       : (notes.find((note) => note.noteId === noteId) ?? null);
   const selectedNoteRowId = selectedNote?.id ?? null;
+  const selectedNoteCreatedBy = selectedNote?.createdBy ?? null;
 
   useEffect(() => {
     if (selectedNoteRowId === null) {
@@ -311,7 +312,15 @@ export function NotesNoteDetail({
         const groupId = channel?.groupId;
         if (!groupId) return;
         const agents = await db.agentGroupAgents.getValue();
-        if (!agents[groupId]) return;
+        const agentShip = agents[groupId];
+        if (
+          !agentShip ||
+          !selectedNoteCreatedBy ||
+          selectedNoteCreatedBy.replace(/^~/, '') !==
+            agentShip.replace(/^~/, '')
+        ) {
+          return;
+        }
         const alreadyCounted = await db.agentEntryFirstOpened.getValue();
         if (alreadyCounted[groupId]) return;
         await db.agentEntryFirstOpened.setValue((current) => ({
@@ -323,7 +332,7 @@ export function NotesNoteDetail({
         // Never let activation reporting interfere with reading a note.
       }
     })();
-  }, [selectedNoteRowId, notebookFlag]);
+  }, [selectedNoteRowId, selectedNoteCreatedBy, notebookFlag]);
 
   const draftsMatchSelectedNote = draftBase?.id === selectedNote?.id;
   const isDirty = Boolean(

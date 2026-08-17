@@ -43,6 +43,7 @@ const CHOICE_ACCENT_COLORS: Record<
 // A2UI post. Keep that outer rhythm identical around cards and pill groups.
 const CHOICE_CONTROL_OUTER_MARGIN = 15;
 const SMALL_CHOICE_SUBMIT_GAP = '$s';
+const RETIRED_TIMEZONE_SURFACE_PREFIX = 'agent-onboarding-timezone:';
 
 function SmallChoicePill({
   disabled,
@@ -236,7 +237,6 @@ function SmallChoicePills({
   const disabled = submitted || actionConsumed || !probe(probeAction);
   const submitDisabled =
     disabled || !messageForSelection || !probe(actionForSelection);
-  const showSubmit = !actionConsumed && Boolean(messageForSelection);
   const customChoiceLabel =
     component.freeTextPlaceholder?.replace(/…+$/, '') || '';
 
@@ -330,40 +330,26 @@ function SmallChoicePills({
             />
           ) : null}
         </XStack>
-        {/*
-          The slot is held open while the picker is still answerable so the
-          pills don't jump the moment a first selection reveals the submit
-          button. Once the picker is consumed that reservation can never be
-          filled again, and an answered picker was left with 44px of blank
-          space under its pills forever — so collapse it then.
-        */}
-        {actionConsumed ? null : (
-          <YStack
+        <YStack
+          height={44}
+          alignItems="flex-start"
+          pointerEvents={submitDisabled ? 'none' : 'auto'}
+        >
+          <Button.Frame
+            size="medium"
+            fill="solid"
+            intent="positive"
+            alignSelf="flex-start"
             height={44}
-            alignItems="flex-start"
-            opacity={showSubmit ? 1 : 0}
-            pointerEvents={showSubmit ? 'auto' : 'none'}
-            accessibilityElementsHidden={!showSubmit}
-            importantForAccessibility={
-              showSubmit ? 'auto' : 'no-hide-descendants'
-            }
+            paddingHorizontal="$xl"
+            testID="A2UISmallChoiceSubmit"
+            disabled={submitDisabled}
+            dimmed={submitDisabled}
+            onPress={submitDisabled ? undefined : handleSubmit}
           >
-            <Button.Frame
-              size="medium"
-              fill="solid"
-              intent="positive"
-              alignSelf="flex-start"
-              height={44}
-              paddingHorizontal="$xl"
-              testID="A2UISmallChoiceSubmit"
-              disabled={submitDisabled}
-              dimmed={submitDisabled}
-              onPress={submitDisabled ? undefined : handleSubmit}
-            >
-              <Button.Text size="medium">{component.submitLabel}</Button.Text>
-            </Button.Frame>
-          </YStack>
-        )}
+            <Button.Text size="medium">{component.submitLabel}</Button.Text>
+          </Button.Frame>
+        </YStack>
       </YStack>
       {component.freeTextPlaceholder ? (
         <ActionSheet
@@ -742,7 +728,11 @@ export function A2UIBlock({
               />
             );
           }
+          const actionCanBeConsumed =
+            component.action.event.name === A2UI.action.sendMessage ||
+            component.action.event.name === A2UI.action.provisionAgent;
           const actionConsumed =
+            actionCanBeConsumed &&
             component.variant === 'primary' &&
             (locallyConsumedComponentIds.includes(component.id) ||
               isA2UIActionConsumed?.(component.action) === true);
@@ -756,12 +746,6 @@ export function A2UIBlock({
             components
           );
           const treatment = getButtonTreatment(component);
-          // A consumed button is spent for good, so it leaves the layout
-          // rather than sitting at zero opacity — otherwise every answered
-          // surface keeps a 44px hole where its control used to be.
-          if (actionConsumed) {
-            return null;
-          }
           return (
             <Button.Frame
               key={component.id}
@@ -779,6 +763,10 @@ export function A2UIBlock({
               height={44}
               paddingHorizontal="$xl"
               flex={getComponentFlex(component)}
+              opacity={actionConsumed ? 0.5 : 1}
+              pointerEvents={actionConsumed ? 'none' : 'auto'}
+              accessibilityElementsHidden={false}
+              importantForAccessibility="auto"
               disabled={disabled}
               dimmed={disabled}
               onPress={
@@ -922,7 +910,10 @@ export function A2UIBlock({
     ]
   );
 
-  if (!root) {
+  // Old plugin builds persisted a separate timezone picker in chat. Current
+  // onboarding binds the device timezone directly to topic confirmation, so
+  // hide any legacy surface that remains in durable history.
+  if (surfaceId.startsWith(RETIRED_TIMEZONE_SURFACE_PREFIX) || !root) {
     return null;
   }
 
