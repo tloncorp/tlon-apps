@@ -95,6 +95,7 @@ export function AgentOnboardingSequence(props: {
           const furnished = await store.ensureAgentGroupFurnished({
             groupId,
             agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+            isFirstGroup: true,
           });
           await db.agentOnboardingLanding.setValue({
             groupId,
