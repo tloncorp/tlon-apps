@@ -199,6 +199,44 @@ export function StaticChatMessage({
     [draftInputContext, group, post.groupId]
   );
 
+  const configureAgentProviders = useCallback(
+    async (groupId: string, provisionId: string, providerIds: string[]) => {
+      if (!draftInputContext || draftInputContext.canStartDraft === false) {
+        throw new Error('This channel is not ready to send messages');
+      }
+      const currentGroup = group ?? draftInputContext.group;
+      const activeGroupId = post.groupId ?? currentGroup?.id;
+      if (
+        !activeGroupId ||
+        currentGroup?.id !== activeGroupId ||
+        groupId !== activeGroupId
+      ) {
+        throw new Error('The onboarding group is not available');
+      }
+      const uniqueProviderIds = [...new Set(providerIds)];
+      const blob = appendToPostBlob(undefined, {
+        type: 'tlon-agent-provider-config',
+        version: 1,
+        provisionId,
+        groupId,
+        providerIds: uniqueProviderIds,
+      });
+      const content = uniqueProviderIds.length
+        ? `Use ${uniqueProviderIds.join(', ')} for this group’s future entries.`
+        : 'Do not use connected services for this group’s future entries.';
+      await draftInputContext.sendPostFromDraft({
+        channelId: draftInputContext.channel.id,
+        content: [content],
+        attachments: [],
+        blob,
+        channelType: draftInputContext.channel.type,
+        replyToPostId: null,
+        isEdit: false,
+      });
+    },
+    [draftInputContext, group, post.groupId]
+  );
+
   const handleA2UIAction = useCallback(
     async (action: A2UI.Button['action']) => {
       if (action.event.name === A2UI.action.navigate) {
@@ -216,6 +254,15 @@ export function StaticChatMessage({
         await sendAgentProvision(
           { ...action.event.context, timezone },
           action.event.context.groupId
+        );
+        return;
+      }
+
+      if (action.event.name === A2UI.action.configureAgentProviders) {
+        await configureAgentProviders(
+          action.event.context.groupId,
+          action.event.context.provisionId,
+          action.event.context.providerIds
         );
         return;
       }
@@ -238,7 +285,12 @@ export function StaticChatMessage({
         isEdit: false,
       });
     },
-    [draftInputContext, navigateToA2UITarget, sendAgentProvision]
+    [
+      configureAgentProviders,
+      draftInputContext,
+      navigateToA2UITarget,
+      sendAgentProvision,
+    ]
   );
 
   const isA2UIActionAvailable = useCallback(
@@ -270,6 +322,18 @@ export function StaticChatMessage({
         // canonical channel table above.
         return Boolean(
           draftInputContext &&
+            groupId &&
+            currentGroup?.id === groupId &&
+            action.event.context.groupId === groupId
+        );
+      }
+
+      if (action.event.name === A2UI.action.configureAgentProviders) {
+        const currentGroup = group ?? draftInputContext?.group;
+        const groupId = post.groupId ?? currentGroup?.id;
+        return Boolean(
+          draftInputContext &&
+            draftInputContext.canStartDraft !== false &&
             groupId &&
             currentGroup?.id === groupId &&
             action.event.context.groupId === groupId
@@ -477,6 +541,9 @@ export function StaticChatMessage({
             }
             isA2UIActionConsumed={
               canRenderA2UI ? isA2UIActionConsumed : undefined
+            }
+            configuredAgentProviderIds={
+              a2uiActionCompletion?.configuredProviderIds
             }
             onAgentOnboardingConfirm={
               canRenderA2UI ? confirmOnboarding : undefined

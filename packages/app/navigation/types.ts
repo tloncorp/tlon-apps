@@ -88,7 +88,7 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BotSettings: undefined;
-  BotMcpSettings: undefined;
+  BotMcpSettings: { providerId?: string } | undefined;
   BotModelSettings: { mode: 'default' | 'fallbacks' };
   BotApiKeySettings: { provider: string };
   BotOpenAISubscription: undefined;

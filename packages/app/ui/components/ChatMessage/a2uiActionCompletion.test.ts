@@ -61,4 +61,26 @@ describe('getA2UIActionCompletion', () => {
         .provisionAgent
     ).toBe(true);
   });
+
+  it('recovers the latest durable provider selection', () => {
+    const config = (providerIds: string[]) =>
+      JSON.stringify([
+        {
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-1',
+          groupId: '~owner/group',
+          providerIds,
+        },
+      ]);
+    expect(
+      getA2UIActionCompletion(
+        [
+          post({ authorId: ownerId, blob: config(['gmail']) }),
+          post({ authorId: ownerId, blob: config(['notion', 'gmail']) }),
+        ],
+        ownerId
+      ).configuredProviderIds
+    ).toEqual(['notion', 'gmail']);
+  });
 });
