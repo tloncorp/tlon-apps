@@ -6,9 +6,12 @@ import * as db from '@tloncorp/shared/db';
 import type { A2UI } from '@tloncorp/shared/logic';
 import { appendToPostBlob } from '@tloncorp/shared/logic';
 import { useLureState } from '@tloncorp/shared/store';
+import { Text } from '@tloncorp/ui';
 import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react';
 
+import type { McpProviderRow } from '../lib/mcpProviders';
 import { ChatMessage, ScrollView, View } from '../ui';
+import { McpConnectMenu } from '../ui/components/PostContent/McpConnectControl';
 import {
   DraftInputContext,
   DraftInputContextProvider,
@@ -214,23 +217,51 @@ const acknowledgement =
 const servicesMessage =
   'Want future updates to include your own schedule and work? Connect your ' +
   'calendar, documents, or notes, and I can use them alongside the public web:';
-const servicesSurface = makeA2UI('onboarding-services-fixture', [
-  { id: 'root', component: 'Column', children: ['benefit', 'action'] },
-  { id: 'benefit', component: 'Text', text: servicesMessage },
-  {
-    id: 'action',
-    component: 'Button',
-    variant: 'primary',
-    child: 'servicesLabel',
-    action: {
-      event: {
-        name: 'tlon.navigate',
-        context: { target: { type: 'screen', screen: 'botMcpSettings' } },
+const servicesComponent: A2UI.McpConnect = {
+  id: 'providers',
+  component: 'McpConnect',
+  maxVisible: 5,
+  seeAllLabel: 'See all',
+  submitLabel: 'Use for this group',
+  action: {
+    event: {
+      name: 'tlon.navigate',
+      context: { target: { type: 'screen', screen: 'botMcpSettings' } },
+    },
+  },
+  configureAction: {
+    event: {
+      name: 'tlon.configureAgentProviders',
+      context: {
+        groupId: homeGroup.id,
+        provisionId: 'fixture-provision',
+        providerIds: [],
       },
     },
-  } as A2UI.Component,
-  { id: 'servicesLabel', component: 'Text', text: 'Connect services' },
+  },
+};
+const servicesSurface = makeA2UI('onboarding-services-fixture', [
+  { id: 'root', component: 'Column', children: ['benefit', 'providers'] },
+  { id: 'benefit', component: 'Text', text: servicesMessage },
+  servicesComponent,
 ]);
+
+const servicesPreviewProviders: McpProviderRow[] = [
+  { displayName: 'Notion', id: 'notion', status: 'connected' },
+  {
+    displayName: 'Google Calendar',
+    id: 'google-calendar',
+    status: 'connected',
+  },
+  { displayName: 'Gmail', id: 'gmail', status: 'not-connected' },
+  { displayName: 'Linear', id: 'linear', status: 'not-connected' },
+  { displayName: 'GitHub', id: 'github', status: 'not-connected' },
+  { displayName: 'Airtable', id: 'airtable', status: 'not-connected' },
+  { displayName: 'Sentry', id: 'sentry', status: 'not-connected' },
+  { displayName: 'PostHog', id: 'posthog', status: 'not-connected' },
+  { displayName: 'Atlassian', id: 'atlassian', status: 'not-connected' },
+  { displayName: 'Are.na', id: 'arena', status: 'not-connected' },
+];
 
 const intro =
   "I'm your Tlonbot. I can keep you informed, help you learn, or follow a question over time.";
@@ -429,8 +460,36 @@ function OnboardingTranscript({
   );
 }
 
+function McpServicesPreview() {
+  return (
+    <FixtureWrapper fillHeight fillWidth safeArea verticalAlign="top">
+      <ScrollView
+        flex={1}
+        contentContainerStyle={{
+          alignItems: 'flex-start',
+          paddingHorizontal: '$m',
+          paddingVertical: '$2xl',
+        }}
+      >
+        <View maxWidth={560} width="100%" gap="$m">
+          <Text size="$body" color="$primaryText" trimmed={false}>
+            {servicesMessage}
+          </Text>
+          <McpConnectMenu
+            component={servicesComponent}
+            onConfigure={() => {}}
+            onNavigate={() => {}}
+            providers={servicesPreviewProviders}
+          />
+        </View>
+      </ScrollView>
+    </FixtureWrapper>
+  );
+}
+
 export default {
   'Durable purpose selection': <OnboardingTranscript through={2} />,
   'Durable topic selection': <OnboardingTranscript through={4} />,
   'Durable completed conversation': <OnboardingTranscript />,
+  'MCP services menu': <McpServicesPreview />,
 };
