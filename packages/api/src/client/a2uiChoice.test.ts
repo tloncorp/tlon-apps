@@ -57,6 +57,31 @@ const choice = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+const mcpConnect = (over: Record<string, unknown> = {}) => ({
+  id: 'main',
+  component: 'McpConnect',
+  maxVisible: 7,
+  seeAllLabel: 'See all',
+  submitLabel: 'Use for this group',
+  action: {
+    event: {
+      name: A2UI.action.navigate,
+      context: { target: { type: 'screen', screen: 'botMcpSettings' } },
+    },
+  },
+  configureAction: {
+    event: {
+      name: A2UI.action.configureAgentProviders,
+      context: {
+        groupId: '~ten/group',
+        provisionId: 'provision-1',
+        providerIds: [],
+      },
+    },
+  },
+  ...over,
+});
+
 const entryWith = (components: unknown[], root = 'root') => ({
   type: 'a2ui',
   version: 1,
@@ -143,6 +168,37 @@ describe('Choice validation', () => {
     const entry = entryWith([choice()], 'main');
     expect(A2UI.validateBlobEntry(entry)).toBe(true);
     expect(A2UI.getRootComponentId(entry as never)).toBe('main');
+  });
+});
+
+describe('McpConnect validation', () => {
+  test('accepts a bounded provider menu targeting MCP settings', () => {
+    expect(valid(mcpConnect())).toBe(true);
+    expect(valid(mcpConnect({ maxVisible: 0 }))).toBe(false);
+    expect(valid(mcpConnect({ maxVisible: 13 }))).toBe(false);
+    expect(
+      valid(
+        mcpConnect({
+          action: sendAction('not navigation'),
+        })
+      )
+    ).toBe(false);
+    expect(
+      valid(
+        mcpConnect({
+          configureAction: {
+            event: {
+              name: A2UI.action.configureAgentProviders,
+              context: {
+                groupId: '~ten/group',
+                provisionId: 'provision-1',
+                providerIds: ['gmail', 'bad provider'],
+              },
+            },
+          },
+        })
+      )
+    ).toBe(false);
   });
 });
 
@@ -387,6 +443,17 @@ describe('screen navigation target', () => {
     expect(
       A2UI.validateBlobEntry(
         entryWith(button({ type: 'screen', screen: 'botMcpSettings' }))
+      )
+    ).toBe(true);
+    expect(
+      A2UI.validateBlobEntry(
+        entryWith(
+          button({
+            type: 'screen',
+            screen: 'botMcpSettings',
+            providerId: 'notion',
+          })
+        )
       )
     ).toBe(true);
     // Anything not on the allowlist fails validation, so a blob can't point

@@ -4,6 +4,7 @@ const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
 const ACTION_NAVIGATE = 'tlon.navigate';
 const ACTION_INVITE_LINK = 'tlon.inviteLink';
 const ACTION_PROVISION_AGENT = 'tlon.provisionAgent';
+const ACTION_CONFIGURE_AGENT_PROVIDERS = 'tlon.configureAgentProviders';
 
 type ComponentBase = {
   id: string;
@@ -95,6 +96,8 @@ export namespace A2UI {
   export type ScreenNavigationTarget = {
     type: 'screen';
     screen: ScreenName;
+    /** Provider to open immediately when navigating to MCP settings. */
+    providerId?: string;
   };
 
   export type NavigationTarget =
@@ -146,12 +149,27 @@ export namespace A2UI {
     };
   };
 
+  /**
+   * Bind already-connected Hosting providers to this group's recurring agent
+   * job. The client replaces the representative provider list with the
+   * viewer's live selection before posting the durable configuration event.
+   */
+  export type ConfigureAgentProvidersEvent = {
+    name: typeof ACTION_CONFIGURE_AGENT_PROVIDERS;
+    context: {
+      groupId: string;
+      provisionId: string;
+      providerIds: string[];
+    };
+  };
+
   export type EventAction = {
     event:
       | SendMessageEvent
       | NavigateEvent
       | InviteLinkEvent
-      | ProvisionAgentEvent;
+      | ProvisionAgentEvent
+      | ConfigureAgentProvidersEvent;
   };
 
   export type ButtonAction = EventAction;
@@ -161,8 +179,16 @@ export namespace A2UI {
     event: SendMessageEvent;
   };
 
+  export type NavigateAction = {
+    event: NavigateEvent;
+  };
+
   export type ProvisionAgentAction = {
     event: ProvisionAgentEvent;
+  };
+
+  export type ConfigureAgentProvidersAction = {
+    event: ConfigureAgentProvidersEvent;
   };
 
   export type Button = ComponentBase & {
@@ -239,6 +265,21 @@ export namespace A2UI {
     action: SendMessageAction | ProvisionAgentAction;
   };
 
+  /**
+   * A client-owned menu of the MCP providers available to the current user.
+   * Provider names and connection state are deliberately loaded by the
+   * client: they are Hosting data, not facts the message author can know.
+   */
+  export type McpConnect = ComponentBase & {
+    component: 'McpConnect';
+    /** number of providers shown before the menu expands */
+    maxVisible: number;
+    seeAllLabel: string;
+    submitLabel: string;
+    action: NavigateAction;
+    configureAction: ConfigureAgentProvidersAction;
+  };
+
   export type AgentOnboardingPurpose = {
     id: string;
     label: string;
@@ -280,6 +321,7 @@ export namespace A2UI {
     | Button
     | Choice
     | SmallChoice
+    | McpConnect
     | AgentOnboarding;
 
   export type CreateSurfaceMessage = {
@@ -472,7 +514,10 @@ function validateNavigationTarget(
         isValidOptionalTargetId(target.groupId)
       );
     case 'screen':
-      return A2UI_SCREEN_NAMES.has(target.screen as A2UI.ScreenName);
+      return (
+        A2UI_SCREEN_NAMES.has(target.screen as A2UI.ScreenName) &&
+        isValidOptionalTargetId(target.providerId)
+      );
     default:
       return false;
   }
@@ -528,6 +573,22 @@ function validateButtonAction(action: unknown): action is A2UI.ButtonAction {
       Number.isInteger(context.scheduleMinute) &&
       context.scheduleMinute >= 0 &&
       context.scheduleMinute <= 59
+    );
+  }
+
+  if (event.name === ACTION_CONFIGURE_AGENT_PROVIDERS) {
+    return (
+      isPlainObject(context) &&
+      isValidTargetId(context.groupId) &&
+      isValidTargetId(context.provisionId) &&
+      Array.isArray(context.providerIds) &&
+      context.providerIds.length <= LIMITS.maxSmallChoiceOptions &&
+      context.providerIds.every(
+        (providerId) =>
+          isValidTargetId(providerId) &&
+          /^[a-z0-9][a-z0-9._-]*$/i.test(providerId)
+      ) &&
+      new Set(context.providerIds).size === context.providerIds.length
     );
   }
 
@@ -593,6 +654,21 @@ function validateComponent(component: unknown): component is A2UI.Component {
             (component.freeTextPlaceholder as string).length <=
               LIMITS.maxPillLabelLength)) &&
         validateSmallChoiceAction(component.action)
+      );
+    case 'McpConnect':
+      return (
+        Number.isInteger(component.maxVisible) &&
+        (component.maxVisible as number) >= 1 &&
+        (component.maxVisible as number) <= LIMITS.maxSmallChoiceOptions &&
+        isShortLabel(component.seeAllLabel) &&
+        isShortLabel(component.submitLabel) &&
+        validateButtonAction(component.action) &&
+        component.action.event.name === ACTION_NAVIGATE &&
+        component.action.event.context.target.type === 'screen' &&
+        component.action.event.context.target.screen === 'botMcpSettings' &&
+        validateButtonAction(component.configureAction) &&
+        component.configureAction.event.name ===
+          ACTION_CONFIGURE_AGENT_PROVIDERS
       );
     case 'AgentOnboarding':
       return validateAgentOnboarding(component);
@@ -835,6 +911,9 @@ function indexComponents(
       if (component.action.event.name === ACTION_SEND_MESSAGE) {
         totalTextLength += component.action.event.context.text.length;
       }
+    } else if (component.component === 'McpConnect') {
+      totalTextLength +=
+        component.seeAllLabel.length + component.submitLabel.length;
     } else if (component.component === 'AgentOnboarding') {
       totalTextLength += component.customTopicPlaceholder.length;
       totalTextLength += component.topicsSubmitLabel.length;
@@ -1000,6 +1079,7 @@ export const A2UI = {
     navigate: ACTION_NAVIGATE,
     inviteLink: ACTION_INVITE_LINK,
     provisionAgent: ACTION_PROVISION_AGENT,
+    configureAgentProviders: ACTION_CONFIGURE_AGENT_PROVIDERS,
   },
   getUpdateMessage,
   getRootComponentId,

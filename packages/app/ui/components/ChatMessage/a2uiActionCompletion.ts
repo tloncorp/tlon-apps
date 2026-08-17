@@ -15,6 +15,12 @@ export function getA2UIActionCompletion(
   const ownerReplies = laterPosts.filter(
     (candidate) => candidate.authorId === currentUserId && !candidate.isDeleted
   );
+  const providerConfig = [...ownerReplies]
+    .reverse()
+    .flatMap((candidate) =>
+      candidate.blob == null ? [] : parsePostBlob(candidate.blob)
+    )
+    .find((entry) => entry.type === 'tlon-agent-provider-config');
   return {
     sendMessage: ownerReplies.some((candidate) =>
       Boolean(candidate.textContent?.trim())
@@ -26,5 +32,9 @@ export function getA2UIActionCompletion(
           (entry) => entry.type === 'tlon-agent-provision'
         )
     ),
+    configuredProviderIds:
+      providerConfig?.type === 'tlon-agent-provider-config'
+        ? providerConfig.providerIds
+        : undefined,
   };
 }

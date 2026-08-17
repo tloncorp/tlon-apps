@@ -73,6 +73,7 @@ export {
   type PostBlobDataEntry,
   type PostBlobDataEntryAgentIntroRequest,
   type PostBlobDataEntryAgentProvision,
+  type PostBlobDataEntryAgentProviderConfig,
   type PostBlobDataEntryAgentProvisionAck,
   type PostBlobDataEntryAgentPostMarker,
 } from './client/content-helpers';
