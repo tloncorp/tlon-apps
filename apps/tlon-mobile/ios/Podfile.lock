@@ -3102,7 +3102,7 @@ DEPENDENCIES:
   - FBLazyVector (from `../../../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../../../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - "op-sqlite (from `../../../node_modules/@op-engineering/op-sqlite`)"
-  - PostHog (= 3.59.1)
+  - PostHog (~> 3.0)
   - RCTDeprecation (from `../../../node_modules/react-native/ReactApple/Libraries/RCTFoundation/RCTDeprecation`)
   - RCTRequired (from `../../../node_modules/react-native/Libraries/Required`)
   - RCTSwiftUI (from `../../../node_modules/react-native/ReactApple/RCTSwiftUI`)
@@ -3622,7 +3622,7 @@ SPEC CHECKSUMS:
   FirebaseSharedSwift: 3d1e448b7202e36821a492941c84592d1308ea14
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 4f2618a4a1e762a1ee134a1e2323bba9843e06da
-  hermes-engine: 048b5038c28975ec1557e77b6b272cbdc46b0b2c
+  hermes-engine: e0f21a6e684281cda960109489e7fbaaffb100b6
   libavif: 5f8e715bea24debec477006f21ef9e95432e254d
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
@@ -3744,6 +3744,6 @@ SPEC CHECKSUMS:
   UMAppLoader: 173cb90a3039aa9c1b84bace4487e1907a4a5a39
   Yoga: c30c859b7e9b75e547b600b486fe33165f60de00
 
-PODFILE CHECKSUM: 3dda1ad1e9425ba1439ffa0f4da9fb5527f817d4
+PODFILE CHECKSUM: 89e4d56351ed00eff9ae59789daefce09826d017
 
 COCOAPODS: 1.16.2
