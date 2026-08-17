@@ -34,7 +34,10 @@ import {
   InviteUsersSheet,
   useIsWindowNarrow,
 } from '../../ui';
-import { hasAgentOnboardingFirstEntry } from './agentOnboardingFirstEntry';
+import {
+  hasAgentOnboardingFirstEntry,
+  hasAgentOnboardingFirstEntryFailed,
+} from './agentOnboardingFirstEntry';
 import { shouldAcknowledgeAgentOnboardingLanding } from './agentOnboardingLanding';
 
 const logger = createDevLogger('ChannelScreen', false);
@@ -379,6 +382,12 @@ export default function ChannelScreen(props: Props) {
   const hasOnboardingFirstEntry = useMemo(() => {
     return hasAgentOnboardingFirstEntry(filteredPosts, provisionId);
   }, [filteredPosts, provisionId]);
+  const didOnboardingFirstEntryFail = useMemo(
+    () => hasAgentOnboardingFirstEntryFailed(filteredPosts),
+    [filteredPosts]
+  );
+  const hasOnboardingFirstEntrySettled =
+    hasOnboardingFirstEntry || didOnboardingFirstEntryFail;
 
   const [firstEntryIndicatorExpired, setFirstEntryIndicatorExpired] =
     useState(false);
@@ -388,7 +397,7 @@ export default function ChannelScreen(props: Props) {
     setFirstEntryIndicatorExpired(false);
     if (
       !agentOnboarding.awaitingFirstEntry ||
-      hasOnboardingFirstEntry ||
+      hasOnboardingFirstEntrySettled ||
       !firstEntryAcknowledgedAt
     ) {
       return;
@@ -410,7 +419,7 @@ export default function ChannelScreen(props: Props) {
     agentOnboarding.awaitingFirstEntry,
     firstEntryAcknowledgedAt,
     groupId,
-    hasOnboardingFirstEntry,
+    hasOnboardingFirstEntrySettled,
   ]);
 
   const firstEntryIndicatorWithinTimeout = Boolean(
@@ -420,25 +429,25 @@ export default function ChannelScreen(props: Props) {
   );
   const pendingThinkingLabel =
     agentOnboarding.awaitingFirstEntry &&
-    !hasOnboardingFirstEntry &&
+    !hasOnboardingFirstEntrySettled &&
     firstEntryIndicatorWithinTimeout
       ? 'Writing your first entry…'
       : undefined;
 
   useEffect(() => {
-    if (!groupId || !hasOnboardingFirstEntry) return;
+    if (!groupId || !hasOnboardingFirstEntrySettled) return;
     void db.agentGroupOnboardingLocks.setValue((current) => {
       if (!current[groupId]) return current;
       const { [groupId]: _completed, ...remaining } = current;
       return remaining;
     });
-  }, [groupId, hasOnboardingFirstEntry]);
+  }, [groupId, hasOnboardingFirstEntrySettled]);
 
   useEffect(() => {
     if (
       !isFocused ||
       !agentOnboarding.awaitingFirstEntry ||
-      hasOnboardingFirstEntry
+      hasOnboardingFirstEntrySettled
     ) {
       return;
     }
@@ -475,7 +484,7 @@ export default function ChannelScreen(props: Props) {
   }, [
     agentOnboarding.awaitingFirstEntry,
     agentOnboarding.marker?.provisionAcknowledgedAt,
-    hasOnboardingFirstEntry,
+    hasOnboardingFirstEntrySettled,
     isFocused,
   ]);
 

@@ -12,6 +12,7 @@ import { IPostCollectionView } from '../../components/postCollectionViews/types'
 
 export type A2UIActionCompletion = {
   provisionAgent: boolean;
+  provisionedTopics?: string[];
   sendMessage: boolean;
   configuredProviderIds?: string[];
 };

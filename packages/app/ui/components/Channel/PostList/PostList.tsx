@@ -561,15 +561,12 @@ const ConversationPostListAttempt = React.forwardRef<
         }
         initialScrollIndex={initialScrollIndex}
         maintainScrollAtEnd={anchorToEnd && !hasNewerPosts}
-        // Before the owner deliberately scrolls away, treat the conversation as
-        // end-locked across large row remeasurements (such as a questionnaire
-        // collapsing). Once they drag, restore LegendList's conservative range.
+        // A2UI rows can change by more than a small fraction of the viewport.
+        // Keep the normal chat end anchor across those remeasurements whenever
+        // the list was within one viewport of the latest message. Far-away
+        // history remains unaffected by the threshold.
         maintainScrollAtEndThreshold={
-          anchorToEnd && !hasNewerPosts
-            ? hasUserScrolled
-              ? 0.1
-              : 1
-            : undefined
+          anchorToEnd && !hasNewerPosts ? 1 : undefined
         }
         maintainVisibleContentPosition={maintainVisibleContentPosition}
         ListEmptyComponent={renderEmptyComponent}
