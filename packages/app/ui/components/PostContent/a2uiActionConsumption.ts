@@ -10,3 +10,22 @@ export function isConsumableA2UIAction(action: A2UI.ButtonAction): boolean {
     action.event.name === A2UI.action.provisionAgent
   );
 }
+
+export function getSmallChoiceCompletionPresentation({
+  actionConsumed,
+  consumedLocally,
+  durableTopics,
+  localTopics,
+}: {
+  actionConsumed: boolean;
+  consumedLocally: boolean;
+  durableTopics?: string[];
+  localTopics: string[];
+}): { collapsed: boolean; topics: string[] } {
+  if (!actionConsumed) {
+    return { collapsed: false, topics: [] };
+  }
+
+  const topics = consumedLocally ? localTopics : (durableTopics ?? []);
+  return { collapsed: topics.length > 0, topics };
+}
