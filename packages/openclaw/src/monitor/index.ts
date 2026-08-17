@@ -2994,9 +2994,17 @@ export async function monitorTlonProvider(
         : `${senderDisplay} [${senderRole}]`;
       const attachmentCount = attachments.length;
 
-      // Compute command authorization for slash commands (owner-only)
+      // Compute command authorization for slash commands (owner-only).
+      // Gate on the same raw text CommandBody is built from below: by this
+      // point messageText may carry prepended channel/thread context or blob
+      // annotations, which hide the leading slash — the gate would then skip
+      // authorization while CommandBody still carries the command, and the
+      // gateway silently drops it as unauthorized.
+      const commandBody = isGroup
+        ? stripBotMentionOutsidePlaceholders(rawMessageText, botShipName)
+        : rawMessageText;
       const shouldComputeAuth =
-        core.channel.commands.shouldComputeCommandAuthorized(messageText, cfg);
+        core.channel.commands.shouldComputeCommandAuthorized(commandBody, cfg);
       let commandAuthorized = false;
 
       if (shouldComputeAuth) {
@@ -3056,11 +3064,8 @@ export async function monitorTlonProvider(
         body: bodyWithAttachments,
       });
 
-      // Use raw text (no thread context) for command detection so "/status" is recognized
-      const commandBody = isGroup
-        ? stripBotMentionOutsidePlaceholders(rawMessageText, botShipName)
-        : rawMessageText;
-
+      // commandBody was computed above (raw text, no thread/channel context)
+      // so command detection and authorization gate on the same string.
       const ctxPayload = core.channel.reply.finalizeInboundContext({
         Body: body,
         BodyForAgent: bodyWithAttachments,

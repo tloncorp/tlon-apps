@@ -134,6 +134,25 @@ describe('owner commands in third-party-hosted channels', () => {
       2_000,
       'bot to join the third-party group'
     );
+
+    // Seed the channel with an earlier post so command dispatch runs the
+    // context-enriched path: processMessage prepends recent channel history
+    // to messageText, and command authorization must still be computed from
+    // the raw text (a fresh, empty channel would skip enrichment and mask a
+    // regression there).
+    await fixtures.userState.sendPost({
+      channelId: chatChannel,
+      content: story('earlier chatter to enrich context with'),
+    });
+    await waitFor(
+      async () => {
+        const posts = await fixtures.botState.channelPosts(chatChannel, 10);
+        return (posts ?? []).length > 0 ? true : undefined;
+      },
+      30_000,
+      1_500,
+      'seed post to reach the bot ship'
+    );
   }, 300_000);
 
   beforeEach(async () => {
