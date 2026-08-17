@@ -32,10 +32,7 @@ def shared(podfile_properties)
   use_expo_modules!
   $config = use_native_modules!($config_command)
 
-  # Keep resolution on the lockfile's known-good release. A broad constraint
-  # makes CocoaPods fetch many PostHog specs from raw.githubusercontent.com,
-  # which is rate-limited on shared EAS builders.
-  pod 'PostHog', '3.59.1'
+  pod 'PostHog', '~> 3.0'
   pod 'sqlite3', '~> 3.50.3'
 
   use_frameworks! :linkage => :static
