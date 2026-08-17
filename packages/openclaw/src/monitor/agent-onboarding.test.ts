@@ -94,8 +94,8 @@ describe('agent onboarding requests', () => {
       | undefined;
     expect(menu).toMatchObject({
       component: 'McpConnect',
-      maxVisible: 5,
-      seeAllLabel: 'See all',
+      maxVisible: 4,
+      seeAllLabel: 'See all connectors',
       submitLabel: 'Use for this group',
     });
     expect(menu?.action.event.name).toBe(A2UI.action.navigate);
@@ -1077,6 +1077,7 @@ describe('provision coordinator ordering', () => {
       messageId: 'post',
       sentAt: 0,
     }));
+    const sleep = vi.fn(async () => {});
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-complete' },
       {
@@ -1108,11 +1109,13 @@ describe('provision coordinator ordering', () => {
           },
         ]),
         sendPost,
-        sleep: vi.fn(async () => {}),
+        sleep,
       }
     );
 
     expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledOnce();
+    expect(sleep).toHaveBeenCalledWith(3_500);
     const reveal = sendPost.mock.calls[0]?.[0];
     // The sentence carries the entry on its own — the cite renders as
     // "Content not available" until the client has synced the notes channel,
