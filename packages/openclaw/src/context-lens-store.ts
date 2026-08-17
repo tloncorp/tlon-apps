@@ -5,8 +5,12 @@ import { resolveStateDir } from 'openclaw/plugin-sdk/state-paths';
 
 import { subscribeToContextLensEvents } from './context-lens-events.js';
 import type { ContextLens, ContextLensStatus } from './context-lens.js';
-import { sharedSlot } from './shared-state.js';
-import { resolveTlonAccount } from './types.js';
+import { sharedMap, sharedSlot } from './shared-state.js';
+import {
+  isMonolithicTlonDeployment,
+  listTlonAccountIds,
+  resolveTlonAccount,
+} from './types.js';
 
 export const DEFAULT_STORE_RETAIN_DAYS = 30;
 export const DEFAULT_STORE_MAX_STORED = 500;
@@ -33,6 +37,9 @@ type StoreLogger = {
 };
 
 const storeSlot = sharedSlot<ContextLensStore>('contextLens.store');
+const storesByAccount = sharedMap<string, ContextLensStore>(
+  'contextLens.storesByAccount'
+);
 
 // Replace semantics for the shared event-bus subscription: plugin re-inits
 // (fresh module contexts) must not stack additional store writers.
@@ -40,16 +47,48 @@ const storeUnsubscribeSlot = sharedSlot<() => void>(
   'contextLens.store.unsubscribe'
 );
 
-export function getContextLensStore(): ContextLensStore | null {
+export function getContextLensStore(
+  accountId?: string
+): ContextLensStore | null {
+  if (accountId) {
+    return (
+      storesByAccount.get(accountId) ??
+      (storesByAccount.size === 0 ? storeSlot.get() : null)
+    );
+  }
+  if (storesByAccount.size === 1) {
+    return storesByAccount.values().next().value ?? null;
+  }
   return storeSlot.get();
 }
 
-export function setContextLensStore(store: ContextLensStore | null): void {
+export function setContextLensStore(
+  store: ContextLensStore | null,
+  accountId?: string
+): void {
+  if (accountId) {
+    if (store) {
+      storesByAccount.set(accountId, store);
+    } else {
+      storesByAccount.delete(accountId);
+    }
+    return;
+  }
+  if (store === null) {
+    storesByAccount.clear();
+  }
   storeSlot.set(store);
 }
 
 export function defaultContextLensStorePath(): string {
   return path.join(resolveStateDir(), 'tlon', 'context-lens-runs.jsonl');
+}
+
+function accountStorePath(filePath: string, accountId: string): string {
+  const safeAccountId = encodeURIComponent(accountId);
+  const ext = path.extname(filePath);
+  const stem = ext ? filePath.slice(0, -ext.length) : filePath;
+  return `${stem}.${safeAccountId}${ext}`;
 }
 
 function lensFinalizedAt(lens: ContextLens): number {
@@ -190,29 +229,56 @@ export function initContextLensStore(api: {
   config: OpenClawConfig;
   logger: StoreLogger;
 }): ContextLensStore | null {
-  const lensConfig = resolveTlonAccount(api.config).contextLens;
-  if (!lensConfig.enabled || !lensConfig.store.enabled) {
+  const accountIds = listTlonAccountIds(api.config);
+  const scoped =
+    isMonolithicTlonDeployment(api.config) || accountIds.length > 1;
+  const initialized = new Map<string, ContextLensStore>();
+  for (const accountId of accountIds) {
+    const lensConfig = resolveTlonAccount(api.config, accountId).contextLens;
+    if (!lensConfig.enabled || !lensConfig.store.enabled) {
+      continue;
+    }
+    const configuredPath =
+      lensConfig.store.path ?? defaultContextLensStorePath();
+    try {
+      const store = createContextLensStore({
+        filePath: scoped
+          ? accountStorePath(configuredPath, accountId)
+          : configuredPath,
+        retainDays: lensConfig.store.retainDays,
+        maxStored: lensConfig.store.maxStored,
+        logger: api.logger,
+      });
+      initialized.set(accountId, store);
+      setContextLensStore(store, accountId);
+    } catch (error) {
+      api.logger.warn(
+        `[tlon] Context lens store unavailable for ${accountId}, continuing without durable history: ${String(error)}`
+      );
+    }
+  }
+  for (const accountId of storesByAccount.keys()) {
+    if (!initialized.has(accountId)) {
+      storesByAccount.delete(accountId);
+    }
+  }
+  if (initialized.size === 0) {
+    storeUnsubscribeSlot.get()?.();
+    storeUnsubscribeSlot.set(null);
+    setContextLensStore(null);
     return null;
   }
-  let store: ContextLensStore;
-  try {
-    store = createContextLensStore({
-      filePath: lensConfig.store.path ?? defaultContextLensStorePath(),
-      retainDays: lensConfig.store.retainDays,
-      maxStored: lensConfig.store.maxStored,
-      logger: api.logger,
-    });
-  } catch (error) {
-    api.logger.warn(
-      `[tlon] Context lens store unavailable, continuing without durable history: ${String(error)}`
-    );
-    return null;
-  }
-  setContextLensStore(store);
+  const onlyStore =
+    initialized.size === 1 ? initialized.values().next().value ?? null : null;
+  storeSlot.set(onlyStore);
   storeUnsubscribeSlot.get()?.();
   storeUnsubscribeSlot.set(
     subscribeToContextLensEvents((event) => {
       if (!TERMINAL_STATUSES.has(event.lens.status)) {
+        return;
+      }
+      const store = initialized.get(event.lens.accountId ?? 'default');
+      if (!store) {
         return;
       }
       try {
@@ -224,5 +290,5 @@ export function initContextLensStore(api: {
       }
     })
   );
-  return store;
+  return initialized.values().next().value ?? null;
 }

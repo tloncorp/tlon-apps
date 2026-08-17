@@ -107,6 +107,7 @@ function resolveReplyId(
 }
 
 type OutboundLensTarget = {
+  accountId: string;
   // Foreground runs hold their own registry instance; background sends route
   // through the shared module-level background registry (registry === null).
   registry: ContextLensRegistry | null;
@@ -139,22 +140,26 @@ function resolveOutboundLensTarget(
   if (!account.contextLens.enabled) {
     return null;
   }
-  const foreground =
-    getActiveForegroundContextLensForConversation(conversationId);
+  const foreground = getActiveForegroundContextLensForConversation(
+    conversationId,
+    account.accountId
+  );
   if (foreground) {
     return {
       registry: foreground.registry,
+      accountId: account.accountId,
       lensId: foreground.lensId,
       blob: serializeContextLensReferenceBlob(foreground.lensId, botShip),
       foreground: true,
     };
   }
-  const background = getActiveBackgroundContextLens();
+  const background = getActiveBackgroundContextLens(account.accountId);
   if (!background) {
     return null;
   }
   return {
     registry: null,
+    accountId: account.accountId,
     lensId: background.lensId,
     blob: serializeContextLensReferenceBlob(background.lensId, botShip),
     foreground: false,
@@ -186,7 +191,7 @@ function recordOutboundLensDelivery(
     target.registry.recordPersistence(target.lensId, { postsReply: true });
     return;
   }
-  recordBackgroundContextLensOutput(target.lensId, output);
+  recordBackgroundContextLensOutput(target.lensId, output, target.accountId);
 }
 
 const unobservedTlonRuntimeOutbound: Pick<

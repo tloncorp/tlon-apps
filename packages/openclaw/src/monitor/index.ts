@@ -35,10 +35,10 @@ import {
   setEffectiveOwnerShip,
 } from '../effective-owner.js';
 import {
-  API_CLIENT_PARAMS_SLOT,
-  type SharedApiClientParams,
   gateGatewayStatusActivation,
   getGatewayStatusCoordinator,
+  publishGatewayApiClientParams,
+  removeGatewayApiClientParams,
 } from '../gateway-status.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import {
@@ -58,7 +58,6 @@ import {
   type TlonSettingsStore,
   createSettingsManager,
 } from '../settings.js';
-import { sharedSlot } from '../shared-state.js';
 import {
   canonicalizeNest,
   normalizeShip,
@@ -267,9 +266,6 @@ function normalizeRunTimeoutMs(value: number | null | undefined): number {
 // Holds the data needed for any module-loader context to (re)configure its
 // own @tloncorp/api singleton — see gateway-status.ts for why this is
 // necessary under OpenClaw >=2026.4.27 plugin module isolation.
-const apiClientParamsSlot = sharedSlot<SharedApiClientParams>(
-  API_CLIENT_PARAMS_SLOT
-);
 
 export type MonitorTlonOpts = {
   runtime?: RuntimeEnv;
@@ -712,16 +708,10 @@ export async function monitorTlonProvider(
     shipName: botShipName,
     shipUrl: accountUrl,
   };
-  apiClientParamsSlot.set(myApiClientParams);
+  publishGatewayApiClientParams(account.accountId, myApiClientParams);
 
-  // gsCoordinator is hoisted here (from its prior location at the
-  // gateway-status activation block below) so cleanupGatewayStatus can
-  // close over it. getGatewayStatusCoordinator() returns the
-  // process-lifetime coordinator index.ts's registerFull publishes on
-  // every load pass (tool discovery, full activation, and the 6.11+
-  // prewarm) — it is created unconditionally, independent of Tlon account
-  // count; see gateway-status.ts. Per-monitor eligibility (exactly one
-  // account) is checked below, from THIS monitor's config snapshot.
+  // The process-lifetime coordinator tracks gateway lifecycle. Each monitor
+  // independently owns its account's activation and heartbeat.
   const gsCoordinator = getGatewayStatusCoordinator();
 
   // Monitor-local heartbeat handle (Fix C): each activation owns its own
@@ -769,9 +759,7 @@ export async function monitorTlonProvider(
     // heartbeat prevention is monitor-local via gatewayStatusCleanupRan
     // (checked by the activation task, and by every heartbeat tick's own
     // validity predicate).
-    if (apiClientParamsSlot.get() === myApiClientParams) {
-      apiClientParamsSlot.set(null);
-    }
+    removeGatewayApiClientParams(account.accountId, myApiClientParams);
   };
 
   // If the signal was already aborted before we reached this line,
@@ -809,10 +797,12 @@ export async function monitorTlonProvider(
       },
     });
     const contextLensConfig = account.contextLens;
-    const contextLensEnabled =
-      !isMonolithicTlonDeployment(cfg) &&
-      isContextLensEffectivelyEnabled(cfg, opts.accountId ?? undefined);
+    const contextLensEnabled = isContextLensEffectivelyEnabled(
+      cfg,
+      account.accountId
+    );
     const contextLenses = createContextLensRegistry({
+      accountId: account.accountId,
       ttlMs: contextLensConfig.ttlMs ?? undefined,
       maxEntries: contextLensConfig.maxEntries ?? undefined,
       visibilityDefault: contextLensConfig.visibilityDefault,
@@ -1443,14 +1433,8 @@ export async function monitorTlonProvider(
     // cleanupGatewayStatus can close over its heartbeat handle; we reuse
     // the same captured reference here.)
     //
-    // Fix B: eligibility (exactly one Tlon account) is derived from THIS
-    // monitor's own config snapshot (`cfg`, the channel-start `ctx.cfg`),
-    // not from anything registerFull decided — an account added/removed via
-    // a channels.tlon hot-reload restarts monitors without a second
-    // registerFull, so a value cached at registration time would go stale.
-    // gsCoordinator itself is created unconditionally in index.ts
-    // (independent of account count). The decision lives in the shared
-    // gateGatewayStatusActivation() so tests exercise the exact gate.
+    // Eligibility is derived from this monitor's config snapshot, so account
+    // hot reloads do not depend on another registerFull pass.
     //
     // Compose the host abort (config-reload/shutdown restart) with the
     // monitor-local activation abort (bootstrap-failure teardown) so the
@@ -1460,6 +1444,7 @@ export async function monitorTlonProvider(
       : gatewayStatusActivationAbort.signal;
     void gateGatewayStatusActivation({
       cfg,
+      accountId: account.accountId,
       coordinator: gsCoordinator,
       effectiveOwnerShip,
       signal: gatewayStatusSignal,
@@ -1477,11 +1462,6 @@ export async function monitorTlonProvider(
           'gateway_status_activation',
           new Error('gateway-status start watchdog timeout'),
           { errorKind: 'start_watchdog_timeout' }
-        ),
-      onMultiAccountSkip: (count) =>
-        runtime.log?.(
-          `[gateway-status] skipped: ${count} Tlon accounts configured, ` +
-            `but v1 only supports one (global @tloncorp/api client cannot target multiple ships)`
         ),
       registerHeartbeatStop: (stop) => {
         // A concurrent teardown may have already run cleanupGatewayStatus
@@ -4559,10 +4539,16 @@ export async function monitorTlonProvider(
           // Reserve the dedup slot before the first await so two concurrent
           // retry facts for the same lensId can't both pass the check above.
           recentRetryDispatches.set(lensId, now);
+          const storedLens = getContextLensStore(account.accountId)?.get(
+            lensId
+          );
           const lens =
             contextLenses.get(lensId) ??
-            findRecentContextLensById(lensId) ??
-            getContextLensStore()?.get(lensId);
+            findRecentContextLensById(lensId, account.accountId) ??
+            (storedLens?.accountId === account.accountId ||
+            (!storedLens?.accountId && !isMonolithicTlonDeployment(cfg))
+              ? storedLens
+              : null);
           if (!lens) {
             recentRetryDispatches.delete(lensId);
             runtime.log?.(
@@ -5361,9 +5347,9 @@ export async function monitorTlonProvider(
       // Plugin-owned re-engagement nudge scheduler. Owns tick lifecycle and
       // reentrancy; runs independently of LLM heartbeat.
       //
-      // Gating is computed by the pure `shouldStartNudgeRunner` helper; see
-      // that function for the two invariants (explicit opt-in flag + exactly
-      // one configured Tlon account).
+      // Gating is computed by the pure `shouldStartNudgeRunner` helper. The
+      // runner remains explicit opt-in and uses this monitor's account-bound
+      // sender.
       //
       // `TLON_NUDGE_TICK_INTERVAL_MS` exists so the integration harness can
       // drive ticks on a short cadence without rebuilding the plugin; in

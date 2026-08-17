@@ -23,7 +23,9 @@ vi.mock('@tloncorp/api', () => ({
 }));
 
 vi.mock('./urbit/api-client.js', () => ({
-  configureTlonApiWithPoke: vi.fn(),
+  withTlonApiClient: vi.fn(
+    async (_params: unknown, fn: () => Promise<unknown>) => await fn()
+  ),
 }));
 
 const stubApiClientParams: SharedApiClientParams = {

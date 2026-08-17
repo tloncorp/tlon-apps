@@ -87,24 +87,47 @@ export function publishContextLensEvent(
   }
 }
 
-export function listRecentContextLensEvents() {
-  pruneExpiredEvents();
-  return [...state.recentEvents];
+function belongsToAccount(lens: ContextLens, accountId: string): boolean {
+  return (
+    lens.accountId === accountId || (!lens.accountId && accountId === 'default')
+  );
 }
 
-export function findRecentContextLensById(lensId: string) {
+export function listRecentContextLensEvents(accountId?: string) {
+  pruneExpiredEvents();
+  return accountId
+    ? state.recentEvents.filter((event) =>
+        belongsToAccount(event.lens, accountId)
+      )
+    : [...state.recentEvents];
+}
+
+export function findRecentContextLensById(lensId: string, accountId?: string) {
   pruneExpiredEvents();
   for (const event of state.recentEvents.toReversed()) {
-    if (event.lens.lensId === lensId) {
+    if (
+      event.lens.lensId === lensId &&
+      (!accountId || belongsToAccount(event.lens, accountId))
+    ) {
       return event.lens;
     }
   }
   return null;
 }
 
-export function subscribeToContextLensEvents(listener: ContextLensListener) {
-  state.listeners.add(listener);
+export function subscribeToContextLensEvents(
+  listener: ContextLensListener,
+  accountId?: string
+) {
+  const scopedListener: ContextLensListener = accountId
+    ? (event) => {
+        if (belongsToAccount(event.lens, accountId)) {
+          listener(event);
+        }
+      }
+    : listener;
+  state.listeners.add(scopedListener);
   return () => {
-    state.listeners.delete(listener);
+    state.listeners.delete(scopedListener);
   };
 }

@@ -23,10 +23,6 @@ import {
 import type { PendingNudge } from '../pending-nudge.js';
 import { type TlonSettingsStore, parseSettingsResponse } from '../settings.js';
 import type { TlonTelemetryClient } from '../telemetry.js';
-import {
-  isMonolithicTlonDeployment,
-  listRunnableTlonAccountIds,
-} from '../types.js';
 import type { BotProfile } from '../urbit/send.js';
 import type { UrbitSSEClient } from '../urbit/sse-client.js';
 import type { LastNudgeStageShadow, LastOwnerActivity } from './nudge-state.js';
@@ -34,20 +30,15 @@ import type { OwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 
 export type NudgeRunnerStartDecision =
   | { start: true; reason: null }
-  | { start: false; reason: 'flag-disabled' | 'multi-account'; detail: string };
+  | { start: false; reason: 'flag-disabled'; detail: string };
 
 /**
  * Decide whether the monitor should construct and start the nudge runner.
  *
- * Two gates:
- *  1. `channels.tlon.reengagement.enabled` must be explicitly `true`. The
- *     feature is default-off so self-hosted installs that configure
- *     `ownerShip` for approval DMs do not automatically get owner nudges.
- *  2. Exactly one Tlon account must be configured. The runner sends DMs
- *     through the global `@tloncorp/api` client configured by
- *     `configureTlonApiWithPoke`, and the last-started monitor wins that
- *     singleton — so multi-account mode is not safe until a per-account
- *     send path lands.
+ * `channels.tlon.reengagement.enabled` must be explicitly `true`. The feature
+ * is default-off so self-hosted installs that configure `ownerShip` for
+ * approval DMs do not automatically get owner nudges. Each monitor injects
+ * its own account-scoped sender, so multiple accounts can run independently.
  *
  * Pure helper; does not read process state.
  */
@@ -62,25 +53,6 @@ export function shouldStartNudgeRunner(
       start: false,
       reason: 'flag-disabled',
       detail: 'channels.tlon.reengagement.enabled is not true',
-    };
-  }
-  if (isMonolithicTlonDeployment(cfg)) {
-    return {
-      start: false,
-      reason: 'multi-account',
-      detail: 're-engagement is not account-safe in monolithic mode',
-    };
-  }
-  // Count *runnable* accounts (enabled + fully configured). Disabled or
-  // half-configured stub entries should not trip the multi-account guard,
-  // since they would never start a monitor and so cannot race the global
-  // `@tloncorp/api` singleton with the active account.
-  const accountIds = listRunnableTlonAccountIds(cfg);
-  if (accountIds.length !== 1) {
-    return {
-      start: false,
-      reason: 'multi-account',
-      detail: `${accountIds.length} runnable Tlon accounts; runner requires exactly 1`,
     };
   }
   return { start: true, reason: null };

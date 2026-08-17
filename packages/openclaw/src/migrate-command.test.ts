@@ -1,11 +1,9 @@
-import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   MIGRATION_APPLY_TIMEOUT_MS,
   MIGRATION_CLEANUP_TIMEOUT_MS,
   MIGRATION_DROP_WARNING,
-  MIGRATION_SINGLE_ACCOUNT_REQUIRED,
   type MigrateCommandDeps,
   createMigrateCommandHandler,
   formatMigrationCommandFailure,
@@ -63,25 +61,6 @@ function registerBridge(
 ): void {
   setBridge(accountId, bridge);
   registeredBridges.push({ accountId, bridge });
-}
-
-function makeRunnableAccountConfig(...accountIds: string[]): OpenClawConfig {
-  return {
-    channels: {
-      tlon: {
-        accounts: Object.fromEntries(
-          accountIds.map((accountId, index) => [
-            accountId,
-            {
-              ship: `~migration-test-${index}`,
-              url: `https://migration-test-${index}.example`,
-              code: `code-${index}`,
-            },
-          ])
-        ),
-      },
-    },
-  } as OpenClawConfig;
 }
 
 afterEach(() => {
@@ -201,8 +180,7 @@ describe('OpenClaw migration command', () => {
         senderId: '~owner',
       },
       'diary/~bot/bulletin',
-      h.handler,
-      makeRunnableAccountConfig('only-account')
+      h.handler
     );
 
     expect(reply).toContain('Migration started');
@@ -210,15 +188,10 @@ describe('OpenClaw migration command', () => {
     expect(h.runCommand).toHaveBeenCalledTimes(1);
   });
 
-  it('refuses two registered bridges even when config has one runnable account', async () => {
-    const runCommand = vi.fn(async () => 'unexpected');
-    const handler = createMigrateCommandHandler({
-      runCommand,
-      spawnTask: (task) => void task(),
-      applyInFlight: new Map(),
-      cleanupInFlight: new Map(),
-    });
-    registerBridge('first-account', makeBridge());
+  it('uses the command account when two bridges are registered', async () => {
+    const h = makeHarness(['Cleanup complete.']);
+    const first = makeBridge();
+    registerBridge('first-account', first);
     registerBridge('second-account', makeBridge({ botShip: '~other-bot' }));
 
     const reply = await routeMigrateCommand(
@@ -227,23 +200,21 @@ describe('OpenClaw migration command', () => {
         senderId: '~owner',
       },
       'cleanup notes/~bot/bulletin',
-      handler,
-      makeRunnableAccountConfig('first-account')
+      h.handler
     );
 
-    expect(runCommand).not.toHaveBeenCalled();
-    expect(reply).toBe(MIGRATION_SINGLE_ACCOUNT_REQUIRED);
-    expect(reply).toContain('single-account configuration');
+    expect(reply).toContain('Cleanup started');
+    await h.tasks.shift()?.();
+    expect(h.runCommand).toHaveBeenCalledWith(
+      ['notes', 'notebook-delete', 'notes/~bot/bulletin', '--yes'],
+      first.botCredentials,
+      MIGRATION_CLEANUP_TIMEOUT_MS,
+      expect.any(Function)
+    );
   });
 
-  it('refuses two runnable configured accounts when only one bridge is registered', async () => {
-    const runCommand = vi.fn(async () => 'unexpected');
-    const handler = createMigrateCommandHandler({
-      runCommand,
-      spawnTask: (task) => void task(),
-      applyInFlight: new Map(),
-      cleanupInFlight: new Map(),
-    });
+  it('uses the selected bridge when multiple configured accounts are runnable', async () => {
+    const h = makeHarness(['Migration complete.']);
     registerBridge('first-account', makeBridge());
 
     const reply = await routeMigrateCommand(
@@ -252,12 +223,12 @@ describe('OpenClaw migration command', () => {
         senderId: '~owner',
       },
       'diary/~bot/bulletin',
-      handler,
-      makeRunnableAccountConfig('first-account', 'second-account')
+      h.handler
     );
 
-    expect(runCommand).not.toHaveBeenCalled();
-    expect(reply).toBe(MIGRATION_SINGLE_ACCOUNT_REQUIRED);
+    expect(reply).toContain('Migration started');
+    await h.tasks.shift()?.();
+    expect(h.runCommand).toHaveBeenCalledTimes(1);
   });
 
   it('allows an env-credential deployment with zero configured accounts and one bridge', async () => {
@@ -271,8 +242,7 @@ describe('OpenClaw migration command', () => {
         senderId: '~owner',
       },
       'diary/~bot/env-credentials',
-      h.handler,
-      {} as OpenClawConfig
+      h.handler
     );
 
     expect(reply).toContain('Migration started');
@@ -851,6 +821,23 @@ describe('OpenClaw migration command', () => {
       ship: '~bot-two',
       code: 'bot-two-code',
     });
+  });
+
+  it('does not let one account migration block another account cleanup', async () => {
+    const h = makeHarness(['first done', 'second done']);
+    const firstBridge = makeBridge({ botShip: '~bot-one' });
+    const secondBridge = makeBridge({ botShip: '~bot-two' });
+
+    expect(await h.handler(firstBridge, 'diary/~bot-one/log')).toContain(
+      'Migration started'
+    );
+    expect(
+      await h.handler(secondBridge, 'cleanup notes/~bot-two/log')
+    ).toContain('Cleanup started');
+    expect(h.tasks).toHaveLength(2);
+
+    await Promise.all(h.tasks.splice(0).map((task) => task()));
+    expect(h.runCommand).toHaveBeenCalledTimes(2);
   });
 
   it('derives owner config from TLON_SKILL_DIR and applies directly', async () => {

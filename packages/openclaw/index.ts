@@ -11,7 +11,10 @@ import {
 import { tlonPlugin } from './src/channel.js';
 import { publishContextLensEvent } from './src/context-lens-events.js';
 import { registerContextLensRoutes } from './src/context-lens-routes.js';
-import { initContextLensShipSync } from './src/context-lens-ship-sync.js';
+import {
+  initContextLensShipSync,
+  isContextLensEffectivelyEnabled,
+} from './src/context-lens-ship-sync.js';
 import { initContextLensStore } from './src/context-lens-store.js';
 import { detailToolParams } from './src/context-lens-tool-params.js';
 import {
@@ -75,7 +78,7 @@ import {
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
 import { recordActiveTlonTurnToolCall } from './src/turn-recorder.js';
-import { isMonolithicTlonDeployment, resolveTlonAccount } from './src/types.js';
+import { resolveTlonAccount } from './src/types.js';
 import {
   formatTlonVersionIdentity,
   resolveTlonSkillVersion,
@@ -919,13 +922,8 @@ export default defineBundledChannelEntry({
       },
     });
 
-    const monolithicDeployment = isMonolithicTlonDeployment(api.config);
-    const contextLensRoutesEnabled = monolithicDeployment
-      ? false
-      : registerContextLensRoutes(api);
-    const contextLensShipSyncEnabled = monolithicDeployment
-      ? false
-      : initContextLensShipSync(api);
+    const contextLensRoutesEnabled = registerContextLensRoutes(api);
+    const contextLensShipSyncEnabled = initContextLensShipSync(api);
     // Recording and the disk store run when at least one reader path is
     // live: authed gateway routes or %context-lens ship sync.
     const contextLensEnabled =
@@ -933,6 +931,22 @@ export default defineBundledChannelEntry({
     if (contextLensEnabled) {
       initContextLensStore(api);
     }
+    const resolveHookContextLensAccount = (ctx: {
+      agentId?: string;
+    }): string | null => {
+      try {
+        const accountId = resolveTlonToolAccountId({
+          cfg: api.config,
+          agentId: ctx.agentId,
+        });
+        return accountId &&
+          isContextLensEffectivelyEnabled(api.config, accountId)
+          ? accountId
+          : null;
+      } catch {
+        return null;
+      }
+    };
 
     const handleMigrateCommand = createMigrateCommandHandler({
       runCommand: (args, commandCredentials, timeoutMs, onDeadline) =>
@@ -1047,14 +1061,15 @@ export default defineBundledChannelEntry({
         // and so inherit a sender-role entry — heartbeats, subagents).
         // No-ops when a conversation lens is already bound.
         const isCronSession = (ctx.sessionKey ?? '').includes(':cron:');
-        const background = ensureBackgroundContextLensForSession(
-          ctx.sessionKey,
-          {
-            runKind: isCronSession ? 'cron' : 'internal',
-            trigger: isCronSession ? 'cron' : 'tool',
-            preview: `${event.toolName} tool activity`,
-          }
-        );
+        const accountId = resolveHookContextLensAccount(ctx);
+        const background = accountId
+          ? ensureBackgroundContextLensForSession(ctx.sessionKey, {
+              accountId,
+              runKind: isCronSession ? 'cron' : 'internal',
+              trigger: isCronSession ? 'cron' : 'tool',
+              preview: `${event.toolName} tool activity`,
+            })
+          : null;
         if (background?.created) {
           publishContextLensEvent('created', background.lens);
         }
@@ -1381,6 +1396,7 @@ export default defineBundledChannelEntry({
     // the gateway exposes the cron trigger, so tag the run's lens here
     // before any tool fires. Idempotent across both hooks.
     const ensureCronContextLens = (ctx: {
+      agentId?: string;
       sessionKey?: string;
       trigger?: string;
       jobId?: string;
@@ -1388,11 +1404,15 @@ export default defineBundledChannelEntry({
       if (!contextLensEnabled || ctx.trigger !== 'cron') {
         return;
       }
-      const background = ensureBackgroundContextLensForSession(ctx.sessionKey, {
-        runKind: 'cron',
-        trigger: 'cron',
-        preview: ctx.jobId ? `cron job ${ctx.jobId}` : 'cron run',
-      });
+      const accountId = resolveHookContextLensAccount(ctx);
+      const background = accountId
+        ? ensureBackgroundContextLensForSession(ctx.sessionKey, {
+            accountId,
+            runKind: 'cron',
+            trigger: 'cron',
+            preview: ctx.jobId ? `cron job ${ctx.jobId}` : 'cron run',
+          })
+        : null;
       if (background?.created) {
         publishContextLensEvent('created', background.lens);
       }
@@ -1402,6 +1422,7 @@ export default defineBundledChannelEntry({
     // and retain their detailed diagnostic fields. The lifecycle hook remains
     // the authoritative source for the final cron outcome.
     const onCronAgentHook = (ctx: {
+      agentId?: string;
       sessionId?: string;
       sessionKey?: string;
       trigger?: string;
@@ -1572,12 +1593,7 @@ export default defineBundledChannelEntry({
       acceptsArgs: true,
       handler: async (ctx) => {
         return {
-          text: await routeMigrateCommand(
-            ctx,
-            ctx.args,
-            handleMigrateCommand,
-            api.config
-          ),
+          text: await routeMigrateCommand(ctx, ctx.args, handleMigrateCommand),
         };
       },
     });

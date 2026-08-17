@@ -229,4 +229,57 @@ describe('initContextLensStore', () => {
       : '';
     expect(staleContents).not.toContain(finalized.lensId);
   });
+
+  it('partitions monolithic stores by account', () => {
+    initContextLensStore({
+      config: {
+        channels: {
+          tlon: {
+            deploymentMode: 'monolithic',
+            accounts: {
+              a: {
+                ship: '~zod',
+                url: 'https://a.example',
+                code: 'a-code',
+                contextLens: {
+                  enabled: true,
+                  authToken: 'tenant-a-token-long-enough',
+                  store: { path: filePath },
+                },
+              },
+              b: {
+                ship: '~nec',
+                url: 'https://b.example',
+                code: 'b-code',
+                contextLens: {
+                  enabled: true,
+                  authToken: 'tenant-b-token-long-enough',
+                  store: { path: filePath },
+                },
+              },
+            },
+          },
+        },
+      } as OpenClawConfig,
+      logger: { info: () => {}, warn: () => {} },
+    });
+    const lensA = {
+      ...makeLens({ messageId: 'tenant-a' }),
+      accountId: 'a',
+    };
+    const lensB = {
+      ...makeLens({ messageId: 'tenant-b' }),
+      accountId: 'b',
+    };
+    publishContextLensEvent('final', lensA);
+    publishContextLensEvent('final', lensB);
+
+    const storeA = getContextLensStore('a');
+    const storeB = getContextLensStore('b');
+    expect(storeA?.filePath).not.toBe(storeB?.filePath);
+    expect(storeA?.get(lensA.lensId)).not.toBeNull();
+    expect(storeA?.get(lensB.lensId)).toBeNull();
+    expect(storeB?.get(lensB.lensId)).not.toBeNull();
+    expect(storeB?.get(lensA.lensId)).toBeNull();
+  });
 });

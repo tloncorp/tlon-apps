@@ -17,6 +17,8 @@ import {
   gateGatewayStatusActivation,
   getGatewayStatusCoordinator,
   isGatewayStatusEligible,
+  publishGatewayApiClientParams,
+  removeGatewayApiClientParams,
   runGatewayStatusActivation,
   sendGatewayStop,
   setGatewayStatusCoordinator,
@@ -35,9 +37,21 @@ vi.mock('@tloncorp/api', () => ({
 // The heartbeat and sendGatewayStop paths call configureTlonApiWithPoke each
 // time to defeat OpenClaw plugin module isolation; in tests we stub it to a
 // no-op so the fake @tloncorp/api singleton stays as the vitest mock above.
-vi.mock('./urbit/api-client.js', () => ({
-  configureTlonApiWithPoke: vi.fn(),
-}));
+vi.mock('./urbit/api-client.js', () => {
+  const configureTlonApiWithPoke = vi.fn();
+  return {
+    configureTlonApiWithPoke,
+    withTlonApiClient: vi.fn(
+      async (
+        params: { poke: unknown; ship: string; url: string },
+        fn: () => Promise<unknown>
+      ) => {
+        configureTlonApiWithPoke(params.poke, params.ship, params.url);
+        return await fn();
+      }
+    ),
+  };
+});
 
 const stubApiClientParams: SharedApiClientParams = {
   poke: vi.fn().mockResolvedValue(undefined),
@@ -290,7 +304,7 @@ describe('gateway-status: isGatewayStatusEligible', () => {
     ).toBe(true);
   });
 
-  it('is false with more than one configured account', () => {
+  it('is true with more than one configured account', () => {
     expect(
       isGatewayStatusEligible({
         channels: {
@@ -300,7 +314,7 @@ describe('gateway-status: isGatewayStatusEligible', () => {
           },
         },
       } as OpenClawConfig)
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 
@@ -697,26 +711,27 @@ describe('gateway-status: gateGatewayStatusActivation (per-monitor gate)', () =>
     expect(gatewayStart).toHaveBeenCalledTimes(1);
   });
 
-  it('does NOT activate with a >1-account snapshot; reports the skip', () => {
-    const onMultiAccountSkip = vi.fn();
+  it('activates with a >1-account snapshot', async () => {
     const result = gateGatewayStatusActivation({
       cfg: twoAccounts,
       coordinator,
       effectiveOwnerShip: '~zod',
       isTornDown: () => false,
       registerHeartbeatStop: vi.fn(),
-      onMultiAccountSkip,
     });
-    expect(result).toBeNull();
-    expect(gatewayStart).not.toHaveBeenCalled();
-    expect(onMultiAccountSkip).toHaveBeenCalledWith(2);
+    expect(result).not.toBeNull();
+    await expectSettled(result as Promise<void>, 'gate:multi-account');
+    expect(gatewayStart).toHaveBeenCalledTimes(1);
   });
 
-  it('does NOT activate legacy single-account gateway status in monolithic mode', () => {
+  it('activates an account in monolithic mode', async () => {
     const result = gateGatewayStatusActivation({
       cfg: {
         channels: {
-          tlon: { ...oneAccount.channels?.tlon, deploymentMode: 'monolithic' },
+          tlon: {
+            deploymentMode: 'monolithic',
+            accounts: { tenant: { ship: '~zod' } },
+          },
         },
       } as OpenClawConfig,
       coordinator,
@@ -724,8 +739,9 @@ describe('gateway-status: gateGatewayStatusActivation (per-monitor gate)', () =>
       isTornDown: () => false,
       registerHeartbeatStop: vi.fn(),
     });
-    expect(result).toBeNull();
-    expect(gatewayStart).not.toHaveBeenCalled();
+    expect(result).not.toBeNull();
+    await expectSettled(result as Promise<void>, 'gate:monolithic');
+    expect(gatewayStart).toHaveBeenCalledTimes(1);
   });
 
   it('does NOT activate with a 0-account snapshot and does not report a multi-account skip', () => {
@@ -755,7 +771,7 @@ describe('gateway-status: gateGatewayStatusActivation (per-monitor gate)', () =>
     expect(gatewayStart).not.toHaveBeenCalled();
   });
 
-  it('1 → >1 hot reload without re-registration: old monitor heartbeat stops, replacement does NOT activate', async () => {
+  it('1 → >1 hot reload without re-registration: replacement activates', async () => {
     // Monitor A: 1 account → activates + heartbeat, capturing its stop
     // handle exactly as the monitor's registerHeartbeatStop callback does.
     let tornDownA = false;
@@ -782,22 +798,20 @@ describe('gateway-status: gateGatewayStatusActivation (per-monitor gate)', () =>
     tornDownA = true;
     stopHeartbeatA?.();
 
-    const onMultiAccountSkip = vi.fn();
     const activationB = gateGatewayStatusActivation({
       cfg: twoAccounts,
       coordinator,
       effectiveOwnerShip: '~zod',
       isTornDown: () => false,
       registerHeartbeatStop: vi.fn(),
-      onMultiAccountSkip,
     });
-    expect(activationB).toBeNull();
-    expect(onMultiAccountSkip).toHaveBeenCalledWith(2);
+    expect(activationB).not.toBeNull();
+    await expectSettled(activationB as Promise<void>, 'gate:hot-reload-B');
 
-    // No replacement activation, and monitor A's heartbeat is dead.
+    // Monitor A's heartbeat is dead; the replacement owns the live loop.
     await vi.advanceTimersByTimeAsync(60_000);
-    expect(gatewayStart).toHaveBeenCalledTimes(1);
-    expect(gatewayHeartbeat).toHaveBeenCalledTimes(1);
+    expect(gatewayStart).toHaveBeenCalledTimes(2);
+    expect(gatewayHeartbeat).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -859,5 +873,39 @@ describe('gateway-status: sendGatewayStop', () => {
       .invocationCallOrder[0];
     const stopOrder = vi.mocked(gatewayStop).mock.invocationCallOrder[0];
     expect(configureOrder).toBeLessThan(stopOrder);
+  });
+
+  it('sends shutdown status through every account client', async () => {
+    const first: SharedApiClientParams = {
+      poke: vi.fn().mockResolvedValue(undefined),
+      shipName: 'first-bot',
+      shipUrl: 'http://first.test',
+    };
+    const second: SharedApiClientParams = {
+      poke: vi.fn().mockResolvedValue(undefined),
+      shipName: 'second-bot',
+      shipUrl: 'http://second.test',
+    };
+    publishGatewayApiClientParams('first', first);
+    publishGatewayApiClientParams('second', second);
+    try {
+      expect(
+        await sendGatewayStop({ bootId: 'shared-boot', reason: 'shutdown' })
+      ).toBe(true);
+      expect(configureTlonApiWithPoke).toHaveBeenCalledWith(
+        first.poke,
+        first.shipName,
+        first.shipUrl
+      );
+      expect(configureTlonApiWithPoke).toHaveBeenCalledWith(
+        second.poke,
+        second.shipName,
+        second.shipUrl
+      );
+      expect(gatewayStop).toHaveBeenCalledTimes(2);
+    } finally {
+      removeGatewayApiClientParams('first', first);
+      removeGatewayApiClientParams('second', second);
+    }
   });
 });

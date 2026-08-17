@@ -1,9 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
-import { hasAmbiguousMigrationAccount } from './migration-account-safety.js';
 import {
   type CommandContextLike,
   resolveBridgeForCommand,
@@ -23,8 +21,6 @@ import type { TlonCommandDeadlineOutput } from './tlon-command-runner.js';
 
 export const MIGRATION_APPLY_TIMEOUT_MS = 30 * 60_000;
 export const MIGRATION_CLEANUP_TIMEOUT_MS = 2 * 60_000;
-export const MIGRATION_SINGLE_ACCOUNT_REQUIRED =
-  'Migration requires a single-account configuration. Disable additional Tlon accounts before using /migrate.';
 export const MIGRATION_DROP_WARNING =
   'Before any write: comments, reactions, post references, and link blocks stay on the archived channel and are not copied. ' +
   'Post descriptions, covers, and attachments also stay in the archive and are not copied. ' +
@@ -375,6 +371,9 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
     if ('error' in parsed) return parsed.error;
     const selection = selectCredentials(parsed.nest, bridge, deps);
     if ('error' in selection) return selection.error;
+    const accountPrefix = `${normalizeShip(bridge.botShip)}\u0000`;
+    const hasAccountTask = (tasks: Map<string, Promise<void>>) =>
+      [...tasks.keys()].some((key) => key.startsWith(accountPrefix));
 
     if (parsed.kind === 'migrate') {
       // This deliberately blocks unrelated applies behind any cleanup. The
@@ -382,14 +381,14 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
       // reports without killing the process, so a stuck cleanup blocks every
       // apply until the gateway restarts. That tradeoff is accepted for the
       // one-owner, one-notebook deployment.
-      if (cleanupInFlight.size > 0) {
+      if (hasAccountTask(cleanupInFlight)) {
         const message =
           'A migration cleanup is currently running. Wait for it to finish, then retry the migration.';
         await sendOwnerNotification(bridge, message, parsed.nest);
         return message;
       }
 
-      const inFlightKey = parsed.nest;
+      const inFlightKey = `${accountPrefix}${parsed.nest}`;
       const pending = applyInFlight.get(inFlightKey);
       if (pending) {
         const message = `A migration for ${parsed.nest} is already running.`;
@@ -505,14 +504,14 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
       return `Migration started for ${parsed.nest}. I’ll DM the result.\n\n${MIGRATION_DROP_WARNING}`;
     }
 
-    if (applyInFlight.size > 0) {
+    if (hasAccountTask(applyInFlight)) {
       const message =
         'A migration is currently running. Wait for it to finish, then retry the cleanup.';
       await sendOwnerNotification(bridge, message, parsed.nest);
       return message;
     }
 
-    const inFlightKey = parsed.nest;
+    const inFlightKey = `${accountPrefix}${parsed.nest}`;
     const pending = cleanupInFlight.get(inFlightKey);
     if (pending) {
       const message = `A migration cleanup for ${parsed.nest} is already running.`;
@@ -650,12 +649,8 @@ export function createMigrateCommandHandler(deps: MigrateCommandDeps) {
 export async function routeMigrateCommand(
   ctx: CommandContextLike,
   rawArgs: string | undefined,
-  handleMigrateCommand: ReturnType<typeof createMigrateCommandHandler>,
-  cfg: OpenClawConfig
+  handleMigrateCommand: ReturnType<typeof createMigrateCommandHandler>
 ): Promise<string> {
-  if (hasAmbiguousMigrationAccount(cfg)) {
-    return MIGRATION_SINGLE_ACCOUNT_REQUIRED;
-  }
   const result = resolveBridgeForCommand(ctx);
   if ('error' in result) {
     return result.error;

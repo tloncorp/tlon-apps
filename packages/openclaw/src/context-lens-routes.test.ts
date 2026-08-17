@@ -29,19 +29,23 @@ function setupRoutes(
     allowedOrigins: ['https://app.tlon.network'],
   }
 ) {
+  return setupRoutesForConfig({
+    channels: {
+      tlon: {
+        ship: '~zod',
+        url: 'https://example.com',
+        code: 'code-123',
+        contextLens,
+      },
+    },
+  } as OpenClawConfig);
+}
+
+function setupRoutesForConfig(config: OpenClawConfig) {
   const routes = new Map<string, { auth: string; handler: RouteHandler }>();
   const warnings: string[] = [];
   const registered = registerContextLensRoutes({
-    config: {
-      channels: {
-        tlon: {
-          ship: '~zod',
-          url: 'https://example.com',
-          code: 'code-123',
-          contextLens,
-        },
-      },
-    } as OpenClawConfig,
+    config,
     logger: {
       info: () => {},
       warn: (message) => warnings.push(message),
@@ -306,6 +310,84 @@ describe('context lens run route', () => {
       lensId: lens.lensId,
       messageId: 'run-route-hit',
     });
+  });
+
+  it('isolates monolithic account history by bearer token', async () => {
+    const tokenA = 'tenant-a-token-long-enough';
+    const tokenB = 'tenant-b-token-long-enough';
+    const config = {
+      channels: {
+        tlon: {
+          deploymentMode: 'monolithic',
+          accounts: {
+            a: {
+              ship: '~zod',
+              url: 'https://a.example',
+              code: 'a-code',
+              contextLens: { enabled: true, authToken: tokenA },
+            },
+            b: {
+              ship: '~nec',
+              url: 'https://b.example',
+              code: 'b-code',
+              contextLens: { enabled: true, authToken: tokenB },
+            },
+          },
+        },
+      },
+    } as OpenClawConfig;
+    const lensA = createContextLensRegistry({ accountId: 'a' }).create({
+      messageId: 'tenant-a-run',
+      chatType: 'dm',
+    });
+    const lensB = createContextLensRegistry({ accountId: 'b' }).create({
+      messageId: 'tenant-b-run',
+      chatType: 'dm',
+    });
+    publishContextLensEvent('created', lensA);
+    publishContextLensEvent('created', lensB);
+    const { routes } = setupRoutesForConfig(config);
+
+    const { req: recentReq } = makeReq({
+      headers: { authorization: `Bearer ${tokenA}` },
+    });
+    const { res: recentRes, state: recentState } = makeRes();
+    await routes.get(CONTEXT_LENS_RECENT_ROUTE)?.handler(recentReq, recentRes);
+    expect(recentState.body).toContain(lensA.lensId);
+    expect(recentState.body).not.toContain(lensB.lensId);
+
+    const { req: runReq } = makeReq({
+      url: `${CONTEXT_LENS_RUN_ROUTE}?lensId=${lensB.lensId}`,
+      headers: { authorization: `Bearer ${tokenA}` },
+    });
+    const { res: runRes, state: runState } = makeRes();
+    await routes.get(CONTEXT_LENS_RUN_ROUTE)?.handler(runReq, runRes);
+    expect(runState.statusCode).toBe(404);
+
+    const storedB = createContextLensRegistry({ accountId: 'b' }).create({
+      messageId: 'tenant-b-stored-run',
+      chatType: 'dm',
+    });
+    setContextLensStore(
+      {
+        filePath: '/tmp/unused-a',
+        save: () => {},
+        size: () => 1,
+        get: (lensId) => (lensId === storedB.lensId ? storedB : null),
+      },
+      'a'
+    );
+    try {
+      const { req } = makeReq({
+        url: `${CONTEXT_LENS_RUN_ROUTE}?lensId=${storedB.lensId}`,
+        headers: { authorization: `Bearer ${tokenA}` },
+      });
+      const { res, state } = makeRes();
+      await routes.get(CONTEXT_LENS_RUN_ROUTE)?.handler(req, res);
+      expect(state.statusCode).toBe(404);
+    } finally {
+      setContextLensStore(null, 'a');
+    }
   });
 });
 

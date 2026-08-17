@@ -16,6 +16,8 @@ import { type ContextLens, createContextLensRegistry } from './context-lens.js';
 import {
   API_CLIENT_PARAMS_SLOT,
   type SharedApiClientParams,
+  publishGatewayApiClientParams,
+  removeGatewayApiClientParams,
 } from './gateway-status.js';
 import { sharedSlot } from './shared-state.js';
 
@@ -397,6 +399,63 @@ describe('initContextLensShipSync', () => {
       expect(pokes.map(pokeKind)).toEqual(['configure', 'lens']);
     } finally {
       slot.set(previousParams);
+    }
+  });
+
+  it('routes each account event to its own ship client', async () => {
+    const pokesA: RecordedPoke[] = [];
+    const pokesB: RecordedPoke[] = [];
+    const paramsA = makeParams(pokesA);
+    const paramsB = makeParams(pokesB);
+    publishGatewayApiClientParams('a', paramsA);
+    publishGatewayApiClientParams('b', paramsB);
+    const api = {
+      config: {
+        channels: {
+          tlon: {
+            deploymentMode: 'monolithic',
+            accounts: {
+              a: {
+                ship: '~zod',
+                url: 'https://a.example',
+                code: 'a-code',
+                ownerShip: '~bus',
+                contextLens: { enabled: true },
+              },
+              b: {
+                ship: '~nec',
+                url: 'https://b.example',
+                code: 'b-code',
+                ownerShip: '~wes',
+                contextLens: { enabled: true },
+              },
+            },
+          },
+        },
+      } as OpenClawConfig,
+      logger: silentLogger,
+    };
+    try {
+      expect(initContextLensShipSync(api)).toBe(true);
+      publishContextLensEvent(
+        'final',
+        makeLens({ accountId: 'a', status: 'completed' })
+      );
+      publishContextLensEvent(
+        'final',
+        makeLens({ accountId: 'b', status: 'completed' })
+      );
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(pokesA.map(pokeKind)).toEqual(['configure', 'lens']);
+      expect(pokesB.map(pokeKind)).toEqual(['configure', 'lens']);
+      expect(JSON.stringify(pokesA)).toContain('"accountId":"a"');
+      expect(JSON.stringify(pokesA)).not.toContain('"accountId":"b"');
+      expect(JSON.stringify(pokesB)).toContain('"accountId":"b"');
+      expect(JSON.stringify(pokesB)).not.toContain('"accountId":"a"');
+    } finally {
+      removeGatewayApiClientParams('a', paramsA);
+      removeGatewayApiClientParams('b', paramsB);
     }
   });
 });

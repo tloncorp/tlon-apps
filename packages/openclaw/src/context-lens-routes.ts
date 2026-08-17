@@ -9,7 +9,12 @@ import {
   subscribeToContextLensEvents,
 } from './context-lens-events.js';
 import { getContextLensStore } from './context-lens-store.js';
-import { type TlonContextLensConfig, resolveTlonAccount } from './types.js';
+import {
+  type TlonContextLensConfig,
+  isMonolithicTlonDeployment,
+  listTlonAccountIds,
+  resolveTlonAccount,
+} from './types.js';
 
 export const CONTEXT_LENS_RECENT_ROUTE = '/tlon/context-lens/recent';
 export const CONTEXT_LENS_EVENTS_ROUTE = '/tlon/context-lens/events';
@@ -90,28 +95,45 @@ export function readBearerToken(req: IncomingMessage): string | null {
  * those), so this gate is the only thing between the network and lens data —
  * never register a lens route without it.
  */
+type RouteAccount = {
+  accountId: string;
+  lensConfig: TlonContextLensConfig & { authToken: string };
+};
+
 function gateRequest(
   req: IncomingMessage,
   res: ServerResponse,
-  lensConfig: TlonContextLensConfig & { authToken: string }
-): boolean {
-  setCorsHeaders(req, res, lensConfig.allowedOrigins);
+  accounts: RouteAccount[]
+): RouteAccount | null {
+  const allowedOrigins = [
+    ...new Set(
+      accounts.flatMap((account) => account.lensConfig.allowedOrigins)
+    ),
+  ];
   if (req.method === 'OPTIONS') {
+    setCorsHeaders(req, res, allowedOrigins);
     res.statusCode = 204;
     res.end();
-    return false;
+    return null;
   }
   if (req.method !== 'GET') {
+    setCorsHeaders(req, res, allowedOrigins);
     writeJson(res, 405, { error: 'method_not_allowed' });
-    return false;
+    return null;
   }
   const provided = readBearerToken(req);
-  if (!provided || !timingSafeTokenMatch(provided, lensConfig.authToken)) {
+  const matches = provided
+    ? accounts.filter((account) =>
+        timingSafeTokenMatch(provided, account.lensConfig.authToken)
+      )
+    : [];
+  if (matches.length !== 1) {
     res.setHeader('WWW-Authenticate', 'Bearer realm="tlon-context-lens"');
     writeJson(res, 401, { error: 'unauthorized' });
-    return false;
+    return null;
   }
-  return true;
+  setCorsHeaders(req, res, matches[0].lensConfig.allowedOrigins);
+  return matches[0];
 }
 
 function writeSseEvent(res: ServerResponse, event: ContextLensEvent) {
@@ -145,29 +167,49 @@ function readLastEventId(req: IncomingMessage): number | null {
 }
 
 export function registerContextLensRoutes(api: ContextLensRouteApi): boolean {
-  const lensConfig = resolveTlonAccount(api.config).contextLens;
-  if (!lensConfig.enabled) {
+  const enabledAccounts = listTlonAccountIds(api.config)
+    .map((accountId) => ({
+      accountId,
+      lensConfig: resolveTlonAccount(api.config, accountId).contextLens,
+    }))
+    .filter((account) => account.lensConfig.enabled);
+  if (enabledAccounts.length === 0) {
     api.logger.debug?.('[tlon] Context lens disabled; routes not registered');
     return false;
   }
-  if (!lensConfig.authToken) {
+  const routeAccounts: RouteAccount[] = enabledAccounts.flatMap((account) =>
+    account.lensConfig.authToken
+      ? [
+          {
+            accountId: account.accountId,
+            lensConfig: {
+              ...account.lensConfig,
+              authToken: account.lensConfig.authToken,
+            },
+          },
+        ]
+      : []
+  );
+  if (routeAccounts.length === 0) {
     api.logger.warn(
       '[tlon] Context lens enabled but channels.tlon.contextLens.authToken is not set; ' +
         'routes not registered (no unauthenticated mode)'
     );
     return false;
   }
-  const authedConfig = { ...lensConfig, authToken: lensConfig.authToken };
 
   api.registerHttpRoute({
     path: CONTEXT_LENS_RECENT_ROUTE,
     auth: 'plugin',
     replaceExisting: true,
     handler: async (req, res) => {
-      if (!gateRequest(req, res, authedConfig)) {
+      const routeAccount = gateRequest(req, res, routeAccounts);
+      if (!routeAccount) {
         return;
       }
-      writeJson(res, 200, { events: listRecentContextLensEvents() });
+      writeJson(res, 200, {
+        events: listRecentContextLensEvents(routeAccount.accountId),
+      });
     },
   });
 
@@ -176,7 +218,8 @@ export function registerContextLensRoutes(api: ContextLensRouteApi): boolean {
     auth: 'plugin',
     replaceExisting: true,
     handler: async (req, res) => {
-      if (!gateRequest(req, res, authedConfig)) {
+      const routeAccount = gateRequest(req, res, routeAccounts);
+      if (!routeAccount) {
         return;
       }
 
@@ -226,7 +269,7 @@ export function registerContextLensRoutes(api: ContextLensRouteApi): boolean {
       }
 
       const lastEventId = readLastEventId(req);
-      const recent = listRecentContextLensEvents();
+      const recent = listRecentContextLensEvents(routeAccount.accountId);
       const replay =
         lastEventId === null
           ? recent.slice(-SSE_REPLAY_LIMIT)
@@ -248,7 +291,7 @@ export function registerContextLensRoutes(api: ContextLensRouteApi): boolean {
         }
         maxSentSeq = event.seq;
         sendOrClose(event);
-      });
+      }, routeAccount.accountId);
       keepalive = setInterval(() => {
         if (closed) {
           return;
@@ -276,7 +319,8 @@ export function registerContextLensRoutes(api: ContextLensRouteApi): boolean {
     auth: 'plugin',
     replaceExisting: true,
     handler: async (req, res) => {
-      if (!gateRequest(req, res, authedConfig)) {
+      const routeAccount = gateRequest(req, res, routeAccounts);
+      if (!routeAccount) {
         return;
       }
       const lensId = readRouteQuery(req, 'lensId');
@@ -285,8 +329,13 @@ export function registerContextLensRoutes(api: ContextLensRouteApi): boolean {
         return;
       }
       // Live events first, then the durable store so runs survive restarts.
+      const stored = getContextLensStore(routeAccount.accountId)?.get(lensId);
       const lens =
-        findRecentContextLensById(lensId) ?? getContextLensStore()?.get(lensId);
+        findRecentContextLensById(lensId, routeAccount.accountId) ??
+        (stored?.accountId === routeAccount.accountId ||
+        (!stored?.accountId && !isMonolithicTlonDeployment(api.config))
+          ? stored
+          : null);
       if (!lens) {
         writeJson(res, 404, { error: 'not_found' });
         return;

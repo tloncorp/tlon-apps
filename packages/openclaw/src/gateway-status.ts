@@ -7,9 +7,9 @@ import {
 import { randomUUID } from 'node:crypto';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
-import { sharedSlot } from './shared-state.js';
-import { isMonolithicTlonDeployment, listTlonAccountIds } from './types.js';
-import { configureTlonApiWithPoke } from './urbit/api-client.js';
+import { sharedMap, sharedSlot } from './shared-state.js';
+import { listTlonAccountIds } from './types.js';
+import { withTlonApiClient } from './urbit/api-client.js';
 
 // Shared-state slot for the @tloncorp/api client params. The monitor
 // publishes its SSE-bound poke + ship coords here; every other module
@@ -32,6 +32,67 @@ export interface SharedApiClientParams {
 const apiClientParamsSlot = sharedSlot<SharedApiClientParams>(
   API_CLIENT_PARAMS_SLOT
 );
+const apiClientParamsByAccount = sharedMap<string, SharedApiClientParams>(
+  `${API_CLIENT_PARAMS_SLOT}.by-account`
+);
+
+export function publishGatewayApiClientParams(
+  accountId: string,
+  params: SharedApiClientParams
+): void {
+  apiClientParamsByAccount.set(accountId, params);
+}
+
+export function removeGatewayApiClientParams(
+  accountId: string,
+  params: SharedApiClientParams
+): void {
+  if (apiClientParamsByAccount.get(accountId) === params) {
+    apiClientParamsByAccount.delete(accountId);
+  }
+}
+
+export function getPublishedGatewayApiClientParams(
+  accountId?: string
+): SharedApiClientParams | null {
+  if (accountId) {
+    return (
+      apiClientParamsByAccount.get(accountId) ??
+      (apiClientParamsByAccount.size === 0 ? apiClientParamsSlot.get() : null)
+    );
+  }
+  if (apiClientParamsByAccount.size === 1) {
+    return apiClientParamsByAccount.values().next().value ?? null;
+  }
+  return apiClientParamsSlot.get();
+}
+
+function listGatewayApiClientParams(): SharedApiClientParams[] {
+  if (apiClientParamsByAccount.size > 0) {
+    return [...apiClientParamsByAccount.values()];
+  }
+  const legacy = apiClientParamsSlot.get();
+  return legacy ? [legacy] : [];
+}
+
+async function withGatewayApi(
+  accountId: string | undefined,
+  fn: () => Promise<unknown>
+): Promise<boolean> {
+  const params = getPublishedGatewayApiClientParams(accountId);
+  if (!params) {
+    return false;
+  }
+  await withTlonApiClient(
+    {
+      poke: params.poke,
+      ship: params.shipName,
+      url: params.shipUrl,
+    },
+    fn
+  );
+  return true;
+}
 
 // ── Constants (matching design doc recommendations) ─────────
 export const HEARTBEAT_INTERVAL_MS = 30_000; // 30s
@@ -54,13 +115,9 @@ export function computeLeaseUntil(): number {
   return Date.now() + LEASE_DURATION_MS;
 }
 
-/** True iff exactly one Tlon account is configured. v1 requires exactly one
- * because the global @tloncorp/api client can't target multiple ships;
- * with >1 account, every eligible monitor would race the same client. */
+/** True when at least one Tlon account can own a monitor. */
 export function isGatewayStatusEligible(cfg: OpenClawConfig): boolean {
-  return (
-    !isMonolithicTlonDeployment(cfg) && listTlonAccountIds(cfg).length === 1
-  );
+  return listTlonAccountIds(cfg).length > 0;
 }
 
 // ── Generation-aware coordinator ─────────────────────────────
@@ -288,16 +345,20 @@ export async function sendGatewayStop(params: {
   bootId: string;
   reason: string;
 }): Promise<boolean> {
-  const apiParams = apiClientParamsSlot.get();
-  if (!apiParams) {
+  const accounts = listGatewayApiClientParams();
+  if (accounts.length === 0) {
     return false;
   }
-  configureTlonApiWithPoke(
-    apiParams.poke,
-    apiParams.shipName,
-    apiParams.shipUrl
-  );
-  await gatewayStop({ bootId: params.bootId, reason: params.reason });
+  for (const apiParams of accounts) {
+    await withTlonApiClient(
+      {
+        poke: apiParams.poke,
+        ship: apiParams.shipName,
+        url: apiParams.shipUrl,
+      },
+      () => gatewayStop({ bootId: params.bootId, reason: params.reason })
+    );
+  }
   return true;
 }
 
@@ -310,6 +371,7 @@ export async function sendGatewayStop(params: {
 // still self-checks `isValid()` and clears itself, as a safety net on top
 // of the caller's own direct `stop()` on cleanup.
 export interface StartGatewayHeartbeatLoopOptions {
+  accountId?: string;
   bootId: string;
   /** Re-checked every tick; when false the interval clears itself. */
   isValid: () => boolean;
@@ -336,18 +398,18 @@ export function startGatewayHeartbeatLoop(
       // `withAuthenticatedTlonApi` can also rotate the global client
       // between heartbeats. Reapplying here keeps the heartbeat poke
       // pointed at the SSE-bound client.
-      const params = apiClientParamsSlot.get();
-      if (!params) {
+      const result = await withGatewayApi(heartbeatOpts.accountId, () =>
+        gatewayHeartbeat({
+          bootId: heartbeatOpts.bootId,
+          leaseUntil: computeLeaseUntil(),
+        })
+      );
+      if (!result) {
         heartbeatOpts.logger?.error?.(
           '[gateway-status] heartbeat skipped: api-client params not published'
         );
         return;
       }
-      configureTlonApiWithPoke(params.poke, params.shipName, params.shipUrl);
-      await gatewayHeartbeat({
-        bootId: heartbeatOpts.bootId,
-        leaseUntil: computeLeaseUntil(),
-      });
     } catch (err) {
       heartbeatOpts.onError?.(err);
       heartbeatOpts.logger?.error?.(
@@ -420,6 +482,7 @@ function withActivationTimeout<T>(
 
 export interface RunGatewayStatusActivationOptions {
   coordinator: GatewayStatusCoordinator;
+  accountId?: string;
   owner: string;
   signal?: AbortSignal;
   /** True once the monitor's own teardown has run. */
@@ -498,15 +561,20 @@ export async function runGatewayStatusActivation(
       return;
     }
     try {
-      await withActivationTimeout(
-        configureStewardGateway({
-          owner,
-          activeWindowSecs: ACTIVE_WINDOW_SECS,
-          offlineReplyCooldownSecs: OFFLINE_REPLY_COOLDOWN_SECS,
-        }),
+      const configured = await withActivationTimeout(
+        withGatewayApi(activationOpts.accountId, () =>
+          configureStewardGateway({
+            owner,
+            activeWindowSecs: ACTIVE_WINDOW_SECS,
+            offlineReplyCooldownSecs: OFFLINE_REPLY_COOLDOWN_SECS,
+          })
+        ),
         '%configure',
         activationTimeoutMs
       );
+      if (!configured) {
+        throw new Error('api-client params not published');
+      }
       if (!isValid()) {
         return;
       }
@@ -514,16 +582,22 @@ export async function runGatewayStatusActivation(
       // gateway_stop hook knows a start poke is in flight and sends a
       // matching %gateway-stop even if shutdown lands before markActivated().
       coordinator.markStarting(lc.generation);
-      await withActivationTimeout(
-        gatewayStart({ bootId: lc.bootId, leaseUntil: computeLeaseUntil() }),
+      const started = await withActivationTimeout(
+        withGatewayApi(activationOpts.accountId, () =>
+          gatewayStart({ bootId: lc.bootId, leaseUntil: computeLeaseUntil() })
+        ),
         '%gateway-start',
         activationTimeoutMs
       );
+      if (!started) {
+        throw new Error('api-client params not published');
+      }
       if (!isValid()) {
         return;
       }
       coordinator.markActivated(lc.generation);
       const stopHeartbeat = startGatewayHeartbeatLoop({
+        accountId: activationOpts.accountId,
         bootId: lc.bootId,
         isValid,
         logger,
@@ -556,6 +630,7 @@ export async function runGatewayStatusActivation(
 // copy that could drift from, or silently revert past, the production path).
 export interface GateGatewayStatusActivationOptions {
   cfg: OpenClawConfig;
+  accountId?: string;
   coordinator: GatewayStatusCoordinator | null;
   effectiveOwnerShip: string | null;
   signal?: AbortSignal;
@@ -564,8 +639,6 @@ export interface GateGatewayStatusActivationOptions {
   onActivationError?: (err: unknown, attempt: number) => void;
   onHeartbeatError?: (err: unknown) => void;
   onWatchdogTimeout?: () => void;
-  /** Called (with the account count) when activation is skipped because >1 Tlon account is configured. */
-  onMultiAccountSkip?: (accountCount: number) => void;
   registerHeartbeatStop: (stop: () => void) => void;
   activationTimeoutMs?: number;
   activationRetryMs?: number;
@@ -574,7 +647,7 @@ export interface GateGatewayStatusActivationOptions {
 
 /**
  * Decide-and-launch. Returns the in-flight activation promise when this
- * monitor is eligible (coordinator present, owner known, exactly one Tlon
+ * monitor is eligible (coordinator present, owner known, configured Tlon
  * account), else `null`. The monitor fire-and-forgets it; tests await it.
  */
 export function gateGatewayStatusActivation(
@@ -587,6 +660,7 @@ export function gateGatewayStatusActivation(
   if (isGatewayStatusEligible(cfg)) {
     return runGatewayStatusActivation({
       coordinator,
+      accountId: gateOpts.accountId,
       owner: effectiveOwnerShip,
       signal: gateOpts.signal,
       isTornDown: gateOpts.isTornDown,
@@ -599,10 +673,6 @@ export function gateGatewayStatusActivation(
       activationRetryMs: gateOpts.activationRetryMs,
       watchdogMs: gateOpts.watchdogMs,
     });
-  }
-  const accountCount = listTlonAccountIds(cfg).length;
-  if (accountCount > 1) {
-    gateOpts.onMultiAccountSkip?.(accountCount);
   }
   return null;
 }

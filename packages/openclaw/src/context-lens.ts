@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 
-import { sharedMap, sharedSlot } from './shared-state.js';
+import { sharedMap } from './shared-state.js';
 
 export type ContextLensTrigger =
   | 'cron'
@@ -121,6 +121,8 @@ export type ContextLensPersistenceEvent = {
 };
 
 export type ContextLens = {
+  /** Owning Tlon account. Absent only on records written by older versions. */
+  accountId?: string;
   lensId: string;
   messageId: string;
   sessionKeyHash: string | null;
@@ -181,6 +183,7 @@ export type ContextLens = {
 };
 
 export type CreateContextLensInput = {
+  accountId?: string;
   messageId: string;
   chatType: ContextLens['chatType'];
   runKind?: ContextLensRunKind;
@@ -235,8 +238,8 @@ const BACKGROUND_FINALIZE_IDLE_MS = 30_000;
 const activeLensesBySession = sharedMap<string, ActiveContextLensBinding>(
   'contextLens.activeLensesBySession'
 );
-const backgroundContextLensesSlot = sharedSlot<ContextLensRegistry>(
-  'contextLens.backgroundRegistry'
+const backgroundContextLenses = sharedMap<string, ContextLensRegistry>(
+  'contextLens.backgroundRegistries'
 );
 
 export function hashSessionKey(sessionKey: string): string {
@@ -394,6 +397,7 @@ function serializeError(error: unknown): string {
 
 export function createContextLensRegistry(
   opts: {
+    accountId?: string;
     ttlMs?: number;
     maxEntries?: number;
     visibilityDefault?: ContextLensVisibility;
@@ -404,6 +408,7 @@ export function createContextLensRegistry(
   const maxEntries = opts.maxEntries ?? MAX_LENSES;
   const visibilityDefault = opts.visibilityDefault ?? 'owner';
   const disabled = opts.disabled ?? false;
+  const accountId = opts.accountId;
   const lenses = new Map<string, ContextLens>();
 
   const prune = (now = Date.now()) => {
@@ -427,6 +432,9 @@ export function createContextLensRegistry(
     prune(now);
 
     const lens: ContextLens = {
+      ...(input.accountId ?? accountId
+        ? { accountId: input.accountId ?? accountId }
+        : {}),
       lensId: randomUUID(),
       messageId: input.messageId,
       sessionKeyHash: input.sessionKey
@@ -903,19 +911,22 @@ export function unbindContextLensFromSession(
   }
 }
 
-function getBackgroundContextLensRegistry(): ContextLensRegistry {
-  const existing = backgroundContextLensesSlot.get();
+function getBackgroundContextLensRegistry(
+  accountId = 'default'
+): ContextLensRegistry {
+  const existing = backgroundContextLenses.get(accountId);
   if (existing) {
     return existing;
   }
-  const registry = createContextLensRegistry();
-  backgroundContextLensesSlot.set(registry);
+  const registry = createContextLensRegistry({ accountId });
+  backgroundContextLenses.set(accountId, registry);
   return registry;
 }
 
 export function ensureBackgroundContextLensForSession(
   sessionKey: string | null | undefined,
   input: {
+    accountId?: string;
     runKind?: ContextLensRunKind;
     trigger?: ContextLensTrigger;
     preview?: string;
@@ -938,7 +949,7 @@ export function ensureBackgroundContextLensForSession(
     return lens ? { lens, created: false } : null;
   }
 
-  const registry = getBackgroundContextLensRegistry();
+  const registry = getBackgroundContextLensRegistry(input.accountId);
   const sessionKeyHash = hashSessionKey(key);
   const runKind = input.runKind ?? 'internal';
   const lens = registry.create({
@@ -968,14 +979,16 @@ export function ensureBackgroundContextLensForSession(
  * the binding's bounded lifetime (finalized after a short idle window)
  * keeps stale matches out.
  */
-export function getActiveBackgroundContextLens(): ContextLens | null {
+export function getActiveBackgroundContextLens(
+  accountId?: string
+): ContextLens | null {
   let best: ContextLens | null = null;
   for (const binding of activeLensesBySession.values()) {
     if (!binding.background) {
       continue;
     }
     const lens = binding.registry.get(binding.lensId);
-    if (!lens) {
+    if (!lens || (accountId && lens.accountId !== accountId)) {
       continue;
     }
     if (!best || lens.updatedAt > best.updatedAt) {
@@ -995,7 +1008,8 @@ export function getActiveBackgroundContextLens(): ContextLens | null {
  * stay correctly separated.
  */
 export function getActiveForegroundContextLensForConversation(
-  conversationId: string | null | undefined
+  conversationId: string | null | undefined,
+  accountId?: string
 ): { registry: ContextLensRegistry; lensId: string } | null {
   const target = conversationId?.trim();
   if (!target) {
@@ -1011,7 +1025,11 @@ export function getActiveForegroundContextLensForConversation(
       continue;
     }
     const lens = binding.registry.get(binding.lensId);
-    if (!lens || lens.triggerDetails.conversationId?.trim() !== target) {
+    if (
+      !lens ||
+      (accountId && lens.accountId !== accountId) ||
+      lens.triggerDetails.conversationId?.trim() !== target
+    ) {
       continue;
     }
     if (!best || lens.updatedAt > best.updatedAt) {
@@ -1027,9 +1045,13 @@ export function getActiveForegroundContextLensForConversation(
 
 export function recordBackgroundContextLensOutput(
   lensId: string,
-  output: ContextLensOutput
+  output: ContextLensOutput,
+  accountId = 'default'
 ): ContextLens | null {
-  return getBackgroundContextLensRegistry().recordOutput(lensId, output);
+  return getBackgroundContextLensRegistry(accountId).recordOutput(
+    lensId,
+    output
+  );
 }
 
 export function recordContextLensToolStartForSession(

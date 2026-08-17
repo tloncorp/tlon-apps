@@ -6,12 +6,12 @@ import {
 } from './context-lens-events.js';
 import type { ContextLens, ContextLensStatus } from './context-lens.js';
 import {
-  API_CLIENT_PARAMS_SLOT,
   type SharedApiClientParams,
+  getPublishedGatewayApiClientParams,
 } from './gateway-status.js';
 import { sharedSlot } from './shared-state.js';
 import { normalizeShip } from './targets.js';
-import { resolveTlonAccount } from './types.js';
+import { listTlonAccountIds, resolveTlonAccount } from './types.js';
 
 const PAYLOAD_SCHEMA_VERSION = 1;
 const MAX_SUMMARY_CHARS = 4_096;
@@ -30,10 +30,6 @@ type SyncLogger = {
   info: (message: string) => void;
   warn: (message: string) => void;
 };
-
-const apiClientParamsSlot = sharedSlot<SharedApiClientParams>(
-  API_CLIENT_PARAMS_SLOT
-);
 
 // The host re-initializes the plugin in fresh module contexts (run starts,
 // reloads) while the event bus listener set lives in shared state — without
@@ -174,7 +170,8 @@ export function createContextLensShipSync(opts: {
   getParams?: () => SharedApiClientParams | null;
 }): ContextLensShipSync {
   const { owner, logger } = opts;
-  const getParams = opts.getParams ?? (() => apiClientParamsSlot.get() ?? null);
+  const getParams =
+    opts.getParams ?? (() => getPublishedGatewayApiClientParams());
 
   const lastStatusByLensId = new Map<string, ContextLensStatus>();
   let configuredFor: SharedApiClientParams | null = null;
@@ -265,21 +262,39 @@ export function initContextLensShipSync(api: {
   config: OpenClawConfig;
   logger: SyncLogger;
 }): boolean {
-  if (!resolveTlonAccount(api.config).contextLens.enabled) {
-    return false;
-  }
-  const owner = resolveLensOwner(api.config);
-  if (owner === null) {
-    api.logger.info(
-      '[tlon] Context lens ship sync disabled: no owner configured (set contextLens.owner or ownerShip)'
-    );
-    return false;
-  }
-  const sync = createContextLensShipSync({ owner, logger: api.logger });
   shipSyncUnsubscribeSlot.get()?.();
-  shipSyncUnsubscribeSlot.set(subscribeToContextLensEvents(sync.handleEvent));
-  api.logger.info(
-    `[tlon] Context lens ship sync enabled, fanning out to ${owner}`
-  );
+  const unsubscribes: Array<() => void> = [];
+  for (const accountId of listTlonAccountIds(api.config)) {
+    if (!resolveTlonAccount(api.config, accountId).contextLens.enabled) {
+      continue;
+    }
+    const owner = resolveLensOwner(api.config, accountId);
+    if (owner === null) {
+      api.logger.info(
+        `[tlon] Context lens ship sync disabled for ${accountId}: no owner configured`
+      );
+      continue;
+    }
+    const sync = createContextLensShipSync({
+      owner,
+      logger: api.logger,
+      getParams: () => getPublishedGatewayApiClientParams(accountId),
+    });
+    unsubscribes.push(
+      subscribeToContextLensEvents(sync.handleEvent, accountId)
+    );
+    api.logger.info(
+      `[tlon] Context lens ship sync enabled for ${accountId}, fanning out to ${owner}`
+    );
+  }
+  if (unsubscribes.length === 0) {
+    shipSyncUnsubscribeSlot.set(null);
+    return false;
+  }
+  shipSyncUnsubscribeSlot.set(() => {
+    for (const unsubscribe of unsubscribes) {
+      unsubscribe();
+    }
+  });
   return true;
 }

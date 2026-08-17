@@ -847,7 +847,7 @@ describe('shouldStartNudgeRunner', () => {
     expect(decision.start).toBe(true);
   });
 
-  it('refuses to start the legacy runner in monolithic mode', () => {
+  it('starts in monolithic mode because each monitor supplies an account-scoped sender', () => {
     const decision = shouldStartNudgeRunner(
       cfg({
         deploymentMode: 'monolithic',
@@ -857,10 +857,7 @@ describe('shouldStartNudgeRunner', () => {
         reengagement: { enabled: true },
       })
     );
-    expect(decision.start).toBe(false);
-    if (!decision.start) {
-      expect(decision.detail).toMatch(/not account-safe/);
-    }
+    expect(decision.start).toBe(true);
   });
 
   it('starts when flag is true and exactly one account lives under accounts.*', () => {
@@ -880,7 +877,7 @@ describe('shouldStartNudgeRunner', () => {
     expect(decision.start).toBe(true);
   });
 
-  it('refuses to start when flag is true but multi-account mode is configured', () => {
+  it('starts for each monitor when multiple accounts are configured', () => {
     const decision = shouldStartNudgeRunner(
       cfg({
         ship: '~nec',
@@ -892,20 +889,14 @@ describe('shouldStartNudgeRunner', () => {
         },
       })
     );
-    expect(decision.start).toBe(false);
-    if (!decision.start) {
-      expect(decision.reason).toBe('multi-account');
-    }
+    expect(decision.start).toBe(true);
   });
 
-  it('refuses to start when flag is true but no accounts are configured', () => {
+  it('leaves account availability to monitor startup', () => {
     const decision = shouldStartNudgeRunner(
       cfg({ reengagement: { enabled: true } })
     );
-    expect(decision.start).toBe(false);
-    if (!decision.start) {
-      expect(decision.reason).toBe('multi-account');
-    }
+    expect(decision.start).toBe(true);
   });
 
   it('refuses when channels.tlon itself is absent', () => {
@@ -957,7 +948,7 @@ describe('shouldStartNudgeRunner', () => {
     expect(decision.start).toBe(true);
   });
 
-  it('refuses to start when two accounts are both runnable', () => {
+  it('starts when two accounts are both runnable', () => {
     const decision = shouldStartNudgeRunner(
       cfg({
         ship: '~nec',
@@ -973,10 +964,7 @@ describe('shouldStartNudgeRunner', () => {
         },
       })
     );
-    expect(decision.start).toBe(false);
-    if (!decision.start) {
-      expect(decision.reason).toBe('multi-account');
-    }
+    expect(decision.start).toBe(true);
   });
 });
 
