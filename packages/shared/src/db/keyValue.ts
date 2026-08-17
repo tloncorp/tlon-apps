@@ -184,6 +184,19 @@ export const agentGroupAgents = createStorageItem<Record<string, string>>({
   defaultValue: {},
 });
 
+/**
+ * Group ids whose first agent-written entry the owner has already opened.
+ *
+ * Activation should count once per group, not once per note view, and the
+ * event has to survive an app restart — hence storage rather than memory.
+ */
+export const agentEntryFirstOpened = createStorageItem<Record<string, boolean>>(
+  {
+    key: 'agentEntryFirstOpened',
+    defaultValue: {},
+  }
+);
+
 /** One-way onboarding navigation locks, keyed by group id. */
 export const agentGroupOnboardingLocks = createStorageItem<
   Record<string, AgentGroupOnboardingLock>
