@@ -5,7 +5,7 @@ import { AppState, Linking } from 'react-native';
 
 import {
   OpenAIAuthState,
-  getOpenAIVerificationUrl,
+  getLLMAuthVerificationUrl,
 } from './openAiSubscription';
 import { OpenAIAuthController } from './openAiSubscriptionController';
 
@@ -15,9 +15,11 @@ function flowFromState(state: OpenAIAuthState) {
 
 export function useOpenAISubscriptionAuth({
   ship,
+  provider = 'openai',
   onComplete,
 }: {
   ship: string;
+  provider?: api.TlawnLLMAuthProvider;
   onComplete: (models: api.TlawnSubscriptionModel[]) => void | Promise<void>;
 }) {
   const queryClient = useQueryClient();
@@ -33,10 +35,11 @@ export function useOpenAISubscriptionAuth({
   useEffect(() => {
     if (!ship) return;
     const controller = new OpenAIAuthController({
+      provider,
       now: () => Date.now(),
       schedule: (callback, delayMs) => setTimeout(callback, delayMs),
       cancel: (timer) => clearTimeout(timer),
-      start: () => api.startTlawnLLMAuth(ship, 'openai'),
+      start: () => api.startTlawnLLMAuth(ship, provider),
       poll: (flowId) => api.getTlawnLLMAuthFlow(ship, flowId),
       loadStatus: () => api.getTlawnLLMAuthStatus(ship),
       onComplete: async (models, status) => {
@@ -67,10 +70,12 @@ export function useOpenAISubscriptionAuth({
         controllerRef.current = null;
       }
     };
-  }, [queryClient, ship]);
+  }, [provider, queryClient, ship]);
 
   const openVerificationUrl = useCallback(async () => {
-    const url = getOpenAIVerificationUrl(flowFromState(state)?.verificationUrl);
+    const url = getLLMAuthVerificationUrl(
+      flowFromState(state)?.verificationUrl
+    );
     if (!url) {
       setBrowserError('The bot did not return a valid sign-in link.');
       return;

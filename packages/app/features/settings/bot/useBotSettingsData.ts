@@ -14,6 +14,7 @@ import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import {
   BASIC_PROVIDER_ID,
   BASIC_PROVIDER_MODEL,
+  DEVICE_AUTH_PROVIDERS,
   EMPTY_PROVIDER_CONFIG,
   PROVIDER_OPTIONS,
   RETRY_INTERVAL_MS,
@@ -28,9 +29,9 @@ import {
   toBackendModel,
 } from './helpers';
 import {
+  getLLMAuthDisconnectQueryKeys,
   getLLMAuthStatusRefetchInterval,
-  getOpenAIDisconnectQueryKeys,
-  getOpenAISubscriptionModels,
+  getLLMAuthSubscriptionModels,
   mergeProviderModels,
 } from './openAiSubscription';
 
@@ -258,14 +259,15 @@ export function useAllProviderModels(
       loading[BASIC_PROVIDER_ID] = false;
       errors[BASIC_PROVIDER_ID] = null;
     }
-    if (providers.includes('openai')) {
-      models.openai = mergeProviderModels(
-        getOpenAISubscriptionModels(llmAuthStatus),
-        models.openai ?? []
+    DEVICE_AUTH_PROVIDERS.forEach((provider) => {
+      if (!providers.includes(provider)) return;
+      models[provider] = mergeProviderModels(
+        getLLMAuthSubscriptionModels(llmAuthStatus, provider),
+        models[provider] ?? []
       );
-      loading.openai = loading.openai ?? false;
-      errors.openai = errors.openai ?? null;
-    }
+      loading[provider] = loading[provider] ?? false;
+      errors[provider] = errors[provider] ?? null;
+    });
     return { providers, models, loading, errors };
   }, [providers, fetched, llmAuthStatus]);
 }
@@ -316,12 +318,13 @@ export function useBotSettingsMutations() {
     },
   });
 
-  const disconnectOpenAISubscription = useMutation({
-    mutationFn: () => api.disconnectTlawnLLMAuth(ship, 'openai'),
-    onSuccess: () =>
+  const disconnectLLMSubscription = useMutation({
+    mutationFn: (provider: api.TlawnLLMAuthProvider) =>
+      api.disconnectTlawnLLMAuth(ship, provider),
+    onSuccess: (_data, provider) =>
       Promise.all(
-        getOpenAIDisconnectQueryKeys(ship, hostingUserId).map((queryKey) =>
-          queryClient.invalidateQueries({ queryKey })
+        getLLMAuthDisconnectQueryKeys(ship, hostingUserId, provider).map(
+          (queryKey) => queryClient.invalidateQueries({ queryKey })
         )
       ),
   });
@@ -376,7 +379,7 @@ export function useBotSettingsMutations() {
     setProviderConfig,
     saveProviderKey,
     deleteProviderKey,
-    disconnectOpenAISubscription,
+    disconnectLLMSubscription,
     updateNickname,
     savePrimaryModel,
   };

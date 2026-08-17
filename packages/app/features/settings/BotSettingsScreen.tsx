@@ -21,12 +21,14 @@ import {
 } from './bot/BotSettingsUI';
 import {
   BASIC_PROVIDER_ID,
+  DEVICE_AUTH_PROVIDERS,
   PROVIDER_OPTIONS,
   providerLabel,
+  subscriptionLabel,
 } from './bot/constants';
 import { normalizeShipList, safeKeySummary } from './bot/helpers';
 import {
-  getOpenAIAuthStatus,
+  getLLMAuthProviderStatus,
   isLLMAuthProviderConnected,
 } from './bot/openAiSubscription';
 import { useBotSettingsQueries } from './bot/useBotSettingsData';
@@ -118,27 +120,31 @@ export function BotSettingsScreen(props: Props) {
       option.id !== BASIC_PROVIDER_ID &&
       Boolean(queries.providerConfig.keys?.[option.id])
   );
-  const openAIAuthStatus = getOpenAIAuthStatus(queries.llmAuthStatusQuery.data);
-  const openAISubscriptionConnected = isLLMAuthProviderConnected(
-    openAIAuthStatus?.status
-  );
-  const openAISubscriptionSummary = queries.llmAuthStatusQuery.isLoading
-    ? 'Checking…'
-    : queries.llmAuthStatusQuery.isError &&
-        queries.llmAuthStatusQuery.data === undefined
-      ? 'Unavailable'
-      : openAISubscriptionConnected
-        ? 'Connected'
-        : openAIAuthStatus?.status === 'expired'
-          ? 'Expired'
-          : 'Not connected';
+  const subscriptionProviders = DEVICE_AUTH_PROVIDERS.map((providerId) => {
+    const status = getLLMAuthProviderStatus(
+      queries.llmAuthStatusQuery.data,
+      providerId
+    );
+    const connected = isLLMAuthProviderConnected(status?.status);
+    const summary = queries.llmAuthStatusQuery.isLoading
+      ? 'Checking…'
+      : queries.llmAuthStatusQuery.isError &&
+          queries.llmAuthStatusQuery.data === undefined
+        ? 'Unavailable'
+        : connected
+          ? 'Connected'
+          : status?.status === 'expired'
+            ? 'Expired'
+            : 'Not connected';
+    return { providerId, connected, summary };
+  });
   // Keep the Default model section reachable even when the key backing a custom
   // model was removed: provider keys and model choices are stored separately, so
   // hiding it would strand the bot on an unusable model with no way to switch
   // back to Basic or clear fallbacks.
   const showModelSection =
     hasCustomProviderKey ||
-    openAISubscriptionConnected ||
+    subscriptionProviders.some((provider) => provider.connected) ||
     draft.model.provider !== BASIC_PROVIDER_ID ||
     draft.model.fallbacks.length > 0;
   // The provider-key endpoint is user-level and stays usable even when the bot's
@@ -204,19 +210,13 @@ export function BotSettingsScreen(props: Props) {
           {showModelSection ? (
             <BotSettingsSection title="Default model">
               <BotSettingsRow
-                label="Provider"
-                value={providerLabel(draft.model.provider)}
-                pending={pending.modelProvider}
-                disabled={controlsReadOnly}
-                onPress={() =>
-                  navigate('BotModelSettings', { mode: 'default' })
+                label={
+                  draft.model.provider
+                    ? providerLabel(draft.model.provider)
+                    : 'Choose default model'
                 }
-              />
-              <BotSettingsDivider />
-              <BotSettingsRow
-                label="Model"
-                value={draft.model.model || 'Not set'}
-                pending={pending.model}
+                description={draft.model.model || 'Not set'}
+                pending={pending.modelProvider || pending.model}
                 disabled={controlsReadOnly}
                 onPress={() =>
                   navigate('BotModelSettings', { mode: 'default' })
@@ -236,14 +236,22 @@ export function BotSettingsScreen(props: Props) {
           ) : null}
 
           <BotSettingsSection title="Model providers">
-            <BotSettingsRow
-              label="ChatGPT subscription"
-              value={openAISubscriptionSummary}
-              icon="Link"
-              disabled={applying || !queries.botReady || !providerKeysReady}
-              onPress={() => navigate('BotOpenAISubscription')}
-            />
-            <BotSettingsDivider />
+            {subscriptionProviders.map((provider) => (
+              <YStack key={`${provider.providerId}:subscription`}>
+                <BotSettingsRow
+                  label={subscriptionLabel(provider.providerId)}
+                  value={provider.summary}
+                  icon="Link"
+                  disabled={applying || !queries.botReady || !providerKeysReady}
+                  onPress={() =>
+                    navigate('BotOpenAISubscription', {
+                      provider: provider.providerId,
+                    })
+                  }
+                />
+                <BotSettingsDivider />
+              </YStack>
+            ))}
             {PROVIDER_OPTIONS.filter(
               (option) => option.id !== BASIC_PROVIDER_ID
             ).map((option, index, list) => (

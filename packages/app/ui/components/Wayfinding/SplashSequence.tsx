@@ -58,6 +58,12 @@ import {
   useThemeName,
 } from 'tamagui';
 
+import {
+  type DeviceAuthProvider,
+  isDeviceAuthProvider,
+  providerLabel,
+  subscriptionLabel,
+} from '../../../features/settings/bot/constants';
 import { useOpenAISubscriptionAuth } from '../../../features/settings/bot/useOpenAISubscriptionAuth';
 import { useContactDiscovery } from '../../../hooks/useContactDiscovery';
 import { useContactPermissions } from '../../../hooks/useContactPermissions';
@@ -95,7 +101,7 @@ import {
 } from './botProviderOptions';
 import { validateProviderKey } from './providerKeyValidation';
 import {
-  initializeOpenAISubscriptionModels,
+  initializeSubscriptionModels,
   resolveInitialProviderModel,
 } from './providerModelDefaults';
 import { useHomeGroupInviteLink } from './useHomeGroupInviteLink';
@@ -187,9 +193,12 @@ function SplashSequenceComponent(props: {
   const [loadingProviderOptions, setLoadingProviderOptions] = React.useState(
     props.splashSequenceMode === 'signup'
   );
-  const [hasOpenAIKey, setHasOpenAIKey] = React.useState(false);
-  const [connectedOpenAISubscription, setConnectedOpenAISubscription] =
-    React.useState(false);
+  const [providersWithKeys, setProvidersWithKeys] = React.useState<
+    Record<string, boolean>
+  >({});
+  const [connectedSubscriptions, setConnectedSubscriptions] = React.useState<
+    Partial<Record<DeviceAuthProvider, boolean>>
+  >({});
   const [providerModels, setProviderModels] = React.useState<
     api.TlawnProviderModel[]
   >([]);
@@ -206,6 +215,11 @@ function SplashSequenceComponent(props: {
     [botCredentialId, providerOptions]
   );
   const botProvider = selectedCredential?.provider || BASIC_PROVIDER_ID;
+  const subscriptionProvider: DeviceAuthProvider =
+    selectedCredential?.credentialMode === 'subscription' &&
+    isDeviceAuthProvider(botProvider)
+      ? botProvider
+      : 'openai';
 
   useEffect(() => {
     return () => {
@@ -344,7 +358,13 @@ function SplashSequenceComponent(props: {
               mode: props.splashSequenceMode,
             });
             setProviderOptions(providers);
-            setHasOpenAIKey(Boolean(resolvedProviderConfig.keys?.openai));
+            setProvidersWithKeys(
+              Object.fromEntries(
+                Object.keys(resolvedProviderConfig.keys ?? {}).map(
+                  (provider) => [provider, true]
+                )
+              )
+            );
             // Default to included access without overwriting a revived choice.
             const includedProvider = providers.find(
               (option) => option.credentialMode === 'included'
@@ -407,32 +427,42 @@ function SplashSequenceComponent(props: {
 
   const handleSubscriptionComplete = useCallback(
     async (models: api.TlawnSubscriptionModel[]) => {
-      if (hasOpenAIKey) {
+      if (providersWithKeys[subscriptionProvider]) {
         const userId = await db.hostingUserId.getValue();
         if (!userId) {
-          throw new Error('Could not remove the replaced OpenAI API key.');
+          throw new Error(
+            `Could not remove the replaced ${providerLabel(subscriptionProvider)} API key.`
+          );
         }
         await api.deleteTlawnProviderKey(
           userId,
-          'openai',
+          subscriptionProvider,
           userShipId ?? undefined
         );
-        setHasOpenAIKey(false);
+        setProvidersWithKeys((current) => ({
+          ...current,
+          [subscriptionProvider]: false,
+        }));
       }
-      const initialized = initializeOpenAISubscriptionModels(
+      const initialized = initializeSubscriptionModels(
+        subscriptionProvider,
         models,
         botPrimaryModel
       );
-      setConnectedOpenAISubscription(true);
+      setConnectedSubscriptions((current) => ({
+        ...current,
+        [subscriptionProvider]: true,
+      }));
       setProviderModels(initialized.providerModels);
       setBotPrimaryModel(initialized.primaryModel);
       setConfigError(null);
       setCurrentPane(SplashPane.BotModel);
     },
-    [botPrimaryModel, hasOpenAIKey, userShipId]
+    [botPrimaryModel, providersWithKeys, subscriptionProvider, userShipId]
   );
   const subscriptionAuth = useOpenAISubscriptionAuth({
     ship: userShipId ? desig(userShipId) : '',
+    provider: subscriptionProvider,
     onComplete: handleSubscriptionComplete,
   });
 
@@ -441,12 +471,15 @@ function SplashSequenceComponent(props: {
     try {
       await subscriptionAuth.start();
     } catch (error) {
-      logger.trackError('Wayfinding OpenAI Subscription Start Failed', {
+      logger.trackError('Wayfinding Subscription Start Failed', {
+        provider: subscriptionProvider,
         error,
       });
-      setConfigError('Could not start OpenAI sign-in. Please try again.');
+      setConfigError(
+        `Could not start ${providerLabel(subscriptionProvider)} sign-in. Please try again.`
+      );
     }
-  }, [subscriptionAuth]);
+  }, [subscriptionAuth, subscriptionProvider]);
 
   const handleAvatarUrlChange = useCallback(
     (url: string | null, uploadIntent?: Attachment.UploadIntent | null) => {
@@ -707,16 +740,25 @@ function SplashSequenceComponent(props: {
       if (selected?.requiresKey) {
         try {
           await api.setTlawnProviderKey(userId, provider, botApiKey);
-          if (provider === 'openai') {
-            setHasOpenAIKey(true);
-          }
-          if (provider === 'openai' && connectedOpenAISubscription) {
+          setProvidersWithKeys((current) => ({
+            ...current,
+            [provider]: true,
+          }));
+          if (
+            isDeviceAuthProvider(provider) &&
+            connectedSubscriptions[provider]
+          ) {
             const shipId = await db.hostedUserNodeId.getValue();
             if (!shipId) {
-              throw new Error('Missing ship for OpenAI disconnect.');
+              throw new Error(
+                `Missing ship for ${providerLabel(provider)} disconnect.`
+              );
             }
-            await api.disconnectTlawnLLMAuth(shipId, 'openai');
-            setConnectedOpenAISubscription(false);
+            await api.disconnectTlawnLLMAuth(shipId, provider);
+            setConnectedSubscriptions((current) => ({
+              ...current,
+              [provider]: false,
+            }));
           }
           logger.trackEvent('Wayfinding Bot Provider Key Sync Succeeded', {
             provider,
@@ -760,7 +802,7 @@ function SplashSequenceComponent(props: {
   }, [
     botApiKey,
     botProvider,
-    connectedOpenAISubscription,
+    connectedSubscriptions,
     saveDeferredTlonbotConfig,
     selectedCredential,
     shouldDeferTlonbotSetup,
@@ -1013,6 +1055,8 @@ function SplashSequenceComponent(props: {
                 subscriptionAuth.dismiss();
                 setCurrentPane(SplashPane.BotProvider);
               }}
+              providerLabel={providerLabel(subscriptionProvider)}
+              subscriptionLabel={subscriptionLabel(subscriptionProvider)}
             />
           </BotSubscriptionAuthPane>
         )}
@@ -1557,7 +1601,13 @@ export function BotProviderPane(props: {
               {providers.some(
                 (option) => option.credentialMode === 'subscription'
               )
-                ? 'Choose included access, connect your ChatGPT subscription, or bring an API key.'
+                ? providers.some(
+                    (option) =>
+                      option.provider === 'xai' &&
+                      option.credentialMode === 'subscription'
+                  )
+                  ? 'Choose included access, connect a ChatGPT or Grok subscription, or bring an API key.'
+                  : 'Choose included access, connect your ChatGPT subscription, or bring an API key.'
                 : providers.some((option) => !option.requiresKey)
                   ? 'A free model is included. Bring your own API key to use a different provider.'
                   : 'Pick a provider, then enter your API key on the next screen.'}

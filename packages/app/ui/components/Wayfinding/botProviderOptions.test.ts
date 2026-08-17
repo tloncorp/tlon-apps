@@ -36,6 +36,29 @@ describe('bot credential choices', () => {
     expect(openAIOptions[1]?.recommendationLabel).toBeUndefined();
   });
 
+  it('offers xAI subscription and API-key choices for ready normal signup', () => {
+    const xaiOptions = buildBotCredentialOptions({
+      providerConfig: emptyConfig,
+      botReady: true,
+      mode: 'signup',
+    }).filter((option) => option.provider === 'xai');
+
+    expect(xaiOptions).toEqual([
+      expect.objectContaining({
+        id: 'xai:subscription',
+        label: 'Grok subscription',
+        credentialMode: 'subscription',
+        requiresKey: false,
+      }),
+      expect.objectContaining({
+        id: 'xai:api-key',
+        label: 'xAI (Grok) — API key',
+        credentialMode: 'api-key',
+        requiresKey: true,
+      }),
+    ]);
+  });
+
   it('never offers subscription auth during revival', () => {
     expect(
       buildBotCredentialOptions({
@@ -103,7 +126,9 @@ describe('bot credential choices', () => {
     expect(options.map((option) => option.id)).toEqual([
       'basic:included',
       'openai:subscription',
+      'xai:subscription',
       'openai:api-key',
+      'xai:api-key',
       'anthropic:api-key',
       'openrouter:api-key',
     ]);

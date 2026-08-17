@@ -102,4 +102,46 @@ describe('useOpenAISubscriptionAuth', () => {
 
     act(() => renderer!.unmount());
   });
+
+  it('starts the requested xAI provider flow', async () => {
+    let auth: ReturnType<typeof useOpenAISubscriptionAuth> | null = null;
+    let renderer: ReactTestRenderer;
+    mocks.startAuth.mockResolvedValue({
+      flow: {
+        id: 'flow-xai',
+        provider: 'xai',
+        status: 'awaiting_browser',
+        expiresAt: Date.now() + 60_000,
+        userCode: 'GROK-CODE',
+        verificationUrl: 'https://accounts.x.ai/authorize',
+      },
+    });
+
+    function Harness() {
+      const currentAuth = useOpenAISubscriptionAuth({
+        ship: 'zod',
+        provider: 'xai',
+        onComplete: vi.fn(),
+      });
+      React.useEffect(() => {
+        auth = currentAuth;
+      }, [currentAuth]);
+      return null;
+    }
+
+    await act(async () => {
+      renderer = create(<Harness />);
+    });
+    await act(async () => {
+      await auth!.start();
+    });
+
+    expect(mocks.startAuth).toHaveBeenCalledWith('zod', 'xai');
+    expect(auth!.state).toMatchObject({
+      phase: 'active',
+      flow: { provider: 'xai', userCode: 'GROK-CODE' },
+    });
+
+    act(() => renderer!.unmount());
+  });
 });

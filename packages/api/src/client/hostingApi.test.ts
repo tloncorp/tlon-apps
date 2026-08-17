@@ -68,6 +68,27 @@ describe('Tlawn provider auth', () => {
     );
   });
 
+  it('starts and validates an xAI device flow', async () => {
+    const xaiFlow = {
+      flow: {
+        ...validFlow.flow,
+        provider: 'xai',
+        verificationUrl: 'https://accounts.x.ai/authorize',
+      },
+    };
+    const fetchMock = vi.fn().mockImplementation(() => respond(xaiFlow, 202));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(startTlawnLLMAuth('~zod', 'xai')).resolves.toEqual(xaiFlow);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://hosting.test/v1/tlawn/ships/zod/llm-auth/start',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ provider: 'xai' }),
+      })
+    );
+  });
+
   it('parses connected status and subscription models', async () => {
     const status = {
       ts: 1_000,
@@ -81,6 +102,7 @@ describe('Tlawn provider auth', () => {
       ],
       subscriptionModels: {
         openai: [{ id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra' }],
+        xai: [{ id: 'grok-4.3', name: 'Grok 4.3' }],
       },
     };
     vi.stubGlobal(

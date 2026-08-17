@@ -11,10 +11,11 @@ import {
   SettingsContentScrollView,
 } from '../../ui';
 import { BotSettingsSection } from './bot/BotSettingsUI';
+import { providerLabel, subscriptionLabel } from './bot/constants';
 import { getErrorMessage } from './bot/helpers';
 import {
   canDismissOpenAIAuth,
-  getOpenAIAuthStatus,
+  getLLMAuthProviderStatus,
   getOpenAICredentialSwitch,
   isLLMAuthProviderConnected,
 } from './bot/openAiSubscription';
@@ -30,33 +31,41 @@ type Props = NativeStackScreenProps<
 >;
 
 export function BotOpenAISubscriptionScreen(props: Props) {
+  const providerId = props.route.params?.provider ?? 'openai';
+  const providerName = providerLabel(providerId);
+  const subscriptionName = subscriptionLabel(providerId);
   const queries = useBotSettingsQueries();
-  const { deleteProviderKey, disconnectOpenAISubscription } =
+  const { deleteProviderKey, disconnectLLMSubscription } =
     useBotSettingsMutations();
   const [confirmSwitch, setConfirmSwitch] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
-  const providerStatus = getOpenAIAuthStatus(queries.llmAuthStatusQuery.data);
+  const providerStatus = getLLMAuthProviderStatus(
+    queries.llmAuthStatusQuery.data,
+    providerId
+  );
   const connected = isLLMAuthProviderConnected(providerStatus?.status);
-  const hasApiKey = Boolean(queries.providerConfig.keys?.openai);
+  const hasApiKey = Boolean(queries.providerConfig.keys?.[providerId]);
   const statusUnavailable =
     queries.llmAuthStatusQuery.isError &&
     queries.llmAuthStatusQuery.data === undefined;
 
   const handleComplete = useCallback(async () => {
     if (hasApiKey) {
-      await deleteProviderKey.mutateAsync({ provider: 'openai' });
+      await deleteProviderKey.mutateAsync({ provider: providerId });
     }
     await queries.llmAuthStatusQuery.refetch();
     props.navigation.navigate('BotModelSettings', { mode: 'default' });
   }, [
     deleteProviderKey,
     hasApiKey,
+    providerId,
     props.navigation,
     queries.llmAuthStatusQuery,
   ]);
 
   const auth = useOpenAISubscriptionAuth({
     ship: queries.ship,
+    provider: providerId,
     onComplete: handleComplete,
   });
 
@@ -85,20 +94,20 @@ export function BotOpenAISubscriptionScreen(props: Props) {
 
   const handleDisconnect = useCallback(async () => {
     try {
-      await disconnectOpenAISubscription.mutateAsync();
+      await disconnectLLMSubscription.mutateAsync(providerId);
       setConfirmDisconnect(false);
       auth.dismiss();
     } catch {
       // The mutation error is rendered below.
     }
-  }, [auth, disconnectOpenAISubscription]);
+  }, [auth, disconnectLLMSubscription, providerId]);
 
   const mutationError = deleteProviderKey.error
     ? getErrorMessage(deleteProviderKey.error) ??
-      'Failed to remove the OpenAI API key.'
-    : disconnectOpenAISubscription.error
-      ? getErrorMessage(disconnectOpenAISubscription.error) ??
-        'Failed to disconnect the ChatGPT subscription.'
+      `Failed to remove the ${providerName} API key.`
+    : disconnectLLMSubscription.error
+      ? getErrorMessage(disconnectLLMSubscription.error) ??
+        `Failed to disconnect the ${subscriptionName}.`
       : null;
 
   return (
@@ -110,13 +119,13 @@ export function BotOpenAISubscriptionScreen(props: Props) {
           props.navigation.goBack();
         }}
         backDisabled={!canDismissOpenAIAuth(auth.state.phase)}
-        title="ChatGPT subscription"
+        title={subscriptionName}
       />
       {queries.llmAuthStatusQuery.isLoading ? (
         <YStack flex={1} alignItems="center" justifyContent="center" gap="$m">
           <LoadingSpinner />
           <Text size="$label/m" color="$secondaryText">
-            Checking OpenAI connection…
+            Checking {providerName} connection…
           </Text>
         </YStack>
       ) : statusUnavailable ? (
@@ -128,7 +137,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
           padding="$xl"
         >
           <Text size="$label/l" textAlign="center">
-            Could not check your ChatGPT subscription.
+            Could not check your {subscriptionName}.
           </Text>
           <Text size="$label/s" color="$secondaryText" textAlign="center">
             {getErrorMessage(queries.llmAuthStatusQuery.error) ??
@@ -150,10 +159,10 @@ export function BotOpenAISubscriptionScreen(props: Props) {
           <YStack gap="$2xl" paddingBottom="$2xl">
             <BotSettingsSection
               title="Connected"
-              description="Tlonbot can use models included with your ChatGPT subscription."
+              description={`Tlonbot can use models included with your ${subscriptionName}.`}
             >
               <YStack padding="$l" gap="$s">
-                <Text size="$label/m">ChatGPT subscription</Text>
+                <Text size="$label/m">{subscriptionName}</Text>
                 <Text size="$label/s" color="$secondaryText">
                   Status: {providerStatus?.status ?? 'connected'}
                 </Text>
@@ -176,8 +185,8 @@ export function BotOpenAISubscriptionScreen(props: Props) {
             <Button
               preset="destructive"
               label="Disconnect subscription"
-              loading={disconnectOpenAISubscription.isPending}
-              disabled={disconnectOpenAISubscription.isPending}
+              loading={disconnectLLMSubscription.isPending}
+              disabled={disconnectLLMSubscription.isPending}
               onPress={() => setConfirmDisconnect(true)}
             />
           </YStack>
@@ -195,6 +204,8 @@ export function BotOpenAISubscriptionScreen(props: Props) {
               auth.dismiss();
               props.navigation.goBack();
             }}
+            providerLabel={providerName}
+            subscriptionLabel={subscriptionName}
           />
         </YStack>
       )}
@@ -202,8 +213,8 @@ export function BotOpenAISubscriptionScreen(props: Props) {
         open={confirmSwitch}
         onOpenChange={setConfirmSwitch}
         destructive
-        title="Replace the OpenAI API key?"
-        description="OpenAI API-key access and ChatGPT subscription access are alternatives. The saved API key will be removed after your subscription connects."
+        title={`Replace the ${providerName} API key?`}
+        description={`${providerName} API-key access and ${subscriptionName} access are alternatives. The saved API key will be removed after your subscription connects.`}
         confirmText="Replace and connect"
         onConfirm={handleSwitch}
       />
@@ -211,7 +222,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
         open={confirmDisconnect}
         onOpenChange={setConfirmDisconnect}
         destructive
-        title="Disconnect ChatGPT subscription?"
+        title={`Disconnect ${subscriptionName}?`}
         description="Tlonbot will no longer be able to use models from this subscription."
         confirmText="Disconnect"
         onConfirm={handleDisconnect}

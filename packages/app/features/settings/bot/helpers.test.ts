@@ -140,6 +140,17 @@ describe('provider config', () => {
     ).toEqual(['basic', 'anthropic', 'openai']);
   });
 
+  it('treats a connected xAI subscription as a provider credential', () => {
+    const config = normalizeProviderConfig(null);
+    const status = {
+      ts: 1,
+      providers: [{ provider: 'xai', status: 'ok' }],
+    };
+
+    expect(hasProviderCredential(config, 'xai', status)).toBe(true);
+    expect(getAvailableProviderIds(config, status)).toEqual(['xai']);
+  });
+
   it('maps default-key openrouter usage to the basic provider', () => {
     const config = normalizeProviderConfig({
       keys: {},

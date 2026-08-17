@@ -29,6 +29,8 @@ export function OpenAISubscriptionAuthView({
   onRetry,
   onCancel,
   showBackButton = true,
+  providerLabel = 'OpenAI',
+  subscriptionLabel = 'ChatGPT subscription',
 }: {
   state: OpenAIAuthState;
   browserError?: string | null;
@@ -37,6 +39,8 @@ export function OpenAISubscriptionAuthView({
   onRetry: () => void;
   onCancel: () => void;
   showBackButton?: boolean;
+  providerLabel?: string;
+  subscriptionLabel?: string;
 }) {
   const flow = flowFromState(state);
   const error = state.phase === 'error' ? state.message : browserError;
@@ -59,16 +63,20 @@ export function OpenAISubscriptionAuthView({
       <YStack gap="$3xl" padding="$xl" flex={1} justifyContent="center">
         <YStack gap="$xl" alignItems="center">
           <Text size="$label/2xl" fontWeight="600" textAlign="center">
-            Connect your ChatGPT subscription
+            Connect your {subscriptionLabel}
           </Text>
           <Text size="$body" color="$secondaryText" textAlign="center">
-            OpenAI will ask you to enter a one-time code. Once confirmed, your
-            subscription will be linked.
+            {providerLabel} will ask you to enter a one-time code. Once
+            confirmed, your subscription will be linked.
           </Text>
         </YStack>
 
         {state.phase === 'idle' ? (
-          <Button preset="primary" label="Connect OpenAI" onPress={onStart} />
+          <Button
+            preset="primary"
+            label={`Connect ${providerLabel}`}
+            onPress={onStart}
+          />
         ) : null}
 
         {state.phase === 'starting' ? (
@@ -124,7 +132,7 @@ export function OpenAISubscriptionAuthView({
             )}
             <Button
               preset="primary"
-              label="Open OpenAI sign-in"
+              label={`Open ${providerLabel} sign-in`}
               disabled={!flow?.verificationUrl}
               onPress={onOpenBrowser}
             />

@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   canDismissOpenAIAuth,
   copyOpenAIUserCode,
+  getLLMAuthDisconnectQueryKeys,
+  getLLMAuthProviderStatus,
   getLLMAuthStatusRefetchInterval,
+  getLLMAuthSubscriptionModels,
   getOpenAIAuthStatus,
   getOpenAICredentialSwitch,
   getOpenAIDisconnectQueryKeys,
@@ -199,6 +202,28 @@ describe('OpenAI subscription status and models', () => {
     });
     expect(getOpenAISubscriptionModels(status)).toEqual([
       { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra' },
+    ]);
+  });
+
+  it('selects xAI status and subscription models', () => {
+    const xaiStatus = {
+      ts: 1,
+      providers: [{ provider: 'xai', status: 'ok' }],
+      subscriptionModels: {
+        xai: [{ id: 'grok-4.3', name: 'Grok 4.3' }],
+      },
+    };
+    expect(getLLMAuthProviderStatus(xaiStatus, 'xai')).toEqual({
+      provider: 'xai',
+      status: 'ok',
+    });
+    expect(getLLMAuthSubscriptionModels(xaiStatus, 'xai')).toEqual([
+      { id: 'grok-4.3', name: 'Grok 4.3' },
+    ]);
+    expect(getLLMAuthDisconnectQueryKeys('zod', 'user-1', 'xai')).toEqual([
+      ['tlonbot', 'llm-auth-status', 'zod'],
+      ['tlonbot', 'provider-config', 'user-1'],
+      ['tlonbot', 'provider-models', 'user-1', 'xai'],
     ]);
   });
 

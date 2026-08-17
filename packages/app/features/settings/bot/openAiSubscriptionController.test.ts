@@ -39,6 +39,7 @@ function makeController({
 } = {}) {
   let completedModels: TlawnSubscriptionModel[] | null = null;
   const controller = new OpenAIAuthController({
+    provider: flow.provider,
     now: () => Date.now(),
     schedule: (callback, delayMs) => setTimeout(callback, delayMs),
     cancel: (timer) => clearTimeout(timer),
@@ -77,6 +78,32 @@ describe('OpenAIAuthController', () => {
     expect(controller.getState()).toEqual({ phase: 'idle' });
     expect(getCompletedModels()).toEqual([
       { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra' },
+    ]);
+  });
+
+  it('loads models for the authenticated xAI provider', async () => {
+    const xaiFlow: TlawnLLMAuthFlow = {
+      ...awaitingFlow,
+      provider: 'xai',
+      verificationUrl: 'https://accounts.x.ai/authorize',
+    };
+    const xaiStatus: TlawnLLMAuthStatus = {
+      ts: 2_000,
+      providers: [{ provider: 'xai', status: 'ok' }],
+      subscriptionModels: {
+        xai: [{ id: 'grok-4.3', name: 'Grok 4.3' }],
+      },
+    };
+    const { controller, getCompletedModels } = makeController({
+      flow: xaiFlow,
+      status: xaiStatus,
+    });
+
+    await controller.start();
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(getCompletedModels()).toEqual([
+      { id: 'grok-4.3', name: 'Grok 4.3' },
     ]);
   });
 

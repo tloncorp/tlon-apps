@@ -12,9 +12,10 @@ import {
   BASIC_DEFAULT_MODEL,
   BASIC_PROVIDER_ID,
   PROVIDER_OPTIONS,
+  isDeviceAuthProvider,
 } from './constants';
 import {
-  getOpenAIAuthStatus,
+  getLLMAuthProviderStatus,
   isLLMAuthProviderConnected,
 } from './openAiSubscription';
 
@@ -184,8 +185,10 @@ export const hasProviderCredential = (
   providerId === BASIC_PROVIDER_ID
     ? Boolean(config?.defaultKeys?.[BASIC_PROVIDER_ID])
     : Boolean(config?.keys?.[providerId]) ||
-      (providerId === 'openai' &&
-        isLLMAuthProviderConnected(getOpenAIAuthStatus(llmAuthStatus)?.status));
+      (isDeviceAuthProvider(providerId) &&
+        isLLMAuthProviderConnected(
+          getLLMAuthProviderStatus(llmAuthStatus, providerId)?.status
+        ));
 
 export const getAvailableProviderIds = (
   config: TlawnProviderConfigInfo | undefined,

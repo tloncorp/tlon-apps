@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   Button,
@@ -24,6 +25,7 @@ import {
   BASIC_PROVIDER_ID,
   MAX_VISIBLE_MODELS,
   PROVIDER_OPTIONS,
+  providerLabel,
 } from './bot/constants';
 import { getErrorMessage, getModelDisplayName } from './bot/helpers';
 import {
@@ -58,6 +60,19 @@ export function BotModelSettingsScreen(props: Props) {
   );
   const [search, setSearch] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [defaultStep, setDefaultStep] = useState<'provider' | 'model'>(
+    'provider'
+  );
+  const [selectedProvider, setSelectedProvider] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      setSearch('');
+      setValidationError(null);
+      setDefaultStep('provider');
+      setSelectedProvider('');
+    }, [])
+  );
 
   // The desktop settings drawer keeps this screen mounted across mode
   // switches (default vs fallbacks); clear the search and validation state
@@ -65,9 +80,22 @@ export function BotModelSettingsScreen(props: Props) {
   useEffect(() => {
     setSearch('');
     setValidationError(null);
+    setDefaultStep('provider');
+    setSelectedProvider('');
   }, [mode]);
 
   const modelValues = draft.draft.model;
+
+  useEffect(() => {
+    if (
+      mode === 'default' &&
+      ready &&
+      defaultStep === 'provider' &&
+      !selectedProvider
+    ) {
+      setSelectedProvider(modelValues.provider);
+    }
+  }, [defaultStep, mode, modelValues.provider, ready, selectedProvider]);
 
   const availableProviders = useMemo(
     () =>
@@ -78,19 +106,25 @@ export function BotModelSettingsScreen(props: Props) {
   );
 
   const handleBack = useCallback(() => {
-    // Don't enforce model selection while the draft is still loading (its
-    // values are the empty store defaults), or Back gets stuck on the spinner.
-    if (
-      ready &&
-      mode === 'default' &&
-      modelValues.provider !== BASIC_PROVIDER_ID &&
-      !modelValues.model
-    ) {
+    if (mode === 'default' && defaultStep === 'model') {
+      setSearch('');
+      setValidationError(null);
+      setDefaultStep('provider');
+      return;
+    }
+    setSelectedProvider('');
+    props.navigation.goBack();
+  }, [defaultStep, mode, props.navigation]);
+
+  const handleDone = useCallback(() => {
+    if (mode === 'default' && (!modelValues.provider || !modelValues.model)) {
       setValidationError('Select a model before continuing.');
       return;
     }
+    setSelectedProvider('');
+    setDefaultStep('provider');
     props.navigation.goBack();
-  }, [ready, mode, modelValues, props.navigation]);
+  }, [mode, modelValues.model, modelValues.provider, props.navigation]);
 
   const setModel = useCallback(
     (provider: string, model: string) => {
@@ -103,6 +137,28 @@ export function BotModelSettingsScreen(props: Props) {
     },
     [draft, ready]
   );
+
+  const selectProvider = useCallback(
+    (provider: string) => {
+      if (provider === BASIC_PROVIDER_ID) {
+        setModel(BASIC_PROVIDER_ID, BASIC_DEFAULT_MODEL);
+        setSelectedProvider('');
+        props.navigation.goBack();
+        return;
+      }
+      setSelectedProvider(provider);
+      setSearch('');
+      setValidationError(null);
+    },
+    [props.navigation, setModel]
+  );
+
+  const chooseModel = useCallback(() => {
+    if (!selectedProvider || selectedProvider === BASIC_PROVIDER_ID) return;
+    setSearch('');
+    setValidationError(null);
+    setDefaultStep('model');
+  }, [selectedProvider]);
 
   const toggleFallback = useCallback(
     (selection: { provider: string; model: string }) => {
@@ -141,16 +197,17 @@ export function BotModelSettingsScreen(props: Props) {
     [draft]
   );
 
+  const modelListProvider =
+    mode === 'default' ? selectedProvider : modelValues.provider;
   const providerModelsLoading = Boolean(
-    allProviderModels.loading[modelValues.provider]
+    allProviderModels.loading[modelListProvider]
   );
-  const providerModelsError = allProviderModels.errors[modelValues.provider];
+  const providerModelsError = allProviderModels.errors[modelListProvider];
 
   const normalizedSearch = search.trim().toLowerCase();
   const { visible: filteredProviderModels, hidden: hiddenProviderModelCount } =
     useMemo(() => {
-      const providerModels =
-        allProviderModels.models[modelValues.provider] ?? [];
+      const providerModels = allProviderModels.models[modelListProvider] ?? [];
       const matches = normalizedSearch
         ? providerModels.filter((model) =>
             [getModelDisplayName(model), model.id].some((value) =>
@@ -162,7 +219,7 @@ export function BotModelSettingsScreen(props: Props) {
         visible: matches.slice(0, MAX_VISIBLE_MODELS),
         hidden: Math.max(0, matches.length - MAX_VISIBLE_MODELS),
       };
-    }, [allProviderModels.models, modelValues.provider, normalizedSearch]);
+    }, [allProviderModels.models, modelListProvider, normalizedSearch]);
 
   // For fallback mode we search across every provider with a credential.
   const allSelectableModels = useMemo(
@@ -213,8 +270,18 @@ export function BotModelSettingsScreen(props: Props) {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         borderBottom
-        backAction={isWindowNarrow ? handleBack : undefined}
-        title={mode === 'default' ? 'Default model' : 'Fallback models'}
+        backAction={
+          isWindowNarrow || (mode === 'default' && defaultStep === 'model')
+            ? handleBack
+            : undefined
+        }
+        title={
+          mode === 'fallbacks'
+            ? 'Fallback models'
+            : defaultStep === 'provider'
+              ? 'Choose provider'
+              : 'Choose model'
+        }
       />
       {!ready ? (
         <View flex={1} alignItems="center" justifyContent="center">
@@ -229,40 +296,25 @@ export function BotModelSettingsScreen(props: Props) {
           <YStack gap="$2xl" paddingBottom="$2xl">
             {mode === 'default' ? (
               <>
-                <BotSettingsSection title="Provider">
-                  {availableProviders.map((option, index) => (
-                    <YStack key={option.id}>
-                      <SelectableRow
-                        label={option.label}
-                        selected={modelValues.provider === option.id}
-                        onPress={() => {
-                          // Re-tapping the current provider must not wipe the
-                          // selected model and force a reselect.
-                          if (option.id === modelValues.provider) return;
-                          setModel(
-                            option.id,
-                            option.id === BASIC_PROVIDER_ID
-                              ? BASIC_DEFAULT_MODEL
-                              : ''
-                          );
-                        }}
-                      />
-                      {index < availableProviders.length - 1 ? (
-                        <BotSettingsDivider />
-                      ) : null}
-                    </YStack>
-                  ))}
-                </BotSettingsSection>
-                {modelValues.provider === BASIC_PROVIDER_ID ? (
-                  <Text
-                    size="$label/s"
-                    color="$secondaryText"
-                    paddingHorizontal="$s"
-                  >
-                    Basic uses GPT-5.6 Luna.
-                  </Text>
+                {defaultStep === 'provider' ? (
+                  <BotSettingsSection title="Provider">
+                    {availableProviders.map((option, index) => (
+                      <YStack key={option.id}>
+                        <SelectableRow
+                          label={option.label}
+                          selected={selectedProvider === option.id}
+                          onPress={() => selectProvider(option.id)}
+                        />
+                        {index < availableProviders.length - 1 ? (
+                          <BotSettingsDivider />
+                        ) : null}
+                      </YStack>
+                    ))}
+                  </BotSettingsSection>
                 ) : (
-                  <BotSettingsSection title="Model">
+                  <BotSettingsSection
+                    title={`${providerLabel(selectedProvider)} models`}
+                  >
                     <View padding="$l">
                       <TextInput
                         value={search}
@@ -287,9 +339,12 @@ export function BotModelSettingsScreen(props: Props) {
                             <SelectableRow
                               label={getModelDisplayName(model)}
                               description={model.id}
-                              selected={modelValues.model === model.id}
+                              selected={
+                                modelValues.provider === selectedProvider &&
+                                modelValues.model === model.id
+                              }
                               onPress={() =>
-                                setModel(modelValues.provider, model.id)
+                                setModel(selectedProvider, model.id)
                               }
                             />
                             {index < filteredProviderModels.length - 1 ? (
@@ -414,12 +469,30 @@ export function BotModelSettingsScreen(props: Props) {
                 </BotSettingsSection>
               </>
             )}
-            <Button
-              preset="primary"
-              label="Done"
-              onPress={handleBack}
-              centered
-            />
+            {mode === 'default' && defaultStep === 'provider' ? (
+              <Button
+                preset="primary"
+                label="Choose Model"
+                disabled={
+                  !selectedProvider || selectedProvider === BASIC_PROVIDER_ID
+                }
+                onPress={chooseModel}
+                centered
+              />
+            ) : null}
+            {mode === 'fallbacks' || defaultStep === 'model' ? (
+              <Button
+                preset="primary"
+                label="Done"
+                disabled={
+                  mode === 'default' &&
+                  (modelValues.provider !== selectedProvider ||
+                    !modelValues.model)
+                }
+                onPress={handleDone}
+                centered
+              />
+            ) : null}
           </YStack>
         </SettingsContentScrollView>
       )}

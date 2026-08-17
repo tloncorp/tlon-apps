@@ -69,6 +69,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   anthropic: 'Anthropic',
   openai: 'OpenAI',
   openrouter: 'OpenRouter',
+  xai: 'xAI (Grok)',
 };
 
 const providerLabel = (provider: string) =>
@@ -108,9 +109,11 @@ export function buildBotCredentialOptions({
 
   if (mode === 'signup' && botReady) {
     add('openai', 'subscription', 'ChatGPT subscription', 'Recommended');
+    add('xai', 'subscription', 'Grok subscription');
   }
 
   add('openai', 'api-key', 'OpenAI — API key');
+  add('xai', 'api-key', 'xAI (Grok) — API key');
   add('anthropic', 'api-key', providerLabel('anthropic'));
   add('openrouter', 'api-key', providerLabel('openrouter'));
 
