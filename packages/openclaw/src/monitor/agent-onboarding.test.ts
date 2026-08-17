@@ -497,6 +497,54 @@ describe('agent onboarding requests', () => {
     expect(stopThinking).toHaveBeenCalledOnce();
   });
 
+  it('always clears thinking presence when initial cron setup fails', async () => {
+    const startThinking = vi.fn();
+    const stopThinking = vi.fn();
+    const cron = {
+      list: vi.fn(async () => {
+        throw new Error('cron unavailable');
+      }),
+    } as unknown as TlonCronService;
+
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/group/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          blob: appendToPostBlob(undefined, provision),
+          presentation: {
+            startThinking,
+            stopThinking,
+            minResponseDelayMs: 0,
+          },
+        },
+        {
+          fetchHistory: vi.fn(async () => []),
+          getCron: () => cron,
+          getGroup: vi.fn(async () => ({
+            hostUserId: '~ten',
+            channels: [
+              { id: provision.notebookNest, type: 'notes', title: 'Updates' },
+            ],
+            members: [
+              {
+                contactId: '~bot',
+                status: 'joined',
+                roles: ['admin'],
+              },
+            ],
+          })),
+        }
+      )
+    ).rejects.toThrow('cron unavailable');
+    expect(startThinking).toHaveBeenCalledOnce();
+    expect(stopThinking).toHaveBeenCalledOnce();
+  });
+
   it('consumes picker replies from production-shaped history before model dispatch', async () => {
     const sent: Array<{ story: unknown; blob?: string }> = [];
     const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
@@ -1148,6 +1196,58 @@ describe('provision coordinator ordering', () => {
       ])
     );
     expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain('McpConnect');
+  });
+
+  it('posts a terminal status when the initial run fails', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    const trackStep = vi.fn();
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'first-run-failed' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+        trackStep,
+      },
+      provision
+    );
+
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'job-1',
+        runId: 'first-run-failed',
+        status: 'error',
+        delivered: false,
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost,
+      }
+    );
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'couldn’t publish the first entry'
+    );
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'first-entry-failed',
+      })
+    );
+    expect(trackStep).toHaveBeenCalledWith(
+      expect.objectContaining({
+        step: 'first_entry_revealed',
+        outcome: 'failed',
+      })
+    );
   });
 
   it('uses successful Notes delivery when the host drops cron completion', async () => {

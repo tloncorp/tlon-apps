@@ -133,6 +133,7 @@ function SmallChoiceRow({
 function SmallChoiceControl({
   component,
   canSend,
+  consumedTopics,
   isActionAvailable,
   isActionConsumed,
   onSubmit,
@@ -140,6 +141,8 @@ function SmallChoiceControl({
   component: A2UI.SmallChoice;
   /** false when there is no action handler at all */
   canSend: boolean;
+  /** Durable topics recovered from the later provision post after remount. */
+  consumedTopics?: string[];
   isActionAvailable?: (action: A2UI.ButtonAction) => boolean;
   isActionConsumed?: (action: A2UI.ButtonAction) => boolean;
   onSubmit: (action: A2UI.ButtonAction) => void | Promise<void>;
@@ -249,8 +252,14 @@ function SmallChoiceControl({
     disabled || !messageForSelection || !probe(actionForSelection);
   const customChoiceLabel =
     component.freeTextPlaceholder?.replace(/…+$/, '') || '';
-  const collapsedSelection = topicsForSelection.join(', ');
-  const selectedCount = topicsForSelection.length;
+  const collapsedTopics = consumedLocally
+    ? topicsForSelection
+    : actionConsumed
+      ? consumedTopics ?? []
+      : [];
+  const collapsedSelection = collapsedTopics.join(', ');
+  const selectedCount = collapsedTopics.length;
+  const hasSelection = Boolean(messageForSelection);
 
   const openCustomInput = useCallback(() => {
     if (submittingRef.current) {
@@ -441,7 +450,7 @@ function SmallChoiceControl({
               <XStack
                 minHeight={52}
                 paddingHorizontal="$m"
-                backgroundColor="$background"
+                backgroundColor={hasSelection ? '$primaryText' : '$background'}
                 borderWidth={1}
                 borderColor="$border"
                 borderRadius="$m"
@@ -451,7 +460,7 @@ function SmallChoiceControl({
               >
                 <Text
                   size="$label/l"
-                  color="$primaryText"
+                  color={hasSelection ? '$background' : '$primaryText'}
                   trimmed={false}
                   flex={1}
                 >
@@ -459,7 +468,7 @@ function SmallChoiceControl({
                 </Text>
                 <Icon
                   type="Checkmark"
-                  color="$primaryText"
+                  color={hasSelection ? '$background' : '$primaryText'}
                   customSize={[16, 16]}
                 />
               </XStack>
@@ -655,6 +664,7 @@ export function A2UIBlock({
     isA2UIActionAvailable,
     isA2UIActionConsumed,
     configuredAgentProviderIds,
+    provisionedAgentTopics,
     onA2UIAction,
     onAgentOnboardingConfirm,
   } = useContentContext();
@@ -1097,6 +1107,7 @@ export function A2UIBlock({
               <SmallChoiceControl
                 component={component}
                 canSend={Boolean(onA2UIAction)}
+                consumedTopics={provisionedAgentTopics}
                 isActionAvailable={isA2UIActionAvailable}
                 isActionConsumed={isA2UIActionConsumed}
                 onSubmit={handleSmallChoiceSubmit}
@@ -1137,6 +1148,7 @@ export function A2UIBlock({
     [
       components,
       configuredAgentProviderIds,
+      provisionedAgentTopics,
       handleButtonPress,
       handleChoicePress,
       handleSmallChoiceSubmit,

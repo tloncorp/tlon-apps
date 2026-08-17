@@ -34,6 +34,7 @@ export interface ContentContextProps {
   onA2UIAction?: (action: A2UI.Button['action']) => void | Promise<void>;
   isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
   isA2UIActionConsumed?: (action: A2UI.Button['action']) => boolean;
+  provisionedAgentTopics?: string[];
   configuredAgentProviderIds?: string[];
   onAgentOnboardingConfirm?: (
     plan: A2UI.AgentOnboardingPlan

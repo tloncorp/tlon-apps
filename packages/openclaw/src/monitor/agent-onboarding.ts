@@ -100,6 +100,7 @@ const postOnceFlights = new Map<string, Promise<void>>();
 const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
 const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
 const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 3_500;
+const FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
 const COMPOSE_MS_PER_CHARACTER = 14;
 const MIN_COMPOSE_DELAY_MS = 800;
 const MAX_COMPOSE_DELAY_MS = 3_500;
@@ -747,10 +748,56 @@ export async function handleAgentOnboardingCronChanged(
 ): Promise<void> {
   if (event.action !== 'finished' || !event.runId) return;
   if (event.status !== 'ok' || event.delivered !== true) {
-    firstRunCorrelations.delete(event.runId);
+    await failFirstRun(event.runId, event, deps);
     return;
   }
   await completeFirstRun(event.runId, undefined, deps);
+}
+
+async function failFirstRun(
+  runId: string,
+  event: PluginHookCronChangedEvent,
+  deps: AgentOnboardingCronDeps
+) {
+  const correlation = firstRunCorrelations.get(runId);
+  if (!correlation) return;
+  firstRunCorrelations.delete(runId);
+
+  const bound = correlation.bound;
+  const runDeps: AgentOnboardingCronDeps = {
+    fetchHistory:
+      deps.fetchHistory ?? bound?.fetchHistory ?? fetchChannelHistory,
+    sendPost: deps.sendPost ?? bound?.sendPost ?? sendChannelPost,
+  };
+  const failureDescription =
+    `status=${String(event.status ?? 'unknown')}, ` +
+    `delivered=${String(event.delivered ?? false)}`;
+
+  correlation.context.trackStep?.({
+    step: 'first_entry_revealed',
+    outcome: 'failed',
+    purposeId: correlation.purposeId,
+    topicCount: correlation.topics.length,
+    notebookNest: correlation.notebookNest,
+    errorText: failureDescription,
+  });
+
+  const history = await runDeps.fetchHistory!(
+    correlation.context.api,
+    correlation.context.channelNest,
+    50
+  );
+  await postOnce(
+    correlation.context,
+    history,
+    FIRST_ENTRY_FAILED_MARKER,
+    async () => ({
+      text:
+        `I couldn’t publish the first entry to ${correlation.notebookName}. ` +
+        'You can keep using this group; I’ll try again at the next scheduled time.',
+    }),
+    runDeps
+  );
 }
 
 /**
