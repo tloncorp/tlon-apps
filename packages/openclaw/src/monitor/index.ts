@@ -104,6 +104,7 @@ import {
   resolveTlonSkillVersion,
 } from '../version.js';
 import {
+  type OnboardingStepReport,
   handleAgentOnboardingRequest,
   scanAgentOnboardingChannel,
 } from './agent-onboarding.js';
@@ -3609,6 +3610,46 @@ export async function monitorTlonProvider(
       return initData.channels;
     };
 
+    /**
+     * Funnel reporting for agent onboarding.
+     *
+     * Best-effort start times so a row carries its own latency; PostHog can
+     * also derive it from event timestamps, so a miss after a restart costs a
+     * field, not the funnel.
+     */
+    const onboardingStartedAt = new Map<string, number>();
+    const trackOnboardingStep =
+      (nest: string, groupId: string | undefined) =>
+      (report: OnboardingStepReport) => {
+        if (report.step === 'intro_posted') {
+          onboardingStartedAt.set(nest, Date.now());
+        }
+        const startedAt = onboardingStartedAt.get(nest);
+        try {
+          telemetry?.captureOnboardingStep({
+            accountId: opts.accountId ?? null,
+            ownerShip: effectiveOwnerShip,
+            botShip: botShipName,
+            step: report.step,
+            outcome: report.outcome ?? 'ok',
+            nest,
+            groupFlag: report.groupFlag ?? groupId ?? null,
+            purposeId: report.purposeId ?? null,
+            topicCount: report.topicCount ?? null,
+            timezone: report.timezone ?? null,
+            cronJobId: report.cronJobId ?? null,
+            notebookNest: report.notebookNest ?? null,
+            elapsedMsSinceIntro: startedAt ? Date.now() - startedAt : null,
+            errorText: report.errorText ?? null,
+          });
+        } catch (error) {
+          // Telemetry must never take the setup down with it.
+          runtime.log?.(
+            `[tlon] onboarding step telemetry failed: ${String(error)}`
+          );
+        }
+      };
+
     const scanAgentOnboardingNest = async (nest: string) => {
       if (!nest.startsWith('chat/')) return;
       const groupId = channelToGroup.get(nest);
@@ -3622,6 +3663,7 @@ export async function monitorTlonProvider(
           groupId,
           ownerShip: effectiveOwnerShip,
           log: (message) => runtime.log?.(message),
+          trackStep: trackOnboardingStep(nest, groupId),
         });
       } catch (error) {
         runtime.error?.(
@@ -3832,6 +3874,7 @@ export async function monitorTlonProvider(
             rawText,
             blob: content.blob,
             log: (message) => runtime.log?.(message),
+            trackStep: trackOnboardingStep(nest, channelToGroup.get(nest)),
             presentation: {
               startThinking: () => {
                 computingPresence.refreshRun({
