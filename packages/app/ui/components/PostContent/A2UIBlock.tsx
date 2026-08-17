@@ -14,6 +14,7 @@ import { ActionSheet } from '../ActionSheet';
 import { TextInput } from '../Form';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 import { AgentOnboardingSurface } from './AgentOnboardingSurface';
+import { isConsumableA2UIAction } from './a2uiActionConsumption';
 import { useContentContext } from './contentUtils';
 
 type RenderOptions = {
@@ -571,9 +572,13 @@ export function A2UIBlock({
       }
 
       await onA2UIAction?.(component.action);
-      setLocallyConsumedComponentIds((previous) =>
-        previous.includes(component.id) ? previous : [...previous, component.id]
-      );
+      if (isConsumableA2UIAction(component.action)) {
+        setLocallyConsumedComponentIds((previous) =>
+          previous.includes(component.id)
+            ? previous
+            : [...previous, component.id]
+        );
+      }
     },
     [onA2UIAction]
   );
@@ -590,17 +595,28 @@ export function A2UIBlock({
 
       // Lock synchronously, before React can re-render, so two rapid taps on
       // different options still produce exactly one owner reply.
+      const consumeAction = isConsumableA2UIAction(action);
       choicePressLocksRef.current.add(componentId);
-      setLocallyConsumedChoiceIds((previous) =>
-        previous.includes(componentId) ? previous : [...previous, componentId]
-      );
+      if (consumeAction) {
+        setLocallyConsumedChoiceIds((previous) =>
+          previous.includes(componentId) ? previous : [...previous, componentId]
+        );
+      }
       try {
         await onA2UIAction?.(action);
       } catch {
         choicePressLocksRef.current.delete(componentId);
-        setLocallyConsumedChoiceIds((previous) =>
-          previous.filter((id) => id !== componentId)
-        );
+        if (consumeAction) {
+          setLocallyConsumedChoiceIds((previous) =>
+            previous.filter((id) => id !== componentId)
+          );
+        }
+      } finally {
+        // Navigation and other reusable actions only need an in-flight lock;
+        // once the action completes, the same control should remain tappable.
+        if (!consumeAction) {
+          choicePressLocksRef.current.delete(componentId);
+        }
       }
     },
     [onA2UIAction]
@@ -728,9 +744,7 @@ export function A2UIBlock({
               />
             );
           }
-          const actionCanBeConsumed =
-            component.action.event.name === A2UI.action.sendMessage ||
-            component.action.event.name === A2UI.action.provisionAgent;
+          const actionCanBeConsumed = isConsumableA2UIAction(component.action);
           const actionConsumed =
             actionCanBeConsumed &&
             component.variant === 'primary' &&

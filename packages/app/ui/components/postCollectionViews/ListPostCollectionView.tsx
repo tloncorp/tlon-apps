@@ -65,9 +65,16 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
             conversationId={ctx.channel.id}
             channelType={ctx.channel.type}
             latestPostId={latestPostId}
+            forcedLabel={ctx.pendingThinkingLabel}
           />
         ) : undefined,
-      [shouldShowThinkingState, ctx.channel.id, ctx.channel.type, latestPostId]
+      [
+        shouldShowThinkingState,
+        ctx.channel.id,
+        ctx.channel.type,
+        ctx.pendingThinkingLabel,
+        latestPostId,
+      ]
     );
 
     const renderEmptyComponent = useCallback(() => {

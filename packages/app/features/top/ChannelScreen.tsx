@@ -8,7 +8,6 @@ import {
   useChannelContext,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { parsePostBlob } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCanUpload } from '@tloncorp/shared/store';
 import React, {
@@ -35,6 +34,7 @@ import {
   InviteUsersSheet,
   useIsWindowNarrow,
 } from '../../ui';
+import { hasAgentOnboardingFirstEntry } from './agentOnboardingFirstEntry';
 import { shouldAcknowledgeAgentOnboardingLanding } from './agentOnboardingLanding';
 
 const logger = createDevLogger('ChannelScreen', false);
@@ -377,19 +377,53 @@ export default function ChannelScreen(props: Props) {
 
   const provisionId = agentOnboarding.marker?.provision?.provisionId;
   const hasOnboardingFirstEntry = useMemo(() => {
-    if (!provisionId) return false;
-    const markerKey = `first-entry-ping:${provisionId}`;
-    return Boolean(
-      filteredPosts?.some(
-        (post) =>
-          post.blob &&
-          parsePostBlob(post.blob).some(
-            (entry) =>
-              entry.type === 'tlon-agent-post-marker' && entry.key === markerKey
-          )
-      )
-    );
+    return hasAgentOnboardingFirstEntry(filteredPosts, provisionId);
   }, [filteredPosts, provisionId]);
+
+  const [firstEntryIndicatorExpired, setFirstEntryIndicatorExpired] =
+    useState(false);
+  const firstEntryAcknowledgedAt =
+    agentOnboarding.marker?.provisionAcknowledgedAt;
+  useEffect(() => {
+    setFirstEntryIndicatorExpired(false);
+    if (
+      !agentOnboarding.awaitingFirstEntry ||
+      hasOnboardingFirstEntry ||
+      !firstEntryAcknowledgedAt
+    ) {
+      return;
+    }
+
+    const remainingMs =
+      FIRST_ENTRY_REFRESH_TIMEOUT_MS - (Date.now() - firstEntryAcknowledgedAt);
+    if (remainingMs <= 0) {
+      setFirstEntryIndicatorExpired(true);
+      return;
+    }
+
+    const timeout = setTimeout(
+      () => setFirstEntryIndicatorExpired(true),
+      remainingMs
+    );
+    return () => clearTimeout(timeout);
+  }, [
+    agentOnboarding.awaitingFirstEntry,
+    firstEntryAcknowledgedAt,
+    groupId,
+    hasOnboardingFirstEntry,
+  ]);
+
+  const firstEntryIndicatorWithinTimeout = Boolean(
+    firstEntryAcknowledgedAt &&
+      Date.now() - firstEntryAcknowledgedAt < FIRST_ENTRY_REFRESH_TIMEOUT_MS &&
+      !firstEntryIndicatorExpired
+  );
+  const pendingThinkingLabel =
+    agentOnboarding.awaitingFirstEntry &&
+    !hasOnboardingFirstEntry &&
+    firstEntryIndicatorWithinTimeout
+      ? 'Writing your first entry…'
+      : undefined;
 
   useEffect(() => {
     if (!groupId || !hasOnboardingFirstEntry) return;
@@ -631,6 +665,7 @@ export default function ChannelScreen(props: Props) {
           goBack={navigationRef.current.goBack}
           disableBackButton={agentOnboarding.locked}
           suppressAnimatedSendScroll={agentOnboarding.locked}
+          pendingThinkingLabel={pendingThinkingLabel}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}

@@ -95,8 +95,8 @@ type AgentOnboardingScanContext = Omit<
 >;
 
 const postOnceFlights = new Map<string, Promise<void>>();
-const DEFAULT_MIN_RESPONSE_DELAY_MS = 1_250;
-const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_000;
+const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
+const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
 const COMPOSE_MS_PER_CHARACTER = 14;
 const MIN_COMPOSE_DELAY_MS = 800;
 const MAX_COMPOSE_DELAY_MS = 3_500;
