@@ -53,21 +53,19 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         ctx.posts && anchorToEnd ? [...ctx.posts].reverse() : ctx.posts ?? null,
       [anchorToEnd, ctx.posts]
     );
+    const latestPostId = anchorToEnd
+      ? renderOrderedPosts?.[renderOrderedPosts.length - 1]?.id
+      : renderOrderedPosts?.[0]?.id;
     const listBottomComponent = useMemo(
       () =>
         shouldShowThinkingState ? (
           <ThinkingState
             conversationId={ctx.channel.id}
             channelType={ctx.channel.type}
-            reserveSpace={ctx.reserveThinkingStateSpace}
+            latestPostId={latestPostId}
           />
         ) : undefined,
-      [
-        shouldShowThinkingState,
-        ctx.channel.id,
-        ctx.channel.type,
-        ctx.reserveThinkingStateSpace,
-      ]
+      [shouldShowThinkingState, ctx.channel.id, ctx.channel.type, latestPostId]
     );
 
     const renderEmptyComponent = useCallback(() => {

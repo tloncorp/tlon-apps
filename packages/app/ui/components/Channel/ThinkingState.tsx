@@ -1,5 +1,6 @@
 import type * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, Spinner, View, XStack } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
@@ -10,17 +11,60 @@ const MAX_VISIBLE_AVATARS = 3;
 export function ThinkingState({
   conversationId,
   channelType,
-  reserveSpace = false,
+  latestPostId,
 }: {
   conversationId: string;
   channelType: db.Channel['type'];
-  reserveSpace?: boolean;
+  latestPostId?: string;
 }) {
   const computingState = useConversationComputingState(conversationId);
+  const [holdUntilResponse, setHoldUntilResponse] = useState(false);
+  const postIdWhenThinkingStarted = useRef<string | undefined>(latestPostId);
+  const collapseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  if (!computingState && !reserveSpace) {
-    return null;
-  }
+  useEffect(() => {
+    if (computingState) {
+      if (!holdUntilResponse) {
+        postIdWhenThinkingStarted.current = latestPostId;
+        setHoldUntilResponse(true);
+      }
+      if (collapseTimeout.current) {
+        clearTimeout(collapseTimeout.current);
+        collapseTimeout.current = null;
+      }
+      return;
+    }
+
+    if (
+      holdUntilResponse &&
+      latestPostId !== postIdWhenThinkingStarted.current
+    ) {
+      if (collapseTimeout.current) {
+        clearTimeout(collapseTimeout.current);
+        collapseTimeout.current = null;
+      }
+      setHoldUntilResponse(false);
+      return;
+    }
+
+    if (holdUntilResponse && !collapseTimeout.current) {
+      collapseTimeout.current = setTimeout(() => {
+        collapseTimeout.current = null;
+        setHoldUntilResponse(false);
+      }, 2_000);
+    }
+  }, [computingState, holdUntilResponse, latestPostId]);
+
+  useEffect(() => {
+    return () => {
+      if (collapseTimeout.current) clearTimeout(collapseTimeout.current);
+    };
+  }, []);
+
+  const responseHasArrived =
+    holdUntilResponse && latestPostId !== postIdWhenThinkingStarted.current;
+  const visible =
+    Boolean(computingState) || (holdUntilResponse && !responseHasArrived);
 
   const showAvatars = Boolean(
     computingState && (channelType !== 'dm' || computingState.ships.length >= 2)
@@ -30,14 +74,20 @@ export function ThinkingState({
   const overflowCount =
     (computingState?.ships.length ?? 0) - visibleShips.length;
 
+  // Keep the footer mounted so presence changes do not replace the FlatList
+  // footer in one frame. When a response arrives, remove its height in the same
+  // render that adds the post; otherwise the list first closes this gap and
+  // then scrolls again for the new row, producing a visible two-step bounce.
   return (
     <View
-      height={52}
+      accessibilityElementsHidden={!visible}
+      height={visible ? 52 : 0}
+      importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
       justifyContent="center"
-      opacity={computingState ? 1 : 0}
+      opacity={visible ? 1 : 0}
+      overflow="hidden"
       paddingHorizontal="$l"
       pointerEvents="none"
-      transition="quick"
     >
       <XStack alignItems="center" gap="$s">
         {showAvatars && (

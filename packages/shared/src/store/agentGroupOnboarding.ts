@@ -14,6 +14,7 @@ const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 const DEFAULT_AGENT_GROUP_TITLE = 'My agent group';
 const MAX_GENERATED_GROUP_TITLE_LENGTH = 48;
+const notesChannelFlights = new Map<string, Promise<db.Channel>>();
 
 export type AgentGroupFurnishing = {
   group: db.Group;
@@ -217,6 +218,21 @@ async function adoptNotebook(
 }
 
 async function ensureSingleNotesChannel(groupId: string): Promise<db.Channel> {
+  const existingFlight = notesChannelFlights.get(groupId);
+  if (existingFlight) return existingFlight;
+
+  const flight = ensureSingleNotesChannelOnce(groupId).finally(() => {
+    if (notesChannelFlights.get(groupId) === flight) {
+      notesChannelFlights.delete(groupId);
+    }
+  });
+  notesChannelFlights.set(groupId, flight);
+  return flight;
+}
+
+async function ensureSingleNotesChannelOnce(
+  groupId: string
+): Promise<db.Channel> {
   for (const delay of [0, 300, 800]) {
     if (delay) await wait(delay);
     const remote = await api.getGroup(groupId);

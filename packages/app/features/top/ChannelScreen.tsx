@@ -629,8 +629,8 @@ export default function ChannelScreen(props: Props) {
           posts={filteredPosts ?? null}
           selectedPostId={clearedCursor ? undefined : selectedPostId}
           goBack={navigationRef.current.goBack}
-          hideHeaderContents={agentOnboarding.locked}
-          reserveThinkingStateSpace={Boolean(agentOnboarding.marker)}
+          disableBackButton={agentOnboarding.locked}
+          suppressAnimatedSendScroll={agentOnboarding.locked}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
