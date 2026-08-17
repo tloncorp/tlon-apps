@@ -33,11 +33,13 @@ SETTINGS_KEY_AUTO_ACCEPT_DM_INVITES = "autoAcceptDmInvites"
 APPROVAL_TTL_MS = 48 * 60 * 60 * 1000
 DM_INVITE_PREVIEW = "(DM invite - no message yet)"
 PREVIEW_MAX_CHARS = 100
-# Derived from the client's component budget, not a taste choice: each
-# pending item with a preview line costs ~9 components (row + title +
-# context + preview + actions row + 3 buttons + divider), so 4 items already
-# renders a 43-component card and a 5th would push it past 50 — the a2ui
-# validator's maxComponents (packages/api/src/client/a2ui.ts LIMITS).
+# Derived from the client's component budget, not a taste choice: the card
+# header plus the four shared button labels costs 9 components, each fully
+# loaded item costs 9 more (column + title + context + preview + actions row
+# + Allow/Reject/Block/View buttons), and 3 dividers separate 4 items —
+# 9 + 4*9 + 3 = 48 of the 50 the a2ui validator allows (maxComponents in
+# packages/api/src/client/a2ui.ts LIMITS). A 5th item would blow the budget,
+# and so would giving each item's View button its own Row (52).
 MAX_PENDING_APPROVALS_A2UI = 4
 MAX_PENDING_APPROVALS_TEXT = 25
 
@@ -549,6 +551,31 @@ def _send_message_button(
     return [button, {"id": f"{button_id}Label", "component": "Text", "text": label}]
 
 
+def _navigate_button(
+    button_id: str,
+    label_id: str,
+    target: Mapping[str, Any],
+    *,
+    variant: Optional[str] = None,
+) -> dict[str, Any]:
+    """A ``tlon.navigate`` button; the label node is supplied by the caller so
+    a multi-item card can share one across every button."""
+    button: dict[str, Any] = {
+        "id": button_id,
+        "component": "Button",
+        "child": label_id,
+        "action": {
+            "event": {
+                "name": A2UI_ACTION_NAVIGATE,
+                "context": {"target": target},
+            }
+        },
+    }
+    if variant is not None:
+        button["variant"] = variant
+    return button
+
+
 def _truncate_migrate_card_text(text: str, max_chars: int) -> str:
     if len(text) <= max_chars:
         return text
@@ -670,7 +697,22 @@ def build_migrate_card(command: str, title: Optional[str] = None) -> str:
     return serialize_blob(card)
 
 
-def _approval_nav_target(approval: Mapping[str, Any]) -> Optional[dict[str, Any]]:
+def _approval_nav_target(
+    approval: Mapping[str, Any],
+    *,
+    recipient_sees_bot_dms: bool = True,
+    channel_groups: Optional[Mapping[str, str]] = None,
+) -> Optional[dict[str, Any]]:
+    """Navigation target for the source message, or None when there is none.
+
+    A DM source lives in the bot's own DM history, so it is only reachable
+    when the notified owner is the bot ship itself; channel sources stay
+    navigable for any owner. Optional target fields must be non-empty or the
+    validator rejects the whole card, so every one of them is gated.
+    """
+    kind = approval_type(approval)
+    if kind == "dm" and not recipient_sees_bot_dms:
+        return None
     original = approval.get("originalMessage")
     if not isinstance(original, Mapping):
         return None
@@ -685,11 +727,17 @@ def _approval_nav_target(approval: Mapping[str, Any]) -> Optional[dict[str, Any]
     parent_id = str(original.get("parentId") or "")
     if parent_id:
         target["parentId"] = parent_id
-    kind = approval_type(approval)
+    parent_author = str(original.get("parentAuthorId") or "").strip()
+    if parent_author:
+        target["parentAuthorId"] = parent_author
     if kind == "dm":
         target["channelId"] = approval_ship(approval)
     elif kind == "channel" and approval_nest(approval):
-        target["channelId"] = approval_nest(approval)
+        nest = approval_nest(approval)
+        target["channelId"] = nest
+        group_flag = str((channel_groups or {}).get(nest) or "").strip()
+        if group_flag:
+            target["groupId"] = group_flag
     else:
         return None
     return target
@@ -740,11 +788,20 @@ def _approval_card_context_lines(approval: Mapping[str, Any]) -> list[str]:
     return lines
 
 
-def build_approval_card(approval: Mapping[str, Any]) -> dict[str, Any]:
+def build_approval_card(
+    approval: Mapping[str, Any],
+    *,
+    recipient_sees_bot_dms: bool = True,
+    channel_groups: Optional[Mapping[str, str]] = None,
+) -> dict[str, Any]:
     request_id = approval_id(approval)
     context_lines = _approval_card_context_lines(approval)
     preview = str(approval.get("messagePreview") or "")
-    nav_target = _approval_nav_target(approval)
+    nav_target = _approval_nav_target(
+        approval,
+        recipient_sees_bot_dms=recipient_sees_bot_dms,
+        channel_groups=channel_groups,
+    )
 
     body_children = [
         "eyebrow",
@@ -813,17 +870,7 @@ def build_approval_card(approval: Mapping[str, Any]) -> dict[str, Any]:
     if nav_target:
         components.extend(
             [
-                {
-                    "id": "viewMessage",
-                    "component": "Button",
-                    "child": "viewMessageLabel",
-                    "action": {
-                        "event": {
-                            "name": A2UI_ACTION_NAVIGATE,
-                            "context": {"target": nav_target},
-                        }
-                    },
-                },
+                _navigate_button("viewMessage", "viewMessageLabel", nav_target),
                 {"id": "viewMessageLabel", "component": "Text", "text": "View message"},
             ]
         )
@@ -892,6 +939,9 @@ def _pending_button(
 
 def build_pending_approvals_card(
     approvals: Iterable[Mapping[str, Any]],
+    *,
+    recipient_sees_bot_dms: bool = True,
+    channel_groups: Optional[Mapping[str, str]] = None,
 ) -> Optional[dict[str, Any]]:
     """Build the bounded pending-approvals card from OpenClaw #5939.
 
@@ -923,12 +973,18 @@ def build_pending_approvals_card(
         _pending_text_component("allowLabel", "Allow"),
         _pending_text_component("rejectLabel", "Reject"),
         _pending_text_component("blockLabel", "Block"),
+        _pending_text_component("viewMessageLabel", "View message"),
     ]
 
     for index, approval in enumerate(active):
         prefix = f"item{index}"
         title, context, preview = _pending_item_fields(approval)
         request_id = approval_id(approval)
+        nav_target = _approval_nav_target(
+            approval,
+            recipient_sees_bot_dms=recipient_sees_bot_dms,
+            channel_groups=channel_groups,
+        )
         if index:
             divider_id = f"{prefix}Divider"
             body_children.append(divider_id)
@@ -951,10 +1007,14 @@ def build_pending_approvals_card(
                 {
                     "id": f"{prefix}Actions",
                     "component": "Row",
+                    # The View button shares the item's actions row instead of
+                    # getting a row of its own: at 4 items that fold is the
+                    # difference between 48 and 52 components.
                     "children": [
                         f"{prefix}Allow",
                         f"{prefix}Reject",
                         f"{prefix}Block",
+                        *([f"{prefix}View"] if nav_target else []),
                     ],
                 },
                 _pending_button(
@@ -971,6 +1031,18 @@ def build_pending_approvals_card(
                     "blockLabel",
                     f"/ban {request_id}",
                     variant="borderless",
+                ),
+                *(
+                    [
+                        _navigate_button(
+                            f"{prefix}View",
+                            "viewMessageLabel",
+                            nav_target,
+                            variant="secondary",
+                        )
+                    ]
+                    if nav_target
+                    else []
                 ),
             ]
         )
@@ -1179,17 +1251,30 @@ def validate_a2ui_card(entry: Any) -> bool:
 
 
 def build_pending_approvals_response(
-    approvals: Iterable[Mapping[str, Any]], *, is_dm: bool
+    approvals: Iterable[Mapping[str, Any]],
+    *,
+    is_dm: bool,
+    recipient_sees_bot_dms: bool = True,
+    channel_groups: Optional[Mapping[str, str]] = None,
 ) -> tuple[str, Optional[str]]:
-    """Return the self-sufficient text fallback and optional pending-card blob."""
+    """Return the self-sufficient text fallback and optional pending-card blob.
+
+    Building, validating, and serializing are all guarded: the text reply is
+    always usable on its own, so no builder failure should cost the owner the
+    answer to `/pending`.
+    """
     active = list(approvals)
     text = format_pending_list(active)
     if not is_dm:
         return text, None
-    card = build_pending_approvals_card(active)
-    if card is None or not validate_a2ui_card(card):
-        return text, None
     try:
+        card = build_pending_approvals_card(
+            active,
+            recipient_sees_bot_dms=recipient_sees_bot_dms,
+            channel_groups=channel_groups,
+        )
+        if card is None or not validate_a2ui_card(card):
+            return text, None
         return text, serialize_blob(card)
-    except (TypeError, ValueError):
+    except Exception:
         return text, None

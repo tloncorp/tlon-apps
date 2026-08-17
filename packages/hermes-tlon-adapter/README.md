@@ -199,7 +199,9 @@ Unknown ships are not silently dropped — they queue for owner approval:
 -   an **unauthorized mention** in a restricted group channel queues a channel request; approval grants that ship access in that channel and replays the mention (with channel context)
 -   a **group invite** from an unapproved inviter queues a group request; approval joins the group (`tlon groups accept-invite`) and pulls the group's channels into the monitored set so the bot is addressable there. Invites are detected live via a `groups /v1/foreigns` subscription and caught up by scrying `/groups-ui/v7/init` at connect. The owner ship and `TLON_GROUP_INVITE_ALLOWLIST` (settings key `groupInviteAllowlist`) auto-accept; rejection leaves the invite untouched in Tlon.
 
-The owner is notified by DM with a plain-text summary plus an **A2UI approval card** (post-blob entry, rendered by current Tlon clients in DMs): Allow / Reject / Block buttons that type the matching command back into the DM via the `tlon.sendMessage` action, and a View-message button (`tlon.navigate`) when there is a source message. Old clients fall back to the text.
+The owner is notified by DM with a plain-text summary plus an **A2UI approval card** (post-blob entry, rendered by current Tlon clients in DMs): Allow / Reject / Block buttons that type the matching command back into the DM via the `tlon.sendMessage` action, and a View-message button (`tlon.navigate`) when there is a source message. `/pending` renders the same per-item View buttons on its card. Old clients fall back to the text, as does any card that fails validation — the notification itself always goes out.
+
+Channel requests always get the View button; **DM requests only get one when the owner ship is the bot ship**. A DM source message lives in the bot's own DM conversation, which a separate owner ship has no copy of, so the link would dead-end on the usual hosted setup (owner ≠ bot). Channel sources stay navigable for any owner who is a member of the group.
 
 Owner commands (deterministic, never wake the model):
 
