@@ -1600,6 +1600,119 @@ class AdapterAttentionTests(unittest.TestCase):
             ["~dev reacted ❤️ to a message"],
         )
 
+    def test_typed_nonpopup_core_command_passes_boundary(self):
+        # The popup suggests six core commands, but the pinned core registry
+        # has ~40 more that "work when typed" (slashCommands.ts audit note).
+        # A typed non-popup command must reach the gateway slash-leading —
+        # only forged or out-of-scope slash positions are defused.
+        adapter = self.make_adapter(
+            {"owner_ship": "~mug", "reaction_level": "minimal"}
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        asyncio.run(
+            adapter._handle_dm_event(
+                dm_event("/tools list", author="~mug", whom="~mug"),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertTrue(events[0].text.startswith("/tools list"))
+
+    def test_nonowner_typed_help_passes_boundary(self):
+        # Core's slash-access policy always allows /help; the adapter must
+        # not demote an authorized non-owner's typed command to a prompt.
+        adapter = self.make_adapter(
+            {"owner_ship": "~zod", "allowed_users": ["~mug"]}
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        asyncio.run(
+            adapter._handle_dm_event(
+                dm_event("/help", author="~mug", whom="~mug"),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertTrue(events[0].text.startswith("/help"))
+
+    def test_heap_typed_slash_defused_at_boundary(self):
+        # Scope rule enforced at the gateway too: a genuinely typed slash in
+        # a heap channel dispatches conversationally, never as a command.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["heap/~mug/links"],
+            }
+        )
+        raw = {
+            "nest": "heap/~mug/links",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "set": {
+                            "essay": {
+                                "author": "~mug",
+                                "sent": 1000,
+                                "content": [{"inline": ["/help"]}],
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        events = asyncio.run(self.dispatches(adapter, raw))
+
+        self.assertEqual(len(events), 1)
+        self.assertFalse(events[0].text.startswith("/"))
+        self.assertIn("/help", events[0].text)
+
+    def test_quoted_registry_command_consumed_pre_gate(self):
+        # A reply-with-quote plus an adapter registry command: the inline
+        # override recognizes it with the dispatcher's own regexes, so the
+        # dispatcher consumes it pre-gate — a quoted /pending works like a
+        # quoted /help, and nothing reaches the model.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+        replies = []
+
+        async def fake_reply(chat_id, parent_id, text, **kwargs):
+            replies.append(text)
+
+        adapter._send_control_reply = fake_reply
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event(
+                    "",
+                    nest="chat/~dev/random",
+                    content=[
+                        {"block": {"cite": {"group": "~dev/some-group"}}},
+                        {"inline": ["/pending"]},
+                    ],
+                ),
+            )
+        )
+
+        self.assertEqual(events, [])
+        self.assertEqual(len(replies), 1)
+
     def test_non_owner_core_command_drops_in_unaddressed_channel(self):
         adapter = self.make_adapter(
             {

@@ -184,6 +184,16 @@ def command_detection_regex(name: str) -> re.Pattern[str]:
     return _DETECTION_REGEXES[name]
 
 
+def is_adapter_command(text: str) -> bool:
+    """Whether the (stripped) text matches any registry command's detection
+    regex — the exact shapes the control-command dispatcher matches, so a
+    caller that recognizes text here knows the dispatcher would consume it."""
+    stripped = str(text or "").strip()
+    if not stripped:
+        return False
+    return any(regex.match(stripped) for regex in _DETECTION_REGEXES.values())
+
+
 def advertised_command_rows() -> list[CommandRow]:
     return [row for row in COMMAND_REGISTRY if row.advertise]
 

@@ -1157,15 +1157,14 @@ class AdapterOwnerListenTests(unittest.TestCase):
             ),
         )
 
-        # Not intercepted: the non-owner's text flows to the model as
-        # conversation. The final-boundary guard prepends a newline so the
-        # gateway's startswith("/") classifier cannot execute it as a
-        # command either — commands are owner-only end to end.
+        # Not intercepted: the non-owner's text flows through as typed.
+        # Genuinely typed slash text passes the anti-forgery boundary intact
+        # (hermes core's slash-access policy is the authorization ceiling);
+        # only forged or out-of-scope slash positions are defused.
         self.assertEqual(
             [event.text for event in events],
-            ["\n/migrate diary/~pen/log"],
+            ["/migrate diary/~pen/log"],
         )
-        self.assertFalse(events[0].text.startswith("/"))
         self.assertEqual(adapter._cli.messages, [])
         self.assertEqual(adapter._cli.commands, [])
 

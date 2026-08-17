@@ -81,7 +81,7 @@ from .bot_info import (
     extract_bot_info_value,
     resolve_harness_version,
 )
-from .commands import command_detection_regex, is_core_command
+from .commands import command_detection_regex, is_adapter_command, is_core_command
 from .history import (
     MessageCache,
     build_channel_context,
@@ -2385,26 +2385,39 @@ class TlonAdapter(BasePlatformAdapter):
             genuine_reachable=genuine_reachable,
         )
 
-    def _inline_core_command(
+    def _inline_command(
         self, message: TlonIncomingMessage
     ) -> Optional[str]:
-        """The bare core command the owner typed inline, or None.
+        """The bare command the owner typed inline, or None.
 
         The parser renders story blocks ahead of the typed text — "[quoted
         message]", "[image: …]" — and heap parsing prepends the title, any of
         which would hide a command from every downstream verbatim guard
         (which all key on a leading slash). So the command is re-derived from
-        the parser's inline-only rendering. Owner-gated: for anyone else the
-        decorated text is the message, unchanged.
+        the parser's inline-only rendering. Matches core commands AND the
+        adapter's own registry commands: when this fires for a registry
+        command, the control-command dispatcher (same detection regexes) is
+        guaranteed to consume it, so a quoted /pending works like a quoted
+        /help. Owner-gated: for anyone else the decorated text is the
+        message, unchanged.
         """
         if not self._is_owner(message.user_id):
             return None
-        inline = (message.inline_text or "").strip()
+        inline = self._typed_inline_text(message)
         if not inline:
             return None
-        if self._mention_matcher.mentioned(inline):
+        if is_core_command(inline) or is_adapter_command(inline):
+            return inline
+        return None
+
+    def _typed_inline_text(self, message: TlonIncomingMessage) -> str:
+        """The mention-stripped inline-only rendering: what the sender
+        actually typed, with a leading bot mention removed. Empty for
+        synthetic events."""
+        inline = (message.inline_text or "").strip()
+        if inline and self._mention_matcher.mentioned(inline):
             inline = self._mention_matcher.strip_leading(inline)
-        return inline if is_core_command(inline) else None
+        return inline
 
     def _command_dispatch_override(
         self, message: TlonIncomingMessage
@@ -2420,7 +2433,7 @@ class TlonAdapter(BasePlatformAdapter):
         """
         if message.chat_type != "dm" and not message.chat_id.startswith("chat/"):
             return None
-        return self._inline_core_command(message)
+        return self._inline_command(message)
 
     async def _maybe_handle_control_command(
         self,
@@ -3936,14 +3949,22 @@ class TlonAdapter(BasePlatformAdapter):
             if message.reply_to_message_id:
                 dispatch_text += f"\n[thread root: {message.reply_to_message_id}]"
 
-        # Final boundary: a dispatch whose authoritative fact says "not a
-        # command" must never reach the gateway slash-leading — its command
-        # classifier is text.startswith("/"), and a heap title or header
-        # block can forge that position (and the chat/DM scope rule makes
-        # even a genuine slash in a heap channel conversational). A leading
-        # newline is invisible to the model but defeats the classifier.
+        # Final boundary, anti-forgery only: the gateway's command classifier
+        # is text.startswith("/"), and a heap title or header block can forge
+        # that position — so a slash-leading dispatch is defused with a
+        # leading newline (invisible to the model) unless the sender genuinely
+        # TYPED leading slash text, in a channel type where commands belong
+        # (chat/DM). A typed command outside the popup's six — including the
+        # ~40 unsuggested core commands, from any sender — passes through
+        # untouched: hermes core's slash-access policy remains the
+        # authorization ceiling, exactly as before this change.
         if not is_command_dispatch and dispatch_text.startswith("/"):
-            dispatch_text = "\n" + dispatch_text
+            typed_slash = self._typed_inline_text(message).startswith("/")
+            in_scope = message.chat_type == "dm" or message.chat_id.startswith(
+                "chat/"
+            )
+            if not (typed_slash and in_scope):
+                dispatch_text = "\n" + dispatch_text
 
         self._telemetry.start_reply(
             message.chat_id,
