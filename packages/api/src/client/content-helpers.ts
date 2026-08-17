@@ -695,6 +695,7 @@ export type PostBlobDataEntryContextLens = z.infer<
 export const PostBlobDataEntryAgentIntroRequestSchema =
   definePostBlobDataEntrySchema('tlon-agent-intro-request', 1, {
     groupId: z.string().min(1).max(512),
+    isFirstGroup: z.boolean().optional(),
   });
 
 export type PostBlobDataEntryAgentIntroRequest = z.infer<
