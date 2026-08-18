@@ -256,6 +256,10 @@ describe('re-engagement nudges', () => {
       return;
     }
     const snapshot = nudgeWindowSnapshot;
+    // Not try/finally: a throw from finally would mask the fence error
+    // (no-unsafe-finally). The fence error is caught, cleanup always runs,
+    // and the fence error takes precedence when rethrowing.
+    let fenceError: unknown = null;
     try {
       const cleanupAt = Date.now();
       await putTlonSetting('lastOwnerMessageAt', cleanupAt);
@@ -269,37 +273,39 @@ describe('re-engagement nudges', () => {
         nudgeActiveHoursStart: '00:00',
         nudgeActiveHoursEnd: '00:00',
       });
-    } finally {
-      // Attempt every step even when an earlier one fails: a transient nack
-      // must not leave the window keys behind closed, which would gate the
-      // scheduler for every later case file. Failures are collected and
-      // rethrown after all steps have been tried.
-      const failures: unknown[] = [];
-      const attempt = async (op: () => Promise<void>) => {
-        try {
-          await op();
-        } catch (error) {
-          failures.push(error);
-        }
-      };
-      const restoreWindowKey = (key: string, value: unknown) =>
-        value === undefined ? delTlonSetting(key) : putTlonSetting(key, value);
-      await attempt(() => delTlonSetting('lastNudgeStage'));
-      await attempt(() => delTlonSetting('pendingNudge'));
-      // Restore the window overrides to their pre-seed value or absence,
-      // after the stage clears so those land behind a still-closed window.
-      await attempt(() =>
-        restoreWindowKey('nudgeActiveHoursStart', snapshot.start)
-      );
-      await attempt(() =>
-        restoreWindowKey('nudgeActiveHoursEnd', snapshot.end)
-      );
-      await attempt(() =>
-        waitForTlonSettingsAbsent(['lastNudgeStage', 'pendingNudge'])
-      );
-      if (failures.length > 0) {
-        throw failures[0];
+    } catch (error) {
+      fenceError = error;
+    }
+    // Attempt every step even when an earlier one fails: a transient nack
+    // must not leave the window keys behind closed, which would gate the
+    // scheduler for every later case file. Failures are collected and
+    // rethrown after all steps have been tried.
+    const failures: unknown[] = [];
+    const attempt = async (op: () => Promise<void>) => {
+      try {
+        await op();
+      } catch (error) {
+        failures.push(error);
       }
+    };
+    const restoreWindowKey = (key: string, value: unknown) =>
+      value === undefined ? delTlonSetting(key) : putTlonSetting(key, value);
+    await attempt(() => delTlonSetting('lastNudgeStage'));
+    await attempt(() => delTlonSetting('pendingNudge'));
+    // Restore the window overrides to their pre-seed value or absence,
+    // after the stage clears so those land behind a still-closed window.
+    await attempt(() =>
+      restoreWindowKey('nudgeActiveHoursStart', snapshot.start)
+    );
+    await attempt(() => restoreWindowKey('nudgeActiveHoursEnd', snapshot.end));
+    await attempt(() =>
+      waitForTlonSettingsAbsent(['lastNudgeStage', 'pendingNudge'])
+    );
+    if (fenceError !== null) {
+      throw fenceError;
+    }
+    if (failures.length > 0) {
+      throw failures[0];
     }
     // The activity keys are left at the fresh sentinel: the product writes
     // them on every owner DM, so present-and-fresh is their pre-test shape
