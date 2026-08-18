@@ -11,7 +11,7 @@ import {
   useMemo,
   useRef,
 } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { View, XStack, YStack, isWeb, styled } from 'tamagui';
 
 import { useContactPermissions } from '../../hooks/useContactPermissions';
@@ -33,9 +33,8 @@ function useSystemNoticePresentation(
   presentation: SystemNoticePresentation | undefined,
   fallback: SystemNoticePresentation
 ) {
-  return (
-    useContext(SystemNoticePresentationContext) ?? presentation ?? fallback
-  );
+  const contextPresentation = useContext(SystemNoticePresentationContext);
+  return presentation ?? contextPresentation ?? fallback;
 }
 
 const NoticeContainer = styled(View, {
@@ -301,7 +300,9 @@ export function NotificationsPromptView({
   onPrimaryAction: () => void;
   presentation?: SystemNoticePresentation;
 }) {
-  const bottomContentInset = useTopLevelTabBarContentInset();
+  const tabBarContentInset = useTopLevelTabBarContentInset();
+  const bottomContentInset =
+    Platform.OS === 'ios' ? tabBarContentInset : undefined;
   const presentation = useSystemNoticePresentation(
     presentationOverride,
     'expanded'

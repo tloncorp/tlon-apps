@@ -225,16 +225,37 @@ function NonHostCreateChannelFixture() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    void (async () => {
-      await db.insertGroups({ groups: [adminGroup] });
-      await db.addGroupRole({ groupId: adminGroup.id, roleId: 'admin' });
-      await db.addMembersToRole({
-        groupId: adminGroup.id,
-        roleId: 'admin',
-        contactIds: [currentUserId],
-      });
-      setReady(true);
-    })();
+    const previousCurrentUserId = window.our;
+    let cancelled = false;
+    window.our = currentUserId;
+
+    const prepareFixture = async () => {
+      try {
+        await db.insertGroups({ groups: [adminGroup] });
+        await db.addGroupRole({ groupId: adminGroup.id, roleId: 'admin' });
+        await db.addMembersToRole({
+          groupId: adminGroup.id,
+          roleId: 'admin',
+          contactIds: [currentUserId],
+        });
+        if (!cancelled) {
+          setReady(true);
+        }
+      } catch (error) {
+        console.error('Failed to prepare non-host admin fixture', error);
+      }
+    };
+
+    void prepareFixture();
+
+    return () => {
+      cancelled = true;
+      if (previousCurrentUserId === undefined) {
+        Reflect.deleteProperty(window, 'our');
+      } else {
+        window.our = previousCurrentUserId;
+      }
+    };
   }, [adminGroup]);
 
   if (!ready) {
