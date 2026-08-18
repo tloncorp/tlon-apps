@@ -127,9 +127,17 @@ describe('blobs', () => {
   test('voice memo blob in a DM reaches the model with transcription', async () => {
     const key = 'blob-dm-voice';
     const transcriptionToken = `${key}-${Date.now().toString(36)}`;
-    await fakeModel.script(key, [
-      { kind: 'text', content: 'got the voice memo' },
-    ]);
+    // All scripts in this file absorb one extra model call ({ allowExtraCalls: 1 }).
+    // An exhausted-script 400 drives the runtime's error/abort path, which leaks
+    // the reload-gate's reply/embedded-run accounting and starves the config
+    // reload that 08-gateway-status depends on (TLON-6287). blob-ch-reply
+    // deliberately produces two calls (parent mention + thread reply) against a
+    // one-step script; the others can produce a trailing turn.
+    await fakeModel.script(
+      key,
+      [{ kind: 'text', content: 'got the voice memo' }],
+      { allowExtraCalls: 1 }
+    );
 
     await fixtures.userState.sendPost({
       channelId: fixtures.botShip,
@@ -144,7 +152,9 @@ describe('blobs', () => {
   test('file blob in a DM reaches the model with filename', async () => {
     const key = 'blob-dm-file';
     const filenameToken = `${key}-${Date.now().toString(36)}`;
-    await fakeModel.script(key, [{ kind: 'text', content: 'got the file' }]);
+    await fakeModel.script(key, [{ kind: 'text', content: 'got the file' }], {
+      allowExtraCalls: 1,
+    });
 
     await fixtures.userState.sendPost({
       channelId: fixtures.botShip,
@@ -160,7 +170,9 @@ describe('blobs', () => {
     const key = 'blob-dm-reply';
     const transcriptionToken = `${key}-${Date.now().toString(36)}`;
     const parentMarker = `parent-${transcriptionToken}`;
-    await fakeModel.script(key, [{ kind: 'text', content: 'got the reply' }]);
+    await fakeModel.script(key, [{ kind: 'text', content: 'got the reply' }], {
+      allowExtraCalls: 1,
+    });
 
     // Parent post is a thread anchor only (NO blob). Owner DMs always engage
     // the model, so the parent gets its OWN key — otherwise it would inherit
@@ -219,9 +231,11 @@ describe('blobs', () => {
     const nest = fixtures.group.chatChannel;
     const key = 'blob-ch-voice';
     const transcriptionToken = `${key}-${Date.now().toString(36)}`;
-    await fakeModel.script(key, [
-      { kind: 'text', content: 'got the channel voice memo' },
-    ]);
+    await fakeModel.script(
+      key,
+      [{ kind: 'text', content: 'got the channel voice memo' }],
+      { allowExtraCalls: 1 }
+    );
 
     await fixtures.userState.sendPost({
       channelId: nest,
@@ -243,9 +257,11 @@ describe('blobs', () => {
     const key = 'blob-ch-reply';
     const filenameToken = `${key}-${Date.now().toString(36)}`;
     const parentMarker = `parent-${filenameToken}`;
-    await fakeModel.script(key, [
-      { kind: 'text', content: 'got the channel reply' },
-    ]);
+    await fakeModel.script(
+      key,
+      [{ kind: 'text', content: 'got the channel reply' }],
+      { allowExtraCalls: 1 }
+    );
 
     await fixtures.userState.sendPost({
       channelId: nest,
