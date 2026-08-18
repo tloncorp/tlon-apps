@@ -100,6 +100,7 @@ const postOnceFlights = new Map<string, Promise<void>>();
 const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
 const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
 const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 3_500;
+const SERVICES_TO_FOLLOW_UP_DELAY_MS = 3_500;
 const FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
 const COMPOSE_MS_PER_CHARACTER = 14;
 const MIN_COMPOSE_DELAY_MS = 800;
@@ -923,6 +924,18 @@ async function completeFirstRun(
       purposeId: correlation.purposeId,
       notebookNest: correlation.notebookNest,
     });
+    await (
+      deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
+    )(SERVICES_TO_FOLLOW_UP_DELAY_MS);
+    await postOnce(
+      correlation.context,
+      history,
+      'onboarding-follow-up',
+      async () => ({
+        text: 'Is there anything else I can help you with?',
+      }),
+      runDeps
+    );
   } catch (error) {
     firstRunCorrelations.set(correlationRunId, correlation);
     throw error;
