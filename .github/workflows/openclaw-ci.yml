@@ -59,9 +59,13 @@ jobs:
     runs-on: blacksmith-8vcpu-ubuntu-2204
     # Three runtimes boot fresh stacks and re-apply the branch %groups desk
     # (baseline and cron scenario partitions, then the package suite; ~8-9
-    # minutes per apply on native runners when the desk has drifted). The
-    # previous budgets were exceeded at exactly that arithmetic.
-    timeout-minutes: 60
+    # minutes per apply on native runners when the desk has drifted). One
+    # CLI invocation spans all three runtimes, so all three applies land in
+    # the single e2e step: setup ~12 + that step hung at its 85-min cap +
+    # the failure capture/upload steps — ~105 total. The step-level cap
+    # makes a hung step a step failure (not a job cancellation), so the
+    # capture steps below still run with the orphaned stack alive.
+    timeout-minutes: 105
     defaults:
       run:
         working-directory: .
@@ -131,6 +135,7 @@ jobs:
         run: mkdir -p .cache/tlon-bot-e2e/fake-ships
 
       - name: Run OpenClaw shared E2E
+        timeout-minutes: 85
         env:
           TLONBOT_TOKEN: ${{ secrets.TLONBOT_TOKEN }}
           BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
@@ -150,3 +155,17 @@ jobs:
           TLON_BOT_E2E_SCENARIO_PARTITIONS: baseline,cron
         run: |
           pnpm --filter '@tloncorp/openclaw' test:integration:shared
+
+      - name: Capture leftover docker state
+        if: failure() || cancelled()
+        timeout-minutes: 5
+        run: bash ./packages/tlon-bot-e2e/scripts/capture-docker-state.sh packages/tlon-bot-e2e/diagnostics/docker-state
+
+      - name: Upload E2E diagnostics
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tlon-bot-e2e-diagnostics-openclaw
+          path: packages/tlon-bot-e2e/diagnostics/
+          if-no-files-found: warn
+          retention-days: 7

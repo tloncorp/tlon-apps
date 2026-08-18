@@ -20,9 +20,13 @@ jobs:
     runs-on: blacksmith-8vcpu-ubuntu-2204
     # Three runtimes boot fresh stacks and re-apply the branch %groups desk
     # (baseline and cron scenario partitions, then the package suite; ~8-9
-    # minutes per apply on native runners when the desk has drifted). The
-    # previous budgets were exceeded at exactly that arithmetic.
-    timeout-minutes: 60
+    # minutes per apply on native runners when the desk has drifted). Worst
+    # case at the job level: two slow passes (~30 + ~21 min) plus a third
+    # step hung at its 25-min step cap, cold setup ~15, and the failure
+    # capture/upload steps — ~98 total. Step-level caps make a hung step a
+    # step failure (not a job cancellation), so the capture steps below
+    # still run with the orphaned stack alive.
+    timeout-minutes: 100
     env:
       # assemble-desk.sh runs `peru sync` unless told otherwise, and
       # branch-desk.ts caps an assemble at 300s — a cold sync has measured
@@ -79,6 +83,7 @@ jobs:
         run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:unit
 
       - name: Run Hermes shared E2E
+        timeout-minutes: 40
         env:
           FAKE_SHIP_CACHE_DIR:
             ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
@@ -87,6 +92,7 @@ jobs:
         run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:hermes
 
       - name: Run Hermes cron partition E2E
+        timeout-minutes: 30
         env:
           FAKE_SHIP_CACHE_DIR:
             ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
@@ -96,9 +102,24 @@ jobs:
         run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:hermes
 
       - name: Run Hermes package smoke E2E
+        timeout-minutes: 25
         env:
           FAKE_SHIP_CACHE_DIR:
             ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
           TLON_BOT_E2E_RUN_ID:
             ${{ github.run_id }}-${{ github.run_attempt }}-hermes-package
         run: pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:hermes:package
+
+      - name: Capture leftover docker state
+        if: failure() || cancelled()
+        timeout-minutes: 5
+        run: bash ./packages/tlon-bot-e2e/scripts/capture-docker-state.sh packages/tlon-bot-e2e/diagnostics/docker-state
+
+      - name: Upload E2E diagnostics
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tlon-bot-e2e-diagnostics-hermes
+          path: packages/tlon-bot-e2e/diagnostics/
+          if-no-files-found: warn
+          retention-days: 7
