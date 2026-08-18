@@ -20,13 +20,13 @@ jobs:
     runs-on: blacksmith-8vcpu-ubuntu-2204
     # Three runtimes boot fresh stacks and re-apply the branch %groups desk
     # (baseline and cron scenario partitions, then the package suite; ~8-9
-    # minutes per apply on native runners when the desk has drifted). Worst
-    # case at the job level: two slow passes (~30 + ~21 min) plus a third
-    # step hung at its 25-min step cap, cold setup ~15, and the failure
-    # capture/upload steps — ~98 total. Step-level caps make a hung step a
-    # step failure (not a job cancellation), so the capture steps below
-    # still run with the orphaned stack alive.
-    timeout-minutes: 100
+    # minutes per apply on native runners when the desk has drifted). The
+    # ceiling sits above the sum of the step caps (40 + 30 + 25) plus cold
+    # setup ~15 and the 5-min failure capture + upload, so even steps that
+    # run right up to their caps hit a *step* timeout (a step failure), never
+    # this job timeout (a cancellation) — the capture steps below then still
+    # run with the orphaned stack alive.
+    timeout-minutes: 120
     env:
       # assemble-desk.sh runs `peru sync` unless told otherwise, and
       # branch-desk.ts caps an assemble at 300s — a cold sync has measured
@@ -71,7 +71,9 @@ jobs:
           # Keyed on the compose file so a pier-generation bump rolls the
           # cache: Actions caches are immutable, and a stale exact-key hit
           # would leave every job re-downloading ~1GB of archives forever.
-          key: tlon-bot-e2e-fake-ships-${{ hashFiles('packages/tlon-bot-e2e/docker/docker-compose.base.yml') }}
+          key:
+            tlon-bot-e2e-fake-ships-${{
+            hashFiles('packages/tlon-bot-e2e/docker/docker-compose.base.yml') }}
 
       - name: Prepare fake ship cache
         run: mkdir -p .cache/tlon-bot-e2e/fake-ships
@@ -113,13 +115,18 @@ jobs:
       - name: Capture leftover docker state
         if: failure() || cancelled()
         timeout-minutes: 5
-        run: bash ./packages/tlon-bot-e2e/scripts/capture-docker-state.sh packages/tlon-bot-e2e/diagnostics/docker-state
+        run:
+          bash ./packages/tlon-bot-e2e/scripts/capture-docker-state.sh
+          packages/tlon-bot-e2e/diagnostics/docker-state
 
       - name: Upload E2E diagnostics
         if: failure() || cancelled()
         uses: actions/upload-artifact@v4
         with:
-          name: tlon-bot-e2e-diagnostics-hermes
+          # run_attempt: v4 artifact names are immutable across attempts of a
+          # run — a rerun of a failed job must not collide with the previous
+          # attempt's upload, or the rerun's diagnostics are rejected.
+          name: tlon-bot-e2e-diagnostics-hermes-${{ github.run_attempt }}
           path: packages/tlon-bot-e2e/diagnostics/
           if-no-files-found: warn
           retention-days: 7
