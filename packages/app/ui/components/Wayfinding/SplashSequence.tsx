@@ -87,7 +87,7 @@ import AttachmentSheet from '../AttachmentSheet';
 import { Badge } from '../Badge';
 import { Field, TextInput, TextInputRef } from '../Form';
 import { ListItem } from '../ListItem';
-import { OpenAISubscriptionAuthView } from '../OpenAISubscriptionAuthView';
+import { LLMSubscriptionAuthView } from '../LLMSubscriptionAuthView';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
@@ -1045,7 +1045,7 @@ function SplashSequenceComponent(props: {
         )}
         {currentPane === SplashPane.BotSubscriptionAuth && (
           <BotSubscriptionAuthPane>
-            <OpenAISubscriptionAuthView
+            <LLMSubscriptionAuthView
               state={subscriptionAuth.state}
               browserError={subscriptionAuth.browserError ?? configError}
               onStart={() => void handleStartSubscription()}

@@ -6,7 +6,7 @@ import { View, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import {
-  OpenAISubscriptionAuthView,
+  LLMSubscriptionAuthView,
   ScreenHeader,
   SettingsContentScrollView,
 } from '../../ui';
@@ -193,7 +193,7 @@ export function BotOpenAISubscriptionScreen(props: Props) {
         </SettingsContentScrollView>
       ) : (
         <YStack flex={1}>
-          <OpenAISubscriptionAuthView
+          <LLMSubscriptionAuthView
             state={auth.state}
             browserError={auth.browserError ?? mutationError}
             onStart={beginConnection}

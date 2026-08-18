@@ -23,7 +23,7 @@ function flowFromState(state: OpenAIAuthState) {
   return 'flow' in state ? state.flow : undefined;
 }
 
-export function OpenAISubscriptionAuthView({
+export function LLMSubscriptionAuthView({
   state,
   browserError,
   onStart,
