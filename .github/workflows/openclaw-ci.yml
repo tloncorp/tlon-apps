@@ -65,6 +65,11 @@ jobs:
     defaults:
       run:
         working-directory: .
+    env:
+      # assemble-desk.sh runs `peru sync` unless told otherwise, and
+      # branch-desk.ts caps an assemble at 300s — a cold sync has measured
+      # 277s. The step below syncs once, unbounded. See TLON-6338.
+      SKIP_SYNC: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,23 +77,17 @@ jobs:
       - name: Install peru
         run: pipx install --force peru
 
-      # Only the clone cache is restored. `.peru/lastimports` is deliberately
-      # left out: it records what peru already materialized, and a fresh
-      # checkout has no desk-deps/, so restoring it could make `peru sync`
-      # no-op and leave assemble-desk.sh failing on "desk-deps/ not found".
-      - name: Cache peru clone cache
+      - name: Cache vendored desk dependencies
+        id: desk-deps
         uses: actions/cache@v4
         with:
-          path: .peru/cache
-          key: peru-cache-${{ hashFiles('peru.yaml') }}
+          path: desk-deps
+          # The picked output is 25 files (~150K) and fully determined by
+          # peru.yaml's pins; peru's own .peru/ cache holds full clones (~800MB).
+          key: tlon-desk-deps-${{ hashFiles('peru.yaml') }}
 
-      # Vendor desk deps here, not inside the E2E run. branch-desk.ts bounds
-      # its assemble-desk.sh call to 300s to contain a hung fetch, but that
-      # cap also covered `peru sync`, which clones ~900MB of upstream history
-      # (urbit/urbit, landscape) on a cold cache — ~2 minutes at best. Slow
-      # GitHub blew the cap and killed the job (exit 143) before a single
-      # scenario ran. Hoisted here it answers to the job timeout instead.
-      - name: Vendor desk dependencies
+      - name: Sync desk dependencies
+        if: steps.desk-deps.outputs.cache-hit != 'true'
         run: ./scripts/sync-deps.sh
 
       - name: Setup Node.js environment
@@ -126,18 +125,13 @@ jobs:
           # Keyed on the compose file so a pier-generation bump rolls the
           # cache: Actions caches are immutable, and a stale exact-key hit
           # would leave every job re-downloading ~1GB of archives forever.
-          key:
-            tlon-bot-e2e-fake-ships-${{
-            hashFiles('packages/tlon-bot-e2e/docker/docker-compose.base.yml') }}
+          key: tlon-bot-e2e-fake-ships-${{ hashFiles('packages/tlon-bot-e2e/docker/docker-compose.base.yml') }}
 
       - name: Prepare fake ship cache
         run: mkdir -p .cache/tlon-bot-e2e/fake-ships
 
       - name: Run OpenClaw shared E2E
         env:
-          # desk-deps/ is vendored in the step above; assemble-desk.sh must
-          # not re-fetch inside branch-desk.ts's 300s cap.
-          SKIP_SYNC: "true"
           TLONBOT_TOKEN: ${{ secrets.TLONBOT_TOKEN }}
           BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
           # Reuse the S3 test-storage secrets already configured for the

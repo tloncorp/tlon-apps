@@ -1774,7 +1774,7 @@ class AdapterAttentionTests(unittest.TestCase):
         subscriptions = []
 
         class RecordingSSE:
-            def __init__(self, config):
+            def __init__(self, config, *, reap_detection=False):
                 pass
 
             async def authenticate(self):
@@ -2323,13 +2323,64 @@ class CitationDispatchTests(unittest.TestCase):
         self.assertEqual(events[0].text, "[quoted message] body")
         self.assertEqual(len(cite_errors), 1)
 
+    def test_partial_results_survive_the_deadline(self):
+        adapter = self.make_adapter()
+        adapter._telemetry = self.RecordingTelemetry()
+        first_path = "/channels/v4/chat/~host/quoted/posts/post/123"
+        first_payload = self.cited_payload("first quote")
+
+        class PartialSSE:
+            def __init__(self):
+                self.scries = []
+
+            async def scry(self, path):
+                self.scries.append(path)
+                if path == first_path:
+                    return first_payload
+                await asyncio.Event().wait()
+
+        adapter._sse = PartialSSE()
+        content = [
+            self.cite_block("/msg/123"),
+            self.cite_block("/msg/456"),
+            {"inline": ["body"]},
+        ]
+
+        with patch.object(adapter_mod, "CITE_RESOLUTION_BUDGET_SECONDS", 0.05):
+            events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        cite_errors = [item for item in adapter._telemetry.errors if item[0] == "cite_resolve"]
+        self.assertTrue(
+            events[0].text.startswith("> ~quoted-author wrote: first quote"),
+            events[0].text,
+        )
+        self.assertEqual(len(cite_errors), 1)
+
+    def test_unauthorized_sender_cite_is_never_scried(self):
+        # Cite resolution lives behind the attention gate: an unauthorized
+        # sender's mention (drop path, reason "unauthorized") must never
+        # reach the scry phase, even with a valid cite in the story.
+        adapter = self.make_adapter()
+        adapter._sse = self.RecordingSSE()
+        content = [self.cite_block("/msg/123"), {"inline": ["~pen hello"]}]
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("~pen hello", author="~ral", content=content),
+            )
+        )
+
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._sse.scries, [])
+
     def test_resolver_phase_exception_emits_one_error_and_dispatches(self):
         adapter = self.make_adapter()
         adapter._telemetry = self.RecordingTelemetry()
         adapter._sse = self.RecordingSSE()
         content = [self.cite_block("/msg/123"), {"inline": ["body"]}]
 
-        async def explode(scry, story_content, *, max_attempts=3):
+        async def explode(scry, story_content, *, max_attempts=3, collected=None):
             raise RuntimeError("unexpected resolver failure")
 
         with patch.object(adapter_mod, "resolve_cites", explode):
@@ -2338,6 +2389,8 @@ class CitationDispatchTests(unittest.TestCase):
         cite_errors = [item for item in adapter._telemetry.errors if item[0] == "cite_resolve"]
         self.assertEqual(events[0].text, "[quoted message] body")
         self.assertEqual(len(cite_errors), 1)
+        self.assertIsInstance(cite_errors[0][1], RuntimeError)
+        self.assertIn("unexpected resolver failure", str(cite_errors[0][1]))
 
     def test_resolver_cancelled_error_propagates_and_emits_no_telemetry(self):
         # CancelledError must escape _prepare_dispatch_payload rather than
@@ -2348,7 +2401,7 @@ class CitationDispatchTests(unittest.TestCase):
         adapter._sse = self.RecordingSSE()
         content = [self.cite_block("/msg/123"), {"inline": ["body"]}]
 
-        async def cancel(scry, story_content, *, max_attempts=3):
+        async def cancel(scry, story_content, *, max_attempts=3, collected=None):
             raise asyncio.CancelledError()
 
         async def attempt():

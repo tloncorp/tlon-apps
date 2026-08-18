@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import * as React from 'react';
 import { StyleProp, ViewStyle } from 'react-native';
 
+import type { ConversationContentInsets } from '../../conversationInsets';
 import type { ScrollAnchor } from '../scrollerTypes';
 
 export interface PostWithNeighbors {
@@ -27,6 +28,7 @@ export type PostListComponentProps = {
   collectionLayoutType: PostCollectionLayoutType;
   columnWrapperStyle?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  contentInsets?: ConversationContentInsets;
   hasNewerPosts?: boolean;
   isLoading?: boolean;
   /** Pins short content and new items to the visual end of the list. */

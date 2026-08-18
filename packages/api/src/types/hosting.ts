@@ -225,6 +225,7 @@ export interface TlawnOAuthProvider {
   displayName: string;
   id: string;
   kind: TlawnOAuthProviderKind;
+  logoUrl?: string;
   revokeUrl?: string;
   scopes: string;
   suggestedUpstream: TlawnOAuthUpstream;

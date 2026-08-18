@@ -37,6 +37,7 @@ from .approval import (
     SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS,
     SETTINGS_KEY_DM_ALLOWLIST,
     SETTINGS_KEY_GROUP_INVITE_ALLOWLIST,
+    MAX_PENDING_APPROVALS_A2UI,
     SETTINGS_KEY_PENDING_APPROVALS,
     approval_group_flag,
     approval_id,
@@ -60,6 +61,7 @@ from .approval import (
     remove_approval,
     serialize_blob,
     settings_bool,
+    validate_a2ui_card,
 )
 from .attention import AttentionFacts, resolve_attention
 from .channel_access import (
@@ -80,6 +82,7 @@ from .history import (
     build_thread_context,
     fetch_channel_history,
     fetch_post,
+    fetch_post_author,
     fetch_reply,
     fetch_thread_context,
 )
@@ -184,6 +187,7 @@ from .tlon_api import (
     TlonIncomingMessage,
     TlonReaction,
     TlonSSEClient,
+    TlonStreamStaleError,
     ChannelReactsSnapshot,
     TlonTerminalActionError,
     format_post_id,
@@ -273,6 +277,8 @@ OPTIONAL_ENV = [
     "TLON_TELEMETRY_DEBUG",
     "TLON_CLI",
     "TLON_SSE_READ_TIMEOUT_SECONDS",
+    "TLON_SSE_STALE_THRESHOLD_SECONDS",
+    "TLON_SSE_WATCHDOG_INTERVAL_SECONDS",
     "TLON_GATEWAY_STATUS",
     "TLON_GATEWAY_STATUS_OWNER",
     "TLON_REENGAGEMENT_ENABLED",
@@ -882,6 +888,22 @@ class TlonAdapter(BasePlatformAdapter):
         self._stream_task: Optional[asyncio.Task] = None
         self._event_queue: Optional[asyncio.Queue[_StreamWorkItem]] = None
         self._event_worker_task: Optional[asyncio.Task] = None
+        self._sse_watchdog_task: Optional[asyncio.Task] = None
+        self._sse_probe_task: Optional[asyncio.Task] = None
+        # Delivered-probe state for the current silence: epoch_at is the
+        # probe's START time (frame-order validity — its own ack can be parsed
+        # before poke() returns), success_at is when the PUT completed (grace
+        # runs from delivery), both set only on send success. Epoch validity
+        # is a comparison, not bookkeeping: a probe only counts for
+        # condemnation if it started after the last frame heard and was sent
+        # on the current client.
+        self._sse_probe_epoch_at: Optional[float] = None
+        self._sse_probe_success_at: Optional[float] = None
+        self._sse_probe_client: Optional[TlonSSEClient] = None
+        # Set while the reader is parked on the bounded event queue; the
+        # watchdog stands down during backpressure because stream liveness is
+        # unknowable there.
+        self._route_blocked = False
         self._nudge_snapshot = NudgeSettingsSnapshot()
         self._nudge_owner_activity: Optional[tuple[int, str]] = None
         self._nudge_stage_shadow = 0
@@ -949,6 +971,9 @@ class TlonAdapter(BasePlatformAdapter):
         self._seen_order: list[str] = []
         self._reaction_state = ReactionState()
         self._message_cache = MessageCache()
+        # Channel nest -> owning group flag, rebuilt from `/groups-ui/v7/init`
+        # the first time an approval card needs a `groupId` and on every miss.
+        self._nest_to_group: dict[str, str] = {}
         self._pending_reaction_notes: OrderedDict[str, deque[str]] = OrderedDict()
         # Maps a top-level own-post reaction's synthetic `react/…` dispatch
         # id to the real reactable post it was about, so send()'s
@@ -1173,6 +1198,7 @@ class TlonAdapter(BasePlatformAdapter):
         self._executed_block_directives.clear()
         self._reaction_state.clear()
         self._message_cache.clear()
+        self._nest_to_group.clear()
         self._pending_reaction_notes.clear()
         self._reaction_reply_targets.clear()
         self._processed_dm_invites.clear()
@@ -1663,6 +1689,40 @@ class TlonAdapter(BasePlatformAdapter):
         preview = strip_block_directives(preview).strip()
         return preview or "[attachment]"
 
+    async def _parent_author_for(
+        self, message: TlonIncomingMessage, *, allow_scry: bool
+    ) -> Optional[str]:
+        """Author of the thread parent an approval request replied to.
+
+        Without it a View-message button on a thread reply silently no-ops
+        whenever the owner's client has not already synced the parent post.
+        Cache first (the ``"unknown"`` sentinel is not an author); the exact
+        post scry is the channel-side fallback only — DM parents are in the
+        bot's own recent cache.
+        """
+        parent_id = message.reply_to_message_id
+        if not parent_id:
+            return None
+        cached = self._message_cache.lookup(message.chat_id, parent_id)
+        if cached is not None and cached.author and cached.author != "unknown":
+            return normalize_ship(cached.author) or None
+        if not allow_scry or self._sse is None:
+            return None
+        author = await fetch_post_author(self._sse.scry, message.chat_id, parent_id)
+        return normalize_ship(author or "") or None
+
+    def _recipient_sees_bot_dms(self) -> bool:
+        """Whether the notified owner can open the bot's own DM conversations.
+
+        Only when the owner *is* the bot ship: on a hosted deployment the
+        owner is a separate ship whose client has no copy of the bot's DM
+        channel, so a DM source link would dead-end. Sender-side heuristic,
+        matching OpenClaw — no permission scry.
+        """
+        return normalize_ship(self.tlon_config.owner_ship) == normalize_ship(
+            self.tlon_config.ship_name
+        )
+
     async def _queue_dm_approval(
         self, message: TlonIncomingMessage, clean_text: str
     ) -> None:
@@ -1676,6 +1736,9 @@ class TlonAdapter(BasePlatformAdapter):
             return
         original = self._original_message_payload(message)
         original["messageText"] = clean_text
+        parent_author = await self._parent_author_for(message, allow_scry=False)
+        if parent_author:
+            original["parentAuthorId"] = parent_author
         await self._queue_approval(
             approval_kind="dm",
             requesting_ship=message.user_id,
@@ -1696,6 +1759,9 @@ class TlonAdapter(BasePlatformAdapter):
             return
         original = self._original_message_payload(message)
         original["messageText"] = clean_text
+        parent_author = await self._parent_author_for(message, allow_scry=True)
+        if parent_author:
+            original["parentAuthorId"] = parent_author
         if normalize_ship(message.user_id) in self._known_bot_ships:
             # The triggering message may carry a plain-string author even
             # though the ship was already learned as a bot, and the learned
@@ -1789,12 +1855,38 @@ class TlonAdapter(BasePlatformAdapter):
         owner = self.tlon_config.owner_ship
         if not owner:
             return
-        text = format_approval_request(approval)
-        blob = serialize_blob(build_approval_card(approval))
-        with cli_context("owner_notification"):
-            result = await self._cli.run_command(
-                ("posts", "send", owner, text, "--blob", blob)
+        text = format_approval_request(approval)[:MAX_MESSAGE_LENGTH]
+        # The text notification is self-sufficient, so a card that cannot be
+        # built or does not validate costs the owner the buttons, never the
+        # request itself.
+        blob: Optional[str] = None
+        card_error: Any = None
+        try:
+            card = build_approval_card(
+                approval,
+                recipient_sees_bot_dms=self._recipient_sees_bot_dms(),
+                channel_groups=await self._channel_groups_for([approval]),
             )
+            if validate_a2ui_card(card):
+                blob = serialize_blob(card)
+            else:
+                card_error = "approval card failed validation"
+        except Exception as exc:
+            card_error = exc
+        if card_error is not None:
+            logger.warning(
+                "[tlon] approval card unavailable for %s: %s",
+                approval_id(approval),
+                card_error,
+            )
+            self._telemetry.error(
+                "approval", card_error, requestType=approval_type(approval)
+            )
+        args: list[str] = ["posts", "send", owner, text]
+        if blob:
+            args.extend(["--blob", blob])
+        with cli_context("owner_notification"):
+            result = await self._cli.run_command(args)
         if not result.success:
             logger.warning(
                 "[tlon] approval notification to %s failed: %s", owner, result.error
@@ -1968,9 +2060,23 @@ class TlonAdapter(BasePlatformAdapter):
 
         blob_fields: tuple[str | None, ...] = ()
         if action == "pending":
+            is_dm_reply = _is_dm_chat_id(reply_chat_id)
+            # Group flags only decorate the card, so don't scry for them when
+            # no card will be built (non-DM reply, or outside the 1..4 item
+            # card budget — the list is already pruned above).
+            wants_card = (
+                is_dm_reply
+                and 0 < len(self._pending_approvals) <= MAX_PENDING_APPROVALS_A2UI
+            )
             reply, pending_blob = build_pending_approvals_response(
                 self._pending_approvals,
-                is_dm=_is_dm_chat_id(reply_chat_id),
+                is_dm=is_dm_reply,
+                recipient_sees_bot_dms=self._recipient_sees_bot_dms(),
+                channel_groups=(
+                    await self._channel_groups_for(self._pending_approvals)
+                    if wants_card
+                    else {}
+                ),
             )
             if pending_blob is not None:
                 blob_fields = (pending_blob,)
@@ -2538,7 +2644,7 @@ class TlonAdapter(BasePlatformAdapter):
 
     async def _connect_sse(self) -> None:
         await self._close_sse()
-        sse = TlonSSEClient(self.tlon_config)
+        sse = TlonSSEClient(self.tlon_config, reap_detection=True)
         try:
             await sse.authenticate()
             await sse.open()
@@ -2564,6 +2670,19 @@ class TlonAdapter(BasePlatformAdapter):
         self._sse = sse
 
     async def _close_sse(self, *, graceful: bool = True) -> None:
+        # Settle any in-flight watchdog probe first — rebuilds reach here
+        # without the disconnect path's watchdog shutdown, and a probe still
+        # inside its PUT could otherwise race the teardown and re-create the
+        # channel it targets. A pending probe is either for this client or
+        # stale cross-client garbage; both are safe to cancel.
+        probe = self._sse_probe_task
+        if probe is not None:
+            probe.cancel()
+            try:
+                await probe
+            except asyncio.CancelledError:
+                pass
+            self._sse_probe_task = None
         if self._sse is not None:
             try:
                 await self._sse.close(graceful=graceful)
@@ -2698,11 +2817,17 @@ class TlonAdapter(BasePlatformAdapter):
                         "[tlon] SSE stream error (resuming from event %s): %s",
                         self._sse.last_heard_event_id, exc,
                     )
-                    await _backoff_and_report(exc, mode="resume")
+                    mode = (
+                        "watchdog_stale"
+                        if isinstance(exc, TlonStreamStaleError)
+                        else "resume"
+                    )
+                    await _backoff_and_report(exc, mode=mode)
 
     def _start_event_worker(self) -> None:
         self._event_queue = asyncio.Queue(maxsize=_STREAM_EVENT_QUEUE_MAXSIZE)
         self._event_worker_task = asyncio.create_task(self._run_event_worker())
+        self._sse_watchdog_task = asyncio.create_task(self._run_sse_watchdog())
 
     async def _stop_event_worker(self) -> None:
         if self._event_worker_task is not None:
@@ -2713,6 +2838,134 @@ class TlonAdapter(BasePlatformAdapter):
                 pass
             self._event_worker_task = None
         self._event_queue = None
+        await self._stop_sse_watchdog()
+
+    async def _stop_sse_watchdog(self) -> None:
+        # Runs before _close_sse in the disconnect sequence so no probe can
+        # race the client's teardown. The loop goes first so it cannot launch
+        # a fresh probe while the pending one is being drained.
+        if self._sse_watchdog_task is not None:
+            self._sse_watchdog_task.cancel()
+            try:
+                await self._sse_watchdog_task
+            except asyncio.CancelledError:
+                pass
+            self._sse_watchdog_task = None
+        if self._sse_probe_task is not None:
+            self._sse_probe_task.cancel()
+            try:
+                await self._sse_probe_task
+            except asyncio.CancelledError:
+                pass
+            self._sse_probe_task = None
+
+    async def _run_sse_watchdog(self) -> None:
+        # Always runs, even when staleness condemnation is disabled
+        # (threshold 0): the probe pokes are the reap detectors' only
+        # guaranteed main-channel traffic on an idle bot.
+        interval = self.tlon_config.sse_watchdog_interval_seconds
+        threshold = self.tlon_config.sse_stale_threshold_seconds
+        if 0 < threshold < interval:
+            # Legal but pathological: staleness cannot fire until a probe has
+            # been sent (>= one interval) and given a grace interval, so the
+            # effective recovery time is bounded by ~2x the interval, not the
+            # threshold.
+            logger.warning(
+                "[tlon] SSE stale threshold (%.0fs) is below the watchdog "
+                "interval (%.0fs); staleness recovery will take up to ~%.0fs",
+                threshold,
+                interval,
+                2 * interval,
+            )
+        while self._running:
+            await asyncio.sleep(interval)
+            if not self._running:
+                return
+            try:
+                self._sse_watchdog_tick(time.monotonic(), interval)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.warning("[tlon] SSE watchdog tick failed: %s", exc)
+
+    def _sse_watchdog_tick(self, now: float, interval: float) -> None:
+        # Backpressure gate: while the reader is parked on the bounded queue,
+        # frames age without reaching the parser and a condemn would needlessly
+        # resume a healthy stream once the stall clears.
+        if self._route_blocked:
+            return
+        sse = self._sse
+        # While unbound, the resume/rebuild loop owns recovery — and probes
+        # must never fire at an unbound channel, so they cannot themselves
+        # revive a reaped channel during an outage window.
+        if sse is None or not sse.stream_bound:
+            return
+        probe = self._sse_probe_task
+        if probe is not None and self._sse_probe_client is not sse:
+            probe.cancel()
+            self._sse_probe_task = None
+        idle = now - sse.last_event_frame_at
+        if idle < interval:
+            return
+        threshold = self.tlon_config.sse_stale_threshold_seconds
+        epoch_at = self._sse_probe_epoch_at
+        success_at = self._sse_probe_success_at
+        epoch_valid = (
+            epoch_at is not None
+            and success_at is not None
+            and self._sse_probe_client is sse
+            and epoch_at > sse.last_event_frame_at
+        )
+        if (
+            threshold > 0
+            and idle >= threshold
+            and epoch_valid
+            # Condemnation additionally requires a full grace interval since
+            # the delivered probe: an arithmetic relationship between the
+            # knobs cannot guarantee probe-before-condemn, so it is tracked.
+            and now - success_at >= interval
+        ):
+            logger.warning(
+                "[tlon] SSE stream stale: no events for %.0fs (threshold %.0fs); "
+                "forcing reconnect",
+                idle,
+                threshold,
+            )
+            sse.condemn(
+                TlonStreamStaleError(
+                    f"Tlon SSE stream stale: no events for {idle:.0f}s "
+                    f"(threshold {threshold:.0f}s)"
+                )
+            )
+            return
+        if self._sse_probe_task is None and not epoch_valid:
+            task = asyncio.create_task(self._send_sse_probe(sse))
+            self._sse_probe_task = task
+            task.add_done_callback(self._sse_probe_task_done)
+
+    def _sse_probe_task_done(self, task: "asyncio.Task") -> None:
+        if self._sse_probe_task is task:
+            self._sse_probe_task = None
+
+    async def _send_sse_probe(self, sse: TlonSSEClient) -> None:
+        # Frame-order validity must use the probe's START time: on a single
+        # event loop the probe's own ack can be parsed (refreshing
+        # last_event_frame_at) before poke() returns, and a post-PUT epoch
+        # would then postdate the answering ack and condemn a healthy stream
+        # in the next silence.
+        started_at = time.monotonic()
+        try:
+            await sse.poke("hood", "helm-hi", "Hermes SSE liveness probe")
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            # A failed PUT arms nothing: otherwise a broken outbound path
+            # would let the grace clock condemn a healthy inbound stream.
+            logger.debug("[tlon] SSE liveness probe failed: %s", exc)
+            return
+        self._sse_probe_epoch_at = started_at
+        self._sse_probe_success_at = time.monotonic()
+        self._sse_probe_client = sse
 
     async def _drain_event_worker(self) -> None:
         """Wait for pre-reconnect SSE work before applying a full snapshot."""
@@ -2818,7 +3071,11 @@ class TlonAdapter(BasePlatformAdapter):
             logger.warning("[tlon] %s event fast-tap failed: %s", app, exc)
             self._telemetry.error("event_fast_tap", exc, app=app)
         if self._event_queue is not None:
-            await self._event_queue.put(item)
+            self._route_blocked = True
+            try:
+                await self._event_queue.put(item)
+            finally:
+                self._route_blocked = False
         else:
             await self._process_stream_item(item)
 
@@ -3428,6 +3685,61 @@ class TlonAdapter(BasePlatformAdapter):
             and nest.split("/", 1)[0] in ("chat", "heap", "diary")
         }
 
+    async def _refresh_nest_to_group(self) -> None:
+        """Rebuild the nest -> group-flag map from `/groups-ui/v7/init`.
+
+        The same payload the group lookups above walk. On failure the previous
+        map is kept — a stale flag beats none, and the next render retries.
+        """
+        if self._sse is None:
+            return
+        try:
+            init = await self._sse.scry("/groups-ui/v7/init")
+        except Exception as exc:
+            logger.debug("[tlon] could not scry nest-to-group map: %s", exc)
+            return
+        groups = init.get("groups") if isinstance(init, Mapping) else None
+        if not isinstance(groups, Mapping):
+            return
+        resolved: dict[str, str] = {}
+        for flag, group in groups.items():
+            if not isinstance(flag, str) or not isinstance(group, Mapping):
+                continue
+            channels = group.get("channels")
+            if not isinstance(channels, Mapping):
+                continue
+            for channel_nest in channels:
+                if isinstance(channel_nest, str) and channel_nest:
+                    resolved[channel_nest] = flag
+        self._nest_to_group = resolved
+
+    async def _channel_groups_for(
+        self, approvals: Iterable[Mapping[str, Any]]
+    ) -> dict[str, str]:
+        """nest -> group flag for the channel approvals about to be rendered.
+
+        Resolved at render time rather than stored on the approval record, so
+        the `pendingApprovals` schema OpenClaw shares stays unchanged and
+        already-persisted approvals gain the link too. At most one scry per
+        render: the map is rebuilt once when any nest is missing from it, and
+        nests still unresolved after that are omitted (a nest whose group the
+        bot has left has no navigable group anyway).
+        """
+        nests: list[str] = []
+        for approval in approvals:
+            nest = approval_nest(approval)
+            if approval_type(approval) == "channel" and nest and nest not in nests:
+                nests.append(nest)
+        if not nests:
+            return {}
+        if any(nest not in self._nest_to_group for nest in nests):
+            await self._refresh_nest_to_group()
+        return {
+            nest: self._nest_to_group[nest]
+            for nest in nests
+            if self._nest_to_group.get(nest)
+        }
+
     async def _lookup_diary_channel_title(self, nest: str) -> Optional[str]:
         canonical = canonicalize_nest(nest)
         if canonical is None:
@@ -3549,9 +3861,12 @@ class TlonAdapter(BasePlatformAdapter):
     ) -> tuple[str, PreparedMedia]:
         cite_block = ""
         if self._sse is not None and message.content:
+            partial: list[str] = []
             try:
                 cite_block = await asyncio.wait_for(
-                    resolve_cites(self._sse.scry, message.content),
+                    resolve_cites(
+                        self._sse.scry, message.content, collected=partial
+                    ),
                     CITE_RESOLUTION_BUDGET_SECONDS,
                 )
             except (Exception, asyncio.TimeoutError) as exc:
@@ -3561,6 +3876,8 @@ class TlonAdapter(BasePlatformAdapter):
                     exc,
                 )
                 self._telemetry.error("cite_resolve", exc)
+                if isinstance(exc, asyncio.TimeoutError) and partial:
+                    cite_block = "\n".join(partial)
         try:
             prepared = await prepare_inbound_media(message.content, message.blob)
         except Exception as exc:
@@ -4822,7 +5139,10 @@ def register(ctx) -> None:
             "and /tlon (version, status storage, status telemetry, status "
             "binary — debug info). Point the owner at those commands when asked "
             "rather than changing configuration yourself. "
-            "Use concise plain text and basic markdown."
+            "Use concise plain text and basic markdown. Never use LaTeX math "
+            "delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies "
+            "or message text — Tlon renders no math; write math as plain "
+            "text/Unicode or in code blocks."
             + _reaction_platform_hint(TlonConfig.from_env().reaction_level)
         ),
     )
