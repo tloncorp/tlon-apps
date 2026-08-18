@@ -115,6 +115,14 @@ const GROUP_INTRO_MESSAGE =
   'question over time.';
 const FIRST_GROUP_PURPOSE_PICKER_PROMPT = 'What can I help you with?';
 const GROUP_PURPOSE_PICKER_PROMPT = 'What can I help you with?';
+const ONBOARDING_ORIENTATION_PROMPT =
+  'You’re all set. Is there anything else I can help you with?';
+const ONBOARDING_ORIENTATION_OPTIONS = [
+  'Groups and channels',
+  'Your Tlon computer',
+  'What else can you do?',
+  'I’m good for now',
+] as const;
 const PURPOSE_OPTIONS = [
   {
     id: 'agent-daily-digest',
@@ -932,7 +940,11 @@ async function completeFirstRun(
       history,
       'onboarding-follow-up',
       async () => ({
-        text: 'Is there anything else I can help you with?',
+        text: ONBOARDING_ORIENTATION_PROMPT,
+        blob: appendToPostBlob(
+          undefined,
+          buildOrientationSurface(correlation.context.groupId!)
+        ),
       }),
       runDeps
     );
@@ -1683,9 +1695,54 @@ function buildServicesSurface(
   );
 }
 
+function buildOrientationSurface(groupId: string) {
+  const buttonIds = ONBOARDING_ORIENTATION_OPTIONS.map(
+    (_, index) => `orientation-action-${index}`
+  );
+  return withFallbackStory(
+    makeA2UIBlob(`agent-onboarding-orientation:${groupId}`, 'root', [
+      {
+        id: 'root',
+        component: 'Column',
+        children: ['prompt', 'actions'],
+      },
+      {
+        id: 'prompt',
+        component: 'Text',
+        text: ONBOARDING_ORIENTATION_PROMPT,
+      },
+      {
+        id: 'actions',
+        component: 'Row',
+        children: buttonIds,
+        align: 'start',
+      },
+      ...ONBOARDING_ORIENTATION_OPTIONS.flatMap((label, index) => {
+        const buttonId = buttonIds[index]!;
+        const labelId = `orientation-label-${index}`;
+        return [
+          {
+            id: buttonId,
+            component: 'Button' as const,
+            child: labelId,
+            variant: 'primary' as const,
+            action: choiceAction(label),
+          },
+          {
+            id: labelId,
+            component: 'Text' as const,
+            text: label,
+          },
+        ];
+      }),
+    ])
+  );
+}
+
 export const agentOnboardingTesting = {
   buildInviteSurface,
   buildOnboardingSurface,
+  buildOrientationSurface,
   buildRecurringPrompt,
   buildServicesSurface,
   findAckJobId,
