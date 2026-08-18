@@ -546,6 +546,7 @@ export function StaticChatMessage({
               a2uiActionCompletion?.configuredProviderIds
             }
             provisionedAgentTopics={a2uiActionCompletion?.provisionedTopics}
+            consumedA2UIMessageText={a2uiActionCompletion?.sentMessageText}
             onAgentOnboardingConfirm={
               canRenderA2UI ? confirmOnboarding : undefined
             }

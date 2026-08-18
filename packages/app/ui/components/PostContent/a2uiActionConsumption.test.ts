@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getSmallChoiceCompletionPresentation,
+  getSmallChoiceMessageSelection,
   isConsumableA2UIAction,
 } from './a2uiActionConsumption';
 
@@ -48,5 +49,35 @@ describe('getSmallChoiceCompletionPresentation', () => {
         localTopics: [],
       })
     ).toEqual({ collapsed: false, topics: [] });
+  });
+});
+
+describe('getSmallChoiceMessageSelection', () => {
+  const component: A2UI.SmallChoice = {
+    id: 'orientation',
+    component: 'SmallChoice',
+    options: [
+      { id: 'groups', label: 'Groups and channels' },
+      { id: 'computer', label: 'Your Tlon computer' },
+    ],
+    submitLabel: 'Continue',
+    action: {
+      event: { name: A2UI.action.sendMessage, context: { text: '' } },
+    },
+  };
+
+  it('recovers selected labels from the durable owner message', () => {
+    expect(
+      getSmallChoiceMessageSelection(
+        component,
+        'Groups and channels, Your Tlon computer'
+      )
+    ).toEqual(['Groups and channels', 'Your Tlon computer']);
+  });
+
+  it('uses a manually typed answer as the compact completion', () => {
+    expect(
+      getSmallChoiceMessageSelection(component, 'Tell me about identities')
+    ).toEqual(['Tell me about identities']);
   });
 });
