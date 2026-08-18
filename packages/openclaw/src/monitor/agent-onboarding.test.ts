@@ -1161,9 +1161,10 @@ describe('provision coordinator ordering', () => {
       }
     );
 
-    expect(sendPost).toHaveBeenCalledTimes(2);
-    expect(sleep).toHaveBeenCalledOnce();
-    expect(sleep).toHaveBeenCalledWith(3_500);
+    expect(sendPost).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenNthCalledWith(1, 3_500);
+    expect(sleep).toHaveBeenNthCalledWith(2, 3_500);
     const reveal = sendPost.mock.calls[0]?.[0];
     // The sentence carries the entry on its own — the cite renders as
     // "Content not available" until the client has synced the notes channel,
@@ -1196,6 +1197,15 @@ describe('provision coordinator ordering', () => {
       ])
     );
     expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain('McpConnect');
+    expect(JSON.stringify(sendPost.mock.calls[2]?.[0].story)).toContain(
+      'Is there anything else I can help you with?'
+    );
+    expect(parsePostBlob(sendPost.mock.calls[2]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'onboarding-follow-up',
+      })
+    );
   });
 
   it('posts a terminal status when the initial run fails', async () => {
@@ -1295,7 +1305,7 @@ describe('provision coordinator ordering', () => {
       { fetchHistory: vi.fn(async () => []), sendPost }
     );
 
-    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(sendPost).toHaveBeenCalledTimes(3);
     expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
       'Your first entry is ready'
     );
