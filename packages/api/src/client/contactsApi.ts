@@ -295,60 +295,9 @@ export const subscribeToContactUpdates = (
   );
 };
 
-// Used for converting the legacy contacts format to client representation.
-export const v0PeersToClientProfiles = (
-  contacts: ub.ContactRolodex,
-  config?: {
-    userIdsToOmit?: Set<string>;
-    contactSuggestions?: Set<string>;
-  }
-): db.Contact[] => {
-  return Object.entries(contacts)
-    .filter(([ship]) =>
-      config?.userIdsToOmit ? !config.userIdsToOmit.has(ship) : true
-    )
-    .flatMap(([ship, contact]) =>
-      contact === null
-        ? []
-        : [
-            v0PeerToClientProfile(ship, contact, {
-              isContactSuggestion: config?.contactSuggestions?.has(ship),
-            }),
-          ]
-    );
-};
-
-export const v0PeerToClientProfile = (
-  id: string,
-  contact: ub.Contact | null,
-  config?: {
-    isContactSuggestion?: boolean;
-  }
-): db.Contact => {
-  const currentUserId = getCurrentUserId();
-  return {
-    id,
-    peerNickname: contact?.nickname ?? null,
-    peerAvatarImage: contact?.avatar ?? null,
-    bio: contact?.bio ?? null,
-    status: contact?.status ?? null,
-    color: contact?.color ? normalizeUrbitColor(contact.color) : null,
-    coverImage: contact?.cover ?? null,
-    pinnedGroups:
-      contact?.groups?.map((groupId) => ({
-        groupId,
-        contactId: id,
-      })) ?? [],
-
-    attestations: parseContactAttestations(id, contact),
-    isContact: false,
-    isContactSuggestion: config?.isContactSuggestion && id !== currentUserId,
-  };
-};
-
 function parseContactAttestations(
   contactId: string,
-  contact?: ub.Contact | ub.ContactBookProfile | null
+  contact?: ub.ContactBookProfile | null
 ): db.ContactAttestation[] | null {
   if (!contact) {
     return null;

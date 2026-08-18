@@ -46,13 +46,6 @@ export interface ContactHeed {
   heed: string[];
 }
 
-export type ContactRolodex = Record<string, Contact | null>;
-
-export interface ContactNews {
-  who: string;
-  con: Contact | null;
-}
-
 export interface ContactFieldText {
   type: 'text';
   value: string;

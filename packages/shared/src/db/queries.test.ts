@@ -1,6 +1,7 @@
 import { QueryObserver } from '@tanstack/react-query';
-import { v0PeersToClientProfiles } from '@tloncorp/api';
+import { directoryToClientProfiles } from '@tloncorp/api';
 import { toClientGroupsV7 } from '@tloncorp/api';
+import type { ContactsDirectoryScryResult1 } from '@tloncorp/api/urbit/contact';
 import type * as ub from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -10,7 +11,6 @@ import { useDebugStore } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { syncContacts, syncInitData } from '../store/sync';
 import contactBookResponse from '../test/contactBook.json';
-import contactsResponse from '../test/contacts.json';
 import contactsDirectoryResponse from '../test/contactsDirectory.json';
 import groupsResponse from '../test/groups.json';
 import {
@@ -415,7 +415,9 @@ test('inserts contacts without overriding block data', async () => {
   const blockedUsers = await queries.getBlockedUsers();
   expect(blockedUsers.map((b) => b.id)).toEqual(blocks);
 
-  const contacts = v0PeersToClientProfiles(contactsResponse);
+  const contacts = directoryToClientProfiles(
+    contactsDirectoryResponse as unknown as ContactsDirectoryScryResult1
+  );
   // nocsyx and ravmel are in contacts, but blocked
   expect(
     contacts.filter(
