@@ -65,6 +65,7 @@ import {
   PostWithNeighbors,
 } from './PostList';
 import { getPostListScopeKey } from './PostList/postListInitialization';
+import { isVisibleChannelPost } from './postVisibility';
 import type { ScrollAnchor } from './scrollerTypes';
 
 const logger = createDevLogger('scroller', false);
@@ -255,16 +256,21 @@ const Scroller = forwardRef(
 
     const theme = useTheme();
 
+    const visiblePosts = useMemo(
+      () => posts?.filter(isVisibleChannelPost),
+      [posts]
+    );
+
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
       () =>
-        posts?.map((post, postIndex, posts) => {
+        visiblePosts?.map((post, postIndex, posts) => {
           return {
             post,
             previous: postIndex > 0 ? posts[postIndex - 1] : null,
             next: postIndex + 1 < posts.length ? posts[postIndex + 1] : null,
           };
         }),
-      [posts]
+      [visiblePosts]
     );
 
     const style = useMemo(() => {
@@ -299,7 +305,7 @@ const Scroller = forwardRef(
           highlightPostId === post.id ||
           contextLensSelectedPostId === post.id;
         const a2uiActionCompletion = getA2UIActionCompletion(
-          posts?.slice(index + 1) ?? [],
+          visiblePosts?.slice(index + 1) ?? [],
           currentUserId
         );
 
@@ -369,7 +375,7 @@ const Scroller = forwardRef(
         itemWidth,
         setActiveMessage,
         setEditingPost,
-        posts,
+        visiblePosts,
         currentUserId,
         debugMessageJson,
       ]
@@ -386,7 +392,7 @@ const Scroller = forwardRef(
         : getTokens().space.m.val;
     const contentContainerStyle = useStyle(
       useMemo(() => {
-        if (!posts?.length) {
+        if (!visiblePosts?.length) {
           if (
             collectionLayoutType === 'comfy-list-top-to-bottom' ||
             collectionLayoutType === 'grid'
@@ -442,7 +448,7 @@ const Scroller = forwardRef(
         }
       }, [
         standaloneBottomSafeArea,
-        posts?.length,
+        visiblePosts?.length,
         collectionLayoutType,
         contentInsets.bottom,
         contentInsets.top,
@@ -938,6 +944,8 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.isLastPostOfBlock === next.isLastPostOfBlock &&
     prev.a2uiActionCompletion?.sendMessage ===
       next.a2uiActionCompletion?.sendMessage &&
+    prev.a2uiActionCompletion?.sentMessageText ===
+      next.a2uiActionCompletion?.sentMessageText &&
     prev.a2uiActionCompletion?.provisionAgent ===
       next.a2uiActionCompletion?.provisionAgent &&
     JSON.stringify(prev.a2uiActionCompletion?.provisionedTopics) ===

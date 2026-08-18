@@ -29,8 +29,8 @@ describe('getA2UIActionCompletion', () => {
       getA2UIActionCompletion(
         [post({ authorId: ownerId, textContent: 'AI, climate' })],
         ownerId
-      ).sendMessage
-    ).toBe(true);
+      )
+    ).toMatchObject({ sendMessage: true, sentMessageText: 'AI, climate' });
   });
 
   it('consumes a provisioning action only after its typed owner post', () => {

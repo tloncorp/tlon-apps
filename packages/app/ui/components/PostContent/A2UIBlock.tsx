@@ -17,6 +17,7 @@ import { AgentOnboardingSurface } from './AgentOnboardingSurface';
 import { McpConnectControl } from './McpConnectControl';
 import {
   getSmallChoiceCompletionPresentation,
+  getSmallChoiceMessageSelection,
   isConsumableA2UIAction,
 } from './a2uiActionConsumption';
 import { useContentContext } from './contentUtils';
@@ -137,6 +138,7 @@ function SmallChoiceControl({
   component,
   canSend,
   consumedTopics,
+  consumedMessageText,
   isActionAvailable,
   isActionConsumed,
   onSubmit,
@@ -146,6 +148,8 @@ function SmallChoiceControl({
   canSend: boolean;
   /** Durable topics recovered from the later provision post after remount. */
   consumedTopics?: string[];
+  /** Durable owner text recovered after this surface. */
+  consumedMessageText?: string;
   isActionAvailable?: (action: A2UI.ButtonAction) => boolean;
   isActionConsumed?: (action: A2UI.ButtonAction) => boolean;
   onSubmit: (action: A2UI.ButtonAction) => void | Promise<void>;
@@ -255,10 +259,13 @@ function SmallChoiceControl({
     disabled || !messageForSelection || !probe(actionForSelection);
   const customChoiceLabel =
     component.freeTextPlaceholder?.replace(/…+$/, '') || '';
+  const durableSelection =
+    consumedTopics ??
+    getSmallChoiceMessageSelection(component, consumedMessageText);
   const completionPresentation = getSmallChoiceCompletionPresentation({
     actionConsumed,
     consumedLocally,
-    durableTopics: consumedTopics,
+    durableTopics: durableSelection,
     localTopics: topicsForSelection,
   });
   const collapsedTopics = completionPresentation.topics;
@@ -670,6 +677,7 @@ export function A2UIBlock({
     isA2UIActionConsumed,
     configuredAgentProviderIds,
     provisionedAgentTopics,
+    consumedA2UIMessageText,
     onA2UIAction,
     onAgentOnboardingConfirm,
   } = useContentContext();
@@ -1113,6 +1121,7 @@ export function A2UIBlock({
                 component={component}
                 canSend={Boolean(onA2UIAction)}
                 consumedTopics={provisionedAgentTopics}
+                consumedMessageText={consumedA2UIMessageText}
                 isActionAvailable={isA2UIActionAvailable}
                 isActionConsumed={isA2UIActionConsumed}
                 onSubmit={handleSmallChoiceSubmit}
@@ -1153,6 +1162,7 @@ export function A2UIBlock({
     [
       components,
       configuredAgentProviderIds,
+      consumedA2UIMessageText,
       provisionedAgentTopics,
       handleButtonPress,
       handleChoicePress,
