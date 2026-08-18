@@ -68,8 +68,13 @@ export const directoryToClientProfiles = (
   }
 ): db.Contact[] => {
   return Object.entries(directory)
-    .filter(([ship]) =>
-      config?.userIdsToOmit ? !config.userIdsToOmit.has(ship) : true
+    .filter(
+      ([ship, entry]) =>
+        // a peer we know about but have no profile data for isn't a useful
+        // profile row (the legacy /all scry rendered these as null); their
+        // data arrives via /v1/news once it exists
+        Object.keys(entry.contact).length > 0 &&
+        (config?.userIdsToOmit ? !config.userIdsToOmit.has(ship) : true)
     )
     .map(([ship, entry]) =>
       v1PeerToClientProfile(ship, entry.contact, {

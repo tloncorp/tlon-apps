@@ -73,6 +73,18 @@ test('converts a directory scry to client profiles', () => {
   ]);
 });
 
+test('omits entries with no profile data from directory profiles', () => {
+  const profiles = directoryToClientProfiles({
+    ...directoryResponse,
+    '~zod': { isContact: true, contact: {}, mod: {} },
+    '~bus': { isContact: false, contact: {}, mod: {} },
+  });
+  expect(profiles.map((p) => p.id)).toStrictEqual([
+    '~ravmel-ropdyl',
+    '~nocsyx-lassul',
+  ]);
+});
+
 test('omits book entries from directory profiles', () => {
   const profiles = directoryToClientProfiles(directoryResponse, {
     userIdsToOmit: new Set(['~nocsyx-lassul']),
