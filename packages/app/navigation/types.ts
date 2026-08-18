@@ -90,7 +90,9 @@ export type RootStackParamList = {
   BotMcpSettings: undefined;
   BotModelSettings: { mode: 'default' | 'fallbacks' };
   BotApiKeySettings: { provider: string };
-  BotOpenAISubscription: undefined;
+  BotOpenAISubscription:
+    | { provider?: 'openai' | 'anthropic' | 'xai' }
+    | undefined;
   BotShipListSettings: {
     list: 'dmAllowlist' | 'defaultAuthorizedShips' | 'groupInviteAllowlist';
   };
