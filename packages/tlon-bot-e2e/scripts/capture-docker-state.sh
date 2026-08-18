@@ -42,10 +42,14 @@ d() {
 # at a script-level deadline, safely inside the 5-min CI step cap. Truncation
 # is stamped into the meta file — a silent cap would read as full coverage.
 BUDGET_SECONDS=240
+BUDGET_NOTED=0
 budget_ok() {
   if [ "$SECONDS" -ge "$BUDGET_SECONDS" ]; then
-    echo "capture-truncated: docker budget exhausted after ${SECONDS}s" \
-      >>"$OUTDIR/capture-meta.txt" || true
+    if [ "$BUDGET_NOTED" -eq 0 ]; then
+      BUDGET_NOTED=1
+      echo "capture-truncated: docker budget exhausted after ${SECONDS}s" \
+        >>"$OUTDIR/capture-meta.txt" || true
+    fi
     return 1
   fi
   return 0
@@ -92,9 +96,14 @@ while IFS=$'\t' read -r id project name; do
     tlon-bot-e2e-*) ;;
     *) continue ;;
   esac
+  # Checked before every capture, not once per container: the worst case is
+  # then one just-under-deadline check plus a single 20s command (~260s),
+  # safely inside the 5-min step cap even when docker hangs on each call.
   budget_ok || break
   capture_json "$OUTDIR/$name.state.json" d inspect --format '{{json .State}}' "$id"
+  budget_ok || break
   capture "$OUTDIR/$name.top.txt" d top "$id" -eo pid,ppid,comm,args
+  budget_ok || break
   capture "$OUTDIR/$name.log" d logs "$id"
 done <<EOF
 $listing
