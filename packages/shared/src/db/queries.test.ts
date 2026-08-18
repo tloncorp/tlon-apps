@@ -11,6 +11,7 @@ import { AnalyticsEvent } from '../domain';
 import { syncContacts, syncInitData } from '../store/sync';
 import contactBookResponse from '../test/contactBook.json';
 import contactsResponse from '../test/contacts.json';
+import contactsDirectoryResponse from '../test/contactsDirectory.json';
 import groupsResponse from '../test/groups.json';
 import {
   getClient,
@@ -576,7 +577,7 @@ test('getMentionCandidates: returns candidates in priority order', async () => {
   setScryOutputs([initResponse]);
   await syncInitData();
   setScryOutputs([
-    contactsResponse,
+    contactsDirectoryResponse,
     contactBookResponse,
     suggestedContactsResponse,
   ]);
@@ -637,7 +638,7 @@ test('getMentionCandidates: limits results to 6', async () => {
   setScryOutputs([initResponse]);
   await syncInitData();
   setScryOutputs([
-    contactsResponse,
+    contactsDirectoryResponse,
     contactBookResponse,
     suggestedContactsResponse,
   ]);

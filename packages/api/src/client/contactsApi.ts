@@ -12,11 +12,11 @@ import { normalizeUrbitColor } from './utils';
 const logger = createDevLogger('contactsApi', false);
 
 export const getContacts = async () => {
-  // this is all peers we know about, with merged profile data for
-  // contacts
-  const peersResponse = await scry<ub.ContactRolodex>({
+  // this is all peers and ship contacts we know about, with unmerged
+  // profile data
+  const directoryResponse = await scry<ub.ContactsDirectoryScryResult1>({
     app: 'contacts',
-    path: '/all',
+    path: '/v1/directory',
   });
 
   // this is all of your contacts, with unmerged profile data + user overrides
@@ -31,25 +31,25 @@ export const getContacts = async () => {
   });
 
   return toContactsData({
-    peersResponse: peersResponse,
+    directoryResponse: directoryResponse,
     contactsResponse: contactsResponse,
     suggestionsResponse: suggestionsResponse,
   });
 };
 
 export const toContactsData = ({
-  peersResponse,
+  directoryResponse,
   contactsResponse,
   suggestionsResponse,
 }: {
-  peersResponse: ub.ContactRolodex;
+  directoryResponse: ub.ContactsDirectoryScryResult1;
   contactsResponse: ub.ContactBookScryResult1;
   suggestionsResponse: string[];
 }) => {
   const skipContacts = new Set(Object.keys(contactsResponse));
   const contactSuggestions = new Set(suggestionsResponse);
 
-  const peerProfiles = v0PeersToClientProfiles(peersResponse, {
+  const peerProfiles = directoryToClientProfiles(directoryResponse, {
     userIdsToOmit: skipContacts,
     contactSuggestions,
   });
@@ -58,6 +58,25 @@ export const toContactsData = ({
   });
 
   return [...peerProfiles, ...contactProfiles];
+};
+
+export const directoryToClientProfiles = (
+  directory: ub.ContactsDirectoryScryResult1,
+  config?: {
+    userIdsToOmit?: Set<string>;
+    contactSuggestions?: Set<string>;
+  }
+): db.Contact[] => {
+  return Object.entries(directory)
+    .filter(([ship]) =>
+      config?.userIdsToOmit ? !config.userIdsToOmit.has(ship) : true
+    )
+    .map(([ship, entry]) =>
+      v1PeerToClientProfile(ship, entry.contact, {
+        isContact: false,
+        isContactSuggestion: config?.contactSuggestions?.has(ship),
+      })
+    );
 };
 
 export const removeContactSuggestion = async (contactId: string) => {
