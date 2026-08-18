@@ -101,6 +101,8 @@ const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
 const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
 const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 3_500;
 const SERVICES_TO_FOLLOW_UP_DELAY_MS = 3_500;
+const FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS = 5;
+const FIRST_ENTRY_NOTE_LOOKUP_DELAY_MS = 500;
 const FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
 const COMPOSE_MS_PER_CHARACTER = 14;
 const MIN_COMPOSE_DELAY_MS = 800;
@@ -118,10 +120,10 @@ const GROUP_PURPOSE_PICKER_PROMPT = 'What can I help you with?';
 const ONBOARDING_ORIENTATION_PROMPT =
   'You’re all set. Is there anything else I can help you with?';
 const ONBOARDING_ORIENTATION_OPTIONS = [
-  'Groups and channels',
-  'Your Tlon computer',
-  'What else can you do?',
-  'I’m good for now',
+  { id: 'groups-and-channels', label: 'Groups and channels' },
+  { id: 'your-tlon-computer', label: 'Your Tlon computer' },
+  { id: 'other-capabilities', label: 'What else can you do?' },
+  { id: 'finished', label: 'I’m good for now' },
 ] as const;
 const PURPOSE_OPTIONS = [
   {
@@ -861,12 +863,18 @@ async function completeFirstRun(
       history,
       'first-entry-ping',
       async () => {
-        const listed = await runDeps.listNotes!(correlation.notebookNest).catch(
-          () => []
+        const newest = await findNewestNoteWithRetry(
+          correlation.notebookNest,
+          runDeps.listNotes!,
+          deps.sleep ??
+            ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
         );
-        const newest = [...listed].sort(
-          (a, b) => (b.createdAt ?? b.noteId) - (a.createdAt ?? a.noteId)
-        )[0];
+        if (!newest) {
+          correlation.context.log?.(
+            '[tlon] first-entry reveal omitted its note reference: ' +
+              `Notes stayed empty after ${FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS} lookups`
+          );
+        }
         // The cite renders as "Content not available" whenever the client
         // hasn't synced the notes channel yet, so the sentence has to carry
         // the entry on its own: name the note and where it lives, and let the
@@ -952,6 +960,24 @@ async function completeFirstRun(
     firstRunCorrelations.set(correlationRunId, correlation);
     throw error;
   }
+}
+
+async function findNewestNoteWithRetry(
+  notebookNest: string,
+  listNotes: typeof notes.listNotes,
+  sleep: (ms: number) => Promise<void>
+) {
+  for (let attempt = 0; attempt < FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS; attempt++) {
+    const listed = await listNotes(notebookNest).catch(() => []);
+    const newest = [...listed].sort(
+      (a, b) => (b.createdAt ?? b.noteId) - (a.createdAt ?? a.noteId)
+    )[0];
+    if (newest) return newest;
+    if (attempt < FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS - 1) {
+      await sleep(FIRST_ENTRY_NOTE_LOOKUP_DELAY_MS);
+    }
+  }
+  return undefined;
 }
 
 function findFirstRunCorrelation(
@@ -1696,15 +1722,12 @@ function buildServicesSurface(
 }
 
 function buildOrientationSurface(groupId: string) {
-  const buttonIds = ONBOARDING_ORIENTATION_OPTIONS.map(
-    (_, index) => `orientation-action-${index}`
-  );
   return withFallbackStory(
     makeA2UIBlob(`agent-onboarding-orientation:${groupId}`, 'root', [
       {
         id: 'root',
         component: 'Column',
-        children: ['prompt', 'actions'],
+        children: ['prompt', 'orientation'],
       },
       {
         id: 'prompt',
@@ -1712,29 +1735,12 @@ function buildOrientationSurface(groupId: string) {
         text: ONBOARDING_ORIENTATION_PROMPT,
       },
       {
-        id: 'actions',
-        component: 'Row',
-        children: buttonIds,
-        align: 'start',
+        id: 'orientation',
+        component: 'SmallChoice',
+        options: [...ONBOARDING_ORIENTATION_OPTIONS],
+        submitLabel: 'Continue',
+        action: choiceAction(''),
       },
-      ...ONBOARDING_ORIENTATION_OPTIONS.flatMap((label, index) => {
-        const buttonId = buttonIds[index]!;
-        const labelId = `orientation-label-${index}`;
-        return [
-          {
-            id: buttonId,
-            component: 'Button' as const,
-            child: labelId,
-            variant: 'primary' as const,
-            action: choiceAction(label),
-          },
-          {
-            id: labelId,
-            component: 'Text' as const,
-            text: label,
-          },
-        ];
-      }),
     ])
   );
 }
