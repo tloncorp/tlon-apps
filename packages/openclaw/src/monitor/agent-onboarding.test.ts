@@ -111,6 +111,33 @@ describe('agent onboarding requests', () => {
     });
   });
 
+  it('offers optional orientation topics as one-shot conversation starters', () => {
+    const surface = agentOnboardingTesting.buildOrientationSurface(
+      '~ten/group'
+    );
+    expect(A2UI.validateBlobEntry(surface)).toBe(true);
+    const update = surface.messages.find(
+      (message) => 'updateComponents' in message
+    );
+    const components =
+      update && 'updateComponents' in update
+        ? update.updateComponents.components
+        : [];
+    const buttons = components.filter(
+      (component): component is A2UI.Button => component.component === 'Button'
+    );
+    expect(buttons).toHaveLength(4);
+    expect(
+      buttons.map((button) => button.action.event.context)
+    ).toEqual([
+      { text: 'Groups and channels' },
+      { text: 'Your Tlon computer' },
+      { text: 'What else can you do?' },
+      { text: 'I’m good for now' },
+    ]);
+    expect(buttons.every((button) => button.variant === 'primary')).toBe(true);
+  });
+
   it('catches an intro request that arrived before the channel was watched', async () => {
     const sendPost = vi.fn(async () => ({
       channel: 'tlon' as const,
@@ -1198,7 +1225,10 @@ describe('provision coordinator ordering', () => {
     );
     expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain('McpConnect');
     expect(JSON.stringify(sendPost.mock.calls[2]?.[0].story)).toContain(
-      'Is there anything else I can help you with?'
+      'You’re all set. Is there anything else I can help you with?'
+    );
+    expect(JSON.stringify(sendPost.mock.calls[2]?.[0])).toContain(
+      'Groups and channels'
     );
     expect(parsePostBlob(sendPost.mock.calls[2]?.[0].blob)).toContainEqual(
       expect.objectContaining({
