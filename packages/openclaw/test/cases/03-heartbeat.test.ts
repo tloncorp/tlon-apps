@@ -75,6 +75,10 @@ describe('re-engagement nudges', () => {
   let botState: StateClient;
   let ownerState: StateClient;
   let botShip: string;
+  // Pre-seed values of the active-hours overrides (undefined = absent), so
+  // cleanup restores what an operator may have set on a long-lived dev ship
+  // instead of unconditionally deleting. null = seeding never started.
+  let nudgeWindowSnapshot: { start: unknown; end: unknown } | null = null;
 
   beforeAll(async () => {
     const config = getTestConfig();
@@ -179,6 +183,13 @@ describe('re-engagement nudges', () => {
    * can never observe "stage cleared, owner idle" while the scheduler is live.
    */
   async function seedOwnerIdleGated(daysMs: number): Promise<number> {
+    // Snapshot the window overrides before touching anything.
+    const preSeedBucket = await readTlonBucket();
+    nudgeWindowSnapshot = {
+      start: preSeedBucket['nudgeActiveHoursStart'],
+      end: preSeedBucket['nudgeActiveHoursEnd'],
+    };
+
     const sentinelAt = Date.now();
     await putTlonSetting('lastOwnerMessageAt', sentinelAt);
     await putTlonSetting('lastOwnerMessageDate', isoDate(sentinelAt));
@@ -239,9 +250,12 @@ describe('re-engagement nudges', () => {
     // Best effort: a mid-test failure must not leave the window closed (that
     // would silently disable the scheduler for later case files) or the owner
     // backdated (that would keep every later tick eligible to nudge).
-    if (!botState) {
+    if (!botState || nudgeWindowSnapshot === null) {
+      // Seeding never started, so nothing was written and there is nothing
+      // to restore.
       return;
     }
+    const snapshot = nudgeWindowSnapshot;
     try {
       const cleanupAt = Date.now();
       await putTlonSetting('lastOwnerMessageAt', cleanupAt);
@@ -256,24 +270,40 @@ describe('re-engagement nudges', () => {
         nudgeActiveHoursEnd: '00:00',
       });
     } finally {
-      // Always attempt the deletions: a transient failure above must not
-      // leave the window keys behind closed, which would gate the scheduler
-      // for every later case file.
-      await delTlonSetting('lastNudgeStage');
-      await delTlonSetting('pendingNudge');
-      await delTlonSetting('nudgeActiveHoursStart');
-      await delTlonSetting('nudgeActiveHoursEnd');
-      await waitForTlonSettingsAbsent([
-        'lastNudgeStage',
-        'pendingNudge',
-        'nudgeActiveHoursStart',
-        'nudgeActiveHoursEnd',
-      ]);
+      // Attempt every step even when an earlier one fails: a transient nack
+      // must not leave the window keys behind closed, which would gate the
+      // scheduler for every later case file. Failures are collected and
+      // rethrown after all steps have been tried.
+      const failures: unknown[] = [];
+      const attempt = async (op: () => Promise<void>) => {
+        try {
+          await op();
+        } catch (error) {
+          failures.push(error);
+        }
+      };
+      const restoreWindowKey = (key: string, value: unknown) =>
+        value === undefined ? delTlonSetting(key) : putTlonSetting(key, value);
+      await attempt(() => delTlonSetting('lastNudgeStage'));
+      await attempt(() => delTlonSetting('pendingNudge'));
+      // Restore the window overrides to their pre-seed value or absence,
+      // after the stage clears so those land behind a still-closed window.
+      await attempt(() =>
+        restoreWindowKey('nudgeActiveHoursStart', snapshot.start)
+      );
+      await attempt(() =>
+        restoreWindowKey('nudgeActiveHoursEnd', snapshot.end)
+      );
+      await attempt(() =>
+        waitForTlonSettingsAbsent(['lastNudgeStage', 'pendingNudge'])
+      );
+      if (failures.length > 0) {
+        throw failures[0];
+      }
     }
-    // Only the window keys are absent pre-test, so only they are restored to
-    // absent. The activity keys are left at the fresh sentinel: the product
-    // writes them on every owner DM, so present-and-fresh is their pre-test
-    // shape here, and fresh activity blocks ticks whatever the window says.
+    // The activity keys are left at the fresh sentinel: the product writes
+    // them on every owner DM, so present-and-fresh is their pre-test shape
+    // here, and fresh activity blocks ticks whatever the window says.
   });
 
   test('sends stage 1 nudge when owner idle > 7 days, and owner reply prevents duplicates', async () => {
