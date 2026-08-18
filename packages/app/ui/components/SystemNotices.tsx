@@ -253,21 +253,11 @@ export function NotificationsPrompt() {
     notifNag.dismiss();
   }, [notifNag]);
 
-  const handlePrimaryAction = useCallback(async () => {
-    if (perms.canAskPermission) {
-      await perms.requestPermissions();
-      if (perms.hasPermission) {
-        Alert.alert('Success', 'You will now receive notifications.');
-        notifNag.eliminate();
-      } else {
-        notifNag.dismiss();
-      }
-    } else {
-      logger.trackEvent(AnalyticsEvent.ActionNotifPermsSettingsOpened);
-      openedSettingsRef.current = true;
-      perms.openSettings();
-    }
-  }, [perms, notifNag]);
+  const handlePrimaryAction = useCallback(() => {
+    logger.trackEvent(AnalyticsEvent.ActionNotifPermsSettingsOpened);
+    openedSettingsRef.current = true;
+    perms.openSettings();
+  }, [perms]);
 
   if (
     isWeb ||
@@ -282,7 +272,7 @@ export function NotificationsPrompt() {
 
   return (
     <NotificationsPromptView
-      primaryActionLabel={perms.canAskPermission ? 'Enable' : 'Settings'}
+      primaryActionLabel="Settings"
       onDismiss={handleDismiss}
       onPrimaryAction={handlePrimaryAction}
     />
