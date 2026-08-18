@@ -256,30 +256,11 @@ describe('re-engagement nudges', () => {
       return;
     }
     const snapshot = nudgeWindowSnapshot;
-    // Not try/finally: a throw from finally would mask the fence error
-    // (no-unsafe-finally). The fence error is caught, cleanup always runs,
-    // and the fence error takes precedence when rethrowing.
-    let fenceError: unknown = null;
-    try {
-      const cleanupAt = Date.now();
-      await putTlonSetting('lastOwnerMessageAt', cleanupAt);
-      await putTlonSetting('lastOwnerMessageDate', isoDate(cleanupAt));
-      // Force both bounds closed before deleting anything: if setup died
-      // between the two writes, deleting one bound alone could open a
-      // wrap-around window.
-      await putTlonSetting('nudgeActiveHoursStart', '00:00');
-      await putTlonSetting('nudgeActiveHoursEnd', '00:00');
-      await waitForTlonSettings({
-        nudgeActiveHoursStart: '00:00',
-        nudgeActiveHoursEnd: '00:00',
-      });
-    } catch (error) {
-      fenceError = error;
-    }
-    // Attempt every step even when an earlier one fails: a transient nack
-    // must not leave the window keys behind closed, which would gate the
-    // scheduler for every later case file. Failures are collected and
-    // rethrown after all steps have been tried.
+    // Every step is individually attempted: one transient nack must not skip
+    // the closed-window writes or leave the window keys behind closed, which
+    // would gate the scheduler for every later case file. Failures are
+    // collected and the first is rethrown after all steps have been tried,
+    // so an early fence failure keeps precedence without masking cleanup.
     const failures: unknown[] = [];
     const attempt = async (op: () => Promise<void>) => {
       try {
@@ -288,6 +269,22 @@ describe('re-engagement nudges', () => {
         failures.push(error);
       }
     };
+    const cleanupAt = Date.now();
+    await attempt(() => putTlonSetting('lastOwnerMessageAt', cleanupAt));
+    await attempt(() =>
+      putTlonSetting('lastOwnerMessageDate', isoDate(cleanupAt))
+    );
+    // Force both bounds closed before deleting anything: if setup died
+    // between the two writes, deleting one bound alone could open a
+    // wrap-around window.
+    await attempt(() => putTlonSetting('nudgeActiveHoursStart', '00:00'));
+    await attempt(() => putTlonSetting('nudgeActiveHoursEnd', '00:00'));
+    await attempt(() =>
+      waitForTlonSettings({
+        nudgeActiveHoursStart: '00:00',
+        nudgeActiveHoursEnd: '00:00',
+      })
+    );
     const restoreWindowKey = (key: string, value: unknown) =>
       value === undefined ? delTlonSetting(key) : putTlonSetting(key, value);
     await attempt(() => delTlonSetting('lastNudgeStage'));
@@ -301,9 +298,6 @@ describe('re-engagement nudges', () => {
     await attempt(() =>
       waitForTlonSettingsAbsent(['lastNudgeStage', 'pendingNudge'])
     );
-    if (fenceError !== null) {
-      throw fenceError;
-    }
     if (failures.length > 0) {
       throw failures[0];
     }
