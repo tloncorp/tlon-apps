@@ -1250,6 +1250,588 @@ class TlonCLITests(unittest.TestCase):
         self.assertEqual(calls[0][-2:], ("--sent-at", "1234"))
         self.assertEqual(calls[1][-2:], ("--sent-at", "5678"))
 
+    # Help output of a CLI that has the bot-author flags, and of one that
+    # predates them — what the capability probe reads.
+    NEW_CLI_HELP = (
+        "Usage: tlon posts send <channel> [message] [--blob <json>] "
+        "[--image <url>] [--bot]\n"
+    )
+    OLD_CLI_HELP = (
+        "Usage: tlon posts send <channel> [message] [--blob <json>] "
+        "[--image <url>] [--title <text>] [--sent-at <ms>]\n"
+    )
+
+    def _bot_cli(
+        self, *, help_text=None, probe_error=None, probe_returncode=0, **kwargs
+    ):
+        """A TlonCLI whose runner records invocations and answers the
+        capability probe. Returns (cli, sent_calls, probe_calls); probes are
+        recorded separately so `calls` stays a clean list of real sends."""
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+        calls: list[tuple[str, ...]] = []
+        probes: list[tuple[str, ...]] = []
+
+        async def runner(command, env, timeout, _on_deadline):
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                probes.append(tuple(command))
+                # Suspend like a real subprocess would, so a second concurrent
+                # send can reach the probe if nothing guards it.
+                await asyncio.sleep(0)
+                if probe_error is not None:
+                    raise probe_error
+                return tlon_api.TlonProcessResult(
+                    returncode=probe_returncode,
+                    stdout=self.NEW_CLI_HELP if help_text is None else help_text,
+                )
+            calls.append(tuple(command))
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True, **kwargs)
+        return cli, calls, probes
+
+    def test_as_bot_decorates_send_and_reply(self):
+        cli, calls, probes = self._bot_cli()
+
+        async def run():
+            await cli.send_message("chat/~zod/general", "hi")
+            await cli.send_reply("~nec", "170.141", "hi", parent_author="nec")
+
+        asyncio.run(run())
+
+        self.assertEqual(
+            calls[0],
+            ("tlon-test", "posts", "send", "chat/~zod/general", "hi", "--bot"),
+        )
+        self.assertEqual(
+            calls[1],
+            (
+                "tlon-test",
+                "posts",
+                "reply",
+                "~nec",
+                "170.141",
+                "hi",
+                "--author",
+                "~nec",
+                "--bot",
+            ),
+        )
+        # Probed once, then cached for the life of the instance.
+        self.assertEqual(len(probes), 1)
+
+    def test_as_bot_decorates_raw_send_tuples_through_run_command(self):
+        cli, calls, _probes = self._bot_cli()
+
+        async def run():
+            await cli.run_command(("posts", "send", "~mug", "text", "--blob", "[]"))
+            await cli.run_command(("dms", "send", "0v5.abcde", "text"))
+            await cli.run_command(("dms", "reply", "0v5.abcde", "~pen/170.141", "t"))
+
+        asyncio.run(run())
+
+        for call in calls:
+            self.assertEqual(call[-1], "--bot")
+
+    def test_as_bot_decorates_after_global_credential_flags(self):
+        cli, calls, _probes = self._bot_cli()
+
+        async def run():
+            # A complete credential set, as a real invocation would carry.
+            await cli.run_command(
+                (
+                    "--url",
+                    "https://zod.tlon.network",
+                    "--ship",
+                    "~zod",
+                    "--code",
+                    "lidlut-tabwed-pillex-ridrup",
+                    "posts",
+                    "send",
+                    "~mug",
+                    "hi",
+                )
+            )
+            await cli.run_command(
+                ("--config=/etc/tlon/ship.json", "dms", "send", "0v5.abcde", "hi")
+            )
+
+        asyncio.run(run())
+
+        self.assertEqual(
+            calls[0],
+            (
+                "tlon-test",
+                "--url",
+                "https://zod.tlon.network",
+                "--ship",
+                "~zod",
+                "--code",
+                "lidlut-tabwed-pillex-ridrup",
+                "posts",
+                "send",
+                "~mug",
+                "hi",
+                "--bot",
+            ),
+        )
+        self.assertEqual(
+            calls[1],
+            (
+                "tlon-test",
+                "--config=/etc/tlon/ship.json",
+                "dms",
+                "send",
+                "0v5.abcde",
+                "hi",
+                "--bot",
+            ),
+        )
+
+    def test_as_bot_leaves_non_send_commands_alone(self):
+        cli, calls, probes = self._bot_cli()
+
+        async def run():
+            await cli.run_command(("contacts", "self"))
+            await cli.run_command(("posts", "react", "~mug", "170.141", "👍"))
+            await cli.run_command(("dms", "accept", "~mug"))
+            await cli.run_command(("--version",))
+            await cli.run_command(("posts",))
+
+        asyncio.run(run())
+
+        for call in calls:
+            self.assertNotIn("--bot", call)
+        # Non-send usage never pays for the probe.
+        self.assertEqual(probes, [])
+
+    def test_old_cli_without_bot_flag_sends_undecorated(self):
+        cli, calls, probes = self._bot_cli(help_text=self.OLD_CLI_HELP)
+
+        async def run():
+            await cli.send_message("chat/~zod/general", "hi")
+            await cli.send_reply("~nec", "170.141", "hi")
+
+        with self.assertLogs(tlon_api.logger, level="ERROR") as logged:
+            asyncio.run(run())
+
+        self.assertEqual(
+            calls[0],
+            ("tlon-test", "posts", "send", "chat/~zod/general", "hi"),
+        )
+        self.assertEqual(
+            calls[1], ("tlon-test", "posts", "reply", "~nec", "170.141", "hi")
+        )
+        # One probe, one loud error — not one per send.
+        self.assertEqual(len(probes), 1)
+        self.assertEqual(len(logged.records), 1)
+        self.assertIn("does not support --bot", logged.output[0])
+
+    def test_failed_probe_is_not_trusted_even_when_it_prints_bot_help(self):
+        # A crashed/partial probe says nothing about support: help text that
+        # happens to mention --bot must not license decoration.
+        cli, calls, probes = self._bot_cli(probe_returncode=2)
+
+        with self.assertLogs(tlon_api.logger, level="ERROR") as logged:
+            asyncio.run(cli.send_message("chat/~zod/general", "hi"))
+
+        self.assertEqual(
+            calls[0],
+            ("tlon-test", "posts", "send", "chat/~zod/general", "hi"),
+        )
+        self.assertEqual(len(probes), 1)
+        self.assertIn("rc=2", logged.output[0])
+
+    def test_bot_flag_must_appear_as_its_own_token(self):
+        # A CLI carrying only the value flags (or an unrelated `--bottle`) does
+        # not prove `--bot` itself exists.
+        for help_text in (
+            "Usage: tlon posts send <channel> [--bot-nickname <text>]\n",
+            "Usage: tlon posts send <channel> [--bottle <x>]\n",
+        ):
+            cli, calls, _probes = self._bot_cli(help_text=help_text)
+            with self.assertLogs(tlon_api.logger, level="ERROR"):
+                asyncio.run(cli.send_message("chat/~zod/general", "hi"))
+            self.assertNotIn("--bot", calls[0])
+
+    def test_concurrent_first_sends_probe_once(self):
+        cli, calls, probes = self._bot_cli(help_text=self.OLD_CLI_HELP)
+
+        async def run():
+            await asyncio.gather(
+                cli.send_message("chat/~zod/general", "one"),
+                cli.send_message("chat/~zod/general", "two"),
+                cli.send_message("chat/~zod/general", "three"),
+            )
+
+        with self.assertLogs(tlon_api.logger, level="ERROR") as logged:
+            asyncio.run(run())
+
+        self.assertEqual(len(calls), 3)
+        # One probe and one loud error for the whole burst, not one per send.
+        self.assertEqual(len(probes), 1)
+        self.assertEqual(len(logged.records), 1)
+
+    def test_observed_duration_excludes_the_capability_probe(self):
+        # The probe is a one-off subprocess; billing it to the first send would
+        # skew CLI latency telemetry (systematically, for per-send instances).
+        clock = {"now": 0.0}
+        durations: list[int] = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout, _on_deadline):
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                clock["now"] += 5.0
+                return tlon_api.TlonProcessResult(
+                    returncode=0, stdout=self.NEW_CLI_HELP
+                )
+            clock["now"] += 1.0
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cli = tlon_api.TlonCLI(
+            cfg,
+            runner=runner,
+            as_bot=True,
+            observer=lambda _args, duration_ms, _result: durations.append(
+                duration_ms
+            ),
+        )
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            asyncio.run(cli.send_message("chat/~zod/general", "hi"))
+
+        self.assertEqual(durations, [1000])
+
+    def test_probe_failure_degrades_to_undecorated_sends(self):
+        cli, calls, probes = self._bot_cli(
+            probe_error=FileNotFoundError("tlon-test")
+        )
+
+        with self.assertLogs(tlon_api.logger, level="ERROR"):
+            result = asyncio.run(cli.send_message("chat/~zod/general", "hi"))
+
+        self.assertTrue(result.success)
+        self.assertEqual(
+            calls[0],
+            ("tlon-test", "posts", "send", "chat/~zod/general", "hi"),
+        )
+        self.assertEqual(len(probes), 1)
+
+    def _hung_probe_cli(self):
+        """A bot CLI whose probe hangs until its own deadline, recording the
+        timeout every invocation is given. Returns (cli, clock, timeouts)."""
+        clock = {"now": 0.0}
+        timeouts: list[tuple[tuple[str, ...], float]] = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout, _on_deadline):
+            timeouts.append((tuple(command[1:]), timeout))
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                # A wedged CLI: burns every second it is allowed, then is killed.
+                clock["now"] += timeout
+                raise tlon_api.TlonProcessTimeout("", "")
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+        return cli, clock, timeouts
+
+    def test_hung_probe_is_capped_not_given_the_callers_timeout(self):
+        # The probe used to inherit the full configured CLI timeout, so a wedged
+        # CLI made a nominal 20s send take 20s of probing and then 20s of
+        # sending. It gets the cap instead — a flat bound, deliberately not a
+        # deduction from the caller's budget.
+        cli, clock, timeouts = self._hung_probe_cli()
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            with self.assertLogs(tlon_api.logger, level="ERROR"):
+                result = asyncio.run(
+                    cli.run_command(
+                        ("posts", "send", "~mug", "hi"), timeout=20.0
+                    )
+                )
+
+        self.assertEqual(
+            timeouts,
+            [
+                (
+                    tlon_api.BOT_FLAG_PROBE_ARGS,
+                    tlon_api.BOT_FLAG_PROBE_TIMEOUT_SECONDS,
+                ),
+                (("posts", "send", "~mug", "hi"), 20.0),
+            ],
+        )
+        # Degradation is unchanged: a probe that did not run cleanly means
+        # unsupported, so the send goes out undecorated rather than failing.
+        self.assertTrue(result.success)
+        self.assertEqual(timeouts[1][0][-1], "hi")
+
+    def test_a_timed_out_probe_is_cached_and_logged_once(self):
+        # The failed answer has to stick: without caching, every later send on
+        # this instance pays the cap again and re-logs the same loud error.
+        cli, clock, timeouts = self._hung_probe_cli()
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            with self.assertLogs(tlon_api.logger, level="ERROR") as logged:
+                first = asyncio.run(
+                    cli.run_command(("posts", "send", "~mug", "one"))
+                )
+                second = asyncio.run(
+                    cli.run_command(("posts", "send", "~mug", "two"))
+                )
+
+        probes = [args for args, _ in timeouts if args == tlon_api.BOT_FLAG_PROBE_ARGS]
+        self.assertEqual(len(probes), 1)
+        self.assertEqual(len(logged.output), 1)
+        # Both sends still go out, undecorated.
+        self.assertTrue(first.success)
+        self.assertTrue(second.success)
+        self.assertEqual(
+            [args for args, _ in timeouts if args != tlon_api.BOT_FLAG_PROBE_ARGS],
+            [
+                ("posts", "send", "~mug", "one"),
+                ("posts", "send", "~mug", "two"),
+            ],
+        )
+
+    def test_probe_is_capped_below_the_configured_cli_timeout(self):
+        # config.cli_timeout is the value the probe used to inherit; the cap has
+        # to be what reaches the runner even when no explicit timeout is passed.
+        cli, clock, timeouts = self._hung_probe_cli()
+        self.assertGreater(
+            cli.config.cli_timeout, tlon_api.BOT_FLAG_PROBE_TIMEOUT_SECONDS
+        )
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            with self.assertLogs(tlon_api.logger, level="ERROR"):
+                asyncio.run(cli.run_command(("posts", "send", "~mug", "hi")))
+
+        self.assertEqual(
+            timeouts,
+            [
+                (
+                    tlon_api.BOT_FLAG_PROBE_ARGS,
+                    tlon_api.BOT_FLAG_PROBE_TIMEOUT_SECONDS,
+                ),
+                (("posts", "send", "~mug", "hi"), cli.config.cli_timeout),
+            ],
+        )
+
+    def test_unprobed_commands_keep_their_budget_exactly(self):
+        # No probe runs for non-send commands, and the timeout reaches the
+        # runner exactly as the caller set it.
+        cli, clock, timeouts = self._hung_probe_cli()
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            asyncio.run(cli.run_command(("contacts", "self"), timeout=12.5))
+            asyncio.run(cli.run_command(("posts", "react", "~mug", "1", "👍")))
+
+        self.assertEqual(
+            timeouts,
+            [
+                (("contacts", "self"), 12.5),
+                (("posts", "react", "~mug", "1", "👍"), cli.config.cli_timeout),
+            ],
+        )
+
+    def test_a_caller_supplied_bot_flag_is_not_duplicated(self):
+        # The model is documented to pass `--bot` itself. Appending a second one
+        # produces `--bot --bot`, which the CLI rejects as a repeated flag, so
+        # the send fails outright instead of going out bot-authored.
+        calls = []
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command[1:]))
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                return tlon_api.TlonProcessResult(
+                    returncode=0, stdout="options: --bot"
+                )
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+        asyncio.run(
+            cli.run_command(("posts", "send", "chat/~zod/general", "hi", "--bot"))
+        )
+
+        sends = [c for c in calls if c != tlon_api.BOT_FLAG_PROBE_ARGS]
+        self.assertEqual(
+            sends,
+            [("posts", "send", "chat/~zod/general", "hi", "--bot")],
+        )
+        self.assertEqual(sends[0].count(tlon_api.BOT_FLAG), 1)
+
+    def test_an_undecorated_send_still_gets_the_flag(self):
+        # The idempotence guard must not swallow the normal path.
+        calls = []
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command[1:]))
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                return tlon_api.TlonProcessResult(
+                    returncode=0, stdout="options: --bot"
+                )
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+        asyncio.run(
+            cli.run_command(("posts", "send", "chat/~zod/general", "hi"))
+        )
+
+        sends = [c for c in calls if c != tlon_api.BOT_FLAG_PROBE_ARGS]
+        self.assertEqual(
+            sends,
+            [("posts", "send", "chat/~zod/general", "hi", tlon_api.BOT_FLAG)],
+        )
+
+    def test_an_old_cli_never_receives_a_caller_supplied_bot_flag(self):
+        # The corruption case the probe exists for: a CLI predating the flag has
+        # no option to consume `--bot`, so the token lands in the message body.
+        # A caller-supplied flag must be stripped, not passed through — the send
+        # degrades to a bare author instead of posting "hi --bot".
+        calls = []
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command[1:]))
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                # Help output from a CLI that has never heard of --bot.
+                return tlon_api.TlonProcessResult(
+                    returncode=0, stdout="options: --parent --image"
+                )
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+        with self.assertLogs(tlon_api.logger, level="ERROR"):
+            asyncio.run(
+                cli.run_command(
+                    ("posts", "send", "chat/~zod/general", "hi", "--bot")
+                )
+            )
+
+        sends = [c for c in calls if c != tlon_api.BOT_FLAG_PROBE_ARGS]
+        self.assertEqual(
+            sends, [("posts", "send", "chat/~zod/general", "hi")]
+        )
+        self.assertNotIn(tlon_api.BOT_FLAG, sends[0])
+
+    def test_malformed_bot_flags_never_reach_an_old_cli(self):
+        # A CLI predating the flag has no bot-flag parser, so anything left
+        # behind is folded into the message body. Stripping only the exact
+        # token leaks `--bot=Botly` whole and leaves `Botly` from the separated
+        # form — both would post. The strip mirrors the CLI parser's rule:
+        # `--bot` takes no value, and only a long option may follow it.
+        for tail, expected in (
+            (("--bot",), ()),
+            (("--bot", "Botly"), ()),
+            (("--bot=Botly",), ()),
+            (("--bot", "-1"), ()),
+            (("--bot", "--bot", "Botly"), ()),
+            (("--bot", "--parent", "x"), ("--parent", "x")),
+        ):
+            with self.subTest(tail=tail):
+                calls = []
+
+                async def runner(command, env, timeout, _on_deadline):
+                    calls.append(tuple(command[1:]))
+                    if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                        # Help output from a CLI that never had the flag.
+                        return tlon_api.TlonProcessResult(
+                            returncode=0, stdout="options: --parent"
+                        )
+                    return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+                cfg = tlon_api.TlonConfig.from_env(
+                    env={
+                        "TLON_NODE_URL": "https://zod.tlon.network",
+                        "TLON_NODE_ID": "~zod",
+                        "TLON_ACCESS_CODE": "code",
+                        "TLON_CLI": "tlon-test",
+                    }
+                )
+                cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+                with self.assertLogs(tlon_api.logger, level="ERROR"):
+                    asyncio.run(
+                        cli.run_command(
+                            ("posts", "send", "chat/~zod/general", "hi", *tail)
+                        )
+                    )
+
+                sends = [
+                    c for c in calls if c != tlon_api.BOT_FLAG_PROBE_ARGS
+                ]
+                self.assertEqual(
+                    sends,
+                    [("posts", "send", "chat/~zod/general", "hi", *expected)],
+                )
+
+    def test_without_as_bot_nothing_is_appended(self):
+        calls = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command))
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        async def run():
+            cli = tlon_api.TlonCLI(cfg, runner=runner)
+            await cli.send_message("chat/~zod/general", "hi")
+
+        asyncio.run(run())
+
+        # No decoration and no probe when the instance is not a bot sender.
+        self.assertEqual(
+            calls, [("tlon-test", "posts", "send", "chat/~zod/general", "hi")]
+        )
+
     def test_format_post_id_round_trips_through_da(self):
         # da.fromUnix round-trips via aura's da.toUnix; the id is
         # ~author/<dotted @ud>.
