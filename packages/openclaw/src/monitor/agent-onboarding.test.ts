@@ -111,10 +111,9 @@ describe('agent onboarding requests', () => {
     });
   });
 
-  it('offers optional orientation topics as one-shot conversation starters', () => {
-    const surface = agentOnboardingTesting.buildOrientationSurface(
-      '~ten/group'
-    );
+  it('offers optional orientation topics in one compound selector', () => {
+    const surface =
+      agentOnboardingTesting.buildOrientationSurface('~ten/group');
     expect(A2UI.validateBlobEntry(surface)).toBe(true);
     const update = surface.messages.find(
       (message) => 'updateComponents' in message
@@ -123,19 +122,25 @@ describe('agent onboarding requests', () => {
       update && 'updateComponents' in update
         ? update.updateComponents.components
         : [];
-    const buttons = components.filter(
-      (component): component is A2UI.Button => component.component === 'Button'
+    const selector = components.find(
+      (component): component is A2UI.SmallChoice =>
+        component.component === 'SmallChoice'
     );
-    expect(buttons).toHaveLength(4);
+    expect(selector).toMatchObject({
+      submitLabel: 'Continue',
+      options: [
+        { id: 'groups-and-channels', label: 'Groups and channels' },
+        { id: 'your-tlon-computer', label: 'Your Tlon computer' },
+        { id: 'other-capabilities', label: 'What else can you do?' },
+        { id: 'finished', label: 'I’m good for now' },
+      ],
+      action: {
+        event: { name: A2UI.action.sendMessage, context: { text: '' } },
+      },
+    });
     expect(
-      buttons.map((button) => button.action.event.context)
-    ).toEqual([
-      { text: 'Groups and channels' },
-      { text: 'Your Tlon computer' },
-      { text: 'What else can you do?' },
-      { text: 'I’m good for now' },
-    ]);
-    expect(buttons.every((button) => button.variant === 'primary')).toBe(true);
+      components.filter((component) => component.component === 'Button')
+    ).toHaveLength(0);
   });
 
   it('catches an intro request that arrived before the channel was watched', async () => {
@@ -1165,6 +1170,20 @@ describe('provision coordinator ordering', () => {
       provision
     );
 
+    const listNotes = vi
+      .fn()
+      // Delivery can beat Notes indexing; the reveal should wait briefly for
+      // the new note instead of permanently omitting its reference.
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          id: `${provision.notebookNest}/12`,
+          notebookFlag: provision.notebookNest,
+          noteId: 12,
+          title: 'First entry',
+        },
+      ]);
+
     await handleAgentOnboardingCronChanged(
       {
         action: 'finished',
@@ -1175,23 +1194,18 @@ describe('provision coordinator ordering', () => {
       } as never,
       {
         fetchHistory: vi.fn(async () => []),
-        listNotes: vi.fn(async () => [
-          {
-            id: `${provision.notebookNest}/12`,
-            notebookFlag: provision.notebookNest,
-            noteId: 12,
-            title: 'First entry',
-          },
-        ]),
+        listNotes,
         sendPost,
         sleep,
       }
     );
 
     expect(sendPost).toHaveBeenCalledTimes(3);
-    expect(sleep).toHaveBeenCalledTimes(2);
-    expect(sleep).toHaveBeenNthCalledWith(1, 3_500);
+    expect(listNotes).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenNthCalledWith(1, 500);
     expect(sleep).toHaveBeenNthCalledWith(2, 3_500);
+    expect(sleep).toHaveBeenNthCalledWith(3, 3_500);
     const reveal = sendPost.mock.calls[0]?.[0];
     // The sentence carries the entry on its own — the cite renders as
     // "Content not available" until the client has synced the notes channel,
