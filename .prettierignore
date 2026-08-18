@@ -4,6 +4,7 @@ node_modules
 .DS_Store
 /packages/hermes-tlon-adapter/.env
 /packages/tlon-bot-e2e/.env
+packages/tlon-bot-e2e/diagnostics/
 __pycache__/
 *.py[cod]
 /scripts/onboarding-sandbox/.sandbox-prompts
