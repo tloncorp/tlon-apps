@@ -21,8 +21,9 @@ import {
   scry,
   sendPost,
 } from '@tloncorp/api';
-import { loadKit, toWireKit } from '@tloncorp/tlon-kits';
+import { toWireKit } from '@tloncorp/tlon-kits';
 import type { WireKit, WireManifest } from '@tloncorp/tlon-kits';
+import { loadKit } from '@tloncorp/tlon-kits/loader';
 
 import { ensureClient, normalizeShip } from './api-client';
 import {

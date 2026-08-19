@@ -4,14 +4,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import {
-  kitManifestSchema,
-  loadAllKits,
-  loadKit,
-  resolvePackagedKitsDir,
-  toWireKit,
-  wireKitSchema,
-} from './index.js';
+import { kitManifestSchema, toWireKit, wireKitSchema } from './index.js';
+import { loadAllKits, loadKit, resolvePackagedKitsDir } from './loader.js';
 
 const bookClubDir = join(
   dirname(fileURLToPath(import.meta.url)),

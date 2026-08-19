@@ -11,7 +11,19 @@
       "bun": "./src/index.ts",
       "import": "./dist/index.js"
     },
+    "./loader": {
+      "types": "./dist/loader.d.ts",
+      "bun": "./src/loader.ts",
+      "import": "./dist/loader.js"
+    },
     "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "loader": [
+        "./dist/loader.d.ts"
+      ]
+    }
   },
   "files": [
     "dist/",

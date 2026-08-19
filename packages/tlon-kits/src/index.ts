@@ -31,12 +31,10 @@ export type {
   WirePlace,
 } from './manifest.js';
 
-export { loadAllKits, loadKit, resolvePackagedKitsDir } from './loader.js';
-export type {
-  LoadedKit,
-  ResolveKitsDirOptions,
-  ResolveModuleFn,
-} from './loader.js';
+// The loader reads kits off disk and is deliberately NOT re-exported here:
+// this barrel is imported by @tloncorp/api, which runs in the browser, and
+// pulling in node:fs makes the web bundle throw at module-eval time. Node
+// callers import it from '@tloncorp/tlon-kits/loader'.
 
 export { KITS_BLOB_VERSION, parseGroupKitConfig } from './groupConfig.js';
 export type {
