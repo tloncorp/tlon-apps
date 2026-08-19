@@ -23,6 +23,8 @@ The EAS cache is symmetric: `expo run:ios` downloads a matching build when one e
 
 The fingerprint hashes native inputs — including the installed contents of `node_modules` (autolinking config), the `ios/` and `android/` trees, and Podfile.properties.json. JS-only changes do not change it. **Trap:** the fingerprint reads `node_modules`, not package.json, so after adding a native dependency let `pnpm install` fully finish before `expo run:ios`, or the fingerprint will match a stale build that lacks your module.
 
+The fingerprint is only useful if it is identical across checkouts. `patches/react-native@0.86.0.patch` exists for exactly this: hermes-engine.podspec resolves `hermesc` to an absolute path, which lands in the evaluated podspec and therefore in the Podfile.lock `SPEC CHECKSUMS`. Without the patch every worktree and every machine computes a different fingerprint and the EAS cache never hits across checkouts. The patch emits the path via `$(PODS_ROOT)` instead. If a react-native upgrade regenerates this patch, keep that hunk (or verify upstream fixed it) and re-check that `pod install` on two different checkout paths produces identical `hermes-engine` checksums in Podfile.lock.
+
 ## The loop
 
 ### 1. Intake
