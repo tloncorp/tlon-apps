@@ -15,6 +15,7 @@ export type RawGroupForAdminVerification = {
   admins?: string[];
   seats?: Record<string, { roles?: string[] }>;
   admissions?: {
+    privacy?: string;
     banned?: { ships?: string[] };
     pending?: Record<string, string[]>;
     invited?: Record<string, unknown>;

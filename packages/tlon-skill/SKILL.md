@@ -255,6 +255,10 @@ tlon groups leave ~host/slug                             # Leave a group
 tlon groups delete ~host/slug                            # Delete (host only)
 tlon groups update ~host/slug --title "..." [--description "..."]
 
+# Invite links (Lure)
+tlon groups invite-link ~host/slug                       # Retrieve the group's invite link (owner's link by default)
+tlon groups invite-link ~host/slug --self                # Retrieve the current ship's own invite link
+
 # Members (shown with nicknames when available)
 tlon groups invite ~host/slug ~ship1 ~ship2              # Invite members
 tlon groups revoke-invite ~host/slug ~ship1              # Revoke pending member invite
@@ -310,6 +314,13 @@ Join behavior:
 -   Invited groups and public groups use the backend join action.
 -   Private groups without an invite use the invite-request action.
 -   Secret groups require an invite.
+
+Invite link behavior (`invite-link`):
+
+-   Prints the canonical Lure URL (`https://invite.tlon.io/<token>`), minting one through the invite service if the group has none yet. Never compose or guess invite URLs — always retrieve them with this command.
+-   On Tlon-hosted deployments the link is retrieved as the **owner** by default, so the invite attributes to the owner rather than the bot. Use `--self` for the bot's own link; explicit credential flags (`--config`, `--url`, ...) always win over owner resolution.
+-   For private/secret groups the acting ship must be the host or an admin — the command refuses otherwise, because a non-admin's link would not deliver the group invite on redemption.
+-   Self-hosted setups have no owner credentials; use `--self` or explicit credential flags there.
 
 ### Hooks
 
@@ -452,13 +463,7 @@ Message text supports Markdown lists, task lists, blockquotes, code, links, and 
 
 Manage %notes notebooks (Markdown-first). Notebooks are nests of the form `notes/~host/name`; note bodies are plain Markdown (not Tlon Story).
 
-Do not use LaTeX math delimiters (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) in
-note bodies or message text. No Tlon surface renders math: the delimiters
-display literally or get mangled (Markdown emphasis, mentions, and escaping can
-corrupt the text inside and around them), and in a note body the backslashes in
-`\(` and `\[` are silently eaten by Markdown escaping, so those delimiters
-vanish. Write math as plain text/Unicode (`x²`, `E = mc²`, `θ ∈ [0, 2π)`) and
-use code blocks or inline code for complex formulas.
+Do not use LaTeX math delimiters (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) in note bodies or message text. No Tlon surface renders math: the delimiters display literally or get mangled (Markdown emphasis, mentions, and escaping can corrupt the text inside and around them), and in a note body the backslashes in `\(` and `\[` are silently eaten by Markdown escaping, so those delimiters vanish. Write math as plain text/Unicode (`x²`, `E = mc²`, `θ ∈ [0, 2π)`) and use code blocks or inline code for complex formulas.
 
 ```bash
 tlon notes status                                        # Check %notes reachability

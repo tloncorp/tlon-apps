@@ -79,6 +79,10 @@ export function setCliCredentialOverrides(
   cachedResolution = null;
 }
 
+export function hasCliCredentialOverrides(): boolean {
+  return cliCredentialOverrides !== null;
+}
+
 export function getCredentialResolution(): CredentialResolution {
   if (cachedResolution) return cachedResolution;
 

@@ -368,6 +368,7 @@ const documentedActionOperations = {
     'create-owned',
     'invite',
     'info',
+    'invite-link',
     'leave',
     'join',
     'request-invite',

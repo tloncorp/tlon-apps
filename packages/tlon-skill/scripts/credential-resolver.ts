@@ -182,6 +182,14 @@ function resolutionFromTopLevelConfig(
       'Invalid config: must have ship (or cookie with ship in name)'
     );
   }
+  if (forcedShip && cookie) {
+    const cookieShip = parseShipFromCookie(cookie);
+    if (!cookieShip || normalizeShipName(cookieShip) !== ship) {
+      throw new Error(
+        `Invalid config: ship ${withSig(cookieShip ?? 'unknown')} does not match requested ship ${withSig(forcedShip)}`
+      );
+    }
+  }
 
   const config = {
     url: data.url,

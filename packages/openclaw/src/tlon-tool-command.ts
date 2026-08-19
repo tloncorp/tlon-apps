@@ -123,6 +123,7 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'create-owned',
       'invite',
       'info',
+      'invite-link',
       'leave',
       'join',
       'request-invite',

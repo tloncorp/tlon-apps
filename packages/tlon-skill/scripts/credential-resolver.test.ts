@@ -164,6 +164,39 @@ describe('credential resolver', () => {
     ).toThrow('Invalid config');
   });
 
+  it('rejects a forced ship when the config file ship does not match it', () => {
+    const files = {
+      [path.join(SKILL_DIR, 'ships', 'zod.json')]: json({
+        url: 'https://zod.tlon.network',
+        ship: '~bus',
+        code: 'code',
+      }),
+    };
+
+    expect(() =>
+      resolveCredentials({
+        ...baseInput(files, { TLON_SKILL_DIR: SKILL_DIR }),
+        cli: { kind: 'ship', ship: '~zod' },
+      })
+    ).toThrow('ship ~bus does not match requested ship ~zod');
+  });
+
+  it('rejects a forced ship when the cookie authenticates a different ship', () => {
+    const files = {
+      [path.join(SKILL_DIR, 'ships', 'zod.json')]: json({
+        url: 'https://zod.tlon.network',
+        cookie: 'urbauth-~bus=0v-cookie',
+      }),
+    };
+
+    expect(() =>
+      resolveCredentials({
+        ...baseInput(files, { TLON_SKILL_DIR: SKILL_DIR }),
+        cli: { kind: 'ship', ship: '~zod' },
+      })
+    ).toThrow('ship ~bus does not match requested ship ~zod');
+  });
+
   it('preserves URBIT_* alias precedence while allowing mixed aliases for cookie auth', () => {
     const result = resolveCredentials(
       baseInput(
