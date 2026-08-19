@@ -5,11 +5,29 @@
 ::  storage. Group admins may request creation, but the group host remains the
 ::  authoritative Bucket and storage owner.
 ::
+::  Every client action carries a request-id and gets exactly one terminal
+::  response. Bearer tokens for the storage broker are minted here and
+::  returned only to the requester — they never appear in a broadcast.
+::
 /-  b=buckets
 /+  default-agent, dbug, verb
 |%
 +$  card  card:agent:gall
 +$  current-state  state:b
+::  +upload-window: how long a pending upload session stays usable.
+::
+++  upload-window  ~h1
+::  +object-window: lifetime of a read or delete capability.
+::
+++  object-window  ~m10
+::  +request-timeout: how long a subscriber waits for the host's answer
+::  before reporting failure to its client.
+::
+++  request-timeout  ~m2
+::  +max-object-size: mirrors Memex's BUCKETS_MAX_OBJECT_BYTES default, so an
+::  oversized upload is refused before any state is committed.
+::
+++  max-object-size  5.368.709.120
 --
 =|  current-state
 =*  state  -
@@ -20,7 +38,7 @@
   |_  =bowl:gall
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
-      cor   ~(. +> [bowl ~])
+      cor   ~(. +> [bowl ~ ~])
   ++  on-init
     ^-  (quip card _this)
     =^  cards  state  abet:init:cor
@@ -51,7 +69,11 @@
     ^-  (quip card _this)
     =^  cards  state  abet:(agent:cor `(pole knot)`wire sign)
     [cards this]
-  ++  on-arvo   on-arvo:def
+  ++  on-arvo
+    |=  [=wire =sign-arvo]
+    ^-  (quip card _this)
+    =^  cards  state  abet:(arvo:cor `(pole knot)`wire sign-arvo)
+    [cards this]
   ++  on-leave  on-leave:def
   ++  on-fail
     |=  [=term =tang]
@@ -60,46 +82,34 @@
     [~ this]
   --
 ::
-|_  [=bowl:gall cards=(list card)]
+|_  [=bowl:gall cards=(list card) reply=(unit response-body:b)]
 ++  cor   .
 ++  abet  [(flop cards) state]
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+::  +answer: record the terminal body for the action being applied. Arms that
+::  mint a token or refuse call this; +settle turns it into the response.
+::
+++  answer  |=(body=response-body:b cor(reply `body))
 ::
 ++  init
   ^+  cor
   (emit [%pass /groups %agent [our.bowl %groups] %watch /v1/groups])
 ::
-::  Persisted state migrations are explicit. Version 2 separates the writer
-::  role-set from the group's reader roles; existing Buckets preserve their
-::  previous behavior by initially granting those reader roles write access.
+::  +load: %buckets has never run on a live ship, so there is nothing to
+::  migrate from yet. When that changes, add a +state-N-to-N+1 arm per
+::  version and chain them with =? — never migrate straight to current.
 ::
 ++  load
   |=  old=vase
   ^+  cor
-  =+  !<(loaded=versioned-state:b old)
-  =.  state
-    ?-  -.loaded
-      %0  [%2 (migrate-spaces spaces.loaded) next-id.loaded ~ ~]
-      %1  [%2 (migrate-spaces spaces.loaded) next-id.loaded broker-capabilities.loaded broker-reservations.loaded]
-      %2  loaded
-    ==
+  =/  loaded=versioned-state:b  !<(versioned-state:b old)
+  ?>  ?=(%0 -.loaded)
+  =.  state  loaded
   =?  cor  !(~(has by wex.bowl) [/groups our.bowl %groups])
     (emit [%pass /groups %agent [our.bowl %groups] %watch /v1/groups])
   cor
-::
-++  migrate-spaces
-  |=  old=(map flag:b space-1:b)
-  ^-  (map flag:b space:b)
-  %-  malt
-  %+  turn  ~(tap by old)
-  |=  [=flag:b old-space=space-1:b]
-  =/  new-state=(unit bucket-state:b)
-    ?~  state.old-space  ~
-    =/  old-state=bucket-state-1:b  u.state.old-space
-    `[bucket.old-state group.old-state readers.old-state readers.old-state entries.old-state sessions.old-state revision.old-state]
-  [flag net.old-space new-state pending-group.old-space]
 ::
 ++  poke
   |=  [=mark =vase]
@@ -107,21 +117,12 @@
   ?+  mark  ~|(bad-buckets-mark+mark !!)
       %buckets-action-1
     ?>  =(src.bowl our.bowl)
-    (dispatch-local !<(action:b vase))
+    =+  cmd=!<(command:b vase)
+    (dispatch-local request-id.cmd action.cmd)
   ::
       %buckets-command-1
     =+  cmd=!<(command:b vase)
-    =/  act=action:b  action.cmd
-    ?:  ?=(%create -.act)
-      ?>  ?=(%duke (clan:title ship.group.act))
-      ?>  =(ship.group.act our.bowl)
-      ?>  (group-is-admin-for-create group.act src.bowl)
-      (create-bucket name.act title.act group.act readers.act writers.act src.bowl)
-    =/  =flag:b  (action-flag act)
-    ?>  =(ship.flag our.bowl)
-    =/  st=bucket-state:b  (need-state flag)
-    ?>  (action-authorized st flag src.bowl act)
-    (apply-action act)
+    (dispatch-remote request-id.cmd action.cmd)
   ::
       %buckets-broker-command-1
     ?>  =(src.bowl our.bowl)
@@ -144,38 +145,149 @@
     (stop-sub flag)
   ==
 ::
+::  +dispatch-local: a client on our own ship submitted an action. Apply it
+::  if we host the bucket, otherwise forward it to the host and wait.
+::
 ++  dispatch-local
-  |=  act=action:b
+  |=  [rid=request-id:b act=action:b]
   ^+  cor
-  ?+  -.act  (dispatch-existing act)
-    %create
-  ?>  ?=(%duke (clan:title ship.group.act))
-  ?>  (group-is-admin-for-create group.act our.bowl)
-  ?:  =(ship.group.act our.bowl)
-    (create-bucket name.act title.act group.act readers.act writers.act our.bowl)
-  (forward-create act)
-  ==
-::
-++  forward-create
-  |=  act=action:b
-  ^+  cor
-  ?+  -.act  ~|(%forward-create-requires-create !!)
-    %create
-  %-  emit
-  :*  %pass  /buckets/cmd/create/(scot %p ship.group.act)/[name.act]
-      %agent  [ship.group.act %buckets]
-      %poke  buckets-command-1+!>(`command:b`[act])
-  ==
-  ==
-::
-++  dispatch-existing
-  |=  act=action:b
-  ^+  cor
+  =/  paths=(list path)  ~[/v1/requests]
+  ?:  ?=(%create -.act)
+    ?.  ?=(%duke (clan:title ship.group.act))
+      (deny rid paths %invalid-input 'only a planet may host a bucket')
+    ?.  (group-is-admin-for-create group.act our.bowl)
+      (deny rid paths %not-authorized 'only a group admin may create a bucket')
+    ?.  =(ship.group.act our.bowl)
+      (forward rid act ship.group.act)
+    =.  cor
+      (create-bucket name.act title.act group.act readers.act writers.act our.bowl)
+    (settle rid paths)
   =/  =flag:b  (action-flag act)
-  =/  sp=space:b  (need-space flag)
-  ?:  =(%pub net.sp)
-    (apply-action act)
-  (forward-action flag act)
+  ?~  sp=(~(get by spaces) flag)
+    (deny rid paths %not-found 'no such bucket')
+  ?.  =(%pub net.u.sp)
+    (forward rid act ship.flag)
+  =/  st=bucket-state:b  (need-state flag)
+  ?.  (action-authorized st flag our.bowl act)
+    (deny rid paths %not-authorized 'not authorized for this bucket')
+  =.  cor  (apply-action act)
+  (settle rid paths)
+::
+::  +dispatch-remote: a subscriber forwarded a command to us as host. The
+::  actor is src.bowl; the answer goes back on that ship's request path.
+::
+++  dispatch-remote
+  |=  [rid=request-id:b act=action:b]
+  ^+  cor
+  =/  paths=(list path)  ~[(host-req-path src.bowl rid)]
+  ?:  ?=(%create -.act)
+    ?>  =(ship.group.act our.bowl)
+    ?.  ?=(%duke (clan:title ship.group.act))
+      (deny rid paths %invalid-input 'only a planet may host a bucket')
+    ?.  (group-is-admin-for-create group.act src.bowl)
+      (deny rid paths %not-authorized 'only a group admin may create a bucket')
+    =.  cor
+      (create-bucket name.act title.act group.act readers.act writers.act src.bowl)
+    (settle rid paths)
+  =/  =flag:b  (action-flag act)
+  ?>  =(ship.flag our.bowl)
+  ?~  sp=(~(get by spaces) flag)
+    (deny rid paths %not-found 'no such bucket')
+  =/  st=bucket-state:b  (need-state flag)
+  ?.  (action-authorized st flag src.bowl act)
+    (deny rid paths %not-authorized 'not authorized for this bucket')
+  =.  cor  (apply-action act)
+  (settle rid paths)
+::
+::  +forward: hand a command to the authoritative host, subscribe for its
+::  answer, and arm a timeout so a silent host can't strand the client.
+::
+++  forward
+  |=  [rid=request-id:b act=action:b host=ship]
+  ^+  cor
+  =/  until=@da  (add now.bowl request-timeout)
+  =.  pending  (~(put by pending) rid [host until])
+  =.  cor
+    %-  emit
+    :*  %pass  (req-poke-wire host rid)  %agent  [host %buckets]
+        %poke  buckets-command-1+!>(`command:b`[rid act])
+    ==
+  =.  cor
+    %-  emit
+    :*  %pass  (req-watch-wire host rid)  %agent  [host %buckets]
+        %watch  (host-req-path our.bowl rid)
+    ==
+  =.  cor
+    (emit [%pass (req-wake-wire host rid) %arvo %b %wait until])
+  (respond rid ~[/v1/requests] [%pending ~])
+::
+::  +settle: emit the terminal response for a request, defaulting to %ok when
+::  the applied action produced nothing to hand back.
+::
+++  settle
+  |=  [rid=request-id:b paths=(list path)]
+  ^+  cor
+  =/  body=response-body:b  ?~(reply [%ok ~] u.reply)
+  =.  cor  cor(reply ~)
+  (respond rid paths body)
+::
+++  deny
+  |=  [rid=request-id:b paths=(list path) type=action-error:b msg=@t]
+  ^+  cor
+  (respond rid paths [%error type msg])
+::
+++  respond
+  |=  [rid=request-id:b paths=(list path) body=response-body:b]
+  ^+  cor
+  =/  res=req-response:b  [rid body]
+  (give [%fact paths buckets-req-response-1+!>(res)])
+::
+++  host-req-path
+  |=  [who=ship rid=request-id:b]
+  ^-  path
+  /v1/request/(scot %p who)/(scot %uv rid)
+::
+++  req-poke-wire
+  |=  [host=ship rid=request-id:b]
+  ^-  wire
+  /buckets/req/(scot %p host)/(scot %uv rid)/poke
+::
+++  req-watch-wire
+  |=  [host=ship rid=request-id:b]
+  ^-  wire
+  /buckets/req/(scot %p host)/(scot %uv rid)/watch
+::
+++  req-wake-wire
+  |=  [host=ship rid=request-id:b]
+  ^-  wire
+  /buckets/req/(scot %p host)/(scot %uv rid)/wake
+::
+::  +request-live: is a forwarded request still waiting on the host?
+::
+::  Tracked in state rather than read off wex.bowl, because Gall has already
+::  dropped the subscription by the time a %kick reaches us — the one case
+::  where we most need to know the request was still outstanding.
+::
+++  request-live
+  |=  rid=request-id:b
+  ^-  ?
+  (~(has by pending) rid)
+::
+::  +close-request: retire a settled request, dropping its subscription and
+::  cancelling the timeout at the instant it was armed for.
+::
+++  close-request
+  |=  [host=ship rid=request-id:b]
+  ^+  cor
+  =/  got=(unit [host=ship until=@da])  (~(get by pending) rid)
+  =.  pending  (~(del by pending) rid)
+  =.  cor
+    %-  emit
+    :*  %pass  (req-watch-wire host rid)  %agent  [host %buckets]
+        %leave  ~
+    ==
+  ?~  got  cor
+  (emit [%pass (req-wake-wire host rid) %arvo %b %rest until.u.got])
 ::
 ++  action-flag
   |=  act=action:b
@@ -233,7 +345,7 @@
   =/  id=@ud  +(next-id)
   =.  next-id  id
   =/  buc=bucket:b  [id title actor now.bowl actor now.bowl]
-  =/  st=bucket-state:b  [buc group readers writers ~ ~ 0]
+  =/  st=bucket-state:b  [buc group readers writers ~ 0]
   =.  spaces  (~(put by spaces) flag [%pub `st `group])
   =.  cor  (register-bucket flag st)
   (give [%fact ~[/v1] buckets-response-1+!>(`response:b`[%snapshot flag st])])
@@ -261,23 +373,14 @@
     %set-readers     (set-readers flag.act readers.act)
     %set-writers     (set-writers flag.act writers.act)
     %create-folder   (create-folder flag.act parent.act name.act)
-    %begin-upload    (begin-upload flag.act parent.act name.act mime.act size.act checksum.act capability.act)
+    %begin-upload    (begin-upload flag.act parent.act name.act mime.act size.act checksum.act)
     %finish-upload   (finish-upload flag.act session.act object-url.act)
     %fail-upload     (fail-upload flag.act session.act reason.act)
-    %issue-read      (issue-object-capability %read flag.act id.act capability.act)
-    %issue-delete    (issue-object-capability %delete flag.act id.act capability.act)
+    %issue-read      (issue-object-capability %read flag.act id.act)
+    %issue-delete    (issue-object-capability %delete flag.act id.act)
     %rename-entry    (rename-entry flag.act id.act name.act)
     %move-entry      (move-entry flag.act id.act parent.act)
     %delete-entry    (delete-entry flag.act id.act recursive.act)
-  ==
-::
-++  forward-action
-  |=  [=flag:b act=action:b]
-  ^+  cor
-  %-  emit
-  :*  %pass  /buckets/cmd/(scot %p ship.flag)/[name.flag]
-      %agent  [ship.flag %buckets]
-      %poke  buckets-command-1+!>(`command:b`[act])
   ==
 ::
 ++  delete-bucket
@@ -295,6 +398,7 @@
   =/  res=response:b
     [%update flag +(revision.st) src.bowl [%bucket-deleted ~]]
   =.  cor  (give [%fact ~[/v1 (updates-path flag)] buckets-response-1+!>(res)])
+  =.  sessions  (drop-bucket-sessions flag)
   =.  spaces  (~(del by spaces) flag)
   cor
 ::
@@ -324,13 +428,19 @@
   |=  [=flag:b parent=(unit @ud) name=@t]
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
-  ?>  (valid-parent st parent)
+  ?.  (valid-parent st parent)
+    (answer [%error %not-found 'no such parent folder'])
   =/  id=@ud  +(next-id)
   =.  next-id  id
   =/  ent=entry:b
     [id parent name src.bowl now.bowl src.bowl now.bowl [%folder ~]]
   =.  entries.st  (~(put by entries.st) id ent)
-  (commit-update flag st [%folder-created ent])
+  (commit-update flag st [%entry-created ent])
+::
+::  +begin-upload: reserve an entry id and object key, open a host-private
+::  session, and hand the session id back to the uploader as its broker
+::  token. The entry is not published until the object lands, so nothing is
+::  broadcast here and the token never leaves this response.
 ::
 ++  begin-upload
   |=  $:  =flag:b
@@ -339,105 +449,145 @@
           mime=@t
           size=@ud
           checksum=(unit @t)
-          capability=@t
       ==
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
-  ?>  (valid-parent st parent)
-  ?>  (gth (met 3 capability) 15)
+  ?.  (valid-parent st parent)
+    (answer [%error %not-found 'no such parent folder'])
+  ?:  =(0 size)
+    (answer [%error %invalid-input 'file size must be greater than zero'])
+  ?:  (gth size max-object-size)
+    (answer [%error %invalid-input 'file exceeds the maximum object size'])
+  ?.  (valid-mime mime)
+    (answer [%error %invalid-input 'missing or malformed content type'])
   =.  cor  prune-broker-authority
-  ?>  !(~(has by broker-capabilities) capability)
   =/  id=@ud  +(next-id)
   =.  next-id  id
   =/  sid=@uv  `@uv`eny.bowl
-  =/  fil=file:b
-    [mime size checksum (scot %uv sid) ~ %pending]
+  =/  fil=file:b  [mime size checksum (scot %uv sid) ~ %pending]
   =/  ent=entry:b
     [id parent name src.bowl now.bowl src.bowl now.bowl [%file fil]]
+  =/  expiry=@da  (add now.bowl upload-window)
   =/  ses=upload-session:b
-    [sid id src.bowl now.bowl (add now.bowl ~h1) %pending ~]
-  =/  aut=broker-capability:b
-    [%upload flag `sid id object-key.fil src.bowl expires-at.ses ~]
-  =.  entries.st   (~(put by entries.st) id ent)
-  =.  sessions.st  (~(put by sessions.st) sid ses)
-  =.  broker-capabilities
-    (~(put by broker-capabilities) capability aut)
-  (commit-update flag st [%upload-begun ses ent])
+    [sid flag ent src.bowl now.bowl expiry %pending ~ ~]
+  =.  sessions  (~(put by sessions) sid ses)
+  (answer [%grant [(scot %uv sid) id expiry]])
+::
+::  +finish-upload: legacy completion for clients that upload straight to a
+::  Tlon-managed object URL rather than through the private broker.
 ::
 ++  finish-upload
   |=  [=flag:b sid=@uv object-url=@t]
   ^+  cor
-  =/  st=bucket-state:b  (need-state flag)
-  =/  ses=upload-session:b  (~(got by sessions.st) sid)
-  ?>  =(%pending status.ses)
-  ?>  =(requested-by.ses src.bowl)
-  ?>  (gth expires-at.ses now.bowl)
-  ?>  (valid-legacy-object-url object-url)
-  =/  ent=entry:b  (~(got by entries.st) file-id.ses)
-  =/  fil=file:b  (entry-file ent)
-  =.  fil  fil(object-url `object-url, status %ready)
-  =.  ent  ent(updated-by src.bowl, updated-at now.bowl, kind [%file fil])
-  =.  ses  ses(status %complete)
-  =.  entries.st   (~(put by entries.st) id.ent ent)
-  =.  sessions.st  (~(put by sessions.st) sid ses)
-  (commit-update flag st [%upload-ready ses ent])
+  ?~  got=(~(get by sessions) sid)
+    (answer [%error %not-found 'no such upload session'])
+  =/  ses=upload-session:b  u.got
+  ?.  =(flag flag.ses)
+    (answer [%error %not-found 'no such upload session'])
+  ?.  =(%pending status.ses)
+    (answer [%error %invalid-input 'upload session is not pending'])
+  ?.  =(requested-by.ses src.bowl)
+    (answer [%error %not-authorized 'not the uploader'])
+  ?.  (gth expires-at.ses now.bowl)
+    (answer [%error %invalid-input 'upload session has expired'])
+  ?.  (valid-legacy-object-url object-url)
+    (answer [%error %invalid-input 'unsupported object origin'])
+  (publish-upload ses `object-url src.bowl)
 ::
-++  valid-legacy-object-url
-  |=  object-url=@t
-  ^-  ?
-  =/  url=tape  (trip object-url)
-  ?|  =(`0 (find "https://storage.googleapis.com/tlon-prod-memex-assets/" url))
-      =(`0 (find "https://storage.googleapis.com/tlon-staging-memex-assets/" url))
-      =(`0 (find "https://storage.googleapis.com/tlon-test-memex-assets/" url))
-  ==
+::  +publish-upload: move a completed session's entry into the manifest and
+::  broadcast it. The session is retained as %complete so a repeated
+::  completion is a no-op rather than a second entry.
+::
+++  publish-upload
+  |=  [ses=upload-session:b url=(unit @t) actor=ship]
+  ^+  cor
+  =/  st=bucket-state:b  (need-state flag.ses)
+  =/  ent=entry:b  entry.ses
+  =/  fil=file:b  (entry-file ent)
+  =.  fil  fil(object-url url, status %ready)
+  =.  ent  ent(updated-by actor, updated-at now.bowl, kind [%file fil])
+  =.  sessions  (~(put by sessions) id.ses ses(status %complete, entry ent))
+  =.  entries.st  (~(put by entries.st) id.ent ent)
+  (commit-update flag.ses st [%entry-created ent])
 ::
 ++  fail-upload
   |=  [=flag:b sid=@uv reason=@t]
   ^+  cor
-  =/  st=bucket-state:b  (need-state flag)
-  =/  ses=upload-session:b  (~(got by sessions.st) sid)
-  ?>  =(%pending status.ses)
-  ?>  =(requested-by.ses src.bowl)
-  =/  ent=entry:b  (~(got by entries.st) file-id.ses)
-  =/  fil=file:b  (entry-file ent)
-  =.  fil  fil(status %failed)
-  =.  ent  ent(updated-by src.bowl, updated-at now.bowl, kind [%file fil])
-  =.  ses  ses(status %failed, error `reason)
-  =.  entries.st   (~(put by entries.st) id.ent ent)
-  =.  sessions.st  (~(put by sessions.st) sid ses)
-  (commit-update flag st [%upload-failed ses ent])
+  ?~  got=(~(get by sessions) sid)
+    (answer [%error %not-found 'no such upload session'])
+  =/  ses=upload-session:b  u.got
+  ?.  =(flag flag.ses)
+    (answer [%error %not-found 'no such upload session'])
+  ?.  =(%pending status.ses)
+    (answer [%error %invalid-input 'upload session is not pending'])
+  ?.  =(requested-by.ses src.bowl)
+    (answer [%error %not-authorized 'not the uploader'])
+  ::  Nothing was published, so there is nothing to broadcast — the session
+  ::  is kept briefly so the uploader can read the reason back.
+  =.  sessions  (~(put by sessions) sid ses(status %failed, error `reason))
+  cor
+::
+::  +issue-object-capability: mint a short-lived read or delete grant for a
+::  published file and return it to the requester alone.
 ::
 ++  issue-object-capability
-  |=  [kind=broker-kind:b =flag:b id=@ud capability=@t]
+  |=  [kind=object-kind:b =flag:b id=@ud]
   ^+  cor
-  ?>  !=(%upload kind)
-  ?>  (gth (met 3 capability) 15)
   =.  cor  prune-broker-authority
-  ?>  !(~(has by broker-capabilities) capability)
   =/  st=bucket-state:b  (need-state flag)
-  =/  ent=entry:b  (~(got by entries.st) id)
-  =/  fil=file:b  (entry-file ent)
-  ?>  =(%ready status.fil)
-  =/  aut=broker-capability:b
-    [kind flag ~ id object-key.fil src.bowl (add now.bowl ~m10) ~]
-  =.  broker-capabilities
-    (~(put by broker-capabilities) capability aut)
-  cor
+  ?~  got=(~(get by entries.st) id)
+    (answer [%error %not-found 'no such entry'])
+  =/  ent=entry:b  u.got
+  ?.  ?=(%file -.kind.ent)
+    (answer [%error %invalid-input 'entry is a folder'])
+  =/  fil=file:b  +.kind.ent
+  ?.  =(%ready status.fil)
+    (answer [%error %invalid-input 'file is not ready'])
+  =/  token=@t  (scot %uv `@uv`eny.bowl)
+  =/  expiry=@da  (add now.bowl object-window)
+  =/  aut=object-capability:b  [kind flag id src.bowl expiry]
+  =.  object-capabilities  (~(put by object-capabilities) token aut)
+  (answer [%grant [token id expiry]])
+::
+::  +prune-broker-authority: drop expired capabilities, expired pending
+::  sessions, and any reservation whose session is gone.
 ::
 ++  prune-broker-authority
   ^+  cor
-  =/  kept=(map @t broker-capability:b)
+  =.  object-capabilities
     %-  malt
-    %+  skim  ~(tap by broker-capabilities)
-    |=  [capability=@t aut=broker-capability:b]
+    %+  skim  ~(tap by object-capabilities)
+    |=  [token=@t aut=object-capability:b]
     (gth expires-at.aut now.bowl)
-  =.  broker-capabilities  kept
-  =.  broker-reservations
+  =.  sessions
     %-  malt
-    %+  skim  ~(tap by broker-reservations)
-    |=  [reservation=@t capability=@t]
-    (~(has by kept) capability)
+    %+  skim  ~(tap by sessions)
+    |=  [sid=@uv ses=upload-session:b]
+    ?.  =(%pending status.ses)  &
+    (gth expires-at.ses now.bowl)
+  =.  reservations
+    %-  malt
+    %+  skim  ~(tap by reservations)
+    |=  [reservation=@t sid=@uv]
+    (~(has by sessions) sid)
   cor
+::
+++  drop-bucket-sessions
+  |=  =flag:b
+  ^-  (map @uv upload-session:b)
+  %-  malt
+  %+  skip  ~(tap by sessions)
+  |=  [sid=@uv ses=upload-session:b]
+  =(flag flag.ses)
+::
+::  +session-token: resolve the opaque string Memex presents back to the
+::  session that minted it.
+::
+++  session-token
+  |=  token=@t
+  ^-  (unit upload-session:b)
+  ?~  sid=(slaw %uv token)  ~
+  (~(get by sessions) u.sid)
 ::
 ++  apply-broker-command
   |=  cmd=broker-command:b
@@ -451,59 +601,37 @@
   ==
 ::
 ++  authorize-broker-upload
-  |=  [capability=@t reservation=@t]
+  |=  [token=@t reservation=@t]
   ^+  cor
-  ?~  got=(~(get by broker-capabilities) capability)  cor
-  =/  aut=broker-capability:b  u.got
-  ?.  =(%upload broker-kind.aut)  cor
-  ?.  (gth expires-at.aut now.bowl)  cor
-  ?~  sid=session.aut  cor
-  ?~  sp=(~(get by spaces) flag.aut)  cor
+  ?~  got=(session-token token)  cor
+  =/  ses=upload-session:b  u.got
+  ?.  =(%pending status.ses)  cor
+  ?.  (gth expires-at.ses now.bowl)  cor
+  ?~  sp=(~(get by spaces) flag.ses)  cor
   ?~  st-unit=state.u.sp  cor
   =/  st=bucket-state:b  u.st-unit
-  ?~  ses=(~(get by sessions.st) u.sid)  cor
-  ?.  =(%pending status.u.ses)  cor
-  ?.  (group-can-write group.st flag.aut writers.st actor.aut)  cor
-  ?~  accepted=broker-reservation-id.aut
-    ?^  occupied=(~(get by broker-reservations) reservation)  cor
-    =/  updated=broker-capability:b
-      :*  %upload
-          flag.aut
-          session.aut
-          entry-id.aut
-          object-id.aut
-          actor.aut
-          expires-at.aut
-          [~ reservation]
-      ==
-    =.  broker-capabilities
-      (~(put by broker-capabilities) capability updated)
-    =.  broker-reservations
-      (~(put by broker-reservations) reservation capability)
-    cor
-  ?:  =(u.accepted reservation)  cor
+  ?.  (group-can-write group.st flag.ses writers.st requested-by.ses)  cor
+  ?^  accepted=reservation.ses  cor
+  ?^  occupied=(~(get by reservations) reservation)  cor
+  =.  sessions  (~(put by sessions) id.ses ses(reservation `reservation))
+  =.  reservations  (~(put by reservations) reservation id.ses)
   cor
 ::
 ++  complete-broker-upload
   |=  receipt=broker-receipt:b
   ^+  cor
-  ?~  cap=(~(get by broker-reservations) broker-reservation-id.receipt)  cor
-  ?~  got=(~(get by broker-capabilities) u.cap)  cor
-  =/  aut=broker-capability:b  u.got
-  ?.  =(%upload broker-kind.aut)  cor
-  ?.  (gth expires-at.aut now.bowl)  cor
-  ?~  sid=session.aut  cor
-  ?~  sp=(~(get by spaces) flag.aut)  cor
-  ?~  st-unit=state.u.sp  cor
-  =/  st=bucket-state:b  u.st-unit
-  ?.  (group-can-write group.st flag.aut writers.st actor.aut)  cor
-  ?~  ses-unit=(~(get by sessions.st) u.sid)  cor
-  =/  ses=upload-session:b  u.ses-unit
+  ?~  sid=(~(get by reservations) broker-reservation-id.receipt)  cor
+  ?~  got=(~(get by sessions) u.sid)  cor
+  =/  ses=upload-session:b  u.got
   ?:  =(%complete status.ses)  cor
   ?.  =(%pending status.ses)  cor
-  =/  ent=entry:b  (~(got by entries.st) entry-id.aut)
-  =/  fil=file:b  (entry-file ent)
-  ?.  ?&  =(object-id.receipt object-id.aut)
+  ?.  (gth expires-at.ses now.bowl)  cor
+  ?~  sp=(~(get by spaces) flag.ses)  cor
+  ?~  st-unit=state.u.sp  cor
+  =/  st=bucket-state:b  u.st-unit
+  ?.  (group-can-write group.st flag.ses writers.st requested-by.ses)  cor
+  =/  fil=file:b  (entry-file entry.ses)
+  ?.  ?&  =(object-id.receipt object-key.fil)
           ?|  =(host.receipt (ship-text our.bowl))
               =(host.receipt (scot %p our.bowl))
           ==
@@ -512,19 +640,15 @@
           =(mime-type.receipt mime.fil)
       ==
     cor
-  =.  fil  fil(object-url ~, status %ready)
-  =.  ent
-    ent(updated-by actor.aut, updated-at now.bowl, kind [%file fil])
-  =.  ses  ses(status %complete)
-  =.  entries.st   (~(put by entries.st) id.ent ent)
-  =.  sessions.st  (~(put by sessions.st) id.ses ses)
-  (commit-update flag.aut st [%upload-ready ses ent])
+  (publish-upload ses ~ requested-by.ses)
 ::
 ++  rename-entry
   |=  [=flag:b id=@ud name=@t]
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
-  =/  ent=entry:b  (~(got by entries.st) id)
+  ?~  got=(~(get by entries.st) id)
+    (answer [%error %not-found 'no such entry'])
+  =/  ent=entry:b  u.got
   =.  ent  ent(name name, updated-by src.bowl, updated-at now.bowl)
   =.  entries.st  (~(put by entries.st) id ent)
   (commit-update flag st [%entry-updated ent])
@@ -533,14 +657,18 @@
   |=  [=flag:b id=@ud parent=(unit @ud)]
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
-  ?>  (valid-parent st parent)
-  =/  ent=entry:b  (~(got by entries.st) id)
-  ?<  ?&  ?=(^ parent)
-          =(u.parent id)
+  ?.  (valid-parent st parent)
+    (answer [%error %not-found 'no such parent folder'])
+  ?~  got=(~(get by entries.st) id)
+    (answer [%error %not-found 'no such entry'])
+  =/  ent=entry:b  u.got
+  ?:  ?&(?=(^ parent) =(u.parent id))
+    (answer [%error %invalid-input 'an entry cannot contain itself'])
+  ?:  ?&  ?=(%folder -.kind.ent)
+          ?=(^ parent)
+          (descendant st id u.parent)
       ==
-  =?  st  ?&(?=(%folder -.kind.ent) ?=(^ parent))
-    ?<  (descendant st id u.parent)
-    st
+    (answer [%error %invalid-input 'a folder cannot move inside itself'])
   =.  ent  ent(parent parent, updated-by src.bowl, updated-at now.bowl)
   =.  entries.st  (~(put by entries.st) id ent)
   (commit-update flag st [%entry-updated ent])
@@ -549,17 +677,21 @@
   |=  [=flag:b id=@ud recursive=?]
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
+  ?.  (~(has by entries.st) id)
+    (answer [%error %not-found 'no such entry'])
   =/  ids=(set @ud)  (descendants st id)
-  ?>  ?|(recursive =((lent ~(tap in ids)) 1))
+  ?.  ?|(recursive =(1 ~(wyt in ids)))
+    (answer [%error %invalid-input 'folder is not empty'])
   =.  entries.st
     %-  ~(rep in ids)
     |=  [key=@ud acc=_entries.st]
     (~(del by acc) key)
-  =.  sessions.st
+  =.  sessions
     %-  malt
-    %+  skip  ~(tap by sessions.st)
+    %+  skip  ~(tap by sessions)
     |=  [key=@uv ses=upload-session:b]
-    (~(has in ids) file-id.ses)
+    ?.  =(flag flag.ses)  |
+    (~(has in ids) id.entry.ses)
   (commit-update flag st [%entries-deleted ~(tap in ids)])
 ::
 ++  commit-update
@@ -578,6 +710,26 @@
   ?~  parent  &
   ?~  ent=(~(get by entries.st) u.parent)  |
   =(%folder -.kind.u.ent)
+::
+::  +valid-mime: a content type must be present and look like type/subtype.
+::  Memex refuses anything else, so refuse it here before committing state.
+::
+++  valid-mime
+  |=  mime=@t
+  ^-  ?
+  =/  txt=tape  (trip mime)
+  ?~  txt  |
+  ?~  cut=(find "/" txt)  |
+  &(!=(0 u.cut) !=(+(u.cut) (lent txt)))
+::
+++  valid-legacy-object-url
+  |=  object-url=@t
+  ^-  ?
+  =/  url=tape  (trip object-url)
+  ?|  =(`0 (find "https://storage.googleapis.com/tlon-prod-memex-assets/" url))
+      =(`0 (find "https://storage.googleapis.com/tlon-staging-memex-assets/" url))
+      =(`0 (find "https://storage.googleapis.com/tlon-test-memex-assets/" url))
+  ==
 ::
 ++  entry-file
   |=  ent=entry:b
@@ -691,25 +843,21 @@
   (pairs:enjs:format ~[['result' s+result]])
 ::
 ++  broker-upload-verdict
-  |=  [capability=@t reservation=@t]
+  |=  [token=@t reservation=@t]
   ^-  json
   =/  denied=json  (broker-simple-verdict 'denied')
-  ?~  got=(~(get by broker-capabilities) capability)  denied
-  =/  aut=broker-capability:b  u.got
-  ?.  =(%upload broker-kind.aut)  denied
-  ?.  (gth expires-at.aut now.bowl)
+  ?~  got=(session-token token)  denied
+  =/  ses=upload-session:b  u.got
+  ?.  (gth expires-at.ses now.bowl)
     (broker-simple-verdict 'expired')
-  ?~  accepted=broker-reservation-id.aut  denied
+  ?.  =(%pending status.ses)  denied
+  ?~  accepted=reservation.ses  denied
   ?.  =(u.accepted reservation)  denied
-  ?~  sid=session.aut  denied
-  ?~  sp=(~(get by spaces) flag.aut)  denied
+  ?~  sp=(~(get by spaces) flag.ses)  denied
   ?~  st-unit=state.u.sp  denied
   =/  st=bucket-state:b  u.st-unit
-  ?~  ses=(~(get by sessions.st) u.sid)  denied
-  ?.  =(%pending status.u.ses)  denied
-  ?.  (group-can-write group.st flag.aut writers.st actor.aut)  denied
-  =/  ent=entry:b  (~(got by entries.st) entry-id.aut)
-  =/  fil=file:b  (entry-file ent)
+  ?.  (group-can-write group.st flag.ses writers.st requested-by.ses)  denied
+  =/  fil=file:b  (entry-file entry.ses)
   =/  checksum-json=json
     ?~  checksum.fil  ~
     %-  pairs:enjs:format
@@ -718,15 +866,15 @@
     ==
   =/  upload=json
     %-  pairs:enjs:format
-    :~  ['bucketName' s+(scot %tas name.flag.aut)]
+    :~  ['bucketName' s+(scot %tas name.flag.ses)]
         ['bucketId' s+(scot %ud id.bucket.st)]
-        ['sessionId' s+(scot %uv u.sid)]
-        ['objectId' s+object-id.aut]
-        ['actorShip' s+(ship-text actor.aut)]
+        ['sessionId' s+(scot %uv id.ses)]
+        ['objectId' s+object-key.fil]
+        ['actorShip' s+(ship-text requested-by.ses)]
         ['size' (numb:enjs:format size.fil)]
         ['mimeType' s+mime.fil]
         ['checksum' checksum-json]
-        ['expiresAtMillis' (numb:enjs:format (mul 1.000 (unt:chrono:userlib expires-at.aut)))]
+        ['expiresAtMillis' (numb:enjs:format (mul 1.000 (unt:chrono:userlib expires-at.ses)))]
         ['brokerReservationId' s+u.accepted]
     ==
   %-  pairs:enjs:format
@@ -735,13 +883,12 @@
   ==
 ::
 ++  broker-object-verdict
-  |=  [kind=broker-kind:b capability=@t object=@t]
+  |=  [kind=object-kind:b token=@t object=@t]
   ^-  json
   =/  denied=json  (broker-simple-verdict 'denied')
-  ?~  got=(~(get by broker-capabilities) capability)  denied
-  =/  aut=broker-capability:b  u.got
-  ?.  =(kind broker-kind.aut)  denied
-  ?.  =(object object-id.aut)  denied
+  ?~  got=(~(get by object-capabilities) token)  denied
+  =/  aut=object-capability:b  u.got
+  ?.  =(kind kind.aut)  denied
   ?.  (gth expires-at.aut now.bowl)
     (broker-simple-verdict 'expired')
   ?~  sp=(~(get by spaces) flag.aut)  denied
@@ -756,16 +903,17 @@
   ?.  ?=(%file -.kind.ent)  denied
   =/  fil=file:b  +.kind.ent
   ?.  =(%ready status.fil)  denied
+  ?.  =(object object-key.fil)  denied
   =/  payload=json
     ?:  =(kind %read)
       %-  pairs:enjs:format
       :~  ['bucketId' s+(scot %ud id.bucket.st)]
-          ['objectId' s+object-id.aut]
+          ['objectId' s+object-key.fil]
           ['displayFilename' s+name.ent]
       ==
     %-  pairs:enjs:format
     :~  ['bucketId' s+(scot %ud id.bucket.st)]
-        ['objectId' s+object-id.aut]
+        ['objectId' s+object-key.fil]
     ==
   =/  key=@t  ?:(=(kind %read) 'read' 'delete')
   %-  pairs:enjs:format
@@ -777,14 +925,9 @@
   |=  reservation=@t
   ^-  json
   =/  denied=json  (broker-simple-verdict 'denied')
-  ?~  cap=(~(get by broker-reservations) reservation)  denied
-  ?~  got=(~(get by broker-capabilities) u.cap)  denied
-  =/  aut=broker-capability:b  u.got
-  ?~  sid=session.aut  denied
-  ?~  sp=(~(get by spaces) flag.aut)  denied
-  ?~  st-unit=state.u.sp  denied
-  ?~  ses=(~(get by sessions.u.st-unit) u.sid)  denied
-  ?.  =(%complete status.u.ses)  denied
+  ?~  sid=(~(get by reservations) reservation)  denied
+  ?~  got=(~(get by sessions) u.sid)  denied
+  ?.  =(%complete status.u.got)  denied
   (broker-simple-verdict 'completed')
 ::
 ++  updates-path
@@ -815,6 +958,18 @@
   %-  emit
   [%pass (sub-wire flag) %agent [ship.flag %buckets] %leave ~]
 ::
+::  +resub: re-establish a dropped subscription without discarding the
+::  replica. A kick is not a revocation — the host kicks deliberately when
+::  access is pulled, but Gall also kicks on restart and transient failure.
+::
+++  resub
+  |=  =flag:b
+  ^+  cor
+  ?~  sp=(~(get by spaces) flag)  cor
+  ?.  =(%sub net.u.sp)  cor
+  %-  emit
+  [%pass (sub-wire flag) %agent [ship.flag %buckets] %watch (updates-path flag)]
+::
 ++  report-active
   |=  [=flag:b sp=space:b joined=?]
   ^-  (unit card)
@@ -839,6 +994,21 @@
       |=  snap=snapshot:b
       `[%give %fact ~ buckets-response-1+!>(`response:b`[%snapshot flag.snap bucket-state.snap])]
     (emil facts)
+  ::
+  ::  Terminal responses for actions submitted by clients on this ship. All
+  ::  local clients share one path; tokens in a %grant are scoped to this
+  ::  ship's user, who is the only subscriber.
+  ::
+      [%v1 %requests ~]
+    ?>  =(src.bowl our.bowl)
+    cor
+  ::
+  ::  A subscriber attaches here while waiting for our answer to one of its
+  ::  forwarded commands. Only the requester named in the path may listen.
+  ::
+      [%v1 %request who=@ rid=@ ~]
+    ?>  =(src.bowl (slav %p who.pole))
+    cor
   ::
       [%v1 %buckets host=@ name=@ %updates ~]
     =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
@@ -907,19 +1077,51 @@
       ?.  =(%buckets-response-1 p.cage.sign)  cor
       (apply-response !<(response:b q.cage.sign))
     ::
+    ::  A kick is not a revocation, so re-watch rather than dropping the
+    ::  replica. The host's nack below is what tells us access is gone.
         %kick
-      (stop-sub flag)
+      (resub flag)
     ::
         %watch-ack
       ?~  p.sign  cor
       (stop-sub flag)
     ==
   ::
-      [%buckets %cmd *]
+      [%buckets %req host=@ rid=@ %watch ~]
+    =/  host=ship  (slav %p host.pole)
+    =/  rid=request-id:b  (slav %uv rid.pole)
+    ?+  -.sign  cor
+        %fact
+      ?.  =(%buckets-req-response-1 p.cage.sign)  cor
+      ?.  (request-live rid)  cor
+      =/  res=req-response:b  !<(req-response:b q.cage.sign)
+      =.  cor  (close-request host rid)
+      (respond rid ~[/v1/requests] body.res)
+    ::
+        %kick
+      ?.  (request-live rid)  cor
+      =.  cor  (close-request host rid)
+      (deny rid ~[/v1/requests] %unknown 'host closed the request stream')
+    ::
+        %watch-ack
+      ?~  p.sign  cor
+      ?.  (request-live rid)  cor
+      =.  cor  (close-request host rid)
+      (deny rid ~[/v1/requests] %unknown 'host refused the request stream')
+    ==
+  ::
+  ::  The poke-ack only reports delivery. A nack means the host crashed on
+  ::  the command, so answer now rather than waiting for the timeout.
+      [%buckets %req host=@ rid=@ %poke ~]
+    =/  host=ship  (slav %p host.pole)
+    =/  rid=request-id:b  (slav %uv rid.pole)
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      ((slog leaf+"buckets: host command failed" u.p.sign) cor)
+      ?.  (request-live rid)  cor
+      =.  cor  (close-request host rid)
+      %-  (slog leaf+"buckets: host command failed" u.p.sign)
+      (deny rid ~[/v1/requests] %unknown 'host rejected the command')
     ==
   ::
       [%buckets @ @ ?(%create %delete) ~]
@@ -935,6 +1137,24 @@
       ?~  p.sign  cor
       ((slog leaf+"buckets: active-channel report failed" u.p.sign) cor)
     ==
+  ==
+::
+++  arvo
+  |=  [=(pole knot) =sign-arvo]
+  ^+  cor
+  ?+  pole  cor
+      [%buckets %req host=@ rid=@ %wake ~]
+    ?.  ?=([%behn %wake *] sign-arvo)  cor
+    =/  host=ship  (slav %p host.pole)
+    =/  rid=request-id:b  (slav %uv rid.pole)
+    ?.  (request-live rid)  cor
+    =.  pending  (~(del by pending) rid)
+    =.  cor
+      %-  emit
+      :*  %pass  (req-watch-wire host rid)  %agent  [host %buckets]
+          %leave  ~
+      ==
+    (deny rid ~[/v1/requests] %unknown 'the host did not answer in time')
   ==
 ::
 ++  apply-response
@@ -959,8 +1179,7 @@
     ::  be applied to a stale replica.
     ?:  (lte revision.res revision.st)  cor
     ?.  =(revision.res +(revision.st))
-      =.  cor  (stop-sub flag.res)
-      (start-sub flag.res group.st)
+      (resub flag.res)
     ?:  =(%bucket-deleted -.update.res)
       =.  cor  (give [%fact ~[/v1] buckets-response-1+!>(res)])
       =.  cor  (emil (drop (report-active flag.res sp |)))
@@ -976,42 +1195,13 @@
   |=  [st=bucket-state:b upd=update:b]
   ^-  bucket-state:b
   ?-  -.upd
-      %bucket-created
-    st(bucket bucket.upd)
-  ::
+      %bucket-created  st(bucket bucket.upd)
       %bucket-deleted  st
+      %bucket-updated  st(bucket bucket.upd)
+      %readers-updated  st(readers readers.upd)
+      %writers-updated  st(writers writers.upd)
   ::
-      %bucket-updated
-    st(bucket bucket.upd)
-  ::
-      %readers-updated
-    st(readers readers.upd)
-  ::
-      %writers-updated
-    st(writers writers.upd)
-  ::
-      %folder-created
-    st(entries (~(put by entries.st) id.entry.upd entry.upd))
-  ::
-      %upload-begun
-    %=  st
-      entries   (~(put by entries.st) id.entry.upd entry.upd)
-      sessions  (~(put by sessions.st) id.upload-session.upd upload-session.upd)
-    ==
-  ::
-      %upload-ready
-    %=  st
-      entries   (~(put by entries.st) id.entry.upd entry.upd)
-      sessions  (~(put by sessions.st) id.upload-session.upd upload-session.upd)
-    ==
-  ::
-      %upload-failed
-    %=  st
-      entries   (~(put by entries.st) id.entry.upd entry.upd)
-      sessions  (~(put by sessions.st) id.upload-session.upd upload-session.upd)
-    ==
-  ::
-      %entry-updated
+      ?(%entry-created %entry-updated)
     st(entries (~(put by entries.st) id.entry.upd entry.upd))
   ::
       %entries-deleted
@@ -1019,11 +1209,6 @@
       %-  ~(rep in (silt ids.upd))
       |=  [key=@ud acc=_entries.st]
       (~(del by acc) key)
-    =.  sessions.st
-      %-  malt
-      %+  skip  ~(tap by sessions.st)
-      |=  [key=@uv ses=upload-session:b]
-      (~(has in (silt ids.upd)) file-id.ses)
     st
   ==
 ::

@@ -15,13 +15,19 @@
   ^-  flag:bu
   [~sampel-palnet %test-group]
 ::
+::  The bowl pins eny, so a session id is predictable: +begin-upload mints it
+::  as `@uv`eny.bowl, which is also the token handed to the broker.
+::
+++  seed  0v1234
+++  seed-token  ^-(@t (scot %uv seed))
+::
 ++  setup
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~sampel-palnet, src ~sampel-palnet)))
   ;<  *  bind:m  (do-init dap buckets-agent)
   ;<  ~  bind:m
-    (jab-bowl |=(b=bowl b(now ~2026.1.1, eny 0v1234)))
+    (jab-bowl |=(b=bowl b(now ~2026.1.1, eny seed)))
   (pure:m ~)
 ::
 ++  setup-as
@@ -31,14 +37,22 @@
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our who, src who)))
   ;<  *  bind:m  (do-init dap buckets-agent)
   ;<  ~  bind:m
-    (jab-bowl |=(b=bowl b(now ~2026.1.1, eny 0v1234)))
+    (jab-bowl |=(b=bowl b(now ~2026.1.1, eny seed)))
   (pure:m ~)
+::
+::  +ask: submit a local client action under a request id.
+::
+++  ask
+  |=  [rid=@uv act=action:bu]
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  (do-poke %buckets-action-1 !>(`command:bu`[rid act]))
 ::
 ++  create
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m
-    (do-poke %buckets-action-1 !>(`action:bu`[%create %project-files 'Project Files' group ~ ~]))
+    (ask 0v0 [%create %project-files 'Project Files' group ~ ~])
   (pure:m ~)
 ::
 ++  file-of
@@ -50,10 +64,22 @@
   ==
 ::
 ++  state-for
-  |=  [st=state-2:bu =flag:bu]
+  |=  [st=state-0:bu =flag:bu]
   ^-  bucket-state:bu
   =/  sp=space:bu  (~(got by spaces.st) flag)
   (need state.sp)
+::
+++  only-session
+  |=  st=state-0:bu
+  ^-  upload-session:bu
+  =/  sessions=(list upload-session:bu)  ~(val by sessions.st)
+  ?~(sessions !! i.sessions)
+::
+::  +grant-fact: the single card a settled local action produces.
+::
+++  grant-fact
+  |=  [rid=@uv body=response-body:bu]
+  (ex-fact ~[/v1/requests] %buckets-req-response-1 !>(`req-response:bu`[rid body]))
 ::
 ++  deny-group-scries
   |=  pax=path
@@ -89,8 +115,326 @@
   ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %seats @ %is-admin %noun ~] pax)  ~
   `!>(|)
 ::
-::  A non-host admin's local agent forwards creation to the group host rather
-::  than allocating storage on the admin's ship.
+::  A pending upload is answered privately and announced to nobody. The token
+::  goes to the requester alone, and the manifest gains nothing until the
+::  object lands — so no subscriber can learn the session id.
+::
+++  test-begin-upload-grants-token-privately
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  caz=(list card)  b
+    (ask 0v7 [%begin-upload flag ~ 'private.pdf' 'application/pdf' 42 ~])
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  %+  grant-fact  0v7
+        [%grant seed-token 2 (add ~2026.1.1 ~h1)]
+    ==
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  bs=bucket-state:bu  (state-for st flag)
+  =/  ses=upload-session:bu  (only-session st)
+  %+  ex-equal
+  !>  :*  ~(wyt by entries.bs)
+          revision.bs
+          [flag.ses status.ses requested-by.ses]
+          [id.entry.ses name.entry.ses]
+      ==
+  !>  :*  0
+          0
+          [flag %pending ~sampel-palnet]
+          [2 'private.pdf']
+      ==
+::
+::  Input Memex would refuse is refused here first, so a bad request never
+::  allocates an entry id or a session.
+::
+++  test-begin-upload-rejects-bad-input
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  caz=(list card)  b
+    (ask 0v8 [%begin-upload flag ~ 'empty.pdf' 'application/pdf' 0 ~])
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  %+  grant-fact  0v8
+        [%error %invalid-input 'file size must be greater than zero']
+    ==
+  ;<  caz2=(list card)  b
+    (ask 0v9 [%begin-upload flag ~ 'bad.pdf' 'pdf' 42 ~])
+  ;<  ~  b
+    %+  ex-cards  caz2
+    :~  %+  grant-fact  0v9
+        [%error %invalid-input 'missing or malformed content type']
+    ==
+  ;<  caz3=(list card)  b
+    (ask 0v10 [%begin-upload flag `99 'orphan.pdf' 'application/pdf' 42 ~])
+  ;<  ~  b
+    %+  ex-cards  caz3
+    :~  %+  grant-fact  0v10
+        [%error %not-found 'no such parent folder']
+    ==
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  (ex-equal !>([~(wyt by sessions.st) next-id.st]) !>([0 1]))
+::
+::  Legacy completion publishes the entry the session was holding. Only then
+::  does the manifest change and a revision get broadcast.
+::
+++  test-upload-invisible-until-ready
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  url=@t  'https://storage.googleapis.com/tlon-test-memex-assets/meadow.png'
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (ask 0v1 [%create-folder flag ~ 'Launch'])
+  ;<  *  b  (ask 0v2 [%begin-upload flag `2 'meadow.png' 'image/png' 2.048 ~])
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  ses=upload-session:bu  (only-session st)
+  ;<  *  b  (ask 0v3 [%finish-upload flag id.ses url])
+  ;<  sv2=vase  b  get-save
+  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  =/  bs2=bucket-state:bu  (state-for st2 flag)
+  =/  ent=entry:bu  (~(got by entries.bs2) 3)
+  =/  fil=file:bu  (file-of ent)
+  =/  ses2=upload-session:bu  (~(got by sessions.st2) id.ses)
+  %+  ex-equal
+  !>([revision.bs2 status.fil status.ses2 object-url.fil parent.ent])
+  !>([2 %ready %complete `url `2])
+::
+::  The session id is the broker token. Memex's reservation binds once, and
+::  the file only becomes visible after a verified receipt.
+::
+++  test-broker-upload-lifecycle
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  rid=@t  '00000000-0000-0000-0000-000000000001'
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (ask 0v1 [%begin-upload flag ~ 'private.pdf' 'application/pdf' 42 ~])
+  ;<  *  b
+    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload seed-token rid]))
+  ;<  upload-cage=cage  b
+    (got-peek /x/v1/broker/upload/[seed-token]/[rid])
+  =/  upload-result=@t
+    (so:dejs:format (get:dejs:buckets-json 'result' !<(json q.upload-cage)))
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  ses=upload-session:bu  (only-session st)
+  =/  bs=bucket-state:bu  (state-for st flag)
+  =/  fil=file:bu  (file-of entry.ses)
+  ;<  ~  b  (ex-equal !>(reservation.ses) !>(`rid))
+  =/  receipt=broker-receipt:bu
+    [rid object-key.fil 'sampel-palnet' (scot %ud id.bucket.bs) 42 'application/pdf']
+  ;<  *  b
+    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
+  ::  Completion retries are idempotent — no second entry, no second revision.
+  ;<  *  b
+    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
+  ;<  sv2=vase  b  get-save
+  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  =/  bs2=bucket-state:bu  (state-for st2 flag)
+  =/  ent2=entry:bu  (~(got by entries.bs2) id.entry.ses)
+  =/  fil2=file:bu  (file-of ent2)
+  ;<  complete-cage=cage  b  (got-peek /x/v1/broker/complete/[rid])
+  =/  complete-result=@t
+    (so:dejs:format (get:dejs:buckets-json 'result' !<(json q.complete-cage)))
+  %+  ex-equal
+  !>  :*  upload-result
+          complete-result
+          status.fil2
+          object-url.fil2
+          [~(wyt by entries.bs2) revision.bs2]
+      ==
+  !>([%'authorized' %'completed' %ready ~ [1 1]])
+::
+::  Read and delete grants are minted by the host and bound to one object.
+::  Presenting a token against a different object is denied.
+::
+++  test-object-grants-are-object-bound
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  rid=@t  '00000000-0000-0000-0000-000000000002'
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (ask 0v1 [%begin-upload flag ~ 'private.pdf' 'application/pdf' 42 ~])
+  ;<  *  b
+    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload seed-token rid]))
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  bs=bucket-state:bu  (state-for st flag)
+  =/  ses=upload-session:bu  (only-session st)
+  =/  fil=file:bu  (file-of entry.ses)
+  =/  receipt=broker-receipt:bu
+    [rid object-key.fil 'sampel-palnet' (scot %ud id.bucket.bs) 42 'application/pdf']
+  ;<  *  b
+    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
+  ::  A fresh eny so the read token differs from the upload session id.
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v5678)))
+  ;<  read-caz=(list card)  b  (ask 0v2 [%issue-read flag id.entry.ses])
+  =/  read-token=@t  (scot %uv 0v5678)
+  ;<  ~  b
+    %+  ex-cards  read-caz
+    :~  %+  grant-fact  0v2
+        [%grant read-token id.entry.ses (add ~2026.1.1 ~m10)]
+    ==
+  ;<  ok-cage=cage  b
+    (got-peek /x/v1/broker/read/[read-token]/[object-key.fil])
+  ;<  bad-cage=cage  b
+    (got-peek /x/v1/broker/read/[read-token]/wrong-object)
+  =/  ok-json=json  !<(json q.ok-cage)
+  =/  ok-result=@t
+    (so:dejs:format (get:dejs:buckets-json 'result' ok-json))
+  =/  payload=json  (get:dejs:buckets-json 'read' ok-json)
+  =/  ok-name=@t
+    (so:dejs:format (get:dejs:buckets-json 'displayFilename' payload))
+  =/  bad-result=@t
+    (so:dejs:format (get:dejs:buckets-json 'result' !<(json q.bad-cage)))
+  (ex-equal !>([ok-result ok-name bad-result]) !>([%'authorized' 'private.pdf' %'denied']))
+::
+::  Expired grants and pending sessions are swept the next time authority is
+::  touched, and their reservation bindings go with them.
+::
+++  test-expired-authority-is-pruned
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  rid=@t  '00000000-0000-0000-0000-000000000003'
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (ask 0v1 [%begin-upload flag ~ 'private.pdf' 'application/pdf' 42 ~])
+  ;<  *  b
+    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload seed-token rid]))
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now ~2026.1.2, eny 0v9999)))
+  ;<  *  b  (ask 0v2 [%begin-upload flag ~ 'later.pdf' 'application/pdf' 7 ~])
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  %+  ex-equal
+  !>  :*  (~(has by sessions.st) seed)
+          (~(has by reservations.st) rid)
+          ~(wyt by sessions.st)
+      ==
+  !>([%.n %.n 1])
+::
+::  A subscriber forwards to the host, subscribes for the answer, arms a
+::  timeout, and tells its own client the request is in flight.
+::
+++  test-subscriber-forwards-and-reports-pending
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  act=action:bu  [%create-folder flag ~ 'Launch']
+  ;<  ~  b  (setup-as ~bus)
+  ;<  *  b
+    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
+  ;<  caz=(list card)  b  (ask 0v4 act)
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /buckets/req/~sampel-palnet/0v4/poke
+          [~sampel-palnet %buckets]
+          %buckets-command-1
+          !>(`command:bu`[0v4 act])
+      ==
+      %-  ex-task
+      :*  /buckets/req/~sampel-palnet/0v4/watch
+          [~sampel-palnet %buckets]
+          [%watch /v1/request/~bus/0v4]
+      ==
+      %-  ex-arvo
+      :*  /buckets/req/~sampel-palnet/0v4/wake
+          [%b %wait (add ~2026.1.1 ~m2)]
+      ==
+      (grant-fact 0v4 [%pending ~])
+  ==
+::
+::  A kick is not a revocation. The replica survives and the subscription is
+::  re-established; only a nack from the host drops the bucket.
+::
+++  test-kick-resubscribes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (setup-as ~bus)
+  ;<  *  b
+    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
+  ;<  caz=(list card)  b
+    %^    do-agent
+        /buckets/sub/~sampel-palnet/project-files
+      [~sampel-palnet %buckets]
+    [%kick ~]
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  %-  ex-task
+        :*  /buckets/sub/~sampel-palnet/project-files
+            [~sampel-palnet %buckets]
+            [%watch /v1/buckets/~sampel-palnet/project-files/updates]
+        ==
+    ==
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  (ex-equal !>((~(has by spaces.st) flag)) !>(%.y))
+::
+::  A member without a writer role is refused with a typed error rather than
+::  a bare crash, so the requester learns why.
+::
+++  test-remote-write-denied-without-permission
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate missing-group-permission-scries)
+  ;<  caz=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v5 [%create-folder flag ~ 'Launch']])
+  %+  ex-cards  caz
+  :~  %-  ex-fact
+      :*  ~[/v1/request/~bus/0v5]
+          %buckets-req-response-1
+          !>(`req-response:bu`[0v5 [%error %not-authorized 'not authorized for this bucket']])
+      ==
+  ==
+::
+::  A member holding a configured writer role is accepted.
+::
+++  test-remote-write-allowed-with-writer-role
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  *  b
+    (ask 0v0 [%create %project-files 'Project Files' group ~ (silt ~[%editor])])
+  ;<  ~  b  (set-scry-gate group-permission-scries)
+  ;<  *  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v6 [%create-folder flag ~ 'Launch']])
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  bs=bucket-state:bu  (state-for st flag)
+  (ex-equal !>([~(wyt by entries.bs) revision.bs]) !>([1 1]))
+::
+::  A non-host admin forwards creation to the group host rather than
+::  allocating storage on its own ship.
 ::
 ++  test-non-host-admin-forwards-create
   %-  eval-mare
@@ -101,19 +445,28 @@
     [%create %project-files 'Project Files' group ~ ~]
   ;<  ~  b  (setup-as ~bus)
   ;<  ~  b  (set-scry-gate allow-admin-create-scries)
-  ;<  caz=(list card)  b
-    (do-poke %buckets-action-1 !>(act))
+  ;<  caz=(list card)  b  (ask 0v1 act)
   %+  ex-cards  caz
   :~  %-  ex-poke
-      :*  /buckets/cmd/create/~sampel-palnet/project-files
+      :*  /buckets/req/~sampel-palnet/0v1/poke
           [~sampel-palnet %buckets]
           %buckets-command-1
-          !>(`command:bu`[act])
+          !>(`command:bu`[0v1 act])
       ==
+      %-  ex-task
+      :*  /buckets/req/~sampel-palnet/0v1/watch
+          [~sampel-palnet %buckets]
+          [%watch /v1/request/~bus/0v1]
+      ==
+      %-  ex-arvo
+      :*  /buckets/req/~sampel-palnet/0v1/wake
+          [%b %wait (add ~2026.1.1 ~m2)]
+      ==
+      (grant-fact 0v1 [%pending ~])
   ==
 ::
 ::  A Moon cannot own Bucket storage, even when it hosts the group and the
-::  caller is an admin. This fails before forwarding or allocating state.
+::  caller is an admin.
 ::
 ++  test-moon-host-cannot-create
   %-  eval-mare
@@ -124,9 +477,12 @@
   =/  moon-group=flag:bu  [moon %test-group]
   ;<  ~  b  (setup-as moon)
   ;<  ~  b  (set-scry-gate allow-admin-create-scries)
-  %-  ex-fail
-  %+  do-poke  %buckets-action-1
-  !>(`action:bu`[%create %project-files 'Project Files' moon-group ~ ~])
+  ;<  caz=(list card)  b
+    (ask 0v1 [%create %project-files 'Project Files' moon-group ~ ~])
+  %+  ex-cards  caz
+  :~  %+  grant-fact  0v1
+      [%error %invalid-input 'only a planet may host a bucket']
+  ==
 ::
 ::  The authoritative group host accepts a live remote admin, owns the Bucket,
 ::  and records the initiating admin as its creator.
@@ -141,32 +497,16 @@
   ;<  *  b
     %-  (do-as ~bus)
     %+  do-poke  %buckets-command-1
-    !>([[%create %project-files 'Project Files' group ~ ~]])
+    !>(`command:bu`[0v1 [%create %project-files 'Project Files' group ~ ~]])
   ;<  sv=vase  b  get-save
-  =/  st=state-2:bu  !<(state-2:bu sv)
-  =/  fl=flag:bu  flag
-  =/  bs=bucket-state:bu  (state-for st fl)
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  bs=bucket-state:bu  (state-for st flag)
   %+  ex-equal
-  !>([ship.fl created-by.bucket.bs updated-by.bucket.bs group.bs])
-  !>([~sampel-palnet ~bus ~bus group])
-::
-::  A stale or forged admin request is rejected by the group host's own
-::  authoritative group state.
-::
-++  test-non-admin-cannot-create
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  setup
-  ;<  ~  b  (set-scry-gate deny-admin-create-scries)
-  %-  ex-fail
-  %-  (do-as ~bus)
-  %+  do-poke  %buckets-command-1
-  !>([[%create %project-files 'Project Files' group ~ ~]])
+  !>([created-by.bucket.bs updated-by.bucket.bs group.bs])
+  !>([~bus ~bus group])
 ::
 ::  Gall retries reuse the caller-selected random name. An identical retry
-::  must not allocate a second Bucket, but it does retry group registration.
+::  must not allocate a second Bucket.
 ::
 ++  test-create-retry-is-idempotent
   %-  eval-mare
@@ -174,330 +514,29 @@
   =*  b  bind:m
   ^-  form:m
   =/  cmd=command:bu
-    [[%create %project-files 'Project Files' group ~ ~]]
+    [0v1 [%create %project-files 'Project Files' group ~ ~]]
   ;<  ~  b  setup
   ;<  ~  b  (set-scry-gate allow-admin-create-scries)
   ;<  *  b  ((do-as ~bus) (do-poke %buckets-command-1 !>(cmd)))
   ;<  *  b  ((do-as ~bus) (do-poke %buckets-command-1 !>(cmd)))
   ;<  sv=vase  b  get-save
-  =/  st=state-2:bu  !<(state-2:bu sv)
-  %+  ex-equal
-  !>([next-id.st (lent ~(tap by spaces.st))])
-  !>([1 1])
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  (ex-equal !>([next-id.st ~(wyt by spaces.st)]) !>([1 1]))
 ::
-::  Existing state-1 Buckets keep all metadata and preserve the old
-::  "readers can write" behavior when the writer role-set is introduced.
+::  +on-load must round-trip the persisted state unchanged. A cast failure
+::  here silently reverts the whole |commit, so it is worth pinning even with
+::  nothing to migrate from.
 ::
-++  test-migrate-state-1-to-2
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  setup
-  =/  legacy-bucket=bucket:bu
-    [41 'Legacy Files' ~sampel-palnet ~2025.1.1 ~sampel-palnet ~2025.1.2]
-  =/  legacy-readers=(set @tas)
-    (~(put in (~(put in *(set @tas)) %editor)) %member)
-  =/  legacy-state=bucket-state-1:bu
-    [legacy-bucket group legacy-readers ~ ~ 9]
-  =/  legacy-space=space-1:bu  [%pub `legacy-state ~]
-  =/  legacy-spaces=(map flag:bu space-1:bu)
-    (~(put by *(map flag:bu space-1:bu)) flag legacy-space)
-  =/  old=state-1:bu  [%1 legacy-spaces 42 ~ ~]
-  ;<  *  b  (do-load buckets-agent `!>(old))
-  ;<  sv=vase  b  get-save
-  =/  migrated=state-2:bu  !<(state-2:bu sv)
-  =/  bucket-state=bucket-state:bu  (state-for migrated flag)
-  %+  ex-equal
-  !>([next-id.migrated id.bucket.bucket-state title.bucket.bucket-state readers.bucket-state writers.bucket-state revision.bucket-state])
-  !>([42 41 'Legacy Files' legacy-readers legacy-readers 9])
-::
-::  A complete metadata-only upload lifecycle. The bytes never enter Gall;
-::  only the host-issued session, object key, and final object URL do.
-::
-++  test-upload-lifecycle
+++  test-load-round-trips-state
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
   ^-  form:m
   ;<  ~  b  setup
   ;<  ~  b  create
-  ;<  *  b
-    (do-poke %buckets-action-1 !>(`action:bu`[%create-folder flag ~ 'Launch']))
-  ;<  *  b
-    (do-poke %buckets-action-1 !>(`action:bu`[%begin-upload flag `2 'meadow.png' 'image/png' 2.048 ~ 'legacy-capability-0000000000000000']))
-  ;<  sv=vase  b  get-save
-  =/  st=state-2:bu  !<(state-2:bu sv)
-  =/  bs=bucket-state:bu  (state-for st flag)
-  =/  session-list=(list upload-session:bu)  ~(val by sessions.bs)
-  =/  ses=upload-session:bu  ?~(session-list !! i.session-list)
-  ;<  *  b
-    (do-poke %buckets-action-1 !>(`action:bu`[%finish-upload flag id.ses 'https://storage.googleapis.com/tlon-test-memex-assets/meadow.png']))
-  ;<  sv2=vase  b  get-save
-  =/  st2=state-2:bu  !<(state-2:bu sv2)
-  =/  bs2=bucket-state:bu  (state-for st2 flag)
-  =/  ent=entry:bu  (~(got by entries.bs2) 3)
-  =/  fil=file:bu  (file-of ent)
-  =/  ses2=upload-session:bu  (~(got by sessions.bs2) id.ses)
-  =/  expected-url=(unit @t)  (some 'https://storage.googleapis.com/tlon-test-memex-assets/meadow.png')
-  =/  expected-parent=(unit @ud)  (some 2)
-  (ex-equal !>([revision.bs2 status.fil status.ses2 object-url.fil parent.ent]) !>([3 %ready %complete expected-url expected-parent]))
-::
-::  The Pioneer bridge binds Memex's proposed reservation exactly once and
-::  only marks the file ready after a matching verified receipt callback.
-::
-++  test-broker-upload-lifecycle
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  =/  cap=@t  'broker-capability-00000000000000000000'
-  =/  rid=@t  '00000000-0000-0000-0000-000000000001'
-  ;<  ~  b  setup
-  ;<  ~  b  create
-  ;<  *  b
-    (do-poke %buckets-action-1 !>(`action:bu`[%begin-upload flag ~ 'private.pdf' 'application/pdf' 42 ~ cap]))
-  ;<  *  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload cap rid]))
-  ;<  upload-cage=cage  b
-    (got-peek /x/v1/broker/upload/[cap]/[rid])
-  =/  upload-json=json  !<(json q.upload-cage)
-  =/  upload-result=@t
-    (so:dejs:format (get:dejs:buckets-json 'result' upload-json))
-  ;<  sv=vase  b  get-save
-  =/  st=state-2:bu  !<(state-2:bu sv)
-  =/  aut=broker-capability:bu  (~(got by broker-capabilities.st) cap)
-  =/  bs=bucket-state:bu  (state-for st flag)
-  =/  session-list=(list upload-session:bu)  ~(val by sessions.bs)
-  =/  ses=upload-session:bu  ?~(session-list !! i.session-list)
-  =/  ent=entry:bu  (~(got by entries.bs) file-id.ses)
-  =/  fil=file:bu  (file-of ent)
-  ;<  ~  b
-    (ex-equal !>(broker-reservation-id.aut) !>(`rid))
-  =/  receipt=broker-receipt:bu
-    [rid object-key.fil 'sampel-palnet' (scot %ud id.bucket.bs) 42 'application/pdf']
-  ;<  *  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
-  ::  Completion retries are idempotent.
-  ;<  *  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
-  ;<  sv2=vase  b  get-save
-  =/  st2=state-2:bu  !<(state-2:bu sv2)
-  =/  bs2=bucket-state:bu  (state-for st2 flag)
-  =/  ent2=entry:bu  (~(got by entries.bs2) file-id.ses)
-  =/  fil2=file:bu  (file-of ent2)
-  =/  ses2=upload-session:bu  (~(got by sessions.bs2) id.ses)
-  =/  read-cap=@t  'read-capability-0000000000000000000000'
-  =/  delete-cap=@t  'delete-capability-00000000000000000000'
-  ;<  *  b
-    (do-poke %buckets-action-1 !>(`action:bu`[%issue-read flag file-id.ses read-cap]))
-  ;<  *  b
-    (do-poke %buckets-action-1 !>(`action:bu`[%issue-delete flag file-id.ses delete-cap]))
-  ;<  read-cage=cage  b
-    (got-peek /x/v1/broker/read/[read-cap]/[object-key.fil2])
-  ;<  delete-cage=cage  b
-    (got-peek /x/v1/broker/delete/[delete-cap]/[object-key.fil2])
-  ;<  denied-cage=cage  b
-    (got-peek /x/v1/broker/read/[read-cap]/wrong-object)
-  =/  read-json=json  !<(json q.read-cage)
-  =/  delete-json=json  !<(json q.delete-cage)
-  =/  denied-json=json  !<(json q.denied-cage)
-  =/  read-payload=json
-    (get:dejs:buckets-json 'read' read-json)
-  =/  delete-payload=json
-    (get:dejs:buckets-json 'delete' delete-json)
-  ?>  ?=([%o *] delete-payload)
-  =/  delete-filename=(unit json)
-    (~(get by p.delete-payload) 'displayFilename')
-  =/  read-result=@t
-    (so:dejs:format (get:dejs:buckets-json 'result' read-json))
-  =/  read-object=@t
-    (so:dejs:format (get:dejs:buckets-json 'objectId' read-payload))
-  =/  read-name=@t
-    (so:dejs:format (get:dejs:buckets-json 'displayFilename' read-payload))
-  =/  delete-result=@t
-    (so:dejs:format (get:dejs:buckets-json 'result' delete-json))
-  =/  delete-object=@t
-    (so:dejs:format (get:dejs:buckets-json 'objectId' delete-payload))
-  =/  denied-result=@t
-    (so:dejs:format (get:dejs:buckets-json 'result' denied-json))
-  =/  next-read-cap=@t  'next-read-capability-000000000000000000'
-  ;<  ~  b
-    (jab-bowl |=(bol=bowl bol(now ~2026.1.1..02.00.00)))
-  ;<  *  b
-    (do-poke %buckets-action-1 !>(`action:bu`[%issue-read flag file-id.ses next-read-cap]))
-  ;<  sv3=vase  b  get-save
-  =/  st3=state-2:bu  !<(state-2:bu sv3)
-  =/  old-upload-pruned=?
-    !(~(has by broker-capabilities.st3) cap)
-  =/  old-read-pruned=?
-    !(~(has by broker-capabilities.st3) read-cap)
-  =/  old-delete-pruned=?
-    !(~(has by broker-capabilities.st3) delete-cap)
-  =/  old-reservation-pruned=?
-    !(~(has by broker-reservations.st3) rid)
-  =/  next-read-kept=?
-    (~(has by broker-capabilities.st3) next-read-cap)
-  %+  ex-equal
-  !>  :*  upload-result
-          status.fil2
-          object-url.fil2
-          status.ses2
-          read-result
-          read-object
-          read-name
-          delete-result
-          delete-object
-          delete-filename
-          denied-result
-          old-upload-pruned
-          old-read-pruned
-          old-delete-pruned
-          old-reservation-pruned
-          next-read-kept
-      ==
-  !>  :*  'authorized'
-          %ready
-          ~
-          %complete
-          'authorized'
-          object-key.fil2
-          'private.pdf'
-          'authorized'
-          object-key.fil2
-          ~
-          'denied'
-          &
-          &
-          &
-          &
-          &
-      ==
-::
-::  Legacy completion accepts only live sessions and Tlon-managed Memex URLs.
-::
-++  test-legacy-upload-completion-is-bounded
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  setup
-  ;<  ~  b  create
-  ;<  *  b
-    (do-poke %buckets-action-1 !>(`action:bu`[%begin-upload flag ~ 'unsafe.txt' 'text/plain' 4 ~ 'legacy-security-capability-000000000000']))
-  ;<  sv=vase  b  get-save
-  =/  st=state-2:bu  !<(state-2:bu sv)
-  =/  bs=bucket-state:bu  (state-for st flag)
-  =/  sessions=(list upload-session:bu)  ~(val by sessions.bs)
-  =/  ses=upload-session:bu  ?~(sessions !! i.sessions)
-  ;<  *  b
-    %-  ex-fail
-    (do-poke %buckets-action-1 !>(`action:bu`[%finish-upload flag id.ses 'https://attacker.example/tracker']))
-  ;<  *  b
-    %-  ex-fail
-    (do-poke %buckets-action-1 !>(`action:bu`[%finish-upload flag id.ses 'https://storage.googleapis.com/tlon-attacker/path/-memex-assets/tracker']))
-  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now ~2026.1.1..02.00.00)))
-  %-  ex-fail
-  (do-poke %buckets-action-1 !>(`action:bu`[%finish-upload flag id.ses 'https://storage.googleapis.com/tlon-test-memex-assets/expired.txt']))
-::
-::  Broker callbacks whose capability outlives a deleted Bucket deny softly
-::  instead of crashing the Pioneer thread.
-::
-++  test-broker-command-after-delete-is-soft-denied
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  =/  cap=@t  'delete-race-capability-0000000000000000'
-  =/  rid=@t  '00000000-0000-0000-0000-000000000009'
-  ;<  ~  b  setup
-  ;<  ~  b  create
-  ;<  *  b
-    (do-poke %buckets-action-1 !>(`action:bu`[%begin-upload flag ~ 'race.pdf' 'application/pdf' 42 ~ cap]))
-  ;<  *  b
-    (do-poke %buckets-action-1 !>(`action:bu`[%delete-bucket flag]))
-  ;<  caz=(list card)  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload cap rid]))
-  (ex-cards caz ~)
-::
-::  Reader changes are revisioned into the Bucket replica as well as %groups.
-::
-++  test-set-readers-updates-bucket-state
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  =/  readers=(set @tas)  (silt `(list @tas)`~[%member %guest])
-  ;<  ~  b  setup
-  ;<  ~  b  create
-  ;<  *  b
-    (do-poke %buckets-action-1 !>(`action:bu`[%set-readers flag readers]))
-  ;<  sv=vase  b  get-save
-  =/  st=state-2:bu  !<(state-2:bu sv)
-  =/  bs=bucket-state:bu  (state-for st flag)
-  (ex-equal !>([readers.bs revision.bs]) !>([readers 1]))
-::
-::  Folder parents must exist and must themselves be folders.
-::
-++  test-invalid-parent-rejected
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  setup
-  ;<  ~  b  create
-  %-  ex-fail
-  (do-poke %buckets-action-1 !>(`action:bu`[%create-folder flag `999 'Bad']))
-::
-::  Cross-ship writes are re-authorized against %groups' live read gate;
-::  membership recorded in old state is never treated as permanent authority.
-::
-++  test-remote-write-revoked
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  setup
-  ;<  ~  b  create
-  ;<  ~  b  (set-scry-gate deny-group-scries)
-  %-  ex-fail
-  %-  (do-as ~bus)
-  %+  do-poke  %buckets-command-1
-  !>([[%create-folder flag ~ 'Denied']])
-::
-::  %groups represents a missing/banned seat as a null permission record.
-::  Buckets must deny that write instead of crashing while decoding the scry.
-::
-++  test-remote-write-without-seat
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  setup
-  ;<  ~  b  create
-  ;<  ~  b  (set-scry-gate missing-group-permission-scries)
-  %-  ex-fail
-  %-  (do-as ~bus)
-  %+  do-poke  %buckets-command-1
-  !>([[%create-folder flag ~ 'Denied']])
-::
-::  A readable member still needs a matching writer role for mutations.
-::
-++  test-remote-writer-role
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  setup
-  ;<  *  b
-    (do-poke %buckets-action-1 !>(`action:bu`[%create %project-files 'Project Files' group ~ (silt ~[%editor])]))
-  ;<  ~  b  (set-scry-gate group-permission-scries)
-  ;<  *  b
-    %-  (do-as ~bus)
-    %+  do-poke  %buckets-command-1
-    !>([[%create-folder flag ~ 'Allowed']])
-  ;<  sv=vase  b  get-save
-  =/  st=state-2:bu  !<(state-2:bu sv)
-  =/  bs=bucket-state:bu  (state-for st flag)
-  (ex-equal !>((lent ~(val by entries.bs))) !>(1))
+  ;<  *  b  (ask 0v1 [%create-folder flag ~ 'Launch'])
+  ;<  before=vase  b  get-save
+  ;<  *  b  (do-load buckets-agent `before)
+  ;<  after=vase  b  get-save
+  (ex-equal after before)
 --

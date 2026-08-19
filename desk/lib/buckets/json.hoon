@@ -55,28 +55,12 @@
     ['file' (file +.kind.ent)]
     ==
   ::
-  ++  session
-    |=  ses=upload-session:b
-    ^-  json
-    %-  pairs
-    :~  ['id' s+(scot %uv id.ses)]
-        ['fileId' (numb file-id.ses)]
-        ['requestedBy' s+(scot %p requested-by.ses)]
-        ['createdAt' (numb (unt:chrono:userlib created-at.ses))]
-        ['expiresAt' (numb (unt:chrono:userlib expires-at.ses))]
-        ['status' s+(scot %tas status.ses)]
-        ['error' ?~(error.ses ~ s+u.error.ses)]
-    ==
-  ::
   ++  bucket-state
     |=  st=bucket-state:b
     ^-  json
     =/  ents=(list json)
       %+  turn  ~(val by entries.st)
       entry
-    =/  sess=(list json)
-      %+  turn  ~(val by sessions.st)
-      session
     =/  roles=(list json)
       %+  turn  ~(tap in readers.st)
       |=(role=@tas s+(scot %tas role))
@@ -89,7 +73,6 @@
         ['readers' [%a roles]]
         ['writers' [%a writer-roles]]
         ['entries' [%a ents]]
-        ['sessions' [%a sess]]
         ['revision' (numb revision.st)]
     ==
   ::
@@ -118,29 +101,8 @@
         |=(role=@tas s+(scot %tas role))
       (pairs ~[['type' s+'writers-updated'] ['writers' [%a roles]]])
     ::
-        %folder-created
-      (pairs ~[['type' s+'folder-created'] ['entry' (entry entry.upd)]])
-    ::
-        %upload-begun
-      %-  pairs
-      :~  ['type' s+'upload-begun']
-          ['session' (session upload-session.upd)]
-          ['entry' (entry entry.upd)]
-      ==
-    ::
-        %upload-ready
-      %-  pairs
-      :~  ['type' s+'upload-ready']
-          ['session' (session upload-session.upd)]
-          ['entry' (entry entry.upd)]
-      ==
-    ::
-        %upload-failed
-      %-  pairs
-      :~  ['type' s+'upload-failed']
-          ['session' (session upload-session.upd)]
-          ['entry' (entry entry.upd)]
-      ==
+        %entry-created
+      (pairs ~[['type' s+'entry-created'] ['entry' (entry entry.upd)]])
     ::
         %entry-updated
       (pairs ~[['type' s+'entry-updated'] ['entry' (entry entry.upd)]])
@@ -148,6 +110,37 @@
         %entries-deleted
       =/  ids=(list json)  (turn ids.upd numb)
       (pairs ~[['type' s+'entries-deleted'] ['ids' [%a ids]]])
+    ==
+  ::
+  ++  grant
+    |=  gra=grant:b
+    ^-  json
+    %-  pairs
+    :~  ['token' s+token.gra]
+        ['entryId' (numb entry-id.gra)]
+        ['expiresAt' s+(scot %da expires-at.gra)]
+    ==
+  ::
+  ++  req-response
+    |=  res=req-response:b
+    ^-  json
+    =/  bod=json
+      ?-  -.body.res
+        %ok       (frond 'ok' ~)
+        %pending  (frond 'pending' ~)
+        %grant    (frond 'grant' (grant grant.body.res))
+      ::
+          %error
+        %-  frond
+        :-  'error'
+        %-  pairs
+        :~  ['type' s+(scot %tas type.body.res)]
+            ['message' s+message.body.res]
+        ==
+      ==
+    %-  pairs
+    :~  ['requestId' s+(scot %uv request-id.res)]
+        ['body' bod]
     ==
   ::
   ++  response
@@ -227,6 +220,16 @@
     ^-  (set @tas)
     ((as (cu |=(t=@t `@tas``@`t) so)) jon)
   ::
+  ::  +command: a request-id'd action. The client mints the id so it can
+  ::  correlate the terminal response it gets back on /v1/requests.
+  ::
+  ++  command
+    |=  jon=json
+    ^-  command:b
+    ?>  ?=([%o *] jon)
+    :-  ((se %uv) (get 'requestId' jon))
+    (action jon)
+  ::
   ++  action
     |=  jon=json
     ^-  action:b
@@ -278,7 +281,6 @@
           (so (get 'mime' jon))
           (ni (get 'size' jon))
           (maybe 'checksum' jon so)
-          (so (get 'capability' jon))
       ==
     ::
         %'finish-upload'
@@ -299,14 +301,12 @@
       :*  %issue-read
           (flag (get 'flag' jon))
           (ni (get 'id' jon))
-          (so (get 'capability' jon))
       ==
     ::
         %'issue-delete'
       :*  %issue-delete
           (flag (get 'flag' jon))
           (ni (get 'id' jon))
-          (so (get 'capability' jon))
       ==
     ::
         %'rename-entry'
