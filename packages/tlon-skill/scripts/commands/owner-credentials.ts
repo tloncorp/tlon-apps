@@ -1,11 +1,15 @@
 import * as path from 'path';
 
-import type { CliCredentialOverrides } from '../credential-resolver';
+import {
+  type CliCredentialOverrides,
+  getDefaultOpenClawConfigPaths,
+} from '../credential-resolver';
 
 export interface OwnerCredentialsInput {
   env: Record<string, string | undefined>;
   fileExists: (filePath: string) => boolean;
   readFile: (filePath: string) => string;
+  homeDir: string;
   /** Ship of the current credential resolution, or null when none resolves. */
   currentShip: string | null;
 }
@@ -27,12 +31,10 @@ function normalizeShipName(ship: string): string {
   return ship.replace(/^~/, '');
 }
 
-function ownerShipFromOpenClawConfig(
-  input: OwnerCredentialsInput
+function ownerShipFromConfigFile(
+  input: OwnerCredentialsInput,
+  configPath: string
 ): string | undefined {
-  const configPath = input.env.OPENCLAW_CONFIG;
-  if (!nonEmpty(configPath)) return undefined;
-
   try {
     const parsed = JSON.parse(input.readFile(configPath)) as {
       channels?: { tlon?: { ownerShip?: unknown } };
@@ -42,6 +44,23 @@ function ownerShipFromOpenClawConfig(
   } catch {
     return undefined;
   }
+}
+
+function ownerShipFromOpenClawConfig(
+  input: OwnerCredentialsInput
+): string | undefined {
+  const configPath = input.env.OPENCLAW_CONFIG;
+  if (nonEmpty(configPath)) {
+    return ownerShipFromConfigFile(input, configPath);
+  }
+  // No explicit config path: discover the standard OpenClaw config locations,
+  // mirroring the credential resolver's own best-effort default-path search.
+  for (const defaultPath of getDefaultOpenClawConfigPaths(input.homeDir)) {
+    if (!input.fileExists(defaultPath)) continue;
+    const ownerShip = ownerShipFromConfigFile(input, defaultPath);
+    if (ownerShip) return ownerShip;
+  }
+  return undefined;
 }
 
 export function resolveOwnerCredentials(
@@ -55,7 +74,7 @@ export function resolveOwnerCredentials(
     return {
       kind: 'error',
       message:
-        "Could not determine the owner ship's identity. Checked TLON_OWNER_SHIP and channels.tlon.ownerShip in OPENCLAW_CONFIG. " +
+        "Could not determine the owner ship's identity. Checked TLON_OWNER_SHIP and channels.tlon.ownerShip in the OpenClaw config (OPENCLAW_CONFIG or the standard config paths). " +
         "Invite links are retrieved as the owner by default; use --self for the current ship's own link or pass explicit credential flags.",
     };
   }

@@ -28,7 +28,8 @@ canonical invite URL (https://invite.tlon.io/<token>).
 By default the link is retrieved as the bot's owner, not the bot: the ship
 that retrieves/mints the link becomes the inviter of record, so recipients
 onboard attributed to the owner. Owner credentials are resolved from
-TLON_OWNER_SHIP or channels.tlon.ownerShip in OPENCLAW_CONFIG, then
+TLON_OWNER_SHIP or channels.tlon.ownerShip in OPENCLAW_CONFIG (or the
+standard openclaw config paths), then
 $TLON_SKILL_DIR/ships/<owner>.json or TLON_OWNER_URL with
 TLON_PLANET_CODE/URBIT_PLANET_CODE (Tlon-hosted deployments only).
 

@@ -8,6 +8,7 @@ import {
 // @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
 import { extractNormalizedInviteLink } from '@tloncorp/api/client/deeplinks';
 import * as fs from 'fs';
+import * as os from 'os';
 
 import {
   ensureClient,
@@ -36,6 +37,7 @@ export function createInviteLinkDeps(): InviteLinkDeps {
         env: process.env,
         fileExists: (filePath) => fs.existsSync(filePath),
         readFile: (filePath) => fs.readFileSync(filePath, 'utf-8'),
+        homeDir: os.homedir(),
         currentShip,
       }),
     applyCredentialOverrides: (overrides) =>

@@ -8,6 +8,12 @@ import {
 
 const SKILL_DIR = '/tmp/tlon-skill-dir';
 const OPENCLAW_CONFIG = '/tmp/openclaw.json';
+const HOME_DIR = '/tmp/owner-home';
+const DEFAULT_OPENCLAW_CONFIG = path.join(
+  HOME_DIR,
+  '.openclaw',
+  'openclaw.json'
+);
 
 function json(value: unknown): string {
   return JSON.stringify(value);
@@ -31,6 +37,7 @@ function makeInput(
       }
       return value;
     },
+    homeDir: HOME_DIR,
     currentShip: options.currentShip ?? null,
   };
 }
@@ -61,6 +68,67 @@ describe('resolveOwnerCredentials', () => {
     if (result.kind !== 'overrides') return;
     expect(result.ownerShip).toBe('ten');
     expect(result.overrides).toEqual({ kind: 'ship', ship: 'ten' });
+  });
+
+  it('discovers ownerShip from the default OpenClaw config path when OPENCLAW_CONFIG is unset', () => {
+    const result = resolveOwnerCredentials(
+      makeInput({
+        env: { TLON_SKILL_DIR: SKILL_DIR },
+        files: {
+          [DEFAULT_OPENCLAW_CONFIG]: json({
+            channels: { tlon: { ownerShip: '~ten' } },
+          }),
+          [ownerShipFile('ten')]: json({
+            url: 'https://ten.tlon.network',
+            ship: '~ten',
+            code: 'owner-code',
+          }),
+        },
+      })
+    );
+
+    expect(result.kind).toBe('overrides');
+    if (result.kind !== 'overrides') return;
+    expect(result.ownerShip).toBe('ten');
+    expect(result.overrides).toEqual({ kind: 'ship', ship: 'ten' });
+  });
+
+  it('prefers OPENCLAW_CONFIG over the default config paths', () => {
+    const result = resolveOwnerCredentials(
+      makeInput({
+        env: {
+          OPENCLAW_CONFIG,
+          TLON_OWNER_URL: 'https://ten.tlon.network',
+          TLON_PLANET_CODE: 'owner-code',
+        },
+        files: {
+          [OPENCLAW_CONFIG]: json({
+            channels: { tlon: { ownerShip: '~ten' } },
+          }),
+          [DEFAULT_OPENCLAW_CONFIG]: json({
+            channels: { tlon: { ownerShip: '~wrong-owner' } },
+          }),
+        },
+      })
+    );
+
+    expect(result.kind).toBe('overrides');
+    if (result.kind !== 'overrides') return;
+    expect(result.ownerShip).toBe('ten');
+  });
+
+  it('falls through to the error when the default config has no ownerShip', () => {
+    const result = resolveOwnerCredentials(
+      makeInput({
+        files: {
+          [DEFAULT_OPENCLAW_CONFIG]: json({ channels: { tlon: {} } }),
+        },
+      })
+    );
+
+    expect(result.kind).toBe('error');
+    if (result.kind !== 'error') return;
+    expect(result.message).toContain('standard config paths');
   });
 
   it('resolves the Hermes env triple to code overrides', () => {
