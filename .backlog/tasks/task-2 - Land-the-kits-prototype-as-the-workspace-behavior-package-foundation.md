@@ -1,11 +1,11 @@
 ---
 id: TASK-2
 title: Land the kits prototype as the workspace behavior-package foundation
-status: In Progress
+status: Done
 assignee:
   - james@tlon.io
 created_date: '2026-08-19 13:46'
-updated_date: '2026-08-19 15:48'
+updated_date: '2026-08-19 18:45'
 labels:
   - workspaces
   - kits
@@ -32,11 +32,11 @@ This is infrastructure only — no user-facing onboarding or navigation changes 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Kit model (behavior package, places, schedules, setup, policy) is available on develop as importable shared code
-- [ ] #2 A kit can be installed into a group and its configuration persists in the group blob
-- [ ] #3 Unit tests cover kit parsing, installation, and configuration persistence including malformed input
-- [ ] #4 A docs/ page describes the kit format and installation lifecycle
-- [ ] #5 No user-facing UI changes ship in this task
+- [x] #1 Kit model (behavior package, places, schedules, setup, policy) is available on develop as importable shared code
+- [x] #2 A kit can be installed into a group and its configuration persists in the group blob
+- [x] #3 Unit tests cover kit parsing, installation, and configuration persistence including malformed input
+- [x] #4 A docs/ page describes the kit format and installation lifecycle
+- [x] #5 No user-facing UI changes ship in this task
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -214,3 +214,51 @@ End-to-end chain verified on the fakezod: `desk.docket-0` → docket charges (`"
 
 **Also pre-existing, not mine:** `packages/app` tsc fails on `@tloncorp/editor/dist/editorHtml` (unbuilt editor package). Confirmed identical with my changes stashed.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+## Summary
+
+Landed the kits prototype on `james/agentic-workspace` as six atomic commits (`6028bc519`, `780b752cc`, `806f0c336`, `8739a446f`, `013115a7a`, plus the backlog commit `8ebd29650`). No PRs opened, per instruction.
+
+## What landed
+
+1. **`6028bc519` — kit format package.** `packages/tlon-kits` (zod loader, authoring→wire conversion, book-club hero kit), `kits/SCHEMA.md`, the `tlon-skill` kits CLI, and openclaw guard/telemetry vocabulary. Zero backend coupling, so kit authoring is unblocked independently of everything below.
+2. **`780b752cc` — independent Hoon cleanup.** Strict-list additions for the singular group-ui marks, plus the `mark-warmer.hoon` deletion.
+3. **`806f0c336` — the group blob.** The bulk of the work: `blob=(unit @t)` on `$group` and the mark-version cascade it forces, plus client plumbing and the migration.
+4. **`8739a446f` — the `%kits` agent and client surface.** Registry/installer, `kitsApi`, the post-blob `kit` entry, and the unified blob parser.
+5. **`013115a7a` — the OpenClaw kits runtime.** Ambient injection, schedule reconciliation, setup conversation.
+
+## Decisions that departed from the branch
+
+**Minimum-backend policy (the open Decision 1) resolved without the dilemma.** Rather than choosing between the branch's hard cutover and its 404-catch fallbacks, I extended the mechanism develop already uses for activity capabilities: desk version bumped to 12.2.0, a `groupsVersionSupportsBlob` predicate, a `groupsSupportsBlob` flag, and version-gated endpoint selection in `initApi`/`changesApi`/`groupsApi`. A pre-blob backend keeps getting v2/v9/v10 surfaces. This is cheaper than 404-catch (no wasted round trip) and makes the hard cutover unnecessary.
+
+**The init-10 hazard was real and is handled.** Replaying the branch as authored would have compiled cleanly and silently dropped every note unread. `init-10` was re-derived on develop's `init-9` with `activity:v10:av`, confirmed by both init arms returning byte-identical activity payloads.
+
+**Two prototype defects fixed rather than ported:** the `~(got by kits)` crash on the publicly reachable `/v1/preview` and `/v1/full` watch arms, and `tlon kits card` missing from the tool guard's operation map — the one kits command that posts a message.
+
+**Two blob parsers unified.** The client and harness each had their own implementation of SCHEMA.md §2 and disagreed on the `setup` default in opposite directions. One implementation now lives in `@tloncorp/tlon-kits`, defaulting to `done` (firing setup has side effects) and carrying unknown keys through rather than stripping them (writers read-modify-write the whole payload).
+
+## Scope changes from the plan
+
+- **The "independent cleanup" set was mostly not separable.** All seven candidate commits conflict on cherry-pick because they are stacked on the blob commit and reference types that do not exist until it lands. Only two items were genuinely independent by content.
+- **Commit 4 as planned dissolved.** The hard cutover became unnecessary given version gating; the lane collapse is actively incompatible with keeping fallbacks (it would leave old backends with no group lane at all); and pier regeneration is blocked — `gcloud` is not installed, so the archives cannot be rebuilt or published. See follow-ups.
+- **Kit-bearing invites deferred** (Decision 2) as sharing rather than foundation.
+
+## Verification
+
+Hoon verified on a fakezod throughout: desk assembles, commits, and replays clean; `/x/v3/groups`, `/x/v2/groups`, groups-ui `/v10/init` and `/v9/init` all serve 200 side by side; `%kits` serves `/v1/kits` and `/v1/installs`. `./backend/run-tests.sh` passes — it gates aqua behind the unit suite and reached "Aqua tests passed", so the new Hoon test arms pass. TypeScript: 766 api, 102 shared, 1426 openclaw, 25 tlon-kits tests pass; tlon-kits/api/shared/openclaw/tlon-skill all typecheck.
+
+AC #2 is evidenced by the passing `test-install-orchestration` desk test (which asserts the group create poke, per-place channel creates, and the `%group-action-5` blob write), not by a live end-to-end install on a ship.
+
+## Defect I shipped and have since fixed
+
+Commit `8739a446f` added the `kit-card` block to the api union but deliberately omitted its renderer per AC #5. `BlockRendererConfig` is exhaustive, so `packages/app` stopped typechecking. My verification that round covered five packages but not `app`. Fixed in `7da6da213` by registering it as a null renderer, the same treatment a2ui already has.
+
+## Follow-ups not done
+
+- **Pier regeneration is blocked on tooling** — `gcloud`/`gsutil` are not installed, so `rube-*` archives cannot be rebuilt or published to `bootstrap.urbit.org`. E2E against the blob desk needs this.
+- **The lane collapse** (`e8bfb47cc`) should only be reconsidered alongside a decision to drop fallbacks.
+- **Rollout ordering remains a real risk**: the `%2 → %3` negotiate bump closes group subscriptions outright on version mismatch, and `state-11-to-12` is a one-way door with no downgrade.
+<!-- SECTION:FINAL_SUMMARY:END -->
