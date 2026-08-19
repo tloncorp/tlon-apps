@@ -1,11 +1,4 @@
 // tamagui-ignore
-import {
-  AGENT_ONBOARDING_GROUP_INTRO,
-  AGENT_ONBOARDING_ORIENTATION_OPTIONS,
-  AGENT_ONBOARDING_ORIENTATION_PROMPT,
-  AGENT_ONBOARDING_PURPOSE_OPTIONS,
-  AGENT_ONBOARDING_PURPOSE_PROMPT,
-} from '@tloncorp/api/client/agentOnboarding';
 import type { JSONContent } from '@tloncorp/api/urbit';
 import { queryClient } from '@tloncorp/shared';
 import type { JSONValue } from '@tloncorp/shared';
@@ -31,6 +24,61 @@ import {
   group as fixtureGroup,
   tlonLocalIntros,
 } from './fakeData';
+
+// This fixture intentionally owns a representative transcript rather than
+// making product copy part of the generic API package. The coordinator tests
+// are authoritative for the actual emitted surfaces.
+const AGENT_ONBOARDING_GROUP_INTRO =
+  "I'm your Tlonbot. I can keep you informed, help you learn, or follow a " +
+  'question over time.';
+const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
+const AGENT_ONBOARDING_ORIENTATION_PROMPT =
+  'You’re all set. Is there anything else I can help you with?';
+const AGENT_ONBOARDING_ORIENTATION_OPTIONS = [
+  { id: 'groups-and-channels', label: 'Groups and channels' },
+  { id: 'your-tlon-computer', label: 'Your Tlon computer' },
+  { id: 'other-capabilities', label: 'What else can you do?' },
+  { id: 'finished', label: 'I’m good for now' },
+] as const;
+const PURPOSE_PICKER_OPTIONS = [
+  {
+    id: 'agent-daily-digest',
+    label: 'A daily digest',
+    description:
+      'A short summary of anything you care about, posted every morning.',
+    icon: 'ChannelNotebooks',
+    accent: 'blue',
+  },
+  {
+    id: 'agent-learning',
+    label: 'Learn something',
+    description: 'One idea each morning, taking your topics in turn.',
+    icon: 'Clock',
+    accent: 'green',
+  },
+  {
+    id: 'agent-research',
+    label: 'Research',
+    description: 'A source-backed briefing that follows meaningful new work.',
+    icon: 'Search',
+    accent: 'indigo',
+  },
+] as const;
+const DIGEST_PURPOSE = {
+  id: 'agent-daily-digest',
+  label: 'A daily digest',
+  scheduleHour: 8,
+  topicsPrompt:
+    'A daily digest—great. What should I keep an eye on? Pick any that fit.',
+  topics: [
+    'Nootropics',
+    'Longevity',
+    'Psychedelics',
+    'Open hardware',
+    'Gene editing',
+    'Space weather',
+  ],
+} as const;
 
 const owner: db.Contact = {
   ...emptyContact,
@@ -135,7 +183,7 @@ const purposePicker = makeA2UI('onboarding-purpose-fixture', [
   {
     id: 'choices',
     component: 'Choice',
-    options: AGENT_ONBOARDING_PURPOSE_OPTIONS.map((option) => ({
+    options: PURPOSE_PICKER_OPTIONS.map((option) => ({
       id: option.id,
       label: option.label,
       description: option.description,
@@ -146,7 +194,7 @@ const purposePicker = makeA2UI('onboarding-purpose-fixture', [
   } as A2UI.Component,
 ]);
 
-const digestPurpose = AGENT_ONBOARDING_PURPOSE_OPTIONS[0];
+const digestPurpose = DIGEST_PURPOSE;
 const topics = [...digestPurpose.topics];
 
 const topicsPicker = makeA2UI('onboarding-topics-fixture', [
