@@ -82,17 +82,11 @@ jobs:
             - recursive: true
               args: [--frozen-lockfile]
 
-      - name: Check .prettierignore is up to date
-        run: |
-          pnpm run prettier:rebuild-monorepo-ignore
-          git diff --exit-code .prettierignore || \
-            (printf "\n⚠️ .prettierignore is out of date. Run 'pnpm run prettier:rebuild-monorepo-ignore' and commit the result." && exit 1)
-
       - name: Check native navigation icons
         run: pnpm check:native-navigation-icons
 
-      - name: Check Prettier
-        run: pnpm prettier --check '**/*.{ts,tsx}'
+      - name: Check formatting
+        run: pnpm format:check
 
       - name: Run Lint
         run: pnpm -r lint
@@ -151,10 +145,10 @@ jobs:
             - recursive: true
               args: [--frozen-lockfile]
 
-      - name: Check Prettier (bot packages)
+      - name: Check formatting (bot packages)
         run:
-          pnpm prettier --check
-          'packages/{openclaw,tlon-skill,tlon-bot-e2e}/**/*.{ts,tsx}'
+          pnpm exec oxfmt --check packages/openclaw packages/tlon-skill
+          packages/tlon-bot-e2e
 
       - name: Lint OpenClaw
         run: pnpm --filter '@tloncorp/openclaw' lint

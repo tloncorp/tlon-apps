@@ -240,7 +240,8 @@ function useConversationAnchorTarget({
         : {
             index: anchorIndex,
             viewPosition: anchor?.type === 'unread' ? 0 : 0.5,
-            viewOffset: anchor?.type === 'unread' ? contentInsets?.top ?? 0 : 0,
+            viewOffset:
+              anchor?.type === 'unread' ? (contentInsets?.top ?? 0) : 0,
           },
     [anchor?.type, anchorIndex, contentInsets?.top, didTimeoutWaitingForAnchor]
   );

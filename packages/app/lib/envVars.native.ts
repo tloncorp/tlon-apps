@@ -34,7 +34,7 @@ export const APP_VARIANT = envVars.appVariant ?? 'production';
 const configuredScheme = Constants.expoConfig?.scheme;
 export const APP_SCHEME = Array.isArray(configuredScheme)
   ? configuredScheme[0]
-  : configuredScheme ?? 'io.tlon.groups';
+  : (configuredScheme ?? 'io.tlon.groups');
 export const API_URL = envVars.apiUrl ?? 'https://tlon.network';
 export const API_AUTH_USERNAME = envVars.apiAuthUsername;
 export const API_AUTH_PASSWORD = envVars.apiAuthPassword;

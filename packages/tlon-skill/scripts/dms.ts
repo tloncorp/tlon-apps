@@ -71,7 +71,7 @@ const DMS_COMMAND_HELP: Record<string, string> = {
 };
 
 function getDmsHelp(command?: string): string {
-  return command ? DMS_COMMAND_HELP[command] ?? DMS_HELP : DMS_HELP;
+  return command ? (DMS_COMMAND_HELP[command] ?? DMS_HELP) : DMS_HELP;
 }
 
 // Option-flag boundary for the message slice: everything from the first flag on

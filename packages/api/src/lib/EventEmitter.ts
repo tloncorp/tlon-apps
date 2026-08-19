@@ -10,9 +10,9 @@ export interface TypedEventEmitter<EventMap extends AnyEventMap = AnyEventMap> {
   off<E extends keyof EventMap>(event: E, callback: EventMap[E]): this;
 }
 
-export class EventEmitter<EventMap extends AnyEventMap = AnyEventMap>
-  implements TypedEventEmitter<EventMap>
-{
+export class EventEmitter<
+  EventMap extends AnyEventMap = AnyEventMap,
+> implements TypedEventEmitter<EventMap> {
   private listeners: Partial<{
     [E in keyof EventMap]: Array<EventMap[E]>;
   }> = {};

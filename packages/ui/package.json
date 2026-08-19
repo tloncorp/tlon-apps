@@ -19,7 +19,7 @@
     "watch": "mkdir -p dist/cjs/assets/icons && mkdir -p dist/jsx/assets/icons && cp -R src/assets/icons/*.svg dist/cjs/assets/icons/ && cp -R src/assets/icons/*.svg dist/jsx/assets/icons/ && tamagui-build --watch --skip-types",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix --quiet",
-    "lint:format": "prettier src/ --write",
+    "lint:format": "oxfmt src/",
     "test": "vitest --passWithNoTests",
     "tsc": "tsc --noEmit"
   },

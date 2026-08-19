@@ -111,6 +111,6 @@ function deviceClass() {
 
 function osMajor() {
   const version =
-    Platform.OS === 'ios' ? String(Platform.Version) : Device.osVersion ?? '';
+    Platform.OS === 'ios' ? String(Platform.Version) : (Device.osVersion ?? '');
   return version.split('.')[0] || undefined;
 }

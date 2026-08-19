@@ -181,7 +181,7 @@ export function useContextLensAvailable(channel?: db.Channel | null) {
     ? null
     : channel.type === 'groupDm'
       ? channel.id
-      : channel.groupId ?? null;
+      : (channel.groupId ?? null);
   const { data: botShips } = store.useContextLensBotShips();
   const { data: botsInChat } = store.useContextLensBotsInChat({
     chatId: flagEnabled ? chatId : null,
