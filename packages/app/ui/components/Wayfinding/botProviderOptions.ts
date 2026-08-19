@@ -113,8 +113,8 @@ export function buildBotCredentialOptions({
     add('xai', 'subscription', 'Grok subscription');
   }
 
-  add('openai', 'api-key', 'OpenAI — API key');
-  add('xai', 'api-key', 'xAI (Grok) — API key');
+  add('openai', 'api-key', 'OpenAI');
+  add('xai', 'api-key', 'xAI (Grok)');
   add('anthropic', 'api-key', providerLabel('anthropic'));
   add('openrouter', 'api-key', providerLabel('openrouter'));
 

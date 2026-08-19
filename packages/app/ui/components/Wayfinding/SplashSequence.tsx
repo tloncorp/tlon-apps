@@ -50,7 +50,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
-  XStack,
   YStack,
   getTokenValue,
   isWeb,
@@ -2076,6 +2075,10 @@ export function GroupsPane(props: {
   const groupInviteHasError = homeGroupInviteState === 'unavailable';
   const { doCopy: copyHomeGroupInvite, didCopy: didCopyHomeGroupInvite } =
     useCopy(homeGroupInviteUrl ?? '');
+  const homeGroupInviteDisplayUrl = useMemo(
+    () => homeGroupInviteUrl?.replace(/^https?:\/\//, '') ?? '',
+    [homeGroupInviteUrl]
+  );
   const shareHomeGroupInvite = useCallback(async () => {
     if (!homeGroupInviteUrl) return;
 
@@ -2204,56 +2207,55 @@ export function GroupsPane(props: {
       </YStack>
       <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
         {props.hostingBotEnabled ? (
-          <YStack width="100%" gap="$s">
-            <XStack width="100%">
-              <TextInput
-                value={groupInviteIsReady ? homeGroupInviteUrl ?? '' : ''}
-                placeholder={
-                  groupInviteIsLoading
-                    ? 'Preparing invite link'
-                    : 'Invite link unavailable'
+          <YStack width="100%" gap="$l">
+            <Button.Frame
+              width="100%"
+              size="medium"
+              fill="ghost"
+              backgroundColor="$secondaryBackground"
+              cursor="default"
+            >
+              <Text
+                flex={1}
+                minWidth={0}
+                numberOfLines={1}
+                size="$mono/m"
+                color={
+                  groupInviteHasError ? '$negativeActionText' : '$tertiaryText'
                 }
-                accent={groupInviteHasError ? 'negative' : 'positive'}
-                editable={false}
-                selectTextOnFocus={groupInviteIsReady}
-                frameStyle={{
-                  flex: 1,
-                  height: 44,
-                  ...(groupInviteHasError
-                    ? {}
-                    : {
-                        borderTopRightRadius: 0,
-                        borderBottomRightRadius: 0,
-                        borderRightWidth: 0,
-                      }),
-                }}
-              />
+              >
+                {groupInviteIsReady
+                  ? homeGroupInviteDisplayUrl
+                  : groupInviteIsLoading
+                    ? 'Preparing invite link'
+                    : 'Invite link unavailable'}
+              </Text>
               {!groupInviteHasError && (
                 <Button
-                  onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
-                  icon={didCopyHomeGroupInvite ? 'Checkmark' : 'Copy'}
+                  fill="text"
+                  intent="positive"
+                  label="Copy"
+                  leadingIcon={
+                    <Icon
+                      type={didCopyHomeGroupInvite ? 'Checkmark' : 'Copy'}
+                      customSize={[18, 18]}
+                      color="$positiveActionText"
+                    />
+                  }
                   accessibilityLabel={
                     didCopyHomeGroupInvite ? 'Copied' : 'Copy invite link'
                   }
-                  intent="positive"
-                  size="small"
-                  width={44}
-                  borderTopLeftRadius={0}
-                  borderBottomLeftRadius={0}
-                  loading={groupInviteIsLoading}
                   disabled={!groupInviteIsReady}
-                  glow={groupInviteIsReady}
+                  onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
                 />
               )}
-            </XStack>
+            </Button.Frame>
             <Button
-              onPress={groupInviteIsReady ? shareHomeGroupInvite : undefined}
+              preset="primary"
               label="Share link"
-              intent={groupInviteHasError ? 'negative' : 'positive'}
-              fill="outline"
-              size="small"
-              leadingIcon="Send"
+              centered
               disabled={!groupInviteIsReady}
+              onPress={groupInviteIsReady ? shareHomeGroupInvite : undefined}
             />
           </YStack>
         ) : null}
