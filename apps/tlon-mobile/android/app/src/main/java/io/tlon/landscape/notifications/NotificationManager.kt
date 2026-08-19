@@ -134,6 +134,14 @@ suspend fun processNotification(context: Context, uid: String, id: String) {
         throw PreviewEmpty(uid, activityEventJSON)
     }
 
+    if (NotificationPresentationState.shouldSuppress(preview.groupingKey)) {
+        Log.d(
+            NOTIFICATION_MANAGER,
+            "Suppressing foreground notification for active channel: ${preview.groupingKey}"
+        )
+        return
+    }
+
     try {
         // Proceed with rich notification
         val extras = Bundle()
