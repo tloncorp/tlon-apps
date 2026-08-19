@@ -1,5 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
-
 const BUCKETS_BROKER_URL = 'https://memex.tlon.network/v2/buckets';
 
 type BrokerErrorBody = {
@@ -46,10 +44,6 @@ export type BucketReadGrant = {
   acceptRanges: boolean;
 };
 
-export function createBucketCapability() {
-  return uuidv4().replaceAll('-', '');
-}
-
 function hostName(host: string) {
   return host.replace(/^~/, '');
 }
@@ -78,6 +72,13 @@ async function brokerRequest<T>(path: string, init: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * Exchange an upload token for a signed PUT.
+ *
+ * The token is minted by the bucket's host and handed back when it grants the
+ * upload — the client never invents one, and the broker verifies it with that
+ * host before issuing anything.
+ */
 export function grantBucketUpload(
   capability: string,
   host: string

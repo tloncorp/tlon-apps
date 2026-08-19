@@ -1,18 +1,26 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 
-import { getBuckets, subscribeToBuckets } from '../client/bucketsApi';
-import { scry, subscribe, unsubscribe } from '../client/urbit';
-import type { BucketsResponse, BucketsSnapshot } from '../urbit/buckets';
+import {
+  BucketsActionFailed,
+  getBuckets,
+  requestBucketsGrant,
+  sendBucketsAction,
+  subscribeToBuckets,
+} from '../client/bucketsApi';
+import { requestJson, scry, subscribe, unsubscribe } from '../client/urbit';
+import type { BucketsFlag, BucketsSnapshot } from '../urbit/buckets';
 
 vi.mock('../client/urbit', () => ({
-  poke: vi.fn(),
+  requestJson: vi.fn(),
   scry: vi.fn(),
   subscribe: vi.fn(),
   unsubscribe: vi.fn(),
 }));
 
-const legacySnapshot = {
-  flag: { host: '~zod', name: 'files' },
+const flag: BucketsFlag = { host: '~zod', name: 'files' };
+
+const snapshot = {
+  flag,
   state: {
     bucket: {
       id: 1,
@@ -24,40 +32,77 @@ const legacySnapshot = {
     },
     group: { host: '~zod', name: 'group' },
     readers: ['member'],
+    writers: ['admin'],
     entries: [],
-    sessions: [],
     revision: 1,
   },
-} as unknown as BucketsSnapshot;
+} satisfies BucketsSnapshot;
 
 beforeEach(() => {
+  vi.mocked(requestJson).mockReset();
   vi.mocked(scry).mockReset();
   vi.mocked(subscribe).mockReset();
   vi.mocked(unsubscribe).mockReset();
 });
 
-test('getBuckets gives legacy snapshots their implicit writer roles', async () => {
-  vi.mocked(scry).mockResolvedValueOnce([legacySnapshot]);
+test('getBuckets returns the local snapshots', async () => {
+  vi.mocked(scry).mockResolvedValueOnce([snapshot]);
 
-  await expect(getBuckets()).resolves.toMatchObject([
-    { state: { readers: ['member'], writers: ['member'] } },
-  ]);
+  await expect(getBuckets()).resolves.toEqual([snapshot]);
 });
 
-test('subscribeToBuckets normalizes legacy snapshot events', async () => {
-  vi.mocked(subscribe).mockImplementationOnce(async (_endpoint, onUpdate) => {
-    onUpdate({ type: 'snapshot', ...legacySnapshot } as BucketsResponse);
-    return 7;
+test('sendBucketsAction submits over the v1 endpoint and returns the answer', async () => {
+  vi.mocked(requestJson).mockResolvedValueOnce({
+    requestId: '0v5',
+    body: { ok: null },
   });
-  const handler = vi.fn();
 
-  await subscribeToBuckets(handler);
+  await expect(
+    sendBucketsAction({ type: 'delete-bucket', flag })
+  ).resolves.toEqual({ ok: null });
 
-  expect(handler).toHaveBeenCalledWith(
-    expect.objectContaining({
-      state: expect.objectContaining({ writers: ['member'] }),
-    })
-  );
+  expect(requestJson).toHaveBeenCalledWith('/buckets/~/v1', 'POST', {
+    action: { type: 'delete-bucket', flag },
+  });
+});
+
+test('sendBucketsAction raises a typed refusal', async () => {
+  vi.mocked(requestJson).mockResolvedValueOnce({
+    requestId: '0v5',
+    body: { error: { type: 'not-authorized', message: 'nope' } },
+  });
+
+  await expect(
+    sendBucketsAction({ type: 'delete-bucket', flag })
+  ).rejects.toMatchObject({
+    name: 'BucketsActionFailed',
+    type: 'not-authorized',
+    message: 'nope',
+  });
+});
+
+test('requestBucketsGrant returns the minted token', async () => {
+  vi.mocked(requestJson).mockResolvedValueOnce({
+    requestId: '0v5',
+    body: {
+      grant: { token: '0vabc', entryId: 12, expiresAt: '~2026.1.1' },
+    },
+  });
+
+  await expect(
+    requestBucketsGrant({ type: 'issue-read', flag, id: 12 })
+  ).resolves.toEqual({ token: '0vabc', entryId: 12, expiresAt: '~2026.1.1' });
+});
+
+test('requestBucketsGrant rejects an answer that carries no grant', async () => {
+  vi.mocked(requestJson).mockResolvedValueOnce({
+    requestId: '0v5',
+    body: { ok: null },
+  });
+
+  await expect(
+    requestBucketsGrant({ type: 'issue-read', flag, id: 12 })
+  ).rejects.toThrow(/did not return a grant/);
 });
 
 test('subscribeToBuckets unsubscribes the replacement id after a reset', async () => {

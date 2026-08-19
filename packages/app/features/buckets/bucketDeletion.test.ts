@@ -11,7 +11,6 @@ function file(id: number, objectKey: string): BucketsFileEntry {
       checksum: null,
       mime: 'text/plain',
       objectKey,
-      objectUrl: null,
       size: 10,
       status: 'ready',
     },
@@ -34,12 +33,9 @@ describe('deletePrivateBucketFiles', () => {
         [file(1, 'object-1'), file(2, 'object-2')],
         { host: '~zod', name: 'files' },
         {
-          createCapability: vi
-            .fn()
-            .mockReturnValueOnce('cap-1')
-            .mockReturnValueOnce('cap-2'),
-          issueDelete: async (_capability, id) => {
+          issueDelete: async (id) => {
             calls.push(`issue:${id}`);
+            return `cap-${id}`;
           },
           deleteObject: async (_capability, _host, objectId) => {
             calls.push(`object:${objectId}`);
@@ -70,8 +66,7 @@ describe('deletePrivateBucketFiles', () => {
       [file(1, 'object-1')],
       { host: '~zod', name: 'files' },
       {
-        createCapability: () => 'cap-1',
-        issueDelete: vi.fn().mockResolvedValue(undefined),
+        issueDelete: vi.fn().mockResolvedValue('cap-1'),
         deleteObject: vi.fn().mockRejectedValue(missingObject),
         deleteManifestEntry,
         isAlreadyDeleted: (cause) => cause === missingObject,

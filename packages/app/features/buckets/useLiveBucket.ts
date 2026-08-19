@@ -8,6 +8,7 @@ import {
   formatBucketsChannelId,
   getBuckets,
   getCurrentUserId,
+  requestBucketsGrant,
   sendBucketsAction,
   subscribeToBuckets,
 } from '@tloncorp/api';
@@ -16,7 +17,6 @@ import {
   brokerRequiredHeaders,
   cancelBucketUpload,
   completeBucketUpload,
-  createBucketCapability,
   deleteBucketObject,
   grantBucketRead,
   grantBucketUpload,
@@ -35,8 +35,6 @@ import type { BucketUploadBatchItem } from '../../utils/bucketUploadProgress';
 import { deletePrivateBucketFiles } from './bucketDeletion';
 import {
   bucketResponseHasRevisionGap,
-  includePendingUploadForReconciliation,
-  reconcileUploadsWithSnapshot,
   removeEntryFromBucketSnapshot,
 } from './bucketUploadReconciliation';
 import { createBucketUploadTask } from './bucketUploadTask';
@@ -46,12 +44,10 @@ type LocalUpload = {
   brokerObjectId?: string;
   brokerReservationId?: string;
   candidate: BucketUploadCandidate;
-  capability?: string;
   error?: string;
   id: string;
   parentId: number | null;
   progress: number;
-  priorSessionIds?: string[];
   serverEntryId?: number;
   sessionId?: string;
   state: 'queued' | 'uploading' | 'failed';
@@ -86,10 +82,9 @@ function reduceBucketResponse(
   if (update.type === 'bucket-deleted') return null;
 
   let entries = current.state.entries;
-  let sessions = current.state.sessions;
   let bucket = current.state.bucket;
   let readers = current.state.readers;
-  let writers = current.state.writers ?? current.state.readers;
+  let writers = current.state.writers;
 
   switch (update.type) {
     case 'bucket-created':
@@ -102,24 +97,12 @@ function reduceBucketResponse(
     case 'readers-updated':
       readers = update.readers;
       break;
-    case 'folder-created':
+    case 'entry-created':
     case 'entry-updated':
       entries = upsertEntry(entries, update.entry);
       break;
-    case 'upload-begun':
-    case 'upload-ready':
-    case 'upload-failed':
-      entries = upsertEntry(entries, update.entry);
-      sessions = [
-        ...sessions.filter((session) => session.id !== update.session.id),
-        update.session,
-      ];
-      break;
     case 'entries-deleted':
       entries = entries.filter((entry) => !update.ids.includes(entry.id));
-      sessions = sessions.filter(
-        (session) => !update.ids.includes(session.fileId)
-      );
       break;
   }
 
@@ -131,7 +114,6 @@ function reduceBucketResponse(
       entries,
       revision: response.revision,
       readers,
-      sessions,
       writers,
     },
   };
@@ -143,26 +125,6 @@ function errorMessage(cause: unknown) {
 
 function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
-async function waitForBrokerCapability<T>(operation: () => Promise<T>) {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    try {
-      return await operation();
-    } catch (cause) {
-      lastError = cause;
-      if (
-        !(cause instanceof BucketsBrokerError) ||
-        cause.status !== 403 ||
-        cause.code !== 'capability_denied'
-      ) {
-        throw cause;
-      }
-      await delay(250);
-    }
-  }
-  throw lastError;
 }
 
 export function useLiveBucket(requestedFlag: BucketsFlag) {
@@ -180,11 +142,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   const snapshotRef = useRef<BucketsSnapshot | null>(null);
   const tasksRef = useRef(new Map<string, BucketUploadTask>());
   const cancelledRef = useRef(new Set<string>());
-  const claimedEntryIdsRef = useRef(new Set<number>());
-  const lastSessionRefreshAtRef = useRef(0);
-  const sessionRefreshRef = useRef<Promise<BucketsSnapshot | null> | null>(
-    null
-  );
 
   const setCurrentUploads = useCallback(
     (update: (current: LocalUpload[]) => LocalUpload[]) => {
@@ -199,16 +156,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   const commitSnapshot = useCallback(
     (next: BucketsSnapshot | null) => {
       snapshotRef.current = next;
-      if (next) {
-        setCurrentUploads((current) =>
-          reconcileUploadsWithSnapshot(
-            current,
-            next,
-            getCurrentUserId(),
-            claimedEntryIdsRef.current
-          )
-        );
-      }
       setSnapshot(next);
       if (next) {
         const channelId = formatBucketsChannelId(next.flag);
@@ -218,12 +165,10 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
             channelId,
             roleId,
           })),
-          writerRoles: (next.state.writers ?? next.state.readers).map(
-            (roleId) => ({
-              channelId,
-              roleId,
-            })
-          ),
+          writerRoles: next.state.writers.map((roleId) => ({
+            channelId,
+            roleId,
+          })),
         });
       }
     },
@@ -254,22 +199,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     commitSnapshot(next);
     return next;
   }, [commitSnapshot, selectSnapshot]);
-
-  const refreshUploadSessions = useCallback(() => {
-    if (sessionRefreshRef.current) return sessionRefreshRef.current;
-    const now = Date.now();
-    if (snapshotRef.current && now - lastSessionRefreshAtRef.current < 2_000) {
-      return Promise.resolve(snapshotRef.current);
-    }
-    lastSessionRefreshAtRef.current = now;
-    const request = refresh().finally(() => {
-      if (sessionRefreshRef.current === request) {
-        sessionRefreshRef.current = null;
-      }
-    });
-    sessionRefreshRef.current = request;
-    return request;
-  }, [refresh]);
 
   useEffect(() => {
     let active = true;
@@ -341,75 +270,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     [setCurrentUploads]
   );
 
-  const waitForSession = useCallback(
-    async (
-      pendingUpload: LocalUpload,
-      candidate: BucketUploadCandidate,
-      localUploadId: string,
-      parentId: number | null,
-      priorSessionIds: Set<string>,
-      brokerObjectId?: string,
-      allowMetadataFallback = false
-    ) => {
-      for (let attempt = 0; attempt < 80; attempt += 1) {
-        let next = snapshotRef.current;
-        // Subscription facts normally satisfy this immediately. A shared
-        // fallback scry every two seconds keeps uploads progressing while
-        // the channel screen is unmounted or a fact was missed, without one
-        // 250ms network loop per file.
-        if (!next || attempt % 8 === 7) {
-          next = await refreshUploadSessions();
-        }
-        if (next) {
-          const activeUploads = includePendingUploadForReconciliation(
-            uploadsRef.current,
-            pendingUpload,
-            [...priorSessionIds]
-          ).map((upload) =>
-            upload.id === localUploadId
-              ? { ...upload, allowMetadataFallback, brokerObjectId }
-              : upload
-          );
-          const reconciled = reconcileUploadsWithSnapshot(
-            activeUploads,
-            next,
-            getCurrentUserId(),
-            claimedEntryIdsRef.current
-          );
-          const matched = reconciled.find(
-            (upload) => upload.id === localUploadId
-          );
-          if (
-            matched &&
-            matched.serverEntryId !== undefined &&
-            matched.sessionId
-          ) {
-            const entry = next.state.entries.find(
-              (candidateEntry): candidateEntry is BucketsFileEntry =>
-                candidateEntry.kind === 'file' &&
-                candidateEntry.id === matched.serverEntryId
-            );
-            const session = next.state.sessions.find(
-              (candidateSession) =>
-                candidateSession.id === matched.sessionId &&
-                candidateSession.fileId === matched.serverEntryId
-            );
-            if (entry && session) {
-              claimedEntryIdsRef.current.add(entry.id);
-              if (!cancelledRef.current.has(localUploadId)) {
-                setCurrentUploads(() => reconciled);
-              }
-              return { entry, session };
-            }
-          }
-        }
-        await delay(250);
-      }
-      throw new Error('The ship did not start the upload in time');
-    },
-    [refreshUploadSessions, setCurrentUploads]
-  );
-
   const runUpload = useCallback(
     async (upload: LocalUpload) => {
       const { candidate, id, parentId } = upload;
@@ -426,68 +286,36 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         const mimeType = candidate.mimeType ?? 'application/octet-stream';
         const current = snapshotRef.current ?? (await refresh());
         if (!current) throw new Error(`Bucket ${flagKey} was not found`);
-        const priorSessionIds = new Set(
-          current.state.sessions.map((session) => session.id)
-        );
-        const capability = createBucketCapability();
 
         updateLocalUpload(id, {
-          capability,
           error: undefined,
           progress: 1,
-          priorSessionIds: [...priorSessionIds],
           state: 'uploading',
         });
-        await sendBucketsAction({
+        // The host mints the upload token and answers with it, along with the
+        // id of the entry it reserved. Nothing has to be matched against the
+        // replica afterwards, and nothing is broadcast until the object lands.
+        const grant = await requestBucketsGrant({
           type: 'begin-upload',
           checksum: null,
-          capability,
           flag,
           mime: mimeType,
           name: candidate.name,
           parentId,
           size: candidate.size,
         });
-        let privateGrant: Awaited<ReturnType<typeof grantBucketUpload>>;
-        try {
-          privateGrant = await waitForBrokerCapability(() =>
-            grantBucketUpload(capability, flag.host)
-          );
-        } catch (grantCause) {
-          // A failed grant can still leave a pending Gall entry. Metadata is
-          // only used here when it identifies one unambiguous entry, so this
-          // cleanup cannot fail another identical upload from the same ship.
-          const begun = await waitForSession(
-            upload,
-            candidate,
-            id,
-            parentId,
-            priorSessionIds,
-            undefined,
-            true
-          ).catch(() => undefined);
-          sessionId = begun?.session.id;
-          serverEntryId = begun?.entry.id;
-          throw grantCause;
-        }
+        sessionId = grant.token;
+        serverEntryId = grant.entryId;
+        updateLocalUpload(id, { progress: 3, serverEntryId, sessionId });
+
+        const privateGrant = await grantBucketUpload(grant.token, flag.host);
         brokerObjectId = privateGrant.objectId;
         brokerReservationId = privateGrant.reservationId;
         updateLocalUpload(id, {
           brokerObjectId,
           brokerReservationId,
-          progress: 3,
+          progress: 5,
         });
-        const begun = await waitForSession(
-          { ...upload, brokerObjectId, brokerReservationId },
-          candidate,
-          id,
-          parentId,
-          priorSessionIds,
-          brokerObjectId
-        );
-        sessionId = begun.session.id;
-        serverEntryId = begun.entry.id;
-        updateLocalUpload(id, { progress: 5, serverEntryId, sessionId });
 
         if (cancelledRef.current.has(id)) {
           throw new Error('Upload cancelled');
@@ -554,14 +382,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         }
       }
     },
-    [
-      flag,
-      flagKey,
-      refresh,
-      setCurrentUploads,
-      updateLocalUpload,
-      waitForSession,
-    ]
+    [flag, flagKey, refresh, setCurrentUploads, updateLocalUpload]
   );
 
   const addUploads = useCallback(
@@ -600,12 +421,9 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         (Number.isSafeInteger(parsedEntryId) && parsedEntryId >= 0
           ? parsedEntryId
           : undefined);
-      const sessionId =
-        upload?.sessionId ??
-        snapshotRef.current?.state.sessions.find(
-          (session) =>
-            session.fileId === serverEntryId && session.status === 'pending'
-        )?.id;
+      // Sessions are host-private, so the local row is the only place the
+      // token lives. A cancel with no row has nothing to fail on the host.
+      const sessionId = upload?.sessionId;
 
       if (upload) {
         cancelledRef.current.add(id);
@@ -676,11 +494,9 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const next = {
         ...upload,
         error: undefined,
-        capability: undefined,
         brokerReservationId: undefined,
         brokerObjectId: undefined,
         progress: 0,
-        priorSessionIds: undefined,
         serverEntryId: undefined,
         sessionId: undefined,
         state: 'queued' as const,
@@ -750,11 +566,9 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         (entry): entry is BucketsFileEntry =>
           ids.has(entry.id) &&
           entry.kind === 'file' &&
-          entry.file.status === 'ready' &&
-          !entry.file.objectUrl
+          entry.file.status === 'ready'
       );
       await deletePrivateBucketFiles(privateFiles ?? [], flag, {
-        createCapability: createBucketCapability,
         deleteManifestEntry: (deletedId) =>
           sendBucketsAction({
             type: 'delete-entry',
@@ -762,18 +576,16 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
             id: deletedId,
             recursive: false,
           }),
-        deleteObject: (capability, host, objectId) =>
-          waitForBrokerCapability(() =>
-            deleteBucketObject(capability, host, objectId)
-          ),
+        deleteObject: deleteBucketObject,
         isAlreadyDeleted: isBucketObjectAlreadyDeleted,
-        issueDelete: (capability, entryId) =>
-          sendBucketsAction({
+        issueDelete: async (entryId) => {
+          const issued = await requestBucketsGrant({
             type: 'issue-delete',
-            capability,
             flag,
             id: entryId,
-          }),
+          });
+          return issued.token;
+        },
         onManifestDelete: (deletedId) => {
           const latest = snapshotRef.current;
           if (!latest) return;
@@ -783,9 +595,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
               ...latest.state,
               entries: latest.state.entries.filter(
                 (entry) => entry.id !== deletedId
-              ),
-              sessions: latest.state.sessions.filter(
-                (session) => session.fileId !== deletedId
               ),
             },
           });
@@ -809,16 +618,15 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       if (!entry || entry.kind !== 'file' || entry.file.status !== 'ready') {
         throw new Error('This file is not ready to open');
       }
-      if (entry.file.objectUrl) return entry.file.objectUrl;
-      const capability = createBucketCapability();
-      await sendBucketsAction({
+      const issued = await requestBucketsGrant({
         type: 'issue-read',
-        capability,
         flag,
         id,
       });
-      const grant = await waitForBrokerCapability(() =>
-        grantBucketRead(capability, flag.host, entry.file.objectKey)
+      const grant = await grantBucketRead(
+        issued.token,
+        flag.host,
+        entry.file.objectKey
       );
       return grant.readUrl;
     },

@@ -377,7 +377,7 @@ test('createChannel creates a Bucket with independent reader and writer roles', 
   vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~zod');
   const sendBucketsAction = vi
     .spyOn(api, 'sendBucketsAction')
-    .mockResolvedValue(1);
+    .mockResolvedValue({ ok: null });
   vi.spyOn(api, 'getGroup').mockResolvedValue({
     id: bucketGroupId,
     channels: [
@@ -432,7 +432,7 @@ test('createChannel lets a non-host admin create a group-hosted Bucket', async (
   vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~solfer-magfed');
   const sendBucketsAction = vi
     .spyOn(api, 'sendBucketsAction')
-    .mockResolvedValue(1);
+    .mockResolvedValue({ ok: null });
   vi.spyOn(api, 'getGroup').mockResolvedValue({
     id: bucketGroupId,
     channels: [
@@ -494,7 +494,7 @@ test('createChannel preserves a created Bucket when its group listing is delayed
   vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~zod');
   const sendBucketsAction = vi
     .spyOn(api, 'sendBucketsAction')
-    .mockResolvedValue(1);
+    .mockResolvedValue({ ok: null });
   vi.spyOn(api, 'getGroup').mockResolvedValue({
     id: bucketGroupId,
     channels: [],
@@ -530,7 +530,7 @@ test('updateChannel mirrors Bucket reader and writer roles to %buckets', async (
   vi.spyOn(api, 'updateChannel').mockResolvedValue(1);
   const sendBucketsAction = vi
     .spyOn(api, 'sendBucketsAction')
-    .mockResolvedValue(1);
+    .mockResolvedValue({ ok: null });
 
   await updateChannel({
     groupId,

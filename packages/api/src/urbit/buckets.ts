@@ -17,7 +17,6 @@ export type BucketsFile = {
   size: number;
   checksum: string | null;
   objectKey: string;
-  objectUrl: string | null;
   status: 'pending' | 'ready' | 'failed';
 };
 
@@ -42,23 +41,12 @@ export type BucketsFileEntry = BucketsEntryBase & {
 
 export type BucketsEntry = BucketsFolderEntry | BucketsFileEntry;
 
-export type BucketsUploadSession = {
-  id: string;
-  fileId: number;
-  requestedBy: string;
-  createdAt: number;
-  expiresAt: number;
-  status: 'pending' | 'complete' | 'failed';
-  error: string | null;
-};
-
 export type BucketsState = {
   bucket: BucketsBucket;
   group: BucketsFlag;
   readers: string[];
   writers: string[];
   entries: BucketsEntry[];
-  sessions: BucketsUploadSession[];
   revision: number;
 };
 
@@ -73,23 +61,8 @@ export type BucketsUpdate =
   | { type: 'bucket-updated'; bucket: BucketsBucket }
   | { type: 'readers-updated'; readers: string[] }
   | { type: 'writers-updated'; writers: string[] }
-  | { type: 'folder-created'; entry: BucketsFolderEntry }
-  | {
-      type: 'upload-begun';
-      session: BucketsUploadSession;
-      entry: BucketsFileEntry;
-    }
-  | {
-      type: 'upload-ready';
-      session: BucketsUploadSession;
-      entry: BucketsFileEntry;
-    }
-  | {
-      type: 'upload-failed';
-      session: BucketsUploadSession;
-      entry: BucketsFileEntry;
-    }
-  | { type: 'entry-updated'; entry: BucketsEntry }
+  | { type: 'entry-created'; id: number; entry: BucketsEntry }
+  | { type: 'entry-updated'; id: number; entry: BucketsEntry }
   | { type: 'entries-deleted'; ids: number[] };
 
 export type BucketsResponse =
@@ -98,7 +71,6 @@ export type BucketsResponse =
       type: 'update';
       flag: BucketsFlag;
       revision: number;
-      actor: string;
       update: BucketsUpdate;
     };
 
@@ -129,13 +101,6 @@ export type BucketsAction =
       mime: string;
       size: number;
       checksum: string | null;
-      capability: string;
-    }
-  | {
-      type: 'finish-upload';
-      flag: BucketsFlag;
-      sessionId: string;
-      objectUrl: string;
     }
   | {
       type: 'fail-upload';
@@ -147,13 +112,11 @@ export type BucketsAction =
       type: 'issue-read';
       flag: BucketsFlag;
       id: number;
-      capability: string;
     }
   | {
       type: 'issue-delete';
       flag: BucketsFlag;
       id: number;
-      capability: string;
     }
   | { type: 'rename-entry'; flag: BucketsFlag; id: number; name: string }
   | {
@@ -168,3 +131,39 @@ export type BucketsAction =
       id: number;
       recursive: boolean;
     };
+
+/**
+ * A host-minted bearer token, returned only to the ship that asked for it.
+ *
+ * For an upload the token is the session id; for a read or delete it is a
+ * freshly minted capability. Either way it is what gets presented to the
+ * storage broker — the client never invents one.
+ */
+export type BucketsGrant = {
+  token: string;
+  entryId: number;
+  expiresAt: string;
+};
+
+export type BucketsActionError =
+  | 'not-authorized'
+  | 'not-found'
+  | 'invalid-input'
+  | 'unknown';
+
+/**
+ * The terminal answer to one submitted action.
+ *
+ * `pending` is emitted by our own ship once it has forwarded the action to the
+ * bucket's host and is waiting; the host's real answer replaces it.
+ */
+export type BucketsResponseBody =
+  | { ok: null }
+  | { grant: BucketsGrant }
+  | { pending: null }
+  | { error: { type: BucketsActionError; message: string } };
+
+export type BucketsRequestResponse = {
+  requestId: string;
+  body: BucketsResponseBody;
+};
