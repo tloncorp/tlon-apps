@@ -11,8 +11,16 @@
  *   tlon kits install <id> [--name <term>] [--title <title>]
  *   tlon kits installs
  *   tlon kits uninstall <flag>
+ *   tlon kits card <id> <nest>
  */
-import { poke, scry } from '@tloncorp/api';
+import {
+  type Story,
+  appendKitToPostBlob,
+  getCurrentUserId,
+  poke,
+  scry,
+  sendPost,
+} from '@tloncorp/api';
 import { loadKit, toWireKit } from '@tloncorp/tlon-kits';
 import type { WireKit, WireManifest } from '@tloncorp/tlon-kits';
 
@@ -39,6 +47,7 @@ Commands:
                                              Instantiate a kit: create a group + places
   installs                                   List installed kits by group flag
   uninstall <flag>                           Uninstall from a group (~ship/name)
+  card <id> <nest>                           Post a shareable kit card to a chat channel
 
 Examples:
   tlon kits list
@@ -46,7 +55,8 @@ Examples:
   tlon kits add ./kits/book-club
   tlon kits fetch ~sampel-palnet book-club
   tlon kits install book-club --name book-club-1 --title "Book Club"
-  tlon kits uninstall ~sampel-palnet/book-club-1`;
+  tlon kits uninstall ~sampel-palnet/book-club-1
+  tlon kits card book-club chat/~sampel-palnet/general`;
 
 const KITS_COMMAND_HELP: Record<string, string> = {
   list: 'Usage: tlon kits list',
@@ -59,6 +69,7 @@ const KITS_COMMAND_HELP: Record<string, string> = {
   installs: 'Usage: tlon kits installs',
   uninstall:
     'Usage: tlon kits uninstall <flag>\nExample: tlon kits uninstall ~sampel-palnet/book-club-1',
+  card: 'Usage: tlon kits card <id> <nest>\nPosts a chat message carrying the kit as a shareable card.\nExample: tlon kits card book-club chat/~sampel-palnet/general',
 };
 
 type KitInstall = {
@@ -87,6 +98,7 @@ function validateKitsArgs(args: string[]): void {
     fetch: 2,
     install: 1,
     uninstall: 1,
+    card: 2,
   };
   const needed = required[command] ?? 0;
   for (let i = 1; i <= needed; i += 1) {
@@ -308,6 +320,40 @@ async function main() {
           json: { uninstall: { flag } },
         });
         console.log(`✓ Uninstall requested for ${flag}`);
+        break;
+      }
+
+      case 'card': {
+        const nest = args[2];
+        if (!nest.startsWith('chat/')) {
+          throw new Error(
+            `Kit cards can only be posted to chat channels (got ${nest})`
+          );
+        }
+        const kit = await fetchLibraryKit(args[1]);
+        const manifest = kit.manifest;
+        // post blob wire format: a JSON array of typed, versioned entries
+        // (see docs/tlon-apps/post-blobs.md)
+        const blob = appendKitToPostBlob(undefined, {
+          id: manifest.id,
+          publisher: manifest.publisher,
+          kitVersion: manifest.version,
+          name: manifest.name,
+          description: manifest.description,
+          image: manifest.image,
+        });
+        const text = manifest.description
+          ? `${manifest.name} — ${manifest.description}`
+          : manifest.name;
+        const content: Story = [{ inline: [text] }];
+        await sendPost({
+          channelId: nest,
+          authorId: getCurrentUserId(),
+          sentAt: Date.now(),
+          content,
+          blob,
+        });
+        console.log(`✓ Posted kit card for ${manifest.id} to ${nest}`);
         break;
       }
 

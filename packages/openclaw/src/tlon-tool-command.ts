@@ -175,6 +175,7 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'install',
       'installs',
       'uninstall',
+      'card',
     ]),
   ],
   [
@@ -766,6 +767,9 @@ function summarizeKitsOperation(
       return build('read');
     case 'add':
     case 'fetch':
+    // `card` posts a message into a channel, which is the intent class this
+    // guard most needs to see; it is not merely a library read.
+    case 'card':
       return build('write');
     case 'install':
     case 'uninstall':

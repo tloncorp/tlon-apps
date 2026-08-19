@@ -964,6 +964,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.190.0
         version: 3.190.0
+      '@tloncorp/tlon-kits':
+        specifier: workspace:*
+        version: link:../tlon-kits
       '@types/mdast':
         specifier: ^4.0.0
         version: 4.0.4

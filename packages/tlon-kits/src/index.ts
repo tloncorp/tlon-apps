@@ -37,3 +37,11 @@ export type {
   ResolveKitsDirOptions,
   ResolveModuleFn,
 } from './loader.js';
+
+export { KITS_BLOB_VERSION, parseGroupKitConfig } from './groupConfig.js';
+export type {
+  GroupKitConfig,
+  GroupKitEntry,
+  GroupKitSchedule,
+  ParseGroupKitConfigOptions,
+} from './groupConfig.js';

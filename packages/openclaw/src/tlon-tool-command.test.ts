@@ -406,7 +406,16 @@ const documentedActionOperations = {
     'cron',
     'rest',
   ],
-  kits: ['list', 'show', 'add', 'fetch', 'install', 'installs', 'uninstall'],
+  kits: [
+    'list',
+    'show',
+    'add',
+    'fetch',
+    'install',
+    'installs',
+    'uninstall',
+    'card',
+  ],
   messages: ['dm', 'channel', 'history', 'search', 'context', 'post'],
   notes: [
     'status',
@@ -488,6 +497,22 @@ describe('tlon tool telemetry summarizer', () => {
     ).toMatchObject({
       summaryKey: 'kits.uninstall',
       intent: 'admin',
+    });
+  });
+
+  // `card` posts a message into a channel. It arrived after the rest of the
+  // kits vocabulary and was missing from the operation map, so it normalized
+  // against a set that did not contain it — the one kits command that writes
+  // to a conversation was the one the guard could not classify.
+  it('classifies kits card as a write, not an unknown operation', () => {
+    expect(
+      summarizeTlonCommand('kits card book-club chat/~sampel-palnet/general')
+    ).toMatchObject({
+      summaryKey: 'kits.card',
+      subcommand: 'kits',
+      operation: 'card',
+      intent: 'write',
+      isKnownSubcommand: true,
     });
   });
 

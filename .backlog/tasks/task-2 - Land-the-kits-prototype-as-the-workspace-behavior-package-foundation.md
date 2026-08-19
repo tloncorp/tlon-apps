@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - james@tlon.io
 created_date: '2026-08-19 13:46'
-updated_date: '2026-08-19 15:12'
+updated_date: '2026-08-19 15:48'
 labels:
   - workspaces
   - kits
@@ -197,4 +197,20 @@ Execution log — commits 1 and 2 landed on james/agentic-workspace.
 **Commit 2** (`780b752cc`) — independent Hoon cleanup. **Correction to the plan:** the other five cleanup commits are NOT separable. All seven were tested with `git cherry-pick -n` onto develop and all seven conflict, because they are stacked on the blob commit and reference types (`group-ui-3`, `group-action-5`, `GroupV11`) that do not exist until it lands. Only two things were genuinely independent by content and were hand-ported: the `%group-ui`/`-1`/`-2` strict-list additions and the mark-warmer deletion. `22f441a2e` also turned out to be blob-dependent — it deletes a test the lane collapse creates — so it moves to commit 4. The renames (`6017cf983`, `7c59ccb23`, `e53d1aba8`) and the two orderings (`4bbbf62ee`, `b108ad2b7`) move to commit 3.
 
 Also noted: prettier fails on `packages/tlon-skill/SKILL.md` on develop already (a hard-wrapped LaTeX paragraph). Left as-is rather than reflowing it inside an unrelated commit.
+
+Execution log — commit 3 landed (`806f0c336`), the group blob.
+
+**Decision 1 is resolved, and in a way that removes the dilemma.** Rather than choosing between the branch's hard cutover and its 404-catch fallbacks, I found develop already has the right mechanism and extended it. Develop gates activity endpoint versions on a runtime capability resolved from the backend's desk version (`activityVersionSupportsNotes` → `setActivitySupportsNotes` → endpoint choice in initApi/changesApi). I mirrored it exactly: bumped `desk/desk.docket-0` to **12.2.0**, added `packages/shared/src/logic/groupBlobSupport.ts` with `groupsVersionSupportsBlob`, added a `groupsSupportsBlob` flag to `packages/api/src/client/urbit.ts`, and wired it through `syncAppInfo`/`syncReactionSupport`. `initApi`, `changesApi`, and `groupsApi` now each pick the blob-era path only once app-info confirms the backend carries it.
+
+This is strictly better than the branch's `a13c04e60`, which caught 404s and retried — a wasted round trip on every call against an old backend. It also means **the hard cutover in `ab016dba8` is no longer needed at all**, so commit 4 shrinks to the lane collapse plus pier regeneration.
+
+End-to-end chain verified on the fakezod: `desk.docket-0` → docket charges (`"version":"12.2.0"`) → `settingsApi.ts:304` `groupsVersion` → `groupsVersionSupportsBlob` → endpoint selection.
+
+**The init-10 hazard was real and is handled.** Replaying as-authored would have compiled cleanly and dropped every note unread. init-10 is re-derived on develop's init-9 with `activity:v10:av` at all three named sites. Confirmed by scrying both arms: `/v9/init` and `/v10/init` return **byte-identical activity payloads**, which is only true if the flip took.
+
+**Verification:** desk commits and replays clean; `/x/v3/groups`, `/x/v2/groups`, groups-ui `/v10/init` and `/v9/init` all serve 200 side by side (old and new surfaces coexisting is the whole point of the fallback design). 755 api tests, 102 shared tests pass. Added a test asserting group scries stay on `/v2` until the backend is known to carry the blob — it caught a real regression while I was writing it, since the branch's version of that test assumed the cutover.
+
+**Two environment notes for whoever picks this up.** `pnpm install --ignore-scripts` leaves `better-sqlite3` without its native binding, so all `packages/shared` DB tests fail with "Could not locate the bindings file"; fix with `cd node_modules/better-sqlite3 && ASDF_PYTHON_VERSION=3.12.13 npm run build-release`. And `click` is genuinely unsafe against this urbit binary — it segfaulted the runtime once (`bail: oops`, stacktrace in `uv__drain`), losing nothing but costing a restart. Use it only for the `|commit` poke and verify everything else over HTTP.
+
+**Also pre-existing, not mine:** `packages/app` tsc fails on `@tloncorp/editor/dist/editorHtml` (unbuilt editor package). Confirmed identical with my changes stashed.
 <!-- SECTION:NOTES:END -->

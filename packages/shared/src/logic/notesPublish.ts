@@ -134,6 +134,7 @@ function renderBlockToHtml(block: BlockData): string {
     case 'file':
     case 'voicememo':
     case 'a2ui':
+    case 'kit-card':
       return '';
   }
 }

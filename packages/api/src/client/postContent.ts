@@ -130,6 +130,18 @@ export type A2UIBlockData = {
   a2ui: A2UI.BlobEntry;
 };
 
+export type KitCardBlockData = {
+  type: 'kit-card';
+  kit: {
+    id: string;
+    publisher: string;
+    version: string;
+    name: string;
+    description: string;
+    image?: string | null;
+  };
+};
+
 export type LinkBlockData = {
   type: 'link';
   url: string;
@@ -193,6 +205,7 @@ export type BlockData =
   | ParagraphBlockData
   | ImageBlockData
   | A2UIBlockData
+  | KitCardBlockData
   | VideoBlockData
   | FileUploadBlockData
   | VoiceMemoBlockData
@@ -310,6 +323,8 @@ export function plaintextPreviewOf(
           return plaintextPreviewOfListData(block.list, config);
         case 'bigEmoji':
           return block.emoji;
+        case 'kit-card':
+          return '(Kit)';
         case 'table': {
           const headerText = block.header.cells
             .map((cell) => plaintextPreviewOfInlineString(cell.content, config))
@@ -514,6 +529,21 @@ export function convertContent(
           out.push({
             type: 'a2ui',
             a2ui: entry,
+          });
+          break;
+        }
+
+        case 'kit': {
+          out.push({
+            type: 'kit-card',
+            kit: {
+              id: entry.id,
+              publisher: entry.publisher,
+              version: entry.kitVersion,
+              name: entry.name,
+              description: entry.description,
+              image: entry.image,
+            },
           });
           break;
         }

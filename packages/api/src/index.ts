@@ -62,6 +62,7 @@ export {
 } from './urbit';
 export {
   appendFileUploadToPostBlob,
+  appendKitToPostBlob,
   appendToPostBlob,
   appendVideoToPostBlob,
   contentToTextAndMentions,
@@ -71,6 +72,7 @@ export {
   type ClientPostBlobData,
   type Mention,
   type PostBlobDataEntry,
+  type PostBlobDataEntryKit,
 } from './client/content-helpers';
 export { getTextContent } from './client/postContent';
 export { preSig } from './lib/urbit';
