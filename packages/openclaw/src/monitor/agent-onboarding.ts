@@ -1,5 +1,5 @@
+import { A2UI } from '@tloncorp/api';
 import {
-  A2UI,
   type PostBlobDataEntryAgentIntroRequest,
   type PostBlobDataEntryAgentProviderConfig,
   type PostBlobDataEntryAgentProvision,
@@ -7,6 +7,13 @@ import {
   notes,
   parsePostBlob,
 } from '@tloncorp/api';
+import {
+  AGENT_ONBOARDING_GROUP_INTRO,
+  AGENT_ONBOARDING_ORIENTATION_OPTIONS,
+  AGENT_ONBOARDING_ORIENTATION_PROMPT,
+  AGENT_ONBOARDING_PURPOSE_OPTIONS,
+  AGENT_ONBOARDING_PURPOSE_PROMPT,
+} from '@tloncorp/api/client/agentOnboarding';
 import type {
   PluginHookCronChangedEvent,
   PluginHookMessageSentEvent,
@@ -112,88 +119,6 @@ const READ_MS_PER_CHARACTER = 10;
 const READ_DELAY_CAP_MS = 1_500;
 const JITTER_RATIO = 0.2;
 const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
-const GROUP_INTRO_MESSAGE =
-  "I'm your Tlonbot. I can keep you informed, help you learn, or follow a " +
-  'question over time.';
-const PURPOSE_PICKER_PROMPT = 'What can I help you with?';
-const ONBOARDING_ORIENTATION_PROMPT =
-  'You’re all set. Is there anything else I can help you with?';
-const ONBOARDING_ORIENTATION_OPTIONS = [
-  { id: 'groups-and-channels', label: 'Groups and channels' },
-  { id: 'your-tlon-computer', label: 'Your Tlon computer' },
-  { id: 'other-capabilities', label: 'What else can you do?' },
-  { id: 'finished', label: 'I’m good for now' },
-] as const;
-const PURPOSE_OPTIONS = [
-  {
-    id: 'agent-daily-digest',
-    label: 'A daily digest',
-    description:
-      'A short summary of anything you care about, posted every morning.',
-    icon: 'ChannelNotebooks',
-    accent: 'blue',
-    scheduleHour: 8,
-    topicsPrompt:
-      'A daily digest—great. What should I keep an eye on? Pick any that fit.',
-    topics: [
-      'Nootropics',
-      'Longevity',
-      'Psychedelics',
-      'Open hardware',
-      'Gene editing',
-      'Space weather',
-    ],
-  },
-  {
-    id: 'agent-learning',
-    label: 'Learn something',
-    // Unlike the other two purposes, this one covers a single topic per entry
-    // and rotates. Say so at every point where the expectation forms — the
-    // card, the picker, and the acknowledgement — because "pick any that fit"
-    // otherwise reads as "these all go in tomorrow's digest".
-    description: 'One idea each morning, taking your topics in turn.',
-    icon: 'Clock',
-    accent: 'green',
-    scheduleHour: 9,
-    topicsPrompt:
-      'Great. What would you like to understand better? Pick any that fit—I’ll take them one at a time.',
-    topics: [
-      'Music theory',
-      'Genetics',
-      'Astronomy',
-      'Philosophy',
-      'Architecture',
-      'Economics',
-    ],
-  },
-  {
-    id: 'agent-research',
-    label: 'Research',
-    description: 'A source-backed briefing that follows meaningful new work.',
-    icon: 'Search',
-    accent: 'indigo',
-    scheduleHour: 9,
-    topicsPrompt:
-      'Got it. What question or field should I follow closely? Pick any that fit.',
-    topics: [
-      'Peptides',
-      'Installation art',
-      'Electronic music',
-      'Mycology',
-      'Longevity',
-      'Synthesizers',
-    ],
-  },
-] as const satisfies readonly {
-  id: string;
-  label: string;
-  description: string;
-  icon: A2UI.ChoiceIcon;
-  accent: A2UI.ChoiceAccent;
-  scheduleHour: number;
-  topicsPrompt: string;
-  topics: readonly string[];
-}[];
 
 const firstRunCorrelations = sharedMap<
   string,
@@ -305,7 +230,7 @@ async function handleAgentOnboardingRequestInternal(
     50
   );
   if (request.type === 'tlon-agent-intro-request') {
-    await postIntro(context, history, request, deps, presentation);
+    await postIntro(context, history, deps, presentation);
     return true;
   }
   if (request.type === 'tlon-agent-provider-config') {
@@ -422,18 +347,16 @@ function pendingDurableReply(
 async function postIntro(
   context: AgentOnboardingContext,
   history: TlonHistoryEntry[],
-  request: PostBlobDataEntryAgentIntroRequest,
   deps: AgentOnboardingDeps,
   presentation: OnboardingPresentation
 ) {
-  const purposePickerPrompt = PURPOSE_PICKER_PROMPT;
   const hadIntro = hasPostMarker(history, context.botShip, 'intro');
   await postOnce(
     context,
     history,
     'intro',
     async () => ({
-      text: GROUP_INTRO_MESSAGE,
+      text: AGENT_ONBOARDING_GROUP_INTRO,
     }),
     deps,
     presentation
@@ -449,10 +372,13 @@ async function postIntro(
     history,
     'purpose-picker',
     async () => ({
-      text: purposePickerFallbackText(purposePickerPrompt),
+      text: purposePickerFallbackText(AGENT_ONBOARDING_PURPOSE_PROMPT),
       blob: appendToPostBlob(
         undefined,
-        buildPurposePickerSurface(context.groupId!, purposePickerPrompt)
+        buildPurposePickerSurface(
+          context.groupId!,
+          AGENT_ONBOARDING_PURPOSE_PROMPT
+        )
       ),
     }),
     deps,
@@ -523,7 +449,7 @@ type Purpose = {
 };
 
 function purposeForReply(text: string): Purpose {
-  const selected = PURPOSE_OPTIONS.find(
+  const selected = AGENT_ONBOARDING_PURPOSE_OPTIONS.find(
     (option) => option.label.toLowerCase() === text.trim().toLowerCase()
   );
   return (
@@ -539,14 +465,9 @@ function purposeForReply(text: string): Purpose {
 }
 
 function markerPost(history: TlonHistoryEntry[], botShip: string, key: string) {
-  return history.find(
-    (post) =>
-      post.author === botShip &&
-      post.blob &&
-      parsePostBlob(post.blob).some(
-        (entry) => entry.type === 'tlon-agent-post-marker' && entry.key === key
-      )
-  );
+  return blobEntriesByAuthor(history, botShip).find(
+    ({ entry }) => entry.type === 'tlon-agent-post-marker' && entry.key === key
+  )?.post;
 }
 
 async function provision(
@@ -657,7 +578,7 @@ async function provision(
 
     const acknowledgement =
       `${formatTopicList(request.topics)}—got it. ` +
-      `${provisionCadence(request.purposeId, notebookName, request.topics)} ` +
+      `${provisionCadence(request.purposeId, notebookName)} ` +
       `${scheduleConfirmation(request)}`;
     await postOnce(
       context,
@@ -926,7 +847,7 @@ async function completeFirstRun(
       history,
       'onboarding-follow-up',
       async () => ({
-        text: ONBOARDING_ORIENTATION_PROMPT,
+        text: AGENT_ONBOARDING_ORIENTATION_PROMPT,
         blob: appendToPostBlob(
           undefined,
           buildOrientationSurface(correlation.context.groupId!)
@@ -1221,36 +1142,39 @@ function hasPostMarker(
   botShip: string,
   key: string
 ) {
-  return history.some((post) => {
-    if (post.author !== botShip) return false;
-    // The original onboarding plugin deduped its intro by visible copy and did
-    // not attach a post marker. Preserve that one-way migration path so a
-    // gateway restart does not greet existing hosted groups a second time.
-    if (
-      key === 'intro' &&
-      post.content.trimStart().startsWith(LEGACY_GROUP_INTRO_PREFIX)
-    ) {
-      return true;
-    }
-    return Boolean(
-      post.blob &&
-        parsePostBlob(post.blob).some(
-          (entry) =>
-            entry.type === 'tlon-agent-post-marker' && entry.key === key
-        )
-    );
-  });
+  // The original onboarding plugin deduped its intro by visible copy and did
+  // not attach a post marker. Preserve that one-way migration path so a
+  // gateway restart does not greet existing hosted groups a second time.
+  return Boolean(
+    markerPost(history, botShip, key) ||
+      (key === 'intro' &&
+        history.some(
+          (post) =>
+            post.author === botShip &&
+            post.content.trimStart().startsWith(LEGACY_GROUP_INTRO_PREFIX)
+        ))
+  );
+}
+
+function blobEntriesByAuthor(
+  history: TlonHistoryEntry[],
+  author: string,
+  newestFirst = false
+) {
+  const posts = newestFirst
+    ? [...history].sort((a, b) => b.timestamp - a.timestamp)
+    : history;
+  return posts.flatMap((post) =>
+    post.author === author && post.blob
+      ? parsePostBlob(post.blob).map((entry) => ({ post, entry }))
+      : []
+  );
 }
 
 /** True once any provision has been acknowledged in this channel. */
 function hasProvisionAck(history: TlonHistoryEntry[], botShip: string) {
-  return history.some(
-    (post) =>
-      post.author === botShip &&
-      post.blob &&
-      parsePostBlob(post.blob).some(
-        (entry) => entry.type === 'tlon-agent-provision-ack'
-      )
+  return blobEntriesByAuthor(history, botShip).some(
+    ({ entry }) => entry.type === 'tlon-agent-provision-ack'
   );
 }
 
@@ -1259,16 +1183,12 @@ function findAckJobId(
   botShip: string,
   provisionId: string
 ) {
-  for (const post of history) {
-    if (post.author !== botShip || !post.blob) continue;
-    const ack = parsePostBlob(post.blob).find(
-      (entry) =>
-        entry.type === 'tlon-agent-provision-ack' &&
-        entry.provisionId === provisionId
-    );
-    if (ack?.type === 'tlon-agent-provision-ack') return ack.cronJobId;
-  }
-  return null;
+  const ack = blobEntriesByAuthor(history, botShip).find(
+    ({ entry }) =>
+      entry.type === 'tlon-agent-provision-ack' &&
+      entry.provisionId === provisionId
+  )?.entry;
+  return ack?.type === 'tlon-agent-provision-ack' ? ack.cronJobId : null;
 }
 
 function findProvisionRequest(
@@ -1277,17 +1197,13 @@ function findProvisionRequest(
   groupId: string,
   provisionId: string
 ) {
-  for (const post of [...history].sort((a, b) => b.timestamp - a.timestamp)) {
-    if (post.author !== ownerShip || !post.blob) continue;
-    const request = parsePostBlob(post.blob).find(
-      (entry) =>
-        entry.type === 'tlon-agent-provision' &&
-        entry.groupId === groupId &&
-        entry.provisionId === provisionId
-    );
-    if (request?.type === 'tlon-agent-provision') return request;
-  }
-  return null;
+  const request = blobEntriesByAuthor(history, ownerShip, true).find(
+    ({ entry }) =>
+      entry.type === 'tlon-agent-provision' &&
+      entry.groupId === groupId &&
+      entry.provisionId === provisionId
+  )?.entry;
+  return request?.type === 'tlon-agent-provision' ? request : null;
 }
 
 function findLatestProviderConfig(
@@ -1296,17 +1212,13 @@ function findLatestProviderConfig(
   groupId: string,
   provisionId: string
 ) {
-  for (const post of [...history].sort((a, b) => b.timestamp - a.timestamp)) {
-    if (post.author !== ownerShip || !post.blob) continue;
-    const config = parsePostBlob(post.blob).find(
-      (entry) =>
-        entry.type === 'tlon-agent-provider-config' &&
-        entry.groupId === groupId &&
-        entry.provisionId === provisionId
-    );
-    if (config?.type === 'tlon-agent-provider-config') return config;
-  }
-  return null;
+  const config = blobEntriesByAuthor(history, ownerShip, true).find(
+    ({ entry }) =>
+      entry.type === 'tlon-agent-provider-config' &&
+      entry.groupId === groupId &&
+      entry.provisionId === provisionId
+  )?.entry;
+  return config?.type === 'tlon-agent-provider-config' ? config : null;
 }
 
 async function upsertPrimaryJob(
@@ -1450,9 +1362,9 @@ function withFallbackStory(blob: A2UI.BlobEntry): A2UI.BlobEntry {
 }
 
 function purposePickerFallbackText(prompt: string) {
-  const labels = PURPOSE_OPTIONS.map((option) => `“${option.label}”`).join(
-    ', '
-  );
+  const labels = AGENT_ONBOARDING_PURPOSE_OPTIONS.map(
+    (option) => `“${option.label}”`
+  ).join(', ');
   return `${prompt} Reply ${labels} — or just tell me.`;
 }
 
@@ -1471,7 +1383,7 @@ function buildPurposePickerSurface(
       {
         id: 'choices',
         component: 'Choice',
-        options: PURPOSE_OPTIONS.map((option) => ({
+        options: AGENT_ONBOARDING_PURPOSE_OPTIONS.map((option) => ({
           id: option.id,
           label: option.label,
           description: option.description,
@@ -1526,11 +1438,7 @@ function notebookDisplayName(
  * an owner watched a notebook appear in the sidebar without ever being told
  * it existed or what it was for.
  */
-function provisionCadence(
-  purposeId: string,
-  notebookName: string,
-  _topics: readonly string[] = []
-) {
+function provisionCadence(purposeId: string, notebookName: string) {
   switch (purposeId) {
     case 'agent-learning':
       return (
@@ -1672,12 +1580,12 @@ function buildOrientationSurface(groupId: string) {
       {
         id: 'prompt',
         component: 'Text',
-        text: ONBOARDING_ORIENTATION_PROMPT,
+        text: AGENT_ONBOARDING_ORIENTATION_PROMPT,
       },
       {
         id: 'orientation',
         component: 'SmallChoice',
-        options: [...ONBOARDING_ORIENTATION_OPTIONS],
+        options: [...AGENT_ONBOARDING_ORIENTATION_OPTIONS],
         submitLabel: 'Continue',
         action: choiceAction(''),
       },
@@ -1689,10 +1597,7 @@ export const agentOnboardingTesting = {
   buildOrientationSurface,
   buildRecurringPrompt,
   buildServicesSurface,
-  findAckJobId,
   hasPostMarker,
-  hasProvisionAck,
-  jobMatches,
   notebookDisplayName,
   purposeForReply,
   provisionCadence,
