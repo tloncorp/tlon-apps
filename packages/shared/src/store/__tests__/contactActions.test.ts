@@ -1,11 +1,12 @@
 import * as api from '@tloncorp/api';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as db from '../../db';
 import {
   ensureBotInfoSynced,
   resetBotInfoBackfillState,
 } from '../contactActions';
+import { updateSession } from '../session';
 import { handleContactUpdate } from '../sync/sync';
 
 // Only the transport-backed calls are faked; `v1PeerToClientProfile` stays
@@ -59,8 +60,15 @@ describe('ensureBotInfoSynced', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetBotInfoBackfillState();
+    // Absent-row backfills are gated on the sync phase; start every case from
+    // no session so only the tests that opt in see a settled sync.
+    updateSession(null);
     vi.mocked(db.getContact).mockResolvedValue(nonContactRow());
     vi.mocked(api.getContactProfile).mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    updateSession(null);
   });
 
   it('meets the ship and upserts the fetched profile', async () => {
@@ -215,15 +223,47 @@ describe('ensureBotInfoSynced', () => {
     }
   });
 
-  it('skips ships with no known contact row yet', async () => {
-    // An absent row proves nothing: the ship may still turn out to be a
-    // contact-book entry, whose per-ship scry merges the user's mod overlay.
+  it('backfills a never-met ship once contacts sync has settled', async () => {
+    // The case the backfill exists for: `/v1/directory` omits peers whose
+    // profile the ship holds nothing for, so a bot never met has no row at
+    // all and never gets one from bulk sync.
+    updateSession({ phase: 'ready' });
     vi.mocked(db.getContact).mockResolvedValue(null);
+    vi.mocked(api.getContactProfile).mockResolvedValue({
+      id: ship,
+      botInfo: claim,
+    } as db.Contact);
 
     await ensureBotInfoSynced(ship);
 
-    expect(api.syncUserProfiles).not.toHaveBeenCalled();
-    expect(api.getContactProfile).not.toHaveBeenCalled();
+    expect(api.syncUserProfiles).toHaveBeenCalledWith([ship]);
+    expect(api.getContactProfile).toHaveBeenCalledWith(ship);
+    expect(db.upsertContact).toHaveBeenCalledWith(
+      expect.objectContaining({ id: ship, botInfo: claim })
+    );
+  });
+
+  it('waits for contacts sync before acting on an absent row', async () => {
+    // Before the initial contacts sync lands *every* row is absent, so
+    // absence proves nothing and the ship may still be a contact-book entry
+    // whose per-ship scry merges the user's mod overlay.
+    vi.mocked(db.getContact).mockResolvedValue(null);
+
+    for (const phase of ['high', 'low'] as const) {
+      updateSession({ phase });
+      await ensureBotInfoSynced(ship);
+
+      expect(api.syncUserProfiles).not.toHaveBeenCalled();
+      expect(api.getContactProfile).not.toHaveBeenCalled();
+    }
+
+    // Blocked attempts are not counted against the cap, so the backfill still
+    // runs when sync settles.
+    updateSession({ phase: 'ready' });
+    await ensureBotInfoSynced(ship);
+
+    expect(api.syncUserProfiles).toHaveBeenCalledWith([ship]);
+    expect(api.getContactProfile).toHaveBeenCalledWith(ship);
   });
 
   it('skips rows whose isContact is null or undefined (unknown, not proven non-contact)', async () => {
@@ -244,7 +284,7 @@ describe('ensureBotInfoSynced', () => {
 
   it('backfills once an unknown isContact resolves to false', async () => {
     // The null → false transition is the fresh-start recovery path: a partial
-    // row settles first, the provenance-carrying write lands later.
+    // row settles first, the full synced row lands later.
     vi.mocked(db.getContact).mockResolvedValue(
       nonContactRow({ isContact: null })
     );

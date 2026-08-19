@@ -6,6 +6,7 @@ import * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import * as GroupActions from './groupActions';
+import { getSession } from './session';
 import { syncContacts } from './sync/syncContacts';
 import { syncGroup } from './sync/syncGroup';
 
@@ -50,14 +51,30 @@ export async function ensureBotInfoSynced(ship: string): Promise<void> {
     if (domain.parseBotInfo(contact?.botInfo)) {
       return;
     }
-    // Only a row known to be a non-contact (`isContact === false`, not merely
-    // absent or null — the column is nullable and partial rows really occur,
-    // e.g. blocked-contact inserts) is backfillable. Anything less proves
-    // nothing yet — during a fresh-start sync the bot may still turn out to be
-    // a contact-book entry, whose per-ship scry merges the user's own `mod`
-    // overlay and must never become the claim's source. Contact-book bots
-    // also already arrive lossless via the v1 /book sync.
-    if (!contact || contact.isContact !== false) {
+    if (contact) {
+      // A row we hold is backfillable only when it is known to be a
+      // non-contact (`isContact === false`, not merely null — the column is
+      // nullable and partial rows really occur, e.g. blocked-contact
+      // inserts). Anything less proves nothing about which writer made the
+      // row, and the bot may still be a contact-book entry, whose per-ship
+      // scry merges the user's own `mod` overlay and must never become the
+      // claim's source. Contact-book bots also already arrive lossless via
+      // the v1 /book sync.
+      if (contact.isContact !== false) {
+        return;
+      }
+    } else if (getSession()?.phase !== 'ready') {
+      // No row at all is the never-met bot this backfill exists for: the bulk
+      // source (`/v1/directory`) omits peers whose profile the ship does not
+      // hold, so such a bot never gets a row from sync. Absence only proves
+      // "not in the contact book" once the initial contacts sync has run,
+      // though — before that everything is absent. The session phase is the
+      // completion signal the store already keeps, and it covers both write
+      // paths: contacts land in the high-priority phase, or (when a
+      // localStorage snapshot deferred them) among the low-priority promises,
+      // and both have finished by `ready`. Using it beats adding a
+      // sync-progress mechanism; the residue it leaves — a sync that failed
+      // outright still reaches `ready` — is bounded by the attempt cap below.
       return;
     }
 

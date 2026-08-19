@@ -1,3 +1,5 @@
+import { contactSelfFieldPoke } from '@tloncorp/api';
+
 // Contact-profile key under which the bot publishes its identity claim (wire
 // contract: docs/bot-info.md in tlon-apps).
 export const BOT_INFO_CONTACT_KEY = 'bot-info';
@@ -127,18 +129,14 @@ export async function publishBotInfo(
 ): Promise<BotInfoPublishResult> {
   for (let attempt = 1; ; attempt++) {
     try {
-      await api.poke({
-        app: 'contacts',
-        mark: 'contact-action-1',
-        json: {
-          self: {
-            [BOT_INFO_CONTACT_KEY]:
-              desiredValue === null
-                ? null
-                : { type: 'text', value: desiredValue },
-          },
-        },
-      });
+      // The wire shape (app/mark/self-merge semantics) is owned by the api
+      // lib; only the transport is ours, for abort-signal and retry control.
+      await api.poke(
+        contactSelfFieldPoke(
+          BOT_INFO_CONTACT_KEY,
+          desiredValue === null ? null : { type: 'text', value: desiredValue }
+        )
+      );
       return desiredValue === null ? 'cleared' : 'published';
     } catch (error) {
       if (attempt >= BOT_INFO_PUBLISH_ATTEMPTS) {

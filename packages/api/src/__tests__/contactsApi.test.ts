@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 
 import {
   type ContactsUpdate,
+  contactSelfFieldPoke,
   contactToClientProfile,
   directoryToClientProfiles,
   extractBotInfoValue,
@@ -77,6 +78,7 @@ test('converts a directory scry to client profiles', () => {
         { groupId: '~nibset-napwyn/tlon', contactId: '~ravmel-ropdyl' },
       ],
       attestations: null,
+      botInfo: null,
       isContact: false,
       isContactSuggestion: undefined,
     },
@@ -90,6 +92,7 @@ test('converts a directory scry to client profiles', () => {
       color: null,
       pinnedGroups: [],
       attestations: null,
+      botInfo: null,
       isContact: false,
       isContactSuggestion: undefined,
     },
@@ -119,13 +122,16 @@ test('omits book entries from directory profiles', () => {
 // what let bulk sync stop special-casing `botInfo`. The composition matters:
 // directory tests that skip this field plus mapper tests that never see a
 // directory would both stay green if the converter dropped it.
+//
+// The entry carries nothing *but* the claim on purpose: a bot that publishes
+// only `bot-info` is a profile the non-empty filter above keeps, and a fixture
+// with a nickname would survive a converter that dropped bot-info-only rows.
 test('a directory entry carries its bot-info claim onto the client row', () => {
   const claim = JSON.stringify({ v: 1, harness: 'hermes', version: '0.15.0' });
   const profiles = directoryToClientProfiles({
     '~zod': {
       isContact: false,
       contact: {
-        nickname: { type: 'text' as const, value: 'bot' },
         ['bot-info']: { type: 'text' as const, value: claim },
       },
       mod: {},
@@ -133,6 +139,26 @@ test('a directory entry carries its bot-info claim onto the client row', () => {
   });
   expect(profiles).toHaveLength(1);
   expect(profiles[0].botInfo).toBe(claim);
+});
+
+describe('contactSelfFieldPoke', () => {
+  test('builds the self-merge action for a namespaced field', () => {
+    expect(
+      contactSelfFieldPoke('bot-info', { type: 'text', value: '{"v":1}' })
+    ).toEqual({
+      app: 'contacts',
+      mark: 'contact-action-1',
+      json: { self: { ['bot-info']: { type: 'text', value: '{"v":1}' } } },
+    });
+  });
+
+  test('null deletes the key (contact keys only die by explicit null)', () => {
+    expect(contactSelfFieldPoke('bot-info', null)).toEqual({
+      app: 'contacts',
+      mark: 'contact-action-1',
+      json: { self: { ['bot-info']: null } },
+    });
+  });
 });
 
 describe('bot-info contact field', () => {
