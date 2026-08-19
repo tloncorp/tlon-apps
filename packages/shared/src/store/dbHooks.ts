@@ -900,6 +900,15 @@ export const useTelemetrySettings = () => {
   });
 };
 
+export const useBotReplyFeedback = (messageId: string) => {
+  const deps = useKeyFromQueryDeps(db.getBotReplyFeedback);
+  return useQuery({
+    queryKey: ['botReplyFeedback', deps, messageId],
+    queryFn: () => db.getBotReplyFeedback(messageId),
+    enabled: Boolean(messageId),
+  });
+};
+
 export const useChannelLatestSequenceNum = (channelId: string) => {
   const deps = useKeyFromQueryDeps(db.getLatestChannelSequenceNum);
   const { data } = useQuery({

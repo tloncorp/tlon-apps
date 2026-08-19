@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   type TlonAgentTurnObserver,
   type TlonAgentTurnSummary,
+  claimActiveTlonTurnOutput,
   createTlonAgentTurnOtelObserver,
   observeActiveTlonTurnDelivery,
   recordActiveTlonTurnDelivery,
@@ -57,6 +58,28 @@ function recordTurn(params: {
   });
   return turn.finalize(params.terminal ?? { durationMs: 250 });
 }
+
+describe('Tlon agent turn output attribution', () => {
+  it('assigns the active run id and monotonic output indexes', () => {
+    const turn = startTlonAgentTurn(baseTurn, { observer: noOpObserver });
+    const outputs = turn.run(() => [
+      claimActiveTlonTurnOutput(),
+      claimActiveTlonTurnOutput(),
+    ]);
+
+    expect(outputs).toEqual([
+      { runId: 'run-1', outputIndex: 0 },
+      { runId: 'run-1', outputIndex: 1 },
+    ]);
+  });
+
+  it('returns a nullable attribution outside a Tlon turn', () => {
+    expect(claimActiveTlonTurnOutput()).toEqual({
+      runId: null,
+      outputIndex: 0,
+    });
+  });
+});
 
 describe('Tlon agent turn classification', () => {
   it.each([

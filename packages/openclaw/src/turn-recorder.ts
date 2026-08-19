@@ -102,6 +102,7 @@ type TlonAgentTurnState = TlonAgentTurnStart & {
   finalErrorReplyCount: number;
   finalNonErrorReplyCount: number;
   finalized: boolean;
+  outputCount: number;
   sourceReplyCount: number;
   summary: TlonAgentTurnSummary | null;
   toolCallCount: number;
@@ -420,6 +421,7 @@ export function startTlonAgentTurn(
     finalErrorReplyCount: 0,
     finalNonErrorReplyCount: 0,
     finalized: false,
+    outputCount: 0,
     sourceReplyCount: 0,
     summary: null,
     toolCallCount: 0,
@@ -482,6 +484,19 @@ export function recordActiveTlonTurnDelivery(success: boolean): void {
       state.deliveryFailureCount += 1;
     }
   });
+}
+
+export function claimActiveTlonTurnOutput(): {
+  runId: string | null;
+  outputIndex: number;
+} {
+  const state = turnStorage.getStore();
+  if (!state || state.finalized) {
+    return { runId: null, outputIndex: 0 };
+  }
+  const outputIndex = state.outputCount;
+  state.outputCount += 1;
+  return { runId: state.runId, outputIndex };
 }
 
 export async function observeActiveTlonTurnDelivery<T>(

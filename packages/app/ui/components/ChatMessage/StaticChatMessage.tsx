@@ -2,7 +2,7 @@ import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
 import { Text } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useMemo } from 'react';
+import { ComponentProps, ReactNode, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
@@ -44,6 +44,7 @@ export function StaticChatMessage({
   setViewReactionsPost,
   showAuthor,
   showReplies,
+  feedbackRow,
 }: {
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
   displayDebugMode?: boolean;
@@ -61,6 +62,7 @@ export function StaticChatMessage({
   setViewReactionsPost?: (post: db.Post) => void;
   showAuthor?: boolean;
   showReplies?: boolean;
+  feedbackRow?: ReactNode;
 }) {
   const isNotice = post.type === 'notice';
   const draftInputContext = useDraftInputContext();
@@ -254,6 +256,8 @@ export function StaticChatMessage({
           />
         </View>
       )}
+
+      {feedbackRow}
 
       {shouldRenderReplySummary || deliveryFailed ? (
         <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">

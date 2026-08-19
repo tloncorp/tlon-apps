@@ -111,6 +111,7 @@ export type GroupsDeskSettings = {
     groups?: GroupsSettings;
     calmEngine?: CalmEngineSettings;
     display?: DisplaySettings;
+    botReplyFeedback?: Bucket;
   };
 };
 

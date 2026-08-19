@@ -23,6 +23,11 @@ import {
   resetActivityFetchers,
 } from '../../store/useActivityFetchers';
 import { persistUnreads } from '../activityActions';
+import {
+  getFreshBotReplyFeedback,
+  getPostIdFromBotReplyMessageId,
+  toCachedBotReplyFeedback,
+} from '../botReplyFeedback';
 import { createBatchHandler, createHandler } from '../bufferedSubscription';
 import * as LocalCache from '../cachedData';
 import { addContacts, updateContactMetadata } from '../contactActions';
@@ -511,6 +516,26 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   await db.dismissedPinnedPostBannerIds.setValue(
     result.dismissedPinnedPostBannerIds
   );
+  const freshBotReplyFeedback = getFreshBotReplyFeedback(
+    result.botReplyFeedback
+  );
+  await db.replaceBotReplyFeedback(
+    freshBotReplyFeedback.map(toCachedBotReplyFeedback)
+  );
+
+  const freshMessageIds = new Set(
+    freshBotReplyFeedback.map((entry) => entry.messageId)
+  );
+  const expiredMessageIds = result.botReplyFeedback
+    .filter((entry) => !freshMessageIds.has(entry.messageId))
+    .map((entry) => entry.messageId);
+  if (expiredMessageIds.length > 0) {
+    await Promise.allSettled(
+      expiredMessageIds.map((messageId) =>
+        api.deleteBotReplyFeedback(messageId)
+      )
+    );
+  }
 
   if (result.pendingMemberDismissals?.length) {
     await db.insertPendingMemberDismissals({
@@ -1627,6 +1652,20 @@ export const handleSettingsUpdate = async (
         }
         return current.filter((postId) => postId !== update.postId);
       });
+      break;
+    case 'botReplyFeedback':
+      if (update.entry) {
+        await db.upsertBotReplyFeedback(
+          {
+            messageId: update.messageId,
+            postId: getPostIdFromBotReplyMessageId(update.messageId),
+            ...update.entry,
+          },
+          ctx
+        );
+      } else {
+        await db.deleteBotReplyFeedback(update.messageId, ctx);
+      }
       break;
   }
 };

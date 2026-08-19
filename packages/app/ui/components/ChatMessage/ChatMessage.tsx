@@ -1,5 +1,7 @@
+import * as api from '@tloncorp/api';
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as logic from '@tloncorp/shared/logic';
 import { Pressable } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
@@ -11,6 +13,7 @@ import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { MaskedChatMessage } from '../PostModeration';
+import { BotFeedbackRow } from './BotFeedbackRow';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { MessageContextMenu } from './MessageContextMenu';
 import { StaticChatMessage } from './StaticChatMessage';
@@ -69,6 +72,10 @@ const ChatMessage = ({
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
   );
+  const showBotFeedback =
+    (post.type === 'chat' || post.type === 'reply') &&
+    api.isBotUserIdForUser(post.authorId, currentUserId) &&
+    logic.isBotDmChannel({ post, channel });
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
@@ -157,6 +164,9 @@ const ChatMessage = ({
                 setViewReactionsPost,
                 showAuthor,
                 showReplies,
+                feedbackRow: showBotFeedback ? (
+                  <BotFeedbackRow post={post} currentUserId={currentUserId} />
+                ) : undefined,
               }}
             />
             {!hideOverflowMenu && (isHovered || isPopoverOpen) && (

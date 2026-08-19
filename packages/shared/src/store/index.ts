@@ -31,4 +31,5 @@ export * from './systemContactActions';
 export * from './blockingActions';
 export * from './metagrabActions';
 export * from './lensActions';
+export * from './botReplyFeedback';
 export { useChannelContext } from './useChannelContext';
