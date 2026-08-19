@@ -65,31 +65,33 @@ const logger = createDevLogger('CreateChatSheet', true);
 
 function createTypeActions(
   onSelectType: (type: ChatType) => void,
-  hasAgent: boolean,
-  agentStatusLoading: boolean
+  hasAgent: boolean
 ): Action[] {
-  return [
+  const actions: Action[] = [
     {
       title: CHAT_TYPE_CONFIG.dm.actionTitle,
       description: CHAT_TYPE_CONFIG.dm.actionDescription,
       action: () => onSelectType('dm'),
       startIcon: <ListItem.SystemIcon icon="Send" />,
     },
-    hasAgent
-      ? {
-          title: CHAT_TYPE_CONFIG.agent.actionTitle,
-          description: CHAT_TYPE_CONFIG.agent.actionDescription,
-          action: () => onSelectType('agent'),
-          startIcon: <ListItem.SystemIcon icon="SmushStar" />,
-        }
-      : {
-          title: CHAT_TYPE_CONFIG.group.actionTitle,
-          description: CHAT_TYPE_CONFIG.group.actionDescription,
-          action: () => onSelectType('group'),
-          startIcon: <ListItem.SystemIcon icon="Channel" />,
-          disabled: agentStatusLoading,
-        },
+    {
+      title: CHAT_TYPE_CONFIG.group.actionTitle,
+      description: CHAT_TYPE_CONFIG.group.actionDescription,
+      action: () => onSelectType('group'),
+      startIcon: <ListItem.SystemIcon icon="Channel" />,
+    },
   ];
+
+  if (hasAgent) {
+    actions.push({
+      title: CHAT_TYPE_CONFIG.agent.actionTitle,
+      description: CHAT_TYPE_CONFIG.agent.actionDescription,
+      action: () => onSelectType('agent'),
+      startIcon: <ListItem.SystemIcon icon="SmushStar" />,
+    });
+  }
+
+  return actions;
 }
 
 const CHAT_TYPE_CONFIG = {
@@ -106,10 +108,10 @@ const CHAT_TYPE_CONFIG = {
     actionDescription: 'Create a customizable group chat',
   },
   agent: {
-    title: 'New agent group',
+    title: 'New Tlonbot group',
     subtitle: '',
-    actionTitle: 'New group',
-    actionDescription: 'Start a group with your agent',
+    actionTitle: 'New Tlonbot group',
+    actionDescription: 'Start a group with your Tlonbot',
   },
   joinGroup: {
     title: 'Join a group',
@@ -542,17 +544,11 @@ function TypeSelectionContent({
   onSelectType: (type: ChatType) => void;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
-  const { value: hasAgent, isLoading: agentStatusLoading } =
-    db.hostingBotEnabled.useStorageItem();
+  const { value: hasAgent } = db.hostingBotEnabled.useStorageItem();
   const hasAvailableAgent = Boolean(AGENT_SHIP_OVERRIDE) || hasAgent;
   const actions = useMemo(
-    () =>
-      createTypeActions(
-        onSelectType,
-        hasAvailableAgent,
-        !AGENT_SHIP_OVERRIDE && agentStatusLoading
-      ),
-    [agentStatusLoading, hasAvailableAgent, onSelectType]
+    () => createTypeActions(onSelectType, hasAvailableAgent),
+    [hasAvailableAgent, onSelectType]
   );
   return (
     <>

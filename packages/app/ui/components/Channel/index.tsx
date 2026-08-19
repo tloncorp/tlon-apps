@@ -273,6 +273,7 @@ interface ChannelProps {
   goBack: () => void;
   hideDraftInput?: boolean;
   disableBackButton?: boolean;
+  suppressEmptyState?: boolean;
   suppressAnimatedSendScroll?: boolean;
   pendingThinkingLabel?: string;
   goToChatDetails?: () => void;
@@ -319,6 +320,7 @@ export function Channel({
   goBack,
   hideDraftInput,
   disableBackButton,
+  suppressEmptyState,
   suppressAnimatedSendScroll,
   pendingThinkingLabel,
   goToChatDetails,
@@ -950,6 +952,7 @@ export function Channel({
                                         onLoadOlderPosts,
                                         posts: posts ?? undefined,
                                         pendingThinkingLabel,
+                                        suppressEmptyState,
                                         scrollToBottom: onPressScrollToBottom,
                                         selectedPostId,
                                         setEditingPost,

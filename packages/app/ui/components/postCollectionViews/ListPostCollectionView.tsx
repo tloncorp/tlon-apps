@@ -76,6 +76,14 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     );
 
     const renderEmptyComponent = useCallback(() => {
+      if (
+        ctx.suppressEmptyState &&
+        !ctx.isLoadingPosts &&
+        !ctx.loadPostsError
+      ) {
+        return <></>;
+      }
+
       return (
         <EmptyChannelNotice
           channel={ctx.channel}
@@ -91,6 +99,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
       ctx.loadPostsError,
       ctx.isLoadingPosts,
       ctx.onPressRetryLoad,
+      ctx.suppressEmptyState,
     ]);
 
     const canDrillIntoPost = useMemo(
