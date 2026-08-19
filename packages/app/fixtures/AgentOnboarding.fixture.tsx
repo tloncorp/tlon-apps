@@ -32,14 +32,19 @@ const AGENT_ONBOARDING_GROUP_INTRO =
   "I'm your Tlonbot. I can keep you informed, help you learn, or follow a " +
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
-const AGENT_ONBOARDING_ORIENTATION_PROMPT =
-  'You’re all set. Is there anything else I can help you with?';
-const AGENT_ONBOARDING_ORIENTATION_OPTIONS = [
-  { id: 'groups-and-channels', label: 'Groups and channels' },
-  { id: 'your-tlon-computer', label: 'Your Tlon computer' },
-  { id: 'other-capabilities', label: 'What else can you do?' },
-  { id: 'finished', label: 'I’m good for now' },
-] as const;
+const AGENT_ONBOARDING_APP_TOUR_PROMPT =
+  'Want a quick tour of how groups and channels work?';
+const AGENT_ONBOARDING_APP_TOUR_EXPLANATION =
+  'In this group, General is where we talk and Updates is the notebook where ' +
+  'longer work—like your new brief—lives. You can make separate groups for ' +
+  'different people or projects and bring me into the ones where you want help.';
+const AGENT_ONBOARDING_BOT_TOUR_PROMPT =
+  'Want a quick rundown of what else I can do?';
+const AGENT_ONBOARDING_BOT_TOUR_EXPLANATION =
+  'I can research questions, change what this group follows, publish ' +
+  'scheduled updates, help in other groups, and use connected services you ' +
+  'authorize. Try asking me to adjust tomorrow’s update or investigate ' +
+  'something now.';
 const PURPOSE_PICKER_OPTIONS = [
   {
     id: 'agent-daily-digest',
@@ -293,25 +298,33 @@ const servicesPreviewProviders: McpProviderRow[] = [
   { displayName: 'Are.na', id: 'arena', status: 'not-connected' },
 ];
 
-const orientationSurface = makeA2UI('onboarding-orientation-fixture', [
-  {
-    id: 'root',
-    component: 'Column',
-    children: ['prompt', 'orientation'],
-  },
-  {
-    id: 'prompt',
-    component: 'Text',
-    text: AGENT_ONBOARDING_ORIENTATION_PROMPT,
-  },
-  {
-    id: 'orientation',
-    component: 'SmallChoice',
-    options: [...AGENT_ONBOARDING_ORIENTATION_OPTIONS],
-    submitLabel: 'Continue',
-    action: action(''),
-  } as A2UI.Component,
-]);
+function tourSurface(id: string, prompt: string) {
+  return makeA2UI(id, [
+    {
+      id: 'root',
+      component: 'Column',
+      children: ['prompt', 'choice'],
+    },
+    { id: 'prompt', component: 'Text', text: prompt },
+    {
+      id: 'choice',
+      component: 'Choice',
+      options: [
+        { id: 'yes', label: 'Yes', action: action('Yes') },
+        { id: 'no', label: 'No', action: action('No') },
+      ],
+    },
+  ] as A2UI.Component[]);
+}
+
+const appTourSurface = tourSurface(
+  'onboarding-app-tour-fixture',
+  AGENT_ONBOARDING_APP_TOUR_PROMPT
+);
+const botTourSurface = tourSurface(
+  'onboarding-bot-tour-fixture',
+  `${AGENT_ONBOARDING_APP_TOUR_EXPLANATION}\n\n${AGENT_ONBOARDING_BOT_TOUR_PROMPT}`
+);
 
 function transcriptPost({
   id,
@@ -398,11 +411,36 @@ const transcript = [
     minute: 9,
   }),
   transcriptPost({
-    id: 'onboarding-10-orientation',
+    id: 'onboarding-10-app-tour',
     author: tlonbot,
-    text: `${AGENT_ONBOARDING_ORIENTATION_PROMPT} Groups and channels, Your Tlon computer, What else can you do?, I’m good for now.`,
-    a2ui: orientationSurface,
+    text: `${AGENT_ONBOARDING_APP_TOUR_PROMPT} Yes or no.`,
+    a2ui: appTourSurface,
     minute: 10,
+  }),
+  transcriptPost({
+    id: 'onboarding-11-app-tour-yes',
+    author: owner,
+    text: 'Yes',
+    minute: 11,
+  }),
+  transcriptPost({
+    id: 'onboarding-12-bot-tour',
+    author: tlonbot,
+    text: `${AGENT_ONBOARDING_APP_TOUR_EXPLANATION}\n\n${AGENT_ONBOARDING_BOT_TOUR_PROMPT} Yes or no.`,
+    a2ui: botTourSurface,
+    minute: 12,
+  }),
+  transcriptPost({
+    id: 'onboarding-13-bot-tour-yes',
+    author: owner,
+    text: 'Yes',
+    minute: 13,
+  }),
+  transcriptPost({
+    id: 'onboarding-14-bot-tour-complete',
+    author: tlonbot,
+    text: AGENT_ONBOARDING_BOT_TOUR_EXPLANATION,
+    minute: 14,
   }),
 ];
 

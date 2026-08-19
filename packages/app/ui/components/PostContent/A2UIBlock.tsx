@@ -58,7 +58,6 @@ function SmallChoiceRow({
   label,
   onPress,
   shortcut,
-  showRemoveIcon = false,
   testID,
 }: {
   disabled: boolean;
@@ -67,7 +66,6 @@ function SmallChoiceRow({
   label: string;
   onPress: () => void;
   shortcut: string;
-  showRemoveIcon?: boolean;
   testID: string;
 }) {
   // Tamagui's compiler can drop inline ternaries on token-valued props.
@@ -77,7 +75,7 @@ function SmallChoiceRow({
   return (
     <Pressable
       testID={testID}
-      accessibilityLabel={showRemoveIcon ? `Remove ${label}` : label}
+      accessibilityLabel={label}
       accessibilityState={{ disabled, selected: isSelected }}
       disabled={disabled}
       onPress={disabled ? undefined : onPress}
@@ -116,9 +114,7 @@ function SmallChoiceRow({
         >
           {label}
         </Text>
-        {showRemoveIcon ? (
-          <Icon type="Close" color="$secondaryText" customSize={[14, 14]} />
-        ) : isSelected ? (
+        {isSelected ? (
           <Icon type="Checkmark" color="$primaryText" customSize={[16, 16]} />
         ) : null}
       </XStack>
@@ -256,6 +252,7 @@ function SmallChoiceControl({
     disabled || !messageForSelection || !probe(actionForSelection);
   const customChoiceLabel =
     component.freeTextPlaceholder?.replace(/…+$/, '') || '';
+  const customTopicSummary = customTopics.join(', ');
   const durableSelection =
     consumedTopics ??
     getSmallChoiceMessageSelection(component, consumedMessageText);
@@ -377,9 +374,7 @@ function SmallChoiceControl({
             >
               {component.options.map((option, index) => {
                 const isSelected = selectedIds.includes(option.id);
-                const isLast =
-                  index === component.options.length - 1 &&
-                  customTopics.length === 0;
+                const isLast = index === component.options.length - 1;
                 return (
                   <SmallChoiceRow
                     key={option.id}
@@ -393,26 +388,15 @@ function SmallChoiceControl({
                   />
                 );
               })}
-              {customTopics.map((topic, index) => (
-                <SmallChoiceRow
-                  key={topic}
-                  testID={`A2UISmallChoiceCustom-${index}`}
-                  label={topic}
-                  shortcut={smallChoiceShortcut(
-                    component.options.length + index
-                  )}
-                  isSelected
-                  isLast={index === customTopics.length - 1}
-                  showRemoveIcon
-                  disabled={disabled}
-                  onPress={() => removeCustomTopic(topic)}
-                />
-              ))}
             </YStack>
             {component.freeTextPlaceholder ? (
               <Pressable
                 testID="A2UISmallChoiceCustom"
-                accessibilityLabel={`Add ${customChoiceLabel}`}
+                accessibilityLabel={
+                  customTopics.length
+                    ? `Edit custom topics: ${customTopicSummary}`
+                    : `Add ${customChoiceLabel}`
+                }
                 accessibilityState={{ disabled }}
                 disabled={disabled}
                 onPress={disabled ? undefined : openCustomInput}
@@ -437,15 +421,43 @@ function SmallChoiceControl({
                     justifyContent="center"
                     flexShrink={0}
                   >
-                    <Icon
-                      type="Add"
-                      color="$secondaryText"
-                      customSize={[14, 14]}
-                    />
+                    {customTopics.length ? (
+                      <Text
+                        size="$label/s"
+                        color="$secondaryText"
+                        trimmed={false}
+                      >
+                        {customTopics.length}
+                      </Text>
+                    ) : (
+                      <Icon
+                        type="Add"
+                        color="$secondaryText"
+                        customSize={[14, 14]}
+                      />
+                    )}
                   </View>
-                  <Text size="$label/l" color="$secondaryText" trimmed={false}>
-                    {customChoiceLabel}
+                  <Text
+                    size="$label/l"
+                    color={
+                      customTopics.length ? '$primaryText' : '$secondaryText'
+                    }
+                    trimmed={false}
+                    flex={1}
+                    minWidth={0}
+                    numberOfLines={1}
+                  >
+                    {customTopics.length
+                      ? customTopicSummary
+                      : customChoiceLabel}
                   </Text>
+                  {customTopics.length ? (
+                    <Icon
+                      type="ChevronRight"
+                      color="$secondaryText"
+                      customSize={[16, 16]}
+                    />
+                  ) : null}
                 </XStack>
               </Pressable>
             ) : null}
@@ -495,6 +507,46 @@ function SmallChoiceControl({
         >
           <ActionSheet.SimpleHeader title="Add your own" />
           <ActionSheet.Content testID="A2UISmallChoiceCustomSheet">
+            {customTopics.length ? (
+              <ActionSheet.FormBlock>
+                <YStack width="100%">
+                  {customTopics.map((topic, index) => (
+                    <Pressable
+                      key={topic}
+                      testID={`A2UISmallChoiceCustom-${index}`}
+                      accessibilityLabel={`Remove ${topic}`}
+                      onPress={() => removeCustomTopic(topic)}
+                    >
+                      <XStack
+                        minHeight={48}
+                        paddingHorizontal="$m"
+                        alignItems="center"
+                        gap="$m"
+                        borderBottomWidth={
+                          index === customTopics.length - 1 ? 0 : 1
+                        }
+                        borderBottomColor="$border"
+                      >
+                        <Text
+                          size="$label/l"
+                          color="$primaryText"
+                          trimmed={false}
+                          flex={1}
+                          numberOfLines={1}
+                        >
+                          {topic}
+                        </Text>
+                        <Icon
+                          type="Close"
+                          color="$secondaryText"
+                          customSize={[14, 14]}
+                        />
+                      </XStack>
+                    </Pressable>
+                  ))}
+                </YStack>
+              </ActionSheet.FormBlock>
+            ) : null}
             <ActionSheet.FormBlock>
               <TextInput
                 testID="A2UISmallChoiceFreeText"

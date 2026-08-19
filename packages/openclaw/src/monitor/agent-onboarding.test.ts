@@ -84,9 +84,11 @@ describe('agent onboarding requests', () => {
     });
   });
 
-  it('offers optional orientation topics in one compound selector', () => {
-    const surface =
-      agentOnboardingTesting.buildOrientationSurface('~ten/group');
+  it('offers each orientation step as a simple Yes/No choice', () => {
+    const surface = agentOnboardingTesting.buildTourChoiceSurface(
+      'agent-onboarding-app-tour:~ten/group',
+      'Want a quick tour?'
+    );
     expect(A2UI.validateBlobEntry(surface)).toBe(true);
     const update = surface.messages.find(
       (message) => 'updateComponents' in message
@@ -95,25 +97,157 @@ describe('agent onboarding requests', () => {
       update && 'updateComponents' in update
         ? update.updateComponents.components
         : [];
-    const selector = components.find(
-      (component): component is A2UI.SmallChoice =>
-        component.component === 'SmallChoice'
-    );
-    expect(selector).toMatchObject({
-      submitLabel: 'Continue',
-      options: [
-        { id: 'groups-and-channels', label: 'Groups and channels' },
-        { id: 'your-tlon-computer', label: 'Your Tlon computer' },
-        { id: 'other-capabilities', label: 'What else can you do?' },
-        { id: 'finished', label: 'I’m good for now' },
-      ],
-      action: {
-        event: { name: A2UI.action.sendMessage, context: { text: '' } },
-      },
+    expect(components.find(({ id }) => id === 'prompt')).toMatchObject({
+      component: 'Text',
+      text: 'Want a quick tour?',
     });
-    expect(
-      components.filter((component) => component.component === 'Button')
-    ).toHaveLength(0);
+    const choice = components.find(
+      (component): component is A2UI.Choice => component.component === 'Choice'
+    );
+    expect(choice?.options.map((option) => option.action.event)).toEqual([
+      { name: A2UI.action.sendMessage, context: { text: 'Yes' } },
+      { name: A2UI.action.sendMessage, context: { text: 'No' } },
+    ]);
+  });
+
+  it('runs the post-setup tours in order and only after each Yes', async () => {
+    const sent: Array<{ story: unknown; blob?: string }> = [];
+    const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
+      sent.push(post);
+      return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+    });
+    const history = [
+      {
+        author: '~bot',
+        content: 'ready',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack',
+          version: 1,
+          provisionId: provision.provisionId,
+          cronJobId: 'job-1',
+        }),
+      },
+      {
+        author: '~bot',
+        content: 'Want a quick tour of how groups and channels work?',
+        timestamp: 2,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-post-marker',
+          version: 1,
+          key: 'onboarding-follow-up',
+        }),
+      },
+      { author: '~ten', content: 'Yes', timestamp: 3 },
+    ];
+    const context = {
+      api: { scry: vi.fn() },
+      botShip: '~bot',
+      channelNest: 'chat/~ten/general',
+      groupId: provision.groupId,
+      ownerShip: '~ten',
+      senderShip: '~ten',
+    };
+
+    await expect(
+      handleAgentOnboardingRequest(
+        { ...context, rawText: 'Yes' },
+        { fetchHistory: vi.fn(async () => history), sendPost }
+      )
+    ).resolves.toBe(true);
+    expect(sent).toHaveLength(1);
+    expect(JSON.stringify(sent[0])).toContain(
+      'In this group, General is where we talk'
+    );
+    expect(JSON.stringify(sent[0])).toContain(
+      'Want a quick rundown of what else I can do?'
+    );
+    expect(parsePostBlob(sent[0]!.blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'bot-tour-offer',
+      })
+    );
+
+    history.push(
+      {
+        author: '~bot',
+        content: 'bot tour',
+        timestamp: 4,
+        blob: sent[0]!.blob,
+      },
+      { author: '~ten', content: 'Yes', timestamp: 5 }
+    );
+    await expect(
+      handleAgentOnboardingRequest(
+        { ...context, rawText: 'Yes' },
+        { fetchHistory: vi.fn(async () => history), sendPost }
+      )
+    ).resolves.toBe(true);
+    expect(sent).toHaveLength(2);
+    expect(JSON.stringify(sent[1])).toContain(
+      'Try asking me to adjust tomorrow’s update or investigate something now.'
+    );
+    expect(parsePostBlob(sent[1]!.blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'orientation-complete',
+      })
+    );
+  });
+
+  it('ends the optional tour cleanly after No', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    const history = [
+      {
+        author: '~bot',
+        content: 'ready',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack',
+          version: 1,
+          provisionId: provision.provisionId,
+          cronJobId: 'job-1',
+        }),
+      },
+      {
+        author: '~bot',
+        content: 'Want a quick tour of how groups and channels work?',
+        timestamp: 2,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-post-marker',
+          version: 1,
+          key: 'onboarding-follow-up',
+        }),
+      },
+      { author: '~ten', content: 'No', timestamp: 3 },
+    ];
+
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          rawText: 'No',
+        },
+        { fetchHistory: vi.fn(async () => history), sendPost }
+      )
+    ).resolves.toBe(true);
+    expect(sendPost).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'You can ask me anytime'
+    );
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).not.toContain(
+      'what Tlonbot can do'
+    );
   });
 
   it('catches an intro request that arrived before the channel was watched', async () => {
@@ -1175,8 +1309,8 @@ describe('provision coordinator ordering', () => {
     expect(listNotes).toHaveBeenCalledTimes(2);
     expect(sleep).toHaveBeenCalledTimes(3);
     expect(sleep).toHaveBeenNthCalledWith(1, 500);
-    expect(sleep).toHaveBeenNthCalledWith(2, 3_500);
-    expect(sleep).toHaveBeenNthCalledWith(3, 3_500);
+    expect(sleep).toHaveBeenNthCalledWith(2, 5_500);
+    expect(sleep).toHaveBeenNthCalledWith(3, 12_000);
     const reveal = sendPost.mock.calls[0]?.[0];
     // The sentence carries the entry on its own — the cite renders as
     // "Content not available" until the client has synced the notes channel,
@@ -1210,11 +1344,11 @@ describe('provision coordinator ordering', () => {
     );
     expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain('McpConnect');
     expect(JSON.stringify(sendPost.mock.calls[2]?.[0].story)).toContain(
-      'You’re all set. Is there anything else I can help you with?'
+      'Want a quick tour of how groups and channels work?'
     );
-    expect(JSON.stringify(sendPost.mock.calls[2]?.[0])).toContain(
-      'Groups and channels'
-    );
+    expect(
+      JSON.stringify(parsePostBlob(sendPost.mock.calls[2]?.[0].blob))
+    ).toContain('"text":"Yes"');
     expect(parsePostBlob(sendPost.mock.calls[2]?.[0].blob)).toContainEqual(
       expect.objectContaining({
         type: 'tlon-agent-post-marker',
