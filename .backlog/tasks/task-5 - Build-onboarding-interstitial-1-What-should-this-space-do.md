@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - james@tlon.io
 created_date: '2026-08-19 13:47'
-updated_date: '2026-08-19 20:20'
+updated_date: '2026-08-19 20:29'
 labels:
   - workspaces
   - onboarding
@@ -236,4 +236,14 @@ Both crashed the **entire web bundle** at module-eval, and both were invisible t
 Two things I could not run locally: `tlon-skill`'s tests and build both require **bun**, which is not installed here. Its typecheck is clean and its `exports` map declares the `bun` condition for the new subpath, but the bun-resolved import is unexercised.
 
 Also worth knowing: `packages/editor/dist` was unbuilt in this worktree, which makes `packages/app` fail `tsc` and the web bundle fail to resolve `@tloncorp/editor/dist/editorHtml`. Pre-existing and unrelated — `pnpm --filter '@tloncorp/editor' build` fixes it.
+
+### Correction: the tlon-skill gap is closed
+
+Installed bun 1.3.4 (matching the pin in `.github/workflows/*`) and ran what I had flagged as unexercised. The caveat above no longer applies.
+
+`pnpm --filter '@tloncorp/tlon-skill' check` — the exact CI invocation — passes end to end: typecheck clean, **449 unit tests**, **364 hermetic integration tests**, 0 failures, and the compiled `tlon-run` binary builds and smokes.
+
+I also confirmed the specific thing the fix changed, since `check` alone would not isolate it. A script importing exactly as `scripts/kits.ts` now does — `toWireKit` from the barrel, `loadKit`/`loadAllKits`/`resolvePackagedKitsDir` from `@tloncorp/tlon-kits/loader` — resolves under bun and works: it loads book-club v0.1.0 (7 files) and `resolvePackagedKitsDir()` still returns the packaged `kits/` directory. That last one was the most likely thing to break when the module moved, since it resolves relative to its own location.
+
+The CLI path itself could not isolate this: `kits add` calls `ensureClient` before `loadKit`, so without a live ship it always fails at the connection first.
 <!-- SECTION:NOTES:END -->
