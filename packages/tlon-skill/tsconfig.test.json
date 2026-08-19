@@ -7,6 +7,7 @@
     "types": ["node", "bun-types"]
   },
   "include": [
+    "../api/src/globals.d.ts",
     "scripts/**/*.test.ts",
     "scripts/**/*.spec.ts",
     "scripts/tloncorp-api-mock.ts",

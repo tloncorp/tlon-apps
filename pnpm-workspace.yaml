@@ -27,6 +27,7 @@ peerDependencyRules:
     - electron-builder-squirrel-windows
 
 patchedDependencies:
+  "@tamagui/build@2.4.2": patches/@tamagui__build@2.4.2.patch
   "@react-navigation/bottom-tabs@7.18.14": patches/@react-navigation__bottom-tabs@7.18.14.patch
   "@types/testing-library__jest-dom": patches/@types__testing-library__jest-dom@5.14.5.patch
   "@urbit/http-api": patches/@urbit__http-api@3.2.0-dev.patch
@@ -43,6 +44,7 @@ patchedDependencies:
   expo-image-manipulator: patches/expo-image-manipulator@57.0.1.patch
   expo-background-task: patches/expo-background-task@57.0.1.patch
   '@mattermost/react-native-paste-input@2.0.1': patches/@mattermost__react-native-paste-input@2.0.1.patch
+  '@expo/require-utils@57.0.3': patches/@expo__require-utils@57.0.3.patch
 
 allowUnusedPatches: false
 
@@ -58,7 +60,7 @@ overrides:
   # registry publishes the same version, and a registry resolution is required
   # by blockExoticSubdeps.
   "@electron/node-gyp": 10.2.0-electron.1
-  typescript: ~5.9.2
+  typescript: 7.0.2
   "@10play/tentap-editor": 0.5.21
   "@tiptap/suggestion": 2.6.0
   "@tiptap/extension-mention": 2.6.0

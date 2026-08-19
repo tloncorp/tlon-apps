@@ -6,8 +6,16 @@ export type EventMapForEmitter<Emitter extends TypedEventEmitter> =
   Emitter extends TypedEventEmitter<infer M> ? M : never;
 
 export interface TypedEventEmitter<EventMap extends AnyEventMap = AnyEventMap> {
-  on<E extends keyof EventMap>(event: E, callback: EventMap[E]): this;
-  off<E extends keyof EventMap>(event: E, callback: EventMap[E]): this;
+  // EventMap otherwise appears only in parameter positions, so
+  // `EventMapForEmitter`'s `infer` would widen it to AnyEventMap and lose the
+  // per-event argument types. This marker gives it a covariant position; it is
+  // never assigned at runtime.
+  readonly __eventMap?: EventMap;
+  // Returns void rather than `this`: implementers such as NowPlayingValue
+  // delegate to a plain EventEmitter, which cannot satisfy a polymorphic
+  // `this` return. Nothing chains these calls.
+  on<E extends keyof EventMap>(event: E, callback: EventMap[E]): void;
+  off<E extends keyof EventMap>(event: E, callback: EventMap[E]): void;
 }
 
 export class EventEmitter<

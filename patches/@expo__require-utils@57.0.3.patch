@@ -1,0 +1,17 @@
+diff --git a/build/load.js b/build/load.js
+index 9aea52cc365713ee84ed7016065488f6ccbd5f02..5c15c0d14352f580525314febae43c353541be14 100644
+--- a/build/load.js
++++ b/build/load.js
+@@ -74,6 +74,12 @@ function loadTypescript() {
+   if (_ts === undefined) {
+     try {
+       _ts = require('typescript');
++      // TypeScript 7 (native) ships no legacy transpile API (`ts.ModuleKind`
++      // is undefined), so treat it as absent and fall back to Node's built-in
++      // stripTypeScriptTypes for loading .ts config files.
++      if (_ts && _ts.ModuleKind === undefined) {
++        _ts = null;
++      }
+     } catch (error) {
+       if (error.code !== 'MODULE_NOT_FOUND') {
+         throw error;

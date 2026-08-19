@@ -20,10 +20,13 @@ export interface PinToggleParams {
   group?: Group | null;
 }
 
-export interface PinToggleActions {
+export interface PinToggleActions<
+  C extends Channel = Channel,
+  G extends Group = Group,
+> {
   unpinItem: (pin: Pin) => Promise<void>;
-  pinChannel: (channel: Channel) => Promise<void>;
-  pinGroup: (group: Group) => Promise<void>;
+  pinChannel: (channel: C) => Promise<void>;
+  pinGroup: (group: G) => Promise<void>;
 }
 
 /**
@@ -61,19 +64,19 @@ export function whichPin(params: PinToggleParams): {
  * @param res - The result of the whichPin function.
  * @param actions - The actions to execute.
  */
-export async function doPin(
+export async function doPin<C extends Channel, G extends Group>(
   res: ReturnType<typeof whichPin>,
-  actions: PinToggleActions
+  actions: PinToggleActions<C, G>
 ): Promise<void> {
   switch (res.action) {
     case 'unpin':
       await actions.unpinItem(res.target as Pin);
       break;
     case 'pin-channel':
-      await actions.pinChannel(res.target as Channel);
+      await actions.pinChannel(res.target as C);
       break;
     case 'pin-group':
-      await actions.pinGroup(res.target as Group);
+      await actions.pinGroup(res.target as G);
       break;
     case 'none':
       // Do nothing

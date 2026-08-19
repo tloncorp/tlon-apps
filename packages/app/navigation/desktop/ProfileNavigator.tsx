@@ -24,7 +24,7 @@ import {
 } from '../../ui';
 import { ProfileDrawerParamList } from '../types';
 
-const ProfileDrawer = createDrawerNavigator();
+const ProfileDrawer = createDrawerNavigator<ProfileDrawerParamList>();
 
 function DrawerContent(props: DrawerContentComponentProps) {
   const state = props.state as NavigationState<ProfileDrawerParamList>;
@@ -88,7 +88,11 @@ function DrawerContent(props: DrawerContentComponentProps) {
       <ContactsScreenView
         contacts={userContacts ?? []}
         suggestions={suggestions ?? []}
-        focusedContactId={focusedRoute.params?.userId}
+        focusedContactId={
+          focusedRoute.params && 'userId' in focusedRoute.params
+            ? focusedRoute.params.userId
+            : undefined
+        }
         onContactPress={onContactPress}
         onAddContact={onAddContact}
         onContactLongPress={onContactLongPress}

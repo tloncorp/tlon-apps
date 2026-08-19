@@ -185,7 +185,18 @@ export type HomeDrawerParamList = Pick<TopLevelTabParamList, 'ChatList'> &
   };
 
 export type ProfileDrawerParamList = Pick<TopLevelTabParamList, 'Contacts'> &
-  Pick<RootStackParamList, 'AddContacts' | 'UserProfile'>;
+  Pick<
+    RootStackParamList,
+    'AddContacts' | 'UserProfile' | 'EditProfile' | 'Attestation'
+  >;
+
+export type ActivityDrawerParamList = Pick<
+  RootStackParamList,
+  'GroupSettings' | 'UserProfile' | 'EditProfile'
+> & {
+  // Drawer-only placeholder shown before an activity item is selected.
+  ActivityEmpty: undefined;
+};
 
 export type SettingsDrawerParamList = Pick<
   RootStackParamList,
@@ -206,7 +217,19 @@ export type SettingsDrawerParamList = Pick<
   | 'PushNotificationSettings'
   | 'WompWomp'
   | 'PrivacySettings'
->;
+> & {
+  // Drawer-only placeholder shown before a settings section is selected.
+  SettingsEmpty: undefined;
+};
+
+// ChannelScreen is registered under several route names: the root stack's
+// Channel/DM/GroupDM and the desktop channel stack's ChannelRoot.
+export type ChannelScreenParamList = {
+  Channel: RootStackParamList['Channel'];
+  DM: RootStackParamList['Channel'];
+  GroupDM: RootStackParamList['Channel'];
+  ChannelRoot: RootStackParamList['Channel'];
+};
 
 export type ChannelStackParamList = {
   ChannelRoot: RootStackParamList['Channel'];
