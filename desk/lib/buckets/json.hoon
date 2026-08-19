@@ -31,7 +31,6 @@
         ['size' (numb size.fil)]
         ['checksum' ?~(checksum.fil ~ s+u.checksum.fil)]
         ['objectKey' s+object-key.fil]
-        ['objectUrl' ?~(object-url.fil ~ s+u.object-url.fil)]
         ['status' s+(scot %tas status.fil)]
     ==
   ::
@@ -272,12 +271,6 @@
           (so (get 'mime' jon))
           (ni (get 'size' jon))
           (maybe 'checksum' jon so)
-      ==
-    ::
-        %'finish-upload'
-      :*  %finish-upload
-          ((se %uv) (get 'sessionId' jon))
-          (so (get 'objectUrl' jon))
       ==
     ::
         %'fail-upload'

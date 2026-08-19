@@ -184,32 +184,42 @@
   =/  st=state-0:bu  !<(state-0:bu sv)
   (ex-equal !>([~(wyt by sessions.st) next-id.st]) !>([0 1]))
 ::
-::  Legacy completion publishes the entry the session was holding. Only then
-::  does the manifest change and a revision get broadcast.
+::  A pending upload is absent from the manifest until the object lands, then
+::  appears in one revision. Driven through the broker, which is now the only
+::  completion path.
 ::
 ++  test-upload-invisible-until-ready
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
   ^-  form:m
-  =/  url=@t  'https://storage.googleapis.com/tlon-test-memex-assets/meadow.png'
+  =/  rid=@t  '00000000-0000-0000-0000-00000000000a'
   ;<  ~  b  setup
   ;<  ~  b  create
   ;<  *  b  (ask 0v1 [%bucket flag [%create-folder ~ 'Launch']])
   ;<  *  b  (ask 0v2 [%bucket flag [%begin-upload `2 'meadow.png' 'image/png' 2.048 ~]])
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  bs=bucket-state:bu  (state-for st flag)
   =/  ses=upload-session:bu  (only-session st)
-  ;<  *  b  (ask 0v3 [%bucket flag [%finish-upload id.ses url]])
+  ::  the folder is published, the pending file is not
+  ;<  ~  b  (ex-equal !>([~(wyt by entries.bs) revision.bs]) !>([1 1]))
+  ;<  *  b
+    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload seed-token rid]))
+  =/  fil=file:bu  (file-of entry.ses)
+  =/  receipt=broker-receipt:bu
+    [rid object-key.fil 'sampel-palnet' (scot %ud id.bucket.bs) 2.048 'image/png']
+  ;<  *  b
+    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
   ;<  sv2=vase  b  get-save
   =/  st2=state-0:bu  !<(state-0:bu sv2)
   =/  bs2=bucket-state:bu  (state-for st2 flag)
-  =/  ent=entry:bu  (~(got by entries.bs2) 3)
-  =/  fil=file:bu  (file-of ent)
+  =/  ent=entry:bu  (~(got by entries.bs2) id.entry.ses)
+  =/  fil2=file:bu  (file-of ent)
   =/  ses2=upload-session:bu  (~(got by sessions.st2) id.ses)
   %+  ex-equal
-  !>([revision.bs2 status.fil status.ses2 object-url.fil parent.ent])
-  !>([2 %ready %complete `url `2])
+  !>([~(wyt by entries.bs2) revision.bs2 status.fil2 status.ses2 parent.ent])
+  !>([2 2 %ready %complete `2])
 ::
 ::  The session id is the broker token. Memex's reservation binds once, and
 ::  the file only becomes visible after a verified receipt.
@@ -254,10 +264,9 @@
   !>  :*  upload-result
           complete-result
           status.fil2
-          object-url.fil2
           [~(wyt by entries.bs2) revision.bs2]
       ==
-  !>([%'authorized' %'completed' %ready ~ [1 1]])
+  !>([%'authorized' %'completed' %ready [1 1]])
 ::
 ::  Read and delete grants are minted by the host and bound to one object.
 ::  Presenting a token against a different object is denied.

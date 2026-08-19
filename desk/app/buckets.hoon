@@ -16,6 +16,11 @@
 +$  current-state  state:b
 ::  +upload-window: how long a pending upload session stays usable.
 ::
+::  Must stay comfortably longer than Memex's own window, which is at most
+::  BUCKETS_PUT_URL_SECONDS (capped at 900) plus BUCKETS_COMPLETION_GRACE_SECONDS
+::  (default 600). If this expires first, a completion Memex still considers
+::  live arrives to find no session.
+::
 ++  upload-window  ~h1
 ::  +object-window: lifetime of a read or delete capability.
 ::
@@ -362,7 +367,6 @@
     %set-writers    (set-writers flag writers.act actor)
     %create-folder  (create-folder flag parent.act name.act actor)
     %begin-upload   (begin-upload flag parent.act name.act mime.act size.act checksum.act actor)
-    %finish-upload  (finish-upload flag session.act object-url.act actor)
     %fail-upload    (fail-upload flag session.act reason.act actor)
     %issue-read     (issue-object-capability %read flag id.act actor)
     %issue-delete   (issue-object-capability %delete flag id.act actor)
@@ -460,7 +464,7 @@
   =/  id=@ud  +(next-id)
   =.  next-id  id
   =/  sid=@uv  `@uv`eny.bowl
-  =/  fil=file:b  [mime size checksum (scot %uv sid) ~ %pending]
+  =/  fil=file:b  [mime size checksum (scot %uv sid) %pending]
   =/  ent=entry:b
     [id parent name actor now.bowl actor now.bowl [%file fil]]
   =/  expiry=@da  (add now.bowl upload-window)
@@ -469,38 +473,17 @@
   =.  sessions  (~(put by sessions) sid ses)
   (answer [%grant [(scot %uv sid) id expiry]])
 ::
-::  +finish-upload: legacy completion for clients that upload straight to a
-::  Tlon-managed object URL rather than through the private broker.
-::
-++  finish-upload
-  |=  [=flag:b sid=@uv object-url=@t actor=ship]
-  ^+  cor
-  ?~  got=(~(get by sessions) sid)
-    (answer [%error %not-found 'no such upload session'])
-  =/  ses=upload-session:b  u.got
-  ?.  =(flag flag.ses)
-    (answer [%error %not-found 'no such upload session'])
-  ?.  =(%pending status.ses)
-    (answer [%error %invalid-input 'upload session is not pending'])
-  ?.  =(requested-by.ses actor)
-    (answer [%error %not-authorized 'not the uploader'])
-  ?.  (gth expires-at.ses now.bowl)
-    (answer [%error %invalid-input 'upload session has expired'])
-  ?.  (valid-legacy-object-url object-url)
-    (answer [%error %invalid-input 'unsupported object origin'])
-  (publish-upload ses `object-url actor)
-::
 ::  +publish-upload: move a completed session's entry into the manifest and
 ::  broadcast it. The session is retained as %complete so a repeated
 ::  completion is a no-op rather than a second entry.
 ::
 ++  publish-upload
-  |=  [ses=upload-session:b url=(unit @t) actor=ship]
+  |=  [ses=upload-session:b actor=ship]
   ^+  cor
   =/  st=bucket-state:b  (need-state flag.ses)
   =/  ent=entry:b  entry.ses
   =/  fil=file:b  (entry-file ent)
-  =.  fil  fil(object-url url, status %ready)
+  =.  fil  fil(status %ready)
   =.  ent  ent(updated-by actor, updated-at now.bowl, kind [%file fil])
   =.  sessions  (~(put by sessions) id.ses ses(status %complete, entry ent))
   =.  entries.st  (~(put by entries.st) id.ent ent)
@@ -636,7 +619,7 @@
           =(mime-type.receipt mime.fil)
       ==
     cor
-  (publish-upload ses ~ requested-by.ses)
+  (publish-upload ses requested-by.ses)
 ::
 ++  rename-entry
   |=  [=flag:b id=@ud name=@t actor=ship]
@@ -721,15 +704,6 @@
   ?~  txt  |
   ?~  cut=(find "/" txt)  |
   &(!=(0 u.cut) !=(+(u.cut) (lent txt)))
-::
-++  valid-legacy-object-url
-  |=  object-url=@t
-  ^-  ?
-  =/  url=tape  (trip object-url)
-  ?|  =(`0 (find "https://storage.googleapis.com/tlon-prod-memex-assets/" url))
-      =(`0 (find "https://storage.googleapis.com/tlon-staging-memex-assets/" url))
-      =(`0 (find "https://storage.googleapis.com/tlon-test-memex-assets/" url))
-  ==
 ::
 ++  entry-file
   |=  ent=entry:b
@@ -827,7 +801,6 @@
     %issue-read     (group-can-read group.st flag who)
     %create-folder  (group-can-write group.st flag writers.st who)
     %begin-upload   (group-can-write group.st flag writers.st who)
-    %finish-upload  (group-can-write group.st flag writers.st who)
     %fail-upload    (group-can-write group.st flag writers.st who)
     %issue-delete   (group-can-write group.st flag writers.st who)
     %entry          (group-can-write group.st flag writers.st who)
@@ -852,8 +825,11 @@
   ?.  (gth expires-at.ses now.bowl)
     (broker-simple-verdict 'expired')
   ?.  =(%pending status.ses)  denied
+  ::  Echo the reservation bound on first exchange, ignoring the one Memex
+  ::  proposed. Memex mints a fresh id per grant call, so a client retrying
+  ::  after a lost response arrives with a new one; denying that would make
+  ::  the upload unrecoverable, and the Pioneer contract requires the echo.
   ?~  accepted=reservation.ses  denied
-  ?.  =(u.accepted reservation)  denied
   ?~  sp=(~(get by spaces) flag.ses)  denied
   ?~  st-unit=state.u.sp  denied
   =/  st=bucket-state:b  u.st-unit
@@ -922,14 +898,21 @@
       [key payload]
   ==
 ::
+::  +broker-complete-verdict: expiry reports as %expired rather than %denied.
+::  Memex maps 403 to non-retryable and 410 to expired, so collapsing a lapsed
+::  window into a denial turns a recoverable upload into a dead one.
+::
 ++  broker-complete-verdict
   |=  reservation=@t
   ^-  json
   =/  denied=json  (broker-simple-verdict 'denied')
   ?~  sid=(~(get by reservations) reservation)  denied
   ?~  got=(~(get by sessions) u.sid)  denied
-  ?.  =(%complete status.u.got)  denied
-  (broker-simple-verdict 'completed')
+  =/  ses=upload-session:b  u.got
+  ?:  =(%complete status.ses)  (broker-simple-verdict 'completed')
+  ?.  (gth expires-at.ses now.bowl)
+    (broker-simple-verdict 'expired')
+  denied
 ::
 ++  updates-path
   |=  =flag:b
@@ -1062,8 +1045,11 @@
   ?+  pole  cor
       [%groups ~]
     ?+  -.sign  cor
-        %fact  recheck-host-subs
         %kick  (emit [%pass /groups %agent [our.bowl %groups] %watch /v1/groups])
+        %fact
+      ::  an r-groups fact is [flag r-group]; we only need the flag head.
+      =+  !<([=flag:b *] q.cage.sign)
+      (recheck-host-subs flag)
         %watch-ack
       ?~  p.sign  cor
       ((slog leaf+"buckets: groups watch failed" u.p.sign) cor)
@@ -1213,7 +1199,14 @@
     st
   ==
 ::
+::  +recheck-host-subs: read permissions may have shifted in `changed`, so
+::  re-run can-read for subscribers of buckets bound to that group and kick
+::  any who lost access. Scoped to the one group — a fact about some other
+::  group is not a reason to scry for every subscriber we have. Grants are
+::  handled by %groups' auto-join, so this only revokes.
+::
 ++  recheck-host-subs
+  |=  changed=flag:b
   ^+  cor
   =/  kicks=(list card)
     %+  murn  ~(val by sup.bowl)
@@ -1224,6 +1217,7 @@
     ?~  sp=(~(get by spaces) flag)  ~
     ?.  =(%pub net.u.sp)  ~
     ?~  state.u.sp  ~
+    ?.  =(changed group.u.state.u.sp)  ~
     ?:  (group-can-read group.u.state.u.sp flag who)  ~
     `[%give %kick ~[pax] `who]
   (emil kicks)

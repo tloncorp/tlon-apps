@@ -5,12 +5,19 @@
 ::  Ames.
 ::
 |%
+::  $flag: global bucket identity — its host ship plus a slug.
+::
 +$  flag  [=ship name=@tas]
+::  $nest: channel identity shared with %groups. For a bucket the kind is
+::  always %buckets and [host name] is the bucket's flag.
+::
 +$  nest  [kind=@tas host=@p name=@tas]
 ::
 ::  Channel-host messages used by %groups for third-party channel kinds.
 ::
 +$  channel-join   [=nest group=flag]
+::  $channel-leave: %groups tells us a member left, or lost access.
+::
 +$  channel-leave  [=nest]
 ::
 ::  Minimal %groups channel-registration payloads. These intentionally mirror
@@ -62,9 +69,10 @@
       size=@ud
       checksum=(unit @t)
       object-key=@t
-      object-url=(unit @t)
       status=upload-status
   ==
+::  $entry-kind: a tree node is either a folder or a file.
+::
 +$  entry-kind
   $%  [%folder ~]
       [%file =file]
@@ -155,7 +163,6 @@
       [%set-writers writers=(set @tas)]
       [%create-folder parent=(unit @ud) name=@t]
       [%begin-upload parent=(unit @ud) name=@t mime=@t size=@ud checksum=(unit @t)]
-      [%finish-upload session=@uv object-url=@t]
       [%fail-upload session=@uv reason=@t]
       [%issue-read id=@ud]
       [%issue-delete id=@ud]
@@ -232,6 +239,10 @@
       size=@ud
       mime-type=@t
   ==
+::  $broker-command: what a Pioneer thread relays in from Memex. The
+::  capability is opaque on the Memex side, so this shape is fixed by the
+::  cross-repo contract — do not change it without changing ylem.
+::
 +$  broker-command
   $%  [%authorize-upload capability=@t broker-reservation-id=@t]
       [%complete-upload =broker-receipt]
@@ -285,6 +296,10 @@
 +$  response  r-buckets
 ::
 +$  net  ?(%pub %sub)
+::  $space: one bucket as this ship sees it — whether we host it or replicate
+::  it, the replica itself, and the group we expect it to belong to before the
+::  first snapshot arrives.
+::
 +$  space  [=net state=(unit bucket-state) pending-group=(unit flag)]
 ::
 ::  Persisted state. %buckets has never run on a live ship, so there is
@@ -301,6 +316,10 @@
       reservations=(map @t @uv)
       pending=(map request-id [host=ship until=@da])
   ==
+::  $versioned-state: every persisted shape +on-load may be handed.
+::
 +$  versioned-state  $%(state-0)
+::  $state: the current persisted shape.
+::
 +$  state  state-0
 --
