@@ -6,7 +6,12 @@ The backend of the Tlon Messenger app is hosted on the Urbit platform.
 All the backend code is located in the desk/ directory, which
 is deployed to an urbit ship.
 
-## Development
+## Development with tmux
+
+When explicitly instructed to interface with running ships with tmux, follow
+the instructions in this section. If the user uses urbit MCP, use
+dedicated workflows and documentation specific to urbit MCP.
+
 Interface with a running urbit ship through a tmux session
 running an urbit ship. Do not switch to that session, but interface
 with it using tmux input and capture commands.
