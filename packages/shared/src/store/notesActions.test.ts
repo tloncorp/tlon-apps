@@ -20,6 +20,7 @@ import {
   createNotebookNote,
   deleteNotebookNote,
   markNotesNotebookStale,
+  markNotesNotebookStaleForNoteEvent,
   noteIsPublished,
   publishNotebookNote,
   saveNotebookNote,
@@ -1503,4 +1504,73 @@ test('warmNotesNotebookSnapshot keeps a mark raised while it was fetching', asyn
 
   // the mark raised mid-refresh got its own fetch rather than being cleared
   expect(getNotebook).toHaveBeenCalledTimes(2);
+});
+
+// Stale marks live in module state keyed by notebook flag, so a test that
+// leaves one behind would make the next one refresh when it expected a
+// skip. Mock the snapshot reads, run one warm to consume whatever is
+// pending, and clear the call history.
+async function settleNotesNotebookMarks() {
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  await warmNotesNotebookSnapshot(notebookFlag);
+  vi.clearAllMocks();
+}
+
+test('warmNotesNotebookSnapshot reports the age of the snapshot it left behind', async () => {
+  await settleNotesNotebookMarks();
+
+  const syncedAt = Date.now() - 60 * 1000;
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({
+      rootFolderId: rootFolder.folderId,
+      syncedAt,
+    }),
+    folders: [rootFolder],
+    notes: [],
+    members: [],
+  });
+
+  // skipped refresh: the caller needs the cached snapshot's age so it can
+  // schedule the next check for when that snapshot ages out
+  await expect(warmNotesNotebookSnapshot(notebookFlag)).resolves.toBe(syncedAt);
+  expect(api.notes.getNotebook).not.toHaveBeenCalled();
+});
+
+test('note-edit activity for an unstored note counts as a creation', async () => {
+  await settleNotesNotebookMarks();
+
+  const stored = makeNote('Stored note');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({
+      rootFolderId: rootFolder.folderId,
+      syncedAt: Date.now(),
+    }),
+    folders: [rootFolder],
+    notes: [stored],
+    members: [],
+  });
+
+  // an edit to a note we already have can't have changed the counts
+  await markNotesNotebookStaleForNoteEvent({
+    channelId: `notes/${notebookFlag}`,
+    noteId: String(stored.noteId),
+    created: false,
+  });
+  await warmNotesNotebookSnapshot(notebookFlag);
+  expect(api.notes.getNotebook).not.toHaveBeenCalled();
+
+  // an edit naming a note we've never stored is a create that %notes
+  // collapsed into a single %note-edit
+  await markNotesNotebookStaleForNoteEvent({
+    channelId: `notes/${notebookFlag}`,
+    noteId: '999',
+    created: false,
+  });
+  await warmNotesNotebookSnapshot(notebookFlag);
+  expect(api.notes.getNotebook).toHaveBeenCalled();
 });

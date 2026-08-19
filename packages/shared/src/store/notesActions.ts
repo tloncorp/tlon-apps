@@ -169,6 +169,9 @@ const notebookStaleMarks = new Map<string, number>();
 // leftover mark stays and the next display-driven warm picks it up rather
 // than looping here indefinitely on a busy notebook.
 const NOTES_WARM_MAX_PASSES = 2;
+// floor for the next scheduled check, so a snapshot that's already past its
+// window (a failed refresh, say) doesn't turn the interval into a spin
+const NOTES_WARM_MIN_INTERVAL = 30_000;
 
 // Revalidate a notebook's cached snapshot when something is displaying data
 // derived from it (e.g. the channel list's note/folder counts). Refetches
@@ -178,12 +181,16 @@ const NOTES_WARM_MAX_PASSES = 2;
 // another device reach us through nothing at all, and aging out is the only
 // way those land. Throws on failure so React Query retries rather than
 // treating a failed warm as five fresh minutes.
+//
+// Returns the `syncedAt` of the snapshot this call left in place (null when
+// another warm holds the slot), so the caller can time its next check by
+// that snapshot's age rather than by when this check happened.
 export async function warmNotesNotebookSnapshot(
   flagInput: api.NotesFlag | string
-) {
+): Promise<number | null> {
   const { flag } = requireNotesNotebookFlag(flagInput);
   if (warmingNotebooks.has(flag)) {
-    return;
+    return null;
   }
   warmingNotebooks.add(flag);
   try {
@@ -193,22 +200,24 @@ export async function warmNotesNotebookSnapshot(
       cached?.syncedAt &&
       Date.now() - cached.syncedAt < NOTES_SNAPSHOT_MAX_AGE
     ) {
-      return;
+      return cached.syncedAt;
     }
     // A mark raised while a refresh is in flight isn't covered by that
     // refresh, and React Query folds its invalidation into the fetch already
     // running — so compare the mark count across the refresh and go again
     // when it moved, rather than clearing a mark we never fetched for.
+    let syncedAt: number | null = null;
     for (let pass = 0; pass < NOTES_WARM_MAX_PASSES; pass++) {
       const marks = notebookStaleMarks.get(flag) ?? 0;
-      await syncNotesNotebook(flag);
+      syncedAt = (await syncNotesNotebook(flag))?.syncedAt ?? null;
       if ((notebookStaleMarks.get(flag) ?? 0) === marks) {
         // cleared only once a refresh has actually covered every mark; a
         // failed refresh throws out of here and leaves them in place
         notebookStaleMarks.delete(flag);
-        return;
+        break;
       }
     }
+    return syncedAt;
   } finally {
     warmingNotebooks.delete(flag);
   }
@@ -228,15 +237,21 @@ export function useWarmNotesNotebookSnapshot({
 }) {
   useQuery({
     queryKey: ['notesSnapshotWarm', notebookFlag],
-    queryFn: async () => {
-      await warmNotesNotebookSnapshot(notebookFlag!);
-      return null;
-    },
+    queryFn: () => warmNotesNotebookSnapshot(notebookFlag!),
     enabled: enabled && Boolean(notebookFlag),
-    // the global default is `Infinity`; these two are what make the
-    // revalidate happen at all
+    // the global default is `Infinity`; this is what makes the revalidate
+    // happen at all
     staleTime: NOTES_SNAPSHOT_MAX_AGE,
-    refetchInterval: NOTES_SNAPSHOT_MAX_AGE,
+    // timed off the snapshot we ended up with, not off this check: a check
+    // that found a four-minute-old snapshot and skipped the fetch has to
+    // come back in a minute, or the counts could reach twice the window
+    refetchInterval: ({ state }) =>
+      state.data == null
+        ? NOTES_SNAPSHOT_MAX_AGE
+        : Math.max(
+            NOTES_WARM_MIN_INTERVAL,
+            state.data + NOTES_SNAPSHOT_MAX_AGE - Date.now()
+          ),
   });
 }
 
@@ -249,6 +264,38 @@ const notebookStaleNudges = new Map<string, () => void>();
 // A notebook something is displaying refreshes right away; one nothing is
 // showing waits, and the stale mark makes the next row that mounts refetch
 // even though the cache still looks fresh.
+// %notes collapses a create and the edits that follow it inside its activity
+// window into a single %note-edit (see +note-activity-wake), so "edit"
+// doesn't mean the counts held: an edit naming a note we've never stored is
+// a creation as far as they're concerned. A note we do have was a body or
+// title change, which can't move either count.
+export async function markNotesNotebookStaleForNoteEvent({
+  channelId,
+  noteId,
+  created,
+}: {
+  channelId: string;
+  noteId: string | null | undefined;
+  created: boolean;
+}) {
+  if (created) {
+    markNotesNotebookStale(channelId);
+    return;
+  }
+  const flag = notesNotebookFlagFromChannelId(channelId);
+  const parsedNoteId = noteId == null ? NaN : Number(noteId);
+  if (!flag || !Number.isFinite(parsedNoteId)) {
+    return;
+  }
+  const stored = await db.getNotesNote({
+    notebookFlag: flag,
+    noteId: parsedNoteId,
+  });
+  if (!stored) {
+    markNotesNotebookStale(channelId);
+  }
+}
+
 export function markNotesNotebookStale(channelId: string) {
   const flag = notesNotebookFlagFromChannelId(channelId);
   if (!flag) {
