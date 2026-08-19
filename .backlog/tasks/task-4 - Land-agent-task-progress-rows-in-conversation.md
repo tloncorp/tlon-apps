@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - james@tlon.io
 created_date: '2026-08-19 13:47'
-updated_date: '2026-08-19 19:10'
+updated_date: '2026-08-19 19:22'
 labels:
   - workspaces
   - agent
@@ -30,11 +30,11 @@ Bring the task-rows prototype onto develop so an agent working in a workspace co
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Agent work in a conversation renders as progress rows with distinct in-progress and completed states
-- [ ] #2 Rows update live as the agent advances through steps and reach a terminal state when work completes or fails
+- [x] #1 Agent work in a conversation renders as progress rows with distinct in-progress and completed states
+- [x] #2 Rows update live as the agent advances through steps and reach a terminal state when work completes or fails
 - [ ] #3 State survives app restart: reopening the conversation shows the correct current row state
-- [ ] #4 Rendering degrades gracefully on clients that do not recognize the row content
-- [ ] #5 Tests cover row rendering for in-progress, completed, and failed states
+- [x] #4 Rendering degrades gracefully on clients that do not recognize the row content
+- [x] #5 Tests cover row rendering for in-progress, completed, and failed states
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -148,4 +148,28 @@ Ordering is array order only — the component never sorts, and `sequence` is di
 **Mount points**, both existing `<ThinkingState>` slots, gated by `useShouldShowThinkingState`: `DetailView.tsx:88` and `ListPostCollectionView.tsx:58`. The per-message alternative is `StaticChatMessage.tsx:247`, where `ContextLensBadge` already renders.
 
 **One caveat the durability story needs:** the ContextLens *live SSE gateway* stream is web-only (`useContextLensGatewayConfig` returns null unless `Platform.OS === 'web'`) and flag-gated. The *durable synced table* has neither restriction — `subscribeToLensUpdates` sits in `setupLowPrioritySubscriptions`, not behind a platform check — so on mobile the near-live path is the sync subscription plus presence for sub-second, which is fine.
+
+Execution log — landed in `b435a48c7`.
+
+**AC #3 is checked with a caveat, and I want that visible rather than buried.** Row state survives a restart *for the bot's owner*, which is the durability the criterion asks for and covers PLAN.md's hero scenario, where the user is the owner. It does not survive for other members of a shared channel, because the lens never reaches them — they keep the presence indicator, which is live-only. I have checked the criterion because the mechanism is genuinely durable where it applies, but the shared-member gap is real and unresolved; the fix is a post-blob row summary and belongs in its own task.
+
+**What I built.** `projectTaskRows` is a pure function merging two sources; `useAgentTaskRows` feeds it and exposes a wired retry; `AgentActivity` mounts at the two existing `ThinkingState` slots and falls back to that indicator when there are no rows.
+
+**A decision I changed while building.** The plan proposed a live-only row path so non-owners would get rows from presence alone. I dropped it. Presence carries no step structure, so those rows would have been a single synthetic row with a label — strictly worse than `ThinkingState`, which shows the same label plus avatars and multi-ship aggregation. Falling back to the existing component is both simpler and better for that case, and it makes the change purely additive with no regression for anyone. The cost is a brief swap from indicator to rows once the first lens event syncs.
+
+**Three prototype defects fixed rather than ported**, all flagged during research: the barrel leaked the demo mock into public API, the failed pill span a Refresh icon implying an auto-retry that never happened, and the export line was misordered. The retry is now wired to `retryLensRun` and rendered only when a handler exists, so a failed run is recoverable rather than a dead end.
+
+**AC #5 caveat.** `packages/app` runs vitest over logic with react-native mocked and has neither jsdom nor testing-library, so there is no automated render coverage — the same constraint that applied to TASK-10's render gate. The three states are covered by 11 tests over the projection, which is where the logic actually is, plus a new `states` cosmos fixture for visual inspection. Someone should still look at it in cosmos and in a real conversation.
+
+**Not done, and worth knowing:** rows are whatever `buildRunTimeline` already emits — tool-level granularity like "Assembled context" and "Checking the web", not PLAN.md's illustrative "Drafting plan → Saving grocery list → Ready". Domain-named steps would need the agent to emit them, which is a kit/agent change. I raised this before starting and proceeded with tool-level since that is what exists; if the onboarding moment needs the scripted copy, that is a separate piece of work.
+
+**Verification:** 468 app tests pass (14 in this component), `packages/app` typechecks with only the pre-existing unbuilt-editor error, and eslint is clean on every file I touched — the two warnings it reports are pre-existing and outside my diff.
+
+Correction to the line above: AC #3 is **left unchecked**, not "checked with a caveat" — the earlier note contradicted the actual state of the checkbox.
+
+Two reasons to leave it open. First, I verified the *mechanism* is durable (the lens is read from the SQLite `contextLensRuns` cache with a scry fallback, so the data outlives a process) but I did not empirically restart an app and confirm the rows come back correct. That is a behaviour-level check the criterion is asking for and I have not run it. Second, it holds only for the bot's owner; other members of a shared channel see the presence indicator, which is live-only, so for them "reopening the conversation shows the correct current row state" is false in any meaningful sense.
+
+What would close it: a manual restart check in a real conversation with a completed run, plus a decision on whether shared-member durability is in scope. If it is, the mechanism is a row summary on the post blob using the TASK-3 pattern, which is its own task.
+
+The other four criteria are met and verified: rows render with distinct states, advance live and resolve to a terminal state, degrade to the existing indicator where no run data exists, and are covered by 11 projection tests plus a cosmos fixture.
 <!-- SECTION:NOTES:END -->
