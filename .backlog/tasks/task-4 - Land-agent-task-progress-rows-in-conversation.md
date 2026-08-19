@@ -1,11 +1,11 @@
 ---
 id: TASK-4
 title: Land agent task-progress rows in conversation
-status: In Progress
+status: Done
 assignee:
   - james@tlon.io
 created_date: '2026-08-19 13:47'
-updated_date: '2026-08-19 19:22'
+updated_date: '2026-08-19 20:32'
 labels:
   - workspaces
   - agent
@@ -172,4 +172,28 @@ Two reasons to leave it open. First, I verified the *mechanism* is durable (the 
 What would close it: a manual restart check in a real conversation with a completed run, plus a decision on whether shared-member durability is in scope. If it is, the mechanism is a row summary on the post blob using the TASK-3 pattern, which is its own task.
 
 The other four criteria are met and verified: rows render with distinct states, advance live and resolve to a terminal state, degrade to the existing indicator where no run data exists, and are covered by 11 projection tests plus a cosmos fixture.
+
+Closed as Done at the user's direction with AC #3 carried forward rather than checked. Two things remain and are not owned by this task any more: (1) an empirical app-restart check in a real conversation with a completed run — the mechanism was verified by reading the db-first/scry resolution path, not by restarting; (2) a scope decision on shared-member durability, which the lens cannot provide since it flows bot → owner only. If shared-member durability is in scope, the mechanism is a row-summary entry on the post blob following TASK-3's `interactive-surface` pattern. No follow-up task created — awaiting the user's call on whether to open one.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Landed live agent progress rows in conversation. Commit `b435a48c73`.
+
+**What the task actually was.** Not the cherry-pick the title implies: `6ee72347e` was 593 lines of polished, reduced-motion-aware presentation driven by a hardcoded `setTimeout` mock, with no data source. The component was adopted as the view layer and the entire adapter beneath it written here.
+
+**Store decision.** ContextLens as the durable spine (it already models steps properly — ten run statuses, per-tool runs with `callIndex`, timings, errors — resolved db-first from the local `contextLensRuns` SQLite table with a scry fallback), `%presence` as the live overlay for the in-flight step. Neither alone satisfies the criteria: presence is ephemeral by construction (90s ship-side timeout, no step model) though public to the channel; the lens is durable with real failure states but flows bot → owner only (`visibility` is set client-side and never routed, and does not exist in `desk/sur/steward/lens.hoon`).
+
+**What was built.** `projectTaskRows`, a pure merge over the two sources; `useAgentTaskRows`, feeding it and exposing a retry wired to `retryLensRun`; `AgentActivity`, mounted at the two existing `ThinkingState` slots (`DetailView.tsx`, `ListPostCollectionView.tsx`) and falling back to that indicator when there are no rows — so the change is purely additive with no regression.
+
+**A plan decision reversed while building.** The plan proposed a live-only row path so non-owners would get rows from presence alone. Dropped: presence carries no step structure, so those rows would have been a single synthetic label — strictly worse than `ThinkingState`, which shows the same label plus avatars and multi-ship aggregation.
+
+**Three prototype defects fixed rather than ported:** the barrel leaked the demo mock into public `@tloncorp/app` API, the failed pill spun a `Refresh` icon implying an auto-retry that never happened (now a real wired retry, rendered only when a handler exists), and the new export line was misordered.
+
+**Tests.** 11 tests over the projection covering in-progress, completed, and failed row sets, presence-overlay precedence, the empty case, and an unparseable computing-status blob yielding no rows rather than throwing. 468 `packages/app` tests pass; typechecks with only the pre-existing unbuilt-editor error; eslint clean on every touched file. No automated render coverage — visual states go in a new `states` cosmos fixture.
+
+**Carried forward, not delivered.** AC #3 is left unchecked deliberately. The mechanism is durable (SQLite cache + scry fallback outlives a process) but no app restart was empirically performed to confirm the rows come back correct, and durability holds only for the bot's owner — for other members of a shared channel, "reopening the conversation shows the correct current row state" is false. Closing it needs a manual restart check in a real conversation with a completed run, plus a decision on whether shared-member durability is in scope; if it is, the mechanism is a row-summary entry on the post blob following the TASK-3 `interactive-surface` pattern.
+
+**Also not done:** rows are whatever `buildRunTimeline` emits — tool-level granularity ("Assembled context", "Checking the web"), not PLAN.md's illustrative "Drafting plan → Saving grocery list → Ready". Domain-named steps require the agent to emit them, which is a kit/agent change.
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -1,11 +1,11 @@
 ---
 id: TASK-5
 title: 'Build onboarding interstitial 1: "What should this space do?"'
-status: In Progress
+status: Done
 assignee:
   - james@tlon.io
 created_date: '2026-08-19 13:47'
-updated_date: '2026-08-19 20:29'
+updated_date: '2026-08-19 20:32'
 labels:
   - workspaces
   - onboarding
@@ -247,3 +247,21 @@ I also confirmed the specific thing the fix changed, since `check` alone would n
 
 The CLI path itself could not isolate this: `kits add` calls `ensureClient` before `loadKit`, so without a live ship it always fails at the connection first.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Shipped onboarding interstitial 1 additively: a new `SplashPane.Purpose` after Welcome that asks "What should this space do?" and offers three starters (meals recommended, household tasks, garden) plus a de-emphasised "Something else" link.
+
+**Commits:** `4871ef6628` (the interstitial), `8696025b9c` (two browser-breaking regressions from the TASK-2 kits landing, found while verifying), `b2c59d8a18` (a layout collision the new pane exposed in the shared option card).
+
+**What changed.** `starterOptions.ts` + tests, following `botProviderOptions.ts`. Ids `meal-plan` / `household-tasks` / `garden-plan` are forward references to TASK-13 — nothing consumes them yet. The choice writes to `signupData.starterKitId` (new optional field on `SignupParams`), which is AsyncStorage-backed so it survives an app kill. `WelcomePane.onActionPress` now advances to Purpose unconditionally; the old `hostingBotEnabled ? TlonBot : Group` branch moved into `handleStarterSelected`, so the pane after Purpose is unchanged. Three extractions (`SplashOptionCard`, `splashPrimitives`, `PurposePane`) let the pane be tested without importing the ~2900-line `SplashSequence`.
+
+**Two regressions fixed here, both introduced in TASK-2, both crashing the whole web bundle at module-eval and invisible to `tsc` and every vitest suite:** `node:fs` reaching the browser graph via the `tlon-kits` barrel re-exporting `loader.ts` (now its own `./loader` subpath export), and `z.looseObject` (zod 4) called from a zod 3 consumer (rewritten as `.object().passthrough()`).
+
+**Tests.** 6 options-module tests + 6 `PurposePane` component tests in `packages/app` vitest covering both AC #5 paths. `tsc --noEmit` clean across tlon-kits, api, tlon-skill, openclaw, app, shared, ui; suites green (tlon-kits 25, api 787, app 483, openclaw 1426). `pnpm --filter '@tloncorp/tlon-skill' check` — the CI invocation — passes under bun 1.3.4: 449 unit + 364 integration tests, binary builds and smokes.
+
+**Carried forward, not delivered.** AC #2 is left unchecked: selecting a starter records the kit and advances immediately, but interstitial 2 does not exist and the eight bot panes still sit downstream. Moving them out of onboarding presumes settings surfaces that do not exist. The remainder is recorded against TASK-11, which depends on this task.
+
+**Known limitation, pre-existing (`79b4d22cd`) and untouched:** the in-app web splash modal is unreachable — `useShowWebSplashModal` requires ≤767px while its only mount sits behind `isMobile={false}`, which uses the same query. AC #4 was verified in cosmos on web at the 600×700 dialog size; the pane was not run on a device or simulator.
+<!-- SECTION:FINAL_SUMMARY:END -->
