@@ -267,8 +267,6 @@ export const setPinnedGroups = async (groupIds: string[]) => {
     value: groupIds.map((groupId) => ({ type: 'flag', value: groupId })),
   };
 
-  console.log(`contact-action-1`, { self: { contact: contactUpdate } });
-
   return poke({
     app: 'contacts',
     mark: 'contact-action-1',

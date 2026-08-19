@@ -2,7 +2,7 @@
 
 Bots publish **who they are** — harness and versions — in their own contact profile. The Tlon client reads that claim off the synced contact record and uses the claimed harness to pick one of its own static slash-command lists for the bot's conversations.
 
-Bots do **not** publish what they can do. Command lists live in the app (`packages/shared/src/domain/slashCommands.ts`), bound to each runtime's actual command registry by a CI drift contract (see [Command lists](#command-lists)). A command change therefore ships as an app release, and a third-party bot cannot advertise custom commands — an unknown or absent harness gets the default (OpenClaw) list.
+Bots do **not** publish what they can do. Command lists live in the app (`packages/shared/src/domain/slashCommands.ts`), where the runtime-owned entries are bound to each runtime's actual command registry by a CI drift contract and the host-core entries are audit-pinned constants outside it (see [Command lists](#command-lists)). A command change therefore ships as an app release, and a third-party bot cannot advertise custom commands — an unknown or absent harness gets the default (OpenClaw) list.
 
 No Hoon/desk changes are involved: a v1 contact is an open key-value map (`+$ contact (map @tas value)`, `desk/sur/contacts.hoon`), unknown keys pass validation and replicate to subscribers, and the client's contacts pipeline carries the key through.
 

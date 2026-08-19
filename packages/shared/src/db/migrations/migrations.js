@@ -9,4 +9,3 @@ import m0000 from './0000_pink_forgotten_one.sql';
       m0000
     }
   }
-  

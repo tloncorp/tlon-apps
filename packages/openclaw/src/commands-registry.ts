@@ -40,9 +40,9 @@ export interface TlonCommandRegistryEntry {
 // contract (packages/shared/src/domain/runtimeCommandContract.test.ts) pins
 // against those lists.
 //
-// OpenClaw CORE commands (/status, /help, /new) are absent by construction:
-// this plugin neither registers nor dispatches them. They are carried on the
-// client's static list as audit-pinned constants.
+// OpenClaw CORE commands (/status, /help, /new, /model) are absent by
+// construction: this plugin neither registers nor dispatches them. They are
+// carried on the client's static list as audit-pinned constants.
 export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
   {
     name: 'tlon-version',

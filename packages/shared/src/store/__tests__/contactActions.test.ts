@@ -60,9 +60,9 @@ describe('ensureBotInfoSynced', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetBotInfoBackfillState();
-    // Absent-row backfills are gated on the sync phase; start every case from
-    // no session so only the tests that opt in see a settled sync.
-    updateSession(null);
+    // Every missing-claim backfill is gated on the sync phase; start each case
+    // from a settled sync and let the gate cases drive the phase themselves.
+    updateSession({ phase: 'ready' });
     vi.mocked(db.getContact).mockResolvedValue(nonContactRow());
     vi.mocked(api.getContactProfile).mockResolvedValue(null);
   });
@@ -160,7 +160,7 @@ describe('ensureBotInfoSynced', () => {
     expect(db.upsertContact).toHaveBeenCalledTimes(1);
   });
 
-  it('bounds retries per ship per session', async () => {
+  it('bounds retries per ship for the process lifetime', async () => {
     vi.mocked(api.getContactProfile).mockResolvedValue(null);
 
     await ensureBotInfoSynced(ship);
@@ -169,6 +169,23 @@ describe('ensureBotInfoSynced', () => {
     await ensureBotInfoSynced(ship);
     await ensureBotInfoSynced(ship);
 
+    expect(api.getContactProfile).toHaveBeenCalledTimes(3);
+  });
+
+  it('charges the cap for fetches that reject, so failures stay bounded', async () => {
+    // The attempt is counted when a permitted one *starts*, not when the
+    // network completes: a bot whose fetch always rejects would otherwise be
+    // retried on every hook evaluation forever.
+    vi.mocked(api.getContactProfile).mockRejectedValue(new Error('offline'));
+
+    await ensureBotInfoSynced(ship);
+    await ensureBotInfoSynced(ship);
+    await ensureBotInfoSynced(ship);
+    expect(api.getContactProfile).toHaveBeenCalledTimes(3);
+
+    // Cap + 1: the last evaluation must not reach the network at all.
+    await ensureBotInfoSynced(ship);
+    expect(api.syncUserProfiles).toHaveBeenCalledTimes(3);
     expect(api.getContactProfile).toHaveBeenCalledTimes(3);
   });
 
@@ -248,8 +265,11 @@ describe('ensureBotInfoSynced', () => {
     // absence proves nothing and the ship may still be a contact-book entry
     // whose per-ship scry merges the user's mod overlay.
     vi.mocked(db.getContact).mockResolvedValue(null);
+    vi.mocked(api.getContactProfile).mockResolvedValue(null);
 
-    for (const phase of ['high', 'low'] as const) {
+    // More blocked attempts than the cap, so a counter that charged them would
+    // exhaust the budget before sync ever settles — two would not.
+    for (const phase of ['init', 'high', 'low', 'init'] as const) {
       updateSession({ phase });
       await ensureBotInfoSynced(ship);
 
@@ -258,12 +278,40 @@ describe('ensureBotInfoSynced', () => {
     }
 
     // Blocked attempts are not counted against the cap, so the backfill still
-    // runs when sync settles.
+    // gets its full allowance once sync settles.
     updateSession({ phase: 'ready' });
     await ensureBotInfoSynced(ship);
 
     expect(api.syncUserProfiles).toHaveBeenCalledWith([ship]);
     expect(api.getContactProfile).toHaveBeenCalledWith(ship);
+
+    await ensureBotInfoSynced(ship);
+    await ensureBotInfoSynced(ship);
+    await ensureBotInfoSynced(ship);
+
+    expect(api.getContactProfile).toHaveBeenCalledTimes(3);
+  });
+
+  it('waits for authoritative contacts sync before trusting a cached false row', async () => {
+    // A present `isContact === false` row is no more authoritative than an
+    // absent one before sync settles: it can come from the stale localStorage
+    // snapshot, so the same phase gate applies.
+    updateSession({ phase: 'low' });
+    vi.mocked(db.getContact).mockResolvedValue(nonContactRow());
+
+    await ensureBotInfoSynced(ship);
+
+    expect(api.syncUserProfiles).not.toHaveBeenCalled();
+    expect(api.getContactProfile).not.toHaveBeenCalled();
+
+    // And the blocked attempt did not spend any of the cap.
+    updateSession({ phase: 'ready' });
+    await ensureBotInfoSynced(ship);
+    await ensureBotInfoSynced(ship);
+    await ensureBotInfoSynced(ship);
+    await ensureBotInfoSynced(ship);
+
+    expect(api.getContactProfile).toHaveBeenCalledTimes(3);
   });
 
   it('skips rows whose isContact is null or undefined (unknown, not proven non-contact)', async () => {
@@ -316,7 +364,7 @@ describe('ensureBotInfoSynced', () => {
     await ensureBotInfoSynced(ship);
     expect(api.getContactProfile).toHaveBeenCalledTimes(2);
 
-    // Switching account resets the per-session bookkeeping.
+    // Switching account starts a fresh budget; nothing else resets it.
     vi.mocked(api.getCurrentUserId).mockReturnValueOnce('~bus');
     await ensureBotInfoSynced(ship);
     expect(api.getContactProfile).toHaveBeenCalledTimes(3);

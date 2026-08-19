@@ -12,13 +12,13 @@ import {
   SELF_CONTACT_SCRY_PATH,
   type SelfContactRead,
   buildBotInfoJson,
-  defaultSleep,
   maybePublishBotInfo,
   publishBotInfo,
   readBotInfoValue,
   readSelfContact,
   syncBotInfo,
 } from './bot-info.js';
+import { defaultSleep } from './sleep.js';
 
 const infoValue = buildBotInfoJson({
   version: '0.19.0',

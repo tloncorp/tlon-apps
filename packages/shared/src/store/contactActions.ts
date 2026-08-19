@@ -18,8 +18,11 @@ const logger = createDevLogger('ContactActions', false);
 // for the bot's next republish could take weeks. %meet and fetch the ship's
 // full v1 profile on demand instead.
 const BOT_INFO_BACKFILL_MAX_ATTEMPTS = 3;
-// Session-scoped bookkeeping, keyed by `${currentUserId}:${ship}` so a
-// switched account starts fresh.
+// Process-lifetime bookkeeping, keyed by `${currentUserId}:${ship}` so a
+// switched account starts fresh. Nothing else resets it: a ship that burns
+// the cap (e.g. three fetches while offline) stays parked on the default
+// list until the next app start — accepted over resetting on some session
+// boundary, which is machinery for a self-healing cosmetic.
 const botInfoBackfillInFlight = new Set<string>();
 const botInfoBackfillAttempts = new Map<string, number>();
 
@@ -51,30 +54,37 @@ export async function ensureBotInfoSynced(ship: string): Promise<void> {
     if (domain.parseBotInfo(contact?.botInfo)) {
       return;
     }
-    if (contact) {
-      // A row we hold is backfillable only when it is known to be a
-      // non-contact (`isContact === false`, not merely null — the column is
-      // nullable and partial rows really occur, e.g. blocked-contact
-      // inserts). Anything less proves nothing about which writer made the
-      // row, and the bot may still be a contact-book entry, whose per-ship
-      // scry merges the user's own `mod` overlay and must never become the
-      // claim's source. Contact-book bots also already arrive lossless via
-      // the v1 /book sync.
-      if (contact.isContact !== false) {
-        return;
-      }
-    } else if (getSession()?.phase !== 'ready') {
-      // No row at all is the never-met bot this backfill exists for: the bulk
+    // A row we hold is backfillable only when it is known to be a
+    // non-contact (`isContact === false`, not merely null — the column is
+    // nullable and partial rows really occur, e.g. blocked-contact
+    // inserts). Anything less proves nothing about which writer made the
+    // row, and the bot may still be a contact-book entry, whose per-ship
+    // scry merges the user's own `mod` overlay and must never become the
+    // claim's source. Contact-book bots also already arrive lossless via
+    // the v1 /book sync.
+    if (contact && contact.isContact !== false) {
+      return;
+    }
+    if (getSession()?.phase !== 'ready') {
+      // Both ways of missing a claim need the initial contacts sync first. No
+      // row at all is the never-met bot this backfill exists for: the bulk
       // source (`/v1/directory`) omits peers whose profile the ship does not
       // hold, so such a bot never gets a row from sync. Absence only proves
       // "not in the contact book" once the initial contacts sync has run,
-      // though — before that everything is absent. The session phase is the
+      // though — before that everything is absent, and a present row's
+      // `isContact === false` is just as unverified, since it can come from
+      // the stale localStorage snapshot. The session phase is the
       // completion signal the store already keeps, and it covers both write
       // paths: contacts land in the high-priority phase, or (when a
       // localStorage snapshot deferred them) among the low-priority promises,
       // and both have finished by `ready`. Using it beats adding a
       // sync-progress mechanism; the residue it leaves — a sync that failed
       // outright still reaches `ready` — is bounded by the attempt cap below.
+      // No dedicated "contacts written" signal was added for that residue:
+      // contaminating a claim needs the user's own overlay to carry a
+      // `bot-info` key (no client writes one) *and* a partial sync failure,
+      // and `contact-uni` passes the base claim through whenever the overlay
+      // lacks the key — a cost the attempt cap already bounds.
       return;
     }
 
@@ -100,7 +110,7 @@ export async function ensureBotInfoSynced(ship: string): Promise<void> {
   }
 }
 
-/** Test-only: clear the session-scoped backfill bookkeeping. */
+/** Test-only: clear the process-lifetime backfill bookkeeping. */
 export function resetBotInfoBackfillState() {
   botInfoBackfillInFlight.clear();
   botInfoBackfillAttempts.clear();
