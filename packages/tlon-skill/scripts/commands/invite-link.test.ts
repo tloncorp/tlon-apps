@@ -198,7 +198,7 @@ describe('invite-link retrieval', () => {
     expect(context.calls.scryIdUrl).toEqual([FLAG]);
   });
 
-  it('mints when the scry is empty: enable, describe, then await', async () => {
+  it('mints when the scry is empty: describe, await, then enable', async () => {
     const context = makeDeps({ idUrl: '' });
 
     const exitCode = await run([FLAG], context.deps);
@@ -210,11 +210,29 @@ describe('invite-link retrieval', () => {
     expect(context.calls.awaitIdLink).toEqual([
       { flag: FLAG, timeoutMs: MINT_AWAIT_TIMEOUT_MS },
     ]);
-    const enableIdx = context.sequence.indexOf('enableGrouper');
+    // Enable comes only after a normalized link is in hand, so failed
+    // invocations leave no redemption side effect.
     const describeIdx = context.sequence.indexOf('describe');
     const awaitIdx = context.sequence.indexOf('awaitIdLink');
-    expect(enableIdx).toBeLessThan(describeIdx);
+    const enableIdx = context.sequence.indexOf('enableGrouper');
     expect(describeIdx).toBeLessThan(awaitIdx);
+    expect(awaitIdx).toBeLessThan(enableIdx);
+  });
+
+  it('does not enable grouper when the mint times out or normalization fails', async () => {
+    const timedOut = makeDeps({
+      idUrl: '',
+      awaitOutcomes: [{ ok: false, error: 'timeout' }],
+    });
+    expect(await run([FLAG], timedOut.deps)).toBe(1);
+    expect(timedOut.calls.enableGrouper).toEqual([]);
+
+    const badUrl = makeDeps({
+      idUrl: VALID_TOKEN_URL,
+      normalizeImpl: () => null,
+    });
+    expect(await run([FLAG], badUrl.deps)).toBe(1);
+    expect(badUrl.calls.enableGrouper).toEqual([]);
   });
 
   it('re-mints over a legacy flag-shaped token', async () => {

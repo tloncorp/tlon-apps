@@ -66,8 +66,9 @@ function ownerShipFromOpenClawConfig(
 export function resolveOwnerCredentials(
   input: OwnerCredentialsInput
 ): OwnerCredentialsResolution {
-  const rawOwnerShip = nonEmpty(input.env.TLON_OWNER_SHIP)
-    ? input.env.TLON_OWNER_SHIP
+  const envOwnerShip = input.env.TLON_OWNER_SHIP?.trim();
+  const rawOwnerShip = nonEmpty(envOwnerShip)
+    ? envOwnerShip
     : ownerShipFromOpenClawConfig(input);
 
   if (!rawOwnerShip) {

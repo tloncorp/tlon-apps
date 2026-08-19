@@ -273,10 +273,6 @@ export async function run(
 
     assertCanInvite(rawGroup, actingShip, parsed.flag);
 
-    // Token existence does not imply grouper state — redemption checks
-    // enabled-groups independently, so enable on every successful path.
-    await deps.enableGrouper(groupNameFromFlag(parsed.flag));
-
     const rawUrl = await deps.scryIdUrl(parsed.flag);
     const linkUrl = await resolveLinkUrl(rawUrl, parsed.flag, deps);
 
@@ -286,6 +282,13 @@ export async function run(
         `Invite service returned an unrecognized URL: ${linkUrl}`
       );
     }
+
+    // Token existence does not imply grouper state — redemption checks
+    // enabled-groups independently, so enable on every successful path. Only
+    // after a link is in hand: a failed invocation must not leave the
+    // redemption side effect behind. Printing comes last, so the link is
+    // redeemable the moment anyone has it.
+    await deps.enableGrouper(groupNameFromFlag(parsed.flag));
 
     writeLine(deps.stdout, normalized);
     writeLine(

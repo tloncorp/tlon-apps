@@ -131,6 +131,38 @@ describe('resolveOwnerCredentials', () => {
     expect(result.message).toContain('standard config paths');
   });
 
+  it('treats a whitespace-only TLON_OWNER_SHIP as unset', () => {
+    const result = resolveOwnerCredentials(
+      makeInput({
+        env: {
+          TLON_OWNER_SHIP: '   ',
+          TLON_OWNER_URL: 'https://ten.tlon.network',
+          TLON_PLANET_CODE: 'owner-code',
+        },
+      })
+    );
+
+    expect(result.kind).toBe('error');
+    if (result.kind !== 'error') return;
+    expect(result.message).toContain('TLON_OWNER_SHIP');
+  });
+
+  it('trims surrounding whitespace from TLON_OWNER_SHIP', () => {
+    const result = resolveOwnerCredentials(
+      makeInput({
+        env: {
+          TLON_OWNER_SHIP: '  ~ten  ',
+          TLON_OWNER_URL: 'https://ten.tlon.network',
+          TLON_PLANET_CODE: 'owner-code',
+        },
+      })
+    );
+
+    expect(result.kind).toBe('overrides');
+    if (result.kind !== 'overrides') return;
+    expect(result.ownerShip).toBe('ten');
+  });
+
   it('resolves the Hermes env triple to code overrides', () => {
     const result = resolveOwnerCredentials(
       makeInput({
