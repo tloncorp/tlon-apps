@@ -16,11 +16,6 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MOBILE_DIR="$(dirname "$SCRIPT_DIR")"
 REPO_ROOT="$(cd "$MOBILE_DIR/../.." && pwd)"
-# Main checkout root: in a linked worktree, git-common-dir points at the main
-# checkout's .git. ccache's base_dir must be a common parent of every worktree
-# for cross-worktree cache hits.
-MAIN_ROOT="$(dirname "$(cd "$REPO_ROOT" && git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)")"
-[ -z "$MAIN_ROOT" ] || [ "$MAIN_ROOT" = "." ] && MAIN_ROOT="$REPO_ROOT"
 
 PASS=0
 WARN=0
@@ -91,12 +86,6 @@ if command -v ccache > /dev/null 2>&1; then
       'add "apple.ccacheEnabled": "true" and re-run pod install'
   fi
 
-  if [ -z "${CCACHE_BASEDIR:-}" ]; then
-    warn "CCACHE_BASEDIR is unset — builds from different worktrees will not share cache hits" \
-      "export CCACHE_BASEDIR=\"$MAIN_ROOT\" (add to your shell profile)"
-  else
-    ok "CCACHE_BASEDIR=$CCACHE_BASEDIR"
-  fi
 else
   warn "ccache not installed — cold builds recompile everything every time" "brew install ccache"
 fi
@@ -122,6 +111,27 @@ case "${LANG:-}${LC_ALL:-}" in
   *) warn "no UTF-8 locale — pod install can crash with ASCII-8BIT unicode errors" \
     "export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8" ;;
 esac
+
+# --- Android --------------------------------------------------------------------
+echo
+echo "Android:"
+
+ANDROID_SDK="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+if [ -d "$ANDROID_SDK" ]; then
+  if [ -n "${ANDROID_HOME:-}" ]; then
+    ok "ANDROID_HOME=$ANDROID_HOME"
+  else
+    warn "ANDROID_HOME unset (SDK exists at $ANDROID_SDK)" "export ANDROID_HOME=\"$ANDROID_SDK\" in your shell profile"
+  fi
+else
+  warn "Android SDK not found — Android builds unavailable" "install via Android Studio"
+fi
+
+if command -v java > /dev/null 2>&1 || [ -x "/usr/libexec/java_home" ] && /usr/libexec/java_home > /dev/null 2>&1; then
+  ok "JDK available"
+else
+  warn "no JDK found" "brew install --cask zulu@17"
+fi
 
 # --- Disk ----------------------------------------------------------------------
 echo
