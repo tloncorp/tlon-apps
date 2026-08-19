@@ -16,6 +16,12 @@ export interface SignupParams {
   bootPhase: NodeBootPhase;
   userWasReadyAt?: number;
   onboardingFlow?: OnboardingFlow;
+  /**
+   * Kit chosen in onboarding's first interstitial, or undefined when the user
+   * took the "Something else" path. Consumed later to provision the workspace;
+   * absence means no starter rather than an error.
+   */
+  starterKitId?: string;
 }
 
 export type OnboardingFlow = 'signup' | 'tlonbotRevival';

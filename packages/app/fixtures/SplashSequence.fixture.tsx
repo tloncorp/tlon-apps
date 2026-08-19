@@ -4,6 +4,7 @@ import React, { useEffect, useMemo } from 'react';
 import { useValue } from 'react-cosmos/client';
 
 import { BotChatPreview } from '../ui/components/Wayfinding/BotChatPreview';
+import { PurposePane } from '../ui/components/Wayfinding/PurposePane';
 import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
 import {
   BotApiKeyPane,
@@ -20,6 +21,7 @@ import {
   TlonBotPane,
   WelcomePane,
 } from '../ui/components/Wayfinding/SplashSequence';
+import { defaultStarterOptionId } from '../ui/components/Wayfinding/starterOptions';
 import { FixtureWrapper } from './FixtureWrapper';
 import { initialSystemContacts } from './fakeData';
 
@@ -109,6 +111,30 @@ function WelcomePaneFixture() {
       <WelcomePane
         onActionPress={handleAction}
         hostingBotEnabled={hostingBotEnabled}
+      />
+    </FixtureWrapper>
+  );
+}
+
+function PurposePaneFixture() {
+  const [startUnselected] = useValue('Start With Nothing Selected', {
+    defaultValue: false,
+  });
+  const [selectedId, setSelectedId] = React.useState<string | undefined>(
+    defaultStarterOptionId
+  );
+
+  useEffect(() => {
+    setSelectedId(startUnselected ? undefined : defaultStarterOptionId());
+  }, [startUnselected]);
+
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <PurposePane
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        onActionPress={() => console.log('Purpose pane advanced:', selectedId)}
+        onSkipPress={() => console.log('Purpose pane skipped')}
       />
     </FixtureWrapper>
   );
@@ -424,6 +450,7 @@ export default {
   'Full Sequence': <SplashSequenceFixture />,
   'Invite Contacts': <InviteContactsFixture />,
   'Welcome Pane': <WelcomePaneFixture />,
+  'Purpose Pane': <PurposePaneFixture />,
   'Groups Pane': <GroupsPaneFixture />,
   'Channels Pane': <ChannelsPaneFixture />,
   'Privacy Pane': <PrivacyPaneFixture />,

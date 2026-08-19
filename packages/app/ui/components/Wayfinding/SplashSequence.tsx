@@ -54,7 +54,6 @@ import {
   YStack,
   getTokenValue,
   isWeb,
-  styled,
   useThemeName,
 } from 'tamagui';
 
@@ -78,7 +77,6 @@ import {
 } from '../../contexts/attachment';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import AttachmentSheet from '../AttachmentSheet';
-import { Badge } from '../Badge';
 import { Field, TextInput, TextInputRef } from '../Form';
 import { ListItem } from '../ListItem';
 import { OpenAISubscriptionAuthView } from '../OpenAISubscriptionAuthView';
@@ -87,6 +85,8 @@ import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
 import { BotChatPreview } from './BotChatPreview';
+import { PurposePane } from './PurposePane';
+import { SplashOptionCard } from './SplashOptionCard';
 import { TlonBotSetupPaneView } from './TlonBotSetupPaneView';
 import {
   BotCredentialOption,
@@ -98,6 +98,8 @@ import {
   initializeOpenAISubscriptionModels,
   resolveInitialProviderModel,
 } from './providerModelDefaults';
+import { SplashParagraph, SplashTitle } from './splashPrimitives';
+import { defaultStarterOptionId } from './starterOptions';
 import { useHomeGroupInviteLink } from './useHomeGroupInviteLink';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
@@ -111,10 +113,15 @@ import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
  * TlonBot revival delays Group → Invite until the revival setup wait finishes.
  *
  * Standard flow:
- *   Welcome → Group → Channels → Privacy → Invite
+ *   Welcome → Purpose → Group → Channels → Privacy → Invite
+ *
+ * Purpose is onboarding's first interstitial. The panes between it and
+ * Invite are on their way out — see the workspace onboarding plan — but they
+ * still carry real bot configuration, so they stay until settings can host it.
  */
 enum SplashPane {
   Welcome = 'Welcome',
+  Purpose = 'Purpose',
   Group = 'Group',
   Channels = 'Channels',
   Privacy = 'Privacy',
@@ -166,6 +173,9 @@ function SplashSequenceComponent(props: {
   const hostingBotEnabled =
     props.hostingBotEnabled || props.splashSequenceMode === 'tlonbotRevival';
   const isRevivalSplash = props.splashSequenceMode === 'tlonbotRevival';
+  const [starterKitId, setStarterKitId] = React.useState<string | undefined>(
+    defaultStarterOptionId
+  );
   const [botName, setBotName] = React.useState('');
   const [botAvatarUrl, setBotAvatarUrl] = React.useState<string | null>(
     DEFAULT_BOT_CONFIG.avatarUrl
@@ -802,6 +812,21 @@ function SplashSequenceComponent(props: {
     setCurrentPane(SplashPane.Group);
   }, []);
 
+  const handleStarterSelected = useCallback(
+    async (selectedId: string | undefined) => {
+      // Persisted rather than held in component state: signup mode has no
+      // pane-level resume, so this is the one piece of the answer that
+      // survives the app being killed mid-sequence. Interstitial 2 and
+      // background provisioning both read it from here.
+      await db.signupData.setValue((current) => ({
+        ...current,
+        starterKitId: selectedId,
+      }));
+      setCurrentPane(hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Group);
+    },
+    [hostingBotEnabled]
+  );
+
   const handleTlonbotGroupCompleted = useCallback(async () => {
     if (shouldDeferTlonbotSetup) {
       await db.tlonbotRevivalSetup.setValue((current) => ({
@@ -947,12 +972,17 @@ function SplashSequenceComponent(props: {
       <View flex={1}>
         {currentPane === SplashPane.Welcome && (
           <WelcomePane
-            onActionPress={() =>
-              setCurrentPane(
-                hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Group
-              )
-            }
+            onActionPress={() => setCurrentPane(SplashPane.Purpose)}
             hostingBotEnabled={hostingBotEnabled}
+          />
+        )}
+
+        {currentPane === SplashPane.Purpose && (
+          <PurposePane
+            selectedId={starterKitId}
+            onSelect={setStarterKitId}
+            onActionPress={() => handleStarterSelected(starterKitId)}
+            onSkipPress={() => handleStarterSelected(undefined)}
           />
         )}
 
@@ -1095,19 +1125,6 @@ function prejoinTlonbotRevivalWayfindingGroups() {
     });
   });
 }
-
-const SplashTitle = styled(Text, {
-  fontSize: '$xl',
-  fontWeight: '600',
-  marginHorizontal: '$xl',
-});
-
-const SplashParagraph = styled(Text, {
-  size: '$body',
-  marginHorizontal: '$xl',
-  marginBottom: '$2xl',
-  color: '$secondaryText',
-});
 
 export function WelcomePane(props: {
   onActionPress: () => void;
@@ -1561,7 +1578,7 @@ export function BotProviderPane(props: {
                   : 'Pick a provider, then enter your API key on the next screen.'}
             </SplashParagraph>
             {providers.map((option) => (
-              <ModelOptionCard
+              <SplashOptionCard
                 key={option.id}
                 testID={`bot-provider-option-${option.id}`}
                 option={{
@@ -1798,7 +1815,7 @@ export function BotModelPane(props: {
         >
           {visibleModels.length ? (
             visibleModels.map((m, index) => (
-              <ModelOptionCard
+              <SplashOptionCard
                 key={m.id}
                 testID={`bot-model-option-${index}`}
                 option={{ label: m.id, description: '' }}
@@ -2882,51 +2899,3 @@ const InviteCard = (props: ComponentProps<typeof View>) => {
     </View>
   );
 };
-
-function ModelOptionCard({
-  option,
-  selected,
-  onPress,
-  testID,
-}: {
-  option: {
-    label: string;
-    description?: string;
-    recommendationLabel?: string;
-  };
-  selected: boolean;
-  onPress: () => void;
-  testID?: string;
-}) {
-  return (
-    <Pressable testID={testID} onPress={onPress}>
-      <ListItem
-        backgroundColor={selected ? '$secondaryBackground' : '$background'}
-        borderWidth={1}
-        borderColor={selected ? '$primaryText' : '$border'}
-      >
-        <ListItem.MainContent>
-          <ListItem.Title color="$primaryText">{option.label}</ListItem.Title>
-          {option.recommendationLabel ? (
-            <Badge
-              text={option.recommendationLabel}
-              type="positive"
-              size="micro"
-              alignSelf="flex-start"
-              marginTop="$m"
-            />
-          ) : option.description ? (
-            <ListItem.Subtitle color="$secondaryText">
-              {option.description}
-            </ListItem.Subtitle>
-          ) : null}
-        </ListItem.MainContent>
-        {selected && (
-          <ListItem.EndContent>
-            <Icon type="Checkmark" color="$primaryText" />
-          </ListItem.EndContent>
-        )}
-      </ListItem>
-    </Pressable>
-  );
-}
