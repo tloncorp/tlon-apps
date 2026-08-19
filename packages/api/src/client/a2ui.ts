@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
 const ACTION_NAVIGATE = 'tlon.navigate';
-const ACTION_INVITE_LINK = 'tlon.inviteLink';
 const ACTION_PROVISION_AGENT = 'tlon.provisionAgent';
 const ACTION_CONFIGURE_AGENT_PROVIDERS = 'tlon.configureAgentProviders';
 
@@ -117,21 +116,6 @@ export namespace A2UI {
   };
 
   /**
-   * Hand the viewer the group's invite link.
-   *
-   * Carries no link of its own: the sender has no way to mint one (lures are
-   * created and read by the client), and a URL pasted into a transcript goes
-   * stale. The client resolves the current link for `groupId` when the
-   * control is used, so the card stays correct however long it sits there.
-   */
-  export type InviteLinkEvent = {
-    name: typeof ACTION_INVITE_LINK;
-    context: {
-      groupId: string;
-    };
-  };
-
-  /**
    * Finish the durable, message-by-message agent onboarding conversation.
    * The bot supplies only the choices already visible in the transcript; the
    * owner client binds them to its group, notebook, and local timezone before
@@ -167,7 +151,6 @@ export namespace A2UI {
     event:
       | SendMessageEvent
       | NavigateEvent
-      | InviteLinkEvent
       | ProvisionAgentEvent
       | ConfigureAgentProvidersEvent;
   };
@@ -280,39 +263,6 @@ export namespace A2UI {
     configureAction: ConfigureAgentProvidersAction;
   };
 
-  export type AgentOnboardingPurpose = {
-    id: string;
-    label: string;
-    description: string;
-    icon: ChoiceIcon;
-    accent: ChoiceAccent;
-    topics: SmallChoiceOption[];
-    /** Local wall-clock time used when summarizing the plan. */
-    scheduleHour: number;
-    scheduleMinute?: number;
-  };
-
-  /**
-   * The client-controlled agent onboarding wizard. All choices ship in one
-   * durable surface so advancing never requires another bot round trip.
-   */
-  export type AgentOnboarding = ComponentBase & {
-    component: 'AgentOnboarding';
-    purposes: AgentOnboardingPurpose[];
-    customTopicPlaceholder: string;
-    topicsSubmitLabel: string;
-    confirmLabel: string;
-  };
-
-  export type AgentOnboardingPlan = {
-    purposeId: string;
-    purpose: string;
-    topics: string[];
-    timezone: string;
-    scheduleHour: number;
-    scheduleMinute: number;
-  };
-
   export type Component =
     | Text
     | Container
@@ -321,8 +271,7 @@ export namespace A2UI {
     | Button
     | Choice
     | SmallChoice
-    | McpConnect
-    | AgentOnboarding;
+    | McpConnect;
 
   export type CreateSurfaceMessage = {
     version: 'v0.9';
@@ -372,7 +321,6 @@ const LIMITS = {
   maxChildren: 12,
   maxChoiceOptions: 6,
   maxSmallChoiceOptions: 12,
-  maxAgentOnboardingPurposes: 6,
   /** pills hold a word or two; a paragraph in one would break the layout */
   maxPillLabelLength: 64,
   maxTextNodeLength: 1000,
@@ -548,10 +496,6 @@ function validateButtonAction(action: unknown): action is A2UI.ButtonAction {
     return isPlainObject(context) && validateNavigationTarget(context.target);
   }
 
-  if (event.name === ACTION_INVITE_LINK) {
-    return isPlainObject(context) && isNonEmptyString(context.groupId);
-  }
-
   if (event.name === ACTION_PROVISION_AGENT) {
     return (
       isPlainObject(context) &&
@@ -670,56 +614,9 @@ function validateComponent(component: unknown): component is A2UI.Component {
         component.configureAction.event.name ===
           ACTION_CONFIGURE_AGENT_PROVIDERS
       );
-    case 'AgentOnboarding':
-      return validateAgentOnboarding(component);
     default:
       return false;
   }
-}
-
-function validateAgentOnboarding(
-  component: Record<string, unknown>
-): component is A2UI.AgentOnboarding {
-  return (
-    validOptionList(
-      component.purposes,
-      LIMITS.maxAgentOnboardingPurposes,
-      validateAgentOnboardingPurpose
-    ) &&
-    isShortLabel(component.customTopicPlaceholder) &&
-    isShortLabel(component.topicsSubmitLabel) &&
-    isShortLabel(component.confirmLabel)
-  );
-}
-
-function validateAgentOnboardingPurpose(
-  purpose: unknown
-): purpose is A2UI.AgentOnboardingPurpose {
-  if (!isPlainObject(purpose)) {
-    return false;
-  }
-  return (
-    isNonEmptyString(purpose.id) &&
-    isShortLabel(purpose.label) &&
-    isNonEmptyString(purpose.description) &&
-    purpose.description.length <= LIMITS.maxTextNodeLength &&
-    isValidChoiceIcon(purpose.icon) &&
-    purpose.icon !== undefined &&
-    isValidChoiceAccent(purpose.accent) &&
-    purpose.accent !== undefined &&
-    validOptionList(
-      purpose.topics,
-      LIMITS.maxSmallChoiceOptions,
-      validateSmallChoiceOption
-    ) &&
-    Number.isInteger(purpose.scheduleHour) &&
-    (purpose.scheduleHour as number) >= 0 &&
-    (purpose.scheduleHour as number) <= 23 &&
-    (purpose.scheduleMinute === undefined ||
-      (Number.isInteger(purpose.scheduleMinute) &&
-        (purpose.scheduleMinute as number) >= 0 &&
-        (purpose.scheduleMinute as number) <= 59))
-  );
 }
 
 function isShortLabel(value: unknown): value is string {
@@ -914,16 +811,6 @@ function indexComponents(
     } else if (component.component === 'McpConnect') {
       totalTextLength +=
         component.seeAllLabel.length + component.submitLabel.length;
-    } else if (component.component === 'AgentOnboarding') {
-      totalTextLength += component.customTopicPlaceholder.length;
-      totalTextLength += component.topicsSubmitLabel.length;
-      totalTextLength += component.confirmLabel.length;
-      for (const purpose of component.purposes) {
-        totalTextLength += purpose.label.length + purpose.description.length;
-        for (const topic of purpose.topics) {
-          totalTextLength += topic.label.length;
-        }
-      }
     }
   }
 
@@ -1077,7 +964,6 @@ export const A2UI = {
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
     navigate: ACTION_NAVIGATE,
-    inviteLink: ACTION_INVITE_LINK,
     provisionAgent: ACTION_PROVISION_AGENT,
     configureAgentProviders: ACTION_CONFIGURE_AGENT_PROVIDERS,
   },

@@ -273,69 +273,6 @@ describe('SmallChoice validation', () => {
   });
 });
 
-describe('AgentOnboarding validation', () => {
-  const onboarding = (over: Record<string, unknown> = {}) => ({
-    id: 'main',
-    component: 'AgentOnboarding',
-    purposes: [
-      {
-        id: 'briefing',
-        label: 'Daily briefing',
-        description: 'A useful report every morning.',
-        icon: 'ChannelNotebooks',
-        accent: 'blue',
-        topics: TOPICS,
-        scheduleHour: 9,
-        scheduleMinute: 30,
-      },
-    ],
-    customTopicPlaceholder: 'Another topic',
-    topicsSubmitLabel: 'Continue',
-    confirmLabel: 'Set it up',
-    ...over,
-  });
-
-  test('accepts the client-local onboarding surface', () => {
-    expect(valid(onboarding())).toBe(true);
-    expect(A2UI.validateBlobEntry(entryWith([onboarding()], 'main'))).toBe(
-      true
-    );
-  });
-
-  test.each([
-    ['no purposes', { purposes: [] }],
-    [
-      'duplicate purpose ids',
-      {
-        purposes: [
-          onboarding().purposes[0],
-          { ...onboarding().purposes[0], label: 'Other' },
-        ],
-      },
-    ],
-    [
-      'invalid schedule',
-      {
-        purposes: [{ ...onboarding().purposes[0], scheduleHour: 24 }],
-      },
-    ],
-    [
-      'duplicate topic ids',
-      {
-        purposes: [
-          {
-            ...onboarding().purposes[0],
-            topics: [TOPICS[0], { ...TOPICS[0], label: 'Other' }],
-          },
-        ],
-      },
-    ],
-    ['blank confirm label', { confirmLabel: ' ' }],
-  ])('rejects %s', (_name, over) => {
-    expect(valid(onboarding(over))).toBe(false);
-  });
-});
-
 describe('SmallChoice message building', () => {
   const component = smallChoice() as unknown as A2UI.SmallChoice;
   const withPrefix = smallChoice({
@@ -401,29 +338,6 @@ describe('SmallChoice message building', () => {
     expect(smallChoiceProbeMessage(withPrefix)).toBe(
       'Topics: Weather, News, Stocks'
     );
-  });
-});
-
-describe('inviteLink action', () => {
-  const button = (action: unknown) => [
-    { id: 'root', component: 'Column', children: ['b', 'l'] },
-    { id: 'b', component: 'Button', child: 'l', action },
-    { id: 'l', component: 'Text', text: 'Invite' },
-  ];
-
-  test('valid with a group id, rejected without one', () => {
-    const action = (context: unknown) => ({
-      event: { name: A2UI.action.inviteLink, context },
-    });
-    expect(
-      A2UI.validateBlobEntry(
-        entryWith(button(action({ groupId: '~ten/home-group' })))
-      )
-    ).toBe(true);
-    expect(
-      A2UI.validateBlobEntry(entryWith(button(action({ groupId: '' }))))
-    ).toBe(false);
-    expect(A2UI.validateBlobEntry(entryWith(button(action({}))))).toBe(false);
   });
 });
 

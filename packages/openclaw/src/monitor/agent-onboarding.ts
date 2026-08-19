@@ -115,8 +115,7 @@ const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
 const GROUP_INTRO_MESSAGE =
   "I'm your Tlonbot. I can keep you informed, help you learn, or follow a " +
   'question over time.';
-const FIRST_GROUP_PURPOSE_PICKER_PROMPT = 'What can I help you with?';
-const GROUP_PURPOSE_PICKER_PROMPT = 'What can I help you with?';
+const PURPOSE_PICKER_PROMPT = 'What can I help you with?';
 const ONBOARDING_ORIENTATION_PROMPT =
   'You’re all set. Is there anything else I can help you with?';
 const ONBOARDING_ORIENTATION_OPTIONS = [
@@ -427,9 +426,7 @@ async function postIntro(
   deps: AgentOnboardingDeps,
   presentation: OnboardingPresentation
 ) {
-  const purposePickerPrompt = request.isFirstGroup
-    ? FIRST_GROUP_PURPOSE_PICKER_PROMPT
-    : GROUP_PURPOSE_PICKER_PROMPT;
+  const purposePickerPrompt = PURPOSE_PICKER_PROMPT;
   const hadIntro = hasPostMarker(history, context.botShip, 'intro');
   await postOnce(
     context,
@@ -539,25 +536,6 @@ function purposeForReply(text: string): Purpose {
       topics: [],
     }
   );
-}
-
-function findPurposeReply(
-  history: TlonHistoryEntry[],
-  context: AgentOnboardingContext
-): Purpose | null {
-  const purposePrompt = markerPost(history, context.botShip, 'purpose-picker');
-  const topicsPrompt = markerPost(history, context.botShip, 'topics-picker');
-  if (!purposePrompt || !topicsPrompt || !context.ownerShip) return null;
-  const reply = history
-    .filter(
-      (entry) =>
-        entry.author === context.ownerShip &&
-        entry.timestamp >= purposePrompt.timestamp &&
-        entry.timestamp <= topicsPrompt.timestamp &&
-        entry.content.trim()
-    )
-    .sort((a, b) => b.timestamp - a.timestamp)[0];
-  return reply ? purposeForReply(reply.content) : null;
 }
 
 function markerPost(history: TlonHistoryEntry[], botShip: string, key: string) {
@@ -1648,44 +1626,6 @@ function buildTopicsPickerSurface(
   );
 }
 
-/*
- * Kept as a small compatibility surface for fixture and migration tests. New
- * onboarding posts each step separately so prior choices remain in history.
- */
-function buildOnboardingSurface(groupId: string): A2UI.BlobEntry {
-  return makeA2UIBlob(`agent-onboarding:${groupId}`, 'root', [
-    {
-      id: 'root',
-      component: 'AgentOnboarding',
-      purposes: PURPOSE_OPTIONS.map((purpose) => ({
-        ...purpose,
-        topics: purpose.topics.map((label) => ({
-          id: label.toLowerCase(),
-          label,
-        })),
-      })),
-      customTopicPlaceholder: 'Add your own…',
-      topicsSubmitLabel: 'That’s it',
-      confirmLabel: 'Set it up',
-    },
-  ]);
-}
-
-function buildInviteSurface(groupId: string) {
-  return makeA2UIBlob(`agent-invite:${groupId}`, 'root', [
-    { id: 'root', component: 'Column', children: ['invite'] },
-    {
-      id: 'invite',
-      component: 'Button',
-      child: 'invite-label',
-      action: {
-        event: { name: A2UI.action.inviteLink, context: { groupId } },
-      },
-    },
-    { id: 'invite-label', component: 'Text', text: 'Invite' },
-  ]);
-}
-
 /** The client fills this surface with its live Hosting MCP provider state. */
 function buildServicesSurface(
   pitch: string,
@@ -1746,8 +1686,6 @@ function buildOrientationSurface(groupId: string) {
 }
 
 export const agentOnboardingTesting = {
-  buildInviteSurface,
-  buildOnboardingSurface,
   buildOrientationSurface,
   buildRecurringPrompt,
   buildServicesSurface,

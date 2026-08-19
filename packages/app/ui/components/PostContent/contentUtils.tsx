@@ -37,9 +37,6 @@ export interface ContentContextProps {
   provisionedAgentTopics?: string[];
   consumedA2UIMessageText?: string;
   configuredAgentProviderIds?: string[];
-  onAgentOnboardingConfirm?: (
-    plan: A2UI.AgentOnboardingPlan
-  ) => void | Promise<void>;
   searchQuery?: string;
 }
 
