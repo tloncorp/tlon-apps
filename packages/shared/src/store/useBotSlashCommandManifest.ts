@@ -96,7 +96,7 @@ export const useBotSlashCommandManifest = (
 
   // The backfill only acts on a row with a *known* isContact value, so the
   // raw tri-state (true / false / null-or-absent) is a dependency: a
-  // fresh-start sync can settle the query before the v0 row exists, and both
+  // fresh-start sync can settle the query before the peer row exists, and both
   // the row's later insertion and a null → false transition have to re-trigger
   // the evaluation. Collapsing null and false here would swallow the latter.
   const hasContactRow = !!contact;

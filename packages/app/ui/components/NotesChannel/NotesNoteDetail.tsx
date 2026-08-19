@@ -263,6 +263,7 @@ export function NotesNoteDetail({
   const titleDraftRef = useRef(titleDraft);
   const bodyDraftRef = useRef(bodyDraft);
   const titleInputRef = useRef<TextInputRef>(null);
+  const autoFocusedTitleNoteIdRef = useRef<string | null>(null);
   const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
   const scrollViewRef = useRef<ElementRef<typeof ScrollView>>(null);
   const scrollOffsetYRef = useRef(0);
@@ -483,7 +484,17 @@ export function NotesNoteDetail({
   }, [draftBase, isDirty, preserveScrollOffset, selectedNote]);
 
   useEffect(() => {
-    if (!autoFocusTitle || !selectedNoteRowId || !canEdit) return;
+    if (!autoFocusTitle) {
+      autoFocusedTitleNoteIdRef.current = null;
+      return;
+    }
+    if (
+      !selectedNoteRowId ||
+      !canEdit ||
+      autoFocusedTitleNoteIdRef.current === selectedNoteRowId
+    ) {
+      return;
+    }
     if (isPreviewing) {
       // The title is a locked display field in preview mode, so renaming
       // needs the editor. Leaving preview re-runs this effect with the
@@ -492,6 +503,10 @@ export function NotesNoteDetail({
       return;
     }
     const timeout = setTimeout(() => {
+      // Mobile route params retain `focusTitle: true` for the lifetime of the
+      // detail screen. Consume the request here so later preview toggles don't
+      // get mistaken for another request to reopen the editor.
+      autoFocusedTitleNoteIdRef.current = selectedNoteRowId;
       titleInputRef.current?.focus();
       onTitleAutoFocused?.();
     });

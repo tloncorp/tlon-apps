@@ -11,10 +11,11 @@ import { syncGroup } from './sync/syncGroup';
 
 const logger = createDevLogger('ContactActions', false);
 
-// Cold-start backfill for bot identity claims (fresh install / DB reset): the
-// initial v0 `/all` peers scry strips the namespaced `bot-info` key, and
-// waiting for the bot's next republish could take weeks. Fetch the ship's full
-// v1 profile on demand instead.
+// First-contact backfill for bot identity claims. Bulk sync (`/v1/directory`)
+// carries the claim, but the directory only exports peers whose profile the
+// ship already holds — a bot this ship has never met has no entry, and waiting
+// for the bot's next republish could take weeks. %meet and fetch the ship's
+// full v1 profile on demand instead.
 const BOT_INFO_BACKFILL_MAX_ATTEMPTS = 3;
 // Session-scoped bookkeeping, keyed by `${currentUserId}:${ship}` so a
 // switched account starts fresh.

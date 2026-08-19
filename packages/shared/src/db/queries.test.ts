@@ -1,6 +1,7 @@
 import { QueryObserver } from '@tanstack/react-query';
-import { v0PeersToClientProfiles } from '@tloncorp/api';
+import { directoryToClientProfiles } from '@tloncorp/api';
 import { toClientGroupsV7 } from '@tloncorp/api';
+import type { ContactsDirectoryScryResult1 } from '@tloncorp/api/urbit/contact';
 import type * as ub from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -10,7 +11,7 @@ import { useDebugStore } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { syncContacts, syncInitData } from '../store/sync';
 import contactBookResponse from '../test/contactBook.json';
-import contactsResponse from '../test/contacts.json';
+import contactsDirectoryResponse from '../test/contactsDirectory.json';
 import groupsResponse from '../test/groups.json';
 import {
   getClient,
@@ -414,7 +415,9 @@ test('inserts contacts without overriding block data', async () => {
   const blockedUsers = await queries.getBlockedUsers();
   expect(blockedUsers.map((b) => b.id)).toEqual(blocks);
 
-  const contacts = v0PeersToClientProfiles(contactsResponse);
+  const contacts = directoryToClientProfiles(
+    contactsDirectoryResponse as unknown as ContactsDirectoryScryResult1
+  );
   // nocsyx and ravmel are in contacts, but blocked
   expect(
     contacts.filter(
@@ -426,12 +429,12 @@ test('inserts contacts without overriding block data', async () => {
     contacts.find((c) => c.id === '~fonrym-radfur-nocsyx-lassul')
   ).toBeFalsy();
   // insert contacts
-  await queries.insertContacts({ v0Peers: contacts });
+  await queries.insertContacts(contacts);
   const newBlockedUsers = await queries.getBlockedUsers();
   expect(newBlockedUsers.map((b) => b.id)).toEqual(blocks);
 });
 
-describe('insertContacts botInfo provenance', () => {
+describe('insertContacts botInfo', () => {
   const ship = '~bot-info-provenance';
   const claim = JSON.stringify({
     v: 1,
@@ -444,36 +447,22 @@ describe('insertContacts botInfo provenance', () => {
     version: '0.20.0',
   });
 
-  test('v0-sourced rows preserve an existing claim', async () => {
-    await queries.insertContacts({
-      v1Contacts: [{ id: ship, botInfo: claim }],
-    });
-    expect((await queries.getContact({ id: ship }))?.botInfo).toBe(claim);
-
-    // The lossy v0 /all scry carries no bot-info signal; re-syncing the
-    // same peer must not clobber the learned claim.
-    await queries.insertContacts({ v0Peers: [{ id: ship }] });
-    expect((await queries.getContact({ id: ship }))?.botInfo).toBe(claim);
-  });
-
-  test('v1-sourced rows replace an existing claim', async () => {
-    await queries.insertContacts({
-      v1Contacts: [{ id: ship, botInfo: claim }],
-    });
-    await queries.insertContacts({
-      v1Contacts: [{ id: ship, botInfo: updatedClaim }],
-    });
+  // Every bulk source is lossless since the /v1/directory migration, so
+  // insertContacts writes the column unconditionally: present replaces,
+  // absent clears. (The old v0 `/all` path required an exclusion-list guard
+  // here; it died with the endpoint.)
+  test('a synced row replaces an existing claim', async () => {
+    await queries.insertContacts([{ id: ship, botInfo: claim }]);
+    await queries.insertContacts([{ id: ship, botInfo: updatedClaim }]);
     expect((await queries.getContact({ id: ship }))?.botInfo).toBe(
       updatedClaim
     );
   });
 
-  test('v1-sourced rows clear the claim when the key is missing', async () => {
-    await queries.insertContacts({
-      v1Contacts: [{ id: ship, botInfo: claim }],
-    });
-    // The bot stopped advertising: the v1 fact arrives without the key.
-    await queries.insertContacts({ v1Contacts: [{ id: ship }] });
+  test('a synced row clears the claim when the key is missing', async () => {
+    await queries.insertContacts([{ id: ship, botInfo: claim }]);
+    // The bot stopped advertising: the row arrives without the key.
+    await queries.insertContacts([{ id: ship }]);
     expect((await queries.getContact({ id: ship }))?.botInfo).toBeNull();
   });
 
@@ -630,7 +619,7 @@ test('getMentionCandidates: returns candidates in priority order', async () => {
   setScryOutputs([initResponse]);
   await syncInitData();
   setScryOutputs([
-    contactsResponse,
+    contactsDirectoryResponse,
     contactBookResponse,
     suggestedContactsResponse,
   ]);
@@ -691,7 +680,7 @@ test('getMentionCandidates: limits results to 6', async () => {
   setScryOutputs([initResponse]);
   await syncInitData();
   setScryOutputs([
-    contactsResponse,
+    contactsDirectoryResponse,
     contactBookResponse,
     suggestedContactsResponse,
   ]);
@@ -2229,5 +2218,71 @@ describe('pins reordering (TLON-5948)', () => {
       await refetch;
       unsubscribe();
     });
+  });
+});
+
+describe('thread unreads by channel', () => {
+  const channelId = 'chat/~zod/thread-unread-contract';
+
+  function threadUnread(
+    threadId: string,
+    overrides: Partial<ThreadUnreadState> = {}
+  ): ThreadUnreadState {
+    return {
+      channelId,
+      threadId,
+      count: 1,
+      notify: false,
+      updatedAt: 1,
+      firstUnreadPostId: null,
+      firstUnreadPostReceivedAt: null,
+      ...overrides,
+    } as ThreadUnreadState;
+  }
+
+  // The channel-scoped thread-unread overlay keys its map on threadId and
+  // matches it against post ids, so these rows have to come back keyed that
+  // way. If this contract moves, the reply-summary dot silently stops
+  // resolving.
+  test('returns rows keyed by the parent post id', async () => {
+    await queries.insertThreadUnreads([threadUnread('parent-post-1')]);
+
+    const result = await queries.getThreadUnreadsByChannel({ channelId });
+
+    expect(result.map((u) => u.threadId)).toEqual(['parent-post-1']);
+    expect(result[0].count).toBe(1);
+  });
+
+  test('excludeRead drops threads with no unread activity', async () => {
+    await queries.insertThreadUnreads([
+      threadUnread('unread-thread', { count: 2 }),
+      threadUnread('read-thread', { count: 0, notify: false }),
+      threadUnread('notifying-thread', { count: 0, notify: true }),
+    ]);
+
+    const active = await queries.getThreadUnreadsByChannel({
+      channelId,
+      excludeRead: true,
+    });
+
+    // A read thread drops out entirely — which is why the overlay treats a
+    // missing entry as "no dot" rather than falling back to the post's own
+    // stale copy. A notifying row is kept but carries count 0, so it still
+    // renders no dot.
+    expect(active.map((u) => u.threadId).sort()).toEqual([
+      'notifying-thread',
+      'unread-thread',
+    ]);
+  });
+
+  test('scopes results to the requested channel', async () => {
+    await queries.insertThreadUnreads([
+      threadUnread('mine'),
+      threadUnread('theirs', { channelId: 'chat/~zod/other' }),
+    ]);
+
+    const result = await queries.getThreadUnreadsByChannel({ channelId });
+
+    expect(result.map((u) => u.threadId)).toEqual(['mine']);
   });
 });

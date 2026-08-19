@@ -11,22 +11,12 @@ import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('contactsApi', false);
 
-export interface ContactsData {
-  // Peers from the legacy v0 `/all` scry. Lossy: the v0 mark strips
-  // namespaced keys (e.g. `bot-info`), so these rows carry no signal
-  // about fields like the bot's identity claim.
-  v0Peers: db.Contact[];
-  // Contact-book entries from the v1 `/book` scry. Authoritative: full
-  // peer-published profile plus user overrides.
-  v1Contacts: db.Contact[];
-}
-
-export const getContactsByProvenance = async (): Promise<ContactsData> => {
-  // this is all peers we know about, with merged profile data for
-  // contacts
-  const peersResponse = await scry<ub.ContactRolodex>({
+export const getContacts = async () => {
+  // this is all peers and ship contacts we know about, with unmerged
+  // profile data
+  const directoryResponse = await scry<ub.ContactsDirectoryScryResult1>({
     app: 'contacts',
-    path: '/all',
+    path: '/v1/directory',
   });
 
   // this is all of your contacts, with unmerged profile data + user overrides
@@ -41,30 +31,25 @@ export const getContactsByProvenance = async (): Promise<ContactsData> => {
   });
 
   return toContactsData({
-    peersResponse: peersResponse,
+    directoryResponse: directoryResponse,
     contactsResponse: contactsResponse,
     suggestionsResponse: suggestionsResponse,
   });
 };
 
-export const getContacts = async (): Promise<db.Contact[]> => {
-  const { v0Peers, v1Contacts } = await getContactsByProvenance();
-  return [...v0Peers, ...v1Contacts];
-};
-
 export const toContactsData = ({
-  peersResponse,
+  directoryResponse,
   contactsResponse,
   suggestionsResponse,
 }: {
-  peersResponse: ub.ContactRolodex;
+  directoryResponse: ub.ContactsDirectoryScryResult1;
   contactsResponse: ub.ContactBookScryResult1;
   suggestionsResponse: string[];
-}): ContactsData => {
+}) => {
   const skipContacts = new Set(Object.keys(contactsResponse));
   const contactSuggestions = new Set(suggestionsResponse);
 
-  const peerProfiles = v0PeersToClientProfiles(peersResponse, {
+  const peerProfiles = directoryToClientProfiles(directoryResponse, {
     userIdsToOmit: skipContacts,
     contactSuggestions,
   });
@@ -72,7 +57,31 @@ export const toContactsData = ({
     contactSuggestions,
   });
 
-  return { v0Peers: peerProfiles, v1Contacts: contactProfiles };
+  return [...peerProfiles, ...contactProfiles];
+};
+
+export const directoryToClientProfiles = (
+  directory: ub.ContactsDirectoryScryResult1,
+  config?: {
+    userIdsToOmit?: Set<string>;
+    contactSuggestions?: Set<string>;
+  }
+): db.Contact[] => {
+  return Object.entries(directory)
+    .filter(
+      ([ship, entry]) =>
+        // a peer we know about but have no profile data for isn't a useful
+        // profile row (the legacy /all scry rendered these as null); their
+        // data arrives via /v1/news once it exists
+        Object.keys(entry.contact).length > 0 &&
+        (config?.userIdsToOmit ? !config.userIdsToOmit.has(ship) : true)
+    )
+    .map(([ship, entry]) =>
+      v1PeerToClientProfile(ship, entry.contact, {
+        isContact: false,
+        isContactSuggestion: config?.contactSuggestions?.has(ship),
+      })
+    );
 };
 
 export const removeContactSuggestion = async (contactId: string) => {
@@ -291,60 +300,9 @@ export const subscribeToContactUpdates = (
   );
 };
 
-// Used for converting the legacy contacts format to client representation.
-export const v0PeersToClientProfiles = (
-  contacts: ub.ContactRolodex,
-  config?: {
-    userIdsToOmit?: Set<string>;
-    contactSuggestions?: Set<string>;
-  }
-): db.Contact[] => {
-  return Object.entries(contacts)
-    .filter(([ship]) =>
-      config?.userIdsToOmit ? !config.userIdsToOmit.has(ship) : true
-    )
-    .flatMap(([ship, contact]) =>
-      contact === null
-        ? []
-        : [
-            v0PeerToClientProfile(ship, contact, {
-              isContactSuggestion: config?.contactSuggestions?.has(ship),
-            }),
-          ]
-    );
-};
-
-export const v0PeerToClientProfile = (
-  id: string,
-  contact: ub.Contact | null,
-  config?: {
-    isContactSuggestion?: boolean;
-  }
-): db.Contact => {
-  const currentUserId = getCurrentUserId();
-  return {
-    id,
-    peerNickname: contact?.nickname ?? null,
-    peerAvatarImage: contact?.avatar ?? null,
-    bio: contact?.bio ?? null,
-    status: contact?.status ?? null,
-    color: contact?.color ? normalizeUrbitColor(contact.color) : null,
-    coverImage: contact?.cover ?? null,
-    pinnedGroups:
-      contact?.groups?.map((groupId) => ({
-        groupId,
-        contactId: id,
-      })) ?? [],
-
-    attestations: parseContactAttestations(id, contact),
-    isContact: false,
-    isContactSuggestion: config?.isContactSuggestion && id !== currentUserId,
-  };
-};
-
 function parseContactAttestations(
   contactId: string,
-  contact?: ub.Contact | ub.ContactBookProfile | null
+  contact?: ub.ContactBookProfile | null
 ): db.ContactAttestation[] | null {
   if (!contact) {
     return null;
@@ -498,8 +456,9 @@ export const extractBotInfoValue = (field: unknown): string | null => {
 };
 
 // Fetch a single peer's full v1 contact profile. Used to backfill the
-// identity claim for bots, which the lossy v0 `/all` peers scry
-// strips. Returns null when the ship is unknown (404) or the scry fails.
+// identity claim for a bot this ship has never met — the bulk directory
+// scry only exports peers it already holds a profile for. Returns null
+// when the ship is unknown (404) or the scry fails.
 export const getContactProfile = async (
   ship: string
 ): Promise<db.Contact | null> => {

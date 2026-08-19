@@ -345,6 +345,43 @@ class TlonToolGuardTests(unittest.TestCase):
         self.assertIn("--parent <post-id>", platform_hint)
         self.assertIn("posts delete heap/~host/name <post-id>", platform_hint)
 
+    def test_tool_description_includes_latex_guidance(self):
+        description = tlon_tool.TLON_TOOL_DESCRIPTION
+
+        self.assertIn("Never use LaTeX math delimiters", description)
+        self.assertIn("$$...$$", description)
+        self.assertIn("\\(...\\)", description)
+        self.assertIn("\\[...\\]", description)
+        self.assertIn("plain text/Unicode", description)
+        self.assertIn("code blocks", description)
+
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, *_args, **_kwargs):
+                pass
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        context = RecordingContext()
+        adapter_mod.register(context)
+        platform_hint = context.platform["platform_hint"]
+
+        self.assertIn("Never use LaTeX math delimiters", platform_hint)
+        self.assertIn("$$...$$", platform_hint)
+        self.assertIn("\\(...\\)", platform_hint)
+        self.assertIn("\\[...\\]", platform_hint)
+        self.assertIn("plain text/Unicode", platform_hint)
+        self.assertIn("code blocks", platform_hint)
+
     def test_blocks_notebook(self):
         args, error = tlon_tool.split_tlon_command('notebook diary/~zod/notes "Title"')
         self.assertIsNone(error)

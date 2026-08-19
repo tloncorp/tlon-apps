@@ -188,9 +188,9 @@ describe('ensureBotInfoSynced', () => {
   });
 
   it('refreshes a stored value that does not parse as a claim', async () => {
-    // A v0 `/all` sync preserves whatever was there; if that value is stale
-    // junk, wrong-version or oversized, every reader treats it as no claim,
-    // so it must not pin the backfill off.
+    // A stored value can be stale junk (a bot published a malformed or
+    // wrong-version claim it has since fixed). Every reader treats it as no
+    // claim, so it must not pin the backfill off.
     for (const stored of [
       'not json',
       JSON.stringify({ v: 2, commands: [{ command: '/allow', title: 'A' }] }),

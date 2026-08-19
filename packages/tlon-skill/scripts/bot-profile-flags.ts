@@ -24,14 +24,30 @@ export function botProfileFlagIndex(args: string[]): number {
 }
 
 // `--bot` authors as a bot with a null profile. A usage error is returned for
-// `--bot=…` — the flag takes no value, so that is a mistyped flag rather than
-// message text, and refusing it beats silently posting it as content.
+// both value forms — `--bot=…` and `--bot <value>`. The flag takes no value, so
+// either is a mistyped flag rather than message text: `--bot=…` would otherwise
+// post as content, and a separated value is worse still, since the flag is a
+// message boundary and everything from it on is silently dropped.
 export function parseBotProfileFlags(args: string[]): ParsedBotProfileFlags {
   if (args.some((arg) => arg.startsWith('--bot='))) {
     return { ok: false };
   }
-  if (!args.includes('--bot')) {
+  const index = botProfileFlagIndex(args);
+  if (index === -1) {
     return { ok: true };
+  }
+  // A repeat is always a mistake, and it hides a value behind the second
+  // occurrence (`--bot --bot Botly`) where the first-match scan cannot see it.
+  if (args.indexOf('--bot', index + 1) !== -1) {
+    return { ok: false };
+  }
+  // Only a long option may follow. `--bot` is the message boundary, so a token
+  // after it is never message text — a bare word is a value the flag does not
+  // take, and a single-dash token (`-1`) is one wearing a minus sign. Both are
+  // silently dropped today, message and all.
+  const next = args[index + 1];
+  if (next !== undefined && !next.startsWith('--')) {
+    return { ok: false };
   }
   return { ok: true, botProfile: { nickname: null, avatar: null } };
 }

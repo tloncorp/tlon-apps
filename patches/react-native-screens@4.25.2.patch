@@ -1,0 +1,122 @@
+diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt
+index 10cd91b2867dcbbc125df0797740e9b79eceb335..a36837191e96f37dcf0285108d046d83a8463d23 100644
+--- a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/appearance/TabsAppearanceApplicator.kt
+@@ -14,11 +14,12 @@ import com.facebook.react.common.assets.ReactFontManager
+ import com.facebook.react.uimanager.PixelUtil
+ import com.google.android.material.R
+ import com.google.android.material.bottomnavigation.BottomNavigationView
++import com.google.android.material.navigation.NavigationBarItemView
+ import com.google.android.material.navigation.NavigationBarView
+ import com.swmansion.rnscreens.gamma.tabs.screen.TabsScreen
+ import com.swmansion.rnscreens.utils.resolveColorAttr
+ 
+-@SuppressLint("PrivateResource") // We want to use variables from material design for default values
++@SuppressLint("PrivateResource", "RestrictedApi")
+ internal class TabsAppearanceApplicator(
+     private val bottomNavigationView: BottomNavigationView,
+ ) {
+@@ -192,6 +193,10 @@ internal class TabsAppearanceApplicator(
+         if (menuItem.icon != targetIcon) {
+             menuItem.icon = targetIcon
+         }
++
++        bottomNavigationView
++            .findViewById<NavigationBarItemView>(menuItem.itemId)
++            .setIconTintList(if (tabsScreen.iconTinted) bottomNavigationView.itemIconTintList else null)
+     }
+ 
+     internal fun updateBadgeAppearance(
+diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreen.kt b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreen.kt
+index 24d107f6fe3e99aecf416a3f56ffe01e87a195e5..2c7fc987ebd4b94aadb2af5379de44b1c1765ce1 100644
+--- a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreen.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreen.kt
+@@ -87,6 +87,10 @@ class TabsScreen(
+         updateMenuItemAttributesIfNeeded(oldValue, newValue)
+     }
+ 
++    var iconTinted: Boolean by Delegates.observable(true) { _, oldValue, newValue ->
++        updateMenuItemAttributesIfNeeded(oldValue, newValue)
++    }
++
+     var selectedIcon: Drawable? by Delegates.observable(null) { _, oldValue, newValue ->
+         updateMenuItemAttributesIfNeeded(oldValue, newValue)
+     }
+diff --git a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreenViewManager.kt b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreenViewManager.kt
+index 60059b4c4ad08987b51f34ce77f79af48642d29b..36f011e06b808dddc98a78cc5b45d23612c0d816 100644
+--- a/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreenViewManager.kt
++++ b/android/src/main/java/com/swmansion/rnscreens/gamma/tabs/screen/TabsScreenViewManager.kt
+@@ -146,6 +146,13 @@ class TabsScreenViewManager :
+         }
+     }
+ 
++    override fun setImageIconTinted(
++        view: TabsScreen,
++        value: Boolean,
++    ) {
++        view.iconTinted = value
++    }
++
+     override fun setSelectedImageIconResource(
+         view: TabsScreen,
+         value: ReadableMap?,
+diff --git a/src/components/tabs/screen/TabsScreen.android.tsx b/src/components/tabs/screen/TabsScreen.android.tsx
+index df1f86aeed2a9a5173edff88a6dca0e5c0faaa04..fd28d9c88312258fb15fa6f8dd03743489d35b1e 100644
+--- a/src/components/tabs/screen/TabsScreen.android.tsx
++++ b/src/components/tabs/screen/TabsScreen.android.tsx
+@@ -135,6 +135,7 @@ function parseIconsToNativeProps(
+   selectedIcon: PlatformIconAndroid | undefined,
+ ): {
+   imageIconResource?: ImageResolvedAssetSource | undefined;
++  imageIconTinted?: boolean | undefined;
+   drawableIconResourceName?: string | undefined;
+   selectedImageIconResource?: ImageResolvedAssetSource | undefined;
+   selectedDrawableIconResourceName?: string | undefined;
+@@ -144,6 +145,7 @@ function parseIconsToNativeProps(
+ 
+   return {
+     imageIconResource: parsedIcon.imageIconResource,
++    imageIconTinted: parsedIcon.imageIconTinted,
+     drawableIconResourceName: parsedIcon.drawableIconResourceName,
+     selectedImageIconResource: parsedSelectedIcon.imageIconResource,
+     selectedDrawableIconResourceName:
+@@ -153,6 +155,7 @@ function parseIconsToNativeProps(
+ 
+ function parseIconToNativeProps(icon: PlatformIconAndroid | undefined): {
+   imageIconResource?: ImageResolvedAssetSource | undefined;
++  imageIconTinted?: boolean | undefined;
+   drawableIconResourceName?: string | undefined;
+ } {
+   if (!icon) {
+@@ -174,6 +177,7 @@ function parseIconToNativeProps(icon: PlatformIconAndroid | undefined): {
+       // ReadableMap. Passing `iconResource` directly will result in crash, because `require` API is returning
+       // double as a value.
+       imageIconResource: parsedIconResource || undefined,
++      imageIconTinted: icon.tinted !== false,
+     };
+   } else if (icon.type === 'drawableResource') {
+     return {
+diff --git a/src/fabric/tabs/TabsScreenAndroidNativeComponent.ts b/src/fabric/tabs/TabsScreenAndroidNativeComponent.ts
+index 104117271d4233be005e84a0391314772bf29e38..915e673ce4963e9c40f629560dd49cc0766afc5b 100644
+--- a/src/fabric/tabs/TabsScreenAndroidNativeComponent.ts
++++ b/src/fabric/tabs/TabsScreenAndroidNativeComponent.ts
+@@ -100,6 +100,7 @@ export interface NativeProps extends ViewProps {
+   // Image handling
+   drawableIconResourceName?: string | undefined;
+   imageIconResource?: ImageSource | undefined;
++  imageIconTinted?: CT.WithDefault<boolean, true>;
+   selectedDrawableIconResourceName?: string | undefined;
+   selectedImageIconResource?: ImageSource | undefined;
+ 
+diff --git a/src/types.tsx b/src/types.tsx
+index 76a83f3acb6fd3f0af7f027798848b7124100286..27ff339745aaad5f98d08bb24db4117b23000397 100644
+--- a/src/types.tsx
++++ b/src/types.tsx
+@@ -94,6 +94,7 @@ export type SearchBarPlacement =
+ export type PlatformIconShared = {
+   type: 'imageSource';
+   imageSource: ImageSourcePropType;
++  tinted?: boolean;
+ };
+ 
+ export type PlatformIconIOSSfSymbol = {

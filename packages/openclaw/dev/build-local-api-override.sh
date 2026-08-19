@@ -61,7 +61,7 @@ node --input-type=module -e '
     "removeReaction",
     "deletePost",
     "uploadFile",
-    "configureGatewayStatus",
+    "configureStewardGateway",
     "gatewayStart",
     "gatewayHeartbeat",
     "gatewayStop",
