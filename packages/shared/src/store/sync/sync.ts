@@ -34,7 +34,7 @@ import {
   partitionDiscoveryMatches,
 } from '../lanyardActions';
 import { useLureState } from '../lure';
-import { refreshNotesNotebookFromActivity } from '../notesActions';
+import { markNotesNotebookStale } from '../notesActions';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
 import { getSession, setSession, updateSession } from '../session';
@@ -1512,10 +1512,11 @@ const handleActivityUpdate = async (
   // body edit bumps the notebook's recency (and its channel unread) without
   // changing either count, and refetching the whole notebook on every
   // autosave isn't worth it. Deletions and folder changes carry no usable
-  // signal at all — those land when the snapshot ages out.
+  // signal at all — those land when the snapshot ages out. Marking rather
+  // than fetching keeps the work with whoever is displaying the counts.
   for (const event of activitySnapshot.activityEvents) {
     if (event.type === 'note-create' && event.channelId) {
-      refreshNotesNotebookFromActivity(event.channelId);
+      markNotesNotebookStale(event.channelId);
     }
   }
 

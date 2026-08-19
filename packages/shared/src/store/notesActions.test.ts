@@ -19,6 +19,7 @@ import {
   adoptNotebookNoteRemote,
   createNotebookNote,
   deleteNotebookNote,
+  markNotesNotebookStale,
   noteIsPublished,
   publishNotebookNote,
   saveNotebookNote,
@@ -1383,4 +1384,98 @@ test('warmNotesNotebookSnapshot fetches once when callers race', async () => {
   ]);
 
   expect(getNotebook).toHaveBeenCalledTimes(1);
+});
+
+test('syncNotesNotebook serializes concurrent refreshes of one notebook', async () => {
+  const inFlight: (() => void)[] = [];
+  let concurrent = 0;
+  let maxConcurrent = 0;
+
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listNotes').mockImplementation(() => {
+    concurrent += 1;
+    maxConcurrent = Math.max(maxConcurrent, concurrent);
+    return new Promise((resolve) =>
+      inFlight.push(() => {
+        concurrent -= 1;
+        resolve([]);
+      })
+    );
+  });
+
+  const first = syncNotesNotebook(notebookFlag);
+  const second = syncNotesNotebook(notebookFlag);
+  // only the first refresh may be fetching; the second waits its turn
+  await vi.waitFor(() => expect(inFlight).toHaveLength(1));
+  inFlight[0]();
+  await first;
+  await vi.waitFor(() => expect(inFlight).toHaveLength(2));
+  inFlight[1]();
+  await second;
+
+  expect(maxConcurrent).toBe(1);
+});
+
+test('syncNotesNotebook keeps serving the queue after a failed refresh', async () => {
+  vi.spyOn(api.notes, 'getNotebook')
+    .mockRejectedValueOnce(new Error('boom'))
+    .mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  const failed = syncNotesNotebook(notebookFlag);
+  const next = syncNotesNotebook(notebookFlag);
+
+  await expect(failed).rejects.toThrow('boom');
+  await expect(next).resolves.toMatchObject({ id: notebookFlag });
+});
+
+test('warmNotesNotebookSnapshot rethrows so the query can retry', async () => {
+  vi.spyOn(api.notes, 'getNotebook').mockRejectedValue(new Error('offline'));
+
+  await expect(warmNotesNotebookSnapshot(notebookFlag)).rejects.toThrow(
+    'offline'
+  );
+});
+
+test('markNotesNotebookStale makes the next warm refetch a fresh snapshot', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({
+      rootFolderId: rootFolder.folderId,
+      syncedAt: Date.now(),
+    }),
+    folders: [rootFolder],
+    notes: [],
+    members: [],
+  });
+
+  const getNotebook = vi
+    .spyOn(api.notes, 'getNotebook')
+    .mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  // a fresh snapshot alone is left alone
+  await warmNotesNotebookSnapshot(notebookFlag);
+  expect(getNotebook).not.toHaveBeenCalled();
+
+  markNotesNotebookStale(`notes/${notebookFlag}`);
+  // the mark is debounced, so poll past the debounce window
+  await vi.waitFor(
+    async () => {
+      await warmNotesNotebookSnapshot(notebookFlag);
+      expect(getNotebook).toHaveBeenCalled();
+    },
+    { timeout: 5000 }
+  );
 });

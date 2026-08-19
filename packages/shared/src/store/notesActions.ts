@@ -6,6 +6,7 @@ import { useEffect, useMemo } from 'react';
 import { trackEvent } from '../analytics';
 import * as db from '../db';
 import type { WrappedQuery } from '../db/query';
+import { queryClient } from '../db/reactQuery';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import {
@@ -46,16 +47,37 @@ function requireNotesNotebookFlag(flagInput: api.NotesFlag | string) {
   return { flag, parsed };
 }
 
+const notebookSnapshotChains = new Map<string, Promise<unknown>>();
+
+// Serializes snapshot refreshes per notebook. `saveNotesNotebookSnapshot`
+// replaces the notebook's rows wholesale, so two fetches in flight at once
+// can land out of order and regress the local copy — the older response
+// deletes rows it never saw. Every path that refreshes a notebook (the
+// stream handler, activity, the display-driven warm) goes through here, so
+// they queue behind each other instead of racing.
+function queueNotebookSnapshot<T>(flag: string, run: () => Promise<T>) {
+  const result = (notebookSnapshotChains.get(flag) ?? Promise.resolve()).then(
+    run
+  );
+  // the stored tail swallows failures: a caller whose refresh threw must not
+  // reject the next one, and nothing awaits the tail itself
+  notebookSnapshotChains.set(
+    flag,
+    result.catch(() => undefined)
+  );
+  return result;
+}
+
 export async function syncNotesNotebook(
   flagInput: api.NotesFlag | string,
   options: SyncNotesNotebookOptions = {}
 ) {
-  const { flag, snapshot } = await fetchNotesNotebookSnapshot(
-    flagInput,
-    options
-  );
-  await db.saveNotesNotebookSnapshot(snapshot);
-  return db.getNotesNotebookWithRelations({ notebookFlag: flag });
+  const { flag } = requireNotesNotebookFlag(flagInput);
+  return queueNotebookSnapshot(flag, async () => {
+    const { snapshot } = await fetchNotesNotebookSnapshot(flagInput, options);
+    await db.saveNotesNotebookSnapshot(snapshot);
+    return db.getNotesNotebookWithRelations({ notebookFlag: flag });
+  });
 }
 
 async function fetchNotesNotebookSnapshot(
@@ -132,16 +154,16 @@ async function fetchNotesNotebookSnapshot(
 }
 
 const warmingNotebooks = new Set<string>();
+const staleNotebooks = new Set<string>();
 
 // Revalidate a notebook's cached snapshot when something is displaying data
-// derived from it (e.g. the channel list's note/folder counts) and the cache
-// has aged out. Activity reports created notes, but %notes only streams to
-// an open notebook screen and only reports notes to %activity — folder
-// mutations, deletions, and changes we made from another device arrive
-// through nothing at all, so aging the cache out is the only way those
-// land. The in-flight slot is claimed before the first await, so callers
-// racing on the same notebook produce one fetch rather than several
-// snapshot saves landing out of order.
+// derived from it (e.g. the channel list's note/folder counts). Refetches
+// when activity marked the notebook stale, or when the cache has aged out —
+// %notes only streams to an open notebook screen and only reports notes to
+// %activity, so folder mutations, deletions, and changes we made from
+// another device reach us through nothing at all, and aging out is the only
+// way those land. Throws on failure so React Query retries rather than
+// treating a failed warm as five fresh minutes.
 export async function warmNotesNotebookSnapshot(
   flagInput: api.NotesFlag | string
 ) {
@@ -153,14 +175,15 @@ export async function warmNotesNotebookSnapshot(
   try {
     const cached = await db.getNotesNotebook({ notebookFlag: flag });
     if (
+      !staleNotebooks.has(flag) &&
       cached?.syncedAt &&
       Date.now() - cached.syncedAt < NOTES_SNAPSHOT_MAX_AGE
     ) {
       return;
     }
     await syncNotesNotebook(flag);
-  } catch (e) {
-    logger.error('Failed to warm notes notebook snapshot', flag, e);
+    // only once the refresh landed — a failed one must stay stale
+    staleNotebooks.delete(flag);
   } finally {
     warmingNotebooks.delete(flag);
   }
@@ -192,30 +215,37 @@ export function useWarmNotesNotebookSnapshot({
   });
 }
 
-const notebookActivityRefreshers = new Map<string, () => void>();
+const notebookStaleMarkers = new Map<string, () => void>();
 
-// Re-snapshot a notebook after activity told us its contents changed (see
-// the call site for which signals qualify). Debounced per notebook because
+// Activity told us a notebook's contents changed (see the call site for
+// which signals qualify). A snapshot is four requests plus a wholesale
+// local save, so don't fetch on the strength of the event alone: mark the
+// notebook stale and invalidate its warm query with `refetchType: 'active'`.
+// A notebook something is displaying refreshes right away; one nothing is
+// showing waits, and the stale mark makes the next row that mounts refetch
+// even though the cache still looks fresh. Debounced per notebook because
 // one change can arrive as a burst of events.
-export function refreshNotesNotebookFromActivity(channelId: string) {
+export function markNotesNotebookStale(channelId: string) {
   const flag = notesNotebookFlagFromChannelId(channelId);
   if (!flag) {
     return;
   }
-  let refresh = notebookActivityRefreshers.get(flag);
-  if (!refresh) {
-    refresh = debounce(
+  let mark = notebookStaleMarkers.get(flag);
+  if (!mark) {
+    mark = debounce(
       () => {
-        syncNotesNotebook(flag).catch((e) => {
-          logger.error('Failed to sync notes notebook from activity', e);
+        staleNotebooks.add(flag);
+        queryClient.invalidateQueries({
+          queryKey: ['notesSnapshotWarm', flag],
+          refetchType: 'active',
         });
       },
       NOTES_ACTIVITY_REFRESH_DEBOUNCE,
       { leading: false, trailing: true }
     );
-    notebookActivityRefreshers.set(flag, refresh);
+    notebookStaleMarkers.set(flag, mark);
   }
-  refresh();
+  mark();
 }
 
 async function ensureNotesNotebookJoined(flagInput: api.NotesFlag | string) {
