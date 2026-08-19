@@ -41,27 +41,21 @@
     "sync:native-navigation-icons": "node scripts/sync-native-navigation-icons.mjs",
     "check:native-navigation-icons": "node scripts/sync-native-navigation-icons.mjs --check",
     "format": "oxfmt .",
-    "format:check": "oxfmt --check ."
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint"
   },
   "dependencies": {
     "@tloncorp/ui": "workspace:*"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
-    "@typescript-eslint/eslint-plugin": "^7.7.1",
-    "@typescript-eslint/parser": "^7.7.1",
     "concurrently": "^8.2.2",
-    "eslint": "8.57.0",
-    "eslint-import-resolver-typescript": "^4.4.4",
-    "eslint-plugin-import-x": "^4.16.2",
-    "eslint-plugin-react": "^7.34.1",
-    "eslint-plugin-react-compiler": "19.1.0-rc.2",
-    "eslint-plugin-react-hooks": "^4.6.0",
     "lint-staged": "^15.0.0",
     "react-cosmos": "7.2.0",
     "tsup": "^8.0.1",
     "vitest": "^1.2.2",
-    "oxfmt": "^0.58.0"
+    "oxfmt": "^0.58.0",
+    "oxlint": "^1.73.0"
   },
   "engines": {
     "node": ">=22.0.0"
