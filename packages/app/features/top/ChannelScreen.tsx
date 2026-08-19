@@ -673,6 +673,7 @@ export default function ChannelScreen(props: Props) {
           selectedPostId={clearedCursor ? undefined : selectedPostId}
           goBack={navigationRef.current.goBack}
           disableBackButton={agentOnboarding.locked}
+          suppressEmptyState={agentOnboarding.locked}
           suppressAnimatedSendScroll={agentOnboarding.locked}
           pendingThinkingLabel={pendingThinkingLabel}
           goToPost={navigateToPost}
