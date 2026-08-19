@@ -127,7 +127,7 @@
   ;<  ~  b  setup
   ;<  ~  b  create
   ;<  caz=(list card)  b
-    (ask 0v7 [%begin-upload flag ~ 'private.pdf' 'application/pdf' 42 ~])
+    (ask 0v7 [%bucket flag [%begin-upload ~ 'private.pdf' 'application/pdf' 42 ~]])
   ;<  ~  b
     %+  ex-cards  caz
     :~  %+  grant-fact  0v7
@@ -160,21 +160,21 @@
   ;<  ~  b  setup
   ;<  ~  b  create
   ;<  caz=(list card)  b
-    (ask 0v8 [%begin-upload flag ~ 'empty.pdf' 'application/pdf' 0 ~])
+    (ask 0v8 [%bucket flag [%begin-upload ~ 'empty.pdf' 'application/pdf' 0 ~]])
   ;<  ~  b
     %+  ex-cards  caz
     :~  %+  grant-fact  0v8
         [%error %invalid-input 'file size must be greater than zero']
     ==
   ;<  caz2=(list card)  b
-    (ask 0v9 [%begin-upload flag ~ 'bad.pdf' 'pdf' 42 ~])
+    (ask 0v9 [%bucket flag [%begin-upload ~ 'bad.pdf' 'pdf' 42 ~]])
   ;<  ~  b
     %+  ex-cards  caz2
     :~  %+  grant-fact  0v9
         [%error %invalid-input 'missing or malformed content type']
     ==
   ;<  caz3=(list card)  b
-    (ask 0v10 [%begin-upload flag `99 'orphan.pdf' 'application/pdf' 42 ~])
+    (ask 0v10 [%bucket flag [%begin-upload `99 'orphan.pdf' 'application/pdf' 42 ~]])
   ;<  ~  b
     %+  ex-cards  caz3
     :~  %+  grant-fact  0v10
@@ -195,12 +195,12 @@
   =/  url=@t  'https://storage.googleapis.com/tlon-test-memex-assets/meadow.png'
   ;<  ~  b  setup
   ;<  ~  b  create
-  ;<  *  b  (ask 0v1 [%create-folder flag ~ 'Launch'])
-  ;<  *  b  (ask 0v2 [%begin-upload flag `2 'meadow.png' 'image/png' 2.048 ~])
+  ;<  *  b  (ask 0v1 [%bucket flag [%create-folder ~ 'Launch']])
+  ;<  *  b  (ask 0v2 [%bucket flag [%begin-upload `2 'meadow.png' 'image/png' 2.048 ~]])
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
   =/  ses=upload-session:bu  (only-session st)
-  ;<  *  b  (ask 0v3 [%finish-upload flag id.ses url])
+  ;<  *  b  (ask 0v3 [%bucket flag [%finish-upload id.ses url]])
   ;<  sv2=vase  b  get-save
   =/  st2=state-0:bu  !<(state-0:bu sv2)
   =/  bs2=bucket-state:bu  (state-for st2 flag)
@@ -222,7 +222,7 @@
   =/  rid=@t  '00000000-0000-0000-0000-000000000001'
   ;<  ~  b  setup
   ;<  ~  b  create
-  ;<  *  b  (ask 0v1 [%begin-upload flag ~ 'private.pdf' 'application/pdf' 42 ~])
+  ;<  *  b  (ask 0v1 [%bucket flag [%begin-upload ~ 'private.pdf' 'application/pdf' 42 ~]])
   ;<  *  b
     (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload seed-token rid]))
   ;<  upload-cage=cage  b
@@ -270,7 +270,7 @@
   =/  rid=@t  '00000000-0000-0000-0000-000000000002'
   ;<  ~  b  setup
   ;<  ~  b  create
-  ;<  *  b  (ask 0v1 [%begin-upload flag ~ 'private.pdf' 'application/pdf' 42 ~])
+  ;<  *  b  (ask 0v1 [%bucket flag [%begin-upload ~ 'private.pdf' 'application/pdf' 42 ~]])
   ;<  *  b
     (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload seed-token rid]))
   ;<  sv=vase  b  get-save
@@ -284,7 +284,7 @@
     (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
   ::  A fresh eny so the read token differs from the upload session id.
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v5678)))
-  ;<  read-caz=(list card)  b  (ask 0v2 [%issue-read flag id.entry.ses])
+  ;<  read-caz=(list card)  b  (ask 0v2 [%bucket flag [%issue-read id.entry.ses]])
   =/  read-token=@t  (scot %uv 0v5678)
   ;<  ~  b
     %+  ex-cards  read-caz
@@ -316,11 +316,11 @@
   =/  rid=@t  '00000000-0000-0000-0000-000000000003'
   ;<  ~  b  setup
   ;<  ~  b  create
-  ;<  *  b  (ask 0v1 [%begin-upload flag ~ 'private.pdf' 'application/pdf' 42 ~])
+  ;<  *  b  (ask 0v1 [%bucket flag [%begin-upload ~ 'private.pdf' 'application/pdf' 42 ~]])
   ;<  *  b
     (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload seed-token rid]))
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(now ~2026.1.2, eny 0v9999)))
-  ;<  *  b  (ask 0v2 [%begin-upload flag ~ 'later.pdf' 'application/pdf' 7 ~])
+  ;<  *  b  (ask 0v2 [%bucket flag [%begin-upload ~ 'later.pdf' 'application/pdf' 7 ~]])
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
   %+  ex-equal
@@ -338,7 +338,7 @@
   =/  m  (mare ,~)
   =*  b  bind:m
   ^-  form:m
-  =/  act=action:bu  [%create-folder flag ~ 'Launch']
+  =/  act=action:bu  [%bucket flag [%create-folder ~ 'Launch']]
   ;<  ~  b  (setup-as ~bus)
   ;<  *  b
     (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
@@ -404,7 +404,7 @@
   ;<  caz=(list card)  b
     %-  (do-as ~bus)
     %+  do-poke  %buckets-command-1
-    !>(`command:bu`[0v5 [%create-folder flag ~ 'Launch']])
+    !>(`command:bu`[0v5 [%bucket flag [%create-folder ~ 'Launch']]])
   %+  ex-cards  caz
   :~  %-  ex-fact
       :*  ~[/v1/request/~bus/0v5]
@@ -427,7 +427,7 @@
   ;<  *  b
     %-  (do-as ~bus)
     %+  do-poke  %buckets-command-1
-    !>(`command:bu`[0v6 [%create-folder flag ~ 'Launch']])
+    !>(`command:bu`[0v6 [%bucket flag [%create-folder ~ 'Launch']]])
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
   =/  bs=bucket-state:bu  (state-for st flag)
@@ -534,7 +534,7 @@
   ^-  form:m
   ;<  ~  b  setup
   ;<  ~  b  create
-  ;<  *  b  (ask 0v1 [%create-folder flag ~ 'Launch'])
+  ;<  *  b  (ask 0v1 [%bucket flag [%create-folder ~ 'Launch']])
   ;<  before=vase  b  get-save
   ;<  *  b  (do-load buckets-agent `before)
   ;<  after=vase  b  get-save

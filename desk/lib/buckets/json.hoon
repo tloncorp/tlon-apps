@@ -77,35 +77,41 @@
     ==
   ::
   ++  update
-    |=  upd=update:b
+    |=  upd=u-bucket:b
     ^-  json
     ?-  -.upd
-        %bucket-created
+        %create
       (pairs ~[['type' s+'bucket-created'] ['bucket' (bucket bucket.upd)]])
     ::
-        %bucket-deleted
+        %delete
       (pairs ~[['type' s+'bucket-deleted']])
     ::
-        %bucket-updated
+        %meta
       (pairs ~[['type' s+'bucket-updated'] ['bucket' (bucket bucket.upd)]])
     ::
-        %readers-updated
+        %readers
       =/  roles=(list json)
         %+  turn  ~(tap in readers.upd)
         |=(role=@tas s+(scot %tas role))
       (pairs ~[['type' s+'readers-updated'] ['readers' [%a roles]]])
     ::
-        %writers-updated
+        %writers
       =/  roles=(list json)
         %+  turn  ~(tap in writers.upd)
         |=(role=@tas s+(scot %tas role))
       (pairs ~[['type' s+'writers-updated'] ['writers' [%a roles]]])
     ::
-        %entry-created
-      (pairs ~[['type' s+'entry-created'] ['entry' (entry entry.upd)]])
-    ::
-        %entry-updated
-      (pairs ~[['type' s+'entry-updated'] ['entry' (entry entry.upd)]])
+        %entry
+      =/  typ=@t
+        ?-  -.u-entry.upd
+          %create  'entry-created'
+          %update  'entry-updated'
+        ==
+      %-  pairs
+      :~  ['type' s+typ]
+          ['id' (numb id.upd)]
+          ['entry' (entry entry.u-entry.upd)]
+      ==
     ::
         %entries-deleted
       =/  ids=(list json)  (turn ids.upd numb)
@@ -159,8 +165,7 @@
       :~  ['type' s+'update']
           ['flag' (flag flag.res)]
           ['revision' (numb revision.res)]
-          ['actor' s+(scot %p actor.res)]
-          ['update' (update update.res)]
+          ['update' (update u-bucket.res)]
       ==
     ==
   ::
@@ -230,13 +235,16 @@
     :-  ((se %uv) (get 'requestId' jon))
     (action jon)
   ::
+  ::  +action: the client's JSON stays flat — one "type" plus its fields — and
+  ::  is folded into the nested $a-buckets envelope here rather than making
+  ::  every caller construct it.
+  ::
   ++  action
     |=  jon=json
     ^-  action:b
     ?>  ?=([%o *] jon)
     =/  typ=@t  (so (get 'type' jon))
-    ?+  typ  ~|(unknown-buckets-action+typ !!)
-        %'create'
+    ?:  =(%'create' typ)
       :*  %create
           (knot (so (get 'name' jon)))
           (so (get 'title' jon))
@@ -244,38 +252,21 @@
           (readers (get 'readers' jon))
           (readers (get 'writers' jon))
       ==
-    ::
-        %'delete-bucket'
-      [%delete-bucket (flag (get 'flag' jon))]
-    ::
-        %'set-title'
-      :*  %set-title
-          (flag (get 'flag' jon))
-          (so (get 'title' jon))
-      ==
-    ::
-        %'set-readers'
-      :*  %set-readers
-          (flag (get 'flag' jon))
-          (readers (get 'readers' jon))
-      ==
-    ::
-        %'set-writers'
-      :*  %set-writers
-          (flag (get 'flag' jon))
-          (readers (get 'writers' jon))
-      ==
+    :+  %bucket  (flag (get 'flag' jon))
+    ?+  typ  ~|(unknown-buckets-action+typ !!)
+        %'delete-bucket'  [%delete ~]
+        %'set-title'      [%set-title (so (get 'title' jon))]
+        %'set-readers'    [%set-readers (readers (get 'readers' jon))]
+        %'set-writers'    [%set-writers (readers (get 'writers' jon))]
     ::
         %'create-folder'
       :*  %create-folder
-          (flag (get 'flag' jon))
           (maybe-ud 'parentId' jon)
           (so (get 'name' jon))
       ==
     ::
         %'begin-upload'
       :*  %begin-upload
-          (flag (get 'flag' jon))
           (maybe-ud 'parentId' jon)
           (so (get 'name' jon))
           (so (get 'mime' jon))
@@ -285,50 +276,30 @@
     ::
         %'finish-upload'
       :*  %finish-upload
-          (flag (get 'flag' jon))
           ((se %uv) (get 'sessionId' jon))
           (so (get 'objectUrl' jon))
       ==
     ::
         %'fail-upload'
       :*  %fail-upload
-          (flag (get 'flag' jon))
           ((se %uv) (get 'sessionId' jon))
           (so (get 'reason' jon))
       ==
     ::
-        %'issue-read'
-      :*  %issue-read
-          (flag (get 'flag' jon))
-          (ni (get 'id' jon))
-      ==
-    ::
-        %'issue-delete'
-      :*  %issue-delete
-          (flag (get 'flag' jon))
-          (ni (get 'id' jon))
-      ==
+        %'issue-read'    [%issue-read (ni (get 'id' jon))]
+        %'issue-delete'  [%issue-delete (ni (get 'id' jon))]
     ::
         %'rename-entry'
-      :*  %rename-entry
-          (flag (get 'flag' jon))
-          (ni (get 'id' jon))
-          (so (get 'name' jon))
-      ==
+      :+  %entry  (ni (get 'id' jon))
+      [%rename (so (get 'name' jon))]
     ::
         %'move-entry'
-      :*  %move-entry
-          (flag (get 'flag' jon))
-          (ni (get 'id' jon))
-          (maybe-ud 'parentId' jon)
-      ==
+      :+  %entry  (ni (get 'id' jon))
+      [%move (maybe-ud 'parentId' jon)]
     ::
         %'delete-entry'
-      :*  %delete-entry
-          (flag (get 'flag' jon))
-          (ni (get 'id' jon))
-          (bo (get 'recursive' jon))
-      ==
+      :+  %entry  (ni (get 'id' jon))
+      [%delete (bo (get 'recursive' jon))]
     ==
   --
 --

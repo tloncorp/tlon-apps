@@ -118,11 +118,11 @@
       %buckets-action-1
     ?>  =(src.bowl our.bowl)
     =+  cmd=!<(command:b vase)
-    (dispatch-local request-id.cmd action.cmd)
+    (dispatch-local request-id.cmd act.cmd)
   ::
       %buckets-command-1
     =+  cmd=!<(command:b vase)
-    (dispatch-remote request-id.cmd action.cmd)
+    (dispatch-remote request-id.cmd act.cmd)
   ::
       %buckets-broker-command-1
     ?>  =(src.bowl our.bowl)
@@ -149,10 +149,11 @@
 ::  if we host the bucket, otherwise forward it to the host and wait.
 ::
 ++  dispatch-local
-  |=  [rid=request-id:b act=action:b]
+  |=  [rid=request-id:b act=a-buckets:b]
   ^+  cor
   =/  paths=(list path)  ~[/v1/requests]
-  ?:  ?=(%create -.act)
+  ?-  -.act
+      %create
     ?.  ?=(%duke (clan:title ship.group.act))
       (deny rid paths %invalid-input 'only a planet may host a bucket')
     ?.  (group-is-admin-for-create group.act our.bowl)
@@ -162,25 +163,28 @@
     =.  cor
       (create-bucket name.act title.act group.act readers.act writers.act our.bowl)
     (settle rid paths)
-  =/  =flag:b  (action-flag act)
-  ?~  sp=(~(get by spaces) flag)
-    (deny rid paths %not-found 'no such bucket')
-  ?.  =(%pub net.u.sp)
-    (forward rid act ship.flag)
-  =/  st=bucket-state:b  (need-state flag)
-  ?.  (action-authorized st flag our.bowl act)
-    (deny rid paths %not-authorized 'not authorized for this bucket')
-  =.  cor  (apply-action act)
-  (settle rid paths)
+  ::
+      %bucket
+    ?~  sp=(~(get by spaces) flag.act)
+      (deny rid paths %not-found 'no such bucket')
+    ?.  =(%pub net.u.sp)
+      (forward rid act ship.flag.act)
+    =/  st=bucket-state:b  (need-state flag.act)
+    ?.  (action-authorized st flag.act our.bowl a-bucket.act)
+      (deny rid paths %not-authorized 'not authorized for this bucket')
+    =.  cor  (apply-bucket flag.act a-bucket.act our.bowl)
+    (settle rid paths)
+  ==
 ::
 ::  +dispatch-remote: a subscriber forwarded a command to us as host. The
 ::  actor is src.bowl; the answer goes back on that ship's request path.
 ::
 ++  dispatch-remote
-  |=  [rid=request-id:b act=action:b]
+  |=  [rid=request-id:b act=a-buckets:b]
   ^+  cor
   =/  paths=(list path)  ~[(host-req-path src.bowl rid)]
-  ?:  ?=(%create -.act)
+  ?-  -.act
+      %create
     ?>  =(ship.group.act our.bowl)
     ?.  ?=(%duke (clan:title ship.group.act))
       (deny rid paths %invalid-input 'only a planet may host a bucket')
@@ -189,21 +193,23 @@
     =.  cor
       (create-bucket name.act title.act group.act readers.act writers.act src.bowl)
     (settle rid paths)
-  =/  =flag:b  (action-flag act)
-  ?>  =(ship.flag our.bowl)
-  ?~  sp=(~(get by spaces) flag)
-    (deny rid paths %not-found 'no such bucket')
-  =/  st=bucket-state:b  (need-state flag)
-  ?.  (action-authorized st flag src.bowl act)
-    (deny rid paths %not-authorized 'not authorized for this bucket')
-  =.  cor  (apply-action act)
-  (settle rid paths)
+  ::
+      %bucket
+    ?>  =(ship.flag.act our.bowl)
+    ?~  sp=(~(get by spaces) flag.act)
+      (deny rid paths %not-found 'no such bucket')
+    =/  st=bucket-state:b  (need-state flag.act)
+    ?.  (action-authorized st flag.act src.bowl a-bucket.act)
+      (deny rid paths %not-authorized 'not authorized for this bucket')
+    =.  cor  (apply-bucket flag.act a-bucket.act src.bowl)
+    (settle rid paths)
+  ==
 ::
 ::  +forward: hand a command to the authoritative host, subscribe for its
 ::  answer, and arm a timeout so a silent host can't strand the client.
 ::
 ++  forward
-  |=  [rid=request-id:b act=action:b host=ship]
+  |=  [rid=request-id:b act=a-buckets:b host=ship]
   ^+  cor
   =/  until=@da  (add now.bowl request-timeout)
   =.  pending  (~(put by pending) rid [host until])
@@ -289,26 +295,6 @@
   ?~  got  cor
   (emit [%pass (req-wake-wire host rid) %arvo %b %rest until.u.got])
 ::
-++  action-flag
-  |=  act=action:b
-  ^-  flag:b
-  ?-  -.act
-    %create          ~|(%create-has-no-flag !!)
-    %delete-bucket   flag.act
-    %set-title       flag.act
-    %set-readers     flag.act
-    %set-writers     flag.act
-    %create-folder   flag.act
-    %begin-upload    flag.act
-    %finish-upload   flag.act
-    %fail-upload     flag.act
-    %issue-read      flag.act
-    %issue-delete    flag.act
-    %rename-entry    flag.act
-    %move-entry      flag.act
-    %delete-entry    flag.act
-  ==
-::
 ++  need-space
   |=  =flag:b
   ^-  space:b
@@ -363,28 +349,37 @@
       %poke  group-action-4+!>(add)
   ==
 ::
-++  apply-action
-  |=  act=action:b
+::  +apply-bucket: run one verb against a bucket we host. The flag and the
+::  actor come from the envelope rather than from the payload.
+::
+++  apply-bucket
+  |=  [=flag:b act=a-bucket:b actor=ship]
   ^+  cor
   ?-  -.act
-    %create          ~|(%cannot-forward-create !!)
-    %delete-bucket   (delete-bucket flag.act)
-    %set-title       (set-title flag.act title.act)
-    %set-readers     (set-readers flag.act readers.act)
-    %set-writers     (set-writers flag.act writers.act)
-    %create-folder   (create-folder flag.act parent.act name.act)
-    %begin-upload    (begin-upload flag.act parent.act name.act mime.act size.act checksum.act)
-    %finish-upload   (finish-upload flag.act session.act object-url.act)
-    %fail-upload     (fail-upload flag.act session.act reason.act)
-    %issue-read      (issue-object-capability %read flag.act id.act)
-    %issue-delete    (issue-object-capability %delete flag.act id.act)
-    %rename-entry    (rename-entry flag.act id.act name.act)
-    %move-entry      (move-entry flag.act id.act parent.act)
-    %delete-entry    (delete-entry flag.act id.act recursive.act)
+    %delete         (delete-bucket flag actor)
+    %set-title      (set-title flag title.act actor)
+    %set-readers    (set-readers flag readers.act actor)
+    %set-writers    (set-writers flag writers.act actor)
+    %create-folder  (create-folder flag parent.act name.act actor)
+    %begin-upload   (begin-upload flag parent.act name.act mime.act size.act checksum.act actor)
+    %finish-upload  (finish-upload flag session.act object-url.act actor)
+    %fail-upload    (fail-upload flag session.act reason.act actor)
+    %issue-read     (issue-object-capability %read flag id.act actor)
+    %issue-delete   (issue-object-capability %delete flag id.act actor)
+    %entry          (apply-entry flag id.act a-entry.act actor)
+  ==
+::
+++  apply-entry
+  |=  [=flag:b id=@ud act=a-entry:b actor=ship]
+  ^+  cor
+  ?-  -.act
+    %rename  (rename-entry flag id name.act actor)
+    %move    (move-entry flag id parent.act actor)
+    %delete  (delete-entry flag id recursive.act actor)
   ==
 ::
 ++  delete-bucket
-  |=  =flag:b
+  |=  [=flag:b actor=ship]
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
   =/  del=group-channel-del:b
@@ -396,36 +391,36 @@
         %poke  group-action-4+!>(del)
     ==
   =/  res=response:b
-    [%update flag +(revision.st) src.bowl [%bucket-deleted ~]]
+    [%update flag +(revision.st) [%delete ~]]
   =.  cor  (give [%fact ~[/v1 (updates-path flag)] buckets-response-1+!>(res)])
   =.  sessions  (drop-bucket-sessions flag)
   =.  spaces  (~(del by spaces) flag)
   cor
 ::
 ++  set-title
-  |=  [=flag:b title=@t]
+  |=  [=flag:b title=@t actor=ship]
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
   =.  bucket.st
-    bucket.st(title title, updated-by src.bowl, updated-at now.bowl)
-  (commit-update flag st [%bucket-updated bucket.st])
+    bucket.st(title title, updated-by actor, updated-at now.bowl)
+  (commit-update flag st [%meta bucket.st] actor)
 ::
 ++  set-writers
-  |=  [=flag:b writers=(set @tas)]
+  |=  [=flag:b writers=(set @tas) actor=ship]
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
   =.  writers.st  writers
-  (commit-update flag st [%writers-updated writers])
+  (commit-update flag st [%writers writers] actor)
 ::
 ++  set-readers
-  |=  [=flag:b readers=(set @tas)]
+  |=  [=flag:b readers=(set @tas) actor=ship]
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
   =.  readers.st  readers
-  (commit-update flag st [%readers-updated readers])
+  (commit-update flag st [%readers readers] actor)
 ::
 ++  create-folder
-  |=  [=flag:b parent=(unit @ud) name=@t]
+  |=  [=flag:b parent=(unit @ud) name=@t actor=ship]
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
   ?.  (valid-parent st parent)
@@ -433,9 +428,9 @@
   =/  id=@ud  +(next-id)
   =.  next-id  id
   =/  ent=entry:b
-    [id parent name src.bowl now.bowl src.bowl now.bowl [%folder ~]]
+    [id parent name actor now.bowl actor now.bowl [%folder ~]]
   =.  entries.st  (~(put by entries.st) id ent)
-  (commit-update flag st [%entry-created ent])
+  (commit-update flag st [%entry id [%create ent]] actor)
 ::
 ::  +begin-upload: reserve an entry id and object key, open a host-private
 ::  session, and hand the session id back to the uploader as its broker
@@ -449,6 +444,7 @@
           mime=@t
           size=@ud
           checksum=(unit @t)
+          actor=ship
       ==
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
@@ -466,10 +462,10 @@
   =/  sid=@uv  `@uv`eny.bowl
   =/  fil=file:b  [mime size checksum (scot %uv sid) ~ %pending]
   =/  ent=entry:b
-    [id parent name src.bowl now.bowl src.bowl now.bowl [%file fil]]
+    [id parent name actor now.bowl actor now.bowl [%file fil]]
   =/  expiry=@da  (add now.bowl upload-window)
   =/  ses=upload-session:b
-    [sid flag ent src.bowl now.bowl expiry %pending ~ ~]
+    [sid flag ent actor now.bowl expiry %pending ~ ~]
   =.  sessions  (~(put by sessions) sid ses)
   (answer [%grant [(scot %uv sid) id expiry]])
 ::
@@ -477,7 +473,7 @@
 ::  Tlon-managed object URL rather than through the private broker.
 ::
 ++  finish-upload
-  |=  [=flag:b sid=@uv object-url=@t]
+  |=  [=flag:b sid=@uv object-url=@t actor=ship]
   ^+  cor
   ?~  got=(~(get by sessions) sid)
     (answer [%error %not-found 'no such upload session'])
@@ -486,13 +482,13 @@
     (answer [%error %not-found 'no such upload session'])
   ?.  =(%pending status.ses)
     (answer [%error %invalid-input 'upload session is not pending'])
-  ?.  =(requested-by.ses src.bowl)
+  ?.  =(requested-by.ses actor)
     (answer [%error %not-authorized 'not the uploader'])
   ?.  (gth expires-at.ses now.bowl)
     (answer [%error %invalid-input 'upload session has expired'])
   ?.  (valid-legacy-object-url object-url)
     (answer [%error %invalid-input 'unsupported object origin'])
-  (publish-upload ses `object-url src.bowl)
+  (publish-upload ses `object-url actor)
 ::
 ::  +publish-upload: move a completed session's entry into the manifest and
 ::  broadcast it. The session is retained as %complete so a repeated
@@ -508,10 +504,10 @@
   =.  ent  ent(updated-by actor, updated-at now.bowl, kind [%file fil])
   =.  sessions  (~(put by sessions) id.ses ses(status %complete, entry ent))
   =.  entries.st  (~(put by entries.st) id.ent ent)
-  (commit-update flag.ses st [%entry-created ent])
+  (commit-update flag.ses st [%entry id.ent [%create ent]] actor)
 ::
 ++  fail-upload
-  |=  [=flag:b sid=@uv reason=@t]
+  |=  [=flag:b sid=@uv reason=@t actor=ship]
   ^+  cor
   ?~  got=(~(get by sessions) sid)
     (answer [%error %not-found 'no such upload session'])
@@ -520,7 +516,7 @@
     (answer [%error %not-found 'no such upload session'])
   ?.  =(%pending status.ses)
     (answer [%error %invalid-input 'upload session is not pending'])
-  ?.  =(requested-by.ses src.bowl)
+  ?.  =(requested-by.ses actor)
     (answer [%error %not-authorized 'not the uploader'])
   ::  Nothing was published, so there is nothing to broadcast — the session
   ::  is kept briefly so the uploader can read the reason back.
@@ -531,7 +527,7 @@
 ::  published file and return it to the requester alone.
 ::
 ++  issue-object-capability
-  |=  [kind=object-kind:b =flag:b id=@ud]
+  |=  [kind=object-kind:b =flag:b id=@ud actor=ship]
   ^+  cor
   =.  cor  prune-broker-authority
   =/  st=bucket-state:b  (need-state flag)
@@ -545,7 +541,7 @@
     (answer [%error %invalid-input 'file is not ready'])
   =/  token=@t  (scot %uv `@uv`eny.bowl)
   =/  expiry=@da  (add now.bowl object-window)
-  =/  aut=object-capability:b  [kind flag id src.bowl expiry]
+  =/  aut=object-capability:b  [kind flag id actor expiry]
   =.  object-capabilities  (~(put by object-capabilities) token aut)
   (answer [%grant [token id expiry]])
 ::
@@ -643,18 +639,18 @@
   (publish-upload ses ~ requested-by.ses)
 ::
 ++  rename-entry
-  |=  [=flag:b id=@ud name=@t]
+  |=  [=flag:b id=@ud name=@t actor=ship]
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
   ?~  got=(~(get by entries.st) id)
     (answer [%error %not-found 'no such entry'])
   =/  ent=entry:b  u.got
-  =.  ent  ent(name name, updated-by src.bowl, updated-at now.bowl)
+  =.  ent  ent(name name, updated-by actor, updated-at now.bowl)
   =.  entries.st  (~(put by entries.st) id ent)
-  (commit-update flag st [%entry-updated ent])
+  (commit-update flag st [%entry id [%update ent]] actor)
 ::
 ++  move-entry
-  |=  [=flag:b id=@ud parent=(unit @ud)]
+  |=  [=flag:b id=@ud parent=(unit @ud) actor=ship]
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
   ?.  (valid-parent st parent)
@@ -669,12 +665,12 @@
           (descendant st id u.parent)
       ==
     (answer [%error %invalid-input 'a folder cannot move inside itself'])
-  =.  ent  ent(parent parent, updated-by src.bowl, updated-at now.bowl)
+  =.  ent  ent(parent parent, updated-by actor, updated-at now.bowl)
   =.  entries.st  (~(put by entries.st) id ent)
-  (commit-update flag st [%entry-updated ent])
+  (commit-update flag st [%entry id [%update ent]] actor)
 ::
 ++  delete-entry
-  |=  [=flag:b id=@ud recursive=?]
+  |=  [=flag:b id=@ud recursive=? actor=ship]
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
   ?.  (~(has by entries.st) id)
@@ -692,16 +688,20 @@
     |=  [key=@uv ses=upload-session:b]
     ?.  =(flag flag.ses)  |
     (~(has in ids) id.entry.ses)
-  (commit-update flag st [%entries-deleted ~(tap in ids)])
+  (commit-update flag st [%entries-deleted ~(tap in ids)] actor)
+::
+::  +commit-update: bump the revision, stamp attribution on the bucket, and
+::  broadcast. The actor is passed in rather than read from src.bowl, which on
+::  a broker callback is us rather than the uploader.
 ::
 ++  commit-update
-  |=  [=flag:b st=bucket-state:b upd=update:b]
+  |=  [=flag:b st=bucket-state:b upd=u-bucket:b actor=ship]
   ^+  cor
   =.  revision.st  +(revision.st)
   =.  bucket.st
-    bucket.st(updated-by src.bowl, updated-at now.bowl)
+    bucket.st(updated-by actor, updated-at now.bowl)
   =.  cor  (put-state flag st)
-  =/  res=response:b  [%update flag revision.st src.bowl upd]
+  =/  res=response:b  [%update flag revision.st upd]
   (give [%fact ~[/v1 (updates-path flag)] buckets-response-1+!>(res)])
 ::
 ++  valid-parent
@@ -812,24 +812,25 @@
       !=(~ (~(int in writers) roles.u.permissions))
   ==
 ::
+::  +action-authorized: may `who` run this verb on this bucket? Admin verbs
+::  gate on the group's admin set, writes on the bucket's writer roles, and a
+::  read grant only needs read access.
+::
 ++  action-authorized
-  |=  [st=bucket-state:b =flag:b who=ship act=action:b]
+  |=  [st=bucket-state:b =flag:b who=ship act=a-bucket:b]
   ^-  ?
   ?-  -.act
-    %create          |
-    %delete-bucket   (group-is-admin group.st flag who)
-    %set-title       (group-is-admin group.st flag who)
-    %set-readers     (group-is-admin group.st flag who)
-    %set-writers     (group-is-admin group.st flag who)
-    %issue-read      (group-can-read group.st flag who)
-    %create-folder   (group-can-write group.st flag writers.st who)
-    %begin-upload    (group-can-write group.st flag writers.st who)
-    %finish-upload   (group-can-write group.st flag writers.st who)
-    %fail-upload     (group-can-write group.st flag writers.st who)
-    %issue-delete    (group-can-write group.st flag writers.st who)
-    %rename-entry    (group-can-write group.st flag writers.st who)
-    %move-entry      (group-can-write group.st flag writers.st who)
-    %delete-entry    (group-can-write group.st flag writers.st who)
+    %delete         (group-is-admin group.st flag who)
+    %set-title      (group-is-admin group.st flag who)
+    %set-readers    (group-is-admin group.st flag who)
+    %set-writers    (group-is-admin group.st flag who)
+    %issue-read     (group-can-read group.st flag who)
+    %create-folder  (group-can-write group.st flag writers.st who)
+    %begin-upload   (group-can-write group.st flag writers.st who)
+    %finish-upload  (group-can-write group.st flag writers.st who)
+    %fail-upload    (group-can-write group.st flag writers.st who)
+    %issue-delete   (group-can-write group.st flag writers.st who)
+    %entry          (group-can-write group.st flag writers.st who)
   ==
 ::
 ++  ship-text
@@ -1180,29 +1181,29 @@
     ?:  (lte revision.res revision.st)  cor
     ?.  =(revision.res +(revision.st))
       (resub flag.res)
-    ?:  =(%bucket-deleted -.update.res)
+    ?:  =(%delete -.u-bucket.res)
       =.  cor  (give [%fact ~[/v1] buckets-response-1+!>(res)])
       =.  cor  (emil (drop (report-active flag.res sp |)))
       =.  spaces  (~(del by spaces) flag.res)
       cor
-    =.  st  (apply-update st update.res)
+    =.  st  (apply-update st u-bucket.res)
     =.  revision.st  revision.res
     =.  spaces  (~(put by spaces) flag.res [net.sp `st `group.st])
     (give [%fact ~[/v1] buckets-response-1+!>(res)])
   ==
 ::
 ++  apply-update
-  |=  [st=bucket-state:b upd=update:b]
+  |=  [st=bucket-state:b upd=u-bucket:b]
   ^-  bucket-state:b
   ?-  -.upd
-      %bucket-created  st(bucket bucket.upd)
-      %bucket-deleted  st
-      %bucket-updated  st(bucket bucket.upd)
-      %readers-updated  st(readers readers.upd)
-      %writers-updated  st(writers writers.upd)
+      %create   st(bucket bucket.upd)
+      %delete   st
+      %meta     st(bucket bucket.upd)
+      %readers  st(readers readers.upd)
+      %writers  st(writers writers.upd)
   ::
-      ?(%entry-created %entry-updated)
-    st(entries (~(put by entries.st) id.entry.upd entry.upd))
+      %entry
+    st(entries (~(put by entries.st) id.upd entry.u-entry.upd))
   ::
       %entries-deleted
     =.  entries.st

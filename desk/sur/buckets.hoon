@@ -133,42 +133,56 @@
       revision=@ud
   ==
 ::
-::  $action: what a client asks for.
+::  Actions (client -> agent)
 ::
-::  Non-create actions carry the bucket flag so a subscriber can forward the
-::  same noun to the authoritative host. Tokens are never supplied by the
-::  caller — the host mints them and returns them in a $response-body.
+::  $a-buckets: what a client on our own ship asks for. The outer tag carries
+::  identity; the inner unions carry only the verb.
 ::
-+$  action
+::  Tokens are never supplied by the caller — the host mints them and hands
+::  them back in a $response-body.
+::
++$  a-buckets
   $%  [%create name=@tas title=@t group=flag readers=(set @tas) writers=(set @tas)]
-      [%delete-bucket =flag]
-      [%set-title =flag title=@t]
-      [%set-readers =flag readers=(set @tas)]
-      [%set-writers =flag writers=(set @tas)]
-      [%create-folder =flag parent=(unit @ud) name=@t]
-      [%begin-upload =flag parent=(unit @ud) name=@t mime=@t size=@ud checksum=(unit @t)]
-      [%finish-upload =flag session=@uv object-url=@t]
-      [%fail-upload =flag session=@uv reason=@t]
-      [%issue-read =flag id=@ud]
-      [%issue-delete =flag id=@ud]
-      [%rename-entry =flag id=@ud name=@t]
-      [%move-entry =flag id=@ud parent=(unit @ud)]
-      [%delete-entry =flag id=@ud recursive=?]
+      [%bucket =flag =a-bucket]
   ==
 ::
-::  $request-id: correlates one client action with its terminal response.
-::  Minted by the client; opaque to the host.
+::  $a-bucket: actions on one bucket. The flag lives on the outer envelope.
+::
++$  a-bucket
+  $%  [%delete ~]
+      [%set-title title=@t]
+      [%set-readers readers=(set @tas)]
+      [%set-writers writers=(set @tas)]
+      [%create-folder parent=(unit @ud) name=@t]
+      [%begin-upload parent=(unit @ud) name=@t mime=@t size=@ud checksum=(unit @t)]
+      [%finish-upload session=@uv object-url=@t]
+      [%fail-upload session=@uv reason=@t]
+      [%issue-read id=@ud]
+      [%issue-delete id=@ud]
+      [%entry id=@ud =a-entry]
+  ==
+::
+::  $a-entry: actions on one entry. The id lives on the outer envelope.
+::
++$  a-entry
+  $%  [%rename name=@t]
+      [%move parent=(unit @ud)]
+      [%delete recursive=?]
+  ==
 ::
 +$  request-id  @uv
 ::
-::  $command: a request-id'd action.
+::  $command: a request-id'd action, carried by both %buckets-action-1 (a
+::  local client) and %buckets-command-1 (a subscriber forwarding to the
+::  host).
 ::
-::  Carried by both %buckets-action-1 (local client) and %buckets-command-1
-::  (subscriber forwarding to the host). The trust difference lives in the
-::  poke handler's gates, not in the type; splitting these into a-/c-
-::  families is tracked separately.
+::  There is deliberately no separate c-* family: every verb a local client
+::  can send is also one a peer may forward, so an a-/c- split would be two
+::  identical unions. The trust boundary is the poke handler's gate —
+::  ?> =(src.bowl our.bowl) for actions, a permission check for commands.
+::  Add the split when the first local-only or peer-only verb appears.
 ::
-+$  command  [=request-id =action]
++$  command  [=request-id act=a-buckets]
 ::
 ::  $grant: a host-minted bearer token returned to the requester alone.
 ::
@@ -223,28 +237,52 @@
       [%complete-upload =broker-receipt]
   ==
 ::
-::  $update: a canonical manifest change, broadcast to every subscriber.
+::  Updates (host -> subscribers)
+::
+::  $u-bucket: a canonical manifest change on one bucket, broadcast to every
+::  subscriber. Updates are fat: an arm carries the whole post-change entity,
+::  so a replica overwrites rather than merging.
 ::
 ::  Upload lifecycle arms are deliberately absent. A pending upload lives on
 ::  its session, not in the manifest, so it produces no update at all — the
-::  file arrives as %entry-created when the object lands, and a failed
+::  file arrives as [%entry id %create] when the object lands, and a failed
 ::  upload is reported to its uploader in a $response-body instead.
 ::
-+$  update
-  $%  [%bucket-created =bucket]
-      [%bucket-deleted ~]
-      [%bucket-updated =bucket]
-      [%readers-updated readers=(set @tas)]
-      [%writers-updated writers=(set @tas)]
-      [%entry-created =entry]
-      [%entry-updated =entry]
++$  u-bucket
+  $%  [%create =bucket]
+      [%delete ~]
+      [%meta =bucket]
+      [%readers readers=(set @tas)]
+      [%writers writers=(set @tas)]
+      [%entry id=@ud =u-entry]
       [%entries-deleted ids=(list @ud)]
   ==
-+$  response
-  $%  [%snapshot =flag =bucket-state]
-      [%update =flag revision=@ud actor=ship =update]
+::
+::  $u-entry: a change to one entry. The id lives on the outer envelope, and
+::  attribution rides on the entity's own .updated-by / .updated-at.
+::
++$  u-entry
+  $%  [%create =entry]
+      [%update =entry]
   ==
+::
+::  Responses (agent -> local client subscribers)
+::
+::  $r-buckets: facts on /v1 and on a bucket's update path. No actor field —
+::  who changed what is recorded on $bucket and $entry.
+::
++$  r-buckets
+  $%  [%snapshot =flag =bucket-state]
+      [%update =flag revision=@ud =u-bucket]
+  ==
+::
 +$  snapshot  [=flag =bucket-state]
+::
+::  Type aliases used by the mark files.
+::
++$  action    a-buckets
++$  update    u-bucket
++$  response  r-buckets
 ::
 +$  net  ?(%pub %sub)
 +$  space  [=net state=(unit bucket-state) pending-group=(unit flag)]
