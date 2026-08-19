@@ -287,6 +287,53 @@ export function NotesNoteDetail({
     (session: NotesEditorSession) => editorSessionRef.current === session,
     []
   );
+  const isCurrentEditorNote = useCallback(
+    (flag: string, targetNoteId: number) =>
+      editorSessionRef.current.key === draftStashKey(flag, targetNoteId),
+    []
+  );
+  const pendingSaveSessionsRef = useRef(
+    new Map<string, Map<NotesEditorSession, number>>()
+  );
+  const markPendingSave = useCallback(
+    (flag: string, targetNoteId: number, session: NotesEditorSession) => {
+      const key = draftStashKey(flag, targetNoteId);
+      const sessions = pendingSaveSessionsRef.current.get(key) ?? new Map();
+      sessions.set(session, (sessions.get(session) ?? 0) + 1);
+      pendingSaveSessionsRef.current.set(key, sessions);
+    },
+    []
+  );
+  const finishPendingSave = useCallback(
+    (flag: string, targetNoteId: number, session: NotesEditorSession) => {
+      const key = draftStashKey(flag, targetNoteId);
+      const sessions = pendingSaveSessionsRef.current.get(key);
+      if (!sessions) return;
+      const remaining = (sessions.get(session) ?? 0) - 1;
+      if (remaining > 0) {
+        sessions.set(session, remaining);
+      } else {
+        sessions.delete(session);
+      }
+      if (sessions.size === 0) {
+        pendingSaveSessionsRef.current.delete(key);
+      }
+    },
+    []
+  );
+  const hasPendingSaveFromEarlierSession = useCallback(
+    (flag: string, targetNoteId: number) => {
+      const sessions = pendingSaveSessionsRef.current.get(
+        draftStashKey(flag, targetNoteId)
+      );
+      if (!sessions) return false;
+      const currentSession = editorSessionRef.current;
+      return Array.from(sessions).some(
+        ([session, count]) => session !== currentSession && count > 0
+      );
+    },
+    []
+  );
   const titleInputRef = useRef<TextInputRef>(null);
   const autoFocusedTitleNoteIdRef = useRef<string | null>(null);
   const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
@@ -492,7 +539,22 @@ export function NotesNoteDetail({
       selectedNote != null &&
       draftBase != null &&
       selectedNote.revision < draftBase.revision;
-    if (sameNote && (isDirty || selectedNote === draftBase || rowTrailsBase)) {
+    // A save from an earlier visit can update the reactive row while the
+    // current visit is clean against its old base. Do not adopt that row into
+    // the current drafts: the save completion advances only the base below,
+    // making an explicit revert dirty and therefore eligible for its own save.
+    const earlierVisitSavePending =
+      sameNote &&
+      notebookFlag != null &&
+      selectedNote != null &&
+      hasPendingSaveFromEarlierSession(notebookFlag, selectedNote.noteId);
+    if (
+      sameNote &&
+      (isDirty ||
+        selectedNote === draftBase ||
+        rowTrailsBase ||
+        earlierVisitSavePending)
+    ) {
       return;
     }
     if (sameNote) {
@@ -506,7 +568,14 @@ export function NotesNoteDetail({
       setError(null);
       setConflictNote(null);
     }
-  }, [draftBase, isDirty, preserveScrollOffset, selectedNote]);
+  }, [
+    draftBase,
+    hasPendingSaveFromEarlierSession,
+    isDirty,
+    notebookFlag,
+    preserveScrollOffset,
+    selectedNote,
+  ]);
 
   useEffect(() => {
     if (!autoFocusTitle) {
@@ -551,7 +620,14 @@ export function NotesNoteDetail({
     Promise.resolve(null)
   );
   const runSave = useCallback(
-    (flag: string, base: db.NotesNote, title: string, body: string) => {
+    (
+      flag: string,
+      base: db.NotesNote,
+      title: string,
+      body: string,
+      session: NotesEditorSession
+    ) => {
+      markPendingSave(flag, base.noteId, session);
       const next = saveChainRef.current
         .catch(() => null)
         .then((prevSaved) =>
@@ -568,7 +644,7 @@ export function NotesNoteDetail({
       );
       return next;
     },
-    []
+    [markPendingSave]
   );
 
   // Save target for flushes that run outside the React data flow (unmount
@@ -659,11 +735,16 @@ export function NotesNoteDetail({
           notebookFlag,
           base,
           titleDraft,
-          bodyToSave
+          bodyToSave,
+          session
         );
         // Rebase onto the saved revision; keystrokes typed during the save
         // leave the drafts dirty against it, so the next cycle saves them.
-        if (updated && isCurrentEditorSession(session)) {
+        const currentSession = isCurrentEditorSession(session);
+        const currentNoteDraftIsReady =
+          isCurrentEditorNote(notebookFlag, base.noteId) &&
+          draftSessionRef.current === editorSessionRef.current;
+        if (updated && (currentSession || currentNoteDraftIsReady)) {
           setDraftBase(updated);
           // A save we did NOT rename in can come back with a different
           // title: another client renamed, and the response payload's
@@ -674,6 +755,7 @@ export function NotesNoteDetail({
           // but only when the user had no rename in flight (title matched
           // the base going in) and didn't touch it during the save.
           if (
+            currentSession &&
             normalizeNotebookNoteTitle(titleDraft) === base.title &&
             titleDraftRef.current === titleDraft &&
             updated.title !== titleDraft
@@ -718,13 +800,17 @@ export function NotesNoteDetail({
           setError(message);
         }
         return false;
+      } finally {
+        finishPendingSave(notebookFlag, base.noteId, session);
       }
     },
     [
       canEdit,
       clearConflict,
       draftBase,
+      finishPendingSave,
       isCurrentEditorSession,
+      isCurrentEditorNote,
       notebookFlag,
       preserveScrollOffset,
       reportConflict,
@@ -855,7 +941,7 @@ export function NotesNoteDetail({
       isDirty: true,
       updatedAt: Date.now(),
     });
-    runSave(flag, base, titleToSave, bodyToSave)
+    runSave(flag, base, titleToSave, bodyToSave, session)
       .then((updated) => {
         clearDraftStash(flag, base.noteId, {
           title: titleToSave,
@@ -869,12 +955,17 @@ export function NotesNoteDetail({
         });
         // No-ops after unmount; while mounted (background flush) rebase so
         // the next cycle doesn't re-send a stale revision.
-        if (updated && isCurrentEditorSession(session)) {
+        const currentSession = isCurrentEditorSession(session);
+        const currentNoteDraftIsReady =
+          isCurrentEditorNote(flag, base.noteId) &&
+          draftSessionRef.current === editorSessionRef.current;
+        if (updated && (currentSession || currentNoteDraftIsReady)) {
           setDraftBase(updated);
           // Same untouched-title rebase as the foreground save path: a
           // remote rename carried back by the payload must not leave the
           // stale title draft looking like a local edit.
           if (
+            currentSession &&
             normalizeNotebookNoteTitle(titleToSave) === base.title &&
             titleDraftRef.current === titleToSave &&
             updated.title !== titleToSave
@@ -908,10 +999,13 @@ export function NotesNoteDetail({
           setSaveState('error');
           setError(errorMessage(e, 'Failed to save note'));
         }
-      });
+      })
+      .finally(() => finishPendingSave(flag, base.noteId, session));
   }, [
     clearConflict,
+    finishPendingSave,
     isCurrentEditorSession,
+    isCurrentEditorNote,
     preserveScrollOffset,
     reportConflict,
     runSave,

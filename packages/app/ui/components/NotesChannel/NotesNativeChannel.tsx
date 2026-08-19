@@ -1093,7 +1093,6 @@ export function NotesNativeChannel({
         />
       ) : (
         <NotesNoteDetail
-          key={`${notebookFlag}/${selectedNoteId}`}
           autoFocusTitle={focusTitleNoteId === selectedNoteId}
           headerActionsPlacement="channel-header"
           noteId={selectedNoteId}

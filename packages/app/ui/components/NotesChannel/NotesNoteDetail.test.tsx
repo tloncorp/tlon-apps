@@ -143,9 +143,26 @@ describe('NotesNoteDetail note switching', () => {
     }));
   });
 
-  it('ignores a save completion from an earlier A visit after switching A → B → A', async () => {
+  it('keeps same-note saves FIFO across A → B → A visits', async () => {
     const firstSave = deferred<Record<string, unknown>>();
-    mocks.saveNotebookNote.mockReturnValueOnce(firstSave.promise);
+    mocks.saveNotebookNote
+      .mockReturnValueOnce(firstSave.promise)
+      .mockImplementation(
+        async ({
+          note: base,
+          title,
+          body,
+        }: {
+          note: ReturnType<typeof note>;
+          title: string;
+          body: string;
+        }) => ({
+          ...base,
+          title,
+          bodyMd: body,
+          revision: base.revision + 1,
+        })
+      );
     let renderer: ReactTestRenderer;
 
     await act(async () => {
@@ -162,7 +179,7 @@ describe('NotesNoteDetail note switching', () => {
     await act(async () => {
       renderer!.root
         .findByProps({ testID: 'NotesBodyInput' })
-        .props.onChangeText('Edited A');
+        .props.onChangeText('Older A edit');
     });
 
     await act(async () => {
@@ -178,7 +195,7 @@ describe('NotesNoteDetail note switching', () => {
     expect(mocks.saveNotebookNote).toHaveBeenCalledWith(
       expect.objectContaining({
         note: expect.objectContaining({ noteId: 1 }),
-        body: 'Edited A',
+        body: 'Older A edit',
       })
     );
 
@@ -192,23 +209,148 @@ describe('NotesNoteDetail note switching', () => {
         />
       );
     });
-    expect(
-      renderer!.root.findByProps({ testID: 'NotesBodyInput' }).props.value
-    ).toBe('Original A');
-    const renderCountBeforeStaleCompletion =
-      mocks.useNotebookData.mock.calls.length;
 
     await act(async () => {
-      firstSave.resolve(note(1, 'Edited A', 2));
+      renderer!.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Latest A edit');
+    });
+
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    expect(mocks.saveNotebookNote).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      firstSave.resolve(note(1, 'Older A edit', 2));
       await firstSave.promise;
     });
 
-    expect(mocks.useNotebookData).toHaveBeenCalledTimes(
-      renderCountBeforeStaleCompletion
+    expect(mocks.saveNotebookNote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        note: expect.objectContaining({ noteId: 1, revision: 2 }),
+        body: 'Latest A edit',
+      })
     );
+
+    act(() => renderer!.unmount());
+  });
+
+  it('rebases an earlier save without resurrecting an explicitly reverted draft', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote
+      .mockReturnValueOnce(firstSave.promise)
+      .mockImplementation(
+        async ({
+          note: base,
+          title,
+          body,
+        }: {
+          note: ReturnType<typeof note>;
+          title: string;
+          body: string;
+        }) => ({
+          ...base,
+          title,
+          bodyMd: body,
+          revision: base.revision + 1,
+        })
+      );
+    let renderer: ReactTestRenderer;
+
+    await act(async () => {
+      renderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      renderer!.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Edited A');
+    });
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+
+    // Make the user's intent explicit: change the new visit, then revert it
+    // to the original text while the previous visit's save is still pending.
+    await act(async () => {
+      const input = renderer!.root.findByProps({ testID: 'NotesBodyInput' });
+      input.props.onChangeText('Temporary new edit');
+      input.props.onChangeText('Original A');
+    });
+
+    const earlierSavedRow = note(1, 'Edited A', 2);
+    mocks.notes = [earlierSavedRow, note(2, 'Original B')];
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
     expect(
       renderer!.root.findByProps({ testID: 'NotesBodyInput' }).props.value
     ).toBe('Original A');
+
+    await act(async () => {
+      firstSave.resolve(earlierSavedRow);
+      await firstSave.promise;
+    });
+    expect(
+      renderer!.root.findByProps({ testID: 'NotesBodyInput' }).props.value
+    ).toBe('Original A');
+
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    expect(mocks.saveNotebookNote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        note: expect.objectContaining({ noteId: 1, revision: 2 }),
+        body: 'Original A',
+      })
+    );
 
     act(() => renderer!.unmount());
   });
