@@ -16,9 +16,9 @@ import {
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { usePostCollectionContext } from '../../contexts/postCollection';
+import { AgentActivity } from '../AgentTaskRows/AgentActivity';
 import { EmptyChannelNotice } from '../Channel/EmptyChannelNotice';
 import Scroller, { ScrollAnchor } from '../Channel/Scroller';
-import { ThinkingState } from '../Channel/ThinkingState';
 import { useShouldShowThinkingState } from '../Channel/useShouldShowThinkingState';
 import { IPostCollectionView } from './shared';
 
@@ -56,7 +56,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     const listBottomComponent = useMemo(
       () =>
         shouldShowThinkingState ? (
-          <ThinkingState
+          <AgentActivity
             conversationId={ctx.channel.id}
             channelType={ctx.channel.type}
           />

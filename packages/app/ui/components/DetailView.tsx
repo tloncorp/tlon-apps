@@ -3,9 +3,9 @@ import { Text } from '@tloncorp/ui';
 import { ReactNode, useMemo } from 'react';
 import { View, YStack, getTokenValue } from 'tamagui';
 
+import { AgentActivity } from './AgentTaskRows/AgentActivity';
 import type { ConversationContentInsets } from './Channel/PostList';
 import Scroller, { ScrollAnchor } from './Channel/Scroller';
-import { ThinkingState } from './Channel/ThinkingState';
 import { useShouldShowThinkingState } from './Channel/useShouldShowThinkingState';
 import { ChatMessage } from './ChatMessage';
 import { GalleryPostDetailView } from './GalleryPost/GalleryPost';
@@ -86,7 +86,7 @@ export const DetailView = ({
   const listBottomComponent = useMemo(
     () =>
       shouldShowThinkingState ? (
-        <ThinkingState conversationId={channel.id} channelType={channel.type} />
+        <AgentActivity conversationId={channel.id} channelType={channel.type} />
       ) : undefined,
     [shouldShowThinkingState, channel.id, channel.type]
   );
