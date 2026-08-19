@@ -302,6 +302,15 @@
                   },
                   "additionalProperties": false
                 },
+                "kits": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                },
                 "ownerListenEnabled": {
                   "type": "boolean"
                 },
@@ -434,6 +443,15 @@
                   }
                 },
                 "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "kits": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
               }
             },
             "additionalProperties": false

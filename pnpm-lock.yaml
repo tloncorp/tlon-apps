@@ -1130,6 +1130,9 @@ importers:
       '@tloncorp/api':
         specifier: workspace:^
         version: link:../api
+      '@tloncorp/tlon-kits':
+        specifier: workspace:^
+        version: link:../tlon-kits
       '@tloncorp/tlon-skill':
         specifier: workspace:^
         version: link:../tlon-skill

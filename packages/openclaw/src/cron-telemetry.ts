@@ -83,6 +83,16 @@ export function clearCronServiceAccessor(): void {
   cronServiceAccessorSlot.set(null);
 }
 
+/**
+ * The gateway cron service, when a hook context has published its accessor
+ * (gateway_start / cron_changed). Used by the kits runtime to reconcile
+ * `tlon:kit:*` schedule jobs; callers must tolerate `undefined` during the
+ * startup race and retry.
+ */
+export function getCronService(): PluginHookGatewayCronService | undefined {
+  return cronServiceAccessorSlot.get()?.();
+}
+
 function optionalString(value: string | null | undefined): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;

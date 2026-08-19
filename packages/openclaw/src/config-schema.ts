@@ -88,6 +88,16 @@ export const TlonReengagementSchema = z.object({
 });
 
 /**
+ * Kits runtime: group-installed behavior packages served by the ship's
+ * %kits agent (ambient instructions, schedules, setup conversation,
+ * scaffolds). Default-on; set `enabled: false` to disable the runtime for
+ * an account without uninstalling kits from groups.
+ */
+export const TlonKitsSchema = z.object({
+  enabled: z.boolean().optional(),
+});
+
+/**
  * Static file-config override for the plugin scheduler's active-hours
  * window. Takes precedence over `agents.defaults.heartbeat.activeHours`
  * but defers to `%settings` keys (`nudgeActiveHoursStart/End/Timezone`)
@@ -125,6 +135,8 @@ export const TlonAccountSchema = z.object({
   telemetry: TlonTelemetrySchema.optional(),
   lifecycle: TlonLifecycleSchema.optional(),
   contextLens: TlonContextLensSchema.optional(),
+  // Kits runtime (group-installed behavior packages). Default: enabled.
+  kits: TlonKitsSchema.optional(),
   // Owner-listen: in channels hosted by the owner or the bot itself, engage
   // on owner messages without requiring an @-mention. Default: enabled.
   ownerListenEnabled: z.boolean().optional(),
@@ -163,6 +175,8 @@ export const TlonConfigSchema = z.object({
   telemetry: TlonTelemetrySchema.optional(),
   lifecycle: TlonLifecycleSchema.optional(),
   contextLens: TlonContextLensSchema.optional(),
+  // Kits runtime (group-installed behavior packages). Default: enabled.
+  kits: TlonKitsSchema.optional(),
   // Opt-in hosted-only re-engagement nudges; absent/false keeps the
   // scheduler off even when ownerShip is configured.
   reengagement: TlonReengagementSchema.optional(),
