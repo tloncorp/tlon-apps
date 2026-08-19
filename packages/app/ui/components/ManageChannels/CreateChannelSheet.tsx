@@ -3,7 +3,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { createChannel, useNotesDeskAvailable } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button } from '@tloncorp/ui';
-import { useCallback, useMemo } from 'react';
+import { type ComponentProps, useCallback, useMemo } from 'react';
 import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { YStack } from 'tamagui';
 
@@ -63,9 +63,14 @@ interface CreateChannelFormSchema {
 export function CreateChannelSheet({
   onOpenChange,
   group,
+  sheetProps,
 }: {
   onOpenChange: (open: boolean) => void;
   group: db.Group;
+  sheetProps?: Pick<
+    ComponentProps<typeof ActionSheet>,
+    'snapPoints' | 'snapPointsMode'
+  >;
 }) {
   const navigation =
     useNavigation<
@@ -134,7 +139,7 @@ export function CreateChannelSheet({
 
   return (
     <FormProvider {...form}>
-      <ActionSheet open onOpenChange={onOpenChange}>
+      <ActionSheet open onOpenChange={onOpenChange} {...sheetProps}>
         <ActionSheet.SimpleHeader title="Create a new channel" />
         <ActionSheet.Content>
           <ActionSheet.FormBlock>
