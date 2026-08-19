@@ -4,6 +4,7 @@ export * from './embed';
 export * from './semver';
 export * from './reactionSupport';
 export * from './threadUnreads';
+export * from './groupBlobSupport';
 export * from './notesActivitySupport';
 export * from './notesPublish';
 export * from './notesPermissionsCompat';

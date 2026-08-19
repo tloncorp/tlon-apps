@@ -17,6 +17,7 @@ import { StructuredChannelDescriptionPayload } from './channelContentConfig';
 import {
   BadResponseError,
   getCurrentUserId,
+  getGroupsSupportsBlob,
   poke,
   scry,
   subscribe,
@@ -31,6 +32,14 @@ function groupAction4(action: ub.GroupActionV4) {
   return {
     app: 'groups',
     mark: 'group-action-4',
+    json: action,
+  };
+}
+
+function groupAction5(action: ub.GroupActionV5) {
+  return {
+    app: 'groups',
+    mark: 'group-action-5',
     json: action,
   };
 }
@@ -432,7 +441,7 @@ export const createGroup = async ({
   };
 
   try {
-    const result = await thread<ub.GroupCreateThreadInput, ub.GroupV7>({
+    const result = await thread<ub.GroupCreateThreadInput, ub.GroupV11>({
       desk: 'groups',
       inputMark: 'group-create-thread',
       threadName: 'group-create-1',
@@ -443,7 +452,7 @@ export const createGroup = async ({
       context: 'group-create-thread request succeeded',
     });
 
-    return toClientGroupV7(group.id, result, true);
+    return toClientGroup(group.id, result, true);
   } catch (err) {
     // Only a stalled body after the response headers arrived is safe to
     // recover from: the create thread has finished, but its response was lost
@@ -482,19 +491,22 @@ export const createGroup = async ({
 };
 
 export const getGroup = async (groupId: string) => {
-  const path = `/v2/ui/groups/${groupId}`;
+  // /v3 returns v11 (v9 plus the group blob); a pre-blob backend only serves
+  // /v2, whose response is identical minus the blob.
+  const version = getGroupsSupportsBlob() ? 'v3' : 'v2';
+  const path = `/${version}/ui/groups/${groupId}`;
 
-  const groupData = await scry<ub.GroupV7>({ app: 'groups', path });
-  return toClientGroupV7(groupId, groupData, true);
+  const groupData = await scry<ub.GroupV11>({ app: 'groups', path });
+  return toClientGroup(groupId, groupData, true);
 };
 
 export const getGroups = async () => {
-  // v2 scry path returns v9 format (with admissions/seats)
-  const groupData = await scry<ub.GroupsV7>({
+  const version = getGroupsSupportsBlob() ? 'v3' : 'v2';
+  const groupData = await scry<ub.GroupsV11>({
     app: 'groups',
-    path: '/v2/groups',
+    path: `/${version}/groups`,
   });
-  return toClientGroupsV7(groupData, true);
+  return toClientGroups(groupData, true);
 };
 
 export const updateGroupMeta = async ({
@@ -504,7 +516,7 @@ export const updateGroupMeta = async ({
   groupId: string;
   meta: ub.GroupMeta;
 }) => {
-  return await trackedPoke<ub.V1GroupResponse>(
+  return await trackedPoke<ub.GroupResponse>(
     groupAction4({
       group: {
         flag: groupId,
@@ -526,8 +538,37 @@ export const updateGroupMeta = async ({
   );
 };
 
+export const updateGroupBlob = async ({
+  groupId,
+  blob,
+}: {
+  groupId: string;
+  blob: string | null;
+}) => {
+  return await trackedPoke<ub.GroupResponse>(
+    groupAction5({
+      group: {
+        flag: groupId,
+        'a-group': {
+          blob,
+        },
+      },
+    }),
+    { app: 'groups', path: '/v3/groups' },
+    (event) => {
+      if (!('r-group' in event)) {
+        return false;
+      }
+
+      const rGroup = event['r-group'];
+      return 'blob' in rGroup && event.flag === groupId;
+    },
+    { tag: 'updateGroupBlob' }
+  );
+};
+
 export const deleteGroup = async (groupId: string) => {
-  return await trackedPoke<ub.V1GroupResponse>(
+  return await trackedPoke<ub.GroupResponse>(
     groupAction4({
       group: {
         flag: groupId,
@@ -555,7 +596,7 @@ export const addNavSection = async ({
   groupId: string;
   navSection: db.GroupNavSection;
 }) => {
-  return await trackedPoke<ub.V1GroupResponse>(
+  return await trackedPoke<ub.GroupResponse>(
     groupAction4({
       group: {
         flag: groupId,
@@ -652,7 +693,7 @@ export const addChannelToNavSection = async ({
   channelId: string;
 }) => {
   logger.log('addChannelToNavSection', { groupId, navSectionId, channelId });
-  return await trackedPoke<ub.V1GroupResponse>(
+  return await trackedPoke<ub.GroupResponse>(
     groupAction4({
       group: {
         flag: groupId,
@@ -733,7 +774,7 @@ export const addChannelToGroup = async ({
   groupId: string;
   sectionId: string;
 }) => {
-  return await trackedPoke<ub.V1GroupResponse>(
+  return await trackedPoke<ub.GroupResponse>(
     groupAction4({
       group: {
         flag: groupId,
@@ -1028,6 +1069,12 @@ export type GroupEdit = {
   meta: db.ClientMeta;
 };
 
+export type GroupBlobEdit = {
+  type: 'editGroupBlob';
+  groupId: string;
+  blob: string | null;
+};
+
 export type GroupChannelAdd = {
   type: 'addChannel';
   channel: db.Channel;
@@ -1238,6 +1285,7 @@ export type GroupUpdate =
   | GroupAdd
   | GroupDelete
   | GroupEdit
+  | GroupBlobEdit
   | GroupChannelAdd
   | GroupChannelUpdate
   | GroupChannelDelete
@@ -1277,10 +1325,10 @@ export const subscribeGroups = async (
   eventHandler: (update: GroupUpdate) => void
 ) => {
   const handleRawGroupsEvent = (
-    rawEvent: ub.V1GroupResponse,
+    rawEvent: ub.GroupResponse,
     shouldHandleUpdate = (_update: GroupUpdate) => true
   ) => {
-    const update = toV1GroupsUpdate(rawEvent);
+    const update = toGroupsUpdate(rawEvent);
     if (update && shouldHandleUpdate(update)) {
       eventHandler(update);
     }
@@ -1288,7 +1336,7 @@ export const subscribeGroups = async (
 
   // v1/groups is the baseline stream for group updates. Older backends do not
   // expose /v2/groups, so keep normal r-group updates on v1.
-  void subscribe<ub.V1GroupResponse>(
+  void subscribe<ub.GroupResponse>(
     { app: 'groups', path: '/v1/groups' },
     (rawEvent) => {
       handleRawGroupsEvent(rawEvent);
@@ -1298,7 +1346,7 @@ export const subscribeGroups = async (
   // v2/groups adds active-channel membership deltas for third-party channel
   // hosts like %notes. It can bad-watch-path on older backends; in that case
   // v1 still carries normal group updates and init/group sync cover membership.
-  void subscribe<ub.V1GroupResponse>(
+  void subscribe<ub.GroupResponse>(
     { app: 'groups', path: '/v2/groups' },
     (rawEvent) => {
       if ('r-group' in rawEvent && 'active-channel' in rawEvent['r-group']) {
@@ -1307,6 +1355,26 @@ export const subscribeGroups = async (
     }
   ).catch((err) => {
     logger.log('v2 groups subscription unavailable', err);
+  });
+
+  // v3/groups adds group blob (custom payload) updates, which are stripped
+  // from v1/v2. %create rides v3 with the blob intact while v1's copy is
+  // blob-stripped, so process the v3 copy too — it arrives first, and the
+  // later v1 upsert carries no blob key so it leaves the column untouched.
+  // The subscription can bad-watch-path on older backends; in that case
+  // blob data still arrives via init/group sync.
+  void subscribe<ub.GroupResponse>(
+    { app: 'groups', path: '/v3/groups' },
+    (rawEvent) => {
+      if (
+        'r-group' in rawEvent &&
+        ('blob' in rawEvent['r-group'] || 'create' in rawEvent['r-group'])
+      ) {
+        handleRawGroupsEvent(rawEvent);
+      }
+    }
+  ).catch((err) => {
+    logger.log('v3 groups subscription unavailable', err);
   });
 
   // Subscribe to v1/foreigns for foreign group updates
@@ -1319,8 +1387,8 @@ export const subscribeGroups = async (
   );
 };
 
-export const toV1GroupsUpdate = (
-  rawEvent: ub.V1GroupResponse
+export const toGroupsUpdate = (
+  rawEvent: ub.GroupResponse
 ): GroupUpdate | null => {
   const groupId = rawEvent.flag;
   const event = rawEvent['r-group'];
@@ -1329,7 +1397,7 @@ export const toV1GroupsUpdate = (
   if ('create' in event) {
     return {
       type: 'addGroup',
-      group: toClientGroupV7(groupId, event.create, true),
+      group: toClientGroup(groupId, event.create, true),
     };
   }
 
@@ -1346,6 +1414,15 @@ export const toV1GroupsUpdate = (
     return {
       type: 'editGroup',
       meta: toClientMeta(event.meta),
+      groupId,
+    };
+  }
+
+  // Handle custom payload updates
+  if ('blob' in event) {
+    return {
+      type: 'editGroupBlob',
+      blob: event.blob,
       groupId,
     };
   }
@@ -1696,8 +1773,8 @@ const extractFlaggedPosts = (
   return flaggedPosts;
 };
 
-export function toClientGroupsV7(
-  groups: Record<string, ub.GroupV7>,
+export function toClientGroups(
+  groups: Record<string, ub.GroupV11>,
   isJoined: boolean,
   currentUserId = getCurrentUserId()
 ) {
@@ -1705,13 +1782,13 @@ export function toClientGroupsV7(
     return [];
   }
   return Object.entries(groups).map(([id, group]) => {
-    return toClientGroupV7(id, group, isJoined, currentUserId);
+    return toClientGroup(id, group, isJoined, currentUserId);
   });
 }
 
-export function toClientGroupV7(
+export function toClientGroup(
   id: string,
-  group: ub.GroupV7,
+  group: ub.GroupV11,
   isJoined: boolean,
   currentUserId = getCurrentUserId()
 ): db.Group {
@@ -1810,6 +1887,10 @@ export function toClientGroupV7(
     roles,
     privacy: group.admissions.privacy,
     ...toClientGroupMeta(group.meta),
+    // undefined means the source surface predates the blob (v1 create, v2
+    // fallback scries), and leaves a stored value alone; an explicit null is
+    // an authoritative clear.
+    blob: group.blob,
     haveInvite: isJoined ? false : undefined,
     haveRequestedInvite: isJoined ? false : undefined,
     currentUserIsMember: isJoined,

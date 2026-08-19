@@ -5,12 +5,17 @@ import { toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
 import {
+  toClientGroups,
   toClientGroupsFromForeigns,
-  toClientGroupsV7,
   toClientPinnedItems,
 } from './groupsApi';
 import { toClientHiddenPosts } from './postsApi';
-import { getActivitySupportsNotes, getCurrentUserId, scry } from './urbit';
+import {
+  getActivitySupportsNotes,
+  getCurrentUserId,
+  getGroupsSupportsBlob,
+  scry,
+} from './urbit';
 
 const logger = createDevLogger('initApi', false);
 
@@ -32,12 +37,14 @@ type InitDataOptions = {
 };
 
 export const getInitData = async () => {
-  // /v9/init embeds v10-native activity (notebook/note sources) so a fresh
-  // init hydrates pre-existing note unreads; the payload shape is otherwise
-  // identical to /v7. Old backends don't serve it.
-  const response = await scry<ub.GroupsInit7>({
+  const response = await scry<ub.GroupsInit10>({
     app: 'groups-ui',
-    path: getActivitySupportsNotes() ? '/v9/init' : '/v7/init',
+    // /v10 is /v9 plus the group blob; /v9 is v10-native activity without it.
+    path: getGroupsSupportsBlob()
+      ? '/v10/init'
+      : getActivitySupportsNotes()
+        ? '/v9/init'
+        : '/v7/init',
   });
 
   logger.crumb('got init data from api');
@@ -45,8 +52,8 @@ export const getInitData = async () => {
   return toInitData(response, { currentUserId: getCurrentUserId() });
 };
 
-function extractChannelReadersFromV7Groups(
-  groups: Record<string, ub.GroupV7>
+function extractChannelReadersFromGroups(
+  groups: Record<string, ub.GroupV11>
 ): Record<string, string[]> {
   const readers: Record<string, string[]> = {};
   Object.entries(groups).forEach(([_groupId, group]) => {
@@ -60,7 +67,7 @@ function extractChannelReadersFromV7Groups(
 }
 
 function extractJoinedGroupChannelsFromV7Groups(
-  groups: Record<string, ub.GroupV7>
+  groups: Record<string, ub.GroupV11>
 ): string[] {
   const joinedChannelIds = new Set<string>();
 
@@ -74,7 +81,7 @@ function extractJoinedGroupChannelsFromV7Groups(
 }
 
 export const toInitData = (
-  response: ub.GroupsInit7,
+  response: ub.GroupsInit10,
   options: InitDataOptions
 ): InitData => {
   logger.crumb('converting init data to client data');
@@ -82,7 +89,7 @@ export const toInitData = (
 
   const pins = toClientPinnedItems(response.pins);
 
-  const channelReaders = extractChannelReadersFromV7Groups(response.groups);
+  const channelReaders = extractChannelReadersFromGroups(response.groups);
 
   const channelsInit = toClientChannelsInit(
     response.channel.channels,
@@ -104,7 +111,7 @@ export const toInitData = (
 
   logger.crumb('converting groups to client data');
 
-  const groups = toClientGroupsV7(response.groups, true, options.currentUserId);
+  const groups = toClientGroups(response.groups, true, options.currentUserId);
 
   logger.crumb('converting unjoined groups to client data');
 

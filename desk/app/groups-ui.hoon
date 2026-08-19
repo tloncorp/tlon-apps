@@ -254,6 +254,25 @@
       ==
     ``ui-init-9+!>(init)
   ::
+  ::  /v10: v9 plus the group blob
+  ::
+      [%x %v10 %init ~]
+    =+  .^([=groups-ui:v11:gv =foreigns:v8:gv] (scry %gx %groups /v4/init/noun))
+    =+  .^(channel=channel-10:u (scry %gx %channels /v6/init/noun))
+    =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
+    =+  .^(=activity:v10:av (scry %gx %activity /v6/activity/noun))
+    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    =/  init=init-10:u
+      :*  groups-ui
+          foreigns
+          channel
+          activity
+          pins
+          chat
+          profile
+      ==
+    ``ui-init-10+!>(init)
+  ::
       [%x %v5 %changes since=@ ~]
     =+  .^(activity=json (scry %gx %activity /v4/activity/changes/[since.pole]/json))
     =+  .^(channels=json (scry %gx %channels /v5/changes/[since.pole]/json))
@@ -336,6 +355,23 @@
     =+  .^(channels=json (scry %gx %channels /v6/changes/[since.pole]/json))
     =+  .^(chat=json (scry %gx %chat /v4/changes/[since.pole]/json))
     =+  .^(groups=json (scry %gx %groups /v2/changes/[since.pole]/json))
+    =+  .^(contacts=json (scry %gx %contacts /v2/changes/[since.pole]/json))
+    :^  ~  ~  %json
+    !>  %-  pairs:enjs:format
+    :~  'activity'^activity
+        'channels'^channels
+        'chat'^chat
+        'groups'^groups
+        'contacts'^contacts
+    ==
+  ::
+  ::  /v11: v10 plus the group blob
+  ::
+      [%x %v11 %changes since=@ ~]
+    =+  .^(activity=json (scry %gx %activity /v6/activity/changes/[since.pole]/json))
+    =+  .^(channels=json (scry %gx %channels /v6/changes/[since.pole]/json))
+    =+  .^(chat=json (scry %gx %chat /v4/changes/[since.pole]/json))
+    =+  .^(groups=json (scry %gx %groups /v3/changes/[since.pole]/json))
     =+  .^(contacts=json (scry %gx %contacts /v2/changes/[since.pole]/json))
     :^  ~  ~  %json
     !>  %-  pairs:enjs:format

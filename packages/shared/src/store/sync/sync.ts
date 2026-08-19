@@ -16,6 +16,7 @@ import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
 import {
   activityVersionSupportsNotes,
   activityVersionSupportsReactions,
+  groupsVersionSupportsBlob,
 } from '../../logic';
 import { perfMark, perfTime } from '../../perfLog';
 import {
@@ -527,6 +528,7 @@ export const syncAppInfo = async (ctx?: SyncCtx) => {
   api.setActivitySupportsNotes(
     activityVersionSupportsNotes(appInfo?.groupsVersion)
   );
+  api.setGroupsSupportsBlob(groupsVersionSupportsBlob(appInfo?.groupsVersion));
   return db.appInfo.setValue(appInfo);
 };
 
@@ -542,6 +544,7 @@ export const syncReactionSupport = async () => {
   api.setActivitySupportsNotes(
     activityVersionSupportsNotes(appInfo?.groupsVersion)
   );
+  api.setGroupsSupportsBlob(groupsVersionSupportsBlob(appInfo?.groupsVersion));
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -1073,6 +1076,9 @@ export async function handleGroupUpdate(
       break;
     case 'editGroup':
       await db.updateGroup({ id: update.groupId, ...update.meta }, ctx);
+      break;
+    case 'editGroupBlob':
+      await db.updateGroup({ id: update.groupId, blob: update.blob }, ctx);
       break;
     case 'deleteGroup':
       await db.deletePinnedItem({ itemId: update.groupId }, ctx);

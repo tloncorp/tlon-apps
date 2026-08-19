@@ -339,15 +339,16 @@ export interface GroupUpdate {
   diff: GroupDiff;
 }
 
-// v9 Group Response (r-groups)
-export interface V1GroupResponse {
+// r-groups
+export interface GroupResponse {
   flag: string;
   ['r-group']: GroupResponseData;
 }
 
 export type GroupResponseData =
-  | { create: GroupV7 }
+  | { create: GroupV11 }
   | { meta: GroupMeta }
+  | { blob: string | null }
   | { entry: GroupResponseEntry }
   | { seat: { ships: string[]; 'r-seat': GroupResponseSeat } }
   | { role: { roles: string[]; 'r-role': GroupResponseRole } }
@@ -468,8 +469,8 @@ export interface Groups {
   [flag: string]: Group;
 }
 
-export interface GroupsV7 {
-  [flag: string]: GroupV7;
+export interface GroupsV11 {
+  [flag: string]: GroupV11;
 }
 
 export interface GroupPreview {
@@ -517,8 +518,9 @@ export interface AdmissionRequest {
   requestedAt?: number;
 }
 
-export interface GroupV7 {
+export interface GroupV11 {
   meta: GroupMeta;
+  blob?: string | null;
   admissions: Admissions;
   seats: Record<string, Seat>; // fleet in v6 is now seats in v7, uses 'roles' not 'sects'
   roles: Record<string, GroupMeta>; // v7 roles ARE the metadata, not Cabals with nested meta
@@ -625,12 +627,12 @@ export interface GroupInviteAction {
   note: Story | null;
 }
 
-// v8/v9 Group Actions (a-groups)
-export type GroupActionV4 =
+// Group actions (a-groups)
+export type GroupActionEnvelope<TGroupAction> =
   | {
       group: {
         flag: string;
-        'a-group': GroupAction;
+        'a-group': TGroupAction;
       };
     }
   | {
@@ -639,6 +641,15 @@ export type GroupActionV4 =
   | {
       leave: string; // flag
     };
+
+// a-groups:v8
+export type GroupActionV4 = GroupActionEnvelope<GroupAction>;
+
+// a-groups:v11. Kept separate from v4 because group-action-4's dejs has no
+// blob key and would nack one.
+export type GroupActionV5 = GroupActionEnvelope<GroupActionV5Data>;
+
+export type GroupActionV5Data = GroupAction | { blob: string | null };
 
 export type GroupAction =
   | { meta: GroupMeta }

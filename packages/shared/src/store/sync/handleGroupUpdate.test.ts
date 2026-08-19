@@ -287,3 +287,84 @@ test('addChannel propagates group sync failures for normal channels', async () =
     getGroup.mockRestore();
   }
 });
+
+test('editGroupBlob writes and clears the group blob column', async () => {
+  const groupId = '~bus/blob-group';
+
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+
+  await client.insert(schema.groups).values({
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  });
+
+  const blob = '{"custom":"payload"}';
+  await batchEffects('test:editGroupBlob', async (ctx) => {
+    await handleGroupUpdate({ type: 'editGroupBlob', groupId, blob }, ctx);
+  });
+
+  let group = await client.query.groups.findFirst({
+    where: $.eq(schema.groups.id, groupId),
+  });
+  expect(group?.blob).toBe(blob);
+
+  await batchEffects('test:editGroupBlob-clear', async (ctx) => {
+    await handleGroupUpdate(
+      { type: 'editGroupBlob', groupId, blob: null },
+      ctx
+    );
+  });
+
+  group = await client.query.groups.findFirst({
+    where: $.eq(schema.groups.id, groupId),
+  });
+  expect(group?.blob).toBeNull();
+});
+
+// v1 %create responses are blob-stripped (blob undefined) while v3 carries
+// it; re-inserting from a blob-less surface must not clobber a blob learned
+// from the v3 lane, and an explicit null must still clear it.
+test('addGroup preserves the blob on blob-less upserts and clears on null', async () => {
+  const groupId = '~bus/blob-upsert-group';
+  const base = {
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  };
+
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+
+  const blob = '{"custom":"payload"}';
+  await batchEffects('test:addGroup-blob', async (ctx) => {
+    await handleGroupUpdate(
+      { type: 'addGroup', group: { ...base, blob } },
+      ctx
+    );
+  });
+
+  // blob-less upsert leaves it alone
+  await batchEffects('test:addGroup-no-blob', async (ctx) => {
+    await handleGroupUpdate({ type: 'addGroup', group: { ...base } }, ctx);
+  });
+  let group = await client.query.groups.findFirst({
+    where: $.eq(schema.groups.id, groupId),
+  });
+  expect(group?.blob).toBe(blob);
+
+  // explicit null clears
+  await batchEffects('test:addGroup-null-blob', async (ctx) => {
+    await handleGroupUpdate(
+      { type: 'addGroup', group: { ...base, blob: null } },
+      ctx
+    );
+  });
+  group = await client.query.groups.findFirst({
+    where: $.eq(schema.groups.id, groupId),
+  });
+  expect(group?.blob).toBeNull();
+});

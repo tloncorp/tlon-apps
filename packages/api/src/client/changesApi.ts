@@ -4,11 +4,12 @@ import type * as db from '../types/models';
 import * as ub from '../urbit';
 import { toClientUnreads } from './activityApi';
 import { contactToClientProfile } from './contactsApi';
-import { toClientGroupsV7 } from './groupsApi';
+import { toClientGroups } from './groupsApi';
 import { toPostsData } from './postsApi';
 import {
   checkIsNodeBusyWithHints,
   getActivitySupportsNotes,
+  getGroupsSupportsBlob,
   scry,
 } from './urbit';
 
@@ -20,11 +21,15 @@ export async function fetchChangesSince(timestamp: number): Promise<
 > {
   const busyResult = await checkIsNodeBusyWithHints();
   const encodedTimestamp = render('da', da.fromUnix(timestamp));
-  // /v10/changes embeds v10-native activity (notebook/note sources); /v8
-  // embeds the v4 conversion, which drops them. Only request what the
-  // backend is known to support.
-  const changesVersion = getActivitySupportsNotes() ? 'v10' : 'v8';
-  const response = await scry<ub.ChangesV8>({
+  // /v11 embeds the group blob; /v10 is v10-native activity (notebook/note
+  // sources) without it; /v8 embeds the v4 conversion, which drops them.
+  // Only request what the backend is known to support.
+  const changesVersion = getGroupsSupportsBlob()
+    ? 'v11'
+    : getActivitySupportsNotes()
+      ? 'v10'
+      : 'v8';
+  const response = await scry<ub.ChangesV11>({
     app: 'groups-ui',
     path: `/${changesVersion}/changes/${encodedTimestamp}`,
   });
@@ -36,8 +41,8 @@ export async function fetchChangesSince(timestamp: number): Promise<
   return { ...changes, ...nodeBusyStatus };
 }
 
-export function parseChanges(input: ub.ChangesV8): db.ChangesResult {
-  const groups = toClientGroupsV7(input.groups, true);
+export function parseChanges(input: ub.ChangesV11): db.ChangesResult {
+  const groups = toClientGroups(input.groups, true);
 
   const channelPosts = Object.entries(input.channels).flatMap(
     ([channelId, posts]) => (posts ? toPostsData(channelId, posts).posts : [])

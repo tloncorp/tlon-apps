@@ -33,6 +33,7 @@ interface Config
   lastStatus: string;
   activitySupportsReactions: boolean;
   activitySupportsNotes: boolean;
+  groupsSupportsBlob: boolean;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -122,6 +123,9 @@ const config: Config = {
   // Off until the app confirms the backend's groups version ships notes
   // activity (v10 %activity endpoints).
   activitySupportsNotes: false,
+  // Off until the app confirms the backend's groups version ships the group
+  // blob (v3 group surfaces, /v10/init, /v11/changes).
+  groupsSupportsBlob: false,
 };
 
 // The capability flags below start false every boot and flip when app-info
@@ -178,6 +182,17 @@ export const setActivitySupportsNotes = (value: boolean) => {
 
 export const getActivitySupportsNotes = (): boolean => {
   return config.activitySupportsNotes;
+};
+
+// Whether the connected backend carries the group blob (v3 group surfaces,
+// groups-ui /v10/init and /v11/changes). Same pattern as the two above;
+// defaults false so a pre-blob backend keeps getting the v2 surfaces.
+export const setGroupsSupportsBlob = (value: boolean) => {
+  config.groupsSupportsBlob = value;
+};
+
+export const getGroupsSupportsBlob = (): boolean => {
+  return config.groupsSupportsBlob;
 };
 
 export const client = new Proxy(
@@ -308,6 +323,7 @@ export function internalRemoveClient() {
   // endpoints until app-info sync resolves the new ship's version
   setActivitySupportsReactions(false);
   setActivitySupportsNotes(false);
+  setGroupsSupportsBlob(false);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {

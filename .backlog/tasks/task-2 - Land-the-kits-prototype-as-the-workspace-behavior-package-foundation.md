@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - james@tlon.io
 created_date: '2026-08-19 13:46'
-updated_date: '2026-08-19 14:45'
+updated_date: '2026-08-19 15:12'
 labels:
   - workspaces
   - kits
@@ -185,4 +185,16 @@ Research findings, part 5 — deep client pass. Adds a live bug, a security-guar
 **Dead or missing client surface**: `subscribeKitUpdates` is exported with no caller (the UI polls via react-query instead), and the agent's `%del` poke has no client binding at all.
 
 **Client test gaps** (on top of the Hoon gaps in part 4): nothing covers `kitsApi.ts` itself — no poke-shape assertions, no test for `getKit`'s 404-to-null behavior — nothing covers the `INSTALLING_KIT` boot branch, and the loader's missing-file throws, invalid-JSON throw, and `resolvePackagedKitsDir` fallback are untested despite the injectable options built for it. One nice existing invariant test to preserve: `groupsApi.test.ts` asserts that tracked group pokes watch the same lane `subscribeGroups` subscribes to, which catches the exact bug class the lane collapse introduces.
+
+Execution log — commits 1 and 2 landed on james/agentic-workspace.
+
+**Environment.** Worktree had no node_modules; `pnpm install --ignore-scripts` works fine (the TCC/EPERM problem from the older memory did not reappear this session, so no scratchpad clone was needed). `packages/api` must be built before openclaw tests run, and `node scripts/generate-version.js` must run in openclaw before its tsc passes — both confirmed again.
+
+**Hoon verification loop, now working.** Recipe for the remaining commits: `./scripts/sync-deps.sh` (peru) to populate desk-deps; extract `rube-zod27.tgz` into the scratchpad; boot with the urbit binary at `/Volumes/External/src/tlon-apps/apps/tlon-web/rube/dist/urbit_extracted/urbit`; `SKIP_SYNC=true ./scripts/assemble-desk.sh <target>`; rsync into the pier's mounted desk; `|commit`. Gotchas found: `click` needs `ASDF_PYTHON_VERSION=3.12.13`, and the scratchpad path is too long for AF_UNIX so the pier needs a short symlink (`ln -s <pier> /tmp/kz`). click's shell quoting is unreliable for anything nontrivial — **verify over HTTP instead**: log in at `http://localhost:80/~/login` with the ship code, then scry `/~/scry/<app>/<path>.json`. A live agent answering a scry is the decisive signal that the desk compiled.
+
+**Commit 1** (`6028bc519`) — kit format package. `packages/tlon-kits`, `kits/SCHEMA.md`, tlon-skill kits CLI, openclaw guard/telemetry vocabulary. Took `kits.ts` at 61ca96305 (324 lines, no `card` subcommand), which means the guard gap I flagged does not exist yet at this commit — `card` and its guard classification will land together in commit 5, which fixes the bug properly rather than porting it. Added 8 loader tests (invalid JSON, binding/scaffold missing-file throws, the three-packaged-directories rule, and all three `resolvePackagedKitsDir` paths); 20 tests pass, tsc clean.
+
+**Commit 2** (`780b752cc`) — independent Hoon cleanup. **Correction to the plan:** the other five cleanup commits are NOT separable. All seven were tested with `git cherry-pick -n` onto develop and all seven conflict, because they are stacked on the blob commit and reference types (`group-ui-3`, `group-action-5`, `GroupV11`) that do not exist until it lands. Only two things were genuinely independent by content and were hand-ported: the `%group-ui`/`-1`/`-2` strict-list additions and the mark-warmer deletion. `22f441a2e` also turned out to be blob-dependent — it deletes a test the lane collapse creates — so it moves to commit 4. The renames (`6017cf983`, `7c59ccb23`, `e53d1aba8`) and the two orderings (`4bbbf62ee`, `b108ad2b7`) move to commit 3.
+
+Also noted: prettier fails on `packages/tlon-skill/SKILL.md` on develop already (a hard-wrapped LaTeX paragraph). Left as-is rather than reflowing it inside an unrelated commit.
 <!-- SECTION:NOTES:END -->
