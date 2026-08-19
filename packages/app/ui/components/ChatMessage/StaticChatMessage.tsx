@@ -1,3 +1,4 @@
+import type { PostBlobDataEntryAgentProvision } from '@tloncorp/api';
 import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
 import {
@@ -114,10 +115,8 @@ export function StaticChatMessage({
     }
   }, [onPressRetry, post]);
 
-  const sendAgentProvision = useCallback(
-    async (
-      plan: A2UI.ProvisionAgentEvent['context'] & { timezone: string }
-    ) => {
+  const resolveActionGroup = useCallback(
+    (expectedGroupId: string) => {
       if (!draftInputContext) {
         throw new Error('This channel is not ready to send messages');
       }
@@ -126,10 +125,23 @@ export function StaticChatMessage({
       if (
         !groupId ||
         currentGroup?.id !== groupId ||
-        plan.groupId !== groupId
+        expectedGroupId !== groupId
       ) {
         throw new Error('The onboarding group is not available');
       }
+      return groupId;
+    },
+    [draftInputContext, group, post.groupId]
+  );
+
+  const sendAgentProvision = useCallback(
+    async (
+      plan: A2UI.ProvisionAgentEvent['context'] & { timezone: string }
+    ) => {
+      if (!draftInputContext) {
+        throw new Error('This channel is not ready to send messages');
+      }
+      const groupId = resolveActionGroup(plan.groupId);
       // Channel creation is persisted separately from the group's embedded
       // channel list, which can lag behind the live channel table for this
       // render. Resolve the notebook from the canonical table at action time.
@@ -145,7 +157,7 @@ export function StaticChatMessage({
       const provisionId =
         locks[groupId]?.provision?.provisionId ??
         `${getRandomId()}-${Date.now().toString(36)}`;
-      const blob = appendToPostBlob(undefined, {
+      const request = {
         type: 'tlon-agent-provision',
         version: 1,
         provisionId,
@@ -158,7 +170,8 @@ export function StaticChatMessage({
         scheduleMinute: plan.scheduleMinute,
         notebookNest: notebooks[0].id,
         notebookTitle,
-      });
+      } satisfies PostBlobDataEntryAgentProvision;
+      const blob = appendToPostBlob(undefined, request);
 
       await renameAgentGroupFromOnboarding({
         groupId,
@@ -172,20 +185,7 @@ export function StaticChatMessage({
           ...current[groupId],
           createdAt: current[groupId]?.createdAt ?? Date.now(),
           provisionAcknowledgedAt: undefined,
-          provision: {
-            type: 'tlon-agent-provision',
-            version: 1,
-            provisionId,
-            groupId,
-            purposeId: plan.purposeId,
-            purpose: plan.purpose,
-            topics: plan.topics,
-            timezone: plan.timezone,
-            scheduleHour: plan.scheduleHour,
-            scheduleMinute: plan.scheduleMinute,
-            notebookNest: notebooks[0].id,
-            notebookTitle,
-          },
+          provision: request,
         },
       }));
       await draftInputContext.sendPostFromDraft({
@@ -198,7 +198,7 @@ export function StaticChatMessage({
         isEdit: false,
       });
     },
-    [draftInputContext, group, post.groupId]
+    [draftInputContext, resolveActionGroup]
   );
 
   const configureAgentProviders = useCallback(
@@ -206,15 +206,7 @@ export function StaticChatMessage({
       if (!draftInputContext || draftInputContext.canStartDraft === false) {
         throw new Error('This channel is not ready to send messages');
       }
-      const currentGroup = group ?? draftInputContext.group;
-      const activeGroupId = post.groupId ?? currentGroup?.id;
-      if (
-        !activeGroupId ||
-        currentGroup?.id !== activeGroupId ||
-        groupId !== activeGroupId
-      ) {
-        throw new Error('The onboarding group is not available');
-      }
+      resolveActionGroup(groupId);
       const uniqueProviderIds = [...new Set(providerIds)];
       const blob = appendToPostBlob(undefined, {
         type: 'tlon-agent-provider-config',
@@ -236,7 +228,7 @@ export function StaticChatMessage({
         isEdit: false,
       });
     },
-    [draftInputContext, group, post.groupId]
+    [draftInputContext, resolveActionGroup]
   );
 
   const handleA2UIAction = useCallback(

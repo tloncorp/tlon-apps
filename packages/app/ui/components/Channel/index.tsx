@@ -19,7 +19,7 @@ import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { Button, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import {
@@ -271,7 +271,6 @@ interface ChannelProps {
   group: db.Group | null;
   groupIsLoading?: boolean;
   goBack: () => void;
-  hideDraftInput?: boolean;
   disableBackButton?: boolean;
   suppressEmptyState?: boolean;
   suppressAnimatedSendScroll?: boolean;
@@ -318,7 +317,6 @@ export function Channel({
   group,
   groupIsLoading,
   goBack,
-  hideDraftInput,
   disableBackButton,
   suppressEmptyState,
   suppressAnimatedSendScroll,
@@ -390,7 +388,7 @@ export function Channel({
                 : 'channel-mismatch'
             : null;
   const canRenderDraftInput = readOnlyNoticeType == null && !channel.isDmInvite;
-  const availableDraftInputType = !canRenderDraftInput
+  const draftInputType = !canRenderDraftInput
     ? null
     : channel.contentConfiguration != null
       ? ChannelContentConfiguration.draftInput(channel.contentConfiguration).id
@@ -401,7 +399,6 @@ export function Channel({
           : channel.type === 'notebook'
             ? DraftInputId.notebook
             : null;
-  const draftInputType = hideDraftInput ? null : availableDraftInputType;
   // For DMs, get the other participant's ID
   const dmRecipientId = useMemo(() => {
     if (isDM && channel.members) {
@@ -790,18 +787,9 @@ export function Channel({
   const usesFloatingPinnedPostBanner = isChatChannel && supportsLiquidGlass();
   const shouldReservePinnedPostBannerSpace =
     usesFloatingPinnedPostBanner && shouldRenderPinnedPostBanner;
-  // Agent onboarding hides the composer while its durable controls are live.
-  // Reserve the same floating-composer inset throughout that transition so
-  // the final setup copy does not jump underneath the composer when it returns.
-  const reservesHiddenChatComposer =
-    Boolean(hideDraftInput) && availableDraftInputType === DraftInputId.chat;
   const { contentInsets, floatingHeaderHeight, onFloatingHeightChange } =
     useConversationInsets({
-      hasFloatingComposer:
-        draftInputType === DraftInputId.chat || reservesHiddenChatComposer,
-      hasBottomSafeAreaClearance: Boolean(
-        hideDraftInput && !reservesHiddenChatComposer
-      ),
+      hasFloatingComposer: draftInputType === DraftInputId.chat,
       hasTransparentHeader: isChatChannel,
       hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
     });
