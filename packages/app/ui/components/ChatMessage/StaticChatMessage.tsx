@@ -1,8 +1,7 @@
-import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
 import { Text } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useMemo } from 'react';
+import { ComponentProps, useCallback } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
@@ -145,24 +144,12 @@ export function StaticChatMessage({
     [draftInputContext]
   );
 
-  const canRenderA2UI = isDmChannelId(post.channelId);
-
-  const postContent = usePostContent(post);
-  const lastEditPostContent = usePostLastEditContent(post);
-  const content = useMemo(
-    () =>
-      canRenderA2UI
-        ? postContent
-        : postContent.filter((block) => block.type !== 'a2ui'),
-    [canRenderA2UI, postContent]
-  );
-  const lastEditContent = useMemo(
-    () =>
-      canRenderA2UI
-        ? lastEditPostContent
-        : lastEditPostContent.filter((block) => block.type !== 'a2ui'),
-    [canRenderA2UI, lastEditPostContent]
-  );
+  // A2UI blocks render wherever a message renders as chat, which is every
+  // channel type this component serves (chat, dm, groupDm). Surfaces that
+  // should not show them — notebook and gallery — never reach here; they use
+  // the default block renderers, where `a2ui` maps to null.
+  const content = usePostContent(post);
+  const lastEditContent = usePostLastEditContent(post);
 
   const shouldRenderReplies =
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
@@ -235,10 +222,8 @@ export function StaticChatMessage({
             onPressImage={handleImagePressed}
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
-            onA2UIAction={canRenderA2UI ? handleA2UIAction : undefined}
-            isA2UIActionAvailable={
-              canRenderA2UI ? isA2UIActionAvailable : undefined
-            }
+            onA2UIAction={handleA2UIAction}
+            isA2UIActionAvailable={isA2UIActionAvailable}
             searchQuery={searchQuery}
           />
         )}

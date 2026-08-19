@@ -16,6 +16,9 @@ import { exampleContacts, makePost, verse } from './contentHelpers';
 import { group, tlonLocalIntros } from './fakeData';
 
 const dmChannelId = '~sampel-palnet';
+// A2UI renders in any conversation shown as chat, not just DMs. This nest
+// exercises the group-channel path, which is where workspace cards live.
+const groupChannelId = 'chat/~zod/design';
 
 const weatherA2UI: A2UI.BlobEntry = {
   type: 'a2ui',
@@ -690,8 +693,19 @@ const basicComponentsPost = makePost(
   }
 );
 
+const groupChannelPost = makePost(
+  exampleContacts.mark,
+  [verse.inline('Weather in a group channel: 22903 is 57F and partly cloudy.')],
+  {
+    blob: appendToPostBlob(undefined, weatherA2UI),
+    channelId: groupChannelId,
+    replyCount: 0,
+  }
+);
+
 const examplePosts = [
   weatherPost,
+  groupChannelPost,
   confirmationPost,
   channelApprovalPost,
   groupApprovalPost,

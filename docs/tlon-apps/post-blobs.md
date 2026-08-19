@@ -18,9 +18,9 @@ Blob entries are a discriminated union keyed on `type` and `version`. Definition
 
 Each concrete entry type should have:
 
-- a named schema, for example `PostBlobDataEntryFileSchema`
-- a named inferred type, for example `PostBlobDataEntryFile`
-- a registration entry in `postBlobDataEntryDefinitions`
+-   a named schema, for example `PostBlobDataEntryFileSchema`
+-   a named inferred type, for example `PostBlobDataEntryFile`
+-   a registration entry in `postBlobDataEntryDefinitions`
 
 Current entry types:
 
@@ -98,23 +98,23 @@ The current renderer expects one `createSurface` message and one `updateComponen
 
 The supported v1 client subset is intentionally small:
 
-- components: `Card`, `Column`, `Row`, `Text`, `Divider`, and `Button`
-- button actions:
-  - `tlon.sendMessage`, which sends explicit action text in the current DM
-  - `tlon.navigate`, which can navigate to a message, channel, group, profile, chat details, or chat volume screen
-    - message reply targets should include `parentAuthorId` when `parentId` is not already prefixed as `~author/id`
-- rendering policy: A2UI blocks render only in direct messages for now
-- validation limits: component count, tree depth, text length, and expanded render size
+-   components: `Card`, `Column`, `Row`, `Text`, `Divider`, and `Button`
+-   button actions:
+    -   `tlon.sendMessage`, which sends explicit action text in the current conversation
+    -   `tlon.navigate`, which can navigate to a message, channel, group, profile, chat details, or chat volume screen
+        -   message reply targets should include `parentAuthorId` when `parentId` is not already prefixed as `~author/id`
+-   rendering policy: A2UI blocks render in any conversation shown as chat — chat channels, DMs, and group DMs — because that is every channel type `StaticChatMessage` serves. Notebook and gallery posts do not render them: they use the default block renderers, where `a2ui` maps to null.
+-   validation limits: component count, tree depth, text length, and expanded render size
 
 ## Read/write behavior
 
-- Writes happen through helpers in `packages/api/src/client/content-helpers.ts`. `appendToPostBlob` is the base helper; `appendFileUploadToPostBlob` and `appendVideoToPostBlob` are convenience wrappers.
-- `toPostData` builds blobs from finalized attachments.
-- `PostDataDraft` does not store `blob`; blob is computed during finalization from attachments.
-- The edit transport can carry a blob, but current frontend edit flows do not implement blob editing. Network edits preserve the original blob.
-- `parsePostBlob` reads blob JSON and validates each entry against the registered union schema.
-- `convertContent` maps parsed entries into renderable `PostContent` blocks.
-- The backend stores and relays `blob` but does not inspect it.
+-   Writes happen through helpers in `packages/api/src/client/content-helpers.ts`. `appendToPostBlob` is the base helper; `appendFileUploadToPostBlob` and `appendVideoToPostBlob` are convenience wrappers.
+-   `toPostData` builds blobs from finalized attachments.
+-   `PostDataDraft` does not store `blob`; blob is computed during finalization from attachments.
+-   The edit transport can carry a blob, but current frontend edit flows do not implement blob editing. Network edits preserve the original blob.
+-   `parsePostBlob` reads blob JSON and validates each entry against the registered union schema.
+-   `convertContent` maps parsed entries into renderable `PostContent` blocks.
+-   The backend stores and relays `blob` but does not inspect it.
 
 ## Design rules
 
@@ -141,35 +141,21 @@ The supported v1 client subset is intentionally small:
 For a new `etherscan-tx` entry, the schema/helper shape should look roughly like this:
 
 ```ts
-const PostBlobDataEntryEtherscanTxSchema = definePostBlobDataEntrySchema(
-  'etherscan-tx',
-  1,
-  {
+const PostBlobDataEntryEtherscanTxSchema = definePostBlobDataEntrySchema('etherscan-tx', 1, {
     txHash: z.string().min(1),
     chainId: z.number().int().nonnegative(),
-  }
-);
+});
 
-type PostBlobDataEntryEtherscanTx = z.infer<
-  typeof PostBlobDataEntryEtherscanTxSchema
->;
+type PostBlobDataEntryEtherscanTx = z.infer<typeof PostBlobDataEntryEtherscanTxSchema>;
 
-const postBlobDataEntryDefinitions = [
-  PostBlobDataEntryFileSchema,
-  PostBlobDataEntryVoiceMemoSchema,
-  PostBlobDataEntryVideoSchema,
-  PostBlobDataEntryEtherscanTxSchema,
-] as const;
+const postBlobDataEntryDefinitions = [PostBlobDataEntryFileSchema, PostBlobDataEntryVoiceMemoSchema, PostBlobDataEntryVideoSchema, PostBlobDataEntryEtherscanTxSchema] as const;
 
-export function appendEtherscanTxToPostBlob(
-  blob: string | undefined,
-  opts: { txHash: string; chainId: number }
-) {
-  return appendToPostBlob(blob, {
-    type: 'etherscan-tx',
-    version: 1,
-    ...opts,
-  });
+export function appendEtherscanTxToPostBlob(blob: string | undefined, opts: { txHash: string; chainId: number }) {
+    return appendToPostBlob(blob, {
+        type: 'etherscan-tx',
+        version: 1,
+        ...opts,
+    });
 }
 ```
 
