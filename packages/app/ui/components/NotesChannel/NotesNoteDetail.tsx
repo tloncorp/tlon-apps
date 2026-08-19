@@ -54,6 +54,7 @@ import { trackNotesActionError } from './notesTelemetry';
 import { formatNoteDate, getFolderPath } from './notesTree';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
+type NotesEditorSession = { key: string | null };
 
 // Long enough that we don't fire a save on every typing pause; exits are
 // covered by the flush paths and the draft stash either way.
@@ -262,6 +263,30 @@ export function NotesNoteDetail({
   );
   const titleDraftRef = useRef(titleDraft);
   const bodyDraftRef = useRef(bodyDraft);
+  // A note can be selected, left, and selected again while an earlier save is
+  // still in flight. Give each visit its own identity so that a completion
+  // from the first visit cannot rebase the later editor session, even when
+  // both visits point at the same note id.
+  const editorSessionKey =
+    notebookFlag && noteId !== null
+      ? draftStashKey(notebookFlag, noteId)
+      : null;
+  const editorSession = useMemo<NotesEditorSession>(
+    () => ({ key: editorSessionKey }),
+    [editorSessionKey]
+  );
+  const editorSessionRef = useRef(editorSession);
+  useLayoutEffect(() => {
+    editorSessionRef.current = editorSession;
+  }, [editorSession]);
+  // The selected note changes one render before the draft base and draft refs
+  // catch up. Keep the session attached to the base so a selection-change
+  // cleanup still captures the session that owns those drafts.
+  const draftSessionRef = useRef(editorSession);
+  const isCurrentEditorSession = useCallback(
+    (session: NotesEditorSession) => editorSessionRef.current === session,
+    []
+  );
   const titleInputRef = useRef<TextInputRef>(null);
   const autoFocusedTitleNoteIdRef = useRef<string | null>(null);
   const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
@@ -554,12 +579,21 @@ export function NotesNoteDetail({
     flag: string | null | undefined;
     base: db.NotesNote | null;
     canEdit: boolean;
+    session: NotesEditorSession;
   } | null>(null);
   useEffect(() => {
+    if (
+      notebookFlag &&
+      draftBase &&
+      draftStashKey(notebookFlag, draftBase.noteId) === editorSessionKey
+    ) {
+      draftSessionRef.current = editorSession;
+    }
     flushCtxRef.current = {
       flag: notebookFlag,
       base: draftBase,
       canEdit,
+      session: draftSessionRef.current,
     };
   });
 
@@ -603,6 +637,7 @@ export function NotesNoteDetail({
     async (baseOverride?: db.NotesNote) => {
       const base = baseOverride ?? draftBase;
       if (!notebookFlag || !base || !canEdit) return false;
+      const session = draftSessionRef.current;
       const bodyToSave = bodyDraftRef.current;
       const dirty =
         normalizeNotebookNoteTitle(titleDraft) !== base.title ||
@@ -628,7 +663,7 @@ export function NotesNoteDetail({
         );
         // Rebase onto the saved revision; keystrokes typed during the save
         // leave the drafts dirty against it, so the next cycle saves them.
-        if (updated) {
+        if (updated && isCurrentEditorSession(session)) {
           setDraftBase(updated);
           // A save we did NOT rename in can come back with a different
           // title: another client renamed, and the response payload's
@@ -657,15 +692,20 @@ export function NotesNoteDetail({
           title: titleDraft,
           body: bodyToSave,
         });
-        setSaveState('saved');
-        clearConflict(notebookFlag, base.noteId);
+        if (isCurrentEditorSession(session)) {
+          setSaveState('saved');
+          clearConflict(notebookFlag, base.noteId);
+        }
         return true;
       } catch (e) {
         const message = errorMessage(e, 'Failed to save note');
         trackNotesActionError('save note', e, message, {
           noteId: base.noteId,
         });
-        if (e instanceof NotesNoteConflictError) {
+        if (
+          e instanceof NotesNoteConflictError &&
+          isCurrentEditorSession(session)
+        ) {
           reportConflict(notebookFlag, e);
           return false;
         }
@@ -673,8 +713,7 @@ export function NotesNoteDetail({
         // an autosave that rejects after the user switched notes must not
         // mark the newly-selected note as failed. (reportConflict applies
         // the same guard for conflicts.)
-        const ctx = flushCtxRef.current;
-        if (ctx?.flag === notebookFlag && ctx.base?.noteId === base.noteId) {
+        if (isCurrentEditorSession(session)) {
           setSaveState('error');
           setError(message);
         }
@@ -685,6 +724,7 @@ export function NotesNoteDetail({
       canEdit,
       clearConflict,
       draftBase,
+      isCurrentEditorSession,
       notebookFlag,
       preserveScrollOffset,
       reportConflict,
@@ -755,7 +795,12 @@ export function NotesNoteDetail({
     // very content the user just chose to throw away.
     titleDraftRef.current = adopted.title;
     bodyDraftRef.current = adopted.bodyMd;
-    flushCtxRef.current = { flag: notebookFlag, base: adopted, canEdit };
+    flushCtxRef.current = {
+      flag: notebookFlag,
+      base: adopted,
+      canEdit,
+      session: draftSessionRef.current,
+    };
     // Persist the host's copy locally so the reactive row catches up with
     // the adoption instead of reloading the stale pre-conflict content
     // over it. (The draft-loading effect also skips rows that trail the
@@ -800,7 +845,7 @@ export function NotesNoteDetail({
       normalizeNotebookNoteTitle(titleToSave) !== ctx.base.title ||
       bodyToSave !== ctx.base.bodyMd;
     if (!dirty) return;
-    const { flag, base } = ctx;
+    const { flag, base, session } = ctx;
     preserveScrollOffset();
     rememberNotesNoteDraftSnapshot({
       notebookFlag: flag,
@@ -824,7 +869,7 @@ export function NotesNoteDetail({
         });
         // No-ops after unmount; while mounted (background flush) rebase so
         // the next cycle doesn't re-send a stale revision.
-        if (updated) {
+        if (updated && isCurrentEditorSession(session)) {
           setDraftBase(updated);
           // Same untouched-title rebase as the foreground save path: a
           // remote rename carried back by the payload must not leave the
@@ -838,14 +883,19 @@ export function NotesNoteDetail({
             titleDraftRef.current = updated.title;
           }
         }
-        setSaveState('saved');
-        clearConflict(flag, base.noteId);
+        if (isCurrentEditorSession(session)) {
+          setSaveState('saved');
+          clearConflict(flag, base.noteId);
+        }
       })
       .catch((e) => {
         // No-ops after unmount; while mounted, surface a conflict so the
         // resolution banner appears instead of a silently-failed flush.
         // reportConflict drops it if the selection has since moved on.
-        if (e instanceof NotesNoteConflictError) {
+        if (
+          e instanceof NotesNoteConflictError &&
+          isCurrentEditorSession(session)
+        ) {
           reportConflict(flag, e);
           return;
         }
@@ -854,13 +904,18 @@ export function NotesNoteDetail({
         // is still in the editor, show the error so autosave/user retries.
         // After unmount the durable stash carries the edits, and the
         // stash-restore pass surfaces a conflict if the note moved on.
-        const ctx = flushCtxRef.current;
-        if (ctx?.flag === flag && ctx.base?.noteId === base.noteId) {
+        if (isCurrentEditorSession(session)) {
           setSaveState('error');
           setError(errorMessage(e, 'Failed to save note'));
         }
       });
-  }, [clearConflict, preserveScrollOffset, reportConflict, runSave]);
+  }, [
+    clearConflict,
+    isCurrentEditorSession,
+    preserveScrollOffset,
+    reportConflict,
+    runSave,
+  ]);
 
   // Flush unsaved work when switching notes or unmounting — the poke
   // outlives the component.
