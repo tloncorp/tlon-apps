@@ -43,42 +43,15 @@ describe('agent onboarding requests', () => {
     expect(parseAgentOnboardingRequest('not-json')).toBeNull();
   });
 
-  it('builds a valid single client-local surface', () => {
-    const surface = agentOnboardingTesting.buildOnboardingSurface('~ten/group');
-    expect(surface.messages).toHaveLength(2);
-    expect(
-      surface.messages.find((message) => 'updateComponents' in message)
-    ).toMatchObject({
-      updateComponents: {
-        root: 'root',
-        components: [{ id: 'root', component: 'AgentOnboarding' }],
-      },
-    });
-  });
-
-  it('keeps onboarding follow-up actions flat', () => {
-    const invite = agentOnboardingTesting.buildInviteSurface('~ten/group');
+  it('keeps the services follow-up action flat', () => {
     const services = agentOnboardingTesting.buildServicesSurface(
       'pitch',
       '~ten/group',
       'provision-1'
     );
-    const inviteRoot = invite.messages.find(
-      (message) => 'updateComponents' in message
-    );
     const servicesRoot = services.messages.find(
       (message) => 'updateComponents' in message
     );
-
-    expect(
-      inviteRoot &&
-        'updateComponents' in inviteRoot &&
-        inviteRoot.updateComponents.components.find(({ id }) => id === 'root')
-    ).toEqual({
-      id: 'root',
-      component: 'Column',
-      children: ['invite'],
-    });
     // Providers and connection status belong to the client; the coordinator
     // sends only the bounded menu configuration and its navigation target.
     const servicesComponents =

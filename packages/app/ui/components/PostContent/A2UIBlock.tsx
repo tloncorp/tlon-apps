@@ -1,5 +1,4 @@
 import { A2UI, type A2UIBlockData } from '@tloncorp/shared/logic';
-import { useGroup } from '@tloncorp/shared/store';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -12,8 +11,6 @@ import { View, XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
 import { TextInput } from '../Form';
-import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
-import { AgentOnboardingSurface } from './AgentOnboardingSurface';
 import { McpConnectControl } from './McpConnectControl';
 import {
   getSmallChoiceCompletionPresentation,
@@ -646,26 +643,9 @@ function getComponentText(
       return component.options.map((option) => option.label).join(', ');
     case 'McpConnect':
       return component.seeAllLabel;
-    case 'AgentOnboarding':
-      return component.purposes.map((purpose) => purpose.label).join(', ');
     case 'Divider':
       return '';
   }
-}
-
-/**
- * An A2UI button carrying `tlon.inviteLink` is a slot, not a control: the
- * card asks for the group's invite link, and the client fills it with the
- * same invite affordance the rest of the app uses. Nothing about the link
- * travels through the card, so it can't go stale and the sender never has to
- * mint one.
- */
-function A2UIInviteLink({ groupId }: { groupId: string }) {
-  const { data: group } = useGroup({ id: groupId });
-  if (!group) {
-    return null;
-  }
-  return <InviteFriendsToTlonButton group={group} />;
 }
 
 export function A2UIBlock({
@@ -679,7 +659,6 @@ export function A2UIBlock({
     provisionedAgentTopics,
     consumedA2UIMessageText,
     onA2UIAction,
-    onAgentOnboardingConfirm,
   } = useContentContext();
   const [locallyConsumedComponentIds, setLocallyConsumedComponentIds] =
     useState<string[]>([]);
@@ -878,20 +857,6 @@ export function A2UIBlock({
             />
           );
         case 'Button': {
-          if (component.action.event.name === A2UI.action.inviteLink) {
-            // Mounting this control turns the group's invite links on, so an
-            // untrusted or mismatched card renders as nothing rather than as
-            // a dead button — the surrounding text still explains the ask.
-            if (isA2UIActionAvailable?.(component.action) === false) {
-              return null;
-            }
-            return (
-              <A2UIInviteLink
-                key={component.id}
-                groupId={component.action.event.context.groupId}
-              />
-            );
-          }
           const actionCanBeConsumed = isConsumableA2UIAction(component.action);
           const actionConsumed =
             actionCanBeConsumed &&
@@ -1148,15 +1113,6 @@ export function A2UIBlock({
               />
             </YStack>
           );
-        case 'AgentOnboarding':
-          return (
-            <AgentOnboardingSurface
-              key={component.id}
-              component={component}
-              surfaceId={surfaceId}
-              onConfirm={onAgentOnboardingConfirm}
-            />
-          );
       }
     },
     [
@@ -1172,7 +1128,6 @@ export function A2UIBlock({
       locallyConsumedComponentIds,
       locallyConsumedChoices,
       onA2UIAction,
-      onAgentOnboardingConfirm,
       surfaceId,
     ]
   );

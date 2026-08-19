@@ -32,9 +32,8 @@ export function getA2UIActionCompletion(
       Boolean(candidate.textContent?.trim())
     ),
     sentMessageText:
-      ownerReplies.find((candidate) =>
-        Boolean(candidate.textContent?.trim())
-      )?.textContent ?? undefined,
+      ownerReplies.find((candidate) => Boolean(candidate.textContent?.trim()))
+        ?.textContent ?? undefined,
     provisionAgent: ownerReplies.some(
       (candidate) =>
         candidate.blob != null &&

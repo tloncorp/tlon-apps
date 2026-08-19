@@ -115,7 +115,9 @@ export function StaticChatMessage({
   }, [onPressRetry, post]);
 
   const sendAgentProvision = useCallback(
-    async (plan: A2UI.AgentOnboardingPlan, expectedGroupId?: string) => {
+    async (
+      plan: A2UI.ProvisionAgentEvent['context'] & { timezone: string }
+    ) => {
       if (!draftInputContext) {
         throw new Error('This channel is not ready to send messages');
       }
@@ -124,7 +126,7 @@ export function StaticChatMessage({
       if (
         !groupId ||
         currentGroup?.id !== groupId ||
-        (expectedGroupId && expectedGroupId !== groupId)
+        plan.groupId !== groupId
       ) {
         throw new Error('The onboarding group is not available');
       }
@@ -244,17 +246,10 @@ export function StaticChatMessage({
         return;
       }
 
-      if (action.event.name === A2UI.action.inviteLink) {
-        return;
-      }
-
       if (action.event.name === A2UI.action.provisionAgent) {
         const timezone =
           Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-        await sendAgentProvision(
-          { ...action.event.context, timezone },
-          action.event.context.groupId
-        );
+        await sendAgentProvision({ ...action.event.context, timezone });
         return;
       }
 
@@ -297,12 +292,6 @@ export function StaticChatMessage({
     (action: A2UI.Button['action']) => {
       if (action.event.name === A2UI.action.navigate) {
         return true;
-      }
-
-      if (action.event.name === A2UI.action.inviteLink) {
-        return Boolean(
-          post.groupId && action.event.context.groupId === post.groupId
-        );
       }
 
       if (action.event.name === A2UI.action.sendMessage) {
@@ -356,11 +345,6 @@ export function StaticChatMessage({
       return false;
     },
     [a2uiActionCompletion]
-  );
-
-  const confirmOnboarding = useCallback(
-    (plan: A2UI.AgentOnboardingPlan) => sendAgentProvision(plan),
-    [sendAgentProvision]
   );
 
   const groupAgents = db.agentGroupAgents.useValue();
@@ -547,9 +531,6 @@ export function StaticChatMessage({
             }
             provisionedAgentTopics={a2uiActionCompletion?.provisionedTopics}
             consumedA2UIMessageText={a2uiActionCompletion?.sentMessageText}
-            onAgentOnboardingConfirm={
-              canRenderA2UI ? confirmOnboarding : undefined
-            }
             searchQuery={searchQuery}
           />
         )}

@@ -21,7 +21,6 @@ describe('isConsumableA2UIAction', () => {
 
   it('keeps client-local actions reusable', () => {
     expect(isConsumableA2UIAction(action(A2UI.action.navigate))).toBe(false);
-    expect(isConsumableA2UIAction(action(A2UI.action.inviteLink))).toBe(false);
   });
 });
 
