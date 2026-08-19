@@ -1,4 +1,11 @@
 // tamagui-ignore
+import {
+  AGENT_ONBOARDING_GROUP_INTRO,
+  AGENT_ONBOARDING_ORIENTATION_OPTIONS,
+  AGENT_ONBOARDING_ORIENTATION_PROMPT,
+  AGENT_ONBOARDING_PURPOSE_OPTIONS,
+  AGENT_ONBOARDING_PURPOSE_PROMPT,
+} from '@tloncorp/api/client/agentOnboarding';
 import type { JSONContent } from '@tloncorp/api/urbit';
 import { queryClient } from '@tloncorp/shared';
 import type { JSONValue } from '@tloncorp/shared';
@@ -123,51 +130,24 @@ const purposePicker = makeA2UI('onboarding-purpose-fixture', [
   {
     id: 'prompt',
     component: 'Text',
-    text: 'What can I help you with?',
+    text: AGENT_ONBOARDING_PURPOSE_PROMPT,
   },
   {
     id: 'choices',
     component: 'Choice',
-    options: [
-      {
-        id: 'agent-daily-digest',
-        label: 'A daily digest',
-        description:
-          'A short summary of anything you care about, posted every morning.',
-        icon: 'ChannelNotebooks',
-        accent: 'blue',
-        action: action('A daily digest'),
-      },
-      {
-        id: 'agent-learning',
-        label: 'Learn something',
-        description:
-          'A short daily idea that builds your understanding over time.',
-        icon: 'Clock',
-        accent: 'green',
-        action: action('Learn something'),
-      },
-      {
-        id: 'agent-research',
-        label: 'Research',
-        description:
-          'A source-backed briefing that follows meaningful new work.',
-        icon: 'Search',
-        accent: 'indigo',
-        action: action('Research'),
-      },
-    ],
+    options: AGENT_ONBOARDING_PURPOSE_OPTIONS.map((option) => ({
+      id: option.id,
+      label: option.label,
+      description: option.description,
+      icon: option.icon,
+      accent: option.accent,
+      action: action(option.label),
+    })),
   } as A2UI.Component,
 ]);
 
-const topics = [
-  'Nootropics',
-  'Longevity',
-  'Psychedelics',
-  'Open hardware',
-  'Gene editing',
-  'Space weather',
-];
+const digestPurpose = AGENT_ONBOARDING_PURPOSE_OPTIONS[0];
+const topics = [...digestPurpose.topics];
 
 const topicsPicker = makeA2UI('onboarding-topics-fixture', [
   {
@@ -178,7 +158,7 @@ const topicsPicker = makeA2UI('onboarding-topics-fixture', [
   {
     id: 'prompt',
     component: 'Text',
-    text: 'A daily digest—great. What should I keep an eye on? Pick any that fit.',
+    text: digestPurpose.topicsPrompt,
   },
   {
     id: 'topics',
@@ -194,10 +174,10 @@ const topicsPicker = makeA2UI('onboarding-topics-fixture', [
         name: 'tlon.provisionAgent',
         context: {
           groupId,
-          purposeId: 'agent-daily-digest',
-          purpose: 'A daily digest',
+          purposeId: digestPurpose.id,
+          purpose: digestPurpose.label,
           topics,
-          scheduleHour: 8,
+          scheduleHour: digestPurpose.scheduleHour,
           scheduleMinute: 0,
           notebookNest: updatesNotebook.id,
           notebookTitle: updatesNotebook.title,
@@ -208,13 +188,17 @@ const topicsPicker = makeA2UI('onboarding-topics-fixture', [
 ]);
 
 const acknowledgement =
-  'Open hardware and Space weather—got it. Each morning, I’ll add one fresh ' +
-  'digest to Updates, the notebook channel in this group. Notebook channels ' +
-  'keep longer entries organized so they don’t get buried in chat. I’m ' +
-  'working on the first one now. You’re all set—feel free to look around.';
+  'Open hardware and Space weather—got it. Every morning I’ll write a fresh ' +
+  'digest in Updates, this group’s notebook. After this first entry, new ones ' +
+  'arrive at 8:00 AM.';
+const firstEntryPending =
+  'I’m writing the first entry now. You’re all set—feel free to explore while I work.';
+const firstEntryReady =
+  'Your first entry is ready in Updates, this group’s notebook. That notebook ' +
+  'is where everything I write for you lands; this chat is for talking to me.';
 const servicesMessage =
-  'Want future updates to include your own schedule and work? Connect your ' +
-  'calendar, documents, or notes, and I can use them alongside the public web:';
+  'Connect your calendar and docs and your morning digest can cover your own ' +
+  'day — meetings, deadlines, notes — not just the news.';
 const servicesComponent: A2UI.McpConnect = {
   id: 'providers',
   component: 'McpConnect',
@@ -261,8 +245,25 @@ const servicesPreviewProviders: McpProviderRow[] = [
   { displayName: 'Are.na', id: 'arena', status: 'not-connected' },
 ];
 
-const intro =
-  "I'm your Tlonbot. I can keep you informed, help you learn, or follow a question over time.";
+const orientationSurface = makeA2UI('onboarding-orientation-fixture', [
+  {
+    id: 'root',
+    component: 'Column',
+    children: ['prompt', 'orientation'],
+  },
+  {
+    id: 'prompt',
+    component: 'Text',
+    text: AGENT_ONBOARDING_ORIENTATION_PROMPT,
+  },
+  {
+    id: 'orientation',
+    component: 'SmallChoice',
+    options: [...AGENT_ONBOARDING_ORIENTATION_OPTIONS],
+    submitLabel: 'Continue',
+    action: action(''),
+  } as A2UI.Component,
+]);
 
 function transcriptPost({
   id,
@@ -294,13 +295,13 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-01-intro',
     author: tlonbot,
-    text: intro,
+    text: AGENT_ONBOARDING_GROUP_INTRO,
     minute: 1,
   }),
   transcriptPost({
     id: 'onboarding-02-purpose',
     author: tlonbot,
-    text: 'What can I help you with? Reply “A daily digest”, “Learn something”, or “Research”.',
+    text: `${AGENT_ONBOARDING_PURPOSE_PROMPT} Reply “A daily digest”, “Learn something”, or “Research”.`,
     a2ui: purposePicker,
     minute: 2,
   }),
@@ -313,7 +314,7 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-04-topics',
     author: tlonbot,
-    text: 'A daily digest—great. What should I keep an eye on? Pick any that fit. Nootropics, Longevity, Psychedelics, Open hardware, Gene editing, Space weather.',
+    text: `${digestPurpose.topicsPrompt} ${topics.join(', ')}.`,
     a2ui: topicsPicker,
     minute: 4,
   }),
@@ -330,17 +331,30 @@ const transcript = [
     minute: 6,
   }),
   transcriptPost({
-    id: 'onboarding-07-note-ready',
+    id: 'onboarding-07-first-entry-pending',
     author: tlonbot,
-    text: 'Your first note is ready in Updates:',
+    text: firstEntryPending,
     minute: 7,
   }),
   transcriptPost({
-    id: 'onboarding-08-services',
+    id: 'onboarding-08-note-ready',
+    author: tlonbot,
+    text: firstEntryReady,
+    minute: 8,
+  }),
+  transcriptPost({
+    id: 'onboarding-09-services',
     author: tlonbot,
     text: `${servicesMessage}\n\nConnect services in Settings.`,
     a2ui: servicesSurface,
-    minute: 8,
+    minute: 9,
+  }),
+  transcriptPost({
+    id: 'onboarding-10-orientation',
+    author: tlonbot,
+    text: `${AGENT_ONBOARDING_ORIENTATION_PROMPT} Groups and channels, Your Tlon computer, What else can you do?, I’m good for now.`,
+    a2ui: orientationSurface,
+    minute: 10,
   }),
 ];
 

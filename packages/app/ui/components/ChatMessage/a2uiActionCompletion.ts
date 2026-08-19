@@ -15,18 +15,17 @@ export function getA2UIActionCompletion(
   const ownerReplies = laterPosts.filter(
     (candidate) => candidate.authorId === currentUserId && !candidate.isDeleted
   );
-  const providerConfig = [...ownerReplies]
+  const newestEntries = [...ownerReplies]
     .reverse()
     .flatMap((candidate) =>
       candidate.blob == null ? [] : parsePostBlob(candidate.blob)
-    )
-    .find((entry) => entry.type === 'tlon-agent-provider-config');
-  const provision = [...ownerReplies]
-    .reverse()
-    .flatMap((candidate) =>
-      candidate.blob == null ? [] : parsePostBlob(candidate.blob)
-    )
-    .find((entry) => entry.type === 'tlon-agent-provision');
+    );
+  const providerConfig = newestEntries.find(
+    (entry) => entry.type === 'tlon-agent-provider-config'
+  );
+  const provision = newestEntries.find(
+    (entry) => entry.type === 'tlon-agent-provision'
+  );
   return {
     sendMessage: ownerReplies.some((candidate) =>
       Boolean(candidate.textContent?.trim())
@@ -34,13 +33,7 @@ export function getA2UIActionCompletion(
     sentMessageText:
       ownerReplies.find((candidate) => Boolean(candidate.textContent?.trim()))
         ?.textContent ?? undefined,
-    provisionAgent: ownerReplies.some(
-      (candidate) =>
-        candidate.blob != null &&
-        parsePostBlob(candidate.blob).some(
-          (entry) => entry.type === 'tlon-agent-provision'
-        )
-    ),
+    provisionAgent: provision?.type === 'tlon-agent-provision',
     provisionedTopics:
       provision?.type === 'tlon-agent-provision' ? provision.topics : undefined,
     configuredProviderIds:

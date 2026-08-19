@@ -664,8 +664,7 @@ describe('agent onboarding requests', () => {
     // in the sidebar having never been told it existed.
     const cadence = agentOnboardingTesting.provisionCadence(
       purposeId,
-      'Field notes',
-      ['Music theory']
+      'Field notes'
     );
     expect(cadence).toContain(expectation);
     expect(cadence).toContain('notebook');
@@ -675,8 +674,7 @@ describe('agent onboarding requests', () => {
   it('explains learning rotation without promising an unverified next topic', () => {
     const cadence = agentOnboardingTesting.provisionCadence(
       'agent-learning',
-      'Updates',
-      ['Music theory', 'Architecture', 'Cryptography']
+      'Updates'
     );
     expect(cadence).toContain('rotating through your topics');
     expect(cadence).not.toContain('Music theory first');
