@@ -130,6 +130,7 @@ import {
   setBridge,
 } from './command-bridge.js';
 import { createComputingPresenceTracker } from './computing-presence.js';
+import { resolveDeliverParentId } from './deliver-parent.js';
 import { fetchAllChannels, fetchInitData } from './discovery.js';
 import { dmReactionReplyParentId } from './dm-reactions.js';
 import {
@@ -2286,6 +2287,7 @@ export async function monitorTlonProvider(
       parentId?: string | null;
       isThreadReply?: boolean;
       replyParentId?: string | null; // Override parentId for delivery only (not in ctx payload)
+      degraded?: boolean;
       retryOf?: string; // lensId of the failed run this dispatch retries
     }) => {
       const {
@@ -2303,8 +2305,18 @@ export async function monitorTlonProvider(
       // replyParentId overrides parentId for the deliver callback (thread reply routing)
       // but doesn't affect the ctx payload (MessageThreadId/ReplyToId).
       // Used for reactions: agent sees no thread context (so it responds), but
-      // the reply is still delivered as a thread reply.
-      const deliverParentId = params.replyParentId ?? parentId;
+      // the reply is still delivered as a thread reply. Top-level heap triggers
+      // fall back to the triggering post itself so gallery replies land as
+      // comments, not new items.
+      const deliverParentId = resolveDeliverParentId({
+        isGroup,
+        channelNest,
+        messageId,
+        parentId,
+        isThreadReply,
+        replyParentId: params.replyParentId,
+        degraded: params.degraded,
+      });
       const groupChannel = channelNest; // For compatibility
       const rawMessageText = sanitizeMessageText(params.messageText);
       let currentMessageText = rawMessageText;
@@ -2388,6 +2400,7 @@ export async function monitorTlonProvider(
           isThreadReply: Boolean(isThreadReply),
           replyParentId: params.replyParentId ?? null,
           cachesHistory: Boolean(params.cachesHistory),
+          degraded: Boolean(params.degraded),
         },
       });
       contextLenses.recordPersistence(lens.lensId, {
@@ -2757,6 +2770,7 @@ export async function monitorTlonProvider(
                 fromShip: botShipName,
                 nest: groupChannel,
                 story: markdownToStory(noHistoryMsg),
+                replyToId: deliverParentId ?? undefined,
                 blob: contextLensBlob,
               });
               outputMessageId = result.messageId;
@@ -2825,6 +2839,7 @@ export async function monitorTlonProvider(
               fromShip: botShipName,
               nest: groupChannel,
               story: markdownToStory(errorMsg),
+              replyToId: deliverParentId ?? undefined,
               blob: contextLensBlob,
             });
             outputMessageId = result.messageId;
@@ -3809,7 +3824,14 @@ export async function monitorTlonProvider(
             fromShip: botShipName,
             nest,
             story: markdownToStory(replyText),
-            replyToId: parentId ?? undefined,
+            replyToId:
+              resolveDeliverParentId({
+                isGroup: true,
+                channelNest: nest,
+                messageId: messageId ?? '',
+                parentId,
+                isThreadReply,
+              }) ?? undefined,
           });
           return;
         }
@@ -4538,6 +4560,7 @@ export async function monitorTlonProvider(
             parentId: dispatch.parentId,
             isThreadReply: dispatch.isThreadReply,
             replyParentId: dispatch.replyParentId,
+            degraded: dispatch.degraded,
             cachesHistory: dispatch.cachesHistory,
             trigger: 'retry',
             retryOf: lensId,
