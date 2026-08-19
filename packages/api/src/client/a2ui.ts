@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
 const ACTION_NAVIGATE = 'tlon.navigate';
+const ACTION_SURFACE_ACTION = 'tlon.surfaceAction';
 
 type ComponentBase = {
   id: string;
@@ -96,8 +97,25 @@ export namespace A2UI {
     };
   };
 
+  /**
+   * A tap on a stateful card. The button only names the surface and the
+   * control; the client supplies the target post, the revision it was looking
+   * at, and a fresh action id when the tap happens, because none of those are
+   * knowable when the button is authored.
+   *
+   * See docs/tlon-apps/interactive-surfaces.md.
+   */
+  export type SurfaceActionEvent = {
+    name: typeof ACTION_SURFACE_ACTION;
+    context: {
+      surfaceId: string;
+      name: string;
+      params?: Record<string, unknown>;
+    };
+  };
+
   export type EventAction = {
-    event: SendMessageEvent | NavigateEvent;
+    event: SendMessageEvent | NavigateEvent | SurfaceActionEvent;
   };
 
   export type ButtonAction = EventAction;
@@ -148,6 +166,9 @@ const LIMITS = {
   maxButtonMessageLength: 1000,
   maxNavigationTargetIdLength: 500,
   maxTotalTextLength: 8000,
+  maxSurfaceIdLength: 128,
+  maxSurfaceActionNameLength: 128,
+  maxSurfaceParamsBytes: 2 * 1024,
 } as const;
 
 const CONTAINER_JUSTIFY_VALUES = [
@@ -305,6 +326,20 @@ function validateButtonAction(action: unknown): action is A2UI.ButtonAction {
 
   if (event.name === ACTION_NAVIGATE) {
     return isPlainObject(context) && validateNavigationTarget(context.target);
+  }
+
+  if (event.name === ACTION_SURFACE_ACTION) {
+    return (
+      isPlainObject(context) &&
+      isNonEmptyString(context.surfaceId) &&
+      context.surfaceId.length <= LIMITS.maxSurfaceIdLength &&
+      isNonEmptyString(context.name) &&
+      context.name.length <= LIMITS.maxSurfaceActionNameLength &&
+      (context.params === undefined ||
+        (isPlainObject(context.params) &&
+          JSON.stringify(context.params).length <=
+            LIMITS.maxSurfaceParamsBytes))
+    );
   }
 
   return false;
@@ -534,6 +569,7 @@ export const A2UI = {
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
     navigate: ACTION_NAVIGATE,
+    surfaceAction: ACTION_SURFACE_ACTION,
   },
   getUpdateMessage,
   getRootComponentId,

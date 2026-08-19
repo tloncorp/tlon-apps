@@ -104,6 +104,15 @@ export function StaticChatMessage({
         return;
       }
 
+      // Emitting a structured surface action — resolving the target post and
+      // revision, minting an action id — belongs to the client half of the
+      // interactive surface protocol, which is not built yet. Until it is,
+      // isA2UIActionAvailable reports these unavailable, so the button renders
+      // disabled and this branch is unreachable in practice.
+      if (action.event.name === A2UI.action.surfaceAction) {
+        return;
+      }
+
       if (!draftInputContext || draftInputContext.canStartDraft === false) {
         return;
       }

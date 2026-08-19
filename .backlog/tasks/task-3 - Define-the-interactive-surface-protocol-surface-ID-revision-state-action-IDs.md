@@ -3,10 +3,11 @@ id: TASK-3
 title: >-
   Define the interactive surface protocol (surface ID, revision, state, action
   IDs)
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - james@tlon.io
 created_date: '2026-08-19 13:46'
-updated_date: '2026-08-19 18:46'
+updated_date: '2026-08-19 18:48'
 labels:
   - workspaces
   - interactive-cards

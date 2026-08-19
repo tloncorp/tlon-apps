@@ -709,12 +709,101 @@ export const PostBlobDataEntryKitSchema = definePostBlobDataEntrySchema(
 
 export type PostBlobDataEntryKit = z.infer<typeof PostBlobDataEntryKitSchema>;
 
+/**
+ * Interactive surface protocol. See docs/tlon-apps/interactive-surfaces.md for
+ * the round trip, conflict rules, and agent obligations; the schemas here are
+ * only the wire shapes.
+ */
+
+/**
+ * Every byte below ships inside every copy of the post to every member, and
+ * again on every edit, so both the state and the processed-action list are
+ * capped rather than left to grow.
+ */
+export const INTERACTIVE_SURFACE_LIMITS = {
+  /** JSON length of `state`, well under the 32KB a2ui envelope beside it. */
+  maxStateBytes: 8 * 1024,
+  /** JSON length of an action's `params`. */
+  maxParamsBytes: 2 * 1024,
+  /**
+   * How many recent action ids a surface remembers. Past this the oldest are
+   * evicted, so a very old retry can re-apply; the revision check is what
+   * catches that in practice. Bounded growth matters more here than perfect
+   * recall because this list is replicated.
+   */
+  maxProcessedActionIds: 50,
+} as const;
+
+const jsonObjectWithin = (maxBytes: number) =>
+  z
+    .record(z.string(), z.unknown())
+    .refine((value) => JSON.stringify(value).length <= maxBytes, {
+      message: `must serialize to at most ${maxBytes} bytes`,
+    });
+
+const revisionSchema = z.number().int().nonnegative();
+
+/**
+ * The authoritative state of an interactive card, carried on the bot's own
+ * post. The sibling `a2ui` entry on the same post is the view rendered from
+ * this state; `surfaceId` is what joins the two.
+ */
+export const PostBlobDataEntryInteractiveSurfaceSchema =
+  definePostBlobDataEntrySchema('interactive-surface', 1, {
+    /** Unique per message instance, and equal to the sibling a2ui surfaceId. */
+    surfaceId: z.string().min(1),
+    /** Incremented by exactly 1 per applied action; never on a no-change. */
+    revision: revisionSchema,
+    /** Opaque to clients — only the agent and the kit agree on its shape. */
+    state: jsonObjectWithin(INTERACTIVE_SURFACE_LIMITS.maxStateBytes),
+    /** sha-256 over canonical (sorted-key) JSON of `state`, when computed. */
+    stateHash: z.string().min(1).optional(),
+    /** Recently applied action ids, oldest-first. */
+    processedActionIds: z
+      .array(z.string().min(1))
+      .max(INTERACTIVE_SURFACE_LIMITS.maxProcessedActionIds)
+      .default([]),
+  });
+
+export type PostBlobDataEntryInteractiveSurface = z.infer<
+  typeof PostBlobDataEntryInteractiveSurfaceSchema
+>;
+
+/**
+ * One tap, carried on the actor's own post. The actor is the post's author —
+ * never a field in here — and ordering comes from the post id, not from any
+ * client clock.
+ */
+export const PostBlobDataEntryInteractiveActionSchema =
+  definePostBlobDataEntrySchema('interactive-action', 1, {
+    /** The bot post being addressed; matches the reply parent. */
+    targetPostId: z.string().min(1),
+    targetChannelId: z.string().min(1),
+    /** Guards against a post that carries more than one surface. */
+    surfaceId: z.string().min(1),
+    /** Minted at tap and reused verbatim on retry: the idempotency key. */
+    actionId: z.string().min(1),
+    /** Omit to apply against whatever the current revision is. */
+    expectedRevision: revisionSchema.optional(),
+    /** Which control fired. */
+    name: z.string().min(1),
+    params: jsonObjectWithin(
+      INTERACTIVE_SURFACE_LIMITS.maxParamsBytes
+    ).optional(),
+  });
+
+export type PostBlobDataEntryInteractiveAction = z.infer<
+  typeof PostBlobDataEntryInteractiveActionSchema
+>;
+
 const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
   PostBlobDataEntryVideoSchema,
   PostBlobDataEntryContextLensSchema,
   PostBlobDataEntryKitSchema,
+  PostBlobDataEntryInteractiveSurfaceSchema,
+  PostBlobDataEntryInteractiveActionSchema,
   A2UI.blobEntrySchema,
 ] as const;
 
@@ -821,6 +910,64 @@ export function appendVideoToPostBlob(
     height: opts.height,
     duration: opts.duration,
     posterUri: opts.posterUri,
+  });
+}
+
+/**
+ * Write the authoritative surface state onto a post. Callers editing an
+ * existing card must rebuild the whole blob array, not just this entry: the
+ * %edit arm stores the essay wholesale, so any entry left out is erased.
+ */
+export function appendInteractiveSurfaceToPostBlob(
+  blob: string | undefined,
+  opts: {
+    surfaceId: string;
+    revision: number;
+    state: Record<string, unknown>;
+    stateHash?: string;
+    processedActionIds?: string[];
+  }
+) {
+  const processed = opts.processedActionIds ?? [];
+  return appendToPostBlob(blob, {
+    type: 'interactive-surface',
+    version: 1,
+    surfaceId: opts.surfaceId,
+    revision: opts.revision,
+    state: opts.state,
+    stateHash: opts.stateHash,
+    // Keep the most recent ids, dropping from the front, so the entry stays
+    // inside the cap the schema enforces.
+    processedActionIds: processed.slice(
+      -INTERACTIVE_SURFACE_LIMITS.maxProcessedActionIds
+    ),
+  });
+}
+
+/** Write one tap onto the actor's post. */
+export function appendInteractiveActionToPostBlob(
+  blob: string | undefined,
+  opts: {
+    targetPostId: string;
+    targetChannelId: string;
+    surfaceId: string;
+    actionId: string;
+    /** Omit to apply against the current revision. */
+    expectedRevision?: number;
+    name: string;
+    params?: Record<string, unknown>;
+  }
+) {
+  return appendToPostBlob(blob, {
+    type: 'interactive-action',
+    version: 1,
+    targetPostId: opts.targetPostId,
+    targetChannelId: opts.targetChannelId,
+    surfaceId: opts.surfaceId,
+    actionId: opts.actionId,
+    expectedRevision: opts.expectedRevision,
+    name: opts.name,
+    params: opts.params,
   });
 }
 

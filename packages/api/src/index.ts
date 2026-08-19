@@ -61,7 +61,10 @@ export {
   type ReplyWithMemo,
 } from './urbit';
 export {
+  INTERACTIVE_SURFACE_LIMITS,
   appendFileUploadToPostBlob,
+  appendInteractiveActionToPostBlob,
+  appendInteractiveSurfaceToPostBlob,
   appendKitToPostBlob,
   appendToPostBlob,
   appendVideoToPostBlob,
@@ -72,6 +75,8 @@ export {
   type ClientPostBlobData,
   type Mention,
   type PostBlobDataEntry,
+  type PostBlobDataEntryInteractiveAction,
+  type PostBlobDataEntryInteractiveSurface,
   type PostBlobDataEntryKit,
 } from './client/content-helpers';
 export { getTextContent } from './client/postContent';

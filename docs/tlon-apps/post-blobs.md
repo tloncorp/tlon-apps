@@ -106,6 +106,12 @@ The supported v1 client subset is intentionally small:
 -   rendering policy: A2UI blocks render in any conversation shown as chat — chat channels, DMs, and group DMs — because that is every channel type `StaticChatMessage` serves. Notebook and gallery posts do not render them: they use the default block renderers, where `a2ui` maps to null.
 -   validation limits: component count, tree depth, text length, and expanded render size
 
+### `interactive-surface` v1 and `interactive-action` v1
+
+The server-authoritative card protocol: `interactive-surface` carries a card's state, revision, and applied-action ids on the bot's own post, and `interactive-action` carries one tap on the actor's post. Both are data-only — neither produces a rendered block, because the card itself is drawn by the sibling `a2ui` entry.
+
+The round trip, the conflict and idempotency rules, and the constraint that an edit must re-emit the whole blob array are specified in [interactive-surfaces.md](./interactive-surfaces.md).
+
 ## Read/write behavior
 
 -   Writes happen through helpers in `packages/api/src/client/content-helpers.ts`. `appendToPostBlob` is the base helper; `appendFileUploadToPostBlob` and `appendVideoToPostBlob` are convenience wrappers.

@@ -552,6 +552,14 @@ export function convertContent(
           break;
         }
 
+        // Data-only entries. The card a surface describes is rendered by the
+        // sibling `a2ui` entry on the same post, and an action is a record of
+        // a tap rather than something to display, so neither produces a block.
+        case 'interactive-surface':
+        case 'interactive-action': {
+          break;
+        }
+
         case 'unknown': {
           out.push({
             type: 'blockquote',
