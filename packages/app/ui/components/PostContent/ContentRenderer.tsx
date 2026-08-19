@@ -63,7 +63,6 @@ function ContentRenderer({
   configuredAgentProviderIds,
   provisionedAgentTopics,
   consumedA2UIMessageText,
-  onAgentOnboardingConfirm,
   isNotice,
   searchQuery,
   ...rest
@@ -82,7 +81,6 @@ function ContentRenderer({
       configuredAgentProviderIds={configuredAgentProviderIds}
       provisionedAgentTopics={provisionedAgentTopics}
       consumedA2UIMessageText={consumedA2UIMessageText}
-      onAgentOnboardingConfirm={onAgentOnboardingConfirm}
       isNotice={isNotice}
       searchQuery={searchQuery}
     >
