@@ -406,6 +406,7 @@ const documentedActionOperations = {
     'cron',
     'rest',
   ],
+  kits: ['list', 'show', 'add', 'fetch', 'install', 'installs', 'uninstall'],
   messages: ['dm', 'channel', 'history', 'search', 'context', 'post'],
   notes: [
     'status',
@@ -457,6 +458,39 @@ const documentedActionOperations = {
 } as const;
 
 describe('tlon tool telemetry summarizer', () => {
+  it('classifies kits operations by intent without leaking arguments', () => {
+    expect(summarizeTlonCommand('kits list')).toMatchObject({
+      summaryKey: 'kits.list',
+      intent: 'read',
+    });
+    expect(summarizeTlonCommand('kits add ./kits/book-club')).toMatchObject({
+      summaryKey: 'kits.add',
+      intent: 'write',
+    });
+    expect(
+      summarizeTlonCommand('kits fetch ~sampel-palnet book-club')
+    ).toMatchObject({
+      summaryKey: 'kits.fetch',
+      intent: 'write',
+    });
+    const installSummary = summarizeTlonCommand(
+      'kits install book-club --name secret-club --title "Secret Club"'
+    );
+    expect(installSummary).toMatchObject({
+      summaryKey: 'kits.install',
+      intent: 'admin',
+    });
+    const serialized = JSON.stringify(installSummary);
+    expect(serialized).not.toContain('secret-club');
+    expect(serialized).not.toContain('Secret Club');
+    expect(
+      summarizeTlonCommand('kits uninstall ~sampel-palnet/book-club-1')
+    ).toMatchObject({
+      summaryKey: 'kits.uninstall',
+      intent: 'admin',
+    });
+  });
+
   it('accounts for documented tlon action operations', () => {
     for (const [subcommand, operations] of Object.entries(
       documentedActionOperations

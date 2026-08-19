@@ -357,6 +357,26 @@ Notes:
 -   `delete-old-posts.hoon` — Cron job to clean up old messages
 -   `word-filter.hoon` — Block posts containing banned words
 
+### Kits
+
+Manage %kits packages — shareable bot behavior bundles (markdown instructions, scaffolds, schedules, place templates) — and their installs. Use these when publishing a kit you authored, pulling a kit from another ship, or instantiating a kit into a fresh group.
+
+```bash
+tlon kits list                                           # List kits in the local library
+tlon kits show book-club                                 # Manifest summary + file list
+tlon kits add ./kits/book-club                           # Validate a kit directory and add it to the library
+tlon kits fetch ~sampel-palnet book-club                 # Pull a kit from a publisher ship (async)
+tlon kits install book-club --name book-club-1 --title "Book Club"   # Create a group + places from a kit
+tlon kits installs                                       # List installed kits (group flag, setup status, place mapping)
+tlon kits uninstall ~sampel-palnet/book-club-1           # Clear the group's kit config and ledger entry
+```
+
+Notes:
+
+-   `add` takes a kit directory (kit.json + instructions/ + scaffolds/ + card/) and validates it locally before poking %kits.
+-   `install` defaults `--name` to `<id>-<4 random chars>` and `--title` to the kit's display name; the name must be a kebab-case term.
+-   `fetch` is asynchronous — the kit appears in `tlon kits list` once the publisher responds.
+
 ### Messages
 
 Read and search message history. Authors are shown with nicknames when available.

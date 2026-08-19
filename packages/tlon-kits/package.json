@@ -1,0 +1,45 @@
+{
+  "name": "@tloncorp/tlon-kits",
+  "version": "0.1.0",
+  "description": "Shareable kit packages (manifest + instructions + scaffolds) for Tlon agents",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/",
+    "src/",
+    "kits/"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "lint:format": "prettier ./ --write",
+    "prepare": "pnpm build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "tsc": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "~5.9.2",
+    "vite": "^8.0.7",
+    "vitest": "^4.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tloncorp/tlon-apps",
+    "directory": "packages/tlon-kits"
+  },
+  "license": "MIT"
+}
