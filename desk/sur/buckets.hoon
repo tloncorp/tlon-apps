@@ -227,6 +227,21 @@
 ::
 +$  req-response  [=request-id body=response-body]
 ::
+::  $incoming-request: an action we are tracking to its terminal answer.
+::
+::  .http-id is set while an Eyre POST is held open waiting for that answer;
+::  clearing it after delivery stops a late update re-answering a closed
+::  request. .final-at is stamped once .result is terminal, so cleanup can
+::  evict the record after a grace window.
+::
++$  incoming-request
+  $:  =request-id
+      http-id=(unit @ta)
+      result=(unit response-body)
+      final-at=(unit @da)
+  ==
++$  requests  (map request-id incoming-request)
+::
 ::  Opaque, short-lived bearer capabilities exchanged by Memex through
 ::  Pioneer's local spider threads. They are host-only authority state and
 ::  are never included in Bucket snapshots or Ames updates.
@@ -315,6 +330,7 @@
       object-capabilities=(map @t object-capability)
       reservations=(map @t @uv)
       pending=(map request-id [host=ship until=@da])
+      requests=requests
   ==
 ::  $versioned-state: every persisted shape +on-load may be handed.
 ::

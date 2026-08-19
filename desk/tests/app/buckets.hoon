@@ -548,4 +548,83 @@
   ;<  *  b  (do-load buckets-agent `before)
   ;<  after=vase  b  get-save
   (ex-equal after before)
+::  +http-post: submit an action over the Eyre surface.
+::
+++  http-post
+  |=  [authed=? body=@t]
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  %+  do-poke  %handle-http-request
+  !>  ^-  [@ta inbound-request:eyre]
+  :-  'eyre-0'
+  :*  authenticated=authed
+      secure=&
+      address=[%ipv4 .0.0.0.0]
+      :*  method=%'POST'
+          url='/buckets/~/v1'
+          header-list=~
+          body=`(as-octs:mimes:html body)
+      ==
+  ==
+::
+++  http-header
+  |=  [code=@ud ct=@t]
+  %^    ex-fact
+      [/http-response/eyre-0]~
+    %http-response-header
+  !>(`response-header:http`[code ~[['content-type' ct]]])
+::
+::  An action submitted over HTTP is answered on that same request, so a
+::  client needs no correlation of its own. A refusal comes back as a typed
+::  error with a 200, not as a crash.
+::
+++  test-http-post-answers-inline
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  body=@t
+    '{"requestId":"0v5","action":{"type":"create","name":"smoke","title":"Smoke","group":{"host":"~pinser-botter-sampel-palnet","name":"demo"},"readers":[],"writers":[]}}'
+  ;<  ~  b  setup
+  ;<  caz=(list card)  b  (http-post & body)
+  ::  the answer goes to the local subscription first, then closes out the
+  ::  held request — same body, two deliveries.
+  %+  ex-cards  caz
+  :~  %+  grant-fact  0v5
+      [%error %invalid-input 'only a planet may host a bucket']
+      (http-header 200 'application/json')
+      (ex-fact-paths [/http-response/eyre-0]~)
+      (ex-card [%give %kick [/http-response/eyre-0]~ ~])
+  ==
+::
+::  Eyre validates the session; an unauthenticated request never reaches
+::  the action layer.
+::
+++  test-http-requires-authentication
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  caz=(list card)  b  (http-post | '{"action":{"type":"create"}}')
+  %+  ex-cards  caz
+  :~  (http-header 401 'text/plain')
+      (ex-fact-paths [/http-response/eyre-0]~)
+      (ex-card [%give %kick [/http-response/eyre-0]~ ~])
+  ==
+::
+::  A body that is not a recognizable action is a client error, not a crash.
+::
+++  test-http-rejects-malformed-action
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  caz=(list card)  b  (http-post & '{"action":{"type":"no-such-verb"}}')
+  %+  ex-cards  caz
+  :~  (http-header 400 'text/plain')
+      (ex-fact-paths [/http-response/eyre-0]~)
+      (ex-card [%give %kick [/http-response/eyre-0]~ ~])
+  ==
 --

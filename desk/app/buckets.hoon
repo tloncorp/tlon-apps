@@ -10,7 +10,8 @@
 ::  returned only to the requester — they never appear in a broadcast.
 ::
 /-  b=buckets
-/+  default-agent, dbug, verb
+/+  default-agent, dbug, verb, server
+/=  buckets-json  /lib/buckets/json
 |%
 +$  card  card:agent:gall
 +$  current-state  state:b
@@ -33,6 +34,10 @@
 ::  oversized upload is refused before any state is committed.
 ::
 ++  max-object-size  5.368.709.120
+::  +request-grace: how long a settled request record is kept so a slow
+::  poller can still read its result.
+::
+++  request-grace  ~m5
 --
 =|  current-state
 =*  state  -
@@ -100,7 +105,10 @@
 ::
 ++  init
   ^+  cor
-  (emit [%pass /groups %agent [our.bowl %groups] %watch /v1/groups])
+  %-  emil
+  :~  [%pass /eyre %arvo %e %connect [~ /buckets] %buckets]
+      [%pass /groups %agent [our.bowl %groups] %watch /v1/groups]
+  ==
 ::
 ::  +load: %buckets has never run on a live ship, so there is nothing to
 ::  migrate from yet. When that changes, add a +state-N-to-N+1 arm per
@@ -114,12 +122,16 @@
   =.  state  loaded
   =?  cor  !(~(has by wex.bowl) [/groups our.bowl %groups])
     (emit [%pass /groups %agent [our.bowl %groups] %watch /v1/groups])
-  cor
+  ::  binding an already-bound route is refused harmlessly; +arvo logs it.
+  (emit [%pass /eyre %arvo %e %connect [~ /buckets] %buckets])
 ::
 ++  poke
   |=  [=mark =vase]
   ^+  cor
   ?+  mark  ~|(bad-buckets-mark+mark !!)
+      %handle-http-request
+    (serve-http !<([eyre-id=@ta =inbound-request:eyre] vase))
+  ::
       %buckets-action-1
     ?>  =(src.bowl our.bowl)
     =+  cmd=!<(command:b vase)
@@ -149,6 +161,151 @@
     ?:  =(our.bowl ship.flag)  cor
     (stop-sub flag)
   ==
+::
+::  +serve-http: route one Eyre request.
+::
+::  Only two shapes exist: POST /buckets/~/v1 submits an action and is held
+::  open until its terminal answer, and GET /buckets/~/v1/... reads. The
+::  action's answer is the HTTP response, so a client needs no correlation
+::  machinery of its own.
+::
+++  serve-http
+  |=  [eyre-id=@ta =inbound-request:eyre]
+  ^+  cor
+  =/  =request-line:server
+    (parse-request-line:server url.request.inbound-request)
+  =*  site  site.request-line
+  =/  method=@tas  method.request.inbound-request
+  ?.  (request-authorized inbound-request)
+    (http-error eyre-id 401 'unauthorized')
+  ?:  =(site ~[%buckets %~.~ %v1])
+    ?.  =(%'POST' method)
+      (http-error eyre-id 405 'method not allowed')
+    (handle-post eyre-id inbound-request)
+  ?.  ?=([%buckets %~.~ %v1 *] site)
+    (http-error eyre-id 404 'not found')
+  ?.  =(%'GET' method)
+    (http-error eyre-id 405 'method not allowed')
+  (handle-read eyre-id t.t.t.site)
+::
+::  +handle-post: parse an action, hold the request open, and dispatch.
+::
+::  Parsing is defensive — a malformed body is a client error, not a crash.
+::  requestId is optional: a caller that cannot produce a valid @uv gets one
+::  minted here, and never needs to know it, because the answer comes back
+::  on this same request.
+::
+++  handle-post
+  |=  [eyre-id=@ta =inbound-request:eyre]
+  ^+  cor
+  ::  a cookie or api-key is the host's own capability, so the actor for
+  ::  anything submitted over HTTP is us.
+  =.  src.bowl  our.bowl
+  ?~  body.request.inbound-request
+    (http-error eyre-id 400 'missing body')
+  ?~  jon=(de:json:html q.u.body.request.inbound-request)
+    (http-error eyre-id 400 'invalid json')
+  ?.  ?=([%o *] u.jon)
+    (http-error eyre-id 400 'body must be a json object')
+  ?~  act-j=(~(get by p.u.jon) 'action')
+    (http-error eyre-id 400 'missing `action` field')
+  =/  parsed=(each action:b tang)
+    (mule |.((action:dejs:buckets-json u.act-j)))
+  ?:  ?=(%| -.parsed)
+    (http-error eyre-id 400 'malformed action')
+  =/  rid=request-id:b
+    =/  rj=(unit json)  (~(get by p.u.jon) 'requestId')
+    ?.  ?&(?=(^ rj) ?=([%s *] u.rj))
+      `@uv`eny.bowl
+    =/  got=(each @uv tang)  (mule |.((slav %uv p.u.rj)))
+    ?:(?=(%& -.got) p.got `@uv`eny.bowl)
+  =.  cor  (track-request rid `eyre-id)
+  (dispatch-local rid p.parsed)
+::
+::  +handle-read: GET surface — the local snapshot list, one bucket, or the
+::  state of a submitted request.
+::
+++  handle-read
+  |=  [eyre-id=@ta pax=(list @t)]
+  ^+  cor
+  ?+  pax  (http-error eyre-id 404 'not found')
+      [%buckets ~]
+    %^  give-http  eyre-id  200
+    :-  'application/json'
+    (en:json:html (snapshots:enjs:buckets-json local-snapshots))
+  ::
+      [%buckets @ @ ~]
+    ?~  who=(slaw %p i.t.pax)
+      (http-error eyre-id 400 'malformed host')
+    =/  =flag:b  [u.who `@tas`i.t.t.pax]
+    ?~  sp=(~(get by spaces) flag)
+      (http-error eyre-id 404 'no such bucket')
+    ?~  state.u.sp
+      (http-error eyre-id 404 'no such bucket')
+    %^  give-http  eyre-id  200
+    :-  'application/json'
+    %-  en:json:html
+    (response:enjs:buckets-json [%snapshot flag u.state.u.sp])
+  ::
+      [%request @ ~]
+    =/  got=(each @uv tang)  (mule |.((slav %uv i.t.pax)))
+    ?:  ?=(%| -.got)
+      (http-error eyre-id 400 'malformed request id')
+    ?~  req=(~(get by requests) p.got)
+      (http-error eyre-id 404 'no such request')
+    ?~  result.u.req
+      (give-response eyre-id [p.got [%pending ~]])
+    (give-response eyre-id [p.got u.result.u.req])
+  ==
+::
+::  +request-authorized: Eyre validated a session cookie. Bots would want an
+::  X-Api-Key path as well — see %notes for that pattern — but nothing needs
+::  it yet, so there is no key to manage.
+::
+++  request-authorized
+  |=  req=inbound-request:eyre
+  ^-  ?
+  authenticated.req
+::
+++  give-http
+  |=  [eyre-id=@ta code=@ud ct=@t body=@t]
+  ^+  cor
+  =/  data=octs  (as-octs:mimes:html body)
+  %-  emil
+  :~  [%give %fact [/http-response/[eyre-id]]~ %http-response-header !>(`response-header:http`[code ~[['content-type' ct]]])]
+      [%give %fact [/http-response/[eyre-id]]~ %http-response-data !>(`data)]
+      [%give %kick [/http-response/[eyre-id]]~ ~]
+  ==
+::
+++  http-error
+  |=  [eyre-id=@ta code=@ud message=@t]
+  ^+  cor
+  (give-http eyre-id code 'text/plain' message)
+::
+++  give-response
+  |=  [eyre-id=@ta res=req-response:b]
+  ^+  cor
+  %^  give-http  eyre-id  200
+  ['application/json' (en:json:html (req-response:enjs:buckets-json res))]
+::
+::  +track-request: start tracking a request, sweeping settled ones as we go.
+::  The map only grows here, so sweeping on insert bounds it without a timer.
+::
+++  track-request
+  |=  [rid=request-id:b http-id=(unit @ta)]
+  ^+  cor
+  =.  requests  (sweep-requests now.bowl)
+  =.  requests  (~(put by requests) rid [rid http-id ~ ~])
+  cor
+::
+++  sweep-requests
+  |=  now=@da
+  ^-  requests:b
+  %-  malt
+  %+  skip  ~(tap by requests)
+  |=  [rid=request-id:b req=incoming-request:b]
+  ?~  final-at.req  |
+  (gth now (add u.final-at.req request-grace))
 ::
 ::  +dispatch-local: a client on our own ship submitted an action. Apply it
 ::  if we host the bucket, otherwise forward it to the host and wait.
@@ -247,11 +404,24 @@
   ^+  cor
   (respond rid paths [%error type msg])
 ::
+::  +respond: emit an answer on the subscription paths, and complete a held
+::  HTTP request if this one came in over Eyre.
+::
+::  %pending is not terminal — a held request keeps waiting for the host's
+::  real answer, which arrives on the same rid.
+::
 ++  respond
   |=  [rid=request-id:b paths=(list path) body=response-body:b]
   ^+  cor
   =/  res=req-response:b  [rid body]
-  (give [%fact paths buckets-req-response-1+!>(res)])
+  =.  cor  (give [%fact paths buckets-req-response-1+!>(res)])
+  ?:  ?=(%pending -.body)  cor
+  ?~  req=(~(get by requests) rid)  cor
+  =.  requests
+    %+  ~(put by requests)  rid
+    u.req(result `body, final-at `now.bowl, http-id ~)
+  ?~  http-id.u.req  cor
+  (give-response u.http-id.u.req res)
 ::
 ++  host-req-path
   |=  [who=ship rid=request-id:b]
@@ -971,6 +1141,8 @@
   |=  =(pole knot)
   ^+  cor
   ?+  pole  ~|(bad-buckets-watch+pole !!)
+      [%http-response *]  cor
+  ::
       [%v1 ~]
     ?>  =(src.bowl our.bowl)
     =/  facts=(list card)
@@ -1130,6 +1302,12 @@
   |=  [=(pole knot) =sign-arvo]
   ^+  cor
   ?+  pole  cor
+      [%eyre ~]
+    ?.  ?=([%eyre %bound *] sign-arvo)  cor
+    ?:  accepted.sign-arvo  cor
+    %-  (slog leaf+"buckets: eyre bind rejected" ~)
+    cor
+  ::
       [%buckets %req host=@ rid=@ %wake ~]
     ?.  ?=([%behn %wake *] sign-arvo)  cor
     =/  host=ship  (slav %p host.pole)
