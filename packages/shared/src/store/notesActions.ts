@@ -20,6 +20,7 @@ const logger = createDevLogger('notesActions', false);
 
 const NOTES_SYNC_STALE_TIME = 15_000;
 const NOTES_PUBLISHED_STALE_TIME = 15_000;
+const NOTES_ACTIVITY_REFRESH_DEBOUNCE = 2_000;
 
 type SyncNotesNotebookOptions = {
   hydrateNoteIds?: readonly number[];
@@ -127,6 +128,34 @@ async function fetchNotesNotebookSnapshot(
       members: dbMembers,
     },
   };
+}
+
+const notebookActivityRefreshers = new Map<string, () => void>();
+
+// The channel list reads a notebook's note/folder counts out of the cached
+// snapshot, and %notes only streams to a notebook screen that's actually
+// open — so an activity push is the one global signal that someone touched
+// a notebook we're showing a count for. Debounced per notebook because a
+// single change arrives as a burst of per-note unreads.
+export function refreshNotesNotebookFromActivity(channelId: string) {
+  const flag = notesNotebookFlagFromChannelId(channelId);
+  if (!flag) {
+    return;
+  }
+  let refresh = notebookActivityRefreshers.get(flag);
+  if (!refresh) {
+    refresh = debounce(
+      () => {
+        syncNotesNotebook(flag).catch((e) => {
+          logger.error('Failed to sync notes notebook from activity', e);
+        });
+      },
+      NOTES_ACTIVITY_REFRESH_DEBOUNCE,
+      { leading: false, trailing: true }
+    );
+    notebookActivityRefreshers.set(flag, refresh);
+  }
+  refresh();
 }
 
 async function ensureNotesNotebookJoined(flagInput: api.NotesFlag | string) {
@@ -273,6 +302,17 @@ export const useNotesNotes = createNotebookQueryHook(
   'notesNotes',
   db.getNotesNotes
 );
+
+// Not a per-notebook hook: the channel list reads counts for every notebook
+// it renders, so a single shared query keeps it to one read per change.
+export function useNotesCountsByNotebook(enabled = true) {
+  const deps = useKeyFromQueryDeps(db.getNotesCountsByNotebook);
+  return useQuery({
+    queryKey: ['notesCountsByNotebook', deps],
+    queryFn: () => db.getNotesCountsByNotebook(),
+    enabled,
+  });
+}
 
 export function usePublishedNotesForNotebook({
   notebookFlag,

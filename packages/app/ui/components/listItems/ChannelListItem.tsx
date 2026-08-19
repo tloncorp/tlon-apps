@@ -124,6 +124,7 @@ export function ChannelListItem({
 
   const isFocused = useNavigation().focusedChannelId === model.id;
   const groupTitle = utils.useGroupTitle(model.group);
+  const notesSubtitle = utils.useNotesChannelSubtitle(model);
   const isDmType = model.type === 'dm' || model.type === 'groupDm';
   const dmMembers = isDmType ? model.members : [];
 
@@ -177,6 +178,8 @@ export function ChannelListItem({
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             ) : showGroupTitle && model.group ? (
               <ListItem.Subtitle>{groupTitle}</ListItem.Subtitle>
+            ) : notesSubtitle ? (
+              <ListItem.Subtitle>{notesSubtitle}</ListItem.Subtitle>
             ) : (model.type === 'dm' || model.type === 'groupDm') &&
               utils.hasNickname(model.members?.[0]?.contact) ? (
               <ListItem.SubtitleWithIcon icon={subtitleIcon}>

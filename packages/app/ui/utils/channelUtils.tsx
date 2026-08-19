@@ -1,7 +1,14 @@
 import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
-import { configurationFromChannel } from '@tloncorp/shared';
+import {
+  configurationFromChannel,
+  formatNotesChannelSubtitle,
+  notesNotebookFlagFromChannelId,
+} from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import { useMemberRoles } from '@tloncorp/shared/store';
+import {
+  useMemberRoles,
+  useNotesCountsByNotebook,
+} from '@tloncorp/shared/store';
 import type { IconType } from '@tloncorp/ui';
 import { useMemo } from 'react';
 
@@ -121,6 +128,26 @@ export function useChannelTitle(channel: db.Channel | null) {
       disableNicknames,
     });
   }, [channel, disableNicknames]);
+}
+
+// Notebooks have no posts, so a notes channel's row has nothing to show
+// under its title — summarize what's in the notebook instead. Counts come
+// from the locally cached notebook snapshot, so this is null until the
+// notebook has synced at least once.
+export function useNotesChannelSubtitle(
+  channel: db.Channel | null
+): string | null {
+  const notebookFlag =
+    channel?.type === 'notes'
+      ? notesNotebookFlagFromChannelId(channel.id)
+      : null;
+  const { data: countsByNotebook } = useNotesCountsByNotebook(!!notebookFlag);
+  const counts = notebookFlag ? countsByNotebook?.[notebookFlag] : null;
+
+  return useMemo(
+    () => (counts ? formatNotesChannelSubtitle(counts) : null),
+    [counts]
+  );
 }
 
 export function getGroupTitle(

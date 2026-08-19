@@ -466,6 +466,57 @@ export const getNotesNotes = createReadQuery(
   ['notesNotes']
 );
 
+export interface NotesNotebookCounts {
+  noteCount: number;
+  folderCount: number;
+}
+
+// Counts every notebook at once: the channel list needs a count per notes
+// channel, and one grouped read beats a query per row. Folder counts skip
+// each notebook's root folder — it's the notebook itself in the UI, not a
+// folder anyone created.
+export const getNotesCountsByNotebook = createReadQuery(
+  'getNotesCountsByNotebook',
+  async (ctx: QueryCtx): Promise<Record<string, NotesNotebookCounts>> => {
+    const [noteCounts, folderCounts] = await Promise.all([
+      ctx.db
+        .select({
+          notebookFlag: $notesNotes.notebookFlag,
+          count: count(),
+        })
+        .from($notesNotes)
+        .groupBy($notesNotes.notebookFlag),
+      ctx.db
+        .select({
+          notebookFlag: $notesFolders.notebookFlag,
+          count: count(),
+        })
+        .from($notesFolders)
+        .where(isNotNull($notesFolders.parentFolderId))
+        .groupBy($notesFolders.notebookFlag),
+    ]);
+
+    const counts: Record<string, NotesNotebookCounts> = {};
+    const entryFor = (notebookFlag: string) => {
+      const existing = counts[notebookFlag];
+      if (existing) {
+        return existing;
+      }
+      const created = { noteCount: 0, folderCount: 0 };
+      counts[notebookFlag] = created;
+      return created;
+    };
+    for (const row of noteCounts) {
+      entryFor(row.notebookFlag).noteCount = row.count;
+    }
+    for (const row of folderCounts) {
+      entryFor(row.notebookFlag).folderCount = row.count;
+    }
+    return counts;
+  },
+  ['notesNotes', 'notesFolders']
+);
+
 export const getNotesNote = createReadQuery(
   'getNotesNote',
   async (

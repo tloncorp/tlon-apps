@@ -198,3 +198,38 @@ test('deleteNotesNotebook removes child rows explicitly', async () => {
   await expect(db.getNotesNotes({ notebookFlag })).resolves.toEqual([]);
   await expect(db.getNotesMembers({ notebookFlag })).resolves.toEqual([]);
 });
+
+test('getNotesCountsByNotebook counts notes and non-root folders', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook(),
+    folders: [
+      makeNotesFolder(1, '/', null),
+      makeNotesFolder(2, 'Projects', 1),
+      makeNotesFolder(3, 'Archive', 1),
+      makeNotesFolder(4, 'Backlog', 2),
+    ],
+    notes: [
+      makeNotesNote(1, 1, 'Root note'),
+      makeNotesNote(2, 2, 'Project note'),
+      makeNotesNote(3, 4, 'Backlog note'),
+    ],
+    members: [],
+  });
+
+  await expect(db.getNotesCountsByNotebook()).resolves.toEqual({
+    [notebookFlag]: { noteCount: 3, folderCount: 3 },
+  });
+});
+
+test('getNotesCountsByNotebook counts a notebook with no notes', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook(),
+    folders: [makeNotesFolder(1, '/', null), makeNotesFolder(2, 'Projects', 1)],
+    notes: [],
+    members: [],
+  });
+
+  await expect(db.getNotesCountsByNotebook()).resolves.toEqual({
+    [notebookFlag]: { noteCount: 0, folderCount: 1 },
+  });
+});
