@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
-import { TextInput } from '../Form';
+import { TextInput, ToggleGroupInput } from '../Form';
+import type { ToggleGroupInputOption } from '../Form';
 
 const CATEGORIES: Record<BotReplyFeedbackRating, string[]> = {
   down: [
@@ -26,13 +27,45 @@ const CATEGORIES: Record<BotReplyFeedbackRating, string[]> = {
   ],
 };
 
-const RATING_OPTIONS: Array<{
-  rating: BotReplyFeedbackRating;
-  label: string;
-  icon: 'ThumbsUp' | 'ThumbsDown';
-}> = [
-  { rating: 'up', label: 'Helpful', icon: 'ThumbsUp' },
-  { rating: 'down', label: 'Not helpful', icon: 'ThumbsDown' },
+const RATING_OPTIONS: ToggleGroupInputOption<BotReplyFeedbackRating>[] = [
+  {
+    value: 'up',
+    accessibilityLabel: 'Helpful',
+    label: (selected) => (
+      <XStack alignItems="center" gap="$s">
+        <Icon
+          type="ThumbsUp"
+          customSize={[16, 16]}
+          color={selected ? '$positiveActionText' : '$secondaryText'}
+        />
+        <Text
+          size="$label/m"
+          color={selected ? '$positiveActionText' : '$secondaryText'}
+        >
+          Helpful
+        </Text>
+      </XStack>
+    ),
+  },
+  {
+    value: 'down',
+    accessibilityLabel: 'Not helpful',
+    label: (selected) => (
+      <XStack alignItems="center" gap="$s">
+        <Icon
+          type="ThumbsDown"
+          customSize={[16, 16]}
+          color={selected ? '$negativeActionText' : '$secondaryText'}
+        />
+        <Text
+          size="$label/m"
+          color={selected ? '$negativeActionText' : '$secondaryText'}
+        >
+          Not helpful
+        </Text>
+      </XStack>
+    ),
+  },
 ];
 
 export function BotFeedbackSheet({
@@ -102,15 +135,9 @@ export function BotFeedbackSheet({
       size="$label/s"
       color="$tertiaryText"
       textAlign={isWindowNarrow ? 'center' : 'left'}
-      flexShrink={1}
+      flex={isWindowNarrow ? undefined : 1}
     >
       Your feedback and this thread are shared with Tlon.
-      {!isWindowNarrow ? (
-        <Text size="$label/s" color="$positiveActionText">
-          {' '}
-          Learn more
-        </Text>
-      ) : null}
     </Text>
   );
 
@@ -122,7 +149,7 @@ export function BotFeedbackSheet({
       centered
       width={isWindowNarrow ? '100%' : 'auto'}
       minWidth={isWindowNarrow ? undefined : 128}
-      disabled={submitting || changingRating}
+      disabled={submitting}
       onPress={handleSubmit}
       testID="BotFeedbackDone"
     />
@@ -136,18 +163,22 @@ export function BotFeedbackSheet({
       modal
       closeButton
       keyboardBehavior="interactive"
-      dialogContentProps={{ width: 480, minWidth: 420, maxWidth: 480 }}
+      dialogContentProps={{ width: 576, minWidth: 520, maxWidth: 576 }}
     >
       <ActionSheet.ScrollableContent
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
+        paddingHorizontal={isWindowNarrow ? '$2xl' : '$3xl'}
       >
         <YStack
-          paddingTop={isWindowNarrow ? '$xl' : '$2xl'}
-          paddingHorizontal="$2xl"
-          gap="$xl"
+          paddingTop={isWindowNarrow ? '$xl' : '$3xl'}
+          paddingBottom={isWindowNarrow ? 0 : '$m'}
+          gap={isWindowNarrow ? '$xl' : '$2xl'}
         >
-          <YStack gap="$xs" paddingRight={isWindowNarrow ? 0 : '$4xl'}>
+          <YStack
+            gap={isWindowNarrow ? '$xs' : '$s'}
+            paddingRight={isWindowNarrow ? 0 : '$4xl'}
+          >
             <Text size="$label/xl" fontWeight="600" color="$primaryText">
               Share feedback
             </Text>
@@ -156,54 +187,13 @@ export function BotFeedbackSheet({
             </Text>
           </YStack>
 
-          <XStack
-            padding={3}
-            borderRadius="$l"
-            borderWidth={1}
-            borderColor="$border"
-            backgroundColor="$secondaryBackground"
-          >
-            {RATING_OPTIONS.map((option) => {
-              const selected = option.rating === rating;
-              const selectedColor =
-                option.rating === 'up'
-                  ? '$positiveActionText'
-                  : '$negativeActionText';
-              return (
-                <Pressable
-                  key={option.rating}
-                  flex={1}
-                  height={36}
-                  borderRadius="$m"
-                  borderWidth={1}
-                  borderColor={selected ? '$border' : 'transparent'}
-                  backgroundColor={selected ? '$background' : 'transparent'}
-                  alignItems="center"
-                  justifyContent="center"
-                  disabled={changingRating || submitting}
-                  onPress={() => void handleRatingChange(option.rating)}
-                  pressStyle={{ opacity: 0.7 }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={option.label}
-                >
-                  <XStack alignItems="center" gap="$s">
-                    <Icon
-                      type={option.icon}
-                      customSize={[16, 16]}
-                      color={selected ? selectedColor : '$secondaryText'}
-                    />
-                    <Text
-                      size="$label/m"
-                      color={selected ? selectedColor : '$secondaryText'}
-                    >
-                      {option.label}
-                    </Text>
-                  </XStack>
-                </Pressable>
-              );
-            })}
-          </XStack>
+          <ToggleGroupInput
+            variant="inset"
+            options={RATING_OPTIONS}
+            value={rating}
+            disabled={changingRating || submitting}
+            onChange={(nextRating) => void handleRatingChange(nextRating)}
+          />
 
           <XStack
             flexWrap="wrap"
@@ -292,7 +282,11 @@ export function BotFeedbackSheet({
               {disclosure}
             </YStack>
           ) : (
-            <XStack alignItems="center" justifyContent="space-between" gap="$l">
+            <XStack
+              alignItems="center"
+              justifyContent="space-between"
+              gap="$2xl"
+            >
               {disclosure}
               {submitButton}
             </XStack>
