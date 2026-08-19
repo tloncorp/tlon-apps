@@ -3,11 +3,11 @@ id: TASK-3
 title: >-
   Define the interactive surface protocol (surface ID, revision, state, action
   IDs)
-status: In Progress
+status: Done
 assignee:
   - james@tlon.io
 created_date: '2026-08-19 13:46'
-updated_date: '2026-08-19 18:48'
+updated_date: '2026-08-19 18:55'
 labels:
   - workspaces
   - interactive-cards
@@ -35,11 +35,11 @@ Deliverable is the schema/types and spec, registered per the post-blob checklist
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A named schema for the interactive surface entry (surface ID, revision, state, processed action IDs) is registered in postBlobDataEntryDefinitions with an inferred type
-- [ ] #2 An action payload format referencing source message, surface ID, and expected revision is defined and typed
-- [ ] #3 The spec is documented in docs/tlon-apps/ covering idempotency (duplicate action IDs), revision conflicts, and unknown-entry fallback
-- [ ] #4 Tests cover valid and malformed payloads for the new entry type
-- [ ] #5 Unknown or future entries still degrade to the existing upgrade-your-app blockquote
+- [x] #1 A named schema for the interactive surface entry (surface ID, revision, state, processed action IDs) is registered in postBlobDataEntryDefinitions with an inferred type
+- [x] #2 An action payload format referencing source message, surface ID, and expected revision is defined and typed
+- [x] #3 The spec is documented in docs/tlon-apps/ covering idempotency (duplicate action IDs), revision conflicts, and unknown-entry fallback
+- [x] #4 Tests cover valid and malformed payloads for the new entry type
+- [x] #5 Unknown or future entries still degrade to the existing upgrade-your-app blockquote
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -214,3 +214,50 @@ Status set back to To Do: the implementation plan is recorded and reviewed, but 
 
 **The blocker recorded in part 2a is now cleared.** TASK-10 AC #7 landed in `5a202e04c` — A2UI blocks are no longer filtered out of non-DM conversations, so cards render in group channels, which `editPost` accepts. The round trip this protocol describes (bot posts a surface → actor posts an action → bot edits its own post) is therefore implementable now. The prerequisite noted in the plan's opening section is satisfied; the plan text itself still describes it as outstanding and should be read with that correction.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+## Summary
+
+The interactive surface protocol is defined, registered, documented, and tested in `3c7fb2046`. Schema and spec only — the agent half (TASK-12), the client half (TASK-10), and the CLI edit path (TASK-9) build against this.
+
+## What landed
+
+**Two blob entries**, both registered in `postBlobDataEntryDefinitions` so unknown and future variants keep degrading to the upgrade blockquote:
+
+- `interactive-surface` v1 — `surfaceId`, `revision`, opaque `state`, an optional canonical-JSON `stateHash`, and a capped FIFO of `processedActionIds`.
+- `interactive-action` v1 — `targetPostId`, `targetChannelId`, `surfaceId`, `actionId`, optional `expectedRevision`, `name`, `params`.
+
+Plus `appendInteractiveSurfaceToPostBlob` / `appendInteractiveActionToPostBlob`, `INTERACTIVE_SURFACE_LIMITS`, and `tlon.surfaceAction` — a third A2UI button action naming only the surface and control, since the target post, revision, and action id are only knowable at tap time.
+
+**`docs/tlon-apps/interactive-surfaces.md`**, cross-linked from `post-blobs.md`: the round trip, who may write what, revisions and conflicts, idempotency, surface-id uniqueness, action replies, older clients, and limits.
+
+## Design decisions worth re-reading
+
+**State is opaque and stays that way.** Clients render the `a2ui` tree the agent produced and never read `state`, so typing it here would couple the protocol to whichever kit owns the card. The two entries sit side by side on one post joined by `surfaceId`, which leaves the existing a2ui renderer and validator untouched.
+
+**Vocabulary borrowed from `%notes` rather than invented** — `expectedRevision`, `conflict`, `no-change`, and an optional `expectedRevision` meaning opt-in last-write-wins. That protocol is already merged and reviewed here, so this one reads as familiar rather than novel.
+
+**Two rules documented as security properties, not conventions:** the actor is the action post's author and never a payload field, and actions order by host-assigned post id rather than any client clock. Both come from tests in the mini-app prototype that pin exactly these.
+
+**The idempotency/optimism interaction is spelled out** because it is easy to miss when the halves are built separately: a de-duplicated action produces *no edit at all*, so a client in optimistic state after a double tap receives no event and must time out and re-render from the post it already has. Without that pairing the second tap spins forever.
+
+**Older clients are self-gating.** `validateButtonAction` rejects unknown event names, failing the whole `a2ui` entry, so an old client does not render a new-protocol card at all and cannot tap a stale one into emitting a bad-revision action. Degrading the view and disabling the interaction are the same act.
+
+## Verification
+
+21 new tests in `packages/api/src/__tests__/interactiveSurfaces.test.ts`: round-trips for both entries, defaulting, the FIFO trim, nine malformed-payload cases degrading to `{type:'unknown'}` and the upgrade blockquote, the omitted-`expectedRevision` case, the mixed known-plus-unknown case AC #5 actually cares about, and four `tlon.surfaceAction` validation cases including the old-client gate. 787 api, 454 app, 1426 openclaw tests pass; api, shared, app, and openclaw all typecheck.
+
+One test initially failed for the right reason — `appendToPostBlob` validates on write, so it cannot construct a deliberately-invalid blob. Rebuilt as raw wire JSON, which is the more accurate simulation anyway since such a blob arrives from a newer client.
+
+## Incidental change
+
+Adding a third event name broke narrowing-by-elimination in `handleA2UIAction`, which now switches explicitly. `surfaceAction` taps are inert for now — `isA2UIActionAvailable` reports them unavailable, so buttons render disabled — because emitting one is the client half and lands with TASK-10. Flagged in a comment at the branch.
+
+## Not done here
+
+The prerequisite blocker recorded during planning was cleared separately by TASK-10 AC #7 (`5a202e04c`), which lifted the DM-only render gate; cards now live in group channels, which `editPost` accepts, so the round trip this protocol describes is implementable.
+
+Existing A2UI producers still use reusable surface-id labels (`pending-approvals`, `migrate-action`), which must move to per-instance ids before their cards can become stateful. Documented in the spec; the work belongs to TASK-12.
+<!-- SECTION:FINAL_SUMMARY:END -->
