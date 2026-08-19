@@ -34,11 +34,7 @@ import {
   partitionDiscoveryMatches,
 } from '../lanyardActions';
 import { useLureState } from '../lure';
-import {
-  notesNotebookFlagFromChannelId,
-  refreshNotesNotebookFromActivity,
-  syncNotesNotebook,
-} from '../notesActions';
+import { refreshNotesNotebookFromActivity } from '../notesActions';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
 import { getSession, setSession, updateSession } from '../session';
@@ -757,41 +753,6 @@ export const syncPinnedItems = async (ctx?: SyncCtx) => {
 export const syncGroups = async (ctx?: SyncCtx) => {
   const groups = await syncQueue.add('groups', ctx, () => api.getGroups());
   await db.insertGroups({ groups: groups });
-};
-
-const NOTES_NOTEBOOK_SNAPSHOT_MAX_AGE = 5 * 60 * 1000;
-
-// Notebook snapshots are what the channel list's note/folder counts read
-// from, and nothing else fetches them outside an open notebook screen — the
-// %notes stream subscription lives only as long as that screen. Warm every
-// notebook we have a channel for so the counts are there before the
-// notebook is ever opened; changes after this land via
-// `refreshNotesNotebookFromActivity`.
-export const syncNotesNotebooks = async (ctx?: SyncCtx) => {
-  const channels = await db.getAllChannels();
-  const flags = _.uniq(
-    channels
-      .filter((channel) => channel.type === 'notes')
-      .map((channel) => notesNotebookFlagFromChannelId(channel.id))
-      .filter((flag): flag is string => flag !== null)
-  );
-  for (const flag of flags) {
-    // recovery syncs run this again on every reconnect; a snapshot that's
-    // still fresh doesn't need refetching (activity pushes cover changes)
-    const cached = await db.getNotesNotebook({ notebookFlag: flag });
-    if (
-      cached?.syncedAt &&
-      Date.now() - cached.syncedAt < NOTES_NOTEBOOK_SNAPSHOT_MAX_AGE
-    ) {
-      continue;
-    }
-    await syncQueue
-      .add('notesNotebook', ctx, () => syncNotesNotebook(flag))
-      // one unreachable notebook host shouldn't stop the rest
-      .catch((error) => {
-        logger.log('failed to sync notes notebook', flag, error);
-      });
-  }
 };
 
 export const syncDms = async (ctx?: SyncCtx) => {
@@ -2448,9 +2409,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       }),
       syncContactDiscovery({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing contact discovery`);
-      }),
-      syncNotesNotebooks({ priority: syncStartPriority.low + 1 }).then(() => {
-        logger.crumb(`finished syncing notes notebooks`);
       }),
     ];
 

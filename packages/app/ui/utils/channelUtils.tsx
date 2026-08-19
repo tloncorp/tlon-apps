@@ -8,9 +8,10 @@ import type * as db from '@tloncorp/shared/db';
 import {
   useMemberRoles,
   useNotesCountsByNotebook,
+  warmNotesNotebookSnapshot,
 } from '@tloncorp/shared/store';
 import type { IconType } from '@tloncorp/ui';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { useCalm } from '../contexts/appDataContext';
 import { formatUserId } from './user';
@@ -132,8 +133,9 @@ export function useChannelTitle(channel: db.Channel | null) {
 
 // Notebooks have no posts, so a notes channel's row has nothing to show
 // under its title — summarize what's in the notebook instead. Counts come
-// from the locally cached notebook snapshot, so this is null until the
-// notebook has synced at least once.
+// from the locally cached notebook snapshot (null until the notebook has
+// synced at least once), and displaying them revalidates a snapshot that
+// has aged out, since folder changes reach us through no subscription.
 export function useNotesChannelSubtitle(
   channel: db.Channel | null
 ): string | null {
@@ -143,6 +145,12 @@ export function useNotesChannelSubtitle(
       : null;
   const { data: countsByNotebook } = useNotesCountsByNotebook(!!notebookFlag);
   const counts = notebookFlag ? countsByNotebook?.[notebookFlag] : null;
+
+  useEffect(() => {
+    if (notebookFlag) {
+      warmNotesNotebookSnapshot(notebookFlag);
+    }
+  }, [notebookFlag]);
 
   return useMemo(
     () => (counts ? formatNotesChannelSubtitle(counts) : null),

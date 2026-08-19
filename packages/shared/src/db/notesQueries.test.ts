@@ -233,3 +233,16 @@ test('getNotesCountsByNotebook counts a notebook with no notes', async () => {
     [notebookFlag]: { noteCount: 0, folderCount: 1 },
   });
 });
+
+test('getNotesCountsByNotebook reports zeroes for an empty notebook', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook(),
+    folders: [makeNotesFolder(1, '/', null)],
+    notes: [],
+    members: [],
+  });
+
+  await expect(db.getNotesCountsByNotebook()).resolves.toEqual({
+    [notebookFlag]: { noteCount: 0, folderCount: 0 },
+  });
+});

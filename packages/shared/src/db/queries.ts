@@ -474,11 +474,13 @@ export interface NotesNotebookCounts {
 // Counts every notebook at once: the channel list needs a count per notes
 // channel, and one grouped read beats a query per row. Folder counts skip
 // each notebook's root folder — it's the notebook itself in the UI, not a
-// folder anyone created.
+// folder anyone created. Every synced notebook gets an entry, zeroes
+// included, so callers can tell an empty notebook from an unsynced one.
 export const getNotesCountsByNotebook = createReadQuery(
   'getNotesCountsByNotebook',
   async (ctx: QueryCtx): Promise<Record<string, NotesNotebookCounts>> => {
-    const [noteCounts, folderCounts] = await Promise.all([
+    const [notebooks, noteCounts, folderCounts] = await Promise.all([
+      ctx.db.select({ id: $notesNotebooks.id }).from($notesNotebooks),
       ctx.db
         .select({
           notebookFlag: $notesNotes.notebookFlag,
@@ -497,24 +499,22 @@ export const getNotesCountsByNotebook = createReadQuery(
     ]);
 
     const counts: Record<string, NotesNotebookCounts> = {};
-    const entryFor = (notebookFlag: string) => {
-      const existing = counts[notebookFlag];
-      if (existing) {
-        return existing;
-      }
-      const created = { noteCount: 0, folderCount: 0 };
-      counts[notebookFlag] = created;
-      return created;
-    };
+    for (const notebook of notebooks) {
+      counts[notebook.id] = { noteCount: 0, folderCount: 0 };
+    }
     for (const row of noteCounts) {
-      entryFor(row.notebookFlag).noteCount = row.count;
+      if (counts[row.notebookFlag]) {
+        counts[row.notebookFlag].noteCount = row.count;
+      }
     }
     for (const row of folderCounts) {
-      entryFor(row.notebookFlag).folderCount = row.count;
+      if (counts[row.notebookFlag]) {
+        counts[row.notebookFlag].folderCount = row.count;
+      }
     }
     return counts;
   },
-  ['notesNotes', 'notesFolders']
+  ['notesNotebooks', 'notesNotes', 'notesFolders']
 );
 
 export const getNotesNote = createReadQuery(

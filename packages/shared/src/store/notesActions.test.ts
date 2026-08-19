@@ -24,6 +24,7 @@ import {
   saveNotebookNote,
   syncNotesNotebook,
   unpublishNotebookNote,
+  warmNotesNotebookSnapshot,
 } from './notesActions';
 
 setupDatabaseTestSuite();
@@ -1299,4 +1300,68 @@ test('noteIsPublished matches published records by note id', () => {
 
   expect(noteIsPublished(published, 3)).toBe(true);
   expect(noteIsPublished(published, 4)).toBe(false);
+});
+
+test('warmNotesNotebookSnapshot refetches a snapshot that has aged out', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({
+      rootFolderId: rootFolder.folderId,
+      syncedAt: Date.now() - 60 * 60 * 1000,
+    }),
+    folders: [rootFolder],
+    notes: [],
+    members: [],
+  });
+
+  const getNotebook = vi
+    .spyOn(api.notes, 'getNotebook')
+    .mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+    makeApiNotesFolder(makeNotesFolder(4, 'New folder', rootFolder.folderId)),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  await warmNotesNotebookSnapshot(notebookFlag);
+
+  expect(getNotebook).toHaveBeenCalled();
+  await expect(db.getNotesCountsByNotebook()).resolves.toEqual({
+    [notebookFlag]: { noteCount: 0, folderCount: 1 },
+  });
+});
+
+test('warmNotesNotebookSnapshot leaves a fresh snapshot alone', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({
+      rootFolderId: rootFolder.folderId,
+      syncedAt: Date.now(),
+    }),
+    folders: [rootFolder],
+    notes: [],
+    members: [],
+  });
+
+  const getNotebook = vi
+    .spyOn(api.notes, 'getNotebook')
+    .mockResolvedValue(notebookSummary);
+
+  await warmNotesNotebookSnapshot(notebookFlag);
+
+  expect(getNotebook).not.toHaveBeenCalled();
+});
+
+test('warmNotesNotebookSnapshot fetches a notebook with no cached snapshot', async () => {
+  const getNotebook = vi
+    .spyOn(api.notes, 'getNotebook')
+    .mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  await warmNotesNotebookSnapshot(notebookFlag);
+
+  expect(getNotebook).toHaveBeenCalled();
 });

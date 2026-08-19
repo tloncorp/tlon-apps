@@ -21,6 +21,7 @@ const logger = createDevLogger('notesActions', false);
 const NOTES_SYNC_STALE_TIME = 15_000;
 const NOTES_PUBLISHED_STALE_TIME = 15_000;
 const NOTES_ACTIVITY_REFRESH_DEBOUNCE = 2_000;
+const NOTES_SNAPSHOT_MAX_AGE = 5 * 60 * 1000;
 
 type SyncNotesNotebookOptions = {
   hydrateNoteIds?: readonly number[];
@@ -128,6 +129,40 @@ async function fetchNotesNotebookSnapshot(
       members: dbMembers,
     },
   };
+}
+
+const warmingNotebooks = new Set<string>();
+
+// Revalidate a notebook's cached snapshot when something is displaying data
+// derived from it (e.g. the channel list's note/folder counts) and the cache
+// has aged out. Activity pushes cover added and deleted notes, but %notes
+// only streams to an open notebook screen and only reports notes to
+// %activity — folder mutations, and changes we made from another device,
+// arrive through nothing at all. Gated on `syncedAt` and an in-flight set,
+// so a list of notebook rows costs at most one fetch per notebook per
+// window no matter how often its rows mount.
+export async function warmNotesNotebookSnapshot(
+  flagInput: api.NotesFlag | string
+) {
+  const { flag } = requireNotesNotebookFlag(flagInput);
+  if (warmingNotebooks.has(flag)) {
+    return;
+  }
+  const cached = await db.getNotesNotebook({ notebookFlag: flag });
+  if (
+    cached?.syncedAt &&
+    Date.now() - cached.syncedAt < NOTES_SNAPSHOT_MAX_AGE
+  ) {
+    return;
+  }
+  warmingNotebooks.add(flag);
+  try {
+    await syncNotesNotebook(flag);
+  } catch (e) {
+    logger.error('Failed to warm notes notebook snapshot', flag, e);
+  } finally {
+    warmingNotebooks.delete(flag);
+  }
 }
 
 const notebookActivityRefreshers = new Map<string, () => void>();
