@@ -23,7 +23,9 @@ The EAS cache is symmetric: `expo run:ios` downloads a matching build when one e
 
 The fingerprint hashes native inputs — including the installed contents of `node_modules` (autolinking config), the `ios/` and `android/` trees, and Podfile.properties.json. JS-only changes do not change it. **Trap:** the fingerprint reads `node_modules`, not package.json, so after adding a native dependency let `pnpm install` fully finish before `expo run:ios`, or the fingerprint will match a stale build that lacks your module.
 
-The fingerprint is only useful if it is identical across checkouts. `patches/react-native@0.86.0.patch` exists for exactly this: hermes-engine.podspec resolves `hermesc` to an absolute path, which lands in the evaluated podspec and therefore in the Podfile.lock `SPEC CHECKSUMS`. Without the patch every worktree and every machine computes a different fingerprint and the EAS cache never hits across checkouts. The patch emits the path via `$(PODS_ROOT)` instead. If a react-native upgrade regenerates this patch, keep that hunk (or verify upstream fixed it) and re-check that `pod install` on two different checkout paths produces identical `hermes-engine` checksums in Podfile.lock.
+The fingerprint is only useful if it is identical across checkouts. `patches/react-native@0.86.0.patch` exists for exactly this: hermes-engine.podspec resolves `hermesc` to an absolute path, which lands in the evaluated podspec and therefore in the Podfile.lock `SPEC CHECKSUMS`. Without the patch every worktree and every machine computes a different fingerprint and the EAS cache never hits across checkouts.
+
+The patch is a backport of [facebook/react-native#56994](https://github.com/facebook/react-native/pull/56994), which ships in `0.87-stable` but not in the `0.86-stable` line we are on — **delete the patch when we upgrade to 0.87**. It carries one addition over upstream: both paths are resolved through `realpath`, so the relative traversal is also correct when the checkout is reached through a symlink. To re-verify after any react-native upgrade, run `pod install` from two different checkout paths and confirm the `hermes-engine` checksum in Podfile.lock matches.
 
 ## The loop
 
@@ -63,7 +65,7 @@ This allocates a dedicated simulator and a detached Metro on a per-project port,
 ccache measurements (Xcode 26, static frameworks):
 
 -   Rebuild in the **same worktree** after wiping Pods + DerivedData: 100% hit rate, 3m16s → 1m42s. This is the branch-switch / pod-bump case.
--   Build in a **different worktree**: 0% hit rate, even with `CCACHE_BASEDIR`. Header and build-product paths resolve into `~/Library/Developer/Xcode/DerivedData/Landscape-<per-workspace-hash>/`, which is both outside the repo root and differently named per worktree. `CCACHE_BASEDIR` only rewrites paths *underneath* it, and rewriting cannot reconcile two different directory names, so the `-I` flags never match.
+-   Build in a **different worktree**: 0% hit rate, even with `CCACHE_BASEDIR`. Header and build-product paths resolve into `~/Library/Developer/Xcode/DerivedData/Landscape-<per-workspace-hash>/`, which is both outside the repo root and differently named per worktree. `CCACHE_BASEDIR` only rewrites paths _underneath_ it, and rewriting cannot reconcile two different directory names, so the `-I` flags never match.
 
 Cross-worktree hits are therefore only reachable by putting build products **inside** the worktree (Xcode "Build Location: Relative to Workspace", or `xcodebuild -derivedDataPath ./…`) so every path falls under a common `CCACHE_BASEDIR`. That is not the default here, because the EAS cache already covers the cross-worktree case in ~16s versus ccache's ~1m42s. ccache earns its keep in the case EAS cannot help: being the first to build a brand-new fingerprint, and iterating on native changes in one worktree.
 
@@ -98,7 +100,7 @@ find ~/Library/Developer/Xcode/DerivedData -maxdepth 1 -name 'Landscape-*' -mtim
 ## Resource budget (one machine, N concurrent agents)
 
 -   **Simulator:** ~1–2GB RAM each while booted. `rn-iso release` frees the claim; leave the sim booted only while its loop is active.
--   **Worktree disk:** node_modules is hardlinked from the pnpm store (cheap); Pods + ios/build only exist after a cold build; DerivedData (~3–5GB) only after a cold build. Warm-path worktrees cost very little.
+-   **Worktree disk:** `du` badly overstates it. A worktree's `node_modules` reports ~4.3GB but consumes ~**80MB** of real disk (measured): pnpm imports from its store with APFS copy-on-write clones, so the blocks are shared even though each file shows a link count of 1. Switching `nodeLinker` away from `hoisted` would not reclaim meaningful space. The real per-worktree cost is `ios/Pods` (~1.1GB) plus build products — DerivedData (~3–5GB), which only a cold-built worktree creates at all.
 -   **Metro:** one node process per worktree, on its own port, managed by rn-iso.
 
 Practical ceiling: disk and RAM, not CPU — keep 2–3 concurrent loops on a laptop, release sims promptly, and let the EAS cache keep worktrees on the warm path.
