@@ -1,24 +1,25 @@
 diff --git a/sdks/hermes-engine/hermes-engine.podspec b/sdks/hermes-engine/hermes-engine.podspec
-index 58e003985c6dc3cd664d434339bf68ec09bce5bd..20b48151419b523308aea849139e290f28dca93a 100644
+index 58e003985c6dc3cd664d434339bf68ec09bce5bd..9504ad93ce607c15265a0dfd7567ab1038d1e47f 100644
 --- a/sdks/hermes-engine/hermes-engine.podspec
 +++ b/sdks/hermes-engine/hermes-engine.podspec
-@@ -92,8 +92,18 @@ Pod::Spec.new do |spec|
+@@ -92,8 +92,19 @@ Pod::Spec.new do |spec|
          "require.resolve(\"hermes-compiler\", {paths: [\"#{react_native_path}\"]})", __dir__]).strip
        )
  
-+      # Express hermesc relative to the Podfile directory, which $(SRCROOT)
-+      # names for user targets. An absolute path here gets baked into the
-+      # evaluated podspec, making the Podfile.lock SPEC CHECKSUM (and any
-+      # fingerprint derived from it, e.g. expo's) differ per checkout location,
-+      # which defeats fingerprint-keyed build caches. Both sides are resolved to
-+      # physical paths so the traversal is correct when the checkout is reached
++      hermesc_path = File.join(hermes_compiler_path, 'hermesc', 'osx-bin', 'hermesc')
++
++      # An absolute path here is baked into the evaluated podspec, so the
++      # Podfile.lock SPEC CHECKSUM — and any fingerprint derived from it, such
++      # as expo's — differs per checkout location, which defeats
++      # fingerprint-keyed build caches. Both sides are resolved to physical
++      # paths so the traversal is also correct when the checkout is reached
 +      # through a symlink.
-+      hermes_compiler_relative = Pathname.new(hermes_compiler_path).realpath
-+        .relative_path_from(Pathname.new(Pod::Config.instance.installation_root.to_s).realpath)
++      pods_root = Pathname.new(Pod::Config.instance.sandbox.root.to_s).realpath
++      relative_hermesc = Pathname.new(hermesc_path).realpath.relative_path_from(pods_root)
 +
        spec.user_target_xcconfig = {
 -        'HERMES_CLI_PATH' => "#{hermes_compiler_path}/hermesc/osx-bin/hermesc"
-+        'HERMES_CLI_PATH' => "$(SRCROOT)/#{hermes_compiler_relative}/hermesc/osx-bin/hermesc"
++        'HERMES_CLI_PATH' => "$(PODS_ROOT)/#{relative_hermesc}"
        }
      end
  

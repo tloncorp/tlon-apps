@@ -63,7 +63,9 @@ This allocates a dedicated simulator and a detached Metro on a per-project port,
 ccache measurements (Xcode 26, static frameworks):
 
 -   Rebuild in the **same worktree** after wiping Pods + DerivedData: 100% hit rate, 3m16s → 1m42s. This is the branch-switch / pod-bump case.
--   Build in a **different worktree**: 0% hit rate, even with `CCACHE_BASEDIR`. Compile commands reference headers inside DerivedData (static frameworks put pod headers there), and the DerivedData path embeds a per-workspace hash, so the manifests never match across worktrees. The EAS cache is what covers the cross-worktree case.
+-   Build in a **different worktree**: 0% hit rate, even with `CCACHE_BASEDIR`. Header and build-product paths resolve into `~/Library/Developer/Xcode/DerivedData/Landscape-<per-workspace-hash>/`, which is both outside the repo root and differently named per worktree. `CCACHE_BASEDIR` only rewrites paths *underneath* it, and rewriting cannot reconcile two different directory names, so the `-I` flags never match.
+
+Cross-worktree hits are therefore only reachable by putting build products **inside** the worktree (Xcode "Build Location: Relative to Workspace", or `xcodebuild -derivedDataPath ./…`) so every path falls under a common `CCACHE_BASEDIR`. That is not the default here, because the EAS cache already covers the cross-worktree case in ~16s versus ccache's ~1m42s. ccache earns its keep in the case EAS cannot help: being the first to build a brand-new fingerprint, and iterating on native changes in one worktree.
 
 JS-only tickets stay on the warm path for their entire life: after the first install, edits hot-reload through Metro and no further native builds happen.
 
