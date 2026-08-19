@@ -27,6 +27,9 @@
       :~  %group
           %group-1
           %group-2
+          %group-ui
+          %group-ui-1
+          %group-ui-2
           %groups
           %groups-1
           %groups-2

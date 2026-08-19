@@ -13,7 +13,7 @@
 /+  *contacts, kol
 ::
 ::  performance, keep warm
-/+  j0=contacts-json-0, j1=contacts-json-1, mark-warmer
+/+  j0=contacts-json-0, j1=contacts-json-1
 ::
 |%
 ::  conventions

@@ -1,8 +1,6 @@
 /-  u=ui, gv=groups-ver, c=chat, cv=chat-ver, d=channels, dv=channels-ver,
     a=activity, av=activity-ver
 /+  default-agent, dbug, verb, vita-client
-::  performance, keep warm
-/+  mark-warmer
 ^-  agent:gall
 =>
   |%
