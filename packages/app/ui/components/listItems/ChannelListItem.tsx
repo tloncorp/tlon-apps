@@ -124,7 +124,12 @@ export function ChannelListItem({
 
   const isFocused = useNavigation().focusedChannelId === model.id;
   const groupTitle = utils.useGroupTitle(model.group);
-  const notesSubtitle = utils.useNotesChannelSubtitle(model);
+  // the subtitle branches below are ordered, and the notes counts cost a
+  // notebook fetch — don't ask for them where an earlier branch wins
+  const notesSubtitle = utils.useNotesChannelSubtitle(
+    model,
+    !customSubtitle && !(showGroupTitle && model.group)
+  );
   const isDmType = model.type === 'dm' || model.type === 'groupDm';
   const dmMembers = isDmType ? model.members : [];
 

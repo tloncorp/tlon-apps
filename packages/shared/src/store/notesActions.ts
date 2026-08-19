@@ -135,12 +135,13 @@ const warmingNotebooks = new Set<string>();
 
 // Revalidate a notebook's cached snapshot when something is displaying data
 // derived from it (e.g. the channel list's note/folder counts) and the cache
-// has aged out. Activity pushes cover added and deleted notes, but %notes
-// only streams to an open notebook screen and only reports notes to
-// %activity — folder mutations, and changes we made from another device,
-// arrive through nothing at all. Gated on `syncedAt` and an in-flight set,
-// so a list of notebook rows costs at most one fetch per notebook per
-// window no matter how often its rows mount.
+// has aged out. Activity reports created notes, but %notes only streams to
+// an open notebook screen and only reports notes to %activity — folder
+// mutations, deletions, and changes we made from another device arrive
+// through nothing at all, so aging the cache out is the only way those
+// land. The in-flight slot is claimed before the first await, so callers
+// racing on the same notebook produce one fetch rather than several
+// snapshot saves landing out of order.
 export async function warmNotesNotebookSnapshot(
   flagInput: api.NotesFlag | string
 ) {
@@ -148,15 +149,15 @@ export async function warmNotesNotebookSnapshot(
   if (warmingNotebooks.has(flag)) {
     return;
   }
-  const cached = await db.getNotesNotebook({ notebookFlag: flag });
-  if (
-    cached?.syncedAt &&
-    Date.now() - cached.syncedAt < NOTES_SNAPSHOT_MAX_AGE
-  ) {
-    return;
-  }
   warmingNotebooks.add(flag);
   try {
+    const cached = await db.getNotesNotebook({ notebookFlag: flag });
+    if (
+      cached?.syncedAt &&
+      Date.now() - cached.syncedAt < NOTES_SNAPSHOT_MAX_AGE
+    ) {
+      return;
+    }
     await syncNotesNotebook(flag);
   } catch (e) {
     logger.error('Failed to warm notes notebook snapshot', flag, e);
@@ -165,13 +166,37 @@ export async function warmNotesNotebookSnapshot(
   }
 }
 
+// Keeps the snapshot behind displayed counts from aging out while the thing
+// displaying them stays mounted — a nav row can sit there for a whole
+// session, and folder changes reach us through no subscription. One query
+// per notebook however many rows mount it, and the interval only runs while
+// at least one of them is on screen.
+export function useWarmNotesNotebookSnapshot({
+  notebookFlag,
+  enabled = true,
+}: {
+  notebookFlag: string | null | undefined;
+  enabled?: boolean;
+}) {
+  useQuery({
+    queryKey: ['notesSnapshotWarm', notebookFlag],
+    queryFn: async () => {
+      await warmNotesNotebookSnapshot(notebookFlag!);
+      return null;
+    },
+    enabled: enabled && Boolean(notebookFlag),
+    // the global default is `Infinity`; these two are what make the
+    // revalidate happen at all
+    staleTime: NOTES_SNAPSHOT_MAX_AGE,
+    refetchInterval: NOTES_SNAPSHOT_MAX_AGE,
+  });
+}
+
 const notebookActivityRefreshers = new Map<string, () => void>();
 
-// The channel list reads a notebook's note/folder counts out of the cached
-// snapshot, and %notes only streams to a notebook screen that's actually
-// open — so an activity push is the one global signal that someone touched
-// a notebook we're showing a count for. Debounced per notebook because a
-// single change arrives as a burst of per-note unreads.
+// Re-snapshot a notebook after activity told us its contents changed (see
+// the call site for which signals qualify). Debounced per notebook because
+// one change can arrive as a burst of events.
 export function refreshNotesNotebookFromActivity(channelId: string) {
   const flag = notesNotebookFlagFromChannelId(channelId);
   if (!flag) {

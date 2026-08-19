@@ -1365,3 +1365,22 @@ test('warmNotesNotebookSnapshot fetches a notebook with no cached snapshot', asy
 
   expect(getNotebook).toHaveBeenCalled();
 });
+
+test('warmNotesNotebookSnapshot fetches once when callers race', async () => {
+  const getNotebook = vi
+    .spyOn(api.notes, 'getNotebook')
+    .mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  await Promise.all([
+    warmNotesNotebookSnapshot(notebookFlag),
+    warmNotesNotebookSnapshot(notebookFlag),
+    warmNotesNotebookSnapshot(notebookFlag),
+  ]);
+
+  expect(getNotebook).toHaveBeenCalledTimes(1);
+});

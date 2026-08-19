@@ -1507,10 +1507,16 @@ const handleActivityUpdate = async (
       refetchType: 'active',
     });
   }
-  // an added or deleted note shows up here as channel/thread unreads, and
-  // it changes the counts the channel list renders for that notebook
-  for (const unread of activitySnapshot.channelUnreads) {
-    refreshNotesNotebookFromActivity(unread.channelId);
+  // a note someone else added changes the counts the channel list renders
+  // for that notebook. Deliberately narrower than "any notes activity": a
+  // body edit bumps the notebook's recency (and its channel unread) without
+  // changing either count, and refetching the whole notebook on every
+  // autosave isn't worth it. Deletions and folder changes carry no usable
+  // signal at all — those land when the snapshot ages out.
+  for (const event of activitySnapshot.activityEvents) {
+    if (event.type === 'note-create' && event.channelId) {
+      refreshNotesNotebookFromActivity(event.channelId);
+    }
   }
 
   // check for any newly joined groups and channels
