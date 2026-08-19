@@ -25,6 +25,7 @@
     "android:update-lockfile": "cd android && ./gradlew app:dependencies --write-locks",
     "bundler": "expo start",
     "clearcache": "expo start -c",
+    "doctor": "./scripts/build-doctor.sh",
     "ios": "expo run:ios",
     "ios:release:preview": "cross-env APP_VARIANT=preview pnpm exec expo run:ios --scheme=Landscape-preview --configuration Release",
     "ios:release": "pnpm exec expo run:ios --configuration Release",

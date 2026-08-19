@@ -121,6 +121,22 @@ post_install do |installer|
   # See https://github.com/facebook/react-native/issues/55601
   patch_fmt_consteval_for_xcode_26_4(installer)
 
+  # react_native_post_install writes ccache CC/LD wrappers into the app project
+  # as well, but the wrapper paths resolve via $(REACT_NATIVE_PATH), which only
+  # Pods targets define — non-Pods targets like ShareExtension fail to spawn the
+  # compiler. Keep ccache scoped to the Pods project; the app targets are Swift,
+  # which ccache cannot cache anyway.
+  if podfile_properties['apple.ccacheEnabled'] == 'true'
+    installer.aggregate_targets.map(&:user_project).uniq.each do |project|
+      project.build_configurations.each do |config|
+        ['CC', 'LD', 'CXX', 'LDPLUSPLUS', 'CCACHE_BINARY'].each do |key|
+          config.build_settings.delete(key)
+        end
+      end
+      project.save
+    end
+  end
+
   # This is necessary for Xcode 14, because it signs resource bundles by default
   # when building for devices.
   installer.target_installation_results.pod_target_installation_results
