@@ -99,8 +99,8 @@ type AgentOnboardingScanContext = Omit<
 const postOnceFlights = new Map<string, Promise<void>>();
 const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
 const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
-const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 3_500;
-const SERVICES_TO_FOLLOW_UP_DELAY_MS = 3_500;
+const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 5_500;
+const SERVICES_TO_FOLLOW_UP_DELAY_MS = 12_000;
 const FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS = 5;
 const FIRST_ENTRY_NOTE_LOOKUP_DELAY_MS = 500;
 const FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
@@ -116,14 +116,20 @@ const AGENT_ONBOARDING_GROUP_INTRO =
   "I'm your Tlonbot. I can keep you informed, help you learn, or follow a " +
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
-const AGENT_ONBOARDING_ORIENTATION_PROMPT =
-  'You’re all set. Is there anything else I can help you with?';
-const AGENT_ONBOARDING_ORIENTATION_OPTIONS = [
-  { id: 'groups-and-channels', label: 'Groups and channels' },
-  { id: 'your-tlon-computer', label: 'Your Tlon computer' },
-  { id: 'other-capabilities', label: 'What else can you do?' },
-  { id: 'finished', label: 'I’m good for now' },
-] as const;
+const AGENT_ONBOARDING_APP_TOUR_PROMPT =
+  'Want a quick tour of how groups and channels work?';
+const AGENT_ONBOARDING_APP_TOUR_EXPLANATION =
+  'In this group, General is where we talk and Updates is the notebook where ' +
+  'longer work—like your new brief—lives. You can make separate groups for ' +
+  'different people or projects and bring me into the ones where you want help.';
+const AGENT_ONBOARDING_BOT_TOUR_PROMPT =
+  'Want a quick rundown of what else I can do?';
+const AGENT_ONBOARDING_BOT_TOUR_EXPLANATION =
+  'I can research questions, change what this group follows, publish ' +
+  'scheduled updates, help in other groups, and use connected services you ' +
+  'authorize. Try asking me to adjust tomorrow’s update or investigate ' +
+  'something now.';
+const AGENT_ONBOARDING_TOUR_DECLINED = 'No problem. You can ask me anytime.';
 const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
   {
     id: 'agent-daily-digest',
@@ -396,7 +402,15 @@ function pendingDurableReply(
   botShip: string,
   ownerShip: string
 ) {
-  if (hasProvisionAck(history, botShip)) return null;
+  if (hasProvisionAck(history, botShip)) {
+    if (hasPostMarker(history, botShip, 'orientation-complete')) return null;
+    const active =
+      markerPost(history, botShip, 'bot-tour-offer') ??
+      markerPost(history, botShip, 'onboarding-follow-up');
+    if (!active) return null;
+    const reply = newestOwnerReplyAfter(history, ownerShip, active.timestamp);
+    return reply && yesNoDecision(reply.content) ? reply : null;
+  }
   // Purpose replies can be recovered from durable text. Topic confirmation
   // cannot: the owner client must attach its local timezone to the provision
   // event, so never fall back to a second, user-visible timezone step.
@@ -466,18 +480,16 @@ async function advanceDurableConversation(
   deps: AgentOnboardingDeps,
   presentation: OnboardingPresentation
 ): Promise<boolean> {
-  const text = context.rawText!.trim();
-  if (!hasPostMarker(history, context.botShip, 'purpose-picker')) {
-    return false;
+  // The post-setup tour is the one bounded exception to handing the channel
+  // back to ordinary chat after provision. It only consumes an exact Yes/No
+  // reply while one of its durable prompts is active; every other message is
+  // left to the normal agent conversation.
+  if (hasProvisionAck(history, context.botShip)) {
+    return advanceOrientationConversation(context, history, deps, presentation);
   }
 
-  // Setup is over the moment a provision is acknowledged, and chat after that
-  // point belongs to the ordinary conversation. Without this the topics branch
-  // below stayed armed forever on the picker-submit path, which never posts a
-  // timezone picker: an owner who read "You're all set" and typed back
-  // "That's it?" had that question parsed as their topic list, re-asked for a
-  // timezone, and got a researched notebook entry about the phrase itself.
-  if (hasProvisionAck(history, context.botShip)) {
+  const text = context.rawText!.trim();
+  if (!hasPostMarker(history, context.botShip, 'purpose-picker')) {
     return false;
   }
 
@@ -509,6 +521,111 @@ async function advanceDurableConversation(
     return true;
   }
   return false;
+}
+
+function newestOwnerReplyAfter(
+  history: TlonHistoryEntry[],
+  ownerShip: string,
+  timestamp: number
+) {
+  return [...history]
+    .filter(
+      (entry) =>
+        entry.author === ownerShip &&
+        entry.timestamp > timestamp &&
+        entry.content.trim()
+    )
+    .sort((a, b) => b.timestamp - a.timestamp)[0];
+}
+
+function yesNoDecision(text: string): 'yes' | 'no' | null {
+  const normalized = text.trim().toLocaleLowerCase();
+  if (normalized === 'yes') return 'yes';
+  if (normalized === 'no') return 'no';
+  return null;
+}
+
+async function advanceOrientationConversation(
+  context: AgentOnboardingContext,
+  history: TlonHistoryEntry[],
+  deps: AgentOnboardingDeps,
+  presentation: OnboardingPresentation
+): Promise<boolean> {
+  if (hasPostMarker(history, context.botShip, 'orientation-complete')) {
+    return false;
+  }
+
+  const botTourOffer = markerPost(history, context.botShip, 'bot-tour-offer');
+  if (botTourOffer) {
+    const reply = newestOwnerReplyAfter(
+      history,
+      context.ownerShip!,
+      botTourOffer.timestamp
+    );
+    const decision = reply ? yesNoDecision(reply.content) : null;
+    if (!decision) return false;
+
+    await postOnce(
+      context,
+      history,
+      'orientation-complete',
+      async () => ({
+        text:
+          decision === 'yes'
+            ? AGENT_ONBOARDING_BOT_TOUR_EXPLANATION
+            : AGENT_ONBOARDING_TOUR_DECLINED,
+      }),
+      deps,
+      presentation
+    );
+    return true;
+  }
+
+  const appTourOffer = markerPost(
+    history,
+    context.botShip,
+    'onboarding-follow-up'
+  );
+  if (!appTourOffer) return false;
+  const reply = newestOwnerReplyAfter(
+    history,
+    context.ownerShip!,
+    appTourOffer.timestamp
+  );
+  const decision = reply ? yesNoDecision(reply.content) : null;
+  if (!decision) return false;
+
+  if (decision === 'no') {
+    await postOnce(
+      context,
+      history,
+      'orientation-complete',
+      async () => ({ text: AGENT_ONBOARDING_TOUR_DECLINED }),
+      deps,
+      presentation
+    );
+    return true;
+  }
+
+  const message = `${AGENT_ONBOARDING_APP_TOUR_EXPLANATION}\n\n${AGENT_ONBOARDING_BOT_TOUR_PROMPT}`;
+  await postOnce(
+    context,
+    history,
+    'bot-tour-offer',
+    async () => ({
+      text: message,
+      blob: appendToPostBlob(
+        undefined,
+        buildTourChoiceSurface(
+          `agent-onboarding-bot-tour:${context.groupId!}`,
+          message
+        )
+      ),
+    }),
+    deps,
+    presentation
+  );
+  return true;
 }
 
 type Purpose = {
@@ -918,10 +1035,13 @@ async function completeFirstRun(
       history,
       'onboarding-follow-up',
       async () => ({
-        text: AGENT_ONBOARDING_ORIENTATION_PROMPT,
+        text: AGENT_ONBOARDING_APP_TOUR_PROMPT,
         blob: appendToPostBlob(
           undefined,
-          buildOrientationSurface(correlation.context.groupId!)
+          buildTourChoiceSurface(
+            `agent-onboarding-app-tour:${correlation.context.groupId!}`,
+            AGENT_ONBOARDING_APP_TOUR_PROMPT
+          )
         ),
       }),
       runDeps
@@ -1640,32 +1760,33 @@ function buildServicesSurface(
   );
 }
 
-function buildOrientationSurface(groupId: string) {
+function buildTourChoiceSurface(surfaceId: string, prompt: string) {
   return withFallbackStory(
-    makeA2UIBlob(`agent-onboarding-orientation:${groupId}`, 'root', [
+    makeA2UIBlob(surfaceId, 'root', [
       {
         id: 'root',
         component: 'Column',
-        children: ['prompt', 'orientation'],
+        children: ['prompt', 'choice'],
       },
       {
         id: 'prompt',
         component: 'Text',
-        text: AGENT_ONBOARDING_ORIENTATION_PROMPT,
+        text: prompt,
       },
       {
-        id: 'orientation',
-        component: 'SmallChoice',
-        options: [...AGENT_ONBOARDING_ORIENTATION_OPTIONS],
-        submitLabel: 'Continue',
-        action: choiceAction(''),
+        id: 'choice',
+        component: 'Choice',
+        options: [
+          { id: 'yes', label: 'Yes', action: choiceAction('Yes') },
+          { id: 'no', label: 'No', action: choiceAction('No') },
+        ],
       },
     ])
   );
 }
 
 export const agentOnboardingTesting = {
-  buildOrientationSurface,
+  buildTourChoiceSurface,
   buildRecurringPrompt,
   buildServicesSurface,
   hasPostMarker,
