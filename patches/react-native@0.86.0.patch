@@ -1,21 +1,24 @@
 diff --git a/sdks/hermes-engine/hermes-engine.podspec b/sdks/hermes-engine/hermes-engine.podspec
-index 58e003985c6dc3cd664d434339bf68ec09bce5bd..3f377cf8b691933b35c1e3b9baa44aecdafb8432 100644
+index 58e003985c6dc3cd664d434339bf68ec09bce5bd..20b48151419b523308aea849139e290f28dca93a 100644
 --- a/sdks/hermes-engine/hermes-engine.podspec
 +++ b/sdks/hermes-engine/hermes-engine.podspec
-@@ -92,8 +92,15 @@ Pod::Spec.new do |spec|
+@@ -92,8 +92,18 @@ Pod::Spec.new do |spec|
          "require.resolve(\"hermes-compiler\", {paths: [\"#{react_native_path}\"]})", __dir__]).strip
        )
  
-+      # Express hermesc relative to the Pods root. An absolute path here gets
-+      # baked into the evaluated podspec, making the Podfile.lock SPEC CHECKSUM
-+      # (and any fingerprint derived from it, e.g. expo's) differ per checkout
-+      # location, which defeats fingerprint-keyed build caches.
-+      hermes_compiler_from_root = Pathname.new(hermes_compiler_path)
-+        .relative_path_from(Pod::Config.instance.installation_root).to_s
++      # Express hermesc relative to the Podfile directory, which $(SRCROOT)
++      # names for user targets. An absolute path here gets baked into the
++      # evaluated podspec, making the Podfile.lock SPEC CHECKSUM (and any
++      # fingerprint derived from it, e.g. expo's) differ per checkout location,
++      # which defeats fingerprint-keyed build caches. Both sides are resolved to
++      # physical paths so the traversal is correct when the checkout is reached
++      # through a symlink.
++      hermes_compiler_relative = Pathname.new(hermes_compiler_path).realpath
++        .relative_path_from(Pathname.new(Pod::Config.instance.installation_root.to_s).realpath)
 +
        spec.user_target_xcconfig = {
 -        'HERMES_CLI_PATH' => "#{hermes_compiler_path}/hermesc/osx-bin/hermesc"
-+        'HERMES_CLI_PATH' => "$(PODS_ROOT)/../#{hermes_compiler_from_root}/hermesc/osx-bin/hermesc"
++        'HERMES_CLI_PATH' => "$(SRCROOT)/#{hermes_compiler_relative}/hermesc/osx-bin/hermesc"
        }
      end
  

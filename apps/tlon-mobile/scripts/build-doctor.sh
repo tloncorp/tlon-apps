@@ -61,12 +61,16 @@ if [ "${TLON_EAS_CACHE_DISABLED:-}" = "1" ]; then
   warn "TLON_EAS_CACHE_DISABLED=1 is set — remote build cache is off for this shell"
 fi
 
-EAS_USER="$(cd "$MOBILE_DIR" && npx --no-install eas-cli whoami 2>/dev/null | head -1)"
-if [ -n "$EAS_USER" ]; then
-  ok "eas-cli logged in ($EAS_USER)"
+if ! (cd "$MOBILE_DIR" && npx --no-install eas-cli --version > /dev/null 2>&1); then
+  fail "eas-cli is not installed — the build cache cannot work" "npm install -g eas-cli"
 else
-  fail "eas-cli is not logged in — the build cache is SILENTLY skipped and every build compiles from source" \
-    "cd apps/tlon-mobile && npx eas-cli login"
+  EAS_USER="$(cd "$MOBILE_DIR" && npx --no-install eas-cli whoami 2>/dev/null | head -1)"
+  if [ -n "$EAS_USER" ]; then
+    ok "eas-cli logged in ($EAS_USER)"
+  else
+    fail "eas-cli is not logged in — the build cache is SILENTLY skipped and every build compiles from source" \
+      "cd apps/tlon-mobile && npx eas-cli login"
+  fi
 fi
 
 # --- ccache (cold builds) ------------------------------------------------------
@@ -106,7 +110,7 @@ else
   warn "CocoaPods (pod) not on PATH" "gem install cocoapods (or brew install cocoapods)"
 fi
 
-case "${LANG:-}${LC_ALL:-}" in
+case "${LC_ALL:-${LANG:-}}" in
   *UTF-8* | *utf8*) ok "UTF-8 locale set (CocoaPods needs this)" ;;
   *) warn "no UTF-8 locale — pod install can crash with ASCII-8BIT unicode errors" \
     "export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8" ;;
@@ -127,7 +131,7 @@ else
   warn "Android SDK not found — Android builds unavailable" "install via Android Studio"
 fi
 
-if command -v java > /dev/null 2>&1 || [ -x "/usr/libexec/java_home" ] && /usr/libexec/java_home > /dev/null 2>&1; then
+if command -v java > /dev/null 2>&1 || { [ -x "/usr/libexec/java_home" ] && /usr/libexec/java_home > /dev/null 2>&1; }; then
   ok "JDK available"
 else
   warn "no JDK found" "brew install --cask zulu@17"
@@ -137,11 +141,13 @@ fi
 echo
 echo "Disk:"
 
-AVAIL_GB="$(df -g "$HOME" 2>/dev/null | awk 'NR==2 {print $4}')"
-if [ -n "$AVAIL_GB" ] && [ "$AVAIL_GB" -lt 30 ]; then
-  warn "only ${AVAIL_GB}GB free — DerivedData + simulators + ccache need room" "clear old DerivedData: rm -rf ~/Library/Developer/Xcode/DerivedData"
+AVAIL_KB="$(df -Pk "$HOME" 2>/dev/null | awk 'NR==2 {print $4}')"
+if [ -z "$AVAIL_KB" ]; then
+  warn "could not determine free disk space"
+elif [ $((AVAIL_KB / 1048576)) -lt 30 ]; then
+  warn "only $((AVAIL_KB / 1048576))GB free — DerivedData + simulators + ccache need room" "clear old DerivedData: rm -rf ~/Library/Developer/Xcode/DerivedData"
 else
-  ok "${AVAIL_GB:-?}GB free"
+  ok "$((AVAIL_KB / 1048576))GB free"
 fi
 
 # --- Summary --------------------------------------------------------------------

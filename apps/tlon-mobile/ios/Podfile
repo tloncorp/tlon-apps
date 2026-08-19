@@ -122,10 +122,11 @@ post_install do |installer|
   patch_fmt_consteval_for_xcode_26_4(installer)
 
   # react_native_post_install writes ccache CC/LD wrappers into the app project
-  # as well, but the wrapper paths resolve via $(REACT_NATIVE_PATH), which only
-  # Pods targets define — non-Pods targets like ShareExtension fail to spawn the
-  # compiler. Keep ccache scoped to the Pods project; the app targets are Swift,
-  # which ccache cannot cache anyway.
+  # as well, but the wrapper paths resolve via $(REACT_NATIVE_PATH), which
+  # expands through $(PODS_ROOT) — undefined for non-Pods targets like
+  # ShareExtension, so they fail to spawn the compiler. Keep ccache scoped to
+  # the Pods project; the app targets are Swift, which ccache cannot cache
+  # anyway.
   if podfile_properties['apple.ccacheEnabled'] == 'true'
     installer.aggregate_targets.map(&:user_project).uniq.each do |project|
       project.build_configurations.each do |config|
