@@ -70,6 +70,7 @@ const DRAFT_SNAPSHOT_TTL_MS = 120_000;
 export type NotesNoteDraftSnapshot = {
   notebookFlag: string;
   noteId: number;
+  baseRevision: number;
   title: string;
   body: string;
   isDirty: boolean;
@@ -249,6 +250,7 @@ export function NotesNoteDetail({
   const [bodyInputWidth, setBodyInputWidth] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [pendingSaveEpoch, setPendingSaveEpoch] = useState(0);
   // The host's copy of the note after a save hit a genuine revision
   // conflict. While set, autosave is suspended and the banner offers the
   // user the resolution (keep mine / use theirs) — a blind retry can never
@@ -287,13 +289,14 @@ export function NotesNoteDetail({
     (session: NotesEditorSession) => editorSessionRef.current === session,
     []
   );
-  const isCurrentEditorNote = useCallback(
-    (flag: string, targetNoteId: number) =>
-      editorSessionRef.current.key === draftStashKey(flag, targetNoteId),
-    []
-  );
   const pendingSaveSessionsRef = useRef(
     new Map<string, Map<NotesEditorSession, number>>()
+  );
+  const stashRestoreCompletedSessionsRef = useRef(
+    new WeakSet<NotesEditorSession>()
+  );
+  const deferredBaseRebasesRef = useRef(
+    new Map<NotesEditorSession, db.NotesNote>()
   );
   const markPendingSave = useCallback(
     (flag: string, targetNoteId: number, session: NotesEditorSession) => {
@@ -318,6 +321,13 @@ export function NotesNoteDetail({
       if (sessions.size === 0) {
         pendingSaveSessionsRef.current.delete(key);
       }
+      // Pending saves live in a ref so queue bookkeeping itself does not
+      // perturb the editor. Settlement is different: row adoption may have
+      // skipped an already-received row while this save was pending, so wake
+      // the current note and let that effect reconsider it.
+      if (editorSessionRef.current.key === key) {
+        setPendingSaveEpoch((epoch) => epoch + 1);
+      }
     },
     []
   );
@@ -331,6 +341,25 @@ export function NotesNoteDetail({
       return Array.from(sessions).some(
         ([session, count]) => session !== currentSession && count > 0
       );
+    },
+    []
+  );
+  const rebaseCurrentNoteFromEarlierSession = useCallback(
+    (flag: string, targetNoteId: number, updated: db.NotesNote) => {
+      const currentSession = editorSessionRef.current;
+      if (currentSession.key !== draftStashKey(flag, targetNoteId)) return;
+      if (
+        draftSessionRef.current === currentSession &&
+        stashRestoreCompletedSessionsRef.current.has(currentSession)
+      ) {
+        setDraftBase(updated);
+        return;
+      }
+      // The reopened note has not finished consulting its durable stash yet.
+      // Hold only the new base revision; once restoration finishes, applying
+      // it alongside the restored/current drafts makes their true dirtiness
+      // visible without replacing them.
+      deferredBaseRebasesRef.current.set(currentSession, updated);
     },
     []
   );
@@ -464,6 +493,7 @@ export function NotesNoteDetail({
       const snapshot: NotesNoteDraftSnapshot = {
         notebookFlag,
         noteId: selectedNote.noteId,
+        baseRevision: draftBase.revision,
         title: titleDraft,
         body,
         isDirty: dirty,
@@ -548,21 +578,40 @@ export function NotesNoteDetail({
       notebookFlag != null &&
       selectedNote != null &&
       hasPendingSaveFromEarlierSession(notebookFlag, selectedNote.noteId);
+    const earlierVisitRebaseDeferred =
+      sameNote && deferredBaseRebasesRef.current.has(editorSessionRef.current);
     if (
       sameNote &&
       (isDirty ||
         selectedNote === draftBase ||
         rowTrailsBase ||
-        earlierVisitSavePending)
+        earlierVisitSavePending ||
+        earlierVisitRebaseDeferred)
     ) {
       return;
     }
     if (sameNote) {
       preserveScrollOffset();
     }
-    setDraftBase(selectedNote ?? null);
-    setTitleDraft(selectedNote?.title ?? '');
-    setBodyDraft(selectedNote?.bodyMd ?? '');
+    const inMemoryDraft =
+      !sameNote && notebookFlag && selectedNote
+        ? getNotesNoteDraftSnapshot(notebookFlag, selectedNote.noteId)
+        : null;
+    const canRestoreInMemoryDraft =
+      inMemoryDraft?.baseRevision === selectedNote?.revision;
+    if (canRestoreInMemoryDraft && inMemoryDraft && selectedNote) {
+      const currentSession = editorSessionRef.current;
+      stashRestoreCompletedSessionsRef.current.add(currentSession);
+      const deferredBase = deferredBaseRebasesRef.current.get(currentSession);
+      deferredBaseRebasesRef.current.delete(currentSession);
+      setDraftBase(deferredBase ?? selectedNote);
+      setTitleDraft(inMemoryDraft.title);
+      setBodyDraft(inMemoryDraft.body);
+    } else {
+      setDraftBase(selectedNote ?? null);
+      setTitleDraft(selectedNote?.title ?? '');
+      setBodyDraft(selectedNote?.bodyMd ?? '');
+    }
     if (!sameNote) {
       setSaveState('idle');
       setError(null);
@@ -573,6 +622,7 @@ export function NotesNoteDetail({
     hasPendingSaveFromEarlierSession,
     isDirty,
     notebookFlag,
+    pendingSaveEpoch,
     preserveScrollOffset,
     selectedNote,
   ]);
@@ -725,6 +775,7 @@ export function NotesNoteDetail({
       rememberNotesNoteDraftSnapshot({
         notebookFlag,
         noteId: base.noteId,
+        baseRevision: base.revision,
         title: titleDraft,
         body: bodyToSave,
         isDirty: true,
@@ -741,10 +792,7 @@ export function NotesNoteDetail({
         // Rebase onto the saved revision; keystrokes typed during the save
         // leave the drafts dirty against it, so the next cycle saves them.
         const currentSession = isCurrentEditorSession(session);
-        const currentNoteDraftIsReady =
-          isCurrentEditorNote(notebookFlag, base.noteId) &&
-          draftSessionRef.current === editorSessionRef.current;
-        if (updated && (currentSession || currentNoteDraftIsReady)) {
+        if (updated && currentSession) {
           setDraftBase(updated);
           // A save we did NOT rename in can come back with a different
           // title: another client renamed, and the response payload's
@@ -763,6 +811,12 @@ export function NotesNoteDetail({
             setTitleDraft(updated.title);
             titleDraftRef.current = updated.title;
           }
+        } else if (updated) {
+          rebaseCurrentNoteFromEarlierSession(
+            notebookFlag,
+            base.noteId,
+            updated
+          );
         }
         clearDraftStash(notebookFlag, base.noteId, {
           title: titleDraft,
@@ -810,9 +864,9 @@ export function NotesNoteDetail({
       draftBase,
       finishPendingSave,
       isCurrentEditorSession,
-      isCurrentEditorNote,
       notebookFlag,
       preserveScrollOffset,
+      rebaseCurrentNoteFromEarlierSession,
       reportConflict,
       runSave,
       titleDraft,
@@ -936,6 +990,7 @@ export function NotesNoteDetail({
     rememberNotesNoteDraftSnapshot({
       notebookFlag: flag,
       noteId: base.noteId,
+      baseRevision: base.revision,
       title: titleToSave,
       body: bodyToSave,
       isDirty: true,
@@ -956,10 +1011,7 @@ export function NotesNoteDetail({
         // No-ops after unmount; while mounted (background flush) rebase so
         // the next cycle doesn't re-send a stale revision.
         const currentSession = isCurrentEditorSession(session);
-        const currentNoteDraftIsReady =
-          isCurrentEditorNote(flag, base.noteId) &&
-          draftSessionRef.current === editorSessionRef.current;
-        if (updated && (currentSession || currentNoteDraftIsReady)) {
+        if (updated && currentSession) {
           setDraftBase(updated);
           // Same untouched-title rebase as the foreground save path: a
           // remote rename carried back by the payload must not leave the
@@ -973,6 +1025,8 @@ export function NotesNoteDetail({
             setTitleDraft(updated.title);
             titleDraftRef.current = updated.title;
           }
+        } else if (updated) {
+          rebaseCurrentNoteFromEarlierSession(flag, base.noteId, updated);
         }
         if (isCurrentEditorSession(session)) {
           setSaveState('saved');
@@ -1005,8 +1059,8 @@ export function NotesNoteDetail({
     clearConflict,
     finishPendingSave,
     isCurrentEditorSession,
-    isCurrentEditorNote,
     preserveScrollOffset,
+    rebaseCurrentNoteFromEarlierSession,
     reportConflict,
     runSave,
   ]);
@@ -1027,12 +1081,16 @@ export function NotesNoteDetail({
     return () => subscription.remove();
   }, [flushPendingSave]);
 
-  // Guard so the stash restore below runs once per loaded note revision.
+  // Guard so the stash restore below runs once per editor visit + loaded note
+  // revision. A single global key is insufficient: A → B → A can revisit the
+  // same revision while A's previous async stash read is still relevant.
   // Without it, any edit that brings the content back to the saved state
   // (type a char, then delete it) flips the editor clean again and the
   // restore effect re-applies the stash — resurrecting the deleted edit
   // and destroying the caret position.
-  const stashRestoreCheckedRef = useRef<string | null>(null);
+  const stashRestoreStartedKeysRef = useRef(
+    new WeakMap<NotesEditorSession, string>()
+  );
   const stashRestoreKey =
     notebookFlag && draftBase
       ? `${draftStashKey(notebookFlag, draftBase.noteId)}/${draftBase.revision}`
@@ -1052,7 +1110,11 @@ export function NotesNoteDetail({
     // the remote work the conflict was protecting.
     if (conflictNote) return;
     if (!isDirty) {
-      if (stashRestoreCheckedRef.current === stashRestoreKey) {
+      const currentSession = editorSessionRef.current;
+      if (
+        draftSessionRef.current === currentSession &&
+        stashRestoreCompletedSessionsRef.current.has(currentSession)
+      ) {
         clearDraftStash(notebookFlag, draftBase.noteId);
       }
       return;
@@ -1081,47 +1143,71 @@ export function NotesNoteDetail({
   // then pushing the restored draft can't clobber anyone's newer work.
   useEffect(() => {
     if (!notebookFlag || !draftBase || isDirty || !stashRestoreKey) return;
-    if (stashRestoreCheckedRef.current === stashRestoreKey) return;
-    stashRestoreCheckedRef.current = stashRestoreKey;
+    const session = draftSessionRef.current;
+    if (session !== editorSessionRef.current) return;
+    if (stashRestoreCompletedSessionsRef.current.has(session)) return;
+    if (stashRestoreStartedKeysRef.current.get(session) === stashRestoreKey) {
+      return;
+    }
+    stashRestoreStartedKeysRef.current.set(session, stashRestoreKey);
+    const deferredBaseRebases = deferredBaseRebasesRef.current;
     let cancelled = false;
     void db.notesNoteDrafts.getValue().then((stashes) => {
       const stash = stashes[draftStashKey(notebookFlag, draftBase.noteId)];
-      if (cancelled || !stash) return;
-      if (stash.baseRevision !== draftBase.revision) {
-        if (
-          stash.title === draftBase.title &&
-          stash.body === draftBase.bodyMd
+      if (cancelled) return;
+      if (stash) {
+        if (stash.baseRevision !== draftBase.revision) {
+          if (
+            stash.title === draftBase.title &&
+            stash.body === draftBase.bodyMd
+          ) {
+            // The stashed content is exactly what the row now holds — the
+            // save landed (e.g. a late flush succeeded). Nothing to recover.
+            clearDraftStash(notebookFlag, draftBase.noteId);
+          } else {
+            // The stashed edits never landed and the note moved on (a flush
+            // hit a conflict and the session ended before recovery could run).
+            // Restoring them as plain drafts would be worse than dropping
+            // them: their base revision is now current, so the next autosave
+            // would silently overwrite the newer remote work. Surface it as
+            // the standing conflict it is — row as "theirs", stash as "mine" —
+            // which also suspends autosave until the user picks a side.
+            setTitleDraft(stash.title);
+            setBodyDraft(stash.body);
+            setConflictNote(draftBase);
+            setError(
+              'This note was changed elsewhere. Your unsaved changes are kept.'
+            );
+            setSaveState('error');
+          }
+        } else if (
+          stash.title !== draftBase.title ||
+          stash.body !== draftBase.bodyMd
         ) {
-          // The stashed content is exactly what the row now holds — the
-          // save landed (e.g. a late flush succeeded). Nothing to recover.
-          clearDraftStash(notebookFlag, draftBase.noteId);
-          return;
+          setTitleDraft(stash.title);
+          setBodyDraft(stash.body);
         }
-        // The stashed edits never landed and the note moved on (a flush
-        // hit a conflict and the session ended before recovery could run).
-        // Restoring them as plain drafts would be worse than dropping
-        // them: their base revision is now current, so the next autosave
-        // would silently overwrite the newer remote work. Surface it as
-        // the standing conflict it is — row as "theirs", stash as "mine" —
-        // which also suspends autosave until the user picks a side.
-        setTitleDraft(stash.title);
-        setBodyDraft(stash.body);
-        setConflictNote(draftBase);
-        setError(
-          'This note was changed elsewhere. Your unsaved changes are kept.'
-        );
-        setSaveState('error');
-        return;
       }
-      if (stash.title !== draftBase.title || stash.body !== draftBase.bodyMd) {
-        setTitleDraft(stash.title);
-        setBodyDraft(stash.body);
+
+      // Mark readiness only after the durable read has been considered. If an
+      // earlier visit saved while this read was pending, advance the base in
+      // the same batch as the restored drafts so neither can cancel the other.
+      stashRestoreCompletedSessionsRef.current.add(session);
+      const deferredBase = deferredBaseRebases.get(session);
+      if (
+        deferredBase &&
+        editorSessionRef.current === session &&
+        draftSessionRef.current === session
+      ) {
+        deferredBaseRebases.delete(session);
+        setDraftBase(deferredBase);
       }
     });
     return () => {
       cancelled = true;
+      deferredBaseRebases.delete(session);
     };
-  }, [draftBase, isDirty, notebookFlag, stashRestoreKey]);
+  }, [draftBase, editorSession, isDirty, notebookFlag, stashRestoreKey]);
 
   const togglePreview = useCallback(() => {
     setPreviewMode(!isPreviewing);

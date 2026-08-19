@@ -2,6 +2,7 @@ import React from 'react';
 import { ReactTestRenderer, act, create } from 'react-test-renderer';
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -13,6 +14,7 @@ import {
 import { NotesNoteDetail } from './NotesNoteDetail';
 
 const mocks = vi.hoisted(() => ({
+  getDraftStashes: vi.fn(),
   notes: [] as Array<Record<string, unknown>>,
   saveNotebookNote: vi.fn(),
   useNotebookData: vi.fn(),
@@ -37,7 +39,7 @@ vi.mock('@tloncorp/shared', () => ({
 
 vi.mock('@tloncorp/shared/db', () => ({
   notesNoteDrafts: {
-    getValue: vi.fn(async () => ({})),
+    getValue: mocks.getDraftStashes,
     setValue: vi.fn(async () => undefined),
   },
 }));
@@ -90,10 +92,12 @@ vi.mock('./notesTree', () => ({
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, reject, resolve };
 }
 
 function note(noteId: number, bodyMd: string, revision = 1) {
@@ -131,8 +135,13 @@ describe('NotesNoteDetail note switching', () => {
     ).requestAnimationFrame;
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getDraftStashes.mockResolvedValue({});
     mocks.notes = [note(1, 'Original A'), note(2, 'Original B')];
     mocks.useNotebookData.mockImplementation(() => ({
       folders: [],
@@ -301,6 +310,9 @@ describe('NotesNoteDetail note switching', () => {
         />
       );
     });
+    expect(
+      renderer!.root.findByProps({ testID: 'NotesBodyInput' }).props.value
+    ).toBe('Edited A');
 
     // Make the user's intent explicit: change the new visit, then revert it
     // to the original text while the previous visit's save is still pending.
@@ -351,6 +363,168 @@ describe('NotesNoteDetail note switching', () => {
         body: 'Original A',
       })
     );
+
+    act(() => renderer!.unmount());
+  });
+
+  it('waits for a reopened note stash before applying an earlier save base', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    const reopenedStashRead = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote.mockReturnValueOnce(firstSave.promise);
+    let renderer: ReactTestRenderer;
+
+    await act(async () => {
+      renderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      renderer!.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Edited A');
+    });
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 121_000);
+    mocks.getDraftStashes.mockReturnValueOnce(reopenedStashRead.promise);
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+
+    const earlierSavedRow = note(1, 'Edited A', 2);
+    mocks.notes = [earlierSavedRow, note(2, 'Original B')];
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+      firstSave.resolve(earlierSavedRow);
+      await firstSave.promise;
+    });
+    expect(
+      renderer!.root.findByProps({ testID: 'NotesBodyInput' }).props.value
+    ).toBe('Original A');
+
+    await act(async () => {
+      reopenedStashRead.resolve({
+        '~zod/notebook/1': {
+          title: 'Note 1',
+          body: 'Edited A',
+          baseRevision: 1,
+          stashedAt: Date.now(),
+        },
+      });
+      await reopenedStashRead.promise;
+    });
+    expect(
+      renderer!.root.findByProps({ testID: 'NotesBodyInput' }).props.value
+    ).toBe('Edited A');
+
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    expect(mocks.saveNotebookNote).toHaveBeenCalledTimes(1);
+
+    act(() => renderer!.unmount());
+  });
+
+  it('reconsiders a skipped row after an earlier save rejects', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote.mockReturnValueOnce(firstSave.promise);
+    let renderer: ReactTestRenderer;
+
+    await act(async () => {
+      renderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      renderer!.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Edited A');
+    });
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 121_000);
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+
+    mocks.notes = [note(1, 'Remote A', 2), note(2, 'Original B')];
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    expect(
+      renderer!.root.findByProps({ testID: 'NotesBodyInput' }).props.value
+    ).toBe('Original A');
+
+    await act(async () => {
+      firstSave.reject(new Error('save failed'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(
+      renderer!.root.findByProps({ testID: 'NotesBodyInput' }).props.value
+    ).toBe('Remote A');
 
     act(() => renderer!.unmount());
   });
