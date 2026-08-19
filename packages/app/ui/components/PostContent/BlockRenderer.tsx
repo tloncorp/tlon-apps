@@ -978,6 +978,11 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   blockquote: BlockquoteBlock,
   paragraph: ParagraphBlock,
   a2ui: () => null,
+  // Registered but not rendered yet: the `kit` post-blob entry and its
+  // `kit-card` block landed with the %kits agent, while the card UI is a
+  // separate task. Same treatment as a2ui above — the entry parses, and the
+  // block is a no-op until a renderer exists.
+  'kit-card': () => null,
   link: LinkBlock,
   image: ImageBlock,
   video: VideoBlock,
@@ -1002,6 +1007,7 @@ export type DefaultRendererProps = {
   blockquote: BlockSettings<typeof BlockquoteBlock>;
   paragraph: BlockSettings<typeof ParagraphBlock>;
   a2ui: BlockSettings<typeof A2UIBlock>;
+  'kit-card': Record<string, never>;
   link: BlockSettings<typeof LinkBlock>;
   image: BlockSettings<typeof ImageBlock>;
   video: BlockSettings<typeof VideoBlock>;
