@@ -1,4 +1,5 @@
 import { Icon, Pressable } from '@tloncorp/ui';
+import { XStack } from 'tamagui';
 
 import { Badge } from '../Badge';
 import { ListItem } from '../ListItem';
@@ -9,7 +10,9 @@ import { ListItem } from '../ListItem';
  *
  * Description and recommendation are independent: an option can carry both,
  * which the starter picker needs so the recommended choice still explains
- * itself.
+ * itself. The badge sits beside the title rather than under it because
+ * ListItem.MainContent is a fixed two-line height — a third stacked row
+ * overflows and collides with the description.
  */
 export function SplashOptionCard({
   option,
@@ -34,20 +37,23 @@ export function SplashOptionCard({
         borderColor={selected ? '$primaryText' : '$border'}
       >
         <ListItem.MainContent>
-          <ListItem.Title color="$primaryText">{option.label}</ListItem.Title>
+          <XStack alignItems="center" gap="$s">
+            <ListItem.Title color="$primaryText" flexShrink={1}>
+              {option.label}
+            </ListItem.Title>
+            {option.recommendationLabel ? (
+              <Badge
+                text={option.recommendationLabel}
+                type="positive"
+                size="micro"
+                flexShrink={0}
+              />
+            ) : null}
+          </XStack>
           {option.description ? (
             <ListItem.Subtitle color="$secondaryText">
               {option.description}
             </ListItem.Subtitle>
-          ) : null}
-          {option.recommendationLabel ? (
-            <Badge
-              text={option.recommendationLabel}
-              type="positive"
-              size="micro"
-              alignSelf="flex-start"
-              marginTop="$m"
-            />
           ) : null}
         </ListItem.MainContent>
         {selected && (
