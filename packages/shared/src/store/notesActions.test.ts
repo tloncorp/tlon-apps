@@ -1470,12 +1470,37 @@ test('markNotesNotebookStale makes the next warm refetch a fresh snapshot', asyn
   expect(getNotebook).not.toHaveBeenCalled();
 
   markNotesNotebookStale(`notes/${notebookFlag}`);
-  // the mark is debounced, so poll past the debounce window
-  await vi.waitFor(
-    async () => {
-      await warmNotesNotebookSnapshot(notebookFlag);
-      expect(getNotebook).toHaveBeenCalled();
-    },
-    { timeout: 5000 }
-  );
+  await warmNotesNotebookSnapshot(notebookFlag);
+  expect(getNotebook).toHaveBeenCalled();
+});
+
+test('warmNotesNotebookSnapshot keeps a mark raised while it was fetching', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({
+      rootFolderId: rootFolder.folderId,
+      syncedAt: Date.now(),
+    }),
+    folders: [rootFolder],
+    notes: [],
+    members: [],
+  });
+
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  const getNotebook = vi
+    .spyOn(api.notes, 'getNotebook')
+    .mockImplementation(async () => {
+      // a second note lands while this refresh is in flight
+      markNotesNotebookStale(`notes/${notebookFlag}`);
+      return notebookSummary;
+    });
+
+  markNotesNotebookStale(`notes/${notebookFlag}`);
+  await warmNotesNotebookSnapshot(notebookFlag);
+
+  // the mark raised mid-refresh got its own fetch rather than being cleared
+  expect(getNotebook).toHaveBeenCalledTimes(2);
 });

@@ -20,6 +20,15 @@ import { ContactName } from '../ContactNameV2';
 import { ListItem, type ListItemProps } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 
+// Its own component so only notes rows — and only when this is the
+// subtitle that wins — subscribe to the shared notes counts query. Read
+// from a hook in `ChannelListItem` itself, every chat and DM row would
+// rerender whenever any notebook's counts changed.
+function NotesChannelSubtitle({ channel }: { channel: db.Channel }) {
+  const subtitle = utils.useNotesChannelSubtitle(channel);
+  return subtitle ? <ListItem.Subtitle>{subtitle}</ListItem.Subtitle> : null;
+}
+
 export function ChannelListItem({
   model,
   StartIcon,
@@ -124,12 +133,6 @@ export function ChannelListItem({
 
   const isFocused = useNavigation().focusedChannelId === model.id;
   const groupTitle = utils.useGroupTitle(model.group);
-  // the subtitle branches below are ordered, and the notes counts cost a
-  // notebook fetch — don't ask for them where an earlier branch wins
-  const notesSubtitle = utils.useNotesChannelSubtitle(
-    model,
-    !customSubtitle && !(showGroupTitle && model.group)
-  );
   const isDmType = model.type === 'dm' || model.type === 'groupDm';
   const dmMembers = isDmType ? model.members : [];
 
@@ -183,8 +186,8 @@ export function ChannelListItem({
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             ) : showGroupTitle && model.group ? (
               <ListItem.Subtitle>{groupTitle}</ListItem.Subtitle>
-            ) : notesSubtitle ? (
-              <ListItem.Subtitle>{notesSubtitle}</ListItem.Subtitle>
+            ) : model.type === 'notes' ? (
+              <NotesChannelSubtitle channel={model} />
             ) : (model.type === 'dm' || model.type === 'groupDm') &&
               utils.hasNickname(model.members?.[0]?.contact) ? (
               <ListItem.SubtitleWithIcon icon={subtitleIcon}>

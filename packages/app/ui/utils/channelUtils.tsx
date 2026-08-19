@@ -135,15 +135,18 @@ export function useChannelTitle(channel: db.Channel | null) {
 // under its title — summarize what's in the notebook instead. Counts come
 // from the locally cached notebook snapshot (null until the notebook has
 // synced at least once), and displaying them keeps that snapshot from
-// aging out, since folder changes reach us through no subscription. Pass
-// `enabled: false` where another subtitle wins, so a row that will never
-// render the count doesn't pay for one.
+// aging out, since folder changes reach us through no subscription.
+//
+// Only call this from something mounted for notes channels the user has
+// joined: it subscribes to the shared counts query, and %notes answers
+// reads only for notebooks in its local `books` map — an unjoined flag 404s
+// on every attempt. Joining flips `currentUserIsMember`, which re-enables
+// the warm and fills the subtitle in without waiting for the interval.
 export function useNotesChannelSubtitle(
-  channel: db.Channel | null,
-  enabled = true
+  channel: db.Channel | null
 ): string | null {
   const notebookFlag =
-    enabled && channel?.type === 'notes'
+    channel?.type === 'notes' && channel.currentUserIsMember !== false
       ? notesNotebookFlagFromChannelId(channel.id)
       : null;
   const { data: countsByNotebook } = useNotesCountsByNotebook(!!notebookFlag);

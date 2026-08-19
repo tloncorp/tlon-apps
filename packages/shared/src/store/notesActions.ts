@@ -47,24 +47,32 @@ function requireNotesNotebookFlag(flagInput: api.NotesFlag | string) {
   return { flag, parsed };
 }
 
-const notebookSnapshotChains = new Map<string, Promise<unknown>>();
+const notebookSnapshotChains = new Map<string, Promise<void>>();
 
-// Serializes snapshot refreshes per notebook. `saveNotesNotebookSnapshot`
-// replaces the notebook's rows wholesale, so two fetches in flight at once
-// can land out of order and regress the local copy — the older response
-// deletes rows it never saw. Every path that refreshes a notebook (the
-// stream handler, activity, the display-driven warm) goes through here, so
-// they queue behind each other instead of racing.
+// Serializes snapshot work per notebook. `saveNotesNotebookSnapshot`
+// replaces the notebook's rows wholesale, so two fetch-and-save pairs in
+// flight at once can land out of order and regress the local copy — the
+// older response deletes rows it never saw, resurrecting a deleted note or
+// dropping a new one. Every path that writes a snapshot goes through here
+// (refreshes, the create/delete confirmation polls), so they queue behind
+// each other instead of racing. The stored tail is void-valued and evicted
+// once it settles, so a queue slot never pins a notebook's notes in memory.
 function queueNotebookSnapshot<T>(flag: string, run: () => Promise<T>) {
   const result = (notebookSnapshotChains.get(flag) ?? Promise.resolve()).then(
     run
   );
-  // the stored tail swallows failures: a caller whose refresh threw must not
-  // reject the next one, and nothing awaits the tail itself
-  notebookSnapshotChains.set(
-    flag,
-    result.catch(() => undefined)
+  // the tail swallows failures — a caller whose write threw must not reject
+  // the next one — and drops the result value
+  const tail = result.then(
+    () => undefined,
+    () => undefined
   );
+  notebookSnapshotChains.set(flag, tail);
+  void tail.then(() => {
+    if (notebookSnapshotChains.get(flag) === tail) {
+      notebookSnapshotChains.delete(flag);
+    }
+  });
   return result;
 }
 
@@ -154,7 +162,13 @@ async function fetchNotesNotebookSnapshot(
 }
 
 const warmingNotebooks = new Set<string>();
-const staleNotebooks = new Set<string>();
+// flag -> how many times activity has marked it stale, so a refresh can
+// tell whether a mark arrived while it was already in flight
+const notebookStaleMarks = new Map<string, number>();
+// One extra pass covers marks raised during the refresh; past that the
+// leftover mark stays and the next display-driven warm picks it up rather
+// than looping here indefinitely on a busy notebook.
+const NOTES_WARM_MAX_PASSES = 2;
 
 // Revalidate a notebook's cached snapshot when something is displaying data
 // derived from it (e.g. the channel list's note/folder counts). Refetches
@@ -175,15 +189,26 @@ export async function warmNotesNotebookSnapshot(
   try {
     const cached = await db.getNotesNotebook({ notebookFlag: flag });
     if (
-      !staleNotebooks.has(flag) &&
+      !notebookStaleMarks.has(flag) &&
       cached?.syncedAt &&
       Date.now() - cached.syncedAt < NOTES_SNAPSHOT_MAX_AGE
     ) {
       return;
     }
-    await syncNotesNotebook(flag);
-    // only once the refresh landed — a failed one must stay stale
-    staleNotebooks.delete(flag);
+    // A mark raised while a refresh is in flight isn't covered by that
+    // refresh, and React Query folds its invalidation into the fetch already
+    // running — so compare the mark count across the refresh and go again
+    // when it moved, rather than clearing a mark we never fetched for.
+    for (let pass = 0; pass < NOTES_WARM_MAX_PASSES; pass++) {
+      const marks = notebookStaleMarks.get(flag) ?? 0;
+      await syncNotesNotebook(flag);
+      if ((notebookStaleMarks.get(flag) ?? 0) === marks) {
+        // cleared only once a refresh has actually covered every mark; a
+        // failed refresh throws out of here and leaves them in place
+        notebookStaleMarks.delete(flag);
+        return;
+      }
+    }
   } finally {
     warmingNotebooks.delete(flag);
   }
@@ -215,7 +240,7 @@ export function useWarmNotesNotebookSnapshot({
   });
 }
 
-const notebookStaleMarkers = new Map<string, () => void>();
+const notebookStaleNudges = new Map<string, () => void>();
 
 // Activity told us a notebook's contents changed (see the call site for
 // which signals qualify). A snapshot is four requests plus a wholesale
@@ -223,18 +248,20 @@ const notebookStaleMarkers = new Map<string, () => void>();
 // notebook stale and invalidate its warm query with `refetchType: 'active'`.
 // A notebook something is displaying refreshes right away; one nothing is
 // showing waits, and the stale mark makes the next row that mounts refetch
-// even though the cache still looks fresh. Debounced per notebook because
-// one change can arrive as a burst of events.
+// even though the cache still looks fresh.
 export function markNotesNotebookStale(channelId: string) {
   const flag = notesNotebookFlagFromChannelId(channelId);
   if (!flag) {
     return;
   }
-  let mark = notebookStaleMarkers.get(flag);
-  if (!mark) {
-    mark = debounce(
+  // the mark itself lands immediately, so a refresh starting right now can
+  // see it; only the query nudge is debounced, since one change can arrive
+  // as a burst of events
+  notebookStaleMarks.set(flag, (notebookStaleMarks.get(flag) ?? 0) + 1);
+  let nudge = notebookStaleNudges.get(flag);
+  if (!nudge) {
+    nudge = debounce(
       () => {
-        staleNotebooks.add(flag);
         queryClient.invalidateQueries({
           queryKey: ['notesSnapshotWarm', flag],
           refetchType: 'active',
@@ -243,9 +270,9 @@ export function markNotesNotebookStale(channelId: string) {
       NOTES_ACTIVITY_REFRESH_DEBOUNCE,
       { leading: false, trailing: true }
     );
-    notebookStaleMarkers.set(flag, mark);
+    notebookStaleNudges.set(flag, nudge);
   }
-  mark();
+  nudge();
 }
 
 async function ensureNotesNotebookJoined(flagInput: api.NotesFlag | string) {
@@ -449,8 +476,13 @@ async function createAndFindNewItem<T>({
   create: () => Promise<unknown>;
   findFallback?: (items: readonly T[]) => T | null | undefined;
 }): Promise<T | null> {
-  const { snapshot: baseline } = await fetchNotesNotebookSnapshot(notebookFlag);
-  await db.saveNotesNotebookSnapshot(baseline);
+  // queued like any other snapshot write, so a concurrent refresh can't
+  // land its older copy on top of this baseline
+  const baseline = await queueNotebookSnapshot(notebookFlag, async () => {
+    const { snapshot } = await fetchNotesNotebookSnapshot(notebookFlag);
+    await db.saveNotesNotebookSnapshot(snapshot);
+    return snapshot;
+  });
 
   const beforeIds = new Set(getItems(baseline).map(getId));
   const isNew = (item: T) => !beforeIds.has(getId(item));
@@ -1129,19 +1161,27 @@ async function syncNotesNotebookUntil<T>(
   ) => ReadyValue<T> | Promise<ReadyValue<T>>,
   options?: SyncNotesNotebookOptions
 ) {
-  let readySnapshot: NotesNotebookSnapshot | null = null;
   let readyValue: T | null = null;
   try {
     await withRetry(async () => {
-      const { snapshot } = await fetchNotesNotebookSnapshot(
-        notebookFlag,
-        options
-      );
-      const value = await getReadyValue(snapshot);
+      // fetch, check and save as one queued unit: a refresh that started
+      // before this poll must not save its older copy after the snapshot
+      // that confirms the mutation
+      const value = await queueNotebookSnapshot(notebookFlag, async () => {
+        const { snapshot } = await fetchNotesNotebookSnapshot(
+          notebookFlag,
+          options
+        );
+        const ready = await getReadyValue(snapshot);
+        if (!ready) {
+          return null;
+        }
+        await db.saveNotesNotebookSnapshot(snapshot);
+        return ready;
+      });
       if (!value) {
         throw notYetSynced;
       }
-      readySnapshot = snapshot;
       readyValue = value;
     }, notesRetryOptions);
   } catch (e) {
@@ -1150,9 +1190,6 @@ async function syncNotesNotebookUntil<T>(
     }
   }
 
-  if (readySnapshot) {
-    await db.saveNotesNotebookSnapshot(readySnapshot);
-  }
   return readyValue;
 }
 
