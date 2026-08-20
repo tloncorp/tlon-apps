@@ -20,6 +20,7 @@ const NoticeText = styled(Text, {
 
 const WayfindingNotice = {
   EmptyChannel,
+  WorkspaceSetup,
   GroupChannels,
   CustomizeGroup,
   HomeAddTooltip,
@@ -315,5 +316,70 @@ export function NotebookInputTooltip(props: { channelId: string }) {
         </View>
       </YStack>
     </View>
+  );
+}
+
+/**
+ * The workspace conversation before the agent has said anything.
+ *
+ * The user can arrive here in under a second — onboarding lands them as soon
+ * as the channel row syncs — while provisioning is still seating the agent and
+ * the agent has yet to run its `install.setup` instruction. So an empty room is
+ * a real arrival state, not an edge case, and showing "This is the start of the
+ * channel" would be true but useless: it tells someone nothing is happening
+ * when in fact something is.
+ *
+ * Two states, because they call for different things:
+ *
+ * - **setup pending** — the agent is about to introduce itself. There is
+ *   nothing for the user to do about that, so the offered action is the one
+ *   that makes the workspace worth having: bring in the person it is for.
+ * - **setup done but the room is still empty** — rarer, and a genuine problem
+ *   rather than a wait. Saying so beats an encouraging message that never
+ *   resolves.
+ */
+function WorkspaceSetup({
+  channel,
+  setupComplete,
+  onPressInvite,
+}: {
+  channel: db.Channel;
+  setupComplete: boolean;
+  onPressInvite?: () => void;
+}) {
+  return (
+    <YStack
+      flex={1}
+      justifyContent="flex-end"
+      paddingHorizontal="$xl"
+      paddingVertical="$2xl"
+    >
+      <NoticeContainer gap="$l" testID="WorkspaceSetupNotice">
+        {setupComplete ? (
+          <>
+            <NoticeText fontWeight="600">Nothing here yet</NoticeText>
+            <NoticeText color="$secondaryText">
+              Your workspace is set up, but your agent hasn’t posted anything.
+              Say hello and it will pick things up from there.
+            </NoticeText>
+          </>
+        ) : (
+          <>
+            <NoticeText fontWeight="600">Setting up your workspace…</NoticeText>
+            <NoticeText color="$secondaryText">
+              Your agent is getting started. It will post here in a moment with
+              something to react to — you don’t need to do anything.
+            </NoticeText>
+            {onPressInvite ? (
+              <Pressable testID="WorkspaceSetupInvite" onPress={onPressInvite}>
+                <Text size="$label/m" color="$positiveActionText">
+                  Invite the person this is for
+                </Text>
+              </Pressable>
+            ) : null}
+          </>
+        )}
+      </NoticeContainer>
+    </YStack>
   );
 }

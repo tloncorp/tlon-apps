@@ -3,10 +3,12 @@ import { describe, expect, test } from 'vitest';
 
 import {
   isWorkspace,
+  isWorkspaceConversation,
   isWorkspaceSetupComplete,
   readWorkspaceDescriptor,
   updateWorkspaceDescriptor,
   workspaceAgents,
+  workspaceConversation,
   workspaceHasCapability,
   workspacePlace,
 } from './workspaceDescriptor';
@@ -256,5 +258,71 @@ describe('updateWorkspaceDescriptor', () => {
         setup: 'done',
       })
     ).toBeNull();
+  });
+});
+
+describe('the workspace conversation', () => {
+  test('is the first chat-backed place', () => {
+    expect(workspaceConversation(readWorkspaceDescriptor(WORKSPACE))).toBe(
+      'chat/~host/meals-1234'
+    );
+  });
+
+  // Places are named for what they mean, not typed by their name, so the nest
+  // is what identifies the conversation.
+  test('ignores the artifact place whatever it is called', () => {
+    const descriptor = readWorkspaceDescriptor(
+      group({
+        version: 1,
+        kits: [
+          {
+            ...ENTRY,
+            places: {
+              plans: 'notes/~host/plans-1234',
+              kitchen: 'chat/~host/kitchen-1234',
+            },
+          },
+        ],
+      })
+    );
+    expect(workspaceConversation(descriptor)).toBe('chat/~host/kitchen-1234');
+  });
+
+  test('is null when the workspace declares no chat place', () => {
+    const descriptor = readWorkspaceDescriptor(
+      group({
+        version: 1,
+        kits: [{ ...ENTRY, places: { plans: 'notes/~host/plans-1234' } }],
+      })
+    );
+    expect(workspaceConversation(descriptor)).toBeNull();
+    expect(workspaceConversation(null)).toBeNull();
+  });
+});
+
+describe('isWorkspaceConversation', () => {
+  // The landing's question: this channel gets the "your agent is starting up"
+  // notice, and nothing else does.
+  test('matches the conversation and not the artifact place', () => {
+    expect(isWorkspaceConversation(WORKSPACE, 'chat/~host/meals-1234')).toBe(
+      true
+    );
+    expect(
+      isWorkspaceConversation(WORKSPACE, 'notes/~host/meal-plans-1234')
+    ).toBe(false);
+  });
+
+  // The property that keeps every existing empty state untouched.
+  test('is false for a group that is not a workspace', () => {
+    expect(
+      isWorkspaceConversation({ blob: null }, 'chat/~host/meals-1234')
+    ).toBe(false);
+    expect(isWorkspaceConversation(null, 'chat/~host/meals-1234')).toBe(false);
+  });
+
+  test('is false without a channel id', () => {
+    expect(isWorkspaceConversation(WORKSPACE, null)).toBe(false);
+    expect(isWorkspaceConversation(WORKSPACE, undefined)).toBe(false);
+    expect(isWorkspaceConversation(WORKSPACE, '')).toBe(false);
   });
 });

@@ -38,6 +38,17 @@ export function EmptyChannelNotice({
     return logic.isDefaultPersonalChannel(channel, userId);
   }, [channel, userId]);
 
+  // Only the workspace's own conversation, not its artifact place: an empty
+  // notebook is a notebook nobody has written in, and its ordinary empty state
+  // reads correctly.
+  const isWorkspaceAwaitingAgent = logic.isWorkspaceConversation(
+    group,
+    channel.id
+  );
+  const workspaceSetupComplete = logic.isWorkspaceSetupComplete(
+    logic.readWorkspaceDescriptor(group)
+  );
+
   const isSingleChannelGroup = (group?.channels?.length ?? 0) <= 1;
   const title = useChatTitle(channel, group);
   const displayTitle =
@@ -83,6 +94,20 @@ export function EmptyChannelNotice({
     color: '$primaryText',
   });
 
+  // A workspace conversation with nothing in it yet means the agent has not
+  // introduced itself — onboarding lands the user as soon as the channel row
+  // syncs, which can be well before that. Checked before the loading branch:
+  // "we know why this is empty" beats a spinner.
+  if (isWorkspaceAwaitingAgent) {
+    return (
+      <WayfindingNotice.WorkspaceSetup
+        channel={channel}
+        setupComplete={workspaceSetupComplete}
+        onPressInvite={isGroupAdmin ? onPressInvite : undefined}
+      />
+    );
+  }
+
   if (isDefaultPersonalChannel) {
     return <WayfindingNotice.EmptyChannel channel={channel} />;
   }
@@ -126,7 +151,7 @@ export function EmptyChannelNotice({
   const noticeContent = (
     <>
       <YStack gap="$m">
-        <TitleText>🌱 Welcome to {headingTitle}!</TitleText>
+        <TitleText>ð± Welcome to {headingTitle}!</TitleText>
         <Text size="$body" color="$secondaryText">
           {subtitle}
         </Text>
@@ -157,7 +182,7 @@ export function EmptyChannelNotice({
           />
           <Button
             preset="secondaryOutline"
-            label={`${memberText} · ${roleText}`}
+            label={`${memberText} Â· ${roleText}`}
             leadingIcon={'Settings'}
             trailingIcon={'ChevronRight'}
             onPress={() =>

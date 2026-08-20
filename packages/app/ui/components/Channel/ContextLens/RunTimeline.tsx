@@ -1,10 +1,10 @@
+import { formatComputingToolCallLabel } from '@tloncorp/api';
 import { SizableText, View, XStack, YStack } from 'tamagui';
 
 import {
   type LensTone,
   TONE_COLORS,
   formatDuration,
-  formatToolName,
   pluralize,
   statusLabel,
   statusTone,
@@ -76,9 +76,12 @@ export function buildRunTimeline(
   if (tools) {
     rows.push({
       key: 'tools',
+      // The presence path already shows human phrases for these tools; reuse
+      // that vocabulary rather than a second one, so a row reads the same
+      // whether it came from the live overlay or the synced lens.
       title:
         lens.status === 'tool_running' && tools.latest
-          ? `Using ${formatToolName(tools.latest)}`
+          ? formatComputingToolCallLabel(tools.latest)
           : 'Used tools',
       detail: `${tools.summary} · ${pluralize(tools.total, 'call')}`,
       meta: 'tools',

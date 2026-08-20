@@ -4,7 +4,6 @@ import React, { useEffect, useMemo } from 'react';
 import { useValue } from 'react-cosmos/client';
 
 import { AudiencePane } from '../ui/components/Wayfinding/AudiencePane';
-import { BotChatPreview } from '../ui/components/Wayfinding/BotChatPreview';
 import { PurposePane } from '../ui/components/Wayfinding/PurposePane';
 import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
 import {
@@ -183,8 +182,6 @@ function GroupsPaneFixture() {
         hostingBotEnabled={withBot}
         botName="Tlonbot"
         didConfigureBot
-        userShipId="~rilfun-lidlen"
-        botShipId="~nocsyx-lassul-rilfun-lidlen"
       />
     </FixtureWrapper>
   );
@@ -465,17 +462,6 @@ function SplashModalFixture() {
   );
 }
 
-function BotChatPreviewFixture() {
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <BotChatPreview
-        userShipId="~rilfun-lidlen"
-        botShipId="~nocsyx-lassul-rilfun-lidlen"
-      />
-    </FixtureWrapper>
-  );
-}
-
 export default {
   'Full Sequence': <SplashSequenceFixture />,
   'Invite Contacts': <InviteContactsFixture />,
@@ -491,7 +477,6 @@ export default {
   'Bot Provider Pane': <BotProviderPaneFixture />,
   'Bot API Key Pane': <BotApiKeyPaneFixture />,
   'Bot Model Pane': <BotModelPaneFixture />,
-  'Bot Chat Preview': <BotChatPreviewFixture />,
   'Invite Pane': <InvitePaneFixture />,
   'Splash Modal': <SplashModalFixture />,
 };

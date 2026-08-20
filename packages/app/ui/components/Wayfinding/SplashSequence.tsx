@@ -85,7 +85,6 @@ import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
 import { WorkspaceAudiencePane } from './AudiencePane';
-import { BotChatPreview } from './BotChatPreview';
 import { PurposePane } from './PurposePane';
 import { SplashOptionCard } from './SplashOptionCard';
 import { TlonBotSetupPaneView } from './TlonBotSetupPaneView';
@@ -1087,8 +1086,6 @@ function SplashSequenceComponent(props: {
             botName={botName || 'Tlonbot'}
             didConfigureBot={didConfigureBot}
             botSetupStatus={customBotSetupStatus}
-            userShipId={userShipId}
-            botShipId={botShipId}
           />
         )}
 
@@ -1128,7 +1125,6 @@ export const SplashSequence = React.memo(SplashSequenceComponent);
 const BASIC_PROVIDER_ID = 'basic';
 const TLONBOT_SETUP_POLL_INTERVAL_MS = 5000;
 const TLONBOT_REVIVAL_WAYFINDING_GROUP_IDS = ['~wittyr-witbes/v3s2kbd7'];
-const BOT_PREVIEW_FALLBACK_USER_SHIP_ID = '~lidlen-pillex';
 
 function prejoinTlonbotRevivalWayfindingGroups() {
   TLONBOT_REVIVAL_WAYFINDING_GROUP_IDS.forEach((groupId) => {
@@ -2048,8 +2044,6 @@ export function GroupsPane(props: {
   botName?: string;
   didConfigureBot?: boolean;
   botSetupStatus?: CustomBotSetupStatus;
-  userShipId?: string | null;
-  botShipId?: string | null;
 }) {
   const insets = useSafeAreaInsets();
   const isDark = useIsDarkMode();
@@ -2079,76 +2073,29 @@ export function GroupsPane(props: {
       console.error('Failed to share invite link:', e);
     }
   }, [copyHomeGroupInvite, homeGroupInviteUrl]);
-  const [resolvedBotShipId, setResolvedBotShipId] = useState(
-    props.botShipId ?? null
-  );
-  const previewUserShipId =
-    props.userShipId ?? BOT_PREVIEW_FALLBACK_USER_SHIP_ID;
-  const fallbackBotShipId = useMemo(
-    () => `~pinser-botter-${desig(previewUserShipId)}`,
-    [previewUserShipId]
-  );
-
-  useEffect(() => {
-    if (!props.hostingBotEnabled) {
-      return;
-    }
-
-    if (props.botShipId) {
-      setResolvedBotShipId(props.botShipId);
-      return;
-    }
-
-    if (!props.userShipId) {
-      return;
-    }
-
-    let cancelled = false;
-    const shipId = props.userShipId.replace(/^~/, '');
-    api
-      .getTlawnBotInfo(shipId)
-      .then((botInfo) => {
-        if (!cancelled && botInfo?.moon) {
-          setResolvedBotShipId(`~${botInfo.moon}-${shipId}`);
-        }
-      })
-      .catch((error) => {
-        logger.trackError('Failed to refresh TlonBot preview ship ID', {
-          error,
-        });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [props.botShipId, props.hostingBotEnabled, props.userShipId]);
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      {props.hostingBotEnabled ? (
-        <View style={{ width: '100%', height: 368 }}>
-          <BotChatPreview
-            userShipId={previewUserShipId}
-            botShipId={resolvedBotShipId ?? fallbackBotShipId}
-          />
-        </View>
-      ) : (
-        <ZStack height={368}>
-          <Image
-            style={{ width: '100%', height: 368 }}
-            resizeMode="cover"
-            source={
-              isWeb
-                ? isDark
-                  ? `./garden-party-invite-dark.png`
-                  : `./garden-party-invite.png`
-                : isDark
-                  ? require(`../../assets/raster/garden-party-invite-dark.png`)
-                  : require(`../../assets/raster/garden-party-invite.png`)
-            }
-          />
-        </ZStack>
-      )}
+      {/* The static illustration in both branches. This used to render a
+          mocked bot conversation when hosting was on, which is content the
+          onboarding flow is not allowed to show any more: the real workspace
+          conversation is a screen away, and a fake one next to it invites the
+          comparison. */}
+      <ZStack height={368}>
+        <Image
+          style={{ width: '100%', height: 368 }}
+          resizeMode="cover"
+          source={
+            isWeb
+              ? isDark
+                ? `./garden-party-invite-dark.png`
+                : `./garden-party-invite.png`
+              : isDark
+                ? require(`../../assets/raster/garden-party-invite-dark.png`)
+                : require(`../../assets/raster/garden-party-invite.png`)
+          }
+        />
+      </ZStack>
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
           {props.hostingBotEnabled ? (

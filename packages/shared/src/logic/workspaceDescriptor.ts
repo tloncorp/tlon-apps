@@ -191,3 +191,24 @@ export function workspaceConversation(
   }
   return null;
 }
+
+/**
+ * Is this channel the workspace's primary conversation?
+ *
+ * The question onboarding's landing asks: an empty *conversation* means the
+ * agent has not introduced itself yet and deserves an explanation, whereas an
+ * empty artifact place is simply a notebook nobody has written in and its
+ * ordinary empty state reads correctly.
+ *
+ * False for every channel in a group that is not a workspace, so no existing
+ * empty state changes.
+ */
+export function isWorkspaceConversation(
+  group: BlobBearing | null | undefined,
+  channelId: string | null | undefined
+): boolean {
+  if (!channelId) {
+    return false;
+  }
+  return workspaceConversation(readWorkspaceDescriptor(group)) === channelId;
+}

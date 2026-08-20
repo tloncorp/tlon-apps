@@ -18,6 +18,17 @@ describe('computingStatus', () => {
     expect(formatComputingToolCallLabel()).toBe('Using a tool');
   });
 
+  // The vocabulary the lens timeline now shares with the presence overlay, so a
+  // row reads the same whichever source produced it.
+  test('names every tool the harness actually exposes', () => {
+    expect(formatComputingToolCallLabel('exec')).toBe('Running a command');
+    expect(formatComputingToolCallLabel('read')).toBe('Reading files');
+    expect(formatComputingToolCallLabel('web_search')).toBe(
+      'Searching the web'
+    );
+    expect(formatComputingToolCallLabel('tlon')).toBe('Working in Tlon');
+  });
+
   test('creates a normalized computing status payload', () => {
     expect(
       createComputingStatus({

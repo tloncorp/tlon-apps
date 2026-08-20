@@ -1,9 +1,17 @@
 const COMPUTING_STATUS_PROTOCOL = 'tlon.computing-status.v1' as const;
 
+// Human phrases for the tools the harness actually exposes. These are host
+// tools, not domain ones — nothing here knows it is "drafting a meal plan", so
+// the labels describe the mechanism honestly rather than narrating an intent
+// the agent never declared. Anything unmapped falls back to the tool name.
 const TOOL_LABELS: Record<string, string> = {
   exec: 'Running a command',
   read: 'Reading files',
   web_fetch: 'Checking the web',
+  web_search: 'Searching the web',
+  // Covers both posting a message and writing a note, so it stays neutral
+  // about which.
+  tlon: 'Working in Tlon',
 };
 
 export interface ComputingToolCall {
