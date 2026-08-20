@@ -1650,6 +1650,16 @@
     =/  code=@ud  status-code.response-header.res
     ?:  &((gte code 200) (lth code 300))
       (confirm-read-token flag `@t`token.pole actor expiry rid)
+    ::  404 means the route is not there, so this broker predates pushed
+    ::  tokens and will ask us over Pioneer instead — which still works, so
+    ::  the mint stands. This is what lets the two halves deploy in either
+    ::  order; delete it once no broker predates the push.
+    ::
+    ::  A broker with buckets switched off answers 404 too. Harmless: it
+    ::  refuses the read as well, and a token it does not honour grants
+    ::  nothing, since the broker stays the party that decides.
+    ?:  =(404 code)
+      (confirm-read-token flag `@t`token.pole actor expiry rid)
     ::  Refused: the token was never stored, so there is nothing to undo. Our
     ::  own mint retries on a short timer; a remote reader's ship re-asks.
     =/  why=tang

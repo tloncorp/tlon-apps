@@ -132,6 +132,11 @@
   ^-  sign-arvo
   [%iris %http-response [%finished [200 ~] ~]]
 ::
+++  iris-status
+  |=  code=@ud
+  ^-  sign-arvo
+  [%iris %http-response [%finished [code ~] ~]]
+::
 ::  +reader-scries: %genuine plus a group that grants read access.
 ::
 ++  reader-scries
@@ -421,6 +426,43 @@
   ::  the token names no object, so the bucket's own file is authorized while
   ::  a key that belongs to no entry is refused
   (ex-equal !>([ok-result ok-name bad-result]) !>([%'authorized' 'private.pdf' %'denied']))
+::
+::  A broker that predates pushed tokens has no route to push to, and answers
+::  404. It will ask us over Pioneer instead, so the mint stands rather than
+::  being thrown away — this is what lets the two halves deploy in either
+::  order. A refusal that is not a 404 does throw the mint away.
+::
+++  test-old-broker-keeps-the-mint
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ;<  mint-caz=(list card)  b  (ask 0v2 [%bucket flag [%issue-bucket-read ~]])
+  =/  push=[=wire =request:http]  (only-iris mint-caz)
+  ;<  *  b  (do-arvo wire.push (iris-status 404))
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  ::  a second reader, so the mint is fresh rather than the one just kept,
+  ::  against a broker that refuses it outright
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v9999)))
+  ;<  again-caz=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v3 [%bucket flag [%issue-bucket-read ~]]])
+  =/  retry=[=wire =request:http]  (only-iris again-caz)
+  ;<  *  b  (do-arvo wire.retry (iris-status 500))
+  ;<  sv2=vase  b  get-save
+  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  ::  the 404 mint is real and ours; the 500 mint left nothing behind
+  %+  ex-equal
+    !>  :*  (~(has by read-tokens.st) flag)
+            ~(wyt by object-capabilities.st)
+            ~(wyt by object-capabilities.st2)
+        ==
+  !>([%.y 1 1])
 ::
 ::  A reader who loses group access stops reading immediately: the host kicks
 ::  the subscription and tells the broker to drop that reader's token, rather
