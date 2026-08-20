@@ -3,6 +3,7 @@ import { setContactsMatchedHandler } from '@tloncorp/shared/store';
 import React, { useEffect, useMemo } from 'react';
 import { useValue } from 'react-cosmos/client';
 
+import { AudiencePane } from '../ui/components/Wayfinding/AudiencePane';
 import { BotChatPreview } from '../ui/components/Wayfinding/BotChatPreview';
 import { PurposePane } from '../ui/components/Wayfinding/PurposePane';
 import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
@@ -140,6 +141,35 @@ function PurposePaneFixture() {
   );
 }
 
+// The pure pane, not the wired container: cosmos has no ship, so the container
+// would render its 'unavailable' branch forever. Driving inviteState by hand is
+// what makes the three states inspectable.
+function AudiencePaneFixture() {
+  const [inviteState] = useValue<'ready' | 'loading' | 'unavailable'>(
+    'Invite State',
+    { defaultValue: 'ready' }
+  );
+  const [showFindPeople] = useValue('Offer The Address Book', {
+    defaultValue: true,
+  });
+  const [isCompleting] = useValue('Completing', { defaultValue: false });
+
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <AudiencePane
+        inviteState={inviteState}
+        onInvitePress={() => console.log('Audience pane: invite')}
+        onContinueAlone={() => console.log('Audience pane: continue alone')}
+        onFindPeoplePress={
+          showFindPeople
+            ? () => console.log('Audience pane: find people')
+            : undefined
+        }
+        isCompleting={isCompleting}
+      />
+    </FixtureWrapper>
+  );
+}
 function GroupsPaneFixture() {
   const handleAction = React.useCallback(() => {
     console.log('Groups pane action pressed');
@@ -451,6 +481,7 @@ export default {
   'Invite Contacts': <InviteContactsFixture />,
   'Welcome Pane': <WelcomePaneFixture />,
   'Purpose Pane': <PurposePaneFixture />,
+  'Audience Pane': <AudiencePaneFixture />,
   'Groups Pane': <GroupsPaneFixture />,
   'Channels Pane': <ChannelsPaneFixture />,
   'Privacy Pane': <PrivacyPaneFixture />,

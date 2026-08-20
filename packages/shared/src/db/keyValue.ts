@@ -638,3 +638,25 @@ export const workspaceProvisioning =
       groupId: null,
     },
   });
+
+/**
+ * Where onboarding wants to drop the user once their workspace is reachable.
+ *
+ * A durable handoff rather than a navigation call, because the channel is
+ * created by a ship-side kit install and the local row trails sync — so
+ * "navigate when the last pane completes" would land on a screen for a channel
+ * the database has never heard of. The consumer waits for the row, navigates,
+ * and clears this.
+ *
+ * Cleared on consumption, so it is a one-shot: a user who navigates away is
+ * not dragged back on the next launch.
+ */
+export type WorkspaceLanding = {
+  groupId: string;
+  channelId: string;
+} | null;
+
+export const workspaceLanding = createStorageItem<WorkspaceLanding>({
+  key: 'workspaceLanding',
+  defaultValue: null,
+});

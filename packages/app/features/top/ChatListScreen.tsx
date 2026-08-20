@@ -17,6 +17,7 @@ import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
+import { useWorkspaceLanding } from '../../hooks/useWorkspaceLanding';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
 import type { TopLevelTabParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
@@ -48,6 +49,11 @@ import {
 const logger = createDevLogger('ChatListScreen', false);
 
 export default function ChatListScreen() {
+  // The mobile stack's landing consumer. Mounted here rather than higher up
+  // because navigating needs a navigator in scope, and this is the screen the
+  // user arrives on after onboarding. The desktop stack mounts the same hook in
+  // MessagesNavigator.
+  useWorkspaceLanding();
   const route = useRoute<RouteProp<TopLevelTabParamList, 'ChatList'>>();
   const previewGroupId = route.params?.previewGroupId;
   const previewGroupFromInviteNotification =

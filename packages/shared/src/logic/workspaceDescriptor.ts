@@ -163,3 +163,31 @@ export function updateWorkspaceDescriptor(
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
+
+/**
+ * The workspace's primary conversation: the first chat-backed place.
+ *
+ * Kits name their places for what they mean (`kitchen`, `conversation`), and
+ * nothing in the manifest marks one as primary — so the type is what
+ * identifies it. Every workspace kit declares exactly one chat place, and if
+ * one ever declares two, the first is a better guess than failing: onboarding
+ * needs somewhere to land, and no conversation at all is worse than the wrong
+ * one.
+ *
+ * Reads the kind off the nest rather than the place name, since the nest is
+ * what the backend actually created.
+ */
+export function workspaceConversation(
+  descriptor: WorkspaceDescriptor | null | undefined
+): string | null {
+  const places = descriptor?.places;
+  if (!places) {
+    return null;
+  }
+  for (const nest of Object.values(places)) {
+    if (typeof nest === 'string' && nest.startsWith('chat/')) {
+      return nest;
+    }
+  }
+  return null;
+}

@@ -84,6 +84,7 @@ import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
+import { WorkspaceAudiencePane } from './AudiencePane';
 import { BotChatPreview } from './BotChatPreview';
 import { PurposePane } from './PurposePane';
 import { SplashOptionCard } from './SplashOptionCard';
@@ -133,6 +134,10 @@ enum SplashPane {
   BotSubscriptionAuth = 'BotSubscriptionAuth',
   BotModel = 'BotModel',
   TlonBotSetup = 'TlonBotSetup',
+  // Interstitial 2. Sits last so nothing intervenes between it and the
+  // workspace conversation; `Invite` is now the opt-in address-book detour
+  // reached from it rather than a step in the flow.
+  Audience = 'Audience',
   Invite = 'Invite',
 }
 
@@ -286,7 +291,7 @@ function SplashSequenceComponent(props: {
         setCurrentPane(SplashPane.Group);
         break;
       case 'invite':
-        setCurrentPane(SplashPane.Invite);
+        setCurrentPane(SplashPane.Audience);
         break;
     }
   }, [shouldDeferTlonbotSetup, tlonbotRevivalSetup.stage]);
@@ -841,7 +846,7 @@ function SplashSequenceComponent(props: {
         stage: 'invite',
       }));
     }
-    setCurrentPane(SplashPane.Invite);
+    setCurrentPane(SplashPane.Audience);
   }, [shouldDeferTlonbotSetup]);
 
   const handleModelBackPress = useCallback(() => {
@@ -1095,10 +1100,17 @@ function SplashSequenceComponent(props: {
         )}
         {currentPane === SplashPane.Privacy && (
           <PrivacyPane
-            onActionPress={() => setCurrentPane(SplashPane.Invite)}
+            onActionPress={() => setCurrentPane(SplashPane.Audience)}
           />
         )}
 
+        {currentPane === SplashPane.Audience && (
+          <WorkspaceAudiencePane
+            onCompleted={handleSplashCompleted}
+            onFindPeoplePress={() => setCurrentPane(SplashPane.Invite)}
+            isCompleting={finishingSplash}
+          />
+        )}
         {currentPane === SplashPane.Invite && (
           <InvitePane
             onActionPress={handleSplashCompleted}

@@ -23,6 +23,7 @@ import { NotesFolderScreen } from '../../features/top/NotesFolderScreen';
 import { NotesSearchScreen } from '../../features/top/NotesSearchScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
+import { useWorkspaceLanding } from '../../hooks/useWorkspaceLanding';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { GroupSettingsStack } from '../GroupSettingsStack';
 import { HomeDrawerParamList } from '../types';
@@ -32,6 +33,11 @@ import { MessagesSidebar } from './MessagesSidebar';
 const MessagesDrawer = createDrawerNavigator();
 
 export const MessagesNavigator = () => {
+  // The desktop stack's landing consumer; the mobile stack mounts the same hook
+  // in ChatListScreen. `resetToChannel` already handles both narrow and wide
+  // layouts, so the hook itself is platform-agnostic — only the mount site
+  // differs, because the two stacks share no chat-list screen.
+  useWorkspaceLanding();
   const theme = useTheme();
   const { setLastOpenTab } = useGlobalSearch();
   const backgroundColor = getVariableValue(theme.background);

@@ -1,28 +1,28 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { extractNormalizedInviteLink } from '@tloncorp/shared/logic';
-import { enableGroupLinks, useGroup, useLure } from '@tloncorp/shared/store';
 import { useEffect, useMemo, useRef } from 'react';
 
-import {
-  useCurrentUserId,
-  useInviteService,
-} from '../../contexts/appDataContext';
+import { useCurrentUserId } from '../../contexts/appDataContext';
+import { useGroupInviteLink } from './useGroupInviteLink';
 
 const logger = createDevLogger('useHomeGroupInviteLink', true);
 const HOME_GROUP_SLUG = 'home-group';
-
-type HomeGroupInviteState = 'ready' | 'loading' | 'unavailable';
 
 function getHomeGroupId(currentUserId: string) {
   return `${currentUserId}/${HOME_GROUP_SLUG}`;
 }
 
+/**
+ * The home group's invite link, cached durably.
+ *
+ * `useGroupInviteLink` does the fetching; this adds the two things specific to
+ * the home group — its well-known id, and a persisted link so the invite
+ * survives a lure that has gone stale.
+ */
 export function useHomeGroupInviteLink({ enabled }: { enabled: boolean }) {
   const currentUserId = useCurrentUserId();
-  const inviteService = useInviteService();
   const cachedInviteLink = db.homeGroupInviteLink.useValue();
-  const enabledGroupLinksRef = useRef<string | null>(null);
   const cachedRecoveredInviteRef = useRef<string | null>(null);
 
   const homeGroupId = useMemo(
@@ -30,9 +30,6 @@ export function useHomeGroupInviteLink({ enabled }: { enabled: boolean }) {
       enabled && currentUserId ? getHomeGroupId(currentUserId) : undefined,
     [currentUserId, enabled]
   );
-  const { data: homeGroup, isLoading: homeGroupIsLoading } = useGroup({
-    id: homeGroupId,
-  });
 
   // links cached by older versions carry the old share domain — normalize
   // in place so updaters share canonical links. same logout guard as the
@@ -57,90 +54,28 @@ export function useHomeGroupInviteLink({ enabled }: { enabled: boolean }) {
     };
   }, [cachedInviteLink]);
 
-  const shouldRecoverFromLure = enabled && !cachedInviteLink && !!homeGroup?.id;
-
-  useEffect(() => {
-    if (!shouldRecoverFromLure || !homeGroup?.id) {
-      return;
-    }
-
-    if (enabledGroupLinksRef.current === homeGroup.id) {
-      return;
-    }
-
-    enabledGroupLinksRef.current = homeGroup.id;
-    enableGroupLinks(homeGroup.id).catch((error) => {
-      logger.trackError('Wayfinding Home Group Invite Enable Failed', {
-        groupId: homeGroup.id,
-        error,
-      });
-    });
-  }, [homeGroup?.id, shouldRecoverFromLure]);
-
-  const { status: lureStatus, shareUrl } = useLure({
-    flag: homeGroup?.id ?? '',
-    inviteServiceEndpoint: inviteService.endpoint,
-    inviteServiceIsDev: inviteService.isDev,
-    disableLoading: !shouldRecoverFromLure,
+  const { inviteUrl, state, shareUrl } = useGroupInviteLink({
+    enabled,
+    groupId: homeGroupId,
+    cachedLink: cachedInviteLink,
   });
 
   useEffect(() => {
     if (!enabled || cachedInviteLink || !shareUrl) {
       return;
     }
-
     if (cachedRecoveredInviteRef.current === shareUrl) {
       return;
     }
-
     cachedRecoveredInviteRef.current = shareUrl;
     db.homeGroupInviteLink.setValue(shareUrl).catch((error) => {
       cachedRecoveredInviteRef.current = null;
       logger.trackError('Wayfinding Home Group Invite Cache Failed', {
         error,
-        groupId: homeGroup?.id,
+        groupId: homeGroupId,
       });
     });
-  }, [cachedInviteLink, enabled, homeGroup?.id, shareUrl]);
+  }, [cachedInviteLink, enabled, homeGroupId, shareUrl]);
 
-  const inviteUrl = cachedInviteLink ?? shareUrl ?? null;
-  const state = useMemo<HomeGroupInviteState>(() => {
-    if (inviteUrl) {
-      return 'ready';
-    }
-
-    if (!enabled) {
-      return 'unavailable';
-    }
-
-    if (!cachedInviteLink && homeGroupIsLoading) {
-      return 'loading';
-    }
-
-    if (!homeGroup?.id) {
-      return 'unavailable';
-    }
-
-    if (
-      lureStatus === 'loading' ||
-      lureStatus === 'stale' ||
-      lureStatus === 'unsupported'
-    ) {
-      return 'loading';
-    }
-
-    return 'unavailable';
-  }, [
-    cachedInviteLink,
-    enabled,
-    homeGroup?.id,
-    homeGroupIsLoading,
-    inviteUrl,
-    lureStatus,
-  ]);
-
-  return {
-    inviteUrl,
-    state,
-  };
+  return { inviteUrl, state };
 }
