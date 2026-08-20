@@ -27,7 +27,6 @@ import {
   Pressable,
   Text,
   ZStack,
-  useCopy,
   useToast,
 } from '@tloncorp/ui';
 import * as Clipboard from 'expo-clipboard';
@@ -39,23 +38,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {
-  AppState,
-  FlatList,
-  Image,
-  Keyboard,
-  ScrollView,
-  Share,
-} from 'react-native';
+import { AppState, FlatList, Image, Keyboard, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  View,
-  XStack,
-  YStack,
-  getTokenValue,
-  isWeb,
-  useThemeName,
-} from 'tamagui';
+import { View, YStack, getTokenValue, isWeb, useThemeName } from 'tamagui';
 
 import { useOpenAISubscriptionAuth } from '../../../features/settings/bot/useOpenAISubscriptionAuth';
 import { useContactDiscovery } from '../../../hooks/useContactDiscovery';
@@ -78,7 +63,6 @@ import {
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import AttachmentSheet from '../AttachmentSheet';
 import { Field, TextInput, TextInputRef } from '../Form';
-import { ListItem } from '../ListItem';
 import { OpenAISubscriptionAuthView } from '../OpenAISubscriptionAuthView';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
@@ -100,31 +84,29 @@ import {
 } from './providerModelDefaults';
 import { SplashParagraph, SplashTitle } from './splashPrimitives';
 import { defaultStarterOptionId } from './starterOptions';
-import { useHomeGroupInviteLink } from './useHomeGroupInviteLink';
-import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 /**
  * Splash sequence panes.
  *
  * Bot-enabled flow:
- *   Welcome → TlonBot → BotName → BotAvatar → BotProvider
- *     → (BotApiKey or BotSubscriptionAuth) → BotModel → Group → Invite
- *
- * TlonBot revival delays Group → Invite until the revival setup wait finishes.
+ *   Welcome → Purpose → TlonBot → BotName → BotAvatar → BotProvider
+ *     → (BotApiKey or BotSubscriptionAuth) → BotModel → Audience
  *
  * Standard flow:
- *   Welcome → Purpose → Group → Channels → Privacy → Invite
+ *   Welcome → Purpose → [bot config] → Audience
  *
- * Purpose is onboarding's first interstitial. The panes between it and
- * Invite are on their way out — see the workspace onboarding plan — but they
- * still carry real bot configuration, so they stay until settings can host it.
+ * Purpose and Audience are onboarding's two interstitials. The groups
+ * explainers that used to sit between them (Group → Channels → Privacy) are
+ * gone: they taught the groups product — "everything happens in a channel",
+ * group privacy levels — which the workspace model contradicts, and they
+ * created nothing.
+ *
+ * The bot panes remain because they carry real hosting configuration and no
+ * settings surface exists to host it yet.
  */
 enum SplashPane {
   Welcome = 'Welcome',
   Purpose = 'Purpose',
-  Group = 'Group',
-  Channels = 'Channels',
-  Privacy = 'Privacy',
   TlonBot = 'TlonBot',
   BotName = 'BotName',
   BotAvatar = 'BotAvatar',
@@ -190,10 +172,8 @@ function SplashSequenceComponent(props: {
   const [botApiKey, setBotApiKey] = React.useState('');
   const [userShipId, setUserShipId] = React.useState<string | null>(null);
   const [userNickname, setUserNickname] = React.useState<string | null>(null);
-  const [botShipId, setBotShipId] = React.useState<string | null>(null);
   const [savingConfig, setSavingConfig] = React.useState(false);
   const [avatarDirty, setAvatarDirty] = React.useState(false);
-  const [didConfigureBot, setDidConfigureBot] = React.useState(false);
   const [configError, setConfigError] = React.useState<string | null>(null);
   const [providerOptions, setProviderOptions] = React.useState<
     BotCredentialOption[]
@@ -286,9 +266,9 @@ function SplashSequenceComponent(props: {
       case 'settingUp':
         setCurrentPane(SplashPane.TlonBotSetup);
         break;
+      // 'group' is a legacy stage from when a groups explainer sat here.
+      // Durable state written by an older build still resumes correctly.
       case 'group':
-        setCurrentPane(SplashPane.Group);
-        break;
       case 'invite':
         setCurrentPane(SplashPane.Audience);
         break;
@@ -314,9 +294,8 @@ function SplashSequenceComponent(props: {
         const userId = await db.hostingUserId.getValue();
         if (shipId) {
           setUserShipId(`~${shipId}`);
-          const [botInfo, providerConfig, userContact, cachedNickname] =
+          const [providerConfig, userContact, cachedNickname] =
             await Promise.all([
-              api.getTlawnBotInfo(shipId).catch(() => null),
               userId
                 ? api.getTlawnProviderKeys(userId).catch(() => null)
                 : null,
@@ -341,12 +320,6 @@ function SplashSequenceComponent(props: {
                   });
               }
             }
-            if (botInfo?.moon) {
-              // Hosting returns the moon prefix (e.g., `pinser-botter`); the
-              // full @p is `~<prefix>-<shipName>`.
-              setBotShipId(`~${botInfo.moon}-${shipId}`);
-            }
-
             const resolvedProviderConfig = providerConfig ?? {
               keys: {},
               models: [],
@@ -686,7 +659,6 @@ function SplashSequenceComponent(props: {
       const selected = selectedCredential;
 
       if (provider === BASIC_PROVIDER_ID) {
-        setDidConfigureBot(true);
         setCustomBotSetupStatus('ready');
         if (shouldDeferTlonbotSetup) {
           await saveDeferredTlonbotConfig({
@@ -696,7 +668,7 @@ function SplashSequenceComponent(props: {
           });
           setCurrentPane(SplashPane.TlonBotSetup);
         } else {
-          setCurrentPane(SplashPane.Group);
+          setCurrentPane(SplashPane.Audience);
         }
         return;
       }
@@ -813,7 +785,7 @@ function SplashSequenceComponent(props: {
       applied: true,
       stage: 'group',
     }));
-    setCurrentPane(SplashPane.Group);
+    setCurrentPane(SplashPane.Audience);
   }, []);
 
   const handleStarterSelected = useCallback(
@@ -832,21 +804,12 @@ function SplashSequenceComponent(props: {
       // in a durable storage item, so a slow or failed install is discovered by
       // whoever reads that — never by holding up a transition here.
       store.startWorkspaceProvisioning(selectedId);
-      setCurrentPane(hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Group);
+      setCurrentPane(
+        hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Audience
+      );
     },
     [hostingBotEnabled]
   );
-
-  const handleTlonbotGroupCompleted = useCallback(async () => {
-    if (shouldDeferTlonbotSetup) {
-      await db.tlonbotRevivalSetup.setValue((current) => ({
-        ...current,
-        pending: true,
-        stage: 'invite',
-      }));
-    }
-    setCurrentPane(SplashPane.Audience);
-  }, [shouldDeferTlonbotSetup]);
 
   const handleModelBackPress = useCallback(() => {
     const selected = selectedCredential;
@@ -869,7 +832,6 @@ function SplashSequenceComponent(props: {
       const shipId = await db.hostedUserNodeId.getValue();
       const provider = botProvider;
       const model = botPrimaryModel || `${provider}/auto`;
-      setDidConfigureBot(true);
       logger.trackEvent('Customized TlonBot Provider', {
         botProvider: provider,
         botModel: model,
@@ -884,7 +846,7 @@ function SplashSequenceComponent(props: {
         setCurrentPane(SplashPane.TlonBotSetup);
       } else {
         startCustomBotSetup({ userId, shipId, provider, model });
-        setCurrentPane(SplashPane.Group);
+        setCurrentPane(SplashPane.Audience);
       }
     } catch (e) {
       console.error('Failed to save bot config during onboarding:', e);
@@ -893,7 +855,7 @@ function SplashSequenceComponent(props: {
         error: e,
       });
       setCurrentPane(
-        shouldDeferTlonbotSetup ? SplashPane.TlonBotSetup : SplashPane.Group
+        shouldDeferTlonbotSetup ? SplashPane.TlonBotSetup : SplashPane.Audience
       );
     } finally {
       if (isMountedRef.current) {
@@ -1072,32 +1034,6 @@ function SplashSequenceComponent(props: {
           <TlonBotSetupPane
             onComplete={handleTlonbotSetupComplete}
             onLogout={props.onLogout}
-          />
-        )}
-
-        {currentPane === SplashPane.Group && (
-          <GroupsPane
-            onActionPress={
-              hostingBotEnabled
-                ? handleTlonbotGroupCompleted
-                : () => setCurrentPane(SplashPane.Channels)
-            }
-            hostingBotEnabled={hostingBotEnabled}
-            botName={botName || 'Tlonbot'}
-            didConfigureBot={didConfigureBot}
-            botSetupStatus={customBotSetupStatus}
-          />
-        )}
-
-        {currentPane === SplashPane.Channels && (
-          <ChannelsPane
-            onActionPress={() => setCurrentPane(SplashPane.Privacy)}
-            hostingBotEnabled={hostingBotEnabled}
-          />
-        )}
-        {currentPane === SplashPane.Privacy && (
-          <PrivacyPane
-            onActionPress={() => setCurrentPane(SplashPane.Audience)}
           />
         )}
 
@@ -2038,269 +1974,6 @@ function TlonBotSetupPane(props: {
   );
 }
 
-export function GroupsPane(props: {
-  onActionPress: () => void;
-  hostingBotEnabled?: boolean;
-  botName?: string;
-  didConfigureBot?: boolean;
-  botSetupStatus?: CustomBotSetupStatus;
-}) {
-  const insets = useSafeAreaInsets();
-  const isDark = useIsDarkMode();
-  const { inviteUrl: homeGroupInviteUrl, state: homeGroupInviteState } =
-    useHomeGroupInviteLink({
-      enabled: !!props.hostingBotEnabled,
-    });
-  const groupInviteIsLoading = homeGroupInviteState === 'loading';
-  const groupInviteIsReady = homeGroupInviteState === 'ready';
-  const groupInviteHasError = homeGroupInviteState === 'unavailable';
-  const { doCopy: copyHomeGroupInvite, didCopy: didCopyHomeGroupInvite } =
-    useCopy(homeGroupInviteUrl ?? '');
-  const shareHomeGroupInvite = useCallback(async () => {
-    if (!homeGroupInviteUrl) return;
-
-    try {
-      if (isWeb) {
-        if (typeof navigator.share === 'function') {
-          await navigator.share({ url: homeGroupInviteUrl });
-        } else {
-          await copyHomeGroupInvite();
-        }
-      } else {
-        await Share.share({ message: homeGroupInviteUrl });
-      }
-    } catch (e) {
-      console.error('Failed to share invite link:', e);
-    }
-  }, [copyHomeGroupInvite, homeGroupInviteUrl]);
-
-  return (
-    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      {/* The static illustration in both branches. This used to render a
-          mocked bot conversation when hosting was on, which is content the
-          onboarding flow is not allowed to show any more: the real workspace
-          conversation is a screen away, and a fake one next to it invites the
-          comparison. */}
-      <ZStack height={368}>
-        <Image
-          style={{ width: '100%', height: 368 }}
-          resizeMode="cover"
-          source={
-            isWeb
-              ? isDark
-                ? `./garden-party-invite-dark.png`
-                : `./garden-party-invite.png`
-              : isDark
-                ? require(`../../assets/raster/garden-party-invite-dark.png`)
-                : require(`../../assets/raster/garden-party-invite.png`)
-          }
-        />
-      </ZStack>
-      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
-        <SplashTitle>
-          {props.hostingBotEnabled ? (
-            <>
-              Your <Text color="$positiveActionText">group</Text> is ready.
-            </>
-          ) : (
-            <>
-              This is a <Text color="$positiveActionText">group.</Text>
-            </>
-          )}
-        </SplashTitle>
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-        >
-          {props.hostingBotEnabled ? (
-            <>
-              <SplashParagraph>
-                We made you a group on your server, and{' '}
-                {props.didConfigureBot ? props.botName : 'your Tlonbot'} is
-                already there.{' '}
-                {props.didConfigureBot ? props.botName : 'Your Tlonbot'} loves
-                conversation, reading along with the group and chiming in to
-                help.
-              </SplashParagraph>
-              <SplashParagraph>
-                Share the link below to bring your friends in.
-              </SplashParagraph>
-            </>
-          ) : (
-            <SplashParagraph>
-              A group lives on your private personal server. Family chats, work
-              collaboration, newsletters. A group can be anything you need.
-            </SplashParagraph>
-          )}
-        </ScrollView>
-      </YStack>
-      <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
-        {props.hostingBotEnabled ? (
-          <YStack width="100%" gap="$s">
-            <XStack width="100%">
-              <TextInput
-                value={groupInviteIsReady ? homeGroupInviteUrl ?? '' : ''}
-                placeholder={
-                  groupInviteIsLoading
-                    ? 'Preparing invite link'
-                    : 'Invite link unavailable'
-                }
-                accent={groupInviteHasError ? 'negative' : 'positive'}
-                editable={false}
-                selectTextOnFocus={groupInviteIsReady}
-                frameStyle={{
-                  flex: 1,
-                  height: 44,
-                  ...(groupInviteHasError
-                    ? {}
-                    : {
-                        borderTopRightRadius: 0,
-                        borderBottomRightRadius: 0,
-                        borderRightWidth: 0,
-                      }),
-                }}
-              />
-              {!groupInviteHasError && (
-                <Button
-                  onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
-                  icon={didCopyHomeGroupInvite ? 'Checkmark' : 'Copy'}
-                  accessibilityLabel={
-                    didCopyHomeGroupInvite ? 'Copied' : 'Copy invite link'
-                  }
-                  intent="positive"
-                  size="small"
-                  width={44}
-                  borderTopLeftRadius={0}
-                  borderBottomLeftRadius={0}
-                  loading={groupInviteIsLoading}
-                  disabled={!groupInviteIsReady}
-                  glow={groupInviteIsReady}
-                />
-              )}
-            </XStack>
-            <Button
-              onPress={groupInviteIsReady ? shareHomeGroupInvite : undefined}
-              label="Share link"
-              intent={groupInviteHasError ? 'negative' : 'positive'}
-              fill="outline"
-              size="small"
-              leadingIcon="Send"
-              disabled={!groupInviteIsReady}
-            />
-          </YStack>
-        ) : null}
-        <Button
-          data-testid="got-it"
-          testID="got-it"
-          onPress={props.onActionPress}
-          label="Got it"
-          preset={props.hostingBotEnabled ? 'secondary' : 'hero'}
-          backgroundColor={props.hostingBotEnabled ? '$transparent' : undefined}
-        />
-      </YStack>
-    </View>
-  );
-}
-
-export function ChannelsPane(props: {
-  onActionPress: () => void;
-  hostingBotEnabled?: boolean;
-}) {
-  const insets = useSafeAreaInsets();
-
-  return (
-    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <Image
-        style={{ width: '100%', height: 382 }}
-        resizeMode="contain"
-        source={
-          isWeb
-            ? `./app-screens.png`
-            : require(`../../assets/raster/app-screens.png`)
-        }
-      />
-      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
-        <SplashTitle>
-          Groups contain <Text color="$positiveActionText">channels.</Text>
-        </SplashTitle>
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-        >
-          <SplashParagraph>
-            Chats for quick messages, notebooks for longer thoughts, galleries
-            for images and links. Everything happens in a channel.
-          </SplashParagraph>
-          {props.hostingBotEnabled && (
-            <SplashParagraph>
-              Mention your Tlonbot in any channel and it can search the web,
-              summarize threads, or draft messages for you.
-            </SplashParagraph>
-          )}
-        </ScrollView>
-      </YStack>
-      <Button
-        data-testid="one-quick-thing"
-        testID="one-quick-thing"
-        onPress={props.onActionPress}
-        label={
-          props.hostingBotEnabled ? 'Invite your friends' : 'One quick thing'
-        }
-        preset="hero"
-        shadow
-        marginHorizontal="$xl"
-        marginTop="$xl"
-      />
-    </View>
-  );
-}
-
-export function PrivacyPane(props: { onActionPress: () => void }) {
-  const insets = useSafeAreaInsets();
-  return (
-    <ZStack flex={1}>
-      <PrivacyThumbprint />
-      <View
-        zIndex={1000}
-        flex={1}
-        paddingTop={insets.top}
-        paddingBottom={insets.bottom}
-      >
-        <PrivacyLevelsDisplay />
-        <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
-          <SplashTitle>
-            By default, groups are{' '}
-            <Text color="$positiveActionText">secret.</Text>
-          </SplashTitle>
-          <ScrollView
-            style={{ flex: 1 }}
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-          >
-            <SplashParagraph>
-              Only the people you invite can see your group. If you want to open
-              it up to other people on the network, edit the privacy controls in
-              your group settings.
-            </SplashParagraph>
-          </ScrollView>
-        </YStack>
-        <Button
-          data-testid="invite-friends"
-          testID="invite-friends"
-          onPress={props.onActionPress}
-          label="Invite your friends"
-          preset="hero"
-          shadow
-          marginHorizontal="$xl"
-          marginTop="$xl"
-        />
-      </View>
-    </ZStack>
-  );
-}
-
 const logger = createDevLogger('SplashSequence', true);
 
 const INVITE_EXPLANATION_TEXT = "You'll receive a DM when they join.";
@@ -2726,80 +2399,6 @@ export function InvitePane(props: {
       isProcessing={isProcessing}
       isCompleting={props.isCompleting}
     />
-  );
-}
-
-function PrivacyLevelsDisplay() {
-  return (
-    <View
-      style={
-        isWeb
-          ? {}
-          : {
-              shadowColor: '$shadow',
-              shadowOffset: { width: 0, height: 12 },
-              shadowRadius: 32,
-            }
-      }
-      elevationAndroid={4}
-      marginHorizontal="$l"
-      marginVertical="$2xl"
-    >
-      <YStack paddingHorizontal="$3xl" justifyContent="center" gap="$xl">
-        <ListItem
-          backgroundColor="$positiveBackground"
-          borderWidth={1}
-          padding="$l"
-          borderColor="$positiveBorder"
-        >
-          <ListItem.SystemIcon
-            icon="Lock"
-            backgroundColor="unset"
-            color="$positiveActionText"
-          />
-          <ListItem.MainContent>
-            <ListItem.Title color="$positiveActionText">Secret</ListItem.Title>
-            <ListItem.Subtitle color="$positiveActionText">
-              Invite-only
-            </ListItem.Subtitle>
-          </ListItem.MainContent>
-        </ListItem>
-
-        <ListItem
-          backgroundColor="$background"
-          borderWidth={1}
-          padding="$l"
-          borderColor="$border"
-        >
-          <ListItem.SystemIcon
-            icon="EyeClosed"
-            backgroundColor="unset"
-            color="$primaryText"
-          />
-          <ListItem.MainContent>
-            <ListItem.Title>Private</ListItem.Title>
-            <ListItem.Subtitle>New members require approval</ListItem.Subtitle>
-          </ListItem.MainContent>
-        </ListItem>
-
-        <ListItem
-          backgroundColor="$background"
-          borderWidth={1}
-          padding="$l"
-          borderColor="$border"
-        >
-          <ListItem.SystemIcon
-            icon="EyeOpen"
-            backgroundColor="unset"
-            color="$primaryText"
-          />
-          <ListItem.MainContent>
-            <ListItem.Title>Public</ListItem.Title>
-            <ListItem.Subtitle>Everyone can find and join</ListItem.Subtitle>
-          </ListItem.MainContent>
-        </ListItem>
-      </YStack>
-    </View>
   );
 }
 

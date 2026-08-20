@@ -12,11 +12,8 @@ import {
   BotModelPane,
   BotNamePane,
   BotProviderPane,
-  ChannelsPane,
-  GroupsPane,
   InviteContactsContent,
   InvitePane,
-  PrivacyPane,
   SplashSequence,
   TlonBotPane,
   WelcomePane,
@@ -166,47 +163,6 @@ function AudiencePaneFixture() {
         }
         isCompleting={isCompleting}
       />
-    </FixtureWrapper>
-  );
-}
-function GroupsPaneFixture() {
-  const handleAction = React.useCallback(() => {
-    console.log('Groups pane action pressed');
-  }, []);
-  const [withBot] = useValue('With Tlonbot', { defaultValue: true });
-
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <GroupsPane
-        onActionPress={handleAction}
-        hostingBotEnabled={withBot}
-        botName="Tlonbot"
-        didConfigureBot
-      />
-    </FixtureWrapper>
-  );
-}
-
-function ChannelsPaneFixture() {
-  const handleAction = React.useCallback(() => {
-    console.log('Channels pane action pressed');
-  }, []);
-
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <ChannelsPane onActionPress={handleAction} hostingBotEnabled />
-    </FixtureWrapper>
-  );
-}
-
-function PrivacyPaneFixture() {
-  const handleAction = React.useCallback(() => {
-    console.log('Privacy pane action pressed');
-  }, []);
-
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <PrivacyPane onActionPress={handleAction} />
     </FixtureWrapper>
   );
 }
@@ -468,9 +424,6 @@ export default {
   'Welcome Pane': <WelcomePaneFixture />,
   'Purpose Pane': <PurposePaneFixture />,
   'Audience Pane': <AudiencePaneFixture />,
-  'Groups Pane': <GroupsPaneFixture />,
-  'Channels Pane': <ChannelsPaneFixture />,
-  'Privacy Pane': <PrivacyPaneFixture />,
   'TlonBot Pane': <TlonBotPaneFixture />,
   'Bot Name Pane': <BotNamePaneFixture />,
   'Bot Avatar Pane': <BotAvatarPaneFixture />,

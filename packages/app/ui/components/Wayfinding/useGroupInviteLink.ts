@@ -13,9 +13,8 @@ export type GroupInviteState = 'ready' | 'loading' | 'unavailable';
  *
  * The generic core: enable link sharing on the group, ask the invite service
  * for a URL, and reduce the several ways that can be in flight into three
- * states a screen can act on. Callers that want a *cached* link layer that on
- * top — see `useHomeGroupInviteLink`, which is this plus the home group's id
- * and its durable cache.
+ * states a screen can act on. A caller that wants a durable cached link can
+ * layer that on top; nothing does today.
  *
  * `state` distinguishes 'loading' from 'unavailable' deliberately: a screen
  * showing a spinner forever is worse than one that says it could not make a
