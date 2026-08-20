@@ -261,6 +261,9 @@ export namespace A2UI {
     submitLabel: string;
     action: NavigateAction;
     configureAction: ConfigureAgentProvidersAction;
+    /** Optional final action rendered inside the connector menu shell. */
+    completionLabel?: string;
+    completionAction?: SendMessageAction;
   };
 
   export type Component =
@@ -612,7 +615,12 @@ function validateComponent(component: unknown): component is A2UI.Component {
         component.action.event.context.target.screen === 'botMcpSettings' &&
         validateButtonAction(component.configureAction) &&
         component.configureAction.event.name ===
-          ACTION_CONFIGURE_AGENT_PROVIDERS
+          ACTION_CONFIGURE_AGENT_PROVIDERS &&
+        ((component.completionLabel === undefined &&
+          component.completionAction === undefined) ||
+          (isShortLabel(component.completionLabel) &&
+            validateButtonAction(component.completionAction) &&
+            component.completionAction.event.name === ACTION_SEND_MESSAGE))
       );
     default:
       return false;
@@ -811,6 +819,9 @@ function indexComponents(
     } else if (component.component === 'McpConnect') {
       totalTextLength +=
         component.seeAllLabel.length + component.submitLabel.length;
+      totalTextLength += component.completionLabel?.length ?? 0;
+      totalTextLength +=
+        component.completionAction?.event.context.text.length ?? 0;
     }
   }
 

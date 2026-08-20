@@ -250,9 +250,10 @@ const firstEntryPending =
 const firstEntryReady =
   'Your first entry is ready in Updates, this group’s notebook. That notebook ' +
   'is where everything I write for you lands; this chat is for talking to me.';
-const servicesMessage =
+const servicesPitch =
   'Connect your calendar and docs and your morning digest can cover your own ' +
   'day — meetings, deadlines, notes — not just the news.';
+const servicesMessage = `${servicesPitch}\n\nConnect anything you’d like, or tap Done to continue.`;
 const servicesComponent: A2UI.McpConnect = {
   id: 'providers',
   component: 'McpConnect',
@@ -273,6 +274,13 @@ const servicesComponent: A2UI.McpConnect = {
         provisionId: 'fixture-provision',
         providerIds: [],
       },
+    },
+  },
+  completionLabel: 'Done',
+  completionAction: {
+    event: {
+      name: 'tlon.sendMessage',
+      context: { text: 'Done' },
     },
   },
 };
@@ -407,7 +415,7 @@ const transcript = [
   transcriptPost({
     id: 'onboarding-09-services',
     author: tlonbot,
-    text: `${servicesMessage}\n\nConnect services in Settings.`,
+    text: servicesMessage,
     a2ui: servicesSurface,
     minute: 9,
   }),
@@ -577,6 +585,7 @@ function McpServicesPreview() {
           <McpConnectMenu
             component={servicesComponent}
             onConfigure={() => {}}
+            onComplete={() => {}}
             onNavigate={() => {}}
             providers={servicesPreviewProviders}
           />

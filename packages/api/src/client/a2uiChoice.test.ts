@@ -200,6 +200,21 @@ describe('McpConnect validation', () => {
       )
     ).toBe(false);
   });
+
+  test('accepts an optional send-message completion action', () => {
+    expect(
+      valid(
+        mcpConnect({
+          completionLabel: 'Done',
+          completionAction: sendAction('Done'),
+        })
+      )
+    ).toBe(true);
+    expect(valid(mcpConnect({ completionLabel: 'Done' }))).toBe(false);
+    expect(valid(mcpConnect({ completionAction: sendAction('Done') }))).toBe(
+      false
+    );
+  });
 });
 
 describe('SmallChoice validation', () => {
