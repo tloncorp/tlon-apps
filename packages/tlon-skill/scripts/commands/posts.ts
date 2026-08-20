@@ -30,7 +30,8 @@ Commands:
   reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship] [--blob <json>] [--bot]
   react <channel> <post-id> <emoji>     React to a post with an emoji [--parent <post-id>]
   unreact <channel> <post-id>           Remove your reaction from a post [--parent <post-id>]
-  edit <channel> <post-id> <message>    Edit a post's message text
+  edit <channel> <post-id> [message]    Edit a post's message text and/or blob
+                                        [--blob <json>] [--expected-revision <n>] [--force]
   delete <channel> <post-id>            Delete a post
 
 Send options:
@@ -43,12 +44,23 @@ Send options:
   --bot                Author the message as a bot (renders the "Bot" tag).
                        Applies to send and reply.
 
+Edit options:
+  --blob <json>        Replace the post's blob with this post-blob JSON array.
+                       Omit to keep the existing blob; pass '[]' to clear it.
+  --expected-revision <n>
+                       Only apply if the post's interactive-surface entry is
+                       still at revision n. Requires --blob. Advisory: it is
+                       checked against a fresh read, not held as a lock.
+  --force              Allow a --blob that drops the post's a2ui entry, which
+                       otherwise deletes the card for everyone.
+
 Examples:
   tlon posts send chat/~host/channel "Hello from tlon"
   tlon posts send chat/~host/channel "Look at this" --image https://storage.../tree.png
   tlon posts send heap/~host/gallery "A link or caption" --title "Gallery item"
   tlon posts reply chat/~host/channel 170.141... "Thread reply"
   tlon posts edit chat/~host/channel 170.141... "Updated message"
+  tlon posts edit chat/~host/channel 170.141... --blob "$(cat card.json)" --expected-revision 3
 
 Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
@@ -60,7 +72,7 @@ export const POSTS_COMMAND_HELP: Record<string, string> = {
   react:
     'Usage: tlon posts react <channel> <post-id> <emoji> [--parent <post-id>]',
   unreact: 'Usage: tlon posts unreact <channel> <post-id> [--parent <post-id>]',
-  edit: 'Usage: tlon posts edit <channel> <post-id> <message>',
+  edit: 'Usage: tlon posts edit <channel> <post-id> [message] [--blob <json>] [--expected-revision <n>] [--force] (message optional with --blob)',
   delete: 'Usage: tlon posts delete <channel> <post-id>',
 };
 
@@ -82,6 +94,7 @@ const POST_REPLY_OPTION_FLAGS = [
   'sent-at',
   ...BOT_PROFILE_OPTION_FLAGS,
 ] as const;
+const POST_EDIT_OPTION_FLAGS = ['blob', 'expected-revision', 'force'] as const;
 const POST_SEND_OPTION_FLAGS = [
   'blob',
   'image',
@@ -127,6 +140,14 @@ export interface PostEditInput {
   sentAt: number;
   content: Story;
   metadata: PostEditMetadata;
+  /**
+   * The post's blob after the edit.
+   *
+   * Always populated, because the transport sends `blob ?? null` and %edit
+   * stores the essay wholesale — leaving this off erases whatever the post
+   * carried. `editPost` defaults it to the existing blob.
+   */
+  blob?: string;
   botProfile?: BotAuthorProfile;
 }
 
@@ -166,6 +187,12 @@ export interface ExistingPost {
   description?: string | null;
   cover?: string | null;
   isBot?: boolean | null;
+  // Read so an edit can put them back. %edit submits the whole essay, so
+  // anything not re-sent is erased — see the comment in editPost.
+  blob?: string | null;
+  // A JSON column, so it arrives either already parsed or as a string
+  // depending on the caller. `existingStory` narrows it.
+  content?: unknown;
 }
 
 export interface PostLookupResult {
@@ -227,7 +254,15 @@ type ParsedPostsArgs =
     }
   | { kind: 'unreact'; channelId: string; postId: string; parentId?: string }
   | { kind: 'delete'; channelId: string; postId: string }
-  | { kind: 'edit'; channelId: string; postId: string; message: string };
+  | {
+      kind: 'edit';
+      channelId: string;
+      postId: string;
+      message: string;
+      blob?: string;
+      expectedRevision?: number;
+      force: boolean;
+    };
 
 function extractNumericId(id: string): string {
   const slash = id.indexOf('/');
@@ -402,10 +437,31 @@ function firstPostReplyFlagIndex(args: string[]): number {
   );
 }
 
-// Edit has no option flags any more (the notebook-only ones are removed), so the
-// message is everything after the post id.
+function firstPostEditFlagIndex(args: string[]): number {
+  return firstFlagIndex(args, POST_EDIT_OPTION_FLAGS);
+}
+
+// The message is everything between the post id and the first option flag. It
+// may be empty, but only when --blob is carrying the edit.
 function getPostEditMessage(args: string[]): string {
-  return args.slice(3).join(' ');
+  return args.slice(3, firstPostEditFlagIndex(args)).join(' ');
+}
+
+// Parsed as a whole number: a revision is a count, and `--expected-revision 2.5`
+// or `-1` is a caller mistake rather than something to round.
+function validatedExpectedRevisionFlag(args: string[]): number | undefined {
+  const idx = args.indexOf('--expected-revision');
+  if (idx === -1) {
+    return undefined;
+  }
+  const raw = args[idx + 1];
+  if (!raw) {
+    throw usageError(POSTS_COMMAND_HELP.edit);
+  }
+  if (!/^\d+$/.test(raw)) {
+    throw commandError('--expected-revision must be a non-negative integer');
+  }
+  return Number(raw);
 }
 
 // True when `posts edit` carries a removed notebook-only flag. Detected as a
@@ -609,11 +665,28 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       if (editHasRemovedFlag(args)) {
         throw commandError(POSTS_EDIT_REMOVED_FLAGS_MESSAGE);
       }
+      const blob = validatedBlobFlag(args, POSTS_COMMAND_HELP.edit);
+      const expectedRevision = validatedExpectedRevisionFlag(args);
       const message = getPostEditMessage(args);
-      if (!message) {
+      // A blob-only edit is legitimate: updating a card's state need not
+      // change its text. Without --blob there is nothing else to edit.
+      if (!message && blob === undefined) {
         throw usageError(POSTS_COMMAND_HELP.edit);
       }
-      return { kind: 'edit', channelId, postId, message };
+      // Guarding an edit against a revision it does not touch is a mistake
+      // worth surfacing rather than a harmless no-op.
+      if (expectedRevision !== undefined && blob === undefined) {
+        throw commandError('--expected-revision requires --blob');
+      }
+      return {
+        kind: 'edit',
+        channelId,
+        postId,
+        message,
+        blob,
+        expectedRevision,
+        force: args.includes('--force'),
+      };
     }
   }
 
@@ -787,12 +860,19 @@ async function fetchExistingPost(
 }
 
 async function editPost(
-  parsed: { channelId: string; postId: string; message: string },
+  parsed: {
+    channelId: string;
+    postId: string;
+    message: string;
+    blob?: string;
+    expectedRevision?: number;
+    force?: boolean;
+  },
   deps: PostsDeps
 ): Promise<void> {
-  // Edit only the message text. Existing metadata (e.g. a heap curio's title) is
-  // preserved by reading it back from the existing post — the CLI no longer
-  // overrides it, but must not wipe it either.
+  // Existing metadata (e.g. a heap curio's title), authorship, content, and
+  // blob are all preserved by reading the post back — the CLI does not override
+  // what it was not asked to change, but must not wipe it either.
   const existing = await fetchExistingPost(
     parsed.channelId,
     parsed.postId,
@@ -817,17 +897,124 @@ async function editPost(
     cover: existing.cover ?? undefined,
   };
 
+  // Advisory, not a lock: this compares against the read above, and nothing
+  // stops another writer between here and the poke. It catches an agent acting
+  // on state it fetched a moment ago, which is the case that actually happens.
+  if (parsed.expectedRevision !== undefined) {
+    const current = findInteractiveSurfaceRevision(
+      existing.blob,
+      parsed.expectedRevision
+    );
+    if (current !== parsed.expectedRevision) {
+      throw commandError(
+        `Expected revision ${parsed.expectedRevision} but ${formatPostId(parsed.postId)} is at ${current}. Re-read the post and retry.`
+      );
+    }
+  }
+
+  // The one guard on --blob, and the mistake it catches is expensive: %edit
+  // erases any entry not re-sent, so a replacement carrying only the new
+  // surface state deletes the card itself from every member's copy.
+  if (
+    parsed.blob !== undefined &&
+    !parsed.force &&
+    blobHasA2UI(existing.blob) &&
+    !blobHasA2UI(parsed.blob)
+  ) {
+    throw commandError(
+      "Refusing to edit: --blob drops the post's a2ui entry, which deletes the card for everyone. Re-emit the a2ui entry alongside your changes, or pass --force to remove it deliberately."
+    );
+  }
+
   await deps.postsApi.editPost({
     channelId: parsed.channelId,
     postId: formatPostId(parsed.postId),
     authorId: deps.getCurrentUserId(),
     sentAt: deps.now(),
-    content: markdownToStory(parsed.message),
+    // A blob-only edit keeps the existing text. Re-deriving it from markdown
+    // would not round-trip, so the stored story is passed through untouched.
+    content: parsed.message
+      ? markdownToStory(parsed.message)
+      : existingStory(existing),
     metadata,
+    // Default to the existing blob. The transport sends `blob ?? null` and
+    // %edit stores the essay wholesale, so omitting this erases whatever the
+    // post carried — an attachment, a voice memo, a card.
+    blob: parsed.blob ?? existing.blob ?? undefined,
     // Authorship shape comes from the existing post rather than being
     // re-derived: a bot post stays bot-authored, a human post stays bare.
     ...(existing.isBot ? { botProfile: { nickname: null, avatar: null } } : {}),
   });
+}
+
+// Blob entries, read shallowly.
+//
+// This deliberately does not use `parsePostBlob` from @tloncorp/api: command
+// modules are contract-tested to hold no value imports from it (see
+// command-contract.test.ts), and everything below reads is one `type` tag and
+// one number. Validating entries is the writer's job and the renderer's — this
+// is a CLI guard, and it must not reject a blob carrying an entry shape this
+// build has never heard of.
+function blobEntries(blob: string | null | undefined): { type?: unknown }[] {
+  if (!blob) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(blob);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// The revision of the post's interactive surface. A post carrying no surface
+// entry is at revision 0 by definition, so `--expected-revision 0` against one
+// is a match; any other expectation against one is not, and `-1` never matches.
+function findInteractiveSurfaceRevision(
+  blob: string | null | undefined,
+  fallback: number
+): number {
+  for (const entry of blobEntries(blob)) {
+    if (
+      entry.type === 'interactive-surface' &&
+      typeof (entry as { revision?: unknown }).revision === 'number'
+    ) {
+      return (entry as { revision: number }).revision;
+    }
+  }
+  return fallback === 0 ? 0 : -1;
+}
+
+function blobHasA2UI(blob: string | null | undefined): boolean {
+  return blobEntries(blob).some((entry) => entry.type === 'a2ui');
+}
+
+// The post's stored content as a story. Unreadable content is a hard failure
+// for the same reason an unreadable post is: editing past it rewrites the
+// message into something the author never wrote.
+function existingStory(existing: ExistingPost): Story {
+  const unreadable = () =>
+    commandError(
+      'Cannot edit the blob alone: this post has no readable content to preserve. Pass a message.'
+    );
+  const raw = existing.content;
+  if (raw == null) {
+    throw unreadable();
+  }
+  const parsed = (() => {
+    if (typeof raw !== 'string') {
+      return raw;
+    }
+    try {
+      return JSON.parse(raw);
+    } catch {
+      throw unreadable();
+    }
+  })();
+  if (!Array.isArray(parsed)) {
+    throw unreadable();
+  }
+  return parsed as Story;
 }
 
 export async function run(args: string[], deps: PostsDeps): Promise<number> {

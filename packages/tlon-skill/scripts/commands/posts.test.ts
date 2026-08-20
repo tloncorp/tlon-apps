@@ -1301,6 +1301,24 @@ describe('posts edit', () => {
   } as ExistingPost;
   const lookupSucceeds = () => withExistingPost(READABLE_POST);
 
+  // A stateful card: an a2ui view plus the interactive-surface entry that joins
+  // to it. Revision 3, so a stale expectation is distinguishable from a match.
+  const A2UI_ENTRY = { type: 'a2ui', version: 1, messages: [] };
+  const SURFACE_ENTRY = {
+    type: 'interactive-surface',
+    version: 1,
+    surfaceId: 's1',
+    revision: 3,
+    state: { portions: 2 },
+    processedActionIds: [],
+  };
+  const SURFACE_ENTRY_REV_4 = { ...SURFACE_ENTRY, revision: 4 };
+  const STATEFUL_CARD_BLOB = JSON.stringify([A2UI_ENTRY, SURFACE_ENTRY]);
+  const STATEFUL_CARD_BLOB_REV_4 = JSON.stringify([
+    A2UI_ENTRY,
+    SURFACE_ENTRY_REV_4,
+  ]);
+
   it('fails missing channel/post id before auth or API work', async () => {
     for (const args of [['edit'], ['edit', 'chat/~host/channel']]) {
       const context = makeDeps();
@@ -1606,6 +1624,396 @@ describe('posts edit', () => {
 
     expect(exitCode).toBe(1);
     expect(context.stderr()).toBe('Error: edit failed\n');
+  });
+
+  // %edit submits the whole essay and the transport sends `blob ?? null`, so a
+  // text edit that says nothing about blobs used to erase whatever the post
+  // carried — an attachment, a voice memo, a card. This is that regression.
+  it('preserves the existing blob on a text-only edit', async () => {
+    const blob = JSON.stringify([
+      { type: 'file', version: 1, fileUri: 'https://x/y.pdf', size: 1 },
+    ]);
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({ ...READABLE_POST, blob }),
+    });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', 'Updated text'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost).toHaveLength(1);
+    expect(context.calls.editPost[0].blob).toBe(blob);
+  });
+
+  it('sends no blob when the post had none', async () => {
+    const context = makeDeps({ getChannelPosts: lookupSucceeds() });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', 'Updated text'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost[0].blob).toBeUndefined();
+  });
+
+  it('replaces the blob when --blob is given', async () => {
+    const next = JSON.stringify([
+      SURFACE_ENTRY_REV_4,
+      { type: 'a2ui', version: 1, messages: [] },
+    ]);
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...READABLE_POST,
+        blob: STATEFUL_CARD_BLOB,
+      }),
+    });
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        'Updated text',
+        '--blob',
+        next,
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost[0].blob).toBe(next);
+  });
+
+  it('clears the blob when --blob is an empty array', async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...READABLE_POST,
+        blob: STATEFUL_CARD_BLOB,
+      }),
+    });
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        'Text',
+        '--blob',
+        '[]',
+        '--force',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost[0].blob).toBe('[]');
+  });
+
+  it('refuses a malformed --blob before any API work', async () => {
+    const context = makeDeps();
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', 'Text', '--blob', '{}'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain('--blob must be a JSON array');
+    expectNoAuthOrApi(context);
+  });
+
+  // A blob-only edit is the shape the agent needs when applying a card action:
+  // the state changes, the message text does not.
+  it('edits the blob alone, preserving the stored content', async () => {
+    const content = JSON.stringify([{ inline: ['Here is Thursday.'] }]);
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...READABLE_POST,
+        blob: STATEFUL_CARD_BLOB,
+        content,
+      }),
+    });
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        '--blob',
+        STATEFUL_CARD_BLOB_REV_4,
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost[0].blob).toBe(STATEFUL_CARD_BLOB_REV_4);
+    expect(context.calls.editPost[0].content).toEqual(JSON.parse(content));
+  });
+
+  it('refuses a blob-only edit when the stored content is unreadable', async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...READABLE_POST,
+        blob: STATEFUL_CARD_BLOB,
+        content: 'not json',
+      }),
+    });
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        '--blob',
+        STATEFUL_CARD_BLOB_REV_4,
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain('no readable content to preserve');
+    expect(context.calls.editPost).toEqual([]);
+  });
+
+  it('still requires a message when there is no --blob', async () => {
+    const context = makeDeps();
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.edit}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  // AC #3. Advisory rather than a lock — it compares against the read the
+  // command already does, and cannot close the window before the poke.
+  it('applies the edit when --expected-revision matches', async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...READABLE_POST,
+        blob: STATEFUL_CARD_BLOB,
+      }),
+    });
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        'Text',
+        '--blob',
+        STATEFUL_CARD_BLOB_REV_4,
+        '--expected-revision',
+        '3',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost).toHaveLength(1);
+  });
+
+  it('refuses the edit when --expected-revision is stale', async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...READABLE_POST,
+        blob: STATEFUL_CARD_BLOB,
+      }),
+    });
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        'Text',
+        '--blob',
+        STATEFUL_CARD_BLOB_REV_4,
+        '--expected-revision',
+        '2',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain('Expected revision 2');
+    expect(context.stderr()).toContain('is at 3');
+    expect(context.calls.editPost).toEqual([]);
+  });
+
+  // A card with no surface entry is at revision 0 by definition, so this is a
+  // match — it is the first write of state onto a freshly posted card.
+  it('treats --expected-revision 0 against a card with no surface as a match', async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...READABLE_POST,
+        blob: JSON.stringify([{ type: 'a2ui', version: 1, messages: [] }]),
+      }),
+    });
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        'Text',
+        '--blob',
+        STATEFUL_CARD_BLOB,
+        '--expected-revision',
+        '0',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost).toHaveLength(1);
+  });
+
+  it('refuses a non-zero --expected-revision against a card with no surface', async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...READABLE_POST,
+        blob: JSON.stringify([{ type: 'a2ui', version: 1, messages: [] }]),
+      }),
+    });
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        'Text',
+        '--blob',
+        STATEFUL_CARD_BLOB,
+        '--expected-revision',
+        '1',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.calls.editPost).toEqual([]);
+  });
+
+  it('rejects --expected-revision without --blob', async () => {
+    const context = makeDeps();
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        'Text',
+        '--expected-revision',
+        '3',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain('--expected-revision requires --blob');
+    expectNoAuthOrApi(context);
+  });
+
+  it('rejects a non-numeric --expected-revision', async () => {
+    const context = makeDeps();
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        'Text',
+        '--blob',
+        '[]',
+        '--expected-revision',
+        'latest',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain('non-negative integer');
+    expectNoAuthOrApi(context);
+  });
+
+  // The expensive mistake: %edit erases any entry not re-sent, so a replacement
+  // carrying only the new surface state deletes the card for every member.
+  it('refuses a --blob that drops the a2ui entry', async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...READABLE_POST,
+        blob: STATEFUL_CARD_BLOB,
+      }),
+    });
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        'Text',
+        '--blob',
+        JSON.stringify([SURFACE_ENTRY_REV_4]),
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain('deletes the card');
+    expect(context.calls.editPost).toEqual([]);
+  });
+
+  it('allows dropping the a2ui entry with --force', async () => {
+    const next = JSON.stringify([SURFACE_ENTRY_REV_4]);
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...READABLE_POST,
+        blob: STATEFUL_CARD_BLOB,
+      }),
+    });
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        'Text',
+        '--blob',
+        next,
+        '--force',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost[0].blob).toBe(next);
+  });
+
+  it('does not guard a post that never had an a2ui entry', async () => {
+    const next = JSON.stringify([SURFACE_ENTRY_REV_4]);
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({
+        ...READABLE_POST,
+        blob: JSON.stringify([
+          { type: 'file', version: 1, fileUri: 'u', size: 1 },
+        ]),
+      }),
+    });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', 'Text', '--blob', next],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.editPost[0].blob).toBe(next);
   });
 });
 

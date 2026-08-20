@@ -1826,4 +1826,45 @@ describe('editing preserves authorship shape', () => {
     const callSites = source.match(/\bapi\.editPost\(/g) ?? [];
     expect(callSites).toHaveLength(1);
   });
+
+  // AC #2 of the agent blob-edit work, and the frontend half of the policy in
+  // docs/tlon-apps/post-blobs.md: human edit flows preserve the blob rather
+  // than recomputing it. %edit stores the essay wholesale, so dropping this
+  // would erase an attachment, a voice memo, or a card on any text edit.
+  // Previously guarded only by a comment on the call site.
+  test('a text edit preserves the post blob', async () => {
+    const channel = (await db.getChannel({ id: BOT_CHANNEL }))!;
+    const blob = JSON.stringify([
+      { type: 'file', version: 1, fileUri: 'https://x/y.pdf', size: 12 },
+    ]);
+    const post = db.buildPost({
+      authorId: BOT_SHIP,
+      author: null,
+      channel,
+      sequenceNum: 7,
+      content: [{ inline: ['original'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [{ ...post, blob }] });
+    const stored = (await fetchPost(post.id))!;
+    expect(stored.blob).toBe(blob);
+
+    await editPost({ post: stored, content: [{ inline: ['edited'] }] });
+
+    const essays = vi
+      .mocked(poke)
+      .mock.calls.map(
+        ([payload]) =>
+          (
+            payload.json as {
+              channel?: {
+                action?: { post?: { edit?: { essay?: { blob?: unknown } } } };
+              };
+            }
+          ).channel?.action?.post?.edit?.essay
+      )
+      .filter((essay) => essay !== undefined);
+    expect(essays).toHaveLength(1);
+    expect(essays[0]?.blob).toBe(blob);
+  });
 });

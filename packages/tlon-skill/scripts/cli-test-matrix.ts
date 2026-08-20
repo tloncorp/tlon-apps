@@ -367,9 +367,42 @@ export const SPECIAL_INPUT_CASES: CliCase[] = [
     'Usage: tlon messages search'
   ),
   usageErrorCase(
-    'posts edit missing message',
+    'posts edit missing message and blob',
     ['posts', 'edit', 'chat/~host/channel', '170.141'],
     'Usage: tlon posts edit'
+  ),
+  refusalCase(
+    'posts edit --expected-revision without --blob',
+    [
+      'posts',
+      'edit',
+      'chat/~host/channel',
+      '170.141',
+      'Body',
+      '--expected-revision',
+      '3',
+    ],
+    '--expected-revision requires --blob'
+  ),
+  refusalCase(
+    'posts edit rejects a non-numeric --expected-revision',
+    [
+      'posts',
+      'edit',
+      'chat/~host/channel',
+      '170.141',
+      'Body',
+      '--blob',
+      '[]',
+      '--expected-revision',
+      'latest',
+    ],
+    'non-negative integer'
+  ),
+  refusalCase(
+    'posts edit rejects a malformed --blob',
+    ['posts', 'edit', 'chat/~host/channel', '170.141', 'Body', '--blob', '{}'],
+    '--blob must be a JSON array'
   ),
   usageErrorCase(
     'groups update missing update option',
