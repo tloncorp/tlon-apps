@@ -83,8 +83,25 @@ function toPosix(p) {
   return p.split(path.sep).join('/');
 }
 
+// `import('x')` may carry a no-substitution template literal, which has no
+// `.value`; read the single quasi so that form is checked too.
+function specifierOf(node) {
+  const src = node.source;
+  if (!src) {
+    return undefined;
+  }
+  if (typeof src.value === 'string') {
+    return src.value;
+  }
+  if (src.type === 'TemplateLiteral' && src.expressions.length === 0) {
+    const quasi = src.quasis[0];
+    return quasi && (quasi.value.cooked ?? quasi.value.raw);
+  }
+  return undefined;
+}
+
 function checkRestrictedPath(context, node) {
-  const source = node.source && node.source.value;
+  const source = specifierOf(node);
   if (typeof source !== 'string') {
     return;
   }
