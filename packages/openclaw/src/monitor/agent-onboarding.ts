@@ -13,6 +13,10 @@ import type {
 } from 'openclaw/plugin-sdk/types';
 
 import { type TlonCronService, getTlonCronService } from '../cron-telemetry.js';
+import {
+  noteIdFromDeliveryMessageId,
+  takeDeliveredNote,
+} from '../notes-delivery-state.js';
 import { sharedMap } from '../shared-state.js';
 import type { TlonOnboardingStep } from '../telemetry.js';
 import { makeA2UIBlob } from '../urbit/blob.js';
@@ -210,6 +214,7 @@ const firstRunCorrelations = sharedMap<
     provisionId: string;
     purposeId: string;
     topics: readonly string[];
+    enqueuedAt: number;
     /**
      * Bound in the module context that provisioned the run.
      *
@@ -897,7 +902,7 @@ export async function handleAgentOnboardingCronChanged(
     await failFirstRun(event.runId, event, deps);
     return;
   }
-  await completeFirstRun(event.runId, undefined, deps);
+  await completeFirstRun(event.runId, undefined, undefined, deps);
 }
 
 async function failFirstRun(
@@ -957,12 +962,13 @@ export async function handleAgentOnboardingMessageSent(
   deps: AgentOnboardingCronDeps = {}
 ): Promise<void> {
   if (event.success !== true) return;
-  await completeFirstRun(event.runId, event.to, deps);
+  await completeFirstRun(event.runId, event.to, event.messageId, deps);
 }
 
 async function completeFirstRun(
   runId: string | undefined,
   notebookNest: string | undefined,
+  deliveryMessageId: string | undefined,
   deps: AgentOnboardingCronDeps
 ) {
   const match = findFirstRunCorrelation(runId, notebookNest);
@@ -998,12 +1004,18 @@ async function completeFirstRun(
       history,
       'first-entry-ping',
       async () => {
-        const newest = await findNewestNoteWithRetry(
-          correlation.notebookNest,
-          runDeps.listNotes!,
-          deps.sleep ??
-            ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
-        );
+        const delivered = takeDeliveredNote(correlation.notebookNest, {
+          notBefore: correlation.enqueuedAt,
+          noteId: noteIdFromDeliveryMessageId(deliveryMessageId),
+        });
+        const newest =
+          delivered ??
+          (await findNewestNoteWithRetry(
+            correlation.notebookNest,
+            runDeps.listNotes!,
+            deps.sleep ??
+              ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
+          ));
         if (!newest) {
           correlation.context.log?.(
             '[tlon] first-entry reveal omitted its note reference: ' +
@@ -1139,6 +1151,7 @@ function rememberFirstRun(
     provisionId: request.provisionId,
     purposeId: request.purposeId,
     topics: request.topics,
+    enqueuedAt: Date.now(),
     bound: {
       fetchHistory: fetchChannelHistory,
       listNotes: notes.listNotes,

@@ -207,6 +207,7 @@ describe('sendMedia', () => {
 
 describe('notes delivery', () => {
   let tlonRuntimeOutbound: typeof import('./channel.runtime.js').tlonRuntimeOutbound;
+  let notesDeliveryTesting: typeof import('./notes-delivery-state.js').notesDeliveryTesting;
   let sendChannelPost: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
@@ -214,6 +215,8 @@ describe('notes delivery', () => {
     getNotebook.mockResolvedValue({ rootFolderId: 17 });
     createNote.mockResolvedValue(undefined);
     ({ tlonRuntimeOutbound } = await import('./channel.runtime.js'));
+    ({ notesDeliveryTesting } = await import('./notes-delivery-state.js'));
+    notesDeliveryTesting.clear();
     ({ sendChannelPost } = await import('./urbit/send.js'));
   });
 
@@ -222,6 +225,7 @@ describe('notes delivery', () => {
   });
 
   it('creates a Markdown note in the notebook root folder', async () => {
+    createNote.mockResolvedValue({ id: 42, title: 'Tuesday briefing' });
     const result = await tlonRuntimeOutbound.sendText({
       cfg: {} as never,
       to: 'notes/~ten/updates',
@@ -239,7 +243,10 @@ describe('notes delivery', () => {
       body: 'The full report.',
     });
     expect(sendChannelPost).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ channel: 'tlon' });
+    expect(result).toMatchObject({
+      channel: 'tlon',
+      messageId: '~zod/notes-42',
+    });
   });
 
   it('preserves a non-heading first line in the note body', async () => {
