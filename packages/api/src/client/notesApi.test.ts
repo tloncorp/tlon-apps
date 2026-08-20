@@ -600,18 +600,66 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     );
   });
 
-  test('createNote sends { folder, title, body } and never a v0 { type } body', async () => {
-    await notesV1.createNote({
-      flag: 'notes/~zod/blog',
-      folder: 3,
+  test('createNote returns the authoritative note from the write envelope', async () => {
+    requestJsonMock.mockResolvedValue({
+      requestId: '0vcreated',
+      body: {
+        type: 'ok',
+        response: {
+          type: 'update',
+          host: '~zod',
+          flagName: 'blog',
+          time: 1700000000000,
+          update: {
+            type: 'note-update',
+            host: '~zod',
+            flagName: 'blog',
+            noteUpdate: {
+              type: 'note-created',
+              id: 12,
+              note: {
+                id: 12,
+                folderId: 3,
+                title: 'T',
+                bodyMd: 'B',
+                revision: 1,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    await expect(
+      notesV1.createNote({
+        flag: 'notes/~zod/blog',
+        folder: 3,
+        title: 'T',
+        body: 'B',
+      })
+    ).resolves.toMatchObject({
+      id: 12,
+      folderId: 3,
       title: 'T',
-      body: 'B',
+      bodyMd: 'B',
+      revision: 1,
     });
     expect(requestJsonMock).toHaveBeenCalledWith(
       '/notes/~/v1/notebooks/~zod/blog/notes',
       'POST',
       { folder: 3, title: 'T', body: 'B' }
     );
+  });
+
+  test('createNote returns null when an older host omits the applied update', async () => {
+    await expect(
+      notesV1.createNote({
+        flag: 'notes/~zod/blog',
+        folder: 3,
+        title: 'T',
+        body: 'B',
+      })
+    ).resolves.toBeNull();
   });
 
   test('createNote pending preserves structured request status and note checks', async () => {

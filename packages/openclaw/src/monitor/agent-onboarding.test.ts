@@ -1,7 +1,11 @@
 import { A2UI, appendToPostBlob, parsePostBlob } from '@tloncorp/api';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TlonCronService } from '../cron-telemetry.js';
+import {
+  notesDeliveryTesting,
+  recordDeliveredNote,
+} from '../notes-delivery-state.js';
 import {
   agentOnboardingTesting,
   handleAgentOnboardingCronChanged,
@@ -25,6 +29,10 @@ const provision = {
   notebookNest: 'notes/~ten/updates',
   notebookTitle: 'Updates',
 };
+
+beforeEach(() => {
+  notesDeliveryTesting.clear();
+});
 
 describe('agent onboarding requests', () => {
   it('recognizes only canonical typed requests', () => {
@@ -1460,6 +1468,58 @@ describe('provision coordinator ordering', () => {
     );
   });
 
+  it('uses the authoritative created note when cron completion wins the hook race', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    const listNotes = vi.fn(async () => []);
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'first-run-authoritative' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision
+    );
+    recordDeliveredNote(provision.notebookNest, {
+      id: 77,
+      title: 'Authoritative entry',
+    });
+
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'job-1',
+        runId: 'first-run-authoritative',
+        status: 'ok',
+        delivered: true,
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        listNotes,
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      }
+    );
+
+    expect(listNotes).not.toHaveBeenCalled();
+    expect(sendPost.mock.calls[0]?.[0].story).toContainEqual({
+      block: {
+        cite: {
+          chan: { nest: provision.notebookNest, where: '/note/77' },
+        },
+      },
+    });
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'Authoritative entry'
+    );
+  });
+
   it('posts a terminal status when the initial run fails', async () => {
     const sendPost = vi.fn(async () => ({
       channel: 'tlon' as const,
@@ -1530,18 +1590,20 @@ describe('provision coordinator ordering', () => {
       provision
     );
 
+    const listNotes = vi.fn(async () => []);
     await handleAgentOnboardingMessageSent(
       {
         to: provision.notebookNest,
         content: '# First entry',
         success: true,
+        messageId: '~bot/notes-42',
         // The delivery hook can expose the nested model run rather than the
         // outer manual cron run, so the exact Notes target is the fallback.
         runId: 'nested-model-run',
       },
       {
         fetchHistory: vi.fn(async () => []),
-        listNotes: vi.fn(async () => []),
+        listNotes,
         sendPost,
         sleep: vi.fn(async () => {}),
       }
@@ -1561,6 +1623,14 @@ describe('provision coordinator ordering', () => {
     expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
       'Your first entry is ready'
     );
+    expect(sendPost.mock.calls[0]?.[0].story).toContainEqual({
+      block: {
+        cite: {
+          chan: { nest: provision.notebookNest, where: '/note/42' },
+        },
+      },
+    });
+    expect(listNotes).not.toHaveBeenCalled();
   });
 
   it('does not mutate cron or post when the sender is not the owner', async () => {
