@@ -130,7 +130,7 @@ describe('agent onboarding requests', () => {
       },
       {
         author: '~bot',
-        content: 'Want a quick tour of how groups and channels work?',
+        content: 'Want me to tell you more about what you can do here?',
         timestamp: 2,
         blob: appendToPostBlob(undefined, {
           type: 'tlon-agent-post-marker',
@@ -156,11 +156,9 @@ describe('agent onboarding requests', () => {
       )
     ).resolves.toBe(true);
     expect(sent).toHaveLength(1);
+    expect(JSON.stringify(sent[0])).toContain('Tlon is organized into groups');
     expect(JSON.stringify(sent[0])).toContain(
-      'In this group, General is where we talk'
-    );
-    expect(JSON.stringify(sent[0])).toContain(
-      'Want a quick rundown of what else I can do?'
+      'Want me to tell you more about what Tlonbot can do for you?'
     );
     expect(parsePostBlob(sent[0]!.blob)).toContainEqual(
       expect.objectContaining({
@@ -216,7 +214,7 @@ describe('agent onboarding requests', () => {
       },
       {
         author: '~bot',
-        content: 'Want a quick tour of how groups and channels work?',
+        content: 'Want me to tell you more about what you can do here?',
         timestamp: 2,
         blob: appendToPostBlob(undefined, {
           type: 'tlon-agent-post-marker',
@@ -1344,7 +1342,7 @@ describe('provision coordinator ordering', () => {
     );
     expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain('McpConnect');
     expect(JSON.stringify(sendPost.mock.calls[2]?.[0].story)).toContain(
-      'Want a quick tour of how groups and channels work?'
+      'Want me to tell you more about what you can do here?'
     );
     expect(
       JSON.stringify(parsePostBlob(sendPost.mock.calls[2]?.[0].blob))
