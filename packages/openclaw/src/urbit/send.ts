@@ -1,6 +1,7 @@
 import {
   addReaction as apiAddReaction,
   deletePost as apiDeletePost,
+  editPost as apiEditPost,
   removeReaction as apiRemoveReaction,
   sendPost as apiSendPost,
   sendReply as apiSendReply,
@@ -389,4 +390,73 @@ export async function deleteHeapPost({
   await apiDeletePost(nest, formattedCurioId, '');
 
   return { ok: true };
+}
+
+/**
+ * A post's carry-through metadata. Declared structurally because
+ * @tloncorp/api's `PostMetadata` lives in @tloncorp/shared and is not
+ * re-exported.
+ */
+/**
+ * Authorship shape for an edit.
+ *
+ * Nullable, unlike `BotProfile`: an edit carries the *shape* back so a
+ * bot-authored post keeps its "Bot" tag, and the display values come from
+ * contact sync rather than from here. Any object at all makes the author an
+ * object rather than a bare ship, which is what the tag keys off.
+ */
+export type EditAuthorProfile = {
+  nickname: string | null;
+  avatar: string | null;
+};
+
+export type EditPostMetadata = {
+  title?: string | null;
+  image?: string | null;
+  description?: string | null;
+  cover?: string | null;
+};
+
+/**
+ * Edit one of our own channel posts, replacing its blob.
+ *
+ * %edit submits the whole essay, so everything must be passed back: the
+ * content, the blob, and the authorship shape. Omitting the last rewrites a
+ * bot-authored post to a bare ship author and it loses its "Bot" tag; omitting
+ * the blob erases whatever the post carried.
+ */
+export async function editChannelPost({
+  fromShip,
+  nest,
+  postId,
+  story,
+  blob,
+  sentAt,
+  metadata,
+  botProfile,
+}: {
+  fromShip: string;
+  nest: string;
+  postId: string;
+  story: Story;
+  blob: string;
+  /** The post's original send time, which %edit keys the essay by. */
+  sentAt: number;
+  /**
+   * The post's existing metadata (a gallery item's title, say), read back and
+   * passed through — %edit would otherwise drop it.
+   */
+  metadata?: EditPostMetadata;
+  botProfile?: EditAuthorProfile;
+}) {
+  await apiEditPost({
+    channelId: nest,
+    postId: formatPostId(postId),
+    authorId: fromShip,
+    sentAt,
+    content: story,
+    blob,
+    metadata,
+    botProfile,
+  });
 }

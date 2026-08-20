@@ -98,6 +98,7 @@ import {
   isPermanentAuthenticationFailure,
 } from '../urbit/auth.js';
 import {
+  readInteractiveAction,
   serializeBlobField,
   serializeContextLensReferenceBlob,
 } from '../urbit/blob.js';
@@ -183,6 +184,11 @@ import {
   parseSseStaleThresholdMs,
   parseSseWatchdogIntervalMs,
 } from './sse-watchdog-config.js';
+import {
+  applyInteractiveAction,
+  makeSurfaceEditor,
+  makeTargetPostFetcher,
+} from './surface-apply.js';
 import {
   extractCites,
   formatModelName,
@@ -3826,6 +3832,36 @@ export async function monitorTlonProvider(
 
         // Check if sender is a known bot (for rate limiting later)
         const isKnownBot = isSenderBot || knownBotShips.has(senderShip);
+
+        // A tap on one of our interactive cards. Handled here, before the
+        // engagement gate, because pressing a button should not require an
+        // @-mention — and deterministically rather than by waking the model,
+        // so two people tapping the same card agree without a turn in between.
+        // See docs/tlon-apps/interactive-surfaces.md.
+        const surfaceAction = readInteractiveAction(content.blob);
+        if (surfaceAction) {
+          try {
+            await applyInteractiveAction({
+              action: surfaceAction,
+              actorShip: senderShip,
+              channelNest: nest,
+              deps: {
+                fetchTargetPost: makeTargetPostFetcher(api, runtime),
+                editPost: makeSurfaceEditor(botShipName),
+                botShip: botShipName,
+                runtime,
+              },
+            });
+          } catch (error) {
+            runtime.error?.(
+              `[tlon] Failed to apply surface action: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            );
+          }
+          // Either way this reply is machinery, not conversation.
+          return;
+        }
 
         // Get thread info early for participation check
         const seal = isThreadReply

@@ -757,7 +757,10 @@ export function buildPendingApprovalsA2UIBlob(
     );
   }
 
-  return makeA2UIBlob('pending-approvals', 'root', components);
+  // Per message instance, not per card kind: a surfaceId has to be unique
+  // across posts, or anything keying card state by it collides between two
+  // pending-approval cards. See docs/tlon-apps/interactive-surfaces.md.
+  return makeA2UIBlob(`pending-approvals-${randomUUID()}`, 'root', components);
 }
 
 export function buildPendingApprovalsResponse(

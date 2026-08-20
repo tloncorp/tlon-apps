@@ -1,4 +1,5 @@
 import { A2UI } from '@tloncorp/api';
+import { randomUUID } from 'node:crypto';
 
 import { makeA2UIBlob, serializeBlobField } from '../urbit/blob.js';
 
@@ -154,5 +155,8 @@ export const buildMigrateCard: BuildMigrateCard = (command, opts) => {
     { id: 'actionLabel', component: 'Text', text: copy.actionLabel },
   ];
 
-  return serializeBlobField(makeA2UIBlob('migrate-action', 'root', components));
+  // Per message instance — see the note in approval.ts.
+  return serializeBlobField(
+    makeA2UIBlob(`migrate-action-${randomUUID()}`, 'root', components)
+  );
 };
