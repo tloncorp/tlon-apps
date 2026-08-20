@@ -119,7 +119,6 @@
 ::
 ++  install
   |=  [=id:k name=term gmeta=data:meta agent=(unit @p)]
-|=  [=id:k name=term gmeta=data:meta]
   ^+  cor
   ?>  ((sane %tas) name)
   =/  =kit:k  (~(got by kits) id)

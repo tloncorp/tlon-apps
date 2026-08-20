@@ -442,7 +442,7 @@
   ;<  caz=(list card)  bind:m
     %-  do-poke
     :-  %kits-action-1
-    !>(`action:v1:k`[%install %test-kit %winter-club group-meta])
+    !>(`action:v1:k`[%install %test-kit %winter-club group-meta `bot-ship])
   =/  winter  `flag:g`[our-ship %winter-club]
   %+  ex-cards  caz
   :~  %-  ex-poke-wire  /install/group/winter-club
