@@ -47,9 +47,13 @@ minimumReleaseAge: 0
 verifyDepsBeforeRun: false
 PNPM_EOF
 pnpm install
-pnpm build
+# Overrides before the build, not after: openclaw's own source uses @tloncorp/api
+# exports that exist only in the local checkout, so building against the
+# registry copy fails on missing members. The overrides only rewrite
+# node_modules, so nothing here depends on the build having run.
 ./dev/build-local-api-override.sh
 ./dev/build-local-skill-override.sh
+pnpm build
 
 # Expose tlon CLI to PATH
 TLON_BIN_DIR="/workspace/tlon/node_modules/.bin"
