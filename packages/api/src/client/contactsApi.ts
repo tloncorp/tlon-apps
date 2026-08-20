@@ -469,29 +469,6 @@ export const extractBotInfoValue = (field: unknown): string | null => {
   return candidate.value;
 };
 
-// Fetch a single peer's full v1 contact profile. Used to backfill the
-// identity claim for a bot this ship has never met — the bulk directory
-// scry only exports peers it already holds a profile for. Returns null
-// when the ship is unknown (404) or the scry fails.
-export const getContactProfile = async (
-  ship: string
-): Promise<db.Contact | null> => {
-  try {
-    // No `.json` suffix — the transport appends it.
-    const contact = await scry<ub.ContactBookProfile>({
-      app: 'contacts',
-      path: `/v1/contact/${ship}`,
-    });
-    if (!contact || typeof contact !== 'object') {
-      return null;
-    }
-    return v1PeerToClientProfile(ship, contact);
-  } catch (e) {
-    logger.log('getContactProfile failed', e);
-    return null;
-  }
-};
-
 export const v1PeersToClientProfiles = (
   peers: ub.ContactsAllScryResult1,
   config?: {

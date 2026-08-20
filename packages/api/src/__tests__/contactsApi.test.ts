@@ -6,11 +6,10 @@ import {
   contactToClientProfile,
   directoryToClientProfiles,
   extractBotInfoValue,
-  getContactProfile,
   subscribeToContactUpdates,
   v1PeerToClientProfile,
 } from '../client/contactsApi';
-import { scry, subscribe } from '../client/urbit';
+import { subscribe } from '../client/urbit';
 import type { ContactBookProfile } from '../urbit/contact';
 
 vi.mock('../client/urbit', async () => {
@@ -18,12 +17,10 @@ vi.mock('../client/urbit', async () => {
     await vi.importActual<typeof import('../client/urbit')>('../client/urbit');
   return {
     ...actual,
-    scry: vi.fn(),
     subscribe: vi.fn(),
   };
 });
 
-const scryMock = scry as unknown as ReturnType<typeof vi.fn>;
 const subscribeMock = subscribe as unknown as ReturnType<typeof vi.fn>;
 
 const directoryResponse = {
@@ -238,10 +235,9 @@ describe('bot-info contact field', () => {
   });
 });
 
-// The carriers that keep a bot's identity claim current between directory
-// syncs: the live `/v1/news` subscription and the targeted v1 scry (which the
-// backfill uses for a never-met bot the directory cannot include).
-describe('bot-info sync carriers', () => {
+// The carrier that keeps a bot's identity claim current between directory
+// syncs: the live `/v1/news` subscription.
+describe('bot-info sync carrier', () => {
   const claim = JSON.stringify({
     v: 1,
     harness: 'openclaw',
@@ -300,25 +296,5 @@ describe('bot-info sync carriers', () => {
       type: 'upsertContact',
       contact: { id: '~bot', botInfo: null },
     });
-  });
-
-  test('getContactProfile scries the un-suffixed v1 contact path', async () => {
-    scryMock.mockResolvedValueOnce({
-      'bot-info': { type: 'text', value: claim },
-    });
-
-    const contact = await getContactProfile('~bot');
-
-    // No `.json` — the transport appends it; a suffixed path 404s.
-    expect(scryMock).toHaveBeenCalledWith({
-      app: 'contacts',
-      path: '/v1/contact/~bot',
-    });
-    expect(contact?.botInfo).toBe(claim);
-  });
-
-  test('getContactProfile returns null when the scry fails', async () => {
-    scryMock.mockRejectedValueOnce(new Error('404'));
-    expect(await getContactProfile('~bot')).toBeNull();
   });
 });

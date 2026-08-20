@@ -2,119 +2,13 @@ import * as api from '@tloncorp/api';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import * as GroupActions from './groupActions';
-import { getSession } from './session';
 import { syncContacts } from './sync/syncContacts';
 import { syncGroup } from './sync/syncGroup';
 
 const logger = createDevLogger('ContactActions', false);
-
-// First-contact backfill for bot identity claims. Bulk sync (`/v1/directory`)
-// carries the claim, but the directory only exports peers whose profile the
-// ship already holds — a bot this ship has never met has no entry, and waiting
-// for the bot's next republish could take weeks. %meet and fetch the ship's
-// full v1 profile on demand instead.
-const BOT_INFO_BACKFILL_MAX_ATTEMPTS = 3;
-// Process-lifetime bookkeeping, keyed by `${currentUserId}:${ship}` so a
-// switched account starts fresh. Nothing else resets it: a ship that burns
-// the cap (e.g. three fetches while offline) stays parked on the default
-// list until the next app start — accepted over resetting on some session
-// boundary, which is machinery for a self-healing cosmetic.
-const botInfoBackfillInFlight = new Set<string>();
-const botInfoBackfillAttempts = new Map<string, number>();
-
-export async function ensureBotInfoSynced(ship: string): Promise<void> {
-  let reservedKey: string | null = null;
-  try {
-    const currentUserId = api.getCurrentUserId();
-    const key = `${currentUserId}:${ship}`;
-    // Dedupe in-flight attempts; the %meet poke and scry are otherwise
-    // repeated on every hook evaluation while the query is settled.
-    if (botInfoBackfillInFlight.has(key)) {
-      return;
-    }
-    const attempts = botInfoBackfillAttempts.get(key) ?? 0;
-    if (attempts >= BOT_INFO_BACKFILL_MAX_ATTEMPTS) {
-      return;
-    }
-    // Reserved before the first await: two callers that both got past the
-    // check above would otherwise both reach the network and share one
-    // attempt count.
-    botInfoBackfillInFlight.add(key);
-    reservedKey = key;
-
-    const contact = await db.getContact({ id: ship });
-    // Only a *usable* claim means there is nothing to fetch: a stale,
-    // malformed or wrong-version value reads as no claim everywhere else (the
-    // hook falls back to the default list), so it must not pin the backfill
-    // off either.
-    if (domain.parseBotInfo(contact?.botInfo)) {
-      return;
-    }
-    // A row we hold is backfillable only when it is known to be a
-    // non-contact (`isContact === false`, not merely null — the column is
-    // nullable and partial rows really occur, e.g. blocked-contact
-    // inserts). Anything less proves nothing about which writer made the
-    // row, and the bot may still be a contact-book entry, whose per-ship
-    // scry merges the user's own `mod` overlay and must never become the
-    // claim's source. Contact-book bots also already arrive lossless via
-    // the v1 /book sync.
-    if (contact && contact.isContact !== false) {
-      return;
-    }
-    if (getSession()?.phase !== 'ready') {
-      // Both ways of missing a claim need the initial contacts sync first. No
-      // row at all is the never-met bot this backfill exists for: the bulk
-      // source (`/v1/directory`) omits peers whose profile the ship does not
-      // hold, so such a bot never gets a row from sync. Absence only proves
-      // "not in the contact book" once the initial contacts sync has run,
-      // though — before that everything is absent, and a present row's
-      // `isContact === false` is just as unverified, since it can come from
-      // the stale localStorage snapshot. The session phase is the
-      // completion signal the store already keeps, and it covers both write
-      // paths: contacts land in the high-priority phase, or (when a
-      // localStorage snapshot deferred them) among the low-priority promises,
-      // and both have finished by `ready`. Using it beats adding a
-      // sync-progress mechanism; the residue it leaves — a sync that failed
-      // outright still reaches `ready` — is bounded by the attempt cap below.
-      // No dedicated "contacts written" signal was added for that residue:
-      // contaminating a claim needs the user's own overlay to carry a
-      // `bot-info` key (no client writes one) *and* a partial sync failure,
-      // and `contact-uni` passes the base claim through whenever the overlay
-      // lacks the key — a cost the attempt cap already bounds.
-      return;
-    }
-
-    // Counted before the network work, so a failure mid-flight still burns an
-    // attempt; success or empty results are never cached as done, so later
-    // hook evaluations retry up to the cap.
-    botInfoBackfillAttempts.set(key, attempts + 1);
-    // Ensure we are subscribed to the ship's profile updates (%meet). The
-    // first scry can race the remote watch and miss; when it does, the
-    // subscription delivers the profile later and failures stay retryable.
-    await api.syncUserProfiles([ship]);
-    const profile = await api.getContactProfile(ship);
-    if (profile) {
-      await db.upsertContact(profile);
-    }
-  } catch (e) {
-    // Silent by design — the popup degrades to the default list.
-    logger.log('ensureBotInfoSynced failed', e);
-  } finally {
-    if (reservedKey !== null) {
-      botInfoBackfillInFlight.delete(reservedKey);
-    }
-  }
-}
-
-/** Test-only: clear the process-lifetime backfill bookkeeping. */
-export function resetBotInfoBackfillState() {
-  botInfoBackfillInFlight.clear();
-  botInfoBackfillAttempts.clear();
-}
 
 export async function addContact(contactId: string) {
   logger.trackEvent(AnalyticsEvent.ActionContactAdded, { count: 1 });

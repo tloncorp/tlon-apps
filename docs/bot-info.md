@@ -93,7 +93,7 @@ runnable via each runtime's existing poke path or curl against Eyre. Clients the
 
 -   The raw JSON is stored on the contact row (`contacts.bot_info`) and validated only at read.
 -   `useBotSlashCommandManifest` (`packages/shared/src/store/useBotSlashCommandManifest.ts`) resolves the bot ship for DM channels, parses the claim, and passes `harness` to `getStaticSlashCommandManifest`. Gating (which conversations get a popup at all) is unchanged.
--   First-contact backfill: bulk sync (`/v1/directory`) carries the claim, but the directory only exports peers the ship already holds a profile for — a never-met bot has no entry, so the client `%meet`s and fetches `/v1/contact/{ship}` on demand for qualifying bot channels that lack a claim.
+-   Scope: the client reads whatever claim ordinary contact sync has already delivered — the contact book, `/v1/directory`, the `%meet` a profile view fires, or later subscription facts. It fetches nothing of its own for the claim. A bot this ship has never met has no contact record to read, so its conversations show the default (OpenClaw) list until one of those paths delivers its profile — the same degradation as a missing nickname or avatar for an unmet peer, and permanently healed by the first profile view.
 
 ## Command lists
 

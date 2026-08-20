@@ -1,12 +1,10 @@
 import * as api from '@tloncorp/api';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import * as db from '../db';
 import * as domain from '../domain';
 import * as logic from '../logic';
-import { ensureBotInfoSynced } from './contactActions';
 import { useChannelHasBotPost, useContact } from './dbHooks';
-import { useCurrentSession } from './session';
 
 // The bot's identity claim lives on its own contact record. DMs carry the bot
 // ship as contactId; the home-group chat is a group channel with no contactId,
@@ -29,23 +27,6 @@ export function selectBotSlashCommandManifest(args: {
   }
   return domain.getStaticSlashCommandManifest(
     domain.parseBotInfo(args.botInfo)?.harness
-  );
-}
-
-// First-contact backfill fires only once the contact query has settled without
-// a usable claim — never on first-render `undefined` while it is still
-// loading, which would cause pointless sync traffic for already-cached claims.
-export function shouldBackfillBotInfo(args: {
-  enabled: boolean;
-  botShipId: string | null;
-  contactQuerySettled: boolean;
-  hasBotInfo: boolean;
-}): boolean {
-  return (
-    args.enabled &&
-    !!args.botShipId &&
-    args.contactQuerySettled &&
-    !args.hasBotInfo
   );
 }
 
@@ -85,50 +66,10 @@ export const useBotSlashCommandManifest = (
   const enabled = isStructuralBotChannel || (isDm && hasBotPosts === true);
 
   const botShipId = resolveBotManifestShipId(channel);
-  const { data: contact, isFetched } = useContact({
+  const { data: contact } = useContact({
     id: botShipId ?? '',
     enabled: enabled && !!botShipId,
   });
-
-  const botInfo = useMemo(
-    () => domain.parseBotInfo(contact?.botInfo),
-    [contact?.botInfo]
-  );
-
-  // The backfill reads a row's raw isContact tri-state (true / false /
-  // null-or-absent), so it is a dependency: a fresh-start sync can settle the
-  // query before the peer row exists, and both the row's later insertion and a
-  // null → false transition have to re-trigger the evaluation. Collapsing null
-  // and false here would swallow the latter. The sync phase joins them because
-  // a never-met bot's *absent* row is only backfillable once contacts sync has
-  // settled (see ensureBotInfoSynced) — nothing about the absent row itself
-  // changes when that happens, so without this the gate would only ever be
-  // re-tested on a remount.
-  const hasContactRow = !!contact;
-  const contactIsContact = contact?.isContact;
-  const syncPhase = useCurrentSession()?.phase;
-
-  useEffect(() => {
-    if (
-      !shouldBackfillBotInfo({
-        enabled,
-        botShipId,
-        contactQuerySettled: isFetched,
-        hasBotInfo: !!botInfo,
-      })
-    ) {
-      return;
-    }
-    ensureBotInfoSynced(botShipId!);
-  }, [
-    enabled,
-    botShipId,
-    isFetched,
-    botInfo,
-    hasContactRow,
-    contactIsContact,
-    syncPhase,
-  ]);
 
   return useMemo(
     () =>

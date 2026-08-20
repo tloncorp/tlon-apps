@@ -5,7 +5,6 @@ import { getStaticSlashCommandManifest } from '../domain';
 import {
   resolveBotManifestShipId,
   selectBotSlashCommandManifest,
-  shouldBackfillBotInfo,
 } from './useBotSlashCommandManifest';
 
 const staticOpenclaw = getStaticSlashCommandManifest('openclaw');
@@ -88,36 +87,5 @@ describe('resolveBotManifestShipId', () => {
   test('null/undefined channels resolve to null', () => {
     expect(resolveBotManifestShipId(null)).toBeNull();
     expect(resolveBotManifestShipId(undefined)).toBeNull();
-  });
-});
-
-describe('shouldBackfillBotInfo', () => {
-  const base = {
-    enabled: true,
-    botShipId: '~bot',
-    contactQuerySettled: true,
-    hasBotInfo: false,
-  };
-
-  test('fires once the contact query settled without a claim', () => {
-    expect(shouldBackfillBotInfo(base)).toBe(true);
-  });
-
-  test('does not fire while the contact query is still loading', () => {
-    expect(shouldBackfillBotInfo({ ...base, contactQuerySettled: false })).toBe(
-      false
-    );
-  });
-
-  test('does not fire when a claim is already present', () => {
-    expect(shouldBackfillBotInfo({ ...base, hasBotInfo: true })).toBe(false);
-  });
-
-  test('does not fire when the channel is not bot-enabled', () => {
-    expect(shouldBackfillBotInfo({ ...base, enabled: false })).toBe(false);
-  });
-
-  test('does not fire without a bot ship to fetch (home-group chat)', () => {
-    expect(shouldBackfillBotInfo({ ...base, botShipId: null })).toBe(false);
   });
 });
