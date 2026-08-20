@@ -100,7 +100,6 @@ const postOnceFlights = new Map<string, Promise<void>>();
 const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
 const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
 const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 5_500;
-const SERVICES_TO_FOLLOW_UP_DELAY_MS = 12_000;
 const FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS = 5;
 const FIRST_ENTRY_NOTE_LOOKUP_DELAY_MS = 500;
 const FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
@@ -351,8 +350,6 @@ export async function scanAgentOnboardingChannel(
           candidate.request && candidate.request.groupId === context.groupId
         )
     );
-  if (ownerRequests.length === 0) return false;
-
   const newest = (type: AgentRequest['type']) =>
     ownerRequests
       .filter((candidate) => candidate.request.type === type)
@@ -408,9 +405,18 @@ function pendingDurableReply(
     const active =
       markerPost(history, botShip, 'bot-tour-offer') ??
       markerPost(history, botShip, 'onboarding-follow-up');
-    if (!active) return null;
-    const reply = newestOwnerReplyAfter(history, ownerShip, active.timestamp);
-    return reply && yesNoDecision(reply.content) ? reply : null;
+    if (active) {
+      const reply = newestOwnerReplyAfter(history, ownerShip, active.timestamp);
+      return reply && yesNoDecision(reply.content) ? reply : null;
+    }
+    const servicesCard = markerPost(history, botShip, 'services-card');
+    if (!servicesCard) return null;
+    const reply = newestOwnerReplyAfter(
+      history,
+      ownerShip,
+      servicesCard.timestamp
+    );
+    return reply && isServicesCompleteReply(reply.content) ? reply : null;
   }
   // Purpose replies can be recovered from durable text. Topic confirmation
   // cannot: the owner client must attach its local timezone to the provision
@@ -482,9 +488,9 @@ async function advanceDurableConversation(
   presentation: OnboardingPresentation
 ): Promise<boolean> {
   // The post-setup tour is the one bounded exception to handing the channel
-  // back to ordinary chat after provision. It only consumes an exact Yes/No
-  // reply while one of its durable prompts is active; every other message is
-  // left to the normal agent conversation.
+  // back to ordinary chat after provision. It consumes the services card's
+  // exact completion reply and exact Yes/No replies while the two durable tour
+  // prompts are active; every other message is left to ordinary conversation.
   if (hasProvisionAck(history, context.botShip)) {
     return advanceOrientationConversation(context, history, deps, presentation);
   }
@@ -546,6 +552,15 @@ function yesNoDecision(text: string): 'yes' | 'no' | null {
   return null;
 }
 
+function isServicesCompleteReply(text: string): boolean {
+  const normalized = text.trim().toLocaleLowerCase();
+  return (
+    normalized === 'done' ||
+    normalized === 'skip' ||
+    normalized === 'skip for now'
+  );
+}
+
 async function advanceOrientationConversation(
   context: AgentOnboardingContext,
   history: TlonHistoryEntry[],
@@ -587,7 +602,35 @@ async function advanceOrientationConversation(
     context.botShip,
     'onboarding-follow-up'
   );
-  if (!appTourOffer) return false;
+  if (!appTourOffer) {
+    const servicesCard = markerPost(history, context.botShip, 'services-card');
+    if (!servicesCard) return false;
+    const reply = newestOwnerReplyAfter(
+      history,
+      context.ownerShip!,
+      servicesCard.timestamp
+    );
+    if (!reply || !isServicesCompleteReply(reply.content)) return false;
+
+    await postOnce(
+      context,
+      history,
+      'onboarding-follow-up',
+      async () => ({
+        text: AGENT_ONBOARDING_APP_TOUR_PROMPT,
+        blob: appendToPostBlob(
+          undefined,
+          buildTourChoiceSurface(
+            `agent-onboarding-app-tour:${context.groupId!}`,
+            AGENT_ONBOARDING_APP_TOUR_PROMPT
+          )
+        ),
+      }),
+      deps,
+      presentation
+    );
+    return true;
+  }
   const reply = newestOwnerReplyAfter(
     history,
     context.ownerShip!,
@@ -1010,17 +1053,20 @@ async function completeFirstRun(
       correlation.context,
       history,
       'services-card',
-      async () => ({
-        text: servicesPitch(correlation.purposeId),
-        blob: appendToPostBlob(
-          undefined,
-          buildServicesSurface(
-            servicesPitch(correlation.purposeId),
-            correlation.context.groupId!,
-            correlation.provisionId
-          )
-        ),
-      }),
+      async () => {
+        const message = `${servicesPitch(correlation.purposeId)}\n\nConnect anything you’d like, or tap Done to continue.`;
+        return {
+          text: message,
+          blob: appendToPostBlob(
+            undefined,
+            buildServicesSurface(
+              message,
+              correlation.context.groupId!,
+              correlation.provisionId
+            )
+          ),
+        };
+      },
       runDeps
     );
     correlation.context.trackStep?.({
@@ -1028,25 +1074,6 @@ async function completeFirstRun(
       purposeId: correlation.purposeId,
       notebookNest: correlation.notebookNest,
     });
-    await (
-      deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
-    )(SERVICES_TO_FOLLOW_UP_DELAY_MS);
-    await postOnce(
-      correlation.context,
-      history,
-      'onboarding-follow-up',
-      async () => ({
-        text: AGENT_ONBOARDING_APP_TOUR_PROMPT,
-        blob: appendToPostBlob(
-          undefined,
-          buildTourChoiceSurface(
-            `agent-onboarding-app-tour:${correlation.context.groupId!}`,
-            AGENT_ONBOARDING_APP_TOUR_PROMPT
-          )
-        ),
-      }),
-      runDeps
-    );
   } catch (error) {
     firstRunCorrelations.set(correlationRunId, correlation);
     throw error;
@@ -1734,7 +1761,11 @@ function buildServicesSurface(
 ) {
   return withFallbackStory(
     makeA2UIBlob('agent-services', 'root', [
-      { id: 'root', component: 'Column', children: ['pitch', 'providers'] },
+      {
+        id: 'root',
+        component: 'Column',
+        children: ['pitch', 'providers', 'done'],
+      },
       { id: 'pitch', component: 'Text', text: pitch },
       {
         id: 'providers',
@@ -1757,6 +1788,14 @@ function buildServicesSurface(
           },
         },
       },
+      {
+        id: 'done',
+        component: 'Button',
+        child: 'done-label',
+        variant: 'primary',
+        action: choiceAction('Done'),
+      },
+      { id: 'done-label', component: 'Text', text: 'Done' },
     ])
   );
 }
