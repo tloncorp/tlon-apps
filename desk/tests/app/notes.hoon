@@ -512,7 +512,7 @@
   ;<  =bowl:gall  b  get-bowl
   =/  gf=flag:n  [~zod 'my-group']
   =/  rdrs=(set @tas)  (silt `(list @tas)`~[%admin %member])
-  ;<  caz=(list card)  b  (poke-a [%create-group-notebook 'Group NB' gf rdrs])
+  ;<  caz=(list card)  b  (poke-a [%create-group-notebook 'Group NB' gf rdrs ~])
   |=  s2=state
   ?.  (has-poke-mark caz %group-action-4)
     |+['group-mode create did not poke %groups']~
@@ -636,7 +636,7 @@
   ;<  ~  b  init-zod
   ;<  =bowl:gall  b  get-bowl
   ;<  ~  b  (set-scry-gate can-read-allow)
-  ;<  *  b  (poke-a [%create-group-notebook 'GNB' gf ~])
+  ;<  *  b  (poke-a [%create-group-notebook 'GNB' gf ~ ~])
   =/  f=flag:n  (nb-flag our.bowl 'GNB' 1)
   ::  ~bus joins while group access holds → recorded %editor
   ;<  *  b  (set-src ~bus)
@@ -892,7 +892,7 @@
   =/  gf=flag:n  [~zod 'grp']
   ;<  ~  b  init-zod
   ;<  =bowl:gall  b  get-bowl
-  ;<  *  b  (poke-a [%create-group-notebook 'GNB' gf ~])
+  ;<  *  b  (poke-a [%create-group-notebook 'GNB' gf ~ ~])
   =/  f=flag:n  (nb-flag our.bowl 'GNB' 1)
   ;<  caz=(list card)  b  (poke-a [%notebook f [%delete ~]])
   |=  s2=state
@@ -3013,7 +3013,7 @@
   ;<  ~  bind:m  init-zod
   ;<  =bowl:gall  bind:m  get-bowl
   ;<  ~  bind:m  (set-scry-gate (said-group-scry & &))
-  ;<  *  bind:m  (poke-a %create-group-notebook 'GNB' [~zod %grp] ~)
+  ;<  *  bind:m  (poke-a %create-group-notebook 'GNB' [~zod %grp] ~ ~)
   =/  f=flag:n  (nb-flag our.bowl 'GNB' 1)
   ;<  *  bind:m  (poke-a %notebook f [%create-note 2 'T' 'B'])
   (pure:m f bowl)

@@ -134,7 +134,12 @@
       ::  %create-group-notebook: born inside a group. defers read perms to
       ::  the group; readers are the group role-ids the channel is restricted
       ::  to (empty = open). forwarded opaquely to %groups on registration.
-      [%create-group-notebook title=@t group=flag readers=(set @tas)]
+      ::
+      ::    .name: the flag name to use, instead of slugifying .title. An
+      ::    installer that has to record the nest in the same event it pokes
+      ::    us cannot predict a slug derived from our own counter, so it
+      ::    supplies one. Absent keeps the slugified behaviour.
+      [%create-group-notebook title=@t group=flag readers=(set @tas) name=(unit @tas)]
       [%join =flag]
       [%leave =flag]
       [%accept-invite =flag]

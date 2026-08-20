@@ -4,7 +4,7 @@
 ::    places + blob config + ledger), setup completion, uninstall, and
 ::    the ship-to-ship fetch subscription.
 ::
-/-  k=kits, g=groups, c=channels, meta
+/-  k=kits, g=groups, c=channels, n=notes, meta
 /+  *test-agent, j=kits-json
 /=  agent  /app/kits
 |%
@@ -28,6 +28,28 @@
       ~[['scaffolds/Profile.md' 'Test/Profile.md']]
       ~
   ==
+::  a kit whose durable place is served by %notes rather than %channels
+::
+++  notes-manifest
+  ^-  manifest:k
+  :*  %notes-kit
+      'Notes Kit'
+      [0 1 0]
+      our-ship
+      'A kit with a notes place'
+      ~
+      %group
+      :~  [%talk %chat 'Talk' 'Chat about it']
+          [%plans %notes 'Plans' 'The durable record']
+      ==
+      ~[['instructions/runner.md' %group ~ %ambient]]
+      ~
+      ~
+      ~
+  ==
+++  notes-kit
+  ^-  kit:k
+  [notes-manifest (malt ~[['instructions/runner.md' '# Runner']])]
 ++  fix-kit
   ^-  kit:k
   [fix-manifest (malt ~[['instructions/runner.md' '# Runner']])]
@@ -35,7 +57,7 @@
   ^-  data:meta
   ['Summer Club' '' '' '']
 ++  club-flag  `flag:g`[our-ship %summer-club]
-++  club-nest  `nest:c`[%chat our-ship %discussion]
+++  club-nest  `nest:v1:k`[%chat our-ship %discussion-summer-club]
 ++  fix-install
   ^-  install:k
   :*  %test-kit
@@ -99,7 +121,7 @@
           [our-ship %channels]
           %channel-action-2
           !>  ^-  a-channels:c
-          [%create [%chat %discussion club-flag 'Discussion' 'Talk about it' ~ ~ ~]]
+          [%create [%chat %discussion-summer-club club-flag 'Discussion' 'Talk about it' ~ ~ ~]]
       ==
       %-  ex-poke
       :*  /install/blob/summer-club
@@ -275,4 +297,106 @@
   ;<  ~  bind:m  setup
   %+  ex-scry-result  /x/v1/installs
   !>(`update:v1:k`[%installs ~])
+::
+::  a place served by %notes is created through %notes, not %channels, and
+::  its nest is recorded in the blob just like a %channels-backed one. the
+::  installer supplies the name so it can write that nest in the same event
+::  it pokes the host — %notes would otherwise slug its own flag off an
+::  internal counter no caller can predict.
+::
+++  test-install-notes-place-goes-to-notes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-poke %kits-action-1 !>(`action:v1:k`[%add notes-kit]))
+  ;<  caz=(list card)  bind:m
+    %-  do-poke
+    :-  %kits-action-1
+    !>(`action:v1:k`[%install %notes-kit %house group-meta])
+  =/  house  `flag:g`[our-ship %house]
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /install/group/house
+          [our-ship %groups]
+          %group-command
+          !>(`c-groups:g`[%create [%house group-meta %private [~ ~] ~]])
+      ==
+      %-  ex-poke
+      :*  /install/place/house/talk
+          [our-ship %channels]
+          %channel-action-2
+          !>  ^-  a-channels:c
+          [%create [%chat %talk-house house 'Talk' 'Chat about it' ~ ~ ~]]
+      ==
+      %-  ex-poke
+      :*  /install/place/house/plans
+          [our-ship %notes]
+          %notes-action-1
+          !>  ^-  a-notes:n
+          [%create-group-notebook 'Plans' house ~ `%plans-house]
+      ==
+      %-  ex-poke-wire  /install/blob/house
+      %-  ex-fact-paths  ~[/v1/updates]
+  ==
+::
+::  the blob records the notes nest under the kit's abstract place name, so
+::  a reader resolves `plans` to a notes channel without knowing the kind
+::
+++  test-notes-place-recorded-in-ledger
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-poke %kits-action-1 !>(`action:v1:k`[%add notes-kit]))
+  ;<  *  bind:m
+    %-  do-poke
+    :-  %kits-action-1
+    !>(`action:v1:k`[%install %notes-kit %house group-meta])
+  =/  house  `flag:g`[our-ship %house]
+  =/  =install:k
+    :*  %notes-kit
+        [0 1 0]
+        our-ship
+        %-  malt
+        ^-  (list [@tas nest:v1:k])
+        :~  [%talk [%chat our-ship %talk-house]]
+            [%plans [%notes our-ship %plans-house]]
+        ==
+        %pending
+        ~2024.1.1
+    ==
+  %+  ex-scry-result  /x/v1/installs
+  !>(`update:v1:k`[%installs (malt ~[[house install]])])
+::
+::  the same kit installed into two groups does not collide. place names are
+::  scoped by the group, so the second install's channel creation is a
+::  distinct nest rather than a nack against an existing one — +install logs
+::  nacks rather than unwinding, so a collision left a group whose blob named
+::  channels that were never made.
+::
+++  test-two-installs-do-not-collide
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  do-add
+  ;<  *  bind:m  do-install
+  ;<  caz=(list card)  bind:m
+    %-  do-poke
+    :-  %kits-action-1
+    !>(`action:v1:k`[%install %test-kit %winter-club group-meta])
+  =/  winter  `flag:g`[our-ship %winter-club]
+  %+  ex-cards  caz
+  :~  %-  ex-poke-wire  /install/group/winter-club
+      %-  ex-poke
+      :*  /install/place/winter-club/discussion
+          [our-ship %channels]
+          %channel-action-2
+          !>  ^-  a-channels:c
+          [%create [%chat %discussion-winter-club winter 'Discussion' 'Talk about it' ~ ~ ~]]
+      ==
+      %-  ex-poke-wire  /install/blob/winter-club
+      %-  ex-fact-paths  ~[/v1/updates]
+  ==
 --

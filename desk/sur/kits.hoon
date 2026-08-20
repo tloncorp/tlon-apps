@@ -14,14 +14,26 @@
 ::  $vers: kit content version (semver triple)
 ::
 +$  vers  [major=@ud minor=@ud patch=@ud]
+::  $nest: channel id with an unrestricted kind
+::
+::    nest:c pins its kind to ?(%diary %heap %chat), so a channel served by
+::    a third-party host — %notes, %apps — cannot be expressed with it. Every
+::    channel host in the desk hits this and defines its own; see
+::    docs/backend/channel-hosts.md.
+::
++$  nest  [kind=@tas host=@p name=@tas]
 ::  $place: abstract place the kit needs; created at install
 ::
 ::    .name: the handle instructions refer to
-::    .kind: what to create — %chat/%notebook/%gallery
+::    .kind: what to create. %chat/%notebook/%gallery are %channels-backed;
+::           %notes is served by its own agent. A closed union on purpose:
+::           an unrecognized kind means the installer cannot create the
+::           place, and a half-instantiated workspace is worse than an
+::           install this build refuses outright.
 ::
 +$  place
   $:  name=@tas
-      kind=?(%chat %notebook %gallery)
+      kind=?(%chat %notebook %gallery %notes)
       title=@t
       description=@t
   ==
@@ -75,7 +87,7 @@
   $:  =id
       version=vers
       publisher=@p
-      places=(map @tas nest:c)
+      places=(map @tas nest)
       setup=?(%pending %done)
       installed=@da
   ==

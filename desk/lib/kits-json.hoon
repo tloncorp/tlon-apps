@@ -11,9 +11,9 @@
     ^-  @t
     (rap 3 (scot %p p.f) '/' q.f ~)
   ++  nest
-    |=  n=nest:c
+    |=  n=nest:v1:k
     ^-  @t
-    (rap 3 kind.n '/' (scot %p ship.n) '/' name.n ~)
+    (rap 3 kind.n '/' (scot %p host.n) '/' name.n ~)
   ++  vers
     |=  v=vers:v1:k
     ^-  @t
@@ -88,7 +88,7 @@
         :-  %o
         %-  malt
         %+  turn  ~(tap by places.i)
-        |=  [n=@tas cn=nest:c]
+        |=  [n=@tas cn=nest:v1:k]
         [n `json`s+(nest cn)]
         ['setup' s+setup.i]
         ['installed' s+(scot %da installed.i)]
@@ -112,7 +112,7 @@
             :-  %o
             %-  malt
             %+  turn  ~(tap by places.i)
-            |=  [n=@tas cn=nest:c]
+            |=  [n=@tas cn=nest:v1:k]
             [n `json`s+(nest cn)]
             :-  'schedules'
             :-  %a
@@ -171,7 +171,10 @@
         %-  ar
         %-  ot
         :~  name+(se %tas)
-            kind+(cu |=(t=@tas ?>(?=(?(%chat %notebook %gallery) t) t)) (se %tas))
+            ::  a place kind this build cannot create is refused here, at the
+        ::  mark boundary, rather than at install: refusing the whole kit
+        ::  is better than instantiating a workspace with a missing place.
+        kind+(cu |=(t=@tas ?>(?=(?(%chat %notebook %gallery %notes) t) t)) (se %tas))
             title+so
             description+so
         ==

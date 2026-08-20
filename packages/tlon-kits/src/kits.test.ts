@@ -271,6 +271,36 @@ describe('kitManifestSchema', () => {
     ).toThrow();
   });
 
+  // A durable artifact place is served by %notes, not by %channels. The
+  // vocabulary's other durable option, `notebook`, becomes a %diary channel,
+  // which is deprecated and being migrated away from.
+  it('accepts a place backed by a third-party channel host', () => {
+    const kit = loadKit(bookClubDir);
+    const manifest = kitManifestSchema.parse({
+      ...kit.manifest,
+      places: {
+        talk: { type: 'chat', title: 'Talk', description: 'chat' },
+        plans: { type: 'notes', title: 'Plans', description: 'the record' },
+      },
+    });
+    expect(manifest.places.plans.type).toBe('notes');
+  });
+
+  // Closed on purpose: an unrecognized place kind means the installer cannot
+  // create the place, and a half-instantiated workspace is worse than an
+  // install refused outright. Unlike channel view ids, this does not degrade.
+  it('rejects a place kind it cannot create rather than degrading', () => {
+    const kit = loadKit(bookClubDir);
+    for (const type of ['apps', 'wiki', '']) {
+      expect(() =>
+        kitManifestSchema.parse({
+          ...kit.manifest,
+          places: { spot: { type, title: 't', description: 'd' } },
+        })
+      ).toThrow();
+    }
+  });
+
   it('rejects non-term place names', () => {
     const kit = loadKit(bookClubDir);
     expect(() =>

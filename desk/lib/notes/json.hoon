@@ -644,7 +644,9 @@
       =/  readers=(set @tas)
         ?~  readers-j  ~
         ((as (cu |=(t=@t `@tas``@`t) so)) u.readers-j)
-      [%create-group-notebook (so u.title) group readers]
+      ::  a JSON caller does not name notebooks; the slug is derived from
+      ::  the title. Only an in-desk installer supplies a name.
+      [%create-group-notebook (so u.title) group readers ~]
         %'join'
       :-  %join
       =/  raw  ((ot ~[['ship' (su ;~(pfix sig fed:ag))] ['name' so]]) jon)

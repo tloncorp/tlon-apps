@@ -546,7 +546,7 @@
     ::  the group role-readers); else a plain solo notebook.
     ?~  grp=(field-flag obj 'group')
       `[%create-notebook u.title]
-    `[%create-group-notebook u.title u.grp (field-readers obj 'readers')]
+    `[%create-group-notebook u.title u.grp (field-readers obj 'readers') ~]
   ?.  ?=([%notebooks @ @ *] pax)  ~
   ?~  host=(slaw %p i.t.pax)  ~
   =/  =flag:n  [u.host `@tas`i.t.t.pax]
@@ -1673,9 +1673,14 @@
         ?:  ?=(%create-group-notebook -.a-act)
           [title.a-act `group.a-act readers.a-act]
         [title.a-act ~ ~]
+      ::  a caller may name the flag instead of taking our slug, so an
+      ::  installer that must record the nest in the same event it pokes us
+      ::  can predict it. see +se-init.
+      =/  given=(unit @tas)
+        ?:(?=(%create-group-notebook -.a-act) name.a-act ~)
       =/  core
         %.  args
-        se-create-notebook:(se-init:se-core title.args)
+        se-create-notebook:(se-init:se-core title.args given)
       =.  cor  se-abet:core
       =/  =notebook-summary:n
         :+  flag.core  notebook.notebook-state.core
@@ -1747,10 +1752,15 @@
   ::  +se-init: initialize for a brand-new notebook
   ::
   ++  se-init
-    |=  title=@t
+    |=  [title=@t given=(unit @tas)]
     ^+  se-core
     =/  nid=@ud  +(next-id)
-    =/  =flag:n  [our.bowl (slugify title nid)]
+    ::  a caller-supplied name wins over the slug. %kits needs this: it
+    ::  writes the new channel's nest into the group blob in the same event
+    ::  it pokes us, so it cannot wait to learn a name derived from our own
+    ::  counter. Creation still asserts the flag is free, so a name that
+    ::  collides fails rather than overwriting.
+    =/  =flag:n  [our.bowl ?^(given u.given (slugify title nid))]
     se-core(flag flag)
   ::  +se-abed: load from state for a given flag
   ::
@@ -1902,6 +1912,10 @@
   ++  se-create-notebook
     |=  [title=@t group=(unit flag:n) readers=(set @tas)]
     ^+  se-core
+    ::  the slug path cannot collide, but a caller-supplied name can, and
+    ::  the put below would overwrite an existing notebook rather than
+    ::  refuse. every other channel host asserts the same way.
+    ?<  (~(has by books) flag)
     =/  nid=@ud  +(next-id)
     =/  rfid=@ud  +(nid)
     =/  =notebook:n

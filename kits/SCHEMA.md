@@ -65,9 +65,9 @@ Written by the installer into the group's `blob` (opaque `@t`, JSON). The group 
                 "publisher": "~sampel-palnet"
             },
             "places": {
-                "discussion": "chat/~host/book-club-discussion-1234",
-                "picks": "chat/~host/picks-1234",
-                "log": "diary/~host/reading-log-1234"
+                "discussion": "chat/~host/discussion-book-club",
+                "picks": "chat/~host/picks-book-club",
+                "log": "notes/~host/log-book-club"
             },
             "schedules": [
                 { "id": "monthly-pick", "cron": "0 17 1 * *" },
@@ -84,6 +84,19 @@ Written by the installer into the group's `blob` (opaque `@t`, JSON). The group 
 
 Notes:
 
+-   **Place kinds and their hosts.** A place's `type` names which agent creates and serves it:
+
+    | `type`     | nest kind | host        |
+    | ---------- | --------- | ----------- |
+    | `chat`     | `chat`    | `%channels` |
+    | `notebook` | `diary`   | `%channels` |
+    | `gallery`  | `heap`    | `%channels` |
+    | `notes`    | `notes`   | `%notes`    |
+
+    The vocabulary is **closed**: a kit naming a kind the installer cannot create is refused at the mark boundary rather than degraded, because a half-instantiated workspace is worse than a refused install. `notebook` is retained for existing kits but `%diary` is deprecated — prefer `notes` for a durable artifact place. Adding a host-backed kind means an arm in `+place-card` and a line in `+place-kind`; `+install` does not change.
+
+-   **Place channel names are scoped by the group**: `<place>-<group-name>`. Every host asserts its channel does not already exist, so a bare place name meant installing the same kit into a second group nacked that place's creation — and install logs nacks rather than unwinding, leaving a group whose blob named channels that were never made. One install per group flag, so the group name alone disambiguates.
+-   **Hosts take the channel name from the installer.** Install writes each nest into the blob in the same event it pokes the host, so the nest has to be knowable up front. `%notes` accepts an optional name for exactly this reason; without one it slugifies the title off an internal counter, which no caller can predict.
 -   `kits` is an array: the shape composes even though v1 enforces one kit per group (instantiate-only).
 -   `agents` lists ships whose bots are authorized to execute this kit here (v1: the installer's bot).
 -   `setup`: `"pending"` → `"done"`; flipped by the executing agent after the setup conversation completes.

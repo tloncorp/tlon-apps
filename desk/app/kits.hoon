@@ -6,7 +6,7 @@
 ::    executing harness reads it. packages travel ship-to-ship via
 ::    one-shot subscriptions (fact + kick) on /v1/preview and /v1/full.
 ::
-/-  k=kits, g=groups, c=channels, meta
+/-  k=kits, g=groups, c=channels, n=notes, meta
 /+  default-agent, verb, dbug, j=kits-json
 ::
 =>
@@ -108,24 +108,21 @@
         %agent  [our.bowl %groups]
         %poke  group-command+!>(`c-groups:g`[%create create-group])
     ==
-  ::  create each place as a channel in the group
+  ::  create each place, in whichever agent hosts its kind
   ::
-  =/  nests=(map @tas nest:c)
+  =/  nests=(map @tas nest:v1:k)
     %-  malt
     %+  turn  places.man
     |=  p=place:k
-    [name.p `nest:c`[(place-kind kind.p) our.bowl name.p]]
+    [name.p (place-nest name p)]
   =.  cor
     =/  ps=(list place:k)  places.man
     |-  ^+  cor
     ?~  ps  cor
-    =/  =create-channel:c
-      [(place-kind kind.i.ps) name.i.ps flag title.i.ps description.i.ps ~ ~ ~]
     =.  cor
       %-  emit
       :*  %pass  /install/place/[name]/[name.i.ps]
-          %agent  [our.bowl %channels]
-          %poke  channel-action-2+!>(`a-channels:c`[%create create-channel])
+          (place-card flag (place-nest name i.ps) i.ps)
       ==
     $(ps t.ps)
   ::  record the ledger and write the group blob config
@@ -251,14 +248,70 @@
     %-  (slog leaf+"kits: uninstall blob clear failed" u.p.sign)
     cor
   ==
-::  +place-kind: map place kinds onto channel kinds
+::  +place-slug: the channel name a place gets
+::
+::    Scoped by the group so installing the same kit twice on one ship does
+::    not collide. Both %channels and every third-party host assert their
+::    channel does not already exist, so a bare place name ("discussion")
+::    meant the second install's place creation simply nacked — and +install
+::    logs nacks rather than unwinding, leaving a group whose blob named
+::    channels that were never made.
+::
+::    One install per group flag (asserted above), so the group name alone
+::    is enough to disambiguate.
+::
+++  place-slug
+  |=  [group=term p=place:k]
+  ^-  term
+  (rap 3 name.p '-' group ~)
+::  +place-nest: the nest a place resolves to, known before it exists
+::
+::    Every host here takes the channel name from its caller, which is what
+::    lets install write the blob in the same event it pokes them. %notes
+::    would otherwise slugify its own flag off an internal counter, which no
+::    caller can predict.
+::
+++  place-nest
+  |=  [group=term p=place:k]
+  ^-  nest:v1:k
+  [(place-kind kind.p) our.bowl (place-slug group p)]
+::  +place-kind: the nest kind for a place kind
+::
+::    %chat/%notebook/%gallery are %channels-backed and keep their historic
+::    mapping. %notes is its own host, so its nest kind is its agent name —
+::    the generic channel-host convention (docs/backend/channel-hosts.md).
 ::
 ++  place-kind
-  |=  k=?(%chat %notebook %gallery)
-  ^-  kind:c
+  |=  k=?(%chat %notebook %gallery %notes)
+  ^-  @tas
   ?-  k
     %chat      %chat
     %notebook  %diary
     %gallery   %heap
+    %notes     %notes
   ==
+::  +place-card: the poke that creates a place, per host
+::
+::    The one arm that knows a host exists. Adding a further host-backed
+::    kind means an arm here and a line in +place-kind; +install does not
+::    change.
+::
+++  place-card
+  |=  [group=flag:g =nest:v1:k p=place:k]
+  ^-  [%agent [ship term] task:agent:gall]
+  ?:  ?=(%notes kind.p)
+    :^  %agent  [our.bowl %notes]  %poke
+    :-  %notes-action-1
+    !>  ^-  a-notes:n
+    [%create-group-notebook title.p group ~ `name.nest]
+  =/  =create-channel:c
+    :*  ;;(kind:c (place-kind kind.p))
+        name.nest
+        group
+        title.p
+        description.p
+        ~  ~  ~
+    ==
+  :^  %agent  [our.bowl %channels]  %poke
+  channel-action-2+!>(`a-channels:c`[%create create-channel])
 --

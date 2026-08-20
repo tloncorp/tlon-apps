@@ -31,7 +31,15 @@ export const kitScopeSchema = z.enum(['group', 'dm', 'agent']);
 export type KitScope = z.infer<typeof kitScopeSchema>;
 
 /** On-disk place `type` and wire place `kind` share the same vocabulary. */
-export const placeKindSchema = z.enum(['chat', 'notebook', 'gallery']);
+// Closed on purpose, unlike the open ids used for channel views and
+// workspace capabilities. An unrecognized *view* degrades to a fallback
+// renderer, which is harmless; an unrecognized *place kind* means the
+// installer cannot create the place, and a half-instantiated workspace is
+// worse than an install that is refused outright.
+//
+// chat/notebook/gallery are %channels-backed; notes is served by its own
+// agent. See kits/SCHEMA.md and docs/backend/channel-hosts.md.
+export const placeKindSchema = z.enum(['chat', 'notebook', 'gallery', 'notes']);
 export type PlaceKind = z.infer<typeof placeKindSchema>;
 
 export const bindingLoadSchema = z.enum(['ambient', 'on-trigger', 'pulled']);
