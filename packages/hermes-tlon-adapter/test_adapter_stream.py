@@ -1083,6 +1083,37 @@ class WatchdogFakeSSE:
         self.condemns.append(exc)
 
 
+async def wait_until(
+    predicate, timeout=5.0, message="condition not reached within timeout"
+):
+    """Yield the event loop until `predicate()` holds, bounded by wall-clock.
+
+    A counted run of bare `asyncio.sleep(0)` pins one particular event-loop
+    interleaving and flakes when scheduler timing shifts (TLON-6368); waiting
+    on the observable does not, and the deadline keeps a genuine hang loud.
+    """
+    deadline = time.monotonic() + timeout
+    while not predicate():
+        if time.monotonic() >= deadline:
+            raise AssertionError(message)
+        await asyncio.sleep(0)
+
+
+async def settle_probe(adapter, timeout=5.0):
+    """Wait until no watchdog probe is in flight.
+
+    `done()` is not enough: the adapter clears `_sse_probe_task` in a done
+    callback that runs a loop turn later, and the next tick's launch guard
+    reads that field — so "settled" means the field is None again.
+    """
+    await wait_until(
+        lambda: adapter._sse_probe_task is None,
+        timeout,
+        "watchdog probe did not settle within timeout",
+    )
+
+
+
 class WatchdogTickTests(unittest.TestCase):
     def make_adapter(self, extra=None):
         base = {
@@ -1123,12 +1154,11 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             adapter._sse_watchdog_tick(100.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
             # The delivered probe's epoch is valid for this silence: no
             # second probe.
             adapter._sse_watchdog_tick(101.0, 30.0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
 
         asyncio.run(run())
         self.assertEqual(len(sse.pokes), 1)
@@ -1142,8 +1172,7 @@ class WatchdogTickTests(unittest.TestCase):
         async def run():
             for now in (100.0, 140.0, 400.0):
                 adapter._sse_watchdog_tick(now, 30.0)
-                await asyncio.sleep(0)
-                await asyncio.sleep(0)
+                await settle_probe(adapter)
 
         asyncio.run(run())
         # A broken outbound path must never condemn a healthy inbound stream;
@@ -1162,8 +1191,7 @@ class WatchdogTickTests(unittest.TestCase):
             # Idle past the threshold with no successful probe for this
             # silence: no condemn — the probe launches instead.
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
             self.assertEqual(sse.condemns, [])
             self.assertEqual(len(sse.pokes), 1)
             # Grace runs from the PUT's completion, not the probe's start.
@@ -1187,15 +1215,13 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
             epoch = adapter._sse_probe_epoch_at
             # A frame arrives after the probe; the watchdog tick is then
             # delayed far past the threshold.
             sse.last_event_frame_at = epoch + 1.0
             adapter._sse_watchdog_tick(epoch + 200.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
 
         asyncio.run(run())
         self.assertEqual(sse.condemns, [])
@@ -1227,7 +1253,7 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
+            await wait_until(lambda: len(sse.pokes) == 1)
             probe = adapter._sse_probe_task
             self.assertIsNotNone(probe)
             await adapter._close_sse(graceful=False)
@@ -1261,13 +1287,11 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
             ack_at = sse.last_event_frame_at
             # Deep into a NEW silence: the answered probe must not count.
             adapter._sse_watchdog_tick(ack_at + 200.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
 
         asyncio.run(run())
         self.assertEqual(sse.condemns, [])
@@ -1288,15 +1312,15 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
+            await wait_until(lambda: len(old.pokes) == 1)
             old_task = adapter._sse_probe_task
             self.assertIsNotNone(old_task)
             # Rebuild publishes a fresh client.
             new = WatchdogFakeSSE(frame_at=t0 - 100.0)
             adapter._sse = new
             adapter._sse_watchdog_tick(t0 + 40.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
+            await wait_until(old_task.cancelled)
             return old_task, new
 
         old_task, new = asyncio.run(run())
@@ -1323,8 +1347,7 @@ class WatchdogTickTests(unittest.TestCase):
             self.assertEqual(sse.condemns, [])
             adapter._route_blocked = False
             adapter._sse_watchdog_tick(t0 + 201.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
             self.assertEqual(sse.condemns, [])
             delivered = adapter._sse_probe_success_at
             self.assertIsNotNone(delivered)
@@ -1370,12 +1393,11 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
             epoch = adapter._sse_probe_epoch_at
             self.assertIsNotNone(epoch)
             adapter._sse_watchdog_tick(epoch + 300.0, 30.0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
 
         asyncio.run(run())
         self.assertEqual(len(sse.pokes), 1)
@@ -1394,8 +1416,7 @@ class WatchdogTickTests(unittest.TestCase):
 
         async def run():
             task = asyncio.create_task(adapter._run_sse_watchdog())
-            await real_sleep(0)
-            await real_sleep(0)
+            await wait_until(lambda: len(ticks) >= 1)
             task.cancel()
             try:
                 await task
@@ -1441,8 +1462,7 @@ class WatchdogRoutingTests(unittest.TestCase):
             route = asyncio.create_task(
                 adapter._route_stream_event(make_event(app="groups"))
             )
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await wait_until(lambda: adapter._route_blocked)
             states.append(adapter._route_blocked)
             adapter._event_queue.get_nowait()
             await route
@@ -1465,8 +1485,7 @@ class WatchdogRoutingTests(unittest.TestCase):
             await adapter._route_stream_event(make_event(app="groups"))
             self.assertFalse(adapter._route_blocked)
             adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await settle_probe(adapter)
 
         asyncio.run(run())
         # A merely non-empty queue is not backpressure: the tick probed.
@@ -1666,6 +1685,7 @@ class DetectorStreamLoopTests(unittest.TestCase):
                 self.closed = False
 
             async def poke(self, app, mark, json_payload):
+                order.append("probe_started")
                 try:
                     await asyncio.Event().wait()
                 except asyncio.CancelledError:
@@ -1686,8 +1706,7 @@ class DetectorStreamLoopTests(unittest.TestCase):
             await asyncio.sleep(0)
             # Force a probe launch directly through the tick.
             adapter._sse_watchdog_tick(time.monotonic(), 30.0)
-            await asyncio.sleep(0)
-            await asyncio.sleep(0)
+            await wait_until(lambda: "probe_started" in order)
             probe_task = adapter._sse_probe_task
             assert probe_task is not None
 
@@ -1706,7 +1725,7 @@ class DetectorStreamLoopTests(unittest.TestCase):
         self.assertIsNone(adapter._sse_watchdog_task)
         self.assertIsNone(adapter._sse_probe_task)
         self.assertTrue(sse.closed)
-        self.assertEqual(order, ["probe_cancelled", "close_sse"])
+        self.assertEqual(order, ["probe_started", "probe_cancelled", "close_sse"])
 
 
 if __name__ == "__main__":
