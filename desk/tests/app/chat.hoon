@@ -256,6 +256,27 @@
   %+  ex-cards  caz
   :~  (ex-fact ~[/unreads] %chat-unread-update !>([whom unread]))
   ==
+::  a plain DM to a moon %vouch classifies as a bot opens accepted (%done),
+::  not as a pending message request -- bots auto-accept, no handshake.
+++  test-bot-dm-auto-accepts
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate bot-scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~bus, src ~bus)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =diff:dm:c  (vouched-message ~bus now.bw [%inline ~['hi bot']])
+  ;<  *  bind:m  (do-poke %chat-dm-action-2 !>(`action:dm:c`[moon diff]))
+  ::  accepted, and NOT sitting in the pending/requests list
+  ;<  *  bind:m  (ex-scry-result /x/dm !>(`(set ship)`(silt ~[moon])))
+  (ex-scry-result /x/dm/invited !>(`(set ship)`~))
+::  like +scries but %vouch classifies .moon as a bot
+++  bot-scries
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %vouch @ %status @ *] path)
+    `!>(`?(%unknown %real %bot)`%bot)
+  (scries path)
 ++  scries
   |=  =path
   ^-  (unit vase)
