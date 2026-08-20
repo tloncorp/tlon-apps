@@ -300,9 +300,14 @@
   |=  [group=flag:g =nest:v1:k p=place:k]
   ^-  [%agent [ship term] task:agent:gall]
   ?:  ?=(%notes kind.p)
+    ::  notes-action-1 carries [request-id a-notes], not a bare action: the
+    ::  request-id keys the typed response %notes emits on /v1/request/<uv>.
+    ::  Nothing here tracks that response, so synthesize one from eny — the
+    ::  same thing %notes' own legacy arm does for callers that ignore it.
     :^  %agent  [our.bowl %notes]  %poke
     :-  %notes-action-1
-    !>  ^-  a-notes:n
+    !>  ^-  action:v1:n
+    :-  `@uv`eny.bowl
     [%create-group-notebook title.p group ~ `name.nest]
   =/  =create-channel:c
     :*  ;;(kind:c (place-kind kind.p))

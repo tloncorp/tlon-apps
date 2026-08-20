@@ -77,7 +77,8 @@
   ^-  form:m
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our our-ship, src our-ship)))
   ;<  *  bind:m  (do-init dap agent)
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.1)))
+  ::  eny is pinned: +place-card derives the notes request-id from it.
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.1, eny 0v5)))
   (pure:m ~)
 ++  do-add
   =/  m  (mare ,(list card))
@@ -333,7 +334,8 @@
       :*  /install/place/house/plans
           [our-ship %notes]
           %notes-action-1
-          !>  ^-  a-notes:n
+          !>  ^-  action:v1:n
+          :-  `@uv`0v5
           [%create-group-notebook 'Plans' house ~ `%plans-house]
       ==
       %-  ex-poke-wire  /install/blob/house
