@@ -5,6 +5,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { Button, SafeAreaView, Switch, View } from 'react-native';
 import { Label, XStack, YStack } from 'tamagui';
 
+import { ShipProvider } from '../contexts/ship';
 import { AppDataContextProvider, Channel, ChatOptionsProvider } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
@@ -30,11 +31,21 @@ const ChannelFixtureWrapper = ({
   children,
 }: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
   return (
-    <AppDataContextProvider contacts={initialContacts}>
-      <FixtureWrapper fillWidth fillHeight>
-        <ChatOptionsProvider {...noopProps()}>{children}</ChatOptionsProvider>
-      </FixtureWrapper>
-    </AppDataContextProvider>
+    <ShipProvider
+      initialShipInfo={{
+        authType: 'hosted',
+        ship: 'zod',
+        shipUrl: 'https://zod.test',
+        authCookie: 'fixture',
+        needsSplashSequence: false,
+      }}
+    >
+      <AppDataContextProvider currentUserId="~zod" contacts={initialContacts}>
+        <FixtureWrapper fillWidth fillHeight>
+          <ChatOptionsProvider {...noopProps()}>{children}</ChatOptionsProvider>
+        </FixtureWrapper>
+      </AppDataContextProvider>
+    </ShipProvider>
   );
 };
 

@@ -84,7 +84,10 @@ import {
   startTlonAgentTurn,
 } from '../turn-recorder.js';
 import { resolveTlonAccount } from '../types.js';
-import { configureTlonApiWithPoke } from '../urbit/api-client.js';
+import {
+  runWithTlonApiScope,
+  setScopedTlonApiWithPoke,
+} from '../urbit/api-client.js';
 import {
   authenticate,
   isPermanentAuthenticationFailure,
@@ -252,9 +255,8 @@ type WritResponseDelta =
       'add-react'?: never;
     };
 type WritResponse = { whom: string; id: string; response: WritResponseDelta };
-// Holds the data needed for any module-loader context to (re)configure its
-// own @tloncorp/api singleton — see gateway-status.ts for why this is
-// necessary under OpenClaw >=2026.4.27 plugin module isolation.
+// Holds the latest monitor transport for gateway lifecycle hooks, which run
+// outside the monitor's async client scope. See gateway-status.ts.
 const apiClientParamsSlot = sharedSlot<SharedApiClientParams>(
   API_CLIENT_PARAMS_SLOT
 );
@@ -350,6 +352,10 @@ function resolveChannelAuthorization(
 export async function monitorTlonProvider(
   opts: MonitorTlonOpts = {}
 ): Promise<void> {
+  return runWithTlonApiScope(() => monitorTlonProviderScoped(opts));
+}
+
+async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   const core = getTlonRuntime();
   // Prefer the channel-start config snapshot (Fix B) over an independent
   // load: see the MonitorTlonOpts.cfg doc comment.
@@ -647,21 +653,14 @@ export async function monitorTlonProvider(
     throw error;
   }
 
-  // Configure @tloncorp/api's global client to use the SSE client's poke for all send operations
-  configureTlonApiWithPoke(api.poke.bind(api), botShipName, account.url);
+  setScopedTlonApiWithPoke(api.poke.bind(api), botShipName, account.url);
 
-  // Publish the SSE-bound poke + ship coords so other module contexts (e.g.
-  // the gateway-status heartbeat) can configure their own @tloncorp/api
-  // singletons before pokeing. We store data here, not a closure, because
-  // closures capture their creating context's module imports.
-  // Capture the published object so the abort handler can do a
-  // reference-equality check before clearing — under a config-reload
-  // restart, a replacement monitor may publish fresh params before the
-  // old monitor's abort fires, and we must not clobber the new params.
+  // Publish the bound transport for consumers that do not need the global API
+  // client. Capture the published object so the abort handler can compare by
+  // reference: a config-reload restart may publish a replacement before the old
+  // monitor aborts, and the old cleanup must not clear the replacement.
   const myApiClientParams = {
     poke: api.poke.bind(api),
-    shipName: botShipName,
-    shipUrl: accountUrl,
   };
   apiClientParamsSlot.set(myApiClientParams);
 
@@ -1412,7 +1411,7 @@ export async function monitorTlonProvider(
       onMultiAccountSkip: (count) =>
         runtime.log?.(
           `[gateway-status] skipped: ${count} Tlon accounts configured, ` +
-            `but v1 only supports one (global @tloncorp/api client cannot target multiple ships)`
+            `but v1 only supports one shared gateway-status transport`
         ),
       registerHeartbeatStop: (stop) => {
         // A concurrent teardown may have already run cleanupGatewayStatus
