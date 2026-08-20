@@ -17,10 +17,7 @@ export function SplashModal(props: {
       dialogContentProps={{ width: 600, height: 700 }}
     >
       <ActionSheet.Content flex={1} overflow="hidden">
-        <SplashSequence
-          onCompleted={() => {}}
-          hostingBotEnabled={hostingBotEnabled ?? false}
-        />
+        <SplashSequence onCompleted={() => {}} />
       </ActionSheet.Content>
     </ActionSheet>
   );

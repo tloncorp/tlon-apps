@@ -7,16 +7,9 @@ import { AudiencePane } from '../ui/components/Wayfinding/AudiencePane';
 import { PurposePane } from '../ui/components/Wayfinding/PurposePane';
 import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
 import {
-  BotApiKeyPane,
-  BotAvatarPane,
-  BotModelPane,
-  BotNamePane,
-  BotProviderPane,
   InviteContactsContent,
   InvitePane,
   SplashSequence,
-  TlonBotPane,
-  WelcomePane,
 } from '../ui/components/Wayfinding/SplashSequence';
 import { defaultStarterOptionId } from '../ui/components/Wayfinding/starterOptions';
 import { FixtureWrapper } from './FixtureWrapper';
@@ -35,16 +28,9 @@ function SplashSequenceFixture() {
     console.log('Splash sequence completed');
   }, []);
 
-  const [hostingBotEnabled] = useValue('Enable Hosting Bot', {
-    defaultValue: true,
-  });
-
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <SplashSequence
-        onCompleted={handleCompleted}
-        hostingBotEnabled={hostingBotEnabled}
-      />
+      <SplashSequence onCompleted={handleCompleted} />
     </FixtureWrapper>
   );
 }
@@ -89,25 +75,6 @@ function InviteContactsFixture() {
         systemContacts={contacts}
         isDiscovering={isDiscovering}
         discoveredMatches={discoveredMatches}
-      />
-    </FixtureWrapper>
-  );
-}
-
-function WelcomePaneFixture() {
-  const handleAction = React.useCallback(() => {
-    console.log('Welcome pane action pressed');
-  }, []);
-
-  const [hostingBotEnabled] = useValue('Enable Hosting Bot', {
-    defaultValue: true,
-  });
-
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <WelcomePane
-        onActionPress={handleAction}
-        hostingBotEnabled={hostingBotEnabled}
       />
     </FixtureWrapper>
   );
@@ -163,18 +130,6 @@ function AudiencePaneFixture() {
         }
         isCompleting={isCompleting}
       />
-    </FixtureWrapper>
-  );
-}
-
-function TlonBotPaneFixture() {
-  const handleAction = React.useCallback(() => {
-    console.log('TlonBot pane action pressed');
-  }, []);
-
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <TlonBotPane onActionPress={handleAction} />
     </FixtureWrapper>
   );
 }
@@ -237,177 +192,6 @@ function InvitePaneFixture() {
   );
 }
 
-function BotNamePaneFixture() {
-  const [name, setName] = useValue('Bot Name', { defaultValue: '' });
-  const [userNickname] = useValue('User Nickname', { defaultValue: 'palbud' });
-  const handleAction = React.useCallback(() => {
-    console.log('BotName pane action pressed');
-  }, []);
-
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <BotNamePane
-        name={name}
-        userNickname={userNickname}
-        onNameChange={setName}
-        onActionPress={handleAction}
-      />
-    </FixtureWrapper>
-  );
-}
-
-function BotAvatarPaneFixture() {
-  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
-  const handleAction = React.useCallback(() => {
-    console.log('BotAvatar pane action pressed');
-  }, []);
-  const handleBack = React.useCallback(() => {
-    console.log('BotAvatar pane back pressed');
-  }, []);
-
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <BotAvatarPane
-        avatarUrl={avatarUrl}
-        onAvatarUrlChange={setAvatarUrl}
-        onBackPress={handleBack}
-        onActionPress={handleAction}
-      />
-    </FixtureWrapper>
-  );
-}
-
-function BotProviderPaneFixture() {
-  const [model, setModel] = useValue('Provider', {
-    defaultValue: 'basic:included',
-  });
-  const handleAction = React.useCallback(() => {
-    console.log('BotProvider pane action pressed');
-  }, []);
-  const handleBack = React.useCallback(() => {
-    console.log('BotProvider pane back pressed');
-  }, []);
-
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <BotProviderPane
-        model={model}
-        providers={[
-          {
-            id: 'basic:included',
-            label: 'GPT-5.6 Luna',
-            provider: 'basic',
-            credentialMode: 'included',
-            requiresKey: false,
-          },
-          {
-            id: 'openai:subscription',
-            label: 'ChatGPT subscription',
-            provider: 'openai',
-            credentialMode: 'subscription',
-            requiresKey: false,
-            recommendationLabel: 'Recommended',
-          },
-          {
-            id: 'anthropic:api-key',
-            label: 'Anthropic',
-            provider: 'anthropic',
-            credentialMode: 'api-key',
-            requiresKey: true,
-          },
-          {
-            id: 'openai:api-key',
-            label: 'OpenAI — API key',
-            provider: 'openai',
-            credentialMode: 'api-key',
-            requiresKey: true,
-          },
-          {
-            id: 'openrouter:api-key',
-            label: 'OpenRouter',
-            provider: 'openrouter',
-            credentialMode: 'api-key',
-            requiresKey: true,
-          },
-        ]}
-        onModelChange={setModel}
-        onBackPress={handleBack}
-        onActionPress={handleAction}
-      />
-    </FixtureWrapper>
-  );
-}
-
-function BotApiKeyPaneFixture() {
-  const [apiKey, setApiKey] = useValue('API Key', { defaultValue: '' });
-  const handleAction = React.useCallback(() => {
-    console.log('BotApiKey pane action pressed');
-  }, []);
-  const handleBack = React.useCallback(() => {
-    console.log('BotApiKey pane back pressed');
-  }, []);
-
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <BotApiKeyPane
-        providerLabel="OpenAI"
-        apiKey={apiKey}
-        onApiKeyChange={setApiKey}
-        onBackPress={handleBack}
-        onActionPress={handleAction}
-      />
-    </FixtureWrapper>
-  );
-}
-
-function BotModelPaneFixture() {
-  const [selectedModel, setSelectedModel] = useValue('Model', {
-    defaultValue: 'anthropic/claude-3-5-sonnet',
-  });
-  const handleAction = React.useCallback(() => {
-    console.log('BotModel pane action pressed');
-  }, []);
-  const handleBack = React.useCallback(() => {
-    console.log('BotModel pane back pressed');
-  }, []);
-
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <BotModelPane
-        models={[
-          { id: 'anthropic/claude-3-5-sonnet' },
-          { id: 'anthropic/claude-3-opus' },
-          { id: 'anthropic/claude-3-haiku' },
-          { id: 'anthropic/claude-3-7-sonnet' },
-          { id: 'anthropic/claude-sonnet-4' },
-          { id: 'anthropic/claude-opus-4' },
-          { id: 'openai/gpt-4o' },
-          { id: 'openai/gpt-4.1' },
-          { id: 'openai/gpt-4.1-mini' },
-          { id: 'openai/gpt-4.1-nano' },
-          { id: 'openai/o3' },
-          { id: 'openai/o4-mini' },
-          { id: 'gpt-5.6-luna' },
-          { id: 'google/gemini-1.5-pro' },
-          { id: 'google/gemini-1.5-flash' },
-          { id: 'google/gemini-2.0-flash' },
-          { id: 'meta/llama-3.1-8b-instruct' },
-          { id: 'meta/llama-3.1-70b-instruct' },
-          { id: 'mistral/mistral-large' },
-          { id: 'mistral/mistral-small' },
-          { id: 'minimax/minimax-text-01' },
-          { id: 'openrouter/anthropic/claude-3.5-sonnet' },
-          { id: 'openrouter/openai/gpt-4o-mini' },
-        ]}
-        selectedModel={selectedModel}
-        onSelectModel={setSelectedModel}
-        onBackPress={handleBack}
-        onActionPress={handleAction}
-      />
-    </FixtureWrapper>
-  );
-}
-
 function SplashModalFixture() {
   const [open, setOpen] = React.useState(true);
 
@@ -421,15 +205,8 @@ function SplashModalFixture() {
 export default {
   'Full Sequence': <SplashSequenceFixture />,
   'Invite Contacts': <InviteContactsFixture />,
-  'Welcome Pane': <WelcomePaneFixture />,
   'Purpose Pane': <PurposePaneFixture />,
   'Audience Pane': <AudiencePaneFixture />,
-  'TlonBot Pane': <TlonBotPaneFixture />,
-  'Bot Name Pane': <BotNamePaneFixture />,
-  'Bot Avatar Pane': <BotAvatarPaneFixture />,
-  'Bot Provider Pane': <BotProviderPaneFixture />,
-  'Bot API Key Pane': <BotApiKeyPaneFixture />,
-  'Bot Model Pane': <BotModelPaneFixture />,
   'Invite Pane': <InvitePaneFixture />,
   'Splash Modal': <SplashModalFixture />,
 };

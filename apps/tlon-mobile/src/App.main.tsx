@@ -12,10 +12,8 @@ import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
-import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useRequiredUpdate } from '@tloncorp/app/hooks/useRequiredUpdate';
-import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
 import { useAppNavigationTheme } from '@tloncorp/app/navigation/useAppNavigationTheme';
@@ -31,10 +29,9 @@ import {
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { posthog } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as SplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -114,16 +111,8 @@ const MainApp = () => {
     connected,
     showAuthenticatedApp,
     showSplashSequence,
-    activeSplashSequenceMode,
-    hostingBotEnabled,
     handleClearSplash,
   } = useTopLevelRouting();
-  const resetDb = useResetDb();
-  const handleLogout = useHandleLogout({ resetDb });
-  const handleSplashLogout = useCallback(async () => {
-    await db.clearSessionStorageItems();
-    await handleLogout();
-  }, [handleLogout]);
 
   usePreloadedEmojis();
 
@@ -143,9 +132,6 @@ const MainApp = () => {
             <SplashSequence
               onCompleted={handleClearSplash}
               inviteSystemContacts={inviteSystemContacts}
-              hostingBotEnabled={hostingBotEnabled}
-              splashSequenceMode={activeSplashSequenceMode}
-              onLogout={handleSplashLogout}
             />
           </AppDataProvider>
         ) : showAuthenticatedApp ? (
