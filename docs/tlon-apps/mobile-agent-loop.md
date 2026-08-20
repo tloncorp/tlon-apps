@@ -37,11 +37,13 @@ Read the Linear ticket (linear skill / MCP) or the inline instructions. Produce 
 
 ```bash
 npx rn-iso worktree create <slug> --label <slug>   # prints the worktree path on stdout
+cd <worktree> && CI=true pnpm install              # 19s on a warm pnpm store
+pnpm --filter ./packages/editor build              # 2s — the bundle needs editorHtml
 ```
 
-One command covers the whole setup, because `.rn-iso.json` at the repo root declares it: branch from `origin/HEAD`, carry the gitignored `.env.local` files across, then run `CI=true pnpm install` and build `@tloncorp/editor`. Measured on a warm pnpm store: ≈ 40s total.
+`worktree create` is instant: it branches from `origin/HEAD` and carries the gitignored `.env.local` files across (declared by `.rn-iso.json` at the repo root). Installing dependencies is deliberately **your** job — rn-iso is a broker and runs no commands for you.
 
-Prefer this over a raw `git worktree add`, which skips all three and leaves a worktree with no `node_modules`, no env files, and an `rn-iso` shortcut that collides with its siblings (every tlon worktree's app dir is named `tlon-mobile`, hence `--label`). If the setup pipeline fails, the command still exits 0 and the worktree still exists — it reports which command failed, and `up` repeats that in its `setup` field. Do not ignore it: a failed step usually means the bundle will not build.
+Prefer it over a raw `git worktree add`, which skips the carry-over and the label, leaving a worktree with no env files and an `rn-iso` shortcut that collides with its siblings (every tlon worktree's app dir is named `tlon-mobile`, hence `--label`).
 
 ### 3. Devices and Metro (rn-iso)
 
@@ -49,7 +51,7 @@ rn-iso is only a broker: it gives this worktree an owned simulator and a reserve
 
 ```bash
 cd "<worktree>/apps/tlon-mobile"
-npx rn-iso up ios --json     # => {"udid":…,"metroPort":…,"setup":{"complete":true}}
+npx rn-iso up ios --json     # => {"udid":…,"metroPort":…,"metroHealthy":…,"metroConflict":…}
 
 npx expo start --port <metroPort> > /tmp/metro-<slug>.log 2>&1 &   # you start Metro
 npx rn-iso device --platform ios --json                            # poll until metroHealthy
@@ -57,13 +59,9 @@ npx rn-iso device --platform ios --json                            # poll until 
 
 Start Metro **from inside the worktree** and redirect it to a predictable path: teardown identifies your Metro by checking that the process on the port answers `/status` _and_ runs from inside the project, and rn-iso no longer captures the log itself. That log is the first thing to read on a blank screen or red box.
 
-⚠️ **Check the reserved port is really yours before building.** `up` picks the next port above the highest one in rn-iso's own registry and does not check for a live listener, so it can hand out a port already held by an unrelated Metro (observed: a port belonging to another repo's `react-native start`). `metroHealthy` then pings `/status` without the identity check teardown uses, so the foreign Metro reports as healthy and both `expo run:ios` and `expo start` attach to it — the app silently loads another project's bundle. Confirm before trusting the port:
+⚠️ **`up` can reserve a port that something else already holds.** It picks the next port above the highest in rn-iso's own registry and never checks for a live listener, so on a machine running other bundlers it hands out an occupied port — deterministically, since the same number comes back every time the registry max is unchanged. rn-iso ≥ 0.9 catches the consequence: it proves Metro's identity before reporting `metroHealthy`, so a foreign bundler yields `metroHealthy: false` plus a `metroConflict` string naming the intruding pid and its directory.
 
-```bash
-lsof -nP -iTCP:<metroPort> -sTCP:LISTEN    # expect nothing before you start Metro
-```
-
-If it is occupied, start Metro on a free port and pass that port to the build instead.
+**Never build while `metroConflict` is non-null** — the build CLIs attach to whatever answers on that port, so the app would load another project's bundle. Either free the port, or point this project at a free one and use that for both `expo start` and `expo run:ios`.
 
 Requirements: `npm_config_script_shell=/bin/bash` (the repo's `.npmrc` script-shell breaks bare npx), UTF-8 locale for CocoaPods, Node 22 on PATH.
 
@@ -71,8 +69,10 @@ Requirements: `npm_config_script_shell=/bin/bash` (the repo's `.npmrc` script-sh
 
 `expo run:ios` inside step 3 resolves one of two ways:
 
--   **Warm (fingerprint hit):** downloads the cached build and installs it. Measured: ~16 seconds, no CocoaPods, no Xcode, no DerivedData on disk.
--   **Cold (fingerprint miss):** pod install + full Xcode build, then uploads the result so the next agent/worktree is warm. Measured: ~3m15s from wiped Pods + DerivedData (M-series laptop; RN core is prebuilt, so only third-party pods compile).
+-   **Warm (fingerprint hit):** downloads the cached build and installs it. Measured end-to-end in a fresh worktree: **58s**, of which most is CocoaPods — no Xcode compile, no DerivedData.
+-   **Cold (fingerprint miss):** pod install + full Xcode build, then uploads the result so the next agent/worktree is warm. Measured in a fresh worktree: **250–255s**.
+
+Measured on this repo across three fresh worktrees, which is also the evidence that the hermes patch works: a worktree off unpatched `develop` **missed** (250s) and left `Podfile.lock` and `project.pbxproj` dirty; a patched worktree missed once (255s) and uploaded; a second patched worktree **at a different path hit the cache** (58s) and finished with a completely clean tree. Without the patch every fresh worktree pays the full build; with it, only the first one does.
 
 ccache measurements (Xcode 26, static frameworks):
 
@@ -100,9 +100,11 @@ Push to a clean branch name, open a draft PR per the repo template, attach the v
 ### 7. Cleanup (after the PR merges)
 
 ```bash
-npx rn-iso stop <slug>                    # kill this worktree's Metro
+npx rn-iso stop <slug>/tlon-mobile        # kill this worktree's Metro
 npx rn-iso worktree remove <worktree>     # removes the worktree AND deletes its owned sim
 ```
+
+**Target `stop` at `<slug>/tlon-mobile`, not `<slug>`.** In this monorepo `worktree create` registers the worktree root under the label while `up` registers the app dir that actually owns the port. `stop <slug>` therefore matches the root entry, prints "No Metro port assigned", exits 0, and leaves Metro running — a success-looking no-op that strands the port.
 
 `worktree remove` tears the environment down whole: it reclaims the Metro port and shuts down and **deletes** the simulator rn-iso created for it. It refuses if the worktree holds uncommitted changes, untracked files, or commits on no remote — push the branch first. Never pass `--force` without asking; that discards the work the refusal is protecting. Teardown verifies identity before killing anything, so a Metro it cannot prove is yours is left alone (verified: an unrelated repo's Metro on the same port survived).
 
