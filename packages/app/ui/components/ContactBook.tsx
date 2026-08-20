@@ -249,13 +249,13 @@ function ContactBookEmptyState() {
   return (
     <YStack
       alignItems="center"
-      backgroundColor="$secondaryBackground"
-      borderRadius="$2xl"
       gap="$s"
       paddingHorizontal="$2xl"
       paddingVertical="$4xl"
     >
-      <Text size="$label/l">Nobody</Text>
+      <Text size="$label/l" color="$secondaryText">
+        No Contacts
+      </Text>
       <Text size="$label/m" color="$tertiaryText" textAlign="center">
         Your contact book is empty
       </Text>
