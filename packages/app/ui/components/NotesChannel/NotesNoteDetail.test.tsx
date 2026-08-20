@@ -261,6 +261,93 @@ describe('NotesNoteDetail note switching', () => {
     act(() => renderer!.unmount());
   });
 
+  it('keeps same-note saves FIFO across editor remounts', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote
+      .mockReturnValueOnce(firstSave.promise)
+      .mockImplementation(
+        async ({
+          note: base,
+          title,
+          body,
+        }: {
+          note: ReturnType<typeof note>;
+          title: string;
+          body: string;
+        }) => ({
+          ...base,
+          title,
+          bodyMd: body,
+          revision: base.revision + 1,
+        })
+      );
+    let firstRenderer: ReactTestRenderer;
+    let secondRenderer: ReactTestRenderer;
+
+    await act(async () => {
+      firstRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      firstRenderer.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Older A edit');
+    });
+    await act(async () => {
+      firstRenderer.unmount();
+      await Promise.resolve();
+    });
+
+    expect(mocks.saveNotebookNote).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      secondRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    expect(
+      secondRenderer!.root.findByProps({ testID: 'NotesBodyInput' }).props.value
+    ).toBe('Older A edit');
+
+    await act(async () => {
+      secondRenderer.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Latest A edit');
+    });
+    await act(async () => {
+      secondRenderer.unmount();
+      await Promise.resolve();
+    });
+
+    expect(mocks.saveNotebookNote).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      firstSave.resolve(note(1, 'Older A edit', 2));
+      await firstSave.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.saveNotebookNote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        note: expect.objectContaining({ noteId: 1, revision: 2 }),
+        body: 'Latest A edit',
+      })
+    );
+  });
+
   it('keeps a restored draft on its stale revision when the row advanced remotely', async () => {
     const firstSave = deferred<Record<string, unknown>>();
     mocks.saveNotebookNote

@@ -88,6 +88,7 @@ const notePreviewModes = new Map<string, boolean>();
 const notesNoteDraftSnapshots = new Map<string, NotesNoteDraftSnapshot>();
 const notesNoteDraftSnapshotOwners = new Map<string, NotesNoteDraftOwner>();
 const notesNoteDraftStashOwners = new Map<string, NotesNoteDraftOwner>();
+const notesNoteSaveChains = new Map<string, Promise<db.NotesNote | null>>();
 const pendingNotesNoteSaveCounts = new Map<string, number>();
 const pendingNotesNoteSaveListeners = new Set<() => void>();
 let pendingNotesNoteSaveEpoch = 0;
@@ -720,15 +721,14 @@ export function NotesNoteDetail({
     setPreviewMode,
   ]);
 
-  // All saves go through one chain so each rebases onto the revision the
-  // previous save produced instead of racing the backend revision check.
-  const saveChainRef = useRef<Promise<db.NotesNote | null>>(
-    Promise.resolve(null)
-  );
+  // Saves are queued per note outside the component so unmounting and rapidly
+  // reopening an editor cannot start a concurrent write from the same base.
   const runSave = useCallback(
     (flag: string, base: db.NotesNote, title: string, body: string) => {
       markPendingNotesNoteSave(flag, base.noteId);
-      const next = saveChainRef.current
+      const key = draftSnapshotKey(flag, base.noteId);
+      const previous = notesNoteSaveChains.get(key) ?? Promise.resolve(null);
+      const next = previous
         .catch(() => null)
         .then((prevSaved) =>
           saveNotebookNote({
@@ -738,10 +738,16 @@ export function NotesNoteDetail({
             body,
           })
         );
-      saveChainRef.current = next.then(
+      const settled = next.then(
         (updated) => updated ?? null,
         () => null
       );
+      notesNoteSaveChains.set(key, settled);
+      void settled.then(() => {
+        if (notesNoteSaveChains.get(key) === settled) {
+          notesNoteSaveChains.delete(key);
+        }
+      });
       return next;
     },
     []
