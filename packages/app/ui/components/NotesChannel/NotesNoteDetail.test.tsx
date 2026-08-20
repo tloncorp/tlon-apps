@@ -632,6 +632,112 @@ describe('NotesNoteDetail note switching', () => {
     act(() => renderer!.unmount());
   });
 
+  it('preserves a title revert made while its rename save is pending', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote
+      .mockReturnValueOnce(firstSave.promise)
+      .mockImplementation(
+        async ({
+          note: base,
+          title,
+          body,
+        }: {
+          note: ReturnType<typeof note>;
+          title: string;
+          body: string;
+        }) => ({
+          ...base,
+          title,
+          bodyMd: body,
+          revision: base.revision + 1,
+        })
+      );
+    mocks.notes = [
+      note(1, 'Original A', 1, 'Original title'),
+      note(2, 'Original B'),
+    ];
+    let renderer: ReactTestRenderer;
+
+    await act(async () => {
+      renderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      renderer!.root
+        .findByProps({ testID: 'NotesTitleInput' })
+        .props.onChangeText('Renamed title');
+    });
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      renderer!.root
+        .findByProps({ testID: 'NotesTitleInput' })
+        .props.onChangeText('Original title');
+    });
+
+    const savedRow = note(1, 'Original A', 2, 'Renamed title');
+    mocks.notes = [savedRow, note(2, 'Original B')];
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+      firstSave.resolve(savedRow);
+      await firstSave.promise;
+    });
+    expect(
+      renderer!.root.findByProps({ testID: 'NotesTitleInput' }).props.value
+    ).toBe('Original title');
+
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    expect(mocks.saveNotebookNote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        note: expect.objectContaining({ noteId: 1, revision: 2 }),
+        title: 'Original title',
+      })
+    );
+
+    act(() => renderer!.unmount());
+  });
+
   it('does not let a clean sibling editor replace dirty recovery data', async () => {
     const firstSave = deferred<Record<string, unknown>>();
     mocks.saveNotebookNote.mockReturnValueOnce(firstSave.promise);

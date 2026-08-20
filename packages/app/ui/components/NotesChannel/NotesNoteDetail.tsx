@@ -200,6 +200,7 @@ function rebaseNotesNoteDraftSnapshot(
   notebookFlag: string,
   noteId: number,
   base: db.NotesNote,
+  savedTitle: string,
   updated: db.NotesNote
 ) {
   const key = draftSnapshotKey(notebookFlag, noteId);
@@ -212,6 +213,7 @@ function rebaseNotesNoteDraftSnapshot(
     baseTitle: updated.title,
     baseBody: updated.bodyMd,
     title:
+      normalizeNotebookNoteTitle(savedTitle) === base.title &&
       normalizeNotebookNoteTitle(snapshot.title) === base.title
         ? updated.title
         : snapshot.title,
@@ -820,7 +822,7 @@ export function NotesNoteDetail({
         body,
       });
       if (updated) {
-        rebaseNotesNoteDraftSnapshot(flag, base.noteId, base, updated);
+        rebaseNotesNoteDraftSnapshot(flag, base.noteId, base, title, updated);
       }
       if (!updated || !isCurrentNote(flag, base.noteId)) return;
 
@@ -829,6 +831,7 @@ export function NotesNoteDetail({
       // semantic rename relative to the base that was saved.
       setDraftBase(updated);
       if (
+        normalizeNotebookNoteTitle(title) === base.title &&
         normalizeNotebookNoteTitle(titleDraftRef.current) === base.title &&
         updated.title !== titleDraftRef.current
       ) {
