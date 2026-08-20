@@ -59,10 +59,13 @@ function checkRestrictedPath(context, node) {
   if (typeof source !== 'string' || !source.startsWith('.')) return;
   const filename = context.filename || context.physicalFilename;
   if (!filename) return;
-  const cwd = context.cwd || process.cwd();
-  const fileRel = path.relative(cwd, filename);
+  // Anchor to the repo root, not the invocation directory: `pnpm -r lint` runs
+  // oxlint from inside each package, so a cwd-relative path would never match
+  // the repo-relative zone prefixes below.
+  const repoRoot = path.resolve(__dirname, '..');
+  const fileRel = path.relative(repoRoot, filename);
   const importedRel = path.relative(
-    cwd,
+    repoRoot,
     path.resolve(path.dirname(filename), source)
   );
   for (const [target, from] of RESTRICTED_ZONES) {
