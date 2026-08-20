@@ -20,7 +20,7 @@ pnpm test:integration:watch # Watch mode for dev environment
 
 # Linting & Formatting (monorepo root ESLint/Prettier configs)
 pnpm lint                   # ESLint
-pnpm lint:format            # Format with prettier
+pnpm lint:format            # Format with oxfmt
 
 # Type checking
 pnpm tsc --noEmit           # Full type check

@@ -46,12 +46,12 @@
     "test-android-resume": "./scripts/test-background-resume.sh"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,md,html}": [
-      "pnpm lint:fix:js",
-      "pnpm lint:format:js"
-    ],
     "*.swift": [
       "pnpm lint:format:swift"
+    ],
+    "*.{js,jsx,ts,tsx}": [
+      "pnpm lint:fix:js",
+      "pnpm lint:format:js"
     ]
   },
   "dependencies": {
