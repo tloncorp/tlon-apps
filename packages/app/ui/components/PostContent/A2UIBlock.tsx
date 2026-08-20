@@ -1196,11 +1196,23 @@ export function A2UIBlock({
             >
               <McpConnectControl
                 component={component}
+                completionConsumed={
+                  component.completionAction
+                    ? isA2UIActionConsumed?.(component.completionAction) ===
+                      true
+                    : false
+                }
                 configuredProviderIds={configuredAgentProviderIds}
                 onConfigure={
                   isA2UIActionAvailable?.(component.configureAction) === false
                     ? undefined
                     : onA2UIAction
+                }
+                onComplete={
+                  component.completionAction &&
+                  isA2UIActionAvailable?.(component.completionAction) !== false
+                    ? onA2UIAction
+                    : undefined
                 }
                 onNavigate={onA2UIAction}
               />
