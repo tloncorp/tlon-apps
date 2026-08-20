@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - james@tlon.io
 created_date: '2026-08-19 13:48'
-updated_date: '2026-08-19 18:46'
+updated_date: '2026-08-20 13:56'
 labels:
   - workspaces
   - interactive-cards
@@ -66,4 +66,28 @@ AC #7 (the render gate) is done in `5a202e04c`. The rest of the task — renderi
 **Docs updated:** `docs/tlon-apps/post-blobs.md` said "A2UI blocks render only in direct messages for now" and described `tlon.sendMessage` as sending "in the current DM". Both now describe the real policy.
 
 **Separately fixed:** `7da6da213` registers `kit-card` as a null renderer. My TASK-2 commit `8739a446f` added that block to the api union without a renderer, and `BlockRendererConfig` is exhaustive, so `packages/app` had stopped typechecking. I missed it because that round's verification covered five packages but not `app`.
+
+Research notes for the remaining work (ACs #1–#6), before any code.
+
+**TASK-3 landed everything this needs on the wire.** `PostBlobDataEntryInteractiveSurfaceSchema` and `PostBlobDataEntryInteractiveActionSchema` are registered in `postBlobDataEntryDefinitions` (`content-helpers.ts:752`, `:775`), with `appendInteractiveSurfaceToPostBlob` / `appendInteractiveActionToPostBlob` builders and `INTERACTIVE_SURFACE_LIMITS` (8KB state, 2KB params, 50 processed ids). `convertContent` already treats both as data-only and emits no block (`postContent.ts:558`). `A2UI.action.surfaceAction` = `'tlon.surfaceAction'` exists with a `SurfaceActionEvent` carrying `{surfaceId, name, params?}` (`a2ui.ts:108`). The protocol is complete; the client is the only missing half.
+
+**Nothing client-side exists yet.** Grepping `packages/app`, `packages/shared`, and `packages/ui` for `interactive-surface`, `interactiveSurface`, `interactive-action`, or `interactiveAction` returns **zero**. Greenfield, not a modification.
+
+**AC #1 and AC #5 are mostly already satisfied by existing machinery, which I did not expect.** `usePostContent` is `useMemo(() => convertContent(post.content, post.blob), [post])` (`contentUtils.tsx:6`), `posts.blob` is a real persisted column (`schema.ts:1310`), the agent's edit lands in it (`postsApi.ts:1396`), and post read queries declare `['posts']` deps (`queries.ts:1957`, `:1976`, `:3294`) so an edit invalidates and refetches. Restart, remount-after-virtualization, and second-device all fall out of that, provided the optimistic layer introduces no state that outlives the post. That reframes the task: the work is the write side plus a pending layer that stays subordinate to the post.
+
+**`api.sendReply` takes a blob directly and works in group channels** (`postsApi.ts:312`). By contrast the draft path derives `blob` *only* from attachments — `toPostData` switches on attachment type with no passthrough (`content-helpers.ts:1020`). So emitting an action through `sendPostFromDraft` would need an attachment type whose only job is to carry a blob, plus an optimistic post row for a reply that must never be visible.
+
+**`A2UIBlock` is presentational and gets its callbacks from context.** It reads `onA2UIAction` / `isA2UIActionAvailable` off `useContentContext()` (`A2UIBlock.tsx:136`) and never sees the post; `handleA2UIAction` in `StaticChatMessage` closes over it. Pending state must live above the block — `A2UIBlock` remounts on virtualization, so holding it inside would drop it on scroll.
+
+**AC #4 is ambiguous and I want it settled in the plan, not in code.** `actionId` is minted at tap and "reused verbatim on retry" per the protocol doc, so it makes *retries* idempotent. Two distinct taps mint two ids and are two legitimate actions. The only reading consistent with the protocol is "a second tap while the first is in flight must not become a second action."
+
+**The timeout in AC #3 is a protocol requirement, not defensive coding.** `interactive-surfaces.md` states a de-duplicated action produces no edit at all, so a client in optimistic state gets no event and "without that fallback the second tap spins forever." Separately, a no-change action deliberately does **not** bump the revision, so reconciling on revision alone hangs on a legitimate no-change — `processedActionIds` must be checked too.
+
+**Hiding the action reply is unlisted but necessary.** The doc specifies hiding a reply whose blob carries exactly one entry that is an `interactive-action`; the "exactly one" guard keeps a reply with real user content visible. No such filter exists, so the first working tap would leave a visible empty reply on every card thread.
+
+**Correcting my own earlier note on this task.** I wrote that `packages/app` had "vitest but no jsdom and no testing-library" so a render test would need a new Tamagui harness and was disproportionate. That was wrong. `packages/app` renders real components under vitest via `react-test-renderer`'s `create`/`act` with `vi.mock` — pattern at `ui/components/Activity/ActivitySourceContent.test.tsx`, CI-enforced through root `test:ci`. TASK-5 shipped `PurposePane.test.tsx` that way. AC #6 is achievable as written.
+
+**Legacy cards must not regress.** Most existing A2UI content has an `a2ui` entry with no sibling surface entry, and the two OpenClaw producers (`pending-approvals`, `migrate-action`) use bare constant surface ids rather than per-instance ones. Absence of a surface entry must mean "stateless card, behave as today".
+
+**The hard blocker on AC #5.** Applying an action and editing the post is TASK-12 (`To Do`). Until it exists nothing ever edits a card, so AC #5 has no counterparty and AC #3's reconcile half can only be tested against a simulated post update. ACs #1, #2, #4 and the revert-on-no-edit half of #3 are fully verifiable now.
 <!-- SECTION:NOTES:END -->
