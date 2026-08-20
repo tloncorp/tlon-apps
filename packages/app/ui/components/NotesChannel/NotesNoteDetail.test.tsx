@@ -261,6 +261,82 @@ describe('NotesNoteDetail note switching', () => {
     act(() => renderer!.unmount());
   });
 
+  it('keeps a restored draft on its stale revision when the row advanced remotely', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote
+      .mockReturnValueOnce(firstSave.promise)
+      .mockRejectedValueOnce(new Error('revision conflict'));
+    let renderer: ReactTestRenderer;
+
+    await act(async () => {
+      renderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      renderer!.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Edited A');
+    });
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+
+    mocks.notes = [note(1, 'Remote A', 2), note(2, 'Original B')];
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    expect(
+      renderer!.root.findByProps({ testID: 'NotesBodyInput' }).props.value
+    ).toBe('Edited A');
+
+    await act(async () => {
+      renderer!.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      firstSave.reject(new Error('revision conflict'));
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.saveNotebookNote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        note: expect.objectContaining({ noteId: 1, revision: 1 }),
+        body: 'Edited A',
+      })
+    );
+
+    act(() => renderer!.unmount());
+  });
+
   it('rebases an earlier save without resurrecting an explicitly reverted draft', async () => {
     const firstSave = deferred<Record<string, unknown>>();
     mocks.saveNotebookNote
@@ -471,7 +547,7 @@ describe('NotesNoteDetail note switching', () => {
     act(() => renderer!.unmount());
   });
 
-  it('adopts an authoritative title when the reopened title is untouched', async () => {
+  it('adopts an authoritative title after a semantic title revert', async () => {
     const firstSave = deferred<Record<string, unknown>>();
     mocks.saveNotebookNote.mockReturnValueOnce(firstSave.promise);
     mocks.notes = [
@@ -515,6 +591,13 @@ describe('NotesNoteDetail note switching', () => {
         />
       );
     });
+    await act(async () => {
+      const titleInput = renderer!.root.findByProps({
+        testID: 'NotesTitleInput',
+      });
+      titleInput.props.onChangeText('Original title ');
+      titleInput.props.onChangeText('Original title');
+    });
 
     const savedRow = note(1, 'Edited A', 2, 'Remote title');
     mocks.notes = [savedRow, note(2, 'Original B')];
@@ -547,6 +630,68 @@ describe('NotesNoteDetail note switching', () => {
     expect(mocks.saveNotebookNote).toHaveBeenCalledTimes(1);
 
     act(() => renderer!.unmount());
+  });
+
+  it('does not let a clean sibling editor replace dirty recovery data', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote.mockReturnValueOnce(firstSave.promise);
+    let dirtyRenderer: ReactTestRenderer;
+    let cleanRenderer: ReactTestRenderer;
+
+    await act(async () => {
+      dirtyRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+      cleanRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      dirtyRenderer!.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Edited A');
+    });
+    act(() => dirtyRenderer!.unmount());
+
+    await act(async () => {
+      firstSave.reject(new Error('save failed'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    act(() => cleanRenderer!.unmount());
+
+    let recoveredRenderer: ReactTestRenderer;
+    await act(async () => {
+      recoveredRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    expect(
+      recoveredRenderer!.root.findByProps({ testID: 'NotesBodyInput' }).props
+        .value
+    ).toBe('Edited A');
+
+    await act(async () => {
+      recoveredRenderer!.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Original A');
+    });
+    act(() => recoveredRenderer!.unmount());
   });
 
   it('reconsiders a skipped row when a previous editor instance settles', async () => {

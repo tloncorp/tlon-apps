@@ -70,12 +70,15 @@ export type NotesNoteDraftSnapshot = {
   notebookFlag: string;
   noteId: number;
   baseRevision: number;
+  baseTitle: string;
+  baseBody: string;
   title: string;
   body: string;
   isDirty: boolean;
-  titleTouched: boolean;
   updatedAt: number;
 };
+
+type NotesNoteDraftOwner = object;
 
 const draftStashKey = (notebookFlag: string, noteId: number) =>
   `${notebookFlag}/${noteId}`;
@@ -83,6 +86,8 @@ const draftSnapshotKey = (notebookFlag: string, noteId: number) =>
   `${notebookFlag}/${noteId}`;
 const notePreviewModes = new Map<string, boolean>();
 const notesNoteDraftSnapshots = new Map<string, NotesNoteDraftSnapshot>();
+const notesNoteDraftSnapshotOwners = new Map<string, NotesNoteDraftOwner>();
+const notesNoteDraftStashOwners = new Map<string, NotesNoteDraftOwner>();
 const pendingNotesNoteSaveCounts = new Map<string, number>();
 const pendingNotesNoteSaveListeners = new Set<() => void>();
 let pendingNotesNoteSaveEpoch = 0;
@@ -132,15 +137,42 @@ function finishPendingNotesNoteSave(notebookFlag: string, noteId: number) {
   emitPendingNotesNoteSaveChange();
 }
 
-function rememberNotesNoteDraftSnapshot(snapshot: NotesNoteDraftSnapshot) {
-  notesNoteDraftSnapshots.set(
-    draftSnapshotKey(snapshot.notebookFlag, snapshot.noteId),
-    snapshot
-  );
+function rememberNotesNoteDraftSnapshot(
+  snapshot: NotesNoteDraftSnapshot,
+  owner: NotesNoteDraftOwner
+) {
+  const key = draftSnapshotKey(snapshot.notebookFlag, snapshot.noteId);
+  const existing = notesNoteDraftSnapshots.get(key);
+  if (
+    !snapshot.isDirty &&
+    existing &&
+    notesNoteDraftSnapshotOwners.get(key) !== owner
+  ) {
+    return;
+  }
+  notesNoteDraftSnapshots.set(key, snapshot);
+  notesNoteDraftSnapshotOwners.set(key, owner);
 }
 
-function clearNotesNoteDraftSnapshot(notebookFlag: string, noteId: number) {
-  notesNoteDraftSnapshots.delete(draftSnapshotKey(notebookFlag, noteId));
+function claimNotesNoteDraftRecovery(
+  notebookFlag: string,
+  noteId: number,
+  owner: NotesNoteDraftOwner
+) {
+  const key = draftSnapshotKey(notebookFlag, noteId);
+  notesNoteDraftSnapshotOwners.set(key, owner);
+  notesNoteDraftStashOwners.set(key, owner);
+}
+
+function clearNotesNoteDraftSnapshot(
+  notebookFlag: string,
+  noteId: number,
+  owner?: NotesNoteDraftOwner
+) {
+  const key = draftSnapshotKey(notebookFlag, noteId);
+  if (owner && notesNoteDraftSnapshotOwners.get(key) !== owner) return;
+  notesNoteDraftSnapshots.delete(key);
+  notesNoteDraftSnapshotOwners.delete(key);
 }
 
 function clearMatchingNotesNoteDraftSnapshot({
@@ -161,11 +193,13 @@ function clearMatchingNotesNoteDraftSnapshot({
   }
 
   notesNoteDraftSnapshots.delete(key);
+  notesNoteDraftSnapshotOwners.delete(key);
 }
 
 function rebaseNotesNoteDraftSnapshot(
   notebookFlag: string,
   noteId: number,
+  base: db.NotesNote,
   updated: db.NotesNote
 ) {
   const key = draftSnapshotKey(notebookFlag, noteId);
@@ -175,7 +209,12 @@ function rebaseNotesNoteDraftSnapshot(
   notesNoteDraftSnapshots.set(key, {
     ...snapshot,
     baseRevision: updated.revision,
-    title: snapshot.titleTouched ? snapshot.title : updated.title,
+    baseTitle: updated.title,
+    baseBody: updated.bodyMd,
+    title:
+      normalizeNotebookNoteTitle(snapshot.title) === base.title
+        ? updated.title
+        : snapshot.title,
     updatedAt: Date.now(),
   });
 }
@@ -192,6 +231,7 @@ export function getNotesNoteDraftSnapshot(
     Date.now() - snapshot.updatedAt > DRAFT_SNAPSHOT_TTL_MS
   ) {
     notesNoteDraftSnapshots.delete(key);
+    notesNoteDraftSnapshotOwners.delete(key);
     return null;
   }
   return snapshot;
@@ -272,12 +312,14 @@ function estimateBodyInputHeight(body: string, inputWidth: number) {
 function clearDraftStash(
   notebookFlag: string,
   noteId: number,
-  ifMatches?: { title: string; body: string }
+  ifMatches?: { title: string; body: string },
+  owner?: NotesNoteDraftOwner
 ) {
   void db.notesNoteDrafts.setValue((stashes) => {
     const key = draftStashKey(notebookFlag, noteId);
     const stash = stashes[key];
     if (!stash) return stashes;
+    if (owner && notesNoteDraftStashOwners.get(key) !== owner) return stashes;
     if (
       ifMatches &&
       (stash.title !== ifMatches.title || stash.body !== ifMatches.body)
@@ -286,6 +328,7 @@ function clearDraftStash(
     }
     const next = { ...stashes };
     delete next[key];
+    notesNoteDraftStashOwners.delete(key);
     return next;
   });
 }
@@ -342,11 +385,10 @@ export function NotesNoteDetail({
       ? draftSnapshotKey(notebookFlag, noteId)
       : null;
   const selectedNoteKeyRef = useRef(selectedNoteKey);
-  const titleTouchedRef = useRef(false);
+  const draftOwnerRef = useRef<NotesNoteDraftOwner>({});
   useLayoutEffect(() => {
     if (selectedNoteKeyRef.current === selectedNoteKey) return;
     selectedNoteKeyRef.current = selectedNoteKey;
-    titleTouchedRef.current = false;
   }, [selectedNoteKey]);
   const titleInputRef = useRef<TextInputRef>(null);
   const autoFocusedTitleNoteIdRef = useRef<string | null>(null);
@@ -476,7 +518,11 @@ export function NotesNoteDetail({
         !draftsMatchSelectedNote
       ) {
         if (notebookFlag && selectedNote) {
-          clearNotesNoteDraftSnapshot(notebookFlag, selectedNote.noteId);
+          clearNotesNoteDraftSnapshot(
+            notebookFlag,
+            selectedNote.noteId,
+            draftOwnerRef.current
+          );
         }
         onDraftChange?.(null);
         return;
@@ -489,17 +535,22 @@ export function NotesNoteDetail({
         notebookFlag,
         noteId: selectedNote.noteId,
         baseRevision: draftBase.revision,
+        baseTitle: draftBase.title,
+        baseBody: draftBase.bodyMd,
         title: titleDraft,
         body,
         isDirty: dirty,
-        titleTouched: titleTouchedRef.current,
         updatedAt: Date.now(),
       };
 
       if (dirty || selectedNoteSavePending) {
-        rememberNotesNoteDraftSnapshot(snapshot);
+        rememberNotesNoteDraftSnapshot(snapshot, draftOwnerRef.current);
       } else {
-        clearNotesNoteDraftSnapshot(notebookFlag, selectedNote.noteId);
+        clearNotesNoteDraftSnapshot(
+          notebookFlag,
+          selectedNote.noteId,
+          draftOwnerRef.current
+        );
       }
       onDraftChange?.(snapshot);
     },
@@ -589,15 +640,32 @@ export function NotesNoteDetail({
         (snapshot.baseRevision === selectedNote.revision ||
           selectedNoteSavePending)
     );
-    setDraftBase(selectedNote ?? null);
+    const restoredBase =
+      restoreSnapshot &&
+      snapshot &&
+      selectedNote &&
+      snapshot.baseRevision !== selectedNote.revision
+        ? {
+            ...selectedNote,
+            revision: snapshot.baseRevision,
+            title: snapshot.baseTitle,
+            bodyMd: snapshot.baseBody,
+          }
+        : selectedNote;
+    setDraftBase(restoredBase ?? null);
     setTitleDraft(
       restoreSnapshot && snapshot ? snapshot.title : selectedNote?.title ?? ''
     );
     setBodyDraft(
       restoreSnapshot && snapshot ? snapshot.body : selectedNote?.bodyMd ?? ''
     );
-    titleTouchedRef.current =
-      restoreSnapshot && snapshot ? snapshot.titleTouched : false;
+    if (restoreSnapshot && snapshot && notebookFlag && selectedNote) {
+      claimNotesNoteDraftRecovery(
+        notebookFlag,
+        selectedNote.noteId,
+        draftOwnerRef.current
+      );
+    }
     if (!sameNote) {
       setSaveState('idle');
       setError(null);
@@ -688,14 +756,12 @@ export function NotesNoteDetail({
     flag: string | null | undefined;
     base: db.NotesNote | null;
     canEdit: boolean;
-    titleTouched: boolean;
   } | null>(null);
   useEffect(() => {
     flushCtxRef.current = {
       flag: notebookFlag,
       base: draftBase,
       canEdit,
-      titleTouched: titleTouchedRef.current,
     };
   });
 
@@ -754,21 +820,20 @@ export function NotesNoteDetail({
         body,
       });
       if (updated) {
-        rebaseNotesNoteDraftSnapshot(flag, base.noteId, updated);
+        rebaseNotesNoteDraftSnapshot(flag, base.noteId, base, updated);
       }
       if (!updated || !isCurrentNote(flag, base.noteId)) return;
 
       // Same-note completions advance the base without replacing newer
-      // drafts. An authoritative title is adopted only when this visit has
-      // not touched it.
+      // drafts. Adopt an authoritative title when the current draft has no
+      // semantic rename relative to the base that was saved.
       setDraftBase(updated);
-      if (!titleTouchedRef.current && updated.title !== titleDraftRef.current) {
+      if (
+        normalizeNotebookNoteTitle(titleDraftRef.current) === base.title &&
+        updated.title !== titleDraftRef.current
+      ) {
         setTitleDraft(updated.title);
         titleDraftRef.current = updated.title;
-      } else if (
-        normalizeNotebookNoteTitle(titleDraftRef.current) === updated.title
-      ) {
-        titleTouchedRef.current = false;
       }
       setSaveState('saved');
       clearConflict(flag, base.noteId);
@@ -788,16 +853,20 @@ export function NotesNoteDetail({
       preserveScrollOffset();
       setSaveState('saving');
       setError(null);
-      rememberNotesNoteDraftSnapshot({
-        notebookFlag,
-        noteId: base.noteId,
-        baseRevision: base.revision,
-        title: titleDraft,
-        body: bodyToSave,
-        isDirty: true,
-        titleTouched: titleTouchedRef.current,
-        updatedAt: Date.now(),
-      });
+      rememberNotesNoteDraftSnapshot(
+        {
+          notebookFlag,
+          noteId: base.noteId,
+          baseRevision: base.revision,
+          baseTitle: base.title,
+          baseBody: base.bodyMd,
+          title: titleDraft,
+          body: bodyToSave,
+          isDirty: true,
+          updatedAt: Date.now(),
+        },
+        draftOwnerRef.current
+      );
       try {
         const updated = await runSave(
           notebookFlag,
@@ -904,7 +973,6 @@ export function NotesNoteDetail({
     setDraftBase(adopted);
     setTitleDraft(adopted.title);
     setBodyDraft(adopted.bodyMd);
-    titleTouchedRef.current = false;
     // Sync the out-of-band flush inputs in the same tick. The draft refs
     // and flush context normally catch up in post-commit effects; a
     // background/unmount flush firing inside that gap would pair the
@@ -916,7 +984,6 @@ export function NotesNoteDetail({
       flag: notebookFlag,
       base: adopted,
       canEdit,
-      titleTouched: false,
     };
     // Persist the host's copy locally so the reactive row catches up with
     // the adoption instead of reloading the stale pre-conflict content
@@ -962,18 +1029,22 @@ export function NotesNoteDetail({
       normalizeNotebookNoteTitle(titleToSave) !== ctx.base.title ||
       bodyToSave !== ctx.base.bodyMd;
     if (!dirty) return;
-    const { flag, base, titleTouched } = ctx;
+    const { flag, base } = ctx;
     preserveScrollOffset();
-    rememberNotesNoteDraftSnapshot({
-      notebookFlag: flag,
-      noteId: base.noteId,
-      baseRevision: base.revision,
-      title: titleToSave,
-      body: bodyToSave,
-      isDirty: true,
-      titleTouched,
-      updatedAt: Date.now(),
-    });
+    rememberNotesNoteDraftSnapshot(
+      {
+        notebookFlag: flag,
+        noteId: base.noteId,
+        baseRevision: base.revision,
+        baseTitle: base.title,
+        baseBody: base.bodyMd,
+        title: titleToSave,
+        body: bodyToSave,
+        isDirty: true,
+        updatedAt: Date.now(),
+      },
+      draftOwnerRef.current
+    );
     runSave(flag, base, titleToSave, bodyToSave)
       .then((updated) => {
         handleSuccessfulSave({
@@ -1054,19 +1125,37 @@ export function NotesNoteDetail({
     if (conflictNote) return;
     if (!isDirty && !selectedNoteSavePending) {
       if (stashRestoreCheckedRef.current === stashRestoreKey) {
-        clearDraftStash(notebookFlag, draftBase.noteId);
+        clearDraftStash(
+          notebookFlag,
+          draftBase.noteId,
+          undefined,
+          draftOwnerRef.current
+        );
       }
       return;
     }
-    void db.notesNoteDrafts.setValue((stashes) => ({
-      ...stashes,
-      [draftStashKey(notebookFlag, draftBase.noteId)]: {
-        title: titleDraft,
-        body: bodyDraft,
-        baseRevision: draftBase.revision,
-        stashedAt: Date.now(),
-      },
-    }));
+    const key = draftStashKey(notebookFlag, draftBase.noteId);
+    const owner = draftOwnerRef.current;
+    void db.notesNoteDrafts.setValue((stashes) => {
+      if (
+        !isDirty &&
+        selectedNoteSavePending &&
+        stashes[key] &&
+        notesNoteDraftStashOwners.get(key) !== owner
+      ) {
+        return stashes;
+      }
+      notesNoteDraftStashOwners.set(key, owner);
+      return {
+        ...stashes,
+        [key]: {
+          title: titleDraft,
+          body: bodyDraft,
+          baseRevision: draftBase.revision,
+          stashedAt: Date.now(),
+        },
+      };
+    });
   }, [
     bodyDraft,
     conflictNote,
@@ -1095,8 +1184,10 @@ export function NotesNoteDetail({
     stashRestoreCheckedRef.current = stashRestoreKey;
     let cancelled = false;
     void db.notesNoteDrafts.getValue().then((stashes) => {
-      const stash = stashes[draftStashKey(notebookFlag, draftBase.noteId)];
+      const key = draftStashKey(notebookFlag, draftBase.noteId);
+      const stash = stashes[key];
       if (cancelled || !stash) return;
+      notesNoteDraftStashOwners.set(key, draftOwnerRef.current);
       if (stash.baseRevision !== draftBase.revision) {
         if (
           stash.title === draftBase.title &&
@@ -1176,10 +1267,6 @@ export function NotesNoteDetail({
   );
 
   const handleTitleDraftChange = useCallback((nextTitle: string) => {
-    titleTouchedRef.current = true;
-    if (flushCtxRef.current) {
-      flushCtxRef.current.titleTouched = true;
-    }
     titleDraftRef.current = nextTitle;
     setTitleDraft(nextTitle);
   }, []);
