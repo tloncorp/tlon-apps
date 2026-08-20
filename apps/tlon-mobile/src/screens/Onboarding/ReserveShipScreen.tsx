@@ -62,7 +62,7 @@ interface DisplayStep {
 }
 const DISPLAY_STEPS: DisplayStep[] = [
   {
-    description: 'Preparing your Tlon',
+    description: 'Preparing your Tlon computer',
     icon: 'Gift',
     startExclusive: NodeBootPhase.IDLE,
     endInclusive: NodeBootPhase.BOOTING,
