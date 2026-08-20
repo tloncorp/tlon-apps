@@ -25,15 +25,19 @@ const providerSnapshots = new Map<string, McpProviderSnapshot>();
 
 export function McpConnectControl({
   component,
+  completionConsumed,
   configuredProviderIds,
   onConfigure,
+  onComplete,
   onNavigate,
 }: {
   component: A2UI.McpConnect;
+  completionConsumed?: boolean;
   configuredProviderIds?: string[];
   onConfigure?: (
     action: A2UI.ConfigureAgentProvidersAction
   ) => void | Promise<void>;
+  onComplete?: (action: A2UI.SendMessageAction) => void | Promise<void>;
   onNavigate?: (action: A2UI.NavigateAction) => void | Promise<void>;
 }) {
   const currentUserId = useCurrentUserId();
@@ -116,10 +120,12 @@ export function McpConnectControl({
   return (
     <McpConnectMenu
       component={component}
+      completionConsumed={completionConsumed}
       configuredProviderIds={configuredProviderIds}
       failed={failed}
       loading={loading}
       onConfigure={onConfigure}
+      onComplete={onComplete}
       onNavigate={onNavigate}
       providers={providers}
     />
@@ -128,25 +134,31 @@ export function McpConnectControl({
 
 export function McpConnectMenu({
   component,
+  completionConsumed = false,
   configuredProviderIds,
   failed = false,
   loading = false,
   onConfigure,
+  onComplete,
   onNavigate,
   providers,
 }: {
   component: A2UI.McpConnect;
+  completionConsumed?: boolean;
   configuredProviderIds?: string[];
   failed?: boolean;
   loading?: boolean;
   onConfigure?: (
     action: A2UI.ConfigureAgentProvidersAction
   ) => void | Promise<void>;
+  onComplete?: (action: A2UI.SendMessageAction) => void | Promise<void>;
   onNavigate?: (action: A2UI.NavigateAction) => void | Promise<void>;
   providers: McpProviderRow[];
 }) {
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [completedLocally, setCompletedLocally] = useState(false);
   const initializedRef = useRef(false);
   const knownConnectedRef = useRef(new Set<string>());
   const connectedProviderIds = useMemo(
@@ -216,6 +228,31 @@ export function McpConnectMenu({
     onConfigure,
     selectedProviderIds,
     submitting,
+  ]);
+
+  const complete = useCallback(async () => {
+    if (
+      !component.completionAction ||
+      !onComplete ||
+      completing ||
+      completionConsumed ||
+      completedLocally
+    ) {
+      return;
+    }
+    setCompleting(true);
+    try {
+      await onComplete(component.completionAction);
+      setCompletedLocally(true);
+    } finally {
+      setCompleting(false);
+    }
+  }, [
+    completedLocally,
+    completing,
+    completionConsumed,
+    component.completionAction,
+    onComplete,
   ]);
 
   const navigate = useCallback(
@@ -413,6 +450,49 @@ export function McpConnectMenu({
               <Icon
                 type="Checkmark"
                 color="$primaryText"
+                customSize={[16, 16]}
+              />
+            )}
+          </XStack>
+        </Pressable>
+      ) : null}
+      {component.completionLabel && component.completionAction ? (
+        <Pressable
+          testID="A2UIMcpConnectComplete"
+          accessibilityLabel={component.completionLabel}
+          accessibilityState={{
+            disabled:
+              !onComplete ||
+              completing ||
+              completionConsumed ||
+              completedLocally,
+          }}
+          disabled={
+            !onComplete || completing || completionConsumed || completedLocally
+          }
+          onPress={complete}
+        >
+          <XStack
+            minHeight={52}
+            marginTop="$m"
+            paddingHorizontal="$m"
+            backgroundColor="$primaryText"
+            borderWidth={1}
+            borderColor="$border"
+            borderRadius="$m"
+            alignItems="center"
+            gap="$m"
+            opacity={completionConsumed || completedLocally ? 0.5 : 1}
+          >
+            <Text size="$label/l" color="$background" trimmed={false} flex={1}>
+              {component.completionLabel}
+            </Text>
+            {completing ? (
+              <LoadingSpinner size="small" />
+            ) : (
+              <Icon
+                type="Checkmark"
+                color="$background"
                 customSize={[16, 16]}
               />
             )}

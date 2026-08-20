@@ -61,7 +61,7 @@ describe('agent onboarding requests', () => {
     expect(servicesComponents.find(({ id }) => id === 'root')).toMatchObject({
       id: 'root',
       component: 'Column',
-      children: ['pitch', 'providers', 'done'],
+      children: ['pitch', 'providers'],
     });
     const menu = servicesComponents.find(({ id }) => id === 'providers') as
       | A2UI.McpConnect
@@ -71,6 +71,10 @@ describe('agent onboarding requests', () => {
       maxVisible: 4,
       seeAllLabel: 'See all connectors',
       submitLabel: 'Use for this group',
+      completionLabel: 'Done',
+      completionAction: {
+        event: { name: A2UI.action.sendMessage, context: { text: 'Done' } },
+      },
     });
     expect(menu?.action.event.name).toBe(A2UI.action.navigate);
     expect(menu?.configureAction).toMatchObject({
@@ -83,13 +87,7 @@ describe('agent onboarding requests', () => {
         },
       },
     });
-    expect(servicesComponents.find(({ id }) => id === 'done')).toMatchObject({
-      component: 'Button',
-      variant: 'primary',
-      action: {
-        event: { name: A2UI.action.sendMessage, context: { text: 'Done' } },
-      },
-    });
+    expect(servicesComponents.find(({ id }) => id === 'done')).toBeUndefined();
     expect(A2UI.validateBlobEntry(services)).toBe(true);
   });
 

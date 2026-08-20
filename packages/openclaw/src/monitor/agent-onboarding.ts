@@ -1764,7 +1764,7 @@ function buildServicesSurface(
       {
         id: 'root',
         component: 'Column',
-        children: ['pitch', 'providers', 'done'],
+        children: ['pitch', 'providers'],
       },
       { id: 'pitch', component: 'Text', text: pitch },
       {
@@ -1787,15 +1787,9 @@ function buildServicesSurface(
             context: { groupId, provisionId, providerIds: [] },
           },
         },
+        completionLabel: 'Done',
+        completionAction: choiceAction('Done'),
       },
-      {
-        id: 'done',
-        component: 'Button',
-        child: 'done-label',
-        variant: 'primary',
-        action: choiceAction('Done'),
-      },
-      { id: 'done-label', component: 'Text', text: 'Done' },
     ])
   );
 }
