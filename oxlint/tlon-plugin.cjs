@@ -54,24 +54,53 @@ const RESTRICTED_ZONES = [
   ['packages/shared/src/db', 'packages/shared/src/store'],
 ];
 
+// Maps a workspace package self-reference (`@tloncorp/api/lib/foo`) onto the
+// source path the zone list is written against. Bare specifiers otherwise skip
+// the check, which would let an alias cross a forbidden boundary.
+function aliasToSourcePath(source) {
+  const match = /^@tloncorp\/([^/]+)\/(.+)$/.exec(source);
+  if (!match) {
+    return undefined;
+  }
+  const [, pkg, subpath] = match;
+  return `packages/${pkg}/src/${subpath}`;
+}
+
+function toPosix(p) {
+  return p.split(path.sep).join('/');
+}
+
 function checkRestrictedPath(context, node) {
   const source = node.source && node.source.value;
-  if (typeof source !== 'string' || !source.startsWith('.')) return;
+  if (typeof source !== 'string') {
+    return;
+  }
   const filename = context.filename || context.physicalFilename;
-  if (!filename) return;
+  if (!filename) {
+    return;
+  }
   // Anchor to the repo root, not the invocation directory: `pnpm -r lint` runs
   // oxlint from inside each package, so a cwd-relative path would never match
   // the repo-relative zone prefixes below.
   const repoRoot = path.resolve(__dirname, '..');
-  const fileRel = path.relative(repoRoot, filename);
-  const importedRel = path.relative(
-    repoRoot,
-    path.resolve(path.dirname(filename), source)
-  );
+  const fileRel = toPosix(path.relative(repoRoot, filename));
+
+  let importedRel;
+  if (source.startsWith('.')) {
+    importedRel = toPosix(
+      path.relative(repoRoot, path.resolve(path.dirname(filename), source))
+    );
+  } else {
+    importedRel = aliasToSourcePath(source);
+  }
+  if (!importedRel) {
+    return;
+  }
+
   for (const [target, from] of RESTRICTED_ZONES) {
     if (
-      (fileRel === target || fileRel.startsWith(target + path.sep)) &&
-      (importedRel === from || importedRel.startsWith(from + path.sep))
+      (fileRel === target || fileRel.startsWith(target + '/')) &&
+      (importedRel === from || importedRel.startsWith(from + '/'))
     ) {
       context.report({
         node,
@@ -183,10 +212,13 @@ module.exports = {
     },
     'restricted-paths': {
       create(context) {
+        // `export ... from` / `export * from` create the same dependency as an
+        // import, so all three declaration types are checked.
+        const check = (node) => checkRestrictedPath(context, node);
         return {
-          ImportDeclaration(node) {
-            checkRestrictedPath(context, node);
-          },
+          ImportDeclaration: check,
+          ExportNamedDeclaration: check,
+          ExportAllDeclaration: check,
         };
       },
     },
