@@ -12,11 +12,15 @@ on:
     # harness don't warrant a ship restart. (Production pulls the develop
     # branch ref at restart, so a missed trigger self-heals on the next one.)
     #
-    # Deliberately NOT watching packages/api or packages/tlon-skill: the
-    # deployed OpenClaw plugin resolves its workspace:^ deps to *published npm
-    # versions* (resolve-workspace-deps.mjs --registry), so develop merges
-    # to those packages change nothing on ships — dep changes reach
-    # production via an npm publish followed by a restart.
+    # Deliberately NOT watching packages/api or packages/tlon-skill.
+    # @tloncorp/api is built from this repo at the same ref as the plugin by
+    # the hosted entrypoint (tlonbot tlawn.py packs it as a file: tarball
+    # dep), so api changes ride along with the next plugin rebuild and an
+    # api-only merge has nothing to restart. The other workspace:^ deps,
+    # including @tloncorp/tlon-skill, do resolve to *published npm versions*
+    # (resolve-workspace-deps.mjs --registry), and a rebuild only runs when
+    # the plugin ref moved — so skill releases reach ships via npm publish
+    # followed by the next plugin-path commit's restart.
     paths:
       - "packages/openclaw/src/**"
       - "packages/openclaw/index.ts"

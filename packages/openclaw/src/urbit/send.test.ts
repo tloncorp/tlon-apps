@@ -2,6 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { dmReactionReplyParentId } from '../monitor/dm-reactions.js';
 
+// Passthrough stub for the reference extractor (the real one is covered by
+// story.test.ts): this file partially mocks @tloncorp/api and mocks
+// @urbit/aura, so the real api module cannot load in this graph. None of
+// these test inputs contain reference paths, so behavior is unchanged.
+const extractReferencePaths = (text: string) => ({
+  text,
+  cites: [] as unknown[],
+});
+
 vi.mock('@urbit/aura', () => ({
   scot: vi.fn(() => 'mocked-ud'),
   da: {
@@ -26,6 +35,7 @@ describe('sendDm', () => {
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
       configureClient: vi.fn(),
+      extractReferencePaths,
     }));
 
     const { sendDm } = await import('./send.js');
@@ -70,6 +80,7 @@ describe('sendDm', () => {
       removeReaction: vi.fn(),
       deletePost: vi.fn(),
       configureClient: vi.fn(),
+      extractReferencePaths,
     }));
 
     const { sendChannelPost } = await import('./send.js');
@@ -109,6 +120,7 @@ describe('sendDm', () => {
         removeReaction: vi.fn(),
         deletePost: vi.fn(),
         configureClient: vi.fn(),
+        extractReferencePaths,
       }));
 
       const { sendDm } = await import('./send.js');

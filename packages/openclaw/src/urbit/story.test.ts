@@ -120,6 +120,49 @@ describe('markdownToStory', () => {
     });
   });
 
+  describe('reference paths', () => {
+    it('converts a group ref in prose to a cite verse before the text', () => {
+      const story = markdownToStory('Join /1/group/~zod/test now');
+      expect(story).toEqual([
+        { block: { cite: { group: '~zod/test' } } },
+        { inline: ['Join now'] },
+      ]);
+    });
+
+    it('sends a ref-only message as just the cite verse', () => {
+      expect(markdownToStory('/1/group/~zod/test')).toEqual([
+        { block: { cite: { group: '~zod/test' } } },
+      ]);
+    });
+
+    it('terminates on a heading line reduced to a bare hash by extraction', () => {
+      expect(markdownToStory('# /1/group/~zod/test')).toEqual([
+        { block: { cite: { group: '~zod/test' } } },
+        { inline: ['#'] },
+      ]);
+    });
+
+    it('terminates on a bare hash line', () => {
+      expect(markdownToStory('#')).toEqual([{ inline: ['#'] }]);
+    });
+
+    it('leaves a URL containing a ref path unchanged', () => {
+      const story = markdownToStory('https://example.com/1/group/~zod/test');
+      expect(story).toEqual([
+        {
+          inline: [
+            {
+              link: {
+                href: 'https://example.com/1/group/~zod/test',
+                content: 'https://example.com/1/group/~zod/test',
+              },
+            },
+          ],
+        },
+      ]);
+    });
+  });
+
   describe('URL linkification', () => {
     it('linkifies a bare URL in plain text', () => {
       const story = markdownToStory('https://example.com/path');

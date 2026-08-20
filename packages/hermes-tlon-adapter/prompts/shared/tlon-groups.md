@@ -18,15 +18,10 @@ Do not decompose a user-requested new group into plain `tlon groups create`, `tl
 
 The bot node remains the group host. The owner is the human Tlon user who should be invited and made admin.
 
+After creating a group, share it in the chat: the command output includes a `Ref:` path — include that path verbatim in your reply to post a tappable group card. If the output has no `Ref:` line, just state the group ID.
+
 ## Gallery channels
 
-Galleries use `heap/~host/name` and collect images, links, and other media.
-When replying in a gallery conversation, reply normally: Hermes posts a
-comment on the triggering gallery item. To create a distinct new top-level
-item, use `tlon posts send heap/~host/name "text or URL"` (optionally
-`--title "..."`); upload an image first, then use `--image <uploaded-url>`.
+Galleries use `heap/~host/name` and collect images, links, and other media. When replying in a gallery conversation, reply normally: Hermes posts a comment on the triggering gallery item. To create a distinct new top-level item, use `tlon posts send heap/~host/name "text or URL"` (optionally `--title "..."`); upload an image first, then use `--image <uploaded-url>`.
 
-Reaction dispatches for a gallery comment include both its message id and its
-thread root. React to that comment with `tlon posts react heap/~host/name
-<comment-id> <emoji> --parent <post-id>`. Delete a gallery post with `tlon
-posts delete heap/~host/name <post-id>`.
+Reaction dispatches for a gallery comment include both its message id and its thread root. React to that comment with `tlon posts react heap/~host/name <comment-id> <emoji> --parent <post-id>`. Delete a gallery post with `tlon posts delete heap/~host/name <post-id>`.

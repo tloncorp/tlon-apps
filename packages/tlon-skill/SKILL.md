@@ -13,7 +13,7 @@ When running as a Hermes plugin skill, the `tlon` tool is a wrapper around the `
 
 For exact command syntax, use the command sections below or run `tlon <subcommand> --help` through the tool.
 
-When a Tlon user asks you to create a group for them, use `tlon groups create-owned "Name" --owner ~requester [--description "..."]`. This invites the requester and makes them an admin. Do not use plain `tlon groups create` for user-requested groups; that creates a bot-owned group that does not automatically include the requester.
+When a Tlon user asks you to create a group for them, use `tlon groups create-owned "Name" --owner ~requester [--description "..."]`. This invites the requester and makes them an admin. Do not use plain `tlon groups create` for user-requested groups; that creates a bot-owned group that does not automatically include the requester. After `create-owned`, share the group using the `Ref:` path from the output.
 
 For a normal text reply in the current Tlon conversation, respond with final assistant text and let Hermes deliver it through `TlonAdapter.send()`. To post to a different channel or one-to-one DM (a proactive send), use `posts send` with that target (`chat/~host/slug` for channels, `~ship` for one-to-one DMs). Reserve `dms send <club-id>` for group DMs, whose club IDs start with `0v`.
 
@@ -448,17 +448,13 @@ Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL ret
 
 Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported. Never use LaTeX math delimiters ($...$, $$...$$, \(...\), \[...\]) — Tlon renders no math; write math as plain text/Unicode or in code blocks.
 
+A standalone reference path token in message text becomes a tappable card and is removed from the visible text: `/1/group/~host/slug` (group card), `/1/chan/<nest>/msg/<id>` (quoted post), `/1/chan/notes/~host/<name>/note/<id>` (note card). URLs containing a path are left alone, but code formatting does not prevent conversion (a backtick-quoted path still becomes a card); to show the syntax literally, write a placeholder with no `~` (e.g. `/1/group/HOST/SLUG`) — a `~`-prefixed fake name is not safe, it can be parsed as a broken ship mention. Applies to `posts send/reply/edit` and `dms send/reply`. To point someone at a specific earlier message, include its `/1/chan/<nest>/msg/<id>` path as its own word in your reply — it renders as a quoted-post card.
+
 ### Notes
 
-Manage %notes notebooks (Markdown-first). Notebooks are nests of the form `notes/~host/name`; note bodies are plain Markdown (not Tlon Story).
+Manage %notes notebooks (Markdown-first). Notebooks are nests of the form `notes/~host/name`; note bodies are plain Markdown (not Tlon Story). To link a note in chat, include `/1/chan/notes/~host/<name>/note/<id>` as its own word in a message — it renders as a tappable note card.
 
-Do not use LaTeX math delimiters (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) in
-note bodies or message text. No Tlon surface renders math: the delimiters
-display literally or get mangled (Markdown emphasis, mentions, and escaping can
-corrupt the text inside and around them), and in a note body the backslashes in
-`\(` and `\[` are silently eaten by Markdown escaping, so those delimiters
-vanish. Write math as plain text/Unicode (`x²`, `E = mc²`, `θ ∈ [0, 2π)`) and
-use code blocks or inline code for complex formulas.
+Do not use LaTeX math delimiters (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) in note bodies or message text. No Tlon surface renders math: the delimiters display literally or get mangled (Markdown emphasis, mentions, and escaping can corrupt the text inside and around them), and in a note body the backslashes in `\(` and `\[` are silently eaten by Markdown escaping, so those delimiters vanish. Write math as plain text/Unicode (`x²`, `E = mc²`, `θ ∈ [0, 2π)`) and use code blocks or inline code for complex formulas.
 
 ```bash
 tlon notes status                                        # Check %notes reachability

@@ -22,6 +22,11 @@
  * posts, invites), and the notes runtimes (notesV1 et al.).
  */
 import type { NotesV1Api } from '@tloncorp/api';
+// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
+// (bun resolves it fine at runtime and in tests). The mock replaces the whole
+// '@tloncorp/api' root module, so the pure reference extractor must be wired
+// through from the real source here — markdown.ts imports it by value.
+import { extractReferencePaths } from '@tloncorp/api/client/references';
 import { mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -139,6 +144,7 @@ mock.module('@tloncorp/api', () => ({
   sendPost: async () => undefined,
   sendReply: async () => undefined,
   batchImportNotesV1: async (input: { requestId: string }) => input.requestId,
+  extractReferencePaths,
   getChannelPosts: (...args: unknown[]) => mockedGetChannelPosts.impl(...args),
   toUrbitStory: (content: unknown) => content ?? [],
   updateChannel: async () => undefined,

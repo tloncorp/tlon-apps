@@ -1,4 +1,4 @@
-import type { Story } from '@tloncorp/api';
+import { type Story, extractReferencePaths } from '@tloncorp/api';
 // @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
 // (bun resolves it fine at runtime and in tests)
 import { markdownToStory as apiMarkdownToStory } from '@tloncorp/api/client/markdown';
@@ -177,7 +177,16 @@ function hasNonHttpImageBlock(story: Story): boolean {
 // and the whole poke is rejected. A standalone image line converts to a block
 // verse and is fine.
 export function markdownToStory(markdown: string): Story {
-  const story: Story = apiMarkdownToStory(markdown);
+  // Extract reference paths before conversion — after the shared converter
+  // runs, the ~ship embedded in a path is already shredded into a mention.
+  const { text, cites } = extractReferencePaths(markdown);
+  const citeVerses: Story = cites.map((cite) => ({ block: { cite } }));
+  if (text.trim() === '') {
+    // Ref-only input: nothing left to convert, and nothing that could fail
+    // the renderable-content guard below.
+    return citeVerses;
+  }
+  const story: Story = apiMarkdownToStory(text);
   if (hasImageInInlinePosition(story)) {
     throw commandError(
       'images inside a text line are not supported by the backend; put the image on its own line or use --image'
@@ -188,10 +197,12 @@ export function markdownToStory(markdown: string): Story {
       'markdown image targets must be http(s) URLs; upload the file first (tlon upload) or use --image'
     );
   }
-  if (markdown.trim() !== '' && !hasRenderableStory(story)) {
+  // Guard the converted residual on its own: a cite verse must not make an
+  // otherwise-unrenderable residual (e.g. a raw HTML block) look sendable.
+  if (!hasRenderableStory(story)) {
     throw commandError(
       'message text produced no sendable content (unsupported Markdown, e.g. a raw HTML block or reference-style link); rephrase using inline Markdown'
     );
   }
-  return story;
+  return [...citeVerses, ...story];
 }

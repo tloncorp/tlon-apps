@@ -512,6 +512,73 @@ describe('posts send', () => {
     expect(context.calls.sendPost[0].content).toEqual([IMAGE_VERSE]);
   });
 
+  it('sends a reference path as a cite verse between the image and the caption', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      [
+        'send',
+        'chat/~host/channel',
+        'caption /1/group/~zod/test',
+        '--image',
+        'https://x/y.png',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      IMAGE_VERSE,
+      { block: { cite: { group: '~zod/test' } } },
+      { inline: ['caption'] },
+    ]);
+  });
+
+  it('sends a ref-only message as just the cite verse', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '/1/group/~zod/test'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { block: { cite: { group: '~zod/test' } } },
+    ]);
+  });
+
+  it('still refuses an unrenderable residual next to a ref', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      [
+        'send',
+        'chat/~host/channel',
+        '/1/group/~zod/test\n\n<div>must see</div>',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('keeps an invalid ref candidate in the sent text', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'join /1/group/~foobar/test'],
+      context.deps
+    );
+
+    // No cite is emitted; the rejected candidate passes through the shared
+    // converter with today's behavior (its embedded ~ship is
+    // mention-tokenized).
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: ['join /1/group/', { ship: '~foobar' }, '/test'] },
+    ]);
+  });
+
   it('passes a validated --blob through to the payload', async () => {
     const context = makeDeps();
     await run(
