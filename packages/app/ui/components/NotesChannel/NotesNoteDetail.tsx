@@ -58,8 +58,8 @@ export type NotesNoteSaveFieldIntent = 'preserve' | 'set';
 
 type NotesNoteQueuedSaveResult = {
   updated: db.NotesNote | null | undefined;
-  requestedTitle: string;
-  requestedBody: string;
+  effectiveTitle: string;
+  effectiveBody: string;
   titleIntent: NotesNoteSaveFieldIntent;
   bodyIntent: NotesNoteSaveFieldIntent;
 };
@@ -206,27 +206,6 @@ function clearNotesNoteDraftSnapshot(
   notesNoteDraftSnapshotOwners.delete(key);
 }
 
-function clearMatchingNotesNoteDraftSnapshot({
-  notebookFlag,
-  noteId,
-  title,
-  body,
-}: {
-  notebookFlag: string;
-  noteId: number;
-  title: string;
-  body: string;
-}) {
-  const key = draftSnapshotKey(notebookFlag, noteId);
-  const snapshot = notesNoteDraftSnapshots.get(key);
-  if (!snapshot || snapshot.title !== title || snapshot.body !== body) {
-    return;
-  }
-
-  notesNoteDraftSnapshots.delete(key);
-  notesNoteDraftSnapshotOwners.delete(key);
-}
-
 function rebaseNotesNoteDraftSnapshot(
   notebookFlag: string,
   noteId: number,
@@ -239,11 +218,11 @@ function rebaseNotesNoteDraftSnapshot(
   const nextTitle =
     result.titleIntent === 'preserve' &&
     normalizeNotebookNoteTitle(snapshot.title) ===
-      normalizeNotebookNoteTitle(result.requestedTitle)
+      normalizeNotebookNoteTitle(result.effectiveTitle)
       ? result.updated?.title ?? snapshot.title
       : snapshot.title;
   const nextBody =
-    result.bodyIntent === 'preserve' && snapshot.body === result.requestedBody
+    result.bodyIntent === 'preserve' && snapshot.body === result.effectiveBody
       ? result.updated?.bodyMd ?? snapshot.body
       : snapshot.body;
   const nextSnapshot = {
@@ -379,6 +358,51 @@ function clearDraftStash(
     delete next[key];
     notesNoteDraftStashOwners.delete(key);
     return next;
+  });
+}
+
+// Advance durable recovery data using the payload this queued request
+// actually executed with. A field changed after execution began no longer
+// matches that effective payload and is therefore preserved as a new draft.
+function rebaseNotesNoteDraftStash(
+  notebookFlag: string,
+  noteId: number,
+  result: NotesNoteQueuedSaveResult
+) {
+  if (!result.updated) return;
+  const updated = result.updated;
+  void db.notesNoteDrafts.setValue((stashes) => {
+    const key = draftStashKey(notebookFlag, noteId);
+    const stash = stashes[key];
+    if (!stash) return stashes;
+    const nextTitle =
+      result.titleIntent === 'preserve' &&
+      normalizeNotebookNoteTitle(stash.title) ===
+        normalizeNotebookNoteTitle(result.effectiveTitle)
+        ? updated.title
+        : stash.title;
+    const nextBody =
+      result.bodyIntent === 'preserve' && stash.body === result.effectiveBody
+        ? updated.bodyMd
+        : stash.body;
+    if (
+      normalizeNotebookNoteTitle(nextTitle) === updated.title &&
+      nextBody === updated.bodyMd
+    ) {
+      const next = { ...stashes };
+      delete next[key];
+      notesNoteDraftStashOwners.delete(key);
+      return next;
+    }
+    return {
+      ...stashes,
+      [key]: {
+        ...stash,
+        title: nextTitle,
+        body: nextBody,
+        baseRevision: updated.revision,
+      },
+    };
   });
 }
 
@@ -666,6 +690,38 @@ export function NotesNoteDetail({
       selectedNote != null &&
       draftBase != null &&
       selectedNote.revision < draftBase.revision;
+    const draftsMatchSelectedRow = Boolean(
+      sameNote &&
+        selectedNote &&
+        normalizeNotebookNoteTitle(titleDraft) === selectedNote.title &&
+        bodyDraft === selectedNote.bodyMd
+    );
+    if (
+      sameNote &&
+      isDirty &&
+      draftsMatchSelectedRow &&
+      !rowTrailsBase &&
+      !selectedNoteSavePending &&
+      !conflictNote &&
+      notebookFlag &&
+      selectedNote
+    ) {
+      preserveScrollOffset();
+      setDraftBase(selectedNote);
+      setSaveState('saved');
+      clearNotesNoteDraftSnapshot(
+        notebookFlag,
+        selectedNote.noteId,
+        draftOwnerRef.current
+      );
+      clearDraftStash(
+        notebookFlag,
+        selectedNote.noteId,
+        { title: titleDraft, body: bodyDraft },
+        draftOwnerRef.current
+      );
+      return;
+    }
     if (
       sameNote &&
       (isDirty ||
@@ -721,6 +777,7 @@ export function NotesNoteDetail({
       setConflictNote(null);
     }
   }, [
+    bodyDraft,
     conflictNote,
     draftBase,
     isDirty,
@@ -728,6 +785,7 @@ export function NotesNoteDetail({
     preserveScrollOffset,
     selectedNote,
     selectedNoteSavePending,
+    titleDraft,
   ]);
 
   useEffect(() => {
@@ -815,8 +873,8 @@ export function NotesNoteDetail({
             body: effectiveBody,
           }).then((updated) => ({
             updated,
-            requestedTitle: title,
-            requestedBody: body,
+            effectiveTitle,
+            effectiveBody,
             titleIntent,
             bodyIntent,
           }));
@@ -909,18 +967,9 @@ export function NotesNoteDetail({
       base: db.NotesNote;
       result: NotesNoteQueuedSaveResult;
     }) => {
-      clearDraftStash(flag, base.noteId, {
-        title: result.requestedTitle,
-        body: result.requestedBody,
-      });
-      clearMatchingNotesNoteDraftSnapshot({
-        notebookFlag: flag,
-        noteId: base.noteId,
-        title: result.requestedTitle,
-        body: result.requestedBody,
-      });
       if (result.updated) {
         rebaseNotesNoteDraftSnapshot(flag, base.noteId, result);
+        rebaseNotesNoteDraftStash(flag, base.noteId, result);
       }
       if (!result.updated || !isCurrentNote(flag, base.noteId)) return;
 
@@ -932,7 +981,7 @@ export function NotesNoteDetail({
       if (
         result.titleIntent === 'preserve' &&
         normalizeNotebookNoteTitle(titleDraftRef.current) ===
-          normalizeNotebookNoteTitle(result.requestedTitle) &&
+          normalizeNotebookNoteTitle(result.effectiveTitle) &&
         result.updated.title !== titleDraftRef.current
       ) {
         setTitleDraft(result.updated.title);
@@ -940,7 +989,7 @@ export function NotesNoteDetail({
       }
       if (
         result.bodyIntent === 'preserve' &&
-        bodyDraftRef.current === result.requestedBody &&
+        bodyDraftRef.current === result.effectiveBody &&
         result.updated.bodyMd !== bodyDraftRef.current
       ) {
         setBodyDraft(result.updated.bodyMd);

@@ -17,9 +17,11 @@ import {
 } from './NotesNoteDetail';
 
 const mocks = vi.hoisted(() => ({
+  draftStashes: {} as Record<string, Record<string, unknown>>,
   getDraftStashes: vi.fn(),
   notes: [] as Array<Record<string, unknown>>,
   saveNotebookNote: vi.fn(),
+  setDraftStashes: vi.fn(),
   useNotebookData: vi.fn(),
 }));
 
@@ -43,7 +45,7 @@ vi.mock('@tloncorp/shared', () => ({
 vi.mock('@tloncorp/shared/db', () => ({
   notesNoteDrafts: {
     getValue: mocks.getDraftStashes,
-    setValue: vi.fn(async () => undefined),
+    setValue: mocks.setDraftStashes,
   },
 }));
 
@@ -184,7 +186,9 @@ describe('NotesNoteDetail note switching', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.draftStashes = {};
     mocks.getDraftStashes.mockResolvedValue({});
+    mocks.setDraftStashes.mockResolvedValue(undefined);
     mocks.notes = [note(1, 'Original A'), note(2, 'Original B')];
     mocks.useNotebookData.mockImplementation(() => ({
       folders: [],
@@ -215,7 +219,7 @@ describe('NotesNoteDetail note switching', () => {
           revision: base.revision + 1,
         })
       );
-    let renderer: ReactTestRenderer;
+    let renderer!: ReactTestRenderer;
 
     await act(async () => {
       renderer = create(
@@ -388,6 +392,16 @@ describe('NotesNoteDetail note switching', () => {
 
   it('preserves an authoritative title through a deep body-save queue', async () => {
     const firstSave = deferred<Record<string, unknown>>();
+    mocks.getDraftStashes.mockImplementation(async () => mocks.draftStashes);
+    mocks.setDraftStashes.mockImplementation(
+      async (
+        update: (
+          stashes: Record<string, Record<string, unknown>>
+        ) => Record<string, Record<string, unknown>>
+      ) => {
+        mocks.draftStashes = update(mocks.draftStashes);
+      }
+    );
     mocks.saveNotebookNote
       .mockReturnValueOnce(firstSave.promise)
       .mockImplementation(
@@ -503,6 +517,148 @@ describe('NotesNoteDetail note switching', () => {
         body: 'Newest body',
       })
     );
+    expect(mocks.draftStashes['~zod/notebook/1']).toBeUndefined();
+  });
+
+  it('preserves a title revert made after an intermediate adoption', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    const secondSave = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote
+      .mockReturnValueOnce(firstSave.promise)
+      .mockReturnValueOnce(secondSave.promise)
+      .mockImplementation(
+        async ({
+          note: base,
+          title,
+          body,
+        }: {
+          note: ReturnType<typeof note>;
+          title: string;
+          body: string;
+        }) => ({
+          ...base,
+          title,
+          bodyMd: body,
+          revision: base.revision + 1,
+        })
+      );
+    mocks.notes = [
+      note(1, 'Original A', 1, 'Original title'),
+      note(2, 'Original B'),
+    ];
+    let renderer!: ReactTestRenderer;
+
+    await act(async () => {
+      renderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      renderer.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Older body');
+    });
+    await act(async () => {
+      renderer.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      renderer.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      renderer.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Latest body');
+    });
+    await act(async () => {
+      renderer.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      renderer.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+
+    await act(async () => {
+      firstSave.resolve(note(1, 'Older body', 2, 'Remote title'));
+      await firstSave.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(
+      renderer.root.findByProps({ testID: 'NotesTitleInput' }).props.value
+    ).toBe('Remote title');
+    expect(
+      renderer.root.findByProps({ testID: 'NotesBodyInput' }).props.value
+    ).toBe('Latest body');
+
+    await act(async () => {
+      renderer.root
+        .findByProps({ testID: 'NotesTitleInput' })
+        .props.onChangeText('Original title');
+    });
+    await act(async () => {
+      secondSave.resolve(note(1, 'Latest body', 3, 'Remote title'));
+      await secondSave.promise;
+      await Promise.resolve();
+    });
+    expect(
+      renderer.root.findByProps({ testID: 'NotesTitleInput' }).props.value
+    ).toBe('Original title');
+
+    await act(async () => {
+      renderer.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    expect(mocks.saveNotebookNote).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        note: expect.objectContaining({
+          revision: 3,
+          title: 'Remote title',
+        }),
+        title: 'Original title',
+        body: 'Latest body',
+      })
+    );
+
+    act(() => renderer.unmount());
   });
 
   it('keeps an older sibling body edit when the predecessor captured only a newer title edit', async () => {
@@ -1384,6 +1540,77 @@ describe('NotesNoteDetail note switching', () => {
         .props.onChangeText('Original A');
     });
     act(() => recoveredRenderer!.unmount());
+  });
+
+  it('advances a restored draft base when the settled row already matches', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote.mockReturnValueOnce(firstSave.promise);
+    let renderer!: ReactTestRenderer;
+
+    await act(async () => {
+      renderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      renderer.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Edited A');
+    });
+    await act(async () => {
+      renderer.unmount();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      renderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    expect(
+      renderer.root.findByProps({ testID: 'NotesBodyInput' }).props.value
+    ).toBe('Edited A');
+
+    const savedRow = note(1, 'Edited A', 2);
+    mocks.notes = [savedRow, note(2, 'Original B')];
+    await act(async () => {
+      renderer.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+      firstSave.resolve(savedRow);
+      await firstSave.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      renderer.update(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={2}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    expect(mocks.saveNotebookNote).toHaveBeenCalledTimes(1);
+
+    act(() => renderer.unmount());
   });
 
   it('reconsiders a skipped row when a previous editor instance settles', async () => {
