@@ -2756,15 +2756,16 @@
     di-core
   ::  +di-proxy: send a message
   ::
-  ::  +di-vouch-status: ask the %vouch store what we believe .ship is. Returns
+  ::  +di-vouch-status: ask the %vouch store what we believe .who is. Returns
   ::  %unknown when %vouch isn't installed. Used to route a plain DM to a bot
-  ::  moon through its host without an explicit vouched-action first.
+  ::  moon through its host, and to auto-accept (%done) a DM to a bot.
   ::
   ++  di-vouch-status
+    |=  who=@p
     ^-  ?(%unknown %real %bot)
     =/  res
       %-  mule
-      |.  .^(?(%unknown %real %bot) %gx (scry-path %vouch /status/(scot %p ship)/noun))
+      |.  .^(?(%unknown %real %bot) %gx (scry-path %vouch /status/(scot %p who)/noun))
     ?:(?=(%& -.res) p.res %unknown)
   ++  di-proxy
     |=  =diff:dm:c
@@ -2793,11 +2794,17 @@
     ::  (.vouched-dms), or when %vouch classifies .ship as a bot moon -- in
     ::  which case the host is its sponsor. a moon %vouch calls real (or one
     ::  we know nothing about) is delivered directly, as normal.
+    ::  a moon %vouch classifies as a bot is delivered to its host (sein),
+    ::  using a cached host if we already have one. a bot auto-accepts, so the
+    ::  conversation skips the invite handshake and stays %done.
+    =/  host=(unit @p)  di-vouched
+    =/  is-bot=?
+      ?&  ?=(%earl (clan:title ship))
+          =(%bot (di-vouch-status ship))
+      ==
+    =?  host    &(is-bot ?=(~ host))  `(^sein:title ship)
+    =?  net.dm  is-bot                %done
     =.  cor
-      =/  host=(unit @p)  di-vouched
-      =?  host  &(?=(~ host) ?=(%earl (clan:title ship)))
-        ?:  =(%bot di-vouch-status)  `(^sein:title ship)
-        host
       ?~  host  (emit (proxy:di-pass diff))
       (emit (proxy-vouched:di-pass u.host diff))
     di-core

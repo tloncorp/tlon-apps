@@ -263,6 +263,9 @@
     [%gu @ %activity @ %$ ~]         `!>(&)
     [%gu @ %groups @ *]           `!>(&)
     [%gx @ %groups @ %volume *]   `!>(%soft)
+  ::  di-proxy scrys %vouch to classify a moon target; these tests drive the
+  ::  vouched relay via sein, so leave the moon %unknown (routing unaffected).
+    [%gx @ %vouch @ %status @ *]  `!>(`?(%unknown %real %bot)`%unknown)
   ::
       [%gx @ %chat-test @ %~.~ %negotiate %status %~.~zod %chat-test *]
     `!>(%match)
