@@ -135,6 +135,14 @@
         %pending  (frond 'pending' ~)
         %grant    (frond 'grant' (grant grant.body.res))
       ::
+          %token
+        %-  frond
+        :-  'token'
+        %-  pairs
+        :~  ['token' s+token.read-token.body.res]
+            ['expiresAt' s+(scot %da expires-at.read-token.body.res)]
+        ==
+      ::
           %error
         %-  frond
         :-  'error'
@@ -279,8 +287,8 @@
           (so (get 'reason' jon))
       ==
     ::
-        %'issue-read'    [%issue-read (ni (get 'id' jon))]
-        %'issue-delete'  [%issue-delete (ni (get 'id' jon))]
+        %'issue-bucket-read'  [%issue-bucket-read ~]
+        %'issue-delete'       [%issue-delete (ni (get 'id' jon))]
     ::
         %'rename-entry'
       :+  %entry  (ni (get 'id' jon))

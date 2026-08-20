@@ -108,11 +108,7 @@ export type BucketsAction =
       sessionId: string;
       reason: string;
     }
-  | {
-      type: 'issue-read';
-      flag: BucketsFlag;
-      id: number;
-    }
+  | { type: 'issue-bucket-read'; flag: BucketsFlag }
   | {
       type: 'issue-delete';
       flag: BucketsFlag;
@@ -157,9 +153,23 @@ export type BucketsActionError =
  * `pending` is emitted by our own ship once it has forwarded the action to the
  * bucket's host and is waiting; the host's real answer replaces it.
  */
+/**
+ * A bucket-wide read capability.
+ *
+ * Read access is uniform across a bucket, so one token covers every ready
+ * object in it. Each ship holds its own, refreshed by its own timer, and
+ * serves it to local clients over a scry — so a read costs no round trip to
+ * the bucket's host.
+ */
+export type BucketsReadToken = {
+  token: string;
+  expiresAt: string;
+};
+
 export type BucketsResponseBody =
   | { ok: null }
   | { grant: BucketsGrant }
+  | { token: BucketsReadToken }
   | { pending: null }
   | { error: { type: BucketsActionError; message: string } };
 

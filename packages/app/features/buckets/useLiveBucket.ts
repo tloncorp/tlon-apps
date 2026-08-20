@@ -6,8 +6,10 @@ import {
   BucketsSnapshot,
   bucketsFlagKey,
   formatBucketsChannelId,
+  getBucketReadToken,
   getBuckets,
   getCurrentUserId,
+  requestBucketReadToken,
   requestBucketsGrant,
   sendBucketsAction,
   subscribeToBuckets,
@@ -618,13 +620,13 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       if (!entry || entry.kind !== 'file' || entry.file.status !== 'ready') {
         throw new Error('This file is not ready to open');
       }
-      const issued = await requestBucketsGrant({
-        type: 'issue-read',
-        flag,
-        id,
-      });
+      // One token covers the whole bucket, and our own ship keeps it fresh —
+      // so this is a local read, and only a cold start has to ask for one.
+      const held =
+        (await getBucketReadToken(flag)) ??
+        (await requestBucketReadToken(flag));
       const grant = await grantBucketRead(
-        issued.token,
+        held.token,
         flag.host,
         entry.file.objectKey
       );

@@ -2,7 +2,9 @@ import { beforeEach, expect, test, vi } from 'vitest';
 
 import {
   BucketsActionFailed,
+  getBucketReadToken,
   getBuckets,
+  requestBucketReadToken,
   requestBucketsGrant,
   sendBucketsAction,
   subscribeToBuckets,
@@ -90,7 +92,7 @@ test('requestBucketsGrant returns the minted token', async () => {
   });
 
   await expect(
-    requestBucketsGrant({ type: 'issue-read', flag, id: 12 })
+    requestBucketsGrant({ type: 'issue-delete', flag, id: 12 })
   ).resolves.toEqual({ token: '0vabc', entryId: 12, expiresAt: '~2026.1.1' });
 });
 
@@ -101,8 +103,42 @@ test('requestBucketsGrant rejects an answer that carries no grant', async () => 
   });
 
   await expect(
-    requestBucketsGrant({ type: 'issue-read', flag, id: 12 })
+    requestBucketsGrant({ type: 'issue-delete', flag, id: 12 })
   ).rejects.toThrow(/did not return a grant/);
+});
+
+test('getBucketReadToken reads the token our own ship holds', async () => {
+  vi.mocked(scry).mockResolvedValueOnce({
+    token: '0vread',
+    expiresAt: '~2026.1.1',
+  });
+
+  await expect(getBucketReadToken(flag)).resolves.toEqual({
+    token: '0vread',
+    expiresAt: '~2026.1.1',
+  });
+  expect(scry).toHaveBeenCalledWith({
+    app: 'buckets',
+    path: '/v1/buckets/~zod/files/read-token',
+  });
+});
+
+test('getBucketReadToken yields null before the first refresh lands', async () => {
+  vi.mocked(scry).mockRejectedValueOnce(new Error('404'));
+
+  await expect(getBucketReadToken(flag)).resolves.toBeNull();
+});
+
+test('requestBucketReadToken mints one on a cold start', async () => {
+  vi.mocked(requestJson).mockResolvedValueOnce({
+    requestId: '0v5',
+    body: { token: { token: '0vread', expiresAt: '~2026.1.1' } },
+  });
+
+  await expect(requestBucketReadToken(flag)).resolves.toEqual({
+    token: '0vread',
+    expiresAt: '~2026.1.1',
+  });
 });
 
 test('subscribeToBuckets unsubscribes the replacement id after a reset', async () => {

@@ -3,6 +3,7 @@ import type {
   BucketsActionError,
   BucketsFlag,
   BucketsGrant,
+  BucketsReadToken,
   BucketsRequestResponse,
   BucketsResponse,
   BucketsResponseBody,
@@ -89,6 +90,37 @@ export async function requestBucketsGrant(
     throw new Error(`%buckets ${action.type} did not return a grant`);
   }
   return body.grant;
+}
+
+/**
+ * The bucket read token our own ship currently holds.
+ *
+ * The ship keeps this fresh on a timer, so this is a local read with no
+ * network hop — and no call to the bucket's host. Returns null only if we do
+ * not hold one yet, which resolves once the ship's first refresh lands.
+ */
+export async function getBucketReadToken(
+  flag: BucketsFlag
+): Promise<BucketsReadToken | null> {
+  return scry<BucketsReadToken | null>({
+    app: BUCKETS_APP,
+    path: `/v1/buckets/${flag.host}/${flag.name}/read-token`,
+  }).catch(() => null);
+}
+
+/**
+ * Ask the ship to mint a read token now rather than waiting for its timer.
+ *
+ * Only needed on a cold start, when nothing has asked for this bucket yet.
+ */
+export async function requestBucketReadToken(
+  flag: BucketsFlag
+): Promise<BucketsReadToken> {
+  const body = await sendBucketsAction({ type: 'issue-bucket-read', flag });
+  if (!('token' in body)) {
+    throw new Error('%buckets issue-bucket-read did not return a token');
+  }
+  return body.token;
 }
 
 export async function subscribeToBuckets(

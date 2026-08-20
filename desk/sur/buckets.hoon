@@ -114,17 +114,37 @@
       error=(unit @t)
   ==
 ::
-::  $object-capability: host-private grant to read or delete one object.
+::  $object-capability: host-private grant to read or delete objects.
 ::
 ::  Minted per request and returned only to .actor. Uploads do not appear
 ::  here — their token is the upload session id.
 ::
+::  Reads are scoped to a whole bucket, not one object. Read access is uniform
+::  across a bucket — group-can-read answers for the channel, not the file — so
+::  a per-object grant would be exactly as precise while costing the reader a
+::  round trip per file. Deletes stay per-object because they are destructive
+::  and a mistake is not recoverable.
+::
 +$  object-kind  ?(%read %delete)
+::  .entry-id is ~ for a read, which covers the whole bucket, and set for a
+::  delete, which names one object.
+::
 +$  object-capability
   $:  kind=object-kind
       =flag
-      entry-id=@ud
+      entry-id=(unit @ud)
       actor=ship
+      expires-at=@da
+  ==
+::
+::  $read-token: the bucket-read capability this ship currently holds.
+::
+::  Every ship keeps its own, refreshed on a timer, so a local client always
+::  has one to hand without a network round trip — and because the token names
+::  its actor, the broker still sees who is reading.
+::
++$  read-token
+  $:  token=@t
       expires-at=@da
   ==
 ::
@@ -164,7 +184,7 @@
       [%create-folder parent=(unit @ud) name=@t]
       [%begin-upload parent=(unit @ud) name=@t mime=@t size=@ud checksum=(unit @t)]
       [%fail-upload session=@uv reason=@t]
-      [%issue-read id=@ud]
+      [%issue-bucket-read ~]
       [%issue-delete id=@ud]
       [%entry id=@ud =a-entry]
   ==
@@ -219,6 +239,7 @@
 +$  response-body
   $%  [%ok ~]
       [%grant =grant]
+      [%token =read-token]
       [%pending ~]
       [%error type=action-error message=@t]
   ==
@@ -328,6 +349,7 @@
       next-id=@ud
       sessions=(map @uv upload-session)
       object-capabilities=(map @t object-capability)
+      read-tokens=(map flag read-token)
       reservations=(map @t @uv)
       pending=(map request-id [host=ship until=@da])
       requests=requests

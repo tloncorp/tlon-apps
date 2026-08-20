@@ -268,10 +268,10 @@
       ==
   !>([%'authorized' %'completed' %ready [1 1]])
 ::
-::  Read and delete grants are minted by the host and bound to one object.
-::  Presenting a token against a different object is denied.
+::  One read token covers the whole bucket: it authorizes any ready object in
+::  it, and nothing outside it. Deletes stay bound to a single object.
 ::
-++  test-object-grants-are-object-bound
+++  test-read-token-covers-the-bucket
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
@@ -293,12 +293,18 @@
     (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
   ::  A fresh eny so the read token differs from the upload session id.
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v5678)))
-  ;<  read-caz=(list card)  b  (ask 0v2 [%bucket flag [%issue-read id.entry.ses]])
+  ;<  read-caz=(list card)  b  (ask 0v2 [%bucket flag [%issue-bucket-read ~]])
   =/  read-token=@t  (scot %uv 0v5678)
+  =/  expiry=@da  (add ~2026.1.1 ~m30)
   ;<  ~  b
     %+  ex-cards  read-caz
-    :~  %+  grant-fact  0v2
-        [%grant read-token id.entry.ses (add ~2026.1.1 ~m10)]
+    ::  the refresh is armed while applying the action, so it precedes the
+    ::  response the request settles with
+    :~  %-  ex-arvo
+        :*  /buckets/token/~sampel-palnet/project-files
+            [%b %wait (sub expiry ~m5)]
+        ==
+        (grant-fact 0v2 [%token read-token expiry])
     ==
   ;<  ok-cage=cage  b
     (got-peek /x/v1/broker/read/[read-token]/[object-key.fil])
@@ -312,6 +318,8 @@
     (so:dejs:format (get:dejs:buckets-json 'displayFilename' payload))
   =/  bad-result=@t
     (so:dejs:format (get:dejs:buckets-json 'result' !<(json q.bad-cage)))
+  ::  the token names no object, so the bucket's own file is authorized while
+  ::  a key that belongs to no entry is refused
   (ex-equal !>([ok-result ok-name bad-result]) !>([%'authorized' 'private.pdf' %'denied']))
 ::
 ::  Expired grants and pending sessions are swept the next time authority is

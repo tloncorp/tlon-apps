@@ -23,9 +23,14 @@
 ::  live arrives to find no session.
 ::
 ++  upload-window  ~h1
-::  +object-window: lifetime of a read or delete capability.
+::  +object-window: lifetime of a delete capability.
 ::
 ++  object-window  ~m10
+::  +read-window: lifetime of a bucket-read token, and +token-margin the slack
+::  we re-mint within so a client never finds an expired one.
+::
+++  read-window  ~m30
+++  token-margin  ~m5
 ::  +request-timeout: how long a subscriber waits for the host's answer
 ::  before reporting failure to its client.
 ::
@@ -538,8 +543,8 @@
     %create-folder  (create-folder flag parent.act name.act actor)
     %begin-upload   (begin-upload flag parent.act name.act mime.act size.act checksum.act actor)
     %fail-upload    (fail-upload flag session.act reason.act actor)
-    %issue-read     (issue-object-capability %read flag id.act actor)
-    %issue-delete   (issue-object-capability %delete flag id.act actor)
+    %issue-bucket-read  (issue-read-token flag actor)
+    %issue-delete       (issue-delete-capability flag id.act actor)
     %entry          (apply-entry flag id.act a-entry.act actor)
   ==
 ::
@@ -568,6 +573,7 @@
     [%update flag +(revision.st) [%delete ~]]
   =.  cor  (give [%fact ~[/v1 (updates-path flag)] buckets-response-1+!>(res)])
   =.  sessions  (drop-bucket-sessions flag)
+  =.  cor  (drop-read-token flag)
   =.  spaces  (~(del by spaces) flag)
   cor
 ::
@@ -676,11 +682,35 @@
   =.  sessions  (~(put by sessions) sid ses(status %failed, error `reason))
   cor
 ::
-::  +issue-object-capability: mint a short-lived read or delete grant for a
-::  published file and return it to the requester alone.
+::  +issue-read-token: mint this ship's bucket-read capability and hand it
+::  back, reusing the one we already hold while it has useful life left.
 ::
-++  issue-object-capability
-  |=  [kind=object-kind:b =flag:b id=@ud actor=ship]
+::  One token covers every ready object in the bucket, so a reader spends one
+::  round trip per session rather than one per file.
+::
+++  issue-read-token
+  |=  [=flag:b actor=ship]
+  ^+  cor
+  =.  cor  prune-broker-authority
+  =/  live=(unit read-token:b)  (~(get by read-tokens) flag)
+  ?:  ?&  ?=(^ live)
+          (gth expires-at.u.live (add now.bowl token-margin))
+      ==
+    (answer [%token u.live])
+  =/  token=@t  (scot %uv `@uv`eny.bowl)
+  =/  expiry=@da  (add now.bowl read-window)
+  =/  tok=read-token:b  [token expiry]
+  =.  object-capabilities
+    (~(put by object-capabilities) token [%read flag ~ actor expiry])
+  =.  read-tokens  (~(put by read-tokens) flag tok)
+  =.  cor  (arm-token-refresh flag expiry)
+  (answer [%token tok])
+::
+::  +issue-delete-capability: mint a short-lived delete grant for one ready
+::  file. Deletes stay per-object — they are destructive and unrecoverable.
+::
+++  issue-delete-capability
+  |=  [=flag:b id=@ud actor=ship]
   ^+  cor
   =.  cor  prune-broker-authority
   =/  st=bucket-state:b  (need-state flag)
@@ -694,9 +724,69 @@
     (answer [%error %invalid-input 'file is not ready'])
   =/  token=@t  (scot %uv `@uv`eny.bowl)
   =/  expiry=@da  (add now.bowl object-window)
-  =/  aut=object-capability:b  [kind flag id actor expiry]
-  =.  object-capabilities  (~(put by object-capabilities) token aut)
+  =.  object-capabilities
+    (~(put by object-capabilities) token [%delete flag `id actor expiry])
   (answer [%grant [token id expiry]])
+::
+::  +arm-token-refresh: re-mint before the current token lapses, so a local
+::  client never has to wait on one.
+::
+++  arm-token-refresh
+  |=  [=flag:b expiry=@da]
+  ^+  cor
+  %-  emit
+  :*  %pass  (token-wire flag)  %arvo  %b
+      %wait  (sub expiry token-margin)
+  ==
+::
+++  token-wire
+  |=  =flag:b
+  ^-  wire
+  /buckets/token/(scot %p ship.flag)/[name.flag]
+::
+::  +keep-read-token: store a token the host issued us, and arm its refresh.
+::
+++  keep-read-token
+  |=  [host=ship tok=read-token:b]
+  ^+  cor
+  =/  mine=(list flag:b)
+    %+  murn  ~(tap by spaces)
+    |=  [=flag:b sp=space:b]
+    ?.(&(=(host ship.flag) =(%sub net.sp)) ~ `flag)
+  ?~  mine  cor
+  =.  read-tokens  (~(put by read-tokens) i.mine tok)
+  (arm-token-refresh i.mine expires-at.tok)
+::
+::  +renew-read-token: keep this ship's token current without a client asking.
+::
+::  Hosting a bucket means minting for ourselves; subscribing means asking the
+::  host, over the same forwarding path a client action uses.
+::
+++  renew-read-token
+  |=  =flag:b
+  ^+  cor
+  ?~  sp=(~(get by spaces) flag)  cor
+  ?:  =(%pub net.u.sp)
+    =/  st=bucket-state:b  (need-state flag)
+    ?.  (group-can-read group.st flag our.bowl)
+      (drop-read-token flag)
+    (issue-read-token flag our.bowl)
+  (forward `@uv`eny.bowl [%bucket flag [%issue-bucket-read ~]] ship.flag)
+::
+::  +drop-read-token: forget a bucket's token and revoke the capability behind
+::  it. Called when we lose the bucket, and when a subscriber loses access.
+::
+++  drop-read-token
+  |=  =flag:b
+  ^+  cor
+  =.  read-tokens  (~(del by read-tokens) flag)
+  =.  object-capabilities
+    %-  malt
+    %+  skip  ~(tap by object-capabilities)
+    |=  [token=@t aut=object-capability:b]
+    ?.  =(%read kind.aut)  |
+    =(flag flag.aut)
+  cor
 ::
 ::  +prune-broker-authority: drop expired capabilities, expired pending
 ::  sessions, and any reservation whose session is gone.
@@ -719,6 +809,11 @@
     %+  skim  ~(tap by reservations)
     |=  [reservation=@t sid=@uv]
     (~(has by sessions) sid)
+  =.  read-tokens
+    %-  malt
+    %+  skim  ~(tap by read-tokens)
+    |=  [=flag:b tok=read-token:b]
+    (gth expires-at.tok now.bowl)
   cor
 ::
 ++  drop-bucket-sessions
@@ -968,7 +1063,7 @@
     %set-title      (group-is-admin group.st flag who)
     %set-readers    (group-is-admin group.st flag who)
     %set-writers    (group-is-admin group.st flag who)
-    %issue-read     (group-can-read group.st flag who)
+    %issue-bucket-read  (group-can-read group.st flag who)
     %create-folder  (group-can-write group.st flag writers.st who)
     %begin-upload   (group-can-write group.st flag writers.st who)
     %fail-upload    (group-can-write group.st flag writers.st who)
@@ -1029,6 +1124,12 @@
       ['upload' upload]
   ==
 ::
+::  +broker-object-verdict: answer Memex about one object.
+::
+::  A read capability covers the bucket, so the object is resolved by its key
+::  rather than named by the capability; a delete capability names its entry.
+::  Either way access is re-checked against the live group here.
+::
 ++  broker-object-verdict
   |=  [kind=object-kind:b token=@t object=@t]
   ^-  json
@@ -1041,18 +1142,27 @@
   ?~  sp=(~(get by spaces) flag.aut)  denied
   ?~  st-unit=state.u.sp  denied
   =/  st=bucket-state:b  u.st-unit
-  ?.  ?:  =(%read kind)
+  ?.  ?:  =(%read kind.aut)
         (group-can-read group.st flag.aut actor.aut)
       (group-can-write group.st flag.aut writers.st actor.aut)
     denied
-  ?~  ent-unit=(~(get by entries.st) entry-id.aut)  denied
-  =/  ent=entry:b  u.ent-unit
+  =/  found=(unit entry:b)
+    ?^  entry-id.aut
+      (~(get by entries.st) u.entry-id.aut)
+    ::  bucket-scoped: find the entry this object key belongs to
+    %-  ~(rep by entries.st)
+    |=  [[id=@ud ent=entry:b] acc=(unit entry:b)]
+    ?^  acc  acc
+    ?.  ?=(%file -.kind.ent)  ~
+    ?.(=(object object-key.file.kind.ent) ~ `ent)
+  ?~  found  denied
+  =/  ent=entry:b  u.found
   ?.  ?=(%file -.kind.ent)  denied
   =/  fil=file:b  +.kind.ent
   ?.  =(%ready status.fil)  denied
   ?.  =(object object-key.fil)  denied
   =/  payload=json
-    ?:  =(kind %read)
+    ?:  =(%read kind.aut)
       %-  pairs:enjs:format
       :~  ['bucketId' s+(scot %ud id.bucket.st)]
           ['objectId' s+object-key.fil]
@@ -1062,7 +1172,7 @@
     :~  ['bucketId' s+(scot %ud id.bucket.st)]
         ['objectId' s+object-key.fil]
     ==
-  =/  key=@t  ?:(=(kind %read) 'read' 'delete')
+  =/  key=@t  ?:(=(%read kind.aut) 'read' 'delete')
   %-  pairs:enjs:format
   :~  ['result' s+'authorized']
       [key payload]
@@ -1107,6 +1217,7 @@
   ^+  cor
   ?~  sp=(~(get by spaces) flag)  cor
   ?.  =(%sub net.u.sp)  cor
+  =.  cor  (drop-read-token flag)
   =.  cor  (emil (drop (report-active flag u.sp |)))
   =.  spaces  (~(del by spaces) flag)
   %-  emit
@@ -1199,6 +1310,11 @@
       [%x %v1 %broker %complete reservation=@ ~]
     ``json+!>((broker-complete-verdict reservation.pole))
   ::
+      [%x %v1 %buckets host=@ name=@ %read-token ~]
+    =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
+    ?~  tok=(~(get by read-tokens) flag)  ~
+    ``noun+!>(`read-token:b`u.tok)
+  ::
       [%u %joined host=@ name=@ ~]
     =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
     ``loob+!>((~(has by spaces) flag))
@@ -1255,6 +1371,9 @@
       ?.  (request-live rid)  cor
       =/  res=req-response:b  !<(req-response:b q.cage.sign)
       =.  cor  (close-request host rid)
+      ::  a token answer is ours to keep, whoever asked for it
+      =?  cor  ?=(%token -.body.res)
+        (keep-read-token host read-token.body.res)
       (respond rid ~[/v1/requests] body.res)
     ::
         %kick
@@ -1307,6 +1426,14 @@
     ?:  accepted.sign-arvo  cor
     %-  (slog leaf+"buckets: eyre bind rejected" ~)
     cor
+  ::
+      [%buckets %token host=@ name=@ ~]
+    ?.  ?=([%behn %wake *] sign-arvo)  cor
+    =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
+    ?~  sp=(~(get by spaces) flag)  cor
+    ::  Refreshing is the same request a client makes; when we host the bucket
+    ::  Gall loops the poke back to us and it is served locally.
+    (renew-read-token flag)
   ::
       [%buckets %req host=@ rid=@ %wake ~]
     ?.  ?=([%behn %wake *] sign-arvo)  cor
@@ -1398,5 +1525,17 @@
     ?.  =(changed group.u.state.u.sp)  ~
     ?:  (group-can-read group.u.state.u.sp flag who)  ~
     `[%give %kick ~[pax] `who]
+  ::  a kicked reader's token must stop working now, not when it lapses
+  =/  revoked=(set ship)
+    %-  silt
+    %+  murn  kicks
+    |=  =card
+    ?.(?=([%give %kick * ^] card) ~ ship.p.card)
+  =.  object-capabilities
+    %-  malt
+    %+  skip  ~(tap by object-capabilities)
+    |=  [token=@t aut=object-capability:b]
+    ?.  =(%read kind.aut)  |
+    (~(has in revoked) actor.aut)
   (emil kicks)
 --
