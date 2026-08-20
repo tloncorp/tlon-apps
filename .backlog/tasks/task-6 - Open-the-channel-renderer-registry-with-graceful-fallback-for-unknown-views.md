@@ -1,11 +1,11 @@
 ---
 id: TASK-6
 title: Open the channel renderer registry with graceful fallback for unknown views
-status: In Progress
+status: Done
 assignee:
   - '@james@tlon.io'
 created_date: '2026-08-19 13:47'
-updated_date: '2026-08-20 00:29'
+updated_date: '2026-08-20 00:30'
 labels:
   - workspaces
   - platform
@@ -236,3 +236,25 @@ And the registry is open for *declaration*, not for *implementation* — views a
 
 One thing not done: no UI exists for authoring a custom content configuration, so there is no way to produce one of these channels from inside the app. Verification went through the cosmos fixture. Whoever builds the writer (TASK-13/16 provisioning) will be the first real producer.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Opened the channel view registry and made unknown views degrade visibly. Commit `4317ddfca2`. Client-only — no Hoon, no mark change, no desk-test churn.
+
+**The registry was closed twice over.** The three id types were unions derived from `as const` spec objects in `@tloncorp/api`; the components were module-level consts in `@tloncorp/app`, typed `Partial<{[Id in CollectionRendererId]: …}>`. So even app-local code could not register a view without editing an enum in another package, and there was no registration function anywhere.
+
+Ids are now `OpenId<Known> = Known | (string & {})` — built-in literals keep autocomplete, any string is accepted. The context maps are `Readonly<Record<string, …>>`. `ComponentsKitProvider` takes an optional `views` prop and folds `ChannelView` registrations over the built-ins, which win on collision with a logged warning. A view fills any subset of the three slots, so a channel naming one id in several `contentConfiguration` fields resolves each from that one entry while the wire format stays three independent ids.
+
+**The distinction the contract rests on.** `resolveChannelView` returns `{component, resolved, declaredId}`, and `resolved` is false *only* when a view was declared and nothing registered it. An absent declaration resolves true — falling back to the channel-type default is the intended path for nearly every channel that exists, and treating it as a degradation would put the upgrade notice on all of them. Same reason `decode` preserves an unrecognized id rather than normalizing it to chat: that would erase the difference between "a view we don't have" and "no view declared."
+
+**Per slot.** Collection and content already fell back to the channel-type built-in — posts stay readable, and that is now deliberate rather than incidental (dev log, no notice; a notice there would mean blanking the channel). The draft input did not: `if (InputComponent)` with no else meant React 19 rendered nothing, leaving a channel you could read, could not post to, and got no explanation for. It now renders `UnsupportedViewNotice` and fires `AnalyticsEvent.UnknownChannelViewSeen`.
+
+**Two latent bugs closed in passing.** `PostView`'s `switch (channel.type)` had no `default`, so an out-of-union type rendered `<undefined>` and threw — guarded only by `getChannelType` coercing unknown nest kinds to chat. And `decode`'s standing validation TODO is closed: a malformed renderer-id field defaults to its built-in individually, and a `channelContentConfiguration` that isn't an object is dropped while the `description` survives, where the old code threw and surfaced raw JSON to the user as the channel description.
+
+**Verification.** `tsc --noEmit` clean across api, shared, app, ui, tlon-kits, openclaw, tlon-skill. Tests: api 812, app 501, shared 442 — all passing, 40 new. eslint and prettier clean on the diff. Cosmos on web (`Channel.fixture.tsx` → `unknownView`), which is what catches browser-only module-eval failures that tsc and vitest both miss: the channel renders, posts render normally, and the notice sits where the composer would be — confirmed by screenshot and a11y tree, with the console errors verified identical on the untouched `chat` fixture.
+
+**Scope, stated rather than implied.** AC #1 is verified as *a channel* declaring a view no client has registered; a *kit manifest* declaring one is TASK-15's, bundled with the place-vocabulary extension TASK-13 needs for its notes-backed artifact place (`placeKindSchema` has no `notes` member, and `desk/app/kits.hoon` cannot create a notes channel at all). And the registry is open for declaration, not implementation — views are React components compiled into the app until TASK-20/21 allow signed kit code. `docs/tlon-apps/channel-views.md` says both out loud rather than letting the task description's "without requiring an app release per new view type" be read as covering both halves.
+
+**Not done:** no UI exists for authoring a custom content configuration, so these channels cannot be produced from inside the app yet. Verification went through the cosmos fixture; TASK-13/16 provisioning will be the first real writer.
+<!-- SECTION:FINAL_SUMMARY:END -->
