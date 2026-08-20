@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "id": "meal-plan",
+  "name": "Weekly Meals",
+  "kitVersion": "0.1.0",
+  "publisher": "~lagrev-ridsyp-nocsyx-lassul",
+  "description": "The week's dinners, planned and kept. A plan lands in the kitchen, the grocery list comes with it, and the record builds up week by week.",
+  "image": "https://bootstrap.urbit.org/kits/meal-plan.png",
+  "scope": "group",
+  "places": {
+    "kitchen": {
+      "type": "chat",
+      "title": "Kitchen",
+      "description": "Where the week gets planned and argued about"
+    },
+    "plans": {
+      "type": "notes",
+      "title": "Meal Plans",
+      "description": "Every week's plan and grocery list, kept"
+    }
+  },
+  "bindings": [
+    {
+      "file": "instructions/runner.md",
+      "scope": "group",
+      "load": "ambient"
+    },
+    {
+      "file": "instructions/setup.md",
+      "scope": "group",
+      "trigger": "install.setup",
+      "load": "on-trigger"
+    },
+    {
+      "file": "instructions/weekly-plan.md",
+      "scope": "group",
+      "trigger": "schedule.weekly-plan",
+      "load": "on-trigger"
+    }
+  ],
+  "schedules": [
+    {
+      "id": "weekly-plan",
+      "cron": "0 17 * * 5",
+      "description": "Friday afternoon: plan the coming week"
+    }
+  ],
+  "scaffolds": [
+    {
+      "file": "scaffolds/Profile.md",
+      "workspace": "Meal Plan/Profile.md"
+    },
+    {
+      "file": "scaffolds/Preferences.md",
+      "workspace": "Meal Plan/Preferences.md"
+    }
+  ],
+  "policy": {
+    "required": [
+      {
+        "reason": "Answer questions and adjust the week when asked in the kitchen.",
+        "cell": {
+          "sender": "allowed",
+          "surface": "owned-channel",
+          "trigger": "mention"
+        },
+        "level": "auto"
+      },
+      {
+        "reason": "Plan the coming week on schedule, once the household has switched that on.",
+        "event": "schedule",
+        "level": "auto"
+      }
+    ],
+    "recommended": [
+      {
+        "reason": "Notice when someone says what they do or don't want to eat, without needing to be addressed.",
+        "cell": {
+          "sender": "allowed",
+          "surface": "owned-channel",
+          "trigger": "plain"
+        },
+        "level": "consider"
+      }
+    ]
+  }
+}

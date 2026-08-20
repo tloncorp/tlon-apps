@@ -70,8 +70,8 @@ Written by the installer into the group's `blob` (opaque `@t`, JSON). The group 
                 "log": "notes/~host/log-book-club"
             },
             "schedules": [
-                { "id": "monthly-pick", "cron": "0 17 1 * *" },
-                { "id": "weekly-nudge", "cron": "0 17 * * 5" }
+                { "id": "monthly-pick", "cron": "0 17 1 * *", "enabled": false },
+                { "id": "weekly-nudge", "cron": "0 17 * * 5", "enabled": false }
             ],
             "agents": ["~sampel-palnet"],
             "setup": "pending",
@@ -100,6 +100,7 @@ Notes:
 -   `kits` is an array: the shape composes even though v1 enforces one kit per group (instantiate-only).
 -   `agents` lists ships whose bots are authorized to execute this kit here (v1: the installer's bot).
 -   `setup`: `"pending"` → `"done"`; flipped by the executing agent after the setup conversation completes.
+-   `schedules[].enabled` — **declaring a schedule is not starting it.** Install records every declared schedule inactive; a household is offered the recurring behaviour after its first result and it is switched on then, never during onboarding. An executing agent fires only enabled schedules. Absent reads as `false`, because a descriptor written before this field existed described a schedule nothing was firing.
 -   `permissions` lists what the executing **agent** may do here — never who may act. Group membership and the channel `can-read`/`can-write` gates own that, and a second copy in the blob would drift (see `docs/backend/channel-hosts.md`). Known ids are in `WORKSPACE_CAPABILITIES`; the field is loose strings on purpose, so a capability a newer client granted reads as "not granted" on an older one rather than making the descriptor malformed. Absent means none granted.
 -   **This entry is the workspace descriptor.** A group is a workspace exactly when its blob carries a kit install; there is no separate marker. See `packages/shared/src/logic/workspaceDescriptor.ts` for the read/update helpers, and note the consequence: installing a kit into a group makes that group a workspace.
 -   The blob does NOT carry instruction text. Executing agents hold the package (from %kits); the blob tells them which kit runs here and how its abstract places resolve. A member's bot that lacks the package can fetch it from `kit.publisher` via %kits.

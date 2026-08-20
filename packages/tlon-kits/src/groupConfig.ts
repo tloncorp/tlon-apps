@@ -47,6 +47,14 @@ export type WorkspaceCapability =
 const groupKitScheduleSchema = z.object({
   id: z.string().min(1),
   cron: z.string().min(1),
+  // Declaring a schedule is not starting it. A kit's recurring behaviour is
+  // offered to the household after their first result and switched on then —
+  // never during onboarding — so install records it inactive.
+  //
+  // Defaults false rather than true: a descriptor written before this field
+  // existed described a schedule nothing was firing, and reading it as active
+  // would start one the household never agreed to.
+  enabled: z.boolean().default(false),
 });
 export type GroupKitSchedule = z.infer<typeof groupKitScheduleSchema>;
 

@@ -6,7 +6,7 @@ const entry = {
   installId: 'book-club-0',
   kit: { id: 'book-club', version: '0.1.0', publisher: '~sampel-palnet' },
   places: { discussion: 'chat/~host/book-club-discussion-1234' },
-  schedules: [{ id: 'monthly-pick', cron: '0 17 1 * *' }],
+  schedules: [{ id: 'monthly-pick', cron: '0 17 1 * *', enabled: false }],
   agents: ['~sampel-palnet'],
   setup: 'pending',
   permissions: ['postToPlaces'],

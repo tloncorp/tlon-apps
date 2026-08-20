@@ -114,11 +114,14 @@
             %+  turn  ~(tap by places.i)
             |=  [n=@tas cn=nest:v1:k]
             [n `json`s+(nest cn)]
+            ::  declared, not running. A kit's schedule is offered to the
+            ::  household after their first result and only then switched
+            ::  on; installing one must not start it firing.
             :-  'schedules'
             :-  %a
             %+  turn  schedules
             |=  s=schedule:v1:k
-            (pairs ~[['id' s+id.s] ['cron' s+cron.s]])
+            (pairs ~[['id' s+id.s] ['cron' s+cron.s] ['enabled' b+|]])
             ['agents' a+~[s+(scot %p our)]]
             ['setup' s+setup.i]
             ['installedAt' (time installed.i)]
