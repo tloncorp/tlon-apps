@@ -163,6 +163,8 @@ export function getChannelType(channelId: string) {
     return 'notebook';
   } else if (app === 'notes') {
     return 'notes';
+  } else if (app === 'apps') {
+    return 'app';
   } else {
     return 'chat';
   }
@@ -179,6 +181,8 @@ export function getChannelKindFromType(
     return 'diary';
   } else if (type === 'notes') {
     return 'notes';
+  } else if (type === 'app') {
+    return 'apps';
   } else {
     return 'chat';
   }

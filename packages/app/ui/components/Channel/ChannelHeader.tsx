@@ -174,6 +174,8 @@ export function ChannelHeader({
           return 'Notebook channel';
         case 'gallery':
           return 'Gallery channel';
+        case 'app':
+          return 'App channel';
         default:
           return 'Channel';
       }

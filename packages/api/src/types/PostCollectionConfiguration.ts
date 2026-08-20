@@ -65,6 +65,12 @@ export function layoutTypeFromChannel(
 
     case 'notes':
       return 'comfy-list-top-to-bottom';
+
+    // An app channel's contents are one document rather than a post list, so
+    // this only applies to the degraded view a client without the channel's
+    // declared renderer falls back to. Top-to-bottom reads best there.
+    case 'app':
+      return 'comfy-list-top-to-bottom';
   }
 }
 
@@ -198,6 +204,15 @@ export function configurationFromChannel(
       };
 
     case 'notes':
+      return {
+        includeDeletedPosts: false,
+        postActionIds: [],
+        usesMemberListAsFallbackTitle: false,
+      };
+
+    // No post actions: an app channel holds a document, and its posts —
+    // when a degraded client shows any — are not the thing to act on.
+    case 'app':
       return {
         includeDeletedPosts: false,
         postActionIds: [],

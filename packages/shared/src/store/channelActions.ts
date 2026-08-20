@@ -4,7 +4,11 @@ import {
   StructuredChannelDescriptionPayload,
 } from '@tloncorp/api';
 import { TimeoutError } from '@tloncorp/api';
-import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
+import {
+  GroupChannelV7,
+  Kind,
+  getChannelKindFromType,
+} from '@tloncorp/api/urbit';
 import { isEqual } from 'lodash';
 
 import { trackEvent } from '../analytics';
@@ -17,10 +21,13 @@ import { notesPermissionsCompatActive } from '../logic/notesPermissionsCompat';
 import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
-const NOTES_CHANNEL_LISTING_ATTEMPTS = 5;
-const NOTES_CHANNEL_LISTING_DELAY_MS = 250;
+const CHANNEL_LISTING_ATTEMPTS = 5;
+const CHANNEL_LISTING_DELAY_MS = 250;
 
-class NotesChannelListingUnverifiedError extends Error {}
+// Thrown when we could not read the group at all, as distinct from reading it
+// and finding no listing. Only the latter justifies rolling back the remote
+// channel — the former might have created it just fine.
+class ChannelListingUnverifiedError extends Error {}
 
 export async function createChannel({
   groupId,
@@ -51,6 +58,18 @@ export async function createChannel({
       groupId,
       title,
       readers,
+    });
+  }
+
+  if (channelType === 'app') {
+    return createAppChannel({
+      groupId,
+      title,
+      description: rawDescription,
+      contentConfiguration,
+      customSlug,
+      readers,
+      writers,
     });
   }
 
@@ -97,7 +116,11 @@ export async function createChannel({
   try {
     await api.createChannel({
       id: channelId,
-      kind: getChannelKindFromType(channelType),
+      // Third-party kinds (notes, apps) returned above, so what reaches
+      // %channels here is only chat/diary/heap. The cast is what says so —
+      // `channelType` is declared with Omit over a string union, which does
+      // not actually narrow, so TS cannot see it.
+      kind: getChannelKindFromType(channelType) as Kind,
       group: groupId,
       name: channelSlug,
       title,
@@ -114,6 +137,111 @@ export async function createChannel({
   }
 
   return newChannel;
+}
+
+/**
+ * Create an app channel: a group channel backed by %apps, holding one
+ * structured document rather than a stream of posts.
+ *
+ * Like notes, this is a third-party channel — %apps hosts it and registers the
+ * listing with %groups itself, so there is no `api.createChannel` call and no
+ * %channels nest. What we do have to do is wait for that listing to replicate
+ * before we can report a channel, which is the same eventual-consistency
+ * problem `createNotesChannel` has.
+ *
+ * The content configuration deliberately names a view this build does not
+ * register. That is the honest state of things until a renderer ships: the
+ * channel degrades to the post list with the upgrade notice at the composer,
+ * rather than silently presenting a chat input over a document. See
+ * docs/tlon-apps/channel-views.md.
+ */
+async function createAppChannel({
+  groupId,
+  title,
+  description,
+  contentConfiguration,
+  customSlug,
+  readers = [],
+  writers = [],
+}: {
+  groupId: string;
+  title: string;
+  description?: string;
+  contentConfiguration?: ChannelContentConfiguration;
+  customSlug?: string;
+  readers?: string[];
+  writers?: string[];
+}): Promise<db.Channel> {
+  const currentUserId = api.getCurrentUserId();
+  const channelSlug = customSlug || getRandomId();
+  const channelId = `apps/${currentUserId}/${channelSlug}`;
+
+  let created = false;
+  let insertedChannelId: string | null = null;
+  try {
+    await api.createAppChannel({
+      name: channelSlug,
+      group: groupId,
+      title,
+      description: description ?? '',
+      readers,
+      writers,
+      // An empty JSON object, not an empty string: the body is opaque to the
+      // agent but every reader parses it, so a document has to start valid.
+      body: '{}',
+    });
+    created = true;
+
+    logger.trackEvent(
+      AnalyticsEvent.ActionCreateChannel,
+      logic.getModelAnalytics({
+        channel: { id: channelId, type: 'app' },
+        group: { id: groupId },
+      })
+    );
+
+    const listedChannel = await waitForChannelListing(groupId, channelId);
+    const newChannel: db.Channel = {
+      ...listedChannel,
+      contentConfiguration:
+        contentConfiguration ??
+        channelContentConfigurationForChannelType('app'),
+    };
+    await db.insertChannels([newChannel]);
+    insertedChannelId = newChannel.id;
+    await db.insertChannelPerms([
+      {
+        channelId: newChannel.id,
+        readers: newChannel.readerRoles?.map((role) => role.roleId) ?? [],
+        writers: newChannel.writerRoles?.map((role) => role.roleId) ?? [],
+      },
+    ]);
+
+    return newChannel;
+  } catch (e) {
+    if (insertedChannelId) {
+      try {
+        await db.deleteChannels([insertedChannelId]);
+      } catch (rollbackError) {
+        logger.error(
+          'Failed to roll back local app channel create',
+          rollbackError
+        );
+      }
+    }
+    // Only roll back the remote channel when we know the listing is missing.
+    // If we could not read the group, the channel may well exist and deleting
+    // it would destroy a document we cannot see.
+    if (created && !(e instanceof ChannelListingUnverifiedError)) {
+      try {
+        await api.deleteAppChannel(`${currentUserId}/${channelSlug}`);
+      } catch (rollbackError) {
+        logger.error('Failed to roll back app channel create', rollbackError);
+      }
+    }
+    logger.error('Failed to add app channel', e);
+    throw new Error('Failed to add app channel to group');
+  }
 }
 
 async function createNotesChannel({
@@ -155,7 +283,7 @@ async function createNotesChannel({
       })
     );
 
-    const newChannel = await waitForNotesChannelListing(groupId, channelId);
+    const newChannel = await waitForChannelListing(groupId, channelId);
     await db.insertChannels([newChannel]);
     insertedChannelId = newChannel.id;
     await db.insertChannelPerms([
@@ -188,10 +316,7 @@ async function createNotesChannel({
         );
       }
     }
-    if (
-      createdNotebookFlag &&
-      !(e instanceof NotesChannelListingUnverifiedError)
-    ) {
+    if (createdNotebookFlag && !(e instanceof ChannelListingUnverifiedError)) {
       try {
         await api.deleteNotesNotebookStrict(createdNotebookFlag);
       } catch (rollbackError) {
@@ -206,14 +331,10 @@ async function createNotesChannel({
   }
 }
 
-async function waitForNotesChannelListing(groupId: string, channelId: string) {
+async function waitForChannelListing(groupId: string, channelId: string) {
   let lastGroupReadSucceeded = false;
 
-  for (
-    let attempt = 1;
-    attempt <= NOTES_CHANNEL_LISTING_ATTEMPTS;
-    attempt += 1
-  ) {
+  for (let attempt = 1; attempt <= CHANNEL_LISTING_ATTEMPTS; attempt += 1) {
     try {
       const group = await api.getGroup(groupId);
       const listedChannel = group.channels?.find(
@@ -227,15 +348,15 @@ async function waitForNotesChannelListing(groupId: string, channelId: string) {
       lastGroupReadSucceeded = false;
     }
 
-    if (attempt < NOTES_CHANNEL_LISTING_ATTEMPTS) {
-      await wait(NOTES_CHANNEL_LISTING_DELAY_MS);
+    if (attempt < CHANNEL_LISTING_ATTEMPTS) {
+      await wait(CHANNEL_LISTING_DELAY_MS);
     }
   }
 
   if (lastGroupReadSucceeded) {
     throw new Error(`Notes channel listing did not appear: ${channelId}`);
   }
-  throw new NotesChannelListingUnverifiedError(
+  throw new ChannelListingUnverifiedError(
     `Could not verify notes channel listing: ${channelId}`
   );
 }
@@ -279,6 +400,14 @@ function channelContentConfigurationForChannelType(
         draftInput: api.DraftInputId.notes,
         defaultPostContentRenderer: api.PostContentRendererId.notes,
         defaultPostCollectionRenderer: api.CollectionRendererId.notes,
+      };
+    case 'app':
+      // Not registered in this build on purpose — see `createAppChannel`.
+      // These ids are the contract a renderer registers against later.
+      return {
+        draftInput: 'tlon.r0.input.app',
+        defaultPostContentRenderer: 'tlon.r0.content.app',
+        defaultPostCollectionRenderer: 'tlon.r0.collection.app',
       };
   }
 

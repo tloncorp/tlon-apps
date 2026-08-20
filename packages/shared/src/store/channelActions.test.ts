@@ -134,6 +134,31 @@ function mockNotesChannelListing({
   } as unknown as db.Group);
 }
 
+function mockAppChannelListing({
+  channelId = 'apps/~solfer-magfed/meals',
+  readerRoles = [],
+}: {
+  channelId?: string;
+  readerRoles?: { channelId: string; roleId: string }[];
+} = {}) {
+  return vi.spyOn(api, 'getGroup').mockResolvedValue({
+    id: groupId,
+    channels: [
+      {
+        id: channelId,
+        title: 'Meals',
+        type: 'app',
+        groupId,
+        currentUserIsMember: true,
+        currentUserIsHost: true,
+        contentConfiguration: { draftInput: 'disabled' },
+        lastPostSequenceNum: 0,
+        readerRoles,
+      },
+    ],
+  } as unknown as db.Group);
+}
+
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -576,4 +601,151 @@ test('markChannelRead decrements group count and notify count for notifying mess
     notifyCount: 1,
     updatedAt: 100,
   });
+});
+
+// %apps registers the group listing itself, so an app channel is created with
+// one poke and no api.createChannel — the same shape as notes.
+test('createChannel creates an app channel via %apps, forwarding roles', async () => {
+  await insertGroup();
+
+  const createAppChannel = vi
+    .spyOn(api, 'createAppChannel')
+    .mockResolvedValue(1);
+  const getGroup = mockAppChannelListing({
+    readerRoles: [{ channelId: 'apps/~solfer-magfed/meals', roleId: 'admin' }],
+  });
+  const createChannelApi = vi.spyOn(api, 'createChannel');
+
+  const channel = await createChannel({
+    groupId,
+    title: 'Meals',
+    description: 'What we are eating',
+    channelType: 'app',
+    customSlug: 'meals',
+    readers: ['admin'],
+    writers: ['admin'],
+  });
+
+  expect(createAppChannel).toHaveBeenCalledWith({
+    name: 'meals',
+    group: groupId,
+    title: 'Meals',
+    description: 'What we are eating',
+    readers: ['admin'],
+    writers: ['admin'],
+    body: '{}',
+  });
+  expect(createChannelApi).not.toHaveBeenCalled();
+  expect(getGroup).toHaveBeenCalledWith(groupId);
+  expect(channel.id).toBe('apps/~solfer-magfed/meals');
+  await expect(
+    db.getChannelWithRelations({ id: channel.id })
+  ).resolves.toMatchObject({
+    type: 'app',
+    groupId,
+    readerRoles: [{ channelId: channel.id, roleId: 'admin' }],
+  });
+});
+
+// The declared view is deliberately one this build does not register, so a
+// client without an app renderer degrades visibly instead of presenting a chat
+// composer over a document.
+test('createChannel gives an app channel its app content configuration', async () => {
+  await insertGroup();
+
+  vi.spyOn(api, 'createAppChannel').mockResolvedValue(1);
+  mockAppChannelListing();
+
+  const channel = await createChannel({
+    groupId,
+    title: 'Meals',
+    channelType: 'app',
+    customSlug: 'meals',
+  });
+
+  expect(channel.contentConfiguration).toEqual({
+    draftInput: 'tlon.r0.input.app',
+    defaultPostContentRenderer: 'tlon.r0.content.app',
+    defaultPostCollectionRenderer: 'tlon.r0.collection.app',
+  });
+});
+
+test('createChannel does not insert an app channel when the poke fails', async () => {
+  await insertGroup();
+
+  vi.spyOn(api, 'createAppChannel').mockRejectedValue(new Error('poke failed'));
+  const deleteAppChannel = vi.spyOn(api, 'deleteAppChannel');
+
+  await expect(
+    createChannel({
+      groupId,
+      title: 'Meals',
+      channelType: 'app',
+      customSlug: 'meals',
+    })
+  ).rejects.toThrow('Failed to add app channel to group');
+
+  await expect(
+    db.getChannel({ id: 'apps/~solfer-magfed/meals' })
+  ).resolves.toBeNull();
+  // Nothing was created, so there is nothing to roll back.
+  expect(deleteAppChannel).not.toHaveBeenCalled();
+});
+
+test('createChannel rolls back an app channel when the listing never appears', async () => {
+  vi.useFakeTimers();
+  await insertGroup();
+
+  vi.spyOn(api, 'createAppChannel').mockResolvedValue(1);
+  vi.spyOn(api, 'getGroup').mockResolvedValue({
+    id: groupId,
+    channels: [],
+  } as unknown as db.Group);
+  const deleteAppChannel = vi
+    .spyOn(api, 'deleteAppChannel')
+    .mockResolvedValue(1);
+
+  const createPromise = createChannel({
+    groupId,
+    title: 'Meals',
+    channelType: 'app',
+    customSlug: 'meals',
+  });
+  const assertion = expect(createPromise).rejects.toThrow(
+    'Failed to add app channel to group'
+  );
+  await vi.runAllTimersAsync();
+  await assertion;
+
+  await expect(
+    db.getChannel({ id: 'apps/~solfer-magfed/meals' })
+  ).resolves.toBeNull();
+  expect(deleteAppChannel).toHaveBeenCalledWith('~solfer-magfed/meals');
+});
+
+// Reading the group failed, so we cannot tell whether the channel exists.
+// Deleting it here would destroy a document we simply could not see.
+test('createChannel does not roll back an app channel it could not verify', async () => {
+  vi.useFakeTimers();
+  await insertGroup();
+
+  vi.spyOn(api, 'createAppChannel').mockResolvedValue(1);
+  vi.spyOn(api, 'getGroup').mockRejectedValue(new Error('group read failed'));
+  const deleteAppChannel = vi
+    .spyOn(api, 'deleteAppChannel')
+    .mockResolvedValue(1);
+
+  const createPromise = createChannel({
+    groupId,
+    title: 'Meals',
+    channelType: 'app',
+    customSlug: 'meals',
+  });
+  const assertion = expect(createPromise).rejects.toThrow(
+    'Failed to add app channel to group'
+  );
+  await vi.runAllTimersAsync();
+  await assertion;
+
+  expect(deleteAppChannel).not.toHaveBeenCalled();
 });

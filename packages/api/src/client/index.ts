@@ -121,4 +121,5 @@ export * from './presenceApi';
 export * from './stewardGatewayApi';
 export * from './lensApi';
 export * from './kitsApi';
+export * from './appsApi';
 export * from './groupKitConfig';

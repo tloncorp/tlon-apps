@@ -49,7 +49,8 @@ export type ChannelType =
   | 'gallery'
   | 'dm'
   | 'groupDm'
-  | 'notes';
+  | 'notes'
+  | 'app';
 export type UnreadChannelType = 'channel' | 'dm';
 export type ActivityBucket = 'all' | 'mentions' | 'replies';
 export type PinType = 'group' | 'channel' | 'dm' | 'groupDm';

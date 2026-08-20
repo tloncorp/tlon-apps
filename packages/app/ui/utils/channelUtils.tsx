@@ -251,6 +251,10 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
       return 'ChannelNotebooks';
     case 'gallery':
       return 'ChannelGalleries';
+    // Generic on purpose: there is no app-channel icon yet, and falling
+    // through to ChannelTalk would present a document as a chat.
+    case 'app':
+      return 'Channel';
     default:
       return 'ChannelTalk';
   }
