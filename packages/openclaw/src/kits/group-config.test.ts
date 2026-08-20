@@ -47,9 +47,11 @@ describe('parseKitsBlob', () => {
     expect(entry.places['discussion']).toBe(
       'chat/~lagrev-ridsyp-nocsyx-lassul/discussion'
     );
+    // `enabled` is defaulted by the shared parser (TASK-13): a blob written
+    // before the field existed reads as not enabled, never as running.
     expect(entry.schedules).toEqual([
-      { id: 'monthly-pick', cron: '0 17 1 * *' },
-      { id: 'weekly-nudge', cron: '0 17 * * 5' },
+      { id: 'monthly-pick', cron: '0 17 1 * *', enabled: false },
+      { id: 'weekly-nudge', cron: '0 17 * * 5', enabled: false },
     ]);
     expect(entry.setup).toBe('pending');
     expect(entry.agents).toEqual(['~lagrev-ridsyp-nocsyx-lassul']);

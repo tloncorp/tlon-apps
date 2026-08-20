@@ -5207,6 +5207,22 @@ export async function monitorTlonProvider(
                 runtime.log?.(
                   `[tlon] Auto-accepted group invite (${decision.reason}): ${groupFlag} (from ${inviterShip})`
                 );
+                // A workspace's blob is written at install, before the agent
+                // is invited — so joining is the first time this bot can see
+                // it, and no blob-update fact will ever arrive for a config
+                // that predates membership. Without this reconcile, kit setup
+                // for an already-configured group fires only on the next
+                // restart. Delayed a beat so %groups has the group state.
+                if (kitsRuntime) {
+                  const rt = kitsRuntime;
+                  setTimeout(() => {
+                    rt.reconcileGroups([groupFlag]).catch((err) => {
+                      runtime.error?.(
+                        `[tlon] kits: post-join reconcile for ${groupFlag} failed: ${String(err)}`
+                      );
+                    });
+                  }, 5_000);
+                }
               } catch (err) {
                 runtime.error?.(
                   `[tlon] Failed to accept group invite (${decision.reason}) ${groupFlag}: ${String(err)}`
