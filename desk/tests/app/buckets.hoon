@@ -295,14 +295,14 @@
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v5678)))
   ;<  read-caz=(list card)  b  (ask 0v2 [%bucket flag [%issue-bucket-read ~]])
   =/  read-token=@t  (scot %uv 0v5678)
-  =/  expiry=@da  (add ~2026.1.1 ~m30)
+  =/  expiry=@da  (add ~2026.1.1 ~d1)
   ;<  ~  b
     %+  ex-cards  read-caz
     ::  the refresh is armed while applying the action, so it precedes the
     ::  response the request settles with
     :~  %-  ex-arvo
         :*  /buckets/token/~sampel-palnet/project-files
-            [%b %wait (sub expiry ~m5)]
+            [%b %wait (sub expiry ~h1)]
         ==
         (grant-fact 0v2 [%token read-token expiry])
     ==

@@ -29,8 +29,13 @@
 ::  +read-window: lifetime of a bucket-read token, and +token-margin the slack
 ::  we re-mint within so a client never finds an expired one.
 ::
-++  read-window  ~m30
-++  token-margin  ~m5
+::  Long on purpose. Expiry is a backstop, not the revocation mechanism: the
+::  broker re-checks the live group on every exchange today, and once it holds
+::  a pushed token the host revokes explicitly when access changes. What the
+::  expiry buys is failing closed if a host dies or a revoke is ever missed.
+::
+++  read-window  ~d1
+++  token-margin  ~h1
 ::  +request-timeout: how long a subscriber waits for the host's answer
 ::  before reporting failure to its client.
 ::
