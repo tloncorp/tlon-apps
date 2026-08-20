@@ -5,7 +5,7 @@ How an AI agent takes a Linear ticket (or inline instructions) to a validated PR
 ## Principles
 
 -   **Shared global caches do the heavy lifting.** The pnpm store, the EAS remote build cache, and Gradle's build cache are keyed by content, shared across worktrees, and never need per-worktree cleanup. (ccache is machine-global too, but its hits only materialize within one worktree — see the measurements below.)
--   **Per-worktree state must be cleaned up when the PR merges.** The worktree itself (node_modules, Pods, ios/build), its DerivedData, its simulator claim, and its Metro process are all per-worktree.
+-   **Per-worktree state must be cleaned up when the PR merges.** The worktree itself (node_modules, Pods, ios/build), its DerivedData, its owned simulator, and its Metro process are all per-worktree. `rn-iso worktree remove` takes all of them down together.
 -   **One worktree per task, one simulator per worktree.** `rn-iso` owns the sim/Metro assignment so concurrent agents never fight over devices or ports.
 
 ## Build caches (what makes the loop fast)
@@ -36,24 +36,36 @@ Read the Linear ticket (linear skill / MCP) or the inline instructions. Produce 
 ### 2. Provision a worktree
 
 ```bash
-git -C "$MAIN" fetch origin develop
-git -C "$MAIN" worktree add "$MAIN/.claude/worktrees/<slug>" -b <branch> origin/develop
-cp "$MAIN/apps/tlon-mobile/.env.local" "$WT/apps/tlon-mobile/.env.local"
-cp "$MAIN/apps/tlon-web/.env.local"    "$WT/apps/tlon-web/.env.local"
-cd "$WT" && CI=true pnpm install
-pnpm --filter @tloncorp/editor build
+npx rn-iso worktree create <slug> --label <slug>   # prints the worktree path on stdout
 ```
 
-Measured on a warm pnpm store: install ≈ 20–60s, editor build ≈ 2s.
+One command covers the whole setup, because `.rn-iso.json` at the repo root declares it: branch from `origin/HEAD`, carry the gitignored `.env.local` files across, then run `CI=true pnpm install` and build `@tloncorp/editor`. Measured on a warm pnpm store: ≈ 40s total.
+
+Prefer this over a raw `git worktree add`, which skips all three and leaves a worktree with no `node_modules`, no env files, and an `rn-iso` shortcut that collides with its siblings (every tlon worktree's app dir is named `tlon-mobile`, hence `--label`). If the setup pipeline fails, the command still exits 0 and the worktree still exists — it reports which command failed, and `up` repeats that in its `setup` field. Do not ignore it: a failed step usually means the bundle will not build.
 
 ### 3. Devices and Metro (rn-iso)
 
+rn-iso is only a broker: it gives this worktree an owned simulator and a reserved Metro port, and never starts Metro or runs a build.
+
 ```bash
-cd "$WT/apps/tlon-mobile"
-npx rn-iso ios --auto --managed-metro --label <slug>
+cd "<worktree>/apps/tlon-mobile"
+npx rn-iso up ios --json     # => {"udid":…,"metroPort":…,"setup":{"complete":true}}
+
+npx expo start --port <metroPort> > /tmp/metro-<slug>.log 2>&1 &   # you start Metro
+npx rn-iso device --platform ios --json                            # poll until metroHealthy
 ```
 
-This allocates a dedicated simulator and a detached Metro on a per-project port, then runs the native build. Requirements: `npm_config_script_shell=/bin/bash` (the repo's `.npmrc` script-shell breaks bare npx), UTF-8 locale for CocoaPods, Node 22 on PATH.
+Start Metro **from inside the worktree** and redirect it to a predictable path: teardown identifies your Metro by checking that the process on the port answers `/status` _and_ runs from inside the project, and rn-iso no longer captures the log itself. That log is the first thing to read on a blank screen or red box.
+
+⚠️ **Check the reserved port is really yours before building.** `up` picks the next port above the highest one in rn-iso's own registry and does not check for a live listener, so it can hand out a port already held by an unrelated Metro (observed: a port belonging to another repo's `react-native start`). `metroHealthy` then pings `/status` without the identity check teardown uses, so the foreign Metro reports as healthy and both `expo run:ios` and `expo start` attach to it — the app silently loads another project's bundle. Confirm before trusting the port:
+
+```bash
+lsof -nP -iTCP:<metroPort> -sTCP:LISTEN    # expect nothing before you start Metro
+```
+
+If it is occupied, start Metro on a free port and pass that port to the build instead.
+
+Requirements: `npm_config_script_shell=/bin/bash` (the repo's `.npmrc` script-shell breaks bare npx), UTF-8 locale for CocoaPods, Node 22 on PATH.
 
 ### 4. Native build
 
@@ -88,24 +100,24 @@ Push to a clean branch name, open a draft PR per the repo template, attach the v
 ### 7. Cleanup (after the PR merges)
 
 ```bash
-npx rn-iso stop <slug>          # kill the worktree's Metro
-npx rn-iso release <slug>       # free the simulator claim
-git -C "$MAIN" worktree remove "$MAIN/.claude/worktrees/<slug>"
-git -C "$MAIN" branch -D <branch>
-npx rn-iso prune                # sweep assignments for deleted worktrees
+npx rn-iso stop <slug>                    # kill this worktree's Metro
+npx rn-iso worktree remove <worktree>     # removes the worktree AND deletes its owned sim
 ```
 
-DerivedData is keyed by workspace path, so a cold-built worktree leaves an orphaned `~/Library/Developer/Xcode/DerivedData/Landscape-<hash>` behind. Worktrees that stayed on the warm path never create one. Periodically clear stale entries (the doctor warns when disk is low):
+`worktree remove` tears the environment down whole: it reclaims the Metro port and shuts down and **deletes** the simulator rn-iso created for it. It refuses if the worktree holds uncommitted changes, untracked files, or commits on no remote — push the branch first. Never pass `--force` without asking; that discards the work the refusal is protecting. Teardown verifies identity before killing anything, so a Metro it cannot prove is yours is left alone (verified: an unrelated repo's Metro on the same port survived).
+
+DerivedData is keyed by workspace path, so a cold-built worktree leaves an orphaned `~/Library/Developer/Xcode/DerivedData/Landscape-<hash>` behind. Worktrees that stayed on the warm path never create one. `gc` sweeps those, plus dead config entries and orphaned `rn-iso-*` devices:
 
 ```bash
-find ~/Library/Developer/Xcode/DerivedData -maxdepth 1 -name 'Landscape-*' -mtime +14 -exec rm -rf {} +
+npx rn-iso gc                   # reports only — always safe
+npx rn-iso gc --delete          # destructive: ask the user first
 ```
 
 ## Resource budget (one machine, N concurrent agents)
 
--   **Simulator:** ~1–2GB RAM each while booted. `rn-iso release` frees the claim; leave the sim booted only while its loop is active.
+-   **Simulator:** ~1–2GB RAM each while booted (Android emulators 2–3GB). Each worktree owns a disposable `rn-iso-<label>` sim that `worktree remove` deletes outright, so nothing accumulates between tasks.
 -   **Worktree disk:** `du` badly overstates it. A worktree's `node_modules` reports ~4.3GB but consumes ~**80MB** of real disk (measured): pnpm imports from its store with APFS copy-on-write clones, so the blocks are shared even though each file shows a link count of 1. Switching `nodeLinker` away from `hoisted` would not reclaim meaningful space. The real per-worktree cost is `ios/Pods` (~1.1GB) plus build products — DerivedData (~3–5GB), which only a cold-built worktree creates at all.
--   **Metro:** one node process per worktree, on its own port, managed by rn-iso.
+-   **Metro:** one node process per worktree, started by the agent on the port rn-iso reserved.
 
 Practical ceiling: disk and RAM, not CPU — keep 2–3 concurrent loops on a laptop, release sims promptly, and let the EAS cache keep worktrees on the warm path.
 

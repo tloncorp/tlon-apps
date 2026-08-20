@@ -1,0 +1,13 @@
+{
+  "packageManager": "pnpm",
+  "worktree": {
+    "baseRef": "fresh",
+    "install": [
+      "CI=true pnpm install",
+      "pnpm --filter ./packages/editor build"
+    ],
+    "include": [
+      ".env.local"
+    ]
+  }
+}
