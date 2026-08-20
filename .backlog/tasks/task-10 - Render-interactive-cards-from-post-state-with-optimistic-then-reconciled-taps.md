@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - james@tlon.io
 created_date: '2026-08-19 13:48'
-updated_date: '2026-08-20 13:56'
+updated_date: '2026-08-20 14:20'
 labels:
   - workspaces
   - interactive-cards
@@ -35,12 +35,12 @@ Also in scope (folded in from the TASK-1 capability matrix): **lift the DM-only 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A card's rendered state derives from the post's current surface entry, including after app restart and after scrolling the card out of and back into a virtualized list
-- [ ] #2 Tapping emits an action carrying the source message reference, surface ID, action ID, and expected revision
+- [x] #1 A card's rendered state derives from the post's current surface entry, including after app restart and after scrolling the card out of and back into a virtualized list
+- [x] #2 Tapping emits an action carrying the source message reference, surface ID, action ID, and expected revision
 - [ ] #3 Tap shows optimistic feedback that reconciles to the post state when the edited message arrives, including reverting if no edit arrives
-- [ ] #4 Tapping the same control twice produces one state change (idempotent by action ID)
+- [x] #4 Tapping the same control twice produces one state change (idempotent by action ID)
 - [ ] #5 A second device viewing the same card shows identical state after the agent's edit syncs
-- [ ] #6 Tests cover restart/remount rendering, optimistic reconcile, and duplicate-tap idempotency
+- [x] #6 Tests cover restart/remount rendering, optimistic reconcile, and duplicate-tap idempotency
 - [x] #7 Interactive cards render in group channels, not only DMs: the isDmChannelId gate in StaticChatMessage no longer strips a2ui blocks from workspace conversations, and all other criteria in this task are verified in a group channel
 <!-- AC:END -->
 
@@ -90,4 +90,42 @@ Research notes for the remaining work (ACs #1–#6), before any code.
 **Legacy cards must not regress.** Most existing A2UI content has an `a2ui` entry with no sibling surface entry, and the two OpenClaw producers (`pending-approvals`, `migrate-action`) use bare constant surface ids rather than per-instance ones. Absence of a surface entry must mean "stateless card, behave as today".
 
 **The hard blocker on AC #5.** Applying an action and editing the post is TASK-12 (`To Do`). Until it exists nothing ever edits a card, so AC #5 has no counterparty and AC #3's reconcile half can only be tested against a simulated post update. ACs #1, #2, #4 and the revert-on-no-edit half of #3 are fully verifiable now.
+
+## Implemented — `5fafe613cd`
+
+Built per option (a), suppressing the second tap. AC #3's reconcile half and AC #5 carry to TASK-12.
+
+### What landed
+
+- **Read helpers** in `content-helpers.ts`, beside the schemas they read: `findInteractiveSurface`, `isInteractiveActionOnlyBlob`, `hasAppliedInteractiveAction`. Pure and separately tested.
+- **`useInteractiveSurface`** (`packages/app/ui/hooks/`) — holds the single tap in flight, emits via `api.sendReply` with an `interactive-action` blob, reconciles, times out.
+- **Wiring** — `handleA2UIAction`'s `surfaceAction` early-return replaced; `isA2UIActionAvailable` extended so a tap needs the same permission typing does; a new `getA2UIActionState` context prop drives a spinner on the pressed control.
+- **Action replies filtered** out of `useThreadPosts`, using the exactly-one-entry predicate.
+
+### AC status
+
+- **#1 done.** The card was already a pure function of the post; the tests assert a remount and an advanced post both derive correctly.
+- **#2 done.** Asserted on the emitted blob entry: target post and channel, surface id, action id, expected revision, name, params.
+- **#4 done.** Suppression, per your call. Two taps → one `sendReply`.
+- **#6 done.** 28 tests — 12 on the helpers, 16 on the hook.
+- **#3 half done, left unchecked.** The revert-on-no-edit path is real and tested (both the timeout and the send-failure path). The reconcile-to-post-state path is tested against a simulated post update, but no agent edits a card yet, so it has not run end to end.
+- **#5 left unchecked.** No counterparty until TASK-12.
+
+### Three things worth knowing
+
+**A test-infrastructure bug, fixed.** `packages/app/vitest.config.ts` was missing the `tlon-source` resolve condition that `tsconfig.json`, `packages/shared/vitest.config.ts`, `vite.config.mts`, and `vite.cosmos.config.mts` all set. So app tests resolved `@tloncorp/api` to `dist/index.js` — running against a stale build. My newly added export read as missing, which is how I found it. Adding the condition fixed it and all 57 app test files still pass under source resolution. Anything that previously "passed" in `packages/app` was testing whatever was last built.
+
+**A bug only cosmos could catch.** `ContentRenderer` destructures the known context props and forwards `...rest` to a styled View, so my new `getA2UIActionState` prop landed on a DOM element (`React does not recognize the getA2UIActionState prop`). Unit tests cannot see this. Verified fixed: card renders in a group channel with no console errors.
+
+**I clobbered an existing test file and caught it by counting.** `packages/api/src/__tests__/interactiveSurfaces.test.ts` already existed from TASK-3 with 21 tests covering the wire round-trip, the render behaviour, and `tlon.surfaceAction` validation. I wrote over it. The api suite going 824 → 815 is what exposed it; I restored the original and appended my 12 helper tests, giving 836. Worth remembering that a dropped test count is the only signal for this.
+
+### Verification
+
+`tsc --noEmit` clean across api/shared/app/ui. Tests: api 836, shared 447, app 520 — all passing. Prettier clean. Cosmos: stateful and stateless cards both render correctly in a group channel, tap fires, no console errors.
+
+The pending spinner itself was verified by test rather than by eye — in cosmos there is no ship, so `sendReply` 404s immediately and the pending state clears before it can be seen.
+
+### Not done, as planned
+
+No agent (TASK-12). No surface-id migration for the existing `pending-approvals` / `migrate-action` producers, which still use constant rather than per-instance ids. Reply-count suppression on card posts left alone — cosmetic, say the word.
 <!-- SECTION:NOTES:END -->
