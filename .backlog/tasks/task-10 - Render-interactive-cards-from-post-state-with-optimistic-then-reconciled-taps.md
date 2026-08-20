@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - james@tlon.io
 created_date: '2026-08-19 13:48'
-updated_date: '2026-08-20 14:20'
+updated_date: '2026-08-20 15:09'
 labels:
   - workspaces
   - interactive-cards
@@ -128,4 +128,21 @@ The pending spinner itself was verified by test rather than by eye — in cosmos
 ### Not done, as planned
 
 No agent (TASK-12). No surface-id migration for the existing `pending-approvals` / `migrate-action` producers, which still use constant rather than per-instance ids. Reply-count suppression on card posts left alone — cosmetic, say the word.
+
+## AC #3 and #5 — the counterparty now exists
+
+TASK-12 (`b860aecdb2`) shipped the agent half, so the round trip is closed in code. Leaving both **unchecked** here, deliberately, because the evidence is not the same as "verified".
+
+What is now true:
+
+- The agent applies an action and edits the card. The reconcile path in `useInteractiveSurface` is exercised against a real edit shape rather than only a simulated one — `surface-apply.test.ts` asserts the produced blob, and `readSurfaceState` round-trips it.
+- Both obligations the client depends on are pinned by tests on the agent side: a no-change records the action id **without** bumping the revision, and a duplicate action emits **no edit at all**. Those are precisely the two cases the client's dual reconcile signal and timeout exist for, and they were the likeliest things to get wrong.
+- The client needs no further change. Post reads declare a `posts` table dep, so the edit invalidates and re-renders.
+
+What is still missing, and why these stay unchecked:
+
+- **Nobody has watched two devices.** AC #5 says a second device shows identical state after the edit syncs. That is a two-ship claim and every test on both sides runs in one process with mocked I/O. `pnpm test:integration` in `packages/openclaw` spins ephemeral fakezods and is the thing that would actually demonstrate it; I have not run it.
+- **The pending spinner has still never been seen clearing on a real edit.** In cosmos there is no ship, so `sendReply` 404s and pending clears immediately.
+
+So: the mechanism is built and tested at every layer, and I would expect it to work. But these two ACs are about observed behaviour across devices, and I have not observed it. Checking them off would be claiming more than I did.
 <!-- SECTION:NOTES:END -->

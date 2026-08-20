@@ -3,10 +3,10 @@ id: TASK-12
 title: >-
   Agent applies card actions: validate actor, update state, edit original
   message
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-19 13:48'
-updated_date: '2026-08-20 14:48'
+updated_date: '2026-08-20 15:09'
 labels:
   - workspaces
   - interactive-cards
@@ -33,12 +33,12 @@ This is the step that makes every device re-render from the synchronized post, h
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 An action from a workspace member updates the card: the agent edits the original message with new state and an incremented revision
-- [ ] #2 An action from a non-member or unauthorized actor is rejected without changing card state
-- [ ] #3 A duplicate action ID is acknowledged without applying the change twice
-- [ ] #4 An action with a stale expected revision does not corrupt state; the client ends up rendering the current authoritative state
-- [ ] #5 Concurrent actions from two participants resolve to one consistent final state
-- [ ] #6 Tests cover authorization, idempotency, stale revision, and concurrent-action cases
+- [x] #1 An action from a workspace member updates the card: the agent edits the original message with new state and an incremented revision
+- [x] #2 An action from a non-member or unauthorized actor is rejected without changing card state
+- [x] #3 A duplicate action ID is acknowledged without applying the change twice
+- [x] #4 An action with a stale expected revision does not corrupt state; the client ends up rendering the current authoritative state
+- [x] #5 Concurrent actions from two participants resolve to one consistent final state
+- [x] #6 Tests cover authorization, idempotency, stale revision, and concurrent-action cases
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -167,4 +167,40 @@ Research notes, before any code.
 **Two obligations the client depends on**, both from `docs/tlon-apps/interactive-surfaces.md`: a no-change must record the action id **without** bumping the revision (the client reconciles on either signal precisely because of this), and an edit must rebuild the whole blob array including the `a2ui` entry or the card is erased for everyone. TASK-9 added a CLI guard against the second; openclaw's own edit path needs the equivalent.
 
 **Integration testing is available if we want AC #5 demonstrated rather than argued.** `packages/openclaw/test/cases/` is a numbered fakezod suite and `pnpm test:integration` spins ephemeral ships. Two ships tapping the same card is the real test, and it is exactly what TASK-10 could not do.
+
+## Complete — `b860aecdb2`
+
+Built with the built-in action vocabulary, option (a).
+
+### Shape
+
+Three modules, split so the rules are testable without I/O:
+
+- **`state-ops.ts`** — the vocabulary: `set`/`toggle`/`increment`/`append`/`remove` over a dot path. Pure, never mutates its input, and **refuses rather than coerces**: truthy-flipping a string would quietly destroy state another operation owns. Paths reject `__proto__`/`constructor`/`prototype`, since params come from anyone who can post in the channel.
+- **`surface-actions.ts`** — the decision. Authorize, then idempotency, then revision, then compute.
+- **`surface-apply.ts`** — the I/O: resolve the post, decide, edit.
+
+Plus `editChannelPost` in `urbit/send.ts` (openclaw had **no** edit path at all before this) and surface read/rebuild helpers in `urbit/blob.ts`.
+
+Wired into the monitor's SSE loop **before the engagement gate** — pressing a button must not require an @-mention — and handled deterministically rather than by waking the model.
+
+### Four things worth knowing
+
+**Authorization ordering is deliberate.** The auth check runs *before* the idempotency check, so an unauthorized ship cannot learn which action ids a card has already applied by watching which of its taps get refused differently. There is a test pinning that.
+
+**What authorization actually means here.** The actor is the reply's author, and the host already enforced that they may write the channel — a reply the bot can see is one the host accepted. Tapping a card *is* posting, so that check is the permission; adding an owner-only gate (as `command-auth.ts` does for slash commands) would break the multi-participant premise of AC #5 outright. What this layer adds is narrower and still necessary: **the card must be a post the bot itself wrote**, since an action pointed at anyone else's post is not the bot's to apply. That is the AC #2 rejection path, and it is tested.
+
+**I found and avoided a bug of the same class I fixed in TASK-9.** My first `rebuildBlobWithSurface` walked `parsePostBlob` output and dropped `unknown` entries — which *erases* an entry written by a newer client, exactly the destructive mistake the function exists to prevent. Rewritten to walk the raw JSON array and replace only the matching surface entry, so unrecognized entries survive byte-for-byte. Test: `preserves an entry this build cannot parse`.
+
+**Two dead guards removed.** My `writePath`/`removePath` had "state root must be an object" checks that are unreachable — `state` is a `JsonObject`, so an index segment at depth 0 already fails with a clearer message. A test expectation caught it; I removed the guards rather than keep unreachable defensive code, and the test now asserts the real behaviour.
+
+### Verification
+
+**78 new tests** (27 vocabulary, 21 decision, 16 blob helpers, 14 apply). openclaw suite **1504 passing**, `tsc --noEmit` clean across api/shared/app/ui/openclaw, security tests 103 passing, prettier clean. My new files have zero lint warnings; `monitor/index.ts` has the same 31 pre-existing `any` warnings before and after my change (verified by stashing).
+
+**Not run: `pnpm test:integration`.** It spins ephemeral fakezods in Docker and is the only way to demonstrate AC #5 on two real ships rather than through the apply layer with mocked I/O. The concurrency behaviour is covered by unit tests at both the decision and apply layers, including the retry-after-rejection path, but nobody has watched two ships tap the same card. Worth doing before relying on this in anger.
+
+### Also here
+
+`pending-approvals` and `migrate-action` now get per-instance uuids instead of bare constants. Nothing broke while neither was stateful, but anything keying state by surface id would have collided across posts.
 <!-- SECTION:NOTES:END -->
