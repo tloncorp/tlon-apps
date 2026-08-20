@@ -1,10 +1,10 @@
 ---
 id: TASK-8
 title: Add the workspace descriptor to the group blob and detection helpers
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-19 13:47'
-updated_date: '2026-08-20 15:11'
+updated_date: '2026-08-20 15:26'
 labels:
   - workspaces
   - kits
@@ -28,11 +28,11 @@ Building on the kit foundation's group-blob configuration, define the descriptor
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Workspace descriptor schema (kit identity, agent identities, named places, setup status, schedules, permissions) is defined and typed in shared code
-- [ ] #2 Shared helpers exist to detect whether a group is a workspace and to read/update descriptor fields
-- [ ] #3 Groups without a descriptor are completely unaffected — no behavior or rendering change for existing groups
-- [ ] #4 A malformed or partial descriptor fails safe: the group is treated as a plain group, not a broken workspace
-- [ ] #5 Tests cover descriptor round-trip, detection, and malformed-descriptor handling
+- [x] #1 Workspace descriptor schema (kit identity, agent identities, named places, setup status, schedules, permissions) is defined and typed in shared code
+- [x] #2 Shared helpers exist to detect whether a group is a workspace and to read/update descriptor fields
+- [x] #3 Groups without a descriptor are completely unaffected — no behavior or rendering change for existing groups
+- [x] #4 A malformed or partial descriptor fails safe: the group is treated as a plain group, not a broken workspace
+- [x] #5 Tests cover descriptor round-trip, detection, and malformed-descriptor handling
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -158,4 +158,38 @@ Research notes, before any code.
 **Permissions should not duplicate membership.** `%groups` already owns roles, and both `%notes` and `%apps` defer to its `can-read`/`can-write` gates rather than keeping their own copy — TASK-7 established that pattern and `docs/backend/channel-hosts.md` writes it down. A member-permission list in the blob would be a second, drifting source of truth. The capability-list reading (what the *agent* may do) is the one that has no existing home, and it matches what `docs/kits.md` means by "a kit's power is bounded by the policy the owner grants, not by its text."
 
 **No backend work.** The blob is opaque `@t` to `%groups`; it stores and relays it without inspecting it. This is entirely client-side typing and parsing, so no ship, no Hoon, no desk build.
+
+## Complete — `8038a60b39`
+
+Built as option (a): the kit install entry **is** the workspace descriptor.
+
+### What landed
+
+- **`permissions`** on `groupKitEntrySchema` — the one field that was genuinely missing. Loose strings with a `WORKSPACE_CAPABILITIES` vocabulary (`postToPlaces`, `editOwnPosts`, `runSchedules`, `readContacts`), so a capability a newer client granted reads as "not granted" rather than making the descriptor malformed. It records what the **agent** may do, never who may act — membership stays in `%groups`, which is where `%notes` and `%apps` both already defer.
+- **`packages/shared/src/logic/workspaceDescriptor.ts`** — `isWorkspace`, `readWorkspaceDescriptor`, `workspacePlace`, `workspaceHasCapability`, `isWorkspaceSetupComplete`, `workspaceAgents`, `updateWorkspaceDescriptor`. Takes a structural `{blob?}` rather than `db.Group`, so api responses and DB rows both work without depending on the schema.
+- **`kits/SCHEMA.md` §2** documents `permissions` and records that this entry is the descriptor.
+
+### The consequence of (a), written down rather than left implicit
+
+Installing a kit into a group makes that group a workspace. v1 only installs into groups it created, so it does not arise — but it is stated at the top of the module and in SCHEMA.md so whoever changes `%kits` to install into an existing group sees it. That was the caveat in the plan and it is now on the record rather than in my head.
+
+### Two things worth knowing
+
+**`updateWorkspaceDescriptor` walks raw JSON**, not parsed output. The parser drops entries it cannot validate and normalizes what it can, so rebuilding from it would erase whatever a newer client wrote — the identical mistake as re-emitting a post blob from parsed entries, which this repo has now got wrong twice (TASK-9's `posts edit`, and my own first `rebuildBlobWithSurface` in TASK-12). Asserted on the bytes: `preserves keys this build does not understand`.
+
+It also **patches the entry the reader resolves**, not merely the first one present. A blob whose first entry is unparseable would otherwise have the writer patching one entry while the reader returned another. Test: `patches the entry the reader resolves`.
+
+### AC #3, honestly
+
+Every helper returns "not a workspace" for a blob-free group, and **this task adds no call sites** — nothing renders or behaves differently off these helpers. So AC #3 holds by construction right now, and the tests pin it. The real risk arrives with the consumers (TASK-14, TASK-17–19); I am checking this off for what this task can actually guarantee, not for the whole feature.
+
+### Verification
+
+28 new tests. `tsc --noEmit` clean across tlon-kits/api/shared/app/ui/openclaw. Suites: tlon-kits 25, api 836, shared 476, app 520, openclaw 1504 — all passing. Prettier clean including SCHEMA.md.
+
+Adding `permissions` with a `.default([])` broke five exact-shape assertions in `groupConfig.test.ts` and `groupKitConfig.test.ts` — fixtures compared entries with `toEqual`. Updated rather than loosened, since asserting the whole entry shape is the point of those tests.
+
+### Not done, as planned
+
+No rendering or behaviour change (TASK-14, TASK-17–19). No provisioning writer (TASK-16). No capability enforcement — this records the grant; honouring it is the executing agent's job, and signed publisher-pinned grants are TASK-20.
 <!-- SECTION:NOTES:END -->
