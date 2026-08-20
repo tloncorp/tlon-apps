@@ -4,7 +4,7 @@ title: Build the meal-planning workspace kit
 status: To Do
 assignee: []
 created_date: '2026-08-19 13:48'
-updated_date: '2026-08-20 15:29'
+updated_date: '2026-08-20 15:42'
 labels:
   - workspaces
   - kits
@@ -13,6 +13,7 @@ dependencies:
   - TASK-1
   - TASK-2
   - TASK-8
+  - TASK-27
 references:
   - PLAN.md
 priority: high
@@ -156,4 +157,14 @@ So the hero kit's artifact store would have to be a `%diary` channel, which is t
 **AC #3 cannot be tested here.** "On first run the agent produces a durable starter artifact" is a model following instructions; it needs a live agent. What is testable is that the instruction exists, is bound to `install.setup`, and names the artifact place. I will say the artifact itself is unverified rather than imply coverage.
 
 **Hoon test harness is available.** `desk/tests/app/kits.hoon` already covers install for a fixture kit (278 lines, `test-agent` monadic style), so asserting the blob contents for a real kit extends existing work rather than starting from nothing.
+
+**Decision: option (c).** The place-vocabulary extension is now **TASK-27** — "Let a kit declare a place backed by a third-party channel host" — and this task depends on it.
+
+What that means for the plan above:
+
+- **§1 and §2 are settled.** The `plans` place is `notes`, not `notebook`. No `%diary` in the hero kit.
+- **§3 is unchanged** apart from that one line in `kit.json`. All the kit content — instructions, copy, schedule, scaffolds, policy — is the same either way.
+- **§4 still stands and is still mine.** The `enabled` flag on `GroupKitSchedule` is a schema change TASK-27 does not touch, and AC #4 here cannot be honestly checked without it. It stays in this task.
+
+TASK-27 also carries the `%apps` case deliberately (AC #6: a further host-backed kind should need no new install branch), so TASK-7's app channels become declarable by a kit without a second extension. That was the other half of the gap I recorded in TASK-7's plan.
 <!-- SECTION:NOTES:END -->
