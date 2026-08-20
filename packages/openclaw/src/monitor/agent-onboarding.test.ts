@@ -61,6 +61,7 @@ describe('agent onboarding requests', () => {
     expect(servicesComponents.find(({ id }) => id === 'root')).toMatchObject({
       id: 'root',
       component: 'Column',
+      children: ['pitch', 'providers', 'done'],
     });
     const menu = servicesComponents.find(({ id }) => id === 'providers') as
       | A2UI.McpConnect
@@ -82,6 +83,122 @@ describe('agent onboarding requests', () => {
         },
       },
     });
+    expect(servicesComponents.find(({ id }) => id === 'done')).toMatchObject({
+      component: 'Button',
+      variant: 'primary',
+      action: {
+        event: { name: A2UI.action.sendMessage, context: { text: 'Done' } },
+      },
+    });
+    expect(A2UI.validateBlobEntry(services)).toBe(true);
+  });
+
+  it('waits for Done on the services card before offering the app tour', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    const history = [
+      {
+        author: '~bot',
+        content: 'ready',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack',
+          version: 1,
+          provisionId: provision.provisionId,
+          cronJobId: 'job-1',
+        }),
+      },
+      {
+        author: '~bot',
+        content: 'Connect anything you’d like, or tap Done to continue.',
+        timestamp: 2,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-post-marker',
+          version: 1,
+          key: 'services-card',
+        }),
+      },
+      { author: '~ten', content: 'Done', timestamp: 3 },
+    ];
+
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          rawText: 'Done',
+        },
+        { fetchHistory: vi.fn(async () => history), sendPost }
+      )
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'Want me to tell you more about what you can do here?'
+    );
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'onboarding-follow-up',
+      })
+    );
+  });
+
+  it('recovers a durable services completion after a plugin restart', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    const history = [
+      {
+        author: '~bot',
+        content: 'ready',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack',
+          version: 1,
+          provisionId: provision.provisionId,
+          cronJobId: 'job-1',
+        }),
+      },
+      {
+        author: '~bot',
+        content: 'Connect anything you’d like, or tap Done to continue.',
+        timestamp: 2,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-post-marker',
+          version: 1,
+          key: 'services-card',
+        }),
+      },
+      { author: '~ten', content: 'Done', timestamp: 3 },
+    ];
+
+    await expect(
+      scanAgentOnboardingChannel(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+        },
+        { fetchHistory: vi.fn(async () => history), sendPost }
+      )
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'Want me to tell you more about what you can do here?'
+    );
   });
 
   it('offers each orientation step as a simple Yes/No choice', () => {
@@ -1303,12 +1420,11 @@ describe('provision coordinator ordering', () => {
       }
     );
 
-    expect(sendPost).toHaveBeenCalledTimes(3);
+    expect(sendPost).toHaveBeenCalledTimes(2);
     expect(listNotes).toHaveBeenCalledTimes(2);
-    expect(sleep).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenCalledTimes(2);
     expect(sleep).toHaveBeenNthCalledWith(1, 500);
     expect(sleep).toHaveBeenNthCalledWith(2, 5_500);
-    expect(sleep).toHaveBeenNthCalledWith(3, 12_000);
     const reveal = sendPost.mock.calls[0]?.[0];
     // The sentence carries the entry on its own — the cite renders as
     // "Content not available" until the client has synced the notes channel,
@@ -1341,17 +1457,8 @@ describe('provision coordinator ordering', () => {
       ])
     );
     expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain('McpConnect');
-    expect(JSON.stringify(sendPost.mock.calls[2]?.[0].story)).toContain(
-      'Want me to tell you more about what you can do here?'
-    );
-    expect(
-      JSON.stringify(parsePostBlob(sendPost.mock.calls[2]?.[0].blob))
-    ).toContain('"text":"Yes"');
-    expect(parsePostBlob(sendPost.mock.calls[2]?.[0].blob)).toContainEqual(
-      expect.objectContaining({
-        type: 'tlon-agent-post-marker',
-        key: 'onboarding-follow-up',
-      })
+    expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain(
+      'tap Done to continue'
     );
   });
 
@@ -1452,7 +1559,7 @@ describe('provision coordinator ordering', () => {
       { fetchHistory: vi.fn(async () => []), sendPost }
     );
 
-    expect(sendPost).toHaveBeenCalledTimes(3);
+    expect(sendPost).toHaveBeenCalledTimes(2);
     expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
       'Your first entry is ready'
     );
