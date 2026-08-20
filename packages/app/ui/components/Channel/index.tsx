@@ -861,6 +861,7 @@ export function Channel({
                                 <SystemNotices.ConnectedJoinRequestNotice
                                   group={group}
                                   onViewRequests={goToGroupSettings}
+                                  marginTop="$l"
                                 />
                               )}
                               <AnimatePresence>
