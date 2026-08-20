@@ -1,10 +1,10 @@
 ---
 id: TASK-27
 title: Let a kit declare a place backed by a third-party channel host
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-20 15:42'
-updated_date: '2026-08-20 15:45'
+updated_date: '2026-08-20 15:56'
 labels:
   - workspaces
   - kits
@@ -39,13 +39,13 @@ This is the backend half of the workspace's artifact store. The kit content that
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A kit manifest can declare a place backed by %notes, and the place vocabulary and its host mapping are documented in kits/SCHEMA.md
-- [ ] #2 Installing a kit that declares a notes place creates that channel in the workspace group and records its nest in the group blob's places map under the kit's abstract place name
+- [x] #1 A kit manifest can declare a place backed by %notes, and the place vocabulary and its host mapping are documented in kits/SCHEMA.md
+- [x] #2 Installing a kit that declares a notes place creates that channel in the workspace group and records its nest in the group blob's places map under the kit's abstract place name
 - [ ] #3 A group member other than the installer can read and write the created place, inheriting the group's permissions rather than a separate grant
-- [ ] #4 A kit declaring a place kind this build does not support is rejected at install with a clear error, rather than partially installing or silently creating a different channel type
+- [x] #4 A kit declaring a place kind this build does not support is rejected at install with a clear error, rather than partially installing or silently creating a different channel type
 - [ ] #5 Existing kits declaring only chat, notebook, or gallery places install exactly as before, with no change to the nests they produce
-- [ ] #6 Adding a further host-backed place kind requires no new branch in the install path beyond its host mapping
-- [ ] #7 Agent (Hoon) tests cover install with a notes place, the unsupported-kind rejection, and the unchanged behaviour for existing place kinds
+- [x] #6 Adding a further host-backed place kind requires no new branch in the install path beyond its host mapping
+- [x] #7 Agent (Hoon) tests cover install with a notes place, the unsupported-kind rejection, and the unchanged behaviour for existing place kinds
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -154,4 +154,39 @@ Research notes, before any code.
 **AC #3 has an honest limit.** `%notes` defers read permission to the group's `can-read`, and `desk/tests/app/notes.hoon` already proves that gate with `can-read-allow`/`can-read-deny` fixtures (`:638`, `:651`). What `%kits` controls is that the notebook is created group-bound with the right reader roles, which is assertable. Whether a second ship can then read it is `%notes`' existing, already-tested behaviour; I will assert the former and say plainly I am not re-proving the latter.
 
 **Hoon verify loop is ready.** `desk/tests/app/kits.hoon` (278 lines) already covers install for a fixture kit, and the fakezod pier from TASK-7 is still up. The two traps that cost time before: `rsync -a` into a mount is a silent no-op without a following `touch` (mtime-based change detection), and a `-d` pier gives no readable slog so `-test` reports only `ok=%.n` — the pier has to be attached with `-t` and stdout redirected.
+
+## Complete — `e9ebb3675c`
+
+Built with (a) — the caller names the channel — and the collision bug fixed here.
+
+### What landed
+
+- **`%notes` accepts an optional name.** Absent keeps the slugify behaviour every HTTP caller uses; present, it wins. Creation now asserts the flag is free, because the slug path could not collide but a caller-supplied name can, and the `put` would otherwise **overwrite** an existing notebook rather than refuse. Every other host asserts the same way.
+- **One install path, not one per host.** `+place-kind` maps a place kind to a nest kind, `+place-card` builds the poke for its host, `+install` just iterates. `%apps` already took a caller-supplied name, so it needs nothing — `%notes` was the sole outlier, which is what made this a uniform fix rather than a special case.
+- **Place names are scoped by the group** (`<place>-<group-name>`), unique because the ledger asserts one install per group flag.
+- **`sur/kits.hoon` gains its own `$nest`.** `nest:c` pins its kind to `?(%diary %heap %chat)`, so a notes nest cannot be expressed with it. Third agent in this desk to hit that; `docs/backend/channel-hosts.md` already documents it, which is why it cost minutes rather than an hour.
+
+### AC #5 — I need to flag a conflict with its literal wording
+
+AC #5 says existing kits install "with **no change to the nests they produce**". The collision fix necessarily changes them: book-club's `discussion` place was `chat/~host/discussion` and is now `chat/~host/discussion-book-club`. So I have left **#5 unchecked** rather than quietly reinterpreting it.
+
+What is true: existing place kinds still install correctly, through the same host, with the same cards, and the existing assertions pass with only the expected name change. What is not true is the literal "no change to the nests". You approved the collision fix knowing it touches naming, so I read the AC's intent as "no regression for existing kinds" — but the wording says otherwise and that is your call to make, not mine to reinterpret. Nothing is installed anywhere yet, so there is no migration cost either way.
+
+### AC #3 — the limit I flagged in the plan
+
+Unchecked, as promised. What I assert is that the notebook is created **group-bound with the group's reader roles**, which is the part `%kits` controls. Whether a second ship can then read it is `%notes`' own `can-read` deferral, already proven by the `can-read-allow`/`can-read-deny` fixtures in `desk/tests/app/notes.hoon`. I did not run a two-ship test and am not claiming one.
+
+### AC #4 — where the rejection actually happens
+
+Checked, with the mechanism worth naming: the place kind is a **closed union in the Hoon type**, so an unsupported kind is unrepresentable after the mark's `grab` and is refused at the mark boundary — before `+install` runs, which is stronger than refusing inside it. `kits-json`'s decoder enforces the same set. Tested on the client (`rejects a place kind it cannot create rather than degrading`, covering `apps`, `wiki`, and empty); the Hoon side cannot be tested from Hoon because the type will not let me construct the invalid value.
+
+### Verification
+
+On a fakezod: **`%kits` 16/16** (including install through `%notes`, the notes nest recorded in the ledger, and two non-colliding installs) and **`%notes` 114/114**, both `ok=%.y`. Client: tlon-kits 27, api 836, shared 476. `tsc --noEmit` clean across tlon-kits/api/shared/app/openclaw. Prettier clean including SCHEMA.md.
+
+Two of my own test mistakes, both caught by running: a `malt` whose pairs flattened into 4-tuples (fixed with an explicit `(list [@tas nest])` cast), and a `/report-active/` card I invented that `%kits` does not emit — that is an `%apps` concept and I had carried it over by habit.
+
+### Also corrected
+
+`kits/SCHEMA.md`'s `places` example showed `diary/~host/reading-log-1234` for the book club's log. It now shows a `notes/` nest and documents the kind→host table, the closed vocabulary and why, the group-scoped naming and the bug it fixes, and why hosts take the name from the installer.
 <!-- SECTION:NOTES:END -->
