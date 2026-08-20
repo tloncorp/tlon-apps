@@ -21,6 +21,11 @@ export const featureMeta = {
     label: 'Enable Markdown mode for notebook posts',
     onlyTlon: true,
   },
+  a2uiPostRendering: {
+    default: true,
+    label: 'Render supported A2UI cards in direct messages',
+    onlyTlon: false,
+  },
 } satisfies Record<
   string,
   { default: boolean; label: string; onlyTlon: boolean }

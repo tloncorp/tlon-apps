@@ -1,12 +1,13 @@
 import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
-import { A2UI } from '@tloncorp/shared/logic';
+import { A2UI, type BlockData } from '@tloncorp/shared/logic';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
+import { useFeatureFlag } from '../../../lib/featureFlags';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import AuthorRow from '../AuthorRow';
 import { ContextLensBadge } from '../Channel/ContextLens/ContextLensBadge';
@@ -23,6 +24,19 @@ import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
+
+function withA2UIFallback(content: BlockData[]): BlockData[] {
+  return content.map((block) =>
+    block.type === 'a2ui'
+      ? {
+          type: 'blockquote',
+          content: [
+            { type: 'text', text: 'Upgrade your app to see this post' },
+          ],
+        }
+      : block
+  );
+}
 
 /**
  * Renders a chat message with minimal interactivity (no pressable, no overflow
@@ -65,6 +79,7 @@ export function StaticChatMessage({
   const isNotice = post.type === 'notice';
   const draftInputContext = useDraftInputContext();
   const navigateToA2UITarget = useA2UINavigation();
+  const [a2uiPostRenderingEnabled] = useFeatureFlag('a2uiPostRendering');
 
   if (isNotice) {
     showAuthor = false;
@@ -145,7 +160,8 @@ export function StaticChatMessage({
     [draftInputContext]
   );
 
-  const canRenderA2UI = isDmChannelId(post.channelId);
+  const canRenderA2UI =
+    a2uiPostRenderingEnabled && isDmChannelId(post.channelId);
 
   const postContent = usePostContent(post);
   const lastEditPostContent = usePostLastEditContent(post);
@@ -153,14 +169,14 @@ export function StaticChatMessage({
     () =>
       canRenderA2UI
         ? postContent
-        : postContent.filter((block) => block.type !== 'a2ui'),
+        : withA2UIFallback(postContent),
     [canRenderA2UI, postContent]
   );
   const lastEditContent = useMemo(
     () =>
       canRenderA2UI
         ? lastEditPostContent
-        : lastEditPostContent.filter((block) => block.type !== 'a2ui'),
+        : withA2UIFallback(lastEditPostContent),
     [canRenderA2UI, lastEditPostContent]
   );
 

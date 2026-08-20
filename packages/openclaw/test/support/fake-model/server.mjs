@@ -186,6 +186,8 @@ const server = http.createServer(async (req, res) => {
           ? lastRegistration.get(key).epoch
           : null;
       const stale = registeredEpoch !== null && epoch > registeredEpoch;
+      const toolMetadata = extractAdvertisedToolMetadata(body);
+      const promptSignals = extractPromptSignals(messages);
 
       receivedCalls.push({
         key,
@@ -195,6 +197,8 @@ const server = http.createServer(async (req, res) => {
         messageCount: messages.length,
         userText,
         messages: summarizeRequestMessages(messages),
+        ...toolMetadata,
+        promptSignals,
         epoch,
         registeredEpoch,
         stale,
@@ -393,6 +397,58 @@ function extractTagFromLastUserTurn(messages) {
 // benignly. A minimal "ok" terminates the agent loop cleanly.
 function benignFiller() {
   return textResponse('ok');
+}
+
+function extractAdvertisedToolMetadata(body) {
+  const toolNames = [];
+  const seen = new Set();
+  const add = (name) => {
+    if (typeof name !== 'string' || name.length === 0 || seen.has(name)) {
+      return;
+    }
+    seen.add(name);
+    toolNames.push(name);
+  };
+
+  if (body && typeof body === 'object') {
+    if (Array.isArray(body.tools)) {
+      for (const tool of body.tools) {
+        add(tool?.function?.name);
+        add(tool?.name);
+      }
+    }
+    if (Array.isArray(body.functions)) {
+      for (const fn of body.functions) {
+        add(fn?.name);
+      }
+    }
+  }
+
+  const hasToolChoice =
+    body &&
+    typeof body === 'object' &&
+    Object.prototype.hasOwnProperty.call(body, 'tool_choice');
+
+  return {
+    toolNames,
+    toolCount: toolNames.length,
+    toolChoice: hasToolChoice ? body.tool_choice : null,
+  };
+}
+
+function extractPromptSignals(messages) {
+  const systemText = messages
+    .filter((message) => message?.role === 'system')
+    .map((message) => extractText(message?.content))
+    .filter(Boolean)
+    .join('\n');
+
+  return {
+    tlonA2uiProactive:
+      systemText.includes('proactively prefer A2UI') &&
+      systemText.includes('even when the user does not explicitly ask') &&
+      systemText.includes('Use normal text for short conversational replies'),
+  };
 }
 
 // Send a scripted completion, honoring the request's streaming preference.

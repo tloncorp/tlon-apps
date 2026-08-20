@@ -82,6 +82,12 @@ vi.mock('./setup-surface.js', () => ({
 }));
 
 vi.mock('./urbit/blob.js', () => ({
+  combineBlobFields: vi.fn((...fields: Array<string | undefined>) => {
+    const entries = fields.flatMap((field) =>
+      field ? (JSON.parse(field) as unknown[]) : []
+    );
+    return entries.length > 0 ? JSON.stringify(entries) : undefined;
+  }),
   serializeContextLensReferenceBlob: vi.fn(),
 }));
 
@@ -195,5 +201,35 @@ describe('sendMedia', () => {
       deliveryFailureCount: 0,
       deliverySuccessCount: 1,
     });
+  });
+});
+
+describe('sendPayload', () => {
+  it('delivers Tlon channel data as a post blob', async () => {
+    const { tlonRuntimeOutbound } = await import('./channel.runtime.js');
+    const { sendDmWithStory } = await import('./urbit/send.js');
+    const blob = JSON.stringify([
+      { type: 'a2ui', version: 1, messages: ['validated upstream'] },
+    ]);
+
+    await tlonRuntimeOutbound.sendPayload!({
+      cfg: {} as never,
+      to: '~nec',
+      text: 'Readable fallback',
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+      payload: {
+        text: 'Readable fallback',
+        channelData: { tlon: { blob } },
+      },
+    });
+
+    expect(sendDmWithStory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toShip: '~nec',
+        blob,
+      })
+    );
   });
 });

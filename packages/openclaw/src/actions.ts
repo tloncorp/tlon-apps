@@ -4,6 +4,10 @@ import type {
 } from 'openclaw/plugin-sdk/channel-contract';
 import { readStringParam } from 'openclaw/plugin-sdk/param-readers';
 
+import {
+  a2uiMessageToolProperty,
+  prepareA2UISendPayload,
+} from './a2ui-tool.js';
 import { normalizeShip, parseTlonTarget } from './targets.js';
 import { resolveTlonAccount } from './types.js';
 import { withAuthenticatedTlonApi } from './urbit/api-client.js';
@@ -71,10 +75,24 @@ export const tlonMessageActions: ChannelMessageActionAdapter = {
     if (gate('reactions')) actions.push('react');
     if (gate('delete')) actions.push('delete');
     if (gate('reply')) actions.push('reply');
-    return actions.length > 0 ? { actions } : null;
+    return {
+      actions,
+      schema: {
+        actions: ['send'],
+        visibility: 'all-configured',
+        properties: { a2ui: a2uiMessageToolProperty },
+      },
+    };
   },
 
   supportsAction: ({ action }) => SUPPORTED_ACTIONS.has(action),
+
+  prepareSendPayload: ({ ctx, payload }) => {
+    if (ctx.action !== 'send' || ctx.params.a2ui === undefined) {
+      return null;
+    }
+    return prepareA2UISendPayload(payload, ctx.params.a2ui);
+  },
 
   handleAction: async ({ action, params, cfg, accountId, toolContext }) => {
     const account = resolveTlonAccount(cfg, accountId ?? undefined);

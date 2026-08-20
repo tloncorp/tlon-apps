@@ -9,16 +9,107 @@ type ComponentBase = {
 };
 
 export namespace A2UI {
+  export type CatalogId =
+    | 'tlon.a2ui.basic.v1'
+    | 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json';
+
   export type Text = ComponentBase & {
     component: 'Text';
     text: string;
     variant?: 'body' | 'caption' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5';
   };
 
+  export type Image = ComponentBase & {
+    component: 'Image';
+    url: string;
+    description?: string;
+    fit?: 'contain' | 'cover' | 'fill' | 'none' | 'scaleDown';
+    variant?:
+      | 'icon'
+      | 'avatar'
+      | 'smallFeature'
+      | 'mediumFeature'
+      | 'largeFeature'
+      | 'header';
+  };
+
+  export type IconName =
+    | 'accountCircle'
+    | 'add'
+    | 'arrowBack'
+    | 'arrowForward'
+    | 'attachFile'
+    | 'calendarToday'
+    | 'call'
+    | 'camera'
+    | 'check'
+    | 'close'
+    | 'delete'
+    | 'download'
+    | 'edit'
+    | 'event'
+    | 'error'
+    | 'fastForward'
+    | 'favorite'
+    | 'favoriteOff'
+    | 'folder'
+    | 'help'
+    | 'home'
+    | 'info'
+    | 'locationOn'
+    | 'lock'
+    | 'lockOpen'
+    | 'mail'
+    | 'menu'
+    | 'moreVert'
+    | 'moreHoriz'
+    | 'notificationsOff'
+    | 'notifications'
+    | 'pause'
+    | 'payment'
+    | 'person'
+    | 'phone'
+    | 'photo'
+    | 'play'
+    | 'print'
+    | 'refresh'
+    | 'rewind'
+    | 'search'
+    | 'send'
+    | 'settings'
+    | 'share'
+    | 'shoppingCart'
+    | 'skipNext'
+    | 'skipPrevious'
+    | 'star'
+    | 'starHalf'
+    | 'starOff'
+    | 'stop'
+    | 'upload'
+    | 'visibility'
+    | 'visibilityOff'
+    | 'volumeDown'
+    | 'volumeMute'
+    | 'volumeOff'
+    | 'volumeUp'
+    | 'warning';
+
+  export type Icon = ComponentBase & {
+    component: 'Icon';
+    name: IconName;
+  };
+
   export type Container = ComponentBase & {
     component: 'Row' | 'Column';
     children: string[];
-    justify?: 'start' | 'center' | 'end' | 'spaceBetween' | 'spaceAround';
+    justify?:
+      | 'start'
+      | 'center'
+      | 'end'
+      | 'spaceBetween'
+      | 'spaceAround'
+      | 'spaceEvenly'
+      | 'stretch';
     align?: 'start' | 'center' | 'end' | 'stretch';
   };
 
@@ -29,6 +120,7 @@ export namespace A2UI {
 
   export type Divider = ComponentBase & {
     component: 'Divider';
+    axis?: 'horizontal' | 'vertical';
   };
 
   export type SendMessageEvent = {
@@ -110,13 +202,20 @@ export namespace A2UI {
     action: ButtonAction;
   };
 
-  export type Component = Text | Container | Card | Divider | Button;
+  export type Component =
+    | Text
+    | Image
+    | Icon
+    | Container
+    | Card
+    | Divider
+    | Button;
 
   export type CreateSurfaceMessage = {
     version: 'v0.9';
     createSurface: {
       surfaceId: string;
-      catalogId: string;
+      catalogId: CatalogId;
     };
   };
 
@@ -137,18 +236,46 @@ export namespace A2UI {
     messages: Message[];
     recipe?: unknown;
   };
+
+  export type ResolvedComponentGraph = {
+    root: string;
+    components: Map<string, Component>;
+  };
 }
 
 const LIMITS = {
   maxBytes: 32 * 1024,
   maxComponents: 50,
   maxDepth: 8,
+  maxJsonDepth: 20,
+  maxJsonNodes: 1000,
   maxChildren: 12,
+  maxComponentIdLength: 200,
+  maxComponentNameLength: 100,
+  maxSurfaceIdLength: 500,
   maxTextNodeLength: 1000,
+  maxImageUrlLength: 2048,
+  maxImageDescriptionLength: 500,
   maxButtonMessageLength: 1000,
   maxNavigationTargetIdLength: 500,
   maxTotalTextLength: 8000,
 } as const;
+
+const CATALOG_IDS = [
+  'tlon.a2ui.basic.v1',
+  'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json',
+] as const satisfies readonly A2UI.CatalogId[];
+
+const COMPONENT_NAMES = [
+  'Card',
+  'Column',
+  'Row',
+  'Text',
+  'Image',
+  'Icon',
+  'Divider',
+  'Button',
+] as const satisfies readonly A2UI.Component['component'][];
 
 const CONTAINER_JUSTIFY_VALUES = [
   'start',
@@ -156,6 +283,8 @@ const CONTAINER_JUSTIFY_VALUES = [
   'end',
   'spaceBetween',
   'spaceAround',
+  'spaceEvenly',
+  'stretch',
 ] as const;
 
 const CONTAINER_ALIGN_VALUES = ['start', 'center', 'end', 'stretch'] as const;
@@ -177,12 +306,173 @@ const BUTTON_VARIANT_VALUES = [
   'borderless',
 ] as const;
 
+const IMAGE_FIT_VALUES = [
+  'contain',
+  'cover',
+  'fill',
+  'none',
+  'scaleDown',
+] as const;
+
+const IMAGE_VARIANT_VALUES = [
+  'icon',
+  'avatar',
+  'smallFeature',
+  'mediumFeature',
+  'largeFeature',
+  'header',
+] as const;
+
+const ICON_NAMES = [
+  'accountCircle',
+  'add',
+  'arrowBack',
+  'arrowForward',
+  'attachFile',
+  'calendarToday',
+  'call',
+  'camera',
+  'check',
+  'close',
+  'delete',
+  'download',
+  'edit',
+  'event',
+  'error',
+  'fastForward',
+  'favorite',
+  'favoriteOff',
+  'folder',
+  'help',
+  'home',
+  'info',
+  'locationOn',
+  'lock',
+  'lockOpen',
+  'mail',
+  'menu',
+  'moreVert',
+  'moreHoriz',
+  'notificationsOff',
+  'notifications',
+  'pause',
+  'payment',
+  'person',
+  'phone',
+  'photo',
+  'play',
+  'print',
+  'refresh',
+  'rewind',
+  'search',
+  'send',
+  'settings',
+  'share',
+  'shoppingCart',
+  'skipNext',
+  'skipPrevious',
+  'star',
+  'starHalf',
+  'starOff',
+  'stop',
+  'upload',
+  'visibility',
+  'visibilityOff',
+  'volumeDown',
+  'volumeMute',
+  'volumeOff',
+  'volumeUp',
+  'warning',
+] as const satisfies readonly A2UI.IconName[];
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isBoundedNonEmptyString(
+  value: unknown,
+  maxLength: number
+): value is string {
+  return isNonEmptyString(value) && value.length <= maxLength;
+}
+
+function hasSafeJsonStructure(value: unknown): boolean {
+  const stack = [{ value, depth: 0 }];
+  const seen = new Set<object>();
+  let nodeCount = 0;
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) {
+      continue;
+    }
+    nodeCount += 1;
+    if (
+      nodeCount > LIMITS.maxJsonNodes ||
+      current.depth > LIMITS.maxJsonDepth
+    ) {
+      return false;
+    }
+    if (typeof current.value !== 'object' || current.value === null) {
+      continue;
+    }
+    if (seen.has(current.value)) {
+      return false;
+    }
+    seen.add(current.value);
+    for (const child of Object.values(current.value)) {
+      stack.push({ value: child, depth: current.depth + 1 });
+    }
+  }
+
+  return true;
+}
+
+function utf8ByteLength(value: string): number {
+  let bytes = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const codePoint = value.codePointAt(index);
+    if (codePoint === undefined) {
+      continue;
+    }
+    if (codePoint <= 0x7f) {
+      bytes += 1;
+    } else if (codePoint <= 0x7ff) {
+      bytes += 2;
+    } else if (codePoint <= 0xffff) {
+      bytes += 3;
+    } else {
+      bytes += 4;
+      index += 1;
+    }
+  }
+  return bytes;
+}
+
+function isSupportedCatalogId(value: unknown): value is A2UI.CatalogId {
+  return CATALOG_IDS.includes(value as A2UI.CatalogId);
+}
+
+function isSafeImageUrl(value: unknown): value is string {
+  if (
+    !isBoundedNonEmptyString(value, LIMITS.maxImageUrlLength) ||
+    (!value.startsWith('https://') && !value.startsWith('http://'))
+  ) {
+    return false;
+  }
+  try {
+    const url = new URL(value);
+    return (
+      (url.protocol === 'https:' || url.protocol === 'http:') &&
+      Boolean(url.hostname)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function isValidTargetId(value: unknown): value is string {
@@ -234,6 +524,26 @@ function isValidButtonVariant(value: unknown): boolean {
       value as (typeof BUTTON_VARIANT_VALUES)[number]
     )
   );
+}
+
+function isValidImageFit(value: unknown): boolean {
+  return (
+    value === undefined ||
+    IMAGE_FIT_VALUES.includes(value as (typeof IMAGE_FIT_VALUES)[number])
+  );
+}
+
+function isValidImageVariant(value: unknown): boolean {
+  return (
+    value === undefined ||
+    IMAGE_VARIANT_VALUES.includes(
+      value as (typeof IMAGE_VARIANT_VALUES)[number]
+    )
+  );
+}
+
+function isValidIconName(value: unknown): value is A2UI.IconName {
+  return ICON_NAMES.includes(value as A2UI.IconName);
 }
 
 function isValidChatType(value: unknown): value is 'group' | 'channel' {
@@ -311,7 +621,11 @@ function validateButtonAction(action: unknown): action is A2UI.ButtonAction {
 }
 
 function validateComponent(component: unknown): component is A2UI.Component {
-  if (!isPlainObject(component) || !isNonEmptyString(component.id)) {
+  if (
+    !isPlainObject(component) ||
+    !isBoundedNonEmptyString(component.id, LIMITS.maxComponentIdLength) ||
+    !isBoundedNonEmptyString(component.component, LIMITS.maxComponentNameLength)
+  ) {
     return false;
   }
   if (!isValidWeight(component.weight)) {
@@ -325,24 +639,45 @@ function validateComponent(component: unknown): component is A2UI.Component {
         component.text.length <= LIMITS.maxTextNodeLength &&
         isValidTextVariant(component.variant)
       );
+    case 'Image':
+      return (
+        isSafeImageUrl(component.url) &&
+        (component.description === undefined ||
+          (typeof component.description === 'string' &&
+            component.description.length <=
+              LIMITS.maxImageDescriptionLength)) &&
+        isValidImageFit(component.fit) &&
+        isValidImageVariant(component.variant)
+      );
+    case 'Icon':
+      return isValidIconName(component.name);
     case 'Row':
     case 'Column':
       return (
         Array.isArray(component.children) &&
         component.children.length <= LIMITS.maxChildren &&
-        component.children.every((child) => isNonEmptyString(child)) &&
+        component.children.every((child) =>
+          isBoundedNonEmptyString(child, LIMITS.maxComponentIdLength)
+        ) &&
         new Set(component.children).size === component.children.length &&
         isValidContainerJustify(component.justify) &&
         isValidContainerAlign(component.align)
       );
     case 'Card':
-      return isNonEmptyString(component.child);
+      return isBoundedNonEmptyString(
+        component.child,
+        LIMITS.maxComponentIdLength
+      );
     case 'Divider':
-      return true;
+      return (
+        component.axis === undefined ||
+        component.axis === 'horizontal' ||
+        component.axis === 'vertical'
+      );
     case 'Button': {
       const action = component.action;
       return (
-        isNonEmptyString(component.child) &&
+        isBoundedNonEmptyString(component.child, LIMITS.maxComponentIdLength) &&
         (component.disabled === undefined ||
           typeof component.disabled === 'boolean') &&
         isValidButtonVariant(component.variant) &&
@@ -365,28 +700,58 @@ function validateEnvelope(entry: unknown): ValidatedEnvelope | null {
     return null;
   }
 
-  if (JSON.stringify(entry).length > LIMITS.maxBytes) {
+  if (!hasSafeJsonStructure(entry)) {
     return null;
   }
 
-  if (!Array.isArray(entry.messages)) {
+  try {
+    if (utf8ByteLength(JSON.stringify(entry)) > LIMITS.maxBytes) {
+      return null;
+    }
+  } catch {
     return null;
   }
 
-  const createMessage = entry.messages.find(
+  if (!Array.isArray(entry.messages) || entry.messages.length !== 2) {
+    return null;
+  }
+
+  const isSupportedMessage = entry.messages.every((message) => {
+    if (!isPlainObject(message) || message.version !== 'v0.9') {
+      return false;
+    }
+    const hasCreate = 'createSurface' in message;
+    const hasUpdate = 'updateComponents' in message;
+    return (
+      hasCreate !== hasUpdate &&
+      Object.keys(message).every(
+        (key) =>
+          key === 'version' ||
+          key === 'createSurface' ||
+          key === 'updateComponents'
+      )
+    );
+  });
+  if (!isSupportedMessage) {
+    return null;
+  }
+
+  const createMessages = entry.messages.filter(
     (message): message is A2UI.CreateSurfaceMessage =>
       isPlainObject(message) && 'createSurface' in message
   );
-  const updateMessage = entry.messages.find(
+  const updateMessages = entry.messages.filter(
     (message): message is A2UI.UpdateComponentsMessage =>
       isPlainObject(message) && 'updateComponents' in message
   );
+  const createMessage = createMessages[0];
+  const updateMessage = updateMessages[0];
 
   if (
+    createMessages.length !== 1 ||
+    updateMessages.length !== 1 ||
     !createMessage ||
     !updateMessage ||
-    createMessage.version !== 'v0.9' ||
-    updateMessage.version !== 'v0.9' ||
     !isPlainObject(createMessage.createSurface) ||
     !isPlainObject(updateMessage.updateComponents)
   ) {
@@ -397,11 +762,14 @@ function validateEnvelope(entry: unknown): ValidatedEnvelope | null {
   const updateSurfaceId = updateMessage.updateComponents.surfaceId;
   const catalogId = createMessage.createSurface.catalogId;
   const components = updateMessage.updateComponents.components;
+  const root = updateMessage.updateComponents.root;
 
   if (
-    !isNonEmptyString(surfaceId) ||
+    !isBoundedNonEmptyString(surfaceId, LIMITS.maxSurfaceIdLength) ||
     surfaceId !== updateSurfaceId ||
-    !isNonEmptyString(catalogId) ||
+    !isSupportedCatalogId(catalogId) ||
+    (root !== undefined &&
+      !isBoundedNonEmptyString(root, LIMITS.maxComponentIdLength)) ||
     !Array.isArray(components) ||
     components.length === 0 ||
     components.length > LIMITS.maxComponents
@@ -489,6 +857,23 @@ function validateReachableTree(
   return visit(root, 1);
 }
 
+function hasValidComponentReferences(
+  components: Map<string, A2UI.Component>
+): boolean {
+  for (const component of components.values()) {
+    const children =
+      component.component === 'Row' || component.component === 'Column'
+        ? component.children
+        : component.component === 'Card' || component.component === 'Button'
+          ? [component.child]
+          : [];
+    if (children.some((child) => !components.has(child))) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function getUpdateMessage(
   entry: A2UI.BlobEntry
 ): A2UI.UpdateComponentsMessage | null {
@@ -505,38 +890,100 @@ export function getRootComponentId(entry: A2UI.BlobEntry): string | null {
   if (!update) {
     return null;
   }
-  return (
-    update.updateComponents.root ??
-    update.updateComponents.components[0]?.id ??
-    null
-  );
+  const explicitRoot = update.updateComponents.root;
+  if (isBoundedNonEmptyString(explicitRoot, LIMITS.maxComponentIdLength)) {
+    return explicitRoot;
+  }
+  return update.updateComponents.components.some(
+    (component) => component.id === 'root'
+  )
+    ? 'root'
+    : null;
 }
 
-export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
+export function resolveComponentGraph(
+  entry: unknown
+): A2UI.ResolvedComponentGraph | null {
   const envelope = validateEnvelope(entry);
   if (!envelope) {
-    return false;
+    return null;
   }
 
   const components = indexComponents(envelope.components);
-  if (!components) {
-    return false;
+  if (!components || !hasValidComponentReferences(components)) {
+    return null;
   }
 
-  const root =
-    envelope.updateMessage.updateComponents.root ?? envelope.components[0]?.id;
-  return validateReachableTree(root, components);
+  const root = isBoundedNonEmptyString(
+    envelope.updateMessage.updateComponents.root,
+    LIMITS.maxComponentIdLength
+  )
+    ? envelope.updateMessage.updateComponents.root
+    : components.has('root')
+      ? 'root'
+      : null;
+  if (!root || !validateReachableTree(root, components)) {
+    return null;
+  }
+  return { root, components };
+}
+
+export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
+  return resolveComponentGraph(entry) !== null;
+}
+
+export function getValidationTelemetry(entry: unknown): {
+  hasUnsupportedCatalog: boolean;
+  unsupportedComponentCount: number;
+} {
+  if (!isPlainObject(entry) || !Array.isArray(entry.messages)) {
+    return { hasUnsupportedCatalog: false, unsupportedComponentCount: 0 };
+  }
+  let hasUnsupportedCatalog = false;
+  let unsupportedComponentCount = 0;
+  for (const message of entry.messages) {
+    if (!isPlainObject(message)) {
+      continue;
+    }
+    if (isPlainObject(message.createSurface)) {
+      const catalogId = message.createSurface.catalogId;
+      hasUnsupportedCatalog ||= Boolean(
+        isNonEmptyString(catalogId) && !isSupportedCatalogId(catalogId)
+      );
+    }
+    if (
+      isPlainObject(message.updateComponents) &&
+      Array.isArray(message.updateComponents.components)
+    ) {
+      unsupportedComponentCount += message.updateComponents.components.filter(
+        (component) =>
+          isPlainObject(component) &&
+          isNonEmptyString(component.component) &&
+          !COMPONENT_NAMES.includes(
+            component.component as A2UI.Component['component']
+          )
+      ).length;
+    }
+  }
+  return { hasUnsupportedCatalog, unsupportedComponentCount };
 }
 
 export const blobEntrySchema = z.custom<A2UI.BlobEntry>(validateBlobEntry);
 
 export const A2UI = {
+  catalog: {
+    ids: CATALOG_IDS,
+    components: COMPONENT_NAMES,
+    icons: ICON_NAMES,
+  },
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
     navigate: ACTION_NAVIGATE,
   },
   getUpdateMessage,
   getRootComponentId,
+  resolveComponentGraph,
+  getValidationTelemetry,
   validateBlobEntry,
   blobEntrySchema,
 } as const;

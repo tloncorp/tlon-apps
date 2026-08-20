@@ -56,6 +56,7 @@
     "@tloncorp/tlon-skill": "workspace:^",
     "@urbit/aura": "^3.0.0",
     "posthog-node": "^5.28.9",
+    "typebox": "^1.1.38",
     "zod": "^4.4.1"
   },
   "devDependencies": {

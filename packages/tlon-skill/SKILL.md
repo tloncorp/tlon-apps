@@ -25,6 +25,16 @@ Blocked in Hermes' `tlon` tool: plain-text `posts reply`/`dms send`/`dms reply` 
 
 When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
 
+### Native A2UI widgets
+
+In Tlon direct messages, proactively prefer a native A2UI widget when the answer is primarily structured, glanceable, visual, or actionable, even if the user did not use the word “widget.” Good candidates include status and metric summaries, comparisons, schedules and itineraries, checklists, dashboards, confirmations, profiles, and result or media cards. An explicit request for a widget, card, dashboard, rich display, or native UI should use A2UI unless the request cannot be represented safely with the supported catalog. Use normal text for short conversational replies, prose-first explanations, sensitive content that gains no clarity from a widget, or content the catalog cannot represent faithfully. For now, use normal content in group and thread contexts because client-side A2UI rendering is limited to direct messages.
+
+Send the widget with the built-in `message` tool's `a2ui` parameter. `a2ui` accepts a flat component graph; `root` defaults to `"root"`, and every `child` or `children` value references another component by `id`.
+
+The Tlon catalog supports `Card`, `Column`, `Row`, `Text`, `Image`, `Icon`, `Divider`, and `Button`. Compose a real hierarchy with separate text variants (`h1`–`h5`, `body`, `caption`), layout containers, dividers, and visual components. Do not reduce a rich widget to one multiline `Text` component. Images require public HTTP(S) URLs. Button events are limited to `tlon.sendMessage`. Always include concise normal `message` text as a fallback for older clients; keep it to a summary instead of duplicating the whole widget. After the A2UI message tool call succeeds, reply only `NO_REPLY` so the normal delivery path does not append a duplicate text response.
+
+Use the `a2ui` schema shown by the `message` tool for the exact supported fields, icon names, layout values, and limits. The plugin wraps the component graph in the versioned Tlon A2UI post-blob envelope and rejects malformed graphs before sending.
+
 **Images are the exception: upload them first.** The `message` tool's `media=` parameter takes only an uploaded https URL — never a local file path, unlike other OpenClaw channels. `tlon upload` accepts a URL, a local file path, or stdin, and prints the uploaded URL:
 
 ```bash

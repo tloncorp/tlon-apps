@@ -1,7 +1,15 @@
+import { createDevLogger } from '@tloncorp/shared';
 import { A2UI, type A2UIBlockData } from '@tloncorp/shared/logic';
-import { Button, Text } from '@tloncorp/ui';
-import React, { ComponentProps, useCallback, useMemo } from 'react';
-import { View, XStack, YStack } from 'tamagui';
+import { Button, Icon, IconType, Image, Text } from '@tloncorp/ui';
+import React, {
+  Component,
+  ComponentProps,
+  ErrorInfo,
+  PropsWithChildren,
+  useCallback,
+  useMemo,
+} from 'react';
+import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { useContentContext } from './contentUtils';
 
@@ -10,14 +18,124 @@ type RenderOptions = {
   parentAlign?: A2UI.Container['align'];
 };
 
+const logger = createDevLogger('a2ui-renderer', false);
+const EMPTY_COMPONENTS = new Map<string, A2UI.Component>();
+
+const A2UI_ICON_CATALOG: Record<A2UI.IconName, IconType> = {
+  accountCircle: 'Profile',
+  add: 'Add',
+  arrowBack: 'ChevronLeft',
+  arrowForward: 'ChevronRight',
+  attachFile: 'Attachment',
+  calendarToday: 'Clock',
+  call: 'ChannelDM',
+  camera: 'Camera',
+  check: 'Checkmark',
+  close: 'Close',
+  delete: 'Trash',
+  download: 'ArrowDown',
+  edit: 'EditList',
+  event: 'Clock',
+  error: 'Bang',
+  fastForward: 'ChevronRight',
+  favorite: 'SmushStar',
+  favoriteOff: 'SmushStar',
+  folder: 'Folder',
+  help: 'Info',
+  home: 'Home',
+  info: 'Info',
+  locationOn: 'Pin',
+  lock: 'Lock',
+  lockOpen: 'Lock',
+  mail: 'Mail',
+  menu: 'Overflow',
+  moreVert: 'Overflow',
+  moreHoriz: 'Overflow',
+  notificationsOff: 'Muted',
+  notifications: 'Notifications',
+  pause: 'Stop',
+  payment: 'Placeholder',
+  person: 'Profile',
+  phone: 'ChannelDM',
+  photo: 'Camera',
+  play: 'Play',
+  print: 'Placeholder',
+  refresh: 'Refresh',
+  rewind: 'ChevronLeft',
+  search: 'Search',
+  send: 'Send',
+  settings: 'Settings',
+  share: 'ArrowUp',
+  shoppingCart: 'Placeholder',
+  skipNext: 'ChevronRight',
+  skipPrevious: 'ChevronLeft',
+  star: 'SmushStar',
+  starHalf: 'SmushStar',
+  starOff: 'SmushStar',
+  stop: 'Stop',
+  upload: 'ArrowUp',
+  visibility: 'EyeOpen',
+  visibilityOff: 'EyeClosed',
+  volumeDown: 'Muted',
+  volumeMute: 'Muted',
+  volumeOff: 'Muted',
+  volumeUp: 'Wave',
+  warning: 'Bang',
+};
+
+class A2UIErrorBoundary extends Component<
+  PropsWithChildren<{ componentCount: number }>,
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    logger.trackError('A2UI renderer crashed', {
+      errorName: error.name,
+      componentCount: this.props.componentCount,
+      componentStack: info.componentStack,
+    });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <A2UIFallback />;
+    }
+    return this.props.children;
+  }
+}
+
+function A2UIFallback() {
+  return (
+    <YStack
+      borderLeftWidth={2}
+      borderColor="$border"
+      paddingLeft="$m"
+      accessibilityRole="text"
+    >
+      <Text color="$secondaryText" size="$body">
+        Upgrade your app to see this post
+      </Text>
+    </YStack>
+  );
+}
+
 function getTextSize(component: A2UI.Text) {
   switch (component.variant) {
     case 'h1':
       return '$title/l';
     case 'h2':
-      return '$label/xl';
+      return '$label/3xl';
     case 'h3':
+      return '$label/2xl';
+    case 'h4':
       return '$label/xl';
+    case 'h5':
+      return '$label/l';
     case 'caption':
       return '$label/m';
     default:
@@ -27,6 +145,49 @@ function getTextSize(component: A2UI.Text) {
 
 function getTextColor(component: A2UI.Text) {
   return component.variant === 'caption' ? '$secondaryText' : '$primaryText';
+}
+
+function getImageLayout(component: A2UI.Image) {
+  switch (component.variant) {
+    case 'icon':
+      return { width: 24, height: 24, borderRadius: '$xs' } as const;
+    case 'avatar':
+      return { width: 40, height: 40, borderRadius: 9999 } as const;
+    case 'smallFeature':
+      return { width: 100, height: 100, borderRadius: '$m' } as const;
+    case 'largeFeature':
+      return {
+        width: '100%',
+        maxWidth: 560,
+        aspectRatio: 16 / 9,
+        borderRadius: '$m',
+      } as const;
+    case 'header':
+      return {
+        width: '100%',
+        height: 200,
+        borderRadius: '$m',
+      } as const;
+    case 'mediumFeature':
+    default:
+      return {
+        width: '100%',
+        maxWidth: 300,
+        aspectRatio: 3 / 2,
+        borderRadius: '$m',
+      } as const;
+  }
+}
+
+function getImageFit(component: A2UI.Image) {
+  return component.fit === 'scaleDown' ? 'scale-down' : component.fit ?? 'fill';
+}
+
+export function getA2UISurfaceLayout(web: boolean) {
+  return {
+    width: '100%' as const,
+    maxWidth: web ? 560 : ('100%' as const),
+  };
 }
 
 function getComponentGap(
@@ -74,6 +235,10 @@ function getJustifyContent(justify?: A2UI.Container['justify']) {
       return 'space-between';
     case 'spaceAround':
       return 'space-around';
+    case 'spaceEvenly':
+      return 'space-evenly';
+    case 'stretch':
+      return 'flex-start';
     default:
       return 'flex-start';
   }
@@ -126,24 +291,23 @@ function getComponentText(
         .join(' ');
     case 'Divider':
       return '';
+    case 'Image':
+      return component.description ?? '';
+    case 'Icon':
+      return component.name;
   }
 }
 
-export function A2UIBlock({
-  block,
-  ...props
-}: { block: A2UIBlockData } & ComponentProps<typeof YStack>) {
+type A2UIBlockProps = { block: A2UIBlockData } & ComponentProps<typeof YStack>;
+
+function A2UIBlockContent({ block, ...props }: A2UIBlockProps) {
   const { isA2UIActionAvailable, onA2UIAction } = useContentContext();
-  const update = A2UI.getUpdateMessage(block.a2ui);
-  const root = A2UI.getRootComponentId(block.a2ui);
-  const components = useMemo(() => {
-    return new Map(
-      update?.updateComponents.components.map((component) => [
-        component.id,
-        component,
-      ]) ?? []
-    );
-  }, [update]);
+  const graph = useMemo(
+    () => A2UI.resolveComponentGraph(block.a2ui),
+    [block.a2ui]
+  );
+  const root = graph?.root ?? null;
+  const components = graph?.components ?? EMPTY_COMPONENTS;
 
   const handleButtonPress = useCallback(
     (component: A2UI.Button) => {
@@ -180,6 +344,30 @@ export function A2UIBlock({
             </Text>
           );
         }
+        case 'Image': {
+          return (
+            <Image
+              key={component.id}
+              source={{ uri: component.url }}
+              contentFit={getImageFit(component)}
+              accessibilityLabel={component.description}
+              flex={getComponentFlex(component)}
+              backgroundColor="$secondaryBackground"
+              {...getImageLayout(component)}
+            />
+          );
+        }
+        case 'Icon':
+          return (
+            <Icon
+              key={component.id}
+              type={A2UI_ICON_CATALOG[component.name]}
+              color="$primaryText"
+              size="$m"
+              accessibilityLabel={component.name}
+              flex={getComponentFlex(component)}
+            />
+          );
         case 'Row':
           return (
             <XStack
@@ -237,6 +425,7 @@ export function A2UIBlock({
               width={isNestedCard ? '100%' : undefined}
               alignSelf={isNestedCard ? 'stretch' : 'flex-start'}
               overflow="hidden"
+              accessibilityLabel={getComponentText(component, components)}
             >
               {renderComponent(component.child, {
                 cardDepth: (options.cardDepth ?? 0) + 1,
@@ -248,10 +437,14 @@ export function A2UIBlock({
           return (
             <View
               key={component.id}
-              height={1}
+              height={component.axis === 'vertical' ? '100%' : 1}
+              minHeight={component.axis === 'vertical' ? 24 : undefined}
+              width={component.axis === 'vertical' ? 1 : '100%'}
               backgroundColor="$border"
-              marginVertical="$xs"
-              width="100%"
+              marginVertical={component.axis === 'vertical' ? undefined : '$xs'}
+              marginHorizontal={
+                component.axis === 'vertical' ? '$xs' : undefined
+              }
               flex={getComponentFlex(component)}
             />
           );
@@ -279,11 +472,16 @@ export function A2UIBlock({
               flex={getComponentFlex(component)}
               disabled={disabled}
               dimmed={disabled}
+              accessibilityLabel={label}
               onPress={
                 disabled ? undefined : () => handleButtonPress(component)
               }
             >
-              <Button.Text size="medium">{label}</Button.Text>
+              {components.get(component.child)?.component === 'Icon' ? (
+                renderComponent(component.child)
+              ) : (
+                <Button.Text size="medium">{label}</Button.Text>
+              )}
             </Button.Frame>
           );
         }
@@ -292,13 +490,28 @@ export function A2UIBlock({
     [components, handleButtonPress, isA2UIActionAvailable, onA2UIAction]
   );
 
-  if (!root) {
-    return null;
+  if (!root || !graph) {
+    return <A2UIFallback />;
   }
 
   return (
-    <YStack gap="$s" maxWidth={560} {...props}>
+    <YStack
+      gap="$s"
+      {...getA2UISurfaceLayout(isWeb)}
+      accessibilityLabel={getComponentText(components.get(root), components)}
+      {...props}
+    >
       {renderComponent(root)}
     </YStack>
+  );
+}
+
+export function A2UIBlock(props: A2UIBlockProps) {
+  const update = A2UI.getUpdateMessage(props.block.a2ui);
+  const componentCount = update?.updateComponents.components.length ?? 0;
+  return (
+    <A2UIErrorBoundary componentCount={componentCount}>
+      <A2UIBlockContent {...props} />
+    </A2UIErrorBoundary>
   );
 }

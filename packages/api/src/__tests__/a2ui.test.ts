@@ -389,14 +389,208 @@ describe('a2ui blob entries', () => {
     ).toBe(false);
   });
 
-  test('ignores non-object messages when finding update message', () => {
+  test('rejects unsupported messages without throwing', () => {
     const entry = {
       ...a2uiBlobEntry,
       messages: [42, ...a2uiBlobEntry.messages],
     } as unknown as A2UI.BlobEntry;
 
-    expect(A2UI.validateBlobEntry(entry)).toBe(true);
+    expect(A2UI.validateBlobEntry(entry)).toBe(false);
     expect(A2UI.getUpdateMessage(entry)).toEqual(a2uiBlobEntry.messages[1]);
     expect(A2UI.getRootComponentId(entry)).toBe('root');
+  });
+
+  test('supports the safe Image and Icon catalog components', () => {
+    const entry: A2UI.BlobEntry = {
+      ...a2uiBlobEntry,
+      messages: [
+        a2uiBlobEntry.messages[0],
+        {
+          version: 'v0.9',
+          updateComponents: {
+            surfaceId: 'weather-card',
+            root: 'root',
+            components: [
+              {
+                id: 'root',
+                component: 'Row',
+                align: 'center',
+                children: ['icon', 'image', 'label'],
+              },
+              { id: 'icon', component: 'Icon', name: 'locationOn' },
+              {
+                id: 'image',
+                component: 'Image',
+                url: 'https://example.com/weather.png',
+                description: 'Clouds over Brooklyn',
+                fit: 'cover',
+                variant: 'smallFeature',
+              },
+              { id: 'label', component: 'Text', text: 'Brooklyn weather' },
+            ],
+          },
+        },
+      ],
+    };
+
+    expect(A2UI.validateBlobEntry(entry)).toBe(true);
+    expect(A2UI.resolveComponentGraph(entry)).toMatchObject({ root: 'root' });
+    expect(A2UI.resolveComponentGraph(entry)?.components.size).toBe(4);
+  });
+
+  test('rejects unsafe image URLs and unknown icon names', () => {
+    const withComponent = (component: unknown) => ({
+      ...a2uiBlobEntry,
+      messages: [
+        a2uiBlobEntry.messages[0],
+        {
+          version: 'v0.9',
+          updateComponents: {
+            surfaceId: 'weather-card',
+            root: 'root',
+            components: [component],
+          },
+        },
+      ],
+    });
+
+    expect(
+      A2UI.validateBlobEntry(
+        withComponent({
+          id: 'root',
+          component: 'Image',
+          url: 'javascript:alert(1)',
+        })
+      )
+    ).toBe(false);
+    expect(
+      A2UI.validateBlobEntry(
+        withComponent({ id: 'root', component: 'Icon', name: 'customSvg' })
+      )
+    ).toBe(false);
+  });
+
+  test('requires a matching surface and a resolvable root', () => {
+    const missingSurface = {
+      ...a2uiBlobEntry,
+      messages: [a2uiBlobEntry.messages[1]],
+    };
+    const missingRoot = {
+      ...a2uiBlobEntry,
+      messages: [
+        a2uiBlobEntry.messages[0],
+        {
+          version: 'v0.9',
+          updateComponents: {
+            surfaceId: 'weather-card',
+            components: [
+              { id: 'not-root', component: 'Text', text: 'No root' },
+            ],
+          },
+        },
+      ],
+    };
+
+    expect(A2UI.validateBlobEntry(missingSurface)).toBe(false);
+    expect(A2UI.validateBlobEntry(missingRoot)).toBe(false);
+  });
+
+  test('rejects duplicate component ids and missing child references', () => {
+    const makeEntry = (components: unknown[]) => ({
+      ...a2uiBlobEntry,
+      messages: [
+        a2uiBlobEntry.messages[0],
+        {
+          version: 'v0.9',
+          updateComponents: {
+            surfaceId: 'weather-card',
+            root: 'root',
+            components,
+          },
+        },
+      ],
+    });
+
+    expect(
+      A2UI.validateBlobEntry(
+        makeEntry([
+          { id: 'root', component: 'Text', text: 'First' },
+          { id: 'root', component: 'Text', text: 'Second' },
+        ])
+      )
+    ).toBe(false);
+    expect(
+      A2UI.validateBlobEntry(
+        makeEntry([{ id: 'root', component: 'Column', children: ['missing'] }])
+      )
+    ).toBe(false);
+    expect(
+      A2UI.validateBlobEntry(
+        makeEntry([
+          { id: 'root', component: 'Text', text: 'Visible' },
+          {
+            id: 'orphan',
+            component: 'Column',
+            children: ['missing'],
+          },
+        ])
+      )
+    ).toBe(false);
+  });
+
+  test('rejects unsupported versions, catalogs, and components', () => {
+    expect(A2UI.validateBlobEntry({ ...a2uiBlobEntry, version: 2 })).toBe(
+      false
+    );
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          {
+            version: 'v0.9',
+            createSurface: {
+              surfaceId: 'weather-card',
+              catalogId: 'unknown.catalog',
+            },
+          },
+          a2uiBlobEntry.messages[1],
+        ],
+      })
+    ).toBe(false);
+    const unknownComponent = {
+      ...a2uiBlobEntry,
+      messages: [
+        a2uiBlobEntry.messages[0],
+        {
+          version: 'v0.9',
+          updateComponents: {
+            surfaceId: 'weather-card',
+            root: 'root',
+            components: [
+              { id: 'root', component: 'WeatherMap', location: 'Brooklyn' },
+            ],
+          },
+        },
+      ],
+    };
+    expect(A2UI.validateBlobEntry(unknownComponent)).toBe(false);
+    expect(A2UI.getValidationTelemetry(unknownComponent)).toEqual({
+      hasUnsupportedCatalog: false,
+      unsupportedComponentCount: 1,
+    });
+  });
+
+  test('rejects oversized and deeply nested payloads', () => {
+    const oversized = {
+      ...a2uiBlobEntry,
+      recipe: 'x'.repeat(33 * 1024),
+    };
+    let recipe: unknown = 'leaf';
+    for (let depth = 0; depth < 25; depth += 1) {
+      recipe = { child: recipe };
+    }
+
+    expect(A2UI.validateBlobEntry(oversized)).toBe(false);
+    expect(A2UI.validateBlobEntry({ ...a2uiBlobEntry, recipe })).toBe(false);
   });
 });

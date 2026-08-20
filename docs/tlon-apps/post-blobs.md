@@ -94,17 +94,23 @@ Definitions and validation helpers live in `packages/api/src/client/a2ui.ts`; th
 | `messages` | `A2UI.Message[]`   |
 | `recipe`   | `unknown` optional |
 
-The current renderer expects one `createSurface` message and one `updateComponents` message in the entry. The `updateComponents` message describes the component tree rendered for that post. It does not update surfaces in previous messages or elsewhere in message history.
+The current renderer expects exactly one `createSurface` message and one `updateComponents` message in the entry. Both messages must use protocol `v0.9`, refer to the same surface, and use either the Tlon basic catalog ID (`tlon.a2ui.basic.v1`) or the official v0.9 basic catalog URL. The `updateComponents` message describes the component tree rendered for that post. It does not update surfaces in previous messages or elsewhere in message history.
 
 The supported v1 client subset is intentionally small:
 
-- components: `Card`, `Column`, `Row`, `Text`, `Divider`, and `Button`
+- components: `Card`, `Column`, `Row`, `Text`, `Image`, `Icon`, `Divider`, and `Button`
+  - images are restricted to bounded `http`/`https` URLs and mapped to responsive host layouts
+  - icons use the v0.9 basic catalog name allowlist and map to bundled Tlon icons; arbitrary SVG paths are not accepted
 - button actions:
   - `tlon.sendMessage`, which sends explicit action text in the current DM
   - `tlon.navigate`, which can navigate to a message, channel, group, profile, chat details, or chat volume screen
     - message reply targets should include `parentAuthorId` when `parentId` is not already prefixed as `~author/id`
 - rendering policy: A2UI blocks render only in direct messages for now
-- validation limits: component count, tree depth, text length, and expanded render size
+- kill switch: the local `a2uiPostRendering` feature flag disables A2UI rendering without changing post data
+- validation limits: serialized bytes, JSON nesting, component count, tree depth, text length, child references, and expanded render size
+- telemetry records validation failures, unsupported catalog/component counts, and renderer crashes without recording blob contents
+
+The OpenClaw Tlon plugin exposes this catalog through the built-in `message` tool's `a2ui` parameter. Agents provide the root and flat component graph; the plugin creates the versioned envelope, validates the resolved graph, and requires ordinary fallback text before delivery. The authoring path is domain-agnostic: weather, status, approval, summary, and other widgets all use the same catalog rather than dedicated per-widget builders.
 
 ## Read/write behavior
 
