@@ -966,6 +966,11 @@ export function A2UIBlock({
             );
           const choiceConsumed = Boolean(selectedOption);
           const grouped = component.options.length > 1;
+          const compact =
+            grouped &&
+            component.options.every(
+              (option) => !option.icon && !option.description
+            );
           const choices = component.options.map((option, index) => {
             const accent = CHOICE_ACCENT_COLORS[option.accent ?? 'neutral'];
             // The accent is normally carried by the icon chip. An option
@@ -982,6 +987,22 @@ export function A2UIBlock({
               !onA2UIAction ||
               isA2UIActionAvailable?.(option.action) === false;
             const isLast = index === component.options.length - 1;
+            if (compact) {
+              return (
+                <SmallChoiceRow
+                  key={option.id}
+                  testID={`A2UIChoice-${option.id}`}
+                  label={option.label}
+                  shortcut={smallChoiceShortcut(index)}
+                  isSelected={false}
+                  isLast={isLast}
+                  disabled={disabled}
+                  onPress={() =>
+                    handleChoicePress(component.id, option.id, option.action)
+                  }
+                />
+              );
+            }
             return (
               <Pressable
                 key={option.id}
@@ -1059,7 +1080,27 @@ export function A2UIBlock({
               borderRadius={grouped ? '$xl' : undefined}
               backgroundColor={grouped ? '$secondaryBackground' : undefined}
             >
-              {grouped && selectedOption ? (
+              {grouped && selectedOption && compact ? (
+                <YStack
+                  width="100%"
+                  borderWidth={1}
+                  borderColor="$border"
+                  borderRadius="$m"
+                  overflow="hidden"
+                >
+                  <SmallChoiceRow
+                    testID={`A2UIChoice-${selectedOption.id}`}
+                    label={selectedOption.label}
+                    shortcut={smallChoiceShortcut(
+                      component.options.indexOf(selectedOption)
+                    )}
+                    isSelected
+                    isLast
+                    disabled
+                    onPress={() => undefined}
+                  />
+                </YStack>
+              ) : grouped && selectedOption ? (
                 <XStack
                   minHeight={52}
                   paddingVertical="$m"

@@ -117,13 +117,14 @@ const AGENT_ONBOARDING_GROUP_INTRO =
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
 const AGENT_ONBOARDING_APP_TOUR_PROMPT =
-  'Want a quick tour of how groups and channels work?';
+  'Want me to tell you more about what you can do here?';
 const AGENT_ONBOARDING_APP_TOUR_EXPLANATION =
-  'In this group, General is where we talk and Updates is the notebook where ' +
-  'longer work—like your new brief—lives. You can make separate groups for ' +
-  'different people or projects and bring me into the ones where you want help.';
+  'Tlon is organized into groups. Each group can have chat channels for ' +
+  'conversation and notebook channels for longer posts—like the update I ' +
+  'just made for you. You can make more groups for different people or ' +
+  'projects and bring me into the ones where you want help.';
 const AGENT_ONBOARDING_BOT_TOUR_PROMPT =
-  'Want a quick rundown of what else I can do?';
+  'Want me to tell you more about what Tlonbot can do for you?';
 const AGENT_ONBOARDING_BOT_TOUR_EXPLANATION =
   'I can research questions, change what this group follows, publish ' +
   'scheduled updates, help in other groups, and use connected services you ' +
