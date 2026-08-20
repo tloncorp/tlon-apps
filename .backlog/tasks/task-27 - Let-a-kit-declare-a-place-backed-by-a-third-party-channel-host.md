@@ -43,7 +43,7 @@ This is the backend half of the workspace's artifact store. The kit content that
 - [x] #2 Installing a kit that declares a notes place creates that channel in the workspace group and records its nest in the group blob's places map under the kit's abstract place name
 - [ ] #3 A group member other than the installer can read and write the created place, inheriting the group's permissions rather than a separate grant
 - [x] #4 A kit declaring a place kind this build does not support is rejected at install with a clear error, rather than partially installing or silently creating a different channel type
-- [ ] #5 Existing kits declaring only chat, notebook, or gallery places install exactly as before, with no change to the nests they produce
+- [x] #5 Existing kits declaring only chat, notebook, or gallery places install exactly as before, with no change to the nests they produce
 - [x] #6 Adding a further host-backed place kind requires no new branch in the install path beyond its host mapping
 - [x] #7 Agent (Hoon) tests cover install with a notes place, the unsupported-kind rejection, and the unchanged behaviour for existing place kinds
 <!-- AC:END -->
@@ -189,4 +189,6 @@ Two of my own test mistakes, both caught by running: a `malt` whose pairs flatte
 ### Also corrected
 
 `kits/SCHEMA.md`'s `places` example showed `diary/~host/reading-log-1234` for the book club's log. It now shows a `notes/` nest and documents the kind→host table, the closed vocabulary and why, the group-scoped naming and the bug it fixes, and why hosts take the name from the installer.
+
+AC #5 confirmed by the user: the intent is "no regression for existing place kinds", not literal nest stability. The group-scoped naming is the approved collision fix. Checked off.
 <!-- SECTION:NOTES:END -->

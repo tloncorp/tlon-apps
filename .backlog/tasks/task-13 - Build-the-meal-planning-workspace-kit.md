@@ -1,10 +1,10 @@
 ---
 id: TASK-13
 title: Build the meal-planning workspace kit
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-19 13:48'
-updated_date: '2026-08-20 15:42'
+updated_date: '2026-08-20 16:02'
 labels:
   - workspaces
   - kits
@@ -31,12 +31,12 @@ The kit (in the format landed by the kit-foundation task) defines the workspace'
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Kit installs into a workspace group and writes its configuration into the workspace descriptor
-- [ ] #2 Kit defines a primary conversation and a durable artifact place backed by notes
+- [x] #1 Kit installs into a workspace group and writes its configuration into the workspace descriptor
+- [x] #2 Kit defines a primary conversation and a durable artifact place backed by notes
 - [ ] #3 On first run the agent produces a durable starter artifact (a meal plan / grocery list) visible in the workspace
-- [ ] #4 A recurring schedule is defined by the kit but not activated until offered after the first result
-- [ ] #5 Kit content (prompts, copy, artifact templates) contains no provider- or model-specific configuration
-- [ ] #6 Tests cover kit installation and descriptor contents
+- [x] #4 A recurring schedule is defined by the kit but not activated until offered after the first result
+- [x] #5 Kit content (prompts, copy, artifact templates) contains no provider- or model-specific configuration
+- [x] #6 Tests cover kit installation and descriptor contents
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -167,4 +167,44 @@ What that means for the plan above:
 - **§4 still stands and is still mine.** The `enabled` flag on `GroupKitSchedule` is a schema change TASK-27 does not touch, and AC #4 here cannot be honestly checked without it. It stays in this task.
 
 TASK-27 also carries the `%apps` case deliberately (AC #6: a further host-backed kind should need no new install branch), so TASK-7's app channels become declarable by a kit without a second extension. That was the other half of the gap I recorded in TASK-7's plan.
+
+## Complete — `253ef711ee`
+
+### The kit
+
+`packages/tlon-kits/kits/meal-plan/`, id **`meal-plan`** — which is the id TASK-5's picker already records as `starterKitId`, so provisioning (TASK-16) will find it. Two places: `kitchen` (chat) and `plans` (**notes**, not `notebook` — TASK-27 made that possible). One schedule, `weekly-plan`, Friday afternoon.
+
+Content shaped by doc-1 §5's day-one finding for this wedge: the first turn must **propose**, not interview. `setup.md` opens by writing a complete seven-night plan with a grouped grocery list, marks every assumption, posts one message, and stops. The instruction is explicit that correcting the plan in front of them is the point — reacting is easy, starting is hard.
+
+`runner.md` carries the standing behaviour and two rules worth naming: a change to one night is a change to the list (a plan whose list has drifted is worse than no list), and an allergy is never traded off, including in a stock or a garnish.
+
+### The `enabled` flag — the schema change I flagged
+
+AC #4 was not satisfiable without it. `GroupKitSchedule` was `{id, cron}` with no way to express "declared but not running", and install wrote every declared schedule into the blob — so installing a kit **started** its schedule, which is what the AC forbids. Now:
+
+- Install records schedules `enabled: false`.
+- Absent reads as `false`, not true. A descriptor written before this field existed described a schedule nothing was firing; reading it as active would start one the household never agreed to. There is a test for exactly that.
+- `setup.md` is told not to raise the schedule question at all — it is not a setup question. Offering it after the first result is TASK-23.
+
+Documented in `kits/SCHEMA.md`.
+
+### AC #3, and why it is unchecked
+
+"On first run the agent produces a durable starter artifact." That is a model following instructions, and I have no live agent here. Unchecked rather than claimed.
+
+What is tested instead, and is the most I can honestly assert: the instruction exists, is bound to `install.setup`, names the artifact place and the grocery list, and carries the propose-not-interview constraint. Whether a model given that instruction actually produces a good week is unverified and needs a live run.
+
+### AC #5 is tested, not reviewed
+
+Every kit file and the manifest are checked against a token list (provider names, model names, `api_key`, `temperature`, `max_tokens`, `system_prompt`). A model name pasted into a prompt by a future contributor is exactly the thing a code review misses and a test catches.
+
+### Verification
+
+20 new client tests (47 in tlon-kits total). api 836, shared 476, openclaw 1504. `tsc --noEmit` clean across tlon-kits/api/shared/app/openclaw. Prettier clean including SCHEMA.md. Hoon unchanged behaviourally but re-run anyway: `%kits` 16/16, and the blob writer now emits `enabled` — both `ok=%.y`.
+
+One process note: the api suite failed three tests until I rebuilt `tlon-kits`' dist, because api resolves it through the build rather than source. Same dist-staleness trap as before, third time — it is worth a `pnpm build:packages` before trusting a cross-package test result.
+
+### Not done, as planned
+
+No provisioning (TASK-16). No schedule offer (TASK-23). No meal card — the interactive surfaces from TASK-10/12 are an obvious fit for "tap to change Thursday", but nothing in these ACs required one and I would rather add it deliberately than smuggle it in here.
 <!-- SECTION:NOTES:END -->
