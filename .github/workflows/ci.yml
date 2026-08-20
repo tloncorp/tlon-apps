@@ -109,7 +109,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
 
   # Unit-level checks for the bot/plugin packages, mirroring what test-build's
-  # repo-wide prettier/lint/tsc/test:ci ran for them before gating. Only
+  # repo-wide format/lint/tsc/test:ci ran for them before gating. Only
   # needed when test-build is skipped (bot-only PRs); on mixed PRs test-build
   # covers all of this. The openclaw and tlon-bot-e2e unit steps duplicate
   # jobs in the path-triggered hermes-ci/openclaw-ci workflows, on purpose:
