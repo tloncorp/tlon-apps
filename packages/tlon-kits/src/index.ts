@@ -36,10 +36,15 @@ export type {
 // pulling in node:fs makes the web bundle throw at module-eval time. Node
 // callers import it from '@tloncorp/tlon-kits/loader'.
 
-export { KITS_BLOB_VERSION, parseGroupKitConfig } from './groupConfig.js';
+export {
+  KITS_BLOB_VERSION,
+  WORKSPACE_CAPABILITIES,
+  parseGroupKitConfig,
+} from './groupConfig.js';
 export type {
   GroupKitConfig,
   GroupKitEntry,
   GroupKitSchedule,
   ParseGroupKitConfigOptions,
+  WorkspaceCapability,
 } from './groupConfig.js';

@@ -2,10 +2,12 @@ import { parseGroupKitConfig as parseSharedGroupKitConfig } from '@tloncorp/tlon
 
 import { createDevLogger } from '../lib/logger';
 
+export { WORKSPACE_CAPABILITIES } from '@tloncorp/tlon-kits';
 export type {
   GroupKitConfig,
   GroupKitEntry,
   GroupKitSchedule,
+  WorkspaceCapability,
 } from '@tloncorp/tlon-kits';
 
 const logger = createDevLogger('groupKitConfig', false);

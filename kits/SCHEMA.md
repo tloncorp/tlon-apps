@@ -75,6 +75,7 @@ Written by the installer into the group's `blob` (opaque `@t`, JSON). The group 
             ],
             "agents": ["~sampel-palnet"],
             "setup": "pending",
+            "permissions": ["postToPlaces", "runSchedules"],
             "installedAt": 1786149333904
         }
     ]
@@ -86,6 +87,8 @@ Notes:
 -   `kits` is an array: the shape composes even though v1 enforces one kit per group (instantiate-only).
 -   `agents` lists ships whose bots are authorized to execute this kit here (v1: the installer's bot).
 -   `setup`: `"pending"` → `"done"`; flipped by the executing agent after the setup conversation completes.
+-   `permissions` lists what the executing **agent** may do here — never who may act. Group membership and the channel `can-read`/`can-write` gates own that, and a second copy in the blob would drift (see `docs/backend/channel-hosts.md`). Known ids are in `WORKSPACE_CAPABILITIES`; the field is loose strings on purpose, so a capability a newer client granted reads as "not granted" on an older one rather than making the descriptor malformed. Absent means none granted.
+-   **This entry is the workspace descriptor.** A group is a workspace exactly when its blob carries a kit install; there is no separate marker. See `packages/shared/src/logic/workspaceDescriptor.ts` for the read/update helpers, and note the consequence: installing a kit into a group makes that group a workspace.
 -   The blob does NOT carry instruction text. Executing agents hold the package (from %kits); the blob tells them which kit runs here and how its abstract places resolve. A member's bot that lacks the package can fetch it from `kit.publisher` via %kits.
 -   Bot-private facts (install ledger, scaffold copies, policy patch applied) live in the installer's %kits state + bot workspace, not in the blob.
 

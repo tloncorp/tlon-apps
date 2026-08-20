@@ -22,6 +22,28 @@ import { z } from 'zod';
 
 export const KITS_BLOB_VERSION = 1;
 
+/**
+ * Capabilities a workspace may grant its agent.
+ *
+ * The type stays `string`, so this is a vocabulary rather than a closed set —
+ * the same posture the channel view registry takes for view ids. Enforcement is
+ * the executing agent's job; this only records the grant.
+ */
+export const WORKSPACE_CAPABILITIES = {
+  /** Post into the kit's declared places (setup conversation, schedule output). */
+  postToPlaces: 'postToPlaces',
+  /** Edit its own posts, which applying a card action requires. */
+  editOwnPosts: 'editOwnPosts',
+  /** Fire the schedules the kit declares. */
+  runSchedules: 'runSchedules',
+  /** Read the group's contacts. */
+  readContacts: 'readContacts',
+} as const;
+
+export type WorkspaceCapability =
+  | (typeof WORKSPACE_CAPABILITIES)[keyof typeof WORKSPACE_CAPABILITIES]
+  | (string & {});
+
 const groupKitScheduleSchema = z.object({
   id: z.string().min(1),
   cron: z.string().min(1),
@@ -51,6 +73,16 @@ export const groupKitEntrySchema = z
     // "pending" — which meant the same malformed blob both suppressed setup and
     // displayed it as outstanding.
     setup: z.enum(['pending', 'done']).catch('done').default('done'),
+    // What the executing agent is allowed to do here. Deliberately loose
+    // strings, not an enum: a descriptor written by a newer client is a normal
+    // input, and an unrecognized capability must read as "not granted" rather
+    // than making the whole descriptor malformed. Known ids are listed in
+    // WORKSPACE_CAPABILITIES.
+    //
+    // This is what the agent may do, never who may act — group membership and
+    // the channel can-read/can-write gates own that, and a second copy here
+    // would drift. See docs/backend/channel-hosts.md.
+    permissions: z.array(z.string()).default([]),
     // The live agent writes epoch ms; SCHEMA.md's example shows an ISO string.
     installedAt: z.union([z.number(), z.string()]).optional(),
   })

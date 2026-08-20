@@ -9,6 +9,7 @@ const entry = {
   schedules: [{ id: 'monthly-pick', cron: '0 17 1 * *' }],
   agents: ['~sampel-palnet'],
   setup: 'pending',
+  permissions: ['postToPlaces'],
   installedAt: 1786149333904,
 };
 
@@ -34,6 +35,7 @@ describe('parseGroupKitConfig', () => {
       places: {},
       schedules: [],
       agents: [],
+      permissions: [],
       setup: 'done',
     });
   });
