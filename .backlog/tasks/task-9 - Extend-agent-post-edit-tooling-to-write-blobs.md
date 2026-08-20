@@ -1,10 +1,10 @@
 ---
 id: TASK-9
 title: Extend agent post-edit tooling to write blobs
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-19 13:47'
-updated_date: '2026-08-20 14:23'
+updated_date: '2026-08-20 14:45'
 labels:
   - workspaces
   - interactive-cards
@@ -31,10 +31,10 @@ Extend the agent's post-edit tooling so it can replace a post's blob (carrying t
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Agent tooling can edit one of its own posts replacing the blob with a new interactive surface payload
-- [ ] #2 Text-only edits from human frontend flows continue to preserve the existing blob unchanged
-- [ ] #3 Editing with a stale expected revision is rejected or safely ignored rather than clobbering newer state
-- [ ] #4 Tests cover blob edit success, stale-revision rejection, and text-edit blob preservation
+- [x] #1 Agent tooling can edit one of its own posts replacing the blob with a new interactive surface payload
+- [x] #2 Text-only edits from human frontend flows continue to preserve the existing blob unchanged
+- [x] #3 Editing with a stale expected revision is rejected or safely ignored rather than clobbering newer state
+- [x] #4 Tests cover blob edit success, stale-revision rejection, and text-edit blob preservation
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -154,4 +154,36 @@ This is a live bug rather than a missing feature, and it is worth noting the com
 **Test harness is in place.** `commands/posts.test.ts` has a `makeDeps` fixture recording `editPost` calls (`:102`), so every case here is unit-testable without a ship. `cli-test-matrix.ts` separately enumerates `posts edit` invocations for the help/usage surface and will need entries for a new flag.
 
 **Verification needs bun**, now installed (1.3.4 at `~/.bun`, matching the `oven-sh/setup-bun` pin). `pnpm --filter '@tloncorp/tlon-skill' check` is the exact CI command: typecheck + 449 unit + 364 hermetic tests + binary build smoke.
+
+## Complete — `f4112457bb`
+
+Built with guard (b), per your call.
+
+### The bug first
+
+`tlon posts edit` was erasing the blob on every call. Fixed by reading it back and passing it through, the same way the command already handles title/image/cover/authorship. A caller who says nothing about blobs can no longer lose one — that ordering was deliberate, so the new capability sits on top of a safe default rather than beside a broken one.
+
+### Flags
+
+- `--blob <json>` — replace outright; omit to preserve; `'[]'` to clear. Validated before any poke.
+- `--expected-revision <n>` — AC #3. Requires `--blob`. A card with no surface entry is revision 0, so `--expected-revision 0` against one is a match; anything else against one is not.
+- `--force` — override the guard.
+
+**The message is now optional when `--blob` is present.** AC #1 says "alongside or independently of text edits", and a blob-only edit is exactly what TASK-12 needs — applying an action changes state, not text. The stored story is passed through untouched rather than re-derived from markdown, which would not round-trip.
+
+### Two things I did differently from the plan
+
+**The blob is parsed locally, not with `parsePostBlob`.** `command-contract.test.ts` enforces that command modules hold **no value imports** from `@tloncorp/api` — the existing `activity.ts`/`notes.ts` imports are `import type` only. I hit that contract test, which is exactly what it is for. The local parse reads one `type` tag and one number, and deliberately tolerates entry shapes this build has never seen; validating them is the writer's and the renderer's job, not a CLI guard's.
+
+Worth noting en route: `@tloncorp/api`'s `exports` maps `.` to `dist/index.js`, and tlon-skill's tsconfig sets no `customConditions`, so **tlon-skill typechecks and runs against api's build, not its source**. `notes.ts:707` already carries a comment about this. `findInteractiveSurface` (added in TASK-10) was not in the stale dist, which is why the plan's suggestion to use it would have failed until a rebuild. I rebuilt `packages/api` (gitignored) so the tree is consistent.
+
+**AC #2 needed a test, not just verification.** The frontend does preserve the blob, but only a comment said so. I added a test and **mutation-checked it**: deleting `blob: postBeforeEdit.blob ?? undefined` now fails `a text edit preserves the post blob`. Before this the policy could have been removed silently.
+
+### Verification
+
+`pnpm --filter '@tloncorp/tlon-skill' check` — the exact CI command — passes: typecheck clean, **466** unit tests, **367** hermetic tests, binary build smoke, exit 0. Plus `tsc --noEmit` clean across api/shared/app/ui, api 836, shared 448, app 520, prettier clean.
+
+### Deliberately not done
+
+No `posts surface` convenience command. It would be a better interface for TASK-12 than raw `--blob`, but it presumes the apply semantics TASK-12 owns — flagged there rather than guessed at here.
 <!-- SECTION:NOTES:END -->
