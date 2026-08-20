@@ -54,7 +54,6 @@ import { trackNotesActionError } from './notesTelemetry';
 import { formatNoteDate, getFolderPath } from './notesTree';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
-type NotesEditorSession = { key: string | null };
 
 // Long enough that we don't fire a save on every typing pause; exits are
 // covered by the flush paths and the draft stash either way.
@@ -74,6 +73,7 @@ export type NotesNoteDraftSnapshot = {
   title: string;
   body: string;
   isDirty: boolean;
+  titleTouched: boolean;
   updatedAt: number;
 };
 
@@ -83,6 +83,54 @@ const draftSnapshotKey = (notebookFlag: string, noteId: number) =>
   `${notebookFlag}/${noteId}`;
 const notePreviewModes = new Map<string, boolean>();
 const notesNoteDraftSnapshots = new Map<string, NotesNoteDraftSnapshot>();
+const pendingNotesNoteSaveCounts = new Map<string, number>();
+const pendingNotesNoteSaveListeners = new Set<() => void>();
+let pendingNotesNoteSaveEpoch = 0;
+
+function emitPendingNotesNoteSaveChange() {
+  pendingNotesNoteSaveEpoch += 1;
+  pendingNotesNoteSaveListeners.forEach((listener) => listener());
+}
+
+function subscribeToPendingNotesNoteSaves(listener: () => void) {
+  pendingNotesNoteSaveListeners.add(listener);
+  return () => pendingNotesNoteSaveListeners.delete(listener);
+}
+
+function getPendingNotesNoteSaveEpoch() {
+  return pendingNotesNoteSaveEpoch;
+}
+
+function hasPendingNotesNoteSave(notebookFlag: string, noteId: number) {
+  return (
+    (pendingNotesNoteSaveCounts.get(draftSnapshotKey(notebookFlag, noteId)) ??
+      0) > 0
+  );
+}
+
+function markPendingNotesNoteSave(notebookFlag: string, noteId: number) {
+  const key = draftSnapshotKey(notebookFlag, noteId);
+  pendingNotesNoteSaveCounts.set(
+    key,
+    (pendingNotesNoteSaveCounts.get(key) ?? 0) + 1
+  );
+  emitPendingNotesNoteSaveChange();
+}
+
+function finishPendingNotesNoteSave(notebookFlag: string, noteId: number) {
+  const key = draftSnapshotKey(notebookFlag, noteId);
+  const snapshot = notesNoteDraftSnapshots.get(key);
+  if (snapshot) {
+    notesNoteDraftSnapshots.set(key, { ...snapshot, updatedAt: Date.now() });
+  }
+  const remaining = (pendingNotesNoteSaveCounts.get(key) ?? 1) - 1;
+  if (remaining > 0) {
+    pendingNotesNoteSaveCounts.set(key, remaining);
+  } else {
+    pendingNotesNoteSaveCounts.delete(key);
+  }
+  emitPendingNotesNoteSaveChange();
+}
 
 function rememberNotesNoteDraftSnapshot(snapshot: NotesNoteDraftSnapshot) {
   notesNoteDraftSnapshots.set(
@@ -115,6 +163,23 @@ function clearMatchingNotesNoteDraftSnapshot({
   notesNoteDraftSnapshots.delete(key);
 }
 
+function rebaseNotesNoteDraftSnapshot(
+  notebookFlag: string,
+  noteId: number,
+  updated: db.NotesNote
+) {
+  const key = draftSnapshotKey(notebookFlag, noteId);
+  const snapshot = notesNoteDraftSnapshots.get(key);
+  if (!snapshot) return;
+
+  notesNoteDraftSnapshots.set(key, {
+    ...snapshot,
+    baseRevision: updated.revision,
+    title: snapshot.titleTouched ? snapshot.title : updated.title,
+    updatedAt: Date.now(),
+  });
+}
+
 export function getNotesNoteDraftSnapshot(
   notebookFlag: string,
   noteId: number
@@ -122,7 +187,10 @@ export function getNotesNoteDraftSnapshot(
   const key = draftSnapshotKey(notebookFlag, noteId);
   const snapshot = notesNoteDraftSnapshots.get(key);
   if (!snapshot) return null;
-  if (Date.now() - snapshot.updatedAt > DRAFT_SNAPSHOT_TTL_MS) {
+  if (
+    !hasPendingNotesNoteSave(notebookFlag, noteId) &&
+    Date.now() - snapshot.updatedAt > DRAFT_SNAPSHOT_TTL_MS
+  ) {
     notesNoteDraftSnapshots.delete(key);
     return null;
   }
@@ -250,7 +318,11 @@ export function NotesNoteDetail({
   const [bodyInputWidth, setBodyInputWidth] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [pendingSaveEpoch, setPendingSaveEpoch] = useState(0);
+  useSyncExternalStore(
+    subscribeToPendingNotesNoteSaves,
+    getPendingNotesNoteSaveEpoch,
+    getPendingNotesNoteSaveEpoch
+  );
   // The host's copy of the note after a save hit a genuine revision
   // conflict. While set, autosave is suspended and the banner offers the
   // user the resolution (keep mine / use theirs) — a blind retry can never
@@ -265,104 +337,17 @@ export function NotesNoteDetail({
   );
   const titleDraftRef = useRef(titleDraft);
   const bodyDraftRef = useRef(bodyDraft);
-  // A note can be selected, left, and selected again while an earlier save is
-  // still in flight. Give each visit its own identity so that a completion
-  // from the first visit cannot rebase the later editor session, even when
-  // both visits point at the same note id.
-  const editorSessionKey =
+  const selectedNoteKey =
     notebookFlag && noteId !== null
-      ? draftStashKey(notebookFlag, noteId)
+      ? draftSnapshotKey(notebookFlag, noteId)
       : null;
-  const editorSession = useMemo<NotesEditorSession>(
-    () => ({ key: editorSessionKey }),
-    [editorSessionKey]
-  );
-  const editorSessionRef = useRef(editorSession);
+  const selectedNoteKeyRef = useRef(selectedNoteKey);
+  const titleTouchedRef = useRef(false);
   useLayoutEffect(() => {
-    editorSessionRef.current = editorSession;
-  }, [editorSession]);
-  // The selected note changes one render before the draft base and draft refs
-  // catch up. Keep the session attached to the base so a selection-change
-  // cleanup still captures the session that owns those drafts.
-  const draftSessionRef = useRef(editorSession);
-  const isCurrentEditorSession = useCallback(
-    (session: NotesEditorSession) => editorSessionRef.current === session,
-    []
-  );
-  const pendingSaveSessionsRef = useRef(
-    new Map<string, Map<NotesEditorSession, number>>()
-  );
-  const stashRestoreCompletedSessionsRef = useRef(
-    new WeakSet<NotesEditorSession>()
-  );
-  const deferredBaseRebasesRef = useRef(
-    new Map<NotesEditorSession, db.NotesNote>()
-  );
-  const markPendingSave = useCallback(
-    (flag: string, targetNoteId: number, session: NotesEditorSession) => {
-      const key = draftStashKey(flag, targetNoteId);
-      const sessions = pendingSaveSessionsRef.current.get(key) ?? new Map();
-      sessions.set(session, (sessions.get(session) ?? 0) + 1);
-      pendingSaveSessionsRef.current.set(key, sessions);
-    },
-    []
-  );
-  const finishPendingSave = useCallback(
-    (flag: string, targetNoteId: number, session: NotesEditorSession) => {
-      const key = draftStashKey(flag, targetNoteId);
-      const sessions = pendingSaveSessionsRef.current.get(key);
-      if (!sessions) return;
-      const remaining = (sessions.get(session) ?? 0) - 1;
-      if (remaining > 0) {
-        sessions.set(session, remaining);
-      } else {
-        sessions.delete(session);
-      }
-      if (sessions.size === 0) {
-        pendingSaveSessionsRef.current.delete(key);
-      }
-      // Pending saves live in a ref so queue bookkeeping itself does not
-      // perturb the editor. Settlement is different: row adoption may have
-      // skipped an already-received row while this save was pending, so wake
-      // the current note and let that effect reconsider it.
-      if (editorSessionRef.current.key === key) {
-        setPendingSaveEpoch((epoch) => epoch + 1);
-      }
-    },
-    []
-  );
-  const hasPendingSaveFromEarlierSession = useCallback(
-    (flag: string, targetNoteId: number) => {
-      const sessions = pendingSaveSessionsRef.current.get(
-        draftStashKey(flag, targetNoteId)
-      );
-      if (!sessions) return false;
-      const currentSession = editorSessionRef.current;
-      return Array.from(sessions).some(
-        ([session, count]) => session !== currentSession && count > 0
-      );
-    },
-    []
-  );
-  const rebaseCurrentNoteFromEarlierSession = useCallback(
-    (flag: string, targetNoteId: number, updated: db.NotesNote) => {
-      const currentSession = editorSessionRef.current;
-      if (currentSession.key !== draftStashKey(flag, targetNoteId)) return;
-      if (
-        draftSessionRef.current === currentSession &&
-        stashRestoreCompletedSessionsRef.current.has(currentSession)
-      ) {
-        setDraftBase(updated);
-        return;
-      }
-      // The reopened note has not finished consulting its durable stash yet.
-      // Hold only the new base revision; once restoration finishes, applying
-      // it alongside the restored/current drafts makes their true dirtiness
-      // visible without replacing them.
-      deferredBaseRebasesRef.current.set(currentSession, updated);
-    },
-    []
-  );
+    if (selectedNoteKeyRef.current === selectedNoteKey) return;
+    selectedNoteKeyRef.current = selectedNoteKey;
+    titleTouchedRef.current = false;
+  }, [selectedNoteKey]);
   const titleInputRef = useRef<TextInputRef>(null);
   const autoFocusedTitleNoteIdRef = useRef<string | null>(null);
   const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
@@ -396,6 +381,16 @@ export function NotesNoteDetail({
       ? null
       : notes.find((note) => note.noteId === noteId) ?? null;
   const selectedNoteRowId = selectedNote?.id ?? null;
+  const selectedNoteSavePending = Boolean(
+    notebookFlag &&
+      selectedNote &&
+      hasPendingNotesNoteSave(notebookFlag, selectedNote.noteId)
+  );
+  const isCurrentNote = useCallback(
+    (flag: string, targetNoteId: number) =>
+      selectedNoteKeyRef.current === draftSnapshotKey(flag, targetNoteId),
+    []
+  );
 
   useEffect(() => {
     if (selectedNoteRowId !== null) {
@@ -497,10 +492,11 @@ export function NotesNoteDetail({
         title: titleDraft,
         body,
         isDirty: dirty,
+        titleTouched: titleTouchedRef.current,
         updatedAt: Date.now(),
       };
 
-      if (dirty) {
+      if (dirty || selectedNoteSavePending) {
         rememberNotesNoteDraftSnapshot(snapshot);
       } else {
         clearNotesNoteDraftSnapshot(notebookFlag, selectedNote.noteId);
@@ -513,6 +509,7 @@ export function NotesNoteDetail({
       notebookFlag,
       onDraftChange,
       selectedNote,
+      selectedNoteSavePending,
       titleDraft,
     ]
   );
@@ -558,7 +555,7 @@ export function NotesNoteDetail({
   // was in flight. A remote edit that lands while dirty keeps the stale base
   // revision, so the next save fails the revision check instead of silently
   // overwriting the remote work.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const sameNote = (selectedNote?.id ?? null) === (draftBase?.id ?? null);
     // Never adopt a row that trails the base's revision: right after a save
     // or a conflict resolution the reactive row lags the persisted write by
@@ -569,62 +566,51 @@ export function NotesNoteDetail({
       selectedNote != null &&
       draftBase != null &&
       selectedNote.revision < draftBase.revision;
-    // A save from an earlier visit can update the reactive row while the
-    // current visit is clean against its old base. Do not adopt that row into
-    // the current drafts: the save completion advances only the base below,
-    // making an explicit revert dirty and therefore eligible for its own save.
-    const earlierVisitSavePending =
-      sameNote &&
-      notebookFlag != null &&
-      selectedNote != null &&
-      hasPendingSaveFromEarlierSession(notebookFlag, selectedNote.noteId);
-    const earlierVisitRebaseDeferred =
-      sameNote && deferredBaseRebasesRef.current.has(editorSessionRef.current);
     if (
       sameNote &&
       (isDirty ||
         selectedNote === draftBase ||
         rowTrailsBase ||
-        earlierVisitSavePending ||
-        earlierVisitRebaseDeferred)
+        selectedNoteSavePending ||
+        conflictNote)
     ) {
       return;
     }
     if (sameNote) {
       preserveScrollOffset();
     }
-    const inMemoryDraft =
+    const snapshot =
       !sameNote && notebookFlag && selectedNote
         ? getNotesNoteDraftSnapshot(notebookFlag, selectedNote.noteId)
         : null;
-    const canRestoreInMemoryDraft =
-      inMemoryDraft?.baseRevision === selectedNote?.revision;
-    if (canRestoreInMemoryDraft && inMemoryDraft && selectedNote) {
-      const currentSession = editorSessionRef.current;
-      stashRestoreCompletedSessionsRef.current.add(currentSession);
-      const deferredBase = deferredBaseRebasesRef.current.get(currentSession);
-      deferredBaseRebasesRef.current.delete(currentSession);
-      setDraftBase(deferredBase ?? selectedNote);
-      setTitleDraft(inMemoryDraft.title);
-      setBodyDraft(inMemoryDraft.body);
-    } else {
-      setDraftBase(selectedNote ?? null);
-      setTitleDraft(selectedNote?.title ?? '');
-      setBodyDraft(selectedNote?.bodyMd ?? '');
-    }
+    const restoreSnapshot = Boolean(
+      snapshot &&
+        selectedNote &&
+        (snapshot.baseRevision === selectedNote.revision ||
+          selectedNoteSavePending)
+    );
+    setDraftBase(selectedNote ?? null);
+    setTitleDraft(
+      restoreSnapshot && snapshot ? snapshot.title : selectedNote?.title ?? ''
+    );
+    setBodyDraft(
+      restoreSnapshot && snapshot ? snapshot.body : selectedNote?.bodyMd ?? ''
+    );
+    titleTouchedRef.current =
+      restoreSnapshot && snapshot ? snapshot.titleTouched : false;
     if (!sameNote) {
       setSaveState('idle');
       setError(null);
       setConflictNote(null);
     }
   }, [
+    conflictNote,
     draftBase,
-    hasPendingSaveFromEarlierSession,
     isDirty,
     notebookFlag,
-    pendingSaveEpoch,
     preserveScrollOffset,
     selectedNote,
+    selectedNoteSavePending,
   ]);
 
   useEffect(() => {
@@ -670,14 +656,8 @@ export function NotesNoteDetail({
     Promise.resolve(null)
   );
   const runSave = useCallback(
-    (
-      flag: string,
-      base: db.NotesNote,
-      title: string,
-      body: string,
-      session: NotesEditorSession
-    ) => {
-      markPendingSave(flag, base.noteId, session);
+    (flag: string, base: db.NotesNote, title: string, body: string) => {
+      markPendingNotesNoteSave(flag, base.noteId);
       const next = saveChainRef.current
         .catch(() => null)
         .then((prevSaved) =>
@@ -694,8 +674,11 @@ export function NotesNoteDetail({
       );
       return next;
     },
-    [markPendingSave]
+    []
   );
+  const finishSave = useCallback((flag: string, targetNoteId: number) => {
+    finishPendingNotesNoteSave(flag, targetNoteId);
+  }, []);
 
   // Save target for flushes that run outside the React data flow (unmount
   // cleanup, AppState changes). Synced in an effect so a selection-change
@@ -705,21 +688,14 @@ export function NotesNoteDetail({
     flag: string | null | undefined;
     base: db.NotesNote | null;
     canEdit: boolean;
-    session: NotesEditorSession;
+    titleTouched: boolean;
   } | null>(null);
   useEffect(() => {
-    if (
-      notebookFlag &&
-      draftBase &&
-      draftStashKey(notebookFlag, draftBase.noteId) === editorSessionKey
-    ) {
-      draftSessionRef.current = editorSession;
-    }
     flushCtxRef.current = {
       flag: notebookFlag,
       base: draftBase,
       canEdit,
-      session: draftSessionRef.current,
+      titleTouched: titleTouchedRef.current,
     };
   });
 
@@ -729,19 +705,14 @@ export function NotesNoteDetail({
   // newly-selected note with the old note's content, so drop it instead.
   const reportConflict = useCallback(
     (flag: string, conflict: NotesNoteConflictError) => {
-      const ctx = flushCtxRef.current;
-      if (
-        !ctx ||
-        ctx.flag !== flag ||
-        ctx.base?.noteId !== conflict.remoteNote.noteId
-      ) {
+      if (!isCurrentNote(flag, conflict.remoteNote.noteId)) {
         return;
       }
       setConflictNote(conflict.remoteNote);
       setError(conflict.message);
       setSaveState('error');
     },
-    []
+    [isCurrentNote]
   );
 
   // Counterpart to reportConflict: a save that SUCCEEDS for the current
@@ -750,20 +721,65 @@ export function NotesNoteDetail({
   // resolution) can reject and re-arm the banner after the resolution
   // cleared it; without this, the banner sticks and autosave stays
   // suspended even though the rebased save landed.
-  const clearConflict = useCallback((flag: string, noteId: number) => {
-    const ctx = flushCtxRef.current;
-    if (!ctx || ctx.flag !== flag || ctx.base?.noteId !== noteId) {
-      return;
-    }
-    setConflictNote(null);
-    setError(null);
-  }, []);
+  const clearConflict = useCallback(
+    (flag: string, noteId: number) => {
+      if (!isCurrentNote(flag, noteId)) {
+        return;
+      }
+      setConflictNote(null);
+      setError(null);
+    },
+    [isCurrentNote]
+  );
+
+  const handleSuccessfulSave = useCallback(
+    ({
+      flag,
+      base,
+      title,
+      body,
+      updated,
+    }: {
+      flag: string;
+      base: db.NotesNote;
+      title: string;
+      body: string;
+      updated: db.NotesNote | null | undefined;
+    }) => {
+      clearDraftStash(flag, base.noteId, { title, body });
+      clearMatchingNotesNoteDraftSnapshot({
+        notebookFlag: flag,
+        noteId: base.noteId,
+        title,
+        body,
+      });
+      if (updated) {
+        rebaseNotesNoteDraftSnapshot(flag, base.noteId, updated);
+      }
+      if (!updated || !isCurrentNote(flag, base.noteId)) return;
+
+      // Same-note completions advance the base without replacing newer
+      // drafts. An authoritative title is adopted only when this visit has
+      // not touched it.
+      setDraftBase(updated);
+      if (!titleTouchedRef.current && updated.title !== titleDraftRef.current) {
+        setTitleDraft(updated.title);
+        titleDraftRef.current = updated.title;
+      } else if (
+        normalizeNotebookNoteTitle(titleDraftRef.current) === updated.title
+      ) {
+        titleTouchedRef.current = false;
+      }
+      setSaveState('saved');
+      clearConflict(flag, base.noteId);
+    },
+    [clearConflict, isCurrentNote]
+  );
 
   const saveSelectedNote = useCallback(
     async (baseOverride?: db.NotesNote) => {
       const base = baseOverride ?? draftBase;
       if (!notebookFlag || !base || !canEdit) return false;
-      const session = draftSessionRef.current;
       const bodyToSave = bodyDraftRef.current;
       const dirty =
         normalizeNotebookNoteTitle(titleDraft) !== base.title ||
@@ -779,6 +795,7 @@ export function NotesNoteDetail({
         title: titleDraft,
         body: bodyToSave,
         isDirty: true,
+        titleTouched: titleTouchedRef.current,
         updatedAt: Date.now(),
       });
       try {
@@ -786,62 +803,22 @@ export function NotesNoteDetail({
           notebookFlag,
           base,
           titleDraft,
-          bodyToSave,
-          session
+          bodyToSave
         );
-        // Rebase onto the saved revision; keystrokes typed during the save
-        // leave the drafts dirty against it, so the next cycle saves them.
-        const currentSession = isCurrentEditorSession(session);
-        if (updated && currentSession) {
-          setDraftBase(updated);
-          // A save we did NOT rename in can come back with a different
-          // title: another client renamed, and the response payload's
-          // authoritative note carried it into `updated`. The untouched
-          // title draft still holds the old title — left alone it reads as
-          // a local edit and the next autosave would rename the host note
-          // BACK, silently undoing the other client's rename. Rebase it,
-          // but only when the user had no rename in flight (title matched
-          // the base going in) and didn't touch it during the save.
-          if (
-            currentSession &&
-            normalizeNotebookNoteTitle(titleDraft) === base.title &&
-            titleDraftRef.current === titleDraft &&
-            updated.title !== titleDraft
-          ) {
-            setTitleDraft(updated.title);
-            titleDraftRef.current = updated.title;
-          }
-        } else if (updated) {
-          rebaseCurrentNoteFromEarlierSession(
-            notebookFlag,
-            base.noteId,
-            updated
-          );
-        }
-        clearDraftStash(notebookFlag, base.noteId, {
+        handleSuccessfulSave({
+          flag: notebookFlag,
+          base,
           title: titleDraft,
           body: bodyToSave,
+          updated,
         });
-        clearMatchingNotesNoteDraftSnapshot({
-          notebookFlag,
-          noteId: base.noteId,
-          title: titleDraft,
-          body: bodyToSave,
-        });
-        if (isCurrentEditorSession(session)) {
-          setSaveState('saved');
-          clearConflict(notebookFlag, base.noteId);
-        }
         return true;
       } catch (e) {
         const message = errorMessage(e, 'Failed to save note');
         trackNotesActionError('save note', e, message, {
           noteId: base.noteId,
         });
-        if (
-          e instanceof NotesNoteConflictError &&
-          isCurrentEditorSession(session)
-        ) {
+        if (e instanceof NotesNoteConflictError) {
           reportConflict(notebookFlag, e);
           return false;
         }
@@ -849,24 +826,23 @@ export function NotesNoteDetail({
         // an autosave that rejects after the user switched notes must not
         // mark the newly-selected note as failed. (reportConflict applies
         // the same guard for conflicts.)
-        if (isCurrentEditorSession(session)) {
+        if (isCurrentNote(notebookFlag, base.noteId)) {
           setSaveState('error');
           setError(message);
         }
         return false;
       } finally {
-        finishPendingSave(notebookFlag, base.noteId, session);
+        finishSave(notebookFlag, base.noteId);
       }
     },
     [
       canEdit,
-      clearConflict,
       draftBase,
-      finishPendingSave,
-      isCurrentEditorSession,
+      finishSave,
+      handleSuccessfulSave,
+      isCurrentNote,
       notebookFlag,
       preserveScrollOffset,
-      rebaseCurrentNoteFromEarlierSession,
       reportConflict,
       runSave,
       titleDraft,
@@ -928,6 +904,7 @@ export function NotesNoteDetail({
     setDraftBase(adopted);
     setTitleDraft(adopted.title);
     setBodyDraft(adopted.bodyMd);
+    titleTouchedRef.current = false;
     // Sync the out-of-band flush inputs in the same tick. The draft refs
     // and flush context normally catch up in post-commit effects; a
     // background/unmount flush firing inside that gap would pair the
@@ -939,7 +916,7 @@ export function NotesNoteDetail({
       flag: notebookFlag,
       base: adopted,
       canEdit,
-      session: draftSessionRef.current,
+      titleTouched: false,
     };
     // Persist the host's copy locally so the reactive row catches up with
     // the adoption instead of reloading the stale pre-conflict content
@@ -985,7 +962,7 @@ export function NotesNoteDetail({
       normalizeNotebookNoteTitle(titleToSave) !== ctx.base.title ||
       bodyToSave !== ctx.base.bodyMd;
     if (!dirty) return;
-    const { flag, base, session } = ctx;
+    const { flag, base, titleTouched } = ctx;
     preserveScrollOffset();
     rememberNotesNoteDraftSnapshot({
       notebookFlag: flag,
@@ -994,53 +971,24 @@ export function NotesNoteDetail({
       title: titleToSave,
       body: bodyToSave,
       isDirty: true,
+      titleTouched,
       updatedAt: Date.now(),
     });
-    runSave(flag, base, titleToSave, bodyToSave, session)
+    runSave(flag, base, titleToSave, bodyToSave)
       .then((updated) => {
-        clearDraftStash(flag, base.noteId, {
+        handleSuccessfulSave({
+          flag,
+          base,
           title: titleToSave,
           body: bodyToSave,
+          updated,
         });
-        clearMatchingNotesNoteDraftSnapshot({
-          notebookFlag: flag,
-          noteId: base.noteId,
-          title: titleToSave,
-          body: bodyToSave,
-        });
-        // No-ops after unmount; while mounted (background flush) rebase so
-        // the next cycle doesn't re-send a stale revision.
-        const currentSession = isCurrentEditorSession(session);
-        if (updated && currentSession) {
-          setDraftBase(updated);
-          // Same untouched-title rebase as the foreground save path: a
-          // remote rename carried back by the payload must not leave the
-          // stale title draft looking like a local edit.
-          if (
-            currentSession &&
-            normalizeNotebookNoteTitle(titleToSave) === base.title &&
-            titleDraftRef.current === titleToSave &&
-            updated.title !== titleToSave
-          ) {
-            setTitleDraft(updated.title);
-            titleDraftRef.current = updated.title;
-          }
-        } else if (updated) {
-          rebaseCurrentNoteFromEarlierSession(flag, base.noteId, updated);
-        }
-        if (isCurrentEditorSession(session)) {
-          setSaveState('saved');
-          clearConflict(flag, base.noteId);
-        }
       })
       .catch((e) => {
         // No-ops after unmount; while mounted, surface a conflict so the
         // resolution banner appears instead of a silently-failed flush.
         // reportConflict drops it if the selection has since moved on.
-        if (
-          e instanceof NotesNoteConflictError &&
-          isCurrentEditorSession(session)
-        ) {
+        if (e instanceof NotesNoteConflictError) {
           reportConflict(flag, e);
           return;
         }
@@ -1049,18 +997,17 @@ export function NotesNoteDetail({
         // is still in the editor, show the error so autosave/user retries.
         // After unmount the durable stash carries the edits, and the
         // stash-restore pass surfaces a conflict if the note moved on.
-        if (isCurrentEditorSession(session)) {
+        if (isCurrentNote(flag, base.noteId)) {
           setSaveState('error');
           setError(errorMessage(e, 'Failed to save note'));
         }
       })
-      .finally(() => finishPendingSave(flag, base.noteId, session));
+      .finally(() => finishSave(flag, base.noteId));
   }, [
-    clearConflict,
-    finishPendingSave,
-    isCurrentEditorSession,
+    finishSave,
+    handleSuccessfulSave,
+    isCurrentNote,
     preserveScrollOffset,
-    rebaseCurrentNoteFromEarlierSession,
     reportConflict,
     runSave,
   ]);
@@ -1081,16 +1028,12 @@ export function NotesNoteDetail({
     return () => subscription.remove();
   }, [flushPendingSave]);
 
-  // Guard so the stash restore below runs once per editor visit + loaded note
-  // revision. A single global key is insufficient: A → B → A can revisit the
-  // same revision while A's previous async stash read is still relevant.
+  // Guard so the stash restore below runs once per loaded note revision.
   // Without it, any edit that brings the content back to the saved state
   // (type a char, then delete it) flips the editor clean again and the
   // restore effect re-applies the stash — resurrecting the deleted edit
   // and destroying the caret position.
-  const stashRestoreStartedKeysRef = useRef(
-    new WeakMap<NotesEditorSession, string>()
-  );
+  const stashRestoreCheckedRef = useRef<string | null>(null);
   const stashRestoreKey =
     notebookFlag && draftBase
       ? `${draftStashKey(notebookFlag, draftBase.noteId)}/${draftBase.revision}`
@@ -1109,12 +1052,8 @@ export function NotesNoteDetail({
     // restore them as ordinary drafts whose autosave silently overwrites
     // the remote work the conflict was protecting.
     if (conflictNote) return;
-    if (!isDirty) {
-      const currentSession = editorSessionRef.current;
-      if (
-        draftSessionRef.current === currentSession &&
-        stashRestoreCompletedSessionsRef.current.has(currentSession)
-      ) {
+    if (!isDirty && !selectedNoteSavePending) {
+      if (stashRestoreCheckedRef.current === stashRestoreKey) {
         clearDraftStash(notebookFlag, draftBase.noteId);
       }
       return;
@@ -1134,6 +1073,7 @@ export function NotesNoteDetail({
     draftBase,
     isDirty,
     notebookFlag,
+    selectedNoteSavePending,
     stashRestoreKey,
     titleDraft,
   ]);
@@ -1142,72 +1082,62 @@ export function NotesNoteDetail({
   // editor is clean and the row is still at the stash's base revision —
   // then pushing the restored draft can't clobber anyone's newer work.
   useEffect(() => {
-    if (!notebookFlag || !draftBase || isDirty || !stashRestoreKey) return;
-    const session = draftSessionRef.current;
-    if (session !== editorSessionRef.current) return;
-    if (stashRestoreCompletedSessionsRef.current.has(session)) return;
-    if (stashRestoreStartedKeysRef.current.get(session) === stashRestoreKey) {
+    if (
+      !notebookFlag ||
+      !draftBase ||
+      isDirty ||
+      selectedNoteSavePending ||
+      !stashRestoreKey
+    ) {
       return;
     }
-    stashRestoreStartedKeysRef.current.set(session, stashRestoreKey);
-    const deferredBaseRebases = deferredBaseRebasesRef.current;
+    if (stashRestoreCheckedRef.current === stashRestoreKey) return;
+    stashRestoreCheckedRef.current = stashRestoreKey;
     let cancelled = false;
     void db.notesNoteDrafts.getValue().then((stashes) => {
       const stash = stashes[draftStashKey(notebookFlag, draftBase.noteId)];
-      if (cancelled) return;
-      if (stash) {
-        if (stash.baseRevision !== draftBase.revision) {
-          if (
-            stash.title === draftBase.title &&
-            stash.body === draftBase.bodyMd
-          ) {
-            // The stashed content is exactly what the row now holds — the
-            // save landed (e.g. a late flush succeeded). Nothing to recover.
-            clearDraftStash(notebookFlag, draftBase.noteId);
-          } else {
-            // The stashed edits never landed and the note moved on (a flush
-            // hit a conflict and the session ended before recovery could run).
-            // Restoring them as plain drafts would be worse than dropping
-            // them: their base revision is now current, so the next autosave
-            // would silently overwrite the newer remote work. Surface it as
-            // the standing conflict it is — row as "theirs", stash as "mine" —
-            // which also suspends autosave until the user picks a side.
-            setTitleDraft(stash.title);
-            setBodyDraft(stash.body);
-            setConflictNote(draftBase);
-            setError(
-              'This note was changed elsewhere. Your unsaved changes are kept.'
-            );
-            setSaveState('error');
-          }
-        } else if (
-          stash.title !== draftBase.title ||
-          stash.body !== draftBase.bodyMd
+      if (cancelled || !stash) return;
+      if (stash.baseRevision !== draftBase.revision) {
+        if (
+          stash.title === draftBase.title &&
+          stash.body === draftBase.bodyMd
         ) {
-          setTitleDraft(stash.title);
-          setBodyDraft(stash.body);
+          // The stashed content is exactly what the row now holds — the
+          // save landed (e.g. a late flush succeeded). Nothing to recover.
+          clearDraftStash(notebookFlag, draftBase.noteId);
+          return;
         }
+        // The stashed edits never landed and the note moved on (a flush
+        // hit a conflict and the session ended before recovery could run).
+        // Restoring them as plain drafts would be worse than dropping
+        // them: their base revision is now current, so the next autosave
+        // would silently overwrite the newer remote work. Surface it as
+        // the standing conflict it is — row as "theirs", stash as "mine" —
+        // which also suspends autosave until the user picks a side.
+        setTitleDraft(stash.title);
+        setBodyDraft(stash.body);
+        setConflictNote(draftBase);
+        setError(
+          'This note was changed elsewhere. Your unsaved changes are kept.'
+        );
+        setSaveState('error');
+        return;
       }
-
-      // Mark readiness only after the durable read has been considered. If an
-      // earlier visit saved while this read was pending, advance the base in
-      // the same batch as the restored drafts so neither can cancel the other.
-      stashRestoreCompletedSessionsRef.current.add(session);
-      const deferredBase = deferredBaseRebases.get(session);
-      if (
-        deferredBase &&
-        editorSessionRef.current === session &&
-        draftSessionRef.current === session
-      ) {
-        deferredBaseRebases.delete(session);
-        setDraftBase(deferredBase);
+      if (stash.title !== draftBase.title || stash.body !== draftBase.bodyMd) {
+        setTitleDraft(stash.title);
+        setBodyDraft(stash.body);
       }
     });
     return () => {
       cancelled = true;
-      deferredBaseRebases.delete(session);
     };
-  }, [draftBase, editorSession, isDirty, notebookFlag, stashRestoreKey]);
+  }, [
+    draftBase,
+    isDirty,
+    notebookFlag,
+    selectedNoteSavePending,
+    stashRestoreKey,
+  ]);
 
   const togglePreview = useCallback(() => {
     setPreviewMode(!isPreviewing);
@@ -1246,6 +1176,10 @@ export function NotesNoteDetail({
   );
 
   const handleTitleDraftChange = useCallback((nextTitle: string) => {
+    titleTouchedRef.current = true;
+    if (flushCtxRef.current) {
+      flushCtxRef.current.titleTouched = true;
+    }
     titleDraftRef.current = nextTitle;
     setTitleDraft(nextTitle);
   }, []);
