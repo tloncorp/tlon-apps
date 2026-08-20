@@ -166,10 +166,7 @@ export function StaticChatMessage({
   const postContent = usePostContent(post);
   const lastEditPostContent = usePostLastEditContent(post);
   const content = useMemo(
-    () =>
-      canRenderA2UI
-        ? postContent
-        : withA2UIFallback(postContent),
+    () => (canRenderA2UI ? postContent : withA2UIFallback(postContent)),
     [canRenderA2UI, postContent]
   );
   const lastEditContent = useMemo(
