@@ -822,6 +822,12 @@ function SplashSequenceComponent(props: {
         ...current,
         starterKitId: selectedId,
       }));
+
+      // Deliberately not awaited: provisioning takes a round trip to the ship
+      // and back, and nothing about the next pane depends on it. Progress lives
+      // in a durable storage item, so a slow or failed install is discovered by
+      // whoever reads that — never by holding up a transition here.
+      store.startWorkspaceProvisioning(selectedId);
       setCurrentPane(hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Group);
     },
     [hostingBotEnabled]

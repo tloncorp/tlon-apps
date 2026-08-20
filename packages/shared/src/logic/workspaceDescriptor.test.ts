@@ -18,7 +18,9 @@ const ENTRY = {
     conversation: 'chat/~host/meals-1234',
     artifacts: 'notes/~host/meal-plans-1234',
   },
-  schedules: [{ id: 'weekly-plan', cron: '0 17 * * 5' }],
+  // `enabled` is defaulted by the parser (TASK-13), so a descriptor read back
+  // always carries it even when the stored blob does not.
+  schedules: [{ id: 'weekly-plan', cron: '0 17 * * 5', enabled: false }],
   agents: ['~sampel-palnet'],
   setup: 'pending',
   permissions: ['postToPlaces', 'runSchedules'],

@@ -56,6 +56,22 @@ export function AppDataProvider({
       cancelled = true;
     };
   }, []);
+
+  // Provisioning a workspace spans several ship round trips, and the app can
+  // die or be backgrounded in the middle of any of them. Reconciling here —
+  // where every session mounts, not on the onboarding path — means recovery
+  // happens even for a user who never sees the interstitials again.
+  //
+  // Gated on a live session: the reconcile asks the ship for its install
+  // ledger, and "cannot reach the ship" must not read as "the install never
+  // landed".
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+    void store.resumeWorkspaceProvisioning();
+  }, [session]);
+
   return (
     <AppDataContextProvider
       currentUserId={currentUserId}

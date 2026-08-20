@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "id": "blank",
+  "name": "A Space to Work",
+  "kitVersion": "0.1.0",
+  "publisher": "~lagrev-ridsyp-nocsyx-lassul",
+  "description": "A conversation and a place to keep what comes out of it. No schedule, no assumptions about the work — the shape comes from whatever you bring.",
+  "scope": "group",
+  "places": {
+    "conversation": {
+      "type": "chat",
+      "title": "Workspace",
+      "description": "Where the work gets talked through"
+    },
+    "notes": {
+      "type": "notes",
+      "title": "Notes",
+      "description": "What the work leaves behind, kept"
+    }
+  },
+  "bindings": [
+    {
+      "file": "instructions/runner.md",
+      "scope": "group",
+      "load": "ambient"
+    },
+    {
+      "file": "instructions/setup.md",
+      "scope": "group",
+      "trigger": "install.setup",
+      "load": "on-trigger"
+    }
+  ],
+  "schedules": [],
+  "scaffolds": [],
+  "policy": {
+    "required": [
+      {
+        "reason": "Answer questions and do the work when asked in the workspace.",
+        "cell": {
+          "sender": "allowed",
+          "surface": "owned-channel",
+          "trigger": "mention"
+        },
+        "level": "auto"
+      }
+    ],
+    "recommended": []
+  }
+}

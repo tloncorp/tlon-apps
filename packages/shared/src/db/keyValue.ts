@@ -604,3 +604,37 @@ export const createNagStorageItem = (
   nagStorageItemCache.set(key, storageItem);
   return storageItem;
 };
+
+/**
+ * How far background workspace provisioning has got.
+ *
+ * Deliberately client-side rather than in the group's blob descriptor. The
+ * descriptor's `setup` field means "has the kit's setup conversation run" —
+ * the agent's lifecycle, not the provisioner's — and it cannot express
+ * "failed but recoverable" without conflating the two. Provisioning progress
+ * also has to survive the app being killed mid-flow, which is what a durable
+ * storage item is for.
+ *
+ * `name` is the load-bearing field: the group flag is `${our}/${name}`, so
+ * recording the name before poking is what lets a relaunch tell "the install
+ * landed" from "the install never happened".
+ */
+export type WorkspaceProvisioningState = {
+  status: 'idle' | 'running' | 'failed' | 'done';
+  kitId: string | null;
+  name: string | null;
+  groupId: string | null;
+  /** Why the last attempt gave up. Only meaningful when status is 'failed'. */
+  error?: string;
+};
+
+export const workspaceProvisioning =
+  createStorageItem<WorkspaceProvisioningState>({
+    key: 'workspaceProvisioning',
+    defaultValue: {
+      status: 'idle',
+      kitId: null,
+      name: null,
+      groupId: null,
+    },
+  });

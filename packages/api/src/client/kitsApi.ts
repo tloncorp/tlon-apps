@@ -8,7 +8,9 @@ const logger = createDevLogger('kitsApi', false);
 
 export interface KitPlace {
   name: string;
-  kind: 'chat' | 'notebook' | 'gallery';
+  // Closed vocabulary, matching `placeKindSchema` and `+place-kind` in
+  // desk/app/kits.hoon: each kind names the agent that hosts it.
+  kind: 'chat' | 'notebook' | 'gallery' | 'notes';
   title: string;
   description: string;
 }

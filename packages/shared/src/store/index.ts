@@ -32,3 +32,4 @@ export * from './blockingActions';
 export * from './metagrabActions';
 export * from './lensActions';
 export { useChannelContext } from './useChannelContext';
+export * from './workspaceProvisioning';
