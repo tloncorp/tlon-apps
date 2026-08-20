@@ -24,7 +24,7 @@ if [ -z "$PACKED_PATH" ]; then
   exit 1
 fi
 
-if ! tar -tzf "$PACKED_PATH" | grep -q '^package/dist/'; then
+if ! tar -tzf "$PACKED_PATH" | grep '^package/dist/' >/dev/null; then
   echo "FATAL: packed @tloncorp/api tarball does not contain dist/"
   exit 1
 fi

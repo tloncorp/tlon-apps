@@ -3,7 +3,11 @@ import React, { PropsWithChildren } from 'react';
 import { ReactTestRenderer, act, create } from 'react-test-renderer';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { A2UIBlock, getA2UISurfaceLayout } from './A2UIBlock';
+import {
+  A2UIBlock,
+  getA2UIImageLayout,
+  getA2UISurfaceLayout,
+} from './A2UIBlock';
 
 vi.mock('@tloncorp/shared', () => ({
   createDevLogger: () => ({ trackError: vi.fn() }),
@@ -141,7 +145,27 @@ describe('A2UIBlock', () => {
     expect(image.props.contentFit).toBe('cover');
     expect(image.props.width).toBe('100%');
     expect(image.props.height).toBe(200);
+    expect(image.props.fallback).toBeTruthy();
     act(() => renderer.unmount());
+  });
+
+  it('constrains compact image fallbacks to their requested dimensions', () => {
+    expect(
+      getA2UIImageLayout({
+        id: 'icon-image',
+        component: 'Image',
+        url: 'https://example.com/icon.png',
+        variant: 'icon',
+      })
+    ).toMatchObject({ width: 24, height: 24 });
+    expect(
+      getA2UIImageLayout({
+        id: 'avatar-image',
+        component: 'Image',
+        url: 'https://example.com/avatar.png',
+        variant: 'avatar',
+      })
+    ).toMatchObject({ width: 40, height: 40 });
   });
 
   it('keeps web surfaces bounded and mobile surfaces fluid', () => {

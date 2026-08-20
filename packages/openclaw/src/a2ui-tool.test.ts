@@ -175,4 +175,30 @@ describe('OpenClaw A2UI authoring', () => {
 
     expect(A2UI.validateBlobEntry(entry)).toBe(true);
   });
+
+  it('rejects A2UI payloads for group-channel targets', () => {
+    const cfg = {
+      channels: {
+        tlon: {
+          enabled: true,
+          ship: '~zod',
+          url: 'https://example.com',
+          code: 'sample-code',
+        },
+      },
+    } as never;
+
+    expect(() =>
+      tlonMessageActions.prepareSendPayload!({
+        ctx: {
+          channel: 'tlon',
+          action: 'send',
+          cfg,
+          params: { a2ui: { components: richComponents } },
+        } as never,
+        to: 'chat/~zod/general',
+        payload: { text: 'System status is healthy.' },
+      })
+    ).toThrow('can only be sent in direct messages');
+  });
 });

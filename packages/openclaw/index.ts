@@ -1004,7 +1004,8 @@ export default defineBundledChannelEntry({
       const isBlocked = isOwnerOnlyTool && role === 'user';
       const sanitizedParams = sanitizeTlonMessageSendParams(
         event.toolName,
-        event.params
+        event.params,
+        ctx.channelId
       );
       if (sanitizedParams !== event.params) {
         api.logger.info(

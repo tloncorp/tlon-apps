@@ -46,6 +46,35 @@ describe('sanitizeTlonMessageSendParams', () => {
     expect(sanitizeTlonMessageSendParams('message', params)).toBe(params);
   });
 
+  it('uses the active Tlon channel when the tool omits channel', () => {
+    const params = {
+      action: 'send',
+      target: '~ten',
+      message: 'Forecast summary',
+      pollDurationHours: 1,
+    };
+
+    const override = sanitizeTlonMessageSendParams('message', params, 'tlon');
+
+    expect({ ...params, ...override }).toMatchObject({
+      action: 'send',
+      target: '~ten',
+      pollDurationHours: undefined,
+    });
+  });
+
+  it('does not infer Tlon when channel is omitted outside Tlon', () => {
+    const params = {
+      action: 'send',
+      target: '123',
+      pollDurationHours: 1,
+    };
+
+    expect(sanitizeTlonMessageSendParams('message', params, 'discord')).toBe(
+      params
+    );
+  });
+
   it('does not rewrite another channel or tool', () => {
     const params = {
       action: 'send',

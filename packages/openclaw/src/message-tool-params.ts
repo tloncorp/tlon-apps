@@ -15,12 +15,19 @@ const POLL_PARAM_PREFIX = /^poll_?/i;
  */
 export function sanitizeTlonMessageSendParams(
   toolName: string,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  currentChannelId?: string
 ): Record<string, unknown> {
+  const explicitChannel =
+    typeof params.channel === 'string' && params.channel.trim()
+      ? params.channel.trim().toLowerCase()
+      : undefined;
+  const resolvedChannel =
+    explicitChannel ?? currentChannelId?.trim().toLowerCase();
   if (
     toolName !== 'message' ||
     params.action !== 'send' ||
-    params.channel !== 'tlon'
+    resolvedChannel !== 'tlon'
   ) {
     return params;
   }

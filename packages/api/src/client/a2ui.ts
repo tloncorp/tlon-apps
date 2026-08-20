@@ -885,20 +885,25 @@ export function getUpdateMessage(
   );
 }
 
+function resolveRootComponentId(
+  update: A2UI.UpdateComponentsMessage
+): string | null {
+  const explicitRoot = update.updateComponents.root;
+  if (isBoundedNonEmptyString(explicitRoot, LIMITS.maxComponentIdLength)) {
+    return explicitRoot;
+  }
+  const firstComponentId = update.updateComponents.components[0]?.id;
+  return isBoundedNonEmptyString(firstComponentId, LIMITS.maxComponentIdLength)
+    ? firstComponentId
+    : null;
+}
+
 export function getRootComponentId(entry: A2UI.BlobEntry): string | null {
   const update = getUpdateMessage(entry);
   if (!update) {
     return null;
   }
-  const explicitRoot = update.updateComponents.root;
-  if (isBoundedNonEmptyString(explicitRoot, LIMITS.maxComponentIdLength)) {
-    return explicitRoot;
-  }
-  return update.updateComponents.components.some(
-    (component) => component.id === 'root'
-  )
-    ? 'root'
-    : null;
+  return resolveRootComponentId(update);
 }
 
 export function resolveComponentGraph(
@@ -914,14 +919,7 @@ export function resolveComponentGraph(
     return null;
   }
 
-  const root = isBoundedNonEmptyString(
-    envelope.updateMessage.updateComponents.root,
-    LIMITS.maxComponentIdLength
-  )
-    ? envelope.updateMessage.updateComponents.root
-    : components.has('root')
-      ? 'root'
-      : null;
+  const root = resolveRootComponentId(envelope.updateMessage);
   if (!root || !validateReachableTree(root, components)) {
     return null;
   }

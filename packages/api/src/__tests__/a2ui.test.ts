@@ -470,12 +470,12 @@ describe('a2ui blob entries', () => {
     ).toBe(false);
   });
 
-  test('requires a matching surface and a resolvable root', () => {
+  test('requires a matching surface and falls back to the first component root', () => {
     const missingSurface = {
       ...a2uiBlobEntry,
       messages: [a2uiBlobEntry.messages[1]],
     };
-    const missingRoot = {
+    const omittedRoot = {
       ...a2uiBlobEntry,
       messages: [
         a2uiBlobEntry.messages[0],
@@ -492,7 +492,11 @@ describe('a2ui blob entries', () => {
     };
 
     expect(A2UI.validateBlobEntry(missingSurface)).toBe(false);
-    expect(A2UI.validateBlobEntry(missingRoot)).toBe(false);
+    expect(A2UI.validateBlobEntry(omittedRoot)).toBe(true);
+    expect(A2UI.getRootComponentId(omittedRoot as A2UI.BlobEntry)).toBe(
+      'not-root'
+    );
+    expect(A2UI.resolveComponentGraph(omittedRoot)?.root).toBe('not-root');
   });
 
   test('rejects duplicate component ids and missing child references', () => {

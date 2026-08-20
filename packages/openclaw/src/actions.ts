@@ -87,9 +87,12 @@ export const tlonMessageActions: ChannelMessageActionAdapter = {
 
   supportsAction: ({ action }) => SUPPORTED_ACTIONS.has(action),
 
-  prepareSendPayload: ({ ctx, payload }) => {
+  prepareSendPayload: ({ ctx, payload, to }) => {
     if (ctx.action !== 'send' || ctx.params.a2ui === undefined) {
       return null;
+    }
+    if (parseTlonTarget(to)?.kind !== 'dm') {
+      throw new Error('Tlon A2UI widgets can only be sent in direct messages.');
     }
     return prepareA2UISendPayload(payload, ctx.params.a2ui);
   },

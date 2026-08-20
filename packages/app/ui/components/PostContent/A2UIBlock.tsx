@@ -147,7 +147,7 @@ function getTextColor(component: A2UI.Text) {
   return component.variant === 'caption' ? '$secondaryText' : '$primaryText';
 }
 
-function getImageLayout(component: A2UI.Image) {
+export function getA2UIImageLayout(component: A2UI.Image) {
   switch (component.variant) {
     case 'icon':
       return { width: 24, height: 24, borderRadius: '$xs' } as const;
@@ -177,6 +177,26 @@ function getImageLayout(component: A2UI.Image) {
         borderRadius: '$m',
       } as const;
   }
+}
+
+function A2UIImageFallback({ component }: { component: A2UI.Image }) {
+  return (
+    <View
+      alignItems="center"
+      justifyContent="center"
+      backgroundColor="$secondaryBackground"
+      overflow="hidden"
+      accessibilityLabel={
+        component.description
+          ? `${component.description} unavailable`
+          : 'Unable to load image'
+      }
+      flex={getComponentFlex(component)}
+      {...getA2UIImageLayout(component)}
+    >
+      <Icon type="Placeholder" color="$tertiaryText" size="$m" />
+    </View>
+  );
 }
 
 function getImageFit(component: A2UI.Image) {
@@ -351,9 +371,10 @@ function A2UIBlockContent({ block, ...props }: A2UIBlockProps) {
               source={{ uri: component.url }}
               contentFit={getImageFit(component)}
               accessibilityLabel={component.description}
+              fallback={<A2UIImageFallback component={component} />}
               flex={getComponentFlex(component)}
               backgroundColor="$secondaryBackground"
-              {...getImageLayout(component)}
+              {...getA2UIImageLayout(component)}
             />
           );
         }
