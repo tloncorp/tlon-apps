@@ -52,7 +52,7 @@ describe('bot credential choices', () => {
       }),
       expect.objectContaining({
         id: 'xai:api-key',
-        label: 'xAI (Grok) — API key',
+        label: 'xAI (Grok)',
         credentialMode: 'api-key',
         requiresKey: true,
       }),
