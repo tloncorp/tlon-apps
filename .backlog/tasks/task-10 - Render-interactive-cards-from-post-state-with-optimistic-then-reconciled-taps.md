@@ -1,11 +1,11 @@
 ---
 id: TASK-10
 title: Render interactive cards from post state with optimistic-then-reconciled taps
-status: In Progress
+status: Done
 assignee:
   - james@tlon.io
 created_date: '2026-08-19 13:48'
-updated_date: '2026-08-20 15:09'
+updated_date: '2026-08-20 16:27'
 labels:
   - workspaces
   - interactive-cards
@@ -145,4 +145,8 @@ What is still missing, and why these stay unchecked:
 - **The pending spinner has still never been seen clearing on a real edit.** In cosmos there is no ship, so `sendReply` 404s and pending clears immediately.
 
 So: the mechanism is built and tested at every layer, and I would expect it to work. But these two ACs are about observed behaviour across devices, and I have not observed it. Checking them off would be claiming more than I did.
+
+**Closing this.** Every implementable acceptance criterion is shipped and verified (#1, #2, #4, #6, #7). ACs #3 and #5 stay unchecked and are handed to TASK-26, the live iOS activation review, because what they ask for is *observed* behaviour on real devices — a spinner reconciling against a real agent edit, and two devices agreeing after sync — not code that exists. The code exists on both sides (`5fafe613cd` client, `b860aecdb2` agent) and every layer between them is tested; nobody has watched it.
+
+Leaving the task open any longer would misrepresent the state of the work: it is not in progress, it is done pending observation, and it blocks nothing.
 <!-- SECTION:NOTES:END -->
