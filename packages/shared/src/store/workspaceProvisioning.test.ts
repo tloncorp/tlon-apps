@@ -56,7 +56,12 @@ type TestDeps = Deps & {
   seatAgent: Mock;
 };
 
-type Overrides = { install?: Mock; installs?: Mock; seatAgent?: Mock };
+type Overrides = {
+  install?: Mock;
+  installs?: Mock;
+  seatAgent?: Mock;
+  agent?: Mock;
+};
 
 function deps(overrides: Overrides = {}): TestDeps {
   return {
@@ -124,6 +129,54 @@ describe('the happy path', () => {
     await provisionWorkspace('meal-plan', d);
 
     expect(seen).toEqual([`install:running:${NAME}`]);
+  });
+
+  // TASK-32. %kits writes `agents` from this parameter, and the harness gates
+  // its setup run on it — so passing the wrong ship builds a correct workspace
+  // that no agent will ever claim. Asserted on the exact value, not
+  // objectContaining, because the bug was a *missing* key.
+  test('names the resolved agent ship on the install', async () => {
+    const d = deps();
+    d.agent = vi.fn(async () => ({
+      botShipId: BOT,
+      hostedShipId: OUR,
+      moon: 'ridlur-figbud',
+    }));
+
+    await provisionWorkspace('meal-plan', d);
+
+    expect(d.install.mock.calls[0][0].agent).toBe(BOT);
+  });
+
+  // Null, not the installer's ship: %kits falls back to `our` itself, and
+  // spelling it here would hide which side owns the default.
+  test('sends null when no agent can be resolved', async () => {
+    const d = deps();
+    d.agent = vi.fn(async () => null);
+
+    await provisionWorkspace('meal-plan', d);
+
+    expect(d.install.mock.calls[0][0].agent).toBeNull();
+  });
+
+  // The resolve has to happen before the poke: %kits writes the descriptor in
+  // the same event as the install, so a later correction would race its blob
+  // write.
+  test('resolves the agent before poking the install', async () => {
+    const order: string[] = [];
+    const d = deps({
+      install: vi.fn(async () => {
+        order.push('install');
+      }),
+    });
+    d.agent = vi.fn(async () => {
+      order.push('resolve');
+      return null;
+    });
+
+    await provisionWorkspace('meal-plan', d);
+
+    expect(order).toEqual(['resolve', 'install']);
   });
 
   test('a user who picked no starter gets the blank kit', async () => {

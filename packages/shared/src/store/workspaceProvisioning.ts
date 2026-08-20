@@ -134,9 +134,12 @@ export type ProvisionDeps = {
     id: string;
     name: string;
     meta: api.KitInstallMeta;
+    agent: string | null;
   }) => Promise<unknown>;
   installs?: () => Promise<Record<string, unknown>>;
   seatAgent?: (groupId: string) => Promise<unknown>;
+  /** Resolves the ship whose harness will execute the kit. */
+  agent?: () => Promise<ResolvedAgent>;
   currentUserId?: () => string;
   name?: string;
   kit?: typeof api.getKit;
@@ -163,6 +166,7 @@ export async function provisionWorkspace(
 ): Promise<string> {
   const install = deps.install ?? api.installKit;
   const seatAgent = deps.seatAgent ?? ensureWorkspaceAgentSeated;
+  const resolveAgent = deps.agent ?? resolveWorkspaceAgent;
   const currentUserId = deps.currentUserId ?? (() => api.getCurrentUserId());
 
   const existing = await db.workspaceProvisioning.getValue();
@@ -191,10 +195,16 @@ export async function provisionWorkspace(
   });
 
   try {
+    // Resolved before the install, not after: %kits writes the descriptor in
+    // the same event, and `agents` is what gates the harness's setup run. Get
+    // it wrong here and the workspace is built correctly but no agent will
+    // ever claim it.
+    const agent = await resolveAgent();
     await install({
       id: kitId,
       name,
       meta: await workspaceMeta(kitId, deps.kit),
+      agent: agent?.botShipId ?? null,
     });
     await seatAgent(groupId);
     await db.workspaceProvisioning.setValue((current) => ({

@@ -58,6 +58,8 @@ export interface KitInstall {
   version: string;
   publisher: string;
   places: Record<string, string>;
+  /** Ships whose harness may execute this kit here. */
+  agents: string[];
   setup: 'pending' | 'done';
   installed: string;
 }
@@ -95,6 +97,14 @@ export const installKit = (params: {
   id: string;
   name: string;
   meta: KitInstallMeta;
+  /**
+   * The ship whose harness executes this kit - usually a different ship from
+   * the installer. Null means "the installer", which is only right when the
+   * harness authenticates as the installing ship. Required, not optional: an
+   * omitted key fails the decoder, and silently defaulting to the installer is
+   * how setup ends up gated on a ship that will never claim it.
+   */
+  agent: string | null;
 }) => kitsAction({ install: params });
 
 /** Clear the blob config and drop the ledger entry for a group flag. */

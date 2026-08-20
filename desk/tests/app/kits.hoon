@@ -58,12 +58,16 @@
   ['Summer Club' '' '' '']
 ++  club-flag  `flag:g`[our-ship %summer-club]
 ++  club-nest  `nest:v1:k`[%chat our-ship %discussion-summer-club]
+++  bot-ship  ~bus
 ++  fix-install
   ^-  install:k
   :*  %test-kit
       [0 1 0]
       our-ship
       (malt ~[[%discussion club-nest]])
+      ::  the agent named on the poke, not the installer — the two differ in
+      ::  production and gating setup on the wrong one is TASK-32
+      (sy ~[bot-ship])
       %pending
       ~2024.1.1
   ==
@@ -71,7 +75,7 @@
   |=  i=install:k
   ^-  @t
   %-  en:json:html
-  (config:enjs:j our-ship i ~[[%daily '0 17 * * *' 'Daily thing']])
+  (config:enjs:j i ~[[%daily '0 17 * * *' 'Daily thing']])
 ++  setup
   =/  m  (mare ,~)
   ^-  form:m
@@ -87,7 +91,8 @@
 ++  do-install
   =/  m  (mare ,(list card))
   ^-  form:m
-  (do-poke %kits-action-1 !>(`action:v1:k`[%install %test-kit %summer-club group-meta]))
+  %+  do-poke  %kits-action-1
+  !>(`action:v1:k`[%install %test-kit %summer-club group-meta `bot-ship])
 ::
 ::  %add puts the kit in the library and echoes it on /v1/updates
 ::
@@ -314,7 +319,7 @@
   ;<  caz=(list card)  bind:m
     %-  do-poke
     :-  %kits-action-1
-    !>(`action:v1:k`[%install %notes-kit %house group-meta])
+    !>(`action:v1:k`[%install %notes-kit %house group-meta `bot-ship])
   =/  house  `flag:g`[our-ship %house]
   %+  ex-cards  caz
   :~  %-  ex-poke
@@ -354,7 +359,7 @@
   ;<  *  bind:m
     %-  do-poke
     :-  %kits-action-1
-    !>(`action:v1:k`[%install %notes-kit %house group-meta])
+    !>(`action:v1:k`[%install %notes-kit %house group-meta `bot-ship])
   =/  house  `flag:g`[our-ship %house]
   =/  =install:k
     :*  %notes-kit
@@ -365,11 +370,61 @@
         :~  [%talk [%chat our-ship %talk-house]]
             [%plans [%notes our-ship %plans-house]]
         ==
+        (sy ~[bot-ship])
         %pending
         ~2024.1.1
     ==
   %+  ex-scry-result  /x/v1/installs
   !>(`update:v1:k`[%installs (malt ~[[house install]])])
+::
+::  TASK-32: the blob's `agents` names the ship whose harness executes the
+::  kit, which is not the installer. The harness gates its setup run on this,
+::  so an install that recorded `our` built a correct workspace that no agent
+::  would ever claim.
+::
+++  test-blob-names-the-agent-not-the-installer
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  do-add
+  ;<  caz=(list card)  bind:m  do-install
+  ::  the ledger records the agent from the poke
+  ;<  ~  bind:m
+    %+  ex-scry-result  /x/v1/installs
+    !>(`update:v1:k`[%installs (malt ~[[club-flag fix-install]])])
+  ::  and it is not the installing ship
+  ?<  (~(has in agents.fix-install) our-ship)
+  (pure:m ~)
+::
+::  an install with no agent named falls back to the installer, which is right
+::  only when the harness authenticates as the installing ship
+::
+++  test-absent-agent-falls-back-to-installer
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  do-add
+  ;<  *  bind:m
+    %+  do-poke  %kits-action-1
+    !>(`action:v1:k`[%install %test-kit %solo group-meta ~])
+  =/  solo  `flag:g`[our-ship %solo]
+  %+  ex-scry-result  /x/v1/installs
+  !>  ^-  update:v1:k
+  :-  %installs
+  %-  malt
+  :~  [club-flag fix-install]
+      :-  solo
+      :*  %test-kit
+          [0 1 0]
+          our-ship
+          (malt ~[[%discussion [%chat our-ship %discussion-solo]]])
+          (sy ~[our-ship])
+          %pending
+          ~2024.1.1
+      ==
+  ==
 ::
 ::  the same kit installed into two groups does not collide. place names are
 ::  scoped by the group, so the second install's channel creation is a

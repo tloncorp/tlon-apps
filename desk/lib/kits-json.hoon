@@ -90,11 +90,15 @@
         %+  turn  ~(tap by places.i)
         |=  [n=@tas cn=nest:v1:k]
         [n `json`s+(nest cn)]
+        :-  'agents'
+        :-  %a
+        %+  turn  ~(tap in agents.i)
+        |=(p=@p `json`s+(scot %p p))
         ['setup' s+setup.i]
         ['installed' s+(scot %da installed.i)]
     ==
   ++  config
-    |=  [our=@p i=install:v1:k schedules=(list schedule:v1:k)]
+    |=  [i=install:v1:k schedules=(list schedule:v1:k)]
     ^-  json
     %-  pairs
     :~  ['version' n+'1']
@@ -122,7 +126,12 @@
             %+  turn  schedules
             |=  s=schedule:v1:k
             (pairs ~[['id' s+id.s] ['cron' s+cron.s] ['enabled' b+|]])
-            ['agents' a+~[s+(scot %p our)]]
+            ::  from the ledger entry, not from `our`: the executing agent is
+            ::  usually a different ship than the installer.
+            :-  'agents'
+            :-  %a
+            %+  turn  ~(tap in agents.i)
+            |=(p=@p `json`s+(scot %p p))
             ['setup' s+setup.i]
             ['installedAt' (time installed.i)]
         ==
@@ -202,7 +211,16 @@
     :~  [%add (ot ~[kit+kit])]
         [%del (ot ~[id+(se %tas)])]
         [%fetch (ot ~[ship+(se %p) id+(se %tas)])]
-        [%install (ot ~[id+(se %tas) name+(se %tas) meta+(ot ~[title+so description+so image+so cover+so])])]
+        ::  `agent` names the ship whose harness executes the kit. The key is
+        ::  required but may be null, which means "the installer" — a client
+        ::  that cannot resolve an agent sends null rather than omitting it.
+        :-  %install
+        %-  ot
+        :~  id+(se %tas)
+            name+(se %tas)
+            meta+(ot ~[title+so description+so image+so cover+so])
+            agent+(mu (se %p))
+        ==
         [%uninstall (ot ~[flag+fl])]
         [%setup-done (ot ~[flag+fl])]
     ==

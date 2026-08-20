@@ -88,6 +88,10 @@
       version=vers
       publisher=@p
       places=(map @tas nest)
+      ::  which ships may execute this kit here. The agent is usually a
+      ::  different ship from the installer — a moon in production — so it
+      ::  cannot be derived from `our` at write time.
+      agents=(set @p)
       setup=?(%pending %done)
       installed=@da
   ==
@@ -105,7 +109,10 @@
   $%  [%add =kit]
       [%del =id]
       [%fetch =ship =id]
-      [%install =id name=term meta=data:meta]
+      ::  agent: the ship whose harness executes this kit. Defaults to the
+      ::  installer when absent, which is right only when the harness
+      ::  authenticates as the installing ship.
+      [%install =id name=term meta=data:meta agent=(unit @p)]
       [%uninstall =flag:g]
       [%setup-done =flag:g]
   ==

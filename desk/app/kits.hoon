@@ -12,13 +12,30 @@
 =>
   |%
   +$  card  card:agent:gall
+  ::  state-0 predates the `agents` field on an install: entries written then
+  ::  implied the installer was the agent. +on-load fills that in so an
+  ::  existing ledger keeps the behaviour it was written under.
+  +$  install-0
+    $:  id=id:k
+        version=vers:k
+        publisher=@p
+        places=(map @tas nest:v1:k)
+        setup=?(%pending %done)
+        installed=@da
+    ==
   +$  state-0
     $:  %0
         kits=(map id:k kit:k)
+        installs=(map flag:g install-0)
+    ==
+  +$  state-1
+    $:  %1
+        kits=(map id:k kit:k)
         installs=(map flag:g install:k)
     ==
+  +$  versioned-state  $%(state-0 state-1)
   --
-=|  state-0
+=|  state-1
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -32,7 +49,17 @@
   ++  on-save  !>(state)
   ++  on-load
     |=  ole=vase
-    =.  state  !<(state-0 ole)
+    ^-  (quip card _this)
+    =/  old  !<(versioned-state ole)
+    =.  state
+      ?:  ?=(%1 -.old)  old
+      ::  an install written before `agents` existed implied the installer was
+      ::  the agent, and the installer was always us.
+      :+  %1  kits.old
+      %-  ~(run by installs.old)
+      |=  i=install-0
+      ^-  install:k
+      [id.i version.i publisher.i places.i (sy ~[our.bowl]) setup.i installed.i]
     `this
   ++  on-poke
     |=  [=mark =vase]
@@ -84,14 +111,15 @@
         %watch  /v1/full/[id.action]
     ==
   ::
-      %install    (install id.action name.action meta.action)
+      %install    (install id.action name.action meta.action agent.action)
       %uninstall  (uninstall flag.action)
       %setup-done  (setup-done flag.action)
   ==
 ::  +install: instantiate a group + places, write blob, record ledger
 ::
 ++  install
-  |=  [=id:k name=term gmeta=data:meta]
+  |=  [=id:k name=term gmeta=data:meta agent=(unit @p)]
+|=  [=id:k name=term gmeta=data:meta]
   ^+  cor
   ?>  ((sane %tas) name)
   =/  =kit:k  (~(got by kits) id)
@@ -128,7 +156,17 @@
   ::  record the ledger and write the group blob config
   ::
   =/  =install:k
-    [id version.man publisher.man nests %pending now.bowl]
+    ::  no agent named means the harness authenticates as the installing ship,
+    ::  which is the only case where `our` is the right answer.
+    =/  agents=(set @p)  (sy ~[?^(agent u.agent our.bowl)])
+    :*  id
+        version.man
+        publisher.man
+        nests
+        agents
+        %pending
+        now.bowl
+    ==
   =.  installs  (~(put by installs) flag install)
   =.  cor  (write-blob flag install)
   (give %fact ~[/v1/updates] kits-update-1+!>(`update:v1:k`[%installed flag install]))
@@ -165,7 +203,7 @@
     =/  kit=(unit kit:k)  (~(get by kits) id.install)
     ?~(kit ~ schedules.manifest.u.kit)
   =/  cfg=@t
-    (en:json:html (config:enjs:j our.bowl install schedules))
+    (en:json:html (config:enjs:j install schedules))
   %-  emit
   :*  %pass  /install/blob/[q.flag]
       %agent  [our.bowl %groups]
