@@ -148,14 +148,16 @@
       expires-at=@da
   ==
 ::
-::  Group readability remains authoritative in %groups. Bucket writers are a
-::  separate subset of group roles; an empty set means every readable member
-::  may write, matching the convention used by %channels.
+::  Readability is %groups' business alone, so no reader set is kept here: the
+::  roles named at creation are handed to %groups with the channel and belong
+::  to it from then on, and +group-can-read asks it. Bucket writers are a
+::  separate subset of group roles that %groups does not model, so those do
+::  live here; an empty set means every readable member may write, matching
+::  the convention used by %channels.
 ::
 +$  bucket-state
   $:  =bucket
       group=flag
-      readers=(set @tas)
       writers=(set @tas)
       entries=(map @ud entry)
       revision=@ud
@@ -169,6 +171,9 @@
 ::  Tokens are never supplied by the caller — the host mints them and hands
 ::  them back in a $response-body.
 ::
+::  .readers on %create is passed straight to %groups as the new channel's
+::  reader roles and is not retained; change it there, not here.
+::
 +$  a-buckets
   $%  [%create name=@tas title=@t group=flag readers=(set @tas) writers=(set @tas)]
       [%bucket =flag =a-bucket]
@@ -179,7 +184,6 @@
 +$  a-bucket
   $%  [%delete ~]
       [%set-title title=@t]
-      [%set-readers readers=(set @tas)]
       [%set-writers writers=(set @tas)]
       [%create-folder parent=(unit @ud) name=@t]
       [%begin-upload parent=(unit @ud) name=@t mime=@t size=@ud checksum=(unit @t)]
@@ -299,7 +303,6 @@
   $%  [%create =bucket]
       [%delete ~]
       [%meta =bucket]
-      [%readers readers=(set @tas)]
       [%writers writers=(set @tas)]
       [%entry id=@ud =u-entry]
       [%entries-deleted ids=(list @ud)]

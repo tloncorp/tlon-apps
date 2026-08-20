@@ -521,13 +521,13 @@ test('createChannel preserves a created Bucket when its group listing is delayed
   );
 });
 
-test('updateChannel mirrors Bucket reader and writer roles to %buckets', async () => {
+test('updateChannel sends Bucket writer roles to %buckets and readers to %groups', async () => {
   const bucketsChannelId = 'buckets/~zod/project-files';
   await insertGroupAndChannel({ id: bucketsChannelId, type: 'buckets' });
   const channel = await db.getChannelWithRelations({ id: bucketsChannelId });
   if (!channel) throw new Error('test channel not initialized');
 
-  vi.spyOn(api, 'updateChannel').mockResolvedValue(1);
+  const apiUpdateChannel = vi.spyOn(api, 'updateChannel').mockResolvedValue(1);
   const sendBucketsAction = vi
     .spyOn(api, 'sendBucketsAction')
     .mockResolvedValue({ ok: null });
@@ -541,21 +541,24 @@ test('updateChannel mirrors Bucket reader and writer roles to %buckets', async (
     channel: { ...channel, title: 'Project files' },
   });
 
+  // Readability goes to %groups and nowhere else; the bucket only hears
+  // about the title and its own writer roles.
+  expect(apiUpdateChannel).toHaveBeenCalledWith(
+    expect.objectContaining({
+      channel: expect.objectContaining({ readers: ['member'] }),
+    })
+  );
   expect(sendBucketsAction).toHaveBeenNthCalledWith(1, {
     type: 'set-title',
     flag: { host: '~zod', name: 'project-files' },
     title: 'Project files',
   });
   expect(sendBucketsAction).toHaveBeenNthCalledWith(2, {
-    type: 'set-readers',
-    flag: { host: '~zod', name: 'project-files' },
-    readers: ['member'],
-  });
-  expect(sendBucketsAction).toHaveBeenNthCalledWith(3, {
     type: 'set-writers',
     flag: { host: '~zod', name: 'project-files' },
     writers: ['admin'],
   });
+  expect(sendBucketsAction).toHaveBeenCalledTimes(2);
 });
 
 test('joinGroupChannel routes notes channels through the notes API', async () => {

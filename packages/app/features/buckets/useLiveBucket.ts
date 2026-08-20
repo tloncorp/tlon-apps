@@ -85,7 +85,6 @@ function reduceBucketResponse(
 
   let entries = current.state.entries;
   let bucket = current.state.bucket;
-  let readers = current.state.readers;
   let writers = current.state.writers;
 
   switch (update.type) {
@@ -95,9 +94,6 @@ function reduceBucketResponse(
       break;
     case 'writers-updated':
       writers = update.writers;
-      break;
-    case 'readers-updated':
-      readers = update.readers;
       break;
     case 'entry-created':
     case 'entry-updated':
@@ -115,7 +111,6 @@ function reduceBucketResponse(
       bucket,
       entries,
       revision: response.revision,
-      readers,
       writers,
     },
   };
@@ -161,12 +156,11 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       setSnapshot(next);
       if (next) {
         const channelId = formatBucketsChannelId(next.flag);
+        // Writers only: %groups owns the channel's reader roles and the
+        // groups sync already writes them, so mirroring them from here would
+        // only add a second copy that can go stale.
         void db.updateChannel({
           id: channelId,
-          readerRoles: next.state.readers.map((roleId) => ({
-            channelId,
-            roleId,
-          })),
           writerRoles: next.state.writers.map((roleId) => ({
             channelId,
             roleId,

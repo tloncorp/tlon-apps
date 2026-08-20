@@ -33,7 +33,6 @@ const snapshot = {
       updatedAt: 0,
     },
     group: { host: '~zod', name: 'group' },
-    readers: ['member'],
     writers: ['admin'],
     entries: [],
     revision: 1,

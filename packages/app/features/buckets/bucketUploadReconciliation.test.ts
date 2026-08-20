@@ -38,7 +38,6 @@ const snapshot = {
       },
     ],
     group: { host: '~zod', name: 'group' },
-    readers: ['member'],
     revision: 2,
     writers: ['admin'],
   },

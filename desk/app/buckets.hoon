@@ -532,24 +532,27 @@
     =/  st=bucket-state:b  (need-state flag)
     ?>  =(group group.st)
     ?>  =(title title.bucket.st)
-    ?>  =(readers readers.st)
     ?>  =(writers writers.st)
     ?>  =(actor created-by.bucket.st)
-    =.  cor  (register-bucket flag st)
+    =.  cor  (register-bucket flag st readers)
     (give [%fact ~[/v1] buckets-response-1+!>(`response:b`[%snapshot flag st])])
   =/  id=@ud  +(next-id)
   =.  next-id  id
   =/  buc=bucket:b  [id title actor now.bowl actor now.bowl]
-  =/  st=bucket-state:b  [buc group readers writers ~ 0]
+  =/  st=bucket-state:b  [buc group writers ~ 0]
   =.  spaces  (~(put by spaces) flag [%pub `st `group])
-  =.  cor  (register-bucket flag st)
+  =.  cor  (register-bucket flag st readers)
   (give [%fact ~[/v1] buckets-response-1+!>(`response:b`[%snapshot flag st])])
 ::
+::  +register-bucket: hand the channel to %groups. The reader roles come from
+::  the action rather than from state, because %groups keeps them from here
+::  on and this agent has no copy to drift from.
+::
 ++  register-bucket
-  |=  [=flag:b st=bucket-state:b]
+  |=  [=flag:b st=bucket-state:b readers=(set @tas)]
   ^+  cor
   =/  channel=group-channel:b
-    [[title.bucket.st '' '' ''] now.bowl %default readers.st |]
+    [[title.bucket.st '' '' ''] now.bowl %default readers |]
   =/  add=group-create:b
     [%group group.st %channel [%buckets flag] %add channel]
   %-  emit
@@ -567,7 +570,6 @@
   ?-  -.act
     %delete         (delete-bucket flag actor)
     %set-title      (set-title flag title.act actor)
-    %set-readers    (set-readers flag readers.act actor)
     %set-writers    (set-writers flag writers.act actor)
     %create-folder  (create-folder flag parent.act name.act actor)
     %begin-upload   (begin-upload flag parent.act name.act mime.act size.act checksum.act actor)
@@ -620,13 +622,6 @@
   =/  st=bucket-state:b  (need-state flag)
   =.  writers.st  writers
   (commit-update flag st [%writers writers] actor)
-::
-++  set-readers
-  |=  [=flag:b readers=(set @tas) actor=ship]
-  ^+  cor
-  =/  st=bucket-state:b  (need-state flag)
-  =.  readers.st  readers
-  (commit-update flag st [%readers readers] actor)
 ::
 ++  create-folder
   |=  [=flag:b parent=(unit @ud) name=@t actor=ship]
@@ -1259,7 +1254,6 @@
   ?-  -.act
     %delete         (group-is-admin group.st flag who)
     %set-title      (group-is-admin group.st flag who)
-    %set-readers    (group-is-admin group.st flag who)
     %set-writers    (group-is-admin group.st flag who)
     %issue-bucket-read  (group-can-read group.st flag who)
     %create-folder  (group-can-write group.st flag writers.st who)
@@ -1734,7 +1728,6 @@
       %create   st(bucket bucket.upd)
       %delete   st
       %meta     st(bucket bucket.upd)
-      %readers  st(readers readers.upd)
       %writers  st(writers writers.upd)
   ::
       %entry

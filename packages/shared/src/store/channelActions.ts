@@ -566,11 +566,8 @@ export async function updateChannel({
         flag: bucketFlag,
         title: channel.title ?? '',
       });
-      await api.sendBucketsAction({
-        type: 'set-readers',
-        flag: bucketFlag,
-        readers,
-      });
+      // No set-readers: api.updateChannel above already sent `readers` to
+      // %groups, which is the only place a bucket's readability lives.
       await api.sendBucketsAction({
         type: 'set-writers',
         flag: bucketFlag,

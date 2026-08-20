@@ -60,16 +60,12 @@
     =/  ents=(list json)
       %+  turn  ~(val by entries.st)
       entry
-    =/  roles=(list json)
-      %+  turn  ~(tap in readers.st)
-      |=(role=@tas s+(scot %tas role))
     =/  writer-roles=(list json)
       %+  turn  ~(tap in writers.st)
       |=(role=@tas s+(scot %tas role))
     %-  pairs
     :~  ['bucket' (bucket bucket.st)]
         ['group' (flag group.st)]
-        ['readers' [%a roles]]
         ['writers' [%a writer-roles]]
         ['entries' [%a ents]]
         ['revision' (numb revision.st)]
@@ -87,12 +83,6 @@
     ::
         %meta
       (pairs ~[['type' s+'bucket-updated'] ['bucket' (bucket bucket.upd)]])
-    ::
-        %readers
-      =/  roles=(list json)
-        %+  turn  ~(tap in readers.upd)
-        |=(role=@tas s+(scot %tas role))
-      (pairs ~[['type' s+'readers-updated'] ['readers' [%a roles]]])
     ::
         %writers
       =/  roles=(list json)
@@ -227,7 +217,7 @@
       (ot ~[['host' (su ;~(pfix sig fed:ag))] ['name' so]])
     [-.raw (knot +.raw)]
   ::
-  ++  readers
+  ++  roles
     |=  jon=json
     ^-  (set @tas)
     ((as (cu |=(t=@t `@tas``@`t) so)) jon)
@@ -256,15 +246,14 @@
           (knot (so (get 'name' jon)))
           (so (get 'title' jon))
           (flag (get 'group' jon))
-          (readers (get 'readers' jon))
-          (readers (get 'writers' jon))
+          (roles (get 'readers' jon))
+          (roles (get 'writers' jon))
       ==
     :+  %bucket  (flag (get 'flag' jon))
     ?+  typ  ~|(unknown-buckets-action+typ !!)
         %'delete-bucket'  [%delete ~]
         %'set-title'      [%set-title (so (get 'title' jon))]
-        %'set-readers'    [%set-readers (readers (get 'readers' jon))]
-        %'set-writers'    [%set-writers (readers (get 'writers' jon))]
+        %'set-writers'    [%set-writers (roles (get 'writers' jon))]
     ::
         %'create-folder'
       :*  %create-folder

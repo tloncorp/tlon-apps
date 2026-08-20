@@ -44,7 +44,11 @@ export type BucketsEntry = BucketsFolderEntry | BucketsFileEntry;
 export type BucketsState = {
   bucket: BucketsBucket;
   group: BucketsFlag;
-  readers: string[];
+  /**
+   * Bucket writers only. Readability belongs to %groups: the roles named at
+   * creation are handed to it with the channel, and the channel record is
+   * where they live from then on.
+   */
   writers: string[];
   entries: BucketsEntry[];
   revision: number;
@@ -59,7 +63,6 @@ export type BucketsUpdate =
   | { type: 'bucket-created'; bucket: BucketsBucket }
   | { type: 'bucket-deleted' }
   | { type: 'bucket-updated'; bucket: BucketsBucket }
-  | { type: 'readers-updated'; readers: string[] }
   | { type: 'writers-updated'; writers: string[] }
   | { type: 'entry-created'; id: number; entry: BucketsEntry }
   | { type: 'entry-updated'; id: number; entry: BucketsEntry }
@@ -80,12 +83,12 @@ export type BucketsAction =
       name: string;
       title: string;
       group: BucketsFlag;
+      /** Passed straight to %groups as the new channel's reader roles. */
       readers: string[];
       writers: string[];
     }
   | { type: 'delete-bucket'; flag: BucketsFlag }
   | { type: 'set-title'; flag: BucketsFlag; title: string }
-  | { type: 'set-readers'; flag: BucketsFlag; readers: string[] }
   | { type: 'set-writers'; flag: BucketsFlag; writers: string[] }
   | {
       type: 'create-folder';
