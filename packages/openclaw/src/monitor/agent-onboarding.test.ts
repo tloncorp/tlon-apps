@@ -1421,7 +1421,7 @@ describe('provision coordinator ordering', () => {
     expect(sendPost).toHaveBeenCalledTimes(2);
     expect(listNotes).toHaveBeenCalledTimes(2);
     expect(sleep).toHaveBeenCalledTimes(2);
-    expect(sleep).toHaveBeenNthCalledWith(1, 500);
+    expect(sleep).toHaveBeenNthCalledWith(1, 1_000);
     expect(sleep).toHaveBeenNthCalledWith(2, 5_500);
     const reveal = sendPost.mock.calls[0]?.[0];
     // The sentence carries the entry on its own — the cite renders as

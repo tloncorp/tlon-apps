@@ -100,8 +100,12 @@ const postOnceFlights = new Map<string, Promise<void>>();
 const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
 const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
 const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 5_500;
-const FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS = 5;
-const FIRST_ENTRY_NOTE_LOOKUP_DELAY_MS = 500;
+// A successful Notes send can precede the new entry appearing in the list
+// endpoint by several seconds on hosted ships. Keep the reveal pending for up
+// to 20 seconds so it can include the durable note reference instead of
+// permanently falling back to reference-free copy.
+const FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS = 21;
+const FIRST_ENTRY_NOTE_LOOKUP_DELAY_MS = 1_000;
 const FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
 const COMPOSE_MS_PER_CHARACTER = 14;
 const MIN_COMPOSE_DELAY_MS = 800;
