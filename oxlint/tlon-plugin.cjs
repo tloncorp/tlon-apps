@@ -57,13 +57,26 @@ const RESTRICTED_ZONES = [
 // Maps a workspace package self-reference (`@tloncorp/api/lib/foo`) onto the
 // source path the zone list is written against. Bare specifiers otherwise skip
 // the check, which would let an alias cross a forbidden boundary.
+// Subpaths whose package `exports` entry does not map straight to `src/<sub>`.
+// `@tloncorp/api` keeps `./api/*` as a compatibility alias for `./src/client/*`.
+const ALIAS_SUBPATH_OVERRIDES = {
+  api: [[/^api\//, 'client/']],
+};
+
 function aliasToSourcePath(source) {
   const match = /^@tloncorp\/([^/]+)\/(.+)$/.exec(source);
   if (!match) {
     return undefined;
   }
   const [, pkg, subpath] = match;
-  return `packages/${pkg}/src/${subpath}`;
+  let resolved = subpath;
+  for (const [pattern, replacement] of ALIAS_SUBPATH_OVERRIDES[pkg] ?? []) {
+    if (pattern.test(resolved)) {
+      resolved = resolved.replace(pattern, replacement);
+      break;
+    }
+  }
+  return `packages/${pkg}/src/${resolved}`;
 }
 
 function toPosix(p) {
@@ -219,6 +232,8 @@ module.exports = {
           ImportDeclaration: check,
           ExportNamedDeclaration: check,
           ExportAllDeclaration: check,
+          // `await import('../client/x')` creates the same dependency lazily.
+          ImportExpression: check,
         };
       },
     },
