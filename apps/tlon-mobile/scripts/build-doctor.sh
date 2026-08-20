@@ -7,8 +7,9 @@
 #      skips the entire native build when a build with a matching fingerprint
 #      exists. Requires being logged in to EAS; when logged out the cache is
 #      silently skipped.
-#   2. ccache for cold builds — caches C/C++/ObjC compilation across rebuilds
-#      and worktrees. Requires ccache installed and apple.ccacheEnabled in
+#   2. ccache — caches C/C++/ObjC compilation for rebuilds within one worktree.
+#      Hits require the same build-product paths, so a fresh worktree never hits.
+#      Requires ccache installed and apple.ccacheEnabled in
 #      ios/Podfile.properties.json.
 
 set -u
@@ -75,13 +76,23 @@ fi
 
 # --- ccache (cold builds) ------------------------------------------------------
 echo
-echo "ccache (speeds up cold/native rebuilds):"
+echo "ccache (speeds up native rebuilds within a worktree):"
 
 if command -v ccache > /dev/null 2>&1; then
   ok "ccache $(ccache --version | head -1 | awk '{print $3}') installed"
 
   MAX_SIZE="$(ccache -s 2>/dev/null | grep -i 'cache size' | head -1 | sed 's/.*\/ *//;s/(.*//' | tr -d ' ')"
   ok "ccache stats: $(ccache -s 2>/dev/null | grep -E 'Hits:' | head -1 | sed 's/^ *//')${MAX_SIZE:+ (max $MAX_SIZE)}"
+
+  # ccache grows to max_size. If that ceiling exceeds free disk, a few cold
+  # builds can fill the volume.
+  MAX_GB="$(ccache -p 2>/dev/null | grep -E '^\(?.*max_size' | sed 's/.*= *//;s/ *GB//' | tr -d ' ')"
+  FREE_GB="$(df -Pk "$HOME" 2>/dev/null | awk 'NR==2{printf "%.0f", $4/1048576}')"
+  if [ -n "${MAX_GB:-}" ] && [ -n "${FREE_GB:-}" ] \
+    && [ "${MAX_GB%%.*}" -gt "$FREE_GB" ] 2>/dev/null; then
+    warn "ccache max_size (${MAX_GB}GB) exceeds free disk (${FREE_GB}GB)" \
+      "ccache -M ${FREE_GB}G   # or a smaller ceiling"
+  fi
 
   if grep -q '"apple.ccacheEnabled": *"true"' "$MOBILE_DIR/ios/Podfile.properties.json" 2>/dev/null; then
     ok "apple.ccacheEnabled=true in ios/Podfile.properties.json"
@@ -91,7 +102,7 @@ if command -v ccache > /dev/null 2>&1; then
   fi
 
 else
-  warn "ccache not installed — cold builds recompile everything every time" "brew install ccache"
+  warn "ccache not installed — native rebuilds recompile everything" "brew install ccache"
 fi
 
 # --- iOS ----------------------------------------------------------------------
