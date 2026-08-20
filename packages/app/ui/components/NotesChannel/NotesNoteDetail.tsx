@@ -54,6 +54,21 @@ import { trackNotesActionError } from './notesTelemetry';
 import { formatNoteDate, getFolderPath } from './notesTree';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
+export type NotesNoteSaveFieldIntent = 'preserve' | 'set';
+
+type NotesNoteQueuedSaveResult = {
+  updated: db.NotesNote | null | undefined;
+  requestedTitle: string;
+  requestedBody: string;
+  titleIntent: NotesNoteSaveFieldIntent;
+  bodyIntent: NotesNoteSaveFieldIntent;
+};
+
+type NotesNoteSaveChain = {
+  promise: Promise<NotesNoteQueuedSaveResult | null>;
+  requestedTitle: string;
+  requestedBody: string;
+};
 
 // Long enough that we don't fire a save on every typing pause; exits are
 // covered by the flush paths and the draft stash either way.
@@ -88,10 +103,25 @@ const notePreviewModes = new Map<string, boolean>();
 const notesNoteDraftSnapshots = new Map<string, NotesNoteDraftSnapshot>();
 const notesNoteDraftSnapshotOwners = new Map<string, NotesNoteDraftOwner>();
 const notesNoteDraftStashOwners = new Map<string, NotesNoteDraftOwner>();
-const notesNoteSaveChains = new Map<string, Promise<db.NotesNote | null>>();
+const notesNoteSaveChains = new Map<string, NotesNoteSaveChain>();
 const pendingNotesNoteSaveCounts = new Map<string, number>();
 const pendingNotesNoteSaveListeners = new Set<() => void>();
 let pendingNotesNoteSaveEpoch = 0;
+
+export function deriveNotesNoteSaveFieldIntent({
+  hasPredecessor,
+  matchesPredecessorRequest,
+  differsFromBase,
+}: {
+  hasPredecessor: boolean;
+  matchesPredecessorRequest: boolean;
+  differsFromBase: boolean;
+}): NotesNoteSaveFieldIntent {
+  if (hasPredecessor) {
+    return matchesPredecessorRequest ? 'preserve' : 'set';
+  }
+  return differsFromBase ? 'set' : 'preserve';
+}
 
 function emitPendingNotesNoteSaveChange() {
   pendingNotesNoteSaveEpoch += 1;
@@ -200,26 +230,42 @@ function clearMatchingNotesNoteDraftSnapshot({
 function rebaseNotesNoteDraftSnapshot(
   notebookFlag: string,
   noteId: number,
-  base: db.NotesNote,
-  savedTitle: string,
-  updated: db.NotesNote
+  result: NotesNoteQueuedSaveResult
 ) {
   const key = draftSnapshotKey(notebookFlag, noteId);
   const snapshot = notesNoteDraftSnapshots.get(key);
   if (!snapshot) return;
 
-  notesNoteDraftSnapshots.set(key, {
+  const nextTitle =
+    result.titleIntent === 'preserve' &&
+    normalizeNotebookNoteTitle(snapshot.title) ===
+      normalizeNotebookNoteTitle(result.requestedTitle)
+      ? result.updated?.title ?? snapshot.title
+      : snapshot.title;
+  const nextBody =
+    result.bodyIntent === 'preserve' && snapshot.body === result.requestedBody
+      ? result.updated?.bodyMd ?? snapshot.body
+      : snapshot.body;
+  const nextSnapshot = {
     ...snapshot,
-    baseRevision: updated.revision,
-    baseTitle: updated.title,
-    baseBody: updated.bodyMd,
-    title:
-      normalizeNotebookNoteTitle(savedTitle) === base.title &&
-      normalizeNotebookNoteTitle(snapshot.title) === base.title
-        ? updated.title
-        : snapshot.title,
+    baseRevision: result.updated?.revision ?? snapshot.baseRevision,
+    baseTitle: result.updated?.title ?? snapshot.baseTitle,
+    baseBody: result.updated?.bodyMd ?? snapshot.baseBody,
+    title: nextTitle,
+    body: nextBody,
+    isDirty: Boolean(
+      result.updated &&
+        (normalizeNotebookNoteTitle(nextTitle) !== result.updated.title ||
+          nextBody !== result.updated.bodyMd)
+    ),
     updatedAt: Date.now(),
-  });
+  };
+  if (!nextSnapshot.isDirty) {
+    notesNoteDraftSnapshots.delete(key);
+    notesNoteDraftSnapshotOwners.delete(key);
+    return;
+  }
+  notesNoteDraftSnapshots.set(key, nextSnapshot);
 }
 
 export function getNotesNoteDraftSnapshot(
@@ -727,24 +773,71 @@ export function NotesNoteDetail({
     (flag: string, base: db.NotesNote, title: string, body: string) => {
       markPendingNotesNoteSave(flag, base.noteId);
       const key = draftSnapshotKey(flag, base.noteId);
-      const previous = notesNoteSaveChains.get(key) ?? Promise.resolve(null);
-      const next = previous
-        .catch(() => null)
-        .then((prevSaved) =>
-          saveNotebookNote({
+      const predecessor = notesNoteSaveChains.get(key) ?? null;
+      // A queued request only reasserts a field when it changes what the
+      // chain already wants. Comparing requested values preserves a remote
+      // authoritative field without mistaking a revert of our own pending
+      // edit for an untouched field.
+      const titleIntent = deriveNotesNoteSaveFieldIntent({
+        hasPredecessor: predecessor !== null,
+        matchesPredecessorRequest: Boolean(
+          predecessor &&
+            normalizeNotebookNoteTitle(title) ===
+              normalizeNotebookNoteTitle(predecessor.requestedTitle)
+        ),
+        differsFromBase: normalizeNotebookNoteTitle(title) !== base.title,
+      });
+      const bodyIntent = deriveNotesNoteSaveFieldIntent({
+        hasPredecessor: predecessor !== null,
+        matchesPredecessorRequest: Boolean(
+          predecessor && body === predecessor.requestedBody
+        ),
+        differsFromBase: body !== base.bodyMd,
+      });
+
+      const next = (predecessor?.promise ?? Promise.resolve(null)).then(
+        (previousResult) => {
+          const prevSaved = previousResult?.updated;
+          const authoritativeBase =
+            prevSaved && prevSaved.id === base.id ? prevSaved : null;
+          const effectiveTitle =
+            titleIntent === 'preserve' && authoritativeBase
+              ? authoritativeBase.title
+              : title;
+          const effectiveBody =
+            bodyIntent === 'preserve' && authoritativeBase
+              ? authoritativeBase.bodyMd
+              : body;
+          return saveNotebookNote({
             notebookFlag: flag,
-            note: prevSaved && prevSaved.id === base.id ? prevSaved : base,
-            title,
-            body,
-          })
-        );
+            note: authoritativeBase ?? base,
+            title: effectiveTitle,
+            body: effectiveBody,
+          }).then((updated) => ({
+            updated,
+            requestedTitle: title,
+            requestedBody: body,
+            titleIntent,
+            bodyIntent,
+          }));
+        }
+      );
       const settled = next.then(
-        (updated) => updated ?? null,
+        (result) => result,
         () => null
       );
-      notesNoteSaveChains.set(key, settled);
+      const chain: NotesNoteSaveChain = {
+        promise: settled,
+        // Keep the request rather than the effective payload: the next
+        // request should describe a new desired state relative to what this
+        // request asked for, even when this one preserved an authoritative
+        // value from its predecessor.
+        requestedTitle: title,
+        requestedBody: body,
+      };
+      notesNoteSaveChains.set(key, chain);
       void settled.then(() => {
-        if (notesNoteSaveChains.get(key) === settled) {
+        if (notesNoteSaveChains.get(key) === chain) {
           notesNoteSaveChains.delete(key);
         }
       });
@@ -810,39 +903,48 @@ export function NotesNoteDetail({
     ({
       flag,
       base,
-      title,
-      body,
-      updated,
+      result,
     }: {
       flag: string;
       base: db.NotesNote;
-      title: string;
-      body: string;
-      updated: db.NotesNote | null | undefined;
+      result: NotesNoteQueuedSaveResult;
     }) => {
-      clearDraftStash(flag, base.noteId, { title, body });
+      clearDraftStash(flag, base.noteId, {
+        title: result.requestedTitle,
+        body: result.requestedBody,
+      });
       clearMatchingNotesNoteDraftSnapshot({
         notebookFlag: flag,
         noteId: base.noteId,
-        title,
-        body,
+        title: result.requestedTitle,
+        body: result.requestedBody,
       });
-      if (updated) {
-        rebaseNotesNoteDraftSnapshot(flag, base.noteId, base, title, updated);
+      if (result.updated) {
+        rebaseNotesNoteDraftSnapshot(flag, base.noteId, result);
       }
-      if (!updated || !isCurrentNote(flag, base.noteId)) return;
+      if (!result.updated || !isCurrentNote(flag, base.noteId)) return;
 
-      // Same-note completions advance the base without replacing newer
-      // drafts. Adopt an authoritative title when the current draft has no
-      // semantic rename relative to the base that was saved.
-      setDraftBase(updated);
+      // Same-note completions advance the base without replacing edits made
+      // after this request was captured. Untouched fields adopt the
+      // authoritative result, including concurrent changes returned by the
+      // preceding save in the queue.
+      setDraftBase(result.updated);
       if (
-        normalizeNotebookNoteTitle(title) === base.title &&
-        normalizeNotebookNoteTitle(titleDraftRef.current) === base.title &&
-        updated.title !== titleDraftRef.current
+        result.titleIntent === 'preserve' &&
+        normalizeNotebookNoteTitle(titleDraftRef.current) ===
+          normalizeNotebookNoteTitle(result.requestedTitle) &&
+        result.updated.title !== titleDraftRef.current
       ) {
-        setTitleDraft(updated.title);
-        titleDraftRef.current = updated.title;
+        setTitleDraft(result.updated.title);
+        titleDraftRef.current = result.updated.title;
+      }
+      if (
+        result.bodyIntent === 'preserve' &&
+        bodyDraftRef.current === result.requestedBody &&
+        result.updated.bodyMd !== bodyDraftRef.current
+      ) {
+        setBodyDraft(result.updated.bodyMd);
+        bodyDraftRef.current = result.updated.bodyMd;
       }
       setSaveState('saved');
       clearConflict(flag, base.noteId);
@@ -877,7 +979,7 @@ export function NotesNoteDetail({
         draftOwnerRef.current
       );
       try {
-        const updated = await runSave(
+        const result = await runSave(
           notebookFlag,
           base,
           titleDraft,
@@ -886,9 +988,7 @@ export function NotesNoteDetail({
         handleSuccessfulSave({
           flag: notebookFlag,
           base,
-          title: titleDraft,
-          body: bodyToSave,
-          updated,
+          result,
         });
         return true;
       } catch (e) {
@@ -1055,13 +1155,11 @@ export function NotesNoteDetail({
       draftOwnerRef.current
     );
     runSave(flag, base, titleToSave, bodyToSave)
-      .then((updated) => {
+      .then((result) => {
         handleSuccessfulSave({
           flag,
           base,
-          title: titleToSave,
-          body: bodyToSave,
-          updated,
+          result,
         });
       })
       .catch((e) => {

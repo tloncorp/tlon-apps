@@ -11,7 +11,10 @@ import {
   vi,
 } from 'vitest';
 
-import { NotesNoteDetail } from './NotesNoteDetail';
+import {
+  NotesNoteDetail,
+  deriveNotesNoteSaveFieldIntent,
+} from './NotesNoteDetail';
 
 const mocks = vi.hoisted(() => ({
   getDraftStashes: vi.fn(),
@@ -118,6 +121,41 @@ function note(
     updatedAt: Date.now(),
   };
 }
+
+describe('deriveNotesNoteSaveFieldIntent', () => {
+  it.each([
+    {
+      name: 'preserves an untouched field with no predecessor',
+      hasPredecessor: false,
+      matchesPredecessorRequest: false,
+      differsFromBase: false,
+      expected: 'preserve',
+    },
+    {
+      name: 'sets a dirty field with no predecessor',
+      hasPredecessor: false,
+      matchesPredecessorRequest: false,
+      differsFromBase: true,
+      expected: 'set',
+    },
+    {
+      name: 'preserves a field matching the predecessor request',
+      hasPredecessor: true,
+      matchesPredecessorRequest: true,
+      differsFromBase: true,
+      expected: 'preserve',
+    },
+    {
+      name: 'sets a field that changes the predecessor request',
+      hasPredecessor: true,
+      matchesPredecessorRequest: false,
+      differsFromBase: false,
+      expected: 'set',
+    },
+  ])('$name', ({ expected, name: _name, ...input }) => {
+    expect(deriveNotesNoteSaveFieldIntent(input)).toBe(expected);
+  });
+});
 
 describe('NotesNoteDetail note switching', () => {
   beforeAll(() => {
@@ -344,6 +382,467 @@ describe('NotesNoteDetail note switching', () => {
       expect.objectContaining({
         note: expect.objectContaining({ noteId: 1, revision: 2 }),
         body: 'Latest A edit',
+      })
+    );
+  });
+
+  it('preserves an authoritative title through a deep body-save queue', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote
+      .mockReturnValueOnce(firstSave.promise)
+      .mockImplementation(
+        async ({
+          note: base,
+          title,
+          body,
+        }: {
+          note: ReturnType<typeof note>;
+          title: string;
+          body: string;
+        }) => ({
+          ...base,
+          title,
+          bodyMd: body,
+          revision: base.revision + 1,
+        })
+      );
+    mocks.notes = [
+      note(1, 'Original A', 1, 'Original title'),
+      note(2, 'Original B'),
+    ];
+    let firstRenderer: ReactTestRenderer;
+    let secondRenderer: ReactTestRenderer;
+    let thirdRenderer: ReactTestRenderer;
+
+    await act(async () => {
+      firstRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      firstRenderer.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Older body');
+    });
+    await act(async () => {
+      firstRenderer.unmount();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      secondRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      secondRenderer.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Latest body');
+    });
+    await act(async () => {
+      secondRenderer.unmount();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      thirdRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      thirdRenderer.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Newest body');
+    });
+    await act(async () => {
+      thirdRenderer.unmount();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      firstSave.resolve(note(1, 'Older body', 2, 'Remote title'));
+      await firstSave.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.saveNotebookNote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        note: expect.objectContaining({ revision: 2, title: 'Remote title' }),
+        title: 'Remote title',
+        body: 'Latest body',
+      })
+    );
+    expect(mocks.saveNotebookNote).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        note: expect.objectContaining({
+          revision: 3,
+          title: 'Remote title',
+          bodyMd: 'Latest body',
+        }),
+        title: 'Remote title',
+        body: 'Newest body',
+      })
+    );
+  });
+
+  it('keeps an older sibling body edit when the predecessor captured only a newer title edit', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote
+      .mockReturnValueOnce(firstSave.promise)
+      .mockImplementation(
+        async ({
+          note: base,
+          title,
+          body,
+        }: {
+          note: ReturnType<typeof note>;
+          title: string;
+          body: string;
+        }) => ({
+          ...base,
+          title,
+          bodyMd: body,
+          revision: base.revision + 1,
+        })
+      );
+    mocks.notes = [
+      note(1, 'Original A', 1, 'Original title'),
+      note(2, 'Original B'),
+    ];
+    let titleRenderer: ReactTestRenderer;
+    let bodyRenderer: ReactTestRenderer;
+
+    await act(async () => {
+      titleRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+      bodyRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      bodyRenderer.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Latest body');
+      titleRenderer.root
+        .findByProps({ testID: 'NotesTitleInput' })
+        .props.onChangeText('Sibling title');
+    });
+    await act(async () => {
+      titleRenderer.unmount();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      bodyRenderer.unmount();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      firstSave.resolve(note(1, 'Original A', 1, 'Sibling title'));
+      await firstSave.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.saveNotebookNote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        // Queue-relative intent deliberately retains HEAD's last-flusher
+        // behavior for conflicting sibling titles while protecting the
+        // independently edited body from being dropped.
+        title: 'Original title',
+        body: 'Latest body',
+      })
+    );
+  });
+
+  it('preserves a title revert queued with a body edit', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote
+      .mockReturnValueOnce(firstSave.promise)
+      .mockImplementation(
+        async ({
+          note: base,
+          title,
+          body,
+        }: {
+          note: ReturnType<typeof note>;
+          title: string;
+          body: string;
+        }) => ({
+          ...base,
+          title,
+          bodyMd: body,
+          revision: base.revision + 1,
+        })
+      );
+    mocks.notes = [
+      note(1, 'Original A', 1, 'Original title'),
+      note(2, 'Original B'),
+    ];
+    let firstRenderer: ReactTestRenderer;
+    let secondRenderer: ReactTestRenderer;
+
+    await act(async () => {
+      firstRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      firstRenderer.root
+        .findByProps({ testID: 'NotesTitleInput' })
+        .props.onChangeText('Renamed title');
+    });
+    await act(async () => {
+      firstRenderer.unmount();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      secondRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      secondRenderer.root
+        .findByProps({ testID: 'NotesTitleInput' })
+        .props.onChangeText('Original title');
+      secondRenderer.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Edited body');
+    });
+    await act(async () => {
+      secondRenderer.unmount();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      firstSave.resolve(note(1, 'Original A', 1, 'Renamed title'));
+      await firstSave.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.saveNotebookNote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        note: expect.objectContaining({ title: 'Renamed title' }),
+        title: 'Original title',
+        body: 'Edited body',
+      })
+    );
+  });
+
+  it('preserves a body revert queued with a title edit', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote
+      .mockReturnValueOnce(firstSave.promise)
+      .mockImplementation(
+        async ({
+          note: base,
+          title,
+          body,
+        }: {
+          note: ReturnType<typeof note>;
+          title: string;
+          body: string;
+        }) => ({
+          ...base,
+          title,
+          bodyMd: body,
+          revision: base.revision + 1,
+        })
+      );
+    mocks.notes = [
+      note(1, 'Original A', 1, 'Original title'),
+      note(2, 'Original B'),
+    ];
+    let firstRenderer: ReactTestRenderer;
+    let secondRenderer: ReactTestRenderer;
+
+    await act(async () => {
+      firstRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      firstRenderer.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Edited body');
+    });
+    await act(async () => {
+      firstRenderer.unmount();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      secondRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      secondRenderer.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Original A');
+      secondRenderer.root
+        .findByProps({ testID: 'NotesTitleInput' })
+        .props.onChangeText('Renamed title');
+    });
+    await act(async () => {
+      secondRenderer.unmount();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      firstSave.resolve(note(1, 'Edited body', 2, 'Original title'));
+      await firstSave.promise;
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.saveNotebookNote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        note: expect.objectContaining({ revision: 2, bodyMd: 'Edited body' }),
+        title: 'Renamed title',
+        body: 'Original A',
+      })
+    );
+  });
+
+  it('retries inherited intent when a queued predecessor fails', async () => {
+    const firstSave = deferred<Record<string, unknown>>();
+    mocks.saveNotebookNote
+      .mockReturnValueOnce(firstSave.promise)
+      .mockImplementation(
+        async ({
+          note: base,
+          title,
+          body,
+        }: {
+          note: ReturnType<typeof note>;
+          title: string;
+          body: string;
+        }) => ({
+          ...base,
+          title,
+          bodyMd: body,
+          revision: base.revision + 1,
+        })
+      );
+    mocks.notes = [
+      note(1, 'Original A', 1, 'Original title'),
+      note(2, 'Original B'),
+    ];
+    let firstRenderer: ReactTestRenderer;
+    let secondRenderer: ReactTestRenderer;
+
+    await act(async () => {
+      firstRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      firstRenderer.root
+        .findByProps({ testID: 'NotesTitleInput' })
+        .props.onChangeText('Renamed title');
+    });
+    await act(async () => {
+      firstRenderer.unmount();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      secondRenderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    await act(async () => {
+      secondRenderer.root
+        .findByProps({ testID: 'NotesBodyInput' })
+        .props.onChangeText('Edited body');
+    });
+    await act(async () => {
+      secondRenderer.unmount();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      firstSave.reject(new Error('save failed'));
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.saveNotebookNote).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        note: expect.objectContaining({
+          revision: 1,
+          title: 'Original title',
+        }),
+        title: 'Renamed title',
+        body: 'Edited body',
       })
     );
   });
