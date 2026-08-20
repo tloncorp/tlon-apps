@@ -1,6 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { useIsWindowNarrow } from '@tloncorp/ui';
-import { BlockSectionList } from '@tloncorp/ui';
+import { BlockSectionList, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Insets,
@@ -10,7 +9,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, XStack, getTokenValue, useStyle } from 'tamagui';
+import { View, XStack, YStack, getTokenValue, useStyle } from 'tamagui';
 
 import { useContactIndex, useContacts } from '../contexts/appDataContext';
 import {
@@ -56,14 +55,10 @@ export function ContactBook({
   maxHeight?: number;
 }) {
   const contacts = useContacts();
-  const contactsForBook = useMemo(() => {
-    const markedContacts =
-      contacts?.filter((contact) => contact.isContact) ?? [];
-    if (markedContacts.length) {
-      return markedContacts;
-    }
-    return contacts;
-  }, [contacts]);
+  const contactsForBook = useMemo(
+    () => contacts?.filter((contact) => contact.isContact) ?? [],
+    [contacts]
+  );
   const immutableSet = useMemo(() => new Set(immutableIds), [immutableIds]);
   const disabledSet = useMemo(() => new Set(disabledIds), [disabledIds]);
   const contactsIndex = useContactIndex();
@@ -232,6 +227,9 @@ export function ContactBook({
         <View flex={1} onTouchStart={Keyboard.dismiss}>
           <BlockSectionList
             ListHeaderComponent={!showSearchResults ? quickActions : null}
+            ListEmptyComponent={
+              !showSearchResults ? <ContactBookEmptyState /> : null
+            }
             sections={sections}
             onTouchStart={onTouchStart}
             onTouchEnd={onTouchEnd}
@@ -244,5 +242,23 @@ export function ContactBook({
         </View>
       )}
     </View>
+  );
+}
+
+function ContactBookEmptyState() {
+  return (
+    <YStack
+      alignItems="center"
+      backgroundColor="$secondaryBackground"
+      borderRadius="$2xl"
+      gap="$s"
+      paddingHorizontal="$2xl"
+      paddingVertical="$4xl"
+    >
+      <Text size="$label/l">Nobody</Text>
+      <Text size="$label/m" color="$tertiaryText" textAlign="center">
+        Your contact book is empty
+      </Text>
+    </YStack>
   );
 }
