@@ -1,5 +1,5 @@
 import { A2UI, type A2UIBlockData } from '@tloncorp/shared/logic';
-import { Button, Text } from '@tloncorp/ui';
+import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import React, { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
@@ -133,7 +133,8 @@ export function A2UIBlock({
   block,
   ...props
 }: { block: A2UIBlockData } & ComponentProps<typeof YStack>) {
-  const { isA2UIActionAvailable, onA2UIAction } = useContentContext();
+  const { isA2UIActionAvailable, onA2UIAction, getA2UIActionState } =
+    useContentContext();
   const update = A2UI.getUpdateMessage(block.a2ui);
   const root = A2UI.getRootComponentId(block.a2ui);
   const components = useMemo(() => {
@@ -256,6 +257,7 @@ export function A2UIBlock({
             />
           );
         case 'Button': {
+          const pending = getA2UIActionState?.(component.action) === 'pending';
           const disabled =
             component.disabled ||
             !onA2UIAction ||
@@ -283,13 +285,22 @@ export function A2UIBlock({
                 disabled ? undefined : () => handleButtonPress(component)
               }
             >
+              {pending ? (
+                <LoadingSpinner size="small" color="$primaryText" />
+              ) : null}
               <Button.Text size="medium">{label}</Button.Text>
             </Button.Frame>
           );
         }
       }
     },
-    [components, handleButtonPress, isA2UIActionAvailable, onA2UIAction]
+    [
+      components,
+      handleButtonPress,
+      isA2UIActionAvailable,
+      onA2UIAction,
+      getA2UIActionState,
+    ]
   );
 
   if (!root) {

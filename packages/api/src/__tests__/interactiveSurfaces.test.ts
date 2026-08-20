@@ -5,6 +5,9 @@ import {
   INTERACTIVE_SURFACE_LIMITS,
   appendInteractiveActionToPostBlob,
   appendInteractiveSurfaceToPostBlob,
+  findInteractiveSurface,
+  hasAppliedInteractiveAction,
+  isInteractiveActionOnlyBlob,
   parsePostBlob,
 } from '../client/content-helpers';
 import { convertContent } from '../client/postContent';
@@ -223,5 +226,101 @@ describe('tlon.surfaceAction button action', () => {
     ]).replace(A2UI.action.surfaceAction, 'tlon.somethingLater');
     expect(validateBlobEntry(JSON.parse(raw)[0])).toBe(false);
     expect(convertContent(null, raw)).toEqual([UPGRADE_NOTICE]);
+  });
+});
+
+// The read side: what a client needs to render a card, decide whether a tap has
+// landed, and tell a recorded tap apart from a real message.
+
+function surfaceBlobWith(
+  overrides: Partial<typeof surface> = {},
+  base?: string
+) {
+  return appendInteractiveSurfaceToPostBlob(base, { ...surface, ...overrides });
+}
+
+describe('findInteractiveSurface', () => {
+  test('finds the entry for a surface id', () => {
+    const found = findInteractiveSurface(surfaceBlobWith(), surface.surfaceId);
+    expect(found).toMatchObject({
+      surfaceId: surface.surfaceId,
+      revision: 3,
+    });
+    expect(found?.state).toEqual(surface.state);
+  });
+
+  // A post may legitimately carry more than one surface, so this must key off
+  // the id rather than taking whichever entry comes first.
+  test('picks the matching surface when a post carries several', () => {
+    const blob = surfaceBlobWith(
+      { surfaceId: 'second', revision: 9 },
+      surfaceBlobWith()
+    );
+    expect(findInteractiveSurface(blob, 'second')?.revision).toBe(9);
+    expect(findInteractiveSurface(blob, surface.surfaceId)?.revision).toBe(3);
+  });
+
+  // Null is the normal answer for the majority of A2UI content, which is
+  // stateless. It must not read as an error or as a broken card.
+  test('returns null when there is no surface for that id', () => {
+    expect(findInteractiveSurface(surfaceBlobWith(), 'absent')).toBeNull();
+  });
+
+  test('returns null for an absent, empty, or unparseable blob', () => {
+    for (const blob of [null, undefined, '', '   ', 'not json']) {
+      expect(findInteractiveSurface(blob, surface.surfaceId)).toBeNull();
+    }
+  });
+
+  test('returns null for a blob carrying only an action', () => {
+    const blob = appendInteractiveActionToPostBlob(undefined, action);
+    expect(findInteractiveSurface(blob, surface.surfaceId)).toBeNull();
+  });
+});
+
+describe('isInteractiveActionOnlyBlob', () => {
+  test('is true for a blob that is exactly one recorded tap', () => {
+    const blob = appendInteractiveActionToPostBlob(undefined, action);
+    expect(isInteractiveActionOnlyBlob(blob)).toBe(true);
+  });
+
+  // The guard that keeps a real message visible: a reply carrying user content
+  // alongside the action is a message from a person, not machinery.
+  test('is false when the blob carries anything else too', () => {
+    const blob = appendInteractiveActionToPostBlob(surfaceBlobWith(), action);
+    expect(isInteractiveActionOnlyBlob(blob)).toBe(false);
+  });
+
+  test('is false for two actions on one post', () => {
+    const blob = appendInteractiveActionToPostBlob(
+      appendInteractiveActionToPostBlob(undefined, action),
+      { ...action, actionId: 'act-4' }
+    );
+    expect(isInteractiveActionOnlyBlob(blob)).toBe(false);
+  });
+
+  test('is false for an absent or non-action blob', () => {
+    expect(isInteractiveActionOnlyBlob(null)).toBe(false);
+    expect(isInteractiveActionOnlyBlob(undefined)).toBe(false);
+    expect(isInteractiveActionOnlyBlob('')).toBe(false);
+    expect(isInteractiveActionOnlyBlob(surfaceBlobWith())).toBe(false);
+  });
+
+  // An unparseable blob parses to a single `unknown` entry. That is one entry,
+  // so a length check alone would wrongly hide the post.
+  test('is false for an unparseable blob', () => {
+    expect(isInteractiveActionOnlyBlob('not json')).toBe(false);
+  });
+});
+
+describe('hasAppliedInteractiveAction', () => {
+  test('reports an id the surface has already applied', () => {
+    const found = findInteractiveSurface(surfaceBlobWith(), surface.surfaceId);
+    expect(hasAppliedInteractiveAction(found, 'act-2')).toBe(true);
+    expect(hasAppliedInteractiveAction(found, 'act-3')).toBe(false);
+  });
+
+  test('is false when there is no surface at all', () => {
+    expect(hasAppliedInteractiveAction(null, 'act-1')).toBe(false);
   });
 });

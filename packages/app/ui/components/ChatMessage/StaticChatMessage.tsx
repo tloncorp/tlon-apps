@@ -7,6 +7,7 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
+import { useInteractiveSurface } from '../../hooks/useInteractiveSurface';
 import AuthorRow from '../AuthorRow';
 import { ContextLensBadge } from '../Channel/ContextLens/ContextLensBadge';
 import { A2UIBlock } from '../PostContent/A2UIBlock';
@@ -64,6 +65,7 @@ export function StaticChatMessage({
   const isNotice = post.type === 'notice';
   const draftInputContext = useDraftInputContext();
   const navigateToA2UITarget = useA2UINavigation();
+  const interactiveSurface = useInteractiveSurface(post);
 
   if (isNotice) {
     showAuthor = false;
@@ -104,12 +106,8 @@ export function StaticChatMessage({
         return;
       }
 
-      // Emitting a structured surface action — resolving the target post and
-      // revision, minting an action id — belongs to the client half of the
-      // interactive surface protocol, which is not built yet. Until it is,
-      // isA2UIActionAvailable reports these unavailable, so the button renders
-      // disabled and this branch is unreachable in practice.
       if (action.event.name === A2UI.action.surfaceAction) {
+        await interactiveSurface.emitSurfaceAction(action.event.context);
         return;
       }
 
@@ -131,7 +129,7 @@ export function StaticChatMessage({
         isEdit: false,
       });
     },
-    [draftInputContext, navigateToA2UITarget]
+    [draftInputContext, navigateToA2UITarget, interactiveSurface]
   );
 
   const isA2UIActionAvailable = useCallback(
@@ -148,9 +146,20 @@ export function StaticChatMessage({
         );
       }
 
+      if (action.event.name === A2UI.action.surfaceAction) {
+        // Tapping a card is posting a reply, so it needs the same permission
+        // typing does. Beyond that, every control on a surface goes unavailable
+        // while one of its taps is in flight.
+        return Boolean(
+          draftInputContext &&
+            draftInputContext.canStartDraft !== false &&
+            interactiveSurface.isSurfaceActionAvailable(action.event.context)
+        );
+      }
+
       return false;
     },
-    [draftInputContext]
+    [draftInputContext, interactiveSurface]
   );
 
   // A2UI blocks render wherever a message renders as chat, which is every
@@ -233,6 +242,7 @@ export function StaticChatMessage({
             onLongPress={handleLongPress}
             onA2UIAction={handleA2UIAction}
             isA2UIActionAvailable={isA2UIActionAvailable}
+            getA2UIActionState={interactiveSurface.getA2UIActionState}
             searchQuery={searchQuery}
           />
         )}

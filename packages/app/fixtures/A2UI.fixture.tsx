@@ -2,7 +2,10 @@
 import type { JSONContent } from '@tloncorp/api/urbit';
 import type { JSONValue } from '@tloncorp/shared';
 import type { A2UI } from '@tloncorp/shared/logic';
-import { appendToPostBlob } from '@tloncorp/shared/logic';
+import {
+  appendInteractiveSurfaceToPostBlob,
+  appendToPostBlob,
+} from '@tloncorp/shared/logic';
 import React, { PropsWithChildren, useMemo, useState } from 'react';
 
 import { ChatMessage, ScrollView, View } from '../ui';
@@ -703,6 +706,117 @@ const groupChannelPost = makePost(
   }
 );
 
+// A stateful card: the `a2ui` entry is the view, the `interactive-surface`
+// entry beside it is the truth, and `surfaceId` joins them. Tapping emits an
+// action reply rather than mutating anything locally — see
+// docs/tlon-apps/interactive-surfaces.md.
+const MEAL_SURFACE_ID = 'meal-plan-fixture-1';
+
+const mealPlanA2UI: A2UI.BlobEntry = {
+  type: 'a2ui',
+  version: 1,
+  messages: [
+    {
+      version: 'v0.9',
+      createSurface: {
+        surfaceId: MEAL_SURFACE_ID,
+        catalogId: 'tlon.a2ui.basic.v1',
+      },
+    },
+    {
+      version: 'v0.9',
+      updateComponents: {
+        surfaceId: MEAL_SURFACE_ID,
+        root: 'root',
+        components: [
+          { id: 'root', component: 'Card', child: 'main' },
+          {
+            id: 'main',
+            component: 'Column',
+            children: ['title', 'detail', 'buttons'],
+          },
+          {
+            id: 'title',
+            component: 'Text',
+            variant: 'h3',
+            text: 'Thursday: sheet-pan chicken',
+          },
+          {
+            id: 'detail',
+            component: 'Text',
+            text: 'Serves 2. Tap to change how many.',
+          },
+          { id: 'buttons', component: 'Row', children: ['two', 'four'] },
+          {
+            id: 'two',
+            component: 'Button',
+            variant: 'secondary',
+            child: 'twoLabel',
+            action: {
+              event: {
+                name: 'tlon.surfaceAction',
+                context: {
+                  surfaceId: MEAL_SURFACE_ID,
+                  name: 'setPortions',
+                  params: { portions: 2 },
+                },
+              },
+            },
+          },
+          { id: 'twoLabel', component: 'Text', text: 'Serves 2' },
+          {
+            id: 'four',
+            component: 'Button',
+            variant: 'primary',
+            child: 'fourLabel',
+            action: {
+              event: {
+                name: 'tlon.surfaceAction',
+                context: {
+                  surfaceId: MEAL_SURFACE_ID,
+                  name: 'setPortions',
+                  params: { portions: 4 },
+                },
+              },
+            },
+          },
+          { id: 'fourLabel', component: 'Text', text: 'Serves 4' },
+        ],
+      },
+    },
+  ],
+};
+
+const mealPlanPost = makePost(
+  exampleContacts.mark,
+  [verse.inline('Here is Thursday.')],
+  {
+    blob: appendInteractiveSurfaceToPostBlob(
+      appendToPostBlob(undefined, mealPlanA2UI),
+      {
+        surfaceId: MEAL_SURFACE_ID,
+        revision: 3,
+        state: { portions: 2 },
+        processedActionIds: ['earlier-tap'],
+      }
+    ),
+    channelId: groupChannelId,
+    replyCount: 0,
+  }
+);
+
+// The same card with no surface entry: a stateless legacy card, which must keep
+// rendering exactly as it did before the protocol existed.
+const statelessMealPlanPost = makePost(
+  exampleContacts.mark,
+  [verse.inline('Same card, no surface state.')],
+  {
+    blob: appendToPostBlob(undefined, mealPlanA2UI),
+    channelId: groupChannelId,
+    replyCount: 0,
+  }
+);
+
 const examplePosts = [
   weatherPost,
   groupChannelPost,
@@ -801,6 +915,8 @@ function A2UIExamplesFixture() {
 
 export default {
   BasicComponents: () => <A2UIFixture post={basicComponentsPost} />,
+  StatefulCard: () => <A2UIFixture post={mealPlanPost} />,
+  StatelessCard: () => <A2UIFixture post={statelessMealPlanPost} />,
   Weather: () => <A2UIFixture post={weatherPost} />,
   ConfirmationDialog: () => <A2UIFixture post={confirmationPost} />,
   Examples: () => <A2UIExamplesFixture />,

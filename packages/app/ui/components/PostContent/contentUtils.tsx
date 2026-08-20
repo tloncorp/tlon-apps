@@ -32,6 +32,12 @@ export interface ContentContextProps {
   onLongPress?: () => void;
   onA2UIAction?: (action: A2UI.Button['action']) => void | Promise<void>;
   isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
+  /**
+   * Whether a control has a tap in flight. Lives above the block because
+   * A2UIBlock remounts on virtualization, which would drop pending state on
+   * scroll. See ui/hooks/useInteractiveSurface.
+   */
+  getA2UIActionState?: (action: A2UI.Button['action']) => 'idle' | 'pending';
   searchQuery?: string;
 }
 

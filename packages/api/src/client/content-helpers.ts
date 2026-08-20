@@ -1017,6 +1017,64 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
   );
 }
 
+/**
+ * The authoritative state of one interactive card on a post, or null.
+ *
+ * Null is the normal answer, not an error: most A2UI content is stateless and
+ * carries an `a2ui` entry with no sibling surface entry at all. Such a card
+ * must keep behaving exactly as it did before the protocol existed.
+ *
+ * Matches on `surfaceId` rather than taking the first entry, because a post may
+ * legitimately carry more than one surface.
+ */
+export function findInteractiveSurface(
+  blob: string | null | undefined,
+  surfaceId: string
+): PostBlobDataEntryInteractiveSurface | null {
+  if (!blob) {
+    return null;
+  }
+  for (const entry of parsePostBlob(blob)) {
+    if (entry.type === 'interactive-surface' && entry.surfaceId === surfaceId) {
+      return entry;
+    }
+  }
+  return null;
+}
+
+/**
+ * True when a post is nothing but one recorded tap, and so should be hidden
+ * rather than shown as a message.
+ *
+ * The "exactly one entry" guard is the whole point: a reply that also carries
+ * user content is a real message from a real person and stays visible. See
+ * docs/tlon-apps/interactive-surfaces.md.
+ */
+export function isInteractiveActionOnlyBlob(
+  blob: string | null | undefined
+): boolean {
+  if (!blob) {
+    return false;
+  }
+  const entries = parsePostBlob(blob);
+  return entries.length === 1 && entries[0]?.type === 'interactive-action';
+}
+
+/**
+ * Whether a surface has already applied a given action id.
+ *
+ * A client waiting on a tap has to check this as well as the revision: an
+ * action that resolves to unchanged state is applied without bumping the
+ * revision, so watching the revision alone waits forever on a legitimate
+ * no-change.
+ */
+export function hasAppliedInteractiveAction(
+  surface: PostBlobDataEntryInteractiveSurface | null,
+  actionId: string
+): boolean {
+  return surface?.processedActionIds.includes(actionId) ?? false;
+}
+
 export function toPostData({
   attachments,
   content,
