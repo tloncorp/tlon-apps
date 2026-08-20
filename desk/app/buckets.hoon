@@ -48,6 +48,19 @@
 ::  poller can still read its result.
 ::
 ++  request-grace  ~m5
+::  +broker-base: where the storage broker lives.
+::
+::  Must stay in step with BUCKETS_BROKER_URL in
+::  packages/shared/src/store/storage/bucketsBroker.ts — clients and hosts
+::  talk to the same service, from opposite directions.
+::
+++  broker-base  'https://memex.tlon.network/v2/buckets'
+::  +push-retry: how soon to mint again after the broker refused a token.
+::
+::  A token the broker never accepted is never stored, so there is nothing to
+::  fall back on; this is how long before we try again unprompted.
+::
+++  push-retry  ~m1
 --
 =|  current-state
 =*  state  -
@@ -344,7 +357,7 @@
     =/  st=bucket-state:b  (need-state flag.act)
     ?.  (action-authorized st flag.act our.bowl a-bucket.act)
       (deny rid paths %not-authorized 'not authorized for this bucket')
-    =.  cor  (apply-bucket flag.act a-bucket.act our.bowl)
+    =.  cor  (apply-bucket flag.act a-bucket.act our.bowl rid)
     (settle rid paths)
   ==
 ::
@@ -373,7 +386,7 @@
     =/  st=bucket-state:b  (need-state flag.act)
     ?.  (action-authorized st flag.act src.bowl a-bucket.act)
       (deny rid paths %not-authorized 'not authorized for this bucket')
-    =.  cor  (apply-bucket flag.act a-bucket.act src.bowl)
+    =.  cor  (apply-bucket flag.act a-bucket.act src.bowl rid)
     (settle rid paths)
   ==
 ::
@@ -437,6 +450,17 @@
   |=  [who=ship rid=request-id:b]
   ^-  path
   /v1/request/(scot %p who)/(scot %uv rid)
+::
+::  +answer-paths: where the answer to one requester's action goes.
+::
+::  The same choice +dispatch-local and +dispatch-remote make, pulled out for
+::  arms that finish a request in a later event than the one that took it.
+::
+++  answer-paths
+  |=  [who=ship rid=request-id:b]
+  ^-  (list path)
+  ?:  =(who our.bowl)  ~[/v1/requests]
+  ~[(host-req-path who rid)]
 ::
 ++  req-poke-wire
   |=  [host=ship rid=request-id:b]
@@ -538,7 +562,7 @@
 ::  actor come from the envelope rather than from the payload.
 ::
 ++  apply-bucket
-  |=  [=flag:b act=a-bucket:b actor=ship]
+  |=  [=flag:b act=a-bucket:b actor=ship rid=request-id:b]
   ^+  cor
   ?-  -.act
     %delete         (delete-bucket flag actor)
@@ -548,7 +572,7 @@
     %create-folder  (create-folder flag parent.act name.act actor)
     %begin-upload   (begin-upload flag parent.act name.act mime.act size.act checksum.act actor)
     %fail-upload    (fail-upload flag session.act reason.act actor)
-    %issue-bucket-read  (issue-read-token flag actor)
+    %issue-bucket-read  (issue-read-token flag actor `rid)
     %issue-delete       (issue-delete-capability flag id.act actor)
     %entry          (apply-entry flag id.act a-entry.act actor)
   ==
@@ -687,29 +711,65 @@
   =.  sessions  (~(put by sessions) sid ses(status %failed, error `reason))
   cor
 ::
-::  +issue-read-token: mint this ship's bucket-read capability and hand it
-::  back, reusing the one we already hold while it has useful life left.
+::  +held-read-token: a live token we have already minted for this reader.
+::
+::  Keyed by reader as well as bucket: every reader gets its own token, so
+::  that one reader can be revoked without disturbing the rest. Looking this
+::  up by bucket alone would hand a remote reader whichever token came first,
+::  and make per-reader revocation impossible.
+::
+++  held-read-token
+  |=  [=flag:b actor=ship]
+  ^-  (unit read-token:b)
+  %-  ~(rep by object-capabilities)
+  |=  [[token=@t aut=object-capability:b] acc=(unit read-token:b)]
+  ?^  acc  acc
+  ?.  =(%read kind.aut)  ~
+  ?.  =(flag flag.aut)  ~
+  ?.  =(actor actor.aut)  ~
+  ?.  (gth expires-at.aut (add now.bowl token-margin))  ~
+  `[token expires-at.aut]
+::
+::  +issue-read-token: mint a reader's bucket-read token, reusing the one it
+::  already holds while that has useful life left.
 ::
 ::  One token covers every ready object in the bucket, so a reader spends one
-::  round trip per session rather than one per file.
+::  round trip per session rather than one per file. A fresh mint answers
+::  %pending: the token has to reach the broker before it is worth anything,
+::  and a client that is told otherwise would hold one that 403s.
 ::
 ++  issue-read-token
-  |=  [=flag:b actor=ship]
+  |=  [=flag:b actor=ship rid=(unit request-id:b)]
   ^+  cor
   =.  cor  prune-broker-authority
-  =/  live=(unit read-token:b)  (~(get by read-tokens) flag)
-  ?:  ?&  ?=(^ live)
-          (gth expires-at.u.live (add now.bowl token-margin))
-      ==
-    (answer [%token u.live])
+  ?^  held=(held-read-token flag actor)
+    (answer [%token u.held])
+  ::  Bound to a leg before the test on purpose: ?~ on a bare arm refines
+  ::  along the wing's axis, an arm has none, and the ~ case mints as vain.
+  =/  secret=(unit @t)  genuine-secret
+  ?~  secret
+    %-  (slog leaf+"buckets: no %genuine secret, cannot mint a read token" ~)
+    (answer [%error %unknown 'this ship cannot reach storage'])
   =/  token=@t  (scot %uv `@uv`eny.bowl)
   =/  expiry=@da  (add now.bowl read-window)
-  =/  tok=read-token:b  [token expiry]
+  =.  cor  (push-read-token flag token actor expiry rid u.secret)
+  (answer [%pending ~])
+::
+::  +confirm-read-token: the broker accepted a mint, so it becomes real.
+::
+++  confirm-read-token
+  |=  [=flag:b token=@t actor=ship expiry=@da rid=(unit request-id:b)]
+  ^+  cor
   =.  object-capabilities
     (~(put by object-capabilities) token [%read flag ~ actor expiry])
-  =.  read-tokens  (~(put by read-tokens) flag tok)
-  =.  cor  (arm-token-refresh flag expiry)
-  (answer [%token tok])
+  =/  tok=read-token:b  [token expiry]
+  ::  Only our own token goes in read-tokens, which is what the local scry
+  ::  serves and what the refresh timer keeps current. A remote reader's ship
+  ::  stores its own copy when the answer lands there.
+  =?  read-tokens  =(actor our.bowl)  (~(put by read-tokens) flag tok)
+  =?  cor  =(actor our.bowl)  (arm-token-refresh flag expiry)
+  ?~  rid  cor
+  (respond u.rid (answer-paths actor u.rid) [%token tok])
 ::
 ::  +issue-delete-capability: mint a short-lived delete grant for one ready
 ::  file. Deletes stay per-object — they are destructive and unrecoverable.
@@ -749,6 +809,141 @@
   ^-  wire
   /buckets/token/(scot %p ship.flag)/[name.flag]
 ::
+::  +retry-read-token: come back to a mint the broker refused.
+::
+++  retry-read-token
+  |=  =flag:b
+  ^+  cor
+  %-  emit
+  :*  %pass  (token-wire flag)  %arvo  %b
+      %wait  (add now.bowl push-retry)
+  ==
+::
+::  +genuine-secret: this ship's shared secret with the broker.
+::
+::  %genuine mints it and serves it back over its own Eyre binding, which is
+::  how the broker checks a request really came from us. Absent until %genuine
+::  has initialised, which is a real state on a fresh ship rather than a bug,
+::  so this answers a unit instead of crashing the event.
+::
+++  genuine-secret
+  ^-  (unit @t)
+  ?.  .^(? %gu /(scot %p our.bowl)/genuine/(scot %da now.bowl)/$)  ~
+  =/  jon=json
+    .^(json %gx /(scot %p our.bowl)/genuine/(scot %da now.bowl)/secret/json)
+  ?.  ?=([%s *] jon)  ~
+  `p.jon
+::
+::  +push-wire: carries a mint across its round trip to the broker.
+::
+::  The token, its expiry, the reader it is for and the request waiting on it
+::  all ride the wire rather than a state field, because a token the broker
+::  has not accepted must not be visible anywhere — and because a restart
+::  mid-flight then drops the mint cleanly instead of stranding it.
+::
+++  push-wire
+  |=  [=flag:b token=@t actor=ship expiry=@da rid=(unit request-id:b)]
+  ^-  wire
+  %+  weld
+    /buckets/push/(scot %p ship.flag)/[name.flag]
+  /(scot %p actor)/[token]/(scot %da expiry)/[?~(rid %none (scot %uv u.rid))]
+::
+++  revoke-wire
+  |=  token=@t
+  ^-  wire
+  /buckets/revoke/[token]
+::
+::  +push-read-token: register a mint with the broker before handing it out.
+::
+::  The host is the only party that can evaluate group membership, so it tells
+::  the broker who may read rather than being asked once per object. Nothing
+::  is stored here: +confirm-read-token stores on a 2xx, so a token in state
+::  is one the broker is known to hold.
+::
+++  push-read-token
+  |=  [=flag:b token=@t actor=ship expiry=@da rid=(unit request-id:b) secret=@t]
+  ^+  cor
+  =/  st=bucket-state:b  (need-state flag)
+  =/  body=@t
+    %-  en:json:html
+    %-  pairs:enjs:format
+    :~  ['token' s+token]
+        ['bucketHost' s+(ship-text ship.flag)]
+        ['bucketName' s+(scot %tas name.flag)]
+        ['bucketId' s+(scot %ud id.bucket.st)]
+        ['actorShip' s+(ship-text actor)]
+        :-  'expiresAtMillis'
+        (numb:enjs:format (mul 1.000 (unt:chrono:userlib expiry)))
+    ==
+  =/  url=@t
+    %+  rap  3
+    :~  broker-base  '/tokens/'  (ship-text our.bowl)
+        '?token='  (url-encode secret)
+    ==
+  =/  =request:http
+    :*  %'PUT'  url
+        ~[['content-type' 'application/json']]
+        `[(met 3 body) body]
+    ==
+  %-  emit
+  :*  %pass  (push-wire flag token actor expiry rid)  %arvo  %i
+      %request  request  *outbound-config:iris
+  ==
+::
+::  +revoke-read-tokens: tell the broker to stop honouring tokens now rather
+::  than when they lapse. Fire-and-forget — expiry is the backstop if it
+::  fails, which is the whole reason tokens have one.
+::
+++  revoke-read-tokens
+  |=  tokens=(list @t)
+  ^+  cor
+  ?~  tokens  cor
+  =/  secret=(unit @t)  genuine-secret
+  ?~  secret
+    %-  (slog leaf+"buckets: no %genuine secret, cannot revoke read tokens" ~)
+    cor
+  =/  auth=@t  (url-encode u.secret)
+  %-  emil
+  %+  turn  tokens
+  |=  token=@t
+  ^-  card
+  =/  url=@t
+    %+  rap  3
+    :~  broker-base  '/tokens/'  (ship-text our.bowl)
+        '/'  token  '?token='  auth
+    ==
+  :*  %pass  (revoke-wire token)  %arvo  %i
+      %request  `request:http`[%'DELETE' url ~ ~]
+      *outbound-config:iris
+  ==
+::
+::  +read-caps: every read token we have minted that `test` accepts.
+::
+++  read-caps
+  |=  test=$-([@t object-capability:b] ?)
+  ^-  (list @t)
+  %+  murn  ~(tap by object-capabilities)
+  |=  [token=@t aut=object-capability:b]
+  ^-  (unit @t)
+  ?.  =(%read kind.aut)  ~
+  ?.((test token aut) ~ `token)
+::
+::  +forget-read-caps: drop minted read tokens locally and at the broker.
+::
+++  forget-read-caps
+  |=  tokens=(list @t)
+  ^+  cor
+  =.  object-capabilities
+    %-  ~(rep in (silt tokens))
+    |=  [token=@t acc=_object-capabilities]
+    (~(del by acc) token)
+  (revoke-read-tokens tokens)
+::
+++  url-encode
+  |=  txt=@t
+  ^-  @t
+  (crip (en-urlt:html (trip txt)))
+::
 ::  +keep-read-token: store a token the host issued us, and arm its refresh.
 ::
 ++  keep-read-token
@@ -775,7 +970,7 @@
     =/  st=bucket-state:b  (need-state flag)
     ?.  (group-can-read group.st flag our.bowl)
       (drop-read-token flag)
-    (issue-read-token flag our.bowl)
+    (issue-read-token flag our.bowl ~)
   (forward `@uv`eny.bowl [%bucket flag [%issue-bucket-read ~]] ship.flag)
 ::
 ::  +drop-read-token: forget a bucket's token and revoke the capability behind
@@ -785,13 +980,11 @@
   |=  =flag:b
   ^+  cor
   =.  read-tokens  (~(del by read-tokens) flag)
-  =.  object-capabilities
-    %-  malt
-    %+  skip  ~(tap by object-capabilities)
-    |=  [token=@t aut=object-capability:b]
-    ?.  =(%read kind.aut)  |
-    =(flag flag.aut)
-  cor
+  ::  On a subscriber this finds nothing: only a host mints, so only a host
+  ::  has anything to revoke.
+  %-  forget-read-caps
+  %-  read-caps
+  |=([token=@t aut=object-capability:b] =(flag flag.aut))
 ::
 ::  +prune-broker-authority: drop expired capabilities, expired pending
 ::  sessions, and any reservation whose session is gone.
@@ -1135,6 +1328,11 @@
 ::  rather than named by the capability; a delete capability names its entry.
 ::  Either way access is re-checked against the live group here.
 ::
+::  The %read arm is kept deliberately even though a broker holding pushed
+::  tokens answers reads from its own table and never asks: a broker that
+::  predates the push still asks, so this is what makes the rollout orderless.
+::  Deletes always ask, and always will.
+::
 ++  broker-object-verdict
   |=  [kind=object-kind:b token=@t object=@t]
   ^-  json
@@ -1440,6 +1638,37 @@
     ::  Gall loops the poke back to us and it is served locally.
     (renew-read-token flag)
   ::
+      [%buckets %push host=@ name=@ who=@ token=@ exp=@ rid=@ ~]
+    ?.  ?=([%iris %http-response *] sign-arvo)  cor
+    =*  res  client-response.sign-arvo
+    ?.  ?=(%finished -.res)  cor
+    =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
+    =/  actor=ship  (slav %p who.pole)
+    =/  expiry=@da  (slav %da exp.pole)
+    =/  rid=(unit request-id:b)
+      ?:(=(%none rid.pole) ~ `(slav %uv rid.pole))
+    =/  code=@ud  status-code.response-header.res
+    ?:  &((gte code 200) (lth code 300))
+      (confirm-read-token flag `@t`token.pole actor expiry rid)
+    ::  Refused: the token was never stored, so there is nothing to undo. Our
+    ::  own mint retries on a short timer; a remote reader's ship re-asks.
+    =/  why=tang
+      ~[leaf+"buckets: broker refused a read token, status {<code>}"]
+    %-  (slog why)
+    =?  cor  =(actor our.bowl)  (retry-read-token flag)
+    ?~  rid  cor
+    (deny u.rid (answer-paths actor u.rid) %unknown 'storage refused the read token')
+  ::
+      [%buckets %revoke token=@ ~]
+    ?.  ?=([%iris %http-response *] sign-arvo)  cor
+    =*  res  client-response.sign-arvo
+    ?.  ?=(%finished -.res)  cor
+    =/  code=@ud  status-code.response-header.res
+    ?:  &((gte code 200) (lth code 300))  cor
+    ::  The token is already gone locally and expires at the broker anyway.
+    %-  (slog leaf+"buckets: read token revoke failed, status {<code>}" ~)
+    cor
+  ::
       [%buckets %req host=@ rid=@ %wake ~]
     ?.  ?=([%behn %wake *] sign-arvo)  cor
     =/  host=ship  (slav %p host.pole)
@@ -1536,11 +1765,9 @@
     %+  murn  kicks
     |=  =card
     ?.(?=([%give %kick * ^] card) ~ ship.p.card)
-  =.  object-capabilities
-    %-  malt
-    %+  skip  ~(tap by object-capabilities)
-    |=  [token=@t aut=object-capability:b]
-    ?.  =(%read kind.aut)  |
-    (~(has in revoked) actor.aut)
+  =.  cor
+    %-  forget-read-caps
+    %-  read-caps
+    |=([token=@t aut=object-capability:b] (~(has in revoked) actor.aut))
   (emil kicks)
 --

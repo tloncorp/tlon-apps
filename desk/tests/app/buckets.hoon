@@ -81,6 +81,75 @@
   |=  [rid=@uv body=response-body:bu]
   (ex-fact ~[/v1/requests] %buckets-req-response-1 !>(`req-response:bu`[rid body]))
 ::
+::  +genuine-scries: %buckets authenticates itself to the broker with the
+::  secret %genuine holds, so anything that mints or revokes a token reads it.
+::
+++  genuine-scries
+  |=  pax=path
+  ^-  (unit vase)
+  ?:  ?=([%gu @ %genuine *] pax)  `!>(&)
+  ?:  ?=([%gx @ %genuine @ %secret %json ~] pax)
+    `!>(`json`[%s '0wsecret'])
+  ~
+::
+::  +only-iris: the single outbound HTTP request in a card list.
+::
+++  only-iris
+  |=  caz=(list card)
+  ^-  [=wire =request:http]
+  =/  found=(list [wire request:http])
+    %+  murn  caz
+    |=  =card
+    ^-  (unit [wire request:http])
+    ?.  ?=([%pass * %arvo %i %request * *] card)  ~
+    `[p.card request.q.card]
+  ?~  found  ~|(%no-iris-card !!)
+  i.found
+::
+::  +ex-iris: an outbound HTTP request on the given wire. The request itself
+::  is checked field by field rather than matched whole, so the assertion
+::  does not depend on JSON key order.
+::
+++  ex-iris
+  |=  =wire
+  |=  car=card
+  ^-  tang
+  ?.  ?=([%pass * %arvo %i %request * *] car)
+    ~[leaf+"expected an outbound http request, got:" >car<]
+  ?:  =(wire p.car)  ~
+  ~[leaf+"iris request on the wrong wire" >wire< >p.car<]
+::
+::  +push-wire-for: the wire a token mint rides while the broker answers.
+::
+++  push-wire-for
+  |=  [token=@t expiry=@da rid=@uv]
+  ^-  wire
+  %+  weld
+    /buckets/push/~sampel-palnet/project-files
+  /~sampel-palnet/[token]/(scot %da expiry)/(scot %uv rid)
+::
+++  iris-ok
+  ^-  sign-arvo
+  [%iris %http-response [%finished [200 ~] ~]]
+::
+::  +reader-scries: %genuine plus a group that grants read access.
+::
+++  reader-scries
+  |=  pax=path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)
+    `!>(|=([who=ship =nest:bu] &))
+  (genuine-scries pax)
+::
+::  +revoked-scries: the same, after read access has been pulled.
+::
+++  revoked-scries
+  |=  pax=path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)
+    `!>(|=([who=ship =nest:bu] |))
+  (genuine-scries pax)
+::
 ++  deny-group-scries
   |=  pax=path
   ^-  (unit vase)
@@ -293,13 +362,44 @@
     (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
   ::  A fresh eny so the read token differs from the upload session id.
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v5678)))
+  ;<  ~  b  (set-scry-gate genuine-scries)
   ;<  read-caz=(list card)  b  (ask 0v2 [%bucket flag [%issue-bucket-read ~]])
   =/  read-token=@t  (scot %uv 0v5678)
   =/  expiry=@da  (add ~2026.1.1 ~d1)
+  ::  A mint is not a token yet: it goes to the broker first, and the client
+  ::  is told %pending until the broker has it.
   ;<  ~  b
     %+  ex-cards  read-caz
-    ::  the refresh is armed while applying the action, so it precedes the
-    ::  response the request settles with
+    :~  (ex-iris (push-wire-for read-token expiry 0v2))
+        (grant-fact 0v2 [%pending ~])
+    ==
+  =/  push=[=wire =request:http]  (only-iris read-caz)
+  =/  body=json
+    ?~  body.request.push  ~
+    (need (de:json:html q.u.body.request.push))
+  =/  field=$-(@t @t)
+    |=(key=@t (so:dejs:format (get:dejs:buckets-json key body)))
+  ;<  ~  b
+    %+  ex-equal
+      !>  :*  method.request.push
+              url.request.push
+              (field 'token')
+              (field 'bucketHost')
+              (field 'bucketName')
+              (field 'actorShip')
+          ==
+    !>  :*  %'PUT'
+            'https://memex.tlon.network/v2/buckets/tokens/sampel-palnet?token=0wsecret'
+            read-token
+            'sampel-palnet'
+            'project-files'
+            'sampel-palnet'
+        ==
+  ::  Only once the broker has accepted it does the token become real: the
+  ::  refresh is armed, then the request settles with the token.
+  ;<  confirm-caz=(list card)  b  (do-arvo wire.push iris-ok)
+  ;<  ~  b
+    %+  ex-cards  confirm-caz
     :~  %-  ex-arvo
         :*  /buckets/token/~sampel-palnet/project-files
             [%b %wait (sub expiry ~h1)]
@@ -321,6 +421,69 @@
   ::  the token names no object, so the bucket's own file is authorized while
   ::  a key that belongs to no entry is refused
   (ex-equal !>([ok-result ok-name bad-result]) !>([%'authorized' 'private.pdf' %'denied']))
+::
+::  A reader who loses group access stops reading immediately: the host kicks
+::  the subscription and tells the broker to drop that reader's token, rather
+::  than leaving it live until it lapses.
+::
+++  test-losing-read-access-revokes-the-token
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ::  a remote reader asks the host for a token, and the broker accepts it
+  ;<  mint-caz=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v7 [%bucket flag [%issue-bucket-read ~]]])
+  =/  push=[=wire =request:http]  (only-iris mint-caz)
+  ;<  *  b  (do-arvo wire.push iris-ok)
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  minted=@ud  ~(wyt by object-capabilities.st)
+  ::  the reader is subscribed, and then loses read access
+  ;<  ~  b
+    %-  jab-bowl
+    |=  bol=bowl
+    %=    bol
+        sup
+      %-  malt
+      :~  :-  ~[/reader]
+          [~bus /v1/buckets/~sampel-palnet/project-files/updates]
+      ==
+    ==
+  ;<  ~  b  (set-scry-gate revoked-scries)
+  ;<  kick-caz=(list card)  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-update !>([group %noun])]
+  =/  revoke=[=wire =request:http]  (only-iris kick-caz)
+  ;<  sv2=vase  b  get-save
+  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  =/  kicked=(list ship)
+    %+  murn  kick-caz
+    |=  car=card
+    ?.(?=([%give %kick * ^] car) ~ ship.p.car)
+  %+  ex-equal
+    !>  :*  minted
+            method.request.revoke
+            url.request.revoke
+            ~(wyt by object-capabilities.st2)
+            kicked
+        ==
+  !>  :*  1
+          %'DELETE'
+          %+  rap  3
+          :~  'https://memex.tlon.network/v2/buckets/tokens/sampel-palnet/'
+              (scot %uv 0v1234)  '?token=0wsecret'
+          ==
+          0
+          ~[~bus]
+      ==
 ::
 ::  Expired grants and pending sessions are swept the next time authority is
 ::  touched, and their reservation bindings go with them.
