@@ -181,7 +181,6 @@ export type KitsRuntimeDeps = {
   resolveGroupSessionRoute: (
     nest: string
   ) => { sessionKey: string; accountId?: string } | null;
-  enqueueSystemEvent: SetupDeps['enqueueSystemEvent'];
   getCronService: () => PluginHookGatewayCronService | undefined;
   log?: (msg: string) => void;
   error?: (msg: string) => void;
@@ -227,7 +226,18 @@ export function createKitsRuntime(deps: KitsRuntimeDeps): KitsRuntime {
   const setupDeps: SetupDeps = {
     botShip: deps.botShip,
     resolveGroupSessionRoute: deps.resolveGroupSessionRoute,
-    enqueueSystemEvent: deps.enqueueSystemEvent,
+    // Lazy: the gateway's job service appears after startup. Firing before
+    // it exists throws, which rolls the fire-once guard back so the next
+    // reconcile retries rather than losing the setup turn.
+    cron: {
+      add: async (input) => {
+        const svc = deps.getCronService();
+        if (!svc) {
+          throw new Error('cron service unavailable');
+        }
+        return svc.add(input as Parameters<typeof svc.add>[0]);
+      },
+    },
     poke: deps.poke,
     log,
     error,

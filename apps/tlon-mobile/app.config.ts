@@ -71,6 +71,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     gitHash: buildGitHash ? buildGitHash.substring(0, 7) : 'dev',
     automatedTest: process.env.AUTOMATED_TEST,
     forceSplashSequence: process.env.FORCE_SPLASH_SEQUENCE,
+    devAgentShip: process.env.DEV_AGENT_SHIP,
   },
   ios: {
     // demo builds triggered by GitHub require this to be explicitly set rather than handled

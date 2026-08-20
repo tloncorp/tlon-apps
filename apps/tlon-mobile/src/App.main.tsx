@@ -9,6 +9,7 @@ import {
 } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
+import { DEV_AGENT_SHIP } from '@tloncorp/app/constants';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
@@ -30,6 +31,7 @@ import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils
 import { posthog } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
 import { withRetry } from '@tloncorp/shared/logic';
+import { setDevAgentShip } from '@tloncorp/shared/store';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, StatusBar } from 'react-native';
@@ -118,6 +120,9 @@ const MainApp = () => {
 
   useEffect(() => {
     registerBackgroundSyncTask();
+    // Dev rigs name the workspace agent's ship directly (no hosting API to
+    // resolve one from); blank in production builds, so this is a no-op there.
+    setDevAgentShip(DEV_AGENT_SHIP || null);
   }, []);
 
   return (

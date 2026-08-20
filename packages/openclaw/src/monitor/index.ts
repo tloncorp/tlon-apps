@@ -836,8 +836,6 @@ export async function monitorTlonProvider(
               }
             : null;
         },
-        enqueueSystemEvent: (text, eventOpts) =>
-          core.system.enqueueSystemEvent(text, eventOpts),
         getCronService,
         log: (msg) => runtime.log?.(msg),
         error: (msg) => runtime.error?.(msg),

@@ -47,14 +47,26 @@ export type SetupDeps = {
   resolveGroupSessionRoute: (
     nest: string
   ) => { sessionKey: string; accountId?: string } | null;
-  enqueueSystemEvent: (
-    text: string,
-    opts: {
-      sessionKey: string;
-      contextKey?: string | null;
-      deliveryContext?: { channel: 'tlon'; to: string; accountId?: string };
-    }
-  ) => unknown;
+  /**
+   * The gateway's job service. Setup runs as a one-shot `at` job with an
+   * `agentTurn` payload because that is the only mechanism that *starts* a
+   * turn: enqueueSystemEvent only queues text for whenever the session next
+   * runs, so a workspace whose human never speaks first would wait forever
+   * for its own introduction. The job store is also durable, so a restart
+   * between fire and run does not lose the instruction.
+   */
+  cron: {
+    add: (input: {
+      name: string;
+      description: string;
+      enabled: boolean;
+      schedule: { kind: string; [key: string]: unknown };
+      sessionTarget: string;
+      wakeMode: string;
+      payload: { kind: string; [key: string]: unknown };
+    }) => Promise<unknown>;
+  };
+  nowMs?: () => number;
   poke: (params: {
     app: string;
     mark: string;
@@ -66,7 +78,7 @@ export type SetupDeps = {
 
 /**
  * Fire the setup conversation for one pending install, if eligible.
- * Returns true when the synthetic turn was enqueued.
+ * Returns true when the setup turn was scheduled.
  */
 export async function maybeFireSetup(params: {
   groupFlag: string;
@@ -96,7 +108,7 @@ export async function maybeFireSetup(params: {
   // Guard before any side effect so a concurrent reconcile cannot double-fire.
   setupFired.set(setupFireKey(groupFlag, entry.installId), Date.now());
 
-  let enqueued = false;
+  let fired = false;
   if (content && primaryNest && route) {
     const contextLine = formatKitContextLine({
       label: 'Kit setup',
@@ -104,19 +116,37 @@ export async function maybeFireSetup(params: {
       groupFlag,
       places: entry.places,
     });
-    deps.enqueueSystemEvent(`${contextLine}\n${content.trim()}`, {
-      sessionKey: route.sessionKey,
-      contextKey: `tlon:kit-setup:${groupFlag}:${entry.installId}`,
-      deliveryContext: {
-        channel: 'tlon',
-        to: `tlon:${primaryNest}`,
-        ...(route.accountId ? { accountId: route.accountId } : {}),
-      },
-    });
-    enqueued = true;
-    deps.log?.(
-      `[tlon] kits: enqueued setup conversation for ${entry.installId} in ${groupFlag} → ${primaryNest}`
-    );
+    // A one-shot job due immediately. `at` jobs delete after they run, the
+    // session target routes the reply into the kit's primary place, and
+    // session-targeted jobs must carry an agentTurn payload (the host
+    // rejects any other pairing).
+    const at = (deps.nowMs ?? Date.now)();
+    try {
+      await deps.cron.add({
+        name: `tlon:kit-setup:${groupFlag}:${entry.installId}`,
+        description: `Kit ${entry.kit.id} setup for ${groupFlag}`,
+        enabled: true,
+        schedule: { kind: 'at', atMs: at },
+        sessionTarget: `session:${route.sessionKey}`,
+        wakeMode: 'now',
+        payload: {
+          kind: 'agentTurn',
+          message: `${contextLine}\n${content.trim()}`,
+        },
+      });
+      fired = true;
+      deps.log?.(
+        `[tlon] kits: scheduled setup turn for ${entry.installId} in ${groupFlag} → ${primaryNest}`
+      );
+    } catch (err) {
+      // Roll the guard back: nothing happened, so a later reconcile should
+      // be allowed to try again.
+      setupFired.delete(setupFireKey(groupFlag, entry.installId));
+      deps.error?.(
+        `[tlon] kits: setup turn scheduling failed for ${groupFlag}: ${String(err)}`
+      );
+      return false;
+    }
   }
 
   try {
@@ -130,7 +160,7 @@ export async function maybeFireSetup(params: {
       `[tlon] kits: setup-done poke failed for ${groupFlag}: ${String(err)}`
     );
   }
-  return enqueued;
+  return fired;
 }
 
 export const _testing = {

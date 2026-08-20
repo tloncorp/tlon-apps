@@ -335,6 +335,10 @@ export type SeatAgentDeps = {
   delays?: number[];
   sleep?: (ms: number) => Promise<unknown>;
   group?: (groupId: string) => Promise<SeatableGroup>;
+  invite?: (params: {
+    groupId: string;
+    contactIds: string[];
+  }) => Promise<unknown>;
   cordon?: (
     hostedShipId: string,
     groupId: string,
@@ -382,6 +386,7 @@ async function seatAgent(groupId: string, deps: SeatAgentDeps): Promise<void> {
   const delays = deps.delays ?? [0, 1_500, 3_000, 5_000, 15_000];
   const wait = deps.sleep ?? sleep;
   const group = deps.group ?? api.getGroup;
+  const invite = deps.invite ?? api.inviteGroupMembers;
   const cordon = deps.cordon ?? api.addTlawnToCordon;
   const join = deps.join ?? api.joinTlawnGroup;
   const role = deps.role ?? api.addMembersToRole;
@@ -389,10 +394,21 @@ async function seatAgent(groupId: string, deps: SeatAgentDeps): Promise<void> {
 
   const agent = await resolve();
   if (!agent) {
-    // No hosted agent: a self-hosted or dev node. The workspace is still a
-    // workspace, and an agent can be seated later, so this is not a failure.
+    // No agent to seat. The workspace is still a workspace, and an agent can
+    // be seated later, so this is not a failure.
     logger.trackEvent('Workspace provisioned without an agent', { groupId });
     return;
+  }
+
+  // The invite is the primary mechanism everywhere: the agent's harness
+  // auto-accepts invites from its owner, and accepting is what triggers its
+  // kit reconcile. The hosted cordon/join below are the hosting-specific
+  // push half, and only exist when the agent was resolved through hosting.
+  try {
+    await invite({ groupId, contactIds: [agent.botShipId] });
+  } catch (error) {
+    // Already invited or already a member nacks; membership below decides.
+    logger.trackError('Workspace agent invite failed', { error, groupId });
   }
 
   let lastError: unknown;
@@ -414,16 +430,18 @@ async function seatAgent(groupId: string, deps: SeatAgentDeps): Promise<void> {
     }
 
     if (!agentHasJoined(current, agent.botShipId)) {
-      try {
-        await cordon(agent.hostedShipId, groupId, agent.moon);
-      } catch (error) {
-        // The moon may already be allowed; the join below is what decides.
-        lastError = error;
-      }
-      try {
-        await join(agent.hostedShipId, groupId, agent.moon);
-      } catch (error) {
-        lastError = error;
+      if (agent.hostedShipId && agent.moon) {
+        try {
+          await cordon(agent.hostedShipId, groupId, agent.moon);
+        } catch (error) {
+          // The moon may already be allowed; the join below is what decides.
+          lastError = error;
+        }
+        try {
+          await join(agent.hostedShipId, groupId, agent.moon);
+        } catch (error) {
+          lastError = error;
+        }
       }
       continue;
     }
@@ -450,12 +468,27 @@ async function seatAgent(groupId: string, deps: SeatAgentDeps): Promise<void> {
 
 type ResolvedAgent = {
   botShipId: string;
-  hostedShipId: string;
-  moon: string;
+  /** Null when the agent was named directly rather than resolved through
+   *  hosting — a dev rig, or any future self-hosted agent. Seating then
+   *  relies on the plain group invite alone. */
+  hostedShipId: string | null;
+  moon: string | null;
 } | null;
+
+// A directly-named agent ship, for environments with no hosting API to
+// resolve one from (local fake ships; eventually self-hosted agents). Set
+// once at app startup from build config; null means "resolve via hosting".
+let devAgentShip: string | null = null;
+
+export function setDevAgentShip(ship: string | null): void {
+  devAgentShip = ship?.trim() ? api.preSig(ship.trim()) : null;
+}
 
 /** Resolve the hosting API's moon prefix to one unambiguous full ship. */
 export async function resolveWorkspaceAgent(): Promise<ResolvedAgent> {
+  if (devAgentShip) {
+    return { botShipId: devAgentShip, hostedShipId: null, moon: null };
+  }
   try {
     const [botEnabled, hostedShipId] = await Promise.all([
       db.hostingBotEnabled.getValue(),

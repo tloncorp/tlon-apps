@@ -461,12 +461,17 @@ describe('seating the agent', () => {
     moon: 'ridlur-figbud',
   });
 
+  // Every seating run sends the invite; tests that don't care assert nothing
+  // about it but must stub it so no real client call is attempted.
+  const inviteStub = () => vi.fn(async () => undefined);
+
   test('joins, then grants the role', async () => {
     const calls: string[] = [];
     let joined = false;
     await ensureWorkspaceAgentSeated(GROUP, {
       delays: [0, 0, 0],
       agent,
+      invite: inviteStub(),
       group: async () =>
         group(joined ? [{ contactId: BOT, status: 'joined' }] : []),
       cordon: async () => {
@@ -489,6 +494,7 @@ describe('seating the agent', () => {
     await ensureWorkspaceAgentSeated(GROUP, {
       delays: [0],
       agent,
+      invite: inviteStub(),
       group: async () =>
         group([
           { contactId: BOT, status: 'joined', roles: [{ roleId: 'admin' }] },
@@ -512,6 +518,7 @@ describe('seating the agent', () => {
     const shared = {
       delays: [0],
       agent,
+      invite: inviteStub(),
       group: async () => {
         await gate;
         return group([{ contactId: BOT, status: 'joined' }]);
@@ -539,6 +546,7 @@ describe('seating the agent', () => {
     await ensureWorkspaceAgentSeated(GROUP, {
       delays: [0, 0, 0, 0],
       agent,
+      invite: inviteStub(),
       group: async () => {
         passes++;
         return group(passes >= 3 ? [{ contactId: BOT, status: 'joined' }] : []);
@@ -564,6 +572,7 @@ describe('seating the agent', () => {
       ensureWorkspaceAgentSeated(GROUP, {
         delays: [0, 0],
         agent,
+        invite: inviteStub(),
         group: async () => group([{ contactId: BOT, status: 'invited' }]),
         cordon: async () => undefined,
         join: async () => undefined,
@@ -571,6 +580,59 @@ describe('seating the agent', () => {
       })
     ).rejects.toThrow(/Could not seat/);
     expect(role).not.toHaveBeenCalled();
+  });
+
+  // The invite is the primary seating mechanism: the agent's harness
+  // auto-accepts invites from its owner, and accepting is what triggers its
+  // kit reconcile. It must go out before membership polling starts.
+  test('invites the agent before polling for membership', async () => {
+    const order: string[] = [];
+    await ensureWorkspaceAgentSeated(GROUP, {
+      delays: [0],
+      agent,
+      invite: vi.fn(async () => {
+        order.push('invite');
+      }),
+      group: async () => {
+        order.push('poll');
+        return group([
+          { contactId: BOT, status: 'joined', roles: [{ roleId: 'admin' }] },
+        ]);
+      },
+      cordon: async () => undefined,
+      join: async () => undefined,
+      role: async () => undefined,
+    });
+
+    expect(order[0]).toBe('invite');
+    expect(order).toContain('poll');
+  });
+
+  // A directly-named agent (dev rig, self-hosted) has no hosted node, so the
+  // hosting-specific cordon/join must not fire — the invite alone seats it.
+  test('skips the hosted push for a directly-named agent', async () => {
+    const cordon = vi.fn(async () => undefined);
+    const join = vi.fn(async () => undefined);
+    const invite = vi.fn(async () => undefined);
+    await expect(
+      ensureWorkspaceAgentSeated(GROUP, {
+        delays: [0, 0],
+        agent: async () => ({
+          botShipId: BOT,
+          hostedShipId: null,
+          moon: null,
+        }),
+        invite,
+        group: async () => group([]),
+        cordon,
+        join,
+        role: async () => undefined,
+      })
+    ).rejects.toThrow(/Could not seat/);
+
+    expect(invite).toHaveBeenCalledWith({ groupId: GROUP, contactIds: [BOT] });
+    expect(cordon).not.toHaveBeenCalled();
+    expect(join).not.toHaveBeenCalled();
   });
 
   // A self-hosted or dev node has no hosted agent to seat. The workspace is

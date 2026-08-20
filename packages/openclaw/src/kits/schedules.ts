@@ -128,8 +128,8 @@ export async function reconcileKitCronJobs(params: {
       schedule?.kind === 'cron' &&
       schedule.expr === want.scheduleExpr &&
       job.sessionTarget === want.sessionTarget &&
-      job.payload?.kind === 'systemEvent' &&
-      job.payload?.text === want.payloadText;
+      job.payload?.kind === 'agentTurn' &&
+      (job.payload as { message?: string })?.message === want.payloadText;
     if (matches) {
       kept += 1;
       continue;
@@ -159,6 +159,13 @@ function toCronInput(job: DesiredKitCronJob): PluginHookGatewayCronCreateInput {
     schedule: { kind: 'cron', expr: job.scheduleExpr },
     sessionTarget: job.sessionTarget,
     wakeMode: 'now',
-    payload: { kind: 'systemEvent', text: job.payloadText },
+    // Session-targeted jobs must carry an agentTurn payload — the host
+    // rejects any other pairing (main ↔ systemEvent, session ↔ agentTurn).
+    // The cast is because the SDK's payload type lags the host contract:
+    // agentTurn payloads carry `message`, which the type does not know yet.
+    payload: {
+      kind: 'agentTurn',
+      message: job.payloadText,
+    } as PluginHookGatewayCronCreateInput['payload'],
   };
 }

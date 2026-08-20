@@ -72,6 +72,9 @@ export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
 export const GIT_HASH = envVars.gitHash ?? 'unknown';
 export const FORCE_SPLASH_SEQUENCE = envVars.forceSplashSequence === 'true';
+// Dev rigs have no hosting API to resolve the agent's ship from, so a build
+// can name it directly. Blank in production builds.
+export const DEV_AGENT_SHIP = envVars.devAgentShip ?? '';
 
 export const ENV_VARS = {
   DEV_SHIP_URL,
@@ -108,4 +111,5 @@ export const ENV_VARS = {
   GIT_HASH,
   AUTOMATED_TEST,
   FORCE_SPLASH_SEQUENCE,
+  DEV_AGENT_SHIP,
 };

@@ -57,7 +57,7 @@ function makeDeps() {
       sessionKey: `session:${nest}`,
       accountId: 'default',
     })),
-    enqueueSystemEvent: vi.fn(),
+    cron: { add: vi.fn().mockResolvedValue(undefined) },
     poke: vi.fn().mockResolvedValue(undefined),
     log: vi.fn(),
     error: vi.fn(),
@@ -98,7 +98,7 @@ describe('shouldFireSetup', () => {
 });
 
 describe('maybeFireSetup', () => {
-  it('enqueues the setup conversation and pokes setup-done', async () => {
+  it('schedules the setup turn and pokes setup-done', async () => {
     const deps = makeDeps();
     const fired = await maybeFireSetup({
       groupFlag: GROUP,
@@ -108,17 +108,19 @@ describe('maybeFireSetup', () => {
     });
     expect(fired).toBe(true);
 
-    expect(deps.enqueueSystemEvent).toHaveBeenCalledTimes(1);
-    const [text, opts] = deps.enqueueSystemEvent.mock.calls[0];
-    expect(text).toContain('# Introduce yourself');
-    expect(text).toContain(GROUP);
-    expect(text).toContain('discussion → chat/~zod/discussion');
-    expect(opts.sessionKey).toBe('session:chat/~zod/discussion');
-    expect(opts.deliveryContext).toEqual({
-      channel: 'tlon',
-      to: 'tlon:chat/~zod/discussion',
-      accountId: 'default',
-    });
+    expect(deps.cron.add).toHaveBeenCalledTimes(1);
+    const [job] = deps.cron.add.mock.calls[0];
+    // A one-shot due immediately: `at` jobs delete after they run, and only
+    // an agentTurn payload may target a session — the pairing the host
+    // enforces. This is what actually STARTS a turn; a queued system event
+    // waits for the human to speak first.
+    expect(job.schedule.kind).toBe('at');
+    expect(job.sessionTarget).toBe('session:session:chat/~zod/discussion');
+    expect(job.wakeMode).toBe('now');
+    expect(job.payload.kind).toBe('agentTurn');
+    expect(job.payload.message).toContain('# Introduce yourself');
+    expect(job.payload.message).toContain(GROUP);
+    expect(job.payload.message).toContain('discussion → chat/~zod/discussion');
 
     expect(deps.poke).toHaveBeenCalledWith({
       app: 'kits',
@@ -143,7 +145,7 @@ describe('maybeFireSetup', () => {
     });
     expect(first).toBe(true);
     expect(second).toBe(false);
-    expect(deps.enqueueSystemEvent).toHaveBeenCalledTimes(1);
+    expect(deps.cron.add).toHaveBeenCalledTimes(1);
     expect(deps.poke).toHaveBeenCalledTimes(1);
   });
 
@@ -156,7 +158,7 @@ describe('maybeFireSetup', () => {
       deps,
     });
     expect(fired).toBe(false);
-    expect(deps.enqueueSystemEvent).not.toHaveBeenCalled();
+    expect(deps.cron.add).not.toHaveBeenCalled();
     expect(deps.poke).not.toHaveBeenCalled();
   });
 
@@ -169,7 +171,7 @@ describe('maybeFireSetup', () => {
       deps,
     });
     expect(fired).toBe(false);
-    expect(deps.enqueueSystemEvent).not.toHaveBeenCalled();
+    expect(deps.cron.add).not.toHaveBeenCalled();
     expect(deps.poke).toHaveBeenCalledTimes(1);
   });
 

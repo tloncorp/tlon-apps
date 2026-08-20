@@ -324,7 +324,7 @@ describe('start / setup integration', () => {
   it('fires the pending setup conversation on initial reconcile', async () => {
     const reader = makeReader(makeConfig('pending'));
     const store = makeStore(makeKit());
-    const enqueueSystemEvent = vi.fn();
+    const cronAdd = vi.fn().mockResolvedValue(undefined);
     const poke = vi.fn().mockResolvedValue(undefined);
     const runtime = createKitsRuntime({
       botShip: BOT,
@@ -333,8 +333,13 @@ describe('start / setup integration', () => {
       resolveGroupSessionRoute: (nest) => ({
         sessionKey: `agent:main:tlon:group:${nest}`,
       }),
-      enqueueSystemEvent,
-      getCronService: () => undefined,
+      getCronService: () =>
+        ({
+          add: cronAdd,
+          list: vi.fn(),
+          update: vi.fn(),
+          remove: vi.fn(),
+        }) as never,
       configReader: reader,
       packageStore: store,
       cronRetryDelayMs: 1,
@@ -342,10 +347,16 @@ describe('start / setup integration', () => {
     await runtime.start([GROUP]);
     runtime.stop();
 
-    expect(enqueueSystemEvent).toHaveBeenCalledTimes(1);
-    const [text, opts] = enqueueSystemEvent.mock.calls[0];
-    expect(text).toContain('# Setup');
-    expect(opts.deliveryContext.to).toBe('tlon:chat/~zod/discussion');
+    // The setup turn is a one-shot at-job with an agentTurn payload — the
+    // only mechanism that starts a turn rather than waiting for the human
+    // to speak first.
+    const setupJobs = cronAdd.mock.calls
+      .map((call) => call[0])
+      .filter((job) => job.name.startsWith('tlon:kit-setup:'));
+    expect(setupJobs).toHaveLength(1);
+    expect(setupJobs[0].schedule.kind).toBe('at');
+    expect(setupJobs[0].payload.kind).toBe('agentTurn');
+    expect(setupJobs[0].payload.message).toContain('# Setup');
     expect(poke).toHaveBeenCalledWith(
       expect.objectContaining({
         json: { 'setup-done': { flag: GROUP } },
