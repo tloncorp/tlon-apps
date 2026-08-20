@@ -46,35 +46,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Desk Dependencies (peru)
 
 The Hoon `desk/` holds only our own source. Its upstream dependencies (base-dev
-+ landscape libs/marks/sur) are vendored by [peru](https://github.com/buildinspace/peru)
-into a separate, **gitignored** `desk-deps/` tree, per `peru.yaml`. This replaced
-rsyncing all of `pkg/base-dev` (~119 files), which pulled in unused files that
-broke compilation on new kelvins.
 
--   A fresh checkout's `desk/{lib,sur,mar}` is intentionally **missing** the
-    standard files (`dbug`, `default-agent`, `server`, `docket`, `json`, `hoon`,
-    …) — they live in `desk-deps/` after a sync. Don't "fix" this by committing
-    them.
--   `./scripts/sync-deps.sh` (= `peru sync`) — populate `desk-deps/`. Run after
-    cloning and after editing `peru.yaml`. Requires peru (`pipx install peru`).
--   `./scripts/assemble-desk.sh <target>` — build a full desk into `<target>`:
-    rsync `desk-deps/` in with `--delete`, then `desk/` on top, then stamp
-    `commit.txt`. This is how a `%groups` desk is assembled for a ship (used by
-    `deploy.sh`, rube, and local dev — see DEVELOPMENT.md).
--   Upstream revs (urbit tag, landscape commit) are **pinned in `peru.yaml`**.
-    To build against a different kernel, change the rev there on your branch.
--   `desk/lib/verb.hoon` is a locally-patched variant and stays committed — do
-    NOT add patched or repo-owned files to the peru pick lists.
--   **Never hand-edit files in a mounted pier desk.** The only supported flow
-    for getting code onto a ship is: edit sources in `desk/`, run
-    `./scripts/assemble-desk.sh <target>`, rsync the assembled output into the
-    mounted desk (`rsync -a --delete <target>/ <pier>/<desk>/`), then
-    `|commit`. Writing or stubbing files directly in the pier desk makes the
-    ship's clay diverge from the repo in ways later syncs won't detect or
-    repair. If a ship's clay has stale files the sync can't remove (e.g.
-    leftovers from another branch), fix it in clay — `|rm` the file, or
-    `|unmount` + `|mount` to reset mount tracking and re-rsync — rather than
-    overwriting the file in place.
+-   landscape libs/marks/sur) are vendored by [peru](https://github.com/buildinspace/peru) into a separate, **gitignored** `desk-deps/` tree, per `peru.yaml`. This replaced rsyncing all of `pkg/base-dev` (~119 files), which pulled in unused files that broke compilation on new kelvins.
+
+*   A fresh checkout's `desk/{lib,sur,mar}` is intentionally **missing** the standard files (`dbug`, `default-agent`, `server`, `docket`, `json`, `hoon`, …) — they live in `desk-deps/` after a sync. Don't "fix" this by committing them.
+*   `./scripts/sync-deps.sh` (= `peru sync`) — populate `desk-deps/`. Run after cloning and after editing `peru.yaml`. Requires peru (`pipx install peru`).
+*   `./scripts/assemble-desk.sh <target>` — build a full desk into `<target>`: rsync `desk-deps/` in with `--delete`, then `desk/` on top, then stamp `commit.txt`. This is how a `%groups` desk is assembled for a ship (used by `deploy.sh`, rube, and local dev — see DEVELOPMENT.md).
+*   Upstream revs (urbit tag, landscape commit) are **pinned in `peru.yaml`**. To build against a different kernel, change the rev there on your branch.
+*   `desk/lib/verb.hoon` is a locally-patched variant and stays committed — do NOT add patched or repo-owned files to the peru pick lists.
+*   **Never hand-edit files in a mounted pier desk.** The only supported flow for getting code onto a ship is: edit sources in `desk/`, run `./scripts/assemble-desk.sh <target>`, rsync the assembled output into the mounted desk (`rsync -a --delete <target>/ <pier>/<desk>/`), then `|commit`. Writing or stubbing files directly in the pier desk makes the ship's clay diverge from the repo in ways later syncs won't detect or repair. If a ship's clay has stale files the sync can't remove (e.g. leftovers from another branch), fix it in clay — `|rm` the file, or `|unmount` + `|mount` to reset mount tracking and re-rsync — rather than overwriting the file in place.
 
 ### Database Migrations
 
@@ -280,10 +260,7 @@ When writing or modifying bash scripts, ensure compatibility with both macOS and
 
 ## Pull Requests
 
-When creating a PR, structure the body with the repo's PR template
-(`.github/pull_request_template.md`): Summary / Changes / How did I test? /
-Risks and impact / Rollback plan / Screenshots. `gh pr create` does not apply
-the template automatically — fill it in explicitly.
+When creating a PR, structure the body with the repo's PR template (`.github/pull_request_template.md`): Summary / Changes / How did I test? / Risks and impact / Rollback plan / Screenshots. `gh pr create` does not apply the template automatically — fill it in explicitly.
 
 ## Pre-PR Cleanup
 
@@ -555,6 +532,12 @@ Uses Drizzle ORM with SQLite for local data storage:
 -   **The deps `Set` from `useKeyFromQueryDeps` must sit at `queryKey` index 1.** The invalidation predicate only looks at that position; a key that puts it elsewhere silently never refreshes again.
 -   `invalidateQueries` flags queries stale and refetches only those with active observers. It does not clear cached data, so a remounted query serves its previous value for a render while refetching in the background — and keeps that value if the refetch fails.
 
+## Channel Renderers and Views
+
+See `docs/tlon-apps/channel-views.md` before changing how a channel picks its composer, post renderer, or collection layout, or before adding a renderer to the components-kit registry.
+
+The registry is keyed by open id strings, so a channel can name a view this build has never registered — that is a normal input off the wire, not a bug. Resolve through `resolveChannelView` rather than indexing the maps directly; it distinguishes "unregistered view" (degrade, and show the upgrade notice at the composer) from "nothing declared" (fall back to the channel-type built-in silently). Do not normalize an unrecognized id away at the parse boundary.
+
 ## Adding a New Post Blob Entry Type
 
 See `docs/tlon-apps/post-blobs.md` for the full post-blob spec: wire format, current entry types, read/write behavior, and integration rules.
@@ -586,18 +569,19 @@ This project uses Backlog.md MCP for all task and project management activities.
 
 **CRITICAL GUIDANCE**
 
-- If your client supports MCP resources, read `backlog://workflow/overview` to understand when and how to use Backlog for this project.
-- If your client only supports tools or the above request fails, call `backlog.get_backlog_instructions()` to load the tool-oriented overview. Use the `instruction` selector when you need `task-creation`, `task-execution`, or `task-finalization`.
+-   If your client supports MCP resources, read `backlog://workflow/overview` to understand when and how to use Backlog for this project.
+-   If your client only supports tools or the above request fails, call `backlog.get_backlog_instructions()` to load the tool-oriented overview. Use the `instruction` selector when you need `task-creation`, `task-execution`, or `task-finalization`.
 
-- **First time working here?** Read the overview resource IMMEDIATELY to learn the workflow
-- **Already familiar?** You should have the overview cached ("## Backlog.md Overview (MCP)")
-- **When to read it**: BEFORE creating tasks, or when you're unsure whether to track work
+-   **First time working here?** Read the overview resource IMMEDIATELY to learn the workflow
+-   **Already familiar?** You should have the overview cached ("## Backlog.md Overview (MCP)")
+-   **When to read it**: BEFORE creating tasks, or when you're unsure whether to track work
 
 These guides cover:
-- Decision framework for when to create tasks
-- Search-first workflow to avoid duplicates
-- Links to detailed guides for task creation, execution, and finalization
-- MCP tools reference
+
+-   Decision framework for when to create tasks
+-   Search-first workflow to avoid duplicates
+-   Links to detailed guides for task creation, execution, and finalization
+-   MCP tools reference
 
 You MUST read the overview resource to understand the complete workflow. The information is NOT summarized here.
 

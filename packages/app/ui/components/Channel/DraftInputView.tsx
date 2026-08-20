@@ -5,7 +5,10 @@ import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'tamagui';
 
-import { useComponentsKitContext } from '../../contexts/componentsKits';
+import {
+  resolveChannelView,
+  useComponentsKitContext,
+} from '../../contexts/componentsKits';
 import {
   useConversationScrollToBottomControl,
   useConversationScrollViewNativeID,
@@ -14,6 +17,7 @@ import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
 import { floatingScrollControlClearance } from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
 import { DraftInputContextProvider } from '../draftInputs/shared';
+import { UnsupportedViewNotice } from './UnsupportedViewNotice';
 
 export function DraftInputView({
   draftInputContext,
@@ -25,7 +29,17 @@ export function DraftInputView({
   onFloatingHeightChange?: (height: number) => void;
 }) {
   const { inputs } = useComponentsKitContext();
-  const InputComponent = inputs[type];
+  const { component: InputComponent, resolved } = resolveChannelView({
+    declaredId: type,
+    registry: inputs,
+  });
+
+  // The channel asked for an input this build doesn't have. Say so, rather
+  // than rendering nothing where the composer belongs — a channel you can read
+  // and can't post to, with no explanation, is the worse failure.
+  if (!resolved) {
+    return <UnsupportedViewNotice slot="draft-input" viewId={type} />;
+  }
 
   if (InputComponent) {
     const input = (

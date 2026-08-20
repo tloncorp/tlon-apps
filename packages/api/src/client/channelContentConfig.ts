@@ -122,14 +122,31 @@ export const allContentRenderers = {
   },
 } as const satisfies Record<string, ComponentSpec>;
 
+/**
+ * The built-in ids are enumerated, but the id *types* stay open.
+ *
+ * A channel's content configuration is untrusted JSON written by any client or
+ * agent, so an id naming a view this build has never heard of is a normal
+ * input rather than a bug — see `docs/tlon-apps/channel-views.md`. Keeping the
+ * union members means `DraftInputId.chat` and literal autocomplete still work;
+ * the `(string & {})` arm is what lets a declaration outlive the build that
+ * reads it. Resolution and the fallback for unregistered ids live in
+ * `packages/app/ui/contexts/componentsKits`.
+ */
+type OpenId<Known extends string> = Known | (string & {});
+
 export const CollectionRendererId = makeEnum(allCollectionRenderers);
-export type CollectionRendererId = ValuesOf<typeof CollectionRendererId>;
+export type CollectionRendererId = OpenId<
+  ValuesOf<typeof CollectionRendererId>
+>;
 
 export const DraftInputId = makeEnum(allDraftInputs);
-export type DraftInputId = ValuesOf<typeof DraftInputId>;
+export type DraftInputId = OpenId<ValuesOf<typeof DraftInputId>>;
 
 export const PostContentRendererId = makeEnum(allContentRenderers);
-export type PostContentRendererId = ValuesOf<typeof PostContentRendererId>;
+export type PostContentRendererId = OpenId<
+  ValuesOf<typeof PostContentRendererId>
+>;
 
 type ParameterizedId<Id extends string> = {
   id: Id;
@@ -216,6 +233,73 @@ export namespace StructuredChannelDescriptionPayload {
   }
 
   /**
+   * Normalize one renderer-id field, or return null when the value is not a
+   * usable declaration.
+   *
+   * An id this build does not recognize is deliberately **not** a validation
+   * failure — it is preserved verbatim so the render layer can tell "a view we
+   * don't have" apart from "no view declared" and show the fallback notice
+   * instead of silently substituting chat. Only structurally unusable values
+   * (non-strings, a missing or empty `id`, a non-object `configuration`) are
+   * rejected, and the caller defaults those to the built-in for that field.
+   */
+  function normalizeId(raw: unknown): ParameterizedId<string> | null {
+    if (typeof raw === 'string') {
+      return raw.length > 0 ? { id: raw } : null;
+    }
+    if (typeof raw !== 'object' || raw == null || Array.isArray(raw)) {
+      return null;
+    }
+    const { id, configuration } = raw as {
+      id?: unknown;
+      configuration?: unknown;
+    };
+    if (typeof id !== 'string' || id.length === 0) {
+      return null;
+    }
+    const out: ParameterizedId<string> = { id };
+    if (
+      typeof configuration === 'object' &&
+      configuration != null &&
+      !Array.isArray(configuration)
+    ) {
+      out.configuration = configuration as Record<string, JSONValue>;
+    }
+    return out;
+  }
+
+  function normalizeConfiguration(raw: object): ChannelContentConfiguration {
+    const source = raw as Record<string, unknown>;
+    const cfg = {
+      // Unknown keys ride along untouched, for forward compatibility with
+      // configurations written by a newer build.
+      ...source,
+      // A missing or malformed field defaults to its built-in rather than
+      // crashing the channel.
+      draftInput: normalizeId(source.draftInput) ?? { id: DraftInputId.chat },
+      defaultPostContentRenderer: normalizeId(
+        source.defaultPostContentRenderer
+      ) ?? { id: PostContentRendererId.chat },
+      defaultPostCollectionRenderer: normalizeId(
+        source.defaultPostCollectionRenderer
+      ) ?? { id: CollectionRendererId.chat },
+    } as ChannelContentConfiguration;
+
+    // add defaults to some standard params
+    const collection = ParameterizedId.coerce(
+      cfg.defaultPostCollectionRenderer
+    );
+    collection.configuration = {
+      showAuthors: true,
+      showReplies: true,
+      ...collection.configuration,
+    };
+    cfg.defaultPostCollectionRenderer = collection;
+
+    return cfg;
+  }
+
+  /**
    * Attempts to decode a `description` string into a structured payload.
    *
    * - If `description` is null/undefined, returns a payload with no
@@ -224,9 +308,12 @@ export namespace StructuredChannelDescriptionPayload {
    *   description as the input string.
    * - If `description` validates as the expected
    *   `StructuredChannelDescriptionPayload` JSON, returns the decoded payload.
+   *
+   * The configuration is untrusted data, so every renderer-id field is
+   * shape-checked by `normalizeId` — which keeps unrecognized ids rather than
+   * normalizing them away. See `docs/tlon-apps/channel-views.md`.
    */
   export function decode(encoded: Encoded): Decoded {
-    // TODO: This should be validated - we'll be deserializing untrusted data
     if (encoded == null) {
       return {};
     }
@@ -237,31 +324,16 @@ export namespace StructuredChannelDescriptionPayload {
       }
 
       if ('channelContentConfiguration' in out) {
-        if (typeof out.channelContentConfiguration !== 'object') {
-          throw new Error('Invalid configuration');
+        const raw = out.channelContentConfiguration;
+        if (typeof raw === 'object' && raw != null && !Array.isArray(raw)) {
+          out.channelContentConfiguration = normalizeConfiguration(raw);
+        } else {
+          // A configuration that isn't an object carries nothing usable. Drop
+          // it and keep the payload's `description`, rather than failing the
+          // whole decode — that path surfaces the raw JSON to the user as the
+          // channel's description.
+          delete out.channelContentConfiguration;
         }
-        // add a little robustness - if the configuration is missing a field,
-        // just add a default in to avoid crashing
-        out.channelContentConfiguration = ((raw) => {
-          const cfg = {
-            draftInput: DraftInputId.chat,
-            defaultPostContentRenderer: PostContentRendererId.chat,
-            defaultPostCollectionRenderer: CollectionRendererId.chat,
-            ...raw,
-          } as ChannelContentConfiguration;
-
-          // add defaults to some standard params
-          const collCfgWithDefaults = ParameterizedId.coerce(
-            cfg.defaultPostCollectionRenderer
-          );
-          collCfgWithDefaults.configuration = {
-            showAuthors: true,
-            showReplies: true,
-            ...collCfgWithDefaults.configuration,
-          };
-
-          return cfg;
-        })(out.channelContentConfiguration);
       }
       return out;
     } catch (_err) {

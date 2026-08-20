@@ -117,6 +117,7 @@ export enum AnalyticsEvent {
   ActionUnpinChat = 'Unpinned Chat',
   ActionVisitedChannel = 'Viewed Channel',
   ProtocolMismatchNoticeSeen = 'Protocol mismatch notice seen',
+  UnknownChannelViewSeen = 'Unknown channel view seen',
   ActionTappedChat = 'Tapped Chatlist Item',
   ActionJoinChannel = 'Joined Channel',
   ActionMoveChannel = 'Moved Channel',

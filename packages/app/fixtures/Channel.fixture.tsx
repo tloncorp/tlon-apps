@@ -115,6 +115,34 @@ export const NotebookChannelFixture = (props: { theme?: 'light' | 'dark' }) => {
   );
 };
 
+/**
+ * A channel declaring a view nothing has registered — what a kit's surface
+ * looks like on a client that predates its renderer. The posts still render;
+ * the composer is replaced by the upgrade notice. See
+ * `docs/tlon-apps/channel-views.md`.
+ */
+export const UnknownViewChannelFixture = (props: {
+  theme?: 'light' | 'dark';
+}) => {
+  const channel = useMemo(
+    (): db.Channel => ({
+      ...tlonLocalIntros,
+      contentConfiguration: {
+        draftInput: { id: 'tlon.r0.view.mealPlan' },
+        defaultPostContentRenderer: { id: 'tlon.r0.view.mealPlan' },
+        defaultPostCollectionRenderer: { id: 'tlon.r0.view.mealPlan' },
+      },
+    }),
+    []
+  );
+
+  return (
+    <ChannelFixtureWrapper theme={props.theme}>
+      <Channel {...baseProps} channel={channel} />
+    </ChannelFixtureWrapper>
+  );
+};
+
 function useSimulatedPostsQuery({
   getPostAt = () => createFakePost(),
 }: Partial<{
@@ -377,4 +405,5 @@ export default {
   gallery: <GalleryChannelFixture />,
   notebook: <NotebookChannelFixture />,
   negotiationMismatch: <ChannelFixture negotiationMatch={false} />,
+  unknownView: <UnknownViewChannelFixture />,
 };

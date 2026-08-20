@@ -1,9 +1,4 @@
 import { Story } from '@tloncorp/api/urbit';
-import {
-  CollectionRendererId,
-  DraftInputId,
-  PostContentRendererId,
-} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { ReactElement, createContext, useContext } from 'react';
 
@@ -63,16 +58,20 @@ export type DraftInputRendererComponent = React.ComponentType<{
   draftInputContext: DraftInputContext;
 }>;
 
+/**
+ * The three registries, keyed by open id.
+ *
+ * These were keyed by the built-in id unions, which made the registry closed
+ * at the type level: app-local code could not register a view without editing
+ * an enum in `@tloncorp/api`. A channel's declared id is an arbitrary string
+ * off the wire, so `Record<string, …>` is also the honest key type. Missing
+ * entries are the normal case — resolve through `resolveChannelView`, which
+ * distinguishes an unregistered view from an absent declaration.
+ */
 export interface ComponentsKitContextValue {
-  collectionRenderers: Readonly<
-    Partial<{ [Id in CollectionRendererId]: IPostCollectionView }>
-  >;
-  inputs: Readonly<
-    Partial<{ [Id in DraftInputId]: DraftInputRendererComponent }>
-  >;
-  renderers: Readonly<
-    Partial<{ [Id in PostContentRendererId]: RenderItemType }>
-  >;
+  collectionRenderers: Readonly<Record<string, IPostCollectionView>>;
+  inputs: Readonly<Record<string, DraftInputRendererComponent>>;
+  renderers: Readonly<Record<string, RenderItemType>>;
 }
 
 export const ComponentsKitContext =

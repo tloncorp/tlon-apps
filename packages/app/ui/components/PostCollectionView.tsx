@@ -2,15 +2,21 @@ import {
   ChannelContentConfiguration,
   CollectionRendererId,
 } from '@tloncorp/api';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Ref, useMemo } from 'react';
 
-import { useComponentsKitContext } from '../contexts/componentsKits';
+import {
+  resolveChannelView,
+  useComponentsKitContext,
+} from '../contexts/componentsKits';
 import { ListPostCollection } from './postCollectionViews/ListPostCollectionView';
 import {
   IPostCollectionView,
   PostCollectionHandle,
 } from './postCollectionViews/shared';
+
+const logger = createDevLogger('PostCollectionView', false);
 
 function fallbackRendererIdForChannelType(
   type: db.Channel['type']
@@ -32,30 +38,39 @@ export function PostCollectionView({
 }) {
   const { collectionRenderers } = useComponentsKitContext();
   const SpecificComponent: IPostCollectionView = useMemo(() => {
-    const rendererFromContentConfig = (() => {
-      const contentConfig = channel.contentConfiguration;
-      if (contentConfig == null) {
-        return null;
-      }
-      const collectionConfig =
-        ChannelContentConfiguration.defaultPostCollectionRenderer(
-          contentConfig
-        );
-      if (
-        contentConfig != null &&
-        collectionRenderers[collectionConfig.id] != null
-      ) {
-        return collectionRenderers[collectionConfig.id];
-      }
-    })();
-    if (rendererFromContentConfig) return rendererFromContentConfig;
-
     const fallbackId = fallbackRendererIdForChannelType(channel.type);
-    if (fallbackId && collectionRenderers[fallbackId]) {
-      return collectionRenderers[fallbackId]!;
+    const fallback =
+      (fallbackId ? collectionRenderers[fallbackId] : null) ??
+      ListPostCollection;
+
+    const contentConfig = channel.contentConfiguration;
+    const { component, resolved, declaredId } = resolveChannelView({
+      declaredId:
+        contentConfig == null
+          ? null
+          : ChannelContentConfiguration.defaultPostCollectionRenderer(
+              contentConfig
+            ).id,
+      registry: collectionRenderers,
+      fallback,
+    });
+
+    // Falling back keeps the posts readable, which is the whole degradation
+    // for this slot — a notice here would mean blanking the channel. The
+    // user-facing notice lives at the composer, where rendering nothing is not
+    // survivable. See docs/tlon-apps/channel-views.md.
+    if (!resolved) {
+      logger.log(
+        `channel ${channel.id} declares unregistered collection view "${declaredId}"; rendering the post list instead`
+      );
     }
 
-    return ListPostCollection;
-  }, [channel.contentConfiguration, channel.type, collectionRenderers]);
+    return component ?? ListPostCollection;
+  }, [
+    channel.contentConfiguration,
+    channel.id,
+    channel.type,
+    collectionRenderers,
+  ]);
   return <SpecificComponent ref={collectionRef} />;
 }

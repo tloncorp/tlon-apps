@@ -1,8 +1,9 @@
 import { ChannelContentConfiguration } from '@tloncorp/api';
-import { JSONValue } from '@tloncorp/shared';
+import { JSONValue, createDevLogger } from '@tloncorp/shared';
 import { useMemo } from 'react';
 
 import { useChannelContext } from '../../contexts/channel';
+import { resolveChannelView } from '../../contexts/componentsKits/channelViews';
 import {
   RenderItemType,
   useComponentsKitContext,
@@ -11,50 +12,52 @@ import { ChatMessage } from '../ChatMessage';
 import { GalleryPost } from '../GalleryPost';
 import { NotebookPost } from '../NotebookPost';
 
+const logger = createDevLogger('PostView', false);
+
 export const PostView: RenderItemType = (props) => {
   const channel = useChannelContext();
   const { renderers } = useComponentsKitContext();
 
   const SpecificPostComponent = useMemo(() => {
-    // why do this iife?
-    // without it, TypeScript thinks the value from `renderers[]` may be null.
-    // sad!
-    const rendererFromContentConfig = (() => {
-      const contentConfig =
+    // content config takes precedence; an id it names that nothing has
+    // registered falls through to the channel-type default below, which keeps
+    // the post readable. See docs/tlon-apps/channel-views.md.
+    const { component, resolved, declaredId } = resolveChannelView({
+      declaredId:
         channel.contentConfiguration == null
           ? null
           : ChannelContentConfiguration.defaultPostContentRenderer(
               channel.contentConfiguration
-            );
-      if (contentConfig != null && renderers[contentConfig.id] != null) {
-        return renderers[contentConfig.id];
-      }
-    })();
-    if (rendererFromContentConfig != null) {
-      return rendererFromContentConfig;
+            ).id,
+      registry: renderers,
+    });
+    if (component != null) {
+      return component;
+    }
+    if (!resolved) {
+      logger.log(
+        `channel ${channel.id} declares unregistered content view "${declaredId}"; rendering the channel-type default instead`
+      );
     }
 
     // content config did not provide a renderer, fall back to default
     switch (channel.type) {
-      case 'chat':
-      // fallthrough
-      case 'dm':
-      // fallthrough
-      case 'groupDm':
-        return ChatMessage;
-
       case 'notebook':
         return NotebookPost;
 
       case 'gallery':
         return GalleryPost;
 
-      case 'notes':
-        // Notes channels are rendered entirely by the collection WebView; no
-        // per-post content is shown, but we still need something to return.
+      // Chat, DMs and group DMs render chat messages. Notes channels are drawn
+      // entirely by the collection WebView, so no per-post content shows, but
+      // something still has to be returned. And a type this build doesn't know
+      // — from a newer client, or one added without revisiting this switch —
+      // must not fall out of the switch: that returns undefined, which renders
+      // as `<undefined>` and throws.
+      default:
         return ChatMessage;
     }
-  }, [channel.type, channel.contentConfiguration, renderers]);
+  }, [channel.type, channel.contentConfiguration, channel.id, renderers]);
 
   const contentRendererConfiguration = useMemo(() => {
     if (channel.contentConfiguration == null) {
