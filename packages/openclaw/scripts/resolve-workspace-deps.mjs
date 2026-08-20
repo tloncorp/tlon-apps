@@ -42,6 +42,21 @@ function registryVersion(name) {
   }).trim();
 }
 
+// A workspace dep that has never been published has no registry version, and
+// the install that follows would fail on a 404 rather than say why. When the
+// monorepo is mounted (TLON_APPS_DIR, set by the dev container), fall back to
+// installing it from that path so the container still boots.
+//
+// Deliberately only in --registry mode: the .publish/ staging path must keep
+// throwing, because a file: spec in a published package.json would be broken
+// for everyone who installs it.
+function mountedPath(name) {
+  const root = process.env.TLON_APPS_DIR;
+  if (!root) return null;
+  const dir = join(root, 'packages', name.replace('@tloncorp/', ''));
+  return existsSync(join(dir, 'package.json')) ? dir : null;
+}
+
 const pkg = JSON.parse(readFileSync(target, 'utf8'));
 let changed = false;
 for (const field of [
@@ -57,9 +72,23 @@ for (const field of [
     const inner = spec.slice('workspace:'.length);
     let resolved;
     if (inner === '*' || inner === '^' || inner === '~') {
-      const version = useRegistry
-        ? registryVersion(name)
-        : workspaceVersion(name);
+      let version;
+      if (useRegistry) {
+        try {
+          version = registryVersion(name);
+        } catch (error) {
+          const dir = mountedPath(name);
+          if (!dir) throw error;
+          console.log(
+            `${name} is not published; installing from the mounted monorepo at ${dir}`
+          );
+          deps[name] = `file:${dir}`;
+          changed = true;
+          continue;
+        }
+      } else {
+        version = workspaceVersion(name);
+      }
       resolved = inner === '*' ? version : `${inner}${version}`;
     } else {
       // workspace:<explicit range> carries its own semver range
