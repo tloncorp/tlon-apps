@@ -97,7 +97,7 @@ export function ThemeScreen(props: Props) {
             <ListItem.MainContent>
               <ListItem.Title>Show deleted messages</ListItem.Title>
               <ListItem.Subtitle>
-                Display a placeholder when a message is deleted
+                Show a placeholder for deleted messages
               </ListItem.Subtitle>
             </ListItem.MainContent>
             <ListItem.EndContent>
