@@ -19,8 +19,11 @@ vi.mock('../client/urbit', async (importOriginal) => {
 const PARENT = '~sampel-palnet';
 const MOON = '~doznec-sampel-palnet';
 
-const withBots = (json: string): ContactBookProfile => ({
-  bots: { type: 'text', value: json } as ContactFieldText,
+const withBots = (ships: string[]): ContactBookProfile => ({
+  bots: {
+    type: 'set',
+    value: ships.map((value) => ({ type: 'ship' as const, value })),
+  },
 });
 
 beforeEach(() => {
@@ -44,7 +47,7 @@ const mockBotProfileScries = (
 test('registerBotProfile claims the moon (list) and publishes its real profile', async () => {
   mockBotProfileScries({
     nickname: { type: 'text', value: 'Host' },
-    bots: { type: 'text', value: JSON.stringify([SIBLING]) },
+    bots: { type: 'set', value: [{ type: 'ship', value: SIBLING }] },
   } as ContactBookProfile);
   vi.mocked(poke).mockResolvedValue(undefined as never);
 
@@ -55,11 +58,17 @@ test('registerBotProfile claims the moon (list) and publishes its real profile',
   const claim = vi.mocked(poke).mock.calls[0][0] as {
     app: string;
     mark: string;
-    json: { self: { bots: { type: string; value: string } } };
+    json: { self: { bots: { type: string; value: unknown } } };
   };
   expect(claim).toMatchObject({ app: 'contacts', mark: 'contact-action-1' });
-  // the claim is a plain @p list; sibling preserved, our moon appended
-  expect(JSON.parse(claim.json.self.bots.value)).toEqual([SIBLING, MOON]);
+  // the claim is a native %set of %ship values; sibling preserved, moon added
+  expect(claim.json.self.bots).toEqual({
+    type: 'set',
+    value: [
+      { type: 'ship', value: SIBLING },
+      { type: 'ship', value: MOON },
+    ],
+  });
 
   const profile = vi.mocked(poke).mock.calls[1][0] as {
     app: string;
@@ -78,7 +87,7 @@ test('registerBotProfile claims the moon (list) and publishes its real profile',
 
 test('registerBotProfile skips the claim poke when the moon is already claimed', async () => {
   mockBotProfileScries({
-    bots: { type: 'text', value: JSON.stringify([MOON]) },
+    bots: { type: 'set', value: [{ type: 'ship', value: MOON }] },
   } as ContactBookProfile);
   vi.mocked(poke).mockResolvedValue(undefined as never);
 
@@ -94,7 +103,7 @@ test('registerBotProfile skips the claim poke when the moon is already claimed',
 test('registerBotProfile merges a partial update into the existing profile', async () => {
   mockBotProfileScries(
     {
-      bots: { type: 'text', value: JSON.stringify([MOON]) },
+      bots: { type: 'set', value: [{ type: 'ship', value: MOON }] },
     } as ContactBookProfile,
     {
       [MOON]: {
@@ -175,7 +184,7 @@ test('converts an array of contacts from server to client format', () => {
 
 test('isRegisteredBot is true for a moon claimed by its own parent', async () => {
   vi.mocked(scry).mockResolvedValue({
-    [PARENT]: { isContact: false, contact: withBots(JSON.stringify([MOON])) },
+    [PARENT]: { isContact: false, contact: withBots([MOON]) },
   } as never);
   expect(await isRegisteredBot(MOON)).toBe(true);
 });
@@ -184,7 +193,7 @@ test('isRegisteredBot normalizes a sig-less claim entry', async () => {
   vi.mocked(scry).mockResolvedValue({
     [PARENT]: {
       isContact: false,
-      contact: withBots(JSON.stringify(['doznec-sampel-palnet'])),
+      contact: withBots(['doznec-sampel-palnet']),
     },
   } as never);
   expect(await isRegisteredBot(MOON)).toBe(true);
@@ -192,7 +201,7 @@ test('isRegisteredBot normalizes a sig-less claim entry', async () => {
 
 test('isRegisteredBot is false when the parent does not claim the moon', async () => {
   vi.mocked(scry).mockResolvedValue({
-    [PARENT]: { isContact: false, contact: withBots(JSON.stringify([])) },
+    [PARENT]: { isContact: false, contact: withBots([]) },
   } as never);
   expect(await isRegisteredBot(MOON)).toBe(false);
 });
@@ -204,8 +213,12 @@ test('isRegisteredBot is false for a non-moon ship', async () => {
 });
 
 test('isRegisteredBot tolerates a malformed/missing bots field', async () => {
+  // a non-set bots value (e.g. legacy text) decodes to no claims
   vi.mocked(scry).mockResolvedValue({
-    [PARENT]: { isContact: false, contact: withBots('not json') },
+    [PARENT]: {
+      isContact: false,
+      contact: { bots: { type: 'text', value: 'garbage' } },
+    },
   } as never);
   expect(await isRegisteredBot(MOON)).toBe(false);
 });
@@ -218,7 +231,7 @@ test('directoryToClientProfiles renders a bot from its own real profile', () => 
       isContact: true,
       contact: {
         nickname: { type: 'text', value: 'Sampel' } as ContactFieldText,
-        ...withBots(JSON.stringify([MOON])),
+        ...withBots([MOON]),
       },
       mod: {},
     },
@@ -244,7 +257,7 @@ test('directoryToClientProfiles does not materialize a bot from the claim alone'
       isContact: true,
       contact: {
         nickname: { type: 'text', value: 'Sampel' } as ContactFieldText,
-        ...withBots(JSON.stringify([MOON])),
+        ...withBots([MOON]),
       },
       mod: {},
     },

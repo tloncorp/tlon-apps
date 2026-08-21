@@ -231,6 +231,13 @@
       ?~  p.sign  cor
       ((slog 'steward: roster profile publish nacked' u.p.sign) cor)
     ==
+  ::
+      [%roster %claim *]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ((slog 'steward: roster bots-claim nacked' u.p.sign) cor)
+    ==
   ==
 ::
 ++  arvo
@@ -773,6 +780,32 @@
     ?~  avatar  base
     [[%avatar [%look u.avatar]] base]
   ::
+  ::  +ro-claim: claim a moon in our own published profile's %bots field (a
+  ::  native contact %set of %ship values): minting IS the owner claiming,
+  ::  and clients recognize our bots from the claim without consulting
+  ::  %vouch. merged with the current set; the scry degrades to an empty
+  ::  profile so a contacts hiccup can't fail the mint. idempotent (sets),
+  ::  so %configure re-asserts it as a repair path.
+  ::
+  ++  ro-claim
+    |=  mon=ship
+    ^+  cor
+    =/  cur=contact:ct
+      =/  res
+        %-  mule
+        |.  .^(contact:ct %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/noun)
+      ?:(?=(%& -.res) p.res *contact:ct)
+    =/  claim=(set value:ct)
+      =/  old  (~(get by cur) %bots)
+      ?:  ?=([~ %set *] old)  p.u.old
+      *(set value:ct)
+    =/  bots-val=value:ct  [%set (~(put in claim) `value:ct`[%ship mon])]
+    %-  emit
+    :*  %pass  /roster/claim/(scot %p mon)  %agent  [our.bowl %contacts]
+        %poke  %contact-action-1
+        !>(`action:ct`[%self (malt ~[[%bots bots-val]])])
+    ==
+  ::
   ++  ro-handle-mint
     |=  [nickname=@t avatar=(unit @t) model=@t harness=@t persona=@t]
     ^+  cor
@@ -803,6 +836,7 @@
       :*  %pass  /roster/profile/(scot %p mon)  %agent  [our.bowl %contacts]
           %poke  %contact-bot-0  !>(`[who=ship con=contact:ct]`[mon con])
       ==
+    =.  cor  (ro-claim mon)
     =/  =bot:v1:sr  [nickname avatar model harness persona now.bowl]
     =.  bots.roster.state  (~(put by bots.roster.state) mon bot)
     (give %fact ~[/v1/roster] %steward-roster-update-1 !>(`update:v1:sr`[%minted mon bot]))
@@ -824,6 +858,9 @@
       :*  %pass  /roster/profile/(scot %p who)  %agent  [our.bowl %contacts]
           %poke  %contact-bot-0  !>(`[who=ship con=contact:ct]`[who con])
       ==
+    ::  re-assert the claim (idempotent): repairs bots minted before the
+    ::  claim existed, or a claim lost to a profile edit
+    =.  cor  (ro-claim who)
     (give %fact ~[/v1/roster] %steward-roster-update-1 !>(`update:v1:sr`[%configured who bot]))
   ::
   ++  ro-handle-retire

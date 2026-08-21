@@ -73,6 +73,11 @@ export interface ContactFieldGroups {
   value: { type: 'flag'; value: string }[];
 }
 
+export interface ContactFieldShips {
+  type: 'set';
+  value: { type: 'ship'; value: string }[];
+}
+
 export interface AttestationSignature {
   type: 'text';
   value: string;
@@ -92,10 +97,11 @@ export interface ContactBookProfile {
   groups?: ContactFieldGroups;
   status?: ContactFieldText;
   // Convention field: a ship claims the bots ("virtual identities", i.e.
-  // moons) it owns here — a JSON array of bot ship @p. This is only the
-  // ownership claim; a bot's display profile (name/avatar) is a real contact
-  // profile the host publishes separately. See `BotClaimField` in contactsApi.
-  bots?: ContactFieldText;
+  // moons) it owns here — a native contact %set of %ship values. This is only
+  // the ownership claim; a bot's display profile (name/avatar) is a real
+  // contact profile the host publishes separately. Written by steward %mint
+  // (hoon side) and registerBotProfile (see contactsApi).
+  bots?: ContactFieldShips;
   ['lanyard-twitter-0-sign']?: AttestationSignature;
   ['lanyard-phone-0-sign']?: AttestationSignature;
   ['lanyard-twitter-0-url']?: AttestationProviderUrl;

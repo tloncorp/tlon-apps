@@ -54,6 +54,9 @@
   ?+  path  ~
     [%gu @ %activity @ %$ ~]  `!>(&)
     [%j @ %ryft @ @ ~]        `!>(`(unit rift)`~)
+    ::  the mint's bots-claim merge reads our own published profile;
+    ::  an empty one means the claim set starts fresh
+    [%gx @ %contacts @ %v1 %self *]  `!>(*contact:ct)
   ==
 ::
 ++  setup
@@ -875,6 +878,16 @@
             !>(`[who=ship con=contact:ct]`[roster-mon (roster-contact 'Bot' ~)])
         ==
       ::
+        ::  the mint also claims the moon in our own profile's %bots field
+        ::  (the contacts self scry is unmocked, so the merge starts empty)
+        %-  ex-poke
+        :*  /roster/claim/(scot %p roster-mon)
+            [~sampel-palnet %contacts]
+            %contact-action-1
+            =/  bots-val=value:ct  [%set (silt ~[`value:ct`[%ship roster-mon]])]
+            !>(`action:ct`[%self (malt ~[[%bots bots-val]])])
+        ==
+      ::
         %-  ex-fact
         :*  ~[/v1/roster]
             %steward-roster-update-1
@@ -927,6 +940,15 @@
             [~sampel-palnet %contacts]
             %contact-bot-0
             !>(`[who=ship con=contact:ct]`[roster-mon (roster-contact 'Bot2' `'https://x.example/a.png')])
+        ==
+      ::
+        ::  configure re-asserts the bots claim (idempotent repair path)
+        %-  ex-poke
+        :*  /roster/claim/(scot %p roster-mon)
+            [~sampel-palnet %contacts]
+            %contact-action-1
+            =/  bots-val=value:ct  [%set (silt ~[`value:ct`[%ship roster-mon]])]
+            !>(`action:ct`[%self (malt ~[[%bots bots-val]])])
         ==
       ::
         %-  ex-fact

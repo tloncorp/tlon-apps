@@ -45,22 +45,19 @@ const isMoonOf = (who: string, publisher: string): boolean => {
 // bot ships (moons of the publisher) it claims to own. This is only the
 // ownership claim — a bot's display profile (name/avatar) is resolved from the
 // bot's own real contact profile, which the host publishes separately. The
-// field is a JSON array of bot @p stored as text; decode it defensively.
+// field is a native contact %set of %ship values; decode it defensively.
 const readBotsField = (
   profile: ub.ContactBookProfile | null | undefined
 ): ub.BotClaimField => {
   const raw = profile?.bots?.value;
-  if (!raw) {
+  if (!Array.isArray(raw)) {
     return [];
   }
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? parsed.filter((id): id is string => typeof id === 'string')
-      : [];
-  } catch {
-    return [];
-  }
+  return raw.flatMap((entry) =>
+    entry?.type === 'ship' && typeof entry.value === 'string'
+      ? [entry.value]
+      : []
+  );
 };
 
 const normalizeMoonId = (id: string): string =>
@@ -144,7 +141,14 @@ export const registerBotProfile = async (
     await poke({
       app: 'contacts',
       mark: 'contact-action-1',
-      json: { self: { bots: { type: 'text', value: JSON.stringify(claim) } } },
+      json: {
+        self: {
+          bots: {
+            type: 'set',
+            value: claim.map((id) => ({ type: 'ship', value: id })),
+          },
+        },
+      },
     });
   }
   // start from the bot's currently published profile so a partial update
