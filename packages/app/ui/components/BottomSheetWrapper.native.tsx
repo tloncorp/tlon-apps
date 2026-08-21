@@ -250,28 +250,22 @@ export const BottomSheetWrapper = forwardRef<
 
     // Read `.current` at call time so methods stay correct across `mountKey`
     // remounts under `unmountOnClose`.
-    React.useImperativeHandle(
-      ref,
-      () => {
-        const m = () => bottomSheetModalRef.current;
-        const s = () => bottomSheetRef.current;
-        return {
-          present: () => (modal ? m()?.present() : s()?.expand()),
-          dismiss: () => (modal ? m()?.dismiss() : s()?.close()),
-          close: () => (modal ? m()?.dismiss() : s()?.close()),
-          expand: () => (modal ? m()?.present() : s()?.expand()),
-          collapse: () => (modal ? m()?.dismiss() : s()?.collapse()),
-          snapToIndex: (index: number) =>
-            modal ? m()?.snapToIndex(index) : s()?.snapToIndex(index),
-          snapToPosition: (position: string | number) =>
-            modal
-              ? m()?.snapToPosition(position)
-              : s()?.snapToPosition(position),
-          forceClose: () => (modal ? m()?.forceClose() : s()?.forceClose()),
-        } as any;
-      },
-      [modal]
-    );
+    React.useImperativeHandle(ref, () => {
+      const m = () => bottomSheetModalRef.current;
+      const s = () => bottomSheetRef.current;
+      return {
+        present: () => (modal ? m()?.present() : s()?.expand()),
+        dismiss: () => (modal ? m()?.dismiss() : s()?.close()),
+        close: () => (modal ? m()?.dismiss() : s()?.close()),
+        expand: () => (modal ? m()?.present() : s()?.expand()),
+        collapse: () => (modal ? m()?.dismiss() : s()?.collapse()),
+        snapToIndex: (index: number) =>
+          modal ? m()?.snapToIndex(index) : s()?.snapToIndex(index),
+        snapToPosition: (position: string | number) =>
+          modal ? m()?.snapToPosition(position) : s()?.snapToPosition(position),
+        forceClose: () => (modal ? m()?.forceClose() : s()?.forceClose()),
+      } as any;
+    }, [modal]);
 
     // Opt-in lifecycle: when `unmountOnClose === true`, mount the subtree on
     // open, schedule an unmount after the close-grace window on close, and bump

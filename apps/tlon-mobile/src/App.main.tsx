@@ -2,8 +2,6 @@ import { useAsyncStorageDevTools } from '@dev-plugins/async-storage';
 import { useReactNavigationDevTools } from '@dev-plugins/react-navigation';
 import { useReactQueryDevTools } from '@dev-plugins/react-query';
 import {
-  DarkTheme,
-  DefaultTheme,
   NavigationContainer,
   NavigationContainerRefWithCurrent,
   NavigationState,
@@ -13,13 +11,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useRequiredUpdate } from '@tloncorp/app/hooks/useRequiredUpdate';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
+import { useAppNavigationTheme } from '@tloncorp/app/navigation/useAppNavigationTheme';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
@@ -44,6 +43,7 @@ import AuthenticatedApp from './components/AuthenticatedApp';
 import { useTopLevelRouting } from './hooks/useTopLevelRouting';
 import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
+import { setActiveNotificationRoute } from './lib/notificationPresentation';
 import { SignupProvider } from './lib/signupContext';
 
 const splashscreenLogger = createDevLogger('splashscreen', false);
@@ -119,6 +119,8 @@ const MainApp = () => {
     hostingBotEnabled,
     handleClearSplash,
   } = useTopLevelRouting();
+  const authenticatedNavigatorVisible =
+    connected && !isLoading && !showSplashSequence && showAuthenticatedApp;
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const handleSplashLogout = useCallback(async () => {
@@ -131,6 +133,14 @@ const MainApp = () => {
   useEffect(() => {
     registerBackgroundSyncTask();
   }, []);
+
+  useEffect(() => {
+    if (!authenticatedNavigatorVisible) {
+      setActiveNotificationRoute(undefined);
+    }
+  }, [authenticatedNavigatorVisible]);
+
+  useEffect(() => () => setActiveNotificationRoute(undefined), []);
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
@@ -181,15 +191,31 @@ export function ConnectedAppContent({
 }: {
   migrationState: MigrationState;
 }) {
-  const isDarkMode = useIsDarkMode();
+  const splashIsHidden = useSplashHider();
+
+  return (
+    <FeatureFlagConnectedInstrumentationProvider>
+      <BaseProviderStack migrationState={migrationState}>
+        <ConnectedNavigationContent splashIsHidden={splashIsHidden} />
+      </BaseProviderStack>
+    </FeatureFlagConnectedInstrumentationProvider>
+  );
+}
+
+function ConnectedNavigationContent({
+  splashIsHidden,
+}: {
+  splashIsHidden: boolean;
+}) {
+  const navigationTheme = useAppNavigationTheme();
   const navigationContainerRef = useNavigationContainerRef();
   const routeNameRef = useRef<string>(undefined);
-  const splashIsHidden = useSplashHider();
   const navigationLogging = useNavigationLogging();
 
   const onReady = () => {
-    routeNameRef.current =
-      navigationContainerRef.current?.getCurrentRoute()?.name;
+    const route = navigationContainerRef.current?.getCurrentRoute();
+    routeNameRef.current = route?.name;
+    setActiveNotificationRoute(route);
 
     const state = navigationContainerRef.current?.getState();
     navigationLogging.onReady(state);
@@ -197,44 +223,41 @@ export function ConnectedAppContent({
 
   const onStateChange = (state: NavigationState | undefined) => {
     const previousRouteName = routeNameRef.current;
-    const currentRouteName =
-      navigationContainerRef.current?.getCurrentRoute()?.name;
+    const route = navigationContainerRef.current?.getCurrentRoute();
+    const currentRouteName = route?.name;
 
     if (currentRouteName != null && previousRouteName !== currentRouteName) {
       posthog?.screen(currentRouteName);
     }
 
     routeNameRef.current = currentRouteName;
+    setActiveNotificationRoute(route);
 
     navigationLogging.onStateChange(state);
   };
 
   return (
-    <FeatureFlagConnectedInstrumentationProvider>
-      <NavigationContainer
-        theme={isDarkMode ? DarkTheme : DefaultTheme}
-        ref={navigationContainerRef}
-        onReady={onReady}
-        onStateChange={onStateChange}
-        navigationInChildEnabled
-      >
-        <BaseProviderStack migrationState={migrationState}>
-          <ErrorBoundary>
-            <BranchProvider>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <SignupProvider>
-                  {splashIsHidden ? <App /> : null}
+    <NavigationContainer
+      theme={navigationTheme}
+      ref={navigationContainerRef}
+      onReady={onReady}
+      onStateChange={onStateChange}
+      navigationInChildEnabled
+    >
+      <ErrorBoundary>
+        <BranchProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <SignupProvider>
+              {splashIsHidden ? <App /> : null}
 
-                  {__DEV__ && (
-                    <DevTools navigationContainerRef={navigationContainerRef} />
-                  )}
-                </SignupProvider>
-              </GestureHandlerRootView>
-            </BranchProvider>
-          </ErrorBoundary>
-        </BaseProviderStack>
-      </NavigationContainer>
-    </FeatureFlagConnectedInstrumentationProvider>
+              {__DEV__ && (
+                <DevTools navigationContainerRef={navigationContainerRef} />
+              )}
+            </SignupProvider>
+          </GestureHandlerRootView>
+        </BranchProvider>
+      </ErrorBoundary>
+    </NavigationContainer>
   );
 }
 

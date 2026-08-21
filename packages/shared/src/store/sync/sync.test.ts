@@ -15,9 +15,8 @@ import {
   PostDataResponse,
 } from '@tloncorp/api/urbit';
 import {
-  ContactBookProfile,
-  ContactDirectoryScryResult,
-  Contact as UrbitContact,
+  ContactBookScryResult1,
+  ContactsDirectoryScryResult1,
 } from '@tloncorp/api/urbit/contact';
 import { GroupV7 as UrbitGroup } from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
@@ -29,7 +28,7 @@ import rawChannelPostsData from '../../../../api/src/__tests__/fixtures/channelP
 import * as db from '../../db';
 import rawNewestPostData from '../../test/channelNewestPost.json';
 import rawAfterNewestPostData from '../../test/channelPostsAfterNewest.json';
-import rawContactsData from '../../test/contacts.json';
+import rawContactsData from '../../test/contactsDirectory.json';
 import rawGroupsData from '../../test/groups.json';
 import rawGroupsInitData from '../../test/groupsInit.json';
 import rawHeadsData from '../../test/heads.json';
@@ -53,39 +52,14 @@ import {
 } from './sync';
 import { syncContacts } from './syncContacts';
 
+const rawContactsData2 = {};
 const rawContactSuggestionsData: string[] = [];
 
 const channelPostWithRepliesData =
   rawChannelPostWithRepliesData as unknown as PostDataResponse;
-const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
+const contactsData = rawContactsData as unknown as ContactsDirectoryScryResult1;
+const contactBookData = rawContactsData2 as unknown as ContactBookScryResult1;
 const suggestionsData = rawContactSuggestionsData as unknown as string[];
-
-// getContacts now reads the unified /v1/directory scry. Project the legacy v0
-// fixture into that v1 shape so the sync test exercises the real code path.
-const v0ToContactBookProfile = (c: UrbitContact): ContactBookProfile => {
-  const profile: ContactBookProfile = {};
-  if (c.nickname) profile.nickname = { type: 'text', value: c.nickname };
-  if (c.bio) profile.bio = { type: 'text', value: c.bio };
-  if (c.status) profile.status = { type: 'text', value: c.status };
-  if (c.color) profile.color = { type: 'tint', value: c.color };
-  if (c.avatar) profile.avatar = { type: 'look', value: c.avatar };
-  if (c.cover) profile.cover = { type: 'look', value: c.cover };
-  if (c.groups?.length) {
-    profile.groups = {
-      type: 'set',
-      value: c.groups.map((g) => ({ type: 'flag', value: g })),
-    };
-  }
-  return profile;
-};
-const directoryData: ContactDirectoryScryResult = Object.fromEntries(
-  Object.entries(contactsData)
-    .filter(([, c]) => !!c)
-    .map(([ship, c]) => [
-      ship,
-      { isContact: false, contact: v0ToContactBookProfile(c), mod: {} },
-    ])
-);
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
 const groupsInitData = rawGroupsInitData as unknown as GroupsInit6;
 const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit6;
@@ -305,18 +279,18 @@ test('syncChannelWithBackoff keeps polling across the markPostSent catch-up wind
 });
 
 test('syncs contacts', async () => {
-  setScryOutputs([directoryData, suggestionsData]);
+  setScryOutputs([contactsData, contactBookData, suggestionsData]);
   await syncContacts();
   const storedContacts = await db.getContacts();
-  expect(storedContacts.length).toEqual(
-    Object.values(contactsData).filter((n) => !!n).length
-  );
+  expect(storedContacts.length).toEqual(Object.keys(contactsData).length);
   storedContacts.forEach((c) => {
     const original = contactsData[c.id];
     expect(original).toBeTruthy();
-    expect(original.groups?.length ?? 0).toEqual(c.pinnedGroups.length);
+    expect(original.contact.groups?.value.length ?? 0).toEqual(
+      c.pinnedGroups.length
+    );
   });
-  setScryOutputs([directoryData, suggestionsData]);
+  setScryOutputs([contactsData, contactBookData, suggestionsData]);
   await syncContacts();
 });
 

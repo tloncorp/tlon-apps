@@ -44,6 +44,39 @@ class AttentionTests(unittest.TestCase):
         self.assertTrue(self.decide(is_free_response=True).dispatch)
         self.assertTrue(self.decide(is_participated_thread=True).dispatch)
 
+    def test_owner_command_dispatches_without_owner_listen(self):
+        decision = self.decide(is_owner_command=True)
+
+        self.assertTrue(decision.dispatch)
+        self.assertEqual(decision.reason, "owner-command")
+
+    def test_owner_command_checked_immediately_after_mention(self):
+        # Mention precedence is unchanged.
+        self.assertEqual(
+            self.decide(is_owner_command=True, is_mentioned=True).reason,
+            "mention",
+        )
+        # Owner-command wins over every later signal.
+        for later in (
+            "is_owner_listen",
+            "is_free_response",
+            "is_participated_thread",
+            "is_owner_blob",
+        ):
+            self.assertEqual(
+                self.decide(is_owner_command=True, **{later: True}).reason,
+                "owner-command",
+            )
+
+    def test_owner_command_respects_authorization_and_content_guards(self):
+        unauthorized = self.decide(is_owner_command=True, is_authorized=False)
+        empty = self.decide(is_owner_command=True, has_text=False)
+
+        self.assertFalse(unauthorized.dispatch)
+        self.assertEqual(unauthorized.reason, "unauthorized")
+        self.assertFalse(empty.dispatch)
+        self.assertEqual(empty.reason, "empty")
+
     def test_owner_blob_dispatches_in_group(self):
         decision = self.decide(is_owner_blob=True)
 

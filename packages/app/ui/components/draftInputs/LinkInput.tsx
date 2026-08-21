@@ -30,7 +30,7 @@ import {
   FormFrame,
 } from '../Form';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
-import { ScreenHeader } from '../ScreenHeader';
+import type { ScreenHeaderAction } from '../ScreenHeader';
 
 export type LinkInputSaveParams = {
   content: ub.Block | ub.Inline;
@@ -275,17 +275,16 @@ export function LinkInput({
   }, [editingPost, isDirty, isValid, handleSubmit, block, onSave]);
 
   useRegisterChannelHeaderItem(
-    useMemo(
-      () => (
-        <ScreenHeader.TextButton
-          key="gallery-preview-post"
-          onPress={handlePressDone}
-          disabled={!isValid || isPendingDebounce || isLoading || isPosting}
-          testID="GalleryPostButton"
-        >
-          {isPosting ? 'Posting...' : editingPost ? 'Save' : 'Post'}
-        </ScreenHeader.TextButton>
-      ),
+    useMemo<ScreenHeaderAction[]>(
+      () => [
+        {
+          id: 'gallery-post',
+          text: isPosting ? 'Posting...' : editingPost ? 'Save' : 'Post',
+          onPress: handlePressDone,
+          disabled: !isValid || isPendingDebounce || isLoading || isPosting,
+          testID: 'GalleryPostButton',
+        },
+      ],
       [
         handlePressDone,
         isValid,

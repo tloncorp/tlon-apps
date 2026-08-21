@@ -102,6 +102,54 @@ export interface TlawnProviderModel {
   [key: string]: unknown;
 }
 
+export type TlawnLLMAuthProvider = 'openai' | 'anthropic';
+
+export type TlawnLLMAuthFlowStatus =
+  | 'awaiting_browser'
+  | 'awaiting_token'
+  | 'authenticating'
+  | 'complete'
+  | 'error';
+
+export interface TlawnLLMAuthFlow {
+  id: string;
+  provider: TlawnLLMAuthProvider;
+  status: TlawnLLMAuthFlowStatus;
+  expiresAt: number;
+  verificationUrl?: string;
+  userCode?: string;
+  error?: string;
+}
+
+export interface TlawnLLMAuthFlowResponse {
+  flow: TlawnLLMAuthFlow;
+}
+
+export interface TlawnLLMAuthProviderStatus {
+  provider: string;
+  displayName?: string;
+  status: 'ok' | 'static' | 'expiring' | 'expired' | 'missing' | string;
+  reason?: string;
+  expiry?: {
+    at: number;
+    remainingMs: number;
+    label: string;
+  };
+}
+
+export interface TlawnSubscriptionModel {
+  id: string;
+  name?: string;
+}
+
+export interface TlawnLLMAuthStatus {
+  ts: number;
+  providers: TlawnLLMAuthProviderStatus[];
+  subscriptionModels?: Partial<
+    Record<TlawnLLMAuthProvider, TlawnSubscriptionModel[]>
+  >;
+}
+
 export interface TlawnBotInfo {
   enabled: boolean;
   provider?: string;
@@ -177,6 +225,7 @@ export interface TlawnOAuthProvider {
   displayName: string;
   id: string;
   kind: TlawnOAuthProviderKind;
+  logoUrl?: string;
   revokeUrl?: string;
   scopes: string;
   suggestedUpstream: TlawnOAuthUpstream;

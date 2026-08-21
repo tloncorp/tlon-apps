@@ -1094,9 +1094,8 @@ describe('UrbitSSEClient', () => {
 
     it('a wake 404 (Channel activation) does not re-set the reap flag', async () => {
       const { urbitFetch } = await import('./fetch.js');
-      const { createUrbitChannel, wakeUrbitChannel } = await import(
-        './channel-ops.js'
-      );
+      const { createUrbitChannel, wakeUrbitChannel } =
+        await import('./channel-ops.js');
       const mockUrbitFetch = vi.mocked(urbitFetch);
       const mockCreate = vi.mocked(createUrbitChannel);
       const mockWake = vi.mocked(wakeUrbitChannel);
@@ -1563,9 +1562,8 @@ describe('UrbitSSEClient', () => {
 
     it('close() racing a rebuild never marks the client connected', async () => {
       const { urbitFetch } = await import('./fetch.js');
-      const { createUrbitChannel, wakeUrbitChannel } = await import(
-        './channel-ops.js'
-      );
+      const { createUrbitChannel, wakeUrbitChannel } =
+        await import('./channel-ops.js');
       const mockUrbitFetch = vi.mocked(urbitFetch);
       const mockCreate = vi.mocked(createUrbitChannel);
       const mockWake = vi.mocked(wakeUrbitChannel);

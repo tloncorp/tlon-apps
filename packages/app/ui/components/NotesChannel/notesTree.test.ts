@@ -11,6 +11,7 @@ import {
   getFolderPath,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
+  getNotesSidebarParentFolderId,
   makeNotesFolderPathLabeler,
 } from './notesTree';
 
@@ -98,6 +99,25 @@ describe('makeNotesFolderPathLabeler', () => {
 });
 
 describe('notes tree helpers', () => {
+  test('walks the sidebar back one folder at a time before reaching root', () => {
+    const folders = [root, projects, backlog];
+
+    expect(
+      getNotesSidebarParentFolderId({
+        folderId: backlog.folderId,
+        folders,
+        rootFolderId: root.folderId,
+      })
+    ).toBe(projects.folderId);
+    expect(
+      getNotesSidebarParentFolderId({
+        folderId: projects.folderId,
+        folders,
+        rootFolderId: root.folderId,
+      })
+    ).toBeNull();
+  });
+
   test('builds a folder path for note metadata', () => {
     expect(getFolderPath([root, projects, backlog], 4, 1)).toBe(
       'Root / Projects / Backlog'

@@ -1,65 +1,41 @@
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
 import { Icon, Text } from '@tloncorp/ui';
-import { useCallback } from 'react';
-import { Pressable } from 'react-native';
+import { PropsWithChildren } from 'react';
+import { Pressable, StyleSheet } from 'react-native';
 import { XStack } from 'tamagui';
 
-const BANNER_HEIGHT = 44;
+import { useConversationScrollViewNativeID } from '../../contexts/scroll';
+import { GlassSurface } from '../GlassSurface';
+import { ScrollEdgeElementContainer } from '../ScrollEdgeElementContainer';
+import {
+  floatingPinnedPostBannerGap,
+  floatingPinnedPostBannerHeight,
+} from '../conversationScrollChrome';
 
 interface PinnedPostBannerProps {
-  channel: db.Channel;
+  post: db.Post;
+  floating: boolean;
+  floatingHeaderHeight: number;
   onPressPost: (post: db.Post) => void;
+  onDismiss: () => void;
 }
 
 export function PinnedPostBanner({
-  channel,
+  post,
+  floating,
+  floatingHeaderHeight,
   onPressPost,
+  onDismiss,
 }: PinnedPostBannerProps) {
-  const pinnedPostId = logic.getPinnedPostId(channel);
-  const dismissedPinnedPostBannerIds =
-    db.dismissedPinnedPostBannerIds.useValue();
-  const isDismissed =
-    !!pinnedPostId && dismissedPinnedPostBannerIds.includes(pinnedPostId);
-
-  const postQuery = store.usePostReference({
-    channelId: channel.id,
-    postId: pinnedPostId ?? '',
-    enabled: !!pinnedPostId && !isDismissed,
-  });
-
-  const handlePress = useCallback(() => {
-    if (postQuery.data) {
-      onPressPost(postQuery.data);
-    }
-  }, [postQuery.data, onPressPost]);
-
-  const handleDismiss = useCallback(() => {
-    if (pinnedPostId) {
-      store.dismissPinnedPostBanner(pinnedPostId);
-    }
-  }, [pinnedPostId]);
-
-  if (!pinnedPostId || !postQuery.data || isDismissed) {
-    return null;
-  }
-
-  const post = postQuery.data;
   const author = post.author || null;
   const previewText = post.textContent?.trim() || 'Pinned post';
 
   return (
-    <XStack
-      height={BANNER_HEIGHT}
-      paddingHorizontal="$l"
-      backgroundColor="$background"
-      borderBottomWidth={1}
-      borderBottomColor="$border"
-      alignItems="center"
-      gap="$m"
+    <PinnedPostBannerChrome
+      floating={floating}
+      floatingHeaderHeight={floatingHeaderHeight}
     >
-      <Pressable onPress={handlePress} style={{ flex: 1 }}>
+      <Pressable onPress={() => onPressPost(post)} style={styles.post}>
         <XStack alignItems="center" gap="$m" flex={1}>
           <Icon type="Pin" customSize={[16, 16]} color="$primaryText" />
           <Text
@@ -79,12 +55,71 @@ export function PinnedPostBanner({
       <Pressable
         onPress={(event) => {
           event.stopPropagation();
-          handleDismiss();
+          onDismiss();
         }}
         hitSlop={12}
       >
         <Icon type="Close" customSize={[16, 14]} color="$tertiaryText" />
       </Pressable>
-    </XStack>
+    </PinnedPostBannerChrome>
   );
 }
+
+function PinnedPostBannerChrome({
+  children,
+  floating,
+  floatingHeaderHeight,
+}: PropsWithChildren<{ floating: boolean; floatingHeaderHeight: number }>) {
+  const scrollViewNativeID = useConversationScrollViewNativeID();
+  const usesFloatingChrome = floating;
+  const content = (
+    <XStack
+      height={floatingPinnedPostBannerHeight}
+      paddingHorizontal="$l"
+      backgroundColor={usesFloatingChrome ? 'transparent' : '$background'}
+      borderBottomWidth={usesFloatingChrome ? 0 : 1}
+      borderBottomColor="$border"
+      alignItems="center"
+      gap="$m"
+    >
+      {children}
+    </XStack>
+  );
+
+  if (!usesFloatingChrome) {
+    return content;
+  }
+
+  return (
+    <ScrollEdgeElementContainer
+      edge="top"
+      scrollViewNativeID={scrollViewNativeID}
+      style={[
+        styles.floating,
+        {
+          top: floatingHeaderHeight + floatingPinnedPostBannerGap,
+        },
+      ]}
+    >
+      <GlassSurface glassEffectStyle="regular" style={styles.chrome}>
+        {content}
+      </GlassSurface>
+    </ScrollEdgeElementContainer>
+  );
+}
+
+const styles = StyleSheet.create({
+  post: {
+    flex: 1,
+  },
+  floating: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    zIndex: 20,
+  },
+  chrome: {
+    borderRadius: 22,
+    overflow: 'hidden',
+  },
+});

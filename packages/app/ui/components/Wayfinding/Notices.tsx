@@ -135,7 +135,7 @@ function GroupChannels(props: { group: db.Group }) {
           Welcome to your group! We’ve created three basic channels to get you
           started. Tap into each to explore how Tlon Messenger works.
         </NoticeText>
-        <InviteFriendsToTlonButton group={props.group} preset="positive" />
+        <InviteFriendsToTlonButton group={props.group} />
       </NoticeContainer>
     </View>
   );
@@ -154,7 +154,7 @@ function CustomizeGroup() {
   );
 }
 
-export function HomeAddTooltip() {
+export function HomeAddTooltip({ top = 36 }: { top?: number }) {
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
   const botEnabled = isHostedUser && hostingBotEnabled;
@@ -167,7 +167,7 @@ export function HomeAddTooltip() {
   }, []);
 
   return (
-    <View position="absolute" top={36} right={18}>
+    <View position="absolute" top={top} right={18} zIndex={100}>
       <YStack alignItems="flex-end">
         <Pressable
           testID="HomeAddWayfindingTooltip"

@@ -286,7 +286,7 @@ export function getNextNoteIdAfterDelete(
   const deletedIndex = noteIds.indexOf(deletedNoteId);
   return deletedIndex === -1
     ? null
-    : noteIds[deletedIndex + 1] ?? noteIds[deletedIndex - 1] ?? null;
+    : (noteIds[deletedIndex + 1] ?? noteIds[deletedIndex - 1] ?? null);
 }
 
 export function getNextNoteIdAfterFolderDelete({
@@ -385,6 +385,26 @@ export function buildFolderUnreadCounts(
 export function getFolderLabel(folder: db.NotesFolder | null | undefined) {
   if (!folder) return 'Folder';
   return folder.name === '/' ? 'Root' : folder.name;
+}
+
+export function getNotesSidebarParentFolderId({
+  folderId,
+  folders,
+  rootFolderId,
+}: {
+  folderId: number | null;
+  folders: db.NotesFolder[];
+  rootFolderId: number | null;
+}) {
+  if (folderId == null || folderId === rootFolderId) return null;
+
+  const parentFolderId = folders.find(
+    (folder) => folder.folderId === folderId
+  )?.parentFolderId;
+
+  return parentFolderId == null || parentFolderId === rootFolderId
+    ? null
+    : parentFolderId;
 }
 
 /**

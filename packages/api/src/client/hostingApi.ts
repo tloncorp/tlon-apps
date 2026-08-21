@@ -18,6 +18,9 @@ import type {
   TlawnChatConfigInfo,
   TlawnChatConfigUpdate,
   TlawnConfig,
+  TlawnLLMAuthFlowResponse,
+  TlawnLLMAuthProvider,
+  TlawnLLMAuthStatus,
   TlawnOAuthProvider,
   TlawnOAuthStartRequest,
   TlawnOAuthStartResponse,
@@ -37,6 +40,12 @@ export type {
   TlawnChatConfigInfo,
   TlawnChatConfigUpdate,
   TlawnConfig,
+  TlawnLLMAuthFlow,
+  TlawnLLMAuthFlowResponse,
+  TlawnLLMAuthFlowStatus,
+  TlawnLLMAuthProvider,
+  TlawnLLMAuthProviderStatus,
+  TlawnLLMAuthStatus,
   TlawnModelEntry,
   TlawnOAuthGrant,
   TlawnOAuthProvider,
@@ -48,6 +57,7 @@ export type {
   TlawnPrimaryModelUpdate,
   TlawnProviderConfigInfo,
   TlawnProviderModel,
+  TlawnSubscriptionModel,
 } from '../types/hosting';
 
 const logger = createDevLogger('hostingApi', false);
@@ -271,6 +281,106 @@ interface RawTlawnOAuthStartResponse {
   authorizeUrl: string;
 }
 
+type JsonObject = Record<string, unknown>;
+
+const isJsonObject = (value: unknown): value is JsonObject =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const invalidLLMAuthResponse = (
+  value: unknown,
+  responseName: string
+): never => {
+  if (isJsonObject(value) && typeof value.error === 'string') {
+    throw new Error(value.error);
+  }
+  throw new Error(`Invalid ${responseName} response.`);
+};
+
+const parseTlawnLLMAuthFlowResponse = (
+  value: unknown
+): TlawnLLMAuthFlowResponse => {
+  const flow =
+    isJsonObject(value) && isJsonObject(value.flow) ? value.flow : null;
+  const optionalStrings = ['verificationUrl', 'userCode', 'error'] as const;
+  if (
+    !flow ||
+    typeof flow.id !== 'string' ||
+    (flow.provider !== 'openai' && flow.provider !== 'anthropic') ||
+    ![
+      'awaiting_browser',
+      'awaiting_token',
+      'authenticating',
+      'complete',
+      'error',
+    ].includes(typeof flow.status === 'string' ? flow.status : '') ||
+    typeof flow.expiresAt !== 'number' ||
+    !Number.isFinite(flow.expiresAt) ||
+    optionalStrings.some(
+      (key) => flow[key] !== undefined && typeof flow[key] !== 'string'
+    )
+  ) {
+    return invalidLLMAuthResponse(value, 'model provider login');
+  }
+  return value as TlawnLLMAuthFlowResponse;
+};
+
+const parseTlawnLLMAuthStatus = (value: unknown): TlawnLLMAuthStatus => {
+  if (
+    !isJsonObject(value) ||
+    typeof value.ts !== 'number' ||
+    !Number.isFinite(value.ts) ||
+    !Array.isArray(value.providers)
+  ) {
+    return invalidLLMAuthResponse(value, 'model provider login status');
+  }
+
+  const validProviders = value.providers.every((provider) => {
+    if (
+      !isJsonObject(provider) ||
+      typeof provider.provider !== 'string' ||
+      typeof provider.status !== 'string' ||
+      (provider.displayName !== undefined &&
+        typeof provider.displayName !== 'string') ||
+      (provider.reason !== undefined && typeof provider.reason !== 'string')
+    ) {
+      return false;
+    }
+    const expiry = provider.expiry;
+    return (
+      expiry === undefined ||
+      (isJsonObject(expiry) &&
+        typeof expiry.at === 'number' &&
+        Number.isFinite(expiry.at) &&
+        typeof expiry.remainingMs === 'number' &&
+        Number.isFinite(expiry.remainingMs) &&
+        typeof expiry.label === 'string')
+    );
+  });
+
+  const modelGroups = value.subscriptionModels;
+  const validModels =
+    modelGroups === undefined ||
+    (isJsonObject(modelGroups) &&
+      (['openai', 'anthropic'] as const).every((provider) => {
+        const models = modelGroups[provider];
+        return (
+          models === undefined ||
+          (Array.isArray(models) &&
+            models.every(
+              (model) =>
+                isJsonObject(model) &&
+                typeof model.id === 'string' &&
+                (model.name === undefined || typeof model.name === 'string')
+            ))
+        );
+      }));
+
+  if (!validProviders || !validModels) {
+    return invalidLLMAuthResponse(value, 'model provider login status');
+  }
+  return value as unknown as TlawnLLMAuthStatus;
+};
+
 function normalizeTlawnShipId(ship: string) {
   return encodeURIComponent(ship.replace(/^~/, ''));
 }
@@ -298,10 +408,54 @@ export async function setTlawnProviderKey(
 
 export async function deleteTlawnProviderKey(
   userId: string,
-  provider: string
+  provider: string,
+  ship?: string
 ): Promise<TlawnProviderConfigInfo> {
+  const shipQuery = ship ? `?ship=${normalizeTlawnShipId(ship)}` : '';
   return hostingFetch<TlawnProviderConfigInfo>(
-    `/v1/tlawn/users/${userId}/provider-keys/${provider}`,
+    `/v1/tlawn/users/${userId}/provider-keys/${provider}${shipQuery}`,
+    { method: 'DELETE' }
+  );
+}
+
+export async function getTlawnLLMAuthStatus(
+  ship: string
+): Promise<TlawnLLMAuthStatus> {
+  const response = await hostingFetch<Record<string, unknown>>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/llm-auth/status`,
+    { cache: 'no-store' }
+  );
+  return parseTlawnLLMAuthStatus(response);
+}
+
+export async function startTlawnLLMAuth(
+  ship: string,
+  provider: TlawnLLMAuthProvider
+): Promise<TlawnLLMAuthFlowResponse> {
+  const response = await hostingFetch<Record<string, unknown>>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/llm-auth/start`,
+    jsonInit('POST', { provider })
+  );
+  return parseTlawnLLMAuthFlowResponse(response);
+}
+
+export async function getTlawnLLMAuthFlow(
+  ship: string,
+  flowId: string
+): Promise<TlawnLLMAuthFlowResponse> {
+  const response = await hostingFetch<Record<string, unknown>>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/llm-auth/flow/${encodeURIComponent(flowId)}`,
+    { cache: 'no-store' }
+  );
+  return parseTlawnLLMAuthFlowResponse(response);
+}
+
+export async function disconnectTlawnLLMAuth(
+  ship: string,
+  provider: TlawnLLMAuthProvider
+): Promise<Record<string, unknown>> {
+  return hostingFetch<Record<string, unknown>>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/llm-auth/providers/${provider}`,
     { method: 'DELETE' }
   );
 }
@@ -1067,7 +1221,7 @@ export const getNodeStatus = async (
     throw new Error('Hosting API call failed');
   }
 
-  const nodeStatus = result.status ? result.status.phase ?? 'Unknown' : null;
+  const nodeStatus = result.status ? (result.status.phase ?? 'Unknown') : null;
   const isBooting = result.ship?.booting;
   const manualUpdateNeeded = result.ship?.manualUpdateNeeded;
   const showWayfinding = result.ship?.showWayfinding ?? false;

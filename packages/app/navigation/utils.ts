@@ -56,7 +56,7 @@ export function createTypedReset<T extends Record<string, any>>(
     index = routes.length - 1
   ) {
     navigation.dispatch(
-      // eslint-disable-next-line no-restricted-syntax
+      // eslint-disable-next-line tlon/no-common-actions-reset
       CommonActions.reset({
         index,
         routes,
@@ -583,10 +583,13 @@ export async function getMainGroupRoute(
   groupId: string,
   isWindowNarrow: boolean
 ) {
-  const group = await db.getGroup({ id: groupId });
-  const lastVisitedChannelId = await db
-    .lastVisitedChannelId(groupId)
-    .getValue();
+  // This route decision already needs the full group. Populate the same query
+  // cache used by GroupChannels so its first render does not repeat the DB read
+  // during the native push animation.
+  const [group, lastVisitedChannelId] = await Promise.all([
+    store.fetchGroup(groupId),
+    isWindowNarrow ? null : db.lastVisitedChannelId(groupId).getValue(),
+  ]);
   if (
     group &&
     group.channels &&

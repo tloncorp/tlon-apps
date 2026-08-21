@@ -236,9 +236,9 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
   } = queries;
   const ready = Boolean(
     ship &&
-      providerConfigQuery.isSuccess &&
-      configQuery.isSuccess &&
-      nicknameQuery.isSuccess
+    providerConfigQuery.isSuccess &&
+    configQuery.isSuccess &&
+    nicknameQuery.isSuccess
   );
   // syncServerValues drops a fresh server snapshot while the user has local
   // edits (so a refetch can't clobber them). If that snapshot changed an

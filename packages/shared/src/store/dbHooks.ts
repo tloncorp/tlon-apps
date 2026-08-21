@@ -194,11 +194,13 @@ export const useCanUpload = () => {
   );
 };
 
-export const useContact = (options: { id: string }) => {
+export const useContact = (options: { id: string; enabled?: boolean }) => {
   const deps = useKeyFromQueryDeps(db.getContact, options);
+  const { enabled = true, ...queryOptions } = options;
   return useQuery({
+    enabled,
     queryKey: [['contact', options.id], deps],
-    queryFn: () => db.getContact(options),
+    queryFn: () => db.getContact(queryOptions),
   });
 };
 
@@ -454,18 +456,25 @@ export const useGroups = (options: db.GetGroupsOptions) => {
   });
 };
 
+const getGroupQueryOptions = (id?: string) => ({
+  queryKey: [['group', id], keyFromQueryDeps(db.getGroup, id)],
+  queryFn: () => {
+    if (!id) {
+      throw new Error('missing group id');
+    }
+    return db.getGroup({ id });
+  },
+});
+
 export const useGroup = ({ id }: { id?: string }) => {
   return useQuery({
+    ...getGroupQueryOptions(id),
     enabled: !!id,
-    queryKey: [['group', id], useKeyFromQueryDeps(db.getGroup, id)],
-    queryFn: () => {
-      if (!id) {
-        throw new Error('missing group id');
-      }
-      return db.getGroup({ id });
-    },
   });
 };
+
+export const fetchGroup = (id: string) =>
+  db.queryClient.fetchQuery(getGroupQueryOptions(id));
 
 export const useGroupUnread = ({ groupId }: { groupId: string }) => {
   return useQuery({

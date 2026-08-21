@@ -25,6 +25,10 @@ import {
   providerLabel,
 } from './bot/constants';
 import { normalizeShipList, safeKeySummary } from './bot/helpers';
+import {
+  getOpenAIAuthStatus,
+  isLLMAuthProviderConnected,
+} from './bot/openAiSubscription';
 import { useBotSettingsQueries } from './bot/useBotSettingsData';
 import {
   useApplyBotSettings,
@@ -114,12 +118,27 @@ export function BotSettingsScreen(props: Props) {
       option.id !== BASIC_PROVIDER_ID &&
       Boolean(queries.providerConfig.keys?.[option.id])
   );
+  const openAIAuthStatus = getOpenAIAuthStatus(queries.llmAuthStatusQuery.data);
+  const openAISubscriptionConnected = isLLMAuthProviderConnected(
+    openAIAuthStatus?.status
+  );
+  const openAISubscriptionSummary = queries.llmAuthStatusQuery.isLoading
+    ? 'Checking…'
+    : queries.llmAuthStatusQuery.isError &&
+        queries.llmAuthStatusQuery.data === undefined
+      ? 'Unavailable'
+      : openAISubscriptionConnected
+        ? 'Connected'
+        : openAIAuthStatus?.status === 'expired'
+          ? 'Expired'
+          : 'Not connected';
   // Keep the Default model section reachable even when the key backing a custom
   // model was removed: provider keys and model choices are stored separately, so
   // hiding it would strand the bot on an unusable model with no way to switch
   // back to Basic or clear fallbacks.
   const showModelSection =
     hasCustomProviderKey ||
+    openAISubscriptionConnected ||
     draft.model.provider !== BASIC_PROVIDER_ID ||
     draft.model.fallbacks.length > 0;
   // The provider-key endpoint is user-level and stays usable even when the bot's
@@ -149,6 +168,7 @@ export function BotSettingsScreen(props: Props) {
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title="Bot settings"
+        placement="navigation"
       />
       <SettingsContentScrollView
         paddingHorizontal="$l"
@@ -216,7 +236,15 @@ export function BotSettingsScreen(props: Props) {
             </BotSettingsSection>
           ) : null}
 
-          <BotSettingsSection title="API keys">
+          <BotSettingsSection title="Model providers">
+            <BotSettingsRow
+              label="ChatGPT subscription"
+              value={openAISubscriptionSummary}
+              icon="Link"
+              disabled={applying || !queries.botReady || !providerKeysReady}
+              onPress={() => navigate('BotOpenAISubscription')}
+            />
+            <BotSettingsDivider />
             {PROVIDER_OPTIONS.filter(
               (option) => option.id !== BASIC_PROVIDER_ID
             ).map((option, index, list) => (

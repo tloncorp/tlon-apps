@@ -135,8 +135,8 @@ export function StaticChatMessage({
       if (action.event.name === A2UI.action.sendMessage) {
         return Boolean(
           draftInputContext &&
-            draftInputContext.canStartDraft !== false &&
-            action.event.context.text.trim()
+          draftInputContext.canStartDraft !== false &&
+          action.event.context.text.trim()
         );
       }
 

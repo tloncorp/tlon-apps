@@ -1,267 +1,300 @@
-import { beforeEach, expect, test, vi } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 import {
+  type ContactsUpdate,
+  contactSelfFieldPoke,
+  contactToClientProfile,
   directoryToClientProfiles,
-  isRegisteredBot,
-  registerBotProfile,
-  v0PeerToClientProfile,
-  v0PeersToClientProfiles,
+  extractBotInfoValue,
+  subscribeToContactUpdates,
+  v1PeerToClientProfile,
 } from '../client/contactsApi';
-import { poke, scry } from '../client/urbit';
-import type { ContactBookProfile, ContactFieldText } from '../urbit/contact';
+import { subscribe } from '../client/urbit';
+import type { ContactBookProfile } from '../urbit/contact';
 
-vi.mock('../client/urbit', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../client/urbit')>();
-  return { ...actual, scry: vi.fn(), poke: vi.fn() };
+vi.mock('../client/urbit', async () => {
+  const actual =
+    await vi.importActual<typeof import('../client/urbit')>('../client/urbit');
+  return {
+    ...actual,
+    subscribe: vi.fn(),
+  };
 });
 
-// ~doznec-sampel-palnet is a real moon sponsored by ~sampel-palnet.
-const PARENT = '~sampel-palnet';
-const MOON = '~doznec-sampel-palnet';
+const subscribeMock = subscribe as unknown as ReturnType<typeof vi.fn>;
 
-const withBots = (ships: string[]): ContactBookProfile => ({
-  bots: {
-    type: 'set',
-    value: ships.map((value) => ({ type: 'ship' as const, value })),
+const directoryResponse = {
+  '~ravmel-ropdyl': {
+    isContact: false,
+    contact: {
+      status: { type: 'text' as const, value: 'listening to music' },
+      cover: {
+        type: 'look' as const,
+        value:
+          'https://20-urbit.s3.us-west-1.amazonaws.com/ravmel-ropdyl/2021.2.13..00.31.09-Manaslu-crevasses.jpg',
+      },
+      bio: {
+        type: 'text' as const,
+        value: 'happy to chat, send a dm any time',
+      },
+      nickname: { type: 'text' as const, value: 'galen' },
+      color: { type: 'tint' as const, value: 'ff.ffff' },
+      groups: {
+        type: 'set' as const,
+        value: [
+          { type: 'flag' as const, value: '~ravmel-ropdyl/audio-video-images' },
+          { type: 'flag' as const, value: '~nibset-napwyn/tlon' },
+        ],
+      },
+    },
+    mod: {},
   },
-});
-
-beforeEach(() => {
-  vi.mocked(poke).mockClear();
-  vi.mocked(scry).mockClear();
-});
-
-const SIBLING = '~marzod-sampel-palnet';
-
-// registerBotProfile scries /v1/self (the claim) then /v1/directory (the
-// bot's current profile, merged into the update)
-const mockBotProfileScries = (
-  self: ContactBookProfile,
-  directory: Record<string, unknown> = {}
-) => {
-  vi.mocked(scry).mockImplementation(async ({ path }: { path: string }) =>
-    path === '/v1/self' ? (self as never) : (directory as never)
-  );
+  '~nocsyx-lassul': {
+    isContact: true,
+    contact: { nickname: { type: 'text' as const, value: 'polwet' } },
+    mod: {},
+  },
 };
 
-test('registerBotProfile claims the moon (list) and publishes its real profile', async () => {
-  mockBotProfileScries({
-    nickname: { type: 'text', value: 'Host' },
-    bots: { type: 'set', value: [{ type: 'ship', value: SIBLING }] },
-  } as ContactBookProfile);
-  vi.mocked(poke).mockResolvedValue(undefined as never);
-
-  await registerBotProfile(MOON, { nickname: 'Helper', avatar: 'http://x/a' });
-
-  // two pokes: the claim (contact-action-1) then the real profile (contact-bot-0)
-  expect(poke).toHaveBeenCalledTimes(2);
-  const claim = vi.mocked(poke).mock.calls[0][0] as {
-    app: string;
-    mark: string;
-    json: { self: { bots: { type: string; value: unknown } } };
-  };
-  expect(claim).toMatchObject({ app: 'contacts', mark: 'contact-action-1' });
-  // the claim is a native %set of %ship values; sibling preserved, moon added
-  expect(claim.json.self.bots).toEqual({
-    type: 'set',
-    value: [
-      { type: 'ship', value: SIBLING },
-      { type: 'ship', value: MOON },
-    ],
-  });
-
-  const profile = vi.mocked(poke).mock.calls[1][0] as {
-    app: string;
-    mark: string;
-    json: { who: string; con: Record<string, { type: string; value: string }> };
-  };
-  expect(profile).toMatchObject({ app: 'contacts', mark: 'contact-bot-0' });
-  expect(profile.json).toEqual({
-    who: MOON,
-    con: {
-      nickname: { type: 'text', value: 'Helper' },
-      avatar: { type: 'look', value: 'http://x/a' },
-    },
-  });
-});
-
-test('registerBotProfile skips the claim poke when the moon is already claimed', async () => {
-  mockBotProfileScries({
-    bots: { type: 'set', value: [{ type: 'ship', value: MOON }] },
-  } as ContactBookProfile);
-  vi.mocked(poke).mockResolvedValue(undefined as never);
-
-  await registerBotProfile(MOON, { nickname: 'Helper' });
-
-  // only the real-profile poke; the claim is already present
-  expect(poke).toHaveBeenCalledTimes(1);
-  expect(vi.mocked(poke).mock.calls[0][0]).toMatchObject({
-    mark: 'contact-bot-0',
-  });
-});
-
-test('registerBotProfile merges a partial update into the existing profile', async () => {
-  mockBotProfileScries(
+test('converts a directory scry to client profiles', () => {
+  expect(directoryToClientProfiles(directoryResponse)).toStrictEqual([
     {
-      bots: { type: 'set', value: [{ type: 'ship', value: MOON }] },
-    } as ContactBookProfile,
-    {
-      [MOON]: {
-        isContact: false,
-        contact: {
-          nickname: { type: 'text', value: 'Helper' },
-          avatar: { type: 'look', value: 'http://x/a' },
-          bio: { type: 'text', value: 'old bio' },
+      id: '~ravmel-ropdyl',
+      peerAvatarImage: null,
+      peerNickname: 'galen',
+      coverImage:
+        'https://20-urbit.s3.us-west-1.amazonaws.com/ravmel-ropdyl/2021.2.13..00.31.09-Manaslu-crevasses.jpg',
+      bio: 'happy to chat, send a dm any time',
+      status: 'listening to music',
+      color: '#FFFFFF',
+      pinnedGroups: [
+        {
+          groupId: '~ravmel-ropdyl/audio-video-images',
+          contactId: '~ravmel-ropdyl',
         },
-        mod: {},
+        { groupId: '~nibset-napwyn/tlon', contactId: '~ravmel-ropdyl' },
+      ],
+      attestations: null,
+      botInfo: null,
+      isContact: false,
+      isContactSuggestion: undefined,
+    },
+    {
+      id: '~nocsyx-lassul',
+      peerAvatarImage: null,
+      peerNickname: 'polwet',
+      coverImage: null,
+      bio: null,
+      status: null,
+      color: null,
+      pinnedGroups: [],
+      attestations: null,
+      botInfo: null,
+      isContact: false,
+      isContactSuggestion: undefined,
+    },
+  ]);
+});
+
+test('omits entries with no profile data from directory profiles', () => {
+  const profiles = directoryToClientProfiles({
+    ...directoryResponse,
+    '~zod': { isContact: true, contact: {}, mod: {} },
+    '~bus': { isContact: false, contact: {}, mod: {} },
+  });
+  expect(profiles.map((p) => p.id)).toStrictEqual([
+    '~ravmel-ropdyl',
+    '~nocsyx-lassul',
+  ]);
+});
+
+test('omits book entries from directory profiles', () => {
+  const profiles = directoryToClientProfiles(directoryResponse, {
+    userIdsToOmit: new Set(['~nocsyx-lassul']),
+  });
+  expect(profiles.map((p) => p.id)).toStrictEqual(['~ravmel-ropdyl']);
+});
+
+// The directory scry is the bulk path a bot's claim now rides on — this is
+// what let bulk sync stop special-casing `botInfo`. The composition matters:
+// directory tests that skip this field plus mapper tests that never see a
+// directory would both stay green if the converter dropped it.
+//
+// The entry carries nothing *but* the claim on purpose: a bot that publishes
+// only `bot-info` is a profile the non-empty filter above keeps, and a fixture
+// with a nickname would survive a converter that dropped bot-info-only rows.
+test('a directory entry carries its bot-info claim onto the client row', () => {
+  const claim = JSON.stringify({ v: 1, harness: 'hermes', version: '0.15.0' });
+  const profiles = directoryToClientProfiles({
+    '~zod': {
+      isContact: false,
+      contact: {
+        ['bot-info']: { type: 'text' as const, value: claim },
       },
-    }
-  );
-  vi.mocked(poke).mockResolvedValue(undefined as never);
+      mod: {},
+    },
+  });
+  expect(profiles).toHaveLength(1);
+  expect(profiles[0].botInfo).toBe(claim);
+});
 
-  // update bio, clear avatar, leave nickname alone
-  await registerBotProfile(MOON, { bio: 'new bio', avatar: null });
+describe('contactSelfFieldPoke', () => {
+  test('builds the self-merge action for a namespaced field', () => {
+    expect(
+      contactSelfFieldPoke('bot-info', { type: 'text', value: '{"v":1}' })
+    ).toEqual({
+      app: 'contacts',
+      mark: 'contact-action-1',
+      json: { self: { ['bot-info']: { type: 'text', value: '{"v":1}' } } },
+    });
+  });
 
-  expect(poke).toHaveBeenCalledTimes(1);
-  const arg = vi.mocked(poke).mock.calls[0][0] as {
-    mark: string;
-    json: { who: string; con: Record<string, { type: string; value: string }> };
-  };
-  expect(arg.mark).toBe('contact-bot-0');
-  expect(arg.json.con).toEqual({
-    nickname: { type: 'text', value: 'Helper' },
-    bio: { type: 'text', value: 'new bio' },
+  test('null deletes the key (contact keys only die by explicit null)', () => {
+    expect(contactSelfFieldPoke('bot-info', null)).toEqual({
+      app: 'contacts',
+      mark: 'contact-action-1',
+      json: { self: { ['bot-info']: null } },
+    });
   });
 });
 
-const inputContact: [string, any] = [
-  'test',
-  {
-    status: 'listening to music',
-    avatar: null,
-    cover:
-      'https://20-urbit.s3.us-west-1.amazonaws.com/ravmel-ropdyl/2021.2.13..00.31.09-Manaslu-crevasses.jpg',
-    bio: 'happy to chat, send a dm any time',
-    nickname: 'galen',
-    color: '0xff.ffff',
-    groups: [
-      '~ravmel-ropdyl/audio-video-images',
-      '~nibset-napwyn/tlon',
-      '~ravmel-ropdyl/crate',
-    ],
-    attestations: null,
-  },
-];
+describe('bot-info contact field', () => {
+  const claimJson = JSON.stringify({
+    v: 1,
+    harness: 'openclaw',
+    version: '0.19.0',
+  });
 
-const outputContact = {
-  id: 'test',
-  peerAvatarImage: null,
-  peerNickname: 'galen',
-  coverImage:
-    'https://20-urbit.s3.us-west-1.amazonaws.com/ravmel-ropdyl/2021.2.13..00.31.09-Manaslu-crevasses.jpg',
-  bio: 'happy to chat, send a dm any time',
-  status: 'listening to music',
-  color: '#FFFFFF',
-  pinnedGroups: [
-    { groupId: '~ravmel-ropdyl/audio-video-images', contactId: 'test' },
-    { groupId: '~nibset-napwyn/tlon', contactId: 'test' },
-    { groupId: '~ravmel-ropdyl/crate', contactId: 'test' },
-  ],
-  attestations: null,
-  isContact: false,
-  isContactSuggestion: undefined,
-};
+  test('v1 peer mapper carries a well-formed text field', () => {
+    const contact = v1PeerToClientProfile('~bot', {
+      nickname: { type: 'text', value: 'Bot' },
+      'bot-info': { type: 'text', value: claimJson },
+    });
+    expect(contact.botInfo).toBe(claimJson);
+  });
 
-test('converts a contact from server to client format', () => {
-  expect(v0PeerToClientProfile(...inputContact)).toStrictEqual(outputContact);
-});
+  test('v1 peer mapper clears (null) when the field is absent', () => {
+    const contact = v1PeerToClientProfile('~bot', {
+      nickname: { type: 'text', value: 'Bot' },
+    });
+    expect(contact.botInfo).toBeNull();
+  });
 
-test('converts an array of contacts from server to client format', () => {
-  expect(
-    v0PeersToClientProfiles({ [inputContact[0]]: inputContact[1] })
-  ).toStrictEqual([outputContact]);
-});
+  test.each([
+    ['set field', { type: 'set', value: [] }],
+    ['numb field', { type: 'numb', value: '0x1' }],
+    ['look field', { type: 'look', value: 'https://example.com' }],
+    ['text field with non-string value', { type: 'text', value: 42 }],
+    ['text field missing value', { type: 'text' }],
+    ['bare string', claimJson],
+    ['array', [{ type: 'text', value: claimJson }]],
+    ['null', null],
+  ])('v1 peer mapper rejects wrong shape: %s', (_label, field) => {
+    const contact = v1PeerToClientProfile('~bot', {
+      'bot-info': field,
+    } as unknown as ContactBookProfile);
+    expect(contact.botInfo).toBeNull();
+  });
 
-test('isRegisteredBot is true for a moon claimed by its own parent', async () => {
-  vi.mocked(scry).mockResolvedValue({
-    [PARENT]: { isContact: false, contact: withBots([MOON]) },
-  } as never);
-  expect(await isRegisteredBot(MOON)).toBe(true);
-});
-
-test('isRegisteredBot normalizes a sig-less claim entry', async () => {
-  vi.mocked(scry).mockResolvedValue({
-    [PARENT]: {
-      isContact: false,
-      contact: withBots(['doznec-sampel-palnet']),
-    },
-  } as never);
-  expect(await isRegisteredBot(MOON)).toBe(true);
-});
-
-test('isRegisteredBot is false when the parent does not claim the moon', async () => {
-  vi.mocked(scry).mockResolvedValue({
-    [PARENT]: { isContact: false, contact: withBots([]) },
-  } as never);
-  expect(await isRegisteredBot(MOON)).toBe(false);
-});
-
-test('isRegisteredBot is false for a non-moon ship', async () => {
-  vi.mocked(scry).mockResolvedValue({} as never);
-  // ~bus is a planet, not a moon — never a bot
-  expect(await isRegisteredBot('~bus')).toBe(false);
-});
-
-test('isRegisteredBot tolerates a malformed/missing bots field', async () => {
-  // a non-set bots value (e.g. legacy text) decodes to no claims
-  vi.mocked(scry).mockResolvedValue({
-    [PARENT]: {
-      isContact: false,
-      contact: { bots: { type: 'text', value: 'garbage' } },
-    },
-  } as never);
-  expect(await isRegisteredBot(MOON)).toBe(false);
-});
-
-test('directoryToClientProfiles renders a bot from its own real profile', () => {
-  // The bot's name/avatar come from its own directory entry (published by the
-  // host via contact-bot-0), NOT from the parent's `bots` claim field.
-  const directory = {
-    [PARENT]: {
-      isContact: true,
-      contact: {
-        nickname: { type: 'text', value: 'Sampel' } as ContactFieldText,
-        ...withBots([MOON]),
+  test('book mapper reads the base contact, not the mod overlay', () => {
+    const contact = contactToClientProfile('~bot', [
+      { 'bot-info': { type: 'text', value: claimJson } },
+      {
+        'bot-info': {
+          type: 'text',
+          value: '{"v":1,"harness":"hermes","version":"9"}',
+        },
       },
-      mod: {},
-    },
-    [MOON]: {
-      isContact: false,
-      contact: {
-        nickname: { type: 'text', value: 'Helper' } as ContactFieldText,
-      },
-      mod: {},
-    },
-  };
-  const result = directoryToClientProfiles(directory);
-  const parent = result.find((c) => c.id === PARENT);
-  const moon = result.find((c) => c.id === MOON);
-  expect(parent).toMatchObject({ peerNickname: 'Sampel', isContact: true });
-  expect(moon).toMatchObject({ peerNickname: 'Helper', isContact: false });
+    ]);
+    expect(contact.botInfo).toBe(claimJson);
+  });
+
+  test('book mapper carries the base field when there is no overlay', () => {
+    const contact = contactToClientProfile('~bot', [
+      { 'bot-info': { type: 'text', value: claimJson } },
+      null,
+    ]);
+    expect(contact.botInfo).toBe(claimJson);
+  });
+
+  test('book mapper ignores a claim that only exists in the overlay', () => {
+    const contact = contactToClientProfile('~bot', [
+      {},
+      { 'bot-info': { type: 'text', value: claimJson } },
+    ]);
+    expect(contact.botInfo).toBeNull();
+  });
+
+  test('extractBotInfoValue accepts only text-shaped fields', () => {
+    expect(extractBotInfoValue({ type: 'text', value: claimJson })).toBe(
+      claimJson
+    );
+    expect(extractBotInfoValue(undefined)).toBeNull();
+    expect(extractBotInfoValue({ type: 'text', value: null })).toBeNull();
+    expect(extractBotInfoValue({ value: claimJson })).toBeNull();
+  });
 });
 
-test('directoryToClientProfiles does not materialize a bot from the claim alone', () => {
-  // A claim with no corresponding real profile entry yields no bot contact.
-  const directory = {
-    [PARENT]: {
-      isContact: true,
-      contact: {
-        nickname: { type: 'text', value: 'Sampel' } as ContactFieldText,
-        ...withBots([MOON]),
+// The carrier that keeps a bot's identity claim current between directory
+// syncs: the live `/v1/news` subscription.
+describe('bot-info sync carrier', () => {
+  const claim = JSON.stringify({
+    v: 1,
+    harness: 'openclaw',
+    version: '0.19.0',
+  });
+
+  function capturedNewsHandler() {
+    const updates: ContactsUpdate[] = [];
+    subscribeMock.mockClear();
+    subscribeToContactUpdates((update) => updates.push(update));
+    const [params, onEvent] = subscribeMock.mock.calls[0];
+    expect(params).toEqual({ app: 'contacts', path: '/v1/news' });
+    return { updates, onEvent: onEvent as (event: unknown) => void };
+  }
+
+  test('a %peer fact carries the claim through the subscription', () => {
+    const { updates, onEvent } = capturedNewsHandler();
+
+    onEvent({
+      peer: {
+        who: '~bot',
+        contact: { 'bot-info': { type: 'text', value: claim } },
       },
-      mod: {},
-    },
-  };
-  const result = directoryToClientProfiles(directory);
-  expect(result.find((c) => c.id === MOON)).toBeUndefined();
+    });
+
+    expect(updates).toHaveLength(1);
+    expect(updates[0]).toMatchObject({
+      type: 'upsertContact',
+      contact: { id: '~bot', botInfo: claim },
+    });
+  });
+
+  test('a %page fact carries the claim from the base contact', () => {
+    const { updates, onEvent } = capturedNewsHandler();
+
+    onEvent({
+      page: {
+        kip: '~bot',
+        contact: { 'bot-info': { type: 'text', value: claim } },
+        mod: null,
+      },
+    });
+
+    expect(updates[0]).toMatchObject({
+      type: 'upsertContact',
+      contact: { id: '~bot', botInfo: claim },
+    });
+  });
+
+  test('a fact without the key clears the stored claim', () => {
+    const { updates, onEvent } = capturedNewsHandler();
+
+    onEvent({ peer: { who: '~bot', contact: { nickname: 'Bot' } } });
+
+    expect(updates[0]).toMatchObject({
+      type: 'upsertContact',
+      contact: { id: '~bot', botInfo: null },
+    });
+  });
 });

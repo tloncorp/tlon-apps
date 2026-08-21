@@ -18,7 +18,7 @@ import {
   ListItem,
   NotificationLevelSelector,
   ScreenHeader,
-  ScrollView,
+  ScreenScrollView,
   TlonText,
   View,
   YStack,
@@ -95,8 +95,9 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
           title="Notifications"
           backAction={isWindowNarrow ? () => navigation.goBack() : undefined}
           borderBottom
+          placement="navigation"
         />
-        <ScrollView
+        <ScreenScrollView
           flex={1}
           paddingHorizontal={'$xl'}
           maxWidth={600}
@@ -135,7 +136,7 @@ export function PushNotificationSettingsScreen({ navigation }: Props) {
               removeException={removeException}
             />
           ) : null}
-        </ScrollView>
+        </ScreenScrollView>
       </View>
     </ChatOptionsProvider>
   );
