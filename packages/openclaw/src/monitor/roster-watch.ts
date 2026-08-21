@@ -21,9 +21,14 @@ export type RosterFact = {
  * `configuredMoons` is the set of normalized moon @p currently running
  * (the default account's moon + every generated fleet account's moon).
  *
- * %init (the subscription snapshot) and %configured (profile/config
- * tweaks picked up per-turn) never restart; a %minted bot we don't run
- * or a %retired bot we still run does.
+ * A %minted bot we don't run, or a %retired bot we still run, restarts.
+ * %configured (profile/config tweaks picked up per-turn) never does. The
+ * %init snapshot normally matches the fleet the entrypoint just generated
+ * from the same roster — but a mint can land in the window between that
+ * fetch and this subscription, in which case the snapshot is the ONLY
+ * place the new bot appears; an init entry we don't run restarts too.
+ * (The reverse — a configured moon missing from init — must NOT restart:
+ * the default account's moon is legitimately not in the roster.)
  */
 export function rosterChangeRequiresRestart(
   fact: RosterFact,
@@ -37,6 +42,13 @@ export function rosterChangeRequiresRestart(
   const retired = fact?.retired?.ship;
   if (typeof retired === 'string' && configuredMoons.has(normalize(retired))) {
     return `retired ${retired}`;
+  }
+  if (fact?.init && typeof fact.init === 'object') {
+    for (const ship of Object.keys(fact.init)) {
+      if (!configuredMoons.has(normalize(ship))) {
+        return `minted ${ship} (missed during boot)`;
+      }
+    }
   }
   return null;
 }

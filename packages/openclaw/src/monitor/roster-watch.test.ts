@@ -56,9 +56,16 @@ describe('rosterChangeRequiresRestart', () => {
     ).toBeNull();
   });
 
-  it('ignores init snapshots and config tweaks', () => {
+  it('ignores config tweaks and an init matching the fleet', () => {
     expect(
       rosterChangeRequiresRestart({ init: {} }, moons, normalize)
+    ).toBeNull();
+    expect(
+      rosterChangeRequiresRestart(
+        { init: { '~sonted-tontuc-tinren-pocben': {} } },
+        moons,
+        normalize
+      )
     ).toBeNull();
     expect(
       rosterChangeRequiresRestart(
@@ -66,6 +73,28 @@ describe('rosterChangeRequiresRestart', () => {
         moons,
         normalize
       )
+    ).toBeNull();
+  });
+
+  it('restarts when the init snapshot carries a bot minted mid-boot', () => {
+    expect(
+      rosterChangeRequiresRestart(
+        {
+          init: {
+            '~sonted-tontuc-tinren-pocben': {},
+            '~hidret-nolryg-tinren-pocben': {},
+          },
+        },
+        moons,
+        normalize
+      )
+    ).toBe('minted ~hidret-nolryg-tinren-pocben (missed during boot)');
+  });
+
+  it('does not restart when a configured moon is absent from init', () => {
+    // the default account's moon is legitimately not in the roster
+    expect(
+      rosterChangeRequiresRestart({ init: {} }, moons, normalize)
     ).toBeNull();
   });
 
