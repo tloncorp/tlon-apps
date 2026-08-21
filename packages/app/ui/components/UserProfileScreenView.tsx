@@ -26,6 +26,7 @@ import { useContact, useCurrentUserId } from '../contexts/appDataContext';
 import { useNavigation as useContextNavigation } from '../contexts/navigation';
 import { useGroupTitle } from '../utils';
 import { ContactAvatar } from './Avatar';
+import { BotBadge } from './BotBadge';
 import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
 import { ListItem } from './ListItem';
@@ -425,17 +426,22 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
       <Pressable onPress={handleAvatarPress}>
         <ContactAvatar contactId={props.userId} size="$5xl" />
       </Pressable>
-      <Pressable width="100%" onPress={handleCopy}>
+      <Pressable flex={1} minWidth={0} onPress={handleCopy}>
         <YStack flex={1} justifyContent="center">
-          <ContactName
-            contactId={props.userId}
-            fontSize={24}
-            lineHeight={32}
-            maxWidth="100%"
-            numberOfLines={1}
-            color="$primaryText"
-            {...primaryNameProps}
-          />
+          <XStack alignItems="center" gap="$s">
+            <ContactName
+              contactId={props.userId}
+              fontSize={24}
+              lineHeight={32}
+              maxWidth="100%"
+              numberOfLines={1}
+              color="$primaryText"
+              flex={1}
+              minWidth={0}
+              {...primaryNameProps}
+            />
+            <BotBadge contactId={props.userId} />
+          </XStack>
           {props.hasNickname && (
             <XStack alignItems="center">
               <Text color="$secondaryText">

@@ -1550,5 +1550,152 @@ class FatalAuthTests(unittest.TestCase):
         self.assertEqual(adapter.fatal_errors, [])
 
 
+class BotAuthorDecorationTests(unittest.TestCase):
+    """Every outbound send path must author as a bot. The three TlonCLI
+    construction sites (adapter instance, model tool, standalone sender) each
+    opt in, and decoration itself lives in TlonCLI so raw `run_command` tuples
+    are covered too."""
+
+    # Help output of a bot-flag-capable CLI, which the capability probe reads.
+    CLI_HELP = "Usage: tlon posts send <channel> [message] [--bot]\n"
+
+    def recording_runner(self, calls, *, help_text=None):
+        async def runner(command, env, timeout, _on_deadline):
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                return tlon_api.TlonProcessResult(
+                    returncode=0,
+                    stdout=self.CLI_HELP if help_text is None else help_text,
+                )
+            calls.append(tuple(command))
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        return runner
+
+    def recording_cli_factory(self, calls, *, help_text=None):
+        runner = self.recording_runner(calls, help_text=help_text)
+
+        def factory(config, **kwargs):
+            return tlon_api.TlonCLI(config, runner=runner, **kwargs)
+
+        return factory
+
+    def config(self):
+        return PlatformConfig(
+            extra={
+                "node_url": "https://pen.tlon.network",
+                "node_id": "~pen",
+                "access_code": "code",
+                "owner_ship": "~mug",
+                "cli": "tlon-test",
+            }
+        )
+
+    def test_adapter_cli_authors_owner_notifications_as_bot(self):
+        calls = []
+        with patch.object(
+            adapter_mod, "TlonCLI", self.recording_cli_factory(calls)
+        ):
+            with patch.dict("os.environ", {}, clear=True):
+                adapter = adapter_mod.TlonAdapter(self.config())
+            adapter._apply_self_contact(
+                {"nickname": {"value": "Botly"}, "avatar": {"value": "https://x/y.png"}}
+            )
+            asyncio.run(adapter._notify_owner("~evil", "spam"))
+            asyncio.run(adapter._send_nudge_dm("nudge", 1234))
+
+        for call in calls:
+            self.assertEqual(call[-1], "--bot")
+            self.assertNotIn("--bot-nickname=Botly", call)
+        self.assertEqual(calls[0][1:3], ("posts", "send"))
+
+    def test_adapter_cli_degrades_when_installed_cli_predates_the_flags(self):
+        calls = []
+        old_help = "Usage: tlon posts send <channel> [message] [--blob <json>]\n"
+        with patch.object(
+            adapter_mod,
+            "TlonCLI",
+            self.recording_cli_factory(calls, help_text=old_help),
+        ):
+            with patch.dict("os.environ", {}, clear=True):
+                adapter = adapter_mod.TlonAdapter(self.config())
+            adapter._apply_self_contact({"nickname": {"value": "Botly"}})
+            with self.assertLogs(tlon_api.logger, level="ERROR"):
+                asyncio.run(adapter._notify_owner("~evil", "spam"))
+
+        self.assertEqual(calls[0][1:3], ("posts", "send"))
+        self.assertNotIn("--bot", calls[0])
+
+    def test_standalone_send_authors_as_bot(self):
+        calls = []
+        with patch.object(
+            adapter_mod, "TlonCLI", self.recording_cli_factory(calls)
+        ):
+            asyncio.run(adapter_mod._standalone_send(self.config(), "~alice", "hi"))
+            asyncio.run(
+                adapter_mod._standalone_send(
+                    self.config(), "~alice", "hi", thread_id="170.141"
+                )
+            )
+
+        self.assertEqual(calls[0][1:3], ("posts", "send"))
+        self.assertEqual(calls[1][1:3], ("posts", "reply"))
+        for call in calls:
+            self.assertEqual(call[-1], "--bot")
+
+    def test_model_tool_cli_authors_proactive_sends_as_bot(self):
+        calls = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://pen.tlon.network",
+                "TLON_NODE_ID": "~pen",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        runner = self.recording_runner(calls)
+
+        async def run():
+            return await tlon_tool.execute_tlon_tool(
+                {"command": 'posts send chat/~pen/other "hi"'},
+                config=cfg,
+                runner=runner,
+            )
+
+        payload = json.loads(asyncio.run(run()))
+
+        self.assertTrue(payload["success"])
+        self.assertEqual(
+            calls[0],
+            ("tlon-test", "posts", "send", "chat/~pen/other", "hi", "--bot"),
+        )
+
+    def test_model_tool_cli_leaves_reads_undecorated(self):
+        calls = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://pen.tlon.network",
+                "TLON_NODE_ID": "~pen",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command))
+            return tlon_api.TlonProcessResult(returncode=0, stdout="~pen\n")
+
+        async def run():
+            return await tlon_tool.execute_tlon_tool(
+                {"command": "contacts self"},
+                config=cfg,
+                runner=runner,
+            )
+
+        asyncio.run(run())
+
+        self.assertEqual(calls[0], ("tlon-test", "contacts", "self"))
+
+
 if __name__ == "__main__":
     unittest.main()

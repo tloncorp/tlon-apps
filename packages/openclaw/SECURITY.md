@@ -96,19 +96,42 @@ Malicious actors could invite the bot to groups containing:
 
 **Principle:** Only respond when explicitly addressed. Avoid false positives.
 
-| Trigger                                | Should Respond? |
-| -------------------------------------- | --------------- |
-| Direct ship mention (`~bot-ship`)      | ✅ Yes          |
-| Nickname mention (`nimbus`)            | ✅ Yes          |
-| `@all` mention                         | ❌ No           |
-| Random message without mention         | ❌ No           |
-| Partial ship match (`~bot-ship-extra`) | ❌ No           |
-| Substring nickname (`nimbusly`)        | ❌ No           |
+| Trigger                                          | Should Respond?            |
+| ------------------------------------------------ | -------------------------- |
+| Direct ship mention (`~bot-ship`)                | ✅ Yes                     |
+| Nickname mention (`nimbus`)                      | ✅ Yes                     |
+| `@all` mention                                   | ❌ No                      |
+| Random message without mention                   | ❌ No                      |
+| Partial ship match (`~bot-ship-extra`)           | ❌ No                      |
+| Substring nickname (`nimbusly`)                  | ❌ No                      |
+| Owner's bare registered slash command (`/pending`) | ✅ Yes (any watched `chat/` channel) |
 
 **Case Sensitivity:**
 
 - Ship mentions: case-insensitive
 - Nickname mentions: case-insensitive
+- Slash command tokens: case-insensitive, token-boundary safe (`/tlon` does not match `/tlon-version`)
+
+**Owner Command Engagement (trust boundary):**
+
+Owner-authored registered slash commands (the plugin registry plus the core
+trio `/status`, `/help`, `/new` — `src/commands-registry.ts`) engage without a
+mention in any watched `chat/` channel, including third-party-hosted channels
+and threads, regardless of the owner-listen toggle or per-channel mute list.
+This is the escape hatch that lets the Tlon client's slash-command popup —
+which inserts commands bare — work in group channels.
+
+Engagement is NOT authorization: command execution remains owner-only.
+
+- Sender must equal the configured owner (`isOwner`, `src/monitor/index.ts`).
+- Command dispatch re-checks owner equality (`CommandAuthorized`,
+  `src/monitor/index.ts`) and each handler resolves through `checkOwner`
+  (`src/monitor/command-auth.ts`).
+- Non-owner bare commands are dropped at the engagement gate; if mentioned,
+  core denies them at the authorization check.
+
+Heap (`heap/`) and diary (`diary/`) channels are unchanged: mention or
+owner-listen only.
 
 ---
 
@@ -406,3 +429,4 @@ If you discover a security vulnerability:
 | 2026-02-11 | Added session isolation warning for multi-user DMs |
 | 2026-02-11 | Added agent-initiated blocking via response directive |
 | 2026-02-12 | Added tool access control - tlon skill owner-only |
+| 2026-08-17 | Owner registered slash commands engage bare in any watched chat channel (§4) |

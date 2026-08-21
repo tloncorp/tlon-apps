@@ -319,6 +319,169 @@ class TlonConfigTests(unittest.TestCase):
 
         self.assertEqual(cfg.sse_read_timeout_seconds, 12.5)
 
+    def test_from_env_accepts_sse_watchdog_knobs(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_SSE_STALE_THRESHOLD_SECONDS": "120",
+                "TLON_SSE_WATCHDOG_INTERVAL_SECONDS": "15",
+            }
+        )
+
+        self.assertEqual(cfg.sse_stale_threshold_seconds, 120.0)
+        self.assertEqual(cfg.sse_watchdog_interval_seconds, 15.0)
+
+        extra_cfg = tlon_api.TlonConfig.from_env(
+            extra={
+                "node_url": "https://zod.tlon.network",
+                "node_id": "~zod",
+                "access_code": "code",
+                "sse_stale_threshold_seconds": 90.0,
+                "sse_watchdog_interval_seconds": 10.0,
+            },
+            env={},
+        )
+        self.assertEqual(extra_cfg.sse_stale_threshold_seconds, 90.0)
+        self.assertEqual(extra_cfg.sse_watchdog_interval_seconds, 10.0)
+
+        default_cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+            }
+        )
+        self.assertEqual(
+            default_cfg.sse_stale_threshold_seconds,
+            tlon_api.DEFAULT_SSE_STALE_THRESHOLD_SECONDS,
+        )
+        self.assertEqual(
+            default_cfg.sse_watchdog_interval_seconds,
+            tlon_api.DEFAULT_SSE_WATCHDOG_INTERVAL_SECONDS,
+        )
+
+    def test_sse_watchdog_knobs_reject_invalid_values(self):
+        required = {
+            "TLON_NODE_URL": "https://zod.tlon.network",
+            "TLON_NODE_ID": "~zod",
+            "TLON_ACCESS_CODE": "code",
+        }
+        max_seconds = tlon_api.MAX_SSE_SECONDS
+        invalid = (
+            "",
+            "garbage",
+            "nan",
+            "inf",
+            "-inf",
+            "Infinity",
+            "-5",
+            "-0",
+            "-0.0",
+            "1e300",
+            str(max_seconds + 1),
+        )
+        for value in invalid:
+            with self.subTest(value=value):
+                cfg = tlon_api.TlonConfig.from_env(
+                    env={
+                        **required,
+                        "TLON_SSE_STALE_THRESHOLD_SECONDS": value,
+                        "TLON_SSE_WATCHDOG_INTERVAL_SECONDS": value,
+                    }
+                )
+                self.assertEqual(
+                    cfg.sse_stale_threshold_seconds,
+                    tlon_api.DEFAULT_SSE_STALE_THRESHOLD_SECONDS,
+                )
+                self.assertEqual(
+                    cfg.sse_watchdog_interval_seconds,
+                    tlon_api.DEFAULT_SSE_WATCHDOG_INTERVAL_SECONDS,
+                )
+
+        # The boundary itself is accepted.
+        boundary = tlon_api.TlonConfig.from_env(
+            env={
+                **required,
+                "TLON_SSE_STALE_THRESHOLD_SECONDS": str(max_seconds),
+                "TLON_SSE_WATCHDOG_INTERVAL_SECONDS": str(max_seconds),
+            }
+        )
+        self.assertEqual(boundary.sse_stale_threshold_seconds, max_seconds)
+        self.assertEqual(boundary.sse_watchdog_interval_seconds, max_seconds)
+
+    def test_sse_watchdog_interval_rejects_zero_and_sub_minimum(self):
+        required = {
+            "TLON_NODE_URL": "https://zod.tlon.network",
+            "TLON_NODE_ID": "~zod",
+            "TLON_ACCESS_CODE": "code",
+        }
+        # The interval has no disable spelling; a sub-second tick would spin
+        # the watchdog loop.
+        for value in ("0", "0.5", "1e-300"):
+            with self.subTest(value=value):
+                cfg = tlon_api.TlonConfig.from_env(
+                    env={**required, "TLON_SSE_WATCHDOG_INTERVAL_SECONDS": value}
+                )
+                self.assertEqual(
+                    cfg.sse_watchdog_interval_seconds,
+                    tlon_api.DEFAULT_SSE_WATCHDOG_INTERVAL_SECONDS,
+                )
+
+    def test_sse_stale_threshold_disable_is_strict_literal_zero(self):
+        required = {
+            "TLON_NODE_URL": "https://zod.tlon.network",
+            "TLON_NODE_ID": "~zod",
+            "TLON_ACCESS_CODE": "code",
+        }
+        disabled = tlon_api.TlonConfig.from_env(
+            env={**required, "TLON_SSE_STALE_THRESHOLD_SECONDS": "0"}
+        )
+        self.assertEqual(disabled.sse_stale_threshold_seconds, 0.0)
+        stripped = tlon_api.TlonConfig.from_env(
+            env={**required, "TLON_SSE_STALE_THRESHOLD_SECONDS": " 0 "}
+        )
+        self.assertEqual(stripped.sse_stale_threshold_seconds, 0.0)
+
+        # Every other zero spelling falls back to the default — including
+        # underflow, which Python silently parses to 0.0.
+        for value in ("0.0", "00", "1e-9999"):
+            with self.subTest(value=value):
+                cfg = tlon_api.TlonConfig.from_env(
+                    env={**required, "TLON_SSE_STALE_THRESHOLD_SECONDS": value}
+                )
+                self.assertEqual(
+                    cfg.sse_stale_threshold_seconds,
+                    tlon_api.DEFAULT_SSE_STALE_THRESHOLD_SECONDS,
+                )
+
+    def test_sse_read_timeout_rejects_infinite_and_above_bound(self):
+        required = {
+            "TLON_NODE_URL": "https://zod.tlon.network",
+            "TLON_NODE_ID": "~zod",
+            "TLON_ACCESS_CODE": "code",
+        }
+        # Sub-second values (including underflow spellings) would tear the
+        # stream down in a reconnect loop and fall back to the default too.
+        for value in ("inf", "Infinity", "1e309", "999999999", "1e300", "0.5", "1e-300"):
+            with self.subTest(value=value):
+                cfg = tlon_api.TlonConfig.from_env(
+                    env={**required, "TLON_SSE_READ_TIMEOUT_SECONDS": value}
+                )
+                self.assertEqual(
+                    cfg.sse_read_timeout_seconds,
+                    tlon_api.DEFAULT_SSE_READ_TIMEOUT_SECONDS,
+                )
+
+        boundary = tlon_api.TlonConfig.from_env(
+            env={
+                **required,
+                "TLON_SSE_READ_TIMEOUT_SECONDS": str(tlon_api.MAX_SSE_SECONDS),
+            }
+        )
+        self.assertEqual(boundary.sse_read_timeout_seconds, tlon_api.MAX_SSE_SECONDS)
+
     def test_non_finite_nudge_tick_interval_falls_back_to_default(self):
         required = {
             "TLON_NODE_URL": "https://zod.tlon.network",
@@ -631,6 +794,90 @@ class FakeCloseSession:
 
     async def close(self):
         self.closed = True
+
+
+def sse_frame(event_id, data):
+    return f"id: {event_id}\ndata: {json.dumps(data)}\n\n".encode()
+
+
+class FakeChannelGeneration:
+    def __init__(self):
+        self.next_event_id = 0
+        self.buffered = []
+
+
+class FakeHandshakeSSEResponse(FakeSSEResponse):
+    """A 200 SSE response whose __aenter__ hook runs between the get() issue
+    and the status read — the GET-handshake window."""
+
+    def __init__(self, chunks, *, on_enter=None):
+        super().__init__(chunks, status=200)
+        self._on_enter = on_enter
+
+    async def __aenter__(self):
+        if self._on_enter is not None:
+            await self._on_enter()
+        return await super().__aenter__()
+
+
+class FakeChannelSession:
+    """A stateful fake Eyre: PUT and GET share per-channel-URL state (a
+    generation counter plus a pending-response script), and a PUT to a reaped
+    or unknown channel re-creates it with the counter restarted — so causal
+    races (an ack completing mid-GET-handshake, a setup PUT reviving a reaped
+    channel) can be expressed as sequences rather than hand-scripted frames.
+    Not a full Eyre simulator."""
+
+    def __init__(self):
+        self.generations = {}
+        self.reaped = set()
+        self.get_calls = []
+        self.put_calls = []
+        self.put_status = 204
+        self.on_get_enter = None
+
+    def generation(self, url):
+        gen = self.generations.get(url)
+        if gen is None or url in self.reaped:
+            self.reaped.discard(url)
+            gen = FakeChannelGeneration()
+            self.generations[url] = gen
+        return gen
+
+    def reap(self, url):
+        self.reaped.add(url)
+
+    def enqueue_ack(self, url, action_id, *, response="poke", err=None, event_id=None):
+        gen = self.generation(url)
+        if event_id is None:
+            event_id = gen.next_event_id
+            gen.next_event_id += 1
+        frame = {"response": response, "id": action_id}
+        if err is not None:
+            frame["err"] = err
+        gen.buffered.append(sse_frame(event_id, frame))
+        return event_id
+
+    def put(self, url, *, json, headers, timeout):
+        self.put_calls.append({"url": url, "json": json})
+        if self.put_status not in (200, 204):
+            return FakeActionResponse(self.put_status, "action rejected")
+        for action in json:
+            name = action.get("action")
+            if name in ("poke", "subscribe"):
+                self.enqueue_ack(url, action.get("id"), response=name)
+        return FakeActionResponse(204)
+
+    def get(self, url, *, headers, timeout):
+        self.get_calls.append({"url": url, "headers": headers, "timeout": timeout})
+        gen = self.generations.get(url)
+        chunks = list(gen.buffered) if gen is not None else []
+        if gen is not None:
+            gen.buffered.clear()
+        return FakeHandshakeSSEResponse(chunks, on_enter=self.on_get_enter)
+
+    async def close(self):
+        pass
 
 
 class TlonSSEClientTests(unittest.TestCase):
@@ -1003,6 +1250,588 @@ class TlonCLITests(unittest.TestCase):
         self.assertEqual(calls[0][-2:], ("--sent-at", "1234"))
         self.assertEqual(calls[1][-2:], ("--sent-at", "5678"))
 
+    # Help output of a CLI that has the bot-author flags, and of one that
+    # predates them — what the capability probe reads.
+    NEW_CLI_HELP = (
+        "Usage: tlon posts send <channel> [message] [--blob <json>] "
+        "[--image <url>] [--bot]\n"
+    )
+    OLD_CLI_HELP = (
+        "Usage: tlon posts send <channel> [message] [--blob <json>] "
+        "[--image <url>] [--title <text>] [--sent-at <ms>]\n"
+    )
+
+    def _bot_cli(
+        self, *, help_text=None, probe_error=None, probe_returncode=0, **kwargs
+    ):
+        """A TlonCLI whose runner records invocations and answers the
+        capability probe. Returns (cli, sent_calls, probe_calls); probes are
+        recorded separately so `calls` stays a clean list of real sends."""
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+        calls: list[tuple[str, ...]] = []
+        probes: list[tuple[str, ...]] = []
+
+        async def runner(command, env, timeout, _on_deadline):
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                probes.append(tuple(command))
+                # Suspend like a real subprocess would, so a second concurrent
+                # send can reach the probe if nothing guards it.
+                await asyncio.sleep(0)
+                if probe_error is not None:
+                    raise probe_error
+                return tlon_api.TlonProcessResult(
+                    returncode=probe_returncode,
+                    stdout=self.NEW_CLI_HELP if help_text is None else help_text,
+                )
+            calls.append(tuple(command))
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True, **kwargs)
+        return cli, calls, probes
+
+    def test_as_bot_decorates_send_and_reply(self):
+        cli, calls, probes = self._bot_cli()
+
+        async def run():
+            await cli.send_message("chat/~zod/general", "hi")
+            await cli.send_reply("~nec", "170.141", "hi", parent_author="nec")
+
+        asyncio.run(run())
+
+        self.assertEqual(
+            calls[0],
+            ("tlon-test", "posts", "send", "chat/~zod/general", "hi", "--bot"),
+        )
+        self.assertEqual(
+            calls[1],
+            (
+                "tlon-test",
+                "posts",
+                "reply",
+                "~nec",
+                "170.141",
+                "hi",
+                "--author",
+                "~nec",
+                "--bot",
+            ),
+        )
+        # Probed once, then cached for the life of the instance.
+        self.assertEqual(len(probes), 1)
+
+    def test_as_bot_decorates_raw_send_tuples_through_run_command(self):
+        cli, calls, _probes = self._bot_cli()
+
+        async def run():
+            await cli.run_command(("posts", "send", "~mug", "text", "--blob", "[]"))
+            await cli.run_command(("dms", "send", "0v5.abcde", "text"))
+            await cli.run_command(("dms", "reply", "0v5.abcde", "~pen/170.141", "t"))
+
+        asyncio.run(run())
+
+        for call in calls:
+            self.assertEqual(call[-1], "--bot")
+
+    def test_as_bot_decorates_after_global_credential_flags(self):
+        cli, calls, _probes = self._bot_cli()
+
+        async def run():
+            # A complete credential set, as a real invocation would carry.
+            await cli.run_command(
+                (
+                    "--url",
+                    "https://zod.tlon.network",
+                    "--ship",
+                    "~zod",
+                    "--code",
+                    "lidlut-tabwed-pillex-ridrup",
+                    "posts",
+                    "send",
+                    "~mug",
+                    "hi",
+                )
+            )
+            await cli.run_command(
+                ("--config=/etc/tlon/ship.json", "dms", "send", "0v5.abcde", "hi")
+            )
+
+        asyncio.run(run())
+
+        self.assertEqual(
+            calls[0],
+            (
+                "tlon-test",
+                "--url",
+                "https://zod.tlon.network",
+                "--ship",
+                "~zod",
+                "--code",
+                "lidlut-tabwed-pillex-ridrup",
+                "posts",
+                "send",
+                "~mug",
+                "hi",
+                "--bot",
+            ),
+        )
+        self.assertEqual(
+            calls[1],
+            (
+                "tlon-test",
+                "--config=/etc/tlon/ship.json",
+                "dms",
+                "send",
+                "0v5.abcde",
+                "hi",
+                "--bot",
+            ),
+        )
+
+    def test_as_bot_leaves_non_send_commands_alone(self):
+        cli, calls, probes = self._bot_cli()
+
+        async def run():
+            await cli.run_command(("contacts", "self"))
+            await cli.run_command(("posts", "react", "~mug", "170.141", "👍"))
+            await cli.run_command(("dms", "accept", "~mug"))
+            await cli.run_command(("--version",))
+            await cli.run_command(("posts",))
+
+        asyncio.run(run())
+
+        for call in calls:
+            self.assertNotIn("--bot", call)
+        # Non-send usage never pays for the probe.
+        self.assertEqual(probes, [])
+
+    def test_old_cli_without_bot_flag_sends_undecorated(self):
+        cli, calls, probes = self._bot_cli(help_text=self.OLD_CLI_HELP)
+
+        async def run():
+            await cli.send_message("chat/~zod/general", "hi")
+            await cli.send_reply("~nec", "170.141", "hi")
+
+        with self.assertLogs(tlon_api.logger, level="ERROR") as logged:
+            asyncio.run(run())
+
+        self.assertEqual(
+            calls[0],
+            ("tlon-test", "posts", "send", "chat/~zod/general", "hi"),
+        )
+        self.assertEqual(
+            calls[1], ("tlon-test", "posts", "reply", "~nec", "170.141", "hi")
+        )
+        # One probe, one loud error — not one per send.
+        self.assertEqual(len(probes), 1)
+        self.assertEqual(len(logged.records), 1)
+        self.assertIn("does not support --bot", logged.output[0])
+
+    def test_failed_probe_is_not_trusted_even_when_it_prints_bot_help(self):
+        # A crashed/partial probe says nothing about support: help text that
+        # happens to mention --bot must not license decoration.
+        cli, calls, probes = self._bot_cli(probe_returncode=2)
+
+        with self.assertLogs(tlon_api.logger, level="ERROR") as logged:
+            asyncio.run(cli.send_message("chat/~zod/general", "hi"))
+
+        self.assertEqual(
+            calls[0],
+            ("tlon-test", "posts", "send", "chat/~zod/general", "hi"),
+        )
+        self.assertEqual(len(probes), 1)
+        self.assertIn("rc=2", logged.output[0])
+
+    def test_bot_flag_must_appear_as_its_own_token(self):
+        # A CLI carrying only the value flags (or an unrelated `--bottle`) does
+        # not prove `--bot` itself exists.
+        for help_text in (
+            "Usage: tlon posts send <channel> [--bot-nickname <text>]\n",
+            "Usage: tlon posts send <channel> [--bottle <x>]\n",
+        ):
+            cli, calls, _probes = self._bot_cli(help_text=help_text)
+            with self.assertLogs(tlon_api.logger, level="ERROR"):
+                asyncio.run(cli.send_message("chat/~zod/general", "hi"))
+            self.assertNotIn("--bot", calls[0])
+
+    def test_concurrent_first_sends_probe_once(self):
+        cli, calls, probes = self._bot_cli(help_text=self.OLD_CLI_HELP)
+
+        async def run():
+            await asyncio.gather(
+                cli.send_message("chat/~zod/general", "one"),
+                cli.send_message("chat/~zod/general", "two"),
+                cli.send_message("chat/~zod/general", "three"),
+            )
+
+        with self.assertLogs(tlon_api.logger, level="ERROR") as logged:
+            asyncio.run(run())
+
+        self.assertEqual(len(calls), 3)
+        # One probe and one loud error for the whole burst, not one per send.
+        self.assertEqual(len(probes), 1)
+        self.assertEqual(len(logged.records), 1)
+
+    def test_observed_duration_excludes_the_capability_probe(self):
+        # The probe is a one-off subprocess; billing it to the first send would
+        # skew CLI latency telemetry (systematically, for per-send instances).
+        clock = {"now": 0.0}
+        durations: list[int] = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout, _on_deadline):
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                clock["now"] += 5.0
+                return tlon_api.TlonProcessResult(
+                    returncode=0, stdout=self.NEW_CLI_HELP
+                )
+            clock["now"] += 1.0
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cli = tlon_api.TlonCLI(
+            cfg,
+            runner=runner,
+            as_bot=True,
+            observer=lambda _args, duration_ms, _result: durations.append(
+                duration_ms
+            ),
+        )
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            asyncio.run(cli.send_message("chat/~zod/general", "hi"))
+
+        self.assertEqual(durations, [1000])
+
+    def test_probe_failure_degrades_to_undecorated_sends(self):
+        cli, calls, probes = self._bot_cli(
+            probe_error=FileNotFoundError("tlon-test")
+        )
+
+        with self.assertLogs(tlon_api.logger, level="ERROR"):
+            result = asyncio.run(cli.send_message("chat/~zod/general", "hi"))
+
+        self.assertTrue(result.success)
+        self.assertEqual(
+            calls[0],
+            ("tlon-test", "posts", "send", "chat/~zod/general", "hi"),
+        )
+        self.assertEqual(len(probes), 1)
+
+    def _hung_probe_cli(self):
+        """A bot CLI whose probe hangs until its own deadline, recording the
+        timeout every invocation is given. Returns (cli, clock, timeouts)."""
+        clock = {"now": 0.0}
+        timeouts: list[tuple[tuple[str, ...], float]] = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout, _on_deadline):
+            timeouts.append((tuple(command[1:]), timeout))
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                # A wedged CLI: burns every second it is allowed, then is killed.
+                clock["now"] += timeout
+                raise tlon_api.TlonProcessTimeout("", "")
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+        return cli, clock, timeouts
+
+    def test_hung_probe_is_capped_not_given_the_callers_timeout(self):
+        # The probe used to inherit the full configured CLI timeout, so a wedged
+        # CLI made a nominal 20s send take 20s of probing and then 20s of
+        # sending. It gets the cap instead — a flat bound, deliberately not a
+        # deduction from the caller's budget.
+        cli, clock, timeouts = self._hung_probe_cli()
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            with self.assertLogs(tlon_api.logger, level="ERROR"):
+                result = asyncio.run(
+                    cli.run_command(
+                        ("posts", "send", "~mug", "hi"), timeout=20.0
+                    )
+                )
+
+        self.assertEqual(
+            timeouts,
+            [
+                (
+                    tlon_api.BOT_FLAG_PROBE_ARGS,
+                    tlon_api.BOT_FLAG_PROBE_TIMEOUT_SECONDS,
+                ),
+                (("posts", "send", "~mug", "hi"), 20.0),
+            ],
+        )
+        # Degradation is unchanged: a probe that did not run cleanly means
+        # unsupported, so the send goes out undecorated rather than failing.
+        self.assertTrue(result.success)
+        self.assertEqual(timeouts[1][0][-1], "hi")
+
+    def test_a_timed_out_probe_is_cached_and_logged_once(self):
+        # The failed answer has to stick: without caching, every later send on
+        # this instance pays the cap again and re-logs the same loud error.
+        cli, clock, timeouts = self._hung_probe_cli()
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            with self.assertLogs(tlon_api.logger, level="ERROR") as logged:
+                first = asyncio.run(
+                    cli.run_command(("posts", "send", "~mug", "one"))
+                )
+                second = asyncio.run(
+                    cli.run_command(("posts", "send", "~mug", "two"))
+                )
+
+        probes = [args for args, _ in timeouts if args == tlon_api.BOT_FLAG_PROBE_ARGS]
+        self.assertEqual(len(probes), 1)
+        self.assertEqual(len(logged.output), 1)
+        # Both sends still go out, undecorated.
+        self.assertTrue(first.success)
+        self.assertTrue(second.success)
+        self.assertEqual(
+            [args for args, _ in timeouts if args != tlon_api.BOT_FLAG_PROBE_ARGS],
+            [
+                ("posts", "send", "~mug", "one"),
+                ("posts", "send", "~mug", "two"),
+            ],
+        )
+
+    def test_probe_is_capped_below_the_configured_cli_timeout(self):
+        # config.cli_timeout is the value the probe used to inherit; the cap has
+        # to be what reaches the runner even when no explicit timeout is passed.
+        cli, clock, timeouts = self._hung_probe_cli()
+        self.assertGreater(
+            cli.config.cli_timeout, tlon_api.BOT_FLAG_PROBE_TIMEOUT_SECONDS
+        )
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            with self.assertLogs(tlon_api.logger, level="ERROR"):
+                asyncio.run(cli.run_command(("posts", "send", "~mug", "hi")))
+
+        self.assertEqual(
+            timeouts,
+            [
+                (
+                    tlon_api.BOT_FLAG_PROBE_ARGS,
+                    tlon_api.BOT_FLAG_PROBE_TIMEOUT_SECONDS,
+                ),
+                (("posts", "send", "~mug", "hi"), cli.config.cli_timeout),
+            ],
+        )
+
+    def test_unprobed_commands_keep_their_budget_exactly(self):
+        # No probe runs for non-send commands, and the timeout reaches the
+        # runner exactly as the caller set it.
+        cli, clock, timeouts = self._hung_probe_cli()
+
+        with patch.object(tlon_api.time, "monotonic", lambda: clock["now"]):
+            asyncio.run(cli.run_command(("contacts", "self"), timeout=12.5))
+            asyncio.run(cli.run_command(("posts", "react", "~mug", "1", "👍")))
+
+        self.assertEqual(
+            timeouts,
+            [
+                (("contacts", "self"), 12.5),
+                (("posts", "react", "~mug", "1", "👍"), cli.config.cli_timeout),
+            ],
+        )
+
+    def test_a_caller_supplied_bot_flag_is_not_duplicated(self):
+        # The model is documented to pass `--bot` itself. Appending a second one
+        # produces `--bot --bot`, which the CLI rejects as a repeated flag, so
+        # the send fails outright instead of going out bot-authored.
+        calls = []
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command[1:]))
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                return tlon_api.TlonProcessResult(
+                    returncode=0, stdout="options: --bot"
+                )
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+        asyncio.run(
+            cli.run_command(("posts", "send", "chat/~zod/general", "hi", "--bot"))
+        )
+
+        sends = [c for c in calls if c != tlon_api.BOT_FLAG_PROBE_ARGS]
+        self.assertEqual(
+            sends,
+            [("posts", "send", "chat/~zod/general", "hi", "--bot")],
+        )
+        self.assertEqual(sends[0].count(tlon_api.BOT_FLAG), 1)
+
+    def test_an_undecorated_send_still_gets_the_flag(self):
+        # The idempotence guard must not swallow the normal path.
+        calls = []
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command[1:]))
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                return tlon_api.TlonProcessResult(
+                    returncode=0, stdout="options: --bot"
+                )
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+        asyncio.run(
+            cli.run_command(("posts", "send", "chat/~zod/general", "hi"))
+        )
+
+        sends = [c for c in calls if c != tlon_api.BOT_FLAG_PROBE_ARGS]
+        self.assertEqual(
+            sends,
+            [("posts", "send", "chat/~zod/general", "hi", tlon_api.BOT_FLAG)],
+        )
+
+    def test_an_old_cli_never_receives_a_caller_supplied_bot_flag(self):
+        # The corruption case the probe exists for: a CLI predating the flag has
+        # no option to consume `--bot`, so the token lands in the message body.
+        # A caller-supplied flag must be stripped, not passed through — the send
+        # degrades to a bare author instead of posting "hi --bot".
+        calls = []
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command[1:]))
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                # Help output from a CLI that has never heard of --bot.
+                return tlon_api.TlonProcessResult(
+                    returncode=0, stdout="options: --parent --image"
+                )
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+        cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+        with self.assertLogs(tlon_api.logger, level="ERROR"):
+            asyncio.run(
+                cli.run_command(
+                    ("posts", "send", "chat/~zod/general", "hi", "--bot")
+                )
+            )
+
+        sends = [c for c in calls if c != tlon_api.BOT_FLAG_PROBE_ARGS]
+        self.assertEqual(
+            sends, [("posts", "send", "chat/~zod/general", "hi")]
+        )
+        self.assertNotIn(tlon_api.BOT_FLAG, sends[0])
+
+    def test_malformed_bot_flags_never_reach_an_old_cli(self):
+        # A CLI predating the flag has no bot-flag parser, so anything left
+        # behind is folded into the message body. Stripping only the exact
+        # token leaks `--bot=Botly` whole and leaves `Botly` from the separated
+        # form — both would post. The strip mirrors the CLI parser's rule:
+        # `--bot` takes no value, and only a long option may follow it.
+        for tail, expected in (
+            (("--bot",), ()),
+            (("--bot", "Botly"), ()),
+            (("--bot=Botly",), ()),
+            (("--bot", "-1"), ()),
+            (("--bot", "--bot", "Botly"), ()),
+            (("--bot", "--parent", "x"), ("--parent", "x")),
+        ):
+            with self.subTest(tail=tail):
+                calls = []
+
+                async def runner(command, env, timeout, _on_deadline):
+                    calls.append(tuple(command[1:]))
+                    if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                        # Help output from a CLI that never had the flag.
+                        return tlon_api.TlonProcessResult(
+                            returncode=0, stdout="options: --parent"
+                        )
+                    return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+                cfg = tlon_api.TlonConfig.from_env(
+                    env={
+                        "TLON_NODE_URL": "https://zod.tlon.network",
+                        "TLON_NODE_ID": "~zod",
+                        "TLON_ACCESS_CODE": "code",
+                        "TLON_CLI": "tlon-test",
+                    }
+                )
+                cli = tlon_api.TlonCLI(cfg, runner=runner, as_bot=True)
+                with self.assertLogs(tlon_api.logger, level="ERROR"):
+                    asyncio.run(
+                        cli.run_command(
+                            ("posts", "send", "chat/~zod/general", "hi", *tail)
+                        )
+                    )
+
+                sends = [
+                    c for c in calls if c != tlon_api.BOT_FLAG_PROBE_ARGS
+                ]
+                self.assertEqual(
+                    sends,
+                    [("posts", "send", "chat/~zod/general", "hi", *expected)],
+                )
+
+    def test_without_as_bot_nothing_is_appended(self):
+        calls = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command))
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        async def run():
+            cli = tlon_api.TlonCLI(cfg, runner=runner)
+            await cli.send_message("chat/~zod/general", "hi")
+
+        asyncio.run(run())
+
+        # No decoration and no probe when the instance is not a bot sender.
+        self.assertEqual(
+            calls, [("tlon-test", "posts", "send", "chat/~zod/general", "hi")]
+        )
+
     def test_format_post_id_round_trips_through_da(self):
         # da.fromUnix round-trips via aura's da.toUnix; the id is
         # ~author/<dotted @ud>.
@@ -1307,6 +2136,54 @@ class MessageParsingTests(unittest.TestCase):
         self.assertIn("hello ~nec", text)
         self.assertIn("link", text)
         self.assertIn("```py", text)
+
+    def test_extract_inline_message_text_skips_block_renderings(self):
+        story = [
+            {"block": {"cite": {"chan": {"nest": "chat/~x/y", "where": "/msg/1"}}}},
+            {"block": {"image": {"src": "https://x/y.png", "alt": "pic"}}},
+            {"inline": ["/model claude"]},
+        ]
+        self.assertIn("[quoted message]", tlon_api.extract_message_text(story))
+        self.assertEqual(
+            tlon_api.extract_inline_message_text(story), "/model claude"
+        )
+
+    def test_extract_inline_message_text_keeps_all_inline_verses(self):
+        story = [
+            {"block": {"cite": {"group": "~x/some-group"}}},
+            {"inline": ["/new fresh start"]},
+            {"inline": ["and more typed text"]},
+        ]
+        self.assertEqual(
+            tlon_api.extract_inline_message_text(story),
+            "/new fresh start and more typed text",
+        )
+
+    def test_parse_heap_message_inline_text_excludes_title(self):
+        raw = {
+            "nest": "heap/~zod/links",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "set": {
+                            "essay": {
+                                "author": "~nec",
+                                "sent": 1000,
+                                "meta": {"title": "A curated link"},
+                                "content": [{"inline": ["/help"]}],
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        message = tlon_api.parse_channel_message(raw, self_ship="~zod")
+
+        self.assertIsNotNone(message)
+        self.assertIn("A curated link", message.text)
+        self.assertEqual(message.inline_text, "/help")
 
     def test_parse_channel_message(self):
         raw = {
@@ -2045,9 +2922,14 @@ class TlonSSEClientResumeTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertNotIn(3, client._subscriptions)
 
-    def test_on_open_fires_once_after_200_before_first_event(self):
+    def test_on_open_fires_once_after_first_payload(self):
+        # Established moves from "GET returned 200" to "first payload parsed"
+        # (a keepalive payload counts): a 200-then-instant-EOF must escalate
+        # backoff instead of resetting it.
         client = self._make_client()
-        session = FakeSSESession(responses=[(200, [self._diff_chunk(1)])])
+        session = FakeSSESession(
+            responses=[(200, [b": keepalive\n\n", self._diff_chunk(1)])]
+        )
         client._session = session
         calls = []
 
@@ -2063,6 +2945,25 @@ class TlonSSEClientResumeTests(unittest.TestCase):
             asyncio.run(run())
 
         self.assertEqual(calls, ["open", "event"])
+
+    def test_on_open_not_called_on_200_that_eofs_with_zero_payloads(self):
+        client = self._make_client()
+        session = FakeSSESession(responses=[(200, [])])
+        client._session = session
+        calls = []
+
+        async def run():
+            try:
+                async for _ in client.events(on_open=lambda: calls.append("open")):
+                    pass
+            except ConnectionError:
+                pass
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(run())
+
+        self.assertEqual(calls, [])
 
     def test_on_open_not_called_on_failed_get(self):
         client = self._make_client()
@@ -2162,6 +3063,846 @@ class TlonSSEClientResumeTests(unittest.TestCase):
 
         self.assertTrue(session.last_response.entered)
         self.assertTrue(session.last_response.released)
+
+
+class TlonSSEClientReapDetectionTests(unittest.TestCase):
+    def _make_client(
+        self, *, reap_detection=True, read_timeout=None, stale_threshold=None
+    ):
+        env = {
+            "TLON_NODE_URL": "https://zod.tlon.network",
+            "TLON_NODE_ID": "~zod",
+            "TLON_ACCESS_CODE": "code",
+        }
+        if read_timeout is not None:
+            env["TLON_SSE_READ_TIMEOUT_SECONDS"] = read_timeout
+        if stale_threshold is not None:
+            env["TLON_SSE_STALE_THRESHOLD_SECONDS"] = stale_threshold
+        cfg = tlon_api.TlonConfig.from_env(env=env)
+        client = tlon_api.TlonSSEClient(cfg, reap_detection=reap_detection)
+        client.channel_id = "test-channel"
+        client.channel_url = "https://zod.tlon.network/~/channel/test-channel"
+        return client
+
+    def _run_events(self, client, **kwargs):
+        async def run():
+            try:
+                async for _ in client.events(**kwargs):
+                    pass
+            except BaseException as exc:
+                return exc
+            return None
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            return asyncio.run(run())
+
+    # ── regression detector ──────────────────────────────────────────────
+
+    def test_confirmed_floor_advances_only_on_successful_ack_put(self):
+        client = self._make_client()
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            client._session = FakeActionSession(status=503)
+            asyncio.run(client._ack(5))
+            self.assertEqual(client._last_confirmed_ack_event_id, -1)
+
+            client._session = FakeActionSession(status=204)
+            asyncio.run(client._ack(5))
+            self.assertEqual(client._last_confirmed_ack_event_id, 5)
+            # max semantics: an older confirmed ack never lowers the floor.
+            asyncio.run(client._ack(3))
+            self.assertEqual(client._last_confirmed_ack_event_id, 5)
+
+    def test_ack_channel_identity_guard(self):
+        client = self._make_client()
+        session = FakeActionSession(status=204)
+
+        def swap_channel_url(url, *, json, headers, timeout):
+            # A channel rebuilt mid-PUT must not be repopulated by the stale ack.
+            client.channel_url = "https://zod.tlon.network/~/channel/other"
+            return FakeActionResponse(204)
+
+        session.put = swap_channel_url
+        client._session = session
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(client._ack(7))
+        self.assertEqual(client._last_confirmed_ack_event_id, -1)
+
+    def test_end_to_end_reap_revive_resume_detects_and_rebuilds(self):
+        # The central failure mode, through the real poke()/events() paths on
+        # the stateful fake: build a cursor on generation 1, reap, let an
+        # outage-window poke silently revive the channel (generation 2, ids
+        # restarting at 0), then resume — the reviving poke's regressed ack
+        # must raise the rebuild error instead of being replay-dropped.
+        client = self._make_client()
+        session = FakeChannelSession()
+        client._session = session
+        # Let the first poke auto-open() so the genesis helm-hi is minted
+        # through the real path (the fake acks it as generation 1's event 0).
+        client.channel_id = None
+        client.channel_url = None
+
+        async def scenario():
+            await client.poke("hood", "helm-hi", "a")
+            await client.poke("hood", "helm-hi", "b")
+            url = client.channel_url
+            # First stream: hear generation 1's acks (helm-hi at 0, pokes at
+            # 1..2) — a healthy young channel, genesis clause included.
+            try:
+                async for _ in client.events():
+                    pass
+            except tlon_api.TlonChannelError:
+                raise
+            except ConnectionError:
+                pass
+            assert client._last_heard_event_id == 2, client._last_heard_event_id
+            session.reap(url)
+            # Outage-window poke: revives the channel invisibly (204), records
+            # a floor at the current cursor, and generation 2 acks it at 0.
+            await client.poke("hood", "helm-hi", "revive")
+            async for _ in client.events():
+                pass
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            with self.assertRaises(tlon_api.TlonChannelError) as raised:
+                asyncio.run(scenario())
+        self.assertIn("action ack regressed", str(raised.exception))
+        # The resume GET carried the stale cursor — the revived channel's 200
+        # looked healthy at the transport level.
+        self.assertEqual(session.get_calls[-1]["headers"].get("Last-Event-ID"), "2")
+
+    def test_pre_get_snapshot_survives_handshake_ack_race(self):
+        # F1: an ack PUT completing between the get() issue and the 200 must
+        # not raise the in-stream floor (Eyre binds the replay before
+        # pruning), so the replayed acked event is replay-dropped, not
+        # condemned.
+        client = self._make_client()
+        session = FakeChannelSession()
+        client._session = session
+        url = client.channel_url
+        client._last_heard_event_id = 5
+        # Eyre redelivers the already-acked event 5 in the replay.
+        session.enqueue_ack(url, 99, response="poke", event_id=5)
+
+        async def handshake_ack():
+            await client._ack(5)
+
+        session.on_get_enter = handshake_ack
+        exc = self._run_events(client)
+        self.assertIsInstance(exc, ConnectionError)
+        self.assertNotIsInstance(exc, tlon_api.TlonChannelError)
+        self.assertEqual(client._last_heard_event_id, 5)
+        self.assertEqual(client._last_confirmed_ack_event_id, 5)
+
+    def test_frame_between_snapshot_and_heard_replay_dropped_without_raise(self):
+        client = self._make_client()
+        client._last_heard_event_id = 10
+        client._confirmed_floor_at_stream_bind = 5
+
+        async def run():
+            return await client._parse_sse_payload(
+                'id: 7\ndata: {"id":1,"response":"diff","json":{}}\n\n'
+            )
+
+        self.assertIsNone(asyncio.run(run()))
+        self.assertEqual(client._last_heard_event_id, 10)
+
+    def test_frame_at_or_below_snapshot_raises_regression(self):
+        for event_id in (5, 3):
+            with self.subTest(event_id=event_id):
+                client = self._make_client()
+                client._last_heard_event_id = 10
+                client._confirmed_floor_at_stream_bind = 5
+
+                async def run():
+                    await client._parse_sse_payload(f"id: {event_id}\n\n")
+
+                with self.assertRaises(tlon_api.TlonChannelError) as raised:
+                    asyncio.run(run())
+                self.assertIn("event-id regression", str(raised.exception))
+
+    def test_fresh_floor_is_inert(self):
+        client = self._make_client()
+        self.assertEqual(client._confirmed_floor_at_stream_bind, -1)
+
+        async def run():
+            return await client._parse_sse_payload("id: 0\n\n")
+
+        self.assertIsNone(asyncio.run(run()))
+        self.assertEqual(client._last_heard_event_id, 0)
+
+    def test_open_resets_detection_state(self):
+        client = self._make_client()
+        client._session = FakeActionSession()
+        client._last_confirmed_ack_event_id = 9
+        client._confirmed_floor_at_stream_bind = 9
+        client._action_floors[3] = 1
+        client._genesis_action_id = 3
+        client._last_event_frame_at = 12345.0
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(client.open())
+
+        self.assertEqual(client._last_confirmed_ack_event_id, -1)
+        self.assertEqual(client._confirmed_floor_at_stream_bind, -1)
+        self.assertIsNone(client._last_event_frame_at)
+        # The fresh generation records only its own genesis helm-hi.
+        self.assertEqual(client._genesis_action_id, 1)
+        self.assertEqual(client._action_floors, {1: -1})
+
+    # ── floor ledger ─────────────────────────────────────────────────────
+
+    def test_poke_subscribe_and_open_record_floors_before_send(self):
+        client = self._make_client()
+        session = FakeChannelSession()
+        client._session = session
+
+        async def run():
+            await client.open()
+            await client.subscribe("channels", "/v2")
+            client._last_heard_event_id = 7
+            await client.poke("hood", "helm-hi", "probe")
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(run())
+
+        self.assertEqual(client._genesis_action_id, 1)
+        self.assertEqual(client._action_floors, {1: -1, 2: -1, 3: 7})
+
+    def test_ack_does_not_record_floor(self):
+        client = self._make_client()
+        client._session = FakeActionSession()
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(client._ack(3))
+        self.assertEqual(client._action_floors, {})
+
+    def test_healthy_ack_pops_only_its_own_entry(self):
+        client = self._make_client()
+        client._action_floors.update({1: -1, 2: -1})
+
+        async def run():
+            return await client._parse_sse_payload(
+                'id: 5\ndata: {"id":1,"response":"poke"}\n\n'
+            )
+
+        self.assertIsNone(asyncio.run(run()))
+        self.assertEqual(client._action_floors, {2: -1})
+        self.assertEqual(client._last_heard_event_id, 5)
+
+    def test_nack_also_pops_entry(self):
+        client = self._make_client()
+        client._action_floors[1] = -1
+
+        async def run():
+            return await client._parse_sse_payload(
+                'id: 5\ndata: {"id":1,"response":"poke","err":"boom"}\n\n'
+            )
+
+        self.assertIsNone(asyncio.run(run()))
+        self.assertEqual(client._action_floors, {})
+
+    def test_idless_or_invalid_event_id_frame_neither_judges_nor_pops(self):
+        for payload in (
+            'data: {"id":1,"response":"poke"}\n\n',
+            'id: 12x\ndata: {"id":1,"response":"poke"}\n\n',
+        ):
+            with self.subTest(payload=payload):
+                client = self._make_client()
+                client._action_floors[1] = -1
+                client._genesis_action_id = 2
+
+                async def run():
+                    return await client._parse_sse_payload(payload)
+
+                self.assertIsNone(asyncio.run(run()))
+                self.assertEqual(client._action_floors, {1: -1})
+                self.assertEqual(client._last_heard_event_id, -1)
+
+    def test_optional_sub_nack_pops_floor_alongside_the_sub(self):
+        client = self._make_client()
+        client._subscriptions[3] = ("steward", "/v1/lens")
+        client._optional_subscriptions.add(3)
+        client._action_floors[3] = -1
+
+        async def run():
+            return await client._parse_sse_payload(
+                'id: 4\ndata: {"id":3,"response":"subscribe","err":"no-agent"}\n\n'
+            )
+
+        self.assertIsNone(asyncio.run(run()))
+        self.assertEqual(client._action_floors, {})
+        self.assertNotIn(3, client._subscriptions)
+
+    def test_action_ack_regression_raises(self):
+        # The catch-up killer: a floor recorded at cursor 5, acked at event 0
+        # by a revived generation. The cursor matches the floor (a floor is
+        # the cursor at send time), which also pins the ordering property:
+        # with the detector after the replay-drop, event 0 <= cursor 5 would
+        # be silently discarded instead of raising.
+        client = self._make_client()
+        client._last_heard_event_id = 5
+        client._action_floors[7] = 5
+        client._genesis_action_id = 7
+
+        async def run_zero():
+            await client._parse_sse_payload(
+                'id: 0\ndata: {"id":7,"response":"poke"}\n\n'
+            )
+
+        with self.assertRaises(tlon_api.TlonChannelError) as raised:
+            asyncio.run(run_zero())
+        self.assertIn("action ack regressed", str(raised.exception))
+
+        # A non-zero regressed id, again with the cursor at the floor.
+        client = self._make_client()
+        client._last_heard_event_id = 2
+        client._action_floors[7] = 2
+        client._genesis_action_id = 7
+
+        async def run_regressed():
+            await client._parse_sse_payload(
+                'id: 1\ndata: {"id":7,"response":"poke"}\n\n'
+            )
+
+        with self.assertRaises(tlon_api.TlonChannelError):
+            asyncio.run(run_regressed())
+
+    def test_failed_send_keeps_floor_entry(self):
+        client = self._make_client()
+        client._session = FakeActionSession(status=503)
+
+        async def run():
+            try:
+                await client.poke("hood", "helm-hi", "x")
+            except ConnectionError:
+                pass
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(run())
+        # Delivery is ambiguous: the action may have landed and revived a
+        # reaped channel.
+        self.assertIn(client._action_counter, client._action_floors)
+
+    def test_floor_setdefault_does_not_overwrite(self):
+        client = self._make_client()
+        client._last_heard_event_id = 3
+        client._record_action_floor(7)
+        client._last_heard_event_id = 9
+        client._record_action_floor(7)
+        self.assertEqual(client._action_floors[7], 3)
+
+    def test_cap_fail_closed_skips_insert_condemns_and_still_sends(self):
+        client = self._make_client()
+        session = FakeActionSession()
+        client._session = session
+        client._action_floors.update(
+            {100_000 + i: -1 for i in range(tlon_api.ACTION_FLOOR_CAP)}
+        )
+
+        async def run():
+            return await client.poke("hood", "helm-hi", "x")
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            poke_id = asyncio.run(run())
+
+        self.assertNotIn(poke_id, client._action_floors)
+        self.assertEqual(len(client._action_floors), tlon_api.ACTION_FLOOR_CAP)
+        self.assertIsInstance(client._condemned, tlon_api.TlonChannelError)
+        self.assertEqual(len(session.put_calls), 1)
+
+    def test_poke_only_client_records_no_detector_state(self):
+        client = self._make_client(reap_detection=False)
+        session = FakeActionSession()
+        client._session = session
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            for _ in range(3):
+                asyncio.run(client.poke("steward", "steward-action-1", {}))
+        self.assertEqual(client._action_floors, {})
+        self.assertIsNone(client._condemned)
+
+        # No cap applies: a full ledger stays untouched and never condemns.
+        client._action_floors.update(
+            {i: -1 for i in range(tlon_api.ACTION_FLOOR_CAP)}
+        )
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(client.poke("steward", "steward-action-1", {}))
+        self.assertEqual(len(client._action_floors), tlon_api.ACTION_FLOOR_CAP)
+        self.assertIsNone(client._condemned)
+
+    # ── genesis clause ───────────────────────────────────────────────────
+
+    def test_genesis_ack_at_event_zero_on_virgin_cursor_passes(self):
+        client = self._make_client()
+        client._genesis_action_id = 1
+
+        async def run():
+            return await client._parse_sse_payload(
+                'id: 0\ndata: {"id":1,"response":"poke"}\n\n'
+            )
+
+        self.assertIsNone(asyncio.run(run()))
+        self.assertEqual(client._last_heard_event_id, 0)
+
+    def test_healthy_full_bootstrap_passes_end_to_end(self):
+        # The live-verified ordering: event 0 = helm-hi ack, subscribe acks
+        # at 1..6 in send order.
+        client = self._make_client()
+        session = FakeChannelSession()
+        client._session = session
+
+        async def run():
+            await client.open()
+            for app, path in (
+                ("channels", "/v2"),
+                ("chat", "/v3"),
+                ("settings", "/desk/moltbot"),
+                ("groups", "/v1/foreigns"),
+                ("contacts", "/v1/news"),
+                ("steward", "/v1/lens"),
+            ):
+                await client.subscribe(app, path)
+            try:
+                async for _ in client.events():
+                    pass
+            except ConnectionError:
+                pass
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(run())
+
+        self.assertEqual(client._last_heard_event_id, 6)
+        self.assertEqual(client._action_floors, {})
+        self.assertIsNone(client._condemned)
+
+    def test_setup_subscribe_acked_at_event_zero_raises(self):
+        # A reap between the sequential setup PUTs: the reviving subscribe is
+        # not the genesis action.
+        client = self._make_client()
+        client._genesis_action_id = 1
+
+        async def run():
+            await client._parse_sse_payload(
+                'id: 0\ndata: {"id":2,"response":"subscribe"}\n\n'
+            )
+
+        with self.assertRaises(tlon_api.TlonChannelError) as raised:
+            asyncio.run(run())
+        self.assertIn("non-genesis", str(raised.exception))
+
+    def test_catchup_window_poke_acked_at_event_zero_raises(self):
+        client = self._make_client()
+        client._genesis_action_id = 1
+
+        async def run():
+            await client._parse_sse_payload(
+                'id: 0\ndata: {"id":5,"response":"poke"}\n\n'
+            )
+
+        with self.assertRaises(tlon_api.TlonChannelError):
+            asyncio.run(run())
+
+    def test_advanced_cursor_immune_to_genesis_clause(self):
+        client = self._make_client()
+        client._genesis_action_id = 1
+        client._last_heard_event_id = 3
+
+        async def run():
+            return await client._parse_sse_payload(
+                'id: 0\ndata: {"id":5,"response":"poke"}\n\n'
+            )
+
+        self.assertIsNone(asyncio.run(run()))
+        self.assertEqual(client._last_heard_event_id, 3)
+
+    def test_resume_preserves_genesis_id(self):
+        client = self._make_client()
+        session = FakeChannelSession()
+        client._session = session
+
+        async def run():
+            await client.open()
+            for _ in range(2):
+                try:
+                    async for _ in client.events():
+                        pass
+                except ConnectionError:
+                    pass
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(run())
+        self.assertEqual(client._genesis_action_id, 1)
+
+    # ── condemn latch ────────────────────────────────────────────────────
+
+    def test_rebuild_condemnation_raises_on_next_payload_including_keepalive(self):
+        client = self._make_client()
+        client.condemn(tlon_api.TlonChannelError("forced rebuild"))
+
+        async def run():
+            await client._parse_sse_payload(": keepalive")
+
+        with self.assertRaises(tlon_api.TlonChannelError) as raised:
+            asyncio.run(run())
+        self.assertEqual(str(raised.exception), "forced rebuild")
+        # Consumed on raise: the next payload parses normally.
+        self.assertIsNone(client._condemned)
+
+        async def run_again():
+            return await client._parse_sse_payload("id: 1\n\n")
+
+        self.assertIsNone(asyncio.run(run_again()))
+        self.assertEqual(client._last_heard_event_id, 1)
+
+    def test_stale_condemnation_held_through_detectors_for_rebuild_evidence(self):
+        # A frame carrying regression evidence while a resume condemnation is
+        # latched must raise the rebuild, not the stale error.
+        client = self._make_client()
+        client._confirmed_floor_at_stream_bind = 5
+        client.condemn(tlon_api.TlonStreamStaleError("stale"))
+
+        async def run():
+            await client._parse_sse_payload('id: 3\ndata: {"id":1,"response":"poke"}\n\n')
+
+        with self.assertRaises(tlon_api.TlonChannelError) as raised:
+            asyncio.run(run())
+        self.assertNotIsInstance(raised.exception, tlon_api.TlonStreamStaleError)
+        self.assertIn("event-id regression", str(raised.exception))
+
+    def test_stale_condemnation_raises_before_cursor_advance(self):
+        # Lossless: the frame was not acked, so the resume GET redelivers it.
+        client = self._make_client()
+        client.condemn(tlon_api.TlonStreamStaleError("stale"))
+
+        async def run():
+            await client._parse_sse_payload(
+                'id: 5\ndata: {"id":1,"response":"diff","json":{}}\n\n'
+            )
+
+        with self.assertRaises(tlon_api.TlonStreamStaleError):
+            asyncio.run(run())
+        self.assertEqual(client._last_heard_event_id, -1)
+
+    def test_rebuild_condemnation_survives_bind(self):
+        # Not cleared at bind: a condemnation set during an outage forces its
+        # rebuild on the resumed stream's first payload.
+        client = self._make_client()
+        client.condemn(tlon_api.TlonChannelError("forced rebuild"))
+        session = FakeChannelSession()
+        client._session = session
+        session.generation(client.channel_url).buffered.append(b": keepalive\n\n")
+
+        exc = self._run_events(client)
+        self.assertIsInstance(exc, tlon_api.TlonChannelError)
+        self.assertEqual(str(exc), "forced rebuild")
+
+    def test_stale_condemnation_cleared_by_successful_bind(self):
+        # A stale condemnation demands a resume; if the stream faults and
+        # re-binds on its own first, that bind satisfies it — raising it on
+        # the recovered stream's first payload would tear down a healthy
+        # stream for nothing.
+        client = self._make_client()
+        client.condemn(tlon_api.TlonStreamStaleError("stale"))
+        session = FakeChannelSession()
+        client._session = session
+        session.generation(client.channel_url).buffered.append(
+            b'id: 1\ndata: {"id":1,"response":"diff","json":{}}\n\n'
+        )
+
+        exc = self._run_events(client)
+        self.assertNotIsInstance(exc, tlon_api.TlonStreamStaleError)
+        self.assertIsInstance(exc, ConnectionError)
+        self.assertIsNone(client._condemned)
+        self.assertEqual(client._last_heard_event_id, 1)
+
+    def test_channel_error_outranks_stale_and_is_never_downgraded(self):
+        client = self._make_client()
+        client.condemn(tlon_api.TlonStreamStaleError("stale-1"))
+        self.assertIsInstance(client._condemned, tlon_api.TlonStreamStaleError)
+        client.condemn(tlon_api.TlonChannelError("rebuild"))
+        self.assertIsInstance(client._condemned, tlon_api.TlonChannelError)
+        # A later stale condemnation cannot downgrade the rebuild.
+        client.condemn(tlon_api.TlonStreamStaleError("stale-2"))
+        self.assertIsInstance(client._condemned, tlon_api.TlonChannelError)
+        self.assertEqual(str(client._condemned), "rebuild")
+
+    # ── liveness/bind plumbing ───────────────────────────────────────────
+
+    def test_last_event_frame_at_refresh_rules(self):
+        client = self._make_client()
+        self.assertIsNone(client.last_event_frame_at)
+
+        async def parse(payload):
+            return await client._parse_sse_payload(payload)
+
+        asyncio.run(parse("id: 1\n\n"))
+        self.assertIsNotNone(client.last_event_frame_at)
+
+        client._last_event_frame_at = None
+        asyncio.run(parse('data: {"id":1,"response":"diff","json":{}}\n\n'))
+        self.assertIsNotNone(client.last_event_frame_at)
+
+        # Replay-dropped frames still refresh the clock.
+        client._last_heard_event_id = 10
+        client._last_event_frame_at = None
+        asyncio.run(parse("id: 5\n\n"))
+        self.assertIsNotNone(client.last_event_frame_at)
+
+        # Keepalive-only payloads deliberately do not.
+        client._last_event_frame_at = None
+        asyncio.run(parse(": keepalive"))
+        self.assertIsNone(client.last_event_frame_at)
+
+    def test_bind_resets_liveness_baseline(self):
+        client = self._make_client()
+        client._last_event_frame_at = time.monotonic() - 10000
+        session = FakeChannelSession()
+        client._session = session
+        # Only a keepalive arrives after the resume: the clock must show the
+        # bind baseline, not the ancient pre-outage frame.
+        session.generation(client.channel_url).buffered.append(b": keepalive\n\n")
+
+        self._run_events(client)
+        self.assertGreater(client.last_event_frame_at, time.monotonic() - 5)
+
+    def test_stream_bound_lifecycle(self):
+        client = self._make_client()
+        session = FakeChannelSession()
+        client._session = session
+        gen = session.generation(client.channel_url)
+        gen.buffered.append(sse_frame(1, {"response": "diff", "id": 1, "json": {}}))
+        gen.buffered.append(sse_frame(2, {"response": "diff", "id": 1, "json": {}}))
+        bound_at_open = []
+
+        def on_open():
+            bound_at_open.append(client.stream_bound)
+
+        async def run_normal():
+            try:
+                async for _ in client.events(on_open=on_open):
+                    pass
+            except ConnectionError:
+                pass
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(run_normal())
+        self.assertEqual(bound_at_open, [True])
+        self.assertFalse(client.stream_bound)
+
+        # Cleared on aclose mid-stream.
+        gen.buffered.append(sse_frame(3, {"response": "diff", "id": 1, "json": {}}))
+        gen.buffered.append(sse_frame(4, {"response": "diff", "id": 1, "json": {}}))
+
+        async def run_aclose():
+            stream = client.events()
+            async for _ in stream:
+                await stream.aclose()
+                break
+
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(run_aclose())
+        self.assertFalse(client.stream_bound)
+
+        # Cleared on a detector error mid-stream. The confirmed floor must be
+        # seeded via _last_confirmed_ack_event_id (events() re-snapshots the
+        # bind floor from it), and the detector's exact error is asserted so
+        # an ordinary EOF cannot satisfy this case vacuously.
+        client._last_confirmed_ack_event_id = 100
+        gen.buffered.append(sse_frame(5, {"response": "diff", "id": 1, "json": {}}))
+
+        async def run_error():
+            async for _ in client.events():
+                pass
+
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            with self.assertRaises(tlon_api.TlonChannelError) as raised:
+                asyncio.run(run_error())
+        self.assertIn("event-id regression", str(raised.exception))
+        self.assertFalse(client.stream_bound)
+
+    # ── strict id parse ──────────────────────────────────────────────────
+
+    def test_strict_event_id_parse(self):
+        # The 5000-digit id passes isdigit() but would make int() RAISE under
+        # CPython's int-str conversion limit \u2014 it must be treated as id-less,
+        # not kill the stream in a resume/replay loop.
+        for bad in ("-5", "+5", "1_000", "12x", "\u0665", "9" * 5000, "1" * 19):
+            with self.subTest(bad=bad):
+                client = self._make_client()
+
+                async def run():
+                    return await client._parse_sse_payload(f"id: {bad}\n\n")
+
+                self.assertIsNone(asyncio.run(run()))
+                self.assertEqual(client._last_heard_event_id, -1)
+
+        for good, expected in (("0", 0), ("5", 5)):
+            with self.subTest(good=good):
+                client = self._make_client()
+
+                async def run():
+                    return await client._parse_sse_payload(f"id: {good}\n\n")
+
+                self.assertIsNone(asyncio.run(run()))
+                self.assertEqual(client._last_heard_event_id, expected)
+
+    def test_boolean_action_id_is_ignored(self):
+        client = self._make_client()
+        client._genesis_action_id = 1
+        client._action_floors[7] = 9
+
+        async def run():
+            return await client._parse_sse_payload(
+                'id: 0\ndata: {"id":true,"response":"poke"}\n\n'
+            )
+
+        self.assertIsNone(asyncio.run(run()))
+        self.assertEqual(client._action_floors, {7: 9})
+        self.assertEqual(client._last_heard_event_id, 0)
+
+    # ── closed latch + task retention ────────────────────────────────────
+
+    def test_closed_latch_blocks_public_entry_points_without_reminting(self):
+        client = self._make_client()
+        client._session = FakeActionSession()
+
+        async def drain_events():
+            async for _ in client.events():
+                pass
+
+        asyncio.run(client.close(graceful=False))
+        for coro in (
+            client.poke("hood", "helm-hi", "x"),
+            client.subscribe("channels", "/v2"),
+            client.scry("/contacts/v1/self"),
+            client.authenticate(),
+            drain_events(),
+        ):
+            with self.subTest(coro=coro):
+                with self.assertRaisesRegex(ConnectionError, "closed"):
+                    asyncio.run(coro)
+        self.assertIsNone(client._session)
+        self.assertIsNone(client.channel_id)
+
+    def test_graceful_close_still_sends_unsubscribe_and_delete(self):
+        class RecordingGracefulSession:
+            def __init__(self):
+                self.put_payloads = []
+                self.delete_urls = []
+
+            def put(self, url, *, json, headers, timeout):
+                self.put_payloads.append(json)
+                return FakeActionResponse(204)
+
+            async def delete(self, url, *, timeout):
+                self.delete_urls.append(url)
+                return FakeActionResponse(204)
+
+            async def close(self):
+                pass
+
+        client = self._make_client()
+        session = RecordingGracefulSession()
+        client._session = session
+        client._subscriptions[1] = ("channels", "/v2")
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            asyncio.run(client.close())
+
+        self.assertEqual(len(session.put_payloads), 1)
+        self.assertEqual(session.put_payloads[0][0]["action"], "unsubscribe")
+        self.assertEqual(session.delete_urls, [client.url + "/~/channel/test-channel"])
+
+    def test_inflight_ack_task_cancelled_and_awaited_on_close(self):
+        class BlockingPutResponse:
+            async def __aenter__(self):
+                # Park until cancelled; a bare future is loop-portable
+                # (asyncio.Event binds to a loop at construction on 3.10).
+                await asyncio.get_running_loop().create_future()
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def text(self):
+                return ""
+
+        class BlockingPutSession:
+            def __init__(self):
+                self.puts = 0
+
+            def put(self, url, *, json, headers, timeout):
+                self.puts += 1
+                return BlockingPutResponse()
+
+            async def close(self):
+                pass
+
+        client = self._make_client()
+        session = BlockingPutSession()
+        client._session = session
+
+        async def run():
+            await client._parse_sse_payload("id: 21\n\n")
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+            (ack_task,) = list(client._ack_tasks)
+            await client.close(graceful=False)
+            return ack_task
+
+        fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+        with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+            ack_task = asyncio.run(run())
+        self.assertTrue(ack_task.cancelled())
+
+    def test_ack_tasks_retained_until_done(self):
+        client = self._make_client()
+        client._session = FakeActionSession()
+
+        async def run():
+            fake_aiohttp = types.SimpleNamespace(ClientTimeout=FakeClientTimeout)
+            with patch.dict(sys.modules, {"aiohttp": fake_aiohttp}):
+                await client._parse_sse_payload("id: 21\n\n")
+                retained = len(client._ack_tasks)
+                for _ in range(5):
+                    await asyncio.sleep(0)
+                return retained, len(client._ack_tasks)
+
+        retained, after = asyncio.run(run())
+        self.assertEqual(retained, 1)
+        self.assertEqual(after, 0)
+
+    # ── silent-socket clamp ──────────────────────────────────────────────
+
+    def test_silent_socket_clamp_on_get_timeout(self):
+        cases = (
+            # (read timeout, stale threshold, expected sock_read)
+            ("600", "180", 180.0),
+            ("600", "5", tlon_api.KEEPALIVE_SAFE_SECONDS),
+            ("600", "0", 600.0),
+            (None, None, tlon_api.DEFAULT_SSE_READ_TIMEOUT_SECONDS),
+        )
+        for read_timeout, stale_threshold, expected in cases:
+            with self.subTest(read_timeout=read_timeout, stale_threshold=stale_threshold):
+                client = self._make_client(
+                    read_timeout=read_timeout, stale_threshold=stale_threshold
+                )
+                session = FakeSSESession(responses=[(200, [])])
+                client._session = session
+                self._run_events(client)
+                self.assertEqual(session.timeout.sock_read, expected)
 
 
 if __name__ == "__main__":

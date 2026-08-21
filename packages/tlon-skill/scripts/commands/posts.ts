@@ -1,4 +1,10 @@
 import {
+  BOT_PROFILE_OPTION_FLAGS,
+  type BotAuthorProfile,
+  botProfileFlagIndex,
+  parseBotProfileFlags,
+} from '../bot-profile-flags';
+import {
   DIARY_REMOVED,
   NOTES_CHANNEL_CONTENT_UNSUPPORTED,
   isDiaryNest,
@@ -20,8 +26,8 @@ import {
 export const POSTS_HELP = `Usage: tlon posts <command>
 
 Commands:
-  send <channel> [message]                 Send a message to a channel [--blob <json>] [--image <url>] [--title <text>]
-  reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship] [--blob <json>]
+  send <channel> [message]                 Send a message to a channel [--blob <json>] [--image <url>] [--title <text>] [--bot]
+  reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship] [--blob <json>] [--bot]
   react <channel> <post-id> <emoji>     React to a post with an emoji [--parent <post-id>]
   unreact <channel> <post-id>           Remove your reaction from a post [--parent <post-id>]
   edit <channel> <post-id> <message>    Edit a post's message text
@@ -34,6 +40,8 @@ Send options:
   --title <text>       Set a title on a gallery (heap/) post
   --sent-at <ms>       Override the send timestamp (unix ms); the post id
                        derives from it. Applies to send and reply.
+  --bot                Author the message as a bot (renders the "Bot" tag).
+                       Applies to send and reply.
 
 Examples:
   tlon posts send chat/~host/channel "Hello from tlon"
@@ -46,9 +54,9 @@ Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 export const POSTS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--title <text>] [--sent-at <ms>] (message optional with --image)',
+  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] [--title <text>] [--sent-at <ms>] [--bot] (message optional with --image)',
   reply:
-    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship] [--blob <json>] [--sent-at <ms>]',
+    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship] [--blob <json>] [--sent-at <ms>] [--bot]',
   react:
     'Usage: tlon posts react <channel> <post-id> <emoji> [--parent <post-id>]',
   unreact: 'Usage: tlon posts unreact <channel> <post-id> [--parent <post-id>]',
@@ -68,8 +76,19 @@ export const POSTS_REACT_HELP = POSTS_COMMAND_HELP.react;
 const POSTS_EDIT_REMOVED_FLAGS_MESSAGE =
   'tlon posts edit no longer supports --title/--image/--content (notebook-only affordances). Edit the message text directly; use `tlon notes` for %notes content.';
 
-const POST_REPLY_OPTION_FLAGS = ['author', 'blob', 'sent-at'] as const;
-const POST_SEND_OPTION_FLAGS = ['blob', 'image', 'title', 'sent-at'] as const;
+const POST_REPLY_OPTION_FLAGS = [
+  'author',
+  'blob',
+  'sent-at',
+  ...BOT_PROFILE_OPTION_FLAGS,
+] as const;
+const POST_SEND_OPTION_FLAGS = [
+  'blob',
+  'image',
+  'title',
+  'sent-at',
+  ...BOT_PROFILE_OPTION_FLAGS,
+] as const;
 
 export interface PostReactionInput {
   channelId: string;
@@ -108,6 +127,7 @@ export interface PostEditInput {
   sentAt: number;
   content: Story;
   metadata: PostEditMetadata;
+  botProfile?: BotAuthorProfile;
 }
 
 export interface PostSendInput {
@@ -117,6 +137,7 @@ export interface PostSendInput {
   content: Story;
   blob?: string;
   metadata?: { title?: string };
+  botProfile?: BotAuthorProfile;
 }
 
 export interface PostReplyInput {
@@ -127,6 +148,7 @@ export interface PostReplyInput {
   sentAt: number;
   authorId: string;
   blob?: string;
+  botProfile?: BotAuthorProfile;
 }
 
 export interface PostLookupQuery {
@@ -143,6 +165,7 @@ export interface ExistingPost {
   image?: string | null;
   description?: string | null;
   cover?: string | null;
+  isBot?: boolean | null;
 }
 
 export interface PostLookupResult {
@@ -166,6 +189,8 @@ export interface PostsDeps extends CommandDeps {
   authenticate: (apps: PostAuthApp[]) => Promise<void>;
   getCurrentUserId: () => string;
   now: () => number;
+  // Injected so the edit retry can be exercised without real sleeping.
+  sleep?: (ms: number) => Promise<void>;
   // Fetch an image URL and build its story image verse (network IO).
   buildImageVerse: (url: string) => Promise<StoryVerse>;
   postsApi: PostsApi;
@@ -181,6 +206,7 @@ type ParsedPostsArgs =
       title?: string;
       blob?: string;
       sentAt?: number;
+      botProfile?: BotAuthorProfile;
     }
   | {
       kind: 'reply';
@@ -190,6 +216,7 @@ type ParsedPostsArgs =
       parentAuthor?: string;
       blob?: string;
       sentAt?: number;
+      botProfile?: BotAuthorProfile;
     }
   | {
       kind: 'react';
@@ -321,6 +348,17 @@ function validatedBlobFlag(
   return blob;
 }
 
+function validatedBotProfile(
+  args: string[],
+  usage: string
+): BotAuthorProfile | undefined {
+  const parsed = parseBotProfileFlags(args);
+  if (!parsed.ok) {
+    throw usageError(usage);
+  }
+  return parsed.botProfile;
+}
+
 function validatedTitleFlag(args: string[], usage: string): string | undefined {
   const titleIdx = args.indexOf('--title');
   if (titleIdx === -1) {
@@ -345,10 +383,23 @@ function firstFlagIndex(args: string[], flags: readonly string[]): number {
 
 // Send treats `--image`/`--image=` (via imageFlagIndex) as a boundary too.
 function firstPostSendFlagIndex(args: string[]): number {
-  const indexes = POST_SEND_OPTION_FLAGS.map((flag) =>
-    flag === 'image' ? imageFlagIndex(args) : args.indexOf(`--${flag}`)
-  ).filter((idx) => idx !== -1);
+  const indexes = [
+    ...POST_SEND_OPTION_FLAGS.map((flag) =>
+      flag === 'image' ? imageFlagIndex(args) : args.indexOf(`--${flag}`)
+    ),
+    botProfileFlagIndex(args),
+  ].filter((idx) => idx !== -1);
   return indexes.length > 0 ? Math.min(...indexes) : args.length;
+}
+
+// Reply's flags are plain tokens except the bot value flags, which also accept
+// the `--flag=value` form.
+function firstPostReplyFlagIndex(args: string[]): number {
+  const inlineBot = botProfileFlagIndex(args);
+  return Math.min(
+    firstFlagIndex(args, POST_REPLY_OPTION_FLAGS),
+    inlineBot === -1 ? args.length : inlineBot
+  );
 }
 
 // Edit has no option flags any more (the notebook-only ones are removed), so the
@@ -374,7 +425,7 @@ function getPostSendMessage(args: string[]): string {
 }
 
 function getPostReplyMessage(args: string[]): string {
-  return args.slice(3, firstFlagIndex(args, POST_REPLY_OPTION_FLAGS)).join(' ');
+  return args.slice(3, firstPostReplyFlagIndex(args)).join(' ');
 }
 
 // When the message slice for a write subcommand contains a `--help`/`-h` token,
@@ -398,7 +449,7 @@ function isPostReplyMessageHelpLiteral(args: string[]): boolean {
     args[0] === 'reply' &&
     !!args[1] &&
     !!args[2] &&
-    wantsHelp(args.slice(3, firstFlagIndex(args, POST_REPLY_OPTION_FLAGS)))
+    wantsHelp(args.slice(3, firstPostReplyFlagIndex(args)))
   );
 }
 
@@ -467,6 +518,7 @@ function parseArgs(args: string[]): ParsedPostsArgs {
         );
       }
       const sentAt = validatedSentAt(args, POSTS_COMMAND_HELP.send);
+      const botProfile = validatedBotProfile(args, POSTS_COMMAND_HELP.send);
       return {
         kind: 'send',
         channelId: args[1],
@@ -475,6 +527,7 @@ function parseArgs(args: string[]): ParsedPostsArgs {
         title,
         blob,
         sentAt,
+        botProfile,
       };
     }
     case 'reply': {
@@ -491,6 +544,7 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       const parentAuthor = authorIdx !== -1 ? args[authorIdx + 1] : undefined;
       const blob = validatedBlobFlag(args, POSTS_COMMAND_HELP.reply);
       const sentAt = validatedSentAt(args, POSTS_COMMAND_HELP.reply);
+      const botProfile = validatedBotProfile(args, POSTS_COMMAND_HELP.reply);
       return {
         kind: 'reply',
         channelId,
@@ -499,6 +553,7 @@ function parseArgs(args: string[]): ParsedPostsArgs {
         parentAuthor,
         blob,
         sentAt,
+        botProfile,
       };
     }
     case 'react': {
@@ -630,6 +685,7 @@ async function sendPost(
     title?: string;
     blob?: string;
     sentAt?: number;
+    botProfile?: BotAuthorProfile;
   },
   deps: PostsDeps
 ): Promise<void> {
@@ -650,6 +706,7 @@ async function sendPost(
     content,
     blob: parsed.blob,
     ...(parsed.title ? { metadata: { title: parsed.title } } : {}),
+    ...(parsed.botProfile ? { botProfile: parsed.botProfile } : {}),
   });
 }
 
@@ -661,6 +718,7 @@ async function sendReply(
     parentAuthor?: string;
     blob?: string;
     sentAt?: number;
+    botProfile?: BotAuthorProfile;
   },
   deps: PostsDeps
 ): Promise<void> {
@@ -677,32 +735,55 @@ async function sendReply(
     sentAt: parsed.sentAt ?? deps.now(),
     authorId,
     blob: parsed.blob,
+    ...(parsed.botProfile ? { botProfile: parsed.botProfile } : {}),
   });
 }
 
-// Fetch existing post to preserve metadata during edits. Returns null on any
-// lookup error, matching legacy behavior.
+// A post the CLI just created is not necessarily readable yet: %channels
+// records the add in `pending.channel` and proxies it to the host, while this
+// scry reads `posts.channel`, which is only populated once the host update
+// returns. One delayed retry covers that window; a remotely hosted channel
+// needs at least a host round trip.
+export const EDIT_LOOKUP_RETRY_DELAY_MS = 1_500;
+
+// Fetch the existing post so an edit can preserve what it must not re-derive.
+// Returns null when the post is genuinely unreadable — the caller refuses to
+// edit on that, because an edit replaces the whole essay and a null here would
+// silently rewrite authorship and wipe metadata.
 async function fetchExistingPost(
   channelId: string,
   postId: string,
   deps: PostsDeps
 ): Promise<ExistingPost | null> {
   const formattedId = formatPostId(postId);
-  try {
-    const data = await deps.postsApi.getChannelPosts({
-      channelId,
-      cursor: formattedId,
-      mode: 'around',
-      count: 1,
-      includeReplies: false,
-    });
-    const post = data.posts.find(
-      (candidate) => formatPostId(candidate.id) === formattedId
-    );
-    return post ?? null;
-  } catch {
-    return null;
+  const lookOnce = async (): Promise<ExistingPost | null> => {
+    try {
+      const data = await deps.postsApi.getChannelPosts({
+        channelId,
+        cursor: formattedId,
+        mode: 'around',
+        count: 1,
+        includeReplies: false,
+      });
+      return (
+        data.posts.find(
+          (candidate) => formatPostId(candidate.id) === formattedId
+        ) ?? null
+      );
+    } catch {
+      return null;
+    }
+  };
+
+  const first = await lookOnce();
+  if (first) {
+    return first;
   }
+  const sleep =
+    deps.sleep ??
+    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  await sleep(EDIT_LOOKUP_RETRY_DELAY_MS);
+  return lookOnce();
 }
 
 async function editPost(
@@ -718,11 +799,22 @@ async function editPost(
     deps
   );
 
+  if (!existing) {
+    // %edit submits the whole essay, so everything this lookup would have
+    // preserved — the author object behind the Bot tag, a gallery item's title
+    // and cover — is replaced by whatever is sent now. Editing blind is a
+    // silent, durable rewrite; failing is visible and retryable once the post
+    // is readable.
+    throw commandError(
+      `Could not read ${formatPostId(parsed.postId)} in ${parsed.channelId} to preserve its authorship and metadata; the post may not be readable yet. Retry the edit.`
+    );
+  }
+
   const metadata: PostEditMetadata = {
-    title: existing?.title ?? undefined,
-    image: existing?.image ?? undefined,
-    description: existing?.description ?? undefined,
-    cover: existing?.cover ?? undefined,
+    title: existing.title ?? undefined,
+    image: existing.image ?? undefined,
+    description: existing.description ?? undefined,
+    cover: existing.cover ?? undefined,
   };
 
   await deps.postsApi.editPost({
@@ -732,6 +824,9 @@ async function editPost(
     sentAt: deps.now(),
     content: markdownToStory(parsed.message),
     metadata,
+    // Authorship shape comes from the existing post rather than being
+    // re-derived: a bot post stays bot-authored, a human post stays bare.
+    ...(existing.isBot ? { botProfile: { nickname: null, avatar: null } } : {}),
   });
 }
 

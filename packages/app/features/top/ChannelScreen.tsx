@@ -1,5 +1,6 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as api from '@tloncorp/api';
 import { Story } from '@tloncorp/api/urbit';
 import {
   configurationFromChannel,
@@ -15,6 +16,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
@@ -103,22 +105,41 @@ export default function ChannelScreen(props: Props) {
     }, [groupId, channelId])
   );
 
-  const channelThreadAbortController = useRef<AbortController | null>(
-    new AbortController()
+  const activityCapabilitiesEpoch = useSyncExternalStore(
+    api.onActivityCapabilitiesChange,
+    api.getActivityCapabilitiesEpoch
   );
+  // A cached notes channel can mount before app-info resolves notes activity
+  // support. In that case the initial per-note unread sync intentionally
+  // returns no answer; retry once the capability becomes available.
+  const notesActivityCapabilitiesEpoch =
+    channel?.type === 'notes' ? activityCapabilitiesEpoch : 0;
 
   useEffect(() => {
-    if (!channelIsPending && channel?.type !== 'buckets') {
-      if (channelThreadAbortController.current) {
-        channelThreadAbortController.current.abort();
-      }
-      channelThreadAbortController.current = new AbortController();
-      store.syncChannelThreadUnreads(channelId, {
-        priority: store.SyncPriority.High,
-        abortSignal: channelThreadAbortController.current?.signal,
-      });
+    // A Bucket has no posts, so it has no thread unreads to sync.
+    if (channelIsPending || channel?.type === 'buckets') {
+      return;
     }
-  }, [channel?.type, channelIsPending, channelId]);
+
+    const abortController = new AbortController();
+    void store
+      .syncChannelThreadUnreads(channelId, {
+        priority: store.SyncPriority.High,
+        abortSignal: abortController.signal,
+      })
+      .catch((error) => {
+        if (!abortController.signal.aborted) {
+          logger.error('Failed to sync channel thread unreads', error);
+        }
+      });
+
+    return () => abortController.abort();
+  }, [
+    channel?.type,
+    channelIsPending,
+    channelId,
+    notesActivityCapabilitiesEpoch,
+  ]);
 
   // Snapshot unread state once per focused entry so the divider does not move
   // as the channel is marked read.
