@@ -175,8 +175,8 @@ importers:
         specifier: 7.18.14
         version: 7.18.14(patch_hash=6c92d56c83cbda5c10b90545c24763ce3cf82aa05beea645706269314a1d52b0)(@react-navigation/native@7.3.14(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native-safe-area-context@5.7.0(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native-screens@4.25.2(patch_hash=0d058cd35b3fc9cef60767373022b08fcd31e41952108b4254a69d716d817f43)(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@react-navigation/drawer':
-        specifier: ^7.13.9
-        version: 7.13.9(2e0f42aeaac374fbac59ad1dc43cb4a7)
+        specifier: ^7.7.13
+        version: 7.8.0(2e0f42aeaac374fbac59ad1dc43cb4a7)
       '@react-navigation/native':
         specifier: 7.3.14
         version: 7.3.14(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -548,8 +548,8 @@ importers:
         specifier: ^1.0.2
         version: 1.0.6(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@react-navigation/drawer':
-        specifier: ^7.13.9
-        version: 7.13.9(2e0f42aeaac374fbac59ad1dc43cb4a7)
+        specifier: ^7.7.13
+        version: 7.8.0(2e0f42aeaac374fbac59ad1dc43cb4a7)
       '@react-navigation/native':
         specifier: 7.3.14
         version: 7.3.14(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -4658,10 +4658,10 @@ packages:
     peerDependencies:
       react: 19.2.3
 
-  '@react-navigation/drawer@7.13.9':
-    resolution: {integrity: sha512-srUTYYeITs1pYznpk7RvCMpiJ0FJ7NGkQlc895yj10auxIIJ+RAGi4kVs58Mhr/ys7uJOIumVM02NjeFRlv6Aw==}
+  '@react-navigation/drawer@7.8.0':
+    resolution: {integrity: sha512-1pIVYS1OScjroWYBx5/xdfvR9VGWGXphh4Uk7PsLcrxUjywalYixkXAKdVMRa3u5O0WYewX2wpzqr6oAKhxd9Q==}
     peerDependencies:
-      '@react-navigation/native': ^7.3.17
+      '@react-navigation/native': ^7.1.28
       react: 19.2.3
       react-native: 0.86.0
       react-native-gesture-handler: ~2.32.0
@@ -18375,7 +18375,7 @@ snapshots:
       react: 19.2.3
       stacktrace-parser: 0.1.11
 
-  '@react-navigation/drawer@7.13.9(2e0f42aeaac374fbac59ad1dc43cb4a7)':
+  '@react-navigation/drawer@7.8.0(2e0f42aeaac374fbac59ad1dc43cb4a7)':
     dependencies:
       '@react-navigation/elements': 2.9.39(@react-navigation/native@7.3.14(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native-safe-area-context@5.7.0(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@react-navigation/native': 7.3.14(react-native@0.86.0(@react-native/jest-preset@0.86.0(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.0)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
