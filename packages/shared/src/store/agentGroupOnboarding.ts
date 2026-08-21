@@ -25,6 +25,14 @@ export type AgentGroupFurnishing = {
   tail: Promise<void>;
 };
 
+export type AgentGroupFurnishingStart = {
+  group: db.Group;
+  chatChannel: db.Channel;
+  agentShipId: string;
+  /** Notebook setup and the durable intro request continue after chat opens. */
+  complete: Promise<AgentGroupFurnishing>;
+};
+
 type FurnishParams = {
   /** Omit to create a new group; provide to adopt a provisioned home group. */
   groupId?: string;
@@ -43,23 +51,29 @@ type FurnishParams = {
 export async function ensureAgentGroupFurnished(
   params: FurnishParams = {}
 ): Promise<AgentGroupFurnishing> {
+  const started = await startAgentGroupFurnishing(params);
+  return started.complete;
+}
+
+/**
+ * Establish enough of an agent group to open its chat, then finish the
+ * notebook and intro request without keeping later group creation blocked.
+ */
+export async function startAgentGroupFurnishing(
+  params: FurnishParams = {}
+): Promise<AgentGroupFurnishingStart> {
   const resolved = await resolveAgent(params.agentShipId);
   if (!resolved.agentShipId) {
     throw new Error('Your agent is not available right now.');
   }
 
-  let group = params.groupId
+  const group = params.groupId
     ? await adoptGroup(params.groupId)
     : await createDefaultGroup({
         memberIds: [resolved.agentShipId],
         title: params.title ?? DEFAULT_AGENT_GROUP_TITLE,
       });
   const chatChannel = await ensureChatChannel(group);
-  const notebook = await ensureSingleNotesChannel(group.id);
-  group = (await db.getGroup({ id: group.id })) ?? {
-    ...group,
-    channels: [...(group.channels ?? []), notebook],
-  };
   const initialGroupTitle = group.title ?? null;
   const canRenameGroup = params.groupId
     ? group.id.endsWith(`/${BotHomeGroupSlugs.slug}`) &&
@@ -76,6 +90,8 @@ export async function ensureAgentGroupFurnished(
       [group.id]: {
         ...current[group.id],
         createdAt: current[group.id]?.createdAt ?? Date.now(),
+        navigationLocked:
+          current[group.id]?.navigationLocked ?? params.isFirstGroup ?? false,
         initialGroupTitle:
           current[group.id]?.initialGroupTitle ?? initialGroupTitle,
         canRenameGroup: current[group.id]?.canRenameGroup ?? canRenameGroup,
@@ -83,11 +99,42 @@ export async function ensureAgentGroupFurnished(
     })),
   ]);
 
-  await ensureIntroRequest(
-    group.id,
-    chatChannel.id,
-    params.isFirstGroup ?? false
-  );
+  const complete = finishAgentGroupFurnishing({
+    group,
+    chatChannel,
+    agentShipId: resolved.agentShipId,
+    hostedShipId: resolved.hostedShipId,
+    isFirstGroup: params.isFirstGroup ?? false,
+  });
+
+  return {
+    group,
+    chatChannel,
+    agentShipId: resolved.agentShipId,
+    complete,
+  };
+}
+
+async function finishAgentGroupFurnishing({
+  group: initialGroup,
+  chatChannel,
+  agentShipId,
+  hostedShipId,
+  isFirstGroup,
+}: {
+  group: db.Group;
+  chatChannel: db.Channel;
+  agentShipId: string;
+  hostedShipId: string | null;
+  isFirstGroup: boolean;
+}): Promise<AgentGroupFurnishing> {
+  const notebook = await ensureSingleNotesChannel(initialGroup.id);
+  const group = (await db.getGroup({ id: initialGroup.id })) ?? {
+    ...initialGroup,
+    channels: [...(initialGroup.channels ?? []), notebook],
+  };
+
+  await ensureIntroRequest(group.id, chatChannel.id, isFirstGroup);
 
   logger.trackEvent('Agent Group Furnish Core Completed', {
     groupId: group.id,
@@ -97,8 +144,8 @@ export async function ensureAgentGroupFurnished(
 
   const tail = reconcileAgentStanding({
     groupId: group.id,
-    agentShipId: resolved.agentShipId,
-    hostedShipId: resolved.hostedShipId,
+    agentShipId,
+    hostedShipId,
   }).catch((error) => {
     logger.trackError('Agent Group Furnish Tail Failed', {
       error,
@@ -111,7 +158,7 @@ export async function ensureAgentGroupFurnished(
     group,
     chatChannelId: chatChannel.id,
     notebookNest: notebook.id,
-    agentShipId: resolved.agentShipId,
+    agentShipId,
     tail,
   };
 }
@@ -189,11 +236,21 @@ async function adoptGroup(groupId: string): Promise<db.Group> {
 }
 
 async function ensureChatChannel(group: db.Group): Promise<db.Channel> {
-  const remote = await api.getGroup(group.id);
-  const existing = remote.channels?.find((channel) => channel.type === 'chat');
+  const existing = group.channels?.find((channel) => channel.type === 'chat');
   if (existing) {
-    await db.insertGroups({ groups: [remote] });
+    await db.insertGroups({ groups: [group] });
     return existing;
+  }
+
+  // Older hosts can omit channels from the create response. Preserve the
+  // remote check in that case so a slow response never creates a duplicate.
+  const remote = await api.getGroup(group.id);
+  const remoteExisting = remote.channels?.find(
+    (channel) => channel.type === 'chat'
+  );
+  if (remoteExisting) {
+    await db.insertGroups({ groups: [remote] });
+    return remoteExisting;
   }
   return createChannel({
     groupId: group.id,

@@ -171,6 +171,8 @@ export type AgentGroupOnboardingLock = {
   provision?: PostBlobDataEntryAgentProvision;
   /** The bot accepted the plan; navigation is unlocked while its first entry runs. */
   provisionAcknowledgedAt?: number;
+  /** Only the provisioned first group traps the user in its setup conversation. */
+  navigationLocked?: boolean;
   createdAt: number;
   /** Title observed before onboarding, used to avoid overwriting later edits. */
   initialGroupTitle?: string | null;

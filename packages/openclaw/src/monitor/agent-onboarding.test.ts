@@ -410,7 +410,7 @@ describe('agent onboarding requests', () => {
 
   it('describes only the provisioned home group as the first group', async () => {
     const promptFor = async (isFirstGroup?: boolean) => {
-      const sent: Array<{ blob?: string }> = [];
+      const sent: Array<{ blob?: string; story?: unknown }> = [];
       const introBlob = appendToPostBlob(undefined, {
         type: 'tlon-agent-intro-request',
         version: 1,
@@ -445,13 +445,23 @@ describe('agent onboarding requests', () => {
         }
       );
 
-      return JSON.stringify(parsePostBlob(sent[1]?.blob));
+      return {
+        intro: JSON.stringify(sent[0]?.story),
+        picker: JSON.stringify(parsePostBlob(sent[1]?.blob)),
+      };
     };
 
-    await expect(promptFor(true)).resolves.toContain(
-      'What can I help you with?'
-    );
-    await expect(promptFor()).resolves.toContain('What can I help you with?');
+    await expect(promptFor(true)).resolves.toEqual({
+      intro: expect.stringContaining(
+        "I'm your Tlonbot. I can keep you informed, help you learn, or " +
+          'follow a question over time.'
+      ),
+      picker: expect.stringContaining('What can I help you with?'),
+    });
+    await expect(promptFor()).resolves.toEqual({
+      intro: expect.stringContaining("Let's set up what I do in this group."),
+      picker: expect.stringContaining('What can I help you with?'),
+    });
   });
 
   it('recognizes an unmarked legacy intro without suppressing other steps', () => {
