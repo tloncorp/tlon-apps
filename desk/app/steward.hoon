@@ -738,8 +738,12 @@
     |=  =path
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
+      ::  marked cage (an %init update) rather than bare noun so the roster
+      ::  is scryable as JSON over HTTP: /~/scry/steward/v1/roster.json --
+      ::  the runner reads it at boot to stand up an agent per bot.
+      ::
         [%v1 ~]
-      ``noun+!>(bots.roster.state)
+      ``steward-roster-update-1+!>(`update:v1:sr`[%init bots.roster.state])
     ::
         [%v1 @ *]
       =/  who  (slav %p i.t.path)

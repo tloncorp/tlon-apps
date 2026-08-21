@@ -215,6 +215,75 @@ upsert_block "$WORKSPACE_DIR/USER.md" "$(cat /workspace/tlonbot/prompts/USER.md)
 export WORKSPACE_DIR
 export TLON_RUN_PATH="/workspace/tlonbot/bin/tlon-run"
 
+# Fleet: one agent per steward-roster bot. The host's roster is scried over
+# HTTP (steward's /v1/roster peek returns a JSON-growable cage); each bot
+# generates a thin tlon account entry (identity carrier: inherits the base
+# host creds, adds the bot's moon), an agent (the brains: model + identity +
+# persona via a per-bot workspace SOUL.md), and a binding routing that
+# account to that agent. Minting a new bot requires a container restart.
+# Best-effort: a roster scry failure skips fleet generation, never the boot.
+if [ -n "${TLON_URL:-}" ] && [ -n "${TLON_CODE:-}" ] && [ -f "$CONFIG_PATH" ]; then
+  echo "==> Fetching bot roster from steward..."
+  ROSTER_JSON=/tmp/roster.json
+  if node --input-type=module -e '
+    const url = process.env.TLON_URL.replace(/\/$/, "");
+    const login = await fetch(`${url}/~/login`, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: `password=${process.env.TLON_CODE}`,
+    });
+    const cookie = (login.headers.get("set-cookie") ?? "").split(";")[0];
+    if (!cookie) throw new Error("no auth cookie");
+    const res = await fetch(`${url}/~/scry/steward/v1/roster.json`, {
+      headers: { cookie },
+    });
+    if (!res.ok) throw new Error(`roster scry ${res.status}`);
+    const body = await res.json();
+    const bots = body?.init ?? {};
+    await (await import("node:fs/promises")).writeFile(
+      process.argv[1] ?? "/tmp/roster.json",
+      JSON.stringify(bots)
+    );
+    console.log(`==> Roster: ${Object.keys(bots).length} bot(s)`);
+  ' "$ROSTER_JSON" 2>&1; then
+    for MOON_PATP in $(jq -r 'keys[]' "$ROSTER_JSON"); do
+      ACCT="${MOON_PATP#\~}"
+      NICK=$(jq -r --arg m "$MOON_PATP" '.[$m].nickname' "$ROSTER_JSON")
+      BOT_MODEL=$(jq -r --arg m "$MOON_PATP" '.[$m].model' "$ROSTER_JSON")
+      PERSONA=$(jq -r --arg m "$MOON_PATP" '.[$m].persona' "$ROSTER_JSON")
+      # the default account (TLON_MOON) already runs this bot: skip
+      if [ "$MOON_PATP" = "${TLON_MOON:-}" ]; then
+        echo "==> Roster bot $NICK ($MOON_PATP) already runs as the default account"
+        continue
+      fi
+      echo "==> Fleet: agent for $NICK ($MOON_PATP)..."
+      # per-bot workspace: seed from the default (tlon prompts included),
+      # then overwrite the persona layer
+      BOT_WS="/root/.openclaw/workspace-$ACCT"
+      mkdir -p "$BOT_WS"
+      cp -R "$WORKSPACE_DIR/." "$BOT_WS/" 2>/dev/null || true
+      printf '# SOUL\n\nYou are %s.\n\n%s\n' "$NICK" "$PERSONA" > "$BOT_WS/SOUL.md"
+      printf '# IDENTITY\n\nName: %s\nShip: %s\n' "$NICK" "$MOON_PATP" > "$BOT_WS/IDENTITY.md"
+      jq --arg acct "$ACCT" --arg moon "$MOON_PATP" --arg nick "$NICK" \
+         --arg model "$BOT_MODEL" --arg ws "$BOT_WS" \
+        '.channels.tlon.accounts[$acct] = {enabled: true, moon: $moon, moonNickname: $nick}
+         | .agents.list = ((.agents.list // []) + [
+             {id: $acct, identity: {name: $nick}, workspace: $ws}
+             + (if $model != "" and $model != "null" then {model: {primary: $model}} else {} end)
+           ])
+         | .agents.defaults.models = ((.agents.defaults.models // {})
+             + (if $model != "" and $model != "null" then {($model): {}} else {} end))
+         | .bindings = ((.bindings // []) + [
+             {agentId: $acct, match: {channel: "tlon", accountId: $acct}}
+           ])' \
+        "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
+    done
+  else
+    echo "WARN: roster fetch failed; running without fleet agents"
+  fi
+fi
+
 # Generate gateway token if not set
 if [ -z "$OPENCLAW_GATEWAY_TOKEN" ]; then
   export OPENCLAW_GATEWAY_TOKEN=$(cat /proc/sys/kernel/random/uuid)
