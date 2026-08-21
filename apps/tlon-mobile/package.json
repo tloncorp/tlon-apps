@@ -1,6 +1,6 @@
 {
   "name": "tlon-mobile",
-  "version": "9.4.1",
+  "version": "9.4.2",
   "private": true,
   "expo": {
     "autolinking": {
@@ -109,6 +109,7 @@
     "expo-device": "~57.0.1",
     "expo-document-picker": "~57.0.1",
     "expo-file-system": "~57.0.1",
+    "expo-glass-effect": "~57.0.1",
     "expo-haptics": "~57.0.1",
     "expo-image": "~57.0.1",
     "expo-image-manipulator": "~57.0.5",
@@ -133,7 +134,7 @@
     "lodash": "^4.17.21",
     "posthog-react-native": "^4.27.0",
     "react": "19.2.3",
-    "react-hook-form": "^7.52.0",
+    "react-hook-form": "^7.85.0",
     "react-native": "0.86.0",
     "react-native-branch": "^5.9.0",
     "react-native-context-menu-view": "^1.15.0",
@@ -142,6 +143,7 @@
     "react-native-email-link": "~1.16.1",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-get-random-values": "^1.11.0",
+    "react-native-keyboard-controller": "1.22.0",
     "react-native-reanimated": "4.5.0",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",

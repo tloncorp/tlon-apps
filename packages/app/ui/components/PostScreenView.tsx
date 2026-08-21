@@ -12,7 +12,6 @@ import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
-import { KeyboardAvoidingView } from '@tloncorp/ui';
 import {
   createContext,
   memo,
@@ -46,11 +45,15 @@ import {
   ContextLensPanel,
   useContextLensController,
 } from './Channel/ContextLens';
-import { DraftInputView } from './Channel/DraftInputView';
+import {
+  ConversationComposerPlacement,
+  DraftInputView,
+} from './Channel/DraftInputView';
 import { ScrollAnchor } from './Channel/Scroller';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
+import { useConversationInsets } from './conversationScrollChrome';
 import { DraftInputContext } from './draftInputs';
 import {
   DraftInputContextProvider,
@@ -371,12 +374,11 @@ export function PostScreenView({
             )}
           >
             <FileDrop
-              paddingBottom={bottom}
               backgroundColor="$background"
               flex={1}
               onAssetsDropped={attachAssets}
             >
-              <KeyboardAvoidingView>
+              <View flex={1}>
                 <YStack flex={1} backgroundColor={'$background'}>
                   <ConnectedHeader
                     channel={channel}
@@ -397,7 +399,11 @@ export function PostScreenView({
                     <YStack flex={1} minWidth={0}>
                       {parentPost &&
                         (isEditingParent && channel.type === 'gallery' ? (
-                          <YStack flex={1} backgroundColor="$background">
+                          <YStack
+                            flex={1}
+                            backgroundColor="$background"
+                            paddingBottom={bottom}
+                          >
                             <GalleryDraftInput
                               channel={channel}
                               editingPost={editingPost}
@@ -490,7 +496,7 @@ export function PostScreenView({
                     onActionComplete={handleGroupAction}
                   />
                 </YStack>
-              </KeyboardAvoidingView>
+              </View>
             </FileDrop>
           </FocusedPostContext.Provider>
         </ChannelProvider>
@@ -796,14 +802,6 @@ function SinglePostView({
     [parentPost, scrollToNewReply, setEditingPost]
   );
 
-  const isChatLike = useMemo(
-    () =>
-      channel.type === 'chat' ||
-      channel.type === 'dm' ||
-      channel.type === 'groupDm',
-    [channel.type]
-  );
-
   const startReplyDraft = useCallback((mode?: 'text' | 'link') => {
     replyDraftInputRef.current?.startDraft?.(mode);
   }, []);
@@ -815,6 +813,15 @@ function SinglePostView({
       isEditingParent &&
       (channel.type === 'notebook' || channel.type === 'gallery')
     );
+  const { bottom } = useSafeAreaInsets();
+  const { contentInsets, onFloatingHeightChange } = useConversationInsets({
+    hasFloatingComposer: canRenderReplyInput,
+    hasTransparentHeader: isChatChannel,
+  });
+  // Native floating composers include the home-indicator inset. Web composers
+  // stay inline, so the screen still owns its bottom safe-area clearance.
+  const screenBottomInset =
+    canRenderReplyInput && Platform.OS !== 'web' ? undefined : bottom;
 
   const threadComposerContext = useMemo(
     (): DraftInputContext => ({
@@ -849,8 +856,26 @@ function SinglePostView({
     ]
   );
 
+  const replyInput = canRenderReplyInput ? (
+    <BareChatInput
+      ref={replyDraftInputRef}
+      {...threadComposerContext}
+      placeholder="Reply"
+      channelId={threadComposerContext.channel.id}
+      groupId={threadComposerContext.channel.groupId}
+      groupMembers={groupMembers}
+      groupRoles={groupRoles}
+      channelType="chat"
+      showAttachmentButton={isChatChannel}
+      showInlineAttachments
+      shouldAutoFocus={
+        (isChatChannel && parentPost?.replyCount === 0) || !!editingPost
+      }
+    />
+  ) : null;
+
   return (
-    <YStack flex={1}>
+    <YStack flex={1} paddingBottom={screenBottomInset}>
       {/* Thread composer context sends new drafts as replies; edits preserve their original target. */}
       <DraftInputContextProvider value={threadComposerContext}>
         {parentPost ? (
@@ -873,28 +898,20 @@ function SinglePostView({
             inspectContextLensPost={inspectContextLensPost}
             onOpenContextLens={openContextLensForPost}
             onGoToBotRun={onGoToBotRun}
+            contentInsets={contentInsets}
             isLoading={isLoadingThreadPosts}
           />
         ) : null}
 
-        {canRenderReplyInput && (
-          <View id="reply-container" {...containingProperties}>
-            <BareChatInput
-              ref={replyDraftInputRef}
-              {...threadComposerContext}
-              placeholder="Reply"
-              channelId={threadComposerContext.channel.id}
-              groupId={threadComposerContext.channel.groupId}
-              groupMembers={groupMembers}
-              groupRoles={groupRoles}
-              channelType="chat"
-              showAttachmentButton={isChatLike}
-              showInlineAttachments
-              shouldAutoFocus={
-                (isChatLike && parentPost?.replyCount === 0) || !!editingPost
-              }
-            />
-          </View>
+        {replyInput && (
+          <ConversationComposerPlacement
+            enabled
+            contentProps={containingProperties}
+            inlineID="reply-container"
+            onFloatingHeightChange={onFloatingHeightChange}
+          >
+            {replyInput}
+          </ConversationComposerPlacement>
         )}
       </DraftInputContextProvider>
       {!negotiationMatch && channel && canWrite && (

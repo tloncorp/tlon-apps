@@ -45,7 +45,6 @@ import {
   TlonEditorBridge,
   ToolbarItem,
 } from './MessageInput/toolbarActions';
-import { ScreenHeader } from './ScreenHeader';
 
 const logger = createDevLogger('BigInput', false);
 
@@ -405,16 +404,15 @@ export function BigInput({
   // Register the "Post" button in the header
   useRegisterChannelHeaderItem(
     useMemo(
-      () => (
-        <ScreenHeader.TextButton
-          key="big-input-post"
-          onPress={handleSend}
-          testID="BigInputPostButton"
-          disabled={!isButtonEnabled || isSending}
-        >
-          {editingPost ? 'Save' : 'Post'}
-        </ScreenHeader.TextButton>
-      ),
+      () => [
+        {
+          id: 'big-input-post',
+          text: editingPost ? 'Save' : 'Post',
+          onPress: handleSend,
+          testID: 'BigInputPostButton',
+          disabled: !isButtonEnabled || isSending,
+        },
+      ],
       [handleSend, editingPost, isButtonEnabled, isSending]
     )
   );

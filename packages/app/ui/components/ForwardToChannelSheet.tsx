@@ -47,6 +47,7 @@ export function ForwardToChannelSheet({
       enableContentPanningGesture={false}
       hasScrollableContent
       footerComponent={footerComponent}
+      modal
     >
       <ActionSheet.Content flex={1} paddingBottom="$s">
         <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />

@@ -40,9 +40,9 @@ export interface TlonCommandRegistryEntry {
 // contract (packages/shared/src/domain/runtimeCommandContract.test.ts) pins
 // against those lists.
 //
-// OpenClaw CORE commands (/status, /help, /new) are absent by construction:
-// this plugin neither registers nor dispatches them. They are carried on the
-// client's static list as audit-pinned constants.
+// OpenClaw CORE commands (/status, /help, /new, /model) are absent by
+// construction: this plugin neither registers nor dispatches them. They are
+// carried on the client's static list as audit-pinned constants.
 export const TLON_COMMAND_REGISTRY: TlonCommandRegistryEntry[] = [
   {
     name: 'tlon-version',
@@ -228,12 +228,12 @@ export function buildCommandTokensJson(): string {
 
 // OpenClaw CORE commands the client's popup offers alongside the registry
 // tokens. Audit-pinned constant mirroring the client's OPENCLAW_CORE_COMMANDS
-// (same audit pin, core 2026.5.28): the keys "help", "status", "new" in
-// core's builtin command registry, which core dispatches itself once a
-// message reaches it. The plugin neither registers nor dispatches them, but
+// (same audit pin, core 2026.5.28): the keys "help", "status", "new", and
+// "model" (textAlias "/model", tier "essential", ungated) in core's builtin
+// command registry, which core dispatches itself once a message reaches it. The plugin neither registers nor dispatches them, but
 // bare owner engagement (isRegisteredCommandText) must let them through, so
 // the popup's bare insertion works in any watched chat channel.
-export const CORE_COMMAND_TOKENS = ['/status', '/help', '/new'];
+export const CORE_COMMAND_TOKENS = ['/status', '/help', '/new', '/model'];
 
 // Every token that engages bare from the owner in a watched chat channel:
 // the registered plugin commands plus the core trio above.

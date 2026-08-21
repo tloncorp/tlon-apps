@@ -48,7 +48,7 @@ describe('command registry', () => {
       'owner-listen',
       'migrate',
     ]);
-    // OpenClaw core commands (/status, /help, /new) are absent by
+    // OpenClaw core commands (/status, /help, /new, /model) are absent by
     // construction: this plugin neither registers nor dispatches them. The
     // client carries them on its static list as audit-pinned constants.
     expect(TLON_COMMAND_REGISTRY.map((entry) => entry.name)).not.toContain(
@@ -81,7 +81,8 @@ describe('command registry', () => {
   // Closes the parity loop at the boundary the previous test cannot see: it
   // drives registerTlonCommands directly, so an `api.registerCommand` added
   // straight to registerFull would register a command the fixture never names
-  // and stay green. The registry loop is the only registration site.
+  // and stay green. This checks index.ts for registration outside the registry
+  // loop rather than proving the loop is the only possible site.
   it('registers commands only through the registry (index.ts boundary)', () => {
     const indexSource = fs.readFileSync(
       path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../index.ts'),
@@ -89,10 +90,11 @@ describe('command registry', () => {
     );
 
     expect(indexSource).toMatch(/registerTlonCommands\s*\(/);
-    // Every spelling that reaches the SDK method, not just dot-call: bracket
-    // access and a detached reference register just as well and would
-    // otherwise slip a command past the registry, the fixture, and the app's
-    // static list — the exact drift this contract exists to stop.
+    // An accident net over the direct spellings — dot-call, bracket string
+    // literal, bare reference — each of which would otherwise slip a command
+    // past the registry, the fixture, and the app's static list. Deliberate
+    // indirection (a computed name, an imported helper) evades it; the target
+    // is drift added without thinking, not a proof that none is possible.
     expect(indexSource).not.toMatch(/\.registerCommand\s*\(/);
     expect(indexSource).not.toMatch(/\[\s*['"`]registerCommand['"`]\s*\]/);
     expect(indexSource).not.toMatch(/\bregisterCommand\b(?!\s*[,:)}])/);
@@ -139,7 +141,7 @@ describe('buildCommandTokensJson', () => {
 // commands.json check above.
 describe('core command tokens', () => {
   it('mirrors the client OPENCLAW_CORE_COMMANDS audit pin', () => {
-    expect(CORE_COMMAND_TOKENS).toEqual(['/status', '/help', '/new']);
+    expect(CORE_COMMAND_TOKENS).toEqual(['/status', '/help', '/new', '/model']);
   });
 
   it('are not registered plugin commands', () => {

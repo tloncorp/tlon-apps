@@ -1,13 +1,48 @@
 # Patched Dependencies
 
 This directory contains local dependency patches applied through
-`pnpm.patchedDependencies` in the repo root `package.json`.
+`patchedDependencies` in the repo root `pnpm-workspace.yaml`.
 
 When adding a patch, document:
 - why we need it locally
 - the upstream issue or PR it came from
 - how to validate it
 - when it can be removed
+
+## @react-navigation/bottom-tabs@7.18.14 and react-native-screens@4.25.2
+
+Local patches:
+- `patches/@react-navigation__bottom-tabs@7.18.14.patch`
+- `patches/react-native-screens@4.25.2.patch`
+
+Why:
+Android native tabs tint every image icon with the navigation bar's active or
+inactive color. That is correct for our monochrome Home and Activity assets,
+but it turns the Contacts avatar or colored sigil into a flat monochrome icon.
+React Navigation exposes `tinted: false` for image icons only on iOS, and its
+shared image-source adapter does not forward that choice to Android.
+
+What they do:
+The React Navigation patch forwards the existing `tinted` option through the
+shared native-tab image source and declares Android support. The
+react-native-screens patch carries that value through its Android Fabric prop
+and disables Material's icon tint list for that tab item. Other tab items keep
+the default native tint behavior.
+
+Upstream:
+- no equivalent Android `tinted: false` support was available in React
+  Navigation 7.18.14 or react-native-screens 4.25.2 when this patch was added
+
+Validation:
+- Rebuild the Android app so the native patches are compiled in
+- Confirm Home and Activity still use the Material active/inactive tint
+- Confirm a photo Contacts avatar keeps its original colors
+- Remove the current user's avatar temporarily and confirm the colored sigil
+  also keeps its original foreground and background colors
+
+Removal:
+Remove both patches together once React Navigation and react-native-screens
+ship Android support for untinted native-tab image icons.
 
 ## @gorhom/bottom-sheet@5.2.14
 

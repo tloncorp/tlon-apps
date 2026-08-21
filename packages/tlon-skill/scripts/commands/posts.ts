@@ -189,6 +189,8 @@ export interface PostsDeps extends CommandDeps {
   authenticate: (apps: PostAuthApp[]) => Promise<void>;
   getCurrentUserId: () => string;
   now: () => number;
+  // Injected so the edit retry can be exercised without real sleeping.
+  sleep?: (ms: number) => Promise<void>;
   // Fetch an image URL and build its story image verse (network IO).
   buildImageVerse: (url: string) => Promise<StoryVerse>;
   postsApi: PostsApi;
@@ -737,29 +739,51 @@ async function sendReply(
   });
 }
 
-// Fetch existing post to preserve metadata during edits. Returns null on any
-// lookup error, matching legacy behavior.
+// A post the CLI just created is not necessarily readable yet: %channels
+// records the add in `pending.channel` and proxies it to the host, while this
+// scry reads `posts.channel`, which is only populated once the host update
+// returns. One delayed retry covers that window; a remotely hosted channel
+// needs at least a host round trip.
+export const EDIT_LOOKUP_RETRY_DELAY_MS = 1_500;
+
+// Fetch the existing post so an edit can preserve what it must not re-derive.
+// Returns null when the post is genuinely unreadable — the caller refuses to
+// edit on that, because an edit replaces the whole essay and a null here would
+// silently rewrite authorship and wipe metadata.
 async function fetchExistingPost(
   channelId: string,
   postId: string,
   deps: PostsDeps
 ): Promise<ExistingPost | null> {
   const formattedId = formatPostId(postId);
-  try {
-    const data = await deps.postsApi.getChannelPosts({
-      channelId,
-      cursor: formattedId,
-      mode: 'around',
-      count: 1,
-      includeReplies: false,
-    });
-    const post = data.posts.find(
-      (candidate) => formatPostId(candidate.id) === formattedId
-    );
-    return post ?? null;
-  } catch {
-    return null;
+  const lookOnce = async (): Promise<ExistingPost | null> => {
+    try {
+      const data = await deps.postsApi.getChannelPosts({
+        channelId,
+        cursor: formattedId,
+        mode: 'around',
+        count: 1,
+        includeReplies: false,
+      });
+      return (
+        data.posts.find(
+          (candidate) => formatPostId(candidate.id) === formattedId
+        ) ?? null
+      );
+    } catch {
+      return null;
+    }
+  };
+
+  const first = await lookOnce();
+  if (first) {
+    return first;
   }
+  const sleep =
+    deps.sleep ??
+    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  await sleep(EDIT_LOOKUP_RETRY_DELAY_MS);
+  return lookOnce();
 }
 
 async function editPost(
@@ -775,11 +799,22 @@ async function editPost(
     deps
   );
 
+  if (!existing) {
+    // %edit submits the whole essay, so everything this lookup would have
+    // preserved — the author object behind the Bot tag, a gallery item's title
+    // and cover — is replaced by whatever is sent now. Editing blind is a
+    // silent, durable rewrite; failing is visible and retryable once the post
+    // is readable.
+    throw commandError(
+      `Could not read ${formatPostId(parsed.postId)} in ${parsed.channelId} to preserve its authorship and metadata; the post may not be readable yet. Retry the edit.`
+    );
+  }
+
   const metadata: PostEditMetadata = {
-    title: existing?.title ?? undefined,
-    image: existing?.image ?? undefined,
-    description: existing?.description ?? undefined,
-    cover: existing?.cover ?? undefined,
+    title: existing.title ?? undefined,
+    image: existing.image ?? undefined,
+    description: existing.description ?? undefined,
+    cover: existing.cover ?? undefined,
   };
 
   await deps.postsApi.editPost({
@@ -789,13 +824,9 @@ async function editPost(
     sentAt: deps.now(),
     content: markdownToStory(parsed.message),
     metadata,
-    // An edit resubmits the whole essay, so authorship shape is preserved from
-    // the existing post rather than re-derived: a bot post stays bot-authored,
-    // a human post stays bare. When the lookup fails there is nothing to
-    // preserve, so the edit behaves as it always has.
-    ...(existing?.isBot
-      ? { botProfile: { nickname: null, avatar: null } }
-      : {}),
+    // Authorship shape comes from the existing post rather than being
+    // re-derived: a bot post stays bot-authored, a human post stays bare.
+    ...(existing.isBot ? { botProfile: { nickname: null, avatar: null } } : {}),
   });
 }
 

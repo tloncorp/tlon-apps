@@ -90,7 +90,10 @@ import {
   startTlonAgentTurn,
 } from '../turn-recorder.js';
 import { resolveTlonAccount } from '../types.js';
-import { configureTlonApiWithPoke } from '../urbit/api-client.js';
+import {
+  runWithTlonApiScope,
+  setScopedTlonApiWithPoke,
+} from '../urbit/api-client.js';
 import {
   authenticate,
   isPermanentAuthenticationFailure,
@@ -138,6 +141,12 @@ import {
 } from './command-bridge.js';
 import { createComputingPresenceTracker } from './computing-presence.js';
 import { fetchAllChannels, fetchInitData } from './discovery.js';
+import {
+  createCompactionTimeoutObserver,
+  isAgentTimeoutEvent,
+  resolveCompactionObservationTimeoutMs,
+  resolveDispatchTimeoutMs,
+} from './dispatch-timeouts.js';
 import { dmReactionReplyParentId } from './dm-reactions.js';
 import {
   buildThreadContextMessage,
@@ -254,17 +263,8 @@ type WritResponseDelta =
       'add-react'?: never;
     };
 type WritResponse = { whom: string; id: string; response: WritResponseDelta };
-const DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS = 120_000;
-
-function normalizeRunTimeoutMs(value: number | null | undefined): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 1_000
-    ? Math.floor(value)
-    : DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS;
-}
-
-// Holds the data needed for any module-loader context to (re)configure its
-// own @tloncorp/api singleton — see gateway-status.ts for why this is
-// necessary under OpenClaw >=2026.4.27 plugin module isolation.
+// Holds the latest monitor transport for gateway lifecycle hooks, which run
+// outside the monitor's async client scope. See gateway-status.ts.
 const apiClientParamsSlot = sharedSlot<SharedApiClientParams>(
   API_CLIENT_PARAMS_SLOT
 );
@@ -360,6 +360,10 @@ function resolveChannelAuthorization(
 export async function monitorTlonProvider(
   opts: MonitorTlonOpts = {}
 ): Promise<void> {
+  return runWithTlonApiScope(() => monitorTlonProviderScoped(opts));
+}
+
+async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   const core = getTlonRuntime();
   // Prefer the channel-start config snapshot (Fix B) over an independent
   // load: see the MonitorTlonOpts.cfg doc comment.
@@ -702,21 +706,14 @@ export async function monitorTlonProvider(
     throw error;
   }
 
-  // Configure @tloncorp/api's global client to use the SSE client's poke for all send operations
-  configureTlonApiWithPoke(api.poke.bind(api), botShipName, account.url);
+  setScopedTlonApiWithPoke(api.poke.bind(api), botShipName, account.url);
 
-  // Publish the SSE-bound poke + ship coords so other module contexts (e.g.
-  // the gateway-status heartbeat) can configure their own @tloncorp/api
-  // singletons before pokeing. We store data here, not a closure, because
-  // closures capture their creating context's module imports.
-  // Capture the published object so the abort handler can do a
-  // reference-equality check before clearing — under a config-reload
-  // restart, a replacement monitor may publish fresh params before the
-  // old monitor's abort fires, and we must not clobber the new params.
+  // Publish the bound transport for consumers that do not need the global API
+  // client. Capture the published object so the abort handler can compare by
+  // reference: a config-reload restart may publish a replacement before the old
+  // monitor aborts, and the old cleanup must not clear the replacement.
   const myApiClientParams = {
     poke: api.poke.bind(api),
-    shipName: botShipName,
-    shipUrl: accountUrl,
   };
   apiClientParamsSlot.set(myApiClientParams);
 
@@ -1473,7 +1470,7 @@ export async function monitorTlonProvider(
       onMultiAccountSkip: (count) =>
         runtime.log?.(
           `[gateway-status] skipped: ${count} Tlon accounts configured, ` +
-            `but v1 only supports one (global @tloncorp/api client cannot target multiple ships)`
+            `but v1 only supports one shared gateway-status transport`
         ),
       registerHeartbeatStop: (stop) => {
         // A concurrent teardown may have already run cleanupGatewayStatus
@@ -3141,9 +3138,9 @@ export async function monitorTlonProvider(
           : undefined;
 
       const dispatchStartTime = Date.now();
-      const dispatchTimeoutMs = normalizeRunTimeoutMs(
-        account.lifecycle.runTimeoutMs
-      );
+      const dispatchTimeoutMs = resolveDispatchTimeoutMs(account.lifecycle);
+      const compactionObservationTimeoutMs =
+        resolveCompactionObservationTimeoutMs(cfg);
       const runId = randomUUID();
       const turnRecorder = startTlonAgentTurn({
         accountId: account.accountId,
@@ -3178,6 +3175,18 @@ export async function monitorTlonProvider(
       let replyWordCount = 0;
       let replyMediaCount = 0;
       let dispatchTimedOut = false;
+      const compactionTimeoutObserver = createCompactionTimeoutObserver({
+        timeoutMs: compactionObservationTimeoutMs,
+        onTimeout: () => {
+          // Observation only. OpenClaw owns the deadline and cancellation.
+          dispatchTimedOut = true;
+        },
+      });
+      const stopAgentEventObservation = core.events.onAgentEvent((event) => {
+        if (isAgentTimeoutEvent(event, runId)) {
+          dispatchTimedOut = true;
+        }
+      });
       const dispatchAbortController = new AbortController();
       const abortFromMonitor = () => {
         if (!dispatchAbortController.signal.aborted) {
@@ -3259,6 +3268,8 @@ export async function monitorTlonProvider(
         ...(sourceReplyDeliveryMode ? { sourceReplyDeliveryMode } : {}),
         timeoutOverrideSeconds: Math.ceil(dispatchTimeoutMs / 1000),
         runId,
+        onCompactionStart: compactionTimeoutObserver.start,
+        onCompactionEnd: compactionTimeoutObserver.complete,
         onModelSelected: ({ provider, model, thinkLevel }) => {
           selectedProvider = provider;
           selectedModel = model;
@@ -3302,7 +3313,6 @@ export async function monitorTlonProvider(
       let turnSummary: TlonAgentTurnSummary | undefined;
 
       try {
-        let timeoutId: ReturnType<typeof setTimeout> | null = null;
         try {
           contextLenses.setStatus(lens.lensId, 'dispatching');
           contextLenses.recordLifecycle(lens.lensId, {
@@ -3311,16 +3321,6 @@ export async function monitorTlonProvider(
           });
           bindContextLensToSession(lensSessionKeys, contextLenses, lens.lensId);
           logContextLens(lens.lensId, 'dispatching');
-          timeoutId = setTimeout(() => {
-            dispatchTimedOut = true;
-            if (!dispatchAbortController.signal.aborted) {
-              dispatchAbortController.abort(
-                new Error(
-                  `Tlon dispatch timed out after ${dispatchTimeoutMs}ms`
-                )
-              );
-            }
-          }, dispatchTimeoutMs);
           dispatchResult = await recordTlonRouteAndDispatch({
             session: core.channel.session,
             cfg,
@@ -3561,9 +3561,8 @@ export async function monitorTlonProvider(
               }),
           });
         } finally {
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
+          compactionTimeoutObserver.stop();
+          stopAgentEventObservation();
         }
       } catch (error) {
         dispatchError = error;
@@ -3633,7 +3632,9 @@ export async function monitorTlonProvider(
           turnSummary,
           dispatchError,
         });
-        if (!dispatchError) {
+        if (dispatchTimedOut) {
+          contextLenses.setStatus(lens.lensId, 'timed_out', dispatchError);
+        } else if (!dispatchError) {
           contextLenses.setStatus(
             lens.lensId,
             effectiveDeliveredCount > 0 ? 'completed' : 'no_reply'

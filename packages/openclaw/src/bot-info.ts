@@ -1,3 +1,7 @@
+import { contactSelfFieldPoke } from '@tloncorp/api';
+
+import { type Sleeper, defaultSleep } from './sleep.js';
+
 // Contact-profile key under which the bot publishes its identity claim (wire
 // contract: docs/bot-info.md in tlon-apps).
 export const BOT_INFO_CONTACT_KEY = 'bot-info';
@@ -26,31 +30,6 @@ export const SELF_CONTACT_SCRY_PATH = '/contacts/v1/self.json';
 // skipping entirely (see SelfContactRead).
 export const BOT_INFO_PUBLISH_ATTEMPTS = 3;
 export const BOT_INFO_PUBLISH_BACKOFF_MS: readonly number[] = [2_000, 8_000];
-
-// The signal is the monitor's opts.abortSignal: a shutdown or config-reload
-// restart during the 2s/8s backoff must cancel the pending timer and stop the
-// retry loop, or a retired monitor lingers and retries against its stale SSE
-// client (same pattern as the authentication backoff in monitor/index.ts).
-export type Sleeper = (ms: number, signal?: AbortSignal) => Promise<void>;
-
-// Exported for the timer/listener-cleanup tests; production always reaches it
-// through the Sleeper default.
-export const defaultSleep: Sleeper = (ms, signal) =>
-  new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new Error('Aborted'));
-      return;
-    }
-    const timer = setTimeout(() => {
-      signal?.removeEventListener('abort', onAbort);
-      resolve();
-    }, ms);
-    const onAbort = () => {
-      clearTimeout(timer);
-      reject(new Error('Aborted'));
-    };
-    signal?.addEventListener('abort', onAbort, { once: true });
-  });
 
 // Serialize the identity claim. Byte-stable: JSON key order follows
 // construction order, which is fixed here, so compare-then-poke does not
@@ -127,18 +106,14 @@ export async function publishBotInfo(
 ): Promise<BotInfoPublishResult> {
   for (let attempt = 1; ; attempt++) {
     try {
-      await api.poke({
-        app: 'contacts',
-        mark: 'contact-action-1',
-        json: {
-          self: {
-            [BOT_INFO_CONTACT_KEY]:
-              desiredValue === null
-                ? null
-                : { type: 'text', value: desiredValue },
-          },
-        },
-      });
+      // The wire shape (app/mark/self-merge semantics) is owned by the api
+      // lib; only the transport is ours, for abort-signal and retry control.
+      await api.poke(
+        contactSelfFieldPoke(
+          BOT_INFO_CONTACT_KEY,
+          desiredValue === null ? null : { type: 'text', value: desiredValue }
+        )
+      );
       return desiredValue === null ? 'cleared' : 'published';
     } catch (error) {
       if (attempt >= BOT_INFO_PUBLISH_ATTEMPTS) {

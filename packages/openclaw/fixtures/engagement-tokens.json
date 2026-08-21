@@ -11,5 +11,6 @@
   "/migrate",
   "/status",
   "/help",
-  "/new"
+  "/new",
+  "/model"
 ]

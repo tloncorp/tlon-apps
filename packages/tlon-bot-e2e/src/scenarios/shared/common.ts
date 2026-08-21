@@ -112,12 +112,11 @@ export const commonScenarios: readonly SharedScenario[] = [
         expected
       );
       // %contacts holds no record for a peer the ship has never met, so the
-      // per-ship scry below 404s until the owner meets the bot. The Tlon client
-      // has the same constraint and solves it the same way: its bot-info
-      // backfill pokes %meet before reading the profile (see
-      // `ensureBotInfoSynced` -> `syncUserProfiles` in packages/shared). Doing
-      // it here keeps the scenario faithful to the real read path rather than
-      // asserting a state production never reaches on its own.
+      // per-ship scry below 404s until the owner meets the bot. In the app a
+      // user reaches that state by ordinary means — viewing the bot's profile
+      // pokes %meet, as does adding it as a contact. Poking it here keeps the
+      // scenario faithful to the real read path rather than asserting a state
+      // production never reaches on its own.
       await actors.owner.state.poke({
         app: 'contacts',
         mark: 'contact-action-1',

@@ -26,7 +26,7 @@ import { useAttachmentContext } from '../../contexts/attachment';
 import AddGalleryPost from '../AddGalleryPost';
 import AttachmentPreview from '../Channel/AttachmentPreview';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
-import { ScreenHeader } from '../ScreenHeader';
+import type { ScreenHeaderAction } from '../ScreenHeader';
 import Notices from '../Wayfinding/Notices';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { LinkInput, LinkInputSaveParams } from './LinkInput';
@@ -351,21 +351,28 @@ export function GalleryInput({
 
   // Register the "Add" button in the header
   useRegisterChannelHeaderItem(
+    useMemo<ScreenHeaderAction[] | null>(
+      () =>
+        route !== 'gallery' && route !== 'add-post'
+          ? null
+          : [
+              {
+                id: 'gallery-new',
+                text: 'New',
+                onPress: handleAdd,
+                testID: 'AddGalleryPost',
+              },
+            ],
+      [route, handleAdd]
+    )
+  );
+  useRegisterChannelHeaderItem(
     useMemo(
       () =>
         route !== 'gallery' && route !== 'add-post' ? null : (
-          <>
-            <ScreenHeader.TextButton
-              key="gallery"
-              onPress={handleAdd}
-              testID="AddGalleryPost"
-            >
-              New
-            </ScreenHeader.TextButton>
-            <Notices.CollectionInputTooltip channelId={channel.id} />
-          </>
+          <Notices.CollectionInputTooltip channelId={channel.id} />
         ),
-      [route, handleAdd, channel.id]
+      [route, channel.id]
     )
   );
 
@@ -528,17 +535,16 @@ function ReviewAttachment({
 
   // Register the "Post" button in the header when showing image preview or editing image gallery post
   useRegisterChannelHeaderItem(
-    useMemo(
-      () => (
-        <ScreenHeader.TextButton
-          key="gallery-preview-post"
-          onPress={handlePost}
-          disabled={!canPost || isPosting}
-          testID="GalleryPostButton"
-        >
-          {isPosting ? 'Posting...' : isEditingPost ? 'Save' : 'Post'}
-        </ScreenHeader.TextButton>
-      ),
+    useMemo<ScreenHeaderAction[]>(
+      () => [
+        {
+          id: 'gallery-post',
+          text: isPosting ? 'Posting...' : isEditingPost ? 'Save' : 'Post',
+          onPress: handlePost,
+          disabled: !canPost || isPosting,
+          testID: 'GalleryPostButton',
+        },
+      ],
       [handlePost, canPost, isPosting, isEditingPost]
     )
   );

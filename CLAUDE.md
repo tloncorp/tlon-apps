@@ -158,7 +158,7 @@ When using the `=<` + helper core pattern with `^+  cor`, be aware that type-nar
 #### Mark Conventions
 
 -   **Versioned marks**: `action-1.hoon`, `update-1.hoon` in `desk/mar/<agent-name>/`
--   **Mark naming**: `%gateway-status-action-1` (agent name + mark name + version)
+-   **Mark naming**: `%steward-gateway-action-1` (agent name + module/mark name + version)
 -   **JSON serialization for `@da`/`@dr`/`@p`**: Use `scot`/`se` pairs, not `numb`/`ni`:
     -   Grow: `s+(scot %da lease-until)`, `s+(scot %dr active-window)`, `s+(scot %p owner)`
     -   Grab: `(se %da)`, `(se %dr)`, `(se %p)`
@@ -546,9 +546,18 @@ Uses Drizzle ORM with SQLite for local data storage:
 -   Migrations in `packages/shared/src/db/migrations/`
 -   Platform-specific database connections in `packages/shared/src/db/`
 
+### Querying and Caching
+
+**Read `docs/tlon-apps/db-react-query.md` before reasoning about whether a component sees fresh data, and before filing a review finding about stale reads.** The caching setup is deliberately unusual and does not match React Query defaults, so don't infer it from memory. The essentials:
+
+-   React Query runs with a global `staleTime: Infinity` (`packages/shared/src/db/reactQuery.ts`). Nothing goes stale with the passage of time — only explicit invalidation makes a query refetch.
+-   DB reads and writes declare table dependencies/effects via `createReadQuery` / `createWriteQuery` (`packages/shared/src/db/query.ts`). A write invalidates readers whose declared tables overlap its effects.
+-   **The deps `Set` from `useKeyFromQueryDeps` must sit at `queryKey` index 1.** The invalidation predicate only looks at that position; a key that puts it elsewhere silently never refreshes again.
+-   `invalidateQueries` flags queries stale and refetches only those with active observers. It does not clear cached data, so a remounted query serves its previous value for a render while refetching in the background — and keeps that value if the refetch fails.
+
 ## Adding a New Post Blob Entry Type
 
-See `docs/post-blobs.md` for the full post-blob spec: wire format, current entry types, read/write behavior, and integration rules.
+See `docs/tlon-apps/post-blobs.md` for the full post-blob spec: wire format, current entry types, read/write behavior, and integration rules.
 
 Use this section as a compact checklist when changing blob behavior.
 

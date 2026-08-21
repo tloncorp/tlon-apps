@@ -10,8 +10,6 @@ import * as store from '@tloncorp/shared/store';
 import {
   DESKTOP_SIDEBAR_WIDTH,
   DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
-  FloatingActionButton,
-  Icon,
   LoadingSpinner,
   Modal,
   useIsWindowNarrow,
@@ -35,6 +33,7 @@ import React, {
 import {
   LayoutChangeEvent,
   ListRenderItem,
+  Platform,
   View as RNView,
   StyleProp,
   ViewStyle,
@@ -45,13 +44,21 @@ import { View, getTokens, styled, useStyle, useTheme } from 'tamagui';
 
 import { useLivePost } from '../../../hooks/useLivePost';
 import type { RenderItemType } from '../../contexts/componentsKits';
+import { useSetConversationScrollToBottomControl } from '../../contexts/scroll';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';
+import { supportsLiquidGlass } from '../GlassSurface';
+import { ConversationScrollToBottomButton } from '../conversationScrollChrome';
 import { ChannelDivider } from './ChannelDivider';
 import { ContextLensRunSheet } from './ContextLens/ContextLensRunSheet';
-import { PostList, PostListMethods, PostWithNeighbors } from './PostList';
+import {
+  ConversationContentInsets,
+  PostList,
+  PostListMethods,
+  PostWithNeighbors,
+} from './PostList';
 import { getPostListScopeKey } from './PostList/postListInitialization';
 import type { ScrollAnchor } from './scrollerTypes';
 
@@ -99,6 +106,7 @@ const Scroller = forwardRef(
       onGoToBotRun,
       onOpenContextLens,
       contextLensSelectedPostId,
+      contentInsets = { top: 0, bottom: 0 },
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -140,6 +148,7 @@ const Scroller = forwardRef(
       onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
       onOpenContextLens?: (post: db.Post) => void;
       contextLensSelectedPostId?: string | null;
+      contentInsets?: ConversationContentInsets;
     },
     ref
   ) => {
@@ -153,6 +162,7 @@ const Scroller = forwardRef(
     );
     const { width } = useWindowDimensions();
     const isWindowNarrow = useIsWindowNarrow();
+    const setScrollToBottomControl = useSetConversationScrollToBottomControl();
     const availableSpace = useMemo(() => {
       const sidebarsTotalWidth = isWindowNarrow
         ? 0
@@ -206,7 +216,7 @@ const Scroller = forwardRef(
         listRef.current?.scrollToEnd(params),
     }));
 
-    const pressedGoToBottom = () => {
+    const pressedGoToBottom = useCallback(() => {
       setHasPressedGoToBottom(true);
       onPressScrollToBottom?.();
 
@@ -215,7 +225,7 @@ const Scroller = forwardRef(
           listRef.current?.scrollToEnd({ animated: true });
         });
       }
-    };
+    }, [isLoading, onPressScrollToBottom]);
 
     const activeMessageRefs = useRef<Record<string, RefObject<RNView | null>>>(
       {}
@@ -304,12 +314,12 @@ const Scroller = forwardRef(
             onPressReplies={onPressReplies}
             onPressPost={onPressPost}
             onLongPressPost={handlePostLongPressed}
-            onShowEmojiPicker={() => {
-              setActiveMessage(post);
+            onShowEmojiPicker={(livePost) => {
+              setActiveMessage(livePost);
               setEmojiPickerOpen(true);
             }}
-            onPressEdit={() => {
-              setEditingPost?.(post);
+            onPressEdit={(livePost) => {
+              setEditingPost?.(livePost);
 
               setActiveMessage(null);
             }}
@@ -354,7 +364,13 @@ const Scroller = forwardRef(
 
     const insets = useSafeAreaInsets();
     const rootVerticalPadding = getTokens().space.l.val;
-
+    const composerBottomInset = contentInsets.bottom;
+    const standaloneBottomSafeArea =
+      composerBottomInset > 0 ? 0 : insets.bottom;
+    const scrollButtonBottom =
+      composerBottomInset > 0
+        ? composerBottomInset + getTokens().space.s.val
+        : getTokens().space.m.val;
     const contentContainerStyle = useStyle(
       useMemo(() => {
         if (!posts?.length) {
@@ -364,17 +380,26 @@ const Scroller = forwardRef(
           ) {
             return {
               flexGrow: 1,
-              paddingTop: rootVerticalPadding,
-              paddingBottom: insets.bottom + rootVerticalPadding,
+              paddingTop: rootVerticalPadding + contentInsets.top,
+              paddingBottom:
+                standaloneBottomSafeArea +
+                rootVerticalPadding +
+                contentInsets.bottom,
             };
           }
-          return { flexGrow: 1 };
+          return {
+            flexGrow: 1,
+            paddingTop: contentInsets.top,
+            paddingBottom: contentInsets.bottom,
+          };
         }
 
         switch (collectionLayoutType) {
           case 'compact-list-bottom-to-top': {
             return {
               paddingHorizontal: '$m',
+              paddingTop: contentInsets.top,
+              paddingBottom: contentInsets.bottom,
             };
           }
 
@@ -382,8 +407,11 @@ const Scroller = forwardRef(
             return {
               paddingHorizontal: '$m',
               gap: '$l',
-              paddingTop: rootVerticalPadding,
-              paddingBottom: insets.bottom + rootVerticalPadding,
+              paddingTop: rootVerticalPadding + contentInsets.top,
+              paddingBottom:
+                standaloneBottomSafeArea +
+                rootVerticalPadding +
+                contentInsets.bottom,
             };
           }
 
@@ -391,15 +419,20 @@ const Scroller = forwardRef(
             return {
               paddingHorizontal: '$m',
               gap: '$l',
-              paddingTop: rootVerticalPadding,
-              paddingBottom: insets.bottom + rootVerticalPadding,
+              paddingTop: rootVerticalPadding + contentInsets.top,
+              paddingBottom:
+                standaloneBottomSafeArea +
+                rootVerticalPadding +
+                contentInsets.bottom,
             };
           }
         }
       }, [
-        insets.bottom,
+        standaloneBottomSafeArea,
         posts?.length,
         collectionLayoutType,
+        contentInsets.bottom,
+        contentInsets.top,
         rootVerticalPadding,
       ])
     ) as StyleProp<ViewStyle>;
@@ -511,23 +544,41 @@ const Scroller = forwardRef(
     const onInitialScrollPending = useCallback(() => {
       setCompletedAnchorKey(null);
     }, []);
+    // The control is outside the list's initialization opacity boundary. Keep
+    // it hidden until the exact anchor position is ready to display.
+    const showScrollButton =
+      readyToDisplayPosts && Boolean(shouldShowScrollButton());
+    const hostsScrollButtonInComposer =
+      supportsLiquidGlass() && composerBottomInset > 0;
+
+    useLayoutEffect(() => {
+      setScrollToBottomControl(
+        hostsScrollButtonInComposer
+          ? {
+              isLoading: Boolean(isLoading && hasPressedGoToBottom),
+              onPress: pressedGoToBottom,
+              visible: showScrollButton,
+            }
+          : null
+      );
+    }, [
+      hasPressedGoToBottom,
+      hostsScrollButtonInComposer,
+      isLoading,
+      pressedGoToBottom,
+      setScrollToBottomControl,
+      showScrollButton,
+    ]);
+
+    useEffect(
+      () => () => {
+        setScrollToBottomControl(null);
+      },
+      [setScrollToBottomControl]
+    );
 
     return (
       <View flex={1}>
-        {shouldShowScrollButton() && (
-          <View position="absolute" bottom={'$m'} right={'$l'} zIndex={1000}>
-            <FloatingActionButton
-              icon={
-                isLoading && hasPressedGoToBottom ? (
-                  <LoadingSpinner size="small" />
-                ) : (
-                  <Icon type="ChevronDown" size="$m" />
-                )
-              }
-              onPress={pressedGoToBottom}
-            />
-          </View>
-        )}
         {postsWithNeighbors != null && (
           <PostList
             anchor={anchor}
@@ -561,6 +612,7 @@ const Scroller = forwardRef(
             style={style}
             listHeaderComponent={listHeaderComponent}
             listBottomComponent={listBottomComponent}
+            contentInsets={contentInsets}
           />
         )}
         {postsWithNeighbors != null &&
@@ -576,6 +628,23 @@ const Scroller = forwardRef(
               <LoadingSpinner size="small" />
             </View>
           )}
+        {!hostsScrollButtonInComposer && (
+          <View
+            position="absolute"
+            bottom={scrollButtonBottom}
+            left={Platform.OS === 'web' ? undefined : 0}
+            right={Platform.OS === 'web' ? '$l' : 0}
+            alignItems={Platform.OS === 'web' ? undefined : 'center'}
+            pointerEvents={showScrollButton ? 'box-none' : 'none'}
+            zIndex={1000}
+          >
+            <ConversationScrollToBottomButton
+              loading={Boolean(isLoading && hasPressedGoToBottom)}
+              onPress={pressedGoToBottom}
+              visible={showScrollButton}
+            />
+          </View>
+        )}
         {activeMessage !== null && !emojiPickerOpen && (
           <Modal
             visible={activeMessage !== null && !emojiPickerOpen}

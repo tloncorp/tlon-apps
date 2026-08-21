@@ -3785,9 +3785,7 @@ export const insertChanges = createWriteQuery(
             );
             await perfTime(
               'insertChanges.contacts',
-              // Changes contacts come from the v1 changes scry and are
-              // authoritative for namespaced fields like bot-info.
-              () => insertContacts({ v1Contacts: input.contacts }, txCtx),
+              () => insertContacts(input.contacts, txCtx),
               { count: input.contacts.length }
             );
             await perfTime(
@@ -5325,129 +5323,127 @@ export const insertContact = createWriteQuery(
   ['contacts']
 );
 
-export interface InsertContactsInput {
-  // Rows sourced from the lossy v0 `/all` peers scry, which strips
-  // namespaced contact keys like `bot-info`. They carry no signal about
-  // the bot's identity claim, so an existing `botInfo` value is
-  // preserved on conflict instead of being clobbered to null.
-  v0Peers?: Contact[];
-  // Rows sourced from authoritative v1 paths (`/v1/book`, `/v1/news`
-  // subscription facts, targeted `/v1/contact/{ship}` fetches). These are
-  // authoritative for `botInfo`: a present value replaces, an absent one
-  // clears (the bot stopped publishing one).
-  v1Contacts?: Contact[];
+async function writeContacts(
+  contactsData: Contact[],
+  ctx: QueryCtx,
+  // `fillMissingOnly` writes rows we don't have and leaves the ones we do
+  // alone. It exists for sources that are not authoritative — a snapshot of an
+  // earlier sync, whose fields may already have been superseded by a live
+  // update (see loadCachedContacts).
+  { fillMissingOnly }: { fillMissingOnly: boolean }
+) {
+  const currentUserId = getCurrentUserId();
+  if (contactsData.length === 0) {
+    return;
+  }
+
+  const contactGroups = contactsData.flatMap(
+    (contact) => contact.pinnedGroups || []
+  );
+
+  const contactAttestations = contactsData.flatMap(
+    (contact) =>
+      contact.attestations?.filter(
+        (a) => a.attestation && a.contactId !== currentUserId
+      ) || []
+  );
+
+  const targetGroups = contactGroups.map((g): Group => {
+    const { host: hostUserId } = parseGroupId(g.groupId);
+    return {
+      id: g.groupId,
+      hostUserId,
+      privacy: g.group?.privacy,
+      currentUserIsMember: false,
+      currentUserIsHost: currentUserId === hostUserId,
+    };
+  });
+
+  await withTransactionCtx(ctx, async (txCtx) => {
+    // Batch size to avoid SQLite variable limits
+    const BATCH_SIZE = 100;
+
+    for (let i = 0; i < contactsData.length; i += BATCH_SIZE) {
+      const batch = contactsData.slice(i, i + BATCH_SIZE);
+
+      const insert = txCtx.db.insert($contacts).values(batch);
+      await (fillMissingOnly
+        ? insert.onConflictDoNothing()
+        : insert.onConflictDoUpdate({
+            target: $contacts.id,
+            set: conflictUpdateSetAll($contacts, ['isBlocked']),
+          }));
+    }
+
+    if (targetGroups.length) {
+      for (let i = 0; i < targetGroups.length; i += BATCH_SIZE) {
+        const batch = targetGroups.slice(i, i + BATCH_SIZE);
+        await txCtx.db.insert($groups).values(batch).onConflictDoNothing();
+      }
+    }
+    // TODO: Remove stale pinned groups
+    if (contactGroups.length) {
+      for (let i = 0; i < contactGroups.length; i += BATCH_SIZE) {
+        const batch = contactGroups.slice(i, i + BATCH_SIZE);
+        await txCtx.db
+          .insert($contactGroups)
+          .values(batch)
+          .onConflictDoNothing();
+      }
+    }
+
+    // clear existing — skipped for a non-authoritative source, which cannot
+    // tell an attestation that is gone from one it simply never captured.
+    if (!fillMissingOnly) {
+      await txCtx.db
+        .delete($attestations)
+        .where(not(eq($attestations.contactId, currentUserId)));
+    }
+
+    if (contactAttestations.length) {
+      const attestationsToInsert = contactAttestations.map(
+        (a) => a.attestation as Attestation
+      );
+      for (let i = 0; i < attestationsToInsert.length; i += BATCH_SIZE) {
+        const batch = attestationsToInsert.slice(i, i + BATCH_SIZE);
+        const insert = txCtx.db.insert($attestations).values(batch);
+        await (fillMissingOnly
+          ? insert.onConflictDoNothing()
+          : insert.onConflictDoUpdate({
+              target: $attestations.id,
+              set: conflictUpdateSetAll($attestations),
+            }));
+      }
+
+      for (let i = 0; i < contactAttestations.length; i += BATCH_SIZE) {
+        const batch = contactAttestations.slice(i, i + BATCH_SIZE);
+        await txCtx.db
+          .insert($contactAttestations)
+          .values(batch)
+          .onConflictDoNothing();
+      }
+    }
+  });
 }
 
 export const insertContacts = createWriteQuery(
   'insertContacts',
-  async (input: InsertContactsInput, ctx: QueryCtx) => {
-    const currentUserId = getCurrentUserId();
-    const v0Peers = input.v0Peers ?? [];
-    const v1Contacts = input.v1Contacts ?? [];
-    const contactsData = [...v0Peers, ...v1Contacts];
-    if (contactsData.length === 0) {
-      return;
-    }
+  (contactsData: Contact[], ctx: QueryCtx) =>
+    writeContacts(contactsData, ctx, { fillMissingOnly: false }),
+  (contacts) =>
+    contacts.length
+      ? ['contacts', 'groups', 'contactGroups', 'contactAttestations']
+      : []
+);
 
-    const contactGroups = contactsData.flatMap(
-      (contact) => contact.pinnedGroups || []
-    );
-
-    const contactAttestations = contactsData.flatMap(
-      (contact) =>
-        contact.attestations?.filter(
-          (a) => a.attestation && a.contactId !== currentUserId
-        ) || []
-    );
-
-    const targetGroups = contactGroups.map((g): Group => {
-      const { host: hostUserId } = parseGroupId(g.groupId);
-      return {
-        id: g.groupId,
-        hostUserId,
-        privacy: g.group?.privacy,
-        currentUserIsMember: false,
-        currentUserIsHost: currentUserId === hostUserId,
-      };
-    });
-
-    await withTransactionCtx(ctx, async (txCtx) => {
-      // Batch size to avoid SQLite variable limits
-      const BATCH_SIZE = 100;
-
-      for (let i = 0; i < v0Peers.length; i += BATCH_SIZE) {
-        const batch = v0Peers.slice(i, i + BATCH_SIZE);
-
-        await txCtx.db
-          .insert($contacts)
-          .values(batch)
-          .onConflictDoUpdate({
-            target: $contacts.id,
-            set: conflictUpdateSetAll($contacts, ['isBlocked', 'botInfo']),
-          });
-      }
-
-      for (let i = 0; i < v1Contacts.length; i += BATCH_SIZE) {
-        const batch = v1Contacts.slice(i, i + BATCH_SIZE);
-
-        await txCtx.db
-          .insert($contacts)
-          .values(batch)
-          .onConflictDoUpdate({
-            target: $contacts.id,
-            set: conflictUpdateSetAll($contacts, ['isBlocked']),
-          });
-      }
-
-      if (targetGroups.length) {
-        for (let i = 0; i < targetGroups.length; i += BATCH_SIZE) {
-          const batch = targetGroups.slice(i, i + BATCH_SIZE);
-          await txCtx.db.insert($groups).values(batch).onConflictDoNothing();
-        }
-      }
-      // TODO: Remove stale pinned groups
-      if (contactGroups.length) {
-        for (let i = 0; i < contactGroups.length; i += BATCH_SIZE) {
-          const batch = contactGroups.slice(i, i + BATCH_SIZE);
-          await txCtx.db
-            .insert($contactGroups)
-            .values(batch)
-            .onConflictDoNothing();
-        }
-      }
-
-      // clear existing
-      await txCtx.db
-        .delete($attestations)
-        .where(not(eq($attestations.contactId, currentUserId)));
-
-      if (contactAttestations.length) {
-        const attestationsToInsert = contactAttestations.map(
-          (a) => a.attestation as Attestation
-        );
-        for (let i = 0; i < attestationsToInsert.length; i += BATCH_SIZE) {
-          const batch = attestationsToInsert.slice(i, i + BATCH_SIZE);
-          await txCtx.db
-            .insert($attestations)
-            .values(batch)
-            .onConflictDoUpdate({
-              target: $attestations.id,
-              set: conflictUpdateSetAll($attestations),
-            });
-        }
-
-        for (let i = 0; i < contactAttestations.length; i += BATCH_SIZE) {
-          const batch = contactAttestations.slice(i, i + BATCH_SIZE);
-          await txCtx.db
-            .insert($contactAttestations)
-            .values(batch)
-            .onConflictDoNothing();
-        }
-      }
-    });
-  },
-  (input) =>
-    (input.v0Peers?.length ?? 0) + (input.v1Contacts?.length ?? 0) > 0
+// Contacts from a source that may be out of date: rows we lack are inserted,
+// rows we already hold are left as they are.
+export const insertMissingContacts = createWriteQuery(
+  'insertMissingContacts',
+  (contactsData: Contact[], ctx: QueryCtx) =>
+    writeContacts(contactsData, ctx, { fillMissingOnly: true }),
+  (contacts) =>
+    contacts.length
       ? ['contacts', 'groups', 'contactGroups', 'contactAttestations']
       : []
 );

@@ -5,13 +5,12 @@
  * restart must establish a new lease and then renew it from the replacement
  * monitor.
  *
- * The read path points at %steward, not %gateway-status. The steward refactor
- * moved liveness state into steward's gateway module and reduced
- * %gateway-status to a poke-only proxy that forwards gateway-status-action-1
- * on to %steward — its own on-peek is a stub. So the plugin still POKES
- * %gateway-status (see @tloncorp/api gatewayStatusApi) while this test SCRIES
- * %steward at /x/v1/gateway/status. The payload is byte-identical to what the
- * standalone agent used to serve, so decodeGatewayStatus is unchanged.
+ * Both halves of this test talk to %steward: the plugin POKES it with
+ * %steward-gateway-action-1 (see @tloncorp/api stewardGatewayApi) and the test
+ * SCRIES it at /x/v1/gateway/status. The standalone %gateway-status agent —
+ * latterly a poke-only proxy onto steward — has been removed. Its status
+ * payload was byte-identical to what steward's gateway module serves, so
+ * decodeGatewayStatus is unchanged.
  *
  * An owner-activity assertion (/v1/gateway/owner-activity, decodeDa) is still
  * unwritten. It was previously blocked on rube-27's archived activity feed not

@@ -6,7 +6,6 @@ import {
   resolveBotManifestShipId,
   resolveGroupChannelBotShipId,
   selectBotSlashCommandManifest,
-  shouldBackfillBotInfo,
 } from './useBotSlashCommandManifest';
 
 const staticOpenclaw = getStaticSlashCommandManifest('openclaw');
@@ -237,44 +236,5 @@ describe('resolveBotManifestShipId', () => {
   test('null/undefined channels resolve to null', () => {
     expect(resolveBotManifestShipId(null)).toBeNull();
     expect(resolveBotManifestShipId(undefined)).toBeNull();
-  });
-});
-
-describe('shouldBackfillBotInfo', () => {
-  const base = {
-    enabled: true,
-    botShipId: '~bot',
-    contactQuerySettled: true,
-    hasBotInfo: false,
-  };
-
-  test('fires once the contact query settled without a claim', () => {
-    expect(shouldBackfillBotInfo(base)).toBe(true);
-  });
-
-  test('does not fire while the contact query is still loading', () => {
-    expect(shouldBackfillBotInfo({ ...base, contactQuerySettled: false })).toBe(
-      false
-    );
-  });
-
-  test('does not fire when a claim is already present', () => {
-    expect(shouldBackfillBotInfo({ ...base, hasBotInfo: true })).toBe(false);
-  });
-
-  test('does not fire when the channel is not bot-enabled', () => {
-    expect(shouldBackfillBotInfo({ ...base, enabled: false })).toBe(false);
-  });
-
-  test('group channel without a qualifying moon: no ship, no backfill', () => {
-    const botShipId = resolveBotManifestShipId(chatChannel(), null);
-    expect(botShipId).toBeNull();
-    expect(shouldBackfillBotInfo({ ...base, botShipId })).toBe(false);
-  });
-
-  test('group channel with a moon: ship resolved, backfill eligible', () => {
-    const botShipId = resolveBotManifestShipId(chatChannel(), MOON);
-    expect(botShipId).toBe(MOON);
-    expect(shouldBackfillBotInfo({ ...base, botShipId })).toBe(true);
   });
 });

@@ -440,17 +440,25 @@ tlon posts delete chat/~host/slug 170.141...             # Delete a post
 tlon posts delete heap/~host/gallery 170.141...          # Delete a gallery post
 ```
 
-`--bot` marks a `posts send`/`posts reply`/`dms send`/`dms reply` message as bot-authored: the message carries an author object instead of a bare ship, which is what makes clients render the "Bot" tag. Bot display names come from contact sync, not from the message, so the flag takes no value. Opt-in on purpose — messages you send as yourself must not be bot-tagged. Edits need no flag: `posts edit` preserves the existing post's authorship, so a bot-authored post keeps its "Bot" tag and a human-authored one stays bare.
+`--bot` marks a `posts send`/`posts reply`/`dms send`/`dms reply` message as bot-authored: the message carries an author object instead of a bare ship, which is what makes clients render the "Bot" tag. Bot display names come from contact sync, not from the message, so the flag takes no value: `--bot=Name`, `--bot Name`, and a repeated `--bot` are all usage errors rather than message text. Opt-in on purpose — messages you send as yourself must not be bot-tagged. Edits need no flag: `posts edit` preserves the existing post's authorship, so a bot-authored post keeps its "Bot" tag and a human-authored one stays bare.
 
 Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
 
 `posts edit` edits message text only. The former notebook-only `--title`/`--image`/`--content` edit flags are removed (they refuse with an explanatory error). Deprecated diary channels are unmanaged by the CLI except through the owner-run `tlon notes migrate-plan <diary-nest>` and `tlon notes migrate-apply <diary-nest> --yes` paths.
 
-Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported.
+Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported. Never use LaTeX math delimiters ($...$, $$...$$, \(...\), \[...\]) — Tlon renders no math; write math as plain text/Unicode or in code blocks.
 
 ### Notes
 
 Manage %notes notebooks (Markdown-first). Notebooks are nests of the form `notes/~host/name`; note bodies are plain Markdown (not Tlon Story).
+
+Do not use LaTeX math delimiters (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) in
+note bodies or message text. No Tlon surface renders math: the delimiters
+display literally or get mangled (Markdown emphasis, mentions, and escaping can
+corrupt the text inside and around them), and in a note body the backslashes in
+`\(` and `\[` are silently eaten by Markdown escaping, so those delimiters
+vanish. Write math as plain text/Unicode (`x²`, `E = mc²`, `θ ∈ [0, 2π)`) and
+use code blocks or inline code for complex formulas.
 
 ```bash
 tlon notes status                                        # Check %notes reachability

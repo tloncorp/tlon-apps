@@ -1106,14 +1106,11 @@ function BareChatInput(
       cancelEditing={handleCancelEditing}
       onPressEdit={handleEdit}
       goBack={goBack}
+      contentBackgroundColor={backgroundColor}
     >
       <YStack
         flex={1}
-        backgroundColor={backgroundColor}
         paddingHorizontal={paddingHorizontal}
-        borderColor="$border"
-        borderWidth={1}
-        borderRadius="$xl"
         maxHeight={maxInputHeight}
         justifyContent="center"
       >

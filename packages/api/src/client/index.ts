@@ -118,5 +118,5 @@ export * from './metagrabApi';
 export * from './changesApi';
 export * from './computingStatus';
 export * from './presenceApi';
-export * from './gatewayStatusApi';
+export * from './stewardGatewayApi';
 export * from './lensApi';

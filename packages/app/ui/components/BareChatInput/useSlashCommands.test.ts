@@ -179,6 +179,7 @@ describe('rankSlashCommands', () => {
         '/tlon-version',
         '/tlon',
         '/migrate',
+        '/model',
       ]);
     });
 

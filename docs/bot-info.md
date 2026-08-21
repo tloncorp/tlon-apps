@@ -2,7 +2,7 @@
 
 Bots publish **who they are** — harness and versions — in their own contact profile. The Tlon client reads that claim off the synced contact record and uses the claimed harness to pick one of its own static slash-command lists for the bot's conversations.
 
-Bots do **not** publish what they can do. Command lists live in the app (`packages/shared/src/domain/slashCommands.ts`), bound to each runtime's actual command registry by a CI drift contract (see [Command lists](#command-lists)). A command change therefore ships as an app release, and a third-party bot cannot advertise custom commands — an unknown or absent harness gets the default (OpenClaw) list.
+Bots do **not** publish what they can do. Command lists live in the app (`packages/shared/src/domain/slashCommands.ts`), where the runtime-owned entries are bound to each runtime's actual command registry by a CI drift contract and the host-core entries are audit-pinned constants outside it (see [Command lists](#command-lists)). A command change therefore ships as an app release, and a third-party bot cannot advertise custom commands — an unknown or absent harness gets the default (OpenClaw) list.
 
 No Hoon/desk changes are involved: a v1 contact is an open key-value map (`+$ contact (map @tas value)`, `desk/sur/contacts.hoon`), unknown keys pass validation and replicate to subscribers, and the client's contacts pipeline carries the key through.
 
@@ -93,7 +93,7 @@ runnable via each runtime's existing poke path or curl against Eyre. Clients the
 
 -   The raw JSON is stored on the contact row (`contacts.bot_info`) and validated only at read.
 -   `useBotSlashCommandManifest` (`packages/shared/src/store/useBotSlashCommandManifest.ts`) resolves the bot ship, parses the claim, and passes `harness` to `getStaticSlashCommandManifest`. DM channels resolve the counterpart ship; group `chat` channels resolve the single qualifying moon member of the group (a joined member that is a moon of the current user — `resolveGroupChannelBotShipId`), so that ship's claim selects the list. With zero or more than one qualifying moon there is no ship: the popup is suppressed in the multi-moon case (a bare command would be answered by every owned bot), and a group channel with no owned moon gets no popup at all. The home-group chat is no longer fixed to the fallback list — it qualifies through the same membership signal and resolves its bot member's claim like any other group channel.
--   Cold-start backfill: the legacy v0 `/all` peers scry strips namespaced keys, so the client fetches `/v1/contact/{ship}` on demand for qualifying bot channels that lack a claim. Backfill keys on the resolved bot ship, so it applies to group channels exactly as it does to DMs.
+-   Scope: the client reads whatever claim ordinary contact sync has already delivered — the contact book, `/v1/directory`, the `%meet` a profile view fires, or later subscription facts. It fetches nothing of its own for the claim. A bot this ship has never met has no contact record to read, so its conversations show the default (OpenClaw) list until one of those paths delivers its profile — the same degradation as a missing nickname or avatar for an unmet peer, and permanently healed by the first profile view.
 
 ## Command lists
 

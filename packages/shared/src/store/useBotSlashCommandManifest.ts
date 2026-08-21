@@ -1,9 +1,8 @@
 import * as api from '@tloncorp/api';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import * as db from '../db';
 import * as domain from '../domain';
-import { ensureBotInfoSynced } from './contactActions';
 import { useChannelHasBotPost, useContact } from './dbHooks';
 
 // Which group-channel member is the user's bot, per the membership signal:
@@ -66,23 +65,6 @@ export function selectBotSlashCommandManifest(args: {
   );
 }
 
-// Cold-start backfill fires only once the contact query has settled without a
-// usable claim — never on first-render `undefined` while it is still loading,
-// which would cause pointless sync traffic for already-cached claims.
-export function shouldBackfillBotInfo(args: {
-  enabled: boolean;
-  botShipId: string | null;
-  contactQuerySettled: boolean;
-  hasBotInfo: boolean;
-}): boolean {
-  return (
-    args.enabled &&
-    !!args.botShipId &&
-    args.contactQuerySettled &&
-    !args.hasBotInfo
-  );
-}
-
 // Returns the slash-command manifest for a bot conversation, or null when
 // slash commands should not be offered. A channel qualifies when either:
 //   - observed: the DM counterpart has sent bot-authored messages here. Bot
@@ -135,37 +117,10 @@ export const useBotSlashCommandManifest = (
   const enabled = isStructuralBotChannel || (isDm && hasBotPosts === true);
 
   const botShipId = resolveBotManifestShipId(channel, groupBotShipId);
-  const { data: contact, isFetched } = useContact({
+  const { data: contact } = useContact({
     id: botShipId ?? '',
     enabled: enabled && !!botShipId,
   });
-
-  const botInfo = useMemo(
-    () => domain.parseBotInfo(contact?.botInfo),
-    [contact?.botInfo]
-  );
-
-  // The backfill only acts on a row with a *known* isContact value, so the
-  // raw tri-state (true / false / null-or-absent) is a dependency: a
-  // fresh-start sync can settle the query before the v0 row exists, and both
-  // the row's later insertion and a null → false transition have to re-trigger
-  // the evaluation. Collapsing null and false here would swallow the latter.
-  const hasContactRow = !!contact;
-  const contactIsContact = contact?.isContact;
-
-  useEffect(() => {
-    if (
-      !shouldBackfillBotInfo({
-        enabled,
-        botShipId,
-        contactQuerySettled: isFetched,
-        hasBotInfo: !!botInfo,
-      })
-    ) {
-      return;
-    }
-    ensureBotInfoSynced(botShipId!);
-  }, [enabled, botShipId, isFetched, botInfo, hasContactRow, contactIsContact]);
 
   return useMemo(
     () =>

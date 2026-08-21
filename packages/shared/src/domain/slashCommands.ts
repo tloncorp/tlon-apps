@@ -211,11 +211,12 @@ const OPENCLAW_RUNTIME_COMMANDS: SlashCommandOption[] = [
 ];
 
 // OpenClaw core. Audit-verified against core at the plugin's dev pin
-// (2026.5.28): the keys "help", "status", "new" in core's builtin command
-// registry (src/auto-reply/commands-registry.shared.ts), which is exported from
-// neither the package entry nor plugin-sdk and offers no runtime enumeration —
-// hence a pinned constant rather than a CI-bound list. The plugin supports
-// hosts >= 2026.5.7, older than the audited pin.
+// (2026.5.28): the keys "help", "status", "new", "model" in core's builtin
+// command registry (src/auto-reply/commands-registry.shared.ts) — "model" as
+// `textAlias: "/model"`, tier "essential", ungated. The registry is exported
+// from neither the package entry nor plugin-sdk and offers no runtime
+// enumeration — hence a pinned constant rather than a CI-bound list. The
+// plugin supports hosts >= 2026.5.7, older than the audited pin.
 const OPENCLAW_CORE_COMMANDS: SlashCommandOption[] = [
   {
     command: '/status',
@@ -240,6 +241,14 @@ const OPENCLAW_CORE_COMMANDS: SlashCommandOption[] = [
     icon: 'Add',
     keywords: ['reset', 'session', 'openclaw'],
     priority: 4,
+  },
+  {
+    command: '/model',
+    title: 'Switch model',
+    subtitle: 'Show or change the active model',
+    icon: 'Settings',
+    keywords: ['model', 'provider', 'switch'],
+    priority: 14,
   },
 ];
 

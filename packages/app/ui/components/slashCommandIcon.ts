@@ -8,25 +8,17 @@ const NON_ICON_KEYS = new Set(['__esModule', 'default']);
 /**
  * Build an icon-name resolver bound to a module namespace.
  *
- * Icon names now come from this app's own static command lists, not from the
- * wire — but whatever the resolver returns is looked up in that same namespace
- * and rendered as a React component, so the lookup still has to be exact.
+ * Whatever the resolver returns is looked up in that namespace and rendered as
+ * a React component, so the lookup has to be exact. `name in ns` would not do:
+ * under Babel/CJS interop the namespace carries `__esModule` and inherits
+ * `constructor`/`toString`/`__proto__`, all of which pass an `in` check and
+ * would then be mounted by the renderer — a typo'd `icon: "__esModule"` would
+ * crash the composer rather than fall back to the default glyph. Hence
+ * membership is own-enumerable keys (`Object.keys`) minus that metadata.
  *
- * `name in ns` would not do. Under the native Babel/CJS interop the namespace
- * is an ordinary object carrying `__esModule` (a boolean) and inheriting
- * `constructor`, `toString` and `__proto__` — all of which pass an `in` check
- * and are then handed to the renderer, so a typo'd `icon: "__esModule"` in a
- * static list would crash the composer for the whole conversation rather than
- * falling back to the default glyph. (A true ESM namespace
- * has a null prototype and no `__esModule`, which is why this is only reachable
- * in some builds — and why the tests inject a CJS-shaped namespace rather than
- * relying on whatever the test runner happens to produce.)
- *
- * Membership is an own-enumerable-key test (`Object.keys` skips the prototype
- * chain) minus that metadata. It deliberately does not inspect the *value*: an
- * icon is a component in the app but a string under the test runner's SVG
- * transform, so a shape check would reject every real icon in one of those
- * worlds.
+ * It deliberately ignores the *value*: an icon is a component in the app but a
+ * string under the test runner's SVG transform, so a shape check would reject
+ * every real icon in one of those worlds.
  */
 export function makeIconResolver(namespace: object) {
   const iconNames = new Set(
