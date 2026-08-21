@@ -171,8 +171,8 @@ export const PinnedSurfaceCollection: IPostCollectionView = forwardRef(
 
         <YStack
           position="absolute"
-          left={0}
-          right={0}
+          left="$l"
+          right="$l"
           bottom={0}
           top={chatOpen ? '12%' : undefined}
           height={chatOpen ? undefined : CHAT_HANDLE_HEIGHT}
@@ -182,9 +182,6 @@ export const PinnedSurfaceCollection: IPostCollectionView = forwardRef(
           borderWidth={1}
           borderBottomWidth={0}
           borderColor="$border"
-          shadowColor="$shadow"
-          shadowOffset={{ width: 0, height: -4 }}
-          shadowRadius={12}
           overflow="hidden"
         >
           <Pressable
