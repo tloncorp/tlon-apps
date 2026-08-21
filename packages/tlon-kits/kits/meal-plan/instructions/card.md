@@ -15,6 +15,8 @@ Limits that will reject the post if crossed: 50 components, depth 8, 12 children
 
 Copy this shape exactly; change only the meals, dates, ids, and the two places. `surfaceId` must be unique per card — use `weekly-plan-<week-start>` plus a short random suffix. In the footer's navigate target, `channelId` is the plans place's nest and `groupId` is the group flag (both are in the places legend above).
 
+Do not simplify the structure. Every day is a `Row` holding a `Text` and a `Replace` `Button` — the buttons are how the household changes a night, so a card whose days are plain text rows is broken even though it renders. Keep all four components per day, all seven days.
+
 ```json
 [
     {
