@@ -477,6 +477,51 @@
         ==
   !>([%.y 1 1])
 ::
+::  A reader that took a token and then dropped its subscription still has to
+::  be revoked. It produces no kick, and the broker honours a pushed token
+::  without asking us again, so deriving revocations from the subscription
+::  list alone would leave a bearer token working until it lapsed.
+::
+++  test-revokes-a-token-held-by-an-unsubscribed-reader
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ::  ~bus takes a token, and never appears in sup.bowl
+  ;<  mint-caz=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v8 [%bucket flag [%issue-bucket-read ~]]])
+  =/  push=[=wire =request:http]  (only-iris mint-caz)
+  ;<  *  b  (do-arvo wire.push iris-ok)
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  ::  then it loses read access
+  ;<  ~  b  (set-scry-gate revoked-scries)
+  ;<  caz=(list card)  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-update !>([group %noun])]
+  =/  revoke=[=wire =request:http]  (only-iris caz)
+  ;<  sv2=vase  b  get-save
+  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  =/  kicks=(list card)
+    %+  skim  caz
+    |=(car=card ?=([%give %kick *] car))
+  ::  no kick, because it was not subscribed -- but the token is gone locally
+  ::  and the broker is told to drop it
+  %+  ex-equal
+    !>  :*  ~(wyt by object-capabilities.st)
+            ~(wyt by object-capabilities.st2)
+            method.request.revoke
+            (lent kicks)
+        ==
+  !>([1 0 %'DELETE' 0])
+::
 ::  A reader who loses group access stops reading immediately: the host kicks
 ::  the subscription and tells the broker to drop that reader's token, rather
 ::  than leaving it live until it lapses.

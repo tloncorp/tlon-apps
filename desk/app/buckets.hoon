@@ -1803,27 +1803,40 @@
 ++  recheck-host-subs
   |=  changed=flag:b
   ^+  cor
+  ::  Buckets we host that belong to the group that changed, mapped to it.
+  ::  Everything below is scoped to these: a fact about one group is no
+  ::  reason to re-scry permissions for buckets bound to another.
+  =/  affected=(map flag:b flag:b)
+    %-  malt
+    %+  murn  ~(tap by spaces)
+    |=  [=flag:b sp=space:b]
+    ^-  (unit [flag:b flag:b])
+    ?.  =(%pub net.sp)  ~
+    ?~  state.sp  ~
+    ?.  =(changed group.u.state.sp)  ~
+    `[flag group.u.state.sp]
+  ?:  =(~ affected)  cor
   =/  kicks=(list card)
     %+  murn  ~(val by sup.bowl)
     |=  [who=ship pax=path]
     ^-  (unit card)
     ?.  ?=([%v1 %buckets @ @ %updates ~] pax)  ~
     =/  =flag:b  [(slav %p i.t.t.pax) `@tas`i.t.t.t.pax]
-    ?~  sp=(~(get by spaces) flag)  ~
-    ?.  =(%pub net.u.sp)  ~
-    ?~  state.u.sp  ~
-    ?.  =(changed group.u.state.u.sp)  ~
-    ?:  (group-can-read group.u.state.u.sp flag who)  ~
+    ?~  group=(~(get by affected) flag)  ~
+    ?:  (group-can-read u.group flag who)  ~
     `[%give %kick ~[pax] `who]
-  ::  a kicked reader's token must stop working now, not when it lapses
-  =/  revoked=(set ship)
-    %-  silt
-    %+  murn  kicks
-    |=  =card
-    ?.(?=([%give %kick * ^] card) ~ ship.p.card)
+  ::  Revocation is driven by the tokens, not by the subscriptions. A reader
+  ::  that took a token and then left or dropped its subscription has no
+  ::  entry in sup.bowl, so it produces no kick -- and because the broker
+  ::  serves a pushed token without asking us again, that token would keep
+  ::  working for every ready file until it lapsed. Asking the group about
+  ::  each token's own reader and bucket catches those, and stops a reader
+  ::  losing one bucket from having its tokens for other buckets revoked.
   =.  cor
     %-  forget-read-caps
     %-  read-caps
-    |=([token=@t aut=object-capability:b] (~(has in revoked) actor.aut))
+    |=  [token=@t aut=object-capability:b]
+    ?~  group=(~(get by affected) flag.aut)  |
+    !(group-can-read u.group flag.aut actor.aut)
   (emil kicks)
 --
