@@ -142,8 +142,8 @@ export function shipCanStoreUploads(input: {
   const configuration = input.configuration ?? {};
   const hasCustomS3 = Boolean(
     credentials.accessKeyId &&
-      credentials.endpoint &&
-      credentials.secretAccessKey
+    credentials.endpoint &&
+    credentials.secretAccessKey
   );
 
   if (

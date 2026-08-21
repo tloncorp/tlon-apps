@@ -115,8 +115,8 @@ async function canStoreUploads(): Promise<UploadPreflight | null> {
     }
     const hasCustomS3 = Boolean(
       credentials?.accessKeyId &&
-        credentials?.endpoint &&
-        credentials?.secretAccessKey
+      credentials?.endpoint &&
+      credentials?.secretAccessKey
     );
     return {
       canStore: false,

@@ -7,8 +7,8 @@
  * This script handles club (group DM) messaging and DM management ops only.
  *
  * Usage:
- *   npx ts-node scripts/dms.ts send <club-id> <message>        (group DMs only)
- *   npx ts-node scripts/dms.ts reply <club-id> <post-id> <msg> (group DMs only)
+ *   npx ts-node scripts/dms.ts send <club-id> <message> [--bot]        (group DMs only)
+ *   npx ts-node scripts/dms.ts reply <club-id> <post-id> <msg> [--bot] (group DMs only)
  *   npx ts-node scripts/dms.ts react <ship> <post-id> <emoji> [--parent <post-id>]
  *   npx ts-node scripts/dms.ts unreact <ship> <post-id> [--parent <post-id>]
  *   npx ts-node scripts/dms.ts delete <ship> <post-id>
@@ -28,6 +28,11 @@ import type { Channel } from '@tloncorp/api';
 
 import { ensureClient, normalizeShip } from './api-client';
 import {
+  type BotAuthorProfile,
+  botProfileFlagIndex,
+  parseBotProfileFlags,
+} from './bot-profile-flags';
+import {
   isHelpArg,
   printErrorAndExit,
   printHelpAndExit,
@@ -45,17 +50,20 @@ import { type Story, type StoryVerse, markdownToStory } from './markdown';
 const DMS_HELP = `Usage: tlon dms <command>
 
 Commands:
-  send <club-id> [message]        Send a message to a group DM [--image <url>]
-  reply <club-id> <post-id> <msg> Reply in a group DM (post-id must include author)
+  send <club-id> [message]        Send a message to a group DM [--image <url>] [--bot]
+  reply <club-id> <post-id> <msg> Reply in a group DM (post-id must include author) [--bot]
   react <ship> <post-id> <emoji>  React to a DM (post-id must include author) [--parent <post-id>]
   unreact <ship> <post-id>        Remove reaction from a DM (post-id must include author) [--parent <post-id>]
   delete <ship> <post-id>         Delete a DM (post-id may include author)
   accept <ship>                   Accept a DM invite
-  decline <ship>                  Decline a DM invite`;
+  decline <ship>                  Decline a DM invite
+
+Send options:
+  --bot                  Author the message as a bot (renders the "Bot" tag)`;
 
 const DMS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon dms send <club-id> [message] [--image <url>] (message optional with --image)',
-  reply: 'Usage: tlon dms reply <club-id> <post-id> <message>',
+  send: 'Usage: tlon dms send <club-id> [message] [--image <url>] [--bot] (message optional with --image)',
+  reply: 'Usage: tlon dms reply <club-id> <post-id> <message> [--bot]',
   react: 'Usage: tlon dms react <ship> <post-id> <emoji> [--parent <post-id>]',
   unreact: 'Usage: tlon dms unreact <ship> <post-id> [--parent <post-id>]',
   delete: 'Usage: tlon dms delete <ship> <post-id>',
@@ -64,7 +72,14 @@ const DMS_COMMAND_HELP: Record<string, string> = {
 };
 
 function getDmsHelp(command?: string): string {
-  return command ? DMS_COMMAND_HELP[command] ?? DMS_HELP : DMS_HELP;
+  return command ? (DMS_COMMAND_HELP[command] ?? DMS_HELP) : DMS_HELP;
+}
+
+// Option-flag boundary for the message slice: everything from the first flag on
+// is options, not message text.
+function firstBotProfileFlagIndex(args: string[]): number {
+  const idx = botProfileFlagIndex(args);
+  return idx === -1 ? args.length : idx;
 }
 
 // The shared `--image` parsing (image-attach.ts) reports failures by throwing
@@ -89,12 +104,32 @@ function dmsImageFlag(args: string[]): string | undefined {
 }
 
 function firstDmSendFlagIndex(args: string[]): number {
-  const idx = imageFlagIndex(args);
-  return idx !== -1 ? idx : args.length;
+  const image = imageFlagIndex(args);
+  return Math.min(
+    image !== -1 ? image : args.length,
+    firstBotProfileFlagIndex(args)
+  );
 }
 
-function getDmSendMessage(args: string[]): string {
+export function getDmSendMessage(args: string[]): string {
   return args.slice(2, firstDmSendFlagIndex(args)).join(' ');
+}
+
+export function getDmReplyMessage(args: string[]): string {
+  return args.slice(3, firstBotProfileFlagIndex(args)).join(' ');
+}
+
+// Bot-author flags for a send/reply, or undefined when none are present.
+// Malformed flags exit with the subcommand's usage, before any API work.
+export function dmBotProfile(
+  args: string[],
+  help: string
+): BotAuthorProfile | undefined {
+  const parsed = parseBotProfileFlags(args);
+  if (!parsed.ok) {
+    return printUsageAndExit(help);
+  }
+  return parsed.botProfile;
 }
 
 function isDmsMessageHelpLiteral(args: string[]): boolean {
@@ -103,7 +138,11 @@ function isDmsMessageHelpLiteral(args: string[]): boolean {
     return !!args[1] && wantsHelp(args.slice(2, firstDmSendFlagIndex(args)));
   }
   if (command === 'reply') {
-    return !!args[1] && !!args[2] && wantsHelp(args.slice(3));
+    return (
+      !!args[1] &&
+      !!args[2] &&
+      wantsHelp(args.slice(3, firstBotProfileFlagIndex(args)))
+    );
   }
   return false;
 }
@@ -119,6 +158,7 @@ export function validateDmsArgs(args: string[]): void {
       const clubId = args[1];
       const message = getDmSendMessage(args);
       const image = dmsImageFlag(args);
+      dmBotProfile(args, DMS_COMMAND_HELP.send);
       if (!clubId || (!message && !image)) {
         printUsageAndExit(DMS_COMMAND_HELP.send);
       }
@@ -132,7 +172,8 @@ export function validateDmsArgs(args: string[]): void {
     case 'reply': {
       const clubId = args[1];
       const postId = args[2];
-      const message = args.slice(3).join(' ');
+      const message = getDmReplyMessage(args);
+      dmBotProfile(args, DMS_COMMAND_HELP.reply);
       if (!clubId || !postId || !message)
         printUsageAndExit(DMS_COMMAND_HELP.reply);
       if (!isClub(clubId)) {
@@ -216,13 +257,40 @@ export function reactionParent(
   return parentId;
 }
 
+type DmSendDeps = {
+  getCurrentUserId: typeof getCurrentUserId;
+  sendPost: typeof sendPost;
+  sendReply: typeof sendReply;
+};
+
+// Everything `run` reaches the network with, so a test can drive the real
+// argv -> payload path without a ship.
+export type DmDeps = DmSendDeps & {
+  ensureClient: typeof ensureClient;
+  fetchImageVerse: typeof fetchImageVerse;
+};
+
+const DEFAULT_SEND_DEPS: DmSendDeps = {
+  getCurrentUserId,
+  sendPost,
+  sendReply,
+};
+
+const DEFAULT_DEPS: DmDeps = {
+  ...DEFAULT_SEND_DEPS,
+  ensureClient,
+  fetchImageVerse,
+};
+
 // Send a message to a group DM (club)
-async function sendClubMessage(
+export async function sendClubMessage(
   clubId: string,
   message: string,
-  imageVerse?: StoryVerse
+  imageVerse?: StoryVerse,
+  botProfile?: BotAuthorProfile,
+  deps: DmSendDeps = DEFAULT_SEND_DEPS
 ): Promise<{ success: boolean; postId?: string; error?: string }> {
-  const authorId = getCurrentUserId();
+  const authorId = deps.getCurrentUserId();
   const sentAt = Date.now();
   // Image block first, caption after — matches app attachment posts.
   const content: Story = [
@@ -231,11 +299,12 @@ async function sendClubMessage(
   ];
 
   try {
-    await sendPost({
+    await deps.sendPost({
       channelId: clubId,
       authorId,
       sentAt,
       content,
+      ...(botProfile ? { botProfile } : {}),
     });
 
     return { success: true };
@@ -245,12 +314,14 @@ async function sendClubMessage(
 }
 
 // Reply in a club (group DM)
-async function replyToClub(
+export async function replyToClub(
   clubId: string,
   postId: string,
-  message: string
+  message: string,
+  botProfile?: BotAuthorProfile,
+  deps: DmSendDeps = DEFAULT_SEND_DEPS
 ): Promise<{ success: boolean; replyId?: string; error?: string }> {
-  const authorId = getCurrentUserId();
+  const authorId = deps.getCurrentUserId();
   const sentAt = Date.now();
   const content = parseContent(message);
   const parsed = parsePostId(postId);
@@ -263,13 +334,14 @@ async function replyToClub(
   }
 
   try {
-    await sendReply({
+    await deps.sendReply({
       channelId: clubId,
       parentId: parsed.id,
       parentAuthor: parsed.authorId,
       content,
       sentAt,
       authorId,
+      ...(botProfile ? { botProfile } : {}),
     });
 
     return { success: true };
@@ -437,9 +509,12 @@ async function declineDM(
   }
 }
 
-// CLI
-export async function main() {
-  const args = process.argv.slice(2);
+// CLI. `args`/`deps` are injectable so the argv -> API payload path is testable
+// end to end; the process entry point below supplies the real ones.
+export async function run(
+  args: string[],
+  deps: DmDeps = DEFAULT_DEPS
+): Promise<void> {
   const command = args[0];
 
   if (isHelpArg(command)) {
@@ -452,7 +527,7 @@ export async function main() {
 
   validateDmsArgs(args);
 
-  await ensureClient(['chat']);
+  await deps.ensureClient(['chat']);
 
   switch (command) {
     case 'send': {
@@ -470,12 +545,18 @@ export async function main() {
       let imageVerse: StoryVerse | undefined;
       if (imageUrl) {
         try {
-          imageVerse = await fetchImageVerse(imageUrl);
+          imageVerse = await deps.fetchImageVerse(imageUrl);
         } catch (error: any) {
           printErrorAndExit(error.message);
         }
       }
-      const result = await sendClubMessage(clubId, message, imageVerse);
+      const result = await sendClubMessage(
+        clubId,
+        message,
+        imageVerse,
+        dmBotProfile(args, DMS_COMMAND_HELP.send),
+        deps
+      );
       if (result.success) {
         console.log('✓ Message sent!');
       } else {
@@ -488,7 +569,7 @@ export async function main() {
     case 'reply': {
       const clubId = args[1];
       const postId = args[2];
-      const message = args.slice(3).join(' ');
+      const message = getDmReplyMessage(args);
       if (!clubId || !postId || !message) {
         printUsageAndExit(DMS_COMMAND_HELP.reply);
       }
@@ -497,7 +578,13 @@ export async function main() {
           'reply only supports group DMs (club IDs starting with 0v)'
         );
       }
-      const result = await replyToClub(clubId, postId, message);
+      const result = await replyToClub(
+        clubId,
+        postId,
+        message,
+        dmBotProfile(args, DMS_COMMAND_HELP.reply),
+        deps
+      );
       if (result.success) {
         console.log('✓ Reply sent!');
       } else {
@@ -599,6 +686,10 @@ export async function main() {
       printUsageAndExit(DMS_HELP);
   }
   process.exit(0);
+}
+
+export async function main(): Promise<void> {
+  await run(process.argv.slice(2));
 }
 
 // The unified CLI dynamically imports this module after setting argv to

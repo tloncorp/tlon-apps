@@ -140,7 +140,7 @@ export const DetailView = ({
         onGoToBotRun={onGoToBotRun}
         highlightPostId={highlightPostId}
         firstUnreadId={
-          initialPostUnread?.count ?? 0 > 0
+          (initialPostUnread?.count ?? 0 > 0)
             ? initialPostUnread?.firstUnreadPostId
             : null
         }

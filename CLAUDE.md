@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 -   `pnpm run lint:all` - Run linting across all packages
 -   `pnpm lint:fix` - Fix linting issues (per package)
--   `pnpm lint:format` - Format code with prettier (per package)
+-   `pnpm lint:format` - Format code with oxfmt (per package)
 
 ### Typechecking
 
@@ -293,7 +293,7 @@ Before finalizing a PR, do a focused pass on your own diff:
 -   **Trim debug fat.** Remove leftover `console.log`s, ad-hoc perf marks, commented-out code, and stale `// TODO` notes that no longer apply. Comments that just describe _what_ the code does belong in the identifiers; keep comments only when they explain _why_ (non-obvious constraints, workarounds, decisions).
 -   **Reuse before adding.** Before introducing a new helper/util/constant, grep for an existing one. Don't ship parallel implementations — if the new one is genuinely better, remove the old in the same PR.
 -   **Audit comments for staleness.** A comment written mid-implementation may describe an earlier approach. If it references deleted code or a previous shape of the function, fix or delete it.
--   **Always run Prettier before committing.** Run `npx prettier --check` (or `--write`) on your changed files — or `pnpm lint:format` in the affected package — so a formatting-only diff never lands in the commit or trips CI. Editor/tsc/eslint passing does not guarantee Prettier is satisfied.
+-   **Always run the formatter before committing.** Run `pnpm format:check` (or `pnpm format`) from the repo root — or `pnpm lint:format` in the affected package — so a formatting-only diff never lands in the commit or trips CI. Editor/tsc/lint passing does not guarantee the formatter is satisfied.
 
 ## Testing
 
@@ -546,9 +546,18 @@ Uses Drizzle ORM with SQLite for local data storage:
 -   Migrations in `packages/shared/src/db/migrations/`
 -   Platform-specific database connections in `packages/shared/src/db/`
 
+### Querying and Caching
+
+**Read `docs/tlon-apps/db-react-query.md` before reasoning about whether a component sees fresh data, and before filing a review finding about stale reads.** The caching setup is deliberately unusual and does not match React Query defaults, so don't infer it from memory. The essentials:
+
+-   React Query runs with a global `staleTime: Infinity` (`packages/shared/src/db/reactQuery.ts`). Nothing goes stale with the passage of time — only explicit invalidation makes a query refetch.
+-   DB reads and writes declare table dependencies/effects via `createReadQuery` / `createWriteQuery` (`packages/shared/src/db/query.ts`). A write invalidates readers whose declared tables overlap its effects.
+-   **The deps `Set` from `useKeyFromQueryDeps` must sit at `queryKey` index 1.** The invalidation predicate only looks at that position; a key that puts it elsewhere silently never refreshes again.
+-   `invalidateQueries` flags queries stale and refetches only those with active observers. It does not clear cached data, so a remounted query serves its previous value for a render while refetching in the background — and keeps that value if the refetch fails.
+
 ## Adding a New Post Blob Entry Type
 
-See `docs/post-blobs.md` for the full post-blob spec: wire format, current entry types, read/write behavior, and integration rules.
+See `docs/tlon-apps/post-blobs.md` for the full post-blob spec: wire format, current entry types, read/write behavior, and integration rules.
 
 Use this section as a compact checklist when changing blob behavior.
 

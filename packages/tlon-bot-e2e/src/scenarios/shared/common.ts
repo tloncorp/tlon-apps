@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { expect } from 'vitest';
 
 import type { DriverName, RuntimeContext } from '../../drivers/types.js';
@@ -91,6 +93,47 @@ export const commonScenarios: readonly SharedScenario[] = [
       benignModelCallPredicate(driver)
     );
   }),
+
+  testScenario(
+    'bot-info-publishes-and-replicates',
+    {},
+    async ({ ctx, driver, actors }) => {
+      await actors.bot.state.connect();
+      await actors.owner.state.connect();
+
+      const expected = {
+        harness: driver.name,
+        version: await runtimePackageVersion(ctx),
+      };
+      const firstSelf = await waitForBotInfoClaim(
+        actors.bot,
+        '/v1/self',
+        'bot self-profile',
+        expected
+      );
+      // %contacts holds no record for a peer the ship has never met, so the
+      // per-ship scry below 404s until the owner meets the bot. In the app a
+      // user reaches that state by ordinary means — viewing the bot's profile
+      // pokes %meet, as does adding it as a contact. Poking it here keeps the
+      // scenario faithful to the real read path rather than asserting a state
+      // production never reaches on its own.
+      await actors.owner.state.poke({
+        app: 'contacts',
+        mark: 'contact-action-1',
+        json: { meet: [actors.bot.ship] },
+      });
+
+      const ownerContactPath = `/v1/contact/${actors.bot.ship}`;
+      const firstPeer = await waitForBotInfoClaim(
+        actors.owner,
+        ownerContactPath,
+        `owner contact for ${actors.bot.ship}`,
+        expected
+      );
+      expect(firstPeer.value).toBe(firstSelf.value);
+      logBotInfoProof(driver.name, firstSelf, firstPeer);
+    }
+  ),
 
   testScenario('owner-dm-text-reply', {}, async ({ ctx, driver, actors }) => {
     const key = scenarioKey('owner-text');
@@ -1848,6 +1891,139 @@ function toolResultText(calls: ReceivedCall[]): string {
     .filter((message) => message.role === 'tool' || message.role === 'function')
     .map((message) => message.content?.text ?? '')
     .join('\n');
+}
+
+interface ExpectedBotInfoClaim {
+  harness: DriverName;
+  version: string;
+}
+
+type BotInfoTextField = { type: 'text'; value: string };
+
+async function runtimePackageVersion(ctx: RuntimeContext): Promise<string> {
+  const packageJsonPath = path.join(ctx.packageDir, 'package.json');
+  let packageJson: unknown;
+  try {
+    packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8'));
+  } catch (error) {
+    throw new Error(
+      `Could not read runtime package version from ${packageJsonPath}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+  const version =
+    packageJson && typeof packageJson === 'object'
+      ? (packageJson as { version?: unknown }).version
+      : undefined;
+  if (typeof version !== 'string' || version.length === 0) {
+    throw new Error(
+      `Expected ${packageJsonPath} to contain a non-empty string version.`
+    );
+  }
+  return version;
+}
+
+async function waitForBotInfoClaim(
+  actor: ScenarioActor,
+  scryPath: string,
+  description: string,
+  expected: ExpectedBotInfoClaim
+): Promise<BotInfoTextField> {
+  return waitFor(
+    async () => {
+      const profile = await actor.state.scry<unknown>('contacts', scryPath);
+      return parseBotInfoClaim(profile, description, expected);
+    },
+    {
+      timeoutMs: 60_000,
+      intervalMs: 1_000,
+      description: `valid ${expected.harness} bot-info on ${description}`,
+    }
+  );
+}
+
+function parseBotInfoClaim(
+  profile: unknown,
+  description: string,
+  expected: ExpectedBotInfoClaim
+): BotInfoTextField {
+  const field =
+    profile && typeof profile === 'object' && !Array.isArray(profile)
+      ? (profile as Record<string, unknown>)['bot-info']
+      : undefined;
+  if (!field || typeof field !== 'object' || Array.isArray(field)) {
+    throw new Error(
+      `Expected ${description} to contain bot-info as a %text field, got ${JSON.stringify(
+        field
+      )}.`
+    );
+  }
+  const candidate = field as { type?: unknown; value?: unknown };
+  if (candidate.type !== 'text' || typeof candidate.value !== 'string') {
+    throw new Error(
+      `Expected ${description} bot-info to be a %text field with a string value, got ${JSON.stringify(
+        field
+      )}.`
+    );
+  }
+  const value = candidate.value;
+  const withinRawCap = new TextEncoder().encode(value).byteLength <= 512;
+
+  let claim: unknown;
+  try {
+    claim = JSON.parse(value);
+  } catch (error) {
+    throw new Error(
+      `Expected ${description} bot-info to contain JSON, got ${JSON.stringify(
+        value
+      )}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+  const parsed = (claim ?? {}) as {
+    v?: unknown;
+    harness?: unknown;
+    version?: unknown;
+    harnessVersion?: unknown;
+  };
+  const matchesSchema =
+    withinRawCap &&
+    claim !== null &&
+    typeof claim === 'object' &&
+    !Array.isArray(claim) &&
+    parsed.v === 1 &&
+    parsed.harness === expected.harness &&
+    parsed.version === expected.version &&
+    botInfoString(parsed.harness) &&
+    botInfoString(parsed.version) &&
+    (parsed.harnessVersion === undefined ||
+      botInfoString(parsed.harnessVersion));
+  if (!matchesSchema) {
+    throw new Error(
+      `Expected ${description} bot-info to match v=1, harness=${JSON.stringify(
+        expected.harness
+      )}, and runtime package version=${JSON.stringify(expected.version)} ` +
+        `within the documented size caps, got ${JSON.stringify(claim)}.`
+    );
+  }
+  return { type: 'text', value };
+}
+
+function botInfoString(value: unknown): value is string {
+  return (
+    typeof value === 'string' && value.length > 0 && [...value].length <= 64
+  );
+}
+
+function logBotInfoProof(
+  driverName: DriverName,
+  selfField: BotInfoTextField,
+  peerField: BotInfoTextField
+): void {
+  process.stdout.write(
+    `[tlon-bot-e2e] bot-info proof driver=${driverName} ` +
+      `self=${JSON.stringify(selfField)} owner=${JSON.stringify(peerField)}\n`
+  );
 }
 
 function parsePendingNudge(value: unknown): { stage?: unknown } | undefined {

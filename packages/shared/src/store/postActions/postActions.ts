@@ -677,6 +677,13 @@ async function _editPost({
         content: finalized.content,
         metadata: finalized.metadata,
         parentId: postBeforeEdit.parentId ?? undefined,
+        // An edit resubmits the whole essay, so the post's authorship shape has
+        // to be carried back in: without this a bot-authored post is rewritten
+        // to a bare ship author and loses its "Bot" tag. Display values come
+        // from contact sync, so only the shape is preserved.
+        ...(postBeforeEdit.isBot
+          ? { botProfile: { nickname: null, avatar: null } }
+          : {}),
       });
     });
     logger.log('editPost api call done');

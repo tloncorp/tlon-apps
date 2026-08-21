@@ -4,6 +4,7 @@ import { Icon, Pressable } from '@tloncorp/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, SizableText, View, XStack, YStack } from 'tamagui';
 
+import { CopyRawPayloadButton } from './CopyRawPayloadButton';
 import { RecentRunList } from './RecentRunList';
 import { RunInspector } from './RunInspector';
 import { RunSummary } from './RunSummary';
@@ -250,15 +251,15 @@ export function ContextLensPanel({
   // staying pinned to the stale snapshot captured at selection time. Fall back
   // to the frozen selection if it has aged out of the list.
   const selectedRunEvent = selectedRun
-    ? runs.find((event) => event.lens.lensId === selectedRun.lens.lensId) ??
-      selectedRun
+    ? (runs.find((event) => event.lens.lensId === selectedRun.lens.lensId) ??
+      selectedRun)
     : undefined;
   // prefer the more authoritative of the live event and the synced lookup so a
   // stale in-flight live snapshot can't mask a finalized synced row
   const selectedDetail =
     selectedEvent && selectedLookupEvent
       ? preferred(selectedEvent, selectedLookupEvent)
-      : selectedEvent ?? selectedLookupEvent;
+      : (selectedEvent ?? selectedLookupEvent);
   const panelMode = selectedRun ? 'run' : selectedMessage ? 'selected' : 'live';
   const latest =
     panelMode === 'run'
@@ -396,32 +397,35 @@ export function ContextLensPanel({
                   : 'Run inspector'}
           </SizableText>
         </YStack>
-        {streamStatus !== 'disabled' ? (
-          <XStack
-            alignItems="center"
-            gap="$xs"
-            borderWidth={1}
-            borderColor="$border"
-            borderRadius="$s"
-            paddingHorizontal="$s"
-            paddingVertical="$2xs"
-            backgroundColor="$secondaryBackground"
-          >
-            <View
-              width={6}
-              height={6}
-              borderRadius={999}
-              backgroundColor={
-                streamStatus === 'connected'
-                  ? TONE_COLORS.positive
-                  : TONE_COLORS.warning
-              }
-            />
-            <SizableText size="$s" color="$secondaryText">
-              {streamStatus}
-            </SizableText>
-          </XStack>
-        ) : null}
+        <XStack alignItems="center" gap="$xs" flexShrink={0}>
+          {streamStatus !== 'disabled' ? (
+            <XStack
+              alignItems="center"
+              gap="$xs"
+              borderWidth={1}
+              borderColor="$border"
+              borderRadius="$s"
+              paddingHorizontal="$s"
+              paddingVertical="$2xs"
+              backgroundColor="$secondaryBackground"
+            >
+              <View
+                width={6}
+                height={6}
+                borderRadius={999}
+                backgroundColor={
+                  streamStatus === 'connected'
+                    ? TONE_COLORS.positive
+                    : TONE_COLORS.warning
+                }
+              />
+              <SizableText size="$s" color="$secondaryText">
+                {streamStatus}
+              </SizableText>
+            </XStack>
+          ) : null}
+          <CopyRawPayloadButton payload={latest} />
+        </XStack>
       </XStack>
 
       {panelMode === 'selected' ? (

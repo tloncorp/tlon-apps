@@ -65,12 +65,30 @@ jobs:
     defaults:
       run:
         working-directory: .
+    env:
+      # assemble-desk.sh runs `peru sync` unless told otherwise, and
+      # branch-desk.ts caps an assemble at 300s — a cold sync has measured
+      # 277s. The step below syncs once, unbounded. See TLON-6338.
+      SKIP_SYNC: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install peru
         run: pipx install --force peru
+
+      - name: Cache vendored desk dependencies
+        id: desk-deps
+        uses: actions/cache@v4
+        with:
+          path: desk-deps
+          # The picked output is 25 files (~150K) and fully determined by
+          # peru.yaml's pins; peru's own .peru/ cache holds full clones (~800MB).
+          key: tlon-desk-deps-${{ hashFiles('peru.yaml') }}
+
+      - name: Sync desk dependencies
+        if: steps.desk-deps.outputs.cache-hit != 'true'
+        run: ./scripts/sync-deps.sh
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v4

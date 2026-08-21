@@ -2,10 +2,12 @@ package io.tlon.landscape;
 
 import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import java.util.Random;
+import io.tlon.landscape.notifications.NotificationPresentationState;
 import io.tlon.landscape.storage.SecureStorage;
 
 public class UrbitModule extends ReactContextBaseJavaModule {
@@ -39,7 +41,13 @@ public class UrbitModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void clearUrbit() {
+        NotificationPresentationState.setActiveChannelId(null);
         SecureStorage.clear();
+    }
+
+    @ReactMethod
+    public void setActiveNotificationChannel(@Nullable String channelId) {
+        NotificationPresentationState.setActiveChannelId(channelId);
     }
 
     // Caches whether the connected backend's %activity supports reactions, so

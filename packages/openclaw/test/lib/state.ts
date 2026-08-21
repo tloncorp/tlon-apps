@@ -24,6 +24,7 @@ import {
   sendReply,
 } from '@tloncorp/api';
 import type { Story } from '@tloncorp/api';
+import { randomUUID } from 'node:crypto';
 
 export interface StateClientConfig {
   shipUrl: string;
@@ -198,7 +199,10 @@ export function createStateClient(config: StateClientConfig): StateClient {
 
     async createGroup(title: string, memberIds?: string[]) {
       return withClient(async () => {
-        const slug = Math.random().toString(36).slice(2, 10);
+        // Leading letter is load-bearing: urbit terms (group/channel slugs)
+        // must not start with a digit — the group-create spider thread 500s
+        // parsing the flag otherwise ("syntax error {1 6}").
+        const slug = `t${randomUUID().replaceAll('-', '').slice(0, 9)}`;
         const groupId = `~${shipName}/${slug}`;
         const channelSlug = `${slug}-general`;
         const chatChannel = `chat/~${shipName}/${channelSlug}`;
