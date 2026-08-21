@@ -2,6 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useEffect, useState } from 'react';
+import { Switch } from 'react-native';
 import { YStack, useTheme } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
@@ -24,6 +25,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 export function ThemeScreen(props: Props) {
   const theme = useTheme();
   const { data: storedTheme, isLoading } = useThemeSettings();
+  const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
   const [selectedTheme, setSelectedTheme] = useState<AppTheme>('auto');
   const [loadingTheme, setLoadingTheme] = useState<AppTheme | null>(null);
 
@@ -58,6 +60,10 @@ export function ThemeScreen(props: Props) {
     }
   };
 
+  const handleShowDeleteMarkersChange = async (value: boolean) => {
+    await store.updateShowDeleteMarkers(value);
+  };
+
   useEffect(() => {
     if (!isLoading && storedTheme !== undefined) {
       setSelectedTheme(normalizeTheme(storedTheme));
@@ -69,7 +75,7 @@ export function ThemeScreen(props: Props) {
   return (
     <View backgroundColor={theme?.background?.val} flex={1}>
       <ScreenHeader
-        title="Theme"
+        title="Appearance"
         borderBottom
         backAction={
           isWindowNarrow ? () => props.navigation.goBack() : undefined
@@ -104,6 +110,21 @@ export function ThemeScreen(props: Props) {
               </ListItem>
             </Pressable>
           ))}
+          <ListItem marginTop="$l">
+            <ListItem.MainContent>
+              <ListItem.Title>Show delete markers</ListItem.Title>
+              <ListItem.Subtitle>
+                Show where messages have been deleted
+              </ListItem.Subtitle>
+            </ListItem.MainContent>
+            <ListItem.EndContent>
+              <Switch
+                value={showDeleteMarkers}
+                onValueChange={handleShowDeleteMarkersChange}
+                testID="ShowDeleteMarkersToggle"
+              />
+            </ListItem.EndContent>
+          </ListItem>
         </YStack>
       </SettingsContentScrollView>
     </View>

@@ -249,6 +249,9 @@ export default function ChannelScreen(props: Props) {
     () => configurationFromChannel(channel),
     [channel]
   );
+  const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
+  const includeDeletedPosts =
+    channelConfiguration?.includeDeletedPosts && showDeleteMarkers;
 
   const {
     posts,
@@ -262,7 +265,7 @@ export default function ChannelScreen(props: Props) {
     enabled: unreadDidInitialize && !!channel && !channel?.isPendingChannel,
     channelId: currentChannelId,
     count: 30,
-    filterDeleted: !channelConfiguration?.includeDeletedPosts,
+    filterDeleted: !includeDeletedPosts,
     ...(cursor && !clearedCursor
       ? {
           mode: 'around',
@@ -315,11 +318,8 @@ export default function ChannelScreen(props: Props) {
   }, [postsQuery, posts, loadOlder, unreadDidInitialize]);
 
   const filteredPosts = useMemo(
-    () =>
-      channelConfiguration?.includeDeletedPosts
-        ? posts
-        : posts?.filter((p) => !p.isDeleted),
-    [posts, channelConfiguration?.includeDeletedPosts]
+    () => (includeDeletedPosts ? posts : posts?.filter((p) => !p.isDeleted)),
+    [posts, includeDeletedPosts]
   );
   usePushNotifTapTelemetry({
     channelId: currentChannelId,
