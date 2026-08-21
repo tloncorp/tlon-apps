@@ -14,7 +14,7 @@ This only runs if the household switched it on, so they have already seen a plan
 
 Same shape as every week: a dinner per night with a one-line reason, then a grocery list grouped by aisle, quantities for the household size in the profile. One note in Meal Plans, titled by the week's dates.
 
-Then one message in the Kitchen with the link. One. If a night is a deliberate repeat or a deliberate stretch, that is worth a clause; nothing else is.
+Then one post in the Kitchen: the new week's interactive card, built per "The weekly card" instruction (fresh surfaceId, revision 0, post id recorded in `Meal Plan/Card.md`). One. If a night is a deliberate repeat or a deliberate stretch, that is worth a clause in the message text; nothing else is.
 
 ## Judgement
 

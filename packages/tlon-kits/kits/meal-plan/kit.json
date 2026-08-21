@@ -26,6 +26,11 @@
       "load": "ambient"
     },
     {
+      "file": "instructions/card.md",
+      "scope": "group",
+      "load": "ambient"
+    },
+    {
       "file": "instructions/setup.md",
       "scope": "group",
       "trigger": "install.setup",

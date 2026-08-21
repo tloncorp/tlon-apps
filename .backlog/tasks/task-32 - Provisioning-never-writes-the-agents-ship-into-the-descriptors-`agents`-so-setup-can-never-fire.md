@@ -6,7 +6,7 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-20 21:55'
-updated_date: '2026-08-21 00:12'
+updated_date: '2026-08-21 00:30'
 labels:
   - workspaces
   - kits
@@ -35,7 +35,7 @@ Related gap found alongside it: TASK-16 deliberately does not write the descript
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [x] #1 After provisioning, the descriptor's `agents` names the ship whose harness will execute the kit, not the installing ship
-- [ ] #2 A kit install by ~ten with a bot on ~zod fires setup, and the starter artifact appears
+- [x] #2 A kit install by ~ten with a bot on ~zod fires setup, and the starter artifact appears
 - [ ] #3 Whatever writes `agents` does not race or clobber the blob write %kits performs during install
 - [ ] #4 Production's moon-based bot satisfies the same path — the fix is not specific to two independent ships
 - [ ] #5 A test covers installer ≠ agent, so the case that is broken today cannot silently return
@@ -93,4 +93,6 @@ Running that test is the first thing to do next — it should fail, and it shoul
 **Test status, claimed precisely:** JS provisioning tests pass and were proven to bite (2 fail when the fix is reverted). Decoder test ran on-ship and passed. The updated `tests/app/kits.hoon` (installer≠agent fixtures) is committed but has not RUN — both fakezods' lenses now 500 on pokes/threads (expressions still evaluate), so the line-445-fixed test file can't land or run until the ships restart. AC #5 stays unchecked until it executes.
 
 2026-08-21: AC #2 artifact half PROVEN on-ship — scried notes/v0 on ~ten: note id 9 in plans-task32-e2e, createdBy ~zod, full 7-day dinner plan + grocery list, exactly per the kit's setup.md. The setup turn's final kitchen message was blocked by an openclaw host bug (padded poll params reclassify a plain send as a poll — filed as TASK-33, patched in the dev rig via dev/patch-host-poll-heuristic.mjs run from entrypoint against BOTH host installs; the gateway runs the plugin's hoisted openclaw copy, not the global one). Container recreated with the patch; each boot re-fires the setup turn (Finding 1's NACK keeps setup pending), so the next turn doubles as the patch verification. AC #5 (on-ship Hoon app tests) stays blocked: both lenses 500 on pokes/threads and a rube restart would nuke the demo state — run after the simulator walkthrough.
+
+AC #2 CLOSED, both halves proven on-ship: the starter artifact (note id 9 in plans-task32-e2e, createdBy ~zod, full week + grocery list) and the kitchen message (~zod: 'The first dinner plan is in [Meal Plans]… tell me how many people you're feeding and anything nobody eats', scried from chat/~ten/kitchen-task32-e2e). The kitchen half required the TASK-33 poll-heuristic patch on BOTH host installs (the gateway runs the plugin's hoisted openclaw copy). Remaining: Finding 1 (setup-done ames relay — restarts still re-fire setup) and AC #5 (Hoon app tests, blocked on wedged lenses; run after the simulator walkthrough).
 <!-- SECTION:NOTES:END -->

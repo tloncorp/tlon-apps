@@ -25,6 +25,8 @@ Blocked in Hermes' `tlon` tool: plain-text `posts reply`/`dms send`/`dms reply` 
 
 When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
 
+**Interactive cards are the exception to the message-tool rule.** The `message` tool cannot carry a post blob, so a post that includes one — an interactive card, or an edit to one — goes through `tlon posts send`/`tlon posts edit` with `--blob` (see Interactive cards under Posts). Use `--bot` on such sends so the post keeps the bot authorship tag the `message` tool would have applied.
+
 **Images are the exception: upload them first.** The `message` tool's `media=` parameter takes only an uploaded https URL — never a local file path, unlike other OpenClaw channels. `tlon upload` accepts a URL, a local file path, or stdin, and prints the uploaded URL:
 
 ```bash
@@ -464,21 +466,40 @@ tlon posts delete heap/~host/gallery 170.141...          # Delete a gallery post
 
 Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
 
-`posts edit` edits message text only. The former notebook-only `--title`/`--image`/`--content` edit flags are removed (they refuse with an explanatory error). Deprecated diary channels are unmanaged by the CLI except through the owner-run `tlon notes migrate-plan <diary-nest>` and `tlon notes migrate-apply <diary-nest> --yes` paths.
+`posts edit` edits message text and/or the post blob (`--blob <json>`, see Interactive cards below; omit to preserve the existing blob, `'[]'` to clear it, `--expected-revision <n>` to refuse a stale edit, `--force` to allow dropping an a2ui entry). The former notebook-only `--title`/`--image`/`--content` edit flags are removed (they refuse with an explanatory error). Deprecated diary channels are unmanaged by the CLI except through the owner-run `tlon notes migrate-plan <diary-nest>` and `tlon notes migrate-apply <diary-nest> --yes` paths.
 
 Message text supports Markdown lists, task lists, blockquotes, code, links, and ship mentions; raw HTML blocks and reference-style links are not supported. Never use LaTeX math delimiters ($...$, $$...$$, \(...\), \[...\]) — Tlon renders no math; write math as plain text/Unicode or in code blocks.
+
+### Interactive cards
+
+A post can carry structured UI in its blob: `--blob '<json>'` on `posts send`/`posts reply`/`posts edit` takes a JSON **array** of typed entries. Tlon clients render an `a2ui` entry as an interactive card inline in any chat conversation; older clients degrade it to an "Upgrade your app" notice.
+
+An `a2ui` entry is `{"type":"a2ui","version":1,"messages":[...]}` with two v0.9 messages: `{"version":"v0.9","createSurface":{"surfaceId":"<unique-per-post>","catalogId":"tlon.a2ui.basic.v1"}}` and `{"version":"v0.9","updateComponents":{"surfaceId":"<same>","root":"<id>","components":[...]}}`. Components form a **flat list** referenced by id (containers name `children: [ids]`; `Card` and `Button` name a single `child` id):
+
+-   `Text` — `text`, optional `variant` (`body` | `caption` | `h1`–`h5`), optional `weight` (flex)
+-   `Row` / `Column` — `children`, optional `justify` (`start`|`center`|`end`|`spaceBetween`|`spaceAround`), `align` (`start`|`center`|`end`|`stretch`)
+-   `Card` — `child` (the bordered-card wrapper)
+-   `Divider`
+-   `Button` — `child` (usually a `Text`), optional `variant` (`default`|`primary`|`secondary`|`borderless`), and an `action`:
+    -   `{"event":{"name":"tlon.sendMessage","context":{"text":"..."}}}` — the tapping user posts that text into the current conversation (this is how a button reaches you: the text arrives as a normal message from them)
+    -   `{"event":{"name":"tlon.navigate","context":{"target":{"type":"channel","channelId":"<nest>","groupId":"<flag>"}}}}` — also `message`, `group`, `profile` targets
+
+Validation limits (the post is refused past any): 50 components, depth 8, 12 children per container, 1000 chars per text node, 8000 chars total text, 32KB per entry.
+
+A **stateful** card adds a sibling `interactive-surface` entry on the same post: `{"type":"interactive-surface","version":1,"surfaceId":"<same as the a2ui entry>","revision":0,"state":{...},"processedActionIds":[]}`. `state` is yours (≤8KB JSON); `revision` starts at 0 and bumps by exactly 1 per edit you apply. Rules that matter:
+
+-   `surfaceId` is unique per post instance and identical in both entries.
+-   **An edit stores the blob wholesale: re-emit the entire array every time.** Anything you leave out is erased — omit the a2ui entry and the card is deleted for every member. `posts edit` refuses a `--blob` that drops an existing a2ui entry unless you pass `--force`.
+-   Pass `--expected-revision <n>` on card edits so a stale rebuild refuses instead of clobbering newer state.
+-   The host assigns post ids, so after `posts send` read the id back with `tlon messages channel <nest> --limit 5` (your post shows its `ID:` and blob) and record it — you need it to edit the card later.
+
+Write the JSON to a file and pass `--blob "$(cat card.json)"` rather than inlining it. Full protocol: `docs/tlon-apps/interactive-surfaces.md` and `docs/tlon-apps/post-blobs.md` in the tlon-apps repo.
 
 ### Notes
 
 Manage %notes notebooks (Markdown-first). Notebooks are nests of the form `notes/~host/name`; note bodies are plain Markdown (not Tlon Story).
 
-Do not use LaTeX math delimiters (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) in
-note bodies or message text. No Tlon surface renders math: the delimiters
-display literally or get mangled (Markdown emphasis, mentions, and escaping can
-corrupt the text inside and around them), and in a note body the backslashes in
-`\(` and `\[` are silently eaten by Markdown escaping, so those delimiters
-vanish. Write math as plain text/Unicode (`x²`, `E = mc²`, `θ ∈ [0, 2π)`) and
-use code blocks or inline code for complex formulas.
+Do not use LaTeX math delimiters (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) in note bodies or message text. No Tlon surface renders math: the delimiters display literally or get mangled (Markdown emphasis, mentions, and escaping can corrupt the text inside and around them), and in a note body the backslashes in `\(` and `\[` are silently eaten by Markdown escaping, so those delimiters vanish. Write math as plain text/Unicode (`x²`, `E = mc²`, `θ ∈ [0, 2π)`) and use code blocks or inline code for complex formulas.
 
 ```bash
 tlon notes status                                        # Check %notes reachability
