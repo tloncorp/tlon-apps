@@ -151,6 +151,8 @@ if ! printf '%s' "$TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES" | jq -e 'tonumber 
   exit 1
 fi
 
+# OpenClaw 7.1 allowlists manifest IDs, not npm package names. Using "tlon"
+# also prevents Doctor from installing a second canonical Tlon plugin.
 cat > "$CONFIG_DIR/openclaw.json" << EOF
 {
   "models": {
@@ -205,7 +207,7 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
     }
   },
   "plugins": {
-    "allow": ["@tloncorp/openclaw"],
+    "allow": ["tlon"],
     "load": {
       "paths": ["/workspace/tlon"]
     },

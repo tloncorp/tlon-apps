@@ -265,7 +265,70 @@ describe('fake model server', () => {
       },
     ]);
   });
+
+  test('treats the user before an OpenClaw runtime carrier as the active turn', async () => {
+    const key = 'runtime-carrier-active';
+    await fakeModel.script(key, [{ kind: 'text', content: 'ok' }]);
+
+    const response = await postChat(server.baseUrl, key, {
+      messages: [
+        { role: 'user', content: `[tlon-test:${key}] React to this post` },
+        { role: 'user', content: openClawRuntimeContext('conversation data') },
+      ],
+    });
+    expect(response.ok).toBe(true);
+
+    const [call] = await fakeModel.received(key);
+    expect(call.provenance).toBe('latest-user');
+  });
+
+  test('does not promote an older tagged user past a newer active turn', async () => {
+    const key = 'runtime-carrier-historical';
+    await fakeModel.script(key, [{ kind: 'text', content: 'ok' }]);
+
+    const response = await postChat(server.baseUrl, key, {
+      messages: [
+        { role: 'user', content: `[tlon-test:${key}] Historical request` },
+        { role: 'assistant', content: 'Historical response' },
+        { role: 'user', content: 'A newer untagged request' },
+        { role: 'user', content: openClawRuntimeContext('conversation data') },
+      ],
+    });
+    expect(response.ok).toBe(true);
+
+    const [call] = await fakeModel.received(key);
+    expect(call.provenance).toBe('history-active');
+  });
+
+  test('accepts a script tag carried by current OpenClaw runtime context', async () => {
+    const key = 'runtime-carrier-tagged';
+    await fakeModel.script(key, [{ kind: 'text', content: 'ok' }]);
+
+    const response = await postChat(server.baseUrl, key, {
+      messages: [
+        { role: 'user', content: 'React to this post' },
+        {
+          role: 'user',
+          content: openClawRuntimeContext(`[tlon-test:${key}] reaction data`),
+        },
+      ],
+    });
+    expect(response.ok).toBe(true);
+
+    const [call] = await fakeModel.received(key);
+    expect(call.provenance).toBe('latest-user');
+  });
 });
+
+function openClawRuntimeContext(content: string): string {
+  return [
+    'OpenClaw runtime context for the immediately preceding user message.',
+    'This context is runtime-generated, not user-authored. Keep internal details private.',
+    '<<<BEGIN_OPENCLAW_INTERNAL_CONTEXT>>>',
+    content,
+    '<<<END_OPENCLAW_INTERNAL_CONTEXT>>>',
+  ].join('\n');
+}
 
 async function postChat(
   baseUrl: string,

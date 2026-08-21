@@ -2,6 +2,12 @@ import crypto from 'node:crypto';
 import http from 'node:http';
 
 const TLON_TEST_KEY_RE = /\[tlon-test:([a-zA-Z0-9_.:-]+)\]/g;
+const OPENCLAW_RUNTIME_CONTEXT_HEADER =
+  'OpenClaw runtime context for the immediately preceding user message.';
+const OPENCLAW_RUNTIME_CONTEXT_NOTICE =
+  'This context is runtime-generated, not user-authored. Keep internal details private.';
+const OPENCLAW_RUNTIME_CONTEXT_BEGIN = '<<<BEGIN_OPENCLAW_INTERNAL_CONTEXT>>>';
+const OPENCLAW_RUNTIME_CONTEXT_END = '<<<END_OPENCLAW_INTERNAL_CONTEXT>>>';
 const MAX_REGISTRATION_HISTORY = 500;
 const MAX_SUMMARY_TEXT_LENGTH = 300;
 
@@ -432,9 +438,26 @@ function extractTagFromLastUserTurn(messages) {
     for (const match of text.matchAll(TLON_TEST_KEY_RE)) {
       latest = match[1];
     }
+    if (isOpenClawRuntimeContextCarrier(text)) {
+      if (latest) {
+        return latest;
+      }
+      continue;
+    }
     return latest;
   }
   return null;
+}
+
+function isOpenClawRuntimeContextCarrier(text) {
+  const normalized = text.replace(/\r\n/g, '\n');
+  return (
+    normalized.startsWith(
+      `${OPENCLAW_RUNTIME_CONTEXT_HEADER}\n${OPENCLAW_RUNTIME_CONTEXT_NOTICE}`
+    ) &&
+    normalized.includes(`\n${OPENCLAW_RUNTIME_CONTEXT_BEGIN}\n`) &&
+    normalized.includes(`\n${OPENCLAW_RUNTIME_CONTEXT_END}`)
+  );
 }
 
 function benignFiller() {
