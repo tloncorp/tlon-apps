@@ -13,6 +13,12 @@ import {
   recordAuthRetryFailure,
 } from '../auth-retry-state.js';
 import {
+  type SelfContactRead,
+  buildBotInfoJson,
+  syncBotInfo,
+} from '../bot-info.js';
+import { engagementTokens } from '../commands-registry.js';
+import {
   findRecentContextLensById,
   publishContextLensEvent,
   setContextLensEventCapacity,
@@ -104,6 +110,7 @@ import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
   formatTlonVersionIdentity,
+  getTlonVersionIdentity,
   resolveTlonSkillVersion,
 } from '../version.js';
 import {
@@ -134,6 +141,12 @@ import {
 } from './command-bridge.js';
 import { createComputingPresenceTracker } from './computing-presence.js';
 import { fetchAllChannels, fetchInitData } from './discovery.js';
+import {
+  createCompactionTimeoutObserver,
+  isAgentTimeoutEvent,
+  resolveCompactionObservationTimeoutMs,
+  resolveDispatchTimeoutMs,
+} from './dispatch-timeouts.js';
 import { dmReactionReplyParentId } from './dm-reactions.js';
 import {
   buildThreadContextMessage,
@@ -184,6 +197,7 @@ import {
   isChannelRestricted,
   isDmAllowed,
   isOwnerListenSlashCommand,
+  isRegisteredCommandText,
   isSummarizationRequest,
   parseBlockedShips,
   prepareInboundText,
@@ -249,14 +263,6 @@ type WritResponseDelta =
       'add-react'?: never;
     };
 type WritResponse = { whom: string; id: string; response: WritResponseDelta };
-const DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS = 120_000;
-
-function normalizeRunTimeoutMs(value: number | null | undefined): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 1_000
-    ? Math.floor(value)
-    : DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS;
-}
-
 // Holds the latest monitor transport for gateway lifecycle hooks, which run
 // outside the monitor's async client scope. See gateway-status.ts.
 const apiClientParamsSlot = sharedSlot<SharedApiClientParams>(
@@ -548,6 +554,47 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
   let api: UrbitSSEClient | null = null;
   let cookie: string;
+  // Set by the boot self-contact scry; reconnect publishes re-read instead.
+  let bootSelfContactRead: SelfContactRead | undefined;
+
+  // Publish the bot's identity claim in its own contact profile:
+  // compare-then-poke, non-fatal, skipped when the self-contact read failed
+  // (see syncBotInfo). Declared here — before the SSE client that can call it
+  // on reconnect — and hoisted so that callback is safe.
+  async function publishBotInfoNow(reason: 'boot' | 'reconnect') {
+    if (!api) {
+      return;
+    }
+    try {
+      // The host always reports a version; an empty one means the SDK contract
+      // moved under us. The claim still stands without it (the field is a
+      // diagnostic rider), but say so loudly.
+      if (!core.version) {
+        runtime.error?.(
+          '[tlon] Host reported no version; publishing bot info without harnessVersion'
+        );
+      }
+      // The builder throws when the claim serializes past the byte cap, and
+      // boot awaits this call — so it has to be inside the guard too, or an
+      // oversized value would take the bot offline instead of just leaving it
+      // unidentified.
+      const result = await syncBotInfo(
+        api,
+        buildBotInfoJson({
+          version: getTlonVersionIdentity().pluginVersion,
+          harnessVersion: core.version,
+        }),
+        reason === 'boot' ? bootSelfContactRead : undefined,
+        undefined,
+        opts.abortSignal
+      );
+      if (result !== 'unchanged') {
+        runtime.log?.(`[tlon] Bot info ${result} (${reason})`);
+      }
+    } catch (e) {
+      runtime.error?.(`[tlon] Bot info publish failed (${reason})`, e);
+    }
+  }
   // Stream-watchdog thresholds are normally hardcoded defaults in the client.
   // The E2E harness overrides them via env so a detached-network fault surfaces
   // within the scenario's wait window (see TLON_NUDGE_TICK_INTERVAL_MS for the
@@ -619,6 +666,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // hung socket) is invisible in PostHog — only stdout.
       onStreamRecovery: (event) => {
         if (event.phase === 'reconnected') {
+          // Catch-up publish, mirroring Hermes's reconnect path: a failed boot
+          // publish, or a key cleared while this process stayed alive, would
+          // otherwise persist until a restart. Fire-and-forget and non-fatal.
+          void publishBotInfoNow('reconnect');
           if (event.attempt > 0 || (event.downtimeMs ?? 0) > 0) {
             capturePluginError(
               'sse_stream',
@@ -986,6 +1037,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // Fetch bot's nickname and all contacts
     try {
       const selfProfile = await api.scry('/contacts/v1/self.json');
+      bootSelfContactRead = { ok: true, contact: selfProfile };
       if (selfProfile && typeof selfProfile === 'object') {
         const profile = selfProfile as {
           nickname?: { value?: string };
@@ -999,10 +1051,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
       }
     } catch (error: any) {
+      bootSelfContactRead = { ok: false, error };
       runtime.log?.(
         `[tlon] Could not fetch self profile: ${error?.message ?? String(error)}`
       );
     }
+
+    // Compare-then-poke against the self-contact just scried; %self is a
+    // merge, so nickname/avatar survive.
+    await publishBotInfoNow('boot');
 
     // Fetch all contacts to populate nickname cache
     try {
@@ -2934,9 +2991,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         : `${senderDisplay} [${senderRole}]`;
       const attachmentCount = attachments.length;
 
-      // Compute command authorization for slash commands (owner-only)
+      // Compute command authorization for slash commands (owner-only).
+      // Gate on the same raw text CommandBody is built from below: by this
+      // point messageText may carry prepended channel/thread context or blob
+      // annotations, which hide the leading slash — the gate would then skip
+      // authorization while CommandBody still carries the command, and the
+      // gateway silently drops it as unauthorized.
+      const commandBody = isGroup
+        ? stripBotMentionOutsidePlaceholders(rawMessageText, botShipName)
+        : rawMessageText;
       const shouldComputeAuth =
-        core.channel.commands.shouldComputeCommandAuthorized(messageText, cfg);
+        core.channel.commands.shouldComputeCommandAuthorized(commandBody, cfg);
       let commandAuthorized = false;
 
       if (shouldComputeAuth) {
@@ -2996,11 +3061,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         body: bodyWithAttachments,
       });
 
-      // Use raw text (no thread context) for command detection so "/status" is recognized
-      const commandBody = isGroup
-        ? stripBotMentionOutsidePlaceholders(rawMessageText, botShipName)
-        : rawMessageText;
-
+      // commandBody was computed above (raw text, no thread/channel context)
+      // so command detection and authorization gate on the same string.
       const ctxPayload = core.channel.reply.finalizeInboundContext({
         Body: body,
         BodyForAgent: bodyWithAttachments,
@@ -3076,9 +3138,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           : undefined;
 
       const dispatchStartTime = Date.now();
-      const dispatchTimeoutMs = normalizeRunTimeoutMs(
-        account.lifecycle.runTimeoutMs
-      );
+      const dispatchTimeoutMs = resolveDispatchTimeoutMs(account.lifecycle);
+      const compactionObservationTimeoutMs =
+        resolveCompactionObservationTimeoutMs(cfg);
       const runId = randomUUID();
       const turnRecorder = startTlonAgentTurn({
         accountId: account.accountId,
@@ -3113,6 +3175,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       let replyWordCount = 0;
       let replyMediaCount = 0;
       let dispatchTimedOut = false;
+      const compactionTimeoutObserver = createCompactionTimeoutObserver({
+        timeoutMs: compactionObservationTimeoutMs,
+        onTimeout: () => {
+          // Observation only. OpenClaw owns the deadline and cancellation.
+          dispatchTimedOut = true;
+        },
+      });
+      const stopAgentEventObservation = core.events.onAgentEvent((event) => {
+        if (isAgentTimeoutEvent(event, runId)) {
+          dispatchTimedOut = true;
+        }
+      });
       const dispatchAbortController = new AbortController();
       const abortFromMonitor = () => {
         if (!dispatchAbortController.signal.aborted) {
@@ -3198,6 +3272,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         ...(sourceReplyDeliveryMode ? { sourceReplyDeliveryMode } : {}),
         timeoutOverrideSeconds: Math.ceil(dispatchTimeoutMs / 1000),
         runId,
+        onCompactionStart: compactionTimeoutObserver.start,
+        onCompactionEnd: compactionTimeoutObserver.complete,
         onModelSelected: ({ provider, model, thinkLevel }) => {
           selectedProvider = provider;
           selectedModel = model;
@@ -3241,7 +3317,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       let turnSummary: TlonAgentTurnSummary | undefined;
 
       try {
-        let timeoutId: ReturnType<typeof setTimeout> | null = null;
         try {
           contextLenses.setStatus(lens.lensId, 'dispatching');
           contextLenses.recordLifecycle(lens.lensId, {
@@ -3250,16 +3325,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           });
           bindContextLensToSession(lensSessionKeys, contextLenses, lens.lensId);
           logContextLens(lens.lensId, 'dispatching');
-          timeoutId = setTimeout(() => {
-            dispatchTimedOut = true;
-            if (!dispatchAbortController.signal.aborted) {
-              dispatchAbortController.abort(
-                new Error(
-                  `Tlon dispatch timed out after ${dispatchTimeoutMs}ms`
-                )
-              );
-            }
-          }, dispatchTimeoutMs);
           dispatchResult = await recordTlonRouteAndDispatch({
             session: core.channel.session,
             cfg,
@@ -3500,9 +3565,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               }),
           });
         } finally {
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
+          compactionTimeoutObserver.stop();
+          stopAgentEventObservation();
         }
       } catch (error) {
         dispatchError = error;
@@ -3572,7 +3636,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           turnSummary,
           dispatchError,
         });
-        if (!dispatchError) {
+        if (dispatchTimedOut) {
+          contextLenses.setStatus(lens.lensId, 'timed_out', dispatchError);
+        } else if (!dispatchError) {
           contextLenses.setStatus(
             lens.lensId,
             effectiveDeliveredCount > 0 ? 'completed' : 'no_reply'
@@ -3821,16 +3887,23 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // 1. Direct mention always triggers response
         // 2. Thread replies where we've participated - respond if relevant (let agent decide)
         // 3. Owner blob-only message (image/file with no text from owner)
-        // 4. Owner-listen: owner posts in an owner/bot-hosted channel and the
+        // 4. Owner command: owner's bare registered/core slash command in any
+        //    watched chat channel (escape hatch; the popup inserts these bare).
+        //    The chat/ constraint keeps heap/diary behavior unchanged.
+        // 5. Owner-listen: owner posts in an owner/bot-hosted channel and the
         //    channel is not in the per-channel disabled list
         const inParticipatedThread = Boolean(
           isThreadReply && parentId && participatedThreads.has(parentId)
         );
         const isOwnerBlob = hasBlob && isOwner(senderShip);
+        const isOwnerCommand =
+          nest.startsWith('chat/') &&
+          isRegisteredCommandText(rawText, engagementTokens());
         const engageDecision = shouldEngageInGroup({
           mentioned,
           inParticipatedThread,
           isOwnerBlob,
+          isOwnerCommand,
           senderShip,
           ownerShip: effectiveOwnerShip,
           botShipName,
@@ -3843,13 +3916,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
+        // 'owner-command' maps onto the existing 'owner-listen' trigger: both
+        // are owner-initiated no-mention engagement, and both trigger unions
+        // (ContextLensTrigger, TlonAgentTurnTrigger) plus the run-kind mapping
+        // already accept it without parallel edits.
         const trigger: ContextLensTrigger = mentioned
           ? 'mention'
           : inParticipatedThread
             ? 'thread'
             : isOwnerBlob
               ? 'owner-blob'
-              : engageDecision.reason === 'owner-owned'
+              : engageDecision.reason === 'owner-owned' ||
+                  engageDecision.reason === 'owner-command'
                 ? 'owner-listen'
                 : 'unknown';
 

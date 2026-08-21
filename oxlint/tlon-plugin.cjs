@@ -9,11 +9,23 @@ const TOP_TAB_ROUTES = /^(ChatList|Activity|Contacts|Settings)$/;
 const NAVIGATE_MESSAGE =
   "navigate() to a top-level tab route must pass { pop: true } as the third argument. React Navigation 7's navigate() pushes a new screen by default — without pop:true this causes duplicate screen mounts and perceived input delay on Android. See TLON-5598.";
 
+// A route literal may be wrapped in a TypeScript-only expression, e.g.
+// `navigate('ChatList' as never)` or `navigate('ChatList' satisfies TopTab)`.
+// All of these erase at runtime, so unwrap to the literal underneath.
+const TS_EXPRESSION_WRAPPERS = new Set([
+  'TSAsExpression',
+  'TSSatisfiesExpression',
+  'TSNonNullExpression',
+  'TSTypeAssertion',
+  'TSInstantiationExpression',
+]);
+
 function literalValue(node) {
   if (!node) return undefined;
   if (node.type === 'Literal') return node.value;
-  // `navigate('ChatList' as never)` wraps the literal in a TSAsExpression.
-  if (node.type === 'TSAsExpression') return literalValue(node.expression);
+  if (TS_EXPRESSION_WRAPPERS.has(node.type)) {
+    return literalValue(node.expression);
+  }
   return undefined;
 }
 
@@ -100,7 +112,7 @@ function specifierOf(node) {
   return undefined;
 }
 
-function checkRestrictedPath(context, node) {
+function checkRestrictedPath(context, node, reportNode = node) {
   const source = specifierOf(node);
   if (typeof source !== 'string') {
     return;
@@ -133,7 +145,7 @@ function checkRestrictedPath(context, node) {
       (importedRel === from || importedRel.startsWith(from + '/'))
     ) {
       context.report({
-        node,
+        node: reportNode,
         message: `Import boundary: files in ${target} may not import from ${from}.`,
       });
       return;
@@ -251,6 +263,16 @@ module.exports = {
           ExportAllDeclaration: check,
           // `await import('../client/x')` creates the same dependency lazily.
           ImportExpression: check,
+          // `require('../client/x')` does too, and no-var-requires is off here.
+          CallExpression(node) {
+            if (
+              node.callee.type === 'Identifier' &&
+              node.callee.name === 'require' &&
+              node.arguments.length === 1
+            ) {
+              checkRestrictedPath(context, { source: node.arguments[0] }, node);
+            }
+          },
         };
       },
     },
