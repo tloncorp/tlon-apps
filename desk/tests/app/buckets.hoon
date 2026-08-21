@@ -477,6 +477,43 @@
         ==
   !>([%.y 1 1])
 ::
+::  Deleting a folder has to take the uploads underneath it. Their entries are
+::  deliberately absent from the manifest until the object lands, so they are
+::  never among the folder's descendants -- and a session left behind would
+::  later publish a file parented to a folder that no longer exists.
+::
+++  test-deleting-a-folder-drops-uploads-under-it
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (ask 0v1 [%bucket flag [%create-folder ~ 'Launch']])
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  bs=bucket-state:bu  (state-for st flag)
+  =/  folder=@ud
+    =/  ents  ~(tap by entries.bs)
+    ?~(ents !! p.i.ents)
+  ::  an upload lands inside that folder, and one at the root
+  ;<  *  b
+    (ask 0v2 [%bucket flag [%begin-upload `folder 'inside.pdf' 'application/pdf' 9 ~]])
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v4321)))
+  ;<  *  b
+    (ask 0v3 [%bucket flag [%begin-upload ~ 'outside.pdf' 'application/pdf' 9 ~]])
+  ;<  sv2=vase  b  get-save
+  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  =/  before=@ud  ~(wyt by sessions.st2)
+  ::  deleting the folder recursively takes the upload inside it, not the other
+  ;<  *  b  (ask 0v5 [%bucket flag [%entry folder [%delete &]]])
+  ;<  sv3=vase  b  get-save
+  =/  st3=state-0:bu  !<(state-0:bu sv3)
+  =/  survivors=(list @t)
+    %+  turn  ~(val by sessions.st3)
+    |=(ses=upload-session:bu name.entry.ses)
+  (ex-equal !>([before survivors]) !>([2 ~['outside.pdf']]))
+::
 ::  A mint lives only on the wire while the broker answers, so the revocation
 ::  pass cannot see it. If access is pulled in that window the token must not
 ::  be installed on arrival -- the broker has already accepted it, so it is

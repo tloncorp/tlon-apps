@@ -1164,7 +1164,15 @@
     %+  skip  ~(tap by sessions)
     |=  [key=@uv ses=upload-session:b]
     ?.  =(flag flag.ses)  |
-    (~(has in ids) id.entry.ses)
+    ::  An in-flight upload's entry is deliberately absent from entries.st,
+    ::  so it is never among the descendants -- but its parent can be. Drop
+    ::  those too: otherwise its completion still authorizes and publishes an
+    ::  entry under a folder that no longer exists, which nothing can reach.
+    ?|  (~(has in ids) id.entry.ses)
+        ?&  ?=(^ parent.entry.ses)
+            (~(has in ids) u.parent.entry.ses)
+        ==
+    ==
   (commit-update flag st [%entries-deleted ~(tap in ids)] actor)
 ::
 ::  +commit-update: bump the revision, stamp attribution on the bucket, and
