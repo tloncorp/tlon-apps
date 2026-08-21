@@ -1054,19 +1054,30 @@
   =.  reservations  (~(put by reservations) reservation id.ses)
   cor
 ::
+::  +complete-broker-upload: the broker says the bytes landed, so publish.
+::
+::  Every refusal here says why. A completion the host drops changes nothing
+::  and answers nobody -- the broker has already taken payment for the object
+::  -- so a silent return is the one outcome that leaves no way to find out
+::  what happened. A re-delivered completion is the exception: the broker
+::  retries, and the second one is expected rather than wrong.
+::
 ++  complete-broker-upload
   |=  receipt=broker-receipt:b
   ^+  cor
-  ?~  sid=(~(get by reservations) broker-reservation-id.receipt)  cor
-  ?~  got=(~(get by sessions) u.sid)  cor
+  ?~  sid=(~(get by reservations) broker-reservation-id.receipt)
+    (drop-completion %no-such-reservation)
+  ?~  got=(~(get by sessions) u.sid)  (drop-completion %no-such-session)
   =/  ses=upload-session:b  u.got
+  ::  Already published: the broker retried, which is fine.
   ?:  =(%complete status.ses)  cor
-  ?.  =(%pending status.ses)  cor
-  ?.  (gth expires-at.ses now.bowl)  cor
-  ?~  sp=(~(get by spaces) flag.ses)  cor
-  ?~  st-unit=state.u.sp  cor
+  ?.  =(%pending status.ses)  (drop-completion %session-not-pending)
+  ?.  (gth expires-at.ses now.bowl)  (drop-completion %session-expired)
+  ?~  sp=(~(get by spaces) flag.ses)  (drop-completion %no-such-bucket)
+  ?~  st-unit=state.u.sp  (drop-completion %bucket-state-missing)
   =/  st=bucket-state:b  u.st-unit
-  ?.  (group-can-write group.st flag.ses writers.st requested-by.ses)  cor
+  ?.  (group-can-write group.st flag.ses writers.st requested-by.ses)
+    (drop-completion %not-a-writer)
   =/  fil=file:b  (entry-file entry.ses)
   ?.  ?&  =(object-id.receipt object-key.fil)
           ?|  =(host.receipt (ship-text our.bowl))
@@ -1076,8 +1087,14 @@
           =(size.receipt size.fil)
           =(mime-type.receipt mime.fil)
       ==
-    cor
+    (drop-completion %receipt-mismatch)
   (publish-upload ses requested-by.ses)
+::
+++  drop-completion
+  |=  why=@tas
+  ^+  cor
+  %-  (slog leaf+"buckets: dropped an upload completion, {<why>}" ~)
+  cor
 ::
 ++  rename-entry
   |=  [=flag:b id=@ud name=@t actor=ship]
