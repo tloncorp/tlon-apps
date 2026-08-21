@@ -1,6 +1,7 @@
 import { useIsFocused } from '@react-navigation/native';
 import {
   ChannelContentConfiguration,
+  CollectionRendererId,
   isDmChannelId,
   isGroupDmChannelId,
 } from '@tloncorp/api';
@@ -391,6 +392,17 @@ export function Channel({
           : channel.type === 'notebook'
             ? DraftInputId.notebook
             : null;
+  // A pinned-surface channel renders as an app with the conversation in a
+  // pull-up sheet; the composer strip carries the same panel edges so the
+  // sheet's lines continue to the bottom of the screen. Declared intent is
+  // enough — a build without the renderer shows the plain list and plain
+  // composer via the channel-views degradation contract, and this stays off.
+  const usesPinnedSurfacePanel =
+    channel.contentConfiguration != null &&
+    ChannelContentConfiguration.defaultPostCollectionRenderer(
+      channel.contentConfiguration
+    ).id === CollectionRendererId.pinnedSurface;
+
   // For DMs, get the other participant's ID
   const dmRecipientId = useMemo(() => {
     if (isDM && channel.members) {
@@ -930,13 +942,31 @@ export function Channel({
                               {readOnlyNoticeType ? (
                                 <ReadOnlyNotice type={readOnlyNoticeType} />
                               ) : draftInputType ? (
-                                <DraftInputView
-                                  draftInputContext={draftInputContext}
-                                  type={draftInputType}
-                                  onFloatingHeightChange={
-                                    onFloatingHeightChange
-                                  }
-                                />
+                                usesPinnedSurfacePanel ? (
+                                  <View
+                                    marginHorizontal="$l"
+                                    borderLeftWidth={1}
+                                    borderRightWidth={1}
+                                    borderColor="$border"
+                                    backgroundColor="$background"
+                                  >
+                                    <DraftInputView
+                                      draftInputContext={draftInputContext}
+                                      type={draftInputType}
+                                      onFloatingHeightChange={
+                                        onFloatingHeightChange
+                                      }
+                                    />
+                                  </View>
+                                ) : (
+                                  <DraftInputView
+                                    draftInputContext={draftInputContext}
+                                    type={draftInputType}
+                                    onFloatingHeightChange={
+                                      onFloatingHeightChange
+                                    }
+                                  />
+                                )
                               ) : null}
 
                               {channel.isDmInvite && (
