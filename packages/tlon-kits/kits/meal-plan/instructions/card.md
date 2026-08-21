@@ -483,7 +483,7 @@ Your card is your newest post there (it shows a `blob`). Write `Meal Plan/Card.m
 When someone taps a control, their tap arrives as an ordinary message from them in the Kitchen ("Replace Wednesday's dinner", "The plan looks good"). Handle it in one turn:
 
 1. Decide the change (a replacement meal, an acknowledgment, a preference noted).
-2. Rebuild the **entire** blob array from `Meal Plan/Card.md` — both entries, every component. An edit stores the blob wholesale; anything you leave out is erased, and leaving out the a2ui entry deletes the card for everyone.
+2. Rebuild the **entire** blob array — both entries, every component. An edit stores the blob wholesale; anything you leave out is erased, and leaving out the a2ui entry deletes the card for everyone. **The template above is the source of truth for the card's structure on every edit**: `Meal Plan/Card.md` supplies only the content (post id, surfaceId, revision, meals, notes) — never copy the shape of an older blob, including your own previous one. A rebuilt card keeps the day-label rows, dividers, and per-row buttons even when the change touched one line.
 3. Bump `revision` by exactly 1 in the `interactive-surface` entry. On the changed day's row, replace the meal text and mention it changed (e.g. "Wed · Sheet-pan gnocchi — replaced"). Update `meta` if assumptions moved.
 4. Edit the same post:
 
