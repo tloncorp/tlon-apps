@@ -177,6 +177,25 @@ export const PinnedSurfaceCollection: IPostCollectionView = forwardRef(
           <SurfaceCanvas post={surfacePost} />
         </ScrollView>
 
+        {bottomInset > 0 ? (
+          // Native: the floating composer hovers over this area, and the
+          // area itself reaches the screen bottom — so the panel continues
+          // beneath the handle, behind the composer, down to the edge. The
+          // input floats inside the panel instead of outside it. (Web has
+          // no floating composer; the Channel chrome carries the edges.)
+          <View
+            position="absolute"
+            left="$l"
+            right="$l"
+            bottom={0}
+            height={bottomInset}
+            backgroundColor="$background"
+            borderLeftWidth={1}
+            borderRightWidth={1}
+            borderColor="$border"
+            pointerEvents="none"
+          />
+        ) : null}
         <YStack
           position="absolute"
           left="$l"
