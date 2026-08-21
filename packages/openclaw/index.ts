@@ -36,15 +36,11 @@ import {
 } from './src/diagnostic-subscriptions.js';
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
-import {
-  createMigrateCommandHandler,
-  routeMigrateCommand,
-} from './src/migrate-command.js';
+import { createMigrateCommandHandler } from './src/migrate-command.js';
 import {
   handleAgentOnboardingCronChanged,
   handleAgentOnboardingMessageSent,
 } from './src/monitor/agent-onboarding.js';
-import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
