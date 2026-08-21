@@ -1,7 +1,10 @@
 import type * as db from '@tloncorp/shared/db';
 import { describe, expect, it, vi } from 'vitest';
 
-import { selectSurfacePost } from './PinnedSurfaceCollectionView';
+import {
+  selectLatestChatPost,
+  selectSurfacePost,
+} from './PinnedSurfaceCollectionView';
 
 // The module under test renders the real list view and post path; the
 // selection logic is what these tests pin, so the heavy render dependencies
@@ -27,6 +30,7 @@ vi.mock('../../hooks/usePostA2UIActions', () => ({
 vi.mock('../../../hooks/useLivePost', () => ({
   useLivePost: (post: unknown) => post,
 }));
+vi.mock('@tloncorp/ui', () => ({ Icon: 'Icon', Text: 'Text' }));
 
 const A2UI_ENTRY = {
   type: 'a2ui',
@@ -130,5 +134,19 @@ describe('selectSurfacePost', () => {
     expect(selectSurfacePost([deleted, garbage, card], channel())?.id).toBe(
       'card'
     );
+  });
+});
+
+describe('selectLatestChatPost', () => {
+  it('picks the newest conversation post, excluding the surface post', () => {
+    const card = post({ id: 'card', blob: CARD_BLOB, receivedAt: 99 });
+    const older = post({ id: 'older', receivedAt: 10 });
+    const newer = post({ id: 'newer', receivedAt: 20 });
+    const gone = post({ id: 'gone', receivedAt: 30, isDeleted: true });
+    expect(selectLatestChatPost([card, older, newer, gone], card.id)?.id).toBe(
+      'newer'
+    );
+    expect(selectLatestChatPost([card], card.id)).toBeNull();
+    expect(selectLatestChatPost(undefined, card.id)).toBeNull();
   });
 });

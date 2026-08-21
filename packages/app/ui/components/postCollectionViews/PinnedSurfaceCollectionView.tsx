@@ -1,9 +1,10 @@
 import { parsePostBlob } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { getPinnedPostId } from '@tloncorp/shared/logic';
-import { forwardRef, useMemo } from 'react';
-import { ScrollView } from 'react-native';
-import { View, YStack } from 'tamagui';
+import { Icon, Text } from '@tloncorp/ui';
+import { forwardRef, useMemo, useState } from 'react';
+import { Pressable, ScrollView } from 'react-native';
+import { View, XStack, YStack } from 'tamagui';
 
 import { useLivePost } from '../../../hooks/useLivePost';
 import {
@@ -15,6 +16,9 @@ import { A2UIBlock } from '../PostContent/A2UIBlock';
 import { ContentContext, usePostContent } from '../PostContent/contentUtils';
 import { ListPostCollection } from './ListPostCollectionView';
 import { IPostCollectionView } from './shared';
+
+/** Height of the collapsed chat handle docked at the bottom of the surface. */
+const CHAT_HANDLE_HEIGHT = 56;
 
 function carriesInteractiveSurface(post: db.Post): boolean {
   if (!post.blob || post.isDeleted) {
@@ -35,8 +39,8 @@ function carriesInteractiveSurface(post: db.Post): boolean {
 }
 
 /**
- * The post the surface area shows: the channel's pinned post when it is
- * loaded and carries a surface, else the newest loaded post that does. The
+ * The post the surface shows: the channel's pinned post when it is loaded
+ * and carries a surface, else the newest loaded post that does. The
  * heuristic exists because nothing pins the card automatically today — the
  * agent posts it and edits it in place, so "the newest surface post" is the
  * current card by construction, and a genuinely pinned post simply wins.
@@ -58,6 +62,26 @@ export function selectSurfacePost(
   let newest: db.Post | null = null;
   for (const post of posts) {
     if (!carriesInteractiveSurface(post)) {
+      continue;
+    }
+    if (newest == null || (post.receivedAt ?? 0) > (newest.receivedAt ?? 0)) {
+      newest = post;
+    }
+  }
+  return newest;
+}
+
+/** The newest conversation post, for the collapsed handle's preview line. */
+export function selectLatestChatPost(
+  posts: db.Post[] | null | undefined,
+  excludeId: string
+): db.Post | null {
+  if (posts == null) {
+    return null;
+  }
+  let newest: db.Post | null = null;
+  for (const post of posts) {
+    if (post.id === excludeId || post.isDeleted) {
       continue;
     }
     if (newest == null || (post.receivedAt ?? 0) > (newest.receivedAt ?? 0)) {
@@ -99,19 +123,30 @@ function SurfaceCanvas({ post }: { post: db.Post }) {
 }
 
 /**
- * A chat channel bifurcated into a mini-app and a conversation: the channel's
- * current interactive-surface card fills a fixed area at the top, and the
- * ordinary chat list flows beneath it. The card is filtered out of the
- * flowing list so it does not appear twice; with no surface post loaded this
- * is exactly the chat list. See docs/tlon-apps/channel-views.md for how a
- * channel declares this view and how clients without it degrade.
+ * A kit channel as an app first and a conversation second: the surface post's
+ * UI owns the whole channel body, and the chat is a sheet that slides up over
+ * it from a docked handle — the app is what you use, the conversation is the
+ * programming interface you pull up when you want to steer the agent. The
+ * composer stays docked beneath (it belongs to the channel, not this view),
+ * so you can talk to the agent even with the transcript sheet closed.
+ * With no surface post loaded this is exactly the chat list. See
+ * docs/tlon-apps/channel-views.md for how a channel declares this view and
+ * how clients without it degrade.
  */
 export const PinnedSurfaceCollection: IPostCollectionView = forwardRef(
   function PinnedSurfaceCollection(_props, forwardedRef) {
     const ctx = usePostCollectionContext();
+    const [chatOpen, setChatOpen] = useState(false);
     const surfacePost = useMemo(
       () => selectSurfacePost(ctx.posts, ctx.channel),
       [ctx.posts, ctx.channel]
+    );
+    const latestChatPost = useMemo(
+      () =>
+        surfacePost == null
+          ? null
+          : selectLatestChatPost(ctx.posts, surfacePost.id),
+      [ctx.posts, surfacePost]
     );
     const flowingCtx = useMemo(
       () =>
@@ -127,24 +162,86 @@ export const PinnedSurfaceCollection: IPostCollectionView = forwardRef(
       return <ListPostCollection ref={forwardedRef} />;
     }
     return (
-      <YStack flex={1}>
-        <View
-          maxHeight="55%"
-          flexShrink={0}
-          borderBottomWidth={1}
-          borderColor="$border"
-          backgroundColor="$background"
+      <View flex={1}>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: CHAT_HANDLE_HEIGHT + 12 }}
         >
-          <ScrollView>
-            <SurfaceCanvas post={surfacePost} />
-          </ScrollView>
-        </View>
-        <View flex={1} minHeight={0}>
-          <PostCollectionContext.Provider value={flowingCtx}>
-            <ListPostCollection ref={forwardedRef} />
-          </PostCollectionContext.Provider>
-        </View>
-      </YStack>
+          <SurfaceCanvas post={surfacePost} />
+        </ScrollView>
+
+        <YStack
+          position="absolute"
+          left={0}
+          right={0}
+          bottom={0}
+          top={chatOpen ? '12%' : undefined}
+          height={chatOpen ? undefined : CHAT_HANDLE_HEIGHT}
+          backgroundColor="$background"
+          borderTopLeftRadius="$2xl"
+          borderTopRightRadius="$2xl"
+          borderWidth={1}
+          borderBottomWidth={0}
+          borderColor="$border"
+          shadowColor="$shadow"
+          shadowOffset={{ width: 0, height: -4 }}
+          shadowRadius={12}
+          overflow="hidden"
+        >
+          <Pressable
+            onPress={() => setChatOpen((open) => !open)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              chatOpen ? 'Close the conversation' : 'Open the conversation'
+            }
+          >
+            <YStack
+              height={CHAT_HANDLE_HEIGHT}
+              paddingHorizontal="$xl"
+              justifyContent="center"
+              gap="$xs"
+            >
+              <View
+                alignSelf="center"
+                width={36}
+                height={4}
+                borderRadius={2}
+                backgroundColor="$border"
+              />
+              <XStack alignItems="center" gap="$m">
+                <Icon
+                  type={chatOpen ? 'ChevronDown' : 'ChevronUp'}
+                  customSize={[16, 16]}
+                  color="$tertiaryText"
+                />
+                {latestChatPost ? (
+                  <Text
+                    size="$label/m"
+                    color="$secondaryText"
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    textAlign="left"
+                    flex={1}
+                  >
+                    {latestChatPost.authorId}:{' '}
+                    {latestChatPost.textContent?.trim() || '…'}
+                  </Text>
+                ) : (
+                  <Text size="$label/m" color="$tertiaryText" flex={1}>
+                    Conversation
+                  </Text>
+                )}
+              </XStack>
+            </YStack>
+          </Pressable>
+          {chatOpen ? (
+            <View flex={1} minHeight={0}>
+              <PostCollectionContext.Provider value={flowingCtx}>
+                <ListPostCollection ref={forwardedRef} />
+              </PostCollectionContext.Provider>
+            </View>
+          ) : null}
+        </YStack>
+      </View>
     );
   }
 );
