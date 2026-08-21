@@ -7,6 +7,7 @@ settings:
 overrides:
   '@electron/node-gyp': 10.2.0-electron.1
   typescript: 7.0.2
+  '@expo/require-utils': '>=57.0.4'
   '@10play/tentap-editor': 0.5.21
   '@tiptap/suggestion': 2.6.0
   '@tiptap/extension-mention': 2.6.0
@@ -29,7 +30,6 @@ overrides:
 
 patchedDependencies:
   '@10play/tentap-editor': 520c7388382aa0cadd02408de7c832242dbf1d72c9a80de5712a2cddfa88ca41
-  '@expo/require-utils@57.0.3': e878150ccc33e961955938dccf079fa8b38eaa8f8a95240fc65617b6e350be2b
   '@gorhom/bottom-sheet': 19cd5e0683f069b1119d662ee476d31448ec23ff1700b6895fe3f4e0b93b2882
   '@mattermost/react-native-paste-input@2.0.1': 313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d
   '@react-navigation/bottom-tabs@7.18.14': 6c92d56c83cbda5c10b90545c24763ce3cf82aa05beea645706269314a1d52b0
@@ -3069,16 +3069,8 @@ packages:
   '@expo/prebuild-config@57.0.8':
     resolution: {integrity: sha512-NQjRuTLvxUnggK57pKTHLtzS8YYtjrQSGYu+CjgWaO8lNlqdoBbvHrxGYtc9tBuOI3xVPaTfuIvjikxX1r+UhQ==}
 
-  '@expo/require-utils@57.0.1':
-    resolution: {integrity: sha512-uXen5/4x7j60I5slShgZr5QEtJDBK8homFiNLDnDrNrxZhrRHXASo0H6JArs3/1PDzw1wahzhGWg2WKuYyZd0A==}
-    peerDependencies:
-      typescript: 7.0.2
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-
-  '@expo/require-utils@57.0.3':
-    resolution: {integrity: sha512-ns05X1K8tM+Qtzp6dNloUFOopSdh3J+HC61BtOR8WHhgtPFyX8TKuO2diqZUqVg9K8yfkWug7g8tBS0qRniSTA==}
+  '@expo/require-utils@57.0.4':
+    resolution: {integrity: sha512-e7xbg/9BTQcsZE/oErafZXtI7kh5IgfasLJ97J5sFSzX2cA74pDvdlhW1KHVSaDkQyQv6h1LSLhsY7dEeOk7hw==}
     peerDependencies:
       typescript: 7.0.2
     peerDependenciesMeta:
@@ -16351,7 +16343,7 @@ snapshots:
       '@expo/package-manager': 1.13.1
       '@expo/plist': 0.8.1
       '@expo/prebuild-config': 57.0.8(typescript@7.0.2)
-      '@expo/require-utils': 57.0.3(patch_hash=e878150ccc33e961955938dccf079fa8b38eaa8f8a95240fc65617b6e350be2b)(typescript@7.0.2)
+      '@expo/require-utils': 57.0.4(typescript@7.0.2)
       '@expo/router-server': 57.0.3(406dd515b7bbc5beec451eee4645bf0f)
       '@expo/schema-utils': 57.0.2
       '@expo/spawn-async': 1.8.0
@@ -16436,7 +16428,7 @@ snapshots:
       '@expo/config-types': 57.0.1
       '@expo/json-file': 11.0.0
       '@expo/plist': 0.8.0
-      '@expo/require-utils': 57.0.1(typescript@7.0.2)
+      '@expo/require-utils': 57.0.4(typescript@7.0.2)
       '@expo/sdk-runtime-versions': 1.0.0
       chalk: 4.1.2
       debug: 4.4.3
@@ -16455,7 +16447,7 @@ snapshots:
       '@expo/config-types': 57.0.2
       '@expo/json-file': 11.0.1
       '@expo/plist': 0.8.1
-      '@expo/require-utils': 57.0.3(patch_hash=e878150ccc33e961955938dccf079fa8b38eaa8f8a95240fc65617b6e350be2b)(typescript@7.0.2)
+      '@expo/require-utils': 57.0.4(typescript@7.0.2)
       '@expo/sdk-runtime-versions': 1.0.0
       chalk: 4.1.2
       debug: 4.4.3
@@ -16498,7 +16490,7 @@ snapshots:
       '@expo/config-plugins': 57.0.5(typescript@7.0.2)
       '@expo/config-types': 57.0.2
       '@expo/json-file': 11.0.1
-      '@expo/require-utils': 57.0.3(patch_hash=e878150ccc33e961955938dccf079fa8b38eaa8f8a95240fc65617b6e350be2b)(typescript@7.0.2)
+      '@expo/require-utils': 57.0.4(typescript@7.0.2)
       deepmerge: 4.3.1
       getenv: 2.0.0
       glob: 13.0.6
@@ -16557,7 +16549,7 @@ snapshots:
 
   '@expo/image-utils@0.11.3(typescript@7.0.2)':
     dependencies:
-      '@expo/require-utils': 57.0.3(patch_hash=e878150ccc33e961955938dccf079fa8b38eaa8f8a95240fc65617b6e350be2b)(typescript@7.0.2)
+      '@expo/require-utils': 57.0.4(typescript@7.0.2)
       '@expo/spawn-async': 1.8.0
       chalk: 4.1.2
       getenv: 2.0.0
@@ -16616,7 +16608,7 @@ snapshots:
       '@expo/env': 2.4.2
       '@expo/json-file': 11.0.1
       '@expo/metro': 56.0.0
-      '@expo/require-utils': 57.0.3(patch_hash=e878150ccc33e961955938dccf079fa8b38eaa8f8a95240fc65617b6e350be2b)(typescript@7.0.2)
+      '@expo/require-utils': 57.0.4(typescript@7.0.2)
       '@expo/spawn-async': 1.8.0
       '@jridgewell/gen-mapping': 0.3.13
       '@jridgewell/remapping': 2.3.5
@@ -16719,21 +16711,11 @@ snapshots:
       - supports-color
       - typescript
 
-  '@expo/require-utils@57.0.1(typescript@7.0.2)':
+  '@expo/require-utils@57.0.4(typescript@7.0.2)':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@babel/core': 7.29.0
-      '@babel/plugin-transform-modules-commonjs': 7.28.6(@babel/core@7.29.0)
-    optionalDependencies:
-      typescript: 7.0.2
-    transitivePeerDependencies:
-      - supports-color
-
-  '@expo/require-utils@57.0.3(patch_hash=e878150ccc33e961955938dccf079fa8b38eaa8f8a95240fc65617b6e350be2b)(typescript@7.0.2)':
-    dependencies:
-      '@babel/code-frame': 7.29.7
-      '@babel/core': 7.29.0
-      '@babel/plugin-transform-modules-commonjs': 7.28.6(@babel/core@7.29.0)
+      '@babel/plugin-transform-modules-commonjs': 7.29.7(@babel/core@7.29.0)
     optionalDependencies:
       typescript: 7.0.2
     transitivePeerDependencies:
@@ -23243,7 +23225,7 @@ snapshots:
 
   expo-modules-autolinking@57.0.8(typescript@7.0.2):
     dependencies:
-      '@expo/require-utils': 57.0.3(patch_hash=e878150ccc33e961955938dccf079fa8b38eaa8f8a95240fc65617b6e350be2b)(typescript@7.0.2)
+      '@expo/require-utils': 57.0.4(typescript@7.0.2)
       '@expo/spawn-async': 1.8.0
       chalk: 4.1.2
       commander: 7.2.0

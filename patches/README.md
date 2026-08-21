@@ -363,45 +363,13 @@ Guards both reads with optional chaining and a fallback (`process.cwd()` and
 changing behavior when `ts.sys` is present.
 
 Upstream:
-- not reported; `@tamagui/build@2.7.7` (latest at time of writing) still reads
-  `ts.sys.getCurrentDirectory` at module scope
+- fix submitted: [tamagui/tamagui#4171](https://github.com/tamagui/tamagui/pull/4171)
+- still present in `@tamagui/build@2.7.7`, the latest release at time of writing
 
 Validation:
 - `pnpm build:packages` completes, emitting `packages/ui/dist`
 
 Removal:
-Remove once a released `@tamagui/build` either guards `ts.sys` or stops
-constructing `formatHost` at module scope.
+Remove once [tamagui/tamagui#4171](https://github.com/tamagui/tamagui/pull/4171)
+(or an equivalent guard) ships in a released `@tamagui/build`.
 
-## @expo/require-utils@57.0.3
-
-Local patch:
-- `patches/@expo__require-utils@57.0.3.patch`
-
-Why:
-Reading `apps/tlon-mobile/app.config.ts` fails under TypeScript 7 with
-`Cannot read properties of undefined (reading 'CommonJS')`. `loadTypescript()`
-succeeds because `typescript` resolves, but the module then reaches for
-`ts.ModuleKind` — part of the legacy transpile API that TypeScript 7 removed —
-so every Expo command that loads a `.ts` config throws, including
-`pnpm build:mobile`.
-
-What it does:
-Treats a TypeScript install with no `ModuleKind` as "typescript unavailable" by
-setting `_ts = null`. The existing fallback then transpiles the config with
-Node's built-in `stripTypeScriptTypes`, which is the path this module already
-prefers on Node >= 22.18 (CI and `.nvmrc` are both above that).
-
-Upstream:
-- not reported; `@expo/require-utils@57.0.4` (latest at time of writing) still
-  calls `ts.ModuleKind` without guarding
-
-Validation:
-- `pnpm --filter tlon-mobile build` completes ("Done writing bundle output")
-- `node -e "require('@expo/config').getConfig(process.cwd())"` from
-  `apps/tlon-mobile` resolves instead of throwing
-
-Removal:
-Remove once a released `@expo/require-utils` guards the legacy transpile API, or
-once Expo drops the `typescript` transpile path in favour of
-`stripTypeScriptTypes`.
