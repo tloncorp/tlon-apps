@@ -1,9 +1,9 @@
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-import { expect } from 'vitest';
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { expect } from "vitest";
 
-import type { DriverName, RuntimeContext } from '../../drivers/types.js';
-import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
+import type { DriverName, RuntimeContext } from "../../drivers/types.js";
+import type { FakeModelClient, ReceivedCall } from "../../fake-model/index.js";
 import {
   connectComposeNetwork,
   disconnectComposeNetwork,
@@ -11,23 +11,23 @@ import {
   readComposeServiceLogs,
   startComposeService,
   stopComposeService,
-} from '../../runtime/docker-direct.js';
-import { sleep, waitFor } from '../../runtime/waiters.js';
+} from "../../runtime/docker-direct.js";
+import { sleep, waitFor } from "../../runtime/waiters.js";
 import type {
   ChannelPost,
   PromptResult,
   StoryInput,
-} from '../../tlon/index.js';
-import { normalizeShip } from '../../tlon/index.js';
-import type { ScenarioActor, ScenarioActors } from './actors.js';
+} from "../../tlon/index.js";
+import { normalizeShip } from "../../tlon/index.js";
+import type { ScenarioActor, ScenarioActors } from "./actors.js";
 import {
   type CronCleanupTarget,
   cleanupCronJobAndArtifacts,
   settleCronJobCreation,
   waitForCronJobCreated,
   waitForCronJobRemoved,
-} from './cron.js';
-import { type SharedScenario, testScenario } from './dsl.js';
+} from "./cron.js";
+import { type SharedScenario, testScenario } from "./dsl.js";
 import {
   allowDmFrom,
   monitorGroupChannels,
@@ -36,7 +36,7 @@ import {
   waitForSettingsKeysAbsent,
   withNudgeSettingsIsolation,
   withSettingsEntry,
-} from './isolation.js';
+} from "./isolation.js";
 import {
   type BenignModelCallPredicate,
   MODEL_EXPECTATION_SETTLE_MS,
@@ -45,7 +45,7 @@ import {
   expectNoModelCalls,
   primaryModelCalls,
   registerModelScript,
-} from './model.js';
+} from "./model.js";
 
 const NEGATIVE_SETTLE_MS = 12_000;
 const MODEL_CALL_WAIT_MS = 90_000;
@@ -63,39 +63,39 @@ const NUDGE_DELIVERY_WAIT_MS = 90_000;
 const NUDGE_CLEANUP_WAIT_MS = 45_000;
 const NUDGE_DUPLICATE_WINDOW_MS = 15_000;
 const REACTION_PROVENANCE_BY_DRIVER = {
-  hermes: 'latest-user',
-  openclaw: 'latest-user',
+  hermes: "latest-user",
+  openclaw: "latest-user",
 } as const;
 
 export const commonScenarios: readonly SharedScenario[] = [
-  testScenario('connectivity', {}, async ({ ctx, driver, actors }) => {
+  testScenario("connectivity", {}, async ({ ctx, driver, actors }) => {
     await actors.bot.state.connect();
     await actors.owner.state.connect();
     await actors.thirdParty.state.connect();
 
     const selfProfile = await actors.bot.state.scry<unknown>(
-      'contacts',
-      '/v1/self'
+      "contacts",
+      "/v1/self",
     );
     if (selfProfile == null) {
-      throw new Error('Expected bot self-profile scry to return a value.');
+      throw new Error("Expected bot self-profile scry to return a value.");
     }
 
     await actors.owner.state.channelPosts(actors.bot.ship, 10);
 
     const bucket = await settingsBucket(actors);
-    if (!bucket || typeof bucket !== 'object') {
-      throw new Error('Expected bot settings bucket to be readable.');
+    if (!bucket || typeof bucket !== "object") {
+      throw new Error("Expected bot settings bucket to be readable.");
     }
 
     await expectNoModelCallsAfterSettle(
       ctx.fakeModel,
-      benignModelCallPredicate(driver)
+      benignModelCallPredicate(driver),
     );
   }),
 
   testScenario(
-    'bot-info-publishes-and-replicates',
+    "bot-info-publishes-and-replicates",
     {},
     async ({ ctx, driver, actors }) => {
       await actors.bot.state.connect();
@@ -107,9 +107,9 @@ export const commonScenarios: readonly SharedScenario[] = [
       };
       const firstSelf = await waitForBotInfoClaim(
         actors.bot,
-        '/v1/self',
-        'bot self-profile',
-        expected
+        "/v1/self",
+        "bot self-profile",
+        expected,
       );
       // %contacts holds no record for a peer the ship has never met, so the
       // per-ship scry below 404s until the owner meets the bot. In the app a
@@ -118,8 +118,8 @@ export const commonScenarios: readonly SharedScenario[] = [
       // scenario faithful to the real read path rather than asserting a state
       // production never reaches on its own.
       await actors.owner.state.poke({
-        app: 'contacts',
-        mark: 'contact-action-1',
+        app: "contacts",
+        mark: "contact-action-1",
         json: { meet: [actors.bot.ship] },
       });
 
@@ -128,21 +128,21 @@ export const commonScenarios: readonly SharedScenario[] = [
         actors.owner,
         ownerContactPath,
         `owner contact for ${actors.bot.ship}`,
-        expected
+        expected,
       );
       expect(firstPeer.value).toBe(firstSelf.value);
       logBotInfoProof(driver.name, firstSelf, firstPeer);
-    }
+    },
   ),
 
-  testScenario('owner-dm-text-reply', {}, async ({ ctx, driver, actors }) => {
-    const key = scenarioKey('owner-text');
+  testScenario("owner-dm-text-reply", {}, async ({ ctx, driver, actors }) => {
+    const key = scenarioKey("owner-text");
     const reply = `Common text reply ${key}`;
     const script = driver.model.replyText(reply);
     const tag = await registerModelScript(ctx.fakeModel, key, script);
 
     const result = await actors.owner.prompt(
-      `${tag} Reply with the scripted common text.`
+      `${tag} Reply with the scripted common text.`,
     );
 
     expectPromptSuccess(result, reply);
@@ -150,10 +150,10 @@ export const commonScenarios: readonly SharedScenario[] = [
   }),
 
   testScenario(
-    'owner-dm-tlon-tool-final-reply',
+    "owner-dm-tlon-tool-final-reply",
     {},
     async ({ ctx, driver, actors }) => {
-      const key = scenarioKey('owner-tlon');
+      const key = scenarioKey("owner-tlon");
       const nicknameToken = `shared-tool-${key}`;
       const finalReply = `Common tlon command final reply ${key}`;
       const previousNickname = await botNickname(actors.bot);
@@ -162,101 +162,101 @@ export const commonScenarios: readonly SharedScenario[] = [
           await setBotNickname(actors.bot, previousNickname);
           await waitForBotNickname(actors.bot, previousNickname);
         },
-        { kind: 'profile-rollback', label: 'restore bot nickname' }
+        { kind: "profile-rollback", label: "restore bot nickname" },
       );
 
       const script = driver.model.readOrAdmin(
         `contacts update-profile --nickname ${JSON.stringify(nicknameToken)}`,
-        finalReply
+        finalReply,
       );
       const tag = await registerModelScript(ctx.fakeModel, key, script);
 
       const result = await actors.owner.prompt(
         `${tag} Update your profile nickname to ${JSON.stringify(
-          nicknameToken
+          nicknameToken,
         )} via the Tlon tool, then reply with the scripted result.`,
-        { timeoutMs: 120_000 }
+        { timeoutMs: 120_000 },
       );
 
       expectPromptSuccess(result, finalReply);
       await waitForBotNickname(actors.bot, nicknameToken);
       await expectModelExpectations(ctx.fakeModel, key, script);
-    }
+    },
   ),
 
   testScenario(
-    'unauthorized-third-party-dm-ignored',
+    "unauthorized-third-party-dm-ignored",
     {},
     async ({ ctx, driver, actors }) => {
-      const key = scenarioKey('unauthorized');
+      const key = scenarioKey("unauthorized");
       const baseline = await actors.thirdParty.state.latestSequenceFrom(
         actors.bot.ship,
-        actors.bot.ship
+        actors.bot.ship,
       );
 
       await actors.thirdParty.sendDm(
-        `[tlon-test:${key}] Unauthorized sender should not reach the model.`
+        `[tlon-test:${key}] Unauthorized sender should not reach the model.`,
       );
       await expectNoDirectReply(actors.thirdParty, actors.bot.ship, baseline);
       await expectNoModelCalls(
         ctx.fakeModel,
         undefined,
-        benignModelCallPredicate(driver)
+        benignModelCallPredicate(driver),
       );
-    }
+    },
   ),
 
   testScenario(
-    'allowlisted-third-party-dm-reply',
+    "allowlisted-third-party-dm-reply",
     {},
     async ({ ctx, driver, actors }) => {
       await allowDmFrom(actors, actors.thirdParty.ship);
-      const key = scenarioKey('allowlisted-third-party');
+      const key = scenarioKey("allowlisted-third-party");
       const reply = `Allowlisted third-party reply ${key}`;
       const script = driver.model.replyText(reply);
       const tag = await registerModelScript(ctx.fakeModel, key, script);
 
       const result = await actors.thirdParty.prompt(
-        `${tag} Reply to this allowlisted sender.`
+        `${tag} Reply to this allowlisted sender.`,
       );
 
       expectPromptSuccess(result, reply);
       await expectModelExpectations(ctx.fakeModel, key, script);
-    }
+    },
   ),
 
   testScenario(
-    'owner-dm-works-when-owner-listen-off',
+    "owner-dm-works-when-owner-listen-off",
     {},
     async ({ ctx, driver, actors }) => {
-      await withSettingsEntry(actors, 'ownerListenEnabled', false);
-      const key = scenarioKey('owner-dm-owner-listen-off');
+      await withSettingsEntry(actors, "ownerListenEnabled", false);
+      const key = scenarioKey("owner-dm-owner-listen-off");
       const reply = `Owner DM while owner-listen is off ${key}`;
       const script = driver.model.replyText(reply);
       const tag = await registerModelScript(ctx.fakeModel, key, script);
 
       const result = await actors.owner.prompt(
-        `${tag} Reply even though owner-listen is disabled for channels.`
+        `${tag} Reply even though owner-listen is disabled for channels.`,
       );
 
       expectPromptSuccess(result, reply);
       await expectModelExpectations(ctx.fakeModel, key, script);
-    }
+    },
   ),
 
   testScenario(
-    'owner-listen-channel-plain-owner-post-engages',
+    "owner-listen-channel-plain-owner-post-engages",
     {},
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      const key = scenarioKey('owner-listen-plain-on');
+      const key = scenarioKey("owner-listen-plain-on");
       const reply = `Owner-listen heard plain owner post ${key}`;
       const script = driver.model.replyText(reply);
       const tag = await registerModelScript(ctx.fakeModel, key, script);
       const baseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
-        actors.bot.ship
+        actors.bot.ship,
       );
 
       await actors.owner.sendChannelPost({
@@ -270,24 +270,24 @@ export const commonScenarios: readonly SharedScenario[] = [
         fixture.channelId,
         actors.bot.ship,
         reply,
-        baseline
+        baseline,
       );
       await expectModelExpectations(ctx.fakeModel, key, script);
-    }
+    },
   ),
 
   testScenario(
-    'owner-listen-channel-plain-owner-post-skipped-when-off',
+    "owner-listen-channel-plain-owner-post-skipped-when-off",
     {},
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await withSettingsEntry(actors, 'ownerListenEnabled', false);
-      const key = scenarioKey('owner-listen-plain-off');
+      await withSettingsEntry(actors, "ownerListenEnabled", false);
+      const key = scenarioKey("owner-listen-plain-off");
       const isBenign = benignModelCallPredicate(driver);
       const baseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
-        actors.bot.ship
+        actors.bot.ship,
       );
       const modelBaseline = await modelCallCount(ctx.fakeModel, isBenign);
 
@@ -299,38 +299,38 @@ export const commonScenarios: readonly SharedScenario[] = [
       await expectNoNewModelCallsAfterSettle(
         ctx.fakeModel,
         isBenign,
-        modelBaseline
+        modelBaseline,
       );
       await expectNoBotChannelReply(
         actors.owner,
         fixture.channelId,
         actors.bot.ship,
-        baseline
+        baseline,
       );
-    }
+    },
   ),
 
   testScenario(
-    'owner-listen-channel-mention-overrides-global-off',
+    "owner-listen-channel-mention-overrides-global-off",
     {},
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await withSettingsEntry(actors, 'ownerListenEnabled', false);
-      const key = scenarioKey('owner-listen-mention-off');
+      await withSettingsEntry(actors, "ownerListenEnabled", false);
+      const key = scenarioKey("owner-listen-mention-off");
       const reply = `Owner mention overrides owner-listen off ${key}`;
       const script = driver.model.replyText(reply);
       const tag = await registerModelScript(ctx.fakeModel, key, script);
       const baseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
-        actors.bot.ship
+        actors.bot.ship,
       );
 
       await actors.owner.sendChannelPost({
         channelId: fixture.channelId,
         content: storyWithMention(
           actors.bot.ship,
-          `${tag} Mention should wake the bot.`
+          `${tag} Mention should wake the bot.`,
         ),
       });
 
@@ -340,26 +340,26 @@ export const commonScenarios: readonly SharedScenario[] = [
         fixture.channelId,
         actors.bot.ship,
         reply,
-        baseline
+        baseline,
       );
       await expectModelExpectations(ctx.fakeModel, key, script);
-    }
+    },
   ),
 
   testScenario(
-    'owner-listen-channel-plain-owner-post-skipped-when-muted',
+    "owner-listen-channel-plain-owner-post-skipped-when-muted",
     {},
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await withSettingsEntry(actors, 'ownerListenDisabledChannels', [
+      await withSettingsEntry(actors, "ownerListenDisabledChannels", [
         fixture.channelId,
       ]);
-      const key = scenarioKey('owner-listen-muted-plain');
+      const key = scenarioKey("owner-listen-muted-plain");
       const isBenign = benignModelCallPredicate(driver);
       const baseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
-        actors.bot.ship
+        actors.bot.ship,
       );
       const modelBaseline = await modelCallCount(ctx.fakeModel, isBenign);
 
@@ -371,40 +371,40 @@ export const commonScenarios: readonly SharedScenario[] = [
       await expectNoNewModelCallsAfterSettle(
         ctx.fakeModel,
         isBenign,
-        modelBaseline
+        modelBaseline,
       );
       await expectNoBotChannelReply(
         actors.owner,
         fixture.channelId,
         actors.bot.ship,
-        baseline
+        baseline,
       );
-    }
+    },
   ),
 
   testScenario(
-    'owner-listen-channel-mention-overrides-muted-channel',
+    "owner-listen-channel-mention-overrides-muted-channel",
     {},
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await withSettingsEntry(actors, 'ownerListenDisabledChannels', [
+      await withSettingsEntry(actors, "ownerListenDisabledChannels", [
         fixture.channelId,
       ]);
-      const key = scenarioKey('owner-listen-muted-mention');
+      const key = scenarioKey("owner-listen-muted-mention");
       const reply = `Owner mention overrides channel mute ${key}`;
       const script = driver.model.replyText(reply);
       const tag = await registerModelScript(ctx.fakeModel, key, script);
       const baseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
-        actors.bot.ship
+        actors.bot.ship,
       );
 
       await actors.owner.sendChannelPost({
         channelId: fixture.channelId,
         content: storyWithMention(
           actors.bot.ship,
-          `${tag} Mention should wake the bot in a muted channel.`
+          `${tag} Mention should wake the bot in a muted channel.`,
         ),
       });
 
@@ -414,66 +414,66 @@ export const commonScenarios: readonly SharedScenario[] = [
         fixture.channelId,
         actors.bot.ship,
         reply,
-        baseline
+        baseline,
       );
       await expectModelExpectations(ctx.fakeModel, key, script);
-    }
+    },
   ),
 
   testScenario(
-    'owner-listen-all-off-command-persists',
+    "owner-listen-all-off-command-persists",
     {},
     async ({ ctx, driver, actors }) => {
-      await withSettingsEntry(actors, 'ownerListenEnabled', true);
+      await withSettingsEntry(actors, "ownerListenEnabled", true);
 
-      const result = await actors.owner.prompt('/owner-listen all off', {
+      const result = await actors.owner.prompt("/owner-listen all off", {
         timeoutMs: 60_000,
       });
 
-      expectPromptSuccess(result, 'Global owner-listen is now off');
+      expectPromptSuccess(result, "Global owner-listen is now off");
       await waitForSettingsEntries(actors, { ownerListenEnabled: false });
       await expectNoModelCallsAfterSettle(
         ctx.fakeModel,
-        benignModelCallPredicate(driver)
+        benignModelCallPredicate(driver),
       );
-    }
+    },
   ),
 
   testScenario(
-    'owner-listen-all-on-command-persists',
+    "owner-listen-all-on-command-persists",
     {},
     async ({ ctx, driver, actors }) => {
-      await withSettingsEntry(actors, 'ownerListenEnabled', false);
+      await withSettingsEntry(actors, "ownerListenEnabled", false);
 
-      const result = await actors.owner.prompt('/owner-listen all on', {
+      const result = await actors.owner.prompt("/owner-listen all on", {
         timeoutMs: 60_000,
       });
 
-      expectPromptSuccess(result, 'Global owner-listen is now on');
+      expectPromptSuccess(result, "Global owner-listen is now on");
       await waitForSettingsEntries(actors, { ownerListenEnabled: true });
       await expectNoModelCallsAfterSettle(
         ctx.fakeModel,
-        benignModelCallPredicate(driver)
+        benignModelCallPredicate(driver),
       );
-    }
+    },
   ),
 
   testScenario(
-    'migrate-happy-path',
+    "migrate-happy-path",
     {
       timeoutMs: 300_000,
     },
     async ({ ctx, driver, actors }) => {
-      const uniqueTitle = scenarioKey('migrate-src');
-      const firstTitle = 'First titled migration note';
-      const secondTitle = 'Second titled migration note';
+      const uniqueTitle = scenarioKey("migrate-src");
+      const firstTitle = "First titled migration note";
+      const secondTitle = "Second titled migration note";
       const firstBody = `First seeded migration body ${uniqueTitle}.`;
       const secondBody = `Second seeded migration body ${uniqueTitle}.`;
       const fallbackBody = `Untitled migration fallback ${uniqueTitle}.`;
       const { groupId, chatChannel: diaryNest } =
         await actors.bot.createGroupWithChannel({
           title: `Migration fixture ${uniqueTitle}`,
-          channelKind: 'diary',
+          channelKind: "diary",
           channelTitle: uniqueTitle,
         });
 
@@ -503,29 +503,29 @@ export const commonScenarios: readonly SharedScenario[] = [
           for (const notebook of notebooks) {
             if (notebook.notebook.title === uniqueTitle) {
               await actors.bot.state.deleteNotebook(
-                `notes/${notebook.host}/${notebook.flagName}`
+                `notes/${notebook.host}/${notebook.flagName}`,
               );
             }
           }
         },
-        { label: `delete notebook titled ${uniqueTitle}` }
+        { label: `delete notebook titled ${uniqueTitle}` },
       );
       if (!ack.success) {
-        throw new Error(ack.error ?? 'Migration prompt failed.');
+        throw new Error(ack.error ?? "Migration prompt failed.");
       }
       expect(ack.text).toMatch(/Migration (started for|complete)/);
 
-      await waitForDmBotReply(actors.owner, actors.bot.ship, 'renamed with an');
+      await waitForDmBotReply(actors.owner, actors.bot.ship, "renamed with an");
       const result = await waitForDmBotReply(
         actors.owner,
         actors.bot.ship,
-        'Migration complete.',
-        MIGRATION_RESULT_WAIT_MS
+        "Migration complete.",
+        MIGRATION_RESULT_WAIT_MS,
       );
-      expect(result.text).toContain('Notes imported: 3');
+      expect(result.text).toContain("Notes imported: 3");
 
       const targetNest = result.text.match(
-        /\bnotes\/~[a-z-]+\/[a-zA-Z0-9-]+\b/
+        /\bnotes\/~[a-z-]+\/[a-zA-Z0-9-]+\b/,
       )?.[0];
       if (!targetNest) {
         throw new Error(`Migration result omitted target nest: ${result.text}`);
@@ -542,44 +542,44 @@ export const commonScenarios: readonly SharedScenario[] = [
       const notes = await actors.bot.state.listNotes(targetNest);
       expect(notes).toHaveLength(3);
       expect(notes.map((note) => note.title).toSorted()).toEqual(
-        expectedNotes.map((note) => note.title).toSorted()
+        expectedNotes.map((note) => note.title).toSorted(),
       );
       for (const expectedNote of expectedNotes) {
         const note = notes.find(({ title }) => title === expectedNote.title);
         expect(note?.bodyMd).toContain(expectedNote.body);
         expect(
-          note?.bodyMd?.startsWith(`*Originally posted by ${actors.bot.ship}`)
+          note?.bodyMd?.startsWith(`*Originally posted by ${actors.bot.ship}`),
         ).toBe(true);
         expect(note?.bodyMd).toContain(`tlon-migrate: ${diaryNest}`);
       }
 
       const group = await actors.bot.state.scry<{
         channels: Record<string, { meta: { title: string } }>;
-      }>('groups', `/v2/ui/groups/${groupId}`);
+      }>("groups", `/v2/ui/groups/${groupId}`);
       expect(group.channels[targetNest]?.meta.title).toBe(uniqueTitle);
       expect(group.channels[diaryNest]?.meta.title).toBe(
-        `${uniqueTitle}-ARCHIVE`
+        `${uniqueTitle}-ARCHIVE`,
       );
 
       const sourcePosts = await actors.bot.state.channelPosts(diaryNest, 10);
       expect(sourcePosts).toHaveLength(3);
       expect(sourcePosts.map(({ id }) => id).toSorted()).toEqual(
-        seededPosts.map(({ id }) => id).toSorted()
+        seededPosts.map(({ id }) => id).toSorted(),
       );
       await expectNoModelCallsAfterSettle(
         ctx.fakeModel,
-        benignModelCallPredicate(driver)
+        benignModelCallPredicate(driver),
       );
-    }
+    },
   ),
 
   testScenario(
-    'reaction-on-bot-post-dispatches',
+    "reaction-on-bot-post-dispatches",
     {},
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await withSettingsEntry(actors, 'ownerListenEnabled', false);
-      const key = scenarioKey('reaction-own-post');
+      await withSettingsEntry(actors, "ownerListenEnabled", false);
+      const key = scenarioKey("reaction-own-post");
       const tag = `[tlon-test:${key}]`;
       const replyOne = `Reaction root reply ${key} ${tag}`;
       const reactionAck = `Reaction acknowledgement ${key}`;
@@ -588,14 +588,14 @@ export const commonScenarios: readonly SharedScenario[] = [
       const baseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
-        actors.bot.ship
+        actors.bot.ship,
       );
 
       await actors.owner.sendChannelPost({
         channelId: fixture.channelId,
         content: storyWithMention(
           actors.bot.ship,
-          `${tag} Write the scripted root reply.`
+          `${tag} Write the scripted root reply.`,
         ),
       });
       await waitForModelCalls(ctx.fakeModel, key);
@@ -604,18 +604,18 @@ export const commonScenarios: readonly SharedScenario[] = [
         fixture.channelId,
         actors.bot.ship,
         replyOne,
-        baseline
+        baseline,
       );
       if (!botPost.id || !botPost.authorId || botPost.parentId) {
         throw new Error(
-          'Expected the initial bot reaction target to be a root post.'
+          "Expected the initial bot reaction target to be a root post.",
         );
       }
 
       await actors.owner.addReact({
         channelId: fixture.channelId,
         postId: botPost.id,
-        react: '👍',
+        react: "👍",
         postAuthor: botPost.authorId,
       });
 
@@ -623,14 +623,14 @@ export const commonScenarios: readonly SharedScenario[] = [
       // only threads on metadata.thread_id; the shared config keeps
       // reply_in_thread false, so its top-level reaction acknowledgement stays
       // top-level.
-      if (driver.name === 'openclaw') {
+      if (driver.name === "openclaw") {
         const acknowledgements = await waitForThreadReplies(
           actors.owner,
           fixture.channelId,
           botPost.id,
           botPost.authorId,
           actors.bot.ship,
-          reactionAck
+          reactionAck,
         );
         expect(acknowledgements).toHaveLength(1);
         expect(acknowledgements[0]?.parentId).toBe(botPost.id);
@@ -640,7 +640,7 @@ export const commonScenarios: readonly SharedScenario[] = [
           fixture.channelId,
           actors.bot.ship,
           reactionAck,
-          baseline
+          baseline,
         );
         expect(acknowledgement.parentId).toBeUndefined();
       }
@@ -650,56 +650,57 @@ export const commonScenarios: readonly SharedScenario[] = [
       await expectNoNewModelCallsAfterSettle(
         ctx.fakeModel,
         isBenign,
-        await modelCallCount(ctx.fakeModel, isBenign)
+        await modelCallCount(ctx.fakeModel, isBenign),
       );
-      if (driver.name === 'openclaw') {
+      if (driver.name === "openclaw") {
         const settledAcknowledgements = await waitForThreadReplies(
           actors.owner,
           fixture.channelId,
           botPost.id,
           botPost.authorId,
           actors.bot.ship,
-          reactionAck
+          reactionAck,
         );
         expect(settledAcknowledgements).toHaveLength(1);
         expect(settledAcknowledgements[0]?.parentId).toBe(botPost.id);
       } else {
         const settledAcknowledgements = channelPostsByBot(
           await actors.owner.state.channelPosts(fixture.channelId, 40),
-          actors.bot.ship
+          actors.bot.ship,
         ).filter(
           (post) =>
-            postAfterBaseline(post, baseline) && post.text.includes(reactionAck)
+            postAfterBaseline(post, baseline) &&
+            post.text.includes(reactionAck),
         );
         expect(settledAcknowledgements).toHaveLength(1);
         expect(settledAcknowledgements[0]?.parentId).toBeUndefined();
       }
       expect(calls).toHaveLength(2);
       const reactionCall = calls[1];
-      expect(reactionCall?.userText).toContain('👍');
+      expect(reactionCall?.userText).toContain("👍");
       expect(reactionCall?.userText).toContain(replyOne);
       // Hermes carries the reactor via TlonIncomingMessage.user_id →
       // MessageEvent.source.user_id (event metadata), not in model-visible
       // text. Its text contract is emoji plus the reacted-post snippet
       // (adapter.py:_handle_reaction), while OpenClaw includes the actor in its
       // text envelope.
-      if (driver.name === 'openclaw') {
+      if (driver.name === "openclaw") {
         expect(reactionCall?.userText).toContain(actors.owner.ship);
       }
       // Hermes _handle_reaction() synthesizes TlonIncomingMessage.text, then
       // _dispatch_message() passes that text through the current MessageEvent.
       // The reaction tag is therefore in the latest user turn for both drivers.
       expect(reactionCall?.provenance).toBe(
-        REACTION_PROVENANCE_BY_DRIVER[driver.name]
+        REACTION_PROVENANCE_BY_DRIVER[driver.name],
       );
-    }
+    },
   ),
 
   testScenario(
-    'dm-reaction-on-bot-reply',
+    "dm-reaction-on-bot-reply",
     {},
     async ({ ctx, driver, actors }) => {
-      const key = scenarioKey('dm-reaction');
+      const key = scenarioKey("dm-reaction");
       const tag = `[tlon-test:${key}]`;
       const replyOne = `DM reaction reply ${key} ${tag}`;
       const reactionAck = `DM reaction acknowledgement ${key}`;
@@ -707,17 +708,17 @@ export const commonScenarios: readonly SharedScenario[] = [
       await registerModelScript(ctx.fakeModel, key, script);
 
       const prompt = await actors.owner.prompt(
-        `${tag} Write the scripted DM reply.`
+        `${tag} Write the scripted DM reply.`,
       );
       expectPromptSuccess(prompt, replyOne);
       const botReply = await waitForDmBotReply(
         actors.owner,
         actors.bot.ship,
-        replyOne
+        replyOne,
       );
       if (!botReply.id || !botReply.authorId || botReply.parentId) {
         throw new Error(
-          'Expected the initial bot reaction target to be a root DM reply.'
+          "Expected the initial bot reaction target to be a root DM reply.",
         );
       }
 
@@ -727,7 +728,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       await actors.owner.addReact({
         channelId: actors.bot.ship,
         postId: botReply.id,
-        react: '👍',
+        react: "👍",
         postAuthor: botReply.authorId,
       });
 
@@ -735,14 +736,14 @@ export const commonScenarios: readonly SharedScenario[] = [
       // message's thread. Hermes uses source.thread_id only when the reaction
       // has a thread root, so the shared reply_in_thread: false config keeps
       // this root-DM acknowledgement in the main conversation.
-      if (driver.name === 'openclaw') {
+      if (driver.name === "openclaw") {
         const acknowledgements = await waitForThreadReplies(
           actors.owner,
           actors.bot.ship,
           botReply.id,
           botReply.authorId,
           actors.bot.ship,
-          reactionAck
+          reactionAck,
         );
         expect(acknowledgements).toHaveLength(1);
         expect(acknowledgements[0]?.parentId).toBe(botReply.id);
@@ -750,7 +751,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         const acknowledgement = await waitForDmBotReply(
           actors.owner,
           actors.bot.ship,
-          reactionAck
+          reactionAck,
         );
         expect(acknowledgement.parentId).toBeUndefined();
       }
@@ -760,16 +761,16 @@ export const commonScenarios: readonly SharedScenario[] = [
       await expectNoNewModelCallsAfterSettle(
         ctx.fakeModel,
         isBenign,
-        await modelCallCount(ctx.fakeModel, isBenign)
+        await modelCallCount(ctx.fakeModel, isBenign),
       );
-      if (driver.name === 'openclaw') {
+      if (driver.name === "openclaw") {
         const settledAcknowledgements = await waitForThreadReplies(
           actors.owner,
           actors.bot.ship,
           botReply.id,
           botReply.authorId,
           actors.bot.ship,
-          reactionAck
+          reactionAck,
         );
         expect(settledAcknowledgements).toHaveLength(1);
         expect(settledAcknowledgements[0]?.parentId).toBe(botReply.id);
@@ -777,51 +778,51 @@ export const commonScenarios: readonly SharedScenario[] = [
         const settledAcknowledgements = await matchingDmBotReplies(
           actors.owner,
           actors.bot.ship,
-          reactionAck
+          reactionAck,
         );
         expect(settledAcknowledgements).toHaveLength(1);
         expect(settledAcknowledgements[0]?.parentId).toBeUndefined();
       }
       expect(calls).toHaveLength(2);
       const reactionCall = calls[1];
-      expect(reactionCall?.userText).toContain('👍');
+      expect(reactionCall?.userText).toContain("👍");
       expect(reactionCall?.userText).toContain(replyOne);
-      if (driver.name === 'openclaw') {
+      if (driver.name === "openclaw") {
         expect(reactionCall?.userText).toContain(actors.owner.ship);
       }
       expect(reactionCall?.provenance).toBe(
-        REACTION_PROVENANCE_BY_DRIVER[driver.name]
+        REACTION_PROVENANCE_BY_DRIVER[driver.name],
       );
-    }
+    },
   ),
 
   testScenario(
-    'channel-thread-anchoring-and-follow',
+    "channel-thread-anchoring-and-follow",
     {},
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await withSettingsEntry(actors, 'ownerListenEnabled', false);
+      await withSettingsEntry(actors, "ownerListenEnabled", false);
       const firstRoot = await actors.owner.sendChannelPost({
         channelId: fixture.channelId,
-        content: `Unrelated thread root ${scenarioKey('thread-root')}`,
+        content: `Unrelated thread root ${scenarioKey("thread-root")}`,
       });
       const secondRoot = await actors.owner.sendChannelPost({
         channelId: fixture.channelId,
-        content: `Participated thread root ${scenarioKey('thread-root')}`,
+        content: `Participated thread root ${scenarioKey("thread-root")}`,
       });
       const topLevelBaseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
-        actors.bot.ship
+        actors.bot.ship,
       );
 
-      const firstKey = scenarioKey('thread-anchor');
+      const firstKey = scenarioKey("thread-anchor");
       const firstReply = `Thread root anchor reply ${firstKey}`;
       const firstScript = driver.model.replyText(firstReply);
       const firstTag = await registerModelScript(
         ctx.fakeModel,
         firstKey,
-        firstScript
+        firstScript,
       );
       await actors.owner.replyToPost({
         channelId: fixture.channelId,
@@ -829,7 +830,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         parentAuthor: secondRoot.authorId,
         content: storyWithMention(
           actors.bot.ship,
-          `${firstTag} Reply in this thread.`
+          `${firstTag} Reply in this thread.`,
         ),
       });
       await waitForModelCalls(ctx.fakeModel, firstKey);
@@ -839,18 +840,18 @@ export const commonScenarios: readonly SharedScenario[] = [
         secondRoot.id,
         actors.owner.ship,
         actors.bot.ship,
-        firstReply
+        firstReply,
       );
       expect(firstThreadReplies).toHaveLength(1);
       await expectModelExpectations(ctx.fakeModel, firstKey, firstScript);
 
-      const followKey = scenarioKey('thread-follow');
+      const followKey = scenarioKey("thread-follow");
       const followReply = `Participated thread follow reply ${followKey}`;
       const followScript = driver.model.replyText(followReply);
       const followTag = await registerModelScript(
         ctx.fakeModel,
         followKey,
-        followScript
+        followScript,
       );
       await actors.owner.replyToPost({
         channelId: fixture.channelId,
@@ -865,12 +866,12 @@ export const commonScenarios: readonly SharedScenario[] = [
         secondRoot.id,
         actors.owner.ship,
         actors.bot.ship,
-        followReply
+        followReply,
       );
       expect(followThreadReplies).toHaveLength(1);
       await expectModelExpectations(ctx.fakeModel, followKey, followScript);
 
-      const controlKey = scenarioKey('thread-control');
+      const controlKey = scenarioKey("thread-control");
       await actors.owner.replyToPost({
         channelId: fixture.channelId,
         parentId: firstRoot.id,
@@ -882,7 +883,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         fixture.channelId,
         firstRoot.id,
         actors.owner.ship,
-        actors.bot.ship
+        actors.bot.ship,
       );
       await expectNoModelCalls(ctx.fakeModel, controlKey);
 
@@ -891,7 +892,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         fixture.channelId,
         actors.bot.ship,
         [firstReply, followReply],
-        topLevelBaseline
+        topLevelBaseline,
       );
       const thread = await actors.owner.state.postWithReplies({
         channelId: fixture.channelId,
@@ -901,31 +902,31 @@ export const commonScenarios: readonly SharedScenario[] = [
       const firstSettledReplies = thread.replies.filter(
         (reply) =>
           reply.author === normalizeShip(actors.bot.ship) &&
-          reply.text.includes(firstReply)
+          reply.text.includes(firstReply),
       );
       expect(firstSettledReplies).toHaveLength(1);
       expect(firstSettledReplies[0]?.parentId).toBe(secondRoot.id);
       const followSettledReplies = thread.replies.filter(
         (reply) =>
           reply.author === normalizeShip(actors.bot.ship) &&
-          reply.text.includes(followReply)
+          reply.text.includes(followReply),
       );
       expect(followSettledReplies).toHaveLength(1);
       expect(followSettledReplies[0]?.parentId).toBe(secondRoot.id);
-    }
+    },
   ),
 
   testScenario(
-    'channel-thread-reply-reaction-dispatches',
+    "channel-thread-reply-reaction-dispatches",
     {},
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      await withSettingsEntry(actors, 'ownerListenEnabled', false);
+      await withSettingsEntry(actors, "ownerListenEnabled", false);
       const root = await actors.owner.sendChannelPost({
         channelId: fixture.channelId,
-        content: `Reaction thread root ${scenarioKey('thread-reaction-root')}`,
+        content: `Reaction thread root ${scenarioKey("thread-reaction-root")}`,
       });
-      const key = scenarioKey('thread-reaction');
+      const key = scenarioKey("thread-reaction");
       const tag = `[tlon-test:${key}]`;
       const replyOne = `Reaction thread reply ${key} ${tag}`;
       const reactionAck = `Reaction thread acknowledgement ${key}`;
@@ -938,7 +939,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         parentAuthor: root.authorId,
         content: storyWithMention(
           actors.bot.ship,
-          `${tag} Write the scripted thread reply.`
+          `${tag} Write the scripted thread reply.`,
         ),
       });
       await waitForModelCalls(ctx.fakeModel, key);
@@ -948,13 +949,13 @@ export const commonScenarios: readonly SharedScenario[] = [
         root.id,
         root.authorId,
         actors.bot.ship,
-        replyOne
+        replyOne,
       );
       expect(initialReplies).toHaveLength(1);
       const botReply = initialReplies[0];
       if (!botReply?.id || !botReply.parentId) {
         throw new Error(
-          'Expected the initial bot reaction target to be a channel thread reply.'
+          "Expected the initial bot reaction target to be a channel thread reply.",
         );
       }
       expect(botReply.parentId).toBe(root.id);
@@ -967,7 +968,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       await actors.owner.addReact({
         channelId: fixture.channelId,
         postId: botReply.id,
-        react: '👍',
+        react: "👍",
         postAuthor: botReply.author,
         parentId: root.id,
         parentAuthorId: root.authorId,
@@ -979,7 +980,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         root.id,
         root.authorId,
         actors.bot.ship,
-        reactionAck
+        reactionAck,
       );
       expect(acknowledgements).toHaveLength(1);
       // OpenClaw sets replyParentId to the reply's thread root. Hermes carries
@@ -992,7 +993,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       await expectNoNewModelCallsAfterSettle(
         ctx.fakeModel,
         isBenign,
-        await modelCallCount(ctx.fakeModel, isBenign)
+        await modelCallCount(ctx.fakeModel, isBenign),
       );
       const settledThread = await actors.owner.state.postWithReplies({
         channelId: fixture.channelId,
@@ -1002,55 +1003,55 @@ export const commonScenarios: readonly SharedScenario[] = [
       const settledAcknowledgements = settledThread.replies.filter(
         (reply) =>
           reply.author === normalizeShip(actors.bot.ship) &&
-          reply.text.includes(reactionAck)
+          reply.text.includes(reactionAck),
       );
       expect(settledAcknowledgements).toHaveLength(1);
       expect(settledAcknowledgements[0]?.parentId).toBe(root.id);
       expect(calls).toHaveLength(2);
       const reactionCall = calls[1];
-      expect(reactionCall?.userText).toContain('👍');
+      expect(reactionCall?.userText).toContain("👍");
       expect(reactionCall?.userText).toContain(replyOne);
-      if (driver.name === 'openclaw') {
+      if (driver.name === "openclaw") {
         expect(reactionCall?.userText).toContain(actors.owner.ship);
       }
       expect(reactionCall?.provenance).toBe(
-        REACTION_PROVENANCE_BY_DRIVER[driver.name]
+        REACTION_PROVENANCE_BY_DRIVER[driver.name],
       );
-    }
+    },
   ),
 
-  testScenario('dm-thread-anchoring', {}, async ({ ctx, driver, actors }) => {
-    const firstKey = scenarioKey('dm-thread-root');
+  testScenario("dm-thread-anchoring", {}, async ({ ctx, driver, actors }) => {
+    const firstKey = scenarioKey("dm-thread-root");
     const firstReply = `DM thread root reply ${firstKey}`;
     const firstScript = driver.model.replyText(firstReply);
     const firstTag = await registerModelScript(
       ctx.fakeModel,
       firstKey,
-      firstScript
+      firstScript,
     );
     const prompt = await actors.owner.prompt(
-      `${firstTag} Write the scripted DM root reply.`
+      `${firstTag} Write the scripted DM root reply.`,
     );
     expectPromptSuccess(prompt, firstReply);
     const botReply = await waitForDmBotReply(
       actors.owner,
       actors.bot.ship,
-      firstReply
+      firstReply,
     );
     if (!botReply.id || !botReply.authorId) {
       throw new Error(
-        'Expected the DM root reply to include an id and author.'
+        "Expected the DM root reply to include an id and author.",
       );
     }
     await expectModelExpectations(ctx.fakeModel, firstKey, firstScript);
 
-    const followKey = scenarioKey('dm-thread-follow');
+    const followKey = scenarioKey("dm-thread-follow");
     const followReply = `DM thread follow reply ${followKey}`;
     const followScript = driver.model.replyText(followReply);
     const followTag = await registerModelScript(
       ctx.fakeModel,
       followKey,
-      followScript
+      followScript,
     );
     await actors.owner.replyToPost({
       channelId: actors.bot.ship,
@@ -1065,7 +1066,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       botReply.id,
       botReply.authorId,
       actors.bot.ship,
-      followReply
+      followReply,
     );
     expect(threadReplies).toHaveLength(1);
     expect(threadReplies[0]?.parentId).toBe(botReply.id);
@@ -1079,7 +1080,7 @@ export const commonScenarios: readonly SharedScenario[] = [
     const settledReplies = settledThread.replies.filter(
       (reply) =>
         reply.author === normalizeShip(actors.bot.ship) &&
-        reply.text.includes(followReply)
+        reply.text.includes(followReply),
     );
     expect(settledReplies).toHaveLength(1);
     expect(settledReplies[0]?.parentId).toBe(botReply.id);
@@ -1088,21 +1089,21 @@ export const commonScenarios: readonly SharedScenario[] = [
   // TLON-6150 (https://linear.app/tlon/issue/TLON-6150) adds the model-driven
   // cron partition below; this scenario remains the no-agent sender-path check.
   testScenario(
-    'hermes-cron-delivery-targets-home-conversation',
-    { drivers: ['hermes'] },
+    "hermes-cron-delivery-targets-home-conversation",
+    { drivers: ["hermes"] },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await allowDmFrom(actors, actors.thirdParty.ship);
-      const routeKey = scenarioKey('cron-route');
+      const routeKey = scenarioKey("cron-route");
       const routeReply = `Third-party route seed ${routeKey}`;
       const routeScript = driver.model.replyText(routeReply);
       const routeTag = await registerModelScript(
         ctx.fakeModel,
         routeKey,
-        routeScript
+        routeScript,
       );
       const routeResult = await actors.thirdParty.prompt(
-        `${routeTag} Establish the competing DM route.`
+        `${routeTag} Establish the competing DM route.`,
       );
       expectPromptSuccess(routeResult, routeReply);
       await expectModelExpectations(ctx.fakeModel, routeKey, routeScript);
@@ -1111,25 +1112,25 @@ export const commonScenarios: readonly SharedScenario[] = [
       const modelBaseline = await modelCallCount(ctx.fakeModel, isBenign);
       const ownerBaseline = await conversationBaseline(
         actors.owner,
-        actors.bot.ship
+        actors.bot.ship,
       );
       const thirdPartyBaseline = await conversationBaseline(
         actors.thirdParty,
-        actors.bot.ship
+        actors.bot.ship,
       );
       const channelBaseline = await conversationBaseline(
         actors.owner,
-        fixture.channelId
+        fixture.channelId,
       );
-      const marker = `Hermes cron marker ${scenarioKey('cron-marker')}`;
-      const scriptName = `${scenarioKey('cron-script')}.sh`;
+      const marker = `Hermes cron marker ${scenarioKey("cron-marker")}`;
+      const scriptName = `${scenarioKey("cron-script")}.sh`;
 
       await writeHermesCronMarkerScript(ctx, scriptName, marker);
       actors.bot.teardown(
         async () => {
           await removeHermesCronMarkerScript(ctx, scriptName);
         },
-        { label: `remove cron marker script ${scriptName}` }
+        { label: `remove cron marker script ${scriptName}` },
       );
 
       const jobId = await createHermesCronJob(ctx, scriptName);
@@ -1137,7 +1138,7 @@ export const commonScenarios: readonly SharedScenario[] = [
         async () => {
           await removeHermesCronJobAndOutput(ctx, jobId);
         },
-        { label: `remove cron job and output ${jobId}` }
+        { label: `remove cron job and output ${jobId}` },
       );
 
       await runHermesCronJob(ctx, jobId);
@@ -1145,45 +1146,45 @@ export const commonScenarios: readonly SharedScenario[] = [
         actors.owner,
         actors.bot.ship,
         marker,
-        ownerBaseline
+        ownerBaseline,
       );
       await expectNoConversationTextAfterBaseline(
         actors.thirdParty,
         actors.bot.ship,
         marker,
-        thirdPartyBaseline
+        thirdPartyBaseline,
       );
       await expectNoConversationTextAfterBaseline(
         actors.owner,
         fixture.channelId,
         marker,
-        channelBaseline
+        channelBaseline,
       );
       await expectNoNewModelCallsAfterSettle(
         ctx.fakeModel,
         isBenign,
-        modelBaseline
+        modelBaseline,
       );
-    }
+    },
   ),
 
   testScenario(
-    'cron-model-driven-turn-delivers-to-origin',
-    { capabilities: ['cron'], timeoutMs: cronModelDrivenScenarioTimeoutMs },
+    "cron-model-driven-turn-delivers-to-origin",
+    { capabilities: ["cron"], timeoutMs: cronModelDrivenScenarioTimeoutMs },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await allowDmFrom(actors, actors.thirdParty.ship);
-      const routeKey = scenarioKey('cron-mdl-route');
+      const routeKey = scenarioKey("cron-mdl-route");
       const routeReply = `Third-party route seed ${routeKey}`;
       const routeScript = driver.model.looseReplyText(routeReply);
       const routeTag = await registerModelScript(
         ctx.fakeModel,
         routeKey,
-        routeScript
+        routeScript,
       );
       const routeResult = await actors.thirdParty.prompt(
         `${routeTag} Establish the competing DM route.`,
-        { timeoutMs: BOT_REPLY_WAIT_MS }
+        { timeoutMs: BOT_REPLY_WAIT_MS },
       );
       expectPromptSuccess(routeResult, routeReply);
       await expectModelExpectations(ctx.fakeModel, routeKey, routeScript);
@@ -1193,27 +1194,27 @@ export const commonScenarios: readonly SharedScenario[] = [
       const expectedFinalModelCallCount = modelBaseline + 3;
       const ownerBaseline = await conversationBaseline(
         actors.owner,
-        actors.bot.ship
+        actors.bot.ship,
       );
       const thirdPartyBaseline = await conversationBaseline(
         actors.thirdParty,
-        actors.bot.ship
+        actors.bot.ship,
       );
       const channelBaseline = await conversationBaseline(
         actors.owner,
-        fixture.channelId
+        fixture.channelId,
       );
 
-      const firedKey = scenarioKey('cron-mdl-fired');
+      const firedKey = scenarioKey("cron-mdl-fired");
       const marker = `Cron fired marker ${firedKey}`;
       const firedScript = driver.model.looseReplyText(marker);
       const firedTag = await registerModelScript(
         ctx.fakeModel,
         firedKey,
-        firedScript
+        firedScript,
       );
 
-      const jobName = `shared-cron-${scenarioKey('job')}`;
+      const jobName = `shared-cron-${scenarioKey("job")}`;
       const cleanupTarget: CronCleanupTarget = {
         name: jobName,
         creationSettled: Promise.resolve(),
@@ -1222,10 +1223,10 @@ export const commonScenarios: readonly SharedScenario[] = [
         async () => {
           await cleanupCronJobAndArtifacts(ctx, driver.name, cleanupTarget);
         },
-        { label: `remove cron job artifacts ${jobName}` }
+        { label: `remove cron job artifacts ${jobName}` },
       );
 
-      const createKey = scenarioKey('cron-mdl-create');
+      const createKey = scenarioKey("cron-mdl-create");
       const confirmText = `Cron job scheduled ${createKey}`;
       const createScript = driver.model.createCronJob({
         name: jobName,
@@ -1235,18 +1236,18 @@ export const commonScenarios: readonly SharedScenario[] = [
       const createTag = await registerModelScript(
         ctx.fakeModel,
         createKey,
-        createScript
+        createScript,
       );
 
       const createResultPromise = actors.owner.prompt(
         `${createTag} Schedule the scripted one-shot cron job.`,
-        { timeoutMs: CRON_CREATE_PROMPT_WAIT_MS }
+        { timeoutMs: CRON_CREATE_PROMPT_WAIT_MS },
       );
       const createdJobPromise = waitForCronJobCreated(
         ctx,
         driver.name,
         jobName,
-        CRON_CREATE_PROMPT_WAIT_MS
+        CRON_CREATE_PROMPT_WAIT_MS,
       ).then((job) => {
         cleanupTarget.id = job.id;
         return job;
@@ -1254,7 +1255,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       const [createResult, createdJob] = await settleCronJobCreation(
         cleanupTarget,
         createResultPromise,
-        createdJobPromise
+        createdJobPromise,
       );
       expectPromptSuccess(createResult, confirmText);
       await expectModelExpectations(ctx.fakeModel, createKey, createScript);
@@ -1263,63 +1264,63 @@ export const commonScenarios: readonly SharedScenario[] = [
         ctx.fakeModel,
         firedKey,
         1,
-        CRON_FIRED_WAIT_MS[driver.name]
+        CRON_FIRED_WAIT_MS[driver.name],
       );
-      expect(firedCalls[0]?.provenance).toBe('latest-user');
+      expect(firedCalls[0]?.provenance).toBe("latest-user");
 
       await waitForConversationTextAfterBaseline(
         actors.owner,
         actors.bot.ship,
         marker,
-        ownerBaseline
+        ownerBaseline,
       );
       await expectNoConversationTextAfterBaseline(
         actors.thirdParty,
         actors.bot.ship,
         marker,
-        thirdPartyBaseline
+        thirdPartyBaseline,
       );
       await expectNoConversationTextAfterBaseline(
         actors.owner,
         fixture.channelId,
         marker,
-        channelBaseline
+        channelBaseline,
       );
 
       await waitForCronJobRemoved(
         ctx,
         driver.name,
         createdJob.id,
-        CRON_JOB_REMOVAL_WAIT_MS
+        CRON_JOB_REMOVAL_WAIT_MS,
       );
       await expectModelExpectations(ctx.fakeModel, firedKey, firedScript);
       await expectNoNewModelCallsAfterSettle(
         ctx.fakeModel,
         isBenign,
-        expectedFinalModelCallCount
+        expectedFinalModelCallCount,
       );
-    }
+    },
   ),
 
   testScenario(
-    'restart-no-double-reply',
+    "restart-no-double-reply",
     {
       orderDependent: true,
       skipReason:
-        'TLON-6098: reconnect does not replay messages received while the bot is down.',
+        "TLON-6098: reconnect does not replay messages received while the bot is down.",
       timeoutMs: 360_000,
     },
     async ({ ctx, driver, actors }) => {
-      const firstKey = scenarioKey('restart-before');
+      const firstKey = scenarioKey("restart-before");
       const firstReply = `Restart first reply ${firstKey}`;
       const firstScript = driver.model.replyText(firstReply);
       const firstTag = await registerModelScript(
         ctx.fakeModel,
         firstKey,
-        firstScript
+        firstScript,
       );
       const firstResult = await actors.owner.prompt(
-        `${firstTag} Reply before the restart.`
+        `${firstTag} Reply before the restart.`,
       );
       expectPromptSuccess(firstResult, firstReply);
       await expectModelExpectations(ctx.fakeModel, firstKey, firstScript);
@@ -1332,18 +1333,18 @@ export const commonScenarios: readonly SharedScenario[] = [
             await startComposeService(ctx, ctx.services.bot);
           }
         },
-        { label: `restore stopped service ${ctx.services.bot}` }
+        { label: `restore stopped service ${ctx.services.bot}` },
       );
-      const secondKey = scenarioKey('restart-boundary');
+      const secondKey = scenarioKey("restart-boundary");
       const secondReply = `Restart boundary reply ${secondKey}`;
       const secondScript = driver.model.replyText(secondReply);
       const secondTag = await registerModelScript(
         ctx.fakeModel,
         secondKey,
-        secondScript
+        secondScript,
       );
       await actors.owner.sendDm(
-        `${secondTag} This message arrives while the bot is stopped.`
+        `${secondTag} This message arrives while the bot is stopped.`,
       );
       await startComposeService(ctx, ctx.services.bot);
       serviceStarted = true;
@@ -1355,19 +1356,19 @@ export const commonScenarios: readonly SharedScenario[] = [
       await expectNoNewModelCallsAfterSettle(
         ctx.fakeModel,
         benignModelCallPredicate(driver),
-        await modelCallCount(ctx.fakeModel, benignModelCallPredicate(driver))
+        await modelCallCount(ctx.fakeModel, benignModelCallPredicate(driver)),
       );
       expect(
-        await matchingDmBotReplies(actors.owner, actors.bot.ship, firstReply)
+        await matchingDmBotReplies(actors.owner, actors.bot.ship, firstReply),
       ).toHaveLength(1);
       expect(
-        await matchingDmBotReplies(actors.owner, actors.bot.ship, secondReply)
+        await matchingDmBotReplies(actors.owner, actors.bot.ship, secondReply),
       ).toHaveLength(1);
-    }
+    },
   ),
 
   testScenario(
-    'known-bot-loop-protection-resets-on-human-dispatch',
+    "known-bot-loop-protection-resets-on-human-dispatch",
     { timeoutMs: knownBotLoopScenarioTimeoutMs },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
@@ -1383,9 +1384,9 @@ export const commonScenarios: readonly SharedScenario[] = [
           script: driver.model.replyText(reply),
         };
       });
-      const droppedKey = scenarioKey('loop-bot-dropped');
-      const humanKey = scenarioKey('loop-human-reset');
-      const afterResetKey = scenarioKey('loop-bot-after-reset');
+      const droppedKey = scenarioKey("loop-bot-dropped");
+      const humanKey = scenarioKey("loop-human-reset");
+      const afterResetKey = scenarioKey("loop-bot-after-reset");
       const humanReply = `Human reset response ${humanKey}`;
       const afterResetReply = `Known bot after reset response ${afterResetKey}`;
 
@@ -1401,13 +1402,13 @@ export const commonScenarios: readonly SharedScenario[] = [
         const baseline = await botChannelBaseline(
           actors.owner,
           fixture.channelId,
-          actors.bot.ship
+          actors.bot.ship,
         );
         await actors.thirdParty.sendChannelPost({
           channelId: fixture.channelId,
           content: storyWithMention(
             actors.bot.ship,
-            `[tlon-test:${turn.key}] Known bot mention ${index + 1}.`
+            `[tlon-test:${turn.key}] Known bot mention ${index + 1}.`,
           ),
           botProfile: botProfileFor(actors.thirdParty.ship),
         });
@@ -1417,7 +1418,7 @@ export const commonScenarios: readonly SharedScenario[] = [
           fixture.channelId,
           actors.bot.ship,
           turn.reply,
-          baseline
+          baseline,
         );
         await expectModelExpectations(ctx.fakeModel, turn.key, turn.script);
       }
@@ -1425,43 +1426,43 @@ export const commonScenarios: readonly SharedScenario[] = [
       const droppedBaseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
-        actors.bot.ship
+        actors.bot.ship,
       );
       const isBenign = benignModelCallPredicate(driver);
       const droppedModelBaseline = await modelCallCount(
         ctx.fakeModel,
-        isBenign
+        isBenign,
       );
       await actors.thirdParty.sendChannelPost({
         channelId: fixture.channelId,
         content: storyWithMention(
           actors.bot.ship,
-          `[tlon-test:${droppedKey}] Known bot mention should be dropped.`
+          `[tlon-test:${droppedKey}] Known bot mention should be dropped.`,
         ),
         botProfile: botProfileFor(actors.thirdParty.ship),
       });
       await expectNoNewModelCallsAfterSettle(
         ctx.fakeModel,
         isBenign,
-        droppedModelBaseline
+        droppedModelBaseline,
       );
       await expectNoBotChannelReply(
         actors.owner,
         fixture.channelId,
         actors.bot.ship,
-        droppedBaseline
+        droppedBaseline,
       );
 
       const humanBaseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
-        actors.bot.ship
+        actors.bot.ship,
       );
       await actors.owner.sendChannelPost({
         channelId: fixture.channelId,
         content: storyWithMention(
           actors.bot.ship,
-          `[tlon-test:${humanKey}] Human mention resets the loop counter.`
+          `[tlon-test:${humanKey}] Human mention resets the loop counter.`,
         ),
       });
       await waitForModelCalls(ctx.fakeModel, humanKey);
@@ -1470,20 +1471,20 @@ export const commonScenarios: readonly SharedScenario[] = [
         fixture.channelId,
         actors.bot.ship,
         humanReply,
-        humanBaseline
+        humanBaseline,
       );
       await expectModelExpectations(ctx.fakeModel, humanKey, humanScript);
 
       const afterResetBaseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
-        actors.bot.ship
+        actors.bot.ship,
       );
       await actors.thirdParty.sendChannelPost({
         channelId: fixture.channelId,
         content: storyWithMention(
           actors.bot.ship,
-          `[tlon-test:${afterResetKey}] Known bot mention after reset.`
+          `[tlon-test:${afterResetKey}] Known bot mention after reset.`,
         ),
         botProfile: botProfileFor(actors.thirdParty.ship),
       });
@@ -1493,12 +1494,12 @@ export const commonScenarios: readonly SharedScenario[] = [
         fixture.channelId,
         actors.bot.ship,
         afterResetReply,
-        afterResetBaseline
+        afterResetBaseline,
       );
       await expectModelExpectations(
         ctx.fakeModel,
         afterResetKey,
-        afterResetScript
+        afterResetScript,
       );
 
       await sleep(NEGATIVE_SETTLE_MS);
@@ -1509,19 +1510,19 @@ export const commonScenarios: readonly SharedScenario[] = [
       await expectModelExpectations(
         ctx.fakeModel,
         afterResetKey,
-        afterResetScript
+        afterResetScript,
       );
       await expectNoModelCalls(ctx.fakeModel, droppedKey);
-    }
+    },
   ),
   testScenario(
-    'sse-resume-replays-events-missed-while-disconnected',
+    "sse-resume-replays-events-missed-while-disconnected",
     { orderDependent: true, timeoutMs: 300_000 },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
       await openChannelAccess(actors, fixture.channelId);
 
-      const key = scenarioKey('sse-resume');
+      const key = scenarioKey("sse-resume");
       const reply = `SSE resume reply ${key}`;
       const script = driver.model.replyText(reply);
       const tag = await registerModelScript(ctx.fakeModel, key, script);
@@ -1529,7 +1530,7 @@ export const commonScenarios: readonly SharedScenario[] = [
       const baseline = await botChannelBaseline(
         actors.owner,
         fixture.channelId,
-        actors.bot.ship
+        actors.bot.ship,
       );
 
       const since = new Date().toISOString();
@@ -1542,14 +1543,14 @@ export const commonScenarios: readonly SharedScenario[] = [
             await connectComposeNetwork(ctx, ctx.services.bot);
           }
         },
-        { label: `reconnect network for ${ctx.services.bot}` }
+        { label: `reconnect network for ${ctx.services.bot}` },
       );
 
       await actors.owner.sendChannelPost({
         channelId: fixture.channelId,
         content: storyWithMention(
           actors.bot.ship,
-          `${tag} Mention while the bot is disconnected.`
+          `${tag} Mention while the bot is disconnected.`,
         ),
       });
 
@@ -1568,7 +1569,7 @@ export const commonScenarios: readonly SharedScenario[] = [
             since,
           });
           return driver.streamFaultLogMarkers.some((marker) =>
-            logs.includes(marker)
+            logs.includes(marker),
           )
             ? true
             : undefined;
@@ -1577,8 +1578,8 @@ export const commonScenarios: readonly SharedScenario[] = [
           timeoutMs: 120_000,
           intervalMs: 2_000,
           description:
-            'SSE stream fault marker in bot logs (confirms the fault occurred)',
-        }
+            "SSE stream fault marker in bot logs (confirms the fault occurred)",
+        },
       );
 
       await connectComposeNetwork(ctx, ctx.services.bot);
@@ -1590,14 +1591,14 @@ export const commonScenarios: readonly SharedScenario[] = [
         fixture.channelId,
         actors.bot.ship,
         reply,
-        baseline
+        baseline,
       );
       await expectModelExpectations(ctx.fakeModel, key, script);
-    }
+    },
   ),
 
   testScenario(
-    'nudge-delivery-and-reengagement',
+    "nudge-delivery-and-reengagement",
     {
       timeoutMs: () =>
         NUDGE_DELIVERY_WAIT_MS +
@@ -1609,60 +1610,60 @@ export const commonScenarios: readonly SharedScenario[] = [
     async ({ ctx, driver, actors }) => {
       const isolation = await withNudgeSettingsIsolation(actors);
       const sentinelAt = Date.now();
-      await isolation.set('lastOwnerMessageAt', sentinelAt);
+      await isolation.set("lastOwnerMessageAt", sentinelAt);
       await isolation.set(
-        'lastOwnerMessageDate',
-        new Date(sentinelAt).toISOString().slice(0, 10)
+        "lastOwnerMessageDate",
+        new Date(sentinelAt).toISOString().slice(0, 10),
       );
       await waitForSettingsEntries(actors, {
         lastOwnerMessageAt: sentinelAt,
       });
 
-      await isolation.set('nudgeActiveHoursStart', '00:00');
-      await isolation.set('nudgeActiveHoursEnd', '00:00');
+      await isolation.set("nudgeActiveHoursStart", "00:00");
+      await isolation.set("nudgeActiveHoursEnd", "00:00");
       await waitForSettingsEntries(actors, {
-        nudgeActiveHoursStart: '00:00',
-        nudgeActiveHoursEnd: '00:00',
+        nudgeActiveHoursStart: "00:00",
+        nudgeActiveHoursEnd: "00:00",
       });
       isolation.confirmClosedWindow();
-      await isolation.delete('lastNudgeStage');
-      await isolation.delete('pendingNudge');
+      await isolation.delete("lastNudgeStage");
+      await isolation.delete("pendingNudge");
       await waitForSettingsKeysAbsent(actors, [
-        'lastNudgeStage',
-        'pendingNudge',
+        "lastNudgeStage",
+        "pendingNudge",
       ]);
 
       const dmBaseline = await actors.owner.state.latestSequenceFrom(
         actors.bot.ship,
-        actors.bot.ship
+        actors.bot.ship,
       );
       const idleAt = Date.now() - 8 * 24 * 60 * 60 * 1000;
-      await isolation.set('lastOwnerMessageAt', idleAt);
+      await isolation.set("lastOwnerMessageAt", idleAt);
       await isolation.set(
-        'lastOwnerMessageDate',
-        new Date(idleAt).toISOString().slice(0, 10)
+        "lastOwnerMessageDate",
+        new Date(idleAt).toISOString().slice(0, 10),
       );
-      await isolation.set('nudgeActiveHoursEnd', '24:00');
+      await isolation.set("nudgeActiveHoursEnd", "24:00");
 
       const nudge = await waitFor(
         async () => {
           const posts = await actors.owner.state.channelPosts(
             actors.bot.ship,
-            40
+            40,
           );
           return posts.find(
             (post) =>
               post.authorId === actors.bot.ship &&
-              typeof post.sequenceNum === 'number' &&
+              typeof post.sequenceNum === "number" &&
               post.sequenceNum > dmBaseline &&
-              post.text.includes('Hey! Quick ideas for your week:')
+              post.text.includes("Hey! Quick ideas for your week:"),
           );
         },
         {
           timeoutMs: NUDGE_DELIVERY_WAIT_MS,
           intervalMs: 500,
-          description: 'stage-1 re-engagement nudge DM',
-        }
+          description: "stage-1 re-engagement nudge DM",
+        },
       );
       const nudgeSequence = nudge.sequenceNum ?? dmBaseline;
       await waitFor(
@@ -1676,11 +1677,11 @@ export const commonScenarios: readonly SharedScenario[] = [
         {
           timeoutMs: NUDGE_CLEANUP_WAIT_MS,
           intervalMs: 500,
-          description: 'persisted stage-1 pending nudge',
-        }
+          description: "persisted stage-1 pending nudge",
+        },
       );
 
-      const key = scenarioKey('nudge-reengagement');
+      const key = scenarioKey("nudge-reengagement");
       const reply = `Nudge re-engagement reply ${key}`;
       const script = driver.model.replyText(reply);
       const tag = await registerModelScript(ctx.fakeModel, key, script);
@@ -1690,27 +1691,27 @@ export const commonScenarios: readonly SharedScenario[] = [
       await waitFor(
         async () => {
           const bucket = await settingsBucket(actors);
-          return typeof bucket.lastOwnerMessageAt === 'number' &&
+          return typeof bucket.lastOwnerMessageAt === "number" &&
             bucket.lastOwnerMessageAt >= replyAt &&
-            !Object.prototype.hasOwnProperty.call(bucket, 'lastNudgeStage') &&
-            !Object.prototype.hasOwnProperty.call(bucket, 'pendingNudge')
+            !Object.prototype.hasOwnProperty.call(bucket, "lastNudgeStage") &&
+            !Object.prototype.hasOwnProperty.call(bucket, "pendingNudge")
             ? true
             : undefined;
         },
         {
           timeoutMs: NUDGE_CLEANUP_WAIT_MS,
           intervalMs: 500,
-          description: 'nudge re-engagement cleanup',
-        }
+          description: "nudge re-engagement cleanup",
+        },
       );
       const calls = await waitForModelCalls(ctx.fakeModel, key);
       if (
         !calls.some((call) =>
-          call.userText.includes('[Context: You recently sent')
+          call.userText.includes("[Context: You recently sent"),
         )
       ) {
         throw new Error(
-          'Expected owner re-engagement model request to include nudge context.'
+          "Expected owner re-engagement model request to include nudge context.",
         );
       }
       await expectModelExpectations(ctx.fakeModel, key, script);
@@ -1720,20 +1721,20 @@ export const commonScenarios: readonly SharedScenario[] = [
         await sleep(500);
         const posts = await actors.owner.state.channelPosts(
           actors.bot.ship,
-          40
+          40,
         );
         const duplicate = posts.find(
           (post) =>
             post.authorId === actors.bot.ship &&
-            typeof post.sequenceNum === 'number' &&
+            typeof post.sequenceNum === "number" &&
             post.sequenceNum > nudgeSequence &&
-            post.text.includes('Hey! Quick ideas for your week:')
+            post.text.includes("Hey! Quick ideas for your week:"),
         );
         if (duplicate) {
-          throw new Error('Received a duplicate stage-1 re-engagement nudge.');
+          throw new Error("Received a duplicate stage-1 re-engagement nudge.");
         }
       }
-    }
+    },
   ),
   // ── Outbound media (TLON-6318) ────────────────────────────────────────
   //
@@ -1741,49 +1742,57 @@ export const commonScenarios: readonly SharedScenario[] = [
   // commands ARE the pipeline, so these lock the CLI contract as the model
   // actually experiences it.
   testScenario(
-    'outbound-media-fail-loud',
-    { drivers: ['hermes'] },
+    "outbound-media-fail-loud",
+    { drivers: ["hermes"] },
     async ({ ctx, driver, actors }) => {
       const fixture = await createOwnerHostedChannelFixture(actors);
-      const key = scenarioKey('media-fail-loud');
+      const key = scenarioKey("media-fail-loud");
       // The marker rides the attempted caption: `channelPostsByBot` drops
       // textless posts and the actor's post mapping drops the API's `images`
       // field, so a caption-less image-only post could otherwise slip past
-      // the usual helpers unnoticed.
-      const marker = `media-fail-loud-${key}`;
+      // the usual helpers unnoticed. The key is already scenario-prefixed and
+      // unique; keeping the marker short matters because the fake model
+      // records tool-result text capped at 300 chars, and the result's
+      // command echo (which includes the marker) precedes the stderr this
+      // scenario asserts on.
+      const marker = key;
       const recovery = `Could not attach the image ${key}`;
       const baseline = await rawBotChannelBaseline(
         actors.owner,
         fixture.channelId,
-        actors.bot.ship
+        actors.bot.ship,
       );
 
       const script = driver.model.readOrAdmin(
         `posts send ${fixture.channelId} ${JSON.stringify(marker)} --image /pier/generated.png`,
-        recovery
+        recovery,
       );
       const tag = await registerModelScript(ctx.fakeModel, key, script);
 
       const result = await actors.owner.prompt(
         `${tag} Post the scripted image to the channel, then reply with the scripted result.`,
-        { timeoutMs: 120_000 }
+        { timeoutMs: 120_000 },
       );
 
       expectPromptSuccess(result, recovery);
       const calls = await expectModelExpectations(ctx.fakeModel, key, script);
-      // The CLI's fixed error has to reach the model verbatim, which is what
-      // stops it from reporting a delivery that never happened.
+      // The CLI's fixed error has to reach the model, which is what stops it
+      // from reporting a delivery that never happened. Assert a prefix of the
+      // fixed message: the recorded tool-result text is summary-capped at 300
+      // chars and the command echo before the stderr grows with unrelated
+      // features (a develop-side `--bot` flag once pushed the full phrase
+      // past the cap), so the assertion must not sit at the cap boundary.
       expect(toolResultText(calls)).toContain(
-        'Local file paths are not supported for --image'
+        "Local file paths are not supported",
       );
       await expectNoMediaPost(
         actors.owner,
         fixture.channelId,
         actors.bot.ship,
         marker,
-        baseline
+        baseline,
       );
-    }
+    },
   ),
 ];
 
@@ -1795,7 +1804,7 @@ function postImageSources(post: ChannelPost): string[] {
   // already-parsed array too so the helper cannot go vacuously green if that
   // representation ever changes.
   let content: unknown = post.content;
-  if (typeof content === 'string') {
+  if (typeof content === "string") {
     try {
       content = JSON.parse(content);
     } catch {
@@ -1809,7 +1818,7 @@ function postImageSources(post: ChannelPost): string[] {
   for (const verse of content) {
     const src = (verse as { block?: { image?: { src?: unknown } } })?.block
       ?.image?.src;
-    if (typeof src === 'string') {
+    if (typeof src === "string") {
       sources.push(src);
     }
   }
@@ -1824,7 +1833,7 @@ function postImageSources(post: ChannelPost): string[] {
 async function rawBotChannelPosts(
   actor: ScenarioActor,
   channelId: string,
-  botShip: string
+  botShip: string,
 ): Promise<ChannelPost[]> {
   const normalized = normalizeShip(botShip);
   const posts = await actor.state.channelPosts(channelId, 40);
@@ -1834,17 +1843,17 @@ async function rawBotChannelPosts(
 async function rawBotChannelBaseline(
   actor: ScenarioActor,
   channelId: string,
-  botShip: string
+  botShip: string,
 ): Promise<ChannelBaseline> {
   const posts = await rawBotChannelPosts(actor, channelId, botShip);
   return {
     sequence: posts
       .map((post) =>
-        typeof post.sequenceNum === 'number' ? post.sequenceNum : -1
+        typeof post.sequenceNum === "number" ? post.sequenceNum : -1,
       )
       .reduce((max, sequence) => Math.max(max, sequence), -1),
     sentAt: posts
-      .map((post) => (typeof post.sentAt === 'number' ? post.sentAt : 0))
+      .map((post) => (typeof post.sentAt === "number" ? post.sentAt : 0))
       .reduce((max, sentAt) => Math.max(max, sentAt), 0),
   };
 }
@@ -1861,24 +1870,24 @@ async function expectNoMediaPost(
   botShip: string,
   marker: string,
   baseline: ChannelBaseline,
-  settleMs = NEGATIVE_SETTLE_MS
+  settleMs = NEGATIVE_SETTLE_MS,
 ): Promise<void> {
   const started = Date.now();
   while (Date.now() - started < settleMs) {
     await sleep(500);
     const posts = (await rawBotChannelPosts(actor, channelId, botShip)).filter(
-      (post) => postAfterBaseline(post, baseline)
+      (post) => postAfterBaseline(post, baseline),
     );
     const withMarker = posts.find((post) => post.text.includes(marker));
     if (withMarker) {
       throw new Error(
-        `Expected no post carrying ${JSON.stringify(marker)}, found: ${withMarker.text.slice(0, 200)}`
+        `Expected no post carrying ${JSON.stringify(marker)}, found: ${withMarker.text.slice(0, 200)}`,
       );
     }
     const withImage = posts.find((post) => postImageSources(post).length > 0);
     if (withImage) {
       throw new Error(
-        `Expected no image block, found src ${postImageSources(withImage).join(', ')}`
+        `Expected no image block, found src ${postImageSources(withImage).join(", ")}`,
       );
     }
   }
@@ -1888,9 +1897,9 @@ async function expectNoMediaPost(
 function toolResultText(calls: ReceivedCall[]): string {
   return calls
     .flatMap((call) => call.messages ?? [])
-    .filter((message) => message.role === 'tool' || message.role === 'function')
-    .map((message) => message.content?.text ?? '')
-    .join('\n');
+    .filter((message) => message.role === "tool" || message.role === "function")
+    .map((message) => message.content?.text ?? "")
+    .join("\n");
 }
 
 interface ExpectedBotInfoClaim {
@@ -1898,27 +1907,27 @@ interface ExpectedBotInfoClaim {
   version: string;
 }
 
-type BotInfoTextField = { type: 'text'; value: string };
+type BotInfoTextField = { type: "text"; value: string };
 
 async function runtimePackageVersion(ctx: RuntimeContext): Promise<string> {
-  const packageJsonPath = path.join(ctx.packageDir, 'package.json');
+  const packageJsonPath = path.join(ctx.packageDir, "package.json");
   let packageJson: unknown;
   try {
-    packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8'));
+    packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
   } catch (error) {
     throw new Error(
       `Could not read runtime package version from ${packageJsonPath}: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     );
   }
   const version =
-    packageJson && typeof packageJson === 'object'
+    packageJson && typeof packageJson === "object"
       ? (packageJson as { version?: unknown }).version
       : undefined;
-  if (typeof version !== 'string' || version.length === 0) {
+  if (typeof version !== "string" || version.length === 0) {
     throw new Error(
-      `Expected ${packageJsonPath} to contain a non-empty string version.`
+      `Expected ${packageJsonPath} to contain a non-empty string version.`,
     );
   }
   return version;
@@ -1928,43 +1937,43 @@ async function waitForBotInfoClaim(
   actor: ScenarioActor,
   scryPath: string,
   description: string,
-  expected: ExpectedBotInfoClaim
+  expected: ExpectedBotInfoClaim,
 ): Promise<BotInfoTextField> {
   return waitFor(
     async () => {
-      const profile = await actor.state.scry<unknown>('contacts', scryPath);
+      const profile = await actor.state.scry<unknown>("contacts", scryPath);
       return parseBotInfoClaim(profile, description, expected);
     },
     {
       timeoutMs: 60_000,
       intervalMs: 1_000,
       description: `valid ${expected.harness} bot-info on ${description}`,
-    }
+    },
   );
 }
 
 function parseBotInfoClaim(
   profile: unknown,
   description: string,
-  expected: ExpectedBotInfoClaim
+  expected: ExpectedBotInfoClaim,
 ): BotInfoTextField {
   const field =
-    profile && typeof profile === 'object' && !Array.isArray(profile)
-      ? (profile as Record<string, unknown>)['bot-info']
+    profile && typeof profile === "object" && !Array.isArray(profile)
+      ? (profile as Record<string, unknown>)["bot-info"]
       : undefined;
-  if (!field || typeof field !== 'object' || Array.isArray(field)) {
+  if (!field || typeof field !== "object" || Array.isArray(field)) {
     throw new Error(
       `Expected ${description} to contain bot-info as a %text field, got ${JSON.stringify(
-        field
-      )}.`
+        field,
+      )}.`,
     );
   }
   const candidate = field as { type?: unknown; value?: unknown };
-  if (candidate.type !== 'text' || typeof candidate.value !== 'string') {
+  if (candidate.type !== "text" || typeof candidate.value !== "string") {
     throw new Error(
       `Expected ${description} bot-info to be a %text field with a string value, got ${JSON.stringify(
-        field
-      )}.`
+        field,
+      )}.`,
     );
   }
   const value = candidate.value;
@@ -1976,8 +1985,8 @@ function parseBotInfoClaim(
   } catch (error) {
     throw new Error(
       `Expected ${description} bot-info to contain JSON, got ${JSON.stringify(
-        value
-      )}: ${error instanceof Error ? error.message : String(error)}`
+        value,
+      )}: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
   const parsed = (claim ?? {}) as {
@@ -1989,7 +1998,7 @@ function parseBotInfoClaim(
   const matchesSchema =
     withinRawCap &&
     claim !== null &&
-    typeof claim === 'object' &&
+    typeof claim === "object" &&
     !Array.isArray(claim) &&
     parsed.v === 1 &&
     parsed.harness === expected.harness &&
@@ -2001,43 +2010,43 @@ function parseBotInfoClaim(
   if (!matchesSchema) {
     throw new Error(
       `Expected ${description} bot-info to match v=1, harness=${JSON.stringify(
-        expected.harness
+        expected.harness,
       )}, and runtime package version=${JSON.stringify(expected.version)} ` +
-        `within the documented size caps, got ${JSON.stringify(claim)}.`
+        `within the documented size caps, got ${JSON.stringify(claim)}.`,
     );
   }
-  return { type: 'text', value };
+  return { type: "text", value };
 }
 
 function botInfoString(value: unknown): value is string {
   return (
-    typeof value === 'string' && value.length > 0 && [...value].length <= 64
+    typeof value === "string" && value.length > 0 && [...value].length <= 64
   );
 }
 
 function logBotInfoProof(
   driverName: DriverName,
   selfField: BotInfoTextField,
-  peerField: BotInfoTextField
+  peerField: BotInfoTextField,
 ): void {
   process.stdout.write(
     `[tlon-bot-e2e] bot-info proof driver=${driverName} ` +
-      `self=${JSON.stringify(selfField)} owner=${JSON.stringify(peerField)}\n`
+      `self=${JSON.stringify(selfField)} owner=${JSON.stringify(peerField)}\n`,
   );
 }
 
 function parsePendingNudge(value: unknown): { stage?: unknown } | undefined {
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value) as unknown;
-      return parsed && typeof parsed === 'object'
+      return parsed && typeof parsed === "object"
         ? (parsed as { stage?: unknown })
         : undefined;
     } catch {
       return undefined;
     }
   }
-  return value && typeof value === 'object'
+  return value && typeof value === "object"
     ? (value as { stage?: unknown })
     : undefined;
 }
@@ -2050,12 +2059,12 @@ function scenarioKey(prefix: string): string {
 
 function expectPromptSuccess(result: PromptResult, expectedText: string): void {
   if (!result.success) {
-    throw new Error(result.error ?? 'Prompt failed without an error message.');
+    throw new Error(result.error ?? "Prompt failed without an error message.");
   }
   if (!result.text?.includes(expectedText)) {
     throw new Error(
       `Expected visible reply to include ${JSON.stringify(expectedText)}, ` +
-        `got ${JSON.stringify(result.text ?? '')}.`
+        `got ${JSON.stringify(result.text ?? "")}.`,
     );
   }
 }
@@ -2066,7 +2075,7 @@ async function expectNoDirectReply(
   },
   botShip: string,
   baselineSequence: number,
-  settleMs = 12_000
+  settleMs = 12_000,
 ): Promise<void> {
   const started = Date.now();
   while (Date.now() - started < settleMs) {
@@ -2077,12 +2086,12 @@ async function expectNoDirectReply(
       .filter((post) => post.text.length > 0)
       .find(
         (post) =>
-          typeof post.sequenceNum === 'number' &&
-          post.sequenceNum > baselineSequence
+          typeof post.sequenceNum === "number" &&
+          post.sequenceNum > baselineSequence,
       );
     if (directReply) {
       throw new Error(
-        `Unexpected direct DM reply from ${botShip}: ${directReply.text.slice(0, 200)}`
+        `Unexpected direct DM reply from ${botShip}: ${directReply.text.slice(0, 200)}`,
       );
     }
   }
@@ -2092,7 +2101,7 @@ async function waitForModelCalls(
   fakeModel: FakeModelClient,
   key: string,
   minCalls = 1,
-  timeoutMs = MODEL_CALL_WAIT_MS
+  timeoutMs = MODEL_CALL_WAIT_MS,
 ): Promise<ReceivedCall[]> {
   return waitFor(
     async () => {
@@ -2104,16 +2113,16 @@ async function waitForModelCalls(
       timeoutMs,
       intervalMs: 500,
       description: `model call(s) for ${key}`,
-    }
+    },
   );
 }
 
 async function modelCallCount(
   fakeModel: FakeModelClient,
-  isBenign: BenignModelCallPredicate
+  isBenign: BenignModelCallPredicate,
 ): Promise<number> {
   return primaryModelCalls(await fakeModel.received()).filter(
-    (call) => !isBenign(call)
+    (call) => !isBenign(call),
   ).length;
 }
 
@@ -2121,23 +2130,23 @@ async function expectNoNewModelCallsAfterSettle(
   fakeModel: FakeModelClient,
   isBenign: BenignModelCallPredicate,
   baselineCount: number,
-  settleMs = NEGATIVE_SETTLE_MS
+  settleMs = NEGATIVE_SETTLE_MS,
 ): Promise<void> {
   await sleep(settleMs);
   const calls = primaryModelCalls(await fakeModel.received()).filter(
-    (call) => !isBenign(call)
+    (call) => !isBenign(call),
   );
   if (calls.length !== baselineCount) {
     const newCalls = calls.slice(baselineCount);
     const summary = newCalls
-      .map((call) => call.key ?? '<unkeyed>')
+      .map((call) => call.key ?? "<unkeyed>")
       .slice(0, 5)
-      .join(', ');
+      .join(", ");
     throw new Error(
       `Expected no new model calls after baseline ${baselineCount}, ` +
         `got ${calls.length}` +
-        (summary ? ` (new: ${summary})` : '') +
-        `.`
+        (summary ? ` (new: ${summary})` : "") +
+        `.`,
     );
   }
 }
@@ -2145,7 +2154,7 @@ async function expectNoNewModelCallsAfterSettle(
 async function expectNoModelCallsAfterSettle(
   fakeModel: FakeModelClient,
   isBenign: BenignModelCallPredicate,
-  settleMs = NEGATIVE_SETTLE_MS
+  settleMs = NEGATIVE_SETTLE_MS,
 ): Promise<void> {
   await sleep(settleMs);
   await expectNoModelCalls(fakeModel, undefined, isBenign);
@@ -2157,7 +2166,7 @@ async function waitForThreadReplies(
   rootId: string,
   rootAuthor: string,
   botShip: string,
-  expectedText: string
+  expectedText: string,
 ): Promise<
   Array<{ id: string; author: string; text: string; parentId?: string }>
 > {
@@ -2171,7 +2180,7 @@ async function waitForThreadReplies(
       const replies = post.replies.filter(
         (reply) =>
           reply.author === normalizeShip(botShip) &&
-          reply.text.includes(expectedText)
+          reply.text.includes(expectedText),
       );
       return replies.length > 0 ? replies : undefined;
     },
@@ -2179,7 +2188,7 @@ async function waitForThreadReplies(
       timeoutMs: BOT_REPLY_WAIT_MS,
       intervalMs: 500,
       description: `thread reply containing ${JSON.stringify(expectedText)}`,
-    }
+    },
   );
 }
 
@@ -2189,22 +2198,22 @@ async function expectNoTopLevelBotChannelReplies(
   botShip: string,
   expectedTexts: readonly string[],
   baseline: ChannelBaseline,
-  settleMs = NEGATIVE_SETTLE_MS
+  settleMs = NEGATIVE_SETTLE_MS,
 ): Promise<void> {
   const started = Date.now();
   while (Date.now() - started < settleMs) {
     const unexpected = channelPostsByBot(
       await actor.state.channelPosts(channelId, 40),
-      botShip
+      botShip,
     ).find(
       (post) =>
         !post.parentId &&
         postAfterBaseline(post, baseline) &&
-        expectedTexts.some((text) => post.text.includes(text))
+        expectedTexts.some((text) => post.text.includes(text)),
     );
     if (unexpected) {
       throw new Error(
-        `Unexpected top-level channel reply from ${botShip}: ${unexpected.text.slice(0, 200)}`
+        `Unexpected top-level channel reply from ${botShip}: ${unexpected.text.slice(0, 200)}`,
       );
     }
     await sleep(500);
@@ -2217,7 +2226,7 @@ async function expectNoBotThreadReply(
   rootId: string,
   rootAuthor: string,
   botShip: string,
-  settleMs = NEGATIVE_SETTLE_MS
+  settleMs = NEGATIVE_SETTLE_MS,
 ): Promise<void> {
   const started = Date.now();
   while (Date.now() - started < settleMs) {
@@ -2227,11 +2236,11 @@ async function expectNoBotThreadReply(
       rootAuthor,
     });
     const unexpected = post.replies.find(
-      (reply) => reply.author === normalizeShip(botShip)
+      (reply) => reply.author === normalizeShip(botShip),
     );
     if (unexpected) {
       throw new Error(
-        `Unexpected thread reply from ${botShip}: ${unexpected.text.slice(0, 200)}`
+        `Unexpected thread reply from ${botShip}: ${unexpected.text.slice(0, 200)}`,
       );
     }
     await sleep(500);
@@ -2242,7 +2251,7 @@ async function waitForDmBotReply(
   actor: ScenarioActor,
   botShip: string,
   expectedText: string,
-  timeoutMs = BOT_REPLY_WAIT_MS
+  timeoutMs = BOT_REPLY_WAIT_MS,
 ): Promise<ChannelPost> {
   return waitFor(
     async () => {
@@ -2253,18 +2262,18 @@ async function waitForDmBotReply(
       timeoutMs,
       intervalMs: 500,
       description: `DM reply containing ${JSON.stringify(expectedText)}`,
-    }
+    },
   );
 }
 
 async function matchingDmBotReplies(
   actor: ScenarioActor,
   botShip: string,
-  expectedText: string
+  expectedText: string,
 ): Promise<ChannelPost[]> {
   return channelPostsByBot(
     await actor.state.channelPosts(botShip, 40),
-    botShip
+    botShip,
   ).filter((post) => post.text.includes(expectedText));
 }
 
@@ -2272,7 +2281,7 @@ async function expectNoMainDmBotReply(
   actor: ScenarioActor,
   botShip: string,
   expectedText: string,
-  settleMs = NEGATIVE_SETTLE_MS
+  settleMs = NEGATIVE_SETTLE_MS,
 ): Promise<void> {
   const started = Date.now();
   while (Date.now() - started < settleMs) {
@@ -2280,7 +2289,7 @@ async function expectNoMainDmBotReply(
     const mainReply = posts.find((post) => !post.parentId);
     if (mainReply) {
       throw new Error(
-        `Unexpected main-DM reply from ${botShip}: ${mainReply.text.slice(0, 200)}`
+        `Unexpected main-DM reply from ${botShip}: ${mainReply.text.slice(0, 200)}`,
       );
     }
     await sleep(500);
@@ -2294,17 +2303,17 @@ interface ConversationBaseline {
 
 async function conversationBaseline(
   actor: ScenarioActor,
-  channelId: string
+  channelId: string,
 ): Promise<ConversationBaseline> {
   const posts = await actor.state.channelPosts(channelId, 40);
   return {
     sequence: posts
       .map((post) =>
-        typeof post.sequenceNum === 'number' ? post.sequenceNum : -1
+        typeof post.sequenceNum === "number" ? post.sequenceNum : -1,
       )
       .reduce((max, sequence) => Math.max(max, sequence), -1),
     sentAt: posts
-      .map((post) => (typeof post.sentAt === 'number' ? post.sentAt : 0))
+      .map((post) => (typeof post.sentAt === "number" ? post.sentAt : 0))
       .reduce((max, sentAt) => Math.max(max, sentAt), 0),
   };
 }
@@ -2313,21 +2322,21 @@ async function waitForConversationTextAfterBaseline(
   actor: ScenarioActor,
   channelId: string,
   expectedText: string,
-  baseline: ConversationBaseline
+  baseline: ConversationBaseline,
 ): Promise<ChannelPost> {
   return waitFor(
     async () => {
       const posts = await actor.state.channelPosts(channelId, 40);
       return posts.find(
         (post) =>
-          post.text.includes(expectedText) && postAfterBaseline(post, baseline)
+          post.text.includes(expectedText) && postAfterBaseline(post, baseline),
       );
     },
     {
       timeoutMs: BOT_REPLY_WAIT_MS,
       intervalMs: 500,
       description: `new conversation post containing ${JSON.stringify(expectedText)}`,
-    }
+    },
   );
 }
 
@@ -2336,18 +2345,18 @@ async function expectNoConversationTextAfterBaseline(
   channelId: string,
   expectedText: string,
   baseline: ConversationBaseline,
-  settleMs = NEGATIVE_SETTLE_MS
+  settleMs = NEGATIVE_SETTLE_MS,
 ): Promise<void> {
   const started = Date.now();
   while (Date.now() - started < settleMs) {
     const posts = await actor.state.channelPosts(channelId, 40);
     const unexpected = posts.find(
       (post) =>
-        post.text.includes(expectedText) && postAfterBaseline(post, baseline)
+        post.text.includes(expectedText) && postAfterBaseline(post, baseline),
     );
     if (unexpected) {
       throw new Error(
-        `Unexpected conversation post containing ${JSON.stringify(expectedText)}.`
+        `Unexpected conversation post containing ${JSON.stringify(expectedText)}.`,
       );
     }
     await sleep(500);
@@ -2357,11 +2366,11 @@ async function expectNoConversationTextAfterBaseline(
 async function writeHermesCronMarkerScript(
   ctx: RuntimeContext,
   scriptName: string,
-  marker: string
+  marker: string,
 ): Promise<void> {
   const result = await execInComposeService(ctx, ctx.services.bot, [
-    'python3',
-    '-c',
+    "python3",
+    "-c",
     String.raw`
 import sys
 from pathlib import Path
@@ -2379,11 +2388,11 @@ path.chmod(0o755)
 
 async function createHermesCronJob(
   ctx: RuntimeContext,
-  scriptName: string
+  scriptName: string,
 ): Promise<string> {
   const result = await execInComposeService(ctx, ctx.services.bot, [
-    'python3',
-    '-c',
+    "python3",
+    "-c",
     String.raw`
 import sys
 from cron.jobs import create_job
@@ -2393,13 +2402,13 @@ print(job['id'])
 `,
     scriptName,
   ]);
-  assertExecOk(result, 'create Hermes no-agent cron job');
+  assertExecOk(result, "create Hermes no-agent cron job");
   const jobId = result.stdout
     .split(/\s+/)
     .find((value) => /^[a-f0-9]{12}$/.test(value));
   if (!jobId) {
     throw new Error(
-      `Could not read a Hermes cron job id from: ${JSON.stringify(result.stdout)}`
+      `Could not read a Hermes cron job id from: ${JSON.stringify(result.stdout)}`,
     );
   }
   return jobId;
@@ -2407,14 +2416,14 @@ print(job['id'])
 
 async function runHermesCronJob(
   ctx: RuntimeContext,
-  jobId: string
+  jobId: string,
 ): Promise<void> {
   const result = await execInComposeService(
     ctx,
     ctx.services.bot,
     [
-      'python3',
-      '-c',
+      "python3",
+      "-c",
       String.raw`
 import sys
 from cron.jobs import get_job
@@ -2428,18 +2437,18 @@ if not run_one_job(job, adapters=None, loop=None):
 `,
       jobId,
     ],
-    { timeoutMs: 120_000 }
+    { timeoutMs: 120_000 },
   );
   assertExecOk(result, `run Hermes cron job ${jobId}`);
 }
 
 async function removeHermesCronMarkerScript(
   ctx: RuntimeContext,
-  scriptName: string
+  scriptName: string,
 ): Promise<void> {
   const result = await execInComposeService(ctx, ctx.services.bot, [
-    'python3',
-    '-c',
+    "python3",
+    "-c",
     String.raw`
 import sys
 from pathlib import Path
@@ -2453,11 +2462,11 @@ from pathlib import Path
 
 async function removeHermesCronJobAndOutput(
   ctx: RuntimeContext,
-  jobId: string
+  jobId: string,
 ): Promise<void> {
   const result = await execInComposeService(ctx, ctx.services.bot, [
-    'python3',
-    '-c',
+    "python3",
+    "-c",
     String.raw`
 import shutil
 import sys
@@ -2474,31 +2483,31 @@ shutil.rmtree(Path('/workspace/hermes-home/cron/output') / sys.argv[1], ignore_e
 
 function assertExecOk(
   result: { stdout: string; stderr: string; exitCode: number },
-  action: string
+  action: string,
 ): void {
   if (result.exitCode !== 0) {
     throw new Error(
       `${action} failed with exit ${result.exitCode}: ` +
-        `${(result.stderr || result.stdout).trim()}`
+        `${(result.stderr || result.stdout).trim()}`,
     );
   }
 }
 
 async function botNickname(actor: ScenarioActor): Promise<string> {
   const profile = await actor.state.scry<Record<string, unknown>>(
-    'contacts',
-    '/v1/self'
+    "contacts",
+    "/v1/self",
   );
   return extractNickname(profile);
 }
 
 async function setBotNickname(
   actor: ScenarioActor,
-  nickname: string
+  nickname: string,
 ): Promise<void> {
   await actor.state.poke({
-    app: 'contacts',
-    mark: 'contact-action',
+    app: "contacts",
+    mark: "contact-action",
     json: {
       edit: [{ nickname }],
     },
@@ -2507,7 +2516,7 @@ async function setBotNickname(
 
 async function waitForBotNickname(
   actor: ScenarioActor,
-  expectedNickname: string
+  expectedNickname: string,
 ): Promise<void> {
   await waitFor(
     async () => {
@@ -2518,7 +2527,7 @@ async function waitForBotNickname(
       timeoutMs: 45_000,
       intervalMs: 1_000,
       description: `bot nickname ${JSON.stringify(expectedNickname)}`,
-    }
+    },
   );
 }
 
@@ -2528,21 +2537,21 @@ function extractNickname(profile: Record<string, unknown> | undefined): string {
     nickName?: string | { value?: string | null } | null;
   };
   const fromNickname =
-    typeof p.nickname === 'string'
+    typeof p.nickname === "string"
       ? p.nickname
       : (p.nickname as { value?: string | null } | null | undefined)?.value;
   const fromNickName =
-    typeof p.nickName === 'string'
+    typeof p.nickName === "string"
       ? p.nickName
       : (p.nickName as { value?: string | null } | null | undefined)?.value;
-  return fromNickname ?? fromNickName ?? '';
+  return fromNickname ?? fromNickName ?? "";
 }
 
 async function createOwnerHostedChannelFixture(
-  actors: ScenarioActors
+  actors: ScenarioActors,
 ): Promise<{ groupId: string; channelId: string }> {
   const group = await actors.owner.createGroupWithChannel({
-    title: `shared-e2e-${scenarioKey('channel')}`,
+    title: `shared-e2e-${scenarioKey("channel")}`,
     members: [actors.bot.ship, actors.thirdParty.ship],
   });
 
@@ -2556,7 +2565,7 @@ async function createOwnerHostedChannelFixture(
 async function ensureGroupMember(
   owner: ScenarioActor,
   groupId: string,
-  member: ScenarioActor
+  member: ScenarioActor,
 ): Promise<void> {
   if (!(await member.state.isMemberOfGroup(groupId))) {
     await owner.state.inviteToGroup(groupId, [member.ship]);
@@ -2570,18 +2579,18 @@ async function ensureGroupMember(
       timeoutMs: 15_000,
       intervalMs: 500,
       description: `${member.ship} group membership in ${groupId}`,
-    }
+    },
   );
 }
 
 async function openChannelAccess(
   actors: ScenarioActors,
-  channelId: string
+  channelId: string,
 ): Promise<void> {
   const rules = JSON.stringify({
-    [channelId]: { mode: 'open' },
+    [channelId]: { mode: "open" },
   });
-  await withSettingsEntry(actors, 'channelRules', rules);
+  await withSettingsEntry(actors, "channelRules", rules);
 }
 
 function storyWithMention(ship: string, text: string): StoryInput {
@@ -2593,7 +2602,7 @@ function storyWithMention(ship: string, text: string): StoryInput {
 function botProfileFor(ship: string): { nickname: string; avatar: string } {
   return {
     nickname: `${normalizeShip(ship)} test bot`,
-    avatar: '',
+    avatar: "",
   };
 }
 
@@ -2601,11 +2610,11 @@ function knownBotLoopLimit(ctx: RuntimeContext): number {
   const raw =
     ctx.testMetadata?.tlonMaxConsecutiveBotResponses ??
     process.env.TLON_MAX_CONSECUTIVE_BOT_RESPONSES ??
-    '3';
+    "3";
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 1) {
     throw new Error(
-      `TLON_MAX_CONSECUTIVE_BOT_RESPONSES must be a positive integer for shared loop coverage, got ${JSON.stringify(raw)}.`
+      `TLON_MAX_CONSECUTIVE_BOT_RESPONSES must be a positive integer for shared loop coverage, got ${JSON.stringify(raw)}.`,
     );
   }
   return value;
@@ -2641,21 +2650,21 @@ async function waitForBotChannelReply(
   channelId: string,
   botShip: string,
   expectedText: string,
-  baseline: ChannelBaseline
+  baseline: ChannelBaseline,
 ): Promise<ChannelPost> {
   return waitFor(
     async () => {
       const posts = await actor.state.channelPosts(channelId, 40);
       return channelPostsByBot(posts, botShip).find(
         (post) =>
-          post.text.includes(expectedText) && postAfterBaseline(post, baseline)
+          post.text.includes(expectedText) && postAfterBaseline(post, baseline),
       );
     },
     {
       timeoutMs: BOT_REPLY_WAIT_MS,
       intervalMs: 500,
       description: `bot channel reply containing ${JSON.stringify(expectedText)}`,
-    }
+    },
   );
 }
 
@@ -2664,18 +2673,18 @@ async function expectNoBotChannelReply(
   channelId: string,
   botShip: string,
   baseline: ChannelBaseline,
-  settleMs = NEGATIVE_SETTLE_MS
+  settleMs = NEGATIVE_SETTLE_MS,
 ): Promise<void> {
   const started = Date.now();
   while (Date.now() - started < settleMs) {
     await sleep(500);
     const posts = await actor.state.channelPosts(channelId, 40);
     const reply = channelPostsByBot(posts, botShip).find((post) =>
-      postAfterBaseline(post, baseline)
+      postAfterBaseline(post, baseline),
     );
     if (reply) {
       throw new Error(
-        `Unexpected channel reply from ${botShip}: ${reply.text.slice(0, 200)}`
+        `Unexpected channel reply from ${botShip}: ${reply.text.slice(0, 200)}`,
       );
     }
   }
@@ -2683,7 +2692,7 @@ async function expectNoBotChannelReply(
 
 function channelPostsByBot(
   posts: ChannelPost[],
-  botShip: string
+  botShip: string,
 ): ChannelPost[] {
   const normalized = normalizeShip(botShip);
   return posts
@@ -2699,32 +2708,32 @@ interface ChannelBaseline {
 async function botChannelBaseline(
   actor: ScenarioActor,
   channelId: string,
-  botShip: string
+  botShip: string,
 ): Promise<ChannelBaseline> {
   const posts = channelPostsByBot(
     await actor.state.channelPosts(channelId, 40),
-    botShip
+    botShip,
   );
   return {
     sequence: posts
       .map((post) =>
-        typeof post.sequenceNum === 'number' ? post.sequenceNum : -1
+        typeof post.sequenceNum === "number" ? post.sequenceNum : -1,
       )
       .reduce((max, sequence) => Math.max(max, sequence), -1),
     sentAt: posts
-      .map((post) => (typeof post.sentAt === 'number' ? post.sentAt : 0))
+      .map((post) => (typeof post.sentAt === "number" ? post.sentAt : 0))
       .reduce((max, sentAt) => Math.max(max, sentAt), 0),
   };
 }
 
 function postAfterBaseline(
   post: ChannelPost,
-  baseline: ChannelBaseline
+  baseline: ChannelBaseline,
 ): boolean {
-  if (typeof post.sequenceNum === 'number' && baseline.sequence >= 0) {
+  if (typeof post.sequenceNum === "number" && baseline.sequence >= 0) {
     return post.sequenceNum > baseline.sequence;
   }
-  if (typeof post.sentAt === 'number' && baseline.sentAt > 0) {
+  if (typeof post.sentAt === "number" && baseline.sentAt > 0) {
     return post.sentAt > baseline.sentAt;
   }
   return baseline.sequence < 0 && baseline.sentAt <= 0;
