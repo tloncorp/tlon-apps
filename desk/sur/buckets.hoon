@@ -353,6 +353,12 @@
       sessions=(map @uv upload-session)
       object-capabilities=(map @t object-capability)
       read-tokens=(map flag read-token)
+      ::  .revoking is tokens we have told the broker to drop but have not
+      ::  seen it confirm, mapped to when they lapse anyway. A revoke that is
+      ::  merely attempted is not a revoke: the broker honours a pushed token
+      ::  without asking us again, so a lost DELETE would leave a removed
+      ::  reader with the whole bucket until expiry.
+      revoking=(map @t @da)
       reservations=(map @t @uv)
       ::  .bucket is the bucket the forwarded action was about, where it had
       ::  one. A %token answer is bucket-scoped, so storing it needs to know

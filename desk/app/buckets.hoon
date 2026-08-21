@@ -770,7 +770,7 @@
     ?~  state.u.sp  |
     (group-can-read group.u.state.u.sp flag actor)
   ?.  allowed
-    =.  cor  (revoke-read-tokens ~[token])
+    =.  cor  (revoke-read-tokens ~[[token expiry]])
     %-  (slog leaf+"buckets: read token no longer permitted, revoked" ~)
     ?~  rid  cor
     %^    deny
@@ -912,15 +912,33 @@
 ::  fails, which is the whole reason tokens have one.
 ::
 ++  revoke-read-tokens
-  |=  tokens=(list @t)
+  |=  tokens=(list [token=@t expires-at=@da])
   ^+  cor
-  ?~  tokens  cor
+  ::  Only worth chasing while the broker would still honour it.
+  =/  live=(list [token=@t expires-at=@da])
+    (skim tokens |=([token=@t expiry=@da] (gth expiry now.bowl)))
+  ?~  live  cor
+  =/  idle=?  =(~ revoking)
+  =.  revoking
+    %-  ~(rep in (silt live))
+    |=  [[token=@t expiry=@da] acc=_revoking]
+    (~(put by acc) token expiry)
+  =.  cor  (emil (revoke-cards (turn live |=([token=@t *] token))))
+  ::  One timer drives the whole outbox, armed when it stops being empty.
+  ?.  idle  cor
+  arm-revoke-retry
+::
+::  +revoke-cards: a DELETE per token, or none if we cannot authenticate.
+::
+++  revoke-cards
+  |=  tokens=(list @t)
+  ^-  (list card)
+  ?~  tokens  ~
   =/  secret=(unit @t)  genuine-secret
   ?~  secret
     %-  (slog leaf+"buckets: no %genuine secret, cannot revoke read tokens" ~)
-    cor
+    ~
   =/  auth=@t  (url-encode u.secret)
-  %-  emil
   %+  turn  tokens
   |=  token=@t
   ^-  card
@@ -933,6 +951,29 @@
       %request  `request:http`[%'DELETE' url ~ ~]
       *outbound-config:iris
   ==
+::
+++  arm-revoke-retry
+  ^+  cor
+  %-  emit
+  :*  %pass  /buckets/revoke-retry  %arvo  %b
+      %wait  (add now.bowl push-retry)
+  ==
+::
+::  +retry-revocations: re-send everything the broker has not confirmed.
+::
+::  Dropping a token locally is not what stops it working, so this keeps
+::  going until the broker says it has it -- or until the token would have
+::  lapsed, at which point the broker refuses it regardless.
+::
+++  retry-revocations
+  ^+  cor
+  =.  revoking
+    %-  malt
+    %+  skim  ~(tap by revoking)
+    |=([token=@t expiry=@da] (gth expiry now.bowl))
+  ?:  =(~ revoking)  cor
+  =.  cor  (emil (revoke-cards ~(tap in ~(key by revoking))))
+  arm-revoke-retry
 ::
 ::  +read-caps: every read token we have minted that `test` accepts.
 ::
@@ -950,11 +991,18 @@
 ++  forget-read-caps
   |=  tokens=(list @t)
   ^+  cor
+  ::  Read the expiries before deleting: they are how long the revocation is
+  ::  worth retrying for.
+  =/  doomed=(list [token=@t expires-at=@da])
+    %+  murn  tokens
+    |=  token=@t
+    ^-  (unit [@t @da])
+    ?~(got=(~(get by object-capabilities) token) ~ `[token expires-at.u.got])
   =.  object-capabilities
     %-  ~(rep in (silt tokens))
     |=  [token=@t acc=_object-capabilities]
     (~(del by acc) token)
-  (revoke-read-tokens tokens)
+  (revoke-read-tokens doomed)
 ::
 ++  url-encode
   |=  txt=@t
@@ -1026,6 +1074,10 @@
     %+  skim  ~(tap by read-tokens)
     |=  [=flag:b tok=read-token:b]
     (gth expires-at.tok now.bowl)
+  =.  revoking
+    %-  malt
+    %+  skim  ~(tap by revoking)
+    |=([token=@t expiry=@da] (gth expiry now.bowl))
   cor
 ::
 ++  drop-bucket-sessions
@@ -1741,13 +1793,22 @@
     ?~  rid  cor
     (deny u.rid (answer-paths actor u.rid) %unknown 'storage refused the read token')
   ::
+      [%buckets %revoke-retry ~]
+    ?.  ?=([%behn %wake *] sign-arvo)  cor
+    retry-revocations
+  ::
       [%buckets %revoke token=@ ~]
     ?.  ?=([%iris %http-response *] sign-arvo)  cor
     =*  res  client-response.sign-arvo
     ?.  ?=(%finished -.res)  cor
     =/  code=@ud  status-code.response-header.res
-    ?:  &((gte code 200) (lth code 300))  cor
-    ::  The token is already gone locally and expires at the broker anyway.
+    ::  Confirmed: stop chasing it.
+    ?:  &((gte code 200) (lth code 300))
+      cor(revoking (~(del by revoking) `@t`token.pole))
+    ::  Left in the outbox for the retry timer. A 404 counts as confirmed --
+    ::  the broker does not have it, which is the outcome we wanted.
+    ?:  =(404 code)
+      cor(revoking (~(del by revoking) `@t`token.pole))
     %-  (slog leaf+"buckets: read token revoke failed, status {<code>}" ~)
     cor
   ::

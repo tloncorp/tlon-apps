@@ -551,6 +551,52 @@
       [0v9 [%error %not-authorized 'no longer permitted to read this bucket']]
   ==
 ::
+::  A revoke the broker did not confirm is not a revoke. Dropping the token
+::  locally does not stop it working -- the broker honours a pushed token
+::  without asking us again -- so a transient failure has to be retried rather
+::  than logged and forgotten.
+::
+++  test-failed-revocation-is-retried
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ;<  mint-caz=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v11 [%bucket flag [%issue-bucket-read ~]]])
+  =/  push=[=wire =request:http]  (only-iris mint-caz)
+  ;<  *  b  (do-arvo wire.push iris-ok)
+  ::  access is pulled, so the token is revoked at the broker
+  ;<  ~  b  (set-scry-gate revoked-scries)
+  ;<  caz=(list card)  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-update !>([group %noun])]
+  =/  revoke=[=wire =request:http]  (only-iris caz)
+  ::  the broker fails it; the outbox keeps it and a retry is armed
+  ;<  failed=(list card)  b  (do-arvo wire.revoke (iris-status 503))
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  ;<  ~  b  (ex-equal !>(~(wyt by revoking.st)) !>(1))
+  ::  the retry timer re-sends it, and a 2xx finally clears the outbox
+  ;<  retried=(list card)  b
+    (do-arvo /buckets/revoke-retry [%behn %wake ~])
+  =/  again=[=wire =request:http]  (only-iris retried)
+  ;<  *  b  (do-arvo wire.again iris-ok)
+  ;<  sv2=vase  b  get-save
+  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  %+  ex-equal
+    !>  :*  wire.again
+            method.request.again
+            ~(wyt by revoking.st2)
+        ==
+  !>([wire.revoke %'DELETE' 0])
+::
 ::  A reader that took a token and then dropped its subscription still has to
 ::  be revoked. It produces no kick, and the broker honours a pushed token
 ::  without asking us again, so deriving revocations from the subscription
