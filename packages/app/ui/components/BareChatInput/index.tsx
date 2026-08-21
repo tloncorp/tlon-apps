@@ -351,9 +351,7 @@ function BareChatInput(
   } = useSlashCommands({ manifest: slashCommandManifest });
   const maxInputHeight = useMaxInputHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
-  const runSendMessageRef = useRef<
-    ((isEdit: boolean, textOverride?: string) => void) | null
-  >(null);
+  const runSendMessageRef = useRef<((isEdit: boolean) => void) | null>(null);
   // Set while waiting for iOS to deliver a pending autocorrection on send.
   const pendingAutocorrectSendRef = useRef<{ isEdit: boolean } | null>(null);
 
@@ -426,14 +424,11 @@ function BareChatInput(
   const handleTextChange = useCallback(
     (newText: string) => {
       // A send is waiting on a pending autocorrection, so this change is the
-      // corrected text. Send that instead of what was on screen when the send
-      // button was tapped.
+      // corrected text. It still goes through the normal path below, so mention
+      // offsets and references stay in sync, and the send runs once that has
+      // been folded into state.
       const pendingSend = pendingAutocorrectSendRef.current;
-      if (pendingSend) {
-        pendingAutocorrectSendRef.current = null;
-        runSendMessageRef.current?.(pendingSend.isEdit, newText);
-        return;
-      }
+      pendingAutocorrectSendRef.current = null;
 
       const oldText = controlledText;
 
@@ -479,6 +474,12 @@ function BareChatInput(
         const jsonContent = textAndMentionsToContent(newText, mentions);
         bareChatInputLogger.log('setting draft', jsonContent);
         storeDraft(jsonContent);
+      }
+
+      if (pendingSend) {
+        // Yield a tick so the post is built from the state this change just
+        // set, rather than the text the send button closed over.
+        setTimeout(() => runSendMessageRef.current?.(pendingSend.isEdit), 0);
       }
     },
     [
@@ -581,11 +582,8 @@ function BareChatInput(
   );
 
   const sendMessage = useCallback(
-    async (isEdit?: boolean, textOverride?: string) => {
-      const jsonContent = textAndMentionsToContent(
-        textOverride ?? controlledText,
-        mentions
-      );
+    async (isEdit?: boolean) => {
+      const jsonContent = textAndMentionsToContent(controlledText, mentions);
       const inlines = JSONToInlines(jsonContent);
 
       const draft: domain.PostDataDraft = (() => {
@@ -661,9 +659,9 @@ function BareChatInput(
   );
 
   const runSendMessage = useCallback(
-    async (isEdit: boolean, textOverride?: string) => {
+    async (isEdit: boolean) => {
       try {
-        await sendMessage(isEdit, textOverride);
+        await sendMessage(isEdit);
       } catch (e) {
         bareChatInputLogger.trackError('failed to send', e);
         setSendError(true);
