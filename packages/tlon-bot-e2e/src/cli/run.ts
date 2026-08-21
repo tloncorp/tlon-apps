@@ -181,7 +181,7 @@ async function runDriverRuntime(args: {
         console.error('\n==> Compose teardown failed during cleanup\n');
         console.error(
           cleanupError instanceof Error
-            ? cleanupError.stack ?? cleanupError.message
+            ? (cleanupError.stack ?? cleanupError.message)
             : cleanupError
         );
       }
@@ -527,6 +527,8 @@ function flag(value: string | undefined): boolean {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.stack ?? error.message : error);
+  console.error(
+    error instanceof Error ? (error.stack ?? error.message) : error
+  );
   process.exit(1);
 });

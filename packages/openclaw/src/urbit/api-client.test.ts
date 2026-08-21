@@ -17,9 +17,8 @@ describe('scoped API client', () => {
   });
 
   it('keeps concurrent monitor clients isolated', async () => {
-    const { runWithTlonApiScope, setScopedTlonApiWithPoke } = await import(
-      './api-client.js'
-    );
+    const { runWithTlonApiScope, setScopedTlonApiWithPoke } =
+      await import('./api-client.js');
 
     const readShip = (ship: string) =>
       runWithTlonApiScope(async () => {

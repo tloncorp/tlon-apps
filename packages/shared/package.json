@@ -50,7 +50,7 @@
     "tsc": "tsc --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix --quiet",
-    "lint:format": "prettier src/ --write",
+    "lint:format": "oxfmt src/",
     "generate": "pnpm generate:migration",
     "generate:migration": "node reset-migrations",
     "watch-migrations": "pnpm generate:migration --watch"

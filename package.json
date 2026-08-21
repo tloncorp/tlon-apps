@@ -40,14 +40,14 @@
     "lint:all": "pnpm -r lint",
     "sync:native-navigation-icons": "node scripts/sync-native-navigation-icons.mjs",
     "check:native-navigation-icons": "node scripts/sync-native-navigation-icons.mjs --check",
-    "prettier:rebuild-monorepo-ignore": "prettierignore-monorepo"
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check ."
   },
   "dependencies": {
     "@tloncorp/ui": "workspace:*"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
-    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
     "@typescript-eslint/eslint-plugin": "^7.7.1",
     "@typescript-eslint/parser": "^7.7.1",
     "concurrently": "^8.2.2",
@@ -58,13 +58,13 @@
     "eslint-plugin-react-compiler": "19.1.0-rc.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "lint-staged": "^15.0.0",
-    "prettierignore-monorepo": "^1.0.5",
     "react-cosmos": "7.2.0",
     "tsup": "^8.0.1",
-    "vitest": "^1.2.2"
+    "vitest": "^1.2.2",
+    "oxfmt": "^0.58.0"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.12.0"
   },
   "packageManager": "pnpm@11.9.0+sha512.bd682d5d03fe525ef7c9fd6780c6884d1e756ac4c9c9fe00c538782824310dcf90e3ddc4f53835f06dfaebd5085e41855e0bcbb3b60de2ac5bbab89e5036f03b"
 }

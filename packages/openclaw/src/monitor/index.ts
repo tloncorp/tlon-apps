@@ -2385,7 +2385,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         isGroup && Boolean(groupChannel) && isSummarizationRequest(gateText);
       const trigger: ContextLensTrigger = isChannelSummaryRequest
         ? 'summarization'
-        : params.trigger ?? 'unknown';
+        : (params.trigger ?? 'unknown');
       const citedContent = sanitizeMessageText(params.citedContent ?? '');
       let messageText = citedContent
         ? `${citedContent}\n\n${currentMessageText}`
@@ -2397,7 +2397,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         accountId: opts.accountId ?? undefined,
         peer: {
           kind: isGroup ? 'group' : 'direct',
-          id: isGroup ? groupChannel ?? senderShip : senderShip,
+          id: isGroup ? (groupChannel ?? senderShip) : senderShip,
         },
       });
 
@@ -2432,7 +2432,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         trigger,
         sessionKey: route.sessionKey,
         senderShip,
-        conversationId: isGroup ? groupChannel ?? '' : senderShip,
+        conversationId: isGroup ? (groupChannel ?? '') : senderShip,
         receivedAt: timestamp,
         preview: previewText(messageText),
         ...(params.retryOf ? { retryOf: params.retryOf } : {}),
@@ -2830,7 +2830,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             if (outputMessageId) {
               contextLenses.recordOutput(lens.lensId, {
                 messageId: outputMessageId,
-                conversationId: isGroup ? groupChannel ?? '' : senderShip,
+                conversationId: isGroup ? (groupChannel ?? '') : senderShip,
                 kind: isGroup ? 'channel' : 'dm',
                 sentAt: Date.now(),
                 preview: previewText(noHistoryMsg),
@@ -2898,7 +2898,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           if (outputMessageId) {
             contextLenses.recordOutput(lens.lensId, {
               messageId: outputMessageId,
-              conversationId: isGroup ? groupChannel ?? '' : senderShip,
+              conversationId: isGroup ? (groupChannel ?? '') : senderShip,
               kind: isGroup ? 'channel' : 'dm',
               sentAt: Date.now(),
               preview: previewText(errorMsg),
@@ -3212,7 +3212,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         route.agentId
       );
       const presenceConversationId = isGroup
-        ? groupChannel ?? null
+        ? (groupChannel ?? null)
         : senderShip;
       const presenceRunId = String(messageId);
 
@@ -3235,14 +3235,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             onStartError: (err: unknown) => {
               runtime.error?.(
                 `[tlon] Failed to enqueue computing presence for ${presenceConversationId}: ${
-                  err instanceof Error ? err.stack ?? err.message : String(err)
+                  err instanceof Error
+                    ? (err.stack ?? err.message)
+                    : String(err)
                 }`
               );
             },
             onStopError: (err: unknown) => {
               runtime.error?.(
                 `[tlon] Failed to enqueue computing presence stop for ${presenceConversationId}: ${
-                  err instanceof Error ? err.stack ?? err.message : String(err)
+                  err instanceof Error
+                    ? (err.stack ?? err.message)
+                    : String(err)
                 }`
               );
             },
@@ -3432,7 +3436,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                                 messageId,
                                 isGroup,
                                 destination: isGroup
-                                  ? groupChannel ?? null
+                                  ? (groupChannel ?? null)
                                   : senderShip,
                                 deliverParentId: deliverParentId ?? null,
                               })}`
@@ -3691,10 +3695,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (effectiveReacts && typeof effectiveReacts === 'object') {
           const rootPostId = replyReacts ? response?.post?.id : undefined;
           const postId = replyReacts
-            ? response?.post?.['r-post']?.reply?.id ??
+            ? (response?.post?.['r-post']?.reply?.id ??
               response?.post?.id ??
-              'unknown'
-            : response?.post?.id ?? 'unknown';
+              'unknown')
+            : (response?.post?.id ?? 'unknown');
           await processChannelReactionSnapshot({
             botShip: botShipName,
             reactions: effectiveReacts as Record<string, string>,

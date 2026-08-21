@@ -40,6 +40,6 @@ export function mergeVisibleOrderIntoFull(
   const visibleSet = new Set(visibleIds);
   let v = 0;
   return fullOrder.map((id) =>
-    visibleSet.has(id) ? newVisibleOrder[v++] ?? id : id
+    visibleSet.has(id) ? (newVisibleOrder[v++] ?? id) : id
   );
 }

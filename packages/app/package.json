@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "eslint ./",
     "lint:fix": "eslint ./ --fix --quiet",
-    "lint:format": "prettier ./ --write",
+    "lint:format": "oxfmt ./",
     "test": "vitest --watch false",
     "tsc": "tsc --noEmit"
   },

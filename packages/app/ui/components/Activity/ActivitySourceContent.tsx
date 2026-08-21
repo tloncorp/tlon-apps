@@ -28,7 +28,7 @@ export function ActivitySourceContent({
   const { data: liveChannel } = store.useChannel({
     id: summary.newest.channel
       ? undefined
-      : summary.newest.channelId ?? undefined,
+      : (summary.newest.channelId ?? undefined),
   });
 
   if (summary.newest.type === 'contact') {

@@ -433,7 +433,7 @@ export function Channel({
       channel.unread.countWithoutThreads === 0);
   const { data: threadUnreads, isFetched: threadUnreadActivityFetched } =
     useLiveThreadUnreadsByChannel(
-      shouldCheckThreadUnreadActivity ? channel?.id ?? null : null
+      shouldCheckThreadUnreadActivity ? (channel?.id ?? null) : null
     );
   const hasChildThreadUnreadActivity =
     shouldCheckThreadUnreadActivity && (threadUnreads?.length ?? 0) > 0;
@@ -894,8 +894,8 @@ export function Channel({
                                           contextLensAvailable &&
                                           contextLensOpen &&
                                           !isNarrow
-                                            ? selectedContextLensMessage?.id ??
-                                              null
+                                            ? (selectedContextLensMessage?.id ??
+                                              null)
                                             : null,
                                         goToBotRun:
                                           contextLensAvailable && isNarrow
