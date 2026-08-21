@@ -46,13 +46,36 @@ import { useLivePost } from '../../../hooks/useLivePost';
 import type { RenderItemType } from '../../contexts/componentsKits';
 import { useSetConversationScrollToBottomControl } from '../../contexts/scroll';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
+import {
+  AgentChatActivityReceipt,
+  type AgentChatDecoratedPost,
+  AgentChatLiveRun,
+  type AgentChatRunAssignments,
+  buildAgentChatRunAssignments,
+  decoratePostsWithAgentChatRuns,
+  filterRenderableAgentChatPosts,
+  isParticipantContextLensEvent,
+  mergeOwnerAndParticipantEvents,
+  orderAgentChatRunCards,
+  participantActivityRecordsForPosts,
+  participantCarrierPostIdsForExperiment,
+  participantContextLensEventAtTime,
+  participantContextLensEvents,
+} from '../AgentTaskRows';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';
 import { supportsLiquidGlass } from '../GlassSurface';
 import { ConversationScrollToBottomButton } from '../conversationScrollChrome';
 import { ChannelDivider } from './ChannelDivider';
+import { ContextLensBadge } from './ContextLens/ContextLensBadge';
 import { ContextLensRunSheet } from './ContextLens/ContextLensRunSheet';
+import type { ContextLensEvent } from './ContextLens/types';
+import { useContextLensExpiryClock } from './ContextLens/useContextLensExpiryClock';
+import {
+  mergeContextLensEventSources,
+  useContextLensPostEvents,
+} from './ContextLens/useContextLensStore';
 import {
   ConversationContentInsets,
   PostList,
@@ -61,6 +84,8 @@ import {
 } from './PostList';
 import { getPostListScopeKey } from './PostList/postListInitialization';
 import type { ScrollAnchor } from './scrollerTypes';
+
+const EMPTY_CONTEXT_LENS_EVENTS: ContextLensEvent[] = [];
 
 const logger = createDevLogger('scroller', false);
 
@@ -105,8 +130,10 @@ const Scroller = forwardRef(
       highlightPostId,
       onGoToBotRun,
       onOpenContextLens,
+      onOpenContextLensEvent,
       contextLensSelectedPostId,
       contentInsets = { top: 0, bottom: 0 },
+      contextLensEvents = EMPTY_CONTEXT_LENS_EVENTS,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -147,8 +174,10 @@ const Scroller = forwardRef(
       highlightPostId?: string | null;
       onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
       onOpenContextLens?: (post: db.Post) => void;
+      onOpenContextLensEvent?: (event: ContextLensEvent) => void;
       contextLensSelectedPostId?: string | null;
       contentInsets?: ConversationContentInsets;
+      contextLensEvents?: ContextLensEvent[];
     },
     ref
   ) => {
@@ -202,6 +231,22 @@ const Scroller = forwardRef(
       [onOpenContextLens]
     );
 
+    const handlePressAgentActivity = useCallback(
+      (event: ContextLensEvent) => {
+        if (onOpenContextLensEvent) {
+          onOpenContextLensEvent(event);
+          return;
+        }
+        if (onGoToBotRun && event.lens.botShip) {
+          onGoToBotRun({
+            botShip: event.lens.botShip,
+            lensId: event.lens.lensId,
+          });
+        }
+      },
+      [onGoToBotRun, onOpenContextLensEvent]
+    );
+
     const listRef = useRef<PostListMethods>(null);
 
     useImperativeHandle(ref, () => ({
@@ -247,19 +292,103 @@ const Scroller = forwardRef(
 
     const { value: debugMessageJson } = db.debugMessageJson.useStorageItem();
 
-    const theme = useTheme();
+    const { data: contextLensEnabled = false } = store.useContextLensEnabled();
+    const loadedPostContextLensEvents = useContextLensPostEvents(posts ?? []);
+    const ownerContextLensEvents = useMemo(
+      () =>
+        mergeContextLensEventSources(
+          contextLensEvents,
+          loadedPostContextLensEvents
+        ),
+      [contextLensEvents, loadedPostContextLensEvents]
+    );
+    const participantActivityRecords = useMemo(
+      () => participantActivityRecordsForPosts(posts ?? [], channel.id),
+      [channel.id, posts]
+    );
+    const participantCarrierIds = useMemo(
+      () =>
+        participantCarrierPostIdsForExperiment(
+          posts ?? [],
+          channel.id,
+          contextLensEnabled
+        ),
+      [channel.id, contextLensEnabled, posts]
+    );
+    const participantEvents = useMemo(
+      () =>
+        contextLensEnabled
+          ? participantContextLensEvents(participantActivityRecords)
+          : [],
+      [contextLensEnabled, participantActivityRecords]
+    );
+    const participantExpiryNow = useContextLensExpiryClock(participantEvents);
+    const projectedParticipantEvents = useMemo(
+      () =>
+        participantEvents.map((event) =>
+          participantContextLensEventAtTime(event, participantExpiryNow)
+        ),
+      [participantEvents, participantExpiryNow]
+    );
+    const stableContextLensEvents = useMemo(
+      () =>
+        mergeOwnerAndParticipantEvents(
+          ownerContextLensEvents,
+          projectedParticipantEvents
+        ),
+      [ownerContextLensEvents, projectedParticipantEvents]
+    );
 
+    const theme = useTheme();
+    const previousAgentChatRunsRef = useRef<
+      AgentChatRunAssignments | undefined
+    >(undefined);
+    const agentChatRuns = useMemo(
+      () =>
+        buildAgentChatRunAssignments(
+          stableContextLensEvents,
+          posts ?? [],
+          channel.id,
+          previousAgentChatRunsRef.current,
+          participantCarrierIds
+        ),
+      [channel.id, participantCarrierIds, posts, stableContextLensEvents]
+    );
+    useEffect(() => {
+      previousAgentChatRunsRef.current = agentChatRuns;
+    }, [agentChatRuns]);
+    const renderablePosts = useMemo(
+      () =>
+        posts ? filterRenderableAgentChatPosts(posts, agentChatRuns) : posts,
+      [agentChatRuns, posts]
+    );
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
       () =>
-        posts?.map((post, postIndex, posts) => {
-          return {
-            post,
-            previous: postIndex > 0 ? posts[postIndex - 1] : null,
-            next: postIndex + 1 < posts.length ? posts[postIndex + 1] : null,
-          };
-        }),
-      [posts]
+        renderablePosts?.map((post, postIndex, visiblePosts) => ({
+          post,
+          previous: postIndex > 0 ? visiblePosts[postIndex - 1] : null,
+          next:
+            postIndex + 1 < visiblePosts.length
+              ? visiblePosts[postIndex + 1]
+              : null,
+        })),
+      [renderablePosts]
     );
+    const previousDecoratedPostsRef = useRef<
+      AgentChatDecoratedPost[] | undefined
+    >(undefined);
+    const decoratedPostsWithNeighbors = useMemo(
+      () =>
+        decoratePostsWithAgentChatRuns(
+          postsWithNeighbors ?? [],
+          agentChatRuns,
+          previousDecoratedPostsRef.current
+        ),
+      [agentChatRuns, postsWithNeighbors]
+    );
+    useEffect(() => {
+      previousDecoratedPostsRef.current = decoratedPostsWithNeighbors;
+    }, [decoratedPostsWithNeighbors]);
 
     const style = useMemo(() => {
       return {
@@ -268,7 +397,17 @@ const Scroller = forwardRef(
     }, [theme.background.val]);
 
     const listRenderItem: ListRenderItem<PostWithNeighbors> = useCallback(
-      ({ item: { post, previous, next, ...rest }, index }) => {
+      ({ item, index }) => {
+        const {
+          post,
+          previous,
+          next,
+          agentRunEvents,
+          agentReceiptEvents,
+          agentEventsByLensId,
+          hidePostContent,
+          ...rest
+        } = item as AgentChatDecoratedPost;
         const isFirstPostOfDay = !isSameDay(
           post.receivedAt ?? 0,
           previous?.receivedAt ?? 0
@@ -330,6 +469,15 @@ const Scroller = forwardRef(
             itemWidth={itemWidth}
             columnCount={columns}
             previousPost={previous}
+            agentRunEvents={agentRunEvents}
+            agentReceiptEvents={agentReceiptEvents}
+            agentEventsByLensId={agentEventsByLensId}
+            hidePostContent={hidePostContent}
+            onPressAgentActivity={
+              onOpenContextLensEvent || onGoToBotRun
+                ? handlePressAgentActivity
+                : undefined
+            }
             {...rest}
           />
         );
@@ -350,6 +498,9 @@ const Scroller = forwardRef(
         onPressRetry,
         handlePostLongPressed,
         handlePressBotRun,
+        handlePressAgentActivity,
+        onGoToBotRun,
+        onOpenContextLensEvent,
         activeMessage,
         showDividers,
         collectionLayout.dividersEnabled,
@@ -373,7 +524,7 @@ const Scroller = forwardRef(
         : getTokens().space.m.val;
     const contentContainerStyle = useStyle(
       useMemo(() => {
-        if (!posts?.length) {
+        if (!renderablePosts?.length) {
           if (
             collectionLayoutType === 'comfy-list-top-to-bottom' ||
             collectionLayoutType === 'grid'
@@ -429,7 +580,7 @@ const Scroller = forwardRef(
         }
       }, [
         standaloneBottomSafeArea,
-        posts?.length,
+        renderablePosts?.length,
         collectionLayoutType,
         contentInsets.bottom,
         contentInsets.top,
@@ -602,7 +753,7 @@ const Scroller = forwardRef(
             onScrolledToBottomThreshold={1}
             onStartReached={handleStartReached}
             onStartReachedThreshold={1}
-            postsWithNeighbors={postsWithNeighbors}
+            postsWithNeighbors={decoratedPostsWithNeighbors}
             ref={listRef}
             renderEmptyComponent={renderEmptyComponent}
             renderItem={listRenderItem}
@@ -763,6 +914,11 @@ const BaseScrollerItem = ({
   itemWidth,
   columnCount,
   previousPost,
+  agentRunEvents,
+  agentReceiptEvents,
+  agentEventsByLensId,
+  hidePostContent,
+  onPressAgentActivity,
 }: {
   showUnreadDivider: boolean;
   showAuthor: boolean;
@@ -793,6 +949,11 @@ const BaseScrollerItem = ({
   itemWidth?: number;
   columnCount: number;
   previousPost?: db.Post | null;
+  agentRunEvents: ContextLensEvent[];
+  agentReceiptEvents: ContextLensEvent[];
+  agentEventsByLensId: Map<string, ContextLensEvent[]>;
+  hidePostContent: boolean;
+  onPressAgentActivity?: (event: ContextLensEvent) => void;
 }) => {
   const post = useLivePost(item);
 
@@ -868,37 +1029,94 @@ const BaseScrollerItem = ({
     });
   }, []);
 
+  const agentRunCards = useMemo(
+    () => orderAgentChatRunCards(agentRunEvents, agentReceiptEvents),
+    [agentReceiptEvents, agentRunEvents]
+  );
+
   return (
     <View
       onLayout={handleLayout}
       width={columnCount === 1 ? '100%' : itemWidth}
       aspectRatio={itemAspectRatio}
     >
-      {divider}
-      <PressableMessage
-        ref={messageRef}
-        isActive={activeMessage?.id === post.id}
-      >
-        <Component
-          editPost={editPost}
-          isHighlighted={isSelected}
-          displayDebugMode={displayDebugMode}
-          post={post}
-          setViewReactionsPost={setViewReactionsPost}
-          onPressBotRun={onPressBotRun}
-          showAuthor={showAuthorLive}
-          showReplies={showReplies}
-          onPressReplies={post.isDeleted ? undefined : onPressReplies}
-          onPressImage={post.isDeleted ? undefined : onPressImage}
-          onLongPress={post.isDeleted ? undefined : onLongPressPost}
-          onPress={post.isDeleted ? undefined : onPressPost}
-          onPressRetry={onPressRetry}
-          onPressDelete={onPressDelete}
-          onShowEmojiPicker={onShowEmojiPicker}
-          onPressEdit={onPressEdit}
-        />
-      </PressableMessage>
-      {isLastPostOfBlock && <PostBlockSeparator />}
+      {!hidePostContent ? divider : null}
+      {!hidePostContent ? (
+        <PressableMessage
+          ref={messageRef}
+          isActive={activeMessage?.id === post.id}
+        >
+          <Component
+            editPost={editPost}
+            isHighlighted={isSelected}
+            displayDebugMode={displayDebugMode}
+            hideContextLensBadge
+            post={post}
+            setViewReactionsPost={setViewReactionsPost}
+            onPressBotRun={onPressBotRun}
+            showAuthor={showAuthorLive}
+            showReplies={showReplies}
+            onPressReplies={post.isDeleted ? undefined : onPressReplies}
+            onPressImage={post.isDeleted ? undefined : onPressImage}
+            onLongPress={post.isDeleted ? undefined : onLongPressPost}
+            onPress={post.isDeleted ? undefined : onPressPost}
+            onPressRetry={onPressRetry}
+            onPressDelete={onPressDelete}
+            onShowEmojiPicker={onShowEmojiPicker}
+            onPressEdit={onPressEdit}
+          />
+        </PressableMessage>
+      ) : null}
+      {agentRunCards.map(({ kind, event }) =>
+        kind === 'live' ? (
+          <AgentChatLiveRun
+            key={event.lens.lensId}
+            event={event}
+            events={
+              agentEventsByLensId.get(event.lens.lensId) ??
+              EMPTY_CONTEXT_LENS_EVENTS
+            }
+            onPressActivity={
+              onPressAgentActivity && !isParticipantContextLensEvent(event)
+                ? () => onPressAgentActivity(event)
+                : undefined
+            }
+          />
+        ) : (
+          <AgentChatActivityReceipt
+            key={event.lens.lensId}
+            event={event}
+            events={
+              agentEventsByLensId.get(event.lens.lensId) ??
+              EMPTY_CONTEXT_LENS_EVENTS
+            }
+            continuationStarted={
+              agentRunCards.some(
+                (candidate) =>
+                  candidate.event.lens.retryOf === event.lens.lensId
+              ) ||
+              [...agentEventsByLensId.values()].some((lensEvents) =>
+                lensEvents.some(
+                  (candidate) => candidate.lens.retryOf === event.lens.lensId
+                )
+              )
+            }
+            onContinue={
+              event.lens.botShip && event.lens.visibility !== 'participants'
+                ? () =>
+                    store.retryLensRun({
+                      botShip: event.lens.botShip!,
+                      lensId: event.lens.lensId,
+                    })
+                : undefined
+            }
+          />
+        )
+      )}
+      {!hidePostContent ? (
+        <ContextLensBadge post={post} onPress={onPressBotRun} />
+      ) : null}
+      {!hidePostContent && isLastPostOfBlock ? <PostBlockSeparator /> : null}
     </View>
   );
 };
@@ -930,6 +1148,11 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.activeMessage === next.activeMessage &&
     prev.itemWidth === next.itemWidth &&
     prev.displayDebugMode === next.displayDebugMode &&
+    prev.agentRunEvents === next.agentRunEvents &&
+    prev.agentReceiptEvents === next.agentReceiptEvents &&
+    prev.agentEventsByLensId === next.agentEventsByLensId &&
+    prev.hidePostContent === next.hidePostContent &&
+    prev.onPressAgentActivity === next.onPressAgentActivity &&
     prev.isLastPostOfBlock === next.isLastPostOfBlock;
 
   return isItemEqual && areOtherPropsEqual && isIndexEqual;

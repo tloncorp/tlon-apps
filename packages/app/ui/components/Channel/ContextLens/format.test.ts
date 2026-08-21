@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { canRetryLens, formatWallDateTime } from './format';
+import {
+  canRetryLens,
+  effectiveLensStatus,
+  formatWallDateTime,
+} from './format';
 import type { ContextLens, ContextLensStatus } from './types';
 
 function makeLens(overrides: Partial<ContextLens> = {}): ContextLens {
@@ -84,6 +88,23 @@ describe('canRetryLens', () => {
     expect(
       canRetryLens(makeLens({ status: 'error', runKind: 'internal' }))
     ).toBe(false);
+  });
+});
+
+describe('effectiveLensStatus', () => {
+  it('uses lifecycle timeout truth for records finalized as no reply', () => {
+    const lens = makeLens({
+      status: 'no_reply',
+      lifecycle: {
+        ...makeLens().lifecycle,
+        timedOut: true,
+        timeoutMs: 120_000,
+        durationMs: 120_000,
+      },
+    });
+
+    expect(effectiveLensStatus(lens)).toBe('timed_out');
+    expect(canRetryLens(lens)).toBe(true);
   });
 });
 

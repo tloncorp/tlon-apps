@@ -17,7 +17,7 @@ import {
   type ContextLensSelectedMessage,
   FINAL_STATUSES,
   type LensStreamState,
-  lensFromRunPayload,
+  contextLensEventFromStewardRun,
 } from './types';
 import {
   liveEventMatchesChannel,
@@ -158,12 +158,14 @@ export function ContextLensPanel({
   selectedMessage,
   onClearSelectedMessage,
   channelId,
+  overlay = false,
 }: {
   events: ContextLensEvent[];
   streamStatus: LensStreamState['status'];
   selectedMessage?: ContextLensSelectedMessage | null;
   onClearSelectedMessage?: () => void;
   channelId?: string;
+  overlay?: boolean;
 }) {
   const gatewayConfig = useContextLensGatewayConfig();
   const [selectedRun, setSelectedRun] = useState<ContextLensEvent | null>(null);
@@ -175,7 +177,7 @@ export function ContextLensPanel({
   } | null>(null);
   const [lookupStatus, setLookupStatus] = useState<LookupStatus>('idle');
   const allLiveRuns = useContextLensRuns(events);
-  // synced %context-lens records back the list when the gateway stream is absent
+  // Synced %steward lens records back the list when the gateway stream is absent
   // (mobile, remote) and keep history across gateway restarts. widen the fetch
   // when scoped so channel filtering (JS, against payloads) has enough to work
   // with.
@@ -206,10 +208,8 @@ export function ContextLensPanel({
         if (channelId && !lensRunMatchesChannel(row, channelId)) {
           return [];
         }
-        const lens = lensFromRunPayload(row.payload);
-        return lens
-          ? [{ seq: 0, at: lens.updatedAt, phase: 'sync', lens }]
-          : [];
+        const event = contextLensEventFromStewardRun(row);
+        return event ? [event] : [];
       }
     );
     // merge both sources by lensId, keeping the more authoritative record
@@ -332,7 +332,9 @@ export function ContextLensPanel({
         if (controller.signal.aborted) {
           return null;
         }
-        const lens = run ? lensFromRunPayload(run.payload) : null;
+        const lens = run
+          ? contextLensEventFromStewardRun(run)?.lens ?? null
+          : null;
         if (lens) {
           return lens;
         }
@@ -370,10 +372,21 @@ export function ContextLensPanel({
     <YStack
       testID="ContextLensPanel"
       width={360}
+      maxWidth="100%"
       height="100%"
+      position={overlay ? 'absolute' : 'relative'}
+      top={overlay ? 0 : undefined}
+      right={overlay ? 0 : undefined}
+      bottom={overlay ? 0 : undefined}
+      zIndex={overlay ? 2 : undefined}
+      flexShrink={0}
       borderLeftWidth={1}
       borderColor="$border"
       backgroundColor="$background"
+      shadowColor={overlay ? '$shadow' : undefined}
+      shadowOffset={overlay ? { width: -4, height: 0 } : undefined}
+      shadowOpacity={overlay ? 0.12 : undefined}
+      shadowRadius={overlay ? 12 : undefined}
       padding="$l"
       gap="$l"
     >
@@ -495,7 +508,14 @@ export function ContextLensPanel({
             </YStack>
           )}
 
-          {latest ? <RunInspector lens={latest.lens} /> : null}
+          {latest ? (
+            <RunInspector
+              lens={latest.lens}
+              activityEvents={eventTrail.flatMap((event) =>
+                event.detail?.activity ? [event.detail.activity] : []
+              )}
+            />
+          ) : null}
 
           <RunTimeline rows={runTimeline} />
         </YStack>

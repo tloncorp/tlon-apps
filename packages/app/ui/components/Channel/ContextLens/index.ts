@@ -11,5 +11,7 @@ export {
   useContextLensController,
   useContextLensEvents,
   useContextLensGatewayConfig,
+  useContextLensPostEvents,
   useContextLensRuns,
 } from './useContextLensStore';
+export { useContextLensPanelPlacement } from './useContextLensPanelPlacement';

@@ -13,7 +13,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'FeatureFlags'>;
 // across devices) rather than the client-local feature flag store, but it is
 // still surfaced alongside the experimental flags here.
 const CONTEXT_LENS_FLAG = 'contextLens';
-const CONTEXT_LENS_LABEL = 'Enable bot context lens panel';
+const CONTEXT_LENS_LABEL = 'Show agent activity cards and Context Lens';
 
 export function FeatureFlagScreen({ navigation }: Props) {
   const handleGoBackPressed = useCallback(() => {

@@ -19,7 +19,7 @@ import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { Pressable, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import {
@@ -44,6 +44,7 @@ import { ScrollContextProvider } from '../../contexts/scroll';
 import { useChannelShareIntent } from '../../contexts/shareIntent';
 import { ThreadUnreadsProvider } from '../../contexts/threadUnreads';
 import * as utils from '../../utils';
+import { activateAgentControlFromKeyboard } from '../AgentTaskRows/keyboardControl';
 import { FileDrop } from '../FileDrop';
 import { supportsLiquidGlass } from '../GlassSurface';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
@@ -64,13 +65,19 @@ import {
   PostCollectionHandle,
 } from '../postCollectionViews/shared';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
-import { ContextLensPanel, useContextLensController } from './ContextLens';
+import {
+  ContextLensPanel,
+  useContextLensController,
+  useContextLensPanelPlacement,
+} from './ContextLens';
+import type { ContextLensEvent } from './ContextLens/types';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
 
+const EMPTY_CONTEXT_LENS_EVENTS: ContextLensEvent[] = [];
 const THREAD_UNREAD_OVERLAY_CHANNEL_TYPES: db.ChannelType[] = [
   'chat',
   'dm',
@@ -703,6 +710,7 @@ export function Channel({
   });
 
   const isNarrow = useIsWindowNarrow();
+  const contextLensPlacement = useContextLensPanelPlacement();
   const {
     contextLensAvailable,
     contextLensOpen,
@@ -713,7 +721,15 @@ export function Channel({
     clearSelectedContextLensMessage,
     inspectContextLensPost,
     openContextLensForPost,
+    openContextLensForEvent,
   } = useContextLensController({ channel });
+  const agentChatEvents = useMemo(
+    () =>
+      contextLensAvailable
+        ? contextLensStream.events
+        : EMPTY_CONTEXT_LENS_EVENTS,
+    [contextLensAvailable, contextLensStream.events]
+  );
 
   const backgroundColor = getVariableValue(useTheme().background);
 
@@ -853,6 +869,7 @@ export function Channel({
                           <XStack
                             alignItems="stretch"
                             flex={1}
+                            onLayout={contextLensPlacement.onLayout}
                             paddingTop={sharedTopInset || undefined}
                             position="relative"
                           >
@@ -890,6 +907,10 @@ export function Channel({
                                           contextLensAvailable && !isNarrow
                                             ? openContextLensForPost
                                             : undefined,
+                                        openContextLensForEvent:
+                                          contextLensAvailable && !isNarrow
+                                            ? openContextLensForEvent
+                                            : undefined,
                                         contextLensSelectedPostId:
                                           contextLensAvailable &&
                                           contextLensOpen &&
@@ -897,6 +918,7 @@ export function Channel({
                                             ? selectedContextLensMessage?.id ??
                                               null
                                             : null,
+                                        contextLensEvents: agentChatEvents,
                                         goToBotRun:
                                           contextLensAvailable && isNarrow
                                             ? goToContextLensRun
@@ -950,15 +972,40 @@ export function Channel({
                             {contextLensAvailable &&
                               contextLensOpen &&
                               !isNarrow && (
-                                <ContextLensPanel
-                                  events={contextLensStream.events}
-                                  streamStatus={contextLensStream.status}
-                                  selectedMessage={selectedContextLensMessage}
-                                  onClearSelectedMessage={
-                                    clearSelectedContextLensMessage
-                                  }
-                                  channelId={channel.id}
-                                />
+                                <>
+                                  {contextLensPlacement.overlay ? (
+                                    <Pressable
+                                      testID="ContextLensBackdrop"
+                                      position="absolute"
+                                      top={0}
+                                      right={0}
+                                      bottom={0}
+                                      left={0}
+                                      zIndex={1}
+                                      backgroundColor="$mediaScrim"
+                                      role="button"
+                                      tabIndex={0}
+                                      aria-label="Close Context Lens"
+                                      onPress={toggleContextLens}
+                                      onKeyDown={(event) =>
+                                        activateAgentControlFromKeyboard(
+                                          event,
+                                          toggleContextLens
+                                        )
+                                      }
+                                    />
+                                  ) : null}
+                                  <ContextLensPanel
+                                    events={contextLensStream.events}
+                                    streamStatus={contextLensStream.status}
+                                    selectedMessage={selectedContextLensMessage}
+                                    onClearSelectedMessage={
+                                      clearSelectedContextLensMessage
+                                    }
+                                    channelId={channel.id}
+                                    overlay={contextLensPlacement.overlay}
+                                  />
+                                </>
                               )}
                           </XStack>
                         </View>

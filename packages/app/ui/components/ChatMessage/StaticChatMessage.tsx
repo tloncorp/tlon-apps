@@ -8,6 +8,7 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
+import { shouldSuppressParticipantActivityEditedIndicator } from '../AgentTaskRows/participantActivity';
 import AuthorRow from '../AuthorRow';
 import { ContextLensBadge } from '../Channel/ContextLens/ContextLensBadge';
 import { A2UIBlock } from '../PostContent/A2UIBlock';
@@ -31,6 +32,7 @@ import { ReactionsDisplay } from './ReactionsDisplay';
  */
 export function StaticChatMessage({
   displayDebugMode = false,
+  hideContextLensBadge,
   hideProfilePreview,
   hideSentAtTimestamp,
   isHighlighted,
@@ -47,6 +49,7 @@ export function StaticChatMessage({
 }: {
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
   displayDebugMode?: boolean;
+  hideContextLensBadge?: boolean;
   hideProfilePreview?: boolean;
   hideSentAtTimestamp?: boolean;
   isHighlighted?: boolean;
@@ -74,6 +77,9 @@ export function StaticChatMessage({
     post.deliveryStatus === 'failed' ||
     post.editStatus === 'failed' ||
     post.deleteStatus === 'failed';
+  const showEditedIndicator = Boolean(
+    post.isEdited && !shouldSuppressParticipantActivityEditedIndicator(post)
+  );
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
@@ -168,7 +174,7 @@ export function StaticChatMessage({
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
 
   const shouldRenderReplySummary =
-    shouldRenderReplies || (!showAuthor && post.isEdited);
+    shouldRenderReplies || (!showAuthor && showEditedIndicator);
 
   return (
     <YStack key={post.id}>
@@ -185,7 +191,7 @@ export function StaticChatMessage({
           disabled={hideProfilePreview}
           editStatus={post.editStatus}
           deleteStatus={post.deleteStatus}
-          showEditedIndicator={!!post.isEdited}
+          showEditedIndicator={showEditedIndicator}
         />
       ) : null}
 
@@ -244,7 +250,9 @@ export function StaticChatMessage({
         )}
       </View>
 
-      <ContextLensBadge post={post} onPress={onPressBotRun} />
+      {!hideContextLensBadge ? (
+        <ContextLensBadge post={post} onPress={onPressBotRun} />
+      ) : null}
 
       {post.reactions && post.reactions.length > 0 && (
         <View paddingBottom="$l" paddingLeft="$4xl">
@@ -260,7 +268,7 @@ export function StaticChatMessage({
           <ChatMessageReplySummary
             post={post}
             onPress={shouldRenderReplies ? handleRepliesPressed : undefined}
-            showEditedIndicator={!showAuthor && !!post.isEdited}
+            showEditedIndicator={!showAuthor && showEditedIndicator}
             deliveryFailed={deliveryFailed}
             onPressRetry={handleRetryPressed}
           />

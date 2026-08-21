@@ -21,6 +21,7 @@ type RenderItemProps = {
   editing?: boolean;
   setEditingPost?: (post: db.Post | undefined) => void;
   setViewReactionsPost?: (post: db.Post) => void;
+  hideContextLensBadge?: boolean;
   onPressBotRun?: (post: db.Post) => void;
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   onPressRetry?: (post: db.Post) => Promise<void>;

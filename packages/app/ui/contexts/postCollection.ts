@@ -2,6 +2,7 @@ import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { createContext, useContext } from 'react';
 
+import type { ContextLensEvent } from '../components/Channel/ContextLens/types';
 import type { ConversationContentInsets } from '../components/conversationInsets';
 import type { MinimalRenderItemType, RenderItemType } from './componentsKits';
 
@@ -14,7 +15,9 @@ export interface PostCollectionContextValue {
   goToPost: (post: db.Post) => void;
   inspectContextLensPost?: (post: db.Post) => void;
   openContextLensForPost?: (post: db.Post) => void;
+  openContextLensForEvent?: (event: ContextLensEvent) => void;
   contextLensSelectedPostId?: string | null;
+  contextLensEvents?: ContextLensEvent[];
   goToBotRun?: (params: { botShip: string; lensId: string }) => void;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;

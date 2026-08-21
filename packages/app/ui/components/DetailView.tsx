@@ -3,6 +3,7 @@ import { Text } from '@tloncorp/ui';
 import { ReactNode, useMemo } from 'react';
 import { View, YStack, getTokenValue } from 'tamagui';
 
+import type { ContextLensEvent } from './Channel/ContextLens';
 import type { ConversationContentInsets } from './Channel/PostList';
 import Scroller, { ScrollAnchor } from './Channel/Scroller';
 import { ThinkingState } from './Channel/ThinkingState';
@@ -25,7 +26,9 @@ export interface DetailViewProps {
   onPressDelete: (post: db.Post) => void;
   inspectContextLensPost?: (post: db.Post) => void;
   onOpenContextLens?: (post: db.Post) => void;
+  onOpenContextLensEvent?: (event: ContextLensEvent) => void;
   onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
+  contextLensEvents?: ContextLensEvent[];
   setActiveMessage: (post: db.Post | null) => void;
   activeMessage: db.Post | null;
   anchor?: ScrollAnchor | null;
@@ -50,7 +53,9 @@ export const DetailView = ({
   onPressDelete,
   inspectContextLensPost,
   onOpenContextLens,
+  onOpenContextLensEvent,
   onGoToBotRun,
+  contextLensEvents,
   setActiveMessage,
   activeMessage,
   anchor,
@@ -137,7 +142,9 @@ export const DetailView = ({
         onPressDelete={onPressDelete}
         onPressPost={inspectContextLensPost}
         onOpenContextLens={onOpenContextLens}
+        onOpenContextLensEvent={onOpenContextLensEvent}
         onGoToBotRun={onGoToBotRun}
+        contextLensEvents={contextLensEvents}
         highlightPostId={highlightPostId}
         firstUnreadId={
           initialPostUnread?.count ?? 0 > 0

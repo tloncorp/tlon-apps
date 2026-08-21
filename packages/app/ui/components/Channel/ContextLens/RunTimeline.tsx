@@ -3,6 +3,7 @@ import { SizableText, View, XStack, YStack } from 'tamagui';
 import {
   type LensTone,
   TONE_COLORS,
+  effectiveLensStatus,
   formatDuration,
   formatToolName,
   pluralize,
@@ -28,6 +29,7 @@ export function buildRunTimeline(
   now: number
 ) {
   const lens = latest.lens;
+  const status = effectiveLensStatus(lens);
   const rows: TimelineRow[] = [
     {
       key: 'context',
@@ -69,7 +71,7 @@ export function buildRunTimeline(
         : 'waiting for provider',
     meta: modelEvent ? `#${modelEvent.seq}` : 'pending',
     tone: modelEvent ? 'neutral' : 'warning',
-    active: !modelEvent && !FINAL_STATUSES.has(lens.status),
+    active: !modelEvent && !FINAL_STATUSES.has(status),
   });
 
   const tools = summarizeToolEvents(events, lens);
@@ -77,49 +79,49 @@ export function buildRunTimeline(
     rows.push({
       key: 'tools',
       title:
-        lens.status === 'tool_running' && tools.latest
+        status === 'tool_running' && tools.latest
           ? `Using ${formatToolName(tools.latest)}`
           : 'Used tools',
       detail: `${tools.summary} · ${pluralize(tools.total, 'call')}`,
       meta: 'tools',
-      tone: lens.status === 'tool_running' ? 'neutral' : 'positive',
-      active: lens.status === 'tool_running',
+      tone: status === 'tool_running' ? 'neutral' : 'positive',
+      active: status === 'tool_running',
     });
   }
 
-  if (FINAL_STATUSES.has(lens.status) || lens.status === 'delivering') {
+  if (FINAL_STATUSES.has(status) || status === 'delivering') {
     rows.push({
       key: 'delivery',
       title:
-        lens.status === 'completed'
+        status === 'completed'
           ? 'Delivered reply'
-          : lens.status === 'no_reply'
+          : status === 'no_reply'
             ? 'No reply emitted'
-            : lens.status === 'timed_out'
+            : status === 'timed_out'
               ? 'Timed out'
-              : lens.status === 'aborted'
+              : status === 'aborted'
                 ? 'Run aborted'
-                : lens.status === 'error'
+                : status === 'error'
                   ? 'Run failed'
                   : 'Delivering reply',
       detail:
-        (lens.status === 'error' || lens.status === 'aborted') && lens.error
+        (status === 'error' || status === 'aborted') && lens.error
           ? lens.error
           : [
               pluralize(lens.lifecycle.deliveredMessageCount, 'message'),
               formatDuration(lens.lifecycle.durationMs),
             ].join(' / '),
       meta: latest.phase,
-      tone: statusTone(lens.status),
-      active: lens.status === 'delivering',
+      tone: statusTone(status),
+      active: status === 'delivering',
     });
   } else {
     rows.push({
       key: 'live',
-      title: statusLabel(lens.status),
+      title: statusLabel(status),
       detail: `running for ${formatDuration(now - lens.createdAt)}`,
       meta: latest.phase,
-      tone: statusTone(lens.status),
+      tone: statusTone(status),
       active: true,
     });
   }
