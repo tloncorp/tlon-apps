@@ -61,3 +61,60 @@ through the host), so there is nothing to push and no reason to trust the claim.
   `%vouch-real`. There is no unauthenticated way to set a classification.
 - The store never emits a card in response to a classification write — it only
   updates its map. No routing, no relaying, no proxying.
+
+## Consumer: the `%contacts` bot-profile resolver
+
+A bot moon never boots, so a subscriber has no way to `%watch` it directly for
+its profile — the watch just hangs. `%contacts` resolves this by asking the
+moon's host instead, at `/v1/vouch/<moon>`.
+
+### Host side (`++ peer`, `[%v1 %vouch her=@ ~]`)
+
+The host asserts it actually sponsors `her` (`%earl` clan, `^sein:title her ==
+our`), then branches on its own `%vouch` scry for the moon:
+
+- **`%bot`** — serve the bot's profile as a normal `%contact-update-1` `%full`
+  fact, both on this initial watch and on every subsequent `%contact-bot-0`
+  poke that updates it (see `/app/contacts` state).
+- **`%real`** — the moon isn't actually a bot (or no longer is). Give a
+  `%vouch-real` fact carrying the moon's `@p`, then `%kick`. The subscriber is
+  expected to switch to a direct subscription and record the correction.
+- **`%unknown`** — crash. The subscriber's normal watch-nack retry logic
+  handles it; there is nothing to serve or redirect to yet.
+
+The host never routes this through `++ pub` (that machinery tracks revision
+history for our *own* profile) — it gives facts directly.
+
+### Subscriber side (`++ sub`, `+si-meet` / `+si-take-vouch`)
+
+`+si-meet` decides how to reach a peer:
+
+- Our own bot moons: never subscribed to (unchanged, see above).
+- A foreign moon (`%earl`, sponsor ≠ us) that our own `%vouch` scry says is
+  `%bot` or `%unknown`: watch the moon's host at
+  `/contact/vouch/<moon>` → `[%agent [host %contacts] %watch /v1/vouch/<moon>]`,
+  recording `sag = %vouch`.
+- Everything else, including a foreign moon already known `%real`: watch the
+  peer directly at `/contact`, recording `sag = %want` (unchanged).
+
+`+si-take-vouch` handles what comes back on the resolver wire:
+
+- `%contact-update-1` fact — accepted **only** from the moon's sponsor
+  (`src == ^sein:title(moon)`); otherwise crash. The update is applied via the
+  same `+si-hear` used for direct subscriptions. If our `%vouch` scry still
+  said `%unknown` for this moon, this is also treated as organic confirmation:
+  fire a local `%vouch-learn` poke recording it `%bot`.
+- `%vouch-real` fact — accepted only from the sponsor. Records `%vouch-learn
+  [moon %real]`, then immediately switches to a direct subscription (`sag =
+  %want`, watch `/contact` on the moon) without waiting for the `%kick` that
+  follows it.
+- `%kick` — if `sag` is still `%vouch` (the host ended our resolver sub), reset
+  and re-run `+si-meet` to re-decide. If `sag` is already `%want` (we already
+  switched on `%vouch-real`), it's the tail of a redirect already handled —
+  no-op.
+- `%watch-ack` failure — same 30-minute retry-timer scheduling as a direct
+  subscription failure; the retry re-runs `+si-meet`, which re-derives
+  direct-vs-resolver freshly from the current `%vouch` classification.
+
+Every request on `/v1/vouch/<moon>` is served, redirected, or nacked — never
+queued.
