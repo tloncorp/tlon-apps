@@ -1,8 +1,5 @@
 package io.tlon.landscape.notifications
 
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.ProcessLifecycleOwner
-
 internal fun groupingKeyTargetsChannel(
     groupingKey: String?,
     channelId: String?
@@ -26,7 +23,15 @@ internal fun shouldSuppressNotificationPresentation(
 
 object NotificationPresentationState {
     @Volatile
+    private var appIsForeground = false
+
+    @Volatile
     private var activeChannelId: String? = null
+
+    @JvmStatic
+    fun setAppIsForeground(isForeground: Boolean) {
+        appIsForeground = isForeground
+    }
 
     @JvmStatic
     fun setActiveChannelId(channelId: String?) {
@@ -35,8 +40,7 @@ object NotificationPresentationState {
 
     fun shouldSuppress(groupingKey: String?): Boolean =
         shouldSuppressNotificationPresentation(
-            appIsForeground = ProcessLifecycleOwner.get().lifecycle.currentState
-                .isAtLeast(Lifecycle.State.RESUMED),
+            appIsForeground = appIsForeground,
             activeChannelId = activeChannelId,
             groupingKey = groupingKey
         )

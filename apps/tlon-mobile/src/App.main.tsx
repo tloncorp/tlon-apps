@@ -119,6 +119,8 @@ const MainApp = () => {
     hostingBotEnabled,
     handleClearSplash,
   } = useTopLevelRouting();
+  const authenticatedNavigatorVisible =
+    connected && !isLoading && !showSplashSequence && showAuthenticatedApp;
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const handleSplashLogout = useCallback(async () => {
@@ -131,6 +133,14 @@ const MainApp = () => {
   useEffect(() => {
     registerBackgroundSyncTask();
   }, []);
+
+  useEffect(() => {
+    if (!authenticatedNavigatorVisible) {
+      setActiveNotificationRoute(undefined);
+    }
+  }, [authenticatedNavigatorVisible]);
+
+  useEffect(() => () => setActiveNotificationRoute(undefined), []);
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">

@@ -1,10 +1,17 @@
 package io.tlon.landscape.notifications
 
+import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NotificationPresentationStateTest {
+    @After
+    fun resetPresentationState() {
+        NotificationPresentationState.setAppIsForeground(false)
+        NotificationPresentationState.setActiveChannelId(null)
+    }
+
     @Test
     fun `suppresses channel posts and threads for the active channel`() {
         val channelId = "chat/~zod/general"
@@ -69,5 +76,17 @@ class NotificationPresentationStateTest {
                 "chat/~zod/general"
             )
         )
+    }
+
+    @Test
+    fun `uses the activity foreground state immediately`() {
+        NotificationPresentationState.setActiveChannelId("~nec")
+        NotificationPresentationState.setAppIsForeground(true)
+
+        assertTrue(NotificationPresentationState.shouldSuppress("ship/~nec"))
+
+        NotificationPresentationState.setAppIsForeground(false)
+
+        assertFalse(NotificationPresentationState.shouldSuppress("ship/~nec"))
     }
 }
