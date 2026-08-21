@@ -122,6 +122,7 @@ const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
 const AGENT_ONBOARDING_GROUP_INTRO =
   "I'm your Tlonbot. I can keep you informed, help you learn, or follow a " +
   'question over time.';
+const AGENT_ADDITIONAL_GROUP_INTRO = "Let's set up what I do in this group.";
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
 const AGENT_ONBOARDING_APP_TOUR_PROMPT =
   'Want me to tell you more about what you can do here?';
@@ -316,7 +317,13 @@ async function handleAgentOnboardingRequestInternal(
     50
   );
   if (request.type === 'tlon-agent-intro-request') {
-    await postIntro(context, history, deps, presentation);
+    await postIntro(
+      context,
+      history,
+      deps,
+      presentation,
+      request.isFirstGroup === true
+    );
     return true;
   }
   if (request.type === 'tlon-agent-provider-config') {
@@ -449,7 +456,8 @@ async function postIntro(
   context: AgentOnboardingContext,
   history: TlonHistoryEntry[],
   deps: AgentOnboardingDeps,
-  presentation: OnboardingPresentation
+  presentation: OnboardingPresentation,
+  isFirstGroup: boolean
 ) {
   const hadIntro = hasPostMarker(history, context.botShip, 'intro');
   await postOnce(
@@ -457,7 +465,9 @@ async function postIntro(
     history,
     'intro',
     async () => ({
-      text: AGENT_ONBOARDING_GROUP_INTRO,
+      text: isFirstGroup
+        ? AGENT_ONBOARDING_GROUP_INTRO
+        : AGENT_ADDITIONAL_GROUP_INTRO,
     }),
     deps,
     presentation
