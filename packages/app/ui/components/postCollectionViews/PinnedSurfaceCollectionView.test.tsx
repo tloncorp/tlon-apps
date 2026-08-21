@@ -31,6 +31,10 @@ vi.mock('../../../hooks/useLivePost', () => ({
   useLivePost: (post: unknown) => post,
 }));
 vi.mock('@tloncorp/ui', () => ({ Icon: 'Icon', Text: 'Text' }));
+// Pulls expo-modules-core (which wants RN's __DEV__ global) transitively.
+vi.mock('../Channel/useConversationComputingState', () => ({
+  useConversationComputingState: () => null,
+}));
 
 const A2UI_ENTRY = {
   type: 'a2ui',

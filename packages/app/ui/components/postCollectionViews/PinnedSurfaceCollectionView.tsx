@@ -4,7 +4,7 @@ import { getPinnedPostId } from '@tloncorp/shared/logic';
 import { Icon, Text } from '@tloncorp/ui';
 import { forwardRef, useMemo, useState } from 'react';
 import { Pressable, ScrollView } from 'react-native';
-import { View, XStack, YStack } from 'tamagui';
+import { Spinner, View, XStack, YStack } from 'tamagui';
 
 import { useLivePost } from '../../../hooks/useLivePost';
 import {
@@ -12,6 +12,7 @@ import {
   usePostCollectionContext,
 } from '../../contexts/postCollection';
 import { usePostA2UIActions } from '../../hooks/usePostA2UIActions';
+import { useConversationComputingState } from '../Channel/useConversationComputingState';
 import { A2UIBlock } from '../PostContent/A2UIBlock';
 import { ContentContext, usePostContent } from '../PostContent/contentUtils';
 import { ListPostCollection } from './ListPostCollectionView';
@@ -137,6 +138,7 @@ export const PinnedSurfaceCollection: IPostCollectionView = forwardRef(
   function PinnedSurfaceCollection(_props, forwardedRef) {
     const ctx = usePostCollectionContext();
     const [chatOpen, setChatOpen] = useState(false);
+    const computingState = useConversationComputingState(ctx.channel.id);
     const surfacePost = useMemo(
       () => selectSurfacePost(ctx.posts, ctx.channel),
       [ctx.posts, ctx.channel]
@@ -227,6 +229,14 @@ export const PinnedSurfaceCollection: IPostCollectionView = forwardRef(
                     Conversation
                   </Text>
                 )}
+                {computingState ? (
+                  <XStack alignItems="center" gap="$s" flexShrink={0}>
+                    <Spinner size="small" color="$tertiaryText" />
+                    <Text size="$label/m" color="$tertiaryText">
+                      {computingState.label}
+                    </Text>
+                  </XStack>
+                ) : null}
               </XStack>
             </YStack>
           </Pressable>
