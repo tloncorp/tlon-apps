@@ -1,6 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
+import { Text } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
 import { Switch } from 'react-native';
 import { YStack, useTheme } from 'tamagui';
@@ -84,6 +85,39 @@ export function ThemeScreen(props: Props) {
       />
       <SettingsContentScrollView>
         <YStack flex={1} padding="$l">
+          <Text
+            size="$label/m"
+            color="$secondaryText"
+            fontWeight="500"
+            paddingHorizontal="$s"
+          >
+            Messages
+          </Text>
+          <ListItem marginTop="$s">
+            <ListItem.MainContent>
+              <ListItem.Title>Show deleted messages</ListItem.Title>
+              <ListItem.Subtitle>
+                Display a placeholder when a message is deleted
+              </ListItem.Subtitle>
+            </ListItem.MainContent>
+            <ListItem.EndContent>
+              <Switch
+                value={showDeleteMarkers}
+                onValueChange={handleShowDeleteMarkersChange}
+                testID="ShowDeleteMarkersToggle"
+              />
+            </ListItem.EndContent>
+          </ListItem>
+          <Text
+            size="$label/m"
+            color="$secondaryText"
+            fontWeight="500"
+            paddingHorizontal="$s"
+            marginTop="$xl"
+            marginBottom="$s"
+          >
+            Theme
+          </Text>
           {themes.map((theme) => (
             <Pressable
               key={theme.value}
@@ -110,21 +144,6 @@ export function ThemeScreen(props: Props) {
               </ListItem>
             </Pressable>
           ))}
-          <ListItem marginTop="$l">
-            <ListItem.MainContent>
-              <ListItem.Title>Show delete markers</ListItem.Title>
-              <ListItem.Subtitle>
-                Show where messages have been deleted
-              </ListItem.Subtitle>
-            </ListItem.MainContent>
-            <ListItem.EndContent>
-              <Switch
-                value={showDeleteMarkers}
-                onValueChange={handleShowDeleteMarkersChange}
-                testID="ShowDeleteMarkersToggle"
-              />
-            </ListItem.EndContent>
-          </ListItem>
         </YStack>
       </SettingsContentScrollView>
     </View>
