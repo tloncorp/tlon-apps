@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "journal",
+  "name": "Daily Journal",
+  "kitVersion": "0.1.0",
+  "publisher": "~lagrev-ridsyp-nocsyx-lassul",
+  "description": "A private journal with a gentle daily prompt and a notebook that keeps itself organized.",
+  "scope": "group",
+  "places": {
+    "entries": { "type": "notebook", "title": "Entries", "description": "Your journal, one note per day" },
+    "chat": { "type": "chat", "title": "Margin", "description": "Loose thoughts before they become entries" }
+  },
+  "bindings": [
+    { "file": "instructions/keeper.md", "scope": "group", "load": "ambient" },
+    { "file": "instructions/setup.md", "scope": "group", "trigger": "install.setup", "load": "on-trigger" },
+    { "file": "instructions/daily-prompt.md", "scope": "group", "trigger": "schedule.daily-prompt", "load": "on-trigger" }
+  ],
+  "schedules": [
+    { "id": "daily-prompt", "cron": "0 21 * * *", "description": "Evening: one question worth writing about" }
+  ],
+  "scaffolds": [
+    { "file": "scaffolds/Preferences.md", "workspace": "Journal/Preferences.md" }
+  ],
+  "policy": {
+    "required": [
+      { "reason": "Post the daily prompt on schedule.", "event": "schedule", "level": "auto" }
+    ],
+    "recommended": []
+  }
+}
