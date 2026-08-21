@@ -71,8 +71,7 @@ export const directoryToClientProfiles = (
     .filter(
       ([ship, entry]) =>
         // a peer we know about but have no profile data for isn't a useful
-        // profile row (the legacy /all scry rendered these as null); their
-        // data arrives via /v1/news once it exists
+        // profile row; their data arrives via /v1/news once it exists
         Object.keys(entry.contact).length > 0 &&
         (config?.userIdsToOmit ? !config.userIdsToOmit.has(ship) : true)
     )
@@ -99,6 +98,23 @@ export const addContactSuggestions = async (contactIds: string[]) => {
     json: contactIds,
   });
 };
+
+// Pure builder for a self-profile field poke: `%self` is a merge, so other
+// keys survive, and a null value deletes the key (contact keys only die by
+// explicit null). Exported shape-only — no transport — so callers with their
+// own Urbit client (the OpenClaw plugin's shim, tests) share one source of
+// truth for the wire format instead of hand-rolling the action JSON.
+export const contactSelfFieldPoke = (
+  key: string,
+  value: Exclude<
+    ub.ContactBookProfile[keyof ub.ContactBookProfile],
+    undefined
+  > | null
+): { app: string; mark: string; json: unknown } => ({
+  app: 'contacts',
+  mark: 'contact-action-1',
+  json: { self: { [key]: value } },
+});
 
 export const syncUserProfiles = async (userIds: string[]) => {
   return poke({
@@ -250,8 +266,6 @@ export const setPinnedGroups = async (groupIds: string[]) => {
     type: 'set',
     value: groupIds.map((groupId) => ({ type: 'flag', value: groupId })),
   };
-
-  console.log(`contact-action-1`, { self: { contact: contactUpdate } });
 
   return poke({
     app: 'contacts',
@@ -437,6 +451,24 @@ function parseContactAttestations(
   return finalAttests;
 }
 
+/**
+ * The `bot-info` contact field is self-published by bot ships and its TS
+ * declaration proves nothing at runtime — an arbitrary profile can publish it
+ * as %set/%numb/%look or any JSON shape. Accept only a %text field carrying a
+ * string; everything else maps to null so one bad peer profile cannot break a
+ * contacts sync batch.
+ */
+export const extractBotInfoValue = (field: unknown): string | null => {
+  if (!field || typeof field !== 'object' || Array.isArray(field)) {
+    return null;
+  }
+  const candidate = field as { type?: unknown; value?: unknown };
+  if (candidate.type !== 'text' || typeof candidate.value !== 'string') {
+    return null;
+  }
+  return candidate.value;
+};
+
 export const v1PeersToClientProfiles = (
   peers: ub.ContactsAllScryResult1,
   config?: {
@@ -473,6 +505,7 @@ export const v1PeerToClientProfile = (
         contactId: id,
       })) ?? [],
     attestations: parseContactAttestations(id, contact),
+    botInfo: extractBotInfoValue(contact['bot-info']),
     isContact: config?.isContact,
     isContactSuggestion:
       config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
@@ -521,6 +554,9 @@ export const contactToClientProfile = (
         contactId: userId,
       })) ?? [],
     attestations: parseContactAttestations(userId, base),
+    // The claim is the bot's own published property: read it from the
+    // peer-published base contact only, never the user's `mod` overlay.
+    botInfo: extractBotInfoValue(base['bot-info']),
     isContact: !!overrides,
     isContactSuggestion: false,
   };

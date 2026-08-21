@@ -434,6 +434,46 @@ test('inserts contacts without overriding block data', async () => {
   expect(newBlockedUsers.map((b) => b.id)).toEqual(blocks);
 });
 
+describe('insertContacts botInfo', () => {
+  const ship = '~bot-info-provenance';
+  const claim = JSON.stringify({
+    v: 1,
+    harness: 'openclaw',
+    version: '0.19.0',
+  });
+  const updatedClaim = JSON.stringify({
+    v: 1,
+    harness: 'openclaw',
+    version: '0.20.0',
+  });
+
+  // Every bulk source is lossless since the /v1/directory migration, so
+  // insertContacts writes the column unconditionally: present replaces,
+  // absent clears. (The old v0 `/all` path required an exclusion-list guard
+  // here; it died with the endpoint.)
+  test('a synced row replaces an existing claim', async () => {
+    await queries.insertContacts([{ id: ship, botInfo: claim }]);
+    await queries.insertContacts([{ id: ship, botInfo: updatedClaim }]);
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBe(
+      updatedClaim
+    );
+  });
+
+  test('a synced row clears the claim when the key is missing', async () => {
+    await queries.insertContacts([{ id: ship, botInfo: claim }]);
+    // The bot stopped advertising: the row arrives without the key.
+    await queries.insertContacts([{ id: ship }]);
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBeNull();
+  });
+
+  test('upsertContact sets and clears the claim (subscription path)', async () => {
+    await queries.upsertContact({ id: ship, botInfo: claim });
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBe(claim);
+    await queries.upsertContact({ id: ship, botInfo: null });
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBeNull();
+  });
+});
+
 const refDate = Date.now();
 
 test('sequenced posts: gets newest posts', async () => {
@@ -1147,6 +1187,25 @@ test('channel unread count updates invalidate channel unreads', () => {
   expect(queries.updateChannelUnreadCount.meta.tableEffects).toEqual([
     'channelUnreads',
   ]);
+});
+
+// The group-channel bot popup gates on group.members (via useGroup), so member
+// churn must refresh getGroup. Assert both sides of the invalidation relation:
+// the member writers declare the 'groups' effect AND getGroup depends on it.
+// Either side regressing silently breaks popup reactivity.
+test('membership writes invalidate group detail queries', () => {
+  expect(queries.insertMembers.meta.tableEffects).toEqual(
+    expect.arrayContaining(['groups'])
+  );
+  expect(queries.addChatMembers.meta.tableEffects).toEqual(
+    expect.arrayContaining(['groups'])
+  );
+  expect(queries.removeChatMembers.meta.tableEffects).toEqual(
+    expect.arrayContaining(['groups'])
+  );
+  expect(queries.getGroup.meta.tableDependencies).toEqual(
+    expect.arrayContaining(['groups'])
+  );
 });
 
 test('insertChannelUnreads updates nested thread unread conflicts', async () => {
