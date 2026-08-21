@@ -760,6 +760,23 @@
 ++  confirm-read-token
   |=  [=flag:b token=@t actor=ship expiry=@da rid=(unit request-id:b)]
   ^+  cor
+  ::  Keeping the mint on the wire means the revocation pass could not see
+  ::  it, so access may have been pulled -- or the bucket deleted -- while
+  ::  the broker was answering. Recheck before installing, and if it is no
+  ::  longer allowed, tell the broker to drop what it just accepted.
+  =/  allowed=?
+    ?~  sp=(~(get by spaces) flag)  |
+    ?.  =(%pub net.u.sp)  |
+    ?~  state.u.sp  |
+    (group-can-read group.u.state.u.sp flag actor)
+  ?.  allowed
+    =.  cor  (revoke-read-tokens ~[token])
+    %-  (slog leaf+"buckets: read token no longer permitted, revoked" ~)
+    ?~  rid  cor
+    %^    deny
+        u.rid
+      (answer-paths actor u.rid)
+    [%not-authorized 'no longer permitted to read this bucket']
   =.  object-capabilities
     (~(put by object-capabilities) token [%read flag ~ actor expiry])
   =/  tok=read-token:b  [token expiry]

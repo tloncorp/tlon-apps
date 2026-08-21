@@ -477,6 +477,43 @@
         ==
   !>([%.y 1 1])
 ::
+::  A mint lives only on the wire while the broker answers, so the revocation
+::  pass cannot see it. If access is pulled in that window the token must not
+::  be installed on arrival -- the broker has already accepted it, so it is
+::  revoked instead and the requester told no.
+::
+++  test-in-flight-token-rechecks-access
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ;<  mint-caz=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v9 [%bucket flag [%issue-bucket-read ~]]])
+  =/  push=[=wire =request:http]  (only-iris mint-caz)
+  ::  access is pulled while the push is in flight
+  ;<  ~  b  (set-scry-gate revoked-scries)
+  ;<  caz=(list card)  b  (do-arvo wire.push iris-ok)
+  =/  revoke=[=wire =request:http]  (only-iris caz)
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  ::  nothing installed, the broker told to drop it, the asker refused
+  ;<  ~  b
+    %+  ex-equal
+      !>  :-  ~(wyt by object-capabilities.st)
+          method.request.revoke
+    !>([0 %'DELETE'])
+  %+  ex-cards  (skim caz |=(car=card ?=([%give %fact *] car)))
+  :~  %+  ex-fact  ~[/v1/request/~bus/0v9]
+      :-  %buckets-req-response-1
+      !>  ^-  req-response:bu
+      [0v9 [%error %not-authorized 'no longer permitted to read this bucket']]
+  ==
+::
 ::  A reader that took a token and then dropped its subscription still has to
 ::  be revoked. It produces no kick, and the broker honours a pushed token
 ::  without asking us again, so deriving revocations from the subscription
