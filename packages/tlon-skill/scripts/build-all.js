@@ -10,7 +10,7 @@
  *   node scripts/build-all.js --target linux-x64 # Cross-compile for linux-x64
  */
 import { execSync } from 'node:child_process';
-import { cpSync, mkdirSync, readFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -78,6 +78,9 @@ execSync(
 // Copy to the appropriate npm package directory
 const npmDir = join(rootDir, 'npm', target);
 mkdirSync(npmDir, { recursive: true });
+// Remove first: overwriting an existing file through a Docker bind mount
+// (VirtioFS) fails with EACCES, which killed every second container boot.
+rmSync(join(npmDir, binaryName), { force: true });
 cpSync(binaryPath, join(npmDir, binaryName));
 
 console.log(`Built and copied to npm/${target}/${binaryName}`);
