@@ -16,6 +16,9 @@ services:
       # packages/api, and @urbit/* hoisted to the monorepo root node_modules.
       # Must point inside the /workspace/tlon-apps mount, not a standalone one.
       - TLON_SKILL_DIR=/workspace/tlon-apps/packages/tlon-skill
+      # Explicit opt-in: publish only the participant-safe task projection to
+      # normal group-channel posts. Raw Context Lens remains owner-only.
+      - TLON_PARTICIPANT_AGENT_ACTIVITY_ENABLED=${TLON_PARTICIPANT_AGENT_ACTIVITY_ENABLED:-false}
     ports:
       - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
     volumes:

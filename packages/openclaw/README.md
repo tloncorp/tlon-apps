@@ -78,9 +78,13 @@ channels:
         # Show model info in responses
         showModelSignature: false
 
-        # Enable owner-only durable agent activity and run history.
+        # Owner-only run history and the experimental participant-safe group
+        # activity projection are separate opt-ins. The latter publishes only
+        # plan titles, commentary, statuses, and aggregate action counts into
+        # the normal channel; raw Lens/tool data remains owner-only.
         contextLens:
             enabled: true
+            participantActivityEnabled: false
 
         # Optional PostHog telemetry. Disabled unless explicitly enabled.
         telemetry:

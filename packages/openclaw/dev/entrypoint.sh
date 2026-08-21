@@ -121,6 +121,13 @@ if [ -f "/workspace/tlonbot/openclaw.json" ]; then
       "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
   fi
 
+  if [ "${TLON_PARTICIPANT_AGENT_ACTIVITY_ENABLED:-false}" = "true" ]; then
+    echo "==> Enabling participant-safe group agent activity..."
+    jq '.channels.tlon.contextLens = (.channels.tlon.contextLens // {})
+      | .channels.tlon.contextLens.participantActivityEnabled = true' \
+      "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
+  fi
+
   # Fifteen minutes by default: tool-heavy turns can spend several minutes on
   # remote uploads and verification. Override for shorter local test cases.
   tlon_run_timeout_ms="${TLON_RUN_TIMEOUT_MS:-900000}"

@@ -244,6 +244,9 @@
                     "enabled": {
                       "type": "boolean"
                     },
+                    "participantActivityEnabled": {
+                      "type": "boolean"
+                    },
                     "ttlMs": {
                       "type": "integer",
                       "minimum": 60000,
@@ -378,6 +381,9 @@
             "type": "object",
             "properties": {
               "enabled": {
+                "type": "boolean"
+              },
+              "participantActivityEnabled": {
                 "type": "boolean"
               },
               "ttlMs": {

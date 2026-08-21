@@ -231,6 +231,7 @@ describe('resolveTlonAccount contextLens', () => {
 
     expect(account.contextLens).toEqual({
       enabled: false,
+      participantActivityEnabled: false,
       ttlMs: null,
       maxEntries: null,
       visibilityDefault: 'owner',
@@ -248,6 +249,7 @@ describe('resolveTlonAccount contextLens', () => {
           tlon: {
             contextLens: {
               enabled: true,
+              participantActivityEnabled: true,
               ttlMs: 600_000,
               authToken: 'a-token-of-sufficient-length',
             },
@@ -270,6 +272,7 @@ describe('resolveTlonAccount contextLens', () => {
 
     expect(account.contextLens).toEqual({
       enabled: true,
+      participantActivityEnabled: true,
       ttlMs: 600_000,
       maxEntries: 500,
       visibilityDefault: 'internal',

@@ -21,6 +21,7 @@ import {
   pathToCite,
 } from '../urbit';
 import { A2UI } from './a2ui';
+import { ParticipantAgentActivityProjectionV1Schema } from './participantAgentActivity';
 
 export * from './a2ui';
 
@@ -689,6 +690,8 @@ export const PostBlobDataEntryContextLensSchema = definePostBlobDataEntrySchema(
     delivery: z.enum(['final', 'intermediate']).optional(),
     /** lets chat close the run truthfully before the durable final snapshot */
     outcome: z.enum(['completed', 'failed']).optional(),
+    /** Sanitized channel-visible task state; full Lens data remains owner-only. */
+    participantActivity: ParticipantAgentActivityProjectionV1Schema.optional(),
   }
 );
 

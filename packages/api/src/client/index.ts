@@ -117,6 +117,7 @@ export * from './apiUtils';
 export * from './metagrabApi';
 export * from './changesApi';
 export * from './computingStatus';
+export * from './participantAgentActivity';
 export * from './presenceApi';
 export * from './stewardGatewayApi';
 export * from './lensApi';
