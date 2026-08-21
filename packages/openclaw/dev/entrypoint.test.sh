@@ -16,7 +16,7 @@ echo "==> OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR"
 echo "==> User: $(whoami)"
 echo "==> Working directory: $(pwd)"
 
-requested_core_version="${OPENCLAW_CORE_VERSION:-2026.5.28}"
+requested_core_version="${OPENCLAW_CORE_VERSION:-2026.7.1-2}"
 installed_core_version="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version)' "$(npm root -g)/openclaw/package.json")"
 if [ "$installed_core_version" != "$requested_core_version" ]; then
   echo "FATAL: requested OpenClaw core $requested_core_version but installed $installed_core_version"
@@ -87,8 +87,10 @@ overrides:
   "@aws-sdk/s3-request-presigner": 3.190.0
 PNPM_EOF
 fi
-pnpm install
+CI=true pnpm install
+./dev/build-local-api-override.sh
 pnpm build
+./dev/build-local-skill-override.sh
 
 # Expose tlon CLI to PATH
 TLON_BIN_DIR="/workspace/tlon/node_modules/.bin"
@@ -149,6 +151,8 @@ if ! printf '%s' "$TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES" | jq -e 'tonumber 
   exit 1
 fi
 
+# OpenClaw 7.1 allowlists manifest IDs, not npm package names. Using "tlon"
+# also prevents Doctor from installing a second canonical Tlon plugin.
 cat > "$CONFIG_DIR/openclaw.json" << EOF
 {
   "models": {
@@ -203,7 +207,7 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
     }
   },
   "plugins": {
-    "allow": ["@tloncorp/openclaw"],
+    "allow": ["tlon"],
     "load": {
       "paths": ["/workspace/tlon"]
     },
@@ -266,7 +270,8 @@ EOF
 if [ -d "/workspace/tlonbot/image-search" ]; then
   echo "==> Patching config: adding image-search plugin..."
   jq '.plugins.load.paths += ["/workspace/tlonbot/image-search"]
-    | .plugins.entries["image-search"] = {"enabled": true}' \
+    | .plugins.entries["image-search"] = {"enabled": true}
+    | .plugins.allow |= if index("image-search") then . else . + ["image-search"] end' \
     "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
     && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
 fi
@@ -290,7 +295,8 @@ if [ ! -d "/workspace/tlonbot/image-search" ] && [ -n "$BRAVE_API_KEY" ] && [ -n
   done
   echo "==> Patching config: adding image-search plugin (fetched)..."
   jq '.plugins.load.paths += ["/workspace/image-search"]
-    | .plugins.entries["image-search"] = {"enabled": true}' \
+    | .plugins.entries["image-search"] = {"enabled": true}
+    | .plugins.allow |= if index("image-search") then . else . + ["image-search"] end' \
     "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
     && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
 fi
