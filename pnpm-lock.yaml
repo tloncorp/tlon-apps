@@ -7,7 +7,6 @@ settings:
 overrides:
   '@electron/node-gyp': 10.2.0-electron.1
   typescript: 7.0.2
-  '@expo/require-utils': '>=57.0.4'
   '@10play/tentap-editor': 0.5.21
   '@tiptap/suggestion': 2.6.0
   '@tiptap/extension-mention': 2.6.0
