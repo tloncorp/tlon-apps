@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "ee145a18-6b61-4947-97c5-7e873fec2c82",
+  "id": "1c082f85-e5ac-422b-b07c-59ee7c172b64",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -1237,6 +1237,13 @@
         },
         "coverImage": {
           "name": "coverImage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "bot_info": {
+          "name": "bot_info",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
