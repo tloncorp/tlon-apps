@@ -32,8 +32,8 @@ import {
 
 const ARCHIVE = 'pinned rube-zod-group-blob';
 // Must match dev/Dockerfile.test's ARG OPENCLAW_CORE_VERSION default: the test
-// asserts the container's installed core equals this requested version. Bumping
-// Both now default to the plugin's supported 7.1 runtime.
+// asserts the container's installed core equals this requested version. Both
+// now default to the plugin's supported 7.1 runtime.
 const DEFAULT_CORE_VERSION = '2026.7.1-2';
 const HARD_TEST_TIMEOUT_MS = 180_000;
 const INTERNAL_TEST_TIMEOUT_MS = 165_000;
