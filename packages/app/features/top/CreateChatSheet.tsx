@@ -562,7 +562,7 @@ export function CreateChatTypeSheet({
   onSelectType: (type: ChatType) => void;
 }) {
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
+    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
       <ActionSheet.SimpleHeader title="Start a conversation" />
       <ActionSheet.Content>
         <TypeSelectionContent onSelectType={onSelectType} />
@@ -634,6 +634,7 @@ export function CreateChatInviteSheet({
       snapPointsMode="percent"
       enableContentPanningGesture={enableContentPanningGesture}
       hasScrollableContent
+      modal
     >
       <CreateChatFormContent
         key={contentKey}
@@ -658,7 +659,12 @@ export function JoinGroupSheet({
   const { bottom } = useSafeAreaInsets();
 
   return (
-    <ActionSheet moveOnKeyboardChange open={open} onOpenChange={onOpenChange}>
+    <ActionSheet
+      moveOnKeyboardChange
+      open={open}
+      onOpenChange={onOpenChange}
+      modal
+    >
       <YStack flex={1} paddingBottom={bottom}>
         <JoinGroupFormContent
           chatType="joinGroup"

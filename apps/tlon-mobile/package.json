@@ -1,6 +1,6 @@
 {
   "name": "tlon-mobile",
-  "version": "9.4.1",
+  "version": "9.4.2",
   "private": true,
   "expo": {
     "autolinking": {
@@ -134,7 +134,7 @@
     "lodash": "^4.17.21",
     "posthog-react-native": "^4.27.0",
     "react": "19.2.3",
-    "react-hook-form": "^7.52.0",
+    "react-hook-form": "^7.85.0",
     "react-native": "0.86.0",
     "react-native-branch": "^5.9.0",
     "react-native-context-menu-view": "^1.15.0",

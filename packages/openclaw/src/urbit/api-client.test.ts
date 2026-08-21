@@ -1,82 +1,136 @@
+import { getCurrentUserId, poke, requestJson, scry } from '@tloncorp/api';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const configureClient = vi.fn();
-const authenticate = vi.fn();
-const createHttpPokeApi = vi.fn();
-const urbitFetch = vi.fn();
-
-vi.mock('@tloncorp/api', () => ({
-  configureClient,
+const { authenticate, createHttpPokeApi, urbitFetch } = vi.hoisted(() => ({
+  authenticate: vi.fn(),
+  createHttpPokeApi: vi.fn(),
+  urbitFetch: vi.fn(),
 }));
 
-vi.mock('./auth.js', () => ({
-  authenticate,
-}));
+vi.mock('./auth.js', () => ({ authenticate }));
+vi.mock('./http-poke.js', () => ({ createHttpPokeApi }));
+vi.mock('./fetch.js', () => ({ urbitFetch }));
 
-vi.mock('./http-poke.js', () => ({
-  createHttpPokeApi,
-}));
-
-vi.mock('./fetch.js', () => ({
-  urbitFetch,
-}));
-
-describe('api client shim', () => {
+describe('scoped API client', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('passes shipUrl through on the injected client shim', async () => {
-    const { configureTlonApiWithPoke } = await import('./api-client.js');
-
-    const poke = vi.fn();
-    configureTlonApiWithPoke(poke, '~zod', 'http://ships:8080');
-
-    expect(configureClient).toHaveBeenCalledWith(
-      expect.objectContaining({
-        shipName: 'zod',
-        shipUrl: 'http://ships:8080',
-        client: expect.objectContaining({
-          url: 'http://ships:8080',
-          nodeId: '',
-        }),
-      })
+  it('keeps concurrent monitor clients isolated', async () => {
+    const { runWithTlonApiScope, setScopedTlonApiWithPoke } = await import(
+      './api-client.js'
     );
+
+    const readShip = (ship: string) =>
+      runWithTlonApiScope(async () => {
+        setScopedTlonApiWithPoke(vi.fn(), ship, `http://${ship.slice(1)}`);
+        await Promise.resolve();
+        return getCurrentUserId();
+      });
+
+    await expect(
+      Promise.all([readShip('~zod'), readShip('~nec')])
+    ).resolves.toEqual(['~zod', '~nec']);
   });
 
-  it('configures the authenticated shim with url for server-side upload helpers', async () => {
-    authenticate.mockResolvedValue('cookie');
+  it('runs gateway pokes through the normal API path in a local scope', async () => {
+    const transport = vi.fn().mockResolvedValue(42);
+    const { withTlonApiPoke } = await import('./api-client.js');
+
+    await expect(
+      withTlonApiPoke(transport, () =>
+        poke({ app: 'steward', mark: 'gateway', json: {} })
+      )
+    ).resolves.toBe(42);
+    expect(transport).toHaveBeenCalledOnce();
+  });
+
+  it('fails unsupported gateway operations with descriptive shim errors', async () => {
+    const { withTlonApiPoke } = await import('./api-client.js');
+    const transport = vi.fn();
+
+    await expect(
+      withTlonApiPoke(transport, () => requestJson('/notes', 'GET'))
+    ).rejects.toThrow('JSON requests not supported on this client shim');
+    await expect(
+      withTlonApiPoke(transport, () => scry({ app: 'contacts', path: '/self' }))
+    ).rejects.toThrow('Scry not supported on this client shim');
+  });
+
+  it('runs an authenticated full client only inside its operation', async () => {
+    authenticate
+      .mockResolvedValueOnce('cookie-old')
+      .mockResolvedValueOnce('cookie-new');
     createHttpPokeApi.mockResolvedValue({
       poke: vi.fn(),
       delete: vi.fn().mockResolvedValue(undefined),
     });
-    urbitFetch.mockResolvedValue({
-      response: {
-        ok: true,
-        json: () => Promise.resolve({}),
-      },
-      release: vi.fn().mockResolvedValue(undefined),
-    });
+    urbitFetch
+      .mockResolvedValueOnce({
+        response: { ok: false, status: 401 },
+        release: vi.fn().mockResolvedValue(undefined),
+      })
+      .mockResolvedValueOnce({
+        response: {
+          ok: true,
+          status: 200,
+          text: vi.fn().mockResolvedValue('{"ok":true}'),
+        },
+        release: vi.fn().mockResolvedValue(undefined),
+      });
 
     const { withAuthenticatedTlonApi } = await import('./api-client.js');
 
-    await withAuthenticatedTlonApi(
+    const result = await withAuthenticatedTlonApi(
       {
         url: 'http://ships:8080',
         code: 'lidlut-tabwed-pillex-ridrup',
         ship: '~zod',
       },
-      async () => 'ok'
-    );
-
-    expect(configureClient).toHaveBeenCalledWith(
-      expect.objectContaining({
-        shipName: 'zod',
-        shipUrl: 'http://ships:8080',
-        client: expect.objectContaining({
-          url: 'http://ships:8080',
-        }),
+      async () => ({
+        ship: getCurrentUserId(),
+        response: await requestJson('/notes', 'GET'),
       })
     );
+
+    expect(result).toEqual({ ship: '~zod', response: { ok: true } });
+    expect(authenticate).toHaveBeenCalledTimes(2);
+    expect(urbitFetch).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        init: expect.objectContaining({ headers: { Cookie: 'cookie-old' } }),
+      })
+    );
+    expect(urbitFetch).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        init: expect.objectContaining({ headers: { Cookie: 'cookie-new' } }),
+      })
+    );
+  });
+
+  it('restores the monitor client after nested outbound work', async () => {
+    authenticate.mockResolvedValue('cookie');
+    createHttpPokeApi.mockResolvedValue({
+      poke: vi.fn(),
+      delete: vi.fn().mockResolvedValue(undefined),
+    });
+    const {
+      runWithTlonApiScope,
+      setScopedTlonApiWithPoke,
+      withAuthenticatedTlonApi,
+    } = await import('./api-client.js');
+
+    const ships = await runWithTlonApiScope(async () => {
+      setScopedTlonApiWithPoke(vi.fn(), '~zod', 'http://zod');
+      const before = getCurrentUserId();
+      const nested = await withAuthenticatedTlonApi(
+        { url: 'http://nec', code: 'lit', ship: '~nec' },
+        async () => getCurrentUserId()
+      );
+      return [before, nested, getCurrentUserId()];
+    });
+
+    expect(ships).toEqual(['~zod', '~nec', '~zod']);
   });
 });

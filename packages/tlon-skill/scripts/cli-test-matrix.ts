@@ -310,9 +310,19 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     stderrIncludes: ['--image must be an http(s) image URL'],
   },
   usageErrorCase(
+    'posts send rejects a value on the valueless --bot flag',
+    ['posts', 'send', 'chat/~host/channel', 'message', '--bot=Botly'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
     'dms send missing image value',
     ['dms', 'send', '0v5.abcde', '--image'],
     'Usage: tlon dms send'
+  ),
+  usageErrorCase(
+    'dms reply rejects a value on the valueless --bot flag',
+    ['dms', 'reply', '0v5.abcde', '~pen/170.141', 'message', '--bot=Botly'],
+    'Usage: tlon dms reply'
   ),
   {
     name: 'dms send rejects non-http equals image url',

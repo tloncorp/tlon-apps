@@ -32,8 +32,9 @@ export const hermesDriver: BotDriver = {
   name: 'hermes',
 
   // The adapter logs "[tlon] SSE stream error: ..." on a sock_read timeout or
-  // an immediate reset/EOF.
-  streamFaultLogMarkers: ['SSE stream error'],
+  // an immediate reset/EOF, and "[tlon] SSE stream stale: ..." when the
+  // staleness watchdog forces a reconnect.
+  streamFaultLogMarkers: ['SSE stream error', 'SSE stream stale'],
 
   packageDir(seed) {
     return path.join(seed.repoRoot, 'packages/hermes-tlon-adapter');

@@ -5,32 +5,17 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Button, Text, useCopy } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useEffect } from 'react';
+import { Button, Icon, Text, useCopy } from '@tloncorp/ui';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Share } from 'react-native';
-import { XStack, YStack, isWeb } from 'tamagui';
+import { YStack, isWeb } from 'tamagui';
 
 import { useCurrentUserId, useInviteService } from '../contexts/appDataContext';
 import { useIsAdmin } from '../utils';
-import { TextInput } from './Form';
 
 const logger = createDevLogger('InviteButton', false);
 
-export function InviteFriendsToTlonButton({
-  group,
-  ...props
-}: { group?: db.Group } & Omit<
-  ComponentProps<typeof Button>,
-  | 'group'
-  | 'icon'
-  | 'label'
-  | 'leadingIcon'
-  | 'trailingIcon'
-  | 'onPress'
-  | 'loading'
-  | 'disabled'
->) {
-  const { preset = 'primary', ...buttonProps } = props;
+export function InviteFriendsToTlonButton({ group }: { group?: db.Group }) {
   const userId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group?.id ?? '', userId);
   const inviteService = useInviteService();
@@ -40,6 +25,10 @@ export function InviteFriendsToTlonButton({
     inviteServiceIsDev: inviteService.isDev,
   });
   const { doCopy, didCopy } = useCopy(shareUrl || '');
+  const displayUrl = useMemo(
+    () => shareUrl?.replace(/^https?:\/\//, '') ?? '',
+    [shareUrl]
+  );
 
   useEffect(() => {
     logger.trackEvent('Invite Button Shown', { group: group?.id });
@@ -131,51 +120,46 @@ export function InviteFriendsToTlonButton({
         : '';
 
   return (
-    <YStack width="100%" gap="$s">
-      <XStack width="100%">
-        <TextInput
-          value={linkIsReady ? shareUrl : ''}
-          placeholder={inviteLinkPlaceholder}
-          accent={linkHasError ? 'negative' : 'positive'}
-          editable={false}
-          selectTextOnFocus={linkIsReady}
-          frameStyle={{
-            flex: 1,
-            height: 44,
-            ...(linkHasError
-              ? {}
-              : {
-                  borderTopRightRadius: 0,
-                  borderBottomRightRadius: 0,
-                  borderRightWidth: 0,
-                }),
-          }}
-        />
-        {!linkHasError && (
+    <YStack width="100%" gap="$l">
+      {/* Button.Frame so the field matches the share button's height and radius */}
+      <Button.Frame
+        width="100%"
+        size="medium"
+        fill="ghost"
+        backgroundColor="$secondaryBackground"
+        cursor="default"
+      >
+        <Text
+          flex={1}
+          minWidth={0}
+          numberOfLines={1}
+          size="$mono/m"
+          color={linkHasError ? '$negativeActionText' : '$tertiaryText'}
+        >
+          {linkIsReady ? displayUrl : inviteLinkPlaceholder}
+        </Text>
+        {!linkFailed && (
           <Button
-            {...buttonProps}
-            preset={preset}
+            fill="text"
             intent="positive"
-            size="small"
-            width={44}
-            borderTopLeftRadius={0}
-            borderBottomLeftRadius={0}
-            icon={didCopy ? 'Checkmark' : 'Copy'}
+            label="Copy"
+            leadingIcon={
+              <Icon
+                type={didCopy ? 'Checkmark' : 'Copy'}
+                customSize={[18, 18]}
+                color="$positiveActionText"
+              />
+            }
             accessibilityLabel={didCopy ? 'Copied' : 'Copy invite link'}
-            loading={linkIsLoading}
             disabled={!linkIsReady}
             onPress={handleCopyInviteLink}
           />
         )}
-      </XStack>
+      </Button.Frame>
       <Button
-        {...buttonProps}
-        preset={preset}
-        intent={linkHasError ? 'negative' : 'positive'}
-        fill="outline"
-        size="small"
+        preset="primary"
         label="Share link"
-        leadingIcon="Send"
+        centered
         disabled={!linkIsReady}
         onPress={handleShareInviteLink}
       />
