@@ -1971,7 +1971,9 @@ export async function deleteMessage(page: Page, messageText: string) {
   await longPressMessage(page, messageText);
   acceptDeleteConfirmation(page, 'message');
   await page.getByText('Delete message').click();
-  await expect(page.getByText(messageText, { exact: true })).not.toBeVisible();
+  await expect(
+    page.getByTestId('Post').getByText(messageText, { exact: true }).first()
+  ).not.toBeVisible();
 }
 
 /**
