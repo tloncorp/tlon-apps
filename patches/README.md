@@ -342,3 +342,66 @@ intentionally NOT included — on RN 0.85 the input's `__nativeTag` is populated
 so that change is unnecessary here and the lazy-host fix alone restores paste.
 Android image paste is a separate, still-open limitation (the context-menu path
 only reads `item.uri`) and is not patched here.
+
+## @tamagui/build@2.4.2
+
+Local patch:
+- `patches/@tamagui__build@2.4.2.patch`
+
+Why:
+`packages/ui` builds with `tamagui-build --skip-types`. TypeScript 7 (the native
+compiler) ships no `ts.sys`, but `tamagui-build.js` builds a module-level
+`formatHost` that reads `ts.sys.getCurrentDirectory` and `ts.sys.newLine` as the
+file loads. That throws `Cannot read properties of undefined (reading
+'getCurrentDirectory')` before `--skip-types` is even considered, so
+`pnpm build:packages` cannot get past `@tloncorp/ui`.
+
+What it does:
+Guards both reads with optional chaining and a fallback (`process.cwd()` and
+`'\n'`). `formatHost` is only consumed by `reportDiagnostics`, which
+`--skip-types` never reaches, so this restores the JS-only build without
+changing behavior when `ts.sys` is present.
+
+Upstream:
+- not reported; `@tamagui/build@2.7.7` (latest at time of writing) still reads
+  `ts.sys.getCurrentDirectory` at module scope
+
+Validation:
+- `pnpm build:packages` completes, emitting `packages/ui/dist`
+
+Removal:
+Remove once a released `@tamagui/build` either guards `ts.sys` or stops
+constructing `formatHost` at module scope.
+
+## @expo/require-utils@57.0.3
+
+Local patch:
+- `patches/@expo__require-utils@57.0.3.patch`
+
+Why:
+Reading `apps/tlon-mobile/app.config.ts` fails under TypeScript 7 with
+`Cannot read properties of undefined (reading 'CommonJS')`. `loadTypescript()`
+succeeds because `typescript` resolves, but the module then reaches for
+`ts.ModuleKind` — part of the legacy transpile API that TypeScript 7 removed —
+so every Expo command that loads a `.ts` config throws, including
+`pnpm build:mobile`.
+
+What it does:
+Treats a TypeScript install with no `ModuleKind` as "typescript unavailable" by
+setting `_ts = null`. The existing fallback then transpiles the config with
+Node's built-in `stripTypeScriptTypes`, which is the path this module already
+prefers on Node >= 22.18 (CI and `.nvmrc` are both above that).
+
+Upstream:
+- not reported; `@expo/require-utils@57.0.4` (latest at time of writing) still
+  calls `ts.ModuleKind` without guarding
+
+Validation:
+- `pnpm --filter tlon-mobile build` completes ("Done writing bundle output")
+- `node -e "require('@expo/config').getConfig(process.cwd())"` from
+  `apps/tlon-mobile` resolves instead of throwing
+
+Removal:
+Remove once a released `@expo/require-utils` guards the legacy transpile API, or
+once Expo drops the `typescript` transpile path in favour of
+`stripTypeScriptTypes`.
