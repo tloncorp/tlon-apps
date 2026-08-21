@@ -1,5 +1,18 @@
 import * as db from '@tloncorp/shared/db';
 
+export function isAgentGroupNavigationLocked(
+  marker?: Pick<
+    db.AgentGroupOnboardingLock,
+    'navigationLocked' | 'provisionAcknowledgedAt'
+  >
+) {
+  return Boolean(
+    marker &&
+      marker.navigationLocked !== false &&
+      !marker.provisionAcknowledgedAt
+  );
+}
+
 export function useAgentGroupOnboardingLock(groupId?: string | null) {
   const { value: locks, isLoading } =
     db.agentGroupOnboardingLocks.useStorageItem();
@@ -7,7 +20,7 @@ export function useAgentGroupOnboardingLock(groupId?: string | null) {
 
   return {
     isLoading,
-    locked: Boolean(groupId && marker && !marker.provisionAcknowledgedAt),
+    locked: Boolean(groupId && isAgentGroupNavigationLocked(marker)),
     awaitingFirstEntry: Boolean(
       groupId && marker?.provision && marker.provisionAcknowledgedAt
     ),

@@ -718,18 +718,28 @@ function useCreateChat() {
           });
           navigateToChannel(channel);
         } else if (params.type === 'agent') {
-          const furnishing = await store.ensureAgentGroupFurnished({
+          const furnishing = await store.startAgentGroupFurnishing({
             agentShipId: AGENT_SHIP_OVERRIDE || undefined,
           });
-          const channel = await db.getChannel({ id: furnishing.chatChannelId });
-          if (!channel) {
-            throw new Error('The new agent chat is not available yet.');
-          }
-          furnishing.tail.catch(() => {
-            // The furnishing core is complete. Tail failures are retried by
-            // later reconciliation and must not pull the user out of chat.
-          });
-          navigateToChannel(channel);
+          navigateToChannel(furnishing.chatChannel);
+          void furnishing.complete
+            .then((completed) => {
+              completed.tail.catch(() => {
+                // The furnishing core is complete. Tail failures are retried
+                // by later reconciliation and must not pull the user out.
+              });
+            })
+            .catch((error) => {
+              logger.trackError(
+                'Agent group setup failed after opening',
+                error
+              );
+              setCreateChatError(
+                error instanceof Error
+                  ? error.message
+                  : 'The Tlonbot group could not finish setup.'
+              );
+            });
         } else {
           // Check if a template was selected
           let group: db.Group;
