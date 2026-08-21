@@ -1,7 +1,10 @@
 import * as db from '@tloncorp/shared/db';
 import { describe, expect, it } from 'vitest';
 
-import { getA2UIActionCompletion } from './a2uiActionCompletion';
+import {
+  getA2UIActionCompletion,
+  getA2UIActionCompletions,
+} from './a2uiActionCompletion';
 
 const ownerId = '~owner';
 
@@ -84,5 +87,19 @@ describe('getA2UIActionCompletion', () => {
         ownerId
       ).configuredProviderIds
     ).toEqual(['notion', 'gmail']);
+  });
+
+  it('matches the per-row suffix scan in one reverse pass', () => {
+    const posts = [
+      post({ id: 'surface' }),
+      post({ id: 'choice', authorId: ownerId, textContent: 'Research' }),
+      post({ id: 'follow-up' }),
+      post({ id: 'topics', authorId: ownerId, textContent: 'Mycology' }),
+    ];
+    expect(getA2UIActionCompletions(posts, ownerId)).toEqual(
+      posts.map((_, index) =>
+        getA2UIActionCompletion(posts.slice(index + 1), ownerId)
+      )
+    );
   });
 });

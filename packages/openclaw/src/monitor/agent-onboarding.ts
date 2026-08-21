@@ -22,6 +22,14 @@ import type { TlonOnboardingStep } from '../telemetry.js';
 import { makeA2UIBlob } from '../urbit/blob.js';
 import { type BotProfile, sendChannelPost } from '../urbit/send.js';
 import { markdownToStory } from '../urbit/story.js';
+import {
+  type AgentOnboardingRunRecord,
+  claimAgentOnboardingRun,
+  forgetAgentOnboardingRunClaim,
+  lookupAgentOnboardingRun,
+  markAgentOnboardingRunTerminal,
+  recordAgentOnboardingRunEnqueued,
+} from './agent-onboarding-run-store.js';
 import { type TlonHistoryEntry, fetchChannelHistory } from './history.js';
 
 type AgentRequest =
@@ -206,36 +214,41 @@ const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
   topics: readonly string[];
 }[];
 
-const firstRunCorrelations = sharedMap<
-  string,
-  {
-    context: AgentOnboardingScanContext;
-    notebookNest: string;
-    notebookName: string;
-    provisionId: string;
-    purposeId: string;
-    topics: readonly string[];
-    enqueuedAt: number;
-    /**
-     * Bound in the module context that provisioned the run.
-     *
-     * The completion hooks (`message_sent`, `cron_changed`) fire from the
-     * extension entry, while provisioning runs in the lazy runtime module —
-     * separate module-loader contexts, per `shared-state.ts`. The correlation
-     * itself survives that split because it lives in a `sharedMap`, but
-     * `@tloncorp/api`'s `client` is a module-level proxy, so the entry side
-     * holds a second, unconfigured copy: calling `notes.listNotes` or
-     * `sendChannelPost` from there threw "Client not initialized" and the
-     * first-entry reveal was never posted. Capturing the functions here keeps
-     * the completion on the configured client.
-     */
-    bound: {
-      fetchHistory: typeof fetchChannelHistory;
-      listNotes: typeof notes.listNotes;
-      sendPost: typeof sendChannelPost;
-    };
-  }
->('agentOnboarding.firstRunCorrelations');
+type FirstRunCorrelation = {
+  context: AgentOnboardingScanContext;
+  notebookNest: string;
+  notebookName: string;
+  provisionId: string;
+  jobId: string;
+  purposeId: string;
+  topics: readonly string[];
+  enqueuedAt: number;
+  /**
+   * Bound in the module context that provisioned the run.
+   *
+   * The completion hooks (`message_sent`, `cron_changed`) fire from the
+   * extension entry, while provisioning runs in the lazy runtime module —
+   * separate module-loader contexts, per `shared-state.ts`. The correlation
+   * itself survives that split because it lives in a `sharedMap`, but
+   * `@tloncorp/api`'s `client` is a module-level proxy, so the entry side
+   * holds a second, unconfigured copy: calling `notes.listNotes` or
+   * `sendChannelPost` from there threw "Client not initialized" and the
+   * first-entry reveal was never posted. Capturing the functions here keeps
+   * the completion on the configured client.
+   */
+  bound: {
+    fetchHistory: typeof fetchChannelHistory;
+    listNotes: typeof notes.listNotes;
+    sendPost: typeof sendChannelPost;
+  };
+};
+
+const firstRunCorrelations = sharedMap<string, FirstRunCorrelation>(
+  'agentOnboarding.firstRunCorrelations'
+);
+const firstRunCompletionFlights = sharedMap<string, Promise<void>>(
+  'agentOnboarding.firstRunCompletionFlights'
+);
 const SLOT_PREFIX = 'tlon-agent-primary:';
 const MCP_READ_TOOLS = [
   'mcp_list_upstreams',
@@ -812,20 +825,25 @@ async function provision(
       cronJobId: jobId,
     });
 
-    if (!cron.enqueueRun) {
-      throw new Error(
-        'OpenClaw does not expose enqueueRun through the plugin cron service'
-      );
+    const firstRun = await ensureFirstRunEnqueued(
+      cron,
+      jobId,
+      context,
+      request,
+      notebookName,
+      deps.now?.() ?? Date.now()
+    );
+    // Another reconciliation pass owns a fresh atomic claim. It will enqueue
+    // and acknowledge; posting from this pass could acknowledge a run that has
+    // not actually been queued yet.
+    if (firstRun === 'owned-by-another-pass') return;
+    if (firstRun === 'enqueued') {
+      context.trackStep?.({
+        step: 'first_run_enqueued',
+        ...stepFacts,
+        cronJobId: jobId,
+      });
     }
-    const disposition = await cron.enqueueRun(jobId, 'force');
-    if (!rememberFirstRun(disposition, context, request, notebookName)) {
-      throw new Error('OpenClaw did not enqueue the first onboarding run');
-    }
-    context.trackStep?.({
-      step: 'first_run_enqueued',
-      ...stepFacts,
-      cronJobId: jobId,
-    });
 
     const acknowledgement =
       `${formatTopicList(request.topics)}—got it. ` +
@@ -861,6 +879,19 @@ async function provision(
       deps,
       presentation
     );
+  } else if (cron && jobId) {
+    // On restart the durable request and acknowledgement remain in chat while
+    // the process-local completion correlation is gone. Rehydrate it from the
+    // SQLite-backed claim so either completion hook can finish the sequence.
+    const restored = await restoreFirstRunFromDurable(
+      context,
+      request,
+      notebookName,
+      jobId
+    );
+    if (restored) {
+      await reconcileRestoredFirstRun(cron, restored, deps);
+    }
   }
 }
 
@@ -912,7 +943,7 @@ export async function handleAgentOnboardingCronChanged(
     await failFirstRun(event.runId, event, deps);
     return;
   }
-  await completeFirstRun(event.runId, undefined, undefined, deps);
+  await completeFirstRun(event.runId, undefined, undefined, deps, event.jobId);
 }
 
 async function failFirstRun(
@@ -920,10 +951,37 @@ async function failFirstRun(
   event: PluginHookCronChangedEvent,
   deps: AgentOnboardingCronDeps
 ) {
-  const correlation = firstRunCorrelations.get(runId);
-  if (!correlation) return;
-  firstRunCorrelations.delete(runId);
+  const match = findFirstRunCorrelation(runId, undefined, event.jobId);
+  if (!match) return;
+  const [correlationRunId, correlation] = match;
+  const existingFlight = firstRunCompletionFlights.get(correlationRunId);
+  if (existingFlight) {
+    await existingFlight;
+    return;
+  }
 
+  const flight = failFirstRunCorrelation(
+    correlationRunId,
+    correlation,
+    event,
+    deps
+  );
+  firstRunCompletionFlights.set(correlationRunId, flight);
+  try {
+    await flight;
+  } finally {
+    if (firstRunCompletionFlights.get(correlationRunId) === flight) {
+      firstRunCompletionFlights.delete(correlationRunId);
+    }
+  }
+}
+
+async function failFirstRunCorrelation(
+  correlationRunId: string,
+  correlation: FirstRunCorrelation,
+  event: PluginHookCronChangedEvent,
+  deps: AgentOnboardingCronDeps
+) {
   const bound = correlation.bound;
   const runDeps: AgentOnboardingCronDeps = {
     fetchHistory:
@@ -959,6 +1017,8 @@ async function failFirstRun(
     }),
     runDeps
   );
+  await markAgentOnboardingRunTerminal(correlation.provisionId, 'failed');
+  firstRunCorrelations.delete(correlationRunId);
 }
 
 /**
@@ -979,15 +1039,39 @@ async function completeFirstRun(
   runId: string | undefined,
   notebookNest: string | undefined,
   deliveryMessageId: string | undefined,
-  deps: AgentOnboardingCronDeps
+  deps: AgentOnboardingCronDeps,
+  jobId?: string
 ) {
-  const match = findFirstRunCorrelation(runId, notebookNest);
+  const match = findFirstRunCorrelation(runId, notebookNest, jobId);
   if (!match) return;
   const [correlationRunId, correlation] = match;
-  // Claim the correlation before awaiting so cron_changed and message_sent
-  // cannot race each other into duplicate chat posts.
-  firstRunCorrelations.delete(correlationRunId);
+  const existingFlight = firstRunCompletionFlights.get(correlationRunId);
+  if (existingFlight) {
+    await existingFlight;
+    return;
+  }
+  const flight = completeFirstRunCorrelation(
+    correlationRunId,
+    correlation,
+    deliveryMessageId,
+    deps
+  );
+  firstRunCompletionFlights.set(correlationRunId, flight);
+  try {
+    await flight;
+  } finally {
+    if (firstRunCompletionFlights.get(correlationRunId) === flight) {
+      firstRunCompletionFlights.delete(correlationRunId);
+    }
+  }
+}
 
+async function completeFirstRunCorrelation(
+  correlationRunId: string,
+  correlation: FirstRunCorrelation,
+  deliveryMessageId: string | undefined,
+  deps: AgentOnboardingCronDeps
+) {
   // Explicit deps win (tests), then the implementations bound in the context
   // that provisioned this run, and only then this module's own — which, on the
   // extension-entry side, are backed by an unconfigured client.
@@ -1024,7 +1108,8 @@ async function completeFirstRun(
             correlation.notebookNest,
             runDeps.listNotes!,
             deps.sleep ??
-              ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
+              ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
+            correlation.enqueuedAt
           ));
         if (!newest) {
           correlation.context.log?.(
@@ -1100,8 +1185,12 @@ async function completeFirstRun(
       purposeId: correlation.purposeId,
       notebookNest: correlation.notebookNest,
     });
+    await markAgentOnboardingRunTerminal(correlation.provisionId, 'completed');
+    firstRunCorrelations.delete(correlationRunId);
   } catch (error) {
-    firstRunCorrelations.set(correlationRunId, correlation);
+    correlation.context.log?.(
+      `[tlon] first-run completion will retry: ${String(error)}`
+    );
     throw error;
   }
 }
@@ -1109,13 +1198,22 @@ async function completeFirstRun(
 async function findNewestNoteWithRetry(
   notebookNest: string,
   listNotes: typeof notes.listNotes,
-  sleep: (ms: number) => Promise<void>
+  sleep: (ms: number) => Promise<void>,
+  notBefore: number
 ) {
   for (let attempt = 0; attempt < FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS; attempt++) {
     const listed = await listNotes(notebookNest).catch(() => []);
-    const newest = [...listed].sort(
-      (a, b) => (b.createdAt ?? b.noteId) - (a.createdAt ?? a.noteId)
-    )[0];
+    // A populated notebook may contain entries from an earlier failed or
+    // repeated setup. Only the authoritative delivery callback may identify
+    // an entry without a timestamp; the list fallback must prove the note was
+    // created after this forced run began.
+    const newest = listed
+      .filter(
+        (candidate) =>
+          typeof candidate.createdAt === 'number' &&
+          candidate.createdAt >= notBefore
+      )
+      .sort((a, b) => b.createdAt! - a.createdAt!)[0];
     if (newest) return newest;
     if (attempt < FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS - 1) {
       await sleep(FIRST_ENTRY_NOTE_LOOKUP_DELAY_MS);
@@ -1126,15 +1224,20 @@ async function findNewestNoteWithRetry(
 
 function findFirstRunCorrelation(
   runId: string | undefined,
-  notebookNest: string | undefined
+  notebookNest: string | undefined,
+  jobId?: string
 ) {
   if (runId) {
     const exact = firstRunCorrelations.get(runId);
     if (exact) return [runId, exact] as const;
   }
-  if (!notebookNest) return null;
   for (const entry of firstRunCorrelations) {
-    if (entry[1].notebookNest === notebookNest) return entry;
+    if (
+      (notebookNest && entry[1].notebookNest === notebookNest) ||
+      (jobId && entry[1].jobId === jobId)
+    ) {
+      return entry;
+    }
   }
   return null;
 }
@@ -1143,32 +1246,204 @@ function rememberFirstRun(
   disposition: unknown,
   context: AgentOnboardingScanContext,
   request: PostBlobDataEntryAgentProvision,
-  notebookName?: string
+  notebookName?: string,
+  jobId?: string,
+  enqueuedAt = Date.now()
 ): boolean {
   if (!disposition || typeof disposition !== 'object') return false;
   const result = disposition as { enqueued?: unknown; runId?: unknown };
   if (result.enqueued !== true || typeof result.runId !== 'string')
     return false;
+  setFirstRunCorrelation(result.runId, context, request, {
+    jobId: jobId ?? `unknown:${result.runId}`,
+    notebookName,
+    enqueuedAt,
+  });
+  return true;
+}
+
+function setFirstRunCorrelation(
+  correlationKey: string,
+  context: AgentOnboardingScanContext,
+  request: PostBlobDataEntryAgentProvision,
+  options: {
+    jobId: string;
+    notebookName?: string;
+    enqueuedAt: number;
+  }
+) {
   for (const [pendingRunId, pending] of firstRunCorrelations) {
     if (pending.notebookNest === request.notebookNest) {
       firstRunCorrelations.delete(pendingRunId);
     }
   }
-  firstRunCorrelations.set(result.runId, {
+  firstRunCorrelations.set(correlationKey, {
     context,
     notebookNest: request.notebookNest,
-    notebookName: notebookName ?? notebookDisplayName(request.notebookNest),
+    notebookName:
+      options.notebookName ?? notebookDisplayName(request.notebookNest),
     provisionId: request.provisionId,
+    jobId: options.jobId,
     purposeId: request.purposeId,
     topics: request.topics,
-    enqueuedAt: Date.now(),
+    enqueuedAt: options.enqueuedAt,
     bound: {
       fetchHistory: fetchChannelHistory,
       listNotes: notes.listNotes,
       sendPost: sendChannelPost,
     },
   });
-  return true;
+}
+
+function durableRunRecord(
+  context: AgentOnboardingScanContext,
+  request: PostBlobDataEntryAgentProvision,
+  jobId: string,
+  notebookName: string,
+  claimedAt: number
+): AgentOnboardingRunRecord {
+  return {
+    provisionId: request.provisionId,
+    jobId,
+    groupId: request.groupId,
+    channelNest: context.channelNest,
+    notebookNest: request.notebookNest,
+    notebookName,
+    purposeId: request.purposeId,
+    topics: [...request.topics],
+    claimedAt,
+    status: 'claimed',
+  };
+}
+
+async function ensureFirstRunEnqueued(
+  cron: TlonCronService,
+  jobId: string,
+  context: AgentOnboardingScanContext,
+  request: PostBlobDataEntryAgentProvision,
+  notebookName: string,
+  now: number
+): Promise<'enqueued' | 'recovered' | 'owned-by-another-pass'> {
+  if (!cron.enqueueRun) {
+    throw new Error(
+      'OpenClaw does not expose enqueueRun through the plugin cron service'
+    );
+  }
+
+  const initial = durableRunRecord(context, request, jobId, notebookName, now);
+  const claim = await claimAgentOnboardingRun(initial, now, () =>
+    cron.list({ includeDisabled: true })
+  );
+  if (claim.outcome === 'owned-by-another-pass') {
+    return claim.outcome;
+  }
+  if (claim.outcome === 'recovered') {
+    const existing = claim.record;
+    if (existing.status === 'enqueued') {
+      setFirstRunCorrelation(
+        existing.runId ?? `provision:${request.provisionId}`,
+        context,
+        request,
+        {
+          jobId: existing.jobId,
+          notebookName: existing.notebookName,
+          enqueuedAt: existing.enqueuedAt ?? existing.claimedAt,
+        }
+      );
+    }
+    return 'recovered';
+  }
+
+  const disposition = await cron.enqueueRun(jobId, 'force');
+  // Use the pre-enqueue claim time as the lower bound. A very fast run may
+  // create its note before enqueueRun's acknowledgement reaches the plugin.
+  const enqueuedAt = initial.claimedAt;
+  if (
+    !rememberFirstRun(
+      disposition,
+      context,
+      request,
+      notebookName,
+      jobId,
+      enqueuedAt
+    )
+  ) {
+    await forgetAgentOnboardingRunClaim(request.provisionId);
+    throw new Error('OpenClaw did not enqueue the first onboarding run');
+  }
+
+  const result = disposition as { runId: string };
+  await recordAgentOnboardingRunEnqueued(initial, result.runId, enqueuedAt);
+  return 'enqueued';
+}
+
+async function restoreFirstRunFromDurable(
+  context: AgentOnboardingScanContext,
+  request: PostBlobDataEntryAgentProvision,
+  notebookName: string,
+  jobId: string
+): Promise<AgentOnboardingRunRecord | undefined> {
+  const record = await lookupAgentOnboardingRun(request.provisionId);
+  if (!record || record.status !== 'enqueued') return undefined;
+  setFirstRunCorrelation(
+    record.runId ?? `provision:${request.provisionId}`,
+    context,
+    request,
+    {
+      jobId: record.jobId || jobId,
+      notebookName: record.notebookName || notebookName,
+      enqueuedAt: record.enqueuedAt ?? record.claimedAt,
+    }
+  );
+  return record;
+}
+
+async function reconcileRestoredFirstRun(
+  cron: TlonCronService,
+  record: AgentOnboardingRunRecord,
+  deps: AgentOnboardingDeps
+): Promise<void> {
+  const job = (await cron.list({ includeDisabled: true })).find(
+    (candidate) => candidate.id === record.jobId
+  );
+  const finishedAt = job?.state?.lastRunAtMs;
+  if (
+    !job ||
+    typeof finishedAt !== 'number' ||
+    finishedAt < (record.enqueuedAt ?? record.claimedAt) ||
+    job?.state?.runningAtMs
+  ) {
+    return;
+  }
+  const completionDeps: AgentOnboardingCronDeps = {
+    fetchHistory: deps.fetchHistory,
+    sendPost: deps.sendPost,
+    sleep: deps.sleep,
+  };
+  if (job.state?.lastRunStatus === 'ok' && job.state.lastDelivered === true) {
+    await completeFirstRun(
+      record.runId,
+      record.notebookNest,
+      undefined,
+      completionDeps,
+      record.jobId
+    );
+    return;
+  }
+  if (job.state?.lastRunStatus === 'error') {
+    await failFirstRun(
+      record.runId ?? `provision:${record.provisionId}`,
+      {
+        action: 'finished',
+        jobId: record.jobId,
+        runId: record.runId,
+        status: 'error',
+        delivered: job.state.lastDelivered,
+        error: job.state.lastError,
+      } as PluginHookCronChangedEvent,
+      completionDeps
+    );
+  }
 }
 
 async function fetchOnboardingGroup(
@@ -1850,6 +2125,7 @@ export const agentOnboardingTesting = {
   buildTourChoiceSurface,
   buildRecurringPrompt,
   buildServicesSurface,
+  findNewestNoteWithRetry,
   hasPostMarker,
   notebookDisplayName,
   purposeForReply,

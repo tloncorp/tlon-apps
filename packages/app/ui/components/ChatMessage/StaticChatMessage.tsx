@@ -26,6 +26,7 @@ import { ContextLensBadge } from '../Channel/ContextLens/ContextLensBadge';
 import { A2UIBlock } from '../PostContent/A2UIBlock';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
+import { isA2UISendMessageActionConsumed } from '../PostContent/a2uiActionConsumption';
 import {
   usePostContent,
   usePostLastEditContent,
@@ -329,7 +330,10 @@ export function StaticChatMessage({
   const isA2UIActionConsumed = useCallback(
     (action: A2UI.Button['action']) => {
       if (action.event.name === A2UI.action.sendMessage) {
-        return a2uiActionCompletion?.sendMessage === true;
+        return isA2UISendMessageActionConsumed(
+          action,
+          a2uiActionCompletion?.sentMessageText
+        );
       }
       if (action.event.name === A2UI.action.provisionAgent) {
         return a2uiActionCompletion?.provisionAgent === true;

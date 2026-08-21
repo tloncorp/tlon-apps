@@ -57,6 +57,9 @@ vi.mock('./targets.js', () => ({
     if (t.startsWith('~')) {
       return { kind: 'dm', ship: t };
     }
+    if (t.startsWith('notes/')) {
+      return { kind: 'notebook', nest: t };
+    }
     if (t.includes('/')) {
       return { kind: 'channel', nest: t };
     }

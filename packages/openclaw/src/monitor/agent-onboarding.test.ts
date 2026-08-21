@@ -7,6 +7,10 @@ import {
   recordDeliveredNote,
 } from '../notes-delivery-state.js';
 import {
+  type AgentOnboardingRunRecord,
+  setAgentOnboardingRunStore,
+} from './agent-onboarding-run-store.js';
+import {
   agentOnboardingTesting,
   handleAgentOnboardingCronChanged,
   handleAgentOnboardingMessageSent,
@@ -32,7 +36,35 @@ const provision = {
 
 beforeEach(() => {
   notesDeliveryTesting.clear();
+  setAgentOnboardingRunStore(null);
 });
+
+function memoryRunStore() {
+  const records = new Map<string, AgentOnboardingRunRecord>();
+  return {
+    register: vi.fn(async (key: string, value: AgentOnboardingRunRecord) => {
+      records.set(key, value);
+    }),
+    registerIfAbsent: vi.fn(
+      async (key: string, value: AgentOnboardingRunRecord) => {
+        if (records.has(key)) return false;
+        records.set(key, value);
+        return true;
+      }
+    ),
+    lookup: vi.fn(async (key: string) => records.get(key)),
+    consume: vi.fn(async (key: string) => {
+      const value = records.get(key);
+      records.delete(key);
+      return value;
+    }),
+    delete: vi.fn(async (key: string) => records.delete(key)),
+    entries: vi.fn(async () =>
+      [...records].map(([key, value]) => ({ key, value, createdAt: 0 }))
+    ),
+    clear: vi.fn(async () => records.clear()),
+  };
+}
 
 describe('agent onboarding requests', () => {
   it('recognizes only canonical typed requests', () => {
@@ -1387,6 +1419,172 @@ describe('provision coordinator ordering', () => {
     );
   });
 
+  it('does not enqueue twice when acknowledgement fails after enqueue', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const history: Array<{
+      author: string;
+      content: string;
+      timestamp: number;
+      blob?: string;
+    }> = [];
+    let jobs: Record<string, unknown>[] = [];
+    const cron = {
+      list: vi.fn(async () => jobs),
+      add: vi.fn(async (input) => {
+        jobs = [{ id: 'job-1', ...input }];
+      }),
+      update: vi.fn(),
+      remove: vi.fn(),
+      enqueueRun: vi.fn(async () => ({ enqueued: true, runId: 'run-1' })),
+    } as unknown as TlonCronService;
+    let failAck = true;
+    const sendPost = vi.fn(async ({ blob }) => {
+      if (failAck) {
+        failAck = false;
+        throw new Error('ship disconnected after enqueue');
+      }
+      history.push({
+        author: '~bot',
+        content: '',
+        timestamp: Date.now(),
+        blob,
+      });
+      return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+    });
+    const context = {
+      api: { scry: vi.fn() },
+      botShip: '~bot',
+      channelNest: 'chat/~ten/group/general',
+      groupId: provision.groupId,
+      ownerShip: '~ten',
+      senderShip: '~ten',
+      blob: appendToPostBlob(undefined, provision),
+    };
+    const deps = {
+      fetchHistory: vi.fn(async () => history),
+      getCron: () => cron,
+      getGroup: vi.fn(async () => ({
+        hostUserId: '~ten',
+        channels: [{ id: provision.notebookNest, type: 'notes' }],
+        members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+      })),
+      sendPost,
+    };
+
+    await expect(handleAgentOnboardingRequest(context, deps)).rejects.toThrow(
+      'ship disconnected after enqueue'
+    );
+    await expect(handleAgentOnboardingRequest(context, deps)).resolves.toBe(
+      true
+    );
+
+    expect(cron.enqueueRun).toHaveBeenCalledOnce();
+    expect(await store.lookup(provision.provisionId)).toMatchObject({
+      status: 'enqueued',
+      runId: 'run-1',
+    });
+    expect(history).toHaveLength(2);
+  });
+
+  it('finishes a completed first run discovered after plugin restart', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(provision.provisionId, {
+      provisionId: provision.provisionId,
+      jobId: 'job-1',
+      runId: 'run-before-restart',
+      groupId: provision.groupId,
+      channelNest: 'chat/~ten/group/general',
+      notebookNest: provision.notebookNest,
+      notebookName: 'Updates',
+      purposeId: provision.purposeId,
+      topics: [...provision.topics],
+      claimedAt: 100,
+      enqueuedAt: 100,
+      status: 'enqueued',
+    });
+    recordDeliveredNote(provision.notebookNest, {
+      id: 91,
+      title: 'Recovered entry',
+    });
+    const ackBlob = appendToPostBlob(
+      appendToPostBlob(undefined, {
+        type: 'tlon-agent-provision-ack',
+        version: 1,
+        provisionId: provision.provisionId,
+        cronJobId: 'job-1',
+      }),
+      {
+        type: 'tlon-agent-post-marker',
+        version: 1,
+        key: `ack:${provision.provisionId}`,
+      }
+    );
+    const history = [
+      {
+        author: '~ten',
+        content: 'AI, Climate',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, provision),
+      },
+      { author: '~bot', content: 'Ready', timestamp: 2, blob: ackBlob },
+    ];
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    const cron = {
+      list: vi.fn(async () => [
+        {
+          id: 'job-1',
+          state: {
+            lastRunAtMs: 200,
+            lastRunStatus: 'ok',
+            lastDelivered: true,
+          },
+        },
+      ]),
+      add: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+      enqueueRun: vi.fn(),
+    } as unknown as TlonCronService;
+
+    await handleAgentOnboardingRequest(
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+        senderShip: '~ten',
+        blob: appendToPostBlob(undefined, provision),
+      },
+      {
+        fetchHistory: vi.fn(async () => history),
+        getCron: () => cron,
+        getGroup: vi.fn(async () => ({
+          hostUserId: '~ten',
+          channels: [{ id: provision.notebookNest, type: 'notes' }],
+          members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+        })),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      }
+    );
+
+    expect(cron.enqueueRun).not.toHaveBeenCalled();
+    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'Recovered entry'
+    );
+    expect(await store.lookup(provision.provisionId)).toMatchObject({
+      status: 'completed',
+    });
+  });
+
   it('posts a note reference when the correlated first run finishes', async () => {
     const sendPost = vi.fn(async () => ({
       channel: 'tlon' as const,
@@ -1417,6 +1615,7 @@ describe('provision coordinator ordering', () => {
           notebookFlag: provision.notebookNest,
           noteId: 12,
           title: 'First entry',
+          createdAt: Date.now() + 1,
         },
       ]);
 
@@ -1476,6 +1675,41 @@ describe('provision coordinator ordering', () => {
     expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain(
       'tap Done to continue'
     );
+  });
+
+  it('does not mistake an older notebook entry for the first run', async () => {
+    const listNotes = vi
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          id: `${provision.notebookNest}/8`,
+          notebookFlag: provision.notebookNest,
+          noteId: 8,
+          title: 'Older entry',
+          createdAt: 90,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: `${provision.notebookNest}/9`,
+          notebookFlag: provision.notebookNest,
+          noteId: 9,
+          title: 'Current entry',
+          createdAt: 110,
+        },
+      ]);
+    const sleep = vi.fn(async () => {});
+
+    await expect(
+      agentOnboardingTesting.findNewestNoteWithRetry(
+        provision.notebookNest,
+        listNotes,
+        sleep,
+        100
+      )
+    ).resolves.toMatchObject({ noteId: 9, title: 'Current entry' });
+    expect(listNotes).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledOnce();
   });
 
   it('uses the authoritative created note when cron completion wins the hook race', async () => {
@@ -1641,6 +1875,73 @@ describe('provision coordinator ordering', () => {
       },
     });
     expect(listNotes).not.toHaveBeenCalled();
+  });
+
+  it('coalesces completion hooks and keeps the correlation after failure', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'first-run-race' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision
+    );
+    const failedFetch = vi.fn(async () => {
+      throw new Error('temporary history failure');
+    });
+    const results = await Promise.allSettled([
+      handleAgentOnboardingMessageSent(
+        {
+          to: provision.notebookNest,
+          content: '# Entry',
+          success: true,
+          messageId: '~bot/notes-42',
+          runId: 'nested-run',
+        },
+        { fetchHistory: failedFetch, sendPost }
+      ),
+      handleAgentOnboardingCronChanged(
+        {
+          action: 'finished',
+          jobId: 'unknown:first-run-race',
+          runId: 'first-run-race',
+          status: 'ok',
+          delivered: true,
+        } as never,
+        { fetchHistory: failedFetch, sendPost }
+      ),
+    ]);
+    expect(results.map((result) => result.status)).toEqual([
+      'rejected',
+      'rejected',
+    ]);
+    expect(failedFetch).toHaveBeenCalledOnce();
+    expect(sendPost).not.toHaveBeenCalled();
+
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'unknown:first-run-race',
+        runId: 'first-run-race',
+        status: 'ok',
+        delivered: true,
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        listNotes: vi.fn(async () => []),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      }
+    );
+    expect(sendPost).toHaveBeenCalledTimes(2);
   });
 
   it('does not mutate cron or post when the sender is not the owner', async () => {

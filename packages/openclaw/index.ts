@@ -37,6 +37,7 @@ import {
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
+import { setAgentOnboardingRunStore } from './src/monitor/agent-onboarding-run-store.js';
 import {
   handleAgentOnboardingCronChanged,
   handleAgentOnboardingMessageSent,
@@ -845,6 +846,25 @@ export default defineBundledChannelEntry({
     exportName: 'setTlonRuntime',
   },
   registerFull(api) {
+    // The forced first run crosses process restarts, so its dedupe claim must
+    // live in OpenClaw's plugin state rather than only in module memory.
+    try {
+      setAgentOnboardingRunStore(
+        api.runtime.state.openKeyedStore({
+          namespace: 'agent-onboarding-first-runs',
+          maxEntries: 500,
+          defaultTtlMs: 7 * 24 * 60 * 60_000,
+        })
+      );
+    } catch (error) {
+      // Older compatible hosts may not expose durable plugin state. Preserve
+      // the existing in-memory behavior instead of preventing plugin startup.
+      setAgentOnboardingRunStore(null);
+      api.logger.warn(
+        `[tlon] durable onboarding run state unavailable: ${String(error)}`
+      );
+    }
+
     // ── Gateway-status liveness integration ───────────────────
     //
     // registerFull is NOT a once-per-process call: OpenClaw invokes it once
@@ -1263,7 +1283,8 @@ export default defineBundledChannelEntry({
           const targetKind =
             parsedTarget?.kind === 'dm'
               ? 'dm'
-              : parsedTarget?.kind === 'channel'
+              : parsedTarget?.kind === 'channel' ||
+                  parsedTarget?.kind === 'notebook'
                 ? 'group'
                 : 'unknown';
 
