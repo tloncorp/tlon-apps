@@ -6,12 +6,13 @@ import WayfindingNotice from './Notices';
 
 vi.mock('@tloncorp/api', () => ({ getCurrentUserIsHosted: () => false }));
 vi.mock('@tloncorp/shared/db', () => ({}));
+let mockSetupProgress: {
+  status: string;
+  groupId: string | null;
+  steps: { id: string; title: string; status: string }[];
+} = { status: 'idle', groupId: null, steps: [] };
 vi.mock('@tloncorp/shared/store', () => ({
-  useWorkspaceSetupProgress: () => ({
-    status: 'idle',
-    groupId: null,
-    steps: [],
-  }),
+  useWorkspaceSetupProgress: () => mockSetupProgress,
 }));
 vi.mock('../AgentTaskRows', () => ({ AgentTaskRows: 'AgentTaskRows' }));
 vi.mock('@tloncorp/ui', () => ({
@@ -31,7 +32,11 @@ vi.mock('../InviteFriendsToTlonButton', () => ({
   InviteFriendsToTlonButton: 'InviteFriendsToTlonButton',
 }));
 
-const CHANNEL = { id: 'chat/~host/meals-1234', type: 'chat' } as never;
+const CHANNEL = {
+  id: 'chat/~host/meals-1234',
+  type: 'chat',
+  groupId: '~host/meals-1234',
+} as never;
 
 function findByTestID(renderer: ReactTestRenderer, testID: string) {
   return renderer.root.findAll((node) => node.props?.testID === testID, {
@@ -110,5 +115,41 @@ describe('WorkspaceSetup notice', () => {
   it('drops the invite prompt once setup has completed', () => {
     const { renderer } = renderNotice({ setupComplete: true });
     expect(findByTestID(renderer, 'WorkspaceSetupInvite')).toBeUndefined();
+  });
+
+  // The kit ledger marks setup done when the conversation is *scheduled*, so
+  // during the agent's actual working window setupComplete is already true.
+  // While this session's provisioning run is live for this workspace, the
+  // task rows win over the "Nothing here yet" resignation.
+  it('shows the live task rows over the completed state while this run is in session', () => {
+    mockSetupProgress = {
+      status: 'done',
+      groupId: '~host/meals-1234',
+      steps: [
+        { id: 'create', title: 'Creating your workspace', status: 'completed' },
+      ],
+    };
+    try {
+      const text = textOf(renderNotice({ setupComplete: true }).renderer);
+      expect(text).toMatch(/Setting up your workspace/);
+      expect(text).toMatch(/AgentTaskRows/);
+      expect(text).not.toMatch(/Nothing here yet/);
+    } finally {
+      mockSetupProgress = { status: 'idle', groupId: null, steps: [] };
+    }
+  });
+
+  it('ignores another workspace’s live run', () => {
+    mockSetupProgress = {
+      status: 'running',
+      groupId: '~host/some-other-group',
+      steps: [],
+    };
+    try {
+      const text = textOf(renderNotice({ setupComplete: true }).renderer);
+      expect(text).toMatch(/Nothing here yet/);
+    } finally {
+      mockSetupProgress = { status: 'idle', groupId: null, steps: [] };
+    }
   });
 });

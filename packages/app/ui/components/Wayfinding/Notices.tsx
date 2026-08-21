@@ -385,7 +385,24 @@ function WorkspaceSetup({
       paddingVertical="$2xl"
     >
       <NoticeContainer gap="$l" testID="WorkspaceSetupNotice">
-        {setupComplete ? (
+        {/* The live rows win over the ledger: the kit marks setup done when
+            the conversation is *scheduled*, so during the agent's actual
+            working window the ledger already reads complete. While this
+            session's run is in memory we know better — show what's
+            happening rather than a state that says nothing is. */}
+        {progressIsOurs ? (
+          <>
+            <NoticeText fontWeight="600">Setting up your workspace…</NoticeText>
+            <AgentTaskRows rows={progressRows} variant="list" />
+            {onPressInvite ? (
+              <Pressable testID="WorkspaceSetupInvite" onPress={onPressInvite}>
+                <Text size="$label/m" color="$positiveActionText">
+                  Invite the person this is for
+                </Text>
+              </Pressable>
+            ) : null}
+          </>
+        ) : setupComplete ? (
           <>
             <NoticeText fontWeight="600">Nothing here yet</NoticeText>
             <NoticeText color="$secondaryText">
@@ -396,14 +413,10 @@ function WorkspaceSetup({
         ) : (
           <>
             <NoticeText fontWeight="600">Setting up your workspace…</NoticeText>
-            {progressIsOurs ? (
-              <AgentTaskRows rows={progressRows} variant="list" />
-            ) : (
-              <NoticeText color="$secondaryText">
-                Your agent is getting started. It will post here in a moment
-                with something to react to — you don’t need to do anything.
-              </NoticeText>
-            )}
+            <NoticeText color="$secondaryText">
+              Your agent is getting started. It will post here in a moment with
+              something to react to — you don’t need to do anything.
+            </NoticeText>
             {onPressInvite ? (
               <Pressable testID="WorkspaceSetupInvite" onPress={onPressInvite}>
                 <Text size="$label/m" color="$positiveActionText">
