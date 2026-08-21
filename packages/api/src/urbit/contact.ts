@@ -91,9 +91,10 @@ export interface ContactBookProfile {
   color?: ContactFieldColor;
   groups?: ContactFieldGroups;
   status?: ContactFieldText;
-  // Convention field: a ship publishes the display profiles of the bots
-  // ("virtual identities", i.e. moons) it owns here, as JSON. See
-  // `BotProfilesField` / parseBotProfiles in contactsApi.
+  // Convention field: a ship claims the bots ("virtual identities", i.e.
+  // moons) it owns here — a JSON array of bot ship @p. This is only the
+  // ownership claim; a bot's display profile (name/avatar) is a real contact
+  // profile the host publishes separately. See `BotClaimField` in contactsApi.
   bots?: ContactFieldText;
   ['lanyard-twitter-0-sign']?: AttestationSignature;
   ['lanyard-phone-0-sign']?: AttestationSignature;
@@ -101,12 +102,10 @@ export interface ContactBookProfile {
   ['lanyard-phone-0-url']?: AttestationProviderUrl;
 }
 
-// Decoded shape of the `bots` convention field: a map from a bot's ship
-// (a moon of the publisher) to its display profile.
-export type BotProfilesField = Record<
-  string,
-  { nickname?: string | null; avatar?: string | null }
->;
+// Decoded shape of the `bots` convention field: the list of bot ships (moons
+// of the publisher) the publisher claims to own. Display profiles are resolved
+// from each bot's real contact profile, not from this field.
+export type BotClaimField = string[];
 
 export interface ContactBookProfileEdit {
   nickname?: ContactFieldText | null;

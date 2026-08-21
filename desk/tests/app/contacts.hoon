@@ -1269,5 +1269,42 @@
     %+  ex-equal  !>((~(get cy:c con) %nickname %text))
     !>(`'fake ~nus')
   (pure:m ~)
+::  like +scries below but %vouch classifies the moon as a bot
+::
+++  bot-scries
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %vouch @ %status @ *] path)
+    `!>(`?(%unknown %real %bot)`%bot)
+  ~
+::  +test-bot-profile: a bot moon never boots, so %contacts must not try
+::  to subscribe to it. instead the host sets the bot's contact profile
+::  directly via %contact-bot-0, and +si-meet must no-op for it rather
+::  than emitting a %watch that would retry forever.
+::
+++  test-bot-profile
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our ~sampel-palnet)))
+  ;<  caz=(list card)  b  (do-init %contacts contacts-agent)
+  ;<  ~  b  (set-scry-gate bot-scries)
+  ;<  =bowl  b  get-bowl
+  ::
+  =/  moon=ship  ~doznec-sampel-palnet
+  =/  con=contact
+    %-  malt
+    ^-  (list (pair @tas value))
+    ~[nickname+text/'Weatherbot']
+  ;<  ~  b  (set-src our.bowl)
+  ;<  caz=(list card)  b  (do-poke %contact-bot-0 !>([moon con]))
+  ::  the bot's profile is retrievable, like any peer's
+  ::
+  ;<  ~  b  (ex-scry-result /x/v1/contact/(scot %p moon) !>(con))
+  ::  meeting the bot moon does not subscribe -- it never boots
+  ::
+  ;<  caz=(list card)  b  (do-poke contact-action-1+!>([%meet ~[moon]]))
+  (ex-cards caz ~)
 --
 

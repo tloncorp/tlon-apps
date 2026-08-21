@@ -1,19 +1,19 @@
-import { expect, test, vi } from 'vitest';
-
-vi.mock('../client/urbit', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../client/urbit')>();
-  return { ...actual, scry: vi.fn(), poke: vi.fn() };
-});
+import { beforeEach, expect, test, vi } from 'vitest';
 
 import {
   directoryToClientProfiles,
-  parseBotProfiles,
+  isRegisteredBot,
   registerBotProfile,
   v0PeerToClientProfile,
   v0PeersToClientProfiles,
 } from '../client/contactsApi';
 import { poke, scry } from '../client/urbit';
 import type { ContactBookProfile, ContactFieldText } from '../urbit/contact';
+
+vi.mock('../client/urbit', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../client/urbit')>();
+  return { ...actual, scry: vi.fn(), poke: vi.fn() };
+});
 
 // ~doznec-sampel-palnet is a real moon sponsored by ~sampel-palnet.
 const PARENT = '~sampel-palnet';
@@ -23,32 +23,60 @@ const withBots = (json: string): ContactBookProfile => ({
   bots: { type: 'text', value: json } as ContactFieldText,
 });
 
-test('registerBotProfile merges the moon into the host bots field, preserving siblings', async () => {
+beforeEach(() => {
+  vi.mocked(poke).mockClear();
+  vi.mocked(scry).mockClear();
+});
+
+const SIBLING = '~marzod-sampel-palnet';
+
+test('registerBotProfile claims the moon (list) and publishes its real profile', async () => {
   vi.mocked(scry).mockResolvedValue({
     nickname: { type: 'text', value: 'Host' },
-    bots: {
-      type: 'text',
-      value: JSON.stringify({
-        '~marzod-sampel-palnet': { nickname: 'Sibling', avatar: null },
-      }),
-    },
+    bots: { type: 'text', value: JSON.stringify([SIBLING]) },
   } as ContactBookProfile);
   vi.mocked(poke).mockResolvedValue(undefined as never);
 
   await registerBotProfile(MOON, { nickname: 'Helper', avatar: 'http://x/a' });
 
-  expect(poke).toHaveBeenCalledTimes(1);
-  const arg = vi.mocked(poke).mock.calls[0][0] as {
+  // two pokes: the claim (contact-action-1) then the real profile (contact-bot-0)
+  expect(poke).toHaveBeenCalledTimes(2);
+  const claim = vi.mocked(poke).mock.calls[0][0] as {
     app: string;
     mark: string;
     json: { self: { bots: { type: string; value: string } } };
   };
-  expect(arg).toMatchObject({ app: 'contacts', mark: 'contact-action-1' });
-  expect(JSON.parse(arg.json.self.bots.value)).toEqual({
-    // sibling bot preserved
-    '~marzod-sampel-palnet': { nickname: 'Sibling', avatar: null },
-    // our moon added
-    [MOON]: { nickname: 'Helper', avatar: 'http://x/a' },
+  expect(claim).toMatchObject({ app: 'contacts', mark: 'contact-action-1' });
+  // the claim is a plain @p list; sibling preserved, our moon appended
+  expect(JSON.parse(claim.json.self.bots.value)).toEqual([SIBLING, MOON]);
+
+  const profile = vi.mocked(poke).mock.calls[1][0] as {
+    app: string;
+    mark: string;
+    json: { who: string; con: Record<string, { type: string; value: string }> };
+  };
+  expect(profile).toMatchObject({ app: 'contacts', mark: 'contact-bot-0' });
+  expect(profile.json).toEqual({
+    who: MOON,
+    con: {
+      nickname: { type: 'text', value: 'Helper' },
+      avatar: { type: 'look', value: 'http://x/a' },
+    },
+  });
+});
+
+test('registerBotProfile skips the claim poke when the moon is already claimed', async () => {
+  vi.mocked(scry).mockResolvedValue({
+    bots: { type: 'text', value: JSON.stringify([MOON]) },
+  } as ContactBookProfile);
+  vi.mocked(poke).mockResolvedValue(undefined as never);
+
+  await registerBotProfile(MOON, { nickname: 'Helper' });
+
+  // only the real-profile poke; the claim is already present
+  expect(poke).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(poke).mock.calls[0][0]).toMatchObject({
+    mark: 'contact-bot-0',
   });
 });
 
@@ -100,59 +128,59 @@ test('converts an array of contacts from server to client format', () => {
   ).toStrictEqual([outputContact]);
 });
 
-test('parseBotProfiles materializes a bot moon published by its own parent', () => {
-  const profile = withBots(
-    JSON.stringify({ [MOON]: { nickname: 'Helper', avatar: 'http://x/a.png' } })
-  );
-  const result = parseBotProfiles(PARENT, profile);
-  expect(result).toHaveLength(1);
-  expect(result[0]).toMatchObject({
-    id: MOON,
-    peerNickname: 'Helper',
-    peerAvatarImage: 'http://x/a.png',
-    isContact: false,
-  });
+test('isRegisteredBot is true for a moon claimed by its own parent', async () => {
+  vi.mocked(scry).mockResolvedValue({
+    [PARENT]: { isContact: false, contact: withBots(JSON.stringify([MOON])) },
+  } as never);
+  expect(await isRegisteredBot(MOON)).toBe(true);
 });
 
-test('parseBotProfiles normalizes a sig-less bot id', () => {
-  const profile = withBots(
-    JSON.stringify({ 'doznec-sampel-palnet': { nickname: 'Helper' } })
-  );
-  const result = parseBotProfiles(PARENT, profile);
-  expect(result).toHaveLength(1);
-  expect(result[0].id).toBe(MOON);
+test('isRegisteredBot normalizes a sig-less claim entry', async () => {
+  vi.mocked(scry).mockResolvedValue({
+    [PARENT]: {
+      isContact: false,
+      contact: withBots(JSON.stringify(['doznec-sampel-palnet'])),
+    },
+  } as never);
+  expect(await isRegisteredBot(MOON)).toBe(true);
 });
 
-test('parseBotProfiles rejects a bot profile from a ship that is not its parent', () => {
-  // ~bus does not sponsor the moon, so it may not publish a profile for it
-  const profile = withBots(
-    JSON.stringify({ [MOON]: { nickname: 'Spoof' } })
-  );
-  expect(parseBotProfiles('~bus', profile)).toEqual([]);
+test('isRegisteredBot is false when the parent does not claim the moon', async () => {
+  vi.mocked(scry).mockResolvedValue({
+    [PARENT]: { isContact: false, contact: withBots(JSON.stringify([])) },
+  } as never);
+  expect(await isRegisteredBot(MOON)).toBe(false);
 });
 
-test('parseBotProfiles rejects a non-moon entry', () => {
-  const profile = withBots(JSON.stringify({ '~bus': { nickname: 'Planet' } }));
-  expect(parseBotProfiles(PARENT, profile)).toEqual([]);
+test('isRegisteredBot is false for a non-moon ship', async () => {
+  vi.mocked(scry).mockResolvedValue({} as never);
+  // ~bus is a planet, not a moon — never a bot
+  expect(await isRegisteredBot('~bus')).toBe(false);
 });
 
-test('parseBotProfiles skips entries with nothing to display', () => {
-  const profile = withBots(JSON.stringify({ [MOON]: {} }));
-  expect(parseBotProfiles(PARENT, profile)).toEqual([]);
+test('isRegisteredBot tolerates a malformed/missing bots field', async () => {
+  vi.mocked(scry).mockResolvedValue({
+    [PARENT]: { isContact: false, contact: withBots('not json') },
+  } as never);
+  expect(await isRegisteredBot(MOON)).toBe(false);
 });
 
-test('parseBotProfiles tolerates malformed/missing bots field', () => {
-  expect(parseBotProfiles(PARENT, withBots('not json'))).toEqual([]);
-  expect(parseBotProfiles(PARENT, {})).toEqual([]);
-});
-
-test('directoryToClientProfiles expands a profile and its bots', () => {
+test('directoryToClientProfiles renders a bot from its own real profile', () => {
+  // The bot's name/avatar come from its own directory entry (published by the
+  // host via contact-bot-0), NOT from the parent's `bots` claim field.
   const directory = {
     [PARENT]: {
       isContact: true,
       contact: {
         nickname: { type: 'text', value: 'Sampel' } as ContactFieldText,
-        ...withBots(JSON.stringify({ [MOON]: { nickname: 'Helper' } })),
+        ...withBots(JSON.stringify([MOON])),
+      },
+      mod: {},
+    },
+    [MOON]: {
+      isContact: false,
+      contact: {
+        nickname: { type: 'text', value: 'Helper' } as ContactFieldText,
       },
       mod: {},
     },
@@ -162,4 +190,20 @@ test('directoryToClientProfiles expands a profile and its bots', () => {
   const moon = result.find((c) => c.id === MOON);
   expect(parent).toMatchObject({ peerNickname: 'Sampel', isContact: true });
   expect(moon).toMatchObject({ peerNickname: 'Helper', isContact: false });
+});
+
+test('directoryToClientProfiles does not materialize a bot from the claim alone', () => {
+  // A claim with no corresponding real profile entry yields no bot contact.
+  const directory = {
+    [PARENT]: {
+      isContact: true,
+      contact: {
+        nickname: { type: 'text', value: 'Sampel' } as ContactFieldText,
+        ...withBots(JSON.stringify([MOON])),
+      },
+      mod: {},
+    },
+  };
+  const result = directoryToClientProfiles(directory);
+  expect(result.find((c) => c.id === MOON)).toBeUndefined();
 });

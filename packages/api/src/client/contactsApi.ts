@@ -41,63 +41,30 @@ const isMoonOf = (who: string, publisher: string): boolean => {
   }
 };
 
-// Expand the `bots` convention field on a peer's published profile into
-// synthetic peer contacts for the bot moons it owns. We only honor a bot
-// profile published by the moon's actual sponsor, so a ship can't spoof
-// profiles for moons it doesn't own. These let a non-running bot moon render by
-// name/avatar without us ever subscribing to it.
-// The `bots` convention field is a JSON map (moon-patp -> {nickname, avatar})
-// stored as text on a ship's profile. Decode it defensively.
+// Read the `bots` convention field on a ship's published profile: the list of
+// bot ships (moons of the publisher) it claims to own. This is only the
+// ownership claim — a bot's display profile (name/avatar) is resolved from the
+// bot's own real contact profile, which the host publishes separately. The
+// field is a JSON array of bot @p stored as text; decode it defensively.
 const readBotsField = (
   profile: ub.ContactBookProfile | null | undefined
-): ub.BotProfilesField => {
+): ub.BotClaimField => {
   const raw = profile?.bots?.value;
   if (!raw) {
-    return {};
+    return [];
   }
   try {
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    return Array.isArray(parsed)
+      ? parsed.filter((id): id is string => typeof id === 'string')
+      : [];
   } catch {
-    return {};
+    return [];
   }
 };
 
 const normalizeMoonId = (id: string): string =>
   id.startsWith('~') ? id : `~${id}`;
-
-export const parseBotProfiles = (
-  publisherId: string,
-  profile: ub.ContactBookProfile
-): db.Contact[] => {
-  const parsed = readBotsField(profile);
-  return Object.entries(parsed).flatMap(([rawId, p]): db.Contact[] => {
-    const botId = normalizeMoonId(rawId);
-    if (!isMoonOf(botId, publisherId)) {
-      return [];
-    }
-    const nickname = p?.nickname ?? null;
-    const avatar = p?.avatar ?? null;
-    if (!nickname && !avatar) {
-      return [];
-    }
-    return [
-      {
-        id: botId,
-        peerNickname: nickname,
-        peerAvatarImage: avatar,
-        bio: null,
-        status: null,
-        color: null,
-        coverImage: null,
-        pinnedGroups: [],
-        attestations: [],
-        isContact: false,
-        isContactSuggestion: false,
-      },
-    ];
-  });
-};
 
 /**
  * True when `ship` is a bot moon registered in its sponsor's published
@@ -120,35 +87,54 @@ export const isRegisteredBot = async (ship: string): Promise<boolean> => {
       return false;
     }
     const bots = readBotsField(entry.contact);
-    return Object.keys(bots).some((id) => normalizeMoonId(id) === ship);
+    // Honor the claim only when `ship` really is a moon of `host`, so a ship
+    // can't route another ship's DMs through the vouched path by claiming it.
+    return (
+      isMoonOf(ship, host) && bots.some((id) => normalizeMoonId(id) === ship)
+    );
   } catch {
     return false;
   }
 };
 
 /**
- * Register (or update) a bot moon in the current ship's published profile so
- * peers can resolve the bot via the `bots` convention field (see
- * parseBotProfiles). Reads the current profile first and merges, preserving
- * sibling bots. Must be poked by the moon's host (the moon's sponsor).
+ * Register a bot moon owned by the current (host) ship. Two writes:
+ *   1. Claim: add the moon to the host's `bots` convention field (a list of
+ *      @p) so peers know it's a bot this host owns.
+ *   2. Profile: publish the bot's real contact profile (name/avatar) via the
+ *      `contact-bot-0` poke, so it renders like any peer without ever running.
+ * Both reads-then-merges, so sibling bots and prior profiles are preserved.
+ * Must be poked by the moon's host (the moon's sponsor).
  */
 export const registerBotProfile = async (
   moon: string,
   profile: { nickname?: string | null; avatar?: string | null }
 ) => {
+  const botId = normalizeMoonId(moon);
   const self = await scry<ub.ContactBookProfile>({
     app: 'contacts',
     path: '/v1/self',
   });
-  const bots = readBotsField(self);
-  bots[normalizeMoonId(moon)] = {
-    nickname: profile.nickname ?? null,
-    avatar: profile.avatar ?? null,
-  };
+  const claim = readBotsField(self);
+  if (!claim.some((id) => normalizeMoonId(id) === botId)) {
+    claim.push(botId);
+    await poke({
+      app: 'contacts',
+      mark: 'contact-action-1',
+      json: { self: { bots: { type: 'text', value: JSON.stringify(claim) } } },
+    });
+  }
+  const con: Record<string, ub.ContactFieldText | ub.ContactImageField> = {};
+  if (profile.nickname) {
+    con.nickname = { type: 'text', value: profile.nickname };
+  }
+  if (profile.avatar) {
+    con.avatar = { type: 'look', value: profile.avatar };
+  }
   return poke({
     app: 'contacts',
-    mark: 'contact-action-1',
-    json: { self: { bots: { type: 'text', value: JSON.stringify(bots) } } },
+    mark: 'contact-bot-0',
+    json: { who: botId, con },
   });
 };
 
@@ -172,7 +158,7 @@ export const directoryToClientProfiles = (
       !!config?.contactSuggestions?.has(id) &&
       !entry.isContact &&
       id !== currentUserId;
-    return [profile, ...parseBotProfiles(id, entry.contact)];
+    return [profile];
   });
 };
 
@@ -396,10 +382,6 @@ export const subscribeToContactUpdates = (
           type: 'upsertContact',
           contact: contactToClientProfile(kip, contactBookEntry),
         });
-        // a profile update may also (de)register bot moons in its `bots` field
-        for (const bot of parseBotProfiles(kip, contact)) {
-          handler({ type: 'upsertContact', contact: bot });
-        }
         return;
       }
 
@@ -415,9 +397,6 @@ export const subscribeToContactUpdates = (
           type: 'upsertContact',
           contact: v1PeerToClientProfile(who, contact),
         });
-        for (const bot of parseBotProfiles(who, contact)) {
-          handler({ type: 'upsertContact', contact: bot });
-        }
         return;
       }
     }

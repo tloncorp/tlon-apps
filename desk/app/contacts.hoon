@@ -119,6 +119,26 @@
   ++  emil  |=(c=(list card) cor(out (weld (flop c) out)))
   ++  give  |=(=gift:guard (emit %give gift))
   ++  pass  |=([=wire =note:guard] (emit %pass wire note))
+  ::  +vouch-status: ask the %vouch store what we believe .who is. degrades
+  ::  to %unknown when %vouch isn't installed or the scry otherwise fails.
+  ::
+  ++  vouch-status
+    |=  who=@p
+    ^-  ?(%unknown %real %bot)
+    =/  res
+      %-  mule
+      |.  .^(?(%unknown %real %bot) %gx /(scot %p our.bowl)/vouch/(scot %da now.bowl)/status/(scot %p who)/noun)
+    ?:(?=(%& -.res) p.res %unknown)
+  ::  +bot-moon: is .who a moon we sponsor that %vouch classifies as a bot?
+  ::  bots never boot, so we must never network-subscribe to them.
+  ::
+  ++  bot-moon
+    |=  who=@p
+    ^-  ?
+    ?&  ?=(%earl (clan:title who))
+        =(our.bowl (^sein:title who))
+        =(%bot (vouch-status who))
+    ==
   ::
   +|  %operations
   ::
@@ -435,6 +455,12 @@
         ::  already subscribed
         ?:  ?=(%want sag)
           si-cor
+        ::  never network-subscribe to our own bot moons -- they never boot,
+        ::  so this would retry-loop forever. their profile, if any, comes
+        ::  from a %contact-bot-0 poke instead.
+        ::
+        ?:  (bot-moon who)
+          si-cor
         =/  pat  [%v1 %contact ?~(for / /at/(scot:h136 %da wen.for))]
         %_  si-cor
           cor  (pass /contact %agent [who dap.bowl] %watch pat)
@@ -741,6 +767,17 @@
       %+  roll  kis
       |=  [=kip =_last-updated]
       (~(put ol last-updated) kip now.bowl)
+      ::  local: set a bot moon's contact profile so our own frontend
+      ::  renders it. self-hosted only -- no cross-ship serving of this
+      ::  profile is implemented (yet).
+      ::
+        %contact-bot-0
+      ?>  =(our src):bowl
+      =+  !<([who=ship con=contact] vase)
+      =.  peers  (~(put by peers) who [`profile`[now.bowl con] ~])
+      =.  last-updated  (~(put ol last-updated) who now.bowl)
+      =.  cor  (p-news-0:pub who (contact:to-0 con))
+      (p-response:pub %peer who con)
     ==
   ::  +peek: scry
   ::
