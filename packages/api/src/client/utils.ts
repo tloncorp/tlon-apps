@@ -19,6 +19,12 @@ import * as ub from '../urbit';
 
 export const PATP_REGEX = /(~[a-z0-9-]+)/i;
 export const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
+// `.test()` on a g-flagged regex is stateful (it resumes from lastIndex), so
+// boolean "does this text contain a ref" checks must use this non-global copy.
+export const CONTAINS_REF_REGEX = new RegExp(
+  REF_REGEX.source,
+  REF_REGEX.flags.replace('g', '')
+);
 export const REF_URL_REGEX = /^\/1\/(chan|group|desk)\/[^\s]+/;
 // sig and hep explicitly left out
 export const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=_`()]/g;
@@ -365,7 +371,7 @@ export const textPostIsReference = (post: db.Post): boolean => {
   if (inlines.length === 2) {
     const [first] = inlines;
     const isRefString =
-      typeof first === 'string' && REF_REGEX.test(first as string);
+      typeof first === 'string' && CONTAINS_REF_REGEX.test(first as string);
 
     if (isRefString) {
       return true;

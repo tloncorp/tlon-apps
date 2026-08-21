@@ -57,7 +57,11 @@ import { hydrateEditPost } from '../MessageInput/helpers';
 import { type SlashCommandController } from '../SlashCommandPopup';
 import type { DraftInputHandle } from '../draftInputs/shared';
 import { PasteableTextInput } from './PasteableTextInput';
-import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
+import {
+  computeTextChangeAction,
+  contentToTextAndMentions,
+  textAndMentionsToContent,
+} from './helpers';
 import { PastedFile, attachPastedImageFiles } from './pastedImage';
 import {
   MentionOption,
@@ -422,11 +426,12 @@ function BareChatInput(
       bareChatInputLogger.log('text change', newText);
 
       // Only process references if the text contains a reference and hasn't been processed before.
-      // This check prevents infinite loops on native platforms where we manually update
-      // the input's text value using setNativeProps after processing references.
+      // This check prevents infinite loops on native platforms where we clear
+      // the input's text value after processing references.
       // Without this guard, each manual text update would trigger another onChangeText,
       // creating an endless cycle.
-      if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
+      const action = computeTextChangeAction(newText, lastProcessedRef.current);
+      if (action === 'processReferences') {
         lastProcessedRef.current = newText;
         const textWithoutRefs = processReferences(newText);
         const cursorPos = getWebSelectionStart();
@@ -451,7 +456,7 @@ function BareChatInput(
             inputRef.current?.clear();
           }, 0);
         }
-      } else if (!REF_REGEX.test(newText)) {
+      } else if (action === 'update') {
         // if there's no reference to process, just update normally
         const cursorPos = getWebSelectionStart();
         setControlledText(newText);
