@@ -46,9 +46,14 @@ const LEGACY_OPENCLAW_TOOLS = [
   'read',
   'cron',
   'tlon',
+  'tlon_request_input',
   'message',
 ] as const;
-const BASELINE_OPENCLAW_TOOLS = ['tlon', 'message'] as const;
+const BASELINE_OPENCLAW_TOOLS = [
+  'tlon',
+  'tlon_request_input',
+  'message',
+] as const;
 const OPENCLAW_CRON_AT_OFFSET_MS = 180_000;
 
 export function workspaceApiTarballPath(packageDir: string): string {
@@ -323,7 +328,9 @@ export const openclawDriver: BotDriver = {
       return {
         steps: [{ kind: 'text', content: text }],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: {
+            exact: ['message', 'tlon', 'tlon_request_input'],
+          },
           expectedCallCount: 1,
         },
       };
@@ -333,7 +340,9 @@ export const openclawDriver: BotDriver = {
       return {
         steps: texts.map((content) => ({ kind: 'text' as const, content })),
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: {
+            exact: ['message', 'tlon', 'tlon_request_input'],
+          },
           expectedCallCount: texts.length,
         },
       };
@@ -354,7 +363,9 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: 'Done' },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: {
+            exact: ['message', 'tlon', 'tlon_request_input'],
+          },
           expectedCallCount: 2,
           // Observed against openclaw@2026.5.7: the fake model receives the
           // initial tool-call request and a follow-up request, but that
@@ -374,7 +385,9 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: finalText },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon'] },
+          advertisedTools: {
+            exact: ['message', 'tlon', 'tlon_request_input'],
+          },
           expectedCallCount: 2,
           // See sendMessage: the current OpenClaw transcript is observable as
           // a second model request but not as an OpenAI-format tool-result
@@ -419,7 +432,9 @@ export const openclawDriver: BotDriver = {
           { kind: 'text', content: finalText },
         ],
         expectations: {
-          advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+          advertisedTools: {
+            exact: ['message', 'tlon', 'tlon_request_input', 'cron'],
+          },
           expectedCallCount: 2,
           toolEffectOnly: true,
         },

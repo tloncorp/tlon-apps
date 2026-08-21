@@ -113,6 +113,22 @@ if [ -f "/workspace/tlonbot/openclaw.json" ]; then
       )' \
       "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
   fi
+
+  if [ "${TLON_CONTEXT_LENS_ENABLED:-false}" = "true" ]; then
+    echo "==> Enabling Tlon Context Lens ship sync..."
+    jq '.channels.tlon.contextLens = (.channels.tlon.contextLens // {})
+      | .channels.tlon.contextLens.enabled = true' \
+      "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
+  fi
+
+  # Fifteen minutes by default: tool-heavy turns can spend several minutes on
+  # remote uploads and verification. Override for shorter local test cases.
+  tlon_run_timeout_ms="${TLON_RUN_TIMEOUT_MS:-900000}"
+  echo "==> Setting Tlon agent run timeout to ${tlon_run_timeout_ms}ms..."
+  jq --argjson runTimeoutMs "$tlon_run_timeout_ms" \
+    '.channels.tlon.lifecycle = (.channels.tlon.lifecycle // {})
+    | .channels.tlon.lifecycle.runTimeoutMs = $runTimeoutMs' \
+    "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
 elif [ -f "/workspace/openclaw-tlon/dev/openclaw.dev.json" ]; then
   cp "/workspace/openclaw-tlon/dev/openclaw.dev.json" "$CONFIG_PATH"
 fi
@@ -131,6 +147,18 @@ if [ -f "$CONFIG_PATH" ]; then
   # with just the gateway token. Do NOT set this in production configs.
   echo "==> Disabling device pairing for Control UI (dev-only)..."
   jq '.gateway.controlUi.dangerouslyDisableDeviceAuth = true' \
+    "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
+
+  # Tlon chat task rows require the structured update_plan tool. Set this
+  # explicitly because provider/model auto-detection can happen after embedded
+  # Codex tools are assembled, leaving the tool absent from an otherwise
+  # strict-agentic GPT-5 run.
+  echo "==> Enabling structured chat plans (dev-only)..."
+  jq '.tools.experimental.planTool = true
+    | .plugins.entries.tlon = (.plugins.entries.tlon // {})
+    | .plugins.entries.tlon.hooks = (.plugins.entries.tlon.hooks // {})
+    | .plugins.entries.tlon.hooks.allowPromptInjection = true
+    | .plugins.entries.tlon.hooks.allowConversationAccess = true' \
     "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
 fi
 

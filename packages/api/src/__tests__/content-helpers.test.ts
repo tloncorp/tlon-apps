@@ -83,6 +83,8 @@ describe('post blob helpers', () => {
       version: 1,
       lensId: 'lens-123',
       botShip: '~zod',
+      delivery: 'final',
+      outcome: 'failed',
     });
 
     expect(parsePostBlob(blob)).toEqual([
@@ -91,6 +93,8 @@ describe('post blob helpers', () => {
         version: 1,
         lensId: 'lens-123',
         botShip: '~zod',
+        delivery: 'final',
+        outcome: 'failed',
       },
     ]);
   });

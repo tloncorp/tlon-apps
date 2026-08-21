@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { runTlonCommand } from './tlon-command-runner.js';
@@ -41,6 +44,113 @@ async function captureChildCredentialEnv(credentials?: {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+});
+
+async function readOptional(path: string) {
+  try {
+    return await readFile(path, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+describe('runTlonCommand abort handling', () => {
+  it('kills a SIGTERM-ignoring descendant before the aborted command settles', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'tlon-runner-abort-'));
+    const statePath = join(tempDir, 'state.txt');
+    const grandchildScript = [
+      "const fs = require('node:fs');",
+      'const statePath = process.argv[1];',
+      "fs.appendFileSync(statePath, 'started\\n');",
+      "process.on('SIGTERM', () => {});",
+      'setTimeout(() => {',
+      "  fs.appendFileSync(statePath, 'mutation-after-abort\\n');",
+      '}, 500);',
+      'setInterval(() => {}, 1000);',
+    ].join('\n');
+    const wrapperScript = [
+      "const { spawn } = require('node:child_process');",
+      "spawn(process.execPath, ['-e', process.argv[1], process.argv[2]], {",
+      "  stdio: 'ignore',",
+      '  env: process.env,',
+      '});',
+      'setInterval(() => {}, 1000);',
+    ].join('\n');
+    const controller = new AbortController();
+    const command = runTlonCommand(
+      process.execPath,
+      ['-e', wrapperScript, grandchildScript, statePath],
+      undefined,
+      { timeoutMs: 10_000, signal: controller.signal }
+    );
+
+    try {
+      await vi.waitFor(async () => {
+        expect(await readOptional(statePath)).toContain('started');
+      });
+      controller.abort(new Error('run timed out'));
+
+      await expect(command).rejects.toMatchObject({
+        message: 'tlon command aborted',
+      });
+      expect(await readOptional(statePath)).not.toContain(
+        'mutation-after-abort'
+      );
+
+      // The descendant deliberately schedules a mutation after cancellation.
+      // If it survived command settlement, this wait would expose it.
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect(await readOptional(statePath)).not.toContain(
+        'mutation-after-abort'
+      );
+    } finally {
+      controller.abort();
+      await command.catch(() => undefined);
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves a completed command result when abort races the close event', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'tlon-runner-close-race-'));
+    const readyPath = join(tempDir, 'ready.txt');
+    const grandchildScript = ['setTimeout(() => process.exit(0), 1000);'].join(
+      '\n'
+    );
+    const wrapperScript = [
+      "const fs = require('node:fs');",
+      "const { spawn } = require('node:child_process');",
+      "spawn(process.execPath, ['-e', process.argv[1]], {",
+      "  stdio: ['ignore', 'inherit', 'inherit'],",
+      '  env: process.env,',
+      '});',
+      "process.stdout.write('completed\\n');",
+      "fs.writeFileSync(process.argv[2], 'ready');",
+      'process.exit(0);',
+    ].join('\n');
+    const controller = new AbortController();
+    const command = runTlonCommand(
+      process.execPath,
+      ['-e', wrapperScript, grandchildScript, readyPath],
+      undefined,
+      { timeoutMs: 10_000, signal: controller.signal }
+    );
+
+    try {
+      await vi.waitFor(async () => {
+        expect(await readOptional(readyPath)).toBe('ready');
+      });
+      // The direct child has called process.exit(0), while its descendant keeps
+      // the inherited output pipe open so `close` has not fired yet.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      controller.abort();
+
+      await expect(command).resolves.toBe('completed\n');
+    } finally {
+      controller.abort();
+      await command.catch(() => undefined);
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('runTlonCommand timeout output capture', () => {

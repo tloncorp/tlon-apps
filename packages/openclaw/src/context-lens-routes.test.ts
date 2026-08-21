@@ -268,6 +268,7 @@ describe('context lens run route', () => {
       filePath: '/tmp/unused',
       save: () => {},
       size: () => 1,
+      listRecent: () => [stored],
       get: (lensId) => (lensId === stored.lensId ? stored : null),
     });
     try {

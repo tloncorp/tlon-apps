@@ -3,6 +3,7 @@ import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { describe, expect, it } from 'vitest';
 
 import { tlonPlugin } from './channel.js';
+import { TLON_CHAT_PROGRESS_SYSTEM_CONTEXT } from './chat-progress-guidance.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
 
 const cfg = {} as unknown as OpenClawConfig;
@@ -99,5 +100,16 @@ describe('tlonPlugin messaging surface (explicit-target wiring)', () => {
 
   it('wires resolveOutboundSessionRoute', () => {
     expect(typeof messaging?.resolveOutboundSessionRoute).toBe('function');
+  });
+});
+
+describe('tlonPlugin agent prompt', () => {
+  it('includes the chat task-plan contract in Tlon-only message hints', () => {
+    const hints = tlonPlugin.agentPrompt?.messageToolHints?.({
+      cfg,
+      accountId: 'default',
+    });
+
+    expect(hints).toContain(TLON_CHAT_PROGRESS_SYSTEM_CONTEXT);
   });
 });

@@ -9,7 +9,13 @@ import {
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
 import { tlonPlugin } from './src/channel.js';
+import {
+  buildTlonChatProgressSystemContext,
+  buildTlonChatProgressTurnContext,
+  shouldInjectTlonChatProgress,
+} from './src/chat-progress-guidance.js';
 import { registerTlonCommands } from './src/commands-registry.js';
+import { registerContextLensAgentEvents } from './src/context-lens-agent-events.js';
 import { publishContextLensEvent } from './src/context-lens-events.js';
 import { registerContextLensRoutes } from './src/context-lens-routes.js';
 import { initContextLensShipSync } from './src/context-lens-ship-sync.js';
@@ -55,11 +61,17 @@ import {
   reportSessionTurnCreated,
   reportTelemetryError,
 } from './src/telemetry.js';
+import { registerTlonAgentTools } from './src/tlon-agent-tools.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import {
   DEFAULT_TLON_CLI_TIMEOUT_MS,
   runTlonCommand,
 } from './src/tlon-command-runner.js';
+import {
+  TLON_REQUEST_INPUT_EVENT_STREAM,
+  TLON_REQUEST_INPUT_TOOL_NAME,
+  buildTlonRequestInputEventData,
+} from './src/tlon-request-input.js';
 import {
   createTlonToolExecutor,
   summarizeTlonCommand,
@@ -896,6 +908,22 @@ export default defineBundledChannelEntry({
     if (contextLensEnabled) {
       initContextLensStore(api);
     }
+    registerContextLensAgentEvents(api, contextLensEnabled);
+
+    // Codex app-server omits channel message-tool hints from its compiled
+    // developer prompt. Inject the semantic-plan contract through OpenClaw's
+    // supported prompt hook instead. Installed plugins require an explicit
+    // allowPromptInjection grant; the dev entrypoint applies it below.
+    api.on('before_prompt_build', (event, ctx) => {
+      if (!shouldInjectTlonChatProgress(ctx)) {
+        return;
+      }
+      const turnContext = buildTlonChatProgressTurnContext(event.prompt);
+      return {
+        prependSystemContext: buildTlonChatProgressSystemContext(),
+        ...(turnContext ? { prependContext: turnContext } : {}),
+      };
+    });
 
     // Register the tlon tool
     // Capture credentials from config at registration time
@@ -924,25 +952,27 @@ export default defineBundledChannelEntry({
     }
 
     const executeTlonTool = createTlonToolExecutor({
-      runCommand: (args) =>
+      runCommand: (args, signal) =>
         runTlonCommand(tlonBinary, args, credentials, {
           timeoutMs: toolTimeoutMs,
+          signal,
         }),
       notifyDiaryMigrationDiscovery: (nest) =>
         notifyDiaryMigrationDiscovery(nest, api.config),
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
     });
 
-    api.registerTool({
+    const tlonTool = {
       name: 'tlon',
       label: 'Tlon CLI',
       description:
         'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
+        'Call this registered tool directly; NEVER invoke the tlon executable through Bash, shell, or exec. ' +
         'DO NOT use this tool to send messages — use the `message` tool instead. ' +
         '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
         'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
         'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
-        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'",
+        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list', 'settings get'",
       parameters: {
         type: 'object',
         properties: {
@@ -950,6 +980,7 @@ export default defineBundledChannelEntry({
             type: 'string',
             description:
               'The tlon command and arguments (read/admin operations). ' +
+              'Omit the tlon executable prefix and do not use Bash or exec. ' +
               'To send messages, use the `message` tool, not this tool. ' +
               'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
               'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
@@ -959,7 +990,9 @@ export default defineBundledChannelEntry({
         required: ['command'],
       },
       execute: executeTlonTool,
-    });
+    };
+
+    registerTlonAgentTools(api, tlonTool);
 
     // Tool access control: block sensitive tools for non-owners
     const ownerOnlyTools = new Set(['tlon', 'cron', 'read']);
@@ -967,6 +1000,28 @@ export default defineBundledChannelEntry({
 
     api.on('before_tool_call', (event, ctx) => {
       const toolCallId = readToolCallId(event);
+      if (event.toolName === TLON_REQUEST_INPUT_TOOL_NAME) {
+        if (contextLensEnabled) {
+          const runId = event.runId ?? ctx.runId;
+          const data = buildTlonRequestInputEventData(event.params, toolCallId);
+          if (runId && data) {
+            const result = api.agent.events.emitAgentEvent({
+              runId,
+              ...(ctx.sessionKey ? { sessionKey: ctx.sessionKey } : {}),
+              stream: TLON_REQUEST_INPUT_EVENT_STREAM,
+              data,
+            });
+            if (!result.emitted) {
+              api.logger.warn(
+                `[tlon] Failed to record requester input for ${runId}: ${result.reason}`
+              );
+            }
+          }
+        }
+        // This marker is a task-state transition, not an action. Do not add it
+        // to Context Lens tool counts or ordinary tool telemetry.
+        return undefined;
+      }
       const role = getSessionRole(ctx.sessionKey ?? '');
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
       const isBlocked = isOwnerOnlyTool && role === 'user';
@@ -1075,6 +1130,9 @@ export default defineBundledChannelEntry({
     });
 
     api.on('after_tool_call', (event, ctx) => {
+      if (event.toolName === TLON_REQUEST_INPUT_TOOL_NAME) {
+        return;
+      }
       const toolCallId = readToolCallId(event);
       recordActiveTlonTurnToolCall();
       if (logToolTraceContents && shouldLogAfterToolTrace(event)) {

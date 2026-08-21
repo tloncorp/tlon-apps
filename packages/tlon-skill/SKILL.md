@@ -23,16 +23,22 @@ Blocked in Hermes' `tlon` tool: plain-text `posts reply`/`dms send`/`dms reply` 
 
 ## OpenClaw
 
-When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
+When running as an OpenClaw skill, call the registered `tlon` tool for reading data, uploads, settings, administration, and management. Pass the CLI text without the executable prefix in the tool's `command` field: for example, call the tool with `settings get`, not `tlon settings get`.
 
-**Images are the exception: upload them first.** The `message` tool's `media=` parameter takes only an uploaded https URL — never a local file path, unlike other OpenClaw channels. `tlon upload` accepts a URL, a local file path, or stdin, and prints the uploaded URL:
+**Never run `tlon` through Bash, shell, or exec inside OpenClaw.** Shell execution can require an approval that is not visible in Tlon chat and then time out even though the CLI itself is installed. Every `tlon ...` CLI example in this document translates to the registered tool by removing the leading `tlon` executable. For example, `tlon groups list` becomes the tool command `groups list`.
 
-```bash
-tlon upload ./generated-chart.png      # local file — prints the uploaded URL
-tlon upload https://example.com/x.png  # remote URL
+Plan only the outcomes the user requested. Do not invent optional publishing, sharing, link, or reference work.
+
+Use the built-in `message` tool for sending outbound messages (DMs and channel posts). The registered `tlon` tool is for reading data, uploads, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
+
+**Images are the exception: upload them first.** The `message` tool's `media=` parameter takes only an uploaded https URL — never a local file path, unlike other OpenClaw channels. The registered `tlon` tool's `upload` command accepts a URL or a local file path and prints the uploaded URL:
+
+```text
+upload ./generated-chart.png      # local file — prints the uploaded URL
+upload https://example.com/x.png  # remote URL
 ```
 
-Pass that printed URL as `media=`. On Tlon-hosted deployments (where `TLON_HOSTING` is set) the bot's own ship uploads through Tlon file hosting. If the upload fails (e.g. self-hosted moons, which have no storage), retry through the owner ship's config: `tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`.
+Pass that printed URL as `media=`. On Tlon-hosted deployments (where `TLON_HOSTING` is set) the bot's own ship uploads through Tlon file hosting. If the upload fails (e.g. self-hosted moons, which have no storage), retry with the owner ship's configured Tlon tool account.
 
 > **Deprecated: diary channels.** `%diary` is not managed by the CLI: `tlon notebook`, `--kind diary`, and `diary/...` targets fail with guidance toward `%notes`. Use the `tlon notes` family for Markdown notebooks. An owner can preview a legacy diary with `tlon notes migrate-plan <diary-nest>` and migrate it with `tlon notes migrate-apply <diary-nest> --yes`.
 

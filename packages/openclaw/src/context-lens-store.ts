@@ -4,7 +4,10 @@ import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { resolveStateDir } from 'openclaw/plugin-sdk/state-paths';
 
 import { subscribeToContextLensEvents } from './context-lens-events.js';
-import type { ContextLens, ContextLensStatus } from './context-lens.js';
+import {
+  type ContextLens,
+  isTerminalContextLensStatus,
+} from './context-lens.js';
 import { sharedSlot } from './shared-state.js';
 import { resolveTlonAccount } from './types.js';
 
@@ -13,16 +16,11 @@ export const DEFAULT_STORE_MAX_STORED = 500;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const TERMINAL_STATUSES: ReadonlySet<ContextLensStatus> = new Set([
-  'completed',
-  'no_reply',
-  'timed_out',
-  'error',
-]);
-
 export type ContextLensStore = {
   save: (lens: ContextLens) => void;
   get: (lensId: string) => ContextLens | null;
+  /** Newest-first bounded snapshots used for restart-safe lineage matching. */
+  listRecent: () => ContextLens[];
   size: () => number;
   filePath: string;
 };
@@ -56,10 +54,15 @@ function lensFinalizedAt(lens: ContextLens): number {
   return lens.lifecycle.completedAt ?? lens.updatedAt ?? lens.createdAt;
 }
 
+function cloneStoredLens(lens: ContextLens): ContextLens {
+  return structuredClone(lens);
+}
+
 /**
- * Durable JSONL store for finalized context-lens runs. The in-memory
- * registry stays the hot cache; this file is the restart backstop so
- * `/run` can still resolve lensIds stamped into old channel posts.
+ * Durable JSONL store for finalized context-lens runs and the small number of
+ * active child snapshots that carry a requester-input consume claim. The
+ * in-memory registry stays the hot cache; this file is the restart backstop so
+ * `/run` can resolve old pointers and a crash cannot reopen a consumed gate.
  *
  * Append-only with last-write-wins per lensId on load; compaction
  * rewrites the file when retention drops entries.
@@ -175,6 +178,10 @@ export function createContextLensStore(opts: {
       }
       return lens;
     },
+    listRecent: () => {
+      pruneRuns(Date.now());
+      return [...runs.values()].toReversed().map(cloneStoredLens);
+    },
     size: () => runs.size,
   };
 }
@@ -182,7 +189,9 @@ export function createContextLensStore(opts: {
 /**
  * Wire the disk store to the lens event stream: every event whose lens has
  * reached a terminal status is persisted (last write wins, so a later
- * "final" snapshot for the same lensId replaces the earlier one).
+ * "final" snapshot for the same lensId replaces an earlier claim snapshot).
+ * The monitor writes requester-input claims synchronously at child creation;
+ * that narrow active-run write closes the pre-dispatch crash window.
  *
  * Returns the store, or null when the lens or its store is disabled.
  */
@@ -212,7 +221,7 @@ export function initContextLensStore(api: {
   storeUnsubscribeSlot.get()?.();
   storeUnsubscribeSlot.set(
     subscribeToContextLensEvents((event) => {
-      if (!TERMINAL_STATUSES.has(event.lens.status)) {
+      if (!isTerminalContextLensStatus(event.lens.status)) {
         return;
       }
       try {

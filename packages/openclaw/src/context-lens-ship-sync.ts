@@ -1,10 +1,16 @@
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
+import { emptyContextLensActivity } from './context-lens-activity.js';
+import type { ContextLensActivityEvent } from './context-lens-activity.js';
 import {
   type ContextLensEvent,
   subscribeToContextLensEvents,
 } from './context-lens-events.js';
-import type { ContextLens, ContextLensStatus } from './context-lens.js';
+import {
+  type ContextLens,
+  type ContextLensStatus,
+  isTerminalContextLensStatus,
+} from './context-lens.js';
 import {
   API_CLIENT_PARAMS_SLOT,
   type SharedApiClientParams,
@@ -17,14 +23,77 @@ const PAYLOAD_SCHEMA_VERSION = 1;
 const MAX_SUMMARY_CHARS = 4_096;
 const MAX_PAYLOAD_CHARS = 50 * 1_024;
 const MAX_TRACKED_RUNS = 1_000;
+const DEFAULT_RETRY_DELAYS_MS = [250, 1_000] as const;
+const DEFAULT_NONTERMINAL_DEBOUNCE_MS = 250;
 
-const TERMINAL_STATUSES: ReadonlySet<ContextLensStatus> = new Set([
+const SHIP_ACTIVITY_STATUSES = new Set([
+  'pending',
+  'running',
+  'waiting',
   'completed',
-  'no_reply',
-  'timed_out',
-  'aborted',
   'error',
+  'blocked',
+  'cancelled',
 ]);
+
+/**
+ * Keep Ames traffic bounded while still making native chat progress legible:
+ * %steward receives plans and item state transitions, but not command output,
+ * thinking, streamed text deltas, or unknown/no-op states. Repeated item states
+ * are deduplicated per run by createContextLensShipSync.
+ */
+export function isDurableActivityMilestone(
+  activity: ContextLensActivityEvent | undefined
+): boolean {
+  if (!activity || activity.retention === 'ephemeral') {
+    return false;
+  }
+  if (
+    activity.kind === 'item' &&
+    (activity.source === 'codex-app-server-completion' ||
+      activity.title?.trim().toLowerCase() === 'reasoning') &&
+    !activity.progressText?.trim()
+  ) {
+    // These high-volume app-server markers are intentionally hidden by chat.
+    // Keep them in the final Lens snapshot for debugging, but do not spend an
+    // Ames poke on every intermediate state transition.
+    return false;
+  }
+  if (activity.kind === 'plan') {
+    return true;
+  }
+  if (activity.kind === 'approval') {
+    return (
+      activity.status !== undefined &&
+      SHIP_ACTIVITY_STATUSES.has(activity.status)
+    );
+  }
+  if (
+    activity.kind === 'tool' ||
+    activity.kind === 'item' ||
+    activity.kind === 'commentary' ||
+    activity.kind === 'request_input' ||
+    activity.kind === 'patch' ||
+    activity.kind === 'compaction' ||
+    activity.kind === 'error'
+  ) {
+    return (
+      activity.status !== undefined &&
+      SHIP_ACTIVITY_STATUSES.has(activity.status)
+    );
+  }
+  return false;
+}
+
+function activityStateKey(activity: ContextLensActivityEvent): string {
+  const itemKey =
+    activity.itemId ??
+    activity.toolCallId ??
+    activity.name ??
+    activity.title ??
+    activity.kind;
+  return `${activity.kind}:${itemKey}`;
+}
 
 type SyncLogger = {
   info: (message: string) => void;
@@ -66,6 +135,7 @@ export type LensRunPayload = {
  * untruncated runs remain on gateway disk (Phase 2 store).
  */
 export function buildLensRunPayload(lens: ContextLens): LensRunPayload {
+  const activity = lens.activity ?? emptyContextLensActivity();
   // retrySeed (raw chat text + blob field) rides along on the lens snapshot
   // so the agent is the durable source of truth for retry: any gateway,
   // current or future, can replay a run by scrying %steward for the payload
@@ -90,6 +160,25 @@ export function buildLensRunPayload(lens: ContextLens): LensRunPayload {
         resultSummary: truncateSummary(run.resultSummary),
       })),
     },
+    activity: {
+      ...activity,
+      plan: activity.plan
+        ? {
+            ...activity.plan,
+            title: truncateSummary(activity.plan.title),
+            explanation: truncateSummary(activity.plan.explanation),
+            steps: activity.plan.steps.map((step) => ({
+              ...step,
+              title: truncateSummary(step.title) ?? step.title,
+            })),
+          }
+        : null,
+      items: activity.items.map((item) => ({
+        ...item,
+        title: truncateSummary(item.title) ?? item.title,
+        progressText: truncateSummary(item.progressText),
+      })),
+    },
   };
   const payload: LensRunPayload = {
     schemaVersion: PAYLOAD_SCHEMA_VERSION,
@@ -107,6 +196,7 @@ export function buildLensRunPayload(lens: ContextLens): LensRunPayload {
     persistence: { ...slim.persistence, events: [] },
     tools: { ...slim.tools, runs: [] },
     outputs: [],
+    activity: { ...slim.activity, items: [], truncated: true },
   };
   return {
     schemaVersion: PAYLOAD_SCHEMA_VERSION,
@@ -152,8 +242,20 @@ export function isContextLensEffectivelyEnabled(
 
 export type ContextLensShipSync = {
   handleEvent: (event: ContextLensEvent) => void;
-  /** Resolves when all pokes enqueued so far have settled. */
+  /** Resolves when all debounce windows and pokes enqueued so far settle. */
   flush: () => Promise<void>;
+};
+
+type PendingShipPoke = {
+  lensId: string;
+  label: string;
+  json: unknown;
+  terminal: boolean;
+};
+
+type DebouncedShipPoke = {
+  pending: PendingShipPoke;
+  timer: ReturnType<typeof setTimeout>;
 };
 
 /**
@@ -161,7 +263,8 @@ export type ContextLensShipSync = {
  * which fans them out to the owner ship for durable, mobile-reachable history.
  *
  * - terminal status → finalized lens poke (`final: true`)
- * - non-terminal status transitions → milestone lens pokes (`final: false`)
+ * - non-terminal run and activity transitions → milestone lens pokes
+ *   (`final: false`)
  *
  * Pokes ride the monitor-published api-client params (the same slot the
  * gateway-status heartbeat uses). The agent's `owner` is configured
@@ -172,24 +275,55 @@ export function createContextLensShipSync(opts: {
   owner: string;
   logger: SyncLogger;
   getParams?: () => SharedApiClientParams | null;
+  retryDelaysMs?: readonly number[];
+  nonterminalDebounceMs?: number;
 }): ContextLensShipSync {
   const { owner, logger } = opts;
   const getParams = opts.getParams ?? (() => apiClientParamsSlot.get() ?? null);
+  const retryDelaysMs = opts.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS;
+  const nonterminalDebounceMs =
+    typeof opts.nonterminalDebounceMs === 'number' &&
+    Number.isFinite(opts.nonterminalDebounceMs)
+      ? Math.max(0, opts.nonterminalDebounceMs)
+      : DEFAULT_NONTERMINAL_DEBOUNCE_MS;
 
   const lastStatusByLensId = new Map<string, ContextLensStatus>();
+  const lastActivityStatusByLensId = new Map<
+    string,
+    Map<string, ContextLensActivityEvent['status']>
+  >();
+  const terminalLensIds = new Set<string>();
   let configuredFor: SharedApiClientParams | null = null;
-  let queue: Promise<void> = Promise.resolve();
+  const pendingByLensId = new Map<string, PendingShipPoke>();
+  const debouncedByLensId = new Map<string, DebouncedShipPoke>();
+  const terminalOrder: string[] = [];
+  const regularOrder: string[] = [];
+  const flushWaiters: Array<() => void> = [];
+  let draining = false;
 
-  const enqueuePoke = (label: string, json: unknown) => {
-    queue = queue
-      .then(async () => {
-        const params = getParams();
-        if (!params) {
-          // Monitor not connected yet (or shut down); drop rather than
-          // buffer — the ship store is bounded and the gateway store keeps
-          // the full run.
+  const deliverPoke = async (pending: PendingShipPoke) => {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
+      if (attempt > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, retryDelaysMs[attempt - 1])
+        );
+      }
+
+      const params = getParams();
+      if (!params) {
+        // Monitor not connected yet (or shut down); preserve the old
+        // drop-without-buffering behavior when there was never a live
+        // client. If a connected attempt already failed, keep retrying
+        // in case the monitor republishes params during the backoff.
+        if (attempt === 0) {
           return;
         }
+        continue;
+      }
+
+      try {
         if (params !== configuredFor) {
           await params.poke({
             app: 'steward',
@@ -201,16 +335,149 @@ export function createContextLensShipSync(opts: {
         await params.poke({
           app: 'steward',
           mark: 'steward-lens-action-1',
-          json,
+          json: pending.json,
         });
-      })
-      .catch((error) => {
-        // A failed %configure must retry before the next run poke.
+        return;
+      } catch (error) {
+        lastError = error;
+        // Re-assert ownership after either a configure or run poke fails;
+        // the monitor may have reconnected between attempts.
         configuredFor = null;
-        logger.warn(
-          `[tlon] Context lens ship sync poke failed (${label}): ${String(error)}`
-        );
-      });
+      }
+    }
+
+    throw lastError ?? new Error('ship sync retry attempts exhausted');
+  };
+
+  const takePending = (): PendingShipPoke | undefined => {
+    const takeFrom = (
+      order: string[],
+      terminal: boolean
+    ): PendingShipPoke | undefined => {
+      while (order.length > 0) {
+        const lensId = order.shift()!;
+        const pending = pendingByLensId.get(lensId);
+        if (!pending || pending.terminal !== terminal) {
+          continue;
+        }
+        pendingByLensId.delete(lensId);
+        return pending;
+      }
+      return undefined;
+    };
+    return takeFrom(terminalOrder, true) ?? takeFrom(regularOrder, false);
+  };
+
+  const resolveFlushWaiters = () => {
+    if (draining || pendingByLensId.size > 0 || debouncedByLensId.size > 0) {
+      return;
+    }
+    for (const resolve of flushWaiters.splice(0)) {
+      resolve();
+    }
+  };
+
+  const drain = async () => {
+    if (draining) {
+      return;
+    }
+    draining = true;
+    try {
+      let pending = takePending();
+      while (pending) {
+        try {
+          await deliverPoke(pending);
+        } catch (error) {
+          // The next snapshot still re-asserts configuration after retries
+          // are exhausted, so one bad run cannot poison the drain.
+          configuredFor = null;
+          logger.warn(
+            `[tlon] Context lens ship sync poke failed (${pending.label}): ${String(error)}`
+          );
+        }
+        pending = takePending();
+      }
+    } finally {
+      draining = false;
+      if (pendingByLensId.size > 0) {
+        void drain();
+      } else {
+        resolveFlushWaiters();
+      }
+    }
+  };
+
+  const enqueuePoke = (pending: PendingShipPoke) => {
+    const existing = pendingByLensId.get(pending.lensId);
+    if (existing?.terminal && !pending.terminal) {
+      return;
+    }
+    pendingByLensId.set(pending.lensId, pending);
+    if (!existing) {
+      (pending.terminal ? terminalOrder : regularOrder).push(pending.lensId);
+    } else if (pending.terminal && !existing.terminal) {
+      // The old regular-order entry becomes a harmless tombstone. Prioritize
+      // the terminal snapshot so stale progress cannot delay chat closeout.
+      terminalOrder.push(pending.lensId);
+    }
+    void drain();
+  };
+
+  const cancelDebouncedPoke = (lensId: string) => {
+    const debounced = debouncedByLensId.get(lensId);
+    if (!debounced) {
+      return;
+    }
+    clearTimeout(debounced.timer);
+    debouncedByLensId.delete(lensId);
+  };
+
+  const enqueueDebouncedPoke = (
+    lensId: string,
+    expected: DebouncedShipPoke
+  ) => {
+    if (debouncedByLensId.get(lensId) !== expected) {
+      return;
+    }
+    debouncedByLensId.delete(lensId);
+    if (!terminalLensIds.has(lensId)) {
+      enqueuePoke(expected.pending);
+    } else {
+      resolveFlushWaiters();
+    }
+  };
+
+  const debouncePoke = (pending: PendingShipPoke) => {
+    if (nonterminalDebounceMs === 0) {
+      enqueuePoke(pending);
+      return;
+    }
+    const existing = debouncedByLensId.get(pending.lensId);
+    if (existing) {
+      // Keep the original deadline so a busy run cannot postpone ship-visible
+      // progress forever; only replace the full snapshot delivered at it.
+      existing.pending = pending;
+      return;
+    }
+    const timer = setTimeout(() => {
+      const expected = debouncedByLensId.get(pending.lensId);
+      if (expected?.timer === timer) {
+        enqueueDebouncedPoke(pending.lensId, expected);
+      }
+    }, nonterminalDebounceMs);
+    const debounced = { pending, timer };
+    debouncedByLensId.set(pending.lensId, debounced);
+  };
+
+  const flushDebouncedPokes = () => {
+    const debounced = [...debouncedByLensId.entries()];
+    debouncedByLensId.clear();
+    for (const [lensId, entry] of debounced) {
+      clearTimeout(entry.timer);
+      if (!terminalLensIds.has(lensId)) {
+        enqueuePoke(entry.pending);
+      }
+    }
   };
 
   const handleEvent = (event: ContextLensEvent) => {
@@ -218,41 +485,98 @@ export function createContextLensShipSync(opts: {
     if (lens.visibility === 'internal') {
       return;
     }
-    if (TERMINAL_STATUSES.has(lens.status)) {
+    if (isTerminalContextLensStatus(lens.status)) {
+      if (terminalLensIds.has(lens.lensId)) {
+        return;
+      }
+      terminalLensIds.add(lens.lensId);
+      while (terminalLensIds.size > MAX_TRACKED_RUNS) {
+        const oldest = terminalLensIds.values().next().value;
+        if (!oldest) break;
+        terminalLensIds.delete(oldest);
+      }
       lastStatusByLensId.delete(lens.lensId);
-      enqueuePoke(`run-final ${lens.lensId}`, {
-        entry: {
-          id: lens.lensId,
-          payload: buildLensRunPayload(lens),
-          final: true,
+      lastActivityStatusByLensId.delete(lens.lensId);
+      cancelDebouncedPoke(lens.lensId);
+      enqueuePoke({
+        lensId: lens.lensId,
+        label: `run-final ${lens.lensId}`,
+        terminal: true,
+        json: {
+          entry: {
+            id: lens.lensId,
+            payload: buildLensRunPayload(lens),
+            final: true,
+          },
         },
       });
       return;
     }
-    if (lens.status === lastStatusByLensId.get(lens.lensId)) {
+    if (terminalLensIds.has(lens.lensId)) {
       return;
     }
-    lastStatusByLensId.delete(lens.lensId);
-    lastStatusByLensId.set(lens.lensId, lens.status);
-    while (lastStatusByLensId.size > MAX_TRACKED_RUNS) {
-      const oldest = lastStatusByLensId.keys().next().value;
-      if (!oldest) {
-        break;
+    const statusChanged = lens.status !== lastStatusByLensId.get(lens.lensId);
+    const activity = event.detail?.activity;
+    let activityMilestone = isDurableActivityMilestone(activity);
+    if (activityMilestone && activity?.kind !== 'plan') {
+      const key = activityStateKey(activity!);
+      const statuses =
+        lastActivityStatusByLensId.get(lens.lensId) ??
+        new Map<string, ContextLensActivityEvent['status']>();
+      if (statuses.get(key) === activity!.status) {
+        activityMilestone = false;
+      } else {
+        statuses.set(key, activity!.status);
+        lastActivityStatusByLensId.set(lens.lensId, statuses);
       }
-      lastStatusByLensId.delete(oldest);
     }
-    enqueuePoke(`run-event ${lens.lensId}`, {
-      entry: {
-        id: lens.lensId,
-        payload: buildLensRunPayload(lens),
-        final: false,
+    if (!statusChanged && !activityMilestone) {
+      return;
+    }
+    if (statusChanged) {
+      lastStatusByLensId.delete(lens.lensId);
+      lastStatusByLensId.set(lens.lensId, lens.status);
+      while (lastStatusByLensId.size > MAX_TRACKED_RUNS) {
+        const oldest = lastStatusByLensId.keys().next().value;
+        if (!oldest) {
+          break;
+        }
+        lastStatusByLensId.delete(oldest);
+        lastActivityStatusByLensId.delete(oldest);
+      }
+    }
+    debouncePoke({
+      lensId: lens.lensId,
+      label: `run-event ${lens.lensId}`,
+      terminal: false,
+      json: {
+        entry: {
+          id: lens.lensId,
+          payload: buildLensRunPayload(lens),
+          final: false,
+        },
       },
     });
   };
 
   return {
     handleEvent,
-    flush: () => queue,
+    flush: () => {
+      // Flush is also used during deterministic shutdown/tests. Promote the
+      // latest snapshot from every live debounce window, then await the same
+      // serialized retrying drain as immediately queued and terminal pokes.
+      flushDebouncedPokes();
+      if (
+        !draining &&
+        pendingByLensId.size === 0 &&
+        debouncedByLensId.size === 0
+      ) {
+        return Promise.resolve();
+      }
+      return new Promise<void>((resolve) => {
+        flushWaiters.push(resolve);
+      });
+    },
   };
 }
 

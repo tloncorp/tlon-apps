@@ -70,6 +70,7 @@ describe('OpenClaw driver runtime spec', () => {
         'read',
         'cron',
         'tlon',
+        'tlon_request_input',
         'message',
       ]),
       TLON_MAX_CONSECUTIVE_BOT_RESPONSES: '3',
@@ -135,6 +136,7 @@ describe('OpenClaw driver runtime spec', () => {
 
     expect(JSON.parse(ctx.composeEnv.OPENCLAW_TEST_TOOLS_ALLOW_JSON)).toEqual([
       'tlon',
+      'tlon_request_input',
       'message',
     ]);
     expect(ctx.composeEnv.BRAVE_API_KEY).toBeUndefined();
@@ -156,6 +158,7 @@ describe('OpenClaw driver runtime spec', () => {
 
     expect(JSON.parse(ctx.composeEnv.OPENCLAW_TEST_TOOLS_ALLOW_JSON)).toEqual([
       'tlon',
+      'tlon_request_input',
       'message',
       'image_search',
     ]);
@@ -171,6 +174,7 @@ describe('OpenClaw driver runtime spec', () => {
 
     expect(JSON.parse(ctx.composeEnv.OPENCLAW_TEST_TOOLS_ALLOW_JSON)).toEqual([
       'tlon',
+      'tlon_request_input',
       'message',
       'cron',
     ]);
@@ -191,7 +195,9 @@ describe('OpenClaw driver runtime spec', () => {
         { kind: 'text', content: 'Done' },
       ],
       expectations: {
-        advertisedTools: { exact: ['message', 'tlon'] },
+        advertisedTools: {
+          exact: ['message', 'tlon', 'tlon_request_input'],
+        },
         expectedCallCount: 2,
         toolEffectOnly: true,
       },
@@ -206,7 +212,9 @@ describe('OpenClaw driver runtime spec', () => {
         { kind: 'text', content: 'done' },
       ],
       expectations: {
-        advertisedTools: { exact: ['message', 'tlon'] },
+        advertisedTools: {
+          exact: ['message', 'tlon', 'tlon_request_input'],
+        },
         expectedCallCount: 2,
         toolEffectOnly: true,
       },
@@ -258,7 +266,9 @@ describe('OpenClaw driver runtime spec', () => {
         { kind: 'text', content: 'Scheduled.' },
       ],
       expectations: {
-        advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+        advertisedTools: {
+          exact: ['message', 'tlon', 'tlon_request_input', 'cron'],
+        },
         expectedCallCount: 2,
         toolEffectOnly: true,
       },

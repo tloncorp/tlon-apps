@@ -16,6 +16,114 @@ export interface LensRunEntry {
   payload: unknown;
 }
 
+/** Stable, provider-neutral activity contract shared by gateways and clients. */
+export type ContextLensActivityKind =
+  | 'lifecycle'
+  | 'commentary'
+  | 'plan'
+  | 'item'
+  | 'tool'
+  | 'approval'
+  | 'request_input'
+  | 'command'
+  | 'patch'
+  | 'compaction'
+  | 'error';
+
+export type ContextLensActivityStatus =
+  | 'pending'
+  | 'running'
+  | 'waiting'
+  | 'completed'
+  | 'error'
+  | 'blocked'
+  | 'cancelled'
+  | 'unknown';
+
+export type ContextLensActivityPlanStep = {
+  id: string;
+  title: string;
+  status: ContextLensActivityStatus;
+};
+
+export type ContextLensActivityPlan = {
+  title?: string;
+  explanation?: string;
+  steps: ContextLensActivityPlanStep[];
+  updatedAt: number;
+};
+
+export type ContextLensActivityEvent = {
+  schemaVersion: 1;
+  runId: string;
+  sequence: number;
+  occurredAt: number;
+  kind: ContextLensActivityKind;
+  phase: string;
+  retention: 'snapshot' | 'ephemeral';
+  itemId?: string;
+  title?: string;
+  status?: ContextLensActivityStatus;
+  progressText?: string;
+  name?: string;
+  toolCallId?: string;
+  source?: string;
+  plan?: ContextLensActivityPlan;
+  counts?: {
+    added?: number;
+    modified?: number;
+    deleted?: number;
+  };
+};
+
+export type ContextLensActivityItem = {
+  id: string;
+  kind: Exclude<ContextLensActivityKind, 'lifecycle' | 'plan'>;
+  title: string;
+  status: ContextLensActivityStatus;
+  /** Plan step that was active when this item first appeared, when available. */
+  planStepId?: string;
+  startedAt: number;
+  updatedAt: number;
+  completedAt: number | null;
+  progressText?: string;
+  name?: string;
+  toolCallId?: string;
+  source?: string;
+  counts?: ContextLensActivityEvent['counts'];
+};
+
+export type ContextLensActivity = {
+  schemaVersion: 1;
+  eventCount: number;
+  lastEventAt: number | null;
+  truncated: boolean;
+  plan: ContextLensActivityPlan | null;
+  items: ContextLensActivityItem[];
+};
+
+/**
+ * Activity that is meaningful enough to earn a durable task card in chat.
+ *
+ * This is deliberately structural. In particular, generic provider items,
+ * reasoning labels, lifecycle events, compaction, elapsed time, and final
+ * reply prose do not make a run card-eligible.
+ */
+export function hasContextLensActivityCardContent(
+  activity?: ContextLensActivity | null
+): boolean {
+  return (activity?.items ?? []).some(
+    (item) =>
+      item.kind === 'commentary' ||
+      (item.kind === 'tool' && item.name !== 'update_plan') ||
+      item.kind === 'approval' ||
+      item.kind === 'request_input' ||
+      item.kind === 'command' ||
+      item.kind === 'patch' ||
+      item.kind === 'error'
+  );
+}
+
 /**
  * The lens update (steward-lens-update-1), a tagged union:
  *   - `entry`: a single run, facted on /v1/lens and returned by the /run scry
