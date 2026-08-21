@@ -354,6 +354,10 @@ function BareChatInput(
   const runSendMessageRef = useRef<((isEdit: boolean) => void) | null>(null);
   // Set while waiting for iOS to deliver a pending autocorrection on send.
   const pendingAutocorrectSendRef = useRef<{ isEdit: boolean } | null>(null);
+  // Set once that correction arrives, to send it after the commit that carries it.
+  const [queuedSend, setQueuedSend] = useState<{ isEdit: boolean } | null>(
+    null
+  );
 
   usePasteHandler(addAttachment);
 
@@ -477,9 +481,7 @@ function BareChatInput(
       }
 
       if (pendingSend) {
-        // Yield a tick so the post is built from the state this change just
-        // set, rather than the text the send button closed over.
-        setTimeout(() => runSendMessageRef.current?.(pendingSend.isEdit), 0);
+        setQueuedSend(pendingSend);
       }
     },
     [
@@ -702,6 +704,17 @@ function BareChatInput(
     },
     [runSendMessage]
   );
+
+  // setQueuedSend batches with the setState calls in handleTextChange, so this
+  // runs after the commit that carries the corrected text and the mention
+  // offsets it shifted — which is what the post has to be built from.
+  useEffect(() => {
+    if (!queuedSend) {
+      return;
+    }
+    setQueuedSend(null);
+    runSendMessage(queuedSend.isEdit);
+  }, [queuedSend, runSendMessage]);
 
   const handleSend = useCallback(async () => {
     submit(false);
