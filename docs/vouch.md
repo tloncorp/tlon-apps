@@ -141,3 +141,98 @@ classified `%bot` by the host's own `%vouch` store, on top of the existing
 sponsor and counterparty checks. A watch for a moon not (yet) classified
 `%bot` is nacked; the subscriber's normal retry/backoff, and the next setup
 cycle, re-decide once classification catches up.
+
+## Organic `%real` learning
+
+The redirect protocols above (the contacts resolver's `%vouch-real` fact,
+and its `%chat-dm-vouched-diff-2` analogue below) are the *authoritative*
+way a correction propagates from a moon's sponsor to the rest of the
+network. But nobody ever writes `%real` for a moon we see booted
+ourselves -- including a host's own moon, which the resolver's redirect
+can never reach (it only fires for a *foreign* watcher, and it consults
+the local `%vouch` store in the first place). Without an organic path, a
+host that never separately recorded `%real` for its own booted moon would
+nack every resolver request for it forever.
+
+The rule is simple: **any direct network traffic from a moon proves it's
+real**, because a synthetic bot never boots and so can never originate
+traffic. Three agents each apply this at their own direct-traffic entry
+points, firing a local `%vouch-learn [moon %real]` poke the first time
+they see it (a plain status check against the current `%vouch` record
+gates it, so it's a no-op once already known `%real`):
+
+- **`%chat`** -- the `%chat-dm-diff-2` poke handler (a direct dm diff
+  where `src.bowl` is the author/partner) and the `%dm-rsvp` handler's
+  incoming (non-local) branch. Not the vouched handlers: traffic there
+  comes from the sponsor relaying on the moon's behalf, not the moon
+  itself.
+- **`%contacts`** -- `++ peer`'s `[%v1 %contact ~]` and
+  `[%v1 %contact %at ...]` arms. Any direct watch is `src.bowl` proving
+  itself live; this is the single point that covers both a foreign
+  moon's profile watch and (crucially) a host's own moon watching its
+  sponsor, which is what lets the resolver eventually answer for itself.
+- **`%presence`** -- `on-watch`'s `[%context @ *]` arm, after
+  `+is-participant` passes. A moon subscribing directly to a `/dm`
+  context (as opposed to being relayed through `/vouched/.../dm/...`,
+  where the source is the counterparty, not the moon) proves itself the
+  same way.
+
+Each site emits the poke via its own agent's usual card-construction
+style (`unsafe+vouch-learn+!>(...)` for `%chat`/`%contacts`, which run
+inside `/lib/rail`'s `guard`/`rail` discipline and `%vouch-learn` isn't
+one of its known marks; a plain `%poke` cage for `%presence`, which
+doesn't use that library). All three swallow the poke-ack on a dedicated
+wire, logging rather than crashing on a nack (which can only mean
+`%vouch` isn't installed).
+
+## Stale-`%bot` forwarding and pushback (`%chat`)
+
+A `%vouch` classification is a snapshot, not a subscription -- nothing
+un-classifies a moon automatically. If a moon we classified `%bot` is
+later booted for real by its owner (e.g. via `|moon-cycle-keys`), the
+host's `%chat-dm-vouched-diff-2` handler would otherwise keep routing
+incoming human messages to the bot inbox forever, where nothing reads
+them. The design's "serve-or-forward, never queue" rule extends here:
+before filing into the bot inbox, the host re-checks `%vouch` fresh
+(`+vouch-status`, not the classification implied by having reached this
+code path at all):
+
+- **Still `%bot`** -- unchanged: file into the bot's inbox (keyed by
+  `[moon human]`) and give it on the moon's firehose.
+- **Anything else (`%real`, or even `%unknown`)** -- the moon might
+  actually be reachable now, so don't lose the message:
+  1. **Forward** -- poke the moon itself with the identical
+     `chat-dm-vouched-diff-2` cage, on wire
+     `/vouched-fwd/<moon>/<author>`.
+  2. **Push back** -- poke the original sender's `%vouch` with
+     `%vouch-real <moon>`, on wire `/vouched-real/<moon>`. This is
+     accepted because the host *is* the moon's sponsor (`+vouches-for`),
+     the same authority the contacts resolver's redirect relies on.
+  3. Do **not** file into the bot inbox or give a bot-firehose fact --
+     the message already went where it belongs.
+
+On the moon's own side, `%chat-dm-vouched-diff-2` gains a case checked
+*before* the existing `.author == .as` (bot-speaking) branch: when
+`.as` (the addressee) is `our.bowl` -- i.e. we ARE the moon a forward
+names -- and the sender is our fixed sponsor (`src.bowl ==
+^sein:title(our.bowl)`, pure, no jael scry), the diff is accepted and
+filed as an ordinary dm from `.author`. This must come first because a
+forwarded human-authored diff has `.author != .as`, which would
+otherwise fall through to the "bot speaking" branch and misattribute the
+message. Trusting the sponsor's word on `.author` here is not a new
+exposure: a sponsor already controls its moon's keys and Ames route, so
+it could impersonate any author it wanted to regardless; this only lets
+it tell the moon the truth about a diff it already legitimately handled.
+
+### Cache invalidation on the sender's side
+
+The pushed `%vouch-real` flips the *sender's* local `%vouch` classifier,
+which is what `+di-proxy` consults to decide whether to route a future
+send directly or via the host. But `+di-proxy` also keeps a `.vouched-dms`
+cache (`moon -> host`) so it doesn't re-scry `%vouch` on every message once
+a route is known. That cache does not expire on its own, so `+di-proxy`
+now clears the moon's cache entry the moment `%vouch` reports it `%real`,
+in the same breath it would otherwise compute `is-bot`. Without this, a
+sender who already has a cached route would keep proxying through the old
+host forever even after learning the correction -- the classifier would
+say `%real`, but the cache would never be consulted again to notice.

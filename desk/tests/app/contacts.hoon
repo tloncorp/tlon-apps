@@ -1560,5 +1560,33 @@
     ~[nickname+text/'Weatherbot']
   %-  ex-fail
   (do-agent wire [~fed %contacts] %fact contact-update-1+!>(`update`[%full now.bowl con]))
+::  +test-watch-from-moon-learns-real: "any traffic from a moon is real" --
+::  a direct watch on our own profile from an %earl src is genuine network
+::  traffic (a bot moon never boots), so we learn it %real organically.
+::  a watch from a non-moon emits no such card.
+::
+++  test-watch-from-moon-learns-real
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our ~bus)))
+  ;<  caz=(list card)  b  (do-init %contacts contacts-agent)
+  ;<  ~  b  (set-scry-gate unknown-scries)
+  ;<  =bowl  b  get-bowl
+  ::
+  =/  moon=ship  ~doznec-sampel-palnet
+  ;<  ~  b  (set-src moon)
+  ;<  caz=(list card)  b  (do-watch /v1/contact)
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (ex-poke /vouch-learn [our.bowl %vouch] vouch-learn+!>([moon %real]))
+        (ex-fact ~ contact-update-1+!>(`update`[%full now.bowl ~]))
+    ==
+  ::  a watch from a non-moon never emits a vouch-learn card
+  ::
+  ;<  ~  b  (set-src ~bud)
+  ;<  caz=(list card)  b  (do-watch /v1/contact)
+  (ex-cards caz ~[(ex-fact ~ contact-update-1+!>(`update`[%full now.bowl ~]))])
 --
 

@@ -261,6 +261,33 @@
       (ex-task /activity/all [human %activity] %watch /v4)
   ==
 ::
+::  "any traffic from a moon is real": a moon watching our presence
+::  directly (not via a sponsor's vouched context) is genuine network
+::  traffic -- a bot moon never boots -- so we learn it %real organically,
+::  even though %vouch doesn't yet know. a watch from a plain ship emits
+::  no such card.
+::
+++  test-context-watch-from-moon-learns-real
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our human, src human, now t0)))
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  ~  bind:m  (set-scry-gate (host-vouch-scries %unknown))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(src vmoon)))
+  ;<  caz=(list card)  bind:m
+    (do-watch `path`/context/(scot %p vmoon)/dm/(scot %p vmoon))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-poke /vouch-learn [human %vouch] %vouch-learn !>([vmoon %real]))
+    ==
+  ::  a watch from a plain (non-moon) ship never emits a vouch-learn card
+  ::
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(src splanet)))
+  ;<  caz=(list card)  bind:m
+    (do-watch `path`/context/(scot %p splanet)/dm/(scot %p splanet))
+  (ex-cards caz ~)
+::
 ++  test-state-2-resub
   %-  eval-mare
   =/  m  (mare ,~)

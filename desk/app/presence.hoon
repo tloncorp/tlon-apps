@@ -94,6 +94,20 @@
     |.  .^(?(%unknown %real %bot) %gx /(scot %p our.bowl)/vouch/(scot %da now.bowl)/status/(scot %p who)/noun)
   ?:(?=(%& -.res) p.res %unknown)
 ::
+::  +learn-real: "any traffic from a moon is real" -- a bot moon never
+::  boots, so a moon that just watched us directly must actually be
+::  booted. record it locally if we don't already believe so. cheap and
+::  idempotent: no-ops once %vouch already says %real.
+::
+++  learn-real
+  |=  [who=@p =bowl:gall]
+  ^-  (list card)
+  ?.  ?=(%earl (clan:title who))
+    ~
+  ?:  =(%real (vouch-status who bowl))
+    ~
+  [%pass /vouch-learn %agent [our.bowl %vouch] %poke %vouch-learn !>([who %real])]~
+::
 ++  context-host
   |=  [=context our=@p]
   ^-  ship
@@ -490,6 +504,7 @@
     ::NOTE  no initial fact, since all data is short-lived,        ::REVIEW
     ::      and we don't want to hot-loop on mark incompatibility  ::REVIEW
     :_  this
+    %+  weld  (learn-real src.bowl bowl)
     [(tell:log %dbug ~['on-watch: incoming context sub' >src.bowl< >t.t.path<] ~)]~
   ==
 ::
@@ -514,6 +529,13 @@
     ?.  ?=(%poke-ack -.sign)  [~ this]
     ?~  p.sign  [~ this]
     %-  (slog (rap 3 dap.bowl ': logs poke nacked' ~) u.p.sign)
+    [~ this]
+  ::
+      [%vouch-learn ~]
+    ::  ack for organic %real learning (see +learn-real)
+    ?.  ?=(%poke-ack -.sign)  [~ this]
+    ?~  p.sign  [~ this]
+    %-  (slog (rap 3 dap.bowl ': vouch-learn poke nacked' ~) u.p.sign)
     [~ this]
   ::
       [%activity %all ~]

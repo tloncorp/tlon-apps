@@ -139,6 +139,20 @@
         =(our.bowl (^sein:title who))
         =(%bot (vouch-status who))
     ==
+  ::  +learn-real: "any traffic from a moon is real" -- a bot moon never
+  ::  boots, so a moon that just watched us directly must actually be
+  ::  booted. record it locally if we don't already believe so. cheap and
+  ::  idempotent: no-ops once %vouch already says %real.
+  ::
+  ++  learn-real
+    |=  who=ship
+    ^+  cor
+    ?.  ?=(%earl (clan:title who))
+      cor
+    ?:  =(%real (vouch-status who))
+      cor
+    %+  pass  /vouch-learn
+    [%agent [our.bowl %vouch] %poke unsafe+vouch-learn+!>([who %real])]
   ::
   +|  %operations
   ::
@@ -1040,8 +1054,16 @@
       [%news ~]  ~|(local-news+src.bowl ?>(=(our src):bowl cor))
       ::
       ::  v1
-      [%v1 %contact ~]  (p-init:pub ~)
-      [%v1 %contact %at wen=@ ~]  (p-init:pub `(slav %da wen.pat))
+      ::  a direct watch from .src.bowl is genuine network traffic -- learn
+      ::  it real before serving, per +learn-real.
+      ::
+      [%v1 %contact ~]
+      =.  cor  (learn-real src.bowl)
+      (p-init:pub ~)
+      ::
+      [%v1 %contact %at wen=@ ~]
+      =.  cor  (learn-real src.bowl)
+      (p-init:pub `(slav %da wen.pat))
       [%v1 %news ~]  ~|(local-news+src.bowl ?>(=(our src):bowl cor))
       ::
       ::  bot-moon resolver: a foreign ship asking us (the sponsor) to

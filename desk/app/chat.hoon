@@ -288,6 +288,36 @@
   ~>  %spin.['scry-path']
   ^-  ^path
   (welp /(scot %p our.bowl)/[agent]/(scot %da now.bowl) path)
+::  +vouch-status: ask the %vouch store what we believe .who is. degrades
+::  to %unknown when %vouch isn't installed or the scry otherwise fails.
+::  Mirrors +vouch-status in /app/contacts and +di-vouch-status below;
+::  used by the top-level poke arms (organic %real learning, the vouched
+::  forward/pushback), which don't have a di-core instance to hand.
+::
+++  vouch-status
+  |=  who=@p
+  ^-  ?(%unknown %real %bot)
+  =/  res
+    %-  mule
+    |.  .^(?(%unknown %real %bot) %gx (scry-path %vouch /status/(scot %p who)/noun))
+  ?:(?=(%& -.res) p.res %unknown)
+::  +learn-real: "any traffic from a moon is real" -- a bot moon never
+::  boots, so a moon that just sent us a direct diff or rsvp must actually
+::  be booted. record it locally if we don't already believe so. cheap and
+::  idempotent: no-ops once %vouch already says %real.
+::
+++  learn-real
+  |=  who=ship
+  ^+  cor
+  ?.  ?=(%earl (clan:title who))
+    cor
+  ?:  =(%real (vouch-status who))
+    cor
+  %-  emit
+  :*  %pass  /vouch-learn
+      %agent  [our.bowl %vouch]
+      %poke  unsafe+vouch-learn+!>([who %real])
+  ==
 ++  init  cor
 ::  +load: load next state
 ++  load
@@ -909,6 +939,12 @@
   ::
       %chat-dm-rsvp
     =*  rsvp=rsvp:dm:c  p.rail
+    ::  an incoming (non-local) rsvp is genuine network traffic from
+    ::  .src.bowl -- a bot moon never boots, so learn it real before the
+    ::  di-core snapshot below is taken (must happen first: mutating .cor
+    ::  after that snapshot wouldn't be seen by the returned di-abet).
+    ::
+    =.  cor  ?:(from-self cor (learn-real src.bowl))
     ::NOTE  even though we "soft" here, nacks result in deletions of
     ::      newly inserted dms.
     =/  di-core  (di-abed-soft:di-core ship.rsvp)
@@ -973,6 +1009,11 @@
       %chat-dm-diff-2
     =*  diff=diff:dm:v7:cv  p.rail
     =.  cor  (emit (tell-log %dbug ~['received dm diff' >diff<] ~))
+    ::  a direct dm diff is genuine network traffic from .src.bowl -- learn
+    ::  it real (must happen before the di-core snapshot below, same as
+    ::  %chat-dm-rsvp above).
+    ::
+    =.  cor  (learn-real src.bowl)
     di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
   ::
       %chat-dm-vouched-action-2
@@ -1017,6 +1058,18 @@
                 (get-ship-dr delta.q.diff.vd)
         ?(%add %add-react %del-react)  (get-ship-dw q.diff.vd)
       ==
+    ::  we ARE the moon named in .as: our own sponsor is forwarding a diff
+    ::  it originally received from a human, because it discovered we've
+    ::  actually booted (see the %bot branch below). the sponsor already
+    ::  controls this moon's keys and Ames route, so trusting its word on
+    ::  .author here is consistent with the rest of the sponsorship trust
+    ::  model. must be checked before the .author == .as branch below: a
+    ::  forwarded human-authored message has .author != .as.
+    ::
+    ?:  =(as our.bowl)
+      ~|  %vouched-dm-fwd-not-from-sponsor
+      ?>  =(src.bowl (^sein:title our.bowl))
+      di-abet:(di-take-counter:(di-abed-soft:di-core author) diff.vd)
     ::  a writ authored by the moon is the bot speaking to us (the human):
     ::  file it as a normal dm keyed by the moon. the sender must be the
     ::  moon's host (its sponsor) for us to trust it.
@@ -1026,14 +1079,40 @@
       =.  vouched-dms  (~(put by vouched-dms) as src.bowl)
       di-abet:(di-take-counter:(di-abed-soft:di-core as) diff.vd)
     ::  otherwise a human is speaking to the bot: we must host the moon, and
-    ::  the sender must own the writ. store it in the bot's inbox (keyed by
-    ::  [moon, human]) so its runner can scry/reload, and give it on the
-    ::  moon's firehose.
+    ::  the sender must own the writ.
     ~|  %vouched-dm-not-our-bot
     ?>  (vouches-for:utils our.bowl as)
     ~|  %vouched-dm-writ-not-owned-by-sender
     ?>  (vouches-for:utils src.bowl author)
-    di-abet:(di-take-counter:(di-abed-as:di-core [as author]) diff.vd)
+    ::  the moon may have booted for real since we last classified it (e.g.
+    ::  via |moon-cycle-keys) -- consult %vouch fresh rather than trust a
+    ::  stale %bot record, which would otherwise black-hole the message in
+    ::  an inbox nobody reads. still a bot: file into its inbox as before.
+    ::  %real: it's reachable directly now, so forward the message there
+    ::  instead of losing it, and push the correction back to the sender so
+    ::  its next send goes direct. %unknown: refuse (nack) rather than
+    ::  guess -- we're the authority on our own moons, and forwarding would
+    ::  strand a never-booting bot's message in ames while the %vouch-real
+    ::  push would assert knowledge we don't have.
+    ::
+    =/  status  (vouch-status as)
+    ?:  =(%bot status)
+      di-abet:(di-take-counter:(di-abed-as:di-core [as author]) diff.vd)
+    ~|  %vouched-dm-moon-unclassified
+    ?>  =(%real status)
+    =.  cor
+      %-  emit
+      :*  %pass  /vouched-fwd/(scot %p as)/(scot %p author)
+          %agent  [as dap.bowl]
+          %poke  chat-dm-vouched-diff-2+[as diff.vd]
+      ==
+    =.  cor
+      %-  emit
+      :*  %pass  /vouched-real/(scot %p as)
+          %agent  [src.bowl %vouch]
+          %poke  unsafe+vouch-real+!>(as)
+      ==
+    cor
   ::
       %chat-dm-action-1
     =*  old-action=action:dm:v6:cv  p.rail
@@ -1286,6 +1365,28 @@
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  cor
     %-  (slog leaf/"vouched dm relay {(trip as.pole)} -> {(trip who.pole)} failed" u.p.sign)
+    cor
+  ::
+      [%vouch-learn ~]
+    ::  ack for organic %real learning (see +learn-real)
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf/"vouch-learn failed" u.p.sign)
+    cor
+  ::
+      [%vouched-fwd as=@ author=@ ~]
+    ::  ack for a stale-%bot forward straight to the (actually real) moon
+    ::  (see the %chat-dm-vouched-diff-2 host branch)
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf/"vouched dm fwd {(trip as.pole)} -> {(trip author.pole)} failed" u.p.sign)
+    cor
+  ::
+      [%vouched-real as=@ ~]
+    ::  ack for the %vouch-real pushback to the sender (same branch)
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  cor
+    %-  (slog leaf/"vouch-real pushback for {(trip as.pole)} failed" u.p.sign)
     cor
   ::
       [%said *]
@@ -2797,11 +2898,16 @@
     ::  a moon %vouch classifies as a bot is delivered to its host (sein),
     ::  using a cached host if we already have one. a bot auto-accepts, so the
     ::  conversation skips the invite handshake and stays %done.
+    ::
+    ::  drop a stale cached route the moment %vouch confirms the moon is
+    ::  real (e.g. after |moon-cycle-keys, or a %vouch-real push) -- keeping
+    ::  it would make .di-vouched below route through the old host forever,
+    ::  even though %vouch no longer calls it a bot.
+    =/  status=?(%unknown %real %bot)  (di-vouch-status ship)
+    =?  vouched-dms  &(?=(%earl (clan:title ship)) =(%real status))
+      (~(del by vouched-dms) ship)
     =/  host=(unit @p)  di-vouched
-    =/  is-bot=?
-      ?&  ?=(%earl (clan:title ship))
-          =(%bot (di-vouch-status ship))
-      ==
+    =/  is-bot=?  &(?=(%earl (clan:title ship)) =(%bot status))
     =?  host    &(is-bot ?=(~ host))  `(^sein:title ship)
     =?  net.dm  is-bot                %done
     =.  cor
