@@ -139,6 +139,10 @@ export const PinnedSurfaceCollection: IPostCollectionView = forwardRef(
     const ctx = usePostCollectionContext();
     const [chatOpen, setChatOpen] = useState(false);
     const computingState = useConversationComputingState(ctx.channel.id);
+    // On native the composer floats over this whole area (web keeps it in
+    // normal flow below), so the sheet docks above the floating chrome
+    // rather than behind it.
+    const bottomInset = ctx.contentInsets?.bottom ?? 0;
     const surfacePost = useMemo(
       () => selectSurfacePost(ctx.posts, ctx.channel),
       [ctx.posts, ctx.channel]
@@ -166,7 +170,9 @@ export const PinnedSurfaceCollection: IPostCollectionView = forwardRef(
     return (
       <View flex={1}>
         <ScrollView
-          contentContainerStyle={{ paddingBottom: CHAT_HANDLE_HEIGHT + 12 }}
+          contentContainerStyle={{
+            paddingBottom: CHAT_HANDLE_HEIGHT + bottomInset + 12,
+          }}
         >
           <SurfaceCanvas post={surfacePost} />
         </ScrollView>
@@ -175,7 +181,7 @@ export const PinnedSurfaceCollection: IPostCollectionView = forwardRef(
           position="absolute"
           left="$l"
           right="$l"
-          bottom={0}
+          bottom={bottomInset}
           top={chatOpen ? '12%' : undefined}
           height={chatOpen ? undefined : CHAT_HANDLE_HEIGHT}
           backgroundColor="$background"

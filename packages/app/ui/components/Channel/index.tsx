@@ -29,6 +29,7 @@ import {
   XStack,
   YStack,
   getVariableValue,
+  isWeb,
   useTheme,
 } from 'tamagui';
 
@@ -397,7 +398,10 @@ export function Channel({
   // sheet's lines continue to the bottom of the screen. Declared intent is
   // enough — a build without the renderer shows the plain list and plain
   // composer via the channel-views degradation contract, and this stays off.
+  // Web only: on native the composer floats over the collection area, so
+  // there is no composer strip to carry the panel's edges through.
   const usesPinnedSurfacePanel =
+    isWeb &&
     channel.contentConfiguration != null &&
     ChannelContentConfiguration.defaultPostCollectionRenderer(
       channel.contentConfiguration
