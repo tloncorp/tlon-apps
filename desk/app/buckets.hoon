@@ -397,7 +397,8 @@
   |=  [rid=request-id:b act=a-buckets:b host=ship]
   ^+  cor
   =/  until=@da  (add now.bowl request-timeout)
-  =.  pending  (~(put by pending) rid [host until])
+  =/  bucket=(unit flag:b)  ?-(-.act %create ~, %bucket `flag.act)
+  =.  pending  (~(put by pending) rid [host until bucket])
   ::  Watch first, then poke. Cards are delivered in order, so a host that
   ::  answers in the same event it is poked would publish the terminal fact
   ::  before we are listening, and the request would sit until its timeout.
@@ -497,7 +498,8 @@
 ++  close-request
   |=  [host=ship rid=request-id:b]
   ^+  cor
-  =/  got=(unit [host=ship until=@da])  (~(get by pending) rid)
+  =/  got=(unit [host=ship until=@da bucket=(unit flag:b)])
+    (~(get by pending) rid)
   =.  pending  (~(del by pending) rid)
   =.  cor
     %-  emit
@@ -945,15 +947,12 @@
 ::  +keep-read-token: store a token the host issued us, and arm its refresh.
 ::
 ++  keep-read-token
-  |=  [host=ship tok=read-token:b]
+  |=  [=flag:b tok=read-token:b]
   ^+  cor
-  =/  mine=(list flag:b)
-    %+  murn  ~(tap by spaces)
-    |=  [=flag:b sp=space:b]
-    ?.(&(=(host ship.flag) =(%sub net.sp)) ~ `flag)
-  ?~  mine  cor
-  =.  read-tokens  (~(put by read-tokens) i.mine tok)
-  (arm-token-refresh i.mine expires-at.tok)
+  ?~  sp=(~(get by spaces) flag)  cor
+  ?.  =(%sub net.u.sp)  cor
+  =.  read-tokens  (~(put by read-tokens) flag tok)
+  (arm-token-refresh flag expires-at.tok)
 ::
 ::  +renew-read-token: keep this ship's token current without a client asking.
 ::
@@ -1616,10 +1615,15 @@
       ::  would arrive to find nothing waiting. Our client was already told
       ::  pending when we forwarded, so there is nothing to pass on.
       ?:  ?=(%pending -.body.res)  cor
+      ::  A token answer is ours to keep, but only under the bucket the
+      ::  request named: tokens are bucket-scoped, so filing one under a
+      ::  sibling bucket on the same host would leave both wrong. Read it
+      ::  before closing, which is what drops the record.
+      =/  bucket=(unit flag:b)
+        ?~(got=(~(get by pending) rid) ~ bucket.u.got)
       =.  cor  (close-request host rid)
-      ::  a token answer is ours to keep, whoever asked for it
-      =?  cor  ?=(%token -.body.res)
-        (keep-read-token host read-token.body.res)
+      =?  cor  &(?=(%token -.body.res) ?=(^ bucket))
+        (keep-read-token u.bucket read-token.body.res)
       (respond rid ~[/v1/requests] body.res)
     ::
         %kick

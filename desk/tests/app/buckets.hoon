@@ -654,6 +654,39 @@
       (grant-fact 0v4 [%token tok])
   ==
 ::
+::  Read tokens are bucket-scoped, so a token answer has to be filed under the
+::  bucket its request named. Two buckets on one host is where guessing from
+::  the host goes wrong: whichever the map happened to yield first would take
+::  the other's token, leaving one wrong and one empty.
+::
+++  test-remote-token-is-filed-under-its-own-bucket
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  other=flag:bu  [~sampel-palnet %archive]
+  ;<  ~  b  (setup-as ~bus)
+  ;<  *  b
+    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
+  ;<  *  b
+    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %archive] group]))
+  ::  ask for a token on the second bucket
+  ;<  *  b  (ask 0v7 [%bucket other [%issue-bucket-read ~]])
+  =/  tok=read-token:bu  ['0v9.8765' (add ~2026.1.1 ~d1)]
+  ;<  *  b
+    %^    do-agent
+        /buckets/req/~sampel-palnet/0v7/watch
+      [~sampel-palnet %buckets]
+    :+  %fact  %buckets-req-response-1
+    !>(`req-response:bu`[0v7 [%token tok]])
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  ::  it lands on the bucket that asked, and the sibling still holds none
+  %+  ex-equal
+    !>  :-  (~(get by read-tokens.st) other)
+        (~(get by read-tokens.st) flag)
+  !>([`tok ~])
+::
 ::  A kick is not a revocation. The replica survives and the subscription is
 ::  re-established; only a nack from the host drops the bucket.
 ::

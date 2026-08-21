@@ -354,7 +354,10 @@
       object-capabilities=(map @t object-capability)
       read-tokens=(map flag read-token)
       reservations=(map @t @uv)
-      pending=(map request-id [host=ship until=@da])
+      ::  .bucket is the bucket the forwarded action was about, where it had
+      ::  one. A %token answer is bucket-scoped, so storing it needs to know
+      ::  which -- guessing from the host is wrong once two buckets share one.
+      pending=(map request-id [host=ship until=@da bucket=(unit flag)])
       requests=requests
   ==
 ::  $versioned-state: every persisted shape +on-load may be handed.
