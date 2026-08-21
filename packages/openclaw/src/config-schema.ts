@@ -49,6 +49,9 @@ export const TlonContextLensStoreSchema = z.object({
 
 export const TlonContextLensSchema = z.object({
   enabled: z.boolean().optional(),
+  // Explicit, default-off opt-in for publishing an allowlisted task
+  // projection into group-channel posts. Raw Lens data remains owner-only.
+  participantActivityEnabled: z.boolean().optional(),
   ttlMs: z.number().int().min(60_000).optional(),
   maxEntries: z.number().int().min(1).optional(),
   visibilityDefault: z.enum(['owner', 'participants', 'internal']).optional(),

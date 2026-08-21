@@ -22,6 +22,7 @@ export type TlonContextLensStoreConfig = {
 
 export type TlonContextLensConfig = {
   enabled: boolean;
+  participantActivityEnabled: boolean;
   ttlMs: number | null;
   maxEntries: number | null;
   visibilityDefault: TlonContextLensVisibility;
@@ -85,6 +86,7 @@ type TlonContextLensStoreInput = {
 
 type TlonContextLensInput = {
   enabled?: boolean;
+  participantActivityEnabled?: boolean;
   ttlMs?: number;
   maxEntries?: number;
   visibilityDefault?: TlonContextLensVisibility;
@@ -121,6 +123,10 @@ function resolveContextLensConfig(
 ): TlonContextLensConfig {
   return {
     enabled: account?.enabled ?? base?.enabled ?? false,
+    participantActivityEnabled:
+      account?.participantActivityEnabled ??
+      base?.participantActivityEnabled ??
+      false,
     ttlMs: account?.ttlMs ?? base?.ttlMs ?? null,
     maxEntries: account?.maxEntries ?? base?.maxEntries ?? null,
     visibilityDefault:
@@ -202,6 +208,7 @@ export function resolveTlonAccount(
       },
       contextLens: {
         enabled: false,
+        participantActivityEnabled: false,
         ttlMs: null,
         maxEntries: null,
         visibilityDefault: 'owner',

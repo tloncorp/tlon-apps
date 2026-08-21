@@ -176,3 +176,15 @@ describe('buildMediaStory', () => {
     expect(story).toEqual([{ inline: [''] }]);
   });
 });
+
+describe('allocateChannelSentAt', () => {
+  it('allocates distinct timestamps for concurrent channel sends', async () => {
+    const { allocateChannelSentAt } = await import('./send.js');
+    const observedNow = 42;
+
+    const first = allocateChannelSentAt(observedNow);
+    const second = allocateChannelSentAt(observedNow);
+
+    expect(second).toBe(first + 1);
+  });
+});

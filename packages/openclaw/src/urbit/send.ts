@@ -7,6 +7,7 @@ import {
 } from '@tloncorp/api';
 import { da, scot } from '@urbit/aura';
 
+import { sharedSlot } from '../shared-state.js';
 import { type Story, createImageBlock, markdownToStory } from './story.js';
 
 // --- Helpers ---
@@ -24,6 +25,22 @@ function formatPostId(postId: string): string {
     }
   }
   return postId;
+}
+
+const lastChannelSentAtSlot = sharedSlot<number>(
+  'urbit.send.lastChannelSentAt'
+);
+
+/**
+ * %channels deduplicates adds by their submitted timestamp. Allocate a
+ * process-wide monotonic millisecond even when concurrent sends observe the
+ * same Date.now(), including across OpenClaw's duplicate module contexts.
+ */
+export function allocateChannelSentAt(now = Date.now()): number {
+  const previous = lastChannelSentAtSlot.get() ?? 0;
+  const sentAt = Math.max(Math.trunc(now), previous + 1);
+  lastChannelSentAtSlot.set(sentAt);
+  return sentAt;
 }
 
 /**
@@ -138,6 +155,8 @@ type SendChannelPostParams = {
   title?: string;
   /** Optional bot profile for custom display name/avatar */
   botProfile?: BotProfile;
+  /** Reserved for transports that allocate before dispatch. */
+  sentAt?: number;
 };
 
 /**
@@ -152,8 +171,9 @@ export async function sendChannelPost({
   replyToId,
   title,
   botProfile,
+  sentAt: reservedSentAt,
 }: SendChannelPostParams) {
-  const sentAt = Date.now();
+  const sentAt = reservedSentAt ?? allocateChannelSentAt();
 
   if (replyToId) {
     const formattedReplyId = formatPostId(replyToId);
@@ -170,6 +190,7 @@ export async function sendChannelPost({
     return {
       channel: 'tlon',
       messageId: `${fromShip}/${formatSentAt(sentAt)}`,
+      sentAt,
     };
   }
 
@@ -185,6 +206,7 @@ export async function sendChannelPost({
   return {
     channel: 'tlon',
     messageId: `${fromShip}/${formatSentAt(sentAt)}`,
+    sentAt,
   };
 }
 

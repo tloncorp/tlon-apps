@@ -1,4 +1,5 @@
 import type { Story } from '@tloncorp/api';
+import type { ParticipantAgentActivityProjectionV1 } from '@tloncorp/api/client/participantAgentActivity';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
@@ -24,6 +25,7 @@ import {
   findRecentContextLensById,
   publishContextLensEvent,
   setContextLensEventCapacity,
+  subscribeToContextLensEvents,
 } from '../context-lens-events.js';
 import {
   isContextLensEffectivelyEnabled,
@@ -52,7 +54,10 @@ import {
   gateGatewayStatusActivation,
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
+import { createGroupAgentActivityPublisher } from '../group-agent-activity-publisher.js';
+import { createTlonGroupAgentActivityTransport } from '../group-agent-activity-transport.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
+import { buildParticipantAgentActivityProjection } from '../participant-agent-activity.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -106,6 +111,7 @@ import {
   isPermanentAuthenticationFailure,
 } from '../urbit/auth.js';
 import {
+  replaceContextLensParticipantActivityInBlob,
   serializeBlobField,
   serializeContextLensReferenceBlob,
 } from '../urbit/blob.js';
@@ -804,6 +810,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     once: true,
   });
 
+  let cleanupParticipantAgentActivity: () => Promise<void> = async () => {};
+
   // Outer try/finally wraps everything from slot publication onward.
   // A synchronous throw between slot publication and the inner try
   // (constructor, queue setup, bridge setup, channel discovery, future
@@ -817,6 +825,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       cfg,
       opts.accountId ?? undefined
     );
+    const participantAgentActivityEnabled =
+      contextLensEnabled && contextLensConfig.participantActivityEnabled;
     const contextLenses = createContextLensRegistry({
       ttlMs: contextLensConfig.ttlMs ?? undefined,
       maxEntries: contextLensConfig.maxEntries ?? undefined,
@@ -850,6 +860,64 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       botNickname || botAvatar
         ? { nickname: botNickname || '', avatar: botAvatar || '' }
         : undefined;
+
+    const participantAgentActivityPublisher = createGroupAgentActivityPublisher(
+      {
+        transport: createTlonGroupAgentActivityTransport(),
+        runtime,
+        botShip: botShipName,
+        getBotProfile,
+        project: (lens, projectOptions) =>
+          buildParticipantAgentActivityProjection({
+            lens,
+            surface: projectOptions.surface,
+            revision: projectOptions.revision,
+            ...(projectOptions.outcome
+              ? { outcome: projectOptions.outcome }
+              : {}),
+          }),
+        serializeReferenceBlob: ({
+          lensId,
+          botShip,
+          delivery,
+          outcome,
+          participantActivity,
+        }) =>
+          serializeContextLensReferenceBlob(
+            lensId,
+            botShip,
+            delivery,
+            outcome,
+            participantActivity
+          ),
+        replaceParticipantActivity: (blob, lensId, participantActivity) =>
+          replaceContextLensParticipantActivityInBlob(
+            blob,
+            lensId,
+            participantActivity
+          ),
+        storyFromText: markdownToStory,
+      }
+    );
+    const unsubscribeParticipantAgentActivity = participantAgentActivityEnabled
+      ? subscribeToContextLensEvents((event) => {
+          // The event bus is process-wide; only publish runs owned by this
+          // monitor-local registry/account.
+          if (contextLenses.get(event.lens.lensId)) {
+            participantAgentActivityPublisher.handleEvent(event);
+          }
+        })
+      : null;
+    let participantAgentActivityCleanedUp = false;
+    cleanupParticipantAgentActivity = async () => {
+      if (participantAgentActivityCleanedUp) {
+        return;
+      }
+      participantAgentActivityCleanedUp = true;
+      unsubscribeParticipantAgentActivity?.();
+      await participantAgentActivityPublisher.flush();
+      await participantAgentActivityPublisher.stop();
+    };
 
     // Settings store manager for hot-reloading config
     const settingsManager = createSettingsManager(api, {
@@ -1138,7 +1206,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     function buildContextLensReferenceBlobField(
       lensId: string,
       delivery?: 'final' | 'intermediate',
-      outcome?: 'completed' | 'failed'
+      outcome?: 'completed' | 'failed',
+      participantActivity?: ParticipantAgentActivityProjectionV1
     ): string | undefined {
       if (!contextLensEnabled) {
         return undefined;
@@ -1148,7 +1217,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           lensId,
           botShipName,
           delivery,
-          outcome
+          outcome,
+          participantActivity
         );
       } catch (err) {
         runtime.error?.(
@@ -3514,6 +3584,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
                           sendAttemptCount += 1;
                           let outputMessageId: string | null = null;
+                          let outputSentAt: number | null = null;
                           const finalOutcome:
                             | 'completed'
                             | 'failed'
@@ -3523,12 +3594,23 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                                 ? 'failed'
                                 : 'completed'
                               : undefined;
+                          const participantActivity =
+                            participantAgentActivityEnabled &&
+                            isGroup &&
+                            finalOutcome
+                              ? participantAgentActivityPublisher.buildFinalProjection(
+                                  contextLenses.get(lens.lensId) ?? lens,
+                                  finalOutcome
+                                )
+                              : null;
+                          const replyStory = markdownToStory(replyText);
                           const replyBlob = combineBlobFields(
                             blob,
                             buildContextLensReferenceBlobField(
                               lens.lensId,
                               info.kind === 'final' ? 'final' : 'intermediate',
-                              finalOutcome
+                              finalOutcome,
+                              participantActivity ?? undefined
                             )
                           );
                           if (isGroup && groupChannel) {
@@ -3539,12 +3621,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                                   botProfile: getBotProfile(),
                                   fromShip: botShipName,
                                   nest: groupChannel,
-                                  story: markdownToStory(replyText),
+                                  story: replyStory,
                                   replyToId: deliverParentId ?? undefined,
                                   blob: replyBlob,
                                 })
                             );
                             outputMessageId = result.messageId;
+                            outputSentAt = result.sentAt;
                             // Track thread participation for future replies without mention
                             if (deliverParentId) {
                               participatedThreads.add(String(deliverParentId));
@@ -3618,6 +3701,31 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                               lens.lensId,
                               'final_reply_delivered'
                             );
+                            const latestLens =
+                              contextLenses.get(lens.lensId) ?? lens;
+                            if (
+                              isGroup &&
+                              groupChannel &&
+                              outputSentAt !== null &&
+                              replyBlob &&
+                              participantActivity
+                            ) {
+                              participantAgentActivityPublisher.registerFinalReply(
+                                {
+                                  lens: latestLens,
+                                  sentAt: outputSentAt,
+                                  story: replyStory,
+                                  blob: replyBlob,
+                                  ...(deliverParentId
+                                    ? { parentId: String(deliverParentId) }
+                                    : {}),
+                                  participantActivity,
+                                  outcome: finalReplyError
+                                    ? 'failed'
+                                    : 'completed',
+                                }
+                              );
+                            }
                           }
                           replyCharCount += replyText.length;
                           replyWordCount += replyText.trim()
@@ -5569,6 +5677,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       await nudgeRunner?.stop();
       await ownerReplyPersistence.flush();
       await pendingNudgePersistence.flush();
+      await cleanupParticipantAgentActivity();
       clearShadowsForAccount(account.accountId);
       setOutboundRouteReporter(null);
       setSessionTelemetryReporter(null);
@@ -5591,6 +5700,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // after the helper definitions). Anything that throws before the
     // inner finally can run hits this one. Idempotent via the helper.
     cleanupGatewayStatus();
+    await cleanupParticipantAgentActivity();
     // Remove the early abort listener so the host's signal does not
     // retain `cleanupGatewayStatus` (which transitively pins
     // `myApiClientParams.poke` and the SSE client) after the monitor

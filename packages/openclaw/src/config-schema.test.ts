@@ -90,6 +90,7 @@ describe('Tlon config schema', () => {
     const parsed = TlonConfigSchema.parse({
       contextLens: {
         enabled: true,
+        participantActivityEnabled: true,
         ttlMs: 600_000,
         maxEntries: 500,
         visibilityDefault: 'owner',
@@ -109,6 +110,7 @@ describe('Tlon config schema', () => {
     });
 
     expect(parsed.contextLens?.enabled).toBe(true);
+    expect(parsed.contextLens?.participantActivityEnabled).toBe(true);
     expect(parsed.contextLens?.allowedOrigins).toEqual([
       'https://app.tlon.network',
     ]);
