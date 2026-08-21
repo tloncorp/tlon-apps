@@ -1066,15 +1066,17 @@ export async function monitorTlonProvider(
       );
     }
 
-    // Fetch all contacts to populate nickname cache
+    // Fetch all contacts to populate nickname cache. /v1/directory is the
+    // unified peers+contacts view: { "~ship": { isContact, contact, mod } },
+    // where `mod` is the owner's overlay (their chosen name wins).
     try {
-      const allContacts = (await api.scry('/contacts/v1/all.json')) as Record<
-        string,
-        any
-      > | null;
-      if (allContacts && typeof allContacts === 'object') {
-        for (const [ship, contact] of Object.entries(allContacts)) {
-          const nickname = contact?.nickname?.value ?? contact?.nickname;
+      const directory = (await api.scry(
+        '/contacts/v1/directory.json'
+      )) as Record<string, any> | null;
+      if (directory && typeof directory === 'object') {
+        for (const [ship, entry] of Object.entries(directory)) {
+          const nickname =
+            entry?.mod?.nickname?.value ?? entry?.contact?.nickname?.value;
           if (nickname && typeof nickname === 'string') {
             nicknameCache.set(normalizeShip(ship), sanitizeNickname(nickname));
           }
