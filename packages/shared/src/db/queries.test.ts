@@ -1189,6 +1189,25 @@ test('channel unread count updates invalidate channel unreads', () => {
   ]);
 });
 
+// The group-channel bot popup gates on group.members (via useGroup), so member
+// churn must refresh getGroup. Assert both sides of the invalidation relation:
+// the member writers declare the 'groups' effect AND getGroup depends on it.
+// Either side regressing silently breaks popup reactivity.
+test('membership writes invalidate group detail queries', () => {
+  expect(queries.insertMembers.meta.tableEffects).toEqual(
+    expect.arrayContaining(['groups'])
+  );
+  expect(queries.addChatMembers.meta.tableEffects).toEqual(
+    expect.arrayContaining(['groups'])
+  );
+  expect(queries.removeChatMembers.meta.tableEffects).toEqual(
+    expect.arrayContaining(['groups'])
+  );
+  expect(queries.getGroup.meta.tableDependencies).toEqual(
+    expect.arrayContaining(['groups'])
+  );
+});
+
 test('insertChannelUnreads updates nested thread unread conflicts', async () => {
   const client = getClient();
   if (!client) throw new Error('test db not initialized');

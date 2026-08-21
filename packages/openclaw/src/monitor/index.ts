@@ -17,6 +17,7 @@ import {
   buildBotInfoJson,
   syncBotInfo,
 } from '../bot-info.js';
+import { engagementTokens } from '../commands-registry.js';
 import {
   findRecentContextLensById,
   publishContextLensEvent,
@@ -196,6 +197,7 @@ import {
   isChannelRestricted,
   isDmAllowed,
   isOwnerListenSlashCommand,
+  isRegisteredCommandText,
   isSummarizationRequest,
   parseBlockedShips,
   prepareInboundText,
@@ -2989,9 +2991,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         : `${senderDisplay} [${senderRole}]`;
       const attachmentCount = attachments.length;
 
-      // Compute command authorization for slash commands (owner-only)
+      // Compute command authorization for slash commands (owner-only).
+      // Gate on the same raw text CommandBody is built from below: by this
+      // point messageText may carry prepended channel/thread context or blob
+      // annotations, which hide the leading slash — the gate would then skip
+      // authorization while CommandBody still carries the command, and the
+      // gateway silently drops it as unauthorized.
+      const commandBody = isGroup
+        ? stripBotMentionOutsidePlaceholders(rawMessageText, botShipName)
+        : rawMessageText;
       const shouldComputeAuth =
-        core.channel.commands.shouldComputeCommandAuthorized(messageText, cfg);
+        core.channel.commands.shouldComputeCommandAuthorized(commandBody, cfg);
       let commandAuthorized = false;
 
       if (shouldComputeAuth) {
@@ -3051,11 +3061,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         body: bodyWithAttachments,
       });
 
-      // Use raw text (no thread context) for command detection so "/status" is recognized
-      const commandBody = isGroup
-        ? stripBotMentionOutsidePlaceholders(rawMessageText, botShipName)
-        : rawMessageText;
-
+      // commandBody was computed above (raw text, no thread/channel context)
+      // so command detection and authorization gate on the same string.
       const ctxPayload = core.channel.reply.finalizeInboundContext({
         Body: body,
         BodyForAgent: bodyWithAttachments,
@@ -3876,16 +3883,23 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // 1. Direct mention always triggers response
         // 2. Thread replies where we've participated - respond if relevant (let agent decide)
         // 3. Owner blob-only message (image/file with no text from owner)
-        // 4. Owner-listen: owner posts in an owner/bot-hosted channel and the
+        // 4. Owner command: owner's bare registered/core slash command in any
+        //    watched chat channel (escape hatch; the popup inserts these bare).
+        //    The chat/ constraint keeps heap/diary behavior unchanged.
+        // 5. Owner-listen: owner posts in an owner/bot-hosted channel and the
         //    channel is not in the per-channel disabled list
         const inParticipatedThread = Boolean(
           isThreadReply && parentId && participatedThreads.has(parentId)
         );
         const isOwnerBlob = hasBlob && isOwner(senderShip);
+        const isOwnerCommand =
+          nest.startsWith('chat/') &&
+          isRegisteredCommandText(rawText, engagementTokens());
         const engageDecision = shouldEngageInGroup({
           mentioned,
           inParticipatedThread,
           isOwnerBlob,
+          isOwnerCommand,
           senderShip,
           ownerShip: effectiveOwnerShip,
           botShipName,
@@ -3898,13 +3912,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
+        // 'owner-command' maps onto the existing 'owner-listen' trigger: both
+        // are owner-initiated no-mention engagement, and both trigger unions
+        // (ContextLensTrigger, TlonAgentTurnTrigger) plus the run-kind mapping
+        // already accept it without parallel edits.
         const trigger: ContextLensTrigger = mentioned
           ? 'mention'
           : inParticipatedThread
             ? 'thread'
             : isOwnerBlob
               ? 'owner-blob'
-              : engageDecision.reason === 'owner-owned'
+              : engageDecision.reason === 'owner-owned' ||
+                  engageDecision.reason === 'owner-command'
                 ? 'owner-listen'
                 : 'unknown';
 

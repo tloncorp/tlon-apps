@@ -225,3 +225,26 @@ export function commandTokens(): string[] {
 export function buildCommandTokensJson(): string {
   return `${JSON.stringify(commandTokens(), null, 2)}\n`;
 }
+
+// OpenClaw CORE commands the client's popup offers alongside the registry
+// tokens. Audit-pinned constant mirroring the client's OPENCLAW_CORE_COMMANDS
+// (same audit pin, core 2026.5.28): the keys "help", "status", "new", and
+// "model" (textAlias "/model", tier "essential", ungated) in core's builtin
+// command registry, which core dispatches itself once a message reaches it. The plugin neither registers nor dispatches them, but
+// bare owner engagement (isRegisteredCommandText) must let them through, so
+// the popup's bare insertion works in any watched chat channel.
+export const CORE_COMMAND_TOKENS = ['/status', '/help', '/new', '/model'];
+
+// Every token that engages bare from the owner in a watched chat channel:
+// the registered plugin commands plus the core trio above.
+export function engagementTokens(): string[] {
+  return [...commandTokens(), ...CORE_COMMAND_TOKENS];
+}
+
+// The committed fixture's exact bytes (fixtures/engagement-tokens.json). The
+// CI artifact the client's parity contract reads: every token the client's
+// popup can insert bare must appear here, or the popup would offer a command
+// that is silently ignored in third-party-hosted group channels.
+export function buildEngagementTokensJson(): string {
+  return `${JSON.stringify(engagementTokens(), null, 2)}\n`;
+}

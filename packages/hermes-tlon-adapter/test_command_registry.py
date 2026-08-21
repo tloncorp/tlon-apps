@@ -143,6 +143,7 @@ bot_info = load_module("bot_info")
 adapter_mod = load_module("adapter")
 
 FIXTURE_PATH = PACKAGE_DIR / "fixtures" / "commands.json"
+ENGAGEMENT_FIXTURE_PATH = PACKAGE_DIR / "fixtures" / "engagement-tokens.json"
 
 ALL_TOKENS = [
     "/owner-listen",
@@ -351,6 +352,67 @@ class CommandRegistryTests(unittest.TestCase):
         self.assertEqual(commands.command_tokens(), tokens)
         # The hidden alias is handled but never named to the client.
         self.assertNotIn("/tlon-version", tokens)
+
+    def test_core_tokens_mirror_the_client_hermes_core_commands_audit_pin(self):
+        self.assertEqual(
+            commands.CORE_COMMAND_TOKENS,
+            ("/help", "/status", "/new", "/stop", "/usage", "/model"),
+        )
+
+    def test_core_tokens_are_not_registry_commands(self):
+        registry_tokens = {row.token for row in commands.COMMAND_REGISTRY}
+        for token in commands.CORE_COMMAND_TOKENS:
+            self.assertNotIn(token, registry_tokens)
+
+    def test_is_core_command_detects_every_core_token_bare_or_with_args(self):
+        for token in commands.CORE_COMMAND_TOKENS:
+            with self.subTest(token=token):
+                self.assertTrue(commands.is_core_command(token))
+                self.assertTrue(commands.is_core_command(f"{token} some args"))
+
+    def test_is_core_command_boundaries_case_whitespace(self):
+        # Case-insensitive, leading whitespace tolerated.
+        self.assertTrue(commands.is_core_command("/STATUS"))
+        self.assertTrue(commands.is_core_command("  /help"))
+        self.assertTrue(commands.is_core_command("\t/new fresh start"))
+        # Token-boundary safe: near-miss tokens and suffixes do not match.
+        self.assertFalse(commands.is_core_command("/newish"))
+        self.assertFalse(commands.is_core_command("/helpline"))
+        self.assertFalse(commands.is_core_command("/stopit"))
+        self.assertFalse(commands.is_core_command("status"))
+        # Mention-prefixed and mid-text are not bare commands.
+        self.assertFalse(commands.is_core_command("~pen /help"))
+        self.assertFalse(commands.is_core_command("please run /help now"))
+        # Empty / whitespace-only text never matches.
+        self.assertFalse(commands.is_core_command(""))
+        self.assertFalse(commands.is_core_command("   "))
+        self.assertFalse(commands.is_core_command(None))
+
+    def test_engagement_tokens_are_all_registry_rows_plus_core(self):
+        # All eleven registry rows (the dispatcher handles /tlon-version even
+        # though it is never advertised) followed by the core tokens.
+        self.assertEqual(
+            commands.engagement_tokens(),
+            [row.token for row in commands.COMMAND_REGISTRY]
+            + list(commands.CORE_COMMAND_TOKENS),
+        )
+        self.assertIn("/tlon-version", commands.engagement_tokens())
+
+    # The engagement fixture is what the client's parity contract reads
+    # (packages/shared/src/domain/runtimeCommandContract.test.ts): every token
+    # the popup can insert bare must engage bare in the runtime.
+    def test_build_engagement_tokens_matches_fixture(self):
+        fixture = ENGAGEMENT_FIXTURE_PATH.read_text(encoding="utf-8")
+        self.assertEqual(commands.build_engagement_tokens_json(), fixture)
+        # Byte-stable across calls.
+        self.assertEqual(
+            commands.build_engagement_tokens_json(),
+            commands.build_engagement_tokens_json(),
+        )
+
+    def test_engagement_fixture_names_every_engagement_token(self):
+        tokens = json.loads(ENGAGEMENT_FIXTURE_PATH.read_text(encoding="utf-8"))
+        self.assertEqual(tokens, commands.engagement_tokens())
 
 
 class DispatcherParityTests(unittest.TestCase):
