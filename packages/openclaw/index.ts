@@ -9,6 +9,7 @@ import {
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
 import { tlonPlugin } from './src/channel.js';
+import { registerTlonCommands } from './src/commands-registry.js';
 import { publishContextLensEvent } from './src/context-lens-events.js';
 import { registerContextLensRoutes } from './src/context-lens-routes.js';
 import { initContextLensShipSync } from './src/context-lens-ship-sync.js';
@@ -35,13 +36,8 @@ import {
 } from './src/diagnostic-subscriptions.js';
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
-import {
-  createMigrateCommandHandler,
-  routeMigrateCommand,
-} from './src/migrate-command.js';
-import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
+import { createMigrateCommandHandler } from './src/migrate-command.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
-import { handleOwnerListenCommand } from './src/owner-listen-command.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
 import { parseTlonTarget } from './src/targets.js';
@@ -891,33 +887,6 @@ export default defineBundledChannelEntry({
       api.logger.info(`[tlon] Tlon skill version: ${version}`);
     });
 
-    // Register /tlon-version command
-    api.registerCommand({
-      name: 'tlon-version',
-      description: 'Show Tlon plugin version.',
-      handler: async () => {
-        return renderTlonVersion();
-      },
-    });
-
-    api.registerCommand({
-      name: 'tlon',
-      description: 'Tlon plugin diagnostics. Usage: /tlon version',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        const args = (ctx.args ?? '').trim().toLowerCase();
-        if (args !== 'version') {
-          return { text: 'Usage: /tlon version' };
-        }
-
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        return renderTlonVersion();
-      },
-    });
-
     const contextLensRoutesEnabled = registerContextLensRoutes(api);
     const contextLensShipSyncEnabled = initContextLensShipSync(api);
     // Recording and the disk store run when at least one reader path is
@@ -1408,139 +1377,13 @@ export default defineBundledChannelEntry({
     });
 
     // ── Slash commands for approval & admin ────────────────────────────
-    api.registerCommand({
-      name: 'allow',
-      description: 'Allow a pending DM/channel/group request',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        return {
-          text: await result.bridge.handleAction(
-            'approve',
-            ctx.args?.trim() || undefined
-          ),
-        };
-      },
-    });
-
-    api.registerCommand({
-      name: 'reject',
-      description: 'Reject a pending DM/channel/group request',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        return {
-          text: await result.bridge.handleAction(
-            'deny',
-            ctx.args?.trim() || undefined
-          ),
-        };
-      },
-    });
-
-    api.registerCommand({
-      name: 'ban',
-      description: 'Ban a ship and deny its pending request',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        return {
-          text: await result.bridge.handleAction(
-            'block',
-            ctx.args?.trim() || undefined
-          ),
-        };
-      },
-    });
-
-    api.registerCommand({
-      name: 'pending',
-      description: 'List pending approval requests',
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        return await result.bridge.getPendingApprovalsReply();
-      },
-    });
-
-    api.registerCommand({
-      name: 'banned',
-      description: 'List banned ships',
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        return { text: await result.bridge.getBlockedList() };
-      },
-    });
-
-    api.registerCommand({
-      name: 'unban',
-      description: 'Unban a ship (e.g. /unban ~sampel-palnet)',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        const ship = ctx.args?.trim();
-        if (!ship) {
-          return { text: 'Usage: /unban ~ship-name' };
-        }
-        return { text: await result.bridge.handleUnblock(ship) };
-      },
-    });
-
-    api.registerCommand({
-      name: 'owner-listen',
-      description:
-        'Control whether the bot listens for the owner without @-mention in owned channels. ' +
-        'Usage: /owner-listen [on|off|status|list] [<channel-nest>]; ' +
-        '/owner-listen all [on|off] for the global kill switch.',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        const text = await handleOwnerListenCommand(
-          result.bridge,
-          ctx.args,
-          ctx.from
-        );
-        return { text };
-      },
-    });
-
-    api.registerCommand({
-      name: 'migrate',
-      description:
-        'Run or clean up a diary-to-notes migration. Usage: ' +
-        '/migrate <diary-nest> [--allow-write-widening] | ' +
-        '/migrate cleanup <notes-nest>',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        return {
-          text: await routeMigrateCommand(
-            ctx,
-            ctx.args,
-            handleMigrateCommand,
-            api.config
-          ),
-        };
-      },
+    // All plugin commands live in one table (commands-registry.ts) that both
+    // registers the handlers and serializes as fixtures/commands.json, the
+    // token list the Tlon client's drift contract pins its static list against.
+    registerTlonCommands(api, {
+      renderTlonVersion,
+      handleMigrateCommand,
+      config: api.config,
     });
   },
 });

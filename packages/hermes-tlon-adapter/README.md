@@ -306,6 +306,7 @@ The seven keys above are the full "dashboard edit works" set. Everything else Tl
 
 ```
 *Harness*: **Hermes**
+*Harness Version*: **0.17.0 (2026.6.19)**
 *Adapter Version*: **0.1.0**
 *Tlon Skill*: **0.3.2**
 *Fingerprint*: **fp1:3f9a2c1b8d02**
@@ -313,12 +314,19 @@ The seven keys above are the full "dashboard edit works" set. Everything else Tl
 ```
 
 -   **Harness** — always `Hermes`; identifies which bot framework is running this node at a glance.
+-   **Harness Version** — the running Hermes Agent's own version, read from its `__version__` and `__release_date__` constants (the same source its `/version` command uses), with the installed distribution's metadata as a fallback. Reads `unknown` when the host reports neither, so the row is never dropped and the reply stays line-for-line comparable with OpenClaw's.
 -   **Adapter Version** — semver from this package's `package.json`, bumped at releases.
 -   **Tlon Skill** — version of the packaged `@tloncorp/tlon-skill` CLI (first line of `tlon --version`).
 -   **Fingerprint** — sha256 over the runtime files (non-test `*.py`, `plugin.yaml`, `prompts/`), so copied or hand-patched installs are still identifiable. To match a fingerprint to a commit, recompute it at a candidate checkout: `python3 -c "import version; print(version.content_fingerprint())"` from this directory.
 -   **Source** — git branch, short commit, and dirty state, resolved at command time when the install is a git checkout (the dev loop's symlinked monorepo always is). Reads `no git checkout` otherwise.
 
 Nothing is generated or checked in; identity is resolved at runtime. The same summary is logged at gateway startup.
+
+## Bot info
+
+At connect (and on reconnect catch-up) the adapter publishes the bot's identity — harness, adapter version, Hermes version — in the bot's own contact profile under `bot-info`, compare-then-poke (`bot_info.py`). Tlon clients use the claimed harness to pick which of _their_ static slash-command lists to suggest; this adapter publishes no command list of its own. Wire contract and clear-to-null rollback procedure: [docs/bot-info.md](../../docs/bot-info.md).
+
+The registry in `commands.py` is the single source of truth for command detection, and holds shared usage constants for `/owner-listen`, `/channel-access`, and `/migrate`; the remaining commands carry their usage text in their handlers. `fixtures/commands.json` is its committed token list — a CI artifact, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the runtime-owned portion of the client's Hermes list, so adding or removing a command here fails until the client list changes too; the six host-core entries that list also suggests are audit-pinned constants outside that relation. `/tlon-version` is handled but deliberately absent from the fixture (legacy alias of `/tlon version`). **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
 
 ## Telemetry
 
