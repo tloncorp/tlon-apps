@@ -118,7 +118,8 @@ export function KitCard({
 }
 
 function KitCardIcon({ image }: { image: string | null }) {
-  if (image) {
+  const [failed, setFailed] = useState(false);
+  if (image && !failed) {
     return (
       <Image
         source={image}
@@ -126,6 +127,7 @@ function KitCardIcon({ image }: { image: string | null }) {
         height="$4xl"
         borderRadius="$s"
         contentFit="cover"
+        onError={() => setFailed(true)}
       />
     );
   }

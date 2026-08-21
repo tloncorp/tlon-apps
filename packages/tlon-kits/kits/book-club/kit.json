@@ -5,7 +5,6 @@
   "kitVersion": "0.1.0",
   "publisher": "~lagrev-ridsyp-nocsyx-lassul",
   "description": "A reading club that runs itself: picks get proposed and voted on, the current book is tracked, discussion gets a gentle monthly rhythm.",
-  "image": "https://bootstrap.urbit.org/kits/book-club.png",
   "scope": "group",
   "places": {
     "discussion": {

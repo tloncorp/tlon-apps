@@ -607,6 +607,7 @@ describe('post blob helpers', () => {
       },
     ]);
   test('toPostData writes kit attachments as blob entries with a text fallback', () => {
+  test('toPostData writes kit attachments as blob entries without story spillover', () => {
     const attachment: FinalizedAttachment = {
       type: 'kit',
       publisher: '~sampel-palnet',
@@ -636,7 +637,7 @@ describe('post blob helpers', () => {
         image: 'https://cdn.example.com/kit.png',
       },
     ]);
-    expect(out.story).toContainEqual({ inline: ['Kit: Book Club'] });
+    expect(out.story).toEqual([{ inline: ['hello'] }]);
   });
 
   test('toPostData kit attachment defaults name to id and kitVersion to 0.0.0', () => {
@@ -659,6 +660,6 @@ describe('post blob helpers', () => {
         description: '',
       },
     ]);
-    expect(out.story).toContainEqual({ inline: ['Kit: book-club'] });
+    expect(out.story).toEqual([]);
   });
 });
