@@ -3,7 +3,7 @@ import { useThemeSettings } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { Fragment, useEffect, useState } from 'react';
 import { Switch } from 'react-native';
-import { YStack, useTheme } from 'tamagui';
+import { YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import { AppTheme } from '../../types/theme';
@@ -25,7 +25,6 @@ import { normalizeTheme } from '../../ui/utils/themeUtils';
 type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 
 export function ThemeScreen(props: Props) {
-  const theme = useTheme();
   const { data: storedTheme, isLoading } = useThemeSettings();
   const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
   const [selectedTheme, setSelectedTheme] = useState<AppTheme>('auto');
@@ -75,7 +74,7 @@ export function ThemeScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
 
   return (
-    <View backgroundColor={theme?.background?.val} flex={1}>
+    <View backgroundColor="$secondaryBackground" flex={1}>
       <ScreenHeader
         title="Appearance"
         borderBottom
