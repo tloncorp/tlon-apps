@@ -21,11 +21,18 @@ export type LandingDecision =
 
 export function decideLanding({
   landing,
+  channelId,
   channelExists,
   elapsedMs,
   timeoutMs = WORKSPACE_LANDING_TIMEOUT_MS,
 }: {
   landing: db.WorkspaceLanding;
+  /**
+   * The conversation to land in: the handoff's own channelId, or the one the
+   * consumer resolved from the group's kit blob when the handoff was recorded
+   * before that had synced. Null while neither is known yet.
+   */
+  channelId: string | null;
   channelExists: boolean;
   elapsedMs: number;
   timeoutMs?: number;
@@ -33,11 +40,11 @@ export function decideLanding({
   if (!landing) {
     return { kind: 'idle' };
   }
-  if (channelExists) {
+  if (channelId && channelExists) {
     return {
       kind: 'navigate',
       groupId: landing.groupId,
-      channelId: landing.channelId,
+      channelId,
     };
   }
   // Timeout is checked after existence on purpose: a channel that arrives on

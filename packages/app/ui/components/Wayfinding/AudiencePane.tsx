@@ -195,14 +195,17 @@ export function WorkspaceAudiencePane(props: {
   // address-book detour also ends in `handleSplashCompleted`, and a user who
   // takes it should still land in their workspace rather than on the chat list.
   const recordLanding = useCallback(async () => {
-    // A workspace whose conversation has not been recorded yet is not an
-    // error: provisioning may still be in flight, or may have failed. Skipping
-    // the handoff lands the user on the chat list, which is a working app.
-    if (groupId && conversation) {
+    // The conversation may not be known yet — a fast user can finish this
+    // pane before the group row (whose blob names it) has synced. Record the
+    // handoff anyway with what we have; the consumer resolves the channel
+    // from the group once it lands. Only a missing groupId (provisioning
+    // never started, or failed before writing state) skips the handoff and
+    // leaves the user on the chat list, which is a working app.
+    if (groupId) {
       try {
         await db.workspaceLanding.setValue({
           groupId,
-          channelId: conversation,
+          channelId: conversation ?? null,
         });
       } catch (error) {
         logger.trackError('Failed to record the workspace landing', { error });

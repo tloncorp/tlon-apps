@@ -650,10 +650,15 @@ export const workspaceProvisioning =
  *
  * Cleared on consumption, so it is a one-shot: a user who navigates away is
  * not dragged back on the next launch.
+ *
+ * `channelId` is null when onboarding finished before the group row (whose
+ * kit blob names the conversation) had synced — the consumer resolves it from
+ * the group once that lands, so a fast user still gets dropped into the
+ * workspace instead of the chat list.
  */
 export type WorkspaceLanding = {
   groupId: string;
-  channelId: string;
+  channelId: string | null;
 } | null;
 
 export const workspaceLanding = createStorageItem<WorkspaceLanding>({

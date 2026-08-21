@@ -13,6 +13,7 @@ const LANDING = {
 function decide(overrides: Partial<Parameters<typeof decideLanding>[0]> = {}) {
   return decideLanding({
     landing: LANDING,
+    channelId: LANDING.channelId,
     channelExists: true,
     elapsedMs: 0,
     ...overrides,
@@ -37,6 +38,26 @@ describe('decideLanding', () => {
   // would open a screen for a channel the database has never heard of.
   test('waits while the channel has not synced yet', () => {
     expect(decide({ channelExists: false })).toEqual({ kind: 'wait' });
+  });
+
+  // The handoff can be recorded before the group's kit blob has synced, in
+  // which case nobody knows the conversation yet. That is a wait, not a
+  // navigate to nowhere — the consumer re-resolves it from the group as sync
+  // catches up.
+  test('waits while the conversation is not yet known', () => {
+    expect(decide({ channelId: null, channelExists: false })).toEqual({
+      kind: 'wait',
+    });
+  });
+
+  test('navigates once a late-resolved conversation exists', () => {
+    expect(
+      decide({ channelId: 'chat/~sampel-palnet/kitchen-late', elapsedMs: 500 })
+    ).toEqual({
+      kind: 'navigate',
+      groupId: LANDING.groupId,
+      channelId: 'chat/~sampel-palnet/kitchen-late',
+    });
   });
 
   // A channel that never syncs is a real outcome — a failed install, a ship
