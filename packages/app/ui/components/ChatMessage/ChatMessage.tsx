@@ -1,7 +1,6 @@
 import * as api from '@tloncorp/api';
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import { Pressable } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
@@ -74,8 +73,7 @@ const ChatMessage = ({
   );
   const showBotFeedback =
     (post.type === 'chat' || post.type === 'reply') &&
-    api.isBotUserIdForUser(post.authorId, currentUserId) &&
-    logic.isBotDmChannel({ post, channel });
+    api.isBotUserIdForUser(post.authorId, currentUserId);
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
