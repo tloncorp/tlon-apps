@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { ContextLens } from './context-lens.js';
 import { createGroupAgentActivityPublisher } from './group-agent-activity-publisher.js';
 import type { GroupAgentActivityTransport } from './group-agent-activity-transport.js';
+import { buildParticipantAgentActivityProjection } from './participant-agent-activity.js';
 
 function makeLens(overrides: Partial<ContextLens> = {}): ContextLens {
   const now = 1_000;
@@ -597,6 +598,64 @@ describe('group participant agent activity publisher', () => {
         }),
       })
     );
+  });
+
+  test('terminalizes an aborted Lens as a cancelled participant receipt', async () => {
+    const transport = makeTransport();
+    const publisher = createGroupAgentActivityPublisher({
+      transport,
+      botShip: '~bot',
+      getBotProfile: () => undefined,
+      project: (lens, options) =>
+        buildParticipantAgentActivityProjection({
+          lens,
+          surface: options.surface,
+          revision: options.revision,
+          outcome: options.outcome,
+        }),
+      serializeReferenceBlob: ({ participantActivity }) =>
+        JSON.stringify(participantActivity),
+      replaceParticipantActivity: (_blob, _lensId, activity) =>
+        JSON.stringify(activity),
+      storyFromText: (text) => [{ inline: [text] }],
+      minUpdateIntervalMs: 0,
+    });
+    const active = makeLens();
+
+    publisher.handleEvent({
+      seq: 1,
+      at: 1_000,
+      phase: 'plan',
+      lens: active,
+    });
+    await publisher.flush();
+    publisher.handleEvent({
+      seq: 2,
+      at: 2_000,
+      phase: 'final',
+      lens: {
+        ...active,
+        status: 'aborted',
+        updatedAt: 2_000,
+        lifecycle: {
+          ...active.lifecycle,
+          completedAt: 2_000,
+          durationMs: 1_000,
+        },
+      },
+    });
+    await publisher.flush();
+
+    expect(transport.update).toHaveBeenLastCalledWith(
+      { postId: 'carrier-1', sentAt: 1_100 },
+      expect.objectContaining({
+        participantActivity: expect.objectContaining({
+          state: 'cancelled',
+          terminalReason: 'interrupted',
+        }),
+      })
+    );
+    await publisher.stop();
   });
 
   test('retries a failed terminal carrier edit with bounded backoff', async () => {

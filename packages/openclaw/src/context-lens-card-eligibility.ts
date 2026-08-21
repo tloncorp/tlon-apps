@@ -1,13 +1,6 @@
 import { hasContextLensActivityCardContent } from '@tloncorp/api/urbit/lens';
 
-import type { ContextLens } from './context-lens.js';
-
-const UNSUCCESSFUL_TERMINAL_STATUSES = new Set<ContextLens['status']>([
-  'no_reply',
-  'timed_out',
-  'aborted',
-  'error',
-]);
+import { type ContextLens, RETRYABLE_STATUSES } from './context-lens.js';
 
 function hasNonPlanToolCall(lens: ContextLens): boolean {
   const names = [
@@ -30,6 +23,6 @@ export function isContextLensCardEligible(lens: ContextLens): boolean {
     lens.continuation?.kind === 'request_input' ||
     hasContextLensActivityCardContent(lens.activity) ||
     hasNonPlanToolCall(lens) ||
-    UNSUCCESSFUL_TERMINAL_STATUSES.has(lens.status)
+    RETRYABLE_STATUSES.has(lens.status)
   );
 }

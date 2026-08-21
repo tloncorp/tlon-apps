@@ -6,7 +6,10 @@ import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
 import { isContextLensCardEligible } from './context-lens-card-eligibility.js';
 import type { ContextLensEvent } from './context-lens-events.js';
-import type { ContextLens } from './context-lens.js';
+import {
+  type ContextLens,
+  isTerminalContextLensStatus,
+} from './context-lens.js';
 import type {
   GroupAgentActivityPost,
   GroupAgentActivityPostDraft,
@@ -61,14 +64,6 @@ type RunState = {
   publishing: boolean;
   tombstoneUntil: number;
 };
-
-const TERMINAL_STATUSES = new Set<ContextLens['status']>([
-  'completed',
-  'no_reply',
-  'timed_out',
-  'aborted',
-  'error',
-]);
 
 const TERMINAL_PUBLIC_STATES = new Set<
   ParticipantAgentActivityProjectionV1['state']
@@ -384,7 +379,7 @@ export function createGroupAgentActivityPublisher(options: {
       stopping ||
       !state.latestLens ||
       state.finalPost ||
-      TERMINAL_STATUSES.has(state.latestLens.status)
+      isTerminalContextLensStatus(state.latestLens.status)
     ) {
       return;
     }
@@ -484,7 +479,7 @@ export function createGroupAgentActivityPublisher(options: {
       return;
     }
     const inputVersion = state.inputVersion;
-    const terminalLens = TERMINAL_STATUSES.has(lens.status);
+    const terminalLens = isTerminalContextLensStatus(lens.status);
     const carrierOutcome =
       state.forcedOutcome ?? state.finalPost?.outcome ?? undefined;
 
@@ -646,7 +641,7 @@ export function createGroupAgentActivityPublisher(options: {
       const state = ensureState(lens);
       const retryPending = Boolean(state.retryTimer);
       state.dirty = true;
-      if (TERMINAL_STATUSES.has(lens.status)) {
+      if (isTerminalContextLensStatus(lens.status)) {
         // Terminal state is user-visible and bypasses a pending working-state
         // backoff. It receives a fresh bounded terminal retry cycle.
         state.retryAttempt = 0;
