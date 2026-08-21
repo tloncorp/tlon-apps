@@ -3,6 +3,7 @@ import * as urbit from '@tloncorp/api/urbit';
 import { JSONContent } from '@tloncorp/api/urbit';
 import {
   DraftInputId,
+  configurationFromChannel,
   isChatChannel as getIsChatChannel,
   hasUnreadActivity,
   makePrettyDayAndTime,
@@ -670,9 +671,20 @@ function SinglePostView({
       channelId: channel.id,
     });
 
+  const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
+  const includeDeletedPosts =
+    configurationFromChannel(channel).includeDeletedPosts && showDeleteMarkers;
+  const visibleThreadPosts = useMemo(
+    () =>
+      includeDeletedPosts
+        ? threadPosts
+        : threadPosts?.filter((post) => !post.isDeleted),
+    [includeDeletedPosts, threadPosts]
+  );
+
   const posts = useMemo(() => {
-    return parentPost ? [...(threadPosts ?? []), parentPost] : null;
-  }, [parentPost, threadPosts]);
+    return parentPost ? [...(visibleThreadPosts ?? []), parentPost] : null;
+  }, [parentPost, visibleThreadPosts]);
 
   const currentUserId = useCurrentUserId();
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
