@@ -87,8 +87,10 @@ overrides:
   "@aws-sdk/s3-request-presigner": 3.190.0
 PNPM_EOF
 fi
-pnpm install
+CI=true pnpm install
+./dev/build-local-api-override.sh
 pnpm build
+./dev/build-local-skill-override.sh
 
 # Expose tlon CLI to PATH
 TLON_BIN_DIR="/workspace/tlon/node_modules/.bin"

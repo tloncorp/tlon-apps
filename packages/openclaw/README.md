@@ -173,6 +173,7 @@ Full documentation: https://docs.openclaw.ai/channels/tlon
 
 ### Prerequisites
 
+-   OpenClaw 2026.7.1 or newer
 -   Docker
 -   [GitHub CLI](https://cli.github.com/) (`gh`) authenticated with tloncorp access
 -   A local Urbit ship (e.g., on `http://localhost:8080`)

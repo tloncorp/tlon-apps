@@ -139,9 +139,9 @@ services:
       context: .
       dockerfile: Dockerfile.test
       args:
-        OPENCLAW_CORE_VERSION: ${OPENCLAW_CORE_VERSION:-2026.5.28}
+        OPENCLAW_CORE_VERSION: ${OPENCLAW_CORE_VERSION:-2026.7.1-2}
     environment:
-      - OPENCLAW_CORE_VERSION=${OPENCLAW_CORE_VERSION:-2026.5.28}
+      - OPENCLAW_CORE_VERSION=${OPENCLAW_CORE_VERSION:-2026.7.1-2}
       - TLON_URL=${TLON_URL:-http://ships:8080}
       - TLON_SHIP=${TLON_SHIP:-~zod}
       - TLON_CODE=${TLON_CODE:-lidlut-tabwed-pillex-ridrup}
@@ -161,6 +161,8 @@ services:
     volumes:
       - ..:/workspace/openclaw-tlon
       - openclaw-modules:/workspace/tlon/node_modules
+      # Use in-repo workspace packages while testing unpublished plugin changes.
+      - ${TLON_APPS_DIR:-../../..}:/workspace/tlon-apps
 
 volumes:
   ships-data:

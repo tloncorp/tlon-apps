@@ -1,27 +1,21 @@
 #!/bin/bash
 set -euo pipefail
 
-# /workspace/tlon is the container-local plugin copy openclaw actually loads
-# (the entrypoint installs there); link the override into it, matching
-# build-local-api-override.sh. The bind-mounted /workspace/openclaw-tlon is
-# not on plugins.load.paths, so linking there would be a no-op.
+# /workspace/tlon is the container-local plugin copy OpenClaw actually loads.
+# Materialize the skill inside that plugin root: OpenClaw 2026.7.1 resolves
+# plugin skill paths before loading them and rejects symlinks that escape the
+# plugin directory.
 PLUGIN_DIR="${PLUGIN_DIR:-/workspace/tlon}"
 # Build from the in-monorepo package so workspace/hoisted deps resolve
 # (@tloncorp/api symlink + @urbit/* at the monorepo root). Compose sets this
 # explicitly; the default mirrors it for standalone invocations.
-TLON_SKILL_DIR="${TLON_SKILL_DIR:-/workspace/tlon-apps/packages/tlon-skill}"
+SOURCE_TLON_SKILL_DIR="${TLON_SKILL_DIR:-/workspace/tlon-apps/packages/tlon-skill}"
 
-if [ ! -f "$TLON_SKILL_DIR/package.json" ]; then
-  echo "==> No local tlon-skill checkout found at $TLON_SKILL_DIR; using published @tloncorp/tlon-skill"
+if [ ! -f "$SOURCE_TLON_SKILL_DIR/package.json" ]; then
+  echo "==> No local tlon-skill checkout found at $SOURCE_TLON_SKILL_DIR; using published @tloncorp/tlon-skill"
   exit 0
 fi
 
-# Mirror the api override: symlink the local checkout over node_modules/@tloncorp/tlon-skill.
-# A plain symlink avoids running `npm link` (which would trigger postinstall on a host-
-# darwin bind mount) and sidesteps pnpm's isolated layout (replacing the .pnpm/ symlink
-# with a real directory would break transitive resolution).
-#
-# See build-local-api-override.sh for the longer rationale; the same constraints apply.
 if [ -z "${PLUGIN_DIR:-}" ]; then
   echo "ERROR: PLUGIN_DIR is unset"
   exit 1
@@ -33,22 +27,24 @@ if [ -z "$CANONICAL_PLUGIN_DIR" ] || [ ! -f "$CANONICAL_PLUGIN_DIR/package.json"
 fi
 
 TARGET="$PLUGIN_DIR/node_modules/@tloncorp/tlon-skill"
-echo "==> Linking local @tloncorp/tlon-skill from $TLON_SKILL_DIR -> $TARGET..."
-# Keep TARGET literal (no realpath) — see build-local-api-override.sh for why.
+echo "==> Copying local @tloncorp/tlon-skill from $SOURCE_TLON_SKILL_DIR -> $TARGET..."
 rm -rf "$TARGET"
-mkdir -p "$(dirname "$TARGET")"
-ln -s "$TLON_SKILL_DIR" "$TARGET"
+mkdir -p "$TARGET"
+(cd "$SOURCE_TLON_SKILL_DIR" && tar cf - \
+  --exclude='./.git' \
+  --exclude='./coverage' \
+  --exclude='./node_modules' \
+  --exclude='./bin/tlon' \
+  --exclude='./npm/*/tlon' \
+  .) | (cd "$TARGET" && tar xf - --no-same-owner)
+TLON_SKILL_DIR="$TARGET"
 
 # The `tlon` CLI loader (bin/tlon.js) checks for a local-dev binary at bin/tlon
 # first, then falls back to require.resolve("@tloncorp/tlon-skill-${platform}-${arch}").
-# After symlinking, the fallback resolves from the realpath ($TLON_SKILL_DIR/bin/)
-# walking up via the local checkout's node_modules — which on a darwin host won't
-# have the linux binary package installed. So we always produce $TLON_SKILL_DIR/bin/tlon
-# inside the container, either by hydrating the matching platform-arch binary from
-# the plugin's npm install (the default — works on any Docker backend) or, when
-# opted in, by rebuilding from source to pick up local edits.
-# bin/tlon is gitignored in tlon-skill, so writing it through the bind mount won't
-# pollute the host working tree.
+# We always produce $TLON_SKILL_DIR/bin/tlon inside the container, either by
+# hydrating the matching platform binary from the plugin's npm install or, when
+# opted in, rebuilding the copied source. Nothing is written through the host
+# bind mount.
 #
 # Why the source build is opt-in: `bun build --compile` writes a temp file and
 # renames it onto --outfile. On VirtioFS bind mounts (Docker Desktop) the temp
@@ -121,7 +117,7 @@ else
   fi
 fi
 
-echo "==> Verifying linked @tloncorp/tlon-skill..."
+echo "==> Verifying plugin-local @tloncorp/tlon-skill..."
 cd "$PLUGIN_DIR"
 node --input-type=module -e '
   import { existsSync, readFileSync } from "node:fs";
@@ -136,7 +132,7 @@ node --input-type=module -e '
   if (!existsSync(skillMd)) {
     throw new Error(`linked @tloncorp/tlon-skill is missing SKILL.md at ${skillMd}`);
   }
-  console.log(`==> Linked @tloncorp/tlon-skill verified at ${pkgPath} (version ${pkg.version})`);
+  console.log(`==> Plugin-local @tloncorp/tlon-skill verified at ${pkgPath} (version ${pkg.version})`);
 '
 
-echo "==> Local tlon-skill override linked into $PLUGIN_DIR"
+echo "==> Local tlon-skill override copied into $PLUGIN_DIR"
