@@ -186,6 +186,8 @@ export type LensStreamStatus =
 
 export type LensStreamState = {
   events: ContextLensEvent[];
+  /** Exact gateway events before local expiry and durable-store projection. */
+  rawEvents: ContextLensEvent[];
   status: LensStreamStatus;
 };
 

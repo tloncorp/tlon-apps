@@ -54,7 +54,9 @@ function mergeEvents(events: ContextLensEvent[], incoming: ContextLensEvent[]) {
 
 export { mergeContextLensEventSources } from './eventSources';
 
-const useLensStreamStore = create<LensStreamState>(() => ({
+type GatewayLensStreamState = Omit<LensStreamState, 'rawEvents'>;
+
+const useLensStreamStore = create<GatewayLensStreamState>(() => ({
   events: [],
   status: 'disabled',
 }));
@@ -266,8 +268,12 @@ export function useContextLensEvents(): LensStreamState {
     [durableEvents, projectedEvents]
   );
   return useMemo(
-    () => ({ events: merged, status: config ? status : 'disabled' }),
-    [merged, status, config]
+    () => ({
+      events: merged,
+      rawEvents: events,
+      status: config ? status : 'disabled',
+    }),
+    [events, merged, status, config]
   );
 }
 

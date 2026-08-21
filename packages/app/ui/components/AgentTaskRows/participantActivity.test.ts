@@ -112,6 +112,59 @@ describe('participant agent activity', () => {
     ).toEqual(new Set());
   });
 
+  it('rejects ambiguous participant stamps', () => {
+    const carrier = activityPost('2.000', projection());
+    const [entry] = JSON.parse(carrier.blob!) as unknown[];
+    carrier.blob = JSON.stringify([entry, entry]);
+
+    expect(
+      authenticatedParticipantCarrierPostIds([carrier], CHANNEL_ID)
+    ).toEqual(new Set());
+  });
+
+  it('rejects blobs over the byte and entry-count limits', () => {
+    const oversized = activityPost('2.000', projection(), {
+      // Multibyte input verifies that the cap is measured in UTF-8 bytes.
+      blob: JSON.stringify(['🚀'.repeat(64_001)]),
+    });
+    const tooManyEntries = activityPost('3.000', projection());
+    const [entry] = JSON.parse(tooManyEntries.blob!) as unknown[];
+    tooManyEntries.blob = JSON.stringify([
+      entry,
+      ...Array.from({ length: 16 }, () => ({ type: 'unknown' })),
+    ]);
+
+    expect(
+      authenticatedParticipantCarrierPostIds(
+        [oversized, tooManyEntries],
+        CHANNEL_ID
+      )
+    ).toEqual(new Set());
+  });
+
+  it('retains participant-specific field-length hardening', () => {
+    const longLensId = activityPost('2.000', projection());
+    const [lensEntry] = JSON.parse(longLensId.blob!) as Array<
+      Record<string, unknown>
+    >;
+    lensEntry.lensId = 'x'.repeat(257);
+    longLensId.blob = JSON.stringify([lensEntry]);
+
+    const longBotShip = activityPost('3.000', projection());
+    const [shipEntry] = JSON.parse(longBotShip.blob!) as Array<
+      Record<string, unknown>
+    >;
+    shipEntry.botShip = `~${'x'.repeat(128)}`;
+    longBotShip.blob = JSON.stringify([shipEntry]);
+
+    expect(
+      authenticatedParticipantCarrierPostIds(
+        [longLensId, longBotShip],
+        CHANNEL_ID
+      )
+    ).toEqual(new Set());
+  });
+
   it('keeps carrier fallback text visible when the experiment is off', () => {
     const carrier = activityPost('2.000', projection(), {
       textContent: 'Working…',

@@ -1797,7 +1797,7 @@ export const getContextLensRun = createReadQuery(
   ) => {
     const run = await ctx.db.query.contextLensRuns.findFirst({
       where: and(
-        eq($contextLensRuns.botShip, botShip),
+        eq($contextLensRuns.botShip, preSig(botShip)),
         eq($contextLensRuns.lensId, lensId)
       ),
     });
@@ -1819,7 +1819,7 @@ export const getContextLensRunsByKeys = createReadQuery(
     ctx: QueryCtx
   ) => {
     if (keys.length === 0) return [];
-    const botShips = [...new Set(keys.map((key) => key.botShip))];
+    const botShips = [...new Set(keys.map((key) => preSig(key.botShip)))];
     const lensIds = [...new Set(keys.map((key) => key.lensId))];
     const wanted = new Set(
       keys.map((key) => `${preSig(key.botShip)}\n${key.lensId}`)

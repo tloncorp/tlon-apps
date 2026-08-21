@@ -132,7 +132,7 @@ test('context lens keyed lookup returns only exact bot and run pairs', async () 
 
   const matches = await queries.getContextLensRunsByKeys({
     keys: [
-      { botShip: '~lens-a', lensId: 'run-1' },
+      { botShip: 'lens-a', lensId: 'run-1' },
       { botShip: '~lens-b', lensId: 'run-2' },
     ],
   });
@@ -140,6 +140,12 @@ test('context lens keyed lookup returns only exact bot and run pairs', async () 
   expect(
     matches.map(({ botShip, lensId }) => `${botShip}/${lensId}`).sort()
   ).toEqual(['~lens-a/run-1', '~lens-b/run-2']);
+  expect(
+    await queries.getContextLensRun({
+      botShip: 'lens-a',
+      lensId: 'run-2',
+    })
+  ).toMatchObject({ botShip: '~lens-a', lensId: 'run-2' });
   expect(await queries.getContextLensRunsByKeys({ keys: [] })).toEqual([]);
 });
 

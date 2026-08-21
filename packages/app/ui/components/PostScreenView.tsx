@@ -518,6 +518,7 @@ export function PostScreenView({
                           ) : null}
                           <ContextLensPanel
                             events={contextLensStream.events}
+                            rawEvents={contextLensStream.rawEvents}
                             streamStatus={contextLensStream.status}
                             selectedMessage={selectedContextLensMessage}
                             onClearSelectedMessage={

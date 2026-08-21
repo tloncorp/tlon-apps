@@ -5,6 +5,8 @@ import {
   getCanonicalPostId,
 } from '@tloncorp/api/client';
 import type * as db from '@tloncorp/shared/db';
+import { utf8ByteLength } from '@tloncorp/shared/domain';
+import { parsePostBlob } from '@tloncorp/shared/logic';
 
 import {
   type ContextLensActivity,
@@ -15,7 +17,8 @@ import {
   contextLensEventAtTime,
 } from '../Channel/ContextLens/types';
 
-const MAX_BLOB_CHARS = 128_000;
+const MAX_BLOB_BYTES = 128_000;
+const MAX_BLOB_ENTRIES = 16;
 const MAX_ACTIONS_PER_STEP = 100;
 export const PARTICIPANT_CARRIER_STALE_MS = 5 * 60 * 1_000;
 
@@ -74,20 +77,11 @@ function threadRoot(post: db.Post) {
 }
 
 function rawParticipantEntries(post: db.Post) {
-  if (!post.blob || post.blob.length > MAX_BLOB_CHARS) return [];
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(post.blob);
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(parsed) || parsed.length > 16) return [];
-  return parsed.flatMap((entry) => {
-    if (
-      !isRecord(entry) ||
-      entry.type !== 'tlon-context-lens' ||
-      entry.version !== 1
-    ) {
+  if (!post.blob || utf8ByteLength(post.blob) > MAX_BLOB_BYTES) return [];
+  const entries = parsePostBlob(post.blob);
+  if (entries.length > MAX_BLOB_ENTRIES) return [];
+  return entries.flatMap((entry) => {
+    if (entry.type !== 'tlon-context-lens') {
       return [];
     }
     const lensId = stringValue(entry.lensId, 256);

@@ -5,6 +5,11 @@ export type ContextLensGatewayConfig = {
   token: string;
 };
 
+export type ContextLensRunLookup = {
+  lens: ContextLens;
+  rawEnvelope: unknown;
+};
+
 function normalizeBaseUrl(baseUrl: string) {
   return baseUrl.replace(/\/+$/, '');
 }
@@ -34,7 +39,7 @@ export async function fetchContextLensRun(
   config: ContextLensGatewayConfig,
   lensId: string,
   signal?: AbortSignal
-): Promise<ContextLens | null> {
+): Promise<ContextLensRunLookup | null> {
   const response = await fetch(
     `${normalizeBaseUrl(config.baseUrl)}/tlon/context-lens/run?lensId=${encodeURIComponent(lensId.trim())}`,
     { headers: authHeaders(config), signal }
@@ -45,8 +50,12 @@ export async function fetchContextLensRun(
   if (!response.ok) {
     throw new Error(`context lens run fetch failed: ${response.status}`);
   }
-  const payload = (await response.json()) as { lens?: ContextLens } | null;
-  return payload?.lens ?? null;
+  const rawEnvelope = (await response.json()) as unknown;
+  const lens =
+    rawEnvelope && typeof rawEnvelope === 'object'
+      ? (rawEnvelope as { lens?: ContextLens }).lens
+      : undefined;
+  return lens ? { lens, rawEnvelope } : null;
 }
 
 type SseFrame = {
