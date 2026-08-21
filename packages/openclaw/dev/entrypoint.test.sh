@@ -270,7 +270,8 @@ EOF
 if [ -d "/workspace/tlonbot/image-search" ]; then
   echo "==> Patching config: adding image-search plugin..."
   jq '.plugins.load.paths += ["/workspace/tlonbot/image-search"]
-    | .plugins.entries["image-search"] = {"enabled": true}' \
+    | .plugins.entries["image-search"] = {"enabled": true}
+    | .plugins.allow |= if index("image-search") then . else . + ["image-search"] end' \
     "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
     && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
 fi
@@ -294,7 +295,8 @@ if [ ! -d "/workspace/tlonbot/image-search" ] && [ -n "$BRAVE_API_KEY" ] && [ -n
   done
   echo "==> Patching config: adding image-search plugin (fetched)..."
   jq '.plugins.load.paths += ["/workspace/image-search"]
-    | .plugins.entries["image-search"] = {"enabled": true}' \
+    | .plugins.entries["image-search"] = {"enabled": true}
+    | .plugins.allow |= if index("image-search") then . else . + ["image-search"] end' \
     "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
     && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
 fi

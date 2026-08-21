@@ -318,6 +318,40 @@ describe('fake model server', () => {
     const [call] = await fakeModel.received(key);
     expect(call.provenance).toBe('latest-user');
   });
+
+  test('prefers the active user tag over a conflicting runtime carrier tag', async () => {
+    const currentKey = 'runtime-carrier-current';
+    const contextKey = 'runtime-carrier-context';
+    await fakeModel.script(currentKey, [
+      { kind: 'text', content: 'current response' },
+    ]);
+    await fakeModel.script(contextKey, [
+      { kind: 'text', content: 'context response' },
+    ]);
+
+    const response = await postChat(server.baseUrl, currentKey, {
+      messages: [
+        {
+          role: 'user',
+          content: `[tlon-test:${currentKey}] Current request`,
+        },
+        {
+          role: 'user',
+          content: openClawRuntimeContext(
+            `[tlon-test:${contextKey}] quoted history`
+          ),
+        },
+      ],
+    });
+    expect(response.ok).toBe(true);
+    const body = (await response.json()) as ChatCompletionResponse;
+    expect(body.choices[0].message.content).toBe('current response');
+
+    const [call] = await fakeModel.received(currentKey);
+    expect(call.key).toBe(currentKey);
+    expect(call.provenance).toBe('latest-user');
+    expect(await fakeModel.received(contextKey)).toHaveLength(0);
+  });
 });
 
 function openClawRuntimeContext(content: string): string {

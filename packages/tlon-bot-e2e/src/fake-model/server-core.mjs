@@ -429,6 +429,7 @@ function extractLatestScriptKey(messages) {
 }
 
 function extractTagFromLastUserTurn(messages) {
+  let runtimeContextKey = null;
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     if (messages[i]?.role !== 'user') {
       continue;
@@ -439,14 +440,14 @@ function extractTagFromLastUserTurn(messages) {
       latest = match[1];
     }
     if (isOpenClawRuntimeContextCarrier(text)) {
-      if (latest) {
-        return latest;
+      if (runtimeContextKey === null && latest) {
+        runtimeContextKey = latest;
       }
       continue;
     }
-    return latest;
+    return latest ?? runtimeContextKey;
   }
-  return null;
+  return runtimeContextKey;
 }
 
 function isOpenClawRuntimeContextCarrier(text) {
