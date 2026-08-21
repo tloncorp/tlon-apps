@@ -66,6 +66,18 @@ fi
 rm -rf "$(npm root -g)/openclaw/extensions/tlon"
 rm -rf "$(npm root -g)/openclaw/dist/extensions/tlon"
 
+# Patch the host's poll-intent heuristic so padded-but-empty poll params on a
+# plain send aren't rejected (see the script header for the full story). Runs
+# from the mounted repo so the patch stays editable without an image rebuild.
+# Patch both installs: `exec openclaw gateway` below resolves through PATH to
+# the plugin's hoisted copy in /workspace/tlon/node_modules/.bin (prepended
+# above for the tlon CLI), so the global install alone is not enough.
+echo "==> Patching openclaw host poll heuristic..."
+node /workspace/openclaw-tlon/dev/patch-host-poll-heuristic.mjs "$(npm root -g)/openclaw/dist"
+if [ -d /workspace/tlon/node_modules/openclaw/dist ]; then
+  node /workspace/openclaw-tlon/dev/patch-host-poll-heuristic.mjs /workspace/tlon/node_modules/openclaw/dist
+fi
+
 # Plugin is loaded from /workspace/tlon via plugins.load.paths in config
 # Skill should be discovered via plugin manifest's "skills" field.
 # Commenting out manual symlink to test manifest-based discovery.

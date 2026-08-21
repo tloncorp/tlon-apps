@@ -6,7 +6,7 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-08-20 21:55'
-updated_date: '2026-08-20 23:25'
+updated_date: '2026-08-21 00:12'
 labels:
   - workspaces
   - kits
@@ -91,4 +91,6 @@ Running that test is the first thing to do next — it should fail, and it shoul
 **Finding 2 — the enqueued setup turn never executes.** Gateway has a live model (`openrouter/openai/gpt-5.6-terra`), enqueue logs, then silence; kitchen channel has zero posts (`channels/v1/...posts/newest` → `{"posts":{},"total":0}`) while the notebook place exists. The systemEvent→agent-turn handoff is the last unlit link in the activation chain and is not yet diagnosed.
 
 **Test status, claimed precisely:** JS provisioning tests pass and were proven to bite (2 fail when the fix is reverted). Decoder test ran on-ship and passed. The updated `tests/app/kits.hoon` (installer≠agent fixtures) is committed but has not RUN — both fakezods' lenses now 500 on pokes/threads (expressions still evaluate), so the line-445-fixed test file can't land or run until the ships restart. AC #5 stays unchecked until it executes.
+
+2026-08-21: AC #2 artifact half PROVEN on-ship — scried notes/v0 on ~ten: note id 9 in plans-task32-e2e, createdBy ~zod, full 7-day dinner plan + grocery list, exactly per the kit's setup.md. The setup turn's final kitchen message was blocked by an openclaw host bug (padded poll params reclassify a plain send as a poll — filed as TASK-33, patched in the dev rig via dev/patch-host-poll-heuristic.mjs run from entrypoint against BOTH host installs; the gateway runs the plugin's hoisted openclaw copy, not the global one). Container recreated with the patch; each boot re-fires the setup turn (Finding 1's NACK keeps setup pending), so the next turn doubles as the patch verification. AC #5 (on-ship Hoon app tests) stays blocked: both lenses 500 on pokes/threads and a rube restart would nuke the demo state — run after the simulator walkthrough.
 <!-- SECTION:NOTES:END -->
