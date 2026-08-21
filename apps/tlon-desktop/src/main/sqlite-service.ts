@@ -77,15 +77,24 @@ class SQLiteService {
     }
   }
 
-  async executeQuery(sql: string, params: any[], method: string = 'all') {
+  /** Opens the database if needed and returns it, never null. */
+  private async requireDb() {
     if (!this.db) await this.init();
+    if (!this.db) {
+      throw new Error(`SQLite database is not open at ${this.dbPath}`);
+    }
+    return this.db;
+  }
+
+  async executeQuery(sql: string, params: any[], method: string = 'all') {
+    const db = await this.requireDb();
 
     // console.log(`Executing ${method} query:`, sql, params);
 
     try {
       if (method === 'run') {
         // For insert/update/delete operations
-        const stmt = this.db!.prepare(sql);
+        const stmt = db.prepare(sql);
         const result = params ? stmt.run(...params) : stmt.run();
         return {
           lastInsertRowid: result.lastInsertRowid,
@@ -93,17 +102,17 @@ class SQLiteService {
         };
       } else if (method === 'get') {
         // For getting a single row
-        const stmt = this.db!.prepare(sql);
+        const stmt = db.prepare(sql);
         const row = params ? stmt.raw().get(...params) : stmt.raw().get();
         return row || null;
       } else if (method === 'all') {
         // For getting multiple rows
-        const stmt = this.db!.prepare(sql);
+        const stmt = db.prepare(sql);
         const rows = params ? stmt.raw().all(...params) : stmt.raw().all();
         return this.toDrizzleResult(rows);
       } else if (method === 'values') {
         // For getting raw values (not objects)
-        const stmt = this.db!.prepare(sql);
+        const stmt = db.prepare(sql);
         const rows = params ? stmt.raw().all(...params) : stmt.raw().all();
         return this.toDrizzleResult(rows);
       } else {
@@ -116,12 +125,12 @@ class SQLiteService {
   }
 
   async runMigrations(migrations: any[]) {
-    if (!this.db) await this.init();
+    const db = await this.requireDb();
 
     console.log('Starting migrations');
     try {
       // Create migrations table if it doesn't exist
-      this.db!.exec(`
+      db.exec(`
         CREATE TABLE IF NOT EXISTS __migrations (
           id TEXT PRIMARY KEY,
           applied_at INTEGER DEFAULT (strftime('%s', 'now'))
@@ -138,9 +147,9 @@ class SQLiteService {
         const migrationId = `migration_${migration.sql.join('').length}_${migration.sql[0].substring(0, 50).replace(/[^a-zA-Z0-9]/g, '')}`;
 
         // Check if this migration has already been applied
-        const alreadyApplied = this.db!.prepare(
-          'SELECT id FROM __migrations WHERE id = ?'
-        ).get(migrationId);
+        const alreadyApplied = db
+          .prepare('SELECT id FROM __migrations WHERE id = ?')
+          .get(migrationId);
 
         if (alreadyApplied) {
           console.log(`Skipping already applied migration: ${migrationId}`);
@@ -148,11 +157,11 @@ class SQLiteService {
         }
 
         console.log(`Applying migration: ${migrationId}`);
-        this.db!.exec('BEGIN TRANSACTION');
+        db.exec('BEGIN TRANSACTION');
         try {
           for (const statement of migration.sql) {
             try {
-              this.db!.exec(statement);
+              db.exec(statement);
             } catch (statementError) {
               const statementErrorMessage =
                 statementError instanceof Error ? statementError.message : '';
@@ -169,14 +178,14 @@ class SQLiteService {
           }
 
           // Record this migration as applied
-          this.db!.prepare('INSERT INTO __migrations (id) VALUES (?)').run(
+          db.prepare('INSERT INTO __migrations (id) VALUES (?)').run(
             migrationId
           );
-          this.db!.exec('COMMIT');
+          db.exec('COMMIT');
           migrationsApplied++;
         } catch (error) {
           console.error('Migration error:', error);
-          this.db!.exec('ROLLBACK');
+          db.exec('ROLLBACK');
           throw error;
         }
       }
@@ -186,9 +195,9 @@ class SQLiteService {
       );
 
       // Set up triggers for database operations
-      this.db!.exec(TRIGGER_SETUP);
+      db.exec(TRIGGER_SETUP);
       // Set up change notification trigger
-      this.db!.exec(`
+      db.exec(`
             CREATE TRIGGER IF NOT EXISTS after_changes_insert
             AFTER INSERT ON __change_log
             BEGIN
