@@ -84,10 +84,16 @@
 ::  +genuine-scries: %buckets authenticates itself to the broker with the
 ::  secret %genuine holds, so anything that mints or revokes a token reads it.
 ::
+++  group-exists-path
+  |=  pax=path
+  ^-  ?
+  ?=([%gu @ %groups @ %groups @ @ ~] pax)
+::
 ++  genuine-scries
   |=  pax=path
   ^-  (unit vase)
   ?:  ?=([%gu @ %genuine *] pax)  `!>(&)
+  ?:  (group-exists-path pax)  `!>(&)
   ?:  ?=([%gx @ %genuine @ %secret %json ~] pax)
     `!>(`json`[%s '0wsecret'])
   ~
@@ -155,15 +161,27 @@
     `!>(|=([who=ship =nest:bu] |))
   (genuine-scries pax)
 ::
+::  +missing-group-scries: %groups no longer holds the group, which is what a
+::  deletion looks like. The permission gates must not be reached at all here
+::  -- if they were, the mock would block and the example would fail.
+::
+++  missing-group-scries
+  |=  pax=path
+  ^-  (unit vase)
+  ?:  (group-exists-path pax)  `!>(|)
+  (genuine-scries pax)
+::
 ++  deny-group-scries
   |=  pax=path
   ^-  (unit vase)
+  ?:  (group-exists-path pax)  `!>(&)
   ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)  ~
   `!>(|=([who=ship =nest:bu] |))
 ::
 ++  group-permission-scries
   |=  pax=path
   ^-  (unit vase)
+  ?:  (group-exists-path pax)  `!>(&)
   ?:  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)
     `!>(|=([who=ship =nest:bu] &))
   ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %buckets @ @ %can-write @ %noun ~] pax)  ~
@@ -172,6 +190,7 @@
 ++  missing-group-permission-scries
   |=  pax=path
   ^-  (unit vase)
+  ?:  (group-exists-path pax)  `!>(&)
   ?:  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)
     `!>(|=([who=ship =nest:bu] &))
   ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %buckets @ @ %can-write @ %noun ~] pax)  ~
@@ -180,12 +199,14 @@
 ++  allow-admin-create-scries
   |=  pax=path
   ^-  (unit vase)
+  ?:  (group-exists-path pax)  `!>(&)
   ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %seats @ %is-admin %noun ~] pax)  ~
   `!>(&)
 ::
 ++  deny-admin-create-scries
   |=  pax=path
   ^-  (unit vase)
+  ?:  (group-exists-path pax)  `!>(&)
   ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %seats @ %is-admin %noun ~] pax)  ~
   `!>(|)
 ::
@@ -550,6 +571,56 @@
       !>  ^-  req-response:bu
       [0v9 [%error %not-authorized 'no longer permitted to read this bucket']]
   ==
+::
+::  Deleting a group must revoke its buckets' tokens, not crash trying. The
+::  permission scry answers no-such-path once the group is gone, which makes .^
+::  crash rather than return -- so the pass that revokes has to check the group
+::  is still there before asking about it.
+::
+++  test-deleted-group-revokes-rather-than-crashing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ;<  mint-caz=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v12 [%bucket flag [%issue-bucket-read ~]]])
+  =/  push=[=wire =request:http]  (only-iris mint-caz)
+  ;<  *  b  (do-arvo wire.push iris-ok)
+  ;<  ~  b
+    %-  jab-bowl
+    |=  bol=bowl
+    %=    bol
+        sup
+      %-  malt
+      :~  :-  ~[/reader]
+          [~bus /v1/buckets/~sampel-palnet/project-files/updates]
+      ==
+    ==
+  ::  the group is deleted, so the permission gates are unreachable
+  ;<  ~  b  (set-scry-gate missing-group-scries)
+  ;<  caz=(list card)  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-update !>([group %noun])]
+  =/  revoke=[=wire =request:http]  (only-iris caz)
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  kicked=(list ship)
+    %+  murn  caz
+    |=(car=card ?.(?=([%give %kick * ^] car) ~ ship.p.car))
+  ::  the reader is kicked and its token dropped and DELETEd
+  %+  ex-equal
+    !>  :*  ~(wyt by object-capabilities.st)
+            method.request.revoke
+            kicked
+        ==
+  !>([0 %'DELETE' ~[~bus]])
 ::
 ::  A revoke the broker did not confirm is not a revoke. Dropping the token
 ::  locally does not stop it working -- the broker honours a pushed token

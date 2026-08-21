@@ -1295,10 +1295,30 @@
     acc    (~(gas in acc) kids)
   ==
 ::
+::  +group-exists: does %groups still hold this group?
+::
+::  Every permission read below has to ask this first. %groups' scry dispatch
+::  answers no-such-path for a group it does not have, and a scry that
+::  resolves to nothing crashes the event rather than returning ~ -- so
+::  without this guard, deleting a group takes down the very pass that would
+::  revoke its buckets' tokens, at exactly the moment it is needed.
+::
+::  Answering | is safe rather than merely convenient: a bucket is only ever
+::  hosted by its group's host, so a group we host is always local and
+::  "missing" means deleted, not not-yet-synced.
+::
+++  group-exists
+  |=  group=flag:b
+  ^-  ?
+  =/  pax=path
+    /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p ship.group)/[name.group]
+  .^(? %gu pax)
+::
 ++  group-can-read
   |=  [group=flag:b =flag:b who=ship]
   ^-  ?
   ?:  =(who ship.flag)  &
+  ?.  (group-exists group)  |
   =/  pax=path
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.group)/[name.group]/channels/can-read/noun
   =/  test=$-([ship nest:b] ?)  .^($-([ship nest:b] ?) %gx pax)
@@ -1308,6 +1328,7 @@
   |=  [group=flag:b who=ship]
   ^-  ?
   ?:  =(who ship.group)  &
+  ?.  (group-exists group)  |
   =/  pax=path
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.group)/[name.group]/seats/(scot %p who)/is-admin/noun
   .^(? %gx pax)
@@ -1316,6 +1337,7 @@
   |=  [group=flag:b =flag:b who=ship]
   ^-  (unit [admin=? roles=(set @tas)])
   ?:  =(who ship.flag)  `[& ~]
+  ?.  (group-exists group)  ~
   =/  pax=path
     /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.group)/[name.group]/channels/buckets/(scot %p ship.flag)/[name.flag]/can-write/(scot %p who)/noun
   .^((unit [admin=? roles=(set @tas)]) %gx pax)
