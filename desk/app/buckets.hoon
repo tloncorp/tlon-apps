@@ -1273,24 +1273,44 @@
   ^-  json
   (pairs:enjs:format ~[['result' s+result]])
 ::
+::  +refuse: answer the broker with a denial, and say locally which condition
+::  produced it.
+::
+::  The wire vocabulary is closed: Pioneer parses only authorized, denied and
+::  expired, and fails outright on anything else -- see +outcomeFrom in
+::  pkg/runtime/pioneer/lib/Pioneer/Buckets.hs. So a dozen conditions have to
+::  share one value, and splitting them properly means changing the broker
+::  protocol, not just this agent.
+::
+::  What they do not have to share is silence. Memex sees a 403 and maps it to
+::  non-retryable; without this the ship keeps no record of whether that was a
+::  real permission failure or its own state being missing, which is the
+::  difference between a bug and a correct refusal.
+::
+++  refuse
+  |=  why=@tas
+  ^-  json
+  %-  (slog leaf+"buckets: refused a broker request, {<why>}" ~)
+  (broker-simple-verdict 'denied')
+::
 ++  broker-upload-verdict
   |=  [token=@t reservation=@t]
   ^-  json
-  =/  denied=json  (broker-simple-verdict 'denied')
-  ?~  got=(session-token token)  denied
+  ?~  got=(session-token token)  (refuse %no-such-session)
   =/  ses=upload-session:b  u.got
   ?.  (gth expires-at.ses now.bowl)
     (broker-simple-verdict 'expired')
-  ?.  =(%pending status.ses)  denied
+  ?.  =(%pending status.ses)  (refuse %session-not-pending)
   ::  Echo the reservation bound on first exchange, ignoring the one Memex
   ::  proposed. Memex mints a fresh id per grant call, so a client retrying
   ::  after a lost response arrives with a new one; denying that would make
   ::  the upload unrecoverable, and the Pioneer contract requires the echo.
-  ?~  accepted=reservation.ses  denied
-  ?~  sp=(~(get by spaces) flag.ses)  denied
-  ?~  st-unit=state.u.sp  denied
+  ?~  accepted=reservation.ses  (refuse %reservation-unbound)
+  ?~  sp=(~(get by spaces) flag.ses)  (refuse %no-such-bucket)
+  ?~  st-unit=state.u.sp  (refuse %bucket-state-missing)
   =/  st=bucket-state:b  u.st-unit
-  ?.  (group-can-write group.st flag.ses writers.st requested-by.ses)  denied
+  ?.  (group-can-write group.st flag.ses writers.st requested-by.ses)
+    (refuse %not-a-writer)
   =/  fil=file:b  (entry-file entry.ses)
   =/  checksum-json=json
     ?~  checksum.fil  ~
@@ -1330,19 +1350,19 @@
 ++  broker-object-verdict
   |=  [kind=object-kind:b token=@t object=@t]
   ^-  json
-  =/  denied=json  (broker-simple-verdict 'denied')
-  ?~  got=(~(get by object-capabilities) token)  denied
+  ?~  got=(~(get by object-capabilities) token)
+    (refuse %no-such-capability)
   =/  aut=object-capability:b  u.got
-  ?.  =(kind kind.aut)  denied
+  ?.  =(kind kind.aut)  (refuse %capability-wrong-kind)
   ?.  (gth expires-at.aut now.bowl)
     (broker-simple-verdict 'expired')
-  ?~  sp=(~(get by spaces) flag.aut)  denied
-  ?~  st-unit=state.u.sp  denied
+  ?~  sp=(~(get by spaces) flag.aut)  (refuse %no-such-bucket)
+  ?~  st-unit=state.u.sp  (refuse %bucket-state-missing)
   =/  st=bucket-state:b  u.st-unit
   ?.  ?:  =(%read kind.aut)
         (group-can-read group.st flag.aut actor.aut)
       (group-can-write group.st flag.aut writers.st actor.aut)
-    denied
+    (refuse %not-permitted)
   =/  found=(unit entry:b)
     ?^  entry-id.aut
       (~(get by entries.st) u.entry-id.aut)
@@ -1352,12 +1372,12 @@
     ?^  acc  acc
     ?.  ?=(%file -.kind.ent)  ~
     ?.(=(object object-key.file.kind.ent) ~ `ent)
-  ?~  found  denied
+  ?~  found  (refuse %no-such-entry)
   =/  ent=entry:b  u.found
-  ?.  ?=(%file -.kind.ent)  denied
+  ?.  ?=(%file -.kind.ent)  (refuse %entry-is-a-folder)
   =/  fil=file:b  +.kind.ent
-  ?.  =(%ready status.fil)  denied
-  ?.  =(object object-key.fil)  denied
+  ?.  =(%ready status.fil)  (refuse %file-not-ready)
+  ?.  =(object object-key.fil)  (refuse %object-key-mismatch)
   =/  payload=json
     ?:  =(%read kind.aut)
       %-  pairs:enjs:format
@@ -1382,14 +1402,14 @@
 ++  broker-complete-verdict
   |=  reservation=@t
   ^-  json
-  =/  denied=json  (broker-simple-verdict 'denied')
-  ?~  sid=(~(get by reservations) reservation)  denied
-  ?~  got=(~(get by sessions) u.sid)  denied
+  ?~  sid=(~(get by reservations) reservation)
+    (refuse %no-such-reservation)
+  ?~  got=(~(get by sessions) u.sid)  (refuse %no-such-session)
   =/  ses=upload-session:b  u.got
   ?:  =(%complete status.ses)  (broker-simple-verdict 'completed')
   ?.  (gth expires-at.ses now.bowl)
     (broker-simple-verdict 'expired')
-  denied
+  (refuse %session-not-pending)
 ::
 ++  updates-path
   |=  =flag:b
