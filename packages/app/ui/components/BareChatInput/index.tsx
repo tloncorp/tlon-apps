@@ -30,7 +30,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Keyboard, TextInput } from 'react-native';
+import { Keyboard, Platform, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -71,6 +71,9 @@ import {
 } from './useSlashCommands';
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
+
+// How long a send waits for iOS to deliver a pending autocorrection.
+const AUTOCORRECT_FLUSH_TIMEOUT = 20;
 
 function normalizePreviewUrl(url: string) {
   try {
@@ -348,6 +351,11 @@ function BareChatInput(
   } = useSlashCommands({ manifest: slashCommandManifest });
   const maxInputHeight = useMaxInputHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
+  const runSendMessageRef = useRef<
+    ((isEdit: boolean, textOverride?: string) => void) | null
+  >(null);
+  // Set while waiting for iOS to deliver a pending autocorrection on send.
+  const pendingAutocorrectSendRef = useRef<{ isEdit: boolean } | null>(null);
 
   usePasteHandler(addAttachment);
 
@@ -417,6 +425,16 @@ function BareChatInput(
 
   const handleTextChange = useCallback(
     (newText: string) => {
+      // A send is waiting on a pending autocorrection, so this change is the
+      // corrected text. Send that instead of what was on screen when the send
+      // button was tapped.
+      const pendingSend = pendingAutocorrectSendRef.current;
+      if (pendingSend) {
+        pendingAutocorrectSendRef.current = null;
+        runSendMessageRef.current?.(pendingSend.isEdit, newText);
+        return;
+      }
+
       const oldText = controlledText;
 
       bareChatInputLogger.log('text change', newText);
@@ -563,8 +581,11 @@ function BareChatInput(
   );
 
   const sendMessage = useCallback(
-    async (isEdit?: boolean) => {
-      const jsonContent = textAndMentionsToContent(controlledText, mentions);
+    async (isEdit?: boolean, textOverride?: string) => {
+      const jsonContent = textAndMentionsToContent(
+        textOverride ?? controlledText,
+        mentions
+      );
       const inlines = JSONToInlines(jsonContent);
 
       const draft: domain.PostDataDraft = (() => {
@@ -640,9 +661,9 @@ function BareChatInput(
   );
 
   const runSendMessage = useCallback(
-    async (isEdit: boolean) => {
+    async (isEdit: boolean, textOverride?: string) => {
       try {
-        await sendMessage(isEdit);
+        await sendMessage(isEdit, textOverride);
       } catch (e) {
         bareChatInputLogger.trackError('failed to send', e);
         setSendError(true);
@@ -657,17 +678,44 @@ function BareChatInput(
     [sendMessage]
   );
 
+  runSendMessageRef.current = runSendMessage;
+
+  const submit = useCallback(
+    (isEdit: boolean) => {
+      if (Platform.OS !== 'ios') {
+        runSendMessage(isEdit);
+        return;
+      }
+
+      // iOS applies a pending autocorrection when the send button is tapped,
+      // and delivers the corrected text after this handler runs. Race that
+      // change against a short timeout: handleTextChange sends the corrected
+      // text if it arrives, otherwise send what is already on screen.
+      pendingAutocorrectSendRef.current = { isEdit };
+      setTimeout(() => {
+        if (pendingAutocorrectSendRef.current) {
+          pendingAutocorrectSendRef.current = null;
+          // Through the ref, so a correction that landed in the same native
+          // batch as the press is picked up instead of the text this handler
+          // closed over.
+          runSendMessageRef.current?.(isEdit);
+        }
+      }, AUTOCORRECT_FLUSH_TIMEOUT);
+    },
+    [runSendMessage]
+  );
+
   const handleSend = useCallback(async () => {
-    runSendMessage(false);
-  }, [runSendMessage]);
+    submit(false);
+  }, [submit]);
 
   const handleEdit = useCallback(async () => {
     Keyboard.dismiss();
     if (!editingPost) {
       return;
     }
-    runSendMessage(true);
-  }, [runSendMessage, editingPost]);
+    submit(true);
+  }, [submit, editingPost]);
 
   // Handle autofocus
   useEffect(() => {
