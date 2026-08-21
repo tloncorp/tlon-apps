@@ -16,8 +16,8 @@ export interface Group {
 
 // `Channel`/`Group` above are the minimal shapes this module needs. Callers pass
 // richer records (e.g. db.Channel) and their action callbacks expect that richer
-// type back, so the concrete types are threaded through rather than widened —
-// `whichPin` hands back the very object it was given.
+// type back, so the concrete types are threaded through — `whichPin` hands
+// back the very object it was given.
 export interface PinToggleParams<
   C extends Channel = Channel,
   G extends Group = Group,

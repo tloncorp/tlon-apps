@@ -11,9 +11,8 @@ export interface TypedEventEmitter<EventMap extends AnyEventMap = AnyEventMap> {
   // per-event argument types. This marker gives it a covariant position; it is
   // never assigned at runtime.
   readonly __eventMap?: EventMap;
-  // Returns void rather than `this`: implementers such as NowPlayingValue
-  // delegate to a plain EventEmitter, which cannot satisfy a polymorphic
-  // `this` return. Nothing chains these calls.
+  // Void return: implementers that delegate to a plain EventEmitter (e.g.
+  // NowPlayingValue) cannot satisfy a polymorphic `this` return.
   on<E extends keyof EventMap>(event: E, callback: EventMap[E]): void;
   off<E extends keyof EventMap>(event: E, callback: EventMap[E]): void;
 }

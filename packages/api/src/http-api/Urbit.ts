@@ -139,9 +139,8 @@ export class Urbit {
   /**
    * Custom fetch implementation to use.
    */
-  // Typed as a bare call signature rather than `typeof fetch` so the class
-  // also checks under runtimes whose global fetch carries extra properties
-  // (bun's adds `preconnect`).
+  // A bare call signature, so the class also checks under runtimes whose
+  // global fetch carries extra properties (bun's adds `preconnect`).
   fetchFn: (...args: Parameters<typeof fetch>) => Promise<Response> = (
     ...args
   ) => fetch(...args);

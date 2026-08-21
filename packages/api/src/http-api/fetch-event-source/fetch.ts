@@ -55,13 +55,7 @@ export interface FetchEventSourceInit extends RequestInit {
    */
   openWhenHidden?: boolean;
 
-  /**
-   * The Fetch function to use. Defaults to window.fetch
-   *
-   * A bare call signature rather than `typeof fetch` so callers can pass a
-   * plain fetch-shaped function under runtimes whose global carries extra
-   * properties (bun's adds `preconnect`).
-   */
+  /** The Fetch function to use. Defaults to window.fetch */
   fetch?: (...args: Parameters<typeof fetch>) => Promise<Response>;
 
   /** How many millisedonds to wait for bytes before timing out */
