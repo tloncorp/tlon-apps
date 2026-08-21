@@ -161,6 +161,10 @@ export const PinnedSurfaceCollection: IPostCollectionView = forwardRef(
           : {
               ...ctx,
               posts: ctx.posts?.filter((post) => post.id !== surfacePost.id),
+              // The sheet's own geometry already clears the floating composer
+              // and the header; the channel-level insets would double up as a
+              // dead band under the newest message.
+              contentInsets: { top: 0, bottom: 0 },
             },
       [ctx, surfacePost]
     );

@@ -968,7 +968,12 @@ export function Channel({
                                     />
                                   </View>
                                 ) : insetsFloatingComposer ? (
-                                  <View paddingHorizontal="$l">
+                                  // Margin, not padding: the floating input
+                                  // pins left/right explicitly, and Yoga
+                                  // ignores parent padding for explicit
+                                  // insets — the margin shrinks the anchor
+                                  // box itself.
+                                  <View marginHorizontal="$l">
                                     <DraftInputView
                                       draftInputContext={draftInputContext}
                                       type={draftInputType}
