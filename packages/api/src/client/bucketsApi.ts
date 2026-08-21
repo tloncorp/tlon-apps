@@ -76,11 +76,11 @@ export async function sendBucketsAction(
 }
 
 /**
- * Submit an action that mints a bearer token, and return it.
+ * Submit an action that mints a per-object bearer token, and return it.
  *
- * Uploads, reads and deletes all answer with a grant; anything else answering
- * with one would be a backend change we should notice here rather than
- * silently ignore.
+ * Uploads and deletes answer with a grant, because both name one object.
+ * Reads do not: one token covers the whole bucket, so they answer with a
+ * token instead -- see getBucketReadToken.
  */
 export async function requestBucketsGrant(
   action: BucketsAction
@@ -96,8 +96,9 @@ export async function requestBucketsGrant(
  * The bucket read token our own ship currently holds.
  *
  * The ship keeps this fresh on a timer, so this is a local read with no
- * network hop — and no call to the bucket's host. Returns null only if we do
- * not hold one yet, which resolves once the ship's first refresh lands.
+ * network hop — and no call to the bucket's host. Null means we hold none
+ * yet, which a cold start resolves by asking for one; the catch also covers
+ * a genuine failure, and the caller treats both the same way.
  */
 export async function getBucketReadToken(
   flag: BucketsFlag

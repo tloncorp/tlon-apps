@@ -411,6 +411,19 @@
         ==
         (grant-fact 0v2 [%token read-token expiry])
     ==
+  ::  The client reads the held token over Eyre as JSON, so the peek has to
+  ::  answer a mark that grows to json -- %noun does not.
+  ;<  held-cage=cage  b
+    (got-peek /x/v1/buckets/~sampel-palnet/project-files/read-token)
+  ;<  ~  b
+    %+  ex-equal
+      !>  :-  p.held-cage
+          (read-token:enjs:buckets-json !<(read-token:bu q.held-cage))
+    !>  :-  %buckets-read-token-1
+        %-  pairs:enjs:format
+        :~  ['token' s+read-token]
+            ['expiresAt' s+(scot %da expiry)]
+        ==
   ;<  ok-cage=cage  b
     (got-peek /x/v1/broker/read/[read-token]/[object-key.fil])
   ;<  bad-cage=cage  b

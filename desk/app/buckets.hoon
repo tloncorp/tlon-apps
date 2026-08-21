@@ -1507,10 +1507,13 @@
       [%x %v1 %broker %complete reservation=@ ~]
     ``json+!>((broker-complete-verdict reservation.pole))
   ::
+  ::  Versioned mark rather than %noun: the client reads this over Eyre as
+  ::  JSON, and %noun grows only to mime, so a bare noun answers 500 here.
+  ::
       [%x %v1 %buckets host=@ name=@ %read-token ~]
     =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
     ?~  tok=(~(get by read-tokens) flag)  ~
-    ``noun+!>(`read-token:b`u.tok)
+    ``buckets-read-token-1+!>(`read-token:b`u.tok)
   ::
       [%u %joined host=@ name=@ ~]
     =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]

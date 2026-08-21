@@ -116,6 +116,14 @@
         ['expiresAt' s+(scot %da expires-at.gra)]
     ==
   ::
+  ++  read-token
+    |=  tok=read-token:b
+    ^-  json
+    %-  pairs
+    :~  ['token' s+token.tok]
+        ['expiresAt' s+(scot %da expires-at.tok)]
+    ==
+  ::
   ++  req-response
     |=  res=req-response:b
     ^-  json
@@ -124,14 +132,7 @@
         %ok       (frond 'ok' ~)
         %pending  (frond 'pending' ~)
         %grant    (frond 'grant' (grant grant.body.res))
-      ::
-          %token
-        %-  frond
-        :-  'token'
-        %-  pairs
-        :~  ['token' s+token.read-token.body.res]
-            ['expiresAt' s+(scot %da expires-at.read-token.body.res)]
-        ==
+        %token    (frond 'token' (read-token read-token.body.res))
       ::
           %error
         %-  frond
