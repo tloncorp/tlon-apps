@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { buildAgentGroupTitle } from './agentGroupOnboarding';
+import {
+  agentGroupOnboardingTesting,
+  buildAgentGroupTitle,
+} from './agentGroupOnboarding';
 
 describe('buildAgentGroupTitle', () => {
   it('names each purpose from its selected topic', () => {
@@ -58,5 +61,38 @@ describe('buildAgentGroupTitle', () => {
         topics: ['Private equity ownership of Pennsylvania nursing homes'],
       })
     ).toBe('Private equity ownership of Pennsylvan… Research');
+  });
+});
+
+describe('agent group furnishing retry', () => {
+  it('retries the idempotent furnishing core once', async () => {
+    const operation = vi
+      .fn<[], Promise<string>>()
+      .mockRejectedValueOnce(new Error('transient failure'))
+      .mockResolvedValueOnce('furnished');
+
+    await expect(
+      agentGroupOnboardingTesting.retryAgentGroupFurnishCore(operation, {
+        groupId: 'group-id',
+        delayMs: 0,
+      })
+    ).resolves.toBe('furnished');
+    expect(operation).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not keep retrying after the second failure', async () => {
+    const finalError = new Error('still unavailable');
+    const operation = vi
+      .fn<[], Promise<void>>()
+      .mockRejectedValueOnce(new Error('transient failure'))
+      .mockRejectedValueOnce(finalError);
+
+    await expect(
+      agentGroupOnboardingTesting.retryAgentGroupFurnishCore(operation, {
+        groupId: 'group-id',
+        delayMs: 0,
+      })
+    ).rejects.toBe(finalError);
+    expect(operation).toHaveBeenCalledTimes(2);
   });
 });

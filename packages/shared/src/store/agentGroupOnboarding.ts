@@ -128,6 +128,32 @@ async function finishAgentGroupFurnishing({
   hostedShipId: string | null;
   isFirstGroup: boolean;
 }): Promise<AgentGroupFurnishing> {
+  return retryAgentGroupFurnishCore(
+    () =>
+      finishAgentGroupFurnishingOnce({
+        initialGroup,
+        chatChannel,
+        agentShipId,
+        hostedShipId,
+        isFirstGroup,
+      }),
+    { groupId: initialGroup.id }
+  );
+}
+
+async function finishAgentGroupFurnishingOnce({
+  initialGroup,
+  chatChannel,
+  agentShipId,
+  hostedShipId,
+  isFirstGroup,
+}: {
+  initialGroup: db.Group;
+  chatChannel: db.Channel;
+  agentShipId: string;
+  hostedShipId: string | null;
+  isFirstGroup: boolean;
+}): Promise<AgentGroupFurnishing> {
   const notebook = await ensureSingleNotesChannel(initialGroup.id);
   const group = (await db.getGroup({ id: initialGroup.id })) ?? {
     ...initialGroup,
@@ -161,6 +187,23 @@ async function finishAgentGroupFurnishing({
     agentShipId,
     tail,
   };
+}
+
+async function retryAgentGroupFurnishCore<T>(
+  operation: () => Promise<T>,
+  { groupId, delayMs = 1_000 }: { groupId: string; delayMs?: number }
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    logger.trackError('Agent Group Furnish Core Failed; Retrying', {
+      error,
+      groupId,
+    });
+  }
+
+  if (delayMs) await wait(delayMs);
+  return operation();
 }
 
 export function buildAgentGroupTitle({
@@ -468,6 +511,7 @@ function agentHasAdmin(group: db.Group, agentShipId: string) {
 
 export const agentGroupOnboardingTesting = {
   agentHasAdmin,
+  retryAgentGroupFurnishCore,
   agentHasJoined,
   ensureSingleNotesChannel,
 };
