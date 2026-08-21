@@ -111,6 +111,17 @@ export const useContextLensRun = ({
   });
 };
 
+export const useContextLensRunsByKeys = (
+  keys: Array<{ botShip: string; lensId: string }>
+) => {
+  const deps = useKeyFromQueryDeps(db.getContextLensRunsByKeys);
+  return useQuery({
+    queryKey: ['contextLensRunsByKeys', deps, keys],
+    queryFn: () => db.getContextLensRunsByKeys({ keys }),
+    enabled: keys.length > 0,
+  });
+};
+
 export const useRecentContextLensRuns = (count?: number) => {
   const deps = useKeyFromQueryDeps(db.getRecentContextLensRuns);
   return useQuery({

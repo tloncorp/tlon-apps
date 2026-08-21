@@ -6,6 +6,8 @@ import { da, parse } from '@urbit/aura';
 export interface ContextLensStamp {
   lensId: string;
   botShip: string | null;
+  delivery: 'final' | 'intermediate' | null;
+  outcome: 'completed' | 'failed' | null;
 }
 
 // Gateway output messageIds are `~botShip/<@ud of send-time @da>`. Channel
@@ -49,6 +51,8 @@ export function getContextLensStamp(post: db.Post): ContextLensStamp | null {
     // older blobs predate botShip; the bot authored the post, so its id
     // is the right fallback for the %context-lens lookup key
     botShip: entry.botShip ?? post.authorId ?? null,
+    delivery: entry.delivery ?? null,
+    outcome: entry.outcome ?? null,
   };
 }
 

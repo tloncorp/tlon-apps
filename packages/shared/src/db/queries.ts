@@ -1780,6 +1780,10 @@ export const insertContextLensRuns = createWriteQuery(
       .onConflictDoUpdate({
         target: [$contextLensRuns.botShip, $contextLensRuns.lensId],
         set: conflictUpdateSetAll($contextLensRuns, ['botShip', 'lensId']),
+        // Exact-run scries and subscription delivery can race. Keep the row
+        // monotonic so an older snapshot cannot replace a newer one and a
+        // delayed partial response cannot demote an already-terminal run.
+        setWhere: sql`${$contextLensRuns.receivedAt} <= ${sql.raw('excluded.received_at')} AND (${$contextLensRuns.complete} = false OR ${sql.raw('excluded.complete')} = true)`,
       });
   },
   ['contextLensRuns']
@@ -1800,6 +1804,35 @@ export const getContextLensRun = createReadQuery(
     // findFirst resolves to undefined on a miss; normalize to null so React
     // Query doesn't treat a not-yet-synced run as a query error.
     return run ?? null;
+  },
+  ['contextLensRuns']
+);
+
+export const getContextLensRunsByKeys = createReadQuery(
+  'getContextLensRunsByKeys',
+  async (
+    {
+      keys,
+    }: {
+      keys: Array<{ botShip: string; lensId: string }>;
+    },
+    ctx: QueryCtx
+  ) => {
+    if (keys.length === 0) return [];
+    const botShips = [...new Set(keys.map((key) => key.botShip))];
+    const lensIds = [...new Set(keys.map((key) => key.lensId))];
+    const wanted = new Set(
+      keys.map((key) => `${preSig(key.botShip)}\n${key.lensId}`)
+    );
+    const rows = await ctx.db.query.contextLensRuns.findMany({
+      where: and(
+        inArray($contextLensRuns.botShip, botShips),
+        inArray($contextLensRuns.lensId, lensIds)
+      ),
+    });
+    return rows.filter((row) =>
+      wanted.has(`${preSig(row.botShip)}\n${row.lensId}`)
+    );
   },
   ['contextLensRuns']
 );

@@ -1,3 +1,19 @@
+import { preSig } from '@tloncorp/api/lib/urbit';
+import type {
+  ContextLensActivity,
+  ContextLensActivityEvent,
+} from '@tloncorp/api/urbit/lens';
+
+export type {
+  ContextLensActivity,
+  ContextLensActivityEvent,
+  ContextLensActivityItem,
+  ContextLensActivityKind,
+  ContextLensActivityPlan,
+  ContextLensActivityPlanStep,
+  ContextLensActivityStatus,
+} from '@tloncorp/api/urbit/lens';
+
 export type ContextLensStatus =
   | 'assembling'
   | 'queued'
@@ -12,6 +28,9 @@ export type ContextLensStatus =
 
 export type ContextLens = {
   lensId: string;
+  /** Ship running this agent; absent on records created before schema v1. */
+  botShip?: string | null;
+  runId?: string | null;
   messageId: string;
   sessionKeyHash?: string | null;
   chatType: 'dm' | 'channel' | 'internal';
@@ -34,12 +53,25 @@ export type ContextLens = {
   };
   /** lensId of the run this one retries, when trigger is "retry". */
   retryOf?: string;
+  /**
+   * Typed lineage for work that resumes after the requester answers a
+   * required-input gate. This is intentionally structural: chat must never
+   * infer continuation from reply prose.
+   */
+  continuation?: {
+    kind: 'request_input';
+    parentLensId: string;
+    requestInputId: string;
+    workflowId: string;
+    linkedAt: number;
+  };
   model: string | null;
   provider: string | null;
   status: ContextLensStatus;
   error: string | null;
   createdAt: number;
   updatedAt: number;
+  expiresAt?: number;
   context: {
     currentMessage: boolean;
     threadMessages: number;
@@ -65,8 +97,11 @@ export type ContextLens = {
     runs?: ContextLensToolRun[];
   };
   outputs?: ContextLensOutput[];
+  activity?: ContextLensActivity;
   lifecycle: {
     queuedMs: number;
+    /** Agent dispatch start; absent on Lens records from older gateways. */
+    dispatchStartedAt?: number | null;
     durationMs: number | null;
     timeoutMs: number | null;
     timedOut: boolean;
@@ -89,6 +124,7 @@ export type ContextLensSource = {
 
 export type ContextLensToolRun = {
   id: string;
+  toolCallId?: string;
   callIndex: number;
   name: string;
   phase?: string;
@@ -130,6 +166,7 @@ export type ContextLensEvent = {
     toolName?: string;
     toolPhase?: string;
     toolCallCount?: number;
+    activity?: ContextLensActivityEvent;
   };
 };
 
@@ -164,6 +201,32 @@ export function isContextLensEventActive(event: ContextLensEvent) {
   return !FINAL_STATUSES.has(event.lens.status);
 }
 
+/** Project an in-flight snapshot at a wall-clock instant. */
+export function contextLensEventAtTime(
+  event: ContextLensEvent,
+  now = Date.now(),
+  stalePhase = 'stale'
+): ContextLensEvent {
+  const expiresAt = event.lens.expiresAt;
+  if (
+    FINAL_STATUSES.has(event.lens.status) ||
+    typeof expiresAt !== 'number' ||
+    expiresAt > now
+  ) {
+    return event;
+  }
+  return {
+    ...event,
+    phase: stalePhase,
+    lens: {
+      ...event.lens,
+      status: 'aborted',
+      error: event.lens.error ?? 'Run expired before a terminal update.',
+      updatedAt: Math.max(event.lens.updatedAt, expiresAt),
+    },
+  };
+}
+
 /**
  * Extract the lens snapshot from a %context-lens run record payload (the gateway
  * pokes `{ schemaVersion: 1, lens }`; tool summaries may be truncated).
@@ -181,4 +244,31 @@ export function lensFromRunPayload(payload: unknown): ContextLens | null {
     return null;
   }
   return lens;
+}
+
+/** Convert one locally synced %steward row into the same event shape as SSE. */
+export function contextLensEventFromStewardRun(
+  run: {
+    botShip: string;
+    complete?: boolean;
+    receivedAt: number;
+    payload?: unknown;
+  },
+  now = Date.now()
+): ContextLensEvent | null {
+  const lens = lensFromRunPayload(run.payload);
+  if (!lens) {
+    return null;
+  }
+  const complete = run.complete === true;
+  const event: ContextLensEvent = {
+    seq: 0,
+    at: run.receivedAt,
+    phase: complete ? 'steward-final' : 'steward',
+    lens: {
+      ...lens,
+      botShip: lens.botShip ?? preSig(run.botShip),
+    },
+  };
+  return complete ? event : contextLensEventAtTime(event, now, 'steward-stale');
 }

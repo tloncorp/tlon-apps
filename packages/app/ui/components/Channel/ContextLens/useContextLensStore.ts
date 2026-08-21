@@ -1,11 +1,17 @@
+import { isDmChannelId } from '@tloncorp/api/client';
 import { preSig } from '@tloncorp/api/lib/urbit';
 import * as db from '@tloncorp/shared/db';
 import { conversationMatchesChannel } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import create from 'zustand';
 
+import {
+  contextLensEventKey,
+  contextLensRunKeysForPosts,
+  mergeContextLensEventSources,
+} from './eventSources';
 import {
   type ContextLensGatewayConfig,
   fetchRecentContextLensEvents,
@@ -16,26 +22,28 @@ import {
   type ContextLensEvent,
   type ContextLensSelectedMessage,
   type LensStreamState,
+  contextLensEventAtTime,
+  contextLensEventFromStewardRun,
   isContextLensEventActive,
 } from './types';
+import { useContextLensExpiryClock } from './useContextLensExpiryClock';
 
 const MAX_EVENTS = 160;
 const RECONNECT_DELAY_MS = 5000;
-
-function eventKey(event: ContextLensEvent) {
-  return [
-    event.seq,
-    event.at,
-    event.phase,
-    event.lens.lensId,
-    event.detail?.toolCallCount ?? '',
-    event.detail?.toolName ?? '',
-  ].join(':');
-}
+const POST_RUN_HYDRATION_RETRY_DELAYS_MS = [1_000, 5_000, 15_000] as const;
+// A final reply can reach chat before the owner ship receives the terminal
+// %steward snapshot. These bounded delays span just over the observed
+// three-minute propagation window without turning run hydration into polling.
+const POST_RUN_COMPLETION_RETRY_DELAYS_MS = [
+  1_000, 5_000, 15_000, 30_000, 60_000, 90_000,
+] as const;
+type PostRunHydrationRetryMode = 'missing' | 'completion';
 
 function mergeEvents(events: ContextLensEvent[], incoming: ContextLensEvent[]) {
-  const known = new Set(events.map(eventKey));
-  const added = incoming.filter((event) => !known.has(eventKey(event)));
+  const known = new Set(events.map(contextLensEventKey));
+  const added = incoming.filter(
+    (event) => !known.has(contextLensEventKey(event))
+  );
   if (!added.length) {
     return events;
   }
@@ -43,6 +51,8 @@ function mergeEvents(events: ContextLensEvent[], incoming: ContextLensEvent[]) {
     .sort((left, right) => left.at - right.at || left.seq - right.seq)
     .slice(-MAX_EVENTS);
 }
+
+export { mergeContextLensEventSources } from './eventSources';
 
 const useLensStreamStore = create<LensStreamState>(() => ({
   events: [],
@@ -176,12 +186,13 @@ export function useContextLensGatewayConfig(): ContextLensGatewayConfig | null {
 // already have direct evidence (a lens-stamped post).
 export function useContextLensAvailable(channel?: db.Channel | null) {
   const { data: flagEnabled } = store.useContextLensEnabled();
-  const isDm = channel?.type === 'dm';
-  const chatId = !channel
-    ? null
-    : channel.type === 'groupDm'
-      ? channel.id
-      : channel.groupId ?? null;
+  const isDm = channel ? isDmChannelId(channel.id) : false;
+  const chatId =
+    !channel || isDm
+      ? null
+      : channel.type === 'groupDm'
+        ? channel.id
+        : channel.groupId ?? null;
   const { data: botShips } = store.useContextLensBotShips();
   const { data: botsInChat } = store.useContextLensBotsInChat({
     chatId: flagEnabled ? chatId : null,
@@ -206,6 +217,8 @@ export function useContextLensAvailable(channel?: db.Channel | null) {
 
 export function useContextLensEvents(): LensStreamState {
   const config = useContextLensGatewayConfig();
+  const { data: flagEnabled } = store.useContextLensEnabled();
+  const { data: syncedRuns } = store.useRecentContextLensRuns(MAX_EVENTS);
 
   useEffect(() => {
     if (!config) {
@@ -219,9 +232,265 @@ export function useContextLensEvents(): LensStreamState {
 
   const events = useLensStreamStore((state) => state.events);
   const status = useLensStreamStore((state) => state.status);
+  const durableSnapshots = useMemo(
+    () =>
+      flagEnabled
+        ? (syncedRuns ?? []).flatMap((run) => {
+            const event = contextLensEventFromStewardRun(
+              run,
+              Number.NEGATIVE_INFINITY
+            );
+            return event ? [event] : [];
+          })
+        : [],
+    [flagEnabled, syncedRuns]
+  );
+  const expirableEvents = useMemo(
+    () => [...events, ...durableSnapshots],
+    [durableSnapshots, events]
+  );
+  const now = useContextLensExpiryClock(expirableEvents);
+  const projectedEvents = useMemo(
+    () => events.map((event) => contextLensEventAtTime(event, now)),
+    [events, now]
+  );
+  const durableEvents = useMemo(
+    () =>
+      durableSnapshots.map((event) =>
+        contextLensEventAtTime(event, now, 'steward-stale')
+      ),
+    [durableSnapshots, now]
+  );
+  const merged = useMemo(
+    () => mergeContextLensEventSources(projectedEvents, durableEvents),
+    [durableEvents, projectedEvents]
+  );
   return useMemo(
-    () => ({ events, status: config ? status : 'disabled' }),
-    [events, status, config]
+    () => ({ events: merged, status: config ? status : 'disabled' }),
+    [merged, status, config]
+  );
+}
+
+/**
+ * Loaded chat posts are durable presentation anchors. Hydrate their exact run
+ * snapshots independently of the bounded, high-frequency gateway stream so a
+ * terminal card cannot disappear merely because newer activity arrived.
+ */
+export function useContextLensPostEvents(posts: readonly db.Post[]) {
+  const { data: flagEnabled } = store.useContextLensEnabled();
+  const { data: ownedBotShips } = store.useContextLensBotShips();
+  const ownedBotShipSet = useMemo(
+    () => new Set((ownedBotShips ?? []).map(preSig)),
+    [ownedBotShips]
+  );
+  const keys = useMemo(
+    () =>
+      flagEnabled
+        ? contextLensRunKeysForPosts(posts).filter((key) =>
+            ownedBotShipSet.has(preSig(key.botShip))
+          )
+        : [],
+    [flagEnabled, ownedBotShipSet, posts]
+  );
+  const runsQuery = store.useContextLensRunsByKeys(keys);
+  const hydrationAttempts = useRef(new Map<string, number>());
+  const hydrationRetryModes = useRef(
+    new Map<string, PostRunHydrationRetryMode>()
+  );
+  const hydrationForceRefreshKeys = useRef(new Set<string>());
+  const hydrationCompleteKeys = useRef(new Set<string>());
+  const hydrationInFlight = useRef(new Set<string>());
+  const hydrationRetryTimers = useRef(
+    new Map<string, ReturnType<typeof setTimeout>>()
+  );
+  const hydrationRequestedKeys = useRef(new Set<string>());
+  const hydrationMounted = useRef(true);
+  const [hydrationRetryRevision, setHydrationRetryRevision] = useState(0);
+
+  useEffect(() => {
+    hydrationMounted.current = true;
+    const attempts = hydrationAttempts.current;
+    const retryModes = hydrationRetryModes.current;
+    const forceRefreshKeys = hydrationForceRefreshKeys.current;
+    const completeKeys = hydrationCompleteKeys.current;
+    const inFlight = hydrationInFlight.current;
+    const retryTimers = hydrationRetryTimers.current;
+    return () => {
+      hydrationMounted.current = false;
+      for (const timer of retryTimers.values()) {
+        clearTimeout(timer);
+      }
+      retryTimers.clear();
+      attempts.clear();
+      retryModes.clear();
+      forceRefreshKeys.clear();
+      completeKeys.clear();
+      inFlight.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    const requested = new Set(
+      flagEnabled ? keys.map((key) => `${key.botShip}\n${key.lensId}`) : []
+    );
+    hydrationRequestedKeys.current = requested;
+    hydrationCompleteKeys.current.clear();
+    for (const [id, timer] of hydrationRetryTimers.current) {
+      if (requested.has(id)) continue;
+      clearTimeout(timer);
+      hydrationRetryTimers.current.delete(id);
+    }
+    for (const id of hydrationAttempts.current.keys()) {
+      if (requested.has(id)) continue;
+      hydrationAttempts.current.delete(id);
+      hydrationRetryModes.current.delete(id);
+      hydrationForceRefreshKeys.current.delete(id);
+    }
+    for (const id of hydrationInFlight.current) {
+      if (requested.has(id)) continue;
+      hydrationInFlight.current.delete(id);
+    }
+    if (!flagEnabled || !runsQuery.isFetched || keys.length === 0) return;
+    const runsById = new Map(
+      (runsQuery.data ?? []).map((run) => [
+        `${preSig(run.botShip)}\n${run.lensId}`,
+        run,
+      ])
+    );
+    for (const [id, run] of runsById) {
+      if (!run.complete) continue;
+      hydrationCompleteKeys.current.add(id);
+      hydrationAttempts.current.delete(id);
+      hydrationRetryModes.current.delete(id);
+      hydrationForceRefreshKeys.current.delete(id);
+      hydrationInFlight.current.delete(id);
+      const timer = hydrationRetryTimers.current.get(id);
+      if (timer) clearTimeout(timer);
+      hydrationRetryTimers.current.delete(id);
+    }
+    const pending = keys.flatMap((key) => {
+      const id = `${key.botShip}\n${key.lensId}`;
+      const run = runsById.get(id);
+      if (
+        run?.complete ||
+        hydrationInFlight.current.has(id) ||
+        hydrationRetryTimers.current.has(id)
+      ) {
+        return [];
+      }
+      const forceRefresh =
+        run?.complete === false || hydrationForceRefreshKeys.current.has(id);
+      const retryMode: PostRunHydrationRetryMode = forceRefresh
+        ? 'completion'
+        : 'missing';
+      const retryDelays =
+        retryMode === 'completion'
+          ? POST_RUN_COMPLETION_RETRY_DELAYS_MS
+          : POST_RUN_HYDRATION_RETRY_DELAYS_MS;
+      if (
+        hydrationRetryModes.current.get(id) === retryMode &&
+        (hydrationAttempts.current.get(id) ?? 0) > retryDelays.length
+      ) {
+        return [];
+      }
+      return [
+        {
+          key,
+          forceRefresh,
+        },
+      ];
+    });
+    if (!pending.length) return;
+
+    for (const { key } of pending) {
+      hydrationInFlight.current.add(`${key.botShip}\n${key.lensId}`);
+    }
+
+    void (async () => {
+      for (let index = 0; index < pending.length; index += 4) {
+        const batch = pending.slice(index, index + 4);
+        const results = await Promise.all(
+          batch.map(({ key, forceRefresh }) =>
+            forceRefresh
+              ? store.refreshContextLensRun(key)
+              : store.ensureContextLensRun(key)
+          )
+        );
+        results.forEach((result, resultIndex) => {
+          const { key, forceRefresh } = batch[resultIndex];
+          const id = `${key.botShip}\n${key.lensId}`;
+          hydrationInFlight.current.delete(id);
+          if (
+            !hydrationMounted.current ||
+            !hydrationRequestedKeys.current.has(id) ||
+            hydrationCompleteKeys.current.has(id)
+          ) {
+            return;
+          }
+          if (result?.complete) {
+            hydrationAttempts.current.delete(id);
+            hydrationRetryModes.current.delete(id);
+            hydrationForceRefreshKeys.current.delete(id);
+            return;
+          }
+          const retryMode: PostRunHydrationRetryMode =
+            forceRefresh || result?.complete === false
+              ? 'completion'
+              : 'missing';
+          if (retryMode === 'completion') {
+            hydrationForceRefreshKeys.current.add(id);
+          }
+          const priorMode = hydrationRetryModes.current.get(id);
+          const attempt =
+            priorMode === retryMode
+              ? (hydrationAttempts.current.get(id) ?? 0) + 1
+              : 1;
+          hydrationRetryModes.current.set(id, retryMode);
+          hydrationAttempts.current.set(id, attempt);
+          const retryDelays =
+            retryMode === 'completion'
+              ? POST_RUN_COMPLETION_RETRY_DELAYS_MS
+              : POST_RUN_HYDRATION_RETRY_DELAYS_MS;
+          const delay = retryDelays[attempt - 1];
+          if (delay === undefined || hydrationRetryTimers.current.has(id)) {
+            return;
+          }
+          hydrationRetryTimers.current.set(
+            id,
+            setTimeout(() => {
+              hydrationRetryTimers.current.delete(id);
+              setHydrationRetryRevision((revision) => revision + 1);
+            }, delay)
+          );
+        });
+      }
+    })();
+  }, [
+    flagEnabled,
+    hydrationRetryRevision,
+    keys,
+    runsQuery.data,
+    runsQuery.isFetched,
+  ]);
+
+  const runSnapshots = useMemo(
+    () =>
+      (runsQuery.data ?? []).flatMap((run) => {
+        const event = contextLensEventFromStewardRun(
+          run,
+          Number.NEGATIVE_INFINITY
+        );
+        return event ? [event] : [];
+      }),
+    [runsQuery.data]
+  );
+  const now = useContextLensExpiryClock(runSnapshots);
+  return useMemo(
+    () =>
+      runSnapshots.map((event) =>
+        contextLensEventAtTime(event, now, 'steward-stale')
+      ),
+    [now, runSnapshots]
   );
 }
 
@@ -240,7 +509,7 @@ export function liveEventMatchesChannel(
       chatType: event.lens.chatType,
       conversationId: event.lens.triggerDetails?.conversationId ?? null,
     },
-    botShipByLensId?.get(event.lens.lensId) ?? channelId,
+    event.lens.botShip ?? botShipByLensId?.get(event.lens.lensId) ?? channelId,
     channelId
   );
 }
@@ -315,6 +584,23 @@ export function useContextLensController(params?: {
     [inspectContextLensPost]
   );
 
+  const openContextLensForEvent = useCallback(
+    (event: ContextLensEvent) => {
+      setSelectedContextLensMessage({
+        id: event.lens.triggerDetails?.messageId ?? event.lens.messageId,
+        authorId: event.lens.triggerDetails?.authorShip ?? null,
+        channelId:
+          event.lens.triggerDetails?.conversationId ??
+          params?.channel?.id ??
+          null,
+        lensId: event.lens.lensId,
+        botShip: event.lens.botShip,
+      });
+      setOpen(true);
+    },
+    [params?.channel?.id]
+  );
+
   return {
     contextLensAvailable,
     contextLensOpen: contextLensAvailable && open,
@@ -325,5 +611,6 @@ export function useContextLensController(params?: {
     clearSelectedContextLensMessage,
     inspectContextLensPost,
     openContextLensForPost,
+    openContextLensForEvent,
   };
 }
