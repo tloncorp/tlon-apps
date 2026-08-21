@@ -117,17 +117,37 @@ class FormatReplyTests(unittest.TestCase):
             source="main @ abc1234 (clean)",
             fingerprint="fp1:0123456789ab",
             cli_version="0.3.2",
+            harness_version="0.17.0 (2026.6.19)",
         )
         self.assertEqual(
             reply.splitlines(),
             [
                 "*Harness*: **Hermes**",
+                "*Harness Version*: **0.17.0 (2026.6.19)**",
                 "*Adapter Version*: **0.1.0**",
                 "*Tlon Skill*: **0.3.2**",
                 "*Fingerprint*: **fp1:0123456789ab**",
                 "*Source*: **main @ abc1234 (clean)**",
             ],
         )
+
+    def test_absent_harness_version_renders_unknown(self):
+        # The row is never dropped: OpenClaw always emits it, and the README
+        # promises the two harnesses answer with the same field-per-line
+        # summary. A host that reports nothing degrades the value, not the
+        # shape.
+        for absent in (None, "", "   "):
+            with self.subTest(harness_version=absent):
+                reply = version.format_version_reply(
+                    adapter_version="0.1.0",
+                    source=None,
+                    fingerprint="fp1:0123456789ab",
+                    cli_version="0.3.2",
+                    harness_version=absent,
+                )
+                self.assertEqual(
+                    reply.splitlines()[1], "*Harness Version*: **unknown**"
+                )
 
     def test_plain_keys_for_logs(self):
         reply = version.format_version_reply(

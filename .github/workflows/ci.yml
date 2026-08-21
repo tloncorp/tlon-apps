@@ -173,6 +173,15 @@ jobs:
       - name: Run Hermes adapter unit tests
         run: ./packages/hermes-tlon-adapter/dev/test.sh
 
+      # The drift contract lives in @tloncorp/shared (it owns the static
+      # command lists) but its whole purpose is catching runtime changes — and
+      # a bot-only PR skips test-build, where the shared suite runs. Without
+      # this step, editing a runtime's command registry could never turn it red.
+      - name: Bot command drift contract
+        run:
+          pnpm --filter '@tloncorp/shared' test run
+          src/domain/runtimeCommandContract.test.ts
+
   # Merge gate: the single required status check for this repo ("CI OK" in
   # branch protection). It aggregates the conditionally-skipped jobs above
   # into one context that always reports: a skipped need is fine (the filter

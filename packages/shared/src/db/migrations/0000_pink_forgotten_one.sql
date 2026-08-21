@@ -172,6 +172,7 @@ CREATE TABLE `contacts` (
 	`status` text,
 	`color` text,
 	`coverImage` text,
+	`bot_info` text,
 	`blocked` integer,
 	`isContact` integer,
 	`isContactSuggestion` integer,

@@ -1,6 +1,7 @@
 import { QueryObserver } from '@tanstack/react-query';
-import { v0PeersToClientProfiles } from '@tloncorp/api';
+import { directoryToClientProfiles } from '@tloncorp/api';
 import { toClientGroupsV7 } from '@tloncorp/api';
+import type { ContactsDirectoryScryResult1 } from '@tloncorp/api/urbit/contact';
 import type * as ub from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -10,7 +11,7 @@ import { useDebugStore } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { syncContacts, syncInitData } from '../store/sync';
 import contactBookResponse from '../test/contactBook.json';
-import contactsResponse from '../test/contacts.json';
+import contactsDirectoryResponse from '../test/contactsDirectory.json';
 import groupsResponse from '../test/groups.json';
 import {
   getClient,
@@ -414,7 +415,9 @@ test('inserts contacts without overriding block data', async () => {
   const blockedUsers = await queries.getBlockedUsers();
   expect(blockedUsers.map((b) => b.id)).toEqual(blocks);
 
-  const contacts = v0PeersToClientProfiles(contactsResponse);
+  const contacts = directoryToClientProfiles(
+    contactsDirectoryResponse as unknown as ContactsDirectoryScryResult1
+  );
   // nocsyx and ravmel are in contacts, but blocked
   expect(
     contacts.filter(
@@ -429,6 +432,46 @@ test('inserts contacts without overriding block data', async () => {
   await queries.insertContacts(contacts);
   const newBlockedUsers = await queries.getBlockedUsers();
   expect(newBlockedUsers.map((b) => b.id)).toEqual(blocks);
+});
+
+describe('insertContacts botInfo', () => {
+  const ship = '~bot-info-provenance';
+  const claim = JSON.stringify({
+    v: 1,
+    harness: 'openclaw',
+    version: '0.19.0',
+  });
+  const updatedClaim = JSON.stringify({
+    v: 1,
+    harness: 'openclaw',
+    version: '0.20.0',
+  });
+
+  // Every bulk source is lossless since the /v1/directory migration, so
+  // insertContacts writes the column unconditionally: present replaces,
+  // absent clears. (The old v0 `/all` path required an exclusion-list guard
+  // here; it died with the endpoint.)
+  test('a synced row replaces an existing claim', async () => {
+    await queries.insertContacts([{ id: ship, botInfo: claim }]);
+    await queries.insertContacts([{ id: ship, botInfo: updatedClaim }]);
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBe(
+      updatedClaim
+    );
+  });
+
+  test('a synced row clears the claim when the key is missing', async () => {
+    await queries.insertContacts([{ id: ship, botInfo: claim }]);
+    // The bot stopped advertising: the row arrives without the key.
+    await queries.insertContacts([{ id: ship }]);
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBeNull();
+  });
+
+  test('upsertContact sets and clears the claim (subscription path)', async () => {
+    await queries.upsertContact({ id: ship, botInfo: claim });
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBe(claim);
+    await queries.upsertContact({ id: ship, botInfo: null });
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBeNull();
+  });
 });
 
 const refDate = Date.now();
@@ -576,7 +619,7 @@ test('getMentionCandidates: returns candidates in priority order', async () => {
   setScryOutputs([initResponse]);
   await syncInitData();
   setScryOutputs([
-    contactsResponse,
+    contactsDirectoryResponse,
     contactBookResponse,
     suggestedContactsResponse,
   ]);
@@ -637,7 +680,7 @@ test('getMentionCandidates: limits results to 6', async () => {
   setScryOutputs([initResponse]);
   await syncInitData();
   setScryOutputs([
-    contactsResponse,
+    contactsDirectoryResponse,
     contactBookResponse,
     suggestedContactsResponse,
   ]);
