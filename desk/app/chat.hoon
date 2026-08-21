@@ -2877,10 +2877,12 @@
       ?~  moj=(kill:em react.delta.q.diff)  q.diff
       q.diff(react.delta u.moj)
     ::
-    ::  a vouched moon never runs; its profile comes from the host's
-    ::  published bot profile, so don't %meet (avoids a dead retry loop).
-    ::  a hosted bot's inbox is not our contact book either.
-    =?  cor  &(!bot-mode ?=(~ di-vouched))
+    ::  %meet the counterparty so contacts tracks their profile. safe for
+    ::  vouched moons too: contacts resolves those through the host's
+    ::  /v1/vouch rather than watching the never-booting moon (see
+    ::  docs/vouch.md). a hosted bot's inbox is not our contact book, so
+    ::  the host doesn't meet the bot's correspondents.
+    =?  cor  !bot-mode
       =/  =wire  /contacts/(scot %p ship)
       =/  =rail  contact-action-1+`action:contacts`[%meet ~[ship]]
       (emit %pass wire %agent [our.bowl %contacts] %poke rail)
@@ -3030,7 +3032,7 @@
         =.  dms  (~(del by dms) ship)
         give-invites
       di-core(gone &)
-    =?  cor  ?=(~ di-vouched)  ::  never %meet a vouched moon
+    =.  cor
       %^  emit  %pass  /contacts/(scot %p ship)
       [%agent [our.bowl %contacts] %poke contact-action-1+[%meet ~[ship]]]
     ?.  =(%invited net.dm)  di-core  ::TMI
@@ -3070,7 +3072,7 @@
     ?.  ?=(%inviting net)  di-core
     ::  received rsvp accept: meet the ship, post a notice
     ::
-    =?  cor  ?=(~ di-vouched)  ::  never %meet a vouched moon
+    =.  cor
       %^  emit  %pass  /contacts/(scot %p ship)
       [%agent [our.bowl %contacts] %poke contact-action-1+[%meet ~[ship]]]
     =.  net.dm  %done

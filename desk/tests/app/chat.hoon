@@ -72,6 +72,11 @@
     !>(`vouched-action:dm:c`[moon moon diff])
   ;<  ~  bind:m
     %+  ex-cards  caz
+    %+  welp
+      ::  the counterparty is met; contacts resolves the moon via its host
+      :~  %+  ex-poke  /contacts/(scot %p moon)
+          [[~bus %contacts] contact-action-1+!>([%meet ~[moon]])]
+      ==
     %+  welp  (ex-writ-facts ~bus now.bw verse 1)
     :~  %+  ex-poke  /dm/(scot %p moon)/proxy/diff
         [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
@@ -86,8 +91,10 @@
   =/  =whom:c  [%ship moon]
   %+  ex-cards  caz
   %+  welp
-    ::  recency moved, so this send updates the unread summary
-    :~  (ex-fact ~[/unreads] %chat-unread-update !>([whom [now.bw 0 ~ ~]]))
+    :~  %+  ex-poke  /contacts/(scot %p moon)
+        [[~bus %contacts] contact-action-1+!>([%meet ~[moon]])]
+        ::  recency moved, so this send updates the unread summary
+        (ex-fact ~[/unreads] %chat-unread-update !>([whom [now.bw 0 ~ ~]]))
     ==
   %+  welp  (ex-writ-facts ~bus now.bw verse 2)
   :~  %+  ex-poke  /dm/(scot %p moon)/proxy/diff
@@ -109,6 +116,10 @@
     %+  do-poke  %chat-dm-vouched-action-2
     !>(`vouched-action:dm:c`[moon moon diff])
   %+  ex-cards  caz
+  %+  welp
+    :~  %+  ex-poke  /contacts/(scot %p moon)
+        [[owner %contacts] contact-action-1+!>([%meet ~[moon]])]
+    ==
   %+  welp  (ex-writ-facts owner now.bw verse 1)
   :~  %+  ex-poke  /dm/(scot %p moon)/proxy/diff
       [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
@@ -176,6 +187,8 @@
   %+  ex-cards  caz
   %+  welp
     :~  (ex-poke /activity/submit [~bus %activity] activity-action-1+!>(invite-action))
+        %+  ex-poke  /contacts/(scot %p moon)
+        [[~bus %contacts] contact-action-1+!>([%meet ~[moon]])]
         (ex-fact ~[/ /dm/invited /v1 /v2 /v3] ships+!>(`(set ship)`(silt ~[moon])))
     ==
   (ex-writ-facts moon now.bw verse 1)
