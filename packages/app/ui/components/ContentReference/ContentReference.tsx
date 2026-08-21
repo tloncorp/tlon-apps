@@ -446,7 +446,7 @@ const typeMeta: Record<string, { label: string; icon: IconType }> = {
     icon: 'ChannelTalk',
   },
   group: {
-    label: 'Group',
+    label: 'Workspace',
     icon: 'Discover',
   },
   notes: {

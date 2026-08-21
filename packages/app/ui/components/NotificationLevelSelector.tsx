@@ -45,13 +45,13 @@ const LEVEL_TITLES: Record<
 > = {
   base: {
     loud: 'All activity',
-    medium: 'All DMs and group posts',
+    medium: 'All DMs and workspace posts',
     soft: 'DMs, mentions, and replies only',
     hush: 'Nothing',
   },
   group: {
-    loud: 'All group activity',
-    medium: 'Group posts, mentions, and replies',
+    loud: 'All workspace activity',
+    medium: 'Workspace posts, mentions, and replies',
     soft: 'Mentions and replies',
     hush: 'Nothing',
   },
@@ -70,9 +70,9 @@ const LEVEL_TITLES: Record<
 // Long-form descriptions keyed by level. 'medium' in a DM and 'hush' on/off
 // native are special-cased in getLevelDescription.
 const LEVEL_DESCRIPTIONS: Partial<Record<ub.NotificationLevel, string>> = {
-  loud: 'Notify for all activity in this channel or group.',
+  loud: 'Notify for all activity in this channel or workspace.',
   medium:
-    'Notify for all posts, mentions, and replies in groups. Direct messages always notify unless muted.',
+    'Notify for all posts, mentions, and replies in workspaces. Direct messages always notify unless muted.',
   soft: 'Notify only when someone mentions you or replies to your posts. Direct messages always notify unless muted.',
 };
 

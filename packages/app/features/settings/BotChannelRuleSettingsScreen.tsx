@@ -320,7 +320,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
             <BotSettingsSection
               description={
                 !groupJoined
-                  ? 'Join this group to enable Tlonbot in this channel.'
+                  ? 'Join this workspace to enable Tlonbot in this channel.'
                   : undefined
               }
             >

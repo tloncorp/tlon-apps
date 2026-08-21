@@ -216,11 +216,11 @@ export function GroupPreviewPane({
   const privacyLabel = useMemo(() => {
     switch (group.privacy) {
       case 'public':
-        return 'Public Group';
+        return 'Public Workspace';
       case 'private':
-        return 'Private Group';
+        return 'Private Workspace';
       case 'secret':
-        return 'Secret Group';
+        return 'Secret Workspace';
       default:
         return undefined;
     }
@@ -268,7 +268,7 @@ export function GroupPreviewPane({
         >
           <ListItem.GroupIcon model={group} size="$9xl" />
           <Text size="$label/3xl" textAlign="center">
-            {title ?? 'Untitled group'}
+            {title ?? 'Untitled workspace'}
           </Text>
           {group.hostUserId ? (
             <Text size="$label/m" color="$tertiaryText">
@@ -366,7 +366,7 @@ export function GroupPreviewPane({
 export const GroupPreviewSheet = React.memo(GroupPreviewSheetComponent);
 
 const MISMATCH_DESCRIPTION =
-  "The group host is running an incompatible version of the app. You won't be able to join until one of you updates.";
+  "The workspace host is running an incompatible version of the app. You won't be able to join until one of you updates.";
 
 const cancelJoinButton = (onPress: () => void): GroupActionButton => ({
   title: 'Cancel join',
@@ -396,7 +396,7 @@ export function getActionGroups(
   if (status.isMember) {
     return [
       {
-        title: 'Go to group',
+        title: 'Go to workspace',
         accent: 'heroPositive',
         onPress: actions.goToGroup,
       },
@@ -420,7 +420,7 @@ export function getActionGroups(
         disabled: true,
         description: status.isProtocolMismatch
           ? MISMATCH_DESCRIPTION
-          : 'Something went wrong while trying to join this group.',
+          : 'Something went wrong while trying to join this workspace.',
       },
       cancelJoinButton(actions.cancelJoin),
     ];
@@ -444,10 +444,10 @@ export function getActionGroups(
   if (status.isSecret && !status.hasInvite) {
     return [
       {
-        title: 'This group is secret',
+        title: 'This workspace is secret',
         accent: 'secondary',
         disabled: true,
-        description: 'You need an invite to join this group',
+        description: 'You need an invite to join this workspace',
       },
     ];
   }
@@ -480,7 +480,7 @@ export function getActionGroups(
   }
   return [
     {
-      title: 'Join group',
+      title: 'Join workspace',
       accent: status.isProtocolMismatch ? 'disabled' : 'heroPositive',
       disabled: status.isProtocolMismatch,
       onPress: status.isProtocolMismatch ? undefined : actions.joinGroup,

@@ -52,7 +52,7 @@ export function ChannelDetailsScreenView({
   const canInvite =
     (currentUserIsAdmin && actionsEnabled) || group?.privacy === 'public';
 
-  const groupTitle = useGroupTitle(group) ?? 'group';
+  const groupTitle = useGroupTitle(group) ?? 'workspace';
   const title = useChatTitle(channel, group);
   const insets = useSafeAreaInsets();
 
@@ -70,7 +70,7 @@ export function ChannelDetailsScreenView({
       default:
         return group
           ? group.channels?.length === 1
-            ? `Group with ${group.members?.length ?? 0} members`
+            ? `Workspace with ${group.members?.length ?? 0} members`
             : `Channel in ${groupTitle}`
           : '';
     }

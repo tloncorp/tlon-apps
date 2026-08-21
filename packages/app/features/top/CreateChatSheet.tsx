@@ -86,15 +86,15 @@ const CHAT_TYPE_CONFIG = {
     actionDescription: 'Create a new chat with one other person',
   },
   group: {
-    title: 'New group',
+    title: 'New workspace',
     subtitle: 'Select contacts to invite',
-    actionTitle: 'New group',
-    actionDescription: 'Create a customizable group chat',
+    actionTitle: 'New workspace',
+    actionDescription: 'Create a customizable workspace',
   },
   joinGroup: {
-    title: 'Join a group',
-    subtitle: 'Join a group chat with a code (reference)',
-    actionTitle: 'Join a group with a code (reference)',
+    title: 'Join a workspace',
+    subtitle: 'Join a workspace with a code (reference)',
+    actionTitle: 'Join a workspace with a code (reference)',
     actionDescription: 'Join with a code (reference)',
   },
 } as const;
@@ -168,7 +168,7 @@ const JoinGroupByIdPane = ({ open, close }: JoinGroupByIdPaneProps) => {
               alignItems="center"
               padding="$l"
             >
-              <Text>Group not found</Text>
+              <Text>Workspace not found</Text>
             </View>
           ) : (
             <View
@@ -177,7 +177,7 @@ const JoinGroupByIdPane = ({ open, close }: JoinGroupByIdPaneProps) => {
               alignItems="center"
               padding="$l"
             >
-              <Text>Group not found</Text>
+              <Text>Workspace not found</Text>
             </View>
           )}
         </View>
@@ -186,7 +186,7 @@ const JoinGroupByIdPane = ({ open, close }: JoinGroupByIdPaneProps) => {
           accent={
             groupCode ? (isCodeValid ? 'positive' : 'negative') : undefined
           }
-          placeholder="Enter group code"
+          placeholder="Enter workspace code"
           onChangeText={setGroupCode}
           value={groupCode}
           spellCheck={false}
@@ -264,7 +264,7 @@ const CreateChatFormContent = ({
             marginTop="$l"
             onPress={onCreateGroup}
             loading={isCreating}
-            label={isCreating ? '' : 'Create group'}
+            label={isCreating ? '' : 'Create workspace'}
             centered
           />
         )}
@@ -340,7 +340,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         option: groupType,
       });
       if (groupType === 'quick') {
-        // Quick group goes to member selection without template
+        // Quick workspace goes to member selection without template
         setSelectedTemplateId(undefined);
         setStep('createGroup');
       } else if (groupType === 'template' && templateId) {

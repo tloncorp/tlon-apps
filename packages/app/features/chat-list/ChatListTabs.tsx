@@ -17,7 +17,7 @@ export function ChatListTabs({
       </Tabs.Tab>
       <Tabs.Tab name="groups" activeTab={activeTab} onTabPress={onPressTab}>
         <Tabs.Title cursor="pointer" active={activeTab === 'groups'}>
-          Groups
+          Workspaces
         </Tabs.Title>
       </Tabs.Tab>
       <Tabs.Tab name="messages" activeTab={activeTab} onTabPress={onPressTab}>

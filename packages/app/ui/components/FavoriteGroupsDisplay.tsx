@@ -47,8 +47,8 @@ export function FavoriteGroupsDisplay(props: {
       <XStack justifyContent="center">
         <SizableText size="$s" color="$tertiaryText">
           {props.groups.length >= 5
-            ? `No more groups can be selected (max 5)`
-            : `Choose up to ${5 - props.groups.length} more groups`}
+            ? `No more workspaces can be selected (max 5)`
+            : `Choose up to ${5 - props.groups.length} more workspaces`}
         </SizableText>
       </XStack>
     );
@@ -96,7 +96,7 @@ export function FavoriteGroupsDisplay(props: {
       <Pressable borderRadius="$xl" onPress={() => setSelectorOpen(true)}>
         <ListItem padding="$m" backgroundColor="unset">
           <ListItem.MainContent>
-            <ListItem.Title>Add a group</ListItem.Title>
+            <ListItem.Title>Add a workspace</ListItem.Title>
           </ListItem.MainContent>
           <ListItem.EndContent backgroundColor="unset">
             <ListItem.SystemIcon

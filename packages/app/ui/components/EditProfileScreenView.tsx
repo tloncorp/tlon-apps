@@ -361,7 +361,7 @@ export function EditProfileScreenView(props: Props) {
                     }}
                   />
                 </View>
-                <Field label="Pinned groups">
+                <Field label="Pinned workspaces">
                   <FavoriteGroupsDisplay
                     groups={pinnedGroups}
                     onUpdate={handleUpdatePinnedGroups}

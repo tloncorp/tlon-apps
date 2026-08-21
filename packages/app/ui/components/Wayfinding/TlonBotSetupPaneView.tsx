@@ -10,9 +10,9 @@ const noop = () => {};
 const SETUP_MESSAGES = [
   'This will take a bit. Feel free to background the app.',
   "We'll send you a notification when it's ready.",
-  'Mention your bot with @ to use it in groups.',
+  'Mention your bot with @ to use it in workspaces.',
   'You can set up recurring reminders with your bot.',
-  'Use your bot to get updates from your group chats.',
+  'Use your bot to get updates from your workspace chats.',
   'Your bot can process images and search the web.',
 ];
 

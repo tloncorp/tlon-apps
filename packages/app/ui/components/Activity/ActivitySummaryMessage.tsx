@@ -116,7 +116,7 @@ function SummaryMessageRaw({
   }
 
   if (relevancy === 'flaggedPost') {
-    const message = ` flagged a ${postName(newest)} in your group`;
+    const message = ` flagged a ${postName(newest)} in your workspace`;
     return (
       <SummaryText>
         <ActivitySummaryAuthorList contactIds={authors} />
@@ -126,7 +126,7 @@ function SummaryMessageRaw({
   }
 
   if (relevancy === 'flaggedReply') {
-    const message = ` flagged a reply in your group`;
+    const message = ` flagged a reply in your workspace`;
     return (
       <SummaryText>
         <ActivitySummaryAuthorList contactIds={authors} />
@@ -139,7 +139,7 @@ function SummaryMessageRaw({
     return (
       <SummaryText>
         <ActivitySummaryAuthorList contactIds={authors} />
-        {` ${shipsPlural ? 'are' : 'is'} requesting to join the group`}
+        {` ${shipsPlural ? 'are' : 'is'} requesting to join the workspace`}
       </SummaryText>
     );
   }
@@ -206,7 +206,7 @@ function contactUpdateNoun(event: db.ActivityEvent) {
     return '';
   }
   if (event.contactUpdateType === 'pinnedGroups') {
-    return 'favorite groups';
+    return 'favorite workspaces';
   }
 
   if (event.contactUpdateType === 'avatarImage') {

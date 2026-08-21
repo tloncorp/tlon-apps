@@ -35,7 +35,7 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
   const handleForwardToChannel = useCallback(
     async (channel: db.Channel) => {
       if (!group) {
-        throw new Error('Missing group');
+        throw new Error('Missing workspace');
       }
       await forwardGroup({
         groupId: group.id,
@@ -48,8 +48,8 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
     isOpen,
     onClose: () => handleOpenChange(false),
     onForwardToChannel: handleForwardToChannel,
-    successMessage: (channelTitle) => `Forwarded group to ${channelTitle}`,
-    failureMessage: 'Failed to forward group',
+    successMessage: (channelTitle) => `Forwarded workspace to ${channelTitle}`,
+    failureMessage: 'Failed to forward workspace',
   });
 
   const contextValue = useMemo(() => ({ open: handleOpen }), [handleOpen]);
@@ -59,7 +59,7 @@ export const ForwardGroupSheetProvider = ({ children }: PropsWithChildren) => {
       <ForwardToChannelSheet
         open={isOpen}
         onOpenChange={handleOpenChange}
-        title="Forward group"
+        title="Forward workspace"
         onChannelSelected={handleChannelSelected}
         footerComponent={renderFooter}
       />

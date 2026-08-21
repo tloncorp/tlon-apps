@@ -48,7 +48,7 @@ export function ReadOnlyNotice({
     ) : type === 'no-longer-read' ? (
       <>You no longer have permission to read this channel.</>
     ) : type === 'group-deleted' ? (
-      <>This group no longer exists.</>
+      <>This workspace no longer exists.</>
     ) : (
       <>
         Your node&apos;s version of the Tlon app doesn&apos;t match the{' '}

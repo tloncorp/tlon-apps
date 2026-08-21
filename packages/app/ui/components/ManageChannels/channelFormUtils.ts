@@ -17,7 +17,7 @@ export interface RoleOption {
 }
 
 // Special marker for members without explicit roles
-// In the backend, an empty readers/writers array means "accessible by all group members"
+// In the backend, an empty readers/writers array means "accessible by all workspace members"
 // We use a special string marker in the UI to represent this "Members" concept
 export const MEMBERS_MARKER = '__MEMBERS_MARKER__';
 

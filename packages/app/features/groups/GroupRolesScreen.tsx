@@ -81,7 +81,7 @@ function GroupRolesScreenView({
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         backAction={handleGoBack}
-        title={'Group Roles'}
+        title={'Workspace Roles'}
         backgroundColor="$secondaryBackground"
         useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={
@@ -157,7 +157,7 @@ function GroupRolesScreenView({
           >
             <ActionSheet.ActionContent>
               <ActionSheet.ActionTitle>Members</ActionSheet.ActionTitle>
-              <ListItem.Subtitle>All group members</ListItem.Subtitle>
+              <ListItem.Subtitle>All workspace members</ListItem.Subtitle>
             </ActionSheet.ActionContent>
             <ListItem.EndContent
               flexDirection="row"

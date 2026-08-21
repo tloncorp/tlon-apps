@@ -52,10 +52,10 @@ export function EmptyChannelNotice({
   const isSingleChannelGroup = (group?.channels?.length ?? 0) <= 1;
   const title = useChatTitle(channel, group);
   const displayTitle =
-    !title || title === 'Untitled group' ? 'your group' : title;
+    !title || title === 'Untitled workspace' ? 'your workspace' : title;
   const headingTitle = useMemo(() => {
     if (channel.type === 'dm') return 'your direct message';
-    if (!title || title === 'Untitled group') return 'your group';
+    if (!title || title === 'Untitled workspace') return 'your workspace';
     if (
       !isSingleChannelGroup &&
       group?.title &&
@@ -168,7 +168,7 @@ export function EmptyChannelNotice({
           <Button
             fill="text"
             intent="positive"
-            label={isSingleChannelGroup ? 'Edit group' : 'Edit channel'}
+            label={isSingleChannelGroup ? 'Edit workspace' : 'Edit channel'}
             testID={
               isSingleChannelGroup
                 ? 'EmptyChannelEditGroupButton'

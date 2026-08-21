@@ -392,7 +392,7 @@ function ConnectContactBookContent(props: {
         >
           <SplashParagraph>
             When your friends join, they get their own private personal server
-            too. Post together with peace of mind, for as long as your group
+            too. Post together with peace of mind, for as long as your workspace
             exists.
           </SplashParagraph>
           {shouldShowConnectOption && (

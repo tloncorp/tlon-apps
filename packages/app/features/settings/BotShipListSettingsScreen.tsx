@@ -46,10 +46,10 @@ const shipListMeta: Record<
     addSubtitle: 'Select a contact or enter any @p to authorize.',
   },
   groupInviteAllowlist: {
-    title: 'Can invite to groups',
+    title: 'Can invite to workspaces',
     listTitle: 'Invite allowlist',
-    description: 'These users can invite Tlonbot to groups.',
-    addSubtitle: 'Select a contact or enter any @p to allow group invites.',
+    description: 'These users can invite Tlonbot to workspaces.',
+    addSubtitle: 'Select a contact or enter any @p to allow workspace invites.',
   },
 };
 

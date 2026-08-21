@@ -316,7 +316,7 @@ export function GroupOptionsSheetContent({
         [
           'neutral',
           {
-            title: 'Group notifications',
+            title: 'Workspace notifications',
             description: notificationTitle,
             action: onPressNotifications,
             endIcon: 'ChevronRight',
@@ -348,10 +348,10 @@ export function GroupOptionsSheetContent({
             : {
                 accent: 'disabled',
                 title: 'Invites disabled',
-                description: 'Only admins may invite people to this group.',
+                description: 'Only admins may invite people to this workspace.',
               },
           {
-            title: 'Group info & settings',
+            title: 'Workspace info & settings',
             action: wrappedAction.bind(null, handlePressChatDetails, false),
             endIcon: 'ChevronRight',
             testID: 'GroupOptionsGroupInfoButton',
@@ -464,7 +464,7 @@ function EditGroupSheetContent({
       createActionGroups([
         'neutral',
         {
-          title: 'Edit group info',
+          title: 'Edit workspace info',
           description: 'Change name, description, and image',
           action: wrappedAction.bind(null, onPressGroupMeta, false),
           endIcon: 'ChevronRight',
@@ -472,13 +472,13 @@ function EditGroupSheetContent({
         },
         {
           title: 'Manage channels',
-          description: 'Add or remove channels in this group',
+          description: 'Add or remove channels in this workspace',
           action: wrappedAction.bind(null, onPressManageChannels, false),
           endIcon: 'ChevronRight',
         },
         {
           title: 'Privacy',
-          description: 'Change who can find or join this group',
+          description: 'Change who can find or join this workspace',
           action: wrappedAction.bind(null, onPressGroupPrivacy, false),
           endIcon: 'ChevronRight',
         },
@@ -501,7 +501,7 @@ function EditGroupSheetContent({
   return (
     <ChatOptionsSheetContent
       title={'Edit ' + chatTitle}
-      subtitle="Edit group details"
+      subtitle="Edit workspace details"
       actionGroups={editActions}
       icon={<SheetBackButton onPress={onPressBack} />}
     />
@@ -535,7 +535,7 @@ const ChannelOptionsSheetLoader = memo(
     const { data: group } = store.useGroup({
       id: groupId,
     });
-    const groupTitle = utils.useGroupTitle(group) ?? 'group';
+    const groupTitle = utils.useGroupTitle(group) ?? 'workspace';
     const channelTitle =
       utils.useChannelTitle(channelQuery.data ?? null) ?? 'channel';
     const isSingleChannelGroup = group?.channels.length === 1;
@@ -645,7 +645,7 @@ export function ChannelOptionsSheetContent({
   const currentUserIsChannelHost = channel.currentUserIsHost ?? false;
   const channelActionCapabilities = utils.getChannelActionCapabilities(channel);
 
-  const groupTitle = utils.useGroupTitle(group) ?? 'group';
+  const groupTitle = utils.useGroupTitle(group) ?? 'workspace';
   const isSingleChannelGroup = group?.channels?.length === 1;
   // third-party channels (e.g. notes) have no %channels/%activity unreads, so
   // mark-read doesn't apply
@@ -655,7 +655,7 @@ export function ChannelOptionsSheetContent({
 
   const handlePressGroupDetails = useCallback(() => {
     if (!group) {
-      throw new Error("Channel doesn't have a group");
+      throw new Error("Channel doesn't have a workspace");
     }
     onPressChatDetails({ type: 'group', id: group.id });
   }, [group, onPressChatDetails]);
@@ -707,7 +707,7 @@ export function ChannelOptionsSheetContent({
         channel.type === 'groupDm' && [
           'neutral',
           {
-            title: 'Edit group info',
+            title: 'Edit workspace info',
             endIcon: 'ChevronRight',
             action: wrappedAction.bind(null, onPressChannelMeta, false),
           },
@@ -725,7 +725,7 @@ export function ChannelOptionsSheetContent({
             endIcon: 'ChevronRight',
           },
           {
-            title: 'Group info & settings',
+            title: 'Workspace info & settings',
             action: wrappedAction.bind(null, handlePressGroupDetails, false),
             endIcon: 'ChevronRight',
             testID: 'GroupOptionsGroupInfoButton',
@@ -795,7 +795,7 @@ export function ChannelOptionsSheetContent({
       default:
         return group
           ? isSingleChannelGroup
-            ? `Group with ${group.members?.length ?? 0} members`
+            ? `Workspace with ${group.members?.length ?? 0} members`
             : `Channel in ${groupTitle}`
           : '';
     }

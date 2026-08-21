@@ -203,7 +203,7 @@ export function ProfileSheet({
 
   const handleKickUser = useCallback(() => {
     const displayName = contact?.nickname || contactId;
-    const message = `This user will be removed from the group.\n\nWarning: Kicking this user will invalidate all the invitations they've sent.`;
+    const message = `This user will be removed from the workspace.\n\nWarning: Kicking this user will invalidate all the invitations they've sent.`;
 
     if (isWeb) {
       const confirmed = window.confirm(`Kick ${displayName}?\n\n${message}`);

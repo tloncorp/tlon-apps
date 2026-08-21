@@ -131,7 +131,7 @@ export function getGroupTitle(
   const havePermission = group.haveInvite || group.joinStatus === 'joining';
 
   if (group?.privacy === 'secret' && nonMember && !havePermission) {
-    return 'Secret Group';
+    return 'Secret Workspace';
   }
 
   if (group?.title && group?.title !== '') {
@@ -145,12 +145,12 @@ export function getGroupTitle(
     );
   } else if (nonMember) {
     if (group?.members?.length === 1) {
-      return `New group by ${getChannelMemberName(group?.members[0], disableNicknames)}`;
+      return `New workspace by ${getChannelMemberName(group?.members[0], disableNicknames)}`;
     } else {
-      return 'New group';
+      return 'New workspace';
     }
   } else {
-    return 'Untitled group';
+    return 'Untitled workspace';
   }
 }
 

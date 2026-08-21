@@ -195,7 +195,7 @@ const getChangeLabels = (pending: BotSettingsPendingFields): string[] => {
   if (pending.fallbacks) labels.push('Fallback models');
   if (pending.dmAllowlist) labels.push('DM allowlist');
   if (pending.defaultAuthorizedShips) labels.push('Authorized ships');
-  if (pending.groupInviteAllowlist) labels.push('Group invites');
+  if (pending.groupInviteAllowlist) labels.push('Workspace invites');
   if (pending.autoAcceptDmInvites) labels.push('DM invites');
   if (pending.autoDiscoverChannels) labels.push('Auto-discover');
   if (pending.channelRules) labels.push('Channel rules');

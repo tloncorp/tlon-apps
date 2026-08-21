@@ -572,12 +572,12 @@ export function LeaveActionsSection({
 
   const chatTitle =
     entityType === 'group'
-      ? groupTitle ?? 'group'
+      ? groupTitle ?? 'workspace'
       : channel?.title ?? 'channel';
 
   const handleLeaveWithConfirm = useCallback(async () => {
     if (entityType === 'group') {
-      const message = `You will no longer receive updates from this group.\n\nWarning: Leaving this group will invalidate any invitations you've sent.`;
+      const message = `You will no longer receive updates from this workspace.\n\nWarning: Leaving this workspace will invalidate any invitations you've sent.`;
 
       if (isWeb) {
         const confirmed = window.confirm(`Leave ${chatTitle}?\n\n${message}`);
@@ -587,7 +587,11 @@ export function LeaveActionsSection({
       } else {
         Alert.alert(`Leave ${chatTitle}?`, message, [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Leave Group', style: 'destructive', onPress: leaveGroup },
+          {
+            text: 'Leave Workspace',
+            style: 'destructive',
+            onPress: leaveGroup,
+          },
         ]);
       }
     } else {
@@ -631,11 +635,11 @@ export function LeaveActionsSection({
   const leaveActions = createActionGroup(
     'negative',
     canLeave && {
-      title: entityType === 'group' ? 'Leave group' : 'Leave channel',
+      title: entityType === 'group' ? 'Leave workspace' : 'Leave channel',
       action: handleLeaveWithConfirm,
     },
     canDelete && {
-      title: entityType === 'group' ? 'Delete group' : 'Delete channel',
+      title: entityType === 'group' ? 'Delete workspace' : 'Delete channel',
       action: () => setShowDeleteDialog(true),
     }
   );
@@ -670,7 +674,9 @@ export function LeaveActionsSection({
         onOpenChange={setShowDeleteDialog}
         title={`Delete ${chatTitle}?`}
         description={deleteDescription}
-        confirmText={entityType === 'group' ? 'Delete group' : 'Delete channel'}
+        confirmText={
+          entityType === 'group' ? 'Delete workspace' : 'Delete channel'
+        }
         cancelText="Cancel"
         onConfirm={handleDelete}
         destructive

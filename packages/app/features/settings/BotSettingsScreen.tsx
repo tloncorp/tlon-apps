@@ -304,7 +304,7 @@ export function BotSettingsScreen(props: Props) {
             />
             <BotSettingsDivider />
             <BotSwitchRow
-              label="Auto-discover group channels"
+              label="Auto-discover workspace channels"
               description="Index new channels you join"
               checked={draft.chat.autoDiscoverChannels}
               disabled={controlsReadOnly}
@@ -337,7 +337,7 @@ export function BotSettingsScreen(props: Props) {
             />
             <BotSettingsDivider />
             <BotSettingsRow
-              label="Can invite to groups"
+              label="Can invite to workspaces"
               value={userCount(
                 normalizeShipList(draft.chat.groupInviteAllowlist).length
               )}

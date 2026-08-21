@@ -133,8 +133,8 @@ function GroupChannels(props: { group: db.Group }) {
     >
       <NoticeContainer gap="$xl">
         <NoticeText>
-          Welcome to your group! We’ve created three basic channels to get you
-          started. Tap into each to explore how Tlon Messenger works.
+          Welcome to your workspace! We’ve created three basic channels to get
+          you started. Tap into each to explore how Tlon Messenger works.
         </NoticeText>
         <InviteFriendsToTlonButton group={props.group} />
       </NoticeContainer>
@@ -147,8 +147,8 @@ function CustomizeGroup() {
     <View marginHorizontal="$2xl">
       <NoticeContainer>
         <NoticeText>
-          You can customize the appearance of your group before you send it to
-          your friends.
+          You can customize the appearance of your workspace before you send it
+          to your friends.
         </NoticeText>
       </NoticeContainer>
     </View>
@@ -182,8 +182,8 @@ export function HomeAddTooltip({ top = 36 }: { top?: number }) {
         >
           <Text size="$label/l" color="$white">
             {botEnabled
-              ? 'Tap here to create a new group and invite your Tlonbot.'
-              : 'Tap here to create a new group.'}
+              ? 'Tap here to create a new workspace and invite your Tlonbot.'
+              : 'Tap here to create a new workspace.'}
           </Text>
           <View position="absolute" top={8} right={8} padding={4}>
             <Icon

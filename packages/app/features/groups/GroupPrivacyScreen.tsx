@@ -22,12 +22,12 @@ const privacyOptions = [
   {
     title: 'Public',
     value: 'public',
-    description: 'Anyone can join this group without needing an invite.',
+    description: 'Anyone can join this workspace without needing an invite.',
   },
   {
     title: 'Private',
     value: 'private',
-    description: 'Users must be invited to join this group.',
+    description: 'Users must be invited to join this workspace.',
   },
   {
     title: 'Secret',
@@ -61,7 +61,7 @@ export function GroupPrivacyScreen(props: Props) {
   return (
     <View backgroundColor={'$secondaryBackground'} flex={1}>
       <ScreenHeader
-        title="Group privacy"
+        title="Workspace privacy"
         backgroundColor={'$secondaryBackground'}
         backAction={handleGoBack}
         useHorizontalTitleLayout={!isWindowNarrow}
