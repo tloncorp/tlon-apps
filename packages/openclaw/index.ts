@@ -9,12 +9,12 @@ import {
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
 import { tlonPlugin } from './src/channel.js';
-import { registerTlonCommands } from './src/commands-registry.js';
 import {
   buildTlonChatProgressSystemContext,
   buildTlonChatProgressTurnContext,
   shouldInjectTlonChatProgress,
 } from './src/chat-progress-guidance.js';
+import { registerTlonCommands } from './src/commands-registry.js';
 import { registerContextLensAgentEvents } from './src/context-lens-agent-events.js';
 import { publishContextLensEvent } from './src/context-lens-events.js';
 import { registerContextLensRoutes } from './src/context-lens-routes.js';
