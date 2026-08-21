@@ -1,4 +1,4 @@
-import { Clubs, ContactRolodex, Group } from '@tloncorp/api/urbit';
+import { Clubs, Group } from '@tloncorp/api/urbit';
 
 declare global {
   interface Window {
@@ -7,7 +7,6 @@ declare global {
     our: string;
     group: Group;
     multiDms: Clubs;
-    contacts: ContactRolodex;
     contentInjected: boolean;
   }
 }
