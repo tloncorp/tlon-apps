@@ -1,14 +1,21 @@
-::  tests for %steward agent (lens module + gateway module)
+::  tests for %steward agent (lens module + gateway module + roster module)
 ::
 /-  s=steward, a=activity, av=activity-ver
 /-  l=steward-lens
 /-  g=steward-gateway
+/-  r=steward-roster
+/-  v=vouch, ct=contacts
 /+  *test-agent
 /=  agent  /app/steward
 |%
 ++  dap  %steward
-::  agent state — single version (greenfield, no migration). `bots` is the
-::  owner-side trusted set.
+::  agent state, mirroring the app's own versioned-state. state-0 is the
+::  pre-roster shape, kept around only to exercise the 0->1 migration;
+::  live state is always state-1 (on-init bunts state-1 directly).
+::
+::    .owner: shared owner ship (lens send target, gateway owner-DM tracking)
+::    .bots:  owner-side trusted bots — ships allowed to send lens %entry
+::            pokes cross-ship.
 ::
 +$  state-0
   $:  %0
@@ -16,6 +23,15 @@
       bots=(set ship)
       lens=state:v1:l
       gateway=state:v1:g
+  ==
+::
++$  state-1
+  $:  %1
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:l
+      gateway=state:v1:g
+      roster=state:v1:r
   ==
 ::  lens run payloads are opaque $json; a simple value suffices for tests
 ::
@@ -28,11 +44,16 @@
 ::
 ++  moon  ^-  ship  (add ~dev (bex 32))
 ::
+::  the roster module's moon-pick checks jael's %ryft scry for a collision;
+::  ~ (outer unit backtick, inner (unit rift) null) means "unregistered,
+::  free to use" for every candidate ship in tests.
+::
 ++  scries
   |=  =path
   ^-  (unit vase)
   ?+  path  ~
     [%gu @ %activity @ %$ ~]  `!>(&)
+    [%j @ %ryft @ @ ~]        `!>(`(unit rift)`~)
   ==
 ::
 ++  setup
@@ -97,7 +118,7 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
 ::
 ::  a completely foreign ship (not ourselves) must crash the local-only
@@ -360,7 +381,7 @@
   ;<  *  bind:m
     (do-poke %steward-lens-action-1 !>(`action:v1:l`[%configure 1]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   (ex-equal !>(~(wyt by runs.lens.st)) !>(1))
 ::
 ::  /x/v1/lens/since/[da] returns entries with received >= cutoff, newest
@@ -500,7 +521,7 @@
     :~  (ex-task /activity [~dev %activity] %watch /v5)
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`3.000))
 ::
 ++  test-watch-rejects-foreign-ship
@@ -550,7 +571,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup-gateway
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(active-window.gateway.st) !>(~m5))
   (ex-equal !>(reply-cooldown.gateway.st) !>(~m5))
 ::
@@ -576,7 +597,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(lease-until.gateway.st) !>(`lease-time))
 ::
@@ -594,7 +615,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(|))
   (ex-equal !>(lease-until.gateway.st) !>(`new-lease))
@@ -610,7 +631,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -625,7 +646,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-old' 'stale']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(`'boot-1'))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
@@ -644,7 +665,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(~))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
@@ -660,7 +681,7 @@
   ;<  ~  bind:m  (wait ~s91)
   ;<  *  bind:m  (do-arvo /gateway/lease-check [%behn %wake ~])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -756,13 +777,13 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(&))
   =/  lease-time-2  (add ~2024.1.1 ~m4)
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-2' lease-time-2]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
 ::
@@ -778,4 +799,189 @@
   =+  !<([=status:v1:g lut=(unit @da)] q.res)
   ;<  ~  bind:m  (ex-equal !>(status) !>(%up))
   (ex-equal !>(lut) !>(`lease-time))
+::
+::  ==========================================================
+::  ROSTER MODULE TESTS
+::  ==========================================================
+::
+::  roster tests use their own host ship, ~sampel-palnet -- a planet, unlike
+::  the galaxy ~dev the lens/gateway tests use above -- since minting a bot
+::  moon needs a ship class that can actually sponsor one (galaxy/star/
+::  planet all qualify; a moon or comet cannot).
+::
+::  the minted moon's @p (and its keypair) are fully deterministic from
+::  .eny.bowl, which the test harness bunts to 0 and never mutates. so the
+::  expected mon/pass here use the exact same formulas as
+::  ro-pick-moon/ro-handle-mint in the app, seeded with eny=0 and the
+::  first-try (tries=0) candidate.
+::
+++  roster-mon  ^-  ship  (add ~sampel-palnet (lsh 5 (end 5 (shaz 0))))
+++  roster-pass
+  ^-  pass
+  pub:ex:(pit:nu:cric:crypto 512 (shaz (jam roster-mon 1 0)) %b ~)
+::
+++  roster-contact
+  |=  [nickname=@t avatar=(unit @t)]
+  ^-  contact:ct
+  %-  malt
+  ^-  (list (pair @tas value:ct))
+  =/  base  [%nickname [%text nickname]]~
+  ?~  avatar  base
+  [[%avatar [%look u.avatar]] base]
+::
+++  minted-bot
+  ^-  bot:v1:r
+  ['Bot' ~ 'gpt' 'openclaw' 'default' ~2024.1.1]
+::
+++  setup-roster
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~sampel-palnet, src ~sampel-palnet)))
+  ;<  *  bind:m  (do-init dap agent)
+  ::  do-init resets the bowl, so set the clock after it
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.1)))
+  (pure:m ~)
+::
+++  mint-default
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  %+  do-poke  %steward-roster-action-1
+  !>(`action:v1:r`[%mint 'Bot' ~ 'gpt' 'openclaw' 'default'])
+::
+++  test-roster-mint
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-roster
+  ;<  caz=(list card)  bind:m  mint-default
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-arvo
+        :-  /roster/mint/(scot %p roster-mon)
+        [%j %moon roster-mon *id:block:jael %keys [1 1 roster-pass] %.n]
+      ::
+        %-  ex-poke
+        :*  /roster/vouch/(scot %p roster-mon)
+            [~sampel-palnet %vouch]
+            %vouch-learn
+            !>(`learn:v`[roster-mon %bot])
+        ==
+      ::
+        %-  ex-poke
+        :*  /roster/profile/(scot %p roster-mon)
+            [~sampel-palnet %contacts]
+            %contact-bot-0
+            !>(`[who=ship con=contact:ct]`[roster-mon (roster-contact 'Bot' ~)])
+        ==
+      ::
+        %-  ex-fact
+        :*  ~[/v1/roster]
+            %steward-roster-update-1
+            !>(`update:v1:r`[%minted roster-mon minted-bot])
+        ==
+    ==
+  ;<  res=cage  bind:m  (got-peek /x/v1/roster/(scot %p roster-mon))
+  =+  !<(=bot:v1:r q.res)
+  (ex-equal !>(bot) !>(minted-bot))
+::
+++  test-roster-mint-foreign-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-roster
+  %-  ex-fail
+  %-  (do-as ~bus)
+  (do-poke %steward-roster-action-1 !>(`action:v1:r`[%mint 'Bot' ~ 'gpt' 'openclaw' 'default']))
+::
+::  a ship that cannot sponsor a moon (here, a moon of ~sampel-palnet) must
+::  not be able to mint one, even when poking itself locally
+::
+++  test-roster-mint-from-moon-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  host-moon  (add ~sampel-palnet (bex 32))
+  ;<  ~  bind:m  (set-scry-gate scries)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our host-moon, src host-moon)))
+  ;<  *  bind:m  (do-init dap agent)
+  %-  ex-fail
+  (do-poke %steward-roster-action-1 !>(`action:v1:r`[%mint 'Bot' ~ 'gpt' 'openclaw' 'default']))
+::
+++  test-roster-configure-and-retire
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-roster
+  ;<  *  bind:m  mint-default
+  =/  reconfigured=bot:v1:r
+    ['Bot2' `'https://x.example/a.png' 'gpt2' 'openclaw2' 'p2' ~2024.1.1]
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %steward-roster-action-1
+    !>  ^-  action:v1:r
+    [%configure roster-mon 'Bot2' `'https://x.example/a.png' 'gpt2' 'openclaw2' 'p2']
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  /roster/profile/(scot %p roster-mon)
+            [~sampel-palnet %contacts]
+            %contact-bot-0
+            !>(`[who=ship con=contact:ct]`[roster-mon (roster-contact 'Bot2' `'https://x.example/a.png')])
+        ==
+      ::
+        %-  ex-fact
+        :*  ~[/v1/roster]
+            %steward-roster-update-1
+            !>(`update:v1:r`[%configured roster-mon reconfigured])
+        ==
+    ==
+  ;<  res=cage  bind:m  (got-peek /x/v1/roster/(scot %p roster-mon))
+  =+  !<(=bot:v1:r q.res)
+  ;<  ~  bind:m  (ex-equal !>(bot) !>(reconfigured))
+  ;<  caz2=(list card)  bind:m
+    (do-poke %steward-roster-action-1 !>(`action:v1:r`[%retire roster-mon]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz2
+    :~  %-  ex-fact
+        :*  ~[/v1/roster]
+            %steward-roster-update-1
+            !>(`update:v1:r`[%retired roster-mon])
+        ==
+    ==
+  ;<  gone=(unit (unit cage))  bind:m  (get-peek /x/v1/roster/(scot %p roster-mon))
+  (ex-equal !>(?=([~ ~] gone)) !>(&))
+::
+++  test-roster-watch-init
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup-roster
+  ;<  *  bind:m  mint-default
+  ;<  caz=(list card)  bind:m  (do-watch /v1/roster)
+  %+  ex-cards  caz
+  :~  %-  ex-fact
+      :*  ~
+          %steward-roster-update-1
+          !>  ^-  update:v1:r
+          [%init (~(put by *(map ship bot:v1:r)) roster-mon minted-bot)]
+      ==
+  ==
+::
+::  state-0 -> state-1 migration: an old (pre-roster) save loads cleanly,
+::  preserving .owner/.bots and seeding an empty .roster
+::
+++  test-roster-migrate-state-0-to-1
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (set-scry-gate scries)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
+  =/  s0=state-0
+    [%0 `~bus (~(gas in *(set ship)) moon ~) *state:v1:l *state:v1:g]
+  ;<  *  bind:m  (do-load agent `!>(s0))
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
+  ;<  ~  bind:m  (ex-equal !>(bots.st) !>((~(gas in *(set ship)) moon ~)))
+  (ex-equal !>(bots.roster.st) !>(*(map ship bot:v1:r)))
 --

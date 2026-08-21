@@ -11,6 +11,7 @@ Ship-native umbrella agent: the durable, always-on ship-side half of an ephemera
 | (core)    | `sur/steward.hoon`        | `%steward-action-1`                                    |
 | `lens`    | `sur/steward/lens.hoon`   | `%steward-lens-action-1`, `%steward-lens-update-1`     |
 | `gateway` | `sur/steward/gateway.hoon`| `%steward-gateway-action-1`, `%steward-gateway-update-1` |
+| `roster`  | `sur/steward/roster.hoon` | `%steward-roster-action-1`, `%steward-roster-update-1` |
 
 Each sur file is versioned on its own (`++v1`), referenced by callers as `action:v1:lens`, `update:v1:gateway`, etc. The core `sur/steward.hoon` carries only cross-cutting config (currently just `%configure`); each module's protocol lives in its own file.
 
@@ -20,19 +21,21 @@ Modules:
 |-----------|------------------------------------------------------------------------|
 | `lens`    | Per-run bot introspection (folded in from the former `%context-lens`). |
 | `gateway` | Harness liveness tracking + offline DM auto-replies.                   |
+| `roster`  | Mints bot moons and tracks their runner config.                       |
 
 The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
 
 ## state model
 
-State is a single `state-0`, defined in the app file (the agent is greenfield, so there is no migration — an unreadable state just resets to bunt). Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
+State is versioned (`state-0` → `state-1`), defined in the app file. `state-1` added the `roster` module slice; loading an old `state-0` lifts it in with a bunted roster (a real migration, not a reset-to-bunt — steward now runs on live hosted ships with meaningful gateway lease state to preserve). Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
 
 ```
-state-0
+state-1
   owner    (unit ship)                  shared config: bot sends runs to it / its DMs are watched; ~ = inert
   bots     (set ship)                   owner-side trusted bots: who may send lens %entry pokes cross-ship
   lens     state:v1:lens                 stored lens run records (owner role)
   gateway  state:v1:gateway              harness liveness + auto-reply bookkeeping
+  roster   state:v1:roster               minted bot moons and their runner config
 ```
 
 `owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to. `bots` is the owner-side allowlist of ships permitted to fan lens runs in (see the `%entry` gate below); managed via the core `%trust-bot`/`%untrust-bot` pokes.
@@ -77,6 +80,19 @@ The harness reports its lifecycle via the gateway action: `%gateway-start` (with
 While the gateway is not live, a DM from the configured `owner` triggers a canned offline auto-reply to that ship (subject to a dedupe on the triggering message key and a `reply-cooldown`). Around stop/start transitions, a "restarting" / "back online" notice is sent to the owner if they messaged within `active-window`. Inbound owner DMs are observed via a subscription to `%activity /v5`.
 
 `owner` is the shared top-level `(unit ship)`, set via the core `%configure`. This matches `%gateway-status`'s original single-owner model. The gateway action's own `%configure` carries only timing (`active-window`, `reply-cooldown`); the owner is set once at the core level.
+
+## module: roster
+
+Mints bot moons: a bot is a moon that never boots, hosted (and spoken for) by its sponsor. Minting is entirely local — an owner mints its own bots — and does four things in sequence:
+
+1. **Spawn+reserve a moon.** Pick a random 32-bit suffix under `our` (the same shape `|moon` uses), retried up to 16 times against a collision on jael's own `%ryft` scry (non-`~` means keys are already set, from either a real point or a prior `%moon` registration) or our own roster. Register only the *public* half of a freshly derived keypair with jael (`life` 1, crub suite) via a `%moon` task. The private seed is discarded the instant the public key is derived — never slogged, stored, or emitted. This is deliberate: the bot moon is unbootable by design, so nobody (not even the minting ship) can ever assume its identity. If the owner ever wants a real, bootable moon instead, `|moon-cycle-keys` replaces these keys with ones it actually keeps.
+2. **Classify it `%bot` in `%vouch`** (`%vouch-learn [mon %bot]`), so the rest of the system knows to route to it through its host rather than expecting it to ever appear as `src`.
+3. **Publish its `%contacts` profile** (`%contact-bot-0 [mon con]`), built from `.nickname`/`.avatar`, so the bot has an identity in the frontend from the moment it's minted.
+4. **Record its runner config** (`.model`/`.harness`/`.persona`, opaque to steward) in the roster and give a `%minted` fact on `/v1/roster` for the runner (openclaw) to pick up.
+
+If jael's `%moon` registration itself fails (the async `%done` ack carries an error), the moon is rolled back out of the roster and a `%retired` fact is given — the optimistic roster insert at mint time is undone.
+
+`%configure` updates an existing bot's runner config and re-publishes its `%contacts` profile; `.created` is preserved. `%retire` drops a bot from the roster but deliberately does **not** touch `%vouch` — the moon stays classified `%bot` forever, so history involving it (past chat messages, etc.) stays routable/attributable. Only a ship able to sponsor a moon (galaxy, star, or planet) can mint one; a moon or comet has no room under it.
 
 ## poke surface
 
@@ -127,10 +143,27 @@ Only the local gateway drives liveness, so this requires `src == our`.
 [%gateway-stop boot-id=@t reason=@t]                 graceful stop (boot-id must match)
 ```
 
+### `%steward-roster-action-1` (roster) — `src == our`
+
+Minting is driven by the owner from the host frontend (HTTP), so unlike most other steward marks this mark's grab supports both `%noun` and `%json`.
+
+```json
+{ "mint": { "nickname": "Bot", "avatar": null, "model": "gpt", "harness": "openclaw", "persona": "default" } }
+{ "configure": { "ship": "~sampel-palnet-...", "nickname": "Bot", "avatar": null, "model": "gpt", "harness": "openclaw", "persona": "default" } }
+{ "retire": { "ship": "~sampel-palnet-..." } }
+```
+
+```
+[%mint nickname=@t avatar=(unit @t) model=@t harness=@t persona=@t]
+[%configure =ship nickname=@t avatar=(unit @t) model=@t harness=@t persona=@t]
+[%retire =ship]
+```
+
 ## subscription surface
 
 - `/v1/lens` (local only, `?> =(src our)`): `%steward-lens-update-1` facts (`update:v1:lens`, a tagged union) — `%entry` (a stored run, one per insert; the owner-side client reads these) and `%retry-requested` (emitted on the bot ship for its local gateway to re-dispatch). No initial backfill fact — clients scry `/x/v1/lens/recent` for backfill.
 - `/v1/gateway` (local only): `%steward-gateway-update-1` facts (`update:v1:gateway`) — `%status` (on lifecycle transitions, plus an initial fact on subscribe), `%owner-activity`, and `%auto-reply`.
+- `/v1/roster` (local only): `%steward-roster-update-1` facts (`update:v1:roster`) — `%init` (the full roster, given on every new subscription), `%minted`, `%configured`, `%retired`.
 
 ## scry surface
 
@@ -142,6 +175,8 @@ All lens scries return the `%steward-lens-update-1` mark so the HTTP client read
 - `/x/v1/lens/run/[ship]/[id]` → `[%entry entry]`, or empty (`[~ ~]`) when absent.
 - `/x/v1/gateway/status` → `%noun` `[status:v1:gateway (unit @da)]` — current liveness and lease expiry.
 - `/x/v1/gateway/owner-activity` → `%noun` `@da` — timestamp of the most recent owner DM.
+- `/x/v1/roster` → `%noun` `(map ship bot:v1:roster)` — the full roster.
+- `/x/v1/roster/[ship]` → `%noun` `bot:v1:roster`, or empty (`[~ ~]`) when that ship isn't in the roster. Tolerates a trailing mark segment (e.g. `/noun`) like other scries on this branch.
 
 `entry` is `[bot=ship id=@t run]`. The `%entry` update grows to JSON for Eyre, embedding the stored payload directly:
 
@@ -152,8 +187,8 @@ All lens scries return the `%steward-lens-update-1` mark so the HTTP client read
 ## lifecycle and invariants
 
 - `on-init` subscribes to `%activity /v5` for the gateway module and seeds the default lens retention cap. There is no prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` accepts the single `state-0`, else resets to bunt (re-seeding the cap and re-subscribing to `%activity`). The agent is greenfield/unreleased, so there are no migration arms — versioned state + migrations get added back when something actually ships.
-- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
+- `on-load` migrates `state-0` → `state-1` (adding a bunted `roster`) and loads `state-1` as-is otherwise. An unreadable state still crashes — that path is only reachable pre-release.
+- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. Roster mint's jael registration is on `/roster/mint/[moon-p]` (an `%arvo` pass, not an agent poke); its `%vouch`/`%contacts` fan-out are on `/roster/vouch/[moon-p]` and `/roster/profile/[moon-p]`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
 - `on-watch` and `on-peek` assert `=(src our)` — no cross-ship subscriptions or foreign scries. Only the lens poke is ownership-gated (to admit a bot's runs).
 
 ## integration notes
