@@ -118,3 +118,26 @@ history for our *own* profile) — it gives facts directly.
 
 Every request on `/v1/vouch/<moon>` is served, redirected, or nacked — never
 queued.
+
+## Consumer: `%presence`
+
+`%presence` decides routing the same way as `%chat` and `%contacts`, but
+never runs a redirect protocol of its own -- it just re-derives the answer on
+every periodic setup.
+
+A subscriber's `+dm-contexts` consults `%vouch` for each `%earl` DM partner
+that isn't one of its own moons (a self-hosted bot's presence is always
+local, unchanged from before `%vouch` existed): a moon classified `%real` is
+watched directly, like any ship; `%bot` or `%unknown` keeps watching through
+the moon's sponsor on the `/vouched/<moon>/dm/<us>` context. Because setup
+re-runs periodically and always recomputes routing from scratch, once the
+contacts resolver's `%vouch-real` redirect (or organic confirmation) updates
+the local `%vouch` store, the next setup cycle naturally switches the
+subscription to direct -- there is no presence-specific redirect protocol.
+
+On the host side, `+is-participant` additionally requires that the moon
+named in a `/vouched/<moon>/dm/<counterparty>` context actually be
+classified `%bot` by the host's own `%vouch` store, on top of the existing
+sponsor and counterparty checks. A watch for a moon not (yet) classified
+`%bot` is nacked; the subscriber's normal retry/backoff, and the next setup
+cycle, re-decide once classification catches up.

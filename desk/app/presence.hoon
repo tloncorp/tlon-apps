@@ -81,6 +81,19 @@
       =(src (^sein:title who))
   ==
 ::
+::  +vouch-status: ask the %vouch store what we believe .who is. degrades
+::  to %unknown when %vouch isn't installed or the scry otherwise fails.
+::  Mirrors +vouch-status in /app/contacts and +di-vouch-status in /app/chat;
+::  inlined here to avoid pulling in those deps.
+::
+++  vouch-status
+  |=  [who=@p =bowl:gall]
+  ^-  ?(%unknown %real %bot)
+  =/  res
+    %-  mule
+    |.  .^(?(%unknown %real %bot) %gx /(scot %p our.bowl)/vouch/(scot %da now.bowl)/status/(scot %p who)/noun)
+  ?:(?=(%& -.res) p.res %unknown)
+::
 ++  context-host
   |=  [=context our=@p]
   ^-  ship
@@ -101,10 +114,16 @@
     =(src.bowl (slav %p i.t.context))
   ::
     ::  a bot moon we host: the subscriber must be the counterparty named in
-    ::  the context, and .who must be a moon we actually sponsor.
+    ::  the context, .who must be a moon we actually sponsor, and our own
+    ::  %vouch store must classify it a bot (not yet real, not unknown) --
+    ::  otherwise there's nothing to relay, and the subscriber's retry
+    ::  (plus the next setup cycle) re-decides once classification catches
+    ::  up.
       [%vouched @ %dm @ ~]
-    ?&  (vouches-for our.bowl (slav %p i.t.context))
+    =/  moon=@p  (slav %p i.t.context)
+    ?&  (vouches-for our.bowl moon)
         =(src.bowl (slav %p i.t.t.t.context))
+        =(%bot (vouch-status moon bowl))
     ==
   ::
       [%channel @ @ @ ~]
@@ -204,11 +223,25 @@
   %-  ~(run in .^((set ship) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/dm/ships))
   |=  partner=ship
   ^-  [ship context]
-  ::  a bot moon never boots, so watch its presence via its host (sponsor) on
-  ::  the vouched context; the host relays the moon's presence to us.
-  ?:  ?=(%earl (clan:title partner))
-    [(^sein:title partner) /vouched/(scot %p partner)/dm/(scot %p our.bowl)]
-  [partner /dm/(scot %p our.bowl)]
+  ?.  ?=(%earl (clan:title partner))
+    [partner /dm/(scot %p our.bowl)]
+  ::  our own bot moon: presence for it is always self-hosted at the
+  ::  vouched context (+inflate skips subscribing to ourselves, so this
+  ::  never produces an actual outgoing watch -- unchanged from before
+  ::  %vouch was consulted here).
+  ?:  =(our.bowl (^sein:title partner))
+    [our.bowl /vouched/(scot %p partner)/dm/(scot %p our.bowl)]
+  ::  a foreign moon our own %vouch store believes has booted: watch it
+  ::  directly, like any other ship.
+  ?:  =(%real (vouch-status partner bowl))
+    [partner /dm/(scot %p our.bowl)]
+  ::  bot or unknown: it never boots (or we can't yet tell), so watch its
+  ::  presence via its host (sponsor) on the vouched context; the host
+  ::  relays the moon's presence to us. once the contacts resolver's
+  ::  %vouch-real redirect (or organic confirmation) updates our %vouch
+  ::  store, the next setup cycle switches this to a direct watch.
+  ::
+  [(^sein:title partner) /vouched/(scot %p partner)/dm/(scot %p our.bowl)]
 ::
 ++  channel-contexts
   |=  =bowl:gall

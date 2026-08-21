@@ -5,7 +5,7 @@
 ::    prior ones, so a wake from a stale timer must not delete presence
 ::    that fresher %sets have kept alive.
 ::
-/-  p=presence
+/-  p=presence, cv=channels-ver
 /+  *test-agent
 /=  agent  /app/presence
 |%
@@ -105,6 +105,21 @@
 ++  vctx    `context:p`/vouched/(scot %p vmoon)/dm/(scot %p human)
 ++  vkey    `key:p`[vctx vmoon %computing]
 ++  vsub    `path`/context/(scot %p human)/vouched/(scot %p vmoon)/dm/(scot %p human)
+::  a second moon (same sponsor as .vmoon, but a distinct ship), used where
+::  a test needs a moon that %vouch classifies %real instead of %bot.
+++  rmoon   `ship`(add (bex 32) vhost)
+::  a plain (non-moon) ship, for contrast with .vmoon/.rmoon in routing tests
+++  splanet  ~bus
+::  scry mock for %vouch/status of a single moon, used by the host-gate
+::  tests below (+is-participant's vouched arm).
+::
+++  host-vouch-scries
+  |=  status=?(%unknown %real %bot)
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %vouch @ %status @ *] path)
+    `!>(`?(%unknown %real %bot)`status)
+  ~
 ::  the moon's host (us) fans the moon's %computing presence to a human who
 ::  subscribed to us for it, attributing it to the moon.
 ++  test-vouched-presence-host-fans
@@ -113,6 +128,9 @@
   ^-  form:m
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our vhost, src vhost, now t0)))
   ;<  *  bind:m  (do-init dap agent)
+  ::  %vouch classifies the moon a bot, so the host will serve the watch
+  ::
+  ;<  ~  bind:m  (set-scry-gate (host-vouch-scries %bot))
   ::  the human subscribes to the moon's presence via us (its sponsor)
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(src human)))
   ;<  *  bind:m  (do-watch vsub)
@@ -152,6 +170,95 @@
       %+  ex-arvo
         `wire`/expire/(scot %p vmoon)/computing/dm/(scot %p vmoon)
       [%b %wait (add t0 ~m1)]
+  ==
+::  a watch for the vouched context is only served when our own %vouch store
+::  actually classifies the moon a bot -- a moon that has turned out to be
+::  real (or that we simply don't know about yet) gets nothing to relay.
+::  the subscriber's normal watch-nack retry (and the next setup cycle, once
+::  the contacts resolver's %vouch-real redirect updates the store) is
+::  expected to re-decide from there.
+::
+++  test-vouched-presence-host-rejects-real
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our vhost, src vhost, now t0)))
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  ~  bind:m  (set-scry-gate (host-vouch-scries %real))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(src human)))
+  (ex-fail (do-watch vsub))
+::
+++  test-vouched-presence-host-rejects-unknown
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our vhost, src vhost, now t0)))
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  ~  bind:m  (set-scry-gate (host-vouch-scries %unknown))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(src human)))
+  (ex-fail (do-watch vsub))
+::  +setup-scries: mocks for a full %setup inflate -- chat's dm-partner set
+::  (a single .partner), an empty channels map (so +channel-contexts
+::  contributes nothing), and %vouch's classification of .partner.
+::
+++  setup-scries
+  |=  [partner=ship status=?(%unknown %real %bot)]
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %chat @ %dm %ships ~] path)
+    `!>(`(set ship)`(silt ~[partner]))
+  ?:  ?=([%gx @ %channels @ %v4 %channels %channels-4 ~] path)
+    `!>(*channels:v9:cv)
+  ?:  ?=([%gx @ %vouch @ %status @ *] path)
+    `!>(`?(%unknown %real %bot)`status)
+  ~
+::  +exp-watch: the card +watch-context emits, subscribing .human to .ship
+::  for .context.
+::
+++  exp-watch
+  |=  [=ship context=context:p]
+  %^  ex-task  [%context-2 context]  [ship %presence]
+  [%watch-as %presence-update-1 [%context (scot %p human) context]]
+::  a %setup inflate re-derives dm routing from %vouch on every cycle: a
+::  moon classified %bot is watched via its sponsor on the vouched context
+::  (it never boots); a moon already classified %real, or a plain ship, is
+::  watched directly. each scenario runs against a fresh outgoing-sub set
+::  (.wex reset between them) so the single dm partner is unambiguous.
+::
+++  test-setup-routes-by-vouch-status
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our human, src human, now t0)))
+  ;<  *  b  (do-init dap agent)
+  ::  a bot moon: routed through its sponsor on the vouched context
+  ::
+  ;<  ~  b  (set-scry-gate (setup-scries vmoon %bot))
+  ;<  caz=(list card)  b  (do-arvo /setup [%behn %wake ~])
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (exp-watch vhost /vouched/(scot %p vmoon)/dm/(scot %p human))
+        (ex-task /activity/all [human %activity] %watch /v4)
+    ==
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(wex ~)))
+  ::  a moon %vouch already classifies %real: routed directly
+  ::
+  ;<  ~  b  (set-scry-gate (setup-scries rmoon %real))
+  ;<  caz=(list card)  b  (do-arvo /setup [%behn %wake ~])
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (exp-watch rmoon /dm/(scot %p human))
+        (ex-task /activity/all [human %activity] %watch /v4)
+    ==
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(wex ~)))
+  ::  a plain (non-moon) ship: routed directly, %vouch never consulted
+  ::
+  ;<  ~  b  (set-scry-gate (setup-scries splanet %unknown))
+  ;<  caz=(list card)  b  (do-arvo /setup [%behn %wake ~])
+  %+  ex-cards  caz
+  :~  (exp-watch splanet /dm/(scot %p human))
+      (ex-task /activity/all [human %activity] %watch /v4)
   ==
 ::
 ++  test-state-2-resub
