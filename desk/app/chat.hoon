@@ -2890,14 +2890,13 @@
       [[p.p q.p] q.id.q]:diff
     =?  di-core  ?=(%invited net.dm)
       (di-send-rsvp &)
-    ::  a vouched moon isn't running: deliver to its host, which relays
-    ::  to the bot runner. we route there when we already have a cached host
-    ::  (.vouched-dms), or when %vouch classifies .ship as a bot moon -- in
-    ::  which case the host is its sponsor. a moon %vouch calls real (or one
-    ::  we know nothing about) is delivered directly, as normal.
-    ::  a moon %vouch classifies as a bot is delivered to its host (sein),
-    ::  using a cached host if we already have one. a bot auto-accepts, so the
-    ::  conversation skips the invite handshake and stays %done.
+    ::  only a moon %vouch positively calls %real is delivered directly.
+    ::  %bot and %unknown both route via the sponsor: a bot moon never runs
+    ::  (a direct send would sit in ames forever), and for an unknown moon
+    ::  the sponsor is the authority -- it handles the message itself if
+    ::  the moon is its bot, or forwards it to the (real, booted) moon and
+    ::  pushes %vouch-real back so our next send goes direct. either way no
+    ::  message is ever lost to not-knowing.
     ::
     ::  drop a stale cached route the moment %vouch confirms the moon is
     ::  real (e.g. after |moon-cycle-keys, or a %vouch-real push) -- keeping
@@ -2907,9 +2906,12 @@
     =?  vouched-dms  &(?=(%earl (clan:title ship)) =(%real status))
       (~(del by vouched-dms) ship)
     =/  host=(unit @p)  di-vouched
-    =/  is-bot=?  &(?=(%earl (clan:title ship)) =(%bot status))
-    =?  host    &(is-bot ?=(~ host))  `(^sein:title ship)
-    =?  net.dm  is-bot                %done
+    =/  via-host=?  &(?=(%earl (clan:title ship)) !=(%real status))
+    =?  host    &(via-host ?=(~ host))  `(^sein:title ship)
+    ::  a bot auto-accepts, so the conversation skips the invite handshake
+    ::  and stays %done. an unknown moon keeps the normal invite flow: if
+    ::  it turns out real, its rsvp arrives as usual once the host forwards.
+    =?  net.dm  &(via-host =(%bot status))  %done
     =.  cor
       ?~  host  (emit (proxy:di-pass diff))
       (emit (proxy-vouched:di-pass u.host diff))

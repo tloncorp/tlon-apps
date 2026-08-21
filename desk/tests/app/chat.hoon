@@ -244,6 +244,31 @@
   %+  ex-scry-result
     /x/v4/vouched/(scot %p moon)/dm/(scot %p ~bus)/writs/newest/(scot %ud 1)/light
   !>(*paged-writs:v7:cv)
+::  first contact with a moon we know NOTHING about routes via its sponsor
+::  (never direct, which would strand the message if it's a never-booting
+::  bot): the host handles it if the moon is its bot, or forwards it to the
+::  real moon and pushes %vouch-real back. no message is lost to not-knowing.
+::
+++  test-unknown-moon-first-contact-routes-via-host
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~bus, src ~bus)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =verse:ch  [%inline ~['hello, whoever you are']]
+  =/  =diff:dm:c  (vouched-message ~bus now.bw verse)
+  ;<  caz=(list card)  bind:m
+    (do-poke %chat-dm-action-2 !>(`action:dm:c`[moon diff]))
+  %+  ex-cards  caz
+  %+  welp
+    :~  %+  ex-poke  /contacts/(scot %p moon)
+        [[~bus %contacts] contact-action-1+!>([%meet ~[moon]])]
+    ==
+  %+  welp  (ex-writ-facts ~bus now.bw verse 1)
+  :~  %+  ex-poke  /dm/(scot %p moon)/proxy/diff
+      [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
+  ==
 ::  a vouched dm for a sponsored moon we have NOT classified nacks: we're
 ::  the authority on our own moons, so we neither guess-forward (stranding
 ::  a never-booting bot's message) nor push %vouch-real without knowledge.

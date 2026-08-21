@@ -199,8 +199,7 @@ code path at all):
 
 - **Still `%bot`** -- unchanged: file into the bot's inbox (keyed by
   `[moon human]`) and give it on the moon's firehose.
-- **Anything else (`%real`, or even `%unknown`)** -- the moon might
-  actually be reachable now, so don't lose the message:
+- **`%real`** -- the moon is reachable now, so don't lose the message:
   1. **Forward** -- poke the moon itself with the identical
      `chat-dm-vouched-diff-2` cage, on wire
      `/vouched-fwd/<moon>/<author>`.
@@ -210,6 +209,19 @@ code path at all):
      the same authority the contacts resolver's redirect relies on.
   3. Do **not** file into the bot inbox or give a bot-firehose fact --
      the message already went where it belongs.
+- **`%unknown`** -- nack. The host is the authority on its own moons:
+  forwarding a guess would strand a never-booting bot's message in ames,
+  and a `%vouch-real` push would assert knowledge it doesn't have. The
+  sender sees a failed delivery rather than a silent void.
+
+The sender's side is the mirror image (`+di-proxy`): only a moon
+`%vouch` positively calls `%real` is sent to directly. `%bot` *and*
+`%unknown` both route via the sponsor -- for an unknown moon the host
+either handles the message (its bot) or forwards it on (real, with the
+`%vouch-real` pushback above), so a first message to an unclassified
+moon is never lost. A bot conversation auto-accepts (`%done`); an
+unknown one keeps the normal invite flow, since a real moon's rsvp
+arrives as usual once the forward lands.
 
 On the moon's own side, `%chat-dm-vouched-diff-2` gains a case checked
 *before* the existing `.author == .as` (bot-speaking) branch: when
