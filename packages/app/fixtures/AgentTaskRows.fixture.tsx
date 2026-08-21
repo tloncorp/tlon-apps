@@ -2,12 +2,12 @@ import { Pressable } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
 import { SizableText, XStack, YStack } from 'tamagui';
 
+import { AgentTaskRows } from '../ui/components/AgentTaskRows';
 import {
   AGENT_TASK_DEMO_TICKS,
-  AgentTaskRows,
   buildAgentTaskDemoRows,
   getAgentTaskDemoAutoExpandedId,
-} from '../ui/components/AgentTaskRows';
+} from '../ui/components/AgentTaskRows/demo';
 import { FixtureWrapper } from './FixtureWrapper';
 
 function useDemoTick() {
