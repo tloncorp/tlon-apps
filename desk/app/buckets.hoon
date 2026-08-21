@@ -1791,6 +1791,11 @@
     ?:  =(%delete -.u-bucket.res)
       =.  cor  (give [%fact ~[/v1] buckets-response-1+!>(res)])
       =.  cor  (emil (drop (report-active flag.res sp |)))
+      ::  Drop the token with the bucket, as +stop-sub does. Left behind, the
+      ::  local scry keeps answering with it, so a bucket recreated under the
+      ::  same flag is read with a token the host has already revoked and the
+      ::  client never asks for a new one.
+      =.  cor  (drop-read-token flag.res)
       =.  spaces  (~(del by spaces) flag.res)
       cor
     =.  st  (apply-update st u-bucket.res)
