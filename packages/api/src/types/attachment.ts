@@ -46,6 +46,24 @@ export type ReferenceAttachment = {
   path: string;
 };
 
+/**
+ * A kit shared into a chat. Like `reference`, kit attachments carry no local
+ * file and never touch the upload machinery — they pass through finalization
+ * unchanged and are written to the post blob by `toPostData`. Display fields
+ * are optional; the KitCard/detail sheet backfill from the manifest.
+ */
+export type KitAttachment = {
+  type: 'kit';
+  /** publisher ship, e.g. `~sampel-palnet` */
+  publisher: string;
+  id: string;
+  /** the kit's own semver */
+  version?: string;
+  name?: string;
+  description?: string;
+  image?: string | null;
+};
+
 export interface ImageAsset {
   uri: string;
   width: number;
@@ -163,6 +181,7 @@ export namespace UploadedVideoAttachment {
 
 export type Attachment =
   | ReferenceAttachment
+  | KitAttachment
   | ImageAttachment
   | FileAttachment
   | VideoAttachment
@@ -171,6 +190,7 @@ export type Attachment =
 
 export type FinalizedAttachment =
   | ReferenceAttachment
+  | KitAttachment
   | UploadedImageAttachment
   | UploadedFileAttachment
   | UploadedVideoAttachment
@@ -508,6 +528,8 @@ export namespace Attachment {
       case 'link':
       // fallthrough
       case 'reference':
+      // fallthrough
+      case 'kit':
         return { needsUpload: false, finalized: attachment };
     }
   }

@@ -18,8 +18,8 @@ import type * as db from '../types/models';
 import * as ub from '../urbit';
 
 export const PATP_REGEX = /(~[a-z0-9-]+)/i;
-export const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
-export const REF_URL_REGEX = /^\/1\/(chan|group|desk)\/[^\s]+/;
+export const REF_REGEX = /\/1\/(chan|group|desk|kit)\/[^\s]+/g;
+export const REF_URL_REGEX = /^\/1\/(chan|group|desk|kit)\/[^\s]+/;
 // sig and hep explicitly left out
 export const PUNCTUATION_REGEX = /[.,/#!$%^&*;:{}=_`()]/g;
 

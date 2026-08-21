@@ -9,7 +9,12 @@ import {
   useEditorBridge,
   useEditorContent,
 } from '@10play/tentap-editor';
-import { toContentReference } from '@tloncorp/api';
+import {
+  KIT_REF_REGEX,
+  enrichKitAttachment,
+  kitAttachmentFromRef,
+  toContentReference,
+} from '@tloncorp/api';
 import * as ub from '@tloncorp/api/urbit';
 import { Inline, JSONContent, isInline, pathToCite } from '@tloncorp/api/urbit';
 //ts-expect-error not typed
@@ -438,6 +443,23 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         });
         if (citePathAttachment) {
           addAttachment(citePathAttachment);
+        }
+
+        // check for pasted kit refs (/1/kit/<publisher>/<id>)
+        const kitAttachment = await processReferenceAndUpdateEditor({
+          editor,
+          editorJson,
+          pastedText,
+          matchRegex: KIT_REF_REGEX,
+          processMatch: async (match) => {
+            const kit = kitAttachmentFromRef(match);
+            // best-effort name/description enrichment from the local kit
+            // library; on miss the bare publisher/id still renders a card
+            return kit ? await enrichKitAttachment(kit) : null;
+          },
+        });
+        if (kitAttachment) {
+          addAttachment(kitAttachment);
         }
 
         // check for refs from pasted deeplinks

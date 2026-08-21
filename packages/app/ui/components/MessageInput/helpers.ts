@@ -97,7 +97,7 @@ export async function processReferenceAndUpdateEditor({
 
     if (match) {
       logger.log('found match', match[0]);
-      const attachment = processMatch(match[0]);
+      const attachment = await processMatch(match[0]);
 
       if (attachment) {
         logger.log('extracted attachment', attachment);

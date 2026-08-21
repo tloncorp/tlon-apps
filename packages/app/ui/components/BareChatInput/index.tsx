@@ -1,4 +1,9 @@
-import { getCurrentUserId, toContentReference } from '@tloncorp/api';
+import {
+  enrichKitAttachment,
+  getCurrentUserId,
+  kitAttachmentFromRef,
+  toContentReference,
+} from '@tloncorp/api';
 import { JSONContent, Story, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
@@ -371,6 +376,25 @@ function BareChatInput(
 
       let newText = text;
       references.forEach((ref) => {
+        const kitAttachment = kitAttachmentFromRef(ref);
+        if (kitAttachment) {
+          addAttachment(kitAttachment);
+          newText = newText.replace(ref, '');
+          // best-effort name/description enrichment from the local kit
+          // library; swap in the enriched attachment if the bare one is
+          // still attached when it resolves
+          void enrichKitAttachment(kitAttachment).then((enriched) => {
+            if (
+              enriched !== kitAttachment &&
+              attachmentsRef.current.includes(kitAttachment)
+            ) {
+              removeAttachment(kitAttachment);
+              addAttachment(enriched);
+            }
+          });
+          return;
+        }
+
         const cite = pathToCite(ref);
         if (!cite) {
           return;
@@ -391,7 +415,7 @@ function BareChatInput(
 
       return newText;
     },
-    [addAttachment]
+    [addAttachment, removeAttachment]
   );
 
   const lastProcessedRef = useRef('');

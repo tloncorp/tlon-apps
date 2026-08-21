@@ -1002,6 +1002,9 @@ export function toPostData({
 }): { story: Story; metadata: PostMetadata; blob?: string } {
   const blocks: Block[] = [];
   let blob = initialBlob;
+  // plain-text fallbacks appended to the story so clients that don't render
+  // kit blob entries still see something in the message body
+  const kitFallbackTexts: string[] = [];
 
   attachments
     // For notebooks, skip header image - it goes in metadata only, not content
@@ -1081,6 +1084,20 @@ export function toPostData({
           });
           break;
         }
+
+        case 'kit': {
+          const kitName = attachment.name ?? attachment.id;
+          blob = appendKitToPostBlob(blob, {
+            id: attachment.id,
+            publisher: attachment.publisher,
+            kitVersion: attachment.version ?? '0.0.0',
+            name: kitName,
+            description: attachment.description,
+            image: attachment.image,
+          });
+          kitFallbackTexts.push(`Kit: ${kitName}`);
+          break;
+        }
       }
     });
 
@@ -1092,6 +1109,10 @@ export function toPostData({
     } else {
       story.push(...blocks.map((block) => ({ block })));
     }
+  }
+
+  if (kitFallbackTexts.length > 0) {
+    story.push(...kitFallbackTexts.map((text) => ({ inline: [text] })));
   }
 
   const metadata: PostMetadata = { title };

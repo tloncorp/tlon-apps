@@ -606,5 +606,59 @@ describe('post blob helpers', () => {
         size: 123,
       },
     ]);
+  test('toPostData writes kit attachments as blob entries with a text fallback', () => {
+    const attachment: FinalizedAttachment = {
+      type: 'kit',
+      publisher: '~sampel-palnet',
+      id: 'book-club',
+      version: '1.2.3',
+      name: 'Book Club',
+      description: 'Reads books together',
+      image: 'https://cdn.example.com/kit.png',
+    };
+
+    const out = toPostData({
+      content: ['hello'],
+      attachments: [attachment],
+      channelType: 'chat',
+    });
+
+    expect(out.blob).toBeTruthy();
+    expect(parsePostBlob(out.blob!)).toEqual([
+      {
+        type: 'kit',
+        version: 1,
+        id: 'book-club',
+        publisher: '~sampel-palnet',
+        kitVersion: '1.2.3',
+        name: 'Book Club',
+        description: 'Reads books together',
+        image: 'https://cdn.example.com/kit.png',
+      },
+    ]);
+    expect(out.story).toContainEqual({ inline: ['Kit: Book Club'] });
+  });
+
+  test('toPostData kit attachment defaults name to id and kitVersion to 0.0.0', () => {
+    const out = toPostData({
+      content: [],
+      attachments: [
+        { type: 'kit', publisher: '~sampel-palnet', id: 'book-club' },
+      ],
+      channelType: 'chat',
+    });
+
+    expect(parsePostBlob(out.blob!)).toEqual([
+      {
+        type: 'kit',
+        version: 1,
+        id: 'book-club',
+        publisher: '~sampel-palnet',
+        kitVersion: '0.0.0',
+        name: 'book-club',
+        description: '',
+      },
+    ]);
+    expect(out.story).toContainEqual({ inline: ['Kit: book-club'] });
   });
 });

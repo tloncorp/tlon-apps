@@ -220,6 +220,18 @@ export function AttachmentPreview({
       );
     }
 
+    case 'kit': {
+      return (
+        <Container showSpinner={uploading}>
+          <View backgroundColor="$secondaryBackground" flex={1}>
+            <Text style={{ padding: 12 }}>
+              Kit: {attachment.name ?? attachment.id}
+            </Text>
+          </View>
+        </Container>
+      );
+    }
+
     case 'voicememo': {
       return (
         <Container showSpinner={uploading}>

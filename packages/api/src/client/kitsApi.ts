@@ -1,4 +1,5 @@
 import { createDevLogger } from '../lib/logger';
+import type { KitAttachment } from '../types/attachment';
 import { BadResponseError, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('kitsApi', false);
@@ -136,6 +137,64 @@ export const getInstalls = async (): Promise<Record<string, KitInstall>> => {
   });
   return response.installs;
 };
+
+/**
+ * The text form of a kit reference: `/1/kit/<publisher-ship>/<kit-id>`,
+ * e.g. `/1/kit/~sampel-palnet/book-club`. Unanchored so it can match refs
+ * embedded in pasted text.
+ */
+export const KIT_REF_REGEX = /\/1\/kit\/(~[a-z0-9-]+)\/([a-z0-9-]+)/;
+
+/** Render a kit reference path for a kit's publisher + id. */
+export const kitRefPath = (publisher: string, id: string) =>
+  `/1/kit/${publisher}/${id}`;
+
+/**
+ * Parse a kit reference path into a bare kit attachment, or null if the
+ * text doesn't contain one.
+ */
+export function kitAttachmentFromRef(path: string): KitAttachment | null {
+  const match = path.match(KIT_REF_REGEX);
+  if (!match) {
+    return null;
+  }
+  const [, publisher, id] = match;
+  return { type: 'kit', publisher, id };
+}
+
+/**
+ * Best-effort enrichment of a bare kit attachment from the local kit
+ * library. Returns an enriched copy when the library has a matching kit
+ * within `timeoutMs`; otherwise returns the input attachment unchanged.
+ */
+export async function enrichKitAttachment(
+  attachment: KitAttachment,
+  timeoutMs = 2000
+): Promise<KitAttachment> {
+  try {
+    const kit = await Promise.race([
+      getKit(attachment.id),
+      new Promise<null>((resolve) =>
+        setTimeout(() => resolve(null), timeoutMs)
+      ),
+    ]);
+    if (kit && kit.manifest.publisher === attachment.publisher) {
+      return {
+        ...attachment,
+        version: kit.manifest.version,
+        name: kit.manifest.name,
+        description: kit.manifest.description,
+        image: kit.manifest.image,
+      };
+    }
+  } catch (error) {
+    logger.log('kit attachment enrichment failed', {
+      kit: `${attachment.publisher}/${attachment.id}`,
+      error,
+    });
+  }
+  return attachment;
+}
 
 /** Subscribe to %kits facts on /v1/updates. */
 export const subscribeKitUpdates = (handler: (update: KitUpdate) => void) =>

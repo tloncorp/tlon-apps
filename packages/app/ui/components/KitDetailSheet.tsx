@@ -9,6 +9,7 @@ import {
   Image,
   LoadingSpinner,
   Text,
+  useCopy,
 } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
@@ -124,6 +125,9 @@ export function KitDetailPane({
 
   const [flow, setFlow] = useState<InstallFlow>({ phase: 'idle' });
   const [draftTitle, setDraftTitle] = useState('');
+  const { doCopy: copyKitRef, didCopy: didCopyKitRef } = useCopy(
+    api.kitRefPath(kit.publisher, kit.id)
+  );
 
   const name = manifest?.name ?? kit.name ?? kit.id;
   const description = manifest?.description ?? kit.description ?? '';
@@ -421,6 +425,16 @@ export function KitDetailPane({
                 ) : null}
               </YStack>
             ))}
+            <Button
+              fill="outline"
+              type="secondary"
+              onPress={copyKitRef}
+              leadingIcon={didCopyKitRef ? 'Checkmark' : 'Copy'}
+              testID="ActionButton-CopyKit"
+              alignSelf="stretch"
+              label="Copy kit"
+              centered
+            />
           </YStack>
         ) : flow.phase === 'naming' ? (
           <YStack gap="$l">

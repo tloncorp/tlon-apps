@@ -47,6 +47,7 @@ function AttachmentPreview() {
 
     case 'link':
     case 'reference':
+    case 'kit':
     case undefined:
       return null;
   }

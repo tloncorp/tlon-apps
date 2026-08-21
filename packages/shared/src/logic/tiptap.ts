@@ -884,7 +884,7 @@ export function normalizeInline(inline: Inline[]): Inline[] {
   );
 }
 
-const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
+const REF_REGEX = /\/1\/(chan|group|desk|kit)\/[^\s]+/g;
 
 export function refPasteRule(onReference: (r: Cite) => void) {
   return new PasteRule({

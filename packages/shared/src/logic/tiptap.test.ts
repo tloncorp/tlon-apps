@@ -1,7 +1,27 @@
 import { Block, Inline, JSONContent } from '@tloncorp/api/urbit';
 import { describe, expect, test } from 'vitest';
 
-import { JSONToInlines } from './tiptap';
+import { JSONToInlines, refPasteRule } from './tiptap';
+
+describe('refPasteRule reference matching', () => {
+  const find = refPasteRule(() => {}).find as RegExp;
+
+  test('matches kit references', () => {
+    expect('see /1/kit/~sampel-palnet/book-club here'.match(find)).toEqual([
+      '/1/kit/~sampel-palnet/book-club',
+    ]);
+  });
+
+  test('still matches chan, group, and desk references', () => {
+    const text =
+      '/1/chan/chat/~zod/general /1/group/~zod/flag /1/desk/~zod/landscape';
+    expect(text.match(find)).toEqual([
+      '/1/chan/chat/~zod/general',
+      '/1/group/~zod/flag',
+      '/1/desk/~zod/landscape',
+    ]);
+  });
+});
 
 test('tiptap: test mixed text, inline code and code block with langs', () => {
   const json: JSONContent = {
