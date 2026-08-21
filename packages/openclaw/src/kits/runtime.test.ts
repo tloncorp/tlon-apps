@@ -215,6 +215,42 @@ describe('handleBeforePromptBuild', () => {
     expect(result?.prependSystemContext).toContain('# Run the club');
   });
 
+  // Regression: a stale known group whose config scry 404s (deleted group,
+  // unreachable host) must not abort the nest scan — that threw out of the
+  // hook and stripped kit instructions from the *live* group's setup turn,
+  // which then improvised its own blob format.
+  it('skips known groups whose config cannot be read during nest derivation', async () => {
+    const stale = '~zod/stale';
+    const reader: GroupConfigReader = {
+      get: vi.fn(async (flag: string) => {
+        if (flag === stale) {
+          throw new Error('Scry failed: 404');
+        }
+        return makeConfig();
+      }),
+      invalidate: vi.fn(),
+      clear: vi.fn(),
+    };
+    const runtime = createKitsRuntime({
+      botShip: BOT,
+      scry: vi.fn(),
+      poke: vi.fn().mockResolvedValue(undefined),
+      resolveGroupSessionRoute: (nest) => ({
+        sessionKey: `agent:main:tlon:group:${nest}`,
+      }),
+      enqueueSystemEvent: vi.fn(),
+      getCronService: () => undefined,
+      configReader: reader,
+      packageStore: makeStore(makeKit()),
+    });
+    await runtime.start([stale, GROUP]);
+    const result = await runtime.handleBeforePromptBuild({
+      sessionKey: SESSION,
+    });
+    expect(result?.prependSystemContext).toContain('# Run the club');
+    expect(lookupKitSessionGroup(SESSION)).toBe(GROUP);
+  });
+
   it('is a no-op when the group has no kit config', async () => {
     const { runtime } = makeRuntime({ config: null });
     bindKitSessionGroup(SESSION, GROUP);

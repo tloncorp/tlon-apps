@@ -296,7 +296,19 @@ export function createKitsRuntime(deps: KitsRuntimeDeps): KitsRuntime {
       return null;
     }
     for (const flag of knownGroups) {
-      const pairs = await collectGroupEntries(flag);
+      // One unreadable group (deleted, or its host unreachable) must not
+      // abort the whole scan — the hook that calls this injects the kit
+      // instructions for the *current* turn's group, and losing them makes
+      // the agent improvise its output formats.
+      let pairs: Array<{ entry: InstalledKitConfig; kit: Kit }>;
+      try {
+        pairs = await collectGroupEntries(flag);
+      } catch (err) {
+        error?.(
+          `[tlon] kits: failed reading config for ${flag}: ${String(err)}`
+        );
+        continue;
+      }
       for (const { entry } of pairs) {
         if (Object.values(entry.places).includes(nest)) {
           bindKitSessionGroup(sessionKey, flag);
