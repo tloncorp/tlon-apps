@@ -12,6 +12,7 @@ import {
   getContacts,
   getCurrentUserId,
   poke,
+  registerBotProfile,
   syncUserProfiles,
   updateContactMetadata,
 } from '@tloncorp/api';
@@ -26,6 +27,7 @@ import {
   printHelpAndExit,
   printUsageAndExit,
 } from './cli-utils';
+import { botMoon } from './moon';
 
 interface ContactEditField {
   nickname?: string;
@@ -175,6 +177,13 @@ async function updateProfile(updates: {
   avatar?: string | null;
   cover?: string;
 }) {
+  const moon = botMoon();
+  if (moon) {
+    // acting as a bot moon: write the bot's published profile (merged with
+    // its current fields), never the host ship's own profile
+    await registerBotProfile(moon, updates);
+    return { updated: Object.keys(updates), ship: moon };
+  }
   const editFields: ContactEditField[] = [];
 
   if (updates.nickname !== undefined) {
@@ -206,14 +215,14 @@ async function updateProfile(updates: {
   return { updated: Object.keys(updates), ship: getCurrentUserId() };
 }
 
-// Get own profile
+// Get own profile. As a bot moon, "own" is the bot's published profile.
 async function getSelf() {
-  const currentUserId = getCurrentUserId();
+  const selfId = botMoon() ?? getCurrentUserId();
   const contacts = await getContacts();
-  const contact = contacts.find((c) => c.id === currentUserId) || null;
+  const contact = contacts.find((c) => c.id === selfId) || null;
 
   return {
-    ship: currentUserId,
+    ship: selfId,
     profile: extractProfile(contact),
   };
 }

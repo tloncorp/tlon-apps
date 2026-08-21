@@ -286,6 +286,68 @@ export const sendVouchedDm = async ({
   return { channel: 'tlon' as const, messageId: id, sentAt };
 };
 
+/** Poke a diff into a vouched [moon, human] DM conversation. Same routing as
+ * sendVouchedDm: the poking ship's %chat relays via the moon's sponsor and
+ * files the writ in the bot inbox / the human's dms on each end. */
+const vouchedDmAction = async (as: string, toShip: string, diff: WritDiff) =>
+  poke({
+    app: 'chat',
+    mark: 'chat-dm-vouched-action-2',
+    json: { as, action: { ship: toShip, diff } },
+  });
+
+/** React to a writ in a vouched DM conversation, authored as `authorId`
+ * (the moon when the bot reacts; the human when they react to the bot).
+ * `postId` is the full writ id, `<author>/<ud-time>`. */
+export const addVouchedDmReaction = async ({
+  as,
+  toShip,
+  postId,
+  emoji,
+  authorId,
+}: {
+  as: string;
+  toShip: string;
+  postId: string;
+  emoji: string;
+  authorId: string;
+}) => {
+  const delta: WritDeltaAddReact = {
+    'add-react': { react: emoji, author: authorId },
+  };
+  await vouchedDmAction(as, toShip, { id: postId, delta });
+};
+
+/** Remove `authorId`'s reaction from a writ in a vouched DM conversation. */
+export const removeVouchedDmReaction = async ({
+  as,
+  toShip,
+  postId,
+  authorId,
+}: {
+  as: string;
+  toShip: string;
+  postId: string;
+  authorId: string;
+}) => {
+  const delta: WritDeltaDelReact = { 'del-react': authorId };
+  await vouchedDmAction(as, toShip, { id: postId, delta });
+};
+
+/** Delete a writ from a vouched DM conversation. The desk only relays
+ * deletions the sender may vouch for, so a bot can only delete its own. */
+export const deleteVouchedDmPost = async ({
+  as,
+  toShip,
+  postId,
+}: {
+  as: string;
+  toShip: string;
+  postId: string;
+}) => {
+  await vouchedDmAction(as, toShip, { id: postId, delta: { del: null } });
+};
+
 export const editPost = async ({
   channelId,
   postId,

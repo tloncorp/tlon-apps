@@ -30,8 +30,19 @@ beforeEach(() => {
 
 const SIBLING = '~marzod-sampel-palnet';
 
+// registerBotProfile scries /v1/self (the claim) then /v1/directory (the
+// bot's current profile, merged into the update)
+const mockBotProfileScries = (
+  self: ContactBookProfile,
+  directory: Record<string, unknown> = {}
+) => {
+  vi.mocked(scry).mockImplementation(async ({ path }: { path: string }) =>
+    path === '/v1/self' ? (self as never) : (directory as never)
+  );
+};
+
 test('registerBotProfile claims the moon (list) and publishes its real profile', async () => {
-  vi.mocked(scry).mockResolvedValue({
+  mockBotProfileScries({
     nickname: { type: 'text', value: 'Host' },
     bots: { type: 'text', value: JSON.stringify([SIBLING]) },
   } as ContactBookProfile);
@@ -66,7 +77,7 @@ test('registerBotProfile claims the moon (list) and publishes its real profile',
 });
 
 test('registerBotProfile skips the claim poke when the moon is already claimed', async () => {
-  vi.mocked(scry).mockResolvedValue({
+  mockBotProfileScries({
     bots: { type: 'text', value: JSON.stringify([MOON]) },
   } as ContactBookProfile);
   vi.mocked(poke).mockResolvedValue(undefined as never);
@@ -77,6 +88,40 @@ test('registerBotProfile skips the claim poke when the moon is already claimed',
   expect(poke).toHaveBeenCalledTimes(1);
   expect(vi.mocked(poke).mock.calls[0][0]).toMatchObject({
     mark: 'contact-bot-0',
+  });
+});
+
+test('registerBotProfile merges a partial update into the existing profile', async () => {
+  mockBotProfileScries(
+    {
+      bots: { type: 'text', value: JSON.stringify([MOON]) },
+    } as ContactBookProfile,
+    {
+      [MOON]: {
+        isContact: false,
+        contact: {
+          nickname: { type: 'text', value: 'Helper' },
+          avatar: { type: 'look', value: 'http://x/a' },
+          bio: { type: 'text', value: 'old bio' },
+        },
+        mod: {},
+      },
+    }
+  );
+  vi.mocked(poke).mockResolvedValue(undefined as never);
+
+  // update bio, clear avatar, leave nickname alone
+  await registerBotProfile(MOON, { bio: 'new bio', avatar: null });
+
+  expect(poke).toHaveBeenCalledTimes(1);
+  const arg = vi.mocked(poke).mock.calls[0][0] as {
+    mark: string;
+    json: { who: string; con: Record<string, { type: string; value: string }> };
+  };
+  expect(arg.mark).toBe('contact-bot-0');
+  expect(arg.json.con).toEqual({
+    nickname: { type: 'text', value: 'Helper' },
+    bio: { type: 'text', value: 'new bio' },
   });
 });
 

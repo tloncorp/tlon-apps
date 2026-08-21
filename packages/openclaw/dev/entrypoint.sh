@@ -152,6 +152,20 @@ if [ -f "$CONFIG_PATH" ]; then
        | if $nick != "" then .channels.tlon.moonNickname = $nick else . end' \
       "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
   fi
+
+  # Extra models beyond MODEL (comma-separated openclaw model names, e.g.
+  # "openrouter/openai/gpt-5.6-luna"). Each is merged into the
+  # agents.defaults.models allowlist -- selection (/model) is gated on that
+  # map, not on the fallback list -- and appended as a fallback so it's
+  # also failover-eligible.
+  if [ -n "${MODEL_FALLBACKS:-}" ]; then
+    echo "==> Patching config: extra models $MODEL_FALLBACKS..."
+    jq --arg extra "$MODEL_FALLBACKS" \
+      '($extra | split(",") | map(gsub("^\\s+|\\s+$"; ""))) as $list
+       | .agents.defaults.model.fallbacks = $list
+       | .agents.defaults.models = ((.agents.defaults.models // {}) + ($list | map({key: ., value: {}}) | from_entries))' \
+      "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
+  fi
 fi
 
 # Upsert a marked block into a file (preserves content outside the markers)
