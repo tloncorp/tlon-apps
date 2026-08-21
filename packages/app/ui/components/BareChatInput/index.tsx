@@ -73,7 +73,7 @@ import {
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
 
 // How long a send waits for iOS to deliver a pending autocorrection.
-const AUTOCORRECT_FLUSH_TIMEOUT = 20;
+const AUTOCORRECT_FLUSH_TIMEOUT_MS = 20;
 
 function normalizePreviewUrl(url: string) {
   try {
@@ -698,7 +698,7 @@ function BareChatInput(
           // closed over.
           runSendMessageRef.current?.(isEdit);
         }
-      }, AUTOCORRECT_FLUSH_TIMEOUT);
+      }, AUTOCORRECT_FLUSH_TIMEOUT_MS);
     },
     [runSendMessage]
   );
