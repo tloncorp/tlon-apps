@@ -209,6 +209,9 @@ export const PinnedSurfaceCollection: IPostCollectionView = forwardRef(
           borderWidth={1}
           borderBottomWidth={0}
           borderColor="$border"
+          shadowColor="$shadow"
+          shadowOffset={{ width: 0, height: -2 }}
+          shadowRadius={8}
           overflow="hidden"
         >
           <Pressable

@@ -14,12 +14,9 @@ The kit was just installed and the group exists. Do not open with questions. The
 
     Title the note with the week's dates.
 
-3. **Post the weekly card in the Kitchen.** One post, built exactly as "The
-   weekly card" instruction describes: the message text is one sentence — what
-   you assumed, and the corrections that matter most (how many people, and
-   anything nobody eats) — and the `--blob` carries the interactive card with
-   this week's seven dinners. Read the post id back and record it in
-   `Meal Plan/Card.md`. Then stop talking.
+3. **Post the weekly card in the Kitchen.** One post, built exactly as "The weekly card" instruction describes: the message text is one sentence — what you assumed, and the corrections that matter most (how many people, and anything nobody eats) — and the `--blob` carries the interactive card with this week's seven dinners. Read the post id back and record it in `Meal Plan/Card.md`.
+
+4. **Say the workspace is ready.** Once the card is up, post exactly this through the message tool: "Your workspace is ready. Chat with me here to make changes." Then stop talking.
 
 ## What not to do
 

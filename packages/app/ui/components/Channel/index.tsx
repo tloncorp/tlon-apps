@@ -398,14 +398,19 @@ export function Channel({
   // sheet's lines continue to the bottom of the screen. Declared intent is
   // enough — a build without the renderer shows the plain list and plain
   // composer via the channel-views degradation contract, and this stays off.
-  // Web only: on native the composer floats over the collection area, so
-  // there is no composer strip to carry the panel's edges through.
-  const usesPinnedSurfacePanel =
-    isWeb &&
+  const isPinnedSurfaceChannel =
     channel.contentConfiguration != null &&
     ChannelContentConfiguration.defaultPostCollectionRenderer(
       channel.contentConfiguration
     ).id === CollectionRendererId.pinnedSurface;
+  // Web only: on native the composer floats over the collection area, so
+  // there is no composer strip to carry the panel's edges through.
+  const usesPinnedSurfacePanel = isWeb && isPinnedSurfaceChannel;
+  // Native: the floating composer spans the full width by default; inside
+  // the pinned-surface panel it insets so the pill reads as part of the
+  // sheet. Yoga applies a parent's padding to absolutely positioned
+  // children, which is what makes a padded wrapper work here.
+  const insetsFloatingComposer = !isWeb && isPinnedSurfaceChannel;
 
   // For DMs, get the other participant's ID
   const dmRecipientId = useMemo(() => {
@@ -954,6 +959,16 @@ export function Channel({
                                     borderColor="$border"
                                     backgroundColor="$background"
                                   >
+                                    <DraftInputView
+                                      draftInputContext={draftInputContext}
+                                      type={draftInputType}
+                                      onFloatingHeightChange={
+                                        onFloatingHeightChange
+                                      }
+                                    />
+                                  </View>
+                                ) : insetsFloatingComposer ? (
+                                  <View paddingHorizontal="$l">
                                     <DraftInputView
                                       draftInputContext={draftInputContext}
                                       type={draftInputType}
