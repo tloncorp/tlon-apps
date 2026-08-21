@@ -190,6 +190,31 @@ describe('handleBeforePromptBuild', () => {
     expect(reader.get).not.toHaveBeenCalled();
   });
 
+  // A cron-fired turn (setup, weekly schedules) never passes the monitor's
+  // inbound-message path, so no session→group binding exists when it reaches
+  // this hook — and a binding would have expired anyway for a weekly cron.
+  // The group must be derivable from the session key's nest via the places
+  // reconcile already knows, or kit setup runs blind with no ambient context.
+  it('derives the group from the session nest when no binding exists', async () => {
+    const { runtime } = makeRuntime();
+    await runtime.start([GROUP]);
+    const result = await runtime.handleBeforePromptBuild({
+      sessionKey: SESSION,
+    });
+    expect(result?.prependSystemContext).toContain('# Run the club');
+    // The derivation caches the binding for later turns in the session.
+    expect(lookupKitSessionGroup(SESSION)).toBe(GROUP);
+  });
+
+  it('derives the group for thread-suffixed cron session keys too', async () => {
+    const { runtime } = makeRuntime();
+    await runtime.start([GROUP]);
+    const result = await runtime.handleBeforePromptBuild({
+      sessionKey: `${SESSION}:thread:98765`,
+    });
+    expect(result?.prependSystemContext).toContain('# Run the club');
+  });
+
   it('is a no-op when the group has no kit config', async () => {
     const { runtime } = makeRuntime({ config: null });
     bindKitSessionGroup(SESSION, GROUP);

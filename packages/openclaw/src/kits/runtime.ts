@@ -270,6 +270,43 @@ export function createKitsRuntime(deps: KitsRuntimeDeps): KitsRuntime {
   const resolveSessionKey = (nest: string): string | null =>
     deps.resolveGroupSessionRoute(nest)?.sessionKey ?? null;
 
+  // A cron-fired turn (kit setup, weekly schedules) reaches the prompt-build
+  // hook without ever passing the monitor's inbound-message path, so no
+  // session→group binding exists — and bindings expire after an hour anyway,
+  // which no weekly schedule survives. The session key embeds the channel
+  // nest and every installed kit names its places, so derive the group from
+  // what reconcile already knows, then cache the binding for later turns.
+  const resolveGroupBySessionNest = async (
+    sessionKey: string | undefined
+  ): Promise<string | null> => {
+    if (!sessionKey) {
+      return null;
+    }
+    const marker = ':group:';
+    const at = sessionKey.indexOf(marker);
+    if (at < 0) {
+      return null;
+    }
+    let nest = sessionKey.slice(at + marker.length);
+    const thread = nest.indexOf(':thread:');
+    if (thread > 0) {
+      nest = nest.slice(0, thread);
+    }
+    if (!nest) {
+      return null;
+    }
+    for (const flag of knownGroups) {
+      const pairs = await collectGroupEntries(flag);
+      for (const { entry } of pairs) {
+        if (Object.values(entry.places).includes(nest)) {
+          bindKitSessionGroup(sessionKey, flag);
+          return flag;
+        }
+      }
+    }
+    return null;
+  };
+
   const scheduleCronRetry = (attemptsLeft: number): void => {
     if (stopped || attemptsLeft <= 0 || cronRetryTimer) {
       return;
@@ -419,7 +456,9 @@ export function createKitsRuntime(deps: KitsRuntimeDeps): KitsRuntime {
     async handleBeforePromptBuild(
       ctx: PluginHookAgentContext
     ): Promise<PluginHookBeforePromptBuildResult | void> {
-      const groupFlag = lookupKitSessionGroup(ctx.sessionKey);
+      const groupFlag =
+        lookupKitSessionGroup(ctx.sessionKey) ??
+        (await resolveGroupBySessionNest(ctx.sessionKey));
       if (!groupFlag) {
         return undefined;
       }
