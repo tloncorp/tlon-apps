@@ -578,23 +578,80 @@
   ;<  *  b
     (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
   ;<  caz=(list card)  b  (ask 0v4 act)
+  ::  The watch precedes the poke, so a host that answers in the same event it
+  ::  is poked cannot publish its fact before we are listening.
   %+  ex-cards  caz
-  :~  %-  ex-poke
+  :~  %-  ex-task
+      :*  /buckets/req/~sampel-palnet/0v4/watch
+          [~sampel-palnet %buckets]
+          [%watch /v1/request/~bus/0v4]
+      ==
+      %-  ex-poke
       :*  /buckets/req/~sampel-palnet/0v4/poke
           [~sampel-palnet %buckets]
           %buckets-command-1
           !>(`command:bu`[0v4 act])
-      ==
-      %-  ex-task
-      :*  /buckets/req/~sampel-palnet/0v4/watch
-          [~sampel-palnet %buckets]
-          [%watch /v1/request/~bus/0v4]
       ==
       %-  ex-arvo
       :*  /buckets/req/~sampel-palnet/0v4/wake
           [%b %wait (add ~2026.1.1 ~m2)]
       ==
       (grant-fact 0v4 [%pending ~])
+  ==
+::
+::  A host's %pending is not an answer. A forwarded request stays open across
+::  it, so the real answer that follows still settles the client -- this is the
+::  path a cold-start read on a remote bucket takes, where the host has to
+::  reach the broker before it can hand back a token.
+::
+++  test-forwarded-request-survives-a-pending-answer
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  act=action:bu  [%bucket flag [%issue-bucket-read ~]]
+  ;<  ~  b  (setup-as ~bus)
+  ;<  *  b
+    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
+  ;<  *  b  (ask 0v4 act)
+  ::  the host says it is still working; nothing is settled and the request
+  ::  must stay open
+  ;<  waiting=(list card)  b
+    %^    do-agent
+        /buckets/req/~sampel-palnet/0v4/watch
+      [~sampel-palnet %buckets]
+    :+  %fact  %buckets-req-response-1
+    !>(`req-response:bu`[0v4 [%pending ~]])
+  ;<  ~  b  (ex-cards waiting ~)
+  ::  then the real answer lands, and it settles
+  =/  tok=read-token:bu  ['0v1.2345' (add ~2026.1.1 ~d1)]
+  ;<  answered=(list card)  b
+    %^    do-agent
+        /buckets/req/~sampel-palnet/0v4/watch
+      [~sampel-palnet %buckets]
+    :+  %fact  %buckets-req-response-1
+    !>(`req-response:bu`[0v4 [%token tok]])
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  ;<  ~  b
+    %+  ex-equal
+      !>((~(get by read-tokens.st) flag))
+    !>(`tok)
+  %+  ex-cards  answered
+  :~  %-  ex-task
+      :*  /buckets/req/~sampel-palnet/0v4/watch
+          [~sampel-palnet %buckets]
+          [%leave ~]
+      ==
+      %-  ex-arvo
+      :*  /buckets/req/~sampel-palnet/0v4/wake
+          [%b %rest (add ~2026.1.1 ~m2)]
+      ==
+      %-  ex-arvo
+      :*  /buckets/token/~sampel-palnet/project-files
+          [%b %wait (sub expires-at.tok ~h1)]
+      ==
+      (grant-fact 0v4 [%token tok])
   ==
 ::
 ::  A kick is not a revocation. The replica survives and the subscription is
@@ -682,16 +739,16 @@
   ;<  ~  b  (set-scry-gate allow-admin-create-scries)
   ;<  caz=(list card)  b  (ask 0v1 act)
   %+  ex-cards  caz
-  :~  %-  ex-poke
+  :~  %-  ex-task
+      :*  /buckets/req/~sampel-palnet/0v1/watch
+          [~sampel-palnet %buckets]
+          [%watch /v1/request/~bus/0v1]
+      ==
+      %-  ex-poke
       :*  /buckets/req/~sampel-palnet/0v1/poke
           [~sampel-palnet %buckets]
           %buckets-command-1
           !>(`command:bu`[0v1 act])
-      ==
-      %-  ex-task
-      :*  /buckets/req/~sampel-palnet/0v1/watch
-          [~sampel-palnet %buckets]
-          [%watch /v1/request/~bus/0v1]
       ==
       %-  ex-arvo
       :*  /buckets/req/~sampel-palnet/0v1/wake

@@ -398,15 +398,18 @@
   ^+  cor
   =/  until=@da  (add now.bowl request-timeout)
   =.  pending  (~(put by pending) rid [host until])
-  =.  cor
-    %-  emit
-    :*  %pass  (req-poke-wire host rid)  %agent  [host %buckets]
-        %poke  buckets-command-1+!>(`command:b`[rid act])
-    ==
+  ::  Watch first, then poke. Cards are delivered in order, so a host that
+  ::  answers in the same event it is poked would publish the terminal fact
+  ::  before we are listening, and the request would sit until its timeout.
   =.  cor
     %-  emit
     :*  %pass  (req-watch-wire host rid)  %agent  [host %buckets]
         %watch  (host-req-path our.bowl rid)
+    ==
+  =.  cor
+    %-  emit
+    :*  %pass  (req-poke-wire host rid)  %agent  [host %buckets]
+        %poke  buckets-command-1+!>(`command:b`[rid act])
     ==
   =.  cor
     (emit [%pass (req-wake-wire host rid) %arvo %b %wait until])
@@ -1607,6 +1610,12 @@
       ?.  =(%buckets-req-response-1 p.cage.sign)  cor
       ?.  (request-live rid)  cor
       =/  res=req-response:b  !<(req-response:b q.cage.sign)
+      ::  %pending is the host saying it is still working -- minting a read
+      ::  token, say, while its push to the broker is in flight. Closing here
+      ::  would drop the request and cancel its timeout, and the real answer
+      ::  would arrive to find nothing waiting. Our client was already told
+      ::  pending when we forwarded, so there is nothing to pass on.
+      ?:  ?=(%pending -.body.res)  cor
       =.  cor  (close-request host rid)
       ::  a token answer is ours to keep, whoever asked for it
       =?  cor  ?=(%token -.body.res)
