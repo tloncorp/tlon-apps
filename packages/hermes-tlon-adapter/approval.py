@@ -22,6 +22,7 @@ import re
 import uuid
 from typing import Any, Iterable, Mapping, Optional
 
+from .commands import command_detection_regex
 from .tlon_api import normalize_ship
 
 SETTINGS_KEY_PENDING_APPROVALS = "pendingApprovals"
@@ -61,12 +62,14 @@ MIGRATION_CARD_WARNING = (
     "dates, and ordering are not preserved."
 )
 
-_ALLOW_RE = re.compile(r"^/allow(?:\s+(?P<arg>\S+))?\s*$", re.IGNORECASE)
-_REJECT_RE = re.compile(r"^/reject(?:\s+(?P<arg>\S+))?\s*$", re.IGNORECASE)
-_BAN_RE = re.compile(r"^/ban(?:\s+(?P<arg>\S+))?\s*$", re.IGNORECASE)
-_UNBAN_RE = re.compile(r"^/unban(?:\s+(?P<arg>\S+))?\s*$", re.IGNORECASE)
-_PENDING_RE = re.compile(r"^/pending\s*$", re.IGNORECASE)
-_BANNED_RE = re.compile(r"^/banned\s*$", re.IGNORECASE)
+# Detection shapes live in the command registry (commands.py): allow/reject/
+# ban/unban are anchored-optional-arg; pending/banned are strict-no-arg.
+_ALLOW_RE = command_detection_regex("allow")
+_REJECT_RE = command_detection_regex("reject")
+_BAN_RE = command_detection_regex("ban")
+_UNBAN_RE = command_detection_regex("unban")
+_PENDING_RE = command_detection_regex("pending")
+_BANNED_RE = command_detection_regex("banned")
 
 
 def truncate(text: str, max_chars: int = PREVIEW_MAX_CHARS) -> str:
