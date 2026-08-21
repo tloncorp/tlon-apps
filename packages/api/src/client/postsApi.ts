@@ -253,6 +253,7 @@ export const sendVouchedDm = async ({
   sentAt,
   blob,
   botProfile,
+  replyTo,
 }: {
   as: string;
   authorId: string;
@@ -261,23 +262,50 @@ export const sendVouchedDm = async ({
   sentAt: number;
   blob?: string;
   botProfile?: AuthorProfile;
+  /** Thread reply: the parent writ this message replies to. */
+  replyTo?: { parentId: string; parentAuthor: string };
 }) => {
   const author = toAuthor(authorId, botProfile);
-  const delta: WritDeltaAdd = {
-    add: {
-      essay: {
-        content,
-        sent: sentAt,
-        author,
-        kind: '/chat',
-        meta: null,
-        blob: blob ?? null,
-      },
-      time: null,
-    },
-  };
   const id = `${authorId}/${formatUd(da.fromUnix(sentAt).toString())}`;
-  const diff: WritDiff = { id, delta };
+  const diff: WritDiff = replyTo
+    ? {
+        // a thread reply targets the parent writ; the new reply's own id
+        // rides inside the ReplyDelta (same shape as the plain-DM sendReply)
+        id: `${replyTo.parentAuthor}/${replyTo.parentId}`,
+        delta: {
+          reply: {
+            id,
+            meta: null,
+            delta: {
+              add: {
+                'reply-essay': {
+                  content,
+                  author,
+                  sent: sentAt,
+                  blob: blob ?? null,
+                },
+                time: null,
+              },
+            },
+          },
+        },
+      }
+    : {
+        id,
+        delta: {
+          add: {
+            essay: {
+              content,
+              sent: sentAt,
+              author,
+              kind: '/chat',
+              meta: null,
+              blob: blob ?? null,
+            },
+            time: null,
+          },
+        } satisfies WritDeltaAdd,
+      };
   await poke({
     app: 'chat',
     mark: 'chat-dm-vouched-action-2',
@@ -305,13 +333,29 @@ export const addVouchedDmReaction = async ({
   postId,
   emoji,
   authorId,
+  parentId,
 }: {
   as: string;
   toShip: string;
   postId: string;
   emoji: string;
   authorId: string;
+  /** Thread reaction: full id of the parent writ the reply hangs off. */
+  parentId?: string;
 }) => {
+  if (parentId) {
+    await vouchedDmAction(as, toShip, {
+      id: parentId,
+      delta: {
+        reply: {
+          id: postId,
+          meta: null,
+          delta: { 'add-react': { react: emoji, author: authorId } },
+        },
+      },
+    });
+    return;
+  }
   const delta: WritDeltaAddReact = {
     'add-react': { react: emoji, author: authorId },
   };
@@ -324,12 +368,24 @@ export const removeVouchedDmReaction = async ({
   toShip,
   postId,
   authorId,
+  parentId,
 }: {
   as: string;
   toShip: string;
   postId: string;
   authorId: string;
+  /** Thread reaction: full id of the parent writ the reply hangs off. */
+  parentId?: string;
 }) => {
+  if (parentId) {
+    await vouchedDmAction(as, toShip, {
+      id: parentId,
+      delta: {
+        reply: { id: postId, meta: null, delta: { 'del-react': authorId } },
+      },
+    });
+    return;
+  }
   const delta: WritDeltaDelReact = { 'del-react': authorId };
   await vouchedDmAction(as, toShip, { id: postId, delta });
 };

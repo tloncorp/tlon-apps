@@ -240,6 +240,7 @@ const unobservedTlonRuntimeOutbound: Pick<
                 toShip: parsed.ship,
                 text,
                 blob: target?.blob,
+                replyToId: replyId,
                 botProfile,
               })
             : await sendDm({
@@ -319,6 +320,7 @@ const unobservedTlonRuntimeOutbound: Pick<
                 toShip: parsed.ship,
                 story,
                 blob: target?.blob,
+                replyToId: replyId,
                 botProfile,
               })
             : await sendDmWithStory({

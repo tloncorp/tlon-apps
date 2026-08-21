@@ -131,14 +131,16 @@ export async function sendDmWithStory({
 /**
  * Send a DM authored as a moon (`as`) via the vouched path. The host (the
  * moon's sponsor) vouches for it, and the message is filed under the
- * [moon, human] conversation on both ends. Top-level only for now (no
- * thread replies).
+ * [moon, human] conversation on both ends. Supports thread replies via
+ * `replyToId` (full or bare writ id, same semantics as sendDm).
  */
 export async function sendVouchedDm(params: {
   as: string;
   toShip: string;
   text: string;
   blob?: string;
+  replyToId?: string | null;
+  parentAuthor?: string;
   botProfile?: BotProfile;
 }) {
   return sendVouchedDmWithStory({
@@ -152,15 +154,31 @@ export async function sendVouchedDmWithStory({
   toShip,
   story,
   blob,
+  replyToId,
+  parentAuthor,
   botProfile,
 }: {
   as: string;
   toShip: string;
   story: Story;
   blob?: string;
+  replyToId?: string | null;
+  parentAuthor?: string;
   botProfile?: BotProfile;
 }) {
   const sentAt = Date.now();
+  const replyTo = (() => {
+    if (!replyToId) {
+      return undefined;
+    }
+    const parsed = parseWritId(replyToId);
+    return {
+      parentId: formatPostId(parsed.bareId),
+      // in a vouched [moon, human] conversation the parent is authored by
+      // the human unless stated otherwise
+      parentAuthor: parentAuthor || parsed.author || toShip,
+    };
+  })();
   const result = await apiSendVouchedDm({
     as,
     // the host authors as its own moon
@@ -170,6 +188,7 @@ export async function sendVouchedDmWithStory({
     sentAt,
     blob,
     botProfile,
+    replyTo,
   });
   return { channel: 'tlon' as const, messageId: result.messageId, sentAt };
 }

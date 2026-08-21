@@ -169,6 +169,10 @@ import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
 import { createProcessedMessageTracker } from './processed-messages.js';
 import {
+  type RosterFact,
+  rosterChangeRequiresRestart,
+} from './roster-watch.js';
+import {
   type TlonInboundRouteRecord,
   isRouteDebugEnabled,
   recordTlonRouteAndDispatch,
@@ -411,6 +415,8 @@ export async function monitorTlonProvider(
       toShip: params.toShip,
       text: params.text,
       blob: params.blob,
+      replyToId: params.replyToId,
+      parentAuthor: params.parentAuthor,
       botProfile: params.botProfile,
     });
   };
@@ -4509,6 +4515,66 @@ export async function monitorTlonProvider(
         },
       });
       runtime.log?.('[tlon] Subscribed to contacts updates (/v1/news)');
+
+      // Roster watch: the bot fleet (accounts/agents/bindings) is generated
+      // from the steward roster at boot, so a %minted/%retired fact only
+      // takes effect via a gateway restart (the compose restart policy
+      // brings it right back). Only the default account's monitor watches —
+      // fleet monitors would duplicate it. Best-effort: a ship without
+      // %steward just nacks the watch.
+      if ((opts.accountId ?? 'default') === 'default') {
+        const configuredMoons: ReadonlySet<string> = new Set(
+          [
+            account.moon,
+            ...Object.values(
+              (
+                cfg.channels?.tlon as {
+                  accounts?: Record<string, { moon?: unknown }>;
+                }
+              )?.accounts ?? {}
+            ).map((entry) => entry?.moon),
+          ]
+            .filter((m): m is string => typeof m === 'string' && m.length > 0)
+            .map(normalizeShip)
+        );
+        let rosterRestartScheduled = false;
+        try {
+          await api.subscribe({
+            app: 'steward',
+            path: '/v1/roster',
+            event: (data) => {
+              const reason = rosterChangeRequiresRestart(
+                data as RosterFact,
+                configuredMoons,
+                normalizeShip
+              );
+              if (!reason || rosterRestartScheduled) {
+                return;
+              }
+              rosterRestartScheduled = true;
+              runtime.log?.(
+                `[tlon] Bot roster changed (${reason}); restarting gateway in 5s to apply the fleet config...`
+              );
+              setTimeout(() => process.exit(0), 5000);
+            },
+            err: (error) => {
+              runtime.log?.(
+                `[tlon] Roster subscription error (fleet auto-restart off): ${String(error)}`
+              );
+            },
+            quit: () => {
+              runtime.log?.(
+                '[tlon] Roster quit received, SSE client will resubscribe'
+              );
+            },
+          });
+          runtime.log?.('[tlon] Watching bot roster (steward /v1/roster)');
+        } catch (error: any) {
+          runtime.log?.(
+            `[tlon] Roster watch unavailable: ${error?.message ?? String(error)}`
+          );
+        }
+      }
 
       // Subscribe to the bot ship's %steward lens module for owner-initiated
       // retries. The agent verifies the requester before emitting the fact;

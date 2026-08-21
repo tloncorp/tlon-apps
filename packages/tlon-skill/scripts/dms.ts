@@ -314,15 +314,11 @@ export async function reactToDM(
   }
 
   // acting as a bot moon: the reaction must be attributed to the bot, so it
-  // rides the vouched conversation, never the host's own DM store
+  // rides the vouched conversation, never the host's own DM store. For a
+  // thread reaction, --parent names the parent writ and the post id is the
+  // reply being reacted to.
   const moon = botMoon();
   if (moon) {
-    if (parent) {
-      return {
-        success: false,
-        error: 'thread reactions are not yet supported for bot identities',
-      };
-    }
     try {
       await addVouchedDmReaction({
         as: moon,
@@ -330,6 +326,7 @@ export async function reactToDM(
         postId: `${parsed.authorId}/${parsed.id}`,
         emoji: react,
         authorId: moon,
+        parentId: parent ? `${parent.authorId}/${parent.id}` : undefined,
       });
       return { success: true };
     } catch (error: any) {
@@ -382,18 +379,13 @@ export async function unreactToDM(
 
   const moon = botMoon();
   if (moon) {
-    if (parent) {
-      return {
-        success: false,
-        error: 'thread reactions are not yet supported for bot identities',
-      };
-    }
     try {
       await removeVouchedDmReaction({
         as: moon,
         toShip: normalizedShip,
         postId: `${parsed.authorId}/${parsed.id}`,
         authorId: moon,
+        parentId: parent ? `${parent.authorId}/${parent.id}` : undefined,
       });
       return { success: true };
     } catch (error: any) {

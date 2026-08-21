@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # The monitor exits on a bot-roster change (mint/retire) so the fleet
+    # config regenerates from the roster on the way back up.
+    restart: unless-stopped
     env_file:
       - ../.env
     environment:
