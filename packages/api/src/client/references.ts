@@ -218,6 +218,19 @@ function matchReferencePath(core: string): ub.Cite | null {
       }
       return { chan: { nest, where: `/note/${where[1]}` } };
     }
+    // Single-id alias forms our own `tlon expose` command prints: heap
+    // posts as /curio/<id> and diary posts as /note/<id>. The renderer's
+    // numeric-segment scan accepts them, so a bot echoing an expose path
+    // must get a card, not literal text.
+    if (
+      (chanKind === 'heap' && where[0] === 'curio') ||
+      (chanKind === 'diary' && where[0] === 'note')
+    ) {
+      if (where.length !== 2 || !isValidIdSegment(where[1])) {
+        return null;
+      }
+      return { chan: { nest, where: `/${where[0]}/${where[1]}` } };
+    }
     if (where[0] !== 'msg') {
       return null;
     }

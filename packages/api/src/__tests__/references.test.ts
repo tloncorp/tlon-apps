@@ -242,6 +242,26 @@ test('extractReferencePaths accepts the canonical chan forms', () => {
     text: '',
     cites: [{ chan: { nest: 'heap/~zod/links', where: '/msg/5' } }],
   });
+  // The single-id alias forms `tlon expose` prints for heap and diary.
+  expect(
+    extractReferencePaths(
+      '/1/chan/heap/~zod/gallery/curio/170.141.184.505.979.681.243.072.382.329.337.971.474'
+    )
+  ).toEqual({
+    text: '',
+    cites: [
+      {
+        chan: {
+          nest: 'heap/~zod/gallery',
+          where: '/curio/170.141.184.505.979.681.243.072.382.329.337.971.474',
+        },
+      },
+    ],
+  });
+  expect(extractReferencePaths('/1/chan/diary/~zod/blog/note/123')).toEqual({
+    text: '',
+    cites: [{ chan: { nest: 'diary/~zod/blog', where: '/note/123' } }],
+  });
 });
 
 test('extractReferencePaths rejects invalid candidates and leaves them as text', () => {
@@ -268,8 +288,12 @@ test('extractReferencePaths rejects invalid candidates and leaves them as text',
     // chan host and name are validated separately from group refs
     '/1/chan/chat/~foobar/test/msg/1',
     '/1/chan/chat/~zod/Bad/msg/1',
-    // /note/ on a non-notes nest
+    // /note/ on a chat nest (diary and notes are the only note-form nests)
     `/1/chan/${CHANNEL_ID}/note/3`,
+    // curio only exists on heap nests, and only in single-id form
+    '/1/chan/chat/~zod/general/curio/5',
+    '/1/chan/diary/~zod/blog/curio/5',
+    '/1/chan/heap/~zod/gallery/curio/1/2',
     // free-form chan where with no post id
     `/1/chan/${CHANNEL_ID}/some/free-form/where`,
     // channel-itself refs do not exist
