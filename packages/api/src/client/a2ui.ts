@@ -159,9 +159,11 @@ export namespace A2UI {
 
 const LIMITS = {
   maxBytes: 32 * 1024,
-  maxComponents: 50,
+  // Sized for a divided list card: a header, seven Row entries with their
+  // own labels and controls, hairline Dividers between them, and a footer.
+  maxComponents: 80,
   maxDepth: 8,
-  maxChildren: 12,
+  maxChildren: 20,
   maxTextNodeLength: 1000,
   maxButtonMessageLength: 1000,
   maxNavigationTargetIdLength: 500,

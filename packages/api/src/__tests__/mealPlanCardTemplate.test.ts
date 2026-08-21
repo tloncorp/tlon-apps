@@ -59,9 +59,9 @@ describe('meal-plan weekly card template', () => {
         }>;
       }
     ).messages[1]?.updateComponents?.components;
-    // The validator caps components at 50; the agent renames meals and
-    // appends "— replaced" sublines, so the template must not sit at the cap.
-    expect(components?.length).toBeLessThanOrEqual(45);
+    // The validator caps components at 80; the agent renames meals and adds
+    // note sublines, so the template must not sit at the cap.
+    expect(components?.length).toBeLessThanOrEqual(70);
   });
 
   test('both entries survive the shared blob parser as their own types', () => {

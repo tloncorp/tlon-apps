@@ -9,13 +9,13 @@ One Kitchen post. Its message text is your one-line note (assumptions, or what c
 1. an `a2ui` entry — the visible card (v0.9 messages: one `createSurface` with `catalogId` `tlon.a2ui.basic.v1`, one `updateComponents` with a flat component list referenced by id from `root`).
 2. an `interactive-surface` entry — `surfaceId`, `revision` (0 on create, +1 per edit you make), and `state` (your own record of the week).
 
-Limits that will reject the post if crossed: 50 components, depth 8, 12 children per container, 1000 chars per text node, 32KB per entry.
+Limits that will reject the post if crossed: 80 components, depth 8, 20 children per container, 1000 chars per text node, 32KB per entry.
 
 ## Template
 
 Copy this shape exactly; change only the meals, dates, ids, and the two places. `surfaceId` must be unique per card — use `weekly-plan-<week-start>` plus a short random suffix. In the footer's navigate target, `channelId` is the plans place's nest and `groupId` is the group flag (both are in the places legend above).
 
-Do not simplify the structure. Every day is a `Row` holding a `Text` and a `Replace` `Button` — the buttons are how the household changes a night, so a card whose days are plain text rows is broken even though it renders. Keep all four components per day, all seven days.
+Do not simplify the structure. Every day is a `Row` of three parts — a muted `caption` day label, the meal name (with an optional `caption` note beneath it in a nested `Column`, only when the note earns its place), and a `Replace` `Button` — with a `Divider` before each row. The buttons are how the household changes a night, so a card whose days are plain text lines is broken even though it renders. A night with nothing to replace (eating out, leftovers) may drop its button, like Friday in the template. Keep the meal names short — the reasoning lives in the notebook, not the card.
 
 ```json
 [
@@ -36,44 +36,380 @@ Do not simplify the structure. Every day is a `Row` holding a `Text` and a `Repl
                     "surfaceId": "weekly-plan-2026-08-24-k3x9",
                     "root": "card",
                     "components": [
-                        { "id": "card", "component": "Card", "child": "col" },
-                        { "id": "col", "component": "Column", "align": "stretch", "children": ["title", "meta", "row-mon", "row-tue", "row-wed", "row-thu", "row-fri", "row-sat", "row-sun", "div", "footer"] },
-                        { "id": "title", "component": "Text", "text": "This week", "variant": "h4" },
-                        { "id": "meta", "component": "Text", "text": "Assumes two people, no allergies · saved to Meal Plans", "variant": "caption" },
-                        { "id": "row-mon", "component": "Row", "justify": "spaceBetween", "align": "center", "children": ["txt-mon", "btn-mon"] },
-                        { "id": "txt-mon", "component": "Text", "text": "Mon · Tacos al pastor — 25 minutes", "weight": 1 },
-                        { "id": "btn-mon", "component": "Button", "child": "btl-mon", "variant": "secondary", "action": { "event": { "name": "tlon.sendMessage", "context": { "text": "Replace Monday's dinner" } } } },
-                        { "id": "btl-mon", "component": "Text", "text": "Replace", "variant": "caption" },
-                        { "id": "row-tue", "component": "Row", "justify": "spaceBetween", "align": "center", "children": ["txt-tue", "btn-tue"] },
-                        { "id": "txt-tue", "component": "Text", "text": "Tue · Coconut chickpea curry — uses the spinach", "weight": 1 },
-                        { "id": "btn-tue", "component": "Button", "child": "btl-tue", "variant": "secondary", "action": { "event": { "name": "tlon.sendMessage", "context": { "text": "Replace Tuesday's dinner" } } } },
-                        { "id": "btl-tue", "component": "Text", "text": "Replace", "variant": "caption" },
-                        { "id": "row-wed", "component": "Row", "justify": "spaceBetween", "align": "center", "children": ["txt-wed", "btn-wed"] },
-                        { "id": "txt-wed", "component": "Text", "text": "Wed · Miso salmon bowls — twenty minutes", "weight": 1 },
-                        { "id": "btn-wed", "component": "Button", "child": "btl-wed", "variant": "secondary", "action": { "event": { "name": "tlon.sendMessage", "context": { "text": "Replace Wednesday's dinner" } } } },
-                        { "id": "btl-wed", "component": "Text", "text": "Replace", "variant": "caption" },
-                        { "id": "row-thu", "component": "Row", "justify": "spaceBetween", "align": "center", "children": ["txt-thu", "btn-thu"] },
-                        { "id": "txt-thu", "component": "Text", "text": "Thu · Kale caesar with crispy chickpeas — good cold", "weight": 1 },
-                        { "id": "btn-thu", "component": "Button", "child": "btl-thu", "variant": "secondary", "action": { "event": { "name": "tlon.sendMessage", "context": { "text": "Replace Thursday's dinner" } } } },
-                        { "id": "btl-thu", "component": "Text", "text": "Replace", "variant": "caption" },
-                        { "id": "row-fri", "component": "Row", "justify": "spaceBetween", "align": "center", "children": ["txt-fri", "btn-fri"] },
-                        { "id": "txt-fri", "component": "Text", "text": "Fri · Sheet-pan sausage and peppers — hands-off", "weight": 1 },
-                        { "id": "btn-fri", "component": "Button", "child": "btl-fri", "variant": "secondary", "action": { "event": { "name": "tlon.sendMessage", "context": { "text": "Replace Friday's dinner" } } } },
-                        { "id": "btl-fri", "component": "Text", "text": "Replace", "variant": "caption" },
-                        { "id": "row-sat", "component": "Row", "justify": "spaceBetween", "align": "center", "children": ["txt-sat", "btn-sat"] },
-                        { "id": "txt-sat", "component": "Text", "text": "Sat · Fish tacos with cabbage slaw — weekend effort", "weight": 1 },
-                        { "id": "btn-sat", "component": "Button", "child": "btl-sat", "variant": "secondary", "action": { "event": { "name": "tlon.sendMessage", "context": { "text": "Replace Saturday's dinner" } } } },
-                        { "id": "btl-sat", "component": "Text", "text": "Replace", "variant": "caption" },
-                        { "id": "row-sun", "component": "Row", "justify": "spaceBetween", "align": "center", "children": ["txt-sun", "btn-sun"] },
-                        { "id": "txt-sun", "component": "Text", "text": "Sun · Ginger-sesame noodle bowls — uses the cabbage", "weight": 1 },
-                        { "id": "btn-sun", "component": "Button", "child": "btl-sun", "variant": "secondary", "action": { "event": { "name": "tlon.sendMessage", "context": { "text": "Replace Sunday's dinner" } } } },
-                        { "id": "btl-sun", "component": "Text", "text": "Replace", "variant": "caption" },
-                        { "id": "div", "component": "Divider" },
-                        { "id": "footer", "component": "Row", "justify": "spaceBetween", "align": "center", "children": ["btn-plans", "btn-good"] },
-                        { "id": "btn-plans", "component": "Button", "child": "btl-plans", "variant": "borderless", "action": { "event": { "name": "tlon.navigate", "context": { "target": { "type": "channel", "channelId": "notes/~host/plans-example", "groupId": "~host/example" } } } } },
-                        { "id": "btl-plans", "component": "Text", "text": "Open Meal Plans", "variant": "caption" },
-                        { "id": "btn-good", "component": "Button", "child": "btl-good", "variant": "primary", "action": { "event": { "name": "tlon.sendMessage", "context": { "text": "The plan looks good" } } } },
-                        { "id": "btl-good", "component": "Text", "text": "Looks good", "variant": "caption" }
+                        {
+                            "id": "card",
+                            "component": "Card",
+                            "child": "col"
+                        },
+                        {
+                            "id": "col",
+                            "component": "Column",
+                            "align": "stretch",
+                            "children": ["hdr", "div-1", "row-mon", "div-2", "row-tue", "div-3", "row-wed", "div-4", "row-thu", "div-5", "row-fri", "div-6", "row-sat", "div-7", "row-sun", "footer"]
+                        },
+                        {
+                            "id": "hdr",
+                            "component": "Row",
+                            "justify": "spaceBetween",
+                            "align": "center",
+                            "children": ["t-title", "t-saved"]
+                        },
+                        {
+                            "id": "t-title",
+                            "component": "Text",
+                            "text": "This week",
+                            "variant": "h4"
+                        },
+                        {
+                            "id": "t-saved",
+                            "component": "Text",
+                            "text": "✓ Saved",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "div-1",
+                            "component": "Divider"
+                        },
+                        {
+                            "id": "day-mon",
+                            "component": "Text",
+                            "text": "Mon",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "txt-mon",
+                            "component": "Text",
+                            "text": "Tacos al pastor",
+                            "weight": 1
+                        },
+                        {
+                            "id": "btn-mon",
+                            "component": "Button",
+                            "child": "btl-mon",
+                            "variant": "secondary",
+                            "action": {
+                                "event": {
+                                    "name": "tlon.sendMessage",
+                                    "context": {
+                                        "text": "Replace Monday's dinner"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "id": "btl-mon",
+                            "component": "Text",
+                            "text": "Replace",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "row-mon",
+                            "component": "Row",
+                            "justify": "spaceBetween",
+                            "align": "center",
+                            "children": ["day-mon", "txt-mon", "btn-mon"]
+                        },
+                        {
+                            "id": "div-2",
+                            "component": "Divider"
+                        },
+                        {
+                            "id": "day-tue",
+                            "component": "Text",
+                            "text": "Tue",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "txt-tue",
+                            "component": "Text",
+                            "text": "Coconut chickpea curry",
+                            "weight": 1
+                        },
+                        {
+                            "id": "btn-tue",
+                            "component": "Button",
+                            "child": "btl-tue",
+                            "variant": "secondary",
+                            "action": {
+                                "event": {
+                                    "name": "tlon.sendMessage",
+                                    "context": {
+                                        "text": "Replace Tuesday's dinner"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "id": "btl-tue",
+                            "component": "Text",
+                            "text": "Replace",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "row-tue",
+                            "component": "Row",
+                            "justify": "spaceBetween",
+                            "align": "center",
+                            "children": ["day-tue", "txt-tue", "btn-tue"]
+                        },
+                        {
+                            "id": "div-3",
+                            "component": "Divider"
+                        },
+                        {
+                            "id": "day-wed",
+                            "component": "Text",
+                            "text": "Wed",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "txt-wed",
+                            "component": "Text",
+                            "text": "Miso salmon bowls",
+                            "weight": 1
+                        },
+                        {
+                            "id": "btn-wed",
+                            "component": "Button",
+                            "child": "btl-wed",
+                            "variant": "secondary",
+                            "action": {
+                                "event": {
+                                    "name": "tlon.sendMessage",
+                                    "context": {
+                                        "text": "Replace Wednesday's dinner"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "id": "btl-wed",
+                            "component": "Text",
+                            "text": "Replace",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "row-wed",
+                            "component": "Row",
+                            "justify": "spaceBetween",
+                            "align": "center",
+                            "children": ["day-wed", "txt-wed", "btn-wed"]
+                        },
+                        {
+                            "id": "div-4",
+                            "component": "Divider"
+                        },
+                        {
+                            "id": "day-thu",
+                            "component": "Text",
+                            "text": "Thu",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "txt-thu",
+                            "component": "Text",
+                            "text": "Kale caesar with crispy chickpeas",
+                            "weight": 1
+                        },
+                        {
+                            "id": "btn-thu",
+                            "component": "Button",
+                            "child": "btl-thu",
+                            "variant": "secondary",
+                            "action": {
+                                "event": {
+                                    "name": "tlon.sendMessage",
+                                    "context": {
+                                        "text": "Replace Thursday's dinner"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "id": "btl-thu",
+                            "component": "Text",
+                            "text": "Replace",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "row-thu",
+                            "component": "Row",
+                            "justify": "spaceBetween",
+                            "align": "center",
+                            "children": ["day-thu", "txt-thu", "btn-thu"]
+                        },
+                        {
+                            "id": "div-5",
+                            "component": "Divider"
+                        },
+                        {
+                            "id": "day-fri",
+                            "component": "Text",
+                            "text": "Fri",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "col-fri",
+                            "component": "Column",
+                            "align": "start",
+                            "children": ["txt-fri", "sub-fri"],
+                            "weight": 1
+                        },
+                        {
+                            "id": "txt-fri",
+                            "component": "Text",
+                            "text": "Out / leftovers"
+                        },
+                        {
+                            "id": "sub-fri",
+                            "component": "Text",
+                            "text": "No cooking",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "row-fri",
+                            "component": "Row",
+                            "justify": "spaceBetween",
+                            "align": "center",
+                            "children": ["day-fri", "col-fri"]
+                        },
+                        {
+                            "id": "div-6",
+                            "component": "Divider"
+                        },
+                        {
+                            "id": "day-sat",
+                            "component": "Text",
+                            "text": "Sat",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "txt-sat",
+                            "component": "Text",
+                            "text": "Fish tacos with cabbage slaw",
+                            "weight": 1
+                        },
+                        {
+                            "id": "btn-sat",
+                            "component": "Button",
+                            "child": "btl-sat",
+                            "variant": "secondary",
+                            "action": {
+                                "event": {
+                                    "name": "tlon.sendMessage",
+                                    "context": {
+                                        "text": "Replace Saturday's dinner"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "id": "btl-sat",
+                            "component": "Text",
+                            "text": "Replace",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "row-sat",
+                            "component": "Row",
+                            "justify": "spaceBetween",
+                            "align": "center",
+                            "children": ["day-sat", "txt-sat", "btn-sat"]
+                        },
+                        {
+                            "id": "div-7",
+                            "component": "Divider"
+                        },
+                        {
+                            "id": "day-sun",
+                            "component": "Text",
+                            "text": "Sun",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "txt-sun",
+                            "component": "Text",
+                            "text": "Ginger-sesame noodle bowls",
+                            "weight": 1
+                        },
+                        {
+                            "id": "btn-sun",
+                            "component": "Button",
+                            "child": "btl-sun",
+                            "variant": "secondary",
+                            "action": {
+                                "event": {
+                                    "name": "tlon.sendMessage",
+                                    "context": {
+                                        "text": "Replace Sunday's dinner"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "id": "btl-sun",
+                            "component": "Text",
+                            "text": "Replace",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "row-sun",
+                            "component": "Row",
+                            "justify": "spaceBetween",
+                            "align": "center",
+                            "children": ["day-sun", "txt-sun", "btn-sun"]
+                        },
+                        {
+                            "id": "footer",
+                            "component": "Row",
+                            "justify": "spaceBetween",
+                            "align": "center",
+                            "children": ["btn-plans", "btn-good"]
+                        },
+                        {
+                            "id": "btn-plans",
+                            "component": "Button",
+                            "child": "btl-plans",
+                            "variant": "borderless",
+                            "action": {
+                                "event": {
+                                    "name": "tlon.navigate",
+                                    "context": {
+                                        "target": {
+                                            "type": "channel",
+                                            "channelId": "notes/~host/plans-example",
+                                            "groupId": "~host/example"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "id": "btl-plans",
+                            "component": "Text",
+                            "text": "Open Meal Plans",
+                            "variant": "caption"
+                        },
+                        {
+                            "id": "btn-good",
+                            "component": "Button",
+                            "child": "btl-good",
+                            "variant": "primary",
+                            "action": {
+                                "event": {
+                                    "name": "tlon.sendMessage",
+                                    "context": {
+                                        "text": "The plan looks good"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "id": "btl-good",
+                            "component": "Text",
+                            "text": "Looks good",
+                            "variant": "caption"
+                        }
                     ]
                 }
             }
@@ -87,13 +423,35 @@ Do not simplify the structure. Every day is a `Row` holding a `Text` and a `Repl
         "state": {
             "week": "2026-08-24",
             "meals": [
-                { "day": "Mon", "name": "Tacos al pastor", "reason": "25 minutes" },
-                { "day": "Tue", "name": "Coconut chickpea curry", "reason": "uses the spinach" },
-                { "day": "Wed", "name": "Miso salmon bowls", "reason": "twenty minutes" },
-                { "day": "Thu", "name": "Kale caesar with crispy chickpeas", "reason": "good cold" },
-                { "day": "Fri", "name": "Sheet-pan sausage and peppers", "reason": "hands-off" },
-                { "day": "Sat", "name": "Fish tacos with cabbage slaw", "reason": "weekend effort" },
-                { "day": "Sun", "name": "Ginger-sesame noodle bowls", "reason": "uses the cabbage" }
+                {
+                    "day": "Mon",
+                    "name": "Tacos al pastor"
+                },
+                {
+                    "day": "Tue",
+                    "name": "Coconut chickpea curry"
+                },
+                {
+                    "day": "Wed",
+                    "name": "Miso salmon bowls"
+                },
+                {
+                    "day": "Thu",
+                    "name": "Kale caesar with crispy chickpeas"
+                },
+                {
+                    "day": "Fri",
+                    "name": "Out / leftovers",
+                    "note": "No cooking"
+                },
+                {
+                    "day": "Sat",
+                    "name": "Fish tacos with cabbage slaw"
+                },
+                {
+                    "day": "Sun",
+                    "name": "Ginger-sesame noodle bowls"
+                }
             ]
         },
         "processedActionIds": []

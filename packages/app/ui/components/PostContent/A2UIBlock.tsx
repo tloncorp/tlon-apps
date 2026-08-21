@@ -31,6 +31,19 @@ function getTextColor(component: A2UI.Text) {
   return component.variant === 'caption' ? '$secondaryText' : '$primaryText';
 }
 
+function getTextWeight(component: A2UI.Text) {
+  switch (component.variant) {
+    case 'h1':
+    case 'h2':
+      return '600' as const;
+    case 'h3':
+    case 'h4':
+      return '500' as const;
+    default:
+      return undefined;
+  }
+}
+
 function getComponentGap(
   component: A2UI.Container,
   components: Map<string, A2UI.Component>
@@ -185,6 +198,7 @@ export function A2UIBlock({
               key={component.id}
               size={getTextSize(component)}
               color={getTextColor(component)}
+              fontWeight={getTextWeight(component)}
               textAlign={getTextAlign(options.parentAlign)}
               flex={getComponentFlex(component)}
             >
@@ -198,7 +212,9 @@ export function A2UIBlock({
               key={component.id}
               gap={getComponentGap(component, components)}
               marginTop={
-                hasButtonChild(component, components) ? '$l' : undefined
+                !options.fullBleed && hasButtonChild(component, components)
+                  ? '$l'
+                  : undefined
               }
               alignItems={getAlignItems(component.align)}
               justifyContent={getJustifyContent(component.justify)}
@@ -304,14 +320,15 @@ export function A2UIBlock({
           return (
             <Button.Frame
               key={component.id}
-              size="medium"
+              size="small"
               fill={treatment.fill}
               intent={treatment.intent}
               alignSelf={
                 options.parentAlign === 'center' ? 'center' : 'flex-start'
               }
-              height={44}
-              paddingHorizontal="$xl"
+              height={36}
+              borderRadius={9999}
+              paddingHorizontal="$l"
               flex={getComponentFlex(component)}
               disabled={disabled}
               dimmed={disabled}
@@ -322,7 +339,7 @@ export function A2UIBlock({
               {pending ? (
                 <LoadingSpinner size="small" color="$primaryText" />
               ) : null}
-              <Button.Text size="medium">{label}</Button.Text>
+              <Button.Text size="small">{label}</Button.Text>
             </Button.Frame>
           );
         }

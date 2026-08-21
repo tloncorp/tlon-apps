@@ -484,7 +484,7 @@ An `a2ui` entry is `{"type":"a2ui","version":1,"messages":[...]}` with two v0.9 
     -   `{"event":{"name":"tlon.sendMessage","context":{"text":"..."}}}` — the tapping user posts that text into the current conversation (this is how a button reaches you: the text arrives as a normal message from them)
     -   `{"event":{"name":"tlon.navigate","context":{"target":{"type":"channel","channelId":"<nest>","groupId":"<flag>"}}}}` — also `message`, `group`, `profile` targets
 
-Validation limits (the post is refused past any): 50 components, depth 8, 12 children per container, 1000 chars per text node, 8000 chars total text, 32KB per entry.
+Validation limits (the post is refused past any): 80 components, depth 8, 20 children per container, 1000 chars per text node, 8000 chars total text, 32KB per entry.
 
 A **stateful** card adds a sibling `interactive-surface` entry on the same post: `{"type":"interactive-surface","version":1,"surfaceId":"<same as the a2ui entry>","revision":0,"state":{...},"processedActionIds":[]}`. `state` is yours (≤8KB JSON); `revision` starts at 0 and bumps by exactly 1 per edit you apply. Rules that matter:
 
