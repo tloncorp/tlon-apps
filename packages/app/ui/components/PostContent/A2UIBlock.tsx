@@ -158,16 +158,26 @@ function SmallChoiceControl({
   const [consumedLocally, setConsumedLocally] = useState(false);
   const submittingRef = useRef(false);
 
-  const toggle = useCallback((id: string) => {
-    if (submittingRef.current) {
-      return;
-    }
-    setSelectedIds((previous) =>
-      previous.includes(id)
-        ? previous.filter((selected) => selected !== id)
-        : [...previous, id]
-    );
-  }, []);
+  const toggle = useCallback(
+    (id: string) => {
+      if (submittingRef.current) {
+        return;
+      }
+      setSelectedIds((previous) => {
+        if (previous.includes(id)) {
+          return previous.filter((selected) => selected !== id);
+        }
+        if (
+          previous.length + customTopics.length >=
+          A2UI.agentProtocolLimits.topicCount
+        ) {
+          return previous;
+        }
+        return [...previous, id];
+      });
+    },
+    [customTopics.length]
+  );
 
   const messageForSelection = A2UI.buildSmallChoiceMessage(
     component,
@@ -243,7 +253,10 @@ function SmallChoiceControl({
 
   const submitAction = messageForSelection ? actionForSelection : probeAction;
   const actionConsumed =
-    consumedLocally || isActionConsumed?.(submitAction) === true;
+    consumedLocally ||
+    (component.action.event.name === A2UI.action.sendMessage
+      ? Boolean(consumedMessageText?.trim())
+      : isActionConsumed?.(submitAction) === true);
   // A durable owner reply consumes the entire picker, not just its submit
   // button. Without this guard a remounted historical picker could still
   // toggle pills after onboarding had already advanced to the next prompt.
@@ -287,22 +300,30 @@ function SmallChoiceControl({
     );
     if (matchingOption) {
       setSelectedIds((previous) =>
-        previous.includes(matchingOption.id)
+        previous.includes(matchingOption.id) ||
+        previous.length + customTopics.length >=
+          A2UI.agentProtocolLimits.topicCount
           ? previous
           : [...previous, matchingOption.id]
       );
     } else {
-      setCustomTopics((previous) =>
-        previous.some(
+      setCustomTopics((previous) => {
+        if (
+          selectedIds.length + previous.length >=
+          A2UI.agentProtocolLimits.topicCount
+        ) {
+          return previous;
+        }
+        return previous.some(
           (existing) =>
             existing.toLocaleLowerCase() === topic.toLocaleLowerCase()
         )
           ? previous
-          : [...previous, topic]
-      );
+          : [...previous, topic];
+      });
     }
     setCustomInputOpen(false);
-  }, [component.options, customDraft]);
+  }, [component.options, customDraft, customTopics.length, selectedIds.length]);
 
   const removeCustomTopic = useCallback((topic: string) => {
     if (submittingRef.current) {
@@ -553,7 +574,7 @@ function SmallChoiceControl({
                 autoFocus
                 value={customDraft}
                 onChangeText={setCustomDraft}
-                maxLength={1000}
+                maxLength={A2UI.agentProtocolLimits.topicLength}
                 placeholder={component.freeTextPlaceholder}
                 returnKeyType="done"
                 onSubmitEditing={saveCustomInput}
@@ -717,6 +738,7 @@ export function A2UIBlock({
   const [locallyConsumedChoices, setLocallyConsumedChoices] = useState<
     Record<string, string>
   >({});
+  const buttonPressLocksRef = useRef(new Set<string>());
   const choicePressLocksRef = useRef(new Set<string>());
   const update = A2UI.getUpdateMessage(block.a2ui);
   const root = A2UI.getRootComponentId(block.a2ui);
@@ -737,19 +759,31 @@ export function A2UIBlock({
   const handleButtonPress = useCallback(
     async (component: A2UI.Button) => {
       if (
-        component.action.event.name === A2UI.action.sendMessage &&
-        !component.action.event.context.text.trim()
+        buttonPressLocksRef.current.has(component.id) ||
+        (component.action.event.name === A2UI.action.sendMessage &&
+          !component.action.event.context.text.trim())
       ) {
         return;
       }
 
-      await onA2UIAction?.(component.action);
-      if (isConsumableA2UIAction(component.action)) {
-        setLocallyConsumedComponentIds((previous) =>
-          previous.includes(component.id)
-            ? previous
-            : [...previous, component.id]
-        );
+      const consumeAction = isConsumableA2UIAction(component.action);
+      buttonPressLocksRef.current.add(component.id);
+      try {
+        await onA2UIAction?.(component.action);
+        if (consumeAction) {
+          setLocallyConsumedComponentIds((previous) =>
+            previous.includes(component.id)
+              ? previous
+              : [...previous, component.id]
+          );
+        }
+      } catch (error) {
+        buttonPressLocksRef.current.delete(component.id);
+        throw error;
+      } finally {
+        if (!consumeAction) {
+          buttonPressLocksRef.current.delete(component.id);
+        }
       }
     },
     [onA2UIAction]

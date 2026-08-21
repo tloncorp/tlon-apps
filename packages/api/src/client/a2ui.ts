@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { AGENT_PROTOCOL_LIMITS } from './agentProtocol';
+
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
 const ACTION_NAVIGATE = 'tlon.navigate';
 const ACTION_PROVISION_AGENT = 'tlon.provisionAgent';
@@ -502,15 +504,19 @@ function validateButtonAction(action: unknown): action is A2UI.ButtonAction {
   if (event.name === ACTION_PROVISION_AGENT) {
     return (
       isPlainObject(context) &&
-      isValidTargetId(context.groupId) &&
-      isValidTargetId(context.purposeId) &&
+      isNonEmptyString(context.groupId) &&
+      context.groupId.length <= AGENT_PROTOCOL_LIMITS.groupIdLength &&
+      isNonEmptyString(context.purposeId) &&
+      context.purposeId.length <= AGENT_PROTOCOL_LIMITS.identifierLength &&
       isNonEmptyString(context.purpose) &&
-      context.purpose.length <= 200 &&
+      context.purpose.length <= AGENT_PROTOCOL_LIMITS.purposeLength &&
       Array.isArray(context.topics) &&
       context.topics.length > 0 &&
-      context.topics.length <= LIMITS.maxSmallChoiceOptions &&
+      context.topics.length <= AGENT_PROTOCOL_LIMITS.topicCount &&
       context.topics.every(
-        (topic) => isNonEmptyString(topic) && topic.length <= 200
+        (topic) =>
+          isNonEmptyString(topic) &&
+          topic.length <= AGENT_PROTOCOL_LIMITS.topicLength
       ) &&
       typeof context.scheduleHour === 'number' &&
       Number.isInteger(context.scheduleHour) &&
@@ -526,13 +532,16 @@ function validateButtonAction(action: unknown): action is A2UI.ButtonAction {
   if (event.name === ACTION_CONFIGURE_AGENT_PROVIDERS) {
     return (
       isPlainObject(context) &&
-      isValidTargetId(context.groupId) &&
-      isValidTargetId(context.provisionId) &&
+      isNonEmptyString(context.groupId) &&
+      context.groupId.length <= AGENT_PROTOCOL_LIMITS.groupIdLength &&
+      isNonEmptyString(context.provisionId) &&
+      context.provisionId.length <= AGENT_PROTOCOL_LIMITS.identifierLength &&
       Array.isArray(context.providerIds) &&
-      context.providerIds.length <= LIMITS.maxSmallChoiceOptions &&
+      context.providerIds.length <= AGENT_PROTOCOL_LIMITS.providerCount &&
       context.providerIds.every(
         (providerId) =>
-          isValidTargetId(providerId) &&
+          isNonEmptyString(providerId) &&
+          providerId.length <= AGENT_PROTOCOL_LIMITS.providerIdLength &&
           /^[a-z0-9][a-z0-9._-]*$/i.test(providerId)
       ) &&
       new Set(context.providerIds).size === context.providerIds.length
@@ -972,6 +981,8 @@ export function smallChoiceProbeMessage(component: A2UI.SmallChoice): string {
 }
 
 export const A2UI = {
+  /** Wire limits used by controls that construct durable agent actions. */
+  agentProtocolLimits: AGENT_PROTOCOL_LIMITS,
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
     navigate: ACTION_NAVIGATE,

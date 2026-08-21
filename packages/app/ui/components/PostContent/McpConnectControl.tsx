@@ -159,6 +159,8 @@ export function McpConnectMenu({
   const [submitting, setSubmitting] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [completedLocally, setCompletedLocally] = useState(false);
+  const configuringRef = useRef(false);
+  const completingRef = useRef(false);
   const initializedRef = useRef(false);
   const knownConnectedRef = useRef(new Set<string>());
   const connectedProviderIds = useMemo(
@@ -208,7 +210,14 @@ export function McpConnectMenu({
   }, []);
 
   const configure = useCallback(async () => {
-    if (!onConfigure || submitting || selectedProviderIds.length === 0) return;
+    if (
+      !onConfigure ||
+      configuringRef.current ||
+      selectedProviderIds.length === 0
+    ) {
+      return;
+    }
+    configuringRef.current = true;
     setSubmitting(true);
     try {
       await onConfigure({
@@ -221,35 +230,34 @@ export function McpConnectMenu({
         },
       });
     } finally {
+      configuringRef.current = false;
       setSubmitting(false);
     }
-  }, [
-    component.configureAction.event,
-    onConfigure,
-    selectedProviderIds,
-    submitting,
-  ]);
+  }, [component.configureAction.event, onConfigure, selectedProviderIds]);
 
   const complete = useCallback(async () => {
     if (
       !component.completionAction ||
       !onComplete ||
-      completing ||
+      completingRef.current ||
       completionConsumed ||
       completedLocally
     ) {
       return;
     }
+    completingRef.current = true;
     setCompleting(true);
     try {
       await onComplete(component.completionAction);
       setCompletedLocally(true);
+    } catch (error) {
+      completingRef.current = false;
+      throw error;
     } finally {
       setCompleting(false);
     }
   }, [
     completedLocally,
-    completing,
     completionConsumed,
     component.completionAction,
     onComplete,

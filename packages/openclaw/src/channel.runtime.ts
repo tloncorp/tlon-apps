@@ -293,7 +293,7 @@ const unobservedTlonRuntimeOutbound: Pick<
           });
           return result;
         }
-        if (parsed.nest.startsWith('notes/')) {
+        if (parsed.kind === 'notebook') {
           return await sendNotesEntry({
             fromShip,
             nest: parsed.nest,
@@ -372,7 +372,7 @@ const unobservedTlonRuntimeOutbound: Pick<
           });
           return result;
         }
-        if (parsed.nest.startsWith('notes/')) {
+        if (parsed.kind === 'notebook') {
           return await sendNotesEntry({
             fromShip,
             nest: parsed.nest,

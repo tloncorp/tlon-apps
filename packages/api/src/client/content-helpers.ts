@@ -21,7 +21,9 @@ import {
   pathToCite,
 } from '../urbit';
 import { A2UI } from './a2ui';
+import { AGENT_PROTOCOL_LIMITS } from './agentProtocol';
 
+export * from './agentProtocol';
 export * from './a2ui';
 
 const logger = createDevLogger('content-helpers', false);
@@ -704,16 +706,26 @@ export type PostBlobDataEntryAgentIntroRequest = z.infer<
 
 export const PostBlobDataEntryAgentProvisionSchema =
   definePostBlobDataEntrySchema('tlon-agent-provision', 1, {
-    provisionId: z.string().min(1).max(128),
-    groupId: z.string().min(1).max(512),
-    purposeId: z.string().min(1).max(128),
-    purpose: z.string().min(1).max(200),
-    topics: z.array(z.string().min(1).max(200)).min(1).max(12),
-    timezone: z.string().min(1).max(100),
+    provisionId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
+    groupId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.groupIdLength),
+    purposeId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
+    purpose: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.purposeLength),
+    topics: z
+      .array(z.string().min(1).max(AGENT_PROTOCOL_LIMITS.topicLength))
+      .min(1)
+      .max(AGENT_PROTOCOL_LIMITS.topicCount),
+    timezone: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.timezoneLength),
     scheduleHour: z.number().int().min(0).max(23),
     scheduleMinute: z.number().int().min(0).max(59),
-    notebookNest: z.string().min(1).max(512),
-    notebookTitle: z.string().min(1).max(200).optional(),
+    notebookNest: z
+      .string()
+      .min(1)
+      .max(AGENT_PROTOCOL_LIMITS.notebookNestLength),
+    notebookTitle: z
+      .string()
+      .min(1)
+      .max(AGENT_PROTOCOL_LIMITS.notebookTitleLength)
+      .optional(),
   });
 
 export type PostBlobDataEntryAgentProvision = z.infer<
@@ -722,17 +734,17 @@ export type PostBlobDataEntryAgentProvision = z.infer<
 
 export const PostBlobDataEntryAgentProviderConfigSchema =
   definePostBlobDataEntrySchema('tlon-agent-provider-config', 1, {
-    provisionId: z.string().min(1).max(128),
-    groupId: z.string().min(1).max(512),
+    provisionId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
+    groupId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.groupIdLength),
     providerIds: z
       .array(
         z
           .string()
           .min(1)
-          .max(128)
+          .max(AGENT_PROTOCOL_LIMITS.providerIdLength)
           .regex(/^[a-z0-9][a-z0-9._-]*$/i)
       )
-      .max(12)
+      .max(AGENT_PROTOCOL_LIMITS.providerCount)
       .refine((ids) => new Set(ids).size === ids.length),
   });
 
@@ -742,8 +754,8 @@ export type PostBlobDataEntryAgentProviderConfig = z.infer<
 
 export const PostBlobDataEntryAgentProvisionAckSchema =
   definePostBlobDataEntrySchema('tlon-agent-provision-ack', 1, {
-    provisionId: z.string().min(1).max(128),
-    cronJobId: z.string().min(1).max(128),
+    provisionId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
+    cronJobId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
   });
 
 export type PostBlobDataEntryAgentProvisionAck = z.infer<

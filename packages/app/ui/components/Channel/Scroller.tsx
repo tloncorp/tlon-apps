@@ -52,7 +52,7 @@ import { useSetConversationScrollToBottomControl } from '../../contexts/scroll';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
-import { getA2UIActionCompletion } from '../ChatMessage/a2uiActionCompletion';
+import { getA2UIActionCompletions } from '../ChatMessage/a2uiActionCompletion';
 import { EmojiPickerSheet } from '../Emoji';
 import { supportsLiquidGlass } from '../GlassSurface';
 import { ConversationScrollToBottomButton } from '../conversationScrollChrome';
@@ -272,6 +272,10 @@ const Scroller = forwardRef(
         }),
       [visiblePosts]
     );
+    const a2uiActionCompletions = useMemo(
+      () => getA2UIActionCompletions(visiblePosts ?? [], currentUserId),
+      [currentUserId, visiblePosts]
+    );
 
     const style = useMemo(() => {
       return {
@@ -304,10 +308,7 @@ const Scroller = forwardRef(
           (anchor?.type === 'selected' && anchor.postId === post.id) ||
           highlightPostId === post.id ||
           contextLensSelectedPostId === post.id;
-        const a2uiActionCompletion = getA2UIActionCompletion(
-          visiblePosts?.slice(index + 1) ?? [],
-          currentUserId
-        );
+        const a2uiActionCompletion = a2uiActionCompletions[index];
 
         return (
           <ScrollerItem
@@ -373,10 +374,9 @@ const Scroller = forwardRef(
         collectionLayout.itemAspectRatio,
         columns,
         itemWidth,
+        a2uiActionCompletions,
         setActiveMessage,
         setEditingPost,
-        visiblePosts,
-        currentUserId,
         debugMessageJson,
       ]
     );

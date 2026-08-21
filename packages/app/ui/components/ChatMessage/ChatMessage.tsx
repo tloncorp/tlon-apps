@@ -204,6 +204,7 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onLongPress === next.onLongPress &&
     prev.onPress === next.onPress &&
     prev.onPressBotRun === next.onPressBotRun &&
+    isEqual(prev.a2uiActionCompletion, next.a2uiActionCompletion) &&
     prev.searchQuery === next.searchQuery &&
     prev.displayDebugMode === next.displayDebugMode;
 

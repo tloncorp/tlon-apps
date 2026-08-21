@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { canonicalizeNest } from './targets.js';
+import { canonicalizeNest, parseTlonTarget } from './targets.js';
 
 describe('canonicalizeNest', () => {
   it('returns canonical form unchanged', () => {
@@ -56,5 +56,22 @@ describe('canonicalizeNest', () => {
     expect(canonicalizeNest('chat/~zod')).toBeNull();
     expect(canonicalizeNest('chat/~zod/general/extra')).toBeNull();
     expect(canonicalizeNest('foo/~zod/general')).toBeNull(); // unsupported prefix
+  });
+});
+
+describe('parseTlonTarget', () => {
+  it('keeps notebooks distinct from chat-like channels', () => {
+    expect(parseTlonTarget('notes/~zod/field-notes')).toEqual({
+      kind: 'notebook',
+      nest: 'notes/~zod/field-notes',
+      hostShip: '~zod',
+      notebookName: 'field-notes',
+    });
+    expect(parseTlonTarget('chat/~zod/general')).toEqual({
+      kind: 'channel',
+      nest: 'chat/~zod/general',
+      hostShip: '~zod',
+      channelName: 'general',
+    });
   });
 });
