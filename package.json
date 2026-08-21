@@ -34,6 +34,7 @@
     "dev:ios:preview": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' ios:preview\" \"pnpm --filter '@tloncorp/ui' watch\"",
     "dev:desktop": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-desktop' dev\"",
     "dev:web": "pnpm --filter 'tlon-web' dev",
+    "dev:workspaces": "./scripts/dev-workspaces.sh",
     "e2e": "pnpm --filter 'tlon-web' e2e",
     "test": "npm rebuild better-sqlite3 && pnpm run -r test run -u",
     "test:ci": "npm rebuild better-sqlite3 && pnpm build:api && pnpm run -r test run",
