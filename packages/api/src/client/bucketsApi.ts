@@ -13,6 +13,10 @@ import { requestJson, scry, subscribe, unsubscribe } from './urbit';
 
 const BUCKETS_APP = 'buckets';
 const BUCKETS_V1_PATH = '/buckets/~/v1';
+// The agent answers an unauthenticated request with 401, as %notes does, but
+// requestJson only reauths on 403 by default. Without both, an expired Eyre
+// cookie fails every Bucket action outright instead of refreshing once.
+const BUCKETS_AUTH_FAILURE_STATUSES = [401, 403] as const;
 
 /**
  * A typed refusal from %buckets.
@@ -63,7 +67,8 @@ export async function sendBucketsAction(
   const res = await requestJson<BucketsRequestResponse>(
     BUCKETS_V1_PATH,
     'POST',
-    { action }
+    { action },
+    { reauthStatuses: BUCKETS_AUTH_FAILURE_STATUSES }
   );
   const body = res?.body;
   if (!body) {

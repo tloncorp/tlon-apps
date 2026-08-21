@@ -209,7 +209,14 @@
     (http-error eyre-id 404 'not found')
   ?.  =(%'GET' method)
     (http-error eyre-id 405 'method not allowed')
-  (handle-read eyre-id t.t.t.site)
+  ::  A @uv request id carries dots, and apat mistakes its trailing dot-group
+  ::  for a file extension and splits it off -- so glue it back on before the
+  ::  id is parsed, or most ids resolve to a different request and 404.
+  ::  %notes' surface has the same wrinkle and does the same thing.
+  =/  pax=(list @t)  t.t.t.site
+  =?  pax  &(?=(^ ext.request-line) ?=(^ pax))
+    (snoc (snip pax) (rap 3 (rear pax) '.' u.ext.request-line ~))
+  (handle-read eyre-id pax)
 ::
 ::  +handle-post: parse an action, hold the request open, and dispatch.
 ::
@@ -1058,12 +1065,18 @@
     %+  skim  ~(tap by object-capabilities)
     |=  [token=@t aut=object-capability:b]
     (gth expires-at.aut now.bowl)
+  ::  A settled session is kept only so a re-delivered completion can no-op
+  ::  and its uploader can read the reason it failed. Both are short-lived,
+  ::  and keeping them forever meant routine upload failures grew persisted
+  ::  state without bound -- their entries were never published, so no
+  ::  delete-entry could reach them either.
   =.  sessions
     %-  malt
     %+  skim  ~(tap by sessions)
     |=  [sid=@uv ses=upload-session:b]
-    ?.  =(%pending status.ses)  &
-    (gth expires-at.ses now.bowl)
+    ?:  =(%pending status.ses)
+      (gth expires-at.ses now.bowl)
+    (gth (add expires-at.ses request-grace) now.bowl)
   =.  reservations
     %-  malt
     %+  skim  ~(tap by reservations)
@@ -1723,6 +1736,14 @@
       =.  cor  (close-request host rid)
       =?  cor  &(?=(%token -.body.res) ?=(^ bucket))
         (keep-read-token u.bucket read-token.body.res)
+      ::  A refused token request leaves no refresh armed, and our old token
+      ::  may already have lapsed -- the client would go on reading it either
+      ::  way. Come back to it, unless the answer was that we may not read
+      ::  this bucket at all, in which case stop serving what we hold.
+      =?  cor  &(?=(%error -.body.res) ?=(^ bucket))
+        ?:  =(%not-authorized type.body.res)
+          (drop-read-token u.bucket)
+        (retry-read-token u.bucket)
       (respond rid ~[/v1/requests] body.res)
     ::
         %kick

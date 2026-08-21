@@ -62,9 +62,14 @@ test('sendBucketsAction submits over the v1 endpoint and returns the answer', as
     sendBucketsAction({ type: 'delete-bucket', flag })
   ).resolves.toEqual({ ok: null });
 
-  expect(requestJson).toHaveBeenCalledWith('/buckets/~/v1', 'POST', {
-    action: { type: 'delete-bucket', flag },
-  });
+  // The agent answers 401 for an expired cookie, which requestJson does not
+  // reauth on by default — so the option is part of the contract, not noise.
+  expect(requestJson).toHaveBeenCalledWith(
+    '/buckets/~/v1',
+    'POST',
+    { action: { type: 'delete-bucket', flag } },
+    { reauthStatuses: [401, 403] }
+  );
 });
 
 test('sendBucketsAction raises a typed refusal', async () => {
