@@ -1,8 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
-import { Text } from '@tloncorp/ui';
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Switch } from 'react-native';
 import { YStack, useTheme } from 'tamagui';
 
@@ -16,6 +15,8 @@ import {
   RadioControl,
   ScreenHeader,
   SettingsContentScrollView,
+  SettingsDivider,
+  SettingsSection,
   View,
   useIsWindowNarrow,
 } from '../../ui';
@@ -83,67 +84,59 @@ export function ThemeScreen(props: Props) {
         }
         placement="navigation"
       />
-      <SettingsContentScrollView>
-        <YStack flex={1} padding="$l">
-          <Text
-            size="$label/m"
-            color="$secondaryText"
-            fontWeight="500"
-            paddingHorizontal="$s"
-          >
-            Messages
-          </Text>
-          <ListItem marginTop="$s">
-            <ListItem.MainContent>
-              <ListItem.Title>Show deleted messages</ListItem.Title>
-              <ListItem.Subtitle>
-                Show a placeholder for deleted messages
-              </ListItem.Subtitle>
-            </ListItem.MainContent>
-            <ListItem.EndContent>
-              <Switch
-                value={showDeleteMarkers}
-                onValueChange={handleShowDeleteMarkersChange}
-                testID="ShowDeleteMarkersToggle"
-              />
-            </ListItem.EndContent>
-          </ListItem>
-          <Text
-            size="$label/m"
-            color="$secondaryText"
-            fontWeight="500"
-            paddingHorizontal="$s"
-            marginTop="$xl"
-            marginBottom="$s"
-          >
-            Theme
-          </Text>
-          {themes.map((theme) => (
-            <Pressable
-              key={theme.value}
-              disabled={loadingTheme !== null}
-              onPress={() => handleThemeChange(theme.value)}
-              borderRadius="$xl"
-            >
-              <ListItem>
-                <ListItem.MainContent>
-                  <ListItem.Title>{theme.title}</ListItem.Title>
-                  {theme.subtitle && (
-                    <ListItem.Subtitle>{theme.subtitle}</ListItem.Subtitle>
-                  )}
-                </ListItem.MainContent>
-                <ListItem.EndContent>
-                  {loadingTheme === theme.value ? (
-                    <View padding="$m">
-                      <LoadingSpinner color="$primaryText" size="small" />
-                    </View>
-                  ) : (
-                    <RadioControl checked={theme.value === selectedTheme} />
-                  )}
-                </ListItem.EndContent>
-              </ListItem>
-            </Pressable>
-          ))}
+      <SettingsContentScrollView
+        paddingHorizontal="$l"
+        paddingTop="$l"
+        paddingBottom="$2xl"
+      >
+        <YStack gap="$2xl">
+          <SettingsSection title="Messages">
+            <ListItem>
+              <ListItem.MainContent>
+                <ListItem.Title>Show deleted messages</ListItem.Title>
+                <ListItem.Subtitle>
+                  Show a placeholder for deleted messages
+                </ListItem.Subtitle>
+              </ListItem.MainContent>
+              <ListItem.EndContent>
+                <Switch
+                  value={showDeleteMarkers}
+                  onValueChange={handleShowDeleteMarkersChange}
+                  testID="ShowDeleteMarkersToggle"
+                />
+              </ListItem.EndContent>
+            </ListItem>
+          </SettingsSection>
+          <SettingsSection title="Theme">
+            {themes.map((theme, index) => (
+              <Fragment key={theme.value}>
+                <Pressable
+                  disabled={loadingTheme !== null}
+                  onPress={() => handleThemeChange(theme.value)}
+                  borderRadius="$xl"
+                >
+                  <ListItem>
+                    <ListItem.MainContent>
+                      <ListItem.Title>{theme.title}</ListItem.Title>
+                      {theme.subtitle && (
+                        <ListItem.Subtitle>{theme.subtitle}</ListItem.Subtitle>
+                      )}
+                    </ListItem.MainContent>
+                    <ListItem.EndContent>
+                      {loadingTheme === theme.value ? (
+                        <View padding="$m">
+                          <LoadingSpinner color="$primaryText" size="small" />
+                        </View>
+                      ) : (
+                        <RadioControl checked={theme.value === selectedTheme} />
+                      )}
+                    </ListItem.EndContent>
+                  </ListItem>
+                </Pressable>
+                {index < themes.length - 1 ? <SettingsDivider /> : null}
+              </Fragment>
+            ))}
+          </SettingsSection>
         </YStack>
       </SettingsContentScrollView>
     </View>
