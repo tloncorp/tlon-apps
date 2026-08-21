@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { resolveRequestInputContinuation } from './context-lens-continuation.js';
 import { publishContextLensEvent } from './context-lens-events.js';
 import {
   createContextLensStore,
@@ -71,6 +72,82 @@ describe('createContextLensStore', () => {
     expect(second.get(lensB.lensId)?.messageId).toBe('restart-b');
   });
 
+  it('keeps a requester-input gate consumed after an active child claim reloads', () => {
+    const registry = createContextLensRegistry({
+      botShip: '~bearclawd',
+      ttlMs: 60_000,
+    });
+    const parent = registry.create({
+      messageId: '~sitrul-nacwyl/101',
+      chatType: 'channel',
+      trigger: 'thread',
+      senderShip: '~sitrul-nacwyl',
+      conversationId: 'chat/~sitrul-nacwyl/general',
+      retrySeed: {
+        messageText: 'Draft an announcement',
+        parentId: '~sitrul-nacwyl/100',
+        isThreadReply: true,
+      },
+    });
+    const requestedAt = Date.now();
+    registry.recordActivity(parent.lensId, {
+      schemaVersion: 1,
+      runId: 'run-parent',
+      sequence: 1,
+      occurredAt: requestedAt,
+      phase: 'requested',
+      retention: 'snapshot',
+      kind: 'request_input',
+      itemId: 'request-input:call-1',
+      title: "What's the venue?",
+      status: 'waiting',
+    });
+    const waitingParent = registry.get(parent.lensId)!;
+    const continuation = resolveRequestInputContinuation([waitingParent], {
+      botShip: '~bearclawd',
+      requesterShip: '~sitrul-nacwyl',
+      conversationId: 'chat/~sitrul-nacwyl/general',
+      conversationKind: 'channel',
+      threadRootId: '~sitrul-nacwyl/100',
+      linkedAt: requestedAt + 1_001,
+    })!;
+    const child = registry.create({
+      messageId: '~sitrul-nacwyl/102',
+      chatType: 'channel',
+      trigger: 'thread',
+      senderShip: '~sitrul-nacwyl',
+      conversationId: 'chat/~sitrul-nacwyl/general',
+      continuation,
+      retrySeed: {
+        messageText: '9:30 Club',
+        parentId: '~sitrul-nacwyl/100',
+        isThreadReply: true,
+      },
+    });
+    const first = createContextLensStore({ filePath });
+    first.save(waitingParent);
+    // This is deliberately pre-terminal: creation-time persistence closes the
+    // crash window before agent dispatch begins.
+    first.save(child);
+
+    const reloaded = createContextLensStore({ filePath });
+    const history = reloaded.listRecent();
+    expect(history.map((lens) => lens.lensId)).toEqual([
+      child.lensId,
+      parent.lensId,
+    ]);
+    expect(
+      resolveRequestInputContinuation(history, {
+        botShip: '~bearclawd',
+        requesterShip: '~sitrul-nacwyl',
+        conversationId: 'chat/~sitrul-nacwyl/general',
+        conversationKind: 'channel',
+        threadRootId: '~sitrul-nacwyl/100',
+        linkedAt: requestedAt + 2_000,
+      })
+    ).toBeNull();
+  });
+
   it('keeps the latest snapshot when the same lensId is saved twice', () => {
     const store = createContextLensStore({ filePath });
     const lens = makeLens({ messageId: 'dup' });
@@ -82,6 +159,36 @@ describe('createContextLensStore', () => {
     const reloaded = createContextLensStore({ filePath });
     expect(reloaded.size()).toBe(1);
     expect(reloaded.get(lens.lensId)?.error).toBe('late update');
+  });
+
+  it('replaces an active continuation claim with its terminal child snapshot', () => {
+    const store = createContextLensStore({ filePath });
+    const child = makeLens({ messageId: 'continuation-child' });
+    const active: ContextLens = {
+      ...child,
+      status: 'dispatching',
+      lifecycle: { ...child.lifecycle, completedAt: null },
+      continuation: {
+        kind: 'request_input',
+        parentLensId: 'parent-lens',
+        requestInputId: 'request-input:call-1',
+        workflowId: 'parent-lens',
+        linkedAt: Date.now(),
+      },
+    };
+    store.save(active);
+    store.save({
+      ...active,
+      status: 'completed',
+      lifecycle: { ...active.lifecycle, completedAt: Date.now() },
+    });
+
+    const reloaded = createContextLensStore({ filePath });
+    expect(reloaded.size()).toBe(1);
+    expect(reloaded.get(child.lensId)).toMatchObject({
+      status: 'completed',
+      continuation: { parentLensId: 'parent-lens' },
+    });
   });
 
   it('evicts the oldest runs past maxStored', () => {

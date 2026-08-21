@@ -38,6 +38,38 @@ function beforeImmediate<T>(promise: Promise<T>) {
 }
 
 describe('tlon tool execution', () => {
+  it('forwards cancellation and does not convert an aborted command into a tool result', async () => {
+    const controller = new AbortController();
+    const runCommand = vi.fn(
+      (_args: string[], signal?: AbortSignal) =>
+        new Promise<string>((_resolve, reject) => {
+          signal?.addEventListener(
+            'abort',
+            () => reject(new Error('command process tree stopped')),
+            { once: true }
+          );
+        })
+    );
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+    });
+    const result = execute(
+      'aborted-command',
+      { command: 'groups list' },
+      controller.signal
+    );
+
+    await vi.waitFor(() => expect(runCommand).toHaveBeenCalledTimes(1));
+    controller.abort(new Error('run timed out'));
+
+    await expect(result).rejects.toThrow('command process tree stopped');
+    expect(runCommand).toHaveBeenCalledWith(
+      ['groups', 'list'],
+      controller.signal
+    );
+  });
+
   it('returns a local diary refusal before discovery delivery settles and preserves notifier deduplication', async () => {
     let settleSend!: (messageId: string | undefined) => void;
     const send = vi.fn(

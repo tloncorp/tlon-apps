@@ -1,3 +1,4 @@
+import type { ContextLensActivityEvent } from './context-lens-activity.js';
 import type { ContextLens } from './context-lens.js';
 import { sharedSlot } from './shared-state.js';
 
@@ -11,6 +12,7 @@ export type ContextLensEvent = {
     toolPhase?: string;
     toolCallId?: string;
     toolCallCount?: number;
+    activity?: ContextLensActivityEvent;
   };
 };
 

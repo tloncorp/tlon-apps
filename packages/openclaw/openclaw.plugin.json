@@ -5,7 +5,8 @@
   ],
   "contracts": {
     "tools": [
-      "tlon"
+      "tlon",
+      "tlon_request_input"
     ]
   },
   "skills": [

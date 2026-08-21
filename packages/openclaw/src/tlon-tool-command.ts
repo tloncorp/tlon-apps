@@ -312,14 +312,19 @@ export function checkBlockedTlonOperation(
 }
 
 export type TlonToolExecutorDeps = {
-  runCommand: (args: string[]) => Promise<string>;
+  runCommand: (args: string[], signal?: AbortSignal) => Promise<string>;
   notifyDiaryMigrationDiscovery: (nest: string) => Promise<boolean>;
   logError?: (message: string) => void;
 };
 
 export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
-  return async function execute(_id: string, params: { command: string }) {
+  return async function execute(
+    _id: string,
+    params: { command: string },
+    signal?: AbortSignal
+  ) {
     try {
+      signal?.throwIfAborted();
       const args = shellSplitCommand(params.command);
 
       const subIdx = findTlonSubcommandIndex(args);
@@ -362,12 +367,17 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         };
       }
 
-      const output = await deps.runCommand(args);
+      const output = await deps.runCommand(args, signal);
       return {
         content: [{ type: 'text' as const, text: output }],
         details: undefined,
       };
     } catch (error: unknown) {
+      // Let OpenClaw observe cancellation as cancellation, but only after the
+      // command runner has terminated and reaped the CLI process tree.
+      if (signal?.aborted) {
+        throw error;
+      }
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: 'text' as const, text: `Error: ${message}` }],

@@ -14,6 +14,7 @@ Tlon/Urbit channel plugin for [OpenClaw](https://github.com/openclaw/openclaw). 
 -   **Settings Store**: Hot-reload config via Urbit settings-store (no restart needed)
 -   **Auto-Discovery**: Automatically monitors all channels in joined groups
 -   **Cite Resolution**: Parse and fetch quoted message content
+-   **Context Lens Activity**: Streams sanitized plans, commentary, tool state, approvals, and patch summaries into a bounded per-run work log
 -   **Optional Telemetry**: Explicit PostHog opt-in for hosted analytics
 
 ## Installation
@@ -76,6 +77,10 @@ channels:
 
         # Show model info in responses
         showModelSignature: false
+
+        # Enable owner-only durable agent activity and run history.
+        contextLens:
+            enabled: true
 
         # Optional PostHog telemetry. Disabled unless explicitly enabled.
         telemetry:

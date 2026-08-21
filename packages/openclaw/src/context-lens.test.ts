@@ -1,13 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CONTEXT_LENS_ACTIVITY_SCHEMA_VERSION,
+  type ContextLensActivityEvent,
+} from './context-lens-activity.js';
+import {
   findRecentContextLensById,
   listRecentContextLensEvents,
   publishContextLensEvent,
   subscribeToContextLensEvents,
 } from './context-lens-events.js';
 import {
+  bindContextLensToRun,
   bindContextLensToSession,
+  buildRetryActivitySeed,
+  buildRetryContinuationContext,
   buildRetryDispatch,
   createContextLensRegistry,
   ensureBackgroundContextLensForSession,
@@ -16,9 +23,11 @@ import {
   getActiveForegroundContextLensForConversation,
   hashSessionKey,
   recordBackgroundContextLensOutput,
+  recordContextLensActivityForRun,
   recordContextLensToolResultForSession,
   recordContextLensToolStartForSession,
   scheduleBackgroundContextLensFinalization,
+  unbindContextLensFromRun,
   unbindContextLensFromSession,
 } from './context-lens.js';
 
@@ -295,6 +304,82 @@ describe('context lens registry', () => {
     ]);
   });
 
+  it('reconciles a completed tool run with its visible activity item', () => {
+    const registry = createContextLensRegistry();
+    const lens = registry.create({
+      messageId: 'message-tool-activity',
+      chatType: 'dm',
+    });
+    const toolCallId = 'call-apply-patch';
+
+    registry.recordActivity(lens.lensId, {
+      schemaVersion: CONTEXT_LENS_ACTIVITY_SCHEMA_VERSION,
+      runId: 'run-tool-activity',
+      sequence: 1,
+      occurredAt: 100,
+      phase: 'start',
+      kind: 'tool',
+      retention: 'snapshot',
+      itemId: `tool:${toolCallId}`,
+      toolCallId,
+      name: 'apply_patch',
+      title: 'Apply patch',
+      status: 'running',
+    });
+    registry.recordToolCall(lens.lensId, 'apply_patch', { toolCallId });
+    registry.completeToolRun(lens.lensId, 'apply_patch', {
+      toolCallId,
+      durationMs: 19_203,
+    });
+
+    expect(registry.get(lens.lensId)?.activity.items).toEqual([
+      expect.objectContaining({
+        id: `tool:${toolCallId}`,
+        status: 'completed',
+        completedAt: expect.any(Number),
+      }),
+    ]);
+  });
+
+  it('closes open activity when a run reaches a terminal status', () => {
+    const registry = createContextLensRegistry();
+    const lens = registry.create({
+      messageId: 'message-terminal-activity',
+      chatType: 'dm',
+    });
+
+    registry.recordActivity(lens.lensId, {
+      schemaVersion: CONTEXT_LENS_ACTIVITY_SCHEMA_VERSION,
+      runId: 'run-terminal-activity',
+      sequence: 1,
+      occurredAt: 100,
+      phase: 'update',
+      kind: 'commentary',
+      retention: 'snapshot',
+      itemId: 'commentary-1',
+      title: 'Building the page now, then I’ll publish it.',
+      status: 'running',
+    });
+    registry.setStatus(
+      lens.lensId,
+      'timed_out',
+      new Error('dispatch timed out')
+    );
+
+    expect(registry.get(lens.lensId)).toMatchObject({
+      status: 'timed_out',
+      activity: {
+        items: [
+          expect.objectContaining({
+            id: 'commentary-1',
+            status: 'error',
+            completedAt: expect.any(Number),
+          }),
+        ],
+      },
+    });
+  });
+
   it('correlates tool results by tool call id before falling back to tool name', () => {
     const registry = createContextLensRegistry();
     const sessionKey = 'session-tool-call-id';
@@ -416,6 +501,211 @@ describe('context lens registry', () => {
     ]);
     expect(recordContextLensToolStartForSession(keys[0], 'read')).toBeNull();
     expect(recordContextLensToolStartForSession(keys[1], 'read')).toBeNull();
+  });
+
+  it('correlates agent activity by stable run id and folds it into the lens', () => {
+    const registry = createContextLensRegistry();
+    const runId = 'run-activity-1';
+    const lens = registry.create({
+      messageId: 'message-activity-1',
+      chatType: 'dm',
+      sessionKey: 'session-activity-1',
+    });
+    const activity: ContextLensActivityEvent = {
+      schemaVersion: CONTEXT_LENS_ACTIVITY_SCHEMA_VERSION,
+      runId,
+      sequence: 1,
+      occurredAt: 1_000,
+      kind: 'commentary',
+      phase: 'update',
+      retention: 'snapshot',
+      itemId: 'commentary-1',
+      status: 'running',
+      progressText: 'Checking the event contract',
+    };
+
+    bindContextLensToRun(runId, registry, lens.lensId);
+    try {
+      const updated = recordContextLensActivityForRun(runId, null, activity);
+      expect(updated).toMatchObject({
+        runId,
+        activity: {
+          eventCount: 1,
+          lastEventAt: 1_000,
+          items: [
+            expect.objectContaining({
+              id: 'commentary-1',
+              kind: 'commentary',
+              progressText: 'Checking the event contract',
+            }),
+          ],
+        },
+      });
+    } finally {
+      unbindContextLensFromRun(runId, lens.lensId);
+    }
+
+    expect(recordContextLensActivityForRun(runId, null, activity)).toBeNull();
+  });
+
+  it('promotes a session match to run-id correlation on the first event', () => {
+    const registry = createContextLensRegistry();
+    const sessionKey = 'session-activity-fallback';
+    const runId = 'run-activity-fallback';
+    const lens = registry.create({
+      messageId: 'message-activity-fallback',
+      chatType: 'dm',
+      sessionKey,
+    });
+    const activity: ContextLensActivityEvent = {
+      schemaVersion: CONTEXT_LENS_ACTIVITY_SCHEMA_VERSION,
+      runId,
+      sequence: 1,
+      occurredAt: 1_000,
+      kind: 'lifecycle',
+      phase: 'start',
+      retention: 'snapshot',
+      status: 'running',
+    };
+
+    bindContextLensToSession(sessionKey, registry, lens.lensId);
+    try {
+      expect(
+        recordContextLensActivityForRun(runId, sessionKey, activity)?.runId
+      ).toBe(runId);
+      // Once promoted, later events no longer need the session key.
+      expect(
+        recordContextLensActivityForRun(runId, null, {
+          ...activity,
+          sequence: 2,
+          occurredAt: 1_100,
+        })?.activity.eventCount
+      ).toBe(2);
+    } finally {
+      unbindContextLensFromRun(runId, lens.lensId);
+      unbindContextLensFromSession(sessionKey, lens.lensId);
+    }
+  });
+
+  it('does not let an auxiliary run hijack an explicitly bound lens', () => {
+    const registry = createContextLensRegistry();
+    const sessionKey = 'session-activity-explicit';
+    const actualRunId = 'run-activity-explicit';
+    const auxiliaryRunId = 'run-activity-pre-compaction';
+    const lens = registry.create({
+      messageId: 'message-activity-explicit',
+      chatType: 'dm',
+      sessionKey,
+    });
+    const activity: ContextLensActivityEvent = {
+      schemaVersion: CONTEXT_LENS_ACTIVITY_SCHEMA_VERSION,
+      runId: auxiliaryRunId,
+      sequence: 1,
+      occurredAt: 1_000,
+      kind: 'plan',
+      phase: 'update',
+      retention: 'snapshot',
+      plan: {
+        title: 'Review canonical memory',
+        steps: [],
+        updatedAt: 1_000,
+      },
+    };
+
+    bindContextLensToRun(actualRunId, registry, lens.lensId);
+    bindContextLensToSession(sessionKey, registry, lens.lensId);
+    try {
+      expect(
+        recordContextLensActivityForRun(auxiliaryRunId, sessionKey, activity)
+      ).toBeNull();
+      expect(registry.get(lens.lensId)).toMatchObject({
+        runId: actualRunId,
+        activity: { eventCount: 0, plan: null },
+      });
+
+      expect(
+        recordContextLensActivityForRun(actualRunId, sessionKey, {
+          ...activity,
+          runId: actualRunId,
+          sequence: 2,
+          occurredAt: 1_100,
+          plan: {
+            title: 'Check current temperatures',
+            steps: [],
+            updatedAt: 1_100,
+          },
+        })
+      ).toMatchObject({
+        runId: actualRunId,
+        activity: {
+          eventCount: 1,
+          plan: { title: 'Check current temperatures' },
+        },
+      });
+    } finally {
+      unbindContextLensFromRun(actualRunId, lens.lensId);
+      unbindContextLensFromSession(sessionKey, lens.lensId);
+    }
+
+    expect(
+      recordContextLensActivityForRun(auxiliaryRunId, null, activity)
+    ).toBeNull();
+  });
+
+  it('replaces and cleans session-promoted run aliases', () => {
+    const registry = createContextLensRegistry();
+    const sessionKey = 'session-activity-alias-cleanup';
+    const promotedRunId = 'run-activity-promoted';
+    const explicitRunId = 'run-activity-authoritative';
+    const lens = registry.create({
+      messageId: 'message-activity-alias-cleanup',
+      chatType: 'dm',
+      sessionKey,
+    });
+    const activity: ContextLensActivityEvent = {
+      schemaVersion: CONTEXT_LENS_ACTIVITY_SCHEMA_VERSION,
+      runId: promotedRunId,
+      sequence: 1,
+      occurredAt: 1_000,
+      kind: 'lifecycle',
+      phase: 'start',
+      retention: 'snapshot',
+      status: 'running',
+    };
+
+    bindContextLensToSession(sessionKey, registry, lens.lensId);
+    try {
+      expect(
+        recordContextLensActivityForRun(promotedRunId, sessionKey, activity)
+          ?.runId
+      ).toBe(promotedRunId);
+
+      bindContextLensToRun(explicitRunId, registry, lens.lensId);
+      expect(registry.get(lens.lensId)?.runId).toBe(explicitRunId);
+      expect(
+        recordContextLensActivityForRun(promotedRunId, null, {
+          ...activity,
+          sequence: 2,
+        })
+      ).toBeNull();
+    } finally {
+      unbindContextLensFromRun(explicitRunId, lens.lensId);
+      unbindContextLensFromSession(sessionKey, lens.lensId);
+    }
+
+    expect(
+      recordContextLensActivityForRun(explicitRunId, null, {
+        ...activity,
+        runId: explicitRunId,
+        sequence: 3,
+      })
+    ).toBeNull();
+    expect(
+      recordContextLensActivityForRun(promotedRunId, null, {
+        ...activity,
+        sequence: 4,
+      })
+    ).toBeNull();
   });
 
   it('reuses the parent background binding for thread-suffixed session keys', () => {
@@ -789,6 +1079,62 @@ describe('context lens event bus', () => {
 });
 
 describe('retry seed and dispatch', () => {
+  it('seeds a continuation with only unfinished tasks and completed-work guardrails', () => {
+    const registry = createContextLensRegistry();
+    const lens = registry.create({
+      messageId: 'message-retry-plan',
+      chatType: 'dm',
+      trigger: 'dm',
+      senderShip: '~ten',
+      retrySeed: { messageText: 'create the group and gallery' },
+      activity: {
+        schemaVersion: 1,
+        eventCount: 20,
+        lastEventAt: 200,
+        truncated: false,
+        plan: {
+          title: 'Create the group',
+          updatedAt: 200,
+          steps: [
+            { id: 'group', title: 'Created the group', status: 'completed' },
+            { id: 'gallery', title: 'Populate the gallery', status: 'error' },
+            { id: 'share', title: 'Share the reference', status: 'pending' },
+          ],
+        },
+        items: [
+          {
+            id: 'old-tool',
+            kind: 'tool',
+            title: 'tlon',
+            status: 'completed',
+            startedAt: 100,
+            updatedAt: 150,
+          },
+        ],
+      },
+    });
+    const timedOut = registry.setStatus(lens.lensId, 'timed_out')!;
+
+    expect(buildRetryActivitySeed(timedOut, 500)).toMatchObject({
+      eventCount: 0,
+      lastEventAt: 500,
+      items: [],
+      plan: {
+        title: 'Continuing unfinished work',
+        steps: [
+          { id: 'gallery', title: 'Populate the gallery', status: 'running' },
+          { id: 'share', title: 'Share the reference', status: 'pending' },
+        ],
+      },
+    });
+    const context = buildRetryContinuationContext(timedOut);
+    expect(context).toContain('Already completed: Created the group');
+    expect(context).toContain(
+      'Still unfinished: Populate the gallery; Share the reference'
+    );
+    expect(context).toContain('Do not repeat completed mutations');
+  });
+
   it('captures retryOf and retrySeed on create and preserves them through clones', () => {
     const registry = createContextLensRegistry();
     const lens = registry.create({
@@ -869,6 +1215,7 @@ describe('retry seed and dispatch', () => {
     expect(result).toEqual({
       ok: true,
       dispatch: {
+        dispatchMessageId: expect.stringMatching(/^tlon-retry:[0-9a-f-]+$/),
         messageId: 'message-retry-3',
         senderShip: '~ten',
         messageText: 'full original text',
@@ -883,6 +1230,11 @@ describe('retry seed and dispatch', () => {
         degraded: false,
       },
     });
+    if (result.ok) {
+      expect(result.dispatch.dispatchMessageId).not.toBe(
+        result.dispatch.messageId
+      );
+    }
   });
 
   it('falls back to the preview as degraded when the run predates retrySeed', () => {

@@ -2,7 +2,9 @@ import { A2UI, appendToPostBlob } from '@tloncorp/api';
 
 export function serializeContextLensReferenceBlob(
   lensId: string,
-  botShip?: string
+  botShip?: string,
+  delivery?: 'final' | 'intermediate',
+  outcome?: 'completed' | 'failed'
 ): string {
   return JSON.stringify([
     {
@@ -10,6 +12,8 @@ export function serializeContextLensReferenceBlob(
       version: 1,
       lensId,
       ...(botShip ? { botShip } : {}),
+      ...(delivery ? { delivery } : {}),
+      ...(outcome ? { outcome } : {}),
     },
   ]);
 }

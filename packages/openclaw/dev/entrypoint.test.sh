@@ -213,7 +213,11 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
     },
     "entries": {
       "tlon": {
-        "enabled": true
+        "enabled": true,
+        "hooks": {
+          "allowPromptInjection": true,
+          "allowConversationAccess": true
+        }
       }
     }
   },
@@ -252,6 +256,9 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
       "ownerShip": "$TLON_CONFIG_OWNER",
       "dmAllowlist": $TLON_CONFIG_DM_ALLOWLIST_JSON,
       "allowPrivateNetwork": true,
+      "contextLens": {
+        "enabled": true
+      },
       "maxConsecutiveBotResponses": $TLON_CONFIG_MAX_CONSECUTIVE_BOT_RESPONSES,
       "reengagement": {
         "enabled": true

@@ -1,5 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto';
 
+import {
+  type ContextLensActivity,
+  type ContextLensActivityEvent,
+  type ContextLensActivityStatus,
+  emptyContextLensActivity,
+  foldContextLensActivity,
+} from './context-lens-activity.js';
+import type { ContextLensContinuation } from './context-lens-continuation.js';
 import { sharedMap, sharedSlot } from './shared-state.js';
 
 export type ContextLensTrigger =
@@ -122,6 +130,10 @@ export type ContextLensPersistenceEvent = {
 
 export type ContextLens = {
   lensId: string;
+  /** Ship running this agent, used to attribute concurrent group runs. */
+  botShip: string | null;
+  /** Stable OpenClaw turn id once dispatch begins. */
+  runId: string | null;
   messageId: string;
   sessionKeyHash: string | null;
   chatType: 'dm' | 'channel' | 'internal';
@@ -131,6 +143,8 @@ export type ContextLens = {
   triggerDetails: ContextLensTriggerDetails;
   /** lensId of the run this one retries, when trigger is "retry". */
   retryOf?: string;
+  /** Typed workflow lineage; deliberately separate from failure retries. */
+  continuation?: ContextLensContinuation;
   retrySeed?: ContextLensRetrySeed;
   model: string | null;
   provider: string | null;
@@ -159,6 +173,8 @@ export type ContextLens = {
     runs: ContextLensToolRun[];
   };
   outputs: ContextLensOutput[];
+  /** Bounded, human-readable work log derived from sanitized agent events. */
+  activity: ContextLensActivity;
   lifecycle: {
     queuedAt: number | null;
     queuedMs: number;
@@ -183,6 +199,7 @@ export type ContextLens = {
 export type CreateContextLensInput = {
   messageId: string;
   chatType: ContextLens['chatType'];
+  botShip?: string | null;
   runKind?: ContextLensRunKind;
   visibility?: ContextLensVisibility;
   trigger?: ContextLensTrigger;
@@ -192,7 +209,10 @@ export type CreateContextLensInput = {
   receivedAt?: number;
   preview?: string;
   retryOf?: string;
+  continuation?: ContextLensContinuation;
   retrySeed?: ContextLensRetrySeed;
+  /** Optional plan-only seed used to make a continuation legible immediately. */
+  activity?: ContextLensActivity;
   now?: number;
   ttlMs?: number;
 };
@@ -205,12 +225,18 @@ export type CreateContextLensInput = {
 export type ContextLensPatch = Partial<
   Omit<
     ContextLens,
-    'context' | 'persistence' | 'tools' | 'triggerDetails' | 'lifecycle'
+    | 'context'
+    | 'persistence'
+    | 'tools'
+    | 'activity'
+    | 'triggerDetails'
+    | 'lifecycle'
   >
 > & {
   context?: Partial<ContextLens['context']>;
   persistence?: Partial<ContextLens['persistence']>;
   tools?: Partial<ContextLens['tools']>;
+  activity?: Partial<ContextLens['activity']>;
   triggerDetails?: Partial<ContextLens['triggerDetails']>;
   lifecycle?: Partial<ContextLens['lifecycle']>;
 };
@@ -234,6 +260,9 @@ export const MAX_RETRY_SEED_BLOB_CHARS = 8_192;
 const BACKGROUND_FINALIZE_IDLE_MS = 30_000;
 const activeLensesBySession = sharedMap<string, ActiveContextLensBinding>(
   'contextLens.activeLensesBySession'
+);
+const activeLensesByRun = sharedMap<string, ActiveContextLensBinding>(
+  'contextLens.activeLensesByRun'
 );
 const backgroundContextLensesSlot = sharedSlot<ContextLensRegistry>(
   'contextLens.backgroundRegistry'
@@ -262,9 +291,29 @@ function defaultRunKind(
   return 'conversation';
 }
 
+function cloneActivity(activity: ContextLensActivity): ContextLensActivity {
+  return {
+    ...activity,
+    plan: activity.plan
+      ? {
+          ...activity.plan,
+          steps: activity.plan.steps.map((step) => ({ ...step })),
+        }
+      : null,
+    items: activity.items.map((item) => ({
+      ...item,
+      ...(item.counts ? { counts: { ...item.counts } } : {}),
+    })),
+  };
+}
+
 function cloneLens(lens: ContextLens): ContextLens {
+  // Hot-reload shared state and older JSONL records may predate activity.
+  const activity = lens.activity ?? emptyContextLensActivity();
   return {
     ...lens,
+    botShip: lens.botShip ?? null,
+    runId: lens.runId ?? null,
     context: {
       ...lens.context,
       sources: lens.context.sources.map((source) => ({ ...source })),
@@ -281,8 +330,10 @@ function cloneLens(lens: ContextLens): ContextLens {
       runs: lens.tools.runs.map((run) => ({ ...run })),
     },
     outputs: lens.outputs.map((output) => ({ ...output })),
+    activity: cloneActivity(activity),
     lifecycle: { ...lens.lifecycle },
     triggerDetails: { ...lens.triggerDetails },
+    ...(lens.continuation ? { continuation: { ...lens.continuation } } : {}),
     ...(lens.retrySeed ? { retrySeed: { ...lens.retrySeed } } : {}),
   };
 }
@@ -310,6 +361,13 @@ export const RETRYABLE_STATUSES: ReadonlySet<ContextLensStatus> = new Set([
 ]);
 
 export type RetryDispatch = {
+  /**
+   * Fresh identity used only at OpenClaw's inbound-dispatch boundary. Reusing
+   * the source post id makes core classify a continuation as a duplicate of
+   * the interrupted turn for the duration of its inbound dedupe window.
+   */
+  dispatchMessageId: string;
+  /** Original Tlon post id retained for Lens/chat correlation. */
   messageId: string;
   senderShip: string;
   messageText: string;
@@ -369,6 +427,7 @@ export function buildRetryDispatch(lens: ContextLens): RetryDispatchResult {
   return {
     ok: true,
     dispatch: {
+      dispatchMessageId: `tlon-retry:${randomUUID()}`,
       messageId: lens.messageId,
       senderShip,
       messageText,
@@ -385,6 +444,76 @@ export function buildRetryDispatch(lens: ContextLens): RetryDispatchResult {
   };
 }
 
+/**
+ * Seed a retry with only the unfinished portion of the prior plan. This makes
+ * the child run visible before its first agent event without presenting
+ * completed side effects as work that will run again.
+ */
+export function buildRetryActivitySeed(
+  lens: ContextLens,
+  now = Date.now()
+): ContextLensActivity {
+  const empty = emptyContextLensActivity();
+  const remaining = (lens.activity?.plan?.steps ?? []).filter(
+    (step) => step.status !== 'completed'
+  );
+  const steps = remaining.length
+    ? remaining.map((step, index) => ({
+        ...step,
+        status: index === 0 ? ('running' as const) : ('pending' as const),
+      }))
+    : [
+        {
+          id: 'retry-resume-work',
+          title: 'Finish the interrupted request',
+          status: 'running' as const,
+        },
+      ];
+
+  return {
+    ...empty,
+    lastEventAt: now,
+    plan: {
+      title: 'Continuing unfinished work',
+      explanation:
+        steps.length === 1
+          ? 'Resuming the remaining task from the previous run.'
+          : `Resuming ${steps.length} remaining tasks from the previous run.`,
+      steps,
+      updatedAt: now,
+    },
+  };
+}
+
+/** Trusted gateway context for a retry; original text/media remain unchanged. */
+export function buildRetryContinuationContext(lens: ContextLens): string {
+  const steps = lens.activity?.plan?.steps ?? [];
+  const completed = steps
+    .filter((step) => step.status === 'completed')
+    .map((step) => step.title)
+    .slice(0, 12);
+  const remaining = steps
+    .filter((step) => step.status !== 'completed')
+    .map((step) => step.title)
+    .slice(0, 12);
+  const lines = [
+    '[Tlon continuation context]',
+    `The prior run ended with status ${lens.status}. Continue the same request from its first unfinished step.`,
+    'Do not repeat completed mutations or ask again for input or approval that the user already supplied in this conversation. Verify an existing resource before recreating it.',
+    'Before using another tool, publish a plan containing only the unfinished work.',
+  ];
+  if (completed.length) {
+    lines.push(`Already completed: ${completed.join('; ')}.`);
+  }
+  if (remaining.length) {
+    lines.push(`Still unfinished: ${remaining.join('; ')}.`);
+  }
+  if (lens.error?.trim()) {
+    lines.push(`Previous run error: ${lens.error.trim().slice(0, 500)}.`);
+  }
+  return lines.join('\n');
+}
+
 function serializeError(error: unknown): string {
   if (error instanceof Error) {
     return error.message || error.name;
@@ -392,17 +521,135 @@ function serializeError(error: unknown): string {
   return String(error);
 }
 
+function terminalActivityStatus(
+  status: ContextLensStatus
+): ContextLensActivityStatus | null {
+  if (status === 'completed' || status === 'no_reply') {
+    return 'completed';
+  }
+  if (status === 'timed_out' || status === 'error') {
+    return 'error';
+  }
+  if (status === 'aborted') {
+    return 'cancelled';
+  }
+  return null;
+}
+
+function hasOpenActivity(activity: ContextLensActivity) {
+  const isOpen = (status: ContextLensActivityStatus) =>
+    status === 'running' || status === 'waiting' || status === 'unknown';
+  return (
+    activity.items.some((item) => isOpen(item.status)) ||
+    activity.plan?.steps.some((step) => isOpen(step.status)) === true
+  );
+}
+
+function closeActivityForRun(
+  lens: ContextLens,
+  status: ContextLensActivityStatus,
+  occurredAt: number
+) {
+  const activity = lens.activity ?? emptyContextLensActivity();
+  if (!hasOpenActivity(activity)) {
+    return activity;
+  }
+  return foldContextLensActivity(activity, {
+    schemaVersion: activity.schemaVersion,
+    runId: lens.runId ?? lens.lensId,
+    sequence: activity.eventCount + 1,
+    occurredAt,
+    phase: 'end',
+    kind: 'lifecycle',
+    retention: 'snapshot',
+    status,
+  });
+}
+
+function toolActivityStatus(
+  status: ContextLensToolRun['status']
+): ContextLensActivityStatus {
+  if (status === 'completed') {
+    return 'completed';
+  }
+  if (status === 'blocked') {
+    return 'blocked';
+  }
+  return 'error';
+}
+
+function reconcileCompletedToolActivity(
+  activity: ContextLensActivity,
+  completedRuns: ContextLensToolRun[],
+  occurredAt: number
+): ContextLensActivity {
+  if (completedRuns.length === 0) {
+    return activity;
+  }
+
+  const claimedItemIds = new Set<string>();
+  const runByItemId = new Map<string, ContextLensToolRun>();
+  for (const run of completedRuns) {
+    const exactItem = activity.items.find(
+      (item) =>
+        !claimedItemIds.has(item.id) &&
+        (item.id === run.id ||
+          (run.toolCallId && item.toolCallId === run.toolCallId))
+    );
+    const fallbackItem = exactItem
+      ? undefined
+      : [...activity.items]
+          .reverse()
+          .find(
+            (item) =>
+              !claimedItemIds.has(item.id) &&
+              item.name === run.name &&
+              (item.kind === 'tool' ||
+                item.kind === 'command' ||
+                item.kind === 'patch') &&
+              (item.status === 'running' || item.status === 'unknown')
+          );
+    const item = exactItem ?? fallbackItem;
+    if (item) {
+      claimedItemIds.add(item.id);
+      runByItemId.set(item.id, run);
+    }
+  }
+
+  if (runByItemId.size === 0) {
+    return activity;
+  }
+  return {
+    ...activity,
+    items: activity.items.map((item) => {
+      const run = runByItemId.get(item.id);
+      if (!run) {
+        return item;
+      }
+      return {
+        ...item,
+        status: toolActivityStatus(run.status),
+        updatedAt: run.completedAt ?? occurredAt,
+        completedAt: run.completedAt ?? occurredAt,
+        ...(run.error ? { progressText: run.error } : {}),
+      };
+    }),
+  };
+}
+
 export function createContextLensRegistry(
   opts: {
     ttlMs?: number;
     maxEntries?: number;
     visibilityDefault?: ContextLensVisibility;
+    botShip?: string | null;
     disabled?: boolean;
   } = {}
 ) {
   const ttlMs = opts.ttlMs ?? DEFAULT_TTL_MS;
   const maxEntries = opts.maxEntries ?? MAX_LENSES;
   const visibilityDefault = opts.visibilityDefault ?? 'owner';
+  const botShip = opts.botShip?.trim() || null;
   const disabled = opts.disabled ?? false;
   const lenses = new Map<string, ContextLens>();
 
@@ -428,6 +675,8 @@ export function createContextLensRegistry(
 
     const lens: ContextLens = {
       lensId: randomUUID(),
+      botShip: input.botShip?.trim() || botShip,
+      runId: null,
       messageId: input.messageId,
       sessionKeyHash: input.sessionKey
         ? hashSessionKey(input.sessionKey)
@@ -448,6 +697,9 @@ export function createContextLensRegistry(
         ...(input.preview ? { preview: input.preview } : {}),
       },
       ...(input.retryOf ? { retryOf: input.retryOf } : {}),
+      ...(input.continuation
+        ? { continuation: { ...input.continuation } }
+        : {}),
       ...(input.retrySeed ? { retrySeed: capRetrySeed(input.retrySeed) } : {}),
       model: null,
       provider: null,
@@ -485,6 +737,9 @@ export function createContextLensRegistry(
         runs: [],
       },
       outputs: [],
+      activity: input.activity
+        ? cloneActivity(input.activity)
+        : emptyContextLensActivity(),
       lifecycle: {
         queuedAt: null,
         queuedMs: 0,
@@ -534,6 +789,10 @@ export function createContextLensRegistry(
       context: { ...existing.context, ...patch.context },
       persistence: { ...existing.persistence, ...patch.persistence },
       tools: { ...existing.tools, ...patch.tools },
+      activity: {
+        ...(existing.activity ?? emptyContextLensActivity()),
+        ...patch.activity,
+      },
       outputs: patch.outputs ?? existing.outputs,
       triggerDetails: { ...existing.triggerDetails, ...patch.triggerDetails },
       lifecycle: { ...existing.lifecycle, ...patch.lifecycle },
@@ -547,11 +806,24 @@ export function createContextLensRegistry(
     lensId: string | null | undefined,
     status: ContextLensStatus,
     error?: unknown
-  ) =>
-    update(lensId, {
+  ) => {
+    if (!lensId) {
+      return null;
+    }
+    const existing = lenses.get(lensId);
+    if (!existing) {
+      return null;
+    }
+    const now = Date.now();
+    const activityStatus = terminalActivityStatus(status);
+    return update(lensId, {
       status,
       ...(error === undefined ? {} : { error: serializeError(error) }),
+      ...(activityStatus
+        ? { activity: closeActivityForRun(existing, activityStatus, now) }
+        : {}),
     });
+  };
 
   const recordContext = (
     lensId: string | null | undefined,
@@ -696,23 +968,31 @@ export function createContextLensRegistry(
       return null;
     }
     const now = Date.now();
+    const runs = existing.tools.runs.map((run) =>
+      run.completedAt
+        ? run
+        : {
+            ...run,
+            completedAt: now,
+            durationMs: now - run.startedAt,
+            status,
+            ...(error === undefined ? {} : { error: serializeError(error) }),
+          }
+    );
+    const completedRuns = runs.filter(
+      (run, index) =>
+        !existing.tools.runs[index]?.completedAt && run.completedAt
+    );
     return update(lensId, {
       tools: {
         ...existing.tools,
-        runs: existing.tools.runs.map((run) =>
-          run.completedAt
-            ? run
-            : {
-                ...run,
-                completedAt: now,
-                durationMs: now - run.startedAt,
-                status,
-                ...(error === undefined
-                  ? {}
-                  : { error: serializeError(error) }),
-              }
-        ),
+        runs,
       },
+      activity: reconcileCompletedToolActivity(
+        existing.activity ?? emptyContextLensActivity(),
+        completedRuns,
+        now
+      ),
     });
   };
 
@@ -786,6 +1066,14 @@ export function createContextLensRegistry(
         ...existing.tools,
         runs,
       },
+      activity: reconcileCompletedToolActivity(
+        existing.activity ?? emptyContextLensActivity(),
+        runs.filter(
+          (run, index) =>
+            !existing.tools.runs[index]?.completedAt && Boolean(run.completedAt)
+        ),
+        now
+      ),
     });
   };
 
@@ -805,6 +1093,25 @@ export function createContextLensRegistry(
     });
   };
 
+  const recordActivity = (
+    lensId: string | null | undefined,
+    event: ContextLensActivityEvent
+  ) => {
+    if (!lensId) {
+      return null;
+    }
+    const existing = lenses.get(lensId);
+    if (!existing) {
+      return null;
+    }
+    return update(lensId, {
+      activity: foldContextLensActivity(
+        existing.activity ?? emptyContextLensActivity(),
+        event
+      ),
+    });
+  };
+
   return {
     create,
     update,
@@ -818,6 +1125,7 @@ export function createContextLensRegistry(
     completeToolRun,
     completeOpenToolRuns,
     recordOutput,
+    recordActivity,
     get: (lensId: string) => {
       prune();
       const lens = lenses.get(lensId);
@@ -886,6 +1194,109 @@ export function bindContextLensToSession(
   for (const key of normalizeSessionKeys(sessionKeys)) {
     activeLensesBySession.set(key, { registry, lensId, background: false });
   }
+}
+
+export function bindContextLensToRun(
+  runId: string | null | undefined,
+  registry: ContextLensRegistry,
+  lensId: string
+): void {
+  const key = runId?.trim();
+  if (!key || !registry.get(lensId)) {
+    return;
+  }
+  // An explicit dispatch binding is authoritative. Drop any earlier
+  // session-promoted aliases (for example an automatic pre-compaction turn)
+  // before binding the user-facing run.
+  for (const [boundRunId, binding] of activeLensesByRun) {
+    if (
+      boundRunId !== key &&
+      binding.registry === registry &&
+      binding.lensId === lensId
+    ) {
+      activeLensesByRun.delete(boundRunId);
+    }
+  }
+  activeLensesByRun.set(key, { registry, lensId, background: false });
+  registry.update(lensId, { runId: key });
+}
+
+export function unbindContextLensFromRun(
+  runId: string | null | undefined,
+  lensId: string
+): void {
+  const key = runId?.trim();
+  if (!key) {
+    return;
+  }
+  const binding = activeLensesByRun.get(key);
+  if (binding?.lensId !== lensId) {
+    return;
+  }
+  // Session fallback can promote an early event to a run alias. Finalizing
+  // the authoritative run must remove every alias for the same Lens.
+  for (const [boundRunId, runBinding] of activeLensesByRun) {
+    if (
+      runBinding.registry === binding.registry &&
+      runBinding.lensId === lensId
+    ) {
+      activeLensesByRun.delete(boundRunId);
+    }
+  }
+}
+
+/**
+ * Attach a normalized agent event to its active Lens. The run id is
+ * authoritative; session-key fallback covers the first event emitted before
+ * an explicit run binding and then promotes that match for subsequent events.
+ */
+export function recordContextLensActivityForRun(
+  runId: string,
+  sessionKey: string | null | undefined,
+  event: ContextLensActivityEvent
+): ContextLens | null {
+  let binding = activeLensesByRun.get(runId);
+  if (!binding) {
+    binding = resolveActiveBinding(sessionKey)?.binding;
+    if (binding) {
+      const lens = binding.registry.get(binding.lensId);
+      // A session can emit auxiliary runs while its user-facing dispatch is
+      // active (notably OpenClaw's pre-compaction memory flush). Once a Lens
+      // has an explicit run id, session fallback must not let a distinct run
+      // overwrite it or leak its maintenance activity into the chat receipt.
+      if (!lens || (lens.runId && lens.runId !== runId)) {
+        return null;
+      }
+      activeLensesByRun.set(runId, binding);
+      if (!lens.runId) {
+        binding.registry.update(binding.lensId, { runId });
+      }
+    }
+  }
+  if (!binding) {
+    return null;
+  }
+  if (event.retention === 'ephemeral') {
+    return binding.registry.get(binding.lensId);
+  }
+  // Use the registry's long-standing update() surface so a live binding
+  // created by a pre-activity plugin module can survive a hot reload.
+  const lens = binding.registry.get(binding.lensId);
+  if (!lens) {
+    return null;
+  }
+  if (
+    event.source === 'codex-app-server-completion' &&
+    !lens.activity?.items?.some((item) => item.id === event.itemId)
+  ) {
+    return null;
+  }
+  return binding.registry.update(binding.lensId, {
+    activity: foldContextLensActivity(
+      lens.activity ?? emptyContextLensActivity(),
+      event
+    ),
+  });
 }
 
 export function unbindContextLensFromSession(
@@ -1098,6 +1509,14 @@ export function finalizeBackgroundContextLensForSession(
   });
   const completed = binding.registry.setStatus(binding.lensId, 'completed');
   activeLensesBySession.delete(key);
+  for (const [runId, runBinding] of activeLensesByRun) {
+    if (
+      runBinding.registry === binding.registry &&
+      runBinding.lensId === binding.lensId
+    ) {
+      activeLensesByRun.delete(runId);
+    }
+  }
   return completed;
 }
 

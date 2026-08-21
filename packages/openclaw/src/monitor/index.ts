@@ -18,6 +18,8 @@ import {
   syncBotInfo,
 } from '../bot-info.js';
 import { engagementTokens } from '../commands-registry.js';
+import type { ContextLensActivity } from '../context-lens-activity.js';
+import { resolveRequestInputContinuation } from '../context-lens-continuation.js';
 import {
   findRecentContextLensById,
   publishContextLensEvent,
@@ -30,9 +32,13 @@ import {
 import { getContextLensStore } from '../context-lens-store.js';
 import {
   type ContextLensTrigger,
+  bindContextLensToRun,
   bindContextLensToSession,
+  buildRetryActivitySeed,
+  buildRetryContinuationContext,
   buildRetryDispatch,
   createContextLensRegistry,
+  unbindContextLensFromRun,
   unbindContextLensFromSession,
 } from '../context-lens.js';
 import { scheduleCronSnapshot } from '../cron-telemetry.js';
@@ -57,6 +63,7 @@ import {
   syncPendingNudgeFromStore,
 } from '../pending-nudge.js';
 import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
+import { terminalAgentReplyError } from '../reply-outcome.js';
 import { getTlonRuntime } from '../runtime.js';
 import { setSessionRole } from '../session-roles.js';
 import {
@@ -145,7 +152,6 @@ import {
   createCompactionTimeoutObserver,
   isAgentTimeoutEvent,
   resolveCompactionObservationTimeoutMs,
-  resolveDispatchTimeoutMs,
 } from './dispatch-timeouts.js';
 import { dmReactionReplyParentId } from './dm-reactions.js';
 import {
@@ -159,6 +165,8 @@ import {
   lookupOrFetchCachedChannelMessage,
   renderHistoryContent,
 } from './history.js';
+import { parseLensRetryRequest } from './lens-retry.js';
+import { normalizeRunTimeoutMs } from './lifecycle-config.js';
 import {
   downloadBlobAttachments,
   downloadMessageImages,
@@ -263,8 +271,10 @@ type WritResponseDelta =
       'add-react'?: never;
     };
 type WritResponse = { whom: string; id: string; response: WritResponseDelta };
-// Holds the latest monitor transport for gateway lifecycle hooks, which run
-// outside the monitor's async client scope. See gateway-status.ts.
+// Holds the latest monitor transport parameters for gateway lifecycle hooks,
+// which run outside the monitor's async client scope. Each module-loader
+// context can use them to configure its own @tloncorp/api singleton under
+// OpenClaw >=2026.4.27 plugin module isolation. See gateway-status.ts.
 const apiClientParamsSlot = sharedSlot<SharedApiClientParams>(
   API_CLIENT_PARAMS_SLOT
 );
@@ -811,6 +821,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       ttlMs: contextLensConfig.ttlMs ?? undefined,
       maxEntries: contextLensConfig.maxEntries ?? undefined,
       visibilityDefault: contextLensConfig.visibilityDefault,
+      botShip: botShipName,
       disabled: !contextLensEnabled,
     });
     setContextLensEventCapacity(contextLensConfig.maxEntries);
@@ -1125,13 +1136,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     }
 
     function buildContextLensReferenceBlobField(
-      lensId: string
+      lensId: string,
+      delivery?: 'final' | 'intermediate',
+      outcome?: 'completed' | 'failed'
     ): string | undefined {
       if (!contextLensEnabled) {
         return undefined;
       }
       try {
-        return serializeContextLensReferenceBlob(lensId, botShipName);
+        return serializeContextLensReferenceBlob(
+          lensId,
+          botShipName,
+          delivery,
+          outcome
+        );
       } catch (err) {
         runtime.error?.(
           `[tlon] Failed to build Context Lens reference blob: ${String(err)}`
@@ -2325,6 +2343,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     const processMessage = async (params: {
       messageId: string;
+      /**
+       * Optional one-shot identity for OpenClaw's inbound dedupe boundary.
+       * The source messageId remains the Lens/chat anchor.
+       */
+      dispatchMessageId?: string;
       senderShip: string;
       messageText: string;
       citedContent?: string;
@@ -2343,6 +2366,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       isThreadReply?: boolean;
       replyParentId?: string | null; // Override parentId for delivery only (not in ctx payload)
       retryOf?: string; // lensId of the failed run this dispatch retries
+      retryContext?: string; // trusted gateway guidance for an owner-requested continuation
+      retryActivity?: ContextLensActivity; // plan-only seed from the interrupted run
     }) => {
       const {
         messageId,
@@ -2356,6 +2381,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         isThreadReply,
         messageContent,
       } = params;
+      const dispatchMessageId = params.dispatchMessageId ?? messageId;
       // replyParentId overrides parentId for the deliver callback (thread reply routing)
       // but doesn't affect the ctx payload (MessageThreadId/ReplyToId).
       // Used for reactions: agent sees no thread context (so it responds), but
@@ -2390,6 +2416,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       let messageText = citedContent
         ? `${citedContent}\n\n${currentMessageText}`
         : currentMessageText;
+      if (params.retryContext?.trim()) {
+        messageText = `${messageText}\n\n${params.retryContext.trim()}`;
+      }
 
       const route = core.channel.routing.resolveAgentRoute({
         cfg,
@@ -2426,6 +2455,23 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             ),
           ];
 
+      const continuation =
+        trigger !== 'reaction' && !params.retryOf
+          ? resolveRequestInputContinuation(
+              [
+                ...(getContextLensStore()?.listRecent() ?? []),
+                ...contextLenses.listRecent(),
+              ],
+              {
+                botShip: botShipName,
+                requesterShip: senderShip,
+                conversationId: isGroup ? groupChannel ?? '' : senderShip,
+                conversationKind: isGroup ? 'channel' : 'dm',
+                threadRootId: deliverParentId,
+                linkedAt: Date.now(),
+              }
+            )
+          : null;
       const lens = contextLenses.create({
         messageId,
         chatType: isGroup ? 'channel' : 'dm',
@@ -2436,6 +2482,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         receivedAt: timestamp,
         preview: previewText(messageText),
         ...(params.retryOf ? { retryOf: params.retryOf } : {}),
+        ...(continuation ? { continuation } : {}),
+        ...(params.retryActivity ? { activity: params.retryActivity } : {}),
         retrySeed: {
           messageText: rawMessageText,
           blobField: params.blobField ?? null,
@@ -2446,6 +2494,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           cachesHistory: Boolean(params.cachesHistory),
         },
       });
+      if (continuation) {
+        // Persist the consume claim synchronously before dispatch can await or
+        // crash. A terminal snapshot later replaces this active child record.
+        try {
+          getContextLensStore()?.save(lens);
+        } catch (error) {
+          // Persistence degradation must not abort the user's run. The hot
+          // registry still preserves same-process one-time consumption.
+          runtime.error?.(
+            `[tlon] Context Lens continuation claim persistence failed: ${String(error)}`
+          );
+        }
+      }
       contextLenses.recordPersistence(lens.lensId, {
         cachesHistory: Boolean(params.cachesHistory),
         emitsTelemetry: Boolean(telemetry),
@@ -3081,7 +3142,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         CommandSource: 'text' as const,
         Provider: 'tlon',
         Surface: 'tlon',
-        MessageSid: messageId,
+        MessageSid: dispatchMessageId,
         // Include downloaded media attachments (MediaPaths/MediaUrls/MediaTypes for OpenClaw media pipeline)
         ...(attachments.length > 0 && {
           MediaPaths: attachments.map((a) => a.path),
@@ -3138,7 +3199,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           : undefined;
 
       const dispatchStartTime = Date.now();
-      const dispatchTimeoutMs = resolveDispatchTimeoutMs(account.lifecycle);
+      const dispatchTimeoutMs = normalizeRunTimeoutMs(
+        account.lifecycle.runTimeoutMs
+      );
       const compactionObservationTimeoutMs =
         resolveCompactionObservationTimeoutMs(cfg);
       const runId = randomUUID();
@@ -3168,6 +3231,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       let selectedModel: string | null = null;
       let selectedThinkLevel: string | null = null;
       let deliveredMessageCount = 0;
+      let deliveredFinalCount = 0;
       let sendAttemptCount = 0;
       let sendErrorCount = 0;
       let sendErrorKind: string | null = null;
@@ -3311,6 +3375,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         | undefined;
       let dispatchError: unknown;
       let turnSummary: TlonAgentTurnSummary | undefined;
+      let finalReplyError: Error | null = null;
 
       try {
         try {
@@ -3319,6 +3384,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             dispatchStartedAt: Date.now(),
             timeoutMs: dispatchTimeoutMs,
           });
+          bindContextLensToRun(runId, contextLenses, lens.lensId);
           bindContextLensToSession(lensSessionKeys, contextLenses, lens.lensId);
           logContextLens(lens.lensId, 'dispatching');
           dispatchResult = await recordTlonRouteAndDispatch({
@@ -3334,7 +3400,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             deliverParentId,
             effectiveOwnerShip,
             effectiveDmAllowlist,
-            messageId,
+            messageId: dispatchMessageId,
             sessionStore: cfg.session?.store,
             logError: (msg) => runtime.error?.(msg),
             // Routine skip / pin-skip diagnostics are debug-gated to avoid
@@ -3362,6 +3428,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                         },
                         deliver: async (payload: ReplyPayload, info) => {
                           contextLenses.setStatus(lens.lensId, 'delivering');
+                          if (info.kind === 'final') {
+                            // Delivery can succeed even when OpenClaw's final
+                            // payload is a structured unrecovered-tool error.
+                            // Preserve that distinction in both Lens and chat.
+                            finalReplyError = terminalAgentReplyError(
+                              payload,
+                              info.kind
+                            );
+                          }
                           const blob = getReplyBlob(payload);
                           let replyText = payload.text ?? '';
                           if (!replyText && !blob) {
@@ -3441,9 +3516,22 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
                           sendAttemptCount += 1;
                           let outputMessageId: string | null = null;
+                          const finalOutcome:
+                            | 'completed'
+                            | 'failed'
+                            | undefined =
+                            info.kind === 'final'
+                              ? finalReplyError
+                                ? 'failed'
+                                : 'completed'
+                              : undefined;
                           const replyBlob = combineBlobFields(
                             blob,
-                            buildContextLensReferenceBlobField(lens.lensId)
+                            buildContextLensReferenceBlobField(
+                              lens.lensId,
+                              info.kind === 'final' ? 'final' : 'intermediate',
+                              finalOutcome
+                            )
                           );
                           if (isGroup && groupChannel) {
                             // Send to any channel type (chat, heap, diary) using the nest directly
@@ -3484,6 +3572,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                           }
 
                           deliveredMessageCount += 1;
+                          if (info.kind === 'final') {
+                            deliveredFinalCount += 1;
+                          }
                           contextLenses.recordPersistence(lens.lensId, {
                             postsReply: true,
                           });
@@ -3508,6 +3599,28 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                             key: 'reply',
                             reason: 'posted bot response',
                           });
+                          if (info.kind === 'final') {
+                            // Chat can close the live projection as soon as
+                            // the user-visible final reply arrives. Dispatcher
+                            // cleanup may continue, and the final Lens event
+                            // still records its true terminal duration below.
+                            contextLenses.recordLifecycle(lens.lensId, {
+                              deliveredMessageCount,
+                              queuedFinal: true,
+                              queuedFinalCount: deliveredFinalCount,
+                            });
+                            if (finalReplyError) {
+                              contextLenses.setStatus(
+                                lens.lensId,
+                                'error',
+                                finalReplyError
+                              );
+                            }
+                            logContextLens(
+                              lens.lensId,
+                              'final_reply_delivered'
+                            );
+                          }
                           replyCharCount += replyText.length;
                           replyWordCount += replyText.trim()
                             ? replyText.trim().split(/\s+/).length
@@ -3519,7 +3632,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                               : 0;
 
                           if (presenceConversationId) {
-                            computingPresence.stopRun({
+                            await computingPresence.stopRun({
                               conversationId: presenceConversationId,
                               runId: presenceRunId,
                             });
@@ -3574,12 +3687,23 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
       } finally {
         opts.abortSignal?.removeEventListener('abort', abortFromMonitor);
+        if (presenceConversationId) {
+          // Delivery, timeout, abort, and setup failures all converge here.
+          // This prevents a late keepalive or an exception before `deliver`
+          // from leaving Tlon's Thinking presence active.
+          computingPresence.stopRun({
+            conversationId: presenceConversationId,
+            runId: presenceRunId,
+          });
+        }
         const dispatchDurationMs = Date.now() - dispatchStartTime;
+        const terminalError = dispatchError ?? finalReplyError;
         contextLenses.completeOpenToolRuns(
           lens.lensId,
-          dispatchError ? 'error' : 'completed',
-          dispatchError
+          terminalError ? 'error' : 'completed',
+          terminalError
         );
+        unbindContextLensFromRun(runId, lens.lensId);
         unbindContextLensFromSession(lensSessionKeys, lens.lensId);
         // A reply the model issued by calling the `message` tool itself lands
         // through the outbound adapter, which records it on the lens but never
@@ -3605,8 +3729,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           durationMs: dispatchDurationMs,
           timedOut: dispatchTimedOut,
           deliveredMessageCount: effectiveDeliveredCount,
-          queuedFinal: dispatchResult?.queuedFinal ?? false,
-          queuedFinalCount: dispatchResult?.counts.final ?? 0,
+          queuedFinal: dispatchResult?.queuedFinal ?? deliveredFinalCount > 0,
+          queuedFinalCount: Math.max(
+            dispatchResult?.counts.final ?? 0,
+            deliveredFinalCount
+          ),
           queuedBlockCount: dispatchResult?.counts.block ?? 0,
         });
         await replyTelemetry?.capture({
@@ -3630,10 +3757,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           model: selectedModel,
           thinkLevel: selectedThinkLevel,
           turnSummary,
-          dispatchError,
+          dispatchError: terminalError,
         });
         if (dispatchTimedOut) {
           contextLenses.setStatus(lens.lensId, 'timed_out', dispatchError);
+        } else if (finalReplyError) {
+          contextLenses.setStatus(lens.lensId, 'error', finalReplyError);
         } else if (!dispatchError) {
           contextLenses.setStatus(
             lens.lensId,
@@ -3744,7 +3873,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     );
                     const parsed = parseChannelNest(nest);
                     await processMessage({
-                      messageId: `react-${postId}-${ship}-${Date.now()}`,
+                      // Keep the reacted post as the visual Lens/card anchor;
+                      // use a synthetic identity only at OpenClaw's inbound
+                      // dedupe boundary so repeated reactions remain turns.
+                      messageId: postId,
+                      dispatchMessageId: `react-${postId}-${ship}-${Date.now()}`,
                       senderShip: ship,
                       messageText,
                       trigger: 'reaction',
@@ -4206,7 +4339,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   `[tlon] Dispatching DM reaction as message: ${reactEmoji} from ${reactAuthor}`
                 );
                 await processMessage({
-                  messageId: `react-${messageId}-${reactAuthor}-${Date.now()}`,
+                  messageId,
+                  dispatchMessageId: `react-${messageId}-${reactAuthor}-${Date.now()}`,
                   senderShip: reactAuthor,
                   messageText: reactText,
                   trigger: 'reaction',
@@ -4505,22 +4639,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const recentRetryDispatches = new Map<string, number>();
         const RETRY_DEDUP_MS = 60_000;
         const handleLensRetryFact = async (data: unknown) => {
-          const update = (
-            data as {
-              lens?: {
-                'retry-requested'?: { id?: unknown; requester?: unknown };
-              };
-            } | null
-          )?.lens?.['retry-requested'];
+          const update = parseLensRetryRequest(data);
           if (!update) {
             // %entry updates (our own pokes echoing back) — ignore.
             return;
           }
-          const lensId = typeof update.id === 'string' ? update.id : '';
-          const requester =
-            typeof update.requester === 'string'
-              ? normalizeShip(update.requester)
-              : '';
+          const lensId = update.id;
+          const requester = normalizeShip(update.requester);
           if (!lensId || !requester) {
             return;
           }
@@ -4593,32 +4718,42 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 { runtime, signal: opts.abortSignal }
               )
             : { messageText: dispatch.messageText };
-          await processMessage({
-            messageId: lens.messageId,
-            senderShip: dispatch.senderShip,
-            messageText: replay.messageText,
-            ...(replay.citedContent
-              ? { citedContent: replay.citedContent }
-              : {}),
-            ...(replay.gateText !== undefined
-              ? { gateText: replay.gateText }
-              : {}),
-            blobField: dispatch.blobField,
-            ...(dispatch.messageContent
-              ? { messageContent: dispatch.messageContent }
-              : {}),
-            isGroup: dispatch.isGroup,
-            ...(dispatch.channelNest
-              ? { channelNest: dispatch.channelNest }
-              : {}),
-            timestamp: Date.now(),
-            parentId: dispatch.parentId,
-            isThreadReply: dispatch.isThreadReply,
-            replyParentId: dispatch.replyParentId,
-            cachesHistory: dispatch.cachesHistory,
-            trigger: 'retry',
-            retryOf: lensId,
-          });
+          try {
+            await processMessage({
+              messageId: lens.messageId,
+              dispatchMessageId: dispatch.dispatchMessageId,
+              senderShip: dispatch.senderShip,
+              messageText: replay.messageText,
+              ...(replay.citedContent
+                ? { citedContent: replay.citedContent }
+                : {}),
+              ...(replay.gateText !== undefined
+                ? { gateText: replay.gateText }
+                : {}),
+              blobField: dispatch.blobField,
+              ...(dispatch.messageContent
+                ? { messageContent: dispatch.messageContent }
+                : {}),
+              isGroup: dispatch.isGroup,
+              ...(dispatch.channelNest
+                ? { channelNest: dispatch.channelNest }
+                : {}),
+              timestamp: Date.now(),
+              parentId: dispatch.parentId,
+              isThreadReply: dispatch.isThreadReply,
+              replyParentId: dispatch.replyParentId,
+              cachesHistory: dispatch.cachesHistory,
+              trigger: 'retry',
+              retryOf: lensId,
+              retryContext: buildRetryContinuationContext(lens),
+              retryActivity: buildRetryActivitySeed(lens),
+            });
+          } catch (error) {
+            // A failed dispatch did not start a child run. Let the owner retry
+            // immediately instead of suppressing the next request for 60s.
+            recentRetryDispatches.delete(lensId);
+            throw error;
+          }
         };
         try {
           await api.subscribe({

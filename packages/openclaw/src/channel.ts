@@ -14,6 +14,7 @@ import {
 } from 'openclaw/plugin-sdk/status-helpers';
 
 import { tlonMessageActions } from './actions.js';
+import { TLON_CHAT_PROGRESS_SYSTEM_CONTEXT } from './chat-progress-guidance.js';
 import { tlonChannelConfigSchema } from './config-schema.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
 import {
@@ -150,6 +151,7 @@ export const tlonPlugin = createChatChannelPlugin({
         const hints: string[] = [];
 
         hints.push(
+          TLON_CHAT_PROGRESS_SYSTEM_CONTEXT,
           '',
           'Tlon gallery channels (heap/~host/name) are for collecting images, links, and media.',
           '- To post to a gallery: use action=send, to=heap/~host/name, message=<text or URL>',
