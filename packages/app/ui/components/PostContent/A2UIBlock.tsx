@@ -8,6 +8,8 @@ import { useContentContext } from './contentUtils';
 type RenderOptions = {
   cardDepth?: number;
   parentAlign?: A2UI.Container['align'];
+  /** Chromeless outermost card: the surrounding surface owns the frame. */
+  fullBleed?: boolean;
 };
 
 function getTextSize(component: A2UI.Text) {
@@ -131,8 +133,17 @@ function getComponentText(
 
 export function A2UIBlock({
   block,
+  fullBleed,
   ...props
-}: { block: A2UIBlockData } & ComponentProps<typeof YStack>) {
+}: {
+  block: A2UIBlockData;
+  /**
+   * Render for a surface that owns the frame (the pinned canvas): no width
+   * cap, and the outermost Card drops its border, background box, and hug so
+   * the tree fills the area edge to edge. Nested cards keep their chrome.
+   */
+  fullBleed?: boolean;
+} & ComponentProps<typeof YStack>) {
   const { isA2UIActionAvailable, onA2UIAction, getA2UIActionState } =
     useContentContext();
   const update = A2UI.getUpdateMessage(block.a2ui);
@@ -198,7 +209,10 @@ export function A2UIBlock({
               {component.children.map((child) =>
                 renderComponent(child, {
                   cardDepth: options.cardDepth,
-                  parentAlign: component.align,
+                  // A Row's `align` is its cross axis — vertical centering,
+                  // not text alignment. Only a Column's align should center
+                  // text, so it is not forwarded here.
+                  fullBleed: options.fullBleed,
                 })
               )}
             </XStack>
@@ -216,6 +230,7 @@ export function A2UIBlock({
                 renderComponent(child, {
                   cardDepth: options.cardDepth,
                   parentAlign: component.align,
+                  fullBleed: options.fullBleed,
                 })
               )}
             </YStack>
@@ -223,6 +238,24 @@ export function A2UIBlock({
         }
         case 'Card': {
           const isNestedCard = Boolean(options.cardDepth);
+          if (options.fullBleed && !isNestedCard) {
+            return (
+              <YStack
+                key={component.id}
+                backgroundColor="$background"
+                padding="$xl"
+                gap="$m"
+                flex={getComponentFlex(component)}
+                width="100%"
+                alignSelf="stretch"
+              >
+                {renderComponent(component.child, {
+                  cardDepth: (options.cardDepth ?? 0) + 1,
+                  fullBleed: options.fullBleed,
+                })}
+              </YStack>
+            );
+          }
           return (
             <YStack
               key={component.id}
@@ -241,6 +274,7 @@ export function A2UIBlock({
             >
               {renderComponent(component.child, {
                 cardDepth: (options.cardDepth ?? 0) + 1,
+                fullBleed: options.fullBleed,
               })}
             </YStack>
           );
@@ -308,8 +342,8 @@ export function A2UIBlock({
   }
 
   return (
-    <YStack gap="$s" maxWidth={560} {...props}>
-      {renderComponent(root)}
+    <YStack gap="$s" maxWidth={fullBleed ? undefined : 560} {...props}>
+      {renderComponent(root, fullBleed ? { fullBleed } : {})}
     </YStack>
   );
 }

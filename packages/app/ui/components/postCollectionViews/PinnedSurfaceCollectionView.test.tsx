@@ -9,24 +9,58 @@ import { selectSurfacePost } from './PinnedSurfaceCollectionView';
 vi.mock('./ListPostCollectionView', () => ({
   ListPostCollection: 'ListPostCollection',
 }));
-vi.mock('./shared', () => ({ ConnectedPostView: 'ConnectedPostView' }));
+vi.mock('./shared', () => ({}));
 vi.mock('../../contexts/postCollection', () => ({
   PostCollectionContext: { Provider: 'Provider' },
   usePostCollectionContext: () => {
     throw new Error('not rendered in these tests');
   },
 }));
+vi.mock('../PostContent/A2UIBlock', () => ({ A2UIBlock: 'A2UIBlock' }));
+vi.mock('../PostContent/contentUtils', () => ({
+  ContentContext: { Provider: 'Provider' },
+  usePostContent: () => [],
+}));
+vi.mock('../../hooks/usePostA2UIActions', () => ({
+  usePostA2UIActions: () => ({}),
+}));
+vi.mock('../../../hooks/useLivePost', () => ({
+  useLivePost: (post: unknown) => post,
+}));
 
-const SURFACE_BLOB = JSON.stringify([
-  {
-    type: 'interactive-surface',
-    version: 1,
-    surfaceId: 'weekly-plan-1',
-    revision: 0,
-    state: {},
-    processedActionIds: [],
-  },
-]);
+const A2UI_ENTRY = {
+  type: 'a2ui',
+  version: 1,
+  messages: [
+    {
+      version: 'v0.9',
+      createSurface: {
+        surfaceId: 'weekly-plan-1',
+        catalogId: 'tlon.a2ui.basic.v1',
+      },
+    },
+    {
+      version: 'v0.9',
+      updateComponents: {
+        surfaceId: 'weekly-plan-1',
+        root: 't',
+        components: [{ id: 't', component: 'Text', text: 'hi' }],
+      },
+    },
+  ],
+};
+
+const SURFACE_ENTRY = {
+  type: 'interactive-surface',
+  version: 1,
+  surfaceId: 'weekly-plan-1',
+  revision: 0,
+  state: {},
+  processedActionIds: [],
+};
+
+const CARD_BLOB = JSON.stringify([A2UI_ENTRY, SURFACE_ENTRY]);
+const SURFACE_ONLY_BLOB = JSON.stringify([SURFACE_ENTRY]);
 
 function post(overrides: Partial<db.Post>): db.Post {
   return {
@@ -51,16 +85,26 @@ describe('selectSurfacePost', () => {
     ).toBeNull();
   });
 
-  it('picks the newest post carrying an interactive surface', () => {
-    const older = post({ id: 'old', blob: SURFACE_BLOB, receivedAt: 10 });
-    const newer = post({ id: 'new', blob: SURFACE_BLOB, receivedAt: 20 });
+  it('picks the newest post carrying a drawable surface', () => {
+    const older = post({ id: 'old', blob: CARD_BLOB, receivedAt: 10 });
+    const newer = post({ id: 'new', blob: CARD_BLOB, receivedAt: 20 });
     const plain = post({ id: 'plain', receivedAt: 30 });
     expect(selectSurfacePost([older, plain, newer], channel())?.id).toBe('new');
   });
 
+  it('ignores a surface entry with no a2ui view to draw', () => {
+    const dataOnly = post({
+      id: 'data',
+      blob: SURFACE_ONLY_BLOB,
+      receivedAt: 30,
+    });
+    const card = post({ id: 'card', blob: CARD_BLOB, receivedAt: 10 });
+    expect(selectSurfacePost([dataOnly, card], channel())?.id).toBe('card');
+  });
+
   it('prefers the channel-pinned post when it carries a surface', () => {
-    const pinned = post({ id: 'pinned', blob: SURFACE_BLOB, receivedAt: 10 });
-    const newer = post({ id: 'newer', blob: SURFACE_BLOB, receivedAt: 20 });
+    const pinned = post({ id: 'pinned', blob: CARD_BLOB, receivedAt: 10 });
+    const newer = post({ id: 'newer', blob: CARD_BLOB, receivedAt: 20 });
     expect(selectSurfacePost([pinned, newer], channel(['pinned']))?.id).toBe(
       'pinned'
     );
@@ -68,7 +112,7 @@ describe('selectSurfacePost', () => {
 
   it('falls past a pinned post without a surface to the heuristic', () => {
     const pinnedPlain = post({ id: 'pinned', receivedAt: 30 });
-    const card = post({ id: 'card', blob: SURFACE_BLOB, receivedAt: 10 });
+    const card = post({ id: 'card', blob: CARD_BLOB, receivedAt: 10 });
     expect(
       selectSurfacePost([pinnedPlain, card], channel(['pinned']))?.id
     ).toBe('card');
@@ -77,12 +121,12 @@ describe('selectSurfacePost', () => {
   it('skips deleted posts and unparseable blobs', () => {
     const deleted = post({
       id: 'deleted',
-      blob: SURFACE_BLOB,
+      blob: CARD_BLOB,
       isDeleted: true,
       receivedAt: 30,
     });
     const garbage = post({ id: 'garbage', blob: '{not json', receivedAt: 20 });
-    const card = post({ id: 'card', blob: SURFACE_BLOB, receivedAt: 10 });
+    const card = post({ id: 'card', blob: CARD_BLOB, receivedAt: 10 });
     expect(selectSurfacePost([deleted, garbage, card], channel())?.id).toBe(
       'card'
     );

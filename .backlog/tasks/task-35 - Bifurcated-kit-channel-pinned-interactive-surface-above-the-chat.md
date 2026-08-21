@@ -4,6 +4,7 @@ title: 'Bifurcated kit channel: pinned interactive surface above the chat'
 status: In Progress
 assignee: []
 created_date: '2026-08-21 02:19'
+updated_date: '2026-08-21 03:02'
 labels:
   - workspaces
   - interactive-cards
@@ -37,10 +38,18 @@ Declaration writers: workspace provisioning declares the view on the kit's kitch
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A channel declaring tlon.r0.collection.pinnedSurface renders the newest interactive-surface card post in a fixed surface above the chat, with the chat list and chat composer working beneath it
-- [ ] #2 The pinned card's buttons work from the pinned surface (sendMessage posts into the channel; the agent's in-place edit updates the pinned card live)
-- [ ] #3 The pinned post does not also appear in the flowing chat list; with no surface post in the channel the view renders as a plain chat
+- [x] #1 A channel declaring tlon.r0.collection.pinnedSurface renders the newest interactive-surface card post in a fixed surface above the chat, with the chat list and chat composer working beneath it
+- [x] #2 The pinned card's buttons work from the pinned surface (sendMessage posts into the channel; the agent's in-place edit updates the pinned card live)
+- [x] #3 The pinned post does not also appear in the flowing chat list; with no surface post in the channel the view renders as a plain chat
 - [ ] #4 Workspace provisioning declares the view on the kitchen place at install, and a client without the renderer degrades to the plain post list (no crash, composer notice contract unchanged)
-- [ ] #5 Unit tests cover pinned selection (config override, newest-surface heuristic, none present) and list exclusion
-- [ ] #6 Verified live in the web client on the task34-e2e kitchen: card pinned on top, chat flows beneath, Replace round-trip still works
+- [x] #5 Unit tests cover pinned selection (config override, newest-surface heuristic, none present) and list exclusion
+- [x] #6 Verified live in the web client on the task34-e2e kitchen: card pinned on top, chat flows beneath, Replace round-trip still works
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented and verified live (~02:15–02:20 UTC), commit follows TASK-34's. tlon.r0.collection.pinnedSurface registered as a built-in collection renderer; PinnedSurfaceCollectionView renders the surface post via ConnectedPostView (live-updating, buttons functional) in a max-55%-height bordered area, ListPostCollection beneath with the card filtered from the stream via a context override. Selection: channel pin (order[0]) if it carries a surface, else newest surface post; 5 unit tests. Provisioning declares the view on chat places post-install via the new api.getGroupChannelListing raw read + whole-listing resubmit; 4 unit tests; failures non-fatal. Declared live on task34-e2e's kitchen by hand (raw group-action-4 edit); verified in the browser: card pinned on top with Replace buttons, chat below, card absent from stream — and a Replace round-trip (sent from the sim at 22:13, not by me) edited the pinned card in place to 'Creamy tomato, spinach & basil pasta — replaced'. Screenshot scratchpad/bifurcated-kitchen.png.
+
+Gotchas hit: the playwright-dev vite server never saw the new file (dead fs-watcher on the external volume) — fresh vite on :3010 resolved it; use that port for web checks until the shared server restarts. AC #4's live half (a fresh install auto-declaring) still unexercised — the sim app needs a Metro reload to pick up the new provisioning code, then the user's next onboarding run covers it. Wart fixed in the kit: card.md now says to create Meal Plan/Card.md when absent (the agent's edit-failure notice was echoing into the kitchen); re-seeded to both ships — needs an openclaw restart to clear the package cache before the next fresh install.
+<!-- SECTION:NOTES:END -->

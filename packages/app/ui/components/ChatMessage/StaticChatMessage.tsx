@@ -1,13 +1,11 @@
 import * as db from '@tloncorp/shared/db';
-import { A2UI } from '@tloncorp/shared/logic';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
-import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
-import { useInteractiveSurface } from '../../hooks/useInteractiveSurface';
+import { usePostA2UIActions } from '../../hooks/usePostA2UIActions';
 import AuthorRow from '../AuthorRow';
 import { ContextLensBadge } from '../Channel/ContextLens/ContextLensBadge';
 import { A2UIBlock } from '../PostContent/A2UIBlock';
@@ -18,7 +16,6 @@ import {
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
 import { SentTimeText } from '../SentTimeText';
-import { useDraftInputContext } from '../draftInputs/shared';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -63,9 +60,8 @@ export function StaticChatMessage({
   showReplies?: boolean;
 }) {
   const isNotice = post.type === 'notice';
-  const draftInputContext = useDraftInputContext();
-  const navigateToA2UITarget = useA2UINavigation();
-  const interactiveSurface = useInteractiveSurface(post);
+  const { onA2UIAction, isA2UIActionAvailable, getA2UIActionState } =
+    usePostA2UIActions(post);
 
   if (isNotice) {
     showAuthor = false;
@@ -98,69 +94,6 @@ export function StaticChatMessage({
       console.error('Failed to retry post', e);
     }
   }, [onPressRetry, post]);
-
-  const handleA2UIAction = useCallback(
-    async (action: A2UI.Button['action']) => {
-      if (action.event.name === A2UI.action.navigate) {
-        await navigateToA2UITarget(action.event.context.target);
-        return;
-      }
-
-      if (action.event.name === A2UI.action.surfaceAction) {
-        await interactiveSurface.emitSurfaceAction(action.event.context);
-        return;
-      }
-
-      if (!draftInputContext || draftInputContext.canStartDraft === false) {
-        return;
-      }
-
-      const text = action.event.context.text.trim();
-      if (!text) {
-        return;
-      }
-
-      await draftInputContext.sendPostFromDraft({
-        channelId: draftInputContext.channel.id,
-        content: [text],
-        attachments: [],
-        channelType: draftInputContext.channel.type,
-        replyToPostId: null,
-        isEdit: false,
-      });
-    },
-    [draftInputContext, navigateToA2UITarget, interactiveSurface]
-  );
-
-  const isA2UIActionAvailable = useCallback(
-    (action: A2UI.Button['action']) => {
-      if (action.event.name === A2UI.action.navigate) {
-        return true;
-      }
-
-      if (action.event.name === A2UI.action.sendMessage) {
-        return Boolean(
-          draftInputContext &&
-            draftInputContext.canStartDraft !== false &&
-            action.event.context.text.trim()
-        );
-      }
-
-      if (action.event.name === A2UI.action.surfaceAction) {
-        // Tapping a card is posting a reply, so it needs the same permission
-        // typing does. Beyond that, every control on a surface goes unavailable
-        // while one of its taps is in flight.
-        return Boolean(
-          draftInputContext &&
-            draftInputContext.canStartDraft !== false &&
-            interactiveSurface.isSurfaceActionAvailable(action.event.context)
-        );
-      }
-
-      return false;
-    },
-    [draftInputContext, interactiveSurface]
-  );
 
   // A2UI blocks render wherever a message renders as chat, which is every
   // channel type this component serves (chat, dm, groupDm). Surfaces that
@@ -240,9 +173,9 @@ export function StaticChatMessage({
             onPressImage={handleImagePressed}
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
-            onA2UIAction={handleA2UIAction}
+            onA2UIAction={onA2UIAction}
             isA2UIActionAvailable={isA2UIActionAvailable}
-            getA2UIActionState={interactiveSurface.getA2UIActionState}
+            getA2UIActionState={getA2UIActionState}
             searchQuery={searchQuery}
           />
         )}
