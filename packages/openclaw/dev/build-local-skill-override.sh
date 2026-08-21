@@ -69,14 +69,24 @@ if [ -n "${TLON_SKILL_FROM_SOURCE:-}" ] && [ -f "$TLON_SKILL_DIR/scripts/main.ts
     echo "==> Installing tlon-skill deps (bun install)..."
     (cd "$TLON_SKILL_DIR" && bun install --frozen-lockfile 2>/dev/null || bun install)
   fi
-  (cd "$TLON_SKILL_DIR" && node scripts/build-all.js --target="$ARCH_KEY")
-  BUILT="$TLON_SKILL_DIR/npm/$ARCH_KEY/tlon"
-  if [ ! -f "$BUILT" ]; then
-    echo "ERROR: build-all.js did not produce $BUILT"
+  # Build with a container-local cwd AND outfile: bun --compile writes its
+  # temp file into the cwd and rename()s it onto --outfile, which fails
+  # cross-filesystem on VirtioFS (the documented ENOENT above). Keeping both
+  # on the container fs sidesteps that; module resolution walks up from the
+  # entry file's own (mounted) directory, so imports still resolve.
+  SKILL_VERSION=$(node -p "require('$TLON_SKILL_DIR/package.json').version")
+  BUILD_TMP=$(mktemp -d)
+  ( cd "$BUILD_TMP" && \
+    bun build "$TLON_SKILL_DIR/scripts/main.ts" --compile \
+      --target="bun-$ARCH_KEY" --outfile "$BUILD_TMP/tlon" \
+      --define __VERSION__="\"$SKILL_VERSION\"" )
+  if [ ! -f "$BUILD_TMP/tlon" ]; then
+    echo "ERROR: bun build did not produce $BUILD_TMP/tlon"
     exit 1
   fi
-  cp "$BUILT" "$TLON_SKILL_DIR/bin/tlon"
+  cp "$BUILD_TMP/tlon" "$TLON_SKILL_DIR/bin/tlon"
   chmod +x "$TLON_SKILL_DIR/bin/tlon"
+  rm -rf "$BUILD_TMP"
   echo "==> Built $TLON_SKILL_DIR/bin/tlon from source"
 else
   if [ -f "$TLON_SKILL_DIR/scripts/main.ts" ]; then
