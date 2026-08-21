@@ -93,8 +93,12 @@
   |=  [=mark =vase]
   ^+  cor
   ?>  ?=(%kits-action-1 mark)
-  ?>  from-self
   =/  =action:v1:k  !<(action:v1:k vase)
+  ::  %setup-done may arrive from another ship — the harness runs on the
+  ::  agent's ship while the install ledger lives on the group host, so the
+  ::  agent's %kits relays it here. +setup-done checks the sender against
+  ::  the install's recorded agents; everything else stays local-only.
+  ?>  |(from-self ?=(%setup-done -.action))
   ?-  -.action
       %add
     =.  kits  (~(put by kits) id.manifest.kit.action kit.action)
@@ -185,10 +189,27 @@
   (give %fact ~[/v1/updates] kits-update-1+!>(`update:v1:k`[%uninstalled flag]))
 ::  +setup-done: the harness finished the setup conversation
 ::
+::    The ledger entry lives on the ship that ran the install — the group
+::    host — while the harness that finishes setup runs on the agent's ship.
+::    So a local poke for a foreign group relays to the host, and the host
+::    accepts the relayed poke only from a ship the install seats as an
+::    agent. Absent entries no-op rather than crash: a relay can race an
+::    uninstall, and a nack would just re-fire setup forever.
+::
 ++  setup-done
   |=  =flag:g
   ^+  cor
-  =/  =install:k  (~(got by installs) flag)
+  ?.  =(our.bowl p.flag)
+    ?>  from-self
+    %-  emit
+    :*  %pass  /setup-done/(scot %p p.flag)/[q.flag]
+        %agent  [p.flag %kits]
+        %poke  kits-action-1+!>(`action:v1:k`[%setup-done flag])
+    ==
+  =/  ledger  (~(get by installs) flag)
+  ?~  ledger  cor
+  ?>  |(from-self (~(has in agents.u.ledger) src.bowl))
+  =/  =install:k  u.ledger
   =.  setup.install  %done
   =.  installs  (~(put by installs) flag install)
   =.  cor  (write-blob flag install)
@@ -283,6 +304,12 @@
     ?.  ?=(%poke-ack -.sign)  cor
     ?~  p.sign  cor
     %-  (slog leaf+"kits: uninstall blob clear failed" u.p.sign)
+    cor
+  ::
+      [%setup-done @ @ ~]
+    ?.  ?=(%poke-ack -.sign)  cor
+    ?~  p.sign  cor
+    %-  (slog leaf+"kits: setup-done relay {<t.wire>} failed" u.p.sign)
     cor
   ==
 ::  +place-slug: the channel name a place gets
