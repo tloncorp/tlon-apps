@@ -15,7 +15,25 @@ describe('dispatch timeout observation', () => {
   it('resolves the Tlon run timeout', () => {
     expect(
       resolveDispatchTimeoutMs({
-        runTimeoutMs: 300_000,
+        runTimeoutMs: undefined,
+        toolTimeoutMs: null,
+      })
+    ).toBe(900_000);
+    expect(
+      resolveDispatchTimeoutMs({
+        runTimeoutMs: null,
+        toolTimeoutMs: null,
+      })
+    ).toBe(900_000);
+    expect(
+      resolveDispatchTimeoutMs({
+        runTimeoutMs: 999,
+        toolTimeoutMs: null,
+      })
+    ).toBe(900_000);
+    expect(
+      resolveDispatchTimeoutMs({
+        runTimeoutMs: 300_000.9,
         toolTimeoutMs: null,
       })
     ).toBe(300_000);

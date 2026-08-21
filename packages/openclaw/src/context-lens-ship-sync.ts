@@ -6,7 +6,11 @@ import {
   type ContextLensEvent,
   subscribeToContextLensEvents,
 } from './context-lens-events.js';
-import type { ContextLens, ContextLensStatus } from './context-lens.js';
+import {
+  type ContextLens,
+  type ContextLensStatus,
+  isTerminalContextLensStatus,
+} from './context-lens.js';
 import {
   API_CLIENT_PARAMS_SLOT,
   type SharedApiClientParams,
@@ -21,14 +25,6 @@ const MAX_PAYLOAD_CHARS = 50 * 1_024;
 const MAX_TRACKED_RUNS = 1_000;
 const DEFAULT_RETRY_DELAYS_MS = [250, 1_000] as const;
 const DEFAULT_NONTERMINAL_DEBOUNCE_MS = 250;
-
-const TERMINAL_STATUSES: ReadonlySet<ContextLensStatus> = new Set([
-  'completed',
-  'no_reply',
-  'timed_out',
-  'aborted',
-  'error',
-]);
 
 const SHIP_ACTIVITY_STATUSES = new Set([
   'pending',
@@ -489,7 +485,7 @@ export function createContextLensShipSync(opts: {
     if (lens.visibility === 'internal') {
       return;
     }
-    if (TERMINAL_STATUSES.has(lens.status)) {
+    if (isTerminalContextLensStatus(lens.status)) {
       if (terminalLensIds.has(lens.lensId)) {
         return;
       }

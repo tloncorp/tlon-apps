@@ -4,7 +4,10 @@ import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { resolveStateDir } from 'openclaw/plugin-sdk/state-paths';
 
 import { subscribeToContextLensEvents } from './context-lens-events.js';
-import type { ContextLens, ContextLensStatus } from './context-lens.js';
+import {
+  type ContextLens,
+  isTerminalContextLensStatus,
+} from './context-lens.js';
 import { sharedSlot } from './shared-state.js';
 import { resolveTlonAccount } from './types.js';
 
@@ -12,13 +15,6 @@ export const DEFAULT_STORE_RETAIN_DAYS = 30;
 export const DEFAULT_STORE_MAX_STORED = 500;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-const TERMINAL_STATUSES: ReadonlySet<ContextLensStatus> = new Set([
-  'completed',
-  'no_reply',
-  'timed_out',
-  'error',
-]);
 
 export type ContextLensStore = {
   save: (lens: ContextLens) => void;
@@ -225,7 +221,7 @@ export function initContextLensStore(api: {
   storeUnsubscribeSlot.get()?.();
   storeUnsubscribeSlot.set(
     subscribeToContextLensEvents((event) => {
-      if (!TERMINAL_STATUSES.has(event.lens.status)) {
+      if (!isTerminalContextLensStatus(event.lens.status)) {
         return;
       }
       try {

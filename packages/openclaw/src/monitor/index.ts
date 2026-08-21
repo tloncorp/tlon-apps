@@ -152,6 +152,7 @@ import {
   createCompactionTimeoutObserver,
   isAgentTimeoutEvent,
   resolveCompactionObservationTimeoutMs,
+  resolveDispatchTimeoutMs,
 } from './dispatch-timeouts.js';
 import { dmReactionReplyParentId } from './dm-reactions.js';
 import {
@@ -166,7 +167,6 @@ import {
   renderHistoryContent,
 } from './history.js';
 import { parseLensRetryRequest } from './lens-retry.js';
-import { normalizeRunTimeoutMs } from './lifecycle-config.js';
 import {
   downloadBlobAttachments,
   downloadMessageImages,
@@ -3199,9 +3199,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           : undefined;
 
       const dispatchStartTime = Date.now();
-      const dispatchTimeoutMs = normalizeRunTimeoutMs(
-        account.lifecycle.runTimeoutMs
-      );
+      const dispatchTimeoutMs = resolveDispatchTimeoutMs(account.lifecycle);
       const compactionObservationTimeoutMs =
         resolveCompactionObservationTimeoutMs(cfg);
       const runId = randomUUID();

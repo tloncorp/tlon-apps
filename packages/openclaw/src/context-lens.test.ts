@@ -11,6 +11,8 @@ import {
   subscribeToContextLensEvents,
 } from './context-lens-events.js';
 import {
+  type ContextLensStatus,
+  RETRYABLE_STATUSES,
   bindContextLensToRun,
   bindContextLensToSession,
   buildRetryActivitySeed,
@@ -22,6 +24,7 @@ import {
   getActiveBackgroundContextLens,
   getActiveForegroundContextLensForConversation,
   hashSessionKey,
+  isTerminalContextLensStatus,
   recordBackgroundContextLensOutput,
   recordContextLensActivityForRun,
   recordContextLensToolResultForSession,
@@ -30,6 +33,38 @@ import {
   unbindContextLensFromRun,
   unbindContextLensFromSession,
 } from './context-lens.js';
+
+describe('context lens status classification', () => {
+  const terminalByStatus: Record<ContextLensStatus, boolean> = {
+    assembling: false,
+    queued: false,
+    dispatching: false,
+    tool_running: false,
+    delivering: false,
+    completed: true,
+    no_reply: true,
+    timed_out: true,
+    aborted: true,
+    error: true,
+  };
+
+  it('classifies every context lens status from one canonical predicate', () => {
+    for (const status of Object.keys(terminalByStatus) as ContextLensStatus[]) {
+      expect(isTerminalContextLensStatus(status)).toBe(
+        terminalByStatus[status]
+      );
+    }
+  });
+
+  it('derives retryable statuses from terminal failures', () => {
+    expect([...RETRYABLE_STATUSES]).toEqual([
+      'no_reply',
+      'timed_out',
+      'aborted',
+      'error',
+    ]);
+  });
+});
 
 describe('context lens registry', () => {
   it('creates redacted receipts without storing raw session keys or prompt text', () => {

@@ -44,6 +44,15 @@ export type ContextLensStatus =
   | 'aborted'
   | 'error';
 
+export const CONTEXT_LENS_TERMINAL_STATUSES: ReadonlySet<ContextLensStatus> =
+  new Set(['completed', 'no_reply', 'timed_out', 'aborted', 'error']);
+
+export function isTerminalContextLensStatus(
+  status: ContextLensStatus
+): boolean {
+  return CONTEXT_LENS_TERMINAL_STATUSES.has(status);
+}
+
 export type ContextLensTriggerDetails = {
   type: ContextLensTrigger;
   messageId: string;
@@ -353,12 +362,9 @@ function capRetrySeed(seed: ContextLensRetrySeed): ContextLensRetrySeed {
   return capped;
 }
 
-export const RETRYABLE_STATUSES: ReadonlySet<ContextLensStatus> = new Set([
-  'no_reply',
-  'timed_out',
-  'aborted',
-  'error',
-]);
+export const RETRYABLE_STATUSES: ReadonlySet<ContextLensStatus> = new Set(
+  [...CONTEXT_LENS_TERMINAL_STATUSES].filter((status) => status !== 'completed')
+);
 
 export type RetryDispatch = {
   /**

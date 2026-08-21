@@ -371,6 +371,31 @@ describe('createContextLensShipSync', () => {
     expect(final.entry.final).toBe(true);
   });
 
+  it('finalizes aborted runs instead of leaving a live ship snapshot', async () => {
+    const pokes: RecordedPoke[] = [];
+    const sync = createContextLensShipSync({
+      owner: '~bus',
+      logger: silentLogger,
+      getParams: () => makeParams(pokes),
+    });
+    const lens = makeLens({ status: 'dispatching' });
+
+    sync.handleEvent(makeEvent(lens));
+    sync.handleEvent(makeEvent({ ...lens, status: 'aborted' }));
+    await sync.flush();
+
+    const lensPokes = pokes.filter((poke) => pokeKind(poke) === 'lens');
+    expect(lensPokes).toHaveLength(1);
+    const final = lensPokes[0].json as {
+      entry: {
+        final: boolean;
+        payload: { lens: { status: ContextLens['status'] } };
+      };
+    };
+    expect(final.entry.final).toBe(true);
+    expect(final.entry.payload.lens.status).toBe('aborted');
+  });
+
   it('pokes bounded live activity transitions without forwarding duplicates', async () => {
     const pokes: RecordedPoke[] = [];
     const params = makeParams(pokes);

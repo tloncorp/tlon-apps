@@ -310,6 +310,32 @@ describe('initContextLensStore', () => {
     expect(reloaded.get(finalized.lensId)?.messageId).toBe('finalized');
   });
 
+  it('persists and reloads aborted lens events', () => {
+    const store = initContextLensStore(
+      makeApi({
+        enabled: true,
+        authToken: 'a-token-of-sufficient-length',
+        store: { path: filePath },
+      })
+    );
+    const aborted = {
+      ...makeLens({ messageId: 'aborted' }),
+      status: 'aborted' as const,
+    };
+
+    publishContextLensEvent('final', aborted);
+
+    expect(store?.get(aborted.lensId)).toMatchObject({
+      messageId: 'aborted',
+      status: 'aborted',
+    });
+    const reloaded = createContextLensStore({ filePath });
+    expect(reloaded.get(aborted.lensId)).toMatchObject({
+      messageId: 'aborted',
+      status: 'aborted',
+    });
+  });
+
   it('replaces the event subscription on re-init instead of stacking writers', () => {
     const stalePath = path.join(tmpDir, 'stale.jsonl');
     initContextLensStore(

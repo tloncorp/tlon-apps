@@ -2,7 +2,10 @@ import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import type { TlonLifecycleConfig } from '../types.js';
 
-const DEFAULT_RUN_TIMEOUT_MS = 120_000;
+// Tool-heavy Tlon turns can legitimately spend several minutes uploading and
+// verifying remote resources. Keep a hard cap, but leave enough room for one
+// coherent turn to finish without forcing a continuation mid-operation.
+const DEFAULT_RUN_TIMEOUT_MS = 900_000;
 const DEFAULT_COMPACTION_TIMEOUT_MS = 180_000;
 
 function normalizeRunTimeoutMs(value: number | null | undefined): number {
