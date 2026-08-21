@@ -273,6 +273,7 @@ export type TlonReplyOutputSentEvent = {
   messageId: string;
   sentAt: number;
   runId: string | null;
+  traceId: string | null;
   outputIndex: number;
   chatType: 'dm' | 'groupChannel';
   isThreadReply: boolean;
@@ -1940,6 +1941,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         messageId: event.messageId,
         sentAt: event.sentAt,
         runId: event.runId,
+        traceId: event.traceId,
         outputIndex: event.outputIndex,
         chatType: event.chatType,
         isThreadReply: event.isThreadReply,

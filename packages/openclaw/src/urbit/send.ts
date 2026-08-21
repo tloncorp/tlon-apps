@@ -52,6 +52,7 @@ function reportSuccessfulSend<T extends { messageId: string; sentAt: number }>(
       messageId: result.messageId,
       sentAt: result.sentAt,
       runId: turn.runId,
+      traceId: turn.traceId,
       outputIndex: turn.outputIndex,
       chatType,
       isThreadReply,

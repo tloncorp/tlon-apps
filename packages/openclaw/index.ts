@@ -73,7 +73,10 @@ import {
   liveToolTraceContentsEnabled,
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
-import { recordActiveTlonTurnToolCall } from './src/turn-recorder.js';
+import {
+  recordActiveTlonTurnToolCall,
+  recordTlonAgentRunTrace,
+} from './src/turn-recorder.js';
 import { resolveTlonAccount } from './src/types.js';
 import {
   formatTlonVersionIdentity,
@@ -1390,7 +1393,13 @@ export default defineBundledChannelEntry({
       }
       ensureCronContextLens(ctx);
     };
-    api.on('agent_turn_prepare', (_event, ctx) => onCronAgentHook(ctx));
+    api.on('agent_turn_prepare', (_event, ctx) => {
+      // Cron has no active Tlon turn recorder, so its output trace stays nullable.
+      if (ctx.trigger !== 'cron') {
+        recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
+      }
+      onCronAgentHook(ctx);
+    });
     api.on('model_call_started', (_event, ctx) => onCronAgentHook(ctx));
 
     // Background lenses normally finalize on tool-result idle; agent_end

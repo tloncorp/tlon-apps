@@ -1928,6 +1928,7 @@ describe('reply output telemetry', () => {
       messageId: '~nec/170.141.184.507',
       sentAt: 1_700_000_000_000,
       runId: 'run-1',
+      traceId: '0123456789abcdef0123456789abcdef',
       outputIndex: 2,
       chatType: 'dm',
       isThreadReply: true,
@@ -1938,6 +1939,7 @@ describe('reply output telemetry', () => {
     expect(call.properties).toMatchObject({
       messageId: '~nec/170.141.184.507',
       runId: 'run-1',
+      traceId: '0123456789abcdef0123456789abcdef',
       outputIndex: 2,
       chatType: 'dm',
       isThreadReply: true,
@@ -1950,6 +1952,7 @@ describe('reply output telemetry', () => {
       messageId: '~nec/170.141.184.507',
       sentAt: 1_700_000_000_000,
       runId: null,
+      traceId: null,
       outputIndex: 0,
       chatType: 'groupChannel' as const,
       isThreadReply: false,

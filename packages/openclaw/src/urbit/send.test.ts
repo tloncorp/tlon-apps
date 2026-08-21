@@ -67,6 +67,7 @@ describe('sendDm', () => {
       messageId: '~zod/mocked-ud',
       sentAt,
       runId: null,
+      traceId: null,
       outputIndex: 0,
       chatType: 'dm',
       isThreadReply: false,

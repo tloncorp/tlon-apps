@@ -9,6 +9,7 @@ import {
   recordActiveTlonTurnDelivery,
   recordActiveTlonTurnSourceReply,
   recordActiveTlonTurnToolCall,
+  recordTlonAgentRunTrace,
   startTlonAgentTurn,
 } from './turn-recorder.js';
 
@@ -62,21 +63,31 @@ function recordTurn(params: {
 describe('Tlon agent turn output attribution', () => {
   it('assigns the active run id and monotonic output indexes', () => {
     const turn = startTlonAgentTurn(baseTurn, { observer: noOpObserver });
-    const outputs = turn.run(() => [
-      claimActiveTlonTurnOutput(),
-      claimActiveTlonTurnOutput(),
-    ]);
+    const outputs = turn.run(() => {
+      recordTlonAgentRunTrace('run-1', 'trace-1');
+      return [claimActiveTlonTurnOutput(), claimActiveTlonTurnOutput()];
+    });
 
     expect(outputs).toEqual([
-      { runId: 'run-1', outputIndex: 0 },
-      { runId: 'run-1', outputIndex: 1 },
+      { runId: 'run-1', outputIndex: 0, traceId: 'trace-1' },
+      { runId: 'run-1', outputIndex: 1, traceId: 'trace-1' },
     ]);
+    turn.finalize({ durationMs: 0 });
+
+    const nextTurn = startTlonAgentTurn(baseTurn, { observer: noOpObserver });
+    expect(nextTurn.run(() => claimActiveTlonTurnOutput())).toEqual({
+      runId: 'run-1',
+      outputIndex: 0,
+      traceId: null,
+    });
+    nextTurn.finalize({ durationMs: 0 });
   });
 
   it('returns a nullable attribution outside a Tlon turn', () => {
     expect(claimActiveTlonTurnOutput()).toEqual({
       runId: null,
       outputIndex: 0,
+      traceId: null,
     });
   });
 });
