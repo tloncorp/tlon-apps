@@ -28,6 +28,7 @@
 import * as api from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
 import type { GroupChannelV7 } from '@tloncorp/api/urbit';
+import { useSyncExternalStore } from 'react';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -45,6 +46,86 @@ const logger = createDevLogger('workspaceProvisioning', false);
 export const DEFAULT_STARTER_KIT_ID = 'blank';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// ---------------------------------------------------------------------------
+// Watching a run
+// ---------------------------------------------------------------------------
+
+export type WorkspaceSetupStepId = 'create' | 'agent' | 'views';
+
+export type WorkspaceSetupStep = {
+  id: WorkspaceSetupStepId;
+  title: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+};
+
+/**
+ * The live view of a provisioning run, for UIs that want to show the user
+ * what "setting up your workspace" is actually doing.
+ *
+ * In-memory on purpose: the durable `workspaceProvisioning` item answers
+ * "did it land?" across restarts, while this answers "what is it doing right
+ * now?" for the session that started the run. A relaunch mid-run resumes with
+ * coarse durable state, which is fine — the steps only matter while someone
+ * is watching them happen.
+ */
+export type WorkspaceSetupProgress = {
+  status: 'idle' | 'running' | 'done' | 'failed';
+  groupId: string | null;
+  steps: WorkspaceSetupStep[];
+};
+
+function initialSetupSteps(): WorkspaceSetupStep[] {
+  return [
+    { id: 'create', title: 'Creating your workspace', status: 'pending' },
+    { id: 'agent', title: 'Adding your agent', status: 'pending' },
+    { id: 'views', title: 'Preparing the app view', status: 'pending' },
+  ];
+}
+
+let setupProgress: WorkspaceSetupProgress = {
+  status: 'idle',
+  groupId: null,
+  steps: initialSetupSteps(),
+};
+
+const setupProgressListeners = new Set<() => void>();
+
+function publishSetupProgress(next: WorkspaceSetupProgress): void {
+  setupProgress = next;
+  setupProgressListeners.forEach((listener) => listener());
+}
+
+function stepSetupProgress(
+  stepId: WorkspaceSetupStepId,
+  status: WorkspaceSetupStep['status']
+): void {
+  publishSetupProgress({
+    ...setupProgress,
+    steps: setupProgress.steps.map((step) =>
+      step.id === stepId ? { ...step, status } : step
+    ),
+  });
+}
+
+export function getWorkspaceSetupProgress(): WorkspaceSetupProgress {
+  return setupProgress;
+}
+
+export function subscribeWorkspaceSetupProgress(
+  listener: () => void
+): () => void {
+  setupProgressListeners.add(listener);
+  return () => setupProgressListeners.delete(listener);
+}
+
+export function useWorkspaceSetupProgress(): WorkspaceSetupProgress {
+  return useSyncExternalStore(
+    subscribeWorkspaceSetupProgress,
+    getWorkspaceSetupProgress,
+    getWorkspaceSetupProgress
+  );
+}
 
 // ---------------------------------------------------------------------------
 // The decision, separated from the doing
@@ -153,6 +234,13 @@ export type ProvisionDeps = {
    * one that never happened.
    */
   resume?: boolean;
+  /**
+   * Set by an explicit in-app "create a workspace" action. The duplicate guard
+   * exists to stop onboarding from provisioning twice; a user who already has
+   * a finished workspace and asks for another one is not a duplicate. Does not
+   * bypass the guard for a run that is still in flight.
+   */
+  fresh?: boolean;
 };
 
 /**
@@ -175,7 +263,8 @@ export async function provisionWorkspace(
   const existing = await db.workspaceProvisioning.getValue();
   if (
     !deps.resume &&
-    (existing.status === 'running' || existing.status === 'done')
+    (existing.status === 'running' ||
+      (existing.status === 'done' && !deps.fresh))
   ) {
     // A second call is a duplicate, not a retry. Recovery goes through
     // `resumeWorkspaceProvisioning`, which knows how to tell the two apart.
@@ -197,6 +286,14 @@ export async function provisionWorkspace(
     groupId,
   });
 
+  publishSetupProgress({
+    status: 'running',
+    groupId,
+    steps: initialSetupSteps().map((step) =>
+      step.id === 'create' ? { ...step, status: 'running' } : step
+    ),
+  });
+
   try {
     // Resolved before the install, not after: %kits writes the descriptor in
     // the same event, and `agents` is what gates the harness's setup run. Get
@@ -209,13 +306,19 @@ export async function provisionWorkspace(
       meta: await workspaceMeta(kitId, deps.kit),
       agent: agent?.botShipId ?? null,
     });
+    stepSetupProgress('create', 'completed');
+    stepSetupProgress('agent', 'running');
     await seatAgent(groupId);
+    stepSetupProgress('agent', 'completed');
+    stepSetupProgress('views', 'running');
     // Best-effort, after the workspace is functionally complete: a chat place
     // without the bifurcated view is still a working workspace, so a failure
     // here must not fail provisioning.
     try {
       await (deps.declarePlaceViews ?? declareKitPlaceViews)(groupId);
+      stepSetupProgress('views', 'completed');
     } catch (error) {
+      stepSetupProgress('views', 'failed');
       logger.trackError('Workspace place-view declaration failed', {
         error,
         groupId,
@@ -225,6 +328,7 @@ export async function provisionWorkspace(
       ...current,
       status: 'done',
     }));
+    publishSetupProgress({ ...setupProgress, status: 'done' });
     logger.trackEvent('Workspace Provisioned', { kitId, groupId });
     return groupId;
   } catch (error) {
@@ -233,6 +337,13 @@ export async function provisionWorkspace(
       status: 'failed',
       error: error instanceof Error ? error.message : String(error),
     }));
+    publishSetupProgress({
+      status: 'failed',
+      groupId,
+      steps: setupProgress.steps.map((step) =>
+        step.status === 'running' ? { ...step, status: 'failed' } : step
+      ),
+    });
     logger.trackError('Workspace provisioning failed', {
       error,
       kitId,

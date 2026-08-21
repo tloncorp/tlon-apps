@@ -5,6 +5,7 @@ import { Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 import { Circle, View, XStack, YStack, isWeb, styled } from 'tamagui';
 
+import { AgentTaskRow, AgentTaskRows } from '../AgentTaskRows';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 
 const NoticeContainer = styled(YStack, {
@@ -347,6 +348,35 @@ function WorkspaceSetup({
   setupComplete: boolean;
   onPressInvite?: () => void;
 }) {
+  const progress = store.useWorkspaceSetupProgress();
+  // Only the run that built *this* workspace: a second workspace can be
+  // provisioning while the user sits in the first one's empty conversation,
+  // and its steps would be someone else's status.
+  const progressIsOurs =
+    progress.status !== 'idle' && progress.groupId === channel.groupId;
+  const progressRows = useMemo<AgentTaskRow[]>(
+    () => [
+      ...progress.steps.map(
+        (step, index): AgentTaskRow => ({
+          id: step.id,
+          title: step.title,
+          status: step.status,
+          sequence: index + 1,
+        })
+      ),
+      // Provisioning ends before the agent's own setup turn does — the post
+      // this notice is waiting on. Without this row a finished run reads as
+      // "all done" under a headline that says it isn't.
+      {
+        id: 'first-post',
+        title: 'Agent is writing its first post',
+        status: progress.status === 'done' ? 'running' : 'pending',
+        sequence: progress.steps.length + 1,
+      },
+    ],
+    [progress.steps, progress.status]
+  );
+
   return (
     <YStack
       flex={1}
@@ -366,10 +396,14 @@ function WorkspaceSetup({
         ) : (
           <>
             <NoticeText fontWeight="600">Setting up your workspace…</NoticeText>
-            <NoticeText color="$secondaryText">
-              Your agent is getting started. It will post here in a moment with
-              something to react to — you don’t need to do anything.
-            </NoticeText>
+            {progressIsOurs ? (
+              <AgentTaskRows rows={progressRows} variant="list" />
+            ) : (
+              <NoticeText color="$secondaryText">
+                Your agent is getting started. It will post here in a moment
+                with something to react to — you don’t need to do anything.
+              </NoticeText>
+            )}
             {onPressInvite ? (
               <Pressable testID="WorkspaceSetupInvite" onPress={onPressInvite}>
                 <Text size="$label/m" color="$positiveActionText">

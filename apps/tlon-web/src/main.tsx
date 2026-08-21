@@ -18,10 +18,11 @@ import './expo-polyfill';
 import regeneratorRuntime from '@babel/runtime/regenerator';
 import { EditorView } from '@tiptap/pm/view';
 import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
-import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
+import { DEV_AGENT_SHIP, ENABLED_LOGGERS } from '@tloncorp/app/constants';
 import { loadConstants } from '@tloncorp/app/lib/constants';
 import { addCustomEnabledLoggers, createDevLogger } from '@tloncorp/shared';
 import { QueryClientProvider, queryClient } from '@tloncorp/shared';
+import { setDevAgentShip } from '@tloncorp/shared/store';
 import { PostHogProvider } from 'posthog-js/react';
 import { createRoot } from 'react-dom/client';
 
@@ -42,6 +43,9 @@ const { setupDb } = isElectron()
 
 loadConstants();
 addCustomEnabledLoggers(ENABLED_LOGGERS);
+// Same wiring as mobile's App.main: a directly-named agent ship for dev rigs
+// with no hosting API to resolve one from.
+setDevAgentShip(DEV_AGENT_SHIP || null);
 
 window.regeneratorRuntime = regeneratorRuntime;
 

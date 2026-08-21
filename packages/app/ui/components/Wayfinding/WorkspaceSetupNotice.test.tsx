@@ -6,7 +6,14 @@ import WayfindingNotice from './Notices';
 
 vi.mock('@tloncorp/api', () => ({ getCurrentUserIsHosted: () => false }));
 vi.mock('@tloncorp/shared/db', () => ({}));
-vi.mock('@tloncorp/shared/store', () => ({}));
+vi.mock('@tloncorp/shared/store', () => ({
+  useWorkspaceSetupProgress: () => ({
+    status: 'idle',
+    groupId: null,
+    steps: [],
+  }),
+}));
+vi.mock('../AgentTaskRows', () => ({ AgentTaskRows: 'AgentTaskRows' }));
 vi.mock('@tloncorp/ui', () => ({
   Icon: 'Icon',
   Pressable: 'Pressable',

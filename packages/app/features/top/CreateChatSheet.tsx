@@ -2,6 +2,10 @@ import * as store from '@tloncorp/shared';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
+  readWorkspaceDescriptor,
+  workspaceConversation,
+} from '@tloncorp/shared/logic';
+import {
   cloneElement,
   forwardRef,
   isValidElement,
@@ -20,6 +24,8 @@ import { useRootNavigation } from '../../navigation/utils';
 import {
   Action,
   ActionSheet,
+  AgentTaskRow,
+  AgentTaskRows,
   Button,
   ContactBook,
   GroupPreviewAction,
@@ -31,18 +37,14 @@ import {
   capitalize,
   useIsWindowNarrow,
 } from '../../ui';
-import { GroupTitleInputSheet } from '../groups/GroupTitleInputSheet';
-import {
-  GroupType,
-  GroupTypeSelectionSheet,
-} from '../groups/GroupTypeSelectionSheet';
+import { GroupTypeSelectionSheet } from '../groups/GroupTypeSelectionSheet';
 
 type ChatType = 'dm' | 'group' | 'joinGroup';
 type Step =
   | 'initial'
   | 'selectType'
   | 'selectGroupType'
-  | 'setGroupTitle'
+  | 'provisionGroup'
   | `create${Capitalize<ChatType>}`;
 
 export type CreateChatParams =
@@ -93,9 +95,9 @@ const CHAT_TYPE_CONFIG = {
   },
   joinGroup: {
     title: 'Join a workspace',
-    subtitle: 'Join a workspace with a code (reference)',
-    actionTitle: 'Join a workspace with a code (reference)',
-    actionDescription: 'Join with a code (reference)',
+    subtitle: 'Paste an invite code',
+    actionTitle: 'Paste an invite code',
+    actionDescription: 'Paste an invite code',
   },
 } as const;
 
@@ -295,11 +297,8 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
   const [step, setStep] = useState<Step>(
     defaultOpen ? 'selectType' : 'initial'
   );
-  const [selectedTemplateId, setSelectedTemplateId] = useState<
-    store.GroupTemplateId | undefined
-  >(undefined);
-  const [groupTitle, setGroupTitle] = useState<string | undefined>(undefined);
   const isWindowNarrow = useIsWindowNarrow();
+  const { resetToChannel } = useRootNavigation();
 
   const open = useCallback(() => {
     if (step === 'initial') {
@@ -312,8 +311,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     (open: boolean) => {
       if (!open) {
         setStep('initial');
-        setSelectedTemplateId(undefined);
-        setGroupTitle(undefined);
         setSelectedContactIds([]);
       } else if (step === 'initial') {
         setStep('selectType');
@@ -334,32 +331,31 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     }
   }, []);
 
-  const handleGroupTypeSelected = useCallback(
-    (groupType: GroupType, templateId?: store.GroupTemplateId) => {
-      trackEvent(AnalyticsEvent.CreateOptionSelected, {
-        option: groupType,
+  const handleKitSelected = useCallback((kitId?: string) => {
+    trackEvent(AnalyticsEvent.CreateOptionSelected, {
+      option: kitId ?? 'blank',
+    });
+    setStep('provisionGroup');
+    // Not awaited: the setup sheet watches the run's progress and the
+    // durable provisioning state records the outcome, so nothing here needs
+    // the result — and a slow ship must not wedge the sheet transition.
+    store
+      .provisionWorkspace(kitId ?? store.DEFAULT_STARTER_KIT_ID, {
+        fresh: true,
+      })
+      .catch(() => {
+        // Recorded as `failed` and logged inside `provisionWorkspace`; the
+        // setup sheet renders the failure from the progress state.
       });
-      if (groupType === 'quick') {
-        // Quick workspace goes to member selection without template
-        setSelectedTemplateId(undefined);
-        setStep('createGroup');
-      } else if (groupType === 'template' && templateId) {
-        setSelectedTemplateId(templateId);
-        // Only basic-group template goes to title input, others skip to member selection
-        if (templateId === 'basic-group') {
-          setStep('setGroupTitle');
-        } else {
-          setStep('createGroup');
-        }
-      }
-    },
-    []
-  );
-
-  const handleTitleSubmitted = useCallback((title: string) => {
-    setGroupTitle(title);
-    setStep('createGroup');
   }, []);
+
+  const handleWorkspaceReady = useCallback(
+    (groupId: string, channelId: string) => {
+      setStep('initial');
+      resetToChannel(channelId, { groupId });
+    },
+    [resetToChannel]
+  );
 
   const handleSubmit = useCallback(
     async (params: CreateChatParams) => {
@@ -369,8 +365,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       const didCreate = await createChat(params);
       if (didCreate) {
         setStep('initial');
-        setSelectedTemplateId(undefined);
-        setGroupTitle(undefined);
         setSelectedContactIds([]);
       }
     },
@@ -383,8 +377,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       open,
       close: () => {
         setStep('initial');
-        setSelectedTemplateId(undefined);
-        setGroupTitle(undefined);
         setSelectedContactIds([]);
       },
     }),
@@ -404,10 +396,8 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
     handleSubmit({
       type: 'group',
       contactIds: selectedContactIds,
-      templateId: selectedTemplateId,
-      title: groupTitle,
     });
-  }, [handleSubmit, selectedContactIds, selectedTemplateId, groupTitle]);
+  }, [handleSubmit, selectedContactIds]);
 
   const chatType =
     step === 'createDm' ? 'dm' : step === 'createGroup' ? 'group' : 'joinGroup';
@@ -430,7 +420,6 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         closeButton
         dialogContentProps={{ width: 380 }}
       >
-        <ActionSheet.SimpleHeader title="Start a conversation" />
         <ActionSheet.Content>
           <TypeSelectionContent onSelectType={handleTypeSelected} />
         </ActionSheet.Content>
@@ -438,12 +427,12 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       <GroupTypeSelectionSheet
         open={step === 'selectGroupType'}
         onOpenChange={handleOpenChange}
-        onSelectGroupType={handleGroupTypeSelected}
+        onSelectKit={handleKitSelected}
       />
-      <GroupTitleInputSheet
-        open={step === 'setGroupTitle'}
+      <WorkspaceSetupSheet
+        open={step === 'provisionGroup'}
         onOpenChange={handleOpenChange}
-        onSubmitTitle={handleTitleSubmitted}
+        onReady={handleWorkspaceReady}
       />
       <ActionSheet
         open={step === 'createJoinGroup'}
@@ -488,21 +477,19 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
       <GroupTypeSelectionSheet
         open={step === 'selectGroupType'}
         onOpenChange={handleOpenChange}
-        onSelectGroupType={handleGroupTypeSelected}
+        onSelectKit={handleKitSelected}
       />
-      <GroupTitleInputSheet
-        open={step === 'setGroupTitle'}
+      <WorkspaceSetupSheet
+        open={step === 'provisionGroup'}
         onOpenChange={handleOpenChange}
-        onSubmitTitle={handleTitleSubmitted}
+        onReady={handleWorkspaceReady}
       />
       <CreateChatInviteSheet
-        open={step === 'createDm' || step === 'createGroup'}
+        open={step === 'createDm'}
         onOpenChange={handleOpenChange}
         onSubmit={handleSubmit}
-        chatType={step === 'createDm' ? 'dm' : 'group'}
+        chatType="dm"
         isCreating={isCreatingChat}
-        templateId={selectedTemplateId}
-        title={groupTitle}
       />
       <JoinGroupSheet
         open={step === 'createJoinGroup'}
@@ -563,7 +550,6 @@ export function CreateChatTypeSheet({
 }) {
   return (
     <ActionSheet open={open} onOpenChange={onOpenChange} modal>
-      <ActionSheet.SimpleHeader title="Start a conversation" />
       <ActionSheet.Content>
         <TypeSelectionContent onSelectType={onSelectType} />
       </ActionSheet.Content>
@@ -645,6 +631,111 @@ export function CreateChatInviteSheet({
         onCreateGroup={handlePressCreateGroup}
         onScrollChange={setScreenScrolling}
       />
+    </ActionSheet>
+  );
+}
+
+/**
+ * The scaffolding view shown while a workspace provisions: the run's steps as
+ * live task rows, then a handoff into the new conversation once its channel
+ * row has synced. Navigating any earlier would open a screen for a channel
+ * the local database has never heard of, so readiness is "the descriptor
+ * names a conversation and its row exists", not "the poke was acked".
+ */
+function WorkspaceSetupSheet({
+  open,
+  onOpenChange,
+  onReady,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onReady: (groupId: string, channelId: string) => void;
+}) {
+  const { bottom } = useSafeAreaInsets();
+  const isWindowNarrow = useIsWindowNarrow();
+  const progress = store.useWorkspaceSetupProgress();
+  const groupId = progress.groupId ?? undefined;
+  const { data: group } = store.useGroup({ id: groupId ?? '' });
+  const conversation = useMemo(
+    () => workspaceConversation(readWorkspaceDescriptor(group)),
+    [group]
+  );
+  const conversationReady = Boolean(
+    conversation && group?.channels?.some((chan) => chan.id === conversation)
+  );
+
+  useEffect(() => {
+    if (
+      open &&
+      progress.status === 'done' &&
+      groupId &&
+      conversation &&
+      conversationReady
+    ) {
+      onReady(groupId, conversation);
+    }
+  }, [
+    open,
+    progress.status,
+    groupId,
+    conversation,
+    conversationReady,
+    onReady,
+  ]);
+
+  const rows = useMemo<AgentTaskRow[]>(
+    () =>
+      progress.steps.map((step, index) => ({
+        id: step.id,
+        title: step.title,
+        status: step.status,
+        sequence: index + 1,
+      })),
+    [progress.steps]
+  );
+
+  const content = (
+    <YStack flex={1} gap="$l" paddingBottom={bottom}>
+      <ActionSheet.SimpleHeader
+        title="Setting up your workspace"
+        subtitle="Your agent will take it from here."
+      />
+      <YStack gap="$l" paddingHorizontal="$xl">
+        <AgentTaskRows rows={rows} variant="list" />
+        {progress.status === 'failed' ? (
+          <Text color="$secondaryText">
+            Something went wrong. Close this and try again.
+          </Text>
+        ) : null}
+      </YStack>
+    </YStack>
+  );
+
+  if (!isWindowNarrow) {
+    return (
+      <ActionSheet
+        open={open}
+        onOpenChange={onOpenChange}
+        mode="dialog"
+        closeButton
+        dialogContentProps={{ width: 600 }}
+      >
+        <View flex={1} padding="$m">
+          {content}
+        </View>
+      </ActionSheet>
+    );
+  }
+
+  return (
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      snapPoints={[90]}
+      snapPointsMode="percent"
+      modal
+    >
+      {content}
     </ActionSheet>
   );
 }
