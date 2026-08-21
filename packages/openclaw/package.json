@@ -31,7 +31,7 @@
     "postbuild": "node scripts/generate-channel-configs.mjs",
     "clean": "rm -rf dist",
     "dev": "./dev/run.sh",
-    "lint": "eslint .",
+    "lint": "oxlint .",
     "lint:format": "oxfmt ./",
     "postinstall": "node scripts/generate-version.js",
     "prebuild": "node scripts/generate-version.js",

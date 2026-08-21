@@ -4,8 +4,8 @@
   "main": "index.ts",
   "private": true,
   "scripts": {
-    "lint": "eslint ./",
-    "lint:fix": "eslint ./ --fix --quiet",
+    "lint": "oxlint ./",
+    "lint:fix": "oxlint ./ --fix --quiet",
     "lint:format": "oxfmt ./",
     "test": "vitest --watch false",
     "tsc": "tsc --noEmit"
