@@ -4,6 +4,7 @@ import {
   BOT_REPLY_FEEDBACK_RETENTION_MS,
   getBotReplyMessageId,
   getFreshBotReplyFeedback,
+  sanitizeBotReplyFeedbackText,
 } from './botReplyFeedback';
 
 const BOT_SHIP = '~botnul-banpex-ravseg-nosduc';
@@ -41,5 +42,23 @@ describe('getFreshBotReplyFeedback', () => {
     };
 
     expect(getFreshBotReplyFeedback([fresh, expired], now)).toEqual([fresh]);
+  });
+});
+
+describe('sanitizeBotReplyFeedbackText', () => {
+  it('redacts Tlon mentions, group mentions, links, and email addresses', () => {
+    expect(
+      sanitizeBotReplyFeedbackText(
+        'Ask ~sampel-palnet, @admins, or jane@example.com. Visit https://example.com/private?q=1, www.example.org/path, and tlon://chat/~sampel-palnet.'
+      )
+    ).toBe(
+      'Ask [mention], [mention], or [email]. Visit [link], [link], and [link].'
+    );
+  });
+
+  it('leaves ordinary message text unchanged', () => {
+    expect(
+      sanitizeBotReplyFeedbackText('A normal bot reply with ~10 items.')
+    ).toBe('A normal bot reply with ~10 items.');
   });
 });

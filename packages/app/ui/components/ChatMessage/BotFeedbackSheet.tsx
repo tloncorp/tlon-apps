@@ -168,10 +168,13 @@ export function BotFeedbackSheet({
       <ActionSheet.ScrollableContent
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
-        paddingHorizontal={isWindowNarrow ? '$2xl' : '$3xl'}
+        // Native BottomSheetScrollView does not apply this prop to its content
+        // container, so narrow-layout gutters live on the inner stack below.
+        paddingHorizontal={isWindowNarrow ? 0 : '$3xl'}
       >
         <YStack
           paddingTop={isWindowNarrow ? '$xl' : '$3xl'}
+          paddingHorizontal={isWindowNarrow ? '$2xl' : 0}
           paddingBottom={isWindowNarrow ? 0 : '$m'}
           gap={isWindowNarrow ? '$xl' : '$2xl'}
         >

@@ -18,6 +18,11 @@ import * as logic from '../logic';
 const REPLY_TEXT_LIMIT = 2_000;
 const EXCERPT_MESSAGE_LIMIT = 8;
 const EXCERPT_TEXT_LIMIT = 500;
+const EMAIL_PATTERN = /(?:mailto:)?\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+const LINK_PATTERN =
+  /\b(?:[a-z][a-z0-9+.-]*:\/\/|www\.)[^\s<>()]+[^\s<>().,!?;:'"]/gi;
+const AT_MENTION_PATTERN = /(^|[^A-Za-z0-9_])@[A-Za-z0-9][A-Za-z0-9._-]*/g;
+const SHIP_MENTION_PATTERN = /(^|[^A-Za-z0-9_])~[a-z][a-z-]{2,}/g;
 export const BOT_REPLY_FEEDBACK_RETENTION_MS = 90 * 24 * 60 * 60 * 1_000;
 
 export type MandatoryEventCapture = (event: {
@@ -35,6 +40,21 @@ export function getPostIdFromBotReplyMessageId(messageId: string) {
 
 function truncate(text: string | null | undefined, limit: number) {
   return (text ?? '').slice(0, limit);
+}
+
+// Sanitize only the message copies sent with feedback telemetry. Local message
+// content remains unchanged, and intentionally submitted feedback details are
+// kept verbatim.
+export function sanitizeBotReplyFeedbackText(text: string | null | undefined) {
+  return (text ?? '')
+    .replace(EMAIL_PATTERN, '[email]')
+    .replace(LINK_PATTERN, '[link]')
+    .replace(AT_MENTION_PATTERN, '$1[mention]')
+    .replace(SHIP_MENTION_PATTERN, '$1[mention]');
+}
+
+function sanitizeAndTruncate(text: string | null | undefined, limit: number) {
+  return truncate(sanitizeBotReplyFeedbackText(text), limit);
 }
 
 function toCachedEntry(
@@ -108,7 +128,7 @@ export async function buildBotReplyConversationExcerpt(
             ? 'bot'
             : 'other',
       sentAt: candidate.sentAt,
-      text: truncate(candidate.textContent, EXCERPT_TEXT_LIMIT),
+      text: sanitizeAndTruncate(candidate.textContent, EXCERPT_TEXT_LIMIT),
     }));
 }
 
@@ -223,7 +243,7 @@ export async function submitBotReplyFeedbackDetails({
     rating,
     categories,
     details,
-    replyText: truncate(post.textContent, REPLY_TEXT_LIMIT),
+    replyText: sanitizeAndTruncate(post.textContent, REPLY_TEXT_LIMIT),
     conversationExcerpt,
   };
   await captureMandatoryEvent({
