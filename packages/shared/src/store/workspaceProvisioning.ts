@@ -27,6 +27,7 @@
  */
 import * as api from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
+import type { GroupChannelV7 } from '@tloncorp/api/urbit';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -138,6 +139,8 @@ export type ProvisionDeps = {
   }) => Promise<unknown>;
   installs?: () => Promise<Record<string, unknown>>;
   seatAgent?: (groupId: string) => Promise<unknown>;
+  /** Declares channel views on the kit's places; failures are non-fatal. */
+  declarePlaceViews?: (groupId: string) => Promise<unknown>;
   /** Resolves the ship whose harness will execute the kit. */
   agent?: () => Promise<ResolvedAgent>;
   currentUserId?: () => string;
@@ -207,6 +210,17 @@ export async function provisionWorkspace(
       agent: agent?.botShipId ?? null,
     });
     await seatAgent(groupId);
+    // Best-effort, after the workspace is functionally complete: a chat place
+    // without the bifurcated view is still a working workspace, so a failure
+    // here must not fail provisioning.
+    try {
+      await (deps.declarePlaceViews ?? declareKitPlaceViews)(groupId);
+    } catch (error) {
+      logger.trackError('Workspace place-view declaration failed', {
+        error,
+        groupId,
+      });
+    }
     await db.workspaceProvisioning.setValue((current) => ({
       ...current,
       status: 'done',
@@ -244,6 +258,85 @@ export function startWorkspaceProvisioning(
     // Swallowed here so an unhandled rejection cannot surface as a crash
     // during onboarding.
   });
+}
+
+// ---------------------------------------------------------------------------
+// Declaring place views
+// ---------------------------------------------------------------------------
+
+export type DeclarePlaceViewsDeps = {
+  installs?: () => Promise<Record<string, { places: Record<string, string> }>>;
+  getChannelListing?: (
+    groupId: string,
+    channelId: string
+  ) => Promise<GroupChannelV7 | null>;
+  updateChannel?: (params: {
+    groupId: string;
+    channelId: string;
+    channel: GroupChannelV7;
+  }) => Promise<unknown>;
+};
+
+/**
+ * Declare the bifurcated pinned-surface view on the kit's chat places, so the
+ * agent's interactive card renders as a mini-app above the flowing chat.
+ *
+ * The declaration is `channelContentConfiguration` inside the channel
+ * listing's structured description, which replicates with the group to every
+ * member; clients without the renderer degrade to the plain post list per
+ * docs/tlon-apps/channel-views.md. The listing is read raw and resubmitted
+ * whole because the groups edit replaces it — only the description changes.
+ * Idempotent: a place already declaring the view is left alone, so the
+ * resume path can re-run this safely.
+ */
+export async function declareKitPlaceViews(
+  groupId: string,
+  deps: DeclarePlaceViewsDeps = {}
+): Promise<void> {
+  const getInstalls = deps.installs ?? api.getInstalls;
+  const getListing = deps.getChannelListing ?? api.getGroupChannelListing;
+  const update = deps.updateChannel ?? api.updateChannel;
+
+  const install = (await getInstalls())[groupId];
+  if (!install) {
+    return;
+  }
+  for (const nest of Object.values(install.places)) {
+    if (!nest.startsWith('chat/')) {
+      continue;
+    }
+    const listing = await getListing(groupId, nest);
+    if (!listing) {
+      continue;
+    }
+    const decoded = api.StructuredChannelDescriptionPayload.decode(
+      listing.meta.description
+    );
+    const declared = decoded.channelContentConfiguration
+      ? api.ChannelContentConfiguration.defaultPostCollectionRenderer(
+          decoded.channelContentConfiguration
+        ).id
+      : null;
+    if (declared === api.CollectionRendererId.pinnedSurface) {
+      continue;
+    }
+    const description = api.StructuredChannelDescriptionPayload.encode({
+      description: decoded.description,
+      channelContentConfiguration: {
+        draftInput: api.DraftInputId.chat,
+        defaultPostContentRenderer: api.PostContentRendererId.chat,
+        defaultPostCollectionRenderer: api.CollectionRendererId.pinnedSurface,
+      },
+    });
+    await update({
+      groupId,
+      channelId: nest,
+      channel: {
+        ...listing,
+        meta: { ...listing.meta, description: description ?? '' },
+      },
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------

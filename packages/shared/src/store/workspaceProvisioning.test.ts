@@ -1,10 +1,16 @@
+import {
+  ChannelContentConfiguration,
+  StructuredChannelDescriptionPayload,
+} from '@tloncorp/api';
 import type { Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import * as db from '../db';
+import type { DeclarePlaceViewsDeps } from './workspaceProvisioning';
 import {
   DEFAULT_STARTER_KIT_ID,
   decideResume,
+  declareKitPlaceViews,
   ensureWorkspaceAgentSeated,
   provisionWorkspace,
   resumeWorkspaceProvisioning,
@@ -649,5 +655,95 @@ describe('seating the agent', () => {
       })
     ).resolves.toBeUndefined();
     expect(join).not.toHaveBeenCalled();
+  });
+});
+
+describe('declaring place views', () => {
+  const LISTING = {
+    added: 123,
+    section: 'default',
+    readers: [],
+    join: false,
+    meta: {
+      title: 'Kitchen',
+      description: 'Where the week gets planned and argued about',
+      image: '',
+      cover: '',
+    },
+  };
+
+  function makeDeps(overrides: Partial<DeclarePlaceViewsDeps> = {}) {
+    const updateChannel = vi.fn().mockResolvedValue(undefined);
+    const deps: DeclarePlaceViewsDeps = {
+      updateChannel,
+      installs: async () => ({
+        [GROUP]: {
+          places: {
+            kitchen: `chat/${OUR}/kitchen-${NAME}`,
+            plans: `notes/${OUR}/plans-${NAME}`,
+          },
+        },
+      }),
+      getChannelListing: async () => ({
+        ...LISTING,
+        meta: { ...LISTING.meta },
+      }),
+      ...overrides,
+    };
+    return { deps, updateChannel };
+  }
+
+  test('declares the pinned-surface view on chat places only', async () => {
+    const { deps, updateChannel } = makeDeps();
+    await declareKitPlaceViews(GROUP, deps);
+    expect(updateChannel).toHaveBeenCalledTimes(1);
+    const call = updateChannel.mock.calls[0][0];
+    expect(call.channelId).toBe(`chat/${OUR}/kitchen-${NAME}`);
+    const decoded = StructuredChannelDescriptionPayload.decode(
+      call.channel.meta.description
+    );
+    expect(
+      ChannelContentConfiguration.defaultPostCollectionRenderer(
+        decoded.channelContentConfiguration!
+      ).id
+    ).toBe('tlon.r0.collection.pinnedSurface');
+    // The human-facing description and the rest of the listing survive.
+    expect(decoded.description).toBe(LISTING.meta.description);
+    expect(call.channel.meta.title).toBe('Kitchen');
+    expect(call.channel.section).toBe('default');
+    expect(call.channel.added).toBe(123);
+  });
+
+  test('is idempotent: an already-declared place is left alone', async () => {
+    const declared = StructuredChannelDescriptionPayload.encode({
+      description: 'already set up',
+      channelContentConfiguration: {
+        draftInput: 'tlon.r0.input.chat',
+        defaultPostContentRenderer: 'tlon.r0.content.chat',
+        defaultPostCollectionRenderer: 'tlon.r0.collection.pinnedSurface',
+      },
+    });
+    const { deps, updateChannel } = makeDeps({
+      getChannelListing: async () => ({
+        ...LISTING,
+        meta: { ...LISTING.meta, description: declared! },
+      }),
+    });
+    await declareKitPlaceViews(GROUP, deps);
+    expect(updateChannel).not.toHaveBeenCalled();
+  });
+
+  test('no install for the group is a no-op', async () => {
+    const { deps, updateChannel } = makeDeps({ installs: async () => ({}) });
+    await declareKitPlaceViews(GROUP, deps);
+    expect(updateChannel).not.toHaveBeenCalled();
+  });
+
+  test('a listing the host cannot serve yet is skipped, not fatal', async () => {
+    const { deps, updateChannel } = makeDeps({
+      getChannelListing: async () => null,
+    });
+    await expect(declareKitPlaceViews(GROUP, deps)).resolves.toBeUndefined();
+    expect(updateChannel).not.toHaveBeenCalled();
   });
 });

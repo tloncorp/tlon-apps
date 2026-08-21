@@ -509,6 +509,24 @@ export const getGroups = async () => {
   return toClientGroups(groupData, true);
 };
 
+/**
+ * One channel's raw group listing, undecoded. `updateChannel` submits the
+ * whole listing, so a caller editing one field (e.g. the structured
+ * description that carries `channelContentConfiguration`) needs the rest
+ * verbatim — the client-converted group renames and drops fields.
+ */
+export const getGroupChannelListing = async (
+  groupId: string,
+  channelId: string
+): Promise<ub.GroupChannelV7 | null> => {
+  const version = getGroupsSupportsBlob() ? 'v3' : 'v2';
+  const groupData = await scry<ub.GroupV11>({
+    app: 'groups',
+    path: `/${version}/ui/groups/${groupId}`,
+  });
+  return groupData.channels?.[channelId] ?? null;
+};
+
 export const updateGroupMeta = async ({
   groupId,
   meta,

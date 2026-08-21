@@ -16,6 +16,7 @@ import {
   NotebookInput,
 } from '../../components/draftInputs';
 import { ListPostCollection } from '../../components/postCollectionViews/ListPostCollectionView';
+import { PinnedSurfaceCollection } from '../../components/postCollectionViews/PinnedSurfaceCollectionView';
 import { IPostCollectionView } from '../../components/postCollectionViews/shared';
 import { ChannelView, mergeChannelViews } from './channelViews';
 import {
@@ -46,6 +47,7 @@ const BUILTIN_COLLECTION_RENDERERS: { [id: string]: IPostCollectionView } = {
   [CollectionRendererId.gallery]: ListPostCollection,
   [CollectionRendererId.notebook]: ListPostCollection,
   [CollectionRendererId.notes]: NotesPostCollection,
+  [CollectionRendererId.pinnedSurface]: PinnedSurfaceCollection,
 };
 
 const NO_VIEWS: readonly ChannelView[] = [];

@@ -118,7 +118,7 @@ Then find the post's id — the host assigns it, so read it back:
 tlon messages channel <kitchen-nest> --limit 5
 ```
 
-Your card is your newest post there (it shows a `blob`). Record in `Meal Plan/Card.md`: the post id, the surfaceId, the current revision, and the week's meals. That file is how you find the card again next turn.
+Your card is your newest post there (it shows a `blob`). Write `Meal Plan/Card.md` — create the file if it does not exist yet, which on a fresh install it will not — with the post id, the surfaceId, the current revision, and the week's meals. That file is how you find the card again next turn.
 
 ## Updating the card
 

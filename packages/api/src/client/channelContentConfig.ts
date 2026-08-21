@@ -62,6 +62,12 @@ export const allCollectionRenderers = {
     displayName: 'Notes',
     enumTag: 'notes',
   },
+  // A chat bifurcated into a mini-app and a conversation: the channel's
+  // current interactive-surface card pinned above the flowing chat list.
+  'tlon.r0.collection.pinnedSurface': {
+    displayName: 'Pinned surface',
+    enumTag: 'pinnedSurface',
+  },
 } as const satisfies Record<string, ComponentSpec>;
 
 export const allDraftInputs = {

@@ -1,6 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 import { validateBlobEntry } from '../client/a2ui';
@@ -11,9 +10,10 @@ import { parsePostBlob } from '../client/content-helpers';
 // authoring time, so this test pins the template itself: if the a2ui limits
 // or entry schemas move and the template stops validating, this fails before
 // a live agent posts a card that every client rejects.
+// vitest runs with cwd at the package root.
 const CARD_INSTRUCTION_PATH = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../../tlon-kits/kits/meal-plan/instructions/card.md'
+  process.cwd(),
+  '../tlon-kits/kits/meal-plan/instructions/card.md'
 );
 
 function templateJson(): unknown {
