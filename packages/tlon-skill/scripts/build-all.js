@@ -87,9 +87,17 @@ execSync(
 cpSync(stagedBinary, binaryPath);
 rmSync(stagingDir, { recursive: true, force: true });
 
-// Copy to the appropriate npm package directory
+// Copy to the appropriate npm package directory. This is publish prep, not
+// part of producing dist/ — don't let it kill a dev build (e.g. a stale
+// root-owned file from a container run that the host user can't chmod).
 const npmDir = join(rootDir, 'npm', target);
-mkdirSync(npmDir, { recursive: true });
-cpSync(binaryPath, join(npmDir, binaryName));
-
-console.log(`Built and copied to npm/${target}/${binaryName}`);
+try {
+  mkdirSync(npmDir, { recursive: true });
+  rmSync(join(npmDir, binaryName), { force: true });
+  cpSync(binaryPath, join(npmDir, binaryName));
+  console.log(`Built and copied to npm/${target}/${binaryName}`);
+} catch (err) {
+  console.warn(
+    `warning: built dist/${binaryName} but could not copy to npm/${target}: ${err.message}`
+  );
+}
