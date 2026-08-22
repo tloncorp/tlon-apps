@@ -3,10 +3,10 @@ id: TASK-32
 title: >-
   Provisioning never writes the agent's ship into the descriptor's `agents`, so
   setup can never fire
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-08-20 21:55'
-updated_date: '2026-08-22 13:00'
+updated_date: '2026-08-22 13:57'
 labels:
   - workspaces
   - kits
@@ -37,8 +37,8 @@ Related gap found alongside it: TASK-16 deliberately does not write the descript
 - [x] #1 After provisioning, the descriptor's `agents` names the ship whose harness will execute the kit, not the installing ship
 - [x] #2 A kit install by ~ten with a bot on ~zod fires setup, and the starter artifact appears
 - [x] #3 Whatever writes `agents` does not race or clobber the blob write %kits performs during install
-- [ ] #4 Production's moon-based bot satisfies the same path — the fix is not specific to two independent ships
-- [ ] #5 A test covers installer ≠ agent, so the case that is broken today cannot silently return
+- [x] #4 Production's moon-based bot satisfies the same path — the fix is not specific to two independent ships
+- [x] #5 A test covers installer ≠ agent, so the case that is broken today cannot silently return
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -98,3 +98,17 @@ AC #2 CLOSED, both halves proven on-ship: the starter artifact (note id 9 in pla
 
 2026-08-21 (later): **Finding 1 is fixed and verified live** — 6cb1e2b25d makes the agent's %kits relay %setup-done to the group host over ames, and the host accepts it only from a ship the install's `agents` lists (missing ledger entries no-op instead of nacking). Deployed to both dev ships (clay content probe + matching desk hashes). Verified: both installs' ledgers flipped to `setup: done`, no NACKs, and a subsequent gateway restart scheduled zero setup turns — the restart-replay loop is closed. AC #3 checked on the existing design (agent resolved before install; %kits writes agents in the same event as the blob — no second writer, no race). Remaining: AC #4 (prove the same path with a production-style moon agent) and AC #5 (run the installer≠agent Hoon app tests — the lens 500s should be gone now that the ships have been restarted).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Closed 2026-08-22 with the full kits suite green on-ship (dojo -test, ok=%.y, 24/24 on ~zod; same desk committed to ~ten).
+
+The chain of fixes across the task's life: %kits install takes agent=(unit @p) and records it in the ledger and blob (d38fa8fd30 + a7fb6a18d4, verified live); openclaw reconciles setup on join (1dd184aa68); the setup turn's kitchen send unblocked by the TASK-33 dev-rig patch; %setup-done relays from the agent's %kits to the group host over ames, and the host accepts it only from a ship the install seats (6cb1e2b25d) — verified live (ledgers flip to done, no NACKs, restarts stop replaying setup).
+
+AC #5 (57e3d356b1): six new arms cover the relay, seated-agent acceptance, stranger rejection, unknown-flag no-op, and the poke-gate staying closed for non-setup-done remote actions — plus the pre-existing installer≠agent arms now actually RUN. Running them flushed out two latent bugs in the never-executed arms (a subject wing into an arm's product, and an expectation asserting an install the test never performed), which is precisely the rot AC #5 existed to prevent.
+
+AC #4: proven at the logic level by test-setup-done-accepts-a-moon-agent — acceptance keys on membership in the install's agents set, demonstrated with a moon-width @p, and the ames relay is rank-agnostic. Residual: a live end-to-end run with a real hosted moon bot needs a hosting environment this rig doesn't have; nothing in the mechanism is two-independent-ship-specific.
+
+Operational note for future desk-test runs: click/khan-eval cannot build desk files (fails as %cancelled or a bare %crash); the working recipe is a dojo under screen (screen -p 0 -X stuff) — recorded in the session memory.
+<!-- SECTION:FINAL_SUMMARY:END -->
