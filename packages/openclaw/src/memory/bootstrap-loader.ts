@@ -16,6 +16,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+import { renderGroupDigestForChannel } from './digest.js';
 import { resolveSpeakerForSession } from './speaker-bridge.js';
 import { parseTlonSurface } from './surface.js';
 
@@ -130,9 +131,6 @@ export function createMemoryBootstrapHandler(opts?: {
       return;
     }
     const relPaths = selectMemoryFilePaths(sessionKey);
-    if (relPaths.length === 0) {
-      return;
-    }
     const alreadyLoaded = new Set(
       bootstrapFiles.map((file) => file.path ?? file.name)
     );
@@ -144,6 +142,29 @@ export function createMemoryBootstrapHandler(opts?: {
       bootstrapFiles.push(entry);
       alreadyLoaded.add(entry.path);
       opts?.log?.(`[tlon] memory: loaded ${relPath} for ${sessionKey}`);
+    }
+
+    // Group digest: rendered live (never persisted), rows already filtered
+    // for this channel's audience inside renderGroupDigestForChannel.
+    const surface = parseTlonSurface(sessionKey);
+    if (surface?.kind === 'channel') {
+      const digest = renderGroupDigestForChannel(surface.nest);
+      if (digest) {
+        const flatFlag = digest.groupFlag.replace(/\//g, '.');
+        const name = path.join('memory', 'digest', `${flatFlag}.md`);
+        const virtualPath = path.resolve(workspaceDir, name);
+        if (!alreadyLoaded.has(virtualPath)) {
+          bootstrapFiles.push({
+            name,
+            path: virtualPath,
+            content: digest.content.slice(0, MAX_FILE_CHARS),
+            missing: false,
+          });
+          opts?.log?.(
+            `[tlon] memory: rendered digest for ${digest.groupFlag} into ${sessionKey}`
+          );
+        }
+      }
     }
   };
 }

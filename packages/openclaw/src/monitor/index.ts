@@ -40,6 +40,8 @@ import {
   gateGatewayStatusActivation,
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
+import { recordDigestMessage } from '../memory/digest.js';
+import { updateGroupIndex } from '../memory/group-index.js';
 import { recordSpeakerForSession } from '../memory/speaker-bridge.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import {
@@ -1456,6 +1458,13 @@ export async function monitorTlonProvider(
         for (const [flag, title] of initData.groupNames) {
           groupNameCache.set(flag, title);
         }
+        // Feed the memory group index (digest rendering + audience checks)
+        updateGroupIndex({
+          channelToGroup: initData.channelToGroup,
+          channelReaders: initData.channelReaders,
+          channelNames: initData.channelNames,
+          groupNames: initData.groupNames,
+        });
         initForeigns = initData.foreigns;
       } catch (error: any) {
         runtime.error?.(
@@ -3954,6 +3963,14 @@ export async function monitorTlonProvider(
         }
 
         const parsed = parseChannelNest(nest);
+        // Digest: record every observed group message (post-authorization),
+        // whether or not the bot replies — this is what it "saw" lately.
+        recordDigestMessage({
+          nest,
+          sender: senderShip,
+          text: rawText,
+          timestamp: content.sent || Date.now(),
+        });
         const citedContent = await resolveCitedContent(content.content);
         await processMessage({
           messageId: messageId ?? '',

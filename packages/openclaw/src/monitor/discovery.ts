@@ -23,11 +23,33 @@ export async function fetchGroupChanges(
 export interface InitData {
   channels: string[];
   channelToGroup: Map<string, string>;
+  /** Map from channel nest to reader role ids (empty = all members) */
+  channelReaders: Map<string, string[]>;
   /** Map from channel nest to human-readable channel title */
   channelNames: Map<string, string>;
   /** Map from group flag to human-readable group title */
   groupNames: Map<string, string>;
   foreigns: Foreigns | null;
+}
+
+/**
+ * Extract reader role ids from a groups-ui channel record. Unparseable
+ * shapes yield a non-empty sentinel so downstream audience checks fail
+ * closed (a channel we can't read permissions for is treated as
+ * restricted, never as open).
+ */
+function extractReaderRoles(value: unknown): string[] {
+  if (!value || typeof value !== 'object') {
+    return ['__unknown__'];
+  }
+  const readers = (value as { readers?: unknown }).readers;
+  if (readers === undefined || readers === null) {
+    return ['__unknown__'];
+  }
+  if (!Array.isArray(readers)) {
+    return ['__unknown__'];
+  }
+  return readers.filter((role): role is string => typeof role === 'string');
 }
 
 function extractTitle(value: unknown): string | undefined {
@@ -55,6 +77,7 @@ export async function fetchInitData(
 
     const channels: string[] = [];
     const channelToGroup = new Map<string, string>();
+    const channelReaders = new Map<string, string[]>();
     const channelNames = new Map<string, string>();
     const groupNames = new Map<string, string>();
     if (initData?.groups) {
@@ -78,6 +101,10 @@ export async function fetchInitData(
               ) {
                 channels.push(channelNest);
                 channelToGroup.set(channelNest, groupFlag);
+                channelReaders.set(
+                  channelNest,
+                  extractReaderRoles(channelData)
+                );
                 const channelTitle = extractTitle(channelData);
                 if (channelTitle) {
                   channelNames.set(channelNest, channelTitle);
@@ -91,7 +118,14 @@ export async function fetchInitData(
 
     const foreigns = (initData?.foreigns as Foreigns) || null;
 
-    return { channels, channelToGroup, channelNames, groupNames, foreigns };
+    return {
+      channels,
+      channelToGroup,
+      channelReaders,
+      channelNames,
+      groupNames,
+      foreigns,
+    };
   } catch (error: any) {
     runtime.error?.(
       `[tlon] Init data fetch failed: ${error?.message ?? String(error)}`
@@ -99,6 +133,7 @@ export async function fetchInitData(
     return {
       channels: [],
       channelToGroup: new Map(),
+      channelReaders: new Map(),
       channelNames: new Map(),
       groupNames: new Map(),
       foreigns: null,
