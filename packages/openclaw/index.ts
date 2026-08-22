@@ -36,6 +36,7 @@ import {
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { createMemoryBootstrapHandler } from './src/memory/bootstrap-loader.js';
+import { createTlonRecallTool } from './src/memory/recall-tool.js';
 import {
   createMigrateCommandHandler,
   routeMigrateCommand,
@@ -992,6 +993,19 @@ export default defineBundledChannelEntry({
       },
       execute: executeTlonTool,
     });
+
+    // tlon_recall: audience-gated recall for the active-memory sub-agent
+    // (and the main agent). Factory form so each run's tool closes over
+    // its own session key — that's what scopes the search to one surface.
+    api.registerTool(
+      (toolCtx) =>
+        createTlonRecallTool({
+          sessionKey: toolCtx.sessionKey,
+          workspaceDir: toolCtx.workspaceDir,
+          log: (message) => api.logger.debug?.(message),
+        }),
+      { name: 'tlon_recall' }
+    );
 
     // Subject-keyed memory: load person/place files for the current surface
     // on every bootstrap. No-op until the workspace has memory/ files.
