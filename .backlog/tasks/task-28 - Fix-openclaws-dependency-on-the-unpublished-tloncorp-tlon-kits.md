@@ -4,7 +4,7 @@ title: Fix openclaw's dependency on the unpublished @tloncorp/tlon-kits
 status: To Do
 assignee: []
 created_date: '2026-08-20 19:04'
-updated_date: '2026-08-22 13:01'
+updated_date: '2026-08-22 19:32'
 labels:
   - openclaw
   - packaging
@@ -37,6 +37,33 @@ A stopgap keeps the dev container working: `resolve-workspace-deps.mjs` now fall
 - [ ] #4 The blob parser remains shared between the harness and the client — no duplicated parse implementation
 - [ ] #5 A check fails in CI if a workspace dependency is added to openclaw that is not resolvable outside the workspace
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+## Implementation plan (researched 2026-08-22)
+
+**Decision: publish @tloncorp/tlon-kits to npm, mirroring the existing tlon-skill/openclaw release pattern.** Not bundling.
+
+Why publish wins over bundling:
+- The plugin's package.json is consumed in two places that can only resolve registry deps: the `.publish/` tarball (npm consumers) and the upstream openclaw repo's `extensions/tlon` (sync-to-openclaw.sh copies package.json verbatim, only rewriting the `openclaw` dep). `@tloncorp/api` and `@tloncorp/tlon-skill` are published for exactly this reason; tlon-kits is the odd one out, not a different kind of thing.
+- Bundling would add a bundler to openclaw's tsc-only build to special-case one dep. AC #4 (shared parser) is satisfied either way — publishing keeps one convention.
+- tlon-kits is already publish-shaped: proper `exports`/`files` (dist/, src/, kits/), MIT, `repository.directory`, only dep is zod. Note: publishing ships the kit content (instructions, templates) publicly on npm — that is the package's stated purpose ("shareable kit packages") and it is MIT.
+- Runtime blast radius is small: openclaw imports only `parseGroupKitConfig` + `KITS_BLOB_VERSION` from it (src/kits/group-config.ts). Kit FILES reach bots from the ship's %kits, and the dev rig overrides the package via the TLON_APPS_DIR file: fallback — so npm version churn stays low (schema/parser changes only).
+
+### Steps
+
+1. **New workflow `.github/workflows/tlon-kits-publish.yml`** cloned from tlon-skill-publish.yml's shape: triggers on tag `tlon-kits-v*` + `workflow_dispatch` with `dry_run` (default true); quality job = frozen-lockfile install, tag-matches-package-version guard, `pnpm --filter @tloncorp/tlon-kits test` + build + `npm pack` artifact; publish job = npm Trusted Publishing (OIDC + provenance), `permissions: id-token: write`, publishes `packages/tlon-kits`.
+2. **Ops step (needs npm org rights — cannot be done from the repo):** register the trusted publisher for `@tloncorp/tlon-kits` on npmjs.com → tloncorp/tlon-apps + `tlon-kits-publish.yml`. Then dispatch a dry run; then push tag `tlon-kits-v0.1.0` to publish for real. **AC #2 closes only after this lands.**
+3. **AC #5 — CI guard:** new `packages/openclaw/scripts/check-publishable-deps.mjs`: for every `workspace:` dep in openclaw's package.json, `npm view <name> version` must succeed; exit 1 naming the offender. Wire as a step in openclaw-ci.yml's unit job. Sequencing: merge this only after step 2's publish, or the check itself is red on arrival.
+4. **Verification:** (a) `pnpm pack:publish` → `.publish/package.json` shows a semver range for tlon-kits; `npm install` the tarball in a scratch dir outside the workspace installs clean (AC #2/#3). (b) Recreate the dev container with `TLON_APPS_DIR` unset → boots from the registry version (AC #1 without the crutch); keep the file: fallback for local dev of unpublished parser changes.
+
+### Not changing
+- `resolve-workspace-deps.mjs` — its staging mode already fails loudly (AC #3 by construction) and its dev fallback stays useful.
+- No runtime code changes anywhere.
+
+Estimated diff: 1 new workflow, 1 new check script, 1 CI step.
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

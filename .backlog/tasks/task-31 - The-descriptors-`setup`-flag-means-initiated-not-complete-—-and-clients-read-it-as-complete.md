@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-20 21:02'
-updated_date: '2026-08-22 13:01'
+updated_date: '2026-08-22 20:39'
 labels:
   - openclaw
   - workspaces
@@ -46,6 +46,43 @@ Worth noting the failure mode option 1 protects against: if the enqueued turn ne
 - [ ] #4 A workspace whose setup turn never ran is detectable rather than indistinguishable from a completed one
 - [ ] #5 Whatever the field ends up meaning, its name says so
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+## Implementation plan (researched 2026-08-22)
+
+**Design: split the flag into a real three-state lifecycle — `%pending → %fired → %done` — with the completion edge driven by the gateway's own turn-completion signal, not the model.**
+
+The missing piece the task's option 1 needed now exists in-tree: the plugin already subscribes to gateway diagnostic events (`onDiagnosticEvent` in packages/openclaw/index.ts), and `message.processed` fires at the end of every turn carrying the turn's `sessionKey` and `outcome`. A kit setup turn runs in a known session (`agent:…:tlon:group:<primary nest>`), so the kits runtime can mark completion when THAT event arrives — deterministic, no reliance on the model remembering a final step. Note: outcome is deliberately ignored for this edge — setup turns currently end `outcome=error` from the cron delivery-sink wart (TASK-33) even when all work landed, and "the turn finished executing" is what %done should mean; delivery-sink health is TASK-33's problem.
+
+### Protocol / desk (`desk/sur/kits.hoon`, `desk/app/kits.hoon`, `desk/lib/kits-json.hoon`)
+1. `setup=?(%pending %done)` → `?(%pending %fired %done)`; versioned state bump with an on-load migration (the state-0/install-0 pattern from TASK-32 is already in place; existing `%pending`/`%done` values carry unchanged).
+2. New action `[%setup-fired =flag:g]`: same relay + agent-acceptance shape as `%setup-done` (relay to host when `our ≠ p.flag`, host accepts src ∈ agents, missing ledger no-ops). Sets `%fired` only from `%pending` (idempotent; a late-arriving `%fired` never demotes `%done`).
+3. `%setup-done` unchanged except it also accepts the `%fired → %done` edge (and `%pending → %done` for compatibility with harnesses that never learned `%setup-fired`).
+4. kits-json enjs/dejs: encode/decode the third value; tests in tests/lib/kits-json.
+
+### Harness (`packages/openclaw/src/kits/setup.ts`, runtime wiring)
+5. `maybeFireSetup`: the poke sent immediately after scheduling becomes `setup-fired` (this was always its true meaning — the durable fire-once guard). `shouldFireSetup` fires only on `%pending`, so `%fired` keeps guarding replays across restarts exactly as `%done` does today.
+6. New: the kits runtime records fired setups (`sessionKey → flag`) and subscribes to `message.processed`; on the first event matching a fired session, poke `setup-done` (the relay carries it to the host). Persist the pending fired→done watchlist in the same shared-slot/config-reader machinery so a gateway restart between fire and completion re-arms the watch rather than losing the edge; a restart mid-turn leaves `%fired` — visible, not replayed (AC #4: a stuck workspace is distinguishable from a completed one).
+
+### Client (`packages/shared`, `packages/app`)
+7. `workspaceDescriptor.ts`: `isWorkspaceSetupComplete` reads `%done` only; new `isWorkspaceSetupUnderway` reads `%fired`. tlon-kits `groupConfig.ts` zod schema accepts the third value.
+8. `EmptyChannelNotice`/`WorkspaceSetup` notice: `%fired` → the working state (live rows when this session ran provisioning, honest "agent is working" text otherwise — this finally fixes the cross-device/relaunch gap 032cfe07aa could not); `%pending` → "setting up" static; `%done` + empty channel → "Nothing here yet".
+
+### Tests
+9. Hoon: fired/done transitions, relay of both actions, fired-never-demotes-done, stranger rejection for `%setup-fired` (extend the TASK-32 arms; run via the screen-dojo recipe).
+10. TS: setup.ts fire-poke is `setup-fired`; completion watch pokes `setup-done` on a matching `message.processed`; notice states for all three values.
+
+### ACs → steps
+- #1 three distinguishable states → protocol (1–3) + client (7)
+- #2 honest landing notice → (8)
+- #3 no double-fire across restart → (5): `%fired` is the durable guard
+- #4 never-ran setup detectable → stuck `%fired` is visible and distinct from `%done`
+- #5 name says what it means → `%fired` says initiated; `%done` now actually means done
+
+Scope: desk (3 files + tests), kits-json, tlon-kits schema, openclaw setup/runtime (2 files + tests), shared logic + notice (2 files + tests). The largest of the three plans — protocol change with migration — but each layer follows an existing pattern.
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-21 00:10'
+updated_date: '2026-08-22 20:40'
 labels:
   - openclaw
   - infra
@@ -34,3 +35,19 @@ Remaining exposure: production/sandbox pods run the same host version unpatched 
 - [ ] #2 Production/sandbox bot entrypoint applies the same patch or runs a fixed host version
 - [ ] #3 On the next openclaw version bump, the patch is re-validated or removed (script fails loudly on shape change)
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+## Implementation plan (researched 2026-08-22)
+
+The dev-rig half is done and stable (dev/patch-host-poll-heuristic.mjs, run by dev/entrypoint.sh against both host installs). Three pieces remain, matching the ACs:
+
+1. **AC #1 — upstream.** File an issue on github.com/openclaw/openclaw against `src/poll-params.ts` (openclaw@2026.5.28): `hasPollCreationParams` treats any nonzero auxiliary field (pollDurationHours, pollMulti) as poll intent, so padding models (observed: openrouter/openai/gpt-5.6-terra, which fills every optional param — `""`, `[]`, `1`) get every plain `action:"send"` rejected with `Poll fields require action "poll"`, retry-looped ~27 times, and the turn dies. Proposed fix (identical to our dist patch): honor the auxiliary-param sweep only when an essential field (pollQuestion/pollOption) is non-empty. Include the repro payload and the patch diff. If maintainers are receptive, follow with a PR (needs a fork; the change is ~6 lines plus a test).
+2. **AC #2 — production/sandbox pods.** The pods start via the tlonbot repo's entrypoints (`entrypoint/shard.py` / `tlawn.py`), which run the host from its own install (not this repo's dev entrypoint). Cross-repo change: vendor `patch-host-poll-heuristic.mjs` into tlonbot (or fetch it from the plugin package, which ships `dev/` in its files? — verify; vendoring is simpler) and invoke it during pod startup against the pod's openclaw dist, before the gateway starts. Same idempotency and fail-loud-on-shape-change semantics as the dev rig. Needs a tlonbot PR + a pod restart via bot-harness-deploy.
+3. **AC #3 — bump guard.** Add a step to openclaw-ci.yml's unit job: run the patch script against a throwaway copy of the freshly installed `node_modules/openclaw/dist`. The script already exits 1 when the code shape changed (a version bump moved/fixed the heuristic) and 0 when the validator is gone — so a host bump that invalidates the patch fails CI with a message telling the bumper to re-validate or delete the patch, instead of production silently running an unpatched heuristic.
+
+Sequencing: (3) is self-contained in this repo — do first. (1) is a write-up — no repo changes. (2) lands in tlonbot and needs a deploy window.
+
+Note: if TASK-31 ships first, kit setup's FINAL message routing changes shape slightly, but the poll-heuristic rejection hits every plain send from a padding model, not just setup — the fix stays necessary regardless.
+<!-- SECTION:PLAN:END -->

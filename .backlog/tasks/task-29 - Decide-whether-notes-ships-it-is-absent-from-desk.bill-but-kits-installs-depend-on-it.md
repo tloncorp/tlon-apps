@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-20 19:13'
+updated_date: '2026-08-22 20:06'
 labels:
   - workspaces
   - backend
@@ -37,3 +38,23 @@ I raised the desk.bill absence as a standing flag in earlier sessions without fi
 - [ ] #3 If %notes does not ship yet: the meal-plan kit's artifact place points at an agent that actually runs, and placeKindSchema rejects notes so a manifest cannot declare an unrunnable place
 - [ ] #4 A test catches the general case — a kit declaring a place whose host agent is not in desk.bill fails rather than installing into nothing
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+## Implementation plan (researched 2026-08-22)
+
+**The task's premise is stale: the decision was already made and shipped.** `391021b86c` (2026-08-20, "kits: derive a cron turn's group from its session nest; ship %notes in the bill") added `%notes` — and `%apps` — to desk.bill after this task was filed. %notes is not a stub: 3,102 lines, versioned state (state-15 with a supported 14→15 migration), spec doc in docs/notes. Live evidence for AC #2 already exists in volume: every provisioning run on the dev rig since (all of yesterday's and today's workspaces, on ships whose %groups agents were nuked + revived, i.e. restarted strictly from desk.bill) created its notes-backed plans place with no manual rein — install ledgers show `notes/~ten/plans-*` places and the agent wrote real notes into them.
+
+So the remaining work is only **AC #4** — the regression test that catches the general case.
+
+### Steps
+
+1. **Record the decision (AC #1):** %notes ships; it is in desk.bill as of 391021b86c. Check ACs #1 and #2 on the evidence above. AC #3 becomes N/A (its trigger — "%notes does not ship" — is false); `placeKindSchema` keeps `notes`.
+2. **AC #4 test** in `desk/tests/app/kits.hoon`:
+   - Import the shipped bill: `/*  bill  %bill  /desk/bill` (the %bill mark is vendored via peru — `pkg/base-dev/mar/bill.hoon` is in the pick list, present in desk-deps/mar).
+   - New arm `++  test-place-hosts-are-in-the-bill` (plain tang-returning arm, no mare needed): assert that every dude `+place-card` can target is present in the bill — today `%channels` (chat/notebook/gallery places) and `%notes` (notes places). The kind→dude pairs live in the test with a comment pointing at `+place-card`; the pairing is the assertion, so a future place kind whose host agent is missing from desk.bill turns -test red instead of installing into nothing.
+3. **Run on-ship** via the screen-dojo recipe (`-test /=groups=/tests/app/kits/hoon`, expect ok=%.y 25/25), deploy the tests file to both ships, commit.
+
+Estimated diff: ~20 lines in one test file. No agent or manifest changes.
+<!-- SECTION:PLAN:END -->
