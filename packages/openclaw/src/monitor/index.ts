@@ -877,6 +877,92 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       error: (msg) => runtime.error?.(msg),
     });
 
+    // Kit setup conversations must be ACTIVE turns: enqueueSystemEvent is
+    // passive (the event rides along with the session's next turn), heartbeat
+    // may be disabled, and a freshly installed kit's group has no traffic —
+    // so a passive event would never fire. This is a minimal synthetic
+    // variant of processMessage's dispatch: establish the durable Tlon route
+    // for the nest's session, run an agent turn whose user-visible input is
+    // the setup text, and deliver the reply to the channel as a post.
+    const dispatchKitSetupTurn = async (params: {
+      nest: string;
+      text: string;
+      groupFlag: string;
+    }): Promise<void> => {
+      const { nest, text, groupFlag } = params;
+      const route = core.channel.routing.resolveAgentRoute({
+        cfg,
+        channel: 'tlon',
+        accountId: opts.accountId ?? undefined,
+        peer: { kind: 'group', id: nest },
+      });
+      // Bind session → group so the kits before_prompt_build hook injects
+      // the kit's ambient context into this synthetic turn too.
+      bindKitSessionGroup(route.sessionKey, groupFlag);
+      const timestamp = Date.now();
+      const messageId = `kit-setup-${randomUUID()}`;
+      const body = core.channel.reply.formatAgentEnvelope({
+        channel: 'Tlon',
+        from: `kit setup (${groupFlag})`,
+        timestamp,
+        body: text,
+      });
+      const ctxPayload = core.channel.reply.finalizeInboundContext({
+        Body: body,
+        BodyForAgent: text,
+        RawBody: text,
+        From: `tlon:group:${nest}`,
+        To: `tlon:${botShipName}`,
+        SessionKey: route.sessionKey,
+        AccountId: route.accountId,
+        ChatType: 'group',
+        ConversationLabel: `kit setup (${groupFlag})`,
+        Provider: 'tlon',
+        Surface: 'tlon',
+        MessageSid: messageId,
+        OriginatingChannel: 'tlon',
+        OriginatingTo: `tlon:${nest}`,
+      });
+      await recordTlonRouteAndDispatch({
+        session: core.channel.session,
+        cfg,
+        route,
+        ctxPayload,
+        ctxSessionKey: ctxPayload.SessionKey,
+        isGroup: true,
+        groupChannel: nest,
+        senderShip: botShipName,
+        messageId,
+        sessionStore: cfg.session?.store,
+        logError: (msg) => runtime.error?.(msg),
+        dispatch: () =>
+          core.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
+            ctx: ctxPayload,
+            cfg,
+            dispatcherOptions: {
+              deliver: async (payload: ReplyPayload) => {
+                const replyText = payload.text ?? '';
+                const blob = getReplyBlob(payload);
+                if (!replyText && !blob) {
+                  return;
+                }
+                await sendChannelPost({
+                  botProfile: getBotProfile(),
+                  fromShip: botShipName,
+                  nest,
+                  story: markdownToStory(replyText),
+                  blob,
+                });
+              },
+              onError: (err) =>
+                runtime.error?.(
+                  `[tlon] kits: setup turn delivery failed for ${nest}: ${String(err)}`
+                ),
+            },
+          }),
+      });
+    };
+
     // Kits runtime: group-installed behavior packages (ambient instructions,
     // schedules, setup conversation, scaffolds). Published through a shared
     // slot so the before_prompt_build hook in the plugin-entry module context
@@ -903,8 +989,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               }
             : null;
         },
-        enqueueSystemEvent: (text, eventOpts) =>
-          core.system.enqueueSystemEvent(text, eventOpts),
+        dispatchKitSetupTurn,
         getCronService,
         log: (msg) => runtime.log?.(msg),
         error: (msg) => runtime.error?.(msg),

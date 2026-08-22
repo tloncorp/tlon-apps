@@ -110,7 +110,7 @@ function makeRuntime(overrides?: {
     resolveGroupSessionRoute: (nest) => ({
       sessionKey: `agent:main:tlon:group:${nest}`,
     }),
-    enqueueSystemEvent: vi.fn(),
+    dispatchKitSetupTurn: vi.fn().mockResolvedValue(undefined),
     getCronService: () => undefined,
     configReader: reader,
     packageStore: store,
@@ -324,7 +324,7 @@ describe('start / setup integration', () => {
   it('fires the pending setup conversation on initial reconcile', async () => {
     const reader = makeReader(makeConfig('pending'));
     const store = makeStore(makeKit());
-    const enqueueSystemEvent = vi.fn();
+    const dispatchKitSetupTurn = vi.fn().mockResolvedValue(undefined);
     const poke = vi.fn().mockResolvedValue(undefined);
     const runtime = createKitsRuntime({
       botShip: BOT,
@@ -333,7 +333,7 @@ describe('start / setup integration', () => {
       resolveGroupSessionRoute: (nest) => ({
         sessionKey: `agent:main:tlon:group:${nest}`,
       }),
-      enqueueSystemEvent,
+      dispatchKitSetupTurn,
       getCronService: () => undefined,
       configReader: reader,
       packageStore: store,
@@ -342,13 +342,14 @@ describe('start / setup integration', () => {
     await runtime.start([GROUP]);
     runtime.stop();
 
-    expect(enqueueSystemEvent).toHaveBeenCalledTimes(1);
-    const [text, opts] = enqueueSystemEvent.mock.calls[0];
-    expect(text).toContain('# Setup');
-    expect(opts.deliveryContext.to).toBe('tlon:chat/~zod/discussion');
+    expect(dispatchKitSetupTurn).toHaveBeenCalledTimes(1);
+    const [params] = dispatchKitSetupTurn.mock.calls[0];
+    expect(params.text).toContain('# Setup');
+    expect(params.nest).toBe('chat/~zod/discussion');
+    expect(params.groupFlag).toBe(GROUP);
     expect(poke).toHaveBeenCalledWith(
       expect.objectContaining({
-        json: { 'setup-done': { flag: GROUP } },
+        json: { 'relay-setup-done': { flag: GROUP } },
       })
     );
   });

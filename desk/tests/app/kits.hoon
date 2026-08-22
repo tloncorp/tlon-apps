@@ -1,8 +1,8 @@
 ::  tests for %kits
 ::
 ::    verifies the package library, the install orchestration (group +
-::    places + blob config + ledger), setup completion, uninstall, and
-::    the ship-to-ship fetch subscription.
+::    places + blob config + ledger), setup completion (local, foreign,
+::    and relayed), uninstall, and the ship-to-ship fetch subscription.
 ::
 /-  k=kits, g=groups, c=channels, meta
 /+  *test-agent, j=kits-json
@@ -138,6 +138,66 @@
       :*  ~[/v1/updates]
           %kits-update-1
           !>(`update:v1:k`[%installed club-flag done])
+      ==
+  ==
+::
+::  %setup-done from a foreign ship is accepted when an install exists
+::  (v1 trusts any src once the ledger entry is there)
+::
+++  test-setup-done-foreign
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  do-add
+  ;<  *  bind:m  do-install
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(src pub-ship)))
+  ;<  caz=(list card)  bind:m
+    (do-poke %kits-action-1 !>(`action:v1:k`[%setup-done club-flag]))
+  =/  done=install:k  fix-install
+  =.  setup.done  %done
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /install/blob/summer-club
+          [our-ship %groups]
+          %group-action-5
+          !>(`a-groups:g`[%group club-flag %blob `(config-cord done)])
+      ==
+      %-  ex-fact
+      :*  ~[/v1/updates]
+          %kits-update-1
+          !>(`update:v1:k`[%installed club-flag done])
+      ==
+  ==
+::
+::  %setup-done from a foreign ship with no install is a no-op
+::
+++  test-setup-done-foreign-no-install
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(src pub-ship)))
+  ;<  caz=(list card)  bind:m
+    (do-poke %kits-action-1 !>(`action:v1:k`[%setup-done club-flag]))
+  (ex-cards caz ~)
+::
+::  %relay-setup-done (local-only) forwards %setup-done to the group host
+::
+++  test-relay-setup-done
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  =/  host-flag=flag:g  [pub-ship %summer-club]
+  ;<  caz=(list card)  bind:m
+    (do-poke %kits-action-1 !>(`action:v1:k`[%relay-setup-done host-flag]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /relay/setup-done/summer-club
+          [pub-ship %kits]
+          %kits-action-1
+          !>(`action:v1:k`[%setup-done host-flag])
       ==
   ==
 ::

@@ -57,7 +57,7 @@ function makeDeps() {
       sessionKey: `session:${nest}`,
       accountId: 'default',
     })),
-    enqueueSystemEvent: vi.fn(),
+    dispatchKitSetupTurn: vi.fn().mockResolvedValue(undefined),
     poke: vi.fn().mockResolvedValue(undefined),
     log: vi.fn(),
     error: vi.fn(),
@@ -98,7 +98,7 @@ describe('shouldFireSetup', () => {
 });
 
 describe('maybeFireSetup', () => {
-  it('enqueues the setup conversation and pokes setup-done', async () => {
+  it('dispatches the setup turn and pokes relay-setup-done', async () => {
     const deps = makeDeps();
     const fired = await maybeFireSetup({
       groupFlag: GROUP,
@@ -108,22 +108,18 @@ describe('maybeFireSetup', () => {
     });
     expect(fired).toBe(true);
 
-    expect(deps.enqueueSystemEvent).toHaveBeenCalledTimes(1);
-    const [text, opts] = deps.enqueueSystemEvent.mock.calls[0];
-    expect(text).toContain('# Introduce yourself');
-    expect(text).toContain(GROUP);
-    expect(text).toContain('discussion → chat/~zod/discussion');
-    expect(opts.sessionKey).toBe('session:chat/~zod/discussion');
-    expect(opts.deliveryContext).toEqual({
-      channel: 'tlon',
-      to: 'tlon:chat/~zod/discussion',
-      accountId: 'default',
-    });
+    expect(deps.dispatchKitSetupTurn).toHaveBeenCalledTimes(1);
+    const [params] = deps.dispatchKitSetupTurn.mock.calls[0];
+    expect(params.nest).toBe('chat/~zod/discussion');
+    expect(params.groupFlag).toBe(GROUP);
+    expect(params.text).toContain('# Introduce yourself');
+    expect(params.text).toContain(GROUP);
+    expect(params.text).toContain('discussion → chat/~zod/discussion');
 
     expect(deps.poke).toHaveBeenCalledWith({
       app: 'kits',
       mark: 'kits-action-1',
-      json: { 'setup-done': { flag: GROUP } },
+      json: { 'relay-setup-done': { flag: GROUP } },
     });
   });
 
@@ -143,7 +139,7 @@ describe('maybeFireSetup', () => {
     });
     expect(first).toBe(true);
     expect(second).toBe(false);
-    expect(deps.enqueueSystemEvent).toHaveBeenCalledTimes(1);
+    expect(deps.dispatchKitSetupTurn).toHaveBeenCalledTimes(1);
     expect(deps.poke).toHaveBeenCalledTimes(1);
   });
 
@@ -156,11 +152,11 @@ describe('maybeFireSetup', () => {
       deps,
     });
     expect(fired).toBe(false);
-    expect(deps.enqueueSystemEvent).not.toHaveBeenCalled();
+    expect(deps.dispatchKitSetupTurn).not.toHaveBeenCalled();
     expect(deps.poke).not.toHaveBeenCalled();
   });
 
-  it('still pokes setup-done when the kit has no setup instruction', async () => {
+  it('still pokes relay-setup-done when the kit has no setup instruction', async () => {
     const deps = makeDeps();
     const fired = await maybeFireSetup({
       groupFlag: GROUP,
@@ -169,7 +165,7 @@ describe('maybeFireSetup', () => {
       deps,
     });
     expect(fired).toBe(false);
-    expect(deps.enqueueSystemEvent).not.toHaveBeenCalled();
+    expect(deps.dispatchKitSetupTurn).not.toHaveBeenCalled();
     expect(deps.poke).toHaveBeenCalledTimes(1);
   });
 
@@ -192,7 +188,7 @@ describe('maybeFireSetup', () => {
     ).toBe(true);
   });
 
-  it('survives a failing setup-done poke', async () => {
+  it('survives a failing relay-setup-done poke', async () => {
     const deps = makeDeps();
     deps.poke.mockRejectedValue(new Error('nack'));
     const fired = await maybeFireSetup({
@@ -203,7 +199,26 @@ describe('maybeFireSetup', () => {
     });
     expect(fired).toBe(true);
     expect(deps.error).toHaveBeenCalledWith(
-      expect.stringContaining('setup-done poke failed')
+      expect.stringContaining('relay-setup-done poke failed')
     );
+  });
+
+  it('logs (but does not rethrow) a failing setup turn dispatch', async () => {
+    const deps = makeDeps();
+    deps.dispatchKitSetupTurn.mockRejectedValue(new Error('boom'));
+    const fired = await maybeFireSetup({
+      groupFlag: GROUP,
+      entry: makeEntry(),
+      kit: makeKit(),
+      deps,
+    });
+    expect(fired).toBe(true);
+    // The dispatch is fire-and-forget; let its rejection handler run.
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(deps.error).toHaveBeenCalledWith(
+      expect.stringContaining('setup turn for book-club-0')
+    );
+    // The relay poke still fires: setup is fire-once even on a failed turn.
+    expect(deps.poke).toHaveBeenCalledTimes(1);
   });
 });

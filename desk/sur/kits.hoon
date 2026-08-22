@@ -87,7 +87,10 @@
 ::    %install: instantiate — create a group + places, write the
 ::            group blob config, record the ledger
 ::    %uninstall: clear the blob config and drop the ledger entry
-::    %setup-done: the harness finished the setup conversation
+::    %setup-done: an executing agent finished the setup conversation;
+::            accepted from foreign ships when an install exists
+::    %relay-setup-done: local-only; forward %setup-done to the group
+::            host's %kits (the executor's ship reports completion)
 ::
 +$  action
   $%  [%add =kit]
@@ -96,6 +99,7 @@
       [%install =id name=term meta=data:meta]
       [%uninstall =flag:g]
       [%setup-done =flag:g]
+      [%relay-setup-done =flag:g]
   ==
 ::  $update: facts + scry results
 ::

@@ -66,8 +66,11 @@
   |=  [=mark =vase]
   ^+  cor
   ?>  ?=(%kits-action-1 mark)
-  ?>  from-self
   =/  =action:v1:k  !<(action:v1:k vase)
+  ::  %setup-done may arrive from an executing agent's ship (via its
+  ::  %relay-setup-done); every other action is local-only
+  ::
+  ?>  |(from-self ?=(%setup-done -.action))
   ?-  -.action
       %add
     =.  kits  (~(put by kits) id.manifest.kit.action kit.action)
@@ -87,6 +90,7 @@
       %install    (install id.action name.action meta.action)
       %uninstall  (uninstall flag.action)
       %setup-done  (setup-done flag.action)
+      %relay-setup-done  (relay-setup-done flag.action)
   ==
 ::  +install: instantiate a group + places, write blob, record ledger
 ::
@@ -149,16 +153,40 @@
         %poke  group-action-5+!>(`a-groups:g`[%group flag %blob ~])
     ==
   (give %fact ~[/v1/updates] kits-update-1+!>(`update:v1:k`[%uninstalled flag]))
-::  +setup-done: the harness finished the setup conversation
+::  +setup-done: an executing agent finished the setup conversation
+::
+::    the ledger records places but not the blob's agents list, so v1
+::    accepts %setup-done from ANY ship once an install exists for the
+::    flag. the only effect is flipping setup to %done (idempotent,
+::    no data exposure), so the trust tradeoff is acceptable for now;
+::    tightening to blob-listed executors needs the agents list in the
+::    ledger. no-op when no install exists.
 ::
 ++  setup-done
   |=  =flag:g
   ^+  cor
+  ?.  (~(has by installs) flag)  cor
+  =?  cor  !from-self
+    ((slog leaf+"kits: setup-done for {<flag>} from {<src.bowl>}" ~) cor)
   =/  =install:k  (~(got by installs) flag)
   =.  setup.install  %done
   =.  installs  (~(put by installs) flag install)
   =.  cor  (write-blob flag install)
   (give %fact ~[/v1/updates] kits-update-1+!>(`update:v1:k`[%installed flag install]))
+::  +relay-setup-done: forward %setup-done to the group host's %kits
+::
+::    the executing harness pokes its own ship over HTTP; the install
+::    ledger lives on the group host, so completion travels there as
+::    an Ames poke from us.
+::
+++  relay-setup-done
+  |=  =flag:g
+  ^+  cor
+  %-  emit
+  :*  %pass  /relay/setup-done/[q.flag]
+      %agent  [p.flag %kits]
+      %poke  kits-action-1+!>(`action:v1:k`[%setup-done flag])
+  ==
 ::  +write-blob: render the install config and poke it into the group
 ::
 ++  write-blob
@@ -244,6 +272,12 @@
     ?.  ?=(%poke-ack -.sign)  cor
     ?~  p.sign  cor
     %-  (slog leaf+"kits: uninstall blob clear failed" u.p.sign)
+    cor
+  ::
+      [%relay %setup-done *]
+    ?.  ?=(%poke-ack -.sign)  cor
+    ?~  p.sign  cor
+    %-  (slog leaf+"kits: setup-done relay {<t.t.wire>} failed" u.p.sign)
     cor
   ==
 ::  +place-kind: map place kinds onto channel kinds

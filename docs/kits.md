@@ -10,14 +10,15 @@ The package/wire formats and the group-blob config payload are specified in `kit
 - **Install** binds a package to a place. For `%group`-scoped kits, install instantiates: it creates the group, creates each abstract place as a channel, writes the per-group config JSON into the group's `blob` field (via `%group-action-5`), and records an `$install` ledger entry. v1 is instantiate-only — every place a kit touches is a place it created.
 - **The group blob is the coordination point.** It replicates with the group, survives harness swaps, and tells any authorized executing agent which kit runs there, how abstract place names resolve to concrete nests, and whether setup has run. Bot-private facts (the ledger, scaffold copies) stay in %kits state and the bot workspace.
 
-## Poke surface (`%kits-action-1`, local only)
+## Poke surface (`%kits-action-1`, local only except `%setup-done`)
 
 - `%add [kit]` — put a package in the local library (author or sideload). Echoes a `%kit` fact on `/v1/updates`.
 - `%del [id]` — remove a package.
 - `%fetch [ship id]` — one-shot subscription to the publisher's %kits `/v1/full/<id>`; the arriving package is stored and echoed on `/v1/updates`.
 - `%install [id name meta]` — instantiate (see above). Asserts the kit exists, is `%group`-scoped, and no install exists for `[our name]`. Emits, in order: group create (`%group-command`), one `%channel-action-2` create per place, the blob write, and an `%installed` fact.
 - `%uninstall [flag]` — clears the group blob and drops the ledger entry; emits `%uninstalled`. Group archival is left to the owner.
-- `%setup-done [flag]` — the harness reports the setup conversation finished; flips the ledger to `%done` and rewrites the blob.
+- `%setup-done [flag]` — an executing agent reports the setup conversation finished; flips the ledger to `%done` and rewrites the blob. Accepted from foreign ships when an install exists for the flag (otherwise a no-op). **Trust tradeoff (v1):** the ledger does not record the blob's `agents` list, so any ship can flip a group's setup flag once installed. The only effect is idempotently marking setup done (no data exposure, no other state change); the reporting `src` is slogged. Tightening to blob-listed executors requires carrying the agents list into the ledger.
+- `%relay-setup-done [flag]` — local only. The executing harness pokes its own ship's %kits over HTTP; since the install ledger lives on the group host, this forwards `%setup-done [flag]` to `[p.flag %kits]` over Ames.
 
 ## Watch surface
 
@@ -46,4 +47,4 @@ The package/wire formats and the group-blob config payload are specified in `kit
 - Install emits all orchestration cards in one event; gall's depth-first move order makes the group exist before channels are created and channels before the blob write. Nacks on any `/install/*` wire are logged, not unwound — v1 accepts optimistic install; re-running install for the same flag is refused by the ledger check.
 - One kit per group in v1 (the blob `kits` array is shaped for composition later).
 - Packages are publisher-pinned at install (`id`, `version`, `publisher` recorded in ledger and blob). No update flow in v1.
-- Public fetch paths serve anyone; kits are content meant to travel. Local surfaces (updates, scries, pokes) are `our`-gated.
+- Public fetch paths serve anyone; kits are content meant to travel. Local surfaces (updates, scries, pokes) are `our`-gated, with one exception: `%setup-done` is accepted from foreign ships when an install exists (see the poke surface for the v1 trust tradeoff).

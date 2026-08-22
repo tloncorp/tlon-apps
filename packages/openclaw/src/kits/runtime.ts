@@ -181,7 +181,7 @@ export type KitsRuntimeDeps = {
   resolveGroupSessionRoute: (
     nest: string
   ) => { sessionKey: string; accountId?: string } | null;
-  enqueueSystemEvent: SetupDeps['enqueueSystemEvent'];
+  dispatchKitSetupTurn: SetupDeps['dispatchKitSetupTurn'];
   getCronService: () => PluginHookGatewayCronService | undefined;
   log?: (msg: string) => void;
   error?: (msg: string) => void;
@@ -227,7 +227,7 @@ export function createKitsRuntime(deps: KitsRuntimeDeps): KitsRuntime {
   const setupDeps: SetupDeps = {
     botShip: deps.botShip,
     resolveGroupSessionRoute: deps.resolveGroupSessionRoute,
-    enqueueSystemEvent: deps.enqueueSystemEvent,
+    dispatchKitSetupTurn: deps.dispatchKitSetupTurn,
     poke: deps.poke,
     log,
     error,

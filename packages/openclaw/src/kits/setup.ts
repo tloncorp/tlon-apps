@@ -1,13 +1,18 @@
 /**
  * Kit setup conversation: when a group's install config shows
- * `setup: "pending"`, enqueue a synthetic turn carrying the kit's
+ * `setup: "pending"`, dispatch an active agent turn carrying the kit's
  * `install.setup`-triggered instruction into the primary place's session,
- * then poke `setup-done` so the config flips to `"done"`.
+ * then poke `relay-setup-done` so the owner's ledger flips to `"done"`.
+ *
+ * The turn must be ACTIVE (wake the session, run the agent, deliver the
+ * reply to the channel now): system events are passive — they ride along
+ * with the session's next turn — and a freshly installed kit's group has no
+ * traffic yet, so a passive event would never fire.
  *
  * v1 semantics are fire-once: a sharedMap keyed by group+installId guards
- * against double-fire inside this process (the `setup-done` poke closes the
- * loop durably on the ship). Setup only fires when the bot's ship is listed
- * in the config's `agents`.
+ * against double-fire inside this process (the `relay-setup-done` poke closes
+ * the loop durably on the owner's ship). Setup only fires when the bot's ship
+ * is listed in the config's `agents`.
  */
 import type { Kit } from '@tloncorp/api';
 
@@ -47,14 +52,17 @@ export type SetupDeps = {
   resolveGroupSessionRoute: (
     nest: string
   ) => { sessionKey: string; accountId?: string } | null;
-  enqueueSystemEvent: (
-    text: string,
-    opts: {
-      sessionKey: string;
-      contextKey?: string | null;
-      deliveryContext?: { channel: 'tlon'; to: string; accountId?: string };
-    }
-  ) => unknown;
+  /**
+   * Run the setup conversation as an active agent turn: wake the nest's
+   * session with `text` as the user-visible input and deliver the model's
+   * reply to the channel as a post. Resolution of the returned promise is
+   * the turn completing, not just being queued.
+   */
+  dispatchKitSetupTurn: (params: {
+    nest: string;
+    text: string;
+    groupFlag: string;
+  }) => Promise<void>;
   poke: (params: {
     app: string;
     mark: string;
@@ -66,7 +74,7 @@ export type SetupDeps = {
 
 /**
  * Fire the setup conversation for one pending install, if eligible.
- * Returns true when the synthetic turn was enqueued.
+ * Returns true when the setup turn was dispatched.
  */
 export async function maybeFireSetup(params: {
   groupFlag: string;
@@ -96,7 +104,7 @@ export async function maybeFireSetup(params: {
   // Guard before any side effect so a concurrent reconcile cannot double-fire.
   setupFired.set(setupFireKey(groupFlag, entry.installId), Date.now());
 
-  let enqueued = false;
+  let dispatched = false;
   if (content && primaryNest && route) {
     const contextLine = formatKitContextLine({
       label: 'Kit setup',
@@ -104,33 +112,41 @@ export async function maybeFireSetup(params: {
       groupFlag,
       places: entry.places,
     });
-    deps.enqueueSystemEvent(`${contextLine}\n${content.trim()}`, {
-      sessionKey: route.sessionKey,
-      contextKey: `tlon:kit-setup:${groupFlag}:${entry.installId}`,
-      deliveryContext: {
-        channel: 'tlon',
-        to: `tlon:${primaryNest}`,
-        ...(route.accountId ? { accountId: route.accountId } : {}),
-      },
-    });
-    enqueued = true;
+    // Fire-and-forget: the turn can take a full model run, and reconcile
+    // must not block on it. Failures are logged; the fire-once guard above
+    // intentionally still holds (no automatic retry of a half-run setup).
+    void deps
+      .dispatchKitSetupTurn({
+        nest: primaryNest,
+        text: `${contextLine}\n${content.trim()}`,
+        groupFlag,
+      })
+      .catch((err) =>
+        deps.error?.(
+          `[tlon] kits: setup turn for ${entry.installId} in ${groupFlag} failed: ${String(err)}`
+        )
+      );
+    dispatched = true;
     deps.log?.(
-      `[tlon] kits: enqueued setup conversation for ${entry.installId} in ${groupFlag} → ${primaryNest}`
+      `[tlon] kits: dispatched setup conversation for ${entry.installId} in ${groupFlag} → ${primaryNest}`
     );
   }
 
+  // The install ledger lives on the OWNER's %kits, so completion is reported
+  // via our own ship's %relay-setup-done, which forwards %setup-done to the
+  // owner over Ames.
   try {
     await deps.poke({
       app: 'kits',
       mark: 'kits-action-1',
-      json: { 'setup-done': { flag: groupFlag } },
+      json: { 'relay-setup-done': { flag: groupFlag } },
     });
   } catch (err) {
     deps.error?.(
-      `[tlon] kits: setup-done poke failed for ${groupFlag}: ${String(err)}`
+      `[tlon] kits: relay-setup-done poke failed for ${groupFlag}: ${String(err)}`
     );
   }
-  return enqueued;
+  return dispatched;
 }
 
 export const _testing = {

@@ -199,6 +199,7 @@
         [%install (ot ~[id+(se %tas) name+(se %tas) meta+(ot ~[title+so description+so image+so cover+so])])]
         [%uninstall (ot ~[flag+fl])]
         [%setup-done (ot ~[flag+fl])]
+        [%relay-setup-done (ot ~[flag+fl])]
     ==
   --
 --
