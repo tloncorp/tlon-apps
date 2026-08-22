@@ -23,10 +23,10 @@ const LIVE_BLOB = JSON.stringify({
         id: 'book-club',
       },
       installId: 'book-club-0',
+      // Notebook places are created via %notes and never appear here.
       places: {
         picks: 'chat/~lagrev-ridsyp-nocsyx-lassul/picks',
         discussion: 'chat/~lagrev-ridsyp-nocsyx-lassul/discussion',
-        log: 'diary/~lagrev-ridsyp-nocsyx-lassul/log',
       },
       setup: 'pending',
       agents: ['~lagrev-ridsyp-nocsyx-lassul'],
@@ -152,6 +152,32 @@ describe('createGroupConfigReader', () => {
     const config = await reader.get(FLAG);
     expect(scry).toHaveBeenCalledWith('/groups/v3/ui/groups/~zod/club.json');
     expect(config?.kits[0].kit.id).toBe('book-club');
+  });
+
+  it('extracts channel titles by nest from the same scry', async () => {
+    const scry = vi.fn().mockResolvedValue({
+      blob: LIVE_BLOB,
+      channels: {
+        'chat/~zod/discussion': { meta: { title: 'Discussion' } },
+        'notes/~zod/reading-log-4': { meta: { title: 'Reading Log' } },
+        'heap/~zod/gallery': { meta: {} },
+      },
+    });
+    const reader = createGroupConfigReader({ scry });
+    const channels = await reader.getChannels(FLAG);
+    expect(channels).toEqual({
+      'chat/~zod/discussion': 'Discussion',
+      'notes/~zod/reading-log-4': 'Reading Log',
+    });
+    // get() and getChannels() share one cached scry.
+    await reader.get(FLAG);
+    expect(scry).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns null channels when the payload has none', async () => {
+    const scry = vi.fn().mockResolvedValue({ blob: LIVE_BLOB });
+    const reader = createGroupConfigReader({ scry });
+    expect(await reader.getChannels(FLAG)).toBeNull();
   });
 
   it('caches results (including negative) within the TTL', async () => {

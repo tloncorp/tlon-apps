@@ -80,6 +80,7 @@ function makeConfig(setup: 'pending' | 'done' = 'done'): KitsGroupConfig {
 function makeReader(config: KitsGroupConfig | null): GroupConfigReader {
   return {
     get: vi.fn(async () => config),
+    getChannels: vi.fn(async () => null),
     invalidate: vi.fn(),
     clear: vi.fn(),
   };

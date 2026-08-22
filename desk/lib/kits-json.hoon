@@ -1,6 +1,6 @@
 ::  kits-json: JSON conversions for %kits types
 ::
-/-  k=kits, c=channels, g=groups
+/-  k=kits, g=groups
 =,  format
 |%
 ++  enjs
@@ -11,9 +11,9 @@
     ^-  @t
     (rap 3 (scot %p p.f) '/' q.f ~)
   ++  nest
-    |=  n=nest:c
+    |=  n=nest:g
     ^-  @t
-    (rap 3 kind.n '/' (scot %p ship.n) '/' name.n ~)
+    (rap 3 p.n '/' (scot %p p.q.n) '/' q.q.n ~)
   ++  vers
     |=  v=vers:v1:k
     ^-  @t
@@ -88,7 +88,7 @@
         :-  %o
         %-  malt
         %+  turn  ~(tap by places.i)
-        |=  [n=@tas cn=nest:c]
+        |=  [n=@tas cn=nest:g]
         [n `json`s+(nest cn)]
         ['setup' s+setup.i]
         ['installed' s+(scot %da installed.i)]
@@ -112,7 +112,7 @@
             :-  %o
             %-  malt
             %+  turn  ~(tap by places.i)
-            |=  [n=@tas cn=nest:c]
+            |=  [n=@tas cn=nest:g]
             [n `json`s+(nest cn)]
             :-  'schedules'
             :-  %a

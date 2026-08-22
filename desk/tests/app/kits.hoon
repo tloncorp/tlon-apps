@@ -4,14 +4,16 @@
 ::    places + blob config + ledger), setup completion (local, foreign,
 ::    and relayed), uninstall, and the ship-to-ship fetch subscription.
 ::
-/-  k=kits, g=groups, c=channels, meta
+/-  k=kits, g=groups, c=channels, n=notes, meta
 /+  *test-agent, j=kits-json
 /=  agent  /app/kits
 |%
 ++  dap  %kits
 ++  our-ship  ~dev
 ++  pub-ship  ~bus
-::  a small fixture kit: one place, one ambient binding, one schedule
+++  fix-eny  `@uvJ`0xdead.beef
+::  a small fixture kit: a chat place and a notebook place, one ambient
+::  binding, one schedule
 ::
 ++  fix-manifest
   ^-  manifest:k
@@ -22,7 +24,9 @@
       'A test kit'
       ~
       %group
-      ~[[%discussion %chat 'Discussion' 'Talk about it']]
+      :~  [%discussion %chat 'Discussion' 'Talk about it']
+          [%log %notebook 'Reading Log' 'The record']
+      ==
       ~[['instructions/runner.md' %group ~ %ambient]]
       ~[[%daily '0 17 * * *' 'Daily thing']]
       ~[['scaffolds/Profile.md' 'Test/Profile.md']]
@@ -35,7 +39,10 @@
   ^-  data:meta
   ['Summer Club' '' '' '']
 ++  club-flag  `flag:g`[our-ship %summer-club]
-++  club-nest  `nest:c`[%chat our-ship %discussion]
+::  the notebook place is created via %notes and never enters the
+::  places map, so the ledger only records the chat place
+::
+++  club-nest  `nest:g`[%chat our-ship %discussion]
 ++  fix-install
   ^-  install:k
   :*  %test-kit
@@ -53,7 +60,7 @@
 ++  setup
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our our-ship, src our-ship)))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our our-ship, src our-ship, eny fix-eny)))
   ;<  *  bind:m  (do-init dap agent)
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.1)))
   (pure:m ~)
@@ -100,6 +107,13 @@
           %channel-action-2
           !>  ^-  a-channels:c
           [%create [%chat %discussion club-flag 'Discussion' 'Talk about it' ~ ~ ~]]
+      ==
+      %-  ex-poke
+      :*  /install/place/summer-club/log
+          [our-ship %notes]
+          %notes-action-1
+          !>  ^-  action:v1:n
+          [`@uv`0 %create-group-notebook 'Reading Log' club-flag ~]
       ==
       %-  ex-poke
       :*  /install/blob/summer-club

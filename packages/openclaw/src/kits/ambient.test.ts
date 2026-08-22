@@ -2,9 +2,11 @@ import type { Kit } from '@tloncorp/api';
 import { describe, expect, it } from 'vitest';
 
 import {
+  PENDING_PLACE,
   buildKitAmbientContext,
   findTriggerBindingContent,
   formatPlacesLegend,
+  resolveKitPlaces,
   resolvePrimaryPlaceNest,
 } from './ambient.js';
 import type { InstalledKitConfig } from './group-config.js';
@@ -21,7 +23,21 @@ function makeKit(): Kit {
       description: 'a club',
       image: null,
       scope: 'group',
-      places: [],
+      places: [
+        {
+          name: 'discussion',
+          kind: 'chat',
+          title: 'Discussion',
+          description: 'talk',
+        },
+        { name: 'picks', kind: 'chat', title: 'Picks', description: 'vote' },
+        {
+          name: 'log',
+          kind: 'notebook',
+          title: 'Reading Log',
+          description: 'record',
+        },
+      ],
       bindings: [
         {
           file: 'instructions/runner.md',
@@ -72,10 +88,10 @@ function makeEntry(): InstalledKitConfig {
   return {
     installId: 'book-club-0',
     kit: { id: 'book-club', version: '0.1.0', publisher: '~zod' },
+    // Notebook places (log) are created via %notes and never appear here.
     places: {
       discussion: 'chat/~zod/discussion',
       picks: 'chat/~zod/picks',
-      log: 'diary/~zod/log',
     },
     schedules: [{ id: 'monthly-pick', cron: '0 17 1 * *' }],
     agents: ['~zod'],
@@ -89,14 +105,28 @@ describe('buildKitAmbientContext', () => {
       groupFlag: GROUP,
       entry: makeEntry(),
       kit: makeKit(),
+      groupChannels: {
+        'chat/~zod/discussion': 'Discussion',
+        'notes/~zod/reading-log-4': 'Reading Log',
+      },
     });
     expect(text).not.toBeNull();
     expect(text).toContain('Book Club (book-club v0.1.0)');
     expect(text).toContain(GROUP);
     expect(text).toContain('discussion → chat/~zod/discussion');
     expect(text).toContain('picks → chat/~zod/picks');
+    expect(text).toContain('log → notes/~zod/reading-log-4');
     expect(text).toContain('--- instructions/runner.md ---');
     expect(text).toContain('# Run the club');
+  });
+
+  it('renders unresolvable notebook places as pending', () => {
+    const text = buildKitAmbientContext({
+      groupFlag: GROUP,
+      entry: makeEntry(),
+      kit: makeKit(),
+    });
+    expect(text).toContain(`log → ${PENDING_PLACE}`);
   });
 
   it('excludes on-trigger, pulled, and non-group-scope instructions', () => {
@@ -155,15 +185,75 @@ describe('resolvePrimaryPlaceNest', () => {
   it('falls back to the first chat place', () => {
     expect(
       resolvePrimaryPlaceNest({
-        log: 'diary/~zod/log',
+        gallery: 'heap/~zod/gallery',
         picks: 'chat/~zod/picks',
       })
     ).toBe('chat/~zod/picks');
   });
 
   it('returns null when there is no chat place', () => {
-    expect(resolvePrimaryPlaceNest({ log: 'diary/~zod/log' })).toBeNull();
+    expect(
+      resolvePrimaryPlaceNest({ gallery: 'heap/~zod/gallery' })
+    ).toBeNull();
     expect(resolvePrimaryPlaceNest({})).toBeNull();
+  });
+});
+
+describe('resolveKitPlaces', () => {
+  const manifestPlaces = makeKit().manifest.places;
+  const configPlaces = makeEntry().places;
+
+  it('resolves notebook places from group channels by title', () => {
+    expect(
+      resolveKitPlaces({
+        manifestPlaces,
+        configPlaces,
+        groupChannels: {
+          'chat/~zod/discussion': 'Discussion',
+          'notes/~zod/reading-log-4': 'Reading Log',
+          'notes/~zod/other-7': 'Other',
+        },
+      })
+    ).toEqual({
+      discussion: 'chat/~zod/discussion',
+      picks: 'chat/~zod/picks',
+      log: 'notes/~zod/reading-log-4',
+    });
+  });
+
+  it('falls back to the sole notes channel when titles do not match', () => {
+    expect(
+      resolveKitPlaces({
+        manifestPlaces,
+        configPlaces,
+        groupChannels: { 'notes/~zod/renamed-9': 'Renamed' },
+      })
+    ).toMatchObject({ log: 'notes/~zod/renamed-9' });
+  });
+
+  it('renders pending when no notes channel resolves', () => {
+    expect(
+      resolveKitPlaces({ manifestPlaces, configPlaces, groupChannels: null })
+    ).toMatchObject({ log: PENDING_PLACE });
+    expect(
+      resolveKitPlaces({
+        manifestPlaces,
+        configPlaces,
+        groupChannels: {
+          'notes/~zod/a-1': 'A',
+          'notes/~zod/b-2': 'B',
+        },
+      })
+    ).toMatchObject({ log: PENDING_PLACE });
+  });
+
+  it('keeps config places the manifest does not name', () => {
+    expect(
+      resolveKitPlaces({
+        manifestPlaces: [],
+        configPlaces: { extra: 'chat/~zod/extra' },
+      })
+    ).toEqual({ extra: 'chat/~zod/extra' });
   });
 });
 

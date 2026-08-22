@@ -6,7 +6,7 @@
 ::    ledgers; per-group install config is written into the group's
 ::    blob field for the executing harness to read.
 ::
-/-  c=channels, g=groups, meta
+/-  g=groups, meta
 |%
 ::  $id: kit identifier, unique per publisher
 ::
@@ -69,13 +69,17 @@
   ==
 ::  $install: ledger entry for one installed kit
 ::
-::    .places: abstract place name -> concrete channel
+::    .places: abstract place name -> concrete channel. %notebook
+::    places are created via %notes, which slugifies and assigns the
+::    flag itself and self-registers the channel with the group, so
+::    they are NOT recorded here (or in the blob config) — executors
+::    resolve them from the group's channel state at runtime.
 ::
 +$  install
   $:  =id
       version=vers
       publisher=@p
-      places=(map @tas nest:c)
+      places=(map @tas nest:g)
       setup=?(%pending %done)
       installed=@da
   ==

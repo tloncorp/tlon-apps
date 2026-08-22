@@ -35,7 +35,7 @@ import {
   createContextLensRegistry,
   unbindContextLensFromSession,
 } from '../context-lens.js';
-import { getCronService, scheduleCronSnapshot } from '../cron-telemetry.js';
+import { getTlonCronService, scheduleCronSnapshot } from '../cron-telemetry.js';
 import {
   getEffectiveOwnerShip,
   setEffectiveOwnerShip,
@@ -990,7 +990,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             : null;
         },
         dispatchKitSetupTurn,
-        getCronService,
+        getCronService: getTlonCronService,
         log: (msg) => runtime.log?.(msg),
         error: (msg) => runtime.error?.(msg),
       });

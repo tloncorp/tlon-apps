@@ -6,7 +6,7 @@
 ::    executing harness reads it. packages travel ship-to-ship via
 ::    one-shot subscriptions (fact + kick) on /v1/preview and /v1/full.
 ::
-/-  k=kits, g=groups, c=channels, meta
+/-  k=kits, g=groups, c=channels, n=notes, meta
 /+  default-agent, verb, dbug, j=kits-json
 ::
 =>
@@ -112,20 +112,36 @@
         %agent  [our.bowl %groups]
         %poke  group-command+!>(`c-groups:g`[%create create-group])
     ==
-  ::  create each place as a channel in the group
+  ::  create each place: %notebook places go through %notes, which
+  ::  slugifies + assigns the flag itself and self-registers the channel
+  ::  with the group, so they never enter the places map; the rest are
+  ::  created as channels in the group
   ::
-  =/  nests=(map @tas nest:c)
+  =/  nests=(map @tas nest:g)
     %-  malt
-    %+  turn  places.man
+    %+  murn  places.man
     |=  p=place:k
-    [name.p `nest:c`[(place-kind kind.p) our.bowl name.p]]
+    ^-  (unit [@tas nest:g])
+    ?:  ?=(%notebook kind.p)  ~
+    `[name.p [(place-kind kind.p) our.bowl name.p]]
   =.  cor
     =/  ps=(list place:k)  places.man
     |-  ^+  cor
     ?~  ps  cor
-    =/  =create-channel:c
-      [(place-kind kind.i.ps) name.i.ps flag title.i.ps description.i.ps ~ ~ ~]
     =.  cor
+      ?:  ?=(%notebook kind.i.ps)
+        ::  fire-and-forget: the request-id is synthesized from entropy
+        ::  and the response fact on /v1/request/<uv> is ignored
+        ::
+        =/  act=action:v1:n
+          [`@uv`eny.bowl %create-group-notebook title.i.ps flag ~]
+        %-  emit
+        :*  %pass  /install/place/[name]/[name.i.ps]
+            %agent  [our.bowl %notes]
+            %poke  notes-action-1+!>(act)
+        ==
+      =/  =create-channel:c
+        [(place-kind kind.i.ps) name.i.ps flag title.i.ps description.i.ps ~ ~ ~]
       %-  emit
       :*  %pass  /install/place/[name]/[name.i.ps]
           %agent  [our.bowl %channels]
@@ -280,14 +296,14 @@
     %-  (slog leaf+"kits: setup-done relay {<t.t.wire>} failed" u.p.sign)
     cor
   ==
-::  +place-kind: map place kinds onto channel kinds
+::  +place-kind: map channel-backed place kinds onto channel kinds
+::  (%notebook places are created via %notes, not %channels)
 ::
 ++  place-kind
-  |=  k=?(%chat %notebook %gallery)
+  |=  k=?(%chat %gallery)
   ^-  kind:c
   ?-  k
-    %chat      %chat
-    %notebook  %diary
-    %gallery   %heap
+    %chat     %chat
+    %gallery  %heap
   ==
 --

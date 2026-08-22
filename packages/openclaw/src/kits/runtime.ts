@@ -418,6 +418,9 @@ export function createKitsRuntime(deps: KitsRuntimeDeps): KitsRuntime {
       if (pairs.length === 0) {
         return undefined;
       }
+      // Notebook places are absent from the blob config; the places
+      // legend resolves them from the group's channel list.
+      const groupChannels = await reader.getChannels(groupFlag);
       const sections: string[] = [];
       for (const { entry, kit } of pairs) {
         if (ctx.workspaceDir) {
@@ -430,7 +433,12 @@ export function createKitsRuntime(deps: KitsRuntimeDeps): KitsRuntime {
             error,
           });
         }
-        const ambient = buildKitAmbientContext({ groupFlag, entry, kit });
+        const ambient = buildKitAmbientContext({
+          groupFlag,
+          entry,
+          kit,
+          groupChannels,
+        });
         if (ambient) {
           sections.push(ambient);
         }

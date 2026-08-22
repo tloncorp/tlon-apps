@@ -4,11 +4,14 @@
  * lookups shared by schedules (trigger `schedule.<id>`) and setup
  * (trigger `install.setup`).
  */
-import type { Kit, KitBinding } from '@tloncorp/api';
+import type { Kit, KitBinding, KitPlace } from '@tloncorp/api';
 
-import type { InstalledKitConfig } from './group-config.js';
+import type { GroupChannelTitles, InstalledKitConfig } from './group-config.js';
 
 export const SETUP_TRIGGER = 'install.setup';
+
+/** Legend value for a place whose channel cannot be resolved (yet). */
+export const PENDING_PLACE = '(pending)';
 
 /** `picks → chat/~host/picks, discussion → chat/~host/discussion` */
 export function formatPlacesLegend(places: Record<string, string>): string {
@@ -16,6 +19,55 @@ export function formatPlacesLegend(places: Record<string, string>): string {
     return `${name} → ${nest}`;
   });
   return parts.join(', ');
+}
+
+/**
+ * Resolve every manifest place to a concrete nest. Chat/gallery places come
+ * straight from the install config's places map. Notebook places are created
+ * via %notes at install time — %notes slugifies the flag and self-registers
+ * the channel with the group, so they are absent from the config — and are
+ * resolved from the group's channels by kind prefix (`notes/`) plus a title
+ * match against the manifest place title (falling back to the sole notes
+ * channel), else rendered as "(pending)".
+ */
+export function resolveKitPlaces(params: {
+  manifestPlaces: KitPlace[];
+  configPlaces: Record<string, string>;
+  groupChannels?: GroupChannelTitles | null;
+}): Record<string, string> {
+  const { manifestPlaces, configPlaces, groupChannels } = params;
+  const notesChannels = Object.entries(groupChannels ?? {}).filter(([nest]) =>
+    nest.startsWith('notes/')
+  );
+  const resolved: Record<string, string> = {};
+  for (const place of manifestPlaces) {
+    const configured = configPlaces[place.name];
+    if (typeof configured === 'string' && configured.trim()) {
+      resolved[place.name] = configured;
+      continue;
+    }
+    if (place.kind === 'notebook') {
+      const byTitle = notesChannels.filter(
+        ([, title]) => title === place.title
+      );
+      const match =
+        byTitle.length === 1
+          ? byTitle[0]
+          : notesChannels.length === 1
+            ? notesChannels[0]
+            : null;
+      resolved[place.name] = match ? match[0] : PENDING_PLACE;
+      continue;
+    }
+    resolved[place.name] = PENDING_PLACE;
+  }
+  // Config places the manifest doesn't name still render (defensive).
+  for (const [name, nest] of Object.entries(configPlaces)) {
+    if (!(name in resolved)) {
+      resolved[name] = nest;
+    }
+  }
+  return resolved;
 }
 
 /**
@@ -70,6 +122,7 @@ export function buildKitAmbientContext(params: {
   groupFlag: string;
   entry: InstalledKitConfig;
   kit: Kit;
+  groupChannels?: GroupChannelTitles | null;
 }): string | null {
   const { groupFlag, entry, kit } = params;
   const sections: string[] = [];
@@ -86,7 +139,13 @@ export function buildKitAmbientContext(params: {
   if (sections.length === 0) {
     return null;
   }
-  const legend = formatPlacesLegend(entry.places);
+  const legend = formatPlacesLegend(
+    resolveKitPlaces({
+      manifestPlaces: kit.manifest.places,
+      configPlaces: entry.places,
+      groupChannels: params.groupChannels,
+    })
+  );
   const header =
     `[Kit: ${kit.manifest.name} (${kit.manifest.id} v${kit.manifest.version}) ` +
     `installed in group ${groupFlag}]` +

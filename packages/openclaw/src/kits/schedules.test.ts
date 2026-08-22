@@ -140,7 +140,7 @@ describe('buildDesiredKitCronJobs', () => {
 
   it('skips all schedules when the kit has no chat place', () => {
     const entry = makeEntry();
-    entry.places = { log: 'diary/~zod/log' };
+    entry.places = { gallery: 'heap/~zod/gallery' };
     const desired = buildDesiredKitCronJobs({
       groupFlag: GROUP,
       entries: [{ entry, kit: makeKit() }],

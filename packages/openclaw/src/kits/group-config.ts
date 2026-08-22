@@ -102,19 +102,34 @@ export function parseGroupFlag(
 
 const DEFAULT_TTL_MS = 60_000;
 
+/** Group channel titles keyed by nest string (e.g. "notes/~zod/log-1"). */
+export type GroupChannelTitles = Record<string, string>;
+
 export type GroupConfigReader = {
   /** Cached read of the group's kits config (null = no kit config). */
   get(groupFlag: string): Promise<KitsGroupConfig | null>;
+  /**
+   * Cached read of the group's channel titles by nest. Used to resolve
+   * notebook places, which %notes self-registers with the group and which
+   * therefore never appear in the blob's places map.
+   */
+  getChannels(groupFlag: string): Promise<GroupChannelTitles | null>;
   /** Drop the cache entry (e.g. on a %groups blob update fact). */
   invalidate(groupFlag: string): void;
   clear(): void;
 };
 
+type GroupSnapshot = {
+  config: KitsGroupConfig | null;
+  channels: GroupChannelTitles | null;
+};
+
 /**
  * TTL-cached reader for group kit configs, backed by the targeted scry
  * `/groups/v3/ui/groups/<host>/<name>.json` (group-ui-3 carries a top-level
- * `blob` string field). Cache entries — including negative results — expire
- * after `ttlMs` and can be invalidated eagerly from %groups blob events.
+ * `blob` string field plus `channels` keyed by nest string). Cache entries —
+ * including negative results — expire after `ttlMs` and can be invalidated
+ * eagerly from %groups blob events.
  */
 export function createGroupConfigReader(deps: {
   scry: (path: string) => Promise<unknown>;
@@ -124,47 +139,62 @@ export function createGroupConfigReader(deps: {
 }): GroupConfigReader {
   const ttlMs = deps.ttlMs ?? DEFAULT_TTL_MS;
   const now = deps.now ?? Date.now;
-  const cache = new Map<
-    string,
-    { at: number; config: KitsGroupConfig | null }
-  >();
-  const inFlight = new Map<string, Promise<KitsGroupConfig | null>>();
+  const cache = new Map<string, { at: number; snapshot: GroupSnapshot }>();
+  const inFlight = new Map<string, Promise<GroupSnapshot>>();
 
-  const fetchConfig = async (
-    groupFlag: string
-  ): Promise<KitsGroupConfig | null> => {
+  const fetchSnapshot = async (groupFlag: string): Promise<GroupSnapshot> => {
     const parsed = parseGroupFlag(groupFlag);
     if (!parsed) {
       deps.log?.(`[tlon] kits: cannot parse group flag ${groupFlag}`);
-      return null;
+      return { config: null, channels: null };
     }
     const response = (await deps.scry(
       `/groups/v3/ui/groups/${parsed.host}/${parsed.name}.json`
-    )) as { blob?: unknown } | null;
+    )) as { blob?: unknown; channels?: unknown } | null;
     const blob = typeof response?.blob === 'string' ? response.blob : null;
-    return parseKitsBlob(blob, { log: deps.log });
+    let channels: GroupChannelTitles | null = null;
+    if (response?.channels && typeof response.channels === 'object') {
+      channels = {};
+      for (const [nest, value] of Object.entries(
+        response.channels as Record<string, unknown>
+      )) {
+        const title = (value as { meta?: { title?: unknown } } | null)?.meta
+          ?.title;
+        if (typeof title === 'string') {
+          channels[nest] = title;
+        }
+      }
+    }
+    return { config: parseKitsBlob(blob, { log: deps.log }), channels };
+  };
+
+  const read = (groupFlag: string): Promise<GroupSnapshot> => {
+    const cached = cache.get(groupFlag);
+    if (cached && now() - cached.at < ttlMs) {
+      return Promise.resolve(cached.snapshot);
+    }
+    const pending = inFlight.get(groupFlag);
+    if (pending) {
+      return pending;
+    }
+    const task = fetchSnapshot(groupFlag)
+      .then((snapshot) => {
+        cache.set(groupFlag, { at: now(), snapshot });
+        return snapshot;
+      })
+      .finally(() => {
+        inFlight.delete(groupFlag);
+      });
+    inFlight.set(groupFlag, task);
+    return task;
   };
 
   return {
     async get(groupFlag: string): Promise<KitsGroupConfig | null> {
-      const cached = cache.get(groupFlag);
-      if (cached && now() - cached.at < ttlMs) {
-        return cached.config;
-      }
-      const pending = inFlight.get(groupFlag);
-      if (pending) {
-        return pending;
-      }
-      const task = fetchConfig(groupFlag)
-        .then((config) => {
-          cache.set(groupFlag, { at: now(), config });
-          return config;
-        })
-        .finally(() => {
-          inFlight.delete(groupFlag);
-        });
-      inFlight.set(groupFlag, task);
-      return task;
+      return (await read(groupFlag)).config;
+    },
+    async getChannels(groupFlag: string): Promise<GroupChannelTitles | null> {
+      return (await read(groupFlag)).channels;
     },
     invalidate(groupFlag: string): void {
       cache.delete(groupFlag);

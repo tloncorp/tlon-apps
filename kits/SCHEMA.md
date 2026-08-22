@@ -66,8 +66,7 @@ Written by the installer into the group's `blob` (opaque `@t`, JSON). The group 
       },
       "places": {
         "discussion": "chat/~host/book-club-discussion-1234",
-        "picks": "chat/~host/picks-1234",
-        "log": "diary/~host/reading-log-1234"
+        "picks": "chat/~host/picks-1234"
       },
       "schedules": [
         { "id": "monthly-pick", "cron": "0 17 1 * *" },
@@ -84,6 +83,7 @@ Written by the installer into the group's `blob` (opaque `@t`, JSON). The group 
 Notes:
 
 - `kits` is an array: the shape composes even though v1 enforces one kit per group (instantiate-only).
+- `places` only carries channel-backed places (`chat`, `gallery`). `notebook` places are created via %notes, which slugifies and assigns the channel flag itself and self-registers the channel with the group — the installer cannot know the nest at install time, so notebook places are absent from this map. Executors resolve them from the group's channel state at runtime (nests with the `notes/` kind prefix, matched by the manifest place title).
 - `agents` lists ships whose bots are authorized to execute this kit here (v1: the installer's bot).
 - `setup`: `"pending"` → `"done"`; flipped by the executing agent after the setup conversation completes.
 - The blob does NOT carry instruction text. Executing agents hold the package (from %kits); the blob tells them which kit runs here and how its abstract places resolve. A member's bot that lacks the package can fetch it from `kit.publisher` via %kits.
