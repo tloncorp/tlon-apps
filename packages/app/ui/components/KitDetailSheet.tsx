@@ -118,6 +118,7 @@ export function KitDetailPane({
     kit.id
   );
   const { data: installs } = store.useKitInstalls();
+  const { data: localGroups } = store.useGroups({ includeUnjoined: true });
   const contextGroupKit = store.useGroupKit(contextGroup);
   const currentUserId = useCurrentUserId();
   const isContextAdmin = useIsAdmin(contextGroup?.id ?? '', currentUserId);
@@ -134,25 +135,28 @@ export function KitDetailPane({
   const image = manifest?.image ?? kit.image ?? null;
   const version = manifest?.version ?? kit.version;
 
-  const installedFlag = useMemo(() => {
+  /** This kit's install ledger entries joined against local group state.
+   * Installs whose group no longer exists locally (deleted groups) are
+   * stale ledger entries and render nothing. */
+  const runningIn = useMemo(() => {
     if (!installs) {
-      return null;
+      return [];
     }
-    const match = Object.entries(installs).find(
-      ([, install]) =>
-        install.id === kit.id && install.publisher === kit.publisher
-    );
-    return match?.[0] ?? null;
-  }, [installs, kit.id, kit.publisher]);
+    return Object.entries(installs)
+      .filter(
+        ([, install]) =>
+          install.id === kit.id && install.publisher === kit.publisher
+      )
+      .flatMap(([flag]) => {
+        const group = localGroups?.find((g) => g.id === flag);
+        return group ? [{ flag, group }] : [];
+      });
+  }, [installs, localGroups, kit.id, kit.publisher]);
 
   const isContextInstall =
     contextGroupKit != null &&
     contextGroupKit.kit.id === kit.id &&
     contextGroupKit.kit.publisher === kit.publisher;
-  const isOwnContextInstall =
-    isContextInstall &&
-    installedFlag != null &&
-    installedFlag === contextGroup?.id;
 
   const closeAndNavigate = useCallback(
     (groupId: string) => {
@@ -231,12 +235,6 @@ export function KitDetailPane({
     setFlow({ phase: 'naming' });
   }, [name]);
 
-  const openGroup = useCallback(() => {
-    if (installedFlag) {
-      closeAndNavigate(installedFlag);
-    }
-  }, [installedFlag, closeAndNavigate]);
-
   const removeKit = useCallback(() => {
     if (!contextGroup) {
       return;
@@ -271,23 +269,10 @@ export function KitDetailPane({
   const actionButtons = useMemo(
     () =>
       getKitDetailActions(
-        {
-          installedFlag,
-          isContextInstall,
-          isOwnContextInstall,
-          isContextAdmin,
-        },
-        { startInstall, openGroup, removeKit }
+        { isContextInstall, isContextAdmin },
+        { startInstall, removeKit }
       ),
-    [
-      installedFlag,
-      isContextInstall,
-      isOwnContextInstall,
-      isContextAdmin,
-      startInstall,
-      openGroup,
-      removeKit,
-    ]
+    [isContextInstall, isContextAdmin, startInstall, removeKit]
   );
 
   return (
@@ -391,6 +376,41 @@ export function KitDetailPane({
               <Text key={schedule.id} size="$body">
                 {schedule.description}
               </Text>
+            ))}
+          </YStack>
+        ) : null}
+
+        {runningIn.length > 0 ? (
+          <YStack
+            padding="$xl"
+            borderRadius="$xl"
+            borderWidth={1}
+            borderColor="$border"
+            backgroundColor="$background"
+            gap="$l"
+          >
+            <Text size="$label/m" color="$tertiaryText">
+              Running in
+            </Text>
+            {runningIn.map(({ flag, group }) => (
+              <ListItem
+                key={flag}
+                backgroundColor="unset"
+                paddingHorizontal={0}
+                onPress={() => closeAndNavigate(flag)}
+                testID={`KitRunningInRow-${flag}`}
+              >
+                <ListItem.GroupIcon model={group} />
+                <ListItem.MainContent>
+                  <ListItem.Title>{group.title || flag}</ListItem.Title>
+                </ListItem.MainContent>
+                <ListItem.EndContent justifyContent="center">
+                  <ListItem.SystemIcon
+                    icon="ChevronRight"
+                    backgroundColor="unset"
+                  />
+                </ListItem.EndContent>
+              </ListItem>
             ))}
           </YStack>
         ) : null}
@@ -507,52 +527,23 @@ export function KitDetailPane({
   );
 }
 
-/** Pure mapping from viewer state to the sheet's CTA stack. */
+/**
+ * Pure mapping from viewer state to the sheet's CTA stack. Kits are
+ * templates — users can install as many instances as they want — so the
+ * primary CTA is always "Get this kit"; existing instances are surfaced
+ * in the "Running in" section instead of hijacking the CTA.
+ */
 export function getKitDetailActions(
   status: {
-    installedFlag: string | null;
     isContextInstall: boolean;
-    isOwnContextInstall: boolean;
     isContextAdmin: boolean;
   },
   actions: {
     startInstall: () => void;
-    openGroup: () => void;
     removeKit: () => void;
   }
 ): KitActionButton[] {
-  if (status.isContextInstall) {
-    const buttons: KitActionButton[] = [];
-    if (!status.isOwnContextInstall) {
-      buttons.push({
-        title: 'Get your own',
-        accent: 'hero',
-        onPress: actions.startInstall,
-        testID: 'ActionButton-GetYourOwnKit',
-      });
-    }
-    if (status.isContextAdmin) {
-      buttons.push({
-        title: 'Remove kit',
-        accent: 'negative',
-        onPress: actions.removeKit,
-        description: 'The group stays — the kit’s automation stops.',
-        testID: 'ActionButton-RemoveKit',
-      });
-    }
-    return buttons;
-  }
-  if (status.installedFlag) {
-    return [
-      {
-        title: 'Open group',
-        accent: 'heroPositive',
-        onPress: actions.openGroup,
-        testID: 'ActionButton-OpenKitGroup',
-      },
-    ];
-  }
-  return [
+  const buttons: KitActionButton[] = [
     {
       title: 'Get this kit',
       accent: 'hero',
@@ -560,6 +551,16 @@ export function getKitDetailActions(
       testID: 'ActionButton-GetKit',
     },
   ];
+  if (status.isContextInstall && status.isContextAdmin) {
+    buttons.push({
+      title: 'Remove kit',
+      accent: 'negative',
+      onPress: actions.removeKit,
+      description: 'The group stays — the kit’s automation stops.',
+      testID: 'ActionButton-RemoveKit',
+    });
+  }
+  return buttons;
 }
 
 // Map v1 accent to v2 fill/type (same mapping as GroupPreviewSheet)

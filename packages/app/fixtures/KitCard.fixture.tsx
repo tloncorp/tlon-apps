@@ -11,9 +11,11 @@ const bookClub: KitCardData = {
 };
 
 const kitFixtures: Record<string, KitCardData> = {
-  // installs/manifest queries have no live ship in cosmos, so the button
-  // renders the not-installed "Get" state
-  notInstalled: bookClub,
+  // the button is always a "Get" CTA (kits are templates — install as many
+  // instances as you want); it only changes to a "Runs here" label when the
+  // ambient channel's group blob carries this kit, which the cosmos-seeded
+  // group doesn't
+  default: bookClub,
   withImage: {
     ...bookClub,
     image: 'https://bwyci9wowl3jgy4d.public.blob.vercel-storage.com/groups.png',

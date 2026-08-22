@@ -1,10 +1,9 @@
 import type * as cn from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Button, Icon, Image, Text } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import { ComponentProps, useCallback, useState } from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
-import { useRootNavigation } from '../../../navigation/utils';
 import { useOptionalChannelContext } from '../../contexts/channel';
 import { ContactName as ContactNameV2 } from '../ContactNameV2';
 import { Reference } from '../ContentReference/Reference';
@@ -14,8 +13,9 @@ export type KitCardData = cn.KitCardBlockData['kit'];
 
 /**
  * Reference-style card for a `kit-card` post block. Tapping anywhere opens
- * the kit detail sheet; the trailing button reflects the viewer's state
- * (Get / Open / Runs here).
+ * the kit detail sheet. Kits are templates — users can install as many
+ * instances as they want — so the trailing button is always a "Get" CTA,
+ * except when the current group's blob carries this kit ("Runs here").
  *
  * Note: unlike GroupReference, which delegates presses to the navigation
  * context, this card renders its own KitDetailSheet so it stays
@@ -26,24 +26,11 @@ export function KitCard({
   ...props
 }: { kit: KitCardData } & ComponentProps<typeof Reference.Frame>) {
   const [detailOpen, setDetailOpen] = useState(false);
-  const { data: installs } = store.useKitInstalls();
   const channel = useOptionalChannelContext();
   const { data: currentGroup } = store.useGroup({
     id: channel?.groupId ?? undefined,
   });
   const currentGroupKit = store.useGroupKit(currentGroup);
-  const { navigateToGroup } = useRootNavigation();
-
-  const installedFlag = useMemo(() => {
-    if (!installs) {
-      return null;
-    }
-    const match = Object.entries(installs).find(
-      ([, install]) =>
-        install.id === kit.id && install.publisher === kit.publisher
-    );
-    return match?.[0] ?? null;
-  }, [installs, kit.id, kit.publisher]);
 
   const runsHere =
     currentGroupKit != null &&
@@ -51,12 +38,6 @@ export function KitCard({
     currentGroupKit.kit.publisher === kit.publisher;
 
   const openDetail = useCallback(() => setDetailOpen(true), []);
-
-  const openGroup = useCallback(() => {
-    if (installedFlag) {
-      navigateToGroup(installedFlag);
-    }
-  }, [installedFlag, navigateToGroup]);
 
   return (
     <>
@@ -88,14 +69,6 @@ export function KitCard({
               <Text size="$label/m" color="$tertiaryText">
                 Runs here
               </Text>
-            ) : installedFlag ? (
-              <Button
-                fill="outline"
-                type="primary"
-                label="Open"
-                onPress={openGroup}
-                testID="ActionButton-OpenKitGroup"
-              />
             ) : (
               <Button
                 fill="solid"
