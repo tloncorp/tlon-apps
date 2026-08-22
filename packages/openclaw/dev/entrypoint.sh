@@ -47,9 +47,11 @@ minimumReleaseAge: 0
 verifyDepsBeforeRun: false
 PNPM_EOF
 pnpm install
+# Overrides must run before the build: the plugin's tsc now depends on
+# @tloncorp/api exports (kits) that only exist in the local checkout.
 ./dev/build-local-api-override.sh
-pnpm build
 ./dev/build-local-skill-override.sh
+pnpm build
 
 # Expose tlon CLI to PATH
 TLON_BIN_DIR="/workspace/tlon/node_modules/.bin"
