@@ -128,7 +128,7 @@ export async function reconcileKitCronJobs(params: {
       schedule?.kind === 'cron' &&
       schedule.expr === want.scheduleExpr &&
       job.sessionTarget === want.sessionTarget &&
-      job.payload?.kind === 'systemEvent' &&
+      job.payload?.kind === 'agentTurn' &&
       job.payload?.text === want.payloadText;
     if (matches) {
       kept += 1;
@@ -159,6 +159,6 @@ function toCronInput(job: DesiredKitCronJob): PluginHookGatewayCronCreateInput {
     schedule: { kind: 'cron', expr: job.scheduleExpr },
     sessionTarget: job.sessionTarget,
     wakeMode: 'now',
-    payload: { kind: 'systemEvent', text: job.payloadText },
+    payload: { kind: 'agentTurn', text: job.payloadText },
   };
 }

@@ -164,7 +164,7 @@ describe('reconcileKitCronJobs', () => {
     ]);
     const added = (service.add as ReturnType<typeof vi.fn>).mock.calls[0][0];
     expect(added.schedule).toEqual(expect.objectContaining({ kind: 'cron' }));
-    expect(added.payload.kind).toBe('systemEvent');
+    expect(added.payload.kind).toBe('agentTurn');
   });
 
   it('is idempotent: a second run with the same desired set writes nothing', async () => {
