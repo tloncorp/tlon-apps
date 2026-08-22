@@ -15,8 +15,10 @@ export async function getLinkMetadata(
   try {
     const encodedUrl = render('uw', Atom.fromCord(url).number);
     logger.log('encoded', { url, encodedUrl });
+    // %fetch supersedes %metagrab; /apps/groups/~/metagrab still resolves to
+    // the same handler for older clients, but new calls use the /fetch path.
     const response = await request<ub.LinkMetadataResponse>(
-      `/apps/groups/~/metagrab/${encodedUrl}`,
+      `/apps/groups/~/fetch/meta/${encodedUrl}`,
       {
         method: 'GET',
         mode: 'cors',
