@@ -44,9 +44,6 @@
 /%  bait-undescribe             %bait-undescribe
 /%  bait-update                 %bait-update
 /%  bait-update-group           %bait-update-group
-/%  bark-add-recipient          %bark-add-recipient
-/%  bark-receive-summary        %bark-receive-summary
-/%  bark-remove-recipient       %bark-remove-recipient
 /%  bill                        %bill
 /%  broadcaster-action          %broadcaster-action
 /%  channel-action              %channel-action
@@ -268,7 +265,6 @@
 /%  groups-ui                   %groups-ui
 /%  groups-ui-1                 %groups-ui-1
 /%  groups-ui-2                 %groups-ui-2
-/%  growl-summarize             %growl-summarize
 /%  hi-ship                     %hi-ship
 /%  hidden-messages             %hidden-messages
 /%  hidden-posts                %hidden-posts
@@ -402,9 +398,6 @@
       $:  %bait-undescribe             $+  bait-undescribe             p=_*vale:bait-undescribe             ==
       $:  %bait-update                 $+  bait-update                 p=_*vale:bait-update                 ==
       $:  %bait-update-group           $+  bait-update-group           p=_*vale:bait-update-group           ==
-      $:  %bark-add-recipient          $+  bark-add-recipient          p=_*vale:bark-add-recipient          ==
-      $:  %bark-receive-summary        $+  bark-receive-summary        p=_*vale:bark-receive-summary        ==
-      $:  %bark-remove-recipient       $+  bark-remove-recipient       p=_*vale:bark-remove-recipient       ==
       $:  %bill                        $+  bill                        p=_*vale:bill                        ==
       $:  %broadcaster-action          $+  broadcaster-action          p=_*vale:broadcaster-action          ==
       $:  %channel-action              $+  channel-action              p=_*vale:channel-action              ==
@@ -626,7 +619,6 @@
       $:  %groups-ui                   $+  groups-ui                   p=_*vale:groups-ui                   ==
       $:  %groups-ui-1                 $+  groups-ui-1                 p=_*vale:groups-ui-1                 ==
       $:  %groups-ui-2                 $+  groups-ui-2                 p=_*vale:groups-ui-2                 ==
-      $:  %growl-summarize             $+  growl-summarize             p=_*vale:growl-summarize             ==
       $:  %hi-ship                     $+  hi-ship                     p=_*vale:hi-ship                     ==
       $:  %hidden-messages             $+  hidden-messages             p=_*vale:hidden-messages             ==
       $:  %hidden-posts                $+  hidden-posts                p=_*vale:hidden-posts                ==
@@ -762,9 +754,6 @@
     %bait-undescribe             [-.rail !>(+.rail)]
     %bait-update                 [-.rail !>(+.rail)]
     %bait-update-group           [-.rail !>(+.rail)]
-    %bark-add-recipient          [-.rail !>(+.rail)]
-    %bark-receive-summary        [-.rail !>(+.rail)]
-    %bark-remove-recipient       [-.rail !>(+.rail)]
     %bill                        [-.rail !>(+.rail)]
     %broadcaster-action          [-.rail !>(+.rail)]
     %channel-action              [-.rail !>(+.rail)]
@@ -986,7 +975,6 @@
     %groups-ui                   [-.rail !>(+.rail)]
     %groups-ui-1                 [-.rail !>(+.rail)]
     %groups-ui-2                 [-.rail !>(+.rail)]
-    %growl-summarize             [-.rail !>(+.rail)]
     %hi-ship                     [-.rail !>(+.rail)]
     %hidden-messages             [-.rail !>(+.rail)]
     %hidden-posts                [-.rail !>(+.rail)]
@@ -1120,9 +1108,6 @@
     %bait-undescribe             [p !<(_*vale:bait-undescribe q)]
     %bait-update                 [p !<(_*vale:bait-update q)]
     %bait-update-group           [p !<(_*vale:bait-update-group q)]
-    %bark-add-recipient          [p !<(_*vale:bark-add-recipient q)]
-    %bark-receive-summary        [p !<(_*vale:bark-receive-summary q)]
-    %bark-remove-recipient       [p !<(_*vale:bark-remove-recipient q)]
     %bill                        [p !<(_*vale:bill q)]
     %broadcaster-action          [p !<(_*vale:broadcaster-action q)]
     %channel-action              [p !<(_*vale:channel-action q)]
@@ -1344,7 +1329,6 @@
     %groups-ui                   [p !<(_*vale:groups-ui q)]
     %groups-ui-1                 [p !<(_*vale:groups-ui-1 q)]
     %groups-ui-2                 [p !<(_*vale:groups-ui-2 q)]
-    %growl-summarize             [p !<(_*vale:growl-summarize q)]
     %hi-ship                     [p !<(_*vale:hi-ship q)]
     %hidden-messages             [p !<(_*vale:hidden-messages q)]
     %hidden-posts                [p !<(_*vale:hidden-posts q)]
@@ -1478,9 +1462,6 @@
       :-  %bait-undescribe             -:!>(*vale:bait-undescribe)
       :-  %bait-update                 -:!>(*vale:bait-update)
       :-  %bait-update-group           -:!>(*vale:bait-update-group)
-      :-  %bark-add-recipient          -:!>(*vale:bark-add-recipient)
-      :-  %bark-receive-summary        -:!>(*vale:bark-receive-summary)
-      :-  %bark-remove-recipient       -:!>(*vale:bark-remove-recipient)
       :-  %bill                        -:!>(*vale:bill)
       :-  %broadcaster-action          -:!>(*vale:broadcaster-action)
       :-  %channel-action              -:!>(*vale:channel-action)
@@ -1702,7 +1683,6 @@
       :-  %groups-ui                   -:!>(*vale:groups-ui)
       :-  %groups-ui-1                 -:!>(*vale:groups-ui-1)
       :-  %groups-ui-2                 -:!>(*vale:groups-ui-2)
-      :-  %growl-summarize             -:!>(*vale:growl-summarize)
       :-  %hi-ship                     -:!>(*vale:hi-ship)
       :-  %hidden-messages             -:!>(*vale:hidden-messages)
       :-  %hidden-posts                -:!>(*vale:hidden-posts)
