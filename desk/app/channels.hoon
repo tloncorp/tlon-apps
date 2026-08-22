@@ -796,11 +796,18 @@
   ::      happen. that way, local subs get established without issue.
   =.  cor  (emil reconcile-notes-cards)
   inflate-io
-::  +reconcile-notes-cards: %notes ships as its own gall agent but is kept OUT
-::  of desk.bill, so installing %tlon never trips gall's "can't run from two
-::  desks" against a user's standalone %notes desk. Instead we suspend that
-::  desk (a no-op if it isn't installed) and rein our %notes agent on. Fired
-::  once on install (+init) and once on upgrade (state-18-to-19).
+::  +reconcile-notes-cards: suspend a user's standalone %notes desk so that
+::  %tlon can run the %notes agent itself. Clay crashes the event rather
+::  than picking a winner when two *live* desks bill the same agent — see
+::  +apply-precedence in sys/vane/clay.hoon — so the suspend is load-bearing.
+::  A suspended desk is skipped by +goad entirely, which is what makes this
+::  safe. Fired once on install (+init) and once on upgrade (state-18-to-19).
+::
+::  %notes is now in desk.bill, so the %kiln-rein below is redundant: +override
+::  strips a reined dude from the bill and re-adds it, so the agent resolves
+::  exactly once either way. The rein is kept for one release so ships that
+::  upgrade before taking the new bill don't lose the agent; after that it
+::  should go, along with a %kiln-rein that clears the persisted override.
 ::
 ++  reconcile-notes-cards
   ^-  (list card)
