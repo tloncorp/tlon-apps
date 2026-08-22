@@ -400,25 +400,6 @@ tlon dms reply 0v5.abcde ~author/170.141... "boop" --bot # Bot-authored reply
 tlon posts send ~sampel "hello"                           # Send to a 1:1 DM
 ```
 
-### Expose
-
-Publish Tlon content to the clearweb via the %expose agent.
-
-```bash
-tlon expose list                                         # List all exposed content
-tlon expose show chat/~host/slug/170.141...              # Expose a post publicly
-tlon expose hide chat/~host/slug/170.141...              # Hide an exposed post
-tlon expose check heap/~host/gallery/170.141...          # Check if a post is exposed
-tlon expose url heap/~host/gallery/170.141...            # Get the public URL
-```
-
-Cite path formats:
-
--   Simplified: `chat/~host/channel/170.141...` (auto-expands)
--   Full: `/1/chan/chat/~host/channel/msg/170.141...`
-
-Channel kinds map to content types: chat→msg, heap→curio
-
 ### Posts
 
 Manage channel posts (sends, reactions, edits, deletes).

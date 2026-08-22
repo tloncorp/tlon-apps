@@ -5,7 +5,6 @@ export const COMMAND_FAMILIES = [
   'channels',
   'contacts',
   'dms',
-  'expose',
   'groups',
   'hooks',
   'messages',
@@ -37,7 +36,6 @@ const SCRIPT_ERA_PATTERNS = [
   'Usage: channels.ts',
   'Usage: contacts.ts',
   'Usage: dms.ts',
-  'Usage: expose.ts',
   'Usage: groups.ts',
   'Usage: hooks.ts',
   'Usage: messages.ts',
@@ -48,7 +46,6 @@ const SCRIPT_ERA_PATTERNS = [
   'Example: channels.ts',
   'Example: contacts.ts',
   'Example: dms.ts',
-  'Example: expose.ts',
   'Example: groups.ts',
   'Example: hooks.ts',
   'Example: messages.ts',
@@ -58,7 +55,6 @@ const SCRIPT_ERA_PATTERNS = [
   'scripts/channels.ts',
   'scripts/contacts.ts',
   'scripts/dms.ts',
-  'scripts/expose.ts',
   'scripts/groups.ts',
   'scripts/hooks.ts',
   'scripts/messages.ts',
@@ -207,11 +203,6 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'dms send missing args',
     ['dms', 'send'],
     'Usage: tlon dms send'
-  ),
-  usageErrorCase(
-    'expose show missing cite',
-    ['expose', 'show'],
-    'Usage: tlon expose show'
   ),
   usageErrorCase(
     'groups info missing id',
@@ -1321,7 +1312,7 @@ export const NOTES_FAMILY_CASES: CliCase[] = [
 // Every removed diary/notebook entry point refuses locally with DIARY_REMOVED,
 // before any credential lookup: the `tlon notebook` command (incl. --help),
 // `--kind diary` and positional `diary` on channels/groups create, a `diary/...`
-// nest on posts/messages/channels, and both expose cite-path forms.
+// nest on posts/messages/channels.
 export const DIARY_REMOVED_CASES: CliCase[] = [
   diaryRefusedCase('notebook command refuses', ['notebook']),
   diaryRefusedCase('notebook --help refuses', ['notebook', '--help']),
@@ -1390,26 +1381,6 @@ export const DIARY_REMOVED_CASES: CliCase[] = [
     'channels',
     'info',
     'diary/~host/blog',
-  ]),
-  diaryRefusedCase('expose show simplified diary path refuses', [
-    'expose',
-    'show',
-    'diary/~host/blog/170.141',
-  ]),
-  diaryRefusedCase('expose check full diary cite path refuses', [
-    'expose',
-    'check',
-    '/1/chan/diary/~host/blog/note/170.141',
-  ]),
-  diaryRefusedCase('expose url simplified diary path refuses', [
-    'expose',
-    'url',
-    'diary/~host/blog/170.141',
-  ]),
-  diaryRefusedCase('expose hide full diary cite path refuses', [
-    'expose',
-    'hide',
-    '/1/chan/diary/~host/blog/note/170.141',
   ]),
 ];
 
@@ -1575,26 +1546,6 @@ export const NOTES_CONTENT_UNSUPPORTED_CASES: CliCase[] = [
     'post',
     'notes/~host/blog',
     '170.141',
-  ]),
-  notesContentRefusedCase('expose show simplified notes path refuses', [
-    'expose',
-    'show',
-    'notes/~host/blog/170.141',
-  ]),
-  notesContentRefusedCase('expose check full notes cite path refuses', [
-    'expose',
-    'check',
-    '/1/chan/notes/~host/blog/note/170.141',
-  ]),
-  notesContentRefusedCase('expose url simplified notes path refuses', [
-    'expose',
-    'url',
-    'notes/~host/blog/170.141',
-  ]),
-  notesContentRefusedCase('expose hide full notes cite path refuses', [
-    'expose',
-    'hide',
-    '/1/chan/notes/~host/blog/note/170.141',
   ]),
 ];
 

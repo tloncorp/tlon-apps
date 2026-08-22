@@ -221,7 +221,6 @@ describe('checkBlockedTlonOperation', () => {
 
   it.each([
     ['messages', 'channel', 'diary/~zod/log', '--help'],
-    ['expose', 'check', 'diary/~zod/log/170.141', '--help'],
     ['posts', 'react', 'diary/~zod/log', '170.141', '--help'],
   ])('allows packaged CLI help precedence for %s', (...args) => {
     expect(checkBlockedTlonOperation(args)).toBeNull();
@@ -361,7 +360,6 @@ const documentedActionOperations = {
     'update-profile',
   ],
   dms: ['send', 'reply', 'react', 'unreact', 'delete', 'accept', 'decline'],
-  expose: ['list', 'show', 'hide', 'check', 'url'],
   groups: [
     'list',
     'create',
@@ -789,35 +787,6 @@ describe('tlon tool telemetry summarizer', () => {
     });
 
     expect(JSON.stringify(summary)).not.toContain('chat/~zod/quiet-launch');
-  });
-
-  it('captures channel kinds from full expose cite paths', () => {
-    const summary = summarizeTlonCommand(
-      'expose show /1/chan/heap/~zod/quiet-launch/curio/170.141'
-    );
-
-    expect(summary).toMatchObject({
-      summaryKey: 'expose.show',
-      intent: 'admin',
-      channelKind: 'heap',
-    });
-
-    const serialized = JSON.stringify(summary);
-    expect(serialized).not.toContain('/1/chan/heap');
-    expect(serialized).not.toContain('~zod/quiet-launch');
-    expect(serialized).not.toContain('170.141');
-  });
-
-  it('does not report deprecated diary cite paths as a CLI-managed channel kind', () => {
-    const summary = summarizeTlonCommand(
-      'expose check /1/chan/diary/~zod/quiet-launch/note/170.141'
-    );
-
-    expect(summary).toMatchObject({
-      summaryKey: 'expose.check',
-      intent: 'read',
-    });
-    expect(summary.channelKind).toBeUndefined();
   });
 
   it('classifies channel renames as writes without leaking the new title', () => {
