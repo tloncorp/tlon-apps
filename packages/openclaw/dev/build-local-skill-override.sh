@@ -70,7 +70,10 @@ if [ -n "${TLON_SKILL_FROM_SOURCE:-}" ] && [ -f "$TLON_SKILL_DIR/scripts/main.ts
     (cd "$TLON_SKILL_DIR" && bun install --frozen-lockfile 2>/dev/null || bun install)
   fi
   (cd "$TLON_SKILL_DIR" && node scripts/build-all.js --target="$ARCH_KEY")
-  BUILT="$TLON_SKILL_DIR/npm/$ARCH_KEY/tlon"
+  # Read the binary from dist/, not npm/<arch>/: the npm platform-package copy
+  # is publish prep and is best-effort on bind mounts (VirtioFS denies chmod on
+  # container-created files), while dist/tlon overwrites a host-owned file.
+  BUILT="$TLON_SKILL_DIR/dist/tlon"
   if [ ! -f "$BUILT" ]; then
     echo "ERROR: build-all.js did not produce $BUILT"
     exit 1
