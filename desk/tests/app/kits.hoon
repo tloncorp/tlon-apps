@@ -59,6 +59,27 @@
 ++  club-flag  `flag:g`[our-ship %summer-club]
 ++  club-nest  `nest:v1:k`[%chat our-ship %discussion-summer-club]
 ++  bot-ship  ~bus
+::  a moon-width @p (production agents are moons of the hosted ship); the
+::  acceptance path must key on membership in `agents`, not on ship rank
+::
+++  moon-ship  `@p`(cat 5 ~zod 1)
+++  moon-flag  `flag:g`[our-ship %moon-club]
+++  moon-nest  `nest:v1:k`[%chat our-ship %discussion-moon-club]
+++  moon-install
+  ^-  install:k
+  :*  %test-kit
+      [0 1 0]
+      our-ship
+      (malt ~[[%discussion moon-nest]])
+      (sy ~[moon-ship])
+      %pending
+      ~2024.1.1
+  ==
+++  do-install-moon
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  %+  do-poke  %kits-action-1
+  !>(`action:v1:k`[%install %test-kit %moon-club group-meta `moon-ship])
 ++  fix-install
   ^-  install:k
   :*  %test-kit
@@ -168,6 +189,123 @@
           !>(`update:v1:k`[%installed club-flag done])
       ==
   ==
+::
+::  TASK-32: the ledger lives on the group host, but the harness that
+::  finishes setup runs on the agent's ship — a local %setup-done for a
+::  foreign group relays to the host's %kits instead of crashing on a
+::  ledger this ship does not hold
+::
+++  test-setup-done-relays-to-the-host
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  =/  foreign  `flag:g`[pub-ship %summer-club]
+  ;<  caz=(list card)  bind:m
+    (do-poke %kits-action-1 !>(`action:v1:k`[%setup-done foreign]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /setup-done/(scot %p pub-ship)/summer-club
+          [pub-ship %kits]
+          %kits-action-1
+          !>(`action:v1:k`[%setup-done foreign])
+      ==
+  ==
+::
+::  the host accepts a relayed %setup-done from the install's recorded
+::  agent — installer ≠ agent is the production shape (TASK-32)
+::
+++  test-setup-done-accepts-the-seated-agent
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  do-add
+  ;<  *  bind:m  do-install
+  ;<  caz=(list card)  bind:m
+    %-  (do-as bot-ship)
+    (do-poke %kits-action-1 !>(`action:v1:k`[%setup-done club-flag]))
+  =/  done=install:k  fix-install
+  =.  setup.done  %done
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /install/blob/summer-club
+          [our-ship %groups]
+          %group-action-5
+          !>(`a-groups:g`[%group club-flag %blob `(config-cord done)])
+      ==
+      %-  ex-fact
+      :*  ~[/v1/updates]
+          %kits-update-1
+          !>(`update:v1:k`[%installed club-flag done])
+      ==
+  ==
+::
+::  and the acceptance is @p-agnostic: a moon-width agent (the production
+::  hosting shape) closes setup the same way a galaxy does
+::
+++  test-setup-done-accepts-a-moon-agent
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  do-add
+  ;<  *  bind:m  do-install-moon
+  ;<  caz=(list card)  bind:m
+    %-  (do-as moon-ship)
+    (do-poke %kits-action-1 !>(`action:v1:k`[%setup-done moon-flag]))
+  =/  done=install:k  moon-install
+  =.  setup.done  %done
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /install/blob/moon-club
+          [our-ship %groups]
+          %group-action-5
+          !>(`a-groups:g`[%group moon-flag %blob `(config-cord done)])
+      ==
+      %-  ex-fact
+      :*  ~[/v1/updates]
+          %kits-update-1
+          !>(`update:v1:k`[%installed moon-flag done])
+      ==
+  ==
+::
+::  a ship the install does not seat cannot close setup
+::
+++  test-setup-done-rejects-a-stranger
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  do-add
+  ;<  *  bind:m  do-install
+  %-  ex-fail
+  %-  (do-as ~nec)
+  (do-poke %kits-action-1 !>(`action:v1:k`[%setup-done club-flag]))
+::
+::  a relayed %setup-done can race an uninstall; a missing ledger entry
+::  no-ops rather than nacking (a nack re-fires setup forever)
+::
+++  test-setup-done-unknown-flag-noops
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-poke %kits-action-1 !>(`action:v1:k`[%setup-done club-flag]))
+  (ex-cards caz ~)
+::
+::  opening the poke gate for %setup-done must not open it for anything
+::  else — a remote %add is still refused
+::
+++  test-remote-add-still-refused
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as pub-ship)
+  do-add
 ::
 ::  %uninstall clears the blob and drops the ledger entry
 ::
@@ -394,7 +532,7 @@
     %+  ex-scry-result  /x/v1/installs
     !>(`update:v1:k`[%installs (malt ~[[club-flag fix-install]])])
   ::  and it is not the installing ship
-  ?<  (~(has in agents.fix-install) our-ship)
+  ?<  (~(has in agents:fix-install) our-ship)
   (pure:m ~)
 ::
 ::  an install with no agent named falls back to the installer, which is right
@@ -414,8 +552,7 @@
   !>  ^-  update:v1:k
   :-  %installs
   %-  malt
-  :~  [club-flag fix-install]
-      :-  solo
+  :~  :-  solo
       :*  %test-kit
           [0 1 0]
           our-ship
