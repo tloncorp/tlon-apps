@@ -68,16 +68,19 @@ mkdirSync(distDir, { recursive: true });
 const binaryName = target.startsWith('win') ? 'tlon.exe' : 'tlon';
 const binaryPath = join(distDir, binaryName);
 
-// Compile to a local tmp dir first: bun renames its temp artifact into the
-// outfile, and that rename fails when source dir and outfile resolve through
-// different mounts of the same host directory (docker bind mounts).
+// Compile from a local tmp cwd: bun writes its temp artifact into the cwd
+// and renames it to the outfile, and that rename fails whenever cwd and
+// outfile live on different mounts (e.g. a docker bind-mounted source dir).
+// Keeping both in the same tmp dir sidesteps it; the entry file is passed
+// absolutely so module resolution still happens against the real source.
 const stagingDir = mkdtempSync(join(tmpdir(), 'tlon-build-'));
 const stagedBinary = join(stagingDir, binaryName);
+const entryFile = join(rootDir, 'scripts', 'main.ts');
 
 execSync(
-  `bun build scripts/main.ts --compile --target=${bunTarget} --outfile ${stagedBinary} --define __VERSION__='"${version}"'`,
+  `bun build ${entryFile} --compile --target=${bunTarget} --outfile ${stagedBinary} --define __VERSION__='"${version}"'`,
   {
-    cwd: rootDir,
+    cwd: stagingDir,
     stdio: 'inherit',
   }
 );
