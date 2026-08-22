@@ -40,6 +40,7 @@ import {
   gateGatewayStatusActivation,
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
+import { recordSpeakerForSession } from '../memory/speaker-bridge.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import {
   type PendingNudge,
@@ -3257,6 +3258,13 @@ export async function monitorTlonProvider(
               );
             }
           }, dispatchTimeoutMs);
+          // Record the speaker for this session so the agent:bootstrap
+          // memory loader (which only receives a session key) can resolve
+          // who is talking — in a group channel the key alone can't say.
+          recordSpeakerForSession(
+            ctxPayload.SessionKey ?? route.sessionKey,
+            senderShip
+          );
           dispatchResult = await recordTlonRouteAndDispatch({
             session: core.channel.session,
             cfg,

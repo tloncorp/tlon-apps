@@ -35,6 +35,7 @@ import {
 } from './src/diagnostic-subscriptions.js';
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
+import { createMemoryBootstrapHandler } from './src/memory/bootstrap-loader.js';
 import {
   createMigrateCommandHandler,
   routeMigrateCommand,
@@ -991,6 +992,20 @@ export default defineBundledChannelEntry({
       },
       execute: executeTlonTool,
     });
+
+    // Subject-keyed memory: load person/place files for the current surface
+    // on every bootstrap. No-op until the workspace has memory/ files.
+    api.registerHook(
+      'agent:bootstrap',
+      createMemoryBootstrapHandler({
+        log: (message) => api.logger.debug?.(message),
+      }),
+      {
+        name: 'tlon-memory-loader',
+        description:
+          'Loads subject-keyed memory files (person/place) for the current Tlon surface',
+      }
+    );
 
     // Tool access control: block sensitive tools for non-owners
     const ownerOnlyTools = new Set(['tlon', 'cron', 'read']);
