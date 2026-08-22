@@ -3230,11 +3230,16 @@
         (~(put by sends) [%ship ship] queue)
       ?~  p.sign  di-core
       ::  vouched delivery goes to the (running, modern) host, so the
-      ::  archaic-protocol fallback below never applies.
+      ::  archaic-protocol fallback below never applies. match +di-proxy's
+      ::  own routing condition, not just the cache: an unknown moon routes
+      ::  via its sponsor without caching a host, and falling through here
+      ::  would archaic-resend directly to a possibly never-booting moon.
       ::
       =/  vouched  di-vouched
-      ?^  vouched
-        %-  (slog leaf/"Failed vouched dm to {<ship>} via {<u.vouched>}" u.p.sign)
+      ?:  ?|  ?=(^ vouched)
+              &(?=(%earl (clan:title ship)) !=(%real (di-vouch-status ship)))
+          ==
+        %-  (slog leaf/"Failed vouched dm to {<ship>}" u.p.sign)
         di-core
       ::  if we already tried hard, this is the end of the road.
       ::

@@ -269,6 +269,28 @@
   :~  %+  ex-poke  /dm/(scot %p moon)/proxy/diff
       [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
   ==
+::  a nacked via-host send to an unknown moon must NOT trigger the archaic
+::  (pre-2024 protocol) fallback, which would resend the message directly
+::  at a possibly never-booting moon.
+::
+++  test-vouched-nack-no-archaic-fallback
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~bus, src ~bus)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =diff:dm:c  (vouched-message ~bus now.bw [%inline ~['anyone home?']])
+  ;<  *  bind:m
+    (do-poke %chat-dm-action-2 !>(`action:dm:c`[moon diff]))
+  ::  the host nacks (it doesn't know the moon either): no retry cards at
+  ::  all, and in particular no archaic-protocol poke at the moon itself
+  ::
+  ;<  caz=(list card)  bind:m
+    %^  do-agent  /dm/(scot %p moon)/proxy/diff
+      [owner dap]
+    [%poke-ack `~[leaf+"vouched-dm-moon-unclassified"]]
+  (ex-cards caz ~)
 ::  a vouched dm for a sponsored moon we have NOT classified nacks: we're
 ::  the authority on our own moons, so we neither guess-forward (stranding
 ::  a never-booting bot's message) nor push %vouch-real without knowledge.
