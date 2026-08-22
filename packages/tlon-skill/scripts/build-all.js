@@ -10,7 +10,8 @@
  *   node scripts/build-all.js --target linux-x64 # Cross-compile for linux-x64
  */
 import { execSync } from 'node:child_process';
-import { cpSync, mkdirSync, readFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -67,13 +68,21 @@ mkdirSync(distDir, { recursive: true });
 const binaryName = target.startsWith('win') ? 'tlon.exe' : 'tlon';
 const binaryPath = join(distDir, binaryName);
 
+// Compile to a local tmp dir first: bun renames its temp artifact into the
+// outfile, and that rename fails when source dir and outfile resolve through
+// different mounts of the same host directory (docker bind mounts).
+const stagingDir = mkdtempSync(join(tmpdir(), 'tlon-build-'));
+const stagedBinary = join(stagingDir, binaryName);
+
 execSync(
-  `bun build scripts/main.ts --compile --target=${bunTarget} --outfile ${binaryPath} --define __VERSION__='"${version}"'`,
+  `bun build scripts/main.ts --compile --target=${bunTarget} --outfile ${stagedBinary} --define __VERSION__='"${version}"'`,
   {
     cwd: rootDir,
     stdio: 'inherit',
   }
 );
+cpSync(stagedBinary, binaryPath);
+rmSync(stagingDir, { recursive: true, force: true });
 
 // Copy to the appropriate npm package directory
 const npmDir = join(rootDir, 'npm', target);
