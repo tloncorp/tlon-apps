@@ -4,6 +4,7 @@ title: Fix openclaw's dependency on the unpublished @tloncorp/tlon-kits
 status: To Do
 assignee: []
 created_date: '2026-08-20 19:04'
+updated_date: '2026-08-22 13:01'
 labels:
   - openclaw
   - packaging
@@ -36,3 +37,9 @@ A stopgap keeps the dev container working: `resolve-workspace-deps.mjs` now fall
 - [ ] #4 The blob parser remains shared between the harness and the client — no duplicated parse implementation
 - [ ] #5 A check fails in CI if a workspace dependency is added to openclaw that is not resolvable outside the workspace
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-21: Still open; the dev rig papers over it — every container start logs the npm E404 for @tloncorp/tlon-kits and the entrypoint falls back to installing from the mounted monorepo (visible in each dev-openclaw-1 boot today). Works locally, still breaks any environment without the monorepo mount.
+<!-- SECTION:NOTES:END -->

@@ -4,6 +4,7 @@ title: 'Workspace interior: app surface first, conversation second, channels hid
 status: To Do
 assignee: []
 created_date: '2026-08-19 13:49'
+updated_date: '2026-08-22 13:01'
 labels:
   - workspaces
   - navigation
@@ -35,3 +36,9 @@ Today's group screen exposes a channel list (packages/app/ui/components/GroupCha
 - [ ] #4 Communities (no descriptor) keep the existing group channel-list screen unchanged
 - [ ] #5 Works on both mobile and desktop/web layouts, with E2E coverage for the web workspace interior
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-21: The core of this landed via TASK-35 and TASK-38, ahead of this task's plan: kit channels declare tlon.r0.collection.pinnedSurface, the agent's interactive card owns the channel body full-bleed, and the conversation lives in a pull-up sheet over it (chat as the programming interface), with the composer docked below. What remains of this task is the 'channels hidden' third: the workspace still opens through the normal group shell (channel list sidebar on web, group screen on mobile) rather than presenting as a single app surface. Re-scope this task to that navigation/shell work when picked up.
+<!-- SECTION:NOTES:END -->

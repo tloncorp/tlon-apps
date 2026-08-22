@@ -4,6 +4,7 @@ title: Distinguish workspaces from communities across existing surfaces
 status: To Do
 assignee: []
 created_date: '2026-08-19 13:48'
+updated_date: '2026-08-22 13:01'
 labels:
   - workspaces
   - navigation
@@ -33,3 +34,9 @@ Make the workspace/community split real in the client: everywhere groups are lis
 - [ ] #4 A descriptor appearing or disappearing on a synced group updates its classification without requiring app restart
 - [ ] #5 Tests cover classification, routing, and the no-descriptor unchanged path
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-21: Deliberate drift to flag before picking this up — TASK-37 renamed ALL user-facing 'group' copy to 'workspace' (146866d934), including plain communities, to make the demo read coherently. That is the opposite of this task's premise (workspaces and communities as distinct concepts with distinct labels). When this task starts, the rename needs revisiting: either communities get their own label back on descriptor-less groups, or the product decision is that everything is a workspace and this task collapses into presentation differences (kit-backed vs plain). The detection helper (readWorkspaceDescriptor/isWorkspace) is in place and already drives the pinned-surface interior, the setup notice, and the landing flow.
+<!-- SECTION:NOTES:END -->

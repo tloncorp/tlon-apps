@@ -4,6 +4,7 @@ title: Replace root navigation with Workspaces / Inbox / People
 status: To Do
 assignee: []
 created_date: '2026-08-19 13:49'
+updated_date: '2026-08-22 13:01'
 labels:
   - workspaces
   - navigation
@@ -37,3 +38,9 @@ Note the platform split in CLAUDE.md: mobile navigation lives in packages/app/na
 - [ ] #4 Deep links and notification taps that targeted old destinations resolve correctly in the new IA
 - [ ] #5 E2E coverage exercises the new top-level navigation on web (desktop navigation components per CLAUDE.md)
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-21: Partial steps landed via TASK-37/TASK-38 while driving the end-to-end demo: all user-facing 'Group' copy is now 'Workspace' (146866d934), the Home chat-list filter tabs are gone (412082670c), and the create flow produces agent-seated kit workspaces. The actual root-navigation replacement (Workspaces / Inbox / People as the top-level structure) has not started — Home is still the mixed chat list with the existing bottom tabs.
+<!-- SECTION:NOTES:END -->

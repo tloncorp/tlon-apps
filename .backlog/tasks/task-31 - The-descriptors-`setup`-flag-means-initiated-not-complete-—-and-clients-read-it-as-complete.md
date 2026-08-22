@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-08-20 21:02'
+updated_date: '2026-08-22 13:01'
 labels:
   - openclaw
   - workspaces
@@ -45,3 +46,9 @@ Worth noting the failure mode option 1 protects against: if the enqueued turn ne
 - [ ] #4 A workspace whose setup turn never ran is detectable rather than indistinguishable from a completed one
 - [ ] #5 Whatever the field ends up meaning, its name says so
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-08-21: Two adjacent fixes landed, but the semantic wart this task names still stands. 6cb1e2b25d means the flag now actually FLIPS (before, the setup-done poke crashed on the host lookup and every install stayed pending forever) — which immediately exposed this task's misread in the wild: the empty-workspace notice showed 'Nothing here yet' during the agent's working window because setup:done arrives at schedule time. 032cfe07aa patches the client symptom (the in-session provisioning task rows now win over the ledger while a live run exists) — but a client with no in-memory run (relaunch mid-setup, second device) still misreads the flag. The real fix remains: mark setup done when the agent's turn COMPLETES, which needs a turn-completion hook in the openclaw kits runtime; the relay protocol to carry it to the host now exists.
+<!-- SECTION:NOTES:END -->
