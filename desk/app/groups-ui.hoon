@@ -156,7 +156,9 @@
     =+  .^(=channel-0:u (scry %gx %channels /v3/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:v8:av (scry %gx %activity /v4/activity/noun))
-    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    ::  %profile is gone; the init field stays for payload compatibility
+    ::  (the client's GroupsInit interface never declared it) and is always |.
+    =/  profile=?  |
     =/  init=init-4:u
       :*  groups-ui
           gangs
@@ -173,7 +175,9 @@
     =+  .^(=channel-8:u (scry %gx %channels /v4/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:v8:av (scry %gx %activity /v4/activity/noun))
-    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    ::  %profile is gone; the init field stays for payload compatibility
+    ::  (the client's GroupsInit interface never declared it) and is always |.
+    =/  profile=?  |
     =/  init=init-5:u
       :*  groups-ui
           foreigns
@@ -190,7 +194,9 @@
     =+  .^(=channel-8:u (scry %gx %channels /v4/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:v8:av (scry %gx %activity /v4/activity/noun))
-    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    ::  %profile is gone; the init field stays for payload compatibility
+    ::  (the client's GroupsInit interface never declared it) and is always |.
+    =/  profile=?  |
     =/  init=init-6:u
       :*  groups-ui
           foreigns
@@ -207,7 +213,9 @@
     =+  .^(channel=channel-10:u (scry %gx %channels /v6/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:v8:av (scry %gx %activity /v4/activity/noun))
-    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    ::  %profile is gone; the init field stays for payload compatibility
+    ::  (the client's GroupsInit interface never declared it) and is always |.
+    =/  profile=?  |
     =/  init=init-7:u
       :*  groups-ui
           foreigns
@@ -224,7 +232,9 @@
     =+  .^(channel=channel-10:u (scry %gx %channels /v6/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:v9:av (scry %gx %activity /v5/activity/noun))
-    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    ::  %profile is gone; the init field stays for payload compatibility
+    ::  (the client's GroupsInit interface never declared it) and is always |.
+    =/  profile=?  |
     =/  init=init-8:u
       :*  groups-ui
           foreigns
@@ -243,7 +253,9 @@
     =+  .^(channel=channel-10:u (scry %gx %channels /v6/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:v10:av (scry %gx %activity /v6/activity/noun))
-    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    ::  %profile is gone; the init field stays for payload compatibility
+    ::  (the client's GroupsInit interface never declared it) and is always |.
+    =/  profile=?  |
     =/  init=init-9:u
       :*  groups-ui
           foreigns

@@ -6,7 +6,6 @@
     %groups-ui
     %channels
     %channels-server
-    %profile
     %activity
     %contacts
     %reel
@@ -14,7 +13,6 @@
     %genuine
     %lanyard
     %dumb-proxy
-    %expose
     %metagrab
     %presence
     %steward
