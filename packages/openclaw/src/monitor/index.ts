@@ -559,6 +559,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   };
 
   let api: UrbitSSEClient | null = null;
+  let clearAgentOnboardingRetries: (() => void) | null = null;
   let cookie: string;
   // Set by the boot self-contact scry; reconnect publishes re-read instead.
   let bootSelfContactRead: SelfContactRead | undefined;
@@ -3728,6 +3729,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       ReturnType<typeof setTimeout>
     >();
     const onboardingRetryAttempts = new Map<string, number>();
+    clearAgentOnboardingRetries = () => {
+      for (const timer of onboardingRetryTimers.values()) {
+        clearTimeout(timer);
+      }
+      onboardingRetryTimers.clear();
+      onboardingRetryAttempts.clear();
+    };
     const scheduleAgentOnboardingRetry = (nest: string) => {
       if (opts.abortSignal?.aborted || onboardingRetryTimers.has(nest)) return;
       const attempt = (onboardingRetryAttempts.get(nest) ?? 0) + 1;
@@ -5599,11 +5607,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           const onAbort = () => {
             clearInterval(pollInterval);
             clearInterval(settingsRefreshInterval);
-            for (const timer of onboardingRetryTimers.values()) {
-              clearTimeout(timer);
-            }
-            onboardingRetryTimers.clear();
-            onboardingRetryAttempts.clear();
+            clearAgentOnboardingRetries?.();
             // Kick off scheduler shutdown; don't block the event-handler
             // callback. The `finally` block awaits the same stop promise
             // before draining the persistence queues and closing the
@@ -5635,6 +5639,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // drop during the main work). Both the late abort listener and
       // this finally call the helper; whichever runs first wins.
       cleanupGatewayStatus();
+      clearAgentOnboardingRetries?.();
+      clearAgentOnboardingRetries = null;
       removeBridge(accountKey, commandBridge);
       await drainAgentOnboardingRuntime(api);
       // Await the scheduler drain before flushing persistence queues.
