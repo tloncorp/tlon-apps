@@ -11,14 +11,17 @@ const FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
  */
 export function hasAgentOnboardingFirstEntry(
   posts: db.Post[] | null | undefined,
+  agentShipId: string | null | undefined,
   provisionId?: string
 ): boolean {
+  if (!agentShipId) return false;
   const legacyMarker = provisionId
     ? `${FIRST_ENTRY_MARKER}:${provisionId}`
     : null;
   return Boolean(
     posts?.some(
       (post) =>
+        post.authorId === agentShipId &&
         post.blob &&
         parsePostBlob(post.blob).some(
           (entry) =>
@@ -31,11 +34,14 @@ export function hasAgentOnboardingFirstEntry(
 
 /** A failed initial cron run is terminal for the setup activity indicator. */
 export function hasAgentOnboardingFirstEntryFailed(
-  posts: db.Post[] | null | undefined
+  posts: db.Post[] | null | undefined,
+  agentShipId: string | null | undefined
 ): boolean {
+  if (!agentShipId) return false;
   return Boolean(
     posts?.some(
       (post) =>
+        post.authorId === agentShipId &&
         post.blob &&
         parsePostBlob(post.blob).some(
           (entry) =>
