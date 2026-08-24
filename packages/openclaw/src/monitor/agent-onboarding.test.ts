@@ -9,11 +9,14 @@ import {
 import {
   type AgentOnboardingRunRecord,
   claimAgentOnboardingRun,
+  clearAgentOnboardingRunFallbackForTesting,
   getAgentOnboardingClaimOwnerId,
+  recordAgentOnboardingRunEnqueued,
   setAgentOnboardingRunStore,
 } from './agent-onboarding-run-store.js';
 import {
   agentOnboardingTesting,
+  clearAgentOnboardingRuntime,
   handleAgentOnboardingCronChanged,
   handleAgentOnboardingMessageSent,
   handleAgentOnboardingRequest,
@@ -66,6 +69,8 @@ function botMarker(key: string, timestamp: number) {
 beforeEach(() => {
   notesDeliveryTesting.clear();
   agentOnboardingTesting.clearAllFirstRunCompletionRetries();
+  clearAgentOnboardingRuntime();
+  clearAgentOnboardingRunFallbackForTesting();
   setAgentOnboardingRunStore(null);
 });
 
@@ -139,9 +144,78 @@ describe('first-run durable claims', () => {
     ).resolves.toEqual({ outcome: 'enqueue' });
     await expect(store.lookup('provision-1')).resolves.toEqual(initial);
   });
+
+  it('deduplicates an enqueue when the durable store is unavailable', async () => {
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    await expect(
+      claimAgentOnboardingRun(initial, 1_000, async () => [])
+    ).resolves.toEqual({ outcome: 'enqueue' });
+    await recordAgentOnboardingRunEnqueued(initial, 'run-1', 1_000);
+
+    await expect(
+      claimAgentOnboardingRun(initial, 1_001, async () => [])
+    ).resolves.toMatchObject({
+      outcome: 'recovered',
+      record: { runId: 'run-1', status: 'enqueued' },
+    });
+  });
+});
+
+describe('first-run correlation', () => {
+  it('keeps reprovisioned runs distinct and rejects an ambiguous notebook fallback', () => {
+    const context = {
+      api: { scry: vi.fn() },
+      botShip: '~bot',
+      channelNest: 'chat/~ten/group/general',
+      groupId: provision.groupId,
+      ownerShip: '~ten',
+    };
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'run-1' },
+      context,
+      provision
+    );
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'run-2' },
+      context,
+      { ...provision, provisionId: 'provision-2' }
+    );
+
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation(
+        undefined,
+        provision.notebookNest
+      )
+    ).toBeNull();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('run-1', undefined)?.[1]
+        .provisionId
+    ).toBe(provision.provisionId);
+  });
 });
 
 describe('agent onboarding requests', () => {
+  it('does not fetch history for ordinary owner chat', async () => {
+    const fetchHistory = vi.fn(async () => {
+      throw new Error('history unavailable');
+    });
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          rawText: 'How is the weather?',
+          blob: null,
+        },
+        { fetchHistory }
+      )
+    ).resolves.toBe(false);
+    expect(fetchHistory).not.toHaveBeenCalled();
+  });
   it('recognizes only canonical typed requests', () => {
     expect(
       parseAgentOnboardingRequest(
@@ -1820,6 +1894,34 @@ describe('provision coordinator ordering', () => {
     expect(cron.enqueueRun).toHaveBeenCalledOnce();
   });
 
+  it('keeps a durable provision retryable until admin promotion arrives', async () => {
+    const withoutAdmin = {
+      hostUserId: '~ten',
+      channels: [{ id: provision.notebookNest, type: 'notes' }],
+      members: [{ contactId: '~bot', status: 'joined', roles: [] }],
+    };
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/group/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          blob: appendToPostBlob(undefined, provision),
+        },
+        {
+          fetchHistory: vi.fn(async () => []),
+          getCron: () => undefined as never,
+          getGroup: vi.fn(async () => withoutAdmin),
+          sendPost: vi.fn(),
+          sleep: vi.fn(async () => {}),
+        }
+      )
+    ).rejects.toThrow('agent is not an admin yet');
+  });
+
   it('enqueues the first run before announcing that writing started', async () => {
     const events: string[] = [];
     const history: Array<{
@@ -2196,6 +2298,64 @@ describe('provision coordinator ordering', () => {
     expect(await store.lookup(provision.provisionId)).toMatchObject({
       status: 'completed',
     });
+  });
+
+  it('fails a restored successful run whose note delivery failed', async () => {
+    const context = {
+      api: { scry: vi.fn() },
+      botShip: '~bot',
+      channelNest: 'chat/~ten/group/general',
+      groupId: provision.groupId,
+      ownerShip: '~ten',
+    };
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'run-before-restart' },
+      context,
+      provision,
+      'Updates',
+      'job-1',
+      100
+    );
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    const cron = {
+      list: vi.fn(async () => [
+        {
+          id: 'job-1',
+          state: {
+            lastRunAtMs: 200,
+            lastRunStatus: 'ok',
+            lastDelivered: false,
+          },
+        },
+      ]),
+    } as unknown as TlonCronService;
+
+    await agentOnboardingTesting.reconcileRestoredFirstRun(
+      cron,
+      {
+        provisionId: provision.provisionId,
+        jobId: 'job-1',
+        runId: 'run-before-restart',
+        groupId: provision.groupId,
+        channelNest: context.channelNest,
+        notebookNest: provision.notebookNest,
+        notebookName: 'Updates',
+        purposeId: provision.purposeId,
+        topics: [...provision.topics],
+        claimedAt: 100,
+        enqueuedAt: 100,
+        status: 'enqueued',
+      },
+      { fetchHistory: vi.fn(async () => []), sendPost }
+    );
+
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'couldn’t publish the first entry'
+    );
   });
 
   it('keeps an acknowledged restart retryable until cron is available', async () => {
