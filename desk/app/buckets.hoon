@@ -1485,10 +1485,12 @@
 ::  rather than named by the capability; a delete capability names its entry.
 ::  Either way access is re-checked against the live group here.
 ::
-::  The %read arm is kept deliberately even though a broker holding pushed
-::  tokens answers reads from its own table and never asks: a broker that
-::  predates the push still asks, so this is what makes the rollout orderless.
-::  Deletes always ask, and always will.
+::  The %read arm stays even though a broker holding a pushed token answers
+::  reads from its own table without asking. The broker keeps a Pioneer
+::  fallback for hosts that do not push yet, and it fires whenever it has no
+::  row -- so this is what answers when a token is live here but absent
+::  there. It cannot resurrect a revoked one: revocation deletes the local
+::  capability too, so this arm refuses it as well. Deletes always ask.
 ::
 ++  broker-object-verdict
   |=  [kind=object-kind:b token=@t object=@t]
@@ -1838,16 +1840,6 @@
       [%unknown 'the storage request was cancelled']
     =/  code=@ud  status-code.response-header.res
     ?:  &((gte code 200) (lth code 300))
-      (confirm-read-token flag `@t`token.pole actor expiry rid)
-    ::  404 means the route is not there, so this broker predates pushed
-    ::  tokens and will ask us over Pioneer instead — which still works, so
-    ::  the mint stands. This is what lets the two halves deploy in either
-    ::  order; delete it once no broker predates the push.
-    ::
-    ::  A broker with buckets switched off answers 404 too. Harmless: it
-    ::  refuses the read as well, and a token it does not honour grants
-    ::  nothing, since the broker stays the party that decides.
-    ?:  =(404 code)
       (confirm-read-token flag `@t`token.pole actor expiry rid)
     ::  Refused: the token was never stored, so there is nothing to undo. Our
     ::  own mint retries on a short timer; a remote reader's ship re-asks.

@@ -121,7 +121,7 @@ Read access is uniform across a Bucket, so a reader gets one token for the whole
 
 Because the broker honours a pushed token without asking again, **revocation is the host's job and has to be prompt and complete**. It is driven by the stored capabilities rather than by the subscription list: on any relevant `%groups` change, each token on an affected Bucket is re-checked against the group for its own reader and Bucket. That covers a reader who took a token and then unsubscribed, and it stops losing one Bucket from revoking tokens for others. A revocation the broker has not confirmed is retried until it does, or until the token would have lapsed anyway. Expiry is a backstop for a host that dies, not the mechanism.
 
-A broker that predates pushed tokens has no endpoint to push to and answers 404. That is treated as "this broker will ask instead", so the mint stands and `%pioneer-buckets-authorize-read` still serves it -- which is what lets the two halves deploy in either order.
+**Memex ships before this agent does.** A mint the broker refuses is never stored, whatever the refusal — including a 404 from a broker without the endpoint — because a token the broker does not hold would 403 on first use. There is deliberately no compatibility path for the reverse order.
 
 Deletes stay per-object, because they are destructive: `%issue-delete` binds a short-lived token to one ready file, exchanged through `%pioneer-buckets-authorize-delete` before the manifest entry is removed. Recursive client deletion commits each file's manifest removal immediately after Memex confirms its object deletion, and treats already-deleted as idempotent success. A host-authorized server-side bulk delete remains the durable atomic implementation.
 
@@ -138,7 +138,7 @@ All four threads live under `desk/ted/pioneer/` and are invoked by Pioneer with 
 
 Authorization failures return `{result: "denied"}` and expired tokens return `{result: "expired"}`. Pioneer parses nothing else and fails on an unrecognized result, so adding a category is a broker protocol change rather than an agent one. `expiresAtMillis` is Unix time in milliseconds.
 
-`%pioneer-buckets-authorize-read` is retained for brokers that predate pushed read tokens. One holding a pushed token answers reads from its own table and never calls it.
+`%pioneer-buckets-authorize-read` is retained because the broker keeps a Pioneer fallback for hosts that do not push yet — ships update on their own schedule, so there is no moment when every host has started pushing. It fires whenever the broker has no row for a capability. It cannot resurrect a revoked token: revocation deletes the local capability as well, so this answers a refusal too.
 
 ## Tests
 
@@ -159,7 +159,7 @@ Authorization failures return `{result: "denied"}` and expired tokens return `{r
 -   The held token's peek answering a mark that grows to `json`
 -   A remote token filed under the Bucket that asked for it, not a sibling on the same host
 -   Access rechecked before installing a token the broker has accepted
--   A 404 from a broker predating pushed tokens keeping the mint; any other refusal discarding it
+-   A refused push storing nothing, whether the broker answers 404 or 503
 
 **Revocation**
 

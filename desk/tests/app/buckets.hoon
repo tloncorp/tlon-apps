@@ -461,12 +461,12 @@
   ::  a key that belongs to no entry is refused
   (ex-equal !>([ok-result ok-name bad-result]) !>([%'authorized' 'private.pdf' %'denied']))
 ::
-::  A broker that predates pushed tokens has no route to push to, and answers
-::  404. It will ask us over Pioneer instead, so the mint stands rather than
-::  being thrown away — this is what lets the two halves deploy in either
-::  order. A refusal that is not a 404 does throw the mint away.
+::  A mint the broker did not accept is never stored, whatever the refusal.
+::  Memex ships before this agent does, so there is no broker without the
+::  endpoint to accommodate — and storing a token the broker does not have
+::  would hand the client one that 403s on first use.
 ::
-++  test-old-broker-keeps-the-mint
+++  test-refused-push-discards-the-mint
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
@@ -479,6 +479,7 @@
   ;<  *  b  (do-arvo wire.push (iris-status 404))
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
+  ::  a 404 is a refusal like any other now
   ::  a second reader, so the mint is fresh rather than the one just kept,
   ::  against a broker that refuses it outright
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v9999)))
@@ -490,13 +491,13 @@
   ;<  *  b  (do-arvo wire.retry (iris-status 500))
   ;<  sv2=vase  b  get-save
   =/  st2=state-0:bu  !<(state-0:bu sv2)
-  ::  the 404 mint is real and ours; the 500 mint left nothing behind
+  ::  neither refusal left anything behind
   %+  ex-equal
     !>  :*  (~(has by read-tokens.st) flag)
             ~(wyt by object-capabilities.st)
             ~(wyt by object-capabilities.st2)
         ==
-  !>([%.y 1 1])
+  !>([%.n 0 0])
 ::
 ::  Deleting a folder has to take the uploads underneath it. Their entries are
 ::  deliberately absent from the manifest until the object lands, so they are
