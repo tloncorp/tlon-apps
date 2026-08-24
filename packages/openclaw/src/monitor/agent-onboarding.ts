@@ -38,6 +38,7 @@ import {
   lookupAgentOnboardingRun,
   markAgentOnboardingRunTerminal,
   recordAgentOnboardingRunEnqueued,
+  recordAgentOnboardingRunOutcome,
 } from './agent-onboarding-run-store.js';
 import {
   type TlonHistoryEntry,
@@ -703,6 +704,12 @@ async function advanceOrientationConversation(
       deps,
       presentation
     );
+    if (posted) {
+      context.trackStep?.({
+        step: 'onboarding_completed',
+        completionPath: 'additional_group_completed',
+      });
+    }
     return true;
   }
 
@@ -1103,6 +1110,16 @@ export async function handleAgentOnboardingCronChanged(
   deps: AgentOnboardingCronDeps = {}
 ): Promise<void> {
   if (event.action !== 'finished' || !event.runId) return;
+  if (!findFirstRunCorrelation(event.runId, undefined, event.jobId, true)) {
+    if (event.status === 'ok' && event.delivered !== true) return;
+    await recordAgentOnboardingRunOutcome(event.runId, {
+      status: event.status === 'ok' ? 'ok' : 'error',
+      delivered: event.delivered === true,
+      error: event.error,
+      observedAt: Date.now(),
+    });
+    return;
+  }
   if (event.status !== 'ok' || event.delivered === false) {
     await failFirstRun(event.runId, event, deps);
     return;
@@ -1198,6 +1215,7 @@ async function failFirstRunCorrelation(
   const runDeps: AgentOnboardingCronDeps = {
     fetchHistory: deps.fetchHistory ?? fetchChannelHistoryOrThrow,
     sendPost: deps.sendPost ?? sendChannelPost,
+    sleep: deps.sleep,
   };
   const failureDescription =
     `status=${String(event.status ?? 'unknown')}, ` +
@@ -1229,6 +1247,7 @@ async function failFirstRunCorrelation(
       errorText: failureDescription,
     });
   }
+  await postFirstRunServices(correlation, history, runDeps);
   await markAgentOnboardingRunTerminal(correlation.provisionId, 'failed');
   firstRunCorrelations.delete(correlationRunId);
 }
@@ -1362,6 +1381,7 @@ async function completeFirstRunCorrelation(
     fetchHistory: deps.fetchHistory ?? fetchChannelHistoryOrThrow,
     listNotes: deps.listNotes ?? notes.listNotes,
     sendPost: deps.sendPost ?? sendChannelPost,
+    sleep: deps.sleep,
   };
 
   try {
@@ -1440,36 +1460,7 @@ async function completeFirstRunCorrelation(
         notebookNest: correlation.notebookNest,
       });
     }
-    await (
-      deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
-    )(FIRST_ENTRY_TO_SERVICES_DELAY_MS);
-    const servicesPosted = await postOnce(
-      correlation.context,
-      history,
-      'services-card',
-      async () => {
-        const message = `${servicesPitch(correlation.purposeId)}\n\nConnect anything you’d like, or tap Done to continue.`;
-        return {
-          text: message,
-          blob: appendToPostBlob(
-            undefined,
-            buildServicesSurface(
-              message,
-              correlation.context.groupId!,
-              correlation.provisionId
-            )
-          ),
-        };
-      },
-      runDeps
-    );
-    if (servicesPosted) {
-      correlation.context.trackStep?.({
-        step: 'services_offered',
-        purposeId: correlation.purposeId,
-        notebookNest: correlation.notebookNest,
-      });
-    }
+    await postFirstRunServices(correlation, history, runDeps);
     await markAgentOnboardingRunTerminal(correlation.provisionId, 'completed');
     firstRunCorrelations.delete(correlationRunId);
   } catch (error) {
@@ -1477,6 +1468,43 @@ async function completeFirstRunCorrelation(
       `[tlon] first-run completion will retry: ${String(error)}`
     );
     throw error;
+  }
+}
+
+async function postFirstRunServices(
+  correlation: FirstRunCorrelation,
+  history: TlonHistoryEntry[],
+  deps: AgentOnboardingCronDeps
+) {
+  await (
+    deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
+  )(FIRST_ENTRY_TO_SERVICES_DELAY_MS);
+  const servicesPosted = await postOnce(
+    correlation.context,
+    history,
+    'services-card',
+    async () => {
+      const message = `${servicesPitch(correlation.purposeId)}\n\nConnect anything you’d like, or tap Done to continue.`;
+      return {
+        text: message,
+        blob: appendToPostBlob(
+          undefined,
+          buildServicesSurface(
+            message,
+            correlation.context.groupId!,
+            correlation.provisionId
+          )
+        ),
+      };
+    },
+    deps
+  );
+  if (servicesPosted) {
+    correlation.context.trackStep?.({
+      step: 'services_offered',
+      purposeId: correlation.purposeId,
+      notebookNest: correlation.notebookNest,
+    });
   }
 }
 
@@ -1695,28 +1723,18 @@ async function restoreFirstRunFromDurable(
 }
 
 async function reconcileRestoredFirstRun(
-  cron: TlonCronService,
+  _cron: TlonCronService,
   record: AgentOnboardingRunRecord,
   deps: AgentOnboardingDeps
 ): Promise<void> {
-  const job = (await cron.list({ includeDisabled: true })).find(
-    (candidate) => candidate.id === record.jobId
-  );
-  const finishedAt = job?.state?.lastRunAtMs;
-  if (
-    !job ||
-    typeof finishedAt !== 'number' ||
-    finishedAt < (record.enqueuedAt ?? record.claimedAt) ||
-    job?.state?.runningAtMs
-  ) {
-    return;
-  }
+  const outcome = record.outcome;
+  if (!record.runId || !outcome) return;
   const completionDeps: AgentOnboardingCronDeps = {
     fetchHistory: deps.fetchHistory,
     sendPost: deps.sendPost,
     sleep: deps.sleep,
   };
-  if (job.state?.lastRunStatus === 'ok' && job.state.lastDelivered === true) {
+  if (outcome.status === 'ok' && outcome.delivered) {
     await completeFirstRun(
       record.runId,
       record.notebookNest,
@@ -1726,19 +1744,16 @@ async function reconcileRestoredFirstRun(
     );
     return;
   }
-  if (
-    job.state?.lastRunStatus === 'error' ||
-    (job.state?.lastRunStatus === 'ok' && job.state.lastDelivered === false)
-  ) {
+  if (outcome.status === 'error' || !outcome.delivered) {
     await failFirstRun(
       record.runId ?? `provision:${record.provisionId}`,
       {
         action: 'finished',
         jobId: record.jobId,
         runId: record.runId,
-        status: 'error',
-        delivered: job.state.lastDelivered,
-        error: job.state.lastError,
+        status: outcome.status,
+        delivered: outcome.delivered,
+        error: outcome.error,
       } as PluginHookCronChangedEvent,
       completionDeps
     );

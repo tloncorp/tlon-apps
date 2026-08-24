@@ -12,6 +12,7 @@ import {
   clearAgentOnboardingRunFallbackForTesting,
   getAgentOnboardingClaimOwnerId,
   recordAgentOnboardingRunEnqueued,
+  recordAgentOnboardingRunOutcome,
   setAgentOnboardingRunStore,
 } from './agent-onboarding-run-store.js';
 import {
@@ -179,6 +180,26 @@ describe('first-run durable claims', () => {
     ).resolves.toMatchObject({
       outcome: 'recovered',
       record: { runId: 'run-1', status: 'enqueued' },
+    });
+  });
+
+  it('attaches an exact completion that arrives before enqueue returns', async () => {
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    await recordAgentOnboardingRunOutcome('run-1', {
+      status: 'ok',
+      delivered: true,
+      observedAt: 1_001,
+    });
+    await recordAgentOnboardingRunEnqueued(initial, 'run-1', 1_000);
+
+    await expect(
+      claimAgentOnboardingRun(initial, 1_002, async () => [])
+    ).resolves.toMatchObject({
+      outcome: 'recovered',
+      record: {
+        runId: 'run-1',
+        outcome: { status: 'ok', delivered: true, observedAt: 1_001 },
+      },
     });
   });
 });
@@ -534,6 +555,7 @@ describe('agent onboarding requests', () => {
       messageId: 'post',
       sentAt: 0,
     }));
+    const trackStep = vi.fn();
     const history = [
       {
         author: '~ten',
@@ -578,6 +600,7 @@ describe('agent onboarding requests', () => {
           channelNest: 'chat/~ten/general',
           groupId: provision.groupId,
           ownerShip: '~ten',
+          trackStep,
         },
         { fetchHistory: vi.fn(async () => history), sendPost }
       )
@@ -596,6 +619,10 @@ describe('agent onboarding requests', () => {
         key: 'group-setup-complete',
       })
     );
+    expect(trackStep).toHaveBeenCalledWith({
+      step: 'onboarding_completed',
+      completionPath: 'additional_group_completed',
+    });
   });
 
   it('offers each orientation step as a simple Yes/No choice', () => {
@@ -2467,6 +2494,7 @@ describe('provision coordinator ordering', () => {
       topics: [...provision.topics],
       claimedAt: 100,
       enqueuedAt: 100,
+      outcome: { status: 'ok', delivered: true, observedAt: 200 },
       status: 'enqueued',
     });
     recordDeliveredNote(provision.notebookNest, {
@@ -2598,14 +2626,59 @@ describe('provision coordinator ordering', () => {
         topics: [...provision.topics],
         claimedAt: 100,
         enqueuedAt: 100,
+        outcome: {
+          status: 'error',
+          delivered: false,
+          observedAt: 200,
+        },
         status: 'enqueued',
       },
-      { fetchHistory: vi.fn(async () => []), sendPost }
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      }
     );
 
     expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
       'couldn’t publish the first entry'
     );
+  });
+
+  it('does not infer the forced-run outcome from aggregate job state', async () => {
+    const sendPost = vi.fn();
+    const list = vi.fn(async () => [
+      {
+        id: 'job-1',
+        state: {
+          lastRunAtMs: 200,
+          lastRunStatus: 'ok' as const,
+          lastDelivered: true,
+        },
+      },
+    ]);
+
+    await agentOnboardingTesting.reconcileRestoredFirstRun(
+      { list } as unknown as TlonCronService,
+      {
+        provisionId: provision.provisionId,
+        jobId: 'job-1',
+        runId: 'forced-run',
+        groupId: provision.groupId,
+        channelNest: 'chat/~ten/group/general',
+        notebookNest: provision.notebookNest,
+        notebookName: 'Updates',
+        purposeId: provision.purposeId,
+        topics: [...provision.topics],
+        claimedAt: 100,
+        enqueuedAt: 100,
+        status: 'enqueued',
+      },
+      { fetchHistory: vi.fn(async () => []), sendPost }
+    );
+
+    expect(list).not.toHaveBeenCalled();
+    expect(sendPost).not.toHaveBeenCalled();
   });
 
   it('keeps an acknowledged restart retryable until cron is available', async () => {
@@ -2938,10 +3011,11 @@ describe('provision coordinator ordering', () => {
       {
         fetchHistory: vi.fn(async () => []),
         sendPost,
+        sleep: vi.fn(async () => {}),
       }
     );
 
-    expect(sendPost).toHaveBeenCalledOnce();
+    expect(sendPost).toHaveBeenCalledTimes(2);
     expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
       'couldn’t publish the first entry'
     );
@@ -2955,6 +3029,12 @@ describe('provision coordinator ordering', () => {
       expect.objectContaining({
         step: 'first_entry_revealed',
         outcome: 'failed',
+      })
+    );
+    expect(parsePostBlob(sendPost.mock.calls[1]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'services-card',
       })
     );
   });
@@ -2992,15 +3072,19 @@ describe('provision coordinator ordering', () => {
     } as never;
 
     await expect(
-      handleAgentOnboardingCronChanged(event, { fetchHistory, sendPost })
+      handleAgentOnboardingCronChanged(event, {
+        fetchHistory,
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      })
     ).rejects.toThrow('temporary history failure');
     expect(sendPost).not.toHaveBeenCalled();
     expect(trackStep).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1_000);
     expect(fetchHistory).toHaveBeenCalledTimes(2);
-    expect(sendPost).toHaveBeenCalledOnce();
-    expect(trackStep).toHaveBeenCalledOnce();
+    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(trackStep).toHaveBeenCalledTimes(2);
   });
 
   it('uses successful Notes delivery when the host drops cron completion', async () => {
