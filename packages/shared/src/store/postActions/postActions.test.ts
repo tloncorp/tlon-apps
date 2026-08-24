@@ -183,6 +183,14 @@ describe('sendPost', () => {
     });
   });
 
+  test('interactive sends reject when the channel is missing', async () => {
+    await expect(
+      finalizeAndSendPost(buildTestDraft({ channelId: 'missing-channel' }), {
+        throwOnFailure: true,
+      })
+    ).rejects.toThrow('channel missing-channel is missing');
+  });
+
   test('tracks whether a sent post is going to a bot DM', async () => {
     const botDmId = '~pinser-botter-sampel';
     const capture = vi.fn();
