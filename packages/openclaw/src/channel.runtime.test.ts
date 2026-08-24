@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const getNotebook = vi.fn();
+const createNote = vi.fn();
+
+vi.mock('@tloncorp/api', () => ({
+  notes: { getNotebook, createNote },
+  scry: vi.fn(),
+}));
+
 vi.mock('./urbit/upload.js', () => ({
   prepareOutboundMedia: vi.fn(),
 }));
@@ -48,6 +56,9 @@ vi.mock('./targets.js', () => ({
   parseTlonTarget: vi.fn((t: string) => {
     if (t.startsWith('~')) {
       return { kind: 'dm', ship: t };
+    }
+    if (t.startsWith('notes/')) {
+      return { kind: 'notebook', nest: t };
     }
     if (t.includes('/')) {
       return { kind: 'channel', nest: t };
@@ -194,5 +205,68 @@ describe('sendMedia', () => {
       deliveryFailureCount: 0,
       deliverySuccessCount: 1,
     });
+  });
+});
+
+describe('notes delivery', () => {
+  let tlonRuntimeOutbound: typeof import('./channel.runtime.js').tlonRuntimeOutbound;
+  let notesDeliveryTesting: typeof import('./notes-delivery-state.js').notesDeliveryTesting;
+  let sendChannelPost: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    getNotebook.mockResolvedValue({ rootFolderId: 17 });
+    createNote.mockResolvedValue(undefined);
+    ({ tlonRuntimeOutbound } = await import('./channel.runtime.js'));
+    ({ notesDeliveryTesting } = await import('./notes-delivery-state.js'));
+    notesDeliveryTesting.clear();
+    ({ sendChannelPost } = await import('./urbit/send.js'));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('creates a Markdown note in the notebook root folder', async () => {
+    createNote.mockResolvedValue({ id: 42, title: 'Tuesday briefing' });
+    const result = await tlonRuntimeOutbound.sendText({
+      cfg: {} as never,
+      to: 'notes/~ten/updates',
+      text: '# Tuesday briefing\n\nThe full report.',
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+    });
+
+    expect(getNotebook).toHaveBeenCalledWith('notes/~ten/updates');
+    expect(createNote).toHaveBeenCalledWith({
+      flag: 'notes/~ten/updates',
+      folder: 17,
+      title: 'Tuesday briefing',
+      body: 'The full report.',
+    });
+    expect(sendChannelPost).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      channel: 'tlon',
+      messageId: '~zod/notes-42',
+    });
+  });
+
+  it('preserves a non-heading first line in the note body', async () => {
+    await tlonRuntimeOutbound.sendText({
+      cfg: {} as never,
+      to: 'notes/~ten/updates',
+      text: 'Tuesday briefing\n\nThe full report.',
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+    });
+
+    expect(createNote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Tuesday briefing',
+        body: 'Tuesday briefing\n\nThe full report.',
+      })
+    );
   });
 });

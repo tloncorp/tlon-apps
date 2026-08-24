@@ -444,6 +444,72 @@ export type TlonMigrationEvent = {
   errorText: string | null;
 };
 
+/**
+ * Steps of agent onboarding, in the order a healthy setup passes through them.
+ *
+ * The whole point is a funnel, so the values are ordered and every setup emits
+ * the same vocabulary: drop-off is `count(step N) / count(step N-1)`, and
+ * time-to-activation is `first_entry_revealed.at - intro_posted.at`.
+ *
+ * `first_entry_revealed` is activation as far as the bot can see it — the entry
+ * exists and has been announced. Whether the owner *looked* is a client-side
+ * event, because only the client knows that. After `services_offered`, first
+ * onboarding branches through one or both tour-answer steps and always ends
+ * with `onboarding_completed`.
+ */
+export type TlonOnboardingStep =
+  | 'intro_posted'
+  | 'purpose_picker_posted'
+  | 'purpose_chosen'
+  | 'topics_picker_posted'
+  | 'provision_received'
+  | 'cron_created'
+  | 'first_run_enqueued'
+  | 'first_entry_revealed'
+  | 'services_offered'
+  | 'app_tour_answered'
+  | 'bot_tour_answered'
+  | 'onboarding_completed';
+
+export type TlonOnboardingAnswer = 'yes' | 'no';
+
+export type TlonOnboardingCompletionPath =
+  | 'app_tour_declined'
+  | 'bot_tour_declined'
+  | 'bot_tour_completed';
+
+/**
+ * One event per onboarding step, per group.
+ *
+ * Deliberately narrower than the trace event this replaces: that one carried a
+ * deterministic coordinator's state machine (`onboardingState`,
+ * `onboardingNextState`, retry counters, draft sizes), and this flow has no
+ * such states. What is left is the funnel plus the few dimensions worth
+ * segmenting by.
+ *
+ * Topic *count*, never the topics themselves — the text is the owner's own
+ * words and does not belong in analytics.
+ */
+export type TlonOnboardingFunnelEvent = {
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  step: TlonOnboardingStep;
+  outcome: 'ok' | 'failed';
+  nest: string;
+  groupFlag: string | null;
+  purposeId: string | null;
+  topicCount: number | null;
+  timezone: string | null;
+  cronJobId: string | null;
+  notebookNest: string | null;
+  answer: TlonOnboardingAnswer | null;
+  completionPath: TlonOnboardingCompletionPath | null;
+  /** Since the first step of this setup, so a funnel row carries its own latency. */
+  elapsedMsSinceIntro: number | null;
+  errorText: string | null;
+};
+
 export type TlonHarnessErrorScope =
   | 'harness'
   | 'model'
@@ -611,6 +677,7 @@ export interface TlonTelemetryClient {
   captureAuthAttemptFailed(event: TlonAuthAttemptFailedEvent): void;
   capturePluginError(event: TlonPluginErrorEvent): void;
   captureTelemetryError(event: TlonTelemetryErrorEvent): void;
+  captureOnboardingStep(event: TlonOnboardingFunnelEvent): void;
   captureCronJobChanged(event: TlonCronJobChangedEvent): void;
   captureCronRun(event: TlonCronRunEvent): void;
   captureCronSnapshot(event: TlonCronSnapshotEvent): void;
@@ -641,6 +708,7 @@ const TLON_CRON_JOB_CHANGED_EVENT = 'TlonBot Cron Job Changed';
 const TLON_CRON_RUN_EVENT = 'TlonBot Cron Run';
 const TLON_CRON_SNAPSHOT_EVENT = 'TlonBot Cron Snapshot';
 const TLON_MIGRATION_EVENT = 'TlonBot Diary Migration';
+const TLON_ONBOARDING_STEP_EVENT = 'TlonBot Onboarding Step';
 const MIGRATION_ERROR_MAX_CHARS = 500;
 const TLON_TELEMETRY_LOG_SOURCE = 'openclawPlugin';
 const TOOL_TRACE_TTL_MS = 60 * 60 * 1000;
@@ -1845,6 +1913,41 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           scheduleKindAtCount: event.scheduleKindAtCount,
           scheduleKindOnExitCount: event.scheduleKindOnExitCount,
           ...this.cronCountPersonProps(event),
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
+  captureOnboardingStep(event: TlonOnboardingFunnelEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+    const errorText = event.errorText
+      ? event.errorText.slice(0, MIGRATION_ERROR_MAX_CHARS)
+      : null;
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_ONBOARDING_STEP_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          step: event.step,
+          outcome: event.outcome,
+          nest: event.nest,
+          groupFlag: event.groupFlag,
+          purposeId: event.purposeId,
+          topicCount: event.topicCount,
+          timezone: event.timezone,
+          cronJobId: event.cronJobId,
+          notebookNest: event.notebookNest,
+          answer: event.answer,
+          completionPath: event.completionPath,
+          elapsedMsSinceIntro: event.elapsedMsSinceIntro,
+          errorText,
         },
         { omitNullish: true }
       ),
