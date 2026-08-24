@@ -12,7 +12,10 @@ import { getVariableValue, useTheme } from 'tamagui';
 import { GlobalSearch } from '../../features/chat-list/GlobalSearch';
 import useBrowserNotifications from '../../hooks/useBrowserNotifications';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useAgentGroupOnboardingLock } from '../../hooks/useAgentGroupOnboardingLock';
+import {
+  useAgentGroupOnboardingLock,
+  useAnyAgentGroupOnboardingLock,
+} from '../../hooks/useAgentGroupOnboardingLock';
 import {
   AvatarNavIcon,
   DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
@@ -225,12 +228,15 @@ const TopLevelDrawerInner = () => {
   // the user's actual last-open desktop tab instead of the context default.
   useBrowserNotifications();
   const { navigateToGroup, navigateToChannel } = useRootNavigation();
+  const { locked: agentOnboardingLocked } =
+    useAnyAgentGroupOnboardingLock();
 
   return (
     <>
       <GlobalSearch
         navigateToGroup={navigateToGroup}
         navigateToChannel={navigateToChannel}
+        disabled={agentOnboardingLocked}
       />
       <Drawer.Navigator
         drawerContent={(props: DrawerContentComponentProps) => {
