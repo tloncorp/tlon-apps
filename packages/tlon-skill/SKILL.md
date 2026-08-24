@@ -369,9 +369,11 @@ tlon messages context chat/~host/slug 170.141... --limit 5  # Messages around a 
 tlon messages post chat/~host/slug 170.141...            # Fetch single post with replies
 ```
 
-Options: `--limit N`, `--resolve-cites`
+Options: `--limit N`, `--resolve-cites`, `--json`
 
 Every line of a message body prints with a `| ` prefix. A shared group always prints a `> [ref: group ~host/slug]` pointer line, no flag required. `--resolve-cites` additionally fetches the text of quoted channel messages (at most 3 per command) and prints each of their lines with `> `.
+
+`--json` switches the output to NDJSON instead: one compact JSON object per post per line — `id`, `authorId`, `sentAt`, `parentId`, `blob`, and `content` holding the parsed story rather than flattened text — sorted oldest-first, with no headers, framing, or plaintext rewriting. It ignores `--resolve-cites`, since the references themselves are already in `content`. Use it when the exact structure of a message matters more than readability.
 
 The `context` command fetches N messages before and after a given post ID — useful for finding surrounding conversation when you have a post from search or activity. For DMs, use the ship name as the channel: `tlon messages context ~sampel 170.141...`
 

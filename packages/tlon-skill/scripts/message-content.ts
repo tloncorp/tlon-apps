@@ -457,3 +457,28 @@ export async function renderPostListLines(
   }
   return lines;
 }
+
+/**
+ * One NDJSON record for a post: the raw structure `--json` exists to expose.
+ *
+ * `content` is the parsed story when it parses and the original value verbatim
+ * when it does not, so the record is lossless either way. Deliberately skips
+ * both `getTextContent` and the URL-fidelity rewrite — this mode is structure,
+ * not a reading view, so references, links, and blocks stay as they arrived.
+ */
+export function renderPostJsonLine(post: Post): string {
+  const parsed = parsePostContent(post.content);
+  return JSON.stringify({
+    id: post.id,
+    authorId: post.authorId,
+    sentAt: post.sentAt,
+    parentId: post.parentId,
+    blob: post.blob ?? null,
+    content: parsed ?? post.content,
+  });
+}
+
+/** NDJSON lines for a batch, in the same sent order as `renderPostListLines`. */
+export function renderPostListJsonLines(posts: Post[]): string[] {
+  return [...posts].sort((a, b) => a.sentAt - b.sentAt).map(renderPostJsonLine);
+}

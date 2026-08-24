@@ -13,7 +13,9 @@ import {
   formatQuoteLines,
   parsePostContent,
   formatTime,
+  renderPostJsonLine,
   renderPostLines,
+  renderPostListJsonLines,
   renderPostListLines,
   renderRefLines,
   sanitizeInlineField,
@@ -825,6 +827,133 @@ describe('renderPostListLines', () => {
       '  ID: post-2',
       '  ID: post-3',
       '  ID: post-4',
+    ]);
+  });
+});
+
+describe('renderPostJsonLine', () => {
+  const base = {
+    id: 'post-1',
+    authorId: '~zod',
+    sentAt: 1724200000000,
+    parentId: null,
+    blob: null,
+  };
+  const post = (extra: Record<string, unknown>) =>
+    ({ ...base, ...extra }) as never;
+
+  it('emits one compact record with the story content parsed', () => {
+    expect(
+      renderPostJsonLine(
+        post({
+          parentId: 'parent-1',
+          content: JSON.stringify([{ inline: ['hi'] }]),
+        })
+      )
+    ).toBe(
+      '{"id":"post-1","authorId":"~zod","sentAt":1724200000000,' +
+        '"parentId":"parent-1","blob":null,"content":[{"inline":["hi"]}]}'
+    );
+  });
+
+  it('carries content it cannot parse through verbatim', () => {
+    expect(
+      JSON.parse(renderPostJsonLine(post({ content: 'not json at all' })))
+    ).toEqual({ ...base, content: 'not json at all' });
+  });
+
+  it('keeps a group reference verse intact', () => {
+    // The raw-structure guarantee `--json` exists for: the plaintext renderer
+    // flattens this verse to `(Ref)` plus a pointer line.
+    const record = JSON.parse(
+      renderPostJsonLine(
+        post({
+          content: JSON.stringify([
+            groupRef('~host/slug'),
+            { inline: ['see this'] },
+          ]),
+        })
+      )
+    );
+
+    expect(record.content).toEqual([
+      { type: 'reference', referenceType: 'group', groupId: '~host/slug' },
+      { inline: ['see this'] },
+    ]);
+  });
+
+  it('does not apply the plaintext url-fidelity rewrite', () => {
+    const content = JSON.stringify([
+      {
+        inline: [{ link: { href: 'https://x.test/doc', content: 'the doc' } }],
+      },
+    ]);
+
+    expect(JSON.parse(renderPostJsonLine(post({ content }))).content).toEqual([
+      {
+        inline: [{ link: { href: 'https://x.test/doc', content: 'the doc' } }],
+      },
+    ]);
+    expect(extractPostText(content)).toBe('[the doc](https://x.test/doc)');
+  });
+
+  it('passes a blob string through and nulls an absent blob', () => {
+    const blob = JSON.stringify([
+      { type: 'file', version: 1, name: 'a.pdf', mimeType: 'application/pdf' },
+    ]);
+    expect(
+      JSON.parse(
+        renderPostJsonLine(post({ blob, content: JSON.stringify([]) }))
+      ).blob
+    ).toBe(blob);
+
+    const line = renderPostJsonLine({
+      id: 'post-2',
+      authorId: '~zod',
+      sentAt: 1724200000000,
+      parentId: null,
+      content: JSON.stringify([]),
+    } as never);
+    expect(line).toContain('"blob":null');
+  });
+});
+
+describe('renderPostListJsonLines', () => {
+  const jsonPosts = () =>
+    [4, 3, 2, 1].map(
+      (n) =>
+        ({
+          id: `post-${n}`,
+          authorId: '~zod',
+          sentAt: 1724200000000 + n,
+          parentId: null,
+          blob: null,
+          content: JSON.stringify([{ inline: [`body ${n}`] }]),
+        }) as never
+    );
+
+  it('emits one line per post in sentAt order', () => {
+    const lines = renderPostListJsonLines(jsonPosts());
+
+    expect(lines.map((line) => JSON.parse(line).id)).toEqual([
+      'post-1',
+      'post-2',
+      'post-3',
+      'post-4',
+    ]);
+    expect(lines.some((line) => line.includes('\n'))).toBe(false);
+  });
+
+  it('emits nothing for an empty batch and leaves the input order alone', () => {
+    expect(renderPostListJsonLines([])).toEqual([]);
+
+    const posts = jsonPosts();
+    renderPostListJsonLines(posts);
+    expect(posts.map((entry: never) => (entry as { id: string }).id)).toEqual([
+      'post-4',
+      'post-3',
+      'post-2',
+      'post-1',
     ]);
   });
 });
