@@ -5,6 +5,7 @@ import {
   isWorkspace,
   isWorkspaceConversation,
   isWorkspaceSetupComplete,
+  isWorkspaceSetupUnderway,
   readWorkspaceDescriptor,
   updateWorkspaceDescriptor,
   workspaceAgents,
@@ -83,8 +84,21 @@ describe('reading the descriptor', () => {
   test('reads setup status and agents', () => {
     const descriptor = readWorkspaceDescriptor(WORKSPACE);
     expect(isWorkspaceSetupComplete(descriptor)).toBe(false);
+    expect(isWorkspaceSetupUnderway(descriptor)).toBe(false);
     expect(workspaceAgents(descriptor)).toEqual(['~sampel-palnet']);
     expect(workspaceAgents(null)).toEqual([]);
+  });
+
+  // TASK-31: 'fired' means the setup conversation was scheduled and may
+  // still be running — the agent is working, and nothing may read that as
+  // either "complete" or "not started".
+  test('a fired setup reads as underway, not complete', () => {
+    const descriptor = readWorkspaceDescriptor(
+      group({ version: 1, kits: [{ ...ENTRY, setup: 'fired' }] })
+    );
+    expect(descriptor?.setup).toBe('fired');
+    expect(isWorkspaceSetupComplete(descriptor)).toBe(false);
+    expect(isWorkspaceSetupUnderway(descriptor)).toBe(true);
   });
 
   test('is null for a group that is not a workspace', () => {

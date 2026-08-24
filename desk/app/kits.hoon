@@ -94,11 +94,12 @@
   ^+  cor
   ?>  ?=(%kits-action-1 mark)
   =/  =action:v1:k  !<(action:v1:k vase)
-  ::  %setup-done may arrive from another ship — the harness runs on the
-  ::  agent's ship while the install ledger lives on the group host, so the
-  ::  agent's %kits relays it here. +setup-done checks the sender against
-  ::  the install's recorded agents; everything else stays local-only.
-  ?>  |(from-self ?=(%setup-done -.action))
+  ::  %setup-fired and %setup-done may arrive from another ship — the harness
+  ::  runs on the agent's ship while the install ledger lives on the group
+  ::  host, so the agent's %kits relays them here. The setup arms check the
+  ::  sender against the install's recorded agents; everything else stays
+  ::  local-only.
+  ?>  |(from-self ?=(?(%setup-fired %setup-done) -.action))
   ?-  -.action
       %add
     =.  kits  (~(put by kits) id.manifest.kit.action kit.action)
@@ -117,7 +118,8 @@
   ::
       %install    (install id.action name.action meta.action agent.action)
       %uninstall  (uninstall flag.action)
-      %setup-done  (setup-done flag.action)
+      %setup-fired  (setup-fired flag.action)
+      %setup-done   (setup-done flag.action)
   ==
 ::  +install: instantiate a group + places, write blob, record ledger
 ::
@@ -187,7 +189,34 @@
         %poke  group-action-5+!>(`a-groups:g`[%group flag %blob ~])
     ==
   (give %fact ~[/v1/updates] kits-update-1+!>(`update:v1:k`[%uninstalled flag]))
-::  +setup-done: the harness finished the setup conversation
+::  +setup-fired: the harness scheduled the setup conversation
+::
+::    The durable fire-once guard: a %fired install never re-fires setup
+::    across harness restarts, while readers can still tell "the agent is
+::    working" (%fired) from "the setup turn ran to completion" (%done).
+::    Same relay-and-accept shape as +setup-done. Only %pending advances to
+::    %fired — a late or duplicate fire never demotes %done.
+::
+++  setup-fired
+  |=  =flag:g
+  ^+  cor
+  ?.  =(our.bowl p.flag)
+    ?>  from-self
+    %-  emit
+    :*  %pass  /setup-fired/(scot %p p.flag)/[q.flag]
+        %agent  [p.flag %kits]
+        %poke  kits-action-1+!>(`action:v1:k`[%setup-fired flag])
+    ==
+  =/  ledger  (~(get by installs) flag)
+  ?~  ledger  cor
+  ?>  |(from-self (~(has in agents.u.ledger) src.bowl))
+  ?.  ?=(%pending setup.u.ledger)  cor
+  =/  =install:k  u.ledger
+  =.  setup.install  %fired
+  =.  installs  (~(put by installs) flag install)
+  =.  cor  (write-blob flag install)
+  (give %fact ~[/v1/updates] kits-update-1+!>(`update:v1:k`[%installed flag install]))
+::  +setup-done: the harness's setup turn ran to completion
 ::
 ::    The ledger entry lives on the ship that ran the install — the group
 ::    host — while the harness that finishes setup runs on the agent's ship.
@@ -310,6 +339,12 @@
     ?.  ?=(%poke-ack -.sign)  cor
     ?~  p.sign  cor
     %-  (slog leaf+"kits: setup-done relay {<t.wire>} failed" u.p.sign)
+    cor
+  ::
+      [%setup-fired @ @ ~]
+    ?.  ?=(%poke-ack -.sign)  cor
+    ?~  p.sign  cor
+    %-  (slog leaf+"kits: setup-fired relay {<t.wire>} failed" u.p.sign)
     cor
   ==
 ::  +place-slug: the channel name a place gets

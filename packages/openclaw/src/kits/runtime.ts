@@ -35,7 +35,12 @@ import {
   buildDesiredKitCronJobs,
   reconcileKitCronJobs,
 } from './schedules.js';
-import { type SetupDeps, maybeFireSetup } from './setup.js';
+import {
+  type SetupDeps,
+  handleSetupTurnProcessed,
+  maybeFireSetup,
+  rearmSetupCompletionWatches,
+} from './setup.js';
 
 /**
  * Feature gate: `channels.tlon.kits.enabled` (account overlay wins),
@@ -201,6 +206,11 @@ export type KitsRuntime = {
   handleBeforePromptBuild(
     ctx: PluginHookAgentContext
   ): Promise<PluginHookBeforePromptBuildResult | void>;
+  /** A turn finished; closes out a watched setup session (%fired → %done). */
+  handleMessageProcessed(event: {
+    sessionKey?: string;
+    channel?: string;
+  }): Promise<void>;
   stop(): void;
 };
 
@@ -363,6 +373,15 @@ export function createKitsRuntime(deps: KitsRuntimeDeps): KitsRuntime {
           );
         }
       }
+      // An entry still reading %fired fired its setup turn in an earlier
+      // process life; watch its session so the turn's completion (or the
+      // next kit turn there) closes it out to %done.
+      rearmSetupCompletionWatches({
+        groupFlag,
+        entries: pairs.map((pair) => pair.entry),
+        botShip: deps.botShip,
+        resolveGroupSessionRoute: deps.resolveGroupSessionRoute,
+      });
       desired.push(
         ...buildDesiredKitCronJobs({
           groupFlag,
@@ -465,6 +484,19 @@ export function createKitsRuntime(deps: KitsRuntimeDeps): KitsRuntime {
       );
     },
 
+    async handleMessageProcessed(event: {
+      sessionKey?: string;
+      channel?: string;
+    }): Promise<void> {
+      await handleSetupTurnProcessed({
+        sessionKey: event.sessionKey,
+        channel: event.channel,
+        poke: deps.poke,
+        log,
+        error,
+      });
+    },
+
     async handleBeforePromptBuild(
       ctx: PluginHookAgentContext
     ): Promise<PluginHookBeforePromptBuildResult | void> {
@@ -531,6 +563,21 @@ export function unpublishKitsRuntime(runtime: KitsRuntime): void {
  * `before_prompt_build` trampoline for the plugin entry. No-op until a
  * monitor with kits enabled has published its runtime.
  */
+/**
+ * `message.processed` trampoline for the plugin entry. No-op until a monitor
+ * with kits enabled has published its runtime.
+ */
+export async function handleKitsMessageProcessed(event: {
+  sessionKey?: string;
+  channel?: string;
+}): Promise<void> {
+  const runtime = kitsRuntimeSlot.get();
+  if (!runtime) {
+    return;
+  }
+  await runtime.handleMessageProcessed(event);
+}
+
 export async function handleKitsBeforePromptBuild(
   ctx: PluginHookAgentContext
 ): Promise<PluginHookBeforePromptBuildResult | void> {

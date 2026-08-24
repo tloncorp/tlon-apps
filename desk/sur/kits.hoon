@@ -92,7 +92,10 @@
       ::  different ship from the installer — a moon in production — so it
       ::  cannot be derived from `our` at write time.
       agents=(set @p)
-      setup=?(%pending %done)
+      ::  %pending: setup has not been initiated; %fired: the setup
+      ::  conversation was scheduled and may still be running; %done: the
+      ::  setup turn ran to completion
+      setup=?(%pending %fired %done)
       installed=@da
   ==
 ::  $action: inbound pokes
@@ -103,7 +106,9 @@
 ::    %install: instantiate — create a group + places, write the
 ::            group blob config, record the ledger
 ::    %uninstall: clear the blob config and drop the ledger entry
-::    %setup-done: the harness finished the setup conversation
+::    %setup-fired: the harness scheduled the setup conversation; the
+::            durable fire-once guard (a %fired install never re-fires)
+::    %setup-done: the harness's setup turn ran to completion
 ::
 +$  action
   $%  [%add =kit]
@@ -114,6 +119,7 @@
       ::  authenticates as the installing ship.
       [%install =id name=term meta=data:meta agent=(unit @p)]
       [%uninstall =flag:g]
+      [%setup-fired =flag:g]
       [%setup-done =flag:g]
   ==
 ::  $update: facts + scry results

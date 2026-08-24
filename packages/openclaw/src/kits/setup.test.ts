@@ -2,7 +2,14 @@ import type { Kit } from '@tloncorp/api';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { InstalledKitConfig } from './group-config.js';
-import { _testing, maybeFireSetup, shouldFireSetup } from './setup.js';
+import {
+  _testing,
+  handleSetupTurnProcessed,
+  maybeFireSetup,
+  rearmSetupCompletionWatches,
+  shouldFireSetup,
+  watchSetupCompletion,
+} from './setup.js';
 
 const GROUP = '~zod/book-club';
 const BOT = '~zod';
@@ -66,6 +73,7 @@ function makeDeps() {
 
 beforeEach(() => {
   _testing.clearFired();
+  _testing.clearCompletionWatch();
 });
 
 describe('shouldFireSetup', () => {
@@ -98,7 +106,7 @@ describe('shouldFireSetup', () => {
 });
 
 describe('maybeFireSetup', () => {
-  it('schedules the setup turn and pokes setup-done', async () => {
+  it('schedules the setup turn, pokes setup-fired, and arms the completion watch', async () => {
     const deps = makeDeps();
     const fired = await maybeFireSetup({
       groupFlag: GROUP,
@@ -122,11 +130,14 @@ describe('maybeFireSetup', () => {
     expect(job.payload.message).toContain(GROUP);
     expect(job.payload.message).toContain('discussion → chat/~zod/discussion');
 
+    // Scheduling is *firing*, not completion — the ship's marker moves to
+    // %fired, and %done waits for the turn's message.processed event.
     expect(deps.poke).toHaveBeenCalledWith({
       app: 'kits',
       mark: 'kits-action-1',
-      json: { 'setup-done': { flag: GROUP } },
+      json: { 'setup-fired': { flag: GROUP } },
     });
+    expect(_testing.watchedFlag('session:chat/~zod/discussion')).toBe(GROUP);
   });
 
   it('fires exactly once per install (double-fire guard)', async () => {
@@ -194,7 +205,7 @@ describe('maybeFireSetup', () => {
     ).toBe(true);
   });
 
-  it('survives a failing setup-done poke', async () => {
+  it('survives a failing setup-fired poke', async () => {
     const deps = makeDeps();
     deps.poke.mockRejectedValue(new Error('nack'));
     const fired = await maybeFireSetup({
@@ -205,7 +216,79 @@ describe('maybeFireSetup', () => {
     });
     expect(fired).toBe(true);
     expect(deps.error).toHaveBeenCalledWith(
-      expect.stringContaining('setup-done poke failed')
+      expect.stringContaining('setup-fired poke failed')
     );
+  });
+});
+
+describe('setup completion (%fired → %done)', () => {
+  const SESSION = 'agent:main:tlon:group:chat/~zod/discussion';
+
+  it("marks setup done when the watched session's cron turn completes", async () => {
+    const poke = vi.fn().mockResolvedValue(undefined);
+    watchSetupCompletion(SESSION, GROUP);
+    const marked = await handleSetupTurnProcessed({
+      sessionKey: `${SESSION}:thread:123`,
+      channel: 'cron',
+      poke,
+    });
+    expect(marked).toBe(true);
+    expect(poke).toHaveBeenCalledWith({
+      app: 'kits',
+      mark: 'kits-action-1',
+      json: { 'setup-done': { flag: GROUP } },
+    });
+    // one-shot: the watch is consumed
+    expect(_testing.watchedFlag(SESSION)).toBeUndefined();
+  });
+
+  it('ignores other sessions and non-cron turns', async () => {
+    const poke = vi.fn().mockResolvedValue(undefined);
+    watchSetupCompletion(SESSION, GROUP);
+    // a human chatting in the watched session must not complete setup
+    expect(
+      await handleSetupTurnProcessed({
+        sessionKey: SESSION,
+        channel: 'tlon',
+        poke,
+      })
+    ).toBe(false);
+    expect(
+      await handleSetupTurnProcessed({
+        sessionKey: 'agent:main:tlon:group:chat/~zod/other',
+        channel: 'cron',
+        poke,
+      })
+    ).toBe(false);
+    expect(poke).not.toHaveBeenCalled();
+    expect(_testing.watchedFlag(SESSION)).toBe(GROUP);
+  });
+
+  it('re-arms the watch when the done poke fails, so the ledger can retry', async () => {
+    const poke = vi.fn().mockRejectedValue(new Error('nack'));
+    watchSetupCompletion(SESSION, GROUP);
+    const marked = await handleSetupTurnProcessed({
+      sessionKey: SESSION,
+      channel: 'cron',
+      poke,
+    });
+    expect(marked).toBe(false);
+    expect(_testing.watchedFlag(SESSION)).toBe(GROUP);
+  });
+
+  // A restart between fire and completion loses the in-memory watch; the
+  // ledger's %fired entries are the durable record it rebuilds from.
+  it('re-arms watches from fired ledger entries on reconcile', () => {
+    rearmSetupCompletionWatches({
+      groupFlag: GROUP,
+      entries: [
+        makeEntry({ setup: 'fired' }),
+        makeEntry({ installId: 'other-1', setup: 'done' }),
+        makeEntry({ installId: 'foreign-1', setup: 'fired', agents: ['~nec'] }),
+      ],
+      botShip: BOT,
+      resolveGroupSessionRoute: (nest) => ({ sessionKey: `s:${nest}` }),
+    });
+    expect(_testing.watchedFlag('s:chat/~zod/discussion')).toBe(GROUP);
   });
 });

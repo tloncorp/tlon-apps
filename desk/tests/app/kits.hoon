@@ -314,6 +314,114 @@
     (do-poke %kits-action-1 !>(`action:v1:k`[%setup-done club-flag]))
   (ex-cards caz ~)
 ::
+::  TASK-31: %setup-fired is the durable fire-once guard — it relays to the
+::  host like %setup-done does
+::
+++  test-setup-fired-relays-to-the-host
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  =/  foreign  `flag:g`[pub-ship %summer-club]
+  ;<  caz=(list card)  bind:m
+    (do-poke %kits-action-1 !>(`action:v1:k`[%setup-fired foreign]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /setup-fired/(scot %p pub-ship)/summer-club
+          [pub-ship %kits]
+          %kits-action-1
+          !>(`action:v1:k`[%setup-fired foreign])
+      ==
+  ==
+::
+::  the host advances %pending to %fired for the seated agent and rewrites
+::  the blob, so every reader can tell "the agent is working" from "done"
+::
+++  test-setup-fired-marks-fired
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  do-add
+  ;<  *  bind:m  do-install
+  ;<  caz=(list card)  bind:m
+    %-  (do-as bot-ship)
+    (do-poke %kits-action-1 !>(`action:v1:k`[%setup-fired club-flag]))
+  =/  fired=install:k  fix-install
+  =.  setup.fired  %fired
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /install/blob/summer-club
+          [our-ship %groups]
+          %group-action-5
+          !>(`a-groups:g`[%group club-flag %blob `(config-cord fired)])
+      ==
+      %-  ex-fact
+      :*  ~[/v1/updates]
+          %kits-update-1
+          !>(`update:v1:k`[%installed club-flag fired])
+      ==
+  ==
+::
+::  and %fired is terminal-safe in both directions: the %fired → %done edge
+::  works, and a late %setup-fired never demotes a %done install
+::
+++  test-setup-done-from-fired
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  do-add
+  ;<  *  bind:m  do-install
+  ;<  *  bind:m
+    %-  (do-as bot-ship)
+    (do-poke %kits-action-1 !>(`action:v1:k`[%setup-fired club-flag]))
+  ;<  caz=(list card)  bind:m
+    %-  (do-as bot-ship)
+    (do-poke %kits-action-1 !>(`action:v1:k`[%setup-done club-flag]))
+  =/  done=install:k  fix-install
+  =.  setup.done  %done
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /install/blob/summer-club
+          [our-ship %groups]
+          %group-action-5
+          !>(`a-groups:g`[%group club-flag %blob `(config-cord done)])
+      ==
+      %-  ex-fact
+      :*  ~[/v1/updates]
+          %kits-update-1
+          !>(`update:v1:k`[%installed club-flag done])
+      ==
+  ==
+::
+++  test-setup-fired-never-demotes-done
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  do-add
+  ;<  *  bind:m  do-install
+  ;<  *  bind:m
+    (do-poke %kits-action-1 !>(`action:v1:k`[%setup-done club-flag]))
+  ;<  caz=(list card)  bind:m
+    %-  (do-as bot-ship)
+    (do-poke %kits-action-1 !>(`action:v1:k`[%setup-fired club-flag]))
+  (ex-cards caz ~)
+::
+::  a ship the install does not seat cannot fire setup either
+::
+++  test-setup-fired-rejects-a-stranger
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  do-add
+  ;<  *  bind:m  do-install
+  %-  ex-fail
+  %-  (do-as ~nec)
+  (do-poke %kits-action-1 !>(`action:v1:k`[%setup-fired club-flag]))
+::
 ::  opening the poke gate for %setup-done must not open it for anything
 ::  else — a remote %add is still refused
 ::

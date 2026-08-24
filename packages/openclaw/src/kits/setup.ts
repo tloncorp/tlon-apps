@@ -1,13 +1,15 @@
 /**
  * Kit setup conversation: when a group's install config shows
  * `setup: "pending"`, enqueue a synthetic turn carrying the kit's
- * `install.setup`-triggered instruction into the primary place's session,
- * then poke `setup-done` so the config flips to `"done"`.
+ * `install.setup`-triggered instruction into the primary place's session.
  *
- * v1 semantics are fire-once: a sharedMap keyed by group+installId guards
- * against double-fire inside this process (the `setup-done` poke closes the
- * loop durably on the ship). Setup only fires when the bot's ship is listed
- * in the config's `agents`.
+ * The lifecycle is three-state (TASK-31). Scheduling the turn pokes
+ * `setup-fired` — the durable fire-once guard on the ship, so a restart
+ * never replays setup — and a completion watch pokes `setup-done` when the
+ * turn's `message.processed` event arrives, so `done` genuinely means the
+ * setup turn ran to completion. A sharedMap keyed by group+installId
+ * additionally guards against double-fire inside this process. Setup only
+ * fires when the bot's ship is listed in the config's `agents`.
  */
 import type { Kit } from '@tloncorp/api';
 
@@ -149,22 +151,121 @@ export async function maybeFireSetup(params: {
     }
   }
 
+  // A scheduled turn is *fired*, not done — %fired is the durable fire-once
+  // guard on the ship, and the completion watch below flips it to %done when
+  // the turn actually finishes. A kit with no setup binding has no turn to
+  // wait for, so it goes straight to done.
+  const marker = fired ? 'setup-fired' : 'setup-done';
   try {
     await deps.poke({
       app: 'kits',
       mark: 'kits-action-1',
-      json: { 'setup-done': { flag: groupFlag } },
+      json: { [marker]: { flag: groupFlag } },
     });
   } catch (err) {
     deps.error?.(
-      `[tlon] kits: setup-done poke failed for ${groupFlag}: ${String(err)}`
+      `[tlon] kits: ${marker} poke failed for ${groupFlag}: ${String(err)}`
     );
   }
+  if (fired && route) {
+    watchSetupCompletion(route.sessionKey, groupFlag);
+  }
   return fired;
+}
+
+// ---------------------------------------------------------------------------
+// Completion: %fired → %done when the setup turn actually finishes
+// ---------------------------------------------------------------------------
+
+//  sessionKey → groupFlag for setups that have fired but not completed. The
+//  ship's ledger is the durable record: a restart between fire and completion
+//  re-arms these from any entry still reading `setup: "fired"` (see
+//  +rearmSetupCompletionWatches), so nothing here needs its own persistence.
+const setupCompletionWatch = sharedMap<string, string>(
+  'kits.setupCompletionWatch'
+);
+
+export function watchSetupCompletion(
+  sessionKey: string,
+  groupFlag: string
+): void {
+  setupCompletionWatch.set(sessionKey, groupFlag);
+}
+
+/**
+ * Re-arm completion watches from the ship's ledger. An entry still reading
+ * `setup: "fired"` fired its turn in some earlier process life; watch its
+ * session so the next completed kit turn there closes it out.
+ */
+export function rearmSetupCompletionWatches(params: {
+  groupFlag: string;
+  entries: InstalledKitConfig[];
+  botShip: string;
+  resolveGroupSessionRoute: SetupDeps['resolveGroupSessionRoute'];
+}): void {
+  const { groupFlag, entries, botShip, resolveGroupSessionRoute } = params;
+  for (const entry of entries) {
+    if (entry.setup !== 'fired' || !entry.agents.includes(botShip)) {
+      continue;
+    }
+    const nest = resolvePrimaryPlaceNest(entry.places);
+    const route = nest ? resolveGroupSessionRoute(nest) : null;
+    if (route) {
+      watchSetupCompletion(route.sessionKey, groupFlag);
+    }
+  }
+}
+
+/**
+ * A turn finished somewhere; if it was a watched setup session's kit turn,
+ * mark the setup done on the ship. Only cron-delivered turns count — the kit
+ * setup runs as a one-shot cron job, and a human chatting in the same
+ * session must not complete a setup that has not run. The outcome field is
+ * deliberately ignored: the cron delivery sink can report an error after all
+ * the turn's work landed, and "the turn finished executing" is what %done
+ * means; delivery-sink health is a separate concern.
+ */
+export async function handleSetupTurnProcessed(params: {
+  sessionKey: string | undefined;
+  channel: string | undefined;
+  poke: SetupDeps['poke'];
+  log?: (msg: string) => void;
+  error?: (msg: string) => void;
+}): Promise<boolean> {
+  const { sessionKey, channel, poke, log, error } = params;
+  if (!sessionKey || channel !== 'cron') {
+    return false;
+  }
+  const thread = sessionKey.indexOf(':thread:');
+  const bare = thread > 0 ? sessionKey.slice(0, thread) : sessionKey;
+  const groupFlag = setupCompletionWatch.get(bare);
+  if (!groupFlag) {
+    return false;
+  }
+  setupCompletionWatch.delete(bare);
+  try {
+    await poke({
+      app: 'kits',
+      mark: 'kits-action-1',
+      json: { 'setup-done': { flag: groupFlag } },
+    });
+    log?.(`[tlon] kits: setup turn completed for ${groupFlag}; marked done`);
+    return true;
+  } catch (err) {
+    // Leave it to the ledger: setup stays %fired, the next reconcile re-arms
+    // this watch, and the next kit turn in the session retries the mark.
+    setupCompletionWatch.set(bare, groupFlag);
+    error?.(
+      `[tlon] kits: setup-done poke failed for ${groupFlag}: ${String(err)}`
+    );
+    return false;
+  }
 }
 
 export const _testing = {
   clearFired: () => setupFired.clear(),
   markFired: (groupFlag: string, installId: string) =>
     setupFired.set(setupFireKey(groupFlag, installId), Date.now()),
+  clearCompletionWatch: () => setupCompletionWatch.clear(),
+  watchedFlag: (sessionKey: string) => setupCompletionWatch.get(sessionKey),
 };

@@ -420,7 +420,7 @@ describe('start / setup integration', () => {
     expect(setupJobs[0].payload.message).toContain('# Setup');
     expect(poke).toHaveBeenCalledWith(
       expect.objectContaining({
-        json: { 'setup-done': { flag: GROUP } },
+        json: { 'setup-fired': { flag: GROUP } },
       })
     );
   });

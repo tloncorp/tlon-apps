@@ -35,7 +35,10 @@ import {
 } from './src/diagnostic-subscriptions.js';
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
-import { handleKitsBeforePromptBuild } from './src/kits/runtime.js';
+import {
+  handleKitsBeforePromptBuild,
+  handleKitsMessageProcessed,
+} from './src/kits/runtime.js';
 import {
   createMigrateCommandHandler,
   routeMigrateCommand,
@@ -1009,6 +1012,33 @@ export default defineBundledChannelEntry({
         return undefined;
       }
     });
+
+    // ── Kits: setup completion ──────────────────────────────────────────
+    // A kit's setup turn runs as a one-shot cron job; its `message.processed`
+    // diagnostic event is what flips the install's setup marker from %fired
+    // to %done on the ship (TASK-31). Same shared-slot trampoline as the
+    // prompt hook: a no-op until the monitor publishes the kits runtime.
+    {
+      const unsubscribeKitsCompletion = onDiagnosticEvent((event) => {
+        const candidate = event as unknown as {
+          type?: string;
+          sessionKey?: string;
+          channel?: string;
+        };
+        if (candidate.type !== 'message.processed') {
+          return;
+        }
+        void handleKitsMessageProcessed({
+          sessionKey: candidate.sessionKey,
+          channel: candidate.channel,
+        }).catch((error) => {
+          api.logger.warn(
+            `[tlon] kits setup-completion handling failed: ${String(error)}`
+          );
+        });
+      });
+      api.on('gateway_stop', unsubscribeKitsCompletion);
+    }
 
     // Tool access control: block sensitive tools for non-owners
     const ownerOnlyTools = new Set(['tlon', 'cron', 'read']);

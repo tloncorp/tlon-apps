@@ -93,6 +93,17 @@ export function isWorkspaceSetupComplete(
   return descriptor?.setup === 'done';
 }
 
+/**
+ * Is the setup conversation scheduled but not yet finished? The agent is
+ * working; an empty conversation in this state deserves "in progress", not
+ * "nothing here".
+ */
+export function isWorkspaceSetupUnderway(
+  descriptor: WorkspaceDescriptor | null | undefined
+): boolean {
+  return descriptor?.setup === 'fired';
+}
+
 /** Which ships' agents may execute this workspace's kit. */
 export function workspaceAgents(
   descriptor: WorkspaceDescriptor | null | undefined

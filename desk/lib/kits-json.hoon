@@ -222,6 +222,7 @@
             agent+(mu (se %p))
         ==
         [%uninstall (ot ~[flag+fl])]
+        [%setup-fired (ot ~[flag+fl])]
         [%setup-done (ot ~[flag+fl])]
     ==
   --

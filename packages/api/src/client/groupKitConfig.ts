@@ -87,7 +87,11 @@ export const groupKitEntrySchema = z
     // readers used to disagree here — openclaw defaulted "done" and the client
     // "pending" — which meant the same malformed blob both suppressed setup and
     // displayed it as outstanding.
-    setup: z.enum(['pending', 'done']).catch('done').default('done'),
+    // 'fired' = the setup conversation was scheduled and may still be
+    // running; 'done' now genuinely means the setup turn ran to completion.
+    // Unknown values still collapse to 'done' so a newer descriptor can
+    // never re-fire setup on an older harness.
+    setup: z.enum(['pending', 'fired', 'done']).catch('done').default('done'),
     // What the executing agent is allowed to do here. Deliberately loose
     // strings, not an enum: a descriptor written by a newer client is a normal
     // input, and an unrecognized capability must read as "not granted" rather
