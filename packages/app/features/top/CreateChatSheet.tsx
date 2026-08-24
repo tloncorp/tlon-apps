@@ -335,6 +335,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
+      if (!open && submitInFlightRef.current) return;
       if (!open) {
         setStep('initial');
         setSelectedTemplateId(undefined);
@@ -387,6 +388,8 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
           setSelectedTemplateId(undefined);
           setGroupTitle(undefined);
           setSelectedContactIds([]);
+        } else if (params.type === 'agent') {
+          setStep('selectType');
         }
       } finally {
         submitInFlightRef.current = false;
@@ -401,6 +404,7 @@ export const CreateChatSheet = forwardRef(function CreateChatSheet(
         option: type,
       });
       if (type === 'agent') {
+        setStep('createAgent');
         void handleSubmit({ type: 'agent' });
       } else if (type === 'group') {
         setStep('selectGroupType');
@@ -738,7 +742,7 @@ function useCreateChat() {
                   error
                 );
                 void retryLaterAgentGroupStanding({
-                  agentShipId: completed.agentShipId,
+                  agentShipId: AGENT_SHIP_OVERRIDE || undefined,
                   groupId: completed.group.id,
                   ownerId: api.getCurrentUserId(),
                 });
@@ -793,7 +797,7 @@ async function retryLaterAgentGroupStanding({
   groupId,
   ownerId,
 }: {
-  agentShipId: string;
+  agentShipId?: string;
   groupId: string;
   ownerId: string;
 }) {
