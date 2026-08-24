@@ -495,7 +495,6 @@ export function StaticChatMessage({
     },
     [
       a2uiActionCompletion?.sentMessageText,
-      a2uiActionCompletion?.sentMessageTexts,
       provisionedAgentTopics,
     ]
   );

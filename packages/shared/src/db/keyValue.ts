@@ -201,6 +201,7 @@ export const agentEntryFirstOpened = createStorageItem<Record<string, boolean>>(
   {
     key: 'agentEntryFirstOpened',
     defaultValue: {},
+    persistAfterLogout: true,
   }
 );
 
