@@ -1,13 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
+import { queryClient } from '../db/reactQuery';
 import {
-  BOT_REPLY_FEEDBACK_RETENTION_MS,
+  getBotReplyFeedbackQueryKey,
   getBotReplyMessageId,
-  getFreshBotReplyFeedback,
   sanitizeBotReplyFeedbackText,
+  setCachedBotReplyFeedback,
 } from './botReplyFeedback';
 
 const BOT_SHIP = '~botnul-banpex-ravseg-nosduc';
+
+afterEach(() => {
+  queryClient.clear();
+});
 
 describe('getBotReplyMessageId', () => {
   it.each([
@@ -21,27 +26,35 @@ describe('getBotReplyMessageId', () => {
   });
 });
 
-describe('getFreshBotReplyFeedback', () => {
-  it('drops entries older than the feedback retention window', () => {
-    const now = 2 * BOT_REPLY_FEEDBACK_RETENTION_MS;
-    const base = {
-      feedbackId: 'feedback-id',
+describe('bot reply feedback query cache', () => {
+  it('updates only the targeted message', () => {
+    const first = {
+      messageId: '~bot/first',
+      postId: 'first',
+      feedbackId: 'feedback-first',
       revision: 1,
       rating: 'up' as const,
       categories: [],
+      submittedAt: 1,
     };
-    const fresh = {
-      ...base,
-      messageId: '~bot/fresh',
-      submittedAt: now - BOT_REPLY_FEEDBACK_RETENTION_MS,
-    };
-    const expired = {
-      ...base,
-      messageId: '~bot/expired',
-      submittedAt: fresh.submittedAt - 1,
+    const second = {
+      ...first,
+      messageId: '~bot/second',
+      postId: 'second',
+      feedbackId: 'feedback-second',
+      rating: 'down' as const,
     };
 
-    expect(getFreshBotReplyFeedback([fresh, expired], now)).toEqual([fresh]);
+    setCachedBotReplyFeedback(first.messageId, first);
+    setCachedBotReplyFeedback(second.messageId, second);
+    setCachedBotReplyFeedback(first.messageId, null);
+
+    expect(
+      queryClient.getQueryData(getBotReplyFeedbackQueryKey(first.messageId))
+    ).toBeNull();
+    expect(
+      queryClient.getQueryData(getBotReplyFeedbackQueryKey(second.messageId))
+    ).toEqual(second);
   });
 });
 

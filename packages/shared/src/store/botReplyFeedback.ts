@@ -23,7 +23,6 @@ const LINK_PATTERN =
   /\b(?:[a-z][a-z0-9+.-]*:\/\/|www\.)[^\s<>()]+[^\s<>().,!?;:'"]/gi;
 const AT_MENTION_PATTERN = /(^|[^A-Za-z0-9_])@[A-Za-z0-9][A-Za-z0-9._-]*/g;
 const SHIP_MENTION_PATTERN = /(^|[^A-Za-z0-9_])~[a-z][a-z-]{2,}/g;
-export const BOT_REPLY_FEEDBACK_RETENTION_MS = 90 * 24 * 60 * 60 * 1_000;
 
 export type MandatoryEventCapture = (event: {
   eventId: string;
@@ -75,12 +74,15 @@ export function toCachedBotReplyFeedback(
   );
 }
 
-export function getFreshBotReplyFeedback(
-  entries: BotReplyFeedbackSetting[],
-  now = Date.now()
+export function getBotReplyFeedbackQueryKey(messageId: string) {
+  return ['botReplyFeedback', messageId] as const;
+}
+
+export function setCachedBotReplyFeedback(
+  messageId: string,
+  entry: db.BotReplyFeedback | null
 ) {
-  const cutoff = now - BOT_REPLY_FEEDBACK_RETENTION_MS;
-  return entries.filter((entry) => entry.submittedAt >= cutoff);
+  db.queryClient.setQueryData(getBotReplyFeedbackQueryKey(messageId), entry);
 }
 
 async function getFeedbackAnalyticsContext(post: db.Post) {
@@ -138,7 +140,9 @@ async function persistFeedbackEntry(
 ) {
   const messageId = getBotReplyMessageId(post);
   const previous = await db.getBotReplyFeedback(messageId);
-  await db.upsertBotReplyFeedback(toCachedEntry(post.id, messageId, entry));
+  const next = toCachedEntry(post.id, messageId, entry);
+  await db.upsertBotReplyFeedback(next);
+  setCachedBotReplyFeedback(messageId, next);
   try {
     await api.setBotReplyFeedback(messageId, entry);
   } catch (error) {
@@ -147,6 +151,7 @@ async function persistFeedbackEntry(
     } else {
       await db.deleteBotReplyFeedback(messageId);
     }
+    setCachedBotReplyFeedback(messageId, previous);
     throw error;
   }
 }

@@ -24,8 +24,8 @@ import {
 } from '../../store/useActivityFetchers';
 import { persistUnreads } from '../activityActions';
 import {
-  getFreshBotReplyFeedback,
   getPostIdFromBotReplyMessageId,
+  setCachedBotReplyFeedback,
   toCachedBotReplyFeedback,
 } from '../botReplyFeedback';
 import { createBatchHandler, createHandler } from '../bufferedSubscription';
@@ -516,26 +516,10 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   await db.dismissedPinnedPostBannerIds.setValue(
     result.dismissedPinnedPostBannerIds
   );
-  const freshBotReplyFeedback = getFreshBotReplyFeedback(
-    result.botReplyFeedback
-  );
   await db.replaceBotReplyFeedback(
-    freshBotReplyFeedback.map(toCachedBotReplyFeedback)
+    result.botReplyFeedback.map(toCachedBotReplyFeedback)
   );
-
-  const freshMessageIds = new Set(
-    freshBotReplyFeedback.map((entry) => entry.messageId)
-  );
-  const expiredMessageIds = result.botReplyFeedback
-    .filter((entry) => !freshMessageIds.has(entry.messageId))
-    .map((entry) => entry.messageId);
-  if (expiredMessageIds.length > 0) {
-    await Promise.allSettled(
-      expiredMessageIds.map((messageId) =>
-        api.deleteBotReplyFeedback(messageId)
-      )
-    );
-  }
+  await queryClient.invalidateQueries({ queryKey: ['botReplyFeedback'] });
 
   if (result.pendingMemberDismissals?.length) {
     await db.insertPendingMemberDismissals({
@@ -1655,16 +1639,16 @@ export const handleSettingsUpdate = async (
       break;
     case 'botReplyFeedback':
       if (update.entry) {
-        await db.upsertBotReplyFeedback(
-          {
-            messageId: update.messageId,
-            postId: getPostIdFromBotReplyMessageId(update.messageId),
-            ...update.entry,
-          },
-          ctx
-        );
+        const cachedEntry = {
+          messageId: update.messageId,
+          postId: getPostIdFromBotReplyMessageId(update.messageId),
+          ...update.entry,
+        };
+        await db.upsertBotReplyFeedback(cachedEntry, ctx);
+        setCachedBotReplyFeedback(update.messageId, cachedEntry);
       } else {
         await db.deleteBotReplyFeedback(update.messageId, ctx);
+        setCachedBotReplyFeedback(update.messageId, null);
       }
       break;
   }

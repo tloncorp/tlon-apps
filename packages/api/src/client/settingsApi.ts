@@ -104,20 +104,6 @@ export async function setBotReplyFeedback(
   });
 }
 
-export async function deleteBotReplyFeedback(messageId: string) {
-  return poke({
-    app: 'settings',
-    mark: 'settings-event',
-    json: {
-      'del-entry': {
-        desk: 'groups',
-        'bucket-key': BOT_REPLY_FEEDBACK_BUCKET,
-        'entry-key': messageId,
-      },
-    },
-  });
-}
-
 export function getMessagesFilter(
   value: string | null | undefined
 ): ub.TalkSidebarFilter {
