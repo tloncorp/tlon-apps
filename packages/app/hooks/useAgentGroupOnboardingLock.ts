@@ -27,3 +27,13 @@ export function useAgentGroupOnboardingLock(groupId?: string | null) {
     marker,
   };
 }
+
+export function useAnyAgentGroupOnboardingLock() {
+  const { value: locks, isLoading } =
+    db.agentGroupOnboardingLocks.useStorageItem();
+
+  return {
+    isLoading,
+    locked: Object.values(locks).some(isAgentGroupNavigationLocked),
+  };
+}
