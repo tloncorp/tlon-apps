@@ -208,6 +208,12 @@ export const agentGroupOnboardingLocks = createStorageItem<
   defaultValue: {},
 });
 
+/** New agent group whose owner-side setup has not yet reached its chat. */
+export const pendingAgentGroupCreation = createStorageItem<string | null>({
+  key: 'pendingAgentGroupCreation',
+  defaultValue: null,
+});
+
 export const didClearPreviousInstall = createStorageItem<boolean>({
   key: 'didClearPreviousInstall',
   defaultValue: false,

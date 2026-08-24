@@ -255,6 +255,9 @@ export function StaticChatMessage({
       }
 
       if (action.event.name === A2UI.action.provisionAgent) {
+        if (!draftInputContext || draftInputContext.canStartDraft === false) {
+          throw new Error('This channel is not ready to send messages');
+        }
         const timezone =
           Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
         await sendAgentProvision({ ...action.event.context, timezone });
@@ -329,6 +332,7 @@ export function StaticChatMessage({
         // canonical channel table above.
         return Boolean(
           draftInputContext &&
+          draftInputContext.canStartDraft !== false &&
           groupId &&
           currentGroup?.id === groupId &&
           action.event.context.groupId === groupId

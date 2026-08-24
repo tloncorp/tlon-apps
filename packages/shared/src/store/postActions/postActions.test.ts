@@ -183,6 +183,14 @@ describe('sendPost', () => {
     });
   });
 
+  test('interactive sends reject when the channel is missing', async () => {
+    await expect(
+      finalizeAndSendPost(buildTestDraft({ channelId: 'missing-channel' }), {
+        throwOnFailure: true,
+      })
+    ).rejects.toThrow('channel missing-channel is missing');
+  });
+
   test('tracks whether a sent post is going to a bot DM', async () => {
     const botDmId = '~pinser-botter-sampel';
     const capture = vi.fn();
@@ -375,16 +383,6 @@ describe('finalizeAndSendPost', () => {
       deliveryStatus: 'pending',
     });
     cleanup.mockRestore();
-  });
-
-  test('rejects a missing channel for one-shot controls', async () => {
-    const missingChannel = '~zod/missing';
-
-    await expect(
-      finalizeAndSendPost(buildTestDraft({ channelId: missingChannel }), {
-        rejectOnDefinitiveFailure: true,
-      })
-    ).rejects.toThrow(`channel ${missingChannel} was not found`);
   });
 
   test('tracks completion when a failed send succeeds on retry', async () => {
