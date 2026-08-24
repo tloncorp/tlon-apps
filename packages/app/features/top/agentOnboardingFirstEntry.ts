@@ -5,30 +5,37 @@ import {
 } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 
-/**
- * The coordinator marks completion once per channel.
- */
-export function hasAgentOnboardingFirstEntry(
-  posts: db.Post[] | null | undefined
-): boolean {
+function hasMarker(
+  posts: db.Post[] | null | undefined,
+  agentShipId: string | null | undefined,
+  key: string
+) {
+  if (!agentShipId) return false;
   return Boolean(
     posts?.some(
       (post) =>
-        findPostBlobEntry(post.blob, 'tlon-agent-post-marker')?.key ===
-        AGENT_ONBOARDING_FIRST_ENTRY_MARKER
+        post.authorId === agentShipId &&
+        findPostBlobEntry(post.blob, 'tlon-agent-post-marker')?.key === key
     )
   );
 }
 
+/** The coordinator marks completion once per channel. */
+export function hasAgentOnboardingFirstEntry(
+  posts: db.Post[] | null | undefined,
+  agentShipId: string | null | undefined
+): boolean {
+  return hasMarker(posts, agentShipId, AGENT_ONBOARDING_FIRST_ENTRY_MARKER);
+}
+
 /** A failed initial cron run is terminal for the setup activity indicator. */
 export function hasAgentOnboardingFirstEntryFailed(
-  posts: db.Post[] | null | undefined
+  posts: db.Post[] | null | undefined,
+  agentShipId: string | null | undefined
 ): boolean {
-  return Boolean(
-    posts?.some(
-      (post) =>
-        findPostBlobEntry(post.blob, 'tlon-agent-post-marker')?.key ===
-        AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER
-    )
+  return hasMarker(
+    posts,
+    agentShipId,
+    AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER
   );
 }
