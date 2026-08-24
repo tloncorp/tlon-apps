@@ -411,10 +411,23 @@ export async function scanAgentOnboardingChannel(
     ownerRequests
       .filter((candidate) => candidate.request.type === type)
       .sort((a, b) => b.entry.timestamp - a.entry.timestamp)[0];
+  const newestProvision = newest('tlon-agent-provision');
+  const newestProvisionId =
+    newestProvision?.request.type === 'tlon-agent-provision'
+      ? newestProvision.request.provisionId
+      : null;
+  const newestProviderConfig = ownerRequests
+    .filter(
+      (candidate) =>
+        candidate.request.type === 'tlon-agent-provider-config' &&
+        (!newestProvisionId ||
+          candidate.request.provisionId === newestProvisionId)
+    )
+    .sort((a, b) => b.entry.timestamp - a.entry.timestamp)[0];
   const requests = [
     newest('tlon-agent-intro-request'),
-    newest('tlon-agent-provision'),
-    newest('tlon-agent-provider-config'),
+    newestProvision,
+    newestProviderConfig,
   ].filter((candidate): candidate is (typeof ownerRequests)[number] =>
     Boolean(candidate)
   );
@@ -511,7 +524,7 @@ async function postIntro(
 ) {
   if (isFirstGroup) {
     const hadIntro = hasPostMarker(history, context.botShip, 'intro');
-    await postOnce(
+    const posted = await postOnce(
       context,
       history,
       'intro',
@@ -521,12 +534,12 @@ async function postIntro(
     );
     // Only on the post that actually lands, so a re-entered opening doesn't
     // inflate the top of the funnel.
-    if (!hadIntro) {
+    if (!hadIntro && posted) {
       context.trackStep?.({ step: 'intro_posted' });
     }
   }
   const hadPicker = hasPostMarker(history, context.botShip, 'purpose-picker');
-  await postOnce(
+  const pickerPosted = await postOnce(
     context,
     history,
     'purpose-picker',
@@ -543,7 +556,7 @@ async function postIntro(
     deps,
     presentation
   );
-  if (!hadPicker) {
+  if (!hadPicker && pickerPosted) {
     context.trackStep?.({ step: 'purpose_picker_posted' });
   }
 }
@@ -570,8 +583,7 @@ async function advanceDurableConversation(
   if (!hasPostMarker(history, context.botShip, 'topics-picker')) {
     const purpose = purposeForReply(text);
     if (!purpose) return false;
-    context.trackStep?.({ step: 'purpose_chosen', purposeId: purpose.id });
-    await postOnce(
+    const posted = await postOnce(
       context,
       history,
       'topics-picker',
@@ -589,10 +601,13 @@ async function advanceDurableConversation(
       deps,
       presentation
     );
-    context.trackStep?.({
-      step: 'topics_picker_posted',
-      purposeId: purpose.id,
-    });
+    if (posted) {
+      context.trackStep?.({ step: 'purpose_chosen', purposeId: purpose.id });
+      context.trackStep?.({
+        step: 'topics_picker_posted',
+        purposeId: purpose.id,
+      });
+    }
     return true;
   }
   return false;
@@ -1166,10 +1181,17 @@ async function failFirstRunCorrelation(
  */
 export async function handleAgentOnboardingMessageSent(
   event: PluginHookMessageSentEvent,
-  deps: AgentOnboardingCronDeps = {}
+  deps: AgentOnboardingCronDeps = {},
+  contextualRunId?: string
 ): Promise<void> {
   if (event.success !== true) return;
-  await completeFirstRun(event.runId, event.to, event.messageId, deps);
+  if (contextualRunId && !firstRunCorrelations.has(contextualRunId)) return;
+  await completeFirstRun(
+    contextualRunId ?? event.runId,
+    contextualRunId ? undefined : event.to,
+    event.messageId,
+    deps
+  );
 }
 
 async function completeFirstRun(
@@ -1668,6 +1690,21 @@ export function clearAgentOnboardingRuntime(
     firstRunCompletionFlights.delete(key);
     firstRunCorrelations.delete(key);
   }
+}
+
+export async function drainAgentOnboardingRuntime(
+  api: AgentOnboardingScanContext['api']
+): Promise<void> {
+  const ownedKeys = [...firstRunCorrelations]
+    .filter(([, correlation]) => correlation.context.api === api)
+    .map(([key]) => key);
+  for (const key of ownedKeys) clearFirstRunCompletionRetry(key);
+  await Promise.allSettled(
+    ownedKeys
+      .map((key) => firstRunCompletionFlights.get(key))
+      .filter((flight): flight is Promise<void> => Boolean(flight))
+  );
+  clearAgentOnboardingRuntime(api);
 }
 
 async function fetchOnboardingGroup(

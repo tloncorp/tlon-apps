@@ -105,13 +105,14 @@ export function setScopedTlonApiWithPoke(
   pokeFn: PokeFn,
   ship: string,
   shipUrl: string,
-  scryFn?: ScryFn
+  scryFn?: ScryFn,
+  requestJsonFn?: RequestJsonFn
 ): void {
   const scope = clientScope.getStore();
   if (!scope) {
     throw new Error('Tlon API client scope not initialized');
   }
-  scope.client = createClientShim(pokeFn, ship, shipUrl, scryFn);
+  scope.client = createClientShim(pokeFn, ship, shipUrl, scryFn, requestJsonFn);
 }
 
 /**
