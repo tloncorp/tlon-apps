@@ -45,7 +45,7 @@ describe('isA2UISendMessageActionConsumed', () => {
 });
 
 describe('getSmallChoiceCompletionPresentation', () => {
-  it('collapses a remounted picker from its durable topics', () => {
+  it('restores a remounted picker from its durable topics', () => {
     expect(
       getSmallChoiceCompletionPresentation({
         actionConsumed: true,
@@ -54,7 +54,7 @@ describe('getSmallChoiceCompletionPresentation', () => {
         localTopics: [],
       })
     ).toEqual({
-      collapsed: true,
+      completed: true,
       topics: ['Astronomy', 'Geometry'],
     });
   });
@@ -67,7 +67,7 @@ describe('getSmallChoiceCompletionPresentation', () => {
         durableTopics: ['Astronomy'],
         localTopics: [],
       })
-    ).toEqual({ collapsed: false, topics: [] });
+    ).toEqual({ completed: false, topics: [] });
   });
 });
 

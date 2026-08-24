@@ -49,6 +49,7 @@ import { supportsLiquidGlass } from '../GlassSurface';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PostCollectionView } from '../PostCollectionView';
 import SystemNotices from '../SystemNotices';
+import { AgentOnboardingBackTooltip } from '../Wayfinding/Notices';
 import {
   floatingPinnedPostBannerClearance,
   useConversationInsets,
@@ -70,6 +71,7 @@ import { DraftInputView } from './DraftInputView';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
+import { isAgentOnboardingOrientationCompletePost } from './postVisibility';
 
 const THREAD_UNREAD_OVERLAY_CHANNEL_TYPES: db.ChannelType[] = [
   'chat',
@@ -82,6 +84,7 @@ const HEADER_LOADING_MIN_VISIBLE_MS = 420;
 const IMAGE_FILE_EXTENSION_REGEX =
   /\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i;
 const shareIntentLogger = createDevLogger('shareIntent', true);
+const shownOnboardingBackTooltipPostIds = new Set<string>();
 
 const isLikelyImageFile = (file: NonNullable<ChannelShareIntent['file']>) => {
   if (file.mimeType?.startsWith('image/')) {
@@ -367,6 +370,25 @@ export function Channel({
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
   const collectionRef = useRef<PostCollectionHandle>(null);
+  const orientationCompletePostId = useMemo(
+    () => posts?.find(isAgentOnboardingOrientationCompletePost)?.id ?? null,
+    [posts]
+  );
+  const [showOnboardingBackTooltip, setShowOnboardingBackTooltip] =
+    useState(false);
+
+  useEffect(() => {
+    if (
+      disableBackButton ||
+      !orientationCompletePostId ||
+      shownOnboardingBackTooltipPostIds.has(orientationCompletePostId)
+    ) {
+      return;
+    }
+
+    shownOnboardingBackTooltipPostIds.add(orientationCompletePostId);
+    setShowOnboardingBackTooltip(true);
+  }, [disableBackButton, orientationCompletePostId]);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const isDM = isDmChannelId(channel.id);
@@ -863,6 +885,17 @@ export function Channel({
                           showSpinner={showHeaderLoading}
                           showSearchButton={isChatChannel}
                         />
+                        {showOnboardingBackTooltip && !disableBackButton ? (
+                          <AgentOnboardingBackTooltip
+                            top={
+                              floatingHeaderHeight +
+                              (Platform.OS === 'web' ? 30 : 0)
+                            }
+                            onDismiss={() =>
+                              setShowOnboardingBackTooltip(false)
+                            }
+                          />
+                        ) : null}
                         {shouldRenderPinnedPostBanner && pinnedPost && (
                           <PinnedPostBanner
                             post={pinnedPost}

@@ -71,54 +71,56 @@ function SmallChoiceRow({
   // Tamagui's compiler can drop inline ternaries on token-valued props.
   const shortcutFill = isSelected ? '$primaryText' : '$secondaryBackground';
   const shortcutLabel = isSelected ? '$background' : '$secondaryText';
+  const rowOpacity = disabled && !isSelected ? 0.5 : 1;
 
   return (
-    <Pressable
-      testID={testID}
-      accessibilityLabel={label}
-      accessibilityState={{ disabled, selected: isSelected }}
-      disabled={disabled}
-      onPress={disabled ? undefined : onPress}
-    >
-      <XStack
-        minHeight={52}
-        paddingVertical="$m"
-        paddingHorizontal="$m"
-        backgroundColor="$background"
-        borderBottomWidth={isLast ? 0 : 1}
-        borderBottomColor="$border"
-        opacity={disabled ? 0.5 : 1}
-        alignItems="center"
-        gap="$m"
+    <YStack>
+      <Pressable
+        testID={testID}
+        accessibilityLabel={label}
+        accessibilityState={{ disabled, selected: isSelected }}
+        disabled={disabled}
+        onPress={disabled ? undefined : onPress}
       >
-        <View
-          width={28}
-          height={28}
-          borderRadius="$s"
-          backgroundColor={shortcutFill}
+        <XStack
+          minHeight={52}
+          paddingVertical="$m"
+          paddingHorizontal="$m"
+          backgroundColor="$background"
           alignItems="center"
-          justifyContent="center"
-          flexShrink={0}
+          gap="$m"
+          opacity={rowOpacity}
         >
-          <Text size="$label/s" color={shortcutLabel} trimmed={false}>
-            {shortcut}
+          <View
+            width={28}
+            height={28}
+            borderRadius="$s"
+            backgroundColor={shortcutFill}
+            alignItems="center"
+            justifyContent="center"
+            flexShrink={0}
+          >
+            <Text size="$label/s" color={shortcutLabel} trimmed={false}>
+              {shortcut}
+            </Text>
+          </View>
+          <Text
+            size="$label/l"
+            color="$primaryText"
+            trimmed={false}
+            flex={1}
+            minWidth={0}
+            numberOfLines={1}
+          >
+            {label}
           </Text>
-        </View>
-        <Text
-          size="$label/l"
-          color="$primaryText"
-          trimmed={false}
-          flex={1}
-          minWidth={0}
-          numberOfLines={1}
-        >
-          {label}
-        </Text>
-        {isSelected ? (
-          <Icon type="Checkmark" color="$primaryText" customSize={[16, 16]} />
-        ) : null}
-      </XStack>
-    </Pressable>
+          {isSelected ? (
+            <Icon type="Checkmark" color="$primaryText" customSize={[16, 16]} />
+          ) : null}
+        </XStack>
+      </Pressable>
+      {isLast ? null : <View height={1} backgroundColor="$border" />}
+    </YStack>
   );
 }
 
@@ -265,7 +267,6 @@ function SmallChoiceControl({
     disabled || !messageForSelection || !probe(actionForSelection);
   const customChoiceLabel =
     component.freeTextPlaceholder?.replace(/…+$/, '') || '';
-  const customTopicSummary = customTopics.join(', ');
   const durableSelection =
     consumedTopics ??
     getSmallChoiceMessageSelection(component, consumedMessageText);
@@ -275,9 +276,19 @@ function SmallChoiceControl({
     durableTopics: durableSelection,
     localTopics: topicsForSelection,
   });
-  const collapsedTopics = completionPresentation.topics;
-  const collapsedSelection = collapsedTopics.join(', ');
-  const selectedCount = collapsedTopics.length;
+  const completedTopics = completionPresentation.topics;
+  const completedOptionLabels = new Set(
+    component.options
+      .filter((option) => completedTopics.includes(option.label))
+      .map((option) => option.label)
+  );
+  const completedCustomTopics = completedTopics.filter(
+    (topic) => !completedOptionLabels.has(topic)
+  );
+  const displayedCustomTopics = completionPresentation.completed
+    ? completedCustomTopics
+    : customTopics;
+  const displayedCustomTopicSummary = displayedCustomTopics.join(', ');
   const hasSelection = Boolean(messageForSelection);
 
   const openCustomInput = useCallback(() => {
@@ -343,180 +354,139 @@ function SmallChoiceControl({
         borderRadius="$xl"
         backgroundColor="$secondaryBackground"
       >
-        {completionPresentation.collapsed ? (
+        <YStack
+          width="100%"
+          borderWidth={1}
+          borderColor="$border"
+          borderRadius="$m"
+          overflow="hidden"
+        >
+          {component.options.map((option, index) => {
+            const isSelected = completionPresentation.completed
+              ? completedOptionLabels.has(option.label)
+              : selectedIds.includes(option.id);
+            const isLast = index === component.options.length - 1;
+            return (
+              <SmallChoiceRow
+                key={option.id}
+                testID={`A2UISmallChoice-${option.id}`}
+                label={option.label}
+                shortcut={smallChoiceShortcut(index)}
+                isSelected={isSelected}
+                isLast={isLast}
+                disabled={disabled}
+                onPress={() => toggle(option.id)}
+              />
+            );
+          })}
+        </YStack>
+        {component.freeTextPlaceholder ? (
+          <Pressable
+            testID="A2UISmallChoiceCustom"
+            accessibilityLabel={
+              displayedCustomTopics.length
+                ? `Edit custom topics: ${displayedCustomTopicSummary}`
+                : `Add ${customChoiceLabel}`
+            }
+            accessibilityState={{ disabled }}
+            disabled={disabled}
+            onPress={disabled ? undefined : openCustomInput}
+          >
+            <XStack
+              minHeight={52}
+              paddingHorizontal="$m"
+              backgroundColor="$background"
+              borderWidth={1}
+              borderColor="$border"
+              borderRadius="$m"
+              alignItems="center"
+              gap="$m"
+              opacity={disabled && !displayedCustomTopics.length ? 0.5 : 1}
+            >
+              <View
+                width={28}
+                height={28}
+                borderRadius="$s"
+                backgroundColor={
+                  displayedCustomTopics.length
+                    ? '$primaryText'
+                    : '$secondaryBackground'
+                }
+                alignItems="center"
+                justifyContent="center"
+                flexShrink={0}
+              >
+                {displayedCustomTopics.length ? (
+                  <Text size="$label/s" color="$background" trimmed={false}>
+                    {displayedCustomTopics.length}
+                  </Text>
+                ) : (
+                  <Icon
+                    type="Add"
+                    color="$secondaryText"
+                    customSize={[14, 14]}
+                  />
+                )}
+              </View>
+              <Text
+                size="$label/l"
+                color={
+                  displayedCustomTopics.length
+                    ? '$primaryText'
+                    : '$secondaryText'
+                }
+                trimmed={false}
+                flex={1}
+                minWidth={0}
+                numberOfLines={1}
+              >
+                {displayedCustomTopics.length
+                  ? displayedCustomTopicSummary
+                  : customChoiceLabel}
+              </Text>
+              {displayedCustomTopics.length ? (
+                <Icon
+                  type="Checkmark"
+                  color="$primaryText"
+                  customSize={[16, 16]}
+                />
+              ) : null}
+            </XStack>
+          </Pressable>
+        ) : null}
+        <Pressable
+          testID="A2UISmallChoiceSubmit"
+          accessibilityLabel={component.submitLabel}
+          accessibilityState={{ disabled: submitDisabled }}
+          disabled={submitDisabled}
+          onPress={submitDisabled ? undefined : handleSubmit}
+        >
           <XStack
             minHeight={52}
-            paddingVertical="$m"
             paddingHorizontal="$m"
-            backgroundColor="$background"
+            backgroundColor={hasSelection ? '$primaryText' : '$background'}
             borderWidth={1}
             borderColor="$border"
             borderRadius="$m"
             alignItems="center"
             gap="$m"
+            opacity={submitDisabled ? 0.5 : 1}
           >
-            <View
-              width={28}
-              height={28}
-              borderRadius="$s"
-              backgroundColor="$secondaryBackground"
-              alignItems="center"
-              justifyContent="center"
-              flexShrink={0}
-            >
-              <Text size="$label/s" color="$secondaryText" trimmed={false}>
-                {selectedCount}
-              </Text>
-            </View>
             <Text
               size="$label/l"
-              color="$secondaryText"
+              color={hasSelection ? '$background' : '$primaryText'}
               trimmed={false}
               flex={1}
-              minWidth={0}
-              numberOfLines={1}
             >
-              {collapsedSelection}
+              {component.submitLabel}
             </Text>
             <Icon
               type="Checkmark"
-              color="$secondaryText"
+              color={hasSelection ? '$background' : '$primaryText'}
               customSize={[16, 16]}
             />
           </XStack>
-        ) : (
-          <>
-            <YStack
-              width="100%"
-              borderWidth={1}
-              borderColor="$border"
-              borderRadius="$m"
-              overflow="hidden"
-            >
-              {component.options.map((option, index) => {
-                const isSelected = selectedIds.includes(option.id);
-                const isLast = index === component.options.length - 1;
-                return (
-                  <SmallChoiceRow
-                    key={option.id}
-                    testID={`A2UISmallChoice-${option.id}`}
-                    label={option.label}
-                    shortcut={smallChoiceShortcut(index)}
-                    isSelected={isSelected}
-                    isLast={isLast}
-                    disabled={disabled}
-                    onPress={() => toggle(option.id)}
-                  />
-                );
-              })}
-            </YStack>
-            {component.freeTextPlaceholder ? (
-              <Pressable
-                testID="A2UISmallChoiceCustom"
-                accessibilityLabel={
-                  customTopics.length
-                    ? `Edit custom topics: ${customTopicSummary}`
-                    : `Add ${customChoiceLabel}`
-                }
-                accessibilityState={{ disabled }}
-                disabled={disabled}
-                onPress={disabled ? undefined : openCustomInput}
-              >
-                <XStack
-                  minHeight={52}
-                  paddingHorizontal="$m"
-                  backgroundColor="$background"
-                  borderWidth={1}
-                  borderColor="$border"
-                  borderRadius="$m"
-                  alignItems="center"
-                  gap="$m"
-                  opacity={disabled ? 0.5 : 1}
-                >
-                  <View
-                    width={28}
-                    height={28}
-                    borderRadius="$s"
-                    backgroundColor="$secondaryBackground"
-                    alignItems="center"
-                    justifyContent="center"
-                    flexShrink={0}
-                  >
-                    {customTopics.length ? (
-                      <Text
-                        size="$label/s"
-                        color="$secondaryText"
-                        trimmed={false}
-                      >
-                        {customTopics.length}
-                      </Text>
-                    ) : (
-                      <Icon
-                        type="Add"
-                        color="$secondaryText"
-                        customSize={[14, 14]}
-                      />
-                    )}
-                  </View>
-                  <Text
-                    size="$label/l"
-                    color={
-                      customTopics.length ? '$primaryText' : '$secondaryText'
-                    }
-                    trimmed={false}
-                    flex={1}
-                    minWidth={0}
-                    numberOfLines={1}
-                  >
-                    {customTopics.length
-                      ? customTopicSummary
-                      : customChoiceLabel}
-                  </Text>
-                  {customTopics.length ? (
-                    <Icon
-                      type="ChevronRight"
-                      color="$secondaryText"
-                      customSize={[16, 16]}
-                    />
-                  ) : null}
-                </XStack>
-              </Pressable>
-            ) : null}
-            <Pressable
-              testID="A2UISmallChoiceSubmit"
-              accessibilityLabel={component.submitLabel}
-              accessibilityState={{ disabled: submitDisabled }}
-              disabled={submitDisabled}
-              onPress={submitDisabled ? undefined : handleSubmit}
-            >
-              <XStack
-                minHeight={52}
-                paddingHorizontal="$m"
-                backgroundColor={hasSelection ? '$primaryText' : '$background'}
-                borderWidth={1}
-                borderColor="$border"
-                borderRadius="$m"
-                alignItems="center"
-                gap="$m"
-                opacity={submitDisabled ? 0.5 : 1}
-              >
-                <Text
-                  size="$label/l"
-                  color={hasSelection ? '$background' : '$primaryText'}
-                  trimmed={false}
-                  flex={1}
-                >
-                  {component.submitLabel}
-                </Text>
-                <Icon
-                  type="Checkmark"
-                  color={hasSelection ? '$background' : '$primaryText'}
-                  customSize={[16, 16]}
-                />
-              </XStack>
-            </Pressable>
-          </>
-        )}
+        </Pressable>
       </YStack>
       {component.freeTextPlaceholder ? (
         <ActionSheet

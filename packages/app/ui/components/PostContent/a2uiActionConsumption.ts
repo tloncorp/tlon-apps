@@ -37,13 +37,13 @@ export function getSmallChoiceCompletionPresentation({
   consumedLocally: boolean;
   durableTopics?: string[];
   localTopics: string[];
-}): { collapsed: boolean; topics: string[] } {
+}): { completed: boolean; topics: string[] } {
   if (!actionConsumed) {
-    return { collapsed: false, topics: [] };
+    return { completed: false, topics: [] };
   }
 
   const topics = consumedLocally ? localTopics : durableTopics ?? [];
-  return { collapsed: topics.length > 0, topics };
+  return { completed: true, topics };
 }
 
 /** Recover the labels a send-message SmallChoice persisted in its owner post. */

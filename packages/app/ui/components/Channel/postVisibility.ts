@@ -13,3 +13,15 @@ export function isVisibleChannelPost(post: Pick<db.Post, 'blob'>): boolean {
     (entry) => entry.type === 'tlon-agent-intro-request'
   );
 }
+
+export function isAgentOnboardingOrientationCompletePost(
+  post: Pick<db.Post, 'blob'>
+): boolean {
+  if (!post.blob) return false;
+
+  return parsePostBlob(post.blob).some(
+    (entry) =>
+      entry.type === 'tlon-agent-post-marker' &&
+      entry.key === 'orientation-complete'
+  );
+}

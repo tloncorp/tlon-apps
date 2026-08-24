@@ -551,6 +551,18 @@ function OnboardingTranscript({
                     >
                       <ChatMessage
                         post={post}
+                        a2uiActionCompletion={
+                          post.id === 'onboarding-04-topics' && through >= 5
+                            ? {
+                                provisionAgent: true,
+                                provisionedTopics: [
+                                  'Open hardware',
+                                  'Space weather',
+                                ],
+                                sendMessage: false,
+                              }
+                            : undefined
+                        }
                         showAuthor={showAuthor}
                         showReplies={false}
                         hideOverflowMenu
@@ -598,6 +610,7 @@ function McpServicesPreview() {
 export default {
   'Durable purpose selection': <OnboardingTranscript through={2} />,
   'Durable topic selection': <OnboardingTranscript through={4} />,
+  'Completed topic selection': <OnboardingTranscript through={5} />,
   'Durable completed conversation': <OnboardingTranscript />,
   'MCP services menu': <McpServicesPreview />,
 };

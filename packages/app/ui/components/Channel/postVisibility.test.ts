@@ -1,7 +1,10 @@
 import { appendToPostBlob } from '@tloncorp/shared/logic';
 import { describe, expect, it } from 'vitest';
 
-import { isVisibleChannelPost } from './postVisibility';
+import {
+  isAgentOnboardingOrientationCompletePost,
+  isVisibleChannelPost,
+} from './postVisibility';
 
 describe('isVisibleChannelPost', () => {
   it('hides typed onboarding intro requests', () => {
@@ -27,5 +30,34 @@ describe('isVisibleChannelPost', () => {
         }),
       })
     ).toBe(true);
+  });
+});
+
+describe('isAgentOnboardingOrientationCompletePost', () => {
+  it('recognizes the final onboarding marker', () => {
+    expect(
+      isAgentOnboardingOrientationCompletePost({
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-post-marker',
+          version: 1,
+          key: 'orientation-complete',
+        }),
+      })
+    ).toBe(true);
+  });
+
+  it('ignores other posts', () => {
+    expect(isAgentOnboardingOrientationCompletePost({ blob: null })).toBe(
+      false
+    );
+    expect(
+      isAgentOnboardingOrientationCompletePost({
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-post-marker',
+          version: 1,
+          key: 'intro',
+        }),
+      })
+    ).toBe(false);
   });
 });
