@@ -65,6 +65,7 @@ import {
   PostWithNeighbors,
 } from './PostList';
 import { getPostListScopeKey } from './PostList/postListInitialization';
+import { isVisibleChannelPost } from './postVisibility';
 import type { ScrollAnchor } from './scrollerTypes';
 
 const logger = createDevLogger('scroller', false);
@@ -161,6 +162,7 @@ const Scroller = forwardRef(
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
     );
+    const currentUserId = useCurrentUserId();
     const collectionConfig = useMemo(
       () => configurationFromChannel(channel),
       [channel]
@@ -255,16 +257,25 @@ const Scroller = forwardRef(
 
     const theme = useTheme();
 
+    const visiblePosts = useMemo(
+      () => posts?.filter((post) => isVisibleChannelPost(post, currentUserId)),
+      [currentUserId, posts]
+    );
+
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
       () =>
-        posts?.map((post, postIndex, posts) => {
+        visiblePosts?.map((post, postIndex, posts) => {
           return {
             post,
             previous: postIndex > 0 ? posts[postIndex - 1] : null,
             next: postIndex + 1 < posts.length ? posts[postIndex + 1] : null,
           };
         }),
-      [posts]
+      [visiblePosts]
+    );
+    const a2uiActionCompletions = useMemo(
+      () => getA2UIActionCompletions(visiblePosts ?? [], currentUserId),
+      [currentUserId, visiblePosts]
     );
     const a2uiActionCompletions = useMemo(
       () => getA2UIActionCompletions(posts ?? [], currentUserId, !anchorToEnd),
@@ -386,7 +397,7 @@ const Scroller = forwardRef(
         : getTokens().space.m.val;
     const contentContainerStyle = useStyle(
       useMemo(() => {
-        if (!posts?.length) {
+        if (!visiblePosts?.length) {
           if (
             collectionLayoutType === 'comfy-list-top-to-bottom' ||
             collectionLayoutType === 'grid'
@@ -442,7 +453,7 @@ const Scroller = forwardRef(
         }
       }, [
         standaloneBottomSafeArea,
-        posts?.length,
+        visiblePosts?.length,
         collectionLayoutType,
         contentInsets.bottom,
         contentInsets.top,

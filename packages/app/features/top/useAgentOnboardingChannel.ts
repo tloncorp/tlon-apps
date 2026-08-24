@@ -166,5 +166,5 @@ export function useAgentOnboardingChannel({
     }, [navigationLocked])
   );
 
-  return { navigationLocked };
+  return { agentOnboarding, agentShipId, navigationLocked };
 }
