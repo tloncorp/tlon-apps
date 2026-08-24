@@ -3405,6 +3405,25 @@ class CitationDispatchTests(unittest.TestCase):
         )
         self.assertEqual(adapter._sse.scries, [])
 
+    def test_group_pointer_renders_while_sse_is_down(self):
+        # Inbound events are queued and dispatched by a separate worker, so a
+        # message that arrived before a channel loss still drains while the SSE
+        # is being rebuilt. A group pointer costs no scry, so losing it in that
+        # window would be a free reference thrown away.
+        adapter = self.make_adapter()
+        adapter._sse = None
+        content = [
+            {"block": {"cite": {"group": "~host/slug"}}},
+            {"inline": ["look"]},
+        ]
+
+        events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        self.assertEqual(
+            events[0].text,
+            "> [ref: group ~host/slug]\n\n[quoted message] look",
+        )
+
     def test_group_cite_naming_the_bot_ship_is_not_a_mention(self):
         # The invariant the whole design rests on: group flags are rendered
         # from the post-gate cite path, never from the body text the mention
