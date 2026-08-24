@@ -84,7 +84,6 @@ const HEADER_LOADING_MIN_VISIBLE_MS = 420;
 const IMAGE_FILE_EXTENSION_REGEX =
   /\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i;
 const shareIntentLogger = createDevLogger('shareIntent', true);
-const shownOnboardingBackTooltipPostIds = new Set<string>();
 
 const isLikelyImageFile = (file: NonNullable<ChannelShareIntent['file']>) => {
   if (file.mimeType?.startsWith('image/')) {
@@ -385,23 +384,41 @@ export function Channel({
   );
   const [showOnboardingBackTooltip, setShowOnboardingBackTooltip] =
     useState(false);
+  const claimedOnboardingBackTooltipRef = useRef<string | null>(null);
+  const {
+    value: shownOnboardingBackTooltips,
+    isLoading: shownOnboardingBackTooltipsLoading,
+  } = db.agentOnboardingBackTooltipShown.useStorageItem();
 
   useEffect(() => {
     if (
       disableBackButton ||
+      shownOnboardingBackTooltipsLoading ||
       !hasFirstGroupOnboardingRequest ||
       !orientationCompletePostId ||
-      shownOnboardingBackTooltipPostIds.has(orientationCompletePostId)
+      claimedOnboardingBackTooltipRef.current === orientationCompletePostId ||
+      shownOnboardingBackTooltips[orientationCompletePostId]
     ) {
       return;
     }
 
-    shownOnboardingBackTooltipPostIds.add(orientationCompletePostId);
-    setShowOnboardingBackTooltip(true);
+    claimedOnboardingBackTooltipRef.current = orientationCompletePostId;
+    let claimed = false;
+    void db.agentOnboardingBackTooltipShown
+      .setValue((current) => {
+        if (current[orientationCompletePostId]) return current;
+        claimed = true;
+        return { ...current, [orientationCompletePostId]: true };
+      })
+      .then(() => {
+        if (claimed) setShowOnboardingBackTooltip(true);
+      });
   }, [
     disableBackButton,
     hasFirstGroupOnboardingRequest,
     orientationCompletePostId,
+    shownOnboardingBackTooltips,
+    shownOnboardingBackTooltipsLoading,
   ]);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
@@ -637,10 +654,12 @@ export function Channel({
     stableGroupRef.current = group;
   }
   const stableGroup =
-    group ??
-    (stableGroupRef.current?.id === channel.groupId
+    groupIsLoading && stableGroupRef.current?.id === channel.groupId
       ? stableGroupRef.current
-      : null);
+      : group;
+  if (!groupIsLoading && !group) {
+    stableGroupRef.current = null;
+  }
 
   // The onboarding lock hides the free-form composer below, but its A2UI
   // choices still send ordinary channel posts through this draft context.
