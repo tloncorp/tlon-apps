@@ -122,6 +122,11 @@ import {
   resolveTlonSkillVersion,
 } from '../version.js';
 import {
+  type OnboardingStepReport,
+  handleAgentOnboardingRequest,
+  scanAgentOnboardingChannel,
+} from './agent-onboarding.js';
+import {
   type DisplayContext,
   type PendingApproval,
   buildApprovalA2UIBlob,
@@ -715,7 +720,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     throw error;
   }
 
-  setScopedTlonApiWithPoke(api.poke.bind(api), botShipName, account.url);
+  setScopedTlonApiWithPoke(
+    api.poke.bind(api),
+    botShipName,
+    account.url,
+    ({ app, path }) => api.scry(`/~/scry/${app}${path}.json`)
+  );
 
   // Publish the bound transport for consumers that do not need the global API
   // client. Capture the published object so the abort handler can compare by
@@ -3749,6 +3759,132 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const watchedChannels = new Set<string>(groupChannels);
     const _watchedDMs = new Set<string>();
 
+    const mergeDiscoveredChannels = async () => {
+      const initData = await fetchInitData(api, runtime);
+      for (const [nest, groupFlag] of initData.channelToGroup) {
+        channelToGroup.set(nest, groupFlag);
+      }
+      for (const [nest, title] of initData.channelNames) {
+        channelNameCache.set(nest, title);
+      }
+      for (const [flag, title] of initData.groupNames) {
+        groupNameCache.set(flag, title);
+      }
+      return initData.channels;
+    };
+
+    /**
+     * Funnel reporting for agent onboarding.
+     *
+     * Best-effort start times so a row carries its own latency; PostHog can
+     * also derive it from event timestamps, so a miss after a restart costs a
+     * field, not the funnel.
+     */
+    const onboardingStartedAt = new Map<string, number>();
+    const trackOnboardingStep =
+      (nest: string, groupId: string | undefined) =>
+      (report: OnboardingStepReport) => {
+        if (report.step === 'intro_posted') {
+          onboardingStartedAt.set(nest, Date.now());
+        }
+        const startedAt = onboardingStartedAt.get(nest);
+        try {
+          telemetry?.captureOnboardingStep({
+            accountId: opts.accountId ?? null,
+            ownerShip: effectiveOwnerShip,
+            botShip: botShipName,
+            step: report.step,
+            outcome: report.outcome ?? 'ok',
+            nest,
+            groupFlag: report.groupFlag ?? groupId ?? null,
+            purposeId: report.purposeId ?? null,
+            topicCount: report.topicCount ?? null,
+            timezone: report.timezone ?? null,
+            cronJobId: report.cronJobId ?? null,
+            notebookNest: report.notebookNest ?? null,
+            answer: report.answer ?? null,
+            completionPath: report.completionPath ?? null,
+            elapsedMsSinceIntro: startedAt ? Date.now() - startedAt : null,
+            errorText: report.errorText ?? null,
+          });
+        } catch (error) {
+          // Telemetry must never take the setup down with it.
+          runtime.log?.(
+            `[tlon] onboarding step telemetry failed: ${String(error)}`
+          );
+        }
+      };
+
+    const onboardingRetryTimers = new Map<
+      string,
+      ReturnType<typeof setTimeout>
+    >();
+    const onboardingRetryAttempts = new Map<string, number>();
+    const scheduleAgentOnboardingRetry = (nest: string) => {
+      if (opts.abortSignal?.aborted || onboardingRetryTimers.has(nest)) return;
+      const attempt = (onboardingRetryAttempts.get(nest) ?? 0) + 1;
+      onboardingRetryAttempts.set(nest, attempt);
+      const delayMs = Math.min(1_000 * 2 ** (attempt - 1), 30_000);
+      const timer = setTimeout(() => {
+        onboardingRetryTimers.delete(nest);
+        if (!opts.abortSignal?.aborted) {
+          void scanAgentOnboardingNest(nest);
+        }
+      }, delayMs);
+      timer.unref?.();
+      onboardingRetryTimers.set(nest, timer);
+    };
+    const clearAgentOnboardingRetry = (nest: string) => {
+      const timer = onboardingRetryTimers.get(nest);
+      if (timer) clearTimeout(timer);
+      onboardingRetryTimers.delete(nest);
+      onboardingRetryAttempts.delete(nest);
+    };
+
+    const scanAgentOnboardingNest = async (nest: string) => {
+      if (!nest.startsWith('chat/')) return;
+      let groupId = channelToGroup.get(nest);
+      if (!groupId) {
+        try {
+          await mergeDiscoveredChannels();
+          groupId = channelToGroup.get(nest);
+        } catch (error) {
+          runtime.error?.(
+            `[tlon] Failed to discover onboarding group for ${nest}: ${error instanceof Error ? error.message : String(error)}`
+          );
+          scheduleAgentOnboardingRetry(nest);
+          return;
+        }
+      }
+      if (!groupId) {
+        clearAgentOnboardingRetry(nest);
+        return;
+      }
+      try {
+        await scanAgentOnboardingChannel({
+          api,
+          botShip: botShipName,
+          botProfile: getBotProfile(),
+          channelNest: nest,
+          groupId,
+          ownerShip: effectiveOwnerShip,
+          log: (message) => runtime.log?.(message),
+          trackStep: trackOnboardingStep(nest, groupId),
+        });
+        clearAgentOnboardingRetry(nest);
+      } catch (error) {
+        runtime.error?.(
+          `[tlon] Failed to reconcile onboarding in ${nest}: ${error instanceof Error ? error.message : String(error)}`
+        );
+        // The request is durable in channel history, but existing watched
+        // channels are not otherwise rescanned. Keep retrying any escaped
+        // transient failure until reconciliation succeeds or the monitor
+        // stops. The per-nest timer deduplicates overlapping firehose/boot
+        // attempts.
+        scheduleAgentOnboardingRetry(nest);
+      }
+    };
+
     // Firehose handler for all channel messages (/v4)
     const handleChannelsFirehose = async (event: ChannelFirehoseEvent) => {
       try {
@@ -3768,6 +3904,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         ) {
           watchedChannels.add(nest);
           runtime.log?.(`[tlon] Auto-watching channel from firehose: ${nest}`);
+          await scanAgentOnboardingNest(nest);
         }
 
         // Only process channels we're watching
@@ -3934,6 +4071,49 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
         // Skip processing bot's own messages (but they're already cached above)
         if (senderShip === botShipName) {
+          return;
+        }
+
+        let handledOnboardingRequest = false;
+        try {
+          handledOnboardingRequest = await handleAgentOnboardingRequest({
+            api,
+            botShip: botShipName,
+            botProfile: getBotProfile(),
+            channelNest: nest,
+            groupId: channelToGroup.get(nest),
+            ownerShip: effectiveOwnerShip,
+            senderShip,
+            rawText,
+            blob: content.blob,
+            log: (message) => runtime.log?.(message),
+            trackStep: trackOnboardingStep(nest, channelToGroup.get(nest)),
+            presentation: {
+              startThinking: () => {
+                computingPresence.refreshRun({
+                  conversationId: nest,
+                  runId: `onboarding:${String(messageId)}`,
+                });
+              },
+              stopThinking: () => {
+                computingPresence.stopRun({
+                  conversationId: nest,
+                  runId: `onboarding:${String(messageId)}`,
+                });
+              },
+            },
+          });
+        } catch (error) {
+          // The firehose event has already entered the processed-message
+          // tracker. Reconcile from durable channel history rather than
+          // waiting for a duplicate event or a gateway restart.
+          scheduleAgentOnboardingRetry(nest);
+          throw error;
+        }
+        if (handledOnboardingRequest) {
+          // Onboarding requests and deterministic picker replies are
+          // control-plane messages. Their visible text remains transcript
+          // history but never wakes the model.
           return;
         }
 
@@ -5072,6 +5252,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                       runtime.log?.(
                         `[tlon] Auto-detected new channel (invite accepted): ${channelNest}`
                       );
+                      await scanAgentOnboardingNest(channelNest);
 
                       // Persist to settings store so it survives restarts
                       if (effectiveAutoAcceptGroupInvites) {
@@ -5130,6 +5311,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                         runtime.log?.(
                           `[tlon] Auto-detected joined channel: ${channelNest}`
                         );
+                        await scanAgentOnboardingNest(channelNest);
 
                         // Persist to settings store
                         if (effectiveAutoAcceptGroupInvites) {
@@ -5366,6 +5548,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      for (const channelNest of watchedChannels) {
+        await scanAgentOnboardingNest(channelNest);
+      }
       const webSearchRuntime = core.webSearch;
       const webSearchStatus = probeWebSearchBootStatus({
         searchConfig: cfg.tools?.web?.search,
@@ -5414,13 +5599,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           if (!opts.abortSignal?.aborted) {
             try {
               if (effectiveAutoDiscoverChannels) {
-                const discoveredChannels = await fetchAllChannels(api, runtime);
+                const discoveredChannels = await mergeDiscoveredChannels();
                 for (const channelNest of discoveredChannels) {
                   if (!watchedChannels.has(channelNest)) {
                     watchedChannels.add(channelNest);
                     runtime.log?.(
                       `[tlon] Now watching new channel: ${channelNest}`
                     );
+                    await scanAgentOnboardingNest(channelNest);
                   }
                 }
               }
@@ -5502,6 +5688,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           const onAbort = () => {
             clearInterval(pollInterval);
             clearInterval(settingsRefreshInterval);
+            for (const timer of onboardingRetryTimers.values()) {
+              clearTimeout(timer);
+            }
+            onboardingRetryTimers.clear();
+            onboardingRetryAttempts.clear();
             // Kick off scheduler shutdown; don't block the event-handler
             // callback. The `finally` block awaits the same stop promise
             // before draining the persistence queues and closing the

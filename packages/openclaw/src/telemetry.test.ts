@@ -124,6 +124,67 @@ describe('telemetry tool tracking', () => {
     return postHogMocks.capture.mock.calls.at(-1)?.[0];
   }
 
+  it('captures onboarding tour answers and completion paths', async () => {
+    const telemetry = createEnabledTelemetry();
+
+    telemetry?.captureOnboardingStep({
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      step: 'app_tour_answered',
+      outcome: 'ok',
+      nest: 'chat/~zod/general',
+      groupFlag: '~zod/home-group',
+      purposeId: 'agent-research',
+      topicCount: 2,
+      timezone: 'America/New_York',
+      cronJobId: 'job-1',
+      notebookNest: 'notes/~zod/updates',
+      answer: 'yes',
+      completionPath: null,
+      elapsedMsSinceIntro: 12_000,
+      errorText: null,
+    });
+
+    telemetry?.captureOnboardingStep({
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      step: 'onboarding_completed',
+      outcome: 'ok',
+      nest: 'chat/~zod/general',
+      groupFlag: '~zod/home-group',
+      purposeId: 'agent-research',
+      topicCount: 2,
+      timezone: 'America/New_York',
+      cronJobId: 'job-1',
+      notebookNest: 'notes/~zod/updates',
+      answer: null,
+      completionPath: 'bot_tour_completed',
+      elapsedMsSinceIntro: 14_000,
+      errorText: null,
+    });
+
+    expect(postHogMocks.capture).toHaveBeenNthCalledWith(1, {
+      distinctId: '~zod',
+      event: 'TlonBot Onboarding Step',
+      properties: expect.objectContaining({
+        step: 'app_tour_answered',
+        answer: 'yes',
+      }),
+    });
+    expect(postHogMocks.capture).toHaveBeenNthCalledWith(2, {
+      distinctId: '~zod',
+      event: 'TlonBot Onboarding Step',
+      properties: expect.objectContaining({
+        step: 'onboarding_completed',
+        completionPath: 'bot_tour_completed',
+      }),
+    });
+
+    await telemetry?.close();
+  });
+
   it('captures only tool calls recorded after reply tracking starts', async () => {
     recordToolCall({
       sessionKey: 'session-1',
