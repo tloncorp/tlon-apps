@@ -126,6 +126,8 @@ type AgentOnboardingScanContext = Omit<
 >;
 
 const postOnceFlights = new Map<string, Promise<void>>();
+const RECENT_ONBOARDING_HISTORY_LIMIT = 50;
+const ORIENTATION_HISTORY_LIMIT = 500;
 const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
 const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
 const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 5_500;
@@ -322,7 +324,9 @@ async function handleAgentOnboardingRequestInternal(
     const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
       context.api,
       context.channelNest,
-      50
+      isOrientationReply(context.rawText)
+        ? ORIENTATION_HISTORY_LIMIT
+        : RECENT_ONBOARDING_HISTORY_LIMIT
     );
     return advanceDurableConversation(context, history, deps, presentation);
   }
@@ -341,7 +345,7 @@ async function handleAgentOnboardingRequestInternal(
   const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
     context.api,
     context.channelNest,
-    50
+    RECENT_ONBOARDING_HISTORY_LIMIT
   );
   if (request.type === 'tlon-agent-intro-request') {
     await postIntro(
@@ -371,11 +375,23 @@ export async function scanAgentOnboardingChannel(
   deps: AgentOnboardingDeps = {}
 ): Promise<boolean> {
   if (!context.ownerShip || !context.groupId) return false;
-  const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
+  let history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
     context.api,
     context.channelNest,
-    50
+    RECENT_ONBOARDING_HISTORY_LIMIT
   );
+  if (
+    history.some(
+      (entry) =>
+        entry.author === context.ownerShip && isOrientationReply(entry.content)
+    )
+  ) {
+    history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
+      context.api,
+      context.channelNest,
+      ORIENTATION_HISTORY_LIMIT
+    );
+  }
   const ownerRequests = history
     .filter((entry) => entry.author === context.ownerShip && entry.blob)
     .map((entry) => ({
@@ -454,17 +470,21 @@ function pendingDurableReply(
       markerPost(history, botShip, 'bot-tour-offer') ??
       markerPost(history, botShip, 'onboarding-follow-up');
     if (active) {
-      const reply = newestOwnerReplyAfter(history, ownerShip, active.timestamp);
-      return reply && yesNoDecision(reply.content) ? reply : null;
+      return newestOwnerReplyAfter(
+        history,
+        ownerShip,
+        active.timestamp,
+        (text) => yesNoDecision(text) !== null
+      );
     }
     const servicesCard = markerPost(history, botShip, 'services-card');
     if (!servicesCard) return null;
-    const reply = newestOwnerReplyAfter(
+    return newestOwnerReplyAfter(
       history,
       ownerShip,
-      servicesCard.timestamp
+      servicesCard.timestamp,
+      isServicesCompleteReply
     );
-    return reply && isServicesCompleteReply(reply.content) ? reply : null;
   }
   // Purpose replies can be recovered from durable text. Topic confirmation
   // cannot: the owner client must attach its local timezone to the provision
@@ -583,14 +603,16 @@ async function advanceDurableConversation(
 function newestOwnerReplyAfter(
   history: TlonHistoryEntry[],
   ownerShip: string,
-  timestamp: number
+  timestamp: number,
+  isValid: (text: string) => boolean = () => true
 ) {
   return [...history]
     .filter(
       (entry) =>
         entry.author === ownerShip &&
         entry.timestamp > timestamp &&
-        entry.content.trim()
+        entry.content.trim() &&
+        isValid(entry.content)
     )
     .sort((a, b) => b.timestamp - a.timestamp)[0];
 }
@@ -609,6 +631,11 @@ function isServicesCompleteReply(text: string): boolean {
     normalized === 'skip' ||
     normalized === 'skip for now'
   );
+}
+
+function isOrientationReply(text: string | null | undefined): boolean {
+  if (!text) return false;
+  return yesNoDecision(text) !== null || isServicesCompleteReply(text);
 }
 
 async function advanceOrientationConversation(
@@ -651,7 +678,8 @@ async function advanceOrientationConversation(
     const reply = newestOwnerReplyAfter(
       history,
       context.ownerShip!,
-      botTourOffer.timestamp
+      botTourOffer.timestamp,
+      (text) => yesNoDecision(text) !== null
     );
     const decision = reply ? yesNoDecision(reply.content) : null;
     if (!decision) return false;
@@ -689,7 +717,8 @@ async function advanceOrientationConversation(
     const reply = newestOwnerReplyAfter(
       history,
       context.ownerShip!,
-      servicesCard.timestamp
+      servicesCard.timestamp,
+      isServicesCompleteReply
     );
     if (!reply || !isServicesCompleteReply(reply.content)) return false;
 
@@ -715,7 +744,8 @@ async function advanceOrientationConversation(
   const reply = newestOwnerReplyAfter(
     history,
     context.ownerShip!,
-    appTourOffer.timestamp
+    appTourOffer.timestamp,
+    (text) => yesNoDecision(text) !== null
   );
   const decision = reply ? yesNoDecision(reply.content) : null;
   if (!decision) return false;
@@ -863,7 +893,6 @@ async function provision(
     // Validation succeeded and this provision has not already been
     // acknowledged. Reconciliation can replay the same durable request, so
     // emit the successful funnel step only on the first pass.
-    context.trackStep?.({ step: 'provision_received', ...stepFacts });
     if (!cron) throw new Error('cron service is not available');
     const providerConfig = findLatestProviderConfig(
       history,
@@ -877,12 +906,6 @@ async function provision(
       context.channelNest,
       providerConfig?.providerIds ?? []
     );
-    context.trackStep?.({
-      step: 'cron_created',
-      ...stepFacts,
-      cronJobId: jobId,
-    });
-
     const firstRun = await ensureFirstRunEnqueued(
       cron,
       jobId,
@@ -899,6 +922,12 @@ async function provision(
       throw new Error('first onboarding run is still being claimed');
     }
     if (firstRun === 'enqueued') {
+      context.trackStep?.({ step: 'provision_received', ...stepFacts });
+      context.trackStep?.({
+        step: 'cron_created',
+        ...stepFacts,
+        cronJobId: jobId,
+      });
       context.trackStep?.({
         step: 'first_run_enqueued',
         ...stepFacts,
@@ -1112,7 +1141,7 @@ async function failFirstRunCorrelation(
     correlation.context.channelNest,
     50
   );
-  await postOnce(
+  const posted = await postOnce(
     correlation.context,
     history,
     FIRST_ENTRY_FAILED_MARKER,
@@ -1123,14 +1152,16 @@ async function failFirstRunCorrelation(
     }),
     runDeps
   );
-  correlation.context.trackStep?.({
-    step: 'first_entry_revealed',
-    outcome: 'failed',
-    purposeId: correlation.purposeId,
-    topicCount: correlation.topics.length,
-    notebookNest: correlation.notebookNest,
-    errorText: failureDescription,
-  });
+  if (posted) {
+    correlation.context.trackStep?.({
+      step: 'first_entry_revealed',
+      outcome: 'failed',
+      purposeId: correlation.purposeId,
+      topicCount: correlation.topics.length,
+      notebookNest: correlation.notebookNest,
+      errorText: failureDescription,
+    });
+  }
   await markAgentOnboardingRunTerminal(correlation.provisionId, 'failed');
   firstRunCorrelations.delete(correlationRunId);
 }
@@ -1263,7 +1294,7 @@ async function completeFirstRunCorrelation(
     // Keyed on the channel, not the provision. Re-provisioning mints a new
     // provisionId, and the old per-provision key let the same reveal post
     // three times in one setup.
-    await postOnce(
+    const revealed = await postOnce(
       correlation.context,
       history,
       'first-entry-ping',
@@ -1321,16 +1352,18 @@ async function completeFirstRunCorrelation(
     );
     // The bot's half of activation: the entry exists and has been announced.
     // Whether the owner opened it is a client-side event.
-    correlation.context.trackStep?.({
-      step: 'first_entry_revealed',
-      purposeId: correlation.purposeId,
-      topicCount: correlation.topics.length,
-      notebookNest: correlation.notebookNest,
-    });
+    if (revealed) {
+      correlation.context.trackStep?.({
+        step: 'first_entry_revealed',
+        purposeId: correlation.purposeId,
+        topicCount: correlation.topics.length,
+        notebookNest: correlation.notebookNest,
+      });
+    }
     await (
       deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
     )(FIRST_ENTRY_TO_SERVICES_DELAY_MS);
-    await postOnce(
+    const servicesPosted = await postOnce(
       correlation.context,
       history,
       'services-card',
@@ -1350,11 +1383,13 @@ async function completeFirstRunCorrelation(
       },
       runDeps
     );
-    correlation.context.trackStep?.({
-      step: 'services_offered',
-      purposeId: correlation.purposeId,
-      notebookNest: correlation.notebookNest,
-    });
+    if (servicesPosted) {
+      correlation.context.trackStep?.({
+        step: 'services_offered',
+        purposeId: correlation.purposeId,
+        notebookNest: correlation.notebookNest,
+      });
+    }
     await markAgentOnboardingRunTerminal(correlation.provisionId, 'completed');
     firstRunCorrelations.delete(correlationRunId);
   } catch (error) {
@@ -1797,11 +1832,14 @@ async function postOnce(
   build: () => Promise<PostOnceContent>,
   deps: AgentOnboardingDeps,
   presentation?: OnboardingPresentation
-) {
-  if (hasPostMarker(history, context.botShip, key)) return;
+): Promise<boolean> {
+  if (hasPostMarker(history, context.botShip, key)) return false;
   const flightKey = `${context.channelNest}:${key}`;
   const existing = postOnceFlights.get(flightKey);
-  if (existing) return existing;
+  if (existing) {
+    await existing;
+    return false;
+  }
   const flight = (async () => {
     const content = await build();
     let blob = content.blob;
@@ -1833,7 +1871,8 @@ async function postOnce(
     presentation?.afterPost();
   })().finally(() => postOnceFlights.delete(flightKey));
   postOnceFlights.set(flightKey, flight);
-  return flight;
+  await flight;
+  return true;
 }
 
 function hasPostMarker(

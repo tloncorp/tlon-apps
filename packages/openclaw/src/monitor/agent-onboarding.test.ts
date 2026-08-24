@@ -267,6 +267,110 @@ describe('agent onboarding requests', () => {
     );
   });
 
+  it('preserves a valid tour reply when a newer freeform message follows it', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    const history = [
+      firstGroupIntro(),
+      botMarker('intro', 0.1),
+      botMarker('purpose-picker', 0.2),
+      {
+        author: '~bot',
+        content: 'ready',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack',
+          version: 1,
+          provisionId: provision.provisionId,
+          cronJobId: 'job-1',
+        }),
+      },
+      botMarker('onboarding-follow-up', 2),
+      { author: '~ten', content: 'Yes', timestamp: 3 },
+      { author: '~ten', content: 'What happens next?', timestamp: 4 },
+    ];
+
+    await expect(
+      scanAgentOnboardingChannel(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+        },
+        { fetchHistory: vi.fn(async () => history), sendPost }
+      )
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'bot-tour-offer',
+      })
+    );
+  });
+
+  it('loads extended history when an old orientation card is answered', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    const history = [
+      firstGroupIntro(),
+      {
+        author: '~bot',
+        content: 'ready',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack',
+          version: 1,
+          provisionId: provision.provisionId,
+          cronJobId: 'job-1',
+        }),
+      },
+      botMarker('onboarding-follow-up', 2),
+      { author: '~ten', content: 'Yes', timestamp: 100 },
+    ];
+    const fetchHistory = vi.fn(
+      async (_api: unknown, _nest: string, count: number) =>
+        count === 500 ? history : history.slice(-1)
+    );
+
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          rawText: 'Yes',
+        },
+        { fetchHistory, sendPost }
+      )
+    ).resolves.toBe(true);
+
+    expect(fetchHistory).toHaveBeenCalledWith(
+      expect.anything(),
+      'chat/~ten/general',
+      500
+    );
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'bot-tour-offer',
+      })
+    );
+  });
+
   it('recovers a durable services completion after a plugin restart', async () => {
     const sendPost = vi.fn(async () => ({
       channel: 'tlon' as const,
