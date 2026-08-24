@@ -1488,6 +1488,47 @@ describe('primary onboarding cron slot', () => {
     return { cron, getJobs: () => jobs };
   }
 
+  it('rejects a live provision superseded in durable history', async () => {
+    const getCron = vi.fn();
+    const newerProvision = {
+      ...provision,
+      provisionId: 'provision-2',
+      topics: ['Robotics'],
+    };
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/group/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          blob: appendToPostBlob(undefined, provision),
+        },
+        {
+          fetchHistory: vi.fn(async () => [
+            {
+              author: '~ten',
+              content: 'AI, Climate',
+              timestamp: 1,
+              blob: appendToPostBlob(undefined, provision),
+            },
+            {
+              author: '~ten',
+              content: 'Robotics',
+              timestamp: 2,
+              blob: appendToPostBlob(undefined, newerProvision),
+            },
+          ]),
+          getCron,
+        }
+      )
+    ).resolves.toBe(true);
+
+    expect(getCron).not.toHaveBeenCalled();
+  });
+
   it('adds, verifies, and then no-ops the stable group slot', async () => {
     const harness = cronHarness();
     await expect(
