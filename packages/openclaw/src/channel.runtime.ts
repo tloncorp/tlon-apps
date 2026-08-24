@@ -252,6 +252,29 @@ function recordOutboundLensDelivery(
   recordBackgroundContextLensOutput(target.lensId, output);
 }
 
+async function sendNotesEntryWithLens({
+  account,
+  fromShip,
+  nest,
+  text,
+}: {
+  account: ConfiguredTlonAccount;
+  fromShip: string;
+  nest: string;
+  text: string;
+}) {
+  const target = resolveOutboundLensTarget(account, fromShip, nest);
+  const result = await sendNotesEntry({ fromShip, nest, text });
+  recordOutboundLensDelivery(target, {
+    messageId: result.messageId,
+    conversationId: nest,
+    kind: 'channel',
+    sentAt: result.sentAt,
+    text,
+  });
+  return result;
+}
+
 const unobservedTlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
   'sendText' | 'sendMedia'
@@ -294,7 +317,8 @@ const unobservedTlonRuntimeOutbound: Pick<
           return result;
         }
         if (parsed.kind === 'notebook') {
-          return await sendNotesEntry({
+          return await sendNotesEntryWithLens({
+            account,
             fromShip,
             nest: parsed.nest,
             text,
@@ -373,7 +397,8 @@ const unobservedTlonRuntimeOutbound: Pick<
           return result;
         }
         if (parsed.kind === 'notebook') {
-          return await sendNotesEntry({
+          return await sendNotesEntryWithLens({
+            account,
             fromShip,
             nest: parsed.nest,
             text: buildMediaText(text, media?.url),
