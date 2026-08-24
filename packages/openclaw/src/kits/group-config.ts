@@ -13,11 +13,11 @@ import {
   type GroupKitEntry,
   KITS_BLOB_VERSION,
   parseGroupKitConfig,
-} from '@tloncorp/tlon-kits';
+} from '@tloncorp/api';
 
 export { KITS_BLOB_VERSION };
 
-//  The parse lives in @tloncorp/tlon-kits so the harness and the client read
+//  The parse lives in @tloncorp/api so the harness and the client read
 //  the blob identically. They used to have separate implementations that
 //  disagreed about what a malformed payload means.
 export type InstalledKitConfig = GroupKitEntry;

@@ -32,19 +32,11 @@ export type {
 } from './manifest.js';
 
 // The loader reads kits off disk and is deliberately NOT re-exported here:
-// this barrel is imported by @tloncorp/api, which runs in the browser, and
+// this barrel may be bundled for the browser by in-repo consumers, and
 // pulling in node:fs makes the web bundle throw at module-eval time. Node
 // callers import it from '@tloncorp/tlon-kits/loader'.
 
-export {
-  KITS_BLOB_VERSION,
-  WORKSPACE_CAPABILITIES,
-  parseGroupKitConfig,
-} from './groupConfig.js';
-export type {
-  GroupKitConfig,
-  GroupKitEntry,
-  GroupKitSchedule,
-  ParseGroupKitConfigOptions,
-  WorkspaceCapability,
-} from './groupConfig.js';
+// The group-blob parser (parseGroupKitConfig and friends) lives in
+// @tloncorp/api: both published readers — the client and the OpenClaw
+// harness — need it at runtime, and this package is deliberately
+// monorepo-only (never published), so it cannot host code they ship.

@@ -4,7 +4,7 @@ title: Fix openclaw's dependency on the unpublished @tloncorp/tlon-kits
 status: To Do
 assignee: []
 created_date: '2026-08-20 19:04'
-updated_date: '2026-08-22 19:32'
+updated_date: '2026-08-24 13:32'
 labels:
   - openclaw
   - packaging
@@ -63,6 +63,16 @@ Why publish wins over bundling:
 - No runtime code changes anywhere.
 
 Estimated diff: 1 new workflow, 1 new check script, 1 CI step.
+
+## REVISED per user direction 2026-08-24: do NOT publish tlon-kits — it stays monorepo-only.
+
+New mechanism: **invert the dependency**. Research found the wrapper for this already exists — `packages/api/src/client/groupKitConfig.ts` re-exports the parser from tlon-kits, meaning the published @tloncorp/api carries the same unresolvable dep (worse than the task knew). And @tloncorp/tlon-skill already holds tlon-kits as a devDependency with bun-bundled binaries, so it is safe as-is.
+
+1. Move `tlon-kits/src/groupConfig.ts` (implementation + test) into `packages/api/src/client/groupKitConfig.ts` — the wrapper becomes the implementation. The file is deliberately zod-3/4-common-subset (its own header says so), and api pins zod ^3, so it moves verbatim. Signature gains optional `{log}` (openclaw passes its own logger; api callers keep the devLogger default).
+2. tlon-kits drops groupConfig (index exports pruned); gains `"private": true` so it can never be published accidentally. Kit content + loader + manifest schemas stay (their only published consumer, tlon-skill, bundles them at build as a devDep).
+3. openclaw `src/kits/group-config.ts` imports from '@tloncorp/api'; `@tloncorp/tlon-kits` leaves openclaw's dependencies entirely. api's package.json drops it too.
+4. AC #5 guard: `scripts/check-publishable-deps.mjs` (generic, takes a package.json path) asserting every runtime `dependencies` entry using the workspace: protocol resolves on the registry; wired into openclaw-ci. This is now the regression fence against anyone re-adding a monorepo-only package as a runtime dep.
+5. AC #2 reading updates to: the published plugin's dependency closure contains no unpublished packages (verified by the guard + a pack:publish staging run).
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

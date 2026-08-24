@@ -1,9 +1,10 @@
+import { parseGroupKitConfig } from '@tloncorp/api';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { parseGroupKitConfig, toWireKit } from './index.js';
+import { toWireKit } from './index.js';
 import { loadKit } from './loader.js';
 
 const mealPlanDir = join(

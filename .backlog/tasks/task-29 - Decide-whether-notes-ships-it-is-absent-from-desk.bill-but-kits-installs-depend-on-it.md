@@ -3,10 +3,10 @@ id: TASK-29
 title: >-
   Decide whether %notes ships: it is absent from desk.bill but kits installs
   depend on it
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-20 19:13'
-updated_date: '2026-08-22 20:06'
+updated_date: '2026-08-24 13:35'
 labels:
   - workspaces
   - backend
@@ -33,10 +33,10 @@ I raised the desk.bill absence as a standing flag in earlier sessions without fi
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A decision is recorded: either %notes joins desk.bill, or kit manifests may not declare notes places until it does
-- [ ] #2 If %notes ships: it is in desk.bill and a kit install creates its notes place on a freshly booted ship with no manual rein
+- [x] #1 A decision is recorded: either %notes joins desk.bill, or kit manifests may not declare notes places until it does
+- [x] #2 If %notes ships: it is in desk.bill and a kit install creates its notes place on a freshly booted ship with no manual rein
 - [ ] #3 If %notes does not ship yet: the meal-plan kit's artifact place points at an agent that actually runs, and placeKindSchema rejects notes so a manifest cannot declare an unrunnable place
-- [ ] #4 A test catches the general case — a kit declaring a place whose host agent is not in desk.bill fails rather than installing into nothing
+- [x] #4 A test catches the general case — a kit declaring a place whose host agent is not in desk.bill fails rather than installing into nothing
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -58,3 +58,9 @@ So the remaining work is only **AC #4** — the regression test that catches the
 
 Estimated diff: ~20 lines in one test file. No agent or manifest changes.
 <!-- SECTION:PLAN:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Closed 2026-08-24. The decision (AC #1) was made and shipped before this task was picked up: %notes joined desk.bill in 391021b86c (2026-08-20) — a 3,102-line agent with versioned state (state-15, migrated from 14) and a spec doc, not a stub. AC #2 is proven by every provisioning run since: on ships whose %groups agents were nuked and revived (restarted strictly from desk.bill), every kit install created its notes-backed plans place with no manual rein. AC #3 is N/A — its trigger ("%notes does not ship") is false; placeKindSchema keeps notes. AC #4 landed in 9ebf5b53a9: tests/app/kits.hoon imports the shipped bill via the %bill mark and asserts the +place-card host agents (%channels, %notes) are present, run green on-ship (ok=%.y, 25/25 on ~zod; desk synced to ~ten). One transferable lesson: a /* mark pin arrives untyped in the test build — clam it (;;) before using list functions on it, or mull fails with -find.i.a.
+<!-- SECTION:FINAL_SUMMARY:END -->

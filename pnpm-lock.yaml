@@ -964,9 +964,6 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.190.0
         version: 3.190.0
-      '@tloncorp/tlon-kits':
-        specifier: workspace:*
-        version: link:../tlon-kits
       '@types/mdast':
         specifier: ^4.0.0
         version: 4.0.4
@@ -1130,9 +1127,6 @@ importers:
       '@tloncorp/api':
         specifier: workspace:^
         version: link:../api
-      '@tloncorp/tlon-kits':
-        specifier: workspace:^
-        version: link:../tlon-kits
       '@tloncorp/tlon-skill':
         specifier: workspace:^
         version: link:../tlon-skill
@@ -1270,6 +1264,9 @@ importers:
         specifier: ^4.4.1
         version: 4.4.3
     devDependencies:
+      '@tloncorp/api':
+        specifier: workspace:*
+        version: link:../api
       '@types/node':
         specifier: ^22.10.0
         version: 22.19.20
