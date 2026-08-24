@@ -7,6 +7,7 @@
 /-  k=kits, g=groups, c=channels, n=notes, meta
 /+  *test-agent, j=kits-json
 /=  agent  /app/kits
+/*  bill  %bill  /desk/bill
 |%
 ++  dap  %kits
 ++  our-ship  ~dev
@@ -162,6 +163,24 @@
           !>(`update:v1:k`[%installed club-flag fix-install])
       ==
   ==
+::
+::  TASK-29: every agent +place-card can target must actually ship. A kit
+::  place kind whose host agent is missing from desk.bill installs into
+::  nothing — the poke goes to an agent Gall never started — and no other
+::  test notices, because these tests drive %kits directly rather than
+::  through a booted ship. The kind→dude pairs here mirror +place-card:
+::  %chat/%notebook/%gallery are %channels-backed, %notes is %notes-backed.
+::  A new place kind means a new pair here.
+::
+++  test-place-hosts-are-in-the-bill
+  ^-  tang
+  ::  the /* pin arrives untyped; clam it back into the bill's real shape
+  =/  duz  ;;((list dude:gall) bill)
+  =/  missing=(list dude:gall)
+    %+  skip  `(list dude:gall)`~[%channels %notes]
+    |=(d=dude:gall (lien duz |=(b=dude:gall =(b d))))
+  ?~  missing  ~
+  [leaf+"place host agents missing from desk.bill: {<missing>}"]~
 ::
 ::  %setup-done flips the ledger and rewrites the blob
 ::
