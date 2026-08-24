@@ -22,10 +22,7 @@ function markerPost(key: string, authorId = '~bot'): db.Post {
 describe('hasAgentOnboardingFirstEntry', () => {
   it('recognizes the current channel-wide completion marker', () => {
     expect(
-      hasAgentOnboardingFirstEntry(
-        [markerPost('first-entry-ping')],
-        '~bot'
-      )
+      hasAgentOnboardingFirstEntry([markerPost('first-entry-ping')], '~bot')
     ).toBe(true);
   });
 
