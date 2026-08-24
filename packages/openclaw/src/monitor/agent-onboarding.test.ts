@@ -422,6 +422,7 @@ describe('agent onboarding requests', () => {
       sent.push(post);
       return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
     });
+    const trackStep = vi.fn();
     const history = [
       firstGroupIntro(),
       {
@@ -454,6 +455,7 @@ describe('agent onboarding requests', () => {
       groupId: provision.groupId,
       ownerShip: '~ten',
       senderShip: '~ten',
+      trackStep,
     };
 
     await expect(
@@ -473,6 +475,11 @@ describe('agent onboarding requests', () => {
         key: 'bot-tour-offer',
       })
     );
+    expect(trackStep).toHaveBeenCalledWith({
+      step: 'app_tour_answered',
+      answer: 'yes',
+    });
+    trackStep.mockClear();
 
     history.push(
       {
@@ -499,6 +506,15 @@ describe('agent onboarding requests', () => {
         key: 'orientation-complete',
       })
     );
+    expect(trackStep.mock.calls).toEqual([
+      [{ step: 'bot_tour_answered', answer: 'yes' }],
+      [
+        {
+          step: 'onboarding_completed',
+          completionPath: 'bot_tour_completed',
+        },
+      ],
+    ]);
   });
 
   it('ends the optional tour cleanly after No', async () => {
@@ -507,6 +523,7 @@ describe('agent onboarding requests', () => {
       messageId: 'post',
       sentAt: 0,
     }));
+    const trackStep = vi.fn();
     const history = [
       firstGroupIntro(),
       {
@@ -543,6 +560,7 @@ describe('agent onboarding requests', () => {
           ownerShip: '~ten',
           senderShip: '~ten',
           rawText: 'No',
+          trackStep,
         },
         { fetchHistory: vi.fn(async () => history), sendPost }
       )
@@ -554,6 +572,66 @@ describe('agent onboarding requests', () => {
     expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).not.toContain(
       'what Tlonbot can do'
     );
+    expect(trackStep.mock.calls).toEqual([
+      [{ step: 'app_tour_answered', answer: 'no' }],
+      [
+        {
+          step: 'onboarding_completed',
+          completionPath: 'app_tour_declined',
+        },
+      ],
+    ]);
+  });
+
+  it('tracks declining the Tlonbot tour as a distinct completion path', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    const trackStep = vi.fn();
+    const history = [
+      firstGroupIntro(),
+      {
+        author: '~bot',
+        content: 'ready',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack' as const,
+          version: 1 as const,
+          provisionId: provision.provisionId,
+          cronJobId: 'job-1',
+        }),
+      },
+      botMarker('bot-tour-offer', 2),
+      { author: '~ten', content: 'No', timestamp: 3 },
+    ];
+
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          rawText: 'No',
+          trackStep,
+        },
+        { fetchHistory: vi.fn(async () => history), sendPost }
+      )
+    ).resolves.toBe(true);
+
+    expect(trackStep.mock.calls).toEqual([
+      [{ step: 'bot_tour_answered', answer: 'no' }],
+      [
+        {
+          step: 'onboarding_completed',
+          completionPath: 'bot_tour_declined',
+        },
+      ],
+    ]);
   });
 
   it('catches an intro request that arrived before the channel was watched', async () => {

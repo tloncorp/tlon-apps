@@ -453,7 +453,9 @@ export type TlonMigrationEvent = {
  *
  * `first_entry_revealed` is activation as far as the bot can see it — the entry
  * exists and has been announced. Whether the owner *looked* is a client-side
- * event, because only the client knows that.
+ * event, because only the client knows that. After `services_offered`, first
+ * onboarding branches through one or both tour-answer steps and always ends
+ * with `onboarding_completed`.
  */
 export type TlonOnboardingStep =
   | 'intro_posted'
@@ -464,7 +466,17 @@ export type TlonOnboardingStep =
   | 'cron_created'
   | 'first_run_enqueued'
   | 'first_entry_revealed'
-  | 'services_offered';
+  | 'services_offered'
+  | 'app_tour_answered'
+  | 'bot_tour_answered'
+  | 'onboarding_completed';
+
+export type TlonOnboardingAnswer = 'yes' | 'no';
+
+export type TlonOnboardingCompletionPath =
+  | 'app_tour_declined'
+  | 'bot_tour_declined'
+  | 'bot_tour_completed';
 
 /**
  * One event per onboarding step, per group.
@@ -491,6 +503,8 @@ export type TlonOnboardingFunnelEvent = {
   timezone: string | null;
   cronJobId: string | null;
   notebookNest: string | null;
+  answer: TlonOnboardingAnswer | null;
+  completionPath: TlonOnboardingCompletionPath | null;
   /** Since the first step of this setup, so a funnel row carries its own latency. */
   elapsedMsSinceIntro: number | null;
   errorText: string | null;
@@ -1930,6 +1944,8 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           timezone: event.timezone,
           cronJobId: event.cronJobId,
           notebookNest: event.notebookNest,
+          answer: event.answer,
+          completionPath: event.completionPath,
           elapsedMsSinceIntro: event.elapsedMsSinceIntro,
           errorText,
         },

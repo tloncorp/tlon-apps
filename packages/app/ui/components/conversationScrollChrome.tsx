@@ -85,6 +85,7 @@ export function useConversationInsets({
 
   return {
     contentInsets,
+    navigationHeaderHeight: headerHeight,
     floatingHeaderHeight: usesTransparentHeader ? headerHeight : 0,
     onFloatingHeightChange:
       Platform.OS !== 'web' && hasFloatingComposer

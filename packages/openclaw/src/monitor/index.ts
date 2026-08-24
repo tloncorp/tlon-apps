@@ -3708,6 +3708,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             timezone: report.timezone ?? null,
             cronJobId: report.cronJobId ?? null,
             notebookNest: report.notebookNest ?? null,
+            answer: report.answer ?? null,
+            completionPath: report.completionPath ?? null,
             elapsedMsSinceIntro: startedAt ? Date.now() - startedAt : null,
             errorText: report.errorText ?? null,
           });

@@ -18,7 +18,11 @@ import {
   takeDeliveredNote,
 } from '../notes-delivery-state.js';
 import { sharedMap } from '../shared-state.js';
-import type { TlonOnboardingStep } from '../telemetry.js';
+import type {
+  TlonOnboardingAnswer,
+  TlonOnboardingCompletionPath,
+  TlonOnboardingStep,
+} from '../telemetry.js';
 import { makeA2UIBlob } from '../urbit/blob.js';
 import {
   captureTlonApiScope,
@@ -56,6 +60,8 @@ export type OnboardingStepReport = {
   notebookNest?: string | null;
   groupFlag?: string | null;
   errorText?: string | null;
+  answer?: TlonOnboardingAnswer | null;
+  completionPath?: TlonOnboardingCompletionPath | null;
 };
 
 type AgentOnboardingContext = {
@@ -663,6 +669,12 @@ async function advanceOrientationConversation(
       deps,
       presentation
     );
+    context.trackStep?.({ step: 'bot_tour_answered', answer: decision });
+    context.trackStep?.({
+      step: 'onboarding_completed',
+      completionPath:
+        decision === 'yes' ? 'bot_tour_completed' : 'bot_tour_declined',
+    });
     return true;
   }
 
@@ -717,6 +729,11 @@ async function advanceOrientationConversation(
       deps,
       presentation
     );
+    context.trackStep?.({ step: 'app_tour_answered', answer: decision });
+    context.trackStep?.({
+      step: 'onboarding_completed',
+      completionPath: 'app_tour_declined',
+    });
     return true;
   }
 
@@ -738,6 +755,7 @@ async function advanceOrientationConversation(
     deps,
     presentation
   );
+  context.trackStep?.({ step: 'app_tour_answered', answer: decision });
   return true;
 }
 

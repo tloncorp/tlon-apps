@@ -826,12 +826,16 @@ export function Channel({
   const usesFloatingPinnedPostBanner = isChatChannel && supportsLiquidGlass();
   const shouldReservePinnedPostBannerSpace =
     usesFloatingPinnedPostBanner && shouldRenderPinnedPostBanner;
-  const { contentInsets, floatingHeaderHeight, onFloatingHeightChange } =
-    useConversationInsets({
-      hasFloatingComposer: draftInputType === DraftInputId.chat,
-      hasTransparentHeader: isChatChannel,
-      hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
-    });
+  const {
+    contentInsets,
+    navigationHeaderHeight,
+    floatingHeaderHeight,
+    onFloatingHeightChange,
+  } = useConversationInsets({
+    hasFloatingComposer: draftInputType === DraftInputId.chat,
+    hasTransparentHeader: isChatChannel,
+    hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
+  });
   const sharedTopInset =
     floatingHeaderHeight +
     (shouldReservePinnedPostBannerSpace
@@ -905,8 +909,13 @@ export function Channel({
                         {showOnboardingBackTooltip && !disableBackButton ? (
                           <AgentOnboardingBackTooltip
                             top={
-                              floatingHeaderHeight +
-                              (Platform.OS === 'web' ? 30 : 0)
+                              // iOS portals into full-window coordinates, so
+                              // include opaque as well as floating headers.
+                              Platform.OS === 'ios'
+                                ? navigationHeaderHeight
+                                : Platform.OS === 'web'
+                                  ? 30
+                                  : 0
                             }
                             onDismiss={() =>
                               setShowOnboardingBackTooltip(false)
