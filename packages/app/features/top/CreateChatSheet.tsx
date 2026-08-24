@@ -1,3 +1,4 @@
+import * as api from '@tloncorp/api';
 import * as store from '@tloncorp/shared';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -731,9 +732,16 @@ function useCreateChat() {
           navigateToChannel(furnishing.chatChannel);
           void furnishing.complete
             .then((completed) => {
-              completed.tail.catch(() => {
-                // The furnishing core is complete. Tail failures are retried
-                // by later reconciliation and must not pull the user out.
+              completed.tail.catch((error) => {
+                logger.trackError(
+                  'Agent group standing repair failed; scheduling retry',
+                  error
+                );
+                void retryLaterAgentGroupStanding({
+                  agentShipId: completed.agentShipId,
+                  groupId: completed.group.id,
+                  ownerId: api.getCurrentUserId(),
+                });
               });
             })
             .catch((error) => {
@@ -778,4 +786,29 @@ function useCreateChat() {
   );
 
   return { isCreatingChat, createChatError, createChat };
+}
+
+async function retryLaterAgentGroupStanding({
+  agentShipId,
+  groupId,
+  ownerId,
+}: {
+  agentShipId: string;
+  groupId: string;
+  ownerId: string;
+}) {
+  for (const delayMs of [30_000, 60_000]) {
+    await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+    if (api.getCurrentUserId() !== ownerId) return;
+    try {
+      const repaired = await store.ensureAgentGroupFurnished({
+        agentShipId,
+        groupId,
+      });
+      await repaired.tail;
+      return;
+    } catch (error) {
+      logger.trackError('Agent group standing retry failed', error);
+    }
+  }
 }
