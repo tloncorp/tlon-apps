@@ -213,6 +213,14 @@ describe('first-run correlation', () => {
       agentOnboardingTesting.findFirstRunCorrelation('run-1', undefined)?.[1]
         .provisionId
     ).toBe(provision.provisionId);
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation(
+        'unrelated-run',
+        undefined,
+        'job-1',
+        true
+      )
+    ).toBeNull();
   });
 });
 

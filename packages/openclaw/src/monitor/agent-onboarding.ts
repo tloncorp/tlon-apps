@@ -988,6 +988,13 @@ async function provision(
       deps,
       presentation
     );
+    // A very fast run can finish before enqueueRun returns and before its
+    // lifecycle hooks can see the correlation. Reconcile once more after the
+    // ordered acknowledgement/status posts are safely in the transcript.
+    const enqueuedRecord = await lookupAgentOnboardingRun(request.provisionId);
+    if (enqueuedRecord?.status === 'enqueued') {
+      await reconcileRestoredFirstRun(cron, enqueuedRecord, deps);
+    }
   } else if (jobId) {
     if (!cron) {
       throw new Error('cron service is not available while restoring setup');
@@ -1076,7 +1083,7 @@ async function failFirstRun(
   event: PluginHookCronChangedEvent,
   deps: AgentOnboardingCronDeps
 ) {
-  const match = findFirstRunCorrelation(runId, undefined, event.jobId);
+  const match = findFirstRunCorrelation(runId, undefined, event.jobId, true);
   if (!match) return;
   const [correlationRunId, correlation] = match;
   const existingFlight = firstRunCompletionFlights.get(correlationRunId);
@@ -1457,11 +1464,13 @@ async function findNewestNoteWithRetry(
 function findFirstRunCorrelation(
   runId: string | undefined,
   notebookNest: string | undefined,
-  jobId?: string
+  jobId?: string,
+  requireExactRunId = false
 ) {
   if (runId) {
     const exact = firstRunCorrelations.get(runId);
     if (exact) return [runId, exact] as const;
+    if (requireExactRunId) return null;
   }
   if (jobId) {
     const jobMatch = [...firstRunCorrelations].find(
