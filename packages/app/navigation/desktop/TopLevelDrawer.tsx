@@ -111,6 +111,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           // hasUnreads={(unreadCount?.channels ?? 0) > 0}
           // intentionally leave undotted for now
           shouldShowUnreads={false}
+          disabled={agentOnboardingLocked}
           onPress={() => {
             trackTabSelection('Home');
             restoreHomeState();
@@ -122,6 +123,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           activeType="MessagesFilled"
           isActive={isRouteActive('Messages')}
           shouldShowUnreads={false}
+          disabled={agentOnboardingLocked}
           onPress={() => {
             trackTabSelection('Messages');
             saveHomeState();
@@ -138,6 +140,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           hasUnreads={haveUnreadUnseenActivity}
           isActive={isRouteActive('Activity')}
           testID="ActivityNavIcon"
+          disabled={agentOnboardingLocked}
           onPress={() => {
             trackTabSelection('Activity');
             saveHomeState();
@@ -150,6 +153,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
         <AvatarNavIcon
           id={userId}
           focused={isRouteActive('Contacts')}
+          disabled={agentOnboardingLocked}
           onPress={() => {
             trackTabSelection('Contacts');
             saveHomeState();
@@ -166,6 +170,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
             isActive={true}
             onPress={triggerWebAppUpdate}
             shouldShowUnreads={false}
+            disabled={agentOnboardingLocked}
           />
         )}
       </YStack>
@@ -179,6 +184,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           type="AddPerson"
           isActive={false}
           shouldShowUnreads={false}
+          disabled={agentOnboardingLocked}
           onPress={handlePersonalInvitePress}
           testID="PersonalInviteNavIcon"
         />
@@ -187,6 +193,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           testID="SettingsNavIcon"
           isActive={isRouteActive('Settings')}
           shouldShowUnreads={false}
+          disabled={agentOnboardingLocked}
           onPress={() => {
             trackTabSelection('Settings');
             saveHomeState();
@@ -200,6 +207,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           type="Command"
           isActive={isOpen}
           shouldShowUnreads={false}
+          disabled={agentOnboardingLocked}
           onPress={() => setIsOpen(!isOpen)}
         />
       </YStack>
