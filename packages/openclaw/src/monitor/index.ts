@@ -3764,7 +3764,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
       }
       if (!groupId) {
-        clearAgentOnboardingRetry(nest);
+        scheduleAgentOnboardingRetry(nest);
         return;
       }
       try {
