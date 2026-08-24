@@ -55,6 +55,17 @@ jobs:
       - name: Check runtime workspace deps are published
         run: node scripts/check-publishable-deps.mjs
 
+      # The dev rig and the production pods patch the host's poll-intent
+      # heuristic in place (dev/patch-host-poll-heuristic.mjs, TASK-33). The
+      # script exits 1 when an openclaw version bump changes the code shape
+      # it expects — surface that on the bump PR, rather than a pod booting
+      # an unpatched heuristic in production. Runs against a throwaway copy
+      # of the pinned host (nodeLinker: hoisted puts it at the repo root).
+      - name: Validate the poll-heuristic patch against the pinned host
+        run: |
+          cp -R ../../node_modules/openclaw/dist /tmp/host-dist-check
+          node dev/patch-host-poll-heuristic.mjs /tmp/host-dist-check
+
       - name: Run unit tests
         run: npx vitest run src/ --exclude src/config-schema.test.ts
 
