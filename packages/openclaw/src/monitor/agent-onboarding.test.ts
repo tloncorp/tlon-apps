@@ -1928,6 +1928,11 @@ describe('provision coordinator ordering', () => {
       },
       {
         fetchHistory: vi.fn(async () => []),
+        getGroup: vi.fn(async () => ({
+          hostUserId: '~other',
+          channels: [{ id: provision.notebookNest, type: 'notes' }],
+          members: [],
+        })),
         getCron: () => undefined as never,
         sendPost: vi.fn(),
       }
@@ -1939,6 +1944,37 @@ describe('provision coordinator ordering', () => {
       step: 'provision_received',
       outcome: 'failed',
     });
+  });
+
+  it('retries a valid provision while notebook membership converges', async () => {
+    const trackStep = vi.fn();
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/group/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          blob: appendToPostBlob(undefined, provision),
+          trackStep,
+        },
+        {
+          fetchHistory: vi.fn(async () => []),
+          getGroup: vi.fn(async () => ({
+            hostUserId: '~ten',
+            channels: [],
+            members: [
+              { contactId: '~bot', status: 'joined', roles: ['admin'] },
+            ],
+          })),
+          getCron: () => undefined as never,
+          sendPost: vi.fn(),
+        }
+      )
+    ).rejects.toThrow('onboarding notebook is not available yet');
+    expect(trackStep).not.toHaveBeenCalled();
   });
 
   it('waits for the bot admin promotion before provisioning', async () => {
