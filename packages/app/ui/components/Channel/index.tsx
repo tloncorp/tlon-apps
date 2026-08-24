@@ -928,7 +928,7 @@ export function Channel({
                             disableBackButton ? undefined : goToSearch
                           }
                           onToggleContextLens={
-                            contextLensAvailable
+                            !disableBackButton && contextLensAvailable
                               ? isNarrow && goToContextLensRuns
                                 ? goToContextLensRuns
                                 : toggleContextLens
@@ -939,7 +939,7 @@ export function Channel({
                           }
                           contextLensActive={contextLensActive}
                           showSpinner={showHeaderLoading}
-                          showSearchButton={isChatChannel}
+                          showSearchButton={isChatChannel && !disableBackButton}
                         />
                         {showOnboardingBackTooltip && !disableBackButton ? (
                           <AgentOnboardingBackTooltip
