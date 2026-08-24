@@ -256,6 +256,17 @@
       `@uv`eny.bowl
     =/  got=(each @uv tang)  (mule |.((slav %uv p.u.rj)))
     ?:(?=(%& -.got) p.got `@uv`eny.bowl)
+  ::  A retry of a dropped POST arrives with the id it already used, so the
+  ::  action must not run twice: a %create-folder or %begin-upload would
+  ::  duplicate state, and overwriting the record would strand the first
+  ::  connection with no answer coming.
+  ?^  seen=(~(get by requests) rid)
+    ::  Already settled: answer from the record rather than running again.
+    ?^  result.u.seen  (give-response eyre-id [rid u.result.u.seen])
+    ::  Still in flight: hold this connection open for the one answer instead
+    ::  of starting a second attempt. The earlier connection is dropped, which
+    ::  is why the caller retried, and only one can be answered anyway.
+    cor(requests (~(put by requests) rid u.seen(http-id `eyre-id)))
   =.  cor  (track-request rid `eyre-id)
   (dispatch-local rid p.parsed)
 ::
@@ -763,16 +774,24 @@
   =.  cor  prune-broker-authority
   ?^  held=(held-read-token flag actor)
     (answer [%token u.held])
+  =/  token=@t  (scot %uv `@uv`eny.bowl)
+  =/  expiry=@da  (add now.bowl read-window)
+  ::  Record the grant whether or not we can send it right now. Without the
+  ::  %genuine secret +sync-cards emits nothing, but the pair is owed and the
+  ::  retry timer sends it once the secret appears -- where bailing out here
+  ::  left a renewal dead for good, its refresh already fired and nothing to
+  ::  rearm it.
+  ::
   ::  Bound to a leg before the test on purpose: ?~ on a bare arm refines
   ::  along the wing's axis, an arm has none, and the ~ case mints as vain.
   =/  secret=(unit @t)  genuine-secret
-  ?~  secret
-    %-  (slog leaf+"buckets: no %genuine secret, cannot mint a read token" ~)
-    (answer [%error %unknown 'this ship cannot reach storage'])
-  =/  token=@t  (scot %uv `@uv`eny.bowl)
-  =/  expiry=@da  (add now.bowl read-window)
   =.  cor  (sync-reader flag actor [%granted token expiry] rid)
-  (answer [%pending ~])
+  ?^  secret  (answer [%pending ~])
+  ::  A client should not be left holding a request we cannot act on yet, so
+  ::  it is told; the timer path has no one waiting and just retries.
+  %-  (slog leaf+"buckets: no %genuine secret, reader sync deferred" ~)
+  ?~  rid  cor
+  (answer [%error %unknown 'this ship cannot reach storage yet'])
 ::
 ::  +issue-delete-capability: mint a short-lived delete grant for one ready
 ::  file. Deletes stay per-object — they are destructive and unrecoverable.
@@ -1739,7 +1758,14 @@
     ::
     ::  A kick is not a revocation, so re-watch rather than dropping the
     ::  replica. The host's nack below is what tells us access is gone.
+    ::
+    ::  The token does go, though: a host that revoked our access kicks us in
+    ::  the same breath, and if access is restored before the re-watch is
+    ::  acknowledged we never reach the nack. Keeping it would leave the local
+    ::  scry answering with a token the broker has already dropped, and the
+    ::  client would never ask for another.
         %kick
+      =.  cor  (drop-read-token flag)
       (resub flag)
     ::
         %watch-ack
@@ -1780,15 +1806,24 @@
         (retry-read-token u.token-for)
       (respond rid ~[/v1/requests] body.res)
     ::
+    ::  A dropped request stream is the same loss as a timeout: if it was a
+    ::  renewal, its refresh has already fired and nothing else will rearm it,
+    ::  so the local scry would keep serving a token past its expiry.
         %kick
       ?.  (request-live rid)  cor
+      =/  token-for=(unit flag:b)
+        ?~(got=(~(get by pending) rid) ~ token-for.u.got)
       =.  cor  (close-request host rid)
+      =?  cor  ?=(^ token-for)  (retry-read-token u.token-for)
       (deny rid ~[/v1/requests] %unknown 'host closed the request stream')
     ::
         %watch-ack
       ?~  p.sign  cor
       ?.  (request-live rid)  cor
+      =/  token-for=(unit flag:b)
+        ?~(got=(~(get by pending) rid) ~ token-for.u.got)
       =.  cor  (close-request host rid)
+      =?  cor  ?=(^ token-for)  (retry-read-token u.token-for)
       (deny rid ~[/v1/requests] %unknown 'host refused the request stream')
     ==
   ::

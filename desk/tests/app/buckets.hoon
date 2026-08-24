@@ -620,6 +620,30 @@
   =/  st=state-0:bu  !<(state-0:bu sv)
   (ex-equal !>((granted-count st)) !>(0))
 ::
+::  A retry of a dropped POST reuses its request id, and must not run the
+::  action a second time -- a create-folder or begin-upload would duplicate
+::  state, and the answer would go to a connection that is already gone.
+::
+++  test-reused-request-id-does-not-run-twice
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  =/  body=@t
+    '{"requestId":"0v30","action":{"type":"create-folder","flag":{"host":"~sampel-palnet","name":"project-files"},"name":"Launch"}}'
+  ;<  *  b  (http-post & body)
+  ;<  sv=vase  b  get-save
+  =/  before=@ud  ~(wyt by entries:(state-for !<(state-0:bu sv) flag))
+  ::  the same id again, once the first has settled
+  ;<  again=(list card)  b  (http-post & body)
+  ;<  sv2=vase  b  get-save
+  =/  after=@ud  ~(wyt by entries:(state-for !<(state-0:bu sv2) flag))
+  ::  one folder, and the retry still gets an answer
+  =/  answered=?  ?=(^ (skim again |=(car=card ?=([%give %fact *] car))))
+  (ex-equal !>([before after answered]) !>([1 1 %.y]))
+::
 ::  Re-granting after a revoke has to outrank it, or the broker keeps the
 ::  revoked state and the reader never gets back in.
 ::

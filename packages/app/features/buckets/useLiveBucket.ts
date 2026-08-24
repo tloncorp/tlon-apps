@@ -211,6 +211,23 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           }
           const next = reduceBucketResponse(snapshotRef.current, response);
           commitSnapshot(next);
+          // A published entry supersedes the local row standing in for it.
+          // Without this, an upload whose final refresh threw leaves a failed
+          // row still holding that serverEntryId, and findUploadShadowEntryIds
+          // hides the real file behind it — permanently, since nothing else
+          // clears it, and Retry then deletes the real manifest entry.
+          if (
+            response.type === 'update' &&
+            (response.update.type === 'entry-created' ||
+              response.update.type === 'entry-updated')
+          ) {
+            const publishedId = response.update.entry.id;
+            setCurrentUploads((currentUploads) =>
+              currentUploads.filter(
+                (upload) => upload.serverEntryId !== publishedId
+              )
+            );
+          }
           setLoading(false);
         });
         if (!active) {
@@ -235,7 +252,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       active = false;
       if (stopSubscription) void stopSubscription();
     };
-  }, [commitSnapshot, flag, flagKey, refresh]);
+  }, [commitSnapshot, flag, flagKey, refresh, setCurrentUploads]);
 
   const updateLocalUpload = useCallback(
     (id: string, patch: Partial<LocalUpload>) => {
