@@ -151,7 +151,8 @@
   ^-  @ud
   %-  lent
   %+  skim  ~(val by readers.st)
-  |=(sync=reader-sync:bu (gth revision.sync synced.sync))
+  ::  mirrors +owed: a revision the broker rejected as invalid is not owed
+  |=(sync=reader-sync:bu &(!failed.sync (gth revision.sync synced.sync)))
 ::
 ++  iris-ok
   ^-  sign-arvo
@@ -169,6 +170,22 @@
   ^-  sign-arvo
   =/  body=@t
     (en:json:html (pairs:enjs:format ~[['currentRevision' (numb:enjs:format revision)]]))
+  :+  %iris  %http-response
+  :+  %finished  [code ~]
+  `['application/json' [(met 3 body) body]]
+::
+::  +iris-refusal: the broker's shape for a failure it has classified.
+::
+++  iris-refusal
+  |=  [code=@ud retryable=?]
+  ^-  sign-arvo
+  =/  body=@t
+    %-  en:json:html
+    %-  pairs:enjs:format
+    :~  ['code' s+'malformed_input']
+        ['message' s+'nope']
+        ['retryable' b+retryable]
+    ==
   :+  %iris  %http-response
   :+  %finished  [code ~]
   `['application/json' [(met 3 body) body]]
@@ -641,6 +658,41 @@
   ::  one folder, and the retry still gets an answer
   =/  answered=?  ?=(^ (skim again |=(car=card ?=([%give %fact *] car))))
   (ex-equal !>([before after answered]) !>([1 1 %.y]))
+::
+::  The broker classifies its own failures. A validation refusal will answer
+::  the same way next time, so it stops being owed; a service failure is worth
+::  another go and stays owed for the retry timer.
+::
+++  test-refusal-is-retried-only-when-the-broker-says-so
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ::  a temporary failure stays owed
+  ;<  caz=(list card)  b  (ask 0v40 [%bucket flag [%issue-bucket-read ~]])
+  =/  first=[=wire =request:http]  (only-iris caz)
+  ;<  *  b  (do-arvo wire.first (iris-refusal 503 &))
+  ;<  sv=vase  b  get-save
+  =/  owed-after-503=@ud  (owed-count !<(state-0:bu sv))
+  ::  a validation refusal does not
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v4141)))
+  ;<  caz2=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v41 [%bucket flag [%issue-bucket-read ~]]])
+  =/  second=[=wire =request:http]  (only-iris caz2)
+  ;<  denied=(list card)  b  (do-arvo wire.second (iris-refusal 400 |))
+  ;<  sv2=vase  b  get-save
+  =/  st2=state-0:bu  !<(state-0:bu sv2)
+  ::  the rejected pair is no longer owed, and its asker was told
+  =/  answered=?
+    ?=(^ (skim denied |=(car=card ?=([%give %fact *] car))))
+  %+  ex-equal
+    !>([owed-after-503 (owed-count st2) answered])
+  !>([1 1 %.y])
 ::
 ::  Re-granting after a revoke has to outrank it, or the broker keeps the
 ::  revoked state and the reader never gets back in.

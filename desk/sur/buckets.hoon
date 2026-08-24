@@ -167,12 +167,17 @@
 ::  is also when a confirmed revoked record can be dropped, since past it a
 ::  lost revoke is moot.
 ::
+::  .failed marks a revision the broker refused as invalid rather than stale.
+::  Retrying that is pointless -- it is a bug on this side, not a race -- so
+::  it stops being owed until the next access change supersedes it.
+::
 +$  reader-sync
   $:  revision=@ud
       bucket-id=@t
       desired=reader-state
       expires=@da
       synced=@ud
+      failed=?
       awaiting=(unit request-id)
   ==
 ::  $reader-key: a bucket and one of its readers.

@@ -894,7 +894,7 @@
   ::  the whole set, so arming per pair would multiply the batches it sends.
   =/  idle=?  =(~ owed)
   =.  readers
-    (~(put by readers) key [revision bucket-id desired expires synced awaiting])
+    (~(put by readers) key [revision bucket-id desired expires synced | awaiting])
   =.  cor  (emil (sync-cards ~[[key revision bucket-id desired]]))
   ?.  idle  cor
   arm-reader-retry
@@ -907,6 +907,9 @@
   |=  [key=reader-key:b sync=reader-sync:b]
   ^-  (unit [reader-key:b @ud @t reader-state:b])
   ?:  (lte revision.sync synced.sync)  ~
+  ::  A revision the broker called invalid is not owed: it will refuse it
+  ::  again. The next access change supersedes it and tries afresh.
+  ?:  failed.sync  ~
   ::  Past its expiry there is nothing left to say: a grant is worthless and
   ::  a revoke is moot, because the token it names can no longer be used. This
   ::  is what stops a request the broker will never accept -- a malformed one,
@@ -977,16 +980,36 @@
 ::  It only matters when it is ahead of ours; a body we cannot parse simply
 ::  tells us nothing, which is not an error.
 ::
-++  broker-revision
+++  broker-body
   |=  res=client-response:iris
-  ^-  (unit @ud)
+  ^-  (unit (map @t json))
   ?.  ?=(%finished -.res)  ~
   ?~  full-file.res  ~
   ?~  jon=(de:json:html q.data.u.full-file.res)  ~
   ?.  ?=([%o *] u.jon)  ~
-  ?~  got=(~(get by p.u.jon) 'currentRevision')  ~
+  `p.u.jon
+::
+++  broker-revision
+  |=  res=client-response:iris
+  ^-  (unit @ud)
+  ?~  body=(broker-body res)  ~
+  ?~  got=(~(get by u.body) 'currentRevision')  ~
   ?.  ?=([%n *] u.got)  ~
   `(rash p.u.got dem)
+::
+::  +broker-retryable: whether the broker says another attempt could work.
+::
+::  It marks a validation failure retryable:false and a service failure
+::  retryable:true. Absent, we assume it is worth another go -- a transport
+::  failure carries no body at all, and those are exactly the retryable ones.
+::
+++  broker-retryable
+  |=  res=client-response:iris
+  ^-  ?
+  ?~  body=(broker-body res)  &
+  ?~  got=(~(get by u.body) 'retryable')  &
+  ?.  ?=([%b *] u.got)  &
+  p.u.got
 ::
 ++  reader-wire
   |=  [key=reader-key:b revision=@ud]
@@ -1020,6 +1043,23 @@
 ::  state loss on our side, or a message from an earlier incarnation. Adopt
 ::  its number and re-send, so our desired state wins rather than being
 ::  silently discarded as stale forever.
+::
+::  +fail-reader: the broker refused this revision as invalid.
+::
+++  fail-reader
+  |=  [key=reader-key:b sent=@ud]
+  ^+  cor
+  ?~  got=(~(get by readers) key)  cor
+  =/  sync=reader-sync:b  u.got
+  ::  Only the revision we sent; a newer one may still be in flight.
+  ?.  =(sent revision.sync)  cor
+  =.  readers  (~(put by readers) key sync(failed &, awaiting ~))
+  ?~  awaiting.sync  cor
+  =/  rid=request-id:b  u.awaiting.sync
+  %^    deny
+      rid
+    (answer-paths reader.key rid)
+  [%unknown 'storage refused this access change']
 ::
 ++  confirm-reader
   |=  [key=reader-key:b sent=@ud theirs=(unit @ud)]
@@ -1929,15 +1969,21 @@
       cor
     =/  code=@ud  status-code.response-header.res
     =/  theirs=(unit @ud)  (broker-revision res)
+    ::  A stale write is not a failure -- it answers 200 with the revision it
+    ::  kept, and adopting that is how we catch up.
     ?:  &((gte code 200) (lth code 300))
       (confirm-reader key sent theirs)
-    ::  A stale write is the protocol working, not a failure: the broker kept
-    ::  a higher revision and told us which. Adopt it rather than retrying the
-    ::  number it just refused -- the answer carries currentRevision either
-    ::  way, so this needs no separate lookup.
+    ::  Any answer that names a revision is authoritative about it, whatever
+    ::  its status. Staleness is a 200 under the current contract, but
+    ::  adopting a reported revision is right regardless of how it arrives.
     ?^  theirs  (confirm-reader key sent theirs)
-    %-  (slog leaf+"buckets: reader sync refused, status {<code>}" ~)
-    cor
+    ?:  (broker-retryable res)
+      %-  (slog leaf+"buckets: reader sync failed, status {<code>}, retrying" ~)
+      cor
+    ::  Refused as invalid rather than stale. Another attempt gets the same
+    ::  answer, so stop owing it and tell anyone waiting.
+    %-  (slog leaf+"buckets: reader sync rejected, status {<code>}" ~)
+    (fail-reader key sent)
   ::
       [%buckets %reader-retry ~]
     ?.  ?=([%behn %wake *] sign-arvo)  cor
