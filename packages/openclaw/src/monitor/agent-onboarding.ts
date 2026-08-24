@@ -698,7 +698,7 @@ async function advanceOrientationConversation(
     const decision = reply ? yesNoDecision(reply.content) : null;
     if (!decision) return false;
 
-    await postOnce(
+    const posted = await postOnce(
       context,
       history,
       'orientation-complete',
@@ -711,12 +711,14 @@ async function advanceOrientationConversation(
       deps,
       presentation
     );
-    context.trackStep?.({ step: 'bot_tour_answered', answer: decision });
-    context.trackStep?.({
-      step: 'onboarding_completed',
-      completionPath:
-        decision === 'yes' ? 'bot_tour_completed' : 'bot_tour_declined',
-    });
+    if (posted) {
+      context.trackStep?.({ step: 'bot_tour_answered', answer: decision });
+      context.trackStep?.({
+        step: 'onboarding_completed',
+        completionPath:
+          decision === 'yes' ? 'bot_tour_completed' : 'bot_tour_declined',
+      });
+    }
     return true;
   }
 
@@ -765,7 +767,7 @@ async function advanceOrientationConversation(
   if (!decision) return false;
 
   if (decision === 'no') {
-    await postOnce(
+    const posted = await postOnce(
       context,
       history,
       'orientation-complete',
@@ -773,16 +775,18 @@ async function advanceOrientationConversation(
       deps,
       presentation
     );
-    context.trackStep?.({ step: 'app_tour_answered', answer: decision });
-    context.trackStep?.({
-      step: 'onboarding_completed',
-      completionPath: 'app_tour_declined',
-    });
+    if (posted) {
+      context.trackStep?.({ step: 'app_tour_answered', answer: decision });
+      context.trackStep?.({
+        step: 'onboarding_completed',
+        completionPath: 'app_tour_declined',
+      });
+    }
     return true;
   }
 
   const message = `${AGENT_ONBOARDING_APP_TOUR_EXPLANATION}\n\n${AGENT_ONBOARDING_BOT_TOUR_PROMPT}`;
-  await postOnce(
+  const posted = await postOnce(
     context,
     history,
     'bot-tour-offer',
@@ -799,7 +803,9 @@ async function advanceOrientationConversation(
     deps,
     presentation
   );
-  context.trackStep?.({ step: 'app_tour_answered', answer: decision });
+  if (posted) {
+    context.trackStep?.({ step: 'app_tour_answered', answer: decision });
+  }
   return true;
 }
 
@@ -845,21 +851,23 @@ async function provision(
   const getGroup =
     deps.getGroup ?? ((groupId) => fetchOnboardingGroup(context.api, groupId));
   let group = await getGroup(request.groupId);
+  if (group.hostUserId !== context.senderShip) {
+    context.log?.('[tlon] rejected agent provision: invalid owner');
+    context.trackStep?.({
+      step: 'provision_received',
+      outcome: 'failed',
+      ...stepFacts,
+      errorText: 'invalid owner',
+    });
+    return;
+  }
   if (
-    group.hostUserId !== context.senderShip ||
     !group.channels?.some(
       (channel) =>
         channel.id === request.notebookNest && channel.type === 'notes'
     )
   ) {
-    context.log?.('[tlon] rejected agent provision: invalid owner or notebook');
-    context.trackStep?.({
-      step: 'provision_received',
-      outcome: 'failed',
-      ...stepFacts,
-      errorText: 'invalid owner or notebook',
-    });
-    return;
+    throw new Error('onboarding notebook is not available yet');
   }
   const isBotAdmin = (candidate: OnboardingGroup) =>
     candidate.members
