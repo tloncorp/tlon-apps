@@ -55,9 +55,10 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
           : (ctx.posts ?? null),
       [anchorToEnd, ctx.posts]
     );
-    const latestPostId = anchorToEnd
-      ? renderOrderedPosts?.[renderOrderedPosts.length - 1]?.id
-      : renderOrderedPosts?.[0]?.id;
+    const latestPost = anchorToEnd
+      ? renderOrderedPosts?.[renderOrderedPosts.length - 1]
+      : renderOrderedPosts?.[0];
+    const latestPostId = latestPost?.id;
     const listBottomComponent = useMemo(
       () =>
         shouldShowThinkingState ? (
@@ -65,6 +66,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
             conversationId={ctx.channel.id}
             channelType={ctx.channel.type}
             latestPostId={latestPostId}
+            latestPostAuthorId={latestPost?.authorId}
             forcedLabel={ctx.pendingThinkingLabel}
           />
         ) : undefined,
@@ -74,6 +76,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         ctx.channel.type,
         ctx.pendingThinkingLabel,
         latestPostId,
+        latestPost?.authorId,
       ]
     );
 
