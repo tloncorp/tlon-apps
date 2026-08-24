@@ -2787,6 +2787,39 @@ describe('provision coordinator ordering', () => {
     ).not.toBeNull();
   });
 
+  it('ignores a successful cron completion with a different run id', async () => {
+    const sendPost = vi.fn();
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'expected-run' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision,
+      undefined,
+      'shared-job'
+    );
+
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'shared-job',
+        runId: 'unrelated-run',
+        status: 'ok',
+        delivered: true,
+      } as never,
+      { fetchHistory: vi.fn(async () => []), sendPost }
+    );
+
+    expect(sendPost).not.toHaveBeenCalled();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('expected-run')
+    ).not.toBeNull();
+  });
+
   it('does not mistake an older notebook entry for the first run', async () => {
     const listNotes = vi
       .fn()
