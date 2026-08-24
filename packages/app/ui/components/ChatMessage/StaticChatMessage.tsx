@@ -415,11 +415,9 @@ export function StaticChatMessage({
   }, [knownAgent, onboardingMarker, post.authorId, post.blob, post.groupId]);
   const currentUserHostsPostGroup = Boolean(
     resolvedPostGroupId &&
-    ((currentGroup?.currentUserIsHost &&
-      currentGroup.id === resolvedPostGroupId &&
-      currentGroup.hostUserId === currentUserId) ||
-      (draftInputContext?.channel.groupId === resolvedPostGroupId &&
-        draftInputContext.channel.currentUserIsHost))
+    currentGroup?.currentUserIsHost &&
+    currentGroup.id === resolvedPostGroupId &&
+    currentGroup.hostUserId === currentUserId
   );
   const canRenderA2UI =
     isDmChannelId(post.channelId) ||

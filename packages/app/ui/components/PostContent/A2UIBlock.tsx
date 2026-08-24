@@ -727,9 +727,8 @@ export function A2UIBlock({
               : [...previous, component.id]
           );
         }
-      } catch (error) {
+      } catch {
         buttonPressLocksRef.current.delete(component.id);
-        throw error;
       } finally {
         if (!consumeAction) {
           buttonPressLocksRef.current.delete(component.id);
