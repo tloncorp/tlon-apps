@@ -142,6 +142,12 @@ export function finalizePostDraftUsingLocalAttachments(
 export type PostSendOptions = {
   /** Called after the optimistic post has been added to the session queue. */
   onEnqueued?: () => void;
+  /**
+   * Reject after recording a definitive failed send. Interactive controls use
+   * this to restore themselves; ordinary composers retain legacy resolve-on-
+   * failure behavior and expose retry through the failed message row.
+   */
+  throwOnFailure?: boolean;
 };
 
 export async function finalizeAndSendPost(
@@ -161,6 +167,7 @@ export async function finalizeAndSendPost(
       buildFinalizedPostData: () => finalizePostDraft(draft),
       draft: serializedDraft,
       onEnqueued: options?.onEnqueued,
+      throwOnFailure: options?.throwOnFailure,
     });
   }
 }
@@ -181,6 +188,7 @@ async function _sendPost({
   draft,
   existingPost,
   onEnqueued,
+  throwOnFailure,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
   buildOptimisticPostData?: () => domain.PostDataFinalizedParent;
@@ -191,6 +199,7 @@ async function _sendPost({
   existingPost?: db.Post;
   /** Called after the optimistic post has been added to the session queue. */
   onEnqueued?: () => void;
+  throwOnFailure?: boolean;
 }) {
   const authorId = api.getCurrentUserId();
 
@@ -424,6 +433,9 @@ async function _sendPost({
       });
     } else {
       await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+      if (throwOnFailure) {
+        throw e;
+      }
     }
   }
 }

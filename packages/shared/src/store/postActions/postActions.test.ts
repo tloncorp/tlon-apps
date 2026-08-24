@@ -165,6 +165,24 @@ describe('sendPost', () => {
     expect(mockedPoke).toHaveBeenCalledTimes(0);
   });
 
+  test('interactive sends reject after recording a definitive failure', async () => {
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    const sendError = new Error('definitive send failure');
+    vi.mocked(poke).mockRejectedValueOnce(sendError);
+
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft(), {
+      throwOnFailure: true,
+    });
+    const rejection = expect(sendPostPromise).rejects.toBe(sendError);
+    await vi.runOnlyPendingTimersAsync();
+    await rejection;
+
+    expect(await fetchLatestPostFromDb()).toMatchObject({
+      deliveryStatus: 'failed',
+    });
+  });
+
   test('tracks whether a sent post is going to a bot DM', async () => {
     const botDmId = '~pinser-botter-sampel';
     const capture = vi.fn();
