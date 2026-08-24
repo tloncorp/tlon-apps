@@ -172,9 +172,16 @@ export function AgentOnboardingSequence(props: {
             channelId: furnished.chatChannelId,
           });
           props.onCompleted();
-          void store.completeWayfindingSplash({
-            showBotMentionHint: false,
-          });
+          void store
+            .completeWayfindingSplash({
+              showBotMentionHint: false,
+            })
+            .catch((error) => {
+              logger.trackError(
+                'Failed to persist agent onboarding completion',
+                error
+              );
+            });
           return;
         } catch (error) {
           lastError = error;
