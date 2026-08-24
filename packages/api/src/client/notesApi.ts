@@ -997,7 +997,7 @@ async function createNoteV1({
   folder: number;
   title: string;
   body: string;
-}): Promise<void> {
+}): Promise<NotesV1Note | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson(notesV1Path(normalized), 'POST', {
     folder,
@@ -1005,20 +1005,24 @@ async function createNoteV1({
     body,
   });
   assertWriteOk(res, noteCreateChecks(notesChannelId(normalized)));
+  return noteFromWriteEnvelope(res, 'note-created');
 }
 
 // The ok envelope of a note write carries the applied update, nested per
 // the u-notebook encoder: body.response.update is the notebook-scoped
 // wrapper ({type: 'note-update', noteUpdate: {...}}) and the inner
-// noteUpdate ({type: 'note-updated', note: {...}}) holds the note with the
-// host's authoritative revision and server-stamped updatedAt/updatedBy.
+// noteUpdate (`note-created` or `note-updated`) holds the note with the host's
+// authoritative id/revision and server-stamped timestamps.
 // Extract it when present; null for no-change (no update emitted), bare
 // bodies, or unexpected shapes.
-/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-function noteFromWriteEnvelope(res: any): NotesV1Note | null {
+function noteFromWriteEnvelope(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  res: any,
+  expectedType: 'note-created' | 'note-updated' = 'note-updated'
+): NotesV1Note | null {
   const update = res?.body?.response?.update;
   const noteUpdate = update?.type === 'note-update' ? update.noteUpdate : null;
-  if (!noteUpdate || noteUpdate.type !== 'note-updated' || !noteUpdate.note) {
+  if (!noteUpdate || noteUpdate.type !== expectedType || !noteUpdate.note) {
     return null;
   }
   try {

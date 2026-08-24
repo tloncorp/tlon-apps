@@ -26,12 +26,17 @@ export function usePostLastEditContent(post: Post): BlockData[] {
 }
 
 export interface ContentContextProps {
+  groupId?: string | null;
   isNotice?: boolean;
   onPressImage?: (src: string) => void;
   getImageViewerId?: (src: string) => string | undefined;
   onLongPress?: () => void;
   onA2UIAction?: (action: A2UI.Button['action']) => void | Promise<void>;
   isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
+  isA2UIActionConsumed?: (action: A2UI.Button['action']) => boolean;
+  provisionedAgentTopics?: string[];
+  consumedA2UIMessageText?: string;
+  configuredAgentProviderIds?: string[];
   searchQuery?: string;
 }
 

@@ -77,6 +77,86 @@ describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () =>
 });
 
 describe('post blob helpers', () => {
+  test('parses the complete agent onboarding protocol', () => {
+    const entries = [
+      {
+        type: 'tlon-agent-intro-request',
+        version: 1,
+        groupId: '~zod/test',
+        isFirstGroup: true,
+      },
+      {
+        type: 'tlon-agent-provision',
+        version: 1,
+        provisionId: 'provision-1',
+        groupId: '~zod/test',
+        purposeId: 'daily-briefing',
+        purpose: 'Daily briefing',
+        topics: ['Urbit', 'AI'],
+        timezone: 'America/New_York',
+        scheduleHour: 9,
+        scheduleMinute: 30,
+        notebookNest: 'notes/~zod/test-updates',
+        notebookTitle: 'Updates',
+      },
+      {
+        type: 'tlon-agent-provision-ack',
+        version: 1,
+        provisionId: 'provision-1',
+        cronJobId: 'cron-1',
+      },
+      {
+        type: 'tlon-agent-provider-config',
+        version: 1,
+        provisionId: 'provision-1',
+        groupId: '~zod/test',
+        providerIds: ['gmail', 'google-calendar'],
+      },
+      {
+        type: 'tlon-agent-post-marker',
+        version: 1,
+        key: 'provision-1:closing',
+      },
+    ] as const;
+
+    expect(parsePostBlob(JSON.stringify(entries))).toEqual(entries);
+  });
+
+  test('rejects malformed agent provisioning payloads', () => {
+    expect(
+      parsePostBlob(
+        JSON.stringify([
+          {
+            type: 'tlon-agent-provision',
+            version: 1,
+            provisionId: 'provision-1',
+            groupId: '~zod/test',
+            purposeId: 'daily-briefing',
+            purpose: 'Daily briefing',
+            topics: [],
+            timezone: 'America/New_York',
+            scheduleHour: 25,
+            scheduleMinute: 0,
+            notebookNest: 'notes/~zod/test-updates',
+          },
+        ])
+      )
+    ).toEqual([{ type: 'unknown' }]);
+    expect(
+      parsePostBlob(
+        JSON.stringify([
+          {
+            type: 'tlon-agent-provider-config',
+            version: 1,
+            provisionId: 'provision-1',
+            groupId: '~zod/test',
+            providerIds: ['gmail', 'gmail'],
+          },
+        ])
+      )
+    ).toEqual([{ type: 'unknown' }]);
+  });
+
   test('parsePostBlob parses context lens metadata entries', () => {
     const blob = appendToPostBlob(undefined, {
       type: 'tlon-context-lens',
@@ -346,6 +426,45 @@ describe('post blob helpers', () => {
         height: 360,
         duration: 12.5,
         posterUri: 'file:///tmp/movie-poster.jpg',
+      },
+    ]);
+  });
+
+  test('toPostData preserves a typed draft blob while adding attachments', () => {
+    const initialBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~zod/test',
+    });
+    const attachment: FinalizedAttachment = {
+      type: 'file',
+      localFile: '/tmp/report.pdf',
+      size: 123,
+      uploadState: {
+        status: 'success',
+        remoteUri: 'https://files.example/report.pdf',
+      },
+    };
+
+    const result = toPostData({
+      content: ['hello'],
+      attachments: [attachment],
+      channelType: 'chat',
+      blob: initialBlob,
+    });
+
+    expect(parsePostBlob(result.blob!)).toEqual([
+      {
+        type: 'tlon-agent-intro-request',
+        version: 1,
+        groupId: '~zod/test',
+      },
+      {
+        type: 'file',
+        version: 1,
+        fileUri: 'https://files.example/report.pdf',
+        name: 'report.pdf',
+        size: 123,
       },
     ]);
   });

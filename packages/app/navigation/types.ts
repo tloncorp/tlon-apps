@@ -29,6 +29,7 @@ export type RootStackParamList = {
   };
   Channel: {
     channelId: string;
+    disableTransition?: boolean;
     groupId?: string;
     selectedPostId?: string | null;
     startDraft?: boolean;
@@ -87,7 +88,7 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BotSettings: undefined;
-  BotMcpSettings: undefined;
+  BotMcpSettings: { providerId?: string } | undefined;
   BotModelSettings: { mode: 'default' | 'fallbacks' };
   BotApiKeySettings: { provider: string };
   BotOpenAISubscription: undefined;

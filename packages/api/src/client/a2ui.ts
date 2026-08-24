@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
+import { AGENT_PROTOCOL_LIMITS } from './agentProtocol';
+
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
 const ACTION_NAVIGATE = 'tlon.navigate';
+const ACTION_PROVISION_AGENT = 'tlon.provisionAgent';
+const ACTION_CONFIGURE_AGENT_PROVIDERS = 'tlon.configureAgentProviders';
 
 type ComponentBase = {
   id: string;
@@ -81,13 +85,30 @@ export namespace A2UI {
     groupId?: string;
   };
 
+  /**
+   * The app screens a blob may navigate to. An allowlist rather than a free
+   * route name: blobs cross the wire, and the renderer must not be able to
+   * be pointed at an arbitrary navigator route. Unknown names fail
+   * validation, so a card using a newer screen degrades to its text
+   * fallback on older clients.
+   */
+  export type ScreenName = 'botMcpSettings';
+
+  export type ScreenNavigationTarget = {
+    type: 'screen';
+    screen: ScreenName;
+    /** Provider to open immediately when navigating to MCP settings. */
+    providerId?: string;
+  };
+
   export type NavigationTarget =
     | MessageNavigationTarget
     | ChannelNavigationTarget
     | GroupNavigationTarget
     | ProfileNavigationTarget
     | ChatDetailsNavigationTarget
-    | ChatVolumeNavigationTarget;
+    | ChatVolumeNavigationTarget
+    | ScreenNavigationTarget;
 
   export type NavigateEvent = {
     name: typeof ACTION_NAVIGATE;
@@ -96,11 +117,64 @@ export namespace A2UI {
     };
   };
 
+  /**
+   * Finish the durable, message-by-message agent onboarding conversation.
+   * The bot supplies only the choices already visible in the transcript; the
+   * owner client binds them to its group, notebook, and local timezone before
+   * posting the canonical provision request.
+   */
+  export type ProvisionAgentEvent = {
+    name: typeof ACTION_PROVISION_AGENT;
+    context: {
+      groupId: string;
+      purposeId: string;
+      purpose: string;
+      topics: string[];
+      scheduleHour: number;
+      scheduleMinute: number;
+    };
+  };
+
+  /**
+   * Bind already-connected Hosting providers to this group's recurring agent
+   * job. The client replaces the representative provider list with the
+   * viewer's live selection before posting the durable configuration event.
+   */
+  export type ConfigureAgentProvidersEvent = {
+    name: typeof ACTION_CONFIGURE_AGENT_PROVIDERS;
+    context: {
+      groupId: string;
+      provisionId: string;
+      providerIds: string[];
+    };
+  };
+
   export type EventAction = {
-    event: SendMessageEvent | NavigateEvent;
+    event:
+      | SendMessageEvent
+      | NavigateEvent
+      | ProvisionAgentEvent
+      | ConfigureAgentProvidersEvent;
   };
 
   export type ButtonAction = EventAction;
+
+  /** An action narrowed to posting a message, for controls that only ever do that. */
+  export type SendMessageAction = {
+    event: SendMessageEvent;
+  };
+
+  export type NavigateAction = {
+    event: NavigateEvent;
+  };
+
+  export type ProvisionAgentAction = {
+    event: ProvisionAgentEvent;
+  };
+
+  export type ConfigureAgentProvidersAction = {
+    event: ConfigureAgentProvidersEvent;
+  };
 
   export type Button = ComponentBase & {
     component: 'Button';
@@ -110,7 +184,99 @@ export namespace A2UI {
     action: ButtonAction;
   };
 
-  export type Component = Text | Container | Card | Divider | Button;
+  /**
+   * Icons a Choice option may carry. An allowlist rather than a free string:
+   * these blobs are built by Tlon code, but the renderer must not be able to
+   * be pointed at an arbitrary asset name by anything that reaches the wire.
+   */
+  export type ChoiceIcon =
+    | 'ChannelNotebooks'
+    | 'ChannelTalk'
+    | 'ChannelGalleries'
+    | 'Clock'
+    | 'Search'
+    | 'Face'
+    | 'Link';
+
+  export type ChoiceAccent = 'blue' | 'green' | 'indigo' | 'neutral';
+
+  export type ChoiceOption = {
+    id: string;
+    label: string;
+    /** secondary line under the label */
+    description?: string;
+    icon?: ChoiceIcon;
+    accent?: ChoiceAccent;
+    action: ButtonAction;
+  };
+
+  /**
+   * A group of tappable option cards — icon, title, description — where the
+   * whole card is the target. Buttons can only carry a text label, so this is
+   * the primitive for "pick one of these" choices.
+   */
+  export type Choice = ComponentBase & {
+    component: 'Choice';
+    options: ChoiceOption[];
+  };
+
+  export type SmallChoiceOption = {
+    id: string;
+    label: string;
+  };
+
+  /**
+   * A wrapping list of pill buttons the user can multi-select, with a submit
+   * that posts the chosen labels as one message.
+   *
+   * Distinct from Choice: Choice is "pick one of these, each a card with a
+   * description"; SmallChoice is "pick as many of these short labels as
+   * apply". Selection lives in the client until submit — nothing is posted
+   * per tap — so the action is always a sendMessage whose `context.text` is a
+   * prefix and whose selected labels are appended, comma-joined.
+   */
+  export type SmallChoice = ComponentBase & {
+    component: 'SmallChoice';
+    options: SmallChoiceOption[];
+    /** label for the confirm control, e.g. "Done" */
+    submitLabel: string;
+    /**
+     * When set, the picker renders a free-text field with this placeholder,
+     * and whatever is typed submits *with* the selected pills as one message
+     * — without it, "some of these plus one of my own" takes two messages.
+     * Older clients ignore the field and render the pills alone.
+     */
+    freeTextPlaceholder?: string;
+    action: SendMessageAction | ProvisionAgentAction;
+  };
+
+  /**
+   * A client-owned menu of the MCP providers available to the current user.
+   * Provider names and connection state are deliberately loaded by the
+   * client: they are Hosting data, not facts the message author can know.
+   */
+  export type McpConnect = ComponentBase & {
+    component: 'McpConnect';
+    /** number of providers shown before the menu expands */
+    maxVisible: number;
+    seeAllLabel: string;
+    submitLabel: string;
+    action: NavigateAction;
+    configureAction: ConfigureAgentProvidersAction;
+    /** Optional final action rendered inside the connector menu shell. */
+    completionLabel?: string;
+    completionAction?: SendMessageAction;
+  };
+
+  export type Component =
+    | Text
+    | Container
+    | Card
+    | Divider
+    | Button
+    | Choice
+    | SmallChoice
+    | McpConnect;
 
   export type CreateSurfaceMessage = {
     version: 'v0.9';
@@ -135,15 +301,33 @@ export namespace A2UI {
     type: 'a2ui';
     version: 1;
     messages: Message[];
+    /** The post story is a complete fallback for clients without this UI. */
+    storyMode?: 'fallback';
     recipe?: unknown;
   };
 }
+
+const CHOICE_ICONS = [
+  'ChannelNotebooks',
+  'ChannelTalk',
+  'ChannelGalleries',
+  'Clock',
+  'Search',
+  'Face',
+  'Link',
+] as const;
+
+const CHOICE_ACCENTS = ['blue', 'green', 'indigo', 'neutral'] as const;
 
 const LIMITS = {
   maxBytes: 32 * 1024,
   maxComponents: 50,
   maxDepth: 8,
   maxChildren: 12,
+  maxChoiceOptions: 6,
+  maxSmallChoiceOptions: 12,
+  /** pills hold a word or two; a paragraph in one would break the layout */
+  maxPillLabelLength: 64,
   maxTextNodeLength: 1000,
   maxButtonMessageLength: 1000,
   maxNavigationTargetIdLength: 500,
@@ -282,10 +466,20 @@ function validateNavigationTarget(
         isValidTargetId(target.chatId) &&
         isValidOptionalTargetId(target.groupId)
       );
+    case 'screen':
+      return (
+        A2UI_SCREEN_NAMES.has(target.screen as A2UI.ScreenName) &&
+        isValidOptionalTargetId(target.providerId)
+      );
     default:
       return false;
   }
 }
+
+/** Matches {@link A2UI.ScreenName} — the validator's runtime allowlist. */
+const A2UI_SCREEN_NAMES: ReadonlySet<A2UI.ScreenName> = new Set([
+  'botMcpSettings',
+]);
 
 function validateButtonAction(action: unknown): action is A2UI.ButtonAction {
   if (!isPlainObject(action) || !isPlainObject(action.event)) {
@@ -305,6 +499,53 @@ function validateButtonAction(action: unknown): action is A2UI.ButtonAction {
 
   if (event.name === ACTION_NAVIGATE) {
     return isPlainObject(context) && validateNavigationTarget(context.target);
+  }
+
+  if (event.name === ACTION_PROVISION_AGENT) {
+    return (
+      isPlainObject(context) &&
+      isNonEmptyString(context.groupId) &&
+      context.groupId.length <= AGENT_PROTOCOL_LIMITS.groupIdLength &&
+      isNonEmptyString(context.purposeId) &&
+      context.purposeId.length <= AGENT_PROTOCOL_LIMITS.identifierLength &&
+      isNonEmptyString(context.purpose) &&
+      context.purpose.length <= AGENT_PROTOCOL_LIMITS.purposeLength &&
+      Array.isArray(context.topics) &&
+      context.topics.length > 0 &&
+      context.topics.length <= AGENT_PROTOCOL_LIMITS.topicCount &&
+      context.topics.every(
+        (topic) =>
+          isNonEmptyString(topic) &&
+          topic.length <= AGENT_PROTOCOL_LIMITS.topicLength
+      ) &&
+      typeof context.scheduleHour === 'number' &&
+      Number.isInteger(context.scheduleHour) &&
+      context.scheduleHour >= 0 &&
+      context.scheduleHour <= 23 &&
+      typeof context.scheduleMinute === 'number' &&
+      Number.isInteger(context.scheduleMinute) &&
+      context.scheduleMinute >= 0 &&
+      context.scheduleMinute <= 59
+    );
+  }
+
+  if (event.name === ACTION_CONFIGURE_AGENT_PROVIDERS) {
+    return (
+      isPlainObject(context) &&
+      isNonEmptyString(context.groupId) &&
+      context.groupId.length <= AGENT_PROTOCOL_LIMITS.groupIdLength &&
+      isNonEmptyString(context.provisionId) &&
+      context.provisionId.length <= AGENT_PROTOCOL_LIMITS.identifierLength &&
+      Array.isArray(context.providerIds) &&
+      context.providerIds.length <= AGENT_PROTOCOL_LIMITS.providerCount &&
+      context.providerIds.every(
+        (providerId) =>
+          isNonEmptyString(providerId) &&
+          providerId.length <= AGENT_PROTOCOL_LIMITS.providerIdLength &&
+          /^[a-z0-9][a-z0-9._-]*$/i.test(providerId)
+      ) &&
+      new Set(context.providerIds).size === context.providerIds.length
+    );
   }
 
   return false;
@@ -349,9 +590,142 @@ function validateComponent(component: unknown): component is A2UI.Component {
         validateButtonAction(action)
       );
     }
+    case 'Choice':
+      return validOptionList(
+        component.options,
+        LIMITS.maxChoiceOptions,
+        validateChoiceOption
+      );
+    case 'SmallChoice':
+      return (
+        validOptionList(
+          component.options,
+          LIMITS.maxSmallChoiceOptions,
+          validateSmallChoiceOption
+        ) &&
+        isNonEmptyString(component.submitLabel) &&
+        (component.submitLabel as string).length <= LIMITS.maxPillLabelLength &&
+        (component.freeTextPlaceholder === undefined ||
+          (isNonEmptyString(component.freeTextPlaceholder) &&
+            (component.freeTextPlaceholder as string).length <=
+              LIMITS.maxPillLabelLength)) &&
+        validateSmallChoiceAction(component.action)
+      );
+    case 'McpConnect':
+      return (
+        Number.isInteger(component.maxVisible) &&
+        (component.maxVisible as number) >= 1 &&
+        (component.maxVisible as number) <= LIMITS.maxSmallChoiceOptions &&
+        isShortLabel(component.seeAllLabel) &&
+        isShortLabel(component.submitLabel) &&
+        validateButtonAction(component.action) &&
+        component.action.event.name === ACTION_NAVIGATE &&
+        component.action.event.context.target.type === 'screen' &&
+        component.action.event.context.target.screen === 'botMcpSettings' &&
+        validateButtonAction(component.configureAction) &&
+        component.configureAction.event.name ===
+          ACTION_CONFIGURE_AGENT_PROVIDERS &&
+        ((component.completionLabel === undefined &&
+          component.completionAction === undefined) ||
+          (isShortLabel(component.completionLabel) &&
+            validateButtonAction(component.completionAction) &&
+            component.completionAction.event.name === ACTION_SEND_MESSAGE))
+      );
     default:
       return false;
   }
+}
+
+function isShortLabel(value: unknown): value is string {
+  return isNonEmptyString(value) && value.length <= LIMITS.maxPillLabelLength;
+}
+
+/** A bounded, non-empty option list with unique ids and valid entries. */
+function validOptionList(
+  options: unknown,
+  max: number,
+  validate: (option: unknown) => boolean
+): boolean {
+  return (
+    Array.isArray(options) &&
+    options.length > 0 &&
+    options.length <= max &&
+    new Set(options.map((option) => (option as { id?: unknown })?.id)).size ===
+      options.length &&
+    options.every(validate)
+  );
+}
+
+/**
+ * A SmallChoice can either post its selection as text or finish agent setup
+ * with that selection. Navigation is rejected because it would discard the
+ * user's picks. A send-message text may be empty because it is only a prefix.
+ */
+function validateSmallChoiceAction(
+  action: unknown
+): action is A2UI.SmallChoice['action'] {
+  if (!isPlainObject(action) || !isPlainObject(action.event)) {
+    return false;
+  }
+  const { event } = action;
+  if (event.name === ACTION_PROVISION_AGENT) {
+    return validateButtonAction(action);
+  }
+  if (event.name !== ACTION_SEND_MESSAGE || !isPlainObject(event.context)) {
+    return false;
+  }
+  const { text } = event.context;
+  return (
+    typeof text === 'string' && text.length <= LIMITS.maxButtonMessageLength
+  );
+}
+
+function validateSmallChoiceOption(
+  option: unknown
+): option is A2UI.SmallChoiceOption {
+  if (!isPlainObject(option)) {
+    return false;
+  }
+  return (
+    isNonEmptyString(option.id) &&
+    isNonEmptyString(option.label) &&
+    (option.label as string).length <= LIMITS.maxPillLabelLength
+  );
+}
+
+function validateChoiceOption(option: unknown): option is A2UI.ChoiceOption {
+  if (!isPlainObject(option)) {
+    return false;
+  }
+  return (
+    isNonEmptyString(option.id) &&
+    isNonEmptyString(option.label) &&
+    (option.label as string).length <= LIMITS.maxTextNodeLength &&
+    (option.description === undefined ||
+      (typeof option.description === 'string' &&
+        option.description.length <= LIMITS.maxTextNodeLength)) &&
+    isValidChoiceIcon(option.icon) &&
+    isValidChoiceAccent(option.accent) &&
+    validateButtonAction(option.action)
+  );
+}
+
+function isValidChoiceIcon(icon: unknown): icon is A2UI.ChoiceIcon | undefined {
+  return (
+    icon === undefined ||
+    (typeof icon === 'string' &&
+      (CHOICE_ICONS as readonly string[]).includes(icon))
+  );
+}
+
+function isValidChoiceAccent(
+  accent: unknown
+): accent is A2UI.ChoiceAccent | undefined {
+  return (
+    accent === undefined ||
+    (typeof accent === 'string' &&
+      (CHOICE_ACCENTS as readonly string[]).includes(accent))
+  );
 }
 
 type ValidatedEnvelope = {
@@ -433,6 +807,30 @@ function indexComponents(
       }
     } else if (component.component === 'Text') {
       totalTextLength += component.text.length;
+    } else if (component.component === 'Choice') {
+      // Choice carries its own copy — count it, or it bypasses the budget.
+      for (const option of component.options) {
+        totalTextLength += option.label.length;
+        totalTextLength += option.description?.length ?? 0;
+        if (option.action.event.name === ACTION_SEND_MESSAGE) {
+          totalTextLength += option.action.event.context.text.length;
+        }
+      }
+    } else if (component.component === 'SmallChoice') {
+      for (const option of component.options) {
+        totalTextLength += option.label.length;
+      }
+      totalTextLength += component.submitLabel.length;
+      totalTextLength += component.freeTextPlaceholder?.length ?? 0;
+      if (component.action.event.name === ACTION_SEND_MESSAGE) {
+        totalTextLength += component.action.event.context.text.length;
+      }
+    } else if (component.component === 'McpConnect') {
+      totalTextLength +=
+        component.seeAllLabel.length + component.submitLabel.length;
+      totalTextLength += component.completionLabel?.length ?? 0;
+      totalTextLength +=
+        component.completionAction?.event.context.text.length ?? 0;
     }
   }
 
@@ -530,13 +928,71 @@ export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
 
 export const blobEntrySchema = z.custom<A2UI.BlobEntry>(validateBlobEntry);
 
+/**
+ * The message a SmallChoice posts for a given selection: the action's text as a
+ * prefix, then the selected labels comma-joined in the order the options were
+ * declared (not tap order, so the same picks always read the same).
+ *
+ * Shared so the renderer and the agent that reads the reply agree on the exact
+ * wording — a mismatch here means the agent can't recognize its own picker's
+ * answer.
+ */
+export function buildSmallChoiceMessage(
+  component: A2UI.SmallChoice,
+  selectedIds: Iterable<string>,
+  /** free-text field contents; joins the selected labels as one more entry */
+  freeText?: string
+): string {
+  const selected = new Set(selectedIds);
+  const labels = component.options
+    .filter((option) => selected.has(option.id))
+    .map((option) => option.label);
+  const typed = freeText?.trim();
+  if (typed) {
+    labels.push(typed);
+  }
+  if (!labels.length) {
+    return '';
+  }
+  const prefix =
+    component.action.event.name === ACTION_SEND_MESSAGE
+      ? component.action.event.context.text.trim()
+      : '';
+  return [prefix, labels.join(', ')]
+    .filter(Boolean)
+    .join(' ')
+    .slice(0, LIMITS.maxButtonMessageLength);
+}
+
+/**
+ * A stand-in message for asking "could this picker send anything at all?".
+ *
+ * A SmallChoice's own `action.event.context.text` is only a prefix and is
+ * normally empty, so an availability check written for Button — where that text
+ * *is* the whole message — reads it as "nothing to send" and disables the
+ * picker before the user can choose. Probe with every option selected instead:
+ * always non-empty, and representative of what submitting would post.
+ */
+export function smallChoiceProbeMessage(component: A2UI.SmallChoice): string {
+  return buildSmallChoiceMessage(
+    component,
+    component.options.map((option) => option.id)
+  );
+}
+
 export const A2UI = {
+  /** Wire limits used by controls that construct durable agent actions. */
+  agentProtocolLimits: AGENT_PROTOCOL_LIMITS,
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
     navigate: ACTION_NAVIGATE,
+    provisionAgent: ACTION_PROVISION_AGENT,
+    configureAgentProviders: ACTION_CONFIGURE_AGENT_PROVIDERS,
   },
   getUpdateMessage,
   getRootComponentId,
   validateBlobEntry,
   blobEntrySchema,
+  buildSmallChoiceMessage,
+  smallChoiceProbeMessage,
 } as const;

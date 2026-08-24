@@ -99,6 +99,46 @@ describe('a2ui blob entries', () => {
     ).toBe(true);
   });
 
+  test('validates a bounded agent provision action', () => {
+    const provisionButton: A2UI.Button = {
+      id: 'root',
+      component: 'Button',
+      child: 'label',
+      action: {
+        event: {
+          name: A2UI.action.provisionAgent,
+          context: {
+            groupId: '~zod/agents',
+            purposeId: 'agent-daily-digest',
+            purpose: 'A daily digest',
+            topics: ['Open hardware', 'Space weather'],
+            scheduleHour: 8,
+            scheduleMinute: 0,
+          },
+        },
+      },
+    };
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: 'root',
+              components: [
+                provisionButton,
+                { id: 'label', component: 'Text', text: 'Use timezone' },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(true);
+  });
+
   test('rejects malformed navigate targets', () => {
     expect(
       A2UI.validateBlobEntry({

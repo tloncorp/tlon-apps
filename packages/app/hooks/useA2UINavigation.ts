@@ -157,6 +157,12 @@ export function useA2UINavigation() {
             groupId: target.groupId,
           });
           return;
+        case 'screen':
+          switch (target.screen) {
+            case 'botMcpSettings':
+              rootNavigation.navigateToBotMcpSettings(target.providerId);
+              return;
+          }
       }
     },
     [navigateToMessage, rootNavigation]

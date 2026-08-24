@@ -1,14 +1,569 @@
 import { A2UI, type A2UIBlockData } from '@tloncorp/shared/logic';
-import { Button, Text } from '@tloncorp/ui';
-import React, { ComponentProps, useCallback, useMemo } from 'react';
+import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
+import React, {
+  ComponentProps,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
+import { ActionSheet } from '../ActionSheet';
+import { TextInput } from '../Form';
+import { McpConnectControl } from './McpConnectControl';
+import {
+  getSmallChoiceCompletionPresentation,
+  getSmallChoiceMessageSelection,
+  isConsumableA2UIAction,
+} from './a2uiActionConsumption';
 import { useContentContext } from './contentUtils';
 
 type RenderOptions = {
   cardDepth?: number;
   parentAlign?: A2UI.Container['align'];
+  standaloneControlTopMargin?: boolean;
 };
+
+/**
+ * Accent pairs for Choice option icons: a soft tile behind the icon in its
+ * saturated colour, matching the design's choice cards.
+ */
+const CHOICE_ACCENT_COLORS: Record<
+  NonNullable<A2UI.ChoiceOption['accent']>,
+  {
+    soft: ComponentProps<typeof View>['backgroundColor'];
+    strong: ComponentProps<typeof Icon>['color'];
+  }
+> = {
+  blue: { soft: '$blueSoft', strong: '$blue' },
+  green: { soft: '$greenSoft', strong: '$green' },
+  indigo: { soft: '$indigoSoft', strong: '$indigo' },
+  neutral: { soft: '$secondaryBackground', strong: '$secondaryText' },
+};
+
+// Cardless choice controls sit alongside ordinary chat text inside the same
+// A2UI post. Keep that outer rhythm identical around cards and pill groups.
+const CHOICE_CONTROL_OUTER_MARGIN = 15;
+const RETIRED_TIMEZONE_SURFACE_PREFIX = 'agent-onboarding-timezone:';
+
+function smallChoiceShortcut(index: number) {
+  return index < 26 ? String.fromCharCode(65 + index) : String(index + 1);
+}
+
+function SmallChoiceRow({
+  disabled,
+  isLast,
+  isSelected,
+  label,
+  onPress,
+  shortcut,
+  testID,
+}: {
+  disabled: boolean;
+  isLast: boolean;
+  isSelected: boolean;
+  label: string;
+  onPress: () => void;
+  shortcut: string;
+  testID: string;
+}) {
+  // Tamagui's compiler can drop inline ternaries on token-valued props.
+  const shortcutFill = isSelected ? '$primaryText' : '$secondaryBackground';
+  const shortcutLabel = isSelected ? '$background' : '$secondaryText';
+  const rowOpacity = disabled && !isSelected ? 0.5 : 1;
+
+  return (
+    <YStack>
+      <Pressable
+        testID={testID}
+        accessibilityLabel={label}
+        accessibilityState={{ disabled, selected: isSelected }}
+        disabled={disabled}
+        onPress={disabled ? undefined : onPress}
+      >
+        <XStack
+          minHeight={52}
+          paddingVertical="$m"
+          paddingHorizontal="$m"
+          backgroundColor="$background"
+          alignItems="center"
+          gap="$m"
+          opacity={rowOpacity}
+        >
+          <View
+            width={28}
+            height={28}
+            borderRadius="$s"
+            backgroundColor={shortcutFill}
+            alignItems="center"
+            justifyContent="center"
+            flexShrink={0}
+          >
+            <Text size="$label/s" color={shortcutLabel} trimmed={false}>
+              {shortcut}
+            </Text>
+          </View>
+          <Text
+            size="$label/l"
+            color="$primaryText"
+            trimmed={false}
+            flex={1}
+            minWidth={0}
+            numberOfLines={1}
+          >
+            {label}
+          </Text>
+          {isSelected ? (
+            <Icon type="Checkmark" color="$primaryText" customSize={[16, 16]} />
+          ) : null}
+        </XStack>
+      </Pressable>
+      {isLast ? null : <View height={1} backgroundColor="$border" />}
+    </YStack>
+  );
+}
+
+/**
+ * A compact questionnaire for selecting several short answers. Selection is
+ * local until submit — no per-tap posting — so it lives in a child component
+ * with its own state rather than in the render callback.
+ */
+function SmallChoiceControl({
+  component,
+  canSend,
+  consumedTopics,
+  consumedMessageText,
+  isActionAvailable,
+  isActionConsumed,
+  onSubmit,
+}: {
+  component: A2UI.SmallChoice;
+  /** false when there is no action handler at all */
+  canSend: boolean;
+  /** Durable topics recovered from the later provision post after remount. */
+  consumedTopics?: string[];
+  /** Durable owner text recovered after this surface. */
+  consumedMessageText?: string;
+  isActionAvailable?: (action: A2UI.ButtonAction) => boolean;
+  isActionConsumed?: (action: A2UI.ButtonAction) => boolean;
+  onSubmit: (action: A2UI.ButtonAction) => void | Promise<void>;
+}) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [customTopics, setCustomTopics] = useState<string[]>([]);
+  const [customDraft, setCustomDraft] = useState('');
+  const [customInputOpen, setCustomInputOpen] = useState(false);
+  // Lock the whole picker synchronously when submit starts. React state alone
+  // leaves a brief window before re-render where a pill can still be toggled.
+  // Keep the lock after success; only release it when the send fails.
+  const [submitted, setSubmitted] = useState(false);
+  const [consumedLocally, setConsumedLocally] = useState(false);
+  const submittingRef = useRef(false);
+
+  const toggle = useCallback(
+    (id: string) => {
+      if (submittingRef.current) {
+        return;
+      }
+      setSelectedIds((previous) => {
+        if (previous.includes(id)) {
+          return previous.filter((selected) => selected !== id);
+        }
+        if (
+          previous.length + customTopics.length >=
+          A2UI.agentProtocolLimits.topicCount
+        ) {
+          return previous;
+        }
+        return [...previous, id];
+      });
+    },
+    [customTopics.length]
+  );
+
+  const messageForSelection = A2UI.buildSmallChoiceMessage(
+    component,
+    selectedIds,
+    customTopics.join(', ')
+  );
+  const topicsForSelection = [
+    ...component.options
+      .filter((option) => selectedIds.includes(option.id))
+      .map((option) => option.label),
+    ...customTopics,
+  ];
+  const actionForSelection: A2UI.ButtonAction =
+    component.action.event.name === A2UI.action.provisionAgent
+      ? {
+          event: {
+            ...component.action.event,
+            context: {
+              ...component.action.event.context,
+              topics: topicsForSelection,
+            },
+          },
+        }
+      : {
+          event: {
+            name: A2UI.action.sendMessage,
+            context: { text: messageForSelection },
+          },
+        };
+
+  const handleSubmit = useCallback(async () => {
+    if (!messageForSelection || submittingRef.current) {
+      return;
+    }
+    // Disable first so a double tap can't send twice, but put it back if
+    // the send fails: the picker is the only way to answer the setup, and
+    // a card disabled over a message that never posted leaves the owner
+    // looking at their own selection with nothing to do about it.
+    submittingRef.current = true;
+    setSubmitted(true);
+    try {
+      await onSubmit(actionForSelection);
+      setConsumedLocally(true);
+    } catch {
+      // The transport reports failures elsewhere; this surface only needs to
+      // become available again so the owner can retry.
+      submittingRef.current = false;
+      setSubmitted(false);
+    }
+  }, [actionForSelection, messageForSelection, onSubmit]);
+
+  /**
+   * Availability has to be judged against the message that would actually be
+   * sent, not against `component.action`: for a SmallChoice that action's text
+   * is only a prefix and is usually empty, which an availability check written
+   * for Button (where the text *is* the whole message) reads as "nothing to
+   * send" and disables the whole picker.
+   *
+   * So probe with every option selected — always non-empty — to decide whether
+   * the surface can send at all, and check the real selection for the submit.
+   */
+  const probe = (action: A2UI.ButtonAction): boolean =>
+    canSend && isActionAvailable?.(action) !== false;
+  const probeAction: A2UI.ButtonAction =
+    component.action.event.name === A2UI.action.provisionAgent
+      ? component.action
+      : {
+          event: {
+            name: A2UI.action.sendMessage,
+            context: { text: A2UI.smallChoiceProbeMessage(component) },
+          },
+        };
+
+  const submitAction = messageForSelection ? actionForSelection : probeAction;
+  const actionConsumed =
+    consumedLocally ||
+    (component.action.event.name === A2UI.action.sendMessage
+      ? Boolean(consumedMessageText?.trim())
+      : isActionConsumed?.(submitAction) === true);
+  // A durable owner reply consumes the entire picker, not just its submit
+  // button. Without this guard a remounted historical picker could still
+  // toggle pills after onboarding had already advanced to the next prompt.
+  const disabled = submitted || actionConsumed || !probe(probeAction);
+  const submitDisabled =
+    disabled || !messageForSelection || !probe(actionForSelection);
+  const customChoiceLabel =
+    component.freeTextPlaceholder?.replace(/…+$/, '') || '';
+  const durableSelection =
+    consumedTopics ??
+    getSmallChoiceMessageSelection(component, consumedMessageText);
+  const completionPresentation = getSmallChoiceCompletionPresentation({
+    actionConsumed,
+    consumedLocally,
+    durableTopics: durableSelection,
+    localTopics: topicsForSelection,
+  });
+  const completedTopics = completionPresentation.topics;
+  const completedOptionLabels = new Set(
+    component.options
+      .filter((option) => completedTopics.includes(option.label))
+      .map((option) => option.label)
+  );
+  const completedCustomTopics = completedTopics.filter(
+    (topic) => !completedOptionLabels.has(topic)
+  );
+  const displayedCustomTopics = completionPresentation.completed
+    ? completedCustomTopics
+    : customTopics;
+  const displayedCustomTopicSummary = displayedCustomTopics.join(', ');
+  const hasSelection = Boolean(messageForSelection);
+
+  const openCustomInput = useCallback(() => {
+    if (submittingRef.current) {
+      return;
+    }
+    setCustomDraft('');
+    setCustomInputOpen(true);
+  }, []);
+
+  const saveCustomInput = useCallback(() => {
+    if (submittingRef.current) {
+      return;
+    }
+    const topic = customDraft.trim();
+    if (!topic) return;
+
+    const matchingOption = component.options.find(
+      (option) => option.label.toLocaleLowerCase() === topic.toLocaleLowerCase()
+    );
+    if (matchingOption) {
+      setSelectedIds((previous) =>
+        previous.includes(matchingOption.id) ||
+        previous.length + customTopics.length >=
+          A2UI.agentProtocolLimits.topicCount
+          ? previous
+          : [...previous, matchingOption.id]
+      );
+    } else {
+      setCustomTopics((previous) => {
+        if (
+          selectedIds.length + previous.length >=
+          A2UI.agentProtocolLimits.topicCount
+        ) {
+          return previous;
+        }
+        return previous.some(
+          (existing) =>
+            existing.toLocaleLowerCase() === topic.toLocaleLowerCase()
+        )
+          ? previous
+          : [...previous, topic];
+      });
+    }
+    setCustomInputOpen(false);
+  }, [component.options, customDraft, customTopics.length, selectedIds.length]);
+
+  const removeCustomTopic = useCallback((topic: string) => {
+    if (submittingRef.current) {
+      return;
+    }
+    setCustomTopics((previous) =>
+      previous.filter((existing) => existing !== topic)
+    );
+  }, []);
+
+  return (
+    <>
+      <YStack
+        width="100%"
+        padding="$m"
+        gap="$m"
+        borderRadius="$xl"
+        backgroundColor="$secondaryBackground"
+      >
+        <YStack
+          width="100%"
+          borderWidth={1}
+          borderColor="$border"
+          borderRadius="$m"
+          overflow="hidden"
+        >
+          {component.options.map((option, index) => {
+            const isSelected = completionPresentation.completed
+              ? completedOptionLabels.has(option.label)
+              : selectedIds.includes(option.id);
+            const isLast = index === component.options.length - 1;
+            return (
+              <SmallChoiceRow
+                key={option.id}
+                testID={`A2UISmallChoice-${option.id}`}
+                label={option.label}
+                shortcut={smallChoiceShortcut(index)}
+                isSelected={isSelected}
+                isLast={isLast}
+                disabled={disabled}
+                onPress={() => toggle(option.id)}
+              />
+            );
+          })}
+        </YStack>
+        {component.freeTextPlaceholder ? (
+          <Pressable
+            testID="A2UISmallChoiceCustom"
+            accessibilityLabel={
+              displayedCustomTopics.length
+                ? `Edit custom topics: ${displayedCustomTopicSummary}`
+                : `Add ${customChoiceLabel}`
+            }
+            accessibilityState={{ disabled }}
+            disabled={disabled}
+            onPress={disabled ? undefined : openCustomInput}
+          >
+            <XStack
+              minHeight={52}
+              paddingHorizontal="$m"
+              backgroundColor="$background"
+              borderWidth={1}
+              borderColor="$border"
+              borderRadius="$m"
+              alignItems="center"
+              gap="$m"
+              opacity={disabled && !displayedCustomTopics.length ? 0.5 : 1}
+            >
+              <View
+                width={28}
+                height={28}
+                borderRadius="$s"
+                backgroundColor={
+                  displayedCustomTopics.length
+                    ? '$primaryText'
+                    : '$secondaryBackground'
+                }
+                alignItems="center"
+                justifyContent="center"
+                flexShrink={0}
+              >
+                {displayedCustomTopics.length ? (
+                  <Text size="$label/s" color="$background" trimmed={false}>
+                    {displayedCustomTopics.length}
+                  </Text>
+                ) : (
+                  <Icon
+                    type="Add"
+                    color="$secondaryText"
+                    customSize={[14, 14]}
+                  />
+                )}
+              </View>
+              <Text
+                size="$label/l"
+                color={
+                  displayedCustomTopics.length
+                    ? '$primaryText'
+                    : '$secondaryText'
+                }
+                trimmed={false}
+                flex={1}
+                minWidth={0}
+                numberOfLines={1}
+              >
+                {displayedCustomTopics.length
+                  ? displayedCustomTopicSummary
+                  : customChoiceLabel}
+              </Text>
+              {displayedCustomTopics.length ? (
+                <Icon
+                  type="Checkmark"
+                  color="$primaryText"
+                  customSize={[16, 16]}
+                />
+              ) : null}
+            </XStack>
+          </Pressable>
+        ) : null}
+        <Pressable
+          testID="A2UISmallChoiceSubmit"
+          accessibilityLabel={component.submitLabel}
+          accessibilityState={{ disabled: submitDisabled }}
+          disabled={submitDisabled}
+          onPress={submitDisabled ? undefined : handleSubmit}
+        >
+          <XStack
+            minHeight={52}
+            paddingHorizontal="$m"
+            backgroundColor={hasSelection ? '$primaryText' : '$background'}
+            borderWidth={1}
+            borderColor="$border"
+            borderRadius="$m"
+            alignItems="center"
+            gap="$m"
+            opacity={submitDisabled ? 0.5 : 1}
+          >
+            <Text
+              size="$label/l"
+              color={hasSelection ? '$background' : '$primaryText'}
+              trimmed={false}
+              flex={1}
+            >
+              {component.submitLabel}
+            </Text>
+            <Icon
+              type="Checkmark"
+              color={hasSelection ? '$background' : '$primaryText'}
+              customSize={[16, 16]}
+            />
+          </XStack>
+        </Pressable>
+      </YStack>
+      {component.freeTextPlaceholder ? (
+        <ActionSheet
+          moveOnKeyboardChange
+          modal
+          open={customInputOpen}
+          onOpenChange={setCustomInputOpen}
+          unmountOnClose
+        >
+          <ActionSheet.SimpleHeader title="Add your own" />
+          <ActionSheet.Content testID="A2UISmallChoiceCustomSheet">
+            {customTopics.length ? (
+              <ActionSheet.FormBlock>
+                <YStack width="100%">
+                  {customTopics.map((topic, index) => (
+                    <Pressable
+                      key={topic}
+                      testID={`A2UISmallChoiceCustom-${index}`}
+                      accessibilityLabel={`Remove ${topic}`}
+                      onPress={() => removeCustomTopic(topic)}
+                    >
+                      <XStack
+                        minHeight={48}
+                        paddingHorizontal="$m"
+                        alignItems="center"
+                        gap="$m"
+                        borderBottomWidth={
+                          index === customTopics.length - 1 ? 0 : 1
+                        }
+                        borderBottomColor="$border"
+                      >
+                        <Text
+                          size="$label/l"
+                          color="$primaryText"
+                          trimmed={false}
+                          flex={1}
+                          numberOfLines={1}
+                        >
+                          {topic}
+                        </Text>
+                        <Icon
+                          type="Close"
+                          color="$secondaryText"
+                          customSize={[14, 14]}
+                        />
+                      </XStack>
+                    </Pressable>
+                  ))}
+                </YStack>
+              </ActionSheet.FormBlock>
+            ) : null}
+            <ActionSheet.FormBlock>
+              <TextInput
+                testID="A2UISmallChoiceFreeText"
+                autoFocus
+                value={customDraft}
+                onChangeText={setCustomDraft}
+                maxLength={A2UI.agentProtocolLimits.topicLength}
+                placeholder={component.freeTextPlaceholder}
+                returnKeyType="done"
+                onSubmitEditing={saveCustomInput}
+              />
+            </ActionSheet.FormBlock>
+            <ActionSheet.FormBlock>
+              <Button
+                preset="primary"
+                label="Save"
+                centered
+                onPress={saveCustomInput}
+              />
+            </ActionSheet.FormBlock>
+          </ActionSheet.Content>
+        </ActionSheet>
+      ) : null}
+    </>
+  );
+}
 
 function getTextSize(component: A2UI.Text) {
   switch (component.variant) {
@@ -124,6 +679,13 @@ function getComponentText(
         .map((child) => getComponentText(components.get(child), components))
         .filter(Boolean)
         .join(' ');
+    case 'Choice':
+    case 'SmallChoice':
+      // Text extraction feeds previews and labels: the option titles are the
+      // meaningful summary of a choice group.
+      return component.options.map((option) => option.label).join(', ');
+    case 'McpConnect':
+      return component.seeAllLabel;
     case 'Divider':
       return '';
   }
@@ -133,9 +695,28 @@ export function A2UIBlock({
   block,
   ...props
 }: { block: A2UIBlockData } & ComponentProps<typeof YStack>) {
-  const { isA2UIActionAvailable, onA2UIAction } = useContentContext();
+  const {
+    isA2UIActionAvailable,
+    isA2UIActionConsumed,
+    configuredAgentProviderIds,
+    provisionedAgentTopics,
+    consumedA2UIMessageText,
+    onA2UIAction,
+  } = useContentContext();
+  const [locallyConsumedComponentIds, setLocallyConsumedComponentIds] =
+    useState<string[]>([]);
+  const [locallyConsumedChoices, setLocallyConsumedChoices] = useState<
+    Record<string, string>
+  >({});
+  const buttonPressLocksRef = useRef(new Set<string>());
+  const choicePressLocksRef = useRef(new Set<string>());
   const update = A2UI.getUpdateMessage(block.a2ui);
   const root = A2UI.getRootComponentId(block.a2ui);
+  const surfaceId =
+    block.a2ui.messages.find(
+      (message): message is A2UI.CreateSurfaceMessage =>
+        'createSurface' in message
+    )?.createSurface.surfaceId ?? 'unknown-surface';
   const components = useMemo(() => {
     return new Map(
       update?.updateComponents.components.map((component) => [
@@ -146,16 +727,86 @@ export function A2UIBlock({
   }, [update]);
 
   const handleButtonPress = useCallback(
-    (component: A2UI.Button) => {
+    async (component: A2UI.Button) => {
       if (
-        component.action.event.name === A2UI.action.sendMessage &&
-        !component.action.event.context.text.trim()
+        buttonPressLocksRef.current.has(component.id) ||
+        (component.action.event.name === A2UI.action.sendMessage &&
+          !component.action.event.context.text.trim())
       ) {
         return;
       }
 
-      onA2UIAction?.(component.action);
+      const consumeAction = isConsumableA2UIAction(component.action);
+      buttonPressLocksRef.current.add(component.id);
+      try {
+        await onA2UIAction?.(component.action);
+        if (consumeAction) {
+          setLocallyConsumedComponentIds((previous) =>
+            previous.includes(component.id)
+              ? previous
+              : [...previous, component.id]
+          );
+        }
+      } catch (error) {
+        buttonPressLocksRef.current.delete(component.id);
+        throw error;
+      } finally {
+        if (!consumeAction) {
+          buttonPressLocksRef.current.delete(component.id);
+        }
+      }
     },
+    [onA2UIAction]
+  );
+
+  const handleChoicePress = useCallback(
+    async (
+      componentId: string,
+      optionId: string,
+      action: A2UI.ChoiceOption['action']
+    ) => {
+      if (
+        choicePressLocksRef.current.has(componentId) ||
+        (action.event.name === A2UI.action.sendMessage &&
+          !action.event.context.text.trim())
+      ) {
+        return;
+      }
+
+      // Lock synchronously, before React can re-render, so two rapid taps on
+      // different options still produce exactly one owner reply.
+      const consumeAction = isConsumableA2UIAction(action);
+      choicePressLocksRef.current.add(componentId);
+      if (consumeAction) {
+        setLocallyConsumedChoices((previous) => ({
+          ...previous,
+          [componentId]: optionId,
+        }));
+      }
+      try {
+        await onA2UIAction?.(action);
+      } catch {
+        choicePressLocksRef.current.delete(componentId);
+        if (consumeAction) {
+          setLocallyConsumedChoices((previous) => {
+            const next = { ...previous };
+            delete next[componentId];
+            return next;
+          });
+        }
+      } finally {
+        // Navigation and other reusable actions only need an in-flight lock;
+        // once the action completes, the same control should remain tappable.
+        if (!consumeAction) {
+          choicePressLocksRef.current.delete(componentId);
+        }
+      }
+    },
+    [onA2UIAction]
+  );
+
+  const handleSmallChoiceSubmit = useCallback(
+    (action: A2UI.ButtonAction) => onA2UIAction?.(action),
     [onA2UIAction]
   );
 
@@ -194,10 +845,16 @@ export function A2UIBlock({
               width="100%"
               flex={getComponentFlex(component)}
             >
-              {component.children.map((child) =>
+              {component.children.map((child, index) =>
                 renderComponent(child, {
                   cardDepth: options.cardDepth,
                   parentAlign: component.align,
+                  standaloneControlTopMargin:
+                    !options.cardDepth &&
+                    index > 0 &&
+                    components.get(component.children[index - 1])?.component ===
+                      'Text' &&
+                    components.get(child)?.component === 'Button',
                 })
               )}
             </XStack>
@@ -256,7 +913,14 @@ export function A2UIBlock({
             />
           );
         case 'Button': {
+          const actionCanBeConsumed = isConsumableA2UIAction(component.action);
+          const actionConsumed =
+            actionCanBeConsumed &&
+            component.variant === 'primary' &&
+            (locallyConsumedComponentIds.includes(component.id) ||
+              isA2UIActionConsumed?.(component.action) === true);
           const disabled =
+            actionConsumed ||
             component.disabled ||
             !onA2UIAction ||
             isA2UIActionAvailable?.(component.action) === false;
@@ -274,9 +938,18 @@ export function A2UIBlock({
               alignSelf={
                 options.parentAlign === 'center' ? 'center' : 'flex-start'
               }
+              marginTop={
+                options.standaloneControlTopMargin
+                  ? CHOICE_CONTROL_OUTER_MARGIN
+                  : undefined
+              }
               height={44}
               paddingHorizontal="$xl"
               flex={getComponentFlex(component)}
+              opacity={actionConsumed ? 0.5 : 1}
+              pointerEvents={actionConsumed ? 'none' : 'auto'}
+              accessibilityElementsHidden={false}
+              importantForAccessibility="auto"
               disabled={disabled}
               dimmed={disabled}
               onPress={
@@ -287,12 +960,227 @@ export function A2UIBlock({
             </Button.Frame>
           );
         }
+        case 'Choice': {
+          const selectedOption =
+            component.options.find(
+              (option) => isA2UIActionConsumed?.(option.action) === true
+            ) ??
+            component.options.find(
+              (option) => option.id === locallyConsumedChoices[component.id]
+            );
+          const choiceConsumed = Boolean(selectedOption);
+          const grouped = component.options.length > 1;
+          const compact =
+            grouped &&
+            component.options.every(
+              (option) => !option.icon && !option.description
+            );
+          const choices = component.options.map((option, index) => {
+            const accent = CHOICE_ACCENT_COLORS[option.accent ?? 'neutral'];
+            const isSelected = selectedOption?.id === option.id;
+            // The accent is normally carried by the icon chip. An option
+            // that asks for one without an icon would otherwise render
+            // identically to a neutral card — the accent silently doing
+            // nothing — so let the card itself carry it instead. A single
+            // accented card in a message reads as the thing to tap; the
+            // multi-option pickers all have icons and are untouched.
+            const accentedCard = Boolean(
+              option.accent && option.accent !== 'neutral' && !option.icon
+            );
+            const disabled =
+              choiceConsumed ||
+              !onA2UIAction ||
+              isA2UIActionAvailable?.(option.action) === false;
+            const isLast = index === component.options.length - 1;
+            if (compact) {
+              return (
+                <SmallChoiceRow
+                  key={option.id}
+                  testID={`A2UIChoice-${option.id}`}
+                  label={option.label}
+                  shortcut={smallChoiceShortcut(index)}
+                  isSelected={isSelected}
+                  isLast={isLast}
+                  disabled={disabled}
+                  onPress={() =>
+                    handleChoicePress(component.id, option.id, option.action)
+                  }
+                />
+              );
+            }
+            return (
+              <Pressable
+                key={option.id}
+                testID={`A2UIChoice-${option.id}`}
+                accessibilityLabel={option.label}
+                accessibilityState={{ disabled, selected: isSelected }}
+                disabled={disabled}
+                onPress={
+                  disabled
+                    ? undefined
+                    : () =>
+                        handleChoicePress(
+                          component.id,
+                          option.id,
+                          option.action
+                        )
+                }
+              >
+                <XStack
+                  minHeight={grouped ? 68 : undefined}
+                  borderWidth={grouped ? 0 : accentedCard ? 2 : 1}
+                  borderBottomWidth={grouped && !isLast ? 1 : undefined}
+                  borderColor={accentedCard ? accent.strong : '$border'}
+                  borderBottomColor="$border"
+                  borderRadius={grouped ? 0 : '$xl'}
+                  backgroundColor="$background"
+                  paddingVertical={grouped ? '$m' : '$l'}
+                  paddingHorizontal={grouped ? '$m' : '$l'}
+                  gap="$m"
+                  alignItems="flex-start"
+                  opacity={disabled && !isSelected ? 0.5 : 1}
+                >
+                  {option.icon ? (
+                    <View
+                      width={32}
+                      height={32}
+                      borderRadius="$m"
+                      backgroundColor={accent.soft}
+                      alignItems="center"
+                      justifyContent="center"
+                      flexShrink={0}
+                    >
+                      <Icon
+                        type={option.icon}
+                        color={accent.strong}
+                        customSize={[18, 18]}
+                      />
+                    </View>
+                  ) : null}
+                  <YStack flex={1} minWidth={0} gap="$2xs">
+                    <Text size="$label/l" fontWeight="500" trimmed={false}>
+                      {option.label}
+                    </Text>
+                    {option.description ? (
+                      <Text
+                        size="$label/m"
+                        color="$secondaryText"
+                        trimmed={false}
+                      >
+                        {option.description}
+                      </Text>
+                    ) : null}
+                  </YStack>
+                  {isSelected ? (
+                    <Icon
+                      type="Checkmark"
+                      color="$primaryText"
+                      customSize={[16, 16]}
+                    />
+                  ) : null}
+                </XStack>
+              </Pressable>
+            );
+          });
+          return (
+            <YStack
+              key={component.id}
+              width="100%"
+              marginTop={CHOICE_CONTROL_OUTER_MARGIN}
+              padding={grouped ? '$m' : undefined}
+              gap={grouped ? undefined : '$m'}
+              borderRadius={grouped ? '$xl' : undefined}
+              backgroundColor={grouped ? '$secondaryBackground' : undefined}
+            >
+              {grouped ? (
+                <YStack
+                  width="100%"
+                  borderWidth={1}
+                  borderColor="$border"
+                  borderRadius="$m"
+                  overflow="hidden"
+                >
+                  {choices}
+                </YStack>
+              ) : (
+                choices
+              )}
+            </YStack>
+          );
+        }
+        case 'SmallChoice': {
+          return (
+            <YStack
+              key={component.id}
+              width="100%"
+              marginTop={CHOICE_CONTROL_OUTER_MARGIN}
+            >
+              <SmallChoiceControl
+                component={component}
+                canSend={Boolean(onA2UIAction)}
+                consumedTopics={provisionedAgentTopics}
+                consumedMessageText={consumedA2UIMessageText}
+                isActionAvailable={isA2UIActionAvailable}
+                isActionConsumed={isA2UIActionConsumed}
+                onSubmit={handleSmallChoiceSubmit}
+              />
+            </YStack>
+          );
+        }
+        case 'McpConnect':
+          return (
+            <YStack
+              key={component.id}
+              width="100%"
+              marginTop={CHOICE_CONTROL_OUTER_MARGIN}
+            >
+              <McpConnectControl
+                component={component}
+                completionConsumed={
+                  component.completionAction
+                    ? isA2UIActionConsumed?.(component.completionAction) ===
+                      true
+                    : false
+                }
+                configuredProviderIds={configuredAgentProviderIds}
+                onConfigure={
+                  isA2UIActionAvailable?.(component.configureAction) === false
+                    ? undefined
+                    : onA2UIAction
+                }
+                onComplete={
+                  component.completionAction &&
+                  isA2UIActionAvailable?.(component.completionAction) !== false
+                    ? onA2UIAction
+                    : undefined
+                }
+                onNavigate={onA2UIAction}
+              />
+            </YStack>
+          );
       }
     },
-    [components, handleButtonPress, isA2UIActionAvailable, onA2UIAction]
+    [
+      components,
+      configuredAgentProviderIds,
+      consumedA2UIMessageText,
+      provisionedAgentTopics,
+      handleButtonPress,
+      handleChoicePress,
+      handleSmallChoiceSubmit,
+      isA2UIActionAvailable,
+      isA2UIActionConsumed,
+      locallyConsumedComponentIds,
+      locallyConsumedChoices,
+      onA2UIAction,
+      surfaceId,
+    ]
   );
 
-  if (!root) {
+  // Old plugin builds persisted a separate timezone picker in chat. Current
+  // onboarding binds the device timezone directly to topic confirmation, so
+  // hide any legacy surface that remains in durable history.
+  if (surfaceId.startsWith(RETIRED_TIMEZONE_SURFACE_PREFIX) || !root) {
     return null;
   }
 

@@ -53,11 +53,16 @@ export function PostContentRenderer({
 
 function ContentRenderer({
   content,
+  groupId,
   onPressImage,
   getImageViewerId,
   onLongPress,
   onA2UIAction,
   isA2UIActionAvailable,
+  isA2UIActionConsumed,
+  configuredAgentProviderIds,
+  provisionedAgentTopics,
+  consumedA2UIMessageText,
   isNotice,
   searchQuery,
   ...rest
@@ -66,11 +71,16 @@ function ContentRenderer({
 }) {
   return (
     <ContentContext.Provider
+      groupId={groupId}
       onPressImage={onPressImage}
       getImageViewerId={getImageViewerId}
       onLongPress={onLongPress}
       onA2UIAction={onA2UIAction}
       isA2UIActionAvailable={isA2UIActionAvailable}
+      isA2UIActionConsumed={isA2UIActionConsumed}
+      configuredAgentProviderIds={configuredAgentProviderIds}
+      provisionedAgentTopics={provisionedAgentTopics}
+      consumedA2UIMessageText={consumedA2UIMessageText}
       isNotice={isNotice}
       searchQuery={searchQuery}
     >

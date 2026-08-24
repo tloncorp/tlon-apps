@@ -21,7 +21,9 @@ import {
   pathToCite,
 } from '../urbit';
 import { A2UI } from './a2ui';
+import { AGENT_PROTOCOL_LIMITS } from './agentProtocol';
 
+export * from './agentProtocol';
 export * from './a2ui';
 
 const logger = createDevLogger('content-helpers', false);
@@ -692,11 +694,93 @@ export type PostBlobDataEntryContextLens = z.infer<
   typeof PostBlobDataEntryContextLensSchema
 >;
 
+export const PostBlobDataEntryAgentIntroRequestSchema =
+  definePostBlobDataEntrySchema('tlon-agent-intro-request', 1, {
+    groupId: z.string().min(1).max(512),
+    isFirstGroup: z.boolean().optional(),
+  });
+
+export type PostBlobDataEntryAgentIntroRequest = z.infer<
+  typeof PostBlobDataEntryAgentIntroRequestSchema
+>;
+
+export const PostBlobDataEntryAgentProvisionSchema =
+  definePostBlobDataEntrySchema('tlon-agent-provision', 1, {
+    provisionId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
+    groupId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.groupIdLength),
+    purposeId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
+    purpose: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.purposeLength),
+    topics: z
+      .array(z.string().min(1).max(AGENT_PROTOCOL_LIMITS.topicLength))
+      .min(1)
+      .max(AGENT_PROTOCOL_LIMITS.topicCount),
+    timezone: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.timezoneLength),
+    scheduleHour: z.number().int().min(0).max(23),
+    scheduleMinute: z.number().int().min(0).max(59),
+    notebookNest: z
+      .string()
+      .min(1)
+      .max(AGENT_PROTOCOL_LIMITS.notebookNestLength),
+    notebookTitle: z
+      .string()
+      .min(1)
+      .max(AGENT_PROTOCOL_LIMITS.notebookTitleLength)
+      .optional(),
+  });
+
+export type PostBlobDataEntryAgentProvision = z.infer<
+  typeof PostBlobDataEntryAgentProvisionSchema
+>;
+
+export const PostBlobDataEntryAgentProviderConfigSchema =
+  definePostBlobDataEntrySchema('tlon-agent-provider-config', 1, {
+    provisionId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
+    groupId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.groupIdLength),
+    providerIds: z
+      .array(
+        z
+          .string()
+          .min(1)
+          .max(AGENT_PROTOCOL_LIMITS.providerIdLength)
+          .regex(/^[a-z0-9][a-z0-9._-]*$/i)
+      )
+      .max(AGENT_PROTOCOL_LIMITS.providerCount)
+      .refine((ids) => new Set(ids).size === ids.length),
+  });
+
+export type PostBlobDataEntryAgentProviderConfig = z.infer<
+  typeof PostBlobDataEntryAgentProviderConfigSchema
+>;
+
+export const PostBlobDataEntryAgentProvisionAckSchema =
+  definePostBlobDataEntrySchema('tlon-agent-provision-ack', 1, {
+    provisionId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
+    cronJobId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
+  });
+
+export type PostBlobDataEntryAgentProvisionAck = z.infer<
+  typeof PostBlobDataEntryAgentProvisionAckSchema
+>;
+
+export const PostBlobDataEntryAgentPostMarkerSchema =
+  definePostBlobDataEntrySchema('tlon-agent-post-marker', 1, {
+    key: z.string().min(1).max(256),
+  });
+
+export type PostBlobDataEntryAgentPostMarker = z.infer<
+  typeof PostBlobDataEntryAgentPostMarkerSchema
+>;
+
 const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
   PostBlobDataEntryVideoSchema,
   PostBlobDataEntryContextLensSchema,
+  PostBlobDataEntryAgentIntroRequestSchema,
+  PostBlobDataEntryAgentProvisionSchema,
+  PostBlobDataEntryAgentProviderConfigSchema,
+  PostBlobDataEntryAgentProvisionAckSchema,
+  PostBlobDataEntryAgentPostMarkerSchema,
   A2UI.blobEntrySchema,
 ] as const;
 
@@ -829,6 +913,7 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
 
 export function toPostData({
   attachments,
+  blob: initialBlob,
   content,
   image,
   channelType,
@@ -836,12 +921,13 @@ export function toPostData({
 }: {
   content: (Inline | Block)[];
   attachments: FinalizedAttachment[];
+  blob?: string;
   channelType: ChannelType;
   title?: string;
   image?: string;
 }): { story: Story; metadata: PostMetadata; blob?: string } {
   const blocks: Block[] = [];
-  let blob: string | undefined = undefined;
+  let blob = initialBlob;
 
   attachments
     // For notebooks, skip header image - it goes in metadata only, not content

@@ -105,6 +105,10 @@ export function StaticChatMessage({
         return;
       }
 
+      if (action.event.name !== A2UI.action.sendMessage) {
+        return;
+      }
+
       if (!draftInputContext || draftInputContext.canStartDraft === false) {
         return;
       }
