@@ -1,5 +1,5 @@
 import { A2UI, appendToPostBlob, parsePostBlob } from '@tloncorp/api';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TlonCronService } from '../cron-telemetry.js';
 import {
@@ -38,7 +38,12 @@ const provision = {
 
 beforeEach(() => {
   notesDeliveryTesting.clear();
+  agentOnboardingTesting.clearAllFirstRunCompletionRetries();
   setAgentOnboardingRunStore(null);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 function memoryRunStore() {
@@ -2014,7 +2019,8 @@ describe('provision coordinator ordering', () => {
     expect(listNotes).not.toHaveBeenCalled();
   });
 
-  it('coalesces completion hooks and keeps the correlation after failure', async () => {
+  it('coalesces completion hooks and retries after failure', async () => {
+    vi.useFakeTimers();
     const sendPost = vi.fn(async () => ({
       channel: 'tlon' as const,
       messageId: 'post',
@@ -2031,9 +2037,10 @@ describe('provision coordinator ordering', () => {
       },
       provision
     );
-    const failedFetch = vi.fn(async () => {
-      throw new Error('temporary history failure');
-    });
+    const fetchHistory = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('temporary history failure'))
+      .mockResolvedValue([]);
     const results = await Promise.allSettled([
       handleAgentOnboardingMessageSent(
         {
@@ -2043,7 +2050,12 @@ describe('provision coordinator ordering', () => {
           messageId: '~bot/notes-42',
           runId: 'nested-run',
         },
-        { fetchHistory: failedFetch, sendPost }
+        {
+          fetchHistory,
+          listNotes: vi.fn(async () => []),
+          sendPost,
+          sleep: vi.fn(async () => {}),
+        }
       ),
       handleAgentOnboardingCronChanged(
         {
@@ -2053,31 +2065,23 @@ describe('provision coordinator ordering', () => {
           status: 'ok',
           delivered: true,
         } as never,
-        { fetchHistory: failedFetch, sendPost }
+        {
+          fetchHistory,
+          listNotes: vi.fn(async () => []),
+          sendPost,
+          sleep: vi.fn(async () => {}),
+        }
       ),
     ]);
     expect(results.map((result) => result.status)).toEqual([
       'rejected',
       'rejected',
     ]);
-    expect(failedFetch).toHaveBeenCalledOnce();
+    expect(fetchHistory).toHaveBeenCalledOnce();
     expect(sendPost).not.toHaveBeenCalled();
 
-    await handleAgentOnboardingCronChanged(
-      {
-        action: 'finished',
-        jobId: 'unknown:first-run-race',
-        runId: 'first-run-race',
-        status: 'ok',
-        delivered: true,
-      } as never,
-      {
-        fetchHistory: vi.fn(async () => []),
-        listNotes: vi.fn(async () => []),
-        sendPost,
-        sleep: vi.fn(async () => {}),
-      }
-    );
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(fetchHistory).toHaveBeenCalledTimes(2);
     expect(sendPost).toHaveBeenCalledTimes(2);
   });
 

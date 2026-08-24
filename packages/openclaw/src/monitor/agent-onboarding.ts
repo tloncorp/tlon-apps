@@ -125,6 +125,8 @@ const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 5_500;
 // permanently falling back to reference-free copy.
 const FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS = 21;
 const FIRST_ENTRY_NOTE_LOOKUP_DELAY_MS = 1_000;
+const FIRST_RUN_COMPLETION_RETRY_BASE_MS = 1_000;
+const FIRST_RUN_COMPLETION_RETRY_MAX_MS = 30_000;
 const FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
 const ADMIN_MEMBERSHIP_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000] as const;
 const COMPOSE_MS_PER_CHARACTER = 14;
@@ -240,6 +242,13 @@ const firstRunCorrelations = sharedMap<string, FirstRunCorrelation>(
 );
 const firstRunCompletionFlights = sharedMap<string, Promise<void>>(
   'agentOnboarding.firstRunCompletionFlights'
+);
+const firstRunCompletionRetryTimers = sharedMap<
+  string,
+  ReturnType<typeof setTimeout>
+>('agentOnboarding.firstRunCompletionRetryTimers');
+const firstRunCompletionRetryAttempts = sharedMap<string, number>(
+  'agentOnboarding.firstRunCompletionRetryAttempts'
 );
 const SLOT_PREFIX = 'tlon-agent-primary:';
 const MCP_READ_TOOLS = [
@@ -1047,25 +1056,76 @@ async function completeFirstRun(
   const match = findFirstRunCorrelation(runId, notebookNest, jobId);
   if (!match) return;
   const [correlationRunId, correlation] = match;
-  const existingFlight = firstRunCompletionFlights.get(correlationRunId);
-  if (existingFlight) {
-    await existingFlight;
-    return;
+  let flight = firstRunCompletionFlights.get(correlationRunId);
+  if (!flight) {
+    flight = completeFirstRunCorrelation(
+      correlationRunId,
+      correlation,
+      deliveryMessageId,
+      deps
+    );
+    firstRunCompletionFlights.set(correlationRunId, flight);
   }
-  const flight = completeFirstRunCorrelation(
-    correlationRunId,
-    correlation,
-    deliveryMessageId,
-    deps
-  );
-  firstRunCompletionFlights.set(correlationRunId, flight);
   try {
     await flight;
+    clearFirstRunCompletionRetry(correlationRunId);
+  } catch (error) {
+    scheduleFirstRunCompletionRetry(correlationRunId, deliveryMessageId, deps);
+    throw error;
   } finally {
     if (firstRunCompletionFlights.get(correlationRunId) === flight) {
       firstRunCompletionFlights.delete(correlationRunId);
     }
   }
+}
+
+function scheduleFirstRunCompletionRetry(
+  correlationRunId: string,
+  deliveryMessageId: string | undefined,
+  deps: AgentOnboardingCronDeps
+) {
+  if (
+    !firstRunCorrelations.has(correlationRunId) ||
+    firstRunCompletionRetryTimers.has(correlationRunId)
+  ) {
+    return;
+  }
+  const attempt =
+    (firstRunCompletionRetryAttempts.get(correlationRunId) ?? 0) + 1;
+  firstRunCompletionRetryAttempts.set(correlationRunId, attempt);
+  const delay = Math.min(
+    FIRST_RUN_COMPLETION_RETRY_BASE_MS * 2 ** (attempt - 1),
+    FIRST_RUN_COMPLETION_RETRY_MAX_MS
+  );
+  const timer = setTimeout(() => {
+    firstRunCompletionRetryTimers.delete(correlationRunId);
+    void completeFirstRun(
+      correlationRunId,
+      undefined,
+      deliveryMessageId,
+      deps
+    ).catch(() => {
+      // completeFirstRun schedules the next backoff attempt and logs through
+      // the retained correlation context.
+    });
+  }, delay);
+  timer.unref?.();
+  firstRunCompletionRetryTimers.set(correlationRunId, timer);
+}
+
+function clearFirstRunCompletionRetry(correlationRunId: string) {
+  const timer = firstRunCompletionRetryTimers.get(correlationRunId);
+  if (timer) clearTimeout(timer);
+  firstRunCompletionRetryTimers.delete(correlationRunId);
+  firstRunCompletionRetryAttempts.delete(correlationRunId);
+}
+
+function clearAllFirstRunCompletionRetries() {
+  for (const timer of firstRunCompletionRetryTimers.values()) {
+    clearTimeout(timer);
+  }
+  firstRunCompletionRetryTimers.clear();
+  firstRunCompletionRetryAttempts.clear();
 }
 
 async function completeFirstRunCorrelation(
@@ -2130,6 +2190,7 @@ export const agentOnboardingTesting = {
   buildTourChoiceSurface,
   buildRecurringPrompt,
   buildServicesSurface,
+  clearAllFirstRunCompletionRetries,
   findNewestNoteWithRetry,
   hasPostMarker,
   notebookDisplayName,

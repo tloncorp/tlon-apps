@@ -6,8 +6,12 @@ import { parsePostBlob } from '@tloncorp/shared/logic';
  * Keep them in channel history so onboarding can replay safely, but omit them
  * from the presented timeline.
  */
-export function isVisibleChannelPost(post: Pick<db.Post, 'blob'>): boolean {
+export function isVisibleChannelPost(
+  post: Pick<db.Post, 'blob' | 'authorId'>,
+  currentUserId: string
+): boolean {
   if (!post.blob) return true;
+  if (post.authorId !== currentUserId) return true;
 
   return !parsePostBlob(post.blob).some(
     (entry) => entry.type === 'tlon-agent-intro-request'

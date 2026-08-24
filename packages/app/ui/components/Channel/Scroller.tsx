@@ -257,8 +257,8 @@ const Scroller = forwardRef(
     const theme = useTheme();
 
     const visiblePosts = useMemo(
-      () => posts?.filter(isVisibleChannelPost),
-      [posts]
+      () => posts?.filter((post) => isVisibleChannelPost(post, currentUserId)),
+      [currentUserId, posts]
     );
 
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(

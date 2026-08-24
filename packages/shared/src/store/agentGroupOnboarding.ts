@@ -403,15 +403,18 @@ async function ensureIntroRequest(
     groupId,
     ...(isFirstGroup ? { isFirstGroup: true } : {}),
   });
-  await finalizeAndSendPost({
-    channelId,
-    channelType: 'chat',
-    content: ["Let's get set up."],
-    attachments: [],
-    blob,
-    replyToPostId: null,
-    isEdit: false,
-  });
+  await finalizeAndSendPost(
+    {
+      channelId,
+      channelType: 'chat',
+      content: ["Let's get set up."],
+      attachments: [],
+      blob,
+      replyToPostId: null,
+      isEdit: false,
+    },
+    { throwOnFailure: true }
+  );
 }
 
 async function resolveAgent(explicit?: string): Promise<{

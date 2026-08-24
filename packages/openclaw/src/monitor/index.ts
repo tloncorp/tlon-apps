@@ -3723,14 +3723,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       string,
       ReturnType<typeof setTimeout>
     >();
+    const onboardingRetryAttempts = new Map<string, number>();
     const scheduleAgentOnboardingRetry = (nest: string) => {
       if (opts.abortSignal?.aborted || onboardingRetryTimers.has(nest)) return;
+      const attempt = (onboardingRetryAttempts.get(nest) ?? 0) + 1;
+      onboardingRetryAttempts.set(nest, attempt);
+      const delayMs = Math.min(1_000 * 2 ** (attempt - 1), 30_000);
       const timer = setTimeout(() => {
         onboardingRetryTimers.delete(nest);
         if (!opts.abortSignal?.aborted) {
           void scanAgentOnboardingNest(nest);
         }
-      }, 1_000);
+      }, delayMs);
       timer.unref?.();
       onboardingRetryTimers.set(nest, timer);
     };
@@ -3738,6 +3742,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const timer = onboardingRetryTimers.get(nest);
       if (timer) clearTimeout(timer);
       onboardingRetryTimers.delete(nest);
+      onboardingRetryAttempts.delete(nest);
     };
 
     const scanAgentOnboardingNest = async (nest: string) => {
@@ -3760,15 +3765,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         runtime.error?.(
           `[tlon] Failed to reconcile onboarding in ${nest}: ${error instanceof Error ? error.message : String(error)}`
         );
-        if (
-          error instanceof Error &&
-          error.message === 'cron service is not available'
-        ) {
-          // The monitor and gateway_start hooks race during boot. Keep this
-          // durable request live until the hook publishes the cron accessor;
-          // discovery otherwise revisits only newly watched channels.
-          scheduleAgentOnboardingRetry(nest);
-        }
+        // The request is durable in channel history, but existing watched
+        // channels are not otherwise rescanned. Keep retrying any escaped
+        // transient failure until reconciliation succeeds or the monitor
+        // stops. The per-nest timer deduplicates overlapping firehose/boot
+        // attempts.
+        scheduleAgentOnboardingRetry(nest);
       }
     };
 
@@ -3962,8 +3964,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
-        if (
-          await handleAgentOnboardingRequest({
+        let handledOnboardingRequest = false;
+        try {
+          handledOnboardingRequest = await handleAgentOnboardingRequest({
             api,
             botShip: botShipName,
             botProfile: getBotProfile(),
@@ -3989,8 +3992,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 });
               },
             },
-          })
-        ) {
+          });
+        } catch (error) {
+          // The firehose event has already entered the processed-message
+          // tracker. Reconcile from durable channel history rather than
+          // waiting for a duplicate event or a gateway restart.
+          scheduleAgentOnboardingRetry(nest);
+          throw error;
+        }
+        if (handledOnboardingRequest) {
           // Onboarding requests and deterministic picker replies are
           // control-plane messages. Their visible text remains transcript
           // history but never wakes the model.
@@ -5566,6 +5576,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               clearTimeout(timer);
             }
             onboardingRetryTimers.clear();
+            onboardingRetryAttempts.clear();
             // Kick off scheduler shutdown; don't block the event-handler
             // callback. The `finally` block awaits the same stop promise
             // before draining the persistence queues and closing the

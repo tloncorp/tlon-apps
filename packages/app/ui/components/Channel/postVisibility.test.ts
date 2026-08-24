@@ -9,26 +9,52 @@ import {
 describe('isVisibleChannelPost', () => {
   it('hides typed onboarding intro requests', () => {
     expect(
-      isVisibleChannelPost({
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-intro-request',
-          version: 1,
-          groupId: '~ten/group',
-        }),
-      })
+      isVisibleChannelPost(
+        {
+          authorId: '~ten',
+          blob: appendToPostBlob(undefined, {
+            type: 'tlon-agent-intro-request',
+            version: 1,
+            groupId: '~ten/group',
+          }),
+        },
+        '~ten'
+      )
     ).toBe(false);
   });
 
-  it('keeps ordinary and unrelated typed posts visible', () => {
-    expect(isVisibleChannelPost({ blob: null })).toBe(true);
+  it('keeps onboarding intro requests from other authors visible', () => {
     expect(
-      isVisibleChannelPost({
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-post-marker',
-          version: 1,
-          key: 'intro',
-        }),
-      })
+      isVisibleChannelPost(
+        {
+          authorId: '~nec',
+          blob: appendToPostBlob(undefined, {
+            type: 'tlon-agent-intro-request',
+            version: 1,
+            groupId: '~ten/group',
+          }),
+        },
+        '~ten'
+      )
+    ).toBe(true);
+  });
+
+  it('keeps ordinary and unrelated typed posts visible', () => {
+    expect(isVisibleChannelPost({ authorId: '~ten', blob: null }, '~ten')).toBe(
+      true
+    );
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~ten',
+          blob: appendToPostBlob(undefined, {
+            type: 'tlon-agent-post-marker',
+            version: 1,
+            key: 'intro',
+          }),
+        },
+        '~ten'
+      )
     ).toBe(true);
   });
 });
