@@ -36,6 +36,33 @@ const provision = {
   notebookTitle: 'Updates',
 };
 
+function firstGroupIntro(timestamp = 0) {
+  return {
+    author: '~ten',
+    content: "Let's get set up.",
+    timestamp,
+    blob: appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request' as const,
+      version: 1 as const,
+      groupId: provision.groupId,
+      isFirstGroup: true,
+    }),
+  };
+}
+
+function botMarker(key: string, timestamp: number) {
+  return {
+    author: '~bot',
+    content: key,
+    timestamp,
+    blob: appendToPostBlob(undefined, {
+      type: 'tlon-agent-post-marker' as const,
+      version: 1 as const,
+      key,
+    }),
+  };
+}
+
 beforeEach(() => {
   notesDeliveryTesting.clear();
   agentOnboardingTesting.clearAllFirstRunCompletionRetries();
@@ -186,6 +213,9 @@ describe('agent onboarding requests', () => {
       sentAt: 0,
     }));
     const history = [
+      firstGroupIntro(),
+      botMarker('intro', 0.1),
+      botMarker('purpose-picker', 0.2),
       {
         author: '~bot',
         content: 'ready',
@@ -244,6 +274,9 @@ describe('agent onboarding requests', () => {
       sentAt: 0,
     }));
     const history = [
+      firstGroupIntro(),
+      botMarker('intro', 0.1),
+      botMarker('purpose-picker', 0.2),
       {
         author: '~bot',
         content: 'ready',
@@ -287,6 +320,76 @@ describe('agent onboarding requests', () => {
     );
   });
 
+  it('ends an additional group setup after services without onboarding tours', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    const history = [
+      {
+        author: '~ten',
+        content: "Let's get set up.",
+        timestamp: 0,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-intro-request',
+          version: 1,
+          groupId: provision.groupId,
+        }),
+      },
+      botMarker('purpose-picker', 0.5),
+      {
+        author: '~bot',
+        content: 'ready',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack',
+          version: 1,
+          provisionId: provision.provisionId,
+          cronJobId: 'job-1',
+        }),
+      },
+      {
+        author: '~bot',
+        content: 'Connect anything you’d like, or tap Done to continue.',
+        timestamp: 2,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-post-marker',
+          version: 1,
+          key: 'services-card',
+        }),
+      },
+      { author: '~ten', content: 'Done', timestamp: 3 },
+    ];
+
+    await expect(
+      scanAgentOnboardingChannel(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+        },
+        { fetchHistory: vi.fn(async () => history), sendPost }
+      )
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'All set. Ask me here anytime'
+    );
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).not.toContain(
+      'what you can do here'
+    );
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'group-setup-complete',
+      })
+    );
+  });
+
   it('offers each orientation step as a simple Yes/No choice', () => {
     const surface = agentOnboardingTesting.buildTourChoiceSurface(
       'agent-onboarding-app-tour:~ten/group',
@@ -320,6 +423,7 @@ describe('agent onboarding requests', () => {
       return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
     });
     const history = [
+      firstGroupIntro(),
       {
         author: '~bot',
         content: 'ready',
@@ -404,6 +508,7 @@ describe('agent onboarding requests', () => {
       sentAt: 0,
     }));
     const history = [
+      firstGroupIntro(),
       {
         author: '~bot',
         content: 'ready',
@@ -461,6 +566,7 @@ describe('agent onboarding requests', () => {
       type: 'tlon-agent-intro-request',
       version: 1,
       groupId: '~ten/group',
+      isFirstGroup: true,
     });
 
     await expect(
@@ -525,23 +631,23 @@ describe('agent onboarding requests', () => {
         }
       );
 
-      return {
-        intro: JSON.stringify(sent[0]?.story),
-        picker: JSON.stringify(parsePostBlob(sent[1]?.blob)),
-      };
+      return sent;
     };
 
-    await expect(promptFor(true)).resolves.toEqual({
-      intro: expect.stringContaining(
-        'I can keep you informed, help you learn, or ' +
-          'follow a question over time.'
-      ),
-      picker: expect.stringContaining('What can I help you with?'),
-    });
-    await expect(promptFor()).resolves.toEqual({
-      intro: expect.stringContaining("Let's set up what I do in this group."),
-      picker: expect.stringContaining('What can I help you with?'),
-    });
+    const firstGroup = await promptFor(true);
+    expect(firstGroup).toHaveLength(2);
+    expect(JSON.stringify(firstGroup[0]?.story)).toContain(
+      'I can keep you informed, help you learn, or follow a question over time.'
+    );
+    expect(JSON.stringify(parsePostBlob(firstGroup[1]?.blob))).toContain(
+      'What can I help you with?'
+    );
+
+    const additionalGroup = await promptFor();
+    expect(additionalGroup).toHaveLength(1);
+    expect(JSON.stringify(parsePostBlob(additionalGroup[0]?.blob))).toContain(
+      'What can I help you with?'
+    );
   });
 
   it('recognizes an unmarked legacy intro without suppressing other steps', () => {
@@ -594,6 +700,7 @@ describe('agent onboarding requests', () => {
           type: 'tlon-agent-intro-request',
           version: 1,
           groupId: '~ten/group',
+          isFirstGroup: true,
         }),
       },
     ];
@@ -680,6 +787,7 @@ describe('agent onboarding requests', () => {
       type: 'tlon-agent-intro-request',
       version: 1,
       groupId: '~ten/group',
+      isFirstGroup: true,
     });
     const sendPost = vi.fn(async ({ blob }: { blob?: string }) => {
       const marker = parsePostBlob(blob).find(
@@ -758,6 +866,7 @@ describe('agent onboarding requests', () => {
         type: 'tlon-agent-intro-request',
         version: 1,
         groupId: '~ten/group',
+        isFirstGroup: true,
       });
       await handleAgentOnboardingRequest(
         {
@@ -808,6 +917,7 @@ describe('agent onboarding requests', () => {
       type: 'tlon-agent-intro-request',
       version: 1,
       groupId: '~ten/group',
+      isFirstGroup: true,
     });
     const startThinking = vi.fn();
     const stopThinking = vi.fn();
@@ -905,6 +1015,7 @@ describe('agent onboarding requests', () => {
       type: 'tlon-agent-intro-request',
       version: 1,
       groupId: '~ten/group',
+      isFirstGroup: true,
     });
     const base = {
       api: { scry: vi.fn() },

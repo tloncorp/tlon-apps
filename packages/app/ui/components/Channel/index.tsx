@@ -71,7 +71,10 @@ import { DraftInputView } from './DraftInputView';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
-import { isAgentOnboardingOrientationCompletePost } from './postVisibility';
+import {
+  isAgentOnboardingFirstGroupRequestPost,
+  isAgentOnboardingOrientationCompletePost,
+} from './postVisibility';
 
 const THREAD_UNREAD_OVERLAY_CHANNEL_TYPES: db.ChannelType[] = [
   'chat',
@@ -374,12 +377,22 @@ export function Channel({
     () => posts?.find(isAgentOnboardingOrientationCompletePost)?.id ?? null,
     [posts]
   );
+  const hasFirstGroupOnboardingRequest = useMemo(
+    () =>
+      posts?.some(
+        (post) =>
+          post.authorId === currentUserId &&
+          isAgentOnboardingFirstGroupRequestPost(post)
+      ) ?? false,
+    [currentUserId, posts]
+  );
   const [showOnboardingBackTooltip, setShowOnboardingBackTooltip] =
     useState(false);
 
   useEffect(() => {
     if (
       disableBackButton ||
+      !hasFirstGroupOnboardingRequest ||
       !orientationCompletePostId ||
       shownOnboardingBackTooltipPostIds.has(orientationCompletePostId)
     ) {
@@ -388,7 +401,11 @@ export function Channel({
 
     shownOnboardingBackTooltipPostIds.add(orientationCompletePostId);
     setShowOnboardingBackTooltip(true);
-  }, [disableBackButton, orientationCompletePostId]);
+  }, [
+    disableBackButton,
+    hasFirstGroupOnboardingRequest,
+    orientationCompletePostId,
+  ]);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const isDM = isDmChannelId(channel.id);
@@ -638,7 +655,7 @@ export function Channel({
     !channel.isDmInvite &&
     !editingPost;
 
-  // Onboarding drives its scroll from the durable post list below. Starting
+  // Agent setup drives its scroll from the durable post list below. Starting
   // an animated send scroll while that list is preserving its end anchor makes
   // the two corrections visibly fight.
   const scrollToNewMessage = useCallback(() => {

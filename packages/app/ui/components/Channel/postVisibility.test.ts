@@ -2,6 +2,10 @@ import { appendToPostBlob } from '@tloncorp/shared/logic';
 import { describe, expect, it } from 'vitest';
 
 import {
+  isAgentGroupSetupActive,
+  isAgentGroupSetupCompletePost,
+  isAgentGroupSetupRequestPost,
+  isAgentOnboardingFirstGroupRequestPost,
   isAgentOnboardingOrientationCompletePost,
   isVisibleChannelPost,
 } from './postVisibility';
@@ -84,6 +88,94 @@ describe('isAgentOnboardingOrientationCompletePost', () => {
           key: 'intro',
         }),
       })
+    ).toBe(false);
+  });
+});
+
+describe('agent group setup state markers', () => {
+  it('recognizes the durable setup request', () => {
+    expect(
+      isAgentGroupSetupRequestPost({
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-intro-request',
+          version: 1,
+          groupId: '~ten/group',
+        }),
+      })
+    ).toBe(true);
+    expect(isAgentGroupSetupRequestPost({ blob: null })).toBe(false);
+  });
+
+  it('distinguishes the first hosted group from later setup requests', () => {
+    const request = (isFirstGroup?: boolean) => ({
+      blob: appendToPostBlob(undefined, {
+        type: 'tlon-agent-intro-request' as const,
+        version: 1 as const,
+        groupId: '~ten/group',
+        ...(isFirstGroup ? { isFirstGroup: true } : {}),
+      }),
+    });
+
+    expect(isAgentOnboardingFirstGroupRequestPost(request(true))).toBe(true);
+    expect(isAgentOnboardingFirstGroupRequestPost(request())).toBe(false);
+  });
+
+  it('recognizes completion and terminal failure', () => {
+    for (const key of [
+      'orientation-complete',
+      'group-setup-complete',
+      'first-entry-failed',
+    ]) {
+      expect(
+        isAgentGroupSetupCompletePost({
+          blob: appendToPostBlob(undefined, {
+            type: 'tlon-agent-post-marker',
+            version: 1,
+            key,
+          }),
+        })
+      ).toBe(true);
+    }
+    expect(
+      isAgentGroupSetupCompletePost({
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-post-marker',
+          version: 1,
+          key: 'services-card',
+        }),
+      })
+    ).toBe(false);
+  });
+
+  it('keeps setup active without coupling it to navigation locking', () => {
+    const request = {
+      authorId: '~ten',
+      blob: appendToPostBlob(undefined, {
+        type: 'tlon-agent-intro-request' as const,
+        version: 1 as const,
+        groupId: '~ten/group',
+      }),
+    };
+    const complete = {
+      authorId: '~bot',
+      blob: appendToPostBlob(undefined, {
+        type: 'tlon-agent-post-marker' as const,
+        version: 1 as const,
+        key: 'group-setup-complete',
+      }),
+    };
+
+    expect(isAgentGroupSetupActive([], '~ten', true)).toBe(true);
+    expect(isAgentGroupSetupActive([request], '~ten', false)).toBe(true);
+    expect(isAgentGroupSetupActive([request, complete], '~ten', false)).toBe(
+      false
+    );
+    expect(
+      isAgentGroupSetupActive(
+        [{ ...request, authorId: '~someone-else' }],
+        '~ten',
+        false
+      )
     ).toBe(false);
   });
 });

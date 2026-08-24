@@ -144,7 +144,6 @@ const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
 const AGENT_ONBOARDING_GROUP_INTRO =
   'I can keep you informed, help you learn, or follow a ' +
   'question over time.';
-const AGENT_ADDITIONAL_GROUP_INTRO = "Let's set up what I do in this group.";
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
 const AGENT_ONBOARDING_APP_TOUR_PROMPT =
   'Want me to tell you more about what you can do here?';
@@ -161,6 +160,10 @@ const AGENT_ONBOARDING_BOT_TOUR_EXPLANATION =
   'authorize. Try asking me to adjust tomorrow’s update or investigate ' +
   'something now.';
 const AGENT_ONBOARDING_TOUR_DECLINED = 'No problem. You can ask me anytime.';
+const AGENT_GROUP_SETUP_COMPLETE =
+  'All set. Ask me here anytime if you want to change what I do, adjust the ' +
+  'schedule, or work on something else.';
+const AGENT_GROUP_SETUP_COMPLETE_MARKER = 'group-setup-complete';
 const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
   {
     id: 'agent-daily-digest',
@@ -435,7 +438,12 @@ function pendingDurableReply(
   ownerShip: string
 ) {
   if (hasProvisionAck(history, botShip)) {
-    if (hasPostMarker(history, botShip, 'orientation-complete')) return null;
+    if (
+      hasPostMarker(history, botShip, 'orientation-complete') ||
+      hasPostMarker(history, botShip, AGENT_GROUP_SETUP_COMPLETE_MARKER)
+    ) {
+      return null;
+    }
     const active =
       markerPost(history, botShip, 'bot-tour-offer') ??
       markerPost(history, botShip, 'onboarding-follow-up');
@@ -477,23 +485,21 @@ async function postIntro(
   presentation: OnboardingPresentation,
   isFirstGroup: boolean
 ) {
-  const hadIntro = hasPostMarker(history, context.botShip, 'intro');
-  await postOnce(
-    context,
-    history,
-    'intro',
-    async () => ({
-      text: isFirstGroup
-        ? AGENT_ONBOARDING_GROUP_INTRO
-        : AGENT_ADDITIONAL_GROUP_INTRO,
-    }),
-    deps,
-    presentation
-  );
-  // Only on the post that actually lands, so a re-entered opening doesn't
-  // inflate the top of the funnel.
-  if (!hadIntro) {
-    context.trackStep?.({ step: 'intro_posted' });
+  if (isFirstGroup) {
+    const hadIntro = hasPostMarker(history, context.botShip, 'intro');
+    await postOnce(
+      context,
+      history,
+      'intro',
+      async () => ({ text: AGENT_ONBOARDING_GROUP_INTRO }),
+      deps,
+      presentation
+    );
+    // Only on the post that actually lands, so a re-entered opening doesn't
+    // inflate the top of the funnel.
+    if (!hadIntro) {
+      context.trackStep?.({ step: 'intro_posted' });
+    }
   }
   const hadPicker = hasPostMarker(history, context.botShip, 'purpose-picker');
   await postOnce(
@@ -605,8 +611,33 @@ async function advanceOrientationConversation(
   deps: AgentOnboardingDeps,
   presentation: OnboardingPresentation
 ): Promise<boolean> {
-  if (hasPostMarker(history, context.botShip, 'orientation-complete')) {
+  if (
+    hasPostMarker(history, context.botShip, 'orientation-complete') ||
+    hasPostMarker(history, context.botShip, AGENT_GROUP_SETUP_COMPLETE_MARKER)
+  ) {
     return false;
+  }
+
+  if (!isFirstGroupSetup(history, context.ownerShip!, context.groupId!)) {
+    const servicesCard = markerPost(history, context.botShip, 'services-card');
+    if (!servicesCard) return false;
+    const completedServices = history.some(
+      (entry) =>
+        entry.author === context.ownerShip &&
+        entry.timestamp > servicesCard.timestamp &&
+        isServicesCompleteReply(entry.content)
+    );
+    if (!completedServices) return false;
+
+    await postOnce(
+      context,
+      history,
+      AGENT_GROUP_SETUP_COMPLETE_MARKER,
+      async () => ({ text: AGENT_GROUP_SETUP_COMPLETE }),
+      deps,
+      presentation
+    );
+    return true;
   }
 
   const botTourOffer = markerPost(history, context.botShip, 'bot-tour-offer');
@@ -1813,6 +1844,23 @@ function blobEntriesByAuthor(
       ? parsePostBlob(post.blob).map((entry) => ({ post, entry }))
       : []
   );
+}
+
+function isFirstGroupSetup(
+  history: TlonHistoryEntry[],
+  ownerShip: string,
+  groupId: string
+) {
+  const intro = blobEntriesByAuthor(history, ownerShip, true).find(
+    ({ entry }) =>
+      entry.type === 'tlon-agent-intro-request' && entry.groupId === groupId
+  )?.entry;
+  if (intro?.type === 'tlon-agent-intro-request') {
+    return intro.isFirstGroup === true;
+  }
+  // Preserve first-run behavior for setup conversations created before the
+  // explicit flag was introduced.
+  return groupId.endsWith('/home-group');
 }
 
 /** True once any provision has been acknowledged in this channel. */

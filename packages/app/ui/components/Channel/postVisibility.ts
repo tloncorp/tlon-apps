@@ -29,3 +29,55 @@ export function isAgentOnboardingOrientationCompletePost(
       entry.key === 'orientation-complete'
   );
 }
+
+export function isAgentGroupSetupRequestPost(
+  post: Pick<db.Post, 'blob'>
+): boolean {
+  if (!post.blob) return false;
+
+  return parsePostBlob(post.blob).some(
+    (entry) => entry.type === 'tlon-agent-intro-request'
+  );
+}
+
+export function isAgentOnboardingFirstGroupRequestPost(
+  post: Pick<db.Post, 'blob'>
+): boolean {
+  if (!post.blob) return false;
+
+  return parsePostBlob(post.blob).some(
+    (entry) =>
+      entry.type === 'tlon-agent-intro-request' && entry.isFirstGroup === true
+  );
+}
+
+export function isAgentGroupSetupCompletePost(
+  post: Pick<db.Post, 'blob'>
+): boolean {
+  if (!post.blob) return false;
+
+  return parsePostBlob(post.blob).some(
+    (entry) =>
+      entry.type === 'tlon-agent-post-marker' &&
+      (entry.key === 'orientation-complete' ||
+        entry.key === 'group-setup-complete' ||
+        entry.key === 'first-entry-failed')
+  );
+}
+
+export function isAgentGroupSetupActive(
+  posts: Array<Pick<db.Post, 'authorId' | 'blob'>> | null | undefined,
+  currentUserId: string,
+  hasLocalMarker: boolean
+): boolean {
+  if (hasLocalMarker) return true;
+  if (
+    !posts?.some(
+      (post) =>
+        post.authorId === currentUserId && isAgentGroupSetupRequestPost(post)
+    )
+  ) {
+    return false;
+  }
+  return !posts.some(isAgentGroupSetupCompletePost);
+}

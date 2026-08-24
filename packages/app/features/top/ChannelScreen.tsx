@@ -34,6 +34,7 @@ import {
   InviteUsersSheet,
   useIsWindowNarrow,
 } from '../../ui';
+import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibility';
 import {
   hasAgentOnboardingFirstEntry,
   hasAgentOnboardingFirstEntryFailed,
@@ -109,6 +110,7 @@ export default function ChannelScreen(props: Props) {
   });
 
   const groupId = channel?.groupId ?? group?.id;
+  const currentUserId = api.getCurrentUserId();
   const agentOnboarding = useAgentGroupOnboardingLock(groupId);
 
   const channelIsPending = !channel || channel.isPendingChannel;
@@ -377,6 +379,13 @@ export default function ChannelScreen(props: Props) {
         : posts?.filter((p) => !p.isDeleted),
     [posts, channelConfiguration?.includeDeletedPosts]
   );
+  const agentGroupSetupActive = useMemo(() => {
+    return isAgentGroupSetupActive(
+      filteredPosts,
+      currentUserId,
+      Boolean(agentOnboarding.marker)
+    );
+  }, [agentOnboarding.marker, currentUserId, filteredPosts]);
 
   const provisionId = agentOnboarding.marker?.provision?.provisionId;
   const hasOnboardingFirstEntry = useMemo(() => {
@@ -673,8 +682,8 @@ export default function ChannelScreen(props: Props) {
           selectedPostId={clearedCursor ? undefined : selectedPostId}
           goBack={navigationRef.current.goBack}
           disableBackButton={agentOnboarding.locked}
-          suppressEmptyState={agentOnboarding.locked}
-          suppressAnimatedSendScroll={agentOnboarding.locked}
+          suppressEmptyState={agentGroupSetupActive}
+          suppressAnimatedSendScroll={agentGroupSetupActive}
           pendingThinkingLabel={pendingThinkingLabel}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
