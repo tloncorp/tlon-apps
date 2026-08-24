@@ -1,4 +1,5 @@
 import type { PluginStateKeyedStore } from 'openclaw/plugin-sdk/plugin-state-runtime';
+import { randomUUID } from 'node:crypto';
 
 import { sharedMap, sharedSlot } from '../shared-state.js';
 
@@ -13,6 +14,8 @@ export type AgentOnboardingRunRecord = {
   purposeId: string;
   topics: string[];
   claimedAt: number;
+  /** Identifies the process that owns a fresh in-flight claim. */
+  claimOwnerId?: string;
   enqueuedAt?: number;
   completedAt?: number;
   status: 'claimed' | 'enqueued' | 'completed' | 'failed';
@@ -26,6 +29,9 @@ const CLAIM_GRACE_MS = 30_000;
 const storeSlot = sharedSlot<AgentOnboardingRunStore>(
   'agentOnboarding.firstRunStore'
 );
+const claimOwnerSlot = sharedSlot<string>('agentOnboarding.claimOwnerId');
+const claimOwnerId = claimOwnerSlot.get() ?? randomUUID();
+claimOwnerSlot.set(claimOwnerId);
 const writeFlights = sharedMap<string, Promise<void>>(
   'agentOnboarding.firstRunStoreWrites'
 );
@@ -54,6 +60,10 @@ export function setAgentOnboardingRunStore(
 
 export function getAgentOnboardingRunStore(): AgentOnboardingRunStore | null {
   return storeSlot.get();
+}
+
+export function getAgentOnboardingClaimOwnerId(): string {
+  return claimOwnerId;
 }
 
 type CronJobWitness = {
@@ -86,6 +96,7 @@ export async function claimAgentOnboardingRun(
   }
   if (
     existing?.status === 'claimed' &&
+    existing.claimOwnerId === initial.claimOwnerId &&
     now - existing.claimedAt < CLAIM_GRACE_MS
   ) {
     return { outcome: 'owned-by-another-pass' };

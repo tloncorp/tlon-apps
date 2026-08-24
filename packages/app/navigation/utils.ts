@@ -509,6 +509,29 @@ export function useRootNavigation() {
     });
   }, [isWindowNarrow, navigationRef]);
 
+  const navigateToBotMcpSettings = useCallback(
+    (providerId?: string) => {
+      const params = providerId ? { providerId } : undefined;
+      if (isWindowNarrow) {
+        navigationRef.current.navigate('BotMcpSettings', params);
+        return;
+      }
+
+      const navigateToNestedSettings = navigationRef.current.navigate as (
+        screen: 'Settings',
+        params: {
+          screen: 'BotMcpSettings';
+          params?: RootStackParamList['BotMcpSettings'];
+        }
+      ) => void;
+      navigateToNestedSettings('Settings', {
+        screen: 'BotMcpSettings',
+        params,
+      });
+    },
+    [isWindowNarrow, navigationRef]
+  );
+
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
   const navigateToChatDetails = useNavigateToChatDetails();
@@ -536,6 +559,7 @@ export function useRootNavigation() {
       resetToPost,
       navigateBack,
       navigateToBotSettings,
+      navigateToBotMcpSettings,
     }),
     [
       navigation,
@@ -544,6 +568,7 @@ export function useRootNavigation() {
       navigateToChatDetails,
       navigateToChatVolume,
       navigateToBotSettings,
+      navigateToBotMcpSettings,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,

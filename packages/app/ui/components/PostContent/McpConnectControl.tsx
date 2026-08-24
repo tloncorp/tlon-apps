@@ -210,11 +210,7 @@ export function McpConnectMenu({
   }, []);
 
   const configure = useCallback(async () => {
-    if (
-      !onConfigure ||
-      configuringRef.current ||
-      selectedProviderIds.length === 0
-    ) {
+    if (!onConfigure || configuringRef.current) {
       return;
     }
     configuringRef.current = true;
@@ -425,12 +421,9 @@ export function McpConnectMenu({
           testID="A2UIMcpConnectSubmit"
           accessibilityLabel={component.submitLabel}
           accessibilityState={{
-            disabled:
-              !onConfigure || submitting || selectedProviderIds.length === 0,
+            disabled: !onConfigure || submitting,
           }}
-          disabled={
-            !onConfigure || submitting || selectedProviderIds.length === 0
-          }
+          disabled={!onConfigure || submitting}
           onPress={configure}
         >
           <XStack
@@ -443,11 +436,7 @@ export function McpConnectMenu({
             borderRadius="$m"
             alignItems="center"
             gap="$m"
-            opacity={
-              !onConfigure || submitting || selectedProviderIds.length === 0
-                ? 0.5
-                : 1
-            }
+            opacity={!onConfigure || submitting ? 0.5 : 1}
           >
             <Text size="$label/l" color="$primaryText" trimmed={false} flex={1}>
               {component.submitLabel}

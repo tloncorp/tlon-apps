@@ -77,6 +77,18 @@ export function runWithTlonApiScope<T>(fn: () => Promise<T>): Promise<T> {
   return clientScope.run({ client: null }, fn);
 }
 
+export type TlonApiScopeRunner = <T>(fn: () => Promise<T>) => Promise<T>;
+
+/**
+ * Capture the configured monitor scope for work invoked by a later lifecycle
+ * hook. Function references alone do not retain AsyncLocalStorage context.
+ */
+export function captureTlonApiScope(): TlonApiScopeRunner | undefined {
+  const scope = clientScope.getStore();
+  if (!scope?.client) return undefined;
+  return <T>(fn: () => Promise<T>) => clientScope.run(scope, fn);
+}
+
 /** Run a gateway API call through one explicit poke without changing globals. */
 export function withTlonApiPoke<T>(
   pokeFn: PokeFn,

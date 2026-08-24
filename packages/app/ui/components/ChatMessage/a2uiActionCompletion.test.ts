@@ -23,6 +23,11 @@ describe('getA2UIActionCompletion', () => {
         [
           post({ authorId: '~agent', textContent: 'bot follow-up' }),
           post({ authorId: ownerId, textContent: 'ignored', isDeleted: true }),
+          post({
+            authorId: ownerId,
+            textContent: 'failed',
+            deliveryStatus: 'failed',
+          }),
         ],
         ownerId
       ).sendMessage
@@ -92,6 +97,12 @@ describe('getA2UIActionCompletion', () => {
   it('matches the per-row suffix scan in one reverse pass', () => {
     const posts = [
       post({ id: 'surface' }),
+      post({
+        id: 'failed-choice',
+        authorId: ownerId,
+        textContent: 'Failed',
+        deliveryStatus: 'failed',
+      }),
       post({ id: 'choice', authorId: ownerId, textContent: 'Research' }),
       post({ id: 'follow-up' }),
       post({ id: 'topics', authorId: ownerId, textContent: 'Mycology' }),

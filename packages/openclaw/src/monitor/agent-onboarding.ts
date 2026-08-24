@@ -20,12 +20,17 @@ import {
 import { sharedMap } from '../shared-state.js';
 import type { TlonOnboardingStep } from '../telemetry.js';
 import { makeA2UIBlob } from '../urbit/blob.js';
+import {
+  captureTlonApiScope,
+  type TlonApiScopeRunner,
+} from '../urbit/api-client.js';
 import { type BotProfile, sendChannelPost } from '../urbit/send.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
   type AgentOnboardingRunRecord,
   claimAgentOnboardingRun,
   forgetAgentOnboardingRunClaim,
+  getAgentOnboardingClaimOwnerId,
   lookupAgentOnboardingRun,
   markAgentOnboardingRunTerminal,
   recordAgentOnboardingRunEnqueued,
@@ -88,6 +93,8 @@ type AgentOnboardingDeps = {
 
 type AgentOnboardingCronDeps = {
   fetchHistory?: typeof fetchChannelHistory;
+  /** Internal recursion guard after re-entering the captured client scope. */
+  inApiScope?: boolean;
   listNotes?: typeof notes.listNotes;
   sendPost?: typeof sendChannelPost;
   sleep?: (ms: number) => Promise<void>;
@@ -119,6 +126,7 @@ const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 5_500;
 const FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS = 21;
 const FIRST_ENTRY_NOTE_LOOKUP_DELAY_MS = 1_000;
 const FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
+const ADMIN_MEMBERSHIP_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000] as const;
 const COMPOSE_MS_PER_CHARACTER = 14;
 const MIN_COMPOSE_DELAY_MS = 800;
 const MAX_COMPOSE_DELAY_MS = 3_500;
@@ -223,24 +231,8 @@ type FirstRunCorrelation = {
   purposeId: string;
   topics: readonly string[];
   enqueuedAt: number;
-  /**
-   * Bound in the module context that provisioned the run.
-   *
-   * The completion hooks (`message_sent`, `cron_changed`) fire from the
-   * extension entry, while provisioning runs in the lazy runtime module —
-   * separate module-loader contexts, per `shared-state.ts`. The correlation
-   * itself survives that split because it lives in a `sharedMap`, but
-   * `@tloncorp/api`'s `client` is a module-level proxy, so the entry side
-   * holds a second, unconfigured copy: calling `notes.listNotes` or
-   * `sendChannelPost` from there threw "Client not initialized" and the
-   * first-entry reveal was never posted. Capturing the functions here keeps
-   * the completion on the configured client.
-   */
-  bound: {
-    fetchHistory: typeof fetchChannelHistory;
-    listNotes: typeof notes.listNotes;
-    sendPost: typeof sendChannelPost;
-  };
+  /** Re-enters the configured API scope when lifecycle hooks fire later. */
+  runInApiScope?: TlonApiScopeRunner;
 };
 
 const firstRunCorrelations = sharedMap<string, FirstRunCorrelation>(
@@ -534,6 +526,7 @@ async function advanceDurableConversation(
 
   if (!hasPostMarker(history, context.botShip, 'topics-picker')) {
     const purpose = purposeForReply(text);
+    if (!purpose) return false;
     context.trackStep?.({ step: 'purpose_chosen', purposeId: purpose.id });
     await postOnce(
       context,
@@ -712,19 +705,11 @@ type Purpose = {
   topics: readonly string[];
 };
 
-function purposeForReply(text: string): Purpose {
-  const selected = AGENT_ONBOARDING_PURPOSE_OPTIONS.find(
-    (option) => option.label.toLowerCase() === text.trim().toLowerCase()
-  );
+function purposeForReply(text: string): Purpose | null {
   return (
-    selected ?? {
-      id: 'agent-custom',
-      label: text.slice(0, 200),
-      scheduleHour: 9,
-      topicsPrompt:
-        'Good. I’ll set this group up for that. What should it focus on?',
-      topics: [],
-    }
+    AGENT_ONBOARDING_PURPOSE_OPTIONS.find(
+      (option) => option.label.toLowerCase() === text.trim().toLowerCase()
+    ) ?? null
   );
 }
 
@@ -751,9 +736,9 @@ async function provision(
     timezone: request.timezone,
     notebookNest: request.notebookNest,
   };
-  const group = await (
-    deps.getGroup ?? ((groupId) => fetchOnboardingGroup(context.api, groupId))
-  )(request.groupId);
+  const getGroup =
+    deps.getGroup ?? ((groupId) => fetchOnboardingGroup(context.api, groupId));
+  let group = await getGroup(request.groupId);
   if (
     group.hostUserId !== context.senderShip ||
     !group.channels?.some(
@@ -770,16 +755,27 @@ async function provision(
     });
     return;
   }
-  const botMember = group.members?.find(
-    (member) =>
-      member.contactId === context.botShip && member.status !== 'invited'
-  );
-  const isAdmin = botMember?.roles?.some((role: unknown) => {
-    if (role === 'admin') return true;
-    if (!role || typeof role !== 'object') return false;
-    const value = role as { id?: unknown; roleId?: unknown };
-    return value.id === 'admin' || value.roleId === 'admin';
-  });
+  const isBotAdmin = (candidate: OnboardingGroup) =>
+    candidate.members
+      ?.find(
+        (member) =>
+          member.contactId === context.botShip && member.status !== 'invited'
+      )
+      ?.roles?.some((role: unknown) => {
+        if (role === 'admin') return true;
+        if (!role || typeof role !== 'object') return false;
+        const value = role as { id?: unknown; roleId?: unknown };
+        return value.id === 'admin' || value.roleId === 'admin';
+      }) ?? false;
+  let isAdmin = isBotAdmin(group);
+  for (const delay of ADMIN_MEMBERSHIP_RETRY_DELAYS_MS) {
+    if (isAdmin) break;
+    await (
+      deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
+    )(delay);
+    group = await getGroup(request.groupId);
+    isAdmin = isBotAdmin(group);
+  }
   if (!isAdmin) {
     context.log?.('[tlon] rejected agent provision: agent is not an admin');
     context.trackStep?.({
@@ -981,12 +977,18 @@ async function failFirstRunCorrelation(
   correlation: FirstRunCorrelation,
   event: PluginHookCronChangedEvent,
   deps: AgentOnboardingCronDeps
-) {
-  const bound = correlation.bound;
+): Promise<void> {
+  if (correlation.runInApiScope && !deps.inApiScope) {
+    return correlation.runInApiScope(() =>
+      failFirstRunCorrelation(correlationRunId, correlation, event, {
+        ...deps,
+        inApiScope: true,
+      })
+    );
+  }
   const runDeps: AgentOnboardingCronDeps = {
-    fetchHistory:
-      deps.fetchHistory ?? bound?.fetchHistory ?? fetchChannelHistory,
-    sendPost: deps.sendPost ?? bound?.sendPost ?? sendChannelPost,
+    fetchHistory: deps.fetchHistory ?? fetchChannelHistory,
+    sendPost: deps.sendPost ?? sendChannelPost,
   };
   const failureDescription =
     `status=${String(event.status ?? 'unknown')}, ` +
@@ -1071,16 +1073,21 @@ async function completeFirstRunCorrelation(
   correlation: FirstRunCorrelation,
   deliveryMessageId: string | undefined,
   deps: AgentOnboardingCronDeps
-) {
-  // Explicit deps win (tests), then the implementations bound in the context
-  // that provisioned this run, and only then this module's own — which, on the
-  // extension-entry side, are backed by an unconfigured client.
-  const bound = correlation.bound;
+): Promise<void> {
+  if (correlation.runInApiScope && !deps.inApiScope) {
+    return correlation.runInApiScope(() =>
+      completeFirstRunCorrelation(
+        correlationRunId,
+        correlation,
+        deliveryMessageId,
+        { ...deps, inApiScope: true }
+      )
+    );
+  }
   const runDeps: AgentOnboardingCronDeps = {
-    fetchHistory:
-      deps.fetchHistory ?? bound?.fetchHistory ?? fetchChannelHistory,
-    listNotes: deps.listNotes ?? bound?.listNotes ?? notes.listNotes,
-    sendPost: deps.sendPost ?? bound?.sendPost ?? sendChannelPost,
+    fetchHistory: deps.fetchHistory ?? fetchChannelHistory,
+    listNotes: deps.listNotes ?? notes.listNotes,
+    sendPost: deps.sendPost ?? sendChannelPost,
   };
 
   try {
@@ -1287,11 +1294,7 @@ function setFirstRunCorrelation(
     purposeId: request.purposeId,
     topics: request.topics,
     enqueuedAt: options.enqueuedAt,
-    bound: {
-      fetchHistory: fetchChannelHistory,
-      listNotes: notes.listNotes,
-      sendPost: sendChannelPost,
-    },
+    runInApiScope: captureTlonApiScope(),
   });
 }
 
@@ -1312,6 +1315,7 @@ function durableRunRecord(
     purposeId: request.purposeId,
     topics: [...request.topics],
     claimedAt,
+    claimOwnerId: getAgentOnboardingClaimOwnerId(),
     status: 'claimed',
   };
 }
@@ -1839,7 +1843,8 @@ function jobMatches(
     job.sessionTarget === desired.sessionTarget &&
     job.wakeMode === desired.wakeMode &&
     runtimeJob.payload?.kind === desired.payload.kind &&
-    runtimeJob.payload.message === desired.payload.message &&
+    (runtimeJob.payload.message ?? runtimeJob.payload.text) ===
+      desired.payload.message &&
     JSON.stringify(runtimeJob.payload.toolsAllow) ===
       JSON.stringify(desired.payload.toolsAllow) &&
     runtimeJob.delivery?.mode === desired.delivery.mode &&
@@ -1886,7 +1891,7 @@ function purposePickerFallbackText(prompt: string) {
   const labels = AGENT_ONBOARDING_PURPOSE_OPTIONS.map(
     (option) => `“${option.label}”`
   ).join(', ');
-  return `${prompt} Reply ${labels} — or just tell me.`;
+  return `${prompt} Reply ${labels}.`;
 }
 
 function buildPurposePickerSurface(
@@ -2128,6 +2133,7 @@ export const agentOnboardingTesting = {
   findNewestNoteWithRetry,
   hasPostMarker,
   notebookDisplayName,
+  purposePickerFallbackText,
   purposeForReply,
   provisionCadence,
   rememberFirstRun,

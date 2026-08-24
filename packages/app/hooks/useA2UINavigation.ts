@@ -160,12 +160,7 @@ export function useA2UINavigation() {
         case 'screen':
           switch (target.screen) {
             case 'botMcpSettings':
-              rootNavigation.navigation.navigate(
-                'BotMcpSettings',
-                target.providerId
-                  ? { providerId: target.providerId }
-                  : undefined
-              );
+              rootNavigation.navigateToBotMcpSettings(target.providerId);
               return;
           }
       }

@@ -49,6 +49,15 @@ async function syncInitialBotName() {
   logger.trackEvent('Agent Onboarding Bot Nickname Sync Succeeded');
 }
 
+async function clearNavigationLock(groupId: string) {
+  await db.agentGroupOnboardingLocks.setValue((current) => {
+    if (!current[groupId]) return current;
+    const remaining = { ...current };
+    delete remaining[groupId];
+    return remaining;
+  });
+}
+
 /**
  * Bridges the post-readiness splash into the real, provisioned home group.
  * The splash is outside the authenticated navigator, so the destination is
@@ -150,6 +159,7 @@ export function AgentOnboardingSequence(props: {
           error: lastError,
           groupId,
         });
+        await clearNavigationLock(groupId);
         setUseFallback(true);
       }
     })();

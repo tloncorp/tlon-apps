@@ -8,6 +8,8 @@ import {
 } from '../notes-delivery-state.js';
 import {
   type AgentOnboardingRunRecord,
+  claimAgentOnboardingRun,
+  getAgentOnboardingClaimOwnerId,
   setAgentOnboardingRunStore,
 } from './agent-onboarding-run-store.js';
 import {
@@ -65,6 +67,47 @@ function memoryRunStore() {
     clear: vi.fn(async () => records.clear()),
   };
 }
+
+describe('first-run durable claims', () => {
+  const record = (claimOwnerId: string): AgentOnboardingRunRecord => ({
+    provisionId: 'provision-1',
+    jobId: 'job-1',
+    groupId: '~ten/group',
+    channelNest: 'chat/~ten/group/general',
+    notebookNest: 'notes/~ten/updates',
+    notebookName: 'Updates',
+    purposeId: 'agent-daily-digest',
+    topics: ['AI'],
+    claimedAt: 1_000,
+    claimOwnerId,
+    status: 'claimed',
+  });
+
+  it('keeps a fresh claim owned by this process', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    await store.register(initial.provisionId, initial);
+    const listJobs = vi.fn(async () => []);
+
+    await expect(
+      claimAgentOnboardingRun(initial, 1_001, listJobs)
+    ).resolves.toEqual({ outcome: 'owned-by-another-pass' });
+    expect(listJobs).not.toHaveBeenCalled();
+  });
+
+  it('reclaims a fresh unwitnessed claim left by an earlier process', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register('provision-1', record('previous-process'));
+    const initial = record(getAgentOnboardingClaimOwnerId());
+
+    await expect(
+      claimAgentOnboardingRun(initial, 1_001, async () => [])
+    ).resolves.toEqual({ outcome: 'enqueue' });
+    await expect(store.lookup('provision-1')).resolves.toEqual(initial);
+  });
+});
 
 describe('agent onboarding requests', () => {
   it('recognizes only canonical typed requests', () => {
@@ -944,8 +987,17 @@ describe('agent onboarding requests', () => {
     ['Research', 'Got it', 'What question or field should I follow closely?'],
   ])('uses purpose-specific topic copy for %s', (reply, detail, question) => {
     const purpose = agentOnboardingTesting.purposeForReply(reply);
-    expect(purpose.topicsPrompt).toContain(detail);
-    expect(purpose.topicsPrompt).toContain(question);
+    expect(purpose?.topicsPrompt).toContain(detail);
+    expect(purpose?.topicsPrompt).toContain(question);
+  });
+
+  it('leaves unsupported free-text purpose replies to ordinary chat', () => {
+    expect(
+      agentOnboardingTesting.purposeForReply('Invent a different workflow')
+    ).toBeNull();
+    expect(
+      agentOnboardingTesting.purposePickerFallbackText('Choose')
+    ).not.toContain('or just tell me');
   });
 
   it.each([
@@ -1053,6 +1105,35 @@ describe('primary onboarding cron slot', () => {
     expect(harness.getJobs()[0].description).toBe(
       'tlon-agent-primary:~ten/group'
     );
+  });
+
+  it('accepts the runtime text alias when verifying an existing slot', async () => {
+    const initial = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      initial.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const job = initial.getJobs()[0] as Record<string, unknown> & {
+      payload: { message: string };
+    };
+    const runtime = cronHarness([
+      {
+        ...job,
+        payload: {
+          ...job.payload,
+          text: job.payload.message,
+          message: undefined,
+        },
+      },
+    ]);
+
+    await agentOnboardingTesting.upsertPrimaryJob(
+      runtime.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    expect(runtime.cron.update).not.toHaveBeenCalled();
   });
 
   it('updates the same slot when the plan changes', async () => {
@@ -1330,6 +1411,62 @@ describe('provision coordinator ordering', () => {
       step: 'provision_received',
       outcome: 'failed',
     });
+  });
+
+  it('waits for the bot admin promotion before provisioning', async () => {
+    const withoutAdmin = {
+      hostUserId: '~ten',
+      channels: [{ id: provision.notebookNest, type: 'notes' }],
+      members: [{ contactId: '~bot', status: 'joined', roles: [] }],
+    };
+    const withAdmin = {
+      ...withoutAdmin,
+      members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+    };
+    const getGroup = vi
+      .fn()
+      .mockResolvedValueOnce(withoutAdmin)
+      .mockResolvedValue(withAdmin);
+    const sleep = vi.fn(async () => {});
+    let jobs: Record<string, unknown>[] = [];
+    const cron = {
+      list: vi.fn(async () => jobs),
+      add: vi.fn(async (input: Record<string, unknown>) => {
+        jobs = [{ id: 'job-1', ...input }];
+      }),
+      update: vi.fn(),
+      remove: vi.fn(),
+      enqueueRun: vi.fn(async () => ({ enqueued: true, runId: 'run-1' })),
+    } as unknown as TlonCronService;
+
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/group/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          blob: appendToPostBlob(undefined, provision),
+        },
+        {
+          fetchHistory: vi.fn(async () => []),
+          getCron: () => cron,
+          getGroup,
+          sendPost: vi.fn(async () => ({
+            channel: 'tlon' as const,
+            messageId: 'post',
+            sentAt: 0,
+          })),
+          sleep,
+        }
+      )
+    ).resolves.toBe(true);
+
+    expect(getGroup).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledWith(250);
+    expect(cron.enqueueRun).toHaveBeenCalledOnce();
   });
 
   it('enqueues the first run before announcing that writing started', async () => {

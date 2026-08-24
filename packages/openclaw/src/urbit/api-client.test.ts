@@ -132,4 +132,22 @@ describe('scoped API client', () => {
 
     expect(ships).toEqual(['~zod', '~nec', '~zod']);
   });
+
+  it('can re-enter a configured scope from a later lifecycle callback', async () => {
+    const {
+      captureTlonApiScope,
+      runWithTlonApiScope,
+      setScopedTlonApiWithPoke,
+    } = await import('./api-client.js');
+
+    const runCaptured = await runWithTlonApiScope(async () => {
+      setScopedTlonApiWithPoke(vi.fn(), '~zod', 'http://zod');
+      return captureTlonApiScope();
+    });
+
+    expect(runCaptured).toBeTypeOf('function');
+    await expect(
+      runCaptured!(() => Promise.resolve(getCurrentUserId()))
+    ).resolves.toBe('~zod');
+  });
 });

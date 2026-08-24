@@ -13,7 +13,10 @@ export function getA2UIActionCompletion(
   currentUserId: string
 ): A2UIActionCompletion {
   const ownerReplies = laterPosts.filter(
-    (candidate) => candidate.authorId === currentUserId && !candidate.isDeleted
+    (candidate) =>
+      candidate.authorId === currentUserId &&
+      !candidate.isDeleted &&
+      candidate.deliveryStatus !== 'failed'
   );
   const newestEntries = [...ownerReplies]
     .reverse()
@@ -67,7 +70,12 @@ export function getA2UIActionCompletions(
     };
 
     const candidate = posts[index];
-    if (candidate.authorId !== currentUserId || candidate.isDeleted) continue;
+    if (
+      candidate.authorId !== currentUserId ||
+      candidate.isDeleted ||
+      candidate.deliveryStatus === 'failed'
+    )
+      continue;
     const text = candidate.textContent?.trim();
     if (text) {
       // Moving backwards makes this the earliest owner reply in the suffix,
