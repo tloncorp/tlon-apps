@@ -209,9 +209,14 @@ function SmallChoiceControl({
             context: { text: messageForSelection },
           },
         };
+  const isProvisionAction =
+    component.action.event.name === A2UI.action.provisionAgent;
+  const hasValidSelection = isProvisionAction
+    ? topicsForSelection.length > 0
+    : Boolean(messageForSelection);
 
   const handleSubmit = useCallback(async () => {
-    if (!messageForSelection || submittingRef.current) {
+    if (!hasValidSelection || submittingRef.current) {
       return;
     }
     // Disable first so a double tap can't send twice, but put it back if
@@ -229,7 +234,7 @@ function SmallChoiceControl({
       submittingRef.current = false;
       setSubmitted(false);
     }
-  }, [actionForSelection, messageForSelection, onSubmit]);
+  }, [actionForSelection, hasValidSelection, onSubmit]);
 
   /**
    * Availability has to be judged against the message that would actually be
@@ -253,7 +258,7 @@ function SmallChoiceControl({
           },
         };
 
-  const submitAction = messageForSelection ? actionForSelection : probeAction;
+  const submitAction = hasValidSelection ? actionForSelection : probeAction;
   const actionConsumed =
     consumedLocally ||
     (component.action.event.name === A2UI.action.sendMessage
@@ -264,7 +269,7 @@ function SmallChoiceControl({
   // toggle pills after onboarding had already advanced to the next prompt.
   const disabled = submitted || actionConsumed || !probe(probeAction);
   const submitDisabled =
-    disabled || !messageForSelection || !probe(actionForSelection);
+    disabled || !hasValidSelection || !probe(actionForSelection);
   const customChoiceLabel =
     component.freeTextPlaceholder?.replace(/…+$/, '') || '';
   const durableSelection =
@@ -289,7 +294,7 @@ function SmallChoiceControl({
     ? completedCustomTopics
     : customTopics;
   const displayedCustomTopicSummary = displayedCustomTopics.join(', ');
-  const hasSelection = Boolean(messageForSelection);
+  const hasSelection = hasValidSelection;
 
   const openCustomInput = useCallback(() => {
     if (submittingRef.current) {

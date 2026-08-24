@@ -126,6 +126,7 @@ export function McpConnectControl({
       configuredProviderIds={configuredProviderIds}
       failed={failed}
       loading={loading}
+      providersLoaded={loadedUserIdRef.current === currentUserId}
       onConfigure={onConfigure}
       onComplete={onComplete}
       onNavigate={onNavigate}
@@ -140,6 +141,7 @@ export function McpConnectMenu({
   configuredProviderIds,
   failed = false,
   loading = false,
+  providersLoaded = true,
   onConfigure,
   onComplete,
   onNavigate,
@@ -150,6 +152,7 @@ export function McpConnectMenu({
   configuredProviderIds?: string[];
   failed?: boolean;
   loading?: boolean;
+  providersLoaded?: boolean;
   onConfigure?: (
     action: A2UI.ConfigureAgentProvidersAction
   ) => void | Promise<void>;
@@ -180,7 +183,7 @@ export function McpConnectMenu({
       ? [...configuredProviderIds].sort().join('\u0000')
       : null;
     if (!initializedRef.current) {
-      if (loading) return;
+      if (loading || !providersLoaded) return;
       initializedRef.current = true;
       knownConnectedRef.current = connected;
       appliedConfigurationRef.current = configuredKey;
@@ -226,7 +229,7 @@ export function McpConnectMenu({
         ? current
         : next;
     });
-  }, [configuredProviderIds, connectedProviderIds, loading]);
+  }, [configuredProviderIds, connectedProviderIds, loading, providersLoaded]);
 
   const visibleProviders = useMemo(
     () => selectMcpMenuProviders(providers, component.maxVisible),
@@ -246,7 +249,7 @@ export function McpConnectMenu({
   }, []);
 
   const configure = useCallback(async () => {
-    if (!onConfigure || configuringRef.current) {
+    if (!onConfigure || configuringRef.current || completingRef.current) {
       return;
     }
     configuringRef.current = true;
