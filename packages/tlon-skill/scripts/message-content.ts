@@ -477,7 +477,9 @@ export function renderPostJsonLine(post: Post): string {
     // stays stable.
     parentId: post.parentId ?? null,
     blob: post.blob ?? null,
-    content: parsed ?? post.content,
+    // Tombstones (deleted posts) reach history pages with content undefined —
+    // normalize like parentId/blob so the record shape stays stable.
+    content: parsed ?? post.content ?? null,
   });
 }
 

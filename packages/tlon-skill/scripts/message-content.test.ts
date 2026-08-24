@@ -936,6 +936,25 @@ describe('renderPostJsonLine', () => {
       'content',
     ]);
   });
+
+  it('nulls tombstone content so the record shape stays stable', () => {
+    // Deleted posts reach history pages as tombstones with content undefined.
+    const line = renderPostJsonLine({
+      id: 'post-4',
+      authorId: '~zod',
+      sentAt: 1724200000000,
+      parentId: null,
+    } as never);
+    expect(line).toContain('"content":null');
+    expect(Object.keys(JSON.parse(line))).toEqual([
+      'id',
+      'authorId',
+      'sentAt',
+      'parentId',
+      'blob',
+      'content',
+    ]);
+  });
 });
 
 describe('renderPostListJsonLines', () => {
