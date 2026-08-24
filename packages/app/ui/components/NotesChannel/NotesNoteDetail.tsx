@@ -532,12 +532,16 @@ export function NotesNoteDetail({
         ) {
           return;
         }
-        const alreadyCounted = await db.agentEntryFirstOpened.getValue();
-        if (alreadyCounted[groupId]) return;
-        await db.agentEntryFirstOpened.setValue((current) => ({
-          ...current,
-          [groupId]: true,
-        }));
+        let claimed = false;
+        await db.agentEntryFirstOpened.setValue((current) => {
+          if (current[groupId]) return current;
+          claimed = true;
+          return {
+            ...current,
+            [groupId]: true,
+          };
+        });
+        if (!claimed) return;
         trackEvent(AnalyticsEvent.AgentEntryFirstOpened, { groupId });
       } catch {
         // Never let activation reporting interfere with reading a note.
