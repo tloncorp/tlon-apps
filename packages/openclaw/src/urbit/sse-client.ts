@@ -1028,6 +1028,42 @@ export class UrbitSSEClient {
     );
   }
 
+  async requestJson<T>(
+    path: string,
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
+    body?: unknown
+  ): Promise<T> {
+    const headers: Record<string, string> = { Cookie: this.cookie };
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    const { response, release } = await urbitFetch({
+      baseUrl: this.url,
+      path,
+      init: {
+        method,
+        headers,
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      },
+      ssrfPolicy: this.ssrfPolicy,
+      lookupFn: this.lookupFn,
+      fetchImpl: this.fetchImpl,
+      timeoutMs: 30_000,
+      auditContext: 'tlon-urbit-request-json',
+    });
+    try {
+      const text = await response.text();
+      if (!response.ok) {
+        throw new UrbitHttpError({
+          operation: `request ${path}`,
+          status: response.status,
+          bodyText: text || undefined,
+        });
+      }
+      return text.trim() ? (JSON.parse(text) as T) : (undefined as T);
+    } finally {
+      await release();
+    }
+  }
+
   /**
    * Update the cookie used for authentication.
    * Call this when re-authenticating after session expiry.
