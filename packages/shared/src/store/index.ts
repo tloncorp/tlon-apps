@@ -14,6 +14,7 @@ export * from './storage';
 export * from './dmActions';
 export * from './useNegotiation';
 export * from './activityActions';
+export * from './agentGroupOnboarding';
 export * from './useActivityFetchers';
 export * from './unreadActivity';
 export * from './session';

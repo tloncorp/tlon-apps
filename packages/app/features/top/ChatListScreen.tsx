@@ -41,6 +41,10 @@ import { ChatListSearch } from '../chat-list/ChatListSearch';
 import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
 import {
+  canClaimAgentOnboardingLanding,
+  claimAgentOnboardingLanding,
+} from './agentOnboardingLanding';
+import {
   getGroupInviteSheetState,
   isGroupInviteReady,
 } from './groupInvitePreview';
@@ -69,7 +73,7 @@ export function ChatListScreenView({
   previewGroupFromInviteNotification?: boolean;
   focusedChannelId?: string;
 }) {
-  const { navigation, navigateToGroup, navigateToChannel } =
+  const { navigation, navigateToGroup, navigateToChannel, resetToChannel } =
     useRootNavigation();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const personalInvite = db.personalInviteLink.useValue();
@@ -94,6 +98,55 @@ export function ChatListScreenView({
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
+
+  const onboardingLanding = db.agentOnboardingLanding.useValue();
+  const consumedOnboardingLanding = useRef(false);
+  const resetToChannelRef = useRef(resetToChannel);
+  resetToChannelRef.current = resetToChannel;
+  useEffect(() => {
+    if (
+      !canClaimAgentOnboardingLanding(onboardingLanding) ||
+      consumedOnboardingLanding.current
+    ) {
+      return;
+    }
+    let active = true;
+
+    void (async () => {
+      while (active && !consumedOnboardingLanding.current) {
+        try {
+          const channel = await db.getChannel({
+            id: onboardingLanding.channelId,
+          });
+          if (channel) {
+            // Claim this handoff durably before resetting navigation. The reset
+            // remounts ChatListScreen, so component-local state alone cannot
+            // prevent the new instance from consuming the same handoff again.
+            await db.agentOnboardingLanding.setValue(
+              claimAgentOnboardingLanding(onboardingLanding)
+            );
+            consumedOnboardingLanding.current = true;
+            resetToChannelRef.current(onboardingLanding.channelId, {
+              backToGroupIndex: true,
+              disableTransition: true,
+              groupId: onboardingLanding.groupId,
+            });
+            return;
+          }
+        } catch (error) {
+          logger.trackError('Failed to consume agent onboarding landing', {
+            error,
+            ...onboardingLanding,
+          });
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [onboardingLanding]);
   const { performGroupAction } = useGroupActions();
 
   const handleInviteFriends = useCallback(() => {

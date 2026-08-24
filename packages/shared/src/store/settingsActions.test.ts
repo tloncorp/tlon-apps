@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { updateShowDeleteMarkers } from './settingsActions';
+import {
+  completeWayfindingSplash,
+  updateShowDeleteMarkers,
+} from './settingsActions';
 
 const mocks = vi.hoisted(() => ({
   getSettings: vi.fn(),
   insertSettings: vi.fn(),
   setSetting: vi.fn(),
+  setWayfindingProgress: vi.fn(),
 }));
 
 vi.mock('@tloncorp/api', () => ({
@@ -15,6 +19,13 @@ vi.mock('@tloncorp/api', () => ({
 vi.mock('../db', () => ({
   getSettings: mocks.getSettings,
   insertSettings: mocks.insertSettings,
+  wayfindingProgress: {
+    setValue: mocks.setWayfindingProgress,
+  },
+}));
+
+vi.mock('../logic', () => ({
+  withRetry: (operation: () => Promise<unknown>) => operation(),
 }));
 
 describe('updateShowDeleteMarkers', () => {
@@ -42,5 +53,31 @@ describe('updateShowDeleteMarkers', () => {
     expect(mocks.insertSettings).toHaveBeenNthCalledWith(2, {
       showDeleteMarkers: false,
     });
+  });
+});
+
+describe('completeWayfindingSplash', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.insertSettings.mockResolvedValue(undefined);
+    mocks.setSetting.mockResolvedValue(undefined);
+  });
+
+  it.each([
+    ['legacy wayfinding', undefined, false],
+    ['agent onboarding', { showBotMentionHint: false }, true],
+  ])('sets the bot mention hint state for %s', async (_, options, expected) => {
+    let nextProgress: Record<string, unknown> | undefined;
+    mocks.setWayfindingProgress.mockImplementationOnce(
+      async (
+        update: (current: Record<string, unknown>) => Record<string, unknown>
+      ) => {
+        nextProgress = update({ tappedHomeGroupHint: false });
+      }
+    );
+
+    await completeWayfindingSplash(options);
+
+    expect(nextProgress?.tappedHomeGroupHint).toBe(expected);
   });
 });

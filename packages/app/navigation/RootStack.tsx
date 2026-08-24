@@ -103,7 +103,13 @@ export function RootStack() {
       {/* individual screens */}
       <Root.Screen name="AddContacts" component={AddContactsScreen} />
       <Root.Screen name="GroupSettings" component={GroupSettingsStack} />
-      <Root.Screen name="Channel" component={ChannelScreen} />
+      <Root.Screen
+        name="Channel"
+        component={ChannelScreen}
+        options={({ route }) => ({
+          animation: route.params.disableTransition ? 'none' : 'default',
+        })}
+      />
       <Root.Screen name="DM" component={ChannelScreen} />
       <Root.Screen name="GroupDM" component={ChannelScreen} />
       <Root.Screen name="ChannelSearch" component={ChannelSearchScreen} />
