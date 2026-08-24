@@ -11,6 +11,7 @@ import {
   presentContactsMatchedNotification,
 } from '@tloncorp/app/lib/notifications';
 import { startPushNotifTapMeasurement } from '@tloncorp/app/lib/pushNotifTapTelemetry';
+import { useAnyAgentGroupOnboardingLock } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import {
   createTypedReset,
@@ -141,6 +142,8 @@ export function getMissingNotificationTargetRecovery(
 export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isTlonEmployee = db.isTlonEmployee.useValue();
+  const { locked: agentOnboardingLocked } =
+    useAnyAgentGroupOnboardingLock();
 
   const [notifToProcess, setNotifToProcess] =
     useState<ProcessableNotificationData | null>(null);
@@ -386,7 +389,7 @@ export default function useNotificationListener() {
       }
     }
 
-    if (notifToProcess) {
+    if (notifToProcess && !agentOnboardingLocked) {
       const notificationData = notifToProcess;
       const handleNavigate = (() => {
         switch (notificationData.type) {
@@ -460,5 +463,11 @@ export default function useNotificationListener() {
         }
       })();
     }
-  }, [notifToProcess, navigation, isTlonEmployee, isDesktop]);
+  }, [
+    agentOnboardingLocked,
+    notifToProcess,
+    navigation,
+    isTlonEmployee,
+    isDesktop,
+  ]);
 }
