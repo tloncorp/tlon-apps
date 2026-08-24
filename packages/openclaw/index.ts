@@ -853,7 +853,6 @@ export default defineBundledChannelEntry({
         api.runtime.state.openKeyedStore({
           namespace: 'agent-onboarding-first-runs',
           maxEntries: 500,
-          defaultTtlMs: 7 * 24 * 60 * 60_000,
         })
       );
     } catch (error) {

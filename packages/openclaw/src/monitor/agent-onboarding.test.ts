@@ -137,12 +137,34 @@ describe('first-run durable claims', () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
     await store.register('provision-1', record('previous-process'));
-    const initial = record(getAgentOnboardingClaimOwnerId());
+    const initial = {
+      ...record(getAgentOnboardingClaimOwnerId()),
+      claimedAt: 31_001,
+    };
 
     await expect(
       claimAgentOnboardingRun(initial, 1_001, async () => [])
     ).resolves.toEqual({ outcome: 'enqueue' });
     await expect(store.lookup('provision-1')).resolves.toEqual(initial);
+  });
+
+  it('elects only one recovery pass for concurrent stale claims', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register('provision-1', record('previous-process'));
+    const initial = {
+      ...record(getAgentOnboardingClaimOwnerId()),
+      claimedAt: 31_001,
+    };
+
+    const outcomes = await Promise.all([
+      claimAgentOnboardingRun(initial, 31_001, async () => []),
+      claimAgentOnboardingRun(initial, 31_001, async () => []),
+    ]);
+
+    expect(outcomes).toContainEqual({ outcome: 'enqueue' });
+    expect(outcomes).toContainEqual({ outcome: 'owned-by-another-pass' });
+    expect(store.delete).toHaveBeenCalledOnce();
   });
 
   it('deduplicates an enqueue when the durable store is unavailable', async () => {
@@ -852,6 +874,7 @@ describe('agent onboarding requests', () => {
 
   it('describes only the provisioned home group as the first group', async () => {
     const promptFor = async (isFirstGroup?: boolean) => {
+      clearAgentOnboardingRuntime();
       const sent: Array<{ blob?: string; story?: unknown }> = [];
       const introBlob = appendToPostBlob(undefined, {
         type: 'tlon-agent-intro-request',
@@ -1116,6 +1139,7 @@ describe('agent onboarding requests', () => {
 
   it('jitters pacing so the rhythm is not metronomic', async () => {
     const delaysFor = async (random: () => number) => {
+      clearAgentOnboardingRuntime();
       const sleeps: number[] = [];
       let now = 0;
       const introBlob = appendToPostBlob(undefined, {
@@ -1479,6 +1503,26 @@ describe('primary onboarding cron slot', () => {
     );
   });
 
+  it('serializes concurrent creation of the stable group slot', async () => {
+    const harness = cronHarness();
+
+    await Promise.all([
+      agentOnboardingTesting.upsertPrimaryJob(
+        harness.cron,
+        provision,
+        'chat/~ten/group/general'
+      ),
+      agentOnboardingTesting.upsertPrimaryJob(
+        harness.cron,
+        provision,
+        'chat/~ten/group/general'
+      ),
+    ]);
+
+    expect(harness.cron.add).toHaveBeenCalledOnce();
+    expect(harness.getJobs()).toHaveLength(1);
+  });
+
   it('accepts the runtime text alias when verifying an existing slot', async () => {
     const initial = cronHarness();
     await agentOnboardingTesting.upsertPrimaryJob(
@@ -1726,6 +1770,36 @@ describe('primary onboarding cron slot', () => {
 });
 
 describe('provision coordinator ordering', () => {
+  it('uses the legacy cron run method when enqueueRun is unavailable', async () => {
+    const run = vi.fn(async () => ({ enqueued: true, runId: 'legacy-run' }));
+    const cron = {
+      list: vi.fn(async () => []),
+      add: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+      run,
+    } as unknown as TlonCronService;
+
+    await expect(
+      agentOnboardingTesting.ensureFirstRunEnqueued(
+        cron,
+        'job-1',
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/group/legacy',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+        },
+        provision,
+        'Updates',
+        100
+      )
+    ).resolves.toBe('enqueued');
+
+    expect(run).toHaveBeenCalledWith('job-1', 'force');
+  });
+
   it('reports each funnel step exactly once, in order', async () => {
     // An unfired analytics event is invisible, so the funnel's shape is worth
     // pinning: these are the steps a healthy setup must emit, and the order is
@@ -2498,6 +2572,43 @@ describe('provision coordinator ordering', () => {
     expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain(
       'tap Done to continue'
     );
+  });
+
+  it('waits for an explicit delivery result after a successful run', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'first-run-delivery-pending' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/delivery-pending',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision
+    );
+
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'job-1',
+        runId: 'first-run-delivery-pending',
+        status: 'ok',
+        delivered: null,
+      } as never,
+      { fetchHistory: vi.fn(async () => []), sendPost }
+    );
+
+    expect(sendPost).not.toHaveBeenCalled();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation(
+        'first-run-delivery-pending'
+      )
+    ).not.toBeNull();
   });
 
   it('does not mistake an older notebook entry for the first run', async () => {
