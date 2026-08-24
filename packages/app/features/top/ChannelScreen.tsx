@@ -392,13 +392,12 @@ export default function ChannelScreen(props: Props) {
     );
   }, [agentOnboarding.marker, currentUserId, filteredPosts]);
 
-  const provisionId = agentOnboarding.marker?.provision?.provisionId;
   const hasOnboardingFirstEntry = useMemo(() => {
-    return hasAgentOnboardingFirstEntry(filteredPosts, provisionId);
-  }, [filteredPosts, provisionId]);
+    return hasAgentOnboardingFirstEntry(filteredPosts, agentShipId);
+  }, [agentShipId, filteredPosts]);
   const didOnboardingFirstEntryFail = useMemo(
-    () => hasAgentOnboardingFirstEntryFailed(filteredPosts),
-    [filteredPosts]
+    () => hasAgentOnboardingFirstEntryFailed(filteredPosts, agentShipId),
+    [agentShipId, filteredPosts]
   );
   const hasOnboardingFirstEntrySettled =
     hasOnboardingFirstEntry || didOnboardingFirstEntryFail;
