@@ -18,11 +18,9 @@ import {
   getChannelPosts,
   getPostReference,
   getPostWithReplies,
-  getTextContent,
-  parsePostBlob,
   searchChannel,
 } from '@tloncorp/api';
-import type { ClientPostBlobData, ContentReference, Post } from '@tloncorp/api';
+import type { Post } from '@tloncorp/api';
 
 import { ensureClient, normalizeShip } from './api-client';
 import {
@@ -34,6 +32,18 @@ import {
   refuseNotesContentTarget,
   wantsHelp,
 } from './cli-utils';
+import {
+  type FetchRef,
+  type RefBudget,
+  createRefBudget,
+  extractPostText,
+  extractReferences,
+  formatTime,
+  renderPostListLines,
+  renderRefLines,
+  formatQuoteLines,
+  formatBodyLines,
+} from './message-content';
 
 const MESSAGES_HELP = `Usage: tlon messages <command>
 
@@ -124,139 +134,27 @@ function validateMessagesArgs(args: string[]): void {
   }
 }
 
-// Extract text content from a Story
-function extractText(content: any): string {
-  if (!content) return '';
-  // getTextContent expects an array (Story/Verse[])
-  if (!Array.isArray(content)) {
-    // Handle case where content might be wrapped or in unexpected format
-    if (typeof content === 'string') return content;
-    if (content.story && Array.isArray(content.story)) {
-      return getTextContent(content.story) || '';
-    }
-    return JSON.stringify(content);
-  }
-  return getTextContent(content) || '';
-}
-
-function extractChannelReferences(content: any): ContentReference[] {
-  if (!Array.isArray(content)) return [];
-  return content.filter(
-    (verse) => verse && typeof verse === 'object' && verse.type === 'reference'
-  ) as ContentReference[];
-}
-
-// Format a timestamp
-function formatTime(timeVal: string | number): string {
-  try {
-    const num = typeof timeVal === 'number' ? timeVal : parseInt(timeVal, 10);
-    if (!isNaN(num) && num > 1600000000000) {
-      const date = new Date(num);
-      return date.toLocaleString();
-    }
-    const timeStr = String(timeVal);
-    const daNum = BigInt(timeStr.replace(/\./g, ''));
-    const DA_SECOND = BigInt('18446744073709551616');
-    const DA_UNIX_EPOCH = BigInt('170141184475152167957503069145530368000');
-    const offset = DA_SECOND / BigInt(2000);
-    const epochAdjusted = offset + (daNum - DA_UNIX_EPOCH);
-    const unixMs = Math.round(
-      Number((epochAdjusted * BigInt(1000)) / DA_SECOND)
-    );
-
-    const date = new Date(unixMs);
-    if (date.getFullYear() > 2020 && date.getFullYear() < 2100) {
-      return date.toLocaleString();
-    }
-    return 'unknown';
-  } catch {
-    return 'unknown';
-  }
-}
-
-async function resolveCites(post: Post): Promise<string[]> {
-  const references = extractChannelReferences(post.content);
-  if (!references.length) return [];
-
-  const citeTexts: string[] = [];
-  for (const ref of references) {
-    if (ref.referenceType !== 'channel') continue;
-    try {
-      const refPost = await getPostReference({
-        channelId: ref.channelId,
-        postId: ref.postId,
-        replyId: ref.replyId,
-      });
-      const text = extractText(refPost.content);
-      if (text) {
-        citeTexts.push(text);
-      }
-    } catch {
-      // ignore cite failures
-    }
-  }
-  return citeTexts;
-}
+const fetchRef: FetchRef = (ref) => getPostReference(ref);
 
 async function printPosts(
   posts: Post[],
   resolve: boolean,
-  highlightId?: string
+  highlightId?: string,
+  budget?: RefBudget
 ) {
   if (!posts.length) {
     console.log('No messages found.');
     return;
   }
 
-  const sorted = [...posts].sort((a, b) => a.sentAt - b.sentAt);
-
-  for (const post of sorted) {
-    const author = post.authorId || 'unknown';
-    const time = formatTime(post.sentAt);
-    const text = extractText(post.content);
-    const replySuffix = post.parentId ? ` (reply to ${post.parentId})` : '';
-    const marker = highlightId && post.id === highlightId ? ' ◀ TARGET' : '';
-
-    console.log(`- ${author} @ ${time}${replySuffix}${marker}`);
-    console.log(`  ID: ${post.id}`);
-    if (text) {
-      console.log(`  ${text}`);
-    }
-
-    // Show blob/attachment info (PDFs, files, voice memos)
-    if (post.blob) {
-      try {
-        const blobData: ClientPostBlobData = parsePostBlob(post.blob);
-        for (const entry of blobData) {
-          if (entry.type === 'file') {
-            console.log(
-              `  📎 [${entry.name || 'file'}] (${entry.mimeType || 'unknown'}, ${entry.size ? Math.round(entry.size / 1024) + 'KB' : '?'})`
-            );
-            if (entry.fileUri) console.log(`     ${entry.fileUri}`);
-          } else if (entry.type === 'voicememo') {
-            const dur = entry.duration ? `${Math.round(entry.duration)}s` : '?';
-            console.log(`  🎙️ [voice memo] (${dur})`);
-            if (entry.transcription)
-              console.log(`     "${entry.transcription}"`);
-          } else if (entry.type === 'video') {
-            console.log(
-              `  🎬 [${entry.name || 'video'}] (${entry.mimeType || 'video'})`
-            );
-          }
-        }
-      } catch {
-        console.log(`  [blob: ${post.blob.slice(0, 100)}...]`);
-      }
-    }
-
-    if (resolve) {
-      const cites = await resolveCites(post);
-      for (const cite of cites) {
-        console.log(`  > ${cite}`);
-      }
-    }
-
-    console.log('');
+  const lines = await renderPostListLines(posts, {
+    resolve,
+    fetchRef,
+    highlightId,
+    budget,
+  });
+  for (const line of lines) {
+    console.log(line);
   }
 }
 
@@ -410,26 +308,36 @@ async function fetchPost(
 
     const author = post.authorId || 'unknown';
     const time = formatTime(post.sentAt);
-    const text = extractText(post.content);
+    const text = extractPostText(post.content);
+    // One budget for the whole command, shared with the replies below.
+    const budget = createRefBudget();
 
     console.log(`=== Post ${postId} ===\n`);
     console.log(`Author: ${author}`);
     console.log(`Time: ${time}`);
     console.log(`ID: ${post.id}`);
     if (text) {
-      console.log(`\n${text}`);
+      console.log('');
+      for (const line of formatBodyLines(text)) {
+        console.log(line);
+      }
     }
 
-    if (resolve) {
-      const cites = await resolveCites(post);
-      for (const cite of cites) {
-        console.log(`\n> ${cite}`);
+    const refLines = await renderRefLines(extractReferences(post.content), {
+      resolve,
+      fetchRef,
+      budget,
+    });
+    for (const ref of refLines) {
+      console.log('');
+      for (const line of formatQuoteLines(ref)) {
+        console.log(line);
       }
     }
 
     if (post.replies && post.replies.length > 0) {
       console.log(`\n--- Replies (${post.replies.length}) ---\n`);
-      await printPosts(post.replies, resolve);
+      await printPosts(post.replies, resolve, undefined, budget);
     }
   } catch (error: any) {
     console.error(`Error fetching post: ${error.message}`);

@@ -40,6 +40,10 @@ def chan_cite(where, *, nest=NEST):
     return {"block": {"cite": {"chan": {"nest": nest, "where": where}}}}
 
 
+def group_cite(flag):
+    return {"block": {"cite": {"group": flag}}}
+
+
 def essay_payload(author="~real-author", text="hello", *, blob=None):
     essay = {
         "author": author,
@@ -123,6 +127,27 @@ class ExtractCitesTests(unittest.TestCase):
         ]
 
         self.assertEqual([item.type for item in cite.extract_cites(content)], ["group", "desk", "bait"])
+
+    def test_group_cite_captures_the_flag(self):
+        parsed = cite.extract_cites([group_cite("~host/group")])
+
+        self.assertEqual(parsed[0].type, "group")
+        self.assertEqual(parsed[0].group, "~host/group")
+
+    def test_non_string_group_values_classify_without_a_flag(self):
+        for value in (123, {}, None, ["~host/group"]):
+            with self.subTest(value=value):
+                parsed = cite.extract_cites([group_cite(value)])
+
+                self.assertEqual(parsed[0].type, "group")
+                self.assertIsNone(parsed[0].group)
+
+    def test_desk_and_bait_cites_carry_no_group_flag(self):
+        parsed = cite.extract_cites(
+            [{"block": {"cite": {"desk": "base"}}}, {"block": {"cite": {"bait": {}}}}]
+        )
+
+        self.assertEqual([item.group for item in parsed], [None, None])
 
     def test_malformed_content_is_tolerated_and_multiple_cites_keep_order(self):
         content = [
@@ -403,6 +428,139 @@ class ResolveCitesTests(unittest.TestCase):
         self.assertEqual(observed_lengths, [1])
         self.assertEqual(collected, ["> ~real-author wrote: hello"])
         self.assertEqual(result, "> ~real-author wrote: hello")
+
+
+class GroupCiteRenderingTests(unittest.TestCase):
+    def test_group_cite_renders_a_pointer_line_without_scrying(self):
+        scry = recording_scry()
+
+        result = asyncio.run(cite.resolve_cites(scry, [group_cite("~host/slug")]))
+
+        self.assertEqual(result, "> [ref: group ~host/slug]")
+        self.assertEqual(scry.calls, [])
+
+    def test_invalid_group_flags_render_nothing(self):
+        for flag in (
+            "host/slug",
+            "~host/slug/extra",
+            "~host slug",
+            "~host/[slug]",
+            "~host/slug\ninjected",
+            "~host/",
+            "~/slug",
+            "",
+            123,
+            None,
+        ):
+            with self.subTest(flag=flag):
+                scry = recording_scry()
+
+                result = asyncio.run(cite.resolve_cites(scry, [group_cite(flag)]))
+
+                self.assertEqual(result, "")
+                self.assertEqual(scry.calls, [])
+
+    def test_group_and_channel_cites_render_in_story_order(self):
+        scry = recording_scry()
+        content = [
+            chan_cite("/msg/123"),
+            group_cite("~host/slug"),
+            chan_cite("/msg/456"),
+        ]
+
+        result = asyncio.run(cite.resolve_cites(scry, content))
+
+        self.assertEqual(
+            result,
+            "> ~real-author wrote: hello\n"
+            "> [ref: group ~host/slug]\n"
+            "> ~real-author wrote: hello",
+        )
+        self.assertEqual(len(scry.calls), 2)
+
+    def test_group_cites_do_not_consume_the_scry_budget(self):
+        # The attempt cap is on scries; a group pointer after three channel
+        # cites still renders because the scan no longer stops at the cap.
+        scry = recording_scry()
+        content = [chan_cite(f"/msg/{post_id}") for post_id in ("1", "2", "3")]
+        content.append(group_cite("~host/slug"))
+
+        result = asyncio.run(cite.resolve_cites(scry, content, max_attempts=3))
+
+        self.assertEqual(
+            result,
+            "> ~real-author wrote: hello\n"
+            "> ~real-author wrote: hello\n"
+            "> ~real-author wrote: hello\n"
+            "> [ref: group ~host/slug]",
+        )
+        self.assertEqual(len(scry.calls), 3)
+
+    def test_group_cite_renders_after_the_scry_cap_is_exhausted(self):
+        scry = recording_scry()
+        content = [chan_cite(f"/msg/{post_id}") for post_id in ("1", "2")]
+        content.append(group_cite("~host/slug"))
+        content.append(chan_cite("/msg/3"))
+
+        result = asyncio.run(cite.resolve_cites(scry, content, max_attempts=1))
+
+        self.assertEqual(
+            result,
+            "> ~real-author wrote: hello\n> [ref: group ~host/slug]",
+        )
+        self.assertEqual(len(scry.calls), 1)
+
+    def test_zero_max_attempts_disables_group_pointers_too(self):
+        scry = recording_scry()
+
+        result = asyncio.run(
+            cite.resolve_cites(scry, [group_cite("~host/slug")], max_attempts=0)
+        )
+
+        self.assertEqual(result, "")
+        self.assertEqual(scry.calls, [])
+
+    def test_group_line_before_a_hanging_scry_survives_the_deadline(self):
+        collected = []
+
+        async def scry(path):
+            await asyncio.Event().wait()
+
+        content = [group_cite("~host/slug"), chan_cite("/msg/123")]
+
+        async def attempt():
+            try:
+                await asyncio.wait_for(
+                    cite.resolve_cites(scry, content, collected=collected), 0.05
+                )
+            except asyncio.TimeoutError:
+                return "timed-out"
+            return "completed"
+
+        self.assertEqual(asyncio.run(attempt()), "timed-out")
+        self.assertEqual(collected, ["> [ref: group ~host/slug]"])
+
+    def test_group_line_after_a_hanging_scry_is_lost_on_the_deadline(self):
+        # Rendering is sequential by design: a pointer sequenced behind a hung
+        # scry is dropped exactly as a later channel quote would be.
+        collected = []
+
+        async def scry(path):
+            await asyncio.Event().wait()
+
+        content = [chan_cite("/msg/123"), group_cite("~host/slug")]
+
+        async def attempt():
+            try:
+                await asyncio.wait_for(
+                    cite.resolve_cites(scry, content, collected=collected), 0.05
+                )
+            except asyncio.TimeoutError:
+                return "timed-out"
+            return "completed"
+
+        self.assertEqual(asyncio.run(attempt()), "timed-out")
+        self.assertEqual(collected, [])
 
 
 if __name__ == "__main__":

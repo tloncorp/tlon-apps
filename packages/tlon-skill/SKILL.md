@@ -371,6 +371,8 @@ tlon messages post chat/~host/slug 170.141...            # Fetch single post wit
 
 Options: `--limit N`, `--resolve-cites`
 
+Every line of a message body prints with a `| ` prefix. A shared group always prints a `> [ref: group ~host/slug]` pointer line, no flag required. `--resolve-cites` additionally fetches the text of quoted channel messages (at most 3 per command) and prints each of their lines with `> `.
+
 The `context` command fetches N messages before and after a given post ID — useful for finding surrounding conversation when you have a post from search or activity. For DMs, use the ship name as the channel: `tlon messages context ~sampel 170.141...`
 
 The `post` command fetches a single post with its replies/thread. For DM posts, pass `--author ~ship` (required for DM lookups).
