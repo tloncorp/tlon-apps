@@ -184,6 +184,7 @@ export type AgentGroupOnboardingLock = {
 export const agentGroupAgents = createStorageItem<Record<string, string>>({
   key: 'agentGroupAgents',
   defaultValue: {},
+  persistAfterLogout: true,
 });
 
 /**

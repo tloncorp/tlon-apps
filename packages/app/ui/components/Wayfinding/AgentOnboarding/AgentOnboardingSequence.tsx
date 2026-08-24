@@ -10,7 +10,7 @@ import { View } from 'tamagui';
 
 import { AGENT_SHIP_OVERRIDE } from '../../../../lib/envVars';
 import { getDefaultBotName } from '../botName';
-import { withTimeout } from './promiseTimeout';
+import { PromiseTimeoutError, withTimeout } from './promiseTimeout';
 
 const logger = createDevLogger('AgentOnboardingSequence', false);
 const wait = (ms: number) =>
@@ -89,29 +89,49 @@ export function AgentOnboardingSequence(props: {
         return;
       }
 
+      const groupId = `${api.getCurrentUserId()}/${BotHomeGroupSlugs.slug}`;
+      const deadline = Date.now() + 2 * 60_000;
+
       try {
-        await syncInitialBotName();
+        await withTimeout(
+          syncInitialBotName(),
+          Math.max(1, deadline - Date.now()),
+          'Agent onboarding bot nickname sync timed out'
+        );
       } catch (error) {
         logger.trackError('Agent onboarding bot nickname sync failed', {
           error,
         });
       }
 
-      const groupId = `${api.getCurrentUserId()}/${BotHomeGroupSlugs.slug}`;
-      const deadline = Date.now() + 2 * 60_000;
       let lastError: unknown;
 
       while (!cancelled && !completedRef.current && Date.now() < deadline) {
         try {
-          const furnished = await withTimeout(
-            store.ensureAgentGroupFurnished({
-              groupId,
-              agentShipId: AGENT_SHIP_OVERRIDE || undefined,
-              isFirstGroup: true,
-            }),
-            Math.min(FURNISH_ATTEMPT_TIMEOUT_MS, deadline - Date.now()),
-            'Agent group furnishing attempt timed out'
-          );
+          const furnishing = store.ensureAgentGroupFurnished({
+            groupId,
+            agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+            isFirstGroup: true,
+          });
+          let furnished: Awaited<typeof furnishing>;
+          try {
+            furnished = await withTimeout(
+              furnishing,
+              Math.min(FURNISH_ATTEMPT_TIMEOUT_MS, deadline - Date.now()),
+              'Agent group furnishing attempt timed out'
+            );
+          } catch (error) {
+            if (!(error instanceof PromiseTimeoutError)) throw error;
+            // Promise.race cannot cancel the Urbit requests already in flight.
+            // Keep awaiting this attempt within the overall deadline instead
+            // of starting a concurrent furnishing pass that could duplicate a
+            // channel or intro request.
+            furnished = await withTimeout(
+              furnishing,
+              Math.max(1, deadline - Date.now()),
+              'Agent group furnishing did not finish before the deadline'
+            );
+          }
           await db.agentOnboardingLanding.setValue({
             groupId,
             channelId: furnished.chatChannelId,
