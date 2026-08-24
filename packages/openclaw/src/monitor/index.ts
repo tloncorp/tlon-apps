@@ -3801,6 +3801,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     };
 
+    // The SSE client does not await event callbacks. Keep already-started
+    // channel handlers alive through monitor teardown so they cannot resume
+    // against a closed Urbit transport.
+    const channelFirehoseFlights = new Set<Promise<void>>();
+    let drainingChannelFirehose = false;
+
     // Firehose handler for all channel messages (/v4)
     const handleChannelsFirehose = async (event: ChannelFirehoseEvent) => {
       try {
@@ -4579,7 +4585,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       await api.subscribe({
         app: 'channels',
         path: '/v4',
-        event: (data) => handleChannelsFirehose(data as ChannelFirehoseEvent),
+        event: (data) => {
+          if (drainingChannelFirehose) return;
+          const flight = handleChannelsFirehose(
+            data as ChannelFirehoseEvent
+          );
+          channelFirehoseFlights.add(flight);
+          void flight.then(
+            () => channelFirehoseFlights.delete(flight),
+            () => channelFirehoseFlights.delete(flight)
+          );
+        },
         err: (error) => {
           capturePluginError('channels_firehose', error);
           runtime.error?.(`[tlon] Channels firehose error: ${String(error)}`);
@@ -5642,6 +5658,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       clearAgentOnboardingRetries?.();
       clearAgentOnboardingRetries = null;
       removeBridge(accountKey, commandBridge);
+      drainingChannelFirehose = true;
+      await Promise.allSettled([...channelFirehoseFlights]);
       await drainAgentOnboardingRuntime(api);
       // Await the scheduler drain before flushing persistence queues.
       // `stop()` waits for any in-flight tick to finish so its final
