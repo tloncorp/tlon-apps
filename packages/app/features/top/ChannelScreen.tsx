@@ -424,8 +424,8 @@ export default function ChannelScreen(props: Props) {
 
   const firstEntryIndicatorWithinTimeout = Boolean(
     firstEntryAcknowledgedAt &&
-      Date.now() - firstEntryAcknowledgedAt < FIRST_ENTRY_REFRESH_TIMEOUT_MS &&
-      !firstEntryIndicatorExpired
+    Date.now() - firstEntryAcknowledgedAt < FIRST_ENTRY_REFRESH_TIMEOUT_MS &&
+    !firstEntryIndicatorExpired
   );
   const pendingThinkingLabel =
     agentOnboarding.awaitingFirstEntry &&

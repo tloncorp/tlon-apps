@@ -54,8 +54,8 @@ export function getConversationContentInsets({
       : 0,
     bottom:
       usesNativeFloatingChrome && hasFloatingComposer
-        ? measuredComposerHeight ??
-          floatingComposerEstimatedHeight + bottomSafeArea
+        ? (measuredComposerHeight ??
+          floatingComposerEstimatedHeight + bottomSafeArea)
         : usesNativeFloatingChrome && hasBottomSafeAreaClearance
           ? bottomSafeArea + unobscuredConversationBottomGap
           : 0,

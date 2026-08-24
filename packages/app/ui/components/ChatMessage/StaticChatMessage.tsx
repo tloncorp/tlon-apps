@@ -304,9 +304,9 @@ export function StaticChatMessage({
         // canonical channel table above.
         return Boolean(
           draftInputContext &&
-            groupId &&
-            currentGroup?.id === groupId &&
-            action.event.context.groupId === groupId
+          groupId &&
+          currentGroup?.id === groupId &&
+          action.event.context.groupId === groupId
         );
       }
 
@@ -315,10 +315,10 @@ export function StaticChatMessage({
         const groupId = post.groupId ?? currentGroup?.id;
         return Boolean(
           draftInputContext &&
-            draftInputContext.canStartDraft !== false &&
-            groupId &&
-            currentGroup?.id === groupId &&
-            action.event.context.groupId === groupId
+          draftInputContext.canStartDraft !== false &&
+          groupId &&
+          currentGroup?.id === groupId &&
+          action.event.context.groupId === groupId
         );
       }
 
@@ -395,18 +395,18 @@ export function StaticChatMessage({
   }, [knownAgent, onboardingMarker, post.authorId, post.blob, post.groupId]);
   const currentUserHostsPostGroup = Boolean(
     resolvedPostGroupId &&
-      ((currentGroup?.currentUserIsHost &&
-        currentGroup.id === resolvedPostGroupId &&
-        currentGroup.hostUserId === currentUserId) ||
-        (draftInputContext?.channel.groupId === resolvedPostGroupId &&
-          draftInputContext.channel.currentUserIsHost))
+    ((currentGroup?.currentUserIsHost &&
+      currentGroup.id === resolvedPostGroupId &&
+      currentGroup.hostUserId === currentUserId) ||
+      (draftInputContext?.channel.groupId === resolvedPostGroupId &&
+        draftInputContext.channel.currentUserIsHost))
   );
   const canRenderA2UI =
     isDmChannelId(post.channelId) ||
     Boolean(
       resolvedPostGroupId &&
-        currentUserHostsPostGroup &&
-        knownAgent === post.authorId
+      currentUserHostsPostGroup &&
+      knownAgent === post.authorId
     );
 
   const postContent = usePostContent(post);
@@ -419,9 +419,9 @@ export function StaticChatMessage({
     () =>
       Boolean(
         post.blob &&
-          parsePostBlob(post.blob).some(
-            (entry) => entry.type === 'a2ui' && entry.storyMode === 'fallback'
-          )
+        parsePostBlob(post.blob).some(
+          (entry) => entry.type === 'a2ui' && entry.storyMode === 'fallback'
+        )
       ),
     [post.blob]
   );

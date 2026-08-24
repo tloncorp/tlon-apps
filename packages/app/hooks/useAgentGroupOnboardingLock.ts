@@ -8,8 +8,8 @@ export function isAgentGroupNavigationLocked(
 ) {
   return Boolean(
     marker &&
-      marker.navigationLocked !== false &&
-      !marker.provisionAcknowledgedAt
+    marker.navigationLocked !== false &&
+    !marker.provisionAcknowledgedAt
   );
 }
 

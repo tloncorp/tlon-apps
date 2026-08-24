@@ -1592,7 +1592,7 @@ function createOnboardingPresentation(
           ? composeMs + readDelayMs(context.rawText)
           : composeMs;
       const earliestPostAt =
-        (lastPostAt === null ? startedAt ?? now() : lastPostAt) +
+        (lastPostAt === null ? (startedAt ?? now()) : lastPostAt) +
         clampDelay(jitter(withRead, random));
       const remainingMs = earliestPostAt - now();
       if (remainingMs > 0) {
@@ -1672,12 +1672,12 @@ function hasPostMarker(
   // gateway restart does not greet existing hosted groups a second time.
   return Boolean(
     markerPost(history, botShip, key) ||
-      (key === 'intro' &&
-        history.some(
-          (post) =>
-            post.author === botShip &&
-            post.content.trimStart().startsWith(LEGACY_GROUP_INTRO_PREFIX)
-        ))
+    (key === 'intro' &&
+      history.some(
+        (post) =>
+          post.author === botShip &&
+          post.content.trimStart().startsWith(LEGACY_GROUP_INTRO_PREFIX)
+      ))
   );
 }
 

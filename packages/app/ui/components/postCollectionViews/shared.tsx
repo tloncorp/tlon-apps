@@ -49,7 +49,7 @@ export function ConnectedPostView({
     return getA2UIActionCompletion(
       postIndex == null || postIndex < 0
         ? []
-        : ctx.posts?.slice(0, postIndex) ?? [],
+        : (ctx.posts?.slice(0, postIndex) ?? []),
       currentUserId
     );
   }, [ctx.posts, currentUserId, livePost.id]);

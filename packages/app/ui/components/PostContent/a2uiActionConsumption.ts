@@ -42,7 +42,7 @@ export function getSmallChoiceCompletionPresentation({
     return { completed: false, topics: [] };
   }
 
-  const topics = consumedLocally ? localTopics : durableTopics ?? [];
+  const topics = consumedLocally ? localTopics : (durableTopics ?? []);
   return { completed: true, topics };
 }
 
