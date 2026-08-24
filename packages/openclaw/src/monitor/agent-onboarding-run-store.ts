@@ -43,17 +43,21 @@ const fallbackRecords = sharedMap<string, AgentOnboardingRunRecord>(
   'agentOnboarding.firstRunFallbackRecords'
 );
 
-async function serializeWrite(
+async function serializeWrite<T>(
   provisionId: string,
-  write: () => Promise<void>
-): Promise<void> {
+  write: () => Promise<T>
+): Promise<T> {
   const previous = writeFlights.get(provisionId) ?? Promise.resolve();
   const current = previous.catch(() => undefined).then(write);
-  writeFlights.set(provisionId, current);
+  const barrier = current.then(
+    () => undefined,
+    () => undefined
+  );
+  writeFlights.set(provisionId, barrier);
   try {
-    await current;
+    return await current;
   } finally {
-    if (writeFlights.get(provisionId) === current) {
+    if (writeFlights.get(provisionId) === barrier) {
       writeFlights.delete(provisionId);
     }
   }
@@ -87,68 +91,70 @@ export async function claimAgentOnboardingRun(
   | { outcome: 'owned-by-another-pass' }
   | { outcome: 'recovered'; record: AgentOnboardingRunRecord }
 > {
-  const store = getAgentOnboardingRunStore();
-  if (!store) {
-    const existing = fallbackRecords.get(initial.provisionId);
-    if (!existing) {
-      fallbackRecords.set(initial.provisionId, initial);
-      return { outcome: 'enqueue' };
+  return serializeWrite(initial.provisionId, async () => {
+    const store = getAgentOnboardingRunStore();
+    if (!store) {
+      const existing = fallbackRecords.get(initial.provisionId);
+      if (!existing) {
+        fallbackRecords.set(initial.provisionId, initial);
+        return { outcome: 'enqueue' } as const;
+      }
+      if (
+        existing.status === 'enqueued' ||
+        existing.status === 'completed' ||
+        existing.status === 'failed'
+      ) {
+        return { outcome: 'recovered', record: existing } as const;
+      }
+      return { outcome: 'owned-by-another-pass' } as const;
+    }
+
+    let ownsClaim = await store.registerIfAbsent(initial.provisionId, initial);
+    if (ownsClaim) return { outcome: 'enqueue' } as const;
+
+    const existing = await store.lookup(initial.provisionId);
+    if (
+      existing?.status === 'enqueued' ||
+      existing?.status === 'completed' ||
+      existing?.status === 'failed'
+    ) {
+      return { outcome: 'recovered', record: existing } as const;
     }
     if (
-      existing.status === 'enqueued' ||
-      existing.status === 'completed' ||
-      existing.status === 'failed'
+      existing?.status === 'claimed' &&
+      existing.claimOwnerId === initial.claimOwnerId &&
+      now - existing.claimedAt < CLAIM_GRACE_MS
     ) {
-      return { outcome: 'recovered', record: existing };
+      return { outcome: 'owned-by-another-pass' } as const;
     }
-    return { outcome: 'owned-by-another-pass' };
-  }
 
-  let ownsClaim = await store.registerIfAbsent(initial.provisionId, initial);
-  if (ownsClaim) return { outcome: 'enqueue' };
-
-  const existing = await store.lookup(initial.provisionId);
-  if (
-    existing?.status === 'enqueued' ||
-    existing?.status === 'completed' ||
-    existing?.status === 'failed'
-  ) {
-    return { outcome: 'recovered', record: existing };
-  }
-  if (
-    existing?.status === 'claimed' &&
-    existing.claimOwnerId === initial.claimOwnerId &&
-    now - existing.claimedAt < CLAIM_GRACE_MS
-  ) {
-    return { outcome: 'owned-by-another-pass' };
-  }
-
-  // A stale claim may represent a crash immediately before or after enqueue.
-  // Cron state is the durable witness for the latter case.
-  if (existing?.status === 'claimed') {
-    const job = (await listJobs()).find(
-      (candidate) => candidate.id === existing.jobId
-    );
-    if (
-      (job?.state?.runningAtMs ?? 0) >= existing.claimedAt ||
-      (job?.state?.lastRunAtMs ?? 0) >= existing.claimedAt
-    ) {
-      const recovered: AgentOnboardingRunRecord = {
-        ...existing,
-        status: 'enqueued',
-        enqueuedAt: existing.claimedAt,
-      };
-      await store.register(initial.provisionId, recovered);
-      return { outcome: 'recovered', record: recovered };
+    // A stale claim may represent a crash immediately before or after enqueue.
+    // Cron state is the durable witness for the latter case.
+    if (existing?.status === 'claimed') {
+      const job = (await listJobs()).find(
+        (candidate) => candidate.id === existing.jobId
+      );
+      if (
+        (job?.state?.runningAtMs ?? 0) >= existing.claimedAt ||
+        (job?.state?.lastRunAtMs ?? 0) >= existing.claimedAt
+      ) {
+        const recovered: AgentOnboardingRunRecord = {
+          ...existing,
+          status: 'enqueued',
+          enqueuedAt: existing.claimedAt,
+        };
+        await store.register(initial.provisionId, recovered);
+        return { outcome: 'recovered', record: recovered } as const;
+      }
     }
-  }
 
-  // Delete a stale, unwitnessed claim and elect exactly one recovery pass.
-  await store.delete(initial.provisionId);
-  ownsClaim = await store.registerIfAbsent(initial.provisionId, initial);
-  return ownsClaim
-    ? { outcome: 'enqueue' }
-    : { outcome: 'owned-by-another-pass' };
+    // Delete a stale, unwitnessed claim and elect exactly one recovery pass.
+    await store.delete(initial.provisionId);
+    ownsClaim = await store.registerIfAbsent(initial.provisionId, initial);
+    return ownsClaim
+      ? ({ outcome: 'enqueue' } as const)
+      : ({ outcome: 'owned-by-another-pass' } as const);
+  });
 }
 
 export async function recordAgentOnboardingRunEnqueued(
