@@ -525,6 +525,25 @@
 ::  +close-request: retire a settled request, dropping its subscription and
 ::  cancelling the timeout at the instant it was armed for.
 ::
+::  +abandon-request: end a forwarded request that will never be answered.
+::
+::  There are four ways one dies -- the host kicks the stream, refuses the
+::  watch, nacks the poke, or never answers at all -- and they lose the same
+::  thing, so they end the same way. A renewal in particular has already had
+::  its refresh fire, and nothing else will rearm it, so the local scry would
+::  go on serving a token past its expiry. Handling these separately is how
+::  one of the four came to be missing it.
+::
+++  abandon-request
+  |=  [host=ship rid=request-id:b why=@t]
+  ^+  cor
+  ?.  (request-live rid)  cor
+  =/  token-for=(unit flag:b)
+    ?~(got=(~(get by pending) rid) ~ token-for.u.got)
+  =.  cor  (close-request host rid)
+  =?  cor  ?=(^ token-for)  (retry-read-token u.token-for)
+  (deny rid ~[/v1/requests] %unknown why)
+::
 ++  close-request
   |=  [host=ship rid=request-id:b]
   ^+  cor
@@ -786,9 +805,13 @@
   ::  along the wing's axis, an arm has none, and the ~ case mints as vain.
   =/  secret=(unit @t)  genuine-secret
   =/  st=bucket-state:b  (need-state flag)
+  ::  Only claim the request as this pair's waiter if we are going to send.
+  ::  With no secret it is answered below, in this event, and a record still
+  ::  naming it would answer it again when the retry is finally confirmed.
+  =/  waiter=(unit request-id:b)  ?~(secret ~ rid)
   =.  cor
     %-  sync-reader
-    [flag actor (scot %ud id.bucket.st) [%granted token expiry] expiry rid]
+    [flag actor (scot %ud id.bucket.st) [%granted token expiry] expiry waiter]
   ?^  secret  (answer [%pending ~])
   ::  A client should not be left holding a request we cannot act on yet, so
   ::  it is told; the timer path has no one waiting and just retries.
@@ -859,6 +882,23 @@
   ?.  ?=([%s *] jon)  ~
   `p.jon
 ::
+::  +answer-waiter: give a reader record's held request its one terminal
+::  answer, and stop holding it.
+::
+::  `awaiting` is a promise that exactly one answer is still owed on this
+::  pair. Every transition that resolves or abandons that promise goes
+::  through here, so the clearing and the answering cannot drift apart --
+::  doing them separately is how a request came to be answered twice.
+::
+++  answer-waiter
+  |=  [key=reader-key:b body=response-body:b]
+  ^+  cor
+  ?~  got=(~(get by readers) key)  cor
+  ?~  awaiting.u.got  cor
+  =/  rid=request-id:b  u.awaiting.u.got
+  =.  readers  (~(put by readers) key u.got(awaiting ~))
+  (respond rid (answer-paths reader.key rid) body)
+::
 ::  +sync-reader: record what a reader's access should be, and tell the
 ::  broker. Grant, rotation and revoke are all this one operation.
 ::
@@ -884,19 +924,15 @@
   ::  A client still waiting on the grant this supersedes will never be
   ::  answered by it -- the broker will keep the newer state -- so tell it
   ::  now rather than leaving it to time out.
-  =?  cor  ?&(?=(^ prior) ?=(^ awaiting.u.prior) !=(awaiting `u.awaiting.u.prior))
-    =/  stale=request-id:b  u.awaiting.u.prior
-    %^    deny
-        stale
-      (answer-paths reader stale)
-    [%not-authorized 'access changed while the token was being issued']
-  ::  Whether anything at all was owed, not just this pair -- one timer walks
-  ::  the whole set, so arming per pair would multiply the batches it sends.
-  =/  idle=?  =(~ owed)
+  =/  stale=(unit request-id:b)  ?~(prior ~ awaiting.u.prior)
+  =?  cor  !=(awaiting stale)
+    %+  answer-waiter  key
+    [%error %not-authorized 'access changed while the token was being issued']
   =.  readers
     (~(put by readers) key [revision bucket-id desired expires synced | awaiting])
   =.  cor  (emil (sync-cards ~[[key revision bucket-id desired]]))
-  ?.  idle  cor
+  ::  Unconditionally: one timer walks the whole owed set, and +arm-reader-retry
+  ::  is what keeps repeated arming from meaning repeated timers.
   arm-reader-retry
 ::
 ::  +owed: pairs the broker has not caught up with.
@@ -1018,12 +1054,31 @@
     /buckets/reader/(scot %p ship.flag.key)/[name.flag.key]
   /(scot %p reader.key)/(scot %ud revision)
 ::
+::  +reader-retry-at: the instant the retry timer may next fire.
+::
+::  Snapped to a fixed grid instead of now-plus-an-interval, so every arming
+::  that happens close together names the same instant. That is what lets
+::  +arm-reader-retry cancel before it sets.
+::
+++  reader-retry-at
+  ^-  @da
+  (add (sub now.bowl (mod now.bowl push-retry)) (mul 2 push-retry))
+::
+::  +arm-reader-retry: make sure a sweep of what is owed is coming.
+::
+::  Cancel before setting, because guarding on "is anything owed right now"
+::  does not bound this: a sync that confirms in milliseconds leaves the
+::  timer armed and the next change finds nothing owed and arms another.
+::  Harmless while they wake to no work -- but if an outage begins first,
+::  every one of them re-sends the whole owed set and rearms, and the
+::  duplication becomes permanent. Two grid slots can be live at once, which
+::  is the most this can drift to.
+::
 ++  arm-reader-retry
   ^+  cor
-  %-  emit
-  :*  %pass  /buckets/reader-retry  %arvo  %b
-      %wait  (add now.bowl push-retry)
-  ==
+  =/  at=@da  reader-retry-at
+  =.  cor  (emit [%pass /buckets/reader-retry %arvo %b %rest at])
+  (emit [%pass /buckets/reader-retry %arvo %b %wait at])
 ::
 ::  +retry-readers: re-send everything still owed.
 ::
@@ -1053,13 +1108,9 @@
   =/  sync=reader-sync:b  u.got
   ::  Only the revision we sent; a newer one may still be in flight.
   ?.  =(sent revision.sync)  cor
-  =.  readers  (~(put by readers) key sync(failed &, awaiting ~))
-  ?~  awaiting.sync  cor
-  =/  rid=request-id:b  u.awaiting.sync
-  %^    deny
-      rid
-    (answer-paths reader.key rid)
-  [%unknown 'storage refused this access change']
+  =.  readers  (~(put by readers) key sync(failed &))
+  %+  answer-waiter  key
+  [%error %unknown 'storage refused this access change']
 ::
 ++  confirm-reader
   |=  [key=reader-key:b sent=@ud theirs=(unit @ud)]
@@ -1092,10 +1143,7 @@
     (~(put by read-tokens) flag.key tok)
   =?  cor  =(reader.key our.bowl)
     (arm-token-refresh flag.key expires-at.desired.sync)
-  ?~  awaiting.sync  cor
-  =/  rid=request-id:b  u.awaiting.sync
-  =.  readers  (~(put by readers) key sync(awaiting ~))
-  (respond rid (answer-paths reader.key rid) [%token tok])
+  (answer-waiter key [%token tok])
 ::
 ::  +granted-readers: pairs `test` accepts that currently hold a grant.
 ::
@@ -1201,15 +1249,22 @@
     %+  skim  ~(tap by read-tokens)
     |=  [=flag:b tok=read-token:b]
     (gth expires-at.tok now.bowl)
-  ::  A confirmed revoked record can go once the token it replaced would have
-  ::  lapsed anyway -- past that a lost revoke is moot. Anything still owed
-  ::  stays, whatever its age, or the broker never hears about it.
+  ::  One rule for both desired states, because past `expires` they say the
+  ::  same nothing: the token the record names can no longer be used, so a
+  ::  grant is worthless and a revoke is moot. Judging only the revoked ones
+  ::  left every reader that ever held a token on record for good.
+  ::
+  ::  Anything still owed stays, whatever its age, or the broker never hears
+  ::  about it; so does anything with a request still waiting on it. Dropping
+  ::  a settled pair is safe because the broker keeps the higher revision: a
+  ::  later grant re-opens at 1, loses as a stale write, and +confirm-reader
+  ::  adopts the number it is told and re-sends.
   =.  readers
     %-  malt
     %+  skim  ~(tap by readers)
     |=  [key=reader-key:b sync=reader-sync:b]
-    ?.  ?=(%revoked -.desired.sync)  &
     ?.  =(synced.sync revision.sync)  &
+    ?.  ?=(~ awaiting.sync)  &
     (gth expires.sync now.bowl)
   cor
 ::
@@ -1890,21 +1945,11 @@
     ::  renewal, its refresh has already fired and nothing else will rearm it,
     ::  so the local scry would keep serving a token past its expiry.
         %kick
-      ?.  (request-live rid)  cor
-      =/  token-for=(unit flag:b)
-        ?~(got=(~(get by pending) rid) ~ token-for.u.got)
-      =.  cor  (close-request host rid)
-      =?  cor  ?=(^ token-for)  (retry-read-token u.token-for)
-      (deny rid ~[/v1/requests] %unknown 'host closed the request stream')
+      (abandon-request host rid 'host closed the request stream')
     ::
         %watch-ack
       ?~  p.sign  cor
-      ?.  (request-live rid)  cor
-      =/  token-for=(unit flag:b)
-        ?~(got=(~(get by pending) rid) ~ token-for.u.got)
-      =.  cor  (close-request host rid)
-      =?  cor  ?=(^ token-for)  (retry-read-token u.token-for)
-      (deny rid ~[/v1/requests] %unknown 'host refused the request stream')
+      (abandon-request host rid 'host refused the request stream')
     ==
   ::
   ::  The poke-ack only reports delivery. A nack means the host crashed on
@@ -1915,10 +1960,8 @@
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      ?.  (request-live rid)  cor
-      =.  cor  (close-request host rid)
       %-  (slog leaf+"buckets: host command failed" u.p.sign)
-      (deny rid ~[/v1/requests] %unknown 'host rejected the command')
+      (abandon-request host rid 'host rejected the command')
     ==
   ::
       [%buckets @ @ ?(%create %delete) ~]
@@ -1973,10 +2016,11 @@
     ::  kept, and adopting that is how we catch up.
     ?:  &((gte code 200) (lth code 300))
       (confirm-reader key sent theirs)
-    ::  Any answer that names a revision is authoritative about it, whatever
-    ::  its status. Staleness is a 200 under the current contract, but
-    ::  adopting a reported revision is right regardless of how it arrives.
-    ?^  theirs  (confirm-reader key sent theirs)
+    ::  Only a success may confirm. An error body carries no revision under
+    ::  the broker's contract, and adopting one from a rejection would install
+    ::  a grant it just refused. Falling behind is recovered on the success
+    ::  path instead: a stale write answers 200 with the revision the broker
+    ::  kept, which +confirm-reader adopts.
     ?:  (broker-retryable res)
       %-  (slog leaf+"buckets: reader sync failed, status {<code>}, retrying" ~)
       cor

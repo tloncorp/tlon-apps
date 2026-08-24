@@ -197,6 +197,27 @@
   ^-  reader-sync:bu
   (~(got by readers.st) [flag reader])
 ::
+::  +answers: the terminal responses in a card list. Not every fact is one --
+::  /lib/verb emits its own -- so this matches on the mark rather than on
+::  %give %fact, which quietly counted logging as an answer.
+::
+++  answers
+  |=  caz=(list card)
+  ^-  (list card)
+  %+  skim  caz
+  |=(=card ?=([%give %fact * %buckets-req-response-1 *] card))
+::
+::  +secretless-scries: the group is there, but %genuine has not initialised.
+::  A real state on a fresh ship, and the one place a mint is answered in the
+::  same event that records what is owed.
+::
+++  secretless-scries
+  |=  pax=path
+  ^-  (unit vase)
+  ?:  ?=([%gu @ %genuine *] pax)  `!>(|)
+  ?:  (group-exists-path pax)  `!>(&)
+  ~
+::
 ::  +reader-scries: %genuine plus a group that grants read access.
 ::
 ++  reader-scries
@@ -451,9 +472,13 @@
   ;<  ~  b
     %+  ex-cards  read-caz
     :~  (ex-iris (reader-wire-for ~sampel-palnet 1))
-        ::  one timer drives everything still owed, armed on the first sync
+        ::  One timer drives everything still owed. It is cancelled before it
+        ::  is set, and lands on a fixed grid rather than now-plus-a-minute,
+        ::  so arming it twice cannot leave two timers behind.
         %-  ex-arvo
-        [/buckets/reader-retry [%b %wait (add ~2026.1.1 ~m1)]]
+        [/buckets/reader-retry [%b %rest (add ~2026.1.1 ~m2)]]
+        %-  ex-arvo
+        [/buckets/reader-retry [%b %wait (add ~2026.1.1 ~m2)]]
         (grant-fact 0v2 [%pending ~])
     ==
   =/  push=[=wire =request:http]  (only-iris read-caz)
@@ -756,6 +781,10 @@
 ::  state loss on our side, or an earlier incarnation. Adopt its number and
 ::  re-send, or everything we say from here on is discarded as stale.
 ::
+::  It arrives on the success path, because a stale write is not an error to
+::  the broker: it keeps the higher revision and answers 200 with the number
+::  it kept. That is the only route by which we catch up.
+::
 ++  test-adopts-a-higher-revision-from-the-broker
   %-  eval-mare
   =/  m  (mare ,~)
@@ -766,8 +795,8 @@
   ;<  ~  b  (set-scry-gate genuine-scries)
   ;<  caz=(list card)  b  (ask 0v23 [%bucket flag [%issue-bucket-read ~]])
   =/  push=[=wire =request:http]  (only-iris caz)
-  ::  the broker refuses as stale and names what it holds
-  ;<  resent=(list card)  b  (do-arvo wire.push (iris-revision 409 41))
+  ::  the write was stale; the broker names what it holds instead
+  ;<  resent=(list card)  b  (do-arvo wire.push (iris-revision 200 41))
   =/  retry=[=wire =request:http]  (only-iris resent)
   ;<  sv=vase  b  get-save
   =/  sync=reader-sync:bu  (sync-for !<(state-0:bu sv) ~sampel-palnet)
@@ -775,6 +804,29 @@
   %+  ex-equal
     !>([revision.sync wire.retry])
   !>([42 (reader-wire-for ~sampel-palnet 42)])
+::
+::  A rejection is a rejection whatever else it says. Reading a revision out
+::  of a non-2xx body and treating it as agreement would install a grant the
+::  broker just refused, and hand the client a token it will not honour.
+::
+++  test-a-rejection-carrying-a-revision-is-still-a-rejection
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate genuine-scries)
+  ;<  caz=(list card)  b  (ask 0v23 [%bucket flag [%issue-bucket-read ~]])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  refused=(list card)  b  (do-arvo wire.push (iris-revision 400 1))
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  sync=reader-sync:bu  (sync-for st ~sampel-palnet)
+  ::  nothing was confirmed, nothing is servable, nobody was told otherwise
+  %+  ex-equal
+    !>([synced.sync ~(wyt by read-tokens.st) (lent (answers refused))])
+  !>([0 0 0])
 ::
 ::  Deleting a group must revoke its buckets' tokens, not crash trying. The
 ::  permission scry answers no-such-path once the group is gone, which makes .^
@@ -1135,21 +1187,107 @@
 ::  will: the request is gone, no refresh is armed, and the local scry keeps
 ::  answering with the token we already hold until it lapses.
 ::
-++  test-timed-out-token-request-rearms
+::  The same loss, reached the other three ways. A forwarded request can die
+::  by timeout, by kick, by a refused watch, or by a nacked poke; all four
+::  leave a renewal with its refresh already fired and nothing to rearm it.
+::  They are one arm now because the poke path was missing this.
+::
+++  test-every-way-a-request-dies-rearms-the-renewal
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
   ^-  form:m
-  ;<  ~  b  (setup-as ~bus)
-  ;<  *  b
-    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
-  ;<  *  b  (ask 0v6 [%bucket flag [%issue-bucket-read ~]])
-  ;<  caz=(list card)  b
-    (do-arvo /buckets/req/~sampel-palnet/0v6/wake [%behn %wake ~])
-  =/  rearmed=(list card)
-    %+  skim  caz
-    |=(car=card ?=([%pass [%buckets %token *] %arvo *] car))
-  (ex-equal !>((lent rearmed)) !>(1))
+  =/  n  (mare ,(list card))
+  =/  o  (mare ,@ud)
+  =/  host=gill:gall  [~sampel-palnet %buckets]
+  =/  req=path  /buckets/req/~sampel-palnet/0v6
+  ::  a renewal in flight, ended by `end`; answers how many refreshes it rearmed
+  =/  rearms
+    |=  end=form:n
+    =*  b  bind:o
+    ^-  form:o
+    ;<  ~  b  (setup-as ~bus)
+    ;<  *  b
+      (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
+    ;<  *  b  (ask 0v6 [%bucket flag [%issue-bucket-read ~]])
+    ;<  caz=(list card)  b  end
+    %-  pure:o
+    (lent (skim caz |=(car=card ?=([%pass [%buckets %token *] %arvo *] car))))
+  ;<  timeout=@ud  b  (rearms (do-arvo (snoc req %wake) [%behn %wake ~]))
+  ;<  kicked=@ud  b  (rearms (do-agent (snoc req %watch) host [%kick ~]))
+  ;<  refused=@ud  b
+    (rearms (do-agent (snoc req %watch) host [%watch-ack `~[leaf+"no"]]))
+  ;<  nacked=@ud  b
+    (rearms (do-agent (snoc req %poke) host [%poke-ack `~[leaf+"no"]]))
+  %+  ex-equal
+    !>([timeout kicked refused nacked])
+  !>([1 1 1 1])
+::
+::  Without the %genuine secret a mint cannot be sent, so the request is
+::  answered in the same event that records what is owed. The record must not
+::  also name it as the one waiting: when the retry finally lands, confirming
+::  it would send a second terminal answer for a request already finished.
+::
+++  test-a-mint-answered-now-is-not-also-answered-later
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate secretless-scries)
+  ;<  refused=(list card)  b  (ask 0v7 [%bucket flag [%issue-bucket-read ~]])
+  ::  told now, and nothing went out
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  %-  ex-arvo
+        [/buckets/reader-retry [%b %rest (add ~2026.1.1 ~m2)]]
+        %-  ex-arvo
+        [/buckets/reader-retry [%b %wait (add ~2026.1.1 ~m2)]]
+        %+  ex-fact  ~[/v1/requests]
+        :-  %buckets-req-response-1
+        !>  ^-  req-response:bu
+        [0v7 %error %unknown 'this ship cannot reach storage yet']
+    ==
+  ::  the secret appears and the retry timer sends what was owed
+  ;<  ~  b  (set-scry-gate genuine-scries)
+  ;<  sent=(list card)  b  (do-arvo /buckets/reader-retry [%behn %wake ~])
+  =/  push=[=wire =request:http]  (only-iris sent)
+  ;<  landed=(list card)  b  (do-arvo wire.push iris-ok)
+  ::  the grant is installed, but nobody is answered a second time
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  %+  ex-equal
+    !>([(granted-count st) (lent (answers landed))])
+  !>([1 0])
+::
+::  A settled record past its expiry says nothing either way: the token it
+::  names has lapsed, so a grant is worthless and a revoke is moot. Judging
+::  only the revoked ones kept a row for every reader that ever read.
+::
+++  test-an-expired-grant-is-pruned-like-an-expired-revoke
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate genuine-scries)
+  ;<  caz=(list card)  b  (ask 0v8 [%bucket flag [%issue-bucket-read ~]])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  *  b  (do-arvo wire.push iris-ok)
+  ;<  sv=vase  b  get-save
+  =/  before=@ud  ~(wyt by readers:!<(state-0:bu sv))
+  ::  read-window later, the grant it confirmed has lapsed
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now (add ~2026.1.1 ~d1), eny 0v7777)))
+  ;<  *  b  (ask 0v9 [%bucket flag [%issue-bucket-read ~]])
+  ;<  after=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu after)
+  ::  the lapsed row is gone; what replaced it is a fresh mint at revision 1
+  =/  sync=reader-sync:bu  (sync-for st ~sampel-palnet)
+  %+  ex-equal
+    !>([before ~(wyt by readers.st) revision.sync synced.sync])
+  !>([1 1 1 0])
 ::
 ::  Read tokens are bucket-scoped, so a token answer has to be filed under the
 ::  bucket its request named. Two buckets on one host is where guessing from
