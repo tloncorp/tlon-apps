@@ -522,6 +522,9 @@ export function NotesNoteDetail({
         const channel = await db.getChannel({ id: `notes/${notebookFlag}` });
         const groupId = channel?.groupId;
         if (!groupId) return;
+        const currentUserId = api.getCurrentUserId();
+        const group = await db.getGroup({ id: groupId });
+        if (group?.hostUserId !== currentUserId) return;
         const agents = await db.agentGroupAgents.getValue();
         const agentShip = agents[groupId];
         if (
@@ -532,13 +535,16 @@ export function NotesNoteDetail({
         ) {
           return;
         }
+        const claimKey = `${currentUserId}:${groupId}`;
         let claimed = false;
         await db.agentEntryFirstOpened.setValue((current) => {
-          if (current[groupId]) return current;
+          // Respect legacy group-only claims while all new claims are scoped
+          // to the signed-in owner as well as the group.
+          if (current[groupId] || current[claimKey]) return current;
           claimed = true;
           return {
             ...current,
-            [groupId]: true,
+            [claimKey]: true,
           };
         });
         if (!claimed) return;
