@@ -595,9 +595,7 @@ export function NonHostAdminChannelNotice({
     : 'Hosted on your node';
 
   if (presentation === 'compact') {
-    return (
-      <NoticeBanner icon="Info" title={title} horizontalInset={false} />
-    );
+    return <NoticeBanner icon="Info" title={title} horizontalInset={false} />;
   }
 
   return (
