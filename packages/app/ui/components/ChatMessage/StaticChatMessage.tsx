@@ -515,7 +515,11 @@ export function StaticChatMessage({
       }
       return false;
     },
-    [a2uiActionCompletion?.sentMessageText, provisionedAgentTopics]
+    [
+      a2uiActionCompletion?.sentMessageText,
+      a2uiActionCompletion?.sentMessageTexts,
+      provisionedAgentTopics,
+    ]
   );
   const getConsumedA2UISelection = useCallback(
     (surfaceId: string, componentId: string) =>
