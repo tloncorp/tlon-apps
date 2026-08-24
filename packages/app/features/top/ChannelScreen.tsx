@@ -217,14 +217,6 @@ export default function ChannelScreen(props: Props) {
     (initialChannelUnread.countWithoutThreads ?? 0) > 0
       ? initialChannelUnread.firstUnreadPostId
       : undefined;
-  const cursor = selectedPostId || unreadCursor;
-
-  useEffect(() => {
-    if (channel?.id) {
-      logger.sensitiveCrumb(`channelId: ${channel?.id}`, `cursor: ${cursor}`);
-    }
-  }, [channel?.id, cursor]);
-
   // Channel navigation establishes a new cursor scope.
   useEffect(() => {
     setClearedCursor(false);
@@ -252,6 +244,28 @@ export default function ChannelScreen(props: Props) {
   const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
   const includeDeletedPosts =
     channelConfiguration?.includeDeletedPosts && showDeleteMarkers;
+  const { data: selectedPost } = store.usePostWithRelations(
+    selectedPostId ? { id: selectedPostId } : null
+  );
+  const selectedPostIsHidden = Boolean(
+    selectedPostId && !includeDeletedPosts && selectedPost?.isDeleted
+  );
+  const cursor = selectedPostIsHidden
+    ? undefined
+    : selectedPostId || unreadCursor;
+
+  useEffect(() => {
+    if (selectedPostIsHidden) {
+      setClearedCursor(true);
+      props.navigation.setParams({ selectedPostId: undefined });
+    }
+  }, [props.navigation, selectedPostIsHidden]);
+
+  useEffect(() => {
+    if (channel?.id) {
+      logger.sensitiveCrumb(`channelId: ${channel?.id}`, `cursor: ${cursor}`);
+    }
+  }, [channel?.id, cursor]);
 
   const {
     posts,
@@ -503,7 +517,9 @@ export default function ChannelScreen(props: Props) {
           group={group}
           groupIsLoading={groupIsLoading}
           posts={filteredPosts ?? null}
-          selectedPostId={clearedCursor ? undefined : selectedPostId}
+          selectedPostId={
+            clearedCursor || selectedPostIsHidden ? undefined : selectedPostId
+          }
           goBack={navigationRef.current.goBack}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
