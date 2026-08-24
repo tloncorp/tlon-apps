@@ -76,6 +76,7 @@ export {
   type PostBlobDataEntryAgentProviderConfig,
   type PostBlobDataEntryAgentProvisionAck,
   type PostBlobDataEntryAgentPostMarker,
+  type PostBlobDataEntryA2UISelection,
 } from './client/content-helpers';
 export { getTextContent } from './client/postContent';
 export { preSig } from './lib/urbit';

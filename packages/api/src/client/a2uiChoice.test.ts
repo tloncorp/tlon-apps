@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { A2UI, buildSmallChoiceMessage, smallChoiceProbeMessage } from './a2ui';
+import { A2UI, buildSmallChoiceMessage } from './a2ui';
 
 const sendAction = (text: string) => ({
   event: { name: A2UI.action.sendMessage, context: { text } },
@@ -133,15 +133,6 @@ describe('Choice validation', () => {
         options: Array.from({ length: 7 }, (_, i) => option({ id: `o-${i}` })),
       },
     ],
-    [
-      'duplicate option labels',
-      {
-        options: [
-          { id: 'one', label: 'Same' },
-          { id: 'two', label: 'Same' },
-        ],
-      },
-    ],
     // Icon/accent allowlists double as asset-name-injection defense.
     [
       'icon outside the allowlist',
@@ -257,12 +248,21 @@ describe('SmallChoice validation', () => {
       },
     ],
     [
+      'duplicate option labels',
+      {
+        options: [
+          { id: 'one', label: 'Same' },
+          { id: 'two', label: 'Same' },
+        ],
+      },
+    ],
+    [
       'a label longer than a pill can hold',
       { options: [{ id: 'x', label: 'x'.repeat(65) }] },
     ],
     ['missing submit label', { submitLabel: undefined }],
     ['blank submit label', { submitLabel: '  ' }],
-    // A selection only means anything as posted text; navigating would throw
+    // A selection must submit its structured reply; navigating would throw
     // away what the user picked.
     ['a navigate action', { action: navigateAction }],
     ['a provision action without topics', { action: provisionAction([]) }],
@@ -334,16 +334,16 @@ describe('SmallChoice message building', () => {
     expect(buildSmallChoiceMessage(component, [], '   ')).toBe('');
   });
 
-  test('rejects a selection that exceeds the send-action limit', () => {
+  test('bounds presentation text without rejecting the selection', () => {
     const message = buildSmallChoiceMessage(
       component,
       ['news'],
       'x'.repeat(2_000)
     );
-    expect(message).toBe('');
+    expect(message).toHaveLength(1_000);
   });
 
-  test('preserves selected values when a long prefix is bounded', () => {
+  test('bounds a long presentation prefix without rejecting the selection', () => {
     const message = buildSmallChoiceMessage(
       {
         ...component,
@@ -357,34 +357,25 @@ describe('SmallChoice message building', () => {
       ['news']
     );
     expect(message).toHaveLength(1_000);
-    expect(message).toMatch(/ News$/);
+    expect(message).toBe('p'.repeat(1_000));
   });
 
-  test('round-trips a custom value containing commas', () => {
+  test('keeps custom prose readable without encoding it', () => {
     const message = buildSmallChoiceMessage(
       component,
       ['news'],
       'Research, development'
     );
-    expect(message).toBe('News, "Research, development"');
-    expect(A2UI.parseSmallChoiceValues(message)).toEqual([
-      'News',
-      'Research, development',
-    ]);
+    expect(message).toBe('News, Research, development');
   });
 
-  test('round-trips multiple custom values as separate selections', () => {
+  test('renders multiple custom values in order', () => {
     const message = buildSmallChoiceMessage(
       component,
       ['news'],
       ['Research', 'Development']
     );
     expect(message).toBe('News, Research, Development');
-    expect(A2UI.parseSmallChoiceValues(message)).toEqual([
-      'News',
-      'Research',
-      'Development',
-    ]);
   });
 
   test('freeTextPlaceholder validates as an optional bounded string', () => {
@@ -394,16 +385,6 @@ describe('SmallChoice message building', () => {
     expect(valid(smallChoice({ freeTextPlaceholder: '' }))).toBe(false);
     expect(valid(smallChoice({ freeTextPlaceholder: 'x'.repeat(65) }))).toBe(
       false
-    );
-  });
-
-  test('probe message is non-empty even when the prefix is empty', () => {
-    // Regression: the picker rendered permanently disabled because
-    // availability was checked against the action's own text — an empty
-    // prefix — which a check written for Button reads as "nothing to send".
-    expect(smallChoiceProbeMessage(component)).toBe('Weather, News, Stocks');
-    expect(smallChoiceProbeMessage(withPrefix)).toBe(
-      'Topics: Weather, News, Stocks'
     );
   });
 });

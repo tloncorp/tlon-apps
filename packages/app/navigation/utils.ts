@@ -87,8 +87,6 @@ function useResetToChannel() {
     function resetToChannel(
       channelId: string,
       options?: {
-        backToGroupIndex?: boolean;
-        disableTransition?: boolean;
         groupId?: string;
         selectedPostId?: string | null;
         startDraft?: boolean;
@@ -97,22 +95,13 @@ function useResetToChannel() {
       const screenName = screenNameFromChannelId(channelId);
 
       if (isWindowNarrow) {
-        const { backToGroupIndex, ...channelOptions } = options ?? {};
         reset([
           getTopLevelTabRoute('ChatList'),
-          ...(backToGroupIndex && channelOptions.groupId
-            ? [
-                {
-                  name: 'GroupChannels' as const,
-                  params: { groupId: channelOptions.groupId },
-                },
-              ]
-            : []),
           {
             name: screenName,
             params: {
               channelId,
-              ...channelOptions,
+              ...options,
             },
           },
         ]);

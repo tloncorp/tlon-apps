@@ -113,6 +113,13 @@ describe('post blob helpers', () => {
         providerIds: ['gmail', 'google-calendar'],
       },
       {
+        type: 'tlon-a2ui-selection',
+        version: 1,
+        surfaceId: 'agent-topics',
+        componentId: 'topics',
+        values: ['Urbit', 'Research, development'],
+      },
+      {
         type: 'tlon-agent-post-marker',
         version: 1,
         key: 'provision-1:closing',
@@ -155,6 +162,31 @@ describe('post blob helpers', () => {
         ])
       )
     ).toEqual([{ type: 'unknown' }]);
+    expect(
+      parsePostBlob(
+        JSON.stringify([
+          {
+            type: 'tlon-a2ui-selection',
+            version: 1,
+            surfaceId: 'agent-topics',
+            componentId: 'topics',
+            values: ['   '],
+          },
+        ])
+      )
+    ).toEqual([{ type: 'unknown' }]);
+  });
+
+  test('appends a durable A2UI selection without encoding it as prose', () => {
+    const entry = {
+      type: 'tlon-a2ui-selection' as const,
+      version: 1 as const,
+      surfaceId: 'agent-topics',
+      componentId: 'topics',
+      values: ['Groups', 'Research, development'],
+    };
+
+    expect(parsePostBlob(appendToPostBlob(undefined, entry))).toEqual([entry]);
   });
 
   test('parsePostBlob parses context lens metadata entries', () => {

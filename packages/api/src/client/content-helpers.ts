@@ -21,7 +21,12 @@ import {
   pathToCite,
 } from '../urbit';
 import { A2UI } from './a2ui';
-import { AGENT_PROTOCOL_LIMITS } from './agentProtocol';
+import {
+  AGENT_PROTOCOL_LIMITS,
+  AgentProviderConfigContextSchema,
+  AgentProvisionActionContextSchema,
+  agentProtocolString,
+} from './agentProtocol';
 
 export * from './agentProtocol';
 export * from './a2ui';
@@ -706,26 +711,13 @@ export type PostBlobDataEntryAgentIntroRequest = z.infer<
 
 export const PostBlobDataEntryAgentProvisionSchema =
   definePostBlobDataEntrySchema('tlon-agent-provision', 1, {
-    provisionId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
-    groupId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.groupIdLength),
-    purposeId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
-    purpose: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.purposeLength),
-    topics: z
-      .array(z.string().min(1).max(AGENT_PROTOCOL_LIMITS.topicLength))
-      .min(1)
-      .max(AGENT_PROTOCOL_LIMITS.topicCount),
-    timezone: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.timezoneLength),
-    scheduleHour: z.number().int().min(0).max(23),
-    scheduleMinute: z.number().int().min(0).max(59),
-    notebookNest: z
-      .string()
-      .min(1)
-      .max(AGENT_PROTOCOL_LIMITS.notebookNestLength),
-    notebookTitle: z
-      .string()
-      .min(1)
-      .max(AGENT_PROTOCOL_LIMITS.notebookTitleLength)
-      .optional(),
+    provisionId: agentProtocolString(AGENT_PROTOCOL_LIMITS.identifierLength),
+    ...AgentProvisionActionContextSchema.shape,
+    timezone: agentProtocolString(AGENT_PROTOCOL_LIMITS.timezoneLength),
+    notebookNest: agentProtocolString(AGENT_PROTOCOL_LIMITS.notebookNestLength),
+    notebookTitle: agentProtocolString(
+      AGENT_PROTOCOL_LIMITS.notebookTitleLength
+    ).optional(),
   });
 
 export type PostBlobDataEntryAgentProvision = z.infer<
@@ -733,20 +725,11 @@ export type PostBlobDataEntryAgentProvision = z.infer<
 >;
 
 export const PostBlobDataEntryAgentProviderConfigSchema =
-  definePostBlobDataEntrySchema('tlon-agent-provider-config', 1, {
-    provisionId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
-    groupId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.groupIdLength),
-    providerIds: z
-      .array(
-        z
-          .string()
-          .min(1)
-          .max(AGENT_PROTOCOL_LIMITS.providerIdLength)
-          .regex(/^[a-z0-9][a-z0-9._-]*$/i)
-      )
-      .max(AGENT_PROTOCOL_LIMITS.providerCount)
-      .refine((ids) => new Set(ids).size === ids.length),
-  });
+  definePostBlobDataEntrySchema(
+    'tlon-agent-provider-config',
+    1,
+    AgentProviderConfigContextSchema.shape
+  );
 
 export type PostBlobDataEntryAgentProviderConfig = z.infer<
   typeof PostBlobDataEntryAgentProviderConfigSchema
@@ -771,6 +754,21 @@ export type PostBlobDataEntryAgentPostMarker = z.infer<
   typeof PostBlobDataEntryAgentPostMarkerSchema
 >;
 
+/** Durable state for a SmallChoice reply; prose remains presentation only. */
+export const PostBlobDataEntryA2UISelectionSchema =
+  definePostBlobDataEntrySchema('tlon-a2ui-selection', 1, {
+    surfaceId: agentProtocolString(512),
+    componentId: agentProtocolString(512),
+    values: z
+      .array(agentProtocolString(AGENT_PROTOCOL_LIMITS.topicLength))
+      .min(1)
+      .max(AGENT_PROTOCOL_LIMITS.topicCount),
+  });
+
+export type PostBlobDataEntryA2UISelection = z.infer<
+  typeof PostBlobDataEntryA2UISelectionSchema
+>;
+
 const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
@@ -781,6 +779,7 @@ const postBlobDataEntryDefinitions = [
   PostBlobDataEntryAgentProviderConfigSchema,
   PostBlobDataEntryAgentProvisionAckSchema,
   PostBlobDataEntryAgentPostMarkerSchema,
+  PostBlobDataEntryA2UISelectionSchema,
   A2UI.blobEntrySchema,
 ] as const;
 

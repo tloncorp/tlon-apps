@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-import { AGENT_PROTOCOL_LIMITS } from './agentProtocol';
+import {
+  AgentProviderConfigContextSchema,
+  AgentProvisionActionContextSchema,
+} from './agentProtocol';
 
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
 const ACTION_NAVIGATE = 'tlon.navigate';
@@ -141,33 +144,11 @@ const navigateEventSchema = z.object({
 });
 const provisionAgentEventSchema = z.object({
   name: z.literal(ACTION_PROVISION_AGENT),
-  context: z.object({
-    groupId: nonEmptyString(AGENT_PROTOCOL_LIMITS.groupIdLength),
-    purposeId: nonEmptyString(AGENT_PROTOCOL_LIMITS.identifierLength),
-    purpose: nonEmptyString(AGENT_PROTOCOL_LIMITS.purposeLength),
-    topics: z
-      .array(nonEmptyString(AGENT_PROTOCOL_LIMITS.topicLength))
-      .min(1)
-      .max(AGENT_PROTOCOL_LIMITS.topicCount),
-    scheduleHour: z.number().int().min(0).max(23),
-    scheduleMinute: z.number().int().min(0).max(59),
-  }),
+  context: AgentProvisionActionContextSchema,
 });
-const providerIdSchema = z
-  .string()
-  .max(AGENT_PROTOCOL_LIMITS.providerIdLength)
-  .regex(/^[a-z0-9][a-z0-9._-]*$/i)
-  .refine((value) => value.trim().length > 0);
 const configureAgentProvidersEventSchema = z.object({
   name: z.literal(ACTION_CONFIGURE_AGENT_PROVIDERS),
-  context: z.object({
-    groupId: nonEmptyString(AGENT_PROTOCOL_LIMITS.groupIdLength),
-    provisionId: nonEmptyString(AGENT_PROTOCOL_LIMITS.identifierLength),
-    providerIds: z
-      .array(providerIdSchema)
-      .max(AGENT_PROTOCOL_LIMITS.providerCount)
-      .refine((ids) => uniqueBy(ids, (id) => id)),
-  }),
+  context: AgentProviderConfigContextSchema,
 });
 const buttonEventSchema = z.discriminatedUnion('name', [
   sendMessageEventSchema,
@@ -382,7 +363,6 @@ export namespace A2UI {
     type: 'a2ui';
     version: 1;
     messages: Message[];
-    storyMode?: 'fallback';
     recipe?: unknown;
   };
 }
@@ -639,9 +619,6 @@ const blobEntryShapeSchema: z.ZodType<A2UI.BlobEntry> = z
     type: z.literal('a2ui'),
     version: z.literal(1),
     messages: z.array(z.any()),
-    // These fields were historically type-only. Keep accepting their prior
-    // wire values while the recognized A2UI messages receive strict parsing.
-    storyMode: z.any().optional(),
     recipe: z.any().optional(),
   })
   .passthrough();
@@ -652,12 +629,9 @@ export const blobEntrySchema = blobEntryShapeSchema.superRefine(
 
 /**
  * The message a SmallChoice posts for a given selection: the action's text as a
- * prefix, then the selected labels comma-joined in the order the options were
- * declared (not tap order, so the same picks always read the same).
- *
- * Shared so the renderer and the agent that reads the reply agree on the exact
- * wording — a mismatch here means the agent can't recognize its own picker's
- * answer.
+ * prefix, then the selected labels comma-joined in declaration order. The
+ * durable selection lives in a typed post-blob entry, so this string is only
+ * presentation for the owner and bot.
  */
 export function buildSmallChoiceMessage(
   component: A2UI.SmallChoice,
@@ -676,76 +650,19 @@ export function buildSmallChoiceMessage(
   if (!labels.length) {
     return '';
   }
-  const selection = encodeSmallChoiceValues(labels);
-  if (selection.length > LIMITS.maxButtonMessageLength) {
-    return '';
-  }
+  const selection = labels.join(', ');
   const prefix =
     component.action.event.name === ACTION_SEND_MESSAGE
       ? component.action.event.context.text.trim()
       : '';
-  if (!prefix) {
-    return selection;
-  }
-  const prefixBudget = Math.max(
-    0,
-    LIMITS.maxButtonMessageLength - selection.length - 1
-  );
-  return [prefix.slice(0, prefixBudget), selection].filter(Boolean).join(' ');
-}
-
-/** CSV keeps a custom value containing commas as one durable selection. */
-export function encodeSmallChoiceValues(values: readonly string[]): string {
-  return values
-    .map((value) =>
-      /[",\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value
-    )
-    .join(', ');
-}
-
-export function parseSmallChoiceValues(value: string): string[] {
-  const values: string[] = [];
-  let current = '';
-  let quoted = false;
-  for (let index = 0; index < value.length; index += 1) {
-    const character = value[index];
-    if (character === '"') {
-      if (quoted && value[index + 1] === '"') {
-        current += '"';
-        index += 1;
-      } else {
-        quoted = !quoted;
-      }
-    } else if (character === ',' && !quoted) {
-      if (current.trim()) values.push(current.trim());
-      current = '';
-    } else {
-      current += character;
-    }
-  }
-  if (current.trim()) values.push(current.trim());
-  return values;
-}
-
-/**
- * A stand-in message for asking "could this picker send anything at all?".
- *
- * A SmallChoice's own `action.event.context.text` is only a prefix and is
- * normally empty, so an availability check written for Button — where that text
- * *is* the whole message — reads it as "nothing to send" and disables the
- * picker before the user can choose. Probe with every option selected instead:
- * always non-empty, and representative of what submitting would post.
- */
-export function smallChoiceProbeMessage(component: A2UI.SmallChoice): string {
-  return buildSmallChoiceMessage(
-    component,
-    component.options.map((option) => option.id)
-  );
+  return [prefix, selection]
+    .filter(Boolean)
+    .join(' ')
+    .slice(0, LIMITS.maxButtonMessageLength)
+    .trim();
 }
 
 export const A2UI = {
-  /** Wire limits used by controls that construct durable agent actions. */
-  agentProtocolLimits: AGENT_PROTOCOL_LIMITS,
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
     navigate: ACTION_NAVIGATE,
@@ -757,6 +674,4 @@ export const A2UI = {
   validateBlobEntry,
   blobEntrySchema,
   buildSmallChoiceMessage,
-  parseSmallChoiceValues,
-  smallChoiceProbeMessage,
 } as const;

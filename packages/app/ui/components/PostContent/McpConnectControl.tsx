@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import * as api from '@tloncorp/api';
 import { A2UI } from '@tloncorp/shared/logic';
-import { Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
+import { Icon, LoadingSpinner } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
 
@@ -13,6 +13,7 @@ import {
   selectMcpMenuProviders,
 } from '../../../lib/mcpProviders';
 import { McpProviderLogo } from '../McpProviderLogo';
+import { A2UIMenuRow } from './A2UIMenuRow';
 
 type McpProviderSnapshot = {
   providers: api.TlawnOAuthProvider[];
@@ -23,19 +24,17 @@ type McpProviderSnapshot = {
 // component state cannot preserve this historical row's height. Keep the last
 // successful Hosting snapshot for each account and refresh it in place.
 const providerSnapshots = new Map<string, McpProviderSnapshot>();
-const MAX_PROVIDER_SELECTIONS = A2UI.agentProtocolLimits.providerCount;
+const MAX_PROVIDER_SELECTIONS = api.AGENT_PROTOCOL_LIMITS.providerCount;
+const clampProviderIds = (providerIds: string[]) =>
+  providerIds.slice(0, MAX_PROVIDER_SELECTIONS);
 
 export function McpConnectControl({
   component,
-  completionConsumed,
-  configuredProviderIds,
   onConfigure,
   onComplete,
   onNavigate,
 }: {
   component: A2UI.McpConnect;
-  completionConsumed?: boolean;
-  configuredProviderIds?: string[];
   onConfigure?: (
     action: A2UI.ConfigureAgentProvidersAction
   ) => void | Promise<void>;
@@ -122,8 +121,6 @@ export function McpConnectControl({
   return (
     <McpConnectMenu
       component={component}
-      completionConsumed={completionConsumed}
-      configuredProviderIds={configuredProviderIds}
       failed={failed}
       loading={loading}
       providersLoaded={loadedUserIdRef.current === currentUserId}
@@ -137,8 +134,6 @@ export function McpConnectControl({
 
 export function McpConnectMenu({
   component,
-  completionConsumed = false,
-  configuredProviderIds,
   failed = false,
   loading = false,
   providersLoaded = true,
@@ -148,8 +143,6 @@ export function McpConnectMenu({
   providers,
 }: {
   component: A2UI.McpConnect;
-  completionConsumed?: boolean;
-  configuredProviderIds?: string[];
   failed?: boolean;
   loading?: boolean;
   providersLoaded?: boolean;
@@ -167,7 +160,6 @@ export function McpConnectMenu({
   const configuringRef = useRef(false);
   const completingRef = useRef(false);
   const initializedRef = useRef(false);
-  const appliedConfigurationRef = useRef<string | null>(null);
   const knownConnectedRef = useRef(new Set<string>());
   const connectedProviderIds = useMemo(
     () =>
@@ -179,34 +171,11 @@ export function McpConnectMenu({
 
   useEffect(() => {
     const connected = new Set(connectedProviderIds);
-    const configuredKey = configuredProviderIds
-      ? [...configuredProviderIds].sort().join('\u0000')
-      : null;
     if (!initializedRef.current) {
       if (loading || !providersLoaded) return;
       initializedRef.current = true;
       knownConnectedRef.current = connected;
-      appliedConfigurationRef.current = configuredKey;
-      setSelectedProviderIds(
-        (
-          configuredProviderIds?.filter((id) => connected.has(id)) ??
-          connectedProviderIds
-        ).slice(0, MAX_PROVIDER_SELECTIONS)
-      );
-      return;
-    }
-
-    if (
-      configuredKey !== null &&
-      configuredKey !== appliedConfigurationRef.current
-    ) {
-      appliedConfigurationRef.current = configuredKey;
-      knownConnectedRef.current = connected;
-      setSelectedProviderIds(
-        configuredProviderIds!
-          .filter((id) => connected.has(id))
-          .slice(0, MAX_PROVIDER_SELECTIONS)
-      );
+      setSelectedProviderIds(clampProviderIds(connectedProviderIds));
       return;
     }
 
@@ -218,18 +187,18 @@ export function McpConnectMenu({
     );
     knownConnectedRef.current = connected;
     setSelectedProviderIds((current) => {
-      const next = [
+      const next = clampProviderIds([
         ...new Set([
           ...current.filter((id) => connected.has(id)),
           ...newlyConnected,
         ]),
-      ].slice(0, MAX_PROVIDER_SELECTIONS);
+      ]);
       return next.length === current.length &&
         next.every((id, index) => id === current[index])
         ? current
         : next;
     });
-  }, [configuredProviderIds, connectedProviderIds, loading, providersLoaded]);
+  }, [connectedProviderIds, loading, providersLoaded]);
 
   const visibleProviders = useMemo(
     () => selectMcpMenuProviders(providers, component.maxVisible),
@@ -260,7 +229,7 @@ export function McpConnectMenu({
           ...component.configureAction.event,
           context: {
             ...component.configureAction.event.context,
-            providerIds: selectedProviderIds.slice(0, MAX_PROVIDER_SELECTIONS),
+            providerIds: clampProviderIds(selectedProviderIds),
           },
         },
       });
@@ -276,7 +245,6 @@ export function McpConnectMenu({
       !onComplete ||
       configuringRef.current ||
       completingRef.current ||
-      completionConsumed ||
       completedLocally
     ) {
       return;
@@ -292,27 +260,20 @@ export function McpConnectMenu({
     } finally {
       setCompleting(false);
     }
-  }, [
-    completedLocally,
-    completionConsumed,
-    component.completionAction,
-    onComplete,
-  ]);
+  }, [completedLocally, component.completionAction, onComplete]);
 
   const navigate = useCallback(
     (providerId?: string) => {
       if (!onNavigate) return;
       const target = component.action.event.context.target;
       if (target.type !== 'screen') return;
-      const { providerId: _defaultProviderId, ...targetWithoutProvider } =
-        target;
       void onNavigate({
         event: {
           ...component.action.event,
           context: {
             target: {
-              ...targetWithoutProvider,
-              ...(providerId ? { providerId } : {}),
+              ...target,
+              providerId,
             },
           },
         },
@@ -359,7 +320,7 @@ export function McpConnectMenu({
                 ? Boolean(onConfigure)
                 : Boolean(onNavigate);
               return (
-                <Pressable
+                <A2UIMenuRow
                   key={provider.id}
                   testID={`A2UIMcpConnect-${provider.id}`}
                   accessibilityLabel={provider.displayName}
@@ -375,42 +336,24 @@ export function McpConnectMenu({
                         ? () => navigate(provider.id)
                         : undefined
                   }
-                >
-                  <XStack
-                    minHeight={56}
-                    paddingVertical="$s"
-                    paddingHorizontal="$m"
-                    backgroundColor="$background"
-                    borderBottomWidth={
-                      index < visibleProviders.length - 1 || showSeeAll ? 1 : 0
-                    }
-                    borderBottomColor="$border"
-                    alignItems="center"
-                    gap="$m"
-                    opacity={enabled ? 1 : 0.5}
-                  >
+                  minHeight={56}
+                  paddingVertical="$s"
+                  dividerAfter={
+                    index < visibleProviders.length - 1 || showSeeAll
+                  }
+                  dimmed={!enabled}
+                  label={provider.displayName}
+                  subtitle={connected ? 'Connected' : undefined}
+                  leading={
                     <McpProviderLogo
                       compact
                       displayName={provider.displayName}
                       logoUrl={provider.logoUrl}
                       providerId={provider.id}
                     />
-                    <YStack flex={1} minWidth={0}>
-                      <Text
-                        size="$label/l"
-                        color="$primaryText"
-                        trimmed={false}
-                        numberOfLines={1}
-                      >
-                        {provider.displayName}
-                      </Text>
-                      {connected ? (
-                        <Text size="$label/s" color="$secondaryText">
-                          Connected
-                        </Text>
-                      ) : null}
-                    </YStack>
-                    {connected && !selected ? (
+                  }
+                  trailing={
+                    connected && !selected ? (
                       <XStack width={16} height={16} />
                     ) : (
                       <Icon
@@ -420,47 +363,33 @@ export function McpConnectMenu({
                         }
                         customSize={[16, 16]}
                       />
-                    )}
-                  </XStack>
-                </Pressable>
+                    )
+                  }
+                />
               );
             })}
             {showSeeAll ? (
-              <Pressable
+              <A2UIMenuRow
                 testID="A2UIMcpConnectSeeAll"
                 accessibilityLabel={component.seeAllLabel}
                 disabled={!onNavigate}
-                onPress={onNavigate ? () => navigate() : undefined}
-              >
-                <XStack
-                  minHeight={52}
-                  paddingHorizontal="$m"
-                  backgroundColor="$background"
-                  alignItems="center"
-                  gap="$m"
-                  opacity={onNavigate ? 1 : 0.5}
-                >
-                  <Text
-                    size="$label/l"
-                    color="$primaryText"
-                    trimmed={false}
-                    flex={1}
-                  >
-                    {component.seeAllLabel}
-                  </Text>
+                onPress={() => navigate()}
+                dimmed={!onNavigate}
+                label={component.seeAllLabel}
+                trailing={
                   <Icon
                     type="ChevronRight"
                     color="$secondaryText"
                     customSize={[16, 16]}
                   />
-                </XStack>
-              </Pressable>
+                }
+              />
             ) : null}
           </>
         )}
       </YStack>
       {!loading && !failed && connectedProviderIds.length > 0 ? (
-        <Pressable
+        <A2UIMenuRow
           testID="A2UIMcpConnectSubmit"
           accessibilityLabel={component.submitLabel}
           accessibilityState={{
@@ -468,23 +397,12 @@ export function McpConnectMenu({
           }}
           disabled={!onConfigure || submitting}
           onPress={configure}
-        >
-          <XStack
-            minHeight={52}
-            marginTop="$m"
-            paddingHorizontal="$m"
-            backgroundColor="$background"
-            borderWidth={1}
-            borderColor="$border"
-            borderRadius="$m"
-            alignItems="center"
-            gap="$m"
-            opacity={!onConfigure || submitting ? 0.5 : 1}
-          >
-            <Text size="$label/l" color="$primaryText" trimmed={false} flex={1}>
-              {component.submitLabel}
-            </Text>
-            {submitting ? (
+          bordered
+          marginTop="$m"
+          dimmed={!onConfigure || submitting}
+          label={component.submitLabel}
+          trailing={
+            submitting ? (
               <LoadingSpinner size="small" />
             ) : (
               <Icon
@@ -492,47 +410,27 @@ export function McpConnectMenu({
                 color="$primaryText"
                 customSize={[16, 16]}
               />
-            )}
-          </XStack>
-        </Pressable>
+            )
+          }
+        />
       ) : null}
       {component.completionLabel && component.completionAction ? (
-        <Pressable
+        <A2UIMenuRow
           testID="A2UIMcpConnectComplete"
           accessibilityLabel={component.completionLabel}
           accessibilityState={{
             disabled:
-              !onComplete ||
-              submitting ||
-              completing ||
-              completionConsumed ||
-              completedLocally,
+              !onComplete || submitting || completing || completedLocally,
           }}
-          disabled={
-            !onComplete ||
-            submitting ||
-            completing ||
-            completionConsumed ||
-            completedLocally
-          }
+          disabled={!onComplete || submitting || completing || completedLocally}
           onPress={complete}
-        >
-          <XStack
-            minHeight={52}
-            marginTop="$m"
-            paddingHorizontal="$m"
-            backgroundColor="$primaryText"
-            borderWidth={1}
-            borderColor="$border"
-            borderRadius="$m"
-            alignItems="center"
-            gap="$m"
-            opacity={completionConsumed || completedLocally ? 0.5 : 1}
-          >
-            <Text size="$label/l" color="$background" trimmed={false} flex={1}>
-              {component.completionLabel}
-            </Text>
-            {completing ? (
+          bordered
+          marginTop="$m"
+          prominent
+          dimmed={completedLocally}
+          label={component.completionLabel}
+          trailing={
+            completing ? (
               <LoadingSpinner size="small" />
             ) : (
               <Icon
@@ -540,9 +438,9 @@ export function McpConnectMenu({
                 color="$background"
                 customSize={[16, 16]}
               />
-            )}
-          </XStack>
-        </Pressable>
+            )
+          }
+        />
       ) : null}
     </YStack>
   );
@@ -556,28 +454,19 @@ function ProviderFallbackRow({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <A2UIMenuRow
       accessibilityLabel="See all services"
       disabled={disabled}
-      onPress={disabled ? undefined : onPress}
-    >
-      <XStack
-        minHeight={52}
-        paddingHorizontal="$m"
-        backgroundColor="$background"
-        alignItems="center"
-        gap="$m"
-        opacity={disabled ? 0.5 : 1}
-      >
-        <Text size="$label/l" color="$primaryText" trimmed={false} flex={1}>
-          See all services
-        </Text>
+      onPress={onPress}
+      dimmed={disabled}
+      label="See all services"
+      trailing={
         <Icon
           type="ChevronRight"
           color="$secondaryText"
           customSize={[16, 16]}
         />
-      </XStack>
-    </Pressable>
+      }
+    />
   );
 }

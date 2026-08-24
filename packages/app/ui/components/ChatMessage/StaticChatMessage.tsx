@@ -1,3 +1,7 @@
+import {
+  appendToPostBlob,
+  type PostBlobDataEntryA2UISelection,
+} from '@tloncorp/api';
 import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
@@ -99,7 +103,10 @@ export function StaticChatMessage({
   }, [onPressRetry, post]);
 
   const handleA2UIAction = useCallback(
-    async (action: A2UI.Button['action']) => {
+    async (
+      action: A2UI.Button['action'],
+      selection?: PostBlobDataEntryA2UISelection
+    ) => {
       if (action.event.name === A2UI.action.navigate) {
         await navigateToA2UITarget(action.event.context.target);
         return;
@@ -122,6 +129,7 @@ export function StaticChatMessage({
         channelId: draftInputContext.channel.id,
         content: [text],
         attachments: [],
+        blob: selection ? appendToPostBlob(undefined, selection) : undefined,
         channelType: draftInputContext.channel.type,
         replyToPostId: null,
         isEdit: false,
@@ -243,6 +251,11 @@ export function StaticChatMessage({
             isA2UIActionAvailable={
               canRenderA2UI ? isA2UIActionAvailable : undefined
             }
+            canSendA2UIResponse={Boolean(
+              canRenderA2UI &&
+              draftInputContext &&
+              draftInputContext.canStartDraft !== false
+            )}
             searchQuery={searchQuery}
           />
         )}

@@ -1,3 +1,4 @@
+import type { PostBlobDataEntryA2UISelection } from '@tloncorp/api';
 import { Post } from '@tloncorp/shared/db';
 import { type A2UI, BlockData, convertContent } from '@tloncorp/shared/logic';
 import { useContext, useMemo } from 'react';
@@ -31,12 +32,12 @@ export interface ContentContextProps {
   onPressImage?: (src: string) => void;
   getImageViewerId?: (src: string) => string | undefined;
   onLongPress?: () => void;
-  onA2UIAction?: (action: A2UI.Button['action']) => void | Promise<void>;
+  onA2UIAction?: (
+    action: A2UI.Button['action'],
+    selection?: PostBlobDataEntryA2UISelection
+  ) => void | Promise<void>;
   isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
-  isA2UIActionConsumed?: (action: A2UI.Button['action']) => boolean;
-  provisionedAgentTopics?: string[];
-  consumedA2UIMessageText?: string;
-  configuredAgentProviderIds?: string[];
+  canSendA2UIResponse?: boolean;
   searchQuery?: string;
 }
 

@@ -140,13 +140,6 @@ export enum AnalyticsEvent {
   ActivityMarkedAllRead = 'Activity Marked All Read',
   ContactProfileSelected = 'Contact Profile Selected',
   NoteOpened = 'Note Opened',
-  /**
-   * Activation for agent onboarding: the owner has opened an entry their agent
-   * wrote. The plugin can only report that it *posted* the entry; this is the
-   * half only the client can see, and it is the denominator-completing event
-   * for the onboarding funnel. Fires once per agent group.
-   */
-  AgentEntryFirstOpened = 'Agent Entry First Opened',
   NoteCreated = 'Note Created',
   NoteSaved = 'Note Saved',
   NoteMoved = 'Note Moved',
