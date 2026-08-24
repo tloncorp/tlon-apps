@@ -3719,6 +3719,27 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
       };
 
+    const onboardingRetryTimers = new Map<
+      string,
+      ReturnType<typeof setTimeout>
+    >();
+    const scheduleAgentOnboardingRetry = (nest: string) => {
+      if (opts.abortSignal?.aborted || onboardingRetryTimers.has(nest)) return;
+      const timer = setTimeout(() => {
+        onboardingRetryTimers.delete(nest);
+        if (!opts.abortSignal?.aborted) {
+          void scanAgentOnboardingNest(nest);
+        }
+      }, 1_000);
+      timer.unref?.();
+      onboardingRetryTimers.set(nest, timer);
+    };
+    const clearAgentOnboardingRetry = (nest: string) => {
+      const timer = onboardingRetryTimers.get(nest);
+      if (timer) clearTimeout(timer);
+      onboardingRetryTimers.delete(nest);
+    };
+
     const scanAgentOnboardingNest = async (nest: string) => {
       if (!nest.startsWith('chat/')) return;
       const groupId = channelToGroup.get(nest);
@@ -3734,10 +3755,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           log: (message) => runtime.log?.(message),
           trackStep: trackOnboardingStep(nest, groupId),
         });
+        clearAgentOnboardingRetry(nest);
       } catch (error) {
         runtime.error?.(
           `[tlon] Failed to reconcile onboarding in ${nest}: ${error instanceof Error ? error.message : String(error)}`
         );
+        if (
+          error instanceof Error &&
+          error.message === 'cron service is not available'
+        ) {
+          // The monitor and gateway_start hooks race during boot. Keep this
+          // durable request live until the hook publishes the cron accessor;
+          // discovery otherwise revisits only newly watched channels.
+          scheduleAgentOnboardingRetry(nest);
+        }
       }
     };
 
@@ -5531,6 +5562,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           const onAbort = () => {
             clearInterval(pollInterval);
             clearInterval(settingsRefreshInterval);
+            for (const timer of onboardingRetryTimers.values()) {
+              clearTimeout(timer);
+            }
+            onboardingRetryTimers.clear();
             // Kick off scheduler shutdown; don't block the event-handler
             // callback. The `finally` block awaits the same stop promise
             // before draining the persistence queues and closing the

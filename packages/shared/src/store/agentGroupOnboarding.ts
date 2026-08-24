@@ -460,8 +460,7 @@ async function reconcileAgentStanding({
       }
       if (hostedShipId && !agentHasJoined(group, agentShipId)) {
         const moon = desig(agentShipId);
-        await api.addTlawnToCordon(hostedShipId, groupId, moon);
-        await api.joinTlawnGroup(hostedShipId, groupId, moon);
+        await addCordonThenJoin(hostedShipId, groupId, moon);
         group = await api.getGroup(groupId);
       }
       if (agentHasJoined(group, agentShipId)) {
@@ -483,6 +482,29 @@ async function reconcileAgentStanding({
   throw new Error(
     `Could not verify the agent seat: ${String(lastError ?? '')}`
   );
+}
+
+async function addCordonThenJoin(
+  hostedShipId: string,
+  groupId: string,
+  moon: string,
+  deps: {
+    add?: typeof api.addTlawnToCordon;
+    join?: typeof api.joinTlawnGroup;
+  } = {}
+) {
+  // A previous attempt may have added the moon before its join failed.
+  // Hosting reports that duplicate add as an error, but the required join is
+  // still safe and must continue.
+  try {
+    await (deps.add ?? api.addTlawnToCordon)(hostedShipId, groupId, moon);
+  } catch (error) {
+    logger.trackError('Agent already cordoned or cordon add failed', {
+      error,
+      groupId,
+    });
+  }
+  await (deps.join ?? api.joinTlawnGroup)(hostedShipId, groupId, moon);
 }
 
 function agentHasJoined(group: db.Group, agentShipId: string) {
@@ -510,6 +532,7 @@ function agentHasAdmin(group: db.Group, agentShipId: string) {
 }
 
 export const agentGroupOnboardingTesting = {
+  addCordonThenJoin,
   agentHasAdmin,
   retryAgentGroupFurnishCore,
   agentHasJoined,

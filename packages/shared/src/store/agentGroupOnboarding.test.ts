@@ -65,6 +65,21 @@ describe('buildAgentGroupTitle', () => {
 });
 
 describe('agent group furnishing retry', () => {
+  it('continues to the required join when the cordon entry already exists', async () => {
+    const add = vi.fn().mockRejectedValue(new Error('already allowed'));
+    const join = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      agentGroupOnboardingTesting.addCordonThenJoin(
+        'hosted-ship',
+        '~zod/home',
+        'moon-zod',
+        { add, join }
+      )
+    ).resolves.toBeUndefined();
+    expect(join).toHaveBeenCalledWith('hosted-ship', '~zod/home', 'moon-zod');
+  });
+
   it('retries the idempotent furnishing core once', async () => {
     const operation = vi
       .fn<[], Promise<string>>()

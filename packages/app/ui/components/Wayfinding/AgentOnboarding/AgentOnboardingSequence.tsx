@@ -111,11 +111,6 @@ export function AgentOnboardingSequence(props: {
             channelId: furnished.chatChannelId,
             status: 'pending',
           });
-          completedRef.current = true;
-          logger.trackEvent('Agent Onboarding V2 In-Channel Handoff', {
-            groupId,
-            channelId: furnished.chatChannelId,
-          });
           // The onboarding conversation already teaches the bot interaction
           // model. Keep the legacy mention coach mark disarmed before the
           // authenticated navigator mounts so it cannot flash over the chat.
@@ -137,15 +132,18 @@ export function AgentOnboardingSequence(props: {
               channelId: furnished.chatChannelId,
             });
           }
+          // Do not permanently dismiss the first-run bridge while the agent
+          // still lacks the standing required to accept provisioning. A
+          // failed tail returns to the outer idempotent retry loop.
+          await furnished.tail;
+          completedRef.current = true;
+          logger.trackEvent('Agent Onboarding V2 In-Channel Handoff', {
+            groupId,
+            channelId: furnished.chatChannelId,
+          });
           props.onCompleted();
           void store.completeWayfindingSplash({
             showBotMentionHint: false,
-          });
-          void furnished.tail.catch((error) => {
-            logger.trackError('Agent standing reconciliation failed', {
-              error,
-              groupId,
-            });
           });
           return;
         } catch (error) {

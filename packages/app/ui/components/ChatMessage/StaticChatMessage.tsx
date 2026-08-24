@@ -189,15 +189,18 @@ export function StaticChatMessage({
           provision: request,
         },
       }));
-      await draftInputContext.sendPostFromDraft({
-        channelId: draftInputContext.channel.id,
-        content: [plan.topics.join(', ')],
-        attachments: [],
-        blob,
-        channelType: draftInputContext.channel.type,
-        replyToPostId: null,
-        isEdit: false,
-      });
+      await draftInputContext.sendPostFromDraft(
+        {
+          channelId: draftInputContext.channel.id,
+          content: [plan.topics.join(', ')],
+          attachments: [],
+          blob,
+          channelType: draftInputContext.channel.type,
+          replyToPostId: null,
+          isEdit: false,
+        },
+        { throwOnFailure: true }
+      );
     },
     [draftInputContext, resolveActionGroup]
   );
@@ -219,15 +222,18 @@ export function StaticChatMessage({
       const content = uniqueProviderIds.length
         ? `Use ${uniqueProviderIds.join(', ')} for this group’s future entries.`
         : 'Do not use connected services for this group’s future entries.';
-      await draftInputContext.sendPostFromDraft({
-        channelId: draftInputContext.channel.id,
-        content: [content],
-        attachments: [],
-        blob,
-        channelType: draftInputContext.channel.type,
-        replyToPostId: null,
-        isEdit: false,
-      });
+      await draftInputContext.sendPostFromDraft(
+        {
+          channelId: draftInputContext.channel.id,
+          content: [content],
+          attachments: [],
+          blob,
+          channelType: draftInputContext.channel.type,
+          replyToPostId: null,
+          isEdit: false,
+        },
+        { throwOnFailure: true }
+      );
     },
     [draftInputContext, resolveActionGroup]
   );
@@ -264,14 +270,17 @@ export function StaticChatMessage({
         return;
       }
 
-      await draftInputContext.sendPostFromDraft({
-        channelId: draftInputContext.channel.id,
-        content: [text],
-        attachments: [],
-        channelType: draftInputContext.channel.type,
-        replyToPostId: null,
-        isEdit: false,
-      });
+      await draftInputContext.sendPostFromDraft(
+        {
+          channelId: draftInputContext.channel.id,
+          content: [text],
+          attachments: [],
+          channelType: draftInputContext.channel.type,
+          replyToPostId: null,
+          isEdit: false,
+        },
+        { throwOnFailure: true }
+      );
     },
     [
       configureAgentProviders,
