@@ -36,6 +36,9 @@ export function getA2UIActionCompletion(
     sentMessageText:
       ownerReplies.find((candidate) => Boolean(candidate.textContent?.trim()))
         ?.textContent ?? undefined,
+    sentMessageTexts: ownerReplies.flatMap((candidate) =>
+      candidate.textContent?.trim() ? [candidate.textContent] : []
+    ),
     provisionAgent: provision?.type === 'tlon-agent-provision',
     provisionedTopics:
       provision?.type === 'tlon-agent-provision' ? provision.topics : undefined,
@@ -57,6 +60,7 @@ export function getA2UIActionCompletions(
 ): A2UIActionCompletion[] {
   const completions = new Array<A2UIActionCompletion>(posts.length);
   let sentMessageText: string | undefined;
+  let sentMessageTexts: string[] = [];
   let provisionedTopics: string[] | undefined;
   let configuredProviderIds: string[] | undefined;
 
@@ -64,6 +68,7 @@ export function getA2UIActionCompletions(
     completions[index] = {
       sendMessage: sentMessageText !== undefined,
       sentMessageText,
+      sentMessageTexts,
       provisionAgent: provisionedTopics !== undefined,
       provisionedTopics,
       configuredProviderIds,
@@ -81,6 +86,7 @@ export function getA2UIActionCompletions(
       // Moving backwards makes this the earliest owner reply in the suffix,
       // matching Array.find in getA2UIActionCompletion.
       sentMessageText = candidate.textContent ?? undefined;
+      sentMessageTexts = [candidate.textContent ?? text, ...sentMessageTexts];
     }
     if (candidate.blob == null) continue;
     for (const entry of parsePostBlob(candidate.blob)) {

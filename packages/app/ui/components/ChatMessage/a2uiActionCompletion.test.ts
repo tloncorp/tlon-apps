@@ -41,6 +41,18 @@ describe('getA2UIActionCompletion', () => {
     ).toMatchObject({ sendMessage: true, sentMessageText: 'AI, climate' });
   });
 
+  it('preserves every later owner reply for exact action matching', () => {
+    expect(
+      getA2UIActionCompletion(
+        [
+          post({ authorId: ownerId, textContent: 'Unrelated text' }),
+          post({ authorId: ownerId, textContent: 'Yes' }),
+        ],
+        ownerId
+      ).sentMessageTexts
+    ).toEqual(['Unrelated text', 'Yes']);
+  });
+
   it('consumes a provisioning action only after its typed owner post', () => {
     const blob = JSON.stringify([
       {

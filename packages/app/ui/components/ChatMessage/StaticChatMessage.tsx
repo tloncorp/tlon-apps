@@ -352,7 +352,8 @@ export function StaticChatMessage({
       if (action.event.name === A2UI.action.sendMessage) {
         return isA2UISendMessageActionConsumed(
           action,
-          a2uiActionCompletion?.sentMessageText
+          a2uiActionCompletion?.sentMessageText,
+          a2uiActionCompletion?.sentMessageTexts
         );
       }
       if (action.event.name === A2UI.action.provisionAgent) {
