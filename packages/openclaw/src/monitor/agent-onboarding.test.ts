@@ -533,7 +533,7 @@ describe('agent onboarding requests', () => {
 
     await expect(promptFor(true)).resolves.toEqual({
       intro: expect.stringContaining(
-        "I'm your Tlonbot. I can keep you informed, help you learn, or " +
+        'I can keep you informed, help you learn, or ' +
           'follow a question over time.'
       ),
       picker: expect.stringContaining('What can I help you with?'),

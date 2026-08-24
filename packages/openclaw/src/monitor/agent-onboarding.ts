@@ -142,7 +142,7 @@ const READ_DELAY_CAP_MS = 1_500;
 const JITTER_RATIO = 0.2;
 const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
 const AGENT_ONBOARDING_GROUP_INTRO =
-  "I'm your Tlonbot. I can keep you informed, help you learn, or follow a " +
+  'I can keep you informed, help you learn, or follow a ' +
   'question over time.';
 const AGENT_ADDITIONAL_GROUP_INTRO = "Let's set up what I do in this group.";
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
