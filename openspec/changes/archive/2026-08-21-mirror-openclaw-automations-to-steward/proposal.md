@@ -10,7 +10,7 @@ work.
 ## What Changes
 
 - Add an automation module to the released `%steward` agent that
-    persistently stores the bot's current OpenClaw cron task
+	persistently stores the bot's current OpenClaw cron task
     definitions.
 - Migrate existing deployed `%steward` state to initialize the
     automation module without losing core, lens, or gateway state.
