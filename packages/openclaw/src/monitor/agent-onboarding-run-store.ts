@@ -39,6 +39,9 @@ claimOwnerSlot.set(claimOwnerId);
 const writeFlights = sharedMap<string, Promise<void>>(
   'agentOnboarding.firstRunStoreWrites'
 );
+const fallbackRecords = sharedMap<string, AgentOnboardingRunRecord>(
+  'agentOnboarding.firstRunFallbackRecords'
+);
 
 async function serializeWrite(
   provisionId: string,
@@ -85,7 +88,21 @@ export async function claimAgentOnboardingRun(
   | { outcome: 'recovered'; record: AgentOnboardingRunRecord }
 > {
   const store = getAgentOnboardingRunStore();
-  if (!store) return { outcome: 'enqueue' };
+  if (!store) {
+    const existing = fallbackRecords.get(initial.provisionId);
+    if (!existing) {
+      fallbackRecords.set(initial.provisionId, initial);
+      return { outcome: 'enqueue' };
+    }
+    if (
+      existing.status === 'enqueued' ||
+      existing.status === 'completed' ||
+      existing.status === 'failed'
+    ) {
+      return { outcome: 'recovered', record: existing };
+    }
+    return { outcome: 'owned-by-another-pass' };
+  }
 
   let ownsClaim = await store.registerIfAbsent(initial.provisionId, initial);
   if (ownsClaim) return { outcome: 'enqueue' };
@@ -141,7 +158,15 @@ export async function recordAgentOnboardingRunEnqueued(
 ): Promise<void> {
   await serializeWrite(initial.provisionId, async () => {
     const store = getAgentOnboardingRunStore();
-    if (!store) return;
+    if (!store) {
+      fallbackRecords.set(initial.provisionId, {
+        ...initial,
+        runId,
+        status: 'enqueued',
+        enqueuedAt,
+      });
+      return;
+    }
     const current = await store.lookup(initial.provisionId);
     if (current?.status === 'completed' || current?.status === 'failed') return;
     await store.register(initial.provisionId, {
@@ -156,13 +181,17 @@ export async function recordAgentOnboardingRunEnqueued(
 export async function forgetAgentOnboardingRunClaim(
   provisionId: string
 ): Promise<void> {
+  fallbackRecords.delete(provisionId);
   await getAgentOnboardingRunStore()?.delete(provisionId);
 }
 
 export async function lookupAgentOnboardingRun(
   provisionId: string
 ): Promise<AgentOnboardingRunRecord | undefined> {
-  return await getAgentOnboardingRunStore()?.lookup(provisionId);
+  return (
+    (await getAgentOnboardingRunStore()?.lookup(provisionId)) ??
+    fallbackRecords.get(provisionId)
+  );
 }
 
 export async function markAgentOnboardingRunTerminal(
@@ -172,9 +201,19 @@ export async function markAgentOnboardingRunTerminal(
 ): Promise<void> {
   await serializeWrite(provisionId, async () => {
     const store = getAgentOnboardingRunStore();
-    if (!store) return;
+    if (!store) {
+      const record = fallbackRecords.get(provisionId);
+      if (record) {
+        fallbackRecords.set(provisionId, { ...record, status, completedAt });
+      }
+      return;
+    }
     const record = await store.lookup(provisionId);
     if (!record) return;
     await store.register(provisionId, { ...record, status, completedAt });
   });
+}
+
+export function clearAgentOnboardingRunFallbackForTesting(): void {
+  fallbackRecords.clear();
 }

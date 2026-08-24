@@ -115,6 +115,7 @@ import {
 } from '../version.js';
 import {
   type OnboardingStepReport,
+  clearAgentOnboardingRuntime,
   handleAgentOnboardingRequest,
   scanAgentOnboardingChannel,
 } from './agent-onboarding.js';
@@ -5591,6 +5592,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             }
             onboardingRetryTimers.clear();
             onboardingRetryAttempts.clear();
+            clearAgentOnboardingRuntime(api);
             // Kick off scheduler shutdown; don't block the event-handler
             // callback. The `finally` block awaits the same stop promise
             // before draining the persistence queues and closing the
@@ -5623,6 +5625,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // this finally call the helper; whichever runs first wins.
       cleanupGatewayStatus();
       removeBridge(accountKey, commandBridge);
+      clearAgentOnboardingRuntime(api);
       // Await the scheduler drain before flushing persistence queues.
       // `stop()` waits for any in-flight tick to finish so its final
       // `setLocalPendingNudge` / `enqueueStageClear` / etc. writes land
