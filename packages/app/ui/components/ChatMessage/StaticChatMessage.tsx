@@ -353,7 +353,7 @@ export function StaticChatMessage({
         return isA2UISendMessageActionConsumed(
           action,
           a2uiActionCompletion?.sentMessageText,
-          a2uiActionCompletion?.sentMessageTexts
+          a2uiActionCompletion?.sentMessageTextIndex
         );
       }
       if (action.event.name === A2UI.action.provisionAgent) {

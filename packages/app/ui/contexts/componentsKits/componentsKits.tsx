@@ -15,8 +15,15 @@ export type A2UIActionCompletion = {
   provisionedTopics?: string[];
   sendMessage: boolean;
   sentMessageText?: string;
-  sentMessageTexts?: string[];
+  sentMessageTextIndex?: A2UIReplyTextIndex;
   configuredProviderIds?: string[];
+};
+
+export type A2UIReplyTextIndex = {
+  /** Last chronological position for each normalized owner reply. */
+  lastIndexByText: ReadonlyMap<string, number>;
+  /** Only reply positions at or after this value apply to the current row. */
+  start: number;
 };
 
 type RenderItemProps = {
