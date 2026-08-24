@@ -125,14 +125,33 @@
   ?:  =(wire p.car)  ~
   ~[leaf+"iris request on the wrong wire" >wire< >p.car<]
 ::
-::  +push-wire-for: the wire a token mint rides while the broker answers.
+::  +reader-wire-for: the wire one reader-sync rides. The revision is what
+::  the broker answers about, so it is what the wire carries.
 ::
-++  push-wire-for
-  |=  [token=@t expiry=@da rid=@uv]
+++  reader-wire-for
+  |=  [reader=@p revision=@ud]
   ^-  wire
   %+  weld
-    /buckets/push/~sampel-palnet/project-files
-  /~sampel-palnet/[token]/(scot %da expiry)/(scot %uv rid)
+    /buckets/reader/~sampel-palnet/project-files
+  /(scot %p reader)/(scot %ud revision)
+::
+::  +granted-count: pairs currently holding a grant, whatever their sync state.
+::
+++  granted-count
+  |=  st=state-0:bu
+  ^-  @ud
+  %-  lent
+  %+  skim  ~(val by readers.st)
+  |=(sync=reader-sync:bu ?=(%granted -.desired.sync))
+::
+::  +owed-count: pairs the broker has not caught up with.
+::
+++  owed-count
+  |=  st=state-0:bu
+  ^-  @ud
+  %-  lent
+  %+  skim  ~(val by readers.st)
+  |=(sync=reader-sync:bu (gth revision.sync synced.sync))
 ::
 ++  iris-ok
   ^-  sign-arvo
@@ -142,6 +161,24 @@
   |=  code=@ud
   ^-  sign-arvo
   [%iris %http-response [%finished [code ~] ~]]
+::
+::  +iris-revision: an answer carrying the revision the broker says it holds.
+::
+++  iris-revision
+  |=  [code=@ud revision=@ud]
+  ^-  sign-arvo
+  =/  body=@t
+    (en:json:html (pairs:enjs:format ~[['currentRevision' (numb:enjs:format revision)]]))
+  :+  %iris  %http-response
+  :+  %finished  [code ~]
+  `['application/json' [(met 3 body) body]]
+::
+::  +sync-for: the pair's sync record, for asserting revisions directly.
+::
+++  sync-for
+  |=  [st=state-0:bu reader=@p]
+  ^-  reader-sync:bu
+  (~(got by readers.st) [flag reader])
 ::
 ::  +reader-scries: %genuine plus a group that grants read access.
 ::
@@ -396,7 +433,10 @@
   ::  is told %pending until the broker has it.
   ;<  ~  b
     %+  ex-cards  read-caz
-    :~  (ex-iris (push-wire-for read-token expiry 0v2))
+    :~  (ex-iris (reader-wire-for ~sampel-palnet 1))
+        ::  one timer drives everything still owed, armed on the first sync
+        %-  ex-arvo
+        [/buckets/reader-retry [%b %wait (add ~2026.1.1 ~m1)]]
         (grant-fact 0v2 [%pending ~])
     ==
   =/  push=[=wire =request:http]  (only-iris read-caz)
@@ -413,13 +453,18 @@
               (field 'bucketHost')
               (field 'bucketName')
               (field 'actorShip')
+              (field 'state')
+              ::  the credential goes in a header, never the URL
+              (~(got by (malt header-list.request.push)) 'x-landscape-token')
           ==
     !>  :*  %'PUT'
-            'https://memex.tlon.network/v2/buckets/tokens/sampel-palnet?token=0wsecret'
+            'https://memex.tlon.network/v2/buckets/tokens/sampel-palnet'
             read-token
             'sampel-palnet'
             'project-files'
             'sampel-palnet'
+            'granted'
+            '0wsecret'
         ==
   ::  Only once the broker has accepted it does the token become real: the
   ::  refresh is armed, then the request settles with the token.
@@ -461,12 +506,11 @@
   ::  a key that belongs to no entry is refused
   (ex-equal !>([ok-result ok-name bad-result]) !>([%'authorized' 'private.pdf' %'denied']))
 ::
-::  A mint the broker did not accept is never stored, whatever the refusal.
-::  Memex ships before this agent does, so there is no broker without the
-::  endpoint to accommodate — and storing a token the broker does not have
-::  would hand the client one that 403s on first use.
+::  A refused sync is owed, not lost: the desired state stands and the retry
+::  timer sends it again. What must not happen is handing the token out before
+::  the broker has it, so nothing is served while the pair is still owed.
 ::
-++  test-refused-push-discards-the-mint
+++  test-refused-sync-is-owed-not-served
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
@@ -491,13 +535,13 @@
   ;<  *  b  (do-arvo wire.retry (iris-status 500))
   ;<  sv2=vase  b  get-save
   =/  st2=state-0:bu  !<(state-0:bu sv2)
-  ::  neither refusal left anything behind
+  ::  nothing served either way, and both pairs still owed
   %+  ex-equal
     !>  :*  (~(has by read-tokens.st) flag)
-            ~(wyt by object-capabilities.st)
-            ~(wyt by object-capabilities.st2)
+            (owed-count st)
+            (owed-count st2)
         ==
-  !>([%.n 0 0])
+  !>([%.n 1 2])
 ::
 ::  Deleting a folder has to take the uploads underneath it. Their entries are
 ::  deliberately absent from the manifest until the object lands, so they are
@@ -536,12 +580,13 @@
     |=(ses=upload-session:bu name.entry.ses)
   (ex-equal !>([before survivors]) !>([2 ~['outside.pdf']]))
 ::
-::  A mint lives only on the wire while the broker answers, so the revocation
-::  pass cannot see it. If access is pulled in that window the token must not
-::  be installed on arrival -- the broker has already accepted it, so it is
-::  revoked instead and the requester told no.
+::  A revoke issued while a grant is still in flight supersedes it, because
+::  it carries a higher revision — the broker keeps the newer state whichever
+::  order the two arrive in. The client waiting on that grant is told so
+::  rather than left to time out, and the stale ack changes nothing when it
+::  finally lands.
 ::
-++  test-in-flight-token-rechecks-access
+++  test-revoke-supersedes-an-in-flight-grant
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
@@ -553,25 +598,109 @@
     %-  (do-as ~bus)
     %+  do-poke  %buckets-command-1
     !>(`command:bu`[0v9 [%bucket flag [%issue-bucket-read ~]]])
-  =/  push=[=wire =request:http]  (only-iris mint-caz)
-  ::  access is pulled while the push is in flight
+  =/  grant=[=wire =request:http]  (only-iris mint-caz)
+  ::  access is pulled while that grant is still in flight
   ;<  ~  b  (set-scry-gate revoked-scries)
-  ;<  caz=(list card)  b  (do-arvo wire.push iris-ok)
-  =/  revoke=[=wire =request:http]  (only-iris caz)
+  ;<  revoke-caz=(list card)  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-update !>([group %noun])]
+  ;<  ~  b
+    %+  ex-cards  (skim revoke-caz |=(car=card ?=([%give %fact *] car)))
+    :~  %+  ex-fact  ~[/v1/request/~bus/0v9]
+        :-  %buckets-req-response-1
+        !>  ^-  req-response:bu
+        :-  0v9
+        [%error %not-authorized 'access changed while the token was being issued']
+    ==
+  ::  the stale grant ack arrives afterwards and resurrects nothing
+  ;<  *  b  (do-arvo wire.grant iris-ok)
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
-  ::  nothing installed, the broker told to drop it, the asker refused
-  ;<  ~  b
-    %+  ex-equal
-      !>  :-  ~(wyt by object-capabilities.st)
-          method.request.revoke
-    !>([0 %'DELETE'])
-  %+  ex-cards  (skim caz |=(car=card ?=([%give %fact *] car)))
-  :~  %+  ex-fact  ~[/v1/request/~bus/0v9]
-      :-  %buckets-req-response-1
-      !>  ^-  req-response:bu
-      [0v9 [%error %not-authorized 'no longer permitted to read this bucket']]
-  ==
+  (ex-equal !>((granted-count st)) !>(0))
+::
+::  Re-granting after a revoke has to outrank it, or the broker keeps the
+::  revoked state and the reader never gets back in.
+::
+++  test-regrant-after-revoke-outranks-it
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ;<  *  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v20 [%bucket flag [%issue-bucket-read ~]]])
+  ::  access is pulled, then restored
+  ;<  ~  b  (set-scry-gate revoked-scries)
+  ;<  *  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-update !>([group %noun])]
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v7777)))
+  ;<  *  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v21 [%bucket flag [%issue-bucket-read ~]]])
+  ;<  sv=vase  b  get-save
+  =/  sync=reader-sync:bu  (sync-for !<(state-0:bu sv) ~bus)
+  ::  grant, revoke, grant -- each strictly above the last
+  %+  ex-equal
+    !>([revision.sync -.desired.sync])
+  !>([3 %granted])
+::
+::  The same answer delivered twice settles the pair once. Nothing about the
+::  second delivery should re-answer a client or move the revision.
+::
+++  test-duplicate-delivery-is-harmless
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate genuine-scries)
+  ;<  caz=(list card)  b  (ask 0v22 [%bucket flag [%issue-bucket-read ~]])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  first=(list card)  b  (do-arvo wire.push iris-ok)
+  ;<  again=(list card)  b  (do-arvo wire.push iris-ok)
+  ;<  sv=vase  b  get-save
+  =/  sync=reader-sync:bu  (sync-for !<(state-0:bu sv) ~sampel-palnet)
+  ::  the second delivery answers nobody and changes nothing
+  ;<  ~  b  (ex-cards again ~)
+  %+  ex-equal
+    !>([revision.sync synced.sync])
+  !>([1 1])
+::
+::  If the broker reports a revision above ours, our counter is behind it --
+::  state loss on our side, or an earlier incarnation. Adopt its number and
+::  re-send, or everything we say from here on is discarded as stale.
+::
+++  test-adopts-a-higher-revision-from-the-broker
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate genuine-scries)
+  ;<  caz=(list card)  b  (ask 0v23 [%bucket flag [%issue-bucket-read ~]])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ::  the broker refuses as stale and names what it holds
+  ;<  resent=(list card)  b  (do-arvo wire.push (iris-revision 409 41))
+  =/  retry=[=wire =request:http]  (only-iris resent)
+  ;<  sv=vase  b  get-save
+  =/  sync=reader-sync:bu  (sync-for !<(state-0:bu sv) ~sampel-palnet)
+  ::  we jump past it and say the same thing again at a revision that wins
+  %+  ex-equal
+    !>([revision.sync wire.retry])
+  !>([42 (reader-wire-for ~sampel-palnet 42)])
 ::
 ::  Deleting a group must revoke its buckets' tokens, not crash trying. The
 ::  permission scry answers no-such-path once the group is gone, which makes .^
@@ -615,13 +744,13 @@
   =/  kicked=(list ship)
     %+  murn  caz
     |=(car=card ?.(?=([%give %kick * ^] car) ~ ship.p.car))
-  ::  the reader is kicked and its token dropped and DELETEd
+  ::  the reader is kicked, and its access synced as revoked
   %+  ex-equal
-    !>  :*  ~(wyt by object-capabilities.st)
+    !>  :*  (granted-count st)
             method.request.revoke
             kicked
         ==
-  !>([0 %'DELETE' ~[~bus]])
+  !>([0 %'PUT' ~[~bus]])
 ::
 ::  A revoke the broker did not confirm is not a revoke. Dropping the token
 ::  locally does not stop it working -- the broker honours a pushed token
@@ -650,14 +779,14 @@
       [~sampel-palnet %groups]
     [%fact %group-update !>([group %noun])]
   =/  revoke=[=wire =request:http]  (only-iris caz)
-  ::  the broker fails it; the outbox keeps it and a retry is armed
-  ;<  failed=(list card)  b  (do-arvo wire.revoke (iris-status 503))
+  ::  the broker fails it, so the pair stays owed and a retry is armed
+  ;<  *  b  (do-arvo wire.revoke (iris-status 503))
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
-  ;<  ~  b  (ex-equal !>(~(wyt by revoking.st)) !>(1))
-  ::  the retry timer re-sends it, and a 2xx finally clears the outbox
+  ;<  ~  b  (ex-equal !>((owed-count st)) !>(1))
+  ::  the retry timer re-sends the same revision, and a 2xx settles it
   ;<  retried=(list card)  b
-    (do-arvo /buckets/revoke-retry [%behn %wake ~])
+    (do-arvo /buckets/reader-retry [%behn %wake ~])
   =/  again=[=wire =request:http]  (only-iris retried)
   ;<  *  b  (do-arvo wire.again iris-ok)
   ;<  sv2=vase  b  get-save
@@ -665,9 +794,9 @@
   %+  ex-equal
     !>  :*  wire.again
             method.request.again
-            ~(wyt by revoking.st2)
+            (owed-count st2)
         ==
-  !>([wire.revoke %'DELETE' 0])
+  !>([wire.revoke %'PUT' 0])
 ::
 ::  A reader that took a token and then dropped its subscription still has to
 ::  be revoked. It produces no kick, and the broker honours a pushed token
@@ -707,12 +836,12 @@
   ::  no kick, because it was not subscribed -- but the token is gone locally
   ::  and the broker is told to drop it
   %+  ex-equal
-    !>  :*  ~(wyt by object-capabilities.st)
-            ~(wyt by object-capabilities.st2)
+    !>  :*  (granted-count st)
+            (granted-count st2)
             method.request.revoke
             (lent kicks)
         ==
-  !>([1 0 %'DELETE' 0])
+  !>([1 0 %'PUT' 0])
 ::
 ::  A reader who loses group access stops reading immediately: the host kicks
 ::  the subscription and tells the broker to drop that reader's token, rather
@@ -735,7 +864,7 @@
   ;<  *  b  (do-arvo wire.push iris-ok)
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
-  =/  minted=@ud  ~(wyt by object-capabilities.st)
+  =/  minted=@ud  (granted-count st)
   ::  the reader is subscribed, and then loses read access
   ;<  ~  b
     %-  jab-bowl
@@ -764,15 +893,12 @@
     !>  :*  minted
             method.request.revoke
             url.request.revoke
-            ~(wyt by object-capabilities.st2)
+            (granted-count st2)
             kicked
         ==
   !>  :*  1
-          %'DELETE'
-          %+  rap  3
-          :~  'https://memex.tlon.network/v2/buckets/tokens/sampel-palnet/'
-              (scot %uv 0v1234)  '?token=0wsecret'
-          ==
+          %'PUT'
+          'https://memex.tlon.network/v2/buckets/tokens/sampel-palnet'
           0
           ~[~bus]
       ==

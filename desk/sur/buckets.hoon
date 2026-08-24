@@ -137,6 +137,38 @@
       expires-at=@da
   ==
 ::
+::  $reader-state: what one reader's access to one bucket should look like at
+::  the broker. Granted carries the bearer token; revoked carries nothing
+::  usable, because there is nothing the reader should be able to present.
+::
++$  reader-state
+  $%  [%granted token=@t expires-at=@da]
+      [%revoked ~]
+  ==
+::  $reader-sync: one (bucket, reader) pair as desired state rather than as a
+::  sequence of pushes and revokes.
+::
+::  .revision is strictly increasing per pair and bumped on every access
+::  change -- grant, rotation, revoke alike. The broker keeps only the highest
+::  it has seen, so a delayed or duplicated request is harmless and delivery
+::  order stops mattering: the message says what should be true, not what to
+::  do. .synced is the highest revision the broker has confirmed, so anything
+::  above it is still owed.
+::
+::  .awaiting is the client request still holding open for this pair's grant
+::  to land at the broker. It rides here rather than on the wire so a retry
+::  does not lose it.
+::
++$  reader-sync
+  $:  revision=@ud
+      desired=reader-state
+      synced=@ud
+      awaiting=(unit request-id)
+  ==
+::  $reader-key: a bucket and one of its readers.
+::
++$  reader-key  [=flag reader=ship]
+::
 ::  $read-token: the bucket-read capability this ship currently holds.
 ::
 ::  Every ship keeps its own, refreshed on a timer, so a local client always
@@ -353,12 +385,10 @@
       sessions=(map @uv upload-session)
       object-capabilities=(map @t object-capability)
       read-tokens=(map flag read-token)
-      ::  .revoking is tokens we have told the broker to drop but have not
-      ::  seen it confirm, mapped to when they lapse anyway. A revoke that is
-      ::  merely attempted is not a revoke: the broker honours a pushed token
-      ::  without asking us again, so a lost DELETE would leave a removed
-      ::  reader with the whole bucket until expiry.
-      revoking=(map @t @da)
+      ::  .readers is the desired access state we owe the broker, per bucket
+      ::  and reader. It replaces separate push and revoke effects: both are
+      ::  the same idempotent sync of one pair at one revision.
+      readers=(map reader-key reader-sync)
       reservations=(map @t @uv)
       ::  .token-for is set only when the forwarded action was a request for
       ::  a read token, and names the bucket it is for. It answers two

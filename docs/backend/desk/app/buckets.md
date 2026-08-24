@@ -119,7 +119,21 @@ Read access is uniform across a Bucket, so a reader gets one token for the whole
 4. The reader exchanges the token at Memex for a signed URL. Memex answers from its own table without asking the ship, so reads cost no round trip to the host and survive it being offline.
 5. The host re-mints on a timer before the token lapses, so a client never waits on one.
 
-Because the broker honours a pushed token without asking again, **revocation is the host's job and has to be prompt and complete**. It is driven by the stored capabilities rather than by the subscription list: on any relevant `%groups` change, each token on an affected Bucket is re-checked against the group for its own reader and Bucket. That covers a reader who took a token and then unsubscribed, and it stops losing one Bucket from revoking tokens for others. A revocation the broker has not confirmed is retried until it does, or until the token would have lapsed anyway. Expiry is a backstop for a host that dies, not the mechanism.
+### Desired state, not push and revoke
+
+Access is synced as **versioned desired state**, one record per (Bucket, reader), rather than as a push effect and a revoke effect. Grant, rotation and revoke are the same operation: `PUT /v2/buckets/tokens/<host>` carrying the Bucket, the reader, a strictly increasing `revision`, and either a `granted` state with its token and expiry or a `revoked` state with nothing usable.
+
+This is what makes delivery order stop mattering. The broker keeps only the highest revision it has seen, so a message says what should be true rather than what to do — and a delayed, duplicated or retried request loses to the truth instead of overwriting it. A revoke can be issued while a grant is still in flight; whichever arrives second, the revoke wins.
+
+Consequences worth knowing:
+
+-   **Retries are blind and safe.** Anything whose revision is above what the broker has confirmed is still owed, and one timer re-sends all of it. A stale write is the protocol working, not a failure.
+-   **The broker's answer carries `currentRevision`.** If it is ahead of ours — state loss here, or an earlier incarnation of this agent — we adopt it and re-send, rather than being discarded as stale from then on. `GET /v2/buckets/tokens/<host>/revision` exists for explicit recovery, but the common path needs no separate lookup.
+-   **Nothing is served until the broker confirms it.** A grant is handed to a client only once its revision is synced, so a client never holds a token that 403s.
+-   **A superseded grant answers its waiter.** A client blocked on a grant that a revoke overtook is told so, rather than left to time out.
+-   Revocation is still driven by the stored records rather than the subscription list, so a reader that took a token and then unsubscribed is covered, and losing one Bucket does not revoke tokens for others. Expiry remains a backstop for a host that dies, not the mechanism.
+
+The credential goes in `X-Landscape-Token`. Neither it nor a bearer read token ever appears in a path or query string, where it would land in access logs.
 
 **Memex ships before this agent does.** A mint the broker refuses is never stored, whatever the refusal — including a 404 from a broker without the endpoint — because a token the broker does not hold would 403 on first use. There is deliberately no compatibility path for the reverse order.
 

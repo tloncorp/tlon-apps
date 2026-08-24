@@ -740,14 +740,14 @@
 ++  held-read-token
   |=  [=flag:b actor=ship]
   ^-  (unit read-token:b)
-  %-  ~(rep by object-capabilities)
-  |=  [[token=@t aut=object-capability:b] acc=(unit read-token:b)]
-  ?^  acc  acc
-  ?.  =(%read kind.aut)  ~
-  ?.  =(flag flag.aut)  ~
-  ?.  =(actor actor.aut)  ~
-  ?.  (gth expires-at.aut (add now.bowl token-margin))  ~
-  `[token expires-at.aut]
+  ?~  got=(~(get by readers) [flag actor])  ~
+  =/  sync=reader-sync:b  u.got
+  ::  Only a grant the broker has confirmed is worth handing out; anything
+  ::  still owed would 403 on first use.
+  ?.  =(synced.sync revision.sync)  ~
+  ?.  ?=(%granted -.desired.sync)  ~
+  ?.  (gth expires-at.desired.sync (add now.bowl token-margin))  ~
+  `[token.desired.sync expires-at.desired.sync]
 ::
 ::  +issue-read-token: mint a reader's bucket-read token, reusing the one it
 ::  already holds while that has useful life left.
@@ -771,41 +771,8 @@
     (answer [%error %unknown 'this ship cannot reach storage'])
   =/  token=@t  (scot %uv `@uv`eny.bowl)
   =/  expiry=@da  (add now.bowl read-window)
-  =.  cor  (push-read-token flag token actor expiry rid u.secret)
+  =.  cor  (sync-reader flag actor [%granted token expiry] rid)
   (answer [%pending ~])
-::
-::  +confirm-read-token: the broker accepted a mint, so it becomes real.
-::
-++  confirm-read-token
-  |=  [=flag:b token=@t actor=ship expiry=@da rid=(unit request-id:b)]
-  ^+  cor
-  ::  Keeping the mint on the wire means the revocation pass could not see
-  ::  it, so access may have been pulled -- or the bucket deleted -- while
-  ::  the broker was answering. Recheck before installing, and if it is no
-  ::  longer allowed, tell the broker to drop what it just accepted.
-  =/  allowed=?
-    ?~  sp=(~(get by spaces) flag)  |
-    ?.  =(%pub net.u.sp)  |
-    ?~  state.u.sp  |
-    (group-can-read group.u.state.u.sp flag actor)
-  ?.  allowed
-    =.  cor  (revoke-read-tokens ~[[token expiry]])
-    %-  (slog leaf+"buckets: read token no longer permitted, revoked" ~)
-    ?~  rid  cor
-    %^    deny
-        u.rid
-      (answer-paths actor u.rid)
-    [%not-authorized 'no longer permitted to read this bucket']
-  =.  object-capabilities
-    (~(put by object-capabilities) token [%read flag ~ actor expiry])
-  =/  tok=read-token:b  [token expiry]
-  ::  Only our own token goes in read-tokens, which is what the local scry
-  ::  serves and what the refresh timer keeps current. A remote reader's ship
-  ::  stores its own copy when the answer lands there.
-  =?  read-tokens  =(actor our.bowl)  (~(put by read-tokens) flag tok)
-  =?  cor  =(actor our.bowl)  (arm-token-refresh flag expiry)
-  ?~  rid  cor
-  (respond u.rid (answer-paths actor u.rid) [%token tok])
 ::
 ::  +issue-delete-capability: mint a short-lived delete grant for one ready
 ::  file. Deletes stay per-object — they are destructive and unrecoverable.
@@ -870,158 +837,202 @@
   ?.  ?=([%s *] jon)  ~
   `p.jon
 ::
-::  +push-wire: carries a mint across its round trip to the broker.
+::  +sync-reader: record what a reader's access should be, and tell the
+::  broker. Grant, rotation and revoke are all this one operation.
 ::
-::  The token, its expiry, the reader it is for and the request waiting on it
-::  all ride the wire rather than a state field, because a token the broker
-::  has not accepted must not be visible anywhere — and because a restart
-::  mid-flight then drops the mint cleanly instead of stranding it.
+::  The revision is what makes delivery order stop mattering: the broker keeps
+::  only the highest it has seen, so a delayed or duplicated request loses to
+::  the truth rather than overwriting it. That is why a revoke can be sent
+::  while a grant is still in flight, and why a retry of that grant is
+::  harmless when it lands afterwards.
 ::
-++  push-wire
-  |=  [=flag:b token=@t actor=ship expiry=@da rid=(unit request-id:b)]
-  ^-  wire
-  %+  weld
-    /buckets/push/(scot %p ship.flag)/[name.flag]
-  /(scot %p actor)/[token]/(scot %da expiry)/[?~(rid %none (scot %uv u.rid))]
-::
-++  revoke-wire
-  |=  token=@t
-  ^-  wire
-  /buckets/revoke/[token]
-::
-::  +push-read-token: register a mint with the broker before handing it out.
-::
-::  The host is the only party that can evaluate group membership, so it tells
-::  the broker who may read rather than being asked once per object. Nothing
-::  is stored here: +confirm-read-token stores on a 2xx, so a token in state
-::  is one the broker is known to hold.
-::
-++  push-read-token
-  |=  [=flag:b token=@t actor=ship expiry=@da rid=(unit request-id:b) secret=@t]
+++  sync-reader
+  |=  [=flag:b reader=ship desired=reader-state:b awaiting=(unit request-id:b)]
   ^+  cor
-  =/  st=bucket-state:b  (need-state flag)
+  =/  key=reader-key:b  [flag reader]
+  =/  prior=(unit reader-sync:b)  (~(get by readers) key)
+  =/  revision=@ud  ?~(prior 1 +(revision.u.prior))
+  =/  synced=@ud  ?~(prior 0 synced.u.prior)
+  ::  A client still waiting on the grant this supersedes will never be
+  ::  answered by it -- the broker will keep the newer state -- so tell it
+  ::  now rather than leaving it to time out.
+  =?  cor  ?&(?=(^ prior) ?=(^ awaiting.u.prior) !=(awaiting `u.awaiting.u.prior))
+    =/  stale=request-id:b  u.awaiting.u.prior
+    %^    deny
+        stale
+      (answer-paths reader stale)
+    [%not-authorized 'access changed while the token was being issued']
+  =.  readers  (~(put by readers) key [revision desired synced awaiting])
+  =/  idle=?  ?~(prior & =(revision.u.prior synced.u.prior))
+  =.  cor  (emil (sync-cards ~[[key revision desired]]))
+  ::  One timer drives everything still owed; arm it only when starting from
+  ::  nothing owed, or every change would stack another.
+  ?.  idle  cor
+  arm-reader-retry
+::
+::  +owed: pairs the broker has not caught up with.
+::
+++  owed
+  ^-  (list [key=reader-key:b revision=@ud desired=reader-state:b])
+  %+  murn  ~(tap by readers)
+  |=  [key=reader-key:b sync=reader-sync:b]
+  ^-  (unit [reader-key:b @ud reader-state:b])
+  ?:  (lte revision.sync synced.sync)  ~
+  `[key revision.sync desired.sync]
+::
+::  +sync-cards: one request per pair. The credential goes in a header: a
+::  query string lands in access logs, and so would a bearer token in a path.
+::
+++  sync-cards
+  |=  wants=(list [key=reader-key:b revision=@ud desired=reader-state:b])
+  ^-  (list card)
+  ?~  wants  ~
+  =/  secret=(unit @t)  genuine-secret
+  ?~  secret
+    %-  (slog leaf+"buckets: no %genuine secret, cannot sync readers" ~)
+    ~
+  %+  murn  wants
+  |=  [key=reader-key:b revision=@ud desired=reader-state:b]
+  ^-  (unit card)
+  ?~  sp=(~(get by spaces) flag.key)  ~
+  ?~  st-unit=state.u.sp  ~
+  =/  st=bucket-state:b  u.st-unit
+  =/  common=(list [@t json])
+    :~  ['bucketHost' s+(ship-text ship.flag.key)]
+        ['bucketName' s+(scot %tas name.flag.key)]
+        ['bucketId' s+(scot %ud id.bucket.st)]
+        ['actorShip' s+(ship-text reader.key)]
+        ['revision' (numb:enjs:format revision)]
+    ==
   =/  body=@t
     %-  en:json:html
     %-  pairs:enjs:format
-    :~  ['token' s+token]
-        ['bucketHost' s+(ship-text ship.flag)]
-        ['bucketName' s+(scot %tas name.flag)]
-        ['bucketId' s+(scot %ud id.bucket.st)]
-        ['actorShip' s+(ship-text actor)]
-        :-  'expiresAtMillis'
-        (numb:enjs:format (mul 1.000 (unt:chrono:userlib expiry)))
+    ?-  -.desired
+        %revoked  [['state' s+'revoked'] common]
+        %granted
+      :*  ['state' s+'granted']
+          ['token' s+token.desired]
+          :-  'expiresAtMillis'
+          (numb:enjs:format (mul 1.000 (unt:chrono:userlib expires-at.desired)))
+          common
+      ==
     ==
   =/  url=@t
-    %+  rap  3
-    :~  broker-base  '/tokens/'  (ship-text our.bowl)
-        '?token='  (url-encode secret)
-    ==
+    (rap 3 broker-base '/tokens/' (ship-text our.bowl) ~)
   =/  =request:http
     :*  %'PUT'  url
-        ~[['content-type' 'application/json']]
+        :~  ['content-type' 'application/json']
+            ['x-landscape-token' u.secret]
+        ==
         `[(met 3 body) body]
     ==
-  %-  emit
-  :*  %pass  (push-wire flag token actor expiry rid)  %arvo  %i
+  :-  ~
+  :*  %pass  (reader-wire key revision)  %arvo  %i
       %request  request  *outbound-config:iris
   ==
 ::
-::  +revoke-read-tokens: tell the broker to stop honouring tokens now rather
-::  than when they lapse. Fire-and-forget — expiry is the backstop if it
-::  fails, which is the whole reason tokens have one.
+::  +broker-revision: the revision the broker says it holds, if it said.
 ::
-++  revoke-read-tokens
-  |=  tokens=(list [token=@t expires-at=@da])
-  ^+  cor
-  ::  Only worth chasing while the broker would still honour it.
-  =/  live=(list [token=@t expires-at=@da])
-    (skim tokens |=([token=@t expiry=@da] (gth expiry now.bowl)))
-  ?~  live  cor
-  =/  idle=?  =(~ revoking)
-  =.  revoking
-    %-  ~(rep in (silt live))
-    |=  [[token=@t expiry=@da] acc=_revoking]
-    (~(put by acc) token expiry)
-  =.  cor  (emil (revoke-cards (turn live |=([token=@t *] token))))
-  ::  One timer drives the whole outbox, armed when it stops being empty.
-  ?.  idle  cor
-  arm-revoke-retry
+::  It only matters when it is ahead of ours; a body we cannot parse simply
+::  tells us nothing, which is not an error.
 ::
-::  +revoke-cards: a DELETE per token, or none if we cannot authenticate.
+++  broker-revision
+  |=  res=client-response:iris
+  ^-  (unit @ud)
+  ?.  ?=(%finished -.res)  ~
+  ?~  full-file.res  ~
+  ?~  jon=(de:json:html q.data.u.full-file.res)  ~
+  ?.  ?=([%o *] u.jon)  ~
+  ?~  got=(~(get by p.u.jon) 'currentRevision')  ~
+  ?.  ?=([%n *] u.got)  ~
+  `(rash p.u.got dem)
 ::
-++  revoke-cards
-  |=  tokens=(list @t)
-  ^-  (list card)
-  ?~  tokens  ~
-  =/  secret=(unit @t)  genuine-secret
-  ?~  secret
-    %-  (slog leaf+"buckets: no %genuine secret, cannot revoke read tokens" ~)
-    ~
-  =/  auth=@t  (url-encode u.secret)
-  %+  turn  tokens
-  |=  token=@t
-  ^-  card
-  =/  url=@t
-    %+  rap  3
-    :~  broker-base  '/tokens/'  (ship-text our.bowl)
-        '/'  token  '?token='  auth
-    ==
-  :*  %pass  (revoke-wire token)  %arvo  %i
-      %request  `request:http`[%'DELETE' url ~ ~]
-      *outbound-config:iris
-  ==
+++  reader-wire
+  |=  [key=reader-key:b revision=@ud]
+  ^-  wire
+  %+  weld
+    /buckets/reader/(scot %p ship.flag.key)/[name.flag.key]
+  /(scot %p reader.key)/(scot %ud revision)
 ::
-++  arm-revoke-retry
+++  arm-reader-retry
   ^+  cor
   %-  emit
-  :*  %pass  /buckets/revoke-retry  %arvo  %b
+  :*  %pass  /buckets/reader-retry  %arvo  %b
       %wait  (add now.bowl push-retry)
   ==
 ::
-::  +retry-revocations: re-send everything the broker has not confirmed.
+::  +retry-readers: re-send everything still owed.
 ::
-::  Dropping a token locally is not what stops it working, so this keeps
-::  going until the broker says it has it -- or until the token would have
-::  lapsed, at which point the broker refuses it regardless.
+::  Blind retries are safe here — a stale one loses to the revision the broker
+::  already holds — so this needs no bookkeeping beyond what is owed.
 ::
-++  retry-revocations
+++  retry-readers
   ^+  cor
-  =.  revoking
-    %-  malt
-    %+  skim  ~(tap by revoking)
-    |=([token=@t expiry=@da] (gth expiry now.bowl))
-  ?:  =(~ revoking)  cor
-  =.  cor  (emil (revoke-cards ~(tap in ~(key by revoking))))
-  arm-revoke-retry
+  =/  wants  owed
+  ?~  wants  cor
+  =.  cor  (emil (sync-cards wants))
+  arm-reader-retry
 ::
-::  +read-caps: every read token we have minted that `test` accepts.
+::  +confirm-reader: the broker has caught up to `revision` for this pair.
 ::
-++  read-caps
-  |=  test=$-([@t object-capability:b] ?)
-  ^-  (list @t)
-  %+  murn  ~(tap by object-capabilities)
-  |=  [token=@t aut=object-capability:b]
-  ^-  (unit @t)
-  ?.  =(%read kind.aut)  ~
-  ?.((test token aut) ~ `token)
+::  If it reports a higher revision than we sent, our counter is behind its --
+::  state loss on our side, or a message from an earlier incarnation. Adopt
+::  its number and re-send, so our desired state wins rather than being
+::  silently discarded as stale forever.
 ::
-::  +forget-read-caps: drop minted read tokens locally and at the broker.
-::
-++  forget-read-caps
-  |=  tokens=(list @t)
+++  confirm-reader
+  |=  [key=reader-key:b sent=@ud theirs=(unit @ud)]
   ^+  cor
-  ::  Read the expiries before deleting: they are how long the revocation is
-  ::  worth retrying for.
-  =/  doomed=(list [token=@t expires-at=@da])
-    %+  murn  tokens
-    |=  token=@t
-    ^-  (unit [@t @da])
-    ?~(got=(~(get by object-capabilities) token) ~ `[token expires-at.u.got])
-  =.  object-capabilities
-    %-  ~(rep in (silt tokens))
-    |=  [token=@t acc=_object-capabilities]
-    (~(del by acc) token)
-  (revoke-read-tokens doomed)
+  ?~  got=(~(get by readers) key)  cor
+  =/  sync=reader-sync:b  u.got
+  =?  sync  (gth sent synced.sync)  sync(synced sent)
+  ::  The broker is ahead of us, so our counter lost state or an earlier
+  ::  incarnation of it got further. Adopt its number and re-send, or our
+  ::  desired state is discarded as stale from here on.
+  ?:  ?&(?=(^ theirs) (gth u.theirs revision.sync))
+    =.  sync  sync(revision +(u.theirs), synced u.theirs)
+    =.  readers  (~(put by readers) key sync)
+    %-  (slog leaf+"buckets: broker was ahead of us, resending" ~)
+    (emil (sync-cards ~[[key revision.sync desired.sync]]))
+  =.  readers  (~(put by readers) key sync)
+  ::  Only a confirmed grant answers a waiting client, and only once the
+  ::  broker is level with what we last decided -- an ack for a superseded
+  ::  revision says nothing about the token we are about to hand over.
+  ?.  =(synced.sync revision.sync)  cor
+  ?~  awaiting.sync  cor
+  ?.  ?=(%granted -.desired.sync)  cor
+  =/  rid=request-id:b  u.awaiting.sync
+  =.  readers  (~(put by readers) key sync(awaiting ~))
+  =/  tok=read-token:b  [token.desired.sync expires-at.desired.sync]
+  =?  read-tokens  =(reader.key our.bowl)
+    (~(put by read-tokens) flag.key tok)
+  =?  cor  =(reader.key our.bowl)
+    (arm-token-refresh flag.key expires-at.desired.sync)
+  (respond rid (answer-paths reader.key rid) [%token tok])
+::
+::  +granted-readers: pairs `test` accepts that currently hold a grant.
+::
+++  granted-readers
+  |=  test=$-([reader-key:b reader-sync:b] ?)
+  ^-  (list reader-key:b)
+  %+  murn  ~(tap by readers)
+  |=  [key=reader-key:b sync=reader-sync:b]
+  ^-  (unit reader-key:b)
+  ?.  ?=(%granted -.desired.sync)  ~
+  ?.((test key sync) ~ `key)
+::
+::  +revoke-readers: move each pair to revoked at a higher revision.
+::
+::  There is nothing to undo locally beyond the desired state itself: the
+::  grant only ever lived here and at the broker, and a revoked record is
+::  what stops +held-read-token and the read verdict honouring it.
+::
+++  revoke-readers
+  |=  keys=(list reader-key:b)
+  ^+  cor
+  %+  roll  keys
+  |=  [key=reader-key:b acc=_cor]
+  (sync-reader:acc flag.key reader.key [%revoked ~] ~)
 ::
 ++  url-encode
   |=  txt=@t
@@ -1063,9 +1074,9 @@
   =.  read-tokens  (~(del by read-tokens) flag)
   ::  On a subscriber this finds nothing: only a host mints, so only a host
   ::  has anything to revoke.
-  %-  forget-read-caps
-  %-  read-caps
-  |=([token=@t aut=object-capability:b] =(flag flag.aut))
+  %-  revoke-readers
+  %-  granted-readers
+  |=([key=reader-key:b sync=reader-sync:b] =(flag flag.key))
 ::
 ::  +prune-broker-authority: drop expired capabilities, expired pending
 ::  sessions, and any reservation whose session is gone.
@@ -1099,10 +1110,8 @@
     %+  skim  ~(tap by read-tokens)
     |=  [=flag:b tok=read-token:b]
     (gth expires-at.tok now.bowl)
-  =.  revoking
-    %-  malt
-    %+  skim  ~(tap by revoking)
-    |=([token=@t expiry=@da] (gth expiry now.bowl))
+  ::  readers is desired state, not expiring authority: a revoked record has
+  ::  to outlive the token it replaced, or the broker never hears about it.
   cor
 ::
 ++  drop-bucket-sessions
@@ -1495,9 +1504,20 @@
 ++  broker-object-verdict
   |=  [kind=object-kind:b token=@t object=@t]
   ^-  json
-  ?~  got=(~(get by object-capabilities) token)
-    (refuse %no-such-capability)
-  =/  aut=object-capability:b  u.got
+  ::  A read token lives in the desired state we sync, a delete token in the
+  ::  per-object capabilities. Resolving both to the same shape here keeps the
+  ::  checks below common; a revoked reader resolves to nothing, so the arm
+  ::  refuses it exactly as it refuses an unknown token.
+  =/  resolved=(unit object-capability:b)
+    ?:  =(%delete kind)  (~(get by object-capabilities) token)
+    %-  ~(rep by readers)
+    |=  [[key=reader-key:b sync=reader-sync:b] acc=(unit object-capability:b)]
+    ?^  acc  acc
+    ?.  ?=(%granted -.desired.sync)  ~
+    ?.  =(token token.desired.sync)  ~
+    `[%read flag.key ~ reader.key expires-at.desired.sync]
+  ?~  resolved  (refuse %no-such-capability)
+  =/  aut=object-capability:b  u.resolved
   ?.  =(kind kind.aut)  (refuse %capability-wrong-kind)
   ?.  (gth expires-at.aut now.bowl)
     (broker-simple-verdict 'expired')
@@ -1819,55 +1839,34 @@
     ::  Gall loops the poke back to us and it is served locally.
     (renew-read-token flag)
   ::
-      [%buckets %push host=@ name=@ who=@ token=@ exp=@ rid=@ ~]
+      [%buckets %reader host=@ name=@ who=@ rev=@ ~]
     ?.  ?=([%iris %http-response *] sign-arvo)  cor
     =*  res  client-response.sign-arvo
     ?:  ?=(%progress -.res)  cor
-    =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
-    =/  actor=ship  (slav %p who.pole)
-    =/  expiry=@da  (slav %da exp.pole)
-    =/  rid=(unit request-id:b)
-      ?:(=(%none rid.pole) ~ `(slav %uv rid.pole))
-    ::  %cancel is terminal, not silence: leaving it unhandled strands the
-    ::  requester's held HTTP request, which has no forwarding timeout of its
-    ::  own, and leaves a scheduled refresh with no timer armed. Treat it as
-    ::  the refusal it is.
+    =/  key=reader-key:b
+      :-  [(slav %p host.pole) `@tas`name.pole]
+      (slav %p who.pole)
+    =/  sent=@ud  (slav %ud rev.pole)
+    ::  A cancelled request is a refusal, not silence. Nothing is undone: the
+    ::  desired state stands and the retry timer will send it again.
     ?:  ?=(%cancel -.res)
-      %-  (slog leaf+"buckets: read token push was cancelled" ~)
-      =?  cor  =(actor our.bowl)  (retry-read-token flag)
-      ?~  rid  cor
-      %^  deny  u.rid  (answer-paths actor u.rid)
-      [%unknown 'the storage request was cancelled']
+      %-  (slog leaf+"buckets: reader sync was cancelled" ~)
+      cor
     =/  code=@ud  status-code.response-header.res
+    =/  theirs=(unit @ud)  (broker-revision res)
     ?:  &((gte code 200) (lth code 300))
-      (confirm-read-token flag `@t`token.pole actor expiry rid)
-    ::  Refused: the token was never stored, so there is nothing to undo. Our
-    ::  own mint retries on a short timer; a remote reader's ship re-asks.
-    =/  why=tang
-      ~[leaf+"buckets: broker refused a read token, status {<code>}"]
-    %-  (slog why)
-    =?  cor  =(actor our.bowl)  (retry-read-token flag)
-    ?~  rid  cor
-    (deny u.rid (answer-paths actor u.rid) %unknown 'storage refused the read token')
-  ::
-      [%buckets %revoke-retry ~]
-    ?.  ?=([%behn %wake *] sign-arvo)  cor
-    retry-revocations
-  ::
-      [%buckets %revoke token=@ ~]
-    ?.  ?=([%iris %http-response *] sign-arvo)  cor
-    =*  res  client-response.sign-arvo
-    ?.  ?=(%finished -.res)  cor
-    =/  code=@ud  status-code.response-header.res
-    ::  Confirmed: stop chasing it.
-    ?:  &((gte code 200) (lth code 300))
-      cor(revoking (~(del by revoking) `@t`token.pole))
-    ::  Left in the outbox for the retry timer. A 404 counts as confirmed --
-    ::  the broker does not have it, which is the outcome we wanted.
-    ?:  =(404 code)
-      cor(revoking (~(del by revoking) `@t`token.pole))
-    %-  (slog leaf+"buckets: read token revoke failed, status {<code>}" ~)
+      (confirm-reader key sent theirs)
+    ::  A stale write is the protocol working, not a failure: the broker kept
+    ::  a higher revision and told us which. Adopt it rather than retrying the
+    ::  number it just refused -- the answer carries currentRevision either
+    ::  way, so this needs no separate lookup.
+    ?^  theirs  (confirm-reader key sent theirs)
+    %-  (slog leaf+"buckets: reader sync refused, status {<code>}" ~)
     cor
+  ::
+      [%buckets %reader-retry ~]
+    ?.  ?=([%behn %wake *] sign-arvo)  cor
+    retry-readers
   ::
       [%buckets %req host=@ rid=@ %wake ~]
     ?.  ?=([%behn %wake *] sign-arvo)  cor
@@ -1987,10 +1986,10 @@
   ::  each token's own reader and bucket catches those, and stops a reader
   ::  losing one bucket from having its tokens for other buckets revoked.
   =.  cor
-    %-  forget-read-caps
-    %-  read-caps
-    |=  [token=@t aut=object-capability:b]
-    ?~  group=(~(get by affected) flag.aut)  |
-    !(group-can-read u.group flag.aut actor.aut)
+    %-  revoke-readers
+    %-  granted-readers
+    |=  [key=reader-key:b sync=reader-sync:b]
+    ?~  group=(~(get by affected) flag.key)  |
+    !(group-can-read u.group flag.key reader.key)
   (emil kicks)
 --
