@@ -3728,6 +3728,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       string,
       ReturnType<typeof setTimeout>
     >();
+    const onboardingRetryFlights = new Set<Promise<void>>();
+    let drainingAgentOnboarding = false;
     const onboardingRetryAttempts = new Map<string, number>();
     clearAgentOnboardingRetries = () => {
       for (const timer of onboardingRetryTimers.values()) {
@@ -3737,14 +3739,24 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       onboardingRetryAttempts.clear();
     };
     const scheduleAgentOnboardingRetry = (nest: string) => {
-      if (opts.abortSignal?.aborted || onboardingRetryTimers.has(nest)) return;
+      if (
+        drainingAgentOnboarding ||
+        opts.abortSignal?.aborted ||
+        onboardingRetryTimers.has(nest)
+      )
+        return;
       const attempt = (onboardingRetryAttempts.get(nest) ?? 0) + 1;
       onboardingRetryAttempts.set(nest, attempt);
       const delayMs = Math.min(1_000 * 2 ** (attempt - 1), 30_000);
       const timer = setTimeout(() => {
         onboardingRetryTimers.delete(nest);
         if (!opts.abortSignal?.aborted) {
-          void scanAgentOnboardingNest(nest);
+          const flight = scanAgentOnboardingNest(nest);
+          onboardingRetryFlights.add(flight);
+          void flight.then(
+            () => onboardingRetryFlights.delete(flight),
+            () => onboardingRetryFlights.delete(flight)
+          );
         }
       }, delayMs);
       timer.unref?.();
@@ -5655,9 +5667,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // drop during the main work). Both the late abort listener and
       // this finally call the helper; whichever runs first wins.
       cleanupGatewayStatus();
+      drainingAgentOnboarding = true;
       clearAgentOnboardingRetries?.();
       clearAgentOnboardingRetries = null;
       removeBridge(accountKey, commandBridge);
+      await Promise.allSettled([...onboardingRetryFlights]);
       drainingChannelFirehose = true;
       await Promise.allSettled([...channelFirehoseFlights]);
       await drainAgentOnboardingRuntime(api);

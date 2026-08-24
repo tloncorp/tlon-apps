@@ -53,6 +53,9 @@ const fallbackRecords = sharedMap<string, AgentOnboardingRunRecord>(
 const pendingOutcomes = sharedMap<string, AgentOnboardingRunOutcome>(
   'agentOnboarding.pendingFirstRunOutcomes'
 );
+const outcomeFlights = sharedMap<string, Promise<boolean>>(
+  'agentOnboarding.firstRunOutcomeFlights'
+);
 const MAX_PENDING_OUTCOMES = 64;
 
 async function serializeWrite<T>(
@@ -174,6 +177,7 @@ export async function recordAgentOnboardingRunEnqueued(
   runId: string,
   enqueuedAt: number
 ): Promise<void> {
+  await outcomeFlights.get(runId);
   const outcome = pendingOutcomes.get(runId);
   pendingOutcomes.delete(runId);
   await serializeWrite(initial.provisionId, async () => {
@@ -200,7 +204,26 @@ export async function recordAgentOnboardingRunEnqueued(
   });
 }
 
-export async function recordAgentOnboardingRunOutcome(
+export function recordAgentOnboardingRunOutcome(
+  runId: string,
+  outcome: AgentOnboardingRunOutcome
+): Promise<boolean> {
+  const existing = outcomeFlights.get(runId);
+  if (existing) return existing;
+  const flight = recordAgentOnboardingRunOutcomeInternal(runId, outcome);
+  outcomeFlights.set(runId, flight);
+  void flight.then(
+    () => {
+      if (outcomeFlights.get(runId) === flight) outcomeFlights.delete(runId);
+    },
+    () => {
+      if (outcomeFlights.get(runId) === flight) outcomeFlights.delete(runId);
+    }
+  );
+  return flight;
+}
+
+async function recordAgentOnboardingRunOutcomeInternal(
   runId: string,
   outcome: AgentOnboardingRunOutcome
 ): Promise<boolean> {
@@ -230,6 +253,19 @@ export async function recordAgentOnboardingRunOutcome(
     else fallbackRecords.set(stored.provisionId, updated);
   });
   return true;
+}
+
+export async function lookupNewestAgentOnboardingRunForGroup(
+  groupId: string
+): Promise<AgentOnboardingRunRecord | undefined> {
+  const records = getAgentOnboardingRunStore()
+    ? (await getAgentOnboardingRunStore()!.entries()).map(
+        (entry) => entry.value
+      )
+    : [...fallbackRecords.values()];
+  return records
+    .filter((record) => record.groupId === groupId)
+    .sort((a, b) => b.claimedAt - a.claimedAt)[0];
 }
 
 export async function forgetAgentOnboardingRunClaim(
@@ -271,4 +307,5 @@ export async function markAgentOnboardingRunTerminal(
 export function clearAgentOnboardingRunFallbackForTesting(): void {
   fallbackRecords.clear();
   pendingOutcomes.clear();
+  outcomeFlights.clear();
 }
