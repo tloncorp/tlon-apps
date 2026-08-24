@@ -372,6 +372,25 @@ async function handleAgentOnboardingRequestInternal(
     await configureProviders(context, history, request, deps);
     return true;
   }
+  const historyRequest = findProvisionRequest(
+    history,
+    context.ownerShip,
+    request.groupId,
+    request.provisionId
+  );
+  const newestHistoryProvision = findNewestProvisionRequest(
+    history,
+    context.ownerShip,
+    request.groupId
+  );
+  if (
+    historyRequest &&
+    newestHistoryProvision &&
+    newestHistoryProvision.provisionId !== request.provisionId
+  ) {
+    context.log?.('[tlon] rejected agent provision: request was superseded');
+    return true;
+  }
   await provision(context, history, request, deps, presentation);
   return true;
 }
