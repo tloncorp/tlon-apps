@@ -1,10 +1,10 @@
 ---
 id: TASK-28
 title: Fix openclaw's dependency on the unpublished @tloncorp/tlon-kits
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-20 19:04'
-updated_date: '2026-08-24 13:32'
+updated_date: '2026-08-24 13:42'
 labels:
   - openclaw
   - packaging
@@ -31,11 +31,11 @@ A stopgap keeps the dev container working: `resolve-workspace-deps.mjs` now fall
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 openclaw's Docker dev container installs and boots from a clean state with no manual intervention
-- [ ] #2 The published openclaw plugin resolves its tlon-kits dependency without a file: spec or a mounted monorepo
-- [ ] #3 `.publish/` staging still fails loudly on a workspace dep that cannot be resolved, rather than emitting a package.json that is broken for installers
-- [ ] #4 The blob parser remains shared between the harness and the client — no duplicated parse implementation
-- [ ] #5 A check fails in CI if a workspace dependency is added to openclaw that is not resolvable outside the workspace
+- [x] #1 openclaw's Docker dev container installs and boots from a clean state with no manual intervention
+- [x] #2 The published openclaw plugin resolves its tlon-kits dependency without a file: spec or a mounted monorepo
+- [x] #3 `.publish/` staging still fails loudly on a workspace dep that cannot be resolved, rather than emitting a package.json that is broken for installers
+- [x] #4 The blob parser remains shared between the harness and the client — no duplicated parse implementation
+- [x] #5 A check fails in CI if a workspace dependency is added to openclaw that is not resolvable outside the workspace
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -80,3 +80,15 @@ New mechanism: **invert the dependency**. Research found the wrapper for this al
 <!-- SECTION:NOTES:BEGIN -->
 2026-08-21: Still open; the dev rig papers over it — every container start logs the npm E404 for @tloncorp/tlon-kits and the entrypoint falls back to installing from the mounted monorepo (visible in each dev-openclaw-1 boot today). Works locally, still breaks any environment without the monorepo mount.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Closed 2026-08-24 per the user's direction NOT to publish tlon-kits (83115b948c). Mechanism: dependency inversion — the parser implementation moved from tlon-kits into @tloncorp/api's client/groupKitConfig (where the wrapper already lived), openclaw imports it from api, api and openclaw drop the tlon-kits dep, tlon-kits is marked private:true. Research found the published api carried the same unresolvable dep (its wrapper re-exported from tlon-kits), so this fixes two published packages, not one; tlon-skill was already safe (devDependency, bun-bundled binaries).
+
+ACs: #1 verified live — dev container rebooted with ZERO tlon-kits E404 lines (previously every boot) and the gateway activated; #2 .publish staging now resolves to registry ranges only (@tloncorp/api, @tloncorp/tlon-skill, no tlon-kits); #3 unchanged staging behavior (still throws on unresolvable, by construction); #4 one implementation in api, consumed by both the client and the harness; #5 scripts/check-publishable-deps.mjs + an openclaw-ci step fail CI when a runtime dependency uses workspace: without a registry version — green today, red the moment someone re-adds a monorepo-only runtime dep.
+
+Tests: 839 api (16 parser tests moved along), 55 tlon-kits, 67 openclaw kits; tsc clean in api/tlon-kits/openclaw/shared/app.
+
+Residual, non-blocking: the NEXT openclaw npm release requires an @tloncorp/api release that carries groupKitConfig's implementation (current registry api either predates the module or still holds the broken tlon-kits spec) — routine, and the CI guard plus staging keep it honest.
+<!-- SECTION:FINAL_SUMMARY:END -->
