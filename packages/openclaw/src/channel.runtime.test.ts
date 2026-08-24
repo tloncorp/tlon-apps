@@ -2,6 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getNotebook = vi.fn();
 const createNote = vi.fn();
+const getActiveForegroundContextLensForConversation = vi.fn<() => unknown>(
+  () => null
+);
+const resolveTlonAccount = vi.fn(() => ({
+  configured: true,
+  ship: '~zod',
+  url: 'http://localhost:8080',
+  code: 'lit',
+  allowPrivateNetwork: false,
+  contextLens: { enabled: false },
+}));
 
 vi.mock('@tloncorp/api', () => ({
   notes: { getNotebook, createNote },
@@ -68,19 +79,12 @@ vi.mock('./targets.js', () => ({
 }));
 
 vi.mock('./types.js', () => ({
-  resolveTlonAccount: vi.fn(() => ({
-    configured: true,
-    ship: '~zod',
-    url: 'http://localhost:8080',
-    code: 'lit',
-    allowPrivateNetwork: false,
-    contextLens: { enabled: false },
-  })),
+  resolveTlonAccount,
 }));
 
 vi.mock('./context-lens.js', () => ({
   getActiveBackgroundContextLens: vi.fn(() => null),
-  getActiveForegroundContextLensForConversation: vi.fn(() => null),
+  getActiveForegroundContextLensForConversation,
   recordBackgroundContextLensOutput: vi.fn(),
 }));
 
@@ -115,6 +119,15 @@ describe('sendMedia', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    resolveTlonAccount.mockReturnValue({
+      configured: true,
+      ship: '~zod',
+      url: 'http://localhost:8080',
+      code: 'lit',
+      allowPrivateNetwork: false,
+      contextLens: { enabled: false },
+    });
+    getActiveForegroundContextLensForConversation.mockReturnValue(null);
     ({ tlonRuntimeOutbound } = await import('./channel.runtime.js'));
     ({ prepareOutboundMedia } = await import('./urbit/upload.js'));
     ({ sendDm, sendDmWithStory, sendChannelPost } =
@@ -215,6 +228,15 @@ describe('notes delivery', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    resolveTlonAccount.mockReturnValue({
+      configured: true,
+      ship: '~zod',
+      url: 'http://localhost:8080',
+      code: 'lit',
+      allowPrivateNetwork: false,
+      contextLens: { enabled: false },
+    });
+    getActiveForegroundContextLensForConversation.mockReturnValue(null);
     getNotebook.mockResolvedValue({ rootFolderId: 17 });
     createNote.mockResolvedValue(undefined);
     ({ tlonRuntimeOutbound } = await import('./channel.runtime.js'));
@@ -249,6 +271,47 @@ describe('notes delivery', () => {
     expect(result).toMatchObject({
       channel: 'tlon',
       messageId: '~zod/notes-42',
+    });
+  });
+
+  it('records notebook delivery in the active context lens', async () => {
+    const recordOutput = vi.fn();
+    const recordPersistence = vi.fn();
+    resolveTlonAccount.mockReturnValue({
+      configured: true,
+      ship: '~zod',
+      url: 'http://localhost:8080',
+      code: 'lit',
+      allowPrivateNetwork: false,
+      contextLens: { enabled: true },
+    });
+    getActiveForegroundContextLensForConversation.mockReturnValue({
+      lensId: 'lens-1',
+      registry: { recordOutput, recordPersistence },
+    });
+    createNote.mockResolvedValue({ id: 42, title: 'Tuesday briefing' });
+
+    await tlonRuntimeOutbound.sendText({
+      cfg: {} as never,
+      to: 'notes/~ten/updates',
+      text: '# Tuesday briefing\n\nThe full report.',
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+    });
+
+    expect(getActiveForegroundContextLensForConversation).toHaveBeenCalledWith(
+      'notes/~ten/updates'
+    );
+    expect(recordOutput).toHaveBeenCalledWith(
+      'lens-1',
+      expect.objectContaining({
+        messageId: '~zod/notes-42',
+        conversationId: 'notes/~ten/updates',
+      })
+    );
+    expect(recordPersistence).toHaveBeenCalledWith('lens-1', {
+      postsReply: true,
     });
   });
 
