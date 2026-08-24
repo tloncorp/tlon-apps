@@ -112,6 +112,8 @@ export default function ChannelScreen(props: Props) {
   const groupId = channel?.groupId ?? group?.id;
   const currentUserId = api.getCurrentUserId();
   const agentOnboarding = useAgentGroupOnboardingLock(groupId);
+  const groupAgents = db.agentGroupAgents.useValue();
+  const agentShipId = groupId ? groupAgents[groupId] : undefined;
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
@@ -389,11 +391,15 @@ export default function ChannelScreen(props: Props) {
 
   const provisionId = agentOnboarding.marker?.provision?.provisionId;
   const hasOnboardingFirstEntry = useMemo(() => {
-    return hasAgentOnboardingFirstEntry(filteredPosts, provisionId);
-  }, [filteredPosts, provisionId]);
+    return hasAgentOnboardingFirstEntry(
+      filteredPosts,
+      agentShipId,
+      provisionId
+    );
+  }, [agentShipId, filteredPosts, provisionId]);
   const didOnboardingFirstEntryFail = useMemo(
-    () => hasAgentOnboardingFirstEntryFailed(filteredPosts),
-    [filteredPosts]
+    () => hasAgentOnboardingFirstEntryFailed(filteredPosts, agentShipId),
+    [agentShipId, filteredPosts]
   );
   const hasOnboardingFirstEntrySettled =
     hasOnboardingFirstEntry || didOnboardingFirstEntryFail;
