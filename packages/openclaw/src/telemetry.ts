@@ -484,6 +484,7 @@ export type TlonOnboardingStep =
 export type TlonOnboardingAnswer = 'yes' | 'no';
 
 export type TlonOnboardingCompletionPath =
+  | 'additional_group_completed'
   | 'app_tour_declined'
   | 'bot_tour_declined'
   | 'bot_tour_completed';
