@@ -907,6 +907,11 @@
   |=  [key=reader-key:b sync=reader-sync:b]
   ^-  (unit [reader-key:b @ud @t reader-state:b])
   ?:  (lte revision.sync synced.sync)  ~
+  ::  Past its expiry there is nothing left to say: a grant is worthless and
+  ::  a revoke is moot, because the token it names can no longer be used. This
+  ::  is what stops a request the broker will never accept -- a malformed one,
+  ::  say -- retrying once a minute forever.
+  ?:  (lte expires.sync now.bowl)  ~
   `[key revision.sync bucket-id.sync desired.sync]
 ::
 ::  +sync-cards: one request per pair. The credential goes in a header: a
@@ -934,14 +939,21 @@
         ['actorShip' s+(ship-text reader.key)]
         ['revision' (numb:enjs:format revision)]
     ==
+  ::  A revoke sends both fields as null rather than omitting them: the broker
+  ::  reads the pair (token, expiresAtMillis) to tell a revoke from a grant,
+  ::  and an explicit null says so without depending on how absent keys decode.
   =/  body=@t
     %-  en:json:html
     %-  pairs:enjs:format
     ?-  -.desired
-        %revoked  [['state' s+'revoked'] common]
+        %revoked
+      :*  ['token' ~]
+          ['expiresAtMillis' ~]
+          common
+      ==
+    ::
         %granted
-      :*  ['state' s+'granted']
-          ['token' s+token.desired]
+      :*  ['token' s+token.desired]
           :-  'expiresAtMillis'
           (numb:enjs:format (mul 1.000 (unt:chrono:userlib expires-at.desired)))
           common

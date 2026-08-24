@@ -453,7 +453,6 @@
               (field 'bucketHost')
               (field 'bucketName')
               (field 'actorShip')
-              (field 'state')
               ::  the credential goes in a header, never the URL
               (~(got by (malt header-list.request.push)) 'x-landscape-token')
           ==
@@ -463,7 +462,6 @@
             'sampel-palnet'
             'project-files'
             'sampel-palnet'
-            'granted'
             '0wsecret'
         ==
   ::  Only once the broker has accepted it does the token become real: the
