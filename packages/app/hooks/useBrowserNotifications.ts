@@ -5,6 +5,7 @@ import { getTextContent, useMutableRef } from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 import { useRootNavigation } from '../navigation/utils';
+import { useAnyAgentGroupOnboardingLock } from './useAgentGroupOnboardingLock';
 import { reactDisplayValue } from '../ui/components/Activity/ActivitySummaryMessage';
 import { useCalm, useCurrentUserId } from '../ui/contexts/appDataContext';
 import {
@@ -263,6 +264,8 @@ export default function useBrowserNotifications() {
   const isElectron = useIsElectron();
   const isAppForegrounded = useIsAppForegroundedAcrossTabs(!isElectron);
   const { disableNicknames } = useCalm();
+  const { locked: agentOnboardingLocked } =
+    useAnyAgentGroupOnboardingLock();
   const { resetToChannel, resetToGroup, resetToGroupInvite, resetToPost } =
     useRootNavigation();
   const resetToChannelRef = useMutableRef(resetToChannel);
@@ -307,10 +310,12 @@ export default function useBrowserNotifications() {
               isAsk
                 ? `${contactName} is requesting to join`
                 : `${contactName} invited you to join`,
-            navigateOnClick: (groupId) =>
-              isAsk
+            navigateOnClick: (groupId) => {
+              if (agentOnboardingLocked) return;
+              return isAsk
                 ? resetToGroupRef.current(groupId)
-                : resetToGroupInviteRef.current(groupId),
+                : resetToGroupInviteRef.current(groupId);
+            },
           });
           if (didNotify) {
             rememberProcessedNotification(
@@ -373,6 +378,10 @@ export default function useBrowserNotifications() {
         });
 
         notification.onclick = () => {
+          if (agentOnboardingLocked) {
+            notification.close();
+            return;
+          }
           trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
             surface: 'browser',
             notificationType: activityEvent.type,
@@ -405,6 +414,7 @@ export default function useBrowserNotifications() {
     },
     [
       disableNicknames,
+      agentOnboardingLocked,
       isAppForegrounded,
       resetToChannelRef,
       resetToGroupRef,

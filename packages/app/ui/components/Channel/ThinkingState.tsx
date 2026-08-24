@@ -12,20 +12,26 @@ export function ThinkingState({
   conversationId,
   channelType,
   latestPostId,
+  latestPostAuthorId,
   forcedLabel,
 }: {
   conversationId: string;
   channelType: db.Channel['type'];
   latestPostId?: string;
+  latestPostAuthorId?: string;
   forcedLabel?: string;
 }) {
   const computingState = useConversationComputingState(conversationId);
   const [holdUntilResponse, setHoldUntilResponse] = useState(false);
   const postIdWhenThinkingStarted = useRef<string | undefined>(latestPostId);
+  const expectedResponders = useRef<Set<string>>(new Set());
   const collapseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (computingState) {
+      expectedResponders.current = new Set(
+        computingState.ships.map((state) => state.ship)
+      );
       if (!holdUntilResponse) {
         postIdWhenThinkingStarted.current = latestPostId;
         setHoldUntilResponse(true);
@@ -37,10 +43,13 @@ export function ThinkingState({
       return;
     }
 
-    if (
+    const responseHasArrived =
       holdUntilResponse &&
-      latestPostId !== postIdWhenThinkingStarted.current
-    ) {
+      latestPostId !== postIdWhenThinkingStarted.current &&
+      (expectedResponders.current.size === 0 ||
+        (latestPostAuthorId != null &&
+          expectedResponders.current.has(latestPostAuthorId)));
+    if (responseHasArrived) {
       if (collapseTimeout.current) {
         clearTimeout(collapseTimeout.current);
         collapseTimeout.current = null;
@@ -55,7 +64,7 @@ export function ThinkingState({
         setHoldUntilResponse(false);
       }, 2_000);
     }
-  }, [computingState, holdUntilResponse, latestPostId]);
+  }, [computingState, holdUntilResponse, latestPostAuthorId, latestPostId]);
 
   useEffect(() => {
     return () => {
@@ -64,7 +73,11 @@ export function ThinkingState({
   }, []);
 
   const responseHasArrived =
-    holdUntilResponse && latestPostId !== postIdWhenThinkingStarted.current;
+    holdUntilResponse &&
+    latestPostId !== postIdWhenThinkingStarted.current &&
+    (expectedResponders.current.size === 0 ||
+      (latestPostAuthorId != null &&
+        expectedResponders.current.has(latestPostAuthorId)));
   const visible =
     Boolean(forcedLabel) ||
     Boolean(computingState) ||
