@@ -1,5 +1,7 @@
-import type { PluginStateKeyedStore } from 'openclaw/plugin-sdk/plugin-state-runtime';
 import { randomUUID } from 'node:crypto';
+
+import type { PostBlobDataEntryAgentProvision } from '@tloncorp/api';
+import type { PluginStateKeyedStore } from 'openclaw/plugin-sdk/plugin-state-runtime';
 
 import { sharedMap, sharedSlot } from '../shared-state.js';
 
@@ -13,6 +15,8 @@ export type AgentOnboardingRunRecord = {
   notebookName: string;
   purposeId: string;
   topics: string[];
+  /** Full durable request lets later provider changes rebuild the cron. */
+  provision?: PostBlobDataEntryAgentProvision;
   claimedAt: number;
   /** Identifies the process that owns a fresh in-flight claim. */
   claimOwnerId?: string;

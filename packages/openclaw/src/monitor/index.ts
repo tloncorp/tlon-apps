@@ -3747,8 +3747,23 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     const scanAgentOnboardingNest = async (nest: string) => {
       if (!nest.startsWith('chat/')) return;
-      const groupId = channelToGroup.get(nest);
-      if (!groupId) return;
+      let groupId = channelToGroup.get(nest);
+      if (!groupId) {
+        try {
+          await mergeDiscoveredChannels();
+          groupId = channelToGroup.get(nest);
+        } catch (error) {
+          runtime.error?.(
+            `[tlon] Failed to discover onboarding group for ${nest}: ${error instanceof Error ? error.message : String(error)}`
+          );
+          scheduleAgentOnboardingRetry(nest);
+          return;
+        }
+      }
+      if (!groupId) {
+        clearAgentOnboardingRetry(nest);
+        return;
+      }
       try {
         await scanAgentOnboardingChannel({
           api,
@@ -3793,7 +3808,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         ) {
           watchedChannels.add(nest);
           runtime.log?.(`[tlon] Auto-watching channel from firehose: ${nest}`);
-          await mergeDiscoveredChannels();
           await scanAgentOnboardingNest(nest);
         }
 
@@ -5134,7 +5148,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                       runtime.log?.(
                         `[tlon] Auto-detected new channel (invite accepted): ${channelNest}`
                       );
-                      await mergeDiscoveredChannels();
                       await scanAgentOnboardingNest(channelNest);
 
                       // Persist to settings store so it survives restarts
@@ -5194,7 +5207,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                         runtime.log?.(
                           `[tlon] Auto-detected joined channel: ${channelNest}`
                         );
-                        await mergeDiscoveredChannels();
                         await scanAgentOnboardingNest(channelNest);
 
                         // Persist to settings store

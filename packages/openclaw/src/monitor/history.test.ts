@@ -5,6 +5,7 @@ import {
   buildThreadContextMessage,
   cacheMessage,
   fetchChannelHistory,
+  fetchChannelHistoryOrThrow,
   fetchParentPostAuthor,
   fetchParentPostHistoryEntry,
   getChannelHistory,
@@ -236,6 +237,17 @@ describe('fetchChannelHistory', () => {
       expect.objectContaining({ author: '~bot', id: '1' }),
       expect.objectContaining({ author: '~ten', id: '2' }),
     ]);
+  });
+
+  it('lets control-plane callers distinguish a failed scry from empty history', async () => {
+    const scry = vi.fn().mockRejectedValue(new Error('ship unavailable'));
+
+    await expect(
+      fetchChannelHistoryOrThrow({ scry }, 'chat/~ten/general')
+    ).rejects.toThrow('ship unavailable');
+    await expect(
+      fetchChannelHistory({ scry }, 'chat/~ten/general')
+    ).resolves.toEqual([]);
   });
 });
 

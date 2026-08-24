@@ -191,11 +191,18 @@ export function McpConnectMenu({
       (id) => !knownConnectedRef.current.has(id)
     );
     knownConnectedRef.current = connected;
-    if (newlyConnected.length) {
-      setSelectedProviderIds((current) => [
-        ...new Set([...current, ...newlyConnected]),
-      ]);
-    }
+    setSelectedProviderIds((current) => {
+      const next = [
+        ...new Set([
+          ...current.filter((id) => connected.has(id)),
+          ...newlyConnected,
+        ]),
+      ];
+      return next.length === current.length &&
+        next.every((id, index) => id === current[index])
+        ? current
+        : next;
+    });
   }, [configuredProviderIds, connectedProviderIds, loading]);
 
   const visibleProviders = providers.slice(0, component.maxVisible);

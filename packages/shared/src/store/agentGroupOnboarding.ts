@@ -15,6 +15,7 @@ const wait = (ms: number) =>
 const DEFAULT_AGENT_GROUP_TITLE = 'My agent group';
 const MAX_GENERATED_GROUP_TITLE_LENGTH = 48;
 const notesChannelFlights = new Map<string, Promise<db.Channel>>();
+const agentStandingFlights = new Map<string, Promise<void>>();
 
 export type AgentGroupFurnishing = {
   group: db.Group;
@@ -168,7 +169,7 @@ async function finishAgentGroupFurnishingOnce({
     notebookNest: notebook.id,
   });
 
-  const tail = reconcileAgentStanding({
+  const tail = reconcileAgentStandingUntilReady({
     groupId: group.id,
     agentShipId,
     hostedShipId,
@@ -487,6 +488,43 @@ async function reconcileAgentStanding({
   );
 }
 
+function reconcileAgentStandingUntilReady(params: {
+  groupId: string;
+  agentShipId: string;
+  hostedShipId: string | null;
+}) {
+  const existing = agentStandingFlights.get(params.groupId);
+  if (existing) return existing;
+  const flight = retryAgentStanding(
+    () => reconcileAgentStanding(params),
+    params.groupId
+  ).finally(() => agentStandingFlights.delete(params.groupId));
+  agentStandingFlights.set(params.groupId, flight);
+  return flight;
+}
+
+async function retryAgentStanding(
+  operation: () => Promise<void>,
+  groupId: string,
+  sleep: (ms: number) => Promise<void> = wait
+) {
+  let delayMs = 1_000;
+  for (;;) {
+    try {
+      await operation();
+      return;
+    } catch (error) {
+      logger.trackError('Agent Group Standing Repair Failed; Retrying', {
+        error,
+        groupId,
+        delayMs,
+      });
+    }
+    await sleep(delayMs);
+    delayMs = Math.min(delayMs * 2, 30_000);
+  }
+}
+
 async function addCordonThenJoin(
   hostedShipId: string,
   groupId: string,
@@ -540,4 +578,5 @@ export const agentGroupOnboardingTesting = {
   retryAgentGroupFurnishCore,
   agentHasJoined,
   ensureSingleNotesChannel,
+  retryAgentStanding,
 };

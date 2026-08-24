@@ -35,7 +35,11 @@ import {
   markAgentOnboardingRunTerminal,
   recordAgentOnboardingRunEnqueued,
 } from './agent-onboarding-run-store.js';
-import { type TlonHistoryEntry, fetchChannelHistory } from './history.js';
+import {
+  type TlonHistoryEntry,
+  fetchChannelHistory,
+  fetchChannelHistoryOrThrow,
+} from './history.js';
 
 type AgentRequest =
   | PostBlobDataEntryAgentIntroRequest
@@ -81,7 +85,7 @@ type AgentOnboardingContext = {
 };
 
 type AgentOnboardingDeps = {
-  fetchHistory?: typeof fetchChannelHistory;
+  fetchHistory?: typeof fetchChannelHistoryOrThrow;
   getCron?: typeof getTlonCronService;
   getGroup?: (groupId: string) => Promise<OnboardingGroup>;
   now?: () => number;
@@ -92,7 +96,7 @@ type AgentOnboardingDeps = {
 };
 
 type AgentOnboardingCronDeps = {
-  fetchHistory?: typeof fetchChannelHistory;
+  fetchHistory?: typeof fetchChannelHistoryOrThrow;
   /** Internal recursion guard after re-entering the captured client scope. */
   inApiScope?: boolean;
   listNotes?: typeof notes.listNotes;
@@ -306,7 +310,7 @@ async function handleAgentOnboardingRequestInternal(
     ) {
       return false;
     }
-    const history = await (deps.fetchHistory ?? fetchChannelHistory)(
+    const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
       context.api,
       context.channelNest,
       50
@@ -325,7 +329,7 @@ async function handleAgentOnboardingRequestInternal(
     return true;
   }
 
-  const history = await (deps.fetchHistory ?? fetchChannelHistory)(
+  const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
     context.api,
     context.channelNest,
     50
@@ -358,7 +362,7 @@ export async function scanAgentOnboardingChannel(
   deps: AgentOnboardingDeps = {}
 ): Promise<boolean> {
   if (!context.ownerShip || !context.groupId) return false;
-  const history = await (deps.fetchHistory ?? fetchChannelHistory)(
+  const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
     context.api,
     context.channelNest,
     50
@@ -906,17 +910,29 @@ async function configureProviders(
   config: PostBlobDataEntryAgentProviderConfig,
   deps: AgentOnboardingDeps
 ) {
-  const provisionRequest = findProvisionRequest(
-    history,
-    context.ownerShip!,
-    config.groupId,
-    config.provisionId
-  );
-  const acknowledgedJobId = findAckJobId(
+  const record = await lookupAgentOnboardingRun(config.provisionId);
+  const durableProvision =
+    record &&
+    record.groupId === config.groupId &&
+    record.channelNest === context.channelNest &&
+    record.provision?.provisionId === config.provisionId
+      ? record.provision
+      : null;
+  const provisionRequest =
+    findProvisionRequest(
+      history,
+      context.ownerShip!,
+      config.groupId,
+      config.provisionId
+    ) ?? durableProvision;
+  const historyJobId = findAckJobId(
     history,
     context.botShip,
     config.provisionId
   );
+  const acknowledgedJobId =
+    historyJobId ??
+    (record && record.status !== 'claimed' ? record.jobId : null);
   if (!provisionRequest || !acknowledgedJobId) {
     context.log?.(
       '[tlon] rejected agent provider config: provision is not acknowledged'
@@ -974,11 +990,44 @@ async function failFirstRun(
   firstRunCompletionFlights.set(correlationRunId, flight);
   try {
     await flight;
+    clearFirstRunCompletionRetry(correlationRunId);
+  } catch (error) {
+    scheduleFirstRunFailureRetry(correlationRunId, event, deps);
+    throw error;
   } finally {
     if (firstRunCompletionFlights.get(correlationRunId) === flight) {
       firstRunCompletionFlights.delete(correlationRunId);
     }
   }
+}
+
+function scheduleFirstRunFailureRetry(
+  correlationRunId: string,
+  event: PluginHookCronChangedEvent,
+  deps: AgentOnboardingCronDeps
+) {
+  if (
+    !firstRunCorrelations.has(correlationRunId) ||
+    firstRunCompletionRetryTimers.has(correlationRunId)
+  ) {
+    return;
+  }
+  const attempt =
+    (firstRunCompletionRetryAttempts.get(correlationRunId) ?? 0) + 1;
+  firstRunCompletionRetryAttempts.set(correlationRunId, attempt);
+  const delay = Math.min(
+    FIRST_RUN_COMPLETION_RETRY_BASE_MS * 2 ** (attempt - 1),
+    FIRST_RUN_COMPLETION_RETRY_MAX_MS
+  );
+  const timer = setTimeout(() => {
+    firstRunCompletionRetryTimers.delete(correlationRunId);
+    void failFirstRun(correlationRunId, event, deps).catch(() => {
+      // failFirstRun schedules the next backoff attempt while the retained
+      // correlation remains nonterminal.
+    });
+  }, delay);
+  timer.unref?.();
+  firstRunCompletionRetryTimers.set(correlationRunId, timer);
 }
 
 async function failFirstRunCorrelation(
@@ -996,21 +1045,12 @@ async function failFirstRunCorrelation(
     );
   }
   const runDeps: AgentOnboardingCronDeps = {
-    fetchHistory: deps.fetchHistory ?? fetchChannelHistory,
+    fetchHistory: deps.fetchHistory ?? fetchChannelHistoryOrThrow,
     sendPost: deps.sendPost ?? sendChannelPost,
   };
   const failureDescription =
     `status=${String(event.status ?? 'unknown')}, ` +
     `delivered=${String(event.delivered ?? false)}`;
-
-  correlation.context.trackStep?.({
-    step: 'first_entry_revealed',
-    outcome: 'failed',
-    purposeId: correlation.purposeId,
-    topicCount: correlation.topics.length,
-    notebookNest: correlation.notebookNest,
-    errorText: failureDescription,
-  });
 
   const history = await runDeps.fetchHistory!(
     correlation.context.api,
@@ -1028,6 +1068,14 @@ async function failFirstRunCorrelation(
     }),
     runDeps
   );
+  correlation.context.trackStep?.({
+    step: 'first_entry_revealed',
+    outcome: 'failed',
+    purposeId: correlation.purposeId,
+    topicCount: correlation.topics.length,
+    notebookNest: correlation.notebookNest,
+    errorText: failureDescription,
+  });
   await markAgentOnboardingRunTerminal(correlation.provisionId, 'failed');
   firstRunCorrelations.delete(correlationRunId);
 }
@@ -1145,7 +1193,7 @@ async function completeFirstRunCorrelation(
     );
   }
   const runDeps: AgentOnboardingCronDeps = {
-    fetchHistory: deps.fetchHistory ?? fetchChannelHistory,
+    fetchHistory: deps.fetchHistory ?? fetchChannelHistoryOrThrow,
     listNotes: deps.listNotes ?? notes.listNotes,
     sendPost: deps.sendPost ?? sendChannelPost,
   };
@@ -1374,6 +1422,7 @@ function durableRunRecord(
     notebookName,
     purposeId: request.purposeId,
     topics: [...request.topics],
+    provision: request,
     claimedAt,
     claimOwnerId: getAgentOnboardingClaimOwnerId(),
     status: 'claimed',
@@ -1418,7 +1467,17 @@ async function ensureFirstRunEnqueued(
     return 'recovered';
   }
 
-  const disposition = await cron.enqueueRun(jobId, 'force');
+  let disposition: unknown;
+  try {
+    disposition = await cron.enqueueRun(jobId, 'force');
+  } catch (error) {
+    // The claim protects against concurrent enqueue attempts, but it must not
+    // survive a rejected enqueue. Otherwise the retry sees this process's
+    // fresh claim as another active pass and incorrectly treats recovery as
+    // complete until the grace window expires.
+    await forgetAgentOnboardingRunClaim(request.provisionId);
+    throw error;
+  }
   // Use the pre-enqueue claim time as the lower bound. A very fast run may
   // create its note before enqueueRun's acknowledgement reaches the plugin.
   const enqueuedAt = initial.claimedAt;

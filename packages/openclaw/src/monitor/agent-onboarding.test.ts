@@ -1303,6 +1303,59 @@ describe('primary onboarding cron slot', () => {
       },
     });
   });
+
+  it('updates providers after the original transcript leaves recent history', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    await store.register(provision.provisionId, {
+      provisionId: provision.provisionId,
+      jobId: 'job-1',
+      groupId: provision.groupId,
+      channelNest: 'chat/~ten/group/general',
+      notebookNest: provision.notebookNest,
+      notebookName: provision.notebookTitle,
+      purposeId: provision.purposeId,
+      topics: [...provision.topics],
+      provision,
+      claimedAt: 1,
+      enqueuedAt: 1,
+      completedAt: 2,
+      status: 'completed',
+    });
+
+    await handleAgentOnboardingRequest(
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+        senderShip: '~ten',
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: provision.provisionId,
+          groupId: provision.groupId,
+          providerIds: ['gmail'],
+        }),
+      },
+      {
+        fetchHistory: vi.fn(async () => []),
+        getCron: () => harness.cron,
+      }
+    );
+
+    expect(harness.cron.update).toHaveBeenCalledOnce();
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: { message: expect.stringContaining('["gmail"]') },
+    });
+  });
 });
 
 describe('provision coordinator ordering', () => {
@@ -1559,6 +1612,60 @@ describe('provision coordinator ordering', () => {
     expect(JSON.stringify(parsePostBlob(history[0]?.blob))).not.toContain(
       'Connect services'
     );
+  });
+
+  it('releases a durable claim when enqueue rejects', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    let jobs: Record<string, unknown>[] = [];
+    const cron = {
+      list: vi.fn(async () => jobs),
+      add: vi.fn(async (input) => {
+        jobs = [{ id: 'job-1', ...input }];
+      }),
+      update: vi.fn(),
+      remove: vi.fn(),
+      enqueueRun: vi
+        .fn()
+        .mockRejectedValueOnce(new Error('enqueue unavailable'))
+        .mockResolvedValueOnce({ enqueued: true, runId: 'run-1' }),
+    } as unknown as TlonCronService;
+    const context = {
+      api: { scry: vi.fn() },
+      botShip: '~bot',
+      channelNest: 'chat/~ten/group/general',
+      groupId: provision.groupId,
+      ownerShip: '~ten',
+      senderShip: '~ten',
+      blob: appendToPostBlob(undefined, provision),
+    };
+    const deps = {
+      fetchHistory: vi.fn(async () => []),
+      getCron: () => cron,
+      getGroup: vi.fn(async () => ({
+        hostUserId: '~ten',
+        channels: [{ id: provision.notebookNest, type: 'notes' }],
+        members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+      })),
+      sendPost: vi.fn(async () => ({
+        channel: 'tlon' as const,
+        messageId: 'post',
+        sentAt: 0,
+      })),
+    };
+
+    await expect(handleAgentOnboardingRequest(context, deps)).rejects.toThrow(
+      'enqueue unavailable'
+    );
+    await expect(store.lookup(provision.provisionId)).resolves.toBeUndefined();
+    await expect(handleAgentOnboardingRequest(context, deps)).resolves.toBe(
+      true
+    );
+    expect(cron.enqueueRun).toHaveBeenCalledTimes(2);
+    await expect(store.lookup(provision.provisionId)).resolves.toMatchObject({
+      status: 'enqueued',
+      runId: 'run-1',
+    });
   });
 
   it('does not enqueue twice when acknowledgement fails after enqueue', async () => {
@@ -1956,6 +2063,50 @@ describe('provision coordinator ordering', () => {
         outcome: 'failed',
       })
     );
+  });
+
+  it('retries a failed-run notification after transient history failure', async () => {
+    vi.useFakeTimers();
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    const trackStep = vi.fn();
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'first-run-failure-retry' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+        trackStep,
+      },
+      provision
+    );
+    const fetchHistory = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('temporary history failure'))
+      .mockResolvedValue([]);
+    const event = {
+      action: 'finished',
+      jobId: 'job-1',
+      runId: 'first-run-failure-retry',
+      status: 'error',
+      delivered: false,
+    } as never;
+
+    await expect(
+      handleAgentOnboardingCronChanged(event, { fetchHistory, sendPost })
+    ).rejects.toThrow('temporary history failure');
+    expect(sendPost).not.toHaveBeenCalled();
+    expect(trackStep).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(fetchHistory).toHaveBeenCalledTimes(2);
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(trackStep).toHaveBeenCalledOnce();
   });
 
   it('uses successful Notes delivery when the host drops cron completion', async () => {

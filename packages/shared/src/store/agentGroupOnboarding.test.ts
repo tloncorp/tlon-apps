@@ -110,4 +110,24 @@ describe('agent group furnishing retry', () => {
     ).rejects.toBe(finalError);
     expect(operation).toHaveBeenCalledTimes(2);
   });
+
+  it('keeps repairing agent standing until it succeeds', async () => {
+    const operation = vi
+      .fn<[], Promise<void>>()
+      .mockRejectedValueOnce(new Error('join pending'))
+      .mockRejectedValueOnce(new Error('admin pending'))
+      .mockResolvedValueOnce(undefined);
+    const sleep = vi.fn(async () => {});
+
+    await expect(
+      agentGroupOnboardingTesting.retryAgentStanding(
+        operation,
+        'group-id',
+        sleep
+      )
+    ).resolves.toBeUndefined();
+    expect(operation).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenNthCalledWith(1, 1_000);
+    expect(sleep).toHaveBeenNthCalledWith(2, 2_000);
+  });
 });
