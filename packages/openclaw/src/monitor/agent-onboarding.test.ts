@@ -2855,6 +2855,36 @@ describe('provision coordinator ordering', () => {
     expect(listNotes).not.toHaveBeenCalled();
   });
 
+  it('ignores a notebook send from a different contextual run', async () => {
+    const sendPost = vi.fn();
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'expected-run' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/contextual-run',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision
+    );
+
+    await handleAgentOnboardingMessageSent(
+      {
+        success: true,
+        to: provision.notebookNest,
+        messageId: '~bot/notes-99',
+      } as never,
+      { fetchHistory: vi.fn(async () => []), sendPost },
+      'unrelated-run'
+    );
+
+    expect(sendPost).not.toHaveBeenCalled();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('expected-run')
+    ).not.toBeNull();
+  });
+
   it('coalesces completion hooks and retries after failure', async () => {
     vi.useFakeTimers();
     const sendPost = vi.fn(async () => ({
