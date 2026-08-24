@@ -1020,6 +1020,20 @@ async function configureProviders(
   config: PostBlobDataEntryAgentProviderConfig,
   deps: AgentOnboardingDeps
 ) {
+  const newestHistoryProvision = findNewestProvisionRequest(
+    history,
+    context.ownerShip!,
+    config.groupId
+  );
+  if (
+    newestHistoryProvision &&
+    newestHistoryProvision.provisionId !== config.provisionId
+  ) {
+    context.log?.(
+      '[tlon] rejected agent provider config: provision was superseded'
+    );
+    return;
+  }
   const record = await lookupAgentOnboardingRun(config.provisionId);
   const durableProvision =
     record &&
@@ -1208,7 +1222,7 @@ export async function handleAgentOnboardingMessageSent(
   if (contextualRunId && !firstRunCorrelations.has(contextualRunId)) return;
   await completeFirstRun(
     contextualRunId ?? event.runId,
-    contextualRunId ? undefined : event.to,
+    event.to,
     event.messageId,
     deps
   );
@@ -1469,7 +1483,10 @@ function findFirstRunCorrelation(
 ) {
   if (runId) {
     const exact = firstRunCorrelations.get(runId);
-    if (exact) return [runId, exact] as const;
+    if (exact) {
+      if (notebookNest && exact.notebookNest !== notebookNest) return null;
+      return [runId, exact] as const;
+    }
     if (requireExactRunId) return null;
   }
   if (jobId) {
@@ -2034,6 +2051,18 @@ function findProvisionRequest(
       entry.type === 'tlon-agent-provision' &&
       entry.groupId === groupId &&
       entry.provisionId === provisionId
+  )?.entry;
+  return request?.type === 'tlon-agent-provision' ? request : null;
+}
+
+function findNewestProvisionRequest(
+  history: TlonHistoryEntry[],
+  ownerShip: string,
+  groupId: string
+) {
+  const request = blobEntriesByAuthor(history, ownerShip, true).find(
+    ({ entry }) =>
+      entry.type === 'tlon-agent-provision' && entry.groupId === groupId
   )?.entry;
   return request?.type === 'tlon-agent-provision' ? request : null;
 }
