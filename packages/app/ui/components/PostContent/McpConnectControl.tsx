@@ -252,6 +252,9 @@ export function McpConnectMenu({
           },
         },
       });
+    } catch {
+      // The durable send path reports its own delivery failure. Restore this
+      // control without surfacing an unobserved React Native press promise.
     } finally {
       configuringRef.current = false;
       setSubmitting(false);
