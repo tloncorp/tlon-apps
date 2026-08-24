@@ -803,8 +803,8 @@ async function retryLaterAgentGroupStanding({
 }) {
   for (const delayMs of [30_000, 60_000]) {
     await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
-    if (api.getCurrentUserId() !== ownerId) return;
     try {
+      if (api.getCurrentUserId() !== ownerId) return;
       const repaired = await store.ensureAgentGroupFurnished({
         agentShipId,
         groupId,
