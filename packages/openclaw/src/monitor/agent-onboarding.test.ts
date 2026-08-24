@@ -1804,6 +1804,68 @@ describe('primary onboarding cron slot', () => {
       payload: { message: expect.stringContaining('["gmail"]') },
     });
   });
+
+  it('rejects a provider config for a superseded provision', async () => {
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const history = [
+      {
+        author: '~ten',
+        content: 'AI, Climate',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, provision),
+      },
+      {
+        author: '~bot',
+        content: 'Ready',
+        timestamp: 2,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack',
+          version: 1,
+          provisionId: provision.provisionId,
+          cronJobId: 'job-1',
+        }),
+      },
+      {
+        author: '~ten',
+        content: 'Robotics',
+        timestamp: 3,
+        blob: appendToPostBlob(undefined, {
+          ...provision,
+          provisionId: 'provision-2',
+          topics: ['Robotics'],
+        }),
+      },
+    ];
+
+    await handleAgentOnboardingRequest(
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+        senderShip: '~ten',
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: provision.provisionId,
+          groupId: provision.groupId,
+          providerIds: ['gmail'],
+        }),
+      },
+      {
+        fetchHistory: vi.fn(async () => history),
+        getCron: () => harness.cron,
+      }
+    );
+
+    expect(harness.cron.update).not.toHaveBeenCalled();
+  });
 });
 
 describe('provision coordinator ordering', () => {
@@ -2950,6 +3012,36 @@ describe('provision coordinator ordering', () => {
       } as never,
       { fetchHistory: vi.fn(async () => []), sendPost },
       'unrelated-run'
+    );
+
+    expect(sendPost).not.toHaveBeenCalled();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('expected-run')
+    ).not.toBeNull();
+  });
+
+  it('ignores a failure-destination send from the expected run', async () => {
+    const sendPost = vi.fn();
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'expected-run' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/contextual-run',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision
+    );
+
+    await handleAgentOnboardingMessageSent(
+      {
+        success: true,
+        to: 'chat/~ten/group/contextual-run',
+        messageId: '~bot/chat-99',
+      } as never,
+      { fetchHistory: vi.fn(async () => []), sendPost },
+      'expected-run'
     );
 
     expect(sendPost).not.toHaveBeenCalled();
