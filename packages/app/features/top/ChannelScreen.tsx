@@ -38,18 +38,26 @@ import {
   InviteUsersSheet,
   useIsWindowNarrow,
 } from '../../ui';
+import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibility';
+import {
+  hasAgentOnboardingFirstEntry,
+  hasAgentOnboardingFirstEntryFailed,
+} from './agentOnboardingFirstEntry';
 import {
   shouldAcknowledgeAgentOnboardingLanding,
   shouldRestoreAgentOnboardingFallback,
 } from './agentOnboardingLanding';
 
 const logger = createDevLogger('ChannelScreen', false);
+const FIRST_ENTRY_REFRESH_INTERVAL_MS = 5_000;
+const FIRST_ENTRY_REFRESH_TIMEOUT_MS = 5 * 60_000;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 
 export default function ChannelScreen(props: Props) {
   const {
     channelId,
+    disableTransition,
     selectedPostId,
     startDraft,
     groupId: routeGroupId,
@@ -86,8 +94,9 @@ export default function ChannelScreen(props: Props) {
       return;
     }
 
-    // The destination is mounted, so the full-screen onboarding cover can
-    // disappear without waiting for the bounded handoff timeout.
+    // The destination is mounted, so it is now safe for the onboarding cover
+    // to disappear. Clearing here avoids relying on ChatListScreen after its
+    // navigation reset has replaced that component.
     void db.agentOnboardingLanding.resetValue().catch((error) => {
       logger.trackError('Failed to acknowledge agent onboarding landing', {
         error,
@@ -95,6 +104,15 @@ export default function ChannelScreen(props: Props) {
       });
     });
   }, [channelId, onboardingLanding]);
+
+  useEffect(() => {
+    if (!disableTransition) return;
+
+    const frame = requestAnimationFrame(() => {
+      props.navigation.setParams({ disableTransition: undefined });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [disableTransition, props.navigation]);
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {
@@ -122,6 +140,7 @@ export default function ChannelScreen(props: Props) {
   const agentOnboardingNavigationLocked =
     agentOnboarding.locked ||
     Boolean(agentOnboardingGroupId && agentOnboarding.isLoading);
+  const currentUserId = api.getCurrentUserId();
   const agentGroupAgents = db.agentGroupAgents.useValue();
   const agentShipId = groupId ? agentGroupAgents[groupId] : undefined;
 
@@ -473,6 +492,124 @@ export default function ChannelScreen(props: Props) {
     () => (includeDeletedPosts ? posts : posts?.filter((p) => !p.isDeleted)),
     [posts, includeDeletedPosts]
   );
+  const agentGroupSetupActive = useMemo(() => {
+    return isAgentGroupSetupActive(
+      filteredPosts,
+      currentUserId,
+      Boolean(agentOnboarding.marker)
+    );
+  }, [agentOnboarding.marker, currentUserId, filteredPosts]);
+
+  const provisionId = agentOnboarding.marker?.provision?.provisionId;
+  const hasOnboardingFirstEntry = useMemo(() => {
+    return hasAgentOnboardingFirstEntry(filteredPosts, provisionId);
+  }, [filteredPosts, provisionId]);
+  const didOnboardingFirstEntryFail = useMemo(
+    () => hasAgentOnboardingFirstEntryFailed(filteredPosts),
+    [filteredPosts]
+  );
+  const hasOnboardingFirstEntrySettled =
+    hasOnboardingFirstEntry || didOnboardingFirstEntryFail;
+
+  const [firstEntryIndicatorExpired, setFirstEntryIndicatorExpired] =
+    useState(false);
+  const firstEntryAcknowledgedAt =
+    agentOnboarding.marker?.provisionAcknowledgedAt;
+  useEffect(() => {
+    setFirstEntryIndicatorExpired(false);
+    if (
+      !agentOnboarding.awaitingFirstEntry ||
+      hasOnboardingFirstEntrySettled ||
+      !firstEntryAcknowledgedAt
+    ) {
+      return;
+    }
+
+    const remainingMs =
+      FIRST_ENTRY_REFRESH_TIMEOUT_MS - (Date.now() - firstEntryAcknowledgedAt);
+    if (remainingMs <= 0) {
+      setFirstEntryIndicatorExpired(true);
+      return;
+    }
+
+    const timeout = setTimeout(
+      () => setFirstEntryIndicatorExpired(true),
+      remainingMs
+    );
+    return () => clearTimeout(timeout);
+  }, [
+    agentOnboarding.awaitingFirstEntry,
+    firstEntryAcknowledgedAt,
+    groupId,
+    hasOnboardingFirstEntrySettled,
+  ]);
+
+  const firstEntryIndicatorWithinTimeout = Boolean(
+    firstEntryAcknowledgedAt &&
+    Date.now() - firstEntryAcknowledgedAt < FIRST_ENTRY_REFRESH_TIMEOUT_MS &&
+    !firstEntryIndicatorExpired
+  );
+  const pendingThinkingLabel =
+    agentOnboarding.awaitingFirstEntry &&
+    !hasOnboardingFirstEntrySettled &&
+    firstEntryIndicatorWithinTimeout
+      ? 'Writing your first entry…'
+      : undefined;
+
+  useEffect(() => {
+    if (!groupId || !hasOnboardingFirstEntrySettled) return;
+    void db.agentGroupOnboardingLocks.setValue((current) => {
+      if (!current[groupId]) return current;
+      const { [groupId]: _completed, ...remaining } = current;
+      return remaining;
+    });
+  }, [groupId, hasOnboardingFirstEntrySettled]);
+
+  useEffect(() => {
+    if (
+      !isFocused ||
+      !agentOnboarding.awaitingFirstEntry ||
+      hasOnboardingFirstEntrySettled
+    ) {
+      return;
+    }
+
+    const acknowledgedAt =
+      agentOnboarding.marker?.provisionAcknowledgedAt ?? Date.now();
+    if (Date.now() - acknowledgedAt >= FIRST_ENTRY_REFRESH_TIMEOUT_MS) {
+      return;
+    }
+
+    let cancelled = false;
+    let refreshInFlight = false;
+    const refresh = async () => {
+      if (cancelled || refreshInFlight) return;
+      if (Date.now() - acknowledgedAt >= FIRST_ENTRY_REFRESH_TIMEOUT_MS) {
+        return;
+      }
+      refreshInFlight = true;
+      try {
+        await store.syncSince({
+          callCtx: { cause: 'agent-onboarding-first-entry' },
+        });
+      } finally {
+        refreshInFlight = false;
+      }
+    };
+
+    void refresh();
+    const interval = setInterval(refresh, FIRST_ENTRY_REFRESH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [
+    agentOnboarding.awaitingFirstEntry,
+    agentOnboarding.marker?.provisionAcknowledgedAt,
+    hasOnboardingFirstEntrySettled,
+    isFocused,
+  ]);
+
   usePushNotifTapTelemetry({
     channelId: currentChannelId,
     posts: filteredPosts,
@@ -662,6 +799,9 @@ export default function ChannelScreen(props: Props) {
           }
           goBack={navigationRef.current.goBack}
           disableBackButton={agentOnboardingNavigationLocked}
+          suppressEmptyState={agentGroupSetupActive}
+          suppressAnimatedSendScroll={agentGroupSetupActive}
+          pendingThinkingLabel={pendingThinkingLabel}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}

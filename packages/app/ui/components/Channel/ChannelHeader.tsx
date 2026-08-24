@@ -16,6 +16,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { View } from 'tamagui';
 
 import { useShipConnectionStatus } from '../../../features/top/useShipConnectionStatus';
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -435,7 +436,6 @@ export function ChannelHeader({
     enabled: usesNavigationHeader,
     bottomEdgeEffect: 'soft',
   });
-
   if (usesNavigationHeader) {
     // Native navigation headers accept declarative actions only. Element-style
     // registrations are reserved for inline notebook and gallery headers.
