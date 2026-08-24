@@ -184,7 +184,7 @@ function SmallChoiceControl({
   const messageForSelection = A2UI.buildSmallChoiceMessage(
     component,
     selectedIds,
-    customTopics.join(', ')
+    customTopics
   );
   const topicsForSelection = [
     ...component.options
@@ -916,7 +916,6 @@ export function A2UIBlock({
           const actionCanBeConsumed = isConsumableA2UIAction(component.action);
           const actionConsumed =
             actionCanBeConsumed &&
-            component.variant === 'primary' &&
             (locallyConsumedComponentIds.includes(component.id) ||
               isA2UIActionConsumed?.(component.action) === true);
           const disabled =

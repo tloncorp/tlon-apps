@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import * as api from '@tloncorp/api';
-import type { A2UI } from '@tloncorp/shared/logic';
+import { A2UI } from '@tloncorp/shared/logic';
 import { Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
@@ -23,6 +23,7 @@ type McpProviderSnapshot = {
 // component state cannot preserve this historical row's height. Keep the last
 // successful Hosting snapshot for each account and refresh it in place.
 const providerSnapshots = new Map<string, McpProviderSnapshot>();
+const MAX_PROVIDER_SELECTIONS = A2UI.agentProtocolLimits.providerCount;
 
 export function McpConnectControl({
   component,
@@ -184,8 +185,10 @@ export function McpConnectMenu({
       knownConnectedRef.current = connected;
       appliedConfigurationRef.current = configuredKey;
       setSelectedProviderIds(
-        configuredProviderIds?.filter((id) => connected.has(id)) ??
+        (
+          configuredProviderIds?.filter((id) => connected.has(id)) ??
           connectedProviderIds
+        ).slice(0, MAX_PROVIDER_SELECTIONS)
       );
       return;
     }
@@ -197,7 +200,9 @@ export function McpConnectMenu({
       appliedConfigurationRef.current = configuredKey;
       knownConnectedRef.current = connected;
       setSelectedProviderIds(
-        configuredProviderIds!.filter((id) => connected.has(id))
+        configuredProviderIds!
+          .filter((id) => connected.has(id))
+          .slice(0, MAX_PROVIDER_SELECTIONS)
       );
       return;
     }
@@ -215,7 +220,7 @@ export function McpConnectMenu({
           ...current.filter((id) => connected.has(id)),
           ...newlyConnected,
         ]),
-      ];
+      ].slice(0, MAX_PROVIDER_SELECTIONS);
       return next.length === current.length &&
         next.every((id, index) => id === current[index])
         ? current
@@ -230,11 +235,14 @@ export function McpConnectMenu({
   const showSeeAll = providers.length > visibleProviders.length;
 
   const toggleProvider = useCallback((providerId: string) => {
-    setSelectedProviderIds((current) =>
-      current.includes(providerId)
-        ? current.filter((id) => id !== providerId)
-        : [...current, providerId]
-    );
+    setSelectedProviderIds((current) => {
+      if (current.includes(providerId)) {
+        return current.filter((id) => id !== providerId);
+      }
+      return current.length < MAX_PROVIDER_SELECTIONS
+        ? [...current, providerId]
+        : current;
+    });
   }, []);
 
   const configure = useCallback(async () => {
@@ -249,7 +257,7 @@ export function McpConnectMenu({
           ...component.configureAction.event,
           context: {
             ...component.configureAction.event.context,
-            providerIds: selectedProviderIds,
+            providerIds: selectedProviderIds.slice(0, MAX_PROVIDER_SELECTIONS),
           },
         },
       });

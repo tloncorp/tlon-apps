@@ -940,17 +940,17 @@ export const blobEntrySchema = z.custom<A2UI.BlobEntry>(validateBlobEntry);
 export function buildSmallChoiceMessage(
   component: A2UI.SmallChoice,
   selectedIds: Iterable<string>,
-  /** free-text field contents; joins the selected labels as one more entry */
-  freeText?: string
+  /** free-text entries; each value remains a separate durable selection */
+  freeText?: string | readonly string[]
 ): string {
   const selected = new Set(selectedIds);
   const labels = component.options
     .filter((option) => selected.has(option.id))
     .map((option) => option.label);
-  const typed = freeText?.trim();
-  if (typed) {
-    labels.push(typed);
-  }
+  const typed = (typeof freeText === 'string' ? [freeText] : (freeText ?? []))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  labels.push(...typed);
   if (!labels.length) {
     return '';
   }

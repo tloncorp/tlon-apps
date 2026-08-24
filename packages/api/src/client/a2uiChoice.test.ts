@@ -365,6 +365,20 @@ describe('SmallChoice message building', () => {
     ]);
   });
 
+  test('round-trips multiple custom values as separate selections', () => {
+    const message = buildSmallChoiceMessage(
+      component,
+      ['news'],
+      ['Research', 'Development']
+    );
+    expect(message).toBe('News, Research, Development');
+    expect(A2UI.parseSmallChoiceValues(message)).toEqual([
+      'News',
+      'Research',
+      'Development',
+    ]);
+  });
+
   test('freeTextPlaceholder validates as an optional bounded string', () => {
     expect(valid(smallChoice({ freeTextPlaceholder: 'Add your own…' }))).toBe(
       true
