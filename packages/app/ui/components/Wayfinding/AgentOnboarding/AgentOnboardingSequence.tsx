@@ -84,7 +84,7 @@ export function AgentOnboardingSequence(props: {
         if (!cancelled) setUseFallback(true);
         return;
       }
-      if (!botEnabled) {
+      if (!botEnabled && !AGENT_SHIP_OVERRIDE) {
         if (!cancelled) setUseFallback(true);
         return;
       }

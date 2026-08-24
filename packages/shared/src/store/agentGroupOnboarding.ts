@@ -99,12 +99,6 @@ export async function startAgentGroupFurnishing(
       },
     })),
   ]);
-  if (!params.groupId) {
-    await db.pendingAgentGroupCreation.setValue((current) =>
-      current === group.id ? null : current
-    );
-  }
-
   const complete = finishAgentGroupFurnishing({
     group,
     chatChannel,
@@ -198,6 +192,9 @@ async function finishAgentGroupFurnishingOnce({
   };
 
   await ensureIntroRequest(group.id, chatChannel.id, isFirstGroup);
+  await db.pendingAgentGroupCreation.setValue((current) =>
+    current === group.id ? null : current
+  );
 
   logger.trackEvent('Agent Group Furnish Core Completed', {
     groupId: group.id,
