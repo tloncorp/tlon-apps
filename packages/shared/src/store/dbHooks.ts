@@ -888,6 +888,17 @@ export const useContextLensEnabled = () => {
   });
 };
 
+export const useShowDeleteMarkers = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['showDeleteMarkers', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.showDeleteMarkers ?? false;
+    },
+  });
+};
+
 export const useTelemetrySettings = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
