@@ -58,7 +58,7 @@ import type { DraftInputHandle } from '../draftInputs/shared';
 import { PasteableTextInput } from './PasteableTextInput';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import { PastedFile, attachPastedImageFiles } from './pastedImage';
-import { createReferenceExtractor } from './references';
+import { useReferenceExtractor } from './references';
 import {
   MentionOption,
   createMentionRoleOptions,
@@ -362,7 +362,7 @@ function BareChatInput(
   attachmentsRef.current = attachments;
   const prevUrlsRef = useRef<string[]>([]);
 
-  const extractReferences = useRef(createReferenceExtractor()).current;
+  const extractReferences = useReferenceExtractor();
   const mentionRef = useRef<MentionController>(null);
   const slashCommandRef = useRef<SlashCommandController>(null);
 

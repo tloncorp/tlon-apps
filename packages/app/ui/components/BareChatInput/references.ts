@@ -2,6 +2,7 @@ import { toContentReference } from '@tloncorp/api';
 import { REF_REGEX } from '@tloncorp/api/client/utils';
 import { pathToCite } from '@tloncorp/api/urbit';
 import { Attachment } from '@tloncorp/shared';
+import { useState } from 'react';
 
 export interface ReferenceTextChange {
   /** The text with every parsed reference path removed. */
@@ -61,4 +62,10 @@ export function createReferenceExtractor(): ReferenceExtractor {
     lastExtractedText = text;
     return { text, hadReferences: true };
   };
+}
+
+/** Holds one input's reference handler for the life of the component. */
+export function useReferenceExtractor(): ReferenceExtractor {
+  const [extractReferences] = useState(() => createReferenceExtractor());
+  return extractReferences;
 }
