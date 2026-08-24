@@ -159,9 +159,19 @@
 ::  to land at the broker. It rides here rather than on the wire so a retry
 ::  does not lose it.
 ::
+::  .bucket-id and .expires make the record self-sufficient. A revoke issued
+::  as a bucket is deleted still has to be deliverable afterwards, so the
+::  request cannot be rebuilt from live bucket state that is already gone.
+::  .expires is when this pair's authority stops mattering either way -- the
+::  granted token's expiry, carried onto the revoke that replaces it -- which
+::  is also when a confirmed revoked record can be dropped, since past it a
+::  lost revoke is moot.
+::
 +$  reader-sync
   $:  revision=@ud
+      bucket-id=@t
       desired=reader-state
+      expires=@da
       synced=@ud
       awaiting=(unit request-id)
   ==

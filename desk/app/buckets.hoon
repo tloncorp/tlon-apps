@@ -785,7 +785,10 @@
   ::  Bound to a leg before the test on purpose: ?~ on a bare arm refines
   ::  along the wing's axis, an arm has none, and the ~ case mints as vain.
   =/  secret=(unit @t)  genuine-secret
-  =.  cor  (sync-reader flag actor [%granted token expiry] rid)
+  =/  st=bucket-state:b  (need-state flag)
+  =.  cor
+    %-  sync-reader
+    [flag actor (scot %ud id.bucket.st) [%granted token expiry] expiry rid]
   ?^  secret  (answer [%pending ~])
   ::  A client should not be left holding a request we cannot act on yet, so
   ::  it is told; the timer path has no one waiting and just retries.
@@ -866,7 +869,13 @@
 ::  harmless when it lands afterwards.
 ::
 ++  sync-reader
-  |=  [=flag:b reader=ship desired=reader-state:b awaiting=(unit request-id:b)]
+  |=  $:  =flag:b
+          reader=ship
+          bucket-id=@t
+          desired=reader-state:b
+          expires=@da
+          awaiting=(unit request-id:b)
+      ==
   ^+  cor
   =/  key=reader-key:b  [flag reader]
   =/  prior=(unit reader-sync:b)  (~(get by readers) key)
@@ -881,45 +890,47 @@
         stale
       (answer-paths reader stale)
     [%not-authorized 'access changed while the token was being issued']
-  =.  readers  (~(put by readers) key [revision desired synced awaiting])
-  =/  idle=?  ?~(prior & =(revision.u.prior synced.u.prior))
-  =.  cor  (emil (sync-cards ~[[key revision desired]]))
-  ::  One timer drives everything still owed; arm it only when starting from
-  ::  nothing owed, or every change would stack another.
+  ::  Whether anything at all was owed, not just this pair -- one timer walks
+  ::  the whole set, so arming per pair would multiply the batches it sends.
+  =/  idle=?  =(~ owed)
+  =.  readers
+    (~(put by readers) key [revision bucket-id desired expires synced awaiting])
+  =.  cor  (emil (sync-cards ~[[key revision bucket-id desired]]))
   ?.  idle  cor
   arm-reader-retry
 ::
 ::  +owed: pairs the broker has not caught up with.
 ::
 ++  owed
-  ^-  (list [key=reader-key:b revision=@ud desired=reader-state:b])
+  ^-  (list [key=reader-key:b revision=@ud bucket-id=@t desired=reader-state:b])
   %+  murn  ~(tap by readers)
   |=  [key=reader-key:b sync=reader-sync:b]
-  ^-  (unit [reader-key:b @ud reader-state:b])
+  ^-  (unit [reader-key:b @ud @t reader-state:b])
   ?:  (lte revision.sync synced.sync)  ~
-  `[key revision.sync desired.sync]
+  `[key revision.sync bucket-id.sync desired.sync]
 ::
 ::  +sync-cards: one request per pair. The credential goes in a header: a
 ::  query string lands in access logs, and so would a bearer token in a path.
 ::
 ++  sync-cards
-  |=  wants=(list [key=reader-key:b revision=@ud desired=reader-state:b])
+  |=  $:  wants=(list [key=reader-key:b revision=@ud bucket-id=@t desired=reader-state:b])
+      ==
   ^-  (list card)
   ?~  wants  ~
   =/  secret=(unit @t)  genuine-secret
   ?~  secret
     %-  (slog leaf+"buckets: no %genuine secret, cannot sync readers" ~)
     ~
-  %+  murn  wants
-  |=  [key=reader-key:b revision=@ud desired=reader-state:b]
-  ^-  (unit card)
-  ?~  sp=(~(get by spaces) flag.key)  ~
-  ?~  st-unit=state.u.sp  ~
-  =/  st=bucket-state:b  u.st-unit
+  %+  turn  wants
+  |=  [key=reader-key:b revision=@ud bucket-id=@t desired=reader-state:b]
+  ^-  card
+  ::  Everything the request needs is on the record. Rebuilding it from live
+  ::  bucket state would make a revoke undeliverable exactly when it matters
+  ::  most -- the bucket has been deleted and its objects still exist.
   =/  common=(list [@t json])
     :~  ['bucketHost' s+(ship-text ship.flag.key)]
         ['bucketName' s+(scot %tas name.flag.key)]
-        ['bucketId' s+(scot %ud id.bucket.st)]
+        ['bucketId' s+bucket-id]
         ['actorShip' s+(ship-text reader.key)]
         ['revision' (numb:enjs:format revision)]
     ==
@@ -945,7 +956,6 @@
         ==
         `[(met 3 body) body]
     ==
-  :-  ~
   :*  %pass  (reader-wire key revision)  %arvo  %i
       %request  request  *outbound-config:iris
   ==
@@ -1004,7 +1014,10 @@
   ^+  cor
   ?~  got=(~(get by readers) key)  cor
   =/  sync=reader-sync:b  u.got
-  =?  sync  (gth sent synced.sync)  sync(synced sent)
+  ::  Whether this ack tells us anything we did not already know. A repeat
+  ::  delivery must not re-install or re-arm anything.
+  =/  advanced=?  (gth sent synced.sync)
+  =?  sync  advanced  sync(synced sent)
   ::  The broker is ahead of us, so our counter lost state or an earlier
   ::  incarnation of it got further. Adopt its number and re-send, or our
   ::  desired state is discarded as stale from here on.
@@ -1012,21 +1025,24 @@
     =.  sync  sync(revision +(u.theirs), synced u.theirs)
     =.  readers  (~(put by readers) key sync)
     %-  (slog leaf+"buckets: broker was ahead of us, resending" ~)
-    (emil (sync-cards ~[[key revision.sync desired.sync]]))
+    (emil (sync-cards ~[[key revision.sync bucket-id.sync desired.sync]]))
   =.  readers  (~(put by readers) key sync)
-  ::  Only a confirmed grant answers a waiting client, and only once the
-  ::  broker is level with what we last decided -- an ack for a superseded
-  ::  revision says nothing about the token we are about to hand over.
+  ?.  advanced  cor
+  ::  Only once the broker is level with what we last decided -- an ack for a
+  ::  superseded revision says nothing about the state we now want.
   ?.  =(synced.sync revision.sync)  cor
-  ?~  awaiting.sync  cor
   ?.  ?=(%granted -.desired.sync)  cor
-  =/  rid=request-id:b  u.awaiting.sync
-  =.  readers  (~(put by readers) key sync(awaiting ~))
   =/  tok=read-token:b  [token.desired.sync expires-at.desired.sync]
+  ::  Installing is independent of anyone waiting: a renewal fired by the
+  ::  refresh timer has no request behind it, and skipping it here left the
+  ::  local scry serving the previous token until it lapsed and then forever.
   =?  read-tokens  =(reader.key our.bowl)
     (~(put by read-tokens) flag.key tok)
   =?  cor  =(reader.key our.bowl)
     (arm-token-refresh flag.key expires-at.desired.sync)
+  ?~  awaiting.sync  cor
+  =/  rid=request-id:b  u.awaiting.sync
+  =.  readers  (~(put by readers) key sync(awaiting ~))
   (respond rid (answer-paths reader.key rid) [%token tok])
 ::
 ::  +granted-readers: pairs `test` accepts that currently hold a grant.
@@ -1051,7 +1067,11 @@
   ^+  cor
   %+  roll  keys
   |=  [key=reader-key:b acc=_cor]
-  (sync-reader:acc flag.key reader.key [%revoked ~] ~)
+  ::  Carry the bucket id and expiry off the record being replaced, so the
+  ::  revoke stays deliverable after the bucket itself is gone.
+  ?~  got=(~(get by readers.acc) key)  acc
+  %-  sync-reader:acc
+  [flag.key reader.key bucket-id.u.got [%revoked ~] expires.u.got ~]
 ::
 ++  url-encode
   |=  txt=@t
@@ -1129,8 +1149,16 @@
     %+  skim  ~(tap by read-tokens)
     |=  [=flag:b tok=read-token:b]
     (gth expires-at.tok now.bowl)
-  ::  readers is desired state, not expiring authority: a revoked record has
-  ::  to outlive the token it replaced, or the broker never hears about it.
+  ::  A confirmed revoked record can go once the token it replaced would have
+  ::  lapsed anyway -- past that a lost revoke is moot. Anything still owed
+  ::  stays, whatever its age, or the broker never hears about it.
+  =.  readers
+    %-  malt
+    %+  skim  ~(tap by readers)
+    |=  [key=reader-key:b sync=reader-sync:b]
+    ?.  ?=(%revoked -.desired.sync)  &
+    ?.  =(synced.sync revision.sync)  &
+    (gth expires.sync now.bowl)
   cor
 ::
 ++  drop-bucket-sessions
