@@ -150,6 +150,24 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     []
   );
 
+  // An upload lives in two structures: the row the file list renders, and the
+  // batch item the aggregate progress bar sums. Retiring it from one without
+  // the other is invisible until the bar sticks short of 100% for the rest of
+  // the session, so both moves happen here and nowhere else.
+  const retireUpload = useCallback(
+    (id: string, outcome: 'completed' | 'removed') => {
+      setCurrentUploads((current) =>
+        current.filter((candidate) => candidate.id !== id)
+      );
+      setUploadBatch((current) =>
+        outcome === 'completed'
+          ? completeBucketUploadInBatch(current, id)
+          : removeBucketUploadFromBatch(current, id)
+      );
+    },
+    [setCurrentUploads]
+  );
+
   const commitSnapshot = useCallback(
     (next: BucketsSnapshot | null) => {
       snapshotRef.current = next;
@@ -168,7 +186,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         });
       }
     },
-    [setCurrentUploads]
+    []
   );
 
   const selectSnapshot = useCallback(
@@ -222,11 +240,9 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
               response.update.type === 'entry-updated')
           ) {
             const publishedId = response.update.entry.id;
-            setCurrentUploads((currentUploads) =>
-              currentUploads.filter(
-                (upload) => upload.serverEntryId !== publishedId
-              )
-            );
+            uploadsRef.current
+              .filter((upload) => upload.serverEntryId === publishedId)
+              .forEach((upload) => retireUpload(upload.id, 'completed'));
           }
           setLoading(false);
         });
@@ -252,7 +268,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       active = false;
       if (stopSubscription) void stopSubscription();
     };
-  }, [commitSnapshot, flag, flagKey, refresh, setCurrentUploads]);
+  }, [commitSnapshot, flag, flagKey, refresh, retireUpload]);
 
   const updateLocalUpload = useCallback(
     (id: string, patch: Partial<LocalUpload>) => {
@@ -358,10 +374,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         brokerCompleted = true;
         updateLocalUpload(id, { progress: 100 });
         await refresh();
-        setUploadBatch((current) => completeBucketUploadInBatch(current, id));
-        setCurrentUploads((currentUploads) =>
-          currentUploads.filter((candidateUpload) => candidateUpload.id !== id)
-        );
+        retireUpload(id, 'completed');
       } catch (cause) {
         tasksRef.current.delete(id);
         const cancelled = cancelledRef.current.has(id);
@@ -395,7 +408,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         }
       }
     },
-    [flag, flagKey, refresh, setCurrentUploads, updateLocalUpload]
+    [flag, flagKey, refresh, retireUpload, updateLocalUpload]
   );
 
   const addUploads = useCallback(
@@ -447,10 +460,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         .catch(() => undefined);
       tasksRef.current.delete(id);
 
-      setCurrentUploads((current) =>
-        current.filter((candidate) => candidate.id !== id)
-      );
-      setUploadBatch((current) => removeBucketUploadFromBatch(current, id));
+      retireUpload(id, 'removed');
       if (serverEntryId !== undefined && snapshotRef.current) {
         commitSnapshot(
           removeEntryFromBucketSnapshot(snapshotRef.current, serverEntryId)
@@ -480,7 +490,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       }
       void refresh();
     },
-    [commitSnapshot, flag, refresh, setCurrentUploads, uploads]
+    [commitSnapshot, flag, refresh, retireUpload, uploads]
   );
 
   const retryUpload = useCallback(
