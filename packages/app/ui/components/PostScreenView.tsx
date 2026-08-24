@@ -681,6 +681,11 @@ function SinglePostView({
         : threadPosts?.filter((post) => !post.isDeleted),
     [includeDeletedPosts, threadPosts]
   );
+  const selectedReplyIsHidden = Boolean(
+    !includeDeletedPosts &&
+    selectedPostId &&
+    threadPosts?.some((post) => post.id === selectedPostId && post.isDeleted)
+  );
 
   const posts = useMemo(() => {
     return parentPost ? [...(visibleThreadPosts ?? []), parentPost] : null;
@@ -754,19 +759,19 @@ function SinglePostView({
   // This wires into Scroller's anchor initialization, giving us retry/recovery
   // for unmeasured items instead of a one-shot imperative scroll.
   const threadAnchor: ScrollAnchor | null = useMemo(() => {
-    if (isChatChannel && selectedPostId) {
+    if (isChatChannel && selectedPostId && !selectedReplyIsHidden) {
       return { type: 'selected', postId: selectedPostId };
     }
     return null;
-  }, [isChatChannel, selectedPostId]);
+  }, [isChatChannel, selectedPostId, selectedReplyIsHidden]);
 
   // Trigger the 5s temporary highlight when selectedPostId changes.
   // Scrolling is handled by the anchor via useAnchorScrollLock.
   useEffect(() => {
-    if (isChatChannel && selectedPostId) {
+    if (isChatChannel && selectedPostId && !selectedReplyIsHidden) {
       highlightPost(selectedPostId);
     }
-  }, [isChatChannel, selectedPostId, highlightPost]);
+  }, [isChatChannel, selectedPostId, selectedReplyIsHidden, highlightPost]);
 
   const containingProperties: Partial<
     React.ComponentPropsWithoutRef<typeof View>
