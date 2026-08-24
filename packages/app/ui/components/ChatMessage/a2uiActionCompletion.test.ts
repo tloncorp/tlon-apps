@@ -49,8 +49,14 @@ describe('getA2UIActionCompletion', () => {
           post({ authorId: ownerId, textContent: 'Yes' }),
         ],
         ownerId
-      ).sentMessageTexts
-    ).toEqual(['Unrelated text', 'Yes']);
+      ).sentMessageTextIndex
+    ).toMatchObject({
+      lastIndexByText: new Map([
+        ['Unrelated text', 0],
+        ['Yes', 1],
+      ]),
+      start: 0,
+    });
   });
 
   it('consumes a provisioning action only after its typed owner post', () => {
@@ -119,10 +125,26 @@ describe('getA2UIActionCompletion', () => {
       post({ id: 'follow-up' }),
       post({ id: 'topics', authorId: ownerId, textContent: 'Mycology' }),
     ];
-    expect(getA2UIActionCompletions(posts, ownerId)).toEqual(
+    const completions = getA2UIActionCompletions(posts, ownerId);
+    const materialize = (completion: (typeof completions)[number]) => ({
+      ...completion,
+      sentMessageTextIndex: completion.sentMessageTextIndex
+        ? [...completion.sentMessageTextIndex.lastIndexByText]
+            .filter(
+              ([, index]) => index >= completion.sentMessageTextIndex!.start
+            )
+            .map(([text]) => text)
+            .sort()
+        : undefined,
+    });
+    expect(completions.map(materialize)).toEqual(
       posts.map((_, index) =>
-        getA2UIActionCompletion(posts.slice(index + 1), ownerId)
+        materialize(getA2UIActionCompletion(posts.slice(index + 1), ownerId))
       )
+    );
+
+    expect(completions[0]?.sentMessageTextIndex?.lastIndexByText).toBe(
+      completions[1]?.sentMessageTextIndex?.lastIndexByText
     );
   });
 });

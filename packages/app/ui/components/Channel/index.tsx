@@ -908,11 +908,17 @@ export function Channel({
                               ? handleGoBack
                               : undefined
                           }
-                          goToChatDetails={goToChatDetails}
-                          goToProfile={handleGoToProfile}
-                          goToSearch={goToSearch}
+                          goToChatDetails={
+                            disableBackButton ? undefined : goToChatDetails
+                          }
+                          goToProfile={
+                            disableBackButton ? undefined : handleGoToProfile
+                          }
+                          goToSearch={
+                            disableBackButton ? undefined : goToSearch
+                          }
                           onToggleContextLens={
-                            contextLensAvailable
+                            !disableBackButton && contextLensAvailable
                               ? isNarrow && goToContextLensRuns
                                 ? goToContextLensRuns
                                 : toggleContextLens
@@ -923,7 +929,7 @@ export function Channel({
                           }
                           contextLensActive={contextLensActive}
                           showSpinner={showHeaderLoading}
-                          showSearchButton={isChatChannel}
+                          showSearchButton={isChatChannel && !disableBackButton}
                         />
                         {showOnboardingBackTooltip && !disableBackButton ? (
                           <AgentOnboardingBackTooltip

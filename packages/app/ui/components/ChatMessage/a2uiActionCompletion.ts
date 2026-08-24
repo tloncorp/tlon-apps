@@ -3,6 +3,20 @@ import { parsePostBlob } from '@tloncorp/shared/logic';
 
 import type { A2UIActionCompletion } from '../../contexts/componentsKits';
 
+function isDurableOwnerReply(candidate: db.Post, currentUserId: string) {
+  return (
+    candidate.authorId === currentUserId &&
+    !candidate.isDeleted &&
+    candidate.deliveryStatus !== 'failed'
+  );
+}
+
+function getLastReplyIndexByText(texts: readonly string[]) {
+  const result = new Map<string, number>();
+  texts.forEach((text, index) => result.set(text.trim(), index));
+  return result;
+}
+
 /**
  * A2UI controls live in durable bot posts. Their resulting owner post is the
  * durable receipt that an action was consumed, so completed controls stay
@@ -12,12 +26,13 @@ export function getA2UIActionCompletion(
   laterPosts: db.Post[],
   currentUserId: string
 ): A2UIActionCompletion {
-  const ownerReplies = laterPosts.filter(
-    (candidate) =>
-      candidate.authorId === currentUserId &&
-      !candidate.isDeleted &&
-      candidate.deliveryStatus !== 'failed'
+  const ownerReplies = laterPosts.filter((candidate) =>
+    isDurableOwnerReply(candidate, currentUserId)
   );
+  const ownerReplyTexts = ownerReplies.flatMap((candidate) =>
+    candidate.textContent?.trim() ? [candidate.textContent] : []
+  );
+  const lastIndexByText = getLastReplyIndexByText(ownerReplyTexts);
   const newestEntries = [...ownerReplies]
     .reverse()
     .flatMap((candidate) =>
@@ -36,9 +51,10 @@ export function getA2UIActionCompletion(
     sentMessageText:
       ownerReplies.find((candidate) => Boolean(candidate.textContent?.trim()))
         ?.textContent ?? undefined,
-    sentMessageTexts: ownerReplies.flatMap((candidate) =>
-      candidate.textContent?.trim() ? [candidate.textContent] : []
-    ),
+    sentMessageTextIndex: {
+      lastIndexByText,
+      start: 0,
+    },
     provisionAgent: provision?.type === 'tlon-agent-provision',
     provisionedTopics:
       provision?.type === 'tlon-agent-provision' ? provision.topics : undefined,
@@ -59,34 +75,36 @@ export function getA2UIActionCompletions(
   currentUserId: string
 ): A2UIActionCompletion[] {
   const completions = new Array<A2UIActionCompletion>(posts.length);
-  let sentMessageText: string | undefined;
-  let sentMessageTexts: string[] = [];
+  const ownerReplyTexts = posts.flatMap((candidate) =>
+    isDurableOwnerReply(candidate, currentUserId) &&
+    candidate.textContent?.trim()
+      ? [candidate.textContent]
+      : []
+  );
+  const lastIndexByText = getLastReplyIndexByText(ownerReplyTexts);
+  let nextOwnerReplyIndex = ownerReplyTexts.length;
   let provisionedTopics: string[] | undefined;
   let configuredProviderIds: string[] | undefined;
 
   for (let index = posts.length - 1; index >= 0; index -= 1) {
+    const sentMessageText = ownerReplyTexts[nextOwnerReplyIndex];
     completions[index] = {
       sendMessage: sentMessageText !== undefined,
       sentMessageText,
-      sentMessageTexts,
+      sentMessageTextIndex: {
+        lastIndexByText,
+        start: nextOwnerReplyIndex,
+      },
       provisionAgent: provisionedTopics !== undefined,
       provisionedTopics,
       configuredProviderIds,
     };
 
     const candidate = posts[index];
-    if (
-      candidate.authorId !== currentUserId ||
-      candidate.isDeleted ||
-      candidate.deliveryStatus === 'failed'
-    )
-      continue;
+    if (!isDurableOwnerReply(candidate, currentUserId)) continue;
     const text = candidate.textContent?.trim();
     if (text) {
-      // Moving backwards makes this the earliest owner reply in the suffix,
-      // matching Array.find in getA2UIActionCompletion.
-      sentMessageText = candidate.textContent ?? undefined;
-      sentMessageTexts = [candidate.textContent ?? text, ...sentMessageTexts];
+      nextOwnerReplyIndex -= 1;
     }
     if (candidate.blob == null) continue;
     for (const entry of parsePostBlob(candidate.blob)) {
