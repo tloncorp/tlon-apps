@@ -268,9 +268,10 @@ const firstRunCompletionRetryTimers = sharedMap<
 const firstRunCompletionRetryAttempts = sharedMap<string, number>(
   'agentOnboarding.firstRunCompletionRetryAttempts'
 );
-const primaryJobFlights = sharedMap<string, Promise<string>>(
-  'agentOnboarding.primaryJobFlights'
-);
+const primaryJobFlights = sharedMap<
+  string,
+  { desiredKey: string; flight: Promise<string> }
+>('agentOnboarding.primaryJobFlights');
 const SLOT_PREFIX = 'tlon-agent-primary:';
 const MCP_READ_TOOLS = [
   'mcp_list_upstreams',
@@ -509,7 +510,7 @@ function pendingDurableReply(
         (entry) =>
           entry.author === ownerShip &&
           entry.timestamp > active.timestamp &&
-          entry.content.trim()
+          purposeForReply(entry.content) !== null
       )
       .sort((a, b) => b.timestamp - a.timestamp)[0] ?? null
   );
@@ -971,6 +972,10 @@ async function provision(
         text:
           'I’m writing the first entry now. You’re all set—feel free to ' +
           'explore while I work.',
+        shouldSend: async () => {
+          const latest = await lookupAgentOnboardingRun(request.provisionId);
+          return latest?.status !== 'completed' && latest?.status !== 'failed';
+        },
       }),
       deps,
       presentation
@@ -1745,6 +1750,8 @@ type PostOnceContent = {
   story?: Parameters<typeof sendChannelPost>[0]['story'];
   blob?: string;
   entries?: Parameters<typeof appendToPostBlob>[1][];
+  /** Revalidate after presentation delay, immediately before transport. */
+  shouldSend?: () => Promise<boolean>;
 };
 
 type OnboardingPresentation = {
@@ -1889,6 +1896,7 @@ async function postOnce(
     await existing;
     return false;
   }
+  let posted = false;
   const flight = (async () => {
     const content = await build();
     let blob = content.blob;
@@ -1901,6 +1909,7 @@ async function postOnce(
       key,
     });
     await presentation?.beforePost(content.text);
+    if (content.shouldSend && !(await content.shouldSend())) return;
     try {
       await (deps.sendPost ?? sendChannelPost)({
         fromShip: context.botShip,
@@ -1919,10 +1928,11 @@ async function postOnce(
     }
     presentation?.afterPost();
     completedPostMarkers.set(flightKey, true);
+    posted = true;
   })().finally(() => postOnceFlights.delete(flightKey));
   postOnceFlights.set(flightKey, flight);
   await flight;
-  return true;
+  return posted;
 }
 
 function hasPostMarker(
@@ -2033,19 +2043,19 @@ async function upsertPrimaryJob(
   providerIds: readonly string[] = []
 ) {
   const description = `${SLOT_PREFIX}${request.groupId}`;
-  const existingFlight = primaryJobFlights.get(description);
-  if (existingFlight) return existingFlight;
-  const flight = upsertPrimaryJobOnce(
-    cron,
-    request,
-    failureChatNest,
-    providerIds
-  ).finally(() => {
-    if (primaryJobFlights.get(description) === flight) {
-      primaryJobFlights.delete(description);
-    }
-  });
-  primaryJobFlights.set(description, flight);
+  const desiredKey = `${request.provisionId}:${providerIds.join('\u0000')}`;
+  const existing = primaryJobFlights.get(description);
+  if (existing?.desiredKey === desiredKey) return existing.flight;
+  const flight = (existing?.flight.catch(() => undefined) ?? Promise.resolve())
+    .then(() =>
+      upsertPrimaryJobOnce(cron, request, failureChatNest, providerIds)
+    )
+    .finally(() => {
+      if (primaryJobFlights.get(description)?.flight === flight) {
+        primaryJobFlights.delete(description);
+      }
+    });
+  primaryJobFlights.set(description, { desiredKey, flight });
   return flight;
 }
 

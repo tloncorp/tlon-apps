@@ -5550,9 +5550,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
-      for (const channelNest of watchedChannels) {
-        await scanAgentOnboardingNest(channelNest);
-      }
+      const startupOnboardingNests = [...watchedChannels];
+      let nextOnboardingNest = 0;
+      const scanNextOnboardingNest = async () => {
+        while (nextOnboardingNest < startupOnboardingNests.length) {
+          const nest = startupOnboardingNests[nextOnboardingNest++];
+          await scanAgentOnboardingNest(nest);
+        }
+      };
+      await Promise.all(
+        Array.from(
+          { length: Math.min(4, startupOnboardingNests.length) },
+          scanNextOnboardingNest
+        )
+      );
       const webSearchRuntime = core.webSearch;
       const webSearchStatus = probeWebSearchBootStatus({
         searchConfig: cfg.tools?.web?.search,

@@ -1523,6 +1523,35 @@ describe('primary onboarding cron slot', () => {
     expect(harness.getJobs()).toHaveLength(1);
   });
 
+  it('serializes distinct provider updates without dropping the newest one', async () => {
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+
+    await Promise.all([
+      agentOnboardingTesting.upsertPrimaryJob(
+        harness.cron,
+        provision,
+        'chat/~ten/group/general',
+        ['gmail']
+      ),
+      agentOnboardingTesting.upsertPrimaryJob(
+        harness.cron,
+        provision,
+        'chat/~ten/group/general',
+        ['notion']
+      ),
+    ]);
+
+    expect(harness.cron.update).toHaveBeenCalledTimes(2);
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: { message: expect.stringContaining('["notion"]') },
+    });
+  });
+
   it('accepts the runtime text alias when verifying an existing slot', async () => {
     const initial = cronHarness();
     await agentOnboardingTesting.upsertPrimaryJob(
