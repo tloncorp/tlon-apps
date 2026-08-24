@@ -955,6 +955,21 @@ describe('renderPostJsonLine', () => {
       'content',
     ]);
   });
+
+  it('escapes unicode line separators so a record stays one line', () => {
+    // JSON.stringify leaves U+0085/U+2028/U+2029 literal; a splitlines()-style
+    // reader would split the record. The escape round-trips through JSON.parse.
+    const line = renderPostJsonLine(
+      post({
+        content: JSON.stringify([{ inline: ['a\u2028b\u0085c\u2029d'] }]),
+      })
+    );
+    expect(line).not.toMatch(/[\u0085\u2028\u2029]/);
+    expect(line).toContain('\\u2028');
+    expect(JSON.parse(line).content).toEqual([
+      { inline: ['a\u2028b\u0085c\u2029d'] },
+    ]);
+  });
 });
 
 describe('renderPostListJsonLines', () => {

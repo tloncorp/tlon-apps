@@ -466,6 +466,12 @@ export async function renderPostListLines(
  * both `getTextContent` and the URL-fidelity rewrite — this mode is structure,
  * not a reading view, so references, links, and blocks stay as they arrived.
  */
+// JSON.stringify escapes every control char below U+0020 but leaves these
+// three legal-in-JSON separators literal; a Unicode-aware line reader (hermes
+// consumes this output with Python's splitlines()) would split one record
+// into fragments. Escaping is lossless — JSON.parse yields the same string.
+const JSON_LINE_SEPARATOR_RE = /[\u0085\u2028\u2029]/g;
+
 export function renderPostJsonLine(post: Post): string {
   const parsed = parsePostContent(post.content);
   return JSON.stringify({
@@ -480,7 +486,10 @@ export function renderPostJsonLine(post: Post): string {
     // Tombstones (deleted posts) reach history pages with content undefined —
     // normalize like parentId/blob so the record shape stays stable.
     content: parsed ?? post.content ?? null,
-  });
+  }).replace(
+    JSON_LINE_SEPARATOR_RE,
+    (c) => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')
+  );
 }
 
 /** NDJSON lines for a batch, in the same sent order as `renderPostListLines`. */
