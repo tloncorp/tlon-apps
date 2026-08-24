@@ -36,6 +36,7 @@ import {
   forgetAgentOnboardingRunClaim,
   getAgentOnboardingClaimOwnerId,
   lookupAgentOnboardingRun,
+  lookupNewestAgentOnboardingRunForGroup,
   markAgentOnboardingRunTerminal,
   recordAgentOnboardingRunEnqueued,
   recordAgentOnboardingRunOutcome,
@@ -1046,6 +1047,17 @@ async function configureProviders(
   config: PostBlobDataEntryAgentProviderConfig,
   deps: AgentOnboardingDeps
 ) {
+  const newestDurableProvision =
+    await lookupNewestAgentOnboardingRunForGroup(config.groupId);
+  if (
+    newestDurableProvision &&
+    newestDurableProvision.provisionId !== config.provisionId
+  ) {
+    context.log?.(
+      '[tlon] rejected agent provider config: durable provision was superseded'
+    );
+    return;
+  }
   const newestHistoryProvision = findNewestProvisionRequest(
     history,
     context.ownerShip!,
@@ -1110,16 +1122,20 @@ export async function handleAgentOnboardingCronChanged(
   deps: AgentOnboardingCronDeps = {}
 ): Promise<void> {
   if (event.action !== 'finished' || !event.runId) return;
-  if (!findFirstRunCorrelation(event.runId, undefined, event.jobId, true)) {
-    if (event.status === 'ok' && event.delivered !== true) return;
-    await recordAgentOnboardingRunOutcome(event.runId, {
-      status: event.status === 'ok' ? 'ok' : 'error',
-      delivered: event.delivered === true,
-      error: event.error,
-      observedAt: Date.now(),
-    });
-    return;
-  }
+  if (event.status === 'ok' && event.delivered !== true) return;
+  const exactMatch = findFirstRunCorrelation(
+    event.runId,
+    undefined,
+    event.jobId,
+    true
+  );
+  await recordAgentOnboardingRunOutcome(event.runId, {
+    status: event.status === 'ok' ? 'ok' : 'error',
+    delivered: event.delivered === true,
+    error: event.error,
+    observedAt: Date.now(),
+  });
+  if (!exactMatch) return;
   if (event.status !== 'ok' || event.delivered === false) {
     await failFirstRun(event.runId, event, deps);
     return;
