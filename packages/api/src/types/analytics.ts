@@ -254,14 +254,12 @@ export interface TlonbotReplyFeedbackCommon {
   isBotDm: boolean;
 }
 
-export interface TlonbotReplyFeedbackChanged
-  extends TlonbotReplyFeedbackCommon {
+export interface TlonbotReplyFeedbackChanged extends TlonbotReplyFeedbackCommon {
   action: 'set' | 'clear';
   rating?: TlonbotReplyFeedbackRating;
 }
 
-export interface TlonbotReplyFeedbackDetailsSubmitted
-  extends TlonbotReplyFeedbackCommon {
+export interface TlonbotReplyFeedbackDetailsSubmitted extends TlonbotReplyFeedbackCommon {
   rating: TlonbotReplyFeedbackRating;
   categories: string[];
   details: string;
