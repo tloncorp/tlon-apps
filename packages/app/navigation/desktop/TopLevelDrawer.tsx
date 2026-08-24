@@ -12,6 +12,7 @@ import { getVariableValue, useTheme } from 'tamagui';
 import { GlobalSearch } from '../../features/chat-list/GlobalSearch';
 import useBrowserNotifications from '../../hooks/useBrowserNotifications';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { useAgentGroupOnboardingLock } from '../../hooks/useAgentGroupOnboardingLock';
 import {
   AvatarNavIcon,
   DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
@@ -23,6 +24,7 @@ import {
 } from '../../ui';
 import { PersonalInviteSheet } from '../../ui/components/PersonalInviteSheet';
 import { RootDrawerParamList } from '../types';
+import { getActiveNestedGroupId } from '../routeHelpers';
 import { useRootNavigation } from '../utils';
 import { ActivityNavigator } from './ActivityNavigator';
 import { HomeNavigator } from './HomeNavigator';
@@ -41,6 +43,9 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
     useRef<DrawerNavigationState<RootDrawerParamList> | null>(null);
   const { isOpen, setIsOpen } = useGlobalSearch();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
+  const activeGroupId = getActiveNestedGroupId(props.state);
+  const { locked: agentOnboardingLocked } =
+    useAgentGroupOnboardingLock(activeGroupId);
 
   const isRouteActive = useCallback(
     (routeName: keyof RootDrawerParamList) => {
@@ -94,7 +99,11 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
 
   return (
     <YStack flex={1} paddingVertical="$l">
-      <YStack gap="$xl" alignItems="center">
+      <YStack
+        gap="$xl"
+        alignItems="center"
+        pointerEvents={agentOnboardingLocked ? 'none' : 'auto'}
+      >
         <NavIcon
           type="Home"
           activeType="HomeFilled"
@@ -160,7 +169,12 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           />
         )}
       </YStack>
-      <YStack gap="$xl" marginTop="auto" alignItems="center">
+      <YStack
+        gap="$xl"
+        marginTop="auto"
+        alignItems="center"
+        pointerEvents={agentOnboardingLocked ? 'none' : 'auto'}
+      >
         <NavIcon
           type="AddPerson"
           isActive={false}
