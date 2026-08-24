@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   hasAgentOnboardingFirstEntry,
   hasAgentOnboardingFirstEntryFailed,
+  hasAgentOnboardingProvisionAcknowledgement,
 } from './agentOnboardingFirstEntry';
 
 function markerPost(key: string, authorId = '~bot'): db.Post {
@@ -18,6 +19,44 @@ function markerPost(key: string, authorId = '~bot'): db.Post {
     }),
   } as db.Post;
 }
+
+function acknowledgementPost(provisionId: string, authorId = '~bot'): db.Post {
+  return {
+    id: `ack-${provisionId}`,
+    authorId,
+    blob: appendToPostBlob(undefined, {
+      type: 'tlon-agent-provision-ack',
+      version: 1,
+      provisionId,
+      cronJobId: 'cron-1',
+    }),
+  } as db.Post;
+}
+
+describe('hasAgentOnboardingProvisionAcknowledgement', () => {
+  it('recognizes an acknowledgement for the current provision', () => {
+    expect(
+      hasAgentOnboardingProvisionAcknowledgement(
+        [acknowledgementPost('provision-1')],
+        '~bot',
+        'provision-1'
+      )
+    ).toBe(true);
+  });
+
+  it('ignores acknowledgements from another provision or author', () => {
+    expect(
+      hasAgentOnboardingProvisionAcknowledgement(
+        [
+          acknowledgementPost('provision-2'),
+          acknowledgementPost('provision-1', '~other'),
+        ],
+        '~bot',
+        'provision-1'
+      )
+    ).toBe(false);
+  });
+});
 
 describe('hasAgentOnboardingFirstEntry', () => {
   it('recognizes the current channel-wide completion marker', () => {

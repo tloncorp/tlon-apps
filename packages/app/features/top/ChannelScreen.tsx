@@ -38,6 +38,7 @@ import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibil
 import {
   hasAgentOnboardingFirstEntry,
   hasAgentOnboardingFirstEntryFailed,
+  hasAgentOnboardingProvisionAcknowledgement,
 } from './agentOnboardingFirstEntry';
 import { shouldAcknowledgeAgentOnboardingLanding } from './agentOnboardingLanding';
 
@@ -390,6 +391,39 @@ export default function ChannelScreen(props: Props) {
   }, [agentOnboarding.marker, currentUserId, filteredPosts]);
 
   const provisionId = agentOnboarding.marker?.provision?.provisionId;
+  const hasOnboardingProvisionAcknowledgement = useMemo(
+    () =>
+      hasAgentOnboardingProvisionAcknowledgement(
+        filteredPosts,
+        agentShipId,
+        provisionId
+      ),
+    [agentShipId, filteredPosts, provisionId]
+  );
+  useEffect(() => {
+    if (
+      !groupId ||
+      !hasOnboardingProvisionAcknowledgement ||
+      agentOnboarding.marker?.provisionAcknowledgedAt
+    ) {
+      return;
+    }
+    void db.agentGroupOnboardingLocks.setValue((current) => {
+      const lock = current[groupId];
+      if (!lock || lock.provisionAcknowledgedAt) return current;
+      return {
+        ...current,
+        [groupId]: {
+          ...lock,
+          provisionAcknowledgedAt: Date.now(),
+        },
+      };
+    });
+  }, [
+    agentOnboarding.marker?.provisionAcknowledgedAt,
+    groupId,
+    hasOnboardingProvisionAcknowledgement,
+  ]);
   const hasOnboardingFirstEntry = useMemo(() => {
     return hasAgentOnboardingFirstEntry(
       filteredPosts,
