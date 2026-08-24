@@ -16,6 +16,10 @@ const DEFAULT_AGENT_GROUP_TITLE = 'My agent group';
 const MAX_GENERATED_GROUP_TITLE_LENGTH = 48;
 const notesChannelFlights = new Map<string, Promise<db.Channel>>();
 const agentStandingFlights = new Map<string, Promise<void>>();
+const agentGroupFurnishingFlights = new Map<
+  string,
+  Promise<AgentGroupFurnishingStart>
+>();
 
 export type AgentGroupFurnishing = {
   group: db.Group;
@@ -62,6 +66,21 @@ export async function ensureAgentGroupFurnished(
  */
 export async function startAgentGroupFurnishing(
   params: FurnishParams = {}
+): Promise<AgentGroupFurnishingStart> {
+  const flightKey = params.groupId ?? `new:${api.getCurrentUserId()}`;
+  const existingFlight = agentGroupFurnishingFlights.get(flightKey);
+  if (existingFlight) return existingFlight;
+  const flight = startAgentGroupFurnishingOnce(params).finally(() => {
+    if (agentGroupFurnishingFlights.get(flightKey) === flight) {
+      agentGroupFurnishingFlights.delete(flightKey);
+    }
+  });
+  agentGroupFurnishingFlights.set(flightKey, flight);
+  return flight;
+}
+
+async function startAgentGroupFurnishingOnce(
+  params: FurnishParams
 ): Promise<AgentGroupFurnishingStart> {
   const resolved = await resolveAgent(params.agentShipId);
   if (!resolved.agentShipId) {
@@ -130,13 +149,13 @@ async function createOrResumeAgentGroup({
   }
 
   const local = await db.getGroup({ id: groupId });
-  if (local) return local;
-  if (pendingGroupId) {
+  if (pendingGroupId || local) {
     try {
       return await adoptGroup(groupId);
     } catch {
       // The prior create may have failed before the ship persisted it. Retry
       // with the same id so a late success cannot leave a second group behind.
+      if (local) await db.deleteGroup(groupId);
     }
   }
   return createDefaultGroup({
