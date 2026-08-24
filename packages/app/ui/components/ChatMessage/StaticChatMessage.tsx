@@ -178,12 +178,6 @@ export function StaticChatMessage({
       } satisfies PostBlobDataEntryAgentProvision;
       const blob = appendToPostBlob(undefined, request);
 
-      await renameAgentGroupFromOnboarding({
-        groupId,
-        purposeId: plan.purposeId,
-        topics: plan.topics,
-      });
-
       await db.agentGroupOnboardingLocks.setValue((current) => ({
         ...current,
         [groupId]: {
@@ -205,6 +199,11 @@ export function StaticChatMessage({
         },
         { throwOnFailure: true }
       );
+      await renameAgentGroupFromOnboarding({
+        groupId,
+        purposeId: plan.purposeId,
+        topics: plan.topics,
+      });
     },
     [draftInputContext, resolveActionGroup]
   );
