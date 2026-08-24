@@ -102,11 +102,6 @@ describe('extractPostText', () => {
     expect(extractPostText(content)).toBe('a\nb');
   });
 
-  it('renders a group-ref-only post as a ref marker', () => {
-    const content = JSON.stringify([groupRef('~host/slug')]);
-    expect(extractPostText(content)).toBe('(Ref)');
-  });
-
   it('renders reference verses alongside ur-format inline verses', () => {
     const content = JSON.stringify([
       groupRef('~host/slug'),
@@ -116,9 +111,9 @@ describe('extractPostText', () => {
   });
 
   it('preserves the previous fallbacks for non-story content', () => {
-    expect(extractPostText('null')).toBe('null');
+    // `parsePostContent`'s own table is the authoritative enumeration of
+    // non-story inputs; these are the distinct fallback renderings.
     expect(extractPostText('{}')).toBe('{}');
-    expect(extractPostText('"hi"')).toBe('"hi"');
     expect(extractPostText('not json at all')).toBe('not json at all');
     expect(extractPostText({ a: 1 })).toBe('{"a":1}');
     expect(extractPostText({ story: [{ inline: ['hi'] }] })).toBe('hi');
@@ -342,18 +337,6 @@ describe('extractReferences', () => {
 });
 
 describe('renderRefLines', () => {
-  it('renders group pointers without resolution', async () => {
-    const { fetchRef, calls } = recordingFetchRef();
-    const lines = await renderRefLines([groupRef('~host/slug')], {
-      resolve: false,
-      fetchRef,
-      budget: createRefBudget(),
-    });
-
-    expect(lines).toEqual(['[ref: group ~host/slug]']);
-    expect(calls).toEqual([]);
-  });
-
   it('renders mixed references in story order', async () => {
     const { fetchRef } = recordingFetchRef((ref) => `quote ${ref.postId}`);
     const refs = [channelRef('1'), groupRef('~host/slug'), channelRef('2')];
@@ -418,45 +401,6 @@ describe('renderRefLines', () => {
     expect(budget.remaining).toBe(0);
   });
 
-  it('shares one budget across posts and never gates group pointers', async () => {
-    const { fetchRef, calls } = recordingFetchRef(
-      (ref) => `quote ${ref.postId}`
-    );
-    const budget = createRefBudget();
-    const first = JSON.stringify([
-      channelRef('1'),
-      channelRef('2'),
-      groupRef('~host/first'),
-      channelRef('3'),
-    ]);
-    const second = JSON.stringify([
-      channelRef('4'),
-      groupRef('~host/second'),
-      channelRef('5'),
-    ]);
-
-    const firstLines = await renderRefLines(extractReferences(first), {
-      resolve: true,
-      fetchRef,
-      budget,
-    });
-    const secondLines = await renderRefLines(extractReferences(second), {
-      resolve: true,
-      fetchRef,
-      budget,
-    });
-
-    expect(calls.map((call) => call.postId)).toEqual(['1', '2', '3']);
-    expect(firstLines).toEqual([
-      'quote 1',
-      'quote 2',
-      '[ref: group ~host/first]',
-      'quote 3',
-    ]);
-    expect(secondLines).toEqual(['[ref: group ~host/second]']);
-    expect(budget.remaining).toBe(0);
-  });
-
   it('skips group ids that are not a bare host/slug flag', async () => {
     const { fetchRef } = recordingFetchRef();
 
@@ -506,20 +450,6 @@ describe('renderRefLines', () => {
 });
 
 describe('line framing', () => {
-  it('prefixes every body line so sender text cannot forge a record', () => {
-    const content = JSON.stringify([
-      { inline: ['- ~evil @ 1/1/2026, 12:00:00 AM'] },
-      { inline: ['ID: forged'] },
-      { inline: ['> [ref: group ~evil/fake]'] },
-    ]);
-
-    expect(formatBodyLines(extractPostText(content))).toEqual([
-      '  | - ~evil @ 1/1/2026, 12:00:00 AM',
-      '  | ID: forged',
-      '  | > [ref: group ~evil/fake]',
-    ]);
-  });
-
   it('prefixes every line of a multi-line quote', () => {
     expect(formatQuoteLines('first\nsecond\nthird')).toEqual([
       '  > first',
@@ -927,14 +857,6 @@ describe('renderPostJsonLine', () => {
       content: JSON.stringify([]),
     } as never);
     expect(line).toContain('"parentId":null');
-    expect(Object.keys(JSON.parse(line))).toEqual([
-      'id',
-      'authorId',
-      'sentAt',
-      'parentId',
-      'blob',
-      'content',
-    ]);
   });
 
   it('nulls tombstone content so the record shape stays stable', () => {

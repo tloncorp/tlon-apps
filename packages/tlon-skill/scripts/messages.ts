@@ -240,7 +240,6 @@ async function fetchMessages(
     await printPosts(data.posts, resolveCites, { json });
   } catch (error: any) {
     console.error(`Error fetching messages: ${error.message}`);
-    // Stdout stays pure NDJSON under --json, so the hint goes with the header.
     if (!json) {
       console.log(
         'Note: Check that the channel path is correct (e.g., chat/~host/slug)'

@@ -68,16 +68,10 @@ def extract_cites(content: Any) -> list[ParsedCite]:
                 continue
             if cite_type != "chan":
                 raw_value = raw_cite.get(cite_type)
-                # Classification stays put for malformed values; only the
-                # rendered flag is dropped when it is not a string.
                 cites.append(
                     ParsedCite(
                         type=cite_type,
-                        group=(
-                            raw_value
-                            if cite_type == "group" and isinstance(raw_value, str)
-                            else None
-                        ),
+                        group=raw_value if cite_type == "group" else None,
                     )
                 )
                 break
@@ -149,7 +143,7 @@ def _valid_ud(value: Optional[str]) -> bool:
 
 
 async def resolve_cites(
-    scry: ScryFn,
+    scry: Optional[ScryFn],
     content: Any,
     *,
     max_attempts: int = 3,
@@ -159,10 +153,11 @@ async def resolve_cites(
 
     Group cites render a pointer line from their own (validated) flag and cost
     no scry, so they never consume ``max_attempts`` and still render after the
-    scry cap is reached. ``max_attempts`` counts scry attempts, not successes:
-    a failed scry is an expected miss and does not consume a replacement from
-    later cites. ``max_attempts <= 0`` disables the renderer entirely, group
-    pointers included.
+    scry cap is reached. Channel cites need ``scry``: a ``None`` scry (no live
+    connection) skips them exactly as an unroutable path does. ``max_attempts``
+    counts scry attempts, not successes: a failed scry is an expected miss and
+    does not consume a replacement from later cites. ``max_attempts <= 0``
+    disables the renderer entirely, group pointers included.
 
     Cancellation intentionally propagates to the caller's budget. When the
     caller's budget cancels this coroutine, ``collected`` retains the lines
@@ -178,6 +173,8 @@ async def resolve_cites(
         if cite.type == "group":
             if _valid_group_flag(cite.group):
                 attempts.append((cite, None))
+            continue
+        if scry is None:
             continue
         path = _validated_scry_path(cite)
         if path is None:

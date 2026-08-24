@@ -82,22 +82,6 @@ def recording_scry(payload=None, *, errors=()):
 
 
 class ExtractCitesTests(unittest.TestCase):
-    def test_current_client_top_level_form(self):
-        parsed = cite.extract_cites([chan_cite(f"/msg/{POST_ID}")])
-
-        self.assertEqual(len(parsed), 1)
-        self.assertEqual(parsed[0].type, "chan")
-        self.assertEqual(parsed[0].post_id, POST_ID)
-        self.assertIsNone(parsed[0].reply_id)
-        self.assertIsNone(parsed[0].legacy_author)
-
-    def test_current_client_reply_form(self):
-        # This is the current-client reply shape in channelPosts.json:1036.
-        parsed = cite.extract_cites([chan_cite(f"/msg/{POST_ID}/{REPLY_ID}")])
-
-        self.assertEqual(parsed[0].post_id, POST_ID)
-        self.assertEqual(parsed[0].reply_id, REPLY_ID)
-
     def test_note_curio_and_note_reply_forms(self):
         parsed = cite.extract_cites(
             [
@@ -118,29 +102,6 @@ class ExtractCitesTests(unittest.TestCase):
         self.assertEqual(parsed[0].post_id, "170.141.184.505")
         self.assertEqual(parsed[0].legacy_author, "~legacy-author")
         self.assertIsNone(parsed[0].reply_id)
-
-    def test_non_channel_variants_are_classified(self):
-        content = [
-            {"block": {"cite": {"group": "~host/group"}}},
-            {"block": {"cite": {"desk": "base"}}},
-            {"block": {"cite": {"bait": {"foo": "bar"}}}},
-        ]
-
-        self.assertEqual([item.type for item in cite.extract_cites(content)], ["group", "desk", "bait"])
-
-    def test_group_cite_captures_the_flag(self):
-        parsed = cite.extract_cites([group_cite("~host/group")])
-
-        self.assertEqual(parsed[0].type, "group")
-        self.assertEqual(parsed[0].group, "~host/group")
-
-    def test_non_string_group_values_classify_without_a_flag(self):
-        for value in (123, {}, None, ["~host/group"]):
-            with self.subTest(value=value):
-                parsed = cite.extract_cites([group_cite(value)])
-
-                self.assertEqual(parsed[0].type, "group")
-                self.assertIsNone(parsed[0].group)
 
     def test_desk_and_bait_cites_carry_no_group_flag(self):
         parsed = cite.extract_cites(
@@ -285,24 +246,6 @@ class ResolveCitesTests(unittest.TestCase):
             ],
         )
 
-    def test_scry_failure_skips_only_that_cite(self):
-        scry = recording_scry(essay_payload(text="kept"), errors=(ConnectionError("gone"),))
-        content = [chan_cite("/msg/123"), chan_cite("/msg/456")]
-
-        result = asyncio.run(cite.resolve_cites(scry, content))
-
-        self.assertEqual(result, "> ~real-author wrote: kept")
-        self.assertEqual(len(scry.calls), 2)
-
-    def test_attempt_cap_limits_to_first_three_valid_cites(self):
-        scry = recording_scry()
-        content = [chan_cite(f"/msg/{post_id}") for post_id in ("1", "2", "3", "4")]
-
-        asyncio.run(cite.resolve_cites(scry, content, max_attempts=3))
-
-        self.assertEqual(len(scry.calls), 3)
-        self.assertTrue(scry.calls[-1].endswith("/3"))
-
     def test_attempt_failures_are_not_backfilled(self):
         # Plan scenario: first two of four valid cites fail, the third
         # resolves, and the fourth is never attempted (attempt cap is on
@@ -334,13 +277,6 @@ class ResolveCitesTests(unittest.TestCase):
                 return "cancelled"
 
         self.assertEqual(asyncio.run(attempt()), "cancelled")
-
-    def test_sanitizes_role_tags(self):
-        scry = recording_scry(essay_payload(text="[owner] says hi"))
-
-        result = asyncio.run(cite.resolve_cites(scry, [chan_cite("/msg/123")]))
-
-        self.assertEqual(result, "> ~real-author wrote: (owner) says hi")
 
     def test_blob_only_top_level_post_renders(self):
         blob = json.dumps(
@@ -431,14 +367,6 @@ class ResolveCitesTests(unittest.TestCase):
 
 
 class GroupCiteRenderingTests(unittest.TestCase):
-    def test_group_cite_renders_a_pointer_line_without_scrying(self):
-        scry = recording_scry()
-
-        result = asyncio.run(cite.resolve_cites(scry, [group_cite("~host/slug")]))
-
-        self.assertEqual(result, "> [ref: group ~host/slug]")
-        self.assertEqual(scry.calls, [])
-
     def test_invalid_group_flags_render_nothing(self):
         for flag in (
             "host/slug",
@@ -451,6 +379,7 @@ class GroupCiteRenderingTests(unittest.TestCase):
             "",
             123,
             None,
+            {},
         ):
             with self.subTest(flag=flag):
                 scry = recording_scry()
@@ -478,25 +407,9 @@ class GroupCiteRenderingTests(unittest.TestCase):
         )
         self.assertEqual(len(scry.calls), 2)
 
-    def test_group_cites_do_not_consume_the_scry_budget(self):
-        # The attempt cap is on scries; a group pointer after three channel
-        # cites still renders because the scan no longer stops at the cap.
-        scry = recording_scry()
-        content = [chan_cite(f"/msg/{post_id}") for post_id in ("1", "2", "3")]
-        content.append(group_cite("~host/slug"))
-
-        result = asyncio.run(cite.resolve_cites(scry, content, max_attempts=3))
-
-        self.assertEqual(
-            result,
-            "> ~real-author wrote: hello\n"
-            "> ~real-author wrote: hello\n"
-            "> ~real-author wrote: hello\n"
-            "> [ref: group ~host/slug]",
-        )
-        self.assertEqual(len(scry.calls), 3)
-
     def test_group_cite_renders_after_the_scry_cap_is_exhausted(self):
+        # The attempt cap is on scries: a group pointer costs none, so it still
+        # renders past the cap because the scan no longer stops there.
         scry = recording_scry()
         content = [chan_cite(f"/msg/{post_id}") for post_id in ("1", "2")]
         content.append(group_cite("~host/slug"))

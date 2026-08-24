@@ -133,11 +133,7 @@ function withUrlFidelityInline(item: unknown): unknown {
   return item;
 }
 
-/**
- * A listing is the recursive list tree: either `{list: {items, contents}}`,
- * whose `items` are themselves listings, or a leaf `{item: Inline[]}`. Both
- * inline arrays carry links, so both are rewritten on the way down.
- */
+/** Recursive: `items` are themselves listings, and both inline arrays carry links. */
 function withUrlFidelityListing(listing: unknown): unknown {
   if (!listing || typeof listing !== 'object') return listing;
   const obj = listing as Record<string, unknown>;
@@ -326,7 +322,6 @@ export function sanitizeInlineField(value: string): string {
   );
 }
 
-// Moved verbatim from messages.ts so the assembled record is testable.
 export function formatTime(timeVal: string | number): string {
   try {
     const num = typeof timeVal === 'number' ? timeVal : parseInt(timeVal, 10);
@@ -357,31 +352,27 @@ export function formatTime(timeVal: string | number): string {
 function renderBlobLines(blob: Post['blob']): string[] {
   if (!blob) return [];
   const lines: string[] = [];
-  try {
-    const blobData: ClientPostBlobData = parsePostBlob(blob);
-    // Blob string fields are sender-controlled and interpolated into single
-    // record lines — collapse line separators so none can start a forged
-    // record of its own.
-    for (const entry of blobData) {
-      if (entry.type === 'file') {
-        lines.push(
-          `  📎 [${sanitizeInlineField(entry.name || 'file')}] (${sanitizeInlineField(entry.mimeType || 'unknown')}, ${entry.size ? Math.round(entry.size / 1024) + 'KB' : '?'})`
-        );
-        if (entry.fileUri)
-          lines.push(`     ${sanitizeInlineField(entry.fileUri)}`);
-      } else if (entry.type === 'voicememo') {
-        const dur = entry.duration ? `${Math.round(entry.duration)}s` : '?';
-        lines.push(`  🎙️ [voice memo] (${dur})`);
-        if (entry.transcription)
-          lines.push(`     "${sanitizeInlineField(entry.transcription)}"`);
-      } else if (entry.type === 'video') {
-        lines.push(
-          `  🎬 [${sanitizeInlineField(entry.name || 'video')}] (${sanitizeInlineField(entry.mimeType || 'video')})`
-        );
-      }
+  const blobData: ClientPostBlobData = parsePostBlob(blob);
+  // Blob string fields are sender-controlled and interpolated into single
+  // record lines — collapse line separators so none can start a forged
+  // record of its own.
+  for (const entry of blobData) {
+    if (entry.type === 'file') {
+      lines.push(
+        `  📎 [${sanitizeInlineField(entry.name || 'file')}] (${sanitizeInlineField(entry.mimeType || 'unknown')}, ${entry.size ? Math.round(entry.size / 1024) + 'KB' : '?'})`
+      );
+      if (entry.fileUri)
+        lines.push(`     ${sanitizeInlineField(entry.fileUri)}`);
+    } else if (entry.type === 'voicememo') {
+      const dur = entry.duration ? `${Math.round(entry.duration)}s` : '?';
+      lines.push(`  🎙️ [voice memo] (${dur})`);
+      if (entry.transcription)
+        lines.push(`     "${sanitizeInlineField(entry.transcription)}"`);
+    } else if (entry.type === 'video') {
+      lines.push(
+        `  🎬 [${sanitizeInlineField(entry.name || 'video')}] (${sanitizeInlineField(entry.mimeType || 'video')})`
+      );
     }
-  } catch {
-    lines.push(`  [blob: ${sanitizeInlineField(blob.slice(0, 100))}...]`);
   }
   return lines;
 }
@@ -390,12 +381,6 @@ export interface RenderPostOptions extends RenderRefLinesOptions {
   highlightId?: string;
 }
 
-/**
- * Assemble the complete printed record for one post: author line, ID line,
- * framed body, sanitized attachment lines, framed reference lines, and the
- * trailing blank separator. `messages.ts` prints these verbatim — keeping the
- * assembly here keeps the model-facing record shape under test.
- */
 export async function renderPostLines(
   post: Post,
   opts: RenderPostOptions
@@ -492,7 +477,6 @@ export function renderPostJsonLine(post: Post): string {
   );
 }
 
-/** NDJSON lines for a batch, in the same sent order as `renderPostListLines`. */
 export function renderPostListJsonLines(posts: Post[]): string[] {
   return [...posts].sort((a, b) => a.sentAt - b.sentAt).map(renderPostJsonLine);
 }

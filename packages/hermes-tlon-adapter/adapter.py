@@ -691,16 +691,6 @@ def _epoch_ms(value: Any) -> Optional[int]:
     return None
 
 
-async def _offline_scry(path: str) -> Any:
-    """Stand in for a live scry while the SSE channel is down.
-
-    ``resolve_cites`` treats a raising scry as an expected per-cite miss, so a
-    channel quote drops cleanly while group pointers — which never scry — still
-    render.
-    """
-    raise RuntimeError("sse unavailable")
-
-
 def _nudge_reply_context(nudge: PendingNudge, text: str) -> str:
     sent_at = (
         datetime.fromtimestamp(nudge.sent_at / 1000, timezone.utc)
@@ -4062,11 +4052,11 @@ class TlonAdapter(BasePlatformAdapter):
         # Queued events keep draining while a lost channel is rebuilt, so cite
         # rendering cannot be gated on a live SSE: a group pointer needs no
         # connection and must survive that window. Channel quotes still need
-        # one, and the offline scry turns each into an expected per-cite miss.
+        # one, and are skipped without it.
         if message.content:
             partial: list[str] = []
             try:
-                scry = self._sse.scry if self._sse is not None else _offline_scry
+                scry = self._sse.scry if self._sse is not None else None
                 cite_block = await asyncio.wait_for(
                     resolve_cites(scry, message.content, collected=partial),
                     CITE_RESOLUTION_BUDGET_SECONDS,
