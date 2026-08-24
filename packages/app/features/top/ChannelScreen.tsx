@@ -244,22 +244,23 @@ export default function ChannelScreen(props: Props) {
   const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
   const includeDeletedPosts =
     channelConfiguration?.includeDeletedPosts && showDeleteMarkers;
-  const { data: selectedPost } = store.usePostWithRelations(
-    selectedPostId ? { id: selectedPostId } : null
+  const requestedCursor = selectedPostId || unreadCursor;
+  const { data: cursorPost } = store.usePostWithRelations(
+    requestedCursor ? { id: requestedCursor } : null
   );
-  const selectedPostIsHidden = Boolean(
-    selectedPostId && !includeDeletedPosts && selectedPost?.isDeleted
+  const cursorPostIsHidden = Boolean(
+    requestedCursor && !includeDeletedPosts && cursorPost?.isDeleted
   );
-  const cursor = selectedPostIsHidden
-    ? undefined
-    : selectedPostId || unreadCursor;
+  const cursor = cursorPostIsHidden ? undefined : requestedCursor;
 
   useEffect(() => {
-    if (selectedPostIsHidden) {
+    if (cursorPostIsHidden) {
       setClearedCursor(true);
-      props.navigation.setParams({ selectedPostId: undefined });
+      if (selectedPostId) {
+        props.navigation.setParams({ selectedPostId: undefined });
+      }
     }
-  }, [props.navigation, selectedPostIsHidden]);
+  }, [cursorPostIsHidden, props.navigation, selectedPostId]);
 
   useEffect(() => {
     if (channel?.id) {
@@ -292,6 +293,13 @@ export default function ChannelScreen(props: Props) {
         }),
   });
 
+  const oldestPage = postsQuery.data?.pages.at(-1);
+  const oldestPageHasOnlyDeletedPosts = Boolean(
+    !includeDeletedPosts &&
+    oldestPage?.posts.length &&
+    oldestPage.posts.every((post) => post.isDeleted)
+  );
+
   useEffect(() => {
     // This recovers a failed around-cursor query by issuing a newest query.
     // Successful queries that temporarily omit the anchor recover in PostList.
@@ -320,16 +328,26 @@ export default function ChannelScreen(props: Props) {
   useEffect(() => {
     // Make sure the initial page can fill the screen; otherwise the visual
     // start boundary may never move far enough to request another older page.
+    // Likewise, keep going when a page contains only hidden delete markers,
+    // since adding no visible rows will not retrigger the boundary callback.
     const ENOUGH_POSTS_TO_FILL_SCREEN = 20;
     if (
       !postsQuery.isFetching &&
       postsQuery.hasNextPage &&
       unreadDidInitialize &&
-      (!posts || posts.length < ENOUGH_POSTS_TO_FILL_SCREEN)
+      (!posts ||
+        posts.length < ENOUGH_POSTS_TO_FILL_SCREEN ||
+        oldestPageHasOnlyDeletedPosts)
     ) {
       loadOlder();
     }
-  }, [postsQuery, posts, loadOlder, unreadDidInitialize]);
+  }, [
+    loadOlder,
+    oldestPageHasOnlyDeletedPosts,
+    posts,
+    postsQuery,
+    unreadDidInitialize,
+  ]);
 
   const filteredPosts = useMemo(
     () => (includeDeletedPosts ? posts : posts?.filter((p) => !p.isDeleted)),
@@ -508,7 +526,9 @@ export default function ChannelScreen(props: Props) {
           key={currentChannelId}
           channel={channel}
           initialChannelUnread={
-            clearedCursor ? undefined : initialChannelUnread
+            clearedCursor || cursorPostIsHidden
+              ? undefined
+              : initialChannelUnread
           }
           isLoadingPosts={isLoadingPosts}
           loadPostsError={postsQuery.error}
@@ -518,7 +538,7 @@ export default function ChannelScreen(props: Props) {
           groupIsLoading={groupIsLoading}
           posts={filteredPosts ?? null}
           selectedPostId={
-            clearedCursor || selectedPostIsHidden ? undefined : selectedPostId
+            clearedCursor || cursorPostIsHidden ? undefined : selectedPostId
           }
           goBack={navigationRef.current.goBack}
           goToPost={navigateToPost}
