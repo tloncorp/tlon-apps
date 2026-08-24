@@ -419,7 +419,9 @@ function NotesSaidReferenceContent({
     <Reference.Body>
       <NoteBookReferenceContent>
         {title ? (
-          <NoteReferenceTitleText>{title}</NoteReferenceTitleText>
+          <Text size="$label/3xl" color="$primaryText">
+            {title}
+          </Text>
         ) : null}
         <PostReferenceAuthor contactId={author} />
         {contentSize !== '$s' && (
