@@ -472,7 +472,10 @@ export function renderPostJsonLine(post: Post): string {
     id: post.id,
     authorId: post.authorId,
     sentAt: post.sentAt,
-    parentId: post.parentId,
+    // `toPostData` leaves parentId undefined on top-level posts, and
+    // JSON.stringify drops undefined keys — normalize so the record shape
+    // stays stable.
+    parentId: post.parentId ?? null,
     blob: post.blob ?? null,
     content: parsed ?? post.content,
   });

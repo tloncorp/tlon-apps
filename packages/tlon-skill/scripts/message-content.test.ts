@@ -916,6 +916,26 @@ describe('renderPostJsonLine', () => {
     } as never);
     expect(line).toContain('"blob":null');
   });
+
+  it('nulls an absent parentId so the record shape stays stable', () => {
+    // `toPostData` leaves parentId undefined on top-level posts, and
+    // JSON.stringify would silently drop the key without normalization.
+    const line = renderPostJsonLine({
+      id: 'post-3',
+      authorId: '~zod',
+      sentAt: 1724200000000,
+      content: JSON.stringify([]),
+    } as never);
+    expect(line).toContain('"parentId":null');
+    expect(Object.keys(JSON.parse(line))).toEqual([
+      'id',
+      'authorId',
+      'sentAt',
+      'parentId',
+      'blob',
+      'content',
+    ]);
+  });
 });
 
 describe('renderPostListJsonLines', () => {

@@ -438,7 +438,10 @@ async function main() {
     args.includes('--resolve-cites') || args.includes('--quotes');
 
   // NDJSON mode: stdout carries only the per-post records, no framing.
-  const json = args.includes('--json');
+  // `search` deliberately supports option-like literals in its query position
+  // (see isSearchQueryHelpLiteral), so the query itself must not flip modes.
+  const flagArgs = command === 'search' ? [args[0], ...args.slice(2)] : args;
+  const json = flagArgs.includes('--json');
 
   try {
     switch (command) {
