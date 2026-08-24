@@ -321,6 +321,10 @@ async function handleAgentOnboardingRequestInternal(
     ) {
       return false;
     }
+    const reply = context.rawText.trim();
+    if (!purposeForReply(reply) && !isOrientationReply(reply)) {
+      return false;
+    }
     const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
       context.api,
       context.channelNest,
@@ -869,14 +873,7 @@ async function provision(
     isAdmin = isBotAdmin(group);
   }
   if (!isAdmin) {
-    context.log?.('[tlon] rejected agent provision: agent is not an admin');
-    context.trackStep?.({
-      step: 'provision_received',
-      outcome: 'failed',
-      ...stepFacts,
-      errorText: 'agent is not an admin',
-    });
-    return;
+    throw new Error('agent is not an admin yet');
   }
   const ackKey = `ack:${request.provisionId}`;
   const existingAck = hasPostMarker(history, context.botShip, ackKey);
@@ -1436,15 +1433,17 @@ function findFirstRunCorrelation(
     const exact = firstRunCorrelations.get(runId);
     if (exact) return [runId, exact] as const;
   }
-  for (const entry of firstRunCorrelations) {
-    if (
-      (notebookNest && entry[1].notebookNest === notebookNest) ||
-      (jobId && entry[1].jobId === jobId)
-    ) {
-      return entry;
-    }
+  if (jobId) {
+    const jobMatch = [...firstRunCorrelations].find(
+      ([, correlation]) => correlation.jobId === jobId
+    );
+    if (jobMatch) return jobMatch;
   }
-  return null;
+  if (!notebookNest) return null;
+  const notebookMatches = [...firstRunCorrelations].filter(
+    ([, correlation]) => correlation.notebookNest === notebookNest
+  );
+  return notebookMatches.length === 1 ? notebookMatches[0]! : null;
 }
 
 function rememberFirstRun(
@@ -1477,11 +1476,6 @@ function setFirstRunCorrelation(
     enqueuedAt: number;
   }
 ) {
-  for (const [pendingRunId, pending] of firstRunCorrelations) {
-    if (pending.notebookNest === request.notebookNest) {
-      firstRunCorrelations.delete(pendingRunId);
-    }
-  }
   firstRunCorrelations.set(correlationKey, {
     context,
     notebookNest: request.notebookNest,
@@ -1643,7 +1637,10 @@ async function reconcileRestoredFirstRun(
     );
     return;
   }
-  if (job.state?.lastRunStatus === 'error') {
+  if (
+    job.state?.lastRunStatus === 'error' ||
+    (job.state?.lastRunStatus === 'ok' && job.state.lastDelivered !== true)
+  ) {
     await failFirstRun(
       record.runId ?? `provision:${record.provisionId}`,
       {
@@ -1656,6 +1653,19 @@ async function reconcileRestoredFirstRun(
       } as PluginHookCronChangedEvent,
       completionDeps
     );
+  }
+}
+
+export function clearAgentOnboardingRuntime(
+  api?: AgentOnboardingScanContext['api']
+): void {
+  const ownedKeys = [...firstRunCorrelations]
+    .filter(([, correlation]) => !api || correlation.context.api === api)
+    .map(([key]) => key);
+  for (const key of ownedKeys) {
+    clearFirstRunCompletionRetry(key);
+    firstRunCompletionFlights.delete(key);
+    firstRunCorrelations.delete(key);
   }
 }
 
@@ -2361,12 +2371,14 @@ export const agentOnboardingTesting = {
   buildRecurringPrompt,
   buildServicesSurface,
   clearAllFirstRunCompletionRetries,
+  findFirstRunCorrelation,
   findNewestNoteWithRetry,
   hasPostMarker,
   notebookDisplayName,
   purposePickerFallbackText,
   purposeForReply,
   provisionCadence,
+  reconcileRestoredFirstRun,
   rememberFirstRun,
   scheduleConfirmation,
   servicesPitch,
