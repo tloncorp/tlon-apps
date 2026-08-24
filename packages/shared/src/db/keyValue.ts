@@ -1,3 +1,4 @@
+import type { PostBlobDataEntryAgentProvision } from '@tloncorp/api/client/content-helpers';
 import type { StorageConfiguration } from '@tloncorp/api/client/upload';
 import * as ub from '@tloncorp/api/urbit';
 import type { AppThemeName } from '@tloncorp/api/urbit/settings';
@@ -165,6 +166,46 @@ export const tlonbotRevivalDeferredConfig =
     key: 'tlonbotRevivalDeferredConfig',
     defaultValue: {},
   });
+
+export type AgentGroupOnboardingLock = {
+  provision?: PostBlobDataEntryAgentProvision;
+  /** The bot accepted the plan; navigation is unlocked while its first entry runs. */
+  provisionAcknowledgedAt?: number;
+  /** Only the provisioned first group traps the user in its setup conversation. */
+  navigationLocked?: boolean;
+  createdAt: number;
+  /** Title observed before onboarding, used to avoid overwriting later edits. */
+  initialGroupTitle?: string | null;
+  /** True only when the initial title was supplied by onboarding/hosting. */
+  canRenameGroup?: boolean;
+};
+
+/** Agent identity recorded from client-owned furnishing, keyed by group id. */
+export const agentGroupAgents = createStorageItem<Record<string, string>>({
+  key: 'agentGroupAgents',
+  defaultValue: {},
+});
+
+/**
+ * Group ids whose first agent-written entry the owner has already opened.
+ *
+ * Activation should count once per group, not once per note view, and the
+ * event has to survive an app restart — hence storage rather than memory.
+ */
+export const agentEntryFirstOpened = createStorageItem<Record<string, boolean>>(
+  {
+    key: 'agentEntryFirstOpened',
+    defaultValue: {},
+  }
+);
+
+/** One-way onboarding navigation locks, keyed by group id. */
+export const agentGroupOnboardingLocks = createStorageItem<
+  Record<string, AgentGroupOnboardingLock>
+>({
+  key: 'agentGroupOnboardingLocks',
+  defaultValue: {},
+});
 
 export const didClearPreviousInstall = createStorageItem<boolean>({
   key: 'didClearPreviousInstall',
@@ -428,6 +469,19 @@ export const splashNickname = createStorageItem<string>({
   key: 'splashNickname',
   defaultValue: '',
 });
+
+export type AgentOnboardingLanding = {
+  groupId: string;
+  channelId: string;
+  status?: 'pending' | 'claimed';
+};
+
+/** One-shot handoff from the pre-navigation splash into the agent chat. */
+export const agentOnboardingLanding =
+  createStorageItem<AgentOnboardingLanding | null>({
+    key: 'agentOnboardingLandingV2',
+    defaultValue: null,
+  });
 
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   key: 'wayfindingProgress',
