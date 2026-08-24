@@ -360,10 +360,13 @@
       ::  reader with the whole bucket until expiry.
       revoking=(map @t @da)
       reservations=(map @t @uv)
-      ::  .bucket is the bucket the forwarded action was about, where it had
-      ::  one. A %token answer is bucket-scoped, so storing it needs to know
-      ::  which -- guessing from the host is wrong once two buckets share one.
-      pending=(map request-id [host=ship until=@da bucket=(unit flag)])
+      ::  .token-for is set only when the forwarded action was a request for
+      ::  a read token, and names the bucket it is for. It answers two
+      ::  questions at once: which bucket to file a %token answer under --
+      ::  guessing from the host is wrong once two buckets share one -- and
+      ::  whether this request's failure has anything to do with tokens at
+      ::  all, so that a refused folder rename does not discard one.
+      pending=(map request-id [host=ship until=@da token-for=(unit flag)])
       requests=requests
   ==
 ::  $versioned-state: every persisted shape +on-load may be handed.

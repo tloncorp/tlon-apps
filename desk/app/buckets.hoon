@@ -213,9 +213,16 @@
   ::  for a file extension and splits it off -- so glue it back on before the
   ::  id is parsed, or most ids resolve to a different request and 404.
   ::  %notes' surface has the same wrinkle and does the same thing.
-  =/  pax=(list @t)  t.t.t.site
-  =?  pax  &(?=(^ ext.request-line) ?=(^ pax))
-    (snoc (snip pax) (rap 3 (rear pax) '.' u.ext.request-line ~))
+  ::  Reattach by flopping rather than with snip/rear: those are wet gates,
+  ::  and handing one a list already narrowed to non-empty breaks its own
+  ::  recursive call on the tail.
+  =/  raw=(list @t)  t.t.t.site
+  =/  pax=(list @t)
+    ?~  ext.request-line  raw
+    =/  back=(list @t)  (flop raw)
+    ?~  back  raw
+    %-  flop
+    [(rap 3 i.back '.' u.ext.request-line ~) t.back]
   (handle-read eyre-id pax)
 ::
 ::  +handle-post: parse an action, hold the request open, and dispatch.
@@ -404,8 +411,13 @@
   |=  [rid=request-id:b act=a-buckets:b host=ship]
   ^+  cor
   =/  until=@da  (add now.bowl request-timeout)
-  =/  bucket=(unit flag:b)  ?-(-.act %create ~, %bucket `flag.act)
-  =.  pending  (~(put by pending) rid [host until bucket])
+  ::  Only a read-token request gets a bucket recorded: it is the only answer
+  ::  that is filed anywhere, and the only failure that should touch a token.
+  =/  token-for=(unit flag:b)
+    ?.  ?=(%bucket -.act)  ~
+    ?.  ?=(%issue-bucket-read -.a-bucket.act)  ~
+    `flag.act
+  =.  pending  (~(put by pending) rid [host until token-for])
   ::  Watch first, then poke. Cards are delivered in order, so a host that
   ::  answers in the same event it is poked would publish the terminal fact
   ::  before we are listening, and the request would sit until its timeout.
@@ -505,7 +517,7 @@
 ++  close-request
   |=  [host=ship rid=request-id:b]
   ^+  cor
-  =/  got=(unit [host=ship until=@da bucket=(unit flag:b)])
+  =/  got=(unit [host=ship until=@da token-for=(unit flag:b)])
     (~(get by pending) rid)
   =.  pending  (~(del by pending) rid)
   =.  cor
@@ -1731,19 +1743,19 @@
       ::  request named: tokens are bucket-scoped, so filing one under a
       ::  sibling bucket on the same host would leave both wrong. Read it
       ::  before closing, which is what drops the record.
-      =/  bucket=(unit flag:b)
-        ?~(got=(~(get by pending) rid) ~ bucket.u.got)
+      =/  token-for=(unit flag:b)
+        ?~(got=(~(get by pending) rid) ~ token-for.u.got)
       =.  cor  (close-request host rid)
-      =?  cor  &(?=(%token -.body.res) ?=(^ bucket))
-        (keep-read-token u.bucket read-token.body.res)
+      =?  cor  &(?=(%token -.body.res) ?=(^ token-for))
+        (keep-read-token u.token-for read-token.body.res)
       ::  A refused token request leaves no refresh armed, and our old token
       ::  may already have lapsed -- the client would go on reading it either
       ::  way. Come back to it, unless the answer was that we may not read
       ::  this bucket at all, in which case stop serving what we hold.
-      =?  cor  &(?=(%error -.body.res) ?=(^ bucket))
+      =?  cor  &(?=(%error -.body.res) ?=(^ token-for))
         ?:  =(%not-authorized type.body.res)
-          (drop-read-token u.bucket)
-        (retry-read-token u.bucket)
+          (drop-read-token u.token-for)
+        (retry-read-token u.token-for)
       (respond rid ~[/v1/requests] body.res)
     ::
         %kick
@@ -1808,12 +1820,22 @@
       [%buckets %push host=@ name=@ who=@ token=@ exp=@ rid=@ ~]
     ?.  ?=([%iris %http-response *] sign-arvo)  cor
     =*  res  client-response.sign-arvo
-    ?.  ?=(%finished -.res)  cor
+    ?:  ?=(%progress -.res)  cor
     =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
     =/  actor=ship  (slav %p who.pole)
     =/  expiry=@da  (slav %da exp.pole)
     =/  rid=(unit request-id:b)
       ?:(=(%none rid.pole) ~ `(slav %uv rid.pole))
+    ::  %cancel is terminal, not silence: leaving it unhandled strands the
+    ::  requester's held HTTP request, which has no forwarding timeout of its
+    ::  own, and leaves a scheduled refresh with no timer armed. Treat it as
+    ::  the refusal it is.
+    ?:  ?=(%cancel -.res)
+      %-  (slog leaf+"buckets: read token push was cancelled" ~)
+      =?  cor  =(actor our.bowl)  (retry-read-token flag)
+      ?~  rid  cor
+      %^  deny  u.rid  (answer-paths actor u.rid)
+      [%unknown 'the storage request was cancelled']
     =/  code=@ud  status-code.response-header.res
     ?:  &((gte code 200) (lth code 300))
       (confirm-read-token flag `@t`token.pole actor expiry rid)
@@ -1860,7 +1882,13 @@
     =/  host=ship  (slav %p host.pole)
     =/  rid=request-id:b  (slav %uv rid.pole)
     ?.  (request-live rid)  cor
+    ::  A timed-out refresh leaves no timer armed and our old token in place,
+    ::  which the local scry keeps answering with even once it lapses. Come
+    ::  back to it rather than waiting on something that was never set.
+    =/  token-for=(unit flag:b)
+      ?~(got=(~(get by pending) rid) ~ token-for.u.got)
     =.  pending  (~(del by pending) rid)
+    =?  cor  ?=(^ token-for)  (retry-read-token u.token-for)
     =.  cor
       %-  emit
       :*  %pass  (req-watch-wire host rid)  %agent  [host %buckets]

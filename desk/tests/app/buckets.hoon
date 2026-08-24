@@ -890,6 +890,66 @@
       (grant-fact 0v4 [%token tok])
   ==
 ::
+::  A refused action that has nothing to do with tokens must leave ours alone.
+::  The subscriber only learns which request was a token request from what it
+::  recorded when forwarding -- without that, a denied folder rename discards a
+::  perfectly good read token, and with it the reader's offline reads.
+::
+++  test-unrelated-refusal-keeps-the-read-token
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (setup-as ~bus)
+  ;<  *  b
+    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
+  ::  hold a token, obtained the normal way
+  ;<  *  b  (ask 0v4 [%bucket flag [%issue-bucket-read ~]])
+  =/  tok=read-token:bu  ['0v1.2345' (add ~2026.1.1 ~d1)]
+  ;<  *  b
+    %^    do-agent
+        /buckets/req/~sampel-palnet/0v4/watch
+      [~sampel-palnet %buckets]
+    :+  %fact  %buckets-req-response-1
+    !>(`req-response:bu`[0v4 [%token tok]])
+  ::  now a folder rename is refused
+  ;<  *  b  (ask 0v5 [%bucket flag [%entry 1 [%rename 'nope']]])
+  ;<  caz=(list card)  b
+    %^    do-agent
+        /buckets/req/~sampel-palnet/0v5/watch
+      [~sampel-palnet %buckets]
+    :+  %fact  %buckets-req-response-1
+    !>(`req-response:bu`[0v5 [%error %not-authorized 'not authorized for this bucket']])
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  ::  the token is untouched, and no token timer was armed on its behalf
+  =/  token-timers=(list card)
+    %+  skim  caz
+    |=(car=card ?=([%pass [%buckets %token *] %arvo *] car))
+  %+  ex-equal
+    !>([(~(get by read-tokens.st) flag) (lent token-timers)])
+  !>([`tok 0])
+::
+::  A token request that times out has to come back on its own. Nothing else
+::  will: the request is gone, no refresh is armed, and the local scry keeps
+::  answering with the token we already hold until it lapses.
+::
+++  test-timed-out-token-request-rearms
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (setup-as ~bus)
+  ;<  *  b
+    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
+  ;<  *  b  (ask 0v6 [%bucket flag [%issue-bucket-read ~]])
+  ;<  caz=(list card)  b
+    (do-arvo /buckets/req/~sampel-palnet/0v6/wake [%behn %wake ~])
+  =/  rearmed=(list card)
+    %+  skim  caz
+    |=(car=card ?=([%pass [%buckets %token *] %arvo *] car))
+  (ex-equal !>((lent rearmed)) !>(1))
+::
 ::  Read tokens are bucket-scoped, so a token answer has to be filed under the
 ::  bucket its request named. Two buckets on one host is where guessing from
 ::  the host goes wrong: whichever the map happened to yield first would take
