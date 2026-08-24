@@ -127,7 +127,7 @@ This is what makes delivery order stop mattering. The broker keeps only the high
 
 Consequences worth knowing:
 
--   **Retries are blind and safe.** Anything whose revision is above what the broker has confirmed is still owed, and one timer re-sends all of it. A stale write is the protocol working, not a failure.
+-   **Retries are blind and safe, but not endless.** Anything whose revision is above what the broker has confirmed is still owed, and one timer re-sends all of it. A stale write is the protocol working, not a failure — it answers 200 with `applied: false` and the revision the broker kept. The broker classifies its own failures: `retryable: true` stays owed, while `retryable: false` is a validation refusal that would answer the same way next time, so it stops being owed until the next access change supersedes it. Nothing is owed past its own expiry either, since by then a grant is worthless and a revoke is moot.
 -   **The broker's answer carries `currentRevision`.** If it is ahead of ours — state loss here, or an earlier incarnation of this agent — we adopt it and re-send, rather than being discarded as stale from then on. `GET /v2/buckets/tokens/<host>/revision` exists for explicit recovery, but the common path needs no separate lookup.
 -   **Nothing is served until the broker confirms it.** A grant is handed to a client only once its revision is synced, so a client never holds a token that 403s.
 -   **A superseded grant answers its waiter.** A client blocked on a grant that a revoke overtook is told so, rather than left to time out.
