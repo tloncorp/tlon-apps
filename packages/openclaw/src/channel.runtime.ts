@@ -1,5 +1,4 @@
-import { scry } from '@tloncorp/api';
-import crypto from 'node:crypto';
+import { notes, scry } from '@tloncorp/api';
 import type {
   ChannelAccountSnapshot,
   ChannelOutboundAdapter,
@@ -14,6 +13,10 @@ import {
   recordBackgroundContextLensOutput,
 } from './context-lens.js';
 import { monitorTlonProvider } from './monitor/index.js';
+import {
+  notesDeliveryMessageId,
+  recordDeliveredNote,
+} from './notes-delivery-state.js';
 import { tlonSetupWizard } from './setup-surface.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
 import { observeActiveTlonTurnDelivery } from './turn-recorder.js';
@@ -26,6 +29,7 @@ import { urbitFetch } from './urbit/fetch.js';
 import {
   type BotProfile,
   buildMediaStory,
+  buildMediaText,
   sendChannelPost,
   sendDm,
   sendDmWithStory,
@@ -114,6 +118,65 @@ type OutboundLensTarget = {
   blob: string;
   foreground: boolean;
 };
+
+function notesTitle(markdown: string): string {
+  const firstLine = markdown
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean);
+  if (!firstLine) {
+    return 'Update';
+  }
+  const title = firstLine
+    .replace(/^#{1,6}\s+/, '')
+    .replace(/^[-*+]\s+/, '')
+    .replace(/^\*\*(.+)\*\*$/, '$1')
+    .trim();
+  return (title || 'Update').slice(0, 120);
+}
+
+function notesBody(markdown: string): string {
+  const lines = markdown.split(/\r?\n/);
+  const headingIndex = lines.findIndex((line) => line.trim());
+  if (
+    headingIndex === -1 ||
+    !/^\s{0,3}#{1,6}\s+\S/.test(lines[headingIndex] ?? '')
+  ) {
+    return markdown;
+  }
+
+  lines.splice(headingIndex, 1);
+  while (lines[0]?.trim() === '') {
+    lines.shift();
+  }
+  return lines.join('\n');
+}
+
+async function sendNotesEntry({
+  fromShip,
+  nest,
+  text,
+}: {
+  fromShip: string;
+  nest: string;
+  text: string;
+}) {
+  const notebook = await notes.getNotebook(nest);
+  const created = await notes.createNote({
+    flag: nest,
+    folder: notebook.rootFolderId,
+    title: notesTitle(text),
+    body: notesBody(text),
+  });
+  if (created) {
+    recordDeliveredNote(nest, created);
+  }
+  return {
+    channel: 'tlon' as const,
+    messageId: notesDeliveryMessageId(fromShip, created?.id),
+    sentAt: Date.now(),
+  };
+}
 
 /**
  * Resolve the context lens an outbound send should attach to.
@@ -230,6 +293,13 @@ const unobservedTlonRuntimeOutbound: Pick<
           });
           return result;
         }
+        if (parsed.kind === 'notebook') {
+          return await sendNotesEntry({
+            fromShip,
+            nest: parsed.nest,
+            text,
+          });
+        }
         const target = resolveOutboundLensTarget(
           account,
           fromShip,
@@ -301,6 +371,13 @@ const unobservedTlonRuntimeOutbound: Pick<
             text,
           });
           return result;
+        }
+        if (parsed.kind === 'notebook') {
+          return await sendNotesEntry({
+            fromShip,
+            nest: parsed.nest,
+            text: buildMediaText(text, media?.url),
+          });
         }
         const target = resolveOutboundLensTarget(
           account,

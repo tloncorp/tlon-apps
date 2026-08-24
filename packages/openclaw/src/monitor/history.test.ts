@@ -4,6 +4,8 @@ import {
   type TlonHistoryEntry,
   buildThreadContextMessage,
   cacheMessage,
+  fetchChannelHistory,
+  fetchChannelHistoryOrThrow,
   fetchParentPostAuthor,
   fetchParentPostHistoryEntry,
   getChannelHistory,
@@ -199,6 +201,53 @@ describe('renderHistoryContent', () => {
     };
     const result = renderHistoryContent(entry);
     expect(result).toBe('[📎 a.pdf]\n[📎 b.txt]\nHere are the files');
+  });
+});
+
+describe('fetchChannelHistory', () => {
+  it('normalizes production-shaped bot profiles to ship ids', async () => {
+    const scry = vi.fn(async () => ({
+      posts: {
+        '1': {
+          seal: { id: '1' },
+          essay: {
+            author: {
+              ship: '~bot',
+              nickname: "Napdet's Tlonbot",
+              avatar: 'https://example.com/avatar.png',
+            },
+            sent: 1,
+            content: [{ inline: ['What should this group do?'] }],
+          },
+        },
+        '2': {
+          seal: { id: '2' },
+          essay: {
+            author: '~ten',
+            sent: 2,
+            content: [{ inline: ['A daily digest'] }],
+          },
+        },
+      },
+    }));
+
+    await expect(
+      fetchChannelHistory({ scry }, 'chat/~ten/general')
+    ).resolves.toEqual([
+      expect.objectContaining({ author: '~bot', id: '1' }),
+      expect.objectContaining({ author: '~ten', id: '2' }),
+    ]);
+  });
+
+  it('lets control-plane callers distinguish a failed scry from empty history', async () => {
+    const scry = vi.fn().mockRejectedValue(new Error('ship unavailable'));
+
+    await expect(
+      fetchChannelHistoryOrThrow({ scry }, 'chat/~ten/general')
+    ).rejects.toThrow('ship unavailable');
+    await expect(
+      fetchChannelHistory({ scry }, 'chat/~ten/general')
+    ).resolves.toEqual([]);
   });
 });
 
