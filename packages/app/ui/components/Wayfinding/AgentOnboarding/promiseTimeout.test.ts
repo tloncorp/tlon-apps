@@ -20,9 +20,8 @@ describe('withTimeout', () => {
       30_000,
       'Agent group furnishing attempt timed out'
     );
-    const expectation = expect(result).rejects.toBeInstanceOf(
-      PromiseTimeoutError
-    );
+    const expectation =
+      expect(result).rejects.toBeInstanceOf(PromiseTimeoutError);
 
     await vi.advanceTimersByTimeAsync(30_000);
     await expectation;
