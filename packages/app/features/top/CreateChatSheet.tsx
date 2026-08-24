@@ -730,6 +730,7 @@ function useCreateChat() {
           });
           navigateToChannel(channel);
         } else if (params.type === 'agent') {
+          const ownerId = api.getCurrentUserId();
           const furnishing = await store.startAgentGroupFurnishing({
             agentShipId: AGENT_SHIP_OVERRIDE || undefined,
           });
@@ -744,7 +745,7 @@ function useCreateChat() {
                 void retryLaterAgentGroupStanding({
                   agentShipId: AGENT_SHIP_OVERRIDE || undefined,
                   groupId: completed.group.id,
-                  ownerId: api.getCurrentUserId(),
+                  ownerId,
                 });
               });
             })
