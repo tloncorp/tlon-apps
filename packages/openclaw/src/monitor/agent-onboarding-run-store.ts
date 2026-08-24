@@ -22,7 +22,15 @@ export type AgentOnboardingRunRecord = {
   claimOwnerId?: string;
   enqueuedAt?: number;
   completedAt?: number;
+  outcome?: AgentOnboardingRunOutcome;
   status: 'claimed' | 'enqueued' | 'completed' | 'failed';
+};
+
+export type AgentOnboardingRunOutcome = {
+  status: 'ok' | 'error';
+  delivered: boolean;
+  error?: string;
+  observedAt: number;
 };
 
 export type AgentOnboardingRunStore =
@@ -42,6 +50,10 @@ const writeFlights = sharedMap<string, Promise<void>>(
 const fallbackRecords = sharedMap<string, AgentOnboardingRunRecord>(
   'agentOnboarding.firstRunFallbackRecords'
 );
+const pendingOutcomes = sharedMap<string, AgentOnboardingRunOutcome>(
+  'agentOnboarding.pendingFirstRunOutcomes'
+);
+const MAX_PENDING_OUTCOMES = 64;
 
 async function serializeWrite<T>(
   provisionId: string,
@@ -162,6 +174,8 @@ export async function recordAgentOnboardingRunEnqueued(
   runId: string,
   enqueuedAt: number
 ): Promise<void> {
+  const outcome = pendingOutcomes.get(runId);
+  pendingOutcomes.delete(runId);
   await serializeWrite(initial.provisionId, async () => {
     const store = getAgentOnboardingRunStore();
     if (!store) {
@@ -170,6 +184,7 @@ export async function recordAgentOnboardingRunEnqueued(
         runId,
         status: 'enqueued',
         enqueuedAt,
+        outcome,
       });
       return;
     }
@@ -180,8 +195,41 @@ export async function recordAgentOnboardingRunEnqueued(
       runId,
       status: 'enqueued',
       enqueuedAt,
+      outcome,
     });
   });
+}
+
+export async function recordAgentOnboardingRunOutcome(
+  runId: string,
+  outcome: AgentOnboardingRunOutcome
+): Promise<boolean> {
+  const store = getAgentOnboardingRunStore();
+  const stored = store
+    ? (await store.entries()).find((entry) => entry.value.runId === runId)?.value
+    : [...fallbackRecords.values()].find((record) => record.runId === runId);
+  if (!stored) {
+    pendingOutcomes.delete(runId);
+    pendingOutcomes.set(runId, outcome);
+    while (pendingOutcomes.size > MAX_PENDING_OUTCOMES) {
+      const oldest = pendingOutcomes.keys().next().value;
+      if (oldest === undefined) break;
+      pendingOutcomes.delete(oldest);
+    }
+    return false;
+  }
+  await serializeWrite(stored.provisionId, async () => {
+    const current =
+      (await store?.lookup(stored.provisionId)) ??
+      fallbackRecords.get(stored.provisionId);
+    if (!current || current.runId !== runId || current.status !== 'enqueued') {
+      return;
+    }
+    const updated = { ...current, outcome };
+    if (store) await store.register(stored.provisionId, updated);
+    else fallbackRecords.set(stored.provisionId, updated);
+  });
+  return true;
 }
 
 export async function forgetAgentOnboardingRunClaim(
@@ -222,4 +270,5 @@ export async function markAgentOnboardingRunTerminal(
 
 export function clearAgentOnboardingRunFallbackForTesting(): void {
   fallbackRecords.clear();
+  pendingOutcomes.clear();
 }
