@@ -2,6 +2,7 @@ import {
   BucketsEntry,
   BucketsFileEntry,
   BucketsFlag,
+  BucketsReadToken,
   BucketsResponse,
   BucketsSnapshot,
   bucketsFlagKey,
@@ -139,6 +140,10 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   const snapshotRef = useRef<BucketsSnapshot | null>(null);
   const tasksRef = useRef(new Map<string, BucketUploadTask>());
   const cancelledRef = useRef(new Set<string>());
+  const mintRef = useRef<{
+    key: string;
+    token: Promise<BucketsReadToken>;
+  } | null>(null);
 
   const setCurrentUploads = useCallback(
     (update: (current: LocalUpload[]) => LocalUpload[]) => {
@@ -168,26 +173,23 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     [setCurrentUploads]
   );
 
-  const commitSnapshot = useCallback(
-    (next: BucketsSnapshot | null) => {
-      snapshotRef.current = next;
-      setSnapshot(next);
-      if (next) {
-        const channelId = formatBucketsChannelId(next.flag);
-        // Writers only: %groups owns the channel's reader roles and the
-        // groups sync already writes them, so mirroring them from here would
-        // only add a second copy that can go stale.
-        void db.updateChannel({
-          id: channelId,
-          writerRoles: next.state.writers.map((roleId) => ({
-            channelId,
-            roleId,
-          })),
-        });
-      }
-    },
-    []
-  );
+  const commitSnapshot = useCallback((next: BucketsSnapshot | null) => {
+    snapshotRef.current = next;
+    setSnapshot(next);
+    if (next) {
+      const channelId = formatBucketsChannelId(next.flag);
+      // Writers only: %groups owns the channel's reader roles and the
+      // groups sync already writes them, so mirroring them from here would
+      // only add a second copy that can go stale.
+      void db.updateChannel({
+        id: channelId,
+        writerRoles: next.state.writers.map((roleId) => ({
+          channelId,
+          roleId,
+        })),
+      });
+    }
+  }, []);
 
   const selectSnapshot = useCallback(
     (snapshots: BucketsSnapshot[]) =>
@@ -643,9 +645,27 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       }
       // One token covers the whole bucket, and our own ship keeps it fresh —
       // so this is a local read, and only a cold start has to ask for one.
-      const held =
-        (await getBucketReadToken(flag)) ??
-        (await requestBucketReadToken(flag));
+      //
+      // Concurrent callers share that one mint. The host tracks a single
+      // waiting request per (bucket, reader) and denies the one a later grant
+      // supersedes, so opening a folder of images on a cold bucket would mint
+      // once per file and leave every read but the last failing with "access
+      // changed". Cleared on settle, so a failure is retried rather than
+      // cached.
+      let held = await getBucketReadToken(flag);
+      if (!held) {
+        let mint = mintRef.current;
+        if (mint?.key !== flagKey) {
+          mint = { key: flagKey, token: requestBucketReadToken(flag) };
+          mintRef.current = mint;
+          void mint.token
+            .catch(() => undefined)
+            .finally(() => {
+              if (mintRef.current === mint) mintRef.current = null;
+            });
+        }
+        held = await mint.token;
+      }
       const grant = await grantBucketRead(
         held.token,
         flag.host,
