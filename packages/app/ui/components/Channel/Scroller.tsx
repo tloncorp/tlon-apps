@@ -946,6 +946,8 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
       next.a2uiActionCompletion?.sendMessage &&
     prev.a2uiActionCompletion?.sentMessageText ===
       next.a2uiActionCompletion?.sentMessageText &&
+    JSON.stringify(prev.a2uiActionCompletion?.sentMessageTexts) ===
+      JSON.stringify(next.a2uiActionCompletion?.sentMessageTexts) &&
     prev.a2uiActionCompletion?.provisionAgent ===
       next.a2uiActionCompletion?.provisionAgent &&
     JSON.stringify(prev.a2uiActionCompletion?.provisionedTopics) ===

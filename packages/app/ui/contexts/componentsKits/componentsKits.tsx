@@ -15,6 +15,7 @@ export type A2UIActionCompletion = {
   provisionedTopics?: string[];
   sendMessage: boolean;
   sentMessageText?: string;
+  sentMessageTexts?: string[];
   configuredProviderIds?: string[];
 };
 

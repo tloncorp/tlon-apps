@@ -495,7 +495,7 @@ const ConversationPostListAttempt = React.forwardRef<
     // retain data anchoring only after the user has moved away from the end.
     const maintainVisibleContentPosition =
       collectionLayout.shouldMaintainVisibleContentPosition &&
-      !(anchorToEnd && isNearEnd)
+      !(anchorToEnd && !hasNewerPosts && isNearEnd)
         ? true
         : undefined;
     usePostListBottomCallbacks(isAtBottom, {
