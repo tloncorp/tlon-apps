@@ -209,6 +209,7 @@ test('createNotebookNote uses a fresh baseline before finding the created note',
   vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
   vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
     created = true;
+    return null;
   });
 
   const note = await createNotebookNote({
@@ -237,7 +238,7 @@ test('createNotebookNote does not return an existing note when create sync times
     makeApiNotesNote(existingNote),
   ]);
   vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
-  vi.spyOn(api.notes, 'createNote').mockResolvedValue(undefined);
+  vi.spyOn(api.notes, 'createNote').mockResolvedValue(null);
 
   const note = await createNotebookNote({
     notebookFlag,
@@ -274,6 +275,7 @@ test('createNotebookNote hydrates created note details when list notes omit them
     .mockResolvedValue(makeApiNotesNote(createdNote));
   vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
     created = true;
+    return null;
   });
 
   const note = await createNotebookNote({

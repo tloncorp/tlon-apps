@@ -954,14 +954,52 @@ export function buildSmallChoiceMessage(
   if (!labels.length) {
     return '';
   }
+  const selection = encodeSmallChoiceValues(labels);
   const prefix =
     component.action.event.name === ACTION_SEND_MESSAGE
       ? component.action.event.context.text.trim()
       : '';
-  return [prefix, labels.join(', ')]
-    .filter(Boolean)
-    .join(' ')
-    .slice(0, LIMITS.maxButtonMessageLength);
+  if (!prefix) {
+    return selection.slice(0, LIMITS.maxButtonMessageLength);
+  }
+  const prefixBudget = Math.max(
+    0,
+    LIMITS.maxButtonMessageLength - selection.length - 1
+  );
+  return [prefix.slice(0, prefixBudget), selection].filter(Boolean).join(' ');
+}
+
+/** CSV keeps a custom value containing commas as one durable selection. */
+export function encodeSmallChoiceValues(values: readonly string[]): string {
+  return values
+    .map((value) =>
+      /[",\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value
+    )
+    .join(', ');
+}
+
+export function parseSmallChoiceValues(value: string): string[] {
+  const values: string[] = [];
+  let current = '';
+  let quoted = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (character === '"') {
+      if (quoted && value[index + 1] === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === ',' && !quoted) {
+      if (current.trim()) values.push(current.trim());
+      current = '';
+    } else {
+      current += character;
+    }
+  }
+  if (current.trim()) values.push(current.trim());
+  return values;
 }
 
 /**
@@ -994,5 +1032,6 @@ export const A2UI = {
   validateBlobEntry,
   blobEntrySchema,
   buildSmallChoiceMessage,
+  parseSmallChoiceValues,
   smallChoiceProbeMessage,
 } as const;

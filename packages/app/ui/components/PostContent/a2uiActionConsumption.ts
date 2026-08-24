@@ -62,10 +62,7 @@ export function getSmallChoiceMessageSelection(
     prefix && message.startsWith(`${prefix} `)
       ? message.slice(prefix.length + 1)
       : message;
-  const parts = selection
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
+  const parts = A2UI.parseSmallChoiceValues(selection);
   const labels = component.options
     .filter((option) => parts.includes(option.label))
     .map((option) => option.label);
@@ -73,5 +70,7 @@ export function getSmallChoiceMessageSelection(
   // A manually typed response also consumes this one-shot surface. Preserve
   // that response as the compact completion rather than reopening a disabled
   // picker after navigation.
-  return labels.length ? labels : [selection];
+  if (!labels.length) return parts.length ? parts : [selection];
+  const known = new Set(labels);
+  return [...labels, ...parts.filter((part) => !known.has(part))];
 }

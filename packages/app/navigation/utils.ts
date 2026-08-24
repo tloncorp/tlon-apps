@@ -12,6 +12,9 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useGlobalSearch, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
+
+import { openExternalBotSettings } from '../utils/botSettings';
 
 import type {
   DesktopBasePathStackParamList,
@@ -511,6 +514,10 @@ export function useRootNavigation() {
 
   const navigateToBotMcpSettings = useCallback(
     (providerId?: string) => {
+      if (Platform.OS === 'web') {
+        openExternalBotSettings();
+        return;
+      }
       const params = providerId ? { providerId } : undefined;
       if (isWindowNarrow) {
         navigationRef.current.navigate('BotMcpSettings', params);

@@ -99,4 +99,13 @@ describe('getSmallChoiceMessageSelection', () => {
       getSmallChoiceMessageSelection(component, 'Tell me about identities')
     ).toEqual(['Tell me about identities']);
   });
+
+  it('keeps a quoted custom value containing commas intact', () => {
+    expect(
+      getSmallChoiceMessageSelection(
+        component,
+        'Groups and channels, "Research, development"'
+      )
+    ).toEqual(['Groups and channels', 'Research, development']);
+  });
 });

@@ -163,6 +163,7 @@ export function McpConnectMenu({
   const configuringRef = useRef(false);
   const completingRef = useRef(false);
   const initializedRef = useRef(false);
+  const appliedConfigurationRef = useRef<string | null>(null);
   const knownConnectedRef = useRef(new Set<string>());
   const connectedProviderIds = useMemo(
     () =>
@@ -174,13 +175,29 @@ export function McpConnectMenu({
 
   useEffect(() => {
     const connected = new Set(connectedProviderIds);
+    const configuredKey = configuredProviderIds
+      ? [...configuredProviderIds].sort().join('\u0000')
+      : null;
     if (!initializedRef.current) {
       if (loading) return;
       initializedRef.current = true;
       knownConnectedRef.current = connected;
+      appliedConfigurationRef.current = configuredKey;
       setSelectedProviderIds(
         configuredProviderIds?.filter((id) => connected.has(id)) ??
           connectedProviderIds
+      );
+      return;
+    }
+
+    if (
+      configuredKey !== null &&
+      configuredKey !== appliedConfigurationRef.current
+    ) {
+      appliedConfigurationRef.current = configuredKey;
+      knownConnectedRef.current = connected;
+      setSelectedProviderIds(
+        configuredProviderIds!.filter((id) => connected.has(id))
       );
       return;
     }

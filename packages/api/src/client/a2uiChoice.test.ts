@@ -335,6 +335,36 @@ describe('SmallChoice message building', () => {
     expect(message).toMatch(/^News, x+/);
   });
 
+  test('preserves selected values when a long prefix is bounded', () => {
+    const message = buildSmallChoiceMessage(
+      {
+        ...component,
+        action: {
+          event: {
+            name: A2UI.action.sendMessage,
+            context: { text: 'p'.repeat(1_000) },
+          },
+        },
+      },
+      ['news']
+    );
+    expect(message).toHaveLength(1_000);
+    expect(message).toMatch(/ News$/);
+  });
+
+  test('round-trips a custom value containing commas', () => {
+    const message = buildSmallChoiceMessage(
+      component,
+      ['news'],
+      'Research, development'
+    );
+    expect(message).toBe('News, "Research, development"');
+    expect(A2UI.parseSmallChoiceValues(message)).toEqual([
+      'News',
+      'Research, development',
+    ]);
+  });
+
   test('freeTextPlaceholder validates as an optional bounded string', () => {
     expect(valid(smallChoice({ freeTextPlaceholder: 'Add your own…' }))).toBe(
       true
