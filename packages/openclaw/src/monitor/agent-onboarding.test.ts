@@ -202,6 +202,40 @@ describe('first-run durable claims', () => {
       },
     });
   });
+
+  it('waits for an in-flight exact outcome before writing enqueue state', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    await store.register(initial.provisionId, initial);
+    const originalEntries = store.entries.getMockImplementation()!;
+    let releaseEntries!: () => void;
+    const entriesBarrier = new Promise<void>((resolve) => {
+      releaseEntries = resolve;
+    });
+    store.entries.mockImplementationOnce(async () => {
+      await entriesBarrier;
+      return originalEntries();
+    });
+
+    const outcomeFlight = recordAgentOnboardingRunOutcome('run-1', {
+      status: 'ok',
+      delivered: true,
+      observedAt: 1_001,
+    });
+    const enqueueFlight = recordAgentOnboardingRunEnqueued(
+      initial,
+      'run-1',
+      1_000
+    );
+    releaseEntries();
+    await Promise.all([outcomeFlight, enqueueFlight]);
+
+    await expect(store.lookup(initial.provisionId)).resolves.toMatchObject({
+      runId: 'run-1',
+      outcome: { status: 'ok', delivered: true, observedAt: 1_001 },
+    });
+  });
 });
 
 describe('first-run correlation', () => {
@@ -1934,6 +1968,56 @@ describe('primary onboarding cron slot', () => {
 
     expect(harness.cron.update).not.toHaveBeenCalled();
   });
+
+  it('rejects a durable superseded provider config outside history', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const durableRecord = (provisionId: string, claimedAt: number) => ({
+      provisionId,
+      jobId: 'job-1',
+      groupId: provision.groupId,
+      channelNest: 'chat/~ten/group/general',
+      notebookNest: provision.notebookNest,
+      notebookName: provision.notebookTitle,
+      purposeId: provision.purposeId,
+      topics: [...provision.topics],
+      provision: { ...provision, provisionId },
+      claimedAt,
+      status: 'completed' as const,
+    });
+    await store.register(provision.provisionId, durableRecord('provision-1', 1));
+    await store.register('provision-2', durableRecord('provision-2', 2));
+
+    await handleAgentOnboardingRequest(
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+        senderShip: '~ten',
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: provision.provisionId,
+          groupId: provision.groupId,
+          providerIds: ['gmail'],
+        }),
+      },
+      {
+        fetchHistory: vi.fn(async () => []),
+        getCron: () => harness.cron,
+      }
+    );
+
+    expect(harness.cron.update).not.toHaveBeenCalled();
+  });
 });
 
 describe('provision coordinator ordering', () => {
@@ -3037,6 +3121,63 @@ describe('provision coordinator ordering', () => {
         key: 'services-card',
       })
     );
+  });
+
+  it('persists a matched outcome before posting the reveal', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(provision.provisionId, {
+      provisionId: provision.provisionId,
+      jobId: 'job-1',
+      runId: 'matched-run',
+      groupId: provision.groupId,
+      channelNest: 'chat/~ten/group/general',
+      notebookNest: provision.notebookNest,
+      notebookName: provision.notebookTitle,
+      purposeId: provision.purposeId,
+      topics: [...provision.topics],
+      provision,
+      claimedAt: 1,
+      enqueuedAt: 1,
+      status: 'enqueued',
+    });
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'matched-run' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision,
+      provision.notebookTitle,
+      'job-1'
+    );
+
+    await expect(
+      handleAgentOnboardingCronChanged(
+        {
+          action: 'finished',
+          jobId: 'job-1',
+          runId: 'matched-run',
+          status: 'ok',
+          delivered: true,
+        } as never,
+        {
+          fetchHistory: vi.fn(async () => []),
+          sendPost: vi.fn(async () => {
+            throw new Error('transport closed during reveal');
+          }),
+          sleep: vi.fn(async () => {}),
+        }
+      )
+    ).rejects.toThrow('transport closed during reveal');
+
+    await expect(store.lookup(provision.provisionId)).resolves.toMatchObject({
+      status: 'enqueued',
+      outcome: { status: 'ok', delivered: true },
+    });
   });
 
   it('retries a failed-run notification after transient history failure', async () => {
