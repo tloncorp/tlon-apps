@@ -380,7 +380,7 @@ function SmallChoiceControl({
             );
           })}
         </YStack>
-        {component.freeTextPlaceholder ? (
+        {component.freeTextPlaceholder || displayedCustomTopics.length ? (
           <Pressable
             testID="A2UISmallChoiceCustom"
             accessibilityLabel={

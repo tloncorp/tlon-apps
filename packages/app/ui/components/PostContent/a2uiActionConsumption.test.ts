@@ -108,4 +108,20 @@ describe('getSmallChoiceMessageSelection', () => {
       )
     ).toEqual(['Groups and channels', 'Research, development']);
   });
+
+  it('recovers the suffix after a long prefix is shortened', () => {
+    const prefixed = {
+      ...component,
+      action: {
+        event: {
+          name: A2UI.action.sendMessage,
+          context: { text: 'p'.repeat(1_000) },
+        },
+      },
+    } satisfies A2UI.SmallChoice;
+    const message = A2UI.buildSmallChoiceMessage(prefixed, ['groups']);
+    expect(getSmallChoiceMessageSelection(prefixed, message)).toEqual([
+      'Groups and channels',
+    ]);
+  });
 });

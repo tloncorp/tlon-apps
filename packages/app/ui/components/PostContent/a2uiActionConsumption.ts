@@ -58,10 +58,24 @@ export function getSmallChoiceMessageSelection(
     component.action.event.name === A2UI.action.sendMessage
       ? component.action.event.context.text.trim()
       : '';
-  const selection =
-    prefix && message.startsWith(`${prefix} `)
-      ? message.slice(prefix.length + 1)
-      : message;
+  let selection = message;
+  if (prefix && message.startsWith(`${prefix} `)) {
+    selection = message.slice(prefix.length + 1);
+  } else if (prefix) {
+    // The builder shortens a long prefix to keep the complete selection at
+    // the end. Find that inserted delimiter without treating spaces inside a
+    // selected label as the boundary.
+    for (
+      let separator = message.lastIndexOf(' ');
+      separator > 0;
+      separator = message.lastIndexOf(' ', separator - 1)
+    ) {
+      if (message.slice(0, separator) === prefix.slice(0, separator)) {
+        selection = message.slice(separator + 1);
+        break;
+      }
+    }
+  }
   const parts = A2UI.parseSmallChoiceValues(selection);
   const labels = component.options
     .filter((option) => parts.includes(option.label))

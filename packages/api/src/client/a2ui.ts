@@ -603,6 +603,7 @@ function validateComponent(component: unknown): component is A2UI.Component {
           LIMITS.maxSmallChoiceOptions,
           validateSmallChoiceOption
         ) &&
+        hasUniqueOptionLabels(component.options) &&
         isNonEmptyString(component.submitLabel) &&
         (component.submitLabel as string).length <= LIMITS.maxPillLabelLength &&
         (component.freeTextPlaceholder === undefined ||
@@ -653,6 +654,14 @@ function validOptionList(
     new Set(options.map((option) => (option as { id?: unknown })?.id)).size ===
       options.length &&
     options.every(validate)
+  );
+}
+
+function hasUniqueOptionLabels(options: unknown): boolean {
+  return (
+    Array.isArray(options) &&
+    new Set(options.map((option) => (option as { label?: unknown })?.label))
+      .size === options.length
   );
 }
 
@@ -955,12 +964,15 @@ export function buildSmallChoiceMessage(
     return '';
   }
   const selection = encodeSmallChoiceValues(labels);
+  if (selection.length > LIMITS.maxButtonMessageLength) {
+    return '';
+  }
   const prefix =
     component.action.event.name === ACTION_SEND_MESSAGE
       ? component.action.event.context.text.trim()
       : '';
   if (!prefix) {
-    return selection.slice(0, LIMITS.maxButtonMessageLength);
+    return selection;
   }
   const prefixBudget = Math.max(
     0,

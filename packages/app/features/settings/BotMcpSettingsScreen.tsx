@@ -246,7 +246,9 @@ export function BotMcpSettingsScreen(props: Props) {
 
     requestedProviders.current.add(providerId);
     props.navigation.setParams({ providerId: undefined });
-    void handleConnectProvider(providerId);
+    void handleConnectProvider(providerId).finally(() => {
+      requestedProviders.current.delete(providerId);
+    });
   }, [
     handleConnectProvider,
     initialLoading,

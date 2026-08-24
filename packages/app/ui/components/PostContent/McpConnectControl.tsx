@@ -271,6 +271,7 @@ export function McpConnectMenu({
     if (
       !component.completionAction ||
       !onComplete ||
+      configuringRef.current ||
       completingRef.current ||
       completionConsumed ||
       completedLocally
@@ -299,12 +300,15 @@ export function McpConnectMenu({
     (providerId?: string) => {
       if (!onNavigate) return;
       const target = component.action.event.context.target;
+      if (target.type !== 'screen') return;
+      const { providerId: _defaultProviderId, ...targetWithoutProvider } =
+        target;
       void onNavigate({
         event: {
           ...component.action.event,
           context: {
             target: {
-              ...target,
+              ...targetWithoutProvider,
               ...(providerId ? { providerId } : {}),
             },
           },
@@ -496,12 +500,17 @@ export function McpConnectMenu({
           accessibilityState={{
             disabled:
               !onComplete ||
+              submitting ||
               completing ||
               completionConsumed ||
               completedLocally,
           }}
           disabled={
-            !onComplete || completing || completionConsumed || completedLocally
+            !onComplete ||
+            submitting ||
+            completing ||
+            completionConsumed ||
+            completedLocally
           }
           onPress={complete}
         >

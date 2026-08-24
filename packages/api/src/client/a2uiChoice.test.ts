@@ -133,6 +133,15 @@ describe('Choice validation', () => {
         options: Array.from({ length: 7 }, (_, i) => option({ id: `o-${i}` })),
       },
     ],
+    [
+      'duplicate option labels',
+      {
+        options: [
+          { id: 'one', label: 'Same' },
+          { id: 'two', label: 'Same' },
+        ],
+      },
+    ],
     // Icon/accent allowlists double as asset-name-injection defense.
     [
       'icon outside the allowlist',
@@ -266,7 +275,7 @@ describe('SmallChoice validation', () => {
   test('pill labels count toward the total text budget', () => {
     const many = Array.from({ length: 12 }, (_, i) => ({
       id: `o-${i}`,
-      label: 'x'.repeat(64),
+      label: `${'x'.repeat(62)}${i.toString().padStart(2, '0')}`,
     }));
     // 12*64 chars is fine on its own; the point is the labels are counted at
     // all, so pile on Text nodes to cross the aggregate limit.
@@ -325,14 +334,13 @@ describe('SmallChoice message building', () => {
     expect(buildSmallChoiceMessage(component, [], '   ')).toBe('');
   });
 
-  test('bounds the composed runtime message to the send-action limit', () => {
+  test('rejects a selection that exceeds the send-action limit', () => {
     const message = buildSmallChoiceMessage(
       component,
       ['news'],
       'x'.repeat(2_000)
     );
-    expect(message).toHaveLength(1_000);
-    expect(message).toMatch(/^News, x+/);
+    expect(message).toBe('');
   });
 
   test('preserves selected values when a long prefix is bounded', () => {
