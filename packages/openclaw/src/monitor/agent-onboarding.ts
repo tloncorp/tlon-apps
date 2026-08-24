@@ -126,6 +126,9 @@ type AgentOnboardingScanContext = Omit<
 >;
 
 const postOnceFlights = new Map<string, Promise<void>>();
+const completedPostMarkers = sharedMap<string, true>(
+  'agentOnboarding.completedPostMarkers'
+);
 const RECENT_ONBOARDING_HISTORY_LIMIT = 50;
 const ORIENTATION_HISTORY_LIMIT = 500;
 const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
@@ -265,6 +268,9 @@ const firstRunCompletionRetryTimers = sharedMap<
 const firstRunCompletionRetryAttempts = sharedMap<string, number>(
   'agentOnboarding.firstRunCompletionRetryAttempts'
 );
+const primaryJobFlights = sharedMap<string, Promise<string>>(
+  'agentOnboarding.primaryJobFlights'
+);
 const SLOT_PREFIX = 'tlon-agent-primary:';
 const MCP_READ_TOOLS = [
   'mcp_list_upstreams',
@@ -349,7 +355,7 @@ async function handleAgentOnboardingRequestInternal(
   const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
     context.api,
     context.channelNest,
-    RECENT_ONBOARDING_HISTORY_LIMIT
+    ORIENTATION_HISTORY_LIMIT
   );
   if (request.type === 'tlon-agent-intro-request') {
     await postIntro(
@@ -379,23 +385,11 @@ export async function scanAgentOnboardingChannel(
   deps: AgentOnboardingDeps = {}
 ): Promise<boolean> {
   if (!context.ownerShip || !context.groupId) return false;
-  let history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
+  const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
     context.api,
     context.channelNest,
-    RECENT_ONBOARDING_HISTORY_LIMIT
+    ORIENTATION_HISTORY_LIMIT
   );
-  if (
-    history.some(
-      (entry) =>
-        entry.author === context.ownerShip && isOrientationReply(entry.content)
-    )
-  ) {
-    history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
-      context.api,
-      context.channelNest,
-      ORIENTATION_HISTORY_LIMIT
-    );
-  }
   const ownerRequests = history
     .filter((entry) => entry.author === context.ownerShip && entry.blob)
     .map((entry) => ({
@@ -1041,10 +1035,11 @@ export async function handleAgentOnboardingCronChanged(
   deps: AgentOnboardingCronDeps = {}
 ): Promise<void> {
   if (event.action !== 'finished' || !event.runId) return;
-  if (event.status !== 'ok' || event.delivered !== true) {
+  if (event.status !== 'ok' || event.delivered === false) {
     await failFirstRun(event.runId, event, deps);
     return;
   }
+  if (event.delivered !== true) return;
   await completeFirstRun(event.runId, undefined, undefined, deps, event.jobId);
 }
 
@@ -1521,9 +1516,10 @@ async function ensureFirstRunEnqueued(
   notebookName: string,
   now: number
 ): Promise<'enqueued' | 'recovered' | 'owned-by-another-pass'> {
-  if (!cron.enqueueRun) {
+  const enqueueRun = cron.enqueueRun?.bind(cron) ?? cron.run?.bind(cron);
+  if (!enqueueRun) {
     throw new Error(
-      'OpenClaw does not expose enqueueRun through the plugin cron service'
+      'OpenClaw does not expose a cron run method through the plugin service'
     );
   }
 
@@ -1553,7 +1549,7 @@ async function ensureFirstRunEnqueued(
 
   let disposition: unknown;
   try {
-    disposition = await cron.enqueueRun(jobId, 'force');
+    disposition = await enqueueRun(jobId, 'force');
   } catch (error) {
     // The claim protects against concurrent enqueue attempts, but it must not
     // survive a rejected enqueue. Otherwise the retry sees this process's
@@ -1639,7 +1635,7 @@ async function reconcileRestoredFirstRun(
   }
   if (
     job.state?.lastRunStatus === 'error' ||
-    (job.state?.lastRunStatus === 'ok' && job.state.lastDelivered !== true)
+    (job.state?.lastRunStatus === 'ok' && job.state.lastDelivered === false)
   ) {
     await failFirstRun(
       record.runId ?? `provision:${record.provisionId}`,
@@ -1659,6 +1655,11 @@ async function reconcileRestoredFirstRun(
 export function clearAgentOnboardingRuntime(
   api?: AgentOnboardingScanContext['api']
 ): void {
+  if (!api) {
+    completedPostMarkers.clear();
+    postOnceFlights.clear();
+    primaryJobFlights.clear();
+  }
   const ownedKeys = [...firstRunCorrelations]
     .filter(([, correlation]) => !api || correlation.context.api === api)
     .map(([key]) => key);
@@ -1845,6 +1846,7 @@ async function postOnce(
 ): Promise<boolean> {
   if (hasPostMarker(history, context.botShip, key)) return false;
   const flightKey = `${context.channelNest}:${key}`;
+  if (completedPostMarkers.has(flightKey)) return false;
   const existing = postOnceFlights.get(flightKey);
   if (existing) {
     await existing;
@@ -1879,6 +1881,7 @@ async function postOnce(
       if (!hasPostMarker(reread, context.botShip, key)) throw error;
     }
     presentation?.afterPost();
+    completedPostMarkers.set(flightKey, true);
   })().finally(() => postOnceFlights.delete(flightKey));
   postOnceFlights.set(flightKey, flight);
   await flight;
@@ -1987,6 +1990,29 @@ function findLatestProviderConfig(
 }
 
 async function upsertPrimaryJob(
+  cron: TlonCronService,
+  request: PostBlobDataEntryAgentProvision,
+  failureChatNest: string,
+  providerIds: readonly string[] = []
+) {
+  const description = `${SLOT_PREFIX}${request.groupId}`;
+  const existingFlight = primaryJobFlights.get(description);
+  if (existingFlight) return existingFlight;
+  const flight = upsertPrimaryJobOnce(
+    cron,
+    request,
+    failureChatNest,
+    providerIds
+  ).finally(() => {
+    if (primaryJobFlights.get(description) === flight) {
+      primaryJobFlights.delete(description);
+    }
+  });
+  primaryJobFlights.set(description, flight);
+  return flight;
+}
+
+async function upsertPrimaryJobOnce(
   cron: TlonCronService,
   request: PostBlobDataEntryAgentProvision,
   failureChatNest: string,
@@ -2371,6 +2397,7 @@ export const agentOnboardingTesting = {
   buildRecurringPrompt,
   buildServicesSurface,
   clearAllFirstRunCompletionRetries,
+  ensureFirstRunEnqueued,
   findFirstRunCorrelation,
   findNewestNoteWithRetry,
   hasPostMarker,
