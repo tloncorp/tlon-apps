@@ -70,8 +70,8 @@ export async function startAgentGroupFurnishing(
 
   const group = params.groupId
     ? await adoptGroup(params.groupId)
-    : await createDefaultGroup({
-        memberIds: [resolved.agentShipId],
+    : await createOrResumeAgentGroup({
+        agentShipId: resolved.agentShipId,
         title: params.title ?? DEFAULT_AGENT_GROUP_TITLE,
       });
   const chatChannel = await ensureChatChannel(group);
@@ -99,6 +99,11 @@ export async function startAgentGroupFurnishing(
       },
     })),
   ]);
+  if (!params.groupId) {
+    await db.pendingAgentGroupCreation.setValue((current) =>
+      current === group.id ? null : current
+    );
+  }
 
   const complete = finishAgentGroupFurnishing({
     group,
@@ -114,6 +119,37 @@ export async function startAgentGroupFurnishing(
     agentShipId: resolved.agentShipId,
     complete,
   };
+}
+
+async function createOrResumeAgentGroup({
+  agentShipId,
+  title,
+}: {
+  agentShipId: string;
+  title: string;
+}) {
+  const currentUserId = api.getCurrentUserId();
+  const pendingGroupId = await db.pendingAgentGroupCreation.getValue();
+  const groupId = pendingGroupId ?? `${currentUserId}/${logic.getRandomId()}`;
+  if (!pendingGroupId) {
+    await db.pendingAgentGroupCreation.setValue(groupId);
+  }
+
+  const local = await db.getGroup({ id: groupId });
+  if (local) return local;
+  if (pendingGroupId) {
+    try {
+      return await adoptGroup(groupId);
+    } catch {
+      // The prior create may have failed before the ship persisted it. Retry
+      // with the same id so a late success cannot leave a second group behind.
+    }
+  }
+  return createDefaultGroup({
+    groupId,
+    memberIds: [agentShipId],
+    title,
+  });
 }
 
 async function finishAgentGroupFurnishing({
@@ -506,23 +542,28 @@ function reconcileAgentStandingUntilReady(params: {
 async function retryAgentStanding(
   operation: () => Promise<void>,
   groupId: string,
-  sleep: (ms: number) => Promise<void> = wait
+  sleep: (ms: number) => Promise<void> = wait,
+  maxAttempts = 3
 ) {
   let delayMs = 1_000;
-  for (;;) {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       await operation();
       return;
     } catch (error) {
+      lastError = error;
       logger.trackError('Agent Group Standing Repair Failed; Retrying', {
         error,
         groupId,
         delayMs,
       });
     }
+    if (attempt === maxAttempts) break;
     await sleep(delayMs);
     delayMs = Math.min(delayMs * 2, 30_000);
   }
+  throw lastError;
 }
 
 async function addCordonThenJoin(

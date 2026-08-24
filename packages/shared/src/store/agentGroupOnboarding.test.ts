@@ -111,7 +111,7 @@ describe('agent group furnishing retry', () => {
     expect(operation).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps repairing agent standing until it succeeds', async () => {
+  it('retries agent standing until it succeeds', async () => {
     const operation = vi
       .fn<[], Promise<void>>()
       .mockRejectedValueOnce(new Error('join pending'))
@@ -129,5 +129,22 @@ describe('agent group furnishing retry', () => {
     expect(operation).toHaveBeenCalledTimes(3);
     expect(sleep).toHaveBeenNthCalledWith(1, 1_000);
     expect(sleep).toHaveBeenNthCalledWith(2, 2_000);
+  });
+
+  it('stops repairing agent standing after the bounded attempts', async () => {
+    const finalError = new Error('still unavailable');
+    const operation = vi.fn().mockRejectedValue(finalError);
+    const sleep = vi.fn(async () => {});
+
+    await expect(
+      agentGroupOnboardingTesting.retryAgentStanding(
+        operation,
+        'group-id',
+        sleep,
+        3
+      )
+    ).rejects.toBe(finalError);
+    expect(operation).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenCalledTimes(2);
   });
 });

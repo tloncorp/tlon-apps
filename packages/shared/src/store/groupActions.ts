@@ -18,6 +18,7 @@ import { pinGroup } from './channelActions';
 const logger = createDevLogger('groupActions', false);
 
 interface CreateGroupParams {
+  groupId?: string;
   title?: string;
   image?: string;
   memberIds?: string[];
@@ -92,7 +93,7 @@ export async function createDefaultGroup(
 ): Promise<db.Group> {
   const currentUserId = api.getCurrentUserId();
   const groupSlug = getRandomId();
-  const groupId = `${currentUserId}/${groupSlug}`;
+  const groupId = params.groupId ?? `${currentUserId}/${groupSlug}`;
 
   // build the group
   const newGroup: db.Group = {
