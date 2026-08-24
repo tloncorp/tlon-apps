@@ -1108,7 +1108,14 @@ export async function handleAgentOnboardingCronChanged(
     return;
   }
   if (event.delivered !== true) return;
-  await completeFirstRun(event.runId, undefined, undefined, deps, event.jobId);
+  await completeFirstRun(
+    event.runId,
+    undefined,
+    undefined,
+    deps,
+    event.jobId,
+    true
+  );
 }
 
 async function failFirstRun(
@@ -1252,9 +1259,15 @@ async function completeFirstRun(
   notebookNest: string | undefined,
   deliveryMessageId: string | undefined,
   deps: AgentOnboardingCronDeps,
-  jobId?: string
+  jobId?: string,
+  requireExactRunId = false
 ) {
-  const match = findFirstRunCorrelation(runId, notebookNest, jobId);
+  const match = findFirstRunCorrelation(
+    runId,
+    notebookNest,
+    jobId,
+    requireExactRunId
+  );
   if (!match) return;
   const [correlationRunId, correlation] = match;
   let flight = firstRunCompletionFlights.get(correlationRunId);
