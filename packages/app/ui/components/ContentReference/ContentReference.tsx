@@ -201,7 +201,7 @@ const NoteBookReferenceContent = styled(View, {
 const NoteReferenceTitleText = styled(Text, {
   name: 'NoteReferenceTitleText',
   context: ReferenceContext,
-  size: '$title/l',
+  size: '$label/3xl',
   color: '$primaryText',
   variants: {
     contentSize: {
@@ -419,9 +419,7 @@ function NotesSaidReferenceContent({
     <Reference.Body>
       <NoteBookReferenceContent>
         {title ? (
-          <Text size="$label/3xl" color="$primaryText">
-            {title}
-          </Text>
+          <NoteReferenceTitleText>{title}</NoteReferenceTitleText>
         ) : null}
         <PostReferenceAuthor contactId={author} />
         {contentSize !== '$s' && (
