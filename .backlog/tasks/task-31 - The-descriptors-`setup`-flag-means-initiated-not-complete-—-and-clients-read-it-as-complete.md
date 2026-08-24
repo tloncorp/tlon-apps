@@ -3,16 +3,29 @@ id: TASK-31
 title: >-
   The descriptor's `setup` flag means "initiated", not "complete" — and clients
   read it as complete
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-08-20 21:02'
-updated_date: '2026-08-22 20:39'
+updated_date: '2026-08-24 14:55'
 labels:
   - openclaw
   - workspaces
   - kits
   - onboarding
 dependencies: []
+modified_files:
+  - desk/sur/kits.hoon
+  - desk/app/kits.hoon
+  - desk/lib/kits-json.hoon
+  - desk/tests/app/kits.hoon
+  - packages/api/src/client/groupKitConfig.ts
+  - packages/openclaw/src/kits/setup.ts
+  - packages/openclaw/src/kits/runtime.ts
+  - packages/openclaw/src/kits/setup.test.ts
+  - packages/openclaw/src/kits/runtime.test.ts
+  - packages/openclaw/index.ts
+  - packages/shared/src/logic/workspaceDescriptor.ts
+  - packages/shared/src/logic/workspaceDescriptor.test.ts
 priority: high
 type: bug
 ordinal: 28000
@@ -40,11 +53,11 @@ Worth noting the failure mode option 1 protects against: if the enqueued turn ne
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A reader can distinguish "setup has not started", "setup is in flight", and "setup produced its artifact"
-- [ ] #2 The landing notice says setup is in progress while it genuinely is, and says something honest when it has failed
-- [ ] #3 Setup still cannot double-fire across a process restart
-- [ ] #4 A workspace whose setup turn never ran is detectable rather than indistinguishable from a completed one
-- [ ] #5 Whatever the field ends up meaning, its name says so
+- [x] #1 A reader can distinguish "setup has not started", "setup is in flight", and "setup produced its artifact"
+- [x] #2 The landing notice says setup is in progress while it genuinely is, and says something honest when it has failed
+- [x] #3 Setup still cannot double-fire across a process restart
+- [x] #4 A workspace whose setup turn never ran is detectable rather than indistinguishable from a completed one
+- [x] #5 Whatever the field ends up meaning, its name says so
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -89,3 +102,17 @@ Scope: desk (3 files + tests), kits-json, tlon-kits schema, openclaw setup/runti
 <!-- SECTION:NOTES:BEGIN -->
 2026-08-21: Two adjacent fixes landed, but the semantic wart this task names still stands. 6cb1e2b25d means the flag now actually FLIPS (before, the setup-done poke crashed on the host lookup and every install stayed pending forever) — which immediately exposed this task's misread in the wild: the empty-workspace notice showed 'Nothing here yet' during the agent's working window because setup:done arrives at schedule time. 032cfe07aa patches the client symptom (the in-session provisioning task rows now win over the ledger while a live run exists) — but a client with no in-memory run (relaunch mid-setup, second device) still misreads the flag. The real fix remains: mark setup done when the agent's turn COMPLETES, which needs a turn-completion hook in the openclaw kits runtime; the relay protocol to carry it to the host now exists.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implemented in 3824b3a4ec exactly per the approved plan: the setup lifecycle is now a real three-state machine `%pending → %fired → %done`.
+
+**Desk**: `setup` widened to `?(%pending %fired %done)` (fork widening nests, so no state version bump needed). New `[%setup-fired =flag:g]` action with the same relay + agent-acceptance shape as `%setup-done`: relays to the host when `our ≠ p.flag`, host accepts src ∈ the install's `agents`, missing ledger entries no-op, and the transition is `%pending → %fired` only — a late `%setup-fired` never demotes `%done`. `%setup-done` still accepts any prior state (harnesses that never learned `%setup-fired` keep working). kits-json dejs gained the variant; enjs already passed the term through.
+
+**Harness (openclaw)**: `maybeFireSetup` now pokes `setup-fired` when it schedules the turn (its true meaning all along — the durable fire-once guard; `shouldFireSetup` only fires on 'pending', so 'fired' guards replays across restarts). A completion watch (sessionKey → groupFlag sharedMap) pokes `setup-done` when the gateway's `message.processed` diagnostic event arrives for that session with channel === 'cron' — a human chatting in the same session cannot complete an unrun setup, and outcome is deliberately ignored (the cron delivery-sink error wart is TASK-33's concern; "the turn finished executing" is what %done means). Kits with no setup binding still go straight to done. Restart between fire and completion: `reconcileAllKnown` re-arms watches from any ledger entry still reading `setup: "fired"` — the ledger is the durable record, and a setup whose turn never completes stays visibly 'fired' (AC #4) instead of masquerading as done. Wired via `onDiagnosticEvent` in index.ts with a gateway_stop unsubscribe.
+
+**Client**: the api schema (groupKitConfig.ts, post-TASK-28 home) accepts 'fired' with unknown values still collapsing to 'done' (a newer descriptor can never re-fire setup on an older harness). `isWorkspaceSetupComplete` narrows to 'done' — so during 'fired' the landing notice keeps showing the working state with zero component changes, fixing the relaunch/second-device gap 032cfe07aa couldn't. New `isWorkspaceSetupUnderway` names the 'fired' state.
+
+**Verification**: on-ship kits suite on ~zod green (30 arms incl. 5 new: relay, marks-fired, done-from-fired, never-demotes-done, stranger-rejected); openclaw 1494/1494; api parser 5/5; shared descriptor tests incl. fired-reads-as-underway; tsc clean across api/shared/app/openclaw; prettier clean. Desk deployed to both ships — verified on ~ten by content probe (clay carries the new sur) and a live `%setup-fired` poke accepted end-to-end (`%poke-ok`). Ops note: ~ten's conn.sock wedged during deploy and the pier is undocked — click needs `-b dist/urbit_extracted/urbit` or it hangs silently in socat with an empty request.
+<!-- SECTION:FINAL_SUMMARY:END -->
