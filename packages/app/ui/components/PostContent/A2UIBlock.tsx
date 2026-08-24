@@ -977,6 +977,7 @@ export function A2UIBlock({
             );
           const choices = component.options.map((option, index) => {
             const accent = CHOICE_ACCENT_COLORS[option.accent ?? 'neutral'];
+            const isSelected = selectedOption?.id === option.id;
             // The accent is normally carried by the icon chip. An option
             // that asks for one without an icon would otherwise render
             // identically to a neutral card — the accent silently doing
@@ -998,7 +999,7 @@ export function A2UIBlock({
                   testID={`A2UIChoice-${option.id}`}
                   label={option.label}
                   shortcut={smallChoiceShortcut(index)}
-                  isSelected={false}
+                  isSelected={isSelected}
                   isLast={isLast}
                   disabled={disabled}
                   onPress={() =>
@@ -1012,7 +1013,7 @@ export function A2UIBlock({
                 key={option.id}
                 testID={`A2UIChoice-${option.id}`}
                 accessibilityLabel={option.label}
-                accessibilityState={{ disabled }}
+                accessibilityState={{ disabled, selected: isSelected }}
                 disabled={disabled}
                 onPress={
                   disabled
@@ -1037,7 +1038,7 @@ export function A2UIBlock({
                   paddingHorizontal={grouped ? '$m' : '$l'}
                   gap="$m"
                   alignItems="flex-start"
-                  opacity={disabled ? 0.5 : 1}
+                  opacity={disabled && !isSelected ? 0.5 : 1}
                 >
                   {option.icon ? (
                     <View
@@ -1070,6 +1071,13 @@ export function A2UIBlock({
                       </Text>
                     ) : null}
                   </YStack>
+                  {isSelected ? (
+                    <Icon
+                      type="Checkmark"
+                      color="$primaryText"
+                      customSize={[16, 16]}
+                    />
+                  ) : null}
                 </XStack>
               </Pressable>
             );
@@ -1084,79 +1092,7 @@ export function A2UIBlock({
               borderRadius={grouped ? '$xl' : undefined}
               backgroundColor={grouped ? '$secondaryBackground' : undefined}
             >
-              {grouped && selectedOption && compact ? (
-                <YStack
-                  width="100%"
-                  borderWidth={1}
-                  borderColor="$border"
-                  borderRadius="$m"
-                  overflow="hidden"
-                >
-                  <SmallChoiceRow
-                    testID={`A2UIChoice-${selectedOption.id}`}
-                    label={selectedOption.label}
-                    shortcut={smallChoiceShortcut(
-                      component.options.indexOf(selectedOption)
-                    )}
-                    isSelected
-                    isLast
-                    disabled
-                    onPress={() => undefined}
-                  />
-                </YStack>
-              ) : grouped && selectedOption ? (
-                <XStack
-                  minHeight={52}
-                  paddingVertical="$m"
-                  paddingHorizontal="$m"
-                  backgroundColor="$background"
-                  borderWidth={1}
-                  borderColor="$border"
-                  borderRadius="$m"
-                  alignItems="center"
-                  gap="$m"
-                >
-                  {selectedOption.icon ? (
-                    <View
-                      width={32}
-                      height={32}
-                      borderRadius="$m"
-                      backgroundColor={
-                        CHOICE_ACCENT_COLORS[selectedOption.accent ?? 'neutral']
-                          .soft
-                      }
-                      alignItems="center"
-                      justifyContent="center"
-                      flexShrink={0}
-                    >
-                      <Icon
-                        type={selectedOption.icon}
-                        color={
-                          CHOICE_ACCENT_COLORS[
-                            selectedOption.accent ?? 'neutral'
-                          ].strong
-                        }
-                        customSize={[18, 18]}
-                      />
-                    </View>
-                  ) : null}
-                  <Text
-                    size="$label/l"
-                    color="$secondaryText"
-                    trimmed={false}
-                    flex={1}
-                    minWidth={0}
-                    numberOfLines={1}
-                  >
-                    {selectedOption.label}
-                  </Text>
-                  <Icon
-                    type="Checkmark"
-                    color="$secondaryText"
-                    customSize={[16, 16]}
-                  />
-                </XStack>
-              ) : grouped ? (
+              {grouped ? (
                 <YStack
                   width="100%"
                   borderWidth={1}
