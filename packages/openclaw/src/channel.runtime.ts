@@ -450,10 +450,26 @@ export const tlonRuntimeOutbound: Pick<
   sendPayload: async (ctx) => {
     const parsed = parseTlonTarget(ctx.to);
     if (parsed?.kind === 'notebook') {
-      const text = formatTextWithAttachmentLinks(
-        ctx.payload.text,
-        resolvePayloadMediaUrls(ctx.payload)
+      const { account } = resolveOutboundContext({
+        cfg: ctx.cfg,
+        accountId: ctx.accountId,
+        to: ctx.to,
+      });
+      const mediaUrls = await withAuthenticatedTlonApi(
+        {
+          url: account.url,
+          code: account.code,
+          ship: account.ship,
+          allowPrivateNetwork: account.allowPrivateNetwork ?? undefined,
+        },
+        async () =>
+          Promise.all(
+            resolvePayloadMediaUrls(ctx.payload).map(
+              async (mediaUrl) => (await prepareOutboundMedia(mediaUrl)).url
+            )
+          )
       );
+      const text = formatTextWithAttachmentLinks(ctx.payload.text, mediaUrls);
       return await observeActiveTlonTurnDelivery(() =>
         unobservedTlonRuntimeOutbound.sendText!({ ...ctx, text })
       );

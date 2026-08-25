@@ -4032,6 +4032,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           handledOnboardingRequest = await handleAgentOnboardingRequest({
             accountId: account.accountId,
             api,
+            abortSignal: opts.abortSignal,
             botShip: botShipName,
             botProfile: getBotProfile(),
             channelNest: nest,
