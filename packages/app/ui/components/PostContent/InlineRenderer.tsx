@@ -21,7 +21,6 @@ import React, {
 import { Linking, Platform } from 'react-native';
 import { ColorTokens, styled } from 'tamagui';
 
-import { useOptionalChannelContext } from '../../contexts/channel';
 import { useNavigation } from '../../contexts/navigation';
 import { ALL_MENTION_ID } from '../BareChatInput/useMentions';
 import { useContactName } from '../ContactNameV2';
@@ -90,9 +89,8 @@ export function InlineGroupMention({
 }: PropsWithChildren<{
   inline: GroupMentionInlineData;
 }>) {
-  const channel = useOptionalChannelContext();
   const { groupId } = useContentContext();
-  const { data: group } = useGroupPreview(channel?.groupId ?? groupId ?? '');
+  const { data: group } = useGroupPreview(groupId ?? '');
   const { onGoToGroupSettings } = useNavigation();
   const handlePress = useCallback(() => {
     onGoToGroupSettings?.();

@@ -4,6 +4,7 @@ import { ComponentProps, useMemo } from 'react';
 import React from 'react';
 import { YStack, styled } from 'tamagui';
 
+import { useOptionalChannelContext } from '../../contexts/channel';
 import {
   BlockRenderer,
   BlockRendererConfig,
@@ -31,6 +32,7 @@ type PostContentRendererProps = ContentRendererProps & {
 
 export function PostContentRenderer({
   post,
+  groupId,
   ...props
 }: PostContentRendererProps) {
   const content = useMemo(() => {
@@ -45,7 +47,11 @@ export function PostContentRenderer({
   return (
     <BlockRendererProvider>
       <InlineRendererProvider value={undefined}>
-        <ContentRenderer content={content} {...props} />
+        <ContentRenderer
+          content={content}
+          {...props}
+          groupId={groupId ?? post.groupId}
+        />
       </InlineRendererProvider>
     </BlockRendererProvider>
   );
@@ -66,9 +72,11 @@ function ContentRenderer({
 }: ContentRendererProps & {
   content: PostContent;
 }) {
+  const channel = useOptionalChannelContext();
+
   return (
     <ContentContext.Provider
-      groupId={groupId}
+      groupId={groupId ?? channel?.groupId}
       onPressImage={onPressImage}
       getImageViewerId={getImageViewerId}
       onLongPress={onLongPress}
