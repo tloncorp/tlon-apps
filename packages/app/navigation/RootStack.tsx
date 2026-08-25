@@ -1,5 +1,9 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import {
+  type NativeStackScreenProps,
+  createNativeStackNavigator,
+} from '@react-navigation/native-stack';
+import { useLayoutEffect } from 'react';
 import { Platform, StatusBar } from 'react-native';
 
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
@@ -57,6 +61,26 @@ const nativeHeaderScreenOptions = {
   headerShown: Platform.OS !== 'web',
 } as const;
 
+function OnboardingStartupScreen({
+  navigation,
+  route,
+}: NativeStackScreenProps<RootStackParamList, 'OnboardingStartup'>) {
+  useLayoutEffect(() => {
+    navigation.reset({
+      index: 1,
+      routes: [
+        { name: 'MainTabs' },
+        {
+          name: 'Channel',
+          params: { ...route.params, disableTransition: true },
+        },
+      ],
+    });
+  }, [navigation, route.params]);
+
+  return null;
+}
+
 export function RootStack() {
   const isDarkMode = useIsDarkMode();
   const [contactsTabEnabled] = useFeatureFlag('contactsTab');
@@ -76,7 +100,9 @@ export function RootStack() {
 
   return (
     <Root.Navigator
-      initialRouteName={onboardingStartup.route ? 'Channel' : 'MainTabs'}
+      initialRouteName={
+        onboardingStartup.route ? 'OnboardingStartup' : 'MainTabs'
+      }
       screenOptions={{
         ...nativeHeaderPresentationOptions,
         headerBackVisible: false,
@@ -84,6 +110,14 @@ export function RootStack() {
         contentStyle: { backgroundColor: theme.background?.val },
       }}
     >
+      {onboardingStartup.route ? (
+        <Root.Screen
+          name="OnboardingStartup"
+          component={OnboardingStartupScreen}
+          initialParams={onboardingStartup.route}
+          options={{ animation: 'none', gestureEnabled: false }}
+        />
+      ) : null}
       {/* top level tabs */}
       <Root.Screen
         name="MainTabs"
@@ -110,15 +144,6 @@ export function RootStack() {
       <Root.Screen
         name="Channel"
         component={ChannelScreen}
-        initialParams={
-          onboardingStartup.route
-            ? {
-                channelId: onboardingStartup.route.channelId,
-                groupId: onboardingStartup.route.groupId,
-                disableTransition: true,
-              }
-            : undefined
-        }
         options={({ route }) => ({
           animation: route.params.disableTransition ? 'none' : 'default',
         })}
