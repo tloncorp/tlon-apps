@@ -126,8 +126,12 @@ export function botHomeGroupHasDefaultTitle(
 
   const normalizedTitle = group.title?.trim().toLowerCase();
   const hostDefaultTitle = `${group.hostUserId.toLowerCase()}'s group`;
-  const nicknameDefaultTitle = generatedForNickname
-    ? `${generatedForNickname.trim().toLowerCase()}'s group`
+  const normalizedNickname = generatedForNickname?.trim().toLowerCase();
+  const nicknameDefaultTitles = normalizedNickname
+    ? new Set([
+        `${normalizedNickname}'s group`,
+        `${normalizedNickname}'s tlonbot`,
+      ])
     : null;
   return (
     normalizedTitle === 'group' ||
@@ -135,7 +139,7 @@ export function botHomeGroupHasDefaultTitle(
     normalizedTitle === 'home group' ||
     normalizedTitle === 'my agent group' ||
     normalizedTitle === hostDefaultTitle ||
-    normalizedTitle === nicknameDefaultTitle
+    Boolean(normalizedTitle && nicknameDefaultTitles?.has(normalizedTitle))
   );
 }
 
