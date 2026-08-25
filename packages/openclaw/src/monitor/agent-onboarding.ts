@@ -674,6 +674,12 @@ async function postIntro(
     presentation
   );
   if (!hadPicker && pickerPosted) {
+    if (!isFirstGroup) {
+      // Additional groups share the same ordered funnel vocabulary; their
+      // purpose picker is the first setup surface even though no intro post is
+      // needed.
+      context.trackStep?.({ step: 'intro_posted' });
+    }
     context.trackStep?.({ step: 'purpose_picker_posted' });
   }
 }

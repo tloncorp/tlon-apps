@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getNotebook = vi.fn();
 const createNote = vi.fn();
+const listNotes = vi.fn();
 const prepareOutboundMedia = vi.fn();
 const getActiveForegroundContextLensForConversation = vi.fn<() => unknown>(
   () => null
@@ -16,7 +17,7 @@ const resolveTlonAccount = vi.fn(() => ({
 }));
 
 vi.mock('@tloncorp/api', () => ({
-  notes: { getNotebook, createNote },
+  notes: { getNotebook, createNote, listNotes },
   scry: vi.fn(),
 }));
 
@@ -238,7 +239,8 @@ describe('notes delivery', () => {
     });
     getActiveForegroundContextLensForConversation.mockReturnValue(null);
     getNotebook.mockResolvedValue({ rootFolderId: 17 });
-    createNote.mockResolvedValue(undefined);
+    createNote.mockResolvedValue({ id: 42, title: 'Untitled' });
+    listNotes.mockResolvedValue([]);
     ({ tlonRuntimeOutbound } = await import('./channel.runtime.js'));
     ({ sendChannelPost } = await import('./urbit/send.js'));
   });
@@ -270,6 +272,28 @@ describe('notes delivery', () => {
       channel: 'tlon',
       messageId: '~zod/notes-42',
     });
+  });
+
+  it('recovers the created id from older hosts with a bare response', async () => {
+    createNote.mockResolvedValue(null);
+    listNotes.mockResolvedValue([
+      {
+        noteId: 47,
+        title: 'Tuesday briefing',
+        createdAt: Date.now(),
+      },
+    ]);
+
+    const result = await tlonRuntimeOutbound.sendText({
+      cfg: {} as never,
+      to: 'notes/~ten/updates',
+      text: '# Tuesday briefing\n\nThe full report.',
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+    });
+
+    expect(result).toMatchObject({ messageId: '~zod/notes-47' });
   });
 
   it('bypasses chat chunking for a notebook payload', async () => {

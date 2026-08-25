@@ -165,15 +165,39 @@ async function sendNotesEntry({
   text: string;
 }) {
   const notebook = await notes.getNotebook(nest);
+  const title = notesTitle(text);
+  const createStartedAt = Date.now();
   const created = await notes.createNote({
     flag: nest,
     folder: notebook.rootFolderId,
-    title: notesTitle(text),
+    title,
     body: notesBody(text),
   });
+  let noteId = created?.id;
+  if (noteId === undefined) {
+    // Compatibility with older Notes hosts whose successful write envelope
+    // omits the applied update. Recover only a newly created exact-title note.
+    for (const delayMs of [0, 250, 750, 1_500]) {
+      if (delayMs) {
+        await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+      }
+      const match = (await notes.listNotes(nest))
+        .filter(
+          (note) =>
+            note.title === title &&
+            (note.createdAt == null ||
+              note.createdAt >= createStartedAt - 5_000)
+        )
+        .sort((a, b) => b.noteId - a.noteId)[0];
+      if (match) {
+        noteId = match.noteId;
+        break;
+      }
+    }
+  }
   return {
     channel: 'tlon' as const,
-    messageId: notesDeliveryMessageId(fromShip, created?.id),
+    messageId: notesDeliveryMessageId(fromShip, noteId),
     sentAt: Date.now(),
   };
 }

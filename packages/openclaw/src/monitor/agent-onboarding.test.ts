@@ -273,6 +273,26 @@ describe('first-run durable claims', () => {
     );
   });
 
+  it('does not overwrite a replacement claim when an older enqueue resolves', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    const replacement = {
+      ...initial,
+      claimedAt: initial.claimedAt + 1,
+      claimOwnerId: 'replacement-owner',
+      runId: 'replacement-run',
+      status: 'enqueued' as const,
+    };
+    await store.register(initial.provisionId, replacement);
+
+    await recordAgentOnboardingRunEnqueued(initial, 'older-run', 1_000);
+
+    await expect(store.lookup(initial.provisionId)).resolves.toEqual(
+      replacement
+    );
+  });
+
   it('attaches an exact completion that arrives before enqueue returns', async () => {
     const initial = record(getAgentOnboardingClaimOwnerId());
     await recordAgentOnboardingRunOutcome('run-1', {
