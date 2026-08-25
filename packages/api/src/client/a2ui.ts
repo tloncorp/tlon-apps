@@ -177,16 +177,6 @@ const smallChoiceProvisionAgentEventSchema = z.object({
 const configureAgentProvidersActionSchema = z.object({
   event: configureAgentProvidersEventSchema,
 });
-const smallChoiceProvisionAgentEventSchema = z.object({
-  name: z.literal(ACTION_PROVISION_AGENT),
-  context: AgentProvisionActionContextSchema.omit({ topics: true }).extend({
-    // This action is a template. The control replaces this list with the
-    // owner's selection and enforces a non-empty result before dispatch.
-    topics: z
-      .array(agentProtocolString(AGENT_PROTOCOL_LIMITS.topicLength))
-      .max(AGENT_PROTOCOL_LIMITS.topicCount),
-  }),
-});
 const smallChoiceActionSchema = z.union([
   z.object({ event: smallChoiceSendMessageEventSchema }),
   z.object({ event: smallChoiceProvisionAgentEventSchema }),
