@@ -1,4 +1,5 @@
 import { tryParse, valid } from '@urbit/aura';
+import { z } from 'zod';
 
 import { createDevLogger } from '../lib/logger';
 import type * as models from '../types/models';
@@ -32,12 +33,6 @@ export type NotesFolder = models.NotesFolder;
 export type NotesNote = models.NotesNote;
 export type NotesMember = models.NotesMember;
 export type NotesNoteRevision = models.NotesNoteRevision;
-
-export interface NotesPublishedRecord {
-  host: string;
-  flagName: string;
-  noteId: number;
-}
 
 export interface NotesFlag {
   host: string;
@@ -265,83 +260,149 @@ export async function deleteNotesNotebookBestEffort(target: NotesTarget) {
 // operation arguments instead of string-built paths.
 // ===========================================================================
 
-export interface NotesV1NotebookListItem {
-  id: number;
-  title: string;
-  rootFolderId?: number;
-  createdBy?: string;
-  createdAt?: number;
-  updatedBy?: string;
-  updatedAt?: number;
-}
+const nullableOptionalStringSchema = z
+  .string()
+  .nullish()
+  .transform((value) => value ?? undefined);
+const nullableOptionalNumberSchema = z
+  .number()
+  .nullish()
+  .transform((value) => value ?? undefined);
 
-export interface NotesV1NotebookDetail extends NotesV1NotebookListItem {
-  rootFolderId: number;
-}
+const notesVisibilitySchema = z.enum(['public', 'private']);
+const notesRoleSchema = z.enum(['owner', 'editor', 'viewer']);
+const notesPublishedRecordSchema = z.object({
+  host: z.string().refine((value) => value.trim().length > 0),
+  flagName: z.string().refine((value) => value.trim().length > 0),
+  noteId: z.number(),
+});
+const notesAuditFields = {
+  createdBy: nullableOptionalStringSchema,
+  createdAt: nullableOptionalNumberSchema,
+  updatedBy: nullableOptionalStringSchema,
+  updatedAt: nullableOptionalNumberSchema,
+};
 
-export interface NotesV1NotebookSummary {
-  host: string;
-  flagName: string;
-  notebook: NotesV1NotebookListItem;
-  visibility?: NotesVisibility;
-}
+const notesV1NotebookListItemSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  rootFolderId: nullableOptionalNumberSchema,
+  ...notesAuditFields,
+});
 
-export interface NotesV1NotebookDetailSummary {
-  host: string;
-  flagName: string;
-  notebook: NotesV1NotebookDetail;
-  visibility?: NotesVisibility;
-}
+const notesV1NotebookDetailSchema = notesV1NotebookListItemSchema.extend({
+  rootFolderId: z.number(),
+});
 
-export interface NotesV1Folder {
-  id: number;
-  notebookId?: number;
-  name: string;
-  parentFolderId: number | null;
-  createdBy?: string;
-  createdAt?: number;
-  updatedBy?: string;
-  updatedAt?: number;
-}
+const notesV1NotebookSummarySchema = z.object({
+  host: z.string(),
+  flagName: z.string(),
+  notebook: notesV1NotebookListItemSchema,
+  visibility: notesVisibilitySchema
+    .nullish()
+    .transform((value) => value ?? undefined),
+});
 
-export interface NotesV1Note {
-  id: number;
-  notebookId?: number;
-  folderId?: number;
-  title: string;
-  slug?: string | null;
-  bodyMd?: string;
-  revision?: number;
-  createdBy?: string;
-  createdAt?: number;
-  updatedBy?: string;
-  updatedAt?: number;
-}
+const notesV1NotebookDetailSummarySchema = notesV1NotebookSummarySchema.extend({
+  notebook: notesV1NotebookDetailSchema,
+});
 
-export interface NotesV1NoteRevision {
-  revision?: number;
-  editedAt?: number;
-  author?: string;
-  bodyMd?: string;
-}
+const notesV1FolderSchema = z
+  .object({
+    id: z.number(),
+    notebookId: nullableOptionalNumberSchema,
+    name: z.string().optional(),
+    folderName: z.string().optional(),
+    parentFolderId: nullableOptionalNumberSchema,
+    parent: nullableOptionalNumberSchema,
+    ...notesAuditFields,
+  })
+  .refine(
+    (folder) => folder.name !== undefined || folder.folderName !== undefined,
+    {
+      message: 'Required',
+      path: ['name'],
+    }
+  )
+  .transform(({ folderName, parent, ...folder }) => ({
+    ...folder,
+    name: folder.name ?? folderName!,
+    parentFolderId: folder.parentFolderId ?? parent ?? null,
+  }));
 
-// One page of bounded search results. The walk is bounded by notes *examined*,
-// not hits returned, so a page can be empty and still have more to search:
-// `last` is the id the walk stopped at, and 0 means the notebook is exhausted.
-export interface NotesV1SearchPage {
-  last: number;
-  notes: NotesV1Note[];
-}
+const notesV1NoteSchema = z
+  .object({
+    id: z.number(),
+    notebookId: nullableOptionalNumberSchema,
+    folderId: nullableOptionalNumberSchema,
+    folder: nullableOptionalNumberSchema,
+    title: z.string(),
+    slug: z.string().nullable().optional(),
+    bodyMd: nullableOptionalStringSchema,
+    revision: nullableOptionalNumberSchema,
+    ...notesAuditFields,
+  })
+  .transform(({ folder, ...note }) => ({
+    ...note,
+    folderId: note.folderId ?? folder,
+  }));
+
+// `last` is the last note examined, not the last match; zero means exhausted.
+const notesV1SearchPageSchema = z.object({
+  last: z.number(),
+  notes: z.array(notesV1NoteSchema),
+});
+
+const notesV1NoteRevisionSchema = z
+  .object({
+    revision: nullableOptionalNumberSchema,
+    rev: nullableOptionalNumberSchema,
+    editedAt: nullableOptionalNumberSchema,
+    at: nullableOptionalNumberSchema,
+    author: nullableOptionalStringSchema,
+    by: nullableOptionalStringSchema,
+    bodyMd: nullableOptionalStringSchema,
+  })
+  .transform(({ rev, at, by, ...revision }) => ({
+    ...revision,
+    revision: revision.revision ?? rev,
+    editedAt: revision.editedAt ?? at,
+    author: revision.author ?? by,
+  }));
+
+const notesV1MemberSchema = z
+  .object({
+    ship: z.string(),
+    role: notesRoleSchema.optional(),
+    roles: z.array(notesRoleSchema).optional(),
+  })
+  .transform(({ ship, role, roles }) => ({
+    ship,
+    roles: roles ?? (role ? [role] : []),
+  }));
+
+export type NotesV1NotebookListItem = z.infer<
+  typeof notesV1NotebookListItemSchema
+>;
+export type NotesV1NotebookDetail = z.infer<typeof notesV1NotebookDetailSchema>;
+export type NotesV1NotebookSummary = z.infer<
+  typeof notesV1NotebookSummarySchema
+>;
+export type NotesV1NotebookDetailSummary = z.infer<
+  typeof notesV1NotebookDetailSummarySchema
+>;
+export type NotesV1Folder = z.infer<typeof notesV1FolderSchema>;
+export type NotesV1Note = z.infer<typeof notesV1NoteSchema>;
+export type NotesV1NoteRevision = z.infer<typeof notesV1NoteRevisionSchema>;
+export type NotesPublishedRecord = z.infer<typeof notesPublishedRecordSchema>;
+export type NotesV1SearchPage = z.infer<typeof notesV1SearchPageSchema>;
 
 export interface NotesSearchPage {
   last: number;
   notes: NotesNote[];
 }
 
-export interface NotesV1MemberRecord {
-  ship: string;
-  roles: NotesRole[];
-}
+export type NotesV1MemberRecord = z.infer<typeof notesV1MemberSchema>;
 
 export interface NotesV1GroupRef {
   host: string;
@@ -462,141 +523,55 @@ function searchV1Path(
 
 // --- response normalization ------------------------------------------------
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function requireArray<T>(raw: unknown, normalize: (item: any) => T): T[] {
+function parseNotesResponse<T extends z.ZodTypeAny>(
+  schema: T,
+  raw: unknown,
+  label?: string
+): z.output<T> {
+  const result = schema.safeParse(raw);
+  if (result.success) {
+    return result.data;
+  }
+  const issue = result.error.issues[0];
+  const path = [label, ...issue.path]
+    .filter((segment) => segment !== undefined && segment !== '')
+    .join('.');
+  throw new Error(
+    `Unexpected %notes response${path ? ` at ${path}` : ''}: ${issue.message}`
+  );
+}
+
+function parseNotesResponseList<T extends z.ZodTypeAny>(
+  schema: T,
+  raw: unknown,
+  label?: string
+): z.output<T>[] {
   if (!Array.isArray(raw)) {
     throw new Error('Unexpected %notes response: expected an array');
   }
-  return raw.map(normalize);
+  return raw.map((item) => parseNotesResponse(schema, item, label));
 }
 
-function requireObject(raw: unknown): any {
-  if (!raw || typeof raw !== 'object') {
-    throw new Error('Unexpected %notes response: expected an object');
-  }
-  return raw;
-}
-
-// Reject a malformed successful body that omits a field the canonical v1 type
-// requires (so the CLI never renders `notes/undefined/undefined`).
-function req<T>(value: T | null | undefined, field: string): T {
-  if (value === undefined || value === null) {
-    throw new Error(`%notes response missing required field: ${field}`);
-  }
-  return value;
-}
-
-function reqString(value: unknown, field: string): string {
-  if (typeof value !== 'string' || !value.trim()) {
-    throw new Error(`%notes response missing required field: ${field}`);
-  }
-  return value;
-}
-
-function normalizeNotebookListItem(raw: any): NotesV1NotebookListItem {
-  return {
-    id: req(raw.id, 'notebook.id'),
-    title: req(raw.title, 'notebook.title'),
-    rootFolderId: raw.rootFolderId,
-    createdBy: raw.createdBy,
-    createdAt: raw.createdAt,
-    updatedBy: raw.updatedBy,
-    updatedAt: raw.updatedAt,
-  };
-}
-
-function normalizeNotebookSummaryV1(raw: any): NotesV1NotebookSummary {
-  return {
-    host: req(raw.host, 'host'),
-    flagName: req(raw.flagName, 'flagName'),
-    notebook: normalizeNotebookListItem(requireObject(raw?.notebook)),
-    visibility: raw.visibility,
-  };
+function normalizeNotebookSummaryV1(raw: unknown): NotesV1NotebookSummary {
+  return parseNotesResponse(notesV1NotebookSummarySchema, raw);
 }
 
 function normalizeNotebookDetailSummaryV1(
-  raw: any
+  raw: unknown
 ): NotesV1NotebookDetailSummary {
-  const summary = normalizeNotebookSummaryV1(raw);
-  const rootFolderId = summary.notebook.rootFolderId;
-  if (typeof rootFolderId !== 'number') {
-    throw new Error('%notes notebook detail is missing rootFolderId');
-  }
-  return {
-    ...summary,
-    notebook: { ...summary.notebook, rootFolderId },
-  };
+  return parseNotesResponse(notesV1NotebookDetailSummarySchema, raw);
 }
 
-function normalizeFolderV1(raw: any): NotesV1Folder {
-  const parent = raw.parentFolderId ?? raw.parent;
-  return {
-    id: req(raw.id, 'folder.id'),
-    notebookId: raw.notebookId,
-    name: req(raw.name ?? raw.folderName, 'folder.name'),
-    parentFolderId: typeof parent === 'number' ? parent : null,
-    createdBy: raw.createdBy,
-    createdAt: raw.createdAt,
-    updatedBy: raw.updatedBy,
-    updatedAt: raw.updatedAt,
-  };
+function normalizeFolderV1(raw: unknown): NotesV1Folder {
+  return parseNotesResponse(notesV1FolderSchema, raw, 'folder');
 }
 
-function normalizeNoteV1(raw: any): NotesV1Note {
-  return {
-    id: req(raw.id, 'note.id'),
-    notebookId: raw.notebookId,
-    folderId: raw.folderId ?? raw.folder,
-    title: req(raw.title, 'note.title'),
-    slug: raw.slug,
-    bodyMd: raw.bodyMd,
-    revision: raw.revision,
-    createdBy: raw.createdBy,
-    createdAt: raw.createdAt,
-    updatedBy: raw.updatedBy,
-    updatedAt: raw.updatedAt,
-  };
+function normalizeNoteV1(raw: unknown): NotesV1Note {
+  return parseNotesResponse(notesV1NoteSchema, raw, 'note');
 }
 
 function normalizeSearchPageV1(raw: unknown): NotesV1SearchPage {
-  const res = requireObject(raw);
-  if (typeof res.last !== 'number') {
-    throw new Error('%notes response missing required field: search.last');
-  }
-  return {
-    last: res.last,
-    notes: requireArray(res.notes, normalizeNoteV1),
-  };
-}
-
-function normalizeNoteRevisionV1(raw: any): NotesV1NoteRevision {
-  return {
-    revision: raw.revision ?? raw.rev,
-    editedAt: raw.editedAt ?? raw.at,
-    author: raw.author ?? raw.by,
-    bodyMd: raw.bodyMd,
-  };
-}
-
-function normalizeMemberV1(raw: any): NotesV1MemberRecord {
-  const roles = Array.isArray(raw.roles)
-    ? raw.roles
-    : raw.role
-      ? [raw.role]
-      : [];
-  return { ship: req(raw.ship, 'member.ship'), roles };
-}
-
-function normalizePublishedRecord(raw: any): NotesPublishedRecord {
-  const noteId = req(raw.noteId, 'published.noteId');
-  if (typeof noteId !== 'number') {
-    throw new Error('%notes published record is missing noteId');
-  }
-  return {
-    host: reqString(raw.host, 'published.host'),
-    flagName: reqString(raw.flagName, 'published.flagName'),
-    noteId,
-  };
+  return parseNotesResponse(notesV1SearchPageSchema, raw, 'search');
 }
 
 function maybe<T>(value: T | null | undefined): T | null {
@@ -707,8 +682,57 @@ export function toClientNotesNoteRevision(
   };
 }
 
-function normalizeRequestBodyV1(raw: any): NotesV1RequestBody {
-  const body = requireObject(raw);
+const okEnvelopeBodySchema = z.object({
+  type: z.literal('ok'),
+  response: z.unknown().optional(),
+});
+const noChangeEnvelopeBodySchema = z.object({
+  type: z.literal('no-change'),
+});
+const notebookEnvelopeBodySchema = z.object({
+  type: z.literal('notebook'),
+  notebook: z.unknown(),
+});
+const errorEnvelopeBodySchema = z.object({
+  type: z.literal('error'),
+  message: z.unknown().optional(),
+  errorType: z.string().optional(),
+});
+const pendingEnvelopeBodySchema = z.object({
+  type: z.literal('pending'),
+  status: z.string().optional(),
+});
+const envelopeBodySchema = z.discriminatedUnion('type', [
+  okEnvelopeBodySchema,
+  noChangeEnvelopeBodySchema,
+  notebookEnvelopeBodySchema,
+  errorEnvelopeBodySchema,
+  pendingEnvelopeBodySchema,
+  z.object({ type: z.literal('api-key') }),
+]);
+const envelopeSchema = z.object({
+  requestId: z.string().trim().min(1).optional(),
+  body: envelopeBodySchema,
+});
+const noteWriteResponseSchema = z.object({
+  update: z.object({
+    type: z.literal('note-update'),
+    noteUpdate: z.object({
+      type: z.enum(['note-created', 'note-updated']),
+      note: notesV1NoteSchema,
+    }),
+  }),
+});
+
+type NotesEnvelope = z.infer<typeof envelopeSchema>;
+
+function parseEnvelope(raw: unknown): NotesEnvelope {
+  return parseNotesResponse(envelopeSchema, raw);
+}
+
+function normalizeRequestBodyV1(
+  body: NotesEnvelope['body']
+): NotesV1RequestBody {
   switch (body.type) {
     case 'ok':
       return { type: 'ok' };
@@ -717,7 +741,7 @@ function normalizeRequestBodyV1(raw: any): NotesV1RequestBody {
     case 'notebook':
       return {
         type: 'notebook',
-        notebook: normalizeNotebookSummaryV1(requireObject(body.notebook)),
+        notebook: normalizeNotebookSummaryV1(body.notebook),
       };
     case 'error': {
       const message =
@@ -738,16 +762,17 @@ function normalizeRequestBodyV1(raw: any): NotesV1RequestBody {
       };
     case 'api-key':
       return { type: 'api-key' };
-    default:
-      throw new Error(`Unexpected %notes response type: ${body.type}`);
   }
 }
 
 function normalizeRequestStatusV1(raw: unknown): NotesV1RequestStatus {
-  const res = requireObject(raw);
+  const res = parseEnvelope(raw);
+  if (!res.requestId) {
+    throw new Error('Unexpected %notes response at requestId: Required');
+  }
   return {
-    requestId: reqString(res.requestId, 'requestId'),
-    body: normalizeRequestBodyV1(req(res.body, 'body')),
+    requestId: res.requestId,
+    body: normalizeRequestBodyV1(res.body),
   };
 }
 
@@ -755,7 +780,7 @@ function normalizeRequestStatusV1(raw: unknown): NotesV1RequestStatus {
 
 // The wire's `message` is a rendered tang: an array of lines. Older
 // responses may carry a plain string.
-function errorMessageText(raw: any): string {
+function errorMessageText(raw: unknown): string {
   if (typeof raw === 'string') {
     return raw.trim();
   }
@@ -765,40 +790,33 @@ function errorMessageText(raw: any): string {
   return raw === undefined || raw === null ? '' : String(raw).trim();
 }
 
-function notesEnvelopeErrorMessage(body: any): string {
-  const message = errorMessageText(body?.message);
+function notesEnvelopeErrorMessage(
+  body: z.infer<typeof errorEnvelopeBodySchema>
+): string {
+  const message = errorMessageText(body.message);
   const errorType =
-    typeof body?.errorType === 'string' ? body.errorType.trim() : '';
+    typeof body.errorType === 'string' ? body.errorType.trim() : '';
   const detail = message || errorType;
   return `%notes error: ${detail || 'backend returned an error without details'}`;
 }
 
-function notesEnvelopeError(body: any): NotesV1WriteError {
+function notesEnvelopeError(
+  body: z.infer<typeof errorEnvelopeBodySchema>
+): NotesV1WriteError {
   return new NotesV1WriteError(
     notesEnvelopeErrorMessage(body),
-    typeof body?.errorType === 'string' ? body.errorType : undefined
+    typeof body.errorType === 'string' ? body.errorType : undefined
   );
 }
 
-function envelopeRequestId(res: any): string | undefined {
-  const requestId = res?.requestId;
-  return typeof requestId === 'string' && requestId.trim()
-    ? requestId.trim()
-    : undefined;
-}
-
-function envelopePendingStatus(res: any): string | undefined {
-  const status = res?.body?.status;
-  return typeof status === 'string' ? status : undefined;
-}
-
 function pendingWriteError(
-  res: any,
+  requestId: string | undefined,
+  body: z.infer<typeof pendingEnvelopeBodySchema>,
   checks: NotesV1PendingWriteCheck[]
 ): NotesV1PendingWriteError {
   return new NotesV1PendingWriteError({
-    requestId: envelopeRequestId(res),
-    status: envelopePendingStatus(res),
+    requestId,
+    status: body.status,
     checks,
   });
 }
@@ -836,30 +854,21 @@ function folderChecks(
 // always throw. `createNotebook`/`createGroupNotebook` require a `notebook`
 // body and return its normalized summary.
 function unwrapNotebookEnvelope(
-  res: any,
+  res: unknown,
   checks: NotesV1PendingWriteCheck[]
 ): NotesV1NotebookSummary {
-  const body = res?.body;
-  if (!body || typeof body.type !== 'string') {
-    throw new Error('Unexpected %notes response (missing body).');
-  }
+  const envelope = parseEnvelope(res);
+  const { body } = envelope;
   switch (body.type) {
     case 'notebook':
-      return normalizeNotebookSummaryV1(requireObject(body.notebook));
+      return normalizeNotebookSummaryV1(body.notebook);
     case 'error':
       throw notesEnvelopeError(body);
     case 'pending':
-      throw pendingWriteError(res, checks);
+      throw pendingWriteError(envelope.requestId, body, checks);
     default:
       throw new Error(`Unexpected %notes response type: ${body.type}`);
   }
-}
-
-function describeNotesResponseValue(value: unknown): string {
-  if (value === undefined) {
-    return 'undefined';
-  }
-  return JSON.stringify(value) ?? String(value);
 }
 
 // Void writes: in the current backend every v1 write response is an envelope
@@ -871,55 +880,48 @@ function describeNotesResponseValue(value: unknown): string {
 // (desk/app/notes.hoon). A missing or typeless body is therefore a protocol
 // violation, not a shape to tolerate. ok/no-change/notebook succeed;
 // everything else throws. `requestJson` has already rejected any non-200.
-function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
-  const body: unknown = res?.body;
-  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
-    throw new Error(
-      `Unexpected %notes write response body: ${describeNotesResponseValue(body)}`
-    );
-  }
-  const type = (body as Record<string, unknown>).type;
-  if (typeof type !== 'string') {
-    throw new Error(
-      `Unexpected %notes write response body.type: ${describeNotesResponseValue(type)} (body: ${describeNotesResponseValue(body)})`
-    );
-  }
+function assertWriteOk(
+  res: unknown,
+  checks: NotesV1PendingWriteCheck[]
+): NotesEnvelope {
+  const envelope = parseEnvelope(res);
+  const { body } = envelope;
+  const { type } = body;
   switch (type) {
     case 'ok':
     case 'no-change':
     case 'notebook':
-      return;
+      return envelope;
     case 'error':
       throw notesEnvelopeError(body);
     case 'pending':
-      throw pendingWriteError(res, checks);
-    default:
-      throw new Error(
-        `Unexpected %notes response type: ${describeNotesResponseValue(type)}`
-      );
+      throw pendingWriteError(envelope.requestId, body, checks);
+    case 'api-key':
+      throw new Error(`Unexpected %notes response type: ${type}`);
   }
 }
-/* eslint-enable @typescript-eslint/no-explicit-any */
-
 async function getRequestV1(requestId: string): Promise<NotesV1RequestStatus> {
   const encoded = encodeURIComponent(requestId);
-  const res = await requestJson(`${REQUESTS_V1_PATH}/${encoded}`, 'GET');
+  const res = await requestJson<unknown>(
+    `${REQUESTS_V1_PATH}/${encoded}`,
+    'GET'
+  );
   return normalizeRequestStatusV1(res);
 }
 
 // --- notebook helpers ------------------------------------------------------
 
 async function listNotebooksV1(): Promise<NotesV1NotebookSummary[]> {
-  const res = await requestJson(NOTEBOOKS_V1_PATH, 'GET');
-  return requireArray(res, normalizeNotebookSummaryV1);
+  const res = await requestJson<unknown>(NOTEBOOKS_V1_PATH, 'GET');
+  return parseNotesResponseList(notesV1NotebookSummarySchema, res);
 }
 
 async function getNotebookV1(
   target: NotesTarget
 ): Promise<NotesV1NotebookDetailSummary> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson(notebookV1Path(flag), 'GET');
-  return normalizeNotebookDetailSummaryV1(requireObject(res));
+  const res = await requestJson<unknown>(notebookV1Path(flag), 'GET');
+  return normalizeNotebookDetailSummaryV1(res);
 }
 
 async function createNotebookV1({
@@ -927,7 +929,7 @@ async function createNotebookV1({
 }: {
   title: string;
 }): Promise<NotesV1NotebookSummary> {
-  const res = await requestJson(NOTEBOOKS_V1_PATH, 'POST', { title });
+  const res = await requestJson<unknown>(NOTEBOOKS_V1_PATH, 'POST', { title });
   return unwrapNotebookEnvelope(res, notebookWriteChecks());
 }
 
@@ -940,7 +942,7 @@ async function createGroupNotebookV1({
   group: NotesV1GroupRef;
   readers?: string[];
 }): Promise<NotesV1NotebookSummary> {
-  const res = await requestJson(NOTEBOOKS_V1_PATH, 'POST', {
+  const res = await requestJson<unknown>(NOTEBOOKS_V1_PATH, 'POST', {
     title,
     group,
     readers,
@@ -952,8 +954,8 @@ async function createGroupNotebookV1({
 
 async function listNotesV1(target: NotesTarget): Promise<NotesV1Note[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson(notesV1Path(flag), 'GET');
-  return requireArray(res, normalizeNoteV1);
+  const res = await requestJson<unknown>(notesV1Path(flag), 'GET');
+  return parseNotesResponseList(notesV1NoteSchema, res, 'note');
 }
 
 async function searchNotesV1({
@@ -968,7 +970,7 @@ async function searchNotesV1({
   tries?: number;
 }): Promise<NotesV1SearchPage> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(
+  const res = await requestJson<unknown>(
     searchV1Path(normalized, { needle, from, tries }),
     'GET'
   );
@@ -983,8 +985,8 @@ async function getNoteV1({
   noteId: number;
 }): Promise<NotesV1Note> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(noteV1Path(normalized, noteId), 'GET');
-  return normalizeNoteV1(requireObject(res));
+  const res = await requestJson<unknown>(noteV1Path(normalized, noteId), 'GET');
+  return normalizeNoteV1(res);
 }
 
 async function createNoteV1({
@@ -997,35 +999,42 @@ async function createNoteV1({
   folder: number;
   title: string;
   body: string;
-}): Promise<void> {
+}): Promise<NotesV1Note | null> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(notesV1Path(normalized), 'POST', {
+  const res = await requestJson<unknown>(notesV1Path(normalized), 'POST', {
     folder,
     title,
     body,
   });
-  assertWriteOk(res, noteCreateChecks(notesChannelId(normalized)));
+  const envelope = assertWriteOk(
+    res,
+    noteCreateChecks(notesChannelId(normalized))
+  );
+  return noteFromWriteEnvelope(envelope, 'note-created');
 }
 
 // The ok envelope of a note write carries the applied update, nested per
 // the u-notebook encoder: body.response.update is the notebook-scoped
 // wrapper ({type: 'note-update', noteUpdate: {...}}) and the inner
-// noteUpdate ({type: 'note-updated', note: {...}}) holds the note with the
-// host's authoritative revision and server-stamped updatedAt/updatedBy.
+// noteUpdate (`note-created` or `note-updated`) holds the note with the host's
+// authoritative id/revision and server-stamped timestamps.
 // Extract it when present; null for no-change (no update emitted), bare
 // bodies, or unexpected shapes.
-/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-function noteFromWriteEnvelope(res: any): NotesV1Note | null {
-  const update = res?.body?.response?.update;
-  const noteUpdate = update?.type === 'note-update' ? update.noteUpdate : null;
-  if (!noteUpdate || noteUpdate.type !== 'note-updated' || !noteUpdate.note) {
+function noteFromWriteEnvelope(
+  envelope: NotesEnvelope,
+  expectedType: 'note-created' | 'note-updated' = 'note-updated'
+): NotesV1Note | null {
+  if (envelope.body.type !== 'ok') {
     return null;
   }
-  try {
-    return normalizeNoteV1(noteUpdate.note);
-  } catch {
+  const response = noteWriteResponseSchema.safeParse(envelope.body.response);
+  if (
+    !response.success ||
+    response.data.update.noteUpdate.type !== expectedType
+  ) {
     return null;
   }
+  return response.data.update.noteUpdate.note;
 }
 
 export interface NotesV1NoteWriteResult {
@@ -1052,11 +1061,18 @@ async function updateNoteBodyV1({
   if (expectedRevision !== undefined) {
     payload.expectedRevision = expectedRevision;
   }
-  const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', payload);
-  assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
+  const res = await requestJson<unknown>(
+    noteV1Path(normalized, noteId),
+    'PUT',
+    payload
+  );
+  const envelope = assertWriteOk(
+    res,
+    noteChecks(notesChannelId(normalized), noteId)
+  );
   return {
-    status: res?.body?.type === 'no-change' ? 'no-change' : 'ok',
-    note: noteFromWriteEnvelope(res),
+    status: envelope.body.type === 'no-change' ? 'no-change' : 'ok',
+    note: noteFromWriteEnvelope(envelope),
   };
 }
 
@@ -1070,11 +1086,18 @@ async function renameNoteV1({
   title: string;
 }): Promise<NotesV1Note | null> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', {
-    title,
-  });
-  assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
-  return noteFromWriteEnvelope(res);
+  const res = await requestJson<unknown>(
+    noteV1Path(normalized, noteId),
+    'PUT',
+    {
+      title,
+    }
+  );
+  const envelope = assertWriteOk(
+    res,
+    noteChecks(notesChannelId(normalized), noteId)
+  );
+  return noteFromWriteEnvelope(envelope);
 }
 
 async function moveNoteV1({
@@ -1087,9 +1110,11 @@ async function moveNoteV1({
   folder: number;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', {
-    folder,
-  });
+  const res = await requestJson<unknown>(
+    noteV1Path(normalized, noteId),
+    'PUT',
+    { folder }
+  );
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
 }
 
@@ -1101,7 +1126,10 @@ async function deleteNoteV1({
   noteId: number;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(noteV1Path(normalized, noteId), 'DELETE');
+  const res = await requestJson<unknown>(
+    noteV1Path(normalized, noteId),
+    'DELETE'
+  );
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
 }
 
@@ -1113,8 +1141,11 @@ async function listNoteHistoryV1({
   noteId: number;
 }): Promise<NotesV1NoteRevision[]> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(noteHistoryV1Path(normalized, noteId), 'GET');
-  return requireArray(res, normalizeNoteRevisionV1);
+  const res = await requestJson<unknown>(
+    noteHistoryV1Path(normalized, noteId),
+    'GET'
+  );
+  return parseNotesResponseList(notesV1NoteRevisionSchema, res, 'revision');
 }
 
 // --- folder helpers --------------------------------------------------------
@@ -1124,8 +1155,13 @@ async function listFoldersV1(
   options?: RequestJsonOptions
 ): Promise<NotesV1Folder[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson(foldersV1Path(flag), 'GET', undefined, options);
-  return requireArray(res, normalizeFolderV1);
+  const res = await requestJson<unknown>(
+    foldersV1Path(flag),
+    'GET',
+    undefined,
+    options
+  );
+  return parseNotesResponseList(notesV1FolderSchema, res, 'folder');
 }
 
 async function getFolderV1({
@@ -1136,8 +1172,11 @@ async function getFolderV1({
   folderId: number;
 }): Promise<NotesV1Folder> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(folderV1Path(normalized, folderId), 'GET');
-  return normalizeFolderV1(requireObject(res));
+  const res = await requestJson<unknown>(
+    folderV1Path(normalized, folderId),
+    'GET'
+  );
+  return normalizeFolderV1(res);
 }
 
 async function createFolderV1({
@@ -1154,7 +1193,11 @@ async function createFolderV1({
   if (parent !== undefined) {
     payload.parent = parent;
   }
-  const res = await requestJson(foldersV1Path(normalized), 'POST', payload);
+  const res = await requestJson<unknown>(
+    foldersV1Path(normalized),
+    'POST',
+    payload
+  );
   assertWriteOk(res, folderCreateChecks(notesChannelId(normalized)));
 }
 
@@ -1168,9 +1211,11 @@ async function renameFolderV1({
   name: string;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(folderV1Path(normalized, folderId), 'PUT', {
-    folderName: name,
-  });
+  const res = await requestJson<unknown>(
+    folderV1Path(normalized, folderId),
+    'PUT',
+    { folderName: name }
+  );
   assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
 }
 
@@ -1184,9 +1229,11 @@ async function moveFolderV1({
   parent: number;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(folderV1Path(normalized, folderId), 'PUT', {
-    parent,
-  });
+  const res = await requestJson<unknown>(
+    folderV1Path(normalized, folderId),
+    'PUT',
+    { parent }
+  );
   assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
 }
 
@@ -1200,7 +1247,7 @@ async function deleteFolderV1({
   recursive: boolean;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(
+  const res = await requestJson<unknown>(
     `${folderV1Path(normalized, folderId)}?recursive=${recursive ? 'true' : 'false'}`,
     'DELETE'
   );
@@ -1213,8 +1260,8 @@ async function listMembersV1(
   target: NotesTarget
 ): Promise<NotesV1MemberRecord[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson(membersV1Path(flag), 'GET');
-  return requireArray(res, normalizeMemberV1);
+  const res = await requestJson<unknown>(membersV1Path(flag), 'GET');
+  return parseNotesResponseList(notesV1MemberSchema, res, 'member');
 }
 
 async function listNotebooks(): Promise<NotesNotebook[]> {
@@ -1379,16 +1426,18 @@ export async function batchImportNotesV1({
     },
   };
 
-  const res = await requestJson(NOTES_V1_PATH, 'POST', body, {
+  const res = await requestJson<unknown>(NOTES_V1_PATH, 'POST', body, {
     reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
   });
 
-  const serverRequestId = envelopeRequestId(res);
+  const envelope = assertWriteOk(
+    res,
+    noteCreateChecks(notesChannelId(normalized))
+  );
+  const serverRequestId = envelope.requestId;
   if (!serverRequestId) {
     throw new Error('%notes batch-import response missing requestId');
   }
-
-  assertWriteOk(res, noteCreateChecks(notesChannelId(normalized)));
 
   return serverRequestId;
 }
@@ -1398,7 +1447,11 @@ async function listPublished(): Promise<NotesPublishedRecord[]> {
     app: 'notes',
     path: '/v0/published',
   });
-  return requireArray(rawPublished, normalizePublishedRecord);
+  return parseNotesResponseList(
+    notesPublishedRecordSchema,
+    rawPublished,
+    'published'
+  );
 }
 
 async function publishNote({
