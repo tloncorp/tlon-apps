@@ -70,10 +70,11 @@ export function McpConnectControl({
   });
 
   const refreshProviders = useCallback(async () => {
-    await Promise.all([
+    const [, statusResult] = await Promise.all([
       providersQuery.refetch(),
-      currentUserId ? statusQuery.refetch() : Promise.resolve(),
+      currentUserId ? statusQuery.refetch() : Promise.resolve(null),
     ]);
+    return Boolean(currentUserId && statusResult && statusResult.isSuccess);
   }, [currentUserId, providersQuery.refetch, statusQuery.refetch]);
 
   const providers = useMemo(
@@ -139,7 +140,7 @@ export function McpConnectMenu({
     selection?: api.PostBlobDataEntryA2UISelection
   ) => void | Promise<void>;
   onNavigate?: (action: A2UI.NavigateAction) => void | Promise<void>;
-  onRefreshProviders?: () => Promise<void>;
+  onRefreshProviders?: () => Promise<boolean>;
   providers: McpProviderRow[];
 }) {
   const selectionKey = `${component.configureAction.event.context.groupId}\u0000${component.configureAction.event.context.provisionId}\u0000${component.id}`;
@@ -171,15 +172,19 @@ export function McpConnectMenu({
     // Claim this return before refreshing so a focus + visibility pair cannot
     // start duplicate refreshes for the same browser round trip.
     pending.leftSurface = false;
-    const refresh = onRefreshProviders?.() ?? Promise.resolve();
-    const finish = () => {
+    const refresh = onRefreshProviders?.() ?? Promise.resolve(true);
+    const finish = (succeeded: boolean) => {
       const current = pendingProviderAuthorizations.get(selectionKey);
       if (current === pending) {
+        if (!succeeded) {
+          current.leftSurface = true;
+          return;
+        }
         current.returned = true;
         setAuthorizationReturnVersion((version) => version + 1);
       }
     };
-    void refresh.then(finish, finish);
+    void refresh.then(finish, () => finish(false));
   }, [onRefreshProviders, selectionKey]);
 
   useFocusEffect(
