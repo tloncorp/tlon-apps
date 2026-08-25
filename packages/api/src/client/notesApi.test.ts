@@ -310,7 +310,7 @@ describe('notesV1 reads', () => {
     requestJsonMock.mockResolvedValue({ last: 0 });
     await expect(
       notesV1.searchNotes({ flag: 'notes/~zod/blog', needle: 'x' })
-    ).rejects.toThrow('expected an array');
+    ).rejects.toThrow('search.notes');
   });
 
   test('searchNotes keeps an empty page with a live cursor distinct from the end', async () => {
@@ -976,36 +976,19 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     const renameNote = () =>
       notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 1, title: 'x' });
 
-    // A missing, null, array, or primitive body is a protocol violation, not
-    // a shape to tolerate. `res?.body` is read before any shape test, so a
-    // top-level object with no `body` key reports an undefined body rather
-    // than an undefined body.type.
-    const malformed: { response: unknown; expected: RegExp }[] = [
-      { response: undefined, expected: /write response body: undefined/ },
-      {
-        response: { requestId: '0v1' },
-        expected: /write response body: undefined/,
-      },
-      { response: { body: null }, expected: /write response body: null/ },
-      { response: { body: [] }, expected: /write response body: \[\]/ },
-      { response: { body: 'ok' }, expected: /write response body: "ok"/ },
-      {
-        response: { body: { id: 5, folderName: 'Drafts' } },
-        expected:
-          /write response body\.type: undefined \(body: {"id":5,"folderName":"Drafts"}\)/,
-      },
-      {
-        response: { body: { type: 'mystery' } },
-        expected: /Unexpected %notes response type: "mystery"/,
-      },
-      {
-        response: { body: { type: 'api-key' } },
-        expected: /Unexpected %notes response type: "api-key"/,
-      },
+    const malformed: unknown[] = [
+      undefined,
+      { requestId: '0v1' },
+      { body: null },
+      { body: [] },
+      { body: 'ok' },
+      { body: { id: 5, folderName: 'Drafts' } },
+      { body: { type: 'mystery' } },
+      { body: { type: 'api-key' } },
     ];
-    for (const { response, expected } of malformed) {
+    for (const response of malformed) {
       requestJsonMock.mockResolvedValue(response);
-      await expect(renameNote()).rejects.toThrow(expected);
+      await expect(renameNote()).rejects.toThrow(/Unexpected %notes response/);
     }
 
     // ok / no-change / notebook are the accepted write outcomes.
@@ -1302,7 +1285,7 @@ describe('batchImportNotesV1', () => {
         notes: [],
         requestId: '0v1',
       })
-    ).rejects.toThrow(/Unexpected %notes write response body: "ok"/);
+    ).rejects.toThrow(/Unexpected %notes response/);
   });
 
   test('throws on error envelope', async () => {
