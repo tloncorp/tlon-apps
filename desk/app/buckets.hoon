@@ -797,9 +797,14 @@
 ::  +issue-read-token: mint a reader's bucket-read token, reusing the one it
 ::  already holds while that has useful life left.
 ::
-::  One token covers every ready object in the bucket, so a reader spends one
-::  round trip per session rather than one per file. A fresh mint answers
-::  %pending: the token has to reach the broker before it is worth anything,
+::  One token covers every ready object in the bucket. What that saves is the
+::  host: the broker answers a read from its own table, so opening a file
+::  costs nothing here and keeps working while this ship is down. The client
+::  still exchanges the token at the broker once per file it opens, because a
+::  signed URL is per-object, short-lived, and only the broker can sign one.
+::
+::  A fresh mint answers %pending: the token has to reach the broker before
+::  it is worth anything,
 ::  and a client that is told otherwise would hold one that 403s.
 ::
 ++  issue-read-token
