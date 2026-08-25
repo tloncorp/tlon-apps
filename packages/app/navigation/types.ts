@@ -29,6 +29,7 @@ export type RootStackParamList = {
   };
   Channel: {
     channelId: string;
+    disableTransition?: boolean;
     groupId?: string;
     selectedPostId?: string | null;
     startDraft?: boolean;

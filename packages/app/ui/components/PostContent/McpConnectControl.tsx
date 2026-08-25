@@ -30,6 +30,7 @@ const clampProviderIds = (providerIds: string[]) =>
 
 export function McpConnectControl({
   component,
+  configuredProviderIds,
   completionConsumed,
   completionSelection,
   onConfigure,
@@ -37,6 +38,7 @@ export function McpConnectControl({
   onNavigate,
 }: {
   component: A2UI.McpConnect;
+  configuredProviderIds?: string[];
   /** True when a durable post already answered the completion action. */
   completionConsumed?: boolean;
   /** Durable record to attach to the post the completion action creates. */
@@ -98,6 +100,7 @@ export function McpConnectControl({
   return (
     <McpConnectMenu
       component={component}
+      configuredProviderIds={configuredProviderIds}
       failed={failed}
       loading={!failed && (!hasProviderData || !hasStatusData)}
       providersLoaded={hasProviderData && hasStatusData}
@@ -114,6 +117,7 @@ export function McpConnectControl({
 
 export function McpConnectMenu({
   component,
+  configuredProviderIds = [],
   completionConsumed = false,
   completionSelection,
   failed = false,
@@ -126,6 +130,7 @@ export function McpConnectMenu({
   providers,
 }: {
   component: A2UI.McpConnect;
+  configuredProviderIds?: string[];
   completionConsumed?: boolean;
   completionSelection?: api.PostBlobDataEntryA2UISelection;
   failed?: boolean;
@@ -144,7 +149,9 @@ export function McpConnectMenu({
 }) {
   const selectionKey = `${component.configureAction.event.context.groupId}\u0000${component.configureAction.event.context.provisionId}\u0000${component.id}`;
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>(
-    () => pendingProviderSelections.get(selectionKey) ?? []
+    () =>
+      pendingProviderSelections.get(selectionKey) ??
+      clampProviderIds(configuredProviderIds)
   );
   const [submitting, setSubmitting] = useState(false);
   const [authorizationReturnVersion, setAuthorizationReturnVersion] =
@@ -213,7 +220,16 @@ export function McpConnectMenu({
     if (!initializedRef.current) {
       if (loading || !providersLoaded) return;
       initializedRef.current = true;
-      setSelectedProviderIds(clampProviderIds(connectedProviderIds));
+      const configuredConnectedProviderIds = configuredProviderIds.filter(
+        (id) => connected.has(id)
+      );
+      setSelectedProviderIds(
+        clampProviderIds(
+          configuredConnectedProviderIds.length > 0
+            ? configuredConnectedProviderIds
+            : connectedProviderIds
+        )
+      );
       return;
     }
 
@@ -249,6 +265,7 @@ export function McpConnectMenu({
     });
   }, [
     authorizationReturnVersion,
+    configuredProviderIds,
     connectedProviderIds,
     loading,
     providersLoaded,
