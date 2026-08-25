@@ -4,6 +4,7 @@ import { ReactTestRenderer, act, create } from 'react-test-renderer';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
+  A2UI_ICON_CATALOG,
   A2UIBlock,
   getA2UIImageLayout,
   getA2UISurfaceLayout,
@@ -14,7 +15,7 @@ vi.mock('@tloncorp/shared', () => ({
 }));
 
 vi.mock('@tloncorp/ui', () => ({
-  Button: { Frame: 'ButtonFrame', Text: 'ButtonText' },
+  Button: { Frame: 'ButtonFrame', Text: 'ButtonText', Icon: 'ButtonIcon' },
   Icon: 'Icon',
   Image: 'Image',
   Text: 'Text',
@@ -71,6 +72,48 @@ const weatherCard: A2UITypes.BlobEntry = {
             fit: 'cover',
             variant: 'header',
           },
+        ],
+      },
+    },
+  ],
+};
+
+const iconAndTextButton: A2UITypes.BlobEntry = {
+  type: 'a2ui',
+  version: 1,
+  messages: [
+    {
+      version: 'v0.9',
+      createSurface: {
+        surfaceId: 'refresh-card',
+        catalogId: 'tlon.a2ui.basic.v1',
+      },
+    },
+    {
+      version: 'v0.9',
+      updateComponents: {
+        surfaceId: 'refresh-card',
+        root: 'refresh',
+        components: [
+          {
+            id: 'refresh',
+            component: 'Button',
+            child: 'refreshRow',
+            action: {
+              event: {
+                name: 'tlon.sendMessage',
+                context: { text: 'refresh weather' },
+              },
+            },
+          },
+          {
+            id: 'refreshRow',
+            component: 'Row',
+            align: 'center',
+            children: ['refreshIcon', 'refreshLabel'],
+          },
+          { id: 'refreshIcon', component: 'Icon', name: 'refresh' },
+          { id: 'refreshLabel', component: 'Text', text: 'Refresh' },
         ],
       },
     },
@@ -147,6 +190,38 @@ describe('A2UIBlock', () => {
     expect(image.props.height).toBe(200);
     expect(image.props.fallback).toBeTruthy();
     act(() => renderer.unmount());
+  });
+
+  it('renders compound button children instead of flattening them', async () => {
+    let renderer: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <A2UIBlock block={{ type: 'a2ui', a2ui: iconAndTextButton }} />
+      );
+    });
+    const frame = findByMockType(renderer!, 'ButtonFrame');
+    expect(frame.props.accessibilityLabel).toBe('refresh Refresh');
+    // the icon and the label both survive, rather than collapsing into the
+    // flattened "refresh Refresh" string
+    expect(findAllByMockType(renderer!, 'XStack')).toHaveLength(1);
+    const buttonIcon = findByMockType(renderer!, 'ButtonIcon');
+    expect(buttonIcon.props.type).toBe('Refresh');
+    expect(buttonIcon.props.accessibilityLabel).toBe('refresh');
+    expect(findByMockType(renderer!, 'ButtonText').props.children).toBe(
+      'Refresh'
+    );
+    expect(findAllByMockType(renderer!, 'Text')).toHaveLength(0);
+    act(() => renderer!.unmount());
+  });
+
+  it('maps off-state catalog icons to their own assets', () => {
+    expect(A2UI_ICON_CATALOG.lock).toBe('Lock');
+    expect(A2UI_ICON_CATALOG.lockOpen).toBe('LockOpen');
+    expect(A2UI_ICON_CATALOG.favorite).toBe('SmushStar');
+    expect(A2UI_ICON_CATALOG.favoriteOff).toBe('SmushStarOutline');
+    expect(A2UI_ICON_CATALOG.star).toBe('SmushStar');
+    expect(A2UI_ICON_CATALOG.starOff).toBe('SmushStarOutline');
+    expect(A2UI_ICON_CATALOG.volumeDown).not.toBe('Muted');
   });
 
   it('constrains compact image fallbacks to their requested dimensions', () => {

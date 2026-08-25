@@ -16,12 +16,15 @@ import { useContentContext } from './contentUtils';
 type RenderOptions = {
   cardDepth?: number;
   parentAlign?: A2UI.Container['align'];
+  /** Set while rendering a Button's child graph so text and icons pick up the
+   * button's own typography and intent colour. */
+  insideButton?: boolean;
 };
 
 const logger = createDevLogger('a2ui-renderer', false);
 const EMPTY_COMPONENTS = new Map<string, A2UI.Component>();
 
-const A2UI_ICON_CATALOG: Record<A2UI.IconName, IconType> = {
+export const A2UI_ICON_CATALOG: Record<A2UI.IconName, IconType> = {
   accountCircle: 'Profile',
   add: 'Add',
   arrowBack: 'ChevronLeft',
@@ -39,14 +42,14 @@ const A2UI_ICON_CATALOG: Record<A2UI.IconName, IconType> = {
   error: 'Bang',
   fastForward: 'ChevronRight',
   favorite: 'SmushStar',
-  favoriteOff: 'SmushStar',
+  favoriteOff: 'SmushStarOutline',
   folder: 'Folder',
   help: 'Info',
   home: 'Home',
   info: 'Info',
   locationOn: 'Pin',
   lock: 'Lock',
-  lockOpen: 'Lock',
+  lockOpen: 'LockOpen',
   mail: 'Mail',
   menu: 'Overflow',
   moreVert: 'Overflow',
@@ -71,12 +74,12 @@ const A2UI_ICON_CATALOG: Record<A2UI.IconName, IconType> = {
   skipPrevious: 'ChevronLeft',
   star: 'SmushStar',
   starHalf: 'SmushStar',
-  starOff: 'SmushStar',
+  starOff: 'SmushStarOutline',
   stop: 'Stop',
   upload: 'ArrowUp',
   visibility: 'EyeOpen',
   visibilityOff: 'EyeClosed',
-  volumeDown: 'Muted',
+  volumeDown: 'Wave',
   volumeMute: 'Muted',
   volumeOff: 'Muted',
   volumeUp: 'Wave',
@@ -354,6 +357,17 @@ function A2UIBlockContent({ block, ...props }: A2UIBlockProps) {
 
       switch (component.component) {
         case 'Text': {
+          if (options.insideButton) {
+            return (
+              <Button.Text
+                key={component.id}
+                size="medium"
+                flex={getComponentFlex(component)}
+              >
+                {component.text}
+              </Button.Text>
+            );
+          }
           return (
             <Text
               key={component.id}
@@ -380,7 +394,17 @@ function A2UIBlockContent({ block, ...props }: A2UIBlockProps) {
             />
           );
         }
-        case 'Icon':
+        case 'Icon': {
+          if (options.insideButton) {
+            return (
+              <Button.Icon
+                key={component.id}
+                type={A2UI_ICON_CATALOG[component.name]}
+                accessibilityLabel={component.name}
+                flex={getComponentFlex(component)}
+              />
+            );
+          }
           return (
             <Icon
               key={component.id}
@@ -391,6 +415,7 @@ function A2UIBlockContent({ block, ...props }: A2UIBlockProps) {
               flex={getComponentFlex(component)}
             />
           );
+        }
         case 'Row':
           return (
             <XStack
@@ -409,6 +434,7 @@ function A2UIBlockContent({ block, ...props }: A2UIBlockProps) {
                 renderComponent(child, {
                   cardDepth: options.cardDepth,
                   parentAlign: component.align,
+                  insideButton: options.insideButton,
                 })
               )}
             </XStack>
@@ -426,6 +452,7 @@ function A2UIBlockContent({ block, ...props }: A2UIBlockProps) {
                 renderComponent(child, {
                   cardDepth: options.cardDepth,
                   parentAlign: component.align,
+                  insideButton: options.insideButton,
                 })
               )}
             </YStack>
@@ -452,6 +479,7 @@ function A2UIBlockContent({ block, ...props }: A2UIBlockProps) {
             >
               {renderComponent(component.child, {
                 cardDepth: (options.cardDepth ?? 0) + 1,
+                insideButton: options.insideButton,
               })}
             </YStack>
           );
@@ -500,11 +528,7 @@ function A2UIBlockContent({ block, ...props }: A2UIBlockProps) {
                 disabled ? undefined : () => handleButtonPress(component)
               }
             >
-              {components.get(component.child)?.component === 'Icon' ? (
-                renderComponent(component.child)
-              ) : (
-                <Button.Text size="medium">{label}</Button.Text>
-              )}
+              {renderComponent(component.child, { insideButton: true })}
             </Button.Frame>
           );
         }

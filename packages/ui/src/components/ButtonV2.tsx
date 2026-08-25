@@ -563,4 +563,7 @@ export const Button = withStaticProperties(ButtonImpl, {
   Frame: TypedButtonFrame,
   /** Use Button.Frame and Button.Text to build a custom button with similar visual treatment to Button */
   Text: ButtonText,
+  /** Icon sibling for Button.Text in a custom Button.Frame; takes its size and
+   * foreground colour from the enclosing frame's fill and intent. */
+  Icon: ButtonIconFrame,
 });

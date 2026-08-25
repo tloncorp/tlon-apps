@@ -101,6 +101,7 @@ The supported v1 client subset is intentionally small:
 - components: `Card`, `Column`, `Row`, `Text`, `Image`, `Icon`, `Divider`, and `Button`
   - images are restricted to bounded `http`/`https` URLs and mapped to responsive host layouts
   - icons use the v0.9 basic catalog name allowlist and map to bundled Tlon icons; arbitrary SVG paths are not accepted
+  - a button renders its whole child graph, so a `Row` of `Icon` plus `Text` renders as an icon beside a label; nested text and icons take the button's typography and intent colour
 - button actions:
   - `tlon.sendMessage`, which sends explicit action text in the current DM
   - `tlon.navigate`, which can navigate to a message, channel, group, profile, chat details, or chat volume screen
