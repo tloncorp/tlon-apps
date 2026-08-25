@@ -1263,7 +1263,12 @@ export function BotNamePane(props: {
               <TextInput
                 ref={inputRef}
                 testID="bot-name-input"
-                value={props.name}
+                // Echoing a controlled value back mid-IME-composition
+                // duplicates the composed text on Android (stale
+                // mostRecentEventCount), so native seeds the revival
+                // prefill via defaultValue and stays uncontrolled.
+                value={isWeb ? props.name : undefined}
+                defaultValue={isWeb ? undefined : props.name}
                 onChangeText={handleNameChange}
                 onBlur={refocusInput}
                 autoCapitalize="none"
