@@ -207,7 +207,7 @@ const buttonSchema = z.object({
   action: buttonActionSchema,
 });
 const choiceOptionSchema = z.object({
-  id: nonEmptyString(),
+  id: nonEmptyString(LIMITS.maxIdLength),
   label: nonEmptyString(LIMITS.maxTextNodeLength),
   description: z.string().max(LIMITS.maxTextNodeLength).optional(),
   icon: choiceIconSchema.optional(),

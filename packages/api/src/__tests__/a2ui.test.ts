@@ -105,6 +105,43 @@ describe('a2ui blob entries', () => {
     ).toBe(false);
   });
 
+  test('bounds choice option ids persisted by durable selections', () => {
+    const overlong = 'x'.repeat(513);
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: 'choice',
+              components: [
+                {
+                  id: 'choice',
+                  component: 'Choice',
+                  options: [
+                    {
+                      id: overlong,
+                      label: 'Research',
+                      action: {
+                        event: {
+                          name: A2UI.action.sendMessage,
+                          context: { text: 'Research' },
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+  });
+
   test('parsePostBlob parses supported a2ui entries', () => {
     const blob = appendToPostBlob(undefined, a2uiBlobEntry);
 
