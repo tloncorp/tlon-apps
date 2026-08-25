@@ -718,7 +718,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     botShipName,
     account.url,
     ({ app, path }) => api.scry(`/~/scry/${app}${path}.json`),
-    (path, method, body) => api.requestJson(path, method, body)
+    (path, method, body, options) =>
+      api.requestJson(path, method, body, options)
   );
 
   // Publish the bound transport for consumers that do not need the global API

@@ -13,10 +13,15 @@ type PokeFn = (params: {
   json: unknown;
 }) => Promise<unknown>;
 type ScryFn = (params: { app: string; path: string }) => Promise<unknown>;
+type RequestJsonOptions = {
+  reauthStatuses?: readonly number[];
+  signal?: AbortSignal;
+};
 type RequestJsonFn = <T>(
   path: string,
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE',
-  body?: unknown
+  body?: unknown,
+  options?: RequestJsonOptions
 ) => Promise<T>;
 
 /**
@@ -48,8 +53,9 @@ function createClientShim(
       ? <T>(
           path: string,
           method?: 'GET' | 'POST' | 'PUT' | 'DELETE',
-          body?: unknown
-        ) => requestJsonFn<T>(path, method, body)
+          body?: unknown,
+          options?: RequestJsonOptions
+        ) => requestJsonFn<T>(path, method, body, options)
       : async () => {
           throw new Error('JSON requests not supported on this client shim');
         },
@@ -159,7 +165,8 @@ export async function withAuthenticatedTlonApi<T>(
     path: string,
     init: RequestInit,
     auditContext: string,
-    reauthStatuses: readonly number[] = [403]
+    reauthStatuses: readonly number[] = [403],
+    signal?: AbortSignal
   ) => {
     const request = () =>
       urbitFetch({
@@ -168,6 +175,7 @@ export async function withAuthenticatedTlonApi<T>(
         init: { ...init, headers: { ...init.headers, Cookie: cookie } },
         ssrfPolicy,
         timeoutMs: 30_000,
+        signal,
         auditContext,
       });
     let result = await request();
@@ -202,7 +210,8 @@ export async function withAuthenticatedTlonApi<T>(
   const requestJsonFn: RequestJsonFn = async <T>(
     path: string,
     method = 'POST',
-    body?: unknown
+    body?: unknown,
+    options: RequestJsonOptions = {}
   ) => {
     const headers: Record<string, string> = {};
     if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -214,7 +223,8 @@ export async function withAuthenticatedTlonApi<T>(
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       },
       'tlon-api-request-json',
-      [401, 403]
+      options.reauthStatuses ?? [401, 403],
+      options.signal
     );
     try {
       const responseText = await response.text();
