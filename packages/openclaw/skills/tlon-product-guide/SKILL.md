@@ -138,7 +138,7 @@ Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can re
 3. Choose how to set it up: `Quick group` starts a chat immediately with default settings, `Basic group` comes with chat, gallery, and notebook channels, or pick one of the templates.  
 4. If you chose `Basic group`, name it. Quick groups and the other templates skip this — a quick group starts out as `Untitled group` and a template keeps the template's name. Either way you can rename it later, in step 6.  
 5. Invite friends who already use Tlon Messenger, or skip this and invite people later.  
-6. Change the name, banner, and profile image any time: tap `Group info & settings`, then `Edit group info`.  
+6. Change the name, banner, and profile image any time: tap `Group info & settings`, then `Rename` in the upper right. That opens the group editor — despite the button's name, it's where the image and description live too. It only shows for admins.  
 7. Add channels: tap `Group info & settings`, then `Channels`, then `New channel`, and choose the type.  
 8. Save your channel settings and go back. Tap `Invite people` — from there you can pick people already on Tlon Messenger, or tap `Share link` for a join link anyone can use.
 
@@ -226,9 +226,11 @@ Add your bot to any group. In channels, mention it (@nickname) to trigger a resp
 
 Other members can use it too, but not by default. A new channel starts restricted: when someone who isn't you mentions the bot, it stays quiet and sends you an approval request instead. Approve them, or open the channel to everyone, and from then on they can ask it questions, have it settle debates, run trivia. Worth saying up front — silence from an unapproved member looks like the bot is broken.
 
-Your bot can also do group admin work from a DM: create groups, set up channels, create roles, customize permissions, invite members with specific roles, remove members, and delete groups.
+Your bot can also do group admin work from a DM: create groups, set up channels, create roles, customize permissions, invite members with specific roles, and remove members.
 
 That works in groups the bot hosts — the ones it made for you. In someone else's group, adding the bot as a member isn't enough: administration is reserved for the host and for members with an admin role, so the group's owner has to give the bot one first. Without it the requests come back as errors.
+
+Deleting a group is the exception, and an admin role doesn't buy it. Only the host can delete a group, so the bot can delete the ones it hosts and no others — someone else's group has to be deleted by whoever made it.
 
 You control who it listens to — tell it in a DM which members it may respond to or communicate with.
 
@@ -245,7 +247,7 @@ Access and moderation. The approval commands take a **request ID**, not a nickna
 - `/reject <request-id>` — deny one  
 - `/ban <request-id>` — deny a pending request and block the ship behind it. Some bots also take `/ban ~ship` directly, blocking them outright whether or not a request is pending.  
 - `/banned` — list blocked ships  
-- `/unban ~nickname` — unblock a ship
+- `/unban ~ship-name` — unblock a ship. This takes their Urbit ID, the `~sampel-palnet` one, not the display name on their profile. `/banned` lists them in the right form.
 
 Two things to be clear about when someone asks. Blocking is not the same as removing someone from a group — that's group admin work, which the bot can do from a DM. And `/unban` only lifts the block; it doesn't put anyone back in a group. They'll need a fresh invite or a new request.
 
