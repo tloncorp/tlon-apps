@@ -117,7 +117,7 @@ export function McpConnectControl({
 
 export function McpConnectMenu({
   component,
-  configuredProviderIds = [],
+  configuredProviderIds,
   completionConsumed = false,
   completionSelection,
   failed = false,
@@ -220,14 +220,11 @@ export function McpConnectMenu({
     if (!initializedRef.current) {
       if (loading || !providersLoaded) return;
       initializedRef.current = true;
-      const configuredConnectedProviderIds = configuredProviderIds.filter(
-        (id) => connected.has(id)
-      );
       setSelectedProviderIds(
         clampProviderIds(
-          configuredConnectedProviderIds.length > 0
-            ? configuredConnectedProviderIds
-            : connectedProviderIds
+          configuredProviderIds === undefined
+            ? connectedProviderIds
+            : configuredProviderIds.filter((id) => connected.has(id))
         )
       );
       return;
