@@ -30,6 +30,7 @@ const clampProviderIds = (providerIds: string[]) =>
 
 export function McpConnectControl({
   component,
+  surfaceId,
   configuredProviderIds,
   completionConsumed,
   completionSelection,
@@ -38,6 +39,7 @@ export function McpConnectControl({
   onNavigate,
 }: {
   component: A2UI.McpConnect;
+  surfaceId: string;
   configuredProviderIds?: string[];
   /** True when a durable post already answered the completion action. */
   completionConsumed?: boolean;
@@ -100,6 +102,7 @@ export function McpConnectControl({
   return (
     <McpConnectMenu
       component={component}
+      surfaceId={surfaceId}
       configuredProviderIds={configuredProviderIds}
       failed={failed}
       loading={!failed && (!hasProviderData || !hasStatusData)}
@@ -117,6 +120,7 @@ export function McpConnectControl({
 
 export function McpConnectMenu({
   component,
+  surfaceId,
   configuredProviderIds,
   completionConsumed = false,
   completionSelection,
@@ -130,6 +134,7 @@ export function McpConnectMenu({
   providers,
 }: {
   component: A2UI.McpConnect;
+  surfaceId: string;
   configuredProviderIds?: string[];
   completionConsumed?: boolean;
   completionSelection?: api.PostBlobDataEntryA2UISelection;
@@ -147,7 +152,7 @@ export function McpConnectMenu({
   onRefreshProviders?: () => Promise<void>;
   providers: McpProviderRow[];
 }) {
-  const selectionKey = `${component.configureAction.event.context.groupId}\u0000${component.configureAction.event.context.provisionId}\u0000${component.id}`;
+  const selectionKey = `${component.configureAction.event.context.groupId}\u0000${component.configureAction.event.context.provisionId}\u0000${surfaceId}\u0000${component.id}`;
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>(
     () =>
       pendingProviderSelections.get(selectionKey) ??

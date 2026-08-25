@@ -4559,8 +4559,26 @@ export const getAgentA2UIProtocolReceipts = createReadQuery(
             not(eq($posts.deliveryStatus, 'failed'))
           )
         )
-      )
-      .orderBy(asc($posts.receivedAt), asc($posts.id));
+      );
+
+    rows.sort((a, b) => {
+      const aSequence =
+        typeof a.sequenceNum === 'number' && a.sequenceNum > 0
+          ? a.sequenceNum
+          : null;
+      const bSequence =
+        typeof b.sequenceNum === 'number' && b.sequenceNum > 0
+          ? b.sequenceNum
+          : null;
+      if (aSequence !== null && bSequence !== null) {
+        return aSequence - bSequence || a.id.localeCompare(b.id);
+      }
+      // Optimistic/unsequenced receipts follow server-ordered history and use
+      // local receipt time only among themselves until the host sequences them.
+      if (aSequence !== null) return -1;
+      if (bSequence !== null) return 1;
+      return a.receivedAt - b.receivedAt || a.id.localeCompare(b.id);
+    });
 
     const receipts: AgentA2UIProtocolReceipts = { providerConfigs: [] };
     for (const row of rows) {

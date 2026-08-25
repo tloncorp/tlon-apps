@@ -14,7 +14,7 @@ import {
 } from '@tloncorp/shared/store';
 import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useEffect, useMemo } from 'react';
+import { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
@@ -157,7 +157,8 @@ export function StaticChatMessage({
 
   const sendAgentProvision = useCallback(
     async (
-      plan: A2UI.ProvisionAgentEvent['context'] & { timezone: string }
+      plan: A2UI.ProvisionAgentEvent['context'] & { timezone: string },
+      selection?: PostBlobDataEntryA2UISelection
     ) => {
       if (!draftInputContext) {
         throw new Error('This channel is not ready to send messages');
@@ -197,7 +198,9 @@ export function StaticChatMessage({
         notebookNest: notebooks[0].id,
         notebookTitle,
       } satisfies PostBlobDataEntryAgentProvision;
-      const blob = appendToPostBlob(undefined, request);
+      const blob = selection
+        ? appendToPostBlob(appendToPostBlob(undefined, request), selection)
+        : appendToPostBlob(undefined, request);
 
       await db.agentGroupOnboardingLocks.setValue((current) => ({
         ...current,
@@ -278,7 +281,10 @@ export function StaticChatMessage({
         }
         const timezone =
           Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-        await sendAgentProvision({ ...action.event.context, timezone });
+        await sendAgentProvision(
+          { ...action.event.context, timezone },
+          selection
+        );
         return;
       }
 
@@ -375,7 +381,6 @@ export function StaticChatMessage({
   );
 
   const groupAgents = db.agentGroupAgents.useValue();
-  const onboardingLocks = db.agentGroupOnboardingLocks.useValue();
   // A newly delivered post can arrive one render before its denormalized
   // `groupId`. The surrounding channel is already authoritative for that
   // relationship, so use it immediately instead of briefly rendering the
@@ -393,35 +398,6 @@ export function StaticChatMessage({
   // authorization stable through that refresh instead of flashing the text
   // fallback before replacing it with A2UI.
   const currentGroup = group ?? draftInputContext?.group;
-  const onboardingMarker = post.groupId
-    ? onboardingLocks[post.groupId]
-    : undefined;
-  useEffect(() => {
-    if (
-      !post.groupId ||
-      post.authorId !== knownAgent ||
-      !post.blob ||
-      !onboardingMarker?.provision ||
-      onboardingMarker.provisionAcknowledgedAt
-    ) {
-      return;
-    }
-    const matched =
-      findPostBlobEntry(post.blob, 'tlon-agent-provision-ack')?.provisionId ===
-      onboardingMarker.provision?.provisionId;
-    if (!matched) return;
-    void db.agentGroupOnboardingLocks.setValue((current) => {
-      if (!post.groupId || !current[post.groupId]) return current;
-      return {
-        ...current,
-        [post.groupId]: {
-          ...current[post.groupId],
-          provisionAcknowledgedAt:
-            current[post.groupId]?.provisionAcknowledgedAt ?? Date.now(),
-        },
-      };
-    });
-  }, [knownAgent, onboardingMarker, post.authorId, post.blob, post.groupId]);
   const currentUserHostsPostGroup = Boolean(
     resolvedPostGroupId &&
     currentGroup?.currentUserIsHost &&
