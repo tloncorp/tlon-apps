@@ -1907,6 +1907,15 @@
     ?~  tok=(~(get by read-tokens) flag)  ~
     ``buckets-read-token-1+!>(`read-token:b`u.tok)
   ::
+  ::  +ready: a constant, because the answer existing is the whole signal --
+  ::  a client asking whether this ship can host Buckets needs to know the
+  ::  desk is installed, nothing more. It reads /v1/buckets for this before,
+  ::  which serialises every bucket's entire manifest, entries and all, and
+  ::  so grew slower the more anyone stored.
+  ::
+      [%x %v1 %ready ~]
+    ``json+!>(`json`b+&)
+  ::
       [%u %joined host=@ name=@ ~]
     =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
     ``loob+!>((~(has by spaces) flag))

@@ -54,6 +54,17 @@ export async function getBuckets() {
 }
 
 /**
+ * Whether %buckets is installed and running on this ship.
+ *
+ * A constant-size read. Asking /v1/buckets for this instead serialises every
+ * bucket's whole manifest -- entries, names, sizes, checksums -- to answer a
+ * yes/no, and so got slower the more anyone stored.
+ */
+export async function getBucketsReady() {
+  return scry<boolean>({ app: BUCKETS_APP, path: '/v1/ready' });
+}
+
+/**
  * Submit an action and wait for its terminal answer.
  *
  * The agent holds the request open until it has a real answer — including

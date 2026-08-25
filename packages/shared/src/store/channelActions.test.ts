@@ -7,6 +7,7 @@ import * as db from '../db';
 import * as schema from '../db/schema';
 import { getClient, setupDatabaseTestSuite } from '../test/helpers';
 import {
+  canGroupHostBuckets,
   createChannel,
   joinGroupChannel,
   leaveGroupChannel,
@@ -482,10 +483,55 @@ test('createChannel rejects a Bucket in a Moon-hosted group before poking Gall',
       channelType: 'buckets',
     })
   ).rejects.toThrow(
-    'Buckets are currently available only in groups hosted by a planet.'
+    'Buckets are currently available only in groups hosted on Tlon.'
   );
 
   expect(sendBucketsAction).not.toHaveBeenCalled();
+});
+
+// The broker authenticates a bucket host through that ship's hosting sidecar,
+// so a self-hosted ship cannot hold one however willing it is. Ship class does
+// not distinguish the two, and this is the case it gets wrong.
+test('createChannel rejects a Bucket when our own node is self-hosted', async () => {
+  const ownGroupId = '~sampel-palnet/files';
+  await insertGroup(ownGroupId);
+  vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~sampel-palnet');
+  vi.spyOn(api, 'getCurrentUserIsHosted').mockReturnValue(false);
+  const sendBucketsAction = vi.spyOn(api, 'sendBucketsAction');
+
+  await expect(
+    createChannel({
+      customSlug: 'project-files',
+      groupId: ownGroupId,
+      title: 'Project files',
+      channelType: 'buckets',
+    })
+  ).rejects.toThrow(
+    'Buckets are currently available only in groups hosted on Tlon.'
+  );
+
+  expect(sendBucketsAction).not.toHaveBeenCalled();
+});
+
+// A group hosted by someone else tells us nothing about their node, so the
+// class filter is all there is and creation has to be allowed to try.
+test('canGroupHostBuckets falls back to the class filter for a group hosted elsewhere', () => {
+  vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~zod');
+  vi.spyOn(api, 'getCurrentUserIsHosted').mockReturnValue(false);
+
+  expect(canGroupHostBuckets('~sampel-palnet')).toBe(true);
+  expect(canGroupHostBuckets('~pinser-botter-sampel-palnet')).toBe(false);
+});
+
+// Our own node is the one case that can be answered rather than guessed.
+test('canGroupHostBuckets answers from hosting when the group is ours', () => {
+  vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~sampel-palnet');
+
+  vi.spyOn(api, 'getCurrentUserIsHosted').mockReturnValue(false);
+  expect(canGroupHostBuckets('~sampel-palnet')).toBe(false);
+
+  vi.spyOn(api, 'getCurrentUserIsHosted').mockReturnValue(true);
+  expect(canGroupHostBuckets('~sampel-palnet')).toBe(true);
 });
 
 test('createChannel preserves a created Bucket when its group listing is delayed', async () => {

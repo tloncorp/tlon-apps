@@ -1289,6 +1289,26 @@
     !>([before ~(wyt by readers.st) revision.sync synced.sync])
   !>([1 1 1 0])
 ::
+::  Whether %buckets is here at all has to be answerable without reading what
+::  it holds. /v1/buckets was serving that question, and it renders every
+::  bucket's whole manifest, so a yes/no got slower the more anyone stored.
+::
+++  test-readiness-is-a-constant-not-the-manifest
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ::  a bucket with an entry in it, so a manifest read would differ from a
+  ::  constant one
+  ;<  *  b  (ask 0v1 [%bucket flag [%create-folder ~ 'notes']])
+  ;<  =cage  b  (got-peek /x/v1/ready)
+  ;<  ~  b  (ex-equal !>(p.cage) !>(%json))
+  %+  ex-equal
+    q.cage
+  !>(`json`[%b &])
+::
 ::  A ship has no environment to read, so the broker it syncs to is a poke.
 ::  The guard matters more than the knob: the credential in a sync is a bearer
 ::  header, so a base naming an unexpected or plaintext host does not fail
