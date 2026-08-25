@@ -94,15 +94,9 @@ export function getAgentOnboardingClaimOwnerId(): string {
   return claimOwnerId;
 }
 
-type CronJobWitness = {
-  id: string;
-  state?: { runningAtMs?: number; lastRunAtMs?: number };
-};
-
 export async function claimAgentOnboardingRun(
   initial: AgentOnboardingRunRecord,
-  now: number,
-  listJobs: () => Promise<CronJobWitness[]>
+  now: number
 ): Promise<
   | { outcome: 'enqueue' }
   | { outcome: 'owned-by-another-pass' }
@@ -145,27 +139,9 @@ export async function claimAgentOnboardingRun(
       return { outcome: 'owned-by-another-pass' } as const;
     }
 
-    // A stale claim may represent a crash immediately before or after enqueue.
-    // Cron state is the durable witness for the latter case.
-    if (existing?.status === 'claimed') {
-      const job = (await listJobs()).find(
-        (candidate) => candidate.id === existing.jobId
-      );
-      if (
-        (job?.state?.runningAtMs ?? 0) >= existing.claimedAt ||
-        (job?.state?.lastRunAtMs ?? 0) >= existing.claimedAt
-      ) {
-        const recovered: AgentOnboardingRunRecord = {
-          ...existing,
-          status: 'enqueued',
-          enqueuedAt: existing.claimedAt,
-        };
-        await store.register(initial.provisionId, recovered);
-        return { outcome: 'recovered', record: recovered } as const;
-      }
-    }
-
-    // Delete a stale, unwitnessed claim and elect exactly one recovery pass.
+    // Aggregate cron timestamps cannot identify the accepted run. Re-enqueue
+    // under a fresh exact run ID rather than persisting an uncorrelatable
+    // record that can never receive its terminal outcome.
     await store.delete(initial.provisionId);
     ownsClaim = await store.registerIfAbsent(initial.provisionId, initial);
     return ownsClaim
