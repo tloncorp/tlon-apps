@@ -131,11 +131,21 @@ export function AgentOnboardingSequence(props: {
             // Keep awaiting this attempt within the overall deadline instead
             // of starting a concurrent furnishing pass that could duplicate a
             // channel or intro request.
-            furnished = await withTimeout(
-              furnishing,
-              Math.max(1, deadline - Date.now()),
-              'Agent group furnishing did not finish before the deadline'
-            );
+            try {
+              furnished = await withTimeout(
+                furnishing,
+                Math.max(1, deadline - Date.now()),
+                'Agent group furnishing did not finish before the deadline'
+              );
+            } catch (deadlineError) {
+              // The request itself is not cancellable. If it completes after
+              // fallback cleared the lock, clear it again so the abandoned
+              // furnishing pass cannot recreate a navigation trap.
+              void furnishing
+                .then((late) => clearNavigationLock(late.group.id))
+                .catch(() => undefined);
+              throw deadlineError;
+            }
           }
           activeGroupId = furnished.group.id;
           activeChannelId = furnished.chatChannelId;

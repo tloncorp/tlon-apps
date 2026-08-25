@@ -422,6 +422,9 @@ async function ensureChatChannel(group: db.Group): Promise<db.Channel> {
   const existing = group.channels?.find((channel) => channel.type === 'chat');
   if (existing) {
     await db.insertGroups({ groups: [group] });
+    if (existing.currentUserIsMember) {
+      await db.updateChannel({ id: existing.id, currentUserIsMember: true });
+    }
     return existing;
   }
 
@@ -433,6 +436,12 @@ async function ensureChatChannel(group: db.Group): Promise<db.Channel> {
   );
   if (remoteExisting) {
     await db.insertGroups({ groups: [remote] });
+    if (remoteExisting.currentUserIsMember) {
+      await db.updateChannel({
+        id: remoteExisting.id,
+        currentUserIsMember: true,
+      });
+    }
     return remoteExisting;
   }
   return createChannel({
