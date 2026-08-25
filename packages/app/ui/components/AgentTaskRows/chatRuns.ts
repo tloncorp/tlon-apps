@@ -9,7 +9,6 @@ import {
 } from '../Channel/ContextLens/types';
 import type { PostWithNeighbors } from '../Channel/PostList/shared';
 import {
-  hasAgentChatActionToolEvidence,
   hasStructuredAgentChatActivity,
   shouldShowAgentChatRun,
   structuredRequestInputContinuationParent,
@@ -216,34 +215,52 @@ function latestAssignedEvent(
   return candidates.sort(compareRunEvents).at(-1);
 }
 
-function toolsHaveStructuredEvidence(event: ContextLensEvent) {
-  return hasAgentChatActionToolEvidence(event);
-}
-
 /**
  * Lifecycle/delivery snapshots can race ahead of their folded activity. Once
- * structured evidence has appeared, retain its latest plan/items/tools while
- * taking lifecycle, outputs, and timestamps from the newest snapshot.
+ * structured evidence has appeared, terminal receipts retain its latest
+ * plan/items while taking lifecycle, tools, outputs, and timestamps from the
+ * newest snapshot. An explicit empty activity remains authoritative while the
+ * run is active; terminal lifecycle or final delivery makes recovery safe.
  */
+function hasRestorableStructuredActivity(
+  activity: ContextLensEvent['lens']['activity']
+) {
+  return Boolean(
+    activity?.plan != null || hasStructuredAgentChatActivity(activity)
+  );
+}
+
 function preserveStructuredEvidence(
   latest: ContextLensEvent,
   history: readonly ContextLensEvent[]
 ): ContextLensEvent {
   const newestFirst = [...history].sort(compareRunEvents).reverse();
   const currentActivity = latest.lens.activity;
-  const activitySource = newestFirst.find((event) =>
-    hasStructuredAgentChatActivity(event.lens.activity)
-  )?.lens.activity;
-  if (currentActivity || !activitySource) {
+  const currentActivityIsStructurallyEmpty =
+    currentActivity != null &&
+    currentActivity.plan == null &&
+    currentActivity.items.length === 0;
+  const mayRecoverEmptyActivity =
+    currentActivity == null ||
+    !isContextLensEventActive(latest) ||
+    latest.phase === 'final-reply-delivered';
+  if (
+    (!currentActivityIsStructurallyEmpty && currentActivity != null) ||
+    !mayRecoverEmptyActivity
+  ) {
     return latest;
   }
-  const toolsSource = newestFirst.find(toolsHaveStructuredEvidence);
+  const activitySource = newestFirst.find((event) =>
+    hasRestorableStructuredActivity(event.lens.activity)
+  )?.lens.activity;
+  if (!activitySource) {
+    return latest;
+  }
   return {
     ...latest,
     lens: {
       ...latest.lens,
       activity: activitySource,
-      tools: toolsSource?.lens.tools ?? latest.lens.tools,
     },
   };
 }
@@ -338,6 +355,7 @@ export function buildAgentChatRunAssignments(
   }
 
   const latestByLensId = new Map<string, ContextLensEvent>();
+  const evidenceHistoryByLensId = new Map<string, ContextLensEvent[]>();
   for (const [lensId, lensEvents] of eventsByLensId) {
     const currentLatest = [...lensEvents].sort(compareRunEvents).at(-1)!;
     const previousEvent = latestAssignedEvent(previous, lensId);
@@ -349,6 +367,7 @@ export function buildAgentChatRunAssignments(
     if (!history.some(shouldShowAgentChatRun) && !previousEvent) {
       continue;
     }
+    evidenceHistoryByLensId.set(lensId, history);
     latestByLensId.set(lensId, preserveStructuredEvidence(latest, history));
   }
 
@@ -527,7 +546,10 @@ export function buildAgentChatRunAssignments(
         retryAnchor ??
         triggerPostId,
       finalReplyDelivered
-        ? finalChatProjection(event, stampedOutput?.outcome ?? 'completed')
+        ? preserveStructuredEvidence(
+            finalChatProjection(event, stampedOutput?.outcome ?? 'completed'),
+            evidenceHistoryByLensId.get(event.lens.lensId) ?? [event]
+          )
         : event
     );
   }

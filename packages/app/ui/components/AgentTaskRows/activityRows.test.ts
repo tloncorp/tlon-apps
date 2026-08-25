@@ -48,6 +48,222 @@ describe('Context Lens activity task rows', () => {
     expect(projection.hiddenCount).toBe(2);
   });
 
+  it('renders a stable collapsed bootstrap row instead of streamed commentary fragments', () => {
+    const partialActivity = activity({
+      items: [
+        {
+          id: 'commentary-1',
+          kind: 'commentary',
+          title: 'Preamble',
+          progressText: 'I',
+          status: 'running',
+          startedAt: 1_000,
+          updatedAt: 1_000,
+          completedAt: null,
+        },
+      ],
+    });
+    const model = buildAgentTaskRowsFromActivity(partialActivity, [], {
+      presentation: 'chat',
+      runOutcome: 'active',
+    });
+
+    expect(model).toEqual({
+      rows: [
+        {
+          id: 'preparing-task-plan',
+          sequence: 1,
+          title: 'Preparing task plan',
+          status: 'running',
+        },
+      ],
+    });
+    expect(JSON.stringify(model)).not.toContain('"I"');
+
+    const inspector = buildAgentTaskRowsFromActivity(partialActivity, [], {
+      presentation: 'inspector',
+      runOutcome: 'active',
+    });
+    expect(inspector.rows[0].title).toBe('I');
+  });
+
+  it('leaves bootstrap mode when a real action starts before a plan exists', () => {
+    const model = buildAgentTaskRowsFromActivity(
+      activity({
+        items: [
+          {
+            id: 'commentary-1',
+            kind: 'commentary',
+            title: 'Preamble',
+            progressText: 'Fetching current conditions.',
+            status: 'completed',
+            startedAt: 1_000,
+            updatedAt: 1_100,
+            completedAt: 1_100,
+          },
+        ],
+      }),
+      [],
+      {
+        presentation: 'chat',
+        runOutcome: 'active',
+        toolRuns: [
+          {
+            id: 'fetch-1',
+            name: 'web_fetch',
+            status: 'running',
+            startedAt: 1_200,
+            completedAt: null,
+            durationMs: null,
+          },
+        ],
+      }
+    );
+
+    expect(model.rows[0]).toMatchObject({
+      id: 'unplanned-work',
+      title: 'Fetching current conditions.',
+      status: 'running',
+      meta: '1 action',
+    });
+    expect(model.rows[0].details).toContainEqual({
+      label: 'Actions',
+      value: '1 web fetch action running',
+    });
+  });
+
+  it('reconstructs completed tool-only work when durable activity is missing', () => {
+    const model = buildAgentTaskRowsFromActivity(undefined, [], {
+      presentation: 'chat',
+      runOutcome: 'completed',
+      toolRuns: [
+        {
+          id: 'plan-1',
+          name: 'update_plan',
+          status: 'completed',
+          startedAt: 900,
+          completedAt: 950,
+          durationMs: 50,
+        },
+        {
+          id: 'fetch-1',
+          name: 'web_fetch',
+          status: 'completed',
+          startedAt: 1_000,
+          completedAt: 1_100,
+          durationMs: 100,
+        },
+        {
+          id: 'fetch-2',
+          name: 'web_fetch',
+          status: 'completed',
+          startedAt: 1_200,
+          completedAt: 1_300,
+          durationMs: 100,
+        },
+        {
+          id: 'command-1',
+          name: 'exec',
+          status: 'completed',
+          startedAt: 1_400,
+          completedAt: 1_500,
+          durationMs: 100,
+        },
+      ],
+    });
+
+    expect(model.autoExpandedId).toBeUndefined();
+    expect(model.rows).toHaveLength(1);
+    expect(model.rows[0]).toMatchObject({
+      id: 'unplanned-work',
+      title: 'Completed agent work',
+      subtitle: '2 web fetch actions completed · 1 exec action completed',
+      status: 'completed',
+      meta: '3 actions',
+    });
+    expect(model.rows[0].details).toEqual([
+      {
+        label: 'Actions',
+        value: '2 web fetch actions completed · 1 exec action completed',
+      },
+    ]);
+  });
+
+  it('does not turn planning metadata into a completed task row', () => {
+    const model = buildAgentTaskRowsFromActivity(undefined, [], {
+      presentation: 'chat',
+      runOutcome: 'completed',
+      toolRuns: [
+        {
+          id: 'plan-1',
+          name: 'update_plan',
+          status: 'completed',
+          startedAt: 1_000,
+          completedAt: 1_100,
+          durationMs: 100,
+        },
+      ],
+    });
+
+    expect(model).toEqual({ rows: [] });
+  });
+
+  it('reconstructs tool-only work from an explicitly empty activity payload', () => {
+    const model = buildAgentTaskRowsFromActivity(activity(), [], {
+      presentation: 'chat',
+      runOutcome: 'completed',
+      toolRuns: [
+        {
+          id: 'fetch-1',
+          name: 'web_fetch',
+          status: 'completed',
+          startedAt: 1_000,
+          completedAt: 1_100,
+          durationMs: 100,
+        },
+      ],
+    });
+
+    expect(model.rows[0]).toMatchObject({
+      id: 'unplanned-work',
+      title: 'Completed agent work',
+      subtitle: '1 web fetch action completed',
+      status: 'completed',
+      meta: '1 action',
+    });
+  });
+
+  it('projects failed tool-only work without inventing a plan', () => {
+    const model = buildAgentTaskRowsFromActivity(activity(), [], {
+      presentation: 'chat',
+      runOutcome: 'failed',
+      failureMessage: 'The weather source failed.',
+      toolRuns: [
+        {
+          id: 'fetch-1',
+          name: 'web_fetch',
+          status: 'error',
+          startedAt: 1_000,
+          completedAt: 1_100,
+          durationMs: 100,
+          error: 'Upstream unavailable',
+        },
+      ],
+    });
+
+    expect(model.rows[0]).toMatchObject({
+      id: 'unplanned-work',
+      title: 'Agent work',
+      subtitle: '1 web fetch action failed',
+      status: 'failed',
+      meta: '1 action',
+    });
+    expect(model.rows[0].details).toEqual([
+      { label: 'Actions', value: '1 web fetch action failed' },
+      { label: 'Error', value: 'Upstream unavailable' },
+    ]);
+  });
+
   it('keeps plan steps stable and nests commentary and tools as details', () => {
     const model = buildAgentTaskRowsFromActivity(
       activity({

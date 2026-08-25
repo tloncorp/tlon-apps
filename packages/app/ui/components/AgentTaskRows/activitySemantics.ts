@@ -47,7 +47,7 @@ export function isStructuredAgentChatActivityItem(
   );
 }
 
-function isPlanningToolName(name: string | null | undefined) {
+export function isPlanningToolName(name: string | null | undefined) {
   if (!name) return false;
   const leaf = name.trim().toLowerCase().split('.').at(-1);
   return leaf?.replaceAll('-', '_') === 'update_plan';

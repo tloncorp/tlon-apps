@@ -10,7 +10,10 @@ import type {
   AgentTaskRow,
   AgentTaskStatus,
 } from './AgentTaskRows';
-import { isStructuredWaitingActivityItem } from './activitySemantics';
+import {
+  isPlanningToolName,
+  isStructuredWaitingActivityItem,
+} from './activitySemantics';
 
 export type AgentTaskRowsModel = {
   rows: AgentTaskRow[];
@@ -231,6 +234,24 @@ function activityStatusForToolRun(
   if (status === 'blocked') return 'blocked';
   if (status === 'error') return 'error';
   return 'running';
+}
+
+function activityItemForToolRun(
+  run: AgentTaskToolRun
+): ContextLensActivityItem {
+  const status = activityStatusForToolRun(run.status);
+  return {
+    id: run.id,
+    kind: 'tool',
+    title: run.name,
+    name: run.name,
+    ...(run.toolCallId ? { toolCallId: run.toolCallId } : {}),
+    status,
+    startedAt: run.startedAt,
+    updatedAt: run.completedAt ?? run.startedAt,
+    completedAt: status === 'running' ? null : run.completedAt,
+    ...(run.error ? { progressText: run.error } : {}),
+  };
 }
 
 function reconcileToolRun(
@@ -639,16 +660,23 @@ export function buildAgentTaskRowsFromActivity(
   liveEvents: readonly ContextLensActivityEvent[] = [],
   options: AgentTaskRowsOptions = {}
 ): AgentTaskRowsModel {
-  if (!activity) return { rows: [] };
-
   const toolRuns = options.toolRuns ?? [];
   const includeToolArguments = options.includeToolArguments ?? false;
   const runOutcome = options.runOutcome ?? 'active';
   const presentation = options.presentation ?? 'inspector';
   const waitingLabel = options.waitingLabel ?? 'Waiting on you';
+  const activityWasMissing = activity == null;
+  const sourceActivity: ContextLensActivity = activity ?? {
+    schemaVersion: 1,
+    eventCount: 0,
+    lastEventAt: null,
+    truncated: false,
+    plan: null,
+    items: [],
+  };
 
-  const liveItems = [...activity.items];
-  const liveStepId = activePlanStepId(activity);
+  const liveItems = [...sourceActivity.items];
+  const liveStepId = activePlanStepId(sourceActivity);
   for (const event of liveEvents) {
     if (
       event.retention !== 'ephemeral' ||
@@ -700,7 +728,20 @@ export function buildAgentTaskRowsFromActivity(
     else liveItems.push(item);
   }
 
-  const terminalAt = activity.lastEventAt ?? undefined;
+  // Some durable terminal snapshots predate folded activity but still retain
+  // the authoritative tool ledger. Rebuild only the missing action items so a
+  // completed receipt can disclose real work without inventing a plan.
+  for (const run of toolRuns) {
+    if (
+      isPlanningToolName(run.name) ||
+      liveItems.some((item) => toolRunForItem(item, [run]) != null)
+    ) {
+      continue;
+    }
+    liveItems.push(activityItemForToolRun(run));
+  }
+
+  const terminalAt = sourceActivity.lastEventAt ?? undefined;
   const reconciledItems = liveItems.map((item) =>
     reconcileToolRun(item, toolRuns)
   );
@@ -716,9 +757,18 @@ export function buildAgentTaskRowsFromActivity(
             reconciled.completedAt ?? terminalAt ?? reconciled.updatedAt,
         };
   });
-  const effectiveActivity = { ...activity, items: effectiveItems };
+  const effectiveActivity = { ...sourceActivity, items: effectiveItems };
 
   const plan = effectiveActivity.plan;
+  if (
+    activityWasMissing &&
+    !plan?.steps.length &&
+    effectiveItems.length === 0 &&
+    (runOutcome === 'active' || runOutcome === 'completed')
+  ) {
+    return { rows: [] };
+  }
+
   let rows: AgentTaskRow[];
   if (plan?.steps.length) {
     const fallbackStepId = activePlanStepId(effectiveActivity);
@@ -850,6 +900,22 @@ export function buildAgentTaskRowsFromActivity(
         (left, right) =>
           left.startedAt - right.startedAt || left.updatedAt - right.updatedAt
       );
+    const preparingTaskPlan =
+      runOutcome === 'active' &&
+      items.length > 0 &&
+      items.every((item) => item.kind === 'commentary');
+    if (preparingTaskPlan) {
+      return {
+        rows: [
+          {
+            id: 'preparing-task-plan',
+            sequence: 1,
+            title: 'Preparing task plan',
+            status: 'running',
+          },
+        ],
+      };
+    }
     const failedItem = items.some(
       (item) => taskStatus(item.status) === 'failed'
     );
@@ -870,9 +936,13 @@ export function buildAgentTaskRowsFromActivity(
                 : 'pending';
     const title =
       latestCommentaryText(items) ??
-      (status === 'pending'
-        ? 'Preparing this request'
-        : 'Working on this request');
+      (status === 'completed'
+        ? 'Completed agent work'
+        : status === 'failed'
+          ? 'Agent work'
+          : status === 'pending'
+            ? 'Preparing this request'
+            : 'Working on this request');
     const actionCount = uniqueActionItems(items).length;
     rows = [
       {

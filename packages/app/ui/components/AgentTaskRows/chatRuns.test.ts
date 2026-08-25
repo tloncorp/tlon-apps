@@ -521,14 +521,21 @@ describe('agent chat run assignments', () => {
     );
   });
 
-  it('backfills structured evidence only when a newer snapshot omits activity', () => {
+  it('backfills structured evidence when a terminal snapshot has empty activity', () => {
     const planned = event({ at: 1, status: 'tool_running' });
     const delivered = event({
       at: 2,
       status: 'completed',
       outputId: 'reply-1',
     });
-    delete delivered.lens.activity;
+    delivered.lens.activity = emptyActivity();
+    delivered.lens.lifecycle.durationMs = 1_234;
+    delivered.lens.tools = {
+      ownerOnlyAvailable: [],
+      called: ['web_search'],
+      callCount: 1,
+      lastStartedAt: 2,
+    };
 
     const assignments = buildAgentChatRunAssignments(
       [planned, delivered],
@@ -542,6 +549,121 @@ describe('agent chat run assignments', () => {
     expect(receipt?.lens.activity?.plan?.steps).toEqual(
       planned.lens.activity?.plan?.steps
     );
+    expect(receipt?.lens.lifecycle).toBe(delivered.lens.lifecycle);
+    expect(receipt?.lens.tools).toBe(delivered.lens.tools);
+  });
+
+  it('recovers terminal activity from previous assignments after stream compaction', () => {
+    const planned = event({ at: 1, status: 'tool_running' });
+    const initial = buildAgentChatRunAssignments(
+      [planned],
+      [post('request-1')],
+      'chat/channel'
+    );
+    const delivered = event({
+      at: 2,
+      status: 'completed',
+      outputId: 'reply-1',
+    });
+    delivered.lens.activity = emptyActivity();
+    delivered.lens.tools = {
+      ownerOnlyAvailable: [],
+      called: ['web_search'],
+      callCount: 1,
+      lastStartedAt: 2,
+    };
+
+    const assignments = buildAgentChatRunAssignments(
+      [delivered],
+      [post('request-1'), post('reply-1', { authorId: '~bus' })],
+      'chat/channel',
+      initial
+    );
+    const [receipt] = assignments.receiptByPostId.get('reply-1') ?? [];
+
+    expect(receipt?.lens.activity).toBe(planned.lens.activity);
+    expect(receipt?.lens.tools).toBe(delivered.lens.tools);
+  });
+
+  it('preserves a newer terminal plan snapshot even without activity items', () => {
+    const planned = event({ at: 1, status: 'tool_running' });
+    const delivered = event({
+      at: 2,
+      status: 'completed',
+      outputId: 'reply-1',
+    });
+    delivered.lens.activity = planOnlyActivity(2, 'completed');
+    delivered.lens.tools = {
+      ownerOnlyAvailable: [],
+      called: ['web_search'],
+      callCount: 1,
+      lastStartedAt: 2,
+    };
+
+    const assignments = buildAgentChatRunAssignments(
+      [planned, delivered],
+      [post('request-1'), post('reply-1', { authorId: '~bus' })],
+      'chat/channel'
+    );
+    const [receipt] = assignments.receiptByPostId.get('reply-1') ?? [];
+
+    expect(receipt).toBe(delivered);
+    expect(receipt?.lens.activity).toBe(delivered.lens.activity);
+    expect(receipt?.lens.activity?.plan?.steps[0]?.status).toBe('completed');
+  });
+
+  it('backfills structured evidence when final delivery races an active empty snapshot', () => {
+    const planned = event({ at: 1, status: 'tool_running' });
+    const delivering = event({ at: 2, status: 'tool_running' });
+    delivering.lens.activity = emptyActivity();
+    delivering.lens.lifecycle.durationMs = 1_234;
+    delivering.lens.tools = {
+      ownerOnlyAvailable: [],
+      called: ['web_search'],
+      callCount: 1,
+      lastStartedAt: 2,
+    };
+
+    const assignments = buildAgentChatRunAssignments(
+      [planned, delivering],
+      [stampedPost('reply-1', 'final'), post('request-1')],
+      'chat/channel'
+    );
+    const [receipt] = assignments.receiptByPostId.get('reply-1') ?? [];
+
+    expect(receipt).toMatchObject({
+      phase: 'final-reply-delivered',
+      lens: { status: 'tool_running' },
+    });
+    expect(receipt?.lens.activity).toBe(planned.lens.activity);
+    expect(receipt?.lens.lifecycle).toBe(delivering.lens.lifecycle);
+    expect(receipt?.lens.tools).toBe(delivering.lens.tools);
+  });
+
+  it('does not invent structured activity for an empty terminal run', () => {
+    const delivered = event({
+      at: 2,
+      status: 'completed',
+      outputId: 'reply-1',
+    });
+    delivered.lens.activity = emptyActivity();
+    delivered.lens.tools = {
+      ownerOnlyAvailable: [],
+      called: ['web_search'],
+      callCount: 1,
+      lastStartedAt: 2,
+    };
+
+    const assignments = buildAgentChatRunAssignments(
+      [delivered],
+      [post('request-1'), post('reply-1', { authorId: '~bus' })],
+      'chat/channel'
+    );
+    const [receipt] = assignments.receiptByPostId.get('reply-1') ?? [];
+
+    expect(receipt?.lens.activity).toBe(delivered.lens.activity);
+    expect(receipt?.lens.activity?.plan).toBeNull();
+    expect(receipt?.lens.activity?.items).toEqual([]);
   });
 
   it('renders a retry below the failed run it continues', () => {

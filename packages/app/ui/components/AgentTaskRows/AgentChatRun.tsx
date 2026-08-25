@@ -260,6 +260,7 @@ export function AgentChatActivityReceipt({
     outcome === 'waiting' && !showQueuedSteps
       ? waitingProjection.rows
       : model.rows;
+  const expandable = visibleRows.length > 0;
   const succeeded = finalRunSucceeded(event);
   const count = model.rows.length;
   const incompleteCount = model.rows.filter(
@@ -340,30 +341,43 @@ export function AgentChatActivityReceipt({
       testID="agent-chat-activity-receipt"
     >
       <Pressable
-        onPress={() => setExpanded((value) => !value)}
-        onKeyDown={(event) =>
-          activateAgentControlFromKeyboard(event, () =>
-            setExpanded((value) => !value)
-          )
+        onPress={expandable ? () => setExpanded((value) => !value) : undefined}
+        onKeyDown={
+          expandable
+            ? (event) =>
+                activateAgentControlFromKeyboard(event, () =>
+                  setExpanded((value) => !value)
+                )
+            : undefined
         }
-        role="button"
-        tabIndex={0}
-        aria-expanded={expanded}
-        aria-label={`${summary}. ${expanded ? 'Hide' : 'View'} activity`}
+        role={expandable ? 'button' : undefined}
+        tabIndex={expandable ? 0 : undefined}
+        aria-expanded={expandable ? expanded : undefined}
+        aria-label={
+          expandable
+            ? `${summary}. ${expanded ? 'Hide' : 'View'} activity`
+            : summary
+        }
+        disabled={!expandable}
+        cursor={expandable ? 'pointer' : 'default'}
         alignSelf="flex-start"
         maxWidth="100%"
         minHeight={44}
         paddingHorizontal="$m"
         borderRadius="$xl"
         backgroundColor="$secondaryBackground"
-        hoverStyle={{ opacity: 0.82 }}
-        pressStyle={{ opacity: 0.68 }}
-        focusVisibleStyle={{
-          outlineColor: '$primaryText',
-          outlineOffset: 2,
-          outlineStyle: 'solid',
-          outlineWidth: 2,
-        }}
+        hoverStyle={expandable ? { opacity: 0.82 } : undefined}
+        pressStyle={expandable ? { opacity: 0.68 } : undefined}
+        focusVisibleStyle={
+          expandable
+            ? {
+                outlineColor: '$primaryText',
+                outlineOffset: 2,
+                outlineStyle: 'solid',
+                outlineWidth: 2,
+              }
+            : undefined
+        }
       >
         <XStack minHeight={44} alignItems="center" gap="$s" minWidth={0}>
           <Icon
@@ -407,17 +421,21 @@ export function AgentChatActivityReceipt({
               <AgentRunTimer startedAt={finishingTimerStartedAt} />
             </>
           ) : null}
-          <SizableText size="$xs" color="$secondaryText" flexShrink={0}>
-            {expanded ? 'Hide' : 'View activity'}
-          </SizableText>
-          <Icon
-            type={expanded ? 'ChevronDown' : 'ChevronRight'}
-            size="$s"
-            color="$secondaryText"
-          />
+          {expandable ? (
+            <>
+              <SizableText size="$xs" color="$secondaryText" flexShrink={0}>
+                {expanded ? 'Hide' : 'View activity'}
+              </SizableText>
+              <Icon
+                type={expanded ? 'ChevronDown' : 'ChevronRight'}
+                size="$s"
+                color="$secondaryText"
+              />
+            </>
+          ) : null}
         </XStack>
       </Pressable>
-      {expanded && visibleRows.length ? (
+      {expanded && expandable ? (
         <YStack gap="$s">
           {outcome === 'unavailable' ? (
             <SizableText
