@@ -65,6 +65,27 @@ describe('buildAgentGroupTitle', () => {
 });
 
 describe('agent group furnishing retry', () => {
+  it('chooses the same duplicate onboarding notebook on every client', () => {
+    const first = { id: 'notes/~zod/zeta', title: 'Updates' } as never;
+    const second = { id: 'notes/~zod/alpha', title: 'Updates' } as never;
+
+    expect(
+      agentGroupOnboardingTesting.splitOnboardingNotebookDuplicates([
+        first,
+        second,
+      ])
+    ).toEqual({ keeper: second, duplicates: [first] });
+  });
+
+  it('does not delete notebooks that are not onboarding duplicates', () => {
+    expect(() =>
+      agentGroupOnboardingTesting.splitOnboardingNotebookDuplicates([
+        { id: 'notes/~zod/alpha', title: 'Updates' } as never,
+        { id: 'notes/~zod/project', title: 'Project' } as never,
+      ])
+    ).toThrow('multiple notebooks');
+  });
+
   it('waits for a pending create to return its authoritative chat', async () => {
     const groupWithoutChat = { id: '~zod/group', channels: [] } as never;
     const groupWithChat = {
