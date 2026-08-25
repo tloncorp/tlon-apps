@@ -69,6 +69,23 @@ describe('channel discovery logging', () => {
     });
   });
 
+  it('rethrows cancellation from the init scry', async () => {
+    const runtime = createRuntime();
+    const controller = new AbortController();
+    const reason = new DOMException('stopped', 'AbortError');
+    const api = {
+      scry: vi.fn().mockImplementation(async () => {
+        controller.abort(reason);
+        throw reason;
+      }),
+    };
+
+    await expect(
+      fetchInitData(api, runtime, { signal: controller.signal })
+    ).rejects.toBe(reason);
+    expect(runtime.error).not.toHaveBeenCalled();
+  });
+
   it('does not log successful incremental discovery but retains failures', async () => {
     const runtime = createRuntime();
     const api = { scry: vi.fn().mockResolvedValue({ changes: [] }) };

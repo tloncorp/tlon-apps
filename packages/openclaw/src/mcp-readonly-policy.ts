@@ -108,6 +108,10 @@ export function rememberDescribedReadOnlyMcpTool(
 ) {
   const name = toolName(params);
   if (!sessionKey || !name) return;
+  const key = cacheKey(sessionKey, name);
+  // An exact re-description replaces the prior descriptor. Revoke first so a
+  // mutating or malformed replacement cannot inherit an earlier read grant.
+  describedReadOnlyTools.delete(key);
   const descriptor = findExactDescribedTool(result, name);
   const annotations = record(descriptor?.annotations);
   const providerId = providerForTool(params, descriptor, allowedProviderIds);
@@ -117,7 +121,7 @@ export function rememberDescribedReadOnlyMcpTool(
   ) {
     return;
   }
-  describedReadOnlyTools.set(cacheKey(sessionKey, name), { providerId });
+  describedReadOnlyTools.set(key, { providerId });
 }
 
 export function mayCallDescribedReadOnlyMcpTool(

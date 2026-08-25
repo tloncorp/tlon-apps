@@ -69,6 +69,36 @@ describe('MCP read-only policy', () => {
     ).toBe(false);
   });
 
+  it('revokes an earlier grant when the same tool is re-described as mutating', () => {
+    const params = { name: 'gmail.search_messages' };
+    rememberDescribedReadOnlyMcpTool(
+      'cron-session',
+      params,
+      {
+        name: 'gmail.search_messages',
+        annotations: { readOnlyHint: true },
+      },
+      ['gmail']
+    );
+    expect(
+      mayCallDescribedReadOnlyMcpTool('cron-session', params, ['gmail'])
+    ).toBe(true);
+
+    rememberDescribedReadOnlyMcpTool(
+      'cron-session',
+      params,
+      {
+        name: 'gmail.search_messages',
+        annotations: { readOnlyHint: false },
+      },
+      ['gmail']
+    );
+
+    expect(
+      mayCallDescribedReadOnlyMcpTool('cron-session', params, ['gmail'])
+    ).toBe(false);
+  });
+
   it('rejects a nested decoy annotation and a mismatched described name', () => {
     rememberDescribedReadOnlyMcpTool(
       'cron-session',
