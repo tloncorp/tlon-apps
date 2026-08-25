@@ -4049,10 +4049,9 @@ class TlonAdapter(BasePlatformAdapter):
         if is_command:
             return text, PreparedMedia()
         cite_block = ""
-        # Queued events keep draining while a lost channel is rebuilt, so cite
-        # rendering cannot be gated on a live SSE: a group pointer needs no
-        # connection and must survive that window. Channel quotes still need
-        # one, and are skipped without it.
+        # Queued events keep draining while a lost channel is rebuilt, so
+        # cite rendering can't be gated on a live SSE: group pointers need no
+        # connection. Channel quotes do, and are skipped without one.
         if message.content:
             partial: list[str] = []
             try:

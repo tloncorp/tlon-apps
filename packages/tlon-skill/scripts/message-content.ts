@@ -20,10 +20,8 @@ export type StoryContent = Exclude<PostContent, null>;
 export const REF_RESOLUTION_LIMIT = 3;
 
 /**
- * Shared, mutable resolution allowance. Each `getPostReference` can burn its
- * own 3s subscribe timeout and posts print sequentially, so the cap is per
- * command rather than per post — otherwise a 20-post run could stall well
- * past the callers' CLI deadlines.
+ * Shared per-command allowance: each fetch can burn a 3s timeout, and a
+ * per-post cap would still let a 20-post run blow the callers' CLI deadlines.
  */
 export interface RefBudget {
   remaining: number;
@@ -41,9 +39,8 @@ export interface RenderRefLinesOptions {
   budget: RefBudget;
 }
 
-// Same shape as the hermes flag regex. `toContentReference` copies `cite.group`
-// through without a runtime check, and CLI stdout is handed verbatim to models,
-// so a newline-bearing value could forge record framing.
+// Delimiter safety: `cite.group` arrives unvalidated and this output reaches
+// models verbatim — a newline-bearing value could forge record framing.
 const GROUP_ID_RE = /^~[a-z-]+\/[a-zA-Z0-9-]+$/;
 
 export function createRefBudget(
@@ -53,10 +50,8 @@ export function createRefBudget(
 }
 
 /**
- * Normalize a post's `content` into story form. Fetchers hand back
- * `JSON.stringify`d content (`toPostData`), so the string case is the common
- * one. Returns `null` — not a fallback string — for anything that is not a
- * story array, leaving the choice of fallback to the caller.
+ * Normalize content into story form (fetchers hand back JSON-stringified
+ * stories). Returns `null` for non-stories — the caller picks the fallback.
  */
 export function parsePostContent(content: unknown): StoryContent | null {
   let raw = content;
@@ -68,9 +63,7 @@ export function parsePostContent(content: unknown): StoryContent | null {
     }
   }
   if (Array.isArray(raw)) {
-    // Boundary cast: element shapes are unverified wire data, and every
-    // consumer here (`getTextContent`, the reference filter) narrows per
-    // element before touching it.
+    // Boundary cast: consumers narrow each element before touching it.
     return raw as StoryContent;
   }
   if (
@@ -89,12 +82,9 @@ function rawContentText(content: unknown): string {
   return JSON.stringify(content);
 }
 
-// `getTextContent` is a preview renderer: it drops the href of a labeled link,
-// prints an image block as the literal `(Image)`, and renders a link block as
-// nothing at all. The raw-JSON body output this module replaced carried those
-// hrefs and srcs, and a model reading CLI output needs the URL to act on it —
-// so rewrite the URL-bearing shapes into plain text before handing the story
-// over. Markdown link syntax is what bots send in the first place.
+// `getTextContent` is a lossy preview renderer: labeled links lose their
+// href, images become "(Image)", link blocks vanish. Models need those URLs,
+// so rewrite URL-bearing shapes to plain text (markdown links) first.
 const NESTED_INLINE_KEYS = ['bold', 'italics', 'strike', 'blockquote'] as const;
 
 function withUrlFidelityInline(item: unknown): unknown {
@@ -161,8 +151,7 @@ function withUrlFidelityListing(listing: unknown): unknown {
 function withUrlFidelity(story: StoryContent): StoryContent {
   return story.map((verse) => {
     if (!verse || typeof verse !== 'object') return verse;
-    // Boundary cast, as in `parsePostContent`: verse shapes are unverified
-    // wire data and every branch below narrows before touching a field.
+    // Boundary cast, as in `parsePostContent`.
     const obj = verse as unknown as Record<string, unknown>;
 
     if (Array.isArray(obj.inline)) {
@@ -235,9 +224,8 @@ export function extractPostText(content: unknown): string {
   try {
     return getTextContent(withUrlFidelity(parsed));
   } catch {
-    // `getTextContent` narrows each element with `'type' in verse`, which
-    // throws on `null`/scalar elements — print the raw form rather than lose
-    // the message.
+    // `getTextContent` throws on null/scalar verse elements — print the raw
+    // form rather than lose the message.
     return rawContentText(content);
   }
 }
@@ -291,17 +279,12 @@ export async function renderRefLines(
   return lines;
 }
 
-// Everything a reader might treat as a line break, not just `\n`: the
-// Unicode mandatory breaks (NEL, LS, PS) plus Python's `str.splitlines` set
-// (VT, FF, and the FS/GS/RS separators -- hermes post-processes this output
-// in Python). Any of these could otherwise smuggle an unframed logical line
-// through the framing below.
+// Everything a reader might treat as a line break: the Unicode mandatory
+// breaks plus Python's `str.splitlines` set (hermes reads this in Python).
 const LINE_BREAK_RE = /\r\n|[\n\r\v\f\x1c\x1d\x1e\u0085\u2028\u2029]/;
 
-// Per-line prefixes, not a single leading indent: the structural records
-// (`- author @ time`, `  ID: …`, `  📎 …`) are themselves two-space indented,
-// so an unprefixed continuation line of sender text could otherwise pass for
-// one of them.
+// Per-line prefixes, not a bare indent: structural records are themselves
+// two-space indented, so an unprefixed continuation could pass for one.
 export function formatBodyLines(text: string): string[] {
   return text.split(LINE_BREAK_RE).map((line) => `  | ${line}`);
 }
@@ -310,11 +293,7 @@ export function formatQuoteLines(text: string): string[] {
   return text.split(LINE_BREAK_RE).map((line) => `  > ${line}`);
 }
 
-/**
- * Collapse line separators in a sender-controlled value that is interpolated
- * into a single structural record line (blob filename, MIME type, URI,
- * transcription), so it cannot start a forged record on a line of its own.
- */
+/** Collapse line separators in values interpolated into one record line. */
 export function sanitizeInlineField(value: string): string {
   return value.replace(
     /(?:\r\n|[\n\r\v\f\x1c\x1d\x1e\u0085\u2028\u2029])+/g,
@@ -353,9 +332,6 @@ function renderBlobLines(blob: Post['blob']): string[] {
   if (!blob) return [];
   const lines: string[] = [];
   const blobData: ClientPostBlobData = parsePostBlob(blob);
-  // Blob string fields are sender-controlled and interpolated into single
-  // record lines — collapse line separators so none can start a forged
-  // record of its own.
   for (const entry of blobData) {
     if (entry.type === 'file') {
       lines.push(
@@ -444,17 +420,11 @@ export async function renderPostListLines(
 }
 
 /**
- * One NDJSON record for a post: the raw structure `--json` exists to expose.
- *
- * `content` is the parsed story when it parses and the original value verbatim
- * when it does not, so the record is lossless either way. Deliberately skips
- * both `getTextContent` and the URL-fidelity rewrite — this mode is structure,
- * not a reading view, so references, links, and blocks stay as they arrived.
+ * One lossless NDJSON record (parsed story, or the original value verbatim) —
+ * deliberately no `getTextContent` and no URL-fidelity rewrite.
  */
-// JSON.stringify escapes every control char below U+0020 but leaves these
-// three legal-in-JSON separators literal; a Unicode-aware line reader (hermes
-// consumes this output with Python's splitlines()) would split one record
-// into fragments. Escaping is lossless — JSON.parse yields the same string.
+// JSON.stringify leaves these legal-in-JSON separators literal; a
+// splitlines()-style reader would fragment the record. Escaping is lossless.
 const JSON_LINE_SEPARATOR_RE = /[\u0085\u2028\u2029]/g;
 
 export function renderPostJsonLine(post: Post): string {
@@ -463,13 +433,10 @@ export function renderPostJsonLine(post: Post): string {
     id: post.id,
     authorId: post.authorId,
     sentAt: post.sentAt,
-    // `toPostData` leaves parentId undefined on top-level posts, and
-    // JSON.stringify drops undefined keys — normalize so the record shape
-    // stays stable.
+    // JSON.stringify drops undefined keys — normalize so the shape is stable.
     parentId: post.parentId ?? null,
     blob: post.blob ?? null,
-    // Tombstones (deleted posts) reach history pages with content undefined —
-    // normalize like parentId/blob so the record shape stays stable.
+    // (tombstones arrive with content undefined)
     content: parsed ?? post.content ?? null,
   }).replace(
     JSON_LINE_SEPARATOR_RE,

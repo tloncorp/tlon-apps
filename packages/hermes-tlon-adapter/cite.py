@@ -1,11 +1,8 @@
 """Inbound cite rendering for Hermes Tlon messages.
 
-Ports OpenClaw's cite enrichment while using Hermes' existing ``/channels/v4``
-history parsing and rendering helpers. Cites are parsed synchronously from the
-story, then rendered in story order: channel cites are resolved through an
-injected scry function so callers can bound the work and tests can provide
-small fakes, while group cites render a pointer line straight from the flag
-already present in the cite (no ship round-trip).
+Cites are parsed synchronously from the story, then rendered in story order:
+channel cites resolve through an injected scry; group cites render a pointer
+line straight from the flag already in the cite (no ship round-trip).
 """
 
 from __future__ import annotations
@@ -30,9 +27,8 @@ _NEST_RE = re.compile(r"(?:chat|heap|diary)/~[a-z-]+/[a-zA-Z0-9-]+")
 _UD_RE = re.compile(r"[0-9]+(?:\.[0-9]+)*")
 _WHERE_RE = re.compile(r"^/(?:msg|note|curio)/([^/]+)(?:/([^/]+))?$")
 _LEGACY_WHERE_RE = re.compile(r"^/msg/(~[a-z-]+)/([^/]+)$")
-# Deliberately as loose as ``_NEST_RE``'s own segments (uppercase tolerated in
-# the name, host not patp-validated): the job is delimiter safety, so no
-# whitespace, bracket, or newline can reach a rendered pointer line.
+# As loose as ``_NEST_RE`` by design: the job is delimiter safety (no
+# whitespace, bracket, or newline reaches a rendered line), not flag grammar.
 _GROUP_FLAG_RE = re.compile(r"~[a-z-]+/[a-zA-Z0-9-]+")
 
 
