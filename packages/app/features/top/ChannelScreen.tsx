@@ -491,9 +491,10 @@ export default function ChannelScreen(props: Props) {
     return isAgentGroupSetupActive(
       filteredPosts,
       currentUserId,
+      agentShipId,
       Boolean(agentOnboarding.marker)
     );
-  }, [agentOnboarding.marker, currentUserId, filteredPosts]);
+  }, [agentOnboarding.marker, agentShipId, currentUserId, filteredPosts]);
 
   const pendingThinkingLabel = useAgentOnboardingFirstEntry({
     agentShipId,
