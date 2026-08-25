@@ -171,13 +171,17 @@ export function AgentOnboardingSequence(props: {
           );
           if (cancelled) return;
           if (!landingConsumed) {
-            logger.trackError('Agent onboarding landing was not consumed', {
+            const error = new Error(
+              'Agent onboarding landing was not consumed'
+            );
+            logger.trackError(error.message, {
+              error,
               groupId: activeGroupId,
               channelId: furnished.chatChannelId,
             });
-          } else {
-            landedInAgentChat = true;
+            throw error;
           }
+          landedInAgentChat = true;
           // Do not permanently dismiss the first-run bridge while the agent
           // still lacks the standing required to accept provisioning. A
           // failed tail returns to the outer idempotent retry loop.
