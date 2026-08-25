@@ -89,7 +89,10 @@ export function AgentOnboardingSequence(props: {
         return;
       }
 
-      const groupId = `${api.getCurrentUserId()}/${BotHomeGroupSlugs.slug}`;
+      // Hosting provisions the deterministic home group. The local override
+      // has no Hosting automation, so let furnishing create a real group.
+      const hostedHomeGroupId = `${api.getCurrentUserId()}/${BotHomeGroupSlugs.slug}`;
+      let activeGroupId = AGENT_SHIP_OVERRIDE ? undefined : hostedHomeGroupId;
       const deadline = Date.now() + 2 * 60_000;
 
       try {
@@ -109,7 +112,7 @@ export function AgentOnboardingSequence(props: {
       while (!cancelled && !completedRef.current && Date.now() < deadline) {
         try {
           const furnishing = store.ensureAgentGroupFurnished({
-            groupId,
+            groupId: AGENT_SHIP_OVERRIDE ? undefined : hostedHomeGroupId,
             agentShipId: AGENT_SHIP_OVERRIDE || undefined,
             isFirstGroup: true,
           });
@@ -132,8 +135,9 @@ export function AgentOnboardingSequence(props: {
               'Agent group furnishing did not finish before the deadline'
             );
           }
+          activeGroupId = furnished.group.id;
           await db.agentOnboardingLanding.setValue({
-            groupId,
+            groupId: activeGroupId,
             channelId: furnished.chatChannelId,
             status: 'pending',
           });
@@ -154,7 +158,7 @@ export function AgentOnboardingSequence(props: {
           if (cancelled) return;
           if (!landingConsumed) {
             logger.trackError('Agent onboarding landing was not consumed', {
-              groupId,
+              groupId: activeGroupId,
               channelId: furnished.chatChannelId,
             });
           }
@@ -168,7 +172,7 @@ export function AgentOnboardingSequence(props: {
           );
           completedRef.current = true;
           logger.trackEvent('Agent Onboarding V2 In-Channel Handoff', {
-            groupId,
+            groupId: activeGroupId,
             channelId: furnished.chatChannelId,
           });
           props.onCompleted();
@@ -192,9 +196,9 @@ export function AgentOnboardingSequence(props: {
       if (!cancelled && !completedRef.current) {
         logger.trackError('Hosted home group furnishing timed out', {
           error: lastError,
-          groupId,
+          groupId: activeGroupId,
         });
-        await clearNavigationLock(groupId);
+        if (activeGroupId) await clearNavigationLock(activeGroupId);
         setUseFallback(true);
       }
     })();
