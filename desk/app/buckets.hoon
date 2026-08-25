@@ -877,6 +877,38 @@
       %wait  (sub expiry token-margin)
   ==
 ::
+::  +disarm-token-refresh: cancel the refresh armed for the token we hold.
+::
+::  Behn keys a timer by its instant, so this has to name the one
+::  +arm-token-refresh set, which is derived from the held token's expiry.
+::  Dropping a token and taking another before that instant otherwise leaves
+::  the old wake live: it fires alongside the replacement's, and the two
+::  renewals supersede each other at the host for as long as the bucket lives.
+::
+++  disarm-token-refresh
+  |=  =flag:b
+  ^+  cor
+  ?~  tok=(~(get by read-tokens) flag)  cor
+  %-  emit
+  :*  %pass  (token-wire flag)  %arvo  %b
+      %rest  (sub expires-at.u.tok token-margin)
+  ==
+::
+::  +recover-local-reader: our own renewal has stopped making progress.
+::
+::  A renewal has no waiting request, so nothing else reports its failure and
+::  nothing else restarts it. The token we still hold was minted against a
+::  revision the broker never took, or has run out its life while we retried,
+::  and the local scry will keep serving it until something intervenes. Drop
+::  it so a reader asks again, and come back for a fresh mint.
+::
+++  recover-local-reader
+  |=  =flag:b
+  ^+  cor
+  =.  cor  (disarm-token-refresh flag)
+  =.  read-tokens  (~(del by read-tokens) flag)
+  (retry-read-token flag)
+::
 ++  token-wire
   |=  =flag:b
   ^-  wire
@@ -916,8 +948,38 @@
   ?.  =("https://" (scag 8 txt))
     %-  (slog leaf+"buckets: refusing a broker base that is not https" ~)
     cor
+  =/  next=@t  (crip txt)
+  ?:  =(next broker-base)  cor
   %-  (slog leaf+"buckets: broker base is now {txt}" ~)
-  cor(broker-base (crip txt))
+  (rebase-readers next)
+::
+::  +rebase-readers: point every live grant at the broker we just moved to.
+::
+::  A broker holds only what it has been told. Swapping the address alone
+::  leaves every record reading as synced, so +owed skips them and the new
+::  broker learns nothing until each grant renews -- a day of reads failing
+::  against a broker that has never heard of them. Marking them owed again
+::  re-sends the state we already decided; revisions carry over, and a broker
+::  with no record of a pair accepts any revision above zero.
+::
+::  What this does not do is retire the grants the old broker still holds.
+::  Doing so means keeping the old address and revoking against it, which is
+::  a second broker's worth of bookkeeping for an operator action; their own
+::  expiry is the backstop, which is the same guarantee a missed revoke has.
+::
+++  rebase-readers
+  |=  base=@t
+  ^+  cor
+  =.  broker-base  base
+  =.  readers
+    %-  malt
+    %+  turn  ~(tap by readers)
+    |=  [key=reader-key:b sync=reader-sync:b]
+    ^-  [reader-key:b reader-sync:b]
+    ::  Nothing to re-send for a pair whose token could not be used anyway.
+    ?:  (lte expires.sync now.bowl)  [key sync]
+    [key sync(synced 0, failed |)]
+  retry-readers
 ::
 ::  +genuine-secret: this ship's shared secret with the broker.
 ::
@@ -1139,6 +1201,17 @@
 ::
 ++  retry-readers
   ^+  cor
+  ::  A pair drops out of +owed at its expiry whether or not it ever landed,
+  ::  and this arm then returns without rearming. For our own reader that ends
+  ::  the renewal silently while an expired token stays installed, so restart
+  ::  it here rather than waiting for an unrelated change to notice.
+  =.  cor
+    %+  roll  ~(tap by readers)
+    |=  [[key=reader-key:b sync=reader-sync:b] acc=_cor]
+    ?.  =(reader.key our.bowl)  acc
+    ?:  =(synced.sync revision.sync)  acc
+    ?.  (lte expires.sync now.bowl)  acc
+    (recover-local-reader:acc flag.key)
   =/  wants  owed
   ?~  wants  cor
   =.  cor  (emil (sync-cards wants))
@@ -1161,6 +1234,9 @@
   ::  Only the revision we sent; a newer one may still be in flight.
   ?.  =(sent revision.sync)  cor
   =.  readers  (~(put by readers) key sync(failed &))
+  ::  Nothing is owed for a failed revision, so for our own reader this is
+  ::  where the renewal loop would otherwise stop for good.
+  =?  cor  =(reader.key our.bowl)  (recover-local-reader flag.key)
   %+  answer-waiter  key
   [%error %unknown 'storage refused this access change']
 ::
@@ -1262,6 +1338,7 @@
 ++  drop-read-token
   |=  =flag:b
   ^+  cor
+  =.  cor  (disarm-token-refresh flag)
   =.  read-tokens  (~(del by read-tokens) flag)
   ::  On a subscriber this finds nothing: only a host mints, so only a host
   ::  has anything to revoke.
@@ -1315,7 +1392,10 @@
     %-  malt
     %+  skim  ~(tap by readers)
     |=  [key=reader-key:b sync=reader-sync:b]
-    ?.  =(synced.sync revision.sync)  &
+    ::  Settled means the broker is level with us or has refused us outright.
+    ::  Testing only for level kept every rejected revision for good, because
+    ::  a failed one never catches up and so never reached the expiry below.
+    ?.  |(=(synced.sync revision.sync) failed.sync)  &
     ?.  ?=(~ awaiting.sync)  &
     (gth expires.sync now.bowl)
   cor

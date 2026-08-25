@@ -143,7 +143,7 @@ The credential goes in `X-Landscape-Token`. Neither it nor a bearer read token e
 :buckets &noun [%set-broker-base `(unit @t)`~]     :: back to the default
 ```
 
-Only `https://` bases are accepted: the credential rides in a header, so a base naming an unexpected or plaintext host does not fail closed, it discloses the secret. `/x/v1/broker/base` reads back what a live host is using. The client half is the `TLON_MEMEX_URL` environment variable, set either way round:
+Changing it re-sends every live grant to the new broker, because a broker holds only what it has been told; grants the old one still holds are left to lapse at their own expiry rather than being revoked, which is the same guarantee a missed revoke has. Only `https://` bases are accepted: the credential rides in a header, so a base naming an unexpected or plaintext host does not fail closed, it discloses the secret. `/x/v1/broker/base` reads back what a live host is using. The client half is the `TLON_MEMEX_URL` environment variable, set either way round:
 
 ```sh
 # shell, unprefixed — one run

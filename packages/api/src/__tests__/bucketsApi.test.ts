@@ -5,6 +5,7 @@ import {
   getBucket,
   getBucketReadToken,
   getBuckets,
+  mintRequestId,
   requestBucketReadToken,
   requestBucketsGrant,
   sendBucketsAction,
@@ -110,17 +111,29 @@ test('sendBucketsAction submits over the v1 endpoint and returns the answer', as
   });
 
   await expect(
-    sendBucketsAction({ type: 'delete-bucket', flag })
+    sendBucketsAction({ type: 'delete-bucket', flag }, '0v1abcd.efghi')
   ).resolves.toEqual({ ok: null });
 
   // The agent answers 401 for an expired cookie, which requestJson does not
   // reauth on by default — so the option is part of the contract, not noise.
+  // The request id is ours, so a lost answer stays addressable.
   expect(requestJson).toHaveBeenCalledWith(
     '/buckets/~/v1',
     'POST',
-    { action: { type: 'delete-bucket', flag } },
+    { action: { type: 'delete-bucket', flag }, requestId: '0v1abcd.efghi' },
     { reauthStatuses: [401, 403] }
   );
+});
+
+// The agent parses this with (slav %uv) and silently substitutes its own id
+// for anything that does not parse, so a malformed one fails by doing nothing
+// visible. /tests/app/buckets checks the Hoon side accepts this shape.
+test('mintRequestId produces a canonical @uv', () => {
+  for (let i = 0; i < 200; i += 1) {
+    const id = mintRequestId();
+    expect(id).toMatch(/^0v[1-9a-v][0-9a-v]{4}(\.[0-9a-v]{5})*$/);
+  }
+  expect(new Set(Array.from({ length: 50 }, mintRequestId)).size).toBe(50);
 });
 
 test('sendBucketsAction raises a typed refusal', async () => {

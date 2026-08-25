@@ -2,7 +2,6 @@ import {
   BucketsEntry,
   BucketsFileEntry,
   BucketsFlag,
-  BucketsReadToken,
   BucketsResponse,
   BucketsSnapshot,
   bucketsFlagKey,
@@ -140,10 +139,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   const snapshotRef = useRef<BucketsSnapshot | null>(null);
   const tasksRef = useRef(new Map<string, BucketUploadTask>());
   const cancelledRef = useRef(new Set<string>());
-  const mintRef = useRef<{
-    key: string;
-    token: Promise<BucketsReadToken>;
-  } | null>(null);
 
   const setCurrentUploads = useCallback(
     (update: (current: LocalUpload[]) => LocalUpload[]) => {
@@ -171,6 +166,28 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       );
     },
     [setCurrentUploads]
+  );
+
+  // Retire any local row the manifest has caught up with.
+  //
+  // Keyed off the snapshot rather than off an entry-created fact, because a
+  // fact is only one of the ways an entry becomes visible: a revision gap
+  // refreshes instead, and a replacement snapshot arrives whole. Matching the
+  // fact alone left the row standing in exactly those cases, and a row holding
+  // a published serverEntryId hides the real file and makes Retry delete it.
+  const reconcileUploads = useCallback(
+    (next: BucketsSnapshot | null) => {
+      if (!next) return;
+      const published = new Set(next.state.entries.map((entry) => entry.id));
+      uploadsRef.current
+        .filter(
+          (upload) =>
+            upload.serverEntryId !== undefined &&
+            published.has(upload.serverEntryId)
+        )
+        .forEach((upload) => retireUpload(upload.id, 'completed'));
+    },
+    [retireUpload]
   );
 
   const commitSnapshot = useCallback((next: BucketsSnapshot | null) => {
@@ -222,28 +239,16 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         stopSubscription = await subscribeToBuckets((response) => {
           if (!active || !matchesFlag(response.flag, flag)) return;
           if (bucketResponseHasRevisionGap(snapshotRef.current, response)) {
-            void refresh().catch((cause) => {
-              if (active) setError(errorMessage(cause));
-            });
+            void refresh()
+              .then(reconcileUploads)
+              .catch((cause) => {
+                if (active) setError(errorMessage(cause));
+              });
             return;
           }
           const next = reduceBucketResponse(snapshotRef.current, response);
           commitSnapshot(next);
-          // A published entry supersedes the local row standing in for it.
-          // Without this, an upload whose final refresh threw leaves a failed
-          // row still holding that serverEntryId, and findUploadShadowEntryIds
-          // hides the real file behind it — permanently, since nothing else
-          // clears it, and Retry then deletes the real manifest entry.
-          if (
-            response.type === 'update' &&
-            (response.update.type === 'entry-created' ||
-              response.update.type === 'entry-updated')
-          ) {
-            const publishedId = response.update.entry.id;
-            uploadsRef.current
-              .filter((upload) => upload.serverEntryId === publishedId)
-              .forEach((upload) => retireUpload(upload.id, 'completed'));
-          }
+          reconcileUploads(next);
           setLoading(false);
         });
         if (!active) {
@@ -268,7 +273,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       active = false;
       if (stopSubscription) void stopSubscription();
     };
-  }, [commitSnapshot, flag, flagKey, refresh, retireUpload]);
+  }, [commitSnapshot, flag, flagKey, reconcileUploads, refresh]);
 
   const updateLocalUpload = useCallback(
     (id: string, patch: Partial<LocalUpload>) => {
@@ -650,20 +655,11 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       // once per file and leave every read but the last failing with "access
       // changed". Cleared on settle, so a failure is retried rather than
       // cached.
-      let held = await getBucketReadToken(flag);
-      if (!held) {
-        let mint = mintRef.current;
-        if (mint?.key !== flagKey) {
-          mint = { key: flagKey, token: requestBucketReadToken(flag) };
-          mintRef.current = mint;
-          void mint.token
-            .catch(() => undefined)
-            .finally(() => {
-              if (mintRef.current === mint) mintRef.current = null;
-            });
-        }
-        held = await mint.token;
-      }
+      // requestBucketReadToken shares one in-flight mint per bucket across
+      // callers, so opening several files on a cold bucket asks once.
+      const held =
+        (await getBucketReadToken(flag)) ??
+        (await requestBucketReadToken(flag));
       const grant = await grantBucketRead(
         held.token,
         flag.host,

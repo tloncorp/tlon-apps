@@ -119,13 +119,48 @@ export async function getBucketsReady() {
  * correlation to do here. A `pending` body is never terminal and never
  * reaches us.
  */
+const UV_DIGITS = '0123456789abcdefghijklmnopqrstuv';
+
+/**
+ * A request id of our own choosing.
+ *
+ * The agent keys both its deduplication and its /request/<id> lookup on this,
+ * and mints one itself when we leave it out -- which leaves the caller holding
+ * an id it never saw, so a lost response cannot be polled for and cannot be
+ * safely retried. A non-idempotent action is exactly where that matters: a
+ * dropped %begin-upload answer strands a session, and retrying opens another.
+ *
+ * Written in @uv's canonical shape -- 0v, then dot-separated groups of five
+ * base-32 digits -- because the agent parses it with (slav %uv) and quietly
+ * falls back to its own id for anything that does not parse.
+ */
+export function mintRequestId(): string {
+  const bytes = new Uint8Array(25);
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  const digits = Array.from(bytes, (byte) => UV_DIGITS[byte & 31]);
+  // A leading zero is not a shape +scot would ever produce, so do not send one.
+  if (digits[0] === '0') digits[0] = '1';
+  const groups: string[] = [];
+  for (let i = 0; i < digits.length; i += 5) {
+    groups.push(digits.slice(i, i + 5).join(''));
+  }
+  return `0v${groups.join('.')}`;
+}
+
 export async function sendBucketsAction(
-  action: BucketsAction
+  action: BucketsAction,
+  requestId: string = mintRequestId()
 ): Promise<BucketsResponseBody> {
   const res = await requestJson<BucketsRequestResponse>(
     BUCKETS_V1_PATH,
     'POST',
-    { action },
+    { action, requestId },
     { reauthStatuses: BUCKETS_AUTH_FAILURE_STATUSES }
   );
   const body = res?.body;
@@ -146,9 +181,10 @@ export async function sendBucketsAction(
  * token instead -- see getBucketReadToken.
  */
 export async function requestBucketsGrant(
-  action: BucketsAction
+  action: BucketsAction,
+  requestId?: string
 ): Promise<BucketsGrant> {
-  const body = await sendBucketsAction(action);
+  const body = await sendBucketsAction(action, requestId);
   if (!('grant' in body)) {
     throw new Error(`%buckets ${action.type} did not return a grant`);
   }
@@ -177,14 +213,39 @@ export async function getBucketReadToken(
  *
  * Only needed on a cold start, when nothing has asked for this bucket yet.
  */
+// In-flight mints, shared by everything in this context rather than held per
+// caller. The host tracks one waiting request per bucket and reader and denies
+// the one a later grant supersedes, so two callers minting at once cost one of
+// them an "access changed" failure on a bucket they may read perfectly well.
+//
+// This does not reach across tabs, which have their own module scope. Two tabs
+// opening the same cold bucket at the same instant can still collide; making
+// that impossible needs the host to hold more than one waiter, not more
+// bookkeeping here.
+const inFlightMints = new Map<string, Promise<BucketsReadToken>>();
+
 export async function requestBucketReadToken(
   flag: BucketsFlag
 ): Promise<BucketsReadToken> {
-  const body = await sendBucketsAction({ type: 'issue-bucket-read', flag });
-  if (!('token' in body)) {
-    throw new Error('%buckets issue-bucket-read did not return a token');
-  }
-  return body.token;
+  const key = bucketsFlagKey(flag);
+  const existing = inFlightMints.get(key);
+  if (existing) return existing;
+
+  const mint = (async () => {
+    const body = await sendBucketsAction({ type: 'issue-bucket-read', flag });
+    if (!('token' in body)) {
+      throw new Error('%buckets issue-bucket-read did not return a token');
+    }
+    return body.token;
+  })();
+  inFlightMints.set(key, mint);
+  // Cleared on settle, so a failure is retried rather than cached.
+  void mint
+    .catch(() => undefined)
+    .finally(() => {
+      if (inFlightMints.get(key) === mint) inFlightMints.delete(key);
+    });
+  return mint;
 }
 
 export async function subscribeToBuckets(

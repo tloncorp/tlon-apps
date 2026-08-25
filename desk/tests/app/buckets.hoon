@@ -1289,6 +1289,44 @@
     !>([before ~(wyt by readers.st) revision.sync synced.sync])
   !>([1 1 1 0])
 ::
+::  The client mints its own request id so a lost answer stays addressable.
+::  The agent parses it with (slav %uv) and falls back to one of its own for
+::  anything that does not parse, so a shape mismatch would show up as nothing
+::  at all -- the id simply not being the one the client kept. This is a real
+::  id from the client's generator.
+::
+++  test-a-client-minted-request-id-is-the-one-used
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  rid=@t  '0v6unph.s88pj.iv67p.6ch2o.kfdam'
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  =/  body=@t
+    %-  en:json:html
+    %-  pairs:enjs:format
+    :~  ['requestId' s+rid]
+        :-  'action'
+        %-  pairs:enjs:format
+        :~  ['type' s+'set-title']
+            ['flag' (flag:enjs:buckets-json flag)]
+            ['title' s+'Renamed']
+        ==
+    ==
+  ;<  caz=(list card)  b  (http-post & body)
+  ::  the answer comes back under the id we sent, not one the agent chose
+  =/  answered=(list @uv)
+    %+  murn  caz
+    |=  =card
+    ^-  (unit @uv)
+    ?.  ?=([%give %fact *] card)  ~
+    ?.  =(%buckets-req-response-1 p.cage.p.card)  ~
+    `request-id:!<(req-response:bu q.cage.p.card)
+  %+  ex-equal
+    !>(answered)
+  !>(~[(slav %uv rid)])
+::
 ::  Listing buckets must not carry their contents. Entries are unbounded, and
 ::  everything that lists -- channel sync, routing -- wants the metadata only.
 ::  The manifest is still reachable, at /full, the way %channels does it.
