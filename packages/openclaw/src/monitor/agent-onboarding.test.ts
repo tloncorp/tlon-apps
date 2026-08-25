@@ -581,6 +581,51 @@ describe('agent onboarding requests', () => {
     );
   });
 
+  it('loads extended history when an old purpose picker is answered', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    const history = [
+      firstGroupIntro(),
+      botMarker('intro', 0.1),
+      botMarker('purpose-picker', 0.2),
+      { author: '~ten', content: 'A daily digest', timestamp: 100 },
+    ];
+    const fetchHistory = vi.fn(
+      async (_api: unknown, _nest: string, count: number) =>
+        count === 500 ? history : history.slice(-1)
+    );
+
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          rawText: 'A daily digest',
+        },
+        { fetchHistory, sendPost }
+      )
+    ).resolves.toBe(true);
+
+    expect(fetchHistory).toHaveBeenCalledWith(
+      expect.anything(),
+      'chat/~ten/general',
+      500
+    );
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'topics-picker',
+      })
+    );
+  });
+
   it('recovers a durable services completion after a plugin restart', async () => {
     const sendPost = vi.fn(async () => ({
       channel: 'tlon' as const,

@@ -340,9 +340,7 @@ async function handleAgentOnboardingRequestInternal(
     const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
       context.api,
       context.channelNest,
-      isOrientationReply(context.rawText)
-        ? ORIENTATION_HISTORY_LIMIT
-        : RECENT_ONBOARDING_HISTORY_LIMIT
+      ORIENTATION_HISTORY_LIMIT
     );
     return advanceDurableConversation(context, history, deps, presentation);
   }
