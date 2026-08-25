@@ -971,7 +971,9 @@ async function provision(
     notebookNest: request.notebookNest,
   };
   const getGroup =
-    deps.getGroup ?? ((groupId) => fetchOnboardingGroup(context.api, groupId));
+    deps.getGroup ??
+    ((groupId) =>
+      fetchOnboardingGroup(context.api, groupId, context.abortSignal));
   let group = await getGroup(request.groupId);
   if (group.hostUserId !== context.senderShip) {
     context.log?.('[tlon] rejected agent provision: invalid owner');
@@ -2120,9 +2122,11 @@ export async function drainAgentOnboardingRuntime(
 
 async function fetchOnboardingGroup(
   api: AgentOnboardingContext['api'],
-  groupId: string
+  groupId: string,
+  signal?: AbortSignal
 ): Promise<OnboardingGroup> {
-  const init = (await api.scry('/groups-ui/v7/init.json')) as {
+  signal?.throwIfAborted();
+  const init = (await api.scry('/groups-ui/v7/init.json', { signal })) as {
     groups?: Record<
       string,
       {
@@ -2131,6 +2135,7 @@ async function fetchOnboardingGroup(
       }
     >;
   };
+  signal?.throwIfAborted();
   const group = init.groups?.[groupId];
   if (!group) throw new Error(`onboarding group not found: ${groupId}`);
   return {
@@ -2968,6 +2973,7 @@ export const agentOnboardingTesting = {
   buildServicesSurface,
   clearAllFirstRunCompletionRetries,
   ensureFirstRunEnqueued,
+  fetchOnboardingGroup,
   findFirstRunCorrelation,
   findDeliveredRunNote,
   hasPostMarker,
