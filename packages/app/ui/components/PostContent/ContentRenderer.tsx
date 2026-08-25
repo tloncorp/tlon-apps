@@ -71,9 +71,6 @@ function ContentRenderer({
   provisionedAgentTopics,
   consumedA2UIMessageText,
   getConsumedA2UISelection,
-  configuredAgentProviderIds,
-  provisionedAgentTopics,
-  consumedA2UIMessageText,
   isNotice,
   searchQuery,
   ...rest
@@ -96,9 +93,6 @@ function ContentRenderer({
       provisionedAgentTopics={provisionedAgentTopics}
       consumedA2UIMessageText={consumedA2UIMessageText}
       getConsumedA2UISelection={getConsumedA2UISelection}
-      configuredAgentProviderIds={configuredAgentProviderIds}
-      provisionedAgentTopics={provisionedAgentTopics}
-      consumedA2UIMessageText={consumedA2UIMessageText}
       isNotice={isNotice}
       searchQuery={searchQuery}
     >
