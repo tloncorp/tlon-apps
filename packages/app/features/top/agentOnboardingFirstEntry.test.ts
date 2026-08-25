@@ -25,24 +25,9 @@ describe('hasAgentOnboardingFirstEntry', () => {
     );
   });
 
-  it('recognizes the legacy provision-scoped completion marker', () => {
+  it('ignores unrelated markers', () => {
     expect(
-      hasAgentOnboardingFirstEntry(
-        [markerPost('first-entry-ping:provision-1')],
-        'provision-1'
-      )
-    ).toBe(true);
-  });
-
-  it('ignores unrelated and differently scoped markers', () => {
-    expect(
-      hasAgentOnboardingFirstEntry(
-        [
-          markerPost('first-entry-pending'),
-          markerPost('first-entry-ping:provision-2'),
-        ],
-        'provision-1'
-      )
+      hasAgentOnboardingFirstEntry([markerPost('first-entry-pending')])
     ).toBe(false);
   });
 

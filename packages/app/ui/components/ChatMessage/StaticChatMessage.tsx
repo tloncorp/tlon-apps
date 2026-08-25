@@ -1,17 +1,13 @@
 import {
   appendToPostBlob,
   getBotUserIdForUser,
+  findPostBlobEntry,
   type PostBlobDataEntryA2UISelection,
   type PostBlobDataEntryAgentProvision,
 } from '@tloncorp/api';
 import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
-import {
-  A2UI,
-  convertContent,
-  getRandomId,
-  parsePostBlob,
-} from '@tloncorp/shared/logic';
+import { A2UI, convertContent, getRandomId } from '@tloncorp/shared/logic';
 import {
   renameAgentGroupFromOnboarding,
   useGroup,
@@ -402,11 +398,9 @@ export function StaticChatMessage({
     ) {
       return;
     }
-    const matched = parsePostBlob(post.blob).some(
-      (entry) =>
-        entry.type === 'tlon-agent-provision-ack' &&
-        entry.provisionId === onboardingMarker.provision?.provisionId
-    );
+    const matched =
+      findPostBlobEntry(post.blob, 'tlon-agent-provision-ack')?.provisionId ===
+      onboardingMarker.provision?.provisionId;
     if (!matched) return;
     void db.agentGroupOnboardingLocks.setValue((current) => {
       if (!post.groupId || !current[post.groupId]) return current;
@@ -467,11 +461,8 @@ export function StaticChatMessage({
   const durableProviderConfig = receiptFollowsPost(providerConfigReceipt, post)
     ? providerConfigReceipt?.entry
     : undefined;
-  const provisionedAgentTopics =
-    a2uiActionCompletion?.provisionedTopics ?? durableProvision?.topics;
-  const configuredAgentProviderIds =
-    a2uiActionCompletion?.configuredProviderIds ??
-    durableProviderConfig?.providerIds;
+  const provisionedAgentTopics = durableProvision?.topics;
+  const configuredAgentProviderIds = durableProviderConfig?.providerIds;
   const isA2UIActionConsumed = useCallback(
     (action: A2UI.Button['action']) => {
       if (action.event.name === A2UI.action.sendMessage) {
@@ -504,12 +495,7 @@ export function StaticChatMessage({
   );
   const hasA2UIStoryFallback = useMemo(
     () =>
-      Boolean(
-        post.blob &&
-        parsePostBlob(post.blob).some(
-          (entry) => entry.type === 'a2ui' && entry.storyMode === 'fallback'
-        )
-      ),
+      Boolean(findPostBlobEntry(post.blob, 'a2ui')?.storyMode === 'fallback'),
     [post.blob]
   );
   const content = useMemo(() => {
