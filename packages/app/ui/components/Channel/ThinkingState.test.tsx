@@ -68,7 +68,7 @@ describe('ThinkingState', () => {
     act(() => renderer!.unmount());
   });
 
-  it('does not let a prior response satisfy an overlapping computing cycle', async () => {
+  it('collapses when a response arrives before overlapping computing ends', async () => {
     let renderer: ReactTestRenderer;
     mocks.computing = computing();
     await act(async () => {
@@ -106,7 +106,8 @@ describe('ThinkingState', () => {
       );
     });
 
-    // The first run finally responds while the second is already computing.
+    // The response can land before presence clears; it still completes the
+    // active cycle and must not leave the footer held for its timeout.
     await act(async () => {
       renderer!.update(
         <ThinkingState
@@ -129,21 +130,6 @@ describe('ThinkingState', () => {
       );
     });
 
-    expect(
-      renderer!.root.find((node) => (node.type as unknown) === 'View').props
-        .height
-    ).toBe(52);
-
-    await act(async () => {
-      renderer!.update(
-        <ThinkingState
-          conversationId="chat"
-          channelType="chat"
-          latestPostId="post-2"
-          latestPostAuthorId="~bot"
-        />
-      );
-    });
     expect(
       renderer!.root.find((node) => (node.type as unknown) === 'View').props
         .height
