@@ -108,12 +108,60 @@ export function StaticChatMessage({
     }
   }, [onPressRetry, post]);
 
+  const configureAgentProviders = useCallback(
+    async (groupId: string, provisionId: string, providerIds: string[]) => {
+      if (!draftInputContext || draftInputContext.canStartDraft === false) {
+        throw new Error('This channel is not ready to send messages');
+      }
+      const currentGroupId =
+        post.groupId ??
+        draftInputContext.group?.id ??
+        draftInputContext.channel.groupId;
+      if (!currentGroupId || currentGroupId !== groupId) {
+        throw new Error('The agent group is not available');
+      }
+      const uniqueProviderIds = [...new Set(providerIds)];
+      const blob = appendToPostBlob(undefined, {
+        type: 'tlon-agent-provider-config',
+        version: 1,
+        provisionId,
+        groupId,
+        providerIds: uniqueProviderIds,
+      });
+      const content = uniqueProviderIds.length
+        ? `Use ${uniqueProviderIds.join(', ')} for this group’s future entries.`
+        : 'Do not use connected services for this group’s future entries.';
+      await draftInputContext.sendPostFromDraft(
+        {
+          channelId: draftInputContext.channel.id,
+          content: [content],
+          attachments: [],
+          blob,
+          channelType: draftInputContext.channel.type,
+          replyToPostId: null,
+          isEdit: false,
+        },
+        { rejectOnDefinitiveFailure: true }
+      );
+    },
+    [draftInputContext, post.groupId]
+  );
+
   const handleA2UIAction = useCallback(
     async (action: A2UI.Action, selection?: PostBlobDataEntryA2UISelection) => {
       if (action.event.name === A2UI.action.navigate) {
         await navigateToA2UITarget(action.event.context.target, {
           allowBotMcpSettings: canUseAgentProviderControls,
         });
+        return;
+      }
+
+      if (action.event.name === A2UI.action.configureAgentProviders) {
+        await configureAgentProviders(
+          action.event.context.groupId,
+          action.event.context.provisionId,
+          action.event.context.providerIds
+        );
         return;
       }
 
@@ -145,7 +193,12 @@ export function StaticChatMessage({
         }
       );
     },
-    [canUseAgentProviderControls, draftInputContext, navigateToA2UITarget]
+    [
+      canUseAgentProviderControls,
+      configureAgentProviders,
+      draftInputContext,
+      navigateToA2UITarget,
+    ]
   );
 
   const isA2UIActionAvailable = useCallback(
@@ -167,9 +220,23 @@ export function StaticChatMessage({
         );
       }
 
+      if (action.event.name === A2UI.action.configureAgentProviders) {
+        const currentGroupId =
+          post.groupId ??
+          draftInputContext?.group?.id ??
+          draftInputContext?.channel.groupId;
+        return Boolean(
+          canUseAgentProviderControls &&
+          draftInputContext &&
+          draftInputContext.canStartDraft !== false &&
+          currentGroupId &&
+          action.event.context.groupId === currentGroupId
+        );
+      }
+
       return false;
     },
-    [canUseAgentProviderControls, draftInputContext]
+    [canUseAgentProviderControls, draftInputContext, post.groupId]
   );
 
   const canRenderA2UI = isDmChannelId(post.channelId);
