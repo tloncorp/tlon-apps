@@ -55,6 +55,23 @@ export const useA2UISelections = ({
   });
 };
 
+export const useAgentA2UIProtocolReceipts = ({
+  channelId,
+  authorId,
+  enabled,
+}: {
+  channelId: string;
+  authorId: string;
+  enabled?: boolean;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getAgentA2UIProtocolReceipts);
+  return useQuery({
+    queryKey: ['agentA2UIProtocolReceipts', deps, channelId, authorId],
+    queryFn: () => db.getAgentA2UIProtocolReceipts({ channelId, authorId }),
+    enabled,
+  });
+};
+
 export const useCurrentChats = (
   queryConfig?: CustomQueryConfig<GroupedChats>
 ): UseQueryResult<GroupedChats | null> => {
