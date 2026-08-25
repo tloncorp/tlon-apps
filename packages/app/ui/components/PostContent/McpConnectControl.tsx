@@ -30,6 +30,7 @@ const clampProviderIds = (providerIds: string[]) =>
 
 export function McpConnectControl({
   component,
+  selectionsPending,
   completionConsumed,
   completionSelection,
   onConfigure,
@@ -37,6 +38,8 @@ export function McpConnectControl({
   onNavigate,
 }: {
   component: A2UI.McpConnect;
+  /** True until durable completion receipts have finished loading. */
+  selectionsPending?: boolean;
   /** True when a durable post already answered the completion action. */
   completionConsumed?: boolean;
   /** Durable record to attach to the post the completion action creates. */
@@ -99,6 +102,7 @@ export function McpConnectControl({
   return (
     <McpConnectMenu
       component={component}
+      selectionsPending={selectionsPending}
       failed={failed}
       loading={!failed && (!hasProviderData || !hasStatusData)}
       providersLoaded={hasProviderData && hasStatusData}
@@ -115,6 +119,7 @@ export function McpConnectControl({
 
 export function McpConnectMenu({
   component,
+  selectionsPending = false,
   completionConsumed = false,
   completionSelection,
   failed = false,
@@ -127,6 +132,7 @@ export function McpConnectMenu({
   providers,
 }: {
   component: A2UI.McpConnect;
+  selectionsPending?: boolean;
   completionConsumed?: boolean;
   completionSelection?: api.PostBlobDataEntryA2UISelection;
   failed?: boolean;
@@ -150,6 +156,11 @@ export function McpConnectMenu({
   const [submitting, setSubmitting] = useState(false);
   const [authorizationReturnVersion, setAuthorizationReturnVersion] =
     useState(0);
+  const [authorizationRefreshPending, setAuthorizationRefreshPending] =
+    useState(() => pendingProviderAuthorizations.has(selectionKey));
+  const authorizationRefreshPendingRef = useRef(
+    pendingProviderAuthorizations.has(selectionKey)
+  );
   const configuringRef = useRef(false);
   const initializedRef = useRef(false);
   const completionAction = useOneShotAction(completionConsumed);
@@ -172,16 +183,23 @@ export function McpConnectMenu({
     // Claim this return before refreshing so a focus + visibility pair cannot
     // start duplicate refreshes for the same browser round trip.
     pending.leftSurface = false;
+    authorizationRefreshPendingRef.current = true;
+    setAuthorizationRefreshPending(true);
     const refresh = onRefreshProviders?.() ?? Promise.resolve(true);
     const finish = (succeeded: boolean) => {
       const current = pendingProviderAuthorizations.get(selectionKey);
       if (current === pending) {
         if (!succeeded) {
           current.leftSurface = true;
+          authorizationRefreshPendingRef.current = false;
+          setAuthorizationRefreshPending(false);
           return;
         }
         current.returned = true;
         setAuthorizationReturnVersion((version) => version + 1);
+      } else {
+        authorizationRefreshPendingRef.current = false;
+        setAuthorizationRefreshPending(false);
       }
     };
     void refresh.then(finish, () => finish(false));
@@ -252,6 +270,13 @@ export function McpConnectMenu({
         ? current
         : next;
     });
+    if (pendingAuthorization?.returned) {
+      // Keep the menu locked until this selection update is committed in the
+      // same render as the unlock. This prevents an OAuth return from briefly
+      // submitting the pre-authorization provider set.
+      authorizationRefreshPendingRef.current = false;
+      setAuthorizationRefreshPending(false);
+    }
   }, [
     authorizationReturnVersion,
     connectedProviderIds,
@@ -277,11 +302,21 @@ export function McpConnectMenu({
   );
   const showSeeAll = providers.length > visibleProviders.length;
   const completionLocked =
-    completionAction.consumed || completionAction.pending;
+    selectionsPending ||
+    authorizationRefreshPending ||
+    completionAction.consumed ||
+    completionAction.pending;
 
   const toggleProvider = useCallback(
     (providerId: string) => {
-      if (configuringRef.current || completionAction.isLocked()) return;
+      if (
+        selectionsPending ||
+        authorizationRefreshPendingRef.current ||
+        configuringRef.current ||
+        completionAction.isLocked()
+      ) {
+        return;
+      }
       setSelectedProviderIds((current) => {
         if (current.includes(providerId)) {
           return current.filter((id) => id !== providerId);
@@ -291,11 +326,17 @@ export function McpConnectMenu({
           : current;
       });
     },
-    [completionAction]
+    [completionAction, selectionsPending]
   );
 
   const configure = useCallback(async () => {
-    if (!onConfigure || configuringRef.current || completionAction.isLocked()) {
+    if (
+      !onConfigure ||
+      selectionsPending ||
+      authorizationRefreshPendingRef.current ||
+      configuringRef.current ||
+      completionAction.isLocked()
+    ) {
       return;
     }
     configuringRef.current = true;
@@ -322,6 +363,7 @@ export function McpConnectMenu({
     completionAction,
     component.configureAction.event,
     onConfigure,
+    selectionsPending,
     selectedProviderIds,
   ]);
 
@@ -329,6 +371,8 @@ export function McpConnectMenu({
     if (
       !component.completionAction ||
       !onComplete ||
+      selectionsPending ||
+      authorizationRefreshPendingRef.current ||
       configuringRef.current ||
       completionAction.isLocked()
     ) {
@@ -342,12 +386,15 @@ export function McpConnectMenu({
     completionSelection,
     component.completionAction,
     onComplete,
+    selectionsPending,
   ]);
 
   const navigate = useCallback(
     (providerId?: string) => {
       if (
         !onNavigate ||
+        selectionsPending ||
+        authorizationRefreshPendingRef.current ||
         configuringRef.current ||
         completionAction.isLocked()
       ) {
@@ -376,7 +423,13 @@ export function McpConnectMenu({
         },
       });
     },
-    [completionAction, component.action.event, onNavigate, selectionKey]
+    [
+      completionAction,
+      component.action.event,
+      onNavigate,
+      selectionKey,
+      selectionsPending,
+    ]
   );
 
   return (

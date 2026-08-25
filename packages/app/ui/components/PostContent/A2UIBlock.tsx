@@ -1221,6 +1221,7 @@ export function A2UIBlock({
             >
               <McpConnectControl
                 component={component}
+                selectionsPending={areA2UISelectionsPending}
                 completionConsumed={Boolean(
                   component.completionAction &&
                   getConsumedA2UISelection?.(surfaceId, component.id)
