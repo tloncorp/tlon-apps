@@ -353,13 +353,36 @@ export async function createNotebookNote({
     body,
   });
   if (created) {
-    const note = {
+    let note = {
       ...api.toClientNotesNote(notebookFlag, created),
       notebookId: created.notebookId ?? baseline.notebook.notebookId,
       folderId: created.folderId ?? folderId,
       bodyMd: created.bodyMd ?? body,
       revision: created.revision ?? 0,
     };
+    try {
+      const confirmed = await api.notes.getNote({
+        flag: notebookFlag,
+        noteId: created.id,
+      });
+      note = {
+        ...note,
+        ...confirmed,
+        notebookId: confirmed.notebookId ?? note.notebookId,
+        folderId: confirmed.folderId ?? note.folderId,
+        bodyMd: confirmed.bodyMd ?? note.bodyMd,
+        revision: confirmed.revision ?? note.revision,
+      };
+    } catch (error) {
+      // A create response can arrive after another client has already deleted
+      // the note and that deletion has synced locally. Confirm absence at the
+      // authoritative note endpoint rather than resurrecting the stale create.
+      if (error instanceof api.BadResponseError && error.status === 404) {
+        return null;
+      }
+      // The create response is still authoritative when the confirmation read
+      // itself is unavailable; the ordinary sync path will reconcile later.
+    }
     await db.upsertNotesNote(note);
     return note;
   }
