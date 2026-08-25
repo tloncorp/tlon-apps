@@ -179,8 +179,17 @@ function memoryRunStore() {
   };
 }
 
+function runRecordKey(accountId: string, provisionId: string) {
+  return `${accountId}\u0000${provisionId}`;
+}
+
+const defaultRunAccountId = '~bot';
+const storedRunKey = (provisionId = provision.provisionId) =>
+  runRecordKey(defaultRunAccountId, provisionId);
+
 describe('first-run durable claims', () => {
   const record = (claimOwnerId: string): AgentOnboardingRunRecord => ({
+    accountId: 'account-1',
     provisionId: 'provision-1',
     jobId: 'job-1',
     groupId: '~ten/group',
@@ -193,12 +202,13 @@ describe('first-run durable claims', () => {
     claimOwnerId,
     status: 'claimed',
   });
+  const recordKey = runRecordKey('account-1', 'provision-1');
 
   it('keeps a fresh claim owned by this process', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
     const initial = record(getAgentOnboardingClaimOwnerId());
-    await store.register(initial.provisionId, initial);
+    await store.register(recordKey, initial);
     await expect(claimAgentOnboardingRun(initial, 1_001)).resolves.toEqual({
       outcome: 'owned-by-another-pass',
     });
@@ -207,7 +217,7 @@ describe('first-run durable claims', () => {
   it('reclaims a fresh unwitnessed claim left by an earlier process', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register('provision-1', record('previous-process'));
+    await store.register(recordKey, record('previous-process'));
     const initial = {
       ...record(getAgentOnboardingClaimOwnerId()),
       claimedAt: 31_001,
@@ -216,13 +226,13 @@ describe('first-run durable claims', () => {
     await expect(claimAgentOnboardingRun(initial, 1_001)).resolves.toEqual({
       outcome: 'enqueue',
     });
-    await expect(store.lookup('provision-1')).resolves.toEqual(initial);
+    await expect(store.lookup(recordKey)).resolves.toEqual(initial);
   });
 
   it('elects only one recovery pass for concurrent stale claims', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register('provision-1', record('previous-process'));
+    await store.register(recordKey, record('previous-process'));
     const initial = {
       ...record(getAgentOnboardingClaimOwnerId()),
       claimedAt: 31_001,
@@ -264,13 +274,11 @@ describe('first-run durable claims', () => {
       runId: 'replacement-run',
       status: 'enqueued' as const,
     };
-    await store.register(initial.provisionId, replacement);
+    await store.register(recordKey, replacement);
 
     await forgetAgentOnboardingRunClaim(initial);
 
-    await expect(store.lookup(initial.provisionId)).resolves.toEqual(
-      replacement
-    );
+    await expect(store.lookup(recordKey)).resolves.toEqual(replacement);
   });
 
   it('does not overwrite a replacement claim when an older enqueue resolves', async () => {
@@ -284,13 +292,11 @@ describe('first-run durable claims', () => {
       runId: 'replacement-run',
       status: 'enqueued' as const,
     };
-    await store.register(initial.provisionId, replacement);
+    await store.register(recordKey, replacement);
 
     await recordAgentOnboardingRunEnqueued(initial, 'older-run', 1_000);
 
-    await expect(store.lookup(initial.provisionId)).resolves.toEqual(
-      replacement
-    );
+    await expect(store.lookup(recordKey)).resolves.toEqual(replacement);
   });
 
   it('attaches an exact completion that arrives before enqueue returns', async () => {
@@ -317,7 +323,7 @@ describe('first-run durable claims', () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
     const initial = record(getAgentOnboardingClaimOwnerId());
-    await store.register(initial.provisionId, initial);
+    await store.register(recordKey, initial);
     const originalEntries = store.entries.getMockImplementation()!;
     let releaseEntries!: () => void;
     const entriesBarrier = new Promise<void>((resolve) => {
@@ -341,7 +347,7 @@ describe('first-run durable claims', () => {
     releaseEntries();
     await Promise.all([outcomeFlight, enqueueFlight]);
 
-    await expect(store.lookup(initial.provisionId)).resolves.toMatchObject({
+    await expect(store.lookup(recordKey)).resolves.toMatchObject({
       runId: 'run-1',
       outcome: { status: 'ok', delivered: true, observedAt: 1_001 },
     });
@@ -351,7 +357,7 @@ describe('first-run durable claims', () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
     const initial = record(getAgentOnboardingClaimOwnerId());
-    await store.register(initial.provisionId, {
+    await store.register(recordKey, {
       ...initial,
       runId: 'run-1',
       status: 'enqueued',
@@ -371,9 +377,28 @@ describe('first-run durable claims', () => {
       }),
     ]);
 
-    await expect(store.lookup(initial.provisionId)).resolves.toMatchObject({
+    await expect(store.lookup(recordKey)).resolves.toMatchObject({
       outcome: { status: 'ok', delivered: true, noteId: 42 },
     });
+  });
+
+  it('claims the same provision id independently for different accounts', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const first = record(getAgentOnboardingClaimOwnerId());
+    const second = { ...first, accountId: 'account-2' };
+
+    await expect(claimAgentOnboardingRun(first, 1_000)).resolves.toEqual({
+      outcome: 'enqueue',
+    });
+    await expect(claimAgentOnboardingRun(second, 1_000)).resolves.toEqual({
+      outcome: 'enqueue',
+    });
+
+    await expect(store.lookup(recordKey)).resolves.toEqual(first);
+    await expect(
+      store.lookup(runRecordKey('account-2', 'provision-1'))
+    ).resolves.toEqual(second);
   });
 });
 
@@ -381,7 +406,8 @@ describe('durable onboarding cron authorization', () => {
   it('recognizes an edited job and restores its selected providers from durable state', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register(provision.provisionId, {
+    await store.register(storedRunKey(), {
+      accountId: defaultRunAccountId,
       provisionId: provision.provisionId,
       jobId: 'edited-description-job',
       groupId: provision.groupId,
@@ -841,7 +867,8 @@ describe('agent onboarding requests', () => {
   it('restores an enqueued run after its request leaves bounded history', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register(provision.provisionId, {
+    await store.register(storedRunKey(), {
+      accountId: defaultRunAccountId,
       provisionId: provision.provisionId,
       jobId: 'job-1',
       runId: 'run-outside-history',
@@ -2206,7 +2233,8 @@ describe('primary onboarding cron slot', () => {
       provision,
       'chat/~ten/group/general'
     );
-    await store.register(provision.provisionId, {
+    await store.register(storedRunKey(), {
+      accountId: defaultRunAccountId,
       provisionId: provision.provisionId,
       jobId: 'job-1',
       groupId: provision.groupId,
@@ -2243,6 +2271,54 @@ describe('primary onboarding cron slot', () => {
     expect(harness.getJobs()[0]).toMatchObject({
       payload: { message: expect.stringContaining('["gmail"]') },
     });
+  });
+
+  it('revokes provider authorization before a failing cron update', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general',
+      ['notion']
+    );
+    await store.register(storedRunKey(), {
+      accountId: defaultRunAccountId,
+      provisionId: provision.provisionId,
+      jobId: 'job-1',
+      groupId: provision.groupId,
+      channelNest: 'chat/~ten/group/general',
+      notebookNest: provision.notebookNest,
+      notebookName: provision.notebookTitle,
+      purposeId: provision.purposeId,
+      topics: [...provision.topics],
+      providerIds: ['notion'],
+      provision,
+      claimedAt: 1,
+      status: 'completed',
+    });
+    harness.cron.update = vi.fn(async () => {
+      throw new Error('cron update failed');
+    });
+    const config = providerConfig(['gmail']);
+
+    await expect(
+      handleAgentOnboardingRequest(
+        requestContext({
+          blob: appendToPostBlob(undefined, config.entry),
+        }),
+        {
+          fetchHistory: vi.fn(async () => [config.historyEntry]),
+          getCron: () => harness.cron,
+        }
+      )
+    ).rejects.toThrow('cron update failed');
+
+    await expect(store.lookup(storedRunKey())).resolves.toMatchObject({
+      providerIds: [],
+    });
+    await expect(agentOnboardingCronProviderIds('job-1')).resolves.toEqual([]);
   });
 
   it('does not let a stalled provider request overwrite a newer selection', async () => {
@@ -2381,6 +2457,7 @@ describe('primary onboarding cron slot', () => {
       'chat/~ten/group/general'
     );
     const durableRecord = (provisionId: string, claimedAt: number) => ({
+      accountId: defaultRunAccountId,
       provisionId,
       jobId: 'job-1',
       groupId: provision.groupId,
@@ -2393,11 +2470,11 @@ describe('primary onboarding cron slot', () => {
       claimedAt,
       status: 'completed' as const,
     });
+    await store.register(storedRunKey(), durableRecord('provision-1', 1));
     await store.register(
-      provision.provisionId,
-      durableRecord('provision-1', 1)
+      storedRunKey('provision-2'),
+      durableRecord('provision-2', 2)
     );
-    await store.register('provision-2', durableRecord('provision-2', 2));
     const config = providerConfig(['gmail']);
 
     await handleAgentOnboardingRequest(
@@ -2791,12 +2868,12 @@ describe('provision coordinator ordering', () => {
     await expect(handleAgentOnboardingRequest(context, deps)).rejects.toThrow(
       'enqueue unavailable'
     );
-    await expect(store.lookup(provision.provisionId)).resolves.toBeUndefined();
+    await expect(store.lookup(storedRunKey())).resolves.toBeUndefined();
     await expect(handleAgentOnboardingRequest(context, deps)).resolves.toBe(
       true
     );
     expect(cron.enqueueRun).toHaveBeenCalledTimes(2);
-    await expect(store.lookup(provision.provisionId)).resolves.toMatchObject({
+    await expect(store.lookup(storedRunKey())).resolves.toMatchObject({
       status: 'enqueued',
       runId: 'run-1',
     });
@@ -2859,7 +2936,7 @@ describe('provision coordinator ordering', () => {
     );
 
     expect(cron.enqueueRun).toHaveBeenCalledTimes(2);
-    await expect(store.lookup(provision.provisionId)).resolves.toMatchObject({
+    await expect(store.lookup(storedRunKey())).resolves.toMatchObject({
       status: 'enqueued',
     });
     expect(history).toHaveLength(2);
@@ -2918,7 +2995,7 @@ describe('provision coordinator ordering', () => {
     );
 
     expect(cron.enqueueRun).toHaveBeenCalledOnce();
-    expect(await store.lookup(provision.provisionId)).toMatchObject({
+    expect(await store.lookup(storedRunKey())).toMatchObject({
       status: 'enqueued',
       runId: 'run-1',
     });
@@ -2928,7 +3005,8 @@ describe('provision coordinator ordering', () => {
   it('finishes a completed first run discovered after plugin restart', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register(provision.provisionId, {
+    await store.register(storedRunKey(), {
+      accountId: defaultRunAccountId,
       provisionId: provision.provisionId,
       jobId: 'job-1',
       runId: 'run-before-restart',
@@ -3013,7 +3091,7 @@ describe('provision coordinator ordering', () => {
         },
       },
     });
-    expect(await store.lookup(provision.provisionId)).toMatchObject({
+    expect(await store.lookup(storedRunKey())).toMatchObject({
       status: 'completed',
     });
   });
@@ -3049,6 +3127,7 @@ describe('provision coordinator ordering', () => {
     await agentOnboardingTesting.reconcileRestoredFirstRun(
       cron,
       {
+        accountId: defaultRunAccountId,
         provisionId: provision.provisionId,
         jobId: 'job-1',
         runId: 'run-before-restart',
@@ -3095,6 +3174,7 @@ describe('provision coordinator ordering', () => {
     await agentOnboardingTesting.reconcileRestoredFirstRun(
       { list } as unknown as TlonCronService,
       {
+        accountId: defaultRunAccountId,
         provisionId: provision.provisionId,
         jobId: 'job-1',
         runId: 'forced-run',
@@ -3382,7 +3462,8 @@ describe('provision coordinator ordering', () => {
     ]);
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register(provision.provisionId, {
+    await store.register(storedRunKey(), {
+      accountId: defaultRunAccountId,
       provisionId: provision.provisionId,
       jobId: 'job-1',
       runId: 'first-run-authoritative',
@@ -3532,7 +3613,8 @@ describe('provision coordinator ordering', () => {
   it('persists a matched outcome before posting the reveal', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register(provision.provisionId, {
+    await store.register(storedRunKey(), {
+      accountId: defaultRunAccountId,
       provisionId: provision.provisionId,
       jobId: 'job-1',
       runId: 'matched-run',
@@ -3576,7 +3658,7 @@ describe('provision coordinator ordering', () => {
       )
     ).rejects.toThrow('transport closed during reveal');
 
-    await expect(store.lookup(provision.provisionId)).resolves.toMatchObject({
+    await expect(store.lookup(storedRunKey())).resolves.toMatchObject({
       status: 'enqueued',
       outcome: { status: 'ok', delivered: true },
     });
@@ -3586,7 +3668,8 @@ describe('provision coordinator ordering', () => {
     const store = memoryRunStore();
     const sleep = vi.fn(async () => {});
     setAgentOnboardingRunStore(store);
-    await store.register(provision.provisionId, {
+    await store.register(storedRunKey(), {
+      accountId: defaultRunAccountId,
       provisionId: provision.provisionId,
       jobId: 'job-1',
       runId: 'transient-store-run',
@@ -3632,7 +3715,7 @@ describe('provision coordinator ordering', () => {
     );
 
     expect(sleep).toHaveBeenCalledWith(100);
-    await expect(store.lookup(provision.provisionId)).resolves.toMatchObject({
+    await expect(store.lookup(storedRunKey())).resolves.toMatchObject({
       outcome: { status: 'ok', delivered: true },
     });
   });
@@ -3741,7 +3824,8 @@ describe('provision coordinator ordering', () => {
   it('suppresses completion presentation for a superseded provision', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register('provision-newer', {
+    await store.register(storedRunKey('provision-newer'), {
+      accountId: defaultRunAccountId,
       ...provision,
       provisionId: 'provision-newer',
       jobId: 'job-newer',

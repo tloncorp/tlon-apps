@@ -166,6 +166,9 @@ async function sendNotesEntry({
 }) {
   const notebook = await notes.getNotebook(nest);
   const title = notesTitle(text);
+  const noteIdsBeforeCreate = new Set(
+    (await notes.listNotes(nest)).map((note) => note.noteId)
+  );
   const createStartedAt = Date.now();
   const created = await notes.createNote({
     flag: nest,
@@ -185,6 +188,7 @@ async function sendNotesEntry({
         .filter(
           (note) =>
             note.title === title &&
+            !noteIdsBeforeCreate.has(note.noteId) &&
             (note.createdAt == null ||
               note.createdAt >= createStartedAt - 5_000)
         )

@@ -101,6 +101,12 @@ export async function fetchInitData(
 
     return { channels, channelToGroup, channelNames, groupNames, foreigns };
   } catch (error: any) {
+    if (
+      options?.signal?.aborted ||
+      (error instanceof Error && error.name === 'AbortError')
+    ) {
+      throw options?.signal?.reason ?? error;
+    }
     runtime.error?.(
       `[tlon] Init data fetch failed: ${error?.message ?? String(error)}`
     );
