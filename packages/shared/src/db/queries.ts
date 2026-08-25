@@ -684,6 +684,13 @@ export const upsertNotesNote = createWriteQuery(
       .onConflictDoUpdate({
         target: $notesNotes.id,
         set: conflictUpdateSetAll($notesNotes),
+        setWhere: or(
+          lt($notesNotes.revision, note.revision),
+          and(
+            eq($notesNotes.revision, note.revision),
+            lte(sql`coalesce(${$notesNotes.updatedAt}, 0)`, note.updatedAt ?? 0)
+          )
+        ),
       });
   },
   ['notesNotes']

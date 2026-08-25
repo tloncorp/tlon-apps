@@ -1158,6 +1158,45 @@ test('updateNotesNote is revision-monotonic in a single atomic write', async () 
   });
 });
 
+test('upsertNotesNote does not replace a newer stored note', async () => {
+  const note = makeNote('Guarded upsert');
+  const current = { ...note, revision: 5, updatedAt: 1_000 };
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [current],
+    members: [],
+  });
+
+  await db.upsertNotesNote({
+    ...note,
+    title: 'Stale revision',
+    revision: 4,
+    updatedAt: 2_000,
+  });
+  await db.upsertNotesNote({
+    ...note,
+    title: 'Stale timestamp',
+    revision: 5,
+    updatedAt: 500,
+  });
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toMatchObject(current);
+
+  const fresh = {
+    ...note,
+    title: 'Fresh timestamp',
+    revision: 5,
+    updatedAt: 2_000,
+  };
+  await db.upsertNotesNote(fresh);
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toMatchObject(fresh);
+});
+
 test('adoptNotebookNoteRemote keeps newer same-revision metadata', async () => {
   // Renames/moves don't bump the revision: a rename synced after the
   // conflict copy was captured leaves the row at the same revision with
