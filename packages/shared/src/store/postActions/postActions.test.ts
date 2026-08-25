@@ -172,7 +172,7 @@ describe('sendPost', () => {
     vi.mocked(poke).mockRejectedValueOnce(sendError);
 
     const sendPostPromise = finalizeAndSendPost(buildTestDraft(), {
-      throwOnFailure: true,
+      rejectOnDefinitiveFailure: true,
     });
     const rejection = expect(sendPostPromise).rejects.toBe(sendError);
     await vi.runOnlyPendingTimersAsync();
@@ -186,7 +186,7 @@ describe('sendPost', () => {
   test('interactive sends reject when the channel is missing', async () => {
     await expect(
       finalizeAndSendPost(buildTestDraft({ channelId: 'missing-channel' }), {
-        throwOnFailure: true,
+        rejectOnDefinitiveFailure: true,
       })
     ).rejects.toThrow('channel missing-channel is missing');
   });
