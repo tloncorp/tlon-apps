@@ -15,6 +15,8 @@ export type AgentOnboardingRunRecord = {
   notebookName: string;
   purposeId: string;
   topics: string[];
+  /** Hosting upstream IDs authorized for this job by the owner. */
+  providerIds?: string[];
   /** Full durable request lets later provider changes rebuild the cron. */
   provision?: PostBlobDataEntryAgentProvision;
   claimedAt: number;
@@ -261,6 +263,35 @@ export async function lookupNewestAgentOnboardingRunForGroup(
   return records
     .filter((record) => record.groupId === groupId)
     .sort((a, b) => b.claimedAt - a.claimedAt)[0];
+}
+
+export async function lookupAgentOnboardingRunByJobId(
+  jobId: string
+): Promise<AgentOnboardingRunRecord | undefined> {
+  const records = getAgentOnboardingRunStore()
+    ? (await getAgentOnboardingRunStore()!.entries()).map(
+        (entry) => entry.value
+      )
+    : [...fallbackRecords.values()];
+  return records
+    .filter((record) => record.jobId === jobId)
+    .sort((left, right) => right.claimedAt - left.claimedAt)[0];
+}
+
+export async function updateAgentOnboardingRunProviders(
+  provisionId: string,
+  jobId: string,
+  providerIds: readonly string[]
+): Promise<void> {
+  await serializeWrite(provisionId, async () => {
+    const store = getAgentOnboardingRunStore();
+    const current =
+      (await store?.lookup(provisionId)) ?? fallbackRecords.get(provisionId);
+    if (!current) return;
+    const updated = { ...current, jobId, providerIds: [...providerIds] };
+    if (store) await store.register(provisionId, updated);
+    else fallbackRecords.set(provisionId, updated);
+  });
 }
 
 export async function forgetAgentOnboardingRunClaim(

@@ -17,10 +17,7 @@ import type {
 
 import { authRetryDelayMs } from '../auth-retry-state.js';
 import { type TlonCronService, getTlonCronService } from '../cron-telemetry.js';
-import {
-  noteIdFromDeliveryMessageId,
-  takeDeliveredNote,
-} from '../notes-delivery-state.js';
+import { noteIdFromDeliveryMessageId } from '../notes-delivery-state.js';
 import { sharedMap } from '../shared-state.js';
 import { type Sleeper, defaultSleep } from '../sleep.js';
 import type {
@@ -41,8 +38,10 @@ import {
   forgetAgentOnboardingRunClaim,
   getAgentOnboardingClaimOwnerId,
   lookupAgentOnboardingRun,
+  lookupAgentOnboardingRunByJobId,
   lookupNewestAgentOnboardingRunForGroup,
   markAgentOnboardingRunTerminal,
+  updateAgentOnboardingRunProviders,
   recordAgentOnboardingRunEnqueued,
   recordAgentOnboardingRunOutcome,
 } from './agent-onboarding-run-store.js';
@@ -160,12 +159,6 @@ const ORIENTATION_HISTORY_LIMIT = 500;
 const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
 const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
 const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 5_500;
-// A successful Notes send can precede the new entry appearing in the list
-// endpoint by several seconds on hosted ships. Keep the reveal pending for up
-// to 20 seconds so it can include the durable note reference instead of
-// permanently falling back to reference-free copy.
-const FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS = 21;
-const FIRST_ENTRY_NOTE_LOOKUP_DELAY_MS = 1_000;
 const RUN_OUTCOME_WRITE_RETRY_DELAYS_MS = [100, 250, 500, 1_000] as const;
 const ADMIN_MEMBERSHIP_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000] as const;
 const COMPOSE_MS_PER_CHARACTER = 14;
@@ -308,6 +301,9 @@ const primaryJobFlights = sharedMap<
   { desiredKey: string; flight: Promise<string> }
 >('agentOnboarding.primaryJobFlights');
 const primaryJobIds = sharedMap<string, true>('agentOnboarding.primaryJobIds');
+const primaryJobProviderIds = sharedMap<string, string[]>(
+  'agentOnboarding.primaryJobProviderIds'
+);
 
 function startSingleFlight<Key, Value>(
   flights: Map<Key, Promise<Value>>,
@@ -335,6 +331,12 @@ const MCP_READ_TOOLS = [
 export async function isAgentOnboardingCronJob(jobId: string | undefined) {
   if (!jobId) return false;
   if (primaryJobIds.has(jobId)) return true;
+  const durable = await lookupAgentOnboardingRunByJobId(jobId);
+  if (durable) {
+    primaryJobIds.set(jobId, true);
+    primaryJobProviderIds.set(jobId, [...(durable.providerIds ?? [])]);
+    return true;
+  }
   const cron = getTlonCronService();
   if (!cron) return false;
   const job = (await cron.list({ includeDisabled: true })).find(
@@ -342,7 +344,20 @@ export async function isAgentOnboardingCronJob(jobId: string | undefined) {
   );
   if (!job?.description?.startsWith(SLOT_PREFIX)) return false;
   primaryJobIds.set(jobId, true);
+  primaryJobProviderIds.set(jobId, []);
   return true;
+}
+
+export async function agentOnboardingCronProviderIds(
+  jobId: string | undefined
+) {
+  if (!jobId) return [];
+  const cached = primaryJobProviderIds.get(jobId);
+  if (cached) return cached;
+  const providerIds =
+    (await lookupAgentOnboardingRunByJobId(jobId))?.providerIds ?? [];
+  primaryJobProviderIds.set(jobId, [...providerIds]);
+  return providerIds;
 }
 
 export function parseAgentOnboardingRequest(
@@ -1048,7 +1063,8 @@ async function provision(
       context,
       request,
       notebookName,
-      deps.now?.() ?? Date.now()
+      deps.now?.() ?? Date.now(),
+      providerConfig?.providerIds ?? []
     );
     // Another reconciliation pass owns a fresh atomic claim. Keep the durable
     // channel scan retrying until that pass records the enqueue or the claim
@@ -1230,6 +1246,11 @@ async function configureProviders(
     context.channelNest,
     config.providerIds
   );
+  await updateAgentOnboardingRunProviders(
+    config.provisionId,
+    jobId,
+    config.providerIds
+  );
   if (jobId !== acknowledgedJobId) {
     context.log?.(
       '[tlon] provider config recovered the primary cron under a new job id'
@@ -1282,10 +1303,21 @@ export async function handleAgentOnboardingCronChanged(
     return;
   }
   if (event.delivered !== true) return;
+  if (
+    await retireSupersededFirstRun(exactMatch[0], exactMatch[1], 'completed')
+  ) {
+    return;
+  }
+  const durable = await lookupAgentOnboardingRun(exactMatch[1].provisionId);
+  const noteId = durable?.outcome?.noteId;
+  // Cron completion does not identify the Notes entry. Wait for message_sent,
+  // which carries the exact delivery message id, instead of guessing from
+  // whichever entry happens to be newest in the notebook.
+  if (noteId === undefined) return;
   await completeFirstRun(
     event.runId,
     undefined,
-    undefined,
+    `bot/notes-${noteId}`,
     deps,
     event.jobId,
     true
@@ -1640,27 +1672,11 @@ async function completeFirstRunCorrelation(
       history,
       AGENT_ONBOARDING_FIRST_ENTRY_MARKER,
       async () => {
-        const delivered = takeDeliveredNote(correlation.notebookNest, {
-          notBefore: correlation.enqueuedAt,
-          noteId: noteIdFromDeliveryMessageId(deliveryMessageId),
-        });
-        const newest =
-          delivered ??
-          (await findNewestNoteWithRetry(
-            correlation.notebookNest,
-            runDeps.listNotes!,
-            deps.sleep ??
-              ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
-            correlation.enqueuedAt,
-            correlation.context.botShip,
-            correlation.context.abortSignal
-          ));
-        if (!newest) {
-          correlation.context.log?.(
-            '[tlon] first-entry reveal omitted its note reference: ' +
-              `Notes stayed empty after ${FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS} lookups`
-          );
-        }
+        const newest = await findDeliveredRunNote(
+          correlation,
+          deliveryMessageId,
+          runDeps.listNotes!
+        );
         // The cite renders as "Content not available" whenever the client
         // hasn't synced the notes channel yet, so the sentence has to carry
         // the entry on its own: name the note and where it lives, and let the
@@ -1749,39 +1765,30 @@ async function postFirstRunServices(
   }
 }
 
-async function findNewestNoteWithRetry(
-  notebookNest: string,
-  listNotes: typeof notes.listNotes,
-  sleep: (ms: number) => Promise<void>,
-  notBefore: number,
-  createdBy: string,
-  abortSignal?: AbortSignal
+async function findDeliveredRunNote(
+  correlation: FirstRunCorrelation,
+  deliveryMessageId: string | undefined,
+  listNotes: typeof notes.listNotes
 ) {
-  for (let attempt = 0; attempt < FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS; attempt++) {
-    abortSignal?.throwIfAborted();
-    const listed = await listNotes(notebookNest, {
-      signal: abortSignal,
-    }).catch(() => []);
-    abortSignal?.throwIfAborted();
-    // A populated notebook may contain entries from an earlier failed or
-    // repeated setup. Only the authoritative delivery callback may identify
-    // an entry without a timestamp; the list fallback must prove the note was
-    // created after this forced run began.
-    const newest = listed
-      .filter(
-        (candidate) =>
-          typeof candidate.createdAt === 'number' &&
-          candidate.createdAt >= notBefore &&
-          candidate.createdBy === createdBy
-      )
-      .sort((a, b) => b.createdAt! - a.createdAt!)[0];
-    if (newest) return newest;
-    if (attempt < FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS - 1) {
-      await sleep(FIRST_ENTRY_NOTE_LOOKUP_DELAY_MS);
-      abortSignal?.throwIfAborted();
-    }
+  correlation.context.abortSignal?.throwIfAborted();
+  const noteId =
+    noteIdFromDeliveryMessageId(deliveryMessageId) ??
+    (await lookupAgentOnboardingRun(correlation.provisionId))?.outcome?.noteId;
+  if (noteId === undefined) {
+    throw new Error('first-run delivery has no correlated note id yet');
   }
-  return undefined;
+  const listed = await listNotes(correlation.notebookNest, {
+    signal: correlation.context.abortSignal,
+  }).catch(() => []);
+  correlation.context.abortSignal?.throwIfAborted();
+  // Delivery is the authority. A lagging Notes listing can omit title
+  // metadata, but it must never substitute a newer unrelated entry.
+  return (
+    listed.find((candidate) => candidate.noteId === noteId) ?? {
+      noteId,
+      title: '',
+    }
+  );
 }
 
 function findFirstRunCorrelation(
@@ -1891,7 +1898,8 @@ function durableRunRecord(
   request: PostBlobDataEntryAgentProvision,
   jobId: string,
   notebookName: string,
-  claimedAt: number
+  claimedAt: number,
+  providerIds: readonly string[]
 ): AgentOnboardingRunRecord {
   return {
     provisionId: request.provisionId,
@@ -1902,6 +1910,7 @@ function durableRunRecord(
     notebookName,
     purposeId: request.purposeId,
     topics: [...request.topics],
+    providerIds: [...providerIds],
     provision: request,
     claimedAt,
     claimOwnerId: getAgentOnboardingClaimOwnerId(),
@@ -1915,7 +1924,8 @@ async function ensureFirstRunEnqueued(
   context: AgentOnboardingScanContext,
   request: PostBlobDataEntryAgentProvision,
   notebookName: string,
-  now: number
+  now: number,
+  providerIds: readonly string[] = []
 ): Promise<'enqueued' | 'recovered' | 'owned-by-another-pass'> {
   const enqueueRun = cron.enqueueRun?.bind(cron) ?? cron.run?.bind(cron);
   if (!enqueueRun) {
@@ -1924,7 +1934,14 @@ async function ensureFirstRunEnqueued(
     );
   }
 
-  const initial = durableRunRecord(context, request, jobId, notebookName, now);
+  const initial = durableRunRecord(
+    context,
+    request,
+    jobId,
+    notebookName,
+    now,
+    providerIds
+  );
   const claim = await claimAgentOnboardingRun(initial, now);
   if (claim.outcome === 'owned-by-another-pass') {
     return claim.outcome;
@@ -2276,7 +2293,7 @@ async function postOnce(
   presentation?: OnboardingPresentation
 ): Promise<boolean> {
   if (hasPostMarker(history, context.botShip, key)) return false;
-  const flightKey = `${context.channelNest}:${key}`;
+  const flightKey = `${context.accountId ?? context.botShip}:${context.channelNest}:${key}`;
   if (completedPostMarkers.has(flightKey)) return false;
   let posted = false;
   const { flight, started } = startSingleFlight(
@@ -2515,6 +2532,7 @@ async function upsertPrimaryJobOnce(
     throw new Error('primary onboarding cron slot failed verification');
   }
   primaryJobIds.set(job.id, true);
+  primaryJobProviderIds.set(job.id, [...providerIds]);
   return job.id;
 }
 
@@ -2607,6 +2625,7 @@ async function updatePrimaryJobProviders(
     );
   }
   primaryJobIds.set(runtimeJob.id, true);
+  primaryJobProviderIds.set(runtimeJob.id, [...providerIds]);
   return runtimeJob.id;
 }
 
@@ -2950,7 +2969,7 @@ export const agentOnboardingTesting = {
   clearAllFirstRunCompletionRetries,
   ensureFirstRunEnqueued,
   findFirstRunCorrelation,
-  findNewestNoteWithRetry,
+  findDeliveredRunNote,
   hasPostMarker,
   notebookDisplayName,
   purposePickerFallbackText,

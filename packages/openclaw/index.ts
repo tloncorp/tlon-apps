@@ -40,11 +40,13 @@ import { createMigrateCommandHandler } from './src/migrate-command.js';
 import {
   cronJobForSession,
   mayCallDescribedReadOnlyMcpTool,
+  mayDescribeMcpTool,
   rememberCronJobForSession,
   rememberDescribedReadOnlyMcpTool,
 } from './src/mcp-readonly-policy.js';
 import { setAgentOnboardingRunStore } from './src/monitor/agent-onboarding-run-store.js';
 import {
+  agentOnboardingCronProviderIds,
   handleAgentOnboardingCronChanged,
   handleAgentOnboardingMessageSent,
   isAgentOnboardingCronJob,
@@ -1000,13 +1002,24 @@ export default defineBundledChannelEntry({
       const role = getSessionRole(ctx.sessionKey ?? '');
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
       const blocksNonOwner = isOwnerOnlyTool && role === 'user';
-      const blocksOnboardingMcpCall =
-        event.toolName === 'mcp_call' &&
-        (await isAgentOnboardingCronJob(cronJobForSession(ctx.sessionKey))) &&
-        !mayCallDescribedReadOnlyMcpTool(ctx.sessionKey, event.params);
-      const isBlocked = blocksNonOwner || blocksOnboardingMcpCall;
-      const blockReason = blocksOnboardingMcpCall
-        ? 'This scheduled onboarding update may call only MCP tools explicitly described as read-only.'
+      const cronJobId = cronJobForSession(ctx.sessionKey);
+      const isOnboardingCron = await isAgentOnboardingCronJob(cronJobId);
+      const allowedProviderIds = isOnboardingCron
+        ? await agentOnboardingCronProviderIds(cronJobId)
+        : [];
+      const blocksOnboardingMcp =
+        isOnboardingCron &&
+        ((event.toolName === 'mcp_describe' &&
+          !mayDescribeMcpTool(event.params, allowedProviderIds)) ||
+          (event.toolName === 'mcp_call' &&
+            !mayCallDescribedReadOnlyMcpTool(
+              ctx.sessionKey,
+              event.params,
+              allowedProviderIds
+            )));
+      const isBlocked = blocksNonOwner || blocksOnboardingMcp;
+      const blockReason = blocksOnboardingMcp
+        ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
         : blocksNonOwner
           ? `The ${event.toolName} tool is not available.`
           : undefined;
@@ -1063,7 +1076,7 @@ export default defineBundledChannelEntry({
         );
       }
 
-      if (!isOwnerOnlyTool && !blocksOnboardingMcpCall) {
+      if (!isOwnerOnlyTool && !blocksOnboardingMcp) {
         return undefined;
       }
 
@@ -1117,10 +1130,14 @@ export default defineBundledChannelEntry({
         event.toolName === 'mcp_describe' &&
         (await isAgentOnboardingCronJob(cronJobForSession(ctx.sessionKey)))
       ) {
+        const allowedProviderIds = await agentOnboardingCronProviderIds(
+          cronJobForSession(ctx.sessionKey)
+        );
         rememberDescribedReadOnlyMcpTool(
           ctx.sessionKey,
           event.params,
-          event.result
+          event.result,
+          allowedProviderIds
         );
       }
       recordActiveTlonTurnToolCall();
