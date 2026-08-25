@@ -452,9 +452,13 @@ export function StaticChatMessage({
       }
     }
   }, [postContent]);
-  const durableProvision = receiptFollowsPost(provisionReceipt, post)
-    ? provisionReceipt?.entry
-    : undefined;
+  // Selection-aware provision replies are consumed by their exact source
+  // post/surface/component via useA2UISelections below. Only legacy replies
+  // without a selection use the positional fallback.
+  const durableProvision =
+    !provisionReceipt?.selection && receiptFollowsPost(provisionReceipt, post)
+      ? provisionReceipt?.entry
+      : undefined;
   const durableProviderConfig = [...(providerConfigReceipts ?? [])]
     .reverse()
     .find(

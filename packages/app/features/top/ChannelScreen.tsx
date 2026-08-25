@@ -163,7 +163,13 @@ export default function ChannelScreen(props: Props) {
     return () => {
       cancelled = true;
     };
-  }, [agentOnboarding.marker, agentShipId, currentChannelId, groupId]);
+  }, [
+    agentOnboarding.marker,
+    agentShipId,
+    channel?.lastPostId,
+    currentChannelId,
+    groupId,
+  ]);
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
