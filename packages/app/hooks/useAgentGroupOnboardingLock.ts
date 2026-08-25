@@ -13,6 +13,11 @@ export function isAgentGroupNavigationLocked(
   );
 }
 
+export async function isAnyAgentGroupNavigationLockedDurably() {
+  const locks = await db.agentGroupOnboardingLocks.getValue(true);
+  return Object.values(locks).some(isAgentGroupNavigationLocked);
+}
+
 export function useAgentGroupOnboardingLock(groupId?: string | null) {
   const { value: locks, isLoading } =
     db.agentGroupOnboardingLocks.useStorageItem();
@@ -25,5 +30,15 @@ export function useAgentGroupOnboardingLock(groupId?: string | null) {
       groupId && marker?.provision && marker.provisionAcknowledgedAt
     ),
     marker,
+  };
+}
+
+export function useAnyAgentGroupOnboardingLock() {
+  const { value: locks, isLoading } =
+    db.agentGroupOnboardingLocks.useStorageItem();
+
+  return {
+    isLoading,
+    locked: Object.values(locks).some(isAgentGroupNavigationLocked),
   };
 }

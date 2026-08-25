@@ -5,6 +5,10 @@ import { getTextContent, useMutableRef } from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 import { useRootNavigation } from '../navigation/utils';
+import {
+  isAnyAgentGroupNavigationLockedDurably,
+  useAnyAgentGroupOnboardingLock,
+} from './useAgentGroupOnboardingLock';
 import { reactDisplayValue } from '../ui/components/Activity/ActivitySummaryMessage';
 import { useCalm, useCurrentUserId } from '../ui/contexts/appDataContext';
 import {
@@ -210,7 +214,7 @@ async function showGroupNotification({
   shouldSuppressNotification: () => boolean;
   fallbackTitle: string;
   getBody: (contactName: string) => string;
-  navigateOnClick: (groupId: string) => void;
+  navigateOnClick: (groupId: string) => Promise<boolean>;
 }) {
   const groupId = activityEvent.groupId;
   if (!groupId) {
@@ -236,14 +240,19 @@ async function showGroupNotification({
     }
   );
 
-  notification.onclick = () => {
-    trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
-      surface: 'browser',
-      notificationType: activityEvent.type,
-    });
-    window.focus();
-    navigateOnClick(groupId);
-    notification.close();
+  notification.onclick = async () => {
+    try {
+      if (!(await navigateOnClick(groupId))) return;
+      trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
+        surface: 'browser',
+        notificationType: activityEvent.type,
+      });
+      window.focus();
+    } catch (error) {
+      logger.warn('Failed to route browser group notification', error);
+    } finally {
+      notification.close();
+    }
   };
 
   return true;
@@ -263,6 +272,14 @@ export default function useBrowserNotifications() {
   const isElectron = useIsElectron();
   const isAppForegrounded = useIsAppForegroundedAcrossTabs(!isElectron);
   const { disableNicknames } = useCalm();
+  const {
+    locked: agentOnboardingLocked,
+    isLoading: agentOnboardingLockLoading,
+  } = useAnyAgentGroupOnboardingLock();
+  const agentOnboardingNavigationStateRef = useMutableRef({
+    isLoading: agentOnboardingLockLoading,
+    locked: agentOnboardingLocked,
+  });
   const { resetToChannel, resetToGroup, resetToGroupInvite, resetToPost } =
     useRootNavigation();
   const resetToChannelRef = useMutableRef(resetToChannel);
@@ -307,10 +324,27 @@ export default function useBrowserNotifications() {
               isAsk
                 ? `${contactName} is requesting to join`
                 : `${contactName} invited you to join`,
-            navigateOnClick: (groupId) =>
-              isAsk
-                ? resetToGroupRef.current(groupId)
-                : resetToGroupInviteRef.current(groupId),
+            navigateOnClick: async (groupId) => {
+              const onboarding = agentOnboardingNavigationStateRef.current;
+              if (
+                onboarding.isLoading ||
+                onboarding.locked ||
+                (await isAnyAgentGroupNavigationLockedDurably())
+              ) {
+                return false;
+              }
+              const latestOnboarding =
+                agentOnboardingNavigationStateRef.current;
+              if (latestOnboarding.isLoading || latestOnboarding.locked) {
+                return false;
+              }
+              if (isAsk) {
+                resetToGroupRef.current(groupId);
+              } else {
+                resetToGroupInviteRef.current(groupId);
+              }
+              return true;
+            },
           });
           if (didNotify) {
             rememberProcessedNotification(
@@ -372,26 +406,43 @@ export default function useBrowserNotifications() {
           tag: notificationKey,
         });
 
-        notification.onclick = () => {
-          trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
-            surface: 'browser',
-            notificationType: activityEvent.type,
-          });
-          window.focus();
-          navigateToBrowserNotificationTarget(
-            {
-              channelId,
-              groupId: channel.groupId ?? activityEvent.groupId ?? undefined,
-              parentAuthorId: activityEvent.parentAuthorId,
-              parentId: activityEvent.parentId,
-              postId: activityEvent.postId,
-            },
-            {
-              resetToChannel: resetToChannelRef.current,
-              resetToPost: resetToPostRef.current,
+        notification.onclick = async () => {
+          try {
+            const onboarding = agentOnboardingNavigationStateRef.current;
+            if (
+              onboarding.isLoading ||
+              onboarding.locked ||
+              (await isAnyAgentGroupNavigationLockedDurably())
+            ) {
+              return;
             }
-          );
-          notification.close();
+            const latestOnboarding = agentOnboardingNavigationStateRef.current;
+            if (latestOnboarding.isLoading || latestOnboarding.locked) {
+              return;
+            }
+            trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
+              surface: 'browser',
+              notificationType: activityEvent.type,
+            });
+            window.focus();
+            navigateToBrowserNotificationTarget(
+              {
+                channelId,
+                groupId: channel.groupId ?? activityEvent.groupId ?? undefined,
+                parentAuthorId: activityEvent.parentAuthorId,
+                parentId: activityEvent.parentId,
+                postId: activityEvent.postId,
+              },
+              {
+                resetToChannel: resetToChannelRef.current,
+                resetToPost: resetToPostRef.current,
+              }
+            );
+          } catch (error) {
+            logger.warn('Failed to route browser channel notification', error);
+          } finally {
+            notification.close();
+          }
         };
         rememberProcessedNotification(processedNotifications, notificationKey);
       } catch (error) {
@@ -404,6 +455,7 @@ export default function useBrowserNotifications() {
       }
     },
     [
+      agentOnboardingNavigationStateRef,
       disableNicknames,
       isAppForegrounded,
       resetToChannelRef,
