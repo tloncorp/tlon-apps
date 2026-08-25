@@ -19,6 +19,7 @@ import { useOneShotAction } from './useOneShotAction';
 
 const MAX_PROVIDER_SELECTIONS = api.AGENT_PROTOCOL_LIMITS.providerCount;
 const pendingProviderSelections = new Map<string, string[]>();
+const pendingProviderAuthorizations = new Map<string, string>();
 const clampProviderIds = (providerIds: string[]) =>
   providerIds.slice(0, MAX_PROVIDER_SELECTIONS);
 
@@ -176,12 +177,17 @@ export function McpConnectMenu({
       return;
     }
 
-    // A provider that became connected while this surface was open was just
-    // authorized from this menu. Include it without making the owner tap the
-    // same row a second time after returning from OAuth.
+    // Shared OAuth queries update every historical control. Auto-select only
+    // the provider whose setup this exact surface initiated; a grant made in
+    // settings or another group must not silently change this group's config.
+    const pendingAuthorization =
+      pendingProviderAuthorizations.get(selectionKey);
     const newlyConnected = connectedProviderIds.filter(
-      (id) => !knownConnectedRef.current.has(id)
+      (id) => id === pendingAuthorization && !knownConnectedRef.current.has(id)
     );
+    if (newlyConnected.length > 0) {
+      pendingProviderAuthorizations.delete(selectionKey);
+    }
     knownConnectedRef.current = connected;
     setSelectedProviderIds((current) => {
       const next = clampProviderIds([
@@ -195,14 +201,17 @@ export function McpConnectMenu({
         ? current
         : next;
     });
-  }, [connectedProviderIds, loading, providersLoaded]);
+  }, [connectedProviderIds, loading, providersLoaded, selectionKey]);
 
   useEffect(() => {
     pendingProviderSelections.set(selectionKey, selectedProviderIds);
   }, [selectedProviderIds, selectionKey]);
 
   useEffect(() => {
-    if (completionConsumed) pendingProviderSelections.delete(selectionKey);
+    if (completionConsumed) {
+      pendingProviderSelections.delete(selectionKey);
+      pendingProviderAuthorizations.delete(selectionKey);
+    }
   }, [completionConsumed, selectionKey]);
 
   const visibleProviders = useMemo(
@@ -283,6 +292,11 @@ export function McpConnectMenu({
       if (!onNavigate) return;
       const target = component.action.event.context.target;
       if (target.type !== 'screen') return;
+      if (providerId) {
+        pendingProviderAuthorizations.set(selectionKey, providerId);
+      } else {
+        pendingProviderAuthorizations.delete(selectionKey);
+      }
       void onNavigate({
         event: {
           ...component.action.event,
@@ -295,7 +309,7 @@ export function McpConnectMenu({
         },
       });
     },
-    [component.action.event, onNavigate]
+    [component.action.event, onNavigate, selectionKey]
   );
 
   return (
