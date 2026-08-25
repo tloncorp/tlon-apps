@@ -221,7 +221,9 @@ Extend your bot by connecting outside services under `Bot Settings` → `Connect
 
 ### Tlonbot in groups
 
-Add your bot to any group. In channels, mention it (@nickname) to trigger a response. Group members can use it too — ask it questions, have it settle debates, run trivia.
+Add your bot to any group. In channels, mention it (@nickname) to trigger a response.
+
+Other members can use it too, but not by default. A new channel starts restricted: when someone who isn't you mentions the bot, it stays quiet and sends you an approval request instead. Approve them, or open the channel to everyone, and from then on they can ask it questions, have it settle debates, run trivia. Worth saying up front — silence from an unapproved member looks like the bot is broken.
 
 Your bot can also do group admin work from a DM: create groups, set up channels, create roles, customize permissions, invite members with specific roles, remove members, and delete groups. You control who it listens to — tell it in a DM which members it may respond to or communicate with.
 
@@ -246,7 +248,7 @@ Bot behavior:
 - `/model` — show or change the AI model  
 - `/new` — clear context and start a fresh session  
 - `/tlon version` — show which harness, plugin, and skill versions are running. Bare `/tlon` just prints usage.  
-- `/migrate <channel>` — migrate a legacy Bulletin to a Notebook (owner only)
+- `/migrate diary/~host/name` — migrate a legacy Bulletin to a Notebook (owner only). It needs the channel's full nest, starting with `diary/`; a title or short name just prints usage.
 
 ### Models and API keys
 
@@ -254,7 +256,7 @@ Every account includes an AI model for free — basic usage costs nothing. Want 
 
 ### Guardrails
 
-Hosted Tlonbots ship with guardrails: external integrations are limited to approved connected services, the system prompt can't be modified, and the bot has no filesystem access — it can write only to Tlon Messenger content. These limits keep hosted bots safe by default.
+Hosted Tlonbots ship with guardrails: external integrations are limited to approved connected services, the system prompt can't be modified, and the bot has no shell and can't write to the filesystem — the only thing it writes is Tlon Messenger content. It can read files, which is how it works with anything you send it, and that's restricted to you rather than to anyone in a channel. These limits keep hosted bots safe by default.
 
 ### Self-hosting your bot
 

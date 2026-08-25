@@ -345,6 +345,52 @@ class TlonToolGuardTests(unittest.TestCase):
         self.assertIn("--parent <post-id>", platform_hint)
         self.assertIn("posts delete heap/~host/name <post-id>", platform_hint)
 
+    def test_platform_hint_advertises_product_guide_only_when_registered(self):
+        # The guide ships in the OpenClaw plugin tree, which a Hermes install
+        # may not have. Pointing the model at a skill_view that can't resolve
+        # would turn every product question into a failed tool call, so the
+        # hint fragment has to track the registration.
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+                self.skills: list[str] = []
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, name, *_args, **_kwargs):
+                self.skills.append(name)
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        marker = 'skill_view("tlon-platform:tlon-product-guide")'
+
+        found = RecordingContext()
+        with patch.object(
+            adapter_mod,
+            "resolve_tlon_product_guide_path",
+            return_value=Path("/plugin/skills/tlon-product-guide/SKILL.md"),
+        ):
+            adapter_mod.register(found)
+        self.assertIn("tlon-product-guide", found.skills)
+        self.assertIn(marker, found.platform["platform_hint"])
+
+        missing = RecordingContext()
+        with patch.object(
+            adapter_mod, "resolve_tlon_product_guide_path", return_value=None
+        ):
+            adapter_mod.register(missing)
+        self.assertNotIn("tlon-product-guide", missing.skills)
+        self.assertNotIn(marker, missing.platform["platform_hint"])
+        # The rest of the hint is unaffected by the guide's absence.
+        self.assertIn(
+            'skill_view("tlon-platform:tlon")', missing.platform["platform_hint"]
+        )
+
     def test_tool_description_includes_latex_guidance(self):
         description = tlon_tool.TLON_TOOL_DESCRIPTION
 

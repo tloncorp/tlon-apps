@@ -5339,6 +5339,18 @@ def register(ctx) -> None:
             ),
         )
 
+    # Derived from the registration above rather than written into the hint
+    # unconditionally: a deployment without the plugin tree registers no such
+    # skill, and pointing the model at a skill_view that cannot resolve turns
+    # every product question into a failed tool call.
+    product_guide_hint = (
+        "When the user asks what Tlon Messenger is or how one of its features "
+        "works, rather than asking you to do something, load "
+        'skill_view("tlon-platform:tlon-product-guide") and answer from it. '
+        if product_guide_path is not None
+        else ""
+    )
+
     ctx.register_platform(
         name="tlon",
         label="Tlon",
@@ -5375,11 +5387,8 @@ def register(ctx) -> None:
             "For Tlon reads and administration, use the tlon tool; if unsure, "
             "load skill_view(\"tlon-platform:tlon\") or run a tlon subcommand "
             "with --help. "
-            "When the user asks what Tlon Messenger is or how one of its "
-            "features works, rather than asking you to do something, load "
-            "skill_view(\"tlon-platform:tlon-product-guide\") and answer from "
-            "it. "
-            "When a user asks you to create a Tlon group for them, use "
+            + product_guide_hint
+            + "When a user asks you to create a Tlon group for them, use "
             "groups create-owned with --owner set to that user's ship so they "
             "are invited and made admin. "
             "To reply to the current conversation, just write your reply and "
