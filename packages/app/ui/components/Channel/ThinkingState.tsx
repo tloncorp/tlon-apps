@@ -23,6 +23,7 @@ export function ThinkingState({
 }) {
   const computingState = useConversationComputingState(conversationId);
   const [holdUntilResponse, setHoldUntilResponse] = useState(false);
+  const [responseObserved, setResponseObserved] = useState(false);
   const postIdWhenThinkingStarted = useRef<string | undefined>(latestPostId);
   const expectedResponders = useRef<Set<string>>(new Set());
   const wasComputing = useRef(false);
@@ -35,7 +36,15 @@ export function ThinkingState({
       );
       if (!wasComputing.current) {
         postIdWhenThinkingStarted.current = latestPostId;
+        setResponseObserved(false);
         setHoldUntilResponse(true);
+      } else if (
+        latestPostId !== postIdWhenThinkingStarted.current &&
+        (expectedResponders.current.size === 0 ||
+          (latestPostAuthorId != null &&
+            expectedResponders.current.has(latestPostAuthorId)))
+      ) {
+        setResponseObserved(true);
       }
       wasComputing.current = true;
       if (collapseTimeout.current) {
@@ -48,10 +57,11 @@ export function ThinkingState({
 
     const responseHasArrived =
       holdUntilResponse &&
-      latestPostId !== postIdWhenThinkingStarted.current &&
-      (expectedResponders.current.size === 0 ||
-        (latestPostAuthorId != null &&
-          expectedResponders.current.has(latestPostAuthorId)));
+      (responseObserved ||
+        (latestPostId !== postIdWhenThinkingStarted.current &&
+          (expectedResponders.current.size === 0 ||
+            (latestPostAuthorId != null &&
+              expectedResponders.current.has(latestPostAuthorId)))));
     if (responseHasArrived) {
       if (collapseTimeout.current) {
         clearTimeout(collapseTimeout.current);
@@ -67,7 +77,13 @@ export function ThinkingState({
         setHoldUntilResponse(false);
       }, 2_000);
     }
-  }, [computingState, holdUntilResponse, latestPostAuthorId, latestPostId]);
+  }, [
+    computingState,
+    holdUntilResponse,
+    latestPostAuthorId,
+    latestPostId,
+    responseObserved,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -77,10 +93,11 @@ export function ThinkingState({
 
   const responseHasArrived =
     holdUntilResponse &&
-    latestPostId !== postIdWhenThinkingStarted.current &&
-    (expectedResponders.current.size === 0 ||
-      (latestPostAuthorId != null &&
-        expectedResponders.current.has(latestPostAuthorId)));
+    (responseObserved ||
+      (latestPostId !== postIdWhenThinkingStarted.current &&
+        (expectedResponders.current.size === 0 ||
+          (latestPostAuthorId != null &&
+            expectedResponders.current.has(latestPostAuthorId)))));
   const visible =
     Boolean(forcedLabel) ||
     Boolean(computingState) ||
