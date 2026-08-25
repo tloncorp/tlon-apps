@@ -152,13 +152,14 @@ export function McpConnectMenu({
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>(
     () =>
       pendingProviderSelections.get(selectionKey) ??
-      clampProviderIds(configuredProviderIds)
+      clampProviderIds(configuredProviderIds ?? [])
   );
   const [submitting, setSubmitting] = useState(false);
   const [authorizationReturnVersion, setAuthorizationReturnVersion] =
     useState(0);
   const configuringRef = useRef(false);
   const initializedRef = useRef(false);
+  const configuredKeyRef = useRef('');
   const completionAction = useOneShotAction(completionConsumed);
   const connectedProviderIds = useMemo(
     () =>
@@ -273,6 +274,18 @@ export function McpConnectMenu({
     providersLoaded,
     selectionKey,
   ]);
+
+  useEffect(() => {
+    if (loading || !providersLoaded || configuredProviderIds === undefined)
+      return;
+    const configuredKey = [...configuredProviderIds].sort().join('\u0000');
+    if (!configuredKey || configuredKey === configuredKeyRef.current) return;
+    configuredKeyRef.current = configuredKey;
+    const connected = new Set(connectedProviderIds);
+    setSelectedProviderIds(
+      clampProviderIds(configuredProviderIds.filter((id) => connected.has(id)))
+    );
+  }, [configuredProviderIds, connectedProviderIds, loading, providersLoaded]);
 
   useEffect(() => {
     pendingProviderSelections.set(selectionKey, selectedProviderIds);

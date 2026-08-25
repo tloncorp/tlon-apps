@@ -11,11 +11,7 @@ import { DraftInputContext } from '../../components/draftInputs';
 import { IPostCollectionView } from '../../components/postCollectionViews/types';
 
 export type A2UIActionCompletion = {
-  provisionAgent: boolean;
-  provisionedTopics?: string[];
-  sendMessage: boolean;
   sentMessageText?: string;
-  configuredProviderIds?: string[];
 };
 
 type RenderItemProps = {

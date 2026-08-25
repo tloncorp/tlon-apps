@@ -153,34 +153,23 @@ describe('agent group furnishing retry', () => {
       .mockRejectedValueOnce(new Error('join pending'))
       .mockRejectedValueOnce(new Error('admin pending'))
       .mockResolvedValueOnce(undefined);
-    const sleep = vi.fn(async () => {});
-
     await expect(
-      agentGroupOnboardingTesting.retryAgentStanding(
-        operation,
-        'group-id',
-        sleep
-      )
+      agentGroupOnboardingTesting.retryAgentStanding(operation, 'group-id', {
+        startingDelay: 0,
+      })
     ).resolves.toBeUndefined();
     expect(operation).toHaveBeenCalledTimes(3);
-    expect(sleep).toHaveBeenNthCalledWith(1, 1_000);
-    expect(sleep).toHaveBeenNthCalledWith(2, 2_000);
   });
 
   it('stops repairing agent standing after the bounded attempts', async () => {
     const finalError = new Error('still unavailable');
     const operation = vi.fn().mockRejectedValue(finalError);
-    const sleep = vi.fn(async () => {});
-
     await expect(
-      agentGroupOnboardingTesting.retryAgentStanding(
-        operation,
-        'group-id',
-        sleep,
-        3
-      )
+      agentGroupOnboardingTesting.retryAgentStanding(operation, 'group-id', {
+        startingDelay: 0,
+        maxAttempts: 3,
+      })
     ).rejects.toBe(finalError);
     expect(operation).toHaveBeenCalledTimes(3);
-    expect(sleep).toHaveBeenCalledTimes(2);
   });
 });

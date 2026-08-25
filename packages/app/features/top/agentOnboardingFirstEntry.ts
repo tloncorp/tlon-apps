@@ -1,30 +1,21 @@
+import {
+  AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER,
+  AGENT_ONBOARDING_FIRST_ENTRY_MARKER,
+  findPostBlobEntry,
+} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import { parsePostBlob } from '@tloncorp/shared/logic';
-
-const FIRST_ENTRY_MARKER = 'first-entry-ping';
-const FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
 
 /**
- * The current coordinator marks completion once per channel. Older hosted
- * plugins scoped the same marker to the provision id, so accept both while
- * test ships and durable transcripts migrate.
+ * The coordinator marks completion once per channel.
  */
 export function hasAgentOnboardingFirstEntry(
-  posts: db.Post[] | null | undefined,
-  provisionId?: string
+  posts: db.Post[] | null | undefined
 ): boolean {
-  const legacyMarker = provisionId
-    ? `${FIRST_ENTRY_MARKER}:${provisionId}`
-    : null;
   return Boolean(
     posts?.some(
       (post) =>
-        post.blob &&
-        parsePostBlob(post.blob).some(
-          (entry) =>
-            entry.type === 'tlon-agent-post-marker' &&
-            (entry.key === FIRST_ENTRY_MARKER || entry.key === legacyMarker)
-        )
+        findPostBlobEntry(post.blob, 'tlon-agent-post-marker')?.key ===
+        AGENT_ONBOARDING_FIRST_ENTRY_MARKER
     )
   );
 }
@@ -36,12 +27,8 @@ export function hasAgentOnboardingFirstEntryFailed(
   return Boolean(
     posts?.some(
       (post) =>
-        post.blob &&
-        parsePostBlob(post.blob).some(
-          (entry) =>
-            entry.type === 'tlon-agent-post-marker' &&
-            entry.key === FIRST_ENTRY_FAILED_MARKER
-        )
+        findPostBlobEntry(post.blob, 'tlon-agent-post-marker')?.key ===
+        AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER
     )
   );
 }
