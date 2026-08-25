@@ -228,8 +228,7 @@ const TopLevelDrawerInner = () => {
   // the user's actual last-open desktop tab instead of the context default.
   useBrowserNotifications();
   const { navigateToGroup, navigateToChannel } = useRootNavigation();
-  const { locked: agentOnboardingLocked } =
-    useAnyAgentGroupOnboardingLock();
+  const { locked: agentOnboardingLocked } = useAnyAgentGroupOnboardingLock();
 
   return (
     <>
