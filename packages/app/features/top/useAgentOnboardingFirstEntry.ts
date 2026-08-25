@@ -69,18 +69,12 @@ export function useAgentOnboardingFirstEntry({
   useEffect(() => {
     if (!isFocused || !awaitingFirstEntry || settled) return;
     const acknowledgedAt = provisionAcknowledgedAt ?? Date.now();
-    if (Date.now() - acknowledgedAt >= REFRESH_TIMEOUT_MS) return;
+    const refreshDeadline = acknowledgedAt + REFRESH_TIMEOUT_MS;
 
     let cancelled = false;
     let refreshInFlight = false;
     const refresh = async () => {
-      if (
-        cancelled ||
-        refreshInFlight ||
-        Date.now() - acknowledgedAt >= REFRESH_TIMEOUT_MS
-      ) {
-        return;
-      }
+      if (cancelled || refreshInFlight) return;
       refreshInFlight = true;
       try {
         await store.syncSince({
@@ -105,11 +99,24 @@ export function useAgentOnboardingFirstEntry({
       }
     };
 
+    // The five-minute deadline only bounds active polling and the visible
+    // indicator. Re-check once on every later focus so a delayed result can
+    // still release the durable onboarding lock.
     void refresh();
-    const interval = setInterval(refresh, REFRESH_INTERVAL_MS);
+    let interval: ReturnType<typeof setInterval> | undefined;
+    if (Date.now() < refreshDeadline) {
+      interval = setInterval(() => {
+        if (Date.now() >= refreshDeadline) {
+          clearInterval(interval);
+          interval = undefined;
+          return;
+        }
+        void refresh();
+      }, REFRESH_INTERVAL_MS);
+    }
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
     };
   }, [
     agentShipId,
