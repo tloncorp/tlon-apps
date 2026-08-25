@@ -463,6 +463,19 @@ export function StaticChatMessage({
   });
   const provisionReceipt = agentProtocolReceipts.data?.provision;
   const providerConfigReceipt = agentProtocolReceipts.data?.providerConfig;
+  const providerConfigContext = useMemo(() => {
+    for (const block of postContent) {
+      if (block.type !== 'a2ui') continue;
+      const connector = A2UI.getUpdateMessage(
+        block.a2ui
+      )?.updateComponents.components.find(
+        (component) => component.component === 'McpConnect'
+      );
+      if (connector?.component === 'McpConnect') {
+        return connector.configureAction.event.context;
+      }
+    }
+  }, [postContent]);
   const durableProvision = receiptFollowsPost(provisionReceipt, post)
     ? provisionReceipt?.entry
     : undefined;
@@ -470,7 +483,13 @@ export function StaticChatMessage({
     ? providerConfigReceipt?.entry
     : undefined;
   const provisionedAgentTopics = durableProvision?.topics;
-  const configuredAgentProviderIds = durableProviderConfig?.providerIds;
+  const configuredAgentProviderIds =
+    durableProviderConfig &&
+    providerConfigContext &&
+    durableProviderConfig.groupId === providerConfigContext.groupId &&
+    durableProviderConfig.provisionId === providerConfigContext.provisionId
+      ? durableProviderConfig.providerIds
+      : undefined;
   const isA2UIActionConsumed = useCallback(
     (action: A2UI.Button['action']) => {
       if (action.event.name === A2UI.action.sendMessage) {

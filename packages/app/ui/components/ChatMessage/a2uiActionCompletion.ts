@@ -8,12 +8,16 @@ import type { A2UIActionCompletion } from '../../contexts/componentsKits';
  */
 export function getA2UIActionCompletions(
   posts: db.Post[],
-  currentUserId: string
+  currentUserId: string,
+  newestFirst = false
 ): A2UIActionCompletion[] {
   const completions = new Array<A2UIActionCompletion>(posts.length);
   let sentMessageText: string | undefined;
 
-  for (let index = posts.length - 1; index >= 0; index -= 1) {
+  const start = newestFirst ? 0 : posts.length - 1;
+  const end = newestFirst ? posts.length : -1;
+  const step = newestFirst ? 1 : -1;
+  for (let index = start; index !== end; index += step) {
     completions[index] = {
       sentMessageText,
     };
@@ -27,8 +31,9 @@ export function getA2UIActionCompletions(
       continue;
     const text = candidate.textContent?.trim();
     if (text) {
-      // Moving backwards makes this the earliest owner reply in the suffix,
-      // matching Array.find in getA2UIActionCompletion.
+      // Scanning from newest to oldest chronological post makes this the
+      // earliest owner reply in the suffix, matching Array.find in the
+      // per-post implementation.
       sentMessageText = candidate.textContent ?? undefined;
     }
   }
