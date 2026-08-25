@@ -3309,6 +3309,66 @@ describe('provision coordinator ordering', () => {
     });
   });
 
+  it('retries a matched outcome after a transient store failure', async () => {
+    const store = memoryRunStore();
+    const sleep = vi.fn(async () => {});
+    setAgentOnboardingRunStore(store);
+    await store.register(provision.provisionId, {
+      provisionId: provision.provisionId,
+      jobId: 'job-1',
+      runId: 'transient-store-run',
+      groupId: provision.groupId,
+      channelNest: 'chat/~ten/group/general',
+      notebookNest: provision.notebookNest,
+      notebookName: provision.notebookTitle,
+      purposeId: provision.purposeId,
+      topics: [...provision.topics],
+      provision,
+      claimedAt: 1,
+      enqueuedAt: 1,
+      status: 'enqueued',
+    });
+    store.register.mockRejectedValueOnce(new Error('temporary store failure'));
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'transient-store-run' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision,
+      provision.notebookTitle,
+      'job-1'
+    );
+
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'job-1',
+        runId: 'transient-store-run',
+        status: 'ok',
+        delivered: true,
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        listNotes: vi.fn(async () => []),
+        sendPost: vi.fn(async () => ({
+          channel: 'tlon' as const,
+          messageId: 'post',
+          sentAt: 0,
+        })),
+        sleep,
+      }
+    );
+
+    expect(sleep).toHaveBeenCalledWith(100);
+    await expect(store.lookup(provision.provisionId)).resolves.toMatchObject({
+      outcome: { status: 'ok', delivered: true },
+    });
+  });
+
   it('retries a failed-run notification after transient history failure', async () => {
     vi.useFakeTimers();
     const sendPost = vi.fn(async () => ({
