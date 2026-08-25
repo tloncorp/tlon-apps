@@ -720,46 +720,27 @@ function validateEnvelope(entry: unknown): ValidatedEnvelope | null {
     return null;
   }
 
-  if (!Array.isArray(entry.messages) || entry.messages.length !== 2) {
+  if (!Array.isArray(entry.messages)) {
     return null;
   }
 
-  const isSupportedMessage = entry.messages.every((message) => {
-    if (!isPlainObject(message) || message.version !== 'v0.9') {
-      return false;
-    }
-    const hasCreate = 'createSurface' in message;
-    const hasUpdate = 'updateComponents' in message;
-    return (
-      hasCreate !== hasUpdate &&
-      Object.keys(message).every(
-        (key) =>
-          key === 'version' ||
-          key === 'createSurface' ||
-          key === 'updateComponents'
-      )
-    );
-  });
-  if (!isSupportedMessage) {
-    return null;
-  }
-
-  const createMessages = entry.messages.filter(
+  // v1 entries may carry messages beyond the pair this renders. Select the
+  // first createSurface/updateComponents pair and ignore the rest, matching
+  // `getUpdateMessage` and the original v1 contract.
+  const createMessage = entry.messages.find(
     (message): message is A2UI.CreateSurfaceMessage =>
       isPlainObject(message) && 'createSurface' in message
   );
-  const updateMessages = entry.messages.filter(
+  const updateMessage = entry.messages.find(
     (message): message is A2UI.UpdateComponentsMessage =>
       isPlainObject(message) && 'updateComponents' in message
   );
-  const createMessage = createMessages[0];
-  const updateMessage = updateMessages[0];
 
   if (
-    createMessages.length !== 1 ||
-    updateMessages.length !== 1 ||
     !createMessage ||
     !updateMessage ||
+    createMessage.version !== 'v0.9' ||
+    updateMessage.version !== 'v0.9' ||
     !isPlainObject(createMessage.createSurface) ||
     !isPlainObject(updateMessage.updateComponents)
   ) {

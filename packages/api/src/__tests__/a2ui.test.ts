@@ -389,15 +389,42 @@ describe('a2ui blob entries', () => {
     ).toBe(false);
   });
 
-  test('rejects unsupported messages without throwing', () => {
-    const entry = {
+  test('renders the first message pair in longer v1 envelopes', () => {
+    const withJunkMessage = {
       ...a2uiBlobEntry,
       messages: [42, ...a2uiBlobEntry.messages],
     } as unknown as A2UI.BlobEntry;
+    const withExtraUpdate = {
+      ...a2uiBlobEntry,
+      messages: [
+        ...a2uiBlobEntry.messages,
+        {
+          version: 'v0.9',
+          updateComponents: {
+            surfaceId: 'weather-card',
+            root: 'later',
+            components: [{ id: 'later', component: 'Text', text: 'Later' }],
+          },
+        },
+      ],
+    } as unknown as A2UI.BlobEntry;
 
-    expect(A2UI.validateBlobEntry(entry)).toBe(false);
-    expect(A2UI.getUpdateMessage(entry)).toEqual(a2uiBlobEntry.messages[1]);
-    expect(A2UI.getRootComponentId(entry)).toBe('root');
+    expect(A2UI.validateBlobEntry(withJunkMessage)).toBe(true);
+    expect(A2UI.getUpdateMessage(withJunkMessage)).toEqual(
+      a2uiBlobEntry.messages[1]
+    );
+    expect(A2UI.getRootComponentId(withJunkMessage)).toBe('root');
+    expect(A2UI.validateBlobEntry(withExtraUpdate)).toBe(true);
+    expect(A2UI.resolveComponentGraph(withExtraUpdate)?.root).toBe('root');
+    expect(A2UI.validateBlobEntry({ ...a2uiBlobEntry, messages: [] })).toBe(
+      false
+    );
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [a2uiBlobEntry.messages[0]],
+      })
+    ).toBe(false);
   });
 
   test('supports the safe Image and Icon catalog components', () => {
