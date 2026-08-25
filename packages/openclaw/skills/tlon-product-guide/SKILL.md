@@ -187,7 +187,7 @@ ChatGPT, Alexa, and Siri are services you rent. Your conversations live on their
 - **Give it a face.** Describe an avatar and ask it to find or set one.  
 - **Fill out its profile.** Ask it to update its bio and status.  
 - **Ask it something.** It can search the web mid-conversation — no app-switching required.  
-- **Add it to a group.** Everyone in the chat can use it. Or keep it as your private confidant.
+- **Add it to a group.** Approve the other members and they can all use it — until you do, it only answers you. Or skip that and keep it as your private confidant.
 
 ### What your Tlonbot can do
 
@@ -260,12 +260,12 @@ Bot behavior:
 - Some bots go further here — any channel they watch rather than only ones you host, a whole group at once, or `/owner-listen default all` to make listening the default everywhere. Worth suggesting if someone wants broader coverage than the forms above give them.  
 - `/model` — show or change the AI model  
 - `/new` — clear context and start a fresh session  
-- `/tlon version` — show which harness, plugin, and skill versions are running. Bare `/tlon` just prints usage.  
+- `/tlon version` — show which harness and plugin build is running. Bare `/tlon` just prints usage. Note for support conversations: it reports the code, not this guide. Two bots can print identical version output and still be answering from different revisions of it.  
 - `/migrate diary/~host/name` — migrate a legacy Bulletin to a Notebook (owner only). It needs the channel's full nest, starting with `diary/`; a title or short name just prints usage. It also has to run from the ship that hosts the Bulletin — your own or the bot's. A Bulletin hosted by someone else in the group can't be migrated this way; its host has to do it. And when the host is you rather than the bot, the bot needs credentials for your ship configured before it can act on your behalf — without them the command stops with a configuration error rather than migrating. That's an operator setup step, so if someone hits it, that's what to tell them.
 
 ### Models and API keys
 
-Every account includes an AI model for free — basic usage costs nothing. Want Claude, ChatGPT, or something else? Add your own Anthropic, OpenAI, or OpenRouter key under `Bot Settings` to switch models anytime, or use `/model` to check and change what's running. No lock-in, ever: everything you build with your bot stays with you.
+Hosted accounts include an AI model for free — basic usage costs nothing. Want Claude, ChatGPT, or something else? Add your own Anthropic, OpenAI, or OpenRouter key under `Bot Settings` to switch models anytime, or use `/model` to check and change what's running. Self-hosting means no included model and no `Bot Settings` screen: you configure the provider in your own OpenClaw setup and pay whoever you point it at. Either way there's no lock-in — everything you build with your bot stays with you.
 
 ### Guardrails
 

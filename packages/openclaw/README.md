@@ -175,7 +175,7 @@ The skill is automatically available to your agent. For standalone usage, see th
 
 Keep it a product reference, not an operating manual: anything that reads or mutates a node belongs in the `tlon` CLI skill. Edit `SKILL.md` directly to update the guide; the `description` frontmatter is what OpenClaw puts in the system prompt, so trigger coverage lives there.
 
-The guide makes claims about product behavior, so it goes stale the way code comments do — a renamed screen or a changed command turns it into confidently wrong support copy. When you change a slash command, a channel type, or a permissions rule, grep this file. `packages/openclaw/skills/**` is on `bot-harness-deploy.yml`'s path filter, so a content-only fix does reach hosted bots on its own.
+The guide makes claims about product behavior, so it goes stale the way code comments do — a renamed screen or a changed command turns it into confidently wrong support copy. When you change a slash command, a channel type, or a permissions rule, grep this file. `packages/openclaw/skills/**` is on `bot-harness-deploy.yml`'s path filter, so a content-only fix does reach bots on its own — but only the internal fleet. The push trigger hardcodes `TAG="tlon-internal"`; Hermes and external ships restart only via `workflow_dispatch` with the matching selector. A guide correction that needs to reach them is a manual dispatch, plus a package publish for anyone running the npm build.
 
 ## Documentation
 
