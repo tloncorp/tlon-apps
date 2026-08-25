@@ -169,10 +169,11 @@ function assertNoUndefined(value: unknown, path = 'value'): void {
   }
 }
 
-function memoryRunStore({ rejectUndefined = false } = {}) {
+function memoryRunStore() {
   const records = new Map<string, AgentOnboardingRunRecord>();
   const validate = (value: AgentOnboardingRunRecord) => {
-    if (rejectUndefined) assertNoUndefined(value);
+    // Match the hosted plugin-state contract in every durable-store test.
+    assertNoUndefined(value);
   };
   return {
     register: vi.fn(async (key: string, value: AgentOnboardingRunRecord) => {
@@ -285,8 +286,36 @@ describe('first-run durable claims', () => {
     });
   });
 
+  it('normalizes optional fields at the durable store boundary', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const initial = {
+      ...record(getAgentOnboardingClaimOwnerId()),
+      runId: undefined,
+      outcome: {
+        status: 'ok' as const,
+        delivered: true,
+        noteId: undefined,
+        error: undefined,
+        observedAt: 1_000,
+      },
+    };
+
+    await expect(claimAgentOnboardingRun(initial, 1_000)).resolves.toEqual({
+      outcome: 'enqueue',
+    });
+    await expect(store.lookup(recordKey)).resolves.toEqual({
+      ...record(getAgentOnboardingClaimOwnerId()),
+      outcome: {
+        status: 'ok',
+        delivered: true,
+        observedAt: 1_000,
+      },
+    });
+  });
+
   it('persists enqueue state before an outcome exists', async () => {
-    const store = memoryRunStore({ rejectUndefined: true });
+    const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
     const initial = record(getAgentOnboardingClaimOwnerId());
     await store.register(recordKey, initial);
@@ -302,7 +331,7 @@ describe('first-run durable claims', () => {
   });
 
   it('persists an outcome without undefined optional fields', async () => {
-    const store = memoryRunStore({ rejectUndefined: true });
+    const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
     const initial = record(getAgentOnboardingClaimOwnerId());
     await store.register(recordKey, initial);
@@ -320,7 +349,7 @@ describe('first-run durable claims', () => {
   });
 
   it('persists a pending outcome without undefined optional fields', async () => {
-    const store = memoryRunStore({ rejectUndefined: true });
+    const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
     const initial = record(getAgentOnboardingClaimOwnerId());
     await store.register(recordKey, initial);
