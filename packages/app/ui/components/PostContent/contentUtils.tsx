@@ -42,6 +42,8 @@ export interface ContentContextProps {
   areA2UISelectionsPending?: boolean;
   /** Post containing the rendered A2UI surface. */
   a2uiSourcePostId?: string;
+  /** Whether this post is trusted to display authenticated provider state. */
+  canUseAgentProviderControls?: boolean;
   /**
    * Durable selection the viewer already submitted for a control, recovered
    * from their own posts in this channel. Presence marks the control

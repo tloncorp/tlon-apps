@@ -1,5 +1,6 @@
 import {
   appendToPostBlob,
+  getBotUserIdForUser,
   type PostBlobDataEntryA2UISelection,
 } from '@tloncorp/api';
 import { isDmChannelId } from '@tloncorp/api/client';
@@ -172,6 +173,8 @@ export function StaticChatMessage({
     [postContent]
   );
   const currentUserId = useCurrentUserId();
+  const canUseAgentProviderControls =
+    post.authorId === getBotUserIdForUser(currentUserId);
   // One live query per channel (deduped across messages); the posts-table
   // dependency re-runs it when the viewer's reply lands, including the
   // optimistic insert, so an answered control stays locked across remounts.
@@ -288,6 +291,7 @@ export function StaticChatMessage({
             )}
             areA2UISelectionsPending={a2uiSelections.isPending}
             a2uiSourcePostId={post.id}
+            canUseAgentProviderControls={canUseAgentProviderControls}
             getConsumedA2UISelection={
               canRenderA2UI ? getConsumedA2UISelection : undefined
             }
