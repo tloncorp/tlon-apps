@@ -143,7 +143,22 @@ The credential goes in `X-Landscape-Token`. Neither it nor a bearer read token e
 :buckets &noun [%set-broker-base `(unit @t)`~]     :: back to the default
 ```
 
-Only `https://` bases are accepted: the credential rides in a header, so a base naming an unexpected or plaintext host does not fail closed, it discloses the secret. `/x/v1/broker/base` reads back what a live host is using. The client half is the `TLON_MEMEX_URL` environment variable. On web it reaches the bundle only because `apps/tlon-web/vite.config.mts` substitutes it in its `define` block — `envPrefix` exposes `VITE_*` through `import.meta.env`, and nothing else arrives via `process.env`. Mobile would need the same wiring through Expo before the override works there.
+Only `https://` bases are accepted: the credential rides in a header, so a base naming an unexpected or plaintext host does not fail closed, it discloses the secret. `/x/v1/broker/base` reads back what a live host is using. The client half is the `TLON_MEMEX_URL` environment variable, set either way round:
+
+```sh
+# shell, unprefixed — one run
+cd apps/tlon-web
+SHIP_URL=https://hatrel-disnut.test.tlon.systems \
+TLON_MEMEX_URL=https://memex.test.tlon.systems \
+pnpm dev
+
+# or apps/tlon-web/.env, VITE_-prefixed — persists
+VITE_TLON_MEMEX_URL=https://memex.test.tlon.systems
+```
+
+Both spellings exist for the same reason `SHIP_URL` takes both: only `VITE_*` names survive `loadEnv` out of an `.env` file, while the shell can set the bare name. It is read when the dev server or build starts, not per request, so a change means a restart.
+
+It reaches the bundle only because `apps/tlon-web/vite.config.mts` substitutes it in its `define` block — `envPrefix` exposes `VITE_*` through `import.meta.env`, and nothing else arrives via `process.env`. The hosted web build has no override compiled in, so testing the upload half means running the client locally against the hosted ship. Mobile would need the same wiring through Expo before the override works there.
 
 **Memex ships before this agent does.** A mint the broker refuses is never stored, whatever the refusal — including a 404 from a broker without the endpoint — because a token the broker does not hold would 403 on first use. There is deliberately no compatibility path for the reverse order.
 
