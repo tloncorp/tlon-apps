@@ -169,7 +169,6 @@ const Scroller = forwardRef(
     );
     const { width } = useWindowDimensions();
     const isWindowNarrow = useIsWindowNarrow();
-    const currentUserId = useCurrentUserId();
     const setScrollToBottomControl = useSetConversationScrollToBottomControl();
     const availableSpace = useMemo(() => {
       const sidebarsTotalWidth = isWindowNarrow
@@ -274,12 +273,13 @@ const Scroller = forwardRef(
       [visiblePosts]
     );
     const a2uiActionCompletions = useMemo(
-      () => getA2UIActionCompletions(visiblePosts ?? [], currentUserId),
-      [currentUserId, visiblePosts]
-    );
-    const a2uiActionCompletions = useMemo(
-      () => getA2UIActionCompletions(posts ?? [], currentUserId, anchorToEnd),
-      [anchorToEnd, currentUserId, posts]
+      () =>
+        getA2UIActionCompletions(
+          visiblePosts ?? [],
+          currentUserId,
+          anchorToEnd
+        ),
+      [anchorToEnd, currentUserId, visiblePosts]
     );
 
     const style = useMemo(() => {
