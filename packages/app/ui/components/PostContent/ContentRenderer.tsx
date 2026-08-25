@@ -66,6 +66,7 @@ function ContentRenderer({
   onA2UIAction,
   isA2UIActionAvailable,
   canSendA2UIResponse,
+  getConsumedA2UISelection,
   isNotice,
   searchQuery,
   ...rest
@@ -83,6 +84,7 @@ function ContentRenderer({
       onA2UIAction={onA2UIAction}
       isA2UIActionAvailable={isA2UIActionAvailable}
       canSendA2UIResponse={canSendA2UIResponse}
+      getConsumedA2UISelection={getConsumedA2UISelection}
       isNotice={isNotice}
       searchQuery={searchQuery}
     >

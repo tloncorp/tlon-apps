@@ -189,6 +189,24 @@ describe('post blob helpers', () => {
     expect(parsePostBlob(appendToPostBlob(undefined, entry))).toEqual([entry]);
   });
 
+  test('an A2UI selection can name the tapped option and hold message text', () => {
+    const entry = {
+      type: 'tlon-a2ui-selection' as const,
+      version: 1 as const,
+      surfaceId: 'agent-purpose',
+      componentId: 'purpose-choice',
+      optionId: 'daily-digest',
+      // A one-shot Button records the full message it posted, which may
+      // exceed topicLength.
+      values: ['x'.repeat(1000)],
+    };
+
+    expect(parsePostBlob(appendToPostBlob(undefined, entry))).toEqual([entry]);
+    expect(
+      parsePostBlob(JSON.stringify([{ ...entry, values: ['x'.repeat(1001)] }]))
+    ).toEqual([{ type: 'unknown' }]);
+  });
+
   test('parsePostBlob parses context lens metadata entries', () => {
     const blob = appendToPostBlob(undefined, {
       type: 'tlon-context-lens',

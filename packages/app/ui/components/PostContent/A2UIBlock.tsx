@@ -56,6 +56,43 @@ function isConsumableA2UIAction(action: A2UI.ButtonAction) {
   );
 }
 
+/**
+ * The durable record an owner-response action leaves on the post it creates.
+ * Undefined for client-local actions (navigation), which are never consumed.
+ */
+function buildActionSelection(
+  surfaceId: string,
+  componentId: string,
+  action: A2UI.ButtonAction,
+  optionId?: string
+): PostBlobDataEntryA2UISelection | undefined {
+  if (action.event.name === A2UI.action.sendMessage) {
+    const text = action.event.context.text.trim();
+    if (!text) {
+      return undefined;
+    }
+    return {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      surfaceId,
+      componentId,
+      optionId,
+      values: [text],
+    };
+  }
+  if (action.event.name === A2UI.action.provisionAgent) {
+    return {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      surfaceId,
+      componentId,
+      optionId,
+      values: action.event.context.topics,
+    };
+  }
+  return undefined;
+}
+
 function SmallChoiceRow({
   disabled,
   isLast,
@@ -121,12 +158,15 @@ function SmallChoiceRow({
 function SmallChoiceControl({
   component,
   canSend,
+  consumedSelection,
   onSubmit,
   surfaceId,
 }: {
   component: A2UI.SmallChoice;
   /** false when there is no action handler at all */
   canSend: boolean;
+  /** Durable answer recovered from the viewer's own posts after remount. */
+  consumedSelection?: PostBlobDataEntryA2UISelection;
   onSubmit: (
     action: A2UI.ButtonAction,
     selection: PostBlobDataEntryA2UISelection
@@ -238,11 +278,14 @@ function SmallChoiceControl({
     valuesForSelection,
   ]);
 
-  const disabled = submitted || consumedLocally || !canSend;
+  const completed = consumedLocally || Boolean(consumedSelection);
+  const disabled = submitted || completed || !canSend;
   const submitDisabled = disabled || !hasValidSelection;
   const customChoiceLabel =
     component.freeTextPlaceholder?.replace(/…+$/, '') || '';
-  const completedTopics = consumedLocally ? valuesForSelection : [];
+  const completedTopics = consumedLocally
+    ? valuesForSelection
+    : (consumedSelection?.values ?? []);
   const completedOptionLabels = new Set(
     component.options
       .filter((option) => completedTopics.includes(option.label))
@@ -251,7 +294,7 @@ function SmallChoiceControl({
   const completedCustomTopics = completedTopics.filter(
     (topic) => !completedOptionLabels.has(topic)
   );
-  const displayedCustomTopics = consumedLocally
+  const displayedCustomTopics = completed
     ? completedCustomTopics
     : customTopics;
   const displayedCustomTopicSummary = displayedCustomTopics.join(', ');
@@ -328,7 +371,7 @@ function SmallChoiceControl({
           overflow="hidden"
         >
           {component.options.map((option, index) => {
-            const isSelected = consumedLocally
+            const isSelected = completed
               ? completedOptionLabels.has(option.label)
               : selectedIds.includes(option.id);
             const isLast = index === component.options.length - 1;
@@ -631,8 +674,12 @@ export function A2UIBlock({
   block,
   ...props
 }: { block: A2UIBlockData } & ComponentProps<typeof YStack>) {
-  const { canSendA2UIResponse, isA2UIActionAvailable, onA2UIAction } =
-    useContentContext();
+  const {
+    canSendA2UIResponse,
+    getConsumedA2UISelection,
+    isA2UIActionAvailable,
+    onA2UIAction,
+  } = useContentContext();
   const [locallyConsumedComponentIds, setLocallyConsumedComponentIds] =
     useState<string[]>([]);
   const [locallyConsumedChoices, setLocallyConsumedChoices] = useState<
@@ -667,7 +714,12 @@ export function A2UIBlock({
       const consumeAction = isConsumableA2UIAction(component.action);
       buttonPressLocksRef.current.add(component.id);
       try {
-        await onA2UIAction?.(component.action);
+        await onA2UIAction?.(
+          component.action,
+          consumeAction
+            ? buildActionSelection(surfaceId, component.id, component.action)
+            : undefined
+        );
         if (consumeAction) {
           setLocallyConsumedComponentIds((previous) =>
             previous.includes(component.id)
@@ -684,7 +736,7 @@ export function A2UIBlock({
         }
       }
     },
-    [onA2UIAction]
+    [onA2UIAction, surfaceId]
   );
 
   const handleChoicePress = useCallback(
@@ -712,7 +764,12 @@ export function A2UIBlock({
         }));
       }
       try {
-        await onA2UIAction?.(action);
+        await onA2UIAction?.(
+          action,
+          consumeAction
+            ? buildActionSelection(surfaceId, componentId, action, optionId)
+            : undefined
+        );
       } catch {
         choicePressLocksRef.current.delete(componentId);
         if (consumeAction) {
@@ -730,7 +787,7 @@ export function A2UIBlock({
         }
       }
     },
-    [onA2UIAction]
+    [onA2UIAction, surfaceId]
   );
 
   const handleSmallChoiceSubmit = useCallback(
@@ -845,7 +902,8 @@ export function A2UIBlock({
           const actionCanBeConsumed = isConsumableA2UIAction(component.action);
           const actionConsumed =
             actionCanBeConsumed &&
-            locallyConsumedComponentIds.includes(component.id);
+            (locallyConsumedComponentIds.includes(component.id) ||
+              Boolean(getConsumedA2UISelection?.(surfaceId, component.id)));
           const disabled =
             actionConsumed ||
             component.disabled ||
@@ -888,10 +946,21 @@ export function A2UIBlock({
           );
         }
         case 'Choice': {
-          const selectedOption = component.options.find(
-            (option) => option.id === locallyConsumedChoices[component.id]
+          const durableSelection = getConsumedA2UISelection?.(
+            surfaceId,
+            component.id
           );
-          const choiceConsumed = Boolean(selectedOption);
+          const selectedOption =
+            component.options.find(
+              (option) => option.id === locallyConsumedChoices[component.id]
+            ) ??
+            (durableSelection
+              ? component.options.find(
+                  (option) => option.id === durableSelection.optionId
+                )
+              : undefined);
+          const choiceConsumed =
+            Boolean(selectedOption) || Boolean(durableSelection);
           const grouped = component.options.length > 1;
           const compact =
             grouped &&
@@ -1046,6 +1115,10 @@ export function A2UIBlock({
                   (component.action.event.name !== A2UI.action.provisionAgent ||
                     isA2UIActionAvailable?.(component.action) !== false)
                 }
+                consumedSelection={getConsumedA2UISelection?.(
+                  surfaceId,
+                  component.id
+                )}
                 onSubmit={handleSmallChoiceSubmit}
                 surfaceId={surfaceId}
               />
@@ -1061,6 +1134,19 @@ export function A2UIBlock({
             >
               <McpConnectControl
                 component={component}
+                completionConsumed={Boolean(
+                  component.completionAction &&
+                  getConsumedA2UISelection?.(surfaceId, component.id)
+                )}
+                completionSelection={
+                  component.completionAction
+                    ? buildActionSelection(
+                        surfaceId,
+                        component.id,
+                        component.completionAction
+                      )
+                    : undefined
+                }
                 onConfigure={
                   isA2UIActionAvailable?.(component.configureAction) === false
                     ? undefined
@@ -1081,6 +1167,7 @@ export function A2UIBlock({
     [
       canSendA2UIResponse,
       components,
+      getConsumedA2UISelection,
       handleButtonPress,
       handleChoicePress,
       handleSmallChoiceSubmit,

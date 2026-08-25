@@ -38,6 +38,15 @@ export interface ContentContextProps {
   ) => void | Promise<void>;
   isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
   canSendA2UIResponse?: boolean;
+  /**
+   * Durable selection the viewer already submitted for a control, recovered
+   * from their own posts in this channel. Presence marks the control
+   * consumed; without this, an answered control forgets on remount.
+   */
+  getConsumedA2UISelection?: (
+    surfaceId: string,
+    componentId: string
+  ) => PostBlobDataEntryA2UISelection | undefined;
   searchQuery?: string;
 }
 

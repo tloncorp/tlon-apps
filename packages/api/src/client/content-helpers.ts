@@ -754,13 +754,22 @@ export type PostBlobDataEntryAgentPostMarker = z.infer<
   typeof PostBlobDataEntryAgentPostMarkerSchema
 >;
 
-/** Durable state for a SmallChoice reply; prose remains presentation only. */
+/**
+ * Durable record of an answered A2UI control, attached to the reply post it
+ * produced; prose remains presentation only. Its presence — matched on
+ * surfaceId + componentId in posts authored by the viewer — is what marks a
+ * one-shot control consumed across remounts and devices.
+ */
 export const PostBlobDataEntryA2UISelectionSchema =
   definePostBlobDataEntrySchema('tlon-a2ui-selection', 1, {
     surfaceId: agentProtocolString(512),
     componentId: agentProtocolString(512),
+    /** For a Choice, the id of the tapped option, so restore can mark it. */
+    optionId: agentProtocolString(512).optional(),
+    // Entries are bounded by the A2UI send-message limit, not topicLength: a
+    // one-shot Button records the full message text it posted.
     values: z
-      .array(agentProtocolString(AGENT_PROTOCOL_LIMITS.topicLength))
+      .array(agentProtocolString(1000))
       .min(1)
       .max(AGENT_PROTOCOL_LIMITS.topicCount),
   });

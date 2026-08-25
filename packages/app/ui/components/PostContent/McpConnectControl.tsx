@@ -30,15 +30,24 @@ const clampProviderIds = (providerIds: string[]) =>
 
 export function McpConnectControl({
   component,
+  completionConsumed,
+  completionSelection,
   onConfigure,
   onComplete,
   onNavigate,
 }: {
   component: A2UI.McpConnect;
+  /** True when a durable post already answered the completion action. */
+  completionConsumed?: boolean;
+  /** Durable record to attach to the post the completion action creates. */
+  completionSelection?: api.PostBlobDataEntryA2UISelection;
   onConfigure?: (
     action: A2UI.ConfigureAgentProvidersAction
   ) => void | Promise<void>;
-  onComplete?: (action: A2UI.SendMessageAction) => void | Promise<void>;
+  onComplete?: (
+    action: A2UI.SendMessageAction,
+    selection?: api.PostBlobDataEntryA2UISelection
+  ) => void | Promise<void>;
   onNavigate?: (action: A2UI.NavigateAction) => void | Promise<void>;
 }) {
   const currentUserId = useCurrentUserId();
@@ -124,6 +133,8 @@ export function McpConnectControl({
       failed={failed}
       loading={loading}
       providersLoaded={loadedUserIdRef.current === currentUserId}
+      completionConsumed={completionConsumed}
+      completionSelection={completionSelection}
       onConfigure={onConfigure}
       onComplete={onComplete}
       onNavigate={onNavigate}
@@ -134,6 +145,8 @@ export function McpConnectControl({
 
 export function McpConnectMenu({
   component,
+  completionConsumed = false,
+  completionSelection,
   failed = false,
   loading = false,
   providersLoaded = true,
@@ -143,13 +156,18 @@ export function McpConnectMenu({
   providers,
 }: {
   component: A2UI.McpConnect;
+  completionConsumed?: boolean;
+  completionSelection?: api.PostBlobDataEntryA2UISelection;
   failed?: boolean;
   loading?: boolean;
   providersLoaded?: boolean;
   onConfigure?: (
     action: A2UI.ConfigureAgentProvidersAction
   ) => void | Promise<void>;
-  onComplete?: (action: A2UI.SendMessageAction) => void | Promise<void>;
+  onComplete?: (
+    action: A2UI.SendMessageAction,
+    selection?: api.PostBlobDataEntryA2UISelection
+  ) => void | Promise<void>;
   onNavigate?: (action: A2UI.NavigateAction) => void | Promise<void>;
   providers: McpProviderRow[];
 }) {
@@ -245,6 +263,7 @@ export function McpConnectMenu({
       !onComplete ||
       configuringRef.current ||
       completingRef.current ||
+      completionConsumed ||
       completedLocally
     ) {
       return;
@@ -252,7 +271,7 @@ export function McpConnectMenu({
     completingRef.current = true;
     setCompleting(true);
     try {
-      await onComplete(component.completionAction);
+      await onComplete(component.completionAction, completionSelection);
       setCompletedLocally(true);
     } catch (error) {
       completingRef.current = false;
@@ -260,7 +279,13 @@ export function McpConnectMenu({
     } finally {
       setCompleting(false);
     }
-  }, [completedLocally, component.completionAction, onComplete]);
+  }, [
+    completedLocally,
+    completionConsumed,
+    completionSelection,
+    component.completionAction,
+    onComplete,
+  ]);
 
   const navigate = useCallback(
     (providerId?: string) => {
@@ -420,14 +445,24 @@ export function McpConnectMenu({
           accessibilityLabel={component.completionLabel}
           accessibilityState={{
             disabled:
-              !onComplete || submitting || completing || completedLocally,
+              !onComplete ||
+              submitting ||
+              completing ||
+              completionConsumed ||
+              completedLocally,
           }}
-          disabled={!onComplete || submitting || completing || completedLocally}
+          disabled={
+            !onComplete ||
+            submitting ||
+            completing ||
+            completionConsumed ||
+            completedLocally
+          }
           onPress={complete}
           bordered
           marginTop="$m"
           prominent
-          dimmed={completedLocally}
+          dimmed={completionConsumed || completedLocally}
           label={component.completionLabel}
           trailing={
             completing ? (
