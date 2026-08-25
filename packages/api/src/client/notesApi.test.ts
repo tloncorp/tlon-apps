@@ -212,6 +212,27 @@ describe('notesV1 reads', () => {
     await expect(notesV1.listNotebooks()).rejects.toThrow('boom');
   });
 
+  test('rejects malformed field types at the JSON boundary', async () => {
+    requestJsonMock.mockResolvedValue([
+      {
+        host: '~zod',
+        flagName: 'blog',
+        notebook: { id: '2', title: 'Blog' },
+      },
+    ]);
+    await expect(notesV1.listNotebooks()).rejects.toThrow('notebook.id');
+
+    requestJsonMock.mockResolvedValue([{ id: 12, title: 'First', bodyMd: 42 }]);
+    await expect(notesV1.listNotes('notes/~zod/blog')).rejects.toThrow(
+      'note.bodyMd'
+    );
+
+    requestJsonMock.mockResolvedValue([{ ship: '~zod', roles: ['admin'] }]);
+    await expect(notesV1.listMembers('notes/~zod/blog')).rejects.toThrow(
+      'member.roles.0'
+    );
+  });
+
   test('getNotebook returns detail with required rootFolderId', async () => {
     requestJsonMock.mockResolvedValue({
       host: '~zod',
@@ -1316,7 +1337,7 @@ describe('batchImportNotesV1', () => {
     expect(err.folderId).toBe(7);
     expect(err.flag).toBe('~zod/blog');
     // The pre-flight GET is the only request; nothing was submitted.
-    expect(requestJsonMock.mock.calls.map((c: any[]) => c[1])).toEqual(['GET']);
+    expect(requestJsonMock.mock.calls.map((call) => call[1])).toEqual(['GET']);
   });
 
   test('rejects non-@uv requestId before fetching', async () => {

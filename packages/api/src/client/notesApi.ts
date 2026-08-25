@@ -462,19 +462,28 @@ function searchV1Path(
 
 // --- response normalization ------------------------------------------------
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function requireArray<T>(raw: unknown, normalize: (item: any) => T): T[] {
+type JsonObject = Record<string, unknown>;
+
+function isJsonObject(raw: unknown): raw is JsonObject {
+  return Boolean(raw) && typeof raw === 'object' && !Array.isArray(raw);
+}
+
+function requireArray<T>(raw: unknown, normalize: (item: unknown) => T): T[] {
   if (!Array.isArray(raw)) {
     throw new Error('Unexpected %notes response: expected an array');
   }
   return raw.map(normalize);
 }
 
-function requireObject(raw: unknown): any {
-  if (!raw || typeof raw !== 'object') {
+function requireObject(raw: unknown): JsonObject {
+  if (!isJsonObject(raw)) {
     throw new Error('Unexpected %notes response: expected an object');
   }
   return raw;
+}
+
+function objectField(raw: unknown, field: string): unknown {
+  return isJsonObject(raw) ? raw[field] : undefined;
 }
 
 // Reject a malformed successful body that omits a field the canonical v1 type
@@ -487,35 +496,86 @@ function req<T>(value: T | null | undefined, field: string): T {
 }
 
 function reqString(value: unknown, field: string): string {
+  if (typeof value !== 'string') {
+    throw new Error(`%notes response missing required field: ${field}`);
+  }
+  return value;
+}
+
+function reqNonEmptyString(value: unknown, field: string): string {
   if (typeof value !== 'string' || !value.trim()) {
     throw new Error(`%notes response missing required field: ${field}`);
   }
   return value;
 }
 
-function normalizeNotebookListItem(raw: any): NotesV1NotebookListItem {
+function reqNumber(value: unknown, field: string): number {
+  if (typeof value !== 'number') {
+    throw new Error(`%notes response missing required field: ${field}`);
+  }
+  return value;
+}
+
+function optionalString(value: unknown, field: string): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string') {
+    throw new Error(`%notes response has invalid field: ${field}`);
+  }
+  return value;
+}
+
+function optionalNullableString(
+  value: unknown,
+  field: string
+): string | null | undefined {
+  if (value === undefined || value === null) return value;
+  if (typeof value !== 'string') {
+    throw new Error(`%notes response has invalid field: ${field}`);
+  }
+  return value;
+}
+
+function optionalNumber(value: unknown, field: string): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'number') {
+    throw new Error(`%notes response has invalid field: ${field}`);
+  }
+  return value;
+}
+
+function optionalVisibility(value: unknown): NotesVisibility | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (value !== 'public' && value !== 'private') {
+    throw new Error('%notes response has invalid field: visibility');
+  }
+  return value;
+}
+
+function normalizeNotebookListItem(raw: unknown): NotesV1NotebookListItem {
+  const item = requireObject(raw);
   return {
-    id: req(raw.id, 'notebook.id'),
-    title: req(raw.title, 'notebook.title'),
-    rootFolderId: raw.rootFolderId,
-    createdBy: raw.createdBy,
-    createdAt: raw.createdAt,
-    updatedBy: raw.updatedBy,
-    updatedAt: raw.updatedAt,
+    id: reqNumber(item.id, 'notebook.id'),
+    title: reqString(item.title, 'notebook.title'),
+    rootFolderId: optionalNumber(item.rootFolderId, 'notebook.rootFolderId'),
+    createdBy: optionalString(item.createdBy, 'notebook.createdBy'),
+    createdAt: optionalNumber(item.createdAt, 'notebook.createdAt'),
+    updatedBy: optionalString(item.updatedBy, 'notebook.updatedBy'),
+    updatedAt: optionalNumber(item.updatedAt, 'notebook.updatedAt'),
   };
 }
 
-function normalizeNotebookSummaryV1(raw: any): NotesV1NotebookSummary {
+function normalizeNotebookSummaryV1(raw: unknown): NotesV1NotebookSummary {
+  const summary = requireObject(raw);
   return {
-    host: req(raw.host, 'host'),
-    flagName: req(raw.flagName, 'flagName'),
-    notebook: normalizeNotebookListItem(requireObject(raw?.notebook)),
-    visibility: raw.visibility,
+    host: reqString(summary.host, 'host'),
+    flagName: reqString(summary.flagName, 'flagName'),
+    notebook: normalizeNotebookListItem(summary.notebook),
+    visibility: optionalVisibility(summary.visibility),
   };
 }
 
 function normalizeNotebookDetailSummaryV1(
-  raw: any
+  raw: unknown
 ): NotesV1NotebookDetailSummary {
   const summary = normalizeNotebookSummaryV1(raw);
   const rootFolderId = summary.notebook.rootFolderId;
@@ -528,33 +588,35 @@ function normalizeNotebookDetailSummaryV1(
   };
 }
 
-function normalizeFolderV1(raw: any): NotesV1Folder {
-  const parent = raw.parentFolderId ?? raw.parent;
+function normalizeFolderV1(raw: unknown): NotesV1Folder {
+  const folder = requireObject(raw);
+  const parent = folder.parentFolderId ?? folder.parent;
   return {
-    id: req(raw.id, 'folder.id'),
-    notebookId: raw.notebookId,
-    name: req(raw.name ?? raw.folderName, 'folder.name'),
+    id: reqNumber(folder.id, 'folder.id'),
+    notebookId: optionalNumber(folder.notebookId, 'folder.notebookId'),
+    name: reqString(folder.name ?? folder.folderName, 'folder.name'),
     parentFolderId: typeof parent === 'number' ? parent : null,
-    createdBy: raw.createdBy,
-    createdAt: raw.createdAt,
-    updatedBy: raw.updatedBy,
-    updatedAt: raw.updatedAt,
+    createdBy: optionalString(folder.createdBy, 'folder.createdBy'),
+    createdAt: optionalNumber(folder.createdAt, 'folder.createdAt'),
+    updatedBy: optionalString(folder.updatedBy, 'folder.updatedBy'),
+    updatedAt: optionalNumber(folder.updatedAt, 'folder.updatedAt'),
   };
 }
 
-function normalizeNoteV1(raw: any): NotesV1Note {
+function normalizeNoteV1(raw: unknown): NotesV1Note {
+  const note = requireObject(raw);
   return {
-    id: req(raw.id, 'note.id'),
-    notebookId: raw.notebookId,
-    folderId: raw.folderId ?? raw.folder,
-    title: req(raw.title, 'note.title'),
-    slug: raw.slug,
-    bodyMd: raw.bodyMd,
-    revision: raw.revision,
-    createdBy: raw.createdBy,
-    createdAt: raw.createdAt,
-    updatedBy: raw.updatedBy,
-    updatedAt: raw.updatedAt,
+    id: reqNumber(note.id, 'note.id'),
+    notebookId: optionalNumber(note.notebookId, 'note.notebookId'),
+    folderId: optionalNumber(note.folderId ?? note.folder, 'note.folderId'),
+    title: reqString(note.title, 'note.title'),
+    slug: optionalNullableString(note.slug, 'note.slug'),
+    bodyMd: optionalString(note.bodyMd, 'note.bodyMd'),
+    revision: optionalNumber(note.revision, 'note.revision'),
+    createdBy: optionalString(note.createdBy, 'note.createdBy'),
+    createdAt: optionalNumber(note.createdAt, 'note.createdAt'),
+    updatedBy: optionalString(note.updatedBy, 'note.updatedBy'),
+    updatedAt: optionalNumber(note.updatedAt, 'note.updatedAt'),
   };
 }
 
@@ -569,33 +631,46 @@ function normalizeSearchPageV1(raw: unknown): NotesV1SearchPage {
   };
 }
 
-function normalizeNoteRevisionV1(raw: any): NotesV1NoteRevision {
+function normalizeNoteRevisionV1(raw: unknown): NotesV1NoteRevision {
+  const revision = requireObject(raw);
   return {
-    revision: raw.revision ?? raw.rev,
-    editedAt: raw.editedAt ?? raw.at,
-    author: raw.author ?? raw.by,
-    bodyMd: raw.bodyMd,
+    revision: optionalNumber(
+      revision.revision ?? revision.rev,
+      'revision.revision'
+    ),
+    editedAt: optionalNumber(
+      revision.editedAt ?? revision.at,
+      'revision.editedAt'
+    ),
+    author: optionalString(revision.author ?? revision.by, 'revision.author'),
+    bodyMd: optionalString(revision.bodyMd, 'revision.bodyMd'),
   };
 }
 
-function normalizeMemberV1(raw: any): NotesV1MemberRecord {
-  const roles = Array.isArray(raw.roles)
-    ? raw.roles
-    : raw.role
-      ? [raw.role]
+function normalizeMemberV1(raw: unknown): NotesV1MemberRecord {
+  const member = requireObject(raw);
+  const rawRoles = Array.isArray(member.roles)
+    ? member.roles
+    : member.role
+      ? [member.role]
       : [];
-  return { ship: req(raw.ship, 'member.ship'), roles };
+  const roles = rawRoles.map((role, index) => {
+    if (role !== 'owner' && role !== 'editor' && role !== 'viewer') {
+      throw new Error(
+        `%notes response has invalid field: member.roles.${index}`
+      );
+    }
+    return role;
+  });
+  return { ship: reqString(member.ship, 'member.ship'), roles };
 }
 
-function normalizePublishedRecord(raw: any): NotesPublishedRecord {
-  const noteId = req(raw.noteId, 'published.noteId');
-  if (typeof noteId !== 'number') {
-    throw new Error('%notes published record is missing noteId');
-  }
+function normalizePublishedRecord(raw: unknown): NotesPublishedRecord {
+  const record = requireObject(raw);
   return {
-    host: reqString(raw.host, 'published.host'),
-    flagName: reqString(raw.flagName, 'published.flagName'),
-    noteId,
+    host: reqNonEmptyString(record.host, 'published.host'),
+    flagName: reqNonEmptyString(record.flagName, 'published.flagName'),
+    noteId: reqNumber(record.noteId, 'published.noteId'),
   };
 }
 
@@ -707,7 +782,7 @@ export function toClientNotesNoteRevision(
   };
 }
 
-function normalizeRequestBodyV1(raw: any): NotesV1RequestBody {
+function normalizeRequestBodyV1(raw: unknown): NotesV1RequestBody {
   const body = requireObject(raw);
   switch (body.type) {
     case 'ok':
@@ -746,7 +821,7 @@ function normalizeRequestBodyV1(raw: any): NotesV1RequestBody {
 function normalizeRequestStatusV1(raw: unknown): NotesV1RequestStatus {
   const res = requireObject(raw);
   return {
-    requestId: reqString(res.requestId, 'requestId'),
+    requestId: reqNonEmptyString(res.requestId, 'requestId'),
     body: normalizeRequestBodyV1(req(res.body, 'body')),
   };
 }
@@ -755,7 +830,7 @@ function normalizeRequestStatusV1(raw: unknown): NotesV1RequestStatus {
 
 // The wire's `message` is a rendered tang: an array of lines. Older
 // responses may carry a plain string.
-function errorMessageText(raw: any): string {
+function errorMessageText(raw: unknown): string {
   if (typeof raw === 'string') {
     return raw.trim();
   }
@@ -765,35 +840,37 @@ function errorMessageText(raw: any): string {
   return raw === undefined || raw === null ? '' : String(raw).trim();
 }
 
-function notesEnvelopeErrorMessage(body: any): string {
-  const message = errorMessageText(body?.message);
+function notesEnvelopeErrorMessage(body: unknown): string {
+  const envelope = requireObject(body);
+  const message = errorMessageText(envelope.message);
   const errorType =
-    typeof body?.errorType === 'string' ? body.errorType.trim() : '';
+    typeof envelope.errorType === 'string' ? envelope.errorType.trim() : '';
   const detail = message || errorType;
   return `%notes error: ${detail || 'backend returned an error without details'}`;
 }
 
-function notesEnvelopeError(body: any): NotesV1WriteError {
+function notesEnvelopeError(body: unknown): NotesV1WriteError {
+  const envelope = requireObject(body);
   return new NotesV1WriteError(
-    notesEnvelopeErrorMessage(body),
-    typeof body?.errorType === 'string' ? body.errorType : undefined
+    notesEnvelopeErrorMessage(envelope),
+    typeof envelope.errorType === 'string' ? envelope.errorType : undefined
   );
 }
 
-function envelopeRequestId(res: any): string | undefined {
-  const requestId = res?.requestId;
+function envelopeRequestId(res: unknown): string | undefined {
+  const requestId = objectField(res, 'requestId');
   return typeof requestId === 'string' && requestId.trim()
     ? requestId.trim()
     : undefined;
 }
 
-function envelopePendingStatus(res: any): string | undefined {
-  const status = res?.body?.status;
+function envelopePendingStatus(res: unknown): string | undefined {
+  const status = objectField(objectField(res, 'body'), 'status');
   return typeof status === 'string' ? status : undefined;
 }
 
 function pendingWriteError(
-  res: any,
+  res: unknown,
   checks: NotesV1PendingWriteCheck[]
 ): NotesV1PendingWriteError {
   return new NotesV1PendingWriteError({
@@ -836,11 +913,11 @@ function folderChecks(
 // always throw. `createNotebook`/`createGroupNotebook` require a `notebook`
 // body and return its normalized summary.
 function unwrapNotebookEnvelope(
-  res: any,
+  res: unknown,
   checks: NotesV1PendingWriteCheck[]
 ): NotesV1NotebookSummary {
-  const body = res?.body;
-  if (!body || typeof body.type !== 'string') {
+  const body = objectField(res, 'body');
+  if (!isJsonObject(body) || typeof body.type !== 'string') {
     throw new Error('Unexpected %notes response (missing body).');
   }
   switch (body.type) {
@@ -871,14 +948,14 @@ function describeNotesResponseValue(value: unknown): string {
 // (desk/app/notes.hoon). A missing or typeless body is therefore a protocol
 // violation, not a shape to tolerate. ok/no-change/notebook succeed;
 // everything else throws. `requestJson` has already rejected any non-200.
-function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
-  const body: unknown = res?.body;
-  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+function assertWriteOk(res: unknown, checks: NotesV1PendingWriteCheck[]): void {
+  const body = objectField(res, 'body');
+  if (!isJsonObject(body)) {
     throw new Error(
       `Unexpected %notes write response body: ${describeNotesResponseValue(body)}`
     );
   }
-  const type = (body as Record<string, unknown>).type;
+  const type = body.type;
   if (typeof type !== 'string') {
     throw new Error(
       `Unexpected %notes write response body.type: ${describeNotesResponseValue(type)} (body: ${describeNotesResponseValue(body)})`
@@ -899,18 +976,19 @@ function assertWriteOk(res: any, checks: NotesV1PendingWriteCheck[]): void {
       );
   }
 }
-/* eslint-enable @typescript-eslint/no-explicit-any */
-
 async function getRequestV1(requestId: string): Promise<NotesV1RequestStatus> {
   const encoded = encodeURIComponent(requestId);
-  const res = await requestJson(`${REQUESTS_V1_PATH}/${encoded}`, 'GET');
+  const res = await requestJson<unknown>(
+    `${REQUESTS_V1_PATH}/${encoded}`,
+    'GET'
+  );
   return normalizeRequestStatusV1(res);
 }
 
 // --- notebook helpers ------------------------------------------------------
 
 async function listNotebooksV1(): Promise<NotesV1NotebookSummary[]> {
-  const res = await requestJson(NOTEBOOKS_V1_PATH, 'GET');
+  const res = await requestJson<unknown>(NOTEBOOKS_V1_PATH, 'GET');
   return requireArray(res, normalizeNotebookSummaryV1);
 }
 
@@ -918,7 +996,7 @@ async function getNotebookV1(
   target: NotesTarget
 ): Promise<NotesV1NotebookDetailSummary> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson(notebookV1Path(flag), 'GET');
+  const res = await requestJson<unknown>(notebookV1Path(flag), 'GET');
   return normalizeNotebookDetailSummaryV1(requireObject(res));
 }
 
@@ -927,7 +1005,7 @@ async function createNotebookV1({
 }: {
   title: string;
 }): Promise<NotesV1NotebookSummary> {
-  const res = await requestJson(NOTEBOOKS_V1_PATH, 'POST', { title });
+  const res = await requestJson<unknown>(NOTEBOOKS_V1_PATH, 'POST', { title });
   return unwrapNotebookEnvelope(res, notebookWriteChecks());
 }
 
@@ -940,7 +1018,7 @@ async function createGroupNotebookV1({
   group: NotesV1GroupRef;
   readers?: string[];
 }): Promise<NotesV1NotebookSummary> {
-  const res = await requestJson(NOTEBOOKS_V1_PATH, 'POST', {
+  const res = await requestJson<unknown>(NOTEBOOKS_V1_PATH, 'POST', {
     title,
     group,
     readers,
@@ -952,7 +1030,7 @@ async function createGroupNotebookV1({
 
 async function listNotesV1(target: NotesTarget): Promise<NotesV1Note[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson(notesV1Path(flag), 'GET');
+  const res = await requestJson<unknown>(notesV1Path(flag), 'GET');
   return requireArray(res, normalizeNoteV1);
 }
 
@@ -968,7 +1046,7 @@ async function searchNotesV1({
   tries?: number;
 }): Promise<NotesV1SearchPage> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(
+  const res = await requestJson<unknown>(
     searchV1Path(normalized, { needle, from, tries }),
     'GET'
   );
@@ -983,7 +1061,7 @@ async function getNoteV1({
   noteId: number;
 }): Promise<NotesV1Note> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(noteV1Path(normalized, noteId), 'GET');
+  const res = await requestJson<unknown>(noteV1Path(normalized, noteId), 'GET');
   return normalizeNoteV1(requireObject(res));
 }
 
@@ -999,7 +1077,7 @@ async function createNoteV1({
   body: string;
 }): Promise<NotesV1Note | null> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(notesV1Path(normalized), 'POST', {
+  const res = await requestJson<unknown>(notesV1Path(normalized), 'POST', {
     folder,
     title,
     body,
@@ -1016,17 +1094,23 @@ async function createNoteV1({
 // Extract it when present; null for no-change (no update emitted), bare
 // bodies, or unexpected shapes.
 function noteFromWriteEnvelope(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  res: any,
+  res: unknown,
   expectedType: 'note-created' | 'note-updated' = 'note-updated'
 ): NotesV1Note | null {
-  const update = res?.body?.response?.update;
-  const noteUpdate = update?.type === 'note-update' ? update.noteUpdate : null;
-  if (!noteUpdate || noteUpdate.type !== expectedType || !noteUpdate.note) {
+  const response = objectField(objectField(res, 'body'), 'response');
+  const update = objectField(response, 'update');
+  const noteUpdate =
+    objectField(update, 'type') === 'note-update'
+      ? objectField(update, 'noteUpdate')
+      : undefined;
+  if (
+    objectField(noteUpdate, 'type') !== expectedType ||
+    objectField(noteUpdate, 'note') === undefined
+  ) {
     return null;
   }
   try {
-    return normalizeNoteV1(noteUpdate.note);
+    return normalizeNoteV1(objectField(noteUpdate, 'note'));
   } catch {
     return null;
   }
@@ -1056,10 +1140,17 @@ async function updateNoteBodyV1({
   if (expectedRevision !== undefined) {
     payload.expectedRevision = expectedRevision;
   }
-  const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', payload);
+  const res = await requestJson<unknown>(
+    noteV1Path(normalized, noteId),
+    'PUT',
+    payload
+  );
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
   return {
-    status: res?.body?.type === 'no-change' ? 'no-change' : 'ok',
+    status:
+      objectField(objectField(res, 'body'), 'type') === 'no-change'
+        ? 'no-change'
+        : 'ok',
     note: noteFromWriteEnvelope(res),
   };
 }
@@ -1074,9 +1165,13 @@ async function renameNoteV1({
   title: string;
 }): Promise<NotesV1Note | null> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', {
-    title,
-  });
+  const res = await requestJson<unknown>(
+    noteV1Path(normalized, noteId),
+    'PUT',
+    {
+      title,
+    }
+  );
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
   return noteFromWriteEnvelope(res);
 }
@@ -1091,9 +1186,11 @@ async function moveNoteV1({
   folder: number;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', {
-    folder,
-  });
+  const res = await requestJson<unknown>(
+    noteV1Path(normalized, noteId),
+    'PUT',
+    { folder }
+  );
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
 }
 
@@ -1105,7 +1202,10 @@ async function deleteNoteV1({
   noteId: number;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(noteV1Path(normalized, noteId), 'DELETE');
+  const res = await requestJson<unknown>(
+    noteV1Path(normalized, noteId),
+    'DELETE'
+  );
   assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
 }
 
@@ -1117,7 +1217,10 @@ async function listNoteHistoryV1({
   noteId: number;
 }): Promise<NotesV1NoteRevision[]> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(noteHistoryV1Path(normalized, noteId), 'GET');
+  const res = await requestJson<unknown>(
+    noteHistoryV1Path(normalized, noteId),
+    'GET'
+  );
   return requireArray(res, normalizeNoteRevisionV1);
 }
 
@@ -1128,7 +1231,12 @@ async function listFoldersV1(
   options?: RequestJsonOptions
 ): Promise<NotesV1Folder[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson(foldersV1Path(flag), 'GET', undefined, options);
+  const res = await requestJson<unknown>(
+    foldersV1Path(flag),
+    'GET',
+    undefined,
+    options
+  );
   return requireArray(res, normalizeFolderV1);
 }
 
@@ -1140,7 +1248,10 @@ async function getFolderV1({
   folderId: number;
 }): Promise<NotesV1Folder> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(folderV1Path(normalized, folderId), 'GET');
+  const res = await requestJson<unknown>(
+    folderV1Path(normalized, folderId),
+    'GET'
+  );
   return normalizeFolderV1(requireObject(res));
 }
 
@@ -1158,7 +1269,11 @@ async function createFolderV1({
   if (parent !== undefined) {
     payload.parent = parent;
   }
-  const res = await requestJson(foldersV1Path(normalized), 'POST', payload);
+  const res = await requestJson<unknown>(
+    foldersV1Path(normalized),
+    'POST',
+    payload
+  );
   assertWriteOk(res, folderCreateChecks(notesChannelId(normalized)));
 }
 
@@ -1172,9 +1287,11 @@ async function renameFolderV1({
   name: string;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(folderV1Path(normalized, folderId), 'PUT', {
-    folderName: name,
-  });
+  const res = await requestJson<unknown>(
+    folderV1Path(normalized, folderId),
+    'PUT',
+    { folderName: name }
+  );
   assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
 }
 
@@ -1188,9 +1305,11 @@ async function moveFolderV1({
   parent: number;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(folderV1Path(normalized, folderId), 'PUT', {
-    parent,
-  });
+  const res = await requestJson<unknown>(
+    folderV1Path(normalized, folderId),
+    'PUT',
+    { parent }
+  );
   assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
 }
 
@@ -1204,7 +1323,7 @@ async function deleteFolderV1({
   recursive: boolean;
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
-  const res = await requestJson(
+  const res = await requestJson<unknown>(
     `${folderV1Path(normalized, folderId)}?recursive=${recursive ? 'true' : 'false'}`,
     'DELETE'
   );
@@ -1217,7 +1336,7 @@ async function listMembersV1(
   target: NotesTarget
 ): Promise<NotesV1MemberRecord[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson(membersV1Path(flag), 'GET');
+  const res = await requestJson<unknown>(membersV1Path(flag), 'GET');
   return requireArray(res, normalizeMemberV1);
 }
 
@@ -1383,7 +1502,7 @@ export async function batchImportNotesV1({
     },
   };
 
-  const res = await requestJson(NOTES_V1_PATH, 'POST', body, {
+  const res = await requestJson<unknown>(NOTES_V1_PATH, 'POST', body, {
     reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
   });
 
