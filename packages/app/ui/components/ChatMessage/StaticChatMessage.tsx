@@ -72,6 +72,9 @@ export function StaticChatMessage({
   const isNotice = post.type === 'notice';
   const draftInputContext = useDraftInputContext();
   const navigateToA2UITarget = useA2UINavigation();
+  const currentUserId = useCurrentUserId();
+  const canUseAgentProviderControls =
+    post.authorId === getBotUserIdForUser(currentUserId);
 
   if (isNotice) {
     showAuthor = false;
@@ -111,7 +114,9 @@ export function StaticChatMessage({
       selection?: PostBlobDataEntryA2UISelection
     ) => {
       if (action.event.name === A2UI.action.navigate) {
-        await navigateToA2UITarget(action.event.context.target);
+        await navigateToA2UITarget(action.event.context.target, {
+          allowBotMcpSettings: canUseAgentProviderControls,
+        });
         return;
       }
 
@@ -143,13 +148,18 @@ export function StaticChatMessage({
         }
       );
     },
-    [draftInputContext, navigateToA2UITarget]
+    [canUseAgentProviderControls, draftInputContext, navigateToA2UITarget]
   );
 
   const isA2UIActionAvailable = useCallback(
     (action: A2UI.Button['action']) => {
       if (action.event.name === A2UI.action.navigate) {
-        return true;
+        const target = action.event.context.target;
+        return (
+          target.type !== 'screen' ||
+          target.screen !== 'botMcpSettings' ||
+          canUseAgentProviderControls
+        );
       }
 
       if (action.event.name === A2UI.action.sendMessage) {
@@ -162,7 +172,7 @@ export function StaticChatMessage({
 
       return false;
     },
-    [draftInputContext]
+    [canUseAgentProviderControls, draftInputContext]
   );
 
   const canRenderA2UI = isDmChannelId(post.channelId);
@@ -172,9 +182,6 @@ export function StaticChatMessage({
     () => postContent.some((block) => block.type === 'a2ui'),
     [postContent]
   );
-  const currentUserId = useCurrentUserId();
-  const canUseAgentProviderControls =
-    post.authorId === getBotUserIdForUser(currentUserId);
   // One live query per channel (deduped across messages); the posts-table
   // dependency re-runs it when the viewer's reply lands, including the
   // optimistic insert, so an answered control stays locked across remounts.
