@@ -5,23 +5,6 @@ import {
 } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 
-/** Detect the durable acknowledgement independently of row virtualization. */
-export function hasAgentOnboardingProvisionAcknowledgement(
-  posts: db.Post[] | null | undefined,
-  agentShipId: string | null | undefined,
-  provisionId: string | null | undefined
-): boolean {
-  if (!agentShipId || !provisionId) return false;
-  return Boolean(
-    posts?.some(
-      (post) =>
-        post.authorId === agentShipId &&
-        findPostBlobEntry(post.blob, 'tlon-agent-provision-ack')
-          ?.provisionId === provisionId
-    )
-  );
-}
-
 function hasMarker(
   posts: db.Post[] | null | undefined,
   agentShipId: string | null | undefined,

@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   hasAgentOnboardingFirstEntry,
   hasAgentOnboardingFirstEntryFailed,
-  hasAgentOnboardingProvisionAcknowledgement,
 } from './agentOnboardingFirstEntry';
 
 const REFRESH_INTERVAL_MS = 5_000;
@@ -18,7 +17,6 @@ export function useAgentOnboardingFirstEntry({
   isFocused,
   posts,
   provisionAcknowledgedAt,
-  provisionId,
 }: {
   agentShipId: string | null | undefined;
   awaitingFirstEntry: boolean;
@@ -26,30 +24,7 @@ export function useAgentOnboardingFirstEntry({
   isFocused: boolean;
   posts: db.Post[] | null | undefined;
   provisionAcknowledgedAt: number | null | undefined;
-  provisionId: string | null | undefined;
 }) {
-  const provisionAcknowledged = useMemo(
-    () =>
-      hasAgentOnboardingProvisionAcknowledgement(
-        posts,
-        agentShipId,
-        provisionId
-      ),
-    [agentShipId, posts, provisionId]
-  );
-
-  useEffect(() => {
-    if (!groupId || !provisionAcknowledged || provisionAcknowledgedAt) return;
-    void db.agentGroupOnboardingLocks.setValue((current) => {
-      const lock = current[groupId];
-      if (!lock || lock.provisionAcknowledgedAt) return current;
-      return {
-        ...current,
-        [groupId]: { ...lock, provisionAcknowledgedAt: Date.now() },
-      };
-    });
-  }, [groupId, provisionAcknowledged, provisionAcknowledgedAt]);
-
   const settled = useMemo(
     () =>
       hasAgentOnboardingFirstEntry(posts, agentShipId) ||
