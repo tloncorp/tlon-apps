@@ -69,8 +69,8 @@ import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
 import {
+  findAgentOnboardingOrientationCompletePostId,
   isAgentOnboardingFirstGroupRequestPost,
-  isAgentOnboardingOrientationCompletePost,
 } from './postVisibility';
 
 const THREAD_UNREAD_OVERLAY_CHANNEL_TYPES: db.ChannelType[] = [
@@ -366,12 +366,15 @@ export function Channel({
   const title = utils.useChannelTitle(channel);
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const currentUserId = useCurrentUserId();
+  const groupAgents = db.agentGroupAgents.useValue();
+  const groupId = group?.id ?? channel.groupId ?? undefined;
+  const groupAgentId = groupId ? groupAgents[groupId] : undefined;
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
   const collectionRef = useRef<PostCollectionHandle>(null);
   const orientationCompletePostId = useMemo(
-    () => posts?.find(isAgentOnboardingOrientationCompletePost)?.id ?? null,
-    [posts]
+    () => findAgentOnboardingOrientationCompletePostId(posts, groupAgentId),
+    [groupAgentId, posts]
   );
   const hasFirstGroupOnboardingRequest = useMemo(
     () =>

@@ -32,6 +32,20 @@ export function isAgentOnboardingOrientationCompletePost(
   );
 }
 
+export function findAgentOnboardingOrientationCompletePostId(
+  posts: Array<Pick<db.Post, 'id' | 'authorId' | 'blob'>> | null | undefined,
+  agentId: string | undefined
+): string | null {
+  if (!agentId) return null;
+  return (
+    posts?.find(
+      (post) =>
+        post.authorId === agentId &&
+        isAgentOnboardingOrientationCompletePost(post)
+    )?.id ?? null
+  );
+}
+
 export function isAgentGroupSetupRequestPost(
   post: Pick<db.Post, 'blob'>
 ): boolean {

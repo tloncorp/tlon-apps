@@ -2,6 +2,7 @@ import { appendToPostBlob } from '@tloncorp/shared/logic';
 import { describe, expect, it } from 'vitest';
 
 import {
+  findAgentOnboardingOrientationCompletePostId,
   isAgentGroupSetupActive,
   isAgentGroupSetupCompletePost,
   isAgentGroupSetupRequestPost,
@@ -89,6 +90,33 @@ describe('isAgentOnboardingOrientationCompletePost', () => {
         }),
       })
     ).toBe(false);
+  });
+});
+
+describe('findAgentOnboardingOrientationCompletePostId', () => {
+  const marker = (id: string, authorId: string) => ({
+    id,
+    authorId,
+    blob: appendToPostBlob(undefined, {
+      type: 'tlon-agent-post-marker' as const,
+      version: 1 as const,
+      key: 'orientation-complete',
+    }),
+  });
+
+  it('accepts only the recorded group agent marker', () => {
+    expect(
+      findAgentOnboardingOrientationCompletePostId(
+        [marker('spoofed', '~member'), marker('real', '~bot')],
+        '~bot'
+      )
+    ).toBe('real');
+    expect(
+      findAgentOnboardingOrientationCompletePostId(
+        [marker('spoofed', '~member')],
+        '~bot'
+      )
+    ).toBeNull();
   });
 });
 
