@@ -152,14 +152,36 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function memoryRunStore() {
+function assertNoUndefined(value: unknown, path = 'value'): void {
+  if (value === undefined) {
+    throw new Error(`${path} must be JSON-serializable`);
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      assertNoUndefined(item, `${path}[${index}]`)
+    );
+    return;
+  }
+  if (value && typeof value === 'object') {
+    Object.entries(value).forEach(([key, item]) =>
+      assertNoUndefined(item, `${path}.${key}`)
+    );
+  }
+}
+
+function memoryRunStore({ rejectUndefined = false } = {}) {
   const records = new Map<string, AgentOnboardingRunRecord>();
+  const validate = (value: AgentOnboardingRunRecord) => {
+    if (rejectUndefined) assertNoUndefined(value);
+  };
   return {
     register: vi.fn(async (key: string, value: AgentOnboardingRunRecord) => {
+      validate(value);
       records.set(key, value);
     }),
     registerIfAbsent: vi.fn(
       async (key: string, value: AgentOnboardingRunRecord) => {
+        validate(value);
         if (records.has(key)) return false;
         records.set(key, value);
         return true;
@@ -260,6 +282,58 @@ describe('first-run durable claims', () => {
     ).resolves.toMatchObject({
       outcome: 'recovered',
       record: { runId: 'run-1', status: 'enqueued' },
+    });
+  });
+
+  it('persists enqueue state before an outcome exists', async () => {
+    const store = memoryRunStore({ rejectUndefined: true });
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    await store.register(recordKey, initial);
+
+    await recordAgentOnboardingRunEnqueued(initial, 'run-1', 1_000);
+
+    await expect(store.lookup(recordKey)).resolves.toEqual({
+      ...initial,
+      runId: 'run-1',
+      status: 'enqueued',
+      enqueuedAt: 1_000,
+    });
+  });
+
+  it('persists an outcome without undefined optional fields', async () => {
+    const store = memoryRunStore({ rejectUndefined: true });
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    await store.register(recordKey, initial);
+    await recordAgentOnboardingRunEnqueued(initial, 'run-1', 1_000);
+
+    await recordAgentOnboardingRunOutcome('run-1', {
+      status: 'ok',
+      delivered: true,
+      observedAt: 1_001,
+    });
+
+    await expect(store.lookup(recordKey)).resolves.toMatchObject({
+      outcome: { status: 'ok', delivered: true, observedAt: 1_001 },
+    });
+  });
+
+  it('persists a pending outcome without undefined optional fields', async () => {
+    const store = memoryRunStore({ rejectUndefined: true });
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    await store.register(recordKey, initial);
+
+    await recordAgentOnboardingRunOutcome('run-1', {
+      status: 'error',
+      delivered: false,
+      observedAt: 1_001,
+    });
+    await recordAgentOnboardingRunEnqueued(initial, 'run-1', 1_000);
+
+    await expect(store.lookup(recordKey)).resolves.toMatchObject({
+      outcome: { status: 'error', delivered: false, observedAt: 1_001 },
     });
   });
 
