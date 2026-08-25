@@ -372,6 +372,7 @@ export function Channel({
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
   const isNarrow = useIsWindowNarrow();
+  const inView = useIsFocused();
   const collectionRef = useRef<PostCollectionHandle>(null);
   const orientationCompletePostId = useMemo(
     () => findAgentOnboardingOrientationCompletePostId(posts, groupAgentId),
@@ -397,6 +398,7 @@ export function Channel({
   useEffect(() => {
     if (
       disableBackButton ||
+      !inView ||
       !isNarrow ||
       shownOnboardingBackTooltipsLoading ||
       !hasFirstGroupOnboardingRequest ||
@@ -408,24 +410,34 @@ export function Channel({
     }
 
     claimedOnboardingBackTooltipRef.current = orientationCompletePostId;
-    let claimed = false;
-    void db.agentOnboardingBackTooltipShown
-      .setValue((current) => {
-        if (current[orientationCompletePostId]) return current;
-        claimed = true;
-        return { ...current, [orientationCompletePostId]: true };
-      })
-      .then(() => {
-        if (claimed) setShowOnboardingBackTooltip(true);
-      });
+    setShowOnboardingBackTooltip(true);
   }, [
     disableBackButton,
     hasFirstGroupOnboardingRequest,
+    inView,
     isNarrow,
     orientationCompletePostId,
     shownOnboardingBackTooltips,
     shownOnboardingBackTooltipsLoading,
   ]);
+
+  useEffect(() => {
+    if (!showOnboardingBackTooltip || !inView || !orientationCompletePostId) {
+      return;
+    }
+    // Persist only after a focused render has actually shown the hint. This
+    // avoids consuming the one-shot marker while another screen covers the
+    // still-mounted channel.
+    void db.agentOnboardingBackTooltipShown.setValue((current) =>
+      current[orientationCompletePostId]
+        ? current
+        : { ...current, [orientationCompletePostId]: true }
+    );
+  }, [inView, orientationCompletePostId, showOnboardingBackTooltip]);
+
+  useEffect(() => {
+    if (!inView) setShowOnboardingBackTooltip(false);
+  }, [inView]);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const isDM = isDmChannelId(channel.id);
@@ -489,7 +501,6 @@ export function Channel({
 
   const { attachAssets } = useAttachmentContext();
 
-  const inView = useIsFocused();
   const isUserActive = useIsUserActive();
   const hasLoaded = !!(posts && channel);
   const shouldCheckThreadUnreadActivity =
@@ -946,7 +957,9 @@ export function Channel({
                           showSpinner={showHeaderLoading}
                           showSearchButton={isChatChannel && !disableBackButton}
                         />
-                        {showOnboardingBackTooltip && !disableBackButton ? (
+                        {showOnboardingBackTooltip &&
+                        inView &&
+                        !disableBackButton ? (
                           <AgentOnboardingBackTooltip
                             top={
                               // iOS portals into full-window coordinates, so

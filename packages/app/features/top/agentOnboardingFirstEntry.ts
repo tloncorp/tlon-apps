@@ -39,3 +39,38 @@ export function hasAgentOnboardingFirstEntryFailed(
     AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER
   );
 }
+
+/** Match the opened note to the cite carried by the authenticated reveal. */
+export function isAgentOnboardingFirstEntryNote(
+  posts: db.Post[] | null | undefined,
+  agentShipId: string | null | undefined,
+  notebookFlag: string,
+  noteId: number
+): boolean {
+  if (!agentShipId) return false;
+  return Boolean(
+    posts?.some((post) => {
+      if (
+        post.authorId !== agentShipId ||
+        findPostBlobEntry(post.blob, 'tlon-agent-post-marker')?.key !==
+          AGENT_ONBOARDING_FIRST_ENTRY_MARKER
+      ) {
+        return false;
+      }
+      const content = Array.isArray(post.content) ? post.content : [];
+      return content.some(
+        (entry) =>
+          entry &&
+          typeof entry === 'object' &&
+          'type' in entry &&
+          entry.type === 'reference' &&
+          'referenceType' in entry &&
+          entry.referenceType === 'note' &&
+          'channelId' in entry &&
+          entry.channelId === `notes/${notebookFlag}` &&
+          'noteId' in entry &&
+          String(entry.noteId) === String(noteId)
+      );
+    })
+  );
+}
