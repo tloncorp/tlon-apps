@@ -142,8 +142,10 @@ export function getMissingNotificationTargetRecovery(
 export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isTlonEmployee = db.isTlonEmployee.useValue();
-  const { locked: agentOnboardingLocked } =
-    useAnyAgentGroupOnboardingLock();
+  const {
+    locked: agentOnboardingLocked,
+    isLoading: agentOnboardingLockLoading,
+  } = useAnyAgentGroupOnboardingLock();
 
   const [notifToProcess, setNotifToProcess] =
     useState<ProcessableNotificationData | null>(null);
@@ -389,7 +391,11 @@ export default function useNotificationListener() {
       }
     }
 
-    if (notifToProcess && !agentOnboardingLocked) {
+    if (
+      notifToProcess &&
+      !agentOnboardingLockLoading &&
+      !agentOnboardingLocked
+    ) {
       const notificationData = notifToProcess;
       const handleNavigate = (() => {
         switch (notificationData.type) {
@@ -465,6 +471,7 @@ export default function useNotificationListener() {
     }
   }, [
     agentOnboardingLocked,
+    agentOnboardingLockLoading,
     notifToProcess,
     navigation,
     isTlonEmployee,
