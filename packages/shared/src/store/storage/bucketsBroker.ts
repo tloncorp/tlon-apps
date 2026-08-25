@@ -9,15 +9,25 @@ const DEFAULT_MEMEX_BASE_URL = 'https://memex.tlon.network';
  * half of the %buckets `%set-broker-base` poke — set TLON_MEMEX_URL and poke
  * the host to match.
  *
+ * `process.env.TLON_MEMEX_URL` is written out in full, and not behind optional
+ * chaining, because Vite's `define` substitutes the literal expression: written
+ * as `process.env?.TLON_MEMEX_URL` it does not match and the browser silently
+ * keeps the production default. The try/catch is what makes a bare `process`
+ * reference safe in a runtime where nothing substituted it.
+ *
  * Mirrors memexBaseUrl() in packages/api/src/client/storageApi.ts, rather than
  * importing it, because shared/ does not depend on api/.
  */
+function memexBaseUrl(): string {
+  try {
+    return process.env.TLON_MEMEX_URL?.trim() || DEFAULT_MEMEX_BASE_URL;
+  } catch {
+    return DEFAULT_MEMEX_BASE_URL;
+  }
+}
+
 function bucketsBrokerUrl(): string {
-  const base =
-    (typeof process !== 'undefined'
-      ? process.env?.TLON_MEMEX_URL?.trim()
-      : undefined) || DEFAULT_MEMEX_BASE_URL;
-  return `${base.replace(/\/+$/, '')}/v2/buckets`;
+  return `${memexBaseUrl().replace(/\/+$/, '')}/v2/buckets`;
 }
 
 type BrokerErrorBody = {

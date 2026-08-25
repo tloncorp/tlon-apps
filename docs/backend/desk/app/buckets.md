@@ -143,7 +143,7 @@ The credential goes in `X-Landscape-Token`. Neither it nor a bearer read token e
 :buckets &noun [%set-broker-base `(unit @t)`~]     :: back to the default
 ```
 
-Only `https://` bases are accepted: the credential rides in a header, so a base naming an unexpected or plaintext host does not fail closed, it discloses the secret. `/x/v1/broker/base` reads back what a live host is using. The client half is the `TLON_MEMEX_URL` environment variable, which `bucketsBroker.ts` and `storageApi.ts` both honour.
+Only `https://` bases are accepted: the credential rides in a header, so a base naming an unexpected or plaintext host does not fail closed, it discloses the secret. `/x/v1/broker/base` reads back what a live host is using. The client half is the `TLON_MEMEX_URL` environment variable. On web it reaches the bundle only because `apps/tlon-web/vite.config.mts` substitutes it in its `define` block — `envPrefix` exposes `VITE_*` through `import.meta.env`, and nothing else arrives via `process.env`. Mobile would need the same wiring through Expo before the override works there.
 
 **Memex ships before this agent does.** A mint the broker refuses is never stored, whatever the refusal — including a 404 from a broker without the endpoint — because a token the broker does not hold would 403 on first use. There is deliberately no compatibility path for the reverse order.
 
