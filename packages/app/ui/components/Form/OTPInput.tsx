@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { TextInput as RNTextInput } from 'react-native';
-import { Text, View, XStack } from 'tamagui';
+import { Text, View, XStack, isWeb } from 'tamagui';
 
 import { Field } from './Field';
 
@@ -18,10 +18,12 @@ export function OTPInput({
   error?: string;
 }) {
   const inputRef = useRef<RNTextInput>(null);
+  const lastNativeTextRef = useRef('');
   const fullValue = value.join('');
 
   const handleChangeText = useCallback(
     (text: string) => {
+      lastNativeTextRef.current = text;
       const sanitizedText = text.replace(/\D/g, '').slice(0, length);
       const nextCode = sanitizedText.split('');
       while (nextCode.length < length) {
@@ -37,6 +39,17 @@ export function OTPInput({
       inputRef.current?.focus();
     });
   }, []);
+
+  useEffect(() => {
+    // The native input is uncontrolled (see below), so when the parent
+    // resets the code externally (e.g. requesting a new one) we have to
+    // clear the native text imperatively.
+    if (isWeb || fullValue !== '' || lastNativeTextRef.current === '') {
+      return;
+    }
+    lastNativeTextRef.current = '';
+    inputRef.current?.clear();
+  }, [fullValue]);
 
   return (
     <Field
@@ -70,7 +83,11 @@ export function OTPInput({
         })}
         <RNTextInput
           ref={inputRef}
-          value={fullValue}
+          // Echoing a controlled value back mid-IME-composition duplicates
+          // the composed text on Android (stale mostRecentEventCount) —
+          // worse here because the echoed value is sanitized — so native
+          // stays uncontrolled; the digit boxes above render from state.
+          value={isWeb ? fullValue : undefined}
           onChangeText={handleChangeText}
           keyboardType="number-pad"
           autoComplete="off"
