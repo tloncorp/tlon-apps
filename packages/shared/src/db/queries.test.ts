@@ -810,6 +810,14 @@ test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', asy
       componentId: 'topics',
     },
   });
+  expect(receipts.provisions).toMatchObject([
+    { postId: 'provision-old', entry: { topics: ['Weather'] } },
+    {
+      postId: 'provision-new',
+      entry: { topics: ['Robotics'] },
+      selection: { sourcePostId: 'source-post' },
+    },
+  ]);
   expect(receipts.providerConfig).toMatchObject({
     postId: 'provider-live',
     receivedAt: refDate + 2,
