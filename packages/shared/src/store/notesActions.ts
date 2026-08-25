@@ -360,13 +360,7 @@ export async function createNotebookNote({
       bodyMd: created.bodyMd ?? body,
       revision: created.revision ?? 0,
     };
-    await db.saveNotesNotebookSnapshot({
-      ...baseline,
-      notes: [
-        ...baseline.notes.filter((existing) => existing.noteId !== note.noteId),
-        note,
-      ],
-    });
+    await db.upsertNotesNote(note);
     return note;
   }
 
