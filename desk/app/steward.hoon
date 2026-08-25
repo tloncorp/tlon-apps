@@ -89,7 +89,6 @@
   ++  on-watch
     |=  =path
     ^-  (quip card _this)
-    ?>  =(src our):bowl
     =^  cards  state  abet:(watch:cor path)
     [cards this]
   ++  on-peek
@@ -130,9 +129,26 @@
     ?>  =(src.bowl our.bowl)
     =+  !<(=action:v1:s vase)
     ?-  -.action
-      %configure    cor(owner.state `owner.action)
-      %trust-bot    cor(bots.state (~(put in bots.state) ship.action))
-      %untrust-bot  cor(bots.state (~(del in bots.state) ship.action))
+        %configure
+      ::  a replaced owner may still hold an automation subscription it
+      ::  is no longer permitted; kick it (kicking a ship with no
+      ::  subscription is harmless). the local ship is always
+      ::  permitted, so it is never kicked
+      ::
+      =/  old  owner.state
+      =.  owner.state  `owner.action
+      ?~  old  cor
+      ?:  =(u.old owner.action)  cor
+      ?:  =(u.old our.bowl)  cor
+      (give %kick ~[/v1/automation/tasks] `u.old)
+    ::
+        %trust-bot
+      =.  bots.state  (~(put in bots.state) ship.action)
+      (au-trust-bot:au-core ship.action)
+    ::
+        %untrust-bot
+      =.  bots.state  (~(del in bots.state) ship.action)
+      (au-untrust-bot:au-core ship.action)
     ==
   ::
   ::  lens module actions. auth is per-variant (each shape expects a
@@ -152,12 +168,32 @@
     (au-poke-action:au-core !<(action:v1:sa vase))
   ==
 ::
+::  watch auth is per-path: the automation projection feed admits the
+::  configured owner cross-ship; every other path is local-only.
+::  rejection is a crash (watch nack).
+::
 ++  watch
   |=  =path
   ^+  cor
   ?+  path  ~|(bad-watch-path+path !!)
-    [%v1 %lens *]     (le-watch:le-core [%v1 t.t.path])
-    [%v1 %gateway *]  (ga-watch:ga-core [%v1 t.t.path])
+      [%v1 %lens *]
+    ?>  =(src.bowl our.bowl)
+    (le-watch:le-core [%v1 t.t.path])
+  ::
+      [%v1 %gateway *]
+    ?>  =(src.bowl our.bowl)
+    (ga-watch:ga-core [%v1 t.t.path])
+  ::
+      [%v1 %automation %tasks ~]
+    ?>  |(=(src.bowl our.bowl) =(`src.bowl owner.state))
+    au-watch-tasks:au-core
+  ::
+  ::  client feed: local-only, serving the mirror. initial facts: one
+  ::  snapshot per entry
+  ::
+      [%v1 %automation %mirror ~]
+    ?>  =(src.bowl our.bowl)
+    au-watch-mirror:au-core
   ==
 ::
 ++  peek
@@ -211,6 +247,12 @@
       ?~  p.sign  cor
       ((slog 'steward: gateway dm send failed' u.p.sign) cor)
     ==
+  ::
+  ::  a trusted bot's projection feed: everything on this wire is
+  ::  attributed to the ship in the wire, never a payload field
+  ::
+      [%automation %tasks @ ~]
+    (au-handle-bot-sign:au-core (slav %p i.t.t.wire) sign)
   ==
 ::
 ++  arvo
@@ -655,6 +697,13 @@
 ::
 ++  au-core
   |%
+  ::  the local projection: this ship's mirror entry, read as empty
+  ::  while the local harness has never projected
+  ::
+  ++  au-local-tasks
+    ^-  (map @t task:v1:sa)
+    (~(gut by mirror.automation.state) our.bowl *(map @t task:v1:sa))
+  ::
   ++  au-poke-action
     |=  =action:v1:sa
     ^+  cor
@@ -662,14 +711,205 @@
     ?-  -.action
         %project
       =/  projected  (au-build-task-map tasks.action)
-      cor(tasks.automation.state projected)
+      =/  old  au-local-tasks
+      =/  had  (~(has by mirror.automation.state) our.bowl)
+      ::  an equal projection with an existing entry is a no-op: no
+      ::  state write, no facts on either feed. equal-but-absent (the
+      ::  first empty projection) still creates the entry; the
+      ::  projection-feed diff below is then empty, and clients learn
+      ::  of the new entry through the snapshot alone
+      ::
+      ?:  &(=(projected old) had)  cor
+      =.  mirror.automation.state
+        (~(put by mirror.automation.state) our.bowl projected)
+      =.  cor  (au-give-deltas old projected)
+      ::  the client feed's unit of update mirrors the projection
+      ::  feed's: the first accepted projection announces the entry as
+      ::  one snapshot (even when empty); later changes flow as
+      ::  per-task deltas attributed to the local ship
+      ::
+      ?.  had
+        (au-give-mirror-update [%tasks our.bowl projected])
+      (au-give-mirror-deltas our.bowl old projected)
     ==
+  ::
+  ::  one initial fact on subscribe: the complete current projection,
+  ::  including when empty. empty paths target only the new
+  ::  subscriber, not everyone on the path
+  ::
+  ++  au-watch-tasks
+    ^+  cor
+    %+  give  %fact
+    :*  ~
+        %steward-automation-update-1
+        !>(`update:v1:sa`[%tasks au-local-tasks])
+    ==
+  ::
+  ++  au-give-update
+    |=  =update:v1:sa
+    ^+  cor
+    (give %fact ~[/v1/automation/tasks] %steward-automation-update-1 !>(update))
+  ::
+  ::  diff old vs new into un-attributed delta facts on the projection
+  ::  feed: %set per added or changed ID, %del per removed ID
+  ::
+  ++  au-give-deltas
+    |=  [old=(map @t task:v1:sa) new=(map @t task:v1:sa)]
+    ^+  cor
+    =.  cor
+      =/  entries  ~(tap by new)
+      |-  ^+  cor
+      ?~  entries  cor
+      =?  cor  !=((~(get by old) p.i.entries) `q.i.entries)
+        (au-give-update [%set p.i.entries q.i.entries])
+      $(entries t.entries)
+    =/  entries  ~(tap by old)
+    |-  ^+  cor
+    ?~  entries  cor
+    =?  cor  !(~(has by new) p.i.entries)
+      (au-give-update [%del p.i.entries])
+    $(entries t.entries)
+  ::
+  ::  ensure a live automation subscription to a trusted bot. the
+  ::  local ship never gets a watch: its mirror entry is written by
+  ::  %project, not a subscription. guarding on wex.bowl (not
+  ::  trust-set membership) makes a re-poke an idempotent repair
+  ::  after a nacked watch without duplicating a live subscription
+  ::
+  ++  au-trust-bot
+    |=  bot=ship
+    ^+  cor
+    ?:  =(bot our.bowl)  cor
+    ?:  (~(has by wex.bowl) [/automation/tasks/(scot %p bot) bot %steward])
+      cor
+    (emit (au-watch-card bot))
+  ::
+  ::  untrust: leave unconditionally (a %leave with no live
+  ::  subscription is harmless) and drop the bot's mirror entry,
+  ::  telling clients it is gone. the local ship is a set-only no-op:
+  ::  there is never a self-subscription and mirror[our] is
+  ::  %project-owned, untouched by trust changes
+  ::
+  ++  au-untrust-bot
+    |=  bot=ship
+    ^+  cor
+    ?:  =(bot our.bowl)  cor
+    =.  cor
+      (emit %pass /automation/tasks/(scot %p bot) %agent [bot %steward] %leave ~)
+    ?.  (~(has by mirror.automation.state) bot)  cor
+    =.  mirror.automation.state  (~(del by mirror.automation.state) bot)
+    (au-give-mirror-update [%gone bot])
+  ::
+  ++  au-watch-card
+    |=  bot=ship
+    ^-  card
+    [%pass /automation/tasks/(scot %p bot) %agent [bot %steward] %watch /v1/automation/tasks]
+  ::
+  ++  au-handle-bot-sign
+    |=  [bot=ship =sign:agent:gall]
+    ^+  cor
+    ?+  -.sign  cor
+        %fact
+      ?.  ?=(%steward-automation-update-1 p.cage.sign)  cor
+      (au-apply-bot-update bot !<(update:v1:sa q.cage.sign))
+    ::
+    ::  resubscribe only while the bot remains trusted; the initial
+    ::  snapshot on the new subscription repairs anything missed
+    ::
+        %kick
+      ?.  (~(has in bots.state) bot)  cor
+      (emit (au-watch-card bot))
+    ::
+        %watch-ack
+      ?~  p.sign  cor
+      ((slog 'steward: automation watch nacked' u.p.sign) cor)
+    ==
+  ::
+  ++  au-apply-bot-update
+    |=  [bot=ship =update:v1:sa]
+    ^+  cor
+    ?-  -.update
+    ::  a snapshot atomically replaces the entry — and creates it: the
+    ::  first snapshot is what makes a bot mirrored. an unchanged
+    ::  existing entry emits nothing
+    ::
+        %tasks
+      ?:  =((~(get by mirror.automation.state) bot) `tasks.update)
+        cor
+      =.  mirror.automation.state
+        (~(put by mirror.automation.state) bot tasks.update)
+      (au-give-mirror-update [%tasks bot tasks.update])
+    ::
+    ::  a delta never creates an entry: mirroring starts at the first
+    ::  snapshot, so a delta for an unmirrored ship is ignored
+    ::
+        %set
+      ?~  entry=(~(get by mirror.automation.state) bot)  cor
+      =.  mirror.automation.state
+        %+  ~(put by mirror.automation.state)  bot
+        (~(put by u.entry) id.update task.update)
+      (au-give-mirror-update [%set bot id.update task.update])
+    ::
+        %del
+      ?~  entry=(~(get by mirror.automation.state) bot)  cor
+      ?.  (~(has by u.entry) id.update)  cor
+      =.  mirror.automation.state
+        %+  ~(put by mirror.automation.state)  bot
+        (~(del by u.entry) id.update)
+      (au-give-mirror-update [%del bot id.update])
+    ==
+  ::
+  ::  initial facts on subscribe: one %tasks snapshot per mirror
+  ::  entry, each attributed to its ship. an empty mirror gives none.
+  ::  empty paths target only the new subscriber
+  ::
+  ++  au-watch-mirror
+    ^+  cor
+    =/  entries  ~(tap by mirror.automation.state)
+    |-  ^+  cor
+    ?~  entries  cor
+    =.  cor
+      %+  give  %fact
+      :*  ~
+          %steward-automation-mirror-1
+          !>(`mirror-update:v1:sa`[%tasks p.i.entries q.i.entries])
+      ==
+    $(entries t.entries)
+  ::
+  ++  au-give-mirror-update
+    |=  =mirror-update:v1:sa
+    ^+  cor
+    (give %fact ~[/v1/automation/mirror] %steward-automation-mirror-1 !>(mirror-update))
+  ::
+  ::  the client-feed image of au-give-deltas: the same per-task diff,
+  ::  attributed to .bot. kept as a parallel loop — sharing the diff
+  ::  would mean threading an emitter gate that closes over cor
+  ::
+  ++  au-give-mirror-deltas
+    |=  [bot=ship old=(map @t task:v1:sa) new=(map @t task:v1:sa)]
+    ^+  cor
+    =.  cor
+      =/  entries  ~(tap by new)
+      |-  ^+  cor
+      ?~  entries  cor
+      =?  cor  !=((~(get by old) p.i.entries) `q.i.entries)
+        (au-give-mirror-update [%set bot p.i.entries q.i.entries])
+      $(entries t.entries)
+    =/  entries  ~(tap by old)
+    |-  ^+  cor
+    ?~  entries  cor
+    =?  cor  !(~(has by new) p.i.entries)
+      (au-give-mirror-update [%del bot p.i.entries])
+    $(entries t.entries)
+  ::
   ++  au-peek
     |=  =path
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
       [%v1 %tasks ~]
-    ``steward-automation-task-map-1+!>(tasks.automation.state)
+    ``steward-automation-task-map-1+!>(au-local-tasks)
+      [%v1 %mirror ~]
+    ``steward-automation-mirror-map-1+!>(mirror.automation.state)
     ==
   ::  build the complete replacement before mutating state. a payload
   ::  with a duplicate ID crashes here, leaving the previous projection

@@ -90,6 +90,29 @@
     |=  jon=json
     ^-  task-map:v1:a
     ((ot tasks+(om task) ~) jon)
+  ++  update
+    |=  jon=json
+    ^-  update:v1:a
+    %.  jon
+    %-  of
+    :~  [%tasks (om task)]
+        [%set (ot id+so task+task ~)]
+        [%del (ot id+so ~)]
+    ==
+  ++  mirror-update
+    |=  jon=json
+    ^-  mirror-update:v1:a
+    %.  jon
+    %-  of
+    :~  [%tasks (ot bot+(se %p) tasks+(om task) ~)]
+        [%set (ot bot+(se %p) id+so task+task ~)]
+        [%del (ot bot+(se %p) id+so ~)]
+        [%gone (ot bot+(se %p) ~)]
+    ==
+  ++  mirror
+    |=  jon=json
+    ^-  mirror-map:v1:a
+    ((op ;~(pfix sig fed:ag) (om task)) jon)
   --
 ::
 ++  enjs
@@ -176,9 +199,71 @@
         %project
       (frond 'project' (frond 'tasks' a+(turn tasks.action identified-task)))
     ==
+  ::  +tasks-object: the bare ID-keyed task object, without a wrapper key
+  ::
+  ++  tasks-object
+    |=  tasks=task-map:v1:a
+    ^-  json
+    [%o (~(run by tasks) task)]
   ++  task-map
     |=  tasks=task-map:v1:a
     ^-  json
-    (frond 'tasks' [%o (~(run by tasks) task)])
+    (frond 'tasks' (tasks-object tasks))
+  ++  update
+    |=  =update:v1:a
+    ^-  json
+    ?-  -.update
+        %tasks
+      (frond 'tasks' (tasks-object tasks.update))
+    ::
+        %set
+      %+  frond  'set'
+      %-  pairs
+      :~  ['id' s+id.update]
+          ['task' (task task.update)]
+      ==
+    ::
+        %del
+      (frond 'del' (frond 'id' s+id.update))
+    ==
+  ++  mirror-update
+    |=  update=mirror-update:v1:a
+    ^-  json
+    ?-  -.update
+        %tasks
+      %+  frond  'tasks'
+      %-  pairs
+      :~  ['bot' s+(scot %p bot.update)]
+          ['tasks' (tasks-object tasks.update)]
+      ==
+    ::
+        %set
+      %+  frond  'set'
+      %-  pairs
+      :~  ['bot' s+(scot %p bot.update)]
+          ['id' s+id.update]
+          ['task' (task task.update)]
+      ==
+    ::
+        %del
+      %+  frond  'del'
+      %-  pairs
+      :~  ['bot' s+(scot %p bot.update)]
+          ['id' s+id.update]
+      ==
+    ::
+        %gone
+      (frond 'gone' (frond 'bot' s+(scot %p bot.update)))
+    ==
+  ::  note: bot is @p, not ship — inside =,(enjs:format) the ship
+  ::  TYPE is shadowed by the ++ship encoder arm
+  ::
+  ++  mirror
+    |=  =mirror-map:v1:a
+    ^-  json
+    %-  pairs
+    %+  turn  ~(tap by mirror-map)
+    |=  [bot=@p tasks=task-map:v1:a]
+    [(scot %p bot) (tasks-object tasks)]
   --
 --
