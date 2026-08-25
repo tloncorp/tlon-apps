@@ -1528,7 +1528,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       effectiveGroupInviteAllowlist.length > 0;
     if (shouldFetchGroupMetadata) {
       try {
-        const initData = await fetchInitData(api, runtime);
+        const initData = await fetchInitData(api, runtime, {
+          signal: opts.abortSignal,
+        });
         if (effectiveAutoDiscoverChannels && initData.channels.length > 0) {
           groupChannels = initData.channels;
         }
@@ -3764,7 +3766,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const _watchedDMs = new Set<string>();
 
     const mergeDiscoveredChannels = async () => {
-      const initData = await fetchInitData(api, runtime);
+      const initData = await fetchInitData(api, runtime, {
+        signal: opts.abortSignal,
+      });
       for (const [nest, groupFlag] of initData.channelToGroup) {
         channelToGroup.set(nest, groupFlag);
       }

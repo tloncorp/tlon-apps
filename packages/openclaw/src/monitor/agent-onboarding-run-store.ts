@@ -163,6 +163,15 @@ export async function recordAgentOnboardingRunEnqueued(
   await serializeWrite(initial.provisionId, async () => {
     const store = getAgentOnboardingRunStore();
     if (!store) {
+      const current = fallbackRecords.get(initial.provisionId);
+      if (
+        current &&
+        (current.status !== 'claimed' ||
+          current.claimOwnerId !== initial.claimOwnerId ||
+          current.claimedAt !== initial.claimedAt)
+      ) {
+        return;
+      }
       fallbackRecords.set(initial.provisionId, {
         ...initial,
         runId,
@@ -173,7 +182,13 @@ export async function recordAgentOnboardingRunEnqueued(
       return;
     }
     const current = await store.lookup(initial.provisionId);
-    if (current?.status === 'completed' || current?.status === 'failed') return;
+    if (
+      current?.status !== 'claimed' ||
+      current.claimOwnerId !== initial.claimOwnerId ||
+      current.claimedAt !== initial.claimedAt
+    ) {
+      return;
+    }
     await store.register(initial.provisionId, {
       ...initial,
       runId,

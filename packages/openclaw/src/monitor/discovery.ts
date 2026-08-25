@@ -47,11 +47,19 @@ function extractTitle(value: unknown): string | undefined {
  * This is a single scry that provides both channel discovery and pending invites.
  */
 export async function fetchInitData(
-  api: { scry: (path: string) => Promise<unknown> },
-  runtime: RuntimeEnv
+  api: {
+    scry: (
+      path: string,
+      options?: { signal?: AbortSignal }
+    ) => Promise<unknown>;
+  },
+  runtime: RuntimeEnv,
+  options?: { signal?: AbortSignal }
 ): Promise<InitData> {
   try {
-    const initData = (await api.scry('/groups-ui/v7/init.json')) as any;
+    const initData = (await api.scry('/groups-ui/v7/init.json', {
+      signal: options?.signal,
+    })) as any;
 
     const channels: string[] = [];
     const channelToGroup = new Map<string, string>();

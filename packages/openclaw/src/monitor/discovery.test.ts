@@ -57,6 +57,18 @@ describe('channel discovery logging', () => {
     );
   });
 
+  it('forwards cancellation to the init scry', async () => {
+    const runtime = createRuntime();
+    const api = { scry: vi.fn().mockResolvedValue({}) };
+    const controller = new AbortController();
+
+    await fetchInitData(api, runtime, { signal: controller.signal });
+
+    expect(api.scry).toHaveBeenCalledWith('/groups-ui/v7/init.json', {
+      signal: controller.signal,
+    });
+  });
+
   it('does not log successful incremental discovery but retains failures', async () => {
     const runtime = createRuntime();
     const api = { scry: vi.fn().mockResolvedValue({ changes: [] }) };
