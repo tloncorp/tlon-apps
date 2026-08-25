@@ -264,18 +264,17 @@ export function StaticChatMessage({
           provision: request,
         },
       }));
-      await draftInputContext.sendPostFromDraft(
-        {
-          channelId: draftInputContext.channel.id,
-          content: [plan.topics.join(', ')],
-          attachments: [],
-          blob,
-          channelType: draftInputContext.channel.type,
-          replyToPostId: null,
-          isEdit: false,
-        },
-        { rejectOnDefinitiveFailure: true }
-      );
+      // A definitive failure leaves a retryable timeline row. Treat that row
+      // as the sole retry path and keep the source control consumed.
+      await draftInputContext.sendPostFromDraft({
+        channelId: draftInputContext.channel.id,
+        content: [plan.topics.join(', ')],
+        attachments: [],
+        blob,
+        channelType: draftInputContext.channel.type,
+        replyToPostId: null,
+        isEdit: false,
+      });
       await renameAgentGroupFromOnboarding({
         groupId,
         purposeId: plan.purposeId,
@@ -302,18 +301,15 @@ export function StaticChatMessage({
       const content = uniqueProviderIds.length
         ? `Use ${uniqueProviderIds.join(', ')} for this group’s future entries.`
         : 'Do not use connected services for this group’s future entries.';
-      await draftInputContext.sendPostFromDraft(
-        {
-          channelId: draftInputContext.channel.id,
-          content: [content],
-          attachments: [],
-          blob,
-          channelType: draftInputContext.channel.type,
-          replyToPostId: null,
-          isEdit: false,
-        },
-        { rejectOnDefinitiveFailure: true }
-      );
+      await draftInputContext.sendPostFromDraft({
+        channelId: draftInputContext.channel.id,
+        content: [content],
+        attachments: [],
+        blob,
+        channelType: draftInputContext.channel.type,
+        replyToPostId: null,
+        isEdit: false,
+      });
     },
     [draftInputContext, resolveActionGroup]
   );
@@ -358,18 +354,15 @@ export function StaticChatMessage({
         return;
       }
 
-      await draftInputContext.sendPostFromDraft(
-        {
-          channelId: draftInputContext.channel.id,
-          content: [text],
-          attachments: [],
-          blob: selection ? appendToPostBlob(undefined, selection) : undefined,
-          channelType: draftInputContext.channel.type,
-          replyToPostId: null,
-          isEdit: false,
-        },
-        { rejectOnDefinitiveFailure: true }
-      );
+      await draftInputContext.sendPostFromDraft({
+        channelId: draftInputContext.channel.id,
+        content: [text],
+        attachments: [],
+        blob: selection ? appendToPostBlob(undefined, selection) : undefined,
+        channelType: draftInputContext.channel.type,
+        replyToPostId: null,
+        isEdit: false,
+      });
     },
     [
       canUseAgentProviderControls,

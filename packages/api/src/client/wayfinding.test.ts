@@ -20,4 +20,13 @@ describe('botHomeGroupHasDefaultTitle', () => {
       expect(botHomeGroupHasDefaultTitle(groupWithTitle(title))).toBe(false);
     }
   );
+
+  it('recognizes the exact title generated from the previous nickname', () => {
+    expect(
+      botHomeGroupHasDefaultTitle(groupWithTitle("Alice's Group"), 'Alice')
+    ).toBe(true);
+    expect(
+      botHomeGroupHasDefaultTitle(groupWithTitle("Alice's Group"), 'Bob')
+    ).toBe(false);
+  });
 });

@@ -4,6 +4,10 @@ import {
   getTopLevelTabRoute,
   useTypedReset,
 } from '@tloncorp/app/navigation/utils';
+import {
+  isAnyAgentGroupNavigationLockedDurably,
+  useAnyAgentGroupOnboardingLock,
+} from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useEffect, useRef } from 'react';
@@ -16,11 +20,22 @@ export const useDeepLinkListener = () => {
   const signupParams = useSignupParams();
   const { clearLure, lure } = useBranch();
   const reset = useTypedReset();
+  const {
+    locked: agentOnboardingLocked,
+    isLoading: agentOnboardingLockLoading,
+  } = useAnyAgentGroupOnboardingLock();
 
   useEffect(() => {
-    if (ship && lure && !isHandlingLinkRef.current) {
+    if (
+      ship &&
+      lure &&
+      !agentOnboardingLocked &&
+      !agentOnboardingLockLoading &&
+      !isHandlingLinkRef.current
+    ) {
       (async () => {
         isHandlingLinkRef.current = true;
+        let deferredForOnboarding = false;
         logger.log(`handling deep link`, lure, signupParams);
         logger.trackEvent(AnalyticsEvent.InviteDebug, {
           context: 'Handling deeplink click',
@@ -30,6 +45,10 @@ export const useDeepLinkListener = () => {
           trackEvent(AnalyticsEvent.InviteOpened);
         }
         try {
+          if (await isAnyAgentGroupNavigationLockedDurably()) {
+            deferredForOnboarding = true;
+            return;
+          }
           if (lure.shouldAutoJoin || !ship) {
             // if the lure was clicked prior to authenticating, no-op for now.
             // Hosting will handle once the user signs up.
@@ -38,6 +57,10 @@ export const useDeepLinkListener = () => {
             if (lure.inviteType === 'user') {
               const inviter = lure.inviterUserId;
               if (inviter) {
+                if (await isAnyAgentGroupNavigationLockedDurably()) {
+                  deferredForOnboarding = true;
+                  return;
+                }
                 logger.log(`handling deep link to user`, inviter);
                 reset([
                   getTopLevelTabRoute('Contacts'),
@@ -61,6 +84,10 @@ export const useDeepLinkListener = () => {
               });
               const previewGroupId = lure.invitedGroupId || lure.group;
               if (previewGroupId) {
+                if (await isAnyAgentGroupNavigationLockedDurably()) {
+                  deferredForOnboarding = true;
+                  return;
+                }
                 reset([getTopLevelTabRoute('ChatList', { previewGroupId })]);
               }
             }
@@ -68,10 +95,20 @@ export const useDeepLinkListener = () => {
         } catch (e) {
           logger.error('Failed to handle deep link', lure, e);
         } finally {
-          clearLure({ preserveFetching: true });
+          if (!deferredForOnboarding) {
+            clearLure({ preserveFetching: true });
+          }
           isHandlingLinkRef.current = false;
         }
       })();
     }
-  }, [ship, signupParams, clearLure, lure, reset]);
+  }, [
+    agentOnboardingLocked,
+    agentOnboardingLockLoading,
+    ship,
+    signupParams,
+    clearLure,
+    lure,
+    reset,
+  ]);
 };
