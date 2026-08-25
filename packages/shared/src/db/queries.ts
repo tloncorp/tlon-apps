@@ -4516,6 +4516,7 @@ type AgentProtocolReceipt<T> = {
   postId: string;
   receivedAt: number;
   sequenceNum: number | null;
+  selection?: PostBlobDataEntryA2UISelection;
 };
 
 export type AgentA2UIProtocolReceipts = {
@@ -4583,13 +4584,19 @@ export const getAgentA2UIProtocolReceipts = createReadQuery(
     const receipts: AgentA2UIProtocolReceipts = { providerConfigs: [] };
     for (const row of rows) {
       if (!row.blob) continue;
-      for (const entry of parsePostBlob(row.blob)) {
+      const entries = parsePostBlob(row.blob);
+      const selection = entries.find(
+        (entry): entry is PostBlobDataEntryA2UISelection =>
+          entry.type === 'tlon-a2ui-selection'
+      );
+      for (const entry of entries) {
         if (entry.type === 'tlon-agent-provision') {
           receipts.provision = {
             entry,
             postId: row.id,
             receivedAt: row.receivedAt,
             sequenceNum: row.sequenceNum,
+            selection,
           };
         } else if (entry.type === 'tlon-agent-provider-config') {
           const receipt = {
@@ -4597,6 +4604,7 @@ export const getAgentA2UIProtocolReceipts = createReadQuery(
             postId: row.id,
             receivedAt: row.receivedAt,
             sequenceNum: row.sequenceNum,
+            selection,
           };
           receipts.providerConfig = receipt;
           receipts.providerConfigs.push(receipt);
