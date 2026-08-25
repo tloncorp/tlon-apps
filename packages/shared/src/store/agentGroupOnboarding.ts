@@ -488,7 +488,7 @@ async function ensureIntroRequest(
       replyToPostId: null,
       isEdit: false,
     },
-    { throwOnFailure: true }
+    { rejectOnDefinitiveFailure: true }
   );
 }
 

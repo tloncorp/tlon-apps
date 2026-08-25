@@ -147,7 +147,7 @@ export type PostSendOptions = {
    * this to restore themselves; ordinary composers retain legacy resolve-on-
    * failure behavior and expose retry through the failed message row.
    */
-  throwOnFailure?: boolean;
+  rejectOnDefinitiveFailure?: boolean;
 };
 
 export async function finalizeAndSendPost(
@@ -167,7 +167,7 @@ export async function finalizeAndSendPost(
       buildFinalizedPostData: () => finalizePostDraft(draft),
       draft: serializedDraft,
       onEnqueued: options?.onEnqueued,
-      throwOnFailure: options?.throwOnFailure,
+      rejectOnDefinitiveFailure: options?.rejectOnDefinitiveFailure,
     });
   }
 }
@@ -188,7 +188,7 @@ async function _sendPost({
   draft,
   existingPost,
   onEnqueued,
-  throwOnFailure,
+  rejectOnDefinitiveFailure,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
   buildOptimisticPostData?: () => domain.PostDataFinalizedParent;
@@ -199,14 +199,14 @@ async function _sendPost({
   existingPost?: db.Post;
   /** Called after the optimistic post has been added to the session queue. */
   onEnqueued?: () => void;
-  throwOnFailure?: boolean;
+  rejectOnDefinitiveFailure?: boolean;
 }) {
   const authorId = api.getCurrentUserId();
 
   const channel = await db.getChannel({ id: channelId });
   if (!channel) {
     logger.trackError('Failed to forward post, unable to find channel');
-    if (throwOnFailure) {
+    if (rejectOnDefinitiveFailure) {
       throw new Error(`Unable to send post: channel ${channelId} is missing`);
     }
     return;
@@ -436,7 +436,7 @@ async function _sendPost({
       });
     } else {
       await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
-      if (throwOnFailure) {
+      if (rejectOnDefinitiveFailure) {
         throw e;
       }
     }
