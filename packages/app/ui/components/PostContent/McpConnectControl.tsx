@@ -30,6 +30,7 @@ const clampProviderIds = (providerIds: string[]) =>
 
 export function McpConnectControl({
   component,
+  configuredProviderIds,
   completionConsumed,
   completionSelection,
   onConfigure,
@@ -37,6 +38,7 @@ export function McpConnectControl({
   onNavigate,
 }: {
   component: A2UI.McpConnect;
+  configuredProviderIds?: string[];
   /** True when a durable post already answered the completion action. */
   completionConsumed?: boolean;
   /** Durable record to attach to the post the completion action creates. */
@@ -130,6 +132,7 @@ export function McpConnectControl({
   return (
     <McpConnectMenu
       component={component}
+      configuredProviderIds={configuredProviderIds}
       failed={failed}
       loading={loading}
       providersLoaded={loadedUserIdRef.current === currentUserId}
@@ -145,6 +148,7 @@ export function McpConnectControl({
 
 export function McpConnectMenu({
   component,
+  configuredProviderIds = [],
   completionConsumed = false,
   completionSelection,
   failed = false,
@@ -156,6 +160,7 @@ export function McpConnectMenu({
   providers,
 }: {
   component: A2UI.McpConnect;
+  configuredProviderIds?: string[];
   completionConsumed?: boolean;
   completionSelection?: api.PostBlobDataEntryA2UISelection;
   failed?: boolean;
@@ -171,7 +176,9 @@ export function McpConnectMenu({
   onNavigate?: (action: A2UI.NavigateAction) => void | Promise<void>;
   providers: McpProviderRow[];
 }) {
-  const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([]);
+  const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>(
+    clampProviderIds(configuredProviderIds)
+  );
   const [submitting, setSubmitting] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [completedLocally, setCompletedLocally] = useState(false);
@@ -193,7 +200,16 @@ export function McpConnectMenu({
       if (loading || !providersLoaded) return;
       initializedRef.current = true;
       knownConnectedRef.current = connected;
-      setSelectedProviderIds(clampProviderIds(connectedProviderIds));
+      const configuredConnectedProviderIds = configuredProviderIds.filter(
+        (id) => connected.has(id)
+      );
+      setSelectedProviderIds(
+        clampProviderIds(
+          configuredConnectedProviderIds.length > 0
+            ? configuredConnectedProviderIds
+            : connectedProviderIds
+        )
+      );
       return;
     }
 
@@ -216,7 +232,7 @@ export function McpConnectMenu({
         ? current
         : next;
     });
-  }, [connectedProviderIds, loading, providersLoaded]);
+  }, [configuredProviderIds, connectedProviderIds, loading, providersLoaded]);
 
   const visibleProviders = useMemo(
     () => selectMcpMenuProviders(providers, component.maxVisible),
