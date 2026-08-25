@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { appendToPostBlob } from '@tloncorp/shared/logic';
 import { describe, expect, it } from 'vitest';
 
 import { getA2UIActionCompletions } from './a2uiActionCompletion';
@@ -32,6 +33,31 @@ describe('getA2UIActionCompletions', () => {
       { sentMessageText: 'Research' },
       { sentMessageText: 'Mycology' },
       { sentMessageText: 'Mycology' },
+      { sentMessageText: undefined },
+    ]);
+  });
+
+  it('does not use selection-aware replies as legacy positional completions', () => {
+    const posts = [
+      post({ id: 'older-surface' }),
+      post({ id: 'newer-surface' }),
+      post({
+        id: 'selection-reply',
+        authorId: ownerId,
+        textContent: 'Yes',
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-a2ui-selection',
+          version: 1,
+          surfaceId: 'newer',
+          componentId: 'answer',
+          values: ['yes'],
+        }),
+      }),
+    ];
+
+    expect(getA2UIActionCompletions(posts, ownerId)).toEqual([
+      { sentMessageText: undefined },
+      { sentMessageText: undefined },
       { sentMessageText: undefined },
     ]);
   });

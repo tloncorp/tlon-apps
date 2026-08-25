@@ -385,6 +385,16 @@ export function buildAgentGroupTitle({
 }
 
 /** Rename only the untouched placeholder created or adopted for onboarding. */
+function isAgentGroupTitleRenameEligible(
+  lock: db.AgentGroupOnboardingLock,
+  title: string | null
+) {
+  return (
+    lock.canRenameGroup === true &&
+    (title === lock.initialGroupTitle || title === lock.generatedGroupTitle)
+  );
+}
+
 export async function renameAgentGroupFromOnboarding({
   groupId,
   purposeId,
@@ -396,12 +406,28 @@ export async function renameAgentGroupFromOnboarding({
 }) {
   try {
     const lock = (await db.agentGroupOnboardingLocks.getValue())[groupId];
-    if (!lock?.canRenameGroup) return;
+    if (!lock) return;
     const group = await db.getGroup({ id: groupId });
-    if (!group || (group.title ?? null) !== lock.initialGroupTitle) return;
+    if (!group || !isAgentGroupTitleRenameEligible(lock, group.title ?? null))
+      return;
 
     const title = buildAgentGroupTitle({ purposeId, topics });
     if (title === group.title) return;
+    let renameStillAllowed = false;
+    await db.agentGroupOnboardingLocks.setValue((current) => {
+      const currentLock = current[groupId];
+      if (
+        !currentLock ||
+        !isAgentGroupTitleRenameEligible(currentLock, group.title ?? null)
+      )
+        return current;
+      renameStillAllowed = true;
+      return {
+        ...current,
+        [groupId]: { ...currentLock, generatedGroupTitle: title },
+      };
+    });
+    if (!renameStillAllowed) return;
     await updateGroupMeta({ ...group, title });
   } catch (error) {
     // Naming is cosmetic and must never prevent the provision request.
@@ -797,6 +823,7 @@ export const agentGroupOnboardingTesting = {
   retryAgentGroupFurnishCore,
   agentHasJoined,
   ensureSingleNotesChannel,
+  isAgentGroupTitleRenameEligible,
   chooseCreatedNotebookResolution,
   retryAgentStanding,
   startAgentGroupFurnishingFlight,

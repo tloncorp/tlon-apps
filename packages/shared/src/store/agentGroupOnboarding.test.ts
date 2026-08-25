@@ -64,6 +64,39 @@ describe('buildAgentGroupTitle', () => {
   });
 });
 
+describe('onboarding group title replacement', () => {
+  const lock = {
+    createdAt: 1,
+    canRenameGroup: true,
+    initialGroupTitle: 'My agent group',
+    generatedGroupTitle: 'Peptides Digest',
+  };
+
+  it('allows placeholders and the last onboarding-generated title', () => {
+    expect(
+      agentGroupOnboardingTesting.isAgentGroupTitleRenameEligible(
+        lock,
+        'My agent group'
+      )
+    ).toBe(true);
+    expect(
+      agentGroupOnboardingTesting.isAgentGroupTitleRenameEligible(
+        lock,
+        'Peptides Digest'
+      )
+    ).toBe(true);
+  });
+
+  it('preserves genuine user edits', () => {
+    expect(
+      agentGroupOnboardingTesting.isAgentGroupTitleRenameEligible(
+        lock,
+        'Dan’s group'
+      )
+    ).toBe(false);
+  });
+});
+
 describe('agent group furnishing retry', () => {
   it('deletes only this client’s proven-new notebook when it loses the race', () => {
     const first = { id: 'notes/~zod/zeta', title: 'Updates' } as never;
