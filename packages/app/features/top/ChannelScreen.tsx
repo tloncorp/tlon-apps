@@ -124,6 +124,8 @@ export default function ChannelScreen(props: Props) {
     Boolean(agentOnboardingGroupId && agentOnboarding.isLoading);
   const agentGroupAgents = db.agentGroupAgents.useValue();
   const agentShipId = groupId ? agentGroupAgents[groupId] : undefined;
+  const latestChannelSequenceNum =
+    store.useChannelLatestSequenceNum(currentChannelId);
 
   useEffect(() => {
     const provision = agentOnboarding.marker?.provision;
@@ -131,6 +133,7 @@ export default function ChannelScreen(props: Props) {
       !groupId ||
       !agentShipId ||
       !provision ||
+      latestChannelSequenceNum == null ||
       agentOnboarding.marker?.provisionAcknowledgedAt
     ) {
       return;
@@ -170,9 +173,9 @@ export default function ChannelScreen(props: Props) {
   }, [
     agentOnboarding.marker,
     agentShipId,
-    channel?.lastPostId,
     currentChannelId,
     groupId,
+    latestChannelSequenceNum,
   ]);
 
   const channelIsPending = !channel || channel.isPendingChannel;

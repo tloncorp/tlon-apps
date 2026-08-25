@@ -148,6 +148,13 @@ export function AgentOnboardingSequence(props: {
               throw deadlineError;
             }
           }
+          if (cancelled) {
+            // Furnishing cannot be cancelled. If it resolves after this
+            // account's onboarding unmounts, remove its late lock before any
+            // landing or wayfinding state can be written for the next session.
+            await clearNavigationLock(furnished.group.id);
+            return;
+          }
           activeGroupId = furnished.group.id;
           activeChannelId = furnished.chatChannelId;
           await db.agentOnboardingLanding.setValue({
