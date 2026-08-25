@@ -136,4 +136,57 @@ describe('ThinkingState', () => {
     ).toBe(0);
     act(() => renderer!.unmount());
   });
+
+  it('remembers a response when a later member post becomes latest', async () => {
+    let renderer: ReactTestRenderer;
+    mocks.computing = computing();
+    await act(async () => {
+      renderer = create(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-0"
+          latestPostAuthorId="~ten"
+        />
+      );
+    });
+
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-1"
+          latestPostAuthorId="~bot"
+        />
+      );
+    });
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-2"
+          latestPostAuthorId="~other"
+        />
+      );
+    });
+    mocks.computing = null;
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-2"
+          latestPostAuthorId="~other"
+        />
+      );
+    });
+
+    expect(
+      renderer!.root.find((node) => (node.type as unknown) === 'View').props
+        .height
+    ).toBe(0);
+    act(() => renderer!.unmount());
+  });
 });
