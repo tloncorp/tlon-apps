@@ -82,6 +82,7 @@ export function isAgentGroupSetupCompletePost(
 export function isAgentGroupSetupActive(
   posts: Array<Pick<db.Post, 'authorId' | 'blob'>> | null | undefined,
   currentUserId: string,
+  agentShipId: string | undefined,
   hasLocalMarker: boolean
 ): boolean {
   if (hasLocalMarker) return true;
@@ -93,5 +94,8 @@ export function isAgentGroupSetupActive(
   ) {
     return false;
   }
-  return !posts.some(isAgentGroupSetupCompletePost);
+  return !posts.some(
+    (post) =>
+      post.authorId === agentShipId && isAgentGroupSetupCompletePost(post)
+  );
 }
