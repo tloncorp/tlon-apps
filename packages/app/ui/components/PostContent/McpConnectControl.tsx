@@ -101,7 +101,9 @@ export function McpConnectControl({
 
   const hasProviderData = providersQuery.data !== undefined;
   const hasStatusData = statusQuery.data !== undefined;
-  const failed = providersQuery.isError || statusQuery.isError;
+  const failed =
+    (providersQuery.isError && !hasProviderData) ||
+    (statusQuery.isError && !hasStatusData);
 
   return (
     <McpConnectMenu
@@ -208,7 +210,8 @@ export function McpConnectMenu({
     [component.maxVisible, providers]
   );
   const showSeeAll = providers.length > visibleProviders.length;
-  const completionLocked = completionAction.consumed;
+  const completionLocked =
+    completionAction.consumed || completionAction.pending;
 
   const toggleProvider = useCallback(
     (providerId: string) => {
