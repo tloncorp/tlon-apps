@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   hasAgentOnboardingFirstEntry,
   hasAgentOnboardingFirstEntryFailed,
+  isAgentOnboardingFirstEntryNote,
 } from './agentOnboardingFirstEntry';
 
 function markerPost(key: string, authorId = '~bot'): db.Post {
@@ -59,6 +60,27 @@ describe('hasAgentOnboardingFirstEntry', () => {
         [markerPost('first-entry-failed', '~other')],
         '~bot'
       )
+    ).toBe(false);
+  });
+
+  it('matches only the note cited by the first-entry reveal', () => {
+    const reveal = {
+      ...markerPost('first-entry-ping'),
+      content: [
+        {
+          type: 'reference',
+          referenceType: 'note',
+          channelId: 'notes/~ten/updates',
+          noteId: '7',
+        },
+      ],
+    } as db.Post;
+
+    expect(
+      isAgentOnboardingFirstEntryNote([reveal], '~bot', '~ten/updates', 7)
+    ).toBe(true);
+    expect(
+      isAgentOnboardingFirstEntryNote([reveal], '~bot', '~ten/updates', 8)
     ).toBe(false);
   });
 });
