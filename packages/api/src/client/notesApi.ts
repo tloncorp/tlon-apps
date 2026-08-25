@@ -719,6 +719,7 @@ const noteWriteResponseSchema = z.object({
     type: z.literal('note-update'),
     noteUpdate: z.object({
       type: z.enum(['note-created', 'note-updated']),
+      id: z.number(),
       note: notesV1NoteSchema,
     }),
   }),
@@ -1022,7 +1023,8 @@ async function createNoteV1({
 // bodies, or unexpected shapes.
 function noteFromWriteEnvelope(
   envelope: NotesEnvelope,
-  expectedType: 'note-created' | 'note-updated' = 'note-updated'
+  expectedType: 'note-created' | 'note-updated' = 'note-updated',
+  expectedNoteId?: number
 ): NotesV1Note | null {
   if (envelope.body.type !== 'ok') {
     return null;
@@ -1030,7 +1032,11 @@ function noteFromWriteEnvelope(
   const response = noteWriteResponseSchema.safeParse(envelope.body.response);
   if (
     !response.success ||
-    response.data.update.noteUpdate.type !== expectedType
+    response.data.update.noteUpdate.type !== expectedType ||
+    response.data.update.noteUpdate.id !==
+      response.data.update.noteUpdate.note.id ||
+    (expectedNoteId !== undefined &&
+      response.data.update.noteUpdate.id !== expectedNoteId)
   ) {
     return null;
   }
@@ -1072,7 +1078,7 @@ async function updateNoteBodyV1({
   );
   return {
     status: envelope.body.type === 'no-change' ? 'no-change' : 'ok',
-    note: noteFromWriteEnvelope(envelope),
+    note: noteFromWriteEnvelope(envelope, 'note-updated', noteId),
   };
 }
 
@@ -1097,7 +1103,7 @@ async function renameNoteV1({
     res,
     noteChecks(notesChannelId(normalized), noteId)
   );
-  return noteFromWriteEnvelope(envelope);
+  return noteFromWriteEnvelope(envelope, 'note-updated', noteId);
 }
 
 async function moveNoteV1({
