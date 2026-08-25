@@ -37,6 +37,7 @@ import {
   claimAgentOnboardingRun,
   forgetAgentOnboardingRunClaim,
   getAgentOnboardingClaimOwnerId,
+  getAgentOnboardingRunStore,
   lookupAgentOnboardingRun,
   lookupAgentOnboardingRunByJobId,
   lookupNewestAgentOnboardingRunForGroup,
@@ -300,6 +301,9 @@ const primaryJobFlights = sharedMap<
   string,
   { desiredKey: string; flight: Promise<string> }
 >('agentOnboarding.primaryJobFlights');
+const providerConfigFlights = sharedMap<string, Promise<void>>(
+  'agentOnboarding.providerConfigFlights'
+);
 const primaryJobIds = sharedMap<string, true>('agentOnboarding.primaryJobIds');
 const primaryJobProviderIds = sharedMap<string, string[]>(
   'agentOnboarding.primaryJobProviderIds'
@@ -346,7 +350,23 @@ export async function isAgentOnboardingCronJob(jobId: string | undefined) {
   const job = (await cron.list({ includeDisabled: true })).find(
     (candidate) => candidate.id === jobId
   );
-  if (!job?.description?.startsWith(SLOT_PREFIX)) return false;
+  const runtimeJob = job as
+    | (NonNullable<typeof job> & {
+        payload?: { toolsAllow?: string[] };
+        delivery?: { channel?: string };
+      })
+    | undefined;
+  const isRecognizableOnboardingJob = Boolean(
+    runtimeJob?.description?.startsWith(SLOT_PREFIX)
+  );
+  const mustFailClosedWithoutDurableState = Boolean(
+    !getAgentOnboardingRunStore() &&
+    runtimeJob?.delivery?.channel === 'tlon' &&
+    runtimeJob.payload?.toolsAllow?.includes('mcp_call')
+  );
+  if (!isRecognizableOnboardingJob && !mustFailClosedWithoutDurableState) {
+    return false;
+  }
   primaryJobIds.set(jobId, true);
   primaryJobProviderIds.set(jobId, []);
   return true;
@@ -1172,6 +1192,27 @@ async function provision(
 }
 
 async function configureProviders(
+  context: AgentOnboardingContext,
+  history: TlonHistoryEntry[],
+  config: PostBlobDataEntryAgentProviderConfig,
+  deps: AgentOnboardingDeps
+) {
+  const key = `${onboardingAccountId(context)}\u0000${config.groupId}`;
+  const previous = providerConfigFlights.get(key) ?? Promise.resolve();
+  const flight = previous
+    .catch(() => undefined)
+    .then(() => configureProvidersOnce(context, history, config, deps));
+  providerConfigFlights.set(key, flight);
+  try {
+    await flight;
+  } finally {
+    if (providerConfigFlights.get(key) === flight) {
+      providerConfigFlights.delete(key);
+    }
+  }
+}
+
+async function configureProvidersOnce(
   context: AgentOnboardingContext,
   history: TlonHistoryEntry[],
   config: PostBlobDataEntryAgentProviderConfig,
@@ -2147,6 +2188,7 @@ export function clearAgentOnboardingRuntime(
     completedPostMarkers.clear();
     postOnceFlights.clear();
     primaryJobFlights.clear();
+    providerConfigFlights.clear();
   }
   const ownedKeys = [...firstRunCorrelations]
     .filter(([, correlation]) => !api || correlation.context.api === api)
@@ -2548,7 +2590,9 @@ async function upsertPrimaryJobOnce(
 ) {
   const description = `${SLOT_PREFIX}${request.groupId}`;
   const desired = {
-    name: `${request.purpose}: ${request.topics.join(', ')}`,
+    // Cron names are included in generic telemetry. Keep owner-entered topics
+    // in the job payload only, where they are needed to produce the update.
+    name: 'Tlonbot scheduled update',
     description,
     enabled: true,
     schedule: {

@@ -1,7 +1,11 @@
 import { A2UI, appendToPostBlob, parsePostBlob } from '@tloncorp/api';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { TlonCronService } from '../cron-telemetry.js';
+import {
+  type TlonCronService,
+  clearCronServiceAccessor,
+  setCronServiceAccessor,
+} from '../cron-telemetry.js';
 import {
   type AgentOnboardingRunRecord,
   claimAgentOnboardingRun,
@@ -149,6 +153,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  clearCronServiceAccessor();
   vi.useRealTimers();
 });
 
@@ -531,6 +536,24 @@ describe('durable onboarding cron authorization', () => {
     await expect(
       agentOnboardingCronProviderIds('edited-description-job')
     ).resolves.toEqual(['gmail']);
+  });
+
+  it('fails closed for an edited MCP-enabled Tlon cron without durable state', async () => {
+    const jobId = 'fallback-edited-description-job';
+    const cron = {
+      list: vi.fn(async () => [
+        {
+          id: jobId,
+          description: 'Owner edited this description',
+          payload: { toolsAllow: ['group:web', 'mcp_call'] },
+          delivery: { channel: 'tlon' },
+        },
+      ]),
+    } as unknown as TlonCronService;
+    setCronServiceAccessor(() => cron);
+
+    await expect(isAgentOnboardingCronJob(jobId)).resolves.toBe(true);
+    await expect(agentOnboardingCronProviderIds(jobId)).resolves.toEqual([]);
   });
 });
 
@@ -2166,7 +2189,8 @@ describe('primary onboarding cron slot', () => {
     );
     expect(harness.cron.update).toHaveBeenCalledOnce();
     expect(harness.getJobs()).toHaveLength(1);
-    expect(harness.getJobs()[0].name).toContain('Robotics');
+    expect(harness.getJobs()[0].name).toBe('Tlonbot scheduled update');
+    expect(harness.getJobs()[0].name).not.toContain('Robotics');
   });
 
   it('keeps the recurring prompt useful without granting Tlon access', () => {
@@ -2476,7 +2500,7 @@ describe('primary onboarding cron slot', () => {
     );
     await vi.waitFor(() => expect(fetchOlderHistory).toHaveBeenCalledTimes(2));
 
-    await handleAgentOnboardingRequest(
+    const newerRequest = handleAgentOnboardingRequest(
       requestContext({ blob: appendToPostBlob(undefined, newer.entry) }),
       {
         fetchHistory: vi.fn(async () => newestHistory),
@@ -2484,9 +2508,80 @@ describe('primary onboarding cron slot', () => {
       }
     );
     releaseOlderRevalidation();
-    await olderRequest;
+    await Promise.all([olderRequest, newerRequest]);
 
     expect(harness.cron.update).toHaveBeenCalledOnce();
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: { message: expect.stringContaining('["notion"]') },
+    });
+  });
+
+  it('serializes provider changes through the final durable write', async () => {
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const baseHistory = [
+      {
+        author: '~ten',
+        content: 'AI, Climate',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, provision),
+      },
+      {
+        author: '~bot',
+        content: 'Ready',
+        timestamp: 2,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack' as const,
+          version: 1 as const,
+          provisionId: provision.provisionId,
+          cronJobId: 'job-1',
+        }),
+      },
+    ];
+    const older = providerConfig(['gmail'], 3);
+    const newer = providerConfig(['notion'], 4);
+    const olderHistory = [...baseHistory, older.historyEntry];
+    const newestHistory = [
+      ...baseHistory,
+      older.historyEntry,
+      newer.historyEntry,
+    ];
+    const originalUpdate = harness.cron.update.bind(harness.cron);
+    let releaseOlderUpdate!: () => void;
+    const olderUpdate = new Promise<void>((resolve) => {
+      releaseOlderUpdate = resolve;
+    });
+    let updateCount = 0;
+    harness.cron.update = vi.fn(async (id, patch) => {
+      updateCount += 1;
+      if (updateCount === 1) await olderUpdate;
+      await originalUpdate(id, patch);
+    });
+
+    const olderRequest = handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, older.entry) }),
+      {
+        fetchHistory: vi.fn(async () => olderHistory),
+        getCron: () => harness.cron,
+      }
+    );
+    await vi.waitFor(() => expect(harness.cron.update).toHaveBeenCalledOnce());
+    const newerRequest = handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, newer.entry) }),
+      {
+        fetchHistory: vi.fn(async () => newestHistory),
+        getCron: () => harness.cron,
+      }
+    );
+
+    releaseOlderUpdate();
+    await Promise.all([olderRequest, newerRequest]);
+
+    expect(harness.cron.update).toHaveBeenCalledTimes(2);
     expect(harness.getJobs()[0]).toMatchObject({
       payload: { message: expect.stringContaining('["notion"]') },
     });

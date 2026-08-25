@@ -96,8 +96,8 @@ function isAllowedProvider(
   return Boolean(providerId && allowedProviderIds.includes(providerId));
 }
 
-function cacheKey(sessionKey: string, name: string) {
-  return `${sessionKey}\u0000${name}`;
+function cacheKey(sessionKey: string, providerId: string, name: string) {
+  return `${sessionKey}\u0000${providerId}\u0000${name}`;
 }
 
 export function rememberDescribedReadOnlyMcpTool(
@@ -108,20 +108,28 @@ export function rememberDescribedReadOnlyMcpTool(
 ) {
   const name = toolName(params);
   if (!sessionKey || !name) return;
-  const key = cacheKey(sessionKey, name);
+  const requestedProviderId = providerForTool(params, null, allowedProviderIds);
+  if (
+    !requestedProviderId ||
+    !isAllowedProvider(requestedProviderId, allowedProviderIds)
+  ) {
+    return;
+  }
+  const key = cacheKey(sessionKey, requestedProviderId, name);
   // An exact re-description replaces the prior descriptor. Revoke first so a
   // mutating or malformed replacement cannot inherit an earlier read grant.
   describedReadOnlyTools.delete(key);
   const descriptor = findExactDescribedTool(result, name);
   const annotations = record(descriptor?.annotations);
-  const providerId = providerForTool(params, descriptor, allowedProviderIds);
+  const describedProviderId = ownProviderId(descriptor);
   if (
     annotations?.readOnlyHint !== true ||
-    !isAllowedProvider(providerId, allowedProviderIds)
+    (describedProviderId !== null &&
+      describedProviderId !== requestedProviderId)
   ) {
     return;
   }
-  describedReadOnlyTools.set(key, { providerId });
+  describedReadOnlyTools.set(key, { providerId: requestedProviderId });
 }
 
 export function mayCallDescribedReadOnlyMcpTool(
@@ -133,12 +141,17 @@ export function mayCallDescribedReadOnlyMcpTool(
   // so mcp_call is available only after the broker describes that exact tool
   // with the MCP readOnlyHint in this same session.
   const name = toolName(params);
+  const requestedProviderId = providerForTool(params, null, allowedProviderIds);
   const permission =
-    sessionKey && name
-      ? describedReadOnlyTools.get(cacheKey(sessionKey, name))
+    sessionKey && name && requestedProviderId
+      ? describedReadOnlyTools.get(
+          cacheKey(sessionKey, requestedProviderId, name)
+        )
       : undefined;
   return Boolean(
-    permission && isAllowedProvider(permission.providerId, allowedProviderIds)
+    permission &&
+    permission.providerId === requestedProviderId &&
+    isAllowedProvider(requestedProviderId, allowedProviderIds)
   );
 }
 

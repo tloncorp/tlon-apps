@@ -150,6 +150,34 @@ describe('MCP read-only policy', () => {
     ).toBe(false);
   });
 
+  it('does not reuse a same-name grant for a different provider', () => {
+    rememberDescribedReadOnlyMcpTool(
+      'cron-session',
+      { name: 'search', upstreamId: 'allowed' },
+      {
+        name: 'search',
+        upstreamId: 'allowed',
+        annotations: { readOnlyHint: true },
+      },
+      ['allowed']
+    );
+
+    expect(
+      mayCallDescribedReadOnlyMcpTool(
+        'cron-session',
+        { name: 'search', upstreamId: 'allowed' },
+        ['allowed']
+      )
+    ).toBe(true);
+    expect(
+      mayCallDescribedReadOnlyMcpTool(
+        'cron-session',
+        { name: 'search', upstreamId: 'unselected' },
+        ['allowed']
+      )
+    ).toBe(false);
+  });
+
   it('does not authorize a longer provider id through a selected prefix', () => {
     expect(
       mayDescribeMcpTool({ name: 'google-drive.search_files' }, ['google'])
