@@ -30,7 +30,7 @@ Tlon Messenger is a messenger that runs on a server you own and control. Talk di
 Every account comes with two things:
 
 1. **A node.** Your personal server on a peer-to-peer network. Your messages, groups, and data live there, not in a company account database. On a hosted account Tlon runs that node on its hardware — but the node is still yours. Export it and run it anywhere, and nothing about your account depends on Tlon's permission.  
-2. **Tlonbot.** An AI agent powered by OpenClaw that learns your workflows and preferences without giving your data away. Every account gets one for free.
+2. **Tlonbot.** An AI agent powered by OpenClaw that learns your workflows and preferences without giving your data away. Hosted accounts get one free; self-hosters run their own.
 
 Other messengers look similar on the surface. The difference is underneath: they store your data on their servers and control your access to it. Tlon Messenger stores your data on yours. No algorithm decides what you see. No one mines your conversations. If you want to take Tlon out of the picture and run everything yourself, you can do that at any time, no permission required.
 
@@ -129,7 +129,7 @@ A group is a social space with members, roles, and channels. There are four chan
 
 Bulletin is the older of the two writing channels, and it used to be called Notebook. A node that hasn't picked up the notebooks update yet still shows it under the old name and doesn't offer the new one.
 
-Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can read and work with them (where you've given it access). Bulletins are the gap: the bot's tooling treats them as deprecated and won't manage them. If you want your bot working in one, migrate it to a Notebook first.
+Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can read and work with them (where you've given it access). Bulletins are half-supported: a bot can still reply in one when it's spoken to, but the tooling it uses to go read a channel or manage it treats them as deprecated. So expect conversation to work and "catch me up on that Bulletin" not to. Migrating it to a Notebook closes the gap.
 
 ### Make a group
 
@@ -177,7 +177,7 @@ ChatGPT, Alexa, and Siri are services you rent. Your conversations live on their
 ### Getting started
 
 1. Download the iOS or Android app and sign in.  
-2. Find your bot in your direct messages. It's already in your account.  
+2. Find your bot in your direct messages. On a hosted account it's already there. Self-hosting? You run OpenClaw against your node first — there's no bot waiting.  
 3. Talk to it. You command your bot by typing instructions into the DM, in plain language.  
 4. Configure which channels it can access in its settings, and set models or API keys under `Bot Settings`.
 
@@ -234,18 +234,20 @@ You control who it listens to — tell it in a DM which members it may respond t
 
 ### Slash commands
 
-These are all owner-only, and approving a member to talk to the bot doesn't hand them the commands. What another member sees when they try one varies: sometimes an owner-only message, sometimes nothing at all, because the gateway drops unauthorized commands before the bot answers. Don't promise them an explanation — say it won't work for them.
+These are all owner-only, and approving a member to talk to the bot doesn't hand them the commands.
+
+Treat the forms below as the baseline rather than the complete list. Bots run on more than one setup, and some accept extra forms of the same command. If a user reports one that isn't here, don't tell them it doesn't exist — have them try it, or check with `/help`. What another member sees when they try one varies: sometimes an owner-only message, sometimes nothing at all, because the gateway drops unauthorized commands before the bot answers. Don't promise them an explanation — say it won't work for them.
 
 Access and moderation. The approval commands take a **request ID**, not a nickname — run `/pending` first and use the ID it prints:
 
 - `/pending` — view pending requests  
 - `/allow <request-id>` — approve one  
 - `/reject <request-id>` — deny one  
-- `/ban <request-id>` — deny a pending request and block the ship behind it  
+- `/ban <request-id>` — deny a pending request and block the ship behind it. Some bots also take `/ban ~ship` directly, blocking them outright whether or not a request is pending.  
 - `/banned` — list blocked ships  
 - `/unban ~nickname` — unblock a ship
 
-Two things to be clear about when someone asks. `/ban` acts on a pending request, so it isn't a way to remove a member who is already in a group — that's group admin work, and the bot can do it from a DM. And `/unban` only lifts the block; it doesn't put anyone back in a group. They'll need a fresh invite or a new request.
+Two things to be clear about when someone asks. Blocking is not the same as removing someone from a group — that's group admin work, which the bot can do from a DM. And `/unban` only lifts the block; it doesn't put anyone back in a group. They'll need a fresh invite or a new request.
 
 Bot behavior:
 
@@ -253,10 +255,11 @@ Bot behavior:
 - `/owner-listen on|off <channel-nest>` — same thing for one owned channel. Without a channel, these do nothing but print usage.  
 - `/owner-listen list` — show the global setting and every muted channel. Safe from a DM.  
 - `/owner-listen status <channel-nest>` — the setting for one channel. Like on/off, it needs a channel; bare `status` in a DM only prints usage. `/owner-listen all` on its own gives the global answer.  
+- Some bots go further here — any channel they watch rather than only ones you host, a whole group at once, or `/owner-listen default all` to make listening the default everywhere. Worth suggesting if someone wants broader coverage than the forms above give them.  
 - `/model` — show or change the AI model  
 - `/new` — clear context and start a fresh session  
 - `/tlon version` — show which harness, plugin, and skill versions are running. Bare `/tlon` just prints usage.  
-- `/migrate diary/~host/name` — migrate a legacy Bulletin to a Notebook (owner only). It needs the channel's full nest, starting with `diary/`; a title or short name just prints usage. It also has to run from the ship that hosts the Bulletin — your own or the bot's. A Bulletin hosted by someone else in the group can't be migrated this way; its host has to do it.
+- `/migrate diary/~host/name` — migrate a legacy Bulletin to a Notebook (owner only). It needs the channel's full nest, starting with `diary/`; a title or short name just prints usage. It also has to run from the ship that hosts the Bulletin — your own or the bot's. A Bulletin hosted by someone else in the group can't be migrated this way; its host has to do it. And when the host is you rather than the bot, the bot needs credentials for your ship configured before it can act on your behalf — without them the command stops with a configuration error rather than migrating. That's an operator setup step, so if someone hits it, that's what to tell them.
 
 ### Models and API keys
 
