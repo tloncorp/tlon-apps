@@ -538,7 +538,7 @@ describe('durable onboarding cron authorization', () => {
     ).resolves.toEqual(['gmail']);
   });
 
-  it('fails closed for an edited MCP-enabled Tlon cron without durable state', async () => {
+  it('does not classify an unrelated MCP-enabled Tlon cron as onboarding', async () => {
     const jobId = 'fallback-edited-description-job';
     const cron = {
       list: vi.fn(async () => [
@@ -552,7 +552,7 @@ describe('durable onboarding cron authorization', () => {
     } as unknown as TlonCronService;
     setCronServiceAccessor(() => cron);
 
-    await expect(isAgentOnboardingCronJob(jobId)).resolves.toBe(true);
+    await expect(isAgentOnboardingCronJob(jobId)).resolves.toBe(false);
     await expect(agentOnboardingCronProviderIds(jobId)).resolves.toEqual([]);
   });
 });
@@ -1985,6 +1985,25 @@ describe('agent onboarding requests', () => {
 });
 
 describe('primary onboarding cron slot', () => {
+  beforeEach(async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(storedRunKey(), {
+      accountId: defaultRunAccountId,
+      provisionId: provision.provisionId,
+      jobId: 'job-1',
+      groupId: provision.groupId,
+      channelNest: 'chat/~ten/group/general',
+      notebookNest: provision.notebookNest,
+      notebookName: provision.notebookTitle,
+      purposeId: provision.purposeId,
+      topics: [...provision.topics],
+      provision,
+      claimedAt: 1,
+      status: 'completed',
+    });
+  });
+
   function cronHarness(initial: Record<string, unknown>[] = []) {
     let jobs = initial.map((job) => ({ ...job }));
     const cron = {
@@ -2348,6 +2367,50 @@ describe('primary onboarding cron slot', () => {
           /Use my custom editorial instructions.*\["gmail"\]/s
         ),
       },
+    });
+  });
+
+  it('does not enable providers without durable authorization state', async () => {
+    setAgentOnboardingRunStore(null);
+    const harness = cronHarness();
+    const config = providerConfig(['gmail']);
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const history = [
+      {
+        author: '~ten',
+        content: 'AI, Climate',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, provision),
+      },
+      {
+        author: '~bot',
+        content: 'Ready',
+        timestamp: 2,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack' as const,
+          version: 1 as const,
+          provisionId: provision.provisionId,
+          cronJobId: 'job-1',
+        }),
+      },
+      config.historyEntry,
+    ];
+
+    await handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, config.entry) }),
+      {
+        fetchHistory: vi.fn(async () => history),
+        getCron: () => harness.cron,
+      }
+    );
+
+    expect(harness.cron.update).not.toHaveBeenCalled();
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: { toolsAllow: ['group:web'] },
     });
   });
 

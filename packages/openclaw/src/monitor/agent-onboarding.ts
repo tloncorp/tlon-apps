@@ -350,23 +350,7 @@ export async function isAgentOnboardingCronJob(jobId: string | undefined) {
   const job = (await cron.list({ includeDisabled: true })).find(
     (candidate) => candidate.id === jobId
   );
-  const runtimeJob = job as
-    | (NonNullable<typeof job> & {
-        payload?: { toolsAllow?: string[] };
-        delivery?: { channel?: string };
-      })
-    | undefined;
-  const isRecognizableOnboardingJob = Boolean(
-    runtimeJob?.description?.startsWith(SLOT_PREFIX)
-  );
-  const mustFailClosedWithoutDurableState = Boolean(
-    !getAgentOnboardingRunStore() &&
-    runtimeJob?.delivery?.channel === 'tlon' &&
-    runtimeJob.payload?.toolsAllow?.includes('mcp_call')
-  );
-  if (!isRecognizableOnboardingJob && !mustFailClosedWithoutDurableState) {
-    return false;
-  }
+  if (!job?.description?.startsWith(SLOT_PREFIX)) return false;
   primaryJobIds.set(jobId, true);
   primaryJobProviderIds.set(jobId, []);
   return true;
@@ -1247,6 +1231,15 @@ async function configureProvidersOnce(
   }
   const accountId = onboardingAccountId(context);
   const record = await lookupAgentOnboardingRun(accountId, config.provisionId);
+  if (
+    config.providerIds.length > 0 &&
+    (!getAgentOnboardingRunStore() || !record)
+  ) {
+    context.log?.(
+      '[tlon] rejected agent provider config: durable authorization state is unavailable'
+    );
+    return;
+  }
   const durableProvision =
     record &&
     record.groupId === config.groupId &&
