@@ -2,7 +2,8 @@ import type { TlawnOAuthGrant, TlawnOAuthProvider } from '@tloncorp/api';
 
 export const mcpProviderQueryKeys = {
   providers: ['tlonbot', 'oauth-providers'] as const,
-  status: (ship: string) => ['tlonbot', 'oauth-status', ship] as const,
+  status: (ship: string) =>
+    ['tlonbot', 'oauth-status', ship.replace(/^~/, '')] as const,
 };
 
 export type McpProviderStatus = 'connected' | 'expired' | 'not-connected';
