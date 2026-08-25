@@ -150,7 +150,11 @@ At monitor boot (and on reconnect catch-up) the plugin publishes the bot's ident
 
 The registry in `src/commands-registry.ts` is the single source of truth for registration, and `fixtures/commands.json` is its committed token list. That fixture is a CI artifact, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the runtime-owned portion of the client's OpenClaw list, so adding or removing a command here fails until the client list changes too. The host-core entries the list also suggests (`/status`, `/help`, `/new`, `/model`) are audit-pinned constants outside that relation — OpenClaw owns them, not this plugin. **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
 
-## Bundled Skill
+## Bundled Skills
+
+The plugin ships two skills, both declared in `skills` in `openclaw.plugin.json` (paths relative to the plugin root).
+
+### `tlon` — the CLI skill
 
 This plugin bundles [@tloncorp/tlon-skill](https://www.npmjs.com/package/@tloncorp/tlon-skill) which provides CLI commands for:
 
@@ -164,6 +168,12 @@ This plugin bundles [@tloncorp/tlon-skill](https://www.npmjs.com/package/@tlonco
 The skill is automatically available to your agent. For standalone usage, see the [tlon-skill repo](https://github.com/tloncorp/tlon-skill).
 
 `%diary` channels are deprecated, but OpenClaw can still read and send to their `diary/~host/name` nests directly. The model tool does not manage diary notebooks. The configured owner can type `/migrate <diary-nest> [--allow-write-widening]` to migrate directly to a fresh `%notes` notebook. Migration renames the source with `-ARCHIVE`; it does not make that source read-only.
+
+### `tlon-product-guide` — the product knowledge skill
+
+`skills/tlon-product-guide/SKILL.md` lives in this repo and is the bot's answer sheet for product questions: what Tlon, Urbit, Tlon Messenger, and Tlonbot are, how features work, and how to walk someone through a task. It carries no tools — OpenClaw loads the body when the model decides a question is in scope, and the model narrates the answer.
+
+Keep it a product reference, not an operating manual: anything that reads or mutates a node belongs in the `tlon` CLI skill. Edit `SKILL.md` directly to update the guide; the `description` frontmatter is what OpenClaw puts in the system prompt, so trigger coverage lives there.
 
 ## Documentation
 
