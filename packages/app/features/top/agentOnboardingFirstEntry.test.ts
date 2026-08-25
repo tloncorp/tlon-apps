@@ -67,10 +67,7 @@ describe('hasAgentOnboardingFirstEntry', () => {
 
   it('ignores unrelated markers', () => {
     expect(
-      hasAgentOnboardingFirstEntry(
-        [markerPost('first-entry-pending')],
-        '~bot'
-      )
+      hasAgentOnboardingFirstEntry([markerPost('first-entry-pending')], '~bot')
     ).toBe(false);
   });
 

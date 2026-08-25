@@ -947,20 +947,8 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.showUnreadDivider === next.showUnreadDivider &&
     prev.unreadCount === next.unreadCount &&
     prev.isLastPostOfBlock === next.isLastPostOfBlock &&
-    prev.a2uiActionCompletion?.sendMessage ===
-      next.a2uiActionCompletion?.sendMessage &&
     prev.a2uiActionCompletion?.sentMessageText ===
       next.a2uiActionCompletion?.sentMessageText &&
-    prev.a2uiActionCompletion?.sentMessageTextIndex?.lastIndexByText ===
-      next.a2uiActionCompletion?.sentMessageTextIndex?.lastIndexByText &&
-    prev.a2uiActionCompletion?.sentMessageTextIndex?.start ===
-      next.a2uiActionCompletion?.sentMessageTextIndex?.start &&
-    prev.a2uiActionCompletion?.provisionAgent ===
-      next.a2uiActionCompletion?.provisionAgent &&
-    JSON.stringify(prev.a2uiActionCompletion?.provisionedTopics) ===
-      JSON.stringify(next.a2uiActionCompletion?.provisionedTopics) &&
-    JSON.stringify(prev.a2uiActionCompletion?.configuredProviderIds) ===
-      JSON.stringify(next.a2uiActionCompletion?.configuredProviderIds) &&
     prev.previousPost?.id === next.previousPost?.id &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&
