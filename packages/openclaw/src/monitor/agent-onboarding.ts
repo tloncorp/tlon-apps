@@ -68,6 +68,7 @@ export type OnboardingStepReport = {
 
 type AgentOnboardingContext = {
   api: { scry: (path: string) => Promise<unknown> };
+  abortSignal?: AbortSignal;
   botShip: string;
   botProfile?: BotProfile;
   channelNest: string;
@@ -304,6 +305,7 @@ export async function handleAgentOnboardingRequest(
   context: AgentOnboardingContext,
   deps: AgentOnboardingDeps = {}
 ): Promise<boolean> {
+  context.abortSignal?.throwIfAborted();
   const presentation = createOnboardingPresentation(context, deps);
   try {
     return await handleAgentOnboardingRequestInternal(
@@ -407,12 +409,14 @@ export async function scanAgentOnboardingChannel(
   context: AgentOnboardingScanContext,
   deps: AgentOnboardingDeps = {}
 ): Promise<boolean> {
+  context.abortSignal?.throwIfAborted();
   if (!context.ownerShip || !context.groupId) return false;
   const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
     context.api,
     context.channelNest,
     ORIENTATION_HISTORY_LIMIT
   );
+  context.abortSignal?.throwIfAborted();
   const ownerRequests = history
     .filter((entry) => entry.author === context.ownerShip && entry.blob)
     .map((entry) => ({
@@ -456,6 +460,7 @@ export async function scanAgentOnboardingChannel(
   );
 
   for (const candidate of requests) {
+    context.abortSignal?.throwIfAborted();
     await handleAgentOnboardingRequest(
       {
         ...context,
@@ -464,6 +469,7 @@ export async function scanAgentOnboardingChannel(
       },
       { ...deps, fetchHistory: async () => history }
     );
+    context.abortSignal?.throwIfAborted();
   }
   let restoredDurableRun = false;
   if (!newestProvision) {
@@ -2077,7 +2083,9 @@ async function postOnce(
   }
   let posted = false;
   const flight = (async () => {
+    context.abortSignal?.throwIfAborted();
     const content = await build();
+    context.abortSignal?.throwIfAborted();
     let blob = content.blob;
     for (const entry of content.entries ?? []) {
       blob = appendToPostBlob(blob, entry);
@@ -2088,7 +2096,9 @@ async function postOnce(
       key,
     });
     await presentation?.beforePost(content.text);
+    context.abortSignal?.throwIfAborted();
     if (content.shouldSend && !(await content.shouldSend())) return;
+    context.abortSignal?.throwIfAborted();
     try {
       await (deps.sendPost ?? sendChannelPost)({
         fromShip: context.botShip,

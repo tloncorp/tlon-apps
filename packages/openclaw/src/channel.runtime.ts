@@ -5,6 +5,12 @@ import type {
   ChannelPlugin,
   OpenClawConfig,
 } from 'openclaw/plugin-sdk/core';
+import { chunkText } from 'openclaw/plugin-sdk/reply-chunking';
+import {
+  formatTextWithAttachmentLinks,
+  resolvePayloadMediaUrls,
+  sendTextMediaPayload,
+} from 'openclaw/plugin-sdk/reply-payload';
 
 import {
   type ContextLensRegistry,
@@ -431,7 +437,7 @@ const unobservedTlonRuntimeOutbound: Pick<
 
 export const tlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
-  'sendText' | 'sendMedia'
+  'sendPayload' | 'sendText' | 'sendMedia'
 > = {
   sendText: (params) =>
     observeActiveTlonTurnDelivery(() =>
@@ -441,6 +447,28 @@ export const tlonRuntimeOutbound: Pick<
     observeActiveTlonTurnDelivery(() =>
       unobservedTlonRuntimeOutbound.sendMedia!(params)
     ),
+  sendPayload: async (ctx) => {
+    const parsed = parseTlonTarget(ctx.to);
+    if (parsed?.kind === 'notebook') {
+      const text = formatTextWithAttachmentLinks(
+        ctx.payload.text,
+        resolvePayloadMediaUrls(ctx.payload)
+      );
+      return await observeActiveTlonTurnDelivery(() =>
+        unobservedTlonRuntimeOutbound.sendText!({ ...ctx, text })
+      );
+    }
+    return await sendTextMediaPayload({
+      channel: 'tlon',
+      ctx,
+      adapter: {
+        chunker: chunkText,
+        sendMedia: tlonRuntimeOutbound.sendMedia,
+        sendText: tlonRuntimeOutbound.sendText,
+        textChunkLimit: 10_000,
+      },
+    });
+  },
 };
 
 export async function probeTlonAccount(account: ConfiguredTlonAccount) {
