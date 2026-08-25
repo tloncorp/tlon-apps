@@ -200,7 +200,9 @@ function A2UIImageFallback({ component }: { component: A2UI.Image }) {
 }
 
 function getImageFit(component: A2UI.Image) {
-  return component.fit === 'scaleDown' ? 'scale-down' : component.fit ?? 'fill';
+  return component.fit === 'scaleDown'
+    ? 'scale-down'
+    : (component.fit ?? 'fill');
 }
 
 export function getA2UISurfaceLayout(web: boolean) {
