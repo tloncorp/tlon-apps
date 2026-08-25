@@ -38,10 +38,17 @@ import {
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
+import {
+  cronJobForSession,
+  mayCallDescribedReadOnlyMcpTool,
+  rememberCronJobForSession,
+  rememberDescribedReadOnlyMcpTool,
+} from './src/mcp-readonly-policy.js';
 import { setAgentOnboardingRunStore } from './src/monitor/agent-onboarding-run-store.js';
 import {
   handleAgentOnboardingCronChanged,
   handleAgentOnboardingMessageSent,
+  isAgentOnboardingCronJob,
 } from './src/monitor/agent-onboarding.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
@@ -994,14 +1001,21 @@ export default defineBundledChannelEntry({
     const ownerOnlyTools = new Set(['tlon', 'cron', 'read']);
     const logToolTraceContents = liveToolTraceContentsEnabled();
 
-    api.on('before_tool_call', (event, ctx) => {
+    api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
       const role = getSessionRole(ctx.sessionKey ?? '');
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
-      const isBlocked = isOwnerOnlyTool && role === 'user';
-      const blockReason = isBlocked
-        ? `The ${event.toolName} tool is not available.`
-        : undefined;
+      const blocksNonOwner = isOwnerOnlyTool && role === 'user';
+      const blocksOnboardingMcpCall =
+        event.toolName === 'mcp_call' &&
+        (await isAgentOnboardingCronJob(cronJobForSession(ctx.sessionKey))) &&
+        !mayCallDescribedReadOnlyMcpTool(ctx.sessionKey, event.params);
+      const isBlocked = blocksNonOwner || blocksOnboardingMcpCall;
+      const blockReason = blocksOnboardingMcpCall
+        ? 'This scheduled onboarding update may call only MCP tools explicitly described as read-only.'
+        : blocksNonOwner
+          ? `The ${event.toolName} tool is not available.`
+          : undefined;
       if (contextLensEnabled) {
         // Capture tool activity even when no conversation run owns this
         // session (cron wakes — including jobs that reuse the main session
@@ -1055,7 +1069,7 @@ export default defineBundledChannelEntry({
         );
       }
 
-      if (!isOwnerOnlyTool) {
+      if (!isOwnerOnlyTool && !blocksOnboardingMcpCall) {
         return undefined;
       }
 
@@ -1103,12 +1117,22 @@ export default defineBundledChannelEntry({
       return undefined;
     });
 
-    api.on('after_tool_call', (event, ctx) => {
+    api.on('after_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
       const tlonCommandContext =
         event.toolName === 'tlon' && typeof event.params.command === 'string'
           ? summarizeTlonCommand(event.params.command)
           : undefined;
+      if (
+        event.toolName === 'mcp_describe' &&
+        (await isAgentOnboardingCronJob(cronJobForSession(ctx.sessionKey)))
+      ) {
+        rememberDescribedReadOnlyMcpTool(
+          ctx.sessionKey,
+          event.params,
+          event.result
+        );
+      }
       recordActiveTlonTurnToolCall({
         toolName: event.toolName,
         errorMessage:
@@ -1402,6 +1426,7 @@ export default defineBundledChannelEntry({
       runId?: string;
     }) => {
       if (ctx.trigger === 'cron') {
+        rememberCronJobForSession(ctx.sessionKey, ctx.jobId);
         recordTlonCronAgentContext({
           jobId: ctx.jobId,
           runId: ctx.runId,

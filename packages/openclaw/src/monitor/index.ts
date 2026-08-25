@@ -3794,7 +3794,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const startedAt = onboardingStartedAt.get(nest);
         try {
           telemetry?.captureOnboardingStep({
-            accountId: opts.accountId ?? null,
+            accountId: account.accountId,
             ownerShip: effectiveOwnerShip,
             botShip: botShipName,
             step: report.step,
