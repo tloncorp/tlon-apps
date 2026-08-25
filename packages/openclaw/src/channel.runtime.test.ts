@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getNotebook = vi.fn();
 const createNote = vi.fn();
+const prepareOutboundMedia = vi.fn();
 const getActiveForegroundContextLensForConversation = vi.fn<() => unknown>(
   () => null
 );
@@ -20,7 +21,7 @@ vi.mock('@tloncorp/api', () => ({
 }));
 
 vi.mock('./urbit/upload.js', () => ({
-  prepareOutboundMedia: vi.fn(),
+  prepareOutboundMedia,
 }));
 
 vi.mock('./urbit/send.js', () => ({
@@ -294,6 +295,38 @@ describe('notes delivery', () => {
         flag: 'notes/~ten/updates',
         title: 'Long briefing',
         body,
+      })
+    );
+  });
+
+  it('prepares every notebook payload attachment before linking it', async () => {
+    createNote.mockResolvedValue({ id: 44, title: 'Briefing' });
+    prepareOutboundMedia
+      .mockResolvedValueOnce({ url: 'https://cdn.test/one', isImage: true })
+      .mockResolvedValueOnce({ url: 'https://cdn.test/two', isImage: false });
+
+    await tlonRuntimeOutbound.sendPayload!({
+      cfg: {} as never,
+      to: 'notes/~ten/updates',
+      text: 'Briefing',
+      payload: {
+        text: '# Briefing',
+        mediaUrls: ['https://source.test/one', 'https://source.test/two'],
+      },
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+    });
+
+    expect(prepareOutboundMedia).toHaveBeenCalledTimes(2);
+    expect(createNote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining('https://cdn.test/one'),
+      })
+    );
+    expect(createNote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringContaining('https://cdn.test/two'),
       })
     );
   });
