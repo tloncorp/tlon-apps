@@ -14,6 +14,10 @@ export type TopLevelTabParamList = {
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
+  OnboardingStartup: {
+    channelId: string;
+    groupId: string;
+  };
   VerifierStub: undefined;
   Empty: undefined;
   Settings: undefined;
