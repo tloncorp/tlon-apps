@@ -29,7 +29,7 @@ import {
 // making product copy part of the generic API package. The coordinator tests
 // are authoritative for the actual emitted surfaces.
 const AGENT_ONBOARDING_GROUP_INTRO =
-  "I'm your Tlonbot. I can keep you informed, help you learn, or follow a " +
+  'I can keep you informed, help you learn, or follow a ' +
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
 const AGENT_ONBOARDING_APP_TOUR_PROMPT =
@@ -551,18 +551,6 @@ function OnboardingTranscript({
                     >
                       <ChatMessage
                         post={post}
-                        a2uiActionCompletion={
-                          post.id === 'onboarding-04-topics' && through >= 5
-                            ? {
-                                provisionAgent: true,
-                                provisionedTopics: [
-                                  'Open hardware',
-                                  'Space weather',
-                                ],
-                                sendMessage: false,
-                              }
-                            : undefined
-                        }
                         showAuthor={showAuthor}
                         showReplies={false}
                         hideOverflowMenu

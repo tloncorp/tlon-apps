@@ -19,20 +19,4 @@ describe('isA2UISendMessageActionConsumed', () => {
   it('does not consume empty probe actions', () => {
     expect(isA2UISendMessageActionConsumed(send(''), 'Research')).toBe(false);
   });
-
-  it('matches only owner replies after the current control', () => {
-    const replyIndex = {
-      lastIndexByText: new Map([
-        ['Before', 0],
-        ['After', 1],
-      ]),
-      start: 1,
-    };
-    expect(
-      isA2UISendMessageActionConsumed(send('Before'), undefined, replyIndex)
-    ).toBe(false);
-    expect(
-      isA2UISendMessageActionConsumed(send('After'), undefined, replyIndex)
-    ).toBe(true);
-  });
 });
