@@ -5,8 +5,18 @@ export const AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS = 30_000;
 
 type NavigationLockMarker = Pick<
   db.AgentGroupOnboardingLock,
-  'createdAt' | 'navigationLocked' | 'provisionAcknowledgedAt'
+  | 'createdAt'
+  | 'navigationLocked'
+  | 'navigationLockStartedAt'
+  | 'provisionAcknowledgedAt'
 >;
+
+function navigationLockExpiry(marker: NavigationLockMarker) {
+  return (
+    (marker.navigationLockStartedAt ?? marker.createdAt) +
+    AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS
+  );
+}
 
 export function isAgentGroupNavigationLocked(
   marker?: NavigationLockMarker,
@@ -16,8 +26,22 @@ export function isAgentGroupNavigationLocked(
     marker &&
     marker.navigationLocked !== false &&
     !marker.provisionAcknowledgedAt &&
-    now < marker.createdAt + AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS
+    now < navigationLockExpiry(marker)
   );
+}
+
+export async function startAgentGroupNavigationLockFailsafe(
+  groupId: string,
+  startedAt = Date.now()
+) {
+  await db.agentGroupOnboardingLocks.setValue((current) => {
+    const marker = current[groupId];
+    if (!marker || marker.navigationLocked === false) return current;
+    return {
+      ...current,
+      [groupId]: { ...marker, navigationLockStartedAt: startedAt },
+    };
+  });
 }
 
 export function findAgentGroupOnboardingStartupRoute(
@@ -48,7 +72,7 @@ function useAgentGroupNavigationLockClock(
   const nextExpiry = Object.values(locks).reduce<number | null>(
     (soonest, marker) => {
       if (!isAgentGroupNavigationLocked(marker, now)) return soonest;
-      const expiry = marker.createdAt + AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS;
+      const expiry = navigationLockExpiry(marker);
       return soonest == null || expiry < soonest ? expiry : soonest;
     },
     null

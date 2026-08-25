@@ -98,6 +98,26 @@ describe('isAgentGroupNavigationLocked', () => {
       )
     ).toBe(false);
   });
+
+  it('starts the full failsafe window from the setup-chat handoff', () => {
+    const marker = {
+      createdAt: now - 2 * AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS,
+      navigationLockStartedAt: now,
+      navigationLocked: true,
+    };
+    expect(
+      isAgentGroupNavigationLocked(
+        marker,
+        now + AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS - 1
+      )
+    ).toBe(true);
+    expect(
+      isAgentGroupNavigationLocked(
+        marker,
+        now + AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS
+      )
+    ).toBe(false);
+  });
 });
 
 describe('isAnyAgentGroupNavigationLockedDurably', () => {

@@ -175,6 +175,8 @@ export type AgentGroupOnboardingLock = {
   provisionAcknowledgedAt?: number;
   /** Only the provisioned first group traps the user in its setup conversation. */
   navigationLocked?: boolean;
+  /** Starts when the setup chat is handed to navigation, not while furnishing. */
+  navigationLockStartedAt?: number;
   createdAt: number;
   /** Title observed before onboarding, used to avoid overwriting later edits. */
   initialGroupTitle?: string | null;

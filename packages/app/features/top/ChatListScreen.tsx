@@ -15,6 +15,7 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { startAgentGroupNavigationLockFailsafe } from '../../hooks/useAgentGroupOnboardingLock';
 import { useScrollToTabTop } from '../../hooks/useScrollToTabTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
@@ -119,6 +120,12 @@ export function ChatListScreenView({
             id: onboardingLanding.channelId,
           });
           if (channel) {
+            // Furnishing may have taken much longer than the lock failsafe.
+            // Start its clock at the actual handoff so the setup chat gets the
+            // full bounded lock window once it becomes visible.
+            await startAgentGroupNavigationLockFailsafe(
+              onboardingLanding.groupId
+            );
             // Claim this handoff durably before resetting navigation. The reset
             // remounts ChatListScreen, so component-local state alone cannot
             // prevent the new instance from consuming the same handoff again.
