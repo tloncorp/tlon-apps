@@ -3792,6 +3792,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
       try {
         await scanAgentOnboardingChannel({
+          accountId: account.accountId,
           api,
           abortSignal: opts.abortSignal,
           botShip: botShipName,
@@ -4029,6 +4030,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         let handledOnboardingRequest = false;
         try {
           handledOnboardingRequest = await handleAgentOnboardingRequest({
+            accountId: account.accountId,
             api,
             botShip: botShipName,
             botProfile: getBotProfile(),
