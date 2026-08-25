@@ -77,9 +77,8 @@ Outside of groups, you can send direct messages to individuals. DMs appear along
 When you create an account, Tlon Messenger asks if you want to sync your phone's contacts, so you can see whether you already have friends on the app.
 
 1. Give Tlon Messenger access to your contact book.  
-2. Select the contacts you want to share. You don't have to choose them all — you can filter for specific people.  
-3. Allow your device to share the selected contacts with Tlon Messenger.  
-4. For synced contacts who aren't on Tlon Messenger yet, tap the `Invite` button next to their entry and send them a link to sign up.
+2. What happens next depends on the phone. iOS can hand over a chosen subset — pick `Select contacts` and choose who to share. Android grants the whole book at once; there's no per-contact step, so don't send an Android user looking for one.  
+3. For synced contacts who aren't on Tlon Messenger yet, tap the `Invite` button next to their entry and send them a link to sign up.
 
 You'll automatically receive a DM when they join. Tlon will never spam your contacts and will never use your contact book in any capacity without your permission.
 
@@ -165,7 +164,7 @@ To send one: tap the plus button, tap `New direct message`, and select who it's 
 
 ### What it is
 
-Tlonbot is a personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. Every account includes one, no setup required.
+Tlonbot is a personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. Hosted accounts get one provisioned for them, waiting in their DMs — nothing to set up. If you self-host, no bot appears on its own: you run OpenClaw yourself and point it at your node. That's a supported path, just a hands-on one.
 
 Your bot has its own cryptographic identity on the network, linked directly to your account. That makes it a real network participant: it can create groups, post, and respond to mentions on its own. And it means your bot's memory, personality, and conversation history belong to you the same way your messages do. You can export it, self-host it, or swap the AI model behind it. No vendor can take it away or change the terms on you.
 
@@ -233,7 +232,7 @@ You control who it listens to — tell it in a DM which members it may respond t
 
 ### Slash commands
 
-These are all owner-only. Anyone else who tries one gets told so — approving a member to talk to the bot doesn't hand them the commands.
+These are all owner-only, and approving a member to talk to the bot doesn't hand them the commands. What another member sees when they try one varies: sometimes an owner-only message, sometimes nothing at all, because the gateway drops unauthorized commands before the bot answers. Don't promise them an explanation — say it won't work for them.
 
 Access and moderation. The approval commands take a **request ID**, not a nickname — run `/pending` first and use the ID it prints:
 
@@ -359,7 +358,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **What is a node?** A node on the network is both a cryptographic identity and a personal server. Each one runs the Urbit OS with unique identifying keys.
 
-**What does owning a node mean?** Your node's identity is backed by cryptographic proof, with keys only you hold. You can self-host anytime and export your node with all its data intact.
+**What does owning a node mean?** Your node's identity is backed by cryptographic proof, with keys only you hold. You can self-host anytime and export your node with its data — messages, groups, settings. Pictures and large files live in outside storage and travel with that storage, not with the export.
 
 **What's the difference between my username and my node?** Your username (your Urbit ID) is like a unique address or phone number. Your node is the actual computer holding your apps and data.
 
@@ -373,11 +372,11 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **What is Tlonbot?** A personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. It's powered by OpenClaw and runs on its own node, linked to yours, on the same peer-to-peer network.
 
-**Does Tlonbot cost anything?** Every account gets one for free, including a free AI model for basic usage. Bring your own API key to use other models.
+**Does Tlonbot cost anything?** Hosted accounts get one for free, including a free AI model for basic usage. Bring your own API key to use other models. Self-hosters run their own and pay for whatever model they point it at.
 
 **Does Tlon read my bot's conversations?** No. Your bot's memory lives on your node, and model requests go directly to the inference provider.
 
-**What happens if Tlon disappears?** You won't lose your apps or data. The software is open source and peer-to-peer, so it keeps running. Export your node and run it yourself.
+**What happens if Tlon disappears?** You won't lose your apps or your messages. The software is open source and peer-to-peer, so it keeps running. Export your node and run it yourself. Pictures and large files are the exception — they live in S3-compatible storage with only links on your node, so if that storage is Tlon's, that's what you'd lose. Point your node at storage you control and it isn't a question.
 
 ---
 
