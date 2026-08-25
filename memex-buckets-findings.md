@@ -63,13 +63,12 @@ Time `POST /v2/buckets/objects/{id}/read-grant` before and after. Separately, dr
 
 ---
 
-## 2. Downloads named `download` — **DONE on both sides**
+## 2. Downloads through a pushed-token read grant are all named `download` — **DONE**
 
-*Resolved after this was written: Memex added `displayFilename :: Maybe Text` to
-`ObjectAuthorizationRequest` and reads it in `readGrant`; tlon-apps now sends the
-entry name from `grantBucketRead`. Left below for the record.*
-
-## 2. Downloads through a pushed-token read grant are all named `download`
+> **Closed on both sides since this was written.** Memex added
+> `displayFilename :: Maybe Text` to `ObjectAuthorizationRequest` and reads it in
+> `readGrant`; tlon-apps now sends the entry name from `grantBucketRead`
+> (`09e5b65b`). The analysis below is kept for the record.
 
 **Where:** `pkg/api/memex/src/Memex/API/Buckets.hs:450`, flowing into `Storage.hs:208`.
 
