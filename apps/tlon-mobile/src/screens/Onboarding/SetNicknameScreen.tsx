@@ -9,6 +9,7 @@ import {
   View,
   XStack,
   YStack,
+  isWeb,
   useTheme,
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
@@ -19,7 +20,7 @@ import {
   withRetry,
 } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { useSignupContext } from '../../lib/signupContext';
@@ -42,6 +43,10 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
   const facesImage = theme.dark
     ? require('../../../assets/images/faces-dark.png')
     : require('../../../assets/images/faces.png');
+
+  // Bumped when the revival prefill lands so the uncontrolled native input
+  // remounts and picks up the new defaultValue.
+  const [prefillKey, setPrefillKey] = useState(0);
 
   const {
     control,
@@ -137,6 +142,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
         currentUser?.peerNickname?.trim() || currentUser?.nickname?.trim();
       if (existingNickname && !cancelled) {
         setValue('nickname', existingNickname, { shouldValidate: true });
+        setPrefillKey((key) => key + 1);
       }
     })().catch((err) => {
       logger.trackError('Failed to prefill revival nickname', {
@@ -192,7 +198,14 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
           render={({ field: { onChange, onBlur, value } }) => (
             <Field label="Nickname" error={errors.nickname?.message}>
               <TextInput
-                value={value}
+                key={prefillKey}
+                // Echoing a controlled value back mid-IME-composition
+                // duplicates the composed text on Android (stale
+                // mostRecentEventCount), so native stays uncontrolled;
+                // defaultValue seeds the form value, and the key remount
+                // re-seeds it when the async revival prefill lands.
+                value={isWeb ? value : undefined}
+                defaultValue={isWeb ? undefined : value}
                 placeholder="Sampel Palnet"
                 onBlur={onBlur}
                 onChangeText={onChange}
