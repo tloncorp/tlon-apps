@@ -65,12 +65,19 @@ export {
   appendToPostBlob,
   appendVideoToPostBlob,
   contentToTextAndMentions,
+  findPostBlobEntry,
   parsePostBlob,
+  postHasBlobEntry,
   textAndMentionsToContent,
   toPostData as toContentHelpersPostData,
   type ClientPostBlobData,
   type Mention,
   type PostBlobDataEntry,
+  type PostBlobDataEntryAgentIntroRequest,
+  type PostBlobDataEntryAgentProvision,
+  type PostBlobDataEntryAgentProvisionAck,
+  type PostBlobDataEntryAgentPostMarker,
+  type PostBlobDataEntryA2UISelection,
 } from './client/content-helpers';
 export { getTextContent } from './client/postContent';
 export { preSig } from './lib/urbit';

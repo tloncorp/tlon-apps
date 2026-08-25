@@ -33,6 +33,28 @@ export const useAllChannels = ({ enabled }: { enabled?: boolean }) => {
   });
 };
 
+/**
+ * The viewer's durable A2UI selections in a channel. Depends on the posts
+ * table, so the optimistic insert of a reply invalidates it immediately and a
+ * just-answered control locks in the same tick it posts.
+ */
+export const useA2UISelections = ({
+  channelId,
+  authorId,
+  enabled,
+}: {
+  channelId: string;
+  authorId: string;
+  enabled?: boolean;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getA2UISelections);
+  return useQuery({
+    queryKey: ['a2uiSelections', deps, channelId, authorId],
+    queryFn: () => db.getA2UISelections({ channelId, authorId }),
+    enabled,
+  });
+};
+
 export const useCurrentChats = (
   queryConfig?: CustomQueryConfig<GroupedChats>
 ): UseQueryResult<GroupedChats | null> => {

@@ -51,6 +51,97 @@ describe('a2ui blob entries', () => {
     expect(A2UI.validateBlobEntry(a2uiBlobEntry)).toBe(true);
   });
 
+  test('finds the create message past unrelated primitive messages', () => {
+    const entry = {
+      ...a2uiBlobEntry,
+      messages: [null, ...a2uiBlobEntry.messages],
+    } as unknown as A2UI.BlobEntry;
+
+    expect(A2UI.validateBlobEntry(entry)).toBe(true);
+    expect(A2UI.getCreateMessage(entry)?.createSurface.surfaceId).toBe(
+      'weather-card'
+    );
+  });
+
+  test('bounds surface and component ids used by durable selections', () => {
+    const overlong = 'x'.repeat(513);
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          {
+            version: 'v0.9',
+            createSurface: {
+              surfaceId: overlong,
+              catalogId: 'tlon.a2ui.basic.v1',
+            },
+          },
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: overlong,
+              root: 'root',
+              components: [{ id: 'root', component: 'Text', text: 'Topics' }],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: overlong,
+              components: [{ id: overlong, component: 'Text', text: 'Topics' }],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+  });
+
+  test('bounds choice option ids persisted by durable selections', () => {
+    const overlong = 'x'.repeat(513);
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: 'choice',
+              components: [
+                {
+                  id: 'choice',
+                  component: 'Choice',
+                  options: [
+                    {
+                      id: overlong,
+                      label: 'Research',
+                      action: {
+                        event: {
+                          name: A2UI.action.sendMessage,
+                          context: { text: 'Research' },
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+  });
+
   test('parsePostBlob parses supported a2ui entries', () => {
     const blob = appendToPostBlob(undefined, a2uiBlobEntry);
 
@@ -91,6 +182,46 @@ describe('a2ui blob entries', () => {
                   },
                 },
                 { id: 'label', component: 'Text', text: 'View message' },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(true);
+  });
+
+  test('validates a bounded agent provision action', () => {
+    const provisionButton: A2UI.Button = {
+      id: 'root',
+      component: 'Button',
+      child: 'label',
+      action: {
+        event: {
+          name: A2UI.action.provisionAgent,
+          context: {
+            groupId: '~zod/agents',
+            purposeId: 'agent-daily-digest',
+            purpose: 'A daily digest',
+            topics: ['Open hardware', 'Space weather'],
+            scheduleHour: 8,
+            scheduleMinute: 0,
+          },
+        },
+      },
+    };
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: 'root',
+              components: [
+                provisionButton,
+                { id: 'label', component: 'Text', text: 'Use timezone' },
               ],
             },
           },
