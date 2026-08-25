@@ -37,6 +37,7 @@ import {
   isWeb,
 } from 'tamagui';
 
+import { isAgentOnboardingFirstEntryNote } from '../../../features/top/agentOnboardingFirstEntry';
 import {
   useRegisterChannelHeaderItem,
   useRegisterChannelHeaderLoadingSubtitle,
@@ -516,7 +517,7 @@ export function NotesNoteDetail({
   }, [selectedNoteRowId]);
 
   useEffect(() => {
-    if (selectedNoteRowId === null) {
+    if (selectedNoteRowId === null || !notebookFlag || noteId === null) {
       return;
     }
     // Activation for agent onboarding. The plugin reports that it posted the
@@ -538,6 +539,23 @@ export function NotesNoteDetail({
           !selectedNoteCreatedBy ||
           selectedNoteCreatedBy.replace(/^~/, '') !==
             agentShip.replace(/^~/, '')
+        ) {
+          return;
+        }
+        const chatPosts = (
+          await Promise.all(
+            group.channels
+              .filter((candidate) => candidate.type === 'chat')
+              .map((candidate) => db.getChanPosts({ channelId: candidate.id }))
+          )
+        ).flat();
+        if (
+          !isAgentOnboardingFirstEntryNote(
+            chatPosts,
+            agentShip,
+            notebookFlag,
+            noteId
+          )
         ) {
           return;
         }
