@@ -38,6 +38,8 @@ export interface ContentContextProps {
   ) => void | Promise<void>;
   isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
   canSendA2UIResponse?: boolean;
+  /** Consumable controls stay locked until durable selections finish loading. */
+  areA2UISelectionsPending?: boolean;
   /** Post containing the rendered A2UI surface. */
   a2uiSourcePostId?: string;
   /**

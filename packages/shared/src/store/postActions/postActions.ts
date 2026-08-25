@@ -287,6 +287,7 @@ async function _sendPost({
   }
 
   logger.crumb('done optimistic update');
+  let backendDeliveryCompleted = false;
   try {
     logger.crumb('enqueuing sending post to backend');
     const debug = {
@@ -364,6 +365,7 @@ async function _sendPost({
     );
     onEnqueued?.();
     await sendPromise;
+    backendDeliveryCompleted = true;
     logger.crumb('sent post to backend, syncing channel message delivery');
     sync.syncChannelMessageDelivery({ channelId: channel.id });
 
@@ -393,6 +395,19 @@ async function _sendPost({
       }
     }
   } catch (e) {
+    if (backendDeliveryCompleted) {
+      // Delivery is authoritative once the API call resolves. A later local
+      // cleanup failure must not make a one-shot control retryable and send a
+      // duplicate message.
+      logger.error('Post sent but local cleanup failed', {
+        message: e.message,
+        type: e.constructor?.name,
+        stack: e.stack,
+        fullError: e,
+      });
+      return;
+    }
+
     logger.trackEvent(
       cachePost.parentId == null
         ? AnalyticsEvent.ErrorSendPost

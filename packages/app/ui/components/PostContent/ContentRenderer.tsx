@@ -66,6 +66,7 @@ function ContentRenderer({
   onA2UIAction,
   isA2UIActionAvailable,
   canSendA2UIResponse,
+  areA2UISelectionsPending,
   a2uiSourcePostId,
   getConsumedA2UISelection,
   isNotice,
@@ -85,6 +86,7 @@ function ContentRenderer({
       onA2UIAction={onA2UIAction}
       isA2UIActionAvailable={isA2UIActionAvailable}
       canSendA2UIResponse={canSendA2UIResponse}
+      areA2UISelectionsPending={areA2UISelectionsPending}
       a2uiSourcePostId={a2uiSourcePostId}
       getConsumedA2UISelection={getConsumedA2UISelection}
       isNotice={isNotice}

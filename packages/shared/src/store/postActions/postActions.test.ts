@@ -337,6 +337,28 @@ describe('finalizeAndSendPost', () => {
     });
   });
 
+  test('does not reject after backend delivery when local cleanup fails', async () => {
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    vi.mocked(poke).mockResolvedValueOnce(0);
+    const cleanup = vi
+      .spyOn(PostDataDraft, 'revokeBlobUrls')
+      .mockImplementationOnce(() => {
+        throw new Error('local cleanup failed');
+      });
+
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft(), {
+      rejectOnDefinitiveFailure: true,
+    });
+    await vi.runOnlyPendingTimersAsync();
+
+    await expect(sendPostPromise).resolves.toBeUndefined();
+    expect(await fetchLatestPostFromDb()).toMatchObject({
+      deliveryStatus: 'pending',
+    });
+    cleanup.mockRestore();
+  });
+
   test('rejects a missing channel for one-shot controls', async () => {
     const missingChannel = '~zod/missing';
 

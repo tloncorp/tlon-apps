@@ -702,6 +702,7 @@ export function A2UIBlock({
 }: { block: A2UIBlockData } & ComponentProps<typeof YStack>) {
   const {
     a2uiSourcePostId,
+    areA2UISelectionsPending,
     canSendA2UIResponse,
     getConsumedA2UISelection,
     isA2UIActionAvailable,
@@ -993,12 +994,15 @@ export function A2UIBlock({
           );
         case 'Button': {
           const actionCanBeConsumed = isConsumableA2UIAction(component.action);
+          const consumptionPending =
+            actionCanBeConsumed && areA2UISelectionsPending;
           const actionConsumed =
             actionCanBeConsumed &&
             (locallyConsumedComponentIds.includes(component.id) ||
               Boolean(getConsumedA2UISelection?.(surfaceId, component.id)));
           const disabled =
             actionConsumed ||
+            consumptionPending ||
             component.disabled ||
             !onA2UIAction ||
             isA2UIActionAvailable?.(component.action) === false;
@@ -1072,8 +1076,11 @@ export function A2UIBlock({
             const accentedCard = Boolean(
               option.accent && option.accent !== 'neutral' && !option.icon
             );
+            const consumptionPending =
+              isConsumableA2UIAction(option.action) && areA2UISelectionsPending;
             const disabled =
               choiceConsumed ||
+              consumptionPending ||
               !onA2UIAction ||
               isA2UIActionAvailable?.(option.action) === false;
             const isLast = index === component.options.length - 1;
@@ -1205,6 +1212,10 @@ export function A2UIBlock({
                 canSend={
                   Boolean(onA2UIAction) &&
                   canSendA2UIResponse !== false &&
+                  !(
+                    isConsumableA2UIAction(component.action) &&
+                    areA2UISelectionsPending
+                  ) &&
                   (component.action.event.name !== A2UI.action.provisionAgent ||
                     isA2UIActionAvailable?.(component.action) !== false)
                 }
@@ -1222,6 +1233,8 @@ export function A2UIBlock({
       }
     },
     [
+      a2uiSourcePostId,
+      areA2UISelectionsPending,
       canSendA2UIResponse,
       components,
       getConsumedA2UISelection,

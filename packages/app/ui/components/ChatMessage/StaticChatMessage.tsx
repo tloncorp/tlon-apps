@@ -286,6 +286,7 @@ export function StaticChatMessage({
               draftInputContext &&
               draftInputContext.canStartDraft !== false
             )}
+            areA2UISelectionsPending={a2uiSelections.isPending}
             a2uiSourcePostId={post.id}
             getConsumedA2UISelection={
               canRenderA2UI ? getConsumedA2UISelection : undefined
