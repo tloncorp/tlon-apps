@@ -114,7 +114,10 @@ export function useA2UINavigation() {
   );
 
   return useCallback(
-    async (target: A2UI.NavigationTarget) => {
+    async (
+      target: A2UI.NavigationTarget,
+      options?: { allowBotMcpSettings?: boolean }
+    ) => {
       switch (target.type) {
         case 'message':
           await navigateToMessage(target);
@@ -160,6 +163,10 @@ export function useA2UINavigation() {
         case 'screen':
           switch (target.screen) {
             case 'botMcpSettings':
+              if (!options?.allowBotMcpSettings) {
+                logger.log('blocked untrusted MCP settings target', target);
+                return;
+              }
               rootNavigation.navigateToBotMcpSettings(target.providerId);
               return;
           }

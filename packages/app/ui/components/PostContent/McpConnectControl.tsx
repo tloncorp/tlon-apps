@@ -4,7 +4,7 @@ import * as api from '@tloncorp/api';
 import { A2UI } from '@tloncorp/shared/logic';
 import { Icon, LoadingSpinner } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { XStack, YStack, isWeb } from 'tamagui';
+import { XStack, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import {
@@ -19,7 +19,10 @@ import { useOneShotAction } from './useOneShotAction';
 
 const MAX_PROVIDER_SELECTIONS = api.AGENT_PROTOCOL_LIMITS.providerCount;
 const pendingProviderSelections = new Map<string, string[]>();
-const pendingProviderAuthorizations = new Map<string, string>();
+const pendingProviderAuthorizations = new Map<
+  string,
+  { providerId: string; leftSurface: boolean; returned: boolean }
+>();
 const clampProviderIds = (providerIds: string[]) =>
   providerIds.slice(0, MAX_PROVIDER_SELECTIONS);
 
@@ -50,6 +53,9 @@ export function McpConnectControl({
     queryKey: ['tlonbot', 'oauth-providers'],
     queryFn: () => api.getTlawnOAuthProviders(),
     staleTime: 5 * 60 * 1000,
+    // React Query owns the single app/window focus listener. Historical cards
+    // share this cache instead of each installing its own refresh listeners.
+    refetchOnWindowFocus: 'always',
     retry: false,
   });
   const statusQuery = useQuery({
@@ -57,35 +63,16 @@ export function McpConnectControl({
     queryFn: () => api.getTlawnOAuthStatus(currentUserId),
     enabled: Boolean(currentUserId),
     staleTime: 30 * 1000,
+    refetchOnWindowFocus: 'always',
     retry: false,
   });
 
-  const refreshProviders = useCallback(() => {
-    void providersQuery.refetch();
-    if (currentUserId) void statusQuery.refetch();
+  const refreshProviders = useCallback(async () => {
+    await Promise.all([
+      providersQuery.refetch(),
+      currentUserId ? statusQuery.refetch() : Promise.resolve(),
+    ]);
   }, [currentUserId, providersQuery.refetch, statusQuery.refetch]);
-
-  useFocusEffect(
-    useCallback(() => {
-      // OAuth leaves and re-enters the channel. Refresh the shared cache when
-      // it regains focus so every historical connector control sees the grant.
-      refreshProviders();
-    }, [refreshProviders])
-  );
-
-  useEffect(() => {
-    if (!isWeb) return;
-    const handleFocus = () => refreshProviders();
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') refreshProviders();
-    };
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, [refreshProviders]);
 
   const providers = useMemo(
     () =>
@@ -117,6 +104,7 @@ export function McpConnectControl({
       onConfigure={onConfigure}
       onComplete={onComplete}
       onNavigate={onNavigate}
+      onRefreshProviders={refreshProviders}
       providers={providers}
     />
   );
@@ -132,6 +120,7 @@ export function McpConnectMenu({
   onConfigure,
   onComplete,
   onNavigate,
+  onRefreshProviders,
   providers,
 }: {
   component: A2UI.McpConnect;
@@ -148,6 +137,7 @@ export function McpConnectMenu({
     selection?: api.PostBlobDataEntryA2UISelection
   ) => void | Promise<void>;
   onNavigate?: (action: A2UI.NavigateAction) => void | Promise<void>;
+  onRefreshProviders?: () => Promise<void>;
   providers: McpProviderRow[];
 }) {
   const selectionKey = `${component.configureAction.event.context.groupId}\u0000${component.configureAction.event.context.provisionId}\u0000${component.id}`;
@@ -155,6 +145,8 @@ export function McpConnectMenu({
     () => pendingProviderSelections.get(selectionKey) ?? []
   );
   const [submitting, setSubmitting] = useState(false);
+  const [authorizationReturnVersion, setAuthorizationReturnVersion] =
+    useState(0);
   const configuringRef = useRef(false);
   const initializedRef = useRef(false);
   const knownConnectedRef = useRef(new Set<string>());
@@ -165,6 +157,28 @@ export function McpConnectMenu({
         .filter((provider) => provider.status === 'connected')
         .map((provider) => provider.id),
     [providers]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const pending = pendingProviderAuthorizations.get(selectionKey);
+      if (pending?.leftSurface) {
+        const refresh = onRefreshProviders?.() ?? Promise.resolve();
+        const finishRoundTrip = () => {
+          const current = pendingProviderAuthorizations.get(selectionKey);
+          if (current === pending) {
+            current.returned = true;
+            setAuthorizationReturnVersion((version) => version + 1);
+          }
+        };
+        void refresh.then(finishRoundTrip, finishRoundTrip);
+      }
+
+      return () => {
+        const current = pendingProviderAuthorizations.get(selectionKey);
+        if (current) current.leftSurface = true;
+      };
+    }, [onRefreshProviders, selectionKey])
   );
 
   useEffect(() => {
@@ -183,9 +197,15 @@ export function McpConnectMenu({
     const pendingAuthorization =
       pendingProviderAuthorizations.get(selectionKey);
     const newlyConnected = connectedProviderIds.filter(
-      (id) => id === pendingAuthorization && !knownConnectedRef.current.has(id)
+      (id) =>
+        pendingAuthorization?.returned === true &&
+        id === pendingAuthorization.providerId &&
+        !knownConnectedRef.current.has(id)
     );
-    if (newlyConnected.length > 0) {
+    if (pendingAuthorization?.returned) {
+      // A returned OAuth round trip owns exactly one refresh. Clear the marker
+      // whether it connected, failed, or was canceled so a later settings
+      // change cannot be mistaken for this control's authorization.
       pendingProviderAuthorizations.delete(selectionKey);
     }
     knownConnectedRef.current = connected;
@@ -201,7 +221,13 @@ export function McpConnectMenu({
         ? current
         : next;
     });
-  }, [connectedProviderIds, loading, providersLoaded, selectionKey]);
+  }, [
+    authorizationReturnVersion,
+    connectedProviderIds,
+    loading,
+    providersLoaded,
+    selectionKey,
+  ]);
 
   useEffect(() => {
     pendingProviderSelections.set(selectionKey, selectedProviderIds);
@@ -293,7 +319,11 @@ export function McpConnectMenu({
       const target = component.action.event.context.target;
       if (target.type !== 'screen') return;
       if (providerId) {
-        pendingProviderAuthorizations.set(selectionKey, providerId);
+        pendingProviderAuthorizations.set(selectionKey, {
+          providerId,
+          leftSurface: false,
+          returned: false,
+        });
       } else {
         pendingProviderAuthorizations.delete(selectionKey);
       }
