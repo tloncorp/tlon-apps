@@ -880,11 +880,17 @@ export function Channel({
           >
             <DraftInputContextProvider value={draftInputContext}>
               <NavigationProvider
-                onPressRef={handleRefPress}
-                onPressGroupRef={onPressGroupRef}
-                onPressGoToDm={goToDm}
-                onGoToUserProfile={goToUserProfile}
-                onGoToGroupSettings={goToGroupSettings}
+                onPressRef={disableBackButton ? undefined : handleRefPress}
+                onPressGroupRef={
+                  disableBackButton ? undefined : onPressGroupRef
+                }
+                onPressGoToDm={disableBackButton ? undefined : goToDm}
+                onGoToUserProfile={
+                  disableBackButton ? undefined : goToUserProfile
+                }
+                onGoToGroupSettings={
+                  disableBackButton ? undefined : goToGroupSettings
+                }
               >
                 <View backgroundColor={backgroundColor} flex={1}>
                   <FileDrop

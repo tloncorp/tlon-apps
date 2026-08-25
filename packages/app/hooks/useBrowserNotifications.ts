@@ -264,8 +264,14 @@ export default function useBrowserNotifications() {
   const isElectron = useIsElectron();
   const isAppForegrounded = useIsAppForegroundedAcrossTabs(!isElectron);
   const { disableNicknames } = useCalm();
-  const { locked: agentOnboardingLocked } =
-    useAnyAgentGroupOnboardingLock();
+  const {
+    locked: agentOnboardingLocked,
+    isLoading: agentOnboardingLockLoading,
+  } = useAnyAgentGroupOnboardingLock();
+  const agentOnboardingNavigationStateRef = useMutableRef({
+    isLoading: agentOnboardingLockLoading,
+    locked: agentOnboardingLocked,
+  });
   const { resetToChannel, resetToGroup, resetToGroupInvite, resetToPost } =
     useRootNavigation();
   const resetToChannelRef = useMutableRef(resetToChannel);
@@ -311,7 +317,8 @@ export default function useBrowserNotifications() {
                 ? `${contactName} is requesting to join`
                 : `${contactName} invited you to join`,
             navigateOnClick: (groupId) => {
-              if (agentOnboardingLocked) return;
+              const onboarding = agentOnboardingNavigationStateRef.current;
+              if (onboarding.isLoading || onboarding.locked) return;
               return isAsk
                 ? resetToGroupRef.current(groupId)
                 : resetToGroupInviteRef.current(groupId);
@@ -378,7 +385,8 @@ export default function useBrowserNotifications() {
         });
 
         notification.onclick = () => {
-          if (agentOnboardingLocked) {
+          const onboarding = agentOnboardingNavigationStateRef.current;
+          if (onboarding.isLoading || onboarding.locked) {
             notification.close();
             return;
           }
@@ -413,8 +421,8 @@ export default function useBrowserNotifications() {
       }
     },
     [
+      agentOnboardingNavigationStateRef,
       disableNicknames,
-      agentOnboardingLocked,
       isAppForegrounded,
       resetToChannelRef,
       resetToGroupRef,
