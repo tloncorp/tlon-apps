@@ -66,6 +66,31 @@ describe('Buckets broker client', () => {
     );
   });
 
+  // A read token can stop being the one the broker holds between reading it
+  // and using it, because the host rotates on its own timer. That is a stale
+  // read, not a permission problem.
+  test('read-grant surfaces a refused token as an auth failure the caller can retry', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: 'capability_denied',
+          message: 'read token is not synchronized or has expired',
+          retryable: false,
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      )
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      grantBucketRead('stale', '~zod', 'object/1', 'x.pdf')
+    ).rejects.toMatchObject({
+      name: 'BucketsBrokerError',
+      status: 403,
+      code: 'capability_denied',
+    });
+  });
+
   // Omitting it makes every download arrive called "download" -- the broker
   // has no filename of its own to fall back to, only that literal.
   test('read-grant carries the name the file should download as', async () => {

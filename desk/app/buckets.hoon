@@ -937,7 +937,9 @@
   ^+  cor
   ?~  base
     %-  (slog leaf+"buckets: broker base reset to the default" ~)
-    cor(broker-base default-broker-base)
+    ::  Going back is a move between brokers like any other: the default has
+    ::  heard nothing we said while we were pointed elsewhere.
+    (rebase-readers default-broker-base)
   =/  txt=tape  (trip u.base)
   ::  Indexed rather than +rear/+snip on purpose: testing with ?= narrows the
   ::  tape, and those wet gates do not survive being handed a narrowed list.
@@ -948,10 +950,8 @@
   ?.  =("https://" (scag 8 txt))
     %-  (slog leaf+"buckets: refusing a broker base that is not https" ~)
     cor
-  =/  next=@t  (crip txt)
-  ?:  =(next broker-base)  cor
   %-  (slog leaf+"buckets: broker base is now {txt}" ~)
-  (rebase-readers next)
+  (rebase-readers (crip txt))
 ::
 ::  +rebase-readers: point every live grant at the broker we just moved to.
 ::
@@ -970,6 +970,7 @@
 ++  rebase-readers
   |=  base=@t
   ^+  cor
+  ?:  =(base broker-base)  cor
   =.  broker-base  base
   =.  readers
     %-  malt
@@ -1202,16 +1203,19 @@
 ++  retry-readers
   ^+  cor
   ::  A pair drops out of +owed at its expiry whether or not it ever landed,
-  ::  and this arm then returns without rearming. For our own reader that ends
-  ::  the renewal silently while an expired token stays installed, so restart
-  ::  it here rather than waiting for an unrelated change to notice.
+  ::  and this arm then returns without rearming, so nothing else revisits it.
+  ::  What that strands depends on whose reader it is: ours has an expired
+  ::  token still installed and a renewal loop that has quietly stopped, while
+  ::  a subscriber's has a request waiting for an answer that is no longer
+  ::  coming. Neither has anyone else to notice.
   =.  cor
     %+  roll  ~(tap by readers)
     |=  [[key=reader-key:b sync=reader-sync:b] acc=_cor]
-    ?.  =(reader.key our.bowl)  acc
     ?:  =(synced.sync revision.sync)  acc
     ?.  (lte expires.sync now.bowl)  acc
-    (recover-local-reader:acc flag.key)
+    ?:  =(reader.key our.bowl)  (recover-local-reader:acc flag.key)
+    %+  answer-waiter:acc  key
+    [%error %unknown 'storage did not take this grant before it lapsed']
   =/  wants  owed
   ?~  wants  cor
   =.  cor  (emil (sync-cards wants))

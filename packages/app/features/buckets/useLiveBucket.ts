@@ -1,4 +1,5 @@
 import {
+  BUCKETS_AUTH_FAILURE_STATUSES,
   BucketsEntry,
   BucketsFileEntry,
   BucketsFlag,
@@ -655,13 +656,26 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         (await requestBucketReadToken(flag));
       // The entry name is the only place the file's name exists by this point:
       // the token is bucket-wide and the broker never stored one.
-      const grant = await grantBucketRead(
-        held.token,
-        flag.host,
-        entry.file.objectKey,
-        entry.name
-      );
-      return grant.readUrl;
+      //
+      // Retried once on a refused token, because the one we just read can stop
+      // being the one the broker holds between reading it and using it: the
+      // host rotates on its own timer, and the local scry will hand back a
+      // token whose replacement has already been pushed. That is a stale read,
+      // not a permission problem, and the reader should not see it as one.
+      const openWith = (token: string) =>
+        grantBucketRead(token, flag.host, entry.file.objectKey, entry.name);
+      try {
+        return (await openWith(held.token)).readUrl;
+      } catch (cause) {
+        if (
+          !(cause instanceof BucketsBrokerError) ||
+          !BUCKETS_AUTH_FAILURE_STATUSES.includes(cause.status)
+        ) {
+          throw cause;
+        }
+        const minted = await requestBucketReadToken(flag);
+        return (await openWith(minted.token)).readUrl;
+      }
     },
     refresh,
     retryUpload,

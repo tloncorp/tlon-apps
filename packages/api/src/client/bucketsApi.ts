@@ -23,7 +23,7 @@ const BUCKETS_V1_PATH = '/buckets/~/v1';
 // The agent answers an unauthenticated request with 401, as %notes does, but
 // requestJson only reauths on 403 by default. Without both, an expired Eyre
 // cookie fails every Bucket action outright instead of refreshing once.
-const BUCKETS_AUTH_FAILURE_STATUSES = [401, 403] as const;
+export const BUCKETS_AUTH_FAILURE_STATUSES: readonly number[] = [401, 403];
 
 /**
  * A typed refusal from %buckets.
@@ -151,6 +151,22 @@ export function mintRequestId(): string {
     groups.push(digits.slice(i, i + 5).join(''));
   }
   return `0v${groups.join('.')}`;
+}
+
+/**
+ * Submit an action and wait for its terminal answer, reporting the id it was
+ * submitted under.
+ *
+ * The id is what makes a lost answer recoverable -- /request/<id> reads the
+ * result, and resubmitting under it is answered from the record rather than
+ * run again -- so a caller that means to recover has to be able to learn it
+ * before the answer arrives, not from the answer.
+ */
+export async function submitBucketsAction(
+  action: BucketsAction,
+  requestId: string = mintRequestId()
+): Promise<{ requestId: string; body: BucketsResponseBody }> {
+  return { requestId, body: await sendBucketsAction(action, requestId) };
 }
 
 export async function sendBucketsAction(
