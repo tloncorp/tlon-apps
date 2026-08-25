@@ -580,7 +580,10 @@ export default function ChannelScreen(props: Props) {
             clearedCursor || cursorPostIsHidden ? undefined : selectedPostId
           }
           goBack={navigationRef.current.goBack}
-          disableBackButton={agentOnboarding.locked}
+          disableBackButton={
+            agentOnboarding.locked ||
+            Boolean(routeGroupId && agentOnboarding.isLoading)
+          }
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}

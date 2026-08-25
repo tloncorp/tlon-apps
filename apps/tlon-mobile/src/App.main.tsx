@@ -166,7 +166,7 @@ const MainApp = () => {
           showSplashSequence &&
           (forcedSplash || activeSplashSequenceMode === 'tlonbotRevival') ? (
             <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-              splash
+              {splash}
             </AppDataProvider>
           ) : (
             <ZStack flex={1}>

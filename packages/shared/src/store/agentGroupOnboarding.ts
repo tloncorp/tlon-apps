@@ -268,24 +268,24 @@ async function retryAgentGroupFurnishCore<T>(
   operation: () => Promise<T>,
   { groupId, delayMs = 1_000 }: { groupId: string; delayMs?: number }
 ): Promise<T> {
-  try {
-    return await operation();
-  } catch (error) {
-    logger.trackError('Agent Group Furnish Core Failed; Retrying', {
-      error,
-      groupId,
-    });
-  }
-
-  if (delayMs) await wait(delayMs);
-  return operation();
+  return logic.withRetry(operation, {
+    numOfAttempts: 2,
+    startingDelay: delayMs,
+    retry: (error) => {
+      logger.trackError('Agent Group Furnish Core Failed; Retrying', {
+        error,
+        groupId,
+      });
+      return true;
+    },
+  });
 }
 
 export function buildAgentGroupTitle({
   purposeId,
   topics,
 }: {
-  purposeId: string;
+  purposeId: api.AgentOnboardingPurposeId;
   topics: readonly string[];
 }) {
   const cleanTopics = topics.map((topic) => topic.trim()).filter(Boolean);
@@ -323,7 +323,7 @@ export async function renameAgentGroupFromOnboarding({
   topics,
 }: {
   groupId: string;
-  purposeId: string;
+  purposeId: api.AgentOnboardingPurposeId;
   topics: readonly string[];
 }) {
   try {
@@ -461,14 +461,8 @@ async function ensureIntroRequest(
   const alreadyPosted = history.posts.some(
     (post) =>
       post.authorId === currentUserId &&
-      post.blob &&
-      logic
-        .parsePostBlob(post.blob)
-        .some(
-          (entry) =>
-            entry.type === 'tlon-agent-intro-request' &&
-            entry.groupId === groupId
-        )
+      logic.findPostBlobEntry(post.blob, 'tlon-agent-intro-request')
+        ?.groupId === groupId
   );
   if (alreadyPosted) return;
 
@@ -580,28 +574,25 @@ function reconcileAgentStandingUntilReady(params: {
 async function retryAgentStanding(
   operation: () => Promise<void>,
   groupId: string,
-  sleep: (ms: number) => Promise<void> = wait,
-  maxAttempts = 3
+  {
+    startingDelay = 1_000,
+    maxAttempts = 3,
+  }: { startingDelay?: number; maxAttempts?: number } = {}
 ) {
-  let delayMs = 1_000;
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    try {
-      await operation();
-      return;
-    } catch (error) {
-      lastError = error;
+  return logic.withRetry(operation, {
+    numOfAttempts: maxAttempts,
+    startingDelay,
+    maxDelay: 30_000,
+    timeMultiple: 2,
+    retry: (error, attempt) => {
       logger.trackError('Agent Group Standing Repair Failed; Retrying', {
         error,
         groupId,
-        delayMs,
+        attempt,
       });
-    }
-    if (attempt === maxAttempts) break;
-    await sleep(delayMs);
-    delayMs = Math.min(delayMs * 2, 30_000);
-  }
-  throw lastError;
+      return true;
+    },
+  });
 }
 
 async function addCordonThenJoin(
