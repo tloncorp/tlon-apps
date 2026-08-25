@@ -157,7 +157,6 @@ const buttonEventSchema = z.discriminatedUnion('name', [
   sendMessageEventSchema,
   navigateEventSchema,
   provisionAgentEventSchema,
-  configureAgentProvidersEventSchema,
 ]);
 const buttonActionSchema = z.object({ event: buttonEventSchema });
 const sendMessageActionSchema = z.object({ event: sendMessageEventSchema });
@@ -353,6 +352,8 @@ export namespace A2UI {
   export type ConfigureAgentProvidersAction = z.infer<
     typeof configureAgentProvidersActionSchema
   >;
+  /** Every action the renderer may dispatch; provider config is McpConnect-only. */
+  export type Action = ButtonAction | ConfigureAgentProvidersAction;
   export type Button = z.infer<typeof buttonSchema>;
   /** Allowlisted assets a Choice option may render. */
   export type ChoiceIcon = z.infer<typeof choiceIconSchema>;

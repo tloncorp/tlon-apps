@@ -109,10 +109,7 @@ export function StaticChatMessage({
   }, [onPressRetry, post]);
 
   const handleA2UIAction = useCallback(
-    async (
-      action: A2UI.Button['action'],
-      selection?: PostBlobDataEntryA2UISelection
-    ) => {
+    async (action: A2UI.Action, selection?: PostBlobDataEntryA2UISelection) => {
       if (action.event.name === A2UI.action.navigate) {
         await navigateToA2UITarget(action.event.context.target, {
           allowBotMcpSettings: canUseAgentProviderControls,
@@ -152,7 +149,7 @@ export function StaticChatMessage({
   );
 
   const isA2UIActionAvailable = useCallback(
-    (action: A2UI.Button['action']) => {
+    (action: A2UI.Action) => {
       if (action.event.name === A2UI.action.navigate) {
         const target = action.event.context.target;
         return (

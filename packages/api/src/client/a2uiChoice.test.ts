@@ -103,6 +103,18 @@ const wrapped = (component: unknown) =>
 const valid = (component: unknown) =>
   A2UI.validateBlobEntry(wrapped(component));
 
+const validButton = (action: unknown) =>
+  A2UI.validateBlobEntry(
+    entryWith(
+      [
+        { id: 'root', component: 'Column', children: ['main'] },
+        { id: 'main', component: 'Button', child: 'label', action },
+        { id: 'label', component: 'Text', text: 'Configure' },
+      ],
+      'root'
+    )
+  );
+
 describe('Choice validation', () => {
   test('accepts well-formed groups, with or without the optional fields', () => {
     expect(valid(choice())).toBe(true);
@@ -214,6 +226,14 @@ describe('McpConnect validation', () => {
     expect(valid(mcpConnect({ completionAction: sendAction('Done') }))).toBe(
       false
     );
+  });
+
+  test('rejects provider configuration outside McpConnect', () => {
+    const configureAction = mcpConnect().configureAction;
+    expect(validButton(configureAction)).toBe(false);
+    expect(
+      valid(choice({ options: [option({ action: configureAction })] }))
+    ).toBe(false);
   });
 });
 

@@ -33,10 +33,10 @@ export interface ContentContextProps {
   getImageViewerId?: (src: string) => string | undefined;
   onLongPress?: () => void;
   onA2UIAction?: (
-    action: A2UI.Button['action'],
+    action: A2UI.Action,
     selection?: PostBlobDataEntryA2UISelection
   ) => void | Promise<void>;
-  isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
+  isA2UIActionAvailable?: (action: A2UI.Action) => boolean;
   canSendA2UIResponse?: boolean;
   /** Post containing the rendered A2UI surface. */
   a2uiSourcePostId?: string;
