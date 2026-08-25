@@ -1337,13 +1337,16 @@ export default defineBundledChannelEntry({
     });
 
     api.on('message_sent', (event, ctx) => {
-      void handleAgentOnboardingMessageSent(event, {}, ctx.runId).catch(
-        (error) => {
-          api.logger.error(
-            `[tlon] agent onboarding delivery completion failed: ${String(error)}`
-          );
-        }
-      );
+      void handleAgentOnboardingMessageSent(
+        event,
+        {},
+        ctx.runId,
+        ctx.accountId
+      ).catch((error) => {
+        api.logger.error(
+          `[tlon] agent onboarding delivery completion failed: ${String(error)}`
+        );
+      });
       safeTelemetryObserver({
         logger: api.logger,
         telemetrySource: 'message_sent',
