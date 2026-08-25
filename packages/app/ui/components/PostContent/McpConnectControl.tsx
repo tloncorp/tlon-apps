@@ -346,7 +346,13 @@ export function McpConnectMenu({
 
   const navigate = useCallback(
     (providerId?: string) => {
-      if (!onNavigate) return;
+      if (
+        !onNavigate ||
+        configuringRef.current ||
+        completionAction.isLocked()
+      ) {
+        return;
+      }
       const target = component.action.event.context.target;
       if (target.type !== 'screen') return;
       if (providerId) {
@@ -370,7 +376,7 @@ export function McpConnectMenu({
         },
       });
     },
-    [component.action.event, onNavigate, selectionKey]
+    [completionAction, component.action.event, onNavigate, selectionKey]
   );
 
   return (
@@ -399,7 +405,7 @@ export function McpConnectMenu({
           </XStack>
         ) : failed || visibleProviders.length === 0 ? (
           <ProviderFallbackRow
-            disabled={!onNavigate || completionLocked}
+            disabled={!onNavigate || submitting || completionLocked}
             onPress={() => navigate()}
           />
         ) : (
@@ -409,10 +415,10 @@ export function McpConnectMenu({
               const selected = selectedProviderIds.includes(provider.id);
               const enabled = connected
                 ? Boolean(onConfigure) && !submitting && !completionLocked
-                : Boolean(onNavigate) && !completionLocked;
+                : Boolean(onNavigate) && !submitting && !completionLocked;
               const disabled = connected
                 ? !onConfigure || submitting || completionLocked
-                : !onNavigate || completionLocked;
+                : !onNavigate || submitting || completionLocked;
               return (
                 <A2UIMenuRow
                   key={provider.id}
@@ -466,9 +472,9 @@ export function McpConnectMenu({
               <A2UIMenuRow
                 testID="A2UIMcpConnectSeeAll"
                 accessibilityLabel={component.seeAllLabel}
-                disabled={!onNavigate || completionLocked}
+                disabled={!onNavigate || submitting || completionLocked}
                 onPress={() => navigate()}
-                dimmed={!onNavigate || completionLocked}
+                dimmed={!onNavigate || submitting || completionLocked}
                 label={component.seeAllLabel}
                 trailing={
                   <Icon
