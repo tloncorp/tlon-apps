@@ -305,6 +305,10 @@ const primaryJobProviderIds = sharedMap<string, string[]>(
   'agentOnboarding.primaryJobProviderIds'
 );
 
+function onboardingAccountId(context: AgentOnboardingScanContext) {
+  return context.accountId ?? context.botShip;
+}
+
 function startSingleFlight<Key, Value>(
   flights: Map<Key, Promise<Value>>,
   key: Key,
@@ -536,6 +540,7 @@ export async function scanAgentOnboardingChannel(
   let restoredDurableRun = false;
   if (!newestProvision) {
     const durable = await lookupNewestAgentOnboardingRunForGroup(
+      onboardingAccountId(context),
       context.groupId
     );
     if (
@@ -1126,7 +1131,10 @@ async function provision(
           'I’m writing the first entry now. You’re all set—feel free to ' +
           'explore while I work.',
         shouldSend: async () => {
-          const latest = await lookupAgentOnboardingRun(request.provisionId);
+          const latest = await lookupAgentOnboardingRun(
+            onboardingAccountId(context),
+            request.provisionId
+          );
           return latest?.status !== 'completed' && latest?.status !== 'failed';
         },
       }),
@@ -1170,6 +1178,7 @@ async function configureProviders(
   deps: AgentOnboardingDeps
 ) {
   const newestDurableProvision = await lookupNewestAgentOnboardingRunForGroup(
+    onboardingAccountId(context),
     config.groupId
   );
   if (
@@ -1195,7 +1204,8 @@ async function configureProviders(
     );
     return;
   }
-  const record = await lookupAgentOnboardingRun(config.provisionId);
+  const accountId = onboardingAccountId(context);
+  const record = await lookupAgentOnboardingRun(accountId, config.provisionId);
   const durableProvision =
     record &&
     record.groupId === config.groupId &&
@@ -1247,6 +1257,15 @@ async function configureProviders(
     );
     return;
   }
+  // Revoke authorization durably before mutating cron. If any later write or
+  // process step fails, both this process and restart recovery remain closed.
+  await updateAgentOnboardingRunProviders(
+    accountId,
+    config.provisionId,
+    acknowledgedJobId,
+    []
+  );
+  primaryJobProviderIds.set(acknowledgedJobId, []);
   const jobId = await updatePrimaryJobProviders(
     cron,
     acknowledgedJobId,
@@ -1255,10 +1274,13 @@ async function configureProviders(
     config.providerIds
   );
   await updateAgentOnboardingRunProviders(
+    accountId,
     config.provisionId,
     jobId,
     config.providerIds
   );
+  primaryJobIds.set(jobId, true);
+  primaryJobProviderIds.set(jobId, [...config.providerIds]);
   if (jobId !== acknowledgedJobId) {
     context.log?.(
       '[tlon] provider config recovered the primary cron under a new job id'
@@ -1316,7 +1338,10 @@ export async function handleAgentOnboardingCronChanged(
   ) {
     return;
   }
-  const durable = await lookupAgentOnboardingRun(exactMatch[1].provisionId);
+  const durable = await lookupAgentOnboardingRun(
+    onboardingAccountId(exactMatch[1].context),
+    exactMatch[1].provisionId
+  );
   const noteId = durable?.outcome?.noteId;
   // Cron completion does not identify the Notes entry. Wait for message_sent,
   // which carries the exact delivery message id, instead of guessing from
@@ -1442,7 +1467,11 @@ async function failFirstRunCorrelation(
     });
   }
   await postFirstRunServices(correlation, history, runDeps);
-  await markAgentOnboardingRunTerminal(correlation.provisionId, 'failed');
+  await markAgentOnboardingRunTerminal(
+    onboardingAccountId(correlation.context),
+    correlation.provisionId,
+    'failed'
+  );
   firstRunCorrelations.delete(correlationRunId);
 }
 
@@ -1632,10 +1661,15 @@ async function retireSupersededFirstRun(
   status: 'completed' | 'failed'
 ) {
   const newest = await lookupNewestAgentOnboardingRunForGroup(
+    onboardingAccountId(correlation.context),
     correlation.context.groupId!
   );
   if (!newest || newest.provisionId === correlation.provisionId) return false;
-  await markAgentOnboardingRunTerminal(correlation.provisionId, status);
+  await markAgentOnboardingRunTerminal(
+    onboardingAccountId(correlation.context),
+    correlation.provisionId,
+    status
+  );
   firstRunCorrelations.delete(correlationRunId);
   correlation.context.log?.(
     `[tlon] suppressed ${status} presentation for superseded provision ${correlation.provisionId}`
@@ -1726,7 +1760,11 @@ async function completeFirstRunCorrelation(
       });
     }
     await postFirstRunServices(correlation, history, runDeps);
-    await markAgentOnboardingRunTerminal(correlation.provisionId, 'completed');
+    await markAgentOnboardingRunTerminal(
+      onboardingAccountId(correlation.context),
+      correlation.provisionId,
+      'completed'
+    );
     firstRunCorrelations.delete(correlationRunId);
   } catch (error) {
     correlation.context.log?.(
@@ -1781,7 +1819,12 @@ async function findDeliveredRunNote(
   correlation.context.abortSignal?.throwIfAborted();
   const noteId =
     noteIdFromDeliveryMessageId(deliveryMessageId) ??
-    (await lookupAgentOnboardingRun(correlation.provisionId))?.outcome?.noteId;
+    (
+      await lookupAgentOnboardingRun(
+        onboardingAccountId(correlation.context),
+        correlation.provisionId
+      )
+    )?.outcome?.noteId;
   if (noteId === undefined) {
     throw new Error('first-run delivery has no correlated note id yet');
   }
@@ -1910,6 +1953,7 @@ function durableRunRecord(
   providerIds: readonly string[]
 ): AgentOnboardingRunRecord {
   return {
+    accountId: onboardingAccountId(context),
     provisionId: request.provisionId,
     jobId,
     groupId: request.groupId,
@@ -2012,7 +2056,10 @@ async function restoreFirstRunFromDurable(
   notebookName: string,
   jobId: string
 ): Promise<AgentOnboardingRunRecord | undefined> {
-  const record = await lookupAgentOnboardingRun(request.provisionId);
+  const record = await lookupAgentOnboardingRun(
+    onboardingAccountId(context),
+    request.provisionId
+  );
   if (!record || record.status !== 'enqueued') return undefined;
   setFirstRunCorrelation(
     record.runId ?? `provision:${request.provisionId}`,
@@ -2035,7 +2082,10 @@ async function activateFirstRunPresentation(
   jobId: string,
   deps: AgentOnboardingDeps
 ): Promise<void> {
-  const record = await lookupAgentOnboardingRun(request.provisionId);
+  const record = await lookupAgentOnboardingRun(
+    onboardingAccountId(context),
+    request.provisionId
+  );
   if (!record || record.status !== 'enqueued') return;
   const correlation = findFirstRunCorrelation(
     record.runId,
@@ -2606,7 +2656,14 @@ async function updatePrimaryJobProviders(
   const currentMessage =
     runtimeJob?.payload?.message ?? runtimeJob?.payload?.text;
   if (!runtimeJob || !currentMessage) {
-    return upsertPrimaryJob(cron, request, failureChatNest, providerIds);
+    const recoveredJobId = await upsertPrimaryJob(
+      cron,
+      request,
+      failureChatNest,
+      providerIds
+    );
+    primaryJobProviderIds.set(recoveredJobId, []);
+    return recoveredJobId;
   }
   const desiredMessage = replaceProviderGuidance(currentMessage, providerIds);
   const desiredTools = [
@@ -2636,7 +2693,6 @@ async function updatePrimaryJobProviders(
     );
   }
   primaryJobIds.set(runtimeJob.id, true);
-  primaryJobProviderIds.set(runtimeJob.id, [...providerIds]);
   return runtimeJob.id;
 }
 

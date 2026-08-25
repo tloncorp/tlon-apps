@@ -276,13 +276,32 @@ describe('notes delivery', () => {
 
   it('recovers the created id from older hosts with a bare response', async () => {
     createNote.mockResolvedValue(null);
-    listNotes.mockResolvedValue([
+    listNotes.mockResolvedValueOnce([]).mockResolvedValue([
       {
         noteId: 47,
         title: 'Tuesday briefing',
         createdAt: Date.now(),
       },
     ]);
+
+    const result = await tlonRuntimeOutbound.sendText({
+      cfg: {} as never,
+      to: 'notes/~ten/updates',
+      text: '# Tuesday briefing\n\nThe full report.',
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+    });
+
+    expect(result).toMatchObject({ messageId: '~zod/notes-47' });
+  });
+
+  it('does not recover a timestamp-less pre-existing note', async () => {
+    createNote.mockResolvedValue(null);
+    const oldNote = { noteId: 41, title: 'Tuesday briefing' };
+    listNotes
+      .mockResolvedValueOnce([oldNote])
+      .mockResolvedValue([oldNote, { noteId: 47, title: 'Tuesday briefing' }]);
 
     const result = await tlonRuntimeOutbound.sendText({
       cfg: {} as never,
