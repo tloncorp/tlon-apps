@@ -71,6 +71,31 @@ function keyForRecord(record: AgentOnboardingRunRecord) {
   return runRecordKey(record.accountId, record.provisionId);
 }
 
+function persistableRunRecord(
+  record: AgentOnboardingRunRecord
+): AgentOnboardingRunRecord {
+  // OpenClaw validates plugin state before encoding it and rejects `undefined`
+  // even though JSON normally omits undefined object properties. Normalize all
+  // records at this boundary so every durable write follows JSON semantics.
+  return JSON.parse(JSON.stringify(record)) as AgentOnboardingRunRecord;
+}
+
+function persistableRunStore(
+  store: AgentOnboardingRunStore
+): AgentOnboardingRunStore {
+  return {
+    register: (key, value, options) =>
+      store.register(key, persistableRunRecord(value), options),
+    registerIfAbsent: (key, value, options) =>
+      store.registerIfAbsent(key, persistableRunRecord(value), options),
+    lookup: (key) => store.lookup(key),
+    consume: (key) => store.consume(key),
+    delete: (key) => store.delete(key),
+    entries: () => store.entries(),
+    clear: () => store.clear(),
+  };
+}
+
 async function serializeWrite<T>(
   recordKey: string,
   write: () => Promise<T>
@@ -94,7 +119,7 @@ async function serializeWrite<T>(
 export function setAgentOnboardingRunStore(
   store: AgentOnboardingRunStore | null
 ): void {
-  storeSlot.set(store);
+  storeSlot.set(store ? persistableRunStore(store) : null);
 }
 
 export function getAgentOnboardingRunStore(): AgentOnboardingRunStore | null {
