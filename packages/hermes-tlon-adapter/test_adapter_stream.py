@@ -1273,8 +1273,11 @@ class WatchdogTickTests(unittest.TestCase):
             # Not yet a full grace interval after the delivered probe.
             adapter._sse_watchdog_tick(delivered + 29.0, 30.0)
             self.assertEqual(sse.condemns, [])
-            # A full grace interval later: condemn.
-            adapter._sse_watchdog_tick(delivered + 30.0, 30.0)
+            # A full grace interval later: condemn. Nudged past the exact
+            # boundary because `delivered + 30.0` can land a fraction under
+            # `delivered + 30` when the addition crosses a binade (TLON-6368);
+            # the guard is `>=`, so the shortfall reads as "grace not elapsed".
+            adapter._sse_watchdog_tick(delivered + 30.5, 30.0)
 
         asyncio.run(run())
         self.assertEqual(len(sse.condemns), 1)
@@ -1424,7 +1427,9 @@ class WatchdogTickTests(unittest.TestCase):
             self.assertEqual(sse.condemns, [])
             delivered = adapter._sse_probe_success_at
             self.assertIsNotNone(delivered)
-            adapter._sse_watchdog_tick(delivered + 30.0, 30.0)
+            # See the binade note in
+            # test_condemn_requires_delivered_probe_plus_grace_interval.
+            adapter._sse_watchdog_tick(delivered + 30.5, 30.0)
 
         asyncio.run(run())
         self.assertEqual(len(sse.condemns), 1)
