@@ -677,6 +677,13 @@ test('getA2UISelections: only the author’s live selection entries count', asyn
       componentId: 'topics',
       values: ['Weather'],
     },
+    {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      surfaceId: 's-failed',
+      componentId: 'topics',
+      values: ['Weather'],
+    },
   ]);
 });
 
