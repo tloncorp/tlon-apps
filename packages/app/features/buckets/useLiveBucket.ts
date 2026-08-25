@@ -7,8 +7,8 @@ import {
   BucketsSnapshot,
   bucketsFlagKey,
   formatBucketsChannelId,
+  getBucket,
   getBucketReadToken,
-  getBuckets,
   getCurrentUserId,
   requestBucketReadToken,
   requestBucketsGrant,
@@ -191,14 +191,12 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     }
   }, []);
 
-  const selectSnapshot = useCallback(
-    (snapshots: BucketsSnapshot[]) =>
-      snapshots.find((candidate) => matchesFlag(candidate.flag, flag)) ?? null,
-    [flag]
-  );
-
+  // Reads one bucket rather than filtering the whole list. /v1/buckets renders
+  // every bucket's entire manifest, and this runs after every upload, every
+  // cancel and every missed update -- so uploading twenty files re-read
+  // everything on the ship twenty times to learn about twenty entries.
   const refresh = useCallback(async () => {
-    const next = selectSnapshot(await getBuckets());
+    const next = await getBucket(flag);
     const current = snapshotRef.current;
     // Revisions are monotonic only within one Bucket incarnation. Deleting
     // and recreating the same flag allocates a new bucket id at revision 0.
@@ -214,7 +212,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     if (!next && !current) return null;
     commitSnapshot(next);
     return next;
-  }, [commitSnapshot, selectSnapshot]);
+  }, [commitSnapshot, flag]);
 
   useEffect(() => {
     let active = true;

@@ -2,6 +2,7 @@ import { beforeEach, expect, test, vi } from 'vitest';
 
 import {
   BucketsActionFailed,
+  getBucket,
   getBucketReadToken,
   getBuckets,
   requestBucketReadToken,
@@ -9,10 +10,28 @@ import {
   sendBucketsAction,
   subscribeToBuckets,
 } from '../client/bucketsApi';
-import { requestJson, scry, subscribe, unsubscribe } from '../client/urbit';
+import {
+  BadResponseError,
+  requestJson,
+  scry,
+  subscribe,
+  unsubscribe,
+} from '../client/urbit';
 import type { BucketsFlag, BucketsSnapshot } from '../urbit/buckets';
 
 vi.mock('../client/urbit', () => ({
+  // A real class, not a stub: getBucket separates a missing bucket from a
+  // failed read with instanceof, and a mocked-away constructor would make
+  // every failure look like a missing bucket.
+  BadResponseError: class BadResponseError extends Error {
+    constructor(
+      public status: number,
+      message?: string
+    ) {
+      super(message);
+      this.name = 'BadResponseError';
+    }
+  },
   requestJson: vi.fn(),
   scry: vi.fn(),
   subscribe: vi.fn(),
@@ -50,6 +69,38 @@ test('getBuckets returns the local snapshots', async () => {
   vi.mocked(scry).mockResolvedValueOnce([snapshot]);
 
   await expect(getBuckets()).resolves.toEqual([snapshot]);
+});
+
+test('getBucket reads one bucket and unwraps its snapshot', async () => {
+  vi.mocked(scry).mockResolvedValueOnce({
+    type: 'snapshot',
+    flag,
+    state: snapshot.state,
+  });
+
+  await expect(getBucket(flag)).resolves.toEqual(snapshot);
+  expect(scry).toHaveBeenCalledWith({
+    app: 'buckets',
+    path: '/v1/buckets/~zod/files',
+  });
+});
+
+// The agent drops a bucket from this read under the same conditions it drops
+// one from /v1/buckets, so a 404 means what an absence from that list meant.
+test('getBucket reports a bucket this ship does not have as null', async () => {
+  vi.mocked(scry).mockRejectedValueOnce(
+    new BadResponseError(404, 'no such path')
+  );
+
+  await expect(getBucket(flag)).resolves.toBeNull();
+});
+
+// Anything else is a failed read. Reporting it as a missing bucket would clear
+// one that is really there the first time a connection drops.
+test('getBucket raises a read failure rather than calling it missing', async () => {
+  vi.mocked(scry).mockRejectedValueOnce(new BadResponseError(500, 'boom'));
+
+  await expect(getBucket(flag)).rejects.toThrow(BadResponseError);
 });
 
 test('sendBucketsAction submits over the v1 endpoint and returns the answer', async () => {

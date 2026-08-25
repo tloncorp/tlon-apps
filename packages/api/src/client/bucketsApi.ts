@@ -9,7 +9,13 @@ import type {
   BucketsResponseBody,
   BucketsSnapshot,
 } from '../urbit/buckets';
-import { requestJson, scry, subscribe, unsubscribe } from './urbit';
+import {
+  BadResponseError,
+  requestJson,
+  scry,
+  subscribe,
+  unsubscribe,
+} from './urbit';
 
 const BUCKETS_APP = 'buckets';
 const BUCKETS_V1_PATH = '/buckets/~/v1';
@@ -51,6 +57,32 @@ export function parseBucketsChannelId(channelId: string): BucketsFlag | null {
 
 export async function getBuckets() {
   return scry<BucketsSnapshot[]>({ app: BUCKETS_APP, path: '/v1/buckets' });
+}
+
+/**
+ * The current state of one bucket, or null if this ship does not have it.
+ *
+ * The agent drops a bucket from both this and /v1/buckets under exactly the
+ * same conditions -- unknown flag, or subscribed but not yet synced -- so a
+ * 404 here means what an absence from that list meant. Any other failure is
+ * a failure and is raised, rather than being reported as a missing bucket
+ * and blanking one that is really there.
+ */
+export async function getBucket(
+  flag: BucketsFlag
+): Promise<BucketsSnapshot | null> {
+  try {
+    const response = await scry<BucketsResponse>({
+      app: BUCKETS_APP,
+      path: `/v1/buckets/${flag.host}/${flag.name}`,
+    });
+    return response.type === 'snapshot'
+      ? { flag: response.flag, state: response.state }
+      : null;
+  } catch (e) {
+    if (e instanceof BadResponseError && e.status === 404) return null;
+    throw e;
+  }
 }
 
 /**
