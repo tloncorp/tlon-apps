@@ -745,13 +745,15 @@ export type PostBlobDataEntryAgentPostMarker = z.infer<
 /**
  * Durable record of an answered A2UI control, attached to the reply post it
  * produced; prose remains presentation only. Its presence — matched on
- * surfaceId + componentId in posts authored by the viewer — is what marks a
- * one-shot control consumed across remounts and devices.
+ * sourcePostId + surfaceId + componentId in posts authored by the viewer — is
+ * what marks a one-shot control consumed across remounts and devices.
  */
 export const PostBlobDataEntryA2UISelectionSchema =
   definePostBlobDataEntrySchema('tlon-a2ui-selection', 1, {
     surfaceId: agentProtocolString(512),
     componentId: agentProtocolString(512),
+    /** The bot post containing the answered surface. */
+    sourcePostId: agentProtocolString(512).optional(),
     /** For a Choice, the id of the tapped option, so restore can mark it. */
     optionId: agentProtocolString(512).optional(),
     // Entries are bounded by the A2UI send-message limit, not topicLength: a

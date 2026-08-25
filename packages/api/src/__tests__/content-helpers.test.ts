@@ -110,6 +110,7 @@ describe('post blob helpers', () => {
       {
         type: 'tlon-a2ui-selection',
         version: 1,
+        sourcePostId: 'topics-post',
         surfaceId: 'agent-topics',
         componentId: 'topics',
         values: ['Urbit', 'Research, development'],

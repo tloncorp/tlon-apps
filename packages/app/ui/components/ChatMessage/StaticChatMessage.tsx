@@ -184,9 +184,11 @@ export function StaticChatMessage({
     (surfaceId: string, componentId: string) =>
       a2uiSelections.data?.find(
         (entry) =>
-          entry.surfaceId === surfaceId && entry.componentId === componentId
+          entry.sourcePostId === post.id &&
+          entry.surfaceId === surfaceId &&
+          entry.componentId === componentId
       ),
-    [a2uiSelections.data]
+    [a2uiSelections.data, post.id]
   );
   const lastEditPostContent = usePostLastEditContent(post);
   const content = useMemo(
@@ -284,6 +286,7 @@ export function StaticChatMessage({
               draftInputContext &&
               draftInputContext.canStartDraft !== false
             )}
+            a2uiSourcePostId={post.id}
             getConsumedA2UISelection={
               canRenderA2UI ? getConsumedA2UISelection : undefined
             }

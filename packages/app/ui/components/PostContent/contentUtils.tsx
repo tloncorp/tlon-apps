@@ -38,6 +38,8 @@ export interface ContentContextProps {
   ) => void | Promise<void>;
   isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
   canSendA2UIResponse?: boolean;
+  /** Post containing the rendered A2UI surface. */
+  a2uiSourcePostId?: string;
   /**
    * Durable selection the viewer already submitted for a control, recovered
    * from their own posts in this channel. Presence marks the control

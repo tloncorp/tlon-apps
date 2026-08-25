@@ -4469,10 +4469,10 @@ export const getChanPosts = createReadQuery(
  * Durable A2UI selection entries in a channel, scoped to one author.
  *
  * A one-shot A2UI control is consumed iff a live post by the viewer carries a
- * `tlon-a2ui-selection` entry matching its surface and component ids, so
- * consumption survives remount, restart, and other devices. The author scope
- * is load-bearing: without it, any channel member could post a matching blob
- * to lock or fake-answer someone else's control.
+ * `tlon-a2ui-selection` entry matching the source post, surface, and component
+ * ids, so consumption survives remount, restart, and other devices. The
+ * author scope is load-bearing: without it, any channel member could post a
+ * matching blob to lock or fake-answer someone else's control.
  */
 export const getA2UISelections = createReadQuery(
   'getA2UISelections',

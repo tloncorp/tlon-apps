@@ -61,6 +61,7 @@ function isConsumableA2UIAction(action: A2UI.ButtonAction) {
  * Undefined for client-local actions (navigation), which are never consumed.
  */
 function buildActionSelection(
+  sourcePostId: string | undefined,
   surfaceId: string,
   componentId: string,
   action: A2UI.ButtonAction,
@@ -74,6 +75,7 @@ function buildActionSelection(
     return {
       type: 'tlon-a2ui-selection',
       version: 1,
+      sourcePostId,
       surfaceId,
       componentId,
       optionId,
@@ -84,6 +86,7 @@ function buildActionSelection(
     return {
       type: 'tlon-a2ui-selection',
       version: 1,
+      sourcePostId,
       surfaceId,
       componentId,
       optionId,
@@ -160,6 +163,7 @@ function SmallChoiceControl({
   canSend,
   consumedSelection,
   onSubmit,
+  sourcePostId,
   surfaceId,
 }: {
   component: A2UI.SmallChoice;
@@ -171,6 +175,7 @@ function SmallChoiceControl({
     action: A2UI.ButtonAction,
     selection: PostBlobDataEntryA2UISelection
   ) => void | Promise<void>;
+  sourcePostId?: string;
   surfaceId: string;
 }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -275,6 +280,7 @@ function SmallChoiceControl({
       await onSubmit(actionForSelection, {
         type: 'tlon-a2ui-selection',
         version: 1,
+        sourcePostId,
         surfaceId,
         componentId: component.id,
         values: valuesForSelection,
@@ -291,6 +297,7 @@ function SmallChoiceControl({
     component.id,
     hasValidSelection,
     onSubmit,
+    sourcePostId,
     surfaceId,
     valuesForSelection,
   ]);
@@ -690,6 +697,7 @@ export function A2UIBlock({
   ...props
 }: { block: A2UIBlockData } & ComponentProps<typeof YStack>) {
   const {
+    a2uiSourcePostId,
     canSendA2UIResponse,
     getConsumedA2UISelection,
     isA2UIActionAvailable,
@@ -732,7 +740,12 @@ export function A2UIBlock({
         await onA2UIAction?.(
           component.action,
           consumeAction
-            ? buildActionSelection(surfaceId, component.id, component.action)
+            ? buildActionSelection(
+                a2uiSourcePostId,
+                surfaceId,
+                component.id,
+                component.action
+              )
             : undefined
         );
         if (consumeAction) {
@@ -750,7 +763,7 @@ export function A2UIBlock({
         }
       }
     },
-    [onA2UIAction, surfaceId]
+    [a2uiSourcePostId, onA2UIAction, surfaceId]
   );
 
   const handleChoicePress = useCallback(
@@ -781,7 +794,13 @@ export function A2UIBlock({
         await onA2UIAction?.(
           action,
           consumeAction
-            ? buildActionSelection(surfaceId, componentId, action, optionId)
+            ? buildActionSelection(
+                a2uiSourcePostId,
+                surfaceId,
+                componentId,
+                action,
+                optionId
+              )
             : undefined
         );
       } catch {
@@ -801,7 +820,7 @@ export function A2UIBlock({
         }
       }
     },
-    [onA2UIAction, surfaceId]
+    [a2uiSourcePostId, onA2UIAction, surfaceId]
   );
 
   const handleSmallChoiceSubmit = useCallback(
@@ -1172,6 +1191,7 @@ export function A2UIBlock({
                   component.id
                 )}
                 onSubmit={handleSmallChoiceSubmit}
+                sourcePostId={a2uiSourcePostId}
                 surfaceId={surfaceId}
               />
             </YStack>
