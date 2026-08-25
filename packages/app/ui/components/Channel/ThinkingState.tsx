@@ -25,6 +25,8 @@ export function ThinkingState({
   const [holdUntilResponse, setHoldUntilResponse] = useState(false);
   const postIdWhenThinkingStarted = useRef<string | undefined>(latestPostId);
   const expectedResponders = useRef<Set<string>>(new Set());
+  const wasComputing = useRef(false);
+  const resetBaselineWhenComputingEnds = useRef(false);
   const collapseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -32,19 +34,30 @@ export function ThinkingState({
       expectedResponders.current = new Set(
         computingState.ships.map((state) => state.ship)
       );
-      if (!holdUntilResponse) {
+      if (!wasComputing.current) {
+        resetBaselineWhenComputingEnds.current = holdUntilResponse;
         postIdWhenThinkingStarted.current = latestPostId;
         setHoldUntilResponse(true);
       }
+      wasComputing.current = true;
       if (collapseTimeout.current) {
         clearTimeout(collapseTimeout.current);
         collapseTimeout.current = null;
       }
       return;
     }
+    const computingJustEnded = wasComputing.current;
+    wasComputing.current = false;
+    if (computingJustEnded && resetBaselineWhenComputingEnds.current) {
+      // A previous run can post while a new computing cycle is already active.
+      // Such a post cannot satisfy the new cycle; require a later response.
+      postIdWhenThinkingStarted.current = latestPostId;
+      resetBaselineWhenComputingEnds.current = false;
+    }
 
     const responseHasArrived =
       holdUntilResponse &&
+      !resetBaselineWhenComputingEnds.current &&
       latestPostId !== postIdWhenThinkingStarted.current &&
       (expectedResponders.current.size === 0 ||
         (latestPostAuthorId != null &&
@@ -74,6 +87,7 @@ export function ThinkingState({
 
   const responseHasArrived =
     holdUntilResponse &&
+    !resetBaselineWhenComputingEnds.current &&
     latestPostId !== postIdWhenThinkingStarted.current &&
     (expectedResponders.current.size === 0 ||
       (latestPostAuthorId != null &&
@@ -106,37 +120,39 @@ export function ThinkingState({
       paddingHorizontal="$l"
       pointerEvents="none"
     >
-      <XStack alignItems="center" gap="$s">
-        {showAvatars && (
-          <XStack alignItems="center">
-            <AnimatePresence>
-              {visibleShips.map((shipState, index) => (
-                <View
-                  key={shipState.ship}
-                  transition="quick"
-                  scale={1}
-                  opacity={1}
-                  enterStyle={{ scale: 0.5, opacity: 0 }}
-                  exitStyle={{ scale: 0.5, opacity: 0 }}
-                  marginLeft={index === 0 ? 0 : -6}
-                  zIndex={visibleShips.length - index}
-                >
-                  <ContactAvatar contactId={shipState.ship} size="$xl" />
-                </View>
-              ))}
-            </AnimatePresence>
-            {overflowCount > 0 && (
-              <Text size="$label/s" color="$tertiaryText" marginLeft="$xs">
-                +{overflowCount}
-              </Text>
-            )}
-          </XStack>
-        )}
-        <Spinner size="small" color="$tertiaryText" />
-        <Text size="$label/m" color="$tertiaryText" flexShrink={1}>
-          {forcedLabel ?? computingState?.label ?? 'Thinking...'}
-        </Text>
-      </XStack>
+      {visible ? (
+        <XStack alignItems="center" gap="$s">
+          {showAvatars && (
+            <XStack alignItems="center">
+              <AnimatePresence>
+                {visibleShips.map((shipState, index) => (
+                  <View
+                    key={shipState.ship}
+                    transition="quick"
+                    scale={1}
+                    opacity={1}
+                    enterStyle={{ scale: 0.5, opacity: 0 }}
+                    exitStyle={{ scale: 0.5, opacity: 0 }}
+                    marginLeft={index === 0 ? 0 : -6}
+                    zIndex={visibleShips.length - index}
+                  >
+                    <ContactAvatar contactId={shipState.ship} size="$xl" />
+                  </View>
+                ))}
+              </AnimatePresence>
+              {overflowCount > 0 && (
+                <Text size="$label/s" color="$tertiaryText" marginLeft="$xs">
+                  +{overflowCount}
+                </Text>
+              )}
+            </XStack>
+          )}
+          <Spinner size="small" color="$tertiaryText" />
+          <Text size="$label/m" color="$tertiaryText" flexShrink={1}>
+            {forcedLabel ?? computingState?.label ?? 'Thinking...'}
+          </Text>
+        </XStack>
+      ) : null}
     </View>
   );
 }

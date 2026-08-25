@@ -45,6 +45,7 @@ export function getSmallChoiceCompletionPresentation({
   };
 }
 
+/** Recover the labels a send-message SmallChoice persisted in its owner post. */
 export function getSmallChoiceMessageSelection(
   component: A2UI.SmallChoice,
   sentMessageText?: string

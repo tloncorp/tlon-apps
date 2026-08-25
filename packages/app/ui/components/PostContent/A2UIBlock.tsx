@@ -17,6 +17,10 @@ import { ActionSheet } from '../ActionSheet';
 import { TextInput } from '../Form';
 import { A2UIMenuRow } from './A2UIMenuRow';
 import { McpConnectControl } from './McpConnectControl';
+import {
+  getSmallChoiceCompletionPresentation,
+  getSmallChoiceMessageSelection,
+} from './a2uiActionConsumption';
 import { useContentContext } from './contentUtils';
 
 type RenderOptions = {
@@ -45,8 +49,9 @@ const CHOICE_ACCENT_COLORS: Record<
 // Cardless choice controls sit alongside ordinary chat text inside the same
 // A2UI post. Keep that outer rhythm identical around cards and pill groups.
 const CHOICE_CONTROL_OUTER_MARGIN = 15;
+const RETIRED_TIMEZONE_SURFACE_PREFIX = 'agent-onboarding-timezone:';
 function smallChoiceShortcut(index: number) {
-  return String.fromCharCode(65 + index);
+  return index < 26 ? String.fromCharCode(65 + index) : String(index + 1);
 }
 
 function isConsumableA2UIAction(action: A2UI.ButtonAction) {
@@ -159,6 +164,9 @@ function SmallChoiceControl({
   component,
   canSend,
   consumedSelection,
+  consumedTopics,
+  consumedMessageText,
+  isActionConsumed,
   onSubmit,
   surfaceId,
 }: {
@@ -167,6 +175,12 @@ function SmallChoiceControl({
   canSend: boolean;
   /** Durable answer recovered from the viewer's own posts after remount. */
   consumedSelection?: PostBlobDataEntryA2UISelection;
+  /** Compatibility receipts for posts created before durable selections. */
+  /** Durable topics recovered from the later provision post after remount. */
+  consumedTopics?: string[];
+  /** Durable owner text recovered after this surface. */
+  consumedMessageText?: string;
+  isActionConsumed?: (action: A2UI.ButtonAction) => boolean;
   onSubmit: (
     action: A2UI.ButtonAction,
     selection: PostBlobDataEntryA2UISelection
@@ -278,14 +292,27 @@ function SmallChoiceControl({
     valuesForSelection,
   ]);
 
-  const completed = consumedLocally || Boolean(consumedSelection);
-  const disabled = submitted || completed || !canSend;
+  const actionConsumed =
+    consumedLocally ||
+    Boolean(consumedSelection) ||
+    (component.action.event.name === A2UI.action.sendMessage
+      ? Boolean(consumedMessageText?.trim())
+      : isActionConsumed?.(actionForSelection) === true);
+  const disabled = submitted || actionConsumed || !canSend;
   const submitDisabled = disabled || !hasValidSelection;
   const customChoiceLabel =
     component.freeTextPlaceholder?.replace(/…+$/, '') || '';
-  const completedTopics = consumedLocally
-    ? valuesForSelection
-    : (consumedSelection?.values ?? []);
+  const durableSelection =
+    consumedSelection?.values ??
+    consumedTopics ??
+    getSmallChoiceMessageSelection(component, consumedMessageText);
+  const completionPresentation = getSmallChoiceCompletionPresentation({
+    actionConsumed,
+    consumedLocally,
+    durableTopics: durableSelection,
+    localTopics: valuesForSelection,
+  });
+  const completedTopics = completionPresentation.topics;
   const completedOptionLabels = new Set(
     component.options
       .filter((option) => completedTopics.includes(option.label))
@@ -294,7 +321,7 @@ function SmallChoiceControl({
   const completedCustomTopics = completedTopics.filter(
     (topic) => !completedOptionLabels.has(topic)
   );
-  const displayedCustomTopics = completed
+  const displayedCustomTopics = completionPresentation.completed
     ? completedCustomTopics
     : customTopics;
   const displayedCustomTopicSummary = displayedCustomTopics.join(', ');
@@ -371,7 +398,7 @@ function SmallChoiceControl({
           overflow="hidden"
         >
           {component.options.map((option, index) => {
-            const isSelected = completed
+            const isSelected = actionConsumed
               ? completedOptionLabels.has(option.label)
               : selectedIds.includes(option.id);
             const isLast = index === component.options.length - 1;
@@ -964,10 +991,7 @@ export function A2UIBlock({
                 )
               : undefined) ??
             component.options.find(
-              (option) =>
-                option.action.event.name === A2UI.action.sendMessage &&
-                option.action.event.context.text.trim() ===
-                  consumedA2UIMessageText?.trim()
+              (option) => isA2UIActionConsumed?.(option.action) === true
             );
           const choiceConsumed =
             Boolean(selectedOption) || Boolean(durableSelection);
@@ -1142,6 +1166,9 @@ export function A2UIBlock({
                     isA2UIActionAvailable?.(component.action) !== false)
                 }
                 consumedSelection={durableSelection ?? provisionSelection}
+                consumedTopics={provisionedAgentTopics}
+                consumedMessageText={consumedA2UIMessageText}
+                isActionConsumed={isA2UIActionConsumed}
                 onSubmit={handleSmallChoiceSubmit}
                 surfaceId={surfaceId}
               />
@@ -1161,7 +1188,7 @@ export function A2UIBlock({
                 completionConsumed={Boolean(
                   component.completionAction &&
                   (getConsumedA2UISelection?.(surfaceId, component.id) ||
-                    isA2UIActionConsumed?.(component.completionAction))
+                    isA2UIActionConsumed?.(component.completionAction) === true)
                 )}
                 completionSelection={
                   component.completionAction
@@ -1208,7 +1235,7 @@ export function A2UIBlock({
     ]
   );
 
-  if (!root) {
+  if (surfaceId.startsWith(RETIRED_TIMEZONE_SURFACE_PREFIX) || !root) {
     return null;
   }
 

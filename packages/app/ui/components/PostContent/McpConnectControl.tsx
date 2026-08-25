@@ -132,12 +132,12 @@ export function McpConnectControl({
   return (
     <McpConnectMenu
       component={component}
+      completionConsumed={completionConsumed}
+      completionSelection={completionSelection}
       configuredProviderIds={configuredProviderIds}
       failed={failed}
       loading={loading}
       providersLoaded={loadedUserIdRef.current === currentUserId}
-      completionConsumed={completionConsumed}
-      completionSelection={completionSelection}
       onConfigure={onConfigure}
       onComplete={onComplete}
       onNavigate={onNavigate}
@@ -148,9 +148,9 @@ export function McpConnectControl({
 
 export function McpConnectMenu({
   component,
-  configuredProviderIds = [],
   completionConsumed = false,
   completionSelection,
+  configuredProviderIds,
   failed = false,
   loading = false,
   providersLoaded = true,
@@ -160,9 +160,9 @@ export function McpConnectMenu({
   providers,
 }: {
   component: A2UI.McpConnect;
-  configuredProviderIds?: string[];
   completionConsumed?: boolean;
   completionSelection?: api.PostBlobDataEntryA2UISelection;
+  configuredProviderIds?: string[];
   failed?: boolean;
   loading?: boolean;
   providersLoaded?: boolean;
@@ -176,15 +176,14 @@ export function McpConnectMenu({
   onNavigate?: (action: A2UI.NavigateAction) => void | Promise<void>;
   providers: McpProviderRow[];
 }) {
-  const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>(
-    clampProviderIds(configuredProviderIds)
-  );
+  const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [completedLocally, setCompletedLocally] = useState(false);
   const configuringRef = useRef(false);
   const completingRef = useRef(false);
   const initializedRef = useRef(false);
+  const appliedConfigurationRef = useRef<string | null>(null);
   const knownConnectedRef = useRef(new Set<string>());
   const connectedProviderIds = useMemo(
     () =>
@@ -196,18 +195,32 @@ export function McpConnectMenu({
 
   useEffect(() => {
     const connected = new Set(connectedProviderIds);
+    const configuredKey = configuredProviderIds
+      ? [...configuredProviderIds].sort().join('\u0000')
+      : null;
     if (!initializedRef.current) {
       if (loading || !providersLoaded) return;
       initializedRef.current = true;
       knownConnectedRef.current = connected;
-      const configuredConnectedProviderIds = configuredProviderIds.filter(
-        (id) => connected.has(id)
-      );
+      appliedConfigurationRef.current = configuredKey;
       setSelectedProviderIds(
         clampProviderIds(
-          configuredConnectedProviderIds.length > 0
-            ? configuredConnectedProviderIds
-            : connectedProviderIds
+          configuredProviderIds?.filter((id) => connected.has(id)) ??
+            connectedProviderIds
+        )
+      );
+      return;
+    }
+
+    if (
+      configuredKey !== null &&
+      configuredKey !== appliedConfigurationRef.current
+    ) {
+      appliedConfigurationRef.current = configuredKey;
+      knownConnectedRef.current = connected;
+      setSelectedProviderIds(
+        clampProviderIds(
+          configuredProviderIds!.filter((id) => connected.has(id))
         )
       );
       return;

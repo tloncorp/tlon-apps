@@ -51,6 +51,10 @@ export interface ContentContextProps {
     surfaceId: string,
     componentId: string
   ) => PostBlobDataEntryA2UISelection | undefined;
+  /** Compatibility receipts for posts created before durable selections. */
+  provisionedAgentTopics?: string[];
+  consumedA2UIMessageText?: string;
+  configuredAgentProviderIds?: string[];
   searchQuery?: string;
 }
 
