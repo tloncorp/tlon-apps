@@ -218,6 +218,7 @@ export const agentOnboardingBackTooltipShown = createStorageItem<
 >({
   key: 'agentOnboardingBackTooltipShown',
   defaultValue: {},
+  persistAfterLogout: true,
 });
 
 /** One-way onboarding navigation locks, keyed by group id. */
