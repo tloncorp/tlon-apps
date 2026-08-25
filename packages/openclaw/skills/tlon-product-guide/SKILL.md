@@ -89,8 +89,8 @@ Friends who aren't on Tlon Messenger are directly connected to you when you send
 
 **Personal invite:**
 
-1. Tap the icon in the upper left corner of the Home screen.  
-2. Tap `Share invite link`.  
+1. Tap the `Invite people` icon in the upper left corner of the Home screen. That opens your invite sheet.  
+2. Tap `Share link`.  
 3. Send it via email, text, or social. Inviting someone in person? They can scan the QR code on that screen instead.
 
 Share your personal invite link with as many people as you like. Whenever a new friend joins through it, you'll automatically get a DM from them.
@@ -98,8 +98,8 @@ Share your personal invite link with as many people as you like. Whenever a new 
 **Group invite:**
 
 1. From your group, tap the three-dot icon in the top right corner.  
-2. Tap `Invite Friends` at the top of the sheet.  
-3. Share the link with an existing group chat — the bros, your family, a book club.
+2. Tap `Invite people`.  
+3. Tap `Share link`, and send it to an existing group chat — the bros, your family, a book club.
 
 To add someone who's already on Tlon Messenger, type their name in the search bar on that same invite sheet and tap the check.
 
@@ -139,13 +139,13 @@ Every channel type is legible to Tlonbots, so your agent can read and work with 
 5. Invite friends who already use Tlon Messenger, or skip this and invite people later.  
 6. Change the name, banner, and profile image any time: tap `Group info & settings`, then `Edit group info`.  
 7. Add channels: tap `Group info & settings`, then `Channels`, then `New channel`, and choose the type.  
-8. Save your channel settings and go back. Tap `Invite People` to add members, or `Invite Friends` to send a join link to people who aren't on Tlon Messenger yet.
+8. Save your channel settings and go back. Tap `Invite people` — from there you can pick people already on Tlon Messenger, or tap `Share link` for a join link anyone can use.
 
 ### Ownership and roles
 
 The person who created a group owns it. Their node hosts the group and controls its roles, channels, and updates, which other members' nodes follow.
 
-Channels can be gated with permissions. Admins control read and write settings per channel and can assign member roles with specific access levels. To adjust: tap the three-dot menu next to a channel name, select `Permissions`, and configure which roles can read or write.
+Channels can be gated with permissions. Admins control read and write settings per channel and can assign member roles with specific access levels. To adjust: tap the three-dot menu next to a channel name, select `Channel info & settings`, then `Permissions`, and configure which roles can read or write.
 
 Notebooks are the exception. They don't support separate read and write permissions — a role that can read a notebook can also edit it. Say so before an admin grants what they think is read-only access.
 
@@ -232,6 +232,8 @@ That works in groups the bot hosts — the ones it made for you. In someone else
 You control who it listens to — tell it in a DM which members it may respond to or communicate with.
 
 ### Slash commands
+
+These are all owner-only. Anyone else who tries one gets told so — approving a member to talk to the bot doesn't hand them the commands.
 
 Access and moderation. The approval commands take a **request ID**, not a nickname — run `/pending` first and use the ID it prints:
 
@@ -367,7 +369,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **Are conversations encrypted?** Yes, in transit — between nodes, and between the app and your node. Stored messages on a node aren't encrypted, so device access allows reading them.
 
-**Can I share things I post with people who aren't on Tlon Messenger?** This feature is coming soon.
+**Can I share things I post with people who aren't on Tlon Messenger?** Notebook notes, yes. Publish a note and you get a public link — the app copies it for you, and `Copy link` and `View published note` sit on the note afterwards. Other channel types don't have a button for it yet, though individual posts can be published through your Tlonbot, which can reach the same clearweb machinery from a DM.
 
 **What is Tlonbot?** A personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. It's powered by OpenClaw and runs on its own node, linked to yours, on the same peer-to-peer network.
 
