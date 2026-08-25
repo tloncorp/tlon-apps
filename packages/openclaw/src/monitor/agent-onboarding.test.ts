@@ -178,12 +178,9 @@ describe('first-run durable claims', () => {
     setAgentOnboardingRunStore(store);
     const initial = record(getAgentOnboardingClaimOwnerId());
     await store.register(initial.provisionId, initial);
-    const listJobs = vi.fn(async () => []);
-
-    await expect(
-      claimAgentOnboardingRun(initial, 1_001, listJobs)
-    ).resolves.toEqual({ outcome: 'owned-by-another-pass' });
-    expect(listJobs).not.toHaveBeenCalled();
+    await expect(claimAgentOnboardingRun(initial, 1_001)).resolves.toEqual({
+      outcome: 'owned-by-another-pass',
+    });
   });
 
   it('reclaims a fresh unwitnessed claim left by an earlier process', async () => {
@@ -195,9 +192,9 @@ describe('first-run durable claims', () => {
       claimedAt: 31_001,
     };
 
-    await expect(
-      claimAgentOnboardingRun(initial, 1_001, async () => [])
-    ).resolves.toEqual({ outcome: 'enqueue' });
+    await expect(claimAgentOnboardingRun(initial, 1_001)).resolves.toEqual({
+      outcome: 'enqueue',
+    });
     await expect(store.lookup('provision-1')).resolves.toEqual(initial);
   });
 
@@ -211,8 +208,8 @@ describe('first-run durable claims', () => {
     };
 
     const outcomes = await Promise.all([
-      claimAgentOnboardingRun(initial, 31_001, async () => []),
-      claimAgentOnboardingRun(initial, 31_001, async () => []),
+      claimAgentOnboardingRun(initial, 31_001),
+      claimAgentOnboardingRun(initial, 31_001),
     ]);
 
     expect(outcomes).toContainEqual({ outcome: 'enqueue' });
@@ -222,13 +219,13 @@ describe('first-run durable claims', () => {
 
   it('deduplicates an enqueue when the durable store is unavailable', async () => {
     const initial = record(getAgentOnboardingClaimOwnerId());
-    await expect(
-      claimAgentOnboardingRun(initial, 1_000, async () => [])
-    ).resolves.toEqual({ outcome: 'enqueue' });
+    await expect(claimAgentOnboardingRun(initial, 1_000)).resolves.toEqual({
+      outcome: 'enqueue',
+    });
     await recordAgentOnboardingRunEnqueued(initial, 'run-1', 1_000);
 
     await expect(
-      claimAgentOnboardingRun(initial, 1_001, async () => [])
+      claimAgentOnboardingRun(initial, 1_001)
     ).resolves.toMatchObject({
       outcome: 'recovered',
       record: { runId: 'run-1', status: 'enqueued' },
@@ -245,7 +242,7 @@ describe('first-run durable claims', () => {
     await recordAgentOnboardingRunEnqueued(initial, 'run-1', 1_000);
 
     await expect(
-      claimAgentOnboardingRun(initial, 1_002, async () => [])
+      claimAgentOnboardingRun(initial, 1_002)
     ).resolves.toMatchObject({
       outcome: 'recovered',
       record: {
@@ -1993,6 +1990,18 @@ describe('primary onboarding cron slot', () => {
         }),
       },
     ];
+    Object.assign(harness.getJobs()[0], {
+      name: 'My edited digest',
+      schedule: {
+        kind: 'cron',
+        expr: '15 10 * * 1-5',
+        tz: 'America/Chicago',
+      },
+      payload: {
+        ...(harness.getJobs()[0].payload as object),
+        message: 'Use my custom editorial instructions.',
+      },
+    });
     await handleAgentOnboardingRequest(
       {
         api: { scry: vi.fn() },
@@ -2017,9 +2026,17 @@ describe('primary onboarding cron slot', () => {
     expect(harness.getJobs()).toHaveLength(1);
     expect(harness.cron.update).toHaveBeenCalledOnce();
     expect(harness.getJobs()[0]).toMatchObject({
+      name: 'My edited digest',
+      schedule: {
+        kind: 'cron',
+        expr: '15 10 * * 1-5',
+        tz: 'America/Chicago',
+      },
       payload: {
         toolsAllow: expect.arrayContaining(['group:web', 'mcp_call']),
-        message: expect.stringContaining('["gmail"]'),
+        message: expect.stringMatching(
+          /Use my custom editorial instructions.*\["gmail"\]/s
+        ),
       },
     });
   });
@@ -2567,7 +2584,7 @@ describe('provision coordinator ordering', () => {
     });
   });
 
-  it('keeps reconciliation alive when persisting an enqueue fails', async () => {
+  it('re-enqueues with an exact run id when persisting an enqueue fails', async () => {
     const store = memoryRunStore();
     store.register.mockRejectedValueOnce(new Error('state store unavailable'));
     setAgentOnboardingRunStore(store);
@@ -2623,7 +2640,7 @@ describe('provision coordinator ordering', () => {
       true
     );
 
-    expect(cron.enqueueRun).toHaveBeenCalledOnce();
+    expect(cron.enqueueRun).toHaveBeenCalledTimes(2);
     await expect(store.lookup(provision.provisionId)).resolves.toMatchObject({
       status: 'enqueued',
     });
@@ -3114,6 +3131,26 @@ describe('provision coordinator ordering', () => {
     expect(sleep).toHaveBeenCalledOnce();
   });
 
+  it('aborts note lookup while the monitor is draining', async () => {
+    const controller = new AbortController();
+    const listNotes = vi.fn(async () => {
+      controller.abort();
+      return [];
+    });
+
+    await expect(
+      agentOnboardingTesting.findNewestNoteWithRetry(
+        provision.notebookNest,
+        listNotes,
+        vi.fn(async () => {}),
+        100,
+        '~bot',
+        controller.signal
+      )
+    ).rejects.toThrow();
+    expect(listNotes).toHaveBeenCalledOnce();
+  });
+
   it('uses the authoritative created note when cron completion wins the hook race', async () => {
     const sendPost = vi.fn(async () => ({
       channel: 'tlon' as const,
@@ -3417,15 +3454,22 @@ describe('provision coordinator ordering', () => {
       provision
     );
 
-    const listNotes = vi.fn(async () => []);
+    const listNotes = vi.fn(async () => [
+      {
+        noteId: 42,
+        title: 'First entry',
+        createdAt: Date.now() + 1,
+        createdBy: '~bot',
+      },
+    ]);
     await handleAgentOnboardingMessageSent(
       {
         to: provision.notebookNest,
         content: '# First entry',
         success: true,
         messageId: '~bot/notes-42',
-        // The delivery hook can expose the nested model run rather than the
-        // outer manual cron run, so the exact Notes target is the fallback.
+        // An authoritative but unrelated run id must not fall back to the
+        // notebook destination and complete onboarding.
         runId: 'nested-model-run',
       },
       {
@@ -3443,7 +3487,12 @@ describe('provision coordinator ordering', () => {
         status: 'ok',
         delivered: true,
       } as never,
-      { fetchHistory: vi.fn(async () => []), sendPost }
+      {
+        fetchHistory: vi.fn(async () => []),
+        listNotes,
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      }
     );
 
     expect(sendPost).toHaveBeenCalledTimes(2);
@@ -3457,7 +3506,43 @@ describe('provision coordinator ordering', () => {
         },
       },
     });
-    expect(listNotes).not.toHaveBeenCalled();
+    expect(listNotes).toHaveBeenCalled();
+  });
+
+  it('suppresses completion presentation for a superseded provision', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register('provision-newer', {
+      ...provision,
+      provisionId: 'provision-newer',
+      jobId: 'job-newer',
+      channelNest: 'chat/~ten/group/general',
+      notebookName: 'Updates',
+      claimedAt: Date.now() + 1,
+      status: 'enqueued',
+    });
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'superseded-run' },
+      scanContext(),
+      provision
+    );
+    const sendPost = vi.fn();
+
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'unknown:superseded-run',
+        runId: 'superseded-run',
+        status: 'ok',
+        delivered: true,
+      } as never,
+      { fetchHistory: vi.fn(async () => []), sendPost }
+    );
+
+    expect(sendPost).not.toHaveBeenCalled();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('superseded-run')
+    ).toBeNull();
   });
 
   it('ignores a notebook send from a different contextual run', async () => {
@@ -3569,7 +3654,7 @@ describe('provision coordinator ordering', () => {
       ),
     ]);
     expect(results.map((result) => result.status)).toEqual([
-      'rejected',
+      'fulfilled',
       'rejected',
     ]);
     expect(fetchHistory).toHaveBeenCalledOnce();
