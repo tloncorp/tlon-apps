@@ -185,6 +185,22 @@ describe('%notes transport helpers', () => {
 });
 
 describe('notesV1 reads', () => {
+  test('passes cancellation through note-list reads', async () => {
+    requestJsonMock.mockResolvedValue([]);
+    const controller = new AbortController();
+
+    await notesV1.listNotes('notes/~zod/blog', {
+      signal: controller.signal,
+    });
+
+    expect(requestJsonMock).toHaveBeenCalledWith(
+      '/notes/~/v1/notebooks/~zod/blog/notes',
+      'GET',
+      undefined,
+      { signal: controller.signal }
+    );
+  });
+
   test('listNotebooks GETs the v1 path and normalizes items (rootFolderId optional)', async () => {
     requestJsonMock.mockResolvedValue([
       { host: '~zod', flagName: 'blog', notebook: { id: 2, title: 'Blog' } },
