@@ -51,7 +51,7 @@ export function useFilteredChats({
   const { data } = useMessagesFilter();
   const talkFilter = useMemo(
     () =>
-      activeTab === 'talk' ? data ?? 'Direct Messages' : 'Direct Messages',
+      activeTab === 'talk' ? (data ?? 'Direct Messages') : 'Direct Messages',
     [data, activeTab]
   );
   const chats = useMemo(

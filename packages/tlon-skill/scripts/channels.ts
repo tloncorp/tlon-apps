@@ -103,7 +103,7 @@ const CHANNEL_UPDATE_FLAGS = ['title', 'description'] as const;
 
 function getChannelsHelp(command?: string) {
   return command
-    ? CHANNELS_COMMAND_HELP[command] ?? CHANNELS_HELP
+    ? (CHANNELS_COMMAND_HELP[command] ?? CHANNELS_HELP)
     : CHANNELS_HELP;
 }
 

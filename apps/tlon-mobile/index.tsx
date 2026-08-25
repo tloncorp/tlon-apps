@@ -28,6 +28,7 @@ import {
 import App from './src/App';
 import { useDbReady } from './src/hooks/useDbReady';
 import { initializeBackgroundSync } from './src/lib/backgroundSync';
+import { shouldSuppressForegroundNotification } from './src/lib/notificationPresentation';
 
 // Extend BigInt so serialization will never crash in JSON.parse
 (BigInt.prototype as any).toJSON = function () {
@@ -47,7 +48,7 @@ configureReanimatedLogger({
 
 // Eager module init. Runs at the entry so it isn't deferred by inline requires.
 initializeBackgroundSync();
-initializeNotifications();
+initializeNotifications(shouldSuppressForegroundNotification);
 
 const UrbitModule =
   Platform.OS !== 'web' ? TurboModuleRegistry.get('UrbitModule') : null;

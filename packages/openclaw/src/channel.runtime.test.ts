@@ -112,9 +112,8 @@ describe('sendMedia', () => {
     vi.clearAllMocks();
     ({ tlonRuntimeOutbound } = await import('./channel.runtime.js'));
     ({ prepareOutboundMedia } = await import('./urbit/upload.js'));
-    ({ sendDm, sendDmWithStory, sendChannelPost } = await import(
-      './urbit/send.js'
-    ));
+    ({ sendDm, sendDmWithStory, sendChannelPost } =
+      await import('./urbit/send.js'));
   });
 
   afterEach(() => {

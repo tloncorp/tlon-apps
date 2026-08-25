@@ -194,11 +194,13 @@ export const useCanUpload = () => {
   );
 };
 
-export const useContact = (options: { id: string }) => {
+export const useContact = (options: { id: string; enabled?: boolean }) => {
   const deps = useKeyFromQueryDeps(db.getContact, options);
+  const { enabled = true, ...queryOptions } = options;
   return useQuery({
+    enabled,
     queryKey: [['contact', options.id], deps],
-    queryFn: () => db.getContact(options),
+    queryFn: () => db.getContact(queryOptions),
   });
 };
 
@@ -882,6 +884,17 @@ export const useContextLensEnabled = () => {
     queryFn: async () => {
       const settings = await db.getSettings();
       return settings?.contextLensEnabled ?? false;
+    },
+  });
+};
+
+export const useShowDeleteMarkers = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['showDeleteMarkers', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.showDeleteMarkers ?? false;
     },
   });
 };

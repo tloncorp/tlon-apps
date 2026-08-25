@@ -1157,6 +1157,10 @@ class AdapterOwnerListenTests(unittest.TestCase):
             ),
         )
 
+        # Not intercepted: the non-owner's text flows through as typed.
+        # Genuinely typed slash text passes the anti-forgery boundary intact
+        # (hermes core's slash-access policy is the authorization ceiling);
+        # only forged or out-of-scope slash positions are defused.
         self.assertEqual(
             [event.text for event in events],
             ["/migrate diary/~pen/log"],
@@ -1167,6 +1171,11 @@ class AdapterOwnerListenTests(unittest.TestCase):
     def test_version_command_replies_with_field_lines(self):
         adapter = self.make_adapter({})
         adapter._cli = FakeCLI()
+        # A value nothing else in the tree can produce, so the row can only be
+        # right if the reply is actually wired to the resolver. A regex on
+        # "some nonempty string" passes even when the wiring is dropped and
+        # every bot silently reports `unknown`.
+        adapter._harness_version_cache = "harness-sentinel-9.9.9"
 
         events = self.dispatches(adapter, channel_event("/tlon-version"))
 
@@ -1174,13 +1183,14 @@ class AdapterOwnerListenTests(unittest.TestCase):
         self.assertEqual(len(adapter._cli.messages), 1)
         self.assertEqual(adapter._cli.messages[0][0], "chat/~pen/general")
         lines = adapter._cli.messages[0][1].splitlines()
-        self.assertEqual(len(lines), 5)
+        self.assertEqual(len(lines), 6)
         self.assertEqual(lines[0], "*Harness*: **Hermes**")
-        # exact version is covered in test_version; here we pin field + format
-        self.assertRegex(lines[1], r"^\*Adapter Version\*: \*\*.+\*\*$")
-        self.assertEqual(lines[2], "*Tlon Skill*: **0.3.2**")
-        self.assertRegex(lines[3], r"^\*Fingerprint\*: \*\*fp1:[0-9a-f]{12}\*\*$")
-        self.assertTrue(lines[4].startswith("*Source*: **"))
+        self.assertEqual(lines[1], "*Harness Version*: **harness-sentinel-9.9.9**")
+        # exact versions are covered in test_version; here we pin field + format
+        self.assertRegex(lines[2], r"^\*Adapter Version\*: \*\*.+\*\*$")
+        self.assertEqual(lines[3], "*Tlon Skill*: **0.3.2**")
+        self.assertRegex(lines[4], r"^\*Fingerprint\*: \*\*fp1:[0-9a-f]{12}\*\*$")
+        self.assertTrue(lines[5].startswith("*Source*: **"))
         self.assertIn(("--version",), adapter._cli.commands)
 
     def test_version_command_works_from_dm_and_with_mention(self):
@@ -1223,13 +1233,15 @@ class AdapterOwnerListenTests(unittest.TestCase):
     def test_tlon_version_subcommand(self):
         adapter = self.make_adapter({})
         adapter._cli = FakeCLI()
+        adapter._harness_version_cache = "harness-sentinel-9.9.9"
 
         events = self.dispatches(adapter, channel_event("/tlon version"))
 
         self.assertEqual(events, [])
         lines = adapter._cli.messages[0][1].splitlines()
         self.assertEqual(lines[0], "*Harness*: **Hermes**")
-        self.assertRegex(lines[1], r"^\*Adapter Version\*: \*\*.+\*\*$")
+        self.assertEqual(lines[1], "*Harness Version*: **harness-sentinel-9.9.9**")
+        self.assertRegex(lines[2], r"^\*Adapter Version\*: \*\*.+\*\*$")
 
     def test_tlon_status_telemetry_subcommand(self):
         adapter = self.make_adapter({})
