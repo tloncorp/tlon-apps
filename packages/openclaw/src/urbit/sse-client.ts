@@ -1031,7 +1031,8 @@ export class UrbitSSEClient {
   async requestJson<T>(
     path: string,
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
-    body?: unknown
+    body?: unknown,
+    options?: { signal?: AbortSignal }
   ): Promise<T> {
     const headers: Record<string, string> = { Cookie: this.cookie };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
@@ -1047,6 +1048,7 @@ export class UrbitSSEClient {
       lookupFn: this.lookupFn,
       fetchImpl: this.fetchImpl,
       timeoutMs: 30_000,
+      signal: options?.signal,
       auditContext: 'tlon-urbit-request-json',
     });
     try {

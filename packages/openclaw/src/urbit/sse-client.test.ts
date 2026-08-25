@@ -206,13 +206,17 @@ describe('UrbitSSEClient', () => {
         'https://example.com',
         'urbauth-~zod=123'
       );
+      const controller = new AbortController();
 
-      await expect(client.requestJson('/notes', 'GET')).resolves.toEqual({
-        notes: [],
-      });
+      await expect(
+        client.requestJson('/notes', 'GET', undefined, {
+          signal: controller.signal,
+        })
+      ).resolves.toEqual({ notes: [] });
       expect(vi.mocked(urbitFetch)).toHaveBeenCalledWith(
         expect.objectContaining({
           path: '/notes',
+          signal: controller.signal,
           init: expect.objectContaining({
             method: 'GET',
             headers: { Cookie: 'urbauth-~zod=123' },

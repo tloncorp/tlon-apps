@@ -264,10 +264,23 @@ export async function lookupNewestAgentOnboardingRunForGroup(
 }
 
 export async function forgetAgentOnboardingRunClaim(
-  provisionId: string
+  initial: AgentOnboardingRunRecord
 ): Promise<void> {
-  fallbackRecords.delete(provisionId);
-  await getAgentOnboardingRunStore()?.delete(provisionId);
+  await serializeWrite(initial.provisionId, async () => {
+    const store = getAgentOnboardingRunStore();
+    const current =
+      (await store?.lookup(initial.provisionId)) ??
+      fallbackRecords.get(initial.provisionId);
+    if (
+      current?.status !== 'claimed' ||
+      current.claimOwnerId !== initial.claimOwnerId ||
+      current.claimedAt !== initial.claimedAt
+    ) {
+      return;
+    }
+    fallbackRecords.delete(initial.provisionId);
+    await store?.delete(initial.provisionId);
+  });
 }
 
 export async function lookupAgentOnboardingRun(

@@ -257,6 +257,8 @@ type FirstRunCorrelation = {
   purposeId: AgentOnboardingPurposeId;
   topics: readonly string[];
   enqueuedAt: number;
+  /** Completion may be recorded immediately, but not presented before setup copy. */
+  presentationReady: boolean;
   /** Re-enters the configured API scope when lifecycle hooks fire later. */
   runInApiScope?: TlonApiScopeRunner;
 };
@@ -1095,10 +1097,14 @@ async function provision(
     // A very fast run can finish before enqueueRun returns and before its
     // lifecycle hooks can see the correlation. Reconcile once more after the
     // ordered acknowledgement/status posts are safely in the transcript.
-    const enqueuedRecord = await lookupAgentOnboardingRun(request.provisionId);
-    if (enqueuedRecord?.status === 'enqueued') {
-      await reconcileRestoredFirstRun(cron, enqueuedRecord, deps);
-    }
+    await activateFirstRunPresentation(
+      cron,
+      context,
+      request,
+      notebookName,
+      jobId,
+      deps
+    );
   } else if (jobId) {
     if (!cron) {
       throw new Error('cron service is not available while restoring setup');
@@ -1465,6 +1471,7 @@ async function settleFirstRun({
   );
   if (!match) return;
   const [correlationRunId, correlation] = match;
+  if (!correlation.presentationReady) return;
   const { flight, started } = startSingleFlight(
     firstRunCompletionFlights,
     correlationRunId,
@@ -1723,7 +1730,9 @@ async function findNewestNoteWithRetry(
 ) {
   for (let attempt = 0; attempt < FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS; attempt++) {
     abortSignal?.throwIfAborted();
-    const listed = await listNotes(notebookNest).catch(() => []);
+    const listed = await listNotes(notebookNest, {
+      signal: abortSignal,
+    }).catch(() => []);
     abortSignal?.throwIfAborted();
     // A populated notebook may contain entries from an earlier failed or
     // repeated setup. Only the authoritative delivery callback may identify
@@ -1804,7 +1813,8 @@ function rememberFirstRun(
   request: PostBlobDataEntryAgentProvision,
   notebookName?: string,
   jobId?: string,
-  enqueuedAt = Date.now()
+  enqueuedAt = Date.now(),
+  presentationReady = true
 ): boolean {
   if (!disposition || typeof disposition !== 'object') return false;
   const result = disposition as { enqueued?: unknown; runId?: unknown };
@@ -1814,6 +1824,7 @@ function rememberFirstRun(
     jobId: jobId ?? `unknown:${result.runId}`,
     notebookName,
     enqueuedAt,
+    presentationReady,
   });
   return true;
 }
@@ -1826,6 +1837,7 @@ function setFirstRunCorrelation(
     jobId: string;
     notebookName?: string;
     enqueuedAt: number;
+    presentationReady?: boolean;
   }
 ) {
   const correlationKey = `${context.accountId ?? context.botShip}:${runId}`;
@@ -1840,6 +1852,7 @@ function setFirstRunCorrelation(
     purposeId: request.purposeId,
     topics: request.topics,
     enqueuedAt: options.enqueuedAt,
+    presentationReady: options.presentationReady ?? true,
     runInApiScope: captureTlonApiScope(),
   });
 }
@@ -1898,6 +1911,7 @@ async function ensureFirstRunEnqueued(
           jobId: existing.jobId,
           notebookName: existing.notebookName,
           enqueuedAt: existing.enqueuedAt ?? existing.claimedAt,
+          presentationReady: false,
         }
       );
     }
@@ -1912,7 +1926,7 @@ async function ensureFirstRunEnqueued(
     // survive a rejected enqueue. Otherwise the retry sees this process's
     // fresh claim as another active pass and incorrectly treats recovery as
     // complete until the grace window expires.
-    await forgetAgentOnboardingRunClaim(request.provisionId);
+    await forgetAgentOnboardingRunClaim(initial);
     throw error;
   }
   // Use the pre-enqueue claim time as the lower bound. A very fast run may
@@ -1925,10 +1939,11 @@ async function ensureFirstRunEnqueued(
       request,
       notebookName,
       jobId,
-      enqueuedAt
+      enqueuedAt,
+      false
     )
   ) {
-    await forgetAgentOnboardingRunClaim(request.provisionId);
+    await forgetAgentOnboardingRunClaim(initial);
     throw new Error('OpenClaw did not enqueue the first onboarding run');
   }
 
@@ -1956,6 +1971,31 @@ async function restoreFirstRunFromDurable(
     }
   );
   return record;
+}
+
+async function activateFirstRunPresentation(
+  cron: TlonCronService,
+  context: AgentOnboardingScanContext,
+  request: PostBlobDataEntryAgentProvision,
+  notebookName: string,
+  jobId: string,
+  deps: AgentOnboardingDeps
+): Promise<void> {
+  const record = await lookupAgentOnboardingRun(request.provisionId);
+  if (!record || record.status !== 'enqueued') return;
+  const correlation = findFirstRunCorrelation(
+    record.runId,
+    record.notebookNest,
+    record.jobId,
+    true,
+    context.accountId
+  );
+  if (correlation) {
+    correlation[1].presentationReady = true;
+  } else {
+    await restoreFirstRunFromDurable(context, request, notebookName, jobId);
+  }
+  await reconcileRestoredFirstRun(cron, record, deps);
 }
 
 async function reconcileRestoredFirstRun(
