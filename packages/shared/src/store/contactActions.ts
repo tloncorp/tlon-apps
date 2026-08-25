@@ -355,7 +355,10 @@ export async function updateCurrentUserProfile(
     // handle updating the home group title if user sets their nickname
     const homeGroup = await db.getBotHomeGroup();
     if (homeGroup) {
-      const hasDefaultTitle = logic.botHomeGroupHasDefaultTitle(homeGroup);
+      const hasDefaultTitle = logic.botHomeGroupHasDefaultTitle(
+        homeGroup,
+        currentUserContact?.peerNickname
+      );
 
       if (hasDefaultTitle && hasNicknameUpdate) {
         const newTitle = logic.generateBotHomeGroupTitle({

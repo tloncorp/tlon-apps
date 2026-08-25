@@ -11,6 +11,10 @@ import {
   presentContactsMatchedNotification,
 } from '@tloncorp/app/lib/notifications';
 import { startPushNotifTapMeasurement } from '@tloncorp/app/lib/pushNotifTapTelemetry';
+import {
+  isAnyAgentGroupNavigationLockedDurably,
+  useAnyAgentGroupOnboardingLock,
+} from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import {
   createTypedReset,
@@ -35,7 +39,7 @@ import {
   clearLastNotificationResponseAsync,
   useLastNotificationResponse,
 } from 'expo-notifications';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   extractDmTapTelemetry,
@@ -60,6 +64,8 @@ type RouteStack = {
   name: keyof RootStackParamList;
   params?: RootStackParamList[keyof RootStackParamList];
 }[];
+
+type NotificationNavigationResult = 'navigated' | 'missing' | 'locked';
 
 // Route stack for a group-invite notification tap: reset to the chat list with the invited
 // group's preview open, marked as a notification-opened invite so ChatList gates it on invite
@@ -141,6 +147,18 @@ export function getMissingNotificationTargetRecovery(
 export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isTlonEmployee = db.isTlonEmployee.useValue();
+  const {
+    locked: agentOnboardingLocked,
+    isLoading: agentOnboardingLockLoading,
+  } = useAnyAgentGroupOnboardingLock();
+  const agentOnboardingStateRef = useRef({
+    isLoading: agentOnboardingLockLoading,
+    locked: agentOnboardingLocked,
+  });
+  agentOnboardingStateRef.current = {
+    isLoading: agentOnboardingLockLoading,
+    locked: agentOnboardingLocked,
+  };
 
   const [notifToProcess, setNotifToProcess] =
     useState<ProcessableNotificationData | null>(null);
@@ -256,20 +274,20 @@ export default function useNotificationListener() {
         params: { groupId },
       });
       setNotifToProcess(null);
-      return true;
+      return 'navigated' as const;
     }
 
     async function goToUserProfile(userId: string) {
       navigation.navigate('UserProfile', { userId });
       setNotifToProcess(null);
-      return true;
+      return 'navigated' as const;
     }
 
     async function goToContacts() {
       const route = getTopLevelTabRoute('Contacts');
       navigation.navigate(route.name, route.params, { pop: true });
       setNotifToProcess(null);
-      return true;
+      return 'navigated' as const;
     }
 
     async function goToGroupInvite(groupId: string) {
@@ -278,7 +296,7 @@ export default function useNotificationListener() {
       const typedReset = createTypedReset(navigation);
       typedReset(groupInvitePreviewRouteStack(groupId));
       setNotifToProcess(null);
-      return true;
+      return 'navigated' as const;
     }
 
     async function gotToChannel(
@@ -288,17 +306,8 @@ export default function useNotificationListener() {
     ) {
       const channel = await db.getChannelWithRelations({ id: channelId });
       if (!channel) {
-        return false;
+        return 'missing' as const;
       }
-
-      logger.trackEvent(
-        AnalyticsEvent.ActionTappedPushNotif,
-        logic.getModelAnalytics({ channel })
-      );
-      startPushNotifTapMeasurement({
-        channelId: channel.id,
-        initialLastPostId: channel.lastPostId ?? null,
-      });
 
       const routeStack: RouteStack = [getTopLevelTabRoute('ChatList')];
       if (channel.groupId) {
@@ -352,9 +361,27 @@ export default function useNotificationListener() {
 
       const typedReset = createTypedReset(navigation);
 
+      // Channel lookup and route construction both await storage. Re-read the
+      // durable lock immediately before mutating navigation so onboarding that
+      // starts during either await cannot be escaped by the stale tap.
+      if (await isAnyAgentGroupNavigationLockedDurably()) {
+        // Keep the notification pending. The effect will retry it after the
+        // onboarding lock clears; a lock is not evidence that the route is
+        // missing.
+        return 'locked' as const;
+      }
+
+      logger.trackEvent(
+        AnalyticsEvent.ActionTappedPushNotif,
+        logic.getModelAnalytics({ channel })
+      );
+      startPushNotifTapMeasurement({
+        channelId: channel.id,
+        initialLastPostId: channel.lastPostId ?? null,
+      });
       typedReset(routeStack, 1);
       setNotifToProcess(null);
-      return true;
+      return 'navigated' as const;
     }
 
     async function syncMissingNotificationTarget(
@@ -386,7 +413,11 @@ export default function useNotificationListener() {
       }
     }
 
-    if (notifToProcess) {
+    if (
+      notifToProcess &&
+      !agentOnboardingLockLoading &&
+      !agentOnboardingLocked
+    ) {
       const notificationData = notifToProcess;
       const handleNavigate = (() => {
         switch (notificationData.type) {
@@ -412,6 +443,10 @@ export default function useNotificationListener() {
 
       (async () => {
         try {
+          const navigationIsLocked = () => {
+            const state = agentOnboardingStateRef.current;
+            return state.isLoading || state.locked;
+          };
           let preparedDmInviteTarget = false;
           let canNavigate = true;
 
@@ -429,17 +464,33 @@ export default function useNotificationListener() {
             }
           }
 
-          let didNavigate = canNavigate ? await handleNavigate() : false;
+          if (
+            navigationIsLocked() ||
+            (await isAnyAgentGroupNavigationLockedDurably())
+          ) {
+            return;
+          }
+          let navigationResult: NotificationNavigationResult = canNavigate
+            ? await handleNavigate()
+            : 'missing';
 
-          if (!didNavigate) {
+          if (navigationResult === 'locked') return;
+          if (navigationResult === 'missing') {
             const recovered = await syncMissingNotificationTarget(
               notificationData,
               preparedDmInviteTarget
             );
-            didNavigate = recovered ? await handleNavigate() : false;
+            if (
+              navigationIsLocked() ||
+              (await isAnyAgentGroupNavigationLockedDurably())
+            ) {
+              return;
+            }
+            navigationResult = recovered ? await handleNavigate() : 'missing';
 
             // If still not found, clear out the requested channel ID
-            if (!didNavigate) {
+            if (navigationResult === 'locked') return;
+            if (navigationResult === 'missing') {
               if (isTlonEmployee) {
                 logger.trackEvent(AnalyticsEvent.ErrorPushNotifNavigate, {
                   routeCategory: getNotificationRouteCategory(notificationData),
@@ -460,5 +511,12 @@ export default function useNotificationListener() {
         }
       })();
     }
-  }, [notifToProcess, navigation, isTlonEmployee, isDesktop]);
+  }, [
+    agentOnboardingLocked,
+    agentOnboardingLockLoading,
+    notifToProcess,
+    navigation,
+    isTlonEmployee,
+    isDesktop,
+  ]);
 }

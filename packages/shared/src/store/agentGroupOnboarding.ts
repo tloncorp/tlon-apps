@@ -119,9 +119,12 @@ async function startAgentGroupFurnishingOnce(
       });
   const chatChannel = await ensureChatChannel(group);
   const initialGroupTitle = group.title ?? null;
+  const currentUserContact = await db.getContact({
+    id: api.getCurrentUserId(),
+  });
   const canRenameGroup = params.groupId
     ? group.id.endsWith(`/${BotHomeGroupSlugs.slug}`) &&
-      logic.botHomeGroupHasDefaultTitle(group)
+      logic.botHomeGroupHasDefaultTitle(group, currentUserContact?.peerNickname)
     : params.title == null || params.title === DEFAULT_AGENT_GROUP_TITLE;
 
   await Promise.all([
