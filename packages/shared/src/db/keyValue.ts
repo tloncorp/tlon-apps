@@ -209,7 +209,13 @@ export const agentGroupOnboardingLocks = createStorageItem<
 });
 
 /** New agent group whose owner-side setup has not yet reached its chat. */
-export const pendingAgentGroupCreation = createStorageItem<string | null>({
+export type PendingAgentGroupCreation = {
+  groupId: string;
+  defaultChannelId: string;
+};
+export const pendingAgentGroupCreation = createStorageItem<
+  string | PendingAgentGroupCreation | null
+>({
   key: 'pendingAgentGroupCreation',
   defaultValue: null,
 });

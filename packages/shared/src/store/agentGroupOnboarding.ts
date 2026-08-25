@@ -166,15 +166,48 @@ async function createOrResumeAgentGroup({
   title: string;
 }) {
   const currentUserId = api.getCurrentUserId();
-  const pendingGroupId = await db.pendingAgentGroupCreation.getValue();
+  const pending = await db.pendingAgentGroupCreation.getValue();
+  const pendingGroupId =
+    typeof pending === 'string' ? pending : pending?.groupId;
   const groupId = pendingGroupId ?? `${currentUserId}/${logic.getRandomId()}`;
-  if (!pendingGroupId) {
-    await db.pendingAgentGroupCreation.setValue(groupId);
-  }
+  const defaultChannelId =
+    typeof pending === 'object' && pending
+      ? pending.defaultChannelId
+      : `chat/${currentUserId}/${logic.getRandomId()}`;
 
   if (pendingGroupId) {
-    return waitForPendingGroupWithChat(() => adoptGroup(groupId));
+    try {
+      return await waitForPendingGroupWithChat(() => adoptGroup(groupId));
+    } catch {
+      // Retrying the exact group/channel payload is safe even if an ambiguous
+      // earlier request finishes late, and recovers definitive pre-send
+      // failures without stranding the persisted pending marker.
+      if (typeof pending === 'string') {
+        await db.pendingAgentGroupCreation.setValue({
+          groupId,
+          defaultChannelId,
+        });
+      }
+      try {
+        return await createDefaultGroup({
+          groupId,
+          defaultChannelId,
+          memberIds: [agentShipId],
+          title,
+        });
+      } catch (createError) {
+        try {
+          return await waitForPendingGroupWithChat(() => adoptGroup(groupId), {
+            attempts: 2,
+          });
+        } catch {
+          throw createError;
+        }
+      }
+    }
   }
+
+  await db.pendingAgentGroupCreation.setValue({ groupId, defaultChannelId });
 
   const local = await db.getGroup({ id: groupId });
   if (local) {
@@ -188,6 +221,7 @@ async function createOrResumeAgentGroup({
   }
   return createDefaultGroup({
     groupId,
+    defaultChannelId,
     memberIds: [agentShipId],
     title,
   });
@@ -263,7 +297,9 @@ async function finishAgentGroupFurnishingOnce({
 
   await ensureIntroRequest(group.id, chatChannel.id, isFirstGroup);
   await db.pendingAgentGroupCreation.setValue((current) =>
-    current === group.id ? null : current
+    (typeof current === 'string' ? current : current?.groupId) === group.id
+      ? null
+      : current
   );
 
   logger.trackEvent('Agent Group Furnish Core Completed', {

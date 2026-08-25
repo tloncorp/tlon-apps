@@ -278,9 +278,6 @@ export function McpConnectMenu({
   useEffect(() => {
     if (loading || !providersLoaded || configuredProviderIds === undefined)
       return;
-    const configuredKey = [...configuredProviderIds].sort().join('\u0000');
-    if (configuredKey === configuredKeyRef.current) return;
-    configuredKeyRef.current = configuredKey;
     const connected = new Set(connectedProviderIds);
     setSelectedProviderIds(
       clampProviderIds(configuredProviderIds.filter((id) => connected.has(id)))
