@@ -685,8 +685,8 @@ export function A2UIBlock({
     areA2UISelectionsPending,
     canSendA2UIResponse,
     canUseAgentProviderControls,
-    configuredAgentProviderIds,
     consumedA2UIMessageText,
+    getConfiguredAgentProviderIds,
     getConsumedA2UISelection,
     isA2UIActionAvailable,
     isA2UIActionConsumed,
@@ -1246,7 +1246,9 @@ export function A2UIBlock({
               <McpConnectControl
                 component={component}
                 surfaceId={surfaceId}
-                configuredProviderIds={configuredAgentProviderIds}
+                configuredProviderIds={getConfiguredAgentProviderIds?.(
+                  component.configureAction
+                )}
                 completionConsumed={Boolean(
                   component.completionAction &&
                   (getConsumedA2UISelection?.(surfaceId, component.id) ||
@@ -1284,8 +1286,8 @@ export function A2UIBlock({
       areA2UISelectionsPending,
       canSendA2UIResponse,
       components,
-      configuredAgentProviderIds,
       consumedA2UIMessageText,
+      getConfiguredAgentProviderIds,
       getConsumedA2UISelection,
       handleButtonPress,
       handleChoicePress,

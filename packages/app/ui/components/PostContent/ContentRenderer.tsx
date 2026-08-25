@@ -70,7 +70,7 @@ function ContentRenderer({
   areA2UISelectionsPending,
   a2uiSourcePostId,
   canUseAgentProviderControls,
-  configuredAgentProviderIds,
+  getConfiguredAgentProviderIds,
   provisionedAgentTopics,
   consumedA2UIMessageText,
   getConsumedA2UISelection,
@@ -95,7 +95,7 @@ function ContentRenderer({
       areA2UISelectionsPending={areA2UISelectionsPending}
       a2uiSourcePostId={a2uiSourcePostId}
       canUseAgentProviderControls={canUseAgentProviderControls}
-      configuredAgentProviderIds={configuredAgentProviderIds}
+      getConfiguredAgentProviderIds={getConfiguredAgentProviderIds}
       provisionedAgentTopics={provisionedAgentTopics}
       consumedA2UIMessageText={consumedA2UIMessageText}
       getConsumedA2UISelection={getConsumedA2UISelection}
