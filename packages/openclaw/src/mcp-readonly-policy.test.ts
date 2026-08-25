@@ -120,6 +120,17 @@ describe('MCP read-only policy', () => {
     ).toBe(false);
   });
 
+  it('does not authorize a longer provider id through a selected prefix', () => {
+    expect(
+      mayDescribeMcpTool({ name: 'google-drive.search_files' }, ['google'])
+    ).toBe(false);
+    expect(
+      mayDescribeMcpTool({ name: 'google-drive.search_files' }, [
+        'google-drive',
+      ])
+    ).toBe(true);
+  });
+
   it('clears cron attribution and described tools at the run boundary', () => {
     rememberCronJobForSession('main-session', 'onboarding-job');
     rememberDescribedReadOnlyMcpTool(
