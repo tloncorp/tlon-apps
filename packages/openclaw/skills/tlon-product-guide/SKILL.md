@@ -18,7 +18,7 @@ out of the product.
 - Call the user's personal server their "node." Avoid Urbit-native vocabulary (ship, planet, moon) unless the user brings it up or the context requires it.
 - When someone asks what makes Tlon Messenger different, the answer is ownership. That's the architecture, not a feature.
 - Steps in this guide describe the mobile app unless noted. The desktop experience at tlon.network mirrors it.
-- If someone needs help this guide can't provide, point them to their DM with Tlon Support on the Home screen.
+- If someone needs help this guide can't provide, point them to their DM with Tlon Support on the Home screen — or, if they self-host, to support@tlon.io, since that DM only exists on hosted accounts.
 - For reading data or performing actions on a node — activity, history, contacts, channels, group and channel administration — use the `tlon` skill and its CLI. This skill is for explaining the product, not for operating it.
 
 ---
@@ -112,6 +112,8 @@ Tlon Messenger is a computer shaped like an app. You can reach your node from yo
 2. Log in with the email you used to sign up.  
 3. Click the tile that says Tlon.
 
+That's the hosted path. Self-hosting? There's no signup email to log in with — you point the web app at your node's URL and authenticate with its access code instead.
+
 That's the Tlon Messenger desktop experience — same account, same groups, same messages.
 
 ---
@@ -172,7 +174,7 @@ Your bot has its own cryptographic identity on the network, linked directly to y
 
 ### How it's different from ChatGPT or Alexa
 
-ChatGPT, Alexa, and Siri are services you rent. Your conversations live on their servers, train their models, and can disappear if they change their terms. Tlonbot runs on its own node, tied to yours. It calls out to AI providers for inference, but your conversation history, memory, and preferences are stored on your node — not theirs. If you switch models or providers, everything you've built with your bot stays with you.
+ChatGPT, Alexa, and Siri are services you rent. Your conversations live on their servers, train their models, and can disappear if they change their terms. Tlonbot runs on its own node, tied to yours. It calls out to AI providers for inference, but the conversation history, memory, and preferences are stored on your bot's own node — not on theirs. If you switch models or providers, everything you've built with your bot stays with you.
 
 ### Getting started
 
@@ -213,7 +215,7 @@ Tlonbots excel at recurring tasks, called crons. Set one once, then forget about
 
 ### Connected services (MCP)
 
-Extend your bot by connecting outside services under `Bot Settings` → `Connected Services`. With services connected, crons and requests get more powerful:
+Extend your bot by connecting outside services under `Bot Settings` → `Connected Services`. (Hosted accounts — self-hosters wire MCP servers up in their own OpenClaw configuration.) With services connected, crons and requests get more powerful:
 
 - "Summarize the status of my Linear tickets every Monday morning."  
 - "Track new GitHub issues on my repo and flag anything urgent."  
@@ -285,7 +287,7 @@ Apps on your node store data on your node, not on a central server. Since you co
 
 ### Where messages go
 
-You always connect to your own node — when you open the app, it downloads anything you missed. When you send a message, it goes to your node first. In a DM, it travels directly to the recipient's node. In a group, it goes to the group host's node for distribution to members.
+You always connect to your own node — when you open the app, it downloads anything you missed. When you send a message, it goes to your node first. In a DM, it travels directly to the recipient's node. In a group, it goes to the host of that channel, which distributes it to members. That's often the group's creator, but not always: channels carry their own host, so a group can hold channels hosted by different members. The group host is the one coordinating the group itself — roles, membership, which channels exist.
 
 ### Encryption
 
@@ -299,7 +301,7 @@ Nodes can't store large files directly yet (Tlon is working on this), so media i
 
 ### Does Tlon read my conversations?
 
-No. Your messages and your bot's memory live on your node. When your bot calls an AI model, those requests go directly to the inference provider — Tlon doesn't see your prompts. If you ask Tlon to troubleshoot your node, support may need to access it, but only with your permission.
+No. Your messages live on your node. Your bot has a node of its own, and its memory lives there with it — linked to your account, but a separate identity, so exporting your node takes your conversations and not the bot's accumulated state. When your bot calls an AI model, those requests go directly to the inference provider — Tlon doesn't see your prompts. If you ask Tlon to troubleshoot your node, support may need to access it, but only with your permission.
 
 ---
 
@@ -347,7 +349,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 **For communities and clubs:**
 
 - Run a book club: a Notebook for reviews, a Chat for discussion, and a bot-scheduled reminder before each meeting.  
-- Let your bot handle moderation with slash commands: work through pending join requests, and manage blocks.
+- Let your bot handle moderation with slash commands: work through who's waiting on access to the bot, and manage blocks. (These govern the bot, not group membership — admitting someone to the group itself is group admin work, which the bot can also do if you ask it.)
 
 **For builders:**
 
@@ -383,7 +385,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **Does Tlonbot cost anything?** Hosted accounts get one for free, including a free AI model for basic usage. Bring your own API key to use other models. Self-hosters run their own and pay for whatever model they point it at.
 
-**Does Tlon read my bot's conversations?** No. Your bot's memory lives on your node, and model requests go directly to the inference provider.
+**Does Tlon read my bot's conversations?** No. Your bot's memory lives on your bot's node, and model requests go directly to the inference provider.
 
 **What happens if Tlon disappears?** You won't lose your apps or your messages. The software is open source and peer-to-peer, so it keeps running. Export your node and run it yourself. Pictures and large files are the exception — they live in S3-compatible storage with only links on your node, so if that storage is Tlon's, that's what you'd lose. Point your node at storage you control and it isn't a question.
 
