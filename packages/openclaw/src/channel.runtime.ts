@@ -19,10 +19,7 @@ import {
   recordBackgroundContextLensOutput,
 } from './context-lens.js';
 import { monitorTlonProvider } from './monitor/index.js';
-import {
-  notesDeliveryMessageId,
-  recordDeliveredNote,
-} from './notes-delivery-state.js';
+import { notesDeliveryMessageId } from './notes-delivery-state.js';
 import { tlonSetupWizard } from './setup-surface.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
 import { observeActiveTlonTurnDelivery } from './turn-recorder.js';
@@ -174,9 +171,6 @@ async function sendNotesEntry({
     title: notesTitle(text),
     body: notesBody(text),
   });
-  if (created) {
-    recordDeliveredNote(nest, created);
-  }
   return {
     channel: 'tlon' as const,
     messageId: notesDeliveryMessageId(fromShip, created?.id),

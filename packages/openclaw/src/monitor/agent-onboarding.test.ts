@@ -3,10 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TlonCronService } from '../cron-telemetry.js';
 import {
-  notesDeliveryTesting,
-  recordDeliveredNote,
-} from '../notes-delivery-state.js';
-import {
   type AgentOnboardingRunRecord,
   claimAgentOnboardingRun,
   clearAgentOnboardingRunFallbackForTesting,
@@ -17,12 +13,14 @@ import {
   setAgentOnboardingRunStore,
 } from './agent-onboarding-run-store.js';
 import {
+  agentOnboardingCronProviderIds,
   agentOnboardingTesting,
   clearAgentOnboardingRuntime,
   drainAgentOnboardingRuntime,
   handleAgentOnboardingCronChanged,
   handleAgentOnboardingMessageSent,
   handleAgentOnboardingRequest,
+  isAgentOnboardingCronJob,
   parseAgentOnboardingRequest,
   scanAgentOnboardingChannel,
 } from './agent-onboarding.js';
@@ -144,7 +142,6 @@ function providerConfig(
 }
 
 beforeEach(() => {
-  notesDeliveryTesting.clear();
   agentOnboardingTesting.clearAllFirstRunCompletionRetries();
   clearAgentOnboardingRuntime();
   clearAgentOnboardingRunFallbackForTesting();
@@ -357,6 +354,34 @@ describe('first-run durable claims', () => {
     await expect(store.lookup(initial.provisionId)).resolves.toMatchObject({
       outcome: { status: 'ok', delivered: true, noteId: 42 },
     });
+  });
+});
+
+describe('durable onboarding cron authorization', () => {
+  it('recognizes an edited job and restores its selected providers from durable state', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(provision.provisionId, {
+      provisionId: provision.provisionId,
+      jobId: 'edited-description-job',
+      groupId: provision.groupId,
+      channelNest: 'chat/~ten/group/general',
+      notebookNest: provision.notebookNest,
+      notebookName: provision.notebookTitle,
+      purposeId: provision.purposeId,
+      topics: [...provision.topics],
+      providerIds: ['gmail'],
+      provision,
+      claimedAt: 1,
+      status: 'enqueued',
+    });
+
+    await expect(
+      isAgentOnboardingCronJob('edited-description-job')
+    ).resolves.toBe(true);
+    await expect(
+      agentOnboardingCronProviderIds('edited-description-job')
+    ).resolves.toEqual(['gmail']);
   });
 });
 
@@ -2611,10 +2636,6 @@ describe('provision coordinator ordering', () => {
       remove: vi.fn(),
       enqueueRun: vi.fn(async () => {
         events.push('cron:enqueue');
-        recordDeliveredNote(provision.notebookNest, {
-          id: 77,
-          title: 'First entry',
-        });
         await recordAgentOnboardingRunOutcome('first-run-1', {
           status: 'ok',
           delivered: true,
@@ -3100,43 +3121,38 @@ describe('provision coordinator ordering', () => {
       provision
     );
 
-    const listNotes = vi
-      .fn()
-      // Delivery can beat Notes indexing; the reveal should wait briefly for
-      // the new note instead of permanently omitting its reference.
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
-        {
-          id: `${provision.notebookNest}/12`,
-          notebookFlag: provision.notebookNest,
-          noteId: 12,
-          title: 'First entry',
-          createdBy: '~bot',
-          createdAt: Date.now() + 1,
-        },
-      ]);
-
-    await handleAgentOnboardingCronChanged(
+    const listNotes = vi.fn(async () => [
       {
-        action: 'finished',
-        jobId: 'job-1',
-        runId: 'first-run-complete',
-        status: 'ok',
-        delivered: true,
-      } as never,
+        id: `${provision.notebookNest}/12`,
+        notebookFlag: provision.notebookNest,
+        noteId: 12,
+        title: 'First entry',
+        createdBy: '~bot',
+        createdAt: Date.now() + 1,
+      },
+    ]);
+
+    await handleAgentOnboardingMessageSent(
+      {
+        to: provision.notebookNest,
+        content: '# First entry',
+        success: true,
+        messageId: '~bot/notes-12',
+        runId: 'nested-model-run',
+      },
       {
         fetchHistory: vi.fn(async () => []),
         listNotes,
         sendPost,
         sleep,
-      }
+      },
+      'first-run-complete'
     );
 
     expect(sendPost).toHaveBeenCalledTimes(2);
-    expect(listNotes).toHaveBeenCalledTimes(2);
-    expect(sleep).toHaveBeenCalledTimes(2);
-    expect(sleep).toHaveBeenNthCalledWith(1, 1_000);
-    expect(sleep).toHaveBeenNthCalledWith(2, 5_500, undefined);
+    expect(listNotes).toHaveBeenCalledOnce();
+    expect(sleep).toHaveBeenCalledOnce();
+    expect(sleep).toHaveBeenCalledWith(5_500, undefined);
     const reveal = sendPost.mock.calls[0]?.[0];
     // The sentence carries the entry on its own — the cite renders as
     // "Content not available" until the client has synced the notes channel,
@@ -3238,75 +3254,6 @@ describe('provision coordinator ordering', () => {
     ).not.toBeNull();
   });
 
-  it('does not mistake an older notebook entry for the first run', async () => {
-    const listNotes = vi
-      .fn()
-      .mockResolvedValueOnce([
-        {
-          id: `${provision.notebookNest}/10`,
-          notebookFlag: provision.notebookNest,
-          noteId: 10,
-          title: 'Unrelated owner entry',
-          createdBy: '~ten',
-          createdAt: 120,
-        },
-        {
-          id: `${provision.notebookNest}/8`,
-          notebookFlag: provision.notebookNest,
-          noteId: 8,
-          title: 'Older entry',
-          createdBy: '~bot',
-          createdAt: 90,
-        },
-      ])
-      .mockResolvedValueOnce([
-        {
-          id: `${provision.notebookNest}/9`,
-          notebookFlag: provision.notebookNest,
-          noteId: 9,
-          title: 'Current entry',
-          createdBy: '~bot',
-          createdAt: 110,
-        },
-      ]);
-    const sleep = vi.fn(async () => {});
-
-    await expect(
-      agentOnboardingTesting.findNewestNoteWithRetry(
-        provision.notebookNest,
-        listNotes,
-        sleep,
-        100,
-        '~bot'
-      )
-    ).resolves.toMatchObject({ noteId: 9, title: 'Current entry' });
-    expect(listNotes).toHaveBeenCalledTimes(2);
-    expect(sleep).toHaveBeenCalledOnce();
-  });
-
-  it('aborts note lookup while the monitor is draining', async () => {
-    const controller = new AbortController();
-    const listNotes = vi.fn(async () => {
-      controller.abort();
-      return [];
-    });
-
-    await expect(
-      agentOnboardingTesting.findNewestNoteWithRetry(
-        provision.notebookNest,
-        listNotes,
-        vi.fn(async () => {}),
-        100,
-        '~bot',
-        controller.signal
-      )
-    ).rejects.toThrow();
-    expect(listNotes).toHaveBeenCalledOnce();
-    expect(listNotes).toHaveBeenCalledWith(provision.notebookNest, {
-      signal: controller.signal,
-    });
-  });
-
   it('cancels the services pause when the monitor is draining', async () => {
     const api = { scry: vi.fn() };
     const abortController = new AbortController();
@@ -3330,14 +3277,14 @@ describe('provision coordinator ordering', () => {
           });
         })
     );
-    const completion = handleAgentOnboardingCronChanged(
+    const completion = handleAgentOnboardingMessageSent(
       {
-        action: 'finished',
-        jobId: 'job-1',
-        runId: 'first-run-aborted-pause',
-        status: 'ok',
-        delivered: true,
-      } as never,
+        to: provision.notebookNest,
+        content: '# First entry',
+        success: true,
+        messageId: '~bot/notes-12',
+        runId: 'nested-run',
+      },
       {
         fetchHistory: vi.fn(async () => []),
         listNotes: vi.fn(async () => [
@@ -3356,7 +3303,8 @@ describe('provision coordinator ordering', () => {
           sentAt: 0,
         })),
         sleep,
-      }
+      },
+      'first-run-aborted-pause'
     );
     await vi.waitFor(() =>
       expect(sleep).toHaveBeenCalledWith(5_500, abortController.signal)
@@ -3374,17 +3322,48 @@ describe('provision coordinator ordering', () => {
       messageId: 'post',
       sentAt: 0,
     }));
-    const listNotes = vi.fn(async () => []);
+    const listNotes = vi.fn(async () => [
+      {
+        id: `${provision.notebookNest}/77`,
+        notebookFlag: provision.notebookNest,
+        noteId: 77,
+        title: 'Authoritative entry',
+      },
+      {
+        id: `${provision.notebookNest}/78`,
+        notebookFlag: provision.notebookNest,
+        noteId: 78,
+        title: 'Unrelated newer entry',
+      },
+    ]);
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(provision.provisionId, {
+      provisionId: provision.provisionId,
+      jobId: 'job-1',
+      runId: 'first-run-authoritative',
+      groupId: provision.groupId,
+      channelNest: 'chat/~ten/group/general',
+      notebookNest: provision.notebookNest,
+      notebookName: provision.notebookTitle,
+      purposeId: provision.purposeId,
+      topics: [...provision.topics],
+      provision,
+      claimedAt: 1,
+      enqueuedAt: 2,
+      status: 'enqueued',
+      outcome: {
+        status: 'ok',
+        delivered: true,
+        noteId: 77,
+        observedAt: 3,
+      },
+    });
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-authoritative' },
       scanContext(),
       provision
     );
-    recordDeliveredNote(provision.notebookNest, {
-      id: 77,
-      title: 'Authoritative entry',
-    });
-
     await handleAgentOnboardingCronChanged(
       {
         action: 'finished',
@@ -3401,7 +3380,7 @@ describe('provision coordinator ordering', () => {
       }
     );
 
-    expect(listNotes).not.toHaveBeenCalled();
+    expect(listNotes).toHaveBeenCalledOnce();
     expect(sendPost.mock.calls[0]?.[0].story).toContainEqual({
       block: {
         cite: {
@@ -3533,21 +3512,23 @@ describe('provision coordinator ordering', () => {
     );
 
     await expect(
-      handleAgentOnboardingCronChanged(
+      handleAgentOnboardingMessageSent(
         {
-          action: 'finished',
-          jobId: 'job-1',
-          runId: 'matched-run',
-          status: 'ok',
-          delivered: true,
-        } as never,
+          to: provision.notebookNest,
+          content: '# Entry',
+          success: true,
+          messageId: '~bot/notes-77',
+          runId: 'nested-run',
+        },
         {
           fetchHistory: vi.fn(async () => []),
+          listNotes: vi.fn(async () => []),
           sendPost: vi.fn(async () => {
             throw new Error('transport closed during reveal');
           }),
           sleep: vi.fn(async () => {}),
-        }
+        },
+        'matched-run'
       )
     ).rejects.toThrow('transport closed during reveal');
 
@@ -3585,14 +3566,14 @@ describe('provision coordinator ordering', () => {
       'job-1'
     );
 
-    await handleAgentOnboardingCronChanged(
+    await handleAgentOnboardingMessageSent(
       {
-        action: 'finished',
-        jobId: 'job-1',
-        runId: 'transient-store-run',
-        status: 'ok',
-        delivered: true,
-      } as never,
+        to: provision.notebookNest,
+        content: '# Entry',
+        success: true,
+        messageId: '~bot/notes-77',
+        runId: 'nested-run',
+      },
       {
         fetchHistory: vi.fn(async () => []),
         listNotes: vi.fn(async () => []),
@@ -3602,7 +3583,8 @@ describe('provision coordinator ordering', () => {
           sentAt: 0,
         })),
         sleep,
-      }
+      },
+      'transient-store-run'
     );
 
     expect(sleep).toHaveBeenCalledWith(100);
@@ -3685,8 +3667,8 @@ describe('provision coordinator ordering', () => {
         content: '# First entry',
         success: true,
         messageId: '~bot/notes-42',
-        // An authoritative but unrelated run id must not fall back to the
-        // notebook destination and complete onboarding.
+        // The host-level context carries the cron run while the nested model
+        // delivery can expose a different event run id.
         runId: 'nested-model-run',
       },
       {
@@ -3694,22 +3676,8 @@ describe('provision coordinator ordering', () => {
         listNotes,
         sendPost,
         sleep: vi.fn(async () => {}),
-      }
-    );
-    await handleAgentOnboardingCronChanged(
-      {
-        action: 'finished',
-        jobId: 'job-1',
-        runId: 'first-run-delivery-fallback',
-        status: 'ok',
-        delivered: true,
-      } as never,
-      {
-        fetchHistory: vi.fn(async () => []),
-        listNotes,
-        sendPost,
-        sleep: vi.fn(async () => {}),
-      }
+      },
+      'first-run-delivery-fallback'
     );
 
     expect(sendPost).toHaveBeenCalledTimes(2);
@@ -3942,7 +3910,8 @@ describe('provision coordinator ordering', () => {
           listNotes: vi.fn(async () => []),
           sendPost,
           sleep: vi.fn(async () => {}),
-        }
+        },
+        'first-run-race'
       ),
       handleAgentOnboardingCronChanged(
         {
@@ -3961,8 +3930,8 @@ describe('provision coordinator ordering', () => {
       ),
     ]);
     expect(results.map((result) => result.status)).toEqual([
-      'fulfilled',
       'rejected',
+      'fulfilled',
     ]);
     expect(fetchHistory).toHaveBeenCalledOnce();
     expect(sendPost).not.toHaveBeenCalled();
