@@ -315,6 +315,7 @@ export function McpConnectMenu({
     authorizationRefreshPending ||
     completionAction.consumed ||
     completionAction.pending;
+  const completionDisabled = !onComplete || submitting || completionLocked;
 
   const toggleProvider = useCallback(
     (providerId: string) => {
@@ -476,11 +477,21 @@ export function McpConnectMenu({
             {visibleProviders.map((provider, index) => {
               const connected = provider.status === 'connected';
               const selected = selectedProviderIds.includes(provider.id);
+              const selectionLimitReached =
+                connected &&
+                !selected &&
+                selectedProviderIds.length >= MAX_PROVIDER_SELECTIONS;
               const enabled = connected
-                ? Boolean(onConfigure) && !submitting && !completionLocked
+                ? Boolean(onConfigure) &&
+                  !submitting &&
+                  !completionLocked &&
+                  !selectionLimitReached
                 : Boolean(onNavigate) && !submitting && !completionLocked;
               const disabled = connected
-                ? !onConfigure || submitting || completionLocked
+                ? !onConfigure ||
+                  submitting ||
+                  completionLocked ||
+                  selectionLimitReached
                 : !onNavigate || submitting || completionLocked;
               return (
                 <A2UIMenuRow
@@ -582,23 +593,14 @@ export function McpConnectMenu({
           testID="A2UIMcpConnectComplete"
           accessibilityLabel={component.completionLabel}
           accessibilityState={{
-            disabled:
-              !onComplete ||
-              submitting ||
-              completionAction.pending ||
-              completionLocked,
+            disabled: completionDisabled,
           }}
-          disabled={
-            !onComplete ||
-            submitting ||
-            completionAction.pending ||
-            completionLocked
-          }
+          disabled={completionDisabled}
           onPress={complete}
           bordered
           marginTop="$m"
           prominent
-          dimmed={completionLocked}
+          dimmed={completionDisabled}
           label={component.completionLabel}
           trailing={
             completionAction.pending ? (
