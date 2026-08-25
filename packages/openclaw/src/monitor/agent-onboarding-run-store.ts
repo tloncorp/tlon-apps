@@ -29,6 +29,8 @@ export type AgentOnboardingRunRecord = {
 export type AgentOnboardingRunOutcome = {
   status: 'ok' | 'error';
   delivered: boolean;
+  /** Exact Notes entry produced by this run, when the delivery hook observed it. */
+  noteId?: number;
   error?: string;
   observedAt: number;
 };
@@ -209,7 +211,9 @@ export function recordAgentOnboardingRunOutcome(
   outcome: AgentOnboardingRunOutcome
 ): Promise<boolean> {
   const existing = outcomeFlights.get(runId);
-  if (existing) return existing;
+  if (existing) {
+    return existing.then(() => recordAgentOnboardingRunOutcome(runId, outcome));
+  }
   const flight = recordAgentOnboardingRunOutcomeInternal(runId, outcome);
   outcomeFlights.set(runId, flight);
   void flight.then(
@@ -229,11 +233,18 @@ async function recordAgentOnboardingRunOutcomeInternal(
 ): Promise<boolean> {
   const store = getAgentOnboardingRunStore();
   const stored = store
-    ? (await store.entries()).find((entry) => entry.value.runId === runId)?.value
+    ? (await store.entries()).find((entry) => entry.value.runId === runId)
+        ?.value
     : [...fallbackRecords.values()].find((record) => record.runId === runId);
   if (!stored) {
+    const pending = pendingOutcomes.get(runId);
     pendingOutcomes.delete(runId);
-    pendingOutcomes.set(runId, outcome);
+    pendingOutcomes.set(runId, {
+      ...outcome,
+      noteId: outcome.delivered
+        ? (outcome.noteId ?? pending?.noteId)
+        : undefined,
+    });
     while (pendingOutcomes.size > MAX_PENDING_OUTCOMES) {
       const oldest = pendingOutcomes.keys().next().value;
       if (oldest === undefined) break;
@@ -248,7 +259,15 @@ async function recordAgentOnboardingRunOutcomeInternal(
     if (!current || current.runId !== runId || current.status !== 'enqueued') {
       return;
     }
-    const updated = { ...current, outcome };
+    const updated = {
+      ...current,
+      outcome: {
+        ...outcome,
+        noteId: outcome.delivered
+          ? (outcome.noteId ?? current.outcome?.noteId)
+          : undefined,
+      },
+    };
     if (store) await store.register(stored.provisionId, updated);
     else fallbackRecords.set(stored.provisionId, updated);
   });

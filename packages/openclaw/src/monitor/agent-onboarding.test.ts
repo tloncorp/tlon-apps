@@ -18,6 +18,7 @@ import {
 import {
   agentOnboardingTesting,
   clearAgentOnboardingRuntime,
+  drainAgentOnboardingRuntime,
   handleAgentOnboardingCronChanged,
   handleAgentOnboardingMessageSent,
   handleAgentOnboardingRequest,
@@ -234,6 +235,35 @@ describe('first-run durable claims', () => {
     await expect(store.lookup(initial.provisionId)).resolves.toMatchObject({
       runId: 'run-1',
       outcome: { status: 'ok', delivered: true, observedAt: 1_001 },
+    });
+  });
+
+  it('preserves an exact delivered note id across later cron outcome writes', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    await store.register(initial.provisionId, {
+      ...initial,
+      runId: 'run-1',
+      status: 'enqueued',
+    });
+
+    await Promise.all([
+      recordAgentOnboardingRunOutcome('run-1', {
+        status: 'ok',
+        delivered: true,
+        noteId: 42,
+        observedAt: 1_001,
+      }),
+      recordAgentOnboardingRunOutcome('run-1', {
+        status: 'ok',
+        delivered: true,
+        observedAt: 1_002,
+      }),
+    ]);
+
+    await expect(store.lookup(initial.provisionId)).resolves.toMatchObject({
+      outcome: { status: 'ok', delivered: true, noteId: 42 },
     });
   });
 });
@@ -581,6 +611,46 @@ describe('agent onboarding requests', () => {
     expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
       'Want me to tell you more about what you can do here?'
     );
+  });
+
+  it('restores an enqueued run after its request leaves bounded history', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(provision.provisionId, {
+      provisionId: provision.provisionId,
+      jobId: 'job-1',
+      runId: 'run-outside-history',
+      groupId: provision.groupId,
+      channelNest: 'chat/~ten/general',
+      notebookNest: provision.notebookNest,
+      notebookName: 'Updates',
+      purposeId: provision.purposeId,
+      topics: [...provision.topics],
+      provision,
+      claimedAt: 1,
+      enqueuedAt: 1,
+      status: 'enqueued',
+    });
+
+    await expect(
+      scanAgentOnboardingChannel(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+        },
+        {
+          fetchHistory: vi.fn(async () => []),
+          getCron: () => ({}) as TlonCronService,
+        }
+      )
+    ).resolves.toBe(true);
+
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('run-outside-history')
+    ).not.toBeNull();
   });
 
   it('ends an additional group setup after services without onboarding tours', async () => {
@@ -1991,7 +2061,10 @@ describe('primary onboarding cron slot', () => {
       claimedAt,
       status: 'completed' as const,
     });
-    await store.register(provision.provisionId, durableRecord('provision-1', 1));
+    await store.register(
+      provision.provisionId,
+      durableRecord('provision-1', 1)
+    );
     await store.register('provision-2', durableRecord('provision-2', 2));
 
     await handleAgentOnboardingRequest(
@@ -2578,12 +2651,13 @@ describe('provision coordinator ordering', () => {
       topics: [...provision.topics],
       claimedAt: 100,
       enqueuedAt: 100,
-      outcome: { status: 'ok', delivered: true, observedAt: 200 },
+      outcome: {
+        status: 'ok',
+        delivered: true,
+        noteId: 91,
+        observedAt: 200,
+      },
       status: 'enqueued',
-    });
-    recordDeliveredNote(provision.notebookNest, {
-      id: 91,
-      title: 'Recovered entry',
     });
     const ackBlob = appendToPostBlob(
       appendToPostBlob(undefined, {
@@ -2654,9 +2728,13 @@ describe('provision coordinator ordering', () => {
 
     expect(cron.enqueueRun).not.toHaveBeenCalled();
     expect(sendPost).toHaveBeenCalledTimes(2);
-    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
-      'Recovered entry'
-    );
+    expect(sendPost.mock.calls[0]?.[0].story).toContainEqual({
+      block: {
+        cite: {
+          chan: { nest: provision.notebookNest, where: '/note/91' },
+        },
+      },
+    });
     expect(await store.lookup(provision.provisionId)).toMatchObject({
       status: 'completed',
     });
@@ -2845,6 +2923,7 @@ describe('provision coordinator ordering', () => {
           notebookFlag: provision.notebookNest,
           noteId: 12,
           title: 'First entry',
+          createdBy: '~bot',
           createdAt: Date.now() + 1,
         },
       ]);
@@ -2982,10 +3061,19 @@ describe('provision coordinator ordering', () => {
       .fn()
       .mockResolvedValueOnce([
         {
+          id: `${provision.notebookNest}/10`,
+          notebookFlag: provision.notebookNest,
+          noteId: 10,
+          title: 'Unrelated owner entry',
+          createdBy: '~ten',
+          createdAt: 120,
+        },
+        {
           id: `${provision.notebookNest}/8`,
           notebookFlag: provision.notebookNest,
           noteId: 8,
           title: 'Older entry',
+          createdBy: '~bot',
           createdAt: 90,
         },
       ])
@@ -2995,6 +3083,7 @@ describe('provision coordinator ordering', () => {
           notebookFlag: provision.notebookNest,
           noteId: 9,
           title: 'Current entry',
+          createdBy: '~bot',
           createdAt: 110,
         },
       ]);
@@ -3005,7 +3094,8 @@ describe('provision coordinator ordering', () => {
         provision.notebookNest,
         listNotes,
         sleep,
-        100
+        100,
+        '~bot'
       )
     ).resolves.toMatchObject({ noteId: 9, title: 'Current entry' });
     expect(listNotes).toHaveBeenCalledTimes(2);
@@ -3120,6 +3210,45 @@ describe('provision coordinator ordering', () => {
         type: 'tlon-agent-post-marker',
         key: 'services-card',
       })
+    );
+  });
+
+  it('posts a terminal status when execution succeeds but delivery fails', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'first-run-undelivered' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision
+    );
+
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'job-1',
+        runId: 'first-run-undelivered',
+        status: 'ok',
+        delivered: false,
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      }
+    );
+
+    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'couldn’t publish the first entry'
     );
   });
 
@@ -3412,6 +3541,62 @@ describe('provision coordinator ordering', () => {
 
     await vi.advanceTimersByTimeAsync(1_000);
     expect(fetchHistory).toHaveBeenCalledTimes(2);
+    expect(sendPost).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks new lifecycle completions once runtime draining begins', async () => {
+    const api = { scry: vi.fn() };
+    let releaseHistory!: (history: never[]) => void;
+    const historyBarrier = new Promise<never[]>((resolve) => {
+      releaseHistory = resolve;
+    });
+    const fetchHistory = vi.fn(() => historyBarrier);
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'draining-run' },
+      {
+        api,
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision
+    );
+
+    const existingCompletion = handleAgentOnboardingMessageSent(
+      {
+        success: true,
+        to: provision.notebookNest,
+        messageId: '~bot/notes-42',
+      } as never,
+      { fetchHistory, sendPost, sleep: vi.fn(async () => {}) },
+      'draining-run'
+    );
+    await vi.waitFor(() => expect(fetchHistory).toHaveBeenCalledOnce());
+
+    const drain = drainAgentOnboardingRuntime(api);
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('draining-run')
+    ).toBeNull();
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'job-1',
+        runId: 'draining-run',
+        status: 'ok',
+        delivered: false,
+      } as never,
+      { fetchHistory, sendPost }
+    );
+
+    releaseHistory([]);
+    await Promise.all([existingCompletion, drain]);
+    expect(fetchHistory).toHaveBeenCalledOnce();
     expect(sendPost).toHaveBeenCalledTimes(2);
   });
 
