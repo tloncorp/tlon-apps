@@ -656,7 +656,9 @@ describe('agent onboarding requests', () => {
     expect(fetchHistory).toHaveBeenCalledWith(
       expect.anything(),
       'chat/~ten/general',
-      500
+      500,
+      undefined,
+      undefined
     );
     expect(sendPost).toHaveBeenCalledOnce();
     expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
@@ -702,7 +704,9 @@ describe('agent onboarding requests', () => {
     expect(fetchHistory).toHaveBeenCalledWith(
       expect.anything(),
       'chat/~ten/general',
-      500
+      500,
+      undefined,
+      undefined
     );
     expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
       expect.objectContaining({
@@ -1353,6 +1357,7 @@ describe('agent onboarding requests', () => {
   it('shows thinking and paces consecutive onboarding messages', async () => {
     let now = 0;
     const events: string[] = [];
+    const abortController = new AbortController();
     const introBlob = appendToPostBlob(undefined, {
       type: 'tlon-agent-intro-request',
       version: 1,
@@ -1378,6 +1383,7 @@ describe('agent onboarding requests', () => {
         ownerShip: '~ten',
         senderShip: '~ten',
         blob: introBlob,
+        abortSignal: abortController.signal,
         presentation: {
           startThinking: () => events.push('thinking:start'),
           stopThinking: () => events.push('thinking:stop'),
@@ -1396,7 +1402,8 @@ describe('agent onboarding requests', () => {
         // Fixed at the midpoint so jitter resolves to 1x and the delays are
         // reproducible; the jitter range itself is asserted below.
         random: () => 0.5,
-        sleep: vi.fn(async (ms) => {
+        sleep: vi.fn(async (ms, signal) => {
+          expect(signal).toBe(abortController.signal);
           events.push(`sleep:${ms}`);
           now += ms;
         }),
@@ -2564,7 +2571,7 @@ describe('provision coordinator ordering', () => {
     ).resolves.toBe(true);
 
     expect(getGroup).toHaveBeenCalledTimes(2);
-    expect(sleep).toHaveBeenCalledWith(250);
+    expect(sleep).toHaveBeenCalledWith(250, undefined);
     expect(cron.enqueueRun).toHaveBeenCalledOnce();
   });
 

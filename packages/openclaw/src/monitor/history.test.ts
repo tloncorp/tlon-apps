@@ -249,6 +249,23 @@ describe('fetchChannelHistory', () => {
       fetchChannelHistory({ scry }, 'chat/~ten/general')
     ).resolves.toEqual([]);
   });
+
+  it('forwards cancellation to the history scry', async () => {
+    const controller = new AbortController();
+    const scry = vi.fn(async () => []);
+
+    await fetchChannelHistoryOrThrow(
+      { scry },
+      'chat/~ten/general',
+      50,
+      undefined,
+      controller.signal
+    );
+
+    expect(scry).toHaveBeenCalledWith(expect.any(String), {
+      signal: controller.signal,
+    });
+  });
 });
 
 describe('cacheMessage', () => {

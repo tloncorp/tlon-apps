@@ -47,6 +47,7 @@ import {
   recordAgentOnboardingRunOutcome,
 } from './agent-onboarding-run-store.js';
 import {
+  type HistoryScryApi,
   type TlonHistoryEntry,
   fetchChannelHistory,
   fetchChannelHistoryOrThrow,
@@ -73,7 +74,7 @@ export type OnboardingStepReport = {
 
 type AgentOnboardingContext = {
   accountId?: string;
-  api: { scry: (path: string) => Promise<unknown> };
+  api: HistoryScryApi;
   abortSignal?: AbortSignal;
   botShip: string;
   botProfile?: BotProfile;
@@ -133,6 +134,23 @@ type AgentOnboardingScanContext = Omit<
   AgentOnboardingContext,
   'senderShip' | 'blob'
 >;
+
+function fetchOnboardingHistory(
+  context: Pick<
+    AgentOnboardingScanContext,
+    'api' | 'abortSignal' | 'channelNest'
+  >,
+  deps: Pick<AgentOnboardingDeps, 'fetchHistory'>,
+  count = ORIENTATION_HISTORY_LIMIT
+) {
+  return (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
+    context.api,
+    context.channelNest,
+    count,
+    undefined,
+    context.abortSignal
+  );
+}
 
 const postOnceFlights = new Map<string, Promise<void>>();
 const completedPostMarkers = sharedMap<string, true>(
@@ -289,6 +307,7 @@ const primaryJobFlights = sharedMap<
   string,
   { desiredKey: string; flight: Promise<string> }
 >('agentOnboarding.primaryJobFlights');
+const primaryJobIds = sharedMap<string, true>('agentOnboarding.primaryJobIds');
 
 function startSingleFlight<Key, Value>(
   flights: Map<Key, Promise<Value>>,
@@ -312,6 +331,19 @@ const MCP_READ_TOOLS = [
   'mcp_describe',
   'mcp_call',
 ] as const;
+
+export async function isAgentOnboardingCronJob(jobId: string | undefined) {
+  if (!jobId) return false;
+  if (primaryJobIds.has(jobId)) return true;
+  const cron = getTlonCronService();
+  if (!cron) return false;
+  const job = (await cron.list({ includeDisabled: true })).find(
+    (candidate) => candidate.id === jobId
+  );
+  if (!job?.description?.startsWith(SLOT_PREFIX)) return false;
+  primaryJobIds.set(jobId, true);
+  return true;
+}
 
 export function parseAgentOnboardingRequest(
   blob: string | null | undefined
@@ -366,11 +398,7 @@ async function handleAgentOnboardingRequestInternal(
     if (!purposeForReply(reply) && !isOrientationReply(reply)) {
       return false;
     }
-    const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
-      context.api,
-      context.channelNest,
-      ORIENTATION_HISTORY_LIMIT
-    );
+    const history = await fetchOnboardingHistory(context, deps);
     return advanceDurableConversation(context, history, deps, presentation);
   }
   if (
@@ -385,11 +413,7 @@ async function handleAgentOnboardingRequestInternal(
     return true;
   }
 
-  const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
-    context.api,
-    context.channelNest,
-    ORIENTATION_HISTORY_LIMIT
-  );
+  const history = await fetchOnboardingHistory(context, deps);
   if (request.type === 'tlon-agent-intro-request') {
     await postIntro(
       context,
@@ -438,11 +462,7 @@ export async function scanAgentOnboardingChannel(
 ): Promise<boolean> {
   context.abortSignal?.throwIfAborted();
   if (!context.ownerShip || !context.groupId) return false;
-  const history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
-    context.api,
-    context.channelNest,
-    ORIENTATION_HISTORY_LIMIT
-  );
+  const history = await fetchOnboardingHistory(context, deps);
   context.abortSignal?.throwIfAborted();
   const ownerRequests = history
     .filter((entry) => entry.author === context.ownerShip && entry.blob)
@@ -972,9 +992,7 @@ async function provision(
   for (const delay of ADMIN_MEMBERSHIP_RETRY_DELAYS_MS) {
     if (isAdmin) break;
     context.abortSignal?.throwIfAborted();
-    await (
-      deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
-    )(delay);
+    await (deps.sleep ?? defaultSleep)(delay, context.abortSignal);
     context.abortSignal?.throwIfAborted();
     group = await getGroup(request.groupId);
     isAdmin = isBotAdmin(group);
@@ -983,11 +1001,7 @@ async function provision(
     throw new Error('agent is not an admin yet');
   }
   context.abortSignal?.throwIfAborted();
-  history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
-    context.api,
-    context.channelNest,
-    ORIENTATION_HISTORY_LIMIT
-  );
+  history = await fetchOnboardingHistory(context, deps);
   context.abortSignal?.throwIfAborted();
   const newestProvision = findNewestProvisionRequest(
     history,
@@ -1189,11 +1203,7 @@ async function configureProviders(
   const cron = (deps.getCron ?? getTlonCronService)();
   if (!cron) throw new Error('cron service is not available');
   context.abortSignal?.throwIfAborted();
-  const latestHistory = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
-    context.api,
-    context.channelNest,
-    ORIENTATION_HISTORY_LIMIT
-  );
+  const latestHistory = await fetchOnboardingHistory(context, deps);
   context.abortSignal?.throwIfAborted();
   const latestConfig = findLatestProviderConfig(
     latestHistory,
@@ -1371,11 +1381,7 @@ async function failFirstRunCorrelation(
     `status=${String(event.status ?? 'unknown')}, ` +
     `delivered=${String(event.delivered ?? false)}`;
 
-  const history = await runDeps.fetchHistory!(
-    correlation.context.api,
-    correlation.context.channelNest,
-    ORIENTATION_HISTORY_LIMIT
-  );
+  const history = await fetchOnboardingHistory(correlation.context, runDeps);
   const posted = await postOnce(
     correlation.context,
     history,
@@ -1624,11 +1630,7 @@ async function completeFirstRunCorrelation(
   };
 
   try {
-    const history = await runDeps.fetchHistory!(
-      correlation.context.api,
-      correlation.context.channelNest,
-      ORIENTATION_HISTORY_LIMIT
-    );
+    const history = await fetchOnboardingHistory(correlation.context, runDeps);
     const notebookName = correlation.notebookName;
     // Keyed on the channel, not the provision. Re-provisioning mints a new
     // provisionId, and the old per-provision key let the same reveal post
@@ -2199,9 +2201,7 @@ function createOnboardingPresentation(
   }
 
   const now = deps.now ?? Date.now;
-  const sleep =
-    deps.sleep ??
-    ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const sleep = deps.sleep ?? defaultSleep;
   const minResponseDelayMs = Math.max(
     0,
     config.minResponseDelayMs ?? DEFAULT_MIN_RESPONSE_DELAY_MS
@@ -2247,7 +2247,7 @@ function createOnboardingPresentation(
         clampDelay(jitter(withRead, random));
       const remainingMs = earliestPostAt - now();
       if (remainingMs > 0) {
-        await sleep(remainingMs);
+        await sleep(remainingMs, context.abortSignal);
       }
     },
     afterPost: () => {
@@ -2311,7 +2311,9 @@ async function postOnce(
         const reread = await (deps.fetchHistory ?? fetchChannelHistory)(
           context.api,
           context.channelNest,
-          50
+          50,
+          undefined,
+          context.abortSignal
         );
         if (!hasPostMarker(reread, context.botShip, key)) throw error;
       }
@@ -2512,6 +2514,7 @@ async function upsertPrimaryJobOnce(
   if (!job || !jobMatches(job, desired)) {
     throw new Error('primary onboarding cron slot failed verification');
   }
+  primaryJobIds.set(job.id, true);
   return job.id;
 }
 
@@ -2603,6 +2606,7 @@ async function updatePrimaryJobProviders(
       'primary onboarding cron provider update failed verification'
     );
   }
+  primaryJobIds.set(runtimeJob.id, true);
   return runtimeJob.id;
 }
 
