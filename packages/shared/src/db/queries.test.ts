@@ -713,6 +713,18 @@ test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', asy
       },
       {
         ...base,
+        id: 'provider-old-cycle',
+        receivedAt: refDate + 1.5,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-old',
+          groupId: '~zod/group',
+          providerIds: ['calendar'],
+        }),
+      },
+      {
+        ...base,
         id: 'provider-live',
         receivedAt: refDate + 2,
         blob: blob({
@@ -784,6 +796,16 @@ test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', asy
     receivedAt: refDate + 2,
     entry: { providerIds: ['gmail'] },
   });
+  expect(receipts.providerConfigs).toMatchObject([
+    {
+      postId: 'provider-old-cycle',
+      entry: { provisionId: 'provision-old', providerIds: ['calendar'] },
+    },
+    {
+      postId: 'provider-live',
+      entry: { provisionId: 'provision-new', providerIds: ['gmail'] },
+    },
+  ]);
 });
 
 test('getMentionCandidates: returns candidates in priority order', async () => {

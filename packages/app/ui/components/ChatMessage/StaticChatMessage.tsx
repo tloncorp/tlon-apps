@@ -462,7 +462,7 @@ export function StaticChatMessage({
     enabled: canRenderA2UI && hasA2UIContent,
   });
   const provisionReceipt = agentProtocolReceipts.data?.provision;
-  const providerConfigReceipt = agentProtocolReceipts.data?.providerConfig;
+  const providerConfigReceipts = agentProtocolReceipts.data?.providerConfigs;
   const providerConfigContext = useMemo(() => {
     for (const block of postContent) {
       if (block.type !== 'a2ui') continue;
@@ -479,17 +479,19 @@ export function StaticChatMessage({
   const durableProvision = receiptFollowsPost(provisionReceipt, post)
     ? provisionReceipt?.entry
     : undefined;
-  const durableProviderConfig = receiptFollowsPost(providerConfigReceipt, post)
-    ? providerConfigReceipt?.entry
-    : undefined;
+  const durableProviderConfig = [...(providerConfigReceipts ?? [])]
+    .reverse()
+    .find(
+      (receipt) =>
+        providerConfigContext &&
+        receiptFollowsPost(receipt, post) &&
+        receipt.entry.groupId === providerConfigContext.groupId &&
+        receipt.entry.provisionId === providerConfigContext.provisionId
+    )?.entry;
   const provisionedAgentTopics = durableProvision?.topics;
-  const configuredAgentProviderIds =
-    durableProviderConfig &&
-    providerConfigContext &&
-    durableProviderConfig.groupId === providerConfigContext.groupId &&
-    durableProviderConfig.provisionId === providerConfigContext.provisionId
-      ? durableProviderConfig.providerIds
-      : undefined;
+  const configuredAgentProviderIds = durableProviderConfig
+    ? durableProviderConfig.providerIds
+    : undefined;
   const isA2UIActionConsumed = useCallback(
     (action: A2UI.Button['action']) => {
       if (action.event.name === A2UI.action.sendMessage) {
