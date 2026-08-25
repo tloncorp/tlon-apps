@@ -10,6 +10,21 @@ import { sharedMap } from './shared-state.js';
 
 export type SenderRole = 'owner' | 'user';
 
+export const OWNER_ONLY_TOOL_NAMES = [
+  'tlon',
+  'cron',
+  'read',
+  'write',
+  'edit',
+  'apply_patch',
+  'exec',
+  'process',
+  'browser',
+  'nodes',
+  'gateway',
+  'canvas',
+] as const;
+
 interface RoleEntry {
   role: SenderRole;
   timestamp: number;

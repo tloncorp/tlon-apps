@@ -12,5 +12,6 @@
   "/status",
   "/help",
   "/new",
-  "/model"
+  "/model",
+  "/approve"
 ]

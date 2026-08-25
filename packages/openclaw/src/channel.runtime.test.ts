@@ -82,6 +82,12 @@ vi.mock('./setup-surface.js', () => ({
 }));
 
 vi.mock('./urbit/blob.js', () => ({
+  combineBlobFields: vi.fn(
+    (...fields: Array<string | undefined>) =>
+      fields.filter(Boolean).join('|') || undefined
+  ),
+  makeA2UIBlob: vi.fn(() => ({ type: 'a2ui' })),
+  serializeBlobField: vi.fn(() => '[{"type":"a2ui"}]'),
   serializeContextLensReferenceBlob: vi.fn(),
 }));
 
@@ -194,5 +200,46 @@ describe('sendMedia', () => {
       deliveryFailureCount: 0,
       deliverySuccessCount: 1,
     });
+  });
+});
+
+describe('sendPayload', () => {
+  it('preserves portable approval controls as a Tlon blob', async () => {
+    vi.clearAllMocks();
+    const { tlonRuntimeOutbound } = await import('./channel.runtime.js');
+    const { sendDm } = await import('./urbit/send.js');
+    const command = '/approve abc123 allow-once';
+
+    await tlonRuntimeOutbound.sendPayload!({
+      cfg: {} as never,
+      to: '~nec',
+      text: 'Approval required.',
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+      payload: {
+        text: 'Approval required.',
+        presentation: {
+          blocks: [
+            {
+              type: 'buttons',
+              buttons: [
+                {
+                  label: 'Allow Once',
+                  action: { type: 'command', command },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+    expect(sendDm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'Approval required.',
+        blob: '[{"type":"a2ui"}]',
+      })
+    );
   });
 });

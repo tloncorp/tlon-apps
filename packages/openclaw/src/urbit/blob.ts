@@ -45,3 +45,24 @@ export function makeA2UIBlob(
 export function serializeBlobField(entry: TlonA2UIBlob): string {
   return appendToPostBlob(undefined, entry);
 }
+
+/** Merge serialized post-blob arrays without discarding independent entries. */
+export function combineBlobFields(
+  ...fields: Array<string | undefined>
+): string | undefined {
+  const entries: unknown[] = [];
+  for (const field of fields) {
+    if (!field) {
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(field);
+      if (Array.isArray(parsed)) {
+        entries.push(...parsed);
+      }
+    } catch {
+      // Ignore one malformed optional field rather than dropping valid entries.
+    }
+  }
+  return entries.length > 0 ? JSON.stringify(entries) : undefined;
+}

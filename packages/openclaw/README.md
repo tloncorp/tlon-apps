@@ -121,6 +121,21 @@ Reply "approve", "deny", or "block" (ID: dm-1234567890-abc)
 -   **deny**: Reject silently. Ship can try again later.
 -   **block**: Permanently block using Tlon's native blocking.
 
+### OpenClaw Tool Approvals
+
+OpenClaw's tool approval flow is separate from the access requests above. For
+messages that originate in Tlon, pending exec and plugin-tool approvals are
+delivered to the configured `ownerShip` as a private DM with Tlon action
+buttons. Clicking a button sends OpenClaw's exact `/approve <id> ...` command;
+OpenClaw remains responsible for expiry, recording the decision, and resuming
+the waiting turn. A resolved or expired result is posted as a reply to the
+original approval card.
+
+The plugin surfaces approval requests but does not enable tools or change their
+OpenClaw policy. For example, `exec` must be enabled and configured to ask for
+approval in the host configuration before a shell approval can be requested.
+Only the owner can answer these requests.
+
 ### Admin Commands
 
 The owner can send these commands via DM:
@@ -137,7 +152,7 @@ The owner can send these commands via DM:
 
 ```
 Harness: OpenClaw
-Harness Version: 2026.5.28
+Harness Version: 2026.7.1
 Adapter Version: 0.4.3
 Tlon Skill: 0.3.2
 Fingerprint: fp1:8aa23ca2bc8d

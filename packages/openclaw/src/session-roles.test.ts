@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { _testing, getSessionRole, setSessionRole } from './session-roles.js';
+import {
+  OWNER_ONLY_TOOL_NAMES,
+  _testing,
+  getSessionRole,
+  setSessionRole,
+} from './session-roles.js';
 
 describe('session roles', () => {
   afterEach(() => {
@@ -30,5 +35,23 @@ describe('session roles', () => {
     expect(
       getSessionRole('agent:main:tlon:direct:~ten:thread:1')
     ).toBeUndefined();
+  });
+});
+
+describe('owner-only tools', () => {
+  it('includes host execution, filesystem mutation, and remote-control tools', () => {
+    expect(OWNER_ONLY_TOOL_NAMES).toEqual(
+      expect.arrayContaining([
+        'read',
+        'write',
+        'edit',
+        'apply_patch',
+        'exec',
+        'process',
+        'browser',
+        'nodes',
+        'gateway',
+      ])
+    );
   });
 });

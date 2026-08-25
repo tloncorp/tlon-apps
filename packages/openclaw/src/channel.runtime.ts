@@ -1,5 +1,4 @@
 import { scry } from '@tloncorp/api';
-import crypto from 'node:crypto';
 import type {
   ChannelAccountSnapshot,
   ChannelOutboundAdapter,
@@ -7,6 +6,11 @@ import type {
   OpenClawConfig,
 } from 'openclaw/plugin-sdk/core';
 
+import {
+  approvalSurfaceId,
+  buildTlonPresentationBlobField,
+  readTlonReplyBlob,
+} from './approval-presentation.js';
 import {
   type ContextLensRegistry,
   getActiveBackgroundContextLens,
@@ -20,7 +24,10 @@ import { observeActiveTlonTurnDelivery } from './turn-recorder.js';
 import { resolveTlonAccount } from './types.js';
 import { withAuthenticatedTlonApi } from './urbit/api-client.js';
 import { authenticate } from './urbit/auth.js';
-import { serializeContextLensReferenceBlob } from './urbit/blob.js';
+import {
+  combineBlobFields,
+  serializeContextLensReferenceBlob,
+} from './urbit/blob.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
 import { urbitFetch } from './urbit/fetch.js';
 import {
@@ -189,148 +196,178 @@ function recordOutboundLensDelivery(
   recordBackgroundContextLensOutput(target.lensId, output);
 }
 
+type TlonOutboundMessageParams = {
+  cfg: OpenClawConfig;
+  to: string;
+  text: string;
+  mediaUrl?: string;
+  accountId?: string | null;
+  replyToId?: string | null;
+  threadId?: string | number | null;
+  blob?: string;
+};
+
+async function sendTlonOutboundMessage(params: TlonOutboundMessageParams) {
+  const { account, parsed } = resolveOutboundContext(params);
+  return await withAuthenticatedTlonApi(
+    {
+      url: account.url,
+      code: account.code,
+      ship: account.ship,
+      allowPrivateNetwork: account.allowPrivateNetwork ?? undefined,
+    },
+    async () => {
+      const media = params.mediaUrl
+        ? await prepareOutboundMedia(params.mediaUrl)
+        : undefined;
+      const fromShip = normalizeShip(account.ship);
+      const story = media
+        ? buildMediaStory(params.text, media)
+        : markdownToStory(params.text);
+      const replyId = resolveReplyId(params.replyToId, params.threadId);
+      const botProfile = await getBotProfile(fromShip);
+      if (parsed.kind === 'dm') {
+        const conversationId = normalizeShip(parsed.ship);
+        const target = resolveOutboundLensTarget(
+          account,
+          fromShip,
+          conversationId
+        );
+        const blob = combineBlobFields(params.blob, target?.blob);
+        const result = media
+          ? await sendDmWithStory({
+              fromShip,
+              toShip: parsed.ship,
+              story,
+              blob,
+              replyToId: replyId,
+              botProfile,
+            })
+          : await sendDm({
+              fromShip,
+              toShip: parsed.ship,
+              text: params.text,
+              blob,
+              replyToId: replyId,
+              botProfile,
+            });
+        recordOutboundLensDelivery(target, {
+          messageId: result.messageId,
+          conversationId,
+          kind: 'dm',
+          sentAt: result.sentAt,
+          text: params.text,
+        });
+        return result;
+      }
+      const target = resolveOutboundLensTarget(account, fromShip, parsed.nest);
+      const result = await sendChannelPost({
+        fromShip,
+        nest: parsed.nest,
+        story,
+        blob: combineBlobFields(params.blob, target?.blob),
+        replyToId: replyId,
+        botProfile,
+      });
+      recordOutboundLensDelivery(target, {
+        messageId: result.messageId,
+        conversationId: parsed.nest,
+        kind: 'channel',
+        text: params.text,
+      });
+      return result;
+    }
+  );
+}
+
 const unobservedTlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
-  'sendText' | 'sendMedia'
+  'renderPresentation' | 'sendPayload' | 'sendText' | 'sendMedia'
 > = {
-  sendText: async ({ cfg, to, text, accountId, replyToId, threadId }) => {
-    const { account, parsed } = resolveOutboundContext({ cfg, accountId, to });
-    return await withAuthenticatedTlonApi(
-      {
-        url: account.url,
-        code: account.code,
-        ship: account.ship,
-        allowPrivateNetwork: account.allowPrivateNetwork ?? undefined,
+  renderPresentation: ({ payload, presentation }) => {
+    const blob = buildTlonPresentationBlobField({
+      presentation,
+      fallbackText: payload.text,
+      surfaceId: approvalSurfaceId(payload),
+    });
+    if (!blob) {
+      return payload;
+    }
+    return {
+      ...payload,
+      channelData: {
+        ...payload.channelData,
+        tlon: {
+          ...(payload.channelData?.tlon as Record<string, unknown> | undefined),
+          blob: combineBlobFields(readTlonReplyBlob(payload), blob),
+          presentationRendered: true,
+        },
       },
-      async () => {
-        const fromShip = normalizeShip(account.ship);
-        const replyId = resolveReplyId(replyToId, threadId);
-        const botProfile = await getBotProfile(fromShip);
-        if (parsed.kind === 'dm') {
-          const conversationId = normalizeShip(parsed.ship);
-          const target = resolveOutboundLensTarget(
-            account,
-            fromShip,
-            conversationId
-          );
-          const result = await sendDm({
-            fromShip,
-            toShip: parsed.ship,
-            text,
-            blob: target?.blob,
-            replyToId: replyId,
-            botProfile,
-          });
-          recordOutboundLensDelivery(target, {
-            messageId: result.messageId,
-            conversationId,
-            kind: 'dm',
-            sentAt: result.sentAt,
-            text,
-          });
-          return result;
-        }
-        const target = resolveOutboundLensTarget(
-          account,
-          fromShip,
-          parsed.nest
-        );
-        const result = await sendChannelPost({
-          fromShip,
-          nest: parsed.nest,
-          story: markdownToStory(text),
-          blob: target?.blob,
-          replyToId: replyId,
-          botProfile,
-        });
-        recordOutboundLensDelivery(target, {
-          messageId: result.messageId,
-          conversationId: parsed.nest,
-          kind: 'channel',
-          text,
-        });
-        return result;
-      }
-    );
+    };
   },
-  sendMedia: async ({
-    cfg,
-    to,
-    text,
-    mediaUrl,
-    accountId,
-    replyToId,
-    threadId,
-  }) => {
-    const { account, parsed } = resolveOutboundContext({ cfg, accountId, to });
-    return await withAuthenticatedTlonApi(
-      {
-        url: account.url,
-        code: account.code,
-        ship: account.ship,
-        allowPrivateNetwork: account.allowPrivateNetwork ?? undefined,
-      },
-      async () => {
-        const media = mediaUrl
-          ? await prepareOutboundMedia(mediaUrl)
-          : undefined;
-        const fromShip = normalizeShip(account.ship);
-        const story = buildMediaStory(text, media);
-        const replyId = resolveReplyId(replyToId, threadId);
-        const botProfile = await getBotProfile(fromShip);
-        if (parsed.kind === 'dm') {
-          const conversationId = normalizeShip(parsed.ship);
-          const target = resolveOutboundLensTarget(
-            account,
-            fromShip,
-            conversationId
-          );
-          const result = await sendDmWithStory({
-            fromShip,
-            toShip: parsed.ship,
-            story,
-            blob: target?.blob,
-            replyToId: replyId,
-            botProfile,
-          });
-          recordOutboundLensDelivery(target, {
-            messageId: result.messageId,
-            conversationId,
-            kind: 'dm',
-            sentAt: result.sentAt,
-            text,
-          });
-          return result;
-        }
-        const target = resolveOutboundLensTarget(
-          account,
-          fromShip,
-          parsed.nest
-        );
-        const result = await sendChannelPost({
-          fromShip,
-          nest: parsed.nest,
-          story,
-          blob: target?.blob,
-          replyToId: replyId,
-          botProfile,
-        });
-        recordOutboundLensDelivery(target, {
-          messageId: result.messageId,
-          conversationId: parsed.nest,
-          kind: 'channel',
-          text,
-        });
-        return result;
-      }
-    );
+  sendPayload: async (ctx) => {
+    const presentationRendered =
+      (
+        ctx.payload.channelData?.tlon as
+          | { presentationRendered?: unknown }
+          | undefined
+      )?.presentationRendered === true;
+    const rendered =
+      ctx.payload.presentation && !presentationRendered
+        ? (unobservedTlonRuntimeOutbound.renderPresentation?.({
+            payload: ctx.payload,
+            presentation: ctx.payload.presentation,
+            ctx,
+          }) ?? ctx.payload)
+        : ctx.payload;
+    const payload = await rendered;
+    if (!payload) {
+      return { channel: 'tlon', messageId: '' };
+    }
+    const mediaUrls = [
+      ...(payload.mediaUrls ?? []),
+      ...(payload.mediaUrl ? [payload.mediaUrl] : []),
+    ].filter(Boolean);
+    if (mediaUrls.length === 0) {
+      const result = await sendTlonOutboundMessage({
+        ...ctx,
+        text: payload.text ?? '',
+        blob: readTlonReplyBlob(payload),
+      });
+      await ctx.onDeliveryResult?.(result);
+      return result;
+    }
+    let lastResult = await sendTlonOutboundMessage({
+      ...ctx,
+      text: payload.text ?? '',
+      mediaUrl: mediaUrls[0],
+      blob: readTlonReplyBlob(payload),
+    });
+    await ctx.onDeliveryResult?.(lastResult);
+    for (const mediaUrl of mediaUrls.slice(1)) {
+      lastResult = await sendTlonOutboundMessage({
+        ...ctx,
+        text: '',
+        mediaUrl,
+      });
+      await ctx.onDeliveryResult?.(lastResult);
+    }
+    return lastResult;
   },
+  sendText: async (params) => await sendTlonOutboundMessage(params),
+  sendMedia: async (params) => await sendTlonOutboundMessage(params),
 };
 
 export const tlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
-  'sendText' | 'sendMedia'
+  'renderPresentation' | 'sendPayload' | 'sendText' | 'sendMedia'
 > = {
+  renderPresentation: (params) =>
+    unobservedTlonRuntimeOutbound.renderPresentation!(params),
+  sendPayload: (params) =>
+    observeActiveTlonTurnDelivery(() =>
+      unobservedTlonRuntimeOutbound.sendPayload!(params)
+    ),
   sendText: (params) =>
     observeActiveTlonTurnDelivery(() =>
       unobservedTlonRuntimeOutbound.sendText!(params)

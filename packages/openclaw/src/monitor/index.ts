@@ -13,6 +13,11 @@ import {
   recordAuthRetryFailure,
 } from '../auth-retry-state.js';
 import {
+  approvalSurfaceId,
+  buildTlonPresentationBlobField,
+  readTlonReplyBlob,
+} from '../approval-presentation.js';
+import {
   type SelfContactRead,
   buildBotInfoJson,
   syncBotInfo,
@@ -58,7 +63,7 @@ import {
 } from '../pending-nudge.js';
 import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
 import { getTlonRuntime } from '../runtime.js';
-import { setSessionRole } from '../session-roles.js';
+import { OWNER_ONLY_TOOL_NAMES, setSessionRole } from '../session-roles.js';
 import {
   DM_INVITE_PREVIEW,
   type TlonSettingsStore,
@@ -99,6 +104,7 @@ import {
   isPermanentAuthenticationFailure,
 } from '../urbit/auth.js';
 import {
+  combineBlobFields,
   serializeBlobField,
   serializeContextLensReferenceBlob,
 } from '../urbit/blob.js';
@@ -404,7 +410,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     throw new Error('Tlon account ship is empty after normalization');
   }
   const tlonSkillVersion = await resolveTlonSkillVersion();
-  const effectiveOwnerShip: string | null = account.ownerShip
+  let effectiveOwnerShip: string | null = account.ownerShip
     ? normalizeShip(account.ownerShip)
     : null;
   setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
@@ -1207,6 +1213,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           fileValue: account.showModelSignature,
           settingsValue: currentSettings.showModelSig,
         },
+        {
+          key: 'ownerShip',
+          fileValue: account.ownerShip,
+          settingsValue: currentSettings.ownerShip,
+        },
       ];
 
       for (const { key, fileValue, settingsValue } of migrations) {
@@ -1290,6 +1301,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
       if (currentSettings.showModelSig !== undefined) {
         effectiveShowModelSig = currentSettings.showModelSig;
+      }
+      if (currentSettings.ownerShip !== undefined) {
+        effectiveOwnerShip = normalizeShip(currentSettings.ownerShip);
+        setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
+        runtime.log?.(
+          `[tlon] Using ownerShip from settings store: ${effectiveOwnerShip ?? '(unset)'}`
+        );
       }
       if (currentSettings.autoAcceptDmInvites !== undefined) {
         effectiveAutoAcceptDmInvites = currentSettings.autoAcceptDmInvites;
@@ -1804,34 +1822,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         );
         return undefined;
       }
-    }
-
-    function getReplyBlob(payload: ReplyPayload): string | undefined {
-      const blob = (payload.channelData?.tlon as { blob?: unknown } | undefined)
-        ?.blob;
-      return typeof blob === 'string' ? blob : undefined;
-    }
-
-    // Merge serialized post-blob fields (each a JSON array of entries) into one,
-    // so a reply can carry both an a2ui card and a context-lens reference.
-    function combineBlobFields(
-      ...fields: Array<string | undefined>
-    ): string | undefined {
-      const entries: unknown[] = [];
-      for (const field of fields) {
-        if (!field) {
-          continue;
-        }
-        try {
-          const parsed = JSON.parse(field);
-          if (Array.isArray(parsed)) {
-            entries.push(...parsed);
-          }
-        } catch {
-          // Skip a malformed blob field rather than dropping the whole message.
-        }
-      }
-      return entries.length > 0 ? JSON.stringify(entries) : undefined;
     }
 
     // Regex to match block directives in agent responses
@@ -2969,7 +2959,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const currentLens = contextLenses.get(lens.lensId);
         contextLenses.update(lens.lensId, {
           tools: {
-            ownerOnlyAvailable: ['tlon', 'cron', 'read'],
+            ownerOnlyAvailable: [...OWNER_ONLY_TOOL_NAMES],
             called: currentLens?.tools.called ?? [],
             callCount: currentLens?.tools.callCount ?? 0,
             lastStartedAt: currentLens?.tools.lastStartedAt ?? null,
@@ -3366,7 +3356,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                         },
                         deliver: async (payload: ReplyPayload, info) => {
                           contextLenses.setStatus(lens.lensId, 'delivering');
-                          const blob = getReplyBlob(payload);
+                          const presentationBlob =
+                            buildTlonPresentationBlobField({
+                              presentation: payload.presentation,
+                              fallbackText: payload.text,
+                              surfaceId: approvalSurfaceId(payload),
+                            });
+                          const blob = combineBlobFields(
+                            readTlonReplyBlob(payload),
+                            presentationBlob
+                          );
                           let replyText = payload.text ?? '';
                           if (!replyText && !blob) {
                             const hasMedia = Array.isArray(payload.mediaUrls)
@@ -4734,6 +4733,22 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           runtime.log?.(
             `[tlon] Settings: showModelSig = ${effectiveShowModelSig}`
           );
+        }
+
+        // Re-derive from every snapshot: deleting the settings entry falls
+        // back to file config, while a new settings owner takes effect for
+        // command authorization and native approval delivery immediately.
+        {
+          const nextOwnerShip = normalizeShip(
+            newSettings.ownerShip ?? account.ownerShip ?? ''
+          );
+          if (nextOwnerShip !== effectiveOwnerShip) {
+            effectiveOwnerShip = nextOwnerShip;
+            setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
+            runtime.log?.(
+              `[tlon] Settings: ownerShip updated to ${effectiveOwnerShip ?? '(unset)'}`
+            );
+          }
         }
 
         // Update auto-accept DM invites setting

@@ -354,7 +354,8 @@ try {
 
 **Principle:** Sensitive tools are owner-only. Non-owners cannot use them, enforced at the plugin level (not via prompt instructions).
 
-**Restricted tools:** `tlon`, `cron`, `read`.
+**Restricted tools:** `tlon`, `cron`, `read`, `write`, `edit`, `apply_patch`,
+`exec`, `process`, `browser`, `nodes`, `gateway`, and `canvas`.
 
 | Scenario | Behavior |
 | -------- | -------- |
@@ -362,6 +363,11 @@ try {
 | Non-owner uses restricted tool | ❌ Blocked with error message |
 | Non-owner tricks LLM into using tool | ❌ Still blocked (hook-level enforcement) |
 | Internal session (heartbeat, cron) | ✅ Allowed (no role = not a user DM) |
+
+OpenClaw exec and plugin-tool approval requests originating in Tlon are routed
+to `ownerShip` by DM. Their action buttons submit OpenClaw's signed approval ID
+and decision command; the plugin does not maintain a parallel approval state or
+grant a permission itself. Only `ownerShip` is authorized to submit a decision.
 
 **Implementation:**
 - `before_tool_call` hook intercepts calls to restricted tools

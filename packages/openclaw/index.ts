@@ -39,7 +39,7 @@ import { registerGatewayStatusHooks } from './src/gateway-status-registration.js
 import { createMigrateCommandHandler } from './src/migrate-command.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
-import { getSessionRole } from './src/session-roles.js';
+import { OWNER_ONLY_TOOL_NAMES, getSessionRole } from './src/session-roles.js';
 import { parseTlonTarget } from './src/targets.js';
 import {
   type TlonDiagnosticLogAttributes,
@@ -962,7 +962,7 @@ export default defineBundledChannelEntry({
     });
 
     // Tool access control: block sensitive tools for non-owners
-    const ownerOnlyTools = new Set(['tlon', 'cron', 'read']);
+    const ownerOnlyTools = new Set<string>(OWNER_ONLY_TOOL_NAMES);
     const logToolTraceContents = liveToolTraceContentsEnabled();
 
     api.on('before_tool_call', (event, ctx) => {
