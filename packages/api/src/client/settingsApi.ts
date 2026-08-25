@@ -150,6 +150,7 @@ function getBucket(key: string): string {
     case 'showUnreadCounts':
       return 'calmEngine';
     case 'theme':
+    case 'showDeleteMarkers':
       return 'display';
     default:
       console.warn(
@@ -270,6 +271,7 @@ export const toClientSettings = (
     // default; getContextLensEnabledRaw exists for callers that need the
     // uncached backend value.
     contextLensEnabled: settings.desk.groups?.contextLensEnabled,
+    showDeleteMarkers: settings.desk.display?.showDeleteMarkers ?? false,
   };
 };
 

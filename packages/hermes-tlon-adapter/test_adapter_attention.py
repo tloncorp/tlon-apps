@@ -2722,7 +2722,7 @@ class AdapterAttentionTests(unittest.TestCase):
             async def open(self):
                 return None
 
-            async def subscribe(self, app, path):
+            async def subscribe(self, app, path, *, optional=False):
                 subscriptions.append((app, path))
                 return len(subscriptions)
 

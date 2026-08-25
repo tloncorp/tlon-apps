@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GroupsDeskSettings } from '../urbit';
-import { parseBotReplyFeedback } from './settingsApi';
+import { parseBotReplyFeedback, toClientSettings } from './settingsApi';
 
 describe('parseBotReplyFeedback', () => {
   it('hydrates valid JSON-encoded feedback entries and ignores malformed ones', () => {
@@ -49,5 +49,19 @@ describe('parseBotReplyFeedback', () => {
 
     expect(parseBotReplyFeedback(settings)[0]?.rating).toBeNull();
     expect(parseBotReplyFeedback(settings)[0]?.revision).toBe(4);
+  });
+});
+
+describe('toClientSettings showDeleteMarkers', () => {
+  it('defaults delete markers off when the setting has never been saved', () => {
+    expect(toClientSettings({ desk: {} }).showDeleteMarkers).toBe(false);
+  });
+
+  it('preserves an enabled delete marker preference', () => {
+    expect(
+      toClientSettings({
+        desk: { display: { showDeleteMarkers: true } },
+      }).showDeleteMarkers
+    ).toBe(true);
   });
 });

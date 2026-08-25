@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1c082f85-e5ac-422b-b07c-59ee7c172b64",
+  "id": "4f27b209-f6e1-4b9e-90a6-5bf685afcdf2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -3408,6 +3408,13 @@
         },
         "context_lens_enabled": {
           "name": "context_lens_enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "show_delete_markers": {
+          "name": "show_delete_markers",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

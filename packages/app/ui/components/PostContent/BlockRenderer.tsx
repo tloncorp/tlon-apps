@@ -298,7 +298,7 @@ export function VoiceMemoBlock({
         ? progress.duration
         : 0;
     const duration =
-      loadedDuration > 0 ? loadedDuration : block.voiceMemo.duration ?? 0;
+      loadedDuration > 0 ? loadedDuration : (block.voiceMemo.duration ?? 0);
     if (duration === 0 || width <= 0) {
       return;
     }

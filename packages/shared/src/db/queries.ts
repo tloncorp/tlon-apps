@@ -5,6 +5,10 @@ import {
 } from '@tloncorp/api';
 import { parseGroupId } from '@tloncorp/api';
 import {
+  type PostBlobDataEntryA2UISelection,
+  parsePostBlob,
+} from '@tloncorp/api';
+import {
   SourceActivityEvents,
   interleaveActivityEvents,
   toSourceActivityEvents,
@@ -29,6 +33,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  like,
   lt,
   lte,
   max,
@@ -1369,7 +1374,7 @@ export const getChats = createReadQuery(
       type: 'group',
       pin: g.pin,
       timestamp: g.haveInvite
-        ? g.unread?.updatedAt ?? 0
+        ? (g.unread?.updatedAt ?? 0)
         : // whichever is newer: the latest post, or the activity summary's
           // recency — activity that isn't a post (e.g. a note in a notebook
           // channel) also reorders the sidebar
@@ -4537,6 +4542,50 @@ export const getChanPosts = createReadQuery(
       .select()
       .from($posts)
       .where(eq($posts.channelId, params.channelId));
+  },
+  ['posts']
+);
+
+/**
+ * Durable A2UI selection entries in a channel, scoped to one author.
+ *
+ * A one-shot A2UI control is consumed iff a live post by the viewer carries a
+ * `tlon-a2ui-selection` entry matching the source post, surface, and component
+ * ids, so consumption survives remount, restart, and other devices. The
+ * author scope is load-bearing: without it, any channel member could post a
+ * matching blob to lock or fake-answer someone else's control.
+ */
+export const getA2UISelections = createReadQuery(
+  'getA2UISelections',
+  async (
+    params: { channelId: string; authorId: string },
+    ctx: QueryCtx
+  ): Promise<PostBlobDataEntryA2UISelection[]> => {
+    const rows = await ctx.db
+      .select({ blob: $posts.blob })
+      .from($posts)
+      .where(
+        and(
+          eq($posts.channelId, params.channelId),
+          eq($posts.authorId, params.authorId),
+          isNotNull($posts.blob),
+          // Cheap prefilter; parsePostBlob below is the real check.
+          like($posts.blob, '%tlon-a2ui-selection%'),
+          or(isNull($posts.isDeleted), eq($posts.isDeleted, false)),
+          or(
+            isNull($posts.deliveryStatus),
+            not(eq($posts.deliveryStatus, 'failed'))
+          )
+        )
+      );
+    return rows.flatMap((row) =>
+      row.blob
+        ? parsePostBlob(row.blob).filter(
+            (entry): entry is PostBlobDataEntryA2UISelection =>
+              entry.type === 'tlon-a2ui-selection'
+          )
+        : []
+    );
   },
   ['posts']
 );
