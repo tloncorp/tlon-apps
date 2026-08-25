@@ -1,5 +1,9 @@
 import * as db from '@tloncorp/shared/db';
-import { parsePostBlob } from '@tloncorp/shared/logic';
+import {
+  findPostBlobEntry,
+  parsePostBlob,
+  postHasBlobEntry,
+} from '@tloncorp/api';
 
 /**
  * Typed coordinator requests are durable transport receipts, not chat copy.
@@ -13,9 +17,7 @@ export function isVisibleChannelPost(
   if (!post.blob) return true;
   if (post.authorId !== currentUserId) return true;
 
-  return !parsePostBlob(post.blob).some(
-    (entry) => entry.type === 'tlon-agent-intro-request'
-  );
+  return !postHasBlobEntry(post.blob, 'tlon-agent-intro-request');
 }
 
 export function isAgentOnboardingOrientationCompletePost(
@@ -35,9 +37,7 @@ export function isAgentGroupSetupRequestPost(
 ): boolean {
   if (!post.blob) return false;
 
-  return parsePostBlob(post.blob).some(
-    (entry) => entry.type === 'tlon-agent-intro-request'
-  );
+  return postHasBlobEntry(post.blob, 'tlon-agent-intro-request');
 }
 
 export function isAgentOnboardingFirstGroupRequestPost(
@@ -45,9 +45,9 @@ export function isAgentOnboardingFirstGroupRequestPost(
 ): boolean {
   if (!post.blob) return false;
 
-  return parsePostBlob(post.blob).some(
-    (entry) =>
-      entry.type === 'tlon-agent-intro-request' && entry.isFirstGroup === true
+  return (
+    findPostBlobEntry(post.blob, 'tlon-agent-intro-request')?.isFirstGroup ===
+    true
   );
 }
 

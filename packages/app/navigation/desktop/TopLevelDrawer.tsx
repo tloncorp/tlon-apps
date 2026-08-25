@@ -47,8 +47,13 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
   const { isOpen, setIsOpen } = useGlobalSearch();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const activeGroupId = getActiveNestedGroupId(props.state);
-  const { locked: agentOnboardingLocked } =
-    useAgentGroupOnboardingLock(activeGroupId);
+  const {
+    locked: agentOnboardingLocked,
+    isLoading: agentOnboardingLockLoading,
+  } = useAgentGroupOnboardingLock(activeGroupId);
+  const navigationDisabled =
+    agentOnboardingLocked ||
+    Boolean(activeGroupId && agentOnboardingLockLoading);
 
   const isRouteActive = useCallback(
     (routeName: keyof RootDrawerParamList) => {
@@ -105,7 +110,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
       <YStack
         gap="$xl"
         alignItems="center"
-        pointerEvents={agentOnboardingLocked ? 'none' : 'auto'}
+        pointerEvents={navigationDisabled ? 'none' : 'auto'}
       >
         <NavIcon
           type="Home"
@@ -114,7 +119,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           // hasUnreads={(unreadCount?.channels ?? 0) > 0}
           // intentionally leave undotted for now
           shouldShowUnreads={false}
-          disabled={agentOnboardingLocked}
+          disabled={navigationDisabled}
           onPress={() => {
             trackTabSelection('Home');
             restoreHomeState();
@@ -126,7 +131,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           activeType="MessagesFilled"
           isActive={isRouteActive('Messages')}
           shouldShowUnreads={false}
-          disabled={agentOnboardingLocked}
+          disabled={navigationDisabled}
           onPress={() => {
             trackTabSelection('Messages');
             saveHomeState();
@@ -143,7 +148,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           hasUnreads={haveUnreadUnseenActivity}
           isActive={isRouteActive('Activity')}
           testID="ActivityNavIcon"
-          disabled={agentOnboardingLocked}
+          disabled={navigationDisabled}
           onPress={() => {
             trackTabSelection('Activity');
             saveHomeState();
@@ -156,7 +161,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
         <AvatarNavIcon
           id={userId}
           focused={isRouteActive('Contacts')}
-          disabled={agentOnboardingLocked}
+          disabled={navigationDisabled}
           onPress={() => {
             trackTabSelection('Contacts');
             saveHomeState();
@@ -173,7 +178,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
             isActive={true}
             onPress={triggerWebAppUpdate}
             shouldShowUnreads={false}
-            disabled={agentOnboardingLocked}
+            disabled={navigationDisabled}
           />
         )}
       </YStack>
@@ -181,13 +186,13 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
         gap="$xl"
         marginTop="auto"
         alignItems="center"
-        pointerEvents={agentOnboardingLocked ? 'none' : 'auto'}
+        pointerEvents={navigationDisabled ? 'none' : 'auto'}
       >
         <NavIcon
           type="AddPerson"
           isActive={false}
           shouldShowUnreads={false}
-          disabled={agentOnboardingLocked}
+          disabled={navigationDisabled}
           onPress={handlePersonalInvitePress}
           testID="PersonalInviteNavIcon"
         />
@@ -196,7 +201,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           testID="SettingsNavIcon"
           isActive={isRouteActive('Settings')}
           shouldShowUnreads={false}
-          disabled={agentOnboardingLocked}
+          disabled={navigationDisabled}
           onPress={() => {
             trackTabSelection('Settings');
             saveHomeState();
@@ -210,7 +215,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           type="Command"
           isActive={isOpen}
           shouldShowUnreads={false}
-          disabled={agentOnboardingLocked}
+          disabled={navigationDisabled}
           onPress={() => setIsOpen(!isOpen)}
         />
       </YStack>
@@ -228,14 +233,17 @@ const TopLevelDrawerInner = () => {
   // the user's actual last-open desktop tab instead of the context default.
   useBrowserNotifications();
   const { navigateToGroup, navigateToChannel } = useRootNavigation();
-  const { locked: agentOnboardingLocked } = useAnyAgentGroupOnboardingLock();
+  const {
+    locked: agentOnboardingLocked,
+    isLoading: agentOnboardingLockLoading,
+  } = useAnyAgentGroupOnboardingLock();
 
   return (
     <>
       <GlobalSearch
         navigateToGroup={navigateToGroup}
         navigateToChannel={navigateToChannel}
-        disabled={agentOnboardingLocked}
+        disabled={agentOnboardingLocked || agentOnboardingLockLoading}
       />
       <Drawer.Navigator
         drawerContent={(props: DrawerContentComponentProps) => {
