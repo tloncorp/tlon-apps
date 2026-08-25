@@ -18,6 +18,23 @@ export const AGENT_PROTOCOL_LIMITS = {
   notebookTitleLength: 200,
 } as const;
 
+/** Stable identifiers shared by the client and the Tlonbot coordinator. */
+export const TLON_A2UI_CATALOG_ID = 'tlon.a2ui.basic.v2';
+export const AGENT_ONBOARDING_FIRST_ENTRY_MARKER = 'first-entry-ping';
+export const AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
+
+export const AGENT_ONBOARDING_PURPOSE_IDS = [
+  'digest',
+  'learn',
+  'monitor',
+] as const;
+export const AgentOnboardingPurposeIdSchema = z.enum(
+  AGENT_ONBOARDING_PURPOSE_IDS
+);
+export type AgentOnboardingPurposeId = z.infer<
+  typeof AgentOnboardingPurposeIdSchema
+>;
+
 export const agentProtocolString = (maxLength: number) =>
   z
     .string()

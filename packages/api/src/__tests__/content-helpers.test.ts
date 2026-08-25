@@ -5,7 +5,9 @@ import {
   appendToPostBlob,
   appendVideoToPostBlob,
   contentToTextAndMentions,
+  findPostBlobEntry,
   parsePostBlob,
+  postHasBlobEntry,
   textAndMentionsToContent,
   toPostData,
 } from '../client/content-helpers';
@@ -167,6 +169,20 @@ describe('post blob helpers', () => {
     };
 
     expect(parsePostBlob(appendToPostBlob(undefined, entry))).toEqual([entry]);
+  });
+
+  test('finds registered blob entries by type', () => {
+    const blob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-post-marker',
+      version: 1,
+      key: 'first-entry-ping',
+    });
+
+    expect(findPostBlobEntry(blob, 'tlon-agent-post-marker')?.key).toBe(
+      'first-entry-ping'
+    );
+    expect(postHasBlobEntry(blob, 'tlon-agent-post-marker')).toBe(true);
+    expect(postHasBlobEntry(blob, 'file')).toBe(false);
   });
 
   test('an A2UI selection can name the tapped option and hold message text', () => {

@@ -292,7 +292,6 @@ export namespace A2UI {
   export type ButtonAction = EventAction;
   export type SendMessageAction = z.infer<typeof sendMessageActionSchema>;
   export type NavigateAction = z.infer<typeof navigateActionSchema>;
-  export type ProvisionAgentAction = z.infer<typeof provisionAgentActionSchema>;
   export type Button = z.infer<typeof buttonSchema>;
   /** Allowlisted assets a Choice option may render. */
   export type ChoiceIcon = z.infer<typeof choiceIconSchema>;

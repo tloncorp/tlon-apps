@@ -906,6 +906,28 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
   );
 }
 
+/** Find the first validated entry of a given type in a post blob. */
+export function findPostBlobEntry<
+  Type extends PostBlobDataEntry['type'],
+  Entry extends Extract<PostBlobDataEntry, { type: Type }> = Extract<
+    PostBlobDataEntry,
+    { type: Type }
+  >,
+>(blob: string | null | undefined, type: Type): Entry | undefined {
+  if (!blob) return undefined;
+  return parsePostBlob(blob).find(
+    (entry): entry is Entry => entry.type === type
+  );
+}
+
+/** Whether a post blob contains a validated entry of a given type. */
+export function postHasBlobEntry<Type extends PostBlobDataEntry['type']>(
+  blob: string | null | undefined,
+  type: Type
+): boolean {
+  return findPostBlobEntry(blob, type) !== undefined;
+}
+
 export function toPostData({
   attachments,
   blob: initialBlob,
