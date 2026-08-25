@@ -46,6 +46,11 @@ if [ "${1:-}" = "--stop" ]; then
   exit 0
 fi
 
+# The plugin and API are workspace siblings. Pack the current API branch so
+# Docker compiles and runs the plugin against the same API code as host tests.
+./dev/stage-workspace-api.sh
+export OPENCLAW_WORKSPACE_API_TARBALL=1
+
 # Check for port conflicts
 for port in $ZOD_PORT $TEN_PORT $MUG_PORT $GATEWAY_PORT; do
   if lsof -Pi ":$port" -sTCP:LISTEN -t >/dev/null 2>&1; then

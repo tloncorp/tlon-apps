@@ -13,6 +13,7 @@ import {
   createDefaultChannelRuntimeState,
 } from 'openclaw/plugin-sdk/status-helpers';
 
+import { TLON_A2UI_AGENT_PROMPT_HINTS } from './a2ui-prompt.js';
 import { tlonMessageActions } from './actions.js';
 import { tlonChannelConfigSchema } from './config-schema.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
@@ -150,6 +151,7 @@ export const tlonPlugin = createChatChannelPlugin({
         const hints: string[] = [];
 
         hints.push(
+          ...TLON_A2UI_AGENT_PROMPT_HINTS,
           '',
           'Tlon gallery channels (heap/~host/name) are for collecting images, links, and media.',
           '- To post to a gallery: use action=send, to=heap/~host/name, message=<text or URL>',
@@ -275,6 +277,9 @@ export const tlonPlugin = createChatChannelPlugin({
     },
     ...createRuntimeOutboundDelegates({
       getRuntime: loadTlonChannelRuntime,
+      sendPayload: {
+        resolve: (runtime) => runtime.tlonRuntimeOutbound.sendPayload,
+      },
       sendText: { resolve: (runtime) => runtime.tlonRuntimeOutbound.sendText },
       sendMedia: {
         resolve: (runtime) => runtime.tlonRuntimeOutbound.sendMedia,

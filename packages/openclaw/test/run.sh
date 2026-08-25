@@ -96,6 +96,11 @@ export TLON_CODE="$ZOD_CODE"
 export TLON_OWNER_SHIP="~ten"
 export TLON_DM_ALLOWLIST="~ten"
 
+# The plugin and API are workspace siblings. Pack the current API branch so
+# Docker compiles and runs the plugin against the same API code as host tests.
+./dev/stage-workspace-api.sh
+export OPENCLAW_WORKSPACE_API_TARBALL=1
+
 # Gateway port can be overridden via env var (matches docker-compose.test.yml)
 GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18789}"
 FAKE_MODEL_PORT="${FAKE_MODEL_PORT:-4000}"

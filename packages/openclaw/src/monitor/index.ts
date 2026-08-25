@@ -99,6 +99,7 @@ import {
   isPermanentAuthenticationFailure,
 } from '../urbit/auth.js';
 import {
+  combineBlobFields,
   serializeBlobField,
   serializeContextLensReferenceBlob,
 } from '../urbit/blob.js';
@@ -1810,28 +1811,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const blob = (payload.channelData?.tlon as { blob?: unknown } | undefined)
         ?.blob;
       return typeof blob === 'string' ? blob : undefined;
-    }
-
-    // Merge serialized post-blob fields (each a JSON array of entries) into one,
-    // so a reply can carry both an a2ui card and a context-lens reference.
-    function combineBlobFields(
-      ...fields: Array<string | undefined>
-    ): string | undefined {
-      const entries: unknown[] = [];
-      for (const field of fields) {
-        if (!field) {
-          continue;
-        }
-        try {
-          const parsed = JSON.parse(field);
-          if (Array.isArray(parsed)) {
-            entries.push(...parsed);
-          }
-        } catch {
-          // Skip a malformed blob field rather than dropping the whole message.
-        }
-      }
-      return entries.length > 0 ? JSON.stringify(entries) : undefined;
     }
 
     // Regex to match block directives in agent responses

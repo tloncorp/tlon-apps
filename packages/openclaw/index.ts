@@ -36,6 +36,7 @@ import {
 } from './src/diagnostic-subscriptions.js';
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
+import { sanitizeTlonMessageSendParams } from './src/message-tool-params.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
@@ -970,6 +971,16 @@ export default defineBundledChannelEntry({
       const role = getSessionRole(ctx.sessionKey ?? '');
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
       const isBlocked = isOwnerOnlyTool && role === 'user';
+      const sanitizedParams = sanitizeTlonMessageSendParams(
+        event.toolName,
+        event.params,
+        ctx.channelId
+      );
+      if (sanitizedParams !== event.params) {
+        api.logger.info(
+          '[tlon] Neutralized poll defaults on Tlon message send'
+        );
+      }
       const blockReason = isBlocked
         ? `The ${event.toolName} tool is not available.`
         : undefined;
@@ -1027,7 +1038,9 @@ export default defineBundledChannelEntry({
       }
 
       if (!isOwnerOnlyTool) {
-        return undefined;
+        return sanitizedParams === event.params
+          ? undefined
+          : { params: sanitizedParams };
       }
 
       // Allow owner sessions and internal sessions (heartbeat, cron, etc.).

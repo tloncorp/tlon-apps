@@ -34,6 +34,10 @@ export interface ReceivedCall {
   toolCount?: number;
   /** Request `tool_choice` when present, otherwise null. */
   toolChoice?: unknown | null;
+  /** Boolean system-prompt markers recorded without exposing prompt contents. */
+  promptSignals?: {
+    tlonA2uiProactive?: boolean;
+  };
   /** Epoch (reset generation) the server was in when the call arrived. */
   epoch: number;
   /** Epoch in which this call's key was last registered, or null if never. */

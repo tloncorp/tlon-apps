@@ -8,6 +8,7 @@ Tlon/Urbit channel plugin for [OpenClaw](https://github.com/openclaw/openclaw). 
 -   **Group Channels**: Participate in group chats (mention-triggered or open mode)
 -   **Thread Replies**: Support for threaded conversations
 -   **Rich Content**: Images, links, and formatted text
+-   **Native A2UI Widgets**: Agent-authored, catalog-backed cards with validated layout, text, images, icons, dividers, and safe buttons
 -   **Ship Authorization**: Allowlist ships for DM access
 -   **Channel Authorization**: Per-channel ship allowlists with open/restricted modes
 -   **Approval System**: Approve/deny new DMs, channel mentions, and group invites via DM
@@ -240,6 +241,8 @@ pnpm test:security     # Security tests only
 
 Integration tests spin up ephemeral fakezod ships (~zod, ~ten, ~mug) in Docker, boot an OpenClaw gateway with the plugin, and run end-to-end scenarios.
 
+Both the automated and manual package-local harnesses build and pack the workspace `@tloncorp/api` before starting Docker. This ensures plugin changes that depend on API changes from the same branch are compiled and exercised together rather than silently using the last published API package.
+
 #### Minimal Setup (`test:integration`)
 
 Runs everything in Docker — ships + gateway + tests. Only needs an LLM API key.
@@ -275,6 +278,16 @@ This will:
 ```bash
 pnpm test:integration -- test/cases/dm.test.ts
 ```
+
+For the A2UI authoring and delivery path specifically:
+
+```bash
+pnpm test:integration -- test/cases/08-a2ui.test.ts
+```
+
+That case verifies that the model is offered the shared `message` tool, sends a catalog-backed project-status graph through it, and that a second ship receives a valid A2UI envelope containing composed layout, typography, icon, divider, and button components.
+
+The Tlon channel also injects a standing authoring policy into the agent prompt: in direct messages, the agent should proactively choose A2UI for structured, glanceable, visual, or actionable responses, while keeping conversational and prose-first replies as normal text. Explicit requests for rich native UI are treated as a requirement when the supported catalog can represent them safely.
 
 #### Extended Setup (`test:integration:dev`)
 

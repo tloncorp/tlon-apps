@@ -710,17 +710,18 @@ export type PostBlobDataEntry = z.infer<typeof PostBlobDataEntrySchema>;
 export type UnknownPostBlobDataEntry = { type: 'unknown' };
 
 function parseRawPostBlobData(blob: string): unknown[] | null {
+  const blobLength = blob.length;
   try {
     const parsed = JSON.parse(blob);
     if (Array.isArray(parsed)) {
       return parsed;
     }
     logger.trackError('Failed to parse PostBlob data: expected array', {
-      blob,
-      parsed,
+      blobLength,
+      parsedType: parsed === null ? 'null' : typeof parsed,
     });
-  } catch (error) {
-    logger.trackError('Failed to parse PostBlob data', { blob, error });
+  } catch {
+    logger.trackError('Failed to parse PostBlob data', { blobLength });
   }
   return null;
 }
@@ -732,8 +733,8 @@ export function appendToPostBlob(
   const parsedEntry = PostBlobDataEntrySchema.safeParse(entry);
   if (!parsedEntry.success) {
     logger.trackError('Failed to validate PostBlobDataEntry before append', {
-      entry,
-      error: parsedEntry.error,
+      entryType: entry.type,
+      entryVersion: entry.version,
     });
     throw new Error('Invalid PostBlobDataEntry');
   }
@@ -820,7 +821,23 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
   return safeParseArrayWithFallback(
     PostBlobDataEntrySchema,
     (entry) => {
-      logger.trackError('Failed to parse PostBlobDataEntry', { entry });
+      const rawEntryMetadata =
+        entry && typeof entry === 'object' && !Array.isArray(entry)
+          ? {
+              isA2UI: (entry as Record<string, unknown>).type === 'a2ui',
+              entryVersion:
+                typeof (entry as Record<string, unknown>).version === 'number'
+                  ? (entry as Record<string, unknown>).version
+                  : undefined,
+            }
+          : { isA2UI: false, entryVersion: undefined };
+      logger.trackError('Failed to parse PostBlobDataEntry', rawEntryMetadata);
+      if (rawEntryMetadata.isA2UI) {
+        logger.trackEvent(
+          'a2ui_post_blob_validation_failed',
+          A2UI.getValidationTelemetry(entry)
+        );
+      }
       return { type: 'unknown' } as const;
     },
     arr

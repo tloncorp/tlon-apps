@@ -125,7 +125,7 @@ const weatherA2UI: A2UI.BlobEntry = {
             variant: 'caption',
             text: 'Today',
           },
-          { id: 'todayIcon', component: 'Text', variant: 'h2', text: '🌧️' },
+          { id: 'todayIcon', component: 'Icon', name: 'warning' },
           {
             id: 'todayTemp',
             component: 'Text',
@@ -145,7 +145,7 @@ const weatherA2UI: A2UI.BlobEntry = {
             variant: 'caption',
             text: 'Wed',
           },
-          { id: 'tomorrowIcon', component: 'Text', variant: 'h2', text: '☁️' },
+          { id: 'tomorrowIcon', component: 'Icon', name: 'notifications' },
           {
             id: 'tomorrowTemp',
             component: 'Text',
@@ -165,7 +165,7 @@ const weatherA2UI: A2UI.BlobEntry = {
             variant: 'caption',
             text: 'Thu',
           },
-          { id: 'nextIcon', component: 'Text', variant: 'h2', text: '🌧️' },
+          { id: 'nextIcon', component: 'Icon', name: 'warning' },
           {
             id: 'nextTemp',
             component: 'Text',
