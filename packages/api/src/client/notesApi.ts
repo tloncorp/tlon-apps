@@ -715,8 +715,12 @@ const envelopeSchema = z.object({
   body: envelopeBodySchema,
 });
 const noteWriteResponseSchema = z.object({
+  host: z.string(),
+  flagName: z.string(),
   update: z.object({
     type: z.literal('note-update'),
+    host: z.string(),
+    flagName: z.string(),
     noteUpdate: z.object({
       type: z.enum(['note-created', 'note-updated']),
       id: z.number(),
@@ -1011,7 +1015,7 @@ async function createNoteV1({
     res,
     noteCreateChecks(notesChannelId(normalized))
   );
-  return noteFromWriteEnvelope(envelope, 'note-created');
+  return noteFromWriteEnvelope(envelope, normalized, 'note-created');
 }
 
 // The ok envelope of a note write carries the applied update, nested per
@@ -1023,6 +1027,7 @@ async function createNoteV1({
 // bodies, or unexpected shapes.
 function noteFromWriteEnvelope(
   envelope: NotesEnvelope,
+  expectedFlag: NotesFlag,
   expectedType: 'note-created' | 'note-updated' = 'note-updated',
   expectedNoteId?: number
 ): NotesV1Note | null {
@@ -1032,6 +1037,10 @@ function noteFromWriteEnvelope(
   const response = noteWriteResponseSchema.safeParse(envelope.body.response);
   if (
     !response.success ||
+    response.data.host !== expectedFlag.host ||
+    response.data.flagName !== expectedFlag.name ||
+    response.data.update.host !== expectedFlag.host ||
+    response.data.update.flagName !== expectedFlag.name ||
     response.data.update.noteUpdate.type !== expectedType ||
     response.data.update.noteUpdate.id !==
       response.data.update.noteUpdate.note.id ||
@@ -1078,7 +1087,7 @@ async function updateNoteBodyV1({
   );
   return {
     status: envelope.body.type === 'no-change' ? 'no-change' : 'ok',
-    note: noteFromWriteEnvelope(envelope, 'note-updated', noteId),
+    note: noteFromWriteEnvelope(envelope, normalized, 'note-updated', noteId),
   };
 }
 
@@ -1103,7 +1112,7 @@ async function renameNoteV1({
     res,
     noteChecks(notesChannelId(normalized), noteId)
   );
-  return noteFromWriteEnvelope(envelope, 'note-updated', noteId);
+  return noteFromWriteEnvelope(envelope, normalized, 'note-updated', noteId);
 }
 
 async function moveNoteV1({
