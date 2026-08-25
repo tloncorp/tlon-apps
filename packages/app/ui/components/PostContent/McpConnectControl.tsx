@@ -4,6 +4,7 @@ import * as api from '@tloncorp/api';
 import { A2UI } from '@tloncorp/shared/logic';
 import { Icon, LoadingSpinner } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
@@ -159,27 +160,53 @@ export function McpConnectMenu({
     [providers]
   );
 
+  const markAuthorizationLeftSurface = useCallback(() => {
+    const pending = pendingProviderAuthorizations.get(selectionKey);
+    if (pending) pending.leftSurface = true;
+  }, [selectionKey]);
+
+  const finishAuthorizationRoundTrip = useCallback(() => {
+    const pending = pendingProviderAuthorizations.get(selectionKey);
+    if (!pending?.leftSurface || pending.returned) return;
+    // Claim this return before refreshing so a focus + visibility pair cannot
+    // start duplicate refreshes for the same browser round trip.
+    pending.leftSurface = false;
+    const refresh = onRefreshProviders?.() ?? Promise.resolve();
+    const finish = () => {
+      const current = pendingProviderAuthorizations.get(selectionKey);
+      if (current === pending) {
+        current.returned = true;
+        setAuthorizationReturnVersion((version) => version + 1);
+      }
+    };
+    void refresh.then(finish, finish);
+  }, [onRefreshProviders, selectionKey]);
+
   useFocusEffect(
     useCallback(() => {
-      const pending = pendingProviderAuthorizations.get(selectionKey);
-      if (pending?.leftSurface) {
-        const refresh = onRefreshProviders?.() ?? Promise.resolve();
-        const finishRoundTrip = () => {
-          const current = pendingProviderAuthorizations.get(selectionKey);
-          if (current === pending) {
-            current.returned = true;
-            setAuthorizationReturnVersion((version) => version + 1);
-          }
-        };
-        void refresh.then(finishRoundTrip, finishRoundTrip);
-      }
-
-      return () => {
-        const current = pendingProviderAuthorizations.get(selectionKey);
-        if (current) current.leftSurface = true;
-      };
-    }, [onRefreshProviders, selectionKey])
+      finishAuthorizationRoundTrip();
+      return markAuthorizationLeftSurface;
+    }, [finishAuthorizationRoundTrip, markAuthorizationLeftSurface])
   );
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        markAuthorizationLeftSurface();
+      } else {
+        finishAuthorizationRoundTrip();
+      }
+    };
+    window.addEventListener('blur', markAuthorizationLeftSurface);
+    window.addEventListener('focus', finishAuthorizationRoundTrip);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('blur', markAuthorizationLeftSurface);
+      window.removeEventListener('focus', finishAuthorizationRoundTrip);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [finishAuthorizationRoundTrip, markAuthorizationLeftSurface]);
 
   useEffect(() => {
     const connected = new Set(connectedProviderIds);

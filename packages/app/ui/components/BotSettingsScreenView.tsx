@@ -8,6 +8,7 @@ import {
   triggerHaptic,
 } from '@tloncorp/ui';
 import { useState } from 'react';
+import { Platform } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
 import type { McpProviderRow } from '../../lib/mcpProviders';
@@ -54,7 +55,9 @@ export function BotSettingsScreenView({
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
         borderBottom
-        backAction={isWindowNarrow ? onBackPressed : undefined}
+        backAction={
+          Platform.OS !== 'web' || isWindowNarrow ? onBackPressed : undefined
+        }
         loadingSubtitle={refreshing && !initialLoading ? 'Refreshing' : null}
         rightActions={[
           {
