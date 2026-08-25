@@ -18,6 +18,10 @@ export type TlonHistoryEntry = {
   parsedBlobData?: ClientPostBlobData | null;
 };
 
+export type HistoryScryApi = {
+  scry: (path: string, options?: { signal?: AbortSignal }) => Promise<unknown>;
+};
+
 export const MAX_THREAD_CONTEXT_MESSAGES = 20;
 
 type ParsedPostPayload = {
@@ -260,13 +264,20 @@ function cacheReactionTarget(
 }
 
 export async function fetchChannelHistory(
-  api: { scry: (path: string) => Promise<unknown> },
+  api: HistoryScryApi,
   channelNest: string,
   count = 50,
-  runtime?: RuntimeEnv
+  runtime?: RuntimeEnv,
+  signal?: AbortSignal
 ): Promise<TlonHistoryEntry[]> {
   try {
-    return await fetchChannelHistoryOrThrow(api, channelNest, count, runtime);
+    return await fetchChannelHistoryOrThrow(
+      api,
+      channelNest,
+      count,
+      runtime,
+      signal
+    );
   } catch (error: any) {
     runtime?.log?.(
       `[tlon] Error fetching channel history: ${error?.message ?? String(error)}`
@@ -282,15 +293,16 @@ export async function fetchChannelHistory(
  * channel as durably empty.
  */
 export async function fetchChannelHistoryOrThrow(
-  api: { scry: (path: string) => Promise<unknown> },
+  api: HistoryScryApi,
   channelNest: string,
   count = 50,
-  runtime?: RuntimeEnv
+  runtime?: RuntimeEnv,
+  signal?: AbortSignal
 ): Promise<TlonHistoryEntry[]> {
   const scryPath = `/channels/v4/${channelNest}/posts/newest/${count}/outline.json`;
   runtime?.log?.(`[tlon] Fetching history: ${scryPath}`);
 
-  const data: any = await api.scry(scryPath);
+  const data: any = await api.scry(scryPath, { signal });
   if (!data) {
     return [];
   }
