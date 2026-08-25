@@ -87,8 +87,6 @@ export function StaticChatMessage({
   const draftInputContext = useDraftInputContext();
   const navigateToA2UITarget = useA2UINavigation();
   const currentUserId = useCurrentUserId();
-  const canUseAgentProviderControls =
-    post.authorId === getBotUserIdForUser(currentUserId);
   const { data: group } = useGroup({ id: post.groupId ?? '' });
 
   if (isNotice) {
@@ -440,6 +438,13 @@ export function StaticChatMessage({
     () => postContent.some((block) => block.type === 'a2ui'),
     [postContent]
   );
+  const canUseAgentProviderControls =
+    post.authorId === getBotUserIdForUser(currentUserId) ||
+    Boolean(
+      resolvedPostGroupId &&
+        currentUserHostsPostGroup &&
+        knownAgent === post.authorId
+    );
   // One live query per channel (deduped across messages); the posts-table
   // dependency re-runs it when the viewer's reply lands, including the
   // optimistic insert, so an answered control stays locked across remounts.

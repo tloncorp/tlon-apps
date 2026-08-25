@@ -117,6 +117,7 @@ const MainApp = () => {
     connected,
     showAuthenticatedApp,
     showSplashSequence,
+    forcedSplash,
     activeSplashSequenceMode,
     hostingBotEnabled,
     handleClearSplash,
@@ -163,7 +164,7 @@ const MainApp = () => {
           </View>
         ) : showAuthenticatedApp ? (
           showSplashSequence &&
-          activeSplashSequenceMode === 'tlonbotRevival' ? (
+          (forcedSplash || activeSplashSequenceMode === 'tlonbotRevival') ? (
             <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
               splash
             </AppDataProvider>

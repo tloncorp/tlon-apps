@@ -377,6 +377,7 @@ export namespace A2UI {
     version: 1;
     messages: Message[];
     recipe?: unknown;
+    storyMode?: 'fallback';
   };
 }
 
@@ -644,6 +645,7 @@ const blobEntryShapeSchema: z.ZodType<A2UI.BlobEntry> = z
     version: z.literal(1),
     messages: z.array(z.any()),
     recipe: z.any().optional(),
+    storyMode: z.literal('fallback').optional(),
   })
   .passthrough();
 

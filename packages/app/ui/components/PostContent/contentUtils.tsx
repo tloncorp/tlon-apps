@@ -37,11 +37,15 @@ export interface ContentContextProps {
     selection?: PostBlobDataEntryA2UISelection
   ) => void | Promise<void>;
   isA2UIActionAvailable?: (action: A2UI.Action) => boolean;
+  isA2UIActionConsumed?: (action: A2UI.Button['action']) => boolean;
   canSendA2UIResponse?: boolean;
   /** Post containing the rendered A2UI surface. */
   a2uiSourcePostId?: string;
   /** Whether this post is trusted to display authenticated provider state. */
   canUseAgentProviderControls?: boolean;
+  configuredAgentProviderIds?: string[];
+  provisionedAgentTopics?: string[];
+  consumedA2UIMessageText?: string;
   /**
    * Durable selection the viewer already submitted for a control, recovered
    * from their own posts in this channel. Presence marks the control

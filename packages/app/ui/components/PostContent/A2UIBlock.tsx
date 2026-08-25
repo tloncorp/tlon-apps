@@ -680,9 +680,13 @@ export function A2UIBlock({
     a2uiSourcePostId,
     canSendA2UIResponse,
     canUseAgentProviderControls,
+    configuredAgentProviderIds,
+    consumedA2UIMessageText,
     getConsumedA2UISelection,
     isA2UIActionAvailable,
+    isA2UIActionConsumed,
     onA2UIAction,
+    provisionedAgentTopics,
   } = useContentContext();
   const [locallyConsumedComponentIds, setLocallyConsumedComponentIds] =
     useState<string[]>([]);
@@ -973,7 +977,8 @@ export function A2UIBlock({
           const actionConsumed =
             actionCanBeConsumed &&
             (locallyConsumedComponentIds.includes(component.id) ||
-              Boolean(getConsumedA2UISelection?.(surfaceId, component.id)));
+              Boolean(getConsumedA2UISelection?.(surfaceId, component.id)) ||
+              isA2UIActionConsumed?.(component.action) === true);
           const disabled =
             actionConsumed ||
             component.disabled ||
@@ -1028,7 +1033,13 @@ export function A2UIBlock({
               ? component.options.find(
                   (option) => option.id === durableSelection.optionId
                 )
-              : undefined);
+              : undefined) ??
+            component.options.find(
+              (option) =>
+                option.action.event.name === A2UI.action.sendMessage &&
+                option.action.event.context.text.trim() ===
+                  consumedA2UIMessageText?.trim()
+            );
           const choiceConsumed =
             Boolean(selectedOption) || Boolean(durableSelection);
           const grouped = component.options.length > 1;
@@ -1171,6 +1182,22 @@ export function A2UIBlock({
           );
         }
         case 'SmallChoice': {
+          const durableSelection = getConsumedA2UISelection?.(
+            surfaceId,
+            component.id
+          );
+          const provisionSelection =
+            component.action.event.name === A2UI.action.provisionAgent &&
+            isA2UIActionConsumed?.(component.action) === true &&
+            provisionedAgentTopics?.length
+              ? {
+                  type: 'tlon-a2ui-selection' as const,
+                  version: 1 as const,
+                  surfaceId,
+                  componentId: component.id,
+                  values: provisionedAgentTopics,
+                }
+              : undefined;
           return (
             <YStack
               key={component.id}
@@ -1185,10 +1212,7 @@ export function A2UIBlock({
                   (component.action.event.name !== A2UI.action.provisionAgent ||
                     isA2UIActionAvailable?.(component.action) !== false)
                 }
-                consumedSelection={getConsumedA2UISelection?.(
-                  surfaceId,
-                  component.id
-                )}
+                consumedSelection={durableSelection ?? provisionSelection}
                 onSubmit={handleSmallChoiceSubmit}
                 sourcePostId={a2uiSourcePostId}
                 surfaceId={surfaceId}
@@ -1206,9 +1230,11 @@ export function A2UIBlock({
             >
               <McpConnectControl
                 component={component}
+                configuredProviderIds={configuredAgentProviderIds}
                 completionConsumed={Boolean(
                   component.completionAction &&
-                  getConsumedA2UISelection?.(surfaceId, component.id)
+                  (getConsumedA2UISelection?.(surfaceId, component.id) ||
+                    isA2UIActionConsumed?.(component.completionAction))
                 )}
                 completionSelection={
                   component.completionAction
@@ -1240,14 +1266,18 @@ export function A2UIBlock({
     [
       canSendA2UIResponse,
       components,
+      configuredAgentProviderIds,
+      consumedA2UIMessageText,
       getConsumedA2UISelection,
       handleButtonPress,
       handleChoicePress,
       handleSmallChoiceSubmit,
       isA2UIActionAvailable,
+      isA2UIActionConsumed,
       locallyConsumedComponentIds,
       locallyConsumedChoices,
       onA2UIAction,
+      provisionedAgentTopics,
       surfaceId,
     ]
   );
