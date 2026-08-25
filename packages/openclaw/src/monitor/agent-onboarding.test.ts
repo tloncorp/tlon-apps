@@ -1757,6 +1757,46 @@ describe('primary onboarding cron slot', () => {
     expect(getCron).not.toHaveBeenCalled();
   });
 
+  it('rechecks for a newer provision after asynchronous setup checks', async () => {
+    const getCron = vi.fn();
+    const oldHistory = [
+      {
+        author: '~ten',
+        content: 'AI, Climate',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, provision),
+      },
+    ];
+    const newerProvision = {
+      ...provision,
+      provisionId: 'provision-2',
+      topics: ['Robotics'],
+    };
+    const fetchHistory = vi
+      .fn()
+      .mockResolvedValueOnce(oldHistory)
+      .mockResolvedValueOnce([
+        ...oldHistory,
+        {
+          author: '~ten',
+          content: 'Robotics',
+          timestamp: 2,
+          blob: appendToPostBlob(undefined, newerProvision),
+        },
+      ]);
+
+    await expect(
+      handleAgentOnboardingRequest(requestContext(), {
+        fetchHistory,
+        getCron,
+        getGroup: vi.fn(async () => provisionedGroup()),
+      })
+    ).resolves.toBe(true);
+
+    expect(fetchHistory).toHaveBeenCalledTimes(2);
+    expect(getCron).not.toHaveBeenCalled();
+  });
+
   it('adds, verifies, and then no-ops the stable group slot', async () => {
     const harness = cronHarness();
     await expect(

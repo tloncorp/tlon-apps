@@ -491,7 +491,7 @@ export async function scanAgentOnboardingChannel(
         senderShip: context.ownerShip,
         blob: candidate.entry.blob,
       },
-      { ...deps, fetchHistory: async () => history }
+      deps
     );
     context.abortSignal?.throwIfAborted();
   }
@@ -978,6 +978,24 @@ async function provision(
   }
   if (!isAdmin) {
     throw new Error('agent is not an admin yet');
+  }
+  context.abortSignal?.throwIfAborted();
+  history = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
+    context.api,
+    context.channelNest,
+    ORIENTATION_HISTORY_LIMIT
+  );
+  context.abortSignal?.throwIfAborted();
+  const newestProvision = findNewestProvisionRequest(
+    history,
+    context.ownerShip!,
+    request.groupId
+  );
+  if (newestProvision && newestProvision.provisionId !== request.provisionId) {
+    context.log?.(
+      '[tlon] rejected agent provision: request was superseded during setup'
+    );
+    return;
   }
   const ackKey = `ack:${request.provisionId}`;
   const existingAck = hasPostMarker(history, context.botShip, ackKey);
