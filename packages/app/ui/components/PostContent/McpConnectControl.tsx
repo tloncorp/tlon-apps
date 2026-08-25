@@ -158,7 +158,7 @@ export function McpConnectMenu({
     useState(0);
   const configuringRef = useRef(false);
   const initializedRef = useRef(false);
-  const configuredKeyRef = useRef('');
+  const configuredKeyRef = useRef<string | null>(null);
   const completionAction = useOneShotAction(completionConsumed);
   const connectedProviderIds = useMemo(
     () =>
@@ -274,7 +274,7 @@ export function McpConnectMenu({
     if (loading || !providersLoaded || configuredProviderIds === undefined)
       return;
     const configuredKey = [...configuredProviderIds].sort().join('\u0000');
-    if (!configuredKey || configuredKey === configuredKeyRef.current) return;
+    if (configuredKey === configuredKeyRef.current) return;
     configuredKeyRef.current = configuredKey;
     const connected = new Set(connectedProviderIds);
     setSelectedProviderIds(

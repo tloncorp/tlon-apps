@@ -48,7 +48,9 @@ function receiptFollowsPost(
   if (!receipt || receipt.postId === post.id) return false;
   if (
     receipt.sequenceNum != null &&
+    receipt.sequenceNum > 0 &&
     post.sequenceNum != null &&
+    post.sequenceNum > 0 &&
     receipt.sequenceNum !== post.sequenceNum
   ) {
     return receipt.sequenceNum > post.sequenceNum;
@@ -173,13 +175,18 @@ export function StaticChatMessage({
       const notebookTitle = notebooks[0].title ?? 'Updates';
 
       const locks = await db.agentGroupOnboardingLocks.getValue();
+      const existingLock = locks[groupId];
+      // An unacknowledged retry must keep its id so the coordinator can
+      // deduplicate it. Once acknowledged, a new submission is a new request.
       const provisionId =
-        locks[groupId]?.provision?.provisionId ??
-        `${getRandomId()}-${Date.now().toString(36)}`;
+        existingLock?.provisionAcknowledgedAt == null
+          ? existingLock?.provision?.provisionId
+          : undefined;
       const request = {
         type: 'tlon-agent-provision',
         version: 1,
-        provisionId,
+        provisionId:
+          provisionId ?? `${getRandomId()}-${Date.now().toString(36)}`,
         groupId,
         purposeId: plan.purposeId,
         purpose: plan.purpose,
@@ -197,6 +204,7 @@ export function StaticChatMessage({
         [groupId]: {
           ...current[groupId],
           createdAt: current[groupId]?.createdAt ?? Date.now(),
+          navigationLocked: current[groupId]?.navigationLocked ?? false,
           provisionAcknowledgedAt: undefined,
           provision: request,
         },
@@ -437,8 +445,8 @@ export function StaticChatMessage({
     post.authorId === getBotUserIdForUser(currentUserId) ||
     Boolean(
       resolvedPostGroupId &&
-        currentUserHostsPostGroup &&
-        knownAgent === post.authorId
+      currentUserHostsPostGroup &&
+      knownAgent === post.authorId
     );
   // One live query per channel (deduped across messages); the posts-table
   // dependency re-runs it when the viewer's reply lands, including the
