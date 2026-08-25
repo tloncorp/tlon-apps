@@ -32,6 +32,7 @@ import {
   InviteUsersSheet,
   useIsWindowNarrow,
 } from '../../ui';
+import { shouldAcknowledgeAgentOnboardingLanding } from './agentOnboardingLanding';
 
 const logger = createDevLogger('ChannelScreen', false);
 
@@ -49,6 +50,24 @@ export default function ChannelScreen(props: Props) {
     startDraft: false,
     groupId: undefined,
   };
+
+  const onboardingLanding = db.agentOnboardingLanding.useValue();
+  useEffect(() => {
+    if (
+      !shouldAcknowledgeAgentOnboardingLanding(onboardingLanding, channelId)
+    ) {
+      return;
+    }
+
+    // The destination is mounted, so the full-screen onboarding cover can
+    // disappear without waiting for the bounded handoff timeout.
+    void db.agentOnboardingLanding.resetValue().catch((error) => {
+      logger.trackError('Failed to acknowledge agent onboarding landing', {
+        error,
+        ...onboardingLanding,
+      });
+    });
+  }, [channelId, onboardingLanding]);
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {
