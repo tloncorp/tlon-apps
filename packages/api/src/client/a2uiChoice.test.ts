@@ -151,6 +151,7 @@ describe('SmallChoice validation', () => {
     expect(valid(smallChoice())).toBe(true);
     expect(valid(smallChoice({ action: sendAction('Topics:') }))).toBe(true);
     expect(valid(smallChoice({ action: provisionAction() }))).toBe(true);
+    expect(valid(smallChoice({ action: provisionAction([]) }))).toBe(true);
     const entry = entryWith([smallChoice()], 'main');
     expect(A2UI.validateBlobEntry(entry)).toBe(true);
     expect(A2UI.getRootComponentId(entry as never)).toBe('main');
@@ -194,7 +195,6 @@ describe('SmallChoice validation', () => {
     // A selection must submit its structured reply; navigating would throw
     // away what the user picked.
     ['a navigate action', { action: navigateAction }],
-    ['a provision action without topics', { action: provisionAction([]) }],
     ['missing action', { action: undefined }],
     ['unknown action name', { action: { event: { name: 'evil.exec' } } }],
   ])('rejects %s', (_name, over) => {

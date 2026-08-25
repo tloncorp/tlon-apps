@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
-import { AgentProvisionActionContextSchema } from './agentProtocol';
+import {
+  AGENT_PROTOCOL_LIMITS,
+  AgentProvisionActionContextSchema,
+  agentProtocolString,
+} from './agentProtocol';
 
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
 const ACTION_NAVIGATE = 'tlon.navigate';
@@ -147,9 +151,19 @@ const navigateActionSchema = z.object({ event: navigateEventSchema });
 const provisionAgentActionSchema = z.object({
   event: provisionAgentEventSchema,
 });
+const smallChoiceProvisionAgentEventSchema = z.object({
+  name: z.literal(ACTION_PROVISION_AGENT),
+  context: AgentProvisionActionContextSchema.omit({ topics: true }).extend({
+    // This action is a template. The control replaces this list with the
+    // owner's selection and enforces a non-empty result before dispatch.
+    topics: z
+      .array(agentProtocolString(AGENT_PROTOCOL_LIMITS.topicLength))
+      .max(AGENT_PROTOCOL_LIMITS.topicCount),
+  }),
+});
 const smallChoiceActionSchema = z.union([
   z.object({ event: smallChoiceSendMessageEventSchema }),
-  provisionAgentActionSchema,
+  z.object({ event: smallChoiceProvisionAgentEventSchema }),
 ]);
 
 const textSchema = z.object({

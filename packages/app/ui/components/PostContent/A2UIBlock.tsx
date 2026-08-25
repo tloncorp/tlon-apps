@@ -7,6 +7,7 @@ import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -182,6 +183,23 @@ function SmallChoiceControl({
   const [submitted, setSubmitted] = useState(false);
   const [consumedLocally, setConsumedLocally] = useState(false);
   const submittingRef = useRef(false);
+  const durableSelectionObservedRef = useRef(false);
+
+  useEffect(() => {
+    if (consumedSelection) {
+      durableSelectionObservedRef.current = true;
+      return;
+    }
+    if (!durableSelectionObservedRef.current) return;
+
+    // A successful reply was later deleted (or a failed optimistic row was
+    // removed). Release the local lock so the durable timeline is once again
+    // the source of truth and the owner can answer this control again.
+    durableSelectionObservedRef.current = false;
+    submittingRef.current = false;
+    setSubmitted(false);
+    setConsumedLocally(false);
+  }, [consumedSelection]);
 
   const toggle = useCallback(
     (id: string) => {
@@ -724,9 +742,8 @@ export function A2UIBlock({
               : [...previous, component.id]
           );
         }
-      } catch (error) {
+      } catch {
         buttonPressLocksRef.current.delete(component.id);
-        throw error;
       } finally {
         if (!consumeAction) {
           buttonPressLocksRef.current.delete(component.id);
@@ -792,6 +809,44 @@ export function A2UIBlock({
       onA2UIAction?.(action, selection),
     [onA2UIAction]
   );
+
+  const durableConsumptionObservedRef = useRef(new Set<string>());
+  useEffect(() => {
+    const localIds = new Set([
+      ...locallyConsumedComponentIds,
+      ...Object.keys(locallyConsumedChoices),
+    ]);
+    const deletedIds: string[] = [];
+
+    localIds.forEach((componentId) => {
+      if (getConsumedA2UISelection?.(surfaceId, componentId)) {
+        durableConsumptionObservedRef.current.add(componentId);
+      } else if (durableConsumptionObservedRef.current.has(componentId)) {
+        durableConsumptionObservedRef.current.delete(componentId);
+        buttonPressLocksRef.current.delete(componentId);
+        choicePressLocksRef.current.delete(componentId);
+        deletedIds.push(componentId);
+      }
+    });
+
+    if (!deletedIds.length) return;
+    const deleted = new Set(deletedIds);
+    setLocallyConsumedComponentIds((current) =>
+      current.filter((componentId) => !deleted.has(componentId))
+    );
+    setLocallyConsumedChoices((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(
+          ([componentId]) => !deleted.has(componentId)
+        )
+      )
+    );
+  }, [
+    getConsumedA2UISelection,
+    locallyConsumedChoices,
+    locallyConsumedComponentIds,
+    surfaceId,
+  ]);
 
   const renderComponent = useCallback(
     (id: string, options: RenderOptions = {}): React.ReactNode => {
