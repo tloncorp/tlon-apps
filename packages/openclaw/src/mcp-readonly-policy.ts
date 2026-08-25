@@ -66,10 +66,6 @@ function ownProviderId(value: Record<string, unknown> | null) {
   return null;
 }
 
-function normalized(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
 function providerForTool(
   params: unknown,
   descriptor: Record<string, unknown> | null,
@@ -79,11 +75,17 @@ function providerForTool(
   if (explicit) return explicit;
   const name = toolName(params);
   if (!name) return null;
-  const normalizedName = normalized(name);
+  const lowerName = name.toLowerCase();
   return (
-    allowedProviderIds.find((providerId) =>
-      normalizedName.startsWith(normalized(providerId))
-    ) ?? null
+    allowedProviderIds.find((providerId) => {
+      const lowerProviderId = providerId.toLowerCase();
+      return (
+        lowerName === lowerProviderId ||
+        ['.', ':', '/', '__'].some((delimiter) =>
+          lowerName.startsWith(`${lowerProviderId}${delimiter}`)
+        )
+      );
+    }) ?? null
   );
 }
 
