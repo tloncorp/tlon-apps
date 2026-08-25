@@ -80,7 +80,7 @@ When you create an account, Tlon Messenger asks if you want to sync your phone's
 2. What happens next depends on the phone. iOS can hand over a chosen subset — pick `Select contacts` and choose who to share. Android grants the whole book at once; there's no per-contact step, so don't send an Android user looking for one.  
 3. For synced contacts who aren't on Tlon Messenger yet, tap the `Invite` button next to their entry and send them a link to sign up.
 
-You'll automatically receive a DM when they join. Tlon will never spam your contacts and will never use your contact book in any capacity without your permission.
+When one of them joins you'll get a notification — `<name> is on Tlon`, tap to say hi — and they'll show up in your contacts. No conversation is created for you; saying hi is your move. Tlon will never spam your contacts and will never use your contact book in any capacity without your permission.
 
 ### Invite friends
 
@@ -179,7 +179,7 @@ ChatGPT, Alexa, and Siri are services you rent. Your conversations live on their
 1. Download the iOS or Android app and sign in.  
 2. Find your bot in your direct messages. On a hosted account it's already there. Self-hosting? You run OpenClaw against your node first — there's no bot waiting.  
 3. Talk to it. You command your bot by typing instructions into the DM, in plain language.  
-4. Configure which channels it can access in its settings, and set models or API keys under `Bot Settings`.
+4. Configure which channels it can access, and set models or API keys, under `Bot Settings`. That screen is part of hosting — if you're running your own bot it won't be there, and the same settings live in your OpenClaw configuration instead.
 
 ### First things to try
 
@@ -407,4 +407,6 @@ Tlon's initial product is a high-quality messenger for small groups. Over time, 
 
 ## 12. Support
 
-Questions this guide doesn't answer? Every account has a DM with Tlon Support on the Home screen. Send a message and the team will get back ASAP.  
+Questions this guide doesn't answer? Hosted accounts have a DM with Tlon Support on the Home screen — send a message and the team will get back ASAP.
+
+That conversation gets set up when Tlon hosts your signup, so if you brought your own node you probably don't have it. Email support@tlon.io instead.  
