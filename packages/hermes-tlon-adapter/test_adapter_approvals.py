@@ -1367,6 +1367,19 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(len(adapter._pending_approvals), 1)
         self.assertIn("stays pending", cli.messages[-1][1])
 
+        # The first /ban DID block the ship, and %chat's block poke nacks on
+        # an already-blocked one — the retry must skip the re-block and still
+        # reach the decline.
+        adapter._sse.payloads["/chat/blocked"] = ["~ten"]
+        working_poke = adapter._sse.poke
+
+        async def nacking_block(app, mark, json_payload):
+            if mark == "chat-block-ship":
+                raise ConnectionError("poke nacked: already blocked")
+            return await working_poke(app, mark, json_payload)
+
+        adapter._sse.poke = nacking_block
+
         # The retry declines and clears the record.
         cli.failures = 0
         self.dispatches(

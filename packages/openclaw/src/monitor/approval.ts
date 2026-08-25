@@ -286,16 +286,16 @@ export async function applyApprovalRequest(
     ctx.getPending().filter((a) => ctx.now() - a.timestamp <= APPROVAL_TTL_MS)
   );
 
+  if (approval.type === 'group') {
+    await applyGroupApprovalRequest(approval, ctx);
+    return;
+  }
+
   // Check if ship is blocked - silently ignore
   if (await ctx.isShipBlocked(approval.requestingShip)) {
     ctx.log?.(
       `[tlon] Ignoring request from blocked ship ${approval.requestingShip}`
     );
-    return;
-  }
-
-  if (approval.type === 'group') {
-    await applyGroupApprovalRequest(approval, ctx);
     return;
   }
 
@@ -379,6 +379,19 @@ async function applyGroupApprovalRequest(
     if (ctx.now() - lastNotifyAttempt(existing) < RENOTIFY_COOLDOWN_MS) {
       return;
     }
+  }
+
+  // Every path past here sends the owner a DM or creates the record, so the
+  // blocked-list scry runs only when an action is imminent — a no-op
+  // re-observation of a suppressed approval must not cost a scry per tick.
+  if (await ctx.isShipBlocked(approval.requestingShip)) {
+    ctx.log?.(
+      `[tlon] Ignoring request from blocked ship ${approval.requestingShip}`
+    );
+    return;
+  }
+
+  if (existing) {
     const attemptAt = ctx.now();
     existing.notifyAttemptAt = attemptAt;
     const notifId = await ctx.notify(existing);

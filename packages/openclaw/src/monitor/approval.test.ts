@@ -1141,6 +1141,25 @@ describe('applyApprovalRequest', () => {
     }
   });
 
+  it('consults the block list only when an action is imminent', async () => {
+    const h = makeQueueHarness();
+    // Delivered duplicate: a no-op observation must not scry the block list
+    // (the 2-minute poll re-observes every pending invite).
+    h.setPending([h.groupApproval({ notificationMessageId: '170141184507' })]);
+    await applyApprovalRequest(h.groupApproval(), h.ctx);
+    expect(h.isShipBlocked).not.toHaveBeenCalled();
+
+    // Undelivered but inside the cooldown: still a no-op, still no scry.
+    h.setPending([h.groupApproval({ notifyAttemptAt: h.now() })]);
+    await applyApprovalRequest(h.groupApproval(), h.ctx);
+    expect(h.isShipBlocked).not.toHaveBeenCalled();
+
+    // Past the cooldown a send is imminent, so the check runs.
+    h.advance(RENOTIFY_COOLDOWN_MS + 1);
+    await applyApprovalRequest(h.groupApproval(), h.ctx);
+    expect(h.isShipBlocked).toHaveBeenCalledTimes(1);
+  });
+
   it('silently ignores requests from blocked ships', async () => {
     const h = makeQueueHarness({ blocked: true });
 

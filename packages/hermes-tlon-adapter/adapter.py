@@ -2222,7 +2222,11 @@ class TlonAdapter(BasePlatformAdapter):
                         "Request stays pending."
                     )
         elif action == "ban":
-            blocked = await self._block_ship(ship)
+            # %chat's block poke nacks when the ship is already blocked, so a
+            # /ban retried after a failed decline must not re-poke it.
+            blocked = normalize_ship(ship) in await self._blocked_ships_list()
+            if not blocked:
+                blocked = await self._block_ship(ship)
             if not blocked and approval_type(approval) == "group":
                 # The record is the invite's suppression, so dropping it after a
                 # failed block re-queues and re-DMs on the next observation.
