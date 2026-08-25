@@ -226,19 +226,27 @@ test('createNotebookNote immediately persists the authoritative create response'
     bodyMd: 'authoritative body',
     revision: 3,
   });
+  const concurrentNote = makeNotesNote(
+    6,
+    rootFolder.folderId,
+    'Collaborator note'
+  );
   vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
   vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
     makeApiNotesFolder(rootFolder),
   ]);
   vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
   vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
-  vi.spyOn(api.notes, 'createNote').mockResolvedValue({
-    id: createdNote.noteId,
-    notebookId: createdNote.notebookId,
-    folderId: createdNote.folderId,
-    title: createdNote.title,
-    bodyMd: createdNote.bodyMd,
-    revision: createdNote.revision,
+  vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
+    await db.upsertNotesNote(concurrentNote);
+    return {
+      id: createdNote.noteId,
+      notebookId: createdNote.notebookId,
+      folderId: createdNote.folderId,
+      title: createdNote.title,
+      bodyMd: createdNote.bodyMd,
+      revision: createdNote.revision,
+    };
   });
 
   await expect(
@@ -257,6 +265,9 @@ test('createNotebookNote immediately persists the authoritative create response'
   await expect(
     db.getNotesNote({ notebookFlag, noteId: createdNote.noteId })
   ).resolves.toMatchObject({ noteId: createdNote.noteId });
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: concurrentNote.noteId })
+  ).resolves.toMatchObject({ noteId: concurrentNote.noteId });
 });
 
 test('createNotebookNote does not return an existing note when create sync times out', async () => {
