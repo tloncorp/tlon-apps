@@ -76,14 +76,22 @@ describe('tlon tool execution', () => {
           state: 'resolved',
           value: {
             content: [{ type: 'text', text: BLOCKED_MIGRATION_MESSAGE }],
-            details: { blocked: true, reason: 'migration_operation' },
+            details: {
+              status: 'blocked',
+              blocked: true,
+              reason: 'migration_operation',
+            },
           },
         },
         {
           state: 'resolved',
           value: {
             content: [{ type: 'text', text: BLOCKED_MIGRATION_MESSAGE }],
-            details: { blocked: true, reason: 'migration_operation' },
+            details: {
+              status: 'blocked',
+              blocked: true,
+              reason: 'migration_operation',
+            },
           },
         },
       ]);
@@ -140,7 +148,11 @@ describe('tlon tool execution', () => {
 
     expect(result).toEqual({
       content: [{ type: 'text', text: BLOCKED_MIGRATION_MESSAGE }],
-      details: { blocked: true, reason: 'migration_operation' },
+      details: {
+        status: 'blocked',
+        blocked: true,
+        reason: 'migration_operation',
+      },
     });
     await vi.waitFor(() =>
       expect(logError).toHaveBeenCalledWith(
