@@ -806,6 +806,7 @@ export function A2UIBlock({
       } catch {
         choicePressLocksRef.current.delete(componentId);
         if (consumeAction) {
+          durableConsumptionObservedRef.current.delete(componentId);
           setLocallyConsumedChoices((previous) => {
             const next = { ...previous };
             delete next[componentId];
