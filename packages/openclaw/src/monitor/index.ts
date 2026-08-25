@@ -1687,8 +1687,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     }
 
-    // Helper to block a ship using Tlon's native blocking
-    async function blockShip(ship: string): Promise<void> {
+    // Helper to block a ship using Tlon's native blocking. Returns false when
+    // the poke failed, so callers that treat the block as the suppression can
+    // keep their state instead of dropping it.
+    async function blockShip(ship: string): Promise<boolean> {
       const normalizedShip = normalizeShip(ship);
       try {
         await api!.poke({
@@ -1697,10 +1699,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           json: { ship: normalizedShip },
         });
         runtime.log?.(`[tlon] Blocked ship ${normalizedShip}`);
+        return true;
       } catch (err) {
         runtime.error?.(
           `[tlon] Failed to block ship ${normalizedShip}: ${String(err)}`
         );
+        return false;
       }
     }
 
@@ -2060,7 +2064,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             break;
         }
       } else if (action === 'block') {
-        await blockShip(approval.requestingShip);
+        const blocked = await blockShip(approval.requestingShip);
+        if (!blocked && approval.type === 'group') {
+          // The record is the invite's suppression, so dropping it after a
+          // failed block re-queues and re-DMs on the next observation.
+          return `Could not block ${approval.requestingShip}: block failed. Request stays pending, try again.`;
+        }
         await removeFromDmAllowlist(approval.requestingShip);
       } else if (
         action === 'deny' &&

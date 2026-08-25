@@ -1260,6 +1260,40 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(adapter._pending_approvals[0]["id"], request_id)
         self.assertIn("stays pending", adapter._cli.messages[-1][1])
 
+    def test_failed_ban_keeps_group_approval_pending(self):
+        adapter = self.make_adapter()
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        request_id = adapter._pending_approvals[0]["id"]
+        working_poke = adapter._sse.poke
+
+        async def failing_poke(app, mark, json_payload):
+            if mark == "chat-block-ship":
+                raise ConnectionError("block poke failed")
+            return await working_poke(app, mark, json_payload)
+
+        adapter._sse.poke = failing_poke
+
+        self.dispatches(
+            adapter, dm_event(f"/ban {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        # The record is the invite's suppression: dropping it on a failed block
+        # re-queues the invite, and a later blocklist read could auto-accept it.
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertEqual(adapter._pending_approvals[0]["id"], request_id)
+        self.assertIn("stays pending", adapter._cli.messages[-1][1])
+
+        # The retry blocks and clears the record.
+        adapter._sse.poke = working_poke
+        self.dispatches(
+            adapter,
+            dm_event(f"/ban {request_id}", author="~mug", whom="~mug", msg_id="cmd-2"),
+            dm=True,
+        )
+
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertEqual(len(adapter._sse.pokes_for("chat-block-ship")), 1)
+
     def test_group_invite_no_owner_is_ignored(self):
         adapter = self.make_adapter({"owner_ship": ""})
 
@@ -1357,10 +1391,44 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(len(adapter._cli.notifications()), 1)
 
     def test_junk_delivery_marker_is_treated_as_undelivered(self):
+        # A marker that did not survive persistence as a real number must not
+        # suppress the retry for the record's whole 48h life. bool is an int,
+        # and json.loads turns 1e309 into inf, so both reach the number check.
+        for marker in ("yes", True, float("inf")):
+            with self.subTest(marker=marker):
+                adapter = self.make_adapter()
+                clock = FakeClock()
+                adapter._pending_approvals = [
+                    {
+                        "id": "g1234",
+                        "type": "group",
+                        "requestingShip": "~ten",
+                        "groupFlag": "~host/projects",
+                        "timestamp": clock.now_ms(),
+                        "lastNotifiedAt": clock.now_ms(),
+                        "notificationDeliveredAt": marker,
+                    }
+                ]
+
+                clock.advance_ms(adapter_mod.RENOTIFY_COOLDOWN_MS)
+                with patch.object(adapter_mod.time, "time", clock.time):
+                    asyncio.run(
+                        adapter._handle_foreigns(
+                            self.foreigns("~host/projects", "~ten")
+                        )
+                    )
+
+                self.assertEqual(len(adapter._cli.notifications()), 1)
+                self.assertEqual(
+                    adapter._pending_approvals[0]["notificationDeliveredAt"],
+                    clock.now_ms(),
+                )
+
+    def test_non_finite_attempt_stamp_retries_immediately(self):
         adapter = self.make_adapter()
         clock = FakeClock()
-        # A marker that did not survive persistence as a number must not
-        # suppress the retry for the record's whole 48h life.
+        # An inf stamp reads as "attempted in the future", so the cooldown would
+        # never elapse and the owner would never hear about the invite.
         adapter._pending_approvals = [
             {
                 "id": "g1234",
@@ -1368,18 +1436,16 @@ class AdapterApprovalTests(unittest.TestCase):
                 "requestingShip": "~ten",
                 "groupFlag": "~host/projects",
                 "timestamp": clock.now_ms(),
-                "lastNotifiedAt": clock.now_ms(),
-                "notificationDeliveredAt": "yes",
+                "lastNotifiedAt": float("inf"),
             }
         ]
 
-        clock.advance_ms(adapter_mod.RENOTIFY_COOLDOWN_MS)
         with patch.object(adapter_mod.time, "time", clock.time):
             asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
 
         self.assertEqual(len(adapter._cli.notifications()), 1)
         self.assertEqual(
-            adapter._pending_approvals[0]["notificationDeliveredAt"], clock.now_ms()
+            adapter._pending_approvals[0]["lastNotifiedAt"], clock.now_ms()
         )
 
     def test_renotified_is_counted_only_when_the_retry_lands(self):

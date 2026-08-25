@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import math
 import os
 import re
 import shutil
@@ -1843,11 +1844,19 @@ class TlonAdapter(BasePlatformAdapter):
                 # under the cooldown until a send lands. Persisted JSON can
                 # carry a junk marker, so only a real stamp suppresses.
                 delivered = existing.get("notificationDeliveredAt")
-                if isinstance(delivered, (int, float)):
+                if (
+                    isinstance(delivered, (int, float))
+                    and not isinstance(delivered, bool)
+                    and math.isfinite(delivered)
+                ):
                     return
                 try:
                     last_notified = float(existing.get("lastNotifiedAt"))
                 except (TypeError, ValueError):
+                    last_notified = 0.0
+                if not math.isfinite(last_notified):
+                    # An inf stamp reads as "attempted in the future" and would
+                    # suppress every retry for the record's whole life.
                     last_notified = 0.0
                 if now_ms - last_notified < RENOTIFY_COOLDOWN_MS:
                     return
@@ -2204,7 +2213,14 @@ class TlonAdapter(BasePlatformAdapter):
                         "Request stays pending."
                     )
         elif action == "ban":
-            await self._block_ship(ship)
+            blocked = await self._block_ship(ship)
+            if not blocked and approval_type(approval) == "group":
+                # The record is the invite's suppression, so dropping it after a
+                # failed block re-queues and re-DMs on the next observation.
+                return (
+                    f"Could not block {ship}: block failed. "
+                    "Request stays pending."
+                )
             await self._remove_from_dm_allowlist(ship)
         elif action == "reject" and approval_type(approval) == "group":
             # Reject must decline on the ship, or the next observation of the
@@ -2956,16 +2972,20 @@ class TlonAdapter(BasePlatformAdapter):
                         # anything that arrived during the outage is only seen
                         # here (or by a later live fact). Same guard as the DM
                         # catch-up — a failure must not cycle reconnects.
-                        try:
-                            if not await self._process_pending_group_invites():
+                        # Gated on a fresh settings read: auto-accept must not
+                        # act on a possibly-stale allowlist, and the invites keep
+                        # until the next reconnect.
+                        if loaded:
+                            try:
+                                if not await self._process_pending_group_invites():
+                                    logger.warning(
+                                        "[tlon] reconnect group-invite catch-up failed"
+                                    )
+                            except Exception as exc:
                                 logger.warning(
-                                    "[tlon] reconnect group-invite catch-up failed"
+                                    "[tlon] reconnect group-invite catch-up failed: %s",
+                                    exc,
                                 )
-                        except Exception as exc:
-                            logger.warning(
-                                "[tlon] reconnect group-invite catch-up failed: %s",
-                                exc,
-                            )
                         # Contacts facts do not replay either; catch up on renames
                         # (or clears) missed while disconnected, and re-check the
                         # published identity claim (e.g. a version bump that has

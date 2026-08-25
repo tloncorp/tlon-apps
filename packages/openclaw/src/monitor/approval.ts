@@ -379,10 +379,21 @@ async function applyGroupApprovalRequest(
     if (ctx.now() - lastNotifyAttempt(existing) < RENOTIFY_COOLDOWN_MS) {
       return;
     }
-    existing.notifyAttemptAt = ctx.now();
+    const attemptAt = ctx.now();
+    existing.notifyAttemptAt = attemptAt;
     const notifId = await ctx.notify(existing);
+    // The settings subscription may have replaced the pending list during the
+    // notify, detaching `existing`; stamp the live record instead. Gone from
+    // the list ⇒ removed meanwhile, so persisting it back would resurrect it.
+    const live = ctx.getPending().find((a) => a.id === existing.id);
+    if (!live) {
+      return;
+    }
     if (notifId) {
-      existing.notificationMessageId = normalizeNotificationId(notifId);
+      live.notificationMessageId = normalizeNotificationId(notifId);
+    }
+    if (live.notifyAttemptAt === undefined) {
+      live.notifyAttemptAt = attemptAt;
     }
     await ctx.persist();
     return;

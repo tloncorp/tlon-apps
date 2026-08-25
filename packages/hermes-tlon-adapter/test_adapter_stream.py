@@ -529,6 +529,58 @@ class StreamLoopTests(unittest.TestCase):
         sub_apps = [s[0] for s in sse_instances[1].subscribe_calls]
         self.assertIn("steward", sub_apps)
 
+    def test_stale_settings_skip_the_group_invite_catchup(self):
+        # The catch-up auto-accepts allowlisted invites, so a failed settings
+        # reload must not let it decide from the pre-outage allowlist; the
+        # invites stay in foreigns for the next reconnect.
+        adapter = self.make_adapter()
+        # The retry task would otherwise outlive the loop under fake sleeps.
+        adapter._start_nudge_settings_retry = lambda: None
+
+        class ConnectSSE:
+            def __init__(self, config, *, reap_detection=False):
+                self.last_heard_event_id = -1
+
+            async def authenticate(self):
+                return "cookie"
+
+            async def open(self):
+                pass
+
+            async def subscribe(self, app, path, *, optional=False):
+                return 1
+
+            async def close(self, *, graceful=True):
+                pass
+
+            async def events(self, *, on_open=None):
+                if on_open:
+                    on_open()
+                adapter._running = False
+                if False:
+                    yield None
+
+        adapter._telemetry = types.SimpleNamespace(
+            sse_reconnect=lambda **kw: None,
+            error=lambda *a, **kw: None,
+        )
+        calls = []
+        patches = self._patch_catchups(adapter, calls)
+
+        async def stale_settings():
+            calls.append("settings")
+            return False
+
+        with patch.object(adapter_mod, "TlonSSEClient", ConnectSSE):
+            async def run():
+                with patches[1], patches[2], patches[3], patches[4], \
+                     patch.object(adapter, "_load_settings_state", stale_settings):
+                    await adapter._run_stream()
+            with patch("asyncio.sleep", _instant_sleep):
+                asyncio.run(run())
+
+        self.assertEqual(calls, ["settings", "invites", "profile", "publish"])
+
     def test_idle_resume_resets_backoff(self):
         # Established fires on the first payload, not the bare 200: repeated
         # 200-then-instant-EOF resumes must escalate backoff (1, 2) instead
@@ -1302,8 +1354,10 @@ class WatchdogTickTests(unittest.TestCase):
             # Not yet a full grace interval after the delivered probe.
             adapter._sse_watchdog_tick(delivered + 29.0, 30.0)
             self.assertEqual(sse.condemns, [])
-            # A full grace interval later: condemn.
-            adapter._sse_watchdog_tick(delivered + 30.0, 30.0)
+            # Comfortably past the grace interval: condemn. Not +30.0 exactly —
+            # `(delivered + 30.0) - delivered` can be 29.999… depending on the
+            # clock's mantissa, and the >= boundary then flakes per runner.
+            adapter._sse_watchdog_tick(delivered + 30.5, 30.0)
 
         asyncio.run(run())
         self.assertEqual(len(sse.condemns), 1)
@@ -1453,7 +1507,9 @@ class WatchdogTickTests(unittest.TestCase):
             self.assertEqual(sse.condemns, [])
             delivered = adapter._sse_probe_success_at
             self.assertIsNotNone(delivered)
-            adapter._sse_watchdog_tick(delivered + 30.0, 30.0)
+            # +30.5, not +30.0: see the float-boundary note in
+            # test_condemn_requires_delivered_probe_plus_grace_interval.
+            adapter._sse_watchdog_tick(delivered + 30.5, 30.0)
 
         asyncio.run(run())
         self.assertEqual(len(sse.condemns), 1)

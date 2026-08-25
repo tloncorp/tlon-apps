@@ -1245,6 +1245,62 @@ describe('applyApprovalRequest', () => {
     expect(stored.notificationMessageId).toBe('170141184507');
     expect(h.persist).toHaveBeenCalledTimes(1);
   });
+
+  it('stamps the live record when a retry notify races a list replacement', async () => {
+    const h = makeQueueHarness();
+    const undelivered = h.groupApproval({
+      notifyAttemptAt: h.now() - RENOTIFY_COOLDOWN_MS - 1,
+    });
+    h.setPending([undelivered]);
+    let resolveNotify!: (value: string | undefined) => void;
+    h.notify.mockImplementation(
+      () =>
+        new Promise<string | undefined>((resolve) => {
+          resolveNotify = resolve;
+        })
+    );
+
+    const applied = applyApprovalRequest(h.groupApproval(), h.ctx);
+    await flush();
+
+    // The settings echo replaces the list with a fresh deserialization of the
+    // same record, detaching the object the retry is holding.
+    const replaced = h.groupApproval({ id: undelivered.id });
+    h.setPending([replaced]);
+    resolveNotify('~zod/170.141.184.507');
+    await applied;
+
+    expect(h.getPending()).toEqual([replaced]);
+    expect(replaced.notificationMessageId).toBe('170141184507');
+    expect(replaced.notifyAttemptAt).toBe(h.now());
+    expect(h.persist).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not resurrect a retried approval removed during the notify', async () => {
+    const h = makeQueueHarness();
+    h.setPending([
+      h.groupApproval({ notifyAttemptAt: h.now() - RENOTIFY_COOLDOWN_MS - 1 }),
+    ]);
+    let resolveNotify!: (value: string | undefined) => void;
+    h.notify.mockImplementation(
+      () =>
+        new Promise<string | undefined>((resolve) => {
+          resolveNotify = resolve;
+        })
+    );
+
+    const applied = applyApprovalRequest(h.groupApproval(), h.ctx);
+    await flush();
+
+    // Removed mid-notify (owner acted, or the record expired): the retry has
+    // nothing live to stamp and must not write the detached copy back.
+    h.setPending([]);
+    resolveNotify('~zod/170.141.184.507');
+    await applied;
+
+    expect(h.getPending()).toEqual([]);
+    expect(h.persist).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1325,7 +1381,12 @@ describe('mergeApprovalDeliveryState', () => {
   it('carries delivery state onto an echo that lacks it', () => {
     const merged = mergeApprovalDeliveryState(
       [group()],
-      [group({ notificationMessageId: '170141184507', notifyAttemptAt: 4_000 })]
+      [
+        group({
+          notificationMessageId: '170141184507',
+          notifyAttemptAt: 4_000,
+        }),
+      ]
     );
 
     expect(merged).toHaveLength(1);
@@ -1341,7 +1402,12 @@ describe('mergeApprovalDeliveryState', () => {
           notifyAttemptAt: 9_000,
         }),
       ],
-      [group({ notificationMessageId: '170141184507', notifyAttemptAt: 4_000 })]
+      [
+        group({
+          notificationMessageId: '170141184507',
+          notifyAttemptAt: 4_000,
+        }),
+      ]
     );
 
     expect(merged[0].notificationMessageId).toBe('170141184999');
