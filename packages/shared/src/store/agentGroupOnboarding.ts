@@ -14,6 +14,8 @@ const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 const DEFAULT_AGENT_GROUP_TITLE = 'My agent group';
 const MAX_GENERATED_GROUP_TITLE_LENGTH = 48;
+const PENDING_GROUP_ADOPTION_ATTEMPTS = 8;
+const PENDING_GROUP_ADOPTION_DELAY_MS = 500;
 const notesChannelFlights = new Map<string, Promise<db.Channel>>();
 const agentStandingFlights = new Map<string, Promise<void>>();
 const agentGroupFurnishingFlights = new Map<
@@ -170,8 +172,12 @@ async function createOrResumeAgentGroup({
     await db.pendingAgentGroupCreation.setValue(groupId);
   }
 
+  if (pendingGroupId) {
+    return waitForPendingGroupWithChat(() => adoptGroup(groupId));
+  }
+
   const local = await db.getGroup({ id: groupId });
-  if (pendingGroupId || local) {
+  if (local) {
     try {
       return await adoptGroup(groupId);
     } catch {
@@ -185,6 +191,29 @@ async function createOrResumeAgentGroup({
     memberIds: [agentShipId],
     title,
   });
+}
+
+async function waitForPendingGroupWithChat(
+  loadGroup: () => Promise<db.Group>,
+  {
+    attempts = PENDING_GROUP_ADOPTION_ATTEMPTS,
+    delayMs = PENDING_GROUP_ADOPTION_DELAY_MS,
+  }: { attempts?: number; delayMs?: number } = {}
+): Promise<db.Group> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const group = await loadGroup();
+      if (group.channels?.some((channel) => channel.type === 'chat')) {
+        return group;
+      }
+      lastError = new Error('The pending group is still creating its chat.');
+    } catch (error) {
+      lastError = error;
+    }
+    if (attempt + 1 < attempts && delayMs > 0) await wait(delayMs);
+  }
+  throw lastError ?? new Error('The pending group is not ready yet.');
 }
 
 async function finishAgentGroupFurnishing({
@@ -650,4 +679,5 @@ export const agentGroupOnboardingTesting = {
   ensureSingleNotesChannel,
   retryAgentStanding,
   startAgentGroupFurnishingFlight,
+  waitForPendingGroupWithChat,
 };

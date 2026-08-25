@@ -65,6 +65,42 @@ describe('buildAgentGroupTitle', () => {
 });
 
 describe('agent group furnishing retry', () => {
+  it('waits for a pending create to return its authoritative chat', async () => {
+    const groupWithoutChat = { id: '~zod/group', channels: [] } as never;
+    const groupWithChat = {
+      id: '~zod/group',
+      channels: [{ id: 'chat/~zod/general', type: 'chat' }],
+    } as never;
+    const loadGroup = vi
+      .fn()
+      .mockResolvedValueOnce(groupWithoutChat)
+      .mockRejectedValueOnce(new Error('not ready'))
+      .mockResolvedValueOnce(groupWithChat);
+
+    await expect(
+      agentGroupOnboardingTesting.waitForPendingGroupWithChat(loadGroup, {
+        attempts: 3,
+        delayMs: 0,
+      })
+    ).resolves.toBe(groupWithChat);
+    expect(loadGroup).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not accept an incomplete pending group', async () => {
+    const loadGroup = vi.fn().mockResolvedValue({
+      id: '~zod/group',
+      channels: [],
+    });
+
+    await expect(
+      agentGroupOnboardingTesting.waitForPendingGroupWithChat(loadGroup, {
+        attempts: 2,
+        delayMs: 0,
+      })
+    ).rejects.toThrow('still creating its chat');
+    expect(loadGroup).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps furnishing single-flight until completion settles', async () => {
     let finish!: () => void;
     const complete = new Promise<void>((resolve) => {

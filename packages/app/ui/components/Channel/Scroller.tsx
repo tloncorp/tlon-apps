@@ -267,8 +267,8 @@ const Scroller = forwardRef(
       [posts]
     );
     const a2uiActionCompletions = useMemo(
-      () => getA2UIActionCompletions(posts ?? [], currentUserId),
-      [currentUserId, posts]
+      () => getA2UIActionCompletions(posts ?? [], currentUserId, anchorToEnd),
+      [anchorToEnd, currentUserId, posts]
     );
 
     const style = useMemo(() => {

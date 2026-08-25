@@ -35,4 +35,20 @@ describe('getA2UIActionCompletions', () => {
       { sentMessageText: undefined },
     ]);
   });
+
+  it('handles the newest-first order used by bottom-anchored chats', () => {
+    const posts = [
+      post({ id: 'topics', authorId: ownerId, textContent: 'Mycology' }),
+      post({ id: 'follow-up' }),
+      post({ id: 'choice', authorId: ownerId, textContent: 'Research' }),
+      post({ id: 'surface' }),
+    ];
+
+    expect(getA2UIActionCompletions(posts, ownerId, true)).toEqual([
+      { sentMessageText: undefined },
+      { sentMessageText: 'Mycology' },
+      { sentMessageText: 'Mycology' },
+      { sentMessageText: 'Research' },
+    ]);
+  });
 });
