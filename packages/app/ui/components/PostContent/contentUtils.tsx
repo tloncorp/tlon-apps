@@ -37,6 +37,7 @@ export interface ContentContextProps {
     selection?: PostBlobDataEntryA2UISelection
   ) => void | Promise<void>;
   isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
+  isA2UIActionConsumed?: (action: A2UI.Button['action']) => boolean;
   canSendA2UIResponse?: boolean;
   /**
    * Durable selection the viewer already submitted for a control, recovered
@@ -47,6 +48,10 @@ export interface ContentContextProps {
     surfaceId: string,
     componentId: string
   ) => PostBlobDataEntryA2UISelection | undefined;
+  /** Compatibility receipts for posts created before durable selections. */
+  provisionedAgentTopics?: string[];
+  consumedA2UIMessageText?: string;
+  configuredAgentProviderIds?: string[];
   searchQuery?: string;
 }
 

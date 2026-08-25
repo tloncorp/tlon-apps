@@ -1,7 +1,11 @@
 import { A2UI } from '@tloncorp/shared/logic';
 import { describe, expect, it } from 'vitest';
 
-import { isA2UISendMessageActionConsumed } from './a2uiActionConsumption';
+import {
+  getSmallChoiceCompletionPresentation,
+  getSmallChoiceMessageSelection,
+  isA2UISendMessageActionConsumed,
+} from './a2uiActionConsumption';
 
 describe('isA2UISendMessageActionConsumed', () => {
   const send = (text: string): A2UI.ButtonAction => ({
@@ -35,5 +39,68 @@ describe('isA2UISendMessageActionConsumed', () => {
     expect(
       isA2UISendMessageActionConsumed(send('After'), undefined, replyIndex)
     ).toBe(true);
+  });
+});
+
+describe('getSmallChoiceCompletionPresentation', () => {
+  it('restores a remounted picker from its durable topics', () => {
+    expect(
+      getSmallChoiceCompletionPresentation({
+        actionConsumed: true,
+        consumedLocally: false,
+        durableTopics: ['Astronomy', 'Geometry'],
+        localTopics: [],
+      })
+    ).toEqual({ completed: true, topics: ['Astronomy', 'Geometry'] });
+  });
+
+  it('keeps an unconsumed picker expanded', () => {
+    expect(
+      getSmallChoiceCompletionPresentation({
+        actionConsumed: false,
+        consumedLocally: false,
+        durableTopics: ['Astronomy'],
+        localTopics: [],
+      })
+    ).toEqual({ completed: false, topics: [] });
+  });
+});
+
+describe('getSmallChoiceMessageSelection', () => {
+  const component: A2UI.SmallChoice = {
+    id: 'orientation',
+    component: 'SmallChoice',
+    options: [
+      { id: 'groups', label: 'Groups and channels' },
+      { id: 'computer', label: 'Your Tlon computer' },
+    ],
+    submitLabel: 'Continue',
+    action: {
+      event: { name: A2UI.action.sendMessage, context: { text: '' } },
+    },
+  };
+
+  it('recovers selected labels from the durable owner message', () => {
+    expect(
+      getSmallChoiceMessageSelection(
+        component,
+        'Groups and channels, Your Tlon computer'
+      )
+    ).toEqual(['Groups and channels', 'Your Tlon computer']);
+  });
+
+  it('uses a manually typed answer as the compact completion', () => {
+    expect(
+      getSmallChoiceMessageSelection(component, 'Tell me about identities')
+    ).toEqual(['Tell me about identities']);
+  });
+
+  it('keeps a quoted custom value containing commas intact', () => {
+    expect(
+      getSmallChoiceMessageSelection(
+        component,
+        'Groups and channels, "Research, development"'
+      )
+    ).toEqual(['Groups and channels', 'Research, development']);
   });
 });

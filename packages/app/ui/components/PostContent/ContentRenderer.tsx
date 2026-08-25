@@ -65,8 +65,12 @@ function ContentRenderer({
   onLongPress,
   onA2UIAction,
   isA2UIActionAvailable,
+  isA2UIActionConsumed,
   canSendA2UIResponse,
   getConsumedA2UISelection,
+  configuredAgentProviderIds,
+  provisionedAgentTopics,
+  consumedA2UIMessageText,
   isNotice,
   searchQuery,
   ...rest
@@ -83,8 +87,12 @@ function ContentRenderer({
       onLongPress={onLongPress}
       onA2UIAction={onA2UIAction}
       isA2UIActionAvailable={isA2UIActionAvailable}
+      isA2UIActionConsumed={isA2UIActionConsumed}
       canSendA2UIResponse={canSendA2UIResponse}
       getConsumedA2UISelection={getConsumedA2UISelection}
+      configuredAgentProviderIds={configuredAgentProviderIds}
+      provisionedAgentTopics={provisionedAgentTopics}
+      consumedA2UIMessageText={consumedA2UIMessageText}
       isNotice={isNotice}
       searchQuery={searchQuery}
     >

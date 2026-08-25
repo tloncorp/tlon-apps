@@ -433,7 +433,6 @@ export function StaticChatMessage({
     () => postContent.some((block) => block.type === 'a2ui'),
     [postContent]
   );
-  const currentUserId = useCurrentUserId();
   // One live query per channel (deduped across messages); the posts-table
   // dependency re-runs it when the viewer's reply lands, including the
   // optimistic insert, so an answered control stays locked across remounts.

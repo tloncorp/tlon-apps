@@ -140,6 +140,10 @@ export enum AnalyticsEvent {
   ActivityMarkedAllRead = 'Activity Marked All Read',
   ContactProfileSelected = 'Contact Profile Selected',
   NoteOpened = 'Note Opened',
+  /**
+   * Fires once when the owner first opens the generated onboarding entry.
+   */
+  AgentEntryFirstOpened = 'Agent Entry First Opened',
   NoteCreated = 'Note Created',
   NoteSaved = 'Note Saved',
   NoteMoved = 'Note Moved',
