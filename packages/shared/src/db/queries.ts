@@ -4521,6 +4521,7 @@ type AgentProtocolReceipt<T> = {
 
 export type AgentA2UIProtocolReceipts = {
   provision?: AgentProtocolReceipt<PostBlobDataEntryAgentProvision>;
+  provisions: AgentProtocolReceipt<PostBlobDataEntryAgentProvision>[];
   providerConfig?: AgentProtocolReceipt<PostBlobDataEntryAgentProviderConfig>;
   providerConfigs: AgentProtocolReceipt<PostBlobDataEntryAgentProviderConfig>[];
 };
@@ -4581,7 +4582,10 @@ export const getAgentA2UIProtocolReceipts = createReadQuery(
       return a.receivedAt - b.receivedAt || a.id.localeCompare(b.id);
     });
 
-    const receipts: AgentA2UIProtocolReceipts = { providerConfigs: [] };
+    const receipts: AgentA2UIProtocolReceipts = {
+      provisions: [],
+      providerConfigs: [],
+    };
     for (const row of rows) {
       if (!row.blob) continue;
       const entries = parsePostBlob(row.blob);
@@ -4591,13 +4595,15 @@ export const getAgentA2UIProtocolReceipts = createReadQuery(
       );
       for (const entry of entries) {
         if (entry.type === 'tlon-agent-provision') {
-          receipts.provision = {
+          const receipt = {
             entry,
             postId: row.id,
             receivedAt: row.receivedAt,
             sequenceNum: row.sequenceNum,
             selection,
           };
+          receipts.provision = receipt;
+          receipts.provisions.push(receipt);
         } else if (entry.type === 'tlon-agent-provider-config') {
           const receipt = {
             entry,

@@ -462,15 +462,16 @@ export function StaticChatMessage({
     authorId: currentUserId,
     enabled: canRenderA2UI && hasA2UIContent,
   });
-  const provisionReceipt = agentProtocolReceipts.data?.provision;
+  const provisionReceipts = agentProtocolReceipts.data?.provisions;
   const providerConfigReceipts = agentProtocolReceipts.data?.providerConfigs;
   // Selection-aware provision replies are consumed by their exact source
   // post/surface/component via useA2UISelections below. Only legacy replies
   // without a selection use the positional fallback.
-  const durableProvision =
-    !provisionReceipt?.selection && receiptFollowsPost(provisionReceipt, post)
-      ? provisionReceipt?.entry
-      : undefined;
+  const durableProvision = [...(provisionReceipts ?? [])]
+    .reverse()
+    .find(
+      (receipt) => !receipt.selection && receiptFollowsPost(receipt, post)
+    )?.entry;
   const provisionedAgentTopics = durableProvision?.topics;
   const getConfiguredAgentProviderIds = useCallback(
     (action: A2UI.ConfigureAgentProvidersAction) => {

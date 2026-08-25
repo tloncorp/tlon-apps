@@ -17,6 +17,7 @@ const wait = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 const LANDING_CONSUMPTION_TIMEOUT_MS = 10_000;
 const FURNISH_ATTEMPT_TIMEOUT_MS = 30_000;
+const BOT_NAME_SYNC_TIMEOUT_MS = 8_000;
 
 async function waitForLandingConsumption(isCancelled: () => boolean) {
   const deadline = Date.now() + LANDING_CONSUMPTION_TIMEOUT_MS;
@@ -100,7 +101,7 @@ export function AgentOnboardingSequence(props: {
       try {
         await withTimeout(
           syncInitialBotName(),
-          Math.max(1, deadline - Date.now()),
+          BOT_NAME_SYNC_TIMEOUT_MS,
           'Agent onboarding bot nickname sync timed out'
         );
       } catch (error) {
