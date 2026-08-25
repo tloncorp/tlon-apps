@@ -22,11 +22,13 @@ describe('botHomeGroupHasDefaultTitle', () => {
   );
 
   it('recognizes the exact title generated from the previous nickname', () => {
-    expect(
-      botHomeGroupHasDefaultTitle(groupWithTitle("Alice's Group"), 'Alice')
-    ).toBe(true);
-    expect(
-      botHomeGroupHasDefaultTitle(groupWithTitle("Alice's Group"), 'Bob')
-    ).toBe(false);
+    for (const title of ["Alice's Group", "Alice's Tlonbot"]) {
+      expect(botHomeGroupHasDefaultTitle(groupWithTitle(title), 'Alice')).toBe(
+        true
+      );
+      expect(botHomeGroupHasDefaultTitle(groupWithTitle(title), 'Bob')).toBe(
+        false
+      );
+    }
   });
 });
