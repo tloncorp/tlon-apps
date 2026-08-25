@@ -1108,11 +1108,52 @@ class AdapterApprovalTests(unittest.TestCase):
             ["chat/~host/general", "heap/~host/art"],
         )
 
+    def test_allowlisted_but_blocked_inviter_is_silently_ignored(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~ten"})
+        adapter._sse.payloads["/chat/blocked"] = ["~ten"]
+
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+
+        # Confirmed blocked: no join, no card, and the flag is terminal.
+        self.assertNotIn(
+            ("groups", "accept-invite", "~host/projects"), adapter._cli.commands
+        )
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertEqual(adapter._cli.notifications(), [])
+        self.assertIn("~host/projects", adapter._processed_group_invites)
+
+    def test_allowlisted_inviter_queues_when_block_list_is_unreadable(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~ten"})
+        # No /chat/blocked payload: the scry raises, so the lookup is unknown
+        # and auto-accept must fall through to the queue path.
+
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+
+        self.assertNotIn(
+            ("groups", "accept-invite", "~host/projects"), adapter._cli.commands
+        )
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertEqual(len(adapter._cli.notifications()), 1)
+
+    def test_owner_invite_accepts_without_consulting_the_block_list(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/groups-ui/v7/init"] = self.init_with_channels(
+            "~host/projects", []
+        )
+
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~mug")))
+
+        self.assertIn(("groups", "accept-invite", "~host/projects"), adapter._cli.commands)
+        self.assertNotIn("/chat/blocked", adapter._sse.scries)
+
     def test_allowlisted_inviter_auto_accepts(self):
         adapter = self.make_adapter({"group_invite_allowlist": "~ten"})
         adapter._sse.payloads["/groups-ui/v7/init"] = self.init_with_channels(
             "~host/projects", []
         )
+        # Auto-accept requires a readable block list confirming the inviter
+        # is not on it.
+        adapter._sse.payloads["/chat/blocked"] = []
 
         asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
 
@@ -1121,6 +1162,7 @@ class AdapterApprovalTests(unittest.TestCase):
 
     def test_later_allowlisting_accepts_and_clears_the_queued_approval(self):
         adapter = self.make_adapter()
+        adapter._sse.payloads["/chat/blocked"] = []
         adapter._sse.payloads["/groups-ui/v7/init"] = self.init_with_channels(
             "~host/projects", []
         )

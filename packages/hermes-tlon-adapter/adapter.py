@@ -2062,15 +2062,24 @@ class TlonAdapter(BasePlatformAdapter):
         return normalize_ship(ship) in blocked
 
     async def _blocked_ships_list(self) -> set[str]:
+        blocked = await self._scry_blocked_ships()
+        return blocked if blocked is not None else set()
+
+    async def _scry_blocked_ships(self) -> Optional[set[str]]:
+        """Blocked ships, or None when the list could not be read.
+
+        SECURITY: auto-accept gates must treat None as unknown and never
+        accept on it; fail-open conveniences use _blocked_ships_list.
+        """
         if self._sse is None:
-            return set()
+            return None
         try:
             blocked = await self._sse.scry("/chat/blocked")
         except Exception as exc:
             logger.debug("[tlon] blocked-ships scry failed: %s", exc)
-            return set()
+            return None
         if not isinstance(blocked, list):
-            return set()
+            return None
         return {
             normalize_ship(str(ship or ""))
             for ship in blocked
@@ -3913,7 +3922,29 @@ class TlonAdapter(BasePlatformAdapter):
             )
 
     async def _handle_group_invite(self, flag: str, *, inviter: str, title: str) -> None:
-        if self._group_invite_authorized(inviter):
+        ship = normalize_ship(inviter)
+        owner = self.tlon_config.owner_ship
+        accept = False
+        if owner and ship == owner:
+            # Owner invites accept without consulting the block list.
+            accept = True
+        elif self._group_invite_authorized(inviter):
+            # SECURITY: auto-accept requires a positive "not blocked"
+            # confirmation (openclaw parity). A failed lookup is unknown and
+            # falls through to the queue path — it must never auto-accept.
+            blocked = await self._scry_blocked_ships()
+            if blocked is None:
+                pass
+            elif ship in blocked:
+                # Confirmed blocked: silent ignore, no card.
+                logger.info(
+                    "[tlon] ignoring group invite %s from blocked %s", flag, inviter
+                )
+                self._processed_group_invites.add(flag)
+                return
+            else:
+                accept = True
+        if accept:
             if await self._accept_group_invite(flag):
                 # Mark processed only on success; a failed accept retries.
                 self._processed_group_invites.add(flag)
