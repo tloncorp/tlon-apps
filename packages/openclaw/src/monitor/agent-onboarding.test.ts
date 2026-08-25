@@ -41,6 +41,57 @@ const provision = {
   notebookTitle: 'Updates',
 };
 
+type RequestContext = Parameters<typeof handleAgentOnboardingRequest>[0];
+
+function requestContext(
+  overrides: Partial<RequestContext> = {}
+): RequestContext {
+  return {
+    api: { scry: vi.fn() },
+    botShip: '~bot',
+    channelNest: 'chat/~ten/group/general',
+    groupId: provision.groupId,
+    ownerShip: '~ten',
+    senderShip: '~ten',
+    blob: appendToPostBlob(undefined, provision),
+    ...overrides,
+  };
+}
+
+type ScanContext = Parameters<
+  typeof agentOnboardingTesting.rememberFirstRun
+>[1];
+
+function scanContext(overrides: Partial<ScanContext> = {}): ScanContext {
+  return {
+    api: { scry: vi.fn() },
+    botShip: '~bot',
+    channelNest: 'chat/~ten/group/general',
+    groupId: provision.groupId,
+    ownerShip: '~ten',
+    ...overrides,
+  };
+}
+
+function provisionedGroup(
+  overrides: Partial<{
+    hostUserId: string;
+    channels: Array<{ id: string; type: string }>;
+    members: Array<{
+      contactId: string;
+      status: string;
+      roles: string[];
+    }>;
+  }> = {}
+) {
+  return {
+    hostUserId: '~ten',
+    channels: [{ id: provision.notebookNest, type: 'notes' }],
+    members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+    ...overrides,
+  };
+}
+
 function firstGroupIntro(timestamp = 0) {
   return {
     author: '~ten',
@@ -270,13 +321,7 @@ describe('first-run durable claims', () => {
 
 describe('first-run correlation', () => {
   it('keeps reprovisioned runs distinct and rejects an ambiguous notebook fallback', () => {
-    const context = {
-      api: { scry: vi.fn() },
-      botShip: '~bot',
-      channelNest: 'chat/~ten/group/general',
-      groupId: provision.groupId,
-      ownerShip: '~ten',
-    };
+    const context = scanContext();
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'run-1' },
       context,
@@ -1693,34 +1738,23 @@ describe('primary onboarding cron slot', () => {
       topics: ['Robotics'],
     };
     await expect(
-      handleAgentOnboardingRequest(
-        {
-          api: { scry: vi.fn() },
-          botShip: '~bot',
-          channelNest: 'chat/~ten/group/general',
-          groupId: provision.groupId,
-          ownerShip: '~ten',
-          senderShip: '~ten',
-          blob: appendToPostBlob(undefined, provision),
-        },
-        {
-          fetchHistory: vi.fn(async () => [
-            {
-              author: '~ten',
-              content: 'AI, Climate',
-              timestamp: 1,
-              blob: appendToPostBlob(undefined, provision),
-            },
-            {
-              author: '~ten',
-              content: 'Robotics',
-              timestamp: 2,
-              blob: appendToPostBlob(undefined, newerProvision),
-            },
-          ]),
-          getCron,
-        }
-      )
+      handleAgentOnboardingRequest(requestContext(), {
+        fetchHistory: vi.fn(async () => [
+          {
+            author: '~ten',
+            content: 'AI, Climate',
+            timestamp: 1,
+            blob: appendToPostBlob(undefined, provision),
+          },
+          {
+            author: '~ten',
+            content: 'Robotics',
+            timestamp: 2,
+            blob: appendToPostBlob(undefined, newerProvision),
+          },
+        ]),
+        getCron,
+      })
     ).resolves.toBe(true);
 
     expect(getCron).not.toHaveBeenCalled();
@@ -2365,28 +2399,17 @@ describe('provision coordinator ordering', () => {
     } as unknown as TlonCronService;
 
     await expect(
-      handleAgentOnboardingRequest(
-        {
-          api: { scry: vi.fn() },
-          botShip: '~bot',
-          channelNest: 'chat/~ten/group/general',
-          groupId: provision.groupId,
-          ownerShip: '~ten',
-          senderShip: '~ten',
-          blob: appendToPostBlob(undefined, provision),
-        },
-        {
-          fetchHistory: vi.fn(async () => []),
-          getCron: () => cron,
-          getGroup,
-          sendPost: vi.fn(async () => ({
-            channel: 'tlon' as const,
-            messageId: 'post',
-            sentAt: 0,
-          })),
-          sleep,
-        }
-      )
+      handleAgentOnboardingRequest(requestContext(), {
+        fetchHistory: vi.fn(async () => []),
+        getCron: () => cron,
+        getGroup,
+        sendPost: vi.fn(async () => ({
+          channel: 'tlon' as const,
+          messageId: 'post',
+          sentAt: 0,
+        })),
+        sleep,
+      })
     ).resolves.toBe(true);
 
     expect(getGroup).toHaveBeenCalledTimes(2);
@@ -2401,24 +2424,13 @@ describe('provision coordinator ordering', () => {
       members: [{ contactId: '~bot', status: 'joined', roles: [] }],
     };
     await expect(
-      handleAgentOnboardingRequest(
-        {
-          api: { scry: vi.fn() },
-          botShip: '~bot',
-          channelNest: 'chat/~ten/group/general',
-          groupId: provision.groupId,
-          ownerShip: '~ten',
-          senderShip: '~ten',
-          blob: appendToPostBlob(undefined, provision),
-        },
-        {
-          fetchHistory: vi.fn(async () => []),
-          getCron: () => undefined as never,
-          getGroup: vi.fn(async () => withoutAdmin),
-          sendPost: vi.fn(),
-          sleep: vi.fn(async () => {}),
-        }
-      )
+      handleAgentOnboardingRequest(requestContext(), {
+        fetchHistory: vi.fn(async () => []),
+        getCron: () => undefined as never,
+        getGroup: vi.fn(async () => withoutAdmin),
+        sendPost: vi.fn(),
+        sleep: vi.fn(async () => {}),
+      })
     ).rejects.toThrow('agent is not an admin yet');
   });
 
@@ -2525,15 +2537,7 @@ describe('provision coordinator ordering', () => {
         .mockRejectedValueOnce(new Error('enqueue unavailable'))
         .mockResolvedValueOnce({ enqueued: true, runId: 'run-1' }),
     } as unknown as TlonCronService;
-    const context = {
-      api: { scry: vi.fn() },
-      botShip: '~bot',
-      channelNest: 'chat/~ten/group/general',
-      groupId: provision.groupId,
-      ownerShip: '~ten',
-      senderShip: '~ten',
-      blob: appendToPostBlob(undefined, provision),
-    };
+    const context = requestContext();
     const deps = {
       fetchHistory: vi.fn(async () => []),
       getCron: () => cron,
@@ -2584,15 +2588,7 @@ describe('provision coordinator ordering', () => {
       timestamp: number;
       blob?: string;
     }> = [];
-    const context = {
-      api: { scry: vi.fn() },
-      botShip: '~bot',
-      channelNest: 'chat/~ten/group/general',
-      groupId: provision.groupId,
-      ownerShip: '~ten',
-      senderShip: '~ten',
-      blob: appendToPostBlob(undefined, provision),
-    };
+    const context = requestContext();
     const deps = {
       fetchHistory: vi.fn(async () => history),
       getCron: () => cron,
@@ -2667,15 +2663,7 @@ describe('provision coordinator ordering', () => {
       });
       return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
     });
-    const context = {
-      api: { scry: vi.fn() },
-      botShip: '~bot',
-      channelNest: 'chat/~ten/group/general',
-      groupId: provision.groupId,
-      ownerShip: '~ten',
-      senderShip: '~ten',
-      blob: appendToPostBlob(undefined, provision),
-    };
+    const context = requestContext();
     const deps = {
       fetchHistory: vi.fn(async () => history),
       getCron: () => cron,
@@ -2769,28 +2757,17 @@ describe('provision coordinator ordering', () => {
       enqueueRun: vi.fn(),
     } as unknown as TlonCronService;
 
-    await handleAgentOnboardingRequest(
-      {
-        api: { scry: vi.fn() },
-        botShip: '~bot',
-        channelNest: 'chat/~ten/group/general',
-        groupId: provision.groupId,
-        ownerShip: '~ten',
-        senderShip: '~ten',
-        blob: appendToPostBlob(undefined, provision),
-      },
-      {
-        fetchHistory: vi.fn(async () => history),
-        getCron: () => cron,
-        getGroup: vi.fn(async () => ({
-          hostUserId: '~ten',
-          channels: [{ id: provision.notebookNest, type: 'notes' }],
-          members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
-        })),
-        sendPost,
-        sleep: vi.fn(async () => {}),
-      }
-    );
+    await handleAgentOnboardingRequest(requestContext(), {
+      fetchHistory: vi.fn(async () => history),
+      getCron: () => cron,
+      getGroup: vi.fn(async () => ({
+        hostUserId: '~ten',
+        channels: [{ id: provision.notebookNest, type: 'notes' }],
+        members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+      })),
+      sendPost,
+      sleep: vi.fn(async () => {}),
+    });
 
     expect(cron.enqueueRun).not.toHaveBeenCalled();
     expect(sendPost).toHaveBeenCalledTimes(2);
@@ -2807,13 +2784,7 @@ describe('provision coordinator ordering', () => {
   });
 
   it('fails a restored successful run whose note delivery failed', async () => {
-    const context = {
-      api: { scry: vi.fn() },
-      botShip: '~bot',
-      channelNest: 'chat/~ten/group/general',
-      groupId: provision.groupId,
-      ownerShip: '~ten',
-    };
+    const context = scanContext();
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'run-before-restart' },
       context,
@@ -2934,28 +2905,15 @@ describe('provision coordinator ordering', () => {
     ];
 
     await expect(
-      handleAgentOnboardingRequest(
-        {
-          api: { scry: vi.fn() },
-          botShip: '~bot',
-          channelNest: 'chat/~ten/group/general',
-          groupId: provision.groupId,
-          ownerShip: '~ten',
-          senderShip: '~ten',
-          blob: appendToPostBlob(undefined, provision),
-        },
-        {
-          fetchHistory: vi.fn(async () => history),
-          getCron: () => undefined as never,
-          getGroup: vi.fn(async () => ({
-            hostUserId: '~ten',
-            channels: [{ id: provision.notebookNest, type: 'notes' }],
-            members: [
-              { contactId: '~bot', status: 'joined', roles: ['admin'] },
-            ],
-          })),
-        }
-      )
+      handleAgentOnboardingRequest(requestContext(), {
+        fetchHistory: vi.fn(async () => history),
+        getCron: () => undefined as never,
+        getGroup: vi.fn(async () => ({
+          hostUserId: '~ten',
+          channels: [{ id: provision.notebookNest, type: 'notes' }],
+          members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+        })),
+      })
     ).rejects.toThrow('cron service is not available while restoring setup');
   });
 
@@ -2968,13 +2926,7 @@ describe('provision coordinator ordering', () => {
     const sleep = vi.fn(async () => {});
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-complete' },
-      {
-        api: { scry: vi.fn() },
-        botShip: '~bot',
-        channelNest: 'chat/~ten/group/general',
-        groupId: provision.groupId,
-        ownerShip: '~ten',
-      },
+      scanContext(),
       provision
     );
 
@@ -3093,13 +3045,7 @@ describe('provision coordinator ordering', () => {
     const sendPost = vi.fn();
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'expected-run' },
-      {
-        api: { scry: vi.fn() },
-        botShip: '~bot',
-        channelNest: 'chat/~ten/group/general',
-        groupId: provision.groupId,
-        ownerShip: '~ten',
-      },
+      scanContext(),
       provision,
       undefined,
       'shared-job'
@@ -3177,13 +3123,7 @@ describe('provision coordinator ordering', () => {
     const listNotes = vi.fn(async () => []);
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-authoritative' },
-      {
-        api: { scry: vi.fn() },
-        botShip: '~bot',
-        channelNest: 'chat/~ten/group/general',
-        groupId: provision.groupId,
-        ownerShip: '~ten',
-      },
+      scanContext(),
       provision
     );
     recordDeliveredNote(provision.notebookNest, {
@@ -3287,13 +3227,7 @@ describe('provision coordinator ordering', () => {
     }));
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-undelivered' },
-      {
-        api: { scry: vi.fn() },
-        botShip: '~bot',
-        channelNest: 'chat/~ten/group/general',
-        groupId: provision.groupId,
-        ownerShip: '~ten',
-      },
+      scanContext(),
       provision
     );
 
@@ -3338,13 +3272,7 @@ describe('provision coordinator ordering', () => {
     });
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'matched-run' },
-      {
-        api: { scry: vi.fn() },
-        botShip: '~bot',
-        channelNest: 'chat/~ten/group/general',
-        groupId: provision.groupId,
-        ownerShip: '~ten',
-      },
+      scanContext(),
       provision,
       provision.notebookTitle,
       'job-1'
@@ -3397,13 +3325,7 @@ describe('provision coordinator ordering', () => {
     store.register.mockRejectedValueOnce(new Error('temporary store failure'));
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'transient-store-run' },
-      {
-        api: { scry: vi.fn() },
-        botShip: '~bot',
-        channelNest: 'chat/~ten/group/general',
-        groupId: provision.groupId,
-        ownerShip: '~ten',
-      },
+      scanContext(),
       provision,
       provision.notebookTitle,
       'job-1'
@@ -3491,13 +3413,7 @@ describe('provision coordinator ordering', () => {
     }));
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-delivery-fallback' },
-      {
-        api: { scry: vi.fn() },
-        botShip: '~bot',
-        channelNest: 'chat/~ten/group/general',
-        groupId: provision.groupId,
-        ownerShip: '~ten',
-      },
+      scanContext(),
       provision
     );
 
@@ -3613,13 +3529,7 @@ describe('provision coordinator ordering', () => {
     }));
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-race' },
-      {
-        api: { scry: vi.fn() },
-        botShip: '~bot',
-        channelNest: 'chat/~ten/group/general',
-        groupId: provision.groupId,
-        ownerShip: '~ten',
-      },
+      scanContext(),
       provision
     );
     const fetchHistory = vi
