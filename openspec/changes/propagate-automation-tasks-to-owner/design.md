@@ -58,12 +58,14 @@ See proposal.md — Why. Relevant current state:
   scry. Admits the local ship and the configured owner. Initial
   fact: one `%tasks` snapshot of the local projection.
 - `/v1/automation/mirror` — the **client feed**, local-only, pairing
-  1:1 with the `/x/v1/automation/mirror` scry. Serves
-  the combined view: the local projection when non-empty (attributed
-  to `our`) plus one entry per mirrored bot. Initial facts: one
-  `%tasks` snapshot per bot in that view. Subsequent facts re-emit
-  whatever changed it — a mirror mutation, or an accepted `%project`
-  attributed to `our`.
+  1:1 with the `/x/v1/automation/mirror` scry. Serves the mirror
+  itself: one entry per ship, the local ship's entry written by
+  accepted `%project` actions (decision 6), so every entry follows
+  the same presence semantics — absent until first
+  projection/snapshot, present (possibly empty) after. Initial
+  facts: one `%tasks` snapshot per entry. Subsequent facts re-emit
+  whatever changed an entry — a subscription fact, or an accepted
+  `%project` attributed to `our`.
 
 Bare `/v1/automation` binds nothing: the feeds are distinct
 resources, so neither may sit at the namespace root with the other
@@ -95,8 +97,13 @@ In `sur/steward/automation.hoon`:
   $%  [%tasks bot=ship tasks=(map @t task)]
       [%set bot=ship id=@t =task]
       [%del bot=ship id=@t]
+      [%gone bot=ship]                        ::  entry removed (untrust)
   ==
 ```
+
+`%gone` exists because presence semantics distinguish an empty entry
+("synced, zero tasks") from an absent one; an empty `%tasks`
+snapshot cannot express untrust-driven entry deletion.
 
 Separate marks (`%steward-automation-update-1`,
 `%steward-automation-mirror-1` — "update" is implied for a feed
@@ -132,11 +139,16 @@ The owner subscribes on `%trust-bot`, guarding the watch on
 subscription liveness in `wex.bowl` — not on trust-set membership —
 so the poke is an idempotent "ensure subscribed": a no-op while a
 subscription is live, a repair after a nacked watch. On
-`%untrust-bot` it leaves the subscription (if live per `wex.bowl`)
-and deletes that bot's mirror entry (a stale mirror of
+`%untrust-bot` it leaves the subscription unconditionally — a
+`%leave` with no live subscription is harmless, and simpler than
+guarding — and deletes that bot's mirror entry, emitting `%gone` on
+the client feed. Untrusting the local ship is a set-only no-op for
+automation: there is no subscription to leave and `mirror[our]` is
+`%project`-owned, never deleted by trust changes. Deleting a remote
+entry matters because a stale mirror of
 an untrusted bot would misrepresent "bots we manage"; lens keeps runs
 on untrust because runs are history — the mirror is current state,
-so it goes). Wire: `/automation/tasks/(scot %p bot)`, matching the
+so it goes. Wire: `/automation/tasks/(scot %p bot)`, matching the
 watched path with the target bot appended. On `%kick`:
 resubscribe only if the bot is still trusted. On watch-nack: slog and
 keep existing mirrored state.
@@ -148,10 +160,10 @@ and a second admin surface would drift from it.
 There is deliberately no self-subscription. Subscription machinery
 pays for transport and gap-repair across ships; the local projection
 already lives in the same agent state, so a self-watch would only
-round-trip through Gall to duplicate a map. `%trust-bot` of the
-local ship creates no watch and no mirror entry — a self-owned bot
-works with `%configure owner=our` alone, its tasks served on the
-client feed straight from `tasks.automation.state` (decision 1).
+round-trip through Gall to rewrite state it already owns.
+`%trust-bot` of the local ship creates no watch — a self-owned bot
+works with `%configure owner=our` alone; `%project` writes its
+mirror entry directly (decision 6).
 
 ### 5. Snapshot replaces, deltas apply
 
@@ -163,17 +175,31 @@ delta already in flight). Every mirror mutation re-emits on
 `/v1/automation/mirror` as a `mirror-update` whose `bot` comes from
 the subscription wire, and an accepted `%project` that changes the
 local projection emits `mirror-update`s attributed to `our` there
-alongside the un-attributed `/v1/automation/tasks` broadcast. The mirror map
-itself never contains the local ship — the client view composes it
-with `tasks.automation.state` at read/emit time.
+alongside the un-attributed `/v1/automation/tasks` broadcast.
+`%project` is simply the local writer of the mirror's `our` entry —
+a snapshot-replace with delta computation, exactly parallel to a
+received snapshot fact — so the client view IS the mirror, with no
+composition step. A snapshot (received or projected) that leaves the
+stored entry unchanged emits nothing, matching the bot-side
+equal-projection rule.
 
 ### 6. Reshape branch-only `state-1`; defer migration work
 
-`state:v1:sa` gains `mirror=(map ship (map @t task))`. The agent's
+`state:v1:sa` becomes a single `mirror=(map ship (map @t task))`,
+replacing the flat `tasks` field: the local projection lives under
+`our`, mirrored bots under their ships. The writers are disjoint by
+construction — `%project` writes only `our`; subscription facts
+write only the subscribed bot, never `our` — which is what dissolves
+the original tasks/mirror separation rationale (authority split and
+writer collision). Unifying also gives every entry one presence
+rule (absent until first projection/snapshot, possibly-empty after)
+with no tracking flag. The `/v1/automation/tasks` feed and the
+released `/x/v1/automation/tasks` scry read `mirror[our]` (empty map
+when absent), preserving their contracts. The agent's
 `versioned-state` stays `$%(state-1 state-0)` and the existing
 `state-0-to-1` migration needs no edit: it initializes the automation
-module from the bunt (`*state:v1:sa`), which now yields an empty
-mirror alongside the empty task map. Beyond that incidental effect,
+module from the bunt (`*state:v1:sa`), which yields an empty
+mirror. Beyond that incidental effect,
 this change makes no released-state migration commitments: the
 migration spec requirement is untouched, and upgraded owner ships are
 not auto-subscribed to previously trusted bots — mirroring starts
@@ -191,13 +217,12 @@ shape stops moving.
   tagged-union JSON via `of`/`ot`/`frond` per repo mark conventions.
 - `desk/mar/steward/automation/mirror-map-1.hoon` — the scry mark,
   named for its shape in parallel with `task-map-1`; grows the full
-  `(map ship (map @t task))` to
-  `{ "mirror": { "~zod": { "<id>": { ... } } } }`, empty mirror as
-  `{ "mirror": {} }`.
-- New scry `/x/v1/automation/mirror` returns that mark; the peek
-  composes the mirror with the local projection (under `our`, when
-  non-empty) before growing, matching the client feed's combined
-  view. The existing `/x/v1/automation/tasks` (bot-local projection)
+  `(map ship (map @t task))` to the bare ship-keyed object
+  `{ "~zod": { "<id>": { ... } } }`, empty mirror as `{}`. No
+  wrapper key — ship keys are self-identifying; the released `tasks`
+  scry keeps its `{ "tasks": ... }` wrapper (out of scope here).
+- New scry `/x/v1/automation/mirror` returns that mark, growing the
+  mirror directly. The existing `/x/v1/automation/tasks` (bot-local projection)
   is unchanged.
 
 ### 8. Per-path `on-watch` authorization

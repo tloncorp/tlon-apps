@@ -40,8 +40,9 @@ fact").
 - `on-watch` authorization becomes per-path: the bot's automation path
   admits the configured owner cross-ship (and local subscribers);
   every existing path stays local-only.
-- The branch-only agent state shape gains the owner-side per-bot
-  mirror in place — no new state version and no migration changes.
+- The branch-only agent state replaces the flat task map with a
+  single per-ship mirror (the local projection stored under the
+  local ship) — no new state version and no migration changes.
   Released-state migration handling (including subscribing
   already-trusted bots on upgrade) is deferred to follow-up work on
   this branch.
@@ -73,7 +74,7 @@ to follow-up on this branch.
 ## Impact
 
 - `desk/sur/steward/automation.hoon` — new per-feed update types;
-  state gains the per-bot mirror.
+  state becomes the per-ship mirror.
 - `desk/app/steward.hoon` — `au-core` grows watch/fact/mirror logic;
   `on-watch` auth moves per-path; new subscription wires and
   kick/nack handling in `++agent`; the branch-only state shape gains
