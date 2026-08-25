@@ -248,9 +248,7 @@ test('createNotebookNote immediately persists the authoritative create response'
       revision: createdNote.revision,
     };
   });
-  vi.spyOn(api.notes, 'getNote').mockResolvedValue(
-    makeApiNotesNote(createdNote)
-  );
+  const getNote = vi.spyOn(api.notes, 'getNote');
 
   await expect(
     createNotebookNote({
@@ -265,6 +263,7 @@ test('createNotebookNote immediately persists the authoritative create response'
     revision: createdNote.revision,
   });
   expect(api.notes.listNotes).toHaveBeenCalledTimes(1);
+  expect(getNote).not.toHaveBeenCalled();
   await expect(
     db.getNotesNote({ notebookFlag, noteId: createdNote.noteId })
   ).resolves.toMatchObject({ noteId: createdNote.noteId });
@@ -273,7 +272,7 @@ test('createNotebookNote immediately persists the authoritative create response'
   ).resolves.toMatchObject({ noteId: concurrentNote.noteId });
 });
 
-test('createNotebookNote does not resurrect a note deleted before its response arrives', async () => {
+test('createNotebookNote does not discard a host response while the replica lags', async () => {
   const createdNote = makeNotesNote(5, rootFolder.folderId, 'Created note');
   vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
   vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
@@ -289,9 +288,9 @@ test('createNotebookNote does not resurrect a note deleted before its response a
     bodyMd: createdNote.bodyMd,
     revision: createdNote.revision,
   });
-  vi.spyOn(api.notes, 'getNote').mockRejectedValue(
-    new api.BadResponseError(404, '')
-  );
+  const getNote = vi
+    .spyOn(api.notes, 'getNote')
+    .mockRejectedValue(new api.BadResponseError(404, ''));
 
   await expect(
     createNotebookNote({
@@ -299,10 +298,11 @@ test('createNotebookNote does not resurrect a note deleted before its response a
       folderId: rootFolder.folderId,
       title: createdNote.title,
     })
-  ).resolves.toBeNull();
+  ).resolves.toMatchObject({ noteId: createdNote.noteId });
+  expect(getNote).not.toHaveBeenCalled();
   await expect(
     db.getNotesNote({ notebookFlag, noteId: createdNote.noteId })
-  ).resolves.toBeNull();
+  ).resolves.toMatchObject({ noteId: createdNote.noteId });
 });
 
 test('createNotebookNote does not return an existing note when create sync times out', async () => {
