@@ -45,8 +45,7 @@
   |=  tasks=(list identified-task:v1:au)
   =/  m  (mare ,~)
   ^-  form:m
-  ;<  *  bind:m
-    (do-poke %steward-automation-action-1 !>(`action:v1:au`[%project tasks]))
+  ;<  *  bind:m  (do-project tasks)
   (pure:m ~)
 ++  parse-json
   |=  body=@t
@@ -379,6 +378,105 @@
   ;<  ~  bind:m  (trust moon)
   (pure:m ~)
 ::
+::  automation sync fixtures: ~dev doubles as the bot under test (with
+::  ~bus configured as its owner) and as the owner mirroring +moon
+::
+++  moon-tasks-wire  ^-  wire  /automation/tasks/(scot %p moon)
+::
+++  got-state
+  =/  m  (mare ,state-1)
+  ^-  form:m
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  (pure:m !<(state-1 !<(vase q.res)))
+::
+::  the local projection: the local ship's mirror entry, read as empty
+::  while the harness has never projected
+::
+++  local-automation-tasks
+  |=  st=state-1
+  ^-  (map @t task:v1:au)
+  (~(gut by mirror.automation.st) ~dev *(map @t task:v1:au))
+::
+++  task-map-of
+  |=  entries=(list identified-task:v1:au)
+  ^-  (map @t task:v1:au)
+  (~(gas by *(map @t task:v1:au)) entries)
+::
+++  do-project
+  |=  tasks=(list identified-task:v1:au)
+  (do-poke %steward-automation-action-1 !>(`action:v1:au`[%project tasks]))
+::
+++  do-moon-tasks-sign
+  |=  =sign:agent:gall
+  (do-agent moon-tasks-wire [moon %steward] sign)
+::
+++  give-moon-update
+  |=  =update:v1:au
+  (do-moon-tasks-sign %fact %steward-automation-update-1 !>(update))
+::
+++  ex-moon-automation-watch
+  (ex-task moon-tasks-wire [moon %steward] %watch /v1/automation/tasks)
+::
+++  ex-moon-automation-leave
+  (ex-task moon-tasks-wire [moon %steward] %leave ~)
+::
+++  ex-tasks-fact
+  |=  =update:v1:au
+  (ex-fact ~[/v1/automation/tasks] %steward-automation-update-1 !>(update))
+::
+++  ex-mirror-fact
+  |=  =mirror-update:v1:au
+  (ex-fact ~[/v1/automation/mirror] %steward-automation-mirror-1 !>(mirror-update))
+::
+::  initial watch facts go out on empty paths (new subscriber only)
+::
+++  ex-tasks-snapshot-fact
+  |=  tasks=(map @t task:v1:au)
+  (ex-fact ~ %steward-automation-update-1 !>(`update:v1:au`[%tasks tasks]))
+::
+++  ex-mirror-snapshot-fact
+  |=  [bot=ship tasks=(map @t task:v1:au)]
+  (ex-fact ~ %steward-automation-mirror-1 !>(`mirror-update:v1:au`[%tasks bot tasks]))
+::
+::  the expected delta facts for a projection change, in the agent's
+::  emission order: %set per added or changed ID in new-map iteration
+::  order, then %del per removed ID in old-map order. deterministic
+::  because equal map contents give equal nouns and thus equal +tap order
+::
+++  ex-projection-delta-facts
+  |=  [old=(map @t task:v1:au) new=(map @t task:v1:au)]
+  ^-  (list $-(card tang))
+  %+  weld
+    ^-  (list $-(card tang))
+    %+  murn  ~(tap by new)
+    |=  [id=@t t=task:v1:au]
+    ^-  (unit $-(card tang))
+    ?:  =((~(get by old) id) `t)  ~
+    `(ex-tasks-fact %set id t)
+  ^-  (list $-(card tang))
+  %+  murn  ~(tap by old)
+  |=  [id=@t t=task:v1:au]
+  ^-  (unit $-(card tang))
+  ?:  (~(has by new) id)  ~
+  `(ex-tasks-fact %del id)
+::
+++  ex-mirror-delta-facts
+  |=  [bot=ship old=(map @t task:v1:au) new=(map @t task:v1:au)]
+  ^-  (list $-(card tang))
+  %+  weld
+    ^-  (list $-(card tang))
+    %+  murn  ~(tap by new)
+    |=  [id=@t t=task:v1:au]
+    ^-  (unit $-(card tang))
+    ?:  =((~(get by old) id) `t)  ~
+    `(ex-mirror-fact %set bot id t)
+  ^-  (list $-(card tang))
+  %+  murn  ~(tap by old)
+  |=  [id=@t t=task:v1:au]
+  ^-  (unit $-(card tang))
+  ?:  (~(has by new) id)  ~
+  `(ex-mirror-fact %del bot id)
+::
 ++  ga-configure
   =/  m  (mare ,~)
   ^-  form:m
@@ -431,7 +529,7 @@
   ;<  ~  bind:m  (ex-equal !>(bots.current) !>(bots.old))
   ;<  ~  bind:m  (ex-equal !>(lens.current) !>(lens.old))
   ;<  ~  bind:m  (ex-equal !>(gateway.current) !>(gateway.old))
-  (ex-equal !>(tasks.automation.current) !>(*(map @t task:v1:au)))
+  (ex-equal !>(mirror.automation.current) !>(*(map ship (map @t task:v1:au))))
 ::
 ::  ==========================================================
 ::  released state migration tests
@@ -494,7 +592,7 @@
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m
-    (ex-equal !>(tasks.automation.st) !>(*(map @t task:v1:au)))
+    (ex-equal !>(mirror.automation.st) !>(*(map ship (map @t task:v1:au))))
   ;<  ~  bind:m
     (project-automation ~[['task-a' task-a] ['task-b' task-b]])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
@@ -502,7 +600,7 @@
   =/  expected=(map @t task:v1:au)
     %-  ~(gas by *(map @t task:v1:au))
     ~[['task-a' task-a] ['task-b' task-b]]
-  (ex-equal !>(tasks.automation.st) !>(expected))
+  (ex-equal !>((local-automation-tasks st)) !>(expected))
 ::
 ++  test-automation-project-repeats-omits-and-clears
   %-  eval-mare
@@ -520,17 +618,18 @@
   =/  expected=(map @t task:v1:au)
     %-  ~(gas by *(map @t task:v1:au))
     both
-  ;<  ~  bind:m  (ex-equal !>(tasks.automation.st) !>(expected))
+  ;<  ~  bind:m  (ex-equal !>((local-automation-tasks st)) !>(expected))
   ;<  ~  bind:m  (project-automation ~[['task-b' task-b]])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-1 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
     (~(put by *(map @t task:v1:au)) 'task-b' task-b)
-  ;<  ~  bind:m  (ex-equal !>(tasks.automation.st) !>(expected))
+  ;<  ~  bind:m  (ex-equal !>((local-automation-tasks st)) !>(expected))
   ;<  ~  bind:m  (project-automation ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-1 !<(vase q.res))
-  (ex-equal !>(tasks.automation.st) !>(*(map @t task:v1:au)))
+  ::  a projected-empty entry still exists; +got proves its presence
+  (ex-equal !>((~(got by mirror.automation.st) ~dev)) !>(*(map @t task:v1:au)))
 ::
 ++  test-automation-project-rejects-duplicate-without-mutation
   %-  eval-mare
@@ -547,7 +646,7 @@
   =/  st  !<(state-1 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
     (~(put by *(map @t task:v1:au)) 'task-a' task-a)
-  (ex-equal !>(tasks.automation.st) !>(expected))
+  (ex-equal !>((local-automation-tasks st)) !>(expected))
 ::
 ++  test-automation-project-rejects-foreign-without-mutation
   %-  eval-mare
@@ -565,7 +664,7 @@
   =/  st  !<(state-1 !<(vase q.res))
   =/  expected=(map @t task:v1:au)
     (~(put by *(map @t task:v1:au)) 'task-a' task-a)
-  (ex-equal !>(tasks.automation.st) !>(expected))
+  (ex-equal !>((local-automation-tasks st)) !>(expected))
 ::
 ++  test-automation-tasks-scry-empty
   %-  eval-mare
@@ -641,6 +740,704 @@
     (assert-automation-task-map-json reconcile-current-task-map-json)
   ;<  *  bind:m  (do-load agent ~)
   (assert-automation-task-map-json reconcile-current-task-map-json)
+::
+::  ==========================================================
+::  automation sync tests: bot-side broadcast
+::  ==========================================================
+::
+::  a local subscriber gets exactly one initial snapshot fact, on empty
+::  paths, even while the stored projection is empty
+::
+++  test-automation-tasks-watch-gives-empty-snapshot
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m  (do-watch /v1/automation/tasks)
+  (ex-cards caz ~[(ex-tasks-snapshot-fact *(map @t task:v1:au))])
+::
+++  test-automation-tasks-watch-gives-populated-snapshot
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (project-automation ~[['task-a' task-a]])
+  ;<  caz=(list card)  bind:m  (do-watch /v1/automation/tasks)
+  (ex-cards caz ~[(ex-tasks-snapshot-fact (task-map-of ~[['task-a' task-a]]))])
+::
+::  a %project that adds, changes, and removes tasks emits exactly the
+::  matching %set/%del facts on the projection feed, plus the same
+::  deltas attributed to ~dev on the client feed
+::
+++  test-automation-project-emits-deltas-on-both-feeds
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  task-a2=task:v1:au  (automation-task 'Task A changed')
+  =/  task-b=task:v1:au  (automation-task 'Task B')
+  =/  task-c=task:v1:au  (automation-task 'Task C')
+  =/  old=(map @t task:v1:au)
+    (task-map-of ~[['task-a' task-a] ['task-b' task-b]])
+  =/  new=(map @t task:v1:au)
+    (task-map-of ~[['task-a' task-a2] ['task-c' task-c]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (project-automation ~[['task-a' task-a] ['task-b' task-b]])
+  ;<  caz=(list card)  bind:m
+    (do-project ~[['task-a' task-a2] ['task-c' task-c]])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    %+  weld  (ex-projection-delta-facts old new)
+    (ex-mirror-delta-facts ~dev old new)
+  ;<  st=state-1  bind:m  got-state
+  (ex-equal !>((local-automation-tasks st)) !>(new))
+::
+::  an equal %project emits no facts and leaves state identical
+::
+++  test-automation-equal-project-emits-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (project-automation ~[['task-a' task-a]])
+  ;<  before=state-1  bind:m  got-state
+  ;<  caz=(list card)  bind:m  (do-project ~[['task-a' task-a]])
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  after=state-1  bind:m  got-state
+  (ex-equal !>(after) !>(before))
+::
+::  the first accepted %project announces the local entry to clients as
+::  one snapshot (alongside the projection-feed delta)
+::
+++  test-automation-first-project-emits-client-snapshot
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m  (do-project ~[['task-a' task-a]])
+  %+  ex-cards  caz
+  :~  (ex-tasks-fact %set 'task-a' task-a)
+      (ex-mirror-fact %tasks ~dev (task-map-of ~[['task-a' task-a]]))
+  ==
+::
+::  a first empty %project still creates the local entry, announced to
+::  clients as an empty snapshot; the projection feed stays silent
+::
+++  test-automation-first-empty-project-creates-local-entry
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m  (do-project ~)
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-mirror-fact %tasks ~dev *(map @t task:v1:au))])
+  ;<  st=state-1  bind:m  got-state
+  (ex-equal !>((~(got by mirror.automation.st) ~dev)) !>(*(map @t task:v1:au)))
+::
+::  watch auth: the configured owner is admitted cross-ship and gets the
+::  initial snapshot
+::
+++  test-automation-tasks-watch-admits-configured-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~bus)
+    (do-watch /v1/automation/tasks)
+  (ex-cards caz ~[(ex-tasks-snapshot-fact *(map @t task:v1:au))])
+::
+::  watch auth: a ship that is neither local nor the owner is rejected
+::
+++  test-automation-tasks-watch-rejects-stranger
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-watch /v1/automation/tasks)
+::
+::  watch auth: with no owner configured every remote source is rejected
+::  (the local baseline is +test-automation-tasks-watch-gives-empty-snapshot)
+::
+++  test-automation-tasks-watch-rejects-remote-without-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~bus)
+    (do-watch /v1/automation/tasks)
+  ::  the same owner-less ship still accepts a local subscription
+  ::
+  ;<  caz=(list card)  bind:m  (do-watch /v1/automation/tasks)
+  (ex-cards caz ~[(ex-tasks-snapshot-fact *(map @t task:v1:au))])
+::
+::  replacing the owner kicks the previous owner off the projection feed
+::
+++  test-automation-configure-kicks-replaced-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %-  (do-as ~bus)
+    (do-watch /v1/automation/tasks)
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~zod]))
+  (ex-cards caz ~[(ex-card %give %kick ~[/v1/automation/tasks] `~bus)])
+::
+++  test-automation-configure-same-owner-no-kick
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
+  (ex-cards caz ~)
+::
+::  the local ship is always permitted, so replacing a self-owner kicks
+::  nobody
+::
+++  test-automation-configure-replacing-self-owner-no-kick
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~dev)
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
+  (ex-cards caz ~)
+::
+::  ==========================================================
+::  automation sync tests: owner-side mirror
+::  ==========================================================
+::
+::  %trust-bot subscribes to the bot's projection feed; no mirror entry
+::  exists until the first snapshot arrives
+::
+++  test-automation-trust-bot-subscribes-without-mirror-entry
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot moon]))
+  ;<  ~  bind:m  (ex-cards caz ~[ex-moon-automation-watch])
+  ;<  st=state-1  bind:m  got-state
+  (ex-equal !>((~(has by mirror.automation.st) moon)) !>(|))
+::
+::  re-poking %trust-bot while the subscription is live in wex does not
+::  duplicate it
+::
+++  test-automation-trust-repoke-live-sub-no-duplicate
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot moon]))
+  (ex-cards caz ~)
+::
+::  a nacked watch leaves wex empty, so a %trust-bot re-poke repairs the
+::  subscription
+::
+++  test-automation-trust-repoke-after-nack-resubscribes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  caz=(list card)  bind:m
+    (do-moon-tasks-sign %watch-ack `~[leaf+"denied"])
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot moon]))
+  (ex-cards caz ~[ex-moon-automation-watch])
+::
+::  trusting the local ship never self-subscribes; mirror[our] is
+::  %project-owned and untouched
+::
+++  test-automation-trust-local-ship-no-subscription
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (project-automation ~[['task-a' task-a]])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot ~dev]))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  st=state-1  bind:m  got-state
+  ;<  ~  bind:m
+    (ex-equal !>((local-automation-tasks st)) !>((task-map-of ~[['task-a' task-a]])))
+  ;<  b=bowl  bind:m  get-bowl
+  %+  ex-equal
+    !>((~(has by wex.b) [/automation/tasks/(scot %p ~dev) ~dev %steward]))
+  !>(|)
+::
+::  %untrust-bot of a mirrored bot leaves the subscription, deletes the
+::  entry, and tells clients it is gone
+::
+++  test-automation-untrust-leaves-clears-and-gones
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m  (give-moon-update %tasks (task-map-of ~[['task-a' task-a]]))
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  ex-moon-automation-leave
+        (ex-mirror-fact %gone moon)
+    ==
+  ;<  st=state-1  bind:m  got-state
+  (ex-equal !>((~(has by mirror.automation.st) moon)) !>(|))
+::
+::  untrust before the first snapshot: leave, but no entry was ever
+::  created, so no %gone
+::
+++  test-automation-untrust-before-snapshot-leaves-without-gone
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+  ;<  ~  bind:m  (ex-cards caz ~[ex-moon-automation-leave])
+  ;<  st=state-1  bind:m  got-state
+  (ex-equal !>((~(has by mirror.automation.st) moon)) !>(|))
+::
+::  untrusting the local ship is an automation no-op: no leave, no
+::  %gone, mirror[our] untouched
+::
+++  test-automation-untrust-local-ship-noop
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (project-automation ~[['task-a' task-a]])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot ~dev]))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  st=state-1  bind:m  got-state
+  (ex-equal !>((local-automation-tasks st)) !>((task-map-of ~[['task-a' task-a]])))
+::
+::  a snapshot fact creates the entry and a later snapshot atomically
+::  replaces it, dropping tasks absent from the snapshot; each change is
+::  re-emitted to clients
+::
+++  test-automation-snapshot-creates-and-replaces-entry
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  task-b=task:v1:au  (automation-task 'Task B')
+  =/  initial=(map @t task:v1:au)
+    (task-map-of ~[['task-a' task-a] ['task-b' task-b]])
+  =/  replaced=(map @t task:v1:au)  (task-map-of ~[['task-b' task-b]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  caz=(list card)  bind:m  (give-moon-update %tasks initial)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-mirror-fact %tasks moon initial)])
+  ;<  st=state-1  bind:m  got-state
+  ;<  ~  bind:m
+    (ex-equal !>((~(got by mirror.automation.st) moon)) !>(initial))
+  ;<  caz=(list card)  bind:m  (give-moon-update %tasks replaced)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-mirror-fact %tasks moon replaced)])
+  ;<  st=state-1  bind:m  got-state
+  (ex-equal !>((~(got by mirror.automation.st) moon)) !>(replaced))
+::
+::  an unchanged snapshot produces no client facts
+::
+++  test-automation-unchanged-snapshot-emits-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  tasks=(map @t task:v1:au)  (task-map-of ~[['task-a' task-a]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m  (give-moon-update %tasks tasks)
+  ;<  caz=(list card)  bind:m  (give-moon-update %tasks tasks)
+  (ex-cards caz ~)
+::
+::  %set upserts and %del removes, each re-emitted to clients attributed
+::  to the bot; the mirror converges on the bot's projection
+::
+++  test-automation-bot-deltas-converge-mirror
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  task-a2=task:v1:au  (automation-task 'Task A changed')
+  =/  task-b=task:v1:au  (automation-task 'Task B')
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m  (give-moon-update %tasks (task-map-of ~[['task-a' task-a]]))
+  ;<  caz=(list card)  bind:m  (give-moon-update %set 'task-b' task-b)
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-mirror-fact %set moon 'task-b' task-b)])
+  ;<  caz=(list card)  bind:m  (give-moon-update %set 'task-a' task-a2)
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-mirror-fact %set moon 'task-a' task-a2)])
+  ;<  caz=(list card)  bind:m  (give-moon-update %del 'task-a')
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-mirror-fact %del moon 'task-a')])
+  ;<  st=state-1  bind:m  got-state
+  %+  ex-equal
+    !>((~(got by mirror.automation.st) moon))
+  !>((task-map-of ~[['task-b' task-b]]))
+::
+::  %del of an ID that is not mirrored is a no-op with no facts
+::
+++  test-automation-del-unknown-id-is-noop
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  tasks=(map @t task:v1:au)  (task-map-of ~[['task-a' task-a]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m  (give-moon-update %tasks tasks)
+  ;<  caz=(list card)  bind:m  (give-moon-update %del 'missing')
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  st=state-1  bind:m  got-state
+  (ex-equal !>((~(got by mirror.automation.st) moon)) !>(tasks))
+::
+::  a delta for a bot with no mirror entry (no snapshot yet) is ignored
+::  rather than creating one
+::
+++  test-automation-delta-before-snapshot-ignored
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  caz=(list card)  bind:m  (give-moon-update %set 'task-a' task-a)
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  caz=(list card)  bind:m  (give-moon-update %del 'task-a')
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  st=state-1  bind:m  got-state
+  (ex-equal !>((~(has by mirror.automation.st) moon)) !>(|))
+::
+::  a kick while the bot is still trusted resubscribes, and the fresh
+::  snapshot repairs the mirror
+::
+++  test-automation-kick-while-trusted-resubscribes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  task-b=task:v1:au  (automation-task 'Task B')
+  =/  repaired=(map @t task:v1:au)  (task-map-of ~[['task-b' task-b]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m  (give-moon-update %tasks (task-map-of ~[['task-a' task-a]]))
+  ;<  caz=(list card)  bind:m  (do-moon-tasks-sign %kick ~)
+  ;<  ~  bind:m  (ex-cards caz ~[ex-moon-automation-watch])
+  ;<  *  bind:m  (give-moon-update %tasks repaired)
+  ;<  st=state-1  bind:m  got-state
+  (ex-equal !>((~(got by mirror.automation.st) moon)) !>(repaired))
+::
+::  a kick for a no-longer-trusted bot does not resubscribe. the leave
+::  already cleared the harness's wex, so restore the entry to model a
+::  kick that raced the leave
+::
+++  test-automation-kick-after-untrust-no-resubscribe
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+  ;<  ~  bind:m
+    %-  jab-bowl
+    |=  b=bowl
+    %_  b
+      wex  %+  ~(put by wex.b)
+             [/automation/tasks/(scot %p moon) moon %steward]
+           [& /v1/automation/tasks]
+    ==
+  ;<  caz=(list card)  bind:m  (do-moon-tasks-sign %kick ~)
+  (ex-cards caz ~)
+::
+::  a watch-nack neither crashes nor disturbs mirrored state (the slog
+::  itself is not assertable)
+::
+++  test-automation-watch-nack-preserves-mirror
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  tasks=(map @t task:v1:au)  (task-map-of ~[['task-a' task-a]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m  (give-moon-update %tasks tasks)
+  ;<  caz=(list card)  bind:m
+    (do-moon-tasks-sign %watch-ack `~[leaf+"denied"])
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  st=state-1  bind:m  got-state
+  (ex-equal !>((~(got by mirror.automation.st) moon)) !>(tasks))
+::
+::  the client feed is strictly local: even the configured owner is
+::  rejected cross-ship
+::
+++  test-automation-mirror-watch-rejects-remote
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~bus)
+    (do-watch /v1/automation/mirror)
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-watch /v1/automation/mirror)
+::
+::  subscribing while the mirror is empty gives no initial facts
+::
+++  test-automation-mirror-watch-empty-gives-no-initial-facts
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m  (do-watch /v1/automation/mirror)
+  (ex-cards caz ~)
+::
+::  subscribing gives one snapshot fact per mirror entry, each on empty
+::  paths and attributed to its ship
+::
+++  test-automation-mirror-watch-gives-per-entry-snapshots
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  task-b=task:v1:au  (automation-task 'Task B')
+  =/  local=(map @t task:v1:au)  (task-map-of ~[['task-a' task-a]])
+  =/  remote=(map @t task:v1:au)  (task-map-of ~[['task-b' task-b]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (project-automation ~[['task-a' task-a]])
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m  (give-moon-update %tasks remote)
+  ;<  caz=(list card)  bind:m  (do-watch /v1/automation/mirror)
+  =/  expected-mirror=(map ship (map @t task:v1:au))
+    %-  ~(gas by *(map ship (map @t task:v1:au)))
+    ~[[~dev local] [moon remote]]
+  %+  ex-cards  caz
+  %+  turn  ~(tap by expected-mirror)
+  |=  [bot=ship tasks=(map @t task:v1:au)]
+  (ex-mirror-snapshot-fact bot tasks)
+::
+::  self-owned bot: the local projection is served on the client path
+::  attributed to ~dev, with no subscription from the ship to itself
+::
+++  test-automation-mirror-watch-self-owned-serves-local
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~dev)
+  ;<  ~  bind:m  (project-automation ~[['task-a' task-a]])
+  ;<  caz=(list card)  bind:m  (do-watch /v1/automation/mirror)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    ~[(ex-mirror-snapshot-fact ~dev (task-map-of ~[['task-a' task-a]]))]
+  ;<  b=bowl  bind:m  get-bowl
+  %+  ex-equal
+    !>((~(has by wex.b) [/automation/tasks/(scot %p ~dev) ~dev %steward]))
+  !>(|)
+::
+::  the mirror scry serves the complete ship-keyed mirror, {} when empty
+::
+++  test-automation-mirror-scry-empty
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  res=cage  bind:m  (got-peek /x/v1/automation/mirror)
+  ;<  ~  bind:m
+    (ex-equal !>(p.res) !>(%steward-automation-mirror-map-1))
+  =/  actual=mirror-map:v1:au  !<(mirror-map:v1:au q.res)
+  ;<  ~  bind:m  (ex-equal !>(actual) !>(*mirror-map:v1:au))
+  (ex-equal !>((mirror:enjs:aj actual)) !>((parse-json '{}')))
+::
+++  test-automation-mirror-scry-populated
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  task-b=task:v1:au  (automation-task 'Task B')
+  =/  local=(map @t task:v1:au)  (task-map-of ~[['task-a' task-a]])
+  =/  remote=(map @t task:v1:au)  (task-map-of ~[['task-b' task-b]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (project-automation ~[['task-a' task-a]])
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m  (give-moon-update %tasks remote)
+  ;<  res=cage  bind:m  (got-peek /x/v1/automation/mirror)
+  ;<  ~  bind:m
+    (ex-equal !>(p.res) !>(%steward-automation-mirror-map-1))
+  =/  actual=mirror-map:v1:au  !<(mirror-map:v1:au q.res)
+  =/  expected=mirror-map:v1:au
+    (~(gas by *mirror-map:v1:au) ~[[~dev local] [moon remote]])
+  (ex-equal !>(actual) !>(expected))
+::
+::  ==========================================================
+::  automation sync tests: mark JSON codecs
+::  ==========================================================
+::
+++  update-tasks-json
+  ^-  @t
+  '{"tasks": {"task-a": {"name": "Task A", "enabled": true}}}'
+++  update-set-json
+  ^-  @t
+  '{"set": {"id": "task-a", "task": {"name": "Task A", "enabled": true}}}'
+++  update-del-json
+  ^-  @t
+  '{"del": {"id": "task-a"}}'
+++  mirror-tasks-json
+  ^-  @t
+  '{"tasks": {"bot": "~zod", "tasks": {"task-a": {"name": "Task A", "enabled": true}}}}'
+++  mirror-set-json
+  ^-  @t
+  '{"set": {"bot": "~zod", "id": "task-a", "task": {"name": "Task A", "enabled": true}}}'
+++  mirror-del-json
+  ^-  @t
+  '{"del": {"bot": "~zod", "id": "task-a"}}'
+++  mirror-gone-json
+  ^-  @t
+  '{"gone": {"bot": "~zod"}}'
+++  mirror-gone-moon-json
+  ^-  @t
+  '{"gone": {"bot": "~doznec-dozzod-dozdev"}}'
+++  mirror-map-json
+  ^-  @t
+  '{"~zod": {"task-a": {"name": "Task A", "enabled": true}}}'
+::
+::  %steward-automation-update-1: every variant grows to the documented
+::  ship-less JSON and round-trips through the dejs codec
+::
+++  test-automation-update-mark-json-round-trips
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  all=(list update:v1:au)
+    :~  [%tasks (task-map-of ~[['task-a' task-a]])]
+        [%tasks ~]
+        [%set 'task-a' task-a]
+        [%del 'task-a']
+    ==
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((update:enjs:aj [%tasks (task-map-of ~[['task-a' task-a]])]))
+    !>((parse-json update-tasks-json))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((update:enjs:aj [%set 'task-a' task-a]))
+    !>((parse-json update-set-json))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((update:enjs:aj [%del 'task-a']))
+    !>((parse-json update-del-json))
+  %+  ex-equal
+    !>  %+  turn  all
+        |=  u=update:v1:au
+        (update:dejs:aj (update:enjs:aj u))
+  !>(all)
+::
+::  %steward-automation-mirror-1: every variant (including %gone)
+::  attributes the bot ship and round-trips, for both a galaxy and a
+::  moon-class ship
+::
+++  test-automation-mirror-update-mark-json-round-trips
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  tasks=(map @t task:v1:au)  (task-map-of ~[['task-a' task-a]])
+  =/  all=(list mirror-update:v1:au)
+    :~  [%tasks ~zod tasks]
+        [%tasks moon ~]
+        [%set ~zod 'task-a' task-a]
+        [%set moon 'task-a' task-a]
+        [%del ~zod 'task-a']
+        [%del moon 'task-a']
+        [%gone ~zod]
+        [%gone moon]
+    ==
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((mirror-update:enjs:aj [%tasks ~zod tasks]))
+    !>((parse-json mirror-tasks-json))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((mirror-update:enjs:aj [%set ~zod 'task-a' task-a]))
+    !>((parse-json mirror-set-json))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((mirror-update:enjs:aj [%del ~zod 'task-a']))
+    !>((parse-json mirror-del-json))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((mirror-update:enjs:aj [%gone ~zod]))
+    !>((parse-json mirror-gone-json))
+  ::  fixture-anchor a moon-class ship too, so a symmetric codec bug
+  ::  in ship rendering can't hide behind the round-trip
+  ::
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((mirror-update:enjs:aj [%gone moon]))
+    !>((parse-json mirror-gone-moon-json))
+  %+  ex-equal
+    !>  %+  turn  all
+        |=  u=mirror-update:v1:au
+        (mirror-update:dejs:aj (mirror-update:enjs:aj u))
+  !>(all)
+::
+::  %steward-automation-mirror-map-1: the bare ship-keyed object,
+::  including the empty {} shape, round-trips
+::
+++  test-automation-mirror-map-mark-json-round-trips
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  =/  tasks=(map @t task:v1:au)  (task-map-of ~[['task-a' task-a]])
+  =/  only-zod=mirror-map:v1:au
+    (~(put by *mirror-map:v1:au) ~zod tasks)
+  =/  populated=mirror-map:v1:au
+    (~(gas by *mirror-map:v1:au) ~[[~zod tasks] [moon tasks]])
+  ;<  ~  bind:m
+    (ex-equal !>((mirror:enjs:aj *mirror-map:v1:au)) !>((parse-json '{}')))
+  ;<  ~  bind:m
+    %+  ex-equal
+      !>((mirror:dejs:aj (mirror:enjs:aj *mirror-map:v1:au)))
+    !>(*mirror-map:v1:au)
+  ;<  ~  bind:m
+    (ex-equal !>((mirror:enjs:aj only-zod)) !>((parse-json mirror-map-json)))
+  %+  ex-equal
+    !>((mirror:dejs:aj (mirror:enjs:aj populated)))
+  !>(populated)
 ::
 ::  ==========================================================
 ::  LENS MODULE TESTS
@@ -1062,7 +1859,7 @@
   ;<  ~  bind:m  (ex-equal !>(-.st) !>(%1))
   ;<  ~  bind:m
     (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`3.000))
-  (ex-equal !>(tasks.automation.st) !>(*(map @t task:v1:au)))
+  (ex-equal !>(mirror.automation.st) !>(*(map ship (map @t task:v1:au))))
 ::
 ++  test-watch-rejects-foreign-ship
   %-  eval-mare
@@ -1072,6 +1869,17 @@
   %-  ex-fail
   %-  (do-as ~zod)
   (do-watch /v1/lens)
+::  the gateway path's local-only guard is per-path code since the
+::  automation change; it needs its own rejection coverage
+::
+++  test-watch-rejects-foreign-ship-gateway
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-watch /v1/gateway)
 ::  ==========================================================
 ::  GATEWAY MODULE TESTS
 ::  ==========================================================
