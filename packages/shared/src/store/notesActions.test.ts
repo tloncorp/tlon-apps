@@ -248,6 +248,9 @@ test('createNotebookNote immediately persists the authoritative create response'
       revision: createdNote.revision,
     };
   });
+  vi.spyOn(api.notes, 'getNote').mockResolvedValue(
+    makeApiNotesNote(createdNote)
+  );
 
   await expect(
     createNotebookNote({
@@ -268,6 +271,38 @@ test('createNotebookNote immediately persists the authoritative create response'
   await expect(
     db.getNotesNote({ notebookFlag, noteId: concurrentNote.noteId })
   ).resolves.toMatchObject({ noteId: concurrentNote.noteId });
+});
+
+test('createNotebookNote does not resurrect a note deleted before its response arrives', async () => {
+  const createdNote = makeNotesNote(5, rootFolder.folderId, 'Created note');
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'createNote').mockResolvedValue({
+    id: createdNote.noteId,
+    notebookId: createdNote.notebookId,
+    folderId: createdNote.folderId ?? undefined,
+    title: createdNote.title,
+    bodyMd: createdNote.bodyMd,
+    revision: createdNote.revision,
+  });
+  vi.spyOn(api.notes, 'getNote').mockRejectedValue(
+    new api.BadResponseError(404, '')
+  );
+
+  await expect(
+    createNotebookNote({
+      notebookFlag,
+      folderId: rootFolder.folderId,
+      title: createdNote.title,
+    })
+  ).resolves.toBeNull();
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: createdNote.noteId })
+  ).resolves.toBeNull();
 });
 
 test('createNotebookNote does not return an existing note when create sync times out', async () => {
