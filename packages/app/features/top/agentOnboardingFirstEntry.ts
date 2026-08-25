@@ -41,36 +41,58 @@ export function hasAgentOnboardingFirstEntryFailed(
 }
 
 /** Match the opened note to the cite carried by the authenticated reveal. */
+export function matchAgentOnboardingFirstEntryNote(
+  posts: db.Post[] | null | undefined,
+  agentShipId: string | null | undefined,
+  notebookFlag: string,
+  noteId: number
+): 'absent' | 'different' | 'match' {
+  if (!agentShipId) return 'absent';
+  let foundReference = false;
+  for (const post of posts ?? []) {
+    if (
+      post.authorId !== agentShipId ||
+      findPostBlobEntry(post.blob, 'tlon-agent-post-marker')?.key !==
+        AGENT_ONBOARDING_FIRST_ENTRY_MARKER
+    ) {
+      continue;
+    }
+    const content = Array.isArray(post.content) ? post.content : [];
+    for (const entry of content) {
+      const isNoteReference =
+        entry &&
+        typeof entry === 'object' &&
+        'type' in entry &&
+        entry.type === 'reference' &&
+        'referenceType' in entry &&
+        entry.referenceType === 'note' &&
+        'channelId' in entry &&
+        'noteId' in entry;
+      if (!isNoteReference) continue;
+      foundReference = true;
+      if (
+        entry.channelId === `notes/${notebookFlag}` &&
+        String(entry.noteId) === String(noteId)
+      ) {
+        return 'match';
+      }
+    }
+  }
+  return foundReference ? 'different' : 'absent';
+}
+
 export function isAgentOnboardingFirstEntryNote(
   posts: db.Post[] | null | undefined,
   agentShipId: string | null | undefined,
   notebookFlag: string,
   noteId: number
 ): boolean {
-  if (!agentShipId) return false;
-  return Boolean(
-    posts?.some((post) => {
-      if (
-        post.authorId !== agentShipId ||
-        findPostBlobEntry(post.blob, 'tlon-agent-post-marker')?.key !==
-          AGENT_ONBOARDING_FIRST_ENTRY_MARKER
-      ) {
-        return false;
-      }
-      const content = Array.isArray(post.content) ? post.content : [];
-      return content.some(
-        (entry) =>
-          entry &&
-          typeof entry === 'object' &&
-          'type' in entry &&
-          entry.type === 'reference' &&
-          'referenceType' in entry &&
-          entry.referenceType === 'note' &&
-          'channelId' in entry &&
-          entry.channelId === `notes/${notebookFlag}` &&
-          'noteId' in entry &&
-          String(entry.noteId) === String(noteId)
-      );
-    })
+  return (
+    matchAgentOnboardingFirstEntryNote(
+      posts,
+      agentShipId,
+      notebookFlag,
+      noteId
+    ) === 'match'
   );
 }

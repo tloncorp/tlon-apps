@@ -6,6 +6,7 @@ import {
   hasAgentOnboardingFirstEntry,
   hasAgentOnboardingFirstEntryFailed,
   isAgentOnboardingFirstEntryNote,
+  matchAgentOnboardingFirstEntryNote,
 } from './agentOnboardingFirstEntry';
 
 function markerPost(key: string, authorId = '~bot'): db.Post {
@@ -82,5 +83,11 @@ describe('hasAgentOnboardingFirstEntry', () => {
     expect(
       isAgentOnboardingFirstEntryNote([reveal], '~bot', '~ten/updates', 8)
     ).toBe(false);
+    expect(
+      matchAgentOnboardingFirstEntryNote([reveal], '~bot', '~ten/updates', 8)
+    ).toBe('different');
+    expect(
+      matchAgentOnboardingFirstEntryNote([], '~bot', '~ten/updates', 8)
+    ).toBe('absent');
   });
 });
