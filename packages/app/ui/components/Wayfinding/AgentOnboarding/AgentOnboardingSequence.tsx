@@ -93,6 +93,8 @@ export function AgentOnboardingSequence(props: {
       // has no Hosting automation, so let furnishing create a real group.
       const hostedHomeGroupId = `${api.getCurrentUserId()}/${BotHomeGroupSlugs.slug}`;
       let activeGroupId = AGENT_SHIP_OVERRIDE ? undefined : hostedHomeGroupId;
+      let activeChannelId: string | undefined;
+      let landedInAgentChat = false;
       const deadline = Date.now() + 2 * 60_000;
 
       try {
@@ -136,6 +138,7 @@ export function AgentOnboardingSequence(props: {
             );
           }
           activeGroupId = furnished.group.id;
+          activeChannelId = furnished.chatChannelId;
           await db.agentOnboardingLanding.setValue({
             groupId: activeGroupId,
             channelId: furnished.chatChannelId,
@@ -161,6 +164,8 @@ export function AgentOnboardingSequence(props: {
               groupId: activeGroupId,
               channelId: furnished.chatChannelId,
             });
+          } else {
+            landedInAgentChat = true;
           }
           // Do not permanently dismiss the first-run bridge while the agent
           // still lacks the standing required to accept provisioning. A
@@ -199,6 +204,15 @@ export function AgentOnboardingSequence(props: {
           groupId: activeGroupId,
         });
         if (activeGroupId) await clearNavigationLock(activeGroupId);
+        if (landedInAgentChat && activeGroupId && activeChannelId) {
+          await db.agentOnboardingLanding.setValue({
+            groupId: activeGroupId,
+            channelId: activeChannelId,
+            status: 'fallback',
+          });
+        } else {
+          await db.agentOnboardingLanding.resetValue();
+        }
         setUseFallback(true);
       }
     })();

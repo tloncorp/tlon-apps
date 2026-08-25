@@ -1230,6 +1230,7 @@ export function A2UIBlock({
             >
               <McpConnectControl
                 component={component}
+                surfaceId={surfaceId}
                 configuredProviderIds={configuredAgentProviderIds}
                 completionConsumed={Boolean(
                   component.completionAction &&
