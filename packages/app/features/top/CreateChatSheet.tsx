@@ -742,7 +742,7 @@ function useCreateChat() {
                   'Agent group standing repair failed; scheduling retry',
                   error
                 );
-                void retryLaterAgentGroupStanding({
+                void retryLaterAgentGroupFurnishing({
                   agentShipId: AGENT_SHIP_OVERRIDE || undefined,
                   groupId: completed.group.id,
                   ownerId,
@@ -759,6 +759,11 @@ function useCreateChat() {
                   ? error.message
                   : 'The Tlonbot group could not finish setup.'
               );
+              void retryLaterAgentGroupFurnishing({
+                agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+                groupId: furnishing.group.id,
+                ownerId,
+              });
             });
         } else {
           // Check if a template was selected
@@ -793,7 +798,7 @@ function useCreateChat() {
   return { isCreatingChat, createChatError, createChat };
 }
 
-async function retryLaterAgentGroupStanding({
+async function retryLaterAgentGroupFurnishing({
   agentShipId,
   groupId,
   ownerId,
@@ -813,7 +818,7 @@ async function retryLaterAgentGroupStanding({
       await repaired.tail;
       return;
     } catch (error) {
-      logger.trackError('Agent group standing retry failed', error);
+      logger.trackError('Agent group furnishing retry failed', error);
     }
   }
 }

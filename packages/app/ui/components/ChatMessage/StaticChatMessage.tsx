@@ -103,6 +103,31 @@ export function StaticChatMessage({
   const navigateToA2UITarget = useA2UINavigation();
   const currentUserId = useCurrentUserId();
   const { data: group } = useGroup({ id: post.groupId ?? '' });
+  const groupAgents = db.agentGroupAgents.useValue();
+  // A newly delivered post can arrive one render before its denormalized
+  // `groupId`. The surrounding channel is authoritative for that relationship.
+  const resolvedPostGroupId =
+    post.groupId ??
+    (draftInputContext?.channel.id === post.channelId
+      ? draftInputContext.channel.groupId
+      : undefined);
+  const knownAgent = resolvedPostGroupId
+    ? groupAgents[resolvedPostGroupId]
+    : undefined;
+  const currentGroup = group ?? draftInputContext?.group;
+  const currentUserHostsPostGroup = Boolean(
+    resolvedPostGroupId &&
+    currentGroup?.currentUserIsHost &&
+    currentGroup.id === resolvedPostGroupId &&
+    currentGroup.hostUserId === currentUserId
+  );
+  const canUseAgentProviderControls =
+    post.authorId === getBotUserIdForUser(currentUserId) ||
+    Boolean(
+      resolvedPostGroupId &&
+      currentUserHostsPostGroup &&
+      knownAgent === post.authorId
+    );
 
   if (isNotice) {
     showAuthor = false;
@@ -380,30 +405,10 @@ export function StaticChatMessage({
     [canUseAgentProviderControls, draftInputContext, group, post.groupId]
   );
 
-  const groupAgents = db.agentGroupAgents.useValue();
-  // A newly delivered post can arrive one render before its denormalized
-  // `groupId`. The surrounding channel is already authoritative for that
-  // relationship, so use it immediately instead of briefly rendering the
-  // textual A2UI fallback and then replacing it with the real control.
-  const resolvedPostGroupId =
-    post.groupId ??
-    (draftInputContext?.channel.id === post.channelId
-      ? draftInputContext.channel.groupId
-      : undefined);
-  const knownAgent = resolvedPostGroupId
-    ? groupAgents[resolvedPostGroupId]
-    : undefined;
   // `useGroup()` can briefly clear its query result while a live post is
   // inserted. The surrounding channel already owns the same group, so keep
   // authorization stable through that refresh instead of flashing the text
   // fallback before replacing it with A2UI.
-  const currentGroup = group ?? draftInputContext?.group;
-  const currentUserHostsPostGroup = Boolean(
-    resolvedPostGroupId &&
-    currentGroup?.currentUserIsHost &&
-    currentGroup.id === resolvedPostGroupId &&
-    currentGroup.hostUserId === currentUserId
-  );
   const canRenderA2UI =
     isDmChannelId(post.channelId) ||
     Boolean(
@@ -417,13 +422,6 @@ export function StaticChatMessage({
     () => postContent.some((block) => block.type === 'a2ui'),
     [postContent]
   );
-  const canUseAgentProviderControls =
-    post.authorId === getBotUserIdForUser(currentUserId) ||
-    Boolean(
-      resolvedPostGroupId &&
-      currentUserHostsPostGroup &&
-      knownAgent === post.authorId
-    );
   // One live query per channel (deduped across messages); the posts-table
   // dependency re-runs it when the viewer's reply lands, including the
   // optimistic insert, so an answered control stays locked across remounts.
