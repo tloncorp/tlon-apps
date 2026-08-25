@@ -39,6 +39,7 @@ import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.j
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
 import {
+  clearCronJobForSession,
   cronJobForSession,
   mayCallDescribedReadOnlyMcpTool,
   mayDescribeMcpTool,
@@ -1462,6 +1463,11 @@ export default defineBundledChannelEntry({
               jobId: ctx.jobId,
             }),
         });
+      } else if (ctx.trigger) {
+        // Main-session cron runs share a session key with later owner turns.
+        // An explicit non-cron boundary must drop the old job attribution
+        // before any interactive MCP tool call is checked against it.
+        clearCronJobForSession(ctx.sessionKey);
       }
       ensureCronContextLens(ctx);
     };
@@ -1479,6 +1485,7 @@ export default defineBundledChannelEntry({
     // tool call) still finalize, while leaving time for the gateway to
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (_event, ctx) => {
+      clearCronJobForSession(ctx.sessionKey, ctx.jobId);
       if (!contextLensEnabled) {
         return;
       }
