@@ -68,13 +68,35 @@ export async function startAgentGroupFurnishing(
   params: FurnishParams = {}
 ): Promise<AgentGroupFurnishingStart> {
   const flightKey = params.groupId ?? `new:${api.getCurrentUserId()}`;
+  return startAgentGroupFurnishingFlight(flightKey, () =>
+    startAgentGroupFurnishingOnce(params)
+  );
+}
+
+function startAgentGroupFurnishingFlight(
+  flightKey: string,
+  start: () => Promise<AgentGroupFurnishingStart>
+): Promise<AgentGroupFurnishingStart> {
   const existingFlight = agentGroupFurnishingFlights.get(flightKey);
   if (existingFlight) return existingFlight;
-  const flight = startAgentGroupFurnishingOnce(params).finally(() => {
+
+  const clearFlight = () => {
     if (agentGroupFurnishingFlights.get(flightKey) === flight) {
       agentGroupFurnishingFlights.delete(flightKey);
     }
-  });
+  };
+  const flight = start().then(
+    (started) => ({
+      ...started,
+      // Remounts must share the completion pass too; clearing after only the
+      // quick start phase can race duplicate intro posts into the same chat.
+      complete: started.complete.finally(clearFlight),
+    }),
+    (error) => {
+      clearFlight();
+      throw error;
+    }
+  );
   agentGroupFurnishingFlights.set(flightKey, flight);
   return flight;
 }
@@ -636,4 +658,5 @@ export const agentGroupOnboardingTesting = {
   agentHasJoined,
   ensureSingleNotesChannel,
   retryAgentStanding,
+  startAgentGroupFurnishingFlight,
 };

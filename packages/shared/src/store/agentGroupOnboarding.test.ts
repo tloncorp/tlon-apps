@@ -65,6 +65,42 @@ describe('buildAgentGroupTitle', () => {
 });
 
 describe('agent group furnishing retry', () => {
+  it('keeps furnishing single-flight until completion settles', async () => {
+    let finish!: () => void;
+    const complete = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const started = {
+      group: {},
+      chatChannel: {},
+      agentShipId: '~bot',
+      complete,
+    } as never;
+    const start = vi.fn(async () => started);
+    const key = `test:${Math.random()}`;
+
+    const first =
+      await agentGroupOnboardingTesting.startAgentGroupFurnishingFlight(
+        key,
+        start
+      );
+    const second =
+      await agentGroupOnboardingTesting.startAgentGroupFurnishingFlight(
+        key,
+        start
+      );
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(second.complete).toBe(first.complete);
+
+    finish();
+    await first.complete;
+    await agentGroupOnboardingTesting.startAgentGroupFurnishingFlight(
+      key,
+      start
+    );
+    expect(start).toHaveBeenCalledTimes(2);
+  });
+
   it('continues to the required join when the cordon entry already exists', async () => {
     const add = vi.fn().mockRejectedValue(new Error('already allowed'));
     const join = vi.fn().mockResolvedValue(undefined);
