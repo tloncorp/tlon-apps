@@ -3605,6 +3605,96 @@ describe('provision coordinator ordering', () => {
     ).not.toBeNull();
   });
 
+  it('settles a correlated first run when notebook delivery fails', async () => {
+    const sendPost = vi.fn(async () => ({
+      channel: 'tlon' as const,
+      messageId: 'post',
+      sentAt: 0,
+    }));
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'failed-notebook-send' },
+      scanContext(),
+      provision
+    );
+
+    await handleAgentOnboardingMessageSent(
+      {
+        success: false,
+        to: provision.notebookNest,
+        error: 'delivery unavailable',
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      },
+      'failed-notebook-send'
+    );
+
+    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'couldn’t publish the first entry'
+    );
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('failed-notebook-send')
+    ).toBeNull();
+  });
+
+  it('keeps equal run ids isolated by account', async () => {
+    const firstTrackStep = vi.fn();
+    const secondTrackStep = vi.fn();
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'shared-run-id' },
+      { ...scanContext(), accountId: 'first', trackStep: firstTrackStep },
+      provision
+    );
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'shared-run-id' },
+      { ...scanContext(), accountId: 'second', trackStep: secondTrackStep },
+      provision
+    );
+
+    await handleAgentOnboardingMessageSent(
+      {
+        success: false,
+        to: provision.notebookNest,
+        error: 'delivery unavailable',
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost: vi.fn(async () => ({
+          channel: 'tlon' as const,
+          messageId: 'post',
+          sentAt: 0,
+        })),
+        sleep: vi.fn(async () => {}),
+      },
+      'shared-run-id',
+      'second'
+    );
+
+    expect(firstTrackStep).not.toHaveBeenCalled();
+    expect(secondTrackStep).toHaveBeenCalled();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation(
+        'shared-run-id',
+        provision.notebookNest,
+        undefined,
+        false,
+        'first'
+      )
+    ).not.toBeNull();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation(
+        'shared-run-id',
+        provision.notebookNest,
+        undefined,
+        false,
+        'second'
+      )
+    ).toBeNull();
+  });
+
   it('coalesces completion hooks and retries after failure', async () => {
     vi.useFakeTimers();
     const sendPost = vi.fn(async () => ({
