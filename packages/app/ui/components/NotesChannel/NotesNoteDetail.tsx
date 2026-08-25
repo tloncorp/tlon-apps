@@ -9,6 +9,7 @@ import {
   normalizeNotebookNoteTitle,
   saveNotebookNote,
   trackEvent,
+  withRetry,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
@@ -524,15 +525,16 @@ export function NotesNoteDetail({
     // first entry; only the client knows whether the owner opened one. Counted
     // once per group and persisted, so it survives a restart and doesn't
     // re-fire on every note view.
+    let cancelled = false;
     void (async () => {
       try {
+        const currentUserId = api.getCurrentUserId();
         const channel = await db.getChannel({ id: `notes/${notebookFlag}` });
         const groupId = channel?.groupId;
         if (!groupId) return;
-        const currentUserId = api.getCurrentUserId();
         const group = await db.getGroup({ id: groupId });
         if (group?.hostUserId !== currentUserId) return;
-        const agents = await db.agentGroupAgents.getValue();
+        const agents = await db.agentGroupAgents.getValue(true);
         const agentShip = agents[groupId];
         if (
           !agentShip ||
@@ -542,23 +544,38 @@ export function NotesNoteDetail({
         ) {
           return;
         }
-        const chatPosts = (
-          await Promise.all(
-            group.channels
-              .filter((candidate) => candidate.type === 'chat')
-              .map((candidate) => db.getChanPosts({ channelId: candidate.id }))
-          )
-        ).flat();
-        if (
-          !isAgentOnboardingFirstEntryNote(
-            chatPosts,
-            agentShip,
-            notebookFlag,
-            noteId
-          )
-        ) {
-          return;
-        }
+        await withRetry(
+          async () => {
+            if (cancelled) throw new Error('Note closed');
+            const chatPosts = (
+              await Promise.all(
+                group.channels
+                  .filter((candidate) => candidate.type === 'chat')
+                  .map((candidate) =>
+                    db.getChanPosts({ channelId: candidate.id })
+                  )
+              )
+            ).flat();
+            if (
+              !isAgentOnboardingFirstEntryNote(
+                chatPosts,
+                agentShip,
+                notebookFlag,
+                noteId
+              )
+            ) {
+              throw new Error('First-entry marker not synced');
+            }
+          },
+          {
+            numOfAttempts: 10,
+            startingDelay: 500,
+            timeMultiple: 1.7,
+            maxDelay: 5_000,
+            retry: () => !cancelled,
+          }
+        );
+        if (cancelled) return;
         const claimKey = `${currentUserId}:${groupId}`;
         let claimed = false;
         await db.agentEntryFirstOpened.setValue((current) => {
@@ -575,7 +592,10 @@ export function NotesNoteDetail({
         // Never let activation reporting interfere with reading a note.
       }
     })();
-  }, [selectedNoteRowId, selectedNoteCreatedBy, notebookFlag]);
+    return () => {
+      cancelled = true;
+    };
+  }, [noteId, selectedNoteRowId, selectedNoteCreatedBy, notebookFlag]);
 
   const draftsMatchSelectedNote = draftBase?.id === selectedNote?.id;
   const isDirty = Boolean(
