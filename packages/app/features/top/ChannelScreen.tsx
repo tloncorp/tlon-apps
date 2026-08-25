@@ -498,6 +498,7 @@ export default function ChannelScreen(props: Props) {
   const pendingThinkingLabel = useAgentOnboardingFirstEntry({
     agentShipId,
     awaitingFirstEntry: agentOnboarding.awaitingFirstEntry,
+    channelId: currentChannelId,
     groupId,
     isFocused,
     posts: filteredPosts,
