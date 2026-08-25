@@ -17,6 +17,7 @@ export function useAgentOnboardingFirstEntry({
   groupId,
   isFocused,
   posts,
+  provisionId,
   provisionAcknowledgedAt,
 }: {
   agentShipId: string | null | undefined;
@@ -25,6 +26,7 @@ export function useAgentOnboardingFirstEntry({
   groupId: string | null | undefined;
   isFocused: boolean;
   posts: db.Post[] | null | undefined;
+  provisionId: string | null | undefined;
   provisionAcknowledgedAt: number | null | undefined;
 }) {
   const renderedSettled = useMemo(
@@ -60,11 +62,12 @@ export function useAgentOnboardingFirstEntry({
   useEffect(() => {
     if (!groupId || !settled) return;
     void db.agentGroupOnboardingLocks.setValue((current) => {
-      if (!current[groupId]) return current;
+      const lock = current[groupId];
+      if (!lock || lock.provision?.provisionId !== provisionId) return current;
       const { [groupId]: _completed, ...remaining } = current;
       return remaining;
     });
-  }, [groupId, settled]);
+  }, [groupId, provisionId, settled]);
 
   useEffect(() => {
     if (!isFocused || !awaitingFirstEntry || settled) return;

@@ -395,6 +395,7 @@ export default function ChannelScreen(props: Props) {
     groupId,
     isFocused,
     posts: filteredPosts,
+    provisionId: agentOnboarding.marker?.provision?.provisionId,
     provisionAcknowledgedAt: agentOnboarding.marker?.provisionAcknowledgedAt,
   });
 
