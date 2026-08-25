@@ -577,6 +577,15 @@ const ConversationPostListAttempt = React.forwardRef<
           Platform.OS === 'ios' ? 'never' : undefined
         }
         keyboardLiftBehavior="always"
+        // On Android the window itself resizes for the IME (that is also what
+        // keeps the composer above the keyboard — KeyboardStickyView is
+        // iOS-only). The keyboard lift would count the keyboard a second
+        // time: it pads the list by keyboard height and reports that padding
+        // as a content inset, so any end-anchor pass while the keyboard is up
+        // lands a full keyboard height past the last message. Freeze all
+        // keyboard-driven list layout on Android and let the window resize
+        // own keyboard avoidance.
+        freeze={Platform.OS === 'android'}
         keyboardOffset={insets.bottom}
         scrollIndicatorInsets={{ top: 0, bottom: insets.bottom }}
         automaticallyAdjustsScrollIndicatorInsets={false}
