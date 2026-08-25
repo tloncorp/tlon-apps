@@ -58,6 +58,27 @@ function receiptFollowsPost(
   return receipt.receivedAt >= post.receivedAt;
 }
 
+function provisionMatchesPlan(
+  provision: PostBlobDataEntryAgentProvision | undefined,
+  plan: A2UI.ProvisionAgentEvent['context'] & { timezone: string },
+  notebookNest: string,
+  notebookTitle: string
+) {
+  return Boolean(
+    provision &&
+    provision.groupId === plan.groupId &&
+    provision.purposeId === plan.purposeId &&
+    provision.purpose === plan.purpose &&
+    provision.timezone === plan.timezone &&
+    provision.scheduleHour === plan.scheduleHour &&
+    provision.scheduleMinute === plan.scheduleMinute &&
+    provision.notebookNest === notebookNest &&
+    provision.notebookTitle === notebookTitle &&
+    provision.topics.length === plan.topics.length &&
+    provision.topics.every((topic, index) => topic === plan.topics[index])
+  );
+}
+
 /**
  * Renders a chat message with minimal interactivity (no pressable, no overflow
  * menu). For a fully interactive chat message view, see
@@ -202,10 +223,16 @@ export function StaticChatMessage({
 
       const locks = await db.agentGroupOnboardingLocks.getValue();
       const existingLock = locks[groupId];
-      // An unacknowledged retry must keep its id so the coordinator can
-      // deduplicate it. Once acknowledged, a new submission is a new request.
+      // Reuse an id only for an exact retry of the same unacknowledged plan.
+      // A different plan is a distinct coordinator request.
       const provisionId =
-        existingLock?.provisionAcknowledgedAt == null
+        existingLock?.provisionAcknowledgedAt == null &&
+        provisionMatchesPlan(
+          existingLock?.provision,
+          { ...plan, groupId },
+          notebooks[0].id,
+          notebookTitle
+        )
           ? existingLock?.provision?.provisionId
           : undefined;
       const request = {
