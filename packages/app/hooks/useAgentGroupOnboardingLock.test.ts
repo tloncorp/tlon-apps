@@ -2,9 +2,43 @@ import * as db from '@tloncorp/shared/db';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  findAgentGroupOnboardingStartupRoute,
   isAgentGroupNavigationLocked,
   isAnyAgentGroupNavigationLockedDurably,
 } from './useAgentGroupOnboardingLock';
+
+describe('findAgentGroupOnboardingStartupRoute', () => {
+  it('restores only a locked first-group setup chat', () => {
+    expect(
+      findAgentGroupOnboardingStartupRoute({
+        later: {
+          chatChannelId: 'chat/later',
+          createdAt: 1,
+          navigationLocked: false,
+        },
+        first: {
+          chatChannelId: 'chat/first',
+          createdAt: 1,
+          navigationLocked: true,
+        },
+      })
+    ).toEqual({ groupId: 'first', channelId: 'chat/first' });
+  });
+
+  it('does not restore acknowledged or channel-less locks', () => {
+    expect(
+      findAgentGroupOnboardingStartupRoute({
+        acknowledged: {
+          chatChannelId: 'chat/first',
+          createdAt: 1,
+          navigationLocked: true,
+          provisionAcknowledgedAt: 2,
+        },
+        legacy: { createdAt: 1, navigationLocked: true },
+      })
+    ).toBeNull();
+  });
+});
 
 describe('isAgentGroupNavigationLocked', () => {
   it('keeps legacy and explicit first-group markers locked', () => {

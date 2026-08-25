@@ -48,6 +48,8 @@ type FurnishParams = {
   agentShipId?: string;
   /** Lets the bot introduce the provisioned home group as the user's first. */
   isFirstGroup?: boolean;
+  /** Distinguishes explicit later creations while preserving remount retries. */
+  requestId?: string;
 };
 
 /**
@@ -69,10 +71,20 @@ export async function ensureAgentGroupFurnished(
 export async function startAgentGroupFurnishing(
   params: FurnishParams = {}
 ): Promise<AgentGroupFurnishingStart> {
-  const flightKey = params.groupId ?? `new:${api.getCurrentUserId()}`;
+  const flightKey = agentGroupFurnishingFlightKey(
+    params,
+    api.getCurrentUserId()
+  );
   return startAgentGroupFurnishingFlight(flightKey, () =>
     startAgentGroupFurnishingOnce(params)
   );
+}
+
+function agentGroupFurnishingFlightKey(
+  params: Pick<FurnishParams, 'groupId' | 'requestId'>,
+  currentUserId: string
+) {
+  return params.groupId ?? params.requestId ?? `new:${currentUserId}`;
 }
 
 function startAgentGroupFurnishingFlight(
@@ -136,6 +148,7 @@ async function startAgentGroupFurnishingOnce(
       ...current,
       [group.id]: {
         ...current[group.id],
+        chatChannelId: chatChannel.id,
         createdAt: current[group.id]?.createdAt ?? Date.now(),
         navigationLocked:
           current[group.id]?.navigationLocked ?? params.isFirstGroup ?? false,
@@ -819,6 +832,7 @@ function agentHasAdmin(group: db.Group, agentShipId: string) {
 
 export const agentGroupOnboardingTesting = {
   addCordonThenJoin,
+  agentGroupFurnishingFlightKey,
   agentHasAdmin,
   retryAgentGroupFurnishCore,
   agentHasJoined,

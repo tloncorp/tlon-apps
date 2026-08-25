@@ -41,6 +41,7 @@ import { NotesSearchScreen } from '../features/top/NotesSearchScreen';
 import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useDarkMode';
+import { useAgentGroupOnboardingStartupRoute } from '../hooks/useAgentGroupOnboardingLock';
 import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
@@ -69,10 +70,13 @@ export function RootStack() {
   });
 
   const theme = useTheme();
+  const onboardingStartup = useAgentGroupOnboardingStartupRoute();
+
+  if (onboardingStartup.isLoading) return null;
 
   return (
     <Root.Navigator
-      initialRouteName="MainTabs"
+      initialRouteName={onboardingStartup.route ? 'Channel' : 'MainTabs'}
       screenOptions={{
         ...nativeHeaderPresentationOptions,
         headerBackVisible: false,
@@ -106,6 +110,15 @@ export function RootStack() {
       <Root.Screen
         name="Channel"
         component={ChannelScreen}
+        initialParams={
+          onboardingStartup.route
+            ? {
+                channelId: onboardingStartup.route.channelId,
+                groupId: onboardingStartup.route.groupId,
+                disableTransition: true,
+              }
+            : undefined
+        }
         options={({ route }) => ({
           animation: route.params.disableTransition ? 'none' : 'default',
         })}

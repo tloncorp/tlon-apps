@@ -13,6 +13,18 @@ export function isAgentGroupNavigationLocked(
   );
 }
 
+export function findAgentGroupOnboardingStartupRoute(
+  locks: Record<string, db.AgentGroupOnboardingLock>
+) {
+  const entry = Object.entries(locks).find(
+    ([, marker]) =>
+      isAgentGroupNavigationLocked(marker) && Boolean(marker.chatChannelId)
+  );
+  return entry
+    ? { groupId: entry[0], channelId: entry[1].chatChannelId! }
+    : null;
+}
+
 export async function isAnyAgentGroupNavigationLockedDurably() {
   const locks = await db.agentGroupOnboardingLocks.getValue(true);
   return Object.values(locks).some(isAgentGroupNavigationLocked);
@@ -40,5 +52,14 @@ export function useAnyAgentGroupOnboardingLock() {
   return {
     isLoading,
     locked: Object.values(locks).some(isAgentGroupNavigationLocked),
+  };
+}
+
+export function useAgentGroupOnboardingStartupRoute() {
+  const { value: locks, isLoading } =
+    db.agentGroupOnboardingLocks.useStorageItem();
+  return {
+    isLoading,
+    route: findAgentGroupOnboardingStartupRoute(locks),
   };
 }
