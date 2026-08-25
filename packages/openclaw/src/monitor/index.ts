@@ -94,6 +94,10 @@ import {
   recordActiveTlonTurnSourceReply,
   startTlonAgentTurn,
 } from '../turn-recorder.js';
+import {
+  formatTlonTerminalFallback,
+  resolveTlonTerminalFallback,
+} from '../terminal-failure-reply.js';
 import { resolveTlonAccount } from '../types.js';
 import {
   runWithTlonApiScope,
@@ -3590,7 +3594,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // recorded outputs so a tool-only answer isn't finalized as no_reply.
         const recordedOutputCount =
           contextLenses.get(lens.lensId)?.outputs.length ?? 0;
-        const effectiveDeliveredCount = Math.max(
+        let effectiveDeliveredCount = Math.max(
           deliveredMessageCount,
           recordedOutputCount
         );
@@ -3603,6 +3607,77 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             dispatchResult?.sourceReplyDeliveryMode ?? null,
           timedOut: dispatchTimedOut,
         });
+        const terminalFallbackKind = resolveTlonTerminalFallback({
+          deliveredMessageCount: effectiveDeliveredCount,
+          deliverySkipReason,
+          summary: turnSummary,
+        });
+        if (terminalFallbackKind) {
+          const fallbackText = formatTlonTerminalFallback(terminalFallbackKind);
+          const fallbackBlob = buildContextLensReferenceBlobField(lens.lensId);
+          sendAttemptCount += 1;
+          try {
+            let outputMessageId: string | null = null;
+            if (isGroup && groupChannel) {
+              const result = await sendChannelPost({
+                botProfile: getBotProfile(),
+                fromShip: botShipName,
+                nest: groupChannel,
+                story: markdownToStory(fallbackText),
+                replyToId: deliverParentId ?? undefined,
+                blob: fallbackBlob,
+              });
+              outputMessageId = result.messageId;
+              if (deliverParentId) {
+                participatedThreads.add(String(deliverParentId));
+              }
+            } else {
+              const result = await sendDm({
+                botProfile: getBotProfile(),
+                fromShip: botShipName,
+                toShip: senderShip,
+                text: fallbackText,
+                replyToId: deliverParentId
+                  ? String(deliverParentId)
+                  : undefined,
+                blob: fallbackBlob,
+              });
+              outputMessageId = result.messageId;
+            }
+            deliveredMessageCount += 1;
+            effectiveDeliveredCount = Math.max(
+              deliveredMessageCount,
+              recordedOutputCount
+            );
+            contextLenses.recordPersistence(lens.lensId, {
+              postsReply: true,
+            });
+            recordSentTlonReply({
+              botShipName,
+              contextLenses,
+              deliveredMessageCount,
+              groupChannel,
+              isGroup,
+              lensId: lens.lensId,
+              outputMessageId,
+              replyBlob: fallbackBlob,
+              replyPreview: previewText(fallbackText),
+              replyText: fallbackText,
+              senderShip,
+            });
+            replyCharCount += fallbackText.length;
+            replyWordCount += fallbackText.trim().split(/\s+/).length;
+            runtime.log?.(
+              `[tlon] Delivered terminal fallback (${terminalFallbackKind}) for run ${runId}`
+            );
+          } catch (fallbackError) {
+            sendErrorCount += 1;
+            sendErrorKind = 'terminal_fallback';
+            runtime.error?.(
+              `[tlon] Failed to deliver terminal fallback for run ${runId}: ${describeError(fallbackError)}`
+            );
+          }
+        }
         contextLenses.recordLifecycle(lens.lensId, {
           completedAt: Date.now(),
           durationMs: dispatchDurationMs,

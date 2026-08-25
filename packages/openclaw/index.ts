@@ -98,6 +98,17 @@ function readToolCallId(event: unknown): string | undefined {
     (event as { id?: unknown }).id;
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 }
+
+function toolCallFailed(event: { error?: unknown; result?: unknown }): boolean {
+  if (event.error !== undefined && event.error !== null && event.error !== '') {
+    return true;
+  }
+  return (
+    Boolean(event.result) &&
+    typeof event.result === 'object' &&
+    (event.result as { isError?: unknown }).isError === true
+  );
+}
 const require = createRequire(import.meta.url);
 
 function summarizeToolParams(params: unknown): string | undefined {
@@ -1076,7 +1087,7 @@ export default defineBundledChannelEntry({
 
     api.on('after_tool_call', (event, ctx) => {
       const toolCallId = readToolCallId(event);
-      recordActiveTlonTurnToolCall();
+      recordActiveTlonTurnToolCall({ failed: toolCallFailed(event) });
       if (logToolTraceContents && shouldLogAfterToolTrace(event)) {
         api.logger.info(
           formatToolTraceEvent({

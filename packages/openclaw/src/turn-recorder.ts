@@ -89,6 +89,7 @@ export type TlonAgentTurnSummary = TlonAgentTurnStart & {
   result: TlonAgentTurnResult;
   sourceReplyCount: number;
   toolCallCount: number;
+  toolFailureCount: number;
 };
 
 export type TlonAgentTurnObserver = {
@@ -105,6 +106,7 @@ type TlonAgentTurnState = TlonAgentTurnStart & {
   sourceReplyCount: number;
   summary: TlonAgentTurnSummary | null;
   toolCallCount: number;
+  toolFailureCount: number;
 };
 
 type MetricAttributes = Record<string, string>;
@@ -324,6 +326,7 @@ function buildSummary(
     ship: state.ship,
     sourceReplyCount: state.sourceReplyCount,
     toolCallCount: state.toolCallCount,
+    toolFailureCount: state.toolFailureCount,
     trigger: state.trigger,
   };
 }
@@ -398,6 +401,7 @@ export function createTlonAgentTurnOtelObserver(options?: {
           'tlon.turn.ship': summary.ship,
           'tlon.turn.source_reply_count': summary.sourceReplyCount,
           'tlon.turn.tool_call_count': summary.toolCallCount,
+          'tlon.turn.tool_failure_count': summary.toolFailureCount,
           'tlon.turn.trigger': summary.trigger,
         });
       });
@@ -423,6 +427,7 @@ export function startTlonAgentTurn(
     sourceReplyCount: 0,
     summary: null,
     toolCallCount: 0,
+    toolFailureCount: 0,
   };
 
   safeObserve(() => observer.recordStarted(state));
@@ -468,9 +473,14 @@ export function recordActiveTlonTurnSourceReply(reply?: {
   });
 }
 
-export function recordActiveTlonTurnToolCall(): void {
+export function recordActiveTlonTurnToolCall(options?: {
+  failed?: boolean;
+}): void {
   updateActiveTurn((state) => {
     state.toolCallCount += 1;
+    if (options?.failed === true) {
+      state.toolFailureCount += 1;
+    }
   });
 }
 

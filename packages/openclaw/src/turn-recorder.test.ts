@@ -33,6 +33,7 @@ function recordTurn(params: {
     kind: 'tool' | 'block' | 'final';
   }>;
   toolCount?: number;
+  toolFailureCount?: number;
   deliverySuccessCount?: number;
   deliveryFailureCount?: number;
   terminal?: Parameters<ReturnType<typeof startTlonAgentTurn>['finalize']>[0];
@@ -47,6 +48,9 @@ function recordTurn(params: {
     }
     for (let i = 0; i < (params.toolCount ?? 0); i += 1) {
       recordActiveTlonTurnToolCall();
+    }
+    for (let i = 0; i < (params.toolFailureCount ?? 0); i += 1) {
+      recordActiveTlonTurnToolCall({ failed: true });
     }
     for (let i = 0; i < (params.deliverySuccessCount ?? 0); i += 1) {
       recordActiveTlonTurnDelivery(true);
@@ -368,7 +372,16 @@ describe('Tlon agent turn classification', () => {
       ship: 'zod',
       sourceReplyCount: 2,
       toolCallCount: 3,
+      toolFailureCount: 0,
       trigger: 'dm',
+    });
+  });
+
+  it('records failed tool calls independently from total tool calls', () => {
+    expect(recordTurn({ toolCount: 1, toolFailureCount: 2 })).toMatchObject({
+      result: 'action_only',
+      toolCallCount: 3,
+      toolFailureCount: 2,
     });
   });
 });
@@ -583,6 +596,7 @@ describe('Tlon agent turn OTEL observer', () => {
       'tlon.turn.ship': 'zod',
       'tlon.turn.source_reply_count': 1,
       'tlon.turn.tool_call_count': 0,
+      'tlon.turn.tool_failure_count': 0,
       'tlon.turn.trigger': 'dm',
     });
   });

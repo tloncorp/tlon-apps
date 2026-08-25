@@ -136,6 +136,13 @@ OpenClaw policy. For example, `exec` must be enabled and configured to ask for
 approval in the host configuration before a shell approval can be requested.
 Only the owner can answer these requests.
 
+The same transport boundary also prevents failed Tlon-originated runs from
+ending silently. If no reply reached the conversation, the plugin posts a
+generic terminal notice for timeouts, run or tool failures, delivery failures,
+and otherwise-empty results. It does not post this notice after a visible reply,
+an explicit silent/heartbeat response, cancellation, or an intentional
+`message_tool_only` result. Raw error details are logged but never sent to chat.
+
 ### Admin Commands
 
 The owner can send these commands via DM:
