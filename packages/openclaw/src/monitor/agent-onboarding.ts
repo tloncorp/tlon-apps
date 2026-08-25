@@ -22,6 +22,7 @@ import {
   takeDeliveredNote,
 } from '../notes-delivery-state.js';
 import { sharedMap } from '../shared-state.js';
+import { type Sleeper, defaultSleep } from '../sleep.js';
 import type {
   TlonOnboardingAnswer,
   TlonOnboardingCompletionPath,
@@ -106,7 +107,7 @@ type AgentOnboardingDeps = {
   /** Injectable so pacing jitter is deterministic under test. */
   random?: () => number;
   sendPost?: typeof sendChannelPost;
-  sleep?: (ms: number) => Promise<void>;
+  sleep?: Sleeper;
 };
 
 type AgentOnboardingCronDeps = {
@@ -115,7 +116,7 @@ type AgentOnboardingCronDeps = {
   inApiScope?: boolean;
   listNotes?: typeof notes.listNotes;
   sendPost?: typeof sendChannelPost;
-  sleep?: (ms: number) => Promise<void>;
+  sleep?: Sleeper;
 };
 
 type OnboardingGroup = {
@@ -1187,6 +1188,31 @@ async function configureProviders(
   }
   const cron = (deps.getCron ?? getTlonCronService)();
   if (!cron) throw new Error('cron service is not available');
+  context.abortSignal?.throwIfAborted();
+  const latestHistory = await (deps.fetchHistory ?? fetchChannelHistoryOrThrow)(
+    context.api,
+    context.channelNest,
+    ORIENTATION_HISTORY_LIMIT
+  );
+  context.abortSignal?.throwIfAborted();
+  const latestConfig = findLatestProviderConfig(
+    latestHistory,
+    context.ownerShip!,
+    config.groupId,
+    config.provisionId
+  );
+  if (
+    !latestConfig ||
+    latestConfig.providerIds.length !== config.providerIds.length ||
+    latestConfig.providerIds.some(
+      (providerId, index) => providerId !== config.providerIds[index]
+    )
+  ) {
+    context.log?.(
+      '[tlon] rejected agent provider config: request was superseded'
+    );
+    return;
+  }
   const jobId = await updatePrimaryJobProviders(
     cron,
     acknowledgedJobId,
@@ -1689,9 +1715,10 @@ async function postFirstRunServices(
   history: TlonHistoryEntry[],
   deps: AgentOnboardingCronDeps
 ) {
-  await (
-    deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
-  )(FIRST_ENTRY_TO_SERVICES_DELAY_MS);
+  await (deps.sleep ?? defaultSleep)(
+    FIRST_ENTRY_TO_SERVICES_DELAY_MS,
+    correlation.context.abortSignal
+  );
   const servicesPosted = await postOnce(
     correlation.context,
     history,

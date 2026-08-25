@@ -120,6 +120,29 @@ function botMarker(key: string, timestamp: number) {
   };
 }
 
+function providerConfig(
+  providerIds: string[],
+  timestamp = 3,
+  provisionId = provision.provisionId
+) {
+  const entry = {
+    type: 'tlon-agent-provider-config' as const,
+    version: 1 as const,
+    provisionId,
+    groupId: provision.groupId,
+    providerIds,
+  };
+  return {
+    entry,
+    historyEntry: {
+      author: '~ten',
+      content: providerIds.join(', '),
+      timestamp,
+      blob: appendToPostBlob(undefined, entry),
+    },
+  };
+}
+
 beforeEach(() => {
   notesDeliveryTesting.clear();
   agentOnboardingTesting.clearAllFirstRunCompletionRetries();
@@ -2027,6 +2050,7 @@ describe('primary onboarding cron slot', () => {
 
   it('updates the existing group slot from an owner provider config', async () => {
     const harness = cronHarness();
+    const config = providerConfig(['gmail']);
     await agentOnboardingTesting.upsertPrimaryJob(
       harness.cron,
       provision,
@@ -2050,6 +2074,7 @@ describe('primary onboarding cron slot', () => {
           cronJobId: 'job-1',
         }),
       },
+      config.historyEntry,
     ];
     Object.assign(harness.getJobs()[0], {
       name: 'My edited digest',
@@ -2071,13 +2096,7 @@ describe('primary onboarding cron slot', () => {
         groupId: provision.groupId,
         ownerShip: '~ten',
         senderShip: '~ten',
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provider-config',
-          version: 1,
-          provisionId: provision.provisionId,
-          groupId: provision.groupId,
-          providerIds: ['gmail'],
-        }),
+        blob: appendToPostBlob(undefined, config.entry),
       },
       {
         fetchHistory: vi.fn(async () => history),
@@ -2126,6 +2145,7 @@ describe('primary onboarding cron slot', () => {
       completedAt: 2,
       status: 'completed',
     });
+    const config = providerConfig(['gmail']);
 
     await handleAgentOnboardingRequest(
       {
@@ -2135,16 +2155,10 @@ describe('primary onboarding cron slot', () => {
         groupId: provision.groupId,
         ownerShip: '~ten',
         senderShip: '~ten',
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provider-config',
-          version: 1,
-          provisionId: provision.provisionId,
-          groupId: provision.groupId,
-          providerIds: ['gmail'],
-        }),
+        blob: appendToPostBlob(undefined, config.entry),
       },
       {
-        fetchHistory: vi.fn(async () => []),
+        fetchHistory: vi.fn(async () => [config.historyEntry]),
         getCron: () => harness.cron,
       }
     );
@@ -2155,8 +2169,77 @@ describe('primary onboarding cron slot', () => {
     });
   });
 
+  it('does not let a stalled provider request overwrite a newer selection', async () => {
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const baseHistory = [
+      {
+        author: '~ten',
+        content: 'AI, Climate',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, provision),
+      },
+      {
+        author: '~bot',
+        content: 'Ready',
+        timestamp: 2,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-provision-ack' as const,
+          version: 1 as const,
+          provisionId: provision.provisionId,
+          cronJobId: 'job-1',
+        }),
+      },
+    ];
+    const older = providerConfig(['gmail'], 3);
+    const newer = providerConfig(['notion'], 4);
+    const olderHistory = [...baseHistory, older.historyEntry];
+    const newestHistory = [
+      ...baseHistory,
+      older.historyEntry,
+      newer.historyEntry,
+    ];
+    let releaseOlderRevalidation!: () => void;
+    const olderRevalidation = new Promise<void>((resolve) => {
+      releaseOlderRevalidation = resolve;
+    });
+    let olderFetchCount = 0;
+    const fetchOlderHistory = vi.fn(async () => {
+      olderFetchCount += 1;
+      if (olderFetchCount === 1) return olderHistory;
+      await olderRevalidation;
+      return newestHistory;
+    });
+
+    const olderRequest = handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, older.entry) }),
+      { fetchHistory: fetchOlderHistory, getCron: () => harness.cron }
+    );
+    await vi.waitFor(() => expect(fetchOlderHistory).toHaveBeenCalledTimes(2));
+
+    await handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, newer.entry) }),
+      {
+        fetchHistory: vi.fn(async () => newestHistory),
+        getCron: () => harness.cron,
+      }
+    );
+    releaseOlderRevalidation();
+    await olderRequest;
+
+    expect(harness.cron.update).toHaveBeenCalledOnce();
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: { message: expect.stringContaining('["notion"]') },
+    });
+  });
+
   it('rejects a provider config for a superseded provision', async () => {
     const harness = cronHarness();
+    const config = providerConfig(['gmail'], 4);
     await agentOnboardingTesting.upsertPrimaryJob(
       harness.cron,
       provision,
@@ -2190,6 +2273,7 @@ describe('primary onboarding cron slot', () => {
           topics: ['Robotics'],
         }),
       },
+      config.historyEntry,
     ];
 
     await handleAgentOnboardingRequest(
@@ -2200,13 +2284,7 @@ describe('primary onboarding cron slot', () => {
         groupId: provision.groupId,
         ownerShip: '~ten',
         senderShip: '~ten',
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provider-config',
-          version: 1,
-          provisionId: provision.provisionId,
-          groupId: provision.groupId,
-          providerIds: ['gmail'],
-        }),
+        blob: appendToPostBlob(undefined, config.entry),
       },
       {
         fetchHistory: vi.fn(async () => history),
@@ -2244,6 +2322,7 @@ describe('primary onboarding cron slot', () => {
       durableRecord('provision-1', 1)
     );
     await store.register('provision-2', durableRecord('provision-2', 2));
+    const config = providerConfig(['gmail']);
 
     await handleAgentOnboardingRequest(
       {
@@ -2253,16 +2332,10 @@ describe('primary onboarding cron slot', () => {
         groupId: provision.groupId,
         ownerShip: '~ten',
         senderShip: '~ten',
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provider-config',
-          version: 1,
-          provisionId: provision.provisionId,
-          groupId: provision.groupId,
-          providerIds: ['gmail'],
-        }),
+        blob: appendToPostBlob(undefined, config.entry),
       },
       {
-        fetchHistory: vi.fn(async () => []),
+        fetchHistory: vi.fn(async () => [config.historyEntry]),
         getCron: () => harness.cron,
       }
     );
@@ -3056,7 +3129,7 @@ describe('provision coordinator ordering', () => {
     expect(listNotes).toHaveBeenCalledTimes(2);
     expect(sleep).toHaveBeenCalledTimes(2);
     expect(sleep).toHaveBeenNthCalledWith(1, 1_000);
-    expect(sleep).toHaveBeenNthCalledWith(2, 5_500);
+    expect(sleep).toHaveBeenNthCalledWith(2, 5_500, undefined);
     const reveal = sendPost.mock.calls[0]?.[0];
     // The sentence carries the entry on its own — the cite renders as
     // "Content not available" until the client has synced the notes channel,
@@ -3225,6 +3298,67 @@ describe('provision coordinator ordering', () => {
     expect(listNotes).toHaveBeenCalledWith(provision.notebookNest, {
       signal: controller.signal,
     });
+  });
+
+  it('cancels the services pause when the monitor is draining', async () => {
+    const api = { scry: vi.fn() };
+    const abortController = new AbortController();
+    const context = scanContext({ api, abortSignal: abortController.signal });
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'first-run-aborted-pause' },
+      context,
+      provision,
+      provision.notebookTitle,
+      'job-1'
+    );
+    const sleep = vi.fn(
+      async (_ms: number, signal?: AbortSignal): Promise<void> =>
+        new Promise((_resolve, reject) => {
+          if (signal?.aborted) {
+            reject(signal.reason);
+            return;
+          }
+          signal?.addEventListener('abort', () => reject(signal.reason), {
+            once: true,
+          });
+        })
+    );
+    const completion = handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'job-1',
+        runId: 'first-run-aborted-pause',
+        status: 'ok',
+        delivered: true,
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        listNotes: vi.fn(async () => [
+          {
+            id: `${provision.notebookNest}/12`,
+            notebookFlag: provision.notebookNest,
+            noteId: 12,
+            title: 'First entry',
+            createdBy: '~bot',
+            createdAt: Date.now() + 1,
+          },
+        ]),
+        sendPost: vi.fn(async () => ({
+          channel: 'tlon' as const,
+          messageId: 'post',
+          sentAt: 0,
+        })),
+        sleep,
+      }
+    );
+    await vi.waitFor(() =>
+      expect(sleep).toHaveBeenCalledWith(5_500, abortController.signal)
+    );
+
+    abortController.abort(new Error('monitor stopped'));
+
+    await expect(completion).rejects.toThrow('monitor stopped');
+    await expect(drainAgentOnboardingRuntime(api)).resolves.toBeUndefined();
   });
 
   it('uses the authoritative created note when cron completion wins the hook race', async () => {
