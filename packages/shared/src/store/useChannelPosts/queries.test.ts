@@ -1,11 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import * as db from '../../db';
-import {
-  getLatestChannelPostsInitialPage,
-  queryKeyPrefix,
-  supportsChangedPostsRefresh,
-} from './queries';
+import { getLatestChannelPostsInitialPage, queryKeyPrefix } from './queries';
 
 type TestPageParam = { mode: string; cursorPostId?: string; count?: number };
 
@@ -18,17 +14,6 @@ const data = (...entries: [string, TestPageParam, number?][]) => ({
 });
 
 const newest = { mode: 'newest' };
-
-describe('supportsChangedPostsRefresh', () => {
-  it.each([
-    ['chat/~zod/general', true],
-    ['heap/~zod/gallery', true],
-    ['~pinser-botter-podfyl-parseb', false],
-    ['0v4.00000.qd4mk.d4htu.er4b8.eao21', false],
-  ])('classifies %s', (channelId, expected) => {
-    expect(supportsChangedPostsRefresh(channelId)).toBe(expected);
-  });
-});
 
 describe('getLatestChannelPostsInitialPage', () => {
   afterEach(() => {

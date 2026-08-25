@@ -1,16 +1,8 @@
 import type { InfiniteData } from '@tanstack/react-query';
-import { isGroupChannelId } from '@tloncorp/api';
 
 import * as db from '../../db';
 
 export const queryKeyPrefix = ['channelPosts'];
-
-// The server's changed-posts endpoint is implemented by group channel nests,
-// not %chat DMs or clubs. Those conversations are refreshed by their normal
-// DM sync/subscription paths.
-export function supportsChangedPostsRefresh(channelId: string): boolean {
-  return isGroupChannelId(channelId);
-}
 
 export function getLatestChannelPostsInitialPage<
   TPage extends { fetchedAt: number },
