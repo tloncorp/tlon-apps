@@ -1,4 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import { A2UI } from '@tloncorp/shared/logic';
 import { Icon, LoadingSpinner } from '@tloncorp/ui';
@@ -14,17 +15,10 @@ import {
 } from '../../../lib/mcpProviders';
 import { McpProviderLogo } from '../McpProviderLogo';
 import { A2UIMenuRow } from './A2UIMenuRow';
+import { useOneShotAction } from './useOneShotAction';
 
-type McpProviderSnapshot = {
-  providers: api.TlawnOAuthProvider[];
-  status: api.TlawnOAuthStatus;
-};
-
-// Channel screens are normally popped when the owner leaves them, so local
-// component state cannot preserve this historical row's height. Keep the last
-// successful Hosting snapshot for each account and refresh it in place.
-const providerSnapshots = new Map<string, McpProviderSnapshot>();
 const MAX_PROVIDER_SELECTIONS = api.AGENT_PROTOCOL_LIMITS.providerCount;
+const pendingProviderSelections = new Map<string, string[]>();
 const clampProviderIds = (providerIds: string[]) =>
   providerIds.slice(0, MAX_PROVIDER_SELECTIONS);
 
@@ -51,88 +45,51 @@ export function McpConnectControl({
   onNavigate?: (action: A2UI.NavigateAction) => void | Promise<void>;
 }) {
   const currentUserId = useCurrentUserId();
-  const initialSnapshot = currentUserId
-    ? providerSnapshots.get(currentUserId)
-    : undefined;
-  const [loading, setLoading] = useState(!initialSnapshot);
-  const [failed, setFailed] = useState(false);
-  const [providerConfigs, setProviderConfigs] = useState<
-    api.TlawnOAuthProvider[]
-  >(initialSnapshot?.providers ?? []);
-  const [status, setStatus] = useState<api.TlawnOAuthStatus | null>(
-    initialSnapshot?.status ?? null
-  );
-  const loadedUserIdRef = useRef<string | null>(
-    initialSnapshot ? currentUserId : null
-  );
+  const providersQuery = useQuery({
+    queryKey: ['tlonbot', 'oauth-providers'],
+    queryFn: () => api.getTlawnOAuthProviders(),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+  const statusQuery = useQuery({
+    queryKey: ['tlonbot', 'oauth-status', currentUserId],
+    queryFn: () => api.getTlawnOAuthStatus(currentUserId),
+    enabled: Boolean(currentUserId),
+    staleTime: 30 * 1000,
+    retry: false,
+  });
 
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-
-      async function loadProviders() {
-        if (!currentUserId) {
-          if (active) {
-            setFailed(true);
-            setLoading(false);
-          }
-          return;
-        }
-
-        // Keep the existing rows mounted while refreshing after navigation.
-        // Replacing a full menu with a one-row spinner changes the historical
-        // message height and makes the conversation jump on every refocus.
-        const isInitialLoad = loadedUserIdRef.current !== currentUserId;
-        if (isInitialLoad) {
-          setLoading(true);
-        }
-        setFailed(false);
-        try {
-          const [nextProviders, nextStatus] = await Promise.all([
-            api.getTlawnOAuthProviders(),
-            api.getTlawnOAuthStatus(currentUserId),
-          ]);
-          if (active) {
-            providerSnapshots.set(currentUserId, {
-              providers: nextProviders,
-              status: nextStatus,
-            });
-            setProviderConfigs(nextProviders);
-            setStatus(nextStatus);
-            loadedUserIdRef.current = currentUserId;
-          }
-        } catch {
-          if (active && isInitialLoad) {
-            setFailed(true);
-          }
-        } finally {
-          if (active) {
-            setLoading(false);
-          }
-        }
-      }
-
-      void loadProviders();
-      return () => {
-        active = false;
-      };
-    }, [currentUserId])
+      // OAuth leaves and re-enters the channel. Refresh the shared cache when
+      // it regains focus so every historical connector control sees the grant.
+      void providersQuery.refetch();
+      if (currentUserId) void statusQuery.refetch();
+    }, [currentUserId, providersQuery.refetch, statusQuery.refetch])
   );
 
   const providers = useMemo(
     () =>
-      prioritizeMcpMenuProviders(
-        buildProviderRows(providerConfigs, status?.grants ?? [])
-      ),
-    [providerConfigs, status?.grants]
+      statusQuery.data?.available === false
+        ? []
+        : prioritizeMcpMenuProviders(
+            buildProviderRows(
+              providersQuery.data ?? [],
+              statusQuery.data?.grants ?? []
+            )
+          ),
+    [providersQuery.data, statusQuery.data]
   );
+
+  const hasProviderData = providersQuery.data !== undefined;
+  const hasStatusData = statusQuery.data !== undefined;
 
   return (
     <McpConnectMenu
       component={component}
-      failed={failed}
-      loading={loading}
-      providersLoaded={loadedUserIdRef.current === currentUserId}
+      failed={providersQuery.isError || statusQuery.isError}
+      loading={!hasProviderData || !hasStatusData}
+      providersLoaded={hasProviderData && hasStatusData}
       completionConsumed={completionConsumed}
       completionSelection={completionSelection}
       onConfigure={onConfigure}
@@ -171,14 +128,15 @@ export function McpConnectMenu({
   onNavigate?: (action: A2UI.NavigateAction) => void | Promise<void>;
   providers: McpProviderRow[];
 }) {
-  const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([]);
+  const selectionKey = `${component.configureAction.event.context.groupId}\u0000${component.configureAction.event.context.provisionId}\u0000${component.id}`;
+  const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>(
+    () => pendingProviderSelections.get(selectionKey) ?? []
+  );
   const [submitting, setSubmitting] = useState(false);
-  const [completing, setCompleting] = useState(false);
-  const [completedLocally, setCompletedLocally] = useState(false);
   const configuringRef = useRef(false);
-  const completingRef = useRef(false);
   const initializedRef = useRef(false);
   const knownConnectedRef = useRef(new Set<string>());
+  const completionAction = useOneShotAction(completionConsumed);
   const connectedProviderIds = useMemo(
     () =>
       providers
@@ -218,26 +176,38 @@ export function McpConnectMenu({
     });
   }, [connectedProviderIds, loading, providersLoaded]);
 
+  useEffect(() => {
+    pendingProviderSelections.set(selectionKey, selectedProviderIds);
+  }, [selectedProviderIds, selectionKey]);
+
+  useEffect(() => {
+    if (completionConsumed) pendingProviderSelections.delete(selectionKey);
+  }, [completionConsumed, selectionKey]);
+
   const visibleProviders = useMemo(
     () => selectMcpMenuProviders(providers, component.maxVisible),
     [component.maxVisible, providers]
   );
   const showSeeAll = providers.length > visibleProviders.length;
+  const completionLocked = completionAction.consumed;
 
-  const toggleProvider = useCallback((providerId: string) => {
-    if (configuringRef.current || completingRef.current) return;
-    setSelectedProviderIds((current) => {
-      if (current.includes(providerId)) {
-        return current.filter((id) => id !== providerId);
-      }
-      return current.length < MAX_PROVIDER_SELECTIONS
-        ? [...current, providerId]
-        : current;
-    });
-  }, []);
+  const toggleProvider = useCallback(
+    (providerId: string) => {
+      if (configuringRef.current || completionAction.isLocked()) return;
+      setSelectedProviderIds((current) => {
+        if (current.includes(providerId)) {
+          return current.filter((id) => id !== providerId);
+        }
+        return current.length < MAX_PROVIDER_SELECTIONS
+          ? [...current, providerId]
+          : current;
+      });
+    },
+    [completionAction]
+  );
 
   const configure = useCallback(async () => {
-    if (!onConfigure || configuringRef.current || completingRef.current) {
+    if (!onConfigure || configuringRef.current || completionAction.isLocked()) {
       return;
     }
     configuringRef.current = true;
@@ -256,33 +226,27 @@ export function McpConnectMenu({
       configuringRef.current = false;
       setSubmitting(false);
     }
-  }, [component.configureAction.event, onConfigure, selectedProviderIds]);
+  }, [
+    completionAction,
+    component.configureAction.event,
+    onConfigure,
+    selectedProviderIds,
+  ]);
 
   const complete = useCallback(async () => {
     if (
       !component.completionAction ||
       !onComplete ||
       configuringRef.current ||
-      completingRef.current ||
-      completionConsumed ||
-      completedLocally
+      completionAction.isLocked()
     ) {
       return;
     }
-    completingRef.current = true;
-    setCompleting(true);
-    try {
-      await onComplete(component.completionAction, completionSelection);
-      setCompletedLocally(true);
-    } catch (error) {
-      completingRef.current = false;
-      throw error;
-    } finally {
-      setCompleting(false);
-    }
+    await completionAction.run(() =>
+      onComplete(component.completionAction!, completionSelection)
+    );
   }, [
-    completedLocally,
-    completionConsumed,
+    completionAction,
     completionSelection,
     component.completionAction,
     onComplete,
@@ -334,7 +298,7 @@ export function McpConnectMenu({
           </XStack>
         ) : failed || visibleProviders.length === 0 ? (
           <ProviderFallbackRow
-            disabled={!onNavigate}
+            disabled={!onNavigate || completionLocked}
             onPress={() => navigate()}
           />
         ) : (
@@ -343,11 +307,11 @@ export function McpConnectMenu({
               const connected = provider.status === 'connected';
               const selected = selectedProviderIds.includes(provider.id);
               const enabled = connected
-                ? Boolean(onConfigure) && !submitting
-                : Boolean(onNavigate);
+                ? Boolean(onConfigure) && !submitting && !completionLocked
+                : Boolean(onNavigate) && !completionLocked;
               const disabled = connected
-                ? !onConfigure || submitting
-                : !onNavigate;
+                ? !onConfigure || submitting || completionLocked
+                : !onNavigate || completionLocked;
               return (
                 <A2UIMenuRow
                   key={provider.id}
@@ -401,9 +365,9 @@ export function McpConnectMenu({
               <A2UIMenuRow
                 testID="A2UIMcpConnectSeeAll"
                 accessibilityLabel={component.seeAllLabel}
-                disabled={!onNavigate}
+                disabled={!onNavigate || completionLocked}
                 onPress={() => navigate()}
-                dimmed={!onNavigate}
+                dimmed={!onNavigate || completionLocked}
                 label={component.seeAllLabel}
                 trailing={
                   <Icon
@@ -422,13 +386,13 @@ export function McpConnectMenu({
           testID="A2UIMcpConnectSubmit"
           accessibilityLabel={component.submitLabel}
           accessibilityState={{
-            disabled: !onConfigure || submitting,
+            disabled: !onConfigure || submitting || completionLocked,
           }}
-          disabled={!onConfigure || submitting}
+          disabled={!onConfigure || submitting || completionLocked}
           onPress={configure}
           bordered
           marginTop="$m"
-          dimmed={!onConfigure || submitting}
+          dimmed={!onConfigure || submitting || completionLocked}
           label={component.submitLabel}
           trailing={
             submitting ? (
@@ -451,25 +415,23 @@ export function McpConnectMenu({
             disabled:
               !onComplete ||
               submitting ||
-              completing ||
-              completionConsumed ||
-              completedLocally,
+              completionAction.pending ||
+              completionLocked,
           }}
           disabled={
             !onComplete ||
             submitting ||
-            completing ||
-            completionConsumed ||
-            completedLocally
+            completionAction.pending ||
+            completionLocked
           }
           onPress={complete}
           bordered
           marginTop="$m"
           prominent
-          dimmed={completionConsumed || completedLocally}
+          dimmed={completionLocked}
           label={component.completionLabel}
           trailing={
-            completing ? (
+            completionAction.pending ? (
               <LoadingSpinner size="small" />
             ) : (
               <Icon

@@ -19,6 +19,7 @@ import { TextInput } from '../Form';
 import { A2UIMenuRow } from './A2UIMenuRow';
 import { McpConnectControl } from './McpConnectControl';
 import { useContentContext } from './contentUtils';
+import { useOneShotAction } from './useOneShotAction';
 
 type RenderOptions = {
   cardDepth?: number;
@@ -183,33 +184,11 @@ function SmallChoiceControl({
   const [customTopics, setCustomTopics] = useState<string[]>([]);
   const [customDraft, setCustomDraft] = useState('');
   const [customInputOpen, setCustomInputOpen] = useState(false);
-  // Lock the whole picker synchronously when submit starts. React state alone
-  // leaves a brief window before re-render where a pill can still be toggled.
-  // Keep the lock after success; only release it when the send fails.
-  const [submitted, setSubmitted] = useState(false);
-  const [consumedLocally, setConsumedLocally] = useState(false);
-  const submittingRef = useRef(false);
-  const durableSelectionObservedRef = useRef(false);
-
-  useEffect(() => {
-    if (consumedSelection) {
-      durableSelectionObservedRef.current = true;
-      return;
-    }
-    if (!durableSelectionObservedRef.current) return;
-
-    // A successful reply was later deleted (or a failed optimistic row was
-    // removed). Release the local lock so the durable timeline is once again
-    // the source of truth and the owner can answer this control again.
-    durableSelectionObservedRef.current = false;
-    submittingRef.current = false;
-    setSubmitted(false);
-    setConsumedLocally(false);
-  }, [consumedSelection]);
+  const oneShot = useOneShotAction(Boolean(consumedSelection));
 
   const toggle = useCallback(
     (id: string) => {
-      if (submittingRef.current) {
+      if (oneShot.isLocked()) {
         return;
       }
       setSelectedIds((previous) => {
@@ -225,7 +204,7 @@ function SmallChoiceControl({
         return [...previous, id];
       });
     },
-    [customTopics.length]
+    [customTopics.length, oneShot]
   );
 
   const messageForSelection = useMemo(
@@ -268,47 +247,36 @@ function SmallChoiceControl({
     : Boolean(messageForSelection);
 
   const handleSubmit = useCallback(async () => {
-    if (!hasValidSelection || submittingRef.current) {
+    if (!hasValidSelection || oneShot.isLocked()) {
       return;
     }
-    // Disable first so a double tap can't send twice, but put it back if
-    // the send fails: the picker is the only way to answer the setup, and
-    // a card disabled over a message that never posted leaves the owner
-    // looking at their own selection with nothing to do about it.
-    submittingRef.current = true;
-    setSubmitted(true);
-    try {
-      await onSubmit(actionForSelection, {
+    await oneShot.run(() =>
+      onSubmit(actionForSelection, {
         type: 'tlon-a2ui-selection',
         version: 1,
         sourcePostId,
         surfaceId,
         componentId: component.id,
         values: valuesForSelection,
-      });
-      setConsumedLocally(true);
-    } catch {
-      // The transport reports failures elsewhere; this surface only needs to
-      // become available again so the owner can retry.
-      submittingRef.current = false;
-      setSubmitted(false);
-    }
+      })
+    );
   }, [
     actionForSelection,
     component.id,
     hasValidSelection,
     onSubmit,
+    oneShot,
     sourcePostId,
     surfaceId,
     valuesForSelection,
   ]);
 
-  const completed = consumedLocally || Boolean(consumedSelection);
-  const disabled = submitted || completed || !canSend;
+  const completed = oneShot.consumed;
+  const disabled = oneShot.pending || completed || !canSend;
   const submitDisabled = disabled || !hasValidSelection;
   const customChoiceLabel =
     component.freeTextPlaceholder?.replace(/…+$/, '') || '';
-  const completedTopics = consumedLocally
+  const completedTopics = oneShot.consumedLocally
     ? valuesForSelection
     : (consumedSelection?.values ?? []);
   const completedOptionLabels = new Set(
@@ -326,15 +294,15 @@ function SmallChoiceControl({
   const hasSelection = hasValidSelection;
 
   const openCustomInput = useCallback(() => {
-    if (submittingRef.current) {
+    if (oneShot.isLocked()) {
       return;
     }
     setCustomDraft('');
     setCustomInputOpen(true);
-  }, []);
+  }, [oneShot]);
 
   const saveCustomInput = useCallback(() => {
-    if (submittingRef.current) {
+    if (oneShot.isLocked()) {
       return;
     }
     const topic = customDraft.trim();
@@ -368,16 +336,25 @@ function SmallChoiceControl({
       });
     }
     setCustomInputOpen(false);
-  }, [component.options, customDraft, customTopics.length, selectedIds.length]);
+  }, [
+    component.options,
+    customDraft,
+    customTopics.length,
+    oneShot,
+    selectedIds.length,
+  ]);
 
-  const removeCustomTopic = useCallback((topic: string) => {
-    if (submittingRef.current) {
-      return;
-    }
-    setCustomTopics((previous) =>
-      previous.filter((existing) => existing !== topic)
-    );
-  }, []);
+  const removeCustomTopic = useCallback(
+    (topic: string) => {
+      if (oneShot.isLocked()) {
+        return;
+      }
+      setCustomTopics((previous) =>
+        previous.filter((existing) => existing !== topic)
+      );
+    },
+    [oneShot]
+  );
 
   return (
     <>
