@@ -43,11 +43,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, getTokens, styled, useStyle, useTheme } from 'tamagui';
 
 import { useLivePost } from '../../../hooks/useLivePost';
-import type { RenderItemType } from '../../contexts/componentsKits';
+import { useCurrentUserId } from '../../contexts/appDataContext';
+import type {
+  A2UIActionCompletion,
+  RenderItemType,
+} from '../../contexts/componentsKits';
 import { useSetConversationScrollToBottomControl } from '../../contexts/scroll';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
+import { getA2UIActionCompletions } from '../ChatMessage/a2uiActionCompletion';
 import { EmojiPickerSheet } from '../Emoji';
 import { supportsLiquidGlass } from '../GlassSurface';
 import { ConversationScrollToBottomButton } from '../conversationScrollChrome';
@@ -162,6 +167,7 @@ const Scroller = forwardRef(
     );
     const { width } = useWindowDimensions();
     const isWindowNarrow = useIsWindowNarrow();
+    const currentUserId = useCurrentUserId();
     const setScrollToBottomControl = useSetConversationScrollToBottomControl();
     const availableSpace = useMemo(() => {
       const sidebarsTotalWidth = isWindowNarrow
@@ -260,6 +266,10 @@ const Scroller = forwardRef(
         }),
       [posts]
     );
+    const a2uiActionCompletions = useMemo(
+      () => getA2UIActionCompletions(posts ?? [], currentUserId),
+      [currentUserId, posts]
+    );
 
     const style = useMemo(() => {
       return {
@@ -292,6 +302,7 @@ const Scroller = forwardRef(
           (anchor?.type === 'selected' && anchor.postId === post.id) ||
           highlightPostId === post.id ||
           contextLensSelectedPostId === post.id;
+        const a2uiActionCompletion = a2uiActionCompletions[index];
 
         return (
           <ScrollerItem
@@ -330,6 +341,7 @@ const Scroller = forwardRef(
             itemWidth={itemWidth}
             columnCount={columns}
             previousPost={previous}
+            a2uiActionCompletion={a2uiActionCompletion}
             {...rest}
           />
         );
@@ -356,6 +368,7 @@ const Scroller = forwardRef(
         collectionLayout.itemAspectRatio,
         columns,
         itemWidth,
+        a2uiActionCompletions,
         setActiveMessage,
         setEditingPost,
         debugMessageJson,
@@ -763,6 +776,7 @@ const BaseScrollerItem = ({
   itemWidth,
   columnCount,
   previousPost,
+  a2uiActionCompletion,
 }: {
   showUnreadDivider: boolean;
   showAuthor: boolean;
@@ -793,6 +807,7 @@ const BaseScrollerItem = ({
   itemWidth?: number;
   columnCount: number;
   previousPost?: db.Post | null;
+  a2uiActionCompletion?: A2UIActionCompletion;
 }) => {
   const post = useLivePost(item);
 
@@ -884,6 +899,7 @@ const BaseScrollerItem = ({
           isHighlighted={isSelected}
           displayDebugMode={displayDebugMode}
           post={post}
+          a2uiActionCompletion={a2uiActionCompletion}
           setViewReactionsPost={setViewReactionsPost}
           onPressBotRun={onPressBotRun}
           showAuthor={showAuthorLive}
@@ -920,6 +936,7 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.showUnreadDivider === next.showUnreadDivider &&
     prev.unreadCount === next.unreadCount &&
     prev.isLastPostOfBlock === next.isLastPostOfBlock &&
+    isEqual(prev.a2uiActionCompletion, next.a2uiActionCompletion) &&
     prev.previousPost?.id === next.previousPost?.id &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&
