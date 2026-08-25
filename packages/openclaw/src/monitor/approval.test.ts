@@ -1276,6 +1276,38 @@ describe('applyApprovalRequest', () => {
     expect(h.persist).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the cooldown when a failed retry races a replacement carrying a stale stamp', async () => {
+    const h = makeQueueHarness();
+    const staleStamp = h.now() - RENOTIFY_COOLDOWN_MS - 1;
+    const undelivered = h.groupApproval({ notifyAttemptAt: staleStamp });
+    h.setPending([undelivered]);
+    let resolveNotify!: (value: string | undefined) => void;
+    h.notify.mockImplementation(
+      () =>
+        new Promise<string | undefined>((resolve) => {
+          resolveNotify = resolve;
+        })
+    );
+
+    const attemptAt = h.now();
+    const applied = applyApprovalRequest(h.groupApproval(), h.ctx);
+    await flush();
+
+    // The replacement still carries the stale persisted stamp, and the send
+    // fails: the live record must adopt the newer attempt so the next poll
+    // stays inside the cooldown instead of retrying every 2 minutes.
+    const replaced = h.groupApproval({
+      id: undelivered.id,
+      notifyAttemptAt: staleStamp,
+    });
+    h.setPending([replaced]);
+    resolveNotify(undefined);
+    await applied;
+
+    expect(replaced.notifyAttemptAt).toBe(attemptAt);
+    expect(replaced.notificationMessageId).toBeUndefined();
+  });
+
   it('does not resurrect a retried approval removed during the notify', async () => {
     const h = makeQueueHarness();
     h.setPending([

@@ -392,9 +392,10 @@ async function applyGroupApprovalRequest(
     if (notifId) {
       live.notificationMessageId = normalizeNotificationId(notifId);
     }
-    if (live.notifyAttemptAt === undefined) {
-      live.notifyAttemptAt = attemptAt;
-    }
+    // A replacement can carry a stale persisted stamp; without taking the
+    // newer attempt a failed send would then retry on every poll instead of
+    // honoring the cooldown.
+    live.notifyAttemptAt = Math.max(lastNotifyAttempt(live), attemptAt);
     await ctx.persist();
     return;
   }
