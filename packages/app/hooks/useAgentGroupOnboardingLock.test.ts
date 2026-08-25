@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS,
   findAgentGroupOnboardingStartupRoute,
   isAgentGroupNavigationLocked,
   isAnyAgentGroupNavigationLockedDurably,
@@ -9,55 +10,92 @@ import {
 
 describe('findAgentGroupOnboardingStartupRoute', () => {
   it('restores only a locked first-group setup chat', () => {
+    const now = 100_000;
     expect(
-      findAgentGroupOnboardingStartupRoute({
-        later: {
-          chatChannelId: 'chat/later',
-          createdAt: 1,
-          navigationLocked: false,
+      findAgentGroupOnboardingStartupRoute(
+        {
+          later: {
+            chatChannelId: 'chat/later',
+            createdAt: now,
+            navigationLocked: false,
+          },
+          first: {
+            chatChannelId: 'chat/first',
+            createdAt: now,
+            navigationLocked: true,
+          },
         },
-        first: {
-          chatChannelId: 'chat/first',
-          createdAt: 1,
-          navigationLocked: true,
-        },
-      })
+        now
+      )
     ).toEqual({ groupId: 'first', channelId: 'chat/first' });
   });
 
   it('does not restore acknowledged or channel-less locks', () => {
+    const now = 100_000;
     expect(
-      findAgentGroupOnboardingStartupRoute({
-        acknowledged: {
-          chatChannelId: 'chat/first',
-          createdAt: 1,
-          navigationLocked: true,
-          provisionAcknowledgedAt: 2,
+      findAgentGroupOnboardingStartupRoute(
+        {
+          acknowledged: {
+            chatChannelId: 'chat/first',
+            createdAt: now,
+            navigationLocked: true,
+            provisionAcknowledgedAt: 2,
+          },
+          channelLess: { createdAt: now, navigationLocked: true },
         },
-        legacy: { createdAt: 1, navigationLocked: true },
-      })
+        now
+      )
     ).toBeNull();
   });
 });
 
 describe('isAgentGroupNavigationLocked', () => {
-  it('keeps legacy and explicit first-group markers locked', () => {
-    expect(isAgentGroupNavigationLocked({})).toBe(true);
-    expect(isAgentGroupNavigationLocked({ navigationLocked: true })).toBe(true);
+  const now = 100_000;
+
+  it('locks an active first-group marker', () => {
+    expect(
+      isAgentGroupNavigationLocked(
+        { createdAt: now, navigationLocked: true },
+        now
+      )
+    ).toBe(true);
   });
 
   it('does not lock later Tlonbot groups', () => {
-    expect(isAgentGroupNavigationLocked({ navigationLocked: false })).toBe(
-      false
-    );
+    expect(
+      isAgentGroupNavigationLocked(
+        { createdAt: now, navigationLocked: false },
+        now
+      )
+    ).toBe(false);
   });
 
   it('unlocks the first group after provisioning is acknowledged', () => {
     expect(
-      isAgentGroupNavigationLocked({
-        navigationLocked: true,
-        provisionAcknowledgedAt: 1,
-      })
+      isAgentGroupNavigationLocked(
+        {
+          createdAt: now,
+          navigationLocked: true,
+          provisionAcknowledgedAt: 1,
+        },
+        now
+      )
+    ).toBe(false);
+  });
+
+  it('unlocks when the 30-second failsafe expires', () => {
+    const marker = { createdAt: now, navigationLocked: true };
+    expect(
+      isAgentGroupNavigationLocked(
+        marker,
+        now + AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS - 1
+      )
+    ).toBe(true);
+    expect(
+      isAgentGroupNavigationLocked(
+        marker,
+        now + AGENT_GROUP_NAVIGATION_LOCK_FAILSAFE_MS
+      )
     ).toBe(false);
   });
 });
@@ -67,7 +105,7 @@ describe('isAnyAgentGroupNavigationLockedDurably', () => {
     const getValue = vi
       .spyOn(db.agentGroupOnboardingLocks, 'getValue')
       .mockResolvedValue({
-        locked: { createdAt: 1, navigationLocked: true },
+        locked: { createdAt: Date.now(), navigationLocked: true },
       });
 
     await expect(isAnyAgentGroupNavigationLockedDurably()).resolves.toBe(true);
