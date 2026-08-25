@@ -88,6 +88,14 @@ overrides:
 PNPM_EOF
 fi
 pnpm install
+
+# When the monorepo is mounted (docker-compose.test.yml), link its local
+# @tloncorp/api build over the registry version so branch features (e.g.
+# vouched DMs) are available in the container.
+if [ -d /workspace/tlon-apps/packages/api ]; then
+  bash /workspace/tlon/dev/build-local-api-override.sh
+fi
+
 pnpm build
 
 # Expose tlon CLI to PATH
@@ -261,6 +269,45 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
   }
 }
 EOF
+
+# Real model: when OPENROUTER_API_KEY is set, register an OpenRouter provider
+# (OpenAI-completions compatible) and route the agent to MODEL, replacing the
+# scripted fake-model. MODEL like "openrouter/minimax/minimax-m2.5"; the model
+# id passed to OpenRouter is MODEL with the leading "openrouter/" stripped.
+if [ -n "${OPENROUTER_API_KEY:-}" ] && [ "${MODEL:-}" != "custom-proxy/tlon-test-scripted" ]; then
+  OR_MODEL_ID="${MODEL#openrouter/}"
+  echo "==> Patching config: OpenRouter provider (real model $MODEL)..."
+  jq --arg key "$OPENROUTER_API_KEY" --arg model "$MODEL" --arg mid "$OR_MODEL_ID" '
+    .models.providers.openrouter = {
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "apiKey": $key,
+      "api": "openai-completions",
+      "models": [ {
+        "id": $mid,
+        "name": $mid,
+        "api": "openai-completions",
+        "reasoning": false,
+        "input": ["text"],
+        "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+        "contextWindow": 128000,
+        "maxTokens": 4096
+      } ]
+    }
+    | .agents.defaults.model.primary = $model
+  ' "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
+    && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
+fi
+
+# Virtual identity: when TLON_MOON is set, the bot runs on the host ship but
+# acts as this moon (see channels.tlon.moon in the plugin config schema).
+if [ -n "${TLON_MOON:-}" ]; then
+  echo "==> Patching config: acting as moon $TLON_MOON..."
+  jq --arg moon "$TLON_MOON" --arg nick "${TLON_MOON_NICKNAME:-}" \
+    '.channels.tlon.moon = $moon
+     | if $nick != "" then .channels.tlon.moonNickname = $nick else . end' \
+    "$CONFIG_DIR/openclaw.json" > "$CONFIG_DIR/openclaw.json.tmp" \
+    && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
+fi
 
 # Patch in image-search plugin if tlonbot is mounted
 if [ -d "/workspace/tlonbot/image-search" ]; then

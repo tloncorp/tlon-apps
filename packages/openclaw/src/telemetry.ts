@@ -549,6 +549,7 @@ export type TlonPluginErrorSource =
   | 'groups_ui_subscription'
   | 'foreigns_subscription'
   | 'steward_subscription'
+  | 'vouched_dm'
   | 'settings_refresh'
   | 'sse_stream';
 

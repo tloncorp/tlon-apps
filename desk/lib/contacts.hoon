@@ -377,19 +377,26 @@
       |=  [p=^profile mod=^contact]
       ^-  profile-0:c0
       [wen.p (contact:to-0 (contact-uni con.p mod))]
+    ::  +saga: convert saga to legacy. .%vouch has no legacy counterpart --
+    ::  it's still an attempt to connect, so it downgrades to %want.
+    ::
+    ++  saga
+      |=  s=^saga
+      ^-  saga-0:c0
+      ?:(?=(%vouch s) %want s)
     ::  +foreign: convert foreign to legacy
     ::
     ++  foreign
       |=  f=^foreign
       ^-  foreign-0:c0
-      [?~(for.f ~ (profile:to-0 for.f)) sag.f]
+      [?~(for.f ~ (profile:to-0 for.f)) (saga:to-0 sag.f)]
     ::  foreign-mod: convert foreign with contact overlay
     ::  to legacy
     ::
     ++  foreign-mod
       |=  [f=^foreign mod=^contact]
       ^-  foreign-0:c0
-      [?~(for.f ~ (profile-mod:to-0 for.f mod)) sag.f]
+      [?~(for.f ~ (profile-mod:to-0 for.f mod)) (saga:to-0 sag.f)]
   --
 ::  +contact-uni: merge contacts
 ::

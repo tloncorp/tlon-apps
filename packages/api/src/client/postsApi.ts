@@ -42,6 +42,7 @@ import {
   udToDate,
   with404Handler,
 } from './apiUtils';
+import { isRegisteredBot } from './contactsApi';
 import { PlaintextPreviewConfig, getTextContent } from './postContent';
 import { referenceLookupId } from './references';
 import { poke, scry, subscribeOnce } from './urbit';
@@ -169,6 +170,23 @@ export const sendPost = async ({
 
   const author = toAuthor(authorId, botProfile);
 
+  // A DM to a registered bot moon can't be delivered peer-to-peer (the moon
+  // isn't running), so route it through the vouched path to the moon's host.
+  // The conversation stays a normal DM keyed by the moon; only delivery
+  // differs. Moons NOT registered as bots (i.e. real, running moons) take
+  // the normal path.
+  if (channelType === 'dm' && (await isRegisteredBot(channelId))) {
+    await sendVouchedDm({
+      as: channelId,
+      authorId,
+      toShip: channelId,
+      content,
+      sentAt,
+      blob,
+    });
+    return;
+  }
+
   if (channelType === 'dm' || channelType === 'groupDm') {
     const delta: WritDeltaAdd = {
       add: {
@@ -216,6 +234,174 @@ export const sendPost = async ({
 
   await poke(action);
   logger.log('post sent', { channelId, authorId, sentAt, content });
+};
+
+/**
+ * Send a DM in a vouched "virtual identity" conversation, keyed by the moon
+ * `as`, via `chat-dm-vouched-action-2`. Works in both directions:
+ *   - the host authors as its moon (authorId = the moon, with a botProfile);
+ *   - a human authors as themselves (authorId = current user).
+ * The poking ship's %chat routes to the moon's sponsor and files the writ
+ * under the [moon, human] conversation on both ends. See +dv-core in
+ * desk/app/chat.
+ */
+export const sendVouchedDm = async ({
+  as,
+  authorId,
+  toShip,
+  content,
+  sentAt,
+  blob,
+  botProfile,
+  replyTo,
+}: {
+  as: string;
+  authorId: string;
+  toShip: string;
+  content: Story;
+  sentAt: number;
+  blob?: string;
+  botProfile?: AuthorProfile;
+  /** Thread reply: the parent writ this message replies to. */
+  replyTo?: { parentId: string; parentAuthor: string };
+}) => {
+  const author = toAuthor(authorId, botProfile);
+  const id = `${authorId}/${formatUd(da.fromUnix(sentAt).toString())}`;
+  const diff: WritDiff = replyTo
+    ? {
+        // a thread reply targets the parent writ; the new reply's own id
+        // rides inside the ReplyDelta (same shape as the plain-DM sendReply)
+        id: `${replyTo.parentAuthor}/${replyTo.parentId}`,
+        delta: {
+          reply: {
+            id,
+            meta: null,
+            delta: {
+              add: {
+                'reply-essay': {
+                  content,
+                  author,
+                  sent: sentAt,
+                  blob: blob ?? null,
+                },
+                time: null,
+              },
+            },
+          },
+        },
+      }
+    : {
+        id,
+        delta: {
+          add: {
+            essay: {
+              content,
+              sent: sentAt,
+              author,
+              kind: '/chat',
+              meta: null,
+              blob: blob ?? null,
+            },
+            time: null,
+          },
+        } satisfies WritDeltaAdd,
+      };
+  await poke({
+    app: 'chat',
+    mark: 'chat-dm-vouched-action-2',
+    json: { as, action: { ship: toShip, diff } },
+  });
+  return { channel: 'tlon' as const, messageId: id, sentAt };
+};
+
+/** Poke a diff into a vouched [moon, human] DM conversation. Same routing as
+ * sendVouchedDm: the poking ship's %chat relays via the moon's sponsor and
+ * files the writ in the bot inbox / the human's dms on each end. */
+const vouchedDmAction = async (as: string, toShip: string, diff: WritDiff) =>
+  poke({
+    app: 'chat',
+    mark: 'chat-dm-vouched-action-2',
+    json: { as, action: { ship: toShip, diff } },
+  });
+
+/** React to a writ in a vouched DM conversation, authored as `authorId`
+ * (the moon when the bot reacts; the human when they react to the bot).
+ * `postId` is the full writ id, `<author>/<ud-time>`. */
+export const addVouchedDmReaction = async ({
+  as,
+  toShip,
+  postId,
+  emoji,
+  authorId,
+  parentId,
+}: {
+  as: string;
+  toShip: string;
+  postId: string;
+  emoji: string;
+  authorId: string;
+  /** Thread reaction: full id of the parent writ the reply hangs off. */
+  parentId?: string;
+}) => {
+  if (parentId) {
+    await vouchedDmAction(as, toShip, {
+      id: parentId,
+      delta: {
+        reply: {
+          id: postId,
+          meta: null,
+          delta: { 'add-react': { react: emoji, author: authorId } },
+        },
+      },
+    });
+    return;
+  }
+  const delta: WritDeltaAddReact = {
+    'add-react': { react: emoji, author: authorId },
+  };
+  await vouchedDmAction(as, toShip, { id: postId, delta });
+};
+
+/** Remove `authorId`'s reaction from a writ in a vouched DM conversation. */
+export const removeVouchedDmReaction = async ({
+  as,
+  toShip,
+  postId,
+  authorId,
+  parentId,
+}: {
+  as: string;
+  toShip: string;
+  postId: string;
+  authorId: string;
+  /** Thread reaction: full id of the parent writ the reply hangs off. */
+  parentId?: string;
+}) => {
+  if (parentId) {
+    await vouchedDmAction(as, toShip, {
+      id: parentId,
+      delta: {
+        reply: { id: postId, meta: null, delta: { 'del-react': authorId } },
+      },
+    });
+    return;
+  }
+  const delta: WritDeltaDelReact = { 'del-react': authorId };
+  await vouchedDmAction(as, toShip, { id: postId, delta });
+};
+
+/** Delete a writ from a vouched DM conversation. The desk only relays
+ * deletions the sender may vouch for, so a bot can only delete its own. */
+export const deleteVouchedDmPost = async ({
+  as,
+  toShip,
+  postId,
+}: {
+  as: string;
+  toShip: string;
+  postId: string;
+}) => {
+  await vouchedDmAction(as, toShip, { id: postId, delta: { del: null } });
 };
 
 export const editPost = async ({

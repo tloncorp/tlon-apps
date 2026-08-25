@@ -119,6 +119,40 @@
   ++  emil  |=(c=(list card) cor(out (weld (flop c) out)))
   ++  give  |=(=gift:guard (emit %give gift))
   ++  pass  |=([=wire =note:guard] (emit %pass wire note))
+  ::  +vouch-status: ask the %vouch store what we believe .who is. degrades
+  ::  to %unknown when %vouch isn't installed or the scry otherwise fails.
+  ::
+  ++  vouch-status
+    |=  who=@p
+    ^-  ?(%unknown %real %bot)
+    =/  res
+      %-  mule
+      |.  .^(?(%unknown %real %bot) %gx /(scot %p our.bowl)/vouch/(scot %da now.bowl)/status/(scot %p who)/noun)
+    ?:(?=(%& -.res) p.res %unknown)
+  ::  +bot-moon: is .who a moon we sponsor that %vouch classifies as a bot?
+  ::  bots never boot, so we must never network-subscribe to them.
+  ::
+  ++  bot-moon
+    |=  who=@p
+    ^-  ?
+    ?&  ?=(%earl (clan:title who))
+        =(our.bowl (^sein:title who))
+        =(%bot (vouch-status who))
+    ==
+  ::  +learn-real: "any traffic from a moon is real" -- a bot moon never
+  ::  boots, so a moon that just watched us directly must actually be
+  ::  booted. record it locally if we don't already believe so. cheap and
+  ::  idempotent: no-ops once %vouch already says %real.
+  ::
+  ++  learn-real
+    |=  who=ship
+    ^+  cor
+    ?.  ?=(%earl (clan:title who))
+      cor
+    ?:  =(%real (vouch-status who))
+      cor
+    %+  pass  /vouch-learn
+    [%agent [our.bowl %vouch] %poke unsafe+vouch-learn+!>([who %real])]
   ::
   +|  %operations
   ::
@@ -432,13 +466,36 @@
       ++  si-meet
         ^+  si-cor
         ::
-        ::  already subscribed
-        ?:  ?=(%want sag)
+        ::  any subscription already active, direct or via resolver
+        ::
+        ?.  =(~ sag)
+          si-cor
+        ::  never network-subscribe to our own bot moons -- they never boot,
+        ::  so this would retry-loop forever. their profile, if any, comes
+        ::  from a %contact-bot-0 poke instead.
+        ::
+        ?:  (bot-moon who)
           si-cor
         =/  pat  [%v1 %contact ?~(for / /at/(scot:h136 %da wen.for))]
+        ::  a foreign moon our vouch store doesn't yet believe is real:
+        ::  resolve its profile through its host's /v1/vouch instead of
+        ::  watching it directly -- it may never boot.
+        ::
+        =/  foreign-bot=?
+          ?&  ?=(%earl (clan:title who))
+              !=(our.bowl (^sein:title who))
+              !=(%real (vouch-status who))
+          ==
+        ?.  foreign-bot
+          %_  si-cor
+            cor  (pass /contact %agent [who dap.bowl] %watch pat)
+            sag  %want
+          ==
+        =/  host  (^sein:title who)
         %_  si-cor
-          cor  (pass /contact %agent [who dap.bowl] %watch pat)
-          sag  %want
+          cor  %+  pass  /contact/vouch/(scot %p who)
+               [%agent [host dap.bowl] %watch /v1/vouch/(scot %p who)]
+          sag  %vouch
         ==
       ::
       ++  si-retry
@@ -459,13 +516,69 @@
       ++  si-snub
         %_  si-cor
           sag  ~
-          cor   ?.  ?=(%want sag)  cor
+          cor   ?:  =(~ sag)  cor
                 ::  retry is scheduled, cancel the timer
                 ::
                 ?^  when=(~(get by retry) who)
                   =.  retry  (~(del by retry) who)
                   (pass /retry/(scot %p who)/cancel %arvo %b %rest u.when)
-               (pass /contact %agent [who dap.bowl] %leave ~)
+                ::  a live subscription: leave on the wire/dock we
+                ::  actually subscribed through
+                ::
+                ?:  ?=(%vouch sag)
+                  %+  pass  /contact/vouch/(scot %p who)
+                  [%agent [(^sein:title who) dap.bowl] %leave ~]
+                (pass /contact %agent [who dap.bowl] %leave ~)
+        ==
+      ::
+      ++  si-take-vouch
+        |=  [=wire =sign:agent:gall]
+        ~>  %spin.['si-take-vouch']
+        ^+  si-cor
+        ?-  -.sign
+          %poke-ack   ~|(strange-poke-ack+wire !!)
+        ::
+          %watch-ack  ~|  strange-watch-ack+wire
+                      ?>  ?=(%vouch sag)
+                      ?~  p.sign  si-cor
+                      %-  (slog 'contact-fail' u.p.sign)
+                      =/  wake=@da  (add now.bowl ~m30)
+                      =.  retry  (~(put by retry) who wake)
+                      %_  si-cor  cor
+                        (pass /retry/(scot %p who) %arvo %b %wait wake)
+                      ==
+        ::
+          %kick       ?.  ?=(%vouch sag)  si-cor
+                      si-meet(sag ~)
+        ::
+          %fact       ?+    p.cage.sign  ~|(strange-fact+wire !!)
+                          %contact-update-1
+                        ::  only the moon's sponsor may speak for it
+                        ::
+                        ?>  =(src.bowl (^sein:title who))
+                        =.  si-cor  (si-hear !<(update q.cage.sign))
+                        ::  organic classification: we now have a live
+                        ::  answer from the host, so learn it if we
+                        ::  didn't already know
+                        ::
+                        ?.  =(%unknown (vouch-status who))
+                          si-cor
+                        %_  si-cor  cor
+                          %+  pass  /vouch-learn
+                          [%agent [our.bowl %vouch] %poke unsafe+vouch-learn+!>([who %bot])]
+                        ==
+                      ::
+                          %vouch-real
+                        ?>  =(src.bowl (^sein:title who))
+                        =.  cor
+                          %+  pass  /vouch-learn
+                          [%agent [our.bowl %vouch] %poke unsafe+vouch-learn+!>([who %real])]
+                        =/  pat  [%v1 %contact ?~(for / /at/(scot:h136 %da wen.for))]
+                        %_  si-cor
+                          sag  %want
+                          cor  (pass /contact %agent [who dap.bowl] %watch pat)
+                        ==
+                      ==
         ==
       --
     --
@@ -682,6 +795,16 @@
           =/  =path  [%v1 %contact ?~(for / /at/(scot:h136 %da wen.for))]
           :_  caz
           [%pass /contact %agent [who dap.bowl] %watch path]
+        ::  resolver subscription: re-watch the moon's host
+        ::
+        =/  =wire  /contact/vouch/(scot %p who)
+        ?:  ?&  =(%vouch sag)
+                !(~(has by wex.bowl) [wire (^sein:title who) dap.bowl])
+            ==
+          :_  caz
+          :*  %pass  wire  %agent  [(^sein:title who) dap.bowl]  %watch
+              /v1/vouch/(scot %p who)
+          ==
         caz
       (emil cards)
     --
@@ -741,6 +864,19 @@
       %+  roll  kis
       |=  [=kip =_last-updated]
       (~(put ol last-updated) kip now.bowl)
+      ::  local: set a bot moon's contact profile so our own frontend
+      ::  renders it, and push it to any foreign resolver subscribers
+      ::  watching this moon at /v1/vouch -- see docs/vouch.md.
+      ::
+        %contact-bot-0
+      ?>  =(our src):bowl
+      =+  !<([who=ship con=contact] vase)
+      =.  peers  (~(put by peers) who [`profile`[now.bowl con] ~])
+      =.  last-updated  (~(put ol last-updated) who now.bowl)
+      =.  cor  (p-news-0:pub who (contact:to-0 con))
+      =.  cor
+        (give %fact ~[/v1/vouch/(scot %p who)] contact-update-1+[%full now.bowl con])
+      (p-response:pub %peer who con)
     ==
   ::  +peek: scry
   ::
@@ -918,9 +1054,43 @@
       [%news ~]  ~|(local-news+src.bowl ?>(=(our src):bowl cor))
       ::
       ::  v1
-      [%v1 %contact ~]  (p-init:pub ~)
-      [%v1 %contact %at wen=@ ~]  (p-init:pub `(slav %da wen.pat))
+      ::  a direct watch from .src.bowl is genuine network traffic -- learn
+      ::  it real before serving, per +learn-real.
+      ::
+      [%v1 %contact ~]
+      =.  cor  (learn-real src.bowl)
+      (p-init:pub ~)
+      ::
+      [%v1 %contact %at wen=@ ~]
+      =.  cor  (learn-real src.bowl)
+      (p-init:pub `(slav %da wen.pat))
       [%v1 %news ~]  ~|(local-news+src.bowl ?>(=(our src):bowl cor))
+      ::
+      ::  bot-moon resolver: a foreign ship asking us (the sponsor) to
+      ::  serve, or redirect them off of, one of our moons' profiles.
+      ::  see docs/vouch.md.
+      ::
+      [%v1 %vouch her=@ ~]
+      =/  moon  (slav %p her.pat)
+      ~|  bad-vouch-watch+moon
+      ?>  ?=(%earl (clan:title moon))
+      ?>  =(our.bowl (^sein:title moon))
+      ?-  (vouch-status moon)
+          %bot
+        =/  pro=profile
+          =/  far  (~(get by peers) moon)
+          ?~  far  [now.bowl ~]
+          ?~  for.u.far  [now.bowl ~]
+          for.u.far
+        (give %fact ~ contact-update-1+[%full pro])
+      ::
+          %real
+        =.  cor  (give %fact ~ unsafe+vouch-real+!>(moon))
+        (give %kick ~ ~)
+      ::
+          %unknown
+        ~|(%vouch-unknown-moon !!)
+      ==
       ::
       [%epic ~]  (give %fact ~ epic+okay)
     ==
@@ -932,6 +1102,15 @@
     ?+    wire  ~|(evil-agent+wire !!)
         [%contact ~]
       si-abet:(si-take:(sub src.bowl) wire sign)
+      ::
+        [%contact %vouch her=@ ~]
+      si-abet:(si-take-vouch:(sub (slav %p i.t.t.wire)) wire sign)
+      ::
+        [%vouch-learn ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  cor
+      %-  (slog leaf/"{<wire>} failed" u.p.sign)
+      cor
       ::
         [%migrate ~]
       ?>  ?=(%poke-ack -.sign)

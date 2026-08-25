@@ -95,7 +95,9 @@
 +$  epic  epic:e
 ::
 +$  saga
-  $?  %want    ::  subscribing
+  $?  %want    ::  subscribing directly to the peer's /v1/contact
+      %vouch   ::  resolving a bot moon's profile via its host's
+               ::  /v1/vouch, per moon-classification -- see /app/vouch
       ~        ::  none intended
   ==
 ::  %anon: delete our profile

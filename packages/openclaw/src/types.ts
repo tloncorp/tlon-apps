@@ -37,9 +37,15 @@ export type TlonResolvedAccount = {
   name: string | null;
   enabled: boolean;
   configured: boolean;
+  /** Host ship we connect to (credentials owner). */
   ship: string | null;
   url: string | null;
   code: string | null;
+  /** Virtual identity (a moon of `ship`) to author as; null = act as `ship`. */
+  moon: string | null;
+  /** Display name/avatar for the moon, published to the host's bot profile. */
+  moonNickname: string | null;
+  moonAvatar: string | null;
   allowPrivateNetwork: boolean | null;
   groupChannels: string[];
   dmAllowlist: string[];
@@ -148,6 +154,9 @@ export function resolveTlonAccount(
         ship?: string;
         url?: string;
         code?: string;
+        moon?: string;
+        moonNickname?: string;
+        moonAvatar?: string;
         network?: { dangerouslyAllowPrivateNetwork?: boolean };
         /** @deprecated Use `network.dangerouslyAllowPrivateNetwork`. */
         allowPrivateNetwork?: boolean;
@@ -179,6 +188,9 @@ export function resolveTlonAccount(
       ship: null,
       url: null,
       code: null,
+      moon: null,
+      moonNickname: null,
+      moonAvatar: null,
       allowPrivateNetwork: null,
       groupChannels: [],
       dmAllowlist: [],
@@ -226,6 +238,13 @@ export function resolveTlonAccount(
   const ship = (account?.ship ?? base.ship ?? null) as string | null;
   const url = (account?.url ?? base.url ?? null) as string | null;
   const code = (account?.code ?? base.code ?? null) as string | null;
+  const moon = (account?.moon ?? base.moon ?? null) as string | null;
+  const moonNickname = (account?.moonNickname ??
+    base.moonNickname ??
+    null) as string | null;
+  const moonAvatar = (account?.moonAvatar ??
+    base.moonAvatar ??
+    null) as string | null;
   const accountNetwork = (
     account as { network?: { dangerouslyAllowPrivateNetwork?: boolean } }
   )?.network;
@@ -303,6 +322,9 @@ export function resolveTlonAccount(
     ship,
     url,
     code,
+    moon,
+    moonNickname,
+    moonAvatar,
     allowPrivateNetwork,
     groupChannels,
     dmAllowlist,

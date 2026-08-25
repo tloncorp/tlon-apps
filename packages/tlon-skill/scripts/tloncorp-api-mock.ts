@@ -132,9 +132,13 @@ mock.module('@tloncorp/api', () => ({
   // dms.ts value imports (reaction helpers take injected deps in tests, so
   // these defaults are load-time placeholders, never assertion targets)
   addReaction: async () => undefined,
+  addVouchedDmReaction: async () => undefined,
   deletePost: async () => undefined,
+  deleteVouchedDmPost: async () => undefined,
   getCurrentUserId: () => '~zod',
+  registerBotProfile: async () => undefined,
   removeReaction: async () => undefined,
+  removeVouchedDmReaction: async () => undefined,
   respondToDMInvite: async () => undefined,
   sendPost: async () => undefined,
   sendReply: async () => undefined,

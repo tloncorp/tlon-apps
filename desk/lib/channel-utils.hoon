@@ -1691,6 +1691,31 @@
   ^-  (unit ship)
   ?^  author  ~
   (some author)
+::  +vouches-for: may .src speak/act as .who?
+::
+::    True when they are the same ship, or when .who is a moon (%earl)
+::    sponsored by .src. A moon's sponsor is fixed and derivable from its @p,
+::    so we use the pure +^sein:title (not the 3-arg +sein:title, which scries
+::    jael) -- it resolves the sponsor for any moon, including one that has
+::    never booted, with no network state. This lets a planet author "virtual
+::    identity" content on behalf of a moon it owns without forging the
+::    cryptographically-authenticated network source.
+::
+++  vouches-for
+  |=  [src=ship who=ship]
+  ~>  %spin.['libcu-vouches-for']
+  ^-  ?
+  ?:  =(src who)  &
+  ?&  ?=(%earl (clan:title who))
+      =(src (^sein:title who))
+  ==
+::  +can-author: may .src create/edit content carrying .author?
+::
+++  can-author
+  |=  [src=ship =author:c]
+  ~>  %spin.['libcu-can-author']
+  ^-  ?
+  (vouches-for src (get-author-ship author))
 ::
 ++  subject  ^~(!>(..compile))
 ::

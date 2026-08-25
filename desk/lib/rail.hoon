@@ -132,6 +132,8 @@
 /%  chat-dm-diff                %chat-dm-diff
 /%  chat-dm-diff-1              %chat-dm-diff-1
 /%  chat-dm-diff-2              %chat-dm-diff-2
+/%  chat-dm-vouched-action-2    %chat-dm-vouched-action-2
+/%  chat-dm-vouched-diff-2      %chat-dm-vouched-diff-2
 /%  chat-dm-rsvp                %chat-dm-rsvp
 /%  chat-heads                  %chat-heads
 /%  chat-heads-1                %chat-heads-1
@@ -483,6 +485,8 @@
       $:  %chat-dm-diff                $+  chat-dm-diff                p=_*vale:chat-dm-diff                ==
       $:  %chat-dm-diff-1              $+  chat-dm-diff-1              p=_*vale:chat-dm-diff-1              ==
       $:  %chat-dm-diff-2              $+  chat-dm-diff-2              p=_*vale:chat-dm-diff-2              ==
+      $:  %chat-dm-vouched-action-2    $+  chat-dm-vouched-action-2    p=_*vale:chat-dm-vouched-action-2    ==
+      $:  %chat-dm-vouched-diff-2      $+  chat-dm-vouched-diff-2      p=_*vale:chat-dm-vouched-diff-2      ==
       $:  %chat-dm-rsvp                $+  chat-dm-rsvp                p=_*vale:chat-dm-rsvp                ==
       $:  %chat-heads                  $+  chat-heads                  p=_*vale:chat-heads                  ==
       $:  %chat-heads-1                $+  chat-heads-1                p=_*vale:chat-heads-1                ==
@@ -836,6 +840,8 @@
     %chat-dm-diff                [-.rail !>(+.rail)]
     %chat-dm-diff-1              [-.rail !>(+.rail)]
     %chat-dm-diff-2              [-.rail !>(+.rail)]
+    %chat-dm-vouched-action-2    [-.rail !>(+.rail)]
+    %chat-dm-vouched-diff-2      [-.rail !>(+.rail)]
     %chat-dm-rsvp                [-.rail !>(+.rail)]
     %chat-heads                  [-.rail !>(+.rail)]
     %chat-heads-1                [-.rail !>(+.rail)]
@@ -1187,6 +1193,8 @@
     %chat-dm-diff                [p !<(_*vale:chat-dm-diff q)]
     %chat-dm-diff-1              [p !<(_*vale:chat-dm-diff-1 q)]
     %chat-dm-diff-2              [p !<(_*vale:chat-dm-diff-2 q)]
+    %chat-dm-vouched-action-2    [p !<(_*vale:chat-dm-vouched-action-2 q)]
+    %chat-dm-vouched-diff-2      [p !<(_*vale:chat-dm-vouched-diff-2 q)]
     %chat-dm-rsvp                [p !<(_*vale:chat-dm-rsvp q)]
     %chat-heads                  [p !<(_*vale:chat-heads q)]
     %chat-heads-1                [p !<(_*vale:chat-heads-1 q)]
@@ -1538,6 +1546,8 @@
       :-  %chat-dm-diff                -:!>(*vale:chat-dm-diff)
       :-  %chat-dm-diff-1              -:!>(*vale:chat-dm-diff-1)
       :-  %chat-dm-diff-2              -:!>(*vale:chat-dm-diff-2)
+      :-  %chat-dm-vouched-action-2    -:!>(*vale:chat-dm-vouched-action-2)
+      :-  %chat-dm-vouched-diff-2      -:!>(*vale:chat-dm-vouched-diff-2)
       :-  %chat-dm-rsvp                -:!>(*vale:chat-dm-rsvp)
       :-  %chat-heads                  -:!>(*vale:chat-heads)
       :-  %chat-heads-1                -:!>(*vale:chat-heads-1)

@@ -3,6 +3,56 @@ import { describe, expect, it } from 'vitest';
 
 import { resolveTlonAccount } from './types.js';
 
+describe('resolveTlonAccount moon (virtual identity)', () => {
+  it('defaults moon to null (acts as the host ship)', () => {
+    const account = resolveTlonAccount({
+      channels: {
+        tlon: { ship: '~zod', url: 'https://example.com', code: 'code-123' },
+      },
+    } as OpenClawConfig);
+    expect(account.ship).toBe('~zod');
+    expect(account.moon).toBeNull();
+  });
+
+  it('exposes a configured moon alongside the host credentials', () => {
+    const account = resolveTlonAccount({
+      channels: {
+        tlon: {
+          ship: '~sampel-palnet',
+          url: 'https://example.com',
+          code: 'code-123',
+          moon: '~doznec-sampel-palnet',
+        },
+      },
+    } as OpenClawConfig);
+    // credentials are the host's; identity is the moon
+    expect(account.ship).toBe('~sampel-palnet');
+    expect(account.moon).toBe('~doznec-sampel-palnet');
+    expect(account.configured).toBe(true);
+  });
+
+  it('reads moon from a named account override', () => {
+    const account = resolveTlonAccount(
+      {
+        channels: {
+          tlon: {
+            accounts: {
+              hosted: {
+                ship: '~sampel-palnet',
+                url: 'https://example.com',
+                code: 'code-123',
+                moon: '~doznec-sampel-palnet',
+              },
+            },
+          },
+        },
+      } as OpenClawConfig,
+      'hosted'
+    );
+    expect(account.moon).toBe('~doznec-sampel-palnet');
+  });
+});
+
 describe('resolveTlonAccount telemetry', () => {
   it('defaults telemetry to disabled', () => {
     const account = resolveTlonAccount({

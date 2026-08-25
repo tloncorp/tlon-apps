@@ -40,16 +40,24 @@ node scripts/resolve-workspace-deps.mjs package.json --registry
 #   any dep released in the last day fails the install.
 # - verifyDepsBeforeRun: matches the monorepo policy; skips the implicit
 #   install pnpm otherwise runs before every pnpm run/exec.
+# - confirmModulesPurge: when the persisted node_modules volume is stale (e.g.
+#   a prior run used a different layout/pnpm), pnpm wants to purge and reinstall
+#   but blocks on an interactive confirm it can't get without a TTY. Auto-allow.
 cat > pnpm-workspace.yaml << 'PNPM_EOF'
 nodeLinker: hoisted
 dangerouslyAllowAllBuilds: true
 minimumReleaseAge: 0
 verifyDepsBeforeRun: false
+confirmModulesPurge: false
 PNPM_EOF
 pnpm install
-pnpm build
+# Link the local (mounted) @tloncorp/api and tlon-skill builds BEFORE building
+# the plugin, so its tsc resolves branch-only exports (sendVouchedDm,
+# registerBotProfile, presence `as`, …) instead of the published versions.
+# verifyDepsBeforeRun:false keeps `pnpm build` from reinstalling over the links.
 ./dev/build-local-api-override.sh
 ./dev/build-local-skill-override.sh
+pnpm build
 
 # Expose tlon CLI to PATH
 TLON_BIN_DIR="/workspace/tlon/node_modules/.bin"
@@ -132,6 +140,32 @@ if [ -f "$CONFIG_PATH" ]; then
   echo "==> Disabling device pairing for Control UI (dev-only)..."
   jq '.gateway.controlUi.dangerouslyDisableDeviceAuth = true' \
     "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
+
+  # Virtual identity: when TLON_MOON is set, the bot runs on the host ship
+  # (TLON_SHIP) but acts as this moon, which the host must sponsor (so the
+  # host must be a planet/galaxy, not a moon). See channels.tlon.moon in the
+  # plugin config schema.
+  if [ -n "${TLON_MOON:-}" ]; then
+    echo "==> Patching config: acting as moon $TLON_MOON..."
+    jq --arg moon "$TLON_MOON" --arg nick "${TLON_MOON_NICKNAME:-}" \
+      '.channels.tlon.moon = $moon
+       | if $nick != "" then .channels.tlon.moonNickname = $nick else . end' \
+      "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
+  fi
+
+  # Extra models beyond MODEL (comma-separated openclaw model names, e.g.
+  # "openrouter/openai/gpt-5.6-luna"). Each is merged into the
+  # agents.defaults.models allowlist -- selection (/model) is gated on that
+  # map, not on the fallback list -- and appended as a fallback so it's
+  # also failover-eligible.
+  if [ -n "${MODEL_FALLBACKS:-}" ]; then
+    echo "==> Patching config: extra models $MODEL_FALLBACKS..."
+    jq --arg extra "$MODEL_FALLBACKS" \
+      '($extra | split(",") | map(gsub("^\\s+|\\s+$"; ""))) as $list
+       | .agents.defaults.model.fallbacks = $list
+       | .agents.defaults.models = ((.agents.defaults.models // {}) + ($list | map({key: ., value: {}}) | from_entries))' \
+      "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
+  fi
 fi
 
 # Upsert a marked block into a file (preserves content outside the markers)
@@ -180,6 +214,75 @@ upsert_block "$WORKSPACE_DIR/USER.md" "$(cat /workspace/tlonbot/prompts/USER.md)
 
 export WORKSPACE_DIR
 export TLON_RUN_PATH="/workspace/tlonbot/bin/tlon-run"
+
+# Fleet: one agent per steward-roster bot. The host's roster is scried over
+# HTTP (steward's /v1/roster peek returns a JSON-growable cage); each bot
+# generates a thin tlon account entry (identity carrier: inherits the base
+# host creds, adds the bot's moon), an agent (the brains: model + identity +
+# persona via a per-bot workspace SOUL.md), and a binding routing that
+# account to that agent. Minting a new bot requires a container restart.
+# Best-effort: a roster scry failure skips fleet generation, never the boot.
+if [ -n "${TLON_URL:-}" ] && [ -n "${TLON_CODE:-}" ] && [ -f "$CONFIG_PATH" ]; then
+  echo "==> Fetching bot roster from steward..."
+  ROSTER_JSON=/tmp/roster.json
+  if node --input-type=module -e '
+    const url = process.env.TLON_URL.replace(/\/$/, "");
+    const login = await fetch(`${url}/~/login`, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: `password=${process.env.TLON_CODE}`,
+    });
+    const cookie = (login.headers.get("set-cookie") ?? "").split(";")[0];
+    if (!cookie) throw new Error("no auth cookie");
+    const res = await fetch(`${url}/~/scry/steward/v1/roster.json`, {
+      headers: { cookie },
+    });
+    if (!res.ok) throw new Error(`roster scry ${res.status}`);
+    const body = await res.json();
+    const bots = body?.init ?? {};
+    await (await import("node:fs/promises")).writeFile(
+      process.argv[1] ?? "/tmp/roster.json",
+      JSON.stringify(bots)
+    );
+    console.log(`==> Roster: ${Object.keys(bots).length} bot(s)`);
+  ' "$ROSTER_JSON" 2>&1; then
+    for MOON_PATP in $(jq -r 'keys[]' "$ROSTER_JSON"); do
+      ACCT="${MOON_PATP#\~}"
+      NICK=$(jq -r --arg m "$MOON_PATP" '.[$m].nickname' "$ROSTER_JSON")
+      BOT_MODEL=$(jq -r --arg m "$MOON_PATP" '.[$m].model' "$ROSTER_JSON")
+      PERSONA=$(jq -r --arg m "$MOON_PATP" '.[$m].persona' "$ROSTER_JSON")
+      # the default account (TLON_MOON) already runs this bot: skip
+      if [ "$MOON_PATP" = "${TLON_MOON:-}" ]; then
+        echo "==> Roster bot $NICK ($MOON_PATP) already runs as the default account"
+        continue
+      fi
+      echo "==> Fleet: agent for $NICK ($MOON_PATP)..."
+      # per-bot workspace: seed from the default (tlon prompts included),
+      # then overwrite the persona layer
+      BOT_WS="/root/.openclaw/workspace-$ACCT"
+      mkdir -p "$BOT_WS"
+      cp -R "$WORKSPACE_DIR/." "$BOT_WS/" 2>/dev/null || true
+      printf '# SOUL\n\nYou are %s.\n\n%s\n' "$NICK" "$PERSONA" > "$BOT_WS/SOUL.md"
+      printf '# IDENTITY\n\nName: %s\nShip: %s\n' "$NICK" "$MOON_PATP" > "$BOT_WS/IDENTITY.md"
+      jq --arg acct "$ACCT" --arg moon "$MOON_PATP" --arg nick "$NICK" \
+         --arg model "$BOT_MODEL" --arg ws "$BOT_WS" \
+        '.channels.tlon.accounts[$acct] = {enabled: true, moon: $moon, moonNickname: $nick}
+         | .agents.list = ((.agents.list // []) + [
+             {id: $acct, identity: {name: $nick}, workspace: $ws}
+             + (if $model != "" and $model != "null" then {model: {primary: $model}} else {} end)
+           ])
+         | .agents.defaults.models = ((.agents.defaults.models // {})
+             + (if $model != "" and $model != "null" then {($model): {}} else {} end))
+         | .bindings = ((.bindings // []) + [
+             {agentId: $acct, match: {channel: "tlon", accountId: $acct}}
+           ])' \
+        "$CONFIG_PATH" > "$CONFIG_PATH.tmp" && mv "$CONFIG_PATH.tmp" "$CONFIG_PATH"
+    done
+  else
+    echo "WARN: roster fetch failed; running without fleet agents"
+  fi
+fi
 
 # Generate gateway token if not set
 if [ -z "$OPENCLAW_GATEWAY_TOKEN" ]; then

@@ -25,6 +25,21 @@ Blocked in Hermes' `tlon` tool: plain-text `posts reply`/`dms send`/`dms reply` 
 
 When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
 
+### Virtual identities (bot moons)
+
+When acting as a virtual identity (`TLON_MOON` set — the bot is a moon of the
+connected host ship), reads run as the host by design: you can see everything
+the host can. Identity-attributed actions carry the bot identity instead:
+
+- `contacts self` / `contacts update-profile` read and write the BOT's
+  published profile (updates merge field-by-field).
+- `dms react`/`unreact`/`delete` act as the bot through its own conversation
+  (the bot can only delete its own messages).
+- `posts send/reply/react/unreact/edit/delete` are unavailable — they would be
+  attributed to the host. Use the `message` tool; it posts as the bot.
+- `dms send`/`reply` (group DMs) are unavailable: group DMs don't support bot
+  identities yet. `dms accept`/`decline` don't apply — bot DMs auto-accept.
+
 **Images are the exception: upload them first.** The `message` tool's `media=` parameter takes only an uploaded https URL — never a local file path, unlike other OpenClaw channels. `tlon upload` accepts a URL, a local file path, or stdin, and prints the uploaded URL:
 
 ```bash
@@ -234,6 +249,11 @@ tlon contacts update-profile --nickname "My Name"    # Update your profile
 ```
 
 Options: `--nickname`, `--bio`, `--status`, `--avatar`, `--cover`
+
+When running as a virtual identity (a bot moon — `TLON_MOON` is set), `self`
+and `update-profile` read and write the BOT's published profile, not the host
+ship's. Updates merge: only the flags you pass change; other fields keep
+their current values.
 
 ### Groups
 

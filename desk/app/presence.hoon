@@ -69,11 +69,53 @@
     %other      ~s30
   ==
 ::
+::  +vouches-for: may .src speak/act as .who? true when the same ship, or
+::  when .who is a moon (%earl) sponsored by .src. Uses the pure +^sein:title
+::  so it resolves for a moon that has never booted. Mirrors +vouches-for in
+::  /lib/channel-utils; inlined here to avoid pulling in the chat deps.
+++  vouches-for
+  |=  [src=ship who=ship]
+  ^-  ?
+  ?:  =(src who)  &
+  ?&  ?=(%earl (clan:title who))
+      =(src (^sein:title who))
+  ==
+::
+::  +vouch-status: ask the %vouch store what we believe .who is. degrades
+::  to %unknown when %vouch isn't installed or the scry otherwise fails.
+::  Mirrors +vouch-status in /app/contacts and +di-vouch-status in /app/chat;
+::  inlined here to avoid pulling in those deps.
+::
+++  vouch-status
+  |=  [who=@p =bowl:gall]
+  ^-  ?(%unknown %real %bot)
+  =/  res
+    %-  mule
+    |.  .^(?(%unknown %real %bot) %gx /(scot %p our.bowl)/vouch/(scot %da now.bowl)/status/(scot %p who)/noun)
+  ?:(?=(%& -.res) p.res %unknown)
+::
+::  +learn-real: "any traffic from a moon is real" -- a bot moon never
+::  boots, so a moon that just watched us directly must actually be
+::  booted. record it locally if we don't already believe so. cheap and
+::  idempotent: no-ops once %vouch already says %real.
+::
+++  learn-real
+  |=  [who=@p =bowl:gall]
+  ^-  (list card)
+  ?.  ?=(%earl (clan:title who))
+    ~
+  ?:  =(%real (vouch-status who bowl))
+    ~
+  [%pass /vouch-learn %agent [our.bowl %vouch] %poke %vouch-learn !>([who %real])]~
+::
 ++  context-host
   |=  [=context our=@p]
   ^-  ship
   ?+  context  !!
     [%dm @ ~]                          our
+    ::  presence for a bot moon we host lives with us (the moon's sponsor),
+    ::  the same way we relay its dms. See +vouches-for.
+    [%vouched @ %dm @ ~]               our
     [%channel kind=@ ship=@ name=@ ~]  (slav %p i.t.t.context)
     [%group ship=@ term=@ ~]           (slav %p i.t.context)
   ==
@@ -84,6 +126,19 @@
   ?+  context  &
       [%dm @ ~]
     =(src.bowl (slav %p i.t.context))
+  ::
+    ::  a bot moon we host: the subscriber must be the counterparty named in
+    ::  the context, .who must be a moon we actually sponsor, and our own
+    ::  %vouch store must classify it a bot (not yet real, not unknown) --
+    ::  otherwise there's nothing to relay, and the subscriber's retry
+    ::  (plus the next setup cycle) re-decides once classification catches
+    ::  up.
+      [%vouched @ %dm @ ~]
+    =/  moon=@p  (slav %p i.t.context)
+    ?&  (vouches-for our.bowl moon)
+        =(src.bowl (slav %p i.t.t.t.context))
+        =(%bot (vouch-status moon bowl))
+    ==
   ::
       [%channel @ @ @ ~]
     =/  group=(unit flag:gv)
@@ -179,11 +234,28 @@
 ++  dm-contexts
   |=  =bowl:gall
   ^-  (set [ship context])
-  %.  (late /dm/(scot %p our.bowl))
-  %~  run  in
-  .^  (set ship)  %gx
-    /(scot %p our.bowl)/chat/(scot %da now.bowl)/dm/ships
-  ==
+  %-  ~(run in .^((set ship) %gx /(scot %p our.bowl)/chat/(scot %da now.bowl)/dm/ships))
+  |=  partner=ship
+  ^-  [ship context]
+  ?.  ?=(%earl (clan:title partner))
+    [partner /dm/(scot %p our.bowl)]
+  ::  our own bot moon: presence for it is always self-hosted at the
+  ::  vouched context (+inflate skips subscribing to ourselves, so this
+  ::  never produces an actual outgoing watch -- unchanged from before
+  ::  %vouch was consulted here).
+  ?:  =(our.bowl (^sein:title partner))
+    [our.bowl /vouched/(scot %p partner)/dm/(scot %p our.bowl)]
+  ::  a foreign moon our own %vouch store believes has booted: watch it
+  ::  directly, like any other ship.
+  ?:  =(%real (vouch-status partner bowl))
+    [partner /dm/(scot %p our.bowl)]
+  ::  bot or unknown: it never boots (or we can't yet tell), so watch its
+  ::  presence via its host (sponsor) on the vouched context; the host
+  ::  relays the moon's presence to us. once the contacts resolver's
+  ::  %vouch-real redirect (or organic confirmation) updates our %vouch
+  ::  store, the next setup cycle switches this to a direct watch.
+  ::
+  [(^sein:title partner) /vouched/(scot %p partner)/dm/(scot %p our.bowl)]
 ::
 ++  channel-contexts
   |=  =bowl:gall
@@ -353,12 +425,21 @@
     ::  and it's a presence for the sender
     ::
     ?>  =(our.bowl (context-host context.key our.bowl))
-    ?>  |(!?=([%dm *] context.key) =(our src):bowl)
-    ?>  =(src.bowl ship.key)
-    ::  for non-dm contexts, verify participant membership
-    ::
-    ?>  ?:  ?=([%dm *] context.key)  &
-        (is-participant context.key bowl)
+    ?>  ?:  ?=([%vouched @ %dm @ ~] context.key)
+          ::  presence for a bot moon we host: only we may set it (as
+          ::  ourselves, the moon's sponsor), and .key.ship must be that moon.
+          ?&  =(src.bowl our.bowl)
+              =(ship.key (slav %p i.t.context.key))
+              (vouches-for our.bowl ship.key)
+          ==
+        ::  normal: sender sets a presence they may author (their own, or a
+        ::  bot moon they sponsor -- mirroring +can-author for channel posts),
+        ::  in a context they're in. In a channel this lets the moon show up as
+        ::  itself, riding the channel host's normal subscription.
+        ?&  |(!?=([%dm *] context.key) =(our src):bowl)
+            (vouches-for src.bowl ship.key)
+            ?:(?=([%dm *] context.key) & (is-participant context.key bowl))
+        ==
     ?-  -.cmd
         %set
       ::  ack but no-op on timed out presence
@@ -423,6 +504,7 @@
     ::NOTE  no initial fact, since all data is short-lived,        ::REVIEW
     ::      and we don't want to hot-loop on mark incompatibility  ::REVIEW
     :_  this
+    %+  weld  (learn-real src.bowl bowl)
     [(tell:log %dbug ~['on-watch: incoming context sub' >src.bowl< >t.t.path<] ~)]~
   ==
 ::
@@ -447,6 +529,13 @@
     ?.  ?=(%poke-ack -.sign)  [~ this]
     ?~  p.sign  [~ this]
     %-  (slog (rap 3 dap.bowl ': logs poke nacked' ~) u.p.sign)
+    [~ this]
+  ::
+      [%vouch-learn ~]
+    ::  ack for organic %real learning (see +learn-real)
+    ?.  ?=(%poke-ack -.sign)  [~ this]
+    ?~  p.sign  [~ this]
+    %-  (slog (rap 3 dap.bowl ': vouch-learn poke nacked' ~) u.p.sign)
     [~ this]
   ::
       [%activity %all ~]
@@ -565,14 +654,23 @@
           ==
         :_  this
         [(tell:log %warn ~['context fact: wire/context mismatch' >wire< >upd<] ~)]~
-      ::  translate dm context from peer's perspective to ours
+      ::  translate the context we heard into the one our client keys by
       ::
       =/  theirs=^context  /dm/(scot %p our.bowl)
       =/  ours=^context    /dm/(scot %p src.bowl)
+      =/  =key             ?-(-.upd %set key.upd, %clear key.upd)
+      =/  new-ctx=^context
+        ::  a bot moon's presence, relayed by its host: re-key to the moon's
+        ::  dm so it displays like any other dm presence for that moon.
+        ?:  ?=([%vouched @ %dm @ ~] context.key)
+          /dm/(scot %p (slav %p i.t.context.key))
+        ::  normal dm: the peer keys by us, we key by them
+        ?:  =(theirs context.key)  ours
+        context.key
       =.  upd
         ?-  -.upd
-          %set    ?:(=(theirs context.key.upd) upd(context.key ours) upd)
-          %clear  ?:(=(theirs context.key.upd) upd(context.key ours) upd)
+          %set    upd(context.key new-ctx)
+          %clear  upd(context.key new-ctx)
         ==
       ?-  -.upd
           %set

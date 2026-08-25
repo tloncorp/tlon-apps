@@ -1,4 +1,5 @@
 import type { Story } from '@tloncorp/api';
+import { registerBotProfile } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
@@ -105,7 +106,12 @@ import {
 import { ssrfPolicyFromAllowPrivateNetwork } from '../urbit/context.js';
 import { describeError } from '../urbit/errors.js';
 import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
-import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
+import {
+  type BotProfile,
+  sendChannelPost,
+  sendDm,
+  sendVouchedDm,
+} from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
@@ -178,6 +184,10 @@ import { recordSentTlonReply } from './output.js';
 import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
 import { createProcessedMessageTracker } from './processed-messages.js';
+import {
+  type RosterFact,
+  rosterChangeRequiresRestart,
+} from './roster-watch.js';
 import {
   type TlonInboundRouteRecord,
   isRouteDebugEnabled,
@@ -399,7 +409,29 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   const accountUrl = account.url;
   const accountCode = account.code;
 
-  const botShipName = normalizeShip(account.ship);
+  // The host ship owns the connection (auth, pokes, scries). When a moon is
+  // configured the plugin runs on the host but the bot's *identity* is the
+  // moon — used for self-detection, @-mentions, and authorship.
+  const hostShipName = normalizeShip(account.ship);
+  const botShipName = account.moon ? normalizeShip(account.moon) : hostShipName;
+  // DM reply sender: when acting as a moon, replies must go out on the
+  // vouched path (authored as the moon, keyed by the moon in the human's
+  // dms) rather than a normal DM (which would land under the host ship).
+  // Mirrors the channel.runtime outbound split for the monitor's own sends.
+  const sendDmReply: typeof sendDm = (params) => {
+    if (!account.moon) {
+      return sendDm(params);
+    }
+    return sendVouchedDm({
+      as: botShipName,
+      toShip: params.toShip,
+      text: params.text,
+      blob: params.blob,
+      replyToId: params.replyToId,
+      parentAuthor: params.parentAuthor,
+      botProfile: params.botProfile,
+    });
+  };
   if (!botShipName) {
     throw new Error('Tlon account ship is empty after normalization');
   }
@@ -610,7 +642,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   try {
     cookie = await authenticateWithRetry();
     api = new UrbitSSEClient(account.url, cookie, {
-      ship: botShipName,
+      ship: hostShipName,
       ssrfPolicy,
       ...(sseStaleOverride !== undefined
         ? { streamStaleThresholdMs: sseStaleOverride }
@@ -706,7 +738,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     throw error;
   }
 
-  setScopedTlonApiWithPoke(api.poke.bind(api), botShipName, account.url);
+  // Configure this monitor's scoped @tloncorp/api client to use the SSE
+  // client's poke/scry. The HOST owns the connection (auth, pokes, scries);
+  // the bot identity only affects authorship, not transport.
+  setScopedTlonApiWithPoke(
+    api.poke.bind(api),
+    hostShipName,
+    account.url,
+    ({ app, path }) => api.scry(`/${app}${path}.json`)
+  );
 
   // Publish the bound transport for consumers that do not need the global API
   // client. Capture the published object so the abort handler can compare by
@@ -716,6 +756,26 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     poke: api.poke.bind(api),
   };
   apiClientParamsSlot.set(myApiClientParams);
+
+  // When acting as a moon, publish its display profile into the host's own
+  // contact profile (the `bots` convention field) so peers resolve the bot's
+  // name/avatar without contacting the non-running moon. Idempotent: merges
+  // with any sibling bots already registered on the host.
+  if (account.moon) {
+    try {
+      await registerBotProfile(botShipName, {
+        nickname: account.moonNickname,
+        avatar: account.moonAvatar,
+      });
+      runtime.log?.(
+        `[tlon] Registered bot ${botShipName} on ${hostShipName}'s profile`
+      );
+    } catch (error: any) {
+      runtime.error?.(
+        `[tlon] Failed to register bot profile: ${error?.message ?? String(error)}`
+      );
+    }
+  }
 
   // gsCoordinator is hoisted here (from its prior location at the
   // gateway-status activation block below) so cleanupGatewayStatus can
@@ -801,7 +861,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // orphaned. This outer finally catches all of those and runs cleanup
   // unconditionally.
   try {
-    const computingPresence = createComputingPresenceTracker({ runtime });
+    const computingPresence = createComputingPresenceTracker({
+      runtime,
+      // when acting as a moon, publish the bot's computing presence as the moon
+      as: account.moon ? botShipName : null,
+    });
     const contextLensConfig = account.contextLens;
     const contextLensEnabled = isContextLensEffectivelyEnabled(
       cfg,
@@ -835,8 +899,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     let botAvatar: string | null = null;
 
     // Helper to get bot profile for outbound messages
+    // As a moon, always emit a bot-meta object (even if empty) so posts are
+    // flagged as a bot and the display resolves from the host's published bot
+    // profile; the moon @p alone would render as a plain ship.
     const getBotProfile = (): BotProfile | undefined =>
-      botNickname || botAvatar
+      account.moon || botNickname || botAvatar
         ? { nickname: botNickname || '', avatar: botAvatar || '' }
         : undefined;
 
@@ -1043,8 +1110,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           nickname?: { value?: string };
           avatar?: { value?: string };
         };
-        botNickname = profile.nickname?.value || null;
-        botAvatar = profile.avatar?.value || null;
+        // The self-profile belongs to the host. Only adopt it as the bot's
+        // display identity when acting as the host itself; as a moon, the
+        // bot's name/avatar come from the host's published bot profile.
+        botNickname = account.moon ? null : profile.nickname?.value || null;
+        botAvatar = account.moon ? null : profile.avatar?.value || null;
         if (botNickname) {
           runtime.log?.(`[tlon] Bot nickname: ${botNickname}`);
           nicknameCache.set(botShipName, sanitizeNickname(botNickname));
@@ -1061,15 +1131,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // merge, so nickname/avatar survive.
     await publishBotInfoNow('boot');
 
-    // Fetch all contacts to populate nickname cache
+    // Fetch all contacts to populate nickname cache. /v1/directory is the
+    // unified peers+contacts view: { "~ship": { isContact, contact, mod } },
+    // where `mod` is the owner's overlay (their chosen name wins).
     try {
-      const allContacts = (await api.scry('/contacts/v1/all.json')) as Record<
-        string,
-        any
-      > | null;
-      if (allContacts && typeof allContacts === 'object') {
-        for (const [ship, contact] of Object.entries(allContacts)) {
-          const nickname = contact?.nickname?.value ?? contact?.nickname;
+      const directory = (await api.scry(
+        '/contacts/v1/directory.json'
+      )) as Record<string, any> | null;
+      if (directory && typeof directory === 'object') {
+        for (const [ship, entry] of Object.entries(directory)) {
+          const nickname =
+            entry?.mod?.nickname?.value ?? entry?.contact?.nickname?.value;
           if (nickname && typeof nickname === 'string') {
             nicknameCache.set(normalizeShip(ship), sanitizeNickname(nickname));
           }
@@ -1787,7 +1859,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         return undefined;
       }
       try {
-        const result = await sendDm({
+        const result = await sendDmReply({
           botProfile: getBotProfile(),
           fromShip: botShipName,
           toShip: effectiveOwnerShip,
@@ -2216,7 +2288,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
         return (
           parsed.hostShip === effectiveOwnerShip ||
-          parsed.hostShip === botShipName
+          parsed.hostShip === hostShipName
         );
       },
       getOwnerListenGlobal() {
@@ -2817,7 +2889,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               });
               outputMessageId = result.messageId;
             } else {
-              const result = await sendDm({
+              const result = await sendDmReply({
                 botProfile: getBotProfile(),
                 fromShip: botShipName,
                 toShip: senderShip,
@@ -2885,7 +2957,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             });
             outputMessageId = result.messageId;
           } else {
-            const result = await sendDm({
+            const result = await sendDmReply({
               botProfile: getBotProfile(),
               fromShip: botShipName,
               toShip: senderShip,
@@ -2949,7 +3021,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               `Docs: https://docs.openclaw.ai/concepts/session#secure-dm-mode`;
 
             // Send async, don't block message processing
-            sendDm({
+            sendDmReply({
               botProfile: getBotProfile(),
               fromShip: botShipName,
               toShip: effectiveOwnerShip,
@@ -3473,7 +3545,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                           } else {
                             const result = await observeActiveTlonTurnDelivery(
                               () =>
-                                sendDm({
+                                sendDmReply({
                                   botProfile: getBotProfile(),
                                   fromShip: botShipName,
                                   toShip: senderShip,
@@ -3862,7 +3934,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           isOwner(senderShip) &&
           parsedDispatchNest &&
           (parsedDispatchNest.hostShip === effectiveOwnerShip ||
-            parsedDispatchNest.hostShip === botShipName)
+            parsedDispatchNest.hostShip === hostShipName)
         ) {
           const args = rawText
             .trim()
@@ -4407,10 +4479,22 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       });
       runtime.log?.('[tlon] Subscribed to channels firehose (/v4)');
 
-      // Subscribe to chat/DM firehose (/v4)
+      // DM firehose. When acting as a moon the bot's DMs are NOT the host's
+      // own DMs (chat /v4) — they live in the host's per-moon bot inbox, which
+      // it streams on /v4/vouched/<moon> (same writ-response shape, one entry
+      // per conversation keyed by `whom`, but auto-accepted so no invites).
+      // Subscribing to the host's /v4 while acting as a moon would both leak
+      // the host's private DMs to the bot and, when the host DMs its own bot,
+      // collide with the vouched copy on the dedup tracker. So pick exactly
+      // one firehose. Either way route through the normal chat handler so
+      // reactions, thread replies, and the allowlist behave identically.
+      // Bot-inbox history is scryable at /chat/v4/vouched/<moon>/dm/<who>/... .
+      const dmFirehosePath = account.moon
+        ? `/v4/vouched/${botShipName}`
+        : '/v4';
       await api.subscribe({
         app: 'chat',
-        path: '/v4',
+        path: dmFirehosePath,
         event: (data) => handleChatFirehose(data as ChatFirehoseEvent),
         err: (error) => {
           capturePluginError('chat_firehose', error);
@@ -4427,7 +4511,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           );
         },
       });
-      runtime.log?.('[tlon] Subscribed to chat firehose (/v4)');
+      runtime.log?.(
+        account.moon
+          ? `[tlon] Subscribed to bot DMs (chat${dmFirehosePath})`
+          : '[tlon] Subscribed to chat firehose (/v4)'
+      );
 
       // Subscribe to contacts updates to track nickname changes
       await api.subscribe({
@@ -4499,6 +4587,66 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         },
       });
       runtime.log?.('[tlon] Subscribed to contacts updates (/v1/news)');
+
+      // Roster watch: the bot fleet (accounts/agents/bindings) is generated
+      // from the steward roster at boot, so a %minted/%retired fact only
+      // takes effect via a gateway restart (the compose restart policy
+      // brings it right back). Only the default account's monitor watches —
+      // fleet monitors would duplicate it. Best-effort: a ship without
+      // %steward just nacks the watch.
+      if ((opts.accountId ?? 'default') === 'default') {
+        const configuredMoons: ReadonlySet<string> = new Set(
+          [
+            account.moon,
+            ...Object.values(
+              (
+                cfg.channels?.tlon as {
+                  accounts?: Record<string, { moon?: unknown }>;
+                }
+              )?.accounts ?? {}
+            ).map((entry) => entry?.moon),
+          ]
+            .filter((m): m is string => typeof m === 'string' && m.length > 0)
+            .map(normalizeShip)
+        );
+        let rosterRestartScheduled = false;
+        try {
+          await api.subscribe({
+            app: 'steward',
+            path: '/v1/roster',
+            event: (data) => {
+              const reason = rosterChangeRequiresRestart(
+                data as RosterFact,
+                configuredMoons,
+                normalizeShip
+              );
+              if (!reason || rosterRestartScheduled) {
+                return;
+              }
+              rosterRestartScheduled = true;
+              runtime.log?.(
+                `[tlon] Bot roster changed (${reason}); restarting gateway in 5s to apply the fleet config...`
+              );
+              setTimeout(() => process.exit(0), 5000);
+            },
+            err: (error) => {
+              runtime.log?.(
+                `[tlon] Roster subscription error (fleet auto-restart off): ${String(error)}`
+              );
+            },
+            quit: () => {
+              runtime.log?.(
+                '[tlon] Roster quit received, SSE client will resubscribe'
+              );
+            },
+          });
+          runtime.log?.('[tlon] Watching bot roster (steward /v1/roster)');
+        } catch (error: any) {
+          runtime.log?.(
+            `[tlon] Roster watch unavailable: ${error?.message ?? String(error)}`
+          );
+        }
+      }
 
       // Subscribe to the bot ship's %steward lens module for owner-initiated
       // retries. The agent verifies the requester before emitting the fact;
@@ -5381,7 +5529,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           getLastNudgeStageShadow,
           setLastNudgeStageShadow,
           setLocalPendingNudge,
-          sendDm,
+          sendDm: sendDmReply,
           getBotProfile,
           telemetry,
           runtime,

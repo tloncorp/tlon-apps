@@ -1,4 +1,4 @@
-import { render } from '@urbit/aura';
+import { p, render } from '@urbit/aura';
 
 import { createDevLogger } from '../lib/logger';
 import { AnalyticsEvent } from '../types/analytics';
@@ -34,6 +34,173 @@ export const getContacts = async () => {
     directoryResponse: directoryResponse,
     contactsResponse: contactsResponse,
     suggestionsResponse: suggestionsResponse,
+  });
+};
+
+// --- Virtual-identity (bot moon) helpers ---
+//
+// A virtual bot is a moon its sponsor hosts and answers for; distinct from
+// the self-published `bot-info` field on real, running bot ships below.
+
+// True when `who` is a moon sponsored by `publisher`. A moon's sponsor is fixed
+// and derivable from its @p, so this needs no network state -- it lets us trust
+// a bot profile only when published by the bot-moon's actual parent.
+const isMoonOf = (who: string, publisher: string): boolean => {
+  try {
+    return p.clan(who) === 'earl' && p.sein(who) === publisher;
+  } catch {
+    return false;
+  }
+};
+
+// Read the `bots` convention field on a ship's published profile: the list of
+// bot ships (moons of the publisher) it claims to own. This is only the
+// ownership claim — a bot's display profile (name/avatar) is resolved from the
+// bot's own real contact profile, which the host publishes separately. The
+// field is a native contact %set of %ship values; decode it defensively.
+const readBotsField = (
+  profile: ub.ContactBookProfile | null | undefined
+): ub.BotClaimField => {
+  const raw = profile?.bots?.value;
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.flatMap((entry) =>
+    entry?.type === 'ship' && typeof entry.value === 'string'
+      ? [entry.value]
+      : []
+  );
+};
+
+const normalizeMoonId = (id: string): string =>
+  id.startsWith('~') ? id : `~${id}`;
+
+/**
+ * True when `ship` is a bot moon registered in its sponsor's published
+ * profile (the `bots` convention field). This is the client-side signal to
+ * route DMs through the vouched path — a real, running moon that isn't
+ * registered as a bot gets normal peer-to-peer DMs.
+ */
+export const isRegisteredBot = async (ship: string): Promise<boolean> => {
+  try {
+    if (p.clan(ship) !== 'earl') {
+      return false;
+    }
+    const host = p.sein(ship);
+    const directory = await scry<ub.ContactsDirectoryScryResult1>({
+      app: 'contacts',
+      path: '/v1/directory',
+    });
+    const entry = directory?.[host];
+    if (!entry) {
+      return false;
+    }
+    const bots = readBotsField(entry.contact);
+    // Honor the claim only when `ship` really is a moon of `host`, so a ship
+    // can't route another ship's DMs through the vouched path by claiming it.
+    return (
+      isMoonOf(ship, host) && bots.some((id) => normalizeMoonId(id) === ship)
+    );
+  } catch {
+    return false;
+  }
+};
+
+/** Editable fields of a bot moon's published profile. `undefined` keeps the
+ * current value; `null` (or empty string) clears the field. */
+export interface BotProfileEdit {
+  nickname?: string | null;
+  avatar?: string | null;
+  bio?: string | null;
+  status?: string | null;
+  cover?: string | null;
+}
+
+const BOT_PROFILE_FIELD_TYPES: Record<
+  keyof BotProfileEdit,
+  ub.ContactFieldText['type'] | ub.ContactImageField['type']
+> = {
+  nickname: 'text',
+  bio: 'text',
+  status: 'text',
+  avatar: 'look',
+  cover: 'look',
+};
+
+/**
+ * Register or update a bot moon owned by the current (host) ship. Two writes:
+ *   1. Claim: add the moon to the host's `bots` convention field (a list of
+ *      @p) so peers know it's a bot this host owns.
+ *   2. Profile: publish the bot's real contact profile via the
+ *      `contact-bot-0` poke, so it renders like any peer without ever running.
+ * The contact-bot-0 poke REPLACES the bot's whole profile, so this reads the
+ * current one and merges: `undefined` fields keep their current value,
+ * `null`/empty clears them. Sibling bots in the claim are preserved. Must be
+ * poked by the moon's host (the moon's sponsor).
+ */
+export const registerBotProfile = async (
+  moon: string,
+  profile: BotProfileEdit
+) => {
+  const botId = normalizeMoonId(moon);
+  const self = await scry<ub.ContactBookProfile>({
+    app: 'contacts',
+    path: '/v1/self',
+  });
+  const claim = readBotsField(self);
+  if (!claim.some((id) => normalizeMoonId(id) === botId)) {
+    claim.push(botId);
+    await poke({
+      app: 'contacts',
+      mark: 'contact-action-1',
+      json: {
+        self: {
+          bots: {
+            type: 'set',
+            value: claim.map((id) => ({ type: 'ship', value: id })),
+          },
+        },
+      },
+    });
+  }
+  // start from the bot's currently published profile so a partial update
+  // (or a runner restart re-registering from static config) doesn't wipe
+  // fields set elsewhere
+  const con: Record<string, ub.ContactFieldText | ub.ContactImageField> = {};
+  try {
+    const directory = await scry<ub.ContactsDirectoryScryResult1>({
+      app: 'contacts',
+      path: '/v1/directory',
+    });
+    const existing = directory?.[botId]?.contact ?? {};
+    for (const [key, value] of Object.entries(existing)) {
+      const type = (value as { type?: string } | null)?.type;
+      if (type === 'text' || type === 'look') {
+        con[key] = value as ub.ContactFieldText | ub.ContactImageField;
+      }
+    }
+  } catch {
+    // no directory yet (or scry failed): merge onto an empty profile
+  }
+  for (const key of Object.keys(
+    BOT_PROFILE_FIELD_TYPES
+  ) as (keyof BotProfileEdit)[]) {
+    const value = profile[key];
+    if (value === undefined) {
+      continue;
+    }
+    if (value === null || value === '') {
+      delete con[key];
+      continue;
+    }
+    con[key] = { type: BOT_PROFILE_FIELD_TYPES[key], value } as
+      | ub.ContactFieldText
+      | ub.ContactImageField;
+  }
+  return poke({
+    app: 'contacts',
+    mark: 'contact-bot-0',
+    json: { who: botId, con },
   });
 };
 
@@ -291,10 +458,11 @@ export const subscribeToContactUpdates = (
       if (ub.isPageResponse(event) && event.page.kip.startsWith('~')) {
         const { kip, contact, mod } = event.page;
         const contactBookEntry = [contact, mod] as ub.ContactBookEntry;
-        return handler({
+        handler({
           type: 'upsertContact',
           contact: contactToClientProfile(kip, contactBookEntry),
         });
+        return;
       }
 
       if (ub.isWipeResponse(event) && event.wipe.kip.startsWith('~')) {
@@ -305,10 +473,11 @@ export const subscribeToContactUpdates = (
       // a dupe event here if a contact updates their own profile (get a page fact and peer fact)
       if (ub.isPeerResponse(event) && event.peer.who.startsWith('~')) {
         const { who, contact } = event.peer;
-        return handler({
+        handler({
           type: 'upsertContact',
           contact: v1PeerToClientProfile(who, contact),
         });
+        return;
       }
     }
   );

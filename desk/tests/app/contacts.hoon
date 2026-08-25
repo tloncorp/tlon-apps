@@ -37,6 +37,16 @@
   =/  m  (mare ,~)
   ;<  ~  bind:m  (ex-equal !>(p.actual) !>(p.expected))
   (ex-equal q.actual q.expected)
+::  +fake-sub: manually register a subscription in .wex, bypassing the
+::  normal %watch flow. used to simulate a wire/dock pairing that the
+::  agent itself would never actually construct (e.g. an impostor), so
+::  we can prove a trust check holds even if it were ever reachable.
+::
+++  fake-sub
+  |=  [=wire =ship =term =path]
+  %-  jab-bowl
+  |=  b=bowl
+  b(wex (~(put by wex.b) [wire ship term] [| path]))
 ::  +test-poke-0-anon: v0 delete the profile
 ::
 ++  test-poke-0-anon
@@ -1269,5 +1279,314 @@
     %+  ex-equal  !>((~(get cy:c con) %nickname %text))
     !>(`'fake ~nus')
   (pure:m ~)
+::  like +scries below but %vouch classifies the moon as a bot
+::
+++  bot-scries
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %vouch @ %status @ *] path)
+    `!>(`?(%unknown %real %bot)`%bot)
+  ~
+::  +test-bot-profile: a bot moon never boots, so %contacts must not try
+::  to subscribe to it. instead the host sets the bot's contact profile
+::  directly via %contact-bot-0, and +si-meet must no-op for it rather
+::  than emitting a %watch that would retry forever.
+::
+++  test-bot-profile
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our ~sampel-palnet)))
+  ;<  caz=(list card)  b  (do-init %contacts contacts-agent)
+  ;<  ~  b  (set-scry-gate bot-scries)
+  ;<  =bowl  b  get-bowl
+  ::
+  =/  moon=ship  ~doznec-sampel-palnet
+  =/  con=contact
+    %-  malt
+    ^-  (list (pair @tas value))
+    ~[nickname+text/'Weatherbot']
+  ;<  ~  b  (set-src our.bowl)
+  ;<  caz=(list card)  b  (do-poke %contact-bot-0 !>([moon con]))
+  ::  the bot's profile is retrievable, like any peer's
+  ::
+  ;<  ~  b  (ex-scry-result /x/v1/contact/(scot %p moon) !>(con))
+  ::  meeting the bot moon does not subscribe -- it never boots
+  ::
+  ;<  caz=(list card)  b  (do-poke contact-action-1+!>([%meet ~[moon]]))
+  (ex-cards caz ~)
+::  like +bot-scries but %vouch classifies the moon as real
+::
+++  real-scries
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %vouch @ %status @ *] path)
+    `!>(`?(%unknown %real %bot)`%real)
+  ~
+::  like +bot-scries but %vouch has no record for the moon
+::
+++  unknown-scries
+  |=  =path
+  ^-  (unit vase)
+  ?:  ?=([%gx @ %vouch @ %status @ *] path)
+    `!>(`?(%unknown %real %bot)`%unknown)
+  ~
+::  +test-bot-resolver-serves: the host side of the bot-moon resolver.
+::  a foreign ship watching /v1/vouch/<moon> gets the bot's current
+::  profile immediately, and a fresh fact whenever the host updates it
+::  via %contact-bot-0.
+::
+++  test-bot-resolver-serves
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our ~sampel-palnet)))
+  ;<  caz=(list card)  b  (do-init %contacts contacts-agent)
+  ;<  ~  b  (set-scry-gate bot-scries)
+  ;<  =bowl  b  get-bowl
+  ::
+  =/  moon=ship  ~doznec-sampel-palnet
+  ::  ~bus watches the resolver path before we have any profile on file
+  ::
+  ;<  ~  b  (set-src ~bus)
+  ;<  caz=(list card)  b  (do-watch /v1/vouch/(scot %p moon))
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (ex-fact ~ contact-update-1+!>(`update`[%full now.bowl ~]))
+    ==
+  ::  the host sets the bot's profile
+  ::
+  =/  con=contact
+    %-  malt
+    ^-  (list (pair @tas value))
+    ~[nickname+text/'Weatherbot']
+  ;<  ~  b  (set-src our.bowl)
+  ;<  caz=(list card)  b  (do-poke %contact-bot-0 !>([moon con]))
+  ::  the resolver subscriber gets a fresh fact on the resolver path,
+  ::  in addition to the usual local /news and /v1/news publication
+  ::
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (ex-fact ~[/news] contact-news+!>([moon (contact:to-0:c con)]))
+        %^  ex-fact  ~[/v1/vouch/(scot %p moon)]
+          %contact-update-1
+        !>(`update`[%full now.bowl con])
+        (ex-fact ~[/v1/news] contact-response-0+!>([%peer moon con]))
+    ==
+  ::  the profile is also visible via scry, like any peer's
+  ::
+  (ex-scry-result /x/v1/contact/(scot %p moon) !>(con))
+::  +test-bot-resolver-redirects: if %vouch actually believes the moon
+::  is real, the host redirects the watcher off instead of serving a
+::  (nonexistent) bot profile.
+::
+++  test-bot-resolver-redirects
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our ~sampel-palnet)))
+  ;<  caz=(list card)  b  (do-init %contacts contacts-agent)
+  ;<  ~  b  (set-scry-gate real-scries)
+  ;<  =bowl  b  get-bowl
+  ::
+  =/  moon=ship  ~doznec-sampel-palnet
+  ;<  ~  b  (set-src ~bus)
+  ;<  caz=(list card)  b  (do-watch /v1/vouch/(scot %p moon))
+  %+  ex-cards  caz
+  :~  (ex-fact ~ vouch-real+!>(moon))
+      (ex-card %give %kick ~ ~)
+  ==
+::  +test-bot-resolver-unknown-crashes: with no classification on file
+::  yet, the host has nothing to serve and nothing to redirect to --
+::  the watch fails, and the subscriber's normal watch-nack retry
+::  machinery is expected to handle it.
+::
+++  test-bot-resolver-unknown-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our ~sampel-palnet)))
+  ;<  caz=(list card)  b  (do-init %contacts contacts-agent)
+  ;<  ~  b  (set-scry-gate unknown-scries)
+  ;<  =bowl  b  get-bowl
+  ::
+  =/  moon=ship  ~doznec-sampel-palnet
+  ;<  ~  b  (set-src ~bus)
+  (ex-fail (do-watch /v1/vouch/(scot %p moon)))
+::  +test-meet-foreign-bot-via-host: meeting a foreign moon that our
+::  own %vouch store doesn't (yet) believe is real routes through the
+::  moon's host's resolver instead of watching the moon directly.
+::  the fact answer is filed like a normal peer update, and -- since we
+::  didn't already know the moon's status -- we learn it organically.
+::
+++  test-meet-foreign-bot-via-host
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our ~bus)))
+  ;<  caz=(list card)  b  (do-init %contacts contacts-agent)
+  ;<  ~  b  (set-scry-gate unknown-scries)
+  ;<  =bowl  b  get-bowl
+  ::
+  =/  moon=ship  ~doznec-sampel-palnet
+  ;<  ~  b  (set-src our.bowl)
+  ;<  caz=(list card)  b  (do-poke contact-action-1+!>([%meet ~[moon]]))
+  ::  we watch the moon's host, never the moon itself
+  ::
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  %^  ex-task  /contact/vouch/(scot %p moon)
+          [~sampel-palnet %contacts]
+        [%watch /v1/vouch/(scot %p moon)]
+        (ex-fact ~[/news] contact-news+!>([moon ~]))
+        (ex-fact ~[/v1/news] contact-response-0+!>([%peer moon ~]))
+    ==
+  ::  the host answers with the bot's profile
+  ::
+  =/  con=contact
+    %-  malt
+    ^-  (list (pair @tas value))
+    ~[nickname+text/'Weatherbot']
+  ;<  caz=(list card)  b
+    %^  do-agent  /contact/vouch/(scot %p moon)
+      [~sampel-palnet %contacts]
+    [%fact contact-update-1+!>(`update`[%full now.bowl con])]
+  ::  filed like a normal peer update, plus an organic %vouch-learn
+  ::  poke since we didn't already know the moon's classification
+  ::
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (ex-fact ~[/news] contact-news+!>([moon (contact:to-0:c con)]))
+        (ex-fact ~[/v1/news] contact-response-0+!>([%peer moon con]))
+        (ex-poke /vouch-learn [our.bowl %vouch] vouch-learn+!>([moon %bot]))
+    ==
+  (ex-scry-result /x/v1/contact/(scot %p moon) !>(con))
+::  +test-meet-foreign-real-moon-direct: meeting a foreign moon %vouch
+::  already believes is real watches it directly, same as any peer.
+::
+++  test-meet-foreign-real-moon-direct
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our ~bus)))
+  ;<  caz=(list card)  b  (do-init %contacts contacts-agent)
+  ;<  ~  b  (set-scry-gate real-scries)
+  ;<  =bowl  b  get-bowl
+  ::
+  =/  moon=ship  ~doznec-sampel-palnet
+  ;<  ~  b  (set-src our.bowl)
+  ;<  caz=(list card)  b  (do-poke contact-action-1+!>([%meet ~[moon]]))
+  %+  ex-cards  caz
+  :~  (ex-task /contact [moon %contacts] %watch /v1/contact)
+      (ex-fact ~[/news] contact-news+!>([moon ~]))
+      (ex-fact ~[/v1/news] contact-response-0+!>([%peer moon ~]))
+  ==
+::  +test-vouch-real-redirect-switches: while resolving a moon through
+::  its host, a %vouch-real redirect must make us learn the correction
+::  and switch straight to a direct subscription -- without waiting for
+::  the %kick that follows it. once switched, that trailing %kick is a
+::  no-op.
+::
+++  test-vouch-real-redirect-switches
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our ~bus)))
+  ;<  caz=(list card)  b  (do-init %contacts contacts-agent)
+  ;<  ~  b  (set-scry-gate bot-scries)
+  ;<  =bowl  b  get-bowl
+  ::
+  =/  moon=ship  ~doznec-sampel-palnet
+  ;<  ~  b  (set-src our.bowl)
+  ;<  caz=(list card)  b  (do-poke contact-action-1+!>([%meet ~[moon]]))
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  %^  ex-task  /contact/vouch/(scot %p moon)
+          [~sampel-palnet %contacts]
+        [%watch /v1/vouch/(scot %p moon)]
+        (ex-fact ~[/news] contact-news+!>([moon ~]))
+        (ex-fact ~[/v1/news] contact-response-0+!>([%peer moon ~]))
+    ==
+  ::  the host declares the moon real and redirects us
+  ::
+  ;<  caz=(list card)  b
+    %^  do-agent  /contact/vouch/(scot %p moon)
+      [~sampel-palnet %contacts]
+    [%fact vouch-real+!>(moon)]
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (ex-poke /vouch-learn [our.bowl %vouch] vouch-learn+!>([moon %real]))
+        (ex-task /contact [moon %contacts] %watch /v1/contact)
+    ==
+  ::  the trailing kick from the host is a no-op -- we already switched
+  ::
+  ;<  caz=(list card)  b
+    %^  do-agent  /contact/vouch/(scot %p moon)
+      [~sampel-palnet %contacts]
+    [%kick ~]
+  (ex-cards caz ~)
+::  +test-vouch-resolver-trust: a %contact-update-1 fact on the
+::  resolver wire is only accepted from the moon's actual sponsor.
+::  gall's dock-bound subscriptions mean an impostor could never really
+::  reach this code in production; we simulate it anyway by manually
+::  registering the subscription an impostor would need (through the
+::  same /lib/negotiate inner-watch wire wrapping do-agent/do-poke use
+::  transparently) to prove the sponsor check holds regardless.
+::
+++  test-vouch-resolver-trust
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our ~bus)))
+  ;<  caz=(list card)  b  (do-init %contacts contacts-agent)
+  ;<  ~  b  (set-scry-gate bot-scries)
+  ;<  =bowl  b  get-bowl
+  ::
+  =/  moon=ship  ~doznec-sampel-palnet
+  =/  =wire  /contact/vouch/(scot %p moon)
+  =/  wrapped-wire=^wire  [%~.~ %negotiate %inner-watch (scot %p ~fed) %contacts wire]
+  ;<  ~  b  (fake-sub wrapped-wire ~fed %contacts /v1/vouch/(scot %p moon))
+  =/  con=contact
+    %-  malt
+    ^-  (list (pair @tas value))
+    ~[nickname+text/'Weatherbot']
+  %-  ex-fail
+  (do-agent wire [~fed %contacts] %fact contact-update-1+!>(`update`[%full now.bowl con]))
+::  +test-watch-from-moon-learns-real: "any traffic from a moon is real" --
+::  a direct watch on our own profile from an %earl src is genuine network
+::  traffic (a bot moon never boots), so we learn it %real organically.
+::  a watch from a non-moon emits no such card.
+::
+++  test-watch-from-moon-learns-real
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our ~bus)))
+  ;<  caz=(list card)  b  (do-init %contacts contacts-agent)
+  ;<  ~  b  (set-scry-gate unknown-scries)
+  ;<  =bowl  b  get-bowl
+  ::
+  =/  moon=ship  ~doznec-sampel-palnet
+  ;<  ~  b  (set-src moon)
+  ;<  caz=(list card)  b  (do-watch /v1/contact)
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (ex-poke /vouch-learn [our.bowl %vouch] vouch-learn+!>([moon %real]))
+        (ex-fact ~ contact-update-1+!>(`update`[%full now.bowl ~]))
+    ==
+  ::  a watch from a non-moon never emits a vouch-learn card
+  ::
+  ;<  ~  b  (set-src ~bud)
+  ;<  caz=(list card)  b  (do-watch /v1/contact)
+  (ex-cards caz ~[(ex-fact ~ contact-update-1+!>(`update`[%full now.bowl ~]))])
 --
 
