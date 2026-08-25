@@ -3813,6 +3813,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     };
 
+    const onboardingDiscoveryFlights = new Set<Promise<void>>();
+    let drainingOnboardingDiscovery = false;
+    const scanDiscoveredAgentOnboardingNest = async (nest: string) => {
+      if (drainingOnboardingDiscovery) return;
+      const flight = scanAgentOnboardingNest(nest);
+      onboardingDiscoveryFlights.add(flight);
+      try {
+        await flight;
+      } finally {
+        onboardingDiscoveryFlights.delete(flight);
+      }
+    };
+
     // The SSE client does not await event callbacks. Keep already-started
     // channel handlers alive through monitor teardown so they cannot resume
     // against a closed Urbit transport.
@@ -5188,7 +5201,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                       runtime.log?.(
                         `[tlon] Auto-detected new channel (invite accepted): ${channelNest}`
                       );
-                      await scanAgentOnboardingNest(channelNest);
+                      await scanDiscoveredAgentOnboardingNest(channelNest);
 
                       // Persist to settings store so it survives restarts
                       if (effectiveAutoAcceptGroupInvites) {
@@ -5247,7 +5260,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                         runtime.log?.(
                           `[tlon] Auto-detected joined channel: ${channelNest}`
                         );
-                        await scanAgentOnboardingNest(channelNest);
+                        await scanDiscoveredAgentOnboardingNest(channelNest);
 
                         // Persist to settings store
                         if (effectiveAutoAcceptGroupInvites) {
@@ -5553,7 +5566,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     runtime.log?.(
                       `[tlon] Now watching new channel: ${channelNest}`
                     );
-                    await scanAgentOnboardingNest(channelNest);
+                    await scanDiscoveredAgentOnboardingNest(channelNest);
                   }
                 }
               }
@@ -5672,6 +5685,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       clearAgentOnboardingRetries = null;
       removeBridge(accountKey, commandBridge);
       await Promise.allSettled([...onboardingRetryFlights]);
+      drainingOnboardingDiscovery = true;
+      await Promise.allSettled([...onboardingDiscoveryFlights]);
       drainingChannelFirehose = true;
       await Promise.allSettled([...channelFirehoseFlights]);
       await drainAgentOnboardingRuntime(api);
