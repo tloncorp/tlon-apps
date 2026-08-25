@@ -182,6 +182,17 @@ class ForeignsTests(unittest.TestCase):
         self.assertEqual(by_flag["~host/projects"]["from"], "~ten")
         self.assertEqual(by_flag["~host/projects"]["title"], "Projects")
 
+    def test_skips_joins_already_in_flight(self):
+        # The post-/allow foreigns fact still carries the valid invite with
+        # progress set; reprocessing it would re-card the owner.
+        joining = foreign("~ten")
+        joining["progress"] = "join"
+        errored = foreign("~bus")
+        errored["progress"] = "error"
+        payload = {"~host/joining": joining, "~host/errored": errored}
+        invites = approval.parse_foreigns(payload)
+        self.assertEqual([inv["groupFlag"] for inv in invites], ["~host/errored"])
+
     def test_skips_invalid_and_empty(self):
         payload = {
             "~host/revoked": foreign("~ten", valid=False),

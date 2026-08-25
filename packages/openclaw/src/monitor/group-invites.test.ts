@@ -11,7 +11,11 @@ import {
 function makeForeign(
   flag: string,
   from: string,
-  opts: { valid?: boolean; title?: string } = {}
+  opts: {
+    valid?: boolean;
+    title?: string;
+    progress?: Foreigns[string]['progress'];
+  } = {}
 ): Foreigns {
   return {
     [flag]: {
@@ -38,7 +42,7 @@ function makeForeign(
       ],
       lookup: null,
       preview: null,
-      progress: null,
+      progress: opts.progress ?? null,
       token: null,
     },
   };
@@ -134,6 +138,30 @@ describe('processPendingForeigns', () => {
     expect(deps.acceptInvite).not.toHaveBeenCalled();
     expect(deps.queueApproval).not.toHaveBeenCalled();
     expect(deps.processedGroupInvites.size).toBe(0);
+  });
+
+  it('skips an invite whose join is already in flight (post-/allow fact)', async () => {
+    const deps = makeDeps();
+    await processPendingForeigns(
+      makeForeign('~host/garden', '~inviter', { progress: 'join' }),
+      deps
+    );
+
+    // The /allow already accepted this invite; re-carding it would duplicate
+    // the approval the owner just actioned.
+    expect(deps.queueApproval).not.toHaveBeenCalled();
+    expect(deps.acceptInvite).not.toHaveBeenCalled();
+    expect(deps.processedGroupInvites.size).toBe(0);
+  });
+
+  it('still processes an invite whose previous join errored', async () => {
+    const deps = makeDeps();
+    await processPendingForeigns(
+      makeForeign('~host/garden', '~inviter', { progress: 'error' }),
+      deps
+    );
+
+    expect(deps.queueApproval).toHaveBeenCalledTimes(1);
   });
 
   it('stays silent for foreigners without invites (previews/joins-in-progress)', async () => {

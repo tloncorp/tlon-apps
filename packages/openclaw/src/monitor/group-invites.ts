@@ -58,6 +58,13 @@ export async function processPendingForeigns(
     if (deps.processedGroupInvites.has(groupFlag)) {
       continue;
     }
+    // A join already in flight is not a pending decision: the post-/allow
+    // foreigns fact still carries the valid invite, and reprocessing it would
+    // card the owner again. %error keeps a failed join's invite actionable.
+    if (foreign.progress && foreign.progress !== 'error') {
+      continue;
+    }
+
     // No invites (yet) is normal for previews/joins-in-progress — stay silent.
     if (!foreign.invites || foreign.invites.length === 0) {
       continue;

@@ -1255,6 +1255,16 @@ class AdapterApprovalTests(unittest.TestCase):
         # discoverability hint for non-owned groups
         self.assertIn("/owner-listen on ~host/projects", confirmation)
 
+        # %groups answers the accepted join with another foreigns fact that
+        # still carries the valid invite (progress %join). It must not re-card
+        # the owner for the group they just approved.
+        notifications_before = len(adapter._cli.notifications())
+        post_allow = self.foreigns("~host/projects", "~ten")
+        post_allow["~host/projects"]["progress"] = "join"
+        asyncio.run(adapter._handle_foreigns(post_allow))
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertEqual(len(adapter._cli.notifications()), notifications_before)
+
     def test_owner_hosted_group_allow_skips_owner_listen_hint(self):
         adapter = self.make_adapter()
         # group hosted by the owner, but invite sent by an unapproved admin
