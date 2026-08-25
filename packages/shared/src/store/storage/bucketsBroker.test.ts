@@ -10,6 +10,7 @@ import {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe('Buckets broker client', () => {
@@ -42,6 +43,25 @@ describe('Buckets broker client', () => {
         }),
         method: 'POST',
       })
+    );
+  });
+
+  // The host is pointed at a broker by poke and the client by this variable;
+  // they have to move together, so the override has to exist on both sides.
+  test('honours TLON_MEMEX_URL, trailing slash and all', async () => {
+    vi.stubEnv('TLON_MEMEX_URL', 'https://memex.test.tlon.systems/');
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ objectId: 'object-1' }), { status: 200 })
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await completeBucketUpload('reservation-1');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://memex.test.tlon.systems/v2/buckets/uploads/reservation-1/complete',
+      expect.anything()
     );
   });
 

@@ -395,6 +395,11 @@
 ::
 +$  state-0
   $:  %0
+      ::  .broker-base is where this ship's storage broker lives. Ship
+      ::  configuration rather than bucket data: a ship has no environment to
+      ::  read, so pointing a host at a test broker is a poke, and the default
+      ::  +init installs is production.
+      broker-base=@t
       spaces=(map flag space)
       next-id=@ud
       sessions=(map @uv upload-session)

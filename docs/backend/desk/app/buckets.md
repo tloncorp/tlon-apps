@@ -136,6 +136,15 @@ Consequences worth knowing:
 
 The credential goes in `X-Landscape-Token`. Neither it nor a bearer read token ever appears in a path or query string, where it would land in access logs.
 
+**Pointing a ship at a different broker.** The broker is one service seen from two directions — the host pushes grants to it, clients upload and read through it — so both halves have to move together or the pair is broken. The host side is a poke, because a ship has no environment to read:
+
+```
+:buckets &noun [%set-broker-base `'https://memex.test.tlon.systems/v2/buckets']
+:buckets &noun [%set-broker-base `(unit @t)`~]     :: back to the default
+```
+
+Only `https://` bases are accepted: the credential rides in a header, so a base naming an unexpected or plaintext host does not fail closed, it discloses the secret. `/x/v1/broker/base` reads back what a live host is using. The client half is the `TLON_MEMEX_URL` environment variable, which `bucketsBroker.ts` and `storageApi.ts` both honour.
+
 **Memex ships before this agent does.** A mint the broker refuses is never stored, whatever the refusal — including a 404 from a broker without the endpoint — because a token the broker does not hold would 403 on first use. There is deliberately no compatibility path for the reverse order.
 
 Deletes stay per-object, because they are destructive: `%issue-delete` binds a short-lived token to one ready file, exchanged through `%pioneer-buckets-authorize-delete` before the manifest entry is removed. Recursive client deletion commits each file's manifest removal immediately after Memex confirms its object deletion, and treats already-deleted as idempotent success. A host-authorized server-side bulk delete remains the durable atomic implementation.

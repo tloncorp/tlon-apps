@@ -48,13 +48,15 @@
 ::  poller can still read its result.
 ::
 ++  request-grace  ~m5
-::  +broker-base: where the storage broker lives.
+::  +default-broker-base: where the storage broker lives, absent a poke
+::  saying otherwise. The live value is .broker-base in state.
 ::
 ::  Must stay in step with BUCKETS_BROKER_URL in
 ::  packages/shared/src/store/storage/bucketsBroker.ts — clients and hosts
-::  talk to the same service, from opposite directions.
+::  talk to the same service, from opposite directions, and a host pointed at
+::  one while its clients upload to the other is broken in both.
 ::
-++  broker-base  'https://memex.tlon.network/v2/buckets'
+++  default-broker-base  'https://memex.tlon.network/v2/buckets'
 ::  +push-retry: how soon to mint again after the broker refused a token.
 ::
 ::  A token the broker never accepted is never stored, so there is nothing to
@@ -128,6 +130,7 @@
 ::
 ++  init
   ^+  cor
+  =.  broker-base  default-broker-base
   %-  emil
   :~  [%pass /eyre %arvo %e %connect [~ /buckets] %buckets]
       [%pass /groups %agent [our.bowl %groups] %watch /v1/groups]
@@ -167,6 +170,18 @@
       %buckets-broker-command-1
     ?>  =(src.bowl our.bowl)
     (apply-broker-command !<(broker-command:b vase))
+  ::
+  ::  Operator knob rather than client surface, so it rides %noun instead of
+  ::  earning a mark. A ship has no environment to read, and pointing a host
+  ::  at a test broker has to be possible on the build we ship rather than on
+  ::  a patched desk. ~ restores the default.
+  ::
+  ::    :buckets &noun [%set-broker-base `'https://memex.test.tlon.systems/v2/buckets']
+  ::
+      %noun
+    ?>  =(src.bowl our.bowl)
+    =+  !<([%set-broker-base base=(unit @t)] vase)
+    (set-broker-base base)
   ::
       %group-channel-join
     ?>  =(src.bowl our.bowl)
@@ -866,6 +881,33 @@
   :*  %pass  (token-wire flag)  %arvo  %b
       %wait  (add now.bowl push-retry)
   ==
+::
+::  +set-broker-base: point this ship's syncs at a different broker.
+::
+::  Refuses anything but an https origin. The credential +sync-cards sends is
+::  a bearer header, so a base naming a plaintext or unexpected host does not
+::  fail closed -- it discloses the secret to whoever was named. One trailing
+::  slash is trimmed rather than refused, since every use appends its own path
+::  and a doubled slash would 404 against a broker that is otherwise right.
+::
+++  set-broker-base
+  |=  base=(unit @t)
+  ^+  cor
+  ?~  base
+    %-  (slog leaf+"buckets: broker base reset to the default" ~)
+    cor(broker-base default-broker-base)
+  =/  txt=tape  (trip u.base)
+  ::  Indexed rather than +rear/+snip on purpose: testing with ?= narrows the
+  ::  tape, and those wet gates do not survive being handed a narrowed list.
+  =.  txt
+    ?:  =(~ txt)  txt
+    =/  last=@ud  (dec (lent txt))
+    ?.(=('/' (snag last txt)) txt (scag last txt))
+  ?.  =("https://" (scag 8 txt))
+    %-  (slog leaf+"buckets: refusing a broker base that is not https" ~)
+    cor
+  %-  (slog leaf+"buckets: broker base is now {txt}" ~)
+  cor(broker-base (crip txt))
 ::
 ::  +genuine-secret: this ship's shared secret with the broker.
 ::
@@ -1845,6 +1887,12 @@
   ::
       [%x %v1 %broker %complete reservation=@ ~]
     ``json+!>((broker-complete-verdict reservation.pole))
+  ::
+  ::  So an operator can confirm which broker a live host is pointed at
+  ::  without reading its state.
+  ::
+      [%x %v1 %broker %base ~]
+    ``json+!>(`json`s+broker-base)
   ::
   ::  Versioned mark rather than %noun: the client reads this over Eyre as
   ::  JSON, and %noun grows only to mime, so a bare noun answers 500 here.

@@ -1,4 +1,24 @@
-const BUCKETS_BROKER_URL = 'https://memex.tlon.network/v2/buckets';
+const DEFAULT_MEMEX_BASE_URL = 'https://memex.tlon.network';
+
+/**
+ * Where the storage broker lives, for clients.
+ *
+ * The broker is one service seen from two directions: the bucket host pushes
+ * read grants to it, and clients upload and read through it. Pointing one at a
+ * test deployment and not the other is broken in both, so this is the client
+ * half of the %buckets `%set-broker-base` poke — set TLON_MEMEX_URL and poke
+ * the host to match.
+ *
+ * Mirrors memexBaseUrl() in packages/api/src/client/storageApi.ts, rather than
+ * importing it, because shared/ does not depend on api/.
+ */
+function bucketsBrokerUrl(): string {
+  const base =
+    (typeof process !== 'undefined'
+      ? process.env?.TLON_MEMEX_URL?.trim()
+      : undefined) || DEFAULT_MEMEX_BASE_URL;
+  return `${base.replace(/\/+$/, '')}/v2/buckets`;
+}
 
 type BrokerErrorBody = {
   code?: string;
@@ -49,7 +69,7 @@ function hostName(host: string) {
 }
 
 async function brokerRequest<T>(path: string, init: RequestInit): Promise<T> {
-  const response = await fetch(`${BUCKETS_BROKER_URL}${path}`, {
+  const response = await fetch(`${bucketsBrokerUrl()}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',

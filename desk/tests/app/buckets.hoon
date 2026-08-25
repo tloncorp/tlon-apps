@@ -1289,6 +1289,47 @@
     !>([before ~(wyt by readers.st) revision.sync synced.sync])
   !>([1 1 1 0])
 ::
+::  A ship has no environment to read, so the broker it syncs to is a poke.
+::  The guard matters more than the knob: the credential in a sync is a bearer
+::  header, so a base naming an unexpected or plaintext host does not fail
+::  closed, it hands the secret over.
+::
+++  test-the-broker-base-is-settable-but-only-over-https
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  test=@t  'https://memex.test.tlon.systems/v2/buckets'
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate genuine-scries)
+  ::  a plaintext base is refused, and the default stands
+  ;<  *  b  (do-poke %noun !>([%set-broker-base `'http://evil.example/v2/buckets']))
+  ;<  before=vase  b  get-save
+  ::  so is one that is not a url at all
+  ;<  *  b  (do-poke %noun !>([%set-broker-base `'memex.test.tlon.systems']))
+  ;<  still=vase  b  get-save
+  ::  an https base lands, with its trailing slash trimmed
+  ;<  *  b  (do-poke %noun !>([%set-broker-base `(cat 3 test '/')]))
+  ;<  caz=(list card)  b  (ask 0v3 [%bucket flag [%issue-bucket-read ~]])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  ~  b
+    %+  ex-equal
+      !>  :*  broker-base:!<(state-0:bu before)
+              broker-base:!<(state-0:bu still)
+              url.request.push
+          ==
+    !>  :*  'https://memex.tlon.network/v2/buckets'
+            'https://memex.tlon.network/v2/buckets'
+            (cat 3 test '/tokens/sampel-palnet')
+        ==
+  ::  and ~ puts it back
+  ;<  *  b  (do-poke %noun !>([%set-broker-base `(unit @t)`~]))
+  ;<  sv=vase  b  get-save
+  %+  ex-equal
+    !>(broker-base:!<(state-0:bu sv))
+  !>('https://memex.tlon.network/v2/buckets')
+::
 ::  Read tokens are bucket-scoped, so a token answer has to be filed under the
 ::  bucket its request named. Two buckets on one host is where guessing from
 ::  the host goes wrong: whichever the map happened to yield first would take
