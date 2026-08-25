@@ -464,6 +464,32 @@ export async function scanAgentOnboardingChannel(
       { ...deps, fetchHistory: async () => history }
     );
   }
+  let restoredDurableRun = false;
+  if (!newestProvision) {
+    const durable = await lookupNewestAgentOnboardingRunForGroup(
+      context.groupId
+    );
+    if (
+      durable?.status === 'enqueued' &&
+      durable.channelNest === context.channelNest &&
+      durable.provision
+    ) {
+      const cron = (deps.getCron ?? getTlonCronService)();
+      if (!cron) {
+        throw new Error('cron service is not available while restoring setup');
+      }
+      const restored = await restoreFirstRunFromDurable(
+        context,
+        durable.provision,
+        durable.notebookName,
+        durable.jobId
+      );
+      if (restored) {
+        await reconcileRestoredFirstRun(cron, restored, deps);
+        restoredDurableRun = true;
+      }
+    }
+  }
   const pendingReply = pendingDurableReply(
     history,
     context.botShip,
@@ -484,7 +510,7 @@ export async function scanAgentOnboardingChannel(
     `[tlon] reconciled ${requests.length} agent onboarding request(s)` +
       `${pendingReply ? ' and one picker reply' : ''} in ${context.channelNest}`
   );
-  return requests.length > 0 || Boolean(pendingReply);
+  return requests.length > 0 || Boolean(pendingReply) || restoredDurableRun;
 }
 
 function pendingDurableReply(
@@ -1122,13 +1148,16 @@ export async function handleAgentOnboardingCronChanged(
   deps: AgentOnboardingCronDeps = {}
 ): Promise<void> {
   if (event.action !== 'finished' || !event.runId) return;
-  if (event.status === 'ok' && event.delivered !== true) return;
+  if (event.status === 'ok' && event.delivered == null) return;
   const exactMatch = findFirstRunCorrelation(
     event.runId,
     undefined,
     event.jobId,
     true
   );
+  const activeCompletion = exactMatch
+    ? firstRunCompletionFlights.get(exactMatch[0])
+    : undefined;
   await recordAgentOnboardingRunOutcome(event.runId, {
     status: event.status === 'ok' ? 'ok' : 'error',
     delivered: event.delivered === true,
@@ -1136,6 +1165,10 @@ export async function handleAgentOnboardingCronChanged(
     observedAt: Date.now(),
   });
   if (!exactMatch) return;
+  if (activeCompletion) {
+    await activeCompletion;
+    return;
+  }
   if (event.status !== 'ok' || event.delivered === false) {
     await failFirstRun(event.runId, event, deps);
     return;
@@ -1281,12 +1314,23 @@ export async function handleAgentOnboardingMessageSent(
 ): Promise<void> {
   if (event.success !== true) return;
   if (contextualRunId && !firstRunCorrelations.has(contextualRunId)) return;
-  await completeFirstRun(
+  const match = findFirstRunCorrelation(
     contextualRunId ?? event.runId,
-    event.to,
-    event.messageId,
-    deps
+    event.to
   );
+  if (!match) return;
+  const [correlationRunId] = match;
+  const recordOutcome = recordAgentOnboardingRunOutcome(correlationRunId, {
+    status: 'ok',
+    delivered: true,
+    noteId: noteIdFromDeliveryMessageId(event.messageId),
+    observedAt: Date.now(),
+  });
+  try {
+    await completeFirstRun(correlationRunId, event.to, event.messageId, deps);
+  } finally {
+    await recordOutcome;
+  }
 }
 
 async function completeFirstRun(
@@ -1426,7 +1470,8 @@ async function completeFirstRunCorrelation(
             runDeps.listNotes!,
             deps.sleep ??
               ((ms) => new Promise((resolve) => setTimeout(resolve, ms))),
-            correlation.enqueuedAt
+            correlation.enqueuedAt,
+            correlation.context.botShip
           ));
         if (!newest) {
           correlation.context.log?.(
@@ -1528,7 +1573,8 @@ async function findNewestNoteWithRetry(
   notebookNest: string,
   listNotes: typeof notes.listNotes,
   sleep: (ms: number) => Promise<void>,
-  notBefore: number
+  notBefore: number,
+  createdBy: string
 ) {
   for (let attempt = 0; attempt < FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS; attempt++) {
     const listed = await listNotes(notebookNest).catch(() => []);
@@ -1540,7 +1586,8 @@ async function findNewestNoteWithRetry(
       .filter(
         (candidate) =>
           typeof candidate.createdAt === 'number' &&
-          candidate.createdAt >= notBefore
+          candidate.createdAt >= notBefore &&
+          candidate.createdBy === createdBy
       )
       .sort((a, b) => b.createdAt! - a.createdAt!)[0];
     if (newest) return newest;
@@ -1754,7 +1801,7 @@ async function reconcileRestoredFirstRun(
     await completeFirstRun(
       record.runId,
       record.notebookNest,
-      undefined,
+      outcome.noteId === undefined ? undefined : `bot/notes-${outcome.noteId}`,
       completionDeps,
       record.jobId
     );
@@ -1801,6 +1848,9 @@ export async function drainAgentOnboardingRuntime(
     .filter(([, correlation]) => correlation.context.api === api)
     .map(([key]) => key);
   for (const key of ownedKeys) clearFirstRunCompletionRetry(key);
+  // Stop lifecycle hooks from installing a new completion flight after the
+  // drain snapshot. Already-running flights retain their captured correlation.
+  for (const key of ownedKeys) firstRunCorrelations.delete(key);
   await Promise.allSettled(
     ownedKeys
       .map((key) => firstRunCompletionFlights.get(key))
