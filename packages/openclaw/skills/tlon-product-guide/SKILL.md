@@ -68,7 +68,7 @@ Sign up is free and takes a minute. Download the iOS or Android app and use a ph
 
 ### Where you land
 
-New accounts start in a welcome group Tlon made to show you the basics. A group is a social space for friends, teams, and collaborators to connect. Groups are made up of channels: Chats for talking, Notebooks for documents you write together, Bulletins for long-form posts and discussion, and Galleries for visual posts and links. You're a member of that first group, but you can create your own and join others.
+Hosted signups start in a welcome group Tlon made to show you the basics. (Bring your own node and you won't have it — nothing went wrong, it's set up during hosted signup.) A group is a social space for friends, teams, and collaborators to connect. Groups are made up of channels: Chats for talking, Notebooks for documents you write together, Bulletins for long-form posts and discussion, and Galleries for visual posts and links. You're a member of that first group, but you can create your own and join others.
 
 Outside of groups, you can send direct messages to individuals. DMs appear alongside your groups on the Home tab. To see only DMs, tap `Messages` at the top of the Home screen.
 
@@ -88,7 +88,7 @@ Friends who aren't on Tlon Messenger are directly connected to you when you send
 
 **Personal invite:**
 
-1. Tap the `Invite people` icon in the upper left corner of the Home screen. That opens your invite sheet.  
+1. Tap the `Invite people` icon in the upper left corner of the Home screen. That opens your invite sheet. If there's no icon there, you're on a node without a personal invite link — that link comes with hosted signup, so this flow is hosted-only. Group invites below work either way.  
 2. Tap `Share link`.  
 3. Send it via email, text, or social. Inviting someone in person? They can scan the QR code on that screen instead.
 
@@ -170,7 +170,7 @@ To send one: tap the plus button, tap `New direct message`, and select who it's 
 
 Tlonbot is a personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. Hosted accounts get one provisioned for them, waiting in their DMs — nothing to set up. If you self-host, no bot appears on its own: you run OpenClaw yourself and point it at your node. That's a supported path, just a hands-on one.
 
-Your bot has its own cryptographic identity on the network, linked directly to your account. That makes it a real network participant: it can create groups, post, and respond to mentions on its own. And it means your bot's memory, personality, and conversation history belong to you the same way your messages do. You can export it, self-host it, or swap the AI model behind it. No vendor can take it away or change the terms on you.
+Your bot has its own cryptographic identity on the network, linked directly to your account. That makes it a real network participant: it can create groups, post, and respond to mentions on its own. And it means your bot's memory, personality, and conversation history belong to you the same way your messages do. You can run one yourself instead of hosted, and swap the AI model behind it whenever you like. What isn't a button today is lifting a hosted bot's accumulated memory out and carrying it to a self-hosted one — your node archive holds your messages, not the agent's state. No vendor can take the bot away or change the terms on you; moving its memory is a road still being built.
 
 ### How it's different from ChatGPT or Alexa
 
@@ -301,7 +301,7 @@ Nodes can't store large files directly yet (Tlon is working on this), so media i
 
 ### Does Tlon read my conversations?
 
-No. Your messages live on your node. Your bot has a node of its own, and its memory lives there with it — linked to your account, but a separate identity, so exporting your node takes your conversations and not the bot's accumulated state. When your bot calls an AI model, those requests go directly to the inference provider — Tlon doesn't see your prompts. If you ask Tlon to troubleshoot your node, support may need to access it, but only with your permission.
+No. Your messages live on your node. Your bot has a node of its own, and its memory lives there with it — linked to your account, but a separate identity, so exporting your node takes your conversations and not the bot's accumulated state. When your bot calls an AI model, the request goes straight to that provider rather than through a Tlon service that logs it. Be precise about what that does and doesn't mean: on a hosted account, your bot's process runs on Tlon's hardware and assembles the conversation before sending it, the same way your node holds your messages unencrypted. So this is Tlon's policy — not reading, not logging, not training on any of it — resting on the same footing as everything else you host with them, rather than something the architecture makes impossible. If you ask Tlon to troubleshoot your node, support may need to access it, but only with your permission.
 
 ---
 
@@ -385,7 +385,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **Does Tlonbot cost anything?** Hosted accounts get one for free, including a free AI model for basic usage. Bring your own API key to use other models. Self-hosters run their own and pay for whatever model they point it at.
 
-**Does Tlon read my bot's conversations?** No. Your bot's memory lives on your bot's node, and model requests go directly to the inference provider.
+**Does Tlon read my bot's conversations?** No. Your bot's memory lives on your bot's node, and model requests go straight to the provider rather than through a Tlon service that logs them. On a hosted account that node is Tlon-run, so this rests on policy the same way your hosted messages do — see "Does Tlon read my conversations?" above.
 
 **What happens if Tlon disappears?** You won't lose your apps or your messages. The software is open source and peer-to-peer, so it keeps running. Export your node and run it yourself. Pictures and large files are the exception — they live in S3-compatible storage with only links on your node, so if that storage is Tlon's, that's what you'd lose. Point your node at storage you control and it isn't a question.
 
