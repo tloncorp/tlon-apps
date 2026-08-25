@@ -10,7 +10,16 @@ import shlex
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Collection, Mapping, Optional, Sequence
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Collection,
+    Iterable,
+    Mapping,
+    Optional,
+    Sequence,
+)
 
 from .approval import build_migrate_card
 from .owner_listen import canonicalize_nest, canonicalize_notes_nest
@@ -1011,6 +1020,13 @@ def run_tlon_tool_sync(params: Mapping[str, Any], **kwargs: Any) -> str:
     return asyncio.run(handle_tlon_tool(params, **kwargs))
 
 
+def _first_existing(candidates: Iterable[Path]) -> Optional[Path]:
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def resolve_tlon_skill_path(env: Mapping[str, str | None] | None = None) -> Optional[Path]:
     env = os.environ if env is None else env
     here = Path(__file__).resolve().parent
@@ -1026,7 +1042,35 @@ def resolve_tlon_skill_path(env: Mapping[str, str | None] | None = None) -> Opti
 
     candidates.append(here.parent / "tlon-skill" / "SKILL.md")
 
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return None
+    return _first_existing(candidates)
+
+
+def resolve_tlon_product_guide_path(
+    env: Mapping[str, str | None] | None = None,
+) -> Optional[Path]:
+    """Locate the product-guide skill that ships inside the OpenClaw plugin.
+
+    Separate from ``resolve_tlon_skill_path`` because the two answer different
+    questions: that one finds the CLI command reference (an npm package, hence
+    ``TLON_SKILL_DIR``), this one finds a documentation skill that lives in the
+    plugin tree. Deployments that install the plugin somewhere non-standard set
+    ``TLON_PRODUCT_GUIDE_PATH``; ``TLON_PLUGIN_DIR`` covers the common case of
+    knowing the plugin root but not the skill layout inside it.
+    """
+    env = os.environ if env is None else env
+    here = Path(__file__).resolve().parent
+    relative = Path("skills") / "tlon-product-guide" / "SKILL.md"
+    candidates: list[Path] = []
+
+    explicit = str(env.get("TLON_PRODUCT_GUIDE_PATH") or "").strip()
+    if explicit:
+        candidates.append(Path(explicit))
+
+    plugin_dir = str(env.get("TLON_PLUGIN_DIR") or "").strip()
+    if plugin_dir:
+        candidates.append(Path(plugin_dir) / relative)
+
+    # Monorepo layout: this adapter and the plugin are sibling packages.
+    candidates.append(here.parent / "openclaw" / relative)
+
+    return _first_existing(candidates)

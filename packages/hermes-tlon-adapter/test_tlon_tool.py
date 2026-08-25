@@ -1511,6 +1511,61 @@ class TlonSkillPathTests(unittest.TestCase):
                 skill,
             )
 
+    def test_resolve_tlon_product_guide_path_uses_explicit_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            guide = Path(tmp) / "SKILL.md"
+            guide.write_text("# Tlon Messenger\n", encoding="utf-8")
+
+            self.assertEqual(
+                tlon_tool.resolve_tlon_product_guide_path(
+                    {"TLON_PRODUCT_GUIDE_PATH": str(guide)}
+                ),
+                guide,
+            )
+
+    def test_resolve_tlon_product_guide_path_uses_plugin_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = Path(tmp) / "openclaw"
+            guide = plugin_dir / "skills" / "tlon-product-guide" / "SKILL.md"
+            guide.parent.mkdir(parents=True)
+            guide.write_text("# Tlon Messenger\n", encoding="utf-8")
+
+            self.assertEqual(
+                tlon_tool.resolve_tlon_product_guide_path(
+                    {"TLON_PLUGIN_DIR": str(plugin_dir)}
+                ),
+                guide,
+            )
+
+    def test_resolve_tlon_product_guide_path_falls_back_to_sibling_package(self):
+        # No env pointing anywhere: the monorepo layout (this adapter and the
+        # OpenClaw plugin as sibling packages) has to resolve on its own. This
+        # is the assertion that breaks if the skill directory is ever moved or
+        # renamed inside the plugin.
+        resolved = tlon_tool.resolve_tlon_product_guide_path({})
+
+        self.assertIsNotNone(resolved)
+        assert resolved is not None
+        self.assertTrue(resolved.is_file())
+        self.assertEqual(resolved.parent.name, "tlon-product-guide")
+
+    def test_resolve_tlon_product_guide_path_absent_without_plugin_tree(self):
+        # A Hermes deployment that installs the adapter without the OpenClaw
+        # plugin registers no product-guide skill rather than failing to boot.
+        # The sibling fallback resolves inside this monorepo, so point the
+        # search at a tree that has neither.
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter_dir = Path(tmp) / "packages" / "hermes-tlon-adapter"
+            adapter_dir.mkdir(parents=True)
+            with patch.object(
+                tlon_tool, "__file__", str(adapter_dir / "tlon_tool.py")
+            ):
+                self.assertIsNone(
+                    tlon_tool.resolve_tlon_product_guide_path(
+                        {"TLON_PLUGIN_DIR": str(Path(tmp) / "nonexistent")}
+                    )
+                )
+
 
 class TlonSessionGateTests(unittest.TestCase):
     """The `tlon` tool is owner-only in Tlon chat sessions.

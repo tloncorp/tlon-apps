@@ -1,6 +1,6 @@
 ---
 name: tlon-product-guide
-description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups, channels (Chat/Notebook/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app.
+description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups, channels (Chat/Notebook/Bulletin/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app.
 ---
 
 # Tlon Messenger: Product Guide
@@ -29,7 +29,7 @@ Tlon Messenger is a messenger that runs on a server you own and control. Talk di
 
 Every account comes with two things:
 
-1. **A node.** Your personal server on a peer-to-peer network. Your messages, groups, and data live there — not on Tlon's infrastructure.  
+1. **A node.** Your personal server on a peer-to-peer network. Your messages, groups, and data live there, not in a company account database. On a hosted account Tlon runs that node on its hardware — but the node is still yours. Export it and run it anywhere, and nothing about your account depends on Tlon's permission.  
 2. **Tlonbot.** An AI agent powered by OpenClaw that learns your workflows and preferences without giving your data away. Every account gets one for free.
 
 Other messengers look similar on the surface. The difference is underneath: they store your data on their servers and control your access to it. Tlon Messenger stores your data on yours. No algorithm decides what you see. No one mines your conversations. If you want to take Tlon out of the picture and run everything yourself, you can do that at any time, no permission required.
@@ -68,7 +68,7 @@ Sign up is free and takes a minute. Download the iOS or Android app and use a ph
 
 ### Where you land
 
-New accounts start in a welcome group Tlon made to show you the basics. A group is a social space for friends, teams, and collaborators to connect. Groups are made up of three basic channel types: Notebooks for text posts, Galleries for visual posts and links, and Chats for talking. You're a member of that first group, but you can create your own and join others.
+New accounts start in a welcome group Tlon made to show you the basics. A group is a social space for friends, teams, and collaborators to connect. Groups are made up of channels: Chats for talking, Notebooks for documents you write together, Bulletins for long-form posts and discussion, and Galleries for visual posts and links. You're a member of that first group, but you can create your own and join others.
 
 Outside of groups, you can send direct messages to individuals. DMs appear alongside your groups on the Home tab. To see only DMs, tap `Messages` at the top of the Home screen.
 
@@ -119,11 +119,14 @@ That's the Tlon Messenger desktop experience — same account, same groups, same
 
 ### What's in a group
 
-A group is a social space with members, roles, and channels. There are three channel types:
+A group is a social space with members, roles, and channels. There are four channel types:
 
 - **Chat** — short, fast messages in a stream. For talking.  
-- **Notebook** — long-form writing with threaded comments. For posts, essays, and announcements.  
+- **Notebook** — collaborative Markdown documents, organized in folders. For writing something together. Notebooks have no comments; discussion goes in a Chat or a Bulletin.  
+- **Bulletin** — long-form publishing with threaded comments. For essays and announcements people reply to.  
 - **Gallery** — photos, videos, links, and files. For collecting and browsing visual material.
+
+Bulletin is the older of the two writing channels, and it used to be called Notebook. A node that hasn't picked up the notebooks update yet still shows it under the old name and doesn't offer the new one.
 
 Every channel type is legible to Tlonbots, so your agent can read and work with all of them (where you've given it access).
 
@@ -131,11 +134,12 @@ Every channel type is legible to Tlonbots, so your agent can read and work with 
 
 1. From the Home screen, tap the plus icon at the top right of the navigation bar.  
 2. Tap `New group`.  
-3. Invite friends who already use Tlon Messenger, or skip this and invite people later.  
-4. Tap `Create group`.  
-5. Give your group a name, banner, and profile image by tapping `Customize`.  
-6. Add channels: tap `Group info`, then `Channels`, then `New channel`, and choose the type.  
-7. Save your channel settings and return to `Group info`. Tap `Invite People` to add members, or `Invite Friends` to send a join link to people who aren't on Tlon Messenger yet.
+3. Choose how to set it up: `Quick group` starts a chat immediately with default settings, `Basic group` comes with chat, gallery, and notebook channels, or pick one of the templates.  
+4. Name the group.  
+5. Invite friends who already use Tlon Messenger, or skip this and invite people later.  
+6. Change the name, banner, and profile image any time: tap `Group info & settings`, then `Edit group info`.  
+7. Add channels: tap `Group info & settings`, then `Channels`, then `New channel`, and choose the type.  
+8. Save your channel settings and go back. Tap `Invite People` to add members, or `Invite Friends` to send a join link to people who aren't on Tlon Messenger yet.
 
 ### Ownership and roles
 
@@ -143,13 +147,17 @@ The person who created a group owns it. Their node hosts the group and controls 
 
 Channels can be gated with permissions. Admins control read and write settings per channel and can assign member roles with specific access levels. To adjust: tap the three-dot menu next to a channel name, select `Permissions`, and configure which roles can read or write.
 
+Notebooks are the exception. They don't support separate read and write permissions — a role that can read a notebook can also edit it. Say so before an admin grants what they think is read-only access.
+
 ---
 
 ## 5. Direct messages
 
-DMs are personal messages between two people — or between you and your Tlonbot. They go straight from your node to the other person's node with no middleman, and they're always one-to-one.
+DMs are personal messages outside any group — with one person, with a few people, or with your Tlonbot. A one-to-one DM goes straight from your node to the other person's node, with no middleman.
 
-To send one: tap the plus button, tap `New direct message`, and select a contact.
+Pick more than one person and you get a group DM instead. It has its own members and its own header, and it lives alongside your other DMs. It isn't a group: no channels, no roles.
+
+To send one: tap the plus button, tap `New direct message`, and select who it's going to.
 
 ---
 
@@ -219,22 +227,26 @@ Your bot can also do group admin work from a DM: create groups, set up channels,
 
 ### Slash commands
 
-Access and moderation:
+Access and moderation. The approval commands take a **request ID**, not a nickname — run `/pending` first and use the ID it prints:
 
-- `/pending` — view join requests  
-- `/allow ~nickname` — approve a request  
-- `/reject ~nickname` — deny a request  
-- `/ban ~nickname` — remove and ban a member  
-- `/banned` — list banned users  
-- `/unban ~nickname` — restore a member
+- `/pending` — view pending requests  
+- `/allow <request-id>` — approve one  
+- `/reject <request-id>` — deny one  
+- `/ban <request-id>` — deny a pending request and block the ship behind it  
+- `/banned` — list blocked ships  
+- `/unban ~nickname` — unblock a ship
+
+Two things to be clear about when someone asks. `/ban` acts on a pending request, so it isn't a way to remove a member who is already in a group — that's group admin work, and the bot can do it from a DM. And `/unban` only lifts the block; it doesn't put anyone back in a group. They'll need a fresh invite or a new request.
 
 Bot behavior:
 
-- `/owner-listen on/off` — toggle whether it responds to you without a direct mention  
-- `/channel-access` — manage per-channel access  
+- `/owner-listen all on|off` — the global switch for whether it responds to you without a direct mention. This is the form to use in a DM.  
+- `/owner-listen on|off <channel-nest>` — same thing for one owned channel. Without a channel, these do nothing but print usage.  
+- `/owner-listen status|list` — show the current setting  
 - `/model` — show or change the AI model  
-- `/tlon` — show version and storage information  
-- `/new` — clear context and start a fresh session
+- `/new` — clear context and start a fresh session  
+- `/tlon version` — show which harness, plugin, and skill versions are running. Bare `/tlon` just prints usage.  
+- `/migrate <channel>` — migrate a legacy Bulletin to a Notebook (owner only)
 
 ### Models and API keys
 
@@ -308,7 +320,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **For teams:**
 
-- Build a team group: a Chat for daily talk, a Notebook for announcements and decisions, a Gallery for design work and links.  
+- Build a team group: a Chat for daily talk, a Bulletin for announcements and decisions people reply to, a Notebook for docs you maintain together, a Gallery for design work and links.  
 - Use roles and channel permissions to give clients or contractors access to some channels and not others.  
 - Connect Linear, GitHub, or Notion and set weekly crons: ticket status summaries, new-issue digests, meeting-note recaps.  
 - Have your bot maintain a functional FAQ so process questions answer themselves.
@@ -316,7 +328,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 **For communities and clubs:**
 
 - Run a book club: a Notebook for reviews, a Chat for discussion, and a bot-scheduled reminder before each meeting.  
-- Let your bot handle moderation with slash commands: approve join requests, manage bans, and gate channels.
+- Let your bot handle moderation with slash commands: work through pending join requests, and manage blocks.
 
 **For builders:**
 
@@ -340,7 +352,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **What's the difference between my username and my node?** Your username (your Urbit ID) is like a unique address or phone number. Your node is the actual computer holding your apps and data.
 
-**What's the difference between a group and a DM?** DMs go straight from your node to another user's node with no middleman, always one-to-one. Groups have multiple members, with one host node (the group creator's) coordinating channels, roles, and updates.
+**What's the difference between a group and a DM?** A one-to-one DM goes straight from your node to another user's node with no middleman. Select several people and you get a group DM — still a DM, with members but no channels or roles. Groups have multiple members, with one host node (the group creator's) coordinating channels, roles, and updates.
 
 **Who owns the groups I'm in?** The person who created the group. Their node controls roles, channels, and updates that other members' nodes follow.
 
