@@ -654,6 +654,13 @@ test('getA2UISelections: only the author’s live selection entries count', asyn
         isDeleted: true,
         blob: selectionBlob('s-deleted'),
       },
+      {
+        ...base,
+        id: 'mine-failed',
+        authorId: '~zod',
+        deliveryStatus: 'failed' as const,
+        blob: selectionBlob('s-failed'),
+      },
       { ...base, id: 'mine-no-blob', authorId: '~zod' },
     ],
   });
