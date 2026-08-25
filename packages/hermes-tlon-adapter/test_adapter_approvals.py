@@ -1294,6 +1294,50 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(adapter._pending_approvals, [])
         self.assertEqual(len(adapter._sse.pokes_for("chat-block-ship")), 1)
 
+    def test_group_ban_also_declines_the_invite(self):
+        adapter = self.make_adapter()
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        request_id = adapter._pending_approvals[0]["id"]
+
+        self.dispatches(
+            adapter, dm_event(f"/ban {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        # The inviter may have been allowlisted since the request queued, and
+        # auto-accept does not consult the block list: the ban must take the
+        # invite off the ship or the next observation would accept it.
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertIn(
+            ("groups", "reject-invite", "~host/projects"), adapter._cli.commands
+        )
+
+    def test_group_ban_with_failed_decline_keeps_request_pending(self):
+        adapter = self.make_adapter()
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        request_id = adapter._pending_approvals[0]["id"]
+        cli = FailingCLI(("groups", "reject-invite"))
+        adapter._cli = cli
+
+        self.dispatches(
+            adapter, dm_event(f"/ban {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertIn("stays pending", cli.messages[-1][1])
+
+        # The retry declines and clears the record.
+        cli.failures = 0
+        self.dispatches(
+            adapter,
+            dm_event(f"/ban {request_id}", author="~mug", whom="~mug", msg_id="cmd-2"),
+            dm=True,
+        )
+
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertIn(
+            ("groups", "reject-invite", "~host/projects"), cli.commands
+        )
+
     def test_group_invite_no_owner_is_ignored(self):
         adapter = self.make_adapter({"owner_ship": ""})
 

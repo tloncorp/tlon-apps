@@ -2221,6 +2221,17 @@ class TlonAdapter(BasePlatformAdapter):
                     f"Could not block {ship}: block failed. "
                     "Request stays pending."
                 )
+            if approval_type(approval) == "group":
+                # A ban must also decline the invite: the inviter may have been
+                # allowlisted since the request queued, and auto-accept does not
+                # consult the block list — the still-pending invite would be
+                # accepted on the next observation.
+                flag = approval_group_flag(approval)
+                if flag and not await self._reject_group_invite(flag):
+                    return (
+                        f"Blocked {ship}, but could not decline the invite. "
+                        "Request stays pending."
+                    )
             await self._remove_from_dm_allowlist(ship)
         elif action == "reject" and approval_type(approval) == "group":
             # Reject must decline on the ship, or the next observation of the
