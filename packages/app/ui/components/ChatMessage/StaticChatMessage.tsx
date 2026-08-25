@@ -198,7 +198,7 @@ export function StaticChatMessage({
           replyToPostId: null,
           isEdit: false,
         },
-        { throwOnFailure: true }
+        { rejectOnDefinitiveFailure: true }
       );
       await renameAgentGroupFromOnboarding({
         groupId,
@@ -236,7 +236,7 @@ export function StaticChatMessage({
           replyToPostId: null,
           isEdit: false,
         },
-        { throwOnFailure: true }
+        { rejectOnDefinitiveFailure: true }
       );
     },
     [draftInputContext, resolveActionGroup]
@@ -289,7 +289,7 @@ export function StaticChatMessage({
           replyToPostId: null,
           isEdit: false,
         },
-        { throwOnFailure: true }
+        { rejectOnDefinitiveFailure: true }
       );
     },
     [
