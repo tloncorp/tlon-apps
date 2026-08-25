@@ -259,6 +259,14 @@ type FirstRunCorrelation = {
   runInApiScope?: TlonApiScopeRunner;
 };
 
+function correlationFunnelFields(correlation: FirstRunCorrelation) {
+  return {
+    purposeId: correlation.purposeId,
+    topicCount: correlation.topics.length,
+    notebookNest: correlation.notebookNest,
+  };
+}
+
 const firstRunCorrelations = sharedMap<string, FirstRunCorrelation>(
   'agentOnboarding.firstRunCorrelations'
 );
@@ -1240,27 +1248,26 @@ async function retryWithDelays(
   throw lastError;
 }
 
+function makePoster(deps: AgentOnboardingCronDeps): AgentOnboardingCronDeps {
+  return {
+    fetchHistory: deps.fetchHistory ?? fetchChannelHistoryOrThrow,
+    sendPost: deps.sendPost ?? sendChannelPost,
+    sleep: deps.sleep,
+  };
+}
+
 async function failFirstRun(
   runId: string,
   event: PluginHookCronChangedEvent,
   deps: AgentOnboardingCronDeps
 ) {
-  const match = findFirstRunCorrelation(runId, undefined, event.jobId, true);
-  if (!match) return;
-  const [correlationRunId, correlation] = match;
-  const { flight, started } = startSingleFlight(
-    firstRunCompletionFlights,
-    correlationRunId,
-    () => failFirstRunCorrelation(correlationRunId, correlation, event, deps)
-  );
-  if (!started) return flight;
-  try {
-    await flight;
-    clearFirstRunCompletionRetry(correlationRunId);
-  } catch (error) {
-    scheduleFirstRunFailureRetry(correlationRunId, event, deps);
-    throw error;
-  }
+  return settleFirstRun({
+    runId,
+    jobId: event.jobId,
+    requireExactRunId: true,
+    failureEvent: event,
+    deps,
+  });
 }
 
 function scheduleFirstRunFailureRetry(
@@ -1303,11 +1310,7 @@ async function failFirstRunCorrelation(
       })
     );
   }
-  const runDeps: AgentOnboardingCronDeps = {
-    fetchHistory: deps.fetchHistory ?? fetchChannelHistoryOrThrow,
-    sendPost: deps.sendPost ?? sendChannelPost,
-    sleep: deps.sleep,
-  };
+  const runDeps = makePoster(deps);
   const failureDescription =
     `status=${String(event.status ?? 'unknown')}, ` +
     `delivered=${String(event.delivered ?? false)}`;
@@ -1332,9 +1335,7 @@ async function failFirstRunCorrelation(
     correlation.context.trackStep?.({
       step: 'first_entry_revealed',
       outcome: 'failed',
-      purposeId: correlation.purposeId,
-      topicCount: correlation.topics.length,
-      notebookNest: correlation.notebookNest,
+      ...correlationFunnelFields(correlation),
       errorText: failureDescription,
     });
   }
@@ -1388,6 +1389,33 @@ async function completeFirstRun(
   jobId?: string,
   requireExactRunId = false
 ) {
+  return settleFirstRun({
+    runId,
+    notebookNest,
+    deliveryMessageId,
+    deps,
+    jobId,
+    requireExactRunId,
+  });
+}
+
+async function settleFirstRun({
+  runId,
+  notebookNest,
+  deliveryMessageId,
+  deps,
+  jobId,
+  requireExactRunId = false,
+  failureEvent,
+}: {
+  runId: string | undefined;
+  notebookNest?: string;
+  deliveryMessageId?: string;
+  deps: AgentOnboardingCronDeps;
+  jobId?: string;
+  requireExactRunId?: boolean;
+  failureEvent?: PluginHookCronChangedEvent;
+}) {
   const match = findFirstRunCorrelation(
     runId,
     notebookNest,
@@ -1400,19 +1428,34 @@ async function completeFirstRun(
     firstRunCompletionFlights,
     correlationRunId,
     () =>
-      completeFirstRunCorrelation(
-        correlationRunId,
-        correlation,
-        deliveryMessageId,
-        deps
-      )
+      failureEvent
+        ? failFirstRunCorrelation(
+            correlationRunId,
+            correlation,
+            failureEvent,
+            deps
+          )
+        : completeFirstRunCorrelation(
+            correlationRunId,
+            correlation,
+            deliveryMessageId,
+            deps
+          )
   );
   if (!started) return flight;
   try {
     await flight;
     clearFirstRunCompletionRetry(correlationRunId);
   } catch (error) {
-    scheduleFirstRunCompletionRetry(correlationRunId, deliveryMessageId, deps);
+    if (failureEvent) {
+      scheduleFirstRunFailureRetry(correlationRunId, failureEvent, deps);
+    } else {
+      scheduleFirstRunCompletionRetry(
+        correlationRunId,
+        deliveryMessageId,
+        deps
+      );
+    }
     throw error;
   }
 }
@@ -1480,10 +1523,8 @@ async function completeFirstRunCorrelation(
     );
   }
   const runDeps: AgentOnboardingCronDeps = {
-    fetchHistory: deps.fetchHistory ?? fetchChannelHistoryOrThrow,
+    ...makePoster(deps),
     listNotes: deps.listNotes ?? notes.listNotes,
-    sendPost: deps.sendPost ?? sendChannelPost,
-    sleep: deps.sleep,
   };
 
   try {
@@ -1558,9 +1599,7 @@ async function completeFirstRunCorrelation(
     if (revealed) {
       correlation.context.trackStep?.({
         step: 'first_entry_revealed',
-        purposeId: correlation.purposeId,
-        topicCount: correlation.topics.length,
-        notebookNest: correlation.notebookNest,
+        ...correlationFunnelFields(correlation),
       });
     }
     await postFirstRunServices(correlation, history, runDeps);
@@ -1605,8 +1644,7 @@ async function postFirstRunServices(
   if (servicesPosted) {
     correlation.context.trackStep?.({
       step: 'services_offered',
-      purposeId: correlation.purposeId,
-      notebookNest: correlation.notebookNest,
+      ...correlationFunnelFields(correlation),
     });
   }
 }
