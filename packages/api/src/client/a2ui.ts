@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import {
   AGENT_PROTOCOL_LIMITS,
+  AgentProviderConfigContextSchema,
   AgentProvisionActionContextSchema,
   agentProtocolString,
 } from './agentProtocol';
@@ -9,6 +10,7 @@ import {
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
 const ACTION_NAVIGATE = 'tlon.navigate';
 const ACTION_PROVISION_AGENT = 'tlon.provisionAgent';
+const ACTION_CONFIGURE_AGENT_PROVIDERS = 'tlon.configureAgentProviders';
 
 const LIMITS = {
   maxBytes: 32 * 1024,
@@ -59,6 +61,7 @@ const buttonVariantSchema = z.enum([
   'secondary',
   'borderless',
 ]);
+const screenNameSchema = z.enum(['botMcpSettings']);
 
 const nonEmptyString = (max?: number) => {
   const schema = max === undefined ? z.string() : z.string().max(max);
@@ -111,6 +114,11 @@ const chatVolumeNavigationTargetSchema = z.object({
   chatId: targetIdSchema,
   groupId: targetIdSchema.optional(),
 });
+const screenNavigationTargetSchema = z.object({
+  type: z.literal('screen'),
+  screen: screenNameSchema,
+  providerId: targetIdSchema.optional(),
+});
 const navigationTargetSchema = z.discriminatedUnion('type', [
   messageNavigationTargetSchema,
   channelNavigationTargetSchema,
@@ -118,6 +126,7 @@ const navigationTargetSchema = z.discriminatedUnion('type', [
   profileNavigationTargetSchema,
   chatDetailsNavigationTargetSchema,
   chatVolumeNavigationTargetSchema,
+  screenNavigationTargetSchema,
 ]);
 
 const sendMessageEventSchema = z.object({
@@ -140,6 +149,10 @@ const provisionAgentEventSchema = z.object({
   name: z.literal(ACTION_PROVISION_AGENT),
   context: AgentProvisionActionContextSchema,
 });
+const configureAgentProvidersEventSchema = z.object({
+  name: z.literal(ACTION_CONFIGURE_AGENT_PROVIDERS),
+  context: AgentProviderConfigContextSchema,
+});
 const buttonEventSchema = z.discriminatedUnion('name', [
   sendMessageEventSchema,
   navigateEventSchema,
@@ -160,6 +173,9 @@ const smallChoiceProvisionAgentEventSchema = z.object({
       .array(agentProtocolString(AGENT_PROTOCOL_LIMITS.topicLength))
       .max(AGENT_PROTOCOL_LIMITS.topicCount),
   }),
+});
+const configureAgentProvidersActionSchema = z.object({
+  event: configureAgentProvidersEventSchema,
 });
 const smallChoiceActionSchema = z.union([
   z.object({ event: smallChoiceSendMessageEventSchema }),
@@ -235,16 +251,45 @@ const smallChoiceSchema = z.object({
   freeTextPlaceholder: nonEmptyString(LIMITS.maxPillLabelLength).optional(),
   action: smallChoiceActionSchema,
 });
-const componentSchema = z.discriminatedUnion('component', [
-  textSchema,
-  rowSchema,
-  columnSchema,
-  cardSchema,
-  dividerSchema,
-  buttonSchema,
-  choiceSchema,
-  smallChoiceSchema,
-]);
+const mcpSettingsNavigateActionSchema = z.object({
+  event: z.object({
+    name: z.literal(ACTION_NAVIGATE),
+    context: z.object({
+      target: screenNavigationTargetSchema.extend({
+        screen: z.literal('botMcpSettings'),
+      }),
+    }),
+  }),
+});
+const mcpConnectSchema = z.object({
+  ...componentBaseShape,
+  component: z.literal('McpConnect'),
+  maxVisible: z.number().int().min(1).max(LIMITS.maxSmallChoiceOptions),
+  seeAllLabel: nonEmptyString(LIMITS.maxPillLabelLength),
+  submitLabel: nonEmptyString(LIMITS.maxPillLabelLength),
+  action: mcpSettingsNavigateActionSchema,
+  configureAction: configureAgentProvidersActionSchema,
+  completionLabel: nonEmptyString(LIMITS.maxPillLabelLength).optional(),
+  completionAction: sendMessageActionSchema.optional(),
+});
+const componentSchema = z
+  .discriminatedUnion('component', [
+    textSchema,
+    rowSchema,
+    columnSchema,
+    cardSchema,
+    dividerSchema,
+    buttonSchema,
+    choiceSchema,
+    smallChoiceSchema,
+    mcpConnectSchema,
+  ])
+  .refine(
+    (component) =>
+      component.component !== 'McpConnect' ||
+      (component.completionLabel === undefined) ===
+        (component.completionAction === undefined)
+  );
 const createSurfaceMessageSchema = z.object({
   version: z.literal('v0.9'),
   createSurface: z.object({
@@ -284,14 +329,31 @@ export namespace A2UI {
   export type ChatVolumeNavigationTarget = z.infer<
     typeof chatVolumeNavigationTargetSchema
   >;
+  /**
+   * App screens a blob may navigate to. Unknown names fail validation so a
+   * newer card safely degrades to fallback text on an older client.
+   */
+  export type ScreenName = z.infer<typeof screenNameSchema>;
+  export type ScreenNavigationTarget = z.infer<
+    typeof screenNavigationTargetSchema
+  >;
   export type NavigationTarget = z.infer<typeof navigationTargetSchema>;
   export type NavigateEvent = z.infer<typeof navigateEventSchema>;
   /** Finish the durable, client-bound agent onboarding setup. */
   export type ProvisionAgentEvent = z.infer<typeof provisionAgentEventSchema>;
+  /** Bind already-connected Hosting providers to a recurring agent job. */
+  export type ConfigureAgentProvidersEvent = z.infer<
+    typeof configureAgentProvidersEventSchema
+  >;
   export type EventAction = z.infer<typeof buttonActionSchema>;
   export type ButtonAction = EventAction;
   export type SendMessageAction = z.infer<typeof sendMessageActionSchema>;
   export type NavigateAction = z.infer<typeof navigateActionSchema>;
+  export type ConfigureAgentProvidersAction = z.infer<
+    typeof configureAgentProvidersActionSchema
+  >;
+  /** Every action the renderer may dispatch; provider config is McpConnect-only. */
+  export type Action = ButtonAction | ConfigureAgentProvidersAction;
   export type Button = z.infer<typeof buttonSchema>;
   /** Allowlisted assets a Choice option may render. */
   export type ChoiceIcon = z.infer<typeof choiceIconSchema>;
@@ -302,6 +364,8 @@ export namespace A2UI {
   export type SmallChoiceOption = z.infer<typeof smallChoiceOptionSchema>;
   /** A client-owned multi-select whose selection is posted only on submit. */
   export type SmallChoice = z.infer<typeof smallChoiceSchema>;
+  /** A client-owned menu populated from the viewer's live MCP providers. */
+  export type McpConnect = z.infer<typeof mcpConnectSchema>;
   export type Component = z.infer<typeof componentSchema>;
   export type CreateSurfaceMessage = z.infer<typeof createSurfaceMessageSchema>;
   export type UpdateComponentsMessage = z.infer<
@@ -444,6 +508,12 @@ function indexComponents(
       if (component.action.event.name === ACTION_SEND_MESSAGE) {
         totalTextLength += component.action.event.context.text.length;
       }
+    } else if (component.component === 'McpConnect') {
+      totalTextLength +=
+        component.seeAllLabel.length + component.submitLabel.length;
+      totalTextLength += component.completionLabel?.length ?? 0;
+      totalTextLength +=
+        component.completionAction?.event.context.text.length ?? 0;
     }
   }
 
@@ -621,6 +691,7 @@ export const A2UI = {
     sendMessage: ACTION_SEND_MESSAGE,
     navigate: ACTION_NAVIGATE,
     provisionAgent: ACTION_PROVISION_AGENT,
+    configureAgentProviders: ACTION_CONFIGURE_AGENT_PROVIDERS,
   },
   getCreateMessage,
   getUpdateMessage,

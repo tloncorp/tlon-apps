@@ -33,15 +33,17 @@ export interface ContentContextProps {
   getImageViewerId?: (src: string) => string | undefined;
   onLongPress?: () => void;
   onA2UIAction?: (
-    action: A2UI.Button['action'],
+    action: A2UI.Action,
     selection?: PostBlobDataEntryA2UISelection
   ) => void | Promise<void>;
-  isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
+  isA2UIActionAvailable?: (action: A2UI.Action) => boolean;
   canSendA2UIResponse?: boolean;
   /** Consumable controls stay locked until durable selections finish loading. */
   areA2UISelectionsPending?: boolean;
   /** Post containing the rendered A2UI surface. */
   a2uiSourcePostId?: string;
+  /** Whether this post is trusted to display authenticated provider state. */
+  canUseAgentProviderControls?: boolean;
   /**
    * Durable selection the viewer already submitted for a control, recovered
    * from their own posts in this channel. Presence marks the control

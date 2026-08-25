@@ -75,6 +75,7 @@ export {
   type PostBlobDataEntry,
   type PostBlobDataEntryAgentIntroRequest,
   type PostBlobDataEntryAgentProvision,
+  type PostBlobDataEntryAgentProviderConfig,
   type PostBlobDataEntryAgentProvisionAck,
   type PostBlobDataEntryAgentPostMarker,
   type PostBlobDataEntryA2UISelection,

@@ -16,6 +16,8 @@ export const AGENT_PROTOCOL_LIMITS = {
   timezoneLength: 100,
   notebookNestLength: 512,
   notebookTitleLength: 200,
+  providerCount: 12,
+  providerIdLength: 128,
 } as const;
 
 /** Stable identifiers shared by the client and the Tlonbot coordinator. */
@@ -51,4 +53,17 @@ export const AgentProvisionActionContextSchema = z.object({
     .max(AGENT_PROTOCOL_LIMITS.topicCount),
   scheduleHour: z.number().int().min(0).max(23),
   scheduleMinute: z.number().int().min(0).max(59),
+});
+
+export const AgentProviderIdSchema = agentProtocolString(
+  AGENT_PROTOCOL_LIMITS.providerIdLength
+).refine((value) => /^[a-z0-9][a-z0-9._-]*$/i.test(value));
+
+export const AgentProviderConfigContextSchema = z.object({
+  groupId: agentProtocolString(AGENT_PROTOCOL_LIMITS.groupIdLength),
+  provisionId: agentProtocolString(AGENT_PROTOCOL_LIMITS.identifierLength),
+  providerIds: z
+    .array(AgentProviderIdSchema)
+    .max(AGENT_PROTOCOL_LIMITS.providerCount)
+    .refine((ids) => new Set(ids).size === ids.length),
 });
