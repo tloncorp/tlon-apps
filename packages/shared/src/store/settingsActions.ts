@@ -261,6 +261,25 @@ export async function updateContextLensEnabled(value: boolean) {
   }
 }
 
+export async function updateShowDeleteMarkers(value: boolean) {
+  const existing = await db.getSettings();
+  const oldValue = existing?.showDeleteMarkers;
+
+  try {
+    await db.insertSettings({ showDeleteMarkers: value });
+    await api.setSetting('showDeleteMarkers', value);
+    return true;
+  } catch (e) {
+    logger.trackError('Error updating show delete markers setting', {
+      error: e,
+      value,
+      severity: AnalyticsSeverity.Medium,
+    });
+    await db.insertSettings({ showDeleteMarkers: oldValue ?? null });
+    return false;
+  }
+}
+
 // One-time migration for the context lens toggle, which moved from the
 // client-local feature-flag store (`storage.featureFlags.contextLens`) to the
 // synced %settings store (`contextLensEnabled`). Adopt a user's old local

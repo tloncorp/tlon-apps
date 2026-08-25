@@ -127,7 +127,7 @@ export function SettingsScreenView(props: Props) {
             />
           )}
           <SettingsAction
-            title="Theme"
+            title="Appearance"
             leftIcon="ChannelGalleries"
             rightIcon={'ChevronRight'}
             onPress={props.onThemePressed}

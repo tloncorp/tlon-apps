@@ -354,16 +354,22 @@ export const GroupChannelsScreenView = React.memo(
               getItemType={getItemType}
               {...screenScrollProps}
               ListHeaderComponent={
-                <>
+                <YStack width="100%" minWidth="100%" alignSelf="stretch">
                   {isPersonalGroup ? (
                     <WayfindingNotice.GroupChannels group={group} />
                   ) : null}
                   <SystemNotices.ConnectedJoinRequestNotice
                     group={group}
                     onViewRequests={onGoToGroupMembers}
+                    horizontalInset={false}
                   />
-                </>
+                </YStack>
               }
+              ListHeaderComponentStyle={{
+                width: '100%',
+                minWidth: '100%',
+                alignSelf: 'stretch',
+              }}
               contentContainerStyle={{
                 paddingTop: getTokenValue('$l'),
                 paddingHorizontal: getTokenValue('$l'),

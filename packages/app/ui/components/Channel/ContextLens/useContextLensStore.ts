@@ -181,7 +181,7 @@ export function useContextLensAvailable(channel?: db.Channel | null) {
     ? null
     : channel.type === 'groupDm'
       ? channel.id
-      : channel.groupId ?? null;
+      : (channel.groupId ?? null);
   const { data: botShips } = store.useContextLensBotShips();
   const { data: botsInChat } = store.useContextLensBotsInChat({
     chatId: flagEnabled ? chatId : null,
@@ -192,6 +192,11 @@ export function useContextLensAvailable(channel?: db.Channel | null) {
   }
   if (!channel) {
     return true;
+  }
+  // Notes channels have no per-post surface for a run to attach to, so the
+  // header toggle would open a panel with nothing to show.
+  if (channel.type === 'notes') {
+    return false;
   }
   if (isDm) {
     return (botShips ?? []).includes(preSig(channel.id));

@@ -172,6 +172,7 @@ CREATE TABLE `contacts` (
 	`status` text,
 	`color` text,
 	`coverImage` text,
+	`bot_info` text,
 	`blocked` integer,
 	`isContact` integer,
 	`isContactSuggestion` integer,
@@ -490,7 +491,8 @@ CREATE TABLE `settings` (
 	`disable_tlon_infra_enhancement` integer,
 	`web_app_splash_dismissed` integer,
 	`mobile_app_promo_dismissed` integer,
-	`context_lens_enabled` integer
+	`context_lens_enabled` integer,
+	`show_delete_markers` integer
 );
 --> statement-breakpoint
 CREATE TABLE `system_contact_sent_invites` (

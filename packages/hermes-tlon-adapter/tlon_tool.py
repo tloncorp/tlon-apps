@@ -14,7 +14,16 @@ from typing import Any, Awaitable, Callable, Collection, Mapping, Optional, Sequ
 
 from .approval import build_migrate_card
 from .owner_listen import canonicalize_nest, canonicalize_notes_nest
-from .tlon_api import CommandRunner, TlonCLI, TlonConfig, TlonSendResult, normalize_ship
+from .tlon_api import (
+    CREDENTIAL_FLAGS_WITH_VALUE,
+    SEND_OPERATIONS,
+    CommandRunner,
+    TlonCLI,
+    TlonConfig,
+    TlonSendResult,
+    find_subcommand_index,
+    normalize_ship,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +47,6 @@ ALLOWED_TLON_COMMANDS = frozenset(
     }
 )
 
-CREDENTIAL_FLAGS_WITH_VALUE = frozenset(
-    {"--config", "--url", "--ship", "--code", "--cookie"}
-)
-
 SendOwnerNotification = Callable[[str, Optional[str]], Awaitable[object]]
 DiaryTitleLookup = Callable[[str], Awaitable[Optional[str]]]
 BuildMigrationCard = Callable[..., str]
@@ -63,17 +68,6 @@ _diary_notifications_in_flight: dict[str, asyncio.Task[bool]] = {}
 _pending_discovery_tasks: set[asyncio.Task[bool]] = set()
 ARCHIVE_TITLE_SUFFIX = "-ARCHIVE"
 
-# Message-send operations. These are normally blocked when they target the
-# *current* conversation — those must go through Hermes' streaming reply path
-# (TlonAdapter.send()). The current-gallery ``posts send`` carveout creates a
-# new top-level gallery item. Sends to any other channel/DM are proactive and
-# allowed through the tool, since "reply normally" can only reach the current chat.
-SEND_OPERATIONS = {
-    ("dms", "send"),
-    ("dms", "reply"),
-    ("posts", "send"),
-    ("posts", "reply"),
-}
 HELP_ARGS = frozenset({"--help", "-h"})
 POST_REPLY_OPTION_FLAGS = ("author", "blob", "sent-at")
 POST_SEND_OPTION_FLAGS = ("blob", "image", "title", "sent-at")
@@ -92,6 +86,9 @@ TLON_TOOL_DESCRIPTION = (
     "notes/~host/name nests). For notes bodies, use --body <file> "
     "(note-create also accepts --markdown <file>); --stdin is blocked because "
     "Hermes cannot pipe stdin into the CLI process. "
+    "Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) — "
+    "Tlon renders no math; write math as plain text/Unicode or in code "
+    "blocks. "
     "%diary channels are deprecated and unsupported by this tool. Ask the "
     "owner to type `/migrate <diary-nest>` to move one to %notes. Hermes "
     "delivery uses `tlon posts send`, which refuses diary/ targets. "
@@ -177,22 +174,6 @@ TLON_TOOL_SCHEMA = {
 
 def _json(data: Mapping[str, Any]) -> str:
     return json.dumps(data, ensure_ascii=False)
-
-
-def find_subcommand_index(args: Sequence[str]) -> int:
-    i = 0
-    while i < len(args):
-        arg = args[i]
-        if arg.startswith("--") and "=" in arg:
-            flag = arg.split("=", 1)[0]
-            if flag in CREDENTIAL_FLAGS_WITH_VALUE:
-                i += 1
-                continue
-        if arg in CREDENTIAL_FLAGS_WITH_VALUE:
-            i += 2
-            continue
-        return i
-    return -1
 
 
 def split_tlon_command(command: str) -> tuple[list[str], Optional[str]]:
@@ -891,6 +872,11 @@ def check_tlon_tool_command(
         and targets_current
         and target.casefold().startswith("heap/")
     )
+    # Message-send operations are blocked when they target the *current*
+    # conversation — those must go through Hermes' streaming reply path
+    # (TlonAdapter.send()). The current-gallery ``posts send`` carveout creates a
+    # new top-level gallery item. Sends to any other channel/DM are proactive and
+    # allowed through the tool, since "reply normally" only reaches the current chat.
     if (
         (subcommand, action) in SEND_OPERATIONS
         and not _has_image_flag(args)
@@ -994,6 +980,7 @@ async def execute_tlon_tool(
         cfg,
         runner=runner,
         observer=telemetry.observe_cli if telemetry is not None else None,
+        as_bot=True,
     )
     with cli_context(
         "model_tool",

@@ -1,10 +1,12 @@
 import * as db from '@tloncorp/shared/db';
+import { resolveThreadUnread } from '@tloncorp/shared/logic';
 import { Icon, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { formatDistanceToNow } from 'date-fns';
 import React, { useMemo } from 'react';
 import { ColorTokens, View, XStack, styled } from 'tamagui';
 
+import { useThreadUnreads } from '../../contexts/threadUnreads';
 import { ContactAvatar } from '../Avatar';
 import { UnreadDot } from '../UnreadDot';
 
@@ -28,7 +30,9 @@ export const ChatMessageReplySummary = React.memo(
     // Since this component is used in places other than a chat log, we need to
     // be able to toggle the Chat message padding on and off
   }) {
-    const { replyCount, replyTime, replyContactIds, threadUnread } = post;
+    const { replyCount, replyTime, replyContactIds } = post;
+    const threadUnreads = useThreadUnreads();
+    const threadUnread = resolveThreadUnread(threadUnreads, post);
     const hasUnreads = !!threadUnread?.count;
     const isNotify = threadUnread?.notify ?? false;
     const isWindowNarrow = useIsWindowNarrow();

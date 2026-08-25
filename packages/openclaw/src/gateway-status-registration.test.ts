@@ -23,13 +23,13 @@ vi.mock('@tloncorp/api', () => ({
 }));
 
 vi.mock('./urbit/api-client.js', () => ({
-  configureTlonApiWithPoke: vi.fn(),
+  withTlonApiPoke: vi.fn(
+    (_poke: SharedApiClientParams['poke'], fn: () => Promise<unknown>) => fn()
+  ),
 }));
 
 const stubApiClientParams: SharedApiClientParams = {
   poke: vi.fn().mockResolvedValue(undefined),
-  shipName: 'test-bot',
-  shipUrl: 'http://localhost:8080',
 };
 
 /** A promise the test can settle on its own schedule. */

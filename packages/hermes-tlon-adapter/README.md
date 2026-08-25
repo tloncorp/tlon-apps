@@ -14,6 +14,11 @@ This first pass keeps the integration deliberately small:
 
 The model-visible `tlon` tool is not a delivery path. It blocks text `posts send`, `posts reply`, `dms send`, and `dms reply` when they target the current conversation, so normal replies stay inside Hermes' platform delivery path (`TlonAdapter.send()`); the exception is `posts send heap/~host/name`, which creates a new top-level item in the current gallery. Proactive sends to other channels/DMs and `--image` sends anywhere remain allowed. `%diary` channels are deprecated and unsupported by this tool, and Hermes cannot send to `diary/` targets because its delivery path shells out to `tlon posts send`. The configured owner can type `/migrate <diary-nest> [--allow-write-widening]` to migrate directly to `%notes`. Cleanup of a notebook the migration created is `/migrate cleanup <notes-nest>`.
 
+**Reply-visibility parity (TLON-6317).** OpenClaw's plugin defaults `sourceReplyDeliveryMode` to `'automatic'` on any turn where the operator has not set an explicit reply-visibility policy (`messages.visibleReplies`, or `messages.groupChat.visibleReplies` for group turns — an explicit policy wins and the plugin passes nothing), because OpenClaw core can otherwise resolve an assistant final to `message_tool_only` — kept private — via a harness delivery default (`packages/openclaw/src/monitor/source-reply-delivery.ts`). Hermes core, as pinned here (tag `v2026.6.19`, commit `2bd1977d8`), has no reply-visibility policy at any layer: no config axis, no delivery-mode field on `MessageEvent`, no visibility parameter in the `send()` contract. Core hands every non-empty reactive final to `send()` (`gateway/platforms/base.py:4335`); the only core-side intentional suppression is the model-emitted whole-string `NO_REPLY`/`[SILENT]` silence sentinel, which is model behavior, not operator config.
+Scope fences: attachment-only output is the separate TLON-6318 outbound-media dimension; the directive-only sanitization inside this adapter's `send()` is deliberate adapter behavior, not a visibility policy; and non-reactive sends (nudges, approval cards, migration notices, cron) go out via direct CLI sends and likewise consult no policy. This adapter therefore deliberately contains no visibility handling.
+
+**Re-open condition (manual):** if the `hermes-agent` pin moves, re-derive this verdict against the new tag (grep for `visible_replies`, `reply_visibility`, `deliver_replies`, `delivery_mode`). There is no automated safety net — the parity sweep's rubric classifies version bumps as ignore, so a pin bump will not surface this by itself.
+
 Migration assumes **one Tlon account per gateway process**. The diary-discovery notification sender is a module-global with last-writer-wins semantics, like the package's existing telemetry, recorder and presence singletons — so a second adapter in one process would silently take over the first's notifications. This is a package-wide invariant rather than something migration introduced, which is why it is documented here rather than enforced by a gate. (OpenClaw needs an explicit single-account gate because its notifications route through a process-global API client; Hermes' migration controller is constructed per adapter.)
 
 When this package can find `@tloncorp/tlon-skill/SKILL.md`, it registers that file as the explicit plugin skill `tlon-platform:tlon`. The model-facing tool and platform hint point at `skill_view("tlon-platform:tlon")`, which works the same way in dev and production because the skill registration travels with the plugin. Set `TLON_SKILL_PATH` when the skill file lives somewhere non-standard.
@@ -102,6 +107,8 @@ TLON_KNOWN_BOT_USERS=~other-bot
 TLON_MAX_CONSECUTIVE_BOT_RESPONSES=3
 TLON_CLI=tlon
 TLON_SSE_READ_TIMEOUT_SECONDS=60
+TLON_SSE_STALE_THRESHOLD_SECONDS=180 # 0 disables staleness detection (probes continue)
+TLON_SSE_WATCHDOG_INTERVAL_SECONDS=30
 TLON_SKILL_PATH=/path/to/tlon-skill/SKILL.md # optional explicit plugin-skill path
 TLON_GATEWAY_STATUS=true
 TLON_GATEWAY_STATUS_OWNER=~friend # optional override; defaults to TLON_OWNER_SHIP
@@ -192,7 +199,9 @@ Unknown ships are not silently dropped — they queue for owner approval:
 -   an **unauthorized mention** in a restricted group channel queues a channel request; approval grants that ship access in that channel and replays the mention (with channel context)
 -   a **group invite** from an unapproved inviter queues a group request; approval joins the group (`tlon groups accept-invite`) and pulls the group's channels into the monitored set so the bot is addressable there. Invites are detected live via a `groups /v1/foreigns` subscription and caught up by scrying `/groups-ui/v7/init` at connect. The owner ship and `TLON_GROUP_INVITE_ALLOWLIST` (settings key `groupInviteAllowlist`) auto-accept; rejection leaves the invite untouched in Tlon.
 
-The owner is notified by DM with a plain-text summary plus an **A2UI approval card** (post-blob entry, rendered by current Tlon clients in DMs): Allow / Reject / Block buttons that type the matching command back into the DM via the `tlon.sendMessage` action, and a View-message button (`tlon.navigate`) when there is a source message. Old clients fall back to the text.
+The owner is notified by DM with a plain-text summary plus an **A2UI approval card** (post-blob entry, rendered by current Tlon clients in DMs): Allow / Reject / Block buttons that type the matching command back into the DM via the `tlon.sendMessage` action, and a View-message button (`tlon.navigate`) when there is a source message. `/pending` renders the same per-item View buttons on its card. Old clients fall back to the text, as does any card that fails validation — the notification itself always goes out.
+
+Channel requests always get the View button; **DM requests only get one when the owner ship is the bot ship**. A DM source message lives in the bot's own DM conversation, which a separate owner ship has no copy of, so the link would dead-end on the usual hosted setup (owner ≠ bot). Channel sources stay navigable for any owner who is a member of the group.
 
 Owner commands (deterministic, never wake the model):
 
@@ -269,14 +278,18 @@ The model can block an abusive DM sender with `[BLOCK_USER: ~ship | reason]`. Ex
 
 -   **Auto-discover default and scope.** Hermes defaults `autoDiscoverChannels`/`TLON_AUTO_DISCOVER` to **off** (OpenClaw's setup wizard defaults it on), staying conservative/deny-by-default. Scope is also narrower: a reactive per-message check that only adds `chat/`/`heap/` channels the bot is already a member of, versus OpenClaw's proactive discovery of every channel across every joined group on connect. Broadening to that proactive scope is a larger change and out of scope here.
 -   **Known limitation:** a ship queued as unknown and _later_ added to `dmAllowlist` via the dashboard is not retroactively auto-accepted from its pending native invite — it stays marked processed (which survives SSE reconnects) until the owner runs `/allow`, or the gateway fully restarts. A restart's re-scan does correctly accept it at that point; a pure invite approval is cleared (no dangling `/pending` card), while one enriched with a queued message is kept so `/allow` can still replay that message.
+-   **Outbound mention formatting** is delegated to the `tlon` CLI / shared `packages/api` markdown converter — Hermes builds no story structures, so OpenClaw's `story.ts` @p-mention validation has no Hermes analogue; the shared converter's syntactic-only ship matching is an upstream (cross-runtime) divergence.
+-   **Inbound cite placeholders** render as the constant `[quoted message]` (OpenClaw uses a nest-bearing placeholder); constant text avoids sender-controlled placeholder content by design.
+-   **Blob-only reply cites** render a `[📎 …]` attachment marker here, where OpenClaw drops the blob for reply-shaped payloads — known cross-runtime disagreement, pending a parity-sweep decision.
+-   **Blank/whitespace ship config** is treated as _not configured_: `TlonConfig.from_env` trims values, skips whitespace-only entries (including a blank higher-priority alias like `TLON_NODE_ID`, which falls through to the next alias), and `is_complete()` gates every entry point, so a blank ship is never used and never reaches the CLI env. OpenClaw instead rejects whitespace-only ship strings at config-parse time (`z.string().trim().min(1)`). Same guarantee, different failure mode by design: `from_env` is called speculatively on possibly-unconfigured environments (plugin enablement probing, tool-requirement checks), so it must return a benign "incomplete" answer rather than raise — and empty env vars are the normal shape of an unset variable in compose files.
 
 ### What the dashboard can and can't edit
 
 The seven keys above are the full "dashboard edit works" set. Everything else Tlon-related is either process env with no settings-store counterpart, or process env that only _seeds_ a settings key's default:
 
 -   **Env that seeds a settings default (edit the settings key to override it at runtime, not just the env):** `TLON_AUTO_DISCOVER` → `autoDiscoverChannels`; `TLON_GROUP_INVITE_ALLOWLIST` → `groupInviteAllowlist`; `TLON_OWNER_LISTEN`/`TLON_OWNER_LISTEN_DEFAULT`/`TLON_OWNER_LISTEN_DISABLED_CHANNELS`/`TLON_OWNER_LISTEN_ENABLED_CHANNELS` → the `ownerListen*` keys; `TLON_CHANNELS` → `groupChannels` (with a limit: a `groupChannels` edit can add or remove settings-managed channels, but can **never remove** a channel that came from `TLON_CHANNELS` — those stay monitored for the life of the process).
--   **Env-only, dashboard-invisible (no settings-store counterpart at all — a dashboard edit here genuinely does nothing):** notably `TLON_FREE_RESPONSE_CHANNELS` (unmentioned-message dispatch in named channels has no settings key on either harness), plus `TLON_ALLOWED_USERS`, `TLON_ALLOW_ALL_USERS`, `TLON_DM_ALLOWLIST` (the env var — distinct from the `dmAllowlist` settings key above), `TLON_REQUIRE_MENTION`, `TLON_BOT_MENTIONS`, `TLON_KNOWN_BOT_USERS`, `TLON_MAX_CONSECUTIVE_BOT_RESPONSES`, `TLON_HOME_CHANNEL`, `TLON_CONTEXT_MESSAGES`, `TLON_REACTION_LEVEL`, `TLON_REPLY_IN_THREAD`, `TLON_CLI`/`TLON_CLI_TIMEOUT`, `TLON_HOSTING`, `TLON_SKILL_PATH`, `TLON_SSE_READ_TIMEOUT_SECONDS`, `BRAVE_SEARCH_API_KEY`/`BRAVE_API_KEY`, the `TLON_TELEMETRY*` vars, the `TLON_GATEWAY_STATUS*` vars, and the connection credentials (`TLON_NODE_URL`, `TLON_NODE_ID`, `TLON_OWNER_SHIP`, and the `TLON_ACCESS_CODE`/`TLON_COOKIE` auth pair — one of the two is required, not both; each also accepts the older
-    `TLON_SHIP_*`/`TLON_URL`/`TLON_SHIP`/`TLON_CODE`/`URBIT_*` aliases listed under [Configuration](#configuration)).
+-   **Env-only, dashboard-invisible (no settings-store counterpart at all — a dashboard edit here genuinely does nothing):** notably `TLON_FREE_RESPONSE_CHANNELS` (unmentioned-message dispatch in named channels has no settings key on either harness), plus `TLON_ALLOWED_USERS`, `TLON_ALLOW_ALL_USERS`, `TLON_DM_ALLOWLIST` (the env var — distinct from the `dmAllowlist` settings key above), `TLON_REQUIRE_MENTION`, `TLON_BOT_MENTIONS`, `TLON_KNOWN_BOT_USERS`, `TLON_MAX_CONSECUTIVE_BOT_RESPONSES`, `TLON_HOME_CHANNEL`, `TLON_CONTEXT_MESSAGES`, `TLON_REACTION_LEVEL`, `TLON_REPLY_IN_THREAD`, `TLON_CLI`/`TLON_CLI_TIMEOUT`, `TLON_HOSTING`, `TLON_SKILL_PATH`, `TLON_SSE_READ_TIMEOUT_SECONDS`, `TLON_SSE_STALE_THRESHOLD_SECONDS`, `TLON_SSE_WATCHDOG_INTERVAL_SECONDS`, `BRAVE_SEARCH_API_KEY`/`BRAVE_API_KEY`, the `TLON_TELEMETRY*` vars, the `TLON_GATEWAY_STATUS*` vars, and the connection credentials (`TLON_NODE_URL`, `TLON_NODE_ID`, `TLON_OWNER_SHIP`, and the `TLON_ACCESS_CODE`/`TLON_COOKIE` auth pair —
+    one of the two is required, not both; each also accepts the older `TLON_SHIP_*`/`TLON_URL`/`TLON_SHIP`/`TLON_CODE`/`URBIT_*` aliases listed under [Configuration](#configuration)).
 
 ## Debug commands
 
@@ -293,6 +306,7 @@ The seven keys above are the full "dashboard edit works" set. Everything else Tl
 
 ```
 *Harness*: **Hermes**
+*Harness Version*: **0.17.0 (2026.6.19)**
 *Adapter Version*: **0.1.0**
 *Tlon Skill*: **0.3.2**
 *Fingerprint*: **fp1:3f9a2c1b8d02**
@@ -300,12 +314,19 @@ The seven keys above are the full "dashboard edit works" set. Everything else Tl
 ```
 
 -   **Harness** — always `Hermes`; identifies which bot framework is running this node at a glance.
+-   **Harness Version** — the running Hermes Agent's own version, read from its `__version__` and `__release_date__` constants (the same source its `/version` command uses), with the installed distribution's metadata as a fallback. Reads `unknown` when the host reports neither, so the row is never dropped and the reply stays line-for-line comparable with OpenClaw's.
 -   **Adapter Version** — semver from this package's `package.json`, bumped at releases.
 -   **Tlon Skill** — version of the packaged `@tloncorp/tlon-skill` CLI (first line of `tlon --version`).
 -   **Fingerprint** — sha256 over the runtime files (non-test `*.py`, `plugin.yaml`, `prompts/`), so copied or hand-patched installs are still identifiable. To match a fingerprint to a commit, recompute it at a candidate checkout: `python3 -c "import version; print(version.content_fingerprint())"` from this directory.
 -   **Source** — git branch, short commit, and dirty state, resolved at command time when the install is a git checkout (the dev loop's symlinked monorepo always is). Reads `no git checkout` otherwise.
 
 Nothing is generated or checked in; identity is resolved at runtime. The same summary is logged at gateway startup.
+
+## Bot info
+
+At connect (and on reconnect catch-up) the adapter publishes the bot's identity — harness, adapter version, Hermes version — in the bot's own contact profile under `bot-info`, compare-then-poke (`bot_info.py`). Tlon clients use the claimed harness to pick which of _their_ static slash-command lists to suggest; this adapter publishes no command list of its own. Wire contract and clear-to-null rollback procedure: [docs/bot-info.md](../../docs/bot-info.md).
+
+The registry in `commands.py` is the single source of truth for command detection, and holds shared usage constants for `/owner-listen`, `/channel-access`, and `/migrate`; the remaining commands carry their usage text in their handlers. `fixtures/commands.json` is its committed token list — a CI artifact, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the runtime-owned portion of the client's Hermes list, so adding or removing a command here fails until the client list changes too; the six host-core entries that list also suggests are audit-pinned constants outside that relation. `/tlon-version` is handled but deliberately absent from the fixture (legacy alias of `/tlon version`). **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
 
 ## Telemetry
 
@@ -355,6 +376,13 @@ The `tlon` tool remains owner-only except that non-owner Tlon sessions may use `
 
 Replies post **top-level** in the conversation (Tlon conversations are linear), and messages that arrive inside a thread are answered in that thread, attached to the thread root — this holds for both group channels and DMs (a reply to a DM-thread message lands in that thread, not the main DM). Gallery (`heap/`) conversations always anchor replies to the triggering post as comments. Set `TLON_REPLY_IN_THREAD=true` to instead start a thread on every non-gallery triggering message.
 
+## Bot Authorship
+
+Every outbound message is authored as a bot: `TlonCLI` is constructed with `as_bot=True` at all three sites (the adapter instance, the model-facing `tlon` tool, and the standalone/cron sender) and appends `--bot` to every `posts|dms send|reply` it runs, including raw arg tuples passed to `run_command`. This makes the message carry an author object rather than a bare ship, which is what clients read as "this is a bot" — the "Bot" tag and the bot-conversation affordances that gate on it. Bot display names and avatars come from contact sync, not from the message. Non-send commands are never decorated.
+
+The adapter is git-refreshed on container start while the `tlon` CLI is a baked image binary, so a newer adapter regularly runs against a CLI that predates these flags — one that would post `--bot` as message text. Before its first decorated send, each `TlonCLI` therefore probes the installed binary once (`tlon posts send --help`, no network or credentials) and caches the answer. If the flags are missing, or the probe itself fails, the adapter logs a loud error naming the CLI and sends **undecorated** — messages keep bare-ship authors and no "Bot" tag, exactly as before this feature, rather than being corrupted. Decoration resumes by itself once the image ships a bot-flag-capable CLI. The probe is capped at `BOT_FLAG_PROBE_TIMEOUT_SECONDS`, so a wedged CLI delays the send that pays for it by at most that, instead of spending a full timeout before the real command starts. The cache is per `TlonCLI`, and the model tool and the standalone/cron sender each build a fresh one, so those paths
+re-probe (and re-log) per send — a broken CLI costs them the cap each time, which is also what lets a transient failure recover instead of being cached for the life of the process. A probe that outruns the cap is just another unreachable CLI and degrades the same way.
+
 ## Group Message Context
 
 When the bot wakes in a group channel it prepends recent history to the dispatched message so it can answer in context: the last `TLON_CONTEXT_MESSAGES` channel messages (default 20) for top-level wakes, or the parent post plus thread replies for thread wakes. Context fetches use the same `/channels/v4` scries as OpenClaw and degrade gracefully — on failure the bare message is dispatched. Set `TLON_CONTEXT_MESSAGES=0` to disable.
@@ -372,3 +400,6 @@ When `BRAVE_SEARCH_API_KEY` or `BRAVE_API_KEY` is configured, the adapter regist
 When `TLON_GATEWAY_STATUS` is enabled, the adapter pokes `%steward`'s gateway module on connect, heartbeat, and disconnect. `TLON_GATEWAY_STATUS_OWNER` defaults to `TLON_OWNER_SHIP` when omitted.
 
 The adapter reconnects its Eyre SSE channel when no bytes arrive for `TLON_SSE_READ_TIMEOUT_SECONDS`. This is meant to recover stale sleep/wake sockets and mirrors the byte timeout behavior in `@tloncorp/api`.
+
+On top of the byte timeout, a staleness watchdog (`TLON_SSE_STALE_THRESHOLD_SECONDS`, default 180; tick interval `TLON_SSE_WATCHDOG_INTERVAL_SECONDS`, default 30) reconnects when no _event frames_ arrive for the threshold even though bytes are flowing — the alive-but-eventless wedge a byte timeout cannot see. While the stream is idle the watchdog sends one tracked `helm-hi` probe poke per silence (a delivered-but-unanswered probe is not re-sent until a frame arrives or the stream reconnects); on a healthy channel the probe's ack refreshes the clock, and on an idle-but-dead channel it goes unanswered and the stream is resumed. Because condemnation waits for a delivered probe plus one interval of grace, effective recovery lands between the threshold and roughly the threshold plus two intervals, plus probe delivery time (itself bounded by the 30s action-PUT timeout) — with the defaults, 180–240s — and a totally silent socket is bounded separately by `sock_read` clamped to
+`min(read timeout, max(threshold, 30s))`. Set the threshold to the literal `0` to disable staleness condemnation while keeping the probes. The adapter also detects a silently re-created ("poke-revived reaped") Eyre channel — event-id regression, per-action event-id floors, and a non-genesis first event all force a full channel rebuild instead of resuming the subscription-less zombie.

@@ -5,6 +5,10 @@ import {
 } from '@tloncorp/api';
 import { parseGroupId } from '@tloncorp/api';
 import {
+  type PostBlobDataEntryA2UISelection,
+  parsePostBlob,
+} from '@tloncorp/api';
+import {
   SourceActivityEvents,
   interleaveActivityEvents,
   toSourceActivityEvents,
@@ -29,6 +33,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  like,
   lt,
   lte,
   max,
@@ -1288,7 +1293,7 @@ export const getChats = createReadQuery(
       type: 'group',
       pin: g.pin,
       timestamp: g.haveInvite
-        ? g.unread?.updatedAt ?? 0
+        ? (g.unread?.updatedAt ?? 0)
         : // whichever is newer: the latest post, or the activity summary's
           // recency — activity that isn't a post (e.g. a note in a notebook
           // channel) also reorders the sidebar
@@ -4460,6 +4465,50 @@ export const getChanPosts = createReadQuery(
   ['posts']
 );
 
+/**
+ * Durable A2UI selection entries in a channel, scoped to one author.
+ *
+ * A one-shot A2UI control is consumed iff a live post by the viewer carries a
+ * `tlon-a2ui-selection` entry matching the source post, surface, and component
+ * ids, so consumption survives remount, restart, and other devices. The
+ * author scope is load-bearing: without it, any channel member could post a
+ * matching blob to lock or fake-answer someone else's control.
+ */
+export const getA2UISelections = createReadQuery(
+  'getA2UISelections',
+  async (
+    params: { channelId: string; authorId: string },
+    ctx: QueryCtx
+  ): Promise<PostBlobDataEntryA2UISelection[]> => {
+    const rows = await ctx.db
+      .select({ blob: $posts.blob })
+      .from($posts)
+      .where(
+        and(
+          eq($posts.channelId, params.channelId),
+          eq($posts.authorId, params.authorId),
+          isNotNull($posts.blob),
+          // Cheap prefilter; parsePostBlob below is the real check.
+          like($posts.blob, '%tlon-a2ui-selection%'),
+          or(isNull($posts.isDeleted), eq($posts.isDeleted, false)),
+          or(
+            isNull($posts.deliveryStatus),
+            not(eq($posts.deliveryStatus, 'failed'))
+          )
+        )
+      );
+    return rows.flatMap((row) =>
+      row.blob
+        ? parsePostBlob(row.blob).filter(
+            (entry): entry is PostBlobDataEntryA2UISelection =>
+              entry.type === 'tlon-a2ui-selection'
+          )
+        : []
+    );
+  },
+  ['posts']
+);
+
 export const getPost = createReadQuery(
   'getPost',
   async ({ postId }: { postId: string }, ctx: QueryCtx) => {
@@ -5323,99 +5372,125 @@ export const insertContact = createWriteQuery(
   ['contacts']
 );
 
-export const insertContacts = createWriteQuery(
-  'insertContacts',
-  async (contactsData: Contact[], ctx: QueryCtx) => {
-    const currentUserId = getCurrentUserId();
-    if (contactsData.length === 0) {
-      return;
-    }
+async function writeContacts(
+  contactsData: Contact[],
+  ctx: QueryCtx,
+  // `fillMissingOnly` writes rows we don't have and leaves the ones we do
+  // alone. It exists for sources that are not authoritative — a snapshot of an
+  // earlier sync, whose fields may already have been superseded by a live
+  // update (see loadCachedContacts).
+  { fillMissingOnly }: { fillMissingOnly: boolean }
+) {
+  const currentUserId = getCurrentUserId();
+  if (contactsData.length === 0) {
+    return;
+  }
 
-    const contactGroups = contactsData.flatMap(
-      (contact) => contact.pinnedGroups || []
-    );
+  const contactGroups = contactsData.flatMap(
+    (contact) => contact.pinnedGroups || []
+  );
 
-    const contactAttestations = contactsData.flatMap(
-      (contact) =>
-        contact.attestations?.filter(
-          (a) => a.attestation && a.contactId !== currentUserId
-        ) || []
-    );
+  const contactAttestations = contactsData.flatMap(
+    (contact) =>
+      contact.attestations?.filter(
+        (a) => a.attestation && a.contactId !== currentUserId
+      ) || []
+  );
 
-    const targetGroups = contactGroups.map((g): Group => {
-      const { host: hostUserId } = parseGroupId(g.groupId);
-      return {
-        id: g.groupId,
-        hostUserId,
-        privacy: g.group?.privacy,
-        currentUserIsMember: false,
-        currentUserIsHost: currentUserId === hostUserId,
-      };
-    });
+  const targetGroups = contactGroups.map((g): Group => {
+    const { host: hostUserId } = parseGroupId(g.groupId);
+    return {
+      id: g.groupId,
+      hostUserId,
+      privacy: g.group?.privacy,
+      currentUserIsMember: false,
+      currentUserIsHost: currentUserId === hostUserId,
+    };
+  });
 
-    await withTransactionCtx(ctx, async (txCtx) => {
-      // Batch size to avoid SQLite variable limits
-      const BATCH_SIZE = 100;
+  await withTransactionCtx(ctx, async (txCtx) => {
+    // Batch size to avoid SQLite variable limits
+    const BATCH_SIZE = 100;
 
-      for (let i = 0; i < contactsData.length; i += BATCH_SIZE) {
-        const batch = contactsData.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < contactsData.length; i += BATCH_SIZE) {
+      const batch = contactsData.slice(i, i + BATCH_SIZE);
 
-        await txCtx.db
-          .insert($contacts)
-          .values(batch)
-          .onConflictDoUpdate({
+      const insert = txCtx.db.insert($contacts).values(batch);
+      await (fillMissingOnly
+        ? insert.onConflictDoNothing()
+        : insert.onConflictDoUpdate({
             target: $contacts.id,
             set: conflictUpdateSetAll($contacts, ['isBlocked']),
-          });
-      }
+          }));
+    }
 
-      if (targetGroups.length) {
-        for (let i = 0; i < targetGroups.length; i += BATCH_SIZE) {
-          const batch = targetGroups.slice(i, i + BATCH_SIZE);
-          await txCtx.db.insert($groups).values(batch).onConflictDoNothing();
-        }
+    if (targetGroups.length) {
+      for (let i = 0; i < targetGroups.length; i += BATCH_SIZE) {
+        const batch = targetGroups.slice(i, i + BATCH_SIZE);
+        await txCtx.db.insert($groups).values(batch).onConflictDoNothing();
       }
-      // TODO: Remove stale pinned groups
-      if (contactGroups.length) {
-        for (let i = 0; i < contactGroups.length; i += BATCH_SIZE) {
-          const batch = contactGroups.slice(i, i + BATCH_SIZE);
-          await txCtx.db
-            .insert($contactGroups)
-            .values(batch)
-            .onConflictDoNothing();
-        }
+    }
+    // TODO: Remove stale pinned groups
+    if (contactGroups.length) {
+      for (let i = 0; i < contactGroups.length; i += BATCH_SIZE) {
+        const batch = contactGroups.slice(i, i + BATCH_SIZE);
+        await txCtx.db
+          .insert($contactGroups)
+          .values(batch)
+          .onConflictDoNothing();
       }
+    }
 
-      // clear existing
+    // clear existing — skipped for a non-authoritative source, which cannot
+    // tell an attestation that is gone from one it simply never captured.
+    if (!fillMissingOnly) {
       await txCtx.db
         .delete($attestations)
         .where(not(eq($attestations.contactId, currentUserId)));
+    }
 
-      if (contactAttestations.length) {
-        const attestationsToInsert = contactAttestations.map(
-          (a) => a.attestation as Attestation
-        );
-        for (let i = 0; i < attestationsToInsert.length; i += BATCH_SIZE) {
-          const batch = attestationsToInsert.slice(i, i + BATCH_SIZE);
-          await txCtx.db
-            .insert($attestations)
-            .values(batch)
-            .onConflictDoUpdate({
+    if (contactAttestations.length) {
+      const attestationsToInsert = contactAttestations.map(
+        (a) => a.attestation as Attestation
+      );
+      for (let i = 0; i < attestationsToInsert.length; i += BATCH_SIZE) {
+        const batch = attestationsToInsert.slice(i, i + BATCH_SIZE);
+        const insert = txCtx.db.insert($attestations).values(batch);
+        await (fillMissingOnly
+          ? insert.onConflictDoNothing()
+          : insert.onConflictDoUpdate({
               target: $attestations.id,
               set: conflictUpdateSetAll($attestations),
-            });
-        }
-
-        for (let i = 0; i < contactAttestations.length; i += BATCH_SIZE) {
-          const batch = contactAttestations.slice(i, i + BATCH_SIZE);
-          await txCtx.db
-            .insert($contactAttestations)
-            .values(batch)
-            .onConflictDoNothing();
-        }
+            }));
       }
-    });
-  },
+
+      for (let i = 0; i < contactAttestations.length; i += BATCH_SIZE) {
+        const batch = contactAttestations.slice(i, i + BATCH_SIZE);
+        await txCtx.db
+          .insert($contactAttestations)
+          .values(batch)
+          .onConflictDoNothing();
+      }
+    }
+  });
+}
+
+export const insertContacts = createWriteQuery(
+  'insertContacts',
+  (contactsData: Contact[], ctx: QueryCtx) =>
+    writeContacts(contactsData, ctx, { fillMissingOnly: false }),
+  (contacts) =>
+    contacts.length
+      ? ['contacts', 'groups', 'contactGroups', 'contactAttestations']
+      : []
+);
+
+// Contacts from a source that may be out of date: rows we lack are inserted,
+// rows we already hold are left as they are.
+export const insertMissingContacts = createWriteQuery(
+  'insertMissingContacts',
+  (contactsData: Contact[], ctx: QueryCtx) =>
+    writeContacts(contactsData, ctx, { fillMissingOnly: true }),
   (contacts) =>
     contacts.length
       ? ['contacts', 'groups', 'contactGroups', 'contactAttestations']

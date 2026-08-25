@@ -1,5 +1,6 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as api from '@tloncorp/api';
 import { Story } from '@tloncorp/api/urbit';
 import {
   configurationFromChannel,
@@ -15,6 +16,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
@@ -103,22 +105,35 @@ export default function ChannelScreen(props: Props) {
     }, [groupId, channelId])
   );
 
-  const channelThreadAbortController = useRef<AbortController | null>(
-    new AbortController()
+  const activityCapabilitiesEpoch = useSyncExternalStore(
+    api.onActivityCapabilitiesChange,
+    api.getActivityCapabilitiesEpoch
   );
+  // A cached notes channel can mount before app-info resolves notes activity
+  // support. In that case the initial per-note unread sync intentionally
+  // returns no answer; retry once the capability becomes available.
+  const notesActivityCapabilitiesEpoch =
+    channel?.type === 'notes' ? activityCapabilitiesEpoch : 0;
 
   useEffect(() => {
-    if (!channelIsPending) {
-      if (channelThreadAbortController.current) {
-        channelThreadAbortController.current.abort();
-      }
-      channelThreadAbortController.current = new AbortController();
-      store.syncChannelThreadUnreads(channelId, {
-        priority: store.SyncPriority.High,
-        abortSignal: channelThreadAbortController.current?.signal,
-      });
+    if (channelIsPending) {
+      return;
     }
-  }, [channelIsPending, channelId]);
+
+    const abortController = new AbortController();
+    void store
+      .syncChannelThreadUnreads(channelId, {
+        priority: store.SyncPriority.High,
+        abortSignal: abortController.signal,
+      })
+      .catch((error) => {
+        if (!abortController.signal.aborted) {
+          logger.error('Failed to sync channel thread unreads', error);
+        }
+      });
+
+    return () => abortController.abort();
+  }, [channelIsPending, channelId, notesActivityCapabilitiesEpoch]);
 
   // Snapshot unread state once per focused entry so the divider does not move
   // as the channel is marked read.
@@ -202,14 +217,6 @@ export default function ChannelScreen(props: Props) {
     (initialChannelUnread.countWithoutThreads ?? 0) > 0
       ? initialChannelUnread.firstUnreadPostId
       : undefined;
-  const cursor = selectedPostId || unreadCursor;
-
-  useEffect(() => {
-    if (channel?.id) {
-      logger.sensitiveCrumb(`channelId: ${channel?.id}`, `cursor: ${cursor}`);
-    }
-  }, [channel?.id, cursor]);
-
   // Channel navigation establishes a new cursor scope.
   useEffect(() => {
     setClearedCursor(false);
@@ -234,6 +241,32 @@ export default function ChannelScreen(props: Props) {
     () => configurationFromChannel(channel),
     [channel]
   );
+  const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
+  const includeDeletedPosts =
+    channelConfiguration?.includeDeletedPosts && showDeleteMarkers;
+  const requestedCursor = selectedPostId || unreadCursor;
+  const { data: cursorPost } = store.usePostWithRelations(
+    requestedCursor ? { id: requestedCursor } : null
+  );
+  const cursorPostIsHidden = Boolean(
+    requestedCursor && !includeDeletedPosts && cursorPost?.isDeleted
+  );
+  const cursor = cursorPostIsHidden ? undefined : requestedCursor;
+
+  useEffect(() => {
+    if (cursorPostIsHidden) {
+      setClearedCursor(true);
+      if (selectedPostId) {
+        props.navigation.setParams({ selectedPostId: undefined });
+      }
+    }
+  }, [cursorPostIsHidden, props.navigation, selectedPostId]);
+
+  useEffect(() => {
+    if (channel?.id) {
+      logger.sensitiveCrumb(`channelId: ${channel?.id}`, `cursor: ${cursor}`);
+    }
+  }, [channel?.id, cursor]);
 
   const {
     posts,
@@ -247,7 +280,7 @@ export default function ChannelScreen(props: Props) {
     enabled: unreadDidInitialize && !!channel && !channel?.isPendingChannel,
     channelId: currentChannelId,
     count: 30,
-    filterDeleted: !channelConfiguration?.includeDeletedPosts,
+    filterDeleted: !includeDeletedPosts,
     ...(cursor && !clearedCursor
       ? {
           mode: 'around',
@@ -259,6 +292,13 @@ export default function ChannelScreen(props: Props) {
           firstPageCount: 50,
         }),
   });
+
+  const oldestPage = postsQuery.data?.pages.at(-1);
+  const oldestPageHasOnlyDeletedPosts = Boolean(
+    !includeDeletedPosts &&
+    oldestPage?.posts.length &&
+    oldestPage.posts.every((post) => post.isDeleted)
+  );
 
   useEffect(() => {
     // This recovers a failed around-cursor query by issuing a newest query.
@@ -288,23 +328,30 @@ export default function ChannelScreen(props: Props) {
   useEffect(() => {
     // Make sure the initial page can fill the screen; otherwise the visual
     // start boundary may never move far enough to request another older page.
+    // Likewise, keep going when a page contains only hidden delete markers,
+    // since adding no visible rows will not retrigger the boundary callback.
     const ENOUGH_POSTS_TO_FILL_SCREEN = 20;
     if (
       !postsQuery.isFetching &&
       postsQuery.hasNextPage &&
       unreadDidInitialize &&
-      (!posts || posts.length < ENOUGH_POSTS_TO_FILL_SCREEN)
+      (!posts ||
+        posts.length < ENOUGH_POSTS_TO_FILL_SCREEN ||
+        oldestPageHasOnlyDeletedPosts)
     ) {
       loadOlder();
     }
-  }, [postsQuery, posts, loadOlder, unreadDidInitialize]);
+  }, [
+    loadOlder,
+    oldestPageHasOnlyDeletedPosts,
+    posts,
+    postsQuery,
+    unreadDidInitialize,
+  ]);
 
   const filteredPosts = useMemo(
-    () =>
-      channelConfiguration?.includeDeletedPosts
-        ? posts
-        : posts?.filter((p) => !p.isDeleted),
-    [posts, channelConfiguration?.includeDeletedPosts]
+    () => (includeDeletedPosts ? posts : posts?.filter((p) => !p.isDeleted)),
+    [posts, includeDeletedPosts]
   );
   usePushNotifTapTelemetry({
     channelId: currentChannelId,
@@ -479,7 +526,9 @@ export default function ChannelScreen(props: Props) {
           key={currentChannelId}
           channel={channel}
           initialChannelUnread={
-            clearedCursor ? undefined : initialChannelUnread
+            clearedCursor || cursorPostIsHidden
+              ? undefined
+              : initialChannelUnread
           }
           isLoadingPosts={isLoadingPosts}
           loadPostsError={postsQuery.error}
@@ -488,7 +537,9 @@ export default function ChannelScreen(props: Props) {
           group={group}
           groupIsLoading={groupIsLoading}
           posts={filteredPosts ?? null}
-          selectedPostId={clearedCursor ? undefined : selectedPostId}
+          selectedPostId={
+            clearedCursor || cursorPostIsHidden ? undefined : selectedPostId
+          }
           goBack={navigationRef.current.goBack}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}

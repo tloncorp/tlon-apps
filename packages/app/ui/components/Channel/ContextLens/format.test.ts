@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { canRetryLens } from './format';
+import { canRetryLens, formatWallDateTime } from './format';
 import type { ContextLens, ContextLensStatus } from './types';
 
 function makeLens(overrides: Partial<ContextLens> = {}): ContextLens {
@@ -84,5 +84,26 @@ describe('canRetryLens', () => {
     expect(
       canRetryLens(makeLens({ status: 'error', runKind: 'internal' }))
     ).toBe(false);
+  });
+});
+
+describe('formatWallDateTime', () => {
+  it('includes the run date and time', () => {
+    const timestamp = new Date(2026, 6, 15, 13, 32, 27).getTime();
+
+    expect(formatWallDateTime(timestamp)).toBe(
+      new Date(timestamp).toLocaleString([], {
+        year: '2-digit',
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+    );
+  });
+
+  it('handles missing timestamps', () => {
+    expect(formatWallDateTime()).toBe('unknown');
   });
 });

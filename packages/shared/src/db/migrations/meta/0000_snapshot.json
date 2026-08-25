@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e7e28ea4-831e-4c18-aba2-315772c3c581",
+  "id": "4f27b209-f6e1-4b9e-90a6-5bf685afcdf2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -1163,6 +1163,13 @@
         },
         "coverImage": {
           "name": "coverImage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "bot_info": {
+          "name": "bot_info",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -3327,6 +3334,13 @@
         },
         "context_lens_enabled": {
           "name": "context_lens_enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "show_delete_markers": {
+          "name": "show_delete_markers",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

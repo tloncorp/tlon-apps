@@ -1,5 +1,6 @@
 import { DarkTheme, DefaultTheme, type Theme } from '@react-navigation/native';
 import { useMemo } from 'react';
+import { getTokenValue } from 'tamagui';
 
 import { useIsDarkMode } from '../hooks/useDarkMode';
 import { useTheme } from '../ui';
@@ -23,6 +24,7 @@ export function useAppNavigationTheme(): Theme {
         card: background ?? baseTheme.colors.card,
         text: text ?? baseTheme.colors.text,
         border: border ?? baseTheme.colors.border,
+        notification: getTokenValue('$blue', 'color'),
       },
     };
   }, [background, border, isDark, text]);

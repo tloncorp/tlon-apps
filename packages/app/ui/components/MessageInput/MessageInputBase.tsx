@@ -210,7 +210,7 @@ export const MessageInputContainer = memo(
             ) : null}
 
             {isEditing ? (
-              <MessageInputChromeAction bottomSpacing="2xs">
+              <MessageInputChromeAction>
                 <MessageInputChromeButton
                   preset="secondary"
                   icon="Close"
@@ -405,12 +405,7 @@ function MessageInputChromeRow({
   );
 }
 
-function MessageInputChromeAction({
-  children,
-  bottomSpacing = 'xs',
-}: PropsWithChildren<{
-  bottomSpacing?: 'xs' | '2xs';
-}>) {
+function MessageInputChromeAction({ children }: PropsWithChildren) {
   if (usesIOSGlass) {
     return (
       <GlassSurface isInteractive style={inputChromeStyles.action}>
@@ -435,11 +430,7 @@ function MessageInputChromeAction({
     );
   }
 
-  return (
-    <View marginBottom={bottomSpacing === '2xs' ? '$2xs' : '$xs'}>
-      {children}
-    </View>
-  );
+  return <View top={2}>{children}</View>;
 }
 
 function MessageInputChromeBody({
@@ -535,7 +526,7 @@ function MessageInputChromeButton(props: ComponentProps<typeof Button>) {
 function MessageInputChromeSendAction({ children }: PropsWithChildren) {
   return (
     <View
-      marginBottom={usesFloatingChrome ? undefined : '$xs'}
+      top={usesFloatingChrome ? undefined : 2}
       alignSelf={usesFloatingChrome ? 'center' : undefined}
     >
       {children}
