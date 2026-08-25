@@ -1,5 +1,8 @@
-import { A2UI } from '@tloncorp/api';
 import {
+  A2UI,
+  AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER,
+  AGENT_ONBOARDING_FIRST_ENTRY_MARKER,
+  type AgentOnboardingPurposeId,
   type PostBlobDataEntryAgentIntroRequest,
   type PostBlobDataEntryAgentProviderConfig,
   type PostBlobDataEntryAgentProvision,
@@ -12,6 +15,7 @@ import type {
   PluginHookMessageSentEvent,
 } from 'openclaw/plugin-sdk/types';
 
+import { authRetryDelayMs } from '../auth-retry-state.js';
 import { type TlonCronService, getTlonCronService } from '../cron-telemetry.js';
 import {
   noteIdFromDeliveryMessageId,
@@ -132,7 +136,6 @@ const postOnceFlights = new Map<string, Promise<void>>();
 const completedPostMarkers = sharedMap<string, true>(
   'agentOnboarding.completedPostMarkers'
 );
-const RECENT_ONBOARDING_HISTORY_LIMIT = 50;
 const ORIENTATION_HISTORY_LIMIT = 500;
 const DEFAULT_MIN_RESPONSE_DELAY_MS = 2_000;
 const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
@@ -143,10 +146,7 @@ const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 5_500;
 // permanently falling back to reference-free copy.
 const FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS = 21;
 const FIRST_ENTRY_NOTE_LOOKUP_DELAY_MS = 1_000;
-const FIRST_RUN_COMPLETION_RETRY_BASE_MS = 1_000;
-const FIRST_RUN_COMPLETION_RETRY_MAX_MS = 30_000;
 const RUN_OUTCOME_WRITE_RETRY_DELAYS_MS = [100, 250, 500, 1_000] as const;
-const FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
 const ADMIN_MEMBERSHIP_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000] as const;
 const COMPOSE_MS_PER_CHARACTER = 14;
 const MIN_COMPOSE_DELAY_MS = 800;
@@ -236,7 +236,7 @@ const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
     ],
   },
 ] as const satisfies readonly {
-  id: string;
+  id: AgentOnboardingPurposeId;
   label: string;
   description: string;
   icon: A2UI.ChoiceIcon;
@@ -252,7 +252,7 @@ type FirstRunCorrelation = {
   notebookName: string;
   provisionId: string;
   jobId: string;
-  purposeId: string;
+  purposeId: AgentOnboardingPurposeId;
   topics: readonly string[];
   enqueuedAt: number;
   /** Re-enters the configured API scope when lifecycle hooks fire later. */
@@ -276,6 +276,22 @@ const primaryJobFlights = sharedMap<
   string,
   { desiredKey: string; flight: Promise<string> }
 >('agentOnboarding.primaryJobFlights');
+
+function startSingleFlight<Key, Value>(
+  flights: Map<Key, Promise<Value>>,
+  key: Key,
+  start: () => Promise<Value>
+) {
+  const existing = flights.get(key);
+  if (existing) return { flight: existing, started: false } as const;
+
+  const flight = start().finally(() => {
+    if (flights.get(key) === flight) flights.delete(key);
+  });
+  flights.set(key, flight);
+  return { flight, started: true } as const;
+}
+
 const SLOT_PREFIX = 'tlon-agent-primary:';
 const MCP_READ_TOOLS = [
   'mcp_list_upstreams',
@@ -868,7 +884,7 @@ async function advanceOrientationConversation(
 }
 
 type Purpose = {
-  id: string;
+  id: AgentOnboardingPurposeId;
   label: string;
   scheduleHour: number;
   topicsPrompt: string;
@@ -942,9 +958,11 @@ async function provision(
   let isAdmin = isBotAdmin(group);
   for (const delay of ADMIN_MEMBERSHIP_RETRY_DELAYS_MS) {
     if (isAdmin) break;
+    context.abortSignal?.throwIfAborted();
     await (
       deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
     )(delay);
+    context.abortSignal?.throwIfAborted();
     group = await getGroup(request.groupId);
     isAdmin = isBotAdmin(group);
   }
@@ -1165,7 +1183,7 @@ export async function handleAgentOnboardingCronChanged(
     ? firstRunCompletionFlights.get(exactMatch[0])
     : undefined;
   try {
-    await retryAgentOnboardingOutcomeWrite(
+    await retryWithDelays(
       () =>
         recordAgentOnboardingRunOutcome(event.runId!, {
           status: event.status === 'ok' ? 'ok' : 'error',
@@ -1173,6 +1191,7 @@ export async function handleAgentOnboardingCronChanged(
           error: event.error,
           observedAt: Date.now(),
         }),
+      RUN_OUTCOME_WRITE_RETRY_DELAYS_MS,
       deps.sleep
     );
   } catch (error) {
@@ -1202,13 +1221,14 @@ export async function handleAgentOnboardingCronChanged(
   );
 }
 
-async function retryAgentOnboardingOutcomeWrite(
+async function retryWithDelays(
   write: () => Promise<unknown>,
+  delays: readonly number[],
   sleep: (ms: number) => Promise<void> = (ms) =>
     new Promise((resolve) => setTimeout(resolve, ms))
 ) {
   let lastError: unknown;
-  for (const delay of [...RUN_OUTCOME_WRITE_RETRY_DELAYS_MS, null]) {
+  for (const delay of [...delays, null]) {
     try {
       await write();
       return;
@@ -1228,29 +1248,18 @@ async function failFirstRun(
   const match = findFirstRunCorrelation(runId, undefined, event.jobId, true);
   if (!match) return;
   const [correlationRunId, correlation] = match;
-  const existingFlight = firstRunCompletionFlights.get(correlationRunId);
-  if (existingFlight) {
-    await existingFlight;
-    return;
-  }
-
-  const flight = failFirstRunCorrelation(
+  const { flight, started } = startSingleFlight(
+    firstRunCompletionFlights,
     correlationRunId,
-    correlation,
-    event,
-    deps
+    () => failFirstRunCorrelation(correlationRunId, correlation, event, deps)
   );
-  firstRunCompletionFlights.set(correlationRunId, flight);
+  if (!started) return flight;
   try {
     await flight;
     clearFirstRunCompletionRetry(correlationRunId);
   } catch (error) {
     scheduleFirstRunFailureRetry(correlationRunId, event, deps);
     throw error;
-  } finally {
-    if (firstRunCompletionFlights.get(correlationRunId) === flight) {
-      firstRunCompletionFlights.delete(correlationRunId);
-    }
   }
 }
 
@@ -1268,10 +1277,7 @@ function scheduleFirstRunFailureRetry(
   const attempt =
     (firstRunCompletionRetryAttempts.get(correlationRunId) ?? 0) + 1;
   firstRunCompletionRetryAttempts.set(correlationRunId, attempt);
-  const delay = Math.min(
-    FIRST_RUN_COMPLETION_RETRY_BASE_MS * 2 ** (attempt - 1),
-    FIRST_RUN_COMPLETION_RETRY_MAX_MS
-  );
+  const delay = authRetryDelayMs(attempt);
   const timer = setTimeout(() => {
     firstRunCompletionRetryTimers.delete(correlationRunId);
     void failFirstRun(correlationRunId, event, deps).catch(() => {
@@ -1314,7 +1320,7 @@ async function failFirstRunCorrelation(
   const posted = await postOnce(
     correlation.context,
     history,
-    FIRST_ENTRY_FAILED_MARKER,
+    AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER,
     async () => ({
       text:
         `I couldn’t publish the first entry to ${correlation.notebookName}. ` +
@@ -1356,12 +1362,17 @@ export async function handleAgentOnboardingMessageSent(
   );
   if (!match) return;
   const [correlationRunId] = match;
-  const recordOutcome = recordAgentOnboardingRunOutcome(correlationRunId, {
-    status: 'ok',
-    delivered: true,
-    noteId: noteIdFromDeliveryMessageId(event.messageId),
-    observedAt: Date.now(),
-  });
+  const recordOutcome = retryWithDelays(
+    () =>
+      recordAgentOnboardingRunOutcome(correlationRunId, {
+        status: 'ok',
+        delivered: true,
+        noteId: noteIdFromDeliveryMessageId(event.messageId),
+        observedAt: Date.now(),
+      }),
+    RUN_OUTCOME_WRITE_RETRY_DELAYS_MS,
+    deps.sleep
+  );
   try {
     await completeFirstRun(correlationRunId, event.to, event.messageId, deps);
   } finally {
@@ -1385,26 +1396,24 @@ async function completeFirstRun(
   );
   if (!match) return;
   const [correlationRunId, correlation] = match;
-  let flight = firstRunCompletionFlights.get(correlationRunId);
-  if (!flight) {
-    flight = completeFirstRunCorrelation(
-      correlationRunId,
-      correlation,
-      deliveryMessageId,
-      deps
-    );
-    firstRunCompletionFlights.set(correlationRunId, flight);
-  }
+  const { flight, started } = startSingleFlight(
+    firstRunCompletionFlights,
+    correlationRunId,
+    () =>
+      completeFirstRunCorrelation(
+        correlationRunId,
+        correlation,
+        deliveryMessageId,
+        deps
+      )
+  );
+  if (!started) return flight;
   try {
     await flight;
     clearFirstRunCompletionRetry(correlationRunId);
   } catch (error) {
     scheduleFirstRunCompletionRetry(correlationRunId, deliveryMessageId, deps);
     throw error;
-  } finally {
-    if (firstRunCompletionFlights.get(correlationRunId) === flight) {
-      firstRunCompletionFlights.delete(correlationRunId);
-    }
   }
 }
 
@@ -1422,10 +1431,7 @@ function scheduleFirstRunCompletionRetry(
   const attempt =
     (firstRunCompletionRetryAttempts.get(correlationRunId) ?? 0) + 1;
   firstRunCompletionRetryAttempts.set(correlationRunId, attempt);
-  const delay = Math.min(
-    FIRST_RUN_COMPLETION_RETRY_BASE_MS * 2 ** (attempt - 1),
-    FIRST_RUN_COMPLETION_RETRY_MAX_MS
-  );
+  const delay = authRetryDelayMs(attempt);
   const timer = setTimeout(() => {
     firstRunCompletionRetryTimers.delete(correlationRunId);
     void completeFirstRun(
@@ -1493,7 +1499,7 @@ async function completeFirstRunCorrelation(
     const revealed = await postOnce(
       correlation.context,
       history,
-      'first-entry-ping',
+      AGENT_ONBOARDING_FIRST_ENTRY_MARKER,
       async () => {
         const delivered = takeDeliveredNote(correlation.notebookNest, {
           notBefore: correlation.enqueuedAt,
@@ -2074,52 +2080,50 @@ async function postOnce(
   if (hasPostMarker(history, context.botShip, key)) return false;
   const flightKey = `${context.channelNest}:${key}`;
   if (completedPostMarkers.has(flightKey)) return false;
-  const existing = postOnceFlights.get(flightKey);
-  if (existing) {
-    await existing;
-    return false;
-  }
   let posted = false;
-  const flight = (async () => {
-    context.abortSignal?.throwIfAborted();
-    const content = await build();
-    context.abortSignal?.throwIfAborted();
-    let blob = content.blob;
-    for (const entry of content.entries ?? []) {
-      blob = appendToPostBlob(blob, entry);
-    }
-    blob = appendToPostBlob(blob, {
-      type: 'tlon-agent-post-marker',
-      version: 1,
-      key,
-    });
-    await presentation?.beforePost(content.text);
-    context.abortSignal?.throwIfAborted();
-    if (content.shouldSend && !(await content.shouldSend())) return;
-    context.abortSignal?.throwIfAborted();
-    try {
-      await (deps.sendPost ?? sendChannelPost)({
-        fromShip: context.botShip,
-        nest: context.channelNest,
-        story: content.story ?? markdownToStory(content.text),
-        blob,
-        botProfile: context.botProfile,
+  const { flight, started } = startSingleFlight(
+    postOnceFlights,
+    flightKey,
+    async () => {
+      context.abortSignal?.throwIfAborted();
+      const content = await build();
+      context.abortSignal?.throwIfAborted();
+      let blob = content.blob;
+      for (const entry of content.entries ?? []) {
+        blob = appendToPostBlob(blob, entry);
+      }
+      blob = appendToPostBlob(blob, {
+        type: 'tlon-agent-post-marker',
+        version: 1,
+        key,
       });
-    } catch (error) {
-      const reread = await (deps.fetchHistory ?? fetchChannelHistory)(
-        context.api,
-        context.channelNest,
-        50
-      );
-      if (!hasPostMarker(reread, context.botShip, key)) throw error;
+      await presentation?.beforePost(content.text);
+      context.abortSignal?.throwIfAborted();
+      if (content.shouldSend && !(await content.shouldSend())) return;
+      context.abortSignal?.throwIfAborted();
+      try {
+        await (deps.sendPost ?? sendChannelPost)({
+          fromShip: context.botShip,
+          nest: context.channelNest,
+          story: content.story ?? markdownToStory(content.text),
+          blob,
+          botProfile: context.botProfile,
+        });
+      } catch (error) {
+        const reread = await (deps.fetchHistory ?? fetchChannelHistory)(
+          context.api,
+          context.channelNest,
+          50
+        );
+        if (!hasPostMarker(reread, context.botShip, key)) throw error;
+      }
+      presentation?.afterPost();
+      completedPostMarkers.set(flightKey, true);
+      posted = true;
     }
-    presentation?.afterPost();
-    completedPostMarkers.set(flightKey, true);
-    posted = true;
-  })().finally(() => postOnceFlights.delete(flightKey));
-  postOnceFlights.set(flightKey, flight);
+  );
   await flight;
-  return posted;
+  return started && posted;
 }
 
 function hasPostMarker(
@@ -2345,30 +2349,37 @@ function jobMatches(
       failureDestination?: { mode?: string; channel?: string; to?: string };
     };
   };
-  return (
-    job.name === desired.name &&
-    job.description === desired.description &&
-    job.enabled !== false &&
-    job.schedule?.kind === 'cron' &&
-    job.schedule.expr === desired.schedule.expr &&
-    job.schedule.tz === desired.schedule.tz &&
-    job.sessionTarget === desired.sessionTarget &&
-    job.wakeMode === desired.wakeMode &&
-    runtimeJob.payload?.kind === desired.payload.kind &&
-    (runtimeJob.payload.message ?? runtimeJob.payload.text) ===
-      desired.payload.message &&
-    JSON.stringify(runtimeJob.payload.toolsAllow) ===
-      JSON.stringify(desired.payload.toolsAllow) &&
-    runtimeJob.delivery?.mode === desired.delivery.mode &&
-    runtimeJob.delivery?.channel === desired.delivery.channel &&
-    runtimeJob.delivery?.to === desired.delivery.to &&
-    runtimeJob.delivery?.failureDestination?.mode ===
-      desired.delivery.failureDestination.mode &&
-    runtimeJob.delivery?.failureDestination?.channel ===
-      desired.delivery.failureDestination.channel &&
-    runtimeJob.delivery?.failureDestination?.to ===
-      desired.delivery.failureDestination.to
-  );
+  const actual = {
+    name: job.name,
+    description: job.description,
+    enabled: job.enabled !== false,
+    schedule:
+      job.schedule?.kind === 'cron'
+        ? {
+            kind: job.schedule.kind,
+            expr: job.schedule.expr,
+            tz: job.schedule.tz,
+          }
+        : job.schedule,
+    sessionTarget: job.sessionTarget,
+    wakeMode: job.wakeMode,
+    payload: runtimeJob.payload && {
+      kind: runtimeJob.payload.kind,
+      message: runtimeJob.payload.message ?? runtimeJob.payload.text,
+      toolsAllow: runtimeJob.payload.toolsAllow,
+    },
+    delivery: runtimeJob.delivery && {
+      mode: runtimeJob.delivery.mode,
+      channel: runtimeJob.delivery.channel,
+      to: runtimeJob.delivery.to,
+      failureDestination: runtimeJob.delivery.failureDestination && {
+        mode: runtimeJob.delivery.failureDestination.mode,
+        channel: runtimeJob.delivery.failureDestination.channel,
+        to: runtimeJob.delivery.failureDestination.to,
+      },
+    },
+  };
+  return JSON.stringify(actual) === JSON.stringify(desired);
 }
 
 function buildRecurringPrompt(
@@ -2476,7 +2487,10 @@ function notebookDisplayName(
  * an owner watched a notebook appear in the sidebar without ever being told
  * it existed or what it was for.
  */
-function provisionCadence(purposeId: string, notebookName: string) {
+function provisionCadence(
+  purposeId: AgentOnboardingPurposeId,
+  notebookName: string
+) {
   switch (purposeId) {
     case 'agent-learning':
       return (
@@ -2488,7 +2502,7 @@ function provisionCadence(purposeId: string, notebookName: string) {
         `Every morning I’ll check for new work and write a source-backed ` +
         `update in ${notebookName}, this group’s notebook.`
       );
-    default:
+    case 'agent-daily-digest':
       return (
         `Every morning I’ll write a fresh digest in ${notebookName}, this ` +
         'group’s notebook.'
@@ -2512,7 +2526,7 @@ function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
  * the mechanism and no benefit, and read identically whichever purpose was
  * chosen.
  */
-function servicesPitch(purposeId: string) {
+function servicesPitch(purposeId: AgentOnboardingPurposeId) {
   switch (purposeId) {
     case 'agent-learning':
       return (
@@ -2524,7 +2538,7 @@ function servicesPitch(purposeId: string) {
         'Connect your docs or notes and I can tell what’s genuinely new to ' +
         'you, instead of repeating what you’ve already filed.'
       );
-    default:
+    case 'agent-daily-digest':
       return (
         'Connect your calendar and docs and your morning digest can cover ' +
         'your own day — meetings, deadlines, notes — not just the news.'
