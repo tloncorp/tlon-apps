@@ -11,6 +11,7 @@ import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import {
   type McpProviderRow,
   buildProviderRows,
+  mcpProviderQueryKeys,
   prioritizeMcpMenuProviders,
   selectMcpMenuProviders,
 } from '../../../lib/mcpProviders';
@@ -51,7 +52,7 @@ export function McpConnectControl({
 }) {
   const currentUserId = useCurrentUserId();
   const providersQuery = useQuery({
-    queryKey: ['tlonbot', 'oauth-providers'],
+    queryKey: mcpProviderQueryKeys.providers,
     queryFn: () => api.getTlawnOAuthProviders(),
     staleTime: 5 * 60 * 1000,
     // React Query owns the single app/window focus listener. Historical cards
@@ -60,7 +61,7 @@ export function McpConnectControl({
     retry: false,
   });
   const statusQuery = useQuery({
-    queryKey: ['tlonbot', 'oauth-status', currentUserId],
+    queryKey: mcpProviderQueryKeys.status(currentUserId),
     queryFn: () => api.getTlawnOAuthStatus(currentUserId),
     enabled: Boolean(currentUserId),
     staleTime: 30 * 1000,
