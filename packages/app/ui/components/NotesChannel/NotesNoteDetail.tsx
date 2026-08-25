@@ -333,9 +333,7 @@ export function NotesNoteDetail({
         const claimKey = `${currentUserId}:${groupId}`;
         let claimed = false;
         await db.agentEntryFirstOpened.setValue((current) => {
-          // Respect legacy group-only claims while all new claims are scoped
-          // to the signed-in owner as well as the group.
-          if (current[groupId] || current[claimKey]) return current;
+          if (current[claimKey]) return current;
           claimed = true;
           return {
             ...current,
