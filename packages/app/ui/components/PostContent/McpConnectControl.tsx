@@ -241,6 +241,10 @@ export function McpConnectMenu({
           },
         },
       });
+    } catch {
+      // The post transport records the failure and the control below is
+      // released for retry. Consume the rejected callback so a failed send
+      // does not also reach the platform's unhandled-rejection handler.
     } finally {
       configuringRef.current = false;
       setSubmitting(false);
