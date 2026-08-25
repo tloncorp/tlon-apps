@@ -26,7 +26,6 @@ export function ThinkingState({
   const postIdWhenThinkingStarted = useRef<string | undefined>(latestPostId);
   const expectedResponders = useRef<Set<string>>(new Set());
   const wasComputing = useRef(false);
-  const resetBaselineWhenComputingEnds = useRef(false);
   const collapseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -35,7 +34,6 @@ export function ThinkingState({
         computingState.ships.map((state) => state.ship)
       );
       if (!wasComputing.current) {
-        resetBaselineWhenComputingEnds.current = holdUntilResponse;
         postIdWhenThinkingStarted.current = latestPostId;
         setHoldUntilResponse(true);
       }
@@ -46,18 +44,10 @@ export function ThinkingState({
       }
       return;
     }
-    const computingJustEnded = wasComputing.current;
     wasComputing.current = false;
-    if (computingJustEnded && resetBaselineWhenComputingEnds.current) {
-      // A previous run can post while a new computing cycle is already active.
-      // Such a post cannot satisfy the new cycle; require a later response.
-      postIdWhenThinkingStarted.current = latestPostId;
-      resetBaselineWhenComputingEnds.current = false;
-    }
 
     const responseHasArrived =
       holdUntilResponse &&
-      !resetBaselineWhenComputingEnds.current &&
       latestPostId !== postIdWhenThinkingStarted.current &&
       (expectedResponders.current.size === 0 ||
         (latestPostAuthorId != null &&
@@ -87,7 +77,6 @@ export function ThinkingState({
 
   const responseHasArrived =
     holdUntilResponse &&
-    !resetBaselineWhenComputingEnds.current &&
     latestPostId !== postIdWhenThinkingStarted.current &&
     (expectedResponders.current.size === 0 ||
       (latestPostAuthorId != null &&
