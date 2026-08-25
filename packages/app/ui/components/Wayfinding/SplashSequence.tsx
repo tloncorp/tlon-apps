@@ -1229,10 +1229,24 @@ export function BotNamePane(props: {
   const insets = useSafeAreaInsets();
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<TextInputRef>(null);
+  const [seedKey, setSeedKey] = useState(0);
+  const lastTypedNameRef = useRef(props.name);
   const handleNameChange = (value: string) => {
+    lastTypedNameRef.current = value;
     setError(null);
     props.onNameChange(value);
   };
+
+  // The persisted revival name hydrates asynchronously, so props.name can
+  // change without the user typing. The native input is uncontrolled (see
+  // below), so remount it to re-seed defaultValue when that happens.
+  useEffect(() => {
+    if (isWeb || props.name === lastTypedNameRef.current) {
+      return;
+    }
+    lastTypedNameRef.current = props.name;
+    setSeedKey((key) => key + 1);
+  }, [props.name]);
 
   const handlePress = () => {
     if (!props.name.trim()) {
@@ -1262,11 +1276,13 @@ export function BotNamePane(props: {
             <Field error={error ?? undefined}>
               <TextInput
                 ref={inputRef}
+                key={seedKey}
                 testID="bot-name-input"
                 // Echoing a controlled value back mid-IME-composition
                 // duplicates the composed text on Android (stale
                 // mostRecentEventCount), so native seeds the revival
-                // prefill via defaultValue and stays uncontrolled.
+                // prefill via defaultValue and stays uncontrolled; the
+                // key remount re-seeds it when the prefill hydrates late.
                 value={isWeb ? props.name : undefined}
                 defaultValue={isWeb ? undefined : props.name}
                 onChangeText={handleNameChange}
