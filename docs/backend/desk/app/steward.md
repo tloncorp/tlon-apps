@@ -11,7 +11,7 @@ Ship-native umbrella agent: the durable, always-on ship-side half of an ephemera
 | (core)       | `sur/steward.hoon`               | `%steward-action-1`                                                      |
 | `lens`       | `sur/steward/lens.hoon`          | `%steward-lens-action-1`, `%steward-lens-update-1`                       |
 | `gateway`    | `sur/steward/gateway.hoon`       | `%steward-gateway-action-1`, `%steward-gateway-update-1`                 |
-| `automation` | `sur/steward/automation.hoon`    | `%steward-automation-action-1`, `%steward-automation-task-map-1`         |
+| `automation` | `sur/steward/automation.hoon`    | `%steward-automation-action-1`, `%steward-automation-update-1`, `%steward-automation-mirror-1`, `%steward-automation-task-map-1`, `%steward-automation-mirror-map-1` |
 
 Each sur file is versioned on its own (`++v1`), referenced by callers as `action:v1:lens`, `update:v1:gateway`, etc. The core `sur/steward.hoon` carries only cross-cutting config (currently just `%configure`); each module's protocol lives in its own file.
 
@@ -21,7 +21,7 @@ Modules:
 |--------------|------------------------------------------------------------------------|
 | `lens`       | Per-run bot introspection (folded in from the former `%context-lens`). |
 | `gateway`    | Harness liveness tracking + offline DM auto-replies.                   |
-| `automation` | Durable best-effort mirror of OpenClaw cron task definitions.          |
+| `automation` | Durable best-effort mirror of OpenClaw cron task definitions, propagated bot → owner → client. |
 
 The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway, and `au-core` for automation. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
 
@@ -42,12 +42,14 @@ state-1 (%1, current)
   lens        state:v1:lens      copied unchanged from state-0
   gateway     state:v1:gateway   copied unchanged from state-0
   automation  state:v1:automation
-    tasks     (map @t task)      latest accepted complete projection
+    mirror    (map ship (map @t task))   per-ship ID-keyed task maps
 ```
+
+The automation `mirror` holds one entry per ship: the **local projection** lives under `our`, written only by accepted `%project` actions, and each **mirrored remote bot** lives under its own ship, written only by facts from the subscription to that bot. The writers are disjoint by key, so the two never collide. Every entry follows the same presence rule: absent until its first projection or snapshot arrives, present (possibly empty) afterward — an empty entry means "synced, zero tasks", an absent one means "never synced". `state-1` is unreleased, so this shape replaced the earlier flat task map in place with no extra state version; `state-0-to-1` is unchanged (it initializes automation from the bunt, which yields an empty mirror).
 
 `owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to. `bots` is the owner-side allowlist of ships permitted to fan lens runs in (see the `%entry` gate below); managed via the core `%trust-bot`/`%untrust-bot` pokes.
 
-`on-load` decodes the persisted vase as `versioned-state`. A current `%1` state is restored unchanged. Loading a released `%0` state runs the explicit `state-0-to-1` migration: `owner`, `bots`, `lens`, and `gateway` are copied unchanged, and `automation` starts with an empty task map. `on-save` always writes the current `state-1` shape, so a migrated state remains current on later save/load cycles. A malformed or unrecognized persisted state fails visibly during decode; it is not replaced with bunt state. This is intentional protection against silent loss of released Steward data.
+`on-load` decodes the persisted vase as `versioned-state`. A current `%1` state is restored unchanged. Loading a released `%0` state runs the explicit `state-0-to-1` migration: `owner`, `bots`, `lens`, and `gateway` are copied unchanged, and `automation` starts with an empty mirror. Migration does not auto-subscribe an already-trusted bot set — mirroring starts only from an explicit `%trust-bot` poke. `on-save` always writes the current `state-1` shape, so a migrated state remains current on later save/load cycles. A malformed or unrecognized persisted state fails visibly during decode; it is not replaced with bunt state. This is intentional protection against silent loss of released Steward data.
 
 `run` (in `sur/steward/lens.hoon`):
 
@@ -92,9 +94,11 @@ While the gateway is not live, a DM from the configured `owner` triggers a canne
 
 ## module: automation
 
-Stores the latest complete OpenClaw cron definition set successfully submitted by the local harness. OpenClaw remains authoritative for scheduling and execution; this module is a durable, locally readable, best-effort mirror and must not be treated as continuously fresh while the harness is offline or reconciliation is failing.
+Stores the latest complete OpenClaw cron definition set successfully submitted by the local harness, and propagates it bot → owner → client. OpenClaw remains authoritative for scheduling and execution; this module is a durable, locally readable, best-effort mirror and must not be treated as continuously fresh while the harness is offline or reconciliation is failing.
 
-The v1 state is `tasks=(map @t task)`. The OpenClaw job ID is used only as the map key. A stored `task` value has no ID field, so the ID is neither duplicated in state nor inside the JSON value returned by the scry. Every supported definition field is optional and retains its presence or absence:
+Like lens, one agent serves two roles. On the **bot ship**, an accepted `%project` writes the local projection and broadcasts it on the projection feed `/v1/automation/tasks`, which admits the configured owner cross-ship. On the **owner ship**, `%trust-bot`/`%untrust-bot` drive a subscription per trusted bot, whose facts maintain that bot's mirror entry; the whole mirror is re-broadcast to local clients on `/v1/automation/mirror` and scriable at `/x/v1/automation/mirror`. A self-owned bot (`owner` equal to `our`) serves both roles with no self-subscription: `%project` writes `mirror[our]` directly and the client feed reads it like any other entry.
+
+The v1 state is `mirror=(map ship (map @t task))` (see the [state model](#state-model) for the per-entry writer and presence rules). The OpenClaw job ID is used only as the inner map key. A stored `task` value has no ID field, so the ID is neither duplicated in state nor inside the JSON value returned by the scry. Every supported definition field is optional and retains its presence or absence:
 
 | Task field | Hoon value | JSON field |
 |------------|------------|------------|
@@ -110,7 +114,7 @@ Supported schedules are `cron` (`expr`, `tz`, and `staggerMs`), `at` (`at`), and
 
 ### projection behavior
 
-The inbound action and outbound task map use separate, independently versioned marks so their JSON shapes can evolve separately. `%steward-automation-action-1` accepts one action, `%project`, from the local Gall source only (`src.bowl == our.bowl`). Its JSON shape is:
+The inbound action, the two feed updates, and the two scry maps use separate, independently versioned marks so their JSON shapes can evolve separately. `%steward-automation-action-1` accepts one action, `%project`, from the local Gall source only (`src.bowl == our.bowl`). Its JSON shape is:
 
 ```json
 {
@@ -136,9 +140,35 @@ The inbound action and outbound task map use separate, independently versioned m
 }
 ```
 
-The list is the complete projection, not a delta. The action mark parses and validates the JSON fields, while `au-build-task-map` rejects duplicate IDs and constructs the entire replacement map before the agent assigns it to state. Any invalid field, unsupported schedule, duplicate ID, foreign source, or other validation failure leaves the previous map unchanged. A valid action replaces the whole map in one state transition: omitted IDs are removed, an empty `tasks` list clears the projection, and repeating the same logical snapshot produces the same state without duplicate records. After ingestion, each inbound `id` exists only as its map key.
+The list is the complete projection, not a delta. The action mark parses and validates the JSON fields, while `au-build-task-map` rejects duplicate IDs and constructs the entire replacement map before the agent assigns it to state. Any invalid field, unsupported schedule, duplicate ID, foreign source, or other validation failure leaves the previous map unchanged — the crash fires before any state change or fact, so a rejected projection emits nothing. A valid action replaces `mirror[our]` in one state transition: omitted IDs are removed, an empty `tasks` list clears the projection, and repeating the same logical snapshot produces the same state without duplicate records. After ingestion, each inbound `id` exists only as its map key.
 
-Automation intentionally has no mutation or owner administration surface and no subscription. It also excludes cron execution state, execution events, run history, delivery data, session keys, `deleteAfterRun`, and other runtime-only OpenClaw fields. Those values do not enter the Hoon task type or the automation JSON scry.
+An equal projection against an existing entry is a complete no-op: no state write, no facts on either feed — the harness reconciler re-reads on every `cron_changed` (including execution-only events), and those re-submissions must be silent. Equal-but-absent is the exception: the very first projection creates the `mirror[our]` entry even when its task list is empty. A first projection is announced to clients as one snapshot fact rather than deltas (even when empty), while the projection feed emits its ordinary diff against the empty map — `%set` per task, nothing for a first empty projection. Once the entry exists, a changed projection emits per-task deltas on both feeds, described below.
+
+Automation intentionally has no task mutation surface — tasks change only through the harness's `%project` — and excludes cron execution state, execution events, run history, delivery data, session keys, `deleteAfterRun`, and other runtime-only OpenClaw fields. Those values do not enter the Hoon task type, the automation facts, or the JSON scries.
+
+### projection feed: `/v1/automation/tasks`
+
+The bot-side broadcast — the one watch path in the agent that admits a cross-ship source: the configured `owner` (plus the local ship). On subscribe, the new subscriber alone receives one initial `%steward-automation-update-1` `%tasks` fact carrying the complete current projection, including when it is empty. When an accepted `%project` changes the stored map, `au-core` diffs old vs new and gives a `%set` fact per added or changed ID and a `%del` fact per removed ID; an equal projection gives total silence. The facts carry no ship identity — a subscriber attributes the feed to the ship it subscribed to, which Gall authenticates, rather than trusting a payload field a peer could fill arbitrarily. When core `%configure` replaces the owner, the previous owner is kicked off this path (the local ship is always permitted and never kicked; kicking a ship with no subscription is harmless).
+
+### owner-side mirroring
+
+The owner's subscriptions are driven by the core `%trust-bot`/`%untrust-bot` pokes:
+
+- **`%trust-bot`** watches the bot's `/v1/automation/tasks` on wire `/automation/tasks/(scot %p bot)`. The watch is guarded on subscription liveness in `wex.bowl` — not trust-set membership — so re-poking `%trust-bot` is an idempotent "ensure subscribed": a no-op while a subscription is live, a repair after a nacked watch. Subscribing does not create a mirror entry; a bot becomes mirrored only when its first snapshot fact arrives.
+- **`%untrust-bot`** leaves the subscription unconditionally (a `%leave` with no live subscription is harmless), deletes the bot's mirror entry, and emits `%gone` on the client feed — but only if the entry existed, so untrusting a bot before its first snapshot leaves nothing behind and emits nothing. The mirror is current state, not history: a stale entry for an untrusted bot would misrepresent "bots we manage" (contrast lens, which keeps runs on untrust because runs are history).
+- Trusting or untrusting the **local ship** is an automation no-op: there is never a self-subscription, and `mirror[our]` is `%project`-owned, untouched by trust changes.
+
+Every received fact is attributed to the ship in the subscription wire, never to a payload field. A `%tasks` snapshot atomically replaces (and creates) that bot's entry, so any missed-delta window — kick, revive, upgrade — self-heals on the next snapshot; a snapshot equal to the stored entry changes nothing and emits nothing. `%set` upserts and `%del` removes within the entry; `%del` of an unknown ID is a no-op (the snapshot-replace path can legitimately race a delta in flight), and any delta for a ship with no mirror entry is ignored rather than creating one. On `%kick`, the owner resubscribes iff the bot is still trusted. A watch-nack is slogged and otherwise ignored — mirrored state is preserved, and the manual recovery is re-poking `%trust-bot`.
+
+### client feed: `/v1/automation/mirror`
+
+The local-only client broadcast, serving the mirror itself. On subscribe, the new subscriber alone receives one `%steward-automation-mirror-1` `%tasks` snapshot fact per mirror entry, each attributed to its ship; an empty mirror gives no initial facts. Thereafter every mirror mutation re-emits on the path as a `mirror-update`:
+
+- a bot's snapshot or delta facts, attributed to the wire's bot;
+- an accepted `%project`, attributed to `our` — the first accepted projection announces the entry as one snapshot (even when empty), later changes flow as per-task `%set`/`%del` deltas;
+- an untrust deletion, as `%gone` — distinct on the wire from an empty `%tasks` snapshot, because presence semantics distinguish "synced, zero tasks" from "entry removed".
+
+A received snapshot or an accepted `%project` that leaves the stored entry unchanged produces no client facts. A subscribed client applying facts in order reproduces the mirror.
 
 ### OpenClaw reconciliation
 
@@ -169,6 +199,8 @@ Four inbound marks, each ownership-gated to admit exactly the right source.
 ```
 
 `%trust-bot`/`%untrust-bot` manage the owner-side `bots` allowlist that gates lens `%entry` fan-in. Trust is explicit and ship-class-agnostic — a bot may be a planet, moon, comet, star, or galaxy, and moon sponsorship is **not** an auto-trust.
+
+The same pokes also drive the [owner-side automation mirror](#owner-side-mirroring): `%trust-bot` ensures a subscription to the bot's `/v1/automation/tasks` (idempotent, guarded on `wex.bowl`), and `%untrust-bot` leaves it and deletes that bot's mirror entry. Both are automation no-ops for the local ship. `%configure` with a new owner additionally kicks the replaced owner off `/v1/automation/tasks`.
 
 ### `%steward-lens-action-1` (lens)
 
@@ -209,13 +241,33 @@ Only the local harness may replace the automation projection.
 [%project tasks=(list identified-task:v1:automation)]
 ```
 
-Each `identified-task` is `[id=@t task]` on the noun side. The mark's JSON form and complete-replacement behavior are described under [projection behavior](#projection-behavior).
+Each `identified-task` is `[id=@t task]` on the noun side. The mark's JSON form and complete-replacement behavior are described under [projection behavior](#projection-behavior). A `%project` that changes `mirror[our]` also emits facts on both automation feeds.
 
 ## subscription surface
 
 - `/v1/lens` (local only, `?> =(src our)`): `%steward-lens-update-1` facts (`update:v1:lens`, a tagged union) — `%entry` (a stored run, one per insert; the owner-side client reads these) and `%retry-requested` (emitted on the bot ship for its local gateway to re-dispatch). No initial backfill fact — clients scry `/x/v1/lens/recent` for backfill.
 - `/v1/gateway` (local only): `%steward-gateway-update-1` facts (`update:v1:gateway`) — `%status` (on lifecycle transitions, plus an initial fact on subscribe), `%owner-activity`, and `%auto-reply`.
-- Automation has no subscription surface. Clients read its complete map from the dedicated scry.
+- `/v1/automation/tasks` (local **or** configured owner): `%steward-automation-update-1` facts (`update:v1:automation`) — one initial `%tasks` snapshot on subscribe (including when empty), then un-attributed `%set`/`%del` deltas whenever an accepted `%project` changes the projection. See [projection feed](#projection-feed-v1automationtasks).
+- `/v1/automation/mirror` (local only): `%steward-automation-mirror-1` facts (`mirror-update:v1:automation`) — one initial `%tasks` snapshot per mirror entry on subscribe (none when the mirror is empty), then bot-attributed snapshots, `%set`/`%del` deltas, and `%gone` entry removals as the mirror changes. See [client feed](#client-feed-v1automationmirror).
+
+Bare `/v1/automation` binds nothing — the two feeds are distinct resources, so neither sits at the namespace root.
+
+The projection-feed update grows to JSON with no ship field, one shape per variant (`%tasks` carries the bare ID-keyed task object under `tasks`):
+
+```json
+{ "tasks": { "job-id": { "agentId": "main", "enabled": false } } }
+{ "set": { "id": "job-id", "task": { "agentId": "main", "enabled": false } } }
+{ "del": { "id": "job-id" } }
+```
+
+The mirror update carries the same task shapes plus a `bot` attribution (`scot %p` / `se %p` on the wire), and the `%gone` variant carries only the ship:
+
+```json
+{ "tasks": { "bot": "~zod", "tasks": { "job-id": { "agentId": "main" } } } }
+{ "set": { "bot": "~zod", "id": "job-id", "task": { "agentId": "main" } } }
+{ "del": { "bot": "~zod", "id": "job-id" } }
+{ "gone": { "bot": "~zod" } }
+```
 
 ## scry surface
 
@@ -227,7 +279,8 @@ Dotket scries execute locally against the agent's current state and do not carry
 - `/x/v1/lens/run/[ship]/[id]` → `[%entry entry]`, or empty (`[~ ~]`) when absent.
 - `/x/v1/gateway/status` → `%noun` `[status:v1:gateway (unit @da)]` — current liveness and lease expiry.
 - `/x/v1/gateway/owner-activity` → `%noun` `@da` — timestamp of the most recent owner DM.
-- `/x/v1/automation/tasks` → `%steward-automation-task-map-1` `(map @t task:v1:automation)` — the complete latest accepted automation projection.
+- `/x/v1/automation/tasks` → `%steward-automation-task-map-1` `(map @t task:v1:automation)` — the complete latest accepted local automation projection. Reads `mirror[our]` (the empty map when the entry is absent); the returned JSON contract is unchanged from when the projection was a flat state field.
+- `/x/v1/automation/mirror` → `%steward-automation-mirror-map-1` `(map ship (map @t task:v1:automation))` — the complete per-ship mirror, for client backfill.
 
 The automation task-map mark grows to a JSON object whose property names are the sole serialized task IDs:
 
@@ -245,6 +298,21 @@ The automation task-map mark grows to a JSON object whose property names are the
 
 With no stored tasks the exact JSON shape is `{ "tasks": {} }`. Task values use the supported OpenClaw field names listed above, omit absent optional fields, and never contain `id` or runtime cron state.
 
+The mirror-map mark grows to the bare ship-keyed object — no wrapper key, since ship keys are self-identifying — with each entry's value in the same ID-keyed task shape:
+
+```json
+{
+  "~zod": {
+    "job-id": {
+      "agentId": "main",
+      "enabled": false
+    }
+  }
+}
+```
+
+With an empty mirror the exact JSON shape is `{}`.
+
 `entry` is `[bot=ship id=@t run]`. The `%entry` update grows to JSON for Eyre, embedding the stored payload directly:
 
 ```json
@@ -255,8 +323,8 @@ With no stored tasks the exact JSON shape is `{ "tasks": {} }`. Task values use 
 
 - `on-init` creates `state-1`, subscribes to `%activity /v5` for the gateway module, seeds the default lens retention cap, and leaves automation empty. There is no lens prune timer (retention is count-only, enforced on insert/configure).
 - `on-load` decodes `versioned-state`: current `state-1` loads directly and released `state-0` migrates through `state-0-to-1`. Decode or migration failure is visible and never resets to bunt. `on-save` writes `state-1`.
-- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
-- `on-watch` asserts `=(src our)`, so subscriptions are local-only. Dotket `on-peek` calls execute locally against current state without caller-source authorization. Core, gateway, and automation pokes are local only; lens applies its per-action source rules to admit trusted bot runs and owner relays.
+- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, and the owner-side automation watches on `/automation/tasks/[bot-p]` — everything arriving on an automation wire is attributed to the ship in the wire. The `%activity` subscription is re-watched on `%kick`; an automation watch is re-watched on `%kick` iff its bot is still trusted. Poke/DM nacks are logged and ignored (Ames retries); a nacked automation watch is slogged and left for a `%trust-bot` re-poke to repair.
+- `on-watch` auth is per-path: lens, gateway, and `/v1/automation/mirror` require `=(src our)`; `/v1/automation/tasks` also admits the configured owner. Rejection is a crash (watch nack). Dotket `on-peek` calls execute locally against current state without caller-source authorization. Core, gateway, and automation pokes are local only; lens applies its per-action source rules to admit trusted bot runs and owner relays.
 
 ## integration notes
 
