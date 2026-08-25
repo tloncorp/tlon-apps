@@ -38,7 +38,7 @@ import {
   isWeb,
 } from 'tamagui';
 
-import { isAgentOnboardingFirstEntryNote } from '../../../features/top/agentOnboardingFirstEntry';
+import { matchAgentOnboardingFirstEntryNote } from '../../../features/top/agentOnboardingFirstEntry';
 import {
   useRegisterChannelHeaderItem,
   useRegisterChannelHeaderLoadingSubtitle,
@@ -333,7 +333,10 @@ export function NotesNoteDetail({
         ) {
           return;
         }
-        await withRetry(
+        const claimKey = `${currentUserId}:${groupId}`;
+        const existingClaims = await db.agentEntryFirstOpened.getValue(true);
+        if (existingClaims[claimKey]) return;
+        const matched = await withRetry(
           async () => {
             if (cancelled) throw new Error('Note closed');
             const chatPosts = (
@@ -345,16 +348,16 @@ export function NotesNoteDetail({
                   )
               )
             ).flat();
-            if (
-              !isAgentOnboardingFirstEntryNote(
-                chatPosts,
-                agentShip,
-                notebookFlag,
-                noteId
-              )
-            ) {
+            const match = matchAgentOnboardingFirstEntryNote(
+              chatPosts,
+              agentShip,
+              notebookFlag,
+              noteId
+            );
+            if (match === 'absent') {
               throw new Error('First-entry marker not synced');
             }
+            return match === 'match';
           },
           {
             numOfAttempts: 10,
@@ -364,8 +367,7 @@ export function NotesNoteDetail({
             retry: () => !cancelled,
           }
         );
-        if (cancelled) return;
-        const claimKey = `${currentUserId}:${groupId}`;
+        if (cancelled || !matched) return;
         let claimed = false;
         await db.agentEntryFirstOpened.setValue((current) => {
           if (current[claimKey]) return current;
