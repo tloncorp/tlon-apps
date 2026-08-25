@@ -792,6 +792,26 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
       notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'T' })
     ).resolves.toMatchObject({ id: 12, updatedAt: 1234 });
 
+    requestJsonMock.mockResolvedValue({
+      ...envelope,
+      body: {
+        ...envelope.body,
+        response: {
+          ...envelope.body.response,
+          update: {
+            ...envelope.body.response.update,
+            noteUpdate: {
+              ...envelope.body.response.update.noteUpdate,
+              id: 13,
+            },
+          },
+        },
+      },
+    });
+    await expect(
+      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'T' })
+    ).resolves.toBeNull();
+
     // A flat (unwrapped) update payload is not the wire shape — it must
     // degrade to null rather than be mistaken for the applied note.
     requestJsonMock.mockResolvedValue({
