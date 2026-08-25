@@ -203,6 +203,9 @@ async function _sendPost({
   const channel = await db.getChannel({ id: channelId });
   if (!channel) {
     logger.trackError('Failed to forward post, unable to find channel');
+    if (rejectOnDefinitiveFailure) {
+      throw new Error(`Cannot send post: channel ${channelId} was not found`);
+    }
     return;
   }
 

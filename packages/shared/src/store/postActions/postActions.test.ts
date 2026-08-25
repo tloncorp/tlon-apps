@@ -337,6 +337,16 @@ describe('finalizeAndSendPost', () => {
     });
   });
 
+  test('rejects a missing channel for one-shot controls', async () => {
+    const missingChannel = '~zod/missing';
+
+    await expect(
+      finalizeAndSendPost(buildTestDraft({ channelId: missingChannel }), {
+        rejectOnDefinitiveFailure: true,
+      })
+    ).rejects.toThrow(`channel ${missingChannel} was not found`);
+  });
+
   test('tracks completion when a failed send succeeds on retry', async () => {
     const capture = vi.fn();
     useDebugStore.getState().initializeErrorLogger({ capture });
