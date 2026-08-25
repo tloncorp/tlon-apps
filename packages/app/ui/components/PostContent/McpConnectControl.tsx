@@ -169,6 +169,9 @@ export function McpConnectMenu({
     useState(authorizationIsReconciling);
   const authorizationRefreshPendingRef = useRef(authorizationIsReconciling());
   const configuringRef = useRef(false);
+  const hadStoredSelectionRef = useRef(
+    pendingProviderSelections.has(selectionKey)
+  );
   const initializedRef = useRef(false);
   const completionAction = useOneShotAction(completionConsumed);
   const connectedProviderIds = useMemo(
@@ -245,7 +248,11 @@ export function McpConnectMenu({
     if (!initializedRef.current) {
       if (loading || !providersLoaded) return;
       initializedRef.current = true;
-      setSelectedProviderIds(clampProviderIds(connectedProviderIds));
+      setSelectedProviderIds((current) =>
+        hadStoredSelectionRef.current
+          ? current.filter((id) => connected.has(id))
+          : clampProviderIds(connectedProviderIds)
+      );
       return;
     }
 

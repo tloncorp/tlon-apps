@@ -117,7 +117,11 @@ export function StaticChatMessage({
         post.groupId ??
         draftInputContext.group?.id ??
         draftInputContext.channel.groupId;
-      if (!currentGroupId || currentGroupId !== groupId) {
+      if (currentGroupId && currentGroupId !== groupId) {
+        throw new Error('The agent group is not available');
+      }
+      const targetGroup = await db.getGroup({ id: groupId });
+      if (!targetGroup?.currentUserIsHost) {
         throw new Error('The agent group is not available');
       }
       const uniqueProviderIds = [...new Set(providerIds)];
@@ -229,8 +233,7 @@ export function StaticChatMessage({
           canUseAgentProviderControls &&
           draftInputContext &&
           draftInputContext.canStartDraft !== false &&
-          currentGroupId &&
-          action.event.context.groupId === currentGroupId
+          (!currentGroupId || action.event.context.groupId === currentGroupId)
         );
       }
 
