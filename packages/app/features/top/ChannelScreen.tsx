@@ -117,7 +117,11 @@ export default function ChannelScreen(props: Props) {
   });
 
   const groupId = channel?.groupId ?? group?.id;
-  const agentOnboarding = useAgentGroupOnboardingLock(groupId);
+  const agentOnboardingGroupId = routeGroupId ?? groupId;
+  const agentOnboarding = useAgentGroupOnboardingLock(agentOnboardingGroupId);
+  const agentOnboardingNavigationLocked =
+    agentOnboarding.locked ||
+    Boolean(agentOnboardingGroupId && agentOnboarding.isLoading);
   const agentGroupAgents = db.agentGroupAgents.useValue();
   const agentShipId = groupId ? agentGroupAgents[groupId] : undefined;
 
@@ -310,19 +314,19 @@ export default function ChannelScreen(props: Props) {
 
   useEffect(() => {
     navigationRef.current.setOptions({
-      gestureEnabled: !agentOnboarding.locked,
+      gestureEnabled: !agentOnboardingNavigationLocked,
     });
-  }, [agentOnboarding.locked]);
+  }, [agentOnboardingNavigationLocked]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!agentOnboarding.locked) return;
+      if (!agentOnboardingNavigationLocked) return;
       const subscription = BackHandler.addEventListener(
         'hardwareBackPress',
         () => true
       );
       return () => subscription.remove();
-    }, [agentOnboarding.locked])
+    }, [agentOnboardingNavigationLocked])
   );
 
   const { performGroupAction } = useGroupActions();
@@ -657,10 +661,7 @@ export default function ChannelScreen(props: Props) {
             clearedCursor || cursorPostIsHidden ? undefined : selectedPostId
           }
           goBack={navigationRef.current.goBack}
-          disableBackButton={
-            agentOnboarding.locked ||
-            Boolean(routeGroupId && agentOnboarding.isLoading)
-          }
+          disableBackButton={agentOnboardingNavigationLocked}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
