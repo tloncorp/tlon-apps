@@ -10,6 +10,7 @@ import {
   type AgentOnboardingRunRecord,
   claimAgentOnboardingRun,
   clearAgentOnboardingRunFallbackForTesting,
+  forgetAgentOnboardingRunClaim,
   getAgentOnboardingClaimOwnerId,
   recordAgentOnboardingRunEnqueued,
   recordAgentOnboardingRunOutcome,
@@ -230,6 +231,26 @@ describe('first-run durable claims', () => {
       outcome: 'recovered',
       record: { runId: 'run-1', status: 'enqueued' },
     });
+  });
+
+  it('does not delete a replacement record when an older enqueue rejects', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    const replacement = {
+      ...initial,
+      claimedAt: initial.claimedAt + 1,
+      claimOwnerId: 'replacement-owner',
+      runId: 'replacement-run',
+      status: 'enqueued' as const,
+    };
+    await store.register(initial.provisionId, replacement);
+
+    await forgetAgentOnboardingRunClaim(initial);
+
+    await expect(store.lookup(initial.provisionId)).resolves.toEqual(
+      replacement
+    );
   });
 
   it('attaches an exact completion that arrives before enqueue returns', async () => {
@@ -2491,7 +2512,7 @@ describe('provision coordinator ordering', () => {
     ).rejects.toThrow('agent is not an admin yet');
   });
 
-  it('enqueues the first run before announcing that writing started', async () => {
+  it('keeps an early first-run result behind the ordered setup messages', async () => {
     const events: string[] = [];
     const history: Array<{
       author: string;
@@ -2510,6 +2531,16 @@ describe('provision coordinator ordering', () => {
       remove: vi.fn(),
       enqueueRun: vi.fn(async () => {
         events.push('cron:enqueue');
+        recordDeliveredNote(provision.notebookNest, {
+          id: 77,
+          title: 'First entry',
+        });
+        await recordAgentOnboardingRunOutcome('first-run-1', {
+          status: 'ok',
+          delivered: true,
+          noteId: 77,
+          observedAt: Date.now(),
+        });
         return { enqueued: true, runId: 'first-run-1' };
       }),
     } as unknown as TlonCronService;
@@ -2556,18 +2587,20 @@ describe('provision coordinator ordering', () => {
           });
           return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
         }),
+        sleep: vi.fn(async () => {}),
       }
     );
 
     // Two beats now, not one: the acknowledgement, then the "writing it now"
     // status. The handoff tip and the services pitch are no longer part of
     // this post at all — they wait until the first entry has actually landed.
-    expect(events).toEqual([
+    expect(events.slice(0, 4)).toEqual([
       'cron:add',
       'cron:enqueue',
       'post:ack:provision-1',
       'post:first-entry-pending',
     ]);
+    expect(events.indexOf('post:first-entry-ping')).toBeGreaterThan(3);
     expect(
       parsePostBlob(history[0]?.blob).filter(
         (entry) => entry.type === 'tlon-agent-post-marker'
@@ -3189,6 +3222,9 @@ describe('provision coordinator ordering', () => {
       )
     ).rejects.toThrow();
     expect(listNotes).toHaveBeenCalledOnce();
+    expect(listNotes).toHaveBeenCalledWith(provision.notebookNest, {
+      signal: controller.signal,
+    });
   });
 
   it('uses the authoritative created note when cron completion wins the hook race', async () => {
