@@ -421,6 +421,30 @@ describe('first-run correlation', () => {
 });
 
 describe('agent onboarding requests', () => {
+  it('forwards cancellation to the group membership scry', async () => {
+    const abortController = new AbortController();
+    const scry = vi.fn(
+      async (_path: string, options?: { signal?: AbortSignal }) => {
+        expect(options?.signal).toBe(abortController.signal);
+        return {
+          groups: {
+            [provision.groupId]: { channels: {}, seats: {} },
+          },
+        };
+      }
+    );
+
+    await agentOnboardingTesting.fetchOnboardingGroup(
+      { scry },
+      provision.groupId,
+      abortController.signal
+    );
+
+    expect(scry).toHaveBeenCalledWith('/groups-ui/v7/init.json', {
+      signal: abortController.signal,
+    });
+  });
+
   it('stops a startup reconciliation before reading after abort', async () => {
     const abortController = new AbortController();
     const fetchHistory = vi.fn(async () => []);

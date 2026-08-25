@@ -157,6 +157,20 @@ export function cronJobForSession(sessionKey: string | undefined) {
   return sessionKey ? cronJobBySession.get(sessionKey) : undefined;
 }
 
+export function clearCronJobForSession(
+  sessionKey: string | undefined,
+  expectedJobId?: string
+) {
+  if (!sessionKey) return;
+  const current = cronJobBySession.get(sessionKey);
+  if (expectedJobId && current !== expectedJobId) return;
+  cronJobBySession.delete(sessionKey);
+  const prefix = `${sessionKey}\u0000`;
+  for (const key of describedReadOnlyTools.keys()) {
+    if (key.startsWith(prefix)) describedReadOnlyTools.delete(key);
+  }
+}
+
 export const mcpReadOnlyPolicyTesting = {
   clear: () => {
     describedReadOnlyTools.clear();

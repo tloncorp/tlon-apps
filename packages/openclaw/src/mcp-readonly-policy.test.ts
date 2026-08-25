@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  clearCronJobForSession,
+  cronJobForSession,
   mayCallDescribedReadOnlyMcpTool,
   mayDescribeMcpTool,
   mcpReadOnlyPolicyTesting,
   rememberDescribedReadOnlyMcpTool,
+  rememberCronJobForSession,
 } from './mcp-readonly-policy.js';
 
 describe('MCP read-only policy', () => {
@@ -115,5 +118,35 @@ describe('MCP read-only policy', () => {
         ['gmail']
       )
     ).toBe(false);
+  });
+
+  it('clears cron attribution and described tools at the run boundary', () => {
+    rememberCronJobForSession('main-session', 'onboarding-job');
+    rememberDescribedReadOnlyMcpTool(
+      'main-session',
+      { name: 'gmail.search_messages' },
+      {
+        name: 'gmail.search_messages',
+        annotations: { readOnlyHint: true },
+      },
+      ['gmail']
+    );
+
+    clearCronJobForSession('main-session', 'onboarding-job');
+
+    expect(cronJobForSession('main-session')).toBeUndefined();
+    expect(
+      mayCallDescribedReadOnlyMcpTool(
+        'main-session',
+        { name: 'gmail.search_messages' },
+        ['gmail']
+      )
+    ).toBe(false);
+  });
+
+  it('does not let an older run clear newer cron attribution', () => {
+    rememberCronJobForSession('main-session', 'newer-job');
+    clearCronJobForSession('main-session', 'older-job');
+    expect(cronJobForSession('main-session')).toBe('newer-job');
   });
 });
