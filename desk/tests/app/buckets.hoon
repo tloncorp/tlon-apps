@@ -1289,6 +1289,42 @@
     !>([before ~(wyt by readers.st) revision.sync synced.sync])
   !>([1 1 1 0])
 ::
+::  Listing buckets must not carry their contents. Entries are unbounded, and
+::  everything that lists -- channel sync, routing -- wants the metadata only.
+::  The manifest is still reachable, at /full, the way %channels does it.
+::
+++  test-listing-buckets-leaves-their-contents-behind
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (ask 0v1 [%bucket flag [%create-folder ~ 'notes']])
+  ;<  brief=cage  b  (got-peek /x/v1/buckets)
+  ;<  whole=cage  b  (got-peek /x/v1/buckets/full)
+  =/  sums=(list summary:bu)  !<((list summary:bu) q.brief)
+  =/  snaps=(list snapshot:bu)  !<((list snapshot:bu) q.whole)
+  ::  same buckets either way, and the metadata a lister needs is on both
+  %+  ex-equal
+    !>  :*  p.brief
+            p.whole
+            (lent sums)
+            (lent snaps)
+            flag:(snag 0 sums)
+            writers:(snag 0 sums)
+            ::  the folder is in the manifest, and only there
+            ~(wyt by entries:bucket-state:(snag 0 snaps))
+        ==
+  !>  :*  %buckets-summaries-1
+          %buckets-snapshots-1
+          1
+          1
+          flag
+          writers:bucket-state:(snag 0 snaps)
+          1
+      ==
+::
 ::  Whether %buckets is here at all has to be answerable without reading what
 ::  it holds. /v1/buckets was serving that question, and it renders every
 ::  bucket's whole manifest, so a yes/no got slower the more anyone stored.

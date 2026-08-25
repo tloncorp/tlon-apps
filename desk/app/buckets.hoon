@@ -295,6 +295,11 @@
       [%buckets ~]
     %^  give-http  eyre-id  200
     :-  'application/json'
+    (en:json:html (summaries:enjs:buckets-json local-summaries))
+  ::
+      [%buckets %full ~]
+    %^  give-http  eyre-id  200
+    :-  'application/json'
     (en:json:html (snapshots:enjs:buckets-json local-snapshots))
   ::
       [%buckets @ @ ~]
@@ -1872,8 +1877,10 @@
   |=  =(pole knot)
   ^-  (unit (unit cage))
   ?+  pole  ~
-      [%x %v1 %buckets ~]
-    ``buckets-snapshots-1+!>(local-snapshots)
+      [%x %v1 %buckets full=?(~ [%full ~])]
+    ?^  full.pole
+      ``buckets-snapshots-1+!>(local-snapshots)
+    ``buckets-summaries-1+!>(local-summaries)
   ::
       [%x %v1 %buckets host=@ name=@ ~]
     =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
@@ -1927,6 +1934,18 @@
   |=  [=flag:b sp=space:b]
   ?~  state.sp  ~
   `[flag u.state.sp]
+::
+::  +local-summaries: the same buckets without their entries. Drops the one
+::  unbounded field, so asking which buckets exist costs the same whether
+::  they hold nothing or everything.
+::
+++  local-summaries
+  ^-  (list summary:b)
+  %+  murn  ~(tap by spaces)
+  |=  [=flag:b sp=space:b]
+  ?~  state.sp  ~
+  =/  st=bucket-state:b  u.state.sp
+  `[flag bucket.st group.st writers.st revision.st]
 ::
 ++  agent
   |=  [=(pole knot) =sign:agent:gall]

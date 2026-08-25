@@ -374,6 +374,20 @@
   ==
 ::
 +$  snapshot  [=flag =bucket-state]
+::  $summary: a bucket without its contents.
+::
+::  Every use but opening one -- listing them, routing to them, reading a
+::  channel's writer roles -- needs the metadata and none of the entries, and
+::  a bucket's entries are unbounded. Answering those from $snapshot made the
+::  cost of asking about buckets scale with everything stored in them.
+::
++$  summary
+  $:  =flag
+      =bucket
+      group=flag
+      writers=(set @tas)
+      revision=@ud
+  ==
 ::
 ::  Type aliases used by the mark files.
 ::

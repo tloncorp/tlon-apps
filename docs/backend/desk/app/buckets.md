@@ -162,6 +162,8 @@ It reaches the bundle only because `apps/tlon-web/vite.config.mts` substitutes i
 
 **Memex ships before this agent does.** A mint the broker refuses is never stored, whatever the refusal — including a 404 from a broker without the endpoint — because a token the broker does not hold would 403 on first use. There is deliberately no compatibility path for the reverse order.
 
+**Reads are scoped to what the caller needs.** `/v1/buckets` lists buckets without their entries, `/v1/buckets/full` includes them, and `/v1/buckets/<host>/<name>` reads one — the split `%channels` uses for posts, for the same reason. Entries are the only unbounded field, and everything that lists rather than opens wants the metadata alone. `/v1/ready` answers whether the agent is here at all; asking `/v1/buckets` that question made a yes/no scale with everything stored.
+
 Deletes stay per-object, because they are destructive: `%issue-delete` binds a short-lived token to one ready file, exchanged through `%pioneer-buckets-authorize-delete` before the manifest entry is removed. Recursive client deletion commits each file's manifest removal immediately after Memex confirms its object deletion, and treats already-deleted as idempotent success. A host-authorized server-side bulk delete remains the durable atomic implementation.
 
 ## Pioneer thread contract

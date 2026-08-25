@@ -8,6 +8,7 @@ import type {
   BucketsResponse,
   BucketsResponseBody,
   BucketsSnapshot,
+  BucketsSummary,
 } from '../urbit/buckets';
 import {
   BadResponseError,
@@ -55,8 +56,22 @@ export function parseBucketsChannelId(channelId: string): BucketsFlag | null {
   return { host, name };
 }
 
+/**
+ * Every bucket on this ship, without their contents.
+ *
+ * Entries are unbounded and nothing that lists buckets wants them, so this
+ * costs the same whether they hold nothing or everything. Use getBucket for
+ * one bucket's contents, or getBucketsFull for all of them at once.
+ */
 export async function getBuckets() {
-  return scry<BucketsSnapshot[]>({ app: BUCKETS_APP, path: '/v1/buckets' });
+  return scry<BucketsSummary[]>({ app: BUCKETS_APP, path: '/v1/buckets' });
+}
+
+export async function getBucketsFull() {
+  return scry<BucketsSnapshot[]>({
+    app: BUCKETS_APP,
+    path: '/v1/buckets/full',
+  });
 }
 
 /**

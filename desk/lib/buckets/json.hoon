@@ -174,6 +174,29 @@
     %+  turn  snaps
     |=  snap=snapshot:b
     (pairs ~[['flag' (flag flag.snap)] ['state' (bucket-state bucket-state.snap)]])
+  ::
+  ::  +summaries: the same shape as +snapshots minus 'entries', so a client
+  ::  reading either finds the fields it shares where it expects them.
+  ::
+  ++  summaries
+    |=  sums=(list summary:b)
+    ^-  json
+    :-  %a
+    %+  turn  sums
+    |=  sum=summary:b
+    =/  writer-roles=(list json)
+      %+  turn  ~(tap in writers.sum)
+      |=(role=@tas s+(scot %tas role))
+    %-  pairs
+    :~  ['flag' (flag flag.sum)]
+        :-  'state'
+        %-  pairs
+        :~  ['bucket' (bucket bucket.sum)]
+            ['group' (flag group.sum)]
+            ['writers' [%a writer-roles]]
+            ['revision' (numb revision.sum)]
+        ==
+    ==
   --
 ::
 ++  dejs

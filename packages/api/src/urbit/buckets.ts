@@ -68,6 +68,17 @@ export type BucketsUpdate =
   | { type: 'entry-updated'; id: number; entry: BucketsEntry }
   | { type: 'entries-deleted'; ids: number[] };
 
+/**
+ * A bucket without its entries.
+ *
+ * Shares field positions with BucketsSnapshot so code reading the metadata
+ * finds it in the same place either way; `state.entries` is simply absent.
+ */
+export type BucketsSummary = {
+  flag: BucketsFlag;
+  state: Omit<BucketsState, 'entries'>;
+};
+
 export type BucketsResponse =
   | { type: 'snapshot'; flag: BucketsFlag; state: BucketsState }
   | {
