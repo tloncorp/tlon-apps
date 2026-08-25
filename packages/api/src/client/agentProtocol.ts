@@ -24,9 +24,9 @@ export const AGENT_ONBOARDING_FIRST_ENTRY_MARKER = 'first-entry-ping';
 export const AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
 
 export const AGENT_ONBOARDING_PURPOSE_IDS = [
-  'digest',
-  'learn',
-  'monitor',
+  'agent-daily-digest',
+  'agent-learning',
+  'agent-research',
 ] as const;
 export const AgentOnboardingPurposeIdSchema = z.enum(
   AGENT_ONBOARDING_PURPOSE_IDS
@@ -43,7 +43,7 @@ export const agentProtocolString = (maxLength: number) =>
 
 export const AgentProvisionActionContextSchema = z.object({
   groupId: agentProtocolString(AGENT_PROTOCOL_LIMITS.groupIdLength),
-  purposeId: agentProtocolString(AGENT_PROTOCOL_LIMITS.identifierLength),
+  purposeId: AgentOnboardingPurposeIdSchema,
   purpose: agentProtocolString(AGENT_PROTOCOL_LIMITS.purposeLength),
   topics: z
     .array(agentProtocolString(AGENT_PROTOCOL_LIMITS.topicLength))
