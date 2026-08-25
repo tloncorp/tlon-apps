@@ -102,6 +102,8 @@ Share your personal invite link with as many people as you like. Whenever a new 
 
 To add someone who's already on Tlon Messenger, type their name in the search bar on that same invite sheet and tap the check.
 
+Who can do this depends on the group. In a public group, any member can. In a private or secret one, only admins — everyone else sees `Invites disabled` where the action would be, so an ordinary member asking why their invite button is greyed out isn't hitting a bug.
+
 ### Use it on desktop
 
 Tlon Messenger is a computer shaped like an app. You can reach your node from your phone and from any browser.
@@ -127,7 +129,7 @@ A group is a social space with members, roles, and channels. There are four chan
 
 Bulletin is the older of the two writing channels, and it used to be called Notebook. A node that hasn't picked up the notebooks update yet still shows it under the old name and doesn't offer the new one.
 
-Every channel type is legible to Tlonbots, so your agent can read and work with all of them (where you've given it access).
+Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can read and work with them (where you've given it access). Bulletins are the gap: the bot's tooling treats them as deprecated and won't manage them. If you want your bot working in one, migrate it to a Notebook first.
 
 ### Make a group
 
@@ -254,7 +256,7 @@ Bot behavior:
 - `/model` — show or change the AI model  
 - `/new` — clear context and start a fresh session  
 - `/tlon version` — show which harness, plugin, and skill versions are running. Bare `/tlon` just prints usage.  
-- `/migrate diary/~host/name` — migrate a legacy Bulletin to a Notebook (owner only). It needs the channel's full nest, starting with `diary/`; a title or short name just prints usage.
+- `/migrate diary/~host/name` — migrate a legacy Bulletin to a Notebook (owner only). It needs the channel's full nest, starting with `diary/`; a title or short name just prints usage. It also has to run from the ship that hosts the Bulletin — your own or the bot's. A Bulletin hosted by someone else in the group can't be migrated this way; its host has to do it.
 
 ### Models and API keys
 
@@ -283,6 +285,8 @@ You always connect to your own node — when you open the app, it downloads anyt
 ### Encryption
 
 Conversations are encrypted in transit — between nodes, and between the app and your node. Messages at rest on your node are not encrypted, so anyone with access to the device running your node could read them. (On a hosted account, that's Tlon's infrastructure; see below for what Tlon can and can't see.)
+
+The app-to-node half depends on how the node is reached. Hosted accounts are served over HTTPS, so it's encrypted and there's nothing to do. A self-hoster who connects the app to a plain `http://` address — a LAN IP, localhost — is sending that traffic in the clear; the app takes the URL as given. Anyone self-hosting should put TLS or a secure tunnel in front of their node.
 
 ### Pictures and large files
 
@@ -366,7 +370,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **Who owns the groups I'm in?** The person who created the group. Their node controls roles, channels, and updates that other members' nodes follow.
 
-**Are conversations encrypted?** Yes, in transit — between nodes, and between the app and your node. Stored messages on a node aren't encrypted, so device access allows reading them.
+**Are conversations encrypted?** Yes, in transit — between nodes, and between the app and your node. Stored messages on a node aren't encrypted, so device access allows reading them. The app-to-node leg is only encrypted if the node is reached over HTTPS: that's automatic when Tlon hosts it, and a self-hoster on a plain `http://` address needs TLS or a tunnel in front.
 
 **Can I share things I post with people who aren't on Tlon Messenger?** Notebook notes, yes. Publish a note and you get a public link — the app copies it for you, and `Copy link` and `View published note` sit on the note afterwards. Other channel types don't have a button for it yet, though individual posts can be published through your Tlonbot, which can reach the same clearweb machinery from a DM.
 
