@@ -371,6 +371,7 @@ export function Channel({
   const groupAgentId = groupId ? groupAgents[groupId] : undefined;
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
+  const isNarrow = useIsWindowNarrow();
   const collectionRef = useRef<PostCollectionHandle>(null);
   const orientationCompletePostId = useMemo(
     () => findAgentOnboardingOrientationCompletePostId(posts, groupAgentId),
@@ -396,6 +397,7 @@ export function Channel({
   useEffect(() => {
     if (
       disableBackButton ||
+      !isNarrow ||
       shownOnboardingBackTooltipsLoading ||
       !hasFirstGroupOnboardingRequest ||
       !orientationCompletePostId ||
@@ -419,6 +421,7 @@ export function Channel({
   }, [
     disableBackButton,
     hasFirstGroupOnboardingRequest,
+    isNarrow,
     orientationCompletePostId,
     shownOnboardingBackTooltips,
     shownOnboardingBackTooltipsLoading,
@@ -793,7 +796,6 @@ export function Channel({
     didProcessShareIntent: handleProcessedShareIntent,
   });
 
-  const isNarrow = useIsWindowNarrow();
   const {
     contextLensAvailable,
     contextLensOpen,

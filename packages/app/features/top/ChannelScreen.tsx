@@ -394,7 +394,6 @@ export default function ChannelScreen(props: Props) {
     isFocused,
     posts: filteredPosts,
     provisionAcknowledgedAt: agentOnboarding.marker?.provisionAcknowledgedAt,
-    provisionId: agentOnboarding.marker?.provision?.provisionId,
   });
 
   usePushNotifTapTelemetry({
