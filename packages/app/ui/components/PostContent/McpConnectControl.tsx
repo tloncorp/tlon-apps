@@ -225,6 +225,7 @@ export function McpConnectMenu({
   const showSeeAll = providers.length > visibleProviders.length;
 
   const toggleProvider = useCallback((providerId: string) => {
+    if (configuringRef.current || completingRef.current) return;
     setSelectedProviderIds((current) => {
       if (current.includes(providerId)) {
         return current.filter((id) => id !== providerId);
@@ -342,18 +343,21 @@ export function McpConnectMenu({
               const connected = provider.status === 'connected';
               const selected = selectedProviderIds.includes(provider.id);
               const enabled = connected
-                ? Boolean(onConfigure)
+                ? Boolean(onConfigure) && !submitting
                 : Boolean(onNavigate);
+              const disabled = connected
+                ? !onConfigure || submitting
+                : !onNavigate;
               return (
                 <A2UIMenuRow
                   key={provider.id}
                   testID={`A2UIMcpConnect-${provider.id}`}
                   accessibilityLabel={provider.displayName}
                   accessibilityState={{
-                    disabled: connected ? !onConfigure : !onNavigate,
+                    disabled,
                     selected,
                   }}
-                  disabled={connected ? !onConfigure : !onNavigate}
+                  disabled={disabled}
                   onPress={
                     connected
                       ? () => toggleProvider(provider.id)
