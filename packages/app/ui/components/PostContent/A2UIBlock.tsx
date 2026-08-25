@@ -12,7 +12,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
 import { TextInput } from '../Form';
@@ -523,7 +523,11 @@ function SmallChoiceControl({
               <TextInput
                 testID="A2UISmallChoiceFreeText"
                 autoFocus
-                value={customDraft}
+                // Echoing a controlled value back mid-IME-composition
+                // duplicates the composed text on Android (stale
+                // mostRecentEventCount), so native stays uncontrolled; the
+                // sheet unmounts on close, so each open starts empty.
+                value={isWeb ? customDraft : undefined}
                 onChangeText={setCustomDraft}
                 maxLength={AGENT_PROTOCOL_LIMITS.topicLength}
                 placeholder={component.freeTextPlaceholder}
