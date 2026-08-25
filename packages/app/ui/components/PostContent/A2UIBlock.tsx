@@ -679,6 +679,7 @@ export function A2UIBlock({
   const {
     a2uiSourcePostId,
     canSendA2UIResponse,
+    canUseAgentProviderControls,
     getConsumedA2UISelection,
     isA2UIActionAvailable,
     onA2UIAction,
@@ -1196,6 +1197,7 @@ export function A2UIBlock({
           );
         }
         case 'McpConnect':
+          if (!canUseAgentProviderControls) return null;
           return (
             <YStack
               key={component.id}
@@ -1211,6 +1213,7 @@ export function A2UIBlock({
                 completionSelection={
                   component.completionAction
                     ? buildActionSelection(
+                        a2uiSourcePostId,
                         surfaceId,
                         component.id,
                         component.completionAction

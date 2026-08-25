@@ -67,6 +67,7 @@ function ContentRenderer({
   isA2UIActionAvailable,
   canSendA2UIResponse,
   a2uiSourcePostId,
+  canUseAgentProviderControls,
   getConsumedA2UISelection,
   isNotice,
   searchQuery,
@@ -86,6 +87,7 @@ function ContentRenderer({
       isA2UIActionAvailable={isA2UIActionAvailable}
       canSendA2UIResponse={canSendA2UIResponse}
       a2uiSourcePostId={a2uiSourcePostId}
+      canUseAgentProviderControls={canUseAgentProviderControls}
       getConsumedA2UISelection={getConsumedA2UISelection}
       isNotice={isNotice}
       searchQuery={searchQuery}

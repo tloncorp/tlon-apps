@@ -4,7 +4,7 @@ import * as api from '@tloncorp/api';
 import { A2UI } from '@tloncorp/shared/logic';
 import { Icon, LoadingSpinner } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { XStack, YStack } from 'tamagui';
+import { XStack, YStack, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import {
@@ -59,14 +59,32 @@ export function McpConnectControl({
     retry: false,
   });
 
+  const refreshProviders = useCallback(() => {
+    void providersQuery.refetch();
+    if (currentUserId) void statusQuery.refetch();
+  }, [currentUserId, providersQuery.refetch, statusQuery.refetch]);
+
   useFocusEffect(
     useCallback(() => {
       // OAuth leaves and re-enters the channel. Refresh the shared cache when
       // it regains focus so every historical connector control sees the grant.
-      void providersQuery.refetch();
-      if (currentUserId) void statusQuery.refetch();
-    }, [currentUserId, providersQuery.refetch, statusQuery.refetch])
+      refreshProviders();
+    }, [refreshProviders])
   );
+
+  useEffect(() => {
+    if (!isWeb) return;
+    const handleFocus = () => refreshProviders();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') refreshProviders();
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [refreshProviders]);
 
   const providers = useMemo(
     () =>
@@ -83,12 +101,13 @@ export function McpConnectControl({
 
   const hasProviderData = providersQuery.data !== undefined;
   const hasStatusData = statusQuery.data !== undefined;
+  const failed = providersQuery.isError || statusQuery.isError;
 
   return (
     <McpConnectMenu
       component={component}
-      failed={providersQuery.isError || statusQuery.isError}
-      loading={!hasProviderData || !hasStatusData}
+      failed={failed}
+      loading={!failed && (!hasProviderData || !hasStatusData)}
       providersLoaded={hasProviderData && hasStatusData}
       completionConsumed={completionConsumed}
       completionSelection={completionSelection}
