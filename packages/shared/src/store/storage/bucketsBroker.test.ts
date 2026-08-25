@@ -4,6 +4,7 @@ import {
   BucketsBrokerError,
   canFallBackFromBucketsBroker,
   completeBucketUpload,
+  grantBucketRead,
   grantBucketUpload,
   isBucketObjectAlreadyDeleted,
 } from './bucketsBroker';
@@ -62,6 +63,29 @@ describe('Buckets broker client', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       'https://memex.test.tlon.systems/v2/buckets/uploads/reservation-1/complete',
       expect.anything()
+    );
+  });
+
+  // Omitting it makes every download arrive called "download" -- the broker
+  // has no filename of its own to fall back to, only that literal.
+  test('read-grant carries the name the file should download as', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ readUrl: 'https://storage.test/x' }), {
+        status: 200,
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await grantBucketRead('cap', '~zod', 'object/1', 'Quarterly report.pdf');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://memex.tlon.network/v2/buckets/objects/object%2F1/read-grant',
+      expect.objectContaining({
+        body: JSON.stringify({
+          host: 'zod',
+          displayFilename: 'Quarterly report.pdf',
+        }),
+      })
     );
   });
 

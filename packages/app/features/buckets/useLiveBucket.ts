@@ -648,22 +648,18 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       }
       // One token covers the whole bucket, and our own ship keeps it fresh —
       // so this is a local read, and only a cold start has to ask for one.
-      //
-      // Concurrent callers share that one mint. The host tracks a single
-      // waiting request per (bucket, reader) and denies the one a later grant
-      // supersedes, so opening a folder of images on a cold bucket would mint
-      // once per file and leave every read but the last failing with "access
-      // changed". Cleared on settle, so a failure is retried rather than
-      // cached.
       // requestBucketReadToken shares one in-flight mint per bucket across
-      // callers, so opening several files on a cold bucket asks once.
+      // callers, so opening several files at once asks for it once.
       const held =
         (await getBucketReadToken(flag)) ??
         (await requestBucketReadToken(flag));
+      // The entry name is the only place the file's name exists by this point:
+      // the token is bucket-wide and the broker never stored one.
       const grant = await grantBucketRead(
         held.token,
         flag.host,
-        entry.file.objectKey
+        entry.file.objectKey,
+        entry.name
       );
       return grant.readUrl;
     },

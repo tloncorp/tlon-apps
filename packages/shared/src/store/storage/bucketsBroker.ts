@@ -147,15 +147,25 @@ export function cancelBucketUpload(reservationId: string) {
   );
 }
 
+/**
+ * Exchange a bucket read token for a signed URL for one object.
+ *
+ * displayFilename is what the download is saved as. The token covers the whole
+ * bucket so it cannot carry a per-file name, and the broker has never stored
+ * one -- omitting it makes every download arrive called "download", which is
+ * what the broker falls back to. It is sanitized there before it reaches
+ * Content-Disposition, and only affects our own download.
+ */
 export function grantBucketRead(
   capability: string,
   host: string,
-  objectId: string
+  objectId: string,
+  displayFilename?: string
 ): Promise<BucketReadGrant> {
   return brokerRequest(`/objects/${encodeURIComponent(objectId)}/read-grant`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${capability}` },
-    body: JSON.stringify({ host: hostName(host) }),
+    body: JSON.stringify({ host: hostName(host), displayFilename }),
   });
 }
 
