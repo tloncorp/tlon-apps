@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { findPostBlobEntry } from '@tloncorp/shared/logic';
 import type { A2UIActionCompletion } from '../../contexts/componentsKits';
 
 /**
@@ -26,7 +27,8 @@ export function getA2UIActionCompletions(
     if (
       candidate.authorId !== currentUserId ||
       candidate.isDeleted ||
-      candidate.deliveryStatus === 'failed'
+      candidate.deliveryStatus === 'failed' ||
+      findPostBlobEntry(candidate.blob, 'tlon-a2ui-selection') !== undefined
     )
       continue;
     const text = candidate.textContent?.trim();

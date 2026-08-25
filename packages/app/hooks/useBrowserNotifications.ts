@@ -214,7 +214,7 @@ async function showGroupNotification({
   shouldSuppressNotification: () => boolean;
   fallbackTitle: string;
   getBody: (contactName: string) => string;
-  navigateOnClick: (groupId: string) => Promise<boolean>;
+  navigateOnClick: (groupId: string) => Promise<void>;
 }) {
   const groupId = activityEvent.groupId;
   if (!groupId) {
@@ -242,12 +242,7 @@ async function showGroupNotification({
 
   notification.onclick = async () => {
     try {
-      if (!(await navigateOnClick(groupId))) return;
-      trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
-        surface: 'browser',
-        notificationType: activityEvent.type,
-      });
-      window.focus();
+      await navigateOnClick(groupId);
     } catch (error) {
       logger.warn('Failed to route browser group notification', error);
     } finally {
@@ -286,6 +281,48 @@ export default function useBrowserNotifications() {
   const resetToGroupRef = useMutableRef(resetToGroup);
   const resetToGroupInviteRef = useMutableRef(resetToGroupInvite);
   const resetToPostRef = useMutableRef(resetToPost);
+  const pendingNavigationRef = useRef<null | (() => void | Promise<void>)>(
+    null
+  );
+  const navigateWhenOnboardingUnlocks = useCallback(
+    async (navigate: () => void | Promise<void>) => {
+      const onboarding = agentOnboardingNavigationStateRef.current;
+      if (
+        onboarding.isLoading ||
+        onboarding.locked ||
+        (await isAnyAgentGroupNavigationLockedDurably())
+      ) {
+        pendingNavigationRef.current = navigate;
+        return;
+      }
+      const latestOnboarding = agentOnboardingNavigationStateRef.current;
+      if (latestOnboarding.isLoading || latestOnboarding.locked) {
+        pendingNavigationRef.current = navigate;
+        return;
+      }
+      if (pendingNavigationRef.current === navigate) {
+        pendingNavigationRef.current = null;
+      }
+      await navigate();
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (agentOnboardingLockLoading || agentOnboardingLocked) return;
+    const pending = pendingNavigationRef.current;
+    if (!pending) return;
+    void navigateWhenOnboardingUnlocks(pending).catch((error) => {
+      logger.warn('Failed to route deferred browser notification', error);
+      if (pendingNavigationRef.current === pending) {
+        pendingNavigationRef.current = null;
+      }
+    });
+  }, [
+    agentOnboardingLocked,
+    agentOnboardingLockLoading,
+    navigateWhenOnboardingUnlocks,
+  ]);
 
   const showActivityNotification = useCallback(
     async (activityEvent: db.ActivityEvent) => {
@@ -325,25 +362,18 @@ export default function useBrowserNotifications() {
                 ? `${contactName} is requesting to join`
                 : `${contactName} invited you to join`,
             navigateOnClick: async (groupId) => {
-              const onboarding = agentOnboardingNavigationStateRef.current;
-              if (
-                onboarding.isLoading ||
-                onboarding.locked ||
-                (await isAnyAgentGroupNavigationLockedDurably())
-              ) {
-                return false;
-              }
-              const latestOnboarding =
-                agentOnboardingNavigationStateRef.current;
-              if (latestOnboarding.isLoading || latestOnboarding.locked) {
-                return false;
-              }
-              if (isAsk) {
-                resetToGroupRef.current(groupId);
-              } else {
-                resetToGroupInviteRef.current(groupId);
-              }
-              return true;
+              await navigateWhenOnboardingUnlocks(() => {
+                if (isAsk) {
+                  resetToGroupRef.current(groupId);
+                } else {
+                  resetToGroupInviteRef.current(groupId);
+                }
+                trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
+                  surface: 'browser',
+                  notificationType: activityEvent.type,
+                });
+                window.focus();
+              });
             },
           });
           if (didNotify) {
@@ -408,36 +438,27 @@ export default function useBrowserNotifications() {
 
         notification.onclick = async () => {
           try {
-            const onboarding = agentOnboardingNavigationStateRef.current;
-            if (
-              onboarding.isLoading ||
-              onboarding.locked ||
-              (await isAnyAgentGroupNavigationLockedDurably())
-            ) {
-              return;
-            }
-            const latestOnboarding = agentOnboardingNavigationStateRef.current;
-            if (latestOnboarding.isLoading || latestOnboarding.locked) {
-              return;
-            }
-            trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
-              surface: 'browser',
-              notificationType: activityEvent.type,
+            await navigateWhenOnboardingUnlocks(() => {
+              trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
+                surface: 'browser',
+                notificationType: activityEvent.type,
+              });
+              window.focus();
+              navigateToBrowserNotificationTarget(
+                {
+                  channelId,
+                  groupId:
+                    channel.groupId ?? activityEvent.groupId ?? undefined,
+                  parentAuthorId: activityEvent.parentAuthorId,
+                  parentId: activityEvent.parentId,
+                  postId: activityEvent.postId,
+                },
+                {
+                  resetToChannel: resetToChannelRef.current,
+                  resetToPost: resetToPostRef.current,
+                }
+              );
             });
-            window.focus();
-            navigateToBrowserNotificationTarget(
-              {
-                channelId,
-                groupId: channel.groupId ?? activityEvent.groupId ?? undefined,
-                parentAuthorId: activityEvent.parentAuthorId,
-                parentId: activityEvent.parentId,
-                postId: activityEvent.postId,
-              },
-              {
-                resetToChannel: resetToChannelRef.current,
-                resetToPost: resetToPostRef.current,
-              }
-            );
           } catch (error) {
             logger.warn('Failed to route browser channel notification', error);
           } finally {
@@ -455,9 +476,9 @@ export default function useBrowserNotifications() {
       }
     },
     [
-      agentOnboardingNavigationStateRef,
       disableNicknames,
       isAppForegrounded,
+      navigateWhenOnboardingUnlocks,
       resetToChannelRef,
       resetToGroupRef,
       resetToGroupInviteRef,

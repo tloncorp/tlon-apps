@@ -226,6 +226,10 @@ export function McpConnectMenu({
     if (!initializedRef.current) {
       if (loading || !providersLoaded) return;
       initializedRef.current = true;
+      configuredKeyRef.current =
+        configuredProviderIds === undefined
+          ? null
+          : configuredProviderIds.join('\u0000');
       setSelectedProviderIds(
         clampProviderIds(
           configuredProviderIds === undefined
@@ -241,6 +245,12 @@ export function McpConnectMenu({
     // settings or another group must not silently change this group's config.
     const pendingAuthorization =
       pendingProviderAuthorizations.get(selectionKey);
+    const configuredKey =
+      configuredProviderIds === undefined
+        ? null
+        : configuredProviderIds.join('\u0000');
+    const configurationChanged = configuredKey !== configuredKeyRef.current;
+    configuredKeyRef.current = configuredKey;
     const authorizedProviderId = pendingAuthorization?.providerId;
     const newlyConnected =
       pendingAuthorization?.returned === true &&
@@ -255,9 +265,14 @@ export function McpConnectMenu({
       pendingProviderAuthorizations.delete(selectionKey);
     }
     setSelectedProviderIds((current) => {
+      const configuredConnected = (configuredProviderIds ?? []).filter((id) =>
+        connected.has(id)
+      );
       const next = clampProviderIds([
         ...new Set([
-          ...current.filter((id) => connected.has(id)),
+          ...(configurationChanged
+            ? configuredConnected
+            : current.filter((id) => connected.has(id))),
           ...newlyConnected,
         ]),
       ]);
@@ -274,15 +289,6 @@ export function McpConnectMenu({
     providersLoaded,
     selectionKey,
   ]);
-
-  useEffect(() => {
-    if (loading || !providersLoaded || configuredProviderIds === undefined)
-      return;
-    const connected = new Set(connectedProviderIds);
-    setSelectedProviderIds(
-      clampProviderIds(configuredProviderIds.filter((id) => connected.has(id)))
-    );
-  }, [configuredProviderIds, connectedProviderIds, loading, providersLoaded]);
 
   useEffect(() => {
     pendingProviderSelections.set(selectionKey, selectedProviderIds);
