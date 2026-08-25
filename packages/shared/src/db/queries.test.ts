@@ -614,6 +614,65 @@ function getRangedPosts(channelId: string, start: number, end: number): Post[] {
   return posts;
 }
 
+test('getA2UISelections: only the author’s live selection entries count', async () => {
+  const channelId = '~zod/dm';
+  const selectionBlob = (surfaceId: string) =>
+    JSON.stringify([
+      { type: 'tlon-context-lens', version: 1, lensId: 'other-entry' },
+      {
+        type: 'tlon-a2ui-selection',
+        version: 1,
+        surfaceId,
+        componentId: 'topics',
+        values: ['Weather'],
+      },
+    ]);
+  await queries.insertChannels([{ id: channelId, type: 'dm' }]);
+  const base = {
+    type: 'chat' as const,
+    channelId,
+    receivedAt: refDate,
+    sentAt: refDate,
+    syncedAt: 0,
+  };
+  await queries.insertChannelPosts({
+    posts: [
+      { ...base, id: 'mine', authorId: '~zod', blob: selectionBlob('s-mine') },
+      // Another member posting a matching blob must not consume the
+      // viewer's control (or fake their answer).
+      {
+        ...base,
+        id: 'theirs',
+        authorId: '~ten',
+        blob: selectionBlob('s-theirs'),
+      },
+      // Deleting the reply un-consumes the control.
+      {
+        ...base,
+        id: 'mine-deleted',
+        authorId: '~zod',
+        isDeleted: true,
+        blob: selectionBlob('s-deleted'),
+      },
+      { ...base, id: 'mine-no-blob', authorId: '~zod' },
+    ],
+  });
+
+  const selections = await queries.getA2UISelections({
+    channelId,
+    authorId: '~zod',
+  });
+  expect(selections).toEqual([
+    {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      surfaceId: 's-mine',
+      componentId: 'topics',
+      values: ['Weather'],
+    },
+  ]);
+});
+
 test('getMentionCandidates: returns candidates in priority order', async () => {
   // Setup
   setScryOutputs([initResponse]);

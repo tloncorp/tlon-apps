@@ -1,12 +1,18 @@
+import {
+  appendToPostBlob,
+  type PostBlobDataEntryA2UISelection,
+} from '@tloncorp/api';
 import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
+import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import AuthorRow from '../AuthorRow';
 import { ContextLensBadge } from '../Channel/ContextLens/ContextLensBadge';
@@ -99,9 +105,16 @@ export function StaticChatMessage({
   }, [onPressRetry, post]);
 
   const handleA2UIAction = useCallback(
-    async (action: A2UI.Button['action']) => {
+    async (
+      action: A2UI.Button['action'],
+      selection?: PostBlobDataEntryA2UISelection
+    ) => {
       if (action.event.name === A2UI.action.navigate) {
         await navigateToA2UITarget(action.event.context.target);
+        return;
+      }
+
+      if (action.event.name !== A2UI.action.sendMessage) {
         return;
       }
 
@@ -118,6 +131,7 @@ export function StaticChatMessage({
         channelId: draftInputContext.channel.id,
         content: [text],
         attachments: [],
+        blob: selection ? appendToPostBlob(undefined, selection) : undefined,
         channelType: draftInputContext.channel.type,
         replyToPostId: null,
         isEdit: false,
@@ -148,6 +162,27 @@ export function StaticChatMessage({
   const canRenderA2UI = isDmChannelId(post.channelId);
 
   const postContent = usePostContent(post);
+  const hasA2UIContent = useMemo(
+    () => postContent.some((block) => block.type === 'a2ui'),
+    [postContent]
+  );
+  const currentUserId = useCurrentUserId();
+  // One live query per channel (deduped across messages); the posts-table
+  // dependency re-runs it when the viewer's reply lands, including the
+  // optimistic insert, so an answered control stays locked across remounts.
+  const a2uiSelections = store.useA2UISelections({
+    channelId: post.channelId,
+    authorId: currentUserId,
+    enabled: canRenderA2UI && hasA2UIContent,
+  });
+  const getConsumedA2UISelection = useCallback(
+    (surfaceId: string, componentId: string) =>
+      a2uiSelections.data?.find(
+        (entry) =>
+          entry.surfaceId === surfaceId && entry.componentId === componentId
+      ),
+    [a2uiSelections.data]
+  );
   const lastEditPostContent = usePostLastEditContent(post);
   const content = useMemo(
     () =>
@@ -238,6 +273,14 @@ export function StaticChatMessage({
             onA2UIAction={canRenderA2UI ? handleA2UIAction : undefined}
             isA2UIActionAvailable={
               canRenderA2UI ? isA2UIActionAvailable : undefined
+            }
+            canSendA2UIResponse={Boolean(
+              canRenderA2UI &&
+              draftInputContext &&
+              draftInputContext.canStartDraft !== false
+            )}
+            getConsumedA2UISelection={
+              canRenderA2UI ? getConsumedA2UISelection : undefined
             }
             searchQuery={searchQuery}
           />

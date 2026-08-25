@@ -1,3 +1,4 @@
+import type { PostBlobDataEntryA2UISelection } from '@tloncorp/api';
 import { Post } from '@tloncorp/shared/db';
 import { type A2UI, BlockData, convertContent } from '@tloncorp/shared/logic';
 import { useContext, useMemo } from 'react';
@@ -26,12 +27,26 @@ export function usePostLastEditContent(post: Post): BlockData[] {
 }
 
 export interface ContentContextProps {
+  groupId?: string | null;
   isNotice?: boolean;
   onPressImage?: (src: string) => void;
   getImageViewerId?: (src: string) => string | undefined;
   onLongPress?: () => void;
-  onA2UIAction?: (action: A2UI.Button['action']) => void | Promise<void>;
+  onA2UIAction?: (
+    action: A2UI.Button['action'],
+    selection?: PostBlobDataEntryA2UISelection
+  ) => void | Promise<void>;
   isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
+  canSendA2UIResponse?: boolean;
+  /**
+   * Durable selection the viewer already submitted for a control, recovered
+   * from their own posts in this channel. Presence marks the control
+   * consumed; without this, an answered control forgets on remount.
+   */
+  getConsumedA2UISelection?: (
+    surfaceId: string,
+    componentId: string
+  ) => PostBlobDataEntryA2UISelection | undefined;
   searchQuery?: string;
 }
 
