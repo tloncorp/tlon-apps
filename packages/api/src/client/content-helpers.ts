@@ -23,6 +23,7 @@ import {
 import { A2UI } from './a2ui';
 import {
   AGENT_PROTOCOL_LIMITS,
+  AgentProviderConfigContextSchema,
   AgentProvisionActionContextSchema,
   agentProtocolString,
 } from './agentProtocol';
@@ -723,6 +724,17 @@ export type PostBlobDataEntryAgentProvision = z.infer<
   typeof PostBlobDataEntryAgentProvisionSchema
 >;
 
+export const PostBlobDataEntryAgentProviderConfigSchema =
+  definePostBlobDataEntrySchema(
+    'tlon-agent-provider-config',
+    1,
+    AgentProviderConfigContextSchema.shape
+  );
+
+export type PostBlobDataEntryAgentProviderConfig = z.infer<
+  typeof PostBlobDataEntryAgentProviderConfigSchema
+>;
+
 export const PostBlobDataEntryAgentProvisionAckSchema =
   definePostBlobDataEntrySchema('tlon-agent-provision-ack', 1, {
     provisionId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
@@ -775,6 +787,7 @@ const postBlobDataEntryDefinitions = [
   PostBlobDataEntryContextLensSchema,
   PostBlobDataEntryAgentIntroRequestSchema,
   PostBlobDataEntryAgentProvisionSchema,
+  PostBlobDataEntryAgentProviderConfigSchema,
   PostBlobDataEntryAgentProvisionAckSchema,
   PostBlobDataEntryAgentPostMarkerSchema,
   PostBlobDataEntryA2UISelectionSchema,

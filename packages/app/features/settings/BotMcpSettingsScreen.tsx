@@ -48,6 +48,7 @@ export function BotMcpSettingsScreen(props: Props) {
     string | null
   >(null);
   const handledCompletionUrls = useRef(new Set<string>());
+  const requestedProviders = useRef(new Set<string>());
   const isMounted = useRef(true);
 
   const refreshStatus = useCallback(async () => {
@@ -225,6 +226,37 @@ export function BotMcpSettingsScreen(props: Props) {
     },
     [currentUserId, disconnectingProviderId, showMcpToast, startingProviderId]
   );
+
+  useEffect(() => {
+    const providerId = props.route.params?.providerId;
+    if (!providerId || initialLoading || !status) {
+      return;
+    }
+
+    const provider = providers.find((candidate) => candidate.id === providerId);
+    if (
+      !provider ||
+      !status.available ||
+      provider.status === 'connected' ||
+      requestedProviders.current.has(providerId)
+    ) {
+      props.navigation.setParams({ providerId: undefined });
+      return;
+    }
+
+    requestedProviders.current.add(providerId);
+    props.navigation.setParams({ providerId: undefined });
+    void handleConnectProvider(providerId).finally(() => {
+      requestedProviders.current.delete(providerId);
+    });
+  }, [
+    handleConnectProvider,
+    initialLoading,
+    props.navigation,
+    props.route.params?.providerId,
+    providers,
+    status,
+  ]);
 
   const handleDisconnectProvider = useCallback(
     async (providerId: string) => {

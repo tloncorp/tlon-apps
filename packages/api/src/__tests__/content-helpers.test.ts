@@ -108,6 +108,13 @@ describe('post blob helpers', () => {
         cronJobId: 'cron-1',
       },
       {
+        type: 'tlon-agent-provider-config',
+        version: 1,
+        provisionId: 'provision-1',
+        groupId: '~zod/test',
+        providerIds: ['gmail', 'google-calendar'],
+      },
+      {
         type: 'tlon-a2ui-selection',
         version: 1,
         sourcePostId: 'topics-post',
@@ -141,6 +148,19 @@ describe('post blob helpers', () => {
             scheduleHour: 25,
             scheduleMinute: 0,
             notebookNest: 'notes/~zod/test-updates',
+          },
+        ])
+      )
+    ).toEqual([{ type: 'unknown' }]);
+    expect(
+      parsePostBlob(
+        JSON.stringify([
+          {
+            type: 'tlon-agent-provider-config',
+            version: 1,
+            provisionId: 'provision-1',
+            groupId: '~zod/test',
+            providerIds: ['gmail', 'gmail'],
           },
         ])
       )
