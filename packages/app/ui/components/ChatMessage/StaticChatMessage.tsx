@@ -437,19 +437,6 @@ export function StaticChatMessage({
   });
   const provisionReceipt = agentProtocolReceipts.data?.provision;
   const providerConfigReceipts = agentProtocolReceipts.data?.providerConfigs;
-  const providerConfigContext = useMemo(() => {
-    for (const block of postContent) {
-      if (block.type !== 'a2ui') continue;
-      const connector = A2UI.getUpdateMessage(
-        block.a2ui
-      )?.updateComponents.components.find(
-        (component) => component.component === 'McpConnect'
-      );
-      if (connector?.component === 'McpConnect') {
-        return connector.configureAction.event.context;
-      }
-    }
-  }, [postContent]);
   // Selection-aware provision replies are consumed by their exact source
   // post/surface/component via useA2UISelections below. Only legacy replies
   // without a selection use the positional fallback.
@@ -457,19 +444,21 @@ export function StaticChatMessage({
     !provisionReceipt?.selection && receiptFollowsPost(provisionReceipt, post)
       ? provisionReceipt?.entry
       : undefined;
-  const durableProviderConfig = [...(providerConfigReceipts ?? [])]
-    .reverse()
-    .find(
-      (receipt) =>
-        providerConfigContext &&
-        receiptFollowsPost(receipt, post) &&
-        receipt.entry.groupId === providerConfigContext.groupId &&
-        receipt.entry.provisionId === providerConfigContext.provisionId
-    )?.entry;
   const provisionedAgentTopics = durableProvision?.topics;
-  const configuredAgentProviderIds = durableProviderConfig
-    ? durableProviderConfig.providerIds
-    : undefined;
+  const getConfiguredAgentProviderIds = useCallback(
+    (action: A2UI.ConfigureAgentProvidersAction) => {
+      const context = action.event.context;
+      return [...(providerConfigReceipts ?? [])]
+        .reverse()
+        .find(
+          (receipt) =>
+            receiptFollowsPost(receipt, post) &&
+            receipt.entry.groupId === context.groupId &&
+            receipt.entry.provisionId === context.provisionId
+        )?.entry.providerIds;
+    },
+    [post, providerConfigReceipts]
+  );
   const isA2UIActionConsumed = useCallback(
     (action: A2UI.Button['action']) => {
       if (action.event.name === A2UI.action.sendMessage) {
@@ -612,7 +601,7 @@ export function StaticChatMessage({
             isA2UIActionConsumed={
               canRenderA2UI ? isA2UIActionConsumed : undefined
             }
-            configuredAgentProviderIds={configuredAgentProviderIds}
+            getConfiguredAgentProviderIds={getConfiguredAgentProviderIds}
             provisionedAgentTopics={provisionedAgentTopics}
             consumedA2UIMessageText={a2uiActionCompletion?.sentMessageText}
             searchQuery={searchQuery}

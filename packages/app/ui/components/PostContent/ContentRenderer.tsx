@@ -69,7 +69,7 @@ function ContentRenderer({
   canSendA2UIResponse,
   a2uiSourcePostId,
   canUseAgentProviderControls,
-  configuredAgentProviderIds,
+  getConfiguredAgentProviderIds,
   provisionedAgentTopics,
   consumedA2UIMessageText,
   getConsumedA2UISelection,
@@ -93,7 +93,7 @@ function ContentRenderer({
       canSendA2UIResponse={canSendA2UIResponse}
       a2uiSourcePostId={a2uiSourcePostId}
       canUseAgentProviderControls={canUseAgentProviderControls}
-      configuredAgentProviderIds={configuredAgentProviderIds}
+      getConfiguredAgentProviderIds={getConfiguredAgentProviderIds}
       provisionedAgentTopics={provisionedAgentTopics}
       consumedA2UIMessageText={consumedA2UIMessageText}
       getConsumedA2UISelection={getConsumedA2UISelection}

@@ -43,7 +43,9 @@ export interface ContentContextProps {
   a2uiSourcePostId?: string;
   /** Whether this post is trusted to display authenticated provider state. */
   canUseAgentProviderControls?: boolean;
-  configuredAgentProviderIds?: string[];
+  getConfiguredAgentProviderIds?: (
+    action: A2UI.ConfigureAgentProvidersAction
+  ) => string[] | undefined;
   provisionedAgentTopics?: string[];
   consumedA2UIMessageText?: string;
   /**
