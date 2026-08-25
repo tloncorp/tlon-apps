@@ -105,6 +105,33 @@ export function getAgentOnboardingClaimOwnerId(): string {
   return claimOwnerId;
 }
 
+function persistableOutcome(
+  outcome: AgentOnboardingRunOutcome
+): AgentOnboardingRunOutcome {
+  return {
+    status: outcome.status,
+    delivered: outcome.delivered,
+    observedAt: outcome.observedAt,
+    ...(outcome.noteId !== undefined ? { noteId: outcome.noteId } : {}),
+    ...(outcome.error !== undefined ? { error: outcome.error } : {}),
+  };
+}
+
+function enqueuedRunRecord(
+  initial: AgentOnboardingRunRecord,
+  runId: string,
+  enqueuedAt: number,
+  outcome: AgentOnboardingRunOutcome | undefined
+): AgentOnboardingRunRecord {
+  return {
+    ...initial,
+    runId,
+    status: 'enqueued',
+    enqueuedAt,
+    ...(outcome ? { outcome: persistableOutcome(outcome) } : {}),
+  };
+}
+
 export async function claimAgentOnboardingRun(
   initial: AgentOnboardingRunRecord,
   now: number
@@ -183,13 +210,10 @@ export async function recordAgentOnboardingRunEnqueued(
       ) {
         return;
       }
-      fallbackRecords.set(recordKey, {
-        ...initial,
-        runId,
-        status: 'enqueued',
-        enqueuedAt,
-        outcome,
-      });
+      fallbackRecords.set(
+        recordKey,
+        enqueuedRunRecord(initial, runId, enqueuedAt, outcome)
+      );
       return;
     }
     const current = await store.lookup(recordKey);
@@ -200,13 +224,10 @@ export async function recordAgentOnboardingRunEnqueued(
     ) {
       return;
     }
-    await store.register(recordKey, {
-      ...initial,
-      runId,
-      status: 'enqueued',
-      enqueuedAt,
-      outcome,
-    });
+    await store.register(
+      recordKey,
+      enqueuedRunRecord(initial, runId, enqueuedAt, outcome)
+    );
   });
 }
 
@@ -243,12 +264,16 @@ async function recordAgentOnboardingRunOutcomeInternal(
   if (!stored) {
     const pending = pendingOutcomes.get(runId);
     pendingOutcomes.delete(runId);
-    pendingOutcomes.set(runId, {
-      ...outcome,
-      noteId: outcome.delivered
-        ? (outcome.noteId ?? pending?.noteId)
-        : undefined,
-    });
+    const noteId = outcome.delivered
+      ? (outcome.noteId ?? pending?.noteId)
+      : undefined;
+    pendingOutcomes.set(
+      runId,
+      persistableOutcome({
+        ...outcome,
+        ...(noteId !== undefined ? { noteId } : {}),
+      })
+    );
     while (pendingOutcomes.size > MAX_PENDING_OUTCOMES) {
       const oldest = pendingOutcomes.keys().next().value;
       if (oldest === undefined) break;
@@ -263,14 +288,15 @@ async function recordAgentOnboardingRunOutcomeInternal(
     if (!current || current.runId !== runId || current.status !== 'enqueued') {
       return;
     }
+    const noteId = outcome.delivered
+      ? (outcome.noteId ?? current.outcome?.noteId)
+      : undefined;
     const updated = {
       ...current,
-      outcome: {
+      outcome: persistableOutcome({
         ...outcome,
-        noteId: outcome.delivered
-          ? (outcome.noteId ?? current.outcome?.noteId)
-          : undefined,
-      },
+        ...(noteId !== undefined ? { noteId } : {}),
+      }),
     };
     if (store) await store.register(recordKey, updated);
     else fallbackRecords.set(recordKey, updated);
