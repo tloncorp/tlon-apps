@@ -710,6 +710,7 @@ export function A2UIBlock({
   >({});
   const buttonPressLocksRef = useRef(new Set<string>());
   const choicePressLocksRef = useRef(new Set<string>());
+  const smallChoiceSubmitLocksRef = useRef(new Set<string>());
   const update = A2UI.getUpdateMessage(block.a2ui);
   const root = A2UI.getRootComponentId(block.a2ui);
   const surfaceId =
@@ -825,8 +826,22 @@ export function A2UIBlock({
   );
 
   const handleSmallChoiceSubmit = useCallback(
-    (action: A2UI.ButtonAction, selection: PostBlobDataEntryA2UISelection) =>
-      onA2UIAction?.(action, selection),
+    async (
+      action: A2UI.ButtonAction,
+      selection: PostBlobDataEntryA2UISelection
+    ) => {
+      const componentId = selection.componentId;
+      if (smallChoiceSubmitLocksRef.current.has(componentId)) {
+        throw new Error('A2UI SmallChoice submission is already in progress');
+      }
+      smallChoiceSubmitLocksRef.current.add(componentId);
+      try {
+        await onA2UIAction?.(action, selection);
+      } catch (error) {
+        smallChoiceSubmitLocksRef.current.delete(componentId);
+        throw error;
+      }
+    },
     [onA2UIAction]
   );
 
@@ -835,6 +850,7 @@ export function A2UIBlock({
     const localIds = new Set([
       ...locallyConsumedComponentIds,
       ...Object.keys(locallyConsumedChoices),
+      ...smallChoiceSubmitLocksRef.current,
     ]);
     const deletedIds: string[] = [];
 
@@ -845,6 +861,7 @@ export function A2UIBlock({
         durableConsumptionObservedRef.current.delete(componentId);
         buttonPressLocksRef.current.delete(componentId);
         choicePressLocksRef.current.delete(componentId);
+        smallChoiceSubmitLocksRef.current.delete(componentId);
         deletedIds.push(componentId);
       }
     });
