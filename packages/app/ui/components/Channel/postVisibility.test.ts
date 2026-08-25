@@ -193,15 +193,26 @@ describe('agent group setup state markers', () => {
       }),
     };
 
-    expect(isAgentGroupSetupActive([], '~ten', true)).toBe(true);
-    expect(isAgentGroupSetupActive([request], '~ten', false)).toBe(true);
-    expect(isAgentGroupSetupActive([request, complete], '~ten', false)).toBe(
-      false
+    expect(isAgentGroupSetupActive([], '~ten', '~bot', true)).toBe(true);
+    expect(isAgentGroupSetupActive([request], '~ten', '~bot', false)).toBe(
+      true
     );
+    expect(
+      isAgentGroupSetupActive([request, complete], '~ten', '~bot', false)
+    ).toBe(false);
+    expect(
+      isAgentGroupSetupActive(
+        [request, { ...complete, authorId: '~someone-else' }],
+        '~ten',
+        '~bot',
+        false
+      )
+    ).toBe(true);
     expect(
       isAgentGroupSetupActive(
         [{ ...request, authorId: '~someone-else' }],
         '~ten',
+        '~bot',
         false
       )
     ).toBe(false);
