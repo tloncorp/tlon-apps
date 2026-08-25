@@ -183,6 +183,16 @@
 ::  $reader-key: a bucket and one of its readers.
 ::
 +$  reader-key  [=flag reader=ship]
+::  $reader-status: what a reader record still asks of us.
+::
+::  Derived from .revision, .synced, .failed and .expires together, which
+::  every caller used to do for itself from whichever fields it happened to
+::  care about. They disagreed, and each disagreement was a bug: records the
+::  broker had refused were owed by nobody and prunable by nobody, so they
+::  accumulated for good. Switching on this with ?- makes a missed state a
+::  compile error instead of something review has to catch.
+::
++$  reader-status  ?(%owed %settled %refused %lapsed)
 ::
 ::  $read-token: the bucket-read capability this ship currently holds.
 ::

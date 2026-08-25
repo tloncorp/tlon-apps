@@ -794,7 +794,7 @@
   =/  sync=reader-sync:b  u.got
   ::  Only a grant the broker has confirmed is worth handing out; anything
   ::  still owed would 403 on first use.
-  ?.  =(synced.sync revision.sync)  ~
+  ?.  ?=(%settled (reader-status sync))  ~
   ?.  ?=(%granted -.desired.sync)  ~
   ?.  (gth expires-at.desired.sync (add now.bowl token-margin))  ~
   `[token.desired.sync expires-at.desired.sync]
@@ -978,7 +978,7 @@
     |=  [key=reader-key:b sync=reader-sync:b]
     ^-  [reader-key:b reader-sync:b]
     ::  Nothing to re-send for a pair whose token could not be used anyway.
-    ?:  (lte expires.sync now.bowl)  [key sync]
+    ?:  ?=(%lapsed (reader-status sync))  [key sync]
     [key sync(synced 0, failed |)]
   retry-readers
 ::
@@ -1050,6 +1050,22 @@
   ::  is what keeps repeated arming from meaning repeated timers.
   arm-reader-retry
 ::
+::  +reader-status: the one place a record's state is decided.
+::
+::  Expiry dominates everything else: past it the token the record names can no
+::  longer be used, so there is nothing left to owe, serve or retry whatever
+::  the revisions say. A refusal settles it next -- the broker will answer the
+::  same way again -- then being level with the broker, and anything else is
+::  still owed.
+::
+++  reader-status
+  |=  sync=reader-sync:b
+  ^-  reader-status:b
+  ?:  (lte expires.sync now.bowl)  %lapsed
+  ?:  failed.sync  %refused
+  ?:  (gte synced.sync revision.sync)  %settled
+  %owed
+::
 ::  +owed: pairs the broker has not caught up with.
 ::
 ++  owed
@@ -1057,15 +1073,7 @@
   %+  murn  ~(tap by readers)
   |=  [key=reader-key:b sync=reader-sync:b]
   ^-  (unit [reader-key:b @ud @t reader-state:b])
-  ?:  (lte revision.sync synced.sync)  ~
-  ::  A revision the broker called invalid is not owed: it will refuse it
-  ::  again. The next access change supersedes it and tries afresh.
-  ?:  failed.sync  ~
-  ::  Past its expiry there is nothing left to say: a grant is worthless and
-  ::  a revoke is moot, because the token it names can no longer be used. This
-  ::  is what stops a request the broker will never accept -- a malformed one,
-  ::  say -- retrying once a minute forever.
-  ?:  (lte expires.sync now.bowl)  ~
+  ?.  ?=(%owed (reader-status sync))  ~
   `[key revision.sync bucket-id.sync desired.sync]
 ::
 ::  +sync-cards: one request per pair. The credential goes in a header: a
@@ -1211,8 +1219,7 @@
   =.  cor
     %+  roll  ~(tap by readers)
     |=  [[key=reader-key:b sync=reader-sync:b] acc=_cor]
-    ?:  =(synced.sync revision.sync)  acc
-    ?.  (lte expires.sync now.bowl)  acc
+    ?.  ?=(%lapsed (reader-status sync))  acc
     ?:  =(reader.key our.bowl)  (recover-local-reader:acc flag.key)
     %+  answer-waiter:acc  key
     [%error %unknown 'storage did not take this grant before it lapsed']
@@ -1265,7 +1272,7 @@
   ?.  advanced  cor
   ::  Only once the broker is level with what we last decided -- an ack for a
   ::  superseded revision says nothing about the state we now want.
-  ?.  =(synced.sync revision.sync)  cor
+  ?.  ?=(%settled (reader-status sync))  cor
   ?.  ?=(%granted -.desired.sync)  cor
   =/  tok=read-token:b  [token.desired.sync expires-at.desired.sync]
   ::  Installing is independent of anyone waiting: a renewal fired by the
@@ -1396,12 +1403,19 @@
     %-  malt
     %+  skim  ~(tap by readers)
     |=  [key=reader-key:b sync=reader-sync:b]
-    ::  Settled means the broker is level with us or has refused us outright.
-    ::  Testing only for level kept every rejected revision for good, because
-    ::  a failed one never catches up and so never reached the expiry below.
-    ?.  |(=(synced.sync revision.sync) failed.sync)  &
+    ::  A record with a request still waiting on it stays until that request
+    ::  is answered, whatever else is true of it.
     ?.  ?=(~ awaiting.sync)  &
-    (gth expires.sync now.bowl)
+    ?-  (reader-status sync)
+      ::  Still work to do, or still the answer to a read.
+      %owed     &
+      %settled  &
+      ::  The broker refused this revision and will refuse it again, but the
+      ::  record still stands until its own expiry says otherwise.
+      %refused  &
+      ::  Nothing left to owe, serve or retry.
+      %lapsed   |
+    ==
   cor
 ::
 ++  drop-bucket-sessions

@@ -1289,6 +1289,66 @@
     !>([before ~(wyt by readers.st) revision.sync synced.sync])
   !>([1 1 1 0])
 ::
+::  A record that lapsed while still owed used to be stranded: +owed skipped
+::  it for being expired, and pruning kept it for never having settled, so it
+::  belonged to nobody and stayed for good. A revoke is where that arises --
+::  it has no request waiting on it, so nothing else was ever going to retire
+::  it. Expiry now decides a record's state on its own, which is what makes
+::  the case unreachable rather than merely fixed.
+::
+++  test-a-revoke-that-lapsed-while-owed-is-not-stranded
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ;<  mint-caz=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v7 [%bucket flag [%issue-bucket-read ~]]])
+  =/  push=[=wire =request:http]  (only-iris mint-caz)
+  ::  confirmed, so no request is left waiting on this pair
+  ;<  *  b  (do-arvo wire.push iris-ok)
+  ;<  ~  b
+    %-  jab-bowl
+    |=  bol=bowl
+    %=    bol
+        sup
+      %-  malt
+      :~  :-  ~[/reader]
+          [~bus /v1/buckets/~sampel-palnet/project-files/updates]
+      ==
+    ==
+  ::  access is pulled, which revokes with nobody waiting on the result
+  ;<  ~  b  (set-scry-gate revoked-scries)
+  ;<  revoke-caz=(list card)  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-update !>([group %noun])]
+  =/  revoke=[=wire =request:http]  (only-iris revoke-caz)
+  ::  the broker keeps failing in a way worth retrying, and never takes it
+  ;<  *  b  (do-arvo wire.revoke (iris-refusal 503 &))
+  ;<  sv=vase  b  get-save
+  =/  mid=reader-sync:bu  (sync-for !<(state-0:bu sv) ~bus)
+  ::  owed, unanswerable, and nobody waiting: the shape that used to persist
+  ;<  ~  b
+    %+  ex-equal
+      !>([revision.mid synced.mid awaiting.mid])
+    !>([2 1 ~])
+  ::  the grant's own expiry passes with the revoke still owed
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now (add ~2026.1.1 ~d1), eny 0v4444)))
+  ;<  ~  b  (set-scry-gate reader-scries)
+  ;<  *  b  (ask 0v5 [%bucket flag [%issue-bucket-read ~]])
+  ;<  after=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu after)
+  ::  the stranded revoke is gone; only our own fresh mint remains
+  %+  ex-equal
+    !>([~(wyt by readers.st) (~(has by readers.st) [flag ~bus])])
+  !>([1 %.n])
+::
 ::  The client mints its own request id so a lost answer stays addressable.
 ::  The agent parses it with (slav %uv) and falls back to one of its own for
 ::  anything that does not parse, so a shape mismatch would show up as nothing
