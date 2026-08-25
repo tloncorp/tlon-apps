@@ -508,24 +508,9 @@ export function useRootNavigation() {
         return;
       }
       const params = providerId ? { providerId } : undefined;
-      if (isWindowNarrow) {
-        navigationRef.current.navigate('BotMcpSettings', params);
-        return;
-      }
-
-      const navigateToNestedSettings = navigationRef.current.navigate as (
-        screen: 'Settings',
-        params: {
-          screen: 'BotMcpSettings';
-          params?: RootStackParamList['BotMcpSettings'];
-        }
-      ) => void;
-      navigateToNestedSettings('Settings', {
-        screen: 'BotMcpSettings',
-        params,
-      });
+      navigationRef.current.navigate('BotMcpSettings', params);
     },
-    [isWindowNarrow, navigationRef]
+    [navigationRef]
   );
 
   const resetToChannel = useResetToChannel();
