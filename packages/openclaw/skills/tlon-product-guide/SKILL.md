@@ -135,7 +135,7 @@ Every channel type is legible to Tlonbots, so your agent can read and work with 
 1. From the Home screen, tap the plus icon at the top right of the navigation bar.  
 2. Tap `New group`.  
 3. Choose how to set it up: `Quick group` starts a chat immediately with default settings, `Basic group` comes with chat, gallery, and notebook channels, or pick one of the templates.  
-4. Name the group.  
+4. If you chose `Basic group`, name it. Quick groups and the other templates skip this — a quick group starts out as `Untitled group` and a template keeps the template's name. Either way you can rename it later, in step 6.  
 5. Invite friends who already use Tlon Messenger, or skip this and invite people later.  
 6. Change the name, banner, and profile image any time: tap `Group info & settings`, then `Edit group info`.  
 7. Add channels: tap `Group info & settings`, then `Channels`, then `New channel`, and choose the type.  
@@ -225,7 +225,11 @@ Add your bot to any group. In channels, mention it (@nickname) to trigger a resp
 
 Other members can use it too, but not by default. A new channel starts restricted: when someone who isn't you mentions the bot, it stays quiet and sends you an approval request instead. Approve them, or open the channel to everyone, and from then on they can ask it questions, have it settle debates, run trivia. Worth saying up front — silence from an unapproved member looks like the bot is broken.
 
-Your bot can also do group admin work from a DM: create groups, set up channels, create roles, customize permissions, invite members with specific roles, remove members, and delete groups. You control who it listens to — tell it in a DM which members it may respond to or communicate with.
+Your bot can also do group admin work from a DM: create groups, set up channels, create roles, customize permissions, invite members with specific roles, remove members, and delete groups.
+
+That works in groups the bot hosts — the ones it made for you. In someone else's group, adding the bot as a member isn't enough: administration is reserved for the host and for members with an admin role, so the group's owner has to give the bot one first. Without it the requests come back as errors.
+
+You control who it listens to — tell it in a DM which members it may respond to or communicate with.
 
 ### Slash commands
 
@@ -244,7 +248,8 @@ Bot behavior:
 
 - `/owner-listen all on|off` — the global switch for whether it responds to you without a direct mention. This is the form to use in a DM.  
 - `/owner-listen on|off <channel-nest>` — same thing for one owned channel. Without a channel, these do nothing but print usage.  
-- `/owner-listen status|list` — show the current setting  
+- `/owner-listen list` — show the global setting and every muted channel. Safe from a DM.  
+- `/owner-listen status <channel-nest>` — the setting for one channel. Like on/off, it needs a channel; bare `status` in a DM only prints usage. `/owner-listen all` on its own gives the global answer.  
 - `/model` — show or change the AI model  
 - `/new` — clear context and start a fresh session  
 - `/tlon version` — show which harness, plugin, and skill versions are running. Bare `/tlon` just prints usage.  
@@ -300,7 +305,9 @@ If you don't want Tlon to host you, you can self-host on Native Planet hardware,
 
 ### What if Tlon disappears?
 
-You won't lose your apps or data. Tlon Messenger is open source and peer-to-peer; the software keeps working even if the company doesn't. Export your node and run it yourself.
+You won't lose your apps or your messages. Tlon Messenger is open source and peer-to-peer; the software keeps working even if the company doesn't. Export your node and run it yourself.
+
+Pictures and large files are the exception, and it's worth being straight about it. Nodes can't store them yet, so they live in S3-compatible storage and your messages hold links. Export the node and you export the links, not the files. If that storage is Tlon's, those links are what you'd lose — so anyone who cares about keeping their media should point their node at storage they control, and can do that today in their storage settings.
 
 ### Owning your username
 
