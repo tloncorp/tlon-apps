@@ -71,6 +71,7 @@ export type OnboardingStepReport = {
 };
 
 type AgentOnboardingContext = {
+  accountId?: string;
   api: { scry: (path: string) => Promise<unknown> };
   abortSignal?: AbortSignal;
   botShip: string;
@@ -247,6 +248,7 @@ const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
 }[];
 
 type FirstRunCorrelation = {
+  runId: string;
   context: AgentOnboardingScanContext;
   notebookNest: string;
   notebookName: string;
@@ -1357,35 +1359,49 @@ async function failFirstRunCorrelation(
 export async function handleAgentOnboardingMessageSent(
   event: PluginHookMessageSentEvent,
   deps: AgentOnboardingCronDeps = {},
-  contextualRunId?: string
+  contextualRunId?: string,
+  accountId?: string
 ): Promise<void> {
-  if (event.success !== true) return;
-  if (contextualRunId && !firstRunCorrelations.has(contextualRunId)) return;
   const suppliedRunId = contextualRunId ?? event.runId;
   const match = findFirstRunCorrelation(
     suppliedRunId,
     event.to,
     undefined,
-    Boolean(suppliedRunId)
+    Boolean(suppliedRunId),
+    accountId
   );
   if (!match) return;
-  const [correlationRunId] = match;
-  const recordOutcome = retryWithDelays(
+  const [correlationKey, correlation] = match;
+  await retryWithDelays(
     () =>
-      recordAgentOnboardingRunOutcome(correlationRunId, {
-        status: 'ok',
-        delivered: true,
-        noteId: noteIdFromDeliveryMessageId(event.messageId),
+      recordAgentOnboardingRunOutcome(correlation.runId, {
+        status: event.success ? 'ok' : 'error',
+        delivered: event.success,
+        noteId: event.success
+          ? noteIdFromDeliveryMessageId(event.messageId)
+          : undefined,
+        error: event.error,
         observedAt: Date.now(),
       }),
     RUN_OUTCOME_WRITE_RETRY_DELAYS_MS,
     deps.sleep
   );
-  try {
-    await completeFirstRun(correlationRunId, event.to, event.messageId, deps);
-  } finally {
-    await recordOutcome;
+  if (!event.success) {
+    await failFirstRun(
+      correlationKey,
+      {
+        action: 'finished',
+        jobId: correlation.jobId,
+        runId: correlation.runId,
+        status: 'error',
+        delivered: false,
+        error: event.error,
+      },
+      deps
+    );
+    return;
   }
+  await completeFirstRun(correlationKey, event.to, event.messageId, deps);
 }
 
 async function completeFirstRun(
@@ -1716,25 +1732,50 @@ function findFirstRunCorrelation(
   runId: string | undefined,
   notebookNest: string | undefined,
   jobId?: string,
-  requireExactRunId = false
+  requireExactRunId = false,
+  accountId?: string
 ) {
   if (runId) {
-    const exact = firstRunCorrelations.get(runId);
-    if (exact) {
-      if (notebookNest && exact.notebookNest !== notebookNest) return null;
-      return [runId, exact] as const;
+    // Internal retries pass the account-scoped map key directly. Lifecycle
+    // hooks pass OpenClaw's raw run id and are disambiguated below.
+    const direct = firstRunCorrelations.get(runId);
+    if (
+      direct &&
+      (!accountId || direct.context.accountId === accountId) &&
+      (!notebookNest || direct.notebookNest === notebookNest)
+    ) {
+      return [runId, direct] as const;
+    }
+    const exactMatches = [...firstRunCorrelations].filter(
+      ([, correlation]) =>
+        correlation.runId === runId &&
+        (!accountId || correlation.context.accountId === accountId) &&
+        (!notebookNest || correlation.notebookNest === notebookNest)
+    );
+    if (exactMatches.length === 1) {
+      return exactMatches[0]!;
+    }
+    if (jobId && exactMatches.length > 1) {
+      const jobMatches = exactMatches.filter(
+        ([, correlation]) => correlation.jobId === jobId
+      );
+      if (jobMatches.length === 1) return jobMatches[0]!;
     }
     if (requireExactRunId) return null;
   }
   if (jobId) {
-    const jobMatch = [...firstRunCorrelations].find(
-      ([, correlation]) => correlation.jobId === jobId
+    const jobMatches = [...firstRunCorrelations].filter(
+      ([, correlation]) =>
+        correlation.jobId === jobId &&
+        (!accountId || correlation.context.accountId === accountId)
     );
-    if (jobMatch) return jobMatch;
+    if (jobMatches.length === 1) return jobMatches[0]!;
   }
   if (!notebookNest) return null;
   const notebookMatches = [...firstRunCorrelations].filter(
-    ([, correlation]) => correlation.notebookNest === notebookNest
+    ([, correlation]) =>
+      correlation.notebookNest === notebookNest &&
+      (!accountId || correlation.context.accountId === accountId)
   );
   return notebookMatches.length === 1 ? notebookMatches[0]! : null;
 }
@@ -1760,7 +1801,7 @@ function rememberFirstRun(
 }
 
 function setFirstRunCorrelation(
-  correlationKey: string,
+  runId: string,
   context: AgentOnboardingScanContext,
   request: PostBlobDataEntryAgentProvision,
   options: {
@@ -1769,7 +1810,9 @@ function setFirstRunCorrelation(
     enqueuedAt: number;
   }
 ) {
+  const correlationKey = `${context.accountId ?? context.botShip}:${runId}`;
   firstRunCorrelations.set(correlationKey, {
+    runId,
     context,
     notebookNest: request.notebookNest,
     notebookName:
