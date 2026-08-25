@@ -17,6 +17,7 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 import { ActionSheet } from '../ActionSheet';
 import { TextInput } from '../Form';
 import { A2UIMenuRow } from './A2UIMenuRow';
+import { McpConnectControl } from './McpConnectControl';
 import { useContentContext } from './contentUtils';
 
 type RenderOptions = {
@@ -691,6 +692,8 @@ function getComponentText(
       // Text extraction feeds previews and labels: the option titles are the
       // meaningful summary of a choice group.
       return component.options.map((option) => option.label).join(', ');
+    case 'McpConnect':
+      return component.seeAllLabel;
     case 'Divider':
       return '';
   }
@@ -1230,6 +1233,43 @@ export function A2UIBlock({
             </YStack>
           );
         }
+        case 'McpConnect':
+          return (
+            <YStack
+              key={component.id}
+              width="100%"
+              marginTop={CHOICE_CONTROL_OUTER_MARGIN}
+            >
+              <McpConnectControl
+                component={component}
+                completionConsumed={Boolean(
+                  component.completionAction &&
+                  getConsumedA2UISelection?.(surfaceId, component.id)
+                )}
+                completionSelection={
+                  component.completionAction
+                    ? buildActionSelection(
+                        surfaceId,
+                        component.id,
+                        component.completionAction
+                      )
+                    : undefined
+                }
+                onConfigure={
+                  isA2UIActionAvailable?.(component.configureAction) === false
+                    ? undefined
+                    : onA2UIAction
+                }
+                onComplete={
+                  component.completionAction &&
+                  isA2UIActionAvailable?.(component.completionAction) !== false
+                    ? onA2UIAction
+                    : undefined
+                }
+                onNavigate={onA2UIAction}
+              />
+            </YStack>
+          );
       }
     },
     [
