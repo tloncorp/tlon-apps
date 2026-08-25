@@ -4,7 +4,7 @@ import { queryClient } from '@tloncorp/shared';
 import type { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type { A2UI } from '@tloncorp/shared/logic';
-import { appendToPostBlob } from '@tloncorp/shared/logic';
+import { TLON_A2UI_CATALOG_ID, appendToPostBlob } from '@tloncorp/shared/logic';
 import { useLureState } from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
 import React, { PropsWithChildren, useEffect, useMemo, useState } from 'react';
@@ -164,7 +164,7 @@ function makeA2UI(
         version: 'v0.9',
         createSurface: {
           surfaceId,
-          catalogId: 'tlon.a2ui.basic.v2',
+          catalogId: TLON_A2UI_CATALOG_ID,
         },
       },
       {
@@ -584,6 +584,7 @@ function McpServicesPreview() {
           </Text>
           <McpConnectMenu
             component={servicesComponent}
+            surfaceId="agent-services"
             onConfigure={() => {}}
             onComplete={() => {}}
             onNavigate={() => {}}
