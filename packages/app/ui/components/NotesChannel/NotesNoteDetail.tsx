@@ -513,6 +513,12 @@ export function NotesNoteDetail({
       return;
     }
     trackEvent(AnalyticsEvent.NoteOpened);
+  }, [selectedNoteRowId]);
+
+  useEffect(() => {
+    if (selectedNoteRowId === null) {
+      return;
+    }
     // Activation for agent onboarding. The plugin reports that it posted the
     // first entry; only the client knows whether the owner opened one. Counted
     // once per group and persisted, so it survives a restart and doesn't
