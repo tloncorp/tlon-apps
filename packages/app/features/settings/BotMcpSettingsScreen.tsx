@@ -11,6 +11,7 @@ import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
 import { BotSettingsScreenView } from '../../ui';
+import { mcpProviderQueryKeys } from '../../lib/mcpProviders';
 import {
   GENERIC_ERROR_MESSAGE,
   MCP_TELEMETRY_EVENTS,
@@ -67,6 +68,17 @@ export function BotMcpSettingsScreen(props: Props) {
         api.getTlawnOAuthProviders(),
         api.getTlawnOAuthStatus(currentUserId),
       ]);
+      // This screen owns mutations to connector grants. Publish its
+      // authoritative refresh into the shared cache so mounted chat controls
+      // reflect changes made here when the user navigates back.
+      db.queryClient.setQueryData(
+        mcpProviderQueryKeys.providers,
+        nextProviders
+      );
+      db.queryClient.setQueryData(
+        mcpProviderQueryKeys.status(currentUserId),
+        nextStatus
+      );
       if (isMounted.current) {
         setProviderConfigs(nextProviders);
         setStatus(nextStatus);
