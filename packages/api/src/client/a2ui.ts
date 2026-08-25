@@ -9,7 +9,12 @@ type ComponentBase = {
 };
 
 export namespace A2UI {
-  export type CatalogId =
+  /**
+   * Catalog IDs this client authors and knows how to render. v1 blobs may
+   * carry any catalog ID, so this list is advisory: it drives authoring and
+   * telemetry, not validation.
+   */
+  export type SupportedCatalogId =
     | 'tlon.a2ui.basic.v1'
     | 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json';
 
@@ -215,7 +220,7 @@ export namespace A2UI {
     version: 'v0.9';
     createSurface: {
       surfaceId: string;
-      catalogId: CatalogId;
+      catalogId: string;
     };
   };
 
@@ -253,6 +258,7 @@ const LIMITS = {
   maxComponentIdLength: 200,
   maxComponentNameLength: 100,
   maxSurfaceIdLength: 500,
+  maxCatalogIdLength: 2048,
   maxTextNodeLength: 1000,
   maxImageUrlLength: 2048,
   maxImageDescriptionLength: 500,
@@ -264,7 +270,7 @@ const LIMITS = {
 const CATALOG_IDS = [
   'tlon.a2ui.basic.v1',
   'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json',
-] as const satisfies readonly A2UI.CatalogId[];
+] as const satisfies readonly A2UI.SupportedCatalogId[];
 
 const COMPONENT_NAMES = [
   'Card',
@@ -453,8 +459,10 @@ function utf8ByteLength(value: string): number {
   return bytes;
 }
 
-function isSupportedCatalogId(value: unknown): value is A2UI.CatalogId {
-  return CATALOG_IDS.includes(value as A2UI.CatalogId);
+function isSupportedCatalogId(
+  value: unknown
+): value is A2UI.SupportedCatalogId {
+  return CATALOG_IDS.includes(value as A2UI.SupportedCatalogId);
 }
 
 function isSafeImageUrl(value: unknown): value is string {
@@ -767,7 +775,7 @@ function validateEnvelope(entry: unknown): ValidatedEnvelope | null {
   if (
     !isBoundedNonEmptyString(surfaceId, LIMITS.maxSurfaceIdLength) ||
     surfaceId !== updateSurfaceId ||
-    !isSupportedCatalogId(catalogId) ||
+    !isBoundedNonEmptyString(catalogId, LIMITS.maxCatalogIdLength) ||
     (root !== undefined &&
       !isBoundedNonEmptyString(root, LIMITS.maxComponentIdLength)) ||
     !Array.isArray(components) ||

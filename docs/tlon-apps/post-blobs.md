@@ -94,7 +94,7 @@ Definitions and validation helpers live in `packages/api/src/client/a2ui.ts`; th
 | `messages` | `A2UI.Message[]`   |
 | `recipe`   | `unknown` optional |
 
-The current renderer expects exactly one `createSurface` message and one `updateComponents` message in the entry. Both messages must use protocol `v0.9`, refer to the same surface, and use either the Tlon basic catalog ID (`tlon.a2ui.basic.v1`) or the official v0.9 basic catalog URL. The `updateComponents` message describes the component tree rendered for that post. It does not update surfaces in previous messages or elsewhere in message history.
+The current renderer expects exactly one `createSurface` message and one `updateComponents` message in the entry. Both messages must use protocol `v0.9` and refer to the same surface. `catalogId` accepts any bounded nonempty string for v1 — the renderer supports a fixed component subset regardless of the declared catalog — while Tlon authors with the Tlon basic catalog ID (`tlon.a2ui.basic.v1`) or the official v0.9 basic catalog URL, and reports anything else in failure telemetry. The `updateComponents` message describes the component tree rendered for that post. It does not update surfaces in previous messages or elsewhere in message history.
 
 The supported v1 client subset is intentionally small:
 

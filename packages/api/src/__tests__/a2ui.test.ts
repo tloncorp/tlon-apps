@@ -542,25 +542,33 @@ describe('a2ui blob entries', () => {
     ).toBe(false);
   });
 
-  test('rejects unsupported versions, catalogs, and components', () => {
+  test('accepts any nonempty v1 catalog id', () => {
+    const withCatalogId = (catalogId: unknown) => ({
+      ...a2uiBlobEntry,
+      messages: [
+        {
+          version: 'v0.9',
+          createSurface: { surfaceId: 'weather-card', catalogId },
+        },
+        a2uiBlobEntry.messages[1],
+      ],
+    });
+    const unknownCatalog = withCatalogId('unknown.catalog');
+
+    expect(A2UI.validateBlobEntry(unknownCatalog)).toBe(true);
+    expect(A2UI.resolveComponentGraph(unknownCatalog)?.root).toBe('root');
+    expect(A2UI.validateBlobEntry(withCatalogId(''))).toBe(false);
+    expect(A2UI.validateBlobEntry(withCatalogId('x'.repeat(2049)))).toBe(false);
+    expect(A2UI.getValidationTelemetry(unknownCatalog)).toEqual({
+      hasUnsupportedCatalog: true,
+      unsupportedComponentCount: 0,
+    });
+  });
+
+  test('rejects unsupported versions and components', () => {
     expect(A2UI.validateBlobEntry({ ...a2uiBlobEntry, version: 2 })).toBe(
       false
     );
-    expect(
-      A2UI.validateBlobEntry({
-        ...a2uiBlobEntry,
-        messages: [
-          {
-            version: 'v0.9',
-            createSurface: {
-              surfaceId: 'weather-card',
-              catalogId: 'unknown.catalog',
-            },
-          },
-          a2uiBlobEntry.messages[1],
-        ],
-      })
-    ).toBe(false);
     const unknownComponent = {
       ...a2uiBlobEntry,
       messages: [
