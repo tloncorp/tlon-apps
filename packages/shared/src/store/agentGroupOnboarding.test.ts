@@ -203,6 +203,14 @@ describe('agent group furnishing retry', () => {
     expect(start).toHaveBeenCalledTimes(2);
   });
 
+  it('separates explicit group creations while keeping remount retries stable', () => {
+    const keyFor = agentGroupOnboardingTesting.agentGroupFurnishingFlightKey;
+    expect(keyFor({}, '~zod')).toBe('new:~zod');
+    expect(keyFor({ requestId: 'first' }, '~zod')).toBe('first');
+    expect(keyFor({ requestId: 'second' }, '~zod')).toBe('second');
+    expect(keyFor({ groupId: '~zod/group' }, '~zod')).toBe('~zod/group');
+  });
+
   it('continues to the required join when the cordon entry already exists', async () => {
     const add = vi.fn().mockRejectedValue(new Error('already allowed'));
     const join = vi.fn().mockResolvedValue(undefined);

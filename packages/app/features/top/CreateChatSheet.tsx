@@ -2,6 +2,7 @@ import * as api from '@tloncorp/api';
 import * as store from '@tloncorp/shared';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { getRandomId } from '@tloncorp/shared/logic';
 import {
   cloneElement,
   forwardRef,
@@ -720,6 +721,7 @@ function useCreateChat() {
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [createChatError, setCreateChatError] = useState<string | null>(null);
   const { navigateToGroup, navigateToChannel } = useRootNavigation();
+  const agentQuickStartRef = useRef<Promise<void> | null>(null);
   const createChat = useCallback(
     async (params: CreateChatParams) => {
       setIsCreatingChat(true);
@@ -730,41 +732,50 @@ function useCreateChat() {
           });
           navigateToChannel(channel);
         } else if (params.type === 'agent') {
-          const ownerId = api.getCurrentUserId();
-          const furnishing = await store.startAgentGroupFurnishing({
-            agentShipId: AGENT_SHIP_OVERRIDE || undefined,
-          });
-          navigateToChannel(furnishing.chatChannel);
-          void furnishing.complete
-            .then((completed) => {
-              completed.tail.catch((error) => {
-                logger.trackError(
-                  'Agent group standing repair failed; scheduling retry',
-                  error
-                );
-                void retryLaterAgentGroupFurnishing({
-                  agentShipId: AGENT_SHIP_OVERRIDE || undefined,
-                  groupId: completed.group.id,
-                  ownerId,
-                });
-              });
-            })
-            .catch((error) => {
-              logger.trackError(
-                'Agent group setup failed after opening',
-                error
-              );
-              setCreateChatError(
-                error instanceof Error
-                  ? error.message
-                  : 'The Tlonbot group could not finish setup.'
-              );
-              void retryLaterAgentGroupFurnishing({
+          if (!agentQuickStartRef.current) {
+            const requestId = getRandomId();
+            agentQuickStartRef.current = (async () => {
+              const ownerId = api.getCurrentUserId();
+              const furnishing = await store.startAgentGroupFurnishing({
                 agentShipId: AGENT_SHIP_OVERRIDE || undefined,
-                groupId: furnishing.group.id,
-                ownerId,
+                requestId,
               });
+              navigateToChannel(furnishing.chatChannel);
+              void furnishing.complete
+                .then((completed) => {
+                  completed.tail.catch((error) => {
+                    logger.trackError(
+                      'Agent group standing repair failed; scheduling retry',
+                      error
+                    );
+                    void retryLaterAgentGroupFurnishing({
+                      agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+                      groupId: completed.group.id,
+                      ownerId,
+                    });
+                  });
+                })
+                .catch((error) => {
+                  logger.trackError(
+                    'Agent group setup failed after opening',
+                    error
+                  );
+                  setCreateChatError(
+                    error instanceof Error
+                      ? error.message
+                      : 'The Tlonbot group could not finish setup.'
+                  );
+                  void retryLaterAgentGroupFurnishing({
+                    agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+                    groupId: furnishing.group.id,
+                    ownerId,
+                  });
+                });
+            })().finally(() => {
+              agentQuickStartRef.current = null;
             });
+          }
+          await agentQuickStartRef.current;
         } else {
           // Check if a template was selected
           let group: db.Group;
