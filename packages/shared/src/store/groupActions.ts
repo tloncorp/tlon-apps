@@ -19,6 +19,7 @@ const logger = createDevLogger('groupActions', false);
 
 interface CreateGroupParams {
   groupId?: string;
+  defaultChannelId?: string;
   title?: string;
   image?: string;
   memberIds?: string[];
@@ -107,8 +108,8 @@ export async function createDefaultGroup(
   };
 
   // build the default channel channel
-  const channelSlug = getRandomId();
-  const channelId = `chat/${currentUserId}/${channelSlug}`;
+  const channelId =
+    params.defaultChannelId ?? `chat/${currentUserId}/${getRandomId()}`;
   const defaultChannel: db.Channel = {
     id: channelId,
     groupId,
