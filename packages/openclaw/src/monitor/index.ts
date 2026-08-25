@@ -5110,6 +5110,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 'join-all': true,
               },
             });
+            // A queued card for this flag now points at an invite that is
+            // gone (the inviter was allowlisted after it was queued).
+            const remaining = pendingApprovals.filter(
+              (a) => !(a.type === 'group' && a.groupFlag === groupFlag)
+            );
+            if (remaining.length !== pendingApprovals.length) {
+              pendingApprovals = remaining;
+              await savePendingApprovals();
+            }
           },
           queueApproval: async (input) => {
             const approval = createPendingApproval(
@@ -5239,6 +5248,24 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           runtime.error?.(`[tlon] Cron snapshot failed: ${String(error)}`),
       });
 
+      // Re-scry settings as a fallback for stale subscriptions: the settings
+      // subscription can silently die (SSE quit without reconnect), leaving
+      // both authorization state and heartbeat telemetry mirrors stale.
+      // Never rejects — callers treat a refresh failure as non-fatal.
+      const refreshSettingsNow = async (): Promise<void> => {
+        try {
+          const refreshResult = await settingsManager.load({
+            logSnapshot: false,
+          });
+          applySettingsSnapshot(refreshResult.settings, 'refresh', {
+            fresh: refreshResult.fresh,
+          });
+        } catch (err) {
+          capturePluginError('settings_refresh', err);
+          runtime.error?.(`[tlon] Settings refresh failed: ${String(err)}`);
+        }
+      };
+
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
         async () => {
@@ -5260,6 +5287,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 `[tlon] Channel refresh error: ${error?.message ?? String(error)}`
               );
             }
+            // Refresh authorization first so a dead settings subscription
+            // cannot make the catch-up auto-accept on a stale allowlist. A
+            // failed refresh still falls through: queue decisions are safe on
+            // stale state, and skipping the catch-up would re-create the
+            // silently-pending invites this loop exists to prevent.
+            await refreshSettingsNow();
             // Recovery loop for missed invites and failed owner
             // notifications; runs after the gated channel refresh above and
             // never rejects (the runner observes failures).
@@ -5269,24 +5302,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         2 * 60 * 1000
       );
 
-      // Periodically re-scry settings as a fallback for stale subscriptions.
-      // The settings subscription can silently die (SSE quit without reconnect),
-      // leaving both authorization state and heartbeat telemetry mirrors stale.
       const settingsRefreshInterval = setInterval(async () => {
         if (opts.abortSignal?.aborted) {
           return;
         }
-        try {
-          const refreshResult = await settingsManager.load({
-            logSnapshot: false,
-          });
-          applySettingsSnapshot(refreshResult.settings, 'refresh', {
-            fresh: refreshResult.fresh,
-          });
-        } catch (err) {
-          capturePluginError('settings_refresh', err);
-          runtime.error?.(`[tlon] Settings refresh failed: ${String(err)}`);
-        }
+        await refreshSettingsNow();
       }, SETTINGS_REFRESH_INTERVAL_MS);
 
       // Plugin-owned re-engagement nudge scheduler. Owns tick lifecycle and

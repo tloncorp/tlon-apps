@@ -1840,8 +1840,10 @@ class TlonAdapter(BasePlatformAdapter):
             if approval_kind == "group":
                 # Delivered => never re-DM while the record lives; undelivered
                 # (including legacy lastNotifiedAt-only records) re-notifies
-                # under the cooldown until a send lands.
-                if existing.get("notificationDeliveredAt") is not None:
+                # under the cooldown until a send lands. Persisted JSON can
+                # carry a junk marker, so only a real stamp suppresses.
+                delivered = existing.get("notificationDeliveredAt")
+                if isinstance(delivered, (int, float)):
                     return
                 try:
                     last_notified = float(existing.get("lastNotifiedAt"))
@@ -1853,7 +1855,7 @@ class TlonAdapter(BasePlatformAdapter):
                 updated["lastNotifiedAt"] = int(now_ms)
                 if await self._notify_owner_approval(updated):
                     updated["notificationDeliveredAt"] = int(now_ms)
-                self._telemetry.approval_event("renotified", approval_kind)
+                    self._telemetry.approval_event("renotified", approval_kind)
                 self._pending_approvals = [
                     updated if approval_id(item) == approval_id(existing) else item
                     for item in self._pending_approvals
@@ -2022,6 +2024,18 @@ class TlonAdapter(BasePlatformAdapter):
             for item in self._pending_approvals
             if approval_ship(item) != ship
             or (types is not None and approval_type(item) not in types)
+        ]
+        removed = len(self._pending_approvals) - len(remaining)
+        if removed:
+            self._pending_approvals = remaining
+            await self._persist_pending_approvals()
+        return removed
+
+    async def _drop_pending_group_approval(self, flag: str) -> int:
+        remaining = [
+            item
+            for item in self._pending_approvals
+            if approval_type(item) != "group" or approval_group_flag(item) != flag
         ]
         removed = len(self._pending_approvals) - len(remaining)
         if removed:
@@ -3872,6 +3886,9 @@ class TlonAdapter(BasePlatformAdapter):
             if await self._accept_group_invite(flag):
                 # Mark processed only on success; a failed accept retries.
                 self._processed_group_invites.add(flag)
+                # A card queued before the inviter was allowlisted now points
+                # at an invite that is gone.
+                await self._drop_pending_group_approval(flag)
                 logger.info("[tlon] auto-accepted group invite %s from %s", flag, inviter)
             return
         if not self.tlon_config.owner_ship:

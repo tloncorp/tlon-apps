@@ -1119,6 +1119,30 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(adapter._pending_approvals, [])
         self.assertIn(("groups", "accept-invite", "~host/projects"), adapter._cli.commands)
 
+    def test_later_allowlisting_accepts_and_clears_the_queued_approval(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/groups-ui/v7/init"] = self.init_with_channels(
+            "~host/projects", []
+        )
+
+        # Unknown inviter: queues a card, no join.
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertNotIn(
+            ("groups", "accept-invite", "~host/projects"), adapter._cli.commands
+        )
+
+        # Owner allowlists the inviter; the next observation auto-joins, and the
+        # queued card must go with it rather than linger for 48h on a dead invite.
+        adapter._settings_group_invite_allowlist = {"~ten"}
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+
+        self.assertIn(
+            ("groups", "accept-invite", "~host/projects"), adapter._cli.commands
+        )
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertEqual(adapter._sse.settings_writes("pendingApprovals")[-1], [])
+
     def test_group_invite_deduped_by_flag_and_never_renotified_once_delivered(self):
         adapter = self.make_adapter()
         clock = FakeClock()
@@ -1331,6 +1355,61 @@ class AdapterApprovalTests(unittest.TestCase):
         with patch.object(adapter_mod.time, "time", clock.time):
             asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
         self.assertEqual(len(adapter._cli.notifications()), 1)
+
+    def test_junk_delivery_marker_is_treated_as_undelivered(self):
+        adapter = self.make_adapter()
+        clock = FakeClock()
+        # A marker that did not survive persistence as a number must not
+        # suppress the retry for the record's whole 48h life.
+        adapter._pending_approvals = [
+            {
+                "id": "g1234",
+                "type": "group",
+                "requestingShip": "~ten",
+                "groupFlag": "~host/projects",
+                "timestamp": clock.now_ms(),
+                "lastNotifiedAt": clock.now_ms(),
+                "notificationDeliveredAt": "yes",
+            }
+        ]
+
+        clock.advance_ms(adapter_mod.RENOTIFY_COOLDOWN_MS)
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+
+        self.assertEqual(len(adapter._cli.notifications()), 1)
+        self.assertEqual(
+            adapter._pending_approvals[0]["notificationDeliveredAt"], clock.now_ms()
+        )
+
+    def test_renotified_is_counted_only_when_the_retry_lands(self):
+        adapter, fake = self.make_instrumented_adapter()
+        adapter._cli = FailingCLI(("posts", "send"), failures=2)
+        clock = FakeClock()
+
+        def actions():
+            return [
+                props["action"]
+                for name, props in fake.captures
+                if name == "TlonBot Approval Event"
+            ]
+
+        # First send fails: queued, undelivered.
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertEqual(actions(), ["queued"])
+
+        # Past the cooldown, the retry fails too — nothing was re-notified.
+        clock.advance_ms(adapter_mod.RENOTIFY_COOLDOWN_MS)
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertEqual(actions(), ["queued"])
+
+        # The next retry lands and is counted once.
+        clock.advance_ms(adapter_mod.RENOTIFY_COOLDOWN_MS)
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertEqual(actions(), ["queued", "renotified"])
 
     def test_ttl_expired_record_requeued_as_fresh_reminder(self):
         adapter = self.make_adapter()

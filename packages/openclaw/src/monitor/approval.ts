@@ -342,6 +342,25 @@ export async function applyApprovalRequest(
   );
 }
 
+/**
+ * Persisted JSON can carry a null/empty/non-string marker; only a real
+ * message ID proves the owner DM landed.
+ */
+function isNotificationDelivered(approval: PendingApproval): boolean {
+  return (
+    typeof approval.notificationMessageId === 'string' &&
+    approval.notificationMessageId.length > 0
+  );
+}
+
+/** A bogus persisted stamp reads as 0 so the retry is allowed, not blocked. */
+function lastNotifyAttempt(approval: PendingApproval): number {
+  return typeof approval.notifyAttemptAt === 'number' &&
+    Number.isFinite(approval.notifyAttemptAt)
+    ? approval.notifyAttemptAt
+    : 0;
+}
+
 async function applyGroupApprovalRequest(
   approval: PendingApproval,
   ctx: ApprovalQueueContext
@@ -354,10 +373,10 @@ async function applyGroupApprovalRequest(
   if (existing) {
     // Delivered ⇒ never re-DM while the record lives; the TTL prune plus the
     // next observation provide the eventual fresh reminder.
-    if (existing.notificationMessageId !== undefined) {
+    if (isNotificationDelivered(existing)) {
       return;
     }
-    if (ctx.now() - (existing.notifyAttemptAt ?? 0) < RENOTIFY_COOLDOWN_MS) {
+    if (ctx.now() - lastNotifyAttempt(existing) < RENOTIFY_COOLDOWN_MS) {
       return;
     }
     existing.notifyAttemptAt = ctx.now();

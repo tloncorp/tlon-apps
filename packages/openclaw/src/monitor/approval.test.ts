@@ -1104,6 +1104,43 @@ describe('applyApprovalRequest', () => {
     expect(h.getPending()[0].id).toBe(fresh.id);
   });
 
+  it('treats a junk persisted delivery marker as undelivered and retries', async () => {
+    const h = makeQueueHarness();
+    // Persisted JSON can round-trip a null/empty/non-string marker; suppressing
+    // on it would silence the retry for the full 48h TTL.
+    for (const bogus of [null, '', 12345]) {
+      h.notify.mockClear();
+      h.setPending([
+        h.groupApproval({
+          notifyAttemptAt: h.now() - RENOTIFY_COOLDOWN_MS - 1,
+          notificationMessageId: bogus as unknown as string,
+        }),
+      ]);
+
+      await applyApprovalRequest(h.groupApproval(), h.ctx);
+
+      expect(h.notify).toHaveBeenCalledTimes(1);
+      expect(h.getPending()[0].notificationMessageId).toBe('170141184507');
+    }
+  });
+
+  it('treats a junk persisted attempt stamp as no attempt and retries now', async () => {
+    const h = makeQueueHarness();
+    // Values that arithmetic would read as "attempted in the future" and so
+    // suppress the retry indefinitely.
+    for (const bogus of [Infinity, '9999999999999']) {
+      h.notify.mockClear();
+      h.setPending([
+        h.groupApproval({ notifyAttemptAt: bogus as unknown as number }),
+      ]);
+
+      await applyApprovalRequest(h.groupApproval(), h.ctx);
+
+      expect(h.notify).toHaveBeenCalledTimes(1);
+      expect(h.getPending()[0].notifyAttemptAt).toBe(h.now());
+    }
+  });
+
   it('silently ignores requests from blocked ships', async () => {
     const h = makeQueueHarness({ blocked: true });
 
