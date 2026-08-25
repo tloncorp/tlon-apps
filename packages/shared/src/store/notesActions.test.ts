@@ -209,6 +209,7 @@ test('createNotebookNote uses a fresh baseline before finding the created note',
   vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
   vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
     created = true;
+    return null;
   });
 
   const note = await createNotebookNote({
@@ -237,7 +238,7 @@ test('createNotebookNote does not return an existing note when create sync times
     makeApiNotesNote(existingNote),
   ]);
   vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
-  vi.spyOn(api.notes, 'createNote').mockResolvedValue(undefined);
+  vi.spyOn(api.notes, 'createNote').mockResolvedValue(null);
 
   const note = await createNotebookNote({
     notebookFlag,
@@ -274,6 +275,7 @@ test('createNotebookNote hydrates created note details when list notes omit them
     .mockResolvedValue(makeApiNotesNote(createdNote));
   vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
     created = true;
+    return null;
   });
 
   const note = await createNotebookNote({
@@ -367,6 +369,7 @@ test('saveNotebookNote persists host stamps from write-response payloads', async
     id: note.noteId,
     title: 'Renamed by host payload',
     bodyMd: 'updated body',
+    folderId: rootFolder.folderId + 7,
     revision: note.revision + 1,
     updatedAt: hostStamp + 1,
     updatedBy: '~zod',
@@ -1026,6 +1029,7 @@ test('rename-only save adopts a raced remote body from the payload', async () =>
     id: note.noteId,
     title: 'Renamed locally',
     bodyMd: remoteBody,
+    folderId: note.folderId,
     revision: note.revision + 1,
     updatedAt: (note.updatedAt ?? 0) + 100,
     updatedBy: '~zod',
