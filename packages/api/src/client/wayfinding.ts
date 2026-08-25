@@ -121,9 +121,14 @@ export function botHomeGroupHasDefaultTitle(group?: db.Group | null) {
     return false;
   }
 
+  const normalizedTitle = group.title?.trim().toLowerCase();
+  const hostDefaultTitle = `${group.hostUserId.toLowerCase()}'s group`;
   return (
-    group.title?.toLowerCase().includes('group') ||
-    group.title?.toLowerCase().includes('home')
+    normalizedTitle === 'group' ||
+    normalizedTitle === 'home' ||
+    normalizedTitle === 'home group' ||
+    normalizedTitle === 'my agent group' ||
+    normalizedTitle === hostDefaultTitle
   );
 }
 

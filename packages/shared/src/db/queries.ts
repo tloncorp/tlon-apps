@@ -6,6 +6,8 @@ import {
 import { parseGroupId } from '@tloncorp/api';
 import {
   type PostBlobDataEntryA2UISelection,
+  type PostBlobDataEntryAgentProviderConfig,
+  type PostBlobDataEntryAgentProvision,
   parsePostBlob,
 } from '@tloncorp/api';
 import {
@@ -4505,6 +4507,82 @@ export const getA2UISelections = createReadQuery(
           )
         : []
     );
+  },
+  ['posts']
+);
+
+type AgentProtocolReceipt<T> = {
+  entry: T;
+  postId: string;
+  receivedAt: number;
+  sequenceNum: number | null;
+};
+
+export type AgentA2UIProtocolReceipts = {
+  provision?: AgentProtocolReceipt<PostBlobDataEntryAgentProvision>;
+  providerConfig?: AgentProtocolReceipt<PostBlobDataEntryAgentProviderConfig>;
+};
+
+/**
+ * Latest owner-authored agent protocol receipts across the whole channel.
+ *
+ * These actions can sit beyond the currently rendered post page. Returning
+ * their post position lets a surface count only receipts that followed it.
+ */
+export const getAgentA2UIProtocolReceipts = createReadQuery(
+  'getAgentA2UIProtocolReceipts',
+  async (
+    params: { channelId: string; authorId: string },
+    ctx: QueryCtx
+  ): Promise<AgentA2UIProtocolReceipts> => {
+    const rows = await ctx.db
+      .select({
+        id: $posts.id,
+        receivedAt: $posts.receivedAt,
+        sequenceNum: $posts.sequenceNum,
+        blob: $posts.blob,
+      })
+      .from($posts)
+      .where(
+        and(
+          eq($posts.channelId, params.channelId),
+          eq($posts.authorId, params.authorId),
+          isNotNull($posts.blob),
+          or(
+            like($posts.blob, '%tlon-agent-provision%'),
+            like($posts.blob, '%tlon-agent-provider-config%')
+          ),
+          or(isNull($posts.isDeleted), eq($posts.isDeleted, false)),
+          or(
+            isNull($posts.deliveryStatus),
+            not(eq($posts.deliveryStatus, 'failed'))
+          )
+        )
+      )
+      .orderBy(asc($posts.receivedAt), asc($posts.id));
+
+    const receipts: AgentA2UIProtocolReceipts = {};
+    for (const row of rows) {
+      if (!row.blob) continue;
+      for (const entry of parsePostBlob(row.blob)) {
+        if (entry.type === 'tlon-agent-provision') {
+          receipts.provision = {
+            entry,
+            postId: row.id,
+            receivedAt: row.receivedAt,
+            sequenceNum: row.sequenceNum,
+          };
+        } else if (entry.type === 'tlon-agent-provider-config') {
+          receipts.providerConfig = {
+            entry,
+            postId: row.id,
+            receivedAt: row.receivedAt,
+            sequenceNum: row.sequenceNum,
+          };
+        }
+      }
+    }
+    return receipts;
   },
   ['posts']
 );

@@ -680,6 +680,112 @@ test('getA2UISelections: only the author’s live selection entries count', asyn
   ]);
 });
 
+test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', async () => {
+  const channelId = '~zod/dm';
+  const blob = (entry: Record<string, unknown>) => JSON.stringify([entry]);
+  await queries.insertChannels([{ id: channelId, type: 'dm' }]);
+  const base = {
+    type: 'chat' as const,
+    channelId,
+    authorId: '~zod',
+    sentAt: refDate,
+    syncedAt: 0,
+  };
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        ...base,
+        id: 'provision-old',
+        receivedAt: refDate + 1,
+        blob: blob({
+          type: 'tlon-agent-provision',
+          version: 1,
+          provisionId: 'provision-old',
+          groupId: '~zod/group',
+          purposeId: 'digest',
+          purpose: 'Daily digest',
+          topics: ['Weather'],
+          timezone: 'UTC',
+          scheduleHour: 8,
+          scheduleMinute: 0,
+          notebookNest: '~zod/notebook',
+        }),
+      },
+      {
+        ...base,
+        id: 'provider-live',
+        receivedAt: refDate + 2,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-new',
+          groupId: '~zod/group',
+          providerIds: ['gmail'],
+        }),
+      },
+      {
+        ...base,
+        id: 'provision-new',
+        receivedAt: refDate + 3,
+        blob: blob({
+          type: 'tlon-agent-provision',
+          version: 1,
+          provisionId: 'provision-new',
+          groupId: '~zod/group',
+          purposeId: 'research',
+          purpose: 'Research',
+          topics: ['Robotics'],
+          timezone: 'UTC',
+          scheduleHour: 9,
+          scheduleMinute: 30,
+          notebookNest: '~zod/notebook',
+        }),
+      },
+      {
+        ...base,
+        id: 'provider-deleted',
+        receivedAt: refDate + 4,
+        isDeleted: true,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-new',
+          groupId: '~zod/group',
+          providerIds: ['github'],
+        }),
+      },
+      {
+        ...base,
+        id: 'provider-other-author',
+        authorId: '~ten',
+        receivedAt: refDate + 5,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-new',
+          groupId: '~zod/group',
+          providerIds: ['notion'],
+        }),
+      },
+    ],
+  });
+
+  const receipts = await queries.getAgentA2UIProtocolReceipts({
+    channelId,
+    authorId: '~zod',
+  });
+  expect(receipts.provision).toMatchObject({
+    postId: 'provision-new',
+    receivedAt: refDate + 3,
+    entry: { topics: ['Robotics'] },
+  });
+  expect(receipts.providerConfig).toMatchObject({
+    postId: 'provider-live',
+    receivedAt: refDate + 2,
+    entry: { providerIds: ['gmail'] },
+  });
+});
+
 test('getMentionCandidates: returns candidates in priority order', async () => {
   // Setup
   setScryOutputs([initResponse]);

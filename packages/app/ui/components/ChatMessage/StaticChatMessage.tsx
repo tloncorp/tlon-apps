@@ -43,6 +43,23 @@ import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 
+function receiptFollowsPost(
+  receipt:
+    | { postId: string; receivedAt: number; sequenceNum: number | null }
+    | undefined,
+  post: db.Post
+) {
+  if (!receipt || receipt.postId === post.id) return false;
+  if (
+    receipt.sequenceNum != null &&
+    post.sequenceNum != null &&
+    receipt.sequenceNum !== post.sequenceNum
+  ) {
+    return receipt.sequenceNum > post.sequenceNum;
+  }
+  return receipt.receivedAt >= post.receivedAt;
+}
+
 /**
  * Renders a chat message with minimal interactivity (no pressable, no overflow
  * menu). For a fully interactive chat message view, see
@@ -353,22 +370,6 @@ export function StaticChatMessage({
     [canUseAgentProviderControls, draftInputContext, group, post.groupId]
   );
 
-  const isA2UIActionConsumed = useCallback(
-    (action: A2UI.Button['action']) => {
-      if (action.event.name === A2UI.action.sendMessage) {
-        return isA2UISendMessageActionConsumed(
-          action,
-          a2uiActionCompletion?.sentMessageText
-        );
-      }
-      if (action.event.name === A2UI.action.provisionAgent) {
-        return a2uiActionCompletion?.provisionAgent === true;
-      }
-      return false;
-    },
-    [a2uiActionCompletion]
-  );
-
   const groupAgents = db.agentGroupAgents.useValue();
   const onboardingLocks = db.agentGroupOnboardingLocks.useValue();
   // A newly delivered post can arrive one render before its denormalized
@@ -453,6 +454,39 @@ export function StaticChatMessage({
     authorId: currentUserId,
     enabled: canRenderA2UI && hasA2UIContent,
   });
+  const agentProtocolReceipts = store.useAgentA2UIProtocolReceipts({
+    channelId: post.channelId,
+    authorId: currentUserId,
+    enabled: canRenderA2UI && hasA2UIContent,
+  });
+  const provisionReceipt = agentProtocolReceipts.data?.provision;
+  const providerConfigReceipt = agentProtocolReceipts.data?.providerConfig;
+  const durableProvision = receiptFollowsPost(provisionReceipt, post)
+    ? provisionReceipt?.entry
+    : undefined;
+  const durableProviderConfig = receiptFollowsPost(providerConfigReceipt, post)
+    ? providerConfigReceipt?.entry
+    : undefined;
+  const provisionedAgentTopics =
+    a2uiActionCompletion?.provisionedTopics ?? durableProvision?.topics;
+  const configuredAgentProviderIds =
+    a2uiActionCompletion?.configuredProviderIds ??
+    durableProviderConfig?.providerIds;
+  const isA2UIActionConsumed = useCallback(
+    (action: A2UI.Button['action']) => {
+      if (action.event.name === A2UI.action.sendMessage) {
+        return isA2UISendMessageActionConsumed(
+          action,
+          a2uiActionCompletion?.sentMessageText
+        );
+      }
+      if (action.event.name === A2UI.action.provisionAgent) {
+        return Boolean(provisionedAgentTopics);
+      }
+      return false;
+    },
+    [a2uiActionCompletion?.sentMessageText, provisionedAgentTopics]
+  );
   const getConsumedA2UISelection = useCallback(
     (surfaceId: string, componentId: string) =>
       a2uiSelections.data?.find(
@@ -586,10 +620,8 @@ export function StaticChatMessage({
             isA2UIActionConsumed={
               canRenderA2UI ? isA2UIActionConsumed : undefined
             }
-            configuredAgentProviderIds={
-              a2uiActionCompletion?.configuredProviderIds
-            }
-            provisionedAgentTopics={a2uiActionCompletion?.provisionedTopics}
+            configuredAgentProviderIds={configuredAgentProviderIds}
+            provisionedAgentTopics={provisionedAgentTopics}
             consumedA2UIMessageText={a2uiActionCompletion?.sentMessageText}
             searchQuery={searchQuery}
           />

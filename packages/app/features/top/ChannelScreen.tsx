@@ -18,7 +18,9 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react';
+import { BackHandler } from 'react-native';
 
+import { useAgentGroupOnboardingLock } from '../../hooks/useAgentGroupOnboardingLock';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
@@ -90,6 +92,7 @@ export default function ChannelScreen(props: Props) {
   });
 
   const groupId = channel?.groupId ?? group?.id;
+  const agentOnboarding = useAgentGroupOnboardingLock(groupId);
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
@@ -227,6 +230,23 @@ export default function ChannelScreen(props: Props) {
   const navigationRef = useRef(props.navigation);
   const isWindowNarrow = useIsWindowNarrow();
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
+
+  useEffect(() => {
+    navigationRef.current.setOptions({
+      gestureEnabled: !agentOnboarding.locked,
+    });
+  }, [agentOnboarding.locked]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!agentOnboarding.locked) return;
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => true
+      );
+      return () => subscription.remove();
+    }, [agentOnboarding.locked])
+  );
 
   const { performGroupAction } = useGroupActions();
 
@@ -560,6 +580,7 @@ export default function ChannelScreen(props: Props) {
             clearedCursor || cursorPostIsHidden ? undefined : selectedPostId
           }
           goBack={navigationRef.current.goBack}
+          disableBackButton={agentOnboarding.locked}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
