@@ -17,6 +17,7 @@ const LIMITS = {
   maxChildren: 12,
   maxChoiceOptions: 6,
   maxSmallChoiceOptions: 12,
+  maxIdLength: 512,
   /** pills hold a word or two; a paragraph in one would break the layout */
   maxPillLabelLength: 64,
   maxTextNodeLength: 1000,
@@ -70,7 +71,7 @@ const uniqueBy = <T>(values: T[], select: (value: T) => unknown) =>
 
 const targetIdSchema = nonEmptyString(LIMITS.maxNavigationTargetIdLength);
 const componentBaseShape = {
-  id: nonEmptyString(),
+  id: nonEmptyString(LIMITS.maxIdLength),
   weight: z.number().min(0).max(12).optional(),
 };
 
@@ -281,14 +282,14 @@ const componentSchema = z
 const createSurfaceMessageSchema = z.object({
   version: z.literal('v0.9'),
   createSurface: z.object({
-    surfaceId: nonEmptyString(),
+    surfaceId: nonEmptyString(LIMITS.maxIdLength),
     catalogId: nonEmptyString(),
   }),
 });
 const updateComponentsMessageSchema = z.object({
   version: z.literal('v0.9'),
   updateComponents: z.object({
-    surfaceId: nonEmptyString(),
+    surfaceId: nonEmptyString(LIMITS.maxIdLength),
     components: z.array(componentSchema).min(1).max(LIMITS.maxComponents),
     root: z.string().optional(),
   }),
@@ -568,6 +569,17 @@ export function getUpdateMessage(
   );
 }
 
+export function getCreateMessage(
+  entry: A2UI.BlobEntry
+): A2UI.CreateSurfaceMessage | null {
+  return (
+    entry.messages.find(
+      (message): message is A2UI.CreateSurfaceMessage =>
+        isPlainObject(message) && 'createSurface' in message
+    ) ?? null
+  );
+}
+
 export function getRootComponentId(entry: A2UI.BlobEntry): string | null {
   const update = getUpdateMessage(entry);
   if (!update) {
@@ -669,6 +681,7 @@ export const A2UI = {
     provisionAgent: ACTION_PROVISION_AGENT,
     configureAgentProviders: ACTION_CONFIGURE_AGENT_PROVIDERS,
   },
+  getCreateMessage,
   getUpdateMessage,
   getRootComponentId,
   validateBlobEntry,

@@ -51,6 +51,60 @@ describe('a2ui blob entries', () => {
     expect(A2UI.validateBlobEntry(a2uiBlobEntry)).toBe(true);
   });
 
+  test('finds the create message past unrelated primitive messages', () => {
+    const entry = {
+      ...a2uiBlobEntry,
+      messages: [null, ...a2uiBlobEntry.messages],
+    } as unknown as A2UI.BlobEntry;
+
+    expect(A2UI.validateBlobEntry(entry)).toBe(true);
+    expect(A2UI.getCreateMessage(entry)?.createSurface.surfaceId).toBe(
+      'weather-card'
+    );
+  });
+
+  test('bounds surface and component ids used by durable selections', () => {
+    const overlong = 'x'.repeat(513);
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          {
+            version: 'v0.9',
+            createSurface: {
+              surfaceId: overlong,
+              catalogId: 'tlon.a2ui.basic.v1',
+            },
+          },
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: overlong,
+              root: 'root',
+              components: [{ id: 'root', component: 'Text', text: 'Topics' }],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: overlong,
+              components: [{ id: overlong, component: 'Text', text: 'Topics' }],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+  });
+
   test('parsePostBlob parses supported a2ui entries', () => {
     const blob = appendToPostBlob(undefined, a2uiBlobEntry);
 

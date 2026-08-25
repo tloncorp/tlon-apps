@@ -643,10 +643,8 @@ export function A2UIBlock({
   const update = A2UI.getUpdateMessage(block.a2ui);
   const root = A2UI.getRootComponentId(block.a2ui);
   const surfaceId =
-    block.a2ui.messages.find(
-      (message): message is A2UI.CreateSurfaceMessage =>
-        'createSurface' in message
-    )?.createSurface.surfaceId ?? 'unknown-surface';
+    A2UI.getCreateMessage(block.a2ui)?.createSurface.surfaceId ??
+    'unknown-surface';
   const components = useMemo(() => {
     return new Map(
       update?.updateComponents.components.map((component) => [
