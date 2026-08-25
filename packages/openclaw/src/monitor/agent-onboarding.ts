@@ -144,6 +144,7 @@ const FIRST_ENTRY_NOTE_LOOKUP_ATTEMPTS = 21;
 const FIRST_ENTRY_NOTE_LOOKUP_DELAY_MS = 1_000;
 const FIRST_RUN_COMPLETION_RETRY_BASE_MS = 1_000;
 const FIRST_RUN_COMPLETION_RETRY_MAX_MS = 30_000;
+const RUN_OUTCOME_WRITE_RETRY_DELAYS_MS = [100, 250, 500, 1_000] as const;
 const FIRST_ENTRY_FAILED_MARKER = 'first-entry-failed';
 const ADMIN_MEMBERSHIP_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000] as const;
 const COMPOSE_MS_PER_CHARACTER = 14;
@@ -723,7 +724,7 @@ async function advanceOrientationConversation(
     );
     if (!completedServices) return false;
 
-    await postOnce(
+    const posted = await postOnce(
       context,
       history,
       AGENT_GROUP_SETUP_COMPLETE_MARKER,
@@ -1073,8 +1074,9 @@ async function configureProviders(
   config: PostBlobDataEntryAgentProviderConfig,
   deps: AgentOnboardingDeps
 ) {
-  const newestDurableProvision =
-    await lookupNewestAgentOnboardingRunForGroup(config.groupId);
+  const newestDurableProvision = await lookupNewestAgentOnboardingRunForGroup(
+    config.groupId
+  );
   if (
     newestDurableProvision &&
     newestDurableProvision.provisionId !== config.provisionId
@@ -1158,12 +1160,24 @@ export async function handleAgentOnboardingCronChanged(
   const activeCompletion = exactMatch
     ? firstRunCompletionFlights.get(exactMatch[0])
     : undefined;
-  await recordAgentOnboardingRunOutcome(event.runId, {
-    status: event.status === 'ok' ? 'ok' : 'error',
-    delivered: event.delivered === true,
-    error: event.error,
-    observedAt: Date.now(),
-  });
+  try {
+    await retryAgentOnboardingOutcomeWrite(
+      () =>
+        recordAgentOnboardingRunOutcome(event.runId!, {
+          status: event.status === 'ok' ? 'ok' : 'error',
+          delivered: event.delivered === true,
+          error: event.error,
+          observedAt: Date.now(),
+        }),
+      deps.sleep
+    );
+  } catch (error) {
+    // A live correlation can still finish through the existing completion
+    // retry path, whose terminal write will settle once the store recovers.
+    // Without a correlation there is no safe target, so keep surfacing the
+    // failed durable write to the hook wrapper.
+    if (!exactMatch) throw error;
+  }
   if (!exactMatch) return;
   if (activeCompletion) {
     await activeCompletion;
@@ -1182,6 +1196,24 @@ export async function handleAgentOnboardingCronChanged(
     event.jobId,
     true
   );
+}
+
+async function retryAgentOnboardingOutcomeWrite(
+  write: () => Promise<unknown>,
+  sleep: (ms: number) => Promise<void> = (ms) =>
+    new Promise((resolve) => setTimeout(resolve, ms))
+) {
+  let lastError: unknown;
+  for (const delay of [...RUN_OUTCOME_WRITE_RETRY_DELAYS_MS, null]) {
+    try {
+      await write();
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+    if (delay !== null) await sleep(delay);
+  }
+  throw lastError;
 }
 
 async function failFirstRun(
