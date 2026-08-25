@@ -168,6 +168,8 @@ export const tlonbotRevivalDeferredConfig =
   });
 
 export type AgentGroupOnboardingLock = {
+  /** Setup chat restored on launch while first-run navigation is locked. */
+  chatChannelId?: string;
   provision?: PostBlobDataEntryAgentProvision;
   /** The bot accepted the plan; navigation is unlocked while its first entry runs. */
   provisionAcknowledgedAt?: number;
