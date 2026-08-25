@@ -274,6 +274,44 @@ describe('notes delivery', () => {
     });
   });
 
+  it('bypasses chat chunking for a notebook payload', async () => {
+    createNote.mockResolvedValue({ id: 43, title: 'Long briefing' });
+    const body = 'x'.repeat(20_000);
+
+    await tlonRuntimeOutbound.sendPayload!({
+      cfg: {} as never,
+      to: 'notes/~ten/updates',
+      text: body,
+      payload: { text: `# Long briefing\n\n${body}` },
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+    });
+
+    expect(createNote).toHaveBeenCalledOnce();
+    expect(createNote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        flag: 'notes/~ten/updates',
+        title: 'Long briefing',
+        body,
+      })
+    );
+  });
+
+  it('retains chunking for an ordinary chat payload', async () => {
+    await tlonRuntimeOutbound.sendPayload!({
+      cfg: {} as never,
+      to: 'chat/~ten/general',
+      text: 'x'.repeat(20_001),
+      payload: { text: 'x'.repeat(20_001) },
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+    });
+
+    expect(sendChannelPost).toHaveBeenCalledTimes(3);
+  });
+
   it('records notebook delivery in the active context lens', async () => {
     const recordOutput = vi.fn();
     const recordPersistence = vi.fn();

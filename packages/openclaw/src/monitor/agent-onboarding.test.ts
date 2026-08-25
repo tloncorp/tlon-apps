@@ -310,6 +310,27 @@ describe('first-run correlation', () => {
 });
 
 describe('agent onboarding requests', () => {
+  it('stops a startup reconciliation before reading after abort', async () => {
+    const abortController = new AbortController();
+    const fetchHistory = vi.fn(async () => []);
+    abortController.abort(new Error('monitor stopped'));
+
+    await expect(
+      scanAgentOnboardingChannel(
+        {
+          abortSignal: abortController.signal,
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+        },
+        { fetchHistory }
+      )
+    ).rejects.toThrow('monitor stopped');
+    expect(fetchHistory).not.toHaveBeenCalled();
+  });
+
   it('does not fetch history for ordinary owner chat', async () => {
     const fetchHistory = vi.fn(async () => {
       throw new Error('history unavailable');

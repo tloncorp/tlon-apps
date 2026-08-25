@@ -3864,11 +3864,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     };
 
     const scanAgentOnboardingNest = async (nest: string) => {
+      if (opts.abortSignal?.aborted) return;
       if (!nest.startsWith('chat/')) return;
       let groupId = channelToGroup.get(nest);
       if (!groupId) {
         try {
           await mergeDiscoveredChannels();
+          if (opts.abortSignal?.aborted) return;
           groupId = channelToGroup.get(nest);
         } catch (error) {
           runtime.error?.(
@@ -3885,6 +3887,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       try {
         await scanAgentOnboardingChannel({
           api,
+          abortSignal: opts.abortSignal,
           botShip: botShipName,
           botProfile: getBotProfile(),
           channelNest: nest,
@@ -3893,8 +3896,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           log: (message) => runtime.log?.(message),
           trackStep: trackOnboardingStep(nest, groupId),
         });
+        if (opts.abortSignal?.aborted) return;
         clearAgentOnboardingRetry(nest);
       } catch (error) {
+        if (opts.abortSignal?.aborted) return;
         runtime.error?.(
           `[tlon] Failed to reconcile onboarding in ${nest}: ${error instanceof Error ? error.message : String(error)}`
         );
@@ -3910,7 +3915,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const onboardingDiscoveryFlights = new Set<Promise<void>>();
     let drainingOnboardingDiscovery = false;
     const scanDiscoveredAgentOnboardingNest = async (nest: string) => {
-      if (drainingOnboardingDiscovery) return;
+      if (drainingOnboardingDiscovery || opts.abortSignal?.aborted) return;
       const flight = scanAgentOnboardingNest(nest);
       onboardingDiscoveryFlights.add(flight);
       try {
@@ -4713,9 +4718,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         path: '/v4',
         event: (data) => {
           if (drainingChannelFirehose) return;
-          const flight = handleChannelsFirehose(
-            data as ChannelFirehoseEvent
-          );
+          const flight = handleChannelsFirehose(data as ChannelFirehoseEvent);
           channelFirehoseFlights.add(flight);
           void flight.then(
             () => channelFirehoseFlights.delete(flight),
@@ -5047,6 +5050,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             if (!watchedChannels.has(ch)) {
               watchedChannels.add(ch);
               runtime.log?.(`[tlon] Settings: now watching channel ${ch}`);
+              void scanDiscoveredAgentOnboardingNest(ch);
             }
           }
           // Note: we don't remove channels from watchedChannels to avoid missing messages
@@ -5602,7 +5606,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const startupOnboardingNests = [...watchedChannels];
       let nextOnboardingNest = 0;
       const scanNextOnboardingNest = async () => {
-        while (nextOnboardingNest < startupOnboardingNests.length) {
+        while (
+          !opts.abortSignal?.aborted &&
+          nextOnboardingNest < startupOnboardingNests.length
+        ) {
           const nest = startupOnboardingNests[nextOnboardingNest++];
           await scanAgentOnboardingNest(nest);
         }
