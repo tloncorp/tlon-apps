@@ -40,7 +40,10 @@ export type CreateApprovalParams = {
 };
 
 export function formatApprovalRequestNotification(
-  approval: Pick<PendingApproval, 'type' | 'requestingShip'>,
+  approval: Pick<
+    PendingApproval,
+    'type' | 'requestingShip' | 'groupFlag' | 'groupTitle'
+  >,
   ctx?: DisplayContext
 ): string {
   const ship = displayShipWithId(approval.requestingShip, ctx);
@@ -50,7 +53,10 @@ export function formatApprovalRequestNotification(
   if (approval.type === 'channel') {
     return `Channel mention request from ${ship}`;
   }
-  return `Group invite request from ${ship}`;
+  const groupLabel = formatGroupLabel(approval.groupTitle, approval.groupFlag);
+  return groupLabel
+    ? `Group invite request from ${ship} for ${groupLabel}`
+    : `Group invite request from ${ship}`;
 }
 
 // ============================================================================
@@ -104,13 +110,31 @@ function displayChannel(nest: string, ctx?: DisplayContext): string {
   return nest;
 }
 
+// Title and flag are bounded separately so an oversized title can neither
+// push the host flag out of a label nor blow the a2ui per-node text cap.
+const MAX_GROUP_TITLE_CHARS = 80;
+const MAX_GROUP_FLAG_CHARS = 80;
+
+/** Bounded "title (flag)" label; whichever parts exist, nothing when neither does. */
+export function formatGroupLabel(
+  title: string | undefined,
+  flag: string | undefined
+): string {
+  const boundedTitle = title ? truncate(title, MAX_GROUP_TITLE_CHARS) : '';
+  const boundedFlag = flag ? truncate(flag, MAX_GROUP_FLAG_CHARS) : '';
+  if (boundedTitle && boundedFlag && boundedTitle !== boundedFlag) {
+    return `${boundedTitle} (${boundedFlag})`;
+  }
+  return boundedTitle || boundedFlag;
+}
+
 function displayGroup(
   flag: string,
   ctx?: DisplayContext,
   titleOverride?: string
 ): string {
   const name = titleOverride || ctx?.groupNames?.get(flag);
-  return name ? `${name} (${flag})` : flag;
+  return formatGroupLabel(name, flag || undefined);
 }
 
 // ============================================================================
@@ -220,6 +244,185 @@ function truncate(text: string, maxLength: number): string {
 }
 
 // ============================================================================
+// Approval Queueing (applyApprovalRequest)
+// ============================================================================
+
+/**
+ * Minimum interval between owner-notification attempts for the same pending
+ * approval. Value shared with hermes' RENOTIFY_COOLDOWN_MS
+ * (packages/hermes-tlon-adapter/adapter.py).
+ */
+export const RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000;
+
+export type ApprovalQueueContext = {
+  /**
+   * Live accessors, read at each use: the settings subscription replaces
+   * the pending list wholesale, so no captured array.
+   */
+  getPending(): PendingApproval[];
+  setPending(next: PendingApproval[]): void;
+  isShipBlocked(ship: string): Promise<boolean>;
+  /** Send the owner DM for an approval. Success = defined message ID. */
+  notify(approval: PendingApproval): Promise<string | undefined>;
+  persist(): Promise<void>;
+  now(): number;
+  log?: (msg: string) => void;
+};
+
+/**
+ * Queue an approval request and notify the owner, idempotently.
+ *
+ * Group approvals dedup by groupFlag alone; the persisted record suppresses
+ * re-notification once delivered (notificationMessageId set) and gates
+ * retries of failed sends via notifyAttemptAt + RENOTIFY_COOLDOWN_MS.
+ * dm/channel keep their existing semantics: dedup by ship (+nest), preview
+ * update, unconditional re-notify.
+ */
+export async function applyApprovalRequest(
+  approval: PendingApproval,
+  ctx: ApprovalQueueContext
+): Promise<void> {
+  ctx.setPending(
+    ctx.getPending().filter((a) => ctx.now() - a.timestamp <= APPROVAL_TTL_MS)
+  );
+
+  // Check if ship is blocked - silently ignore
+  if (await ctx.isShipBlocked(approval.requestingShip)) {
+    ctx.log?.(
+      `[tlon] Ignoring request from blocked ship ${approval.requestingShip}`
+    );
+    return;
+  }
+
+  if (approval.type === 'group') {
+    await applyGroupApprovalRequest(approval, ctx);
+    return;
+  }
+
+  const existing = ctx
+    .getPending()
+    .find(
+      (a) =>
+        a.type === approval.type &&
+        a.requestingShip === approval.requestingShip &&
+        (approval.type !== 'channel' || a.channelNest === approval.channelNest)
+    );
+
+  if (existing) {
+    // Update existing approval with new content (preserves the original ID)
+    if (approval.originalMessage) {
+      existing.originalMessage = approval.originalMessage;
+      existing.messagePreview = approval.messagePreview;
+    }
+    ctx.log?.(
+      `[tlon] Updated existing approval for ${approval.requestingShip} (${approval.type}) - re-sending notification`
+    );
+    // Send notification first, then save once with the notification ID.
+    // Saving before notify causes a race: the settings subscription event
+    // replaces the pending list in-memory, so the notificationMessageId set
+    // on the old object reference is lost.
+    const existNotifId = await ctx.notify(existing);
+    if (existNotifId) {
+      existing.notificationMessageId = normalizeNotificationId(existNotifId);
+    }
+    await ctx.persist();
+    return;
+  }
+
+  // Send notification before saving so notificationMessageId is included
+  // in the single save. See comment above about the settings subscription race.
+  const notifId = await ctx.notify(approval);
+  if (notifId) {
+    approval.notificationMessageId = normalizeNotificationId(notifId);
+  }
+  ctx.setPending([...ctx.getPending(), approval]);
+  await ctx.persist();
+  ctx.log?.(
+    `[tlon] Queued approval request: ${approval.id} (${approval.type} from ${approval.requestingShip})`
+  );
+}
+
+async function applyGroupApprovalRequest(
+  approval: PendingApproval,
+  ctx: ApprovalQueueContext
+): Promise<void> {
+  // Dedup by groupFlag alone (hermes already dedups groups by flag).
+  const existing = ctx
+    .getPending()
+    .find((a) => a.type === 'group' && a.groupFlag === approval.groupFlag);
+
+  if (existing) {
+    // Delivered ⇒ never re-DM while the record lives; the TTL prune plus the
+    // next observation provide the eventual fresh reminder.
+    if (existing.notificationMessageId !== undefined) {
+      return;
+    }
+    if (ctx.now() - (existing.notifyAttemptAt ?? 0) < RENOTIFY_COOLDOWN_MS) {
+      return;
+    }
+    existing.notifyAttemptAt = ctx.now();
+    const notifId = await ctx.notify(existing);
+    if (notifId) {
+      existing.notificationMessageId = normalizeNotificationId(notifId);
+    }
+    await ctx.persist();
+    return;
+  }
+
+  // New group approval: push first so /pending shows it regardless of the
+  // send outcome, then re-sync after the (possibly long) notify — the
+  // settings subscription may have replaced the pending list wholesale.
+  approval.notifyAttemptAt = ctx.now();
+  ctx.setPending([...ctx.getPending(), approval]);
+  const notifId = await ctx.notify(approval);
+  if (notifId) {
+    approval.notificationMessageId = normalizeNotificationId(notifId);
+  }
+  const current = ctx.getPending();
+  if (!current.some((a) => a.id === approval.id)) {
+    ctx.setPending([...current, approval]);
+  }
+  await ctx.persist();
+  ctx.log?.(
+    `[tlon] Queued approval request: ${approval.id} (${approval.type} from ${approval.requestingShip})`
+  );
+}
+
+/**
+ * Carry in-memory delivery state across a wholesale pending-list replacement
+ * (settings echo/refresh can predate what this process already sent; adopting
+ * it verbatim would re-DM the owner and break reaction matching). Gap-filling
+ * only: an incoming record's own markers win, and records absent from
+ * `incoming` are never resurrected.
+ */
+export function mergeApprovalDeliveryState(
+  incoming: PendingApproval[],
+  current: PendingApproval[]
+): PendingApproval[] {
+  if (incoming.length === 0 || current.length === 0) {
+    return incoming;
+  }
+  const live = new Map(current.map((a) => [a.id, a]));
+  return incoming.map((approval) => {
+    const known = live.get(approval.id);
+    if (!known) {
+      return approval;
+    }
+    return {
+      ...approval,
+      ...(approval.notificationMessageId === undefined &&
+      known.notificationMessageId !== undefined
+        ? { notificationMessageId: known.notificationMessageId }
+        : {}),
+      ...(approval.notifyAttemptAt === undefined &&
+      known.notifyAttemptAt !== undefined
+        ? { notifyAttemptAt: known.notifyAttemptAt }
+        : {}),
+    };
+  });
+}
+
+// ============================================================================
 // Approval Request A2UI
 // ============================================================================
 
@@ -235,7 +438,6 @@ type ApprovalA2UIParams = {
   channelNest?: string;
   groupName?: string;
   groupFlag?: string;
-  groupTitle?: string;
   sourceTarget?: A2UI.NavigationTarget;
 };
 
@@ -252,7 +454,7 @@ function approvalTarget(params: ApprovalA2UIParams): string | undefined {
     return params.channelName;
   }
   if (params.type === 'group') {
-    return params.groupName ?? params.groupTitle;
+    return params.groupName;
   }
   return undefined;
 }
@@ -296,13 +498,16 @@ function approvalContextLines(params: ApprovalA2UIParams): string[] {
         `Channel: ${approvalChannelLabel(params)}`,
         ...(params.channelContext ? [`Group: ${params.channelContext}`] : []),
       ];
-    case 'group':
+    case 'group': {
+      const groupLabel = formatGroupLabel(
+        approvalTarget(params),
+        params.groupFlag
+      );
       return [
         `Inviter: ${approvalRequesterLabel(params)}`,
-        ...(approvalTarget(params) || params.groupFlag
-          ? [`Group: ${approvalTarget(params) ?? params.groupFlag}`]
-          : []),
+        ...(groupLabel ? [`Group: ${groupLabel}`] : []),
       ];
+    }
   }
   return assertNever(params.type);
 }
@@ -574,7 +779,6 @@ export function buildApprovalA2UIBlob(
     channelName: displayChannelForApproval(approval.channelNest, ctx),
     channelContext: displayChannelContextForApproval(approval.channelNest, ctx),
     groupFlag: approval.groupFlag,
-    groupTitle: approval.groupTitle,
     groupName: displayGroupForApproval(
       approval.groupFlag,
       approval.groupTitle,
@@ -813,31 +1017,6 @@ export function findPendingApproval(
   }
   // Return most recent
   return active[active.length - 1];
-}
-
-/**
- * Check if there's already a pending approval for the same ship/channel/group combo.
- * Used to avoid sending duplicate notifications.
- */
-export function hasDuplicatePending(
-  pendingApprovals: PendingApproval[],
-  type: ApprovalType,
-  requestingShip: string,
-  channelNest?: string,
-  groupFlag?: string
-): boolean {
-  return pendingApprovals.some((approval) => {
-    if (approval.type !== type || approval.requestingShip !== requestingShip) {
-      return false;
-    }
-    if (type === 'channel' && approval.channelNest !== channelNest) {
-      return false;
-    }
-    if (type === 'group' && approval.groupFlag !== groupFlag) {
-      return false;
-    }
-    return true;
-  });
 }
 
 /**

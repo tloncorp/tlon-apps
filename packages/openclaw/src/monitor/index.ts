@@ -116,6 +116,7 @@ import {
 import {
   type DisplayContext,
   type PendingApproval,
+  applyApprovalRequest,
   buildApprovalA2UIBlob,
   buildPendingApprovalsResponse,
   createPendingApproval,
@@ -125,6 +126,7 @@ import {
   formatApprovalRequestNotification,
   formatBlockedList,
   isExpired,
+  mergeApprovalDeliveryState,
   normalizeNotificationId,
   pruneExpired,
   removePendingApproval,
@@ -148,6 +150,12 @@ import {
   resolveDispatchTimeoutMs,
 } from './dispatch-timeouts.js';
 import { dmReactionReplyParentId } from './dm-reactions.js';
+import {
+  type GroupInviteDeps,
+  createCatchUpRunner,
+  parseForeignsSnapshot,
+  processPendingForeigns,
+} from './group-invites.js';
 import {
   buildThreadContextMessage,
   cacheMessage,
@@ -201,7 +209,6 @@ import {
   isSummarizationRequest,
   parseBlockedShips,
   prepareInboundText,
-  resolveGroupInviteAction,
   sanitizeMessageText,
   shouldEngageInGroup,
   stripBotMentionOutsidePlaceholders,
@@ -1084,9 +1091,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
     }
 
-    // Store init foreigns for processing after settings are loaded
-    let initForeigns: Foreigns | null = null;
-
     // Group name cache for human-readable display (flag -> title)
     const groupNameCache = new Map<string, string>();
     const channelNameCache = new Map<string, string>();
@@ -1511,7 +1515,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         for (const [flag, title] of initData.groupNames) {
           groupNameCache.set(flag, title);
         }
-        initForeigns = initData.foreigns;
       } catch (error: any) {
         runtime.error?.(
           `[tlon] Auto-discovery failed: ${error?.message ?? String(error)}`
@@ -1799,6 +1802,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         );
         return result.messageId;
       } catch (err) {
+        capturePluginError('approval_notification', err, {
+          errorKind: 'owner_notify_failed',
+        });
         runtime.error?.(
           `[tlon] Failed to send notification to owner: ${String(err)}`
         );
@@ -1897,72 +1903,28 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       return text.replace(blockDirectiveRegex, '').trim();
     }
 
-    // Queue a new approval request and notify the owner
+    // Queue an approval request and notify the owner (idempotent — see
+    // applyApprovalRequest).
     async function queueApprovalRequest(
       approval: PendingApproval
     ): Promise<void> {
-      pendingApprovals = pruneExpired(pendingApprovals);
-
-      // Check if ship is blocked - silently ignore
-      if (await isShipBlocked(approval.requestingShip)) {
-        runtime.log?.(
-          `[tlon] Ignoring request from blocked ship ${approval.requestingShip}`
-        );
-        return;
-      }
-
-      // Check for duplicate - if found, update it with new content and re-notify
-      const existingIndex = pendingApprovals.findIndex(
-        (a) =>
-          a.type === approval.type &&
-          a.requestingShip === approval.requestingShip &&
-          (approval.type !== 'channel' ||
-            a.channelNest === approval.channelNest) &&
-          (approval.type !== 'group' || a.groupFlag === approval.groupFlag)
-      );
-
-      if (existingIndex !== -1) {
-        // Update existing approval with new content (preserves the original ID)
-        const existing = pendingApprovals[existingIndex];
-        if (approval.originalMessage) {
-          existing.originalMessage = approval.originalMessage;
-          existing.messagePreview = approval.messagePreview;
-        }
-        runtime.log?.(
-          `[tlon] Updated existing approval for ${approval.requestingShip} (${approval.type}) - re-sending notification`
-        );
-        // Send notification first, then save once with the notification ID.
-        // Saving before sendOwnerNotification causes a race: the settings subscription
-        // event replaces pendingApprovals in-memory, so the notificationMessageId
-        // set on the old object reference is lost.
-        const displayContext = buildDisplayContext();
-        const existNotifId = await sendOwnerNotification(
-          formatApprovalRequestNotification(existing, displayContext),
-          buildApprovalBlobField(existing, displayContext)
-        );
-        if (existNotifId) {
-          existing.notificationMessageId =
-            normalizeNotificationId(existNotifId);
-        }
-        await savePendingApprovals();
-        return;
-      }
-
-      // Send notification before saving so notificationMessageId is included
-      // in the single save. See comment above about the settings subscription race.
-      const displayContext = buildDisplayContext();
-      const notifId = await sendOwnerNotification(
-        formatApprovalRequestNotification(approval, displayContext),
-        buildApprovalBlobField(approval, displayContext)
-      );
-      if (notifId) {
-        approval.notificationMessageId = normalizeNotificationId(notifId);
-      }
-      pendingApprovals.push(approval);
-      await savePendingApprovals();
-      runtime.log?.(
-        `[tlon] Queued approval request: ${approval.id} (${approval.type} from ${approval.requestingShip})`
-      );
+      await applyApprovalRequest(approval, {
+        getPending: () => pendingApprovals,
+        setPending: (next) => {
+          pendingApprovals = next;
+        },
+        isShipBlocked,
+        notify: (a) => {
+          const displayContext = buildDisplayContext();
+          return sendOwnerNotification(
+            formatApprovalRequestNotification(a, displayContext),
+            buildApprovalBlobField(a, displayContext)
+          );
+        },
+        persist: savePendingApprovals,
+        now: () => Date.now(),
+        log: runtime.log,
+      });
     }
 
     // ── Approval action execution ─────────────────────────────────────
@@ -2090,6 +2052,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 runtime.error?.(
                   `[tlon] Failed to join group ${approval.groupFlag}: ${String(err)}`
                 );
+                // Keep the approval pending so the owner can retry — removing
+                // it would strand the still-pending invite with no surface.
+                return `Could not join ${approval.groupFlag}: invite accept failed. Request stays pending, try again.`;
               }
             }
             break;
@@ -2097,8 +2062,31 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       } else if (action === 'block') {
         await blockShip(approval.requestingShip);
         await removeFromDmAllowlist(approval.requestingShip);
+      } else if (
+        action === 'deny' &&
+        approval.type === 'group' &&
+        approval.groupFlag
+      ) {
+        // Deny must decline on the ship — the approval record is the
+        // suppression, so dropping it alone would re-queue on the next tick.
+        try {
+          await api!.poke({
+            app: 'groups',
+            mark: 'invite-decline',
+            json: approval.groupFlag,
+          });
+          runtime.log?.(
+            `[tlon] Declined group invite ${approval.groupFlag} after rejection`
+          );
+        } catch (err) {
+          runtime.error?.(
+            `[tlon] Failed to decline group invite ${approval.groupFlag}: ${String(err)}`
+          );
+          // Keep the approval pending rather than strand the invite.
+          return `Could not decline ${approval.groupFlag}: invite decline failed. Request stays pending, try again.`;
+        }
       }
-      // "deny" — no side effects beyond removing from pending
+      // "deny" for dm/channel — no side effects beyond removing from pending
 
       pendingApprovals = removePendingApproval(pendingApprovals, approval.id);
       await savePendingApprovals();
@@ -4866,9 +4854,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           );
         }
 
-        // Update pending approvals
+        // The snapshot owns which records exist; delivery state already sent
+        // by this process is carried forward (see mergeApprovalDeliveryState).
         if (newSettings.pendingApprovals !== undefined) {
-          pendingApprovals = newSettings.pendingApprovals;
+          pendingApprovals = mergeApprovalDeliveryState(
+            newSettings.pendingApprovals,
+            pendingApprovals
+          );
           runtime.log?.(
             `[tlon] Settings: pendingApprovals updated (${pendingApprovals.length} items)`
           );
@@ -5097,132 +5089,70 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
       // Subscribe to foreigns for auto-accepting group invites
       // Always subscribe so we can hot-reload the setting via settings store
+      let groupInviteRunner: ReturnType<typeof createCatchUpRunner>;
       {
         const processedGroupInvites = new Set<string>();
 
-        // Helper to process pending invites
-        const processPendingInvites = async (foreigns: Foreigns) => {
-          if (!foreigns || typeof foreigns !== 'object') {
-            return;
-          }
-
-          // One block-list scry per batch, shared by every invite in it and
-          // fetched lazily so a batch with no allowlisted inviter costs none.
-          // Without this a startup backlog of N allowlisted invites would issue
-          // N sequential scries — up to 15s each — before the foreigns
-          // subscription is even established.
-          let blockedShipsOnce: Promise<string[]> | null = null;
-          const fetchBlockedShips = () =>
-            (blockedShipsOnce ??= scryBlockedShips());
-
-          for (const [groupFlag, foreign] of Object.entries(foreigns)) {
-            if (processedGroupInvites.has(groupFlag)) {
-              continue;
-            }
-            if (!foreign.invites || foreign.invites.length === 0) {
-              continue;
-            }
-
-            const validInvite = foreign.invites.find((inv) => inv.valid);
-            if (!validInvite) {
-              continue;
-            }
-
-            const inviterShip = validInvite.from;
-
-            const decision = await resolveGroupInviteAction(
-              {
-                inviterShip,
-                ownerShip: effectiveOwnerShip,
-                allowlist: effectiveGroupInviteAllowlist,
+        const groupInviteDeps: GroupInviteDeps = {
+          processedGroupInvites,
+          ownerShip: effectiveOwnerShip,
+          allowlist: () => effectiveGroupInviteAllowlist,
+          // SECURITY: scryBlockedShips rejects on failure or a malformed
+          // payload — resolveGroupInviteAction treats a rejection as
+          // "unknown" and never auto-accepts (see group-invites.ts).
+          fetchBlockedShips: scryBlockedShips,
+          acceptInvite: async (groupFlag) => {
+            await api.poke({
+              app: 'groups',
+              mark: 'group-join',
+              json: {
+                flag: groupFlag,
+                'join-all': true,
               },
-              {
-                // SECURITY: pass the scryBlockedShips-backed fetcher (rejects
-                // on failure or a malformed payload), NOT isShipBlocked (which
-                // swallows errors to "not blocked"). A rejection means
-                // "unknown" and must never auto-accept — see
-                // resolveGroupInviteAction.
-                fetchBlockedShips,
-              }
+            });
+          },
+          queueApproval: async (input) => {
+            const approval = createPendingApproval(
+              { type: 'group', ...input },
+              pendingApprovals.map((a) => a.id)
             );
+            await queueApprovalRequest(approval);
+          },
+          log: runtime.log,
+          error: runtime.error,
+        };
 
-            if (decision.action === 'accept') {
-              try {
-                await api.poke({
-                  app: 'groups',
-                  mark: 'group-join',
-                  json: {
-                    flag: groupFlag,
-                    'join-all': true,
-                  },
-                });
-                // Mark processed only on success — failure retries on the
-                // next foreigns event.
-                processedGroupInvites.add(groupFlag);
-                runtime.log?.(
-                  `[tlon] Auto-accepted group invite (${decision.reason}): ${groupFlag} (from ${inviterShip})`
-                );
-              } catch (err) {
-                runtime.error?.(
-                  `[tlon] Failed to accept group invite (${decision.reason}) ${groupFlag}: ${String(err)}`
-                );
-              }
-              continue;
-            }
-
-            if (decision.action === 'queue') {
-              const approval = createPendingApproval(
-                {
-                  type: 'group',
-                  requestingShip: inviterShip,
-                  groupFlag,
-                  groupTitle: validInvite.preview?.meta?.title,
-                },
-                pendingApprovals.map((a) => a.id)
-              );
-              await queueApprovalRequest(approval);
-              processedGroupInvites.add(groupFlag);
-              continue;
-            }
-
-            if (decision.reason === 'blocked') {
-              // Confirmed blocked: silent ignore, no approval card. Routing
-              // this through queueApprovalRequest would re-ask the fail-open
-              // isShipBlocked and could card a ship known to be blocked.
-              runtime.log?.(
-                `[tlon] Ignoring group invite from blocked ship ${inviterShip}: ${groupFlag}`
-              );
-              processedGroupInvites.add(groupFlag);
-              continue;
-            }
-
-            // ignore/no-owner: log but leave unprocessed so a later allowlist
-            // edit can pick the invite up on the next foreigns event.
-            runtime.log?.(
-              `[tlon] Ignoring group invite from ${inviterShip} (not in groupInviteAllowlist, no owner configured): ${groupFlag}`
+        // Scry the full foreigns snapshot (same JSON shape as the facts) and
+        // run the processor. Never throws — failures report telemetry.
+        const catchUpGroupInvites = async (): Promise<void> => {
+          try {
+            const foreigns = parseForeignsSnapshot(
+              await api.scry('/groups/v1/foreigns.json')
             );
+            await processPendingForeigns(foreigns, groupInviteDeps);
+          } catch (err) {
+            runtime.error?.(
+              `[tlon] Group-invite catch-up failed: ${String(err)}`
+            );
+            capturePluginError('foreigns_subscription', err, {
+              errorKind: 'catchup_failed',
+            });
           }
         };
 
-        // Process existing pending invites from init data
-        if (initForeigns) {
-          await processPendingInvites(initForeigns);
-        }
+        groupInviteRunner = createCatchUpRunner(catchUpGroupInvites, {
+          abortSignal: opts.abortSignal,
+          error: runtime.error,
+        });
 
         try {
           await api.subscribe({
             app: 'groups',
             path: '/v1/foreigns',
             event: (data: unknown) => {
-              void (async () => {
-                try {
-                  await processPendingInvites(data as Foreigns);
-                } catch (error: any) {
-                  runtime.error?.(
-                    `[tlon] Error handling foreigns event: ${error?.message ?? String(error)}`
-                  );
-                }
-              })();
+              void groupInviteRunner.enqueue(() =>
+                processPendingForeigns(data as Foreigns, groupInviteDeps)
+              );
             },
             err: (error) => {
               capturePluginError('foreigns_subscription', error);
@@ -5264,6 +5194,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      // The foreigns subscription gets no snapshot on watch; catch up now
+      // that the channel is live so the boot gap cannot lose an invite.
+      await groupInviteRunner.catchUp();
       const webSearchRuntime = core.webSearch;
       const webSearchStatus = probeWebSearchBootStatus({
         searchConfig: cfg.tools?.web?.search,
@@ -5327,6 +5260,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 `[tlon] Channel refresh error: ${error?.message ?? String(error)}`
               );
             }
+            // Recovery loop for missed invites and failed owner
+            // notifications; runs after the gated channel refresh above and
+            // never rejects (the runner observes failures).
+            await groupInviteRunner.catchUp();
           }
         },
         2 * 60 * 1000

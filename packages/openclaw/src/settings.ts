@@ -33,8 +33,11 @@ export type PendingApproval = {
     blob?: string;
   };
   timestamp: number;
-  /** Normalized message ID of the owner notification DM (for reaction-based approval) */
+  /** Normalized message ID of the owner notification DM (reaction-based
+   * approval, and proof of delivery for group re-notify suppression) */
   notificationMessageId?: string;
+  /** Epoch ms of the last owner-notification attempt (group-invite retry cooldown) */
+  notifyAttemptAt?: number;
 };
 
 export type TlonSettingsStore = {

@@ -1837,6 +1837,29 @@ class TlonAdapter(BasePlatformAdapter):
         )
         existing = find_duplicate(self._pending_approvals, candidate)
         if existing is not None:
+            if approval_kind == "group":
+                # Delivered => never re-DM while the record lives; undelivered
+                # (including legacy lastNotifiedAt-only records) re-notifies
+                # under the cooldown until a send lands.
+                if existing.get("notificationDeliveredAt") is not None:
+                    return
+                try:
+                    last_notified = float(existing.get("lastNotifiedAt"))
+                except (TypeError, ValueError):
+                    last_notified = 0.0
+                if now_ms - last_notified < RENOTIFY_COOLDOWN_MS:
+                    return
+                updated = dict(existing)
+                updated["lastNotifiedAt"] = int(now_ms)
+                if await self._notify_owner_approval(updated):
+                    updated["notificationDeliveredAt"] = int(now_ms)
+                self._telemetry.approval_event("renotified", approval_kind)
+                self._pending_approvals = [
+                    updated if approval_id(item) == approval_id(existing) else item
+                    for item in self._pending_approvals
+                ]
+                await self._persist_pending_approvals()
+                return
             new_preview = str(candidate.get("messagePreview") or "")
             old_preview = str(existing.get("messagePreview") or "")
             if (
@@ -1859,7 +1882,8 @@ class TlonAdapter(BasePlatformAdapter):
                 last_notified = 0.0
             if now_ms - last_notified >= RENOTIFY_COOLDOWN_MS:
                 updated["lastNotifiedAt"] = int(now_ms)
-                await self._notify_owner_approval(updated)
+                if await self._notify_owner_approval(updated):
+                    updated["notificationDeliveredAt"] = int(now_ms)
                 self._telemetry.approval_event("renotified", approval_kind)
             self._pending_approvals = [
                 updated if approval_id(item) == approval_id(existing) else item
@@ -1869,7 +1893,8 @@ class TlonAdapter(BasePlatformAdapter):
             return
         candidate["lastNotifiedAt"] = int(now_ms)
         self._pending_approvals.append(candidate)
-        await self._notify_owner_approval(candidate)
+        if await self._notify_owner_approval(candidate):
+            candidate["notificationDeliveredAt"] = int(now_ms)
         await self._persist_pending_approvals()
         self._telemetry.approval_event("queued", approval_kind)
         logger.info(
@@ -1879,10 +1904,11 @@ class TlonAdapter(BasePlatformAdapter):
             normalize_ship(requesting_ship),
         )
 
-    async def _notify_owner_approval(self, approval: dict[str, Any]) -> None:
+    async def _notify_owner_approval(self, approval: dict[str, Any]) -> bool:
+        """Send the owner DM for a pending approval; True when delivered."""
         owner = self.tlon_config.owner_ship
         if not owner:
-            return
+            return False
         text = format_approval_request(approval)[:MAX_MESSAGE_LENGTH]
         # The text notification is self-sufficient, so a card that cannot be
         # built or does not validate costs the owner the buttons, never the
@@ -1924,6 +1950,8 @@ class TlonAdapter(BasePlatformAdapter):
                 result.error or "notification send failed",
                 requestType=approval_type(approval),
             )
+            return False
+        return True
 
     async def _notify_owner(
         self, target: str, reason: str, *, block_succeeded: bool = True
@@ -2164,6 +2192,15 @@ class TlonAdapter(BasePlatformAdapter):
         elif action == "ban":
             await self._block_ship(ship)
             await self._remove_from_dm_allowlist(ship)
+        elif action == "reject" and approval_type(approval) == "group":
+            # Reject must decline on the ship, or the next observation of the
+            # still-pending invite would re-queue it.
+            flag = approval_group_flag(approval)
+            if flag and not await self._reject_group_invite(flag):
+                return (
+                    f"Could not decline {flag}: invite decline failed. "
+                    "Request stays pending."
+                )
 
         self._pending_approvals = remove_approval(
             self._pending_approvals, approval_id(approval)
@@ -2899,6 +2936,21 @@ class TlonAdapter(BasePlatformAdapter):
                         except Exception as exc:
                             logger.warning(
                                 "[tlon] reconnect invite catch-up failed: %s", exc
+                            )
+                        # Group invites have the same gap: the foreigns
+                        # subscription gets no snapshot on resubscribe, so
+                        # anything that arrived during the outage is only seen
+                        # here (or by a later live fact). Same guard as the DM
+                        # catch-up — a failure must not cycle reconnects.
+                        try:
+                            if not await self._process_pending_group_invites():
+                                logger.warning(
+                                    "[tlon] reconnect group-invite catch-up failed"
+                                )
+                        except Exception as exc:
+                            logger.warning(
+                                "[tlon] reconnect group-invite catch-up failed: %s",
+                                exc,
                             )
                         # Contacts facts do not replay either; catch up on renames
                         # (or clears) missed while disconnected, and re-check the
@@ -3811,7 +3863,6 @@ class TlonAdapter(BasePlatformAdapter):
             flag = invite["groupFlag"]
             if flag in self._processed_group_invites:
                 continue
-            self._processed_group_invites.add(flag)
             await self._handle_group_invite(
                 flag, inviter=invite["from"], title=invite["title"]
             )
@@ -3819,11 +3870,15 @@ class TlonAdapter(BasePlatformAdapter):
     async def _handle_group_invite(self, flag: str, *, inviter: str, title: str) -> None:
         if self._group_invite_authorized(inviter):
             if await self._accept_group_invite(flag):
+                # Mark processed only on success; a failed accept retries.
+                self._processed_group_invites.add(flag)
                 logger.info("[tlon] auto-accepted group invite %s from %s", flag, inviter)
             return
         if not self.tlon_config.owner_ship:
+            # Unprocessed so a later owner/allowlist change can pick it up.
             logger.info("[tlon] ignoring group invite %s from unauthorized %s", flag, inviter)
             return
+        # Queue path never marks — suppression/retry live in the approval record.
         await self._queue_approval(
             approval_kind="group",
             requesting_ship=inviter,
@@ -3841,6 +3896,18 @@ class TlonAdapter(BasePlatformAdapter):
             )
             return False
         await self._adopt_group_channels(flag)
+        return True
+
+    async def _reject_group_invite(self, flag: str) -> bool:
+        """Decline the invite on the ship so it leaves foreigns for good."""
+        with cli_context("invite_rsvp"):
+            result = await self._cli.run_command(("groups", "reject-invite", flag))
+        if not result.success:
+            logger.warning("[tlon] failed to decline group invite %s: %s", flag, result.error)
+            self._telemetry.error(
+                "approval", result.error or "group decline failed", operation="group_decline"
+            )
+            return False
         return True
 
     async def _fetch_group_channels(self, flag: str) -> Optional[set[str]]:
@@ -4021,18 +4088,28 @@ class TlonAdapter(BasePlatformAdapter):
         )
         logger.info("[tlon] monitoring %d channel(s) from joined group %s", len(new_channels), flag)
 
-    async def _process_pending_group_invites(self) -> None:
-        """Catch group invites that arrived while the gateway was down."""
+    async def _process_pending_group_invites(self) -> bool:
+        """Catch group invites that arrived while the gateway was down.
+
+        Returns False when the catch-up did not actually read a snapshot —
+        scry failure or a response without a usable `foreigns` map. An empty
+        map is a real answer (no pending invites) and counts as success.
+        Callers surface the result; boot keeps ignoring it, reconnect logs a
+        warning.
+        """
         if self._sse is None:
-            return
+            return False
         try:
             init = await self._sse.scry("/groups-ui/v7/init")
         except Exception as exc:
             logger.debug("[tlon] could not scry pending group invites: %s", exc)
-            return
+            return False
         foreigns = init.get("foreigns") if isinstance(init, dict) else None
-        if foreigns is not None:
-            await self._handle_foreigns(foreigns)
+        if not isinstance(foreigns, dict):
+            logger.debug("[tlon] group-invite catch-up returned no foreigns map")
+            return False
+        await self._handle_foreigns(foreigns)
+        return True
 
     async def _prepare_dispatch_payload(
         self,

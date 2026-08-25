@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import importlib.util
 import json
 import os
@@ -125,6 +126,7 @@ def load_module(name):
 
 
 tlon_api = load_module("tlon_api")
+approval_mod = load_module("approval")
 adapter_mod = load_module("adapter")
 
 
@@ -272,6 +274,45 @@ class FakeCLI:
 
     def notifications(self):
         return [cmd for cmd in self.commands if cmd[:2] == ("posts", "send")]
+
+
+class FailingCLI(FakeCLI):
+    """FakeCLI that fails commands matching `prefix` while `failures` last.
+
+    `failures=None` fails matching commands until `failures` is set to 0.
+    """
+
+    def __init__(self, prefix, failures=None):
+        super().__init__()
+        self.prefix = tuple(prefix)
+        self.failures = failures
+
+    async def run_command(self, args):
+        self.commands.append(tuple(args))
+        failing = self.failures is None or self.failures > 0
+        if tuple(args)[: len(self.prefix)] == self.prefix and failing:
+            if self.failures is not None:
+                self.failures -= 1
+            return tlon_api.TlonSendResult(
+                success=False, command=("tlon-test", *args), error="command failed"
+            )
+        return tlon_api.TlonSendResult(
+            success=True, command=("tlon-test", *args), stdout="ok\n"
+        )
+
+
+class FakeClock:
+    def __init__(self, now_seconds=1_000_000.0):
+        self.now_seconds = now_seconds
+
+    def time(self):
+        return self.now_seconds
+
+    def advance_ms(self, ms):
+        self.now_seconds += ms / 1000.0
+
+    def now_ms(self):
+        return int(self.now_seconds * 1000)
 
 
 class AdapterApprovalTests(unittest.TestCase):
@@ -1078,11 +1119,19 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(adapter._pending_approvals, [])
         self.assertIn(("groups", "accept-invite", "~host/projects"), adapter._cli.commands)
 
-    def test_group_invite_deduped_by_flag_across_inviters(self):
+    def test_group_invite_deduped_by_flag_and_never_renotified_once_delivered(self):
         adapter = self.make_adapter()
-        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
-        # same flag re-emitted (processed set short-circuits re-queue)
-        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~bus")))
+        clock = FakeClock()
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertEqual(len(adapter._cli.notifications()), 1)
+
+        # Later observations — same flag from a second inviter, well past the
+        # cooldown — hit the delivered record and stay silent.
+        clock.advance_ms(adapter_mod.RENOTIFY_COOLDOWN_MS * 3)
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~bus")))
 
         self.assertEqual(len(adapter._pending_approvals), 1)
         self.assertEqual(len(adapter._cli.notifications()), 1)
@@ -1094,10 +1143,31 @@ class AdapterApprovalTests(unittest.TestCase):
             "groups": {},
         }
 
-        asyncio.run(adapter._process_pending_group_invites())
+        self.assertTrue(asyncio.run(adapter._process_pending_group_invites()))
 
         self.assertEqual(len(adapter._pending_approvals), 1)
         self.assertEqual(adapter._pending_approvals[0]["groupFlag"], "~host/projects")
+
+    def test_empty_foreigns_catchup_counts_as_success(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/groups-ui/v7/init"] = {"foreigns": {}, "groups": {}}
+
+        self.assertTrue(asyncio.run(adapter._process_pending_group_invites()))
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_malformed_catchup_response_is_not_success(self):
+        # A response the catch-up cannot read means the snapshot was never
+        # observed; reporting success would hide the gap until the next tick.
+        for payload in ([], "nope", {"groups": {}}, {"foreigns": None},
+                        {"foreigns": []}):
+            with self.subTest(payload=payload):
+                adapter = self.make_adapter()
+                adapter._sse.payloads["/groups-ui/v7/init"] = payload
+
+                self.assertFalse(
+                    asyncio.run(adapter._process_pending_group_invites())
+                )
+                self.assertEqual(adapter._pending_approvals, [])
 
     def test_allow_group_invite_joins_and_adopts_channels(self):
         adapter = self.make_adapter()
@@ -1134,7 +1204,7 @@ class AdapterApprovalTests(unittest.TestCase):
 
         self.assertNotIn("/owner-listen", adapter._cli.messages[-1][1])
 
-    def test_reject_group_invite_does_not_join(self):
+    def test_reject_group_invite_declines_on_ship_without_joining(self):
         adapter = self.make_adapter()
         asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
         request_id = adapter._pending_approvals[0]["id"]
@@ -1144,8 +1214,27 @@ class AdapterApprovalTests(unittest.TestCase):
         )
 
         self.assertEqual(adapter._pending_approvals, [])
+        # The approval record is the suppression, so the invite has to leave
+        # foreigns too — otherwise the next catch-up re-queues and re-DMs it.
+        self.assertIn(
+            ("groups", "reject-invite", "~host/projects"), adapter._cli.commands
+        )
         self.assertNotIn(("groups", "accept-invite", "~host/projects"), adapter._cli.commands)
         self.assertIn("declined invite", adapter._cli.messages[-1][1])
+
+    def test_failed_reject_keeps_group_approval_pending(self):
+        adapter = self.make_adapter()
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        request_id = adapter._pending_approvals[0]["id"]
+        adapter._cli = FailingCLI(("groups", "reject-invite"))
+
+        self.dispatches(
+            adapter, dm_event(f"/reject {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertEqual(adapter._pending_approvals[0]["id"], request_id)
+        self.assertIn("stays pending", adapter._cli.messages[-1][1])
 
     def test_group_invite_no_owner_is_ignored(self):
         adapter = self.make_adapter({"owner_ship": ""})
@@ -1154,6 +1243,112 @@ class AdapterApprovalTests(unittest.TestCase):
 
         self.assertEqual(adapter._pending_approvals, [])
         self.assertEqual(adapter._cli.notifications(), [])
+
+    def test_failed_accept_leaves_flag_retryable(self):
+        adapter = self.make_adapter()
+        cli = FailingCLI(("groups", "accept-invite"))
+        adapter._cli = cli
+        adapter._sse.payloads["/groups-ui/v7/init"] = self.init_with_channels(
+            "~host/projects", []
+        )
+
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~mug")))
+
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertNotIn("~host/projects", adapter._processed_group_invites)
+
+        # The next observation of the still-pending invite retries and lands.
+        cli.failures = 0
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~mug")))
+
+        self.assertIn("~host/projects", adapter._processed_group_invites)
+        self.assertIn(
+            ("groups", "accept-invite", "~host/projects"), adapter._cli.commands
+        )
+
+    def test_failed_notify_persists_undelivered_and_retries_past_cooldown(self):
+        adapter = self.make_adapter()
+        adapter._cli = FailingCLI(("posts", "send"), failures=1)
+        clock = FakeClock()
+
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["lastNotifiedAt"], clock.now_ms())
+        self.assertNotIn("notificationDeliveredAt", pending)
+        # The undelivered record is persisted (retry state survives restarts).
+        writes = adapter._sse.settings_writes("pendingApprovals")
+        self.assertNotIn("notificationDeliveredAt", writes[-1][0])
+
+        # Within the cooldown, re-observation neither re-notifies nor mutates.
+        clock.advance_ms(adapter_mod.RENOTIFY_COOLDOWN_MS - 1_000)
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertEqual(len(adapter._cli.notifications()), 1)
+        self.assertEqual(adapter._pending_approvals[0]["lastNotifiedAt"], clock.now_ms() - (adapter_mod.RENOTIFY_COOLDOWN_MS - 1_000))
+
+        # Past the cooldown the retry lands and stamps the delivery marker.
+        clock.advance_ms(2_000)
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertEqual(len(adapter._cli.notifications()), 2)
+        retried = adapter._pending_approvals[0]
+        self.assertEqual(retried["lastNotifiedAt"], clock.now_ms())
+        self.assertEqual(retried["notificationDeliveredAt"], clock.now_ms())
+
+    def test_legacy_last_notified_record_renotified_once_then_marked(self):
+        adapter = self.make_adapter()
+        clock = FakeClock()
+        # Legacy hermes record: attempt stamp only, no delivery marker.
+        adapter._pending_approvals = [
+            {
+                "id": "g1234",
+                "type": "group",
+                "requestingShip": "~ten",
+                "groupFlag": "~host/projects",
+                "timestamp": clock.now_ms(),
+                "lastNotifiedAt": clock.now_ms(),
+            }
+        ]
+
+        # Within cooldown: suppressed.
+        clock.advance_ms(60_000)
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertEqual(adapter._cli.notifications(), [])
+
+        # Past cooldown: one re-notify, then the definitive marker lands.
+        clock.advance_ms(adapter_mod.RENOTIFY_COOLDOWN_MS)
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertEqual(len(adapter._cli.notifications()), 1)
+        marked = adapter._pending_approvals[0]
+        self.assertEqual(marked["notificationDeliveredAt"], clock.now_ms())
+
+        # Marked delivered: silent from then on.
+        clock.advance_ms(adapter_mod.RENOTIFY_COOLDOWN_MS * 2)
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertEqual(len(adapter._cli.notifications()), 1)
+
+    def test_ttl_expired_record_requeued_as_fresh_reminder(self):
+        adapter = self.make_adapter()
+        clock = FakeClock()
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        original_id = adapter._pending_approvals[0]["id"]
+        self.assertEqual(len(adapter._cli.notifications()), 1)
+
+        # The 48h TTL prunes the delivered record; the next observation queues
+        # a fresh one and re-DMs — the reminder cadence, without a restart.
+        clock.advance_ms(approval_mod.APPROVAL_TTL_MS + 1_000)
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertNotEqual(adapter._pending_approvals[0]["id"], original_id)
+        self.assertEqual(len(adapter._cli.notifications()), 2)
 
     # ── owner actions ────────────────────────────────────────────────────
 
