@@ -485,19 +485,21 @@ async function ensureSingleNotesChannelOnce(
     const notebooks =
       remote.channels?.filter((channel) => channel.type === 'notes') ?? [];
     if (notebooks.length > 1) {
-      return reconcileOnboardingNotebooks(groupId, notebooks);
+      throw ambiguousNotebooksError();
     }
     if (notebooks.length === 1) {
       return adoptNotebook(remote, notebooks[0]!);
     }
   }
 
+  let createdNotebookId: string | undefined;
   try {
-    await createChannel({
+    const created = await createChannel({
       groupId,
       title: 'Updates',
       channelType: 'notes',
     });
+    createdNotebookId = created.id;
     // The notes API assigns flags, so two devices cannot submit the same
     // creation id. Re-read and deterministically reconcile the duplicate
     // default notebooks instead of relying on this process-local flight.
@@ -509,7 +511,11 @@ async function ensureSingleNotesChannelOnce(
     }
     return notebooks.length === 1
       ? adoptNotebook(remote, notebooks[0]!)
-      : reconcileOnboardingNotebooks(groupId, notebooks);
+      : reconcileCreatedOnboardingNotebook(
+          groupId,
+          notebooks,
+          createdNotebookId
+        );
   } catch (error) {
     // A timeout can hide a successful create. Adopt only an unambiguous result.
     const remote = await api.getGroup(groupId);
@@ -519,37 +525,53 @@ async function ensureSingleNotesChannelOnce(
       return adoptNotebook(remote, notebooks[0]!);
     }
     if (notebooks.length > 1) {
-      return reconcileOnboardingNotebooks(groupId, notebooks);
+      return createdNotebookId
+        ? reconcileCreatedOnboardingNotebook(
+            groupId,
+            notebooks,
+            createdNotebookId
+          )
+        : Promise.reject(ambiguousNotebooksError());
     }
     throw error;
   }
 }
 
-function splitOnboardingNotebookDuplicates(notebooks: db.Channel[]) {
-  if (
-    notebooks.length < 2 ||
-    notebooks.some((notebook) => notebook.title !== 'Updates')
-  ) {
-    throw new Error(
-      'This group has multiple notebooks. Remove the extra notebook and try again.'
-    );
-  }
-  const [keeper, ...duplicates] = [...notebooks].sort((left, right) =>
-    left.id.localeCompare(right.id)
+function ambiguousNotebooksError() {
+  return new Error(
+    'This group has multiple notebooks. Remove the extra notebook and try again.'
   );
-  return { keeper: keeper!, duplicates };
 }
 
-async function reconcileOnboardingNotebooks(
-  groupId: string,
-  notebooks: db.Channel[]
+function chooseCreatedNotebookResolution(
+  notebooks: db.Channel[],
+  createdNotebookId: string
 ) {
-  const { keeper, duplicates } = splitOnboardingNotebookDuplicates(notebooks);
-  await Promise.all(
-    duplicates.map((channel) =>
-      deleteChannel({ channelId: channel.id, groupId })
-    )
+  const created = notebooks.find(
+    (notebook) => notebook.id === createdNotebookId
   );
+  const others = notebooks.filter(
+    (notebook) => notebook.id !== createdNotebookId
+  );
+  if (!created || others.length !== 1) throw ambiguousNotebooksError();
+  const [other] = others;
+  // We can prove only this client's freshly returned notebook is disposable.
+  // Use ID ordering solely to ensure two racing clients do not both delete
+  // their own notebook. Never delete an existing channel based on its title.
+  if (created.id.localeCompare(other!.id) < 0) throw ambiguousNotebooksError();
+  return { created, keeper: other! };
+}
+
+async function reconcileCreatedOnboardingNotebook(
+  groupId: string,
+  notebooks: db.Channel[],
+  createdNotebookId: string
+) {
+  const { created, keeper } = chooseCreatedNotebookResolution(
+    notebooks,
+    createdNotebookId
+  );
+  await deleteChannel({ channelId: created.id, groupId });
   for (const delay of [0, 300, 800]) {
     if (delay) await wait(delay);
     const reconciled = await api.getGroup(groupId);
@@ -763,7 +785,7 @@ export const agentGroupOnboardingTesting = {
   retryAgentGroupFurnishCore,
   agentHasJoined,
   ensureSingleNotesChannel,
-  splitOnboardingNotebookDuplicates,
+  chooseCreatedNotebookResolution,
   retryAgentStanding,
   startAgentGroupFurnishingFlight,
   waitForPendingGroupWithChat,

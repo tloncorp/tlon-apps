@@ -65,24 +65,36 @@ describe('buildAgentGroupTitle', () => {
 });
 
 describe('agent group furnishing retry', () => {
-  it('chooses the same duplicate onboarding notebook on every client', () => {
+  it('deletes only this client’s proven-new notebook when it loses the race', () => {
     const first = { id: 'notes/~zod/zeta', title: 'Updates' } as never;
     const second = { id: 'notes/~zod/alpha', title: 'Updates' } as never;
 
     expect(
-      agentGroupOnboardingTesting.splitOnboardingNotebookDuplicates([
-        first,
-        second,
-      ])
-    ).toEqual({ keeper: second, duplicates: [first] });
+      agentGroupOnboardingTesting.chooseCreatedNotebookResolution(
+        [first, second],
+        'notes/~zod/zeta'
+      )
+    ).toEqual({ created: first, keeper: second });
   });
 
-  it('does not delete notebooks that are not onboarding duplicates', () => {
+  it('never chooses an existing or unproven notebook for deletion', () => {
     expect(() =>
-      agentGroupOnboardingTesting.splitOnboardingNotebookDuplicates([
-        { id: 'notes/~zod/alpha', title: 'Updates' } as never,
-        { id: 'notes/~zod/project', title: 'Project' } as never,
-      ])
+      agentGroupOnboardingTesting.chooseCreatedNotebookResolution(
+        [
+          { id: 'notes/~zod/alpha', title: 'Updates' } as never,
+          { id: 'notes/~zod/project', title: 'Project' } as never,
+        ],
+        'notes/~zod/alpha'
+      )
+    ).toThrow('multiple notebooks');
+    expect(() =>
+      agentGroupOnboardingTesting.chooseCreatedNotebookResolution(
+        [
+          { id: 'notes/~zod/alpha', title: 'Updates' } as never,
+          { id: 'notes/~zod/project', title: 'Project' } as never,
+        ],
+        'notes/~zod/missing'
+      )
     ).toThrow('multiple notebooks');
   });
 
