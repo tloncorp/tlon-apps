@@ -238,11 +238,12 @@ def parse_foreigns(payload: Any) -> list[dict[str, str]]:
     for flag, foreign in payload.items():
         if not isinstance(foreign, Mapping):
             continue
-        # A join already in flight is not a pending decision: the post-/allow
-        # foreigns fact still carries the valid invite, and reprocessing it
-        # would card the owner again. "error" keeps a failed join actionable.
-        progress = foreign.get("progress")
-        if isinstance(progress, str) and progress and progress != "error":
+        # A join already in flight (or a leave) is not a pending decision:
+        # the post-/allow foreigns fact still carries the valid invite, and
+        # reprocessing it would card the owner again. "ask" (a pending entry
+        # request — an invite can arrive alongside it) and "error" keep the
+        # invite actionable.
+        if foreign.get("progress") in ("join", "watch", "done", "leave"):
             continue
         raw_invites = foreign.get("invites")
         if not isinstance(raw_invites, list):

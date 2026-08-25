@@ -189,9 +189,20 @@ class ForeignsTests(unittest.TestCase):
         joining["progress"] = "join"
         errored = foreign("~bus")
         errored["progress"] = "error"
-        payload = {"~host/joining": joining, "~host/errored": errored}
+        asking = foreign("~wet")
+        asking["progress"] = "ask"
+        payload = {
+            "~host/joining": joining,
+            "~host/errored": errored,
+            "~host/asking": asking,
+        }
         invites = approval.parse_foreigns(payload)
-        self.assertEqual([inv["groupFlag"] for inv in invites], ["~host/errored"])
+        # join is suppressed; error and ask (a pending entry request) stay
+        # actionable.
+        self.assertEqual(
+            sorted(inv["groupFlag"] for inv in invites),
+            ["~host/asking", "~host/errored"],
+        )
 
     def test_skips_invalid_and_empty(self):
         payload = {

@@ -154,6 +154,18 @@ describe('processPendingForeigns', () => {
     expect(deps.processedGroupInvites.size).toBe(0);
   });
 
+  it('keeps an invite actionable while an entry ask is pending', async () => {
+    const deps = makeDeps();
+    await processPendingForeigns(
+      makeForeign('~host/garden', '~inviter', { progress: 'ask' }),
+      deps
+    );
+
+    // %ask is the bot's own entry request, not a join in flight — a valid
+    // invite arriving alongside it must still reach the owner.
+    expect(deps.queueApproval).toHaveBeenCalledTimes(1);
+  });
+
   it('still processes an invite whose previous join errored', async () => {
     const deps = makeDeps();
     await processPendingForeigns(
