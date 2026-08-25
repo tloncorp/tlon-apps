@@ -4490,7 +4490,11 @@ export const getA2UISelections = createReadQuery(
           isNotNull($posts.blob),
           // Cheap prefilter; parsePostBlob below is the real check.
           like($posts.blob, '%tlon-a2ui-selection%'),
-          or(isNull($posts.isDeleted), eq($posts.isDeleted, false))
+          or(isNull($posts.isDeleted), eq($posts.isDeleted, false)),
+          or(
+            isNull($posts.deliveryStatus),
+            not(eq($posts.deliveryStatus, 'failed'))
+          )
         )
       );
     return rows.flatMap((row) =>

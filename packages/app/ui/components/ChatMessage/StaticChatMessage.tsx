@@ -127,15 +127,20 @@ export function StaticChatMessage({
         return;
       }
 
-      await draftInputContext.sendPostFromDraft({
-        channelId: draftInputContext.channel.id,
-        content: [text],
-        attachments: [],
-        blob: selection ? appendToPostBlob(undefined, selection) : undefined,
-        channelType: draftInputContext.channel.type,
-        replyToPostId: null,
-        isEdit: false,
-      });
+      await draftInputContext.sendPostFromDraft(
+        {
+          channelId: draftInputContext.channel.id,
+          content: [text],
+          attachments: [],
+          blob: selection ? appendToPostBlob(undefined, selection) : undefined,
+          channelType: draftInputContext.channel.type,
+          replyToPostId: null,
+          isEdit: false,
+        },
+        {
+          rejectOnDefinitiveFailure: true,
+        }
+      );
     },
     [draftInputContext, navigateToA2UITarget]
   );

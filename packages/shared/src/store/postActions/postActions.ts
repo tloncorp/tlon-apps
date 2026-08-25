@@ -142,6 +142,8 @@ export function finalizePostDraftUsingLocalAttachments(
 export type PostSendOptions = {
   /** Called after the optimistic post has been added to the session queue. */
   onEnqueued?: () => void;
+  /** Reject when a send is known not to have reached the backend. */
+  rejectOnDefinitiveFailure?: boolean;
 };
 
 export async function finalizeAndSendPost(
@@ -161,6 +163,7 @@ export async function finalizeAndSendPost(
       buildFinalizedPostData: () => finalizePostDraft(draft),
       draft: serializedDraft,
       onEnqueued: options?.onEnqueued,
+      rejectOnDefinitiveFailure: options?.rejectOnDefinitiveFailure,
     });
   }
 }
@@ -181,6 +184,7 @@ async function _sendPost({
   draft,
   existingPost,
   onEnqueued,
+  rejectOnDefinitiveFailure,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
   buildOptimisticPostData?: () => domain.PostDataFinalizedParent;
@@ -191,6 +195,8 @@ async function _sendPost({
   existingPost?: db.Post;
   /** Called after the optimistic post has been added to the session queue. */
   onEnqueued?: () => void;
+  /** Reject when delivery is definitively failed rather than uncertain. */
+  rejectOnDefinitiveFailure?: boolean;
 }) {
   const authorId = api.getCurrentUserId();
 
@@ -424,6 +430,7 @@ async function _sendPost({
       });
     } else {
       await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+      if (rejectOnDefinitiveFailure) throw e;
     }
   }
 }
