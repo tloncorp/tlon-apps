@@ -23,7 +23,12 @@ const MAX_PROVIDER_SELECTIONS = api.AGENT_PROTOCOL_LIMITS.providerCount;
 const pendingProviderSelections = new Map<string, string[]>();
 const pendingProviderAuthorizations = new Map<
   string,
-  { providerId: string; leftSurface: boolean; returned: boolean }
+  {
+    providerId: string;
+    leftSurface: boolean;
+    refreshing: boolean;
+    returned: boolean;
+  }
 >();
 const clampProviderIds = (providerIds: string[]) =>
   providerIds.slice(0, MAX_PROVIDER_SELECTIONS);
@@ -156,11 +161,13 @@ export function McpConnectMenu({
   const [submitting, setSubmitting] = useState(false);
   const [authorizationReturnVersion, setAuthorizationReturnVersion] =
     useState(0);
+  const authorizationIsReconciling = () => {
+    const pending = pendingProviderAuthorizations.get(selectionKey);
+    return pending?.refreshing === true || pending?.returned === true;
+  };
   const [authorizationRefreshPending, setAuthorizationRefreshPending] =
-    useState(() => pendingProviderAuthorizations.has(selectionKey));
-  const authorizationRefreshPendingRef = useRef(
-    pendingProviderAuthorizations.has(selectionKey)
-  );
+    useState(authorizationIsReconciling);
+  const authorizationRefreshPendingRef = useRef(authorizationIsReconciling());
   const configuringRef = useRef(false);
   const initializedRef = useRef(false);
   const completionAction = useOneShotAction(completionConsumed);
@@ -183,6 +190,7 @@ export function McpConnectMenu({
     // Claim this return before refreshing so a focus + visibility pair cannot
     // start duplicate refreshes for the same browser round trip.
     pending.leftSurface = false;
+    pending.refreshing = true;
     authorizationRefreshPendingRef.current = true;
     setAuthorizationRefreshPending(true);
     const refresh = onRefreshProviders?.() ?? Promise.resolve(true);
@@ -191,6 +199,7 @@ export function McpConnectMenu({
       if (current === pending) {
         if (!succeeded) {
           current.leftSurface = true;
+          current.refreshing = false;
           authorizationRefreshPendingRef.current = false;
           setAuthorizationRefreshPending(false);
           return;
@@ -406,6 +415,7 @@ export function McpConnectMenu({
         pendingProviderAuthorizations.set(selectionKey, {
           providerId,
           leftSurface: false,
+          refreshing: false,
           returned: false,
         });
       } else {
