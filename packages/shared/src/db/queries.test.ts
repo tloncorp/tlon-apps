@@ -696,7 +696,8 @@ test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', asy
       {
         ...base,
         id: 'provision-old',
-        receivedAt: refDate + 1,
+        receivedAt: refDate + 30,
+        sequenceNum: 1,
         blob: blob({
           type: 'tlon-agent-provision',
           version: 1,
@@ -714,7 +715,8 @@ test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', asy
       {
         ...base,
         id: 'provider-old-cycle',
-        receivedAt: refDate + 1.5,
+        receivedAt: refDate + 20,
+        sequenceNum: 2,
         blob: blob({
           type: 'tlon-agent-provider-config',
           version: 1,
@@ -727,6 +729,7 @@ test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', asy
         ...base,
         id: 'provider-live',
         receivedAt: refDate + 2,
+        sequenceNum: 3,
         blob: blob({
           type: 'tlon-agent-provider-config',
           version: 1,
@@ -739,6 +742,7 @@ test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', asy
         ...base,
         id: 'provision-new',
         receivedAt: refDate + 3,
+        sequenceNum: 4,
         blob: blob({
           type: 'tlon-agent-provision',
           version: 1,

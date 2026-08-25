@@ -26,7 +26,11 @@ import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { usePushNotifTapTelemetry } from '../../hooks/usePushNotifTapTelemetry';
 import type { RootStackParamList } from '../../navigation/types';
-import { useRootNavigation } from '../../navigation/utils';
+import {
+  createTypedReset,
+  getTopLevelTabRoute,
+  useRootNavigation,
+} from '../../navigation/utils';
 import {
   AttachmentProvider,
   Channel,
@@ -34,7 +38,10 @@ import {
   InviteUsersSheet,
   useIsWindowNarrow,
 } from '../../ui';
-import { shouldAcknowledgeAgentOnboardingLanding } from './agentOnboardingLanding';
+import {
+  shouldAcknowledgeAgentOnboardingLanding,
+  shouldRestoreAgentOnboardingFallback,
+} from './agentOnboardingLanding';
 
 const logger = createDevLogger('ChannelScreen', false);
 
@@ -54,6 +61,24 @@ export default function ChannelScreen(props: Props) {
   };
 
   const onboardingLanding = db.agentOnboardingLanding.useValue();
+  const resetNavigation = useMemo(
+    () => createTypedReset(props.navigation),
+    [props.navigation]
+  );
+  useEffect(() => {
+    if (!shouldRestoreAgentOnboardingFallback(onboardingLanding, channelId)) {
+      return;
+    }
+    // The legacy splash is still covering the navigator. Restore its normal
+    // Home destination underneath before the fallback can be completed.
+    resetNavigation([getTopLevelTabRoute('ChatList')]);
+    void db.agentOnboardingLanding.resetValue().catch((error) => {
+      logger.trackError('Failed to clear agent onboarding fallback route', {
+        error,
+        ...onboardingLanding,
+      });
+    });
+  }, [channelId, onboardingLanding, resetNavigation]);
   useEffect(() => {
     if (
       !shouldAcknowledgeAgentOnboardingLanding(onboardingLanding, channelId)
@@ -93,6 +118,52 @@ export default function ChannelScreen(props: Props) {
 
   const groupId = channel?.groupId ?? group?.id;
   const agentOnboarding = useAgentGroupOnboardingLock(groupId);
+  const agentGroupAgents = db.agentGroupAgents.useValue();
+  const agentShipId = groupId ? agentGroupAgents[groupId] : undefined;
+
+  useEffect(() => {
+    const provision = agentOnboarding.marker?.provision;
+    if (
+      !groupId ||
+      !agentShipId ||
+      !provision ||
+      agentOnboarding.marker?.provisionAcknowledgedAt
+    ) {
+      return;
+    }
+    let cancelled = false;
+    void db
+      .getChanPosts({ channelId: currentChannelId })
+      .then((channelPosts) => {
+        if (cancelled) return;
+        const acknowledged = channelPosts.some(
+          (post) =>
+            post.authorId === agentShipId &&
+            api.findPostBlobEntry(post.blob, 'tlon-agent-provision-ack')
+              ?.provisionId === provision.provisionId
+        );
+        if (!acknowledged) return;
+        return db.agentGroupOnboardingLocks.setValue((current) => {
+          const lock = current[groupId];
+          if (!lock || lock.provisionAcknowledgedAt) return current;
+          return {
+            ...current,
+            [groupId]: { ...lock, provisionAcknowledgedAt: Date.now() },
+          };
+        });
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          logger.trackError('Failed to reconcile agent provision receipt', {
+            error,
+            groupId,
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [agentOnboarding.marker, agentShipId, currentChannelId, groupId]);
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(

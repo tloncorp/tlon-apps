@@ -486,7 +486,7 @@ export const splashNickname = createStorageItem<string>({
 export type AgentOnboardingLanding = {
   groupId: string;
   channelId: string;
-  status?: 'pending' | 'claimed';
+  status?: 'pending' | 'claimed' | 'fallback';
 };
 
 /** One-shot handoff from the pre-navigation splash into the agent chat. */
