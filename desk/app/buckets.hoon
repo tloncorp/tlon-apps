@@ -905,6 +905,13 @@
 ++  recover-local-reader
   |=  =flag:b
   ^+  cor
+  ::  Holding a token is the whole reason to act: it is the stale thing being
+  ::  served, and dropping it is what makes a reader ask again. With none
+  ::  there is nothing to recover and the next request mints on its own --
+  ::  and saying so here is what keeps this idempotent, because the sweep
+  ::  sees the same lapsed record on every pass until it is pruned, and an
+  ::  unguarded +retry-read-token would leave a timer behind each time.
+  ?~  (~(get by read-tokens) flag)  cor
   =.  cor  (disarm-token-refresh flag)
   =.  read-tokens  (~(del by read-tokens) flag)
   (retry-read-token flag)
