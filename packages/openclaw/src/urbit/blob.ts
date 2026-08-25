@@ -1,4 +1,4 @@
-import { A2UI, appendToPostBlob } from '@tloncorp/api';
+import { A2UI, TLON_A2UI_CATALOG_ID, appendToPostBlob } from '@tloncorp/api';
 
 export function serializeContextLensReferenceBlob(
   lensId: string,
@@ -14,7 +14,6 @@ export function serializeContextLensReferenceBlob(
   ]);
 }
 
-export const TLON_A2UI_CATALOG_ID = 'tlon.a2ui.basic.v1';
 export type TlonA2UIBlob = A2UI.BlobEntry;
 
 export function makeA2UIBlob(

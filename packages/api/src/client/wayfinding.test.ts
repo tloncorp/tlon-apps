@@ -7,14 +7,18 @@ const groupWithTitle = (title: string) =>
   ({ title, hostUserId: '~zod' }) as db.Group;
 
 describe('botHomeGroupHasDefaultTitle', () => {
-  it.each(['Group', 'Home', 'Home Group', 'My agent group', "~zod's Group"])(
-    'recognizes the exact default title %s',
-    (title) => {
-      expect(botHomeGroupHasDefaultTitle(groupWithTitle(title))).toBe(true);
-    }
-  );
+  it.each([
+    'Group',
+    'Home',
+    'Home Group',
+    'My agent group',
+    "~zod's Group",
+    "Dan's Tlonbot",
+  ])('recognizes the exact default title %s', (title) => {
+    expect(botHomeGroupHasDefaultTitle(groupWithTitle(title))).toBe(true);
+  });
 
-  it.each(['Home Automation', 'Research Group', "Dan's Tlonbot"])(
+  it.each(['Home Automation', 'Research Group', "Dan's Research Bot"])(
     'preserves the customized title %s',
     (title) => {
       expect(botHomeGroupHasDefaultTitle(groupWithTitle(title))).toBe(false);
