@@ -151,7 +151,6 @@ export function McpConnectMenu({
     useState(0);
   const configuringRef = useRef(false);
   const initializedRef = useRef(false);
-  const knownConnectedRef = useRef(new Set<string>());
   const completionAction = useOneShotAction(completionConsumed);
   const connectedProviderIds = useMemo(
     () =>
@@ -214,7 +213,6 @@ export function McpConnectMenu({
     if (!initializedRef.current) {
       if (loading || !providersLoaded) return;
       initializedRef.current = true;
-      knownConnectedRef.current = connected;
       setSelectedProviderIds(clampProviderIds(connectedProviderIds));
       return;
     }
@@ -224,19 +222,19 @@ export function McpConnectMenu({
     // settings or another group must not silently change this group's config.
     const pendingAuthorization =
       pendingProviderAuthorizations.get(selectionKey);
-    const newlyConnected = connectedProviderIds.filter(
-      (id) =>
-        pendingAuthorization?.returned === true &&
-        id === pendingAuthorization.providerId &&
-        !knownConnectedRef.current.has(id)
-    );
+    const authorizedProviderId = pendingAuthorization?.providerId;
+    const newlyConnected =
+      pendingAuthorization?.returned === true &&
+      authorizedProviderId !== undefined &&
+      connected.has(authorizedProviderId)
+        ? [authorizedProviderId]
+        : [];
     if (pendingAuthorization?.returned) {
       // A returned OAuth round trip owns exactly one refresh. Clear the marker
       // whether it connected, failed, or was canceled so a later settings
       // change cannot be mistaken for this control's authorization.
       pendingProviderAuthorizations.delete(selectionKey);
     }
-    knownConnectedRef.current = connected;
     setSelectedProviderIds((current) => {
       const next = clampProviderIds([
         ...new Set([
