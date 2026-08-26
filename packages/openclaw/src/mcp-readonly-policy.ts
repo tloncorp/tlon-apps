@@ -1,5 +1,30 @@
 import { sharedMap } from './shared-state.js';
 
+const MCP_TOOL_NAMES = {
+  listUpstreams: ['mcp__list_upstreams', 'mcp_list_upstreams'],
+  search: ['mcp__search', 'mcp_search'],
+  describe: ['mcp__describe', 'mcp_describe'],
+  call: ['mcp__call', 'mcp_call'],
+} as const;
+
+// OpenClaw 2026.7.1 names MCP tools as `${server}__${tool}`. Keep the former
+// single-underscore aliases because the plugin still supports older OpenClaw
+// releases.
+export const MCP_READ_TOOL_NAMES = [
+  ...MCP_TOOL_NAMES.listUpstreams,
+  ...MCP_TOOL_NAMES.search,
+  ...MCP_TOOL_NAMES.describe,
+  ...MCP_TOOL_NAMES.call,
+] as const;
+
+export function isMcpDescribeToolName(name: string) {
+  return MCP_TOOL_NAMES.describe.some((candidate) => candidate === name);
+}
+
+export function isMcpCallToolName(name: string) {
+  return MCP_TOOL_NAMES.call.some((candidate) => candidate === name);
+}
+
 const describedReadOnlyTools = sharedMap<string, { providerId: string | null }>(
   'mcpReadOnlyPolicy.describedTools'
 );

@@ -41,6 +41,8 @@ import { createMigrateCommandHandler } from './src/migrate-command.js';
 import {
   clearCronJobForSession,
   cronJobForSession,
+  isMcpCallToolName,
+  isMcpDescribeToolName,
   mayCallDescribedReadOnlyMcpTool,
   mayDescribeMcpTool,
   rememberCronJobForSession,
@@ -1009,8 +1011,9 @@ export default defineBundledChannelEntry({
       const role = getSessionRole(ctx.sessionKey ?? '');
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
       const blocksNonOwner = isOwnerOnlyTool && role === 'user';
-      const isMcpTool =
-        event.toolName === 'mcp_describe' || event.toolName === 'mcp_call';
+      const isMcpDescribe = isMcpDescribeToolName(event.toolName);
+      const isMcpCall = isMcpCallToolName(event.toolName);
+      const isMcpTool = isMcpDescribe || isMcpCall;
       const cronJobId = isMcpTool
         ? cronJobForSession(ctx.sessionKey)
         : undefined;
@@ -1021,9 +1024,9 @@ export default defineBundledChannelEntry({
         : [];
       const blocksOnboardingMcp =
         isOnboardingCron &&
-        ((event.toolName === 'mcp_describe' &&
+        ((isMcpDescribe &&
           !mayDescribeMcpTool(event.params, allowedProviderIds)) ||
-          (event.toolName === 'mcp_call' &&
+          (isMcpCall &&
             !mayCallDescribedReadOnlyMcpTool(
               ctx.sessionKey,
               event.params,
@@ -1143,7 +1146,7 @@ export default defineBundledChannelEntry({
           ? summarizeTlonCommand(event.params.command)
           : undefined;
       if (
-        event.toolName === 'mcp_describe' &&
+        isMcpDescribeToolName(event.toolName) &&
         (await isAgentOnboardingCronJob(cronJobForSession(ctx.sessionKey)))
       ) {
         const allowedProviderIds = await agentOnboardingCronProviderIds(

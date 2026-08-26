@@ -2062,9 +2062,13 @@ describe('primary onboarding cron slot', () => {
       payload: {
         toolsAllow: [
           'group:web',
+          'mcp__list_upstreams',
           'mcp_list_upstreams',
+          'mcp__search',
           'mcp_search',
+          'mcp__describe',
           'mcp_describe',
+          'mcp__call',
           'mcp_call',
         ],
         message: expect.stringMatching(
@@ -2112,7 +2116,11 @@ describe('primary onboarding cron slot', () => {
         tz: 'America/Chicago',
       },
       payload: {
-        toolsAllow: expect.arrayContaining(['group:web', 'mcp_call']),
+        toolsAllow: expect.arrayContaining([
+          'group:web',
+          'mcp__call',
+          'mcp_call',
+        ]),
         message: expect.stringMatching(
           /Use my custom editorial instructions.*\["gmail"\]/s
         ),

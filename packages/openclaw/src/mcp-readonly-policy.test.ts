@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  MCP_READ_TOOL_NAMES,
   clearCronJobForSession,
   cronJobForSession,
+  isMcpCallToolName,
+  isMcpDescribeToolName,
   mayCallDescribedReadOnlyMcpTool,
   mayDescribeMcpTool,
   mcpReadOnlyPolicyTesting,
@@ -12,6 +15,25 @@ import {
 
 describe('MCP read-only policy', () => {
   beforeEach(() => mcpReadOnlyPolicyTesting.clear());
+
+  it('supports current and legacy OpenClaw MCP tool names', () => {
+    expect(MCP_READ_TOOL_NAMES).toEqual([
+      'mcp__list_upstreams',
+      'mcp_list_upstreams',
+      'mcp__search',
+      'mcp_search',
+      'mcp__describe',
+      'mcp_describe',
+      'mcp__call',
+      'mcp_call',
+    ]);
+    expect(isMcpDescribeToolName('mcp__describe')).toBe(true);
+    expect(isMcpDescribeToolName('mcp_describe')).toBe(true);
+    expect(isMcpCallToolName('mcp__call')).toBe(true);
+    expect(isMcpCallToolName('mcp_call')).toBe(true);
+    expect(isMcpDescribeToolName('other__describe')).toBe(false);
+    expect(isMcpCallToolName('other__call')).toBe(false);
+  });
 
   it('allows only the exact tool described as read-only in the same session', () => {
     rememberDescribedReadOnlyMcpTool(

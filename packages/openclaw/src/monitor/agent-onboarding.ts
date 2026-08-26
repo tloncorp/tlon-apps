@@ -16,6 +16,7 @@ import type {
 } from 'openclaw/plugin-sdk/types';
 
 import { type TlonCronService, getTlonCronService } from '../cron-telemetry.js';
+import { MCP_READ_TOOL_NAMES } from '../mcp-readonly-policy.js';
 import { noteIdFromDeliveryMessageId } from '../notes-delivery-state.js';
 import { sharedMap } from '../shared-state.js';
 import { type Sleeper, defaultSleep } from '../sleep.js';
@@ -321,12 +322,6 @@ function startSingleFlight<Key, Value>(
 }
 
 const SLOT_PREFIX = 'tlon-agent-primary:';
-const MCP_READ_TOOLS = [
-  'mcp_list_upstreams',
-  'mcp_search',
-  'mcp_describe',
-  'mcp_call',
-] as const;
 
 export async function isAgentOnboardingCronJob(jobId: string | undefined) {
   if (!jobId) return false;
@@ -2499,7 +2494,10 @@ async function upsertPrimaryJobOnce(
       // the final response to Notes exactly once, while the model can only
       // research the public web. This makes the one-note invariant a runtime
       // boundary instead of a prompt-following convention.
-      toolsAllow: ['group:web', ...(providerIds.length ? MCP_READ_TOOLS : [])],
+      toolsAllow: [
+        'group:web',
+        ...(providerIds.length ? MCP_READ_TOOL_NAMES : []),
+      ],
     },
     delivery: {
       mode: 'announce',
@@ -2600,7 +2598,7 @@ async function updatePrimaryJobProviders(
   const desiredMessage = replaceProviderGuidance(currentMessage, providerIds);
   const desiredTools = [
     'group:web',
-    ...(providerIds.length ? MCP_READ_TOOLS : []),
+    ...(providerIds.length ? MCP_READ_TOOL_NAMES : []),
   ];
   await cron.update(runtimeJob.id, {
     payload: {
