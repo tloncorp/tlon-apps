@@ -1867,6 +1867,7 @@
     :~  (ex-task /activity [~dev %activity] %watch /v5)
         ex-eyre-connect
         (ex-cleanup-timer ~2000.1.1)
+        (ex-task /journey/chat [~dev %chat] %watch /v4)
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-3 !<(vase q.res))
