@@ -32,6 +32,7 @@ import {
   InviteUsersSheet,
   useIsWindowNarrow,
 } from '../../ui';
+import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
 
 const logger = createDevLogger('ChannelScreen', false);
 
@@ -49,6 +50,7 @@ export default function ChannelScreen(props: Props) {
     startDraft: false,
     groupId: undefined,
   };
+
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {
@@ -71,6 +73,14 @@ export default function ChannelScreen(props: Props) {
   });
 
   const groupId = channel?.groupId ?? group?.id;
+  const { navigationLocked: agentOnboardingNavigationLocked } =
+    useAgentOnboardingChannel({
+      navigation: props.navigation,
+      channelId,
+      currentChannelId,
+      groupId,
+      routeGroupId,
+    });
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
@@ -541,6 +551,7 @@ export default function ChannelScreen(props: Props) {
             clearedCursor || cursorPostIsHidden ? undefined : selectedPostId
           }
           goBack={navigationRef.current.goBack}
+          disableBackButton={agentOnboardingNavigationLocked}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}

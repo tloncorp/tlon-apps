@@ -4,6 +4,7 @@ import { ComponentProps, useMemo } from 'react';
 import React from 'react';
 import { YStack, styled } from 'tamagui';
 
+import { useOptionalChannelContext } from '../../contexts/channel';
 import {
   BlockRenderer,
   BlockRendererConfig,
@@ -31,6 +32,7 @@ type PostContentRendererProps = ContentRendererProps & {
 
 export function PostContentRenderer({
   post,
+  groupId,
   ...props
 }: PostContentRendererProps) {
   const content = useMemo(() => {
@@ -45,7 +47,11 @@ export function PostContentRenderer({
   return (
     <BlockRendererProvider>
       <InlineRendererProvider value={undefined}>
-        <ContentRenderer content={content} {...props} />
+        <ContentRenderer
+          content={content}
+          {...props}
+          groupId={groupId ?? post.groupId}
+        />
       </InlineRendererProvider>
     </BlockRendererProvider>
   );
@@ -53,24 +59,38 @@ export function PostContentRenderer({
 
 function ContentRenderer({
   content,
+  groupId,
   onPressImage,
   getImageViewerId,
   onLongPress,
   onA2UIAction,
   isA2UIActionAvailable,
+  canSendA2UIResponse,
+  areA2UISelectionsPending,
+  a2uiSourcePostId,
+  canUseAgentProviderControls,
+  getConsumedA2UISelection,
   isNotice,
   searchQuery,
   ...rest
 }: ContentRendererProps & {
   content: PostContent;
 }) {
+  const channel = useOptionalChannelContext();
+
   return (
     <ContentContext.Provider
+      groupId={groupId ?? channel?.groupId}
       onPressImage={onPressImage}
       getImageViewerId={getImageViewerId}
       onLongPress={onLongPress}
       onA2UIAction={onA2UIAction}
       isA2UIActionAvailable={isA2UIActionAvailable}
+      canSendA2UIResponse={canSendA2UIResponse}
+      areA2UISelectionsPending={areA2UISelectionsPending}
+      a2uiSourcePostId={a2uiSourcePostId}
+      canUseAgentProviderControls={canUseAgentProviderControls}
+      getConsumedA2UISelection={getConsumedA2UISelection}
       isNotice={isNotice}
       searchQuery={searchQuery}
     >

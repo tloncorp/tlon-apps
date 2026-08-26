@@ -1,12 +1,19 @@
+import {
+  appendToPostBlob,
+  getBotUserIdForUser,
+  type PostBlobDataEntryA2UISelection,
+} from '@tloncorp/api';
 import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
+import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import AuthorRow from '../AuthorRow';
 import { ContextLensBadge } from '../Channel/ContextLens/ContextLensBadge';
@@ -65,6 +72,9 @@ export function StaticChatMessage({
   const isNotice = post.type === 'notice';
   const draftInputContext = useDraftInputContext();
   const navigateToA2UITarget = useA2UINavigation();
+  const currentUserId = useCurrentUserId();
+  const canUseAgentProviderControls =
+    post.authorId === getBotUserIdForUser(currentUserId);
 
   if (isNotice) {
     showAuthor = false;
@@ -98,10 +108,68 @@ export function StaticChatMessage({
     }
   }, [onPressRetry, post]);
 
+  const configureAgentProviders = useCallback(
+    async (groupId: string, provisionId: string, providerIds: string[]) => {
+      if (!draftInputContext || draftInputContext.canStartDraft === false) {
+        throw new Error('This channel is not ready to send messages');
+      }
+      const currentGroupId =
+        post.groupId ??
+        draftInputContext.group?.id ??
+        draftInputContext.channel.groupId;
+      if (currentGroupId && currentGroupId !== groupId) {
+        throw new Error('The agent group is not available');
+      }
+      const targetGroup = await db.getGroup({ id: groupId });
+      if (!targetGroup?.currentUserIsHost) {
+        throw new Error('The agent group is not available');
+      }
+      const uniqueProviderIds = [...new Set(providerIds)];
+      const blob = appendToPostBlob(undefined, {
+        type: 'tlon-agent-provider-config',
+        version: 1,
+        provisionId,
+        groupId,
+        providerIds: uniqueProviderIds,
+      });
+      const content = uniqueProviderIds.length
+        ? `Use ${uniqueProviderIds.join(', ')} for this group’s future entries.`
+        : 'Do not use connected services for this group’s future entries.';
+      await draftInputContext.sendPostFromDraft(
+        {
+          channelId: draftInputContext.channel.id,
+          content: [content],
+          attachments: [],
+          blob,
+          channelType: draftInputContext.channel.type,
+          replyToPostId: null,
+          isEdit: false,
+        },
+        { rejectOnDefinitiveFailure: true }
+      );
+    },
+    [draftInputContext, post.groupId]
+  );
+
   const handleA2UIAction = useCallback(
-    async (action: A2UI.Button['action']) => {
+    async (action: A2UI.Action, selection?: PostBlobDataEntryA2UISelection) => {
       if (action.event.name === A2UI.action.navigate) {
-        await navigateToA2UITarget(action.event.context.target);
+        await navigateToA2UITarget(action.event.context.target, {
+          allowBotMcpSettings: canUseAgentProviderControls,
+        });
+        return;
+      }
+
+      if (action.event.name === A2UI.action.configureAgentProviders) {
+        await configureAgentProviders(
+          action.event.context.groupId,
+          action.event.context.provisionId,
+          action.event.context.providerIds
+        );
+        return;
+      }
+
+      if (action.event.name !== A2UI.action.sendMessage) {
         return;
       }
 
@@ -114,22 +182,38 @@ export function StaticChatMessage({
         return;
       }
 
-      await draftInputContext.sendPostFromDraft({
-        channelId: draftInputContext.channel.id,
-        content: [text],
-        attachments: [],
-        channelType: draftInputContext.channel.type,
-        replyToPostId: null,
-        isEdit: false,
-      });
+      await draftInputContext.sendPostFromDraft(
+        {
+          channelId: draftInputContext.channel.id,
+          content: [text],
+          attachments: [],
+          blob: selection ? appendToPostBlob(undefined, selection) : undefined,
+          channelType: draftInputContext.channel.type,
+          replyToPostId: null,
+          isEdit: false,
+        },
+        {
+          rejectOnDefinitiveFailure: true,
+        }
+      );
     },
-    [draftInputContext, navigateToA2UITarget]
+    [
+      canUseAgentProviderControls,
+      configureAgentProviders,
+      draftInputContext,
+      navigateToA2UITarget,
+    ]
   );
 
   const isA2UIActionAvailable = useCallback(
-    (action: A2UI.Button['action']) => {
+    (action: A2UI.Action) => {
       if (action.event.name === A2UI.action.navigate) {
-        return true;
+        const target = action.event.context.target;
+        return (
+          target.type !== 'screen' ||
+          target.screen !== 'botMcpSettings' ||
+          canUseAgentProviderControls
+        );
       }
 
       if (action.event.name === A2UI.action.sendMessage) {
@@ -140,14 +224,49 @@ export function StaticChatMessage({
         );
       }
 
+      if (action.event.name === A2UI.action.configureAgentProviders) {
+        const currentGroupId =
+          post.groupId ??
+          draftInputContext?.group?.id ??
+          draftInputContext?.channel.groupId;
+        return Boolean(
+          canUseAgentProviderControls &&
+          draftInputContext &&
+          draftInputContext.canStartDraft !== false &&
+          (!currentGroupId || action.event.context.groupId === currentGroupId)
+        );
+      }
+
       return false;
     },
-    [draftInputContext]
+    [canUseAgentProviderControls, draftInputContext, post.groupId]
   );
 
   const canRenderA2UI = isDmChannelId(post.channelId);
 
   const postContent = usePostContent(post);
+  const hasA2UIContent = useMemo(
+    () => postContent.some((block) => block.type === 'a2ui'),
+    [postContent]
+  );
+  // One live query per channel (deduped across messages); the posts-table
+  // dependency re-runs it when the viewer's reply lands, including the
+  // optimistic insert, so an answered control stays locked across remounts.
+  const a2uiSelections = store.useA2UISelections({
+    channelId: post.channelId,
+    authorId: currentUserId,
+    enabled: canRenderA2UI && hasA2UIContent,
+  });
+  const getConsumedA2UISelection = useCallback(
+    (surfaceId: string, componentId: string) =>
+      a2uiSelections.data?.find(
+        (entry) =>
+          entry.sourcePostId === post.id &&
+          entry.surfaceId === surfaceId &&
+          entry.componentId === componentId
+      ),
+    [a2uiSelections.data, post.id]
+  );
   const lastEditPostContent = usePostLastEditContent(post);
   const content = useMemo(
     () =>
@@ -238,6 +357,17 @@ export function StaticChatMessage({
             onA2UIAction={canRenderA2UI ? handleA2UIAction : undefined}
             isA2UIActionAvailable={
               canRenderA2UI ? isA2UIActionAvailable : undefined
+            }
+            canSendA2UIResponse={Boolean(
+              canRenderA2UI &&
+              draftInputContext &&
+              draftInputContext.canStartDraft !== false
+            )}
+            areA2UISelectionsPending={a2uiSelections.isPending}
+            a2uiSourcePostId={post.id}
+            canUseAgentProviderControls={canUseAgentProviderControls}
+            getConsumedA2UISelection={
+              canRenderA2UI ? getConsumedA2UISelection : undefined
             }
             searchQuery={searchQuery}
           />

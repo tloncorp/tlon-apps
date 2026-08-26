@@ -116,14 +116,30 @@ export function personalGroupHasDefaultTitle(group?: db.Group | null) {
   return group.title?.toLowerCase().includes('group');
 }
 
-export function botHomeGroupHasDefaultTitle(group?: db.Group | null) {
+export function botHomeGroupHasDefaultTitle(
+  group?: db.Group | null,
+  generatedForNickname?: string | null
+) {
   if (!group) {
     return false;
   }
 
+  const normalizedTitle = group.title?.trim().toLowerCase();
+  const hostDefaultTitle = `${group.hostUserId.toLowerCase()}'s group`;
+  const normalizedNickname = generatedForNickname?.trim().toLowerCase();
+  const nicknameDefaultTitles = normalizedNickname
+    ? new Set([
+        `${normalizedNickname}'s group`,
+        `${normalizedNickname}'s tlonbot`,
+      ])
+    : null;
   return (
-    group.title?.toLowerCase().includes('group') ||
-    group.title?.toLowerCase().includes('home')
+    normalizedTitle === 'group' ||
+    normalizedTitle === 'home' ||
+    normalizedTitle === 'home group' ||
+    normalizedTitle === 'my agent group' ||
+    normalizedTitle === hostDefaultTitle ||
+    Boolean(normalizedTitle && nicknameDefaultTitles?.has(normalizedTitle))
   );
 }
 

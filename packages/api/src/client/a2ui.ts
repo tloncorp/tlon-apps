@@ -1,19 +1,43 @@
 import { z } from 'zod';
 
+import {
+  AGENT_PROTOCOL_LIMITS,
+  AgentProviderConfigContextSchema,
+  AgentProvisionActionContextSchema,
+  agentProtocolString,
+} from './agentProtocol';
+
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
 const ACTION_NAVIGATE = 'tlon.navigate';
+const ACTION_PROVISION_AGENT = 'tlon.provisionAgent';
+const ACTION_CONFIGURE_AGENT_PROVIDERS = 'tlon.configureAgentProviders';
 
 const LIMITS = {
   maxBytes: 32 * 1024,
   maxComponents: 50,
   maxDepth: 8,
   maxChildren: 12,
+  maxChoiceOptions: 6,
+  maxSmallChoiceOptions: 12,
+  maxIdLength: 512,
+  /** pills hold a word or two; a paragraph in one would break the layout */
+  maxPillLabelLength: 64,
   maxTextNodeLength: 1000,
   maxButtonMessageLength: 1000,
   maxNavigationTargetIdLength: 500,
   maxTotalTextLength: 8000,
 } as const;
 
+const choiceIconSchema = z.enum([
+  'ChannelNotebooks',
+  'ChannelTalk',
+  'ChannelGalleries',
+  'Clock',
+  'Search',
+  'Face',
+  'Link',
+]);
+const choiceAccentSchema = z.enum(['blue', 'green', 'indigo', 'neutral']);
 const containerJustifySchema = z.enum([
   'start',
   'center',
@@ -37,6 +61,8 @@ const buttonVariantSchema = z.enum([
   'secondary',
   'borderless',
 ]);
+const screenNameSchema = z.enum(['botMcpSettings']);
+
 const nonEmptyString = (max?: number) => {
   const schema = max === undefined ? z.string() : z.string().max(max);
   return schema.refine((value) => value.trim().length > 0);
@@ -47,7 +73,7 @@ const uniqueBy = <T>(values: T[], select: (value: T) => unknown) =>
 
 const targetIdSchema = nonEmptyString(LIMITS.maxNavigationTargetIdLength);
 const componentBaseShape = {
-  id: nonEmptyString(),
+  id: nonEmptyString(LIMITS.maxIdLength),
   weight: z.number().min(0).max(12).optional(),
 };
 
@@ -88,6 +114,11 @@ const chatVolumeNavigationTargetSchema = z.object({
   chatId: targetIdSchema,
   groupId: targetIdSchema.optional(),
 });
+const screenNavigationTargetSchema = z.object({
+  type: z.literal('screen'),
+  screen: screenNameSchema,
+  providerId: targetIdSchema.optional(),
+});
 const navigationTargetSchema = z.discriminatedUnion('type', [
   messageNavigationTargetSchema,
   channelNavigationTargetSchema,
@@ -95,6 +126,7 @@ const navigationTargetSchema = z.discriminatedUnion('type', [
   profileNavigationTargetSchema,
   chatDetailsNavigationTargetSchema,
   chatVolumeNavigationTargetSchema,
+  screenNavigationTargetSchema,
 ]);
 
 const sendMessageEventSchema = z.object({
@@ -103,15 +135,52 @@ const sendMessageEventSchema = z.object({
     text: nonEmptyString(LIMITS.maxButtonMessageLength),
   }),
 });
+const smallChoiceSendMessageEventSchema = z.object({
+  name: z.literal(ACTION_SEND_MESSAGE),
+  context: z.object({
+    text: z.string().max(LIMITS.maxButtonMessageLength),
+  }),
+});
 const navigateEventSchema = z.object({
   name: z.literal(ACTION_NAVIGATE),
   context: z.object({ target: navigationTargetSchema }),
 });
+const provisionAgentEventSchema = z.object({
+  name: z.literal(ACTION_PROVISION_AGENT),
+  context: AgentProvisionActionContextSchema,
+});
+const configureAgentProvidersEventSchema = z.object({
+  name: z.literal(ACTION_CONFIGURE_AGENT_PROVIDERS),
+  context: AgentProviderConfigContextSchema,
+});
 const buttonEventSchema = z.discriminatedUnion('name', [
   sendMessageEventSchema,
   navigateEventSchema,
+  provisionAgentEventSchema,
 ]);
 const buttonActionSchema = z.object({ event: buttonEventSchema });
+const sendMessageActionSchema = z.object({ event: sendMessageEventSchema });
+const navigateActionSchema = z.object({ event: navigateEventSchema });
+const provisionAgentActionSchema = z.object({
+  event: provisionAgentEventSchema,
+});
+const smallChoiceProvisionAgentEventSchema = z.object({
+  name: z.literal(ACTION_PROVISION_AGENT),
+  context: AgentProvisionActionContextSchema.omit({ topics: true }).extend({
+    // This action is a template. The control replaces this list with the
+    // owner's selection and enforces a non-empty result before dispatch.
+    topics: z
+      .array(agentProtocolString(AGENT_PROTOCOL_LIMITS.topicLength))
+      .max(AGENT_PROTOCOL_LIMITS.topicCount),
+  }),
+});
+const configureAgentProvidersActionSchema = z.object({
+  event: configureAgentProvidersEventSchema,
+});
+const smallChoiceActionSchema = z.union([
+  z.object({ event: smallChoiceSendMessageEventSchema }),
+  z.object({ event: smallChoiceProvisionAgentEventSchema }),
+]);
 
 const textSchema = z.object({
   ...componentBaseShape,
@@ -148,25 +217,90 @@ const buttonSchema = z.object({
   variant: buttonVariantSchema.optional(),
   action: buttonActionSchema,
 });
-const componentSchema = z.discriminatedUnion('component', [
-  textSchema,
-  rowSchema,
-  columnSchema,
-  cardSchema,
-  dividerSchema,
-  buttonSchema,
-]);
+const choiceOptionSchema = z.object({
+  id: nonEmptyString(LIMITS.maxIdLength),
+  label: nonEmptyString(LIMITS.maxTextNodeLength),
+  description: z.string().max(LIMITS.maxTextNodeLength).optional(),
+  icon: choiceIconSchema.optional(),
+  accent: choiceAccentSchema.optional(),
+  action: buttonActionSchema,
+});
+const choiceSchema = z.object({
+  ...componentBaseShape,
+  component: z.literal('Choice'),
+  options: z
+    .array(choiceOptionSchema)
+    .min(1)
+    .max(LIMITS.maxChoiceOptions)
+    .refine((options) => uniqueBy(options, (option) => option.id)),
+});
+const smallChoiceOptionSchema = z.object({
+  id: nonEmptyString(),
+  label: nonEmptyString(LIMITS.maxPillLabelLength),
+});
+const smallChoiceSchema = z.object({
+  ...componentBaseShape,
+  component: z.literal('SmallChoice'),
+  options: z
+    .array(smallChoiceOptionSchema)
+    .min(1)
+    .max(LIMITS.maxSmallChoiceOptions)
+    .refine((options) => uniqueBy(options, (option) => option.id))
+    .refine((options) => uniqueBy(options, (option) => option.label)),
+  submitLabel: nonEmptyString(LIMITS.maxPillLabelLength),
+  freeTextPlaceholder: nonEmptyString(LIMITS.maxPillLabelLength).optional(),
+  action: smallChoiceActionSchema,
+});
+const mcpSettingsNavigateActionSchema = z.object({
+  event: z.object({
+    name: z.literal(ACTION_NAVIGATE),
+    context: z.object({
+      target: screenNavigationTargetSchema.extend({
+        screen: z.literal('botMcpSettings'),
+      }),
+    }),
+  }),
+});
+const mcpConnectSchema = z.object({
+  ...componentBaseShape,
+  component: z.literal('McpConnect'),
+  maxVisible: z.number().int().min(1).max(LIMITS.maxSmallChoiceOptions),
+  seeAllLabel: nonEmptyString(LIMITS.maxPillLabelLength),
+  submitLabel: nonEmptyString(LIMITS.maxPillLabelLength),
+  action: mcpSettingsNavigateActionSchema,
+  configureAction: configureAgentProvidersActionSchema,
+  completionLabel: nonEmptyString(LIMITS.maxPillLabelLength).optional(),
+  completionAction: sendMessageActionSchema.optional(),
+});
+const componentSchema = z
+  .discriminatedUnion('component', [
+    textSchema,
+    rowSchema,
+    columnSchema,
+    cardSchema,
+    dividerSchema,
+    buttonSchema,
+    choiceSchema,
+    smallChoiceSchema,
+    mcpConnectSchema,
+  ])
+  .refine(
+    (component) =>
+      component.component !== 'McpConnect' ||
+      (component.completionLabel === undefined) ===
+        (component.completionAction === undefined)
+  );
 const createSurfaceMessageSchema = z.object({
   version: z.literal('v0.9'),
   createSurface: z.object({
-    surfaceId: nonEmptyString(),
+    surfaceId: nonEmptyString(LIMITS.maxIdLength),
     catalogId: nonEmptyString(),
   }),
 });
 const updateComponentsMessageSchema = z.object({
   version: z.literal('v0.9'),
   updateComponents: z.object({
-    surfaceId: nonEmptyString(),
+    surfaceId: nonEmptyString(LIMITS.maxIdLength),
     components: z.array(componentSchema).min(1).max(LIMITS.maxComponents),
     root: z.string().optional(),
   }),
@@ -195,11 +329,43 @@ export namespace A2UI {
   export type ChatVolumeNavigationTarget = z.infer<
     typeof chatVolumeNavigationTargetSchema
   >;
+  /**
+   * App screens a blob may navigate to. Unknown names fail validation so a
+   * newer card safely degrades to fallback text on an older client.
+   */
+  export type ScreenName = z.infer<typeof screenNameSchema>;
+  export type ScreenNavigationTarget = z.infer<
+    typeof screenNavigationTargetSchema
+  >;
   export type NavigationTarget = z.infer<typeof navigationTargetSchema>;
   export type NavigateEvent = z.infer<typeof navigateEventSchema>;
+  /** Finish the durable, client-bound agent onboarding setup. */
+  export type ProvisionAgentEvent = z.infer<typeof provisionAgentEventSchema>;
+  /** Bind already-connected Hosting providers to a recurring agent job. */
+  export type ConfigureAgentProvidersEvent = z.infer<
+    typeof configureAgentProvidersEventSchema
+  >;
   export type EventAction = z.infer<typeof buttonActionSchema>;
   export type ButtonAction = EventAction;
+  export type SendMessageAction = z.infer<typeof sendMessageActionSchema>;
+  export type NavigateAction = z.infer<typeof navigateActionSchema>;
+  export type ConfigureAgentProvidersAction = z.infer<
+    typeof configureAgentProvidersActionSchema
+  >;
+  /** Every action the renderer may dispatch; provider config is McpConnect-only. */
+  export type Action = ButtonAction | ConfigureAgentProvidersAction;
   export type Button = z.infer<typeof buttonSchema>;
+  /** Allowlisted assets a Choice option may render. */
+  export type ChoiceIcon = z.infer<typeof choiceIconSchema>;
+  export type ChoiceAccent = z.infer<typeof choiceAccentSchema>;
+  export type ChoiceOption = z.infer<typeof choiceOptionSchema>;
+  /** A group of full-row option cards where the whole card is tappable. */
+  export type Choice = z.infer<typeof choiceSchema>;
+  export type SmallChoiceOption = z.infer<typeof smallChoiceOptionSchema>;
+  /** A client-owned multi-select whose selection is posted only on submit. */
+  export type SmallChoice = z.infer<typeof smallChoiceSchema>;
+  /** A client-owned menu populated from the viewer's live MCP providers. */
+  export type McpConnect = z.infer<typeof mcpConnectSchema>;
   export type Component = z.infer<typeof componentSchema>;
   export type CreateSurfaceMessage = z.infer<typeof createSurfaceMessageSchema>;
   export type UpdateComponentsMessage = z.infer<
@@ -324,6 +490,30 @@ function indexComponents(
       }
     } else if (component.component === 'Text') {
       totalTextLength += component.text.length;
+    } else if (component.component === 'Choice') {
+      // Choice carries its own copy — count it, or it bypasses the budget.
+      for (const option of component.options) {
+        totalTextLength += option.label.length;
+        totalTextLength += option.description?.length ?? 0;
+        if (option.action.event.name === ACTION_SEND_MESSAGE) {
+          totalTextLength += option.action.event.context.text.length;
+        }
+      }
+    } else if (component.component === 'SmallChoice') {
+      for (const option of component.options) {
+        totalTextLength += option.label.length;
+      }
+      totalTextLength += component.submitLabel.length;
+      totalTextLength += component.freeTextPlaceholder?.length ?? 0;
+      if (component.action.event.name === ACTION_SEND_MESSAGE) {
+        totalTextLength += component.action.event.context.text.length;
+      }
+    } else if (component.component === 'McpConnect') {
+      totalTextLength +=
+        component.seeAllLabel.length + component.submitLabel.length;
+      totalTextLength += component.completionLabel?.length ?? 0;
+      totalTextLength +=
+        component.completionAction?.event.context.text.length ?? 0;
     }
   }
 
@@ -391,6 +581,17 @@ export function getUpdateMessage(
   );
 }
 
+export function getCreateMessage(
+  entry: A2UI.BlobEntry
+): A2UI.CreateSurfaceMessage | null {
+  return (
+    entry.messages.find(
+      (message): message is A2UI.CreateSurfaceMessage =>
+        isPlainObject(message) && 'createSurface' in message
+    ) ?? null
+  );
+}
+
 export function getRootComponentId(entry: A2UI.BlobEntry): string | null {
   const update = getUpdateMessage(entry);
   if (!update) {
@@ -450,13 +651,52 @@ export const blobEntrySchema = blobEntryShapeSchema.superRefine(
   validateParsedBlobEntry
 );
 
+/**
+ * The message a SmallChoice posts for a given selection: the action's text as a
+ * prefix, then the selected labels comma-joined in declaration order. The
+ * durable selection lives in a typed post-blob entry, so this string is only
+ * presentation for the owner and bot.
+ */
+export function buildSmallChoiceMessage(
+  component: A2UI.SmallChoice,
+  selectedIds: Iterable<string>,
+  /** free-text entries; each value remains a separate durable selection */
+  freeText?: string | readonly string[]
+): string {
+  const selected = new Set(selectedIds);
+  const labels = component.options
+    .filter((option) => selected.has(option.id))
+    .map((option) => option.label);
+  const typed = (typeof freeText === 'string' ? [freeText] : (freeText ?? []))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  labels.push(...typed);
+  if (!labels.length) {
+    return '';
+  }
+  const selection = labels.join(', ');
+  const prefix =
+    component.action.event.name === ACTION_SEND_MESSAGE
+      ? component.action.event.context.text.trim()
+      : '';
+  return [prefix, selection]
+    .filter(Boolean)
+    .join(' ')
+    .slice(0, LIMITS.maxButtonMessageLength)
+    .trim();
+}
+
 export const A2UI = {
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
     navigate: ACTION_NAVIGATE,
+    provisionAgent: ACTION_PROVISION_AGENT,
+    configureAgentProviders: ACTION_CONFIGURE_AGENT_PROVIDERS,
   },
+  getCreateMessage,
   getUpdateMessage,
   getRootComponentId,
   validateBlobEntry,
   blobEntrySchema,
+  buildSmallChoiceMessage,
 } as const;

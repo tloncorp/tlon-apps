@@ -318,6 +318,57 @@ describe('finalizeAndSendPost', () => {
     });
   });
 
+  test('can reject a definitive send failure for one-shot controls', async () => {
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    vi.mocked(poke).mockRejectedValueOnce(new Error('definitive send failure'));
+
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft(), {
+      rejectOnDefinitiveFailure: true,
+    });
+    const rejection = expect(sendPostPromise).rejects.toThrow(
+      'definitive send failure'
+    );
+    await vi.runOnlyPendingTimersAsync();
+
+    await rejection;
+    expect(await fetchLatestPostFromDb()).toMatchObject({
+      deliveryStatus: 'failed',
+    });
+  });
+
+  test('does not reject after backend delivery when local cleanup fails', async () => {
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    vi.mocked(poke).mockResolvedValueOnce(0);
+    const cleanup = vi
+      .spyOn(PostDataDraft, 'revokeBlobUrls')
+      .mockImplementationOnce(() => {
+        throw new Error('local cleanup failed');
+      });
+
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft(), {
+      rejectOnDefinitiveFailure: true,
+    });
+    await vi.runOnlyPendingTimersAsync();
+
+    await expect(sendPostPromise).resolves.toBeUndefined();
+    expect(await fetchLatestPostFromDb()).toMatchObject({
+      deliveryStatus: 'pending',
+    });
+    cleanup.mockRestore();
+  });
+
+  test('rejects a missing channel for one-shot controls', async () => {
+    const missingChannel = '~zod/missing';
+
+    await expect(
+      finalizeAndSendPost(buildTestDraft({ channelId: missingChannel }), {
+        rejectOnDefinitiveFailure: true,
+      })
+    ).rejects.toThrow(`channel ${missingChannel} was not found`);
+  });
+
   test('tracks completion when a failed send succeeds on retry', async () => {
     const capture = vi.fn();
     useDebugStore.getState().initializeErrorLogger({ capture });

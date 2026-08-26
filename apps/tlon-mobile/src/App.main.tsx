@@ -22,10 +22,12 @@ import { useAppNavigationTheme } from '@tloncorp/app/navigation/useAppNavigation
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
+  AgentOnboardingSequence,
   LoadingSpinner,
   SplashSequence,
   Text,
   View,
+  ZStack,
   usePreloadedEmojis,
 } from '@tloncorp/app/ui';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
@@ -115,6 +117,7 @@ const MainApp = () => {
     connected,
     showAuthenticatedApp,
     showSplashSequence,
+    forcedSplash,
     activeSplashSequenceMode,
     hostingBotEnabled,
     handleClearSplash,
@@ -142,6 +145,16 @@ const MainApp = () => {
 
   useEffect(() => () => setActiveNotificationRoute(undefined), []);
 
+  const splash = (
+    <SplashSequence
+      onCompleted={handleClearSplash}
+      inviteSystemContacts={inviteSystemContacts}
+      hostingBotEnabled={hostingBotEnabled}
+      splashSequenceMode={activeSplashSequenceMode}
+      onLogout={handleSplashLogout}
+    />
+  );
+
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
       {connected ? (
@@ -149,18 +162,35 @@ const MainApp = () => {
           <View flex={1} alignItems="center" justifyContent="center">
             <LoadingSpinner />
           </View>
-        ) : showSplashSequence ? (
-          <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-            <SplashSequence
-              onCompleted={handleClearSplash}
-              inviteSystemContacts={inviteSystemContacts}
-              hostingBotEnabled={hostingBotEnabled}
-              splashSequenceMode={activeSplashSequenceMode}
-              onLogout={handleSplashLogout}
-            />
-          </AppDataProvider>
         ) : showAuthenticatedApp ? (
-          <AuthenticatedApp />
+          showSplashSequence &&
+          (forcedSplash || activeSplashSequenceMode === 'tlonbotRevival') ? (
+            <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
+              {splash}
+            </AppDataProvider>
+          ) : (
+            <ZStack flex={1}>
+              <AuthenticatedApp />
+              {showSplashSequence && (
+                <View
+                  position="absolute"
+                  top={0}
+                  right={0}
+                  bottom={0}
+                  left={0}
+                  zIndex={1}
+                  backgroundColor="$background"
+                >
+                  <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
+                    <AgentOnboardingSequence
+                      onCompleted={handleClearSplash}
+                      fallback={splash}
+                    />
+                  </AppDataProvider>
+                </View>
+              )}
+            </ZStack>
+          )
         ) : (
           <OnboardingStack />
         )
