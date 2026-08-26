@@ -486,9 +486,9 @@
   %-  (do-as ~zod)
   (do-poke %steward-lens-action-1 !>(`action:v1:l`[%retry ~dev 'lens-r']))
 ::
-::  on-init subscribes to %activity and seeds the default retention cap
+::  on-init subscribes to %activity and %chat, and seeds the default cap
 ::
-++  test-init-arms-activity-and-cap
+++  test-init-arms-observers-and-cap
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -498,6 +498,7 @@
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  (ex-task /activity [~dev %activity] %watch /v5)
+        (ex-task /journey/chat [~dev %chat] %watch /v4)
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-0 !<(vase q.res))

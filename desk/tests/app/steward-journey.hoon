@@ -1,8 +1,8 @@
 /-  c=chat, ch=channels, co=contacts, l=logs
 /+  *test-agent
-/=  agent  /app/bot-journey
+/=  agent  /app/steward
 |%
-++  dap  %bot-journey-test
+++  dap  %steward
 ++  owner  ~dev
 ++  bot  ^-  ship  (add owner (bex 32))
 ++  when  ~2024.1.1
@@ -19,6 +19,7 @@
   |=  =path
   ^-  (unit vase)
   ?+  path  ~
+    [%gu @ %activity @ %$ ~]  `!>(&)
     [%j @ %sein @ @ ~]  `!>(owner)
     [%gx @ %contacts @ %v1 %contact @ %contact-1 ~]  `!>(bot-contact)
   ==
@@ -27,6 +28,7 @@
   |=  =path
   ^-  (unit vase)
   ?+  path  ~
+    [%gu @ %activity @ %$ ~]  `!>(&)
     [%j @ %sein @ @ ~]  `!>(owner)
     [%gx @ %contacts @ %v1 %contact @ %contact-1 ~]  `!>(human-contact)
   ==
@@ -35,6 +37,7 @@
   |=  =path
   ^-  (unit vase)
   ?+  path  ~
+    [%gu @ %activity @ %$ ~]  `!>(&)
     [%j @ %sein @ @ ~]  `!>(owner)
     [%gx @ %contacts @ %v1 %self %contact-1 ~]  `!>(bot-contact)
   ==
@@ -43,6 +46,7 @@
   |=  =path
   ^-  (unit vase)
   ?+  path  ~
+    [%gu @ %activity @ %$ ~]  `!>(&)
     [%j @ %sein @ @ ~]  `!>(owner)
     [%gx @ %contacts @ %v1 %self %contact-1 ~]  `!>(human-contact)
   ==
@@ -53,7 +57,7 @@
   =/  =verse:ch  [%inline ~['not included in telemetry']]
   =/  =essay:c  [[~[verse] author when] chat+/ ~ ~]
   =/  response=response:writs:c  [id %add essay 1 when]
-  [/chat [local %chat] %fact writ-response-4+!>([`whom:c`[%ship peer] response])]
+  [/journey/chat [local %chat] %fact writ-response-4+!>([`whom:c`[%ship peer] response])]
 ::
 ++  expected
   |=  [local=ship stage=@t =id:c owner-ship=ship bot-ship=ship]
@@ -75,17 +79,18 @@
         'tlon.message_journey.owner_ship'^s+(scot %p owner-ship)
         'tlon.message_journey.bot_ship'^s+(scot %p bot-ship)
         'tlon.message_journey.destination_kind'^s+'dm'
-        'tlon.message_journey.source'^s+'bot-journey'
+        'tlon.message_journey.source'^s+'steward/journey'
     ==
-  [%pass /logs %agent [local %logs] %poke log-action-1+!>(`a-log:l`[%log event data])]
+  [%pass /journey/logs %agent [local %logs] %poke log-action-1+!>(`a-log:l`[%log event data])]
 ::
 ++  setup
   |=  [local=ship scry=scry]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  (set-scry-gate scry)
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our local, src local, now when)))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our local, src local)))
   ;<  *  bind:m  (do-init dap agent)
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now when)))
   (pure:m ~)
 ::
 ++  test-owner-input-for-openclaw-bot
@@ -94,7 +99,7 @@
   ;<  ~  bind:m  (setup owner scry-owner-bot)
   =/  =id:c  [owner when]
   ;<  caz=(list card)  bind:m  (do-agent (make-fact owner bot owner id))
-  (ex-equal !>(caz) !>([(expected owner 'owner_input_accepted' id owner bot)]~))
+  (ex-cards caz ~[(ex-card (expected owner 'owner_input_accepted' id owner bot))])
 ::
 ++  test-owner-reply-for-openclaw-bot
   %-  eval-mare
@@ -103,7 +108,7 @@
   =/  =id:c  [bot when]
   =/  bot-author=author:c  [bot ~ ~]
   ;<  caz=(list card)  bind:m  (do-agent (make-fact owner bot bot-author id))
-  (ex-equal !>(caz) !>([(expected owner 'owner_reply_persisted' id owner bot)]~))
+  (ex-cards caz ~[(ex-card (expected owner 'owner_reply_persisted' id owner bot))])
 ::
 ++  test-moon-input-from-owner
   %-  eval-mare
@@ -111,7 +116,7 @@
   ;<  ~  bind:m  (setup bot scry-moon)
   =/  =id:c  [owner when]
   ;<  caz=(list card)  bind:m  (do-agent (make-fact bot owner owner id))
-  (ex-equal !>(caz) !>([(expected bot 'moon_input_persisted' id owner bot)]~))
+  (ex-cards caz ~[(ex-card (expected bot 'moon_input_persisted' id owner bot))])
 ::
 ++  test-moon-reply-to-owner
   %-  eval-mare
@@ -119,7 +124,7 @@
   ;<  ~  bind:m  (setup bot scry-moon)
   =/  =id:c  [bot when]
   ;<  caz=(list card)  bind:m  (do-agent (make-fact bot owner bot id))
-  (ex-equal !>(caz) !>([(expected bot 'moon_reply_persisted' id owner bot)]~))
+  (ex-cards caz ~[(ex-card (expected bot 'moon_reply_persisted' id owner bot))])
 ::
 ++  test-human-moon-reply-emits-nothing
   %-  eval-mare

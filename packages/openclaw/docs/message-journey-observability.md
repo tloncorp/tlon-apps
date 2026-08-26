@@ -5,9 +5,10 @@ the bot moon and OpenClaw, and back to the owner's backend. It is content-free:
 event attributes contain routing metadata and canonical message IDs, but never
 message or reply text.
 
-The stateless `%bot-journey` Gall agent subscribes to the local `%chat` v4 feed
-and synchronously reads `%contacts` for each DM message. It emits a stage only
-when the relevant profile already has a `bot-info` text field whose JSON says
+The stateless `journey` module in the `%steward` Gall agent subscribes to the
+local `%chat` v4 feed and synchronously reads `%contacts` for each DM message.
+It emits a stage only when the relevant profile already has a `bot-info` text
+field whose JSON says
 `"harness":"openclaw"`. On an owner ship, that is the child moon's profile; on
 a bot moon receiving owner input or persisting its own reply, it is the moon's
 self-profile. A missing marker or any other harness emits nothing, so human DMs
@@ -25,8 +26,8 @@ Schema version: `1`.
 
 | Event | Producer | Correlation | Meaning |
 | --- | --- | --- | --- |
-| `owner_input_accepted` | owner `%bot-journey` | `input_message_id` | The owner's local DM write was reduced for a child moon marked as an OpenClaw bot. |
-| `moon_input_persisted` | moon `%bot-journey` | `input_message_id` | The marked OpenClaw moon reduced the remote DM from its owner. |
+| `owner_input_accepted` | owner `%steward` journey module | `input_message_id` | The owner's local DM write was reduced for a child moon marked as an OpenClaw bot. |
+| `moon_input_persisted` | moon `%steward` journey module | `input_message_id` | The marked OpenClaw moon reduced the remote DM from its owner. |
 | `plugin_input_observed` | OpenClaw Tlon monitor | `input_message_id` | The DM subscription delivered the message to the plugin. |
 | `plugin_input_selected` | OpenClaw Tlon monitor | `input_message_id` | The plugin accepted the message for processing. |
 | `turn_started` | OpenClaw turn recorder | `input_message_id`, `run_id` | OpenClaw began a turn for the message. |
@@ -34,8 +35,8 @@ Schema version: `1`.
 | `reply_dispatch_attempted` | OpenClaw turn recorder | `input_message_id`, `run_id`, `attempt_number` | A reply transport call began. There can be multiple attempts per turn. |
 | `reply_dispatch_failed` | OpenClaw turn recorder | `input_message_id`, `run_id`, `attempt_number` | A reply transport call failed. |
 | `moon_reply_enqueued` | OpenClaw turn recorder | `input_message_id`, `run_id`, `output_message_id` | The moon API accepted the outgoing message and returned its canonical ID. This is not proof of owner delivery. |
-| `moon_reply_persisted` | moon `%bot-journey` | `output_message_id` | The marked OpenClaw moon's `%chat` feed observed its locally authored DM reply to its owner. |
-| `owner_reply_persisted` | owner `%bot-journey` | `output_message_id` | The owner observed a remote reply from a child moon marked as an OpenClaw bot. |
+| `moon_reply_persisted` | moon `%steward` journey module | `output_message_id` | The marked OpenClaw moon's `%chat` feed observed its locally authored DM reply to its owner. |
+| `owner_reply_persisted` | owner `%steward` journey module | `output_message_id` | The owner observed a remote reply from a child moon marked as an OpenClaw bot. |
 
 The backend stages currently define the owner/moon SLO for DMs. OpenClaw also
 emits turn and dispatch stages for group-channel turns, but group persistence
