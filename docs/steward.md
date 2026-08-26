@@ -101,7 +101,7 @@ Each stored prompt carries an `edited` flag: `&` for text that came from an owne
 - **`%revoke`** `[%revoke ~]` — a bot tells a former owner to drop its mirror. Sent automatically when the bot's configured owner changes; accepted from any ship holding a mirror entry with us (a ship can only drop its own). The revoke is emitted on the same wire as `%sync` pokes to that ship (`/prompts/sync/<ship>`), so it shares their ames flow and is guaranteed to be delivered after any pre-transition `%sync` still in flight — a revoke on its own flow could be overtaken by a delayed sync, which would recreate the stale mirror.
 - **`%clear`** `[%clear ~]` — the local gateway declares prompt sync inactive for this ship (`src == our` only): its account lost prompt-syncing authority without an owner change (e.g. a default account was enabled beside a formerly sole named account). Wipes the canonical set and fans the now-empty set to the owner, emptying the mirror so the owner's client stops offering an editor whose edits nothing would apply. A no-op when the canonical set is already empty — the gateway re-sends it on every non-syncing boot.
 
-Size caps: a `%set` over 64KB nacks at the first hop (so the editing client sees the failure); seed/sync maps are capped at 512KB jammed, mirroring the lens payload ceiling.
+Size caps: a `%set` over 64KB nacks at the first hop (so the editing client sees the failure), and a `%set` that would push the whole canonical map past 512KB jammed nacks at the bot — an oversized set could never fan to the owner again, since seed/sync maps are capped at 512KB jammed (mirroring the lens payload ceiling) and oversized `%sync`s are dropped by the receiver.
 
 ## poke surface
 

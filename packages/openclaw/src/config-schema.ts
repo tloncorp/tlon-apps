@@ -189,6 +189,16 @@ export const TlonConfigSchema = z.object({
   ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
   // Ship-managed system prompt overrides (see TlonPromptsSchema).
   prompts: TlonPromptsSchema.optional(),
+  // Prompt-sync shadow ledger, written by prompt sync alongside the
+  // per-account caches. Lives OUTSIDE the account blocks so deleting an
+  // account keeps a record of the prompt text its owner edited onto the
+  // shared agent workspace — the next syncing authority filters those
+  // texts out of its seed instead of leaking them to a different ship.
+  promptSync: z
+    .object({
+      accounts: z.record(z.string().min(1), TlonPromptsSchema),
+    })
+    .optional(),
 });
 
 // Cast bridges a type-only mismatch: this repo's zod and openclaw's bundled

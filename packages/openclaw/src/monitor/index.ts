@@ -53,6 +53,7 @@ import {
   collectForeignPromptCaches,
   createPromptSync,
   shouldRunPromptSync,
+  withStartupRetries,
 } from '../prompt-sync.js';
 import {
   type PendingNudge,
@@ -5518,13 +5519,24 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // config — which keeps mirroring prompts to the owner and offering
         // an editor whose edits no fact handler applies. %clear wipes it
         // and empties the owner's mirror; idempotent, and older desks
-        // without %clear just nack.
+        // without %clear just nack. Same bounded retry as the syncing
+        // startup requests — a transient failure would otherwise leave the
+        // stale editor up until the next restart.
         try {
-          await api.poke({
-            app: 'steward',
-            mark: 'steward-prompts-action-1',
-            json: { clear: null },
-            ...(opts.abortSignal ? { signal: opts.abortSignal } : {}),
+          await withStartupRetries({
+            label: '%steward prompt clear',
+            run: () =>
+              api!.poke({
+                app: 'steward',
+                mark: 'steward-prompts-action-1',
+                json: { clear: null },
+                ...(opts.abortSignal ? { signal: opts.abortSignal } : {}),
+              }),
+            logger: {
+              log: (m) => runtime.log?.(m),
+              warn: (m) => runtime.error?.(m),
+            },
+            ...(opts.abortSignal ? { abortSignal: opts.abortSignal } : {}),
           });
           runtime.log?.(
             '[tlon] Prompt sync inactive for this account; cleared ship prompt state'

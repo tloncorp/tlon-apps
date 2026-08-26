@@ -59,6 +59,63 @@ export function isScryNotFound(error: unknown): boolean {
   return /Scry failed: 404 /.test(String(error));
 }
 
+/** Abort-aware sleep: teardown must not sit out a multi-second backoff. */
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/**
+ * Boot-time requests run once per gateway boot, so a transiently failed
+ * request would otherwise leave prompts unsynced until the next restart.
+ * Bounded retries; an error `isPermanent` recognizes rethrows immediately,
+ * and an abort stops retrying with the last error.
+ */
+export async function withStartupRetries<T>(retryOpts: {
+  label: string;
+  run: () => Promise<T>;
+  logger: PromptSyncLogger;
+  isPermanent?: (error: unknown) => boolean;
+  retryDelaysMs?: number[];
+  abortSignal?: AbortSignal;
+}): Promise<T> {
+  const delays = retryOpts.retryDelaysMs ?? STARTUP_RETRY_DELAYS_MS;
+  const aborted = () => retryOpts.abortSignal?.aborted === true;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await retryOpts.run();
+    } catch (error) {
+      if (
+        retryOpts.isPermanent?.(error) ||
+        attempt >= delays.length ||
+        aborted()
+      ) {
+        throw error;
+      }
+      retryOpts.logger.warn(
+        `[tlon] ${retryOpts.label} failed, retrying in ${delays[attempt]}ms: ${error}`
+      );
+      await abortableSleep(delays[attempt], retryOpts.abortSignal);
+      if (aborted()) {
+        throw error;
+      }
+    }
+  }
+}
+
 export type PromptSyncLogger = {
   log: (message: string) => void;
   warn: (message: string) => void;
@@ -115,10 +172,31 @@ export function collectForeignPromptCaches(
   ]);
   ids.delete(accountId || DEFAULT_ACCOUNT_ID);
   const out: Record<string, string[]> = {};
+  const add = (name: string, text: unknown) => {
+    if (typeof text === 'string' && !(out[name] ?? []).includes(text)) {
+      (out[name] ??= []).push(text);
+    }
+  };
   for (const id of ids) {
     const prompts = resolveTlonAccount(cfg, id).prompts;
     for (const [name, text] of Object.entries(prompts)) {
-      (out[name] ??= []).push(text);
+      add(name, text);
+    }
+  }
+  // The shadow ledger covers accounts DELETED from the config entirely —
+  // their per-account cache went with them, but their edited text can
+  // still sit on the shared workspace (see writePromptsIntoConfigDraft).
+  const ledgerAccounts = (
+    cfg.channels?.tlon as
+      | { promptSync?: { accounts?: Record<string, Record<string, unknown>> } }
+      | undefined
+  )?.promptSync?.accounts;
+  for (const [id, prompts] of Object.entries(ledgerAccounts ?? {})) {
+    if (id === (accountId || DEFAULT_ACCOUNT_ID)) {
+      continue;
+    }
+    for (const [name, text] of Object.entries(prompts ?? {})) {
+      add(name, text);
     }
   }
   return out;
@@ -269,7 +347,12 @@ export async function applyPromptsToWorkspace(opts: {
 /**
  * Merge prompt entries into the tlon channel section of a config draft.
  * Non-default accounts get their own `accounts[id].prompts`; the default
- * account uses the top-level `channels.tlon.prompts`.
+ * account uses the top-level `channels.tlon.prompts`. Every write is
+ * shadowed into `channels.tlon.promptSync.accounts[id]`, which lives
+ * OUTSIDE the account blocks: deleting an account from the config deletes
+ * its cache, but its owner-edited text can still sit on the shared
+ * workspace files — the shadow ledger is what lets the next syncing
+ * authority recognize that text as foreign (collectForeignPromptCaches).
  */
 export function writePromptsIntoConfigDraft(
   draft: Record<string, unknown>,
@@ -289,6 +372,11 @@ export function writePromptsIntoConfigDraft(
       )[accountId] as Record<string, unknown>) ??= {});
   const existing = (target.prompts as Record<string, string>) ?? {};
   target.prompts = { ...existing, ...prompts };
+  const id = useDefault ? DEFAULT_ACCOUNT_ID : accountId;
+  const ledger = ((tlon.promptSync as Record<string, unknown>) ??= {});
+  const ledgerAccounts = ((ledger.accounts as Record<string, unknown>) ??= {});
+  const entry = (ledgerAccounts[id] as Record<string, string>) ?? {};
+  ledgerAccounts[id] = { ...entry, ...prompts };
 }
 
 /** True when `next` adds or changes any entry relative to `current`. */
@@ -350,59 +438,22 @@ export function createPromptSync(opts: {
   retryDelaysMs?: number[];
 }): PromptSync {
   const { core, accountId, workspaceDir, owner, scry, poke, logger } = opts;
-  const retryDelaysMs = opts.retryDelaysMs ?? STARTUP_RETRY_DELAYS_MS;
 
   const aborted = () => opts.abortSignal?.aborted === true;
 
-  // Abort-aware: teardown must not sit out a multi-second backoff.
-  const sleep = (ms: number) =>
-    new Promise<void>((resolve) => {
-      const signal = opts.abortSignal;
-      if (signal?.aborted) {
-        resolve();
-        return;
-      }
-      const onAbort = () => {
-        clearTimeout(timer);
-        resolve();
-      };
-      const timer = setTimeout(() => {
-        signal?.removeEventListener('abort', onAbort);
-        resolve();
-      }, ms);
-      signal?.addEventListener('abort', onAbort, { once: true });
-    });
-
-  // Startup runs once per gateway boot, so a transiently failed request
-  // would otherwise leave prompts unsynced until the next restart. Bounded
-  // retries; an error `isPermanent` recognizes rethrows immediately, and an
-  // abort stops retrying with the last error.
-  const withStartupRetries = async <T>(
+  const retry = <T>(
     label: string,
     run: () => Promise<T>,
     isPermanent?: (error: unknown) => boolean
-  ): Promise<T> => {
-    for (let attempt = 0; ; attempt += 1) {
-      try {
-        return await run();
-      } catch (error) {
-        if (
-          isPermanent?.(error) ||
-          attempt >= retryDelaysMs.length ||
-          aborted()
-        ) {
-          throw error;
-        }
-        logger.warn(
-          `[tlon] ${label} failed, retrying in ${retryDelaysMs[attempt]}ms: ${error}`
-        );
-        await sleep(retryDelaysMs[attempt]);
-        if (aborted()) {
-          throw error;
-        }
-      }
-    }
-  };
+  ) =>
+    withStartupRetries({
+      label,
+      run,
+      logger,
+      ...(isPermanent ? { isPermanent } : {}),
+      ...(opts.retryDelaysMs ? { retryDelaysMs: opts.retryDelaysMs } : {}),
+      ...(opts.abortSignal ? { abortSignal: opts.abortSignal } : {}),
+    });
 
   const persistToConfig = async (
     prompts: Record<string, string>,
@@ -441,7 +492,7 @@ export function createPromptSync(opts: {
     // authorized to edit indefinitely. Idempotent both ways: %steward
     // no-ops a same-owner reconfigure and an already-clear %unconfigure.
     try {
-      await withStartupRetries('%steward owner configure', () =>
+      await retry('%steward owner configure', () =>
         poke({
           app: 'steward',
           mark: 'steward-action-1',
@@ -458,7 +509,7 @@ export function createPromptSync(opts: {
     let stored: Record<string, string>;
     try {
       stored = parseStoredPromptsScry(
-        await withStartupRetries(
+        await retry(
           'Prompt scry',
           () => scry('/steward/v1/prompts.json'),
           isScryNotFound
@@ -541,7 +592,7 @@ export function createPromptSync(opts: {
       // Same bounded retry as the configure and scry above — a transient
       // failure here would leave a fresh ship's canonical set (and the
       // owner mirror) empty until the next gateway restart.
-      await withStartupRetries('%steward prompt seed', () =>
+      await retry('%steward prompt seed', () =>
         poke({
           app: 'steward',
           mark: 'steward-prompts-action-1',

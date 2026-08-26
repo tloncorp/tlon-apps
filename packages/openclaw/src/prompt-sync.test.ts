@@ -187,7 +187,10 @@ describe('writePromptsIntoConfigDraft', () => {
     writePromptsIntoConfigDraft(draft, 'default', { 'SOUL.md': 'be kind' });
     expect(draft).toEqual({
       channels: {
-        tlon: { prompts: { 'BOOT.md': 'old', 'SOUL.md': 'be kind' } },
+        tlon: {
+          prompts: { 'BOOT.md': 'old', 'SOUL.md': 'be kind' },
+          promptSync: { accounts: { default: { 'SOUL.md': 'be kind' } } },
+        },
       },
     });
   });
@@ -197,8 +200,28 @@ describe('writePromptsIntoConfigDraft', () => {
     writePromptsIntoConfigDraft(draft, 'alt', { 'SOUL.md': 'be kind' });
     expect(draft).toEqual({
       channels: {
-        tlon: { accounts: { alt: { prompts: { 'SOUL.md': 'be kind' } } } },
+        tlon: {
+          accounts: { alt: { prompts: { 'SOUL.md': 'be kind' } } },
+          promptSync: { accounts: { alt: { 'SOUL.md': 'be kind' } } },
+        },
       },
+    });
+  });
+
+  it('merges the shadow ledger without dropping other accounts', () => {
+    const draft: Record<string, unknown> = {
+      channels: {
+        tlon: {
+          promptSync: {
+            accounts: { gone: { 'USER.md': 'deleted account edit' } },
+          },
+        },
+      },
+    };
+    writePromptsIntoConfigDraft(draft, 'default', { 'SOUL.md': 'be kind' });
+    expect((draft as any).channels.tlon.promptSync.accounts).toEqual({
+      gone: { 'USER.md': 'deleted account edit' },
+      default: { 'SOUL.md': 'be kind' },
     });
   });
 });
@@ -721,6 +744,26 @@ describe('collectForeignPromptCaches', () => {
     const foreign = collectForeignPromptCaches(cfg, 'hosted');
     expect(foreign['USER.md']).toEqual(['default owner private notes']);
     expect(foreign['SOUL.md']).toEqual(['stale soul']);
+  });
+
+  it('covers accounts deleted from the config via the shadow ledger', () => {
+    // The 'gone' account was removed entirely — no account block, no
+    // per-account cache — but its edits can still sit on the workspace.
+    const withLedger = makeAccountsConfig({
+      ship: '~zod',
+      url: 'http://x',
+      code: 'c',
+      promptSync: {
+        accounts: {
+          gone: { 'USER.md': 'deleted account private notes' },
+          default: { 'SOUL.md': 'my own edit' },
+        },
+      },
+    }) as never;
+    const foreign = collectForeignPromptCaches(withLedger, 'default');
+    expect(foreign['USER.md']).toEqual(['deleted account private notes']);
+    // Its own ledger entry is not foreign.
+    expect(foreign['SOUL.md']).toBeUndefined();
   });
 });
 

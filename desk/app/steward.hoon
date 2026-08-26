@@ -835,7 +835,15 @@
     |=  [=name:v1:sp text=@t]
     ^+  cor
     =/  =prompt:v1:sp  [text now.bowl &]
-    =.  own.prompts.state  (~(put by own.prompts.state) name prompt)
+    =/  new  (~(put by own.prompts.state) name prompt)
+    ::  reject an edit that would push the whole map past the sync payload
+    ::  cap: an oversized canonical set can never fan to the owner again
+    ::  (pr-store-mirror drops oversized %syncs), so the mirror would go
+    ::  permanently stale — nack the poke instead
+    ::
+    ~|  %prompts-set-overflows-payload-cap
+    ?>  (lte (met 3 (jam new)) max-payload-bytes)
+    =.  own.prompts.state  new
     =.  cor
       %^  give  %fact  ~[/v1/prompts]
       steward-prompts-update-1+!>(`update:v1:sp`[%set name prompt])

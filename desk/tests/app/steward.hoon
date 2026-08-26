@@ -1354,6 +1354,31 @@
   =+  !<(=update:v1:p q.res)
   (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev *prompts:v1:p]))
 ::
+::  a %set that would push the whole canonical map past the sync payload
+::  cap is nacked — an oversized set could never fan to the owner again
+::
+++  test-pr-set-map-cap-nacks-overflow
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ::  each text must be distinct: jam deduplicates identical subtrees, so
+  ::  repeating one 64KB atom would never grow the jammed map past the cap
+  =/  set-big
+    |=  n=@t
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%set ~dev n (cat 3 (fil 3 65.000 'a') n)])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  (set-big 'P1.md')
+  ;<  *  bind:m  (set-big 'P2.md')
+  ;<  *  bind:m  (set-big 'P3.md')
+  ;<  *  bind:m  (set-big 'P4.md')
+  ;<  *  bind:m  (set-big 'P5.md')
+  ;<  *  bind:m  (set-big 'P6.md')
+  ;<  *  bind:m  (set-big 'P7.md')
+  ;<  *  bind:m  (set-big 'P8.md')
+  (ex-fail (set-big 'P9.md'))
+::
 ::  %clear is local-only and a no-op when nothing is stored
 ::
 ++  test-pr-clear-auth-and-noop
