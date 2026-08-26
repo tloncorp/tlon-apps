@@ -11,7 +11,7 @@ Ship-native umbrella agent: the durable, always-on ship-side half of an ephemera
 | (core)       | `sur/steward.hoon`               | `%steward-action-1`                                                      |
 | `lens`       | `sur/steward/lens.hoon`          | `%steward-lens-action-1`, `%steward-lens-update-1`                       |
 | `gateway`    | `sur/steward/gateway.hoon`       | `%steward-gateway-action-1`, `%steward-gateway-update-1`                 |
-| `automation` | `sur/steward/automation.hoon`    | `%steward-automation-action-1`, `%steward-automation-update-1`           |
+| `automation` | `sur/steward/automation.hoon`    | `%steward-automation-action-1`, `%steward-automation-update-1`, `%steward-automation-tasks-1` |
 
 Each sur file is versioned on its own (`++v1`), referenced by callers as `action:v1:lens`, `update:v1:gateway`, etc. The core `sur/steward.hoon` carries only cross-cutting config (currently just `%configure`); each module's protocol lives in its own file.
 
@@ -268,25 +268,23 @@ Dotket scries execute locally against the agent's current state and do not carry
 - `/x/v1/lens/run/[ship]/[id]` → `[%entry entry]`, or empty (`[~ ~]`) when absent.
 - `/x/v1/gateway/status` → `%noun` `[status:v1:gateway (unit @da)]` — current liveness and lease expiry.
 - `/x/v1/gateway/owner-activity` → `%noun` `@da` — timestamp of the most recent owner DM.
-- `/x/v1/automation/tasks` → `%steward-automation-update-1` `[%tasks (map ship (map @t task:v1:automation))]` — the complete per-ship task state, for client backfill. The scry returns the feed's `%tasks` snapshot variant, lens-style, so clients share one parser for reads and subscriptions.
+- `/x/v1/automation/tasks` → `%steward-automation-tasks-1` `(map ship (map @t task:v1:automation))` — the complete per-ship task state, for client backfill. The scry has its own mark — marks are never shared between facts and scries — carrying the raw ship-keyed map.
 
-The automation scry therefore grows to the same JSON as a snapshot fact — a `tasks` object keyed by ship, each value that ship's ID-keyed task map:
+The automation scry grows to the bare ship-keyed object, each value that ship's ID-keyed task map:
 
 ```json
 {
-  "tasks": {
-    "~zod": {
-      "job-id": {
-        "agentId": "main",
-        "enabled": false,
-        "schedule": { "kind": "every", "everyMs": 60000 }
-      }
+  "~zod": {
+    "job-id": {
+      "agentId": "main",
+      "enabled": false,
+      "schedule": { "kind": "every", "everyMs": 60000 }
     }
   }
 }
 ```
 
-With no entries at all the exact JSON shape is `{ "tasks": {} }`. Task values use the supported OpenClaw field names listed above, omit absent optional fields, and never contain `id` or runtime cron state.
+With no entries at all the exact JSON shape is `{}`. Task values use the supported OpenClaw field names listed above, omit absent optional fields, and never contain `id` or runtime cron state.
 
 `entry` is `[bot=ship id=@t run]`. The `%entry` update grows to JSON for Eyre, embedding the stored payload directly:
 

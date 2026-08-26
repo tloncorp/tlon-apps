@@ -280,22 +280,22 @@ without duplicating a task ID inside its task value.
 ### Requirement: Automation state is scriable
 
 `%steward` SHALL expose a scry at `/x/v1/automation/tasks` returning
-the complete ship-keyed task state as the feed's snapshot variant,
-in the same mark and JSON form: a `tasks` object keyed by ship whose
-values are ID-keyed task maps, the empty state as an empty `tasks`
-object. The scry SHALL execute locally against current agent state
-without authorizing a caller source.
+the complete ship-keyed task state in a dedicated versioned mark —
+marks are never shared between facts and scries — whose JSON form is
+the bare ship-keyed object with no wrapper key, each value an
+ID-keyed task map, the empty state as the empty JSON object. The
+scry SHALL execute locally against current agent state without
+authorizing a caller source.
 
 #### Scenario: State is read
 
 - **WHEN** a client scries the automation tasks path while entries
     exist
-- **THEN** it receives the snapshot form with one property per
-    entry, each value that ship's ID-keyed task map
+- **THEN** it receives a JSON object with one property per entry,
+    each value that ship's ID-keyed task map
 
 #### Scenario: Empty state is read
 
 - **WHEN** a client scries the automation tasks path while no
     entries exist
-- **THEN** it receives the snapshot form with an empty `tasks`
-    object rather than an error
+- **THEN** it receives the empty JSON object rather than an error

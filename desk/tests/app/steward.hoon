@@ -107,7 +107,6 @@
   ^-  @t
   '''
   {
-    "tasks": {
       "~dev": {
         "trace-at-1": {
           "agentId": "dev",
@@ -145,7 +144,6 @@
           "updatedAtMs": 1785740230441
         }
       }
-    }
   }
   '''
 ++  reconcile-initial-project-json
@@ -201,7 +199,6 @@
   ^-  @t
   '''
   {
-    "tasks": {
       "~dev": {
         "daily-status": {
           "agentId": "main",
@@ -241,7 +238,6 @@
           "updatedAtMs": 1785735243782
         }
       }
-    }
   }
   '''
 ++  reconcile-current-project-json
@@ -296,7 +292,6 @@
   ^-  @t
   '''
   {
-    "tasks": {
       "~dev": {
         "daily-status": {
           "agentId": "main",
@@ -335,7 +330,6 @@
           "updatedAtMs": 1785740000000
         }
       }
-    }
   }
   '''
 ::
@@ -343,7 +337,7 @@
 ::  remote bot ship; the %entry gate is now an explicit trusted-bots set
 ::  (not sponsorship), so tests that fan in from it call +trust-moon first.
 ::
-++  moon  ^-  ship  (add ~dev (bex 32))
+++  moon  ^-  ship  ~doznec-dozzod-dozdev
 ::
 ++  scries
   |=  =path
@@ -653,8 +647,8 @@
     (~(put by *(map @t task:v1:au)) 'task-a' task-a)
   (ex-equal !>((local-automation-tasks st)) !>(expected))
 ::
-::  the scry serves the feed's %tasks variant in the update mark, the
-::  empty state as an empty ship-keyed map growing to {"tasks": {}}
+::  the scry serves its dedicated mark carrying the bare ship-keyed
+::  map, the empty state growing to {}
 ::
 ++  test-automation-tasks-scry-empty
   %-  eval-mare
@@ -663,11 +657,11 @@
   ;<  ~  bind:m  setup
   ;<  res=cage  bind:m  (got-peek /x/v1/automation/tasks)
   ;<  ~  bind:m
-    (ex-equal !>(p.res) !>(%steward-automation-update-1))
-  =/  actual=update:v1:au  !<(update:v1:au q.res)
+    (ex-equal !>(p.res) !>(%steward-automation-tasks-1))
+  =/  actual=(map ship tasks:v1:au)  !<((map ship tasks:v1:au) q.res)
   ;<  ~  bind:m
-    (ex-equal !>(actual) !>(`update:v1:au`[%tasks *(map ship tasks:v1:au)]))
-  (ex-equal !>((update:enjs:aj actual)) !>((parse-json '{"tasks": {}}')))
+    (ex-equal !>(actual) !>(*(map ship tasks:v1:au)))
+  (ex-equal !>((ship-tasks:enjs:aj actual)) !>((parse-json '{}')))
 ::
 ++  test-automation-tasks-scry-populated-json
   %-  eval-mare
@@ -680,13 +674,13 @@
   ;<  ~  bind:m  (project-automation-json trace-project-json)
   ;<  res=cage  bind:m  (got-peek /x/v1/automation/tasks)
   ;<  ~  bind:m
-    (ex-equal !>(p.res) !>(%steward-automation-update-1))
-  =/  actual=update:v1:au  !<(update:v1:au q.res)
-  =/  expected=update:v1:au
-    [%tasks (ship-tasks-of ~[[~dev (~(gas by *tasks:v1:au) projected)]])]
+    (ex-equal !>(p.res) !>(%steward-automation-tasks-1))
+  =/  actual=(map ship tasks:v1:au)  !<((map ship tasks:v1:au) q.res)
+  =/  expected=(map ship tasks:v1:au)
+    (ship-tasks-of ~[[~dev (~(gas by *tasks:v1:au) projected)]])
   ;<  ~  bind:m  (ex-equal !>(actual) !>(expected))
   %+  ex-equal
-    !>((update:enjs:aj actual))
+    !>((ship-tasks:enjs:aj actual))
   !>((parse-json trace-tasks-json))
 ::
 ++  test-automation-project-persists-through-save-load
@@ -695,15 +689,15 @@
   ^-  form:m
   =/  action=action:v1:au
     (action:dejs:aj (parse-json trace-project-json))
-  =/  expected=update:v1:au
-    [%tasks (ship-tasks-of ~[[~dev (~(gas by *tasks:v1:au) tasks.action)]])]
+  =/  expected=(map ship tasks:v1:au)
+    (ship-tasks-of ~[[~dev (~(gas by *tasks:v1:au) tasks.action)]])
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (project-automation-json trace-project-json)
   ;<  *  bind:m  (do-load agent ~)
   ;<  res=cage  bind:m  (got-peek /x/v1/automation/tasks)
   ;<  ~  bind:m
-    (ex-equal !>(p.res) !>(%steward-automation-update-1))
-  =/  actual=update:v1:au  !<(update:v1:au q.res)
+    (ex-equal !>(p.res) !>(%steward-automation-tasks-1))
+  =/  actual=(map ship tasks:v1:au)  !<((map ship tasks:v1:au) q.res)
   (ex-equal !>(actual) !>(expected))
 ::
 ++  assert-automation-tasks-json
@@ -712,9 +706,9 @@
   ^-  form:m
   ;<  res=cage  bind:m  (got-peek /x/v1/automation/tasks)
   ;<  ~  bind:m
-    (ex-equal !>(p.res) !>(%steward-automation-update-1))
-  =/  actual=update:v1:au  !<(update:v1:au q.res)
-  (ex-equal !>((update:enjs:aj actual)) !>((parse-json expected)))
+    (ex-equal !>(p.res) !>(%steward-automation-tasks-1))
+  =/  actual=(map ship tasks:v1:au)  !<((map ship tasks:v1:au) q.res)
+  (ex-equal !>((ship-tasks:enjs:aj actual)) !>((parse-json expected)))
 ::
 ++  test-automation-json-scry-reconciles-and-persists
   %-  eval-mare

@@ -130,10 +130,9 @@
     =+  !<(=action:v1:s vase)
     ?-  -.action
         %configure
-      ::  a replaced owner may still hold an automation subscription it
-      ::  is no longer permitted; kick it (kicking a ship with no
-      ::  subscription is harmless). the local ship is always
-      ::  permitted, so it is never kicked
+      ::  a replaced owner may still hold an automation subscription
+      ::  it is no longer permitted; kick it. the local ship is
+      ::  always permitted, so it is never kicked
       ::
       =/  old  owner.state
       =.  owner.state  `owner.action
@@ -168,9 +167,8 @@
     (au-poke-action:au-core !<(action:v1:sa vase))
   ==
 ::
-::  watch auth is per-path: the automation projection feed admits the
+::  watch auth is per-path: the automation feed admits the
 ::  configured owner cross-ship; every other path is local-only.
-::  rejection is a crash (watch nack).
 ::
 ++  watch
   |=  =path
@@ -241,8 +239,8 @@
       ((slog 'steward: gateway dm send failed' u.p.sign) cor)
     ==
   ::
-  ::  a trusted bot's projection feed: everything on this wire is
-  ::  attributed to the ship in the wire, never a payload field
+  ::  a trusted bot's automation feed: only content the payload
+  ::  attributes to the wire's ship is ever applied
   ::
       [%automation %tasks @ ~]
     (au-handle-bot-sign:au-core (slav %p i.t.t.wire) sign)
@@ -690,13 +688,6 @@
 ::
 ++  au-core
   |%
-  ::  the local projection: this ship's entry, read as empty while
-  ::  the local harness has never projected
-  ::
-  ++  au-local-tasks
-    ^-  tasks:v1:sa
-    (~(gut by tasks.automation.state) our.bowl *tasks:v1:sa)
-  ::
   ++  au-poke-action
     |=  =action:v1:sa
     ^+  cor
@@ -704,26 +695,20 @@
     ?-  -.action
         %project
       =/  projected  (au-build-task-map tasks.action)
-      =/  old  au-local-tasks
-      =/  had  (~(has by tasks.automation.state) our.bowl)
-      ::  an equal projection with an existing entry is a no-op: no
-      ::  state write, no facts
+      ::  .old reads absent-as-empty for the diff; .had keeps the
+      ::  absent/empty distinction for the no-op and creation checks
       ::
+      =/  old  (~(gut by tasks.automation.state) our.bowl *tasks:v1:sa)
+      =/  had  (~(has by tasks.automation.state) our.bowl)
       ?:  &(=(projected old) had)  cor
       =.  tasks.automation.state
         (~(put by tasks.automation.state) our.bowl projected)
-      ::  entry creation is inexpressible as task deltas, so the
-      ::  first accepted projection announces itself as a full
-      ::  snapshot; later changes flow as per-task deltas naming the
-      ::  local ship
+      ::  entry creation is inexpressible as task deltas: the first
+      ::  accepted projection goes out as a full snapshot instead
       ::
       ?.  had  au-give-snapshot
       (au-give-deltas our.bowl old projected)
     ==
-  ::
-  ::  one initial fact on subscribe: the complete ship-keyed state,
-  ::  including when empty. empty paths target only the new
-  ::  subscriber, not everyone on the path
   ::
   ++  au-watch-tasks
     ^+  cor
@@ -738,16 +723,9 @@
     ^+  cor
     (give %fact ~[/v1/automation/tasks] %steward-automation-update-1 !>(update))
   ::
-  ::  a fresh full snapshot to every subscriber: used when a change
-  ::  is not expressible as task-level deltas (an entry appearing).
-  ::  subscribers treat snapshots as full replacements
-  ::
   ++  au-give-snapshot
     ^+  cor
     (au-give-update [%tasks tasks.automation.state])
-  ::
-  ::  diff one ship's old vs new entry into delta facts naming that
-  ::  ship: %set per added or changed ID, %del per removed ID
   ::
   ++  au-give-deltas
     |=  [who=ship old=tasks:v1:sa new=tasks:v1:sa]
@@ -766,8 +744,7 @@
       (au-give-update [%del who p.i.entries])
     $(entries t.entries)
   ::
-  ::  ensure a live automation subscription to a trusted bot. the
-  ::  local ship never gets a watch: its entry is written by
+  ::  the local ship never gets a watch: its entry is written by
   ::  %project, not a subscription. guarding on wex.bowl (not
   ::  trust-set membership) makes a re-poke an idempotent repair
   ::  after a nacked watch without duplicating a live subscription
@@ -780,11 +757,9 @@
       cor
     (emit (au-watch-card bot))
   ::
-  ::  untrust: leave unconditionally (a %leave with no live
-  ::  subscription is harmless) and drop the bot's entry, telling
-  ::  subscribers it is gone. the local ship is a set-only no-op:
-  ::  there is never a self-subscription and the our entry is
-  ::  %project-owned, untouched by trust changes
+  ::  the local ship is a set-only no-op: there is never a
+  ::  self-subscription and the our entry is %project-owned,
+  ::  untouched by trust changes
   ::
   ++  au-untrust-bot
     |=  bot=ship
@@ -809,8 +784,8 @@
       ?.  ?=(%steward-automation-update-1 p.cage.sign)  cor
       (au-apply-bot-update bot !<(update:v1:sa q.cage.sign))
     ::
-    ::  resubscribe only while the bot remains trusted; the initial
-    ::  snapshot on the new subscription repairs anything missed
+    ::  the fresh subscription's snapshot repairs anything missed
+    ::  while unsubscribed
     ::
         %kick
       ?.  (~(has in bots.state) bot)  cor
@@ -828,8 +803,7 @@
     ::  a snapshot is the bot's complete statement: replace the bot's
     ::  entry with its entry in the snapshot, deleting ours when the
     ::  snapshot lacks it (wiped-bot repair). content for any other
-    ::  ship is ignored — the receiver-side transitive-relay guard.
-    ::  an unchanged entry emits nothing
+    ::  ship is ignored — the receiver-side transitive-relay guard
     ::
         %tasks
       =/  theirs  (~(get by tasks.update) bot)
@@ -876,17 +850,12 @@
       (au-give-update [%gone bot])
     ==
   ::
-  ::  the scry returns the feed's snapshot variant, lens-style, so
-  ::  clients share one parser for reads and subscriptions
-  ::
   ++  au-peek
     |=  =path
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
         [%v1 %tasks ~]
-      :+  ~  ~
-      :-  %steward-automation-update-1
-      !>(`update:v1:sa`[%tasks tasks.automation.state])
+      ``steward-automation-tasks-1+!>(tasks.automation.state)
     ==
   ::  build the complete replacement before mutating state. a payload
   ::  with a duplicate ID crashes here, leaving the previous projection

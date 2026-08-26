@@ -86,12 +86,18 @@
     ^-  action:v1:a
     %.  jon
     (of ~[[%project project]])
+  ::  +ship-tasks: the bare ship-keyed task-map object
+  ::
+  ++  ship-tasks
+    |=  jon=json
+    ^-  (map @p tasks:v1:a)
+    ((op ;~(pfix sig fed:ag) (om task)) jon)
   ++  update
     |=  jon=json
     ^-  update:v1:a
     %.  jon
     %-  of
-    :~  [%tasks (op ;~(pfix sig fed:ag) (om task))]
+    :~  [%tasks ship-tasks]
         [%set (ot ship+(se %p) id+so task+task ~)]
         [%del (ot ship+(se %p) id+so ~)]
         [%gone (ot ship+(se %p) ~)]
@@ -182,26 +188,27 @@
         %project
       (frond 'project' (frond 'tasks' a+(turn tasks.action identified-task)))
     ==
-  ::  +tasks-object: the bare ID-keyed task object, without a wrapper key
+  ::  +tasks: the bare ID-keyed task object, without a wrapper key
   ::
-  ++  tasks-object
+  ++  tasks
     |=  tasks=tasks:v1:a
     ^-  json
     [%o (~(run by tasks) task)]
-  ::  note: ships are @p in gate samples here — inside
-  ::  =,(enjs:format) the ship TYPE is shadowed by the ++ship
-  ::  encoder arm
+  ::  +ship-tasks: the bare ship-keyed task-map object
   ::
+  ++  ship-tasks
+    |=  all=(map @p tasks:v1:a)
+    ^-  json
+    %-  pairs
+    %+  turn  ~(tap by all)
+    |=  [who=@p ts=tasks:v1:a]
+    [(scot %p who) (tasks ts)]
   ++  update
     |=  =update:v1:a
     ^-  json
     ?-  -.update
         %tasks
-      %+  frond  'tasks'
-      %-  pairs
-      %+  turn  ~(tap by tasks.update)
-      |=  [who=@p tasks=tasks:v1:a]
-      [(scot %p who) (tasks-object tasks)]
+      (frond 'tasks' (ship-tasks tasks.update))
     ::
         %set
       %+  frond  'set'

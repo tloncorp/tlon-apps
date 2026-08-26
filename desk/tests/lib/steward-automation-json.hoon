@@ -178,11 +178,11 @@
   ^-  tasks:v1:a
   %-  ~(gas by *tasks:v1:a)
   ~[['trace-at-1' trace-at-task] ['trace-every-1' trace-every-task]]
-::  a moon-class ship (~doznec-dozzod-dozdev, a moon of ~dev): fixture-
+::  a moon-class ship (~doznec-dozzod-dozdev, a moon of ~dozdev): fixture-
 ::  anchoring one alongside ~zod keeps a symmetric codec bug in ship
 ::  rendering from hiding behind the round-trips
 ::
-++  moon  ^-  ship  (add ~dev (bex 32))
+++  moon  ^-  ship  ~doznec-dozzod-dozdev
 ::
 ::  the two production marks are deliberately thin wrappers around these
 ::  helpers. importing /mar files as test libraries is not supported by the
@@ -392,10 +392,10 @@
     !>(all)
   !>((turn all |=(u=update:v1:a (update:dejs:aj (update:enjs:aj u)))))
 ::
-::  +tasks-object grows the bare ID-keyed object, no wrapper key; its
+::  +tasks grows the bare ID-keyed object, no wrapper key; its
 ::  dejs counterpart lives inline in the +update %tasks parser
 ::
-++  test-tasks-object-grows-ids-as-keys-only
+++  test-tasks-grows-ids-as-keys-only
   =/  tasks=tasks:v1:a
     (~(put by *tasks:v1:a) 'map-id' named-task)
   =/  expected=json
@@ -407,5 +407,5 @@
       }
     }
     '''
-  (expect-eq !>(expected) !>((tasks-object:enjs:aj tasks)))
+  (expect-eq !>(expected) !>((tasks:enjs:aj tasks)))
 --

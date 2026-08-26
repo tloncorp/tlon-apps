@@ -97,14 +97,16 @@ In `sur/steward/automation.hoon`:
 field is `ship`, not `bot` — entries belong to ships (the local one
 included), "bot" is a role.
 
-One mark, `%steward-automation-update-1`, serves the feed and the
-scry: the scry returns the `%tasks` variant, lens-style, so clients
-share a single parser for reads and subscriptions. Its JSON wraps
-the ship-keyed object under the `tasks` variant key — the wrapper is
-the union tag, kept because other variants exist (the same argument
-as the `%project` action JSON). Attribution moving back into the
-payload trades the producer-side relay guarantee for one endpoint;
-the receiver-side wire-ship check in decision 5 covers it.
+The feed mark is `%steward-automation-update-1`; the scry has its
+own dedicated mark, `%steward-automation-tasks-1`, carrying the raw
+`(map ship tasks)` — marks are never shared between facts and
+scries. The feed's `%tasks` JSON wraps the ship-keyed object under
+the `tasks` variant key (the union tag, kept because other variants
+exist — the same argument as the `%project` action JSON); the scry's
+JSON is the bare ship-keyed object, `{}` when empty. Attribution
+moving back into the payload trades the producer-side relay
+guarantee for one endpoint; the receiver-side wire-ship check in
+decision 5 covers it.
 
 ### 3. Deltas computed on the bot at `%project` commit
 
@@ -200,10 +202,12 @@ shape stops moving.
   `{ "tasks": {} }`), `{ "set": { "ship": "~zod", "id": "...",
   "task": { ... } } }`, `{ "del": { "ship": "~zod", "id": "..." } }`,
   `{ "gone": { "ship": "~zod" } }`.
-- The scry `/x/v1/automation/tasks` returns this mark's `%tasks`
-  variant (lens-style: scries reuse the update mark). `task-map-1`,
-  `mirror-1`, and `mirror-map-1` are retired along with
-  `/x/v1/automation/mirror`.
+- `desk/mar/steward/automation/tasks-1.hoon` — the dedicated scry
+  mark for `/x/v1/automation/tasks`, carrying `(map ship tasks)`;
+  grows to the bare ship-keyed object
+  `{ "~zod": { "<id>": { ... } } }`, empty state as `{}`.
+  `task-map-1`, `mirror-1`, and `mirror-map-1` are retired along
+  with `/x/v1/automation/mirror`.
 
 ### 8. Per-path `on-watch` authorization
 

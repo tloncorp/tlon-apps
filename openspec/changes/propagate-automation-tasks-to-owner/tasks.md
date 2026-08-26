@@ -121,9 +121,11 @@
       ignored for absent entries
 - [x] 7.3 marks/lib: reshape `update-1` codecs to the new union
       (ships as object keys in `%tasks`, `ship` field in deltas);
-      scry `/x/v1/automation/tasks` returns the mark's `%tasks`
-      variant; delete `/x/v1/automation/mirror` and marks
-      `task-map-1`, `mirror-1`, `mirror-map-1`
+      scry `/x/v1/automation/tasks` returns the dedicated
+      `%steward-automation-tasks-1` mark (bare ship-keyed JSON, `{}`
+      empty — marks never shared between facts and scries); delete
+      `/x/v1/automation/mirror` and marks `task-map-1`, `mirror-1`,
+      `mirror-map-1`
 - [x] 7.4 tests: rework the suite to the unified surface; add
       wiped-entry repair (snapshot lacking the entry clears it) and
       foreign-attributed-content-ignored coverage; update mark

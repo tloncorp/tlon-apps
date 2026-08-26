@@ -10,8 +10,6 @@
       [%at at=(unit @da)]
       [%every every=(unit @dr) anchor=(unit @da)]
   ==
-::  $task-payload: the definition fields of an OpenClaw task payload
-::
 +$  task-payload
   $:  kind=(unit @t)
       message=(unit @t)
@@ -32,13 +30,11 @@
       created-at=(unit @da)
       updated-at=(unit @da)
   ==
-::  $identified-task: an inbound task paired with its OpenClaw ID
-::
 +$  identified-task
   $:  id=@t
       =task
   ==
-::  $tasks: one ship's task map, keyed by OpenClaw task ID
+::  $tasks: task map keyed task ID
 ::
 +$  tasks  (map @t task)
 ::  $state: per-ship task state: the local projection lives under the
