@@ -9,7 +9,7 @@
 ::  response. Bearer tokens for the storage broker are minted here and
 ::  returned only to the requester — they never appear in a broadcast.
 ::
-/-  b=buckets
+/-  b=buckets, gv=groups-ver
 /+  default-agent, dbug, verb, server
 /=  buckets-json  /lib/buckets/json
 |%
@@ -2126,9 +2126,7 @@
     ?+  -.sign  cor
         %kick  watch-groups
         %fact
-      ::  an r-groups fact is [flag r-group]; we only need the flag head.
-      =+  !<([=flag:b *] q.cage.sign)
-      (recheck-host-subs flag)
+      (take-groups !<(r-groups:v9:gv q.cage.sign))
     ::
     ::  A refusal loses the subscription exactly as a kick does, and losing it
     ::  is not survivable: these facts are the only thing that calls
@@ -2384,6 +2382,66 @@
 ::  any who lost access. Scoped to the one group — a fact about some other
 ::  group is not a reason to scry for every subscriber we have. Grants are
 ::  handled by %groups' auto-join, so this only revokes.
+::
+::  +take-groups: react to a change in a group we host buckets for.
+::
+::  Follows %channels-server, which owns its channels' writer roles the way we
+::  own ours: react to the specific change when it arrives, and reconcile the
+::  whole set whenever the group arrives whole. The pair matters because
+::  neither half is sufficient -- a fact we miss is repaired by the sweep, and
+::  the sweep only happens when a group is re-read.
+::
+++  take-groups
+  |=  =r-groups:v9:gv
+  ^+  cor
+  =*  r-group  r-group.r-groups
+  =.  cor  (recheck-host-subs flag.r-groups)
+  ?+    r-group  cor
+      ::  A role that no longer exists must stop granting writes. Role ids are
+      ::  minted from the role's title, so deleting one and making another by
+      ::  the same name reuses the id -- and a stale id left in .writers would
+      ::  hand write and delete on every bucket that named it to whoever joins
+      ::  the new role.
+      [%role * %del ~]
+    (strip-writers flag.r-groups roles.r-group)
+  ::
+      ::  The group arrived whole, so anything we hold that it does not have
+      ::  is stale however we came to miss it.
+      [%create *]
+    %+  strip-writers  flag.r-groups
+    %-  ~(dif in (held-writers flag.r-groups))
+    ~(key by roles.group.r-group)
+  ==
+::
+::  +held-writers: every role id our buckets in this group grant writes to.
+::
+++  held-writers
+  |=  group=flag:b
+  ^-  (set @tas)
+  %+  roll  ~(val by spaces)
+  |=  [sp=space:b acc=(set @tas)]
+  ?.  =(%pub net.sp)  acc
+  ?~  state.sp  acc
+  ?.  =(group group.u.state.sp)  acc
+  (~(uni in acc) writers.u.state.sp)
+::
+::  +strip-writers: drop role ids from every bucket in this group that names
+::  them, and tell subscribers the permissions changed.
+::
+++  strip-writers
+  |=  [group=flag:b roles=(set @tas)]
+  ^+  cor
+  ?:  =(~ roles)  cor
+  %+  roll  ~(tap by spaces)
+  |=  [[=flag:b sp=space:b] acc=_cor]
+  ?.  =(%pub net.sp)  acc
+  ?~  state.sp  acc
+  =/  st=bucket-state:b  u.state.sp
+  ?.  =(group group.st)  acc
+  =/  kept=(set @tas)  (~(dif in writers.st) roles)
+  ?:  =(kept writers.st)  acc
+  %-  (slog leaf+"buckets: dropping deleted roles from {<flag>} writers" ~)
+  (commit-update:acc flag st(writers kept) [%writers kept] our.bowl)
 ::
 ++  recheck-host-subs
   |=  changed=flag:b

@@ -1,6 +1,6 @@
 ::  behavior tests for the %buckets Gall agent
 ::
-/-  bu=buckets
+/-  bu=buckets, gv=groups-ver
 /+  *test-agent
 /=  buckets-agent  /app/buckets
 /=  buckets-json  /lib/buckets/json
@@ -212,6 +212,23 @@
   |=  [st=state-0:bu reader=@p]
   ^-  reader-sync:bu
   (~(got by readers.st) [flag reader])
+::
+::  +group-changed: a well-formed %groups fact about `group`.
+::
+::  The agent decodes these strictly, as %channels-server does, so a stub
+::  noun here would pass a test the live path could not survive. %meta is the
+::  least interesting variant that still says "this group changed".
+::
+++  group-changed
+  ^-  r-groups:v9:gv
+  [group [%meta ['' '' '' '']]]
+::
+::  +role-deleted: the same, saying a role is gone.
+::
+++  role-deleted
+  |=  roles=(set @tas)
+  ^-  r-groups:v9:gv
+  [group [%role roles [%del ~]]]
 ::
 ::  +answers: the terminal responses in a card list. Not every fact is one --
 ::  /lib/verb emits its own -- so this matches on the mark rather than on
@@ -702,7 +719,7 @@
     %^    do-agent
         /groups
       [~sampel-palnet %groups]
-    [%fact %group-update !>([group %noun])]
+    [%fact %group-response-1 !>(group-changed)]
   ;<  ~  b
     %+  ex-cards  (skim revoke-caz |=(car=card ?=([%give %fact *] car)))
     :~  %+  ex-fact  ~[/v1/request/~bus/0v9]
@@ -797,7 +814,7 @@
     %^    do-agent
         /groups
       [~sampel-palnet %groups]
-    [%fact %group-update !>([group %noun])]
+    [%fact %group-response-1 !>(group-changed)]
   ;<  ~  b  (set-scry-gate reader-scries)
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v7777)))
   ;<  *  b
@@ -920,7 +937,7 @@
     %^    do-agent
         /groups
       [~sampel-palnet %groups]
-    [%fact %group-update !>([group %noun])]
+    [%fact %group-response-1 !>(group-changed)]
   =/  revoke=[=wire =request:http]  (only-iris caz)
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
@@ -960,7 +977,7 @@
     %^    do-agent
         /groups
       [~sampel-palnet %groups]
-    [%fact %group-update !>([group %noun])]
+    [%fact %group-response-1 !>(group-changed)]
   =/  revoke=[=wire =request:http]  (only-iris caz)
   ::  the broker fails it, so the pair stays owed and a retry is armed
   ;<  *  b  (do-arvo wire.revoke (iris-status 503))
@@ -1009,7 +1026,7 @@
     %^    do-agent
         /groups
       [~sampel-palnet %groups]
-    [%fact %group-update !>([group %noun])]
+    [%fact %group-response-1 !>(group-changed)]
   =/  revoke=[=wire =request:http]  (only-iris caz)
   ;<  sv2=vase  b  get-save
   =/  st2=state-0:bu  !<(state-0:bu sv2)
@@ -1064,7 +1081,7 @@
     %^    do-agent
         /groups
       [~sampel-palnet %groups]
-    [%fact %group-update !>([group %noun])]
+    [%fact %group-response-1 !>(group-changed)]
   =/  revoke=[=wire =request:http]  (only-iris kick-caz)
   ;<  sv2=vase  b  get-save
   =/  st2=state-0:bu  !<(state-0:bu sv2)
@@ -1455,6 +1472,59 @@
     !>([revision.sync synced.sync (lent (skim settled |=(c=card ?=([%pass * %arvo %i *] c))))])
   !>([1 1 0])
 ::
+::  A role that no longer exists must stop granting writes. Role ids come from
+::  the role's title, so deleting a role and making another by the same name
+::  reuses the id -- and a stale id left in .writers hands write and delete on
+::  every bucket that named it to whoever joins the new role.
+::
+++  test-a-deleted-role-stops-granting-writes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (ask 0v1 [%bucket flag [%set-writers (silt `(list @tas)`~[%editors %moderators])]])
+  ;<  sv=vase  b  get-save
+  =/  before=(set @tas)  writers:(state-for !<(state-0:bu sv) flag)
+  ::  %groups says the moderators role is gone
+  ;<  *  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%fact %group-response-1 !>((role-deleted (silt `(list @tas)`~[%moderators])))]
+  ;<  after=vase  b  get-save
+  =/  kept=(set @tas)  writers:(state-for !<(state-0:bu after) flag)
+  %+  ex-equal
+    !>([before kept])
+  !>([(silt `(list @tas)`~[%editors %moderators]) (silt `(list @tas)`~[%editors])])
+::
+::  The incremental drop only fires for a fact we actually see. A group that
+::  arrives whole is the repair for one we did not: anything we still hold
+::  that its roles do not have is stale however we came to miss it.
+::
+++  test-a-whole-group-reconciles-stale-writers
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (ask 0v1 [%bucket flag [%set-writers (silt `(list @tas)`~[%editors %ghosts])]])
+  ::  the group arrives whole, and knows only about editors
+  ;<  *  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    =/  whole=group:v9:gv
+      =/  bare=group:v9:gv  *group:v9:gv
+      bare(roles (malt ~[[%editors *role:v9:gv]]))
+    [%fact %group-response-1 !>(`r-groups:v9:gv`[group %create whole])]
+  ;<  after=vase  b  get-save
+  %+  ex-equal
+    !>(writers:(state-for !<(state-0:bu after) flag))
+  !>((silt `(list @tas)`~[%editors]))
+::
 ::  A record that lapsed while still owed used to be stranded: +owed skipped
 ::  it for being expired, and pruning kept it for never having settled, so it
 ::  belonged to nobody and stayed for good. A revoke is where that arises --
@@ -1493,7 +1563,7 @@
     %^    do-agent
         /groups
       [~sampel-palnet %groups]
-    [%fact %group-update !>([group %noun])]
+    [%fact %group-response-1 !>(group-changed)]
   =/  revoke=[=wire =request:http]  (only-iris revoke-caz)
   ::  the broker keeps failing in a way worth retrying, and never takes it
   ;<  *  b  (do-arvo wire.revoke (iris-refusal 503 &))
