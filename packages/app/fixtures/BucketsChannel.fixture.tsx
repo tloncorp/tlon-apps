@@ -278,7 +278,7 @@ function BucketsFixture({
   const currentKey = activeFolderId ?? 'root';
   const rootItems = [...folders, ...(localFiles.root ?? [])];
   const visibleItems = activeFolderId
-    ? localFiles[currentKey] ?? []
+    ? (localFiles[currentKey] ?? [])
     : rootItems;
   const allSearchResults = useMemo<BucketSearchResult[]>(() => {
     const results: BucketSearchResult[] = folders.map((item) => ({
