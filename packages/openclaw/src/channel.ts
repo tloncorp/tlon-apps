@@ -152,6 +152,7 @@ export const tlonPlugin = createChatChannelPlugin({
         hints.push(
           '',
           'Tlon gallery channels (heap/~host/name) are for collecting images, links, and media.',
+          '- When you were triggered from a gallery post, your normal reply is posted as a comment on that post. Use action=send only when you intend to create a separate NEW top-level gallery item.',
           '- To post to a gallery: use action=send, to=heap/~host/name, message=<text or URL>',
           '- For image posts, include media=<imageUrl> with an optional message=<caption>',
           '- To react to a gallery comment: use action=react, to=heap/~host/name, messageId=<commentId>, parentId=<postId>, emoji=<emoji>',

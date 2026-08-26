@@ -120,6 +120,73 @@ describe('sendDm', () => {
     setReplyOutputReporter(null);
   });
 
+  it('posts heap replies with a replyToId via sendReply anchored to the parent', async () => {
+    const sendPost = vi.fn(async () => ({}));
+    const sendReply = vi.fn(async () => ({}));
+
+    vi.doMock('@tloncorp/api', () => ({
+      sendPost,
+      sendReply,
+      addReaction: vi.fn(),
+      removeReaction: vi.fn(),
+      deletePost: vi.fn(),
+      configureClient: vi.fn(),
+    }));
+
+    const { sendChannelPost } = await import('./send.js');
+    const aura = await import('@urbit/aura');
+    vi.mocked(aura.scot).mockImplementation((_aura, atom) =>
+      atom === 170141184507123n ? '170.141.184.507.123' : 'mocked-ud'
+    );
+
+    await sendChannelPost({
+      fromShip: '~zod',
+      nest: 'heap/~zod/gallery',
+      story: [{ inline: ['a comment'] }],
+      replyToId: '170141184507123',
+    });
+
+    expect(sendReply).toHaveBeenCalledTimes(1);
+    expect(sendReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: 'heap/~zod/gallery',
+        parentId: '170.141.184.507.123',
+      })
+    );
+    expect(sendPost).not.toHaveBeenCalled();
+  });
+
+  it('posts a new heap item via sendPost when replyToId is absent', async () => {
+    const sendPost = vi.fn(async () => ({}));
+    const sendReply = vi.fn(async () => ({}));
+
+    vi.doMock('@tloncorp/api', () => ({
+      sendPost,
+      sendReply,
+      addReaction: vi.fn(),
+      removeReaction: vi.fn(),
+      deletePost: vi.fn(),
+      configureClient: vi.fn(),
+    }));
+
+    const { sendChannelPost } = await import('./send.js');
+
+    await sendChannelPost({
+      fromShip: '~zod',
+      nest: 'heap/~zod/gallery',
+      story: [{ inline: ['a new gallery item'] }],
+    });
+
+    expect(sendPost).toHaveBeenCalledTimes(1);
+    expect(sendPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: 'heap/~zod/gallery',
+        authorId: '~zod',
+      })
+    );
+    expect(sendReply).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['a bare target id', '170.141.184.507.123'],
     ['a full /v4 target id', '~bot/170.141.184.507.123'],
