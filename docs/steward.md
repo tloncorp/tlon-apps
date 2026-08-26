@@ -11,6 +11,7 @@ Ship-native umbrella agent: the durable, always-on ship-side half of an ephemera
 | (core)    | `sur/steward.hoon`        | `%steward-action-1`                                    |
 | `lens`    | `sur/steward/lens.hoon`   | `%steward-lens-action-1`, `%steward-lens-update-1`     |
 | `gateway` | `sur/steward/gateway.hoon`| `%steward-gateway-action-1`, `%steward-gateway-update-1` |
+| `prompts` | `sur/steward/prompts.hoon`| `%steward-prompts-action-1`, `%steward-prompts-update-1` |
 
 Each sur file is versioned on its own (`++v1`), referenced by callers as `action:v1:lens`, `update:v1:gateway`, etc. The core `sur/steward.hoon` carries only cross-cutting config (currently just `%configure`); each module's protocol lives in its own file.
 
@@ -20,22 +21,24 @@ Modules:
 |-----------|------------------------------------------------------------------------|
 | `lens`    | Per-run bot introspection (folded in from the former `%context-lens`). |
 | `gateway` | Harness liveness tracking + offline DM auto-replies.                   |
+| `prompts` | Ship-durable, owner-editable gateway system prompts.                   |
 
-The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
+The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway, `pr-core` for prompts. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
 
 ## state model
 
-State is a single `state-0`, defined in the app file (the agent is greenfield, so there is no migration — an unreadable state just resets to bunt). Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
+State is versioned (`state-0` → `state-1`, migrated in `on-load`). Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
 
 ```
-state-0
+state-1
   owner    (unit ship)                  shared config: bot sends runs to it / its DMs are watched; ~ = inert
-  bots     (set ship)                   owner-side trusted bots: who may send lens %entry pokes cross-ship
+  bots     (set ship)                   owner-side trusted bots: who may send lens %entry and prompts %sync pokes cross-ship
   lens     state:v1:lens                 stored lens run records (owner role)
   gateway  state:v1:gateway              harness liveness + auto-reply bookkeeping
+  prompts  state:v1:prompts              canonical prompt set (bot role) + per-bot mirrors (owner role)
 ```
 
-`owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to. `bots` is the owner-side allowlist of ships permitted to fan lens runs in (see the `%entry` gate below); managed via the core `%trust-bot`/`%untrust-bot` pokes.
+`owner` is shared: the lens module sends runs to it, the gateway module treats its DMs as owner activity worth auto-replying to, and the prompts module fans its canonical set to it. `bots` is the owner-side allowlist of ships permitted to fan lens runs and prompt syncs in (see the `%entry`/`%sync` gates below); managed via the core `%trust-bot`/`%untrust-bot` pokes.
 
 `run` (in `sur/steward/lens.hoon`):
 
@@ -78,9 +81,26 @@ While the gateway is not live, a DM from the configured `owner` triggers a canne
 
 `owner` is the shared top-level `(unit ship)`, set via the core `%configure`, so a harness sends two pokes at startup: the core `%configure` for the owner, then the gateway `%configure` for timings. The gateway action's own `%configure` carries only timing (`active-window`, `reply-cooldown`); the owner is set once at the core level.
 
+## module: prompts
+
+Makes the gateway's system-prompt files (`SOUL.md`, `AGENTS.md`, …) durable on the ship and editable from any client. The harness container is ephemeral — its workspace is rebuilt from archives on every boot — so the ship, not the gateway, is the store of record.
+
+One agent, two roles, same as lens:
+
+- **bot ship role**: `own` holds the canonical prompt set. The local gateway pokes `%seed` at startup with the full effective file contents (after applying any stored edits to the workspace), and applies `%set` facts it receives on `/v1/prompts` by writing the workspace file, persisting `channels.tlon.prompts` in its config, and restarting.
+- **owner ship role**: `mirror` holds a per-bot copy of each bot's canonical set, fanned in via `%sync` (gated on the trusted-bots set, exactly like lens `%entry`). Clients read and edit prompts entirely through their own ship.
+
+The prompts action is a tagged union of three shapes:
+
+- **`%set`** `[%set bot=ship name=@t text=@t]` — an owner edit. Carries `.bot` for routing: a local poke targeting a remote bot is relayed to that bot's steward (owner → bot, like lens `%retry`); a poke targeting `bot == our` (locally, or cross-ship from the configured owner) stores the prompt, facts `[%set name prompt]` on `/v1/prompts` for the gateway, and re-syncs the owner mirror. Only local pokes relay outward — a cross-ship `%set` must target us, so the agent never proxies a non-local edit to a third ship. Ames retries the relay until ack, so an edit made while the gateway is down is stored and applied on the gateway's next boot.
+- **`%seed`** `[%seed prompts=(map @t @t)]` — the local gateway reports the full effective prompt set (`src == our` only). Adopted wholesale (the gateway seeds only after applying stored edits, so the seed is the effective truth); entries with unchanged text keep their stored timestamp, and an identical re-seed (every gateway boot) is a no-op. Synced to the owner on change.
+- **`%sync`** `[%sync prompts=(map @t [text=@t updated=@da])]` — bot → owner fan-out of the canonical set, stored in `mirror` keyed by `src` and facted on `/v1/prompts`.
+
+Size caps: a single prompt over 64KB is dropped (`%set`); seed/sync maps are capped at 512KB jammed, mirroring the lens payload ceiling.
+
 ## poke surface
 
-Three inbound marks, each ownership-gated to admit exactly the right source.
+Four inbound marks, each ownership-gated to admit exactly the right source.
 
 ### `%steward-action-1` (core config) — `src == our`
 
@@ -127,10 +147,31 @@ Only the local gateway drives liveness, so this requires `src == our`.
 [%gateway-stop boot-id=@t reason=@t]                 graceful stop (boot-id must match)
 ```
 
+### `%steward-prompts-action-1` (prompts)
+
+Auth is **per-variant**, since each shape expects a different `src`:
+
+- `%set` — accepted iff `src` is `our` (a local client editing, or the start of an owner-side relay) or the configured `owner` targeting `bot == our` (relaying an edit to its bot).
+- `%seed` — `src == our` only (the local gateway).
+- `%sync` — accepted iff `src` is `our` (a self-owned bot storing directly) or a ship in the owner-side trusted-bots set.
+
+```json
+{ "set": { "bot": "~sampel-palnet", "name": "SOUL.md", "text": "..." } }
+{ "seed": { "SOUL.md": "...", "AGENTS.md": "..." } }
+{ "sync": { "SOUL.md": { "text": "...", "updated": "~2026.8.26..12.00.00..0000" } } }
+```
+
+```
+[%set bot=ship name=@t text=@t]                     owner edit (relayed owner -> bot when bot != our)
+[%seed prompts=(map @t @t)]                          gateway reports the effective prompt set
+[%sync prompts=(map @t [text=@t updated=@da])]       bot -> owner fan-out of the canonical set
+```
+
 ## subscription surface
 
 - `/v1/lens` (local only, `?> =(src our)`): `%steward-lens-update-1` facts (`update:v1:lens`, a tagged union) — `%entry` (a stored run, one per insert; the owner-side client reads these) and `%retry-requested` (emitted on the bot ship for its local gateway to re-dispatch). No initial backfill fact — clients scry `/x/v1/lens/recent` for backfill.
 - `/v1/gateway` (local only): `%steward-gateway-update-1` facts (`update:v1:gateway`) — `%status` (on lifecycle transitions, plus an initial fact on subscribe), `%owner-activity`, and `%auto-reply`.
+- `/v1/prompts` (local only): `%steward-prompts-update-1` facts (`update:v1:prompts`) — `[%set name prompt]` (a stored edit; the bot's gateway applies it and restarts) and `[%prompts bot prompts]` (a full set changed; owner-side clients refresh from it). No initial fact — clients backfill via the `/x/v1/prompts` scries.
 
 ## scry surface
 
@@ -140,6 +181,8 @@ All lens scries return the `%steward-lens-update-1` mark so the HTTP client read
 - `/x/v1/lens/recent/[count]` → `[%recent entries]` — newest `count` runs.
 - `/x/v1/lens/since/[da]` → `[%recent entries]` — every run with `received >= da`, newest first; paginate history by passing the oldest `received` from the last page.
 - `/x/v1/lens/run/[ship]/[id]` → `[%entry entry]`, or empty (`[~ ~]`) when absent.
+- `/x/v1/prompts` → `[%prompts our own]` — the canonical prompt set on the bot ship (the gateway reads this at boot). Returns the `%steward-prompts-update-1` mark.
+- `/x/v1/prompts/[ship]` → `[%prompts ship prompts]` — a bot's mirrored set on the owner ship (clients read this); our own ship serves the canonical set so self-owned bots read the same path. Empty (`[~ ~]`) when the bot has no mirror entry.
 - `/x/v1/gateway/status` → `%noun` `[status:v1:gateway (unit @da)]` — current liveness and lease expiry.
 - `/x/v1/gateway/owner-activity` → `%noun` `@da` — timestamp of the most recent owner DM.
 
@@ -152,8 +195,8 @@ All lens scries return the `%steward-lens-update-1` mark so the HTTP client read
 ## lifecycle and invariants
 
 - `on-init` subscribes to `%activity /v5` for the gateway module and seeds the default lens retention cap. There is no prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` accepts the single `state-0`, else resets to bunt (re-seeding the cap and re-subscribing to `%activity`). The agent is greenfield/unreleased, so there are no migration arms — versioned state + migrations get added back when something actually ships.
-- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
+- `on-load` accepts `state-0` (migrated: empty prompts slice) or `state-1`; anything else crashes so a pre-release state nukes rather than silently wiping.
+- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, prompt edit relay on `/prompts/set/[bot-p]/[name-t]`, prompt owner sync on `/prompts/sync/[owner-p]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
 - `on-watch` and `on-peek` assert `=(src our)` — no cross-ship subscriptions or foreign scries. Only the lens poke is ownership-gated (to admit a bot's runs).
 
 ## integration notes

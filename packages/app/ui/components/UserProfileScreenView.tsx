@@ -27,6 +27,7 @@ import { useNavigation as useContextNavigation } from '../contexts/navigation';
 import { useGroupTitle } from '../utils';
 import { ContactAvatar } from './Avatar';
 import { BotBadge } from './BotBadge';
+import { BotSystemPromptsSection } from './BotSystemPrompts';
 import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
 import { ListItem } from './ListItem';
@@ -129,6 +130,16 @@ export function UserProfileScreenView(props: Props) {
 
         {props.onPressBotSettings ? (
           <BotSettingsListItem onPress={props.onPressBotSettings} />
+        ) : null}
+
+        {/* Data-gated rather than riding the hosted-bot check: our steward
+            only mirrors prompt sets for bots that configured us as their
+            owner and that we explicitly trusted, so presence of mirror data
+            is itself the ownership signal — and it covers self-hosted bots
+            that aren't hosted moons. The section renders nothing for
+            everyone else. */}
+        {currentUserId !== props.userId ? (
+          <BotSystemPromptsSection botShip={props.userId} />
         ) : null}
 
         {userContact?.status && (

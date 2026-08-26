@@ -1,6 +1,7 @@
 import type { Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
+import { resolveDefaultAgentId } from 'openclaw/plugin-sdk/agent-runtime';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
@@ -47,6 +48,7 @@ import {
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
+import { createPromptSync } from '../prompt-sync.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -4693,6 +4695,61 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // working.
           runtime.log?.(
             `[tlon] Steward lens subscription unavailable: ${error?.message ?? String(error)}`
+          );
+        }
+      }
+
+      // Ship-durable system prompts: subscribe first so an owner edit that
+      // lands mid-reconcile isn't missed, then reconcile ship state into the
+      // workspace and seed the effective prompt set back. Ships without the
+      // %steward prompts module nack/404; prompt sync is simply unavailable.
+      {
+        const promptSync = createPromptSync({
+          core,
+          accountId: account.accountId,
+          workspaceDir: core.agent.resolveAgentWorkspaceDir(
+            cfg,
+            resolveDefaultAgentId(cfg)
+          ),
+          configPrompts: account.prompts,
+          scry: (path) => api!.scry(path),
+          poke: (params) => api!.poke(params),
+          logger: {
+            log: (message) => runtime.log?.(message),
+            warn: (message) => runtime.error?.(message),
+          },
+        });
+        try {
+          await api.subscribe({
+            app: 'steward',
+            path: '/v1/prompts',
+            event: (data) => {
+              promptSync.handleFact(data).catch((error: any) => {
+                capturePluginError('steward_subscription', error);
+                runtime.error?.(
+                  `[tlon] Prompt sync fact handler error: ${error?.message ?? String(error)}`
+                );
+              });
+            },
+            err: (error) => {
+              capturePluginError('steward_subscription', error);
+              runtime.error?.(
+                `[tlon] Steward prompts subscription error: ${String(error)}`
+              );
+            },
+            quit: () => {
+              runtime.log?.(
+                '[tlon] Steward prompts quit received, SSE client will resubscribe'
+              );
+            },
+          });
+          runtime.log?.(
+            '[tlon] Subscribed to steward prompts facts (/v1/prompts)'
+          );
+          await promptSync.startup();
+        } catch (error: any) {
+          runtime.log?.(
+            `[tlon] Steward prompts sync unavailable: ${error?.message ?? String(error)}`
           );
         }
       }

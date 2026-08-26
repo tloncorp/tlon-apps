@@ -11,24 +11,31 @@
 ::    only cross-cutting config (the shared owner).
 ::
 /-  s=steward, a=activity, av=activity-ver, cv=chat-ver, st=story
-/-  sl=steward-lens, sg=steward-gateway
+/-  sl=steward-lens, sg=steward-gateway, sp=steward-prompts
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
-::  %steward is greenfield (unreleased), so it has a single state version and
-::  no migration — an unreadable state just resets to bunt.
-::
 ::    .owner: shared owner ship (lens send target, gateway owner-DM tracking)
 ::    .bots:  owner-side trusted bots — ships allowed to send lens %entry
-::            pokes cross-ship. explicit and ship-class-agnostic; an empty
-::            set means only local pokes are accepted.
+::            and prompts %sync pokes cross-ship. explicit and
+::            ship-class-agnostic; an empty set means only local pokes are
+::            accepted.
 ::
++$  versioned-state  $%(state-0 state-1)
 +$  state-0
   $:  %0
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:sl
       gateway=state:v1:sg
+  ==
++$  state-1
+  $:  %1
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:sl
+      gateway=state:v1:sg
+      prompts=state:v1:sp
   ==
 ::  default cap on first install. conservative against the per-run ceiling:
 ::  3.000 runs * 512KB worst-case = ~1.5GB per bot, while typical runs are far
@@ -37,7 +44,7 @@
 ::
 ++  default-max-runs-per-bot  3.000
 --
-=|  state-0
+=|  state-1
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -55,11 +62,14 @@
   ++  on-load
     |=  ole=vase
     ^-  (quip card _this)
-    ::  greenfield single state — load it directly. an incompatible state is
-    ::  only reachable pre-release; let it crash so we nuke rather than
-    ::  silently wipe.
+    ::  an incompatible state is only reachable pre-release; let it crash so
+    ::  we nuke rather than silently wipe.
     ::
-    `this(state !<(state-0 ole))
+    =/  old  !<(versioned-state ole)
+    ?-  -.old
+      %1  `this(state old)
+      %0  `this(state [%1 owner.old bots.old lens.old gateway.old *state:v1:sp])
+    ==
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -125,6 +135,12 @@
   ::
       %steward-gateway-action-1
     (ga-poke-action:ga-core !<(action:v1:sg vase))
+  ::
+  ::  prompts module actions. auth is per-variant (each shape expects a
+  ::  different src), so it's enforced inside pr-poke-action.
+  ::
+      %steward-prompts-action-1
+    (pr-poke-action:pr-core !<(action:v1:sp vase))
   ==
 ::
 ++  watch
@@ -133,6 +149,7 @@
   ?+  path  ~|(bad-watch-path+path !!)
     [%v1 %lens *]     (le-watch:le-core [%v1 t.t.path])
     [%v1 %gateway *]  (ga-watch:ga-core [%v1 t.t.path])
+    [%v1 %prompts *]  (pr-watch:pr-core [%v1 t.t.path])
   ==
 ::
 ++  peek
@@ -141,6 +158,7 @@
   ?+  path  [~ ~]
     [%x %v1 %lens *]     (le-peek:le-core [%v1 t.t.t.path])
     [%x %v1 %gateway *]  (ga-peek:ga-core [%v1 t.t.t.path])
+    [%x %v1 %prompts *]  (pr-peek:pr-core [%v1 t.t.t.path])
   ==
 ::
 ++  agent
@@ -159,6 +177,20 @@
         %poke-ack
       ?~  p.sign  cor
       ((slog 'steward: lens retry relay nacked' u.p.sign) cor)
+    ==
+  ::
+      [%prompts %set *]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ((slog 'steward: prompts set relay nacked' u.p.sign) cor)
+    ==
+  ::
+      [%prompts %sync *]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ((slog 'steward: prompts owner sync nacked' u.p.sign) cor)
     ==
   ::
       [%activity ~]
@@ -624,5 +656,161 @@
     =.  cor
       (ga-send-dm sender 'Your Tlon bot is offline right now, so replies are paused. I\'ll let you know when I\'m back. 🛰️')
     (ga-give-update [%auto-reply sender now.bowl])
+  --
+::  |pr-core: prompts module
+::
+::  ship-durable gateway system prompts. the bot ship stores the canonical
+::  set (.own), the gateway re-applies it to the workspace on boot, and the
+::  set is mirrored to the owner ship (.mirror) so clients can read and edit
+::  prompts without ever talking to the gateway.
+::
+++  pr-core
+  |%
+  ::  a single prompt is a whole workspace file; cap it well above real
+  ::  prompt sizes (~10KB) but low enough that a full-set %sync poke stays
+  ::  comfortably inside one ames message budget.
+  ::
+  ++  max-prompt-bytes  65.536
+  ::  hard ceiling on a full prompt map (jammed), mirroring the lens payload
+  ::  cap: a misbehaving or compromised gateway can't blow up loom with one
+  ::  poke.
+  ::
+  ++  max-payload-bytes  524.288
+  ::
+  ::  prompts-action auth is per-variant, since each shape expects a
+  ::  different src:
+  ::    %set: src=our (a local client editing, or the start of an owner-side
+  ::          relay) or the configured owner relaying an edit to us (which
+  ::          must target bot==our). only a local poke may relay outward, so
+  ::          we never proxy a non-local edit on to a third ship.
+  ::    %seed: src=our only (the local gateway reporting effective files).
+  ::    %sync: src=our (a self-owned bot storing directly) or a ship in the
+  ::          owner-side trusted-bots set fanning its canonical set in.
+  ::
+  ++  pr-poke-action
+    |=  =action:v1:sp
+    ^+  cor
+    ?-  -.action
+        %set
+      ?>  ?|  =(src.bowl our.bowl)
+              ?&  ?=(^ owner.state)
+                  =(src.bowl u.owner.state)
+                  =(bot.action our.bowl)
+              ==
+          ==
+      ?:  =(bot.action our.bowl)
+        (pr-handle-set name.action text.action)
+      ::  local request for one of our remote bots: relay to its steward
+      %-  emit
+      :^    %pass
+          /prompts/set/(scot %p bot.action)/(scot %t name.action)
+        %agent
+      :+  [bot.action %steward]
+        %poke
+      [%steward-prompts-action-1 !>(`action:v1:sp`action)]
+    ::
+        %seed
+      ?>  =(src.bowl our.bowl)
+      (pr-handle-seed prompts.action)
+    ::
+        %sync
+      ?>  ?|  =(src.bowl our.bowl)
+              (~(has in bots.state) src.bowl)
+          ==
+      (pr-store-mirror src.bowl prompts.action)
+    ==
+  ::
+  ::  store one edit, notify the local gateway (which applies it to the
+  ::  workspace and restarts), and refresh the owner's mirror.
+  ::
+  ++  pr-handle-set
+    |=  [=name:v1:sp text=@t]
+    ^+  cor
+    ?:  (gth (met 3 text) max-prompt-bytes)
+      %-  (slog leaf+"steward: prompt text oversized, dropping" ~)
+      cor
+    =/  =prompt:v1:sp  [text now.bowl]
+    =.  own.prompts.state  (~(put by own.prompts.state) name prompt)
+    =.  cor
+      %^  give  %fact  ~[/v1/prompts]
+      steward-prompts-update-1+!>(`update:v1:sp`[%set name prompt])
+    pr-sync-owner
+  ::
+  ::  the gateway reports the full effective prompt set (file contents) after
+  ::  applying any stored edits, so the seed is the effective truth: adopt it
+  ::  wholesale. entries whose text is unchanged keep their prior timestamp.
+  ::
+  ++  pr-handle-seed
+    |=  seed=(map name:v1:sp @t)
+    ^+  cor
+    ?:  (gth (met 3 (jam seed)) max-payload-bytes)
+      %-  (slog leaf+"steward: prompts seed oversized, dropping" ~)
+      cor
+    =/  new=prompts:v1:sp
+      %-  ~(gas by *prompts:v1:sp)
+      %+  turn  ~(tap by seed)
+      |=  [n=name:v1:sp t=@t]
+      =/  prev  (~(get by own.prompts.state) n)
+      ?:  &(?=(^ prev) =(text.u.prev t))
+        [n u.prev]
+      [n `prompt:v1:sp`[t now.bowl]]
+    ::  gateways re-seed on every boot; don't re-fact or re-sync a no-op
+    ?:  =(new own.prompts.state)  cor
+    =.  own.prompts.state  new
+    =.  cor
+      %^  give  %fact  ~[/v1/prompts]
+      steward-prompts-update-1+!>(`update:v1:sp`[%prompts our.bowl new])
+    pr-sync-owner
+  ::
+  ++  pr-sync-owner
+    ^+  cor
+    ?~  owner.state  cor
+    ?:  =(u.owner.state our.bowl)
+      ::  self-owned bot: store the mirror directly, no network hop
+      (pr-store-mirror our.bowl own.prompts.state)
+    %-  emit
+    :^    %pass
+        /prompts/sync/(scot %p u.owner.state)
+      %agent
+    :+  [u.owner.state %steward]
+      %poke
+    [%steward-prompts-action-1 !>(`action:v1:sp`[%sync own.prompts.state])]
+  ::
+  ++  pr-store-mirror
+    |=  [bot=ship new=prompts:v1:sp]
+    ^+  cor
+    ::  cross-ship maps are size-gated like lens payloads
+    ?:  (gth (met 3 (jam new)) max-payload-bytes)
+      %-  (slog leaf+"steward: prompts sync oversized, dropping" ~)
+      cor
+    =.  mirror.prompts.state  (~(put by mirror.prompts.state) bot new)
+    %^  give  %fact  ~[/v1/prompts]
+    steward-prompts-update-1+!>(`update:v1:sp`[%prompts bot new])
+  ::
+  ++  pr-watch
+    |=  =path
+    ^+  cor
+    ?+  path  ~|(bad-prompts-watch-path+path !!)
+      ::  no initial fact — clients backfill via the /x/v1/prompts scries
+      [%v1 ~]  cor
+    ==
+  ::
+  ++  pr-peek
+    |=  =path
+    ^-  (unit (unit cage))
+    ?+  path  [~ ~]
+        [%v1 ~]
+      ::  bot role: the canonical set the local gateway applies
+      ``steward-prompts-update-1+!>(`update:v1:sp`[%prompts our.bowl own.prompts.state])
+    ::
+        [%v1 @ ~]
+      ::  owner role: a bot's mirrored set. our own ship serves the
+      ::  canonical set so self-owned bots read the same path.
+      =/  bot  (slav %p i.t.path)
+      ?:  =(bot our.bowl)
+        ``steward-prompts-update-1+!>(`update:v1:sp`[%prompts our.bowl own.prompts.state])
+      ?~  found=(~(get by mirror.prompts.state) bot)  [~ ~]
+      ``steward-prompts-update-1+!>(`update:v1:sp`[%prompts bot u.found])
+    ==
   --
 --

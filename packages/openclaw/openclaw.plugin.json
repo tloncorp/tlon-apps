@@ -311,6 +311,16 @@
                     "type": "string",
                     "minLength": 1
                   }
+                },
+                "prompts": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "additionalProperties": {
+                    "type": "string"
+                  }
                 }
               },
               "additionalProperties": false
@@ -473,6 +483,16 @@
             "items": {
               "type": "string",
               "minLength": 1
+            }
+          },
+          "prompts": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1
+            },
+            "additionalProperties": {
+              "type": "string"
             }
           }
         },

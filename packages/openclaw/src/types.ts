@@ -63,6 +63,12 @@ export type TlonResolvedAccount = {
   ownerListenEnabled: boolean | null;
   /** Channels opted out of owner-listen even when the global toggle is on. */
   ownerListenDisabledChannels: string[];
+  /**
+   * Ship-managed system prompt overrides, keyed by workspace file name
+   * (e.g. "SOUL.md"). Written by prompt sync when the owner edits a prompt;
+   * the ship's %steward remains the store of record.
+   */
+  prompts: Record<string, string>;
 };
 
 type TlonTelemetryInput = {
@@ -217,6 +223,7 @@ export function resolveTlonAccount(
       },
       ownerListenEnabled: null,
       ownerListenDisabledChannels: [],
+      prompts: {},
     };
   }
 
@@ -293,6 +300,9 @@ export function resolveTlonAccount(
     ?.ownerListenDisabledChannels ??
     (base as Record<string, unknown>)?.ownerListenDisabledChannels ??
     []) as string[];
+  const prompts = ((account as Record<string, unknown>)?.prompts ??
+    (base as Record<string, unknown>)?.prompts ??
+    {}) as Record<string, string>;
   const configured = Boolean(ship && url && code);
 
   return {
@@ -320,6 +330,7 @@ export function resolveTlonAccount(
     contextLens,
     ownerListenEnabled,
     ownerListenDisabledChannels,
+    prompts,
   };
 }
 

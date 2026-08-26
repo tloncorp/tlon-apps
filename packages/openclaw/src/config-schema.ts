@@ -99,6 +99,14 @@ export const TlonNudgeActiveHoursSchema = z.object({
   timezone: z.string().min(1).optional(),
 });
 
+/**
+ * Ship-managed system prompt overrides, keyed by workspace file name
+ * (e.g. "SOUL.md"). Prompt sync writes these when the owner edits a prompt
+ * via %steward; the ship remains the store of record and re-seeds them on
+ * every gateway boot.
+ */
+export const TlonPromptsSchema = z.record(z.string().min(1), z.string());
+
 export const TlonAccountSchema = z.object({
   name: z.string().optional(),
   enabled: z.boolean().optional(),
@@ -132,6 +140,8 @@ export const TlonAccountSchema = z.object({
   // global toggle is on. Owner messages in these channels still require an
   // @-mention to engage the bot.
   ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
+  // Ship-managed system prompt overrides (see TlonPromptsSchema).
+  prompts: TlonPromptsSchema.optional(),
 });
 
 export const TlonConfigSchema = z.object({
@@ -176,6 +186,8 @@ export const TlonConfigSchema = z.object({
   // global toggle is on. Owner messages in these channels still require an
   // @-mention to engage the bot.
   ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
+  // Ship-managed system prompt overrides (see TlonPromptsSchema).
+  prompts: TlonPromptsSchema.optional(),
 });
 
 // Cast bridges a type-only mismatch: this repo's zod and openclaw's bundled
