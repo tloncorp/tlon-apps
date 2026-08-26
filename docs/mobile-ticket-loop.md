@@ -23,6 +23,12 @@ node --version              # 22.x
     and `posthog-react-native`. On branches older than ~March 2026 `.nvmrc` still
     says `20.11.0` — **that pin is wrong**, nothing in the tree builds on it.
     Node 24+ has no `better-sqlite3@11.x` prebuild and falls back to node-gyp.
+-   Get that Node from **any Node version manager** (nvm, fnm, mise, asdf, volta)
+    or from `brew install node@22`. `.nvmrc` is a version pin, not a requirement
+    to use nvm, and nothing in this loop shells out to one. On the Homebrew path,
+    formula churn breaks the system `node` install periodically — a dependent
+    stays linked against a version that was just replaced. `brew reinstall
+    <affected dependent>`, naming the package in the error, repairs it.
 -   `rn-iso` never runs your build and never starts Metro on its own. Read
     `npx rn-iso guide lifecycle`, `guide logs`, `guide errors` instead of
     duplicating them here — the installed binary's own docs cannot be stale.
@@ -48,28 +54,56 @@ Branch name follows the repo's merged PRs: `<handle>/<slug>`, with the Linear id
 the slug when there is one — `patrick/tlon-6224-heartbeat-races-the-nudge`,
 `claude/android-ime-input-fixes`, `db/hide-delete-markers`.
 
+That is the *branch* name, and it is not the workspace name. `rn-iso worktree
+create` takes only letters, numbers, dots, dashes and underscores — a slash is
+rejected outright — and it names the branch it cuts `worktree-<name>`. So pick a
+slash-free workspace name (`tlon-6224-thread-scroll`) and rename the branch to the
+repo convention immediately after creating it. Step 2 has the commands.
+
 ## 2. Workspace
 
 From the main checkout:
 
 ```bash
 cd "$(npx rn-iso worktree create tlon-6224-thread-scroll --base origin/develop --carry-ignored)"
+git branch -m claude/tlon-6224-thread-scroll    # it was created as worktree-tlon-6224-thread-scroll
 ```
 
-**Read what `--carry-ignored` prints.** "No node_modules among them" means the clone
-carried nothing buildable. "Carried Pods do not match Podfile.lock" is expected and
-`rn-iso ios` fixes it by running `pod install` itself.
+The rename is not cosmetic: `worktree create` always branches `worktree-<name>`,
+so a `<handle>/<slug>` branch can only be reached afterwards. From outside the
+worktree it is `git -C <worktree> branch -m <handle>/<slug>`. Rename before the
+first push; if a `worktree-*` name already reached the remote, retarget it:
+
+```bash
+git push origin :worktree-tlon-6224-thread-scroll          # delete the old remote branch
+git push -u origin claude/tlon-6224-thread-scroll          # push and reset upstream
+```
+
+**Read what `--carry-ignored` prints.** It reports the carry as counts — one line
+for the individually copied gitignored files, one for the wholesale cloned
+gitignored paths (`node_modules`, `ios/Pods`, build output), and a closing
+`Worktree ready.` line stating whether the cloned dependencies may be stale.
+Warnings are conditional and a healthy carry emits none, so do not wait for one:
+they appear only when the source worktree had no `node_modules` to clone, when the
+copy-on-write clone was unavailable, or when a carried `Pods` disagrees with the
+branch's `Podfile.lock` — that last one names the directory and tells you to run
+`pod install` before building.
 
 The clone matches the *source worktree*, not `--base`. If the main checkout is far
 behind `origin/develop`, the carried `node_modules` are wrong and `pnpm install`
 will do real work — that is correct, not a failure.
 
 ```bash
-nvm use 22.23.2
-pnpm install
+node --version               # 22.23.2, activated with whatever manages Node here
+CI=true pnpm install
 pnpm build:packages          # apps import built dist, not src
 ```
 
+-   **`CI=true` is not optional.** `--carry-ignored` leaves a `node_modules` that
+    pnpm decides it has to remove and recreate, and it asks first. An agent shell
+    is not a TTY, so there is nobody to answer: pnpm aborts with
+    `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY` and installs nothing. `CI=true`
+    makes it remove the directory and carry on.
 -   If `apps/tlon-mobile/package.json` still has a `generate:tailwind` script, run
     it — on those branches `index.js` imports the generated `tailwind.json` and
     Metro fails to resolve it otherwise. Current `develop` dropped `tailwind-rn`;
@@ -79,8 +113,15 @@ pnpm build:packages          # apps import built dist, not src
     from the main checkout. Never commit it and never print its contents.
 
 ```bash
+cd apps/tlon-mobile          # every rn-iso command runs from the app package
 npx rn-iso start             # blocks until the dev server verifies as this workspace's
 ```
+
+**Do that `cd` before `rn-iso start` and keep it for everything after.** The
+install steps above are repo-root commands; `rn-iso` ones are not. Run `start`
+from the worktree root — the monorepo root — and it registers the wrong project
+and starts a bundler that is not this app's, which surfaces later as
+`RN_ISO_NO_METRO` or a port held by a foreign process.
 
 Metro on this graph is slow cold: `npx rn-iso start --wait 180` if it times out.
 `npx rn-iso status` shows every workspace on the machine — a booted sim is 1–2 GB,
@@ -92,10 +133,15 @@ so stop something before you become the fourth.
 npx rn-iso ios --json
 ```
 
-On an unchanged tree expect `cacheHit: "local"` or `"remote"` (the repo configures
-`buildCacheProvider: 'eas'` in `app.config.ts`, which rn-iso consults on a local
-miss). Read `udid`, `bundleId`, `metroPort`, `launched` from the payload — **never
-hardcode them, and never assume a `booted` simulator is yours.**
+On a tree this workspace has already built at the same fingerprint, expect
+`cacheHit: "local"`. The repo does configure `buildCacheProvider: 'eas'` in
+`app.config.ts`, but rn-iso <= 1.0.0 cannot reach that remote-cache provider on a
+hoisted monorepo — it looks for the provider where a non-hoisted install would put
+it — so the **first** build in a fresh worktree reports `cacheHit: false` and
+compiles for real. That is expected, not a misconfiguration you should go hunting;
+1.0.1 fixes the lookup. Read `deviceName`, `udid`, `bundleId`, `metroPort` and
+`launched` from the payload — **never hardcode them, and never assume a `booted`
+simulator is yours.**
 
 `launched: true` is required. `launched: "unverified"` means the app started but no
 bundle request reached *this* workspace's Metro — see troubleshooting.
@@ -104,8 +150,8 @@ Then drive the device to the screen in the acceptance criterion and capture it:
 
 ```bash
 PROOF=/tmp/tlon-6224-proof && mkdir -p "$PROOF"
-# UDID / BUNDLE / PORT come from the rn-iso ios --json payload, never from memory
-agent-device open "$BUNDLE" --platform ios --device "$UDID" --session tlon-6224 \
+# DEVICE / BUNDLE / PORT come from the rn-iso ios --json payload, never from memory
+agent-device open "$BUNDLE" --platform ios --device "$DEVICE" --session tlon-6224 \
   --metro-host 127.0.0.1 --metro-port "$PORT" --relaunch
 agent-device snapshot -i
 agent-device press '<ref-or-selector>' --settle          # navigate; repeat as needed
@@ -114,8 +160,11 @@ agent-device close
 ```
 
 Binding `--device` and `--metro-port` explicitly is what keeps a parallel agent's
-simulator and a parallel agent's bundle out of your evidence. Keep artifacts in
-`/tmp`, **not in the worktree** — untracked files make `worktree remove` refuse.
+simulator and a parallel agent's bundle out of your evidence. On agent-device
+0.20.0 `--device` matches the device **name**, so `$DEVICE` is the payload's
+`deviceName` (`"iPhone 17 Pro"`), *not* its `udid` — passing the udid does not
+resolve to your simulator. Keep artifacts in `/tmp`, **not in the worktree** —
+untracked files make `worktree remove` refuse.
 
 -   **Screenshots always.** Record only when the ticket is about motion or
     interaction (a gesture, an animation, a transition) — a still frame proves a
@@ -133,11 +182,18 @@ Edit, and let Fast Refresh apply it — no rn-iso command is involved in a JS-on
 change. If the app does not pick it up, `agent-device metro reload`.
 
 ```bash
-npx rn-iso logs --errors            # empty output + exit 0 IS the pass condition
+npx rn-iso logs --errors            # human read: zero records IS the pass condition
+npx rn-iso logs --errors --json     # scriptable form; see below before automating this
 npx rn-iso logs --since 2m --level error
 npx rn-iso logs --source device --level error    # native crash that never reached JS
 ```
 
+-   **Never decide "clean" from empty output.** With nothing to report,
+    `rn-iso logs --errors` prints the human-readable line
+    `No matching log records in <dir>` — text, not silence — so a gate testing the
+    command's output for emptiness reads a pass as a failure. The scriptable
+    empty-check is `npx rn-iso logs --errors --json`, whose record stream is the
+    only thing on stdout.
 -   A React Native LogBox/RedBox overlay blocks interaction: run
     `agent-device react-native dismiss-overlay`, never press the warning text.
 -   **Rerun `npx rn-iso ios` when a native input changes** — a dependency added or
@@ -176,8 +232,10 @@ pnpm check:native-navigation-icons      # only if you touched navigation icons
 PR; scope to the affected package otherwise. On older branches these are eslint and
 prettier (`pnpm lint:all`, `pnpm lint:format`) — read `package.json`, don't assume.
 
-Finish with `npx rn-iso logs --errors` clean. Never claim a check passed without
-having run it.
+Finish with `npx rn-iso logs --errors` clean — and if a script rather than you is
+making that call, use `npx rn-iso logs --errors --json`, because the human form
+answers "nothing to report" with the words `No matching log records`, not with
+silence. Never claim a check passed without having run it.
 
 ## 7. PR
 
@@ -216,6 +274,16 @@ npx rn-iso stop
 Frees ~1.5 GB: supervisor halted, log collectors reaped, owned device **shut down
 but not deleted**, port freed. The workspace and its device assignment survive, so a
 review round costs a boot instead of a rebuild.
+
+**If `stop` reports the device shutdown as skipped, agent-device is still holding
+it.** Its UI-test runner outlives `agent-device close` and keeps the simulator
+open, and `rn-iso stop` will not shut down a device another process owns. Evict
+the runner, then stop again:
+
+```bash
+agent-device daemon stop --clean    # stops the daemon and its retained runners/leases
+npx rn-iso stop
+```
 
 Review rounds: `npx rn-iso start`, `npx rn-iso ios` (cache hit), fix, re-run step 6,
 push. Re-capture the media if the visible behaviour changed, and refetch the body
@@ -271,7 +339,7 @@ permanently discards work, and a refusal means something genuinely unexpected.
 | `RN_ISO_NO_FINGERPRINT` | `@expo/fingerprint` not resolvable, so the shared cache is unaddressable | `pnpm install` completed? If it genuinely is absent, add it as a dev dependency — otherwise every workspace compiles from scratch forever |
 | `RN_ISO_DEPS_FAILED` | `pod install` failed — carried `Pods` vs branch `Podfile.lock` | `pnpm deps:ios` from the repo root, then rerun `npx rn-iso ios` |
 | `RN_ISO_METRO_TIMEOUT` | Supervisor alive, bundler not serving yet | `--wait 180`. `start` already printed the tail of `.rn-iso/logs/supervisor.log` — read it |
-| `logs --errors` prints nothing | **That is the pass condition**, not a broken query | Nothing. If you started Metro yourself instead of via `rn-iso start`, the timeline is empty rather than clean — that is different |
+| `logs --errors` reports no records | **That is the pass condition**, not a broken query — and it says so in words, `No matching log records in <dir>`, rather than printing nothing | Nothing. Do not build an empty-output test around it; script the check as `logs --errors --json`. If you started Metro yourself instead of via `rn-iso start`, the timeline is empty rather than clean — that is different |
 | `logs --errors` full of noise | Device-source noise is excluded by default; if you added `--source device` you opted into Apple framework chatter | Drop back to the default scope; use `--grep` or `--since` to narrow |
 | `worktree remove` refuses | Uncommitted, untracked, or unpushed work — pod churn is the common case | Restore exactly the paths it named, or commit and push. `.rn-iso/` is never the reason |
 | `snapshot` sparse or "AX unavailable" | The screen's accessibility state is invalid | Use `screenshot` as visual truth, navigate away by coordinates, then `snapshot -i` again |
