@@ -170,7 +170,7 @@ Deletes stay per-object, because they are destructive: `%issue-delete` binds a s
 
 ## Pioneer thread contract
 
-All four threads live under `desk/ted/pioneer/` and are invoked by Pioneer with the flattened `%pioneer-buckets-*` file names. They accept `(unit json)` and return JSON.
+All four threads live under `desk/ted/pioneer/buckets/` and are invoked by Pioneer as `%pioneer-buckets-*`. They accept `(unit json)` and return JSON.
 
 | Thread                              | Input                               | Successful result                                                                                                                                        |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -223,4 +223,6 @@ Authorization failures return `{result: "denied"}` and expired tokens return `{r
 
 `desk/tests/app/groups.hoon` additionally covers the `can-write` peek resolving to `~` for a ship holding no seat, which both this agent and `lib/channel-utils` read with `.^`.
 
-Run the targeted fakezod test with the repository's normal `%test` thread against `/tests/app/buckets/hoon`. Marks must remain top-level files such as `desk/mar/buckets-action-1.hoon`; nesting them under `desk/mar/buckets/` changes the mark name and prevents Gall from resolving the protocol.
+Run the targeted fakezod test with the repository's normal `%test` thread against `/tests/app/buckets/hoon`.
+
+Marks live under `desk/mar/buckets/`, as every other agent's do, and threads under `desk/ted/pioneer/buckets/`. Neither nesting changes a name: Clay resolves a term through `+get-fit`, whose `+segments` tries every `-`-to-`/` split — `%buckets-action-1` finds `mar/buckets/action-1`, and `%pioneer-buckets-authorize-upload` finds `ted/pioneer/buckets/authorize-upload`. An earlier version of this document asserted the opposite, which is why these files sat flat.
