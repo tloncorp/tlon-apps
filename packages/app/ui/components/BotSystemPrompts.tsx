@@ -45,14 +45,16 @@ export function useIsOwnedBot(botShip: string) {
   return {
     isOwnedBot: Boolean(promptsQuery.data?.length),
     /**
-     * True while a fetch is deciding — the first load OR a background
-     * refetch (staleTime is Infinity, so a refetch only follows an
-     * explicit invalidation and genuinely may change the answer: a cached
-     * "not owned" can be about to flip after the bot was trusted while
-     * the profile was unmounted). Callers gating a destructive action
+     * True while ownership is UNRESOLVED: a fetch is deciding (first load
+     * or a background refetch — staleTime is Infinity, so a refetch only
+     * follows an explicit invalidation and genuinely may change the
+     * answer), or the last fetch errored (a scry that exhausted its
+     * retries determined nothing — only a successful null is an
+     * authoritative "not owned"). Callers gating a destructive action
      * (e.g. Block) should treat ownership as unknown until this settles.
      */
-    isPending: promptsQuery.isPending || promptsQuery.isFetching,
+    isPending:
+      promptsQuery.isPending || promptsQuery.isFetching || promptsQuery.isError,
   };
 }
 
@@ -220,6 +222,18 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
   if (!prompts || prompts.length === 0) {
     return null;
   }
+  if (promptsQuery.isError) {
+    // The reconciling refetch failed, so the cached set can't be trusted —
+    // the bot may have been untrusted/revoked while this profile was
+    // unmounted, and no later fact is guaranteed. Fail closed rather than
+    // offering an editor for stale ownership (the %set relay itself
+    // doesn't require a current mirror).
+    return null;
+  }
+  // While a reconciling refetch is in flight, keep rendering the cached
+  // rows (hiding them would blink the section on every mount) but don't
+  // open the editor until the refetch confirms the set is current.
+  const reconciling = promptsQuery.isFetching;
 
   const orderedPrompts = [...prompts].sort((a, b) => {
     const aOrder = promptOrder.get(a.name) ?? Number.MAX_SAFE_INTEGER;
@@ -238,7 +252,12 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Edit ${PROMPT_LABELS[prompt.name] ?? prompt.name} prompt`}
-              onPress={() => setEditing(prompt)}
+              onPress={() => {
+                if (reconciling) {
+                  return;
+                }
+                setEditing(prompt);
+              }}
               pressStyle={{ backgroundColor: '$secondaryBackground' }}
             >
               <ListItem

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   MAX_PROMPT_BYTES,
+  shipHasPromptSyncAuthority,
   PROMPT_FILE_NAMES,
   applyPromptsToWorkspace,
   collectForeignPromptCaches,
@@ -905,5 +906,63 @@ describe('createPromptSync foreign-prompt seed filter', () => {
       mark: 'steward-prompts-action-1',
       json: { seed: { 'USER.md': 'fresh text for this bot' } },
     });
+  });
+});
+
+describe('shipHasPromptSyncAuthority', () => {
+  const creds = { url: 'http://x', code: 'c' };
+  const cfg = makeAccountsConfig({
+    ship: '~zod',
+    ...creds,
+    accounts: {
+      // Alias: a second runnable slot pointing at the default's ship.
+      alias: { ship: '~zod', ...creds },
+      other: { ship: '~bus', ...creds },
+    },
+  }) as never;
+
+  it('is true for a ship the syncing authority targets', () => {
+    // default is the authority (multi-account → default syncs).
+    expect(shipHasPromptSyncAuthority(cfg, '~zod')).toBe(true);
+    expect(shipHasPromptSyncAuthority(cfg, 'zod')).toBe(true);
+  });
+
+  it('is false for ships only gated-off accounts target', () => {
+    expect(shipHasPromptSyncAuthority(cfg, '~bus')).toBe(false);
+  });
+});
+
+describe('createPromptSync foreign-file removal failure', () => {
+  it('aborts the reconcile when the foreign file cannot be removed', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'hosted owner notes');
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'shared baseline');
+    const unlinkSpy = vi
+      .spyOn(fs.promises, 'unlink')
+      .mockRejectedValue(new Error('EACCES: read-only workspace'));
+    try {
+      const poke = vi.fn(
+        async (_params: { app: string; mark: string; json: unknown }) => ({})
+      );
+      const sync = createPromptSync({
+        core: makeCore(),
+        accountId: 'default',
+        botShip: '~zod',
+        workspaceDir: tmpDir,
+        configPrompts: {},
+        foreignPrompts: { 'USER.md': ['hosted owner notes'] },
+        owner: '~ten',
+        scry: async () => ({}),
+        poke,
+        logger,
+      });
+      await sync.startup();
+      // The foreign text is still on disk; treating cleanup as complete
+      // (and seeding) would misrepresent the workspace as healthy.
+      expect(poke).not.toHaveBeenCalledWith(
+        expect.objectContaining({ mark: 'steward-prompts-action-1' })
+      );
+    } finally {
+      unlinkSpy.mockRestore();
+    }
   });
 });

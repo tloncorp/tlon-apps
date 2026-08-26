@@ -819,9 +819,11 @@
   =+  !<(=update:v1:p q.res)
   (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev expect]))
 ::
-::  gateways re-seed on every boot: an identical %seed is a no-op
+::  gateways re-seed on every boot: an identical %seed skips the local
+::  fact but still re-fans to the owner (a previous fan may have been
+::  nacked while the owner's agent was restarting)
 ::
-++  test-pr-seed-noop-emits-nothing
+++  test-pr-seed-noop-still-refans-owner
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -832,7 +834,14 @@
     (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%seed seed]))
   ;<  caz=(list card)  bind:m
     (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%seed seed]))
-  (ex-cards caz ~)
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%sync (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.n]])])
+      ==
+  ==
 ::
 ::  a re-seed keeps the stored timestamp for entries whose text is unchanged
 ::

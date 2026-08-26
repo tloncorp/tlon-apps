@@ -887,8 +887,12 @@
       %+  skim  ~(tap by own.prompts.state)
       |=  [n=name:v1:sp p=prompt:v1:sp]
       &(edited.p !(~(has by new) n))
-    ::  gateways re-seed on every boot; don't re-fact or re-sync a no-op
-    ?:  =(new own.prompts.state)  cor
+    ::  gateways re-seed on every boot: an identical re-seed skips the
+    ::  no-op fact, but still re-fans to the owner — a previous fan may
+    ::  have been nacked (owner agent restarting), and suppressing the
+    ::  sync too would leave the mirror stale until some text changed
+    ?:  =(new own.prompts.state)
+      pr-sync-owner
     =.  own.prompts.state  new
     =.  cor
       %^  give  %fact  ~[/v1/prompts]

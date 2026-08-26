@@ -150,6 +150,32 @@ export function shouldRunPromptSync(
 }
 
 /**
+ * True when some account holding prompt-syncing authority
+ * (shouldRunPromptSync) targets this bot ship. A gated-off monitor must not
+ * %clear a ship that a syncing alias account is actively seeding — the two
+ * monitors run independently, so a clear landing after the authority's
+ * seed would wipe the canonical set and owner mirror until the next
+ * reconcile.
+ */
+export function shipHasPromptSyncAuthority(
+  cfg: OpenClawConfig,
+  botShip: string
+): boolean {
+  const ship = normalizeShip(botShip);
+  const accounts = (
+    cfg.channels?.tlon as { accounts?: Record<string, unknown> } | undefined
+  )?.accounts;
+  const ids = [DEFAULT_ACCOUNT_ID, ...Object.keys(accounts ?? {})];
+  return ids.some((id) => {
+    if (!shouldRunPromptSync(cfg, id)) {
+      return false;
+    }
+    const account = resolveTlonAccount(cfg, id);
+    return Boolean(account.ship) && normalizeShip(account.ship!) === ship;
+  });
+}
+
+/**
  * Prompt texts belonging to every ship OTHER than this account's bot,
  * name -> texts. All accounts share one default-agent workspace, so when
  * the prompt-syncing authority changes (a default account joins a formerly
@@ -616,9 +642,13 @@ export function createPromptSync(opts: {
             `[tlon] Removed foreign prompt ${name} from the workspace (text belongs to another ship's owner); not seeding it`
           );
         } catch (error) {
+          // The foreign text is still on disk and the agent re-reads it
+          // every turn — do not proceed as if cleanup succeeded. The next
+          // boot (or resubscribe reconcile) retries the removal.
           logger.warn(
-            `[tlon] Failed to remove foreign prompt ${name}: ${error}`
+            `[tlon] Aborting prompt reconcile: failed to remove foreign prompt ${name}: ${error}`
           );
+          return;
         }
       }
     }

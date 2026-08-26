@@ -52,6 +52,7 @@ import {
   type PromptSync,
   collectForeignPromptCaches,
   createPromptSync,
+  shipHasPromptSyncAuthority,
   shouldRunPromptSync,
   withStartupRetries,
 } from '../prompt-sync.js';
@@ -5514,6 +5515,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             `[tlon] Prompt sync reconcile failed: ${error?.message ?? String(error)}`
           );
         }
+      } else if (
+        promptSyncGatedOff &&
+        shipHasPromptSyncAuthority(cfg, botShipName)
+      ) {
+        // An alias: another account with syncing authority targets this
+        // very ship, and the two monitors run independently — a %clear
+        // from here could land after the authority's seed and wipe the
+        // canonical set and owner mirror until the next reconcile.
+        runtime.log?.(
+          '[tlon] Prompt sync inactive for this account, but another account syncs this ship; skipping prompt clear'
+        );
       } else if (promptSyncGatedOff) {
         // This account lost (or never had) prompt-syncing authority, but
         // its ship may still hold a canonical set seeded by an earlier
