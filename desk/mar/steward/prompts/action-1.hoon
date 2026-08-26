@@ -35,6 +35,9 @@
           ['updated' s+(scot %da updated.prompt)]
           ['edited' b+edited.prompt]
       ==
+    ::
+        %request
+      (frond 'request' ~)
     ==
   --
 ++  grab
@@ -46,6 +49,7 @@
     :~  [%set (ot ~[bot+(se %p) name+so text+so])]
         [%seed (om so)]
         [%sync (om (ot ~[text+so updated+(se %da) edited+bo]))]
+        [%request ul]
     ==
   --
 --

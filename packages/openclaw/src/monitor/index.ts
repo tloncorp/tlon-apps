@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { resolveDefaultAgentId } from 'openclaw/plugin-sdk/agent-runtime';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
-import { DEFAULT_ACCOUNT_ID } from 'openclaw/plugin-sdk/core';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
@@ -49,7 +48,7 @@ import {
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
-import { createPromptSync } from '../prompt-sync.js';
+import { createPromptSync, shouldRunPromptSync } from '../prompt-sync.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -4774,12 +4773,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // lands mid-reconcile isn't missed, then reconcile ship state into the
       // workspace and seed the effective prompt set back. Ships without the
       // %steward prompts module nack/404; prompt sync is simply unavailable.
-      // Default-account only: every account resolves the same default-agent
-      // workspace, so a second account's sync would overwrite the first
-      // account's files and cross-seed its ship.
-      if (account.accountId !== DEFAULT_ACCOUNT_ID) {
+      // Gated to one syncing account per gateway (see shouldRunPromptSync):
+      // every account resolves the same default-agent workspace, so a second
+      // account's sync would overwrite the first account's files and
+      // cross-seed its ship.
+      if (!shouldRunPromptSync(cfg, account.accountId)) {
         runtime.log?.(
-          `[tlon] Prompt sync disabled for non-default account ${account.accountId}: accounts share one agent workspace`
+          `[tlon] Prompt sync disabled for account ${account.accountId}: accounts share one agent workspace`
         );
       } else {
         const promptSync = createPromptSync({

@@ -129,10 +129,25 @@
       pr-sync-owner:pr-core
     ::
         %trust-bot
-      cor(bots.state (~(put in bots.state) ship.action))
+      ::  ask the bot to re-fan its prompt set: a %sync it sent before
+      ::  trust was granted was nacked and won't retry on its own
+      ::
+      =.  bots.state  (~(put in bots.state) ship.action)
+      ?:  =(ship.action our.bowl)  cor
+      %-  emit
+      :^    %pass
+          /prompts/request/(scot %p ship.action)
+        %agent
+      :+  [ship.action %steward]
+        %poke
+      [%steward-prompts-action-1 !>(`action:v1:sp`[%request ~])]
     ::
         %untrust-bot
-      cor(bots.state (~(del in bots.state) ship.action))
+      ::  the prompt mirror doubles as the client's ownership signal, so a
+      ::  revoked bot must not keep serving (or appearing to accept) edits
+      ::
+      =.  bots.state  (~(del in bots.state) ship.action)
+      (pr-drop-mirror:pr-core ship.action)
     ==
   ::
   ::  lens module actions. auth is per-variant (each shape expects a
@@ -201,6 +216,14 @@
         %poke-ack
       ?~  p.sign  cor
       ((slog 'steward: prompts owner sync nacked' u.p.sign) cor)
+    ==
+  ::
+      [%prompts %request *]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ::  expected when trusting a ship that doesn't consider us its owner
+      ((slog 'steward: prompts resync request nacked' u.p.sign) cor)
     ==
   ::
       [%activity ~]
@@ -732,6 +755,14 @@
               (~(has in bots.state) src.bowl)
           ==
       (pr-store-mirror src.bowl prompts.action)
+    ::
+        %request
+      ?>  ?|  =(src.bowl our.bowl)
+              ?&  ?=(^ owner.state)
+                  =(src.bowl u.owner.state)
+              ==
+          ==
+      pr-sync-owner
     ==
   ::
   ::  store one edit (pinned owner intent, edited=&), notify the local
@@ -809,6 +840,17 @@
     =.  mirror.prompts.state  (~(put by mirror.prompts.state) bot new)
     %^  give  %fact  ~[/v1/prompts]
     steward-prompts-update-1+!>(`update:v1:sp`[%prompts bot new])
+  ::
+  ::  drop a bot's mirror (trust revoked) and fact the now-empty set so
+  ::  clients stop treating the bot as owned/editable
+  ::
+  ++  pr-drop-mirror
+    |=  bot=ship
+    ^+  cor
+    ?.  (~(has by mirror.prompts.state) bot)  cor
+    =.  mirror.prompts.state  (~(del by mirror.prompts.state) bot)
+    %^  give  %fact  ~[/v1/prompts]
+    steward-prompts-update-1+!>(`update:v1:sp`[%prompts bot *prompts:v1:sp])
   ::
   ++  pr-watch
     |=  =path

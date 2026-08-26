@@ -13,8 +13,13 @@ import {
   parseStoredPromptsScry,
   promptsDiffer,
   readEffectivePrompts,
+  shouldRunPromptSync,
   writePromptsIntoConfigDraft,
 } from './prompt-sync.js';
+
+function makeAccountsConfig(tlon: Record<string, unknown>) {
+  return { channels: { tlon } } as never;
+}
 
 const logger = { log: vi.fn(), warn: vi.fn() };
 
@@ -295,6 +300,51 @@ describe('createPromptSync.startup', () => {
     });
     await sync.startup();
     expect(poke).not.toHaveBeenCalled();
+  });
+});
+
+describe('shouldRunPromptSync', () => {
+  const creds = { ship: '~zod', url: 'http://x', code: 'c' };
+
+  it('always allows the default account', () => {
+    expect(
+      shouldRunPromptSync(makeAccountsConfig({ ...creds }), 'default')
+    ).toBe(true);
+  });
+
+  it('allows a sole named account', () => {
+    const cfg = makeAccountsConfig({ accounts: { hosted: { ...creds } } });
+    expect(shouldRunPromptSync(cfg, 'hosted')).toBe(true);
+  });
+
+  it('blocks a named account when the default account also runs', () => {
+    const cfg = makeAccountsConfig({
+      ...creds,
+      accounts: { hosted: { ...creds, ship: '~bus' } },
+    });
+    expect(shouldRunPromptSync(cfg, 'hosted')).toBe(false);
+    expect(shouldRunPromptSync(cfg, 'default')).toBe(true);
+  });
+
+  it('blocks every named account when several run', () => {
+    const cfg = makeAccountsConfig({
+      accounts: {
+        one: { ...creds },
+        two: { ...creds, ship: '~bus' },
+      },
+    });
+    expect(shouldRunPromptSync(cfg, 'one')).toBe(false);
+    expect(shouldRunPromptSync(cfg, 'two')).toBe(false);
+  });
+
+  it('ignores disabled accounts when counting', () => {
+    const cfg = makeAccountsConfig({
+      accounts: {
+        one: { ...creds },
+        two: { ...creds, ship: '~bus', enabled: false },
+      },
+    });
+    expect(shouldRunPromptSync(cfg, 'one')).toBe(true);
   });
 });
 

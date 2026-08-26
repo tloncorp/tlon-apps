@@ -120,14 +120,19 @@ export function resolveLensOwner(
   accountId?: string | null
 ): string | null {
   const account = resolveTlonAccount(config, accountId);
+  // ownerShip wins: this value is poked into %steward's SHARED core owner,
+  // which now also gates prompt-edit authorization and routing — letting a
+  // lens-only recipient override it would hand that ship the bot's prompts.
+  // contextLens.owner remains a fallback for lens-only configs with no
+  // account owner.
+  const owner = account.ownerShip ? normalizeShip(account.ownerShip) : '';
+  if (owner.length > 0) {
+    return owner;
+  }
   const configured = account.contextLens.owner
     ? normalizeShip(account.contextLens.owner)
     : '';
-  if (configured.length > 0) {
-    return configured;
-  }
-  const owner = account.ownerShip ? normalizeShip(account.ownerShip) : '';
-  return owner.length > 0 ? owner : null;
+  return configured.length > 0 ? configured : null;
 }
 
 /**

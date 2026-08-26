@@ -54,8 +54,9 @@ export const TlonContextLensSchema = z.object({
   visibilityDefault: z.enum(['owner', 'participants', 'internal']).optional(),
   authToken: z.string().min(16).optional(),
   allowedOrigins: z.array(z.string().min(1)).optional(),
-  // Owner ship that receives run records via the %steward agent (ship sync).
-  // Falls back to `ownerShip` when unset.
+  // Fallback owner for the %steward ship sync, used only when `ownerShip`
+  // is unset. `ownerShip` always wins: the value configures %steward's
+  // SHARED owner, which also gates prompt-edit authorization and routing.
   owner: ShipSchema.optional(),
   // Durable on-disk history of finalized runs (default on when the lens is
   // enabled). Hosted deployments with ephemeral disks can point `path` at a

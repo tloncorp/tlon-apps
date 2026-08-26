@@ -62,7 +62,15 @@ describe('resolveLensOwner', () => {
     ).toEqual('~bus');
   });
 
-  it('falls back to ownerShip when owner is unset', () => {
+  it('prefers ownerShip: the shared core owner also gates prompt edits', () => {
+    expect(
+      resolveLensOwner(
+        makeConfig({ ownerShip: 'dev', contextLens: { owner: 'bus' } })
+      )
+    ).toEqual('~dev');
+  });
+
+  it('falls back to contextLens.owner when ownerShip is unset', () => {
     expect(
       resolveLensOwner(makeConfig({ ownerShip: 'dev', contextLens: {} }))
     ).toEqual('~dev');

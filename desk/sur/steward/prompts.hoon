@@ -43,11 +43,16 @@
 ::          contents) after applying any stored edits. src=our only.
 ::    %sync: bot -> owner fan-out of the bot's canonical set. accepted from
 ::          ships in the owner-side trusted-bots set.
+::    %request: owner asks the bot to re-fan its canonical set (sent
+::          automatically on %trust-bot, since a %sync delivered before
+::          trust was granted has already been nacked and won't retry).
+::          accepted from the configured owner.
 ::
 +$  action
   $%  [%set bot=ship =name text=@t]
       [%seed prompts=(map name @t)]
       [%sync =prompts]
+      [%request ~]
   ==
 ::  $update: prompts subscription / scry update.
 ::

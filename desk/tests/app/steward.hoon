@@ -1119,6 +1119,86 @@
       ['TOOLS.md' 'tools' ~2024.1.2 %.n]
   ==
 ::
+::  trusting a bot asks it to re-fan its prompts: a %sync sent before trust
+::  was granted has already been nacked and won't retry on its own
+::
+++  test-pr-trust-bot-requests-resync
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot moon]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/request/(scot %p moon)
+          [moon %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%request ~])
+      ==
+  ==
+::
+::  a %request from the configured owner re-fans the canonical set
+::
+++  test-pr-request-from-owner-resyncs
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~bus)
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%request ~]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%sync (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.n]])])
+      ==
+  ==
+::
+::  a %request from a ship that is not the configured owner is rejected
+::
+++  test-pr-request-from-non-owner-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%request ~]))
+::
+::  revoking trust drops the bot's prompt mirror (the client's ownership
+::  signal) and facts the now-empty set
+::
+++  test-pr-untrust-bot-drops-mirror
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  =/  synced=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2023.12.31 %.y]])
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%sync synced]))
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-fact
+        :*  ~[/v1/prompts]
+            %steward-prompts-update-1
+            !>(`update:v1:p`[%prompts moon *prompts:v1:p])
+        ==
+    ==
+  ;<  res=(unit (unit cage))  bind:m  (get-peek /x/v1/prompts/(scot %p moon))
+  (ex-equal !>(=(res `(unit (unit cage))`[~ ~])) !>(&))
+::
 ::  configuring a (new) owner re-fans the canonical set so the new owner's
 ::  mirror doesn't stay empty until some prompt text changes
 ::

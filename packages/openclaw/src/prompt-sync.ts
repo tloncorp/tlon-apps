@@ -19,7 +19,13 @@
  */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import type { PluginRuntime } from 'openclaw/plugin-sdk/core';
+import {
+  DEFAULT_ACCOUNT_ID,
+  type OpenClawConfig,
+  type PluginRuntime,
+} from 'openclaw/plugin-sdk/core';
+
+import { resolveTlonAccount } from './types.js';
 
 /**
  * The workspace bootstrap files exposed as editable system prompts. These
@@ -46,6 +52,33 @@ export type PromptSyncLogger = {
   log: (message: string) => void;
   warn: (message: string) => void;
 };
+
+/**
+ * Whether this account's monitor should run prompt sync. Every account
+ * resolves the same default-agent workspace, so two syncing accounts would
+ * overwrite each other's files and cross-seed their ships: the default
+ * account always syncs, and a named account syncs only when it is the sole
+ * runnable account (e.g. a config with just `accounts.hosted`). With
+ * multiple named accounts and no default, nobody syncs — safe, if inert.
+ */
+export function shouldRunPromptSync(
+  cfg: OpenClawConfig,
+  accountId: string
+): boolean {
+  if (accountId === DEFAULT_ACCOUNT_ID) {
+    return true;
+  }
+  const accounts = (
+    cfg.channels?.tlon as { accounts?: Record<string, unknown> } | undefined
+  )?.accounts;
+  const runnable = [DEFAULT_ACCOUNT_ID, ...Object.keys(accounts ?? {})].filter(
+    (id) => {
+      const account = resolveTlonAccount(cfg, id);
+      return account.configured && account.enabled;
+    }
+  );
+  return runnable.length === 1 && runnable[0] === accountId;
+}
 
 export function isAllowedPromptName(name: unknown): name is PromptFileName {
   return (
