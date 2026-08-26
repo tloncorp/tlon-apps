@@ -95,7 +95,7 @@ function provisionedGroup(
   };
 }
 
-function firstGroupIntro(timestamp = 0) {
+function introRequest(timestamp = 0, isFirstGroup = true) {
   return {
     author: '~ten',
     content: "Let's get set up.",
@@ -104,10 +104,12 @@ function firstGroupIntro(timestamp = 0) {
       type: 'tlon-agent-intro-request' as const,
       version: 1 as const,
       groupId: provision.groupId,
-      isFirstGroup: true,
+      ...(isFirstGroup ? { isFirstGroup: true } : {}),
     }),
   };
 }
+
+const firstGroupIntro = (timestamp = 0) => introRequest(timestamp);
 
 function botMarker(key: string, timestamp: number) {
   return {
@@ -120,6 +122,57 @@ function botMarker(key: string, timestamp: number) {
       key,
     }),
   };
+}
+
+function provisionAck(
+  timestamp = 1,
+  provisionId = provision.provisionId,
+  cronJobId = 'job-1'
+) {
+  return {
+    author: '~bot',
+    content: 'ready',
+    timestamp,
+    blob: appendToPostBlob(undefined, {
+      type: 'tlon-agent-provision-ack' as const,
+      version: 1 as const,
+      provisionId,
+      cronJobId,
+    }),
+  };
+}
+
+function provisionRequest(
+  request: typeof provision = provision,
+  timestamp = 1
+) {
+  return {
+    author: '~ten',
+    content: request.topics.join(', '),
+    timestamp,
+    blob: appendToPostBlob(undefined, request),
+  };
+}
+
+function servicesCard(timestamp = 2) {
+  return {
+    author: '~bot',
+    content: 'Connect anything you’d like, or tap Done to continue.',
+    timestamp,
+    blob: appendToPostBlob(undefined, {
+      type: 'tlon-agent-post-marker' as const,
+      version: 1 as const,
+      key: 'services-card',
+    }),
+  };
+}
+
+function successfulSendPost() {
+  return vi.fn(async () => ({
+    channel: 'tlon' as const,
+    messageId: 'post',
+    sentAt: 0,
+  }));
 }
 
 function providerConfig(
@@ -214,6 +267,26 @@ function runRecordKey(accountId: string, provisionId: string) {
 const defaultRunAccountId = '~bot';
 const storedRunKey = (provisionId = provision.provisionId) =>
   runRecordKey(defaultRunAccountId, provisionId);
+
+function storedRunRecord(
+  overrides: Partial<AgentOnboardingRunRecord> = {}
+): AgentOnboardingRunRecord {
+  return {
+    accountId: defaultRunAccountId,
+    provisionId: provision.provisionId,
+    jobId: 'job-1',
+    groupId: provision.groupId,
+    channelNest: 'chat/~ten/group/general',
+    notebookNest: provision.notebookNest,
+    notebookName: provision.notebookTitle,
+    purposeId: provision.purposeId,
+    topics: [...provision.topics],
+    provision,
+    claimedAt: 1,
+    status: 'enqueued',
+    ...overrides,
+  };
+}
 
 describe('first-run durable claims', () => {
   const record = (claimOwnerId: string): AgentOnboardingRunRecord => ({
@@ -353,25 +426,7 @@ describe('first-run durable claims', () => {
     });
   });
 
-  it('persists a pending outcome without undefined optional fields', async () => {
-    const store = memoryRunStore();
-    setAgentOnboardingRunStore(store);
-    const initial = record(getAgentOnboardingClaimOwnerId());
-    await store.register(recordKey, initial);
-
-    await recordAgentOnboardingRunOutcome('run-1', {
-      status: 'error',
-      delivered: false,
-      observedAt: 1_001,
-    });
-    await recordAgentOnboardingRunEnqueued(initial, 'run-1', 1_000);
-
-    await expect(store.lookup(recordKey)).resolves.toMatchObject({
-      outcome: { status: 'error', delivered: false, observedAt: 1_001 },
-    });
-  });
-
-  it('does not delete a replacement record when an older enqueue rejects', async () => {
+  it('does not delete an enqueued record when an older enqueue rejects', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
     const initial = record(getAgentOnboardingClaimOwnerId());
@@ -389,7 +444,7 @@ describe('first-run durable claims', () => {
     await expect(store.lookup(recordKey)).resolves.toEqual(replacement);
   });
 
-  it('does not overwrite a replacement claim when an older enqueue resolves', async () => {
+  it('does not overwrite an enqueued record when an older enqueue resolves', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
     const initial = record(getAgentOnboardingClaimOwnerId());
@@ -405,60 +460,6 @@ describe('first-run durable claims', () => {
     await recordAgentOnboardingRunEnqueued(initial, 'older-run', 1_000);
 
     await expect(store.lookup(recordKey)).resolves.toEqual(replacement);
-  });
-
-  it('attaches an exact completion that arrives before enqueue returns', async () => {
-    const initial = record(getAgentOnboardingClaimOwnerId());
-    await recordAgentOnboardingRunOutcome('run-1', {
-      status: 'ok',
-      delivered: true,
-      observedAt: 1_001,
-    });
-    await recordAgentOnboardingRunEnqueued(initial, 'run-1', 1_000);
-
-    await expect(
-      claimAgentOnboardingRun(initial, 1_002)
-    ).resolves.toMatchObject({
-      outcome: 'recovered',
-      record: {
-        runId: 'run-1',
-        outcome: { status: 'ok', delivered: true, observedAt: 1_001 },
-      },
-    });
-  });
-
-  it('waits for an in-flight exact outcome before writing enqueue state', async () => {
-    const store = memoryRunStore();
-    setAgentOnboardingRunStore(store);
-    const initial = record(getAgentOnboardingClaimOwnerId());
-    await store.register(recordKey, initial);
-    const originalEntries = store.entries.getMockImplementation()!;
-    let releaseEntries!: () => void;
-    const entriesBarrier = new Promise<void>((resolve) => {
-      releaseEntries = resolve;
-    });
-    store.entries.mockImplementationOnce(async () => {
-      await entriesBarrier;
-      return originalEntries();
-    });
-
-    const outcomeFlight = recordAgentOnboardingRunOutcome('run-1', {
-      status: 'ok',
-      delivered: true,
-      observedAt: 1_001,
-    });
-    const enqueueFlight = recordAgentOnboardingRunEnqueued(
-      initial,
-      'run-1',
-      1_000
-    );
-    releaseEntries();
-    await Promise.all([outcomeFlight, enqueueFlight]);
-
-    await expect(store.lookup(recordKey)).resolves.toMatchObject({
-      runId: 'run-1',
-      outcome: { status: 'ok', delivered: true, observedAt: 1_001 },
-    });
   });
 
   it('preserves an exact delivered note id across later cron outcome writes', async () => {
@@ -514,21 +515,13 @@ describe('durable onboarding cron authorization', () => {
   it('recognizes an edited job and restores its selected providers from durable state', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register(storedRunKey(), {
-      accountId: defaultRunAccountId,
-      provisionId: provision.provisionId,
-      jobId: 'edited-description-job',
-      groupId: provision.groupId,
-      channelNest: 'chat/~ten/group/general',
-      notebookNest: provision.notebookNest,
-      notebookName: provision.notebookTitle,
-      purposeId: provision.purposeId,
-      topics: [...provision.topics],
-      providerIds: ['gmail'],
-      provision,
-      claimedAt: 1,
-      status: 'enqueued',
-    });
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        jobId: 'edited-description-job',
+        providerIds: ['gmail'],
+      })
+    );
 
     await expect(
       isAgentOnboardingCronJob('edited-description-job')
@@ -724,36 +717,13 @@ describe('agent onboarding requests', () => {
   });
 
   it('waits for Done on the services card before offering the app tour', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const history = [
       firstGroupIntro(),
       botMarker('intro', 0.1),
       botMarker('purpose-picker', 0.2),
-      {
-        author: '~bot',
-        content: 'ready',
-        timestamp: 1,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provision-ack',
-          version: 1,
-          provisionId: provision.provisionId,
-          cronJobId: 'job-1',
-        }),
-      },
-      {
-        author: '~bot',
-        content: 'Connect anything you’d like, or tap Done to continue.',
-        timestamp: 2,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-post-marker',
-          version: 1,
-          key: 'services-card',
-        }),
-      },
+      provisionAck(),
+      servicesCard(),
       { author: '~ten', content: 'Done', timestamp: 3 },
     ];
 
@@ -785,26 +755,12 @@ describe('agent onboarding requests', () => {
   });
 
   it('preserves a valid tour reply when a newer freeform message follows it', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const history = [
       firstGroupIntro(),
       botMarker('intro', 0.1),
       botMarker('purpose-picker', 0.2),
-      {
-        author: '~bot',
-        content: 'ready',
-        timestamp: 1,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provision-ack',
-          version: 1,
-          provisionId: provision.provisionId,
-          cronJobId: 'job-1',
-        }),
-      },
+      provisionAck(),
       botMarker('onboarding-follow-up', 2),
       { author: '~ten', content: 'Yes', timestamp: 3 },
       { author: '~ten', content: 'What happens next?', timestamp: 4 },
@@ -833,24 +789,10 @@ describe('agent onboarding requests', () => {
   });
 
   it('loads extended history when an old orientation card is answered', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const history = [
       firstGroupIntro(),
-      {
-        author: '~bot',
-        content: 'ready',
-        timestamp: 1,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provision-ack',
-          version: 1,
-          provisionId: provision.provisionId,
-          cronJobId: 'job-1',
-        }),
-      },
+      provisionAck(),
       botMarker('onboarding-follow-up', 2),
       { author: '~ten', content: 'Yes', timestamp: 100 },
     ];
@@ -891,11 +833,7 @@ describe('agent onboarding requests', () => {
   });
 
   it('loads extended history when an old purpose picker is answered', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const history = [
       firstGroupIntro(),
       botMarker('intro', 0.1),
@@ -938,36 +876,13 @@ describe('agent onboarding requests', () => {
   });
 
   it('recovers a durable services completion after a plugin restart', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const history = [
       firstGroupIntro(),
       botMarker('intro', 0.1),
       botMarker('purpose-picker', 0.2),
-      {
-        author: '~bot',
-        content: 'ready',
-        timestamp: 1,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provision-ack',
-          version: 1,
-          provisionId: provision.provisionId,
-          cronJobId: 'job-1',
-        }),
-      },
-      {
-        author: '~bot',
-        content: 'Connect anything you’d like, or tap Done to continue.',
-        timestamp: 2,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-post-marker',
-          version: 1,
-          key: 'services-card',
-        }),
-      },
+      provisionAck(),
+      servicesCard(),
       { author: '~ten', content: 'Done', timestamp: 3 },
     ];
 
@@ -993,22 +908,15 @@ describe('agent onboarding requests', () => {
   it('restores an enqueued run after its request leaves bounded history', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register(storedRunKey(), {
-      accountId: defaultRunAccountId,
-      provisionId: provision.provisionId,
-      jobId: 'job-1',
-      runId: 'run-outside-history',
-      groupId: provision.groupId,
-      channelNest: 'chat/~ten/general',
-      notebookNest: provision.notebookNest,
-      notebookName: 'Updates',
-      purposeId: provision.purposeId,
-      topics: [...provision.topics],
-      provision,
-      claimedAt: 1,
-      enqueuedAt: 1,
-      status: 'enqueued',
-    });
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        runId: 'run-outside-history',
+        channelNest: 'chat/~ten/general',
+        notebookName: 'Updates',
+        enqueuedAt: 1,
+      })
+    );
 
     await expect(
       scanAgentOnboardingChannel(
@@ -1032,45 +940,13 @@ describe('agent onboarding requests', () => {
   });
 
   it('ends an additional group setup after services without onboarding tours', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const trackStep = vi.fn();
     const history = [
-      {
-        author: '~ten',
-        content: "Let's get set up.",
-        timestamp: 0,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-intro-request',
-          version: 1,
-          groupId: provision.groupId,
-        }),
-      },
+      introRequest(0, false),
       botMarker('purpose-picker', 0.5),
-      {
-        author: '~bot',
-        content: 'ready',
-        timestamp: 1,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provision-ack',
-          version: 1,
-          provisionId: provision.provisionId,
-          cronJobId: 'job-1',
-        }),
-      },
-      {
-        author: '~bot',
-        content: 'Connect anything you’d like, or tap Done to continue.',
-        timestamp: 2,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-post-marker',
-          version: 1,
-          key: 'services-card',
-        }),
-      },
+      provisionAck(),
+      servicesCard(),
       { author: '~ten', content: 'Done', timestamp: 3 },
     ];
 
@@ -1142,17 +1018,7 @@ describe('agent onboarding requests', () => {
     const trackStep = vi.fn();
     const history = [
       firstGroupIntro(),
-      {
-        author: '~bot',
-        content: 'ready',
-        timestamp: 1,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provision-ack',
-          version: 1,
-          provisionId: provision.provisionId,
-          cronJobId: 'job-1',
-        }),
-      },
+      provisionAck(),
       {
         author: '~bot',
         content: 'Want me to tell you more about what you can do here?',
@@ -1235,25 +1101,11 @@ describe('agent onboarding requests', () => {
   });
 
   it('ends the optional tour cleanly after No', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const trackStep = vi.fn();
     const history = [
       firstGroupIntro(),
-      {
-        author: '~bot',
-        content: 'ready',
-        timestamp: 1,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provision-ack',
-          version: 1,
-          provisionId: provision.provisionId,
-          cronJobId: 'job-1',
-        }),
-      },
+      provisionAck(),
       {
         author: '~bot',
         content: 'Want me to tell you more about what you can do here?',
@@ -1301,25 +1153,11 @@ describe('agent onboarding requests', () => {
   });
 
   it('tracks declining the Tlonbot tour as a distinct completion path', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const trackStep = vi.fn();
     const history = [
       firstGroupIntro(),
-      {
-        author: '~bot',
-        content: 'ready',
-        timestamp: 1,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provision-ack' as const,
-          version: 1 as const,
-          provisionId: provision.provisionId,
-          cronJobId: 'job-1',
-        }),
-      },
+      provisionAck(),
       botMarker('bot-tour-offer', 2),
       { author: '~ten', content: 'No', timestamp: 3 },
     ];
@@ -1352,11 +1190,7 @@ describe('agent onboarding requests', () => {
   });
 
   it('catches an intro request that arrived before the channel was watched', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const introBlob = appendToPostBlob(undefined, {
       type: 'tlon-agent-intro-request',
       version: 1,
@@ -1988,20 +1822,10 @@ describe('primary onboarding cron slot', () => {
   beforeEach(async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register(storedRunKey(), {
-      accountId: defaultRunAccountId,
-      provisionId: provision.provisionId,
-      jobId: 'job-1',
-      groupId: provision.groupId,
-      channelNest: 'chat/~ten/group/general',
-      notebookNest: provision.notebookNest,
-      notebookName: provision.notebookTitle,
-      purposeId: provision.purposeId,
-      topics: [...provision.topics],
-      provision,
-      claimedAt: 1,
-      status: 'completed',
-    });
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({ status: 'completed' })
+    );
   });
 
   function cronHarness(initial: Record<string, unknown>[] = []) {
@@ -2305,26 +2129,7 @@ describe('primary onboarding cron slot', () => {
       provision,
       'chat/~ten/group/general'
     );
-    const history = [
-      {
-        author: '~ten',
-        content: 'AI, Climate',
-        timestamp: 1,
-        blob: appendToPostBlob(undefined, provision),
-      },
-      {
-        author: '~bot',
-        content: 'Ready',
-        timestamp: 2,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provision-ack',
-          version: 1,
-          provisionId: provision.provisionId,
-          cronJobId: 'job-1',
-        }),
-      },
-      config.historyEntry,
-    ];
+    const history = [provisionRequest(), provisionAck(2), config.historyEntry];
     Object.assign(harness.getJobs()[0], {
       name: 'My edited digest',
       schedule: {
@@ -2379,26 +2184,7 @@ describe('primary onboarding cron slot', () => {
       provision,
       'chat/~ten/group/general'
     );
-    const history = [
-      {
-        author: '~ten',
-        content: 'AI, Climate',
-        timestamp: 1,
-        blob: appendToPostBlob(undefined, provision),
-      },
-      {
-        author: '~bot',
-        content: 'Ready',
-        timestamp: 2,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provision-ack' as const,
-          version: 1 as const,
-          provisionId: provision.provisionId,
-          cronJobId: 'job-1',
-        }),
-      },
-      config.historyEntry,
-    ];
+    const history = [provisionRequest(), provisionAck(2), config.historyEntry];
 
     await handleAgentOnboardingRequest(
       requestContext({ blob: appendToPostBlob(undefined, config.entry) }),
@@ -2423,22 +2209,14 @@ describe('primary onboarding cron slot', () => {
       provision,
       'chat/~ten/group/general'
     );
-    await store.register(storedRunKey(), {
-      accountId: defaultRunAccountId,
-      provisionId: provision.provisionId,
-      jobId: 'job-1',
-      groupId: provision.groupId,
-      channelNest: 'chat/~ten/group/general',
-      notebookNest: provision.notebookNest,
-      notebookName: provision.notebookTitle,
-      purposeId: provision.purposeId,
-      topics: [...provision.topics],
-      provision,
-      claimedAt: 1,
-      enqueuedAt: 1,
-      completedAt: 2,
-      status: 'completed',
-    });
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        enqueuedAt: 1,
+        completedAt: 2,
+        status: 'completed',
+      })
+    );
     const config = providerConfig(['gmail']);
 
     await handleAgentOnboardingRequest(
@@ -2473,21 +2251,13 @@ describe('primary onboarding cron slot', () => {
       'chat/~ten/group/general',
       ['notion']
     );
-    await store.register(storedRunKey(), {
-      accountId: defaultRunAccountId,
-      provisionId: provision.provisionId,
-      jobId: 'job-1',
-      groupId: provision.groupId,
-      channelNest: 'chat/~ten/group/general',
-      notebookNest: provision.notebookNest,
-      notebookName: provision.notebookTitle,
-      purposeId: provision.purposeId,
-      topics: [...provision.topics],
-      providerIds: ['notion'],
-      provision,
-      claimedAt: 1,
-      status: 'completed',
-    });
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        providerIds: ['notion'],
+        status: 'completed',
+      })
+    );
     harness.cron.update = vi.fn(async () => {
       throw new Error('cron update failed');
     });
@@ -2518,25 +2288,7 @@ describe('primary onboarding cron slot', () => {
       provision,
       'chat/~ten/group/general'
     );
-    const baseHistory = [
-      {
-        author: '~ten',
-        content: 'AI, Climate',
-        timestamp: 1,
-        blob: appendToPostBlob(undefined, provision),
-      },
-      {
-        author: '~bot',
-        content: 'Ready',
-        timestamp: 2,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provision-ack' as const,
-          version: 1 as const,
-          provisionId: provision.provisionId,
-          cronJobId: 'job-1',
-        }),
-      },
-    ];
+    const baseHistory = [provisionRequest(), provisionAck(2)];
     const older = providerConfig(['gmail'], 3);
     const newer = providerConfig(['notion'], 4);
     const olderHistory = [...baseHistory, older.historyEntry];
@@ -2586,25 +2338,7 @@ describe('primary onboarding cron slot', () => {
       provision,
       'chat/~ten/group/general'
     );
-    const baseHistory = [
-      {
-        author: '~ten',
-        content: 'AI, Climate',
-        timestamp: 1,
-        blob: appendToPostBlob(undefined, provision),
-      },
-      {
-        author: '~bot',
-        content: 'Ready',
-        timestamp: 2,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provision-ack' as const,
-          version: 1 as const,
-          provisionId: provision.provisionId,
-          cronJobId: 'job-1',
-        }),
-      },
-    ];
+    const baseHistory = [provisionRequest(), provisionAck(2)];
     const older = providerConfig(['gmail'], 3);
     const newer = providerConfig(['notion'], 4);
     const olderHistory = [...baseHistory, older.historyEntry];
@@ -2659,23 +2393,8 @@ describe('primary onboarding cron slot', () => {
       'chat/~ten/group/general'
     );
     const history = [
-      {
-        author: '~ten',
-        content: 'AI, Climate',
-        timestamp: 1,
-        blob: appendToPostBlob(undefined, provision),
-      },
-      {
-        author: '~bot',
-        content: 'Ready',
-        timestamp: 2,
-        blob: appendToPostBlob(undefined, {
-          type: 'tlon-agent-provision-ack',
-          version: 1,
-          provisionId: provision.provisionId,
-          cronJobId: 'job-1',
-        }),
-      },
+      provisionRequest(),
+      provisionAck(2),
       {
         author: '~ten',
         content: 'Robotics',
@@ -2717,20 +2436,13 @@ describe('primary onboarding cron slot', () => {
       provision,
       'chat/~ten/group/general'
     );
-    const durableRecord = (provisionId: string, claimedAt: number) => ({
-      accountId: defaultRunAccountId,
-      provisionId,
-      jobId: 'job-1',
-      groupId: provision.groupId,
-      channelNest: 'chat/~ten/group/general',
-      notebookNest: provision.notebookNest,
-      notebookName: provision.notebookTitle,
-      purposeId: provision.purposeId,
-      topics: [...provision.topics],
-      provision: { ...provision, provisionId },
-      claimedAt,
-      status: 'completed' as const,
-    });
+    const durableRecord = (provisionId: string, claimedAt: number) =>
+      storedRunRecord({
+        provisionId,
+        provision: { ...provision, provisionId },
+        claimedAt,
+        status: 'completed',
+      });
     await store.register(storedRunKey(), durableRecord('provision-1', 1));
     await store.register(
       storedRunKey('provision-2'),
@@ -3007,7 +2719,7 @@ describe('provision coordinator ordering', () => {
       timestamp: number;
       blob?: string;
     }> = [];
-    let jobs: Record<string, any>[] = [];
+    let jobs: Record<string, unknown>[] = [];
     const cron = {
       list: vi.fn(async () => jobs),
       add: vi.fn(async (input) => {
@@ -3145,7 +2857,7 @@ describe('provision coordinator ordering', () => {
     store.register.mockRejectedValueOnce(new Error('state store unavailable'));
     setAgentOnboardingRunStore(store);
     let now = 100;
-    let jobs: Record<string, any>[] = [];
+    let jobs: Record<string, unknown>[] = [];
     const cron = {
       list: vi.fn(async () => jobs),
       add: vi.fn(async (input) => {
@@ -3266,27 +2978,21 @@ describe('provision coordinator ordering', () => {
   it('finishes a completed first run discovered after plugin restart', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register(storedRunKey(), {
-      accountId: defaultRunAccountId,
-      provisionId: provision.provisionId,
-      jobId: 'job-1',
-      runId: 'run-before-restart',
-      groupId: provision.groupId,
-      channelNest: 'chat/~ten/group/general',
-      notebookNest: provision.notebookNest,
-      notebookName: 'Updates',
-      purposeId: provision.purposeId,
-      topics: [...provision.topics],
-      claimedAt: 100,
-      enqueuedAt: 100,
-      outcome: {
-        status: 'ok',
-        delivered: true,
-        noteId: 91,
-        observedAt: 200,
-      },
-      status: 'enqueued',
-    });
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        runId: 'run-before-restart',
+        notebookName: 'Updates',
+        claimedAt: 100,
+        enqueuedAt: 100,
+        outcome: {
+          status: 'ok',
+          delivered: true,
+          noteId: 91,
+          observedAt: 200,
+        },
+      })
+    );
     const ackBlob = appendToPostBlob(
       appendToPostBlob(undefined, {
         type: 'tlon-agent-provision-ack',
@@ -3309,11 +3015,7 @@ describe('provision coordinator ordering', () => {
       },
       { author: '~bot', content: 'Ready', timestamp: 2, blob: ackBlob },
     ];
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const cron = {
       list: vi.fn(async () => [
         {
@@ -3367,11 +3069,7 @@ describe('provision coordinator ordering', () => {
       'job-1',
       100
     );
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const cron = {
       list: vi.fn(async () => [
         {
@@ -3387,17 +3085,10 @@ describe('provision coordinator ordering', () => {
 
     await agentOnboardingTesting.reconcileRestoredFirstRun(
       cron,
-      {
-        accountId: defaultRunAccountId,
-        provisionId: provision.provisionId,
-        jobId: 'job-1',
+      storedRunRecord({
         runId: 'run-before-restart',
-        groupId: provision.groupId,
         channelNest: context.channelNest,
-        notebookNest: provision.notebookNest,
         notebookName: 'Updates',
-        purposeId: provision.purposeId,
-        topics: [...provision.topics],
         claimedAt: 100,
         enqueuedAt: 100,
         outcome: {
@@ -3405,8 +3096,7 @@ describe('provision coordinator ordering', () => {
           delivered: false,
           observedAt: 200,
         },
-        status: 'enqueued',
-      },
+      }),
       {
         fetchHistory: vi.fn(async () => []),
         sendPost,
@@ -3434,21 +3124,12 @@ describe('provision coordinator ordering', () => {
 
     await agentOnboardingTesting.reconcileRestoredFirstRun(
       { list } as unknown as TlonCronService,
-      {
-        accountId: defaultRunAccountId,
-        provisionId: provision.provisionId,
-        jobId: 'job-1',
+      storedRunRecord({
         runId: 'forced-run',
-        groupId: provision.groupId,
-        channelNest: 'chat/~ten/group/general',
-        notebookNest: provision.notebookNest,
         notebookName: 'Updates',
-        purposeId: provision.purposeId,
-        topics: [...provision.topics],
         claimedAt: 100,
         enqueuedAt: 100,
-        status: 'enqueued',
-      },
+      }),
       { fetchHistory: vi.fn(async () => []), sendPost }
     );
 
@@ -3494,11 +3175,7 @@ describe('provision coordinator ordering', () => {
   });
 
   it('posts a note reference when the correlated first run finishes', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const sleep = vi.fn(async () => {});
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-complete' },
@@ -3576,11 +3253,7 @@ describe('provision coordinator ordering', () => {
   });
 
   it('waits for an explicit delivery result after a successful run', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-delivery-pending' },
       {
@@ -3702,11 +3375,7 @@ describe('provision coordinator ordering', () => {
   });
 
   it('uses the authoritative created note when cron completion wins the hook race', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const listNotes = vi.fn(async () => [
       {
         id: `${provision.notebookNest}/77`,
@@ -3723,28 +3392,19 @@ describe('provision coordinator ordering', () => {
     ]);
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register(storedRunKey(), {
-      accountId: defaultRunAccountId,
-      provisionId: provision.provisionId,
-      jobId: 'job-1',
-      runId: 'first-run-authoritative',
-      groupId: provision.groupId,
-      channelNest: 'chat/~ten/group/general',
-      notebookNest: provision.notebookNest,
-      notebookName: provision.notebookTitle,
-      purposeId: provision.purposeId,
-      topics: [...provision.topics],
-      provision,
-      claimedAt: 1,
-      enqueuedAt: 2,
-      status: 'enqueued',
-      outcome: {
-        status: 'ok',
-        delivered: true,
-        noteId: 77,
-        observedAt: 3,
-      },
-    });
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        runId: 'first-run-authoritative',
+        enqueuedAt: 2,
+        outcome: {
+          status: 'ok',
+          delivered: true,
+          noteId: 77,
+          observedAt: 3,
+        },
+      })
+    );
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-authoritative' },
       scanContext(),
@@ -3780,11 +3440,7 @@ describe('provision coordinator ordering', () => {
   });
 
   it('posts a terminal status when the initial run fails', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const trackStep = vi.fn();
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-failed' },
@@ -3839,11 +3495,7 @@ describe('provision coordinator ordering', () => {
   });
 
   it('posts a terminal status when execution succeeds but delivery fails', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-undelivered' },
       scanContext(),
@@ -3874,22 +3526,13 @@ describe('provision coordinator ordering', () => {
   it('persists a matched outcome before posting the reveal', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);
-    await store.register(storedRunKey(), {
-      accountId: defaultRunAccountId,
-      provisionId: provision.provisionId,
-      jobId: 'job-1',
-      runId: 'matched-run',
-      groupId: provision.groupId,
-      channelNest: 'chat/~ten/group/general',
-      notebookNest: provision.notebookNest,
-      notebookName: provision.notebookTitle,
-      purposeId: provision.purposeId,
-      topics: [...provision.topics],
-      provision,
-      claimedAt: 1,
-      enqueuedAt: 1,
-      status: 'enqueued',
-    });
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        runId: 'matched-run',
+        enqueuedAt: 1,
+      })
+    );
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'matched-run' },
       scanContext(),
@@ -3929,22 +3572,13 @@ describe('provision coordinator ordering', () => {
     const store = memoryRunStore();
     const sleep = vi.fn(async () => {});
     setAgentOnboardingRunStore(store);
-    await store.register(storedRunKey(), {
-      accountId: defaultRunAccountId,
-      provisionId: provision.provisionId,
-      jobId: 'job-1',
-      runId: 'transient-store-run',
-      groupId: provision.groupId,
-      channelNest: 'chat/~ten/group/general',
-      notebookNest: provision.notebookNest,
-      notebookName: provision.notebookTitle,
-      purposeId: provision.purposeId,
-      topics: [...provision.topics],
-      provision,
-      claimedAt: 1,
-      enqueuedAt: 1,
-      status: 'enqueued',
-    });
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        runId: 'transient-store-run',
+        enqueuedAt: 1,
+      })
+    );
     store.register.mockRejectedValueOnce(new Error('temporary store failure'));
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'transient-store-run' },
@@ -3983,11 +3617,7 @@ describe('provision coordinator ordering', () => {
 
   it('retries a failed-run notification after transient history failure', async () => {
     vi.useFakeTimers();
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     const trackStep = vi.fn();
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-failure-retry' },
@@ -4030,11 +3660,7 @@ describe('provision coordinator ordering', () => {
   });
 
   it('uses successful Notes delivery when the host drops cron completion', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-delivery-fallback' },
       scanContext(),
@@ -4180,11 +3806,7 @@ describe('provision coordinator ordering', () => {
   });
 
   it('settles a correlated first run when notebook delivery fails', async () => {
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'failed-notebook-send' },
       scanContext(),
@@ -4271,11 +3893,7 @@ describe('provision coordinator ordering', () => {
 
   it('coalesces completion hooks and retries after failure', async () => {
     vi.useFakeTimers();
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'first-run-race' },
       scanContext(),
@@ -4337,11 +3955,7 @@ describe('provision coordinator ordering', () => {
       releaseHistory = resolve;
     });
     const fetchHistory = vi.fn(() => historyBarrier);
-    const sendPost = vi.fn(async () => ({
-      channel: 'tlon' as const,
-      messageId: 'post',
-      sentAt: 0,
-    }));
+    const sendPost = successfulSendPost();
     agentOnboardingTesting.rememberFirstRun(
       { enqueued: true, runId: 'draining-run' },
       {

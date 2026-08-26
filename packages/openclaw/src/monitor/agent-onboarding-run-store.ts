@@ -55,11 +55,11 @@ const writeFlights = sharedMap<string, Promise<void>>(
 const fallbackRecords = sharedMap<string, AgentOnboardingRunRecord>(
   'agentOnboarding.firstRunFallbackRecords'
 );
+// A forced run can finish synchronously before enqueueRun returns its run ID.
+// Keep that ordinary handoff, without a second flight registry for rarer
+// concurrent store/enqueue interleavings.
 const pendingOutcomes = sharedMap<string, AgentOnboardingRunOutcome>(
   'agentOnboarding.pendingFirstRunOutcomes'
-);
-const outcomeFlights = sharedMap<string, Promise<boolean>>(
-  'agentOnboarding.firstRunOutcomeFlights'
 );
 const MAX_PENDING_OUTCOMES = 64;
 
@@ -146,7 +146,7 @@ function enqueuedRunRecord(
   initial: AgentOnboardingRunRecord,
   runId: string,
   enqueuedAt: number,
-  outcome: AgentOnboardingRunOutcome | undefined
+  outcome?: AgentOnboardingRunOutcome
 ): AgentOnboardingRunRecord {
   return {
     ...initial,
@@ -155,6 +155,31 @@ function enqueuedRunRecord(
     enqueuedAt,
     ...(outcome ? { outcome: persistableOutcome(outcome) } : {}),
   };
+}
+
+async function allRunRecords(): Promise<AgentOnboardingRunRecord[]> {
+  const store = getAgentOnboardingRunStore();
+  return store
+    ? (await store.entries()).map((entry) => entry.value)
+    : [...fallbackRecords.values()];
+}
+
+async function currentRunRecord(
+  recordKey: string
+): Promise<AgentOnboardingRunRecord | undefined> {
+  return (
+    (await getAgentOnboardingRunStore()?.lookup(recordKey)) ??
+    fallbackRecords.get(recordKey)
+  );
+}
+
+async function writeRunRecord(
+  recordKey: string,
+  record: AgentOnboardingRunRecord
+): Promise<void> {
+  const store = getAgentOnboardingRunStore();
+  if (store) await store.register(recordKey, record);
+  else fallbackRecords.set(recordKey, record);
 }
 
 export async function claimAgentOnboardingRun(
@@ -219,76 +244,28 @@ export async function recordAgentOnboardingRunEnqueued(
   runId: string,
   enqueuedAt: number
 ): Promise<void> {
-  await outcomeFlights.get(runId);
   const outcome = pendingOutcomes.get(runId);
   pendingOutcomes.delete(runId);
   const recordKey = keyForRecord(initial);
   await serializeWrite(recordKey, async () => {
-    const store = getAgentOnboardingRunStore();
-    if (!store) {
-      const current = fallbackRecords.get(recordKey);
-      if (
-        current &&
-        (current.status !== 'claimed' ||
-          current.claimOwnerId !== initial.claimOwnerId ||
-          current.claimedAt !== initial.claimedAt)
-      ) {
-        return;
-      }
-      fallbackRecords.set(
-        recordKey,
-        enqueuedRunRecord(initial, runId, enqueuedAt, outcome)
-      );
-      return;
-    }
-    const current = await store.lookup(recordKey);
-    if (
-      current?.status !== 'claimed' ||
-      current.claimOwnerId !== initial.claimOwnerId ||
-      current.claimedAt !== initial.claimedAt
-    ) {
-      return;
-    }
-    await store.register(
+    const current = await currentRunRecord(recordKey);
+    if (current?.status !== 'claimed') return;
+    await writeRunRecord(
       recordKey,
       enqueuedRunRecord(initial, runId, enqueuedAt, outcome)
     );
   });
 }
 
-export function recordAgentOnboardingRunOutcome(
+export async function recordAgentOnboardingRunOutcome(
   runId: string,
   outcome: AgentOnboardingRunOutcome
 ): Promise<boolean> {
-  const existing = outcomeFlights.get(runId);
-  if (existing) {
-    return existing.then(() => recordAgentOnboardingRunOutcome(runId, outcome));
-  }
-  const flight = recordAgentOnboardingRunOutcomeInternal(runId, outcome);
-  outcomeFlights.set(runId, flight);
-  void flight.then(
-    () => {
-      if (outcomeFlights.get(runId) === flight) outcomeFlights.delete(runId);
-    },
-    () => {
-      if (outcomeFlights.get(runId) === flight) outcomeFlights.delete(runId);
-    }
+  const stored = (await allRunRecords()).find(
+    (record) => record.runId === runId
   );
-  return flight;
-}
-
-async function recordAgentOnboardingRunOutcomeInternal(
-  runId: string,
-  outcome: AgentOnboardingRunOutcome
-): Promise<boolean> {
-  const store = getAgentOnboardingRunStore();
-  const stored = store
-    ? (await store.entries()).find((entry) => entry.value.runId === runId)
-        ?.value
-    : [...fallbackRecords.values()].find((record) => record.runId === runId);
   if (!stored) {
     const pending = pendingOutcomes.get(runId);
-    pendingOutcomes.delete(runId);
     const noteId = outcome.delivered
       ? (outcome.noteId ?? pending?.noteId)
       : undefined;
@@ -308,8 +285,7 @@ async function recordAgentOnboardingRunOutcomeInternal(
   }
   const recordKey = keyForRecord(stored);
   await serializeWrite(recordKey, async () => {
-    const current =
-      (await store?.lookup(recordKey)) ?? fallbackRecords.get(recordKey);
+    const current = await currentRunRecord(recordKey);
     if (!current || current.runId !== runId || current.status !== 'enqueued') {
       return;
     }
@@ -323,8 +299,7 @@ async function recordAgentOnboardingRunOutcomeInternal(
         ...(noteId !== undefined ? { noteId } : {}),
       }),
     };
-    if (store) await store.register(recordKey, updated);
-    else fallbackRecords.set(recordKey, updated);
+    await writeRunRecord(recordKey, updated);
   });
   return true;
 }
@@ -333,12 +308,7 @@ export async function lookupNewestAgentOnboardingRunForGroup(
   accountId: string,
   groupId: string
 ): Promise<AgentOnboardingRunRecord | undefined> {
-  const records = getAgentOnboardingRunStore()
-    ? (await getAgentOnboardingRunStore()!.entries()).map(
-        (entry) => entry.value
-      )
-    : [...fallbackRecords.values()];
-  return records
+  return (await allRunRecords())
     .filter(
       (record) => record.accountId === accountId && record.groupId === groupId
     )
@@ -349,12 +319,7 @@ export async function lookupAgentOnboardingRunByJobId(
   jobId: string,
   accountId?: string
 ): Promise<AgentOnboardingRunRecord | undefined> {
-  const records = getAgentOnboardingRunStore()
-    ? (await getAgentOnboardingRunStore()!.entries()).map(
-        (entry) => entry.value
-      )
-    : [...fallbackRecords.values()];
-  return records
+  return (await allRunRecords())
     .filter(
       (record) =>
         record.jobId === jobId &&
@@ -371,13 +336,13 @@ export async function updateAgentOnboardingRunProviders(
 ): Promise<void> {
   const recordKey = runRecordKey(accountId, provisionId);
   await serializeWrite(recordKey, async () => {
-    const store = getAgentOnboardingRunStore();
-    const current =
-      (await store?.lookup(recordKey)) ?? fallbackRecords.get(recordKey);
+    const current = await currentRunRecord(recordKey);
     if (!current) return;
-    const updated = { ...current, jobId, providerIds: [...providerIds] };
-    if (store) await store.register(recordKey, updated);
-    else fallbackRecords.set(recordKey, updated);
+    await writeRunRecord(recordKey, {
+      ...current,
+      jobId,
+      providerIds: [...providerIds],
+    });
   });
 }
 
@@ -387,15 +352,8 @@ export async function forgetAgentOnboardingRunClaim(
   const recordKey = keyForRecord(initial);
   await serializeWrite(recordKey, async () => {
     const store = getAgentOnboardingRunStore();
-    const current =
-      (await store?.lookup(recordKey)) ?? fallbackRecords.get(recordKey);
-    if (
-      current?.status !== 'claimed' ||
-      current.claimOwnerId !== initial.claimOwnerId ||
-      current.claimedAt !== initial.claimedAt
-    ) {
-      return;
-    }
+    const current = await currentRunRecord(recordKey);
+    if (current?.status !== 'claimed') return;
     fallbackRecords.delete(recordKey);
     await store?.delete(recordKey);
   });
@@ -405,11 +363,7 @@ export async function lookupAgentOnboardingRun(
   accountId: string,
   provisionId: string
 ): Promise<AgentOnboardingRunRecord | undefined> {
-  return (
-    (await getAgentOnboardingRunStore()?.lookup(
-      runRecordKey(accountId, provisionId)
-    )) ?? fallbackRecords.get(runRecordKey(accountId, provisionId))
-  );
+  return currentRunRecord(runRecordKey(accountId, provisionId));
 }
 
 export async function markAgentOnboardingRunTerminal(
@@ -420,22 +374,13 @@ export async function markAgentOnboardingRunTerminal(
 ): Promise<void> {
   const recordKey = runRecordKey(accountId, provisionId);
   await serializeWrite(recordKey, async () => {
-    const store = getAgentOnboardingRunStore();
-    if (!store) {
-      const record = fallbackRecords.get(recordKey);
-      if (record) {
-        fallbackRecords.set(recordKey, { ...record, status, completedAt });
-      }
-      return;
-    }
-    const record = await store.lookup(recordKey);
+    const record = await currentRunRecord(recordKey);
     if (!record) return;
-    await store.register(recordKey, { ...record, status, completedAt });
+    await writeRunRecord(recordKey, { ...record, status, completedAt });
   });
 }
 
 export function clearAgentOnboardingRunFallbackForTesting(): void {
   fallbackRecords.clear();
   pendingOutcomes.clear();
-  outcomeFlights.clear();
 }

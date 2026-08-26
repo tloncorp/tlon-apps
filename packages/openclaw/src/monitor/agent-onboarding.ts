@@ -111,13 +111,13 @@ type AgentOnboardingDeps = {
   sleep?: Sleeper;
 };
 
-type AgentOnboardingCronDeps = {
-  fetchHistory?: typeof fetchChannelHistoryOrThrow;
+type AgentOnboardingCronDeps = Pick<
+  AgentOnboardingDeps,
+  'fetchHistory' | 'sendPost' | 'sleep'
+> & {
   /** Internal recursion guard after re-entering the captured client scope. */
   inApiScope?: boolean;
   listNotes?: typeof notes.listNotes;
-  sendPost?: typeof sendChannelPost;
-  sleep?: Sleeper;
 };
 
 type OnboardingGroup = {
@@ -372,17 +372,14 @@ export function parseAgentOnboardingRequest(
   blob: string | null | undefined
 ): AgentRequest | null {
   if (!blob) return null;
-  const entry = parsePostBlob(blob).find(
-    (candidate) =>
-      candidate.type === 'tlon-agent-intro-request' ||
-      candidate.type === 'tlon-agent-provider-config' ||
-      candidate.type === 'tlon-agent-provision'
+  return (
+    parsePostBlob(blob).find(
+      (candidate): candidate is AgentRequest =>
+        candidate.type === 'tlon-agent-intro-request' ||
+        candidate.type === 'tlon-agent-provider-config' ||
+        candidate.type === 'tlon-agent-provision'
+    ) ?? null
   );
-  return entry?.type === 'tlon-agent-intro-request' ||
-    entry?.type === 'tlon-agent-provider-config' ||
-    entry?.type === 'tlon-agent-provision'
-    ? entry
-    : null;
 }
 
 export async function handleAgentOnboardingRequest(
@@ -946,13 +943,7 @@ async function advanceOrientationConversation(
   return true;
 }
 
-type Purpose = {
-  id: AgentOnboardingPurposeId;
-  label: string;
-  scheduleHour: number;
-  topicsPrompt: string;
-  topics: readonly string[];
-};
+type Purpose = (typeof AGENT_ONBOARDING_PURPOSE_OPTIONS)[number];
 
 function purposeForReply(text: string): Purpose | null {
   return (
@@ -1432,10 +1423,9 @@ async function failFirstRun(
   });
 }
 
-function scheduleFirstRunFailureRetry(
+function scheduleFirstRunRetry(
   correlationRunId: string,
-  event: PluginHookCronChangedEvent,
-  deps: AgentOnboardingCronDeps
+  retry: () => Promise<unknown>
 ) {
   if (
     !firstRunCorrelations.has(correlationRunId) ||
@@ -1449,9 +1439,9 @@ function scheduleFirstRunFailureRetry(
   const delay = authRetryDelayMs(attempt);
   const timer = setTimeout(() => {
     firstRunCompletionRetryTimers.delete(correlationRunId);
-    void failFirstRun(correlationRunId, event, deps).catch(() => {
-      // failFirstRun schedules the next backoff attempt while the retained
-      // correlation remains nonterminal.
+    void retry().catch(() => {
+      // The retried settlement schedules the next backoff attempt while its
+      // retained correlation remains nonterminal.
     });
   }, delay);
   timer.unref?.();
@@ -1630,48 +1620,13 @@ async function settleFirstRun({
     await flight;
     clearFirstRunCompletionRetry(correlationRunId);
   } catch (error) {
-    if (failureEvent) {
-      scheduleFirstRunFailureRetry(correlationRunId, failureEvent, deps);
-    } else {
-      scheduleFirstRunCompletionRetry(
-        correlationRunId,
-        deliveryMessageId,
-        deps
-      );
-    }
+    scheduleFirstRunRetry(correlationRunId, () =>
+      failureEvent
+        ? failFirstRun(correlationRunId, failureEvent, deps)
+        : completeFirstRun(correlationRunId, undefined, deliveryMessageId, deps)
+    );
     throw error;
   }
-}
-
-function scheduleFirstRunCompletionRetry(
-  correlationRunId: string,
-  deliveryMessageId: string | undefined,
-  deps: AgentOnboardingCronDeps
-) {
-  if (
-    !firstRunCorrelations.has(correlationRunId) ||
-    firstRunCompletionRetryTimers.has(correlationRunId)
-  ) {
-    return;
-  }
-  const attempt =
-    (firstRunCompletionRetryAttempts.get(correlationRunId) ?? 0) + 1;
-  firstRunCompletionRetryAttempts.set(correlationRunId, attempt);
-  const delay = authRetryDelayMs(attempt);
-  const timer = setTimeout(() => {
-    firstRunCompletionRetryTimers.delete(correlationRunId);
-    void completeFirstRun(
-      correlationRunId,
-      undefined,
-      deliveryMessageId,
-      deps
-    ).catch(() => {
-      // completeFirstRun schedules the next backoff attempt and logs through
-      // the retained correlation context.
-    });
-  }, delay);
-  timer.unref?.();
-  firstRunCompletionRetryTimers.set(correlationRunId, timer);
 }
 
 function clearFirstRunCompletionRetry(correlationRunId: string) {
