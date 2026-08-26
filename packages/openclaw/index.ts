@@ -43,10 +43,12 @@ import {
   cronJobForSession,
   isMcpCallToolName,
   isMcpDescribeToolName,
+  isMcpListUpstreamsToolName,
   mayCallDescribedReadOnlyMcpTool,
   mayDescribeMcpTool,
   rememberCronJobForSession,
   rememberDescribedReadOnlyMcpTool,
+  rememberMcpUpstreams,
 } from './src/mcp-readonly-policy.js';
 import { setAgentOnboardingRunStore } from './src/monitor/agent-onboarding-run-store.js';
 import {
@@ -1025,7 +1027,11 @@ export default defineBundledChannelEntry({
       const blocksOnboardingMcp =
         isOnboardingCron &&
         ((isMcpDescribe &&
-          !mayDescribeMcpTool(event.params, allowedProviderIds)) ||
+          !mayDescribeMcpTool(
+            ctx.sessionKey,
+            event.params,
+            allowedProviderIds
+          )) ||
           (isMcpCall &&
             !mayCallDescribedReadOnlyMcpTool(
               ctx.sessionKey,
@@ -1145,19 +1151,26 @@ export default defineBundledChannelEntry({
         event.toolName === 'tlon' && typeof event.params.command === 'string'
           ? summarizeTlonCommand(event.params.command)
           : undefined;
+      const observesMcpCatalog =
+        isMcpListUpstreamsToolName(event.toolName) ||
+        isMcpDescribeToolName(event.toolName);
       if (
-        isMcpDescribeToolName(event.toolName) &&
+        observesMcpCatalog &&
         (await isAgentOnboardingCronJob(cronJobForSession(ctx.sessionKey)))
       ) {
         const allowedProviderIds = await agentOnboardingCronProviderIds(
           cronJobForSession(ctx.sessionKey)
         );
-        rememberDescribedReadOnlyMcpTool(
-          ctx.sessionKey,
-          event.params,
-          event.result,
-          allowedProviderIds
-        );
+        if (isMcpListUpstreamsToolName(event.toolName)) {
+          rememberMcpUpstreams(ctx.sessionKey, event.result);
+        } else {
+          rememberDescribedReadOnlyMcpTool(
+            ctx.sessionKey,
+            event.params,
+            event.result,
+            allowedProviderIds
+          );
+        }
       }
       recordActiveTlonTurnToolCall({
         toolName: event.toolName,

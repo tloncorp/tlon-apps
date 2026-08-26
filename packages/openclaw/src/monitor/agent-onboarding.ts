@@ -1483,12 +1483,15 @@ export async function handleAgentOnboardingMessageSent(
   );
   if (!match) return;
   const [correlationKey, correlation] = match;
+  // Older OpenClaw hosts omit success for successful sends; only an explicit
+  // false is a delivery failure, matching the plugin's telemetry hook.
+  const delivered = event.success !== false;
   await retryWithDelays(
     () =>
       recordAgentOnboardingRunOutcome(correlation.runId, {
-        status: event.success ? 'ok' : 'error',
-        delivered: event.success,
-        noteId: event.success
+        status: delivered ? 'ok' : 'error',
+        delivered,
+        noteId: delivered
           ? noteIdFromDeliveryMessageId(event.messageId)
           : undefined,
         error: event.error,
@@ -1497,7 +1500,7 @@ export async function handleAgentOnboardingMessageSent(
     RUN_OUTCOME_WRITE_RETRY_DELAYS_MS,
     deps.sleep
   );
-  if (!event.success) {
+  if (!delivered) {
     await failFirstRun(
       correlationKey,
       {

@@ -3454,6 +3454,41 @@ describe('provision coordinator ordering', () => {
     expect(listNotes).toHaveBeenCalled();
   });
 
+  it('treats an omitted delivery status from an older host as success', async () => {
+    const sendPost = successfulSendPost();
+    rememberFirstRun('legacy-host-delivery');
+
+    await handleAgentOnboardingMessageSent(
+      {
+        to: provision.notebookNest,
+        content: '# First entry',
+        messageId: '~bot/notes-42',
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        listNotes: vi.fn(async () => [
+          {
+            noteId: 42,
+            title: 'First entry',
+            createdAt: Date.now() + 1,
+            createdBy: '~bot',
+          },
+        ]),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      },
+      'legacy-host-delivery'
+    );
+
+    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'Your first entry is ready'
+    );
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('legacy-host-delivery')
+    ).toBeNull();
+  });
+
   it('suppresses completion presentation for a superseded provision', async () => {
     const store = memoryRunStore();
     setAgentOnboardingRunStore(store);

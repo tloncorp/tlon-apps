@@ -18,12 +18,19 @@ export function isMcpDescribeToolName(name: string) {
   return name === MCP_TOOL_NAMES.describe;
 }
 
+export function isMcpListUpstreamsToolName(name: string) {
+  return name === MCP_TOOL_NAMES.listUpstreams;
+}
+
 export function isMcpCallToolName(name: string) {
   return name === MCP_TOOL_NAMES.call;
 }
 
 const describedReadOnlyTools = sharedMap<string, { providerId: string | null }>(
   'mcpReadOnlyPolicy.describedTools'
+);
+const knownProviderIdsBySession = sharedMap<string, readonly string[]>(
+  'mcpReadOnlyPolicy.knownProviderIdsBySession'
 );
 const cronJobBySession = sharedMap<string, string>(
   'mcpReadOnlyPolicy.cronJobBySession'
@@ -88,18 +95,62 @@ function ownProviderId(value: Record<string, unknown> | null) {
   return null;
 }
 
-function providerForTool(
-  params: unknown,
-  descriptor: Record<string, unknown> | null,
-  allowedProviderIds: readonly string[]
+function upstreamIds(value: unknown): string[] | null {
+  const queue = [parseJson(value)];
+  const visited = new Set<unknown>();
+  while (queue.length > 0) {
+    const candidate = queue.shift();
+    if (!candidate || visited.has(candidate)) continue;
+    visited.add(candidate);
+    const candidateRecord = record(candidate);
+    if (!candidateRecord) {
+      if (Array.isArray(candidate)) queue.push(...candidate);
+      continue;
+    }
+    if (Array.isArray(candidateRecord.upstreams)) {
+      const ids = candidateRecord.upstreams.map((upstream) => {
+        const id = record(upstream)?.id;
+        return typeof id === 'string' && id.length > 0 ? id : null;
+      });
+      return ids.every((id): id is string => Boolean(id))
+        ? [...new Set(ids)]
+        : null;
+    }
+    for (const key of ['result', 'data', 'content']) {
+      const nested = candidateRecord[key];
+      if (nested !== undefined) queue.push(parseJson(nested));
+    }
+    if (typeof candidateRecord.text === 'string') {
+      queue.push(parseJson(candidateRecord.text));
+    }
+  }
+  return null;
+}
+
+export function rememberMcpUpstreams(
+  sessionKey: string | undefined,
+  result: unknown
 ) {
-  const explicit = ownProviderId(record(params)) ?? ownProviderId(descriptor);
+  if (!sessionKey) return;
+  knownProviderIdsBySession.delete(sessionKey);
+  const ids = upstreamIds(result);
+  if (ids) knownProviderIdsBySession.set(sessionKey, ids);
+}
+
+function providerForTool(
+  sessionKey: string | undefined,
+  params: unknown,
+  descriptor: Record<string, unknown> | null
+) {
+  // Params are model-authored and cannot assert their own provider. Only the
+  // broker's descriptor or its complete upstream catalog is authoritative.
+  const explicit = ownProviderId(descriptor);
   if (explicit) return explicit;
   const name = toolName(params);
   if (!name) return null;
   const lowerName = name.toLowerCase();
-  return (
-    allowedProviderIds.find((providerId) => {
+  const matches = (knownProviderIdsBySession.get(sessionKey ?? '') ?? [])
+    .filter((providerId) => {
       const lowerProviderId = providerId.toLowerCase();
       return (
         lowerName === lowerProviderId ||
@@ -107,8 +158,11 @@ function providerForTool(
           lowerName.startsWith(`${lowerProviderId}${delimiter}`)
         )
       );
-    }) ?? null
-  );
+    })
+    .sort((left, right) => right.length - left.length);
+  if (matches.length === 0) return null;
+  if (matches[1]?.length === matches[0]?.length) return null;
+  return matches[0] ?? null;
 }
 
 function isAllowedProvider(
@@ -130,7 +184,7 @@ export function rememberDescribedReadOnlyMcpTool(
 ) {
   const name = toolName(params);
   if (!sessionKey || !name) return;
-  const requestedProviderId = providerForTool(params, null, allowedProviderIds);
+  const requestedProviderId = providerForTool(sessionKey, params, null);
   if (
     !requestedProviderId ||
     !isAllowedProvider(requestedProviderId, allowedProviderIds)
@@ -163,7 +217,7 @@ export function mayCallDescribedReadOnlyMcpTool(
   // so mcp__call is available only after the broker describes that exact tool
   // with the MCP readOnlyHint in this same session.
   const name = toolName(params);
-  const requestedProviderId = providerForTool(params, null, allowedProviderIds);
+  const requestedProviderId = providerForTool(sessionKey, params, null);
   const permission =
     sessionKey && name && requestedProviderId
       ? describedReadOnlyTools.get(
@@ -178,11 +232,12 @@ export function mayCallDescribedReadOnlyMcpTool(
 }
 
 export function mayDescribeMcpTool(
+  sessionKey: string | undefined,
   params: unknown,
   allowedProviderIds: readonly string[]
 ) {
   return isAllowedProvider(
-    providerForTool(params, null, allowedProviderIds),
+    providerForTool(sessionKey, params, null),
     allowedProviderIds
   );
 }
@@ -210,11 +265,13 @@ export function clearCronJobForSession(
   for (const key of describedReadOnlyTools.keys()) {
     if (key.startsWith(prefix)) describedReadOnlyTools.delete(key);
   }
+  knownProviderIdsBySession.delete(sessionKey);
 }
 
 export const mcpReadOnlyPolicyTesting = {
   clear: () => {
     describedReadOnlyTools.clear();
+    knownProviderIdsBySession.clear();
     cronJobBySession.clear();
   },
 };

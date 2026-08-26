@@ -10,11 +10,32 @@ import {
   mayDescribeMcpTool,
   mcpReadOnlyPolicyTesting,
   rememberDescribedReadOnlyMcpTool,
+  rememberMcpUpstreams,
   rememberCronJobForSession,
 } from './mcp-readonly-policy.js';
 
 describe('MCP read-only policy', () => {
-  beforeEach(() => mcpReadOnlyPolicyTesting.clear());
+  beforeEach(() => {
+    mcpReadOnlyPolicyTesting.clear();
+    rememberMcpUpstreams('cron-session', {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            upstreams: [
+              { id: 'allowed' },
+              { id: 'gmail' },
+              { id: 'github' },
+              { id: 'google' },
+              { id: 'google-drive' },
+              { id: 'google_drive' },
+              { id: 'unselected' },
+            ],
+          }),
+        },
+      ],
+    });
+  });
 
   it('supports the OpenClaw MCP tool names for the configured mcp server', () => {
     expect(MCP_READ_TOOL_NAMES).toEqual([
@@ -148,7 +169,9 @@ describe('MCP read-only policy', () => {
 
   it('enforces the selected provider for describe and call', () => {
     expect(
-      mayDescribeMcpTool({ name: 'github_search_issues' }, ['gmail'])
+      mayDescribeMcpTool('cron-session', { name: 'github_search_issues' }, [
+        'gmail',
+      ])
     ).toBe(false);
     rememberDescribedReadOnlyMcpTool(
       'cron-session',
@@ -171,9 +194,9 @@ describe('MCP read-only policy', () => {
   it('does not reuse a same-name grant for a different provider', () => {
     rememberDescribedReadOnlyMcpTool(
       'cron-session',
-      { name: 'search', upstreamId: 'allowed' },
+      { name: 'allowed_search' },
       {
-        name: 'search',
+        name: 'allowed_search',
         upstreamId: 'allowed',
         annotations: { readOnlyHint: true },
       },
@@ -183,14 +206,14 @@ describe('MCP read-only policy', () => {
     expect(
       mayCallDescribedReadOnlyMcpTool(
         'cron-session',
-        { name: 'search', upstreamId: 'allowed' },
+        { name: 'allowed_search' },
         ['allowed']
       )
     ).toBe(true);
     expect(
       mayCallDescribedReadOnlyMcpTool(
         'cron-session',
-        { name: 'search', upstreamId: 'unselected' },
+        { name: 'unselected_search' },
         ['allowed']
       )
     ).toBe(false);
@@ -198,17 +221,55 @@ describe('MCP read-only policy', () => {
 
   it('does not authorize a longer provider id through a selected prefix', () => {
     expect(
-      mayDescribeMcpTool({ name: 'google-drive_search_files' }, ['google'])
+      mayDescribeMcpTool(
+        'cron-session',
+        { name: 'google-drive_search_files' },
+        ['google']
+      )
     ).toBe(false);
     expect(
-      mayDescribeMcpTool({ name: 'google-drive_search_files' }, [
-        'google-drive',
-      ])
+      mayDescribeMcpTool(
+        'cron-session',
+        { name: 'google-drive_search_files' },
+        ['google-drive']
+      )
     ).toBe(true);
+    expect(
+      mayDescribeMcpTool(
+        'cron-session',
+        { name: 'google_drive_search_files' },
+        ['google']
+      )
+    ).toBe(false);
+    expect(
+      mayDescribeMcpTool(
+        'cron-session',
+        { name: 'google_drive_search_files', upstreamId: 'google' },
+        ['google']
+      )
+    ).toBe(false);
+    expect(
+      mayDescribeMcpTool(
+        'cron-session',
+        { name: 'google_drive_search_files' },
+        ['google_drive']
+      )
+    ).toBe(true);
+  });
+
+  it('fails closed until the broker provides its complete upstream list', () => {
+    expect(
+      mayDescribeMcpTool('unknown-session', { name: 'gmail_search_messages' }, [
+        'gmail',
+      ])
+    ).toBe(false);
   });
 
   it('clears cron attribution and described tools at the run boundary', () => {
     rememberCronJobForSession('main-session', 'onboarding-job');
+    rememberMcpUpstreams('main-session', {
+      upstreams: [{ id: 'gmail' }],
+    });
     rememberDescribedReadOnlyMcpTool(
       'main-session',
       { name: 'gmail_search_messages' },
