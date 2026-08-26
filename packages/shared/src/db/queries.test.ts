@@ -614,7 +614,7 @@ function getRangedPosts(channelId: string, start: number, end: number): Post[] {
   return posts;
 }
 
-test('getA2UISelections: only the author’s live selection entries count', async () => {
+test('getA2UISelections: returns the author’s live selections newest first', async () => {
   const channelId = '~zod/dm';
   const selectionBlob = (surfaceId: string) =>
     JSON.stringify([
@@ -631,19 +631,26 @@ test('getA2UISelections: only the author’s live selection entries count', asyn
   const base = {
     type: 'chat' as const,
     channelId,
-    receivedAt: refDate,
-    sentAt: refDate,
     syncedAt: 0,
   };
   await queries.insertChannelPosts({
     posts: [
-      { ...base, id: 'mine', authorId: '~zod', blob: selectionBlob('s-mine') },
+      {
+        ...base,
+        id: 'mine',
+        authorId: '~zod',
+        receivedAt: refDate + 1,
+        sentAt: refDate + 1,
+        blob: selectionBlob('s-mine'),
+      },
       // Another member posting a matching blob must not consume the
       // viewer's control (or fake their answer).
       {
         ...base,
         id: 'theirs',
         authorId: '~ten',
+        receivedAt: refDate + 2,
+        sentAt: refDate + 2,
         blob: selectionBlob('s-theirs'),
       },
       // Deleting the reply un-consumes the control.
@@ -651,6 +658,8 @@ test('getA2UISelections: only the author’s live selection entries count', asyn
         ...base,
         id: 'mine-deleted',
         authorId: '~zod',
+        receivedAt: refDate + 3,
+        sentAt: refDate + 3,
         isDeleted: true,
         blob: selectionBlob('s-deleted'),
       },
@@ -658,10 +667,18 @@ test('getA2UISelections: only the author’s live selection entries count', asyn
         ...base,
         id: 'mine-failed',
         authorId: '~zod',
+        receivedAt: refDate + 4,
+        sentAt: refDate + 4,
         deliveryStatus: 'failed' as const,
         blob: selectionBlob('s-failed'),
       },
-      { ...base, id: 'mine-no-blob', authorId: '~zod' },
+      {
+        ...base,
+        id: 'mine-no-blob',
+        authorId: '~zod',
+        receivedAt: refDate + 5,
+        sentAt: refDate + 5,
+      },
     ],
   });
 
@@ -673,14 +690,14 @@ test('getA2UISelections: only the author’s live selection entries count', asyn
     {
       type: 'tlon-a2ui-selection',
       version: 1,
-      surfaceId: 's-mine',
+      surfaceId: 's-failed',
       componentId: 'topics',
       values: ['Weather'],
     },
     {
       type: 'tlon-a2ui-selection',
       version: 1,
-      surfaceId: 's-failed',
+      surfaceId: 's-mine',
       componentId: 'topics',
       values: ['Weather'],
     },

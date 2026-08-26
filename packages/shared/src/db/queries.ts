@@ -4494,7 +4494,10 @@ export const getA2UISelections = createReadQuery(
           like($posts.blob, '%tlon-a2ui-selection%'),
           or(isNull($posts.isDeleted), eq($posts.isDeleted, false))
         )
-      );
+      )
+      // Controls use the first matching entry, so a successful retry must
+      // supersede an older failed attempt for the same component.
+      .orderBy(desc($posts.receivedAt), desc($posts.id));
     return rows.flatMap((row) =>
       row.blob
         ? parsePostBlob(row.blob).filter(

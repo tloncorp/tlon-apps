@@ -20,7 +20,11 @@ import { A2UIMenuRow } from './A2UIMenuRow';
 import { useOneShotAction } from './useOneShotAction';
 
 const MAX_PROVIDER_SELECTIONS = api.AGENT_PROTOCOL_LIMITS.providerCount;
-const pendingProviderSelections = new Map<string, string[]>();
+type PendingProviderSelection = {
+  providerIds: string[];
+  configuredKey: string | null;
+};
+const pendingProviderSelections = new Map<string, PendingProviderSelection>();
 const pendingProviderAuthorizations = new Map<
   string,
   {
@@ -165,9 +169,10 @@ export function McpConnectMenu({
   providers: McpProviderRow[];
 }) {
   const selectionKey = `${component.configureAction.event.context.groupId}\u0000${component.configureAction.event.context.provisionId}\u0000${surfaceId}\u0000${component.id}`;
+  const storedSelection = pendingProviderSelections.get(selectionKey);
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>(
     () =>
-      pendingProviderSelections.get(selectionKey) ??
+      storedSelection?.providerIds ??
       clampProviderIds(configuredProviderIds ?? [])
   );
   const [submitting, setSubmitting] = useState(false);
@@ -181,9 +186,7 @@ export function McpConnectMenu({
     useState(authorizationIsReconciling);
   const authorizationRefreshPendingRef = useRef(authorizationIsReconciling());
   const configuringRef = useRef(false);
-  const hadStoredSelectionRef = useRef(
-    pendingProviderSelections.has(selectionKey)
-  );
+  const storedSelectionRef = useRef(storedSelection);
   const initializedRef = useRef(false);
   const configuredKeyRef = useRef<string | null>(null);
   const completionAction = useOneShotAction(completionConsumed);
@@ -259,15 +262,17 @@ export function McpConnectMenu({
   useEffect(() => {
     const connected = new Set(connectedProviderIds);
     if (!initializedRef.current) {
-      if (loading || !providersLoaded) return;
+      if (loading || !providersLoaded || selectionsPending) return;
       initializedRef.current = true;
-      configuredKeyRef.current =
+      const configuredKey =
         configuredProviderIds === undefined
           ? null
           : configuredProviderIds.join('\u0000');
-      setSelectedProviderIds((current) =>
-        hadStoredSelectionRef.current
-          ? current.filter((id) => connected.has(id))
+      configuredKeyRef.current = configuredKey;
+      const stored = storedSelectionRef.current;
+      setSelectedProviderIds(
+        stored?.configuredKey === configuredKey
+          ? stored.providerIds.filter((id) => connected.has(id))
           : clampProviderIds(
               configuredProviderIds === undefined
                 ? connectedProviderIds
@@ -331,11 +336,16 @@ export function McpConnectMenu({
     connectedProviderIds,
     loading,
     providersLoaded,
+    selectionsPending,
     selectionKey,
   ]);
 
   useEffect(() => {
-    pendingProviderSelections.set(selectionKey, selectedProviderIds);
+    if (!initializedRef.current) return;
+    pendingProviderSelections.set(selectionKey, {
+      providerIds: selectedProviderIds,
+      configuredKey: configuredKeyRef.current,
+    });
   }, [selectedProviderIds, selectionKey]);
 
   useEffect(() => {
