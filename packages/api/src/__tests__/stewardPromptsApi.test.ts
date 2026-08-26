@@ -3,9 +3,10 @@ import { beforeEach, expect, test, vi } from 'vitest';
 import {
   getBotSystemPrompts,
   setBotSystemPrompt,
+  subscribeToBotSystemPrompts,
   toBotSystemPrompts,
 } from '../index';
-import { BadResponseError, poke, scry } from '../client/urbit';
+import { BadResponseError, poke, scry, subscribe } from '../client/urbit';
 
 vi.mock('../client/urbit', async () => {
   const actual =
@@ -21,6 +22,7 @@ vi.mock('../client/urbit', async () => {
 beforeEach(() => {
   vi.mocked(poke).mockClear();
   vi.mocked(scry).mockReset();
+  vi.mocked(subscribe).mockReset();
 });
 
 test('setBotSystemPrompt pokes the %set action', async () => {
@@ -87,4 +89,44 @@ test('getBotSystemPrompts returns null when nothing is mirrored yet', async () =
     prompts: { bot: '~zod', prompts: {} },
   });
   expect(await getBotSystemPrompts('~zod')).toBeNull();
+});
+
+test('subscribeToBotSystemPrompts forwards the authoritative set (null when emptied)', async () => {
+  // Probe scry succeeds → subscription proceeds.
+  vi.mocked(scry).mockResolvedValue({ prompts: { bot: '~zod', prompts: {} } });
+  let eventHandler: ((event: unknown) => void) | undefined;
+  vi.mocked(subscribe).mockImplementation(async (_spec, handler) => {
+    eventHandler = handler as (event: unknown) => void;
+    return 1;
+  });
+  const seen: Array<[string, unknown]> = [];
+  await subscribeToBotSystemPrompts((bot, prompts) => {
+    seen.push([bot, prompts]);
+  });
+  eventHandler?.({
+    prompts: {
+      bot: '~zod',
+      prompts: {
+        'SOUL.md': {
+          text: 'be kind',
+          updated: '~2026.8.26..12.00.00..0000',
+          edited: true,
+        },
+      },
+    },
+  });
+  // An emptied mirror (untrust / owner revocation) arrives as null so
+  // callers can clear their cache without a refetch.
+  eventHandler?.({ prompts: { bot: '~zod', prompts: {} } });
+  // %set facts are for the bot's own gateway, not clients.
+  eventHandler?.({
+    set: {
+      name: 'SOUL.md',
+      prompt: { text: 'x', updated: '~x', edited: true },
+    },
+  });
+  expect(seen).toEqual([
+    ['~zod', [expect.objectContaining({ name: 'SOUL.md', text: 'be kind' })]],
+    ['~zod', null],
+  ]);
 });

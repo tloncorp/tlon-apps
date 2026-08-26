@@ -622,6 +622,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   const sseWatchdogOverride = parseSseWatchdogIntervalMs(
     process.env.TLON_SSE_WATCHDOG_INTERVAL_MS
   );
+  // Hoisted above the SSE client so its onSubscriptionRecovery callback can
+  // re-run the prompt reconcile after a quit→resubscribe; assigned much
+  // later, once this account is known to run prompt sync.
+  let promptSync: PromptSync | null = null;
   try {
     cookie = await authenticateWithRetry();
     api = new UrbitSSEClient(account.url, cookie, {
@@ -673,6 +677,25 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               downMs: event.downMs,
             }
           );
+        }
+        if (
+          event.app === 'steward' &&
+          event.path === '/v1/prompts' &&
+          promptSync
+        ) {
+          // The quit→resubscribe gap swallows %set facts (gall doesn't
+          // replay them for the replacement watch). The new watch is live
+          // at this point, so re-run the boot reconcile: the scry picks up
+          // any edit the gap dropped, and the re-seed no-ops when nothing
+          // changed.
+          runtime.log?.(
+            '[tlon] Steward prompts subscription recovered; re-running prompt reconcile'
+          );
+          promptSync.startup().catch((error) => {
+            runtime.error?.(
+              `[tlon] Prompt reconcile after resubscribe failed: ${String(error)}`
+            );
+          });
         }
       },
       // Stream-level drops/stalls/reconnects. Distinct from per-subscription
@@ -4782,8 +4805,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // Gated to one syncing account per gateway (see shouldRunPromptSync):
       // every account resolves the same default-agent workspace, so a second
       // account's sync would overwrite the first account's files and
-      // cross-seed its ship.
-      let promptSync: PromptSync | null = null;
+      // cross-seed its ship. (promptSync itself is declared above the SSE
+      // client so onSubscriptionRecovery can reach it.)
       if (!shouldRunPromptSync(cfg, account.accountId)) {
         runtime.log?.(
           `[tlon] Prompt sync disabled for account ${account.accountId}: accounts share one agent workspace`
@@ -4807,6 +4830,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             log: (message) => runtime.log?.(message),
             warn: (message) => runtime.error?.(message),
           },
+          // Teardown (config reload/shutdown) cancels retry backoff and
+          // keeps this monitor's obsolete config from being applied late.
+          ...(opts.abortSignal ? { abortSignal: opts.abortSignal } : {}),
         });
         const sync = promptSync;
         try {

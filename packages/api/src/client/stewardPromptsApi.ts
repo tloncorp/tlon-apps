@@ -89,11 +89,14 @@ export const setBotSystemPrompt = ({
 
 /**
  * Watch for prompt-set changes (a bot's canonical set fanned back into our
- * mirror). Emits the bot ship whose prompts changed; callers refetch via
- * getBotSystemPrompts. Returns null when the ship lacks the module.
+ * mirror). Emits the bot ship whose prompts changed together with the
+ * authoritative new set (null when emptied — untrust/revocation), matching
+ * getBotSystemPrompts' shape so callers can write it straight into their
+ * cache instead of depending on a refetch that could fail. Returns null
+ * when the ship lacks the module.
  */
 export const subscribeToBotSystemPrompts = async (
-  handler: (botShip: string) => void
+  handler: (botShip: string, prompts: BotSystemPrompt[] | null) => void
 ) => {
   // Probe with a scry so a ship without the prompts module skips the
   // subscription instead of wedging sync (mirrors subscribeToLensUpdates).
@@ -121,7 +124,8 @@ export const subscribeToBotSystemPrompts = async (
       // /v1/prompts carries %prompts (a mirrored set changed, for us) and
       // %set (for the bot's own gateway); only the former concerns clients.
       if ('prompts' in event) {
-        handler(event.prompts.bot);
+        const prompts = toBotSystemPrompts(event.prompts.prompts);
+        handler(event.prompts.bot, prompts.length > 0 ? prompts : null);
       }
     }
   );

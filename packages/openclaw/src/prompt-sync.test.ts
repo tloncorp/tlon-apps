@@ -564,3 +564,84 @@ describe('createPromptSync.handleFact', () => {
     expect(fs.readdirSync(tmpDir)).toEqual([]);
   });
 });
+
+describe('createPromptSync retries and teardown', () => {
+  it('retries a transiently failed seed poke', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'from archive');
+    let seedAttempts = 0;
+    const poke = vi.fn(async (params: { mark: string }) => {
+      if (params.mark === 'steward-prompts-action-1' && seedAttempts++ === 0) {
+        throw new Error('socket hang up');
+      }
+      return {};
+    });
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      owner: '~ten',
+      scry: async () => ({}),
+      poke,
+      logger,
+      retryDelaysMs: [0],
+    });
+    await sync.startup();
+    expect(seedAttempts).toBe(2);
+    expect(logger.log).toHaveBeenCalledWith(
+      expect.stringContaining('Seeded 1 system prompts')
+    );
+  });
+
+  it('does nothing when the monitor is already torn down', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const scry = vi.fn(async () => ({}));
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      owner: '~ten',
+      scry,
+      poke,
+      logger,
+      abortSignal: controller.signal,
+    });
+    await sync.startup();
+    await sync.handleFact({
+      set: { name: 'SOUL.md', prompt: { text: 'late edit', updated: '~x' } },
+    });
+    expect(scry).not.toHaveBeenCalled();
+    expect(poke).not.toHaveBeenCalled();
+    expect(fs.readdirSync(tmpDir)).toEqual([]);
+  });
+
+  it('stops retry backoff promptly on abort', async () => {
+    const controller = new AbortController();
+    const scry = vi.fn(async () => {
+      throw new Error('Scry failed: 502 for path /steward/v1/prompts.json');
+    });
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      owner: null,
+      scry,
+      poke: async () => ({}),
+      logger,
+      abortSignal: controller.signal,
+      // Would sit out a full minute if teardown didn't cancel the sleep.
+      retryDelaysMs: [60_000],
+    });
+    setTimeout(() => controller.abort(), 20);
+    const started = Date.now();
+    await sync.startup();
+    expect(Date.now() - started).toBeLessThan(5_000);
+    expect(scry).toHaveBeenCalledTimes(1);
+  });
+});

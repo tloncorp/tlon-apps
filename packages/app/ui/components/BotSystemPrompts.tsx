@@ -103,11 +103,13 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
     let attempt = 0;
     const start = () => {
       api
-        .subscribeToBotSystemPrompts((changedBot) => {
+        .subscribeToBotSystemPrompts((changedBot, prompts) => {
           if (changedBot === botShip) {
-            queryClient.invalidateQueries({
-              queryKey: promptsQueryKey(botShip),
-            });
+            // The fact carries the authoritative set, so write it into the
+            // cache directly instead of refetching — an emptied mirror
+            // (untrust / owner revocation) must clear the editor even when
+            // a follow-up scry would fail.
+            queryClient.setQueryData(promptsQueryKey(botShip), prompts);
           }
         })
         .then((id) => {

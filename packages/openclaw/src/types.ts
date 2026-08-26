@@ -300,8 +300,14 @@ export function resolveTlonAccount(
     ?.ownerListenDisabledChannels ??
     (base as Record<string, unknown>)?.ownerListenDisabledChannels ??
     []) as string[];
+  // Deliberately account-local, unlike the settings above: this is the
+  // per-bot prompt cache written by prompt sync (default account at the
+  // top level, named accounts under accounts[id].prompts — see
+  // writePromptsIntoConfigDraft). A named account inheriting the top-level
+  // cache would seed another bot's prompts (USER.md, AGENTS.md) onto its
+  // own ship. `account` IS `base` for the default account, so the default
+  // still reads the top-level cache.
   const prompts = ((account as Record<string, unknown>)?.prompts ??
-    (base as Record<string, unknown>)?.prompts ??
     {}) as Record<string, string>;
   const configured = Boolean(ship && url && code);
 

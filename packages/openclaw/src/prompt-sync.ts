@@ -300,18 +300,43 @@ export function createPromptSync(opts: {
     json: unknown;
   }) => Promise<unknown>;
   logger: PromptSyncLogger;
+  /**
+   * Monitor teardown signal (config reload / shutdown). Aborting stops
+   * retry backoff promptly and keeps a stale monitor from applying or
+   * persisting prompts from an obsolete account configuration.
+   */
+  abortSignal?: AbortSignal;
   /** Test hook: startup retry backoff schedule. */
   retryDelaysMs?: number[];
 }): PromptSync {
   const { core, accountId, workspaceDir, owner, scry, poke, logger } = opts;
   const retryDelaysMs = opts.retryDelaysMs ?? STARTUP_RETRY_DELAYS_MS;
 
+  const aborted = () => opts.abortSignal?.aborted === true;
+
+  // Abort-aware: teardown must not sit out a multi-second backoff.
   const sleep = (ms: number) =>
-    new Promise<void>((resolve) => setTimeout(resolve, ms));
+    new Promise<void>((resolve) => {
+      const signal = opts.abortSignal;
+      if (signal?.aborted) {
+        resolve();
+        return;
+      }
+      const onAbort = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      const timer = setTimeout(() => {
+        signal?.removeEventListener('abort', onAbort);
+        resolve();
+      }, ms);
+      signal?.addEventListener('abort', onAbort, { once: true });
+    });
 
   // Startup runs once per gateway boot, so a transiently failed request
   // would otherwise leave prompts unsynced until the next restart. Bounded
-  // retries; an error `isPermanent` recognizes rethrows immediately.
+  // retries; an error `isPermanent` recognizes rethrows immediately, and an
+  // abort stops retrying with the last error.
   const withStartupRetries = async <T>(
     label: string,
     run: () => Promise<T>,
@@ -321,13 +346,20 @@ export function createPromptSync(opts: {
       try {
         return await run();
       } catch (error) {
-        if (isPermanent?.(error) || attempt >= retryDelaysMs.length) {
+        if (
+          isPermanent?.(error) ||
+          attempt >= retryDelaysMs.length ||
+          aborted()
+        ) {
           throw error;
         }
         logger.warn(
           `[tlon] ${label} failed, retrying in ${retryDelaysMs[attempt]}ms: ${error}`
         );
         await sleep(retryDelaysMs[attempt]);
+        if (aborted()) {
+          throw error;
+        }
       }
     }
   };
@@ -359,6 +391,9 @@ export function createPromptSync(opts: {
   };
 
   const startup = async () => {
+    if (aborted()) {
+      return;
+    }
     // Configure the core owner before touching prompts so the %seed below
     // fans the canonical set to the owner's mirror (and owner %sets pass
     // the ship's auth gate) — and clear it when the config no longer names
@@ -396,6 +431,11 @@ export function createPromptSync(opts: {
       logger.log(`[tlon] Prompt sync unavailable (scry failed): ${error}`);
       return;
     }
+    if (aborted()) {
+      // Torn down mid-startup (config reload): this monitor's account
+      // snapshot is obsolete, so stop before writing anything.
+      return;
+    }
     // Ship-stored prompts win over the config cache: the config is only a
     // local mirror written by this sync, but a hosted entrypoint can
     // regenerate openclaw.json and drop it.
@@ -426,6 +466,9 @@ export function createPromptSync(opts: {
       });
     }
     const effective = await readEffectivePrompts(workspaceDir, logger);
+    if (aborted()) {
+      return;
+    }
     if (Object.keys(effective).length === 0) {
       // Deliberately NOT seeding an empty set. openclaw bootstraps these
       // files, so a workspace with none of them means the workspace is
@@ -438,11 +481,16 @@ export function createPromptSync(opts: {
       return;
     }
     try {
-      await poke({
-        app: 'steward',
-        mark: 'steward-prompts-action-1',
-        json: { seed: effective },
-      });
+      // Same bounded retry as the configure and scry above — a transient
+      // failure here would leave a fresh ship's canonical set (and the
+      // owner mirror) empty until the next gateway restart.
+      await withStartupRetries('%steward prompt seed', () =>
+        poke({
+          app: 'steward',
+          mark: 'steward-prompts-action-1',
+          json: { seed: effective },
+        })
+      );
       logger.log(
         `[tlon] Seeded ${Object.keys(effective).length} system prompts to %steward`
       );
@@ -452,6 +500,9 @@ export function createPromptSync(opts: {
   };
 
   const handleFact = async (data: unknown) => {
+    if (aborted()) {
+      return;
+    }
     const edit = parsePromptSetFact(data);
     if (!edit) {
       return;

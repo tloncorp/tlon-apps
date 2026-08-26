@@ -280,3 +280,46 @@ describe('resolveTlonAccount contextLens', () => {
     });
   });
 });
+
+describe('resolveTlonAccount prompts', () => {
+  const cfg = {
+    channels: {
+      tlon: {
+        ship: '~zod',
+        url: 'https://example.com',
+        code: 'code-123',
+        prompts: { 'USER.md': 'default-account private notes' },
+        accounts: {
+          hosted: {
+            ship: '~bus',
+            url: 'https://hosted.example.com',
+            code: 'code-456',
+            prompts: { 'SOUL.md': 'hosted persona' },
+          },
+          bare: {
+            ship: '~ten',
+            url: 'https://bare.example.com',
+            code: 'code-789',
+          },
+        },
+      },
+    },
+  } as OpenClawConfig;
+
+  it('reads the top-level cache for the default account', () => {
+    expect(resolveTlonAccount(cfg).prompts).toEqual({
+      'USER.md': 'default-account private notes',
+    });
+  });
+
+  it('reads only the account-local cache for named accounts', () => {
+    expect(resolveTlonAccount(cfg, 'hosted').prompts).toEqual({
+      'SOUL.md': 'hosted persona',
+    });
+  });
+
+  it('never inherits the top-level cache into a named account', () => {
+    // Inheriting would seed the default bot's prompts onto another ship.
+    expect(resolveTlonAccount(cfg, 'bare').prompts).toEqual({});
+  });
+});
