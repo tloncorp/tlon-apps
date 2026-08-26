@@ -47,6 +47,18 @@ export type PromptFileName = (typeof PROMPT_FILE_NAMES)[number];
 /** Matches the per-prompt byte cap enforced by %steward's pr-core. */
 export const MAX_PROMPT_BYTES = 65_536;
 
+/** Backoff schedule for transiently failed startup requests. */
+const STARTUP_RETRY_DELAYS_MS = [1_000, 2_000, 4_000];
+
+/**
+ * True for the error our scry helpers throw on a 404 — a ship without the
+ * prompts module. Permanent for this boot, so not worth retrying (and
+ * legacy desks would pay the full backoff on every boot).
+ */
+export function isScryNotFound(error: unknown): boolean {
+  return /Scry failed: 404 /.test(String(error));
+}
+
 export type PromptSyncLogger = {
   log: (message: string) => void;
   warn: (message: string) => void;
@@ -277,7 +289,8 @@ export function createPromptSync(opts: {
    * configure paths don't cover every prompt-syncing monitor: gateway-status
    * activation only runs with exactly one Tlon account, and the context-lens
    * sync only configures when the lens is enabled (and then lazily, before
-   * its first run poke).
+   * its first run poke). null clears a previously configured owner
+   * (%unconfigure), which also revokes that ship's mirror.
    */
   owner: string | null;
   scry: (path: string) => Promise<unknown>;
@@ -287,8 +300,37 @@ export function createPromptSync(opts: {
     json: unknown;
   }) => Promise<unknown>;
   logger: PromptSyncLogger;
+  /** Test hook: startup retry backoff schedule. */
+  retryDelaysMs?: number[];
 }): PromptSync {
   const { core, accountId, workspaceDir, owner, scry, poke, logger } = opts;
+  const retryDelaysMs = opts.retryDelaysMs ?? STARTUP_RETRY_DELAYS_MS;
+
+  const sleep = (ms: number) =>
+    new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+  // Startup runs once per gateway boot, so a transiently failed request
+  // would otherwise leave prompts unsynced until the next restart. Bounded
+  // retries; an error `isPermanent` recognizes rethrows immediately.
+  const withStartupRetries = async <T>(
+    label: string,
+    run: () => Promise<T>,
+    isPermanent?: (error: unknown) => boolean
+  ): Promise<T> => {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await run();
+      } catch (error) {
+        if (isPermanent?.(error) || attempt >= retryDelaysMs.length) {
+          throw error;
+        }
+        logger.warn(
+          `[tlon] ${label} failed, retrying in ${retryDelaysMs[attempt]}ms: ${error}`
+        );
+        await sleep(retryDelaysMs[attempt]);
+      }
+    }
+  };
 
   const persistToConfig = async (
     prompts: Record<string, string>,
@@ -319,30 +361,38 @@ export function createPromptSync(opts: {
   const startup = async () => {
     // Configure the core owner before touching prompts so the %seed below
     // fans the canonical set to the owner's mirror (and owner %sets pass
-    // the ship's auth gate). Idempotent: %steward no-ops a same-owner
-    // reconfigure, so overlapping with gateway-status / lens configures of
-    // the same resolved owner is harmless.
-    if (owner) {
-      try {
-        await poke({
+    // the ship's auth gate) — and clear it when the config no longer names
+    // an owner, or the former owner would keep receiving syncs and stay
+    // authorized to edit indefinitely. Idempotent both ways: %steward
+    // no-ops a same-owner reconfigure and an already-clear %unconfigure.
+    try {
+      await withStartupRetries('%steward owner configure', () =>
+        poke({
           app: 'steward',
           mark: 'steward-action-1',
-          json: { configure: { owner } },
-        });
-      } catch (error) {
-        // Keep reconciling: the seed still stores the canonical set on the
-        // ship, and the fan-out happens once a later configure succeeds.
-        logger.warn(
-          `[tlon] Failed to configure %steward owner for prompt sync: ${error}`
-        );
-      }
+          json: owner ? { configure: { owner } } : { unconfigure: null },
+        })
+      );
+    } catch (error) {
+      // Keep reconciling: the seed still stores the canonical set on the
+      // ship, and the fan-out happens once a later configure succeeds.
+      logger.warn(
+        `[tlon] Failed to configure %steward owner for prompt sync: ${error}`
+      );
     }
     let stored: Record<string, string>;
     try {
-      stored = parseStoredPromptsScry(await scry('/steward/v1/prompts.json'));
+      stored = parseStoredPromptsScry(
+        await withStartupRetries(
+          'Prompt scry',
+          () => scry('/steward/v1/prompts.json'),
+          isScryNotFound
+        )
+      );
     } catch (error) {
-      // Older ships without the prompts module 404 here; prompt sync is
-      // simply unavailable until the desk updates.
+      // Older ships without the prompts module 404 here (never retried);
+      // transient failures already got the bounded retries above. Prompt
+      // sync is unavailable until the next gateway restart.
       logger.log(`[tlon] Prompt sync unavailable (scry failed): ${error}`);
       return;
     }
@@ -377,6 +427,14 @@ export function createPromptSync(opts: {
     }
     const effective = await readEffectivePrompts(workspaceDir, logger);
     if (Object.keys(effective).length === 0) {
+      // Deliberately NOT seeding an empty set. openclaw bootstraps these
+      // files, so a workspace with none of them means the workspace is
+      // broken or misresolved, not that an operator removed every prompt —
+      // and an empty seed would drop the ship's un-edited canonical entries
+      // and empty the owner mirror that data-gates the owner's editor UI.
+      logger.warn(
+        '[tlon] No prompt files found in workspace; skipping prompt seed'
+      );
       return;
     }
     try {

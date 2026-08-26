@@ -99,33 +99,52 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
   useEffect(() => {
     let subscriptionId: number | null = null;
     let cancelled = false;
-    api
-      .subscribeToBotSystemPrompts((changedBot) => {
-        if (changedBot === botShip) {
-          queryClient.invalidateQueries({
-            queryKey: promptsQueryKey(botShip),
-          });
-        }
-      })
-      .then((id) => {
-        if (id === null) {
-          return;
-        }
-        if (cancelled) {
-          api.unsubscribe(id);
-          return;
-        }
-        subscriptionId = id;
-        // Close the backfill-to-watch gap: a %sync that landed after the
-        // initial scry but before this subscription registered would
-        // otherwise stay invisible forever (staleTime is Infinity).
-        queryClient.invalidateQueries({ queryKey: promptsQueryKey(botShip) });
-      })
-      .catch(() => {
-        // No live updates; the scry on mount still shows current state.
-      });
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
+    const start = () => {
+      api
+        .subscribeToBotSystemPrompts((changedBot) => {
+          if (changedBot === botShip) {
+            queryClient.invalidateQueries({
+              queryKey: promptsQueryKey(botShip),
+            });
+          }
+        })
+        .then((id) => {
+          if (id === null) {
+            // Ship lacks the prompts module — permanent for this session,
+            // so no retry.
+            return;
+          }
+          if (cancelled) {
+            api.unsubscribe(id);
+            return;
+          }
+          subscriptionId = id;
+          // Close the backfill-to-watch gap: a %sync that landed after the
+          // initial scry but before this subscription registered would
+          // otherwise stay invisible forever (staleTime is Infinity).
+          queryClient.invalidateQueries({ queryKey: promptsQueryKey(botShip) });
+        })
+        .catch(() => {
+          if (cancelled) {
+            return;
+          }
+          // Transient failure (module-less ships resolve null instead of
+          // rejecting). Without a live subscription nothing ever
+          // invalidates this query again, so retry with capped backoff
+          // rather than staying stale until the profile remounts.
+          const delayMs = Math.min(30_000, 2_000 * 2 ** attempt);
+          attempt += 1;
+          retryTimer = setTimeout(start, delayMs);
+        });
+    };
+    start();
     return () => {
       cancelled = true;
+      if (retryTimer !== null) {
+        clearTimeout(retryTimer);
+      }
       if (subscriptionId !== null) {
         api.unsubscribe(subscriptionId);
       }

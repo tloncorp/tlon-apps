@@ -1246,6 +1246,45 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
   (ex-cards caz ~)
 ::
+::  %unconfigure clears the owner and revokes the former owner's mirror
+::  (on the shared sync wire); the cleared owner may no longer edit
+::
+++  test-pr-unconfigure-revokes-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%unconfigure ~]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  /prompts/sync/(scot %p ~bus)
+            [~bus %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%revoke ~])
+        ==
+    ==
+  %-  ex-fail
+  %-  (do-as ~bus)
+  %+  do-poke  %steward-prompts-action-1
+  !>(`action:v1:p`[%set ~dev 'SOUL.md' 'stale owner edit'])
+::
+::  %unconfigure with no owner set is a no-op
+::
+++  test-pr-unconfigure-when-unset-noop
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%unconfigure ~]))
+  (ex-cards caz ~)
+::
 ::  a %revoke from a ship with a mirror entry drops that entry
 ::
 ++  test-pr-revoke-drops-callers-mirror

@@ -148,6 +148,26 @@
       ?:  =(~ own.prompts.state)  cor
       pr-sync-owner:pr-core
     ::
+        %unconfigure
+      ::  the gateway's config no longer names an owner: clear it and
+      ::  revoke the former owner's mirror, or that ship keeps receiving
+      ::  syncs and stays authorized to %set edits indefinitely
+      ::
+      =/  old  owner.state
+      =.  owner.state  ~
+      ?~  old  cor
+      ?:  =(u.old our.bowl)
+        (pr-drop-mirror:pr-core u.old)
+      ::  same wire as %syncs to this ship — shares their ames flow, so it
+      ::  can't be overtaken by an in-flight %sync (see %configure)
+      %-  emit
+      :^    %pass
+          /prompts/sync/(scot %p u.old)
+        %agent
+      :+  [u.old %steward]
+        %poke
+      [%steward-prompts-action-1 !>(`action:v1:sp`[%revoke ~])]
+    ::
         %trust-bot
       ::  ask the bot to re-fan its prompt set: a %sync it sent before
       ::  trust was granted was nacked and won't retry on its own

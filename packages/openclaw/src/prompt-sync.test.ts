@@ -294,6 +294,7 @@ describe('createPromptSync.startup', () => {
       scry: async () => ({}),
       poke,
       logger,
+      retryDelaysMs: [],
     });
     await sync.startup();
     expect(poke).toHaveBeenCalledWith(
@@ -301,8 +302,91 @@ describe('createPromptSync.startup', () => {
     );
   });
 
+  it('retries a transiently failed configure poke and scry', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'from archive');
+    let configureAttempts = 0;
+    let scryAttempts = 0;
+    const poke = vi.fn(async (params: { mark: string }) => {
+      if (params.mark === 'steward-action-1' && configureAttempts++ === 0) {
+        throw new Error('socket hang up');
+      }
+      return {};
+    });
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      owner: '~ten',
+      scry: async () => {
+        if (scryAttempts++ === 0) {
+          throw new Error('Scry failed: 502 for path /steward/v1/prompts.json');
+        }
+        return {};
+      },
+      poke,
+      logger,
+      retryDelaysMs: [0, 0],
+    });
+    await sync.startup();
+    expect(configureAttempts).toBe(2);
+    expect(scryAttempts).toBe(2);
+    expect(poke).toHaveBeenCalledWith(
+      expect.objectContaining({ mark: 'steward-prompts-action-1' })
+    );
+  });
+
+  it('does not retry a missing-module 404 scry', async () => {
+    const scry = vi.fn(async () => {
+      throw new Error('Scry failed: 404 for path /steward/v1/prompts.json');
+    });
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      owner: null,
+      scry,
+      poke,
+      logger,
+      retryDelaysMs: [0, 0],
+    });
+    await sync.startup();
+    expect(scry).toHaveBeenCalledTimes(1);
+    expect(poke).not.toHaveBeenCalledWith(
+      expect.objectContaining({ mark: 'steward-prompts-action-1' })
+    );
+  });
+
+  it('pokes %unconfigure when the config no longer names an owner', async () => {
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      owner: null,
+      scry: async () => ({}),
+      poke,
+      logger,
+    });
+    await sync.startup();
+    expect(poke).toHaveBeenCalledWith({
+      app: 'steward',
+      mark: 'steward-action-1',
+      json: { unconfigure: null },
+    });
+  });
+
   it('does not seed when the scry fails (older ships)', async () => {
-    const poke = vi.fn(async () => ({}));
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
@@ -314,16 +398,24 @@ describe('createPromptSync.startup', () => {
       },
       poke,
       logger,
+      retryDelaysMs: [],
     });
     await sync.startup();
-    // owner=null also means no configure poke was attempted
-    expect(poke).not.toHaveBeenCalled();
+    // Only the owner unconfigure went out — no seed.
+    expect(poke).toHaveBeenCalledTimes(1);
+    expect(poke).toHaveBeenCalledWith({
+      app: 'steward',
+      mark: 'steward-action-1',
+      json: { unconfigure: null },
+    });
   });
 
   it('skips seeding when a stored prompt failed to apply', async () => {
     // A directory at the target path makes the write fail.
     fs.mkdirSync(path.join(tmpDir, 'SOUL.md'));
-    const poke = vi.fn(async () => ({}));
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
@@ -342,7 +434,9 @@ describe('createPromptSync.startup', () => {
       logger,
     });
     await sync.startup();
-    expect(poke).not.toHaveBeenCalled();
+    expect(poke).not.toHaveBeenCalledWith(
+      expect.objectContaining({ mark: 'steward-prompts-action-1' })
+    );
   });
 });
 

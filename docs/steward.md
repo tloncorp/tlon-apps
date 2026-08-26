@@ -110,13 +110,17 @@ Four inbound marks, each ownership-gated to admit exactly the right source.
 
 ```json
 { "configure": { "owner": "~sampel-palnet" } }
+{ "unconfigure": null }
 ```
 
 ```
 [%configure owner=ship]               top-level: set the shared owner
+[%unconfigure ~]                      clear the shared owner
 [%trust-bot ship=ship]                add a ship to the trusted-bots set
 [%untrust-bot ship=ship]              remove a ship from the trusted-bots set
 ```
+
+`%unconfigure` clears the shared owner and sends the former owner a prompts `%revoke` (on the shared `/prompts/sync/<ship>` wire, like the owner-change revoke), so a config that stops naming an owner also stops that ship's prompt visibility and edit rights. A no-op when no owner is set — the gateway re-sends it on every ownerless boot.
 
 `%trust-bot`/`%untrust-bot` manage the owner-side `bots` allowlist that gates lens `%entry` and prompts `%sync` fan-in. Trust is explicit and ship-class-agnostic — a bot may be a planet, moon, comet, star, or galaxy, and moon sponsorship is **not** an auto-trust. Granting trust also sends the bot a prompts `%request` (a `%sync` delivered before trust was granted has already been nacked and won't retry), and revoking trust drops the bot's prompt mirror and facts the now-empty set so clients stop treating the bot as owned.
 
