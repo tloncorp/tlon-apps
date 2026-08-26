@@ -91,6 +91,39 @@ export function shouldRunPromptSync(
   return runnable.length === 1 && runnable[0] === accountId;
 }
 
+/**
+ * Prompt texts cached by every OTHER account, name -> texts. All accounts
+ * share one default-agent workspace, so when the prompt-syncing authority
+ * changes (e.g. a default account joins a formerly sole named account),
+ * the workspace can still hold the previous account's owner-edited text on
+ * disk; seeding it would hand that owner's private prompts (USER.md etc.)
+ * to the new account's ship and owner. The caches are the durable record
+ * of which on-disk text is another owner's edit, so the seed filters
+ * against them. Deliberately includes disabled and de-configured accounts —
+ * their leftover caches mark foreign text all the same.
+ */
+export function collectForeignPromptCaches(
+  cfg: OpenClawConfig,
+  accountId: string
+): Record<string, string[]> {
+  const accounts = (
+    cfg.channels?.tlon as { accounts?: Record<string, unknown> } | undefined
+  )?.accounts;
+  const ids = new Set<string>([
+    DEFAULT_ACCOUNT_ID,
+    ...Object.keys(accounts ?? {}),
+  ]);
+  ids.delete(accountId || DEFAULT_ACCOUNT_ID);
+  const out: Record<string, string[]> = {};
+  for (const id of ids) {
+    const prompts = resolveTlonAccount(cfg, id).prompts;
+    for (const [name, text] of Object.entries(prompts)) {
+      (out[name] ??= []).push(text);
+    }
+  }
+  return out;
+}
+
 export function isAllowedPromptName(name: unknown): name is PromptFileName {
   return (
     typeof name === 'string' &&
@@ -301,6 +334,13 @@ export function createPromptSync(opts: {
   }) => Promise<unknown>;
   logger: PromptSyncLogger;
   /**
+   * Other accounts' cached prompt edits (see collectForeignPromptCaches).
+   * Workspace files whose text matches one are excluded from the seed —
+   * they are another owner's private prompt text left on the shared
+   * workspace by a previous syncing authority.
+   */
+  foreignPrompts?: Record<string, string[]>;
+  /**
    * Monitor teardown signal (config reload / shutdown). Aborting stops
    * retry backoff promptly and keeps a stale monitor from applying or
    * persisting prompts from an obsolete account configuration.
@@ -473,6 +513,18 @@ export function createPromptSync(opts: {
     const effective = await readEffectivePrompts(workspaceDir, logger);
     if (aborted()) {
       return;
+    }
+    for (const [name, text] of Object.entries(effective)) {
+      if (opts.foreignPrompts?.[name]?.includes(text)) {
+        // The shared workspace still holds another account's owner-edited
+        // text (the syncing authority changed without a workspace
+        // rebuild). Seeding it would hand that owner's private prompt to
+        // this account's ship and owner — leave it out until it changes.
+        delete effective[name];
+        logger.warn(
+          `[tlon] Not seeding ${name}: workspace text matches another account's stored edit`
+        );
+      }
     }
     if (Object.keys(effective).length === 0) {
       // Deliberately NOT seeding an empty set. openclaw bootstraps these

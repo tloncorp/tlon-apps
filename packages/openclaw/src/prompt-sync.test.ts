@@ -7,6 +7,7 @@ import {
   MAX_PROMPT_BYTES,
   PROMPT_FILE_NAMES,
   applyPromptsToWorkspace,
+  collectForeignPromptCaches,
   createPromptSync,
   isAllowedPromptName,
   parsePromptSetFact,
@@ -688,5 +689,89 @@ describe('createPromptSync abort after in-flight apply', () => {
     } finally {
       writeFileSpy.mockRestore();
     }
+  });
+});
+
+describe('collectForeignPromptCaches', () => {
+  const cfg = makeAccountsConfig({
+    ship: '~zod',
+    url: 'http://x',
+    code: 'c',
+    prompts: { 'USER.md': 'default owner private notes' },
+    accounts: {
+      hosted: {
+        ship: '~bus',
+        url: 'http://y',
+        code: 'c',
+        prompts: { 'USER.md': 'hosted owner notes', 'SOUL.md': 'hosted soul' },
+      },
+      // De-configured (no creds) — its leftover cache still counts.
+      stale: { prompts: { 'SOUL.md': 'stale soul' } },
+    },
+  }) as never;
+
+  it('collects every other account cache, keyed by name', () => {
+    expect(collectForeignPromptCaches(cfg, 'default')).toEqual({
+      'USER.md': ['hosted owner notes'],
+      'SOUL.md': expect.arrayContaining(['hosted soul', 'stale soul']),
+    });
+  });
+
+  it('excludes the syncing account itself', () => {
+    const foreign = collectForeignPromptCaches(cfg, 'hosted');
+    expect(foreign['USER.md']).toEqual(['default owner private notes']);
+    expect(foreign['SOUL.md']).toEqual(['stale soul']);
+  });
+});
+
+describe('createPromptSync foreign-prompt seed filter', () => {
+  it('never seeds workspace text matching another account cache', async () => {
+    // The shared workspace still holds the former syncing account's edit.
+    fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'hosted owner notes');
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'shared baseline');
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      foreignPrompts: { 'USER.md': ['hosted owner notes'] },
+      owner: '~ten',
+      scry: async () => ({}),
+      poke,
+      logger,
+    });
+    await sync.startup();
+    expect(poke).toHaveBeenCalledWith({
+      app: 'steward',
+      mark: 'steward-prompts-action-1',
+      json: { seed: { 'AGENTS.md': 'shared baseline' } },
+    });
+  });
+
+  it('seeds the file again once its text no longer matches', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'fresh text for this bot');
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      foreignPrompts: { 'USER.md': ['hosted owner notes'] },
+      owner: '~ten',
+      scry: async () => ({}),
+      poke,
+      logger,
+    });
+    await sync.startup();
+    expect(poke).toHaveBeenCalledWith({
+      app: 'steward',
+      mark: 'steward-prompts-action-1',
+      json: { seed: { 'USER.md': 'fresh text for this bot' } },
+    });
   });
 });
