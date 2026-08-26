@@ -148,6 +148,7 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
               paddingHorizontal="$l"
               paddingVertical="$s"
             >
+              <ListItem.SystemIcon icon="Settings" rounded />
               <ListItem.MainContent>
                 <ListItem.Title>
                   {PROMPT_LABELS[prompt.name] ?? prompt.name}
