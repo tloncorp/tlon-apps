@@ -1009,8 +1009,13 @@ export default defineBundledChannelEntry({
       const role = getSessionRole(ctx.sessionKey ?? '');
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
       const blocksNonOwner = isOwnerOnlyTool && role === 'user';
-      const cronJobId = cronJobForSession(ctx.sessionKey);
-      const isOnboardingCron = await isAgentOnboardingCronJob(cronJobId);
+      const isMcpTool =
+        event.toolName === 'mcp_describe' || event.toolName === 'mcp_call';
+      const cronJobId = isMcpTool
+        ? cronJobForSession(ctx.sessionKey)
+        : undefined;
+      const isOnboardingCron =
+        isMcpTool && (await isAgentOnboardingCronJob(cronJobId));
       const allowedProviderIds = isOnboardingCron
         ? await agentOnboardingCronProviderIds(cronJobId)
         : [];
