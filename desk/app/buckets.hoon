@@ -63,6 +63,11 @@
 ::  fall back on; this is how long before we try again unprompted.
 ::
 ++  push-retry  ~m1
+::  +groups-retry: how soon to ask %groups for its updates again after it
+::  refuses. Longer than a push retry because the usual cause is %groups not
+::  being up yet, which resolves on its own.
+::
+++  groups-retry  ~m5
 --
 =|  current-state
 =*  state  -
@@ -128,13 +133,21 @@
 ::
 ++  answer  |=(body=response-body:b cor(reply `body))
 ::
+::  +watch-groups: subscribe to the group updates revocation depends on.
+::
+::  Named rather than inlined because four places need it -- init, load, a
+::  kick, and the retry after a refusal -- and the one that was written out
+::  separately is the one that forgot to.
+::
+++  watch-groups
+  ^+  cor
+  (emit [%pass /groups %agent [our.bowl %groups] %watch /v1/groups])
+::
 ++  init
   ^+  cor
   =.  broker-base  default-broker-base
-  %-  emil
-  :~  [%pass /eyre %arvo %e %connect [~ /buckets] %buckets]
-      [%pass /groups %agent [our.bowl %groups] %watch /v1/groups]
-  ==
+  =.  cor  (emit [%pass /eyre %arvo %e %connect [~ /buckets] %buckets])
+  watch-groups
 ::
 ::  +load: %buckets has never run on a live ship, so there is nothing to
 ::  migrate from yet. When that changes, add a +state-N-to-N+1 arm per
@@ -147,7 +160,7 @@
   ?>  ?=(%0 -.loaded)
   =.  state  loaded
   =?  cor  !(~(has by wex.bowl) [/groups our.bowl %groups])
-    (emit [%pass /groups %agent [our.bowl %groups] %watch /v1/groups])
+    watch-groups
   ::  binding an already-bound route is refused harmlessly; +arvo logs it.
   (emit [%pass /eyre %arvo %e %connect [~ /buckets] %buckets])
 ::
@@ -1155,6 +1168,22 @@
   ?.  ?=([%o *] u.jon)  ~
   `p.u.jon
 ::
+::  +broker-applied: whether the broker took the write, as it reported it.
+::
+::  The receipt says so outright, and inferring it from revisions instead gets
+::  the equal case wrong: a reader whose record was pruned at its expiry opens
+::  again at revision 1 while the broker still retains 1, which it answers 200
+::  and does not apply. A body we cannot read tells us nothing, and the
+::  revision comparison remains the fallback.
+::
+++  broker-applied
+  |=  res=client-response:iris
+  ^-  (unit ?)
+  ?~  body=(broker-body res)  ~
+  ?~  got=(~(get by u.body) 'applied')  ~
+  ?.  ?=([%b *] u.got)  ~
+  `p.u.got
+::
 ++  broker-revision
   |=  res=client-response:iris
   ^-  (unit @ud)
@@ -1259,7 +1288,7 @@
   [%error %unknown 'storage refused this access change']
 ::
 ++  confirm-reader
-  |=  [key=reader-key:b sent=@ud theirs=(unit @ud)]
+  |=  [key=reader-key:b sent=@ud theirs=(unit @ud) applied=(unit ?)]
   ^+  cor
   ?~  got=(~(get by readers) key)  cor
   =/  sync=reader-sync:b  u.got
@@ -1267,10 +1296,20 @@
   ::  delivery must not re-install or re-arm anything.
   =/  advanced=?  (gth sent synced.sync)
   =?  sync  advanced  sync(synced sent)
-  ::  The broker is ahead of us, so our counter lost state or an earlier
-  ::  incarnation of it got further. Adopt its number and re-send, or our
-  ::  desired state is discarded as stale from here on.
-  ?:  ?&(?=(^ theirs) (gth u.theirs revision.sync))
+  ::  The broker did not take this write, so what we asked for is not what it
+  ::  holds however the numbers compare. Adopt its revision and re-send above
+  ::  it, or our desired state is discarded as stale from here on.
+  ::
+  ::  Its own report is the authority, not the comparison: a reader whose
+  ::  record was pruned at its expiry opens again at revision 1 while the
+  ::  broker still retains 1, and a strictly-greater test reads that as
+  ::  agreement -- the client is then handed a token the broker never stored.
+  ::  Where it says nothing, being behind is the only case we can detect.
+  =/  stale=?
+    ?^  applied  !u.applied
+    ?&(?=(^ theirs) (gth u.theirs revision.sync))
+  ?:  ?&(?=(^ theirs) stale)
+    ::  Above what it kept, so the resend cannot tie with it again.
     =.  sync  sync(revision +(u.theirs), synced u.theirs)
     =.  readers  (~(put by readers) key sync)
     %-  (slog leaf+"buckets: broker was ahead of us, resending" ~)
@@ -2058,15 +2097,24 @@
   ?+  pole  cor
       [%groups ~]
     ?+  -.sign  cor
-        %kick  (emit [%pass /groups %agent [our.bowl %groups] %watch /v1/groups])
+        %kick  watch-groups
         %fact
       ::  an r-groups fact is [flag r-group]; we only need the flag head.
       =+  !<([=flag:b *] q.cage.sign)
       (recheck-host-subs flag)
+    ::
+    ::  A refusal loses the subscription exactly as a kick does, and losing it
+    ::  is not survivable: these facts are the only thing that calls
+    ::  +recheck-host-subs, which is the only thing that revokes. Without them
+    ::  a reader who loses access keeps a working token until it expires,
+    ::  silently, for as long as the ship runs. Logging it was not a recovery.
         %watch-ack
       ?~  p.sign  cor
-      ((slog leaf+"buckets: groups watch failed" u.p.sign) cor)
+      %-  (slog leaf+"buckets: groups watch refused, retrying" u.p.sign)
+      (emit [%pass /groups/retry %arvo %b %wait (add now.bowl groups-retry)])
     ==
+  ::
+
   ::
       [%buckets %sub host=@ name=@ ~]
     =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
@@ -2201,7 +2249,7 @@
     ::  A stale write is not a failure -- it answers 200 with the revision it
     ::  kept, and adopting that is how we catch up.
     ?:  &((gte code 200) (lth code 300))
-      (confirm-reader key sent theirs)
+      (confirm-reader key sent theirs (broker-applied res))
     ::  Only a success may confirm. An error body carries no revision under
     ::  the broker's contract, and adopting one from a rejection would install
     ::  a grant it just refused. Falling behind is recovered on the success
@@ -2214,6 +2262,12 @@
     ::  answer, so stop owing it and tell anyone waiting.
     %-  (slog leaf+"buckets: reader sync rejected, status {<code>}" ~)
     (fail-reader key sent)
+  ::
+      [%groups %retry ~]
+    ?.  ?=([%behn %wake *] sign-arvo)  cor
+    ::  Ask again whether or not we still lack it; a subscription we already
+    ::  hold answers with a %watch-ack we ignore.
+    watch-groups
   ::
       [%buckets %reader-retry ~]
     ?.  ?=([%behn %wake *] sign-arvo)  cor

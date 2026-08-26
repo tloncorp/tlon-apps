@@ -174,6 +174,22 @@
   :+  %finished  [code ~]
   `['application/json' [(met 3 body) body]]
 ::
+::  +iris-receipt: the broker's full answer to a sync, which says outright
+::  whether it took the write rather than leaving it to be inferred.
+::
+++  iris-receipt
+  |=  [revision=@ud applied=?]
+  ^-  sign-arvo
+  =/  body=@t
+    %-  en:json:html
+    %-  pairs:enjs:format
+    :~  ['currentRevision' (numb:enjs:format revision)]
+        ['applied' b+applied]
+    ==
+  :+  %iris  %http-response
+  :+  %finished  [200 ~]
+  `['application/json' [(met 3 body) body]]
+::
 ::  +iris-refusal: the broker's shape for a failure it has classified.
 ::
 ++  iris-refusal
@@ -1288,6 +1304,92 @@
   %+  ex-equal
     !>([before ~(wyt by readers.st) revision.sync synced.sync])
   !>([1 1 1 0])
+::
+::  The %groups subscription is the only thing that calls +recheck-host-subs,
+::  which is the only thing that revokes. A refusal loses it exactly as a kick
+::  does, so it has to be recovered the same way -- otherwise a reader who
+::  loses access keeps a working token for as long as the ship runs, silently.
+::
+++  test-a-refused-groups-watch-is-retried
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ::  %groups refuses the subscription
+  ;<  refused=(list card)  b
+    %^    do-agent
+        /groups
+      [~sampel-palnet %groups]
+    [%watch-ack `~[leaf+"no"]]
+  ;<  ~  b
+    %+  ex-cards  refused
+    :~  (ex-arvo /groups/retry [%b %wait (add ~2026.1.1 ~m5)])
+    ==
+  ::  and the wake asks again
+  ;<  again=(list card)  b  (do-arvo /groups/retry [%behn %wake ~])
+  %+  ex-cards  again
+  :~  %-  ex-card
+      :*  %pass  /groups  %agent
+          [~sampel-palnet %groups]  %watch  /v1/groups
+      ==
+  ==
+::
+::  A broker that retains the revision we just sent has not taken our write,
+::  however the numbers compare. This is reachable precisely because pruning
+::  a lapsed record resets our counter while the broker's row persists: the
+::  next grant opens at 1 against a retained 1, and reading that as agreement
+::  hands the client a token the broker never stored.
+::
+++  test-an-equal-retained-revision-is-a-collision-not-agreement
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate genuine-scries)
+  ;<  caz=(list card)  b  (ask 0v6 [%bucket flag [%issue-bucket-read ~]])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ::  the broker answers 200, names the revision we sent, and says it did not
+  ::  take it -- the shape a stale write has after our record was pruned
+  ;<  resent=(list card)  b  (do-arvo wire.push (iris-receipt 1 |))
+  =/  retry=[=wire =request:http]  (only-iris resent)
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  sync=reader-sync:bu  (sync-for st ~sampel-palnet)
+  ::  we go above what it kept rather than settling, and nothing is servable
+  ::  until it says it took one
+  %+  ex-equal
+    !>  :*  revision.sync
+            wire.retry
+            ~(wyt by read-tokens.st)
+        ==
+  !>  :*  2
+          (reader-wire-for ~sampel-palnet 2)
+          0
+      ==
+::
+::  An applied write is still an applied write; the collision check must not
+::  make ordinary success resend forever.
+::
+++  test-an-applied-write-settles
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate genuine-scries)
+  ;<  caz=(list card)  b  (ask 0v6 [%bucket flag [%issue-bucket-read ~]])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  settled=(list card)  b  (do-arvo wire.push (iris-receipt 1 &))
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  sync=reader-sync:bu  (sync-for st ~sampel-palnet)
+  %+  ex-equal
+    !>([revision.sync synced.sync (lent (skim settled |=(c=card ?=([%pass * %arvo %i *] c))))])
+  !>([1 1 0])
 ::
 ::  A record that lapsed while still owed used to be stranded: +owed skipped
 ::  it for being expired, and pruning kept it for never having settled, so it
