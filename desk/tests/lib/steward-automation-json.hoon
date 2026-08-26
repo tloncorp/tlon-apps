@@ -123,45 +123,50 @@
     }
   }
   '''
-++  trace-task-map-json
+::  the %tasks snapshot: ships are object keys, values are the bare
+::  ID-keyed task objects
+::
+++  trace-tasks-update-json
   ^-  @t
   '''
   {
     "tasks": {
-      "trace-at-1": {
-        "agentId": "dev",
-        "name": "Captured one-shot reminder",
-        "enabled": true,
-        "schedule": {
-          "kind": "at",
-          "at": 1785734301000
+      "~zod": {
+        "trace-at-1": {
+          "agentId": "dev",
+          "name": "Captured one-shot reminder",
+          "enabled": true,
+          "schedule": {
+            "kind": "at",
+            "at": 1785734301000
+          },
+          "sessionTarget": "isolated",
+          "wakeMode": "now",
+          "payload": {
+            "kind": "agentTurn",
+            "message": "Send a short reminder."
+          },
+          "createdAtMs": 1785734006665,
+          "updatedAtMs": 1785734006665
         },
-        "sessionTarget": "isolated",
-        "wakeMode": "now",
-        "payload": {
-          "kind": "agentTurn",
-          "message": "Send a short reminder."
-        },
-        "createdAtMs": 1785734006665,
-        "updatedAtMs": 1785734006665
-      },
-      "trace-every-1": {
-        "agentId": "dev",
-        "name": "Captured interval reminder",
-        "enabled": true,
-        "schedule": {
-          "kind": "every",
-          "everyMs": 120000,
-          "anchorMs": 1785735243782
-        },
-        "sessionTarget": "isolated",
-        "wakeMode": "now",
-        "payload": {
-          "kind": "agentTurn",
-          "message": "Send a playful reminder."
-        },
-        "createdAtMs": 1785735243782,
-        "updatedAtMs": 1785740230441
+        "trace-every-1": {
+          "agentId": "dev",
+          "name": "Captured interval reminder",
+          "enabled": true,
+          "schedule": {
+            "kind": "every",
+            "everyMs": 120000,
+            "anchorMs": 1785735243782
+          },
+          "sessionTarget": "isolated",
+          "wakeMode": "now",
+          "payload": {
+            "kind": "agentTurn",
+            "message": "Send a playful reminder."
+          },
+          "createdAtMs": 1785735243782,
+          "updatedAtMs": 1785740230441
+        }
       }
     }
   }
@@ -169,10 +174,15 @@
 ++  trace-action
   ^-  action:v1:a
   [%project ~[['trace-at-1' trace-at-task] ['trace-every-1' trace-every-task]]]
-++  trace-task-map
-  ^-  task-map:v1:a
-  %-  ~(gas by *(map @t task:v1:a))
+++  trace-tasks
+  ^-  tasks:v1:a
+  %-  ~(gas by *tasks:v1:a)
   ~[['trace-at-1' trace-at-task] ['trace-every-1' trace-every-task]]
+::  a moon-class ship (~doznec-dozzod-dozdev, a moon of ~dev): fixture-
+::  anchoring one alongside ~zod keeps a symmetric codec bug in ship
+::  rendering from hiding behind the round-trips
+::
+++  moon  ^-  ship  (add ~dev (bex 32))
 ::
 ::  the two production marks are deliberately thin wrappers around these
 ::  helpers. importing /mar files as test libraries is not supported by the
@@ -303,42 +313,99 @@
         }
       }
       '''
-++  test-trace-task-map-grows-ids-as-keys-only
-  =/  actual=json  (task-map:enjs:aj trace-task-map)
+::
+::  %steward-automation-update-1: every variant identifies itself and
+::  the ship it touches; %tasks carries the complete ship-keyed state
+::
+++  test-update-tasks-grows-ships-and-ids-as-keys
+  =/  update=update:v1:a
+    [%tasks (~(put by *(map ship tasks:v1:a)) ~zod trace-tasks)]
+  =/  actual=json  (update:enjs:aj update)
   ;:  weld
-    (expect-eq !>((parse-json trace-task-map-json)) !>(actual))
-    (expect-eq !>(trace-task-map) !>((task-map:dejs:aj actual)))
+    (expect-eq !>((parse-json trace-tasks-update-json)) !>(actual))
+    (expect-eq !>(update) !>((update:dejs:aj actual)))
   ==
-++  test-populated-task-map-serializes-id-as-key-only
-  =/  tasks=(map @t task:v1:a)
-    (~(put by *(map @t task:v1:a)) 'map-id' named-task)
+++  test-update-empty-tasks-serializes-as-empty-object
+  =/  update=update:v1:a  [%tasks *(map ship tasks:v1:a)]
+  =/  expected=json  (parse-json '{"tasks": {}}')
+  ;:  weld
+    (expect-eq !>(expected) !>((update:enjs:aj update)))
+    (expect-eq !>(update) !>((update:dejs:aj expected)))
+  ==
+++  test-update-set-carries-ship-id-and-task
+  =/  update=update:v1:a  [%set ~zod 'map-id' named-task]
   =/  expected=json
     %-  parse-json
     '''
     {
-      "tasks": {
-        "map-id": {
+      "set": {
+        "ship": "~zod",
+        "id": "map-id",
+        "task": {
           "name": "Named task"
         }
       }
     }
     '''
-  =/  actual=json  (task-map:enjs:aj tasks)
   ;:  weld
-    (expect-eq !>(expected) !>(actual))
-    (expect-eq !>(tasks) !>((task-map:dejs:aj actual)))
+    (expect-eq !>(expected) !>((update:enjs:aj update)))
+    (expect-eq !>(update) !>((update:dejs:aj expected)))
   ==
-++  test-empty-task-map-serializes-as-empty-object
-  =/  tasks=task-map:v1:a  *(map @t task:v1:a)
+++  test-update-del-carries-ship-and-id
+  =/  update=update:v1:a  [%del ~zod 'map-id']
+  =/  expected=json
+    (parse-json '{"del": {"ship": "~zod", "id": "map-id"}}')
+  ;:  weld
+    (expect-eq !>(expected) !>((update:enjs:aj update)))
+    (expect-eq !>(update) !>((update:dejs:aj expected)))
+  ==
+++  test-update-gone-carries-ship-only
+  =/  update=update:v1:a  [%gone ~zod]
+  =/  expected=json  (parse-json '{"gone": {"ship": "~zod"}}')
+  ;:  weld
+    (expect-eq !>(expected) !>((update:enjs:aj update)))
+    (expect-eq !>(update) !>((update:dejs:aj expected)))
+  ==
+++  test-update-moon-ship-fixture
+  =/  update=update:v1:a  [%gone moon]
+  =/  expected=json
+    (parse-json '{"gone": {"ship": "~doznec-dozzod-dozdev"}}')
+  ;:  weld
+    (expect-eq !>(expected) !>((update:enjs:aj update)))
+    (expect-eq !>(update) !>((update:dejs:aj expected)))
+  ==
+++  test-update-round-trips-all-variants
+  =/  populated=(map ship tasks:v1:a)
+    %-  ~(gas by *(map ship tasks:v1:a))
+    ~[[~zod trace-tasks] [moon *tasks:v1:a]]
+  =/  all=(list update:v1:a)
+    :~  [%tasks populated]
+        [%tasks *(map ship tasks:v1:a)]
+        [%set ~zod 'trace-at-1' trace-at-task]
+        [%set moon 'trace-every-1' trace-every-task]
+        [%del ~zod 'trace-at-1']
+        [%del moon 'trace-at-1']
+        [%gone ~zod]
+        [%gone moon]
+    ==
+  %+  expect-eq
+    !>(all)
+  !>((turn all |=(u=update:v1:a (update:dejs:aj (update:enjs:aj u)))))
+::
+::  +tasks-object grows the bare ID-keyed object, no wrapper key; its
+::  dejs counterpart lives inline in the +update %tasks parser
+::
+++  test-tasks-object-grows-ids-as-keys-only
+  =/  tasks=tasks:v1:a
+    (~(put by *tasks:v1:a) 'map-id' named-task)
   =/  expected=json
     %-  parse-json
     '''
     {
-      "tasks": {}
+      "map-id": {
+        "name": "Named task"
+      }
     }
     '''
-  ;:  weld
-    (expect-eq !>(expected) !>((task-map:enjs:aj tasks)))
-    (expect-eq !>(tasks) !>((task-map:dejs:aj expected)))
-  ==
+  (expect-eq !>(expected) !>((tasks-object:enjs:aj tasks)))
 --
