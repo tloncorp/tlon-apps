@@ -65,7 +65,11 @@ import {
   createSettingsManager,
 } from '../settings.js';
 import { sharedSlot } from '../shared-state.js';
-import { resolveSilentFailureNotice } from '../silent-failure-notice.js';
+import {
+  resolveSilentFailureNotice,
+  resolveTurnTerminalLensStatus,
+  rewriteGenericTerminalErrorReply,
+} from '../silent-failure-notice.js';
 import {
   canonicalizeNest,
   normalizeShip,
@@ -3393,6 +3397,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                           contextLenses.setStatus(lens.lensId, 'delivering');
                           const blob = getReplyBlob(payload);
                           let replyText = payload.text ?? '';
+                          replyText = rewriteGenericTerminalErrorReply({
+                            text: replyText,
+                            isError: payload.isError === true,
+                            timedOut: dispatchTimedOut,
+                            durationMs: Date.now() - dispatchStartTime,
+                            timeoutMs: dispatchTimeoutMs,
+                          });
                           if (!replyText && !blob) {
                             const hasMedia = Array.isArray(payload.mediaUrls)
                               ? payload.mediaUrls.length > 0
@@ -3665,14 +3676,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           turnSummary,
           dispatchError,
         });
-        if (dispatchTimedOut) {
-          contextLenses.setStatus(lens.lensId, 'timed_out', dispatchError);
-        } else if (!dispatchError) {
-          contextLenses.setStatus(
-            lens.lensId,
-            effectiveDeliveredCount > 0 ? 'completed' : 'no_reply'
-          );
-        }
+        contextLenses.setStatus(
+          lens.lensId,
+          resolveTurnTerminalLensStatus({
+            summary: turnSummary,
+            deliveredCount: effectiveDeliveredCount,
+            dispatchError,
+            timedOut: dispatchTimedOut,
+          }),
+          dispatchError
+        );
         const finalLens = contextLenses.get(lens.lensId);
         if (finalLens) {
           logContextLens(lens.lensId, 'final');
@@ -3687,7 +3700,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         });
         if (notice) {
           runtime.log?.(
-            `[tlon] Silent tool-failure turn ${turnSummary.runId}; notifying owner`
+            `[tlon] Terminal no-reply turn ${turnSummary.runId}; notifying owner`
           );
           await sendOwnerNotification(notice);
         }

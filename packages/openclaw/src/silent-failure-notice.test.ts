@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveSilentFailureNotice } from './silent-failure-notice.js';
+import {
+  resolveSilentFailureNotice,
+  resolveTurnTerminalLensStatus,
+  rewriteGenericTerminalErrorReply,
+} from './silent-failure-notice.js';
 import type {
   TlonAgentTurnSummary,
   TlonAgentTurnTrigger,
@@ -135,9 +139,41 @@ describe('resolveSilentFailureNotice', () => {
     expect(
       resolveSilentFailureNotice({
         ...incidentInput,
-        summary: makeSummary({ execution: 'timed_out', reason: 'timed_out' }),
+        summary: makeSummary({ execution: 'cancelled', reason: 'cancelled' }),
       })
     ).toBeNull();
+  });
+
+  it('notifies the owner for timeout, run, and delivery failures', () => {
+    expect(
+      resolveSilentFailureNotice({
+        ...incidentInput,
+        summary: makeSummary({
+          execution: 'timed_out',
+          reason: 'timed_out',
+        }),
+      })
+    ).toContain('timed out before I could reply');
+    expect(
+      resolveSilentFailureNotice({
+        ...incidentInput,
+        summary: makeSummary({
+          execution: 'failed',
+          reason: 'dispatch_failed',
+        }),
+      })
+    ).toContain('failed before I could reply');
+    expect(
+      resolveSilentFailureNotice({
+        ...incidentInput,
+        summary: makeSummary({
+          delivery: 'failed',
+          deliveryFailureCount: 1,
+          toolErrorCount: 0,
+          lastToolError: null,
+        }),
+      })
+    ).toContain("couldn't deliver it");
   });
 
   it('collapses newlines and trims the error text', () => {
@@ -166,5 +202,70 @@ describe('resolveSilentFailureNotice', () => {
 
     expect(notice).toContain(`${collapsed.slice(0, 199)}…`);
     expect(notice).not.toContain(collapsed);
+  });
+});
+
+describe('terminal failure presentation', () => {
+  it('rewrites OpenClaw generic failures at the configured deadline', () => {
+    expect(
+      rewriteGenericTerminalErrorReply({
+        text: 'LLM request failed.',
+        isError: true,
+        timedOut: false,
+        durationMs: 300_500,
+        timeoutMs: 300_000,
+      })
+    ).toBe(
+      'The model request timed out after 5 minutes before it could finish. Please try again.'
+    );
+  });
+
+  it('leaves non-error, specific, and early generic replies unchanged', () => {
+    expect(
+      rewriteGenericTerminalErrorReply({
+        text: 'LLM request failed.',
+        isError: false,
+        timedOut: true,
+        durationMs: 300_000,
+        timeoutMs: 300_000,
+      })
+    ).toBe('LLM request failed.');
+    expect(
+      rewriteGenericTerminalErrorReply({
+        text: 'LLM request unauthorized.',
+        isError: true,
+        timedOut: true,
+        durationMs: 300_000,
+        timeoutMs: 300_000,
+      })
+    ).toBe('LLM request unauthorized.');
+    expect(
+      rewriteGenericTerminalErrorReply({
+        text: 'LLM request failed.',
+        isError: true,
+        timedOut: false,
+        durationMs: 10_000,
+        timeoutMs: 300_000,
+      })
+    ).toBe('LLM request failed.');
+  });
+
+  it('marks delivered terminal errors as errors rather than completed', () => {
+    expect(
+      resolveTurnTerminalLensStatus({
+        summary: makeSummary({ result: 'error_reply_and_action' }),
+        deliveredCount: 2,
+        dispatchError: undefined,
+        timedOut: false,
+      })
+    ).toBe('error');
+    expect(
+      resolveTurnTerminalLensStatus({
+        summary: makeSummary(),
+        deliveredCount: 1,
+        dispatchError: undefined,
+        timedOut: false,
+      })
+    ).toBe('completed');
   });
 });
