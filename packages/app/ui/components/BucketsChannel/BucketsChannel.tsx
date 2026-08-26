@@ -37,6 +37,8 @@ export type BucketItem = {
   itemCount?: number;
   mimeType?: string;
   previewUri?: string;
+  /** Bytes, from the manifest. Present for published files. */
+  size?: number;
   textContent?: string;
   uploadError?: string;
   uploadProgress?: number;

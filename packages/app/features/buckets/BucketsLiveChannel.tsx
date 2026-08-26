@@ -20,7 +20,7 @@ import {
   ScreenHeader,
   XStack,
   YStack,
-  getBucketPreviewKind,
+  canPreviewAsText,
   useCanWrite,
   useCurrentUserId,
   useHideChannelHeader,
@@ -65,6 +65,7 @@ function toItem(
     // Files are always fetched through a short-lived read grant, so there is
     // no URL to show until one is issued.
     previewUri: undefined,
+    size: entry.file.size,
     sizeLabel: formatFileSize(entry.file.size),
     uploadSize: entry.file.status === 'pending' ? entry.file.size : undefined,
     uploadError:
@@ -238,8 +239,10 @@ export function BucketsLiveChannel({
       const readableItem = { ...item, previewUri };
       setPreviewItem(readableItem);
 
+      // Checked against the manifest size before fetching, not after: the
+      // read itself is what would exhaust memory.
       if (
-        getBucketPreviewKind(readableItem) === 'text' &&
+        canPreviewAsText(readableItem) &&
         readableItem.textContent === undefined
       ) {
         const response = await fetch(previewUri);
