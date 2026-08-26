@@ -379,6 +379,52 @@ class TlonToolGuardTests(unittest.TestCase):
         self.assertIn("never claim an image was posted unless", platform_hint)
         self.assertIn("cannot store uploads", platform_hint)
 
+    def test_platform_hint_advertises_product_guide_only_when_registered(self):
+        # The guide ships in the OpenClaw plugin tree, which a Hermes install
+        # may not have. Pointing the model at a skill_view that can't resolve
+        # would turn every product question into a failed tool call, so the
+        # hint fragment has to track the registration.
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+                self.skills: list[str] = []
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, name, *_args, **_kwargs):
+                self.skills.append(name)
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        marker = 'skill_view("tlon-platform:tlon-product-guide")'
+
+        found = RecordingContext()
+        with patch.object(
+            adapter_mod,
+            "resolve_tlon_product_guide_path",
+            return_value=Path("/plugin/skills/tlon-product-guide/SKILL.md"),
+        ):
+            adapter_mod.register(found)
+        self.assertIn("tlon-product-guide", found.skills)
+        self.assertIn(marker, found.platform["platform_hint"])
+
+        missing = RecordingContext()
+        with patch.object(
+            adapter_mod, "resolve_tlon_product_guide_path", return_value=None
+        ):
+            adapter_mod.register(missing)
+        self.assertNotIn("tlon-product-guide", missing.skills)
+        self.assertNotIn(marker, missing.platform["platform_hint"])
+        # The rest of the hint is unaffected by the guide's absence.
+        self.assertIn(
+            'skill_view("tlon-platform:tlon")', missing.platform["platform_hint"]
+        )
+
     def test_tool_description_includes_latex_guidance(self):
         description = tlon_tool.TLON_TOOL_DESCRIPTION
 
@@ -1544,6 +1590,61 @@ class TlonSkillPathTests(unittest.TestCase):
                 tlon_tool.resolve_tlon_skill_path({"TLON_SKILL_DIR": str(skill_dir)}),
                 skill,
             )
+
+    def test_resolve_tlon_product_guide_path_uses_explicit_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            guide = Path(tmp) / "SKILL.md"
+            guide.write_text("# Tlon Messenger\n", encoding="utf-8")
+
+            self.assertEqual(
+                tlon_tool.resolve_tlon_product_guide_path(
+                    {"TLON_PRODUCT_GUIDE_PATH": str(guide)}
+                ),
+                guide,
+            )
+
+    def test_resolve_tlon_product_guide_path_uses_plugin_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = Path(tmp) / "openclaw"
+            guide = plugin_dir / "skills" / "tlon-product-guide" / "SKILL.md"
+            guide.parent.mkdir(parents=True)
+            guide.write_text("# Tlon Messenger\n", encoding="utf-8")
+
+            self.assertEqual(
+                tlon_tool.resolve_tlon_product_guide_path(
+                    {"TLON_PLUGIN_DIR": str(plugin_dir)}
+                ),
+                guide,
+            )
+
+    def test_resolve_tlon_product_guide_path_falls_back_to_sibling_package(self):
+        # No env pointing anywhere: the monorepo layout (this adapter and the
+        # OpenClaw plugin as sibling packages) has to resolve on its own. This
+        # is the assertion that breaks if the skill directory is ever moved or
+        # renamed inside the plugin.
+        resolved = tlon_tool.resolve_tlon_product_guide_path({})
+
+        self.assertIsNotNone(resolved)
+        assert resolved is not None
+        self.assertTrue(resolved.is_file())
+        self.assertEqual(resolved.parent.name, "tlon-product-guide")
+
+    def test_resolve_tlon_product_guide_path_absent_without_plugin_tree(self):
+        # A Hermes deployment that installs the adapter without the OpenClaw
+        # plugin registers no product-guide skill rather than failing to boot.
+        # The sibling fallback resolves inside this monorepo, so point the
+        # search at a tree that has neither.
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter_dir = Path(tmp) / "packages" / "hermes-tlon-adapter"
+            adapter_dir.mkdir(parents=True)
+            with patch.object(
+                tlon_tool, "__file__", str(adapter_dir / "tlon_tool.py")
+            ):
+                self.assertIsNone(
+                    tlon_tool.resolve_tlon_product_guide_path(
+                        {"TLON_PLUGIN_DIR": str(Path(tmp) / "nonexistent")}
+                    )
+                )
 
 
 class TlonSessionGateTests(unittest.TestCase):

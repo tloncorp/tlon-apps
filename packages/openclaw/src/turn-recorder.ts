@@ -87,10 +87,12 @@ export type TlonAgentTurnSummary = TlonAgentTurnStart & {
   durationMs: number;
   execution: TlonAgentTurnExecution;
   finalErrorReplyCount: number;
+  lastToolError: { toolName: string; message: string } | null;
   reason: TlonAgentTurnReason;
   result: TlonAgentTurnResult;
   sourceReplyCount: number;
   toolCallCount: number;
+  toolErrorCount: number;
 };
 
 export type TlonAgentTurnObserver = {
@@ -104,10 +106,12 @@ type TlonAgentTurnState = TlonAgentTurnStart & {
   finalErrorReplyCount: number;
   finalNonErrorReplyCount: number;
   finalized: boolean;
+  lastToolError: { toolName: string; message: string } | null;
   outputCount: number;
   sourceReplyCount: number;
   summary: TlonAgentTurnSummary | null;
   toolCallCount: number;
+  toolErrorCount: number;
 };
 
 type MetricAttributes = Record<string, string>;
@@ -319,6 +323,7 @@ function buildSummary(
     durationMs: Math.max(0, terminal.durationMs),
     execution,
     finalErrorReplyCount: state.finalErrorReplyCount,
+    lastToolError: state.lastToolError,
     reason: resolveReason({
       delivery,
       execution,
@@ -331,6 +336,7 @@ function buildSummary(
     ship: state.ship,
     sourceReplyCount: state.sourceReplyCount,
     toolCallCount: state.toolCallCount,
+    toolErrorCount: state.toolErrorCount,
     trigger: state.trigger,
   };
 }
@@ -405,6 +411,7 @@ export function createTlonAgentTurnOtelObserver(options?: {
           'tlon.turn.ship': summary.ship,
           'tlon.turn.source_reply_count': summary.sourceReplyCount,
           'tlon.turn.tool_call_count': summary.toolCallCount,
+          'tlon.turn.tool_error_count': summary.toolErrorCount,
           'tlon.turn.trigger': summary.trigger,
         });
       });
@@ -427,10 +434,12 @@ export function startTlonAgentTurn(
     finalErrorReplyCount: 0,
     finalNonErrorReplyCount: 0,
     finalized: false,
+    lastToolError: null,
     outputCount: 0,
     sourceReplyCount: 0,
     summary: null,
     toolCallCount: 0,
+    toolErrorCount: 0,
   };
 
   safeObserve(() => observer.recordStarted(state));
@@ -477,9 +486,20 @@ export function recordActiveTlonTurnSourceReply(reply?: {
   });
 }
 
-export function recordActiveTlonTurnToolCall(): void {
+export function recordActiveTlonTurnToolCall(update?: {
+  toolName?: string;
+  errorMessage?: string;
+}): void {
   updateActiveTurn((state) => {
     state.toolCallCount += 1;
+    const errorMessage = update?.errorMessage;
+    if (typeof errorMessage === 'string' && errorMessage.trim()) {
+      state.toolErrorCount += 1;
+      state.lastToolError = {
+        toolName: update?.toolName || 'unknown',
+        message: errorMessage,
+      };
+    }
   });
 }
 

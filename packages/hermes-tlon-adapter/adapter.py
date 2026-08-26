@@ -229,6 +229,7 @@ from .tlon_tool import (
     check_tlon_tool_requirements,
     diary_target_blocked_message,
     handle_tlon_tool,
+    resolve_tlon_product_guide_path,
     resolve_tlon_skill_path,
     set_diary_migration_notification_sender,
     split_tlon_command,
@@ -5351,6 +5352,35 @@ def register(ctx) -> None:
             description="Tlon CLI command guide for the Hermes tlon tool.",
         )
 
+    # Registered separately from the CLI skill above, not merged into it: this
+    # one carries no commands and answers "what is Tlon Messenger / how does
+    # this feature work", so it has to be selectable on its own. It ships in
+    # the OpenClaw plugin tree, which a Hermes deployment may not have — hence
+    # the None check rather than a hard requirement.
+    product_guide_path = resolve_tlon_product_guide_path()
+    if product_guide_path is not None:
+        ctx.register_skill(
+            "tlon-product-guide",
+            product_guide_path,
+            description=(
+                "Tlon Messenger product guide: what Tlon, Urbit, Tlon Messenger "
+                "and Tlonbot are, how features work, and how to walk a user "
+                "through a task in the app."
+            ),
+        )
+
+    # Derived from the registration above rather than written into the hint
+    # unconditionally: a deployment without the plugin tree registers no such
+    # skill, and pointing the model at a skill_view that cannot resolve turns
+    # every product question into a failed tool call.
+    product_guide_hint = (
+        "When the user asks what Tlon Messenger is or how one of its features "
+        "works, rather than asking you to do something, load "
+        'skill_view("tlon-platform:tlon-product-guide") and answer from it. '
+        if product_guide_path is not None
+        else ""
+    )
+
     ctx.register_platform(
         name="tlon",
         label="Tlon",
@@ -5387,7 +5417,8 @@ def register(ctx) -> None:
             "For Tlon reads and administration, use the tlon tool; if unsure, "
             "load skill_view(\"tlon-platform:tlon\") or run a tlon subcommand "
             "with --help. "
-            "When a user asks you to create a Tlon group for them, use "
+            + product_guide_hint
+            + "When a user asks you to create a Tlon group for them, use "
             "groups create-owned with --owner set to that user's ship so they "
             "are invited and made admin. "
             "To reply to the current conversation, just write your reply and "

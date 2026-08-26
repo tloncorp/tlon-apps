@@ -7,6 +7,8 @@ description: Interact with Tlon/Urbit API. Use for reading activity, message his
 
 Use the `tlon` command for reading data, managing channels/groups/contacts, and administration.
 
+This skill is about *operating* a node. Questions about what Tlon Messenger is, how a feature works, or how to walk someone through a task in the app belong to the `tlon-product-guide` skill — reach for that one when the user wants an explanation rather than an action. It ships with the OpenClaw plugin, and registers as `tlon-platform:tlon-product-guide` under Hermes. It is not always installed: a Hermes deployment that has this CLI but not the plugin tree won't have it. Check the skills available to you rather than assuming, and if it isn't there, answer the product question yourself instead of loading a skill that doesn't exist.
+
 ## Hermes
 
 When running as a Hermes plugin skill, the `tlon` tool is a wrapper around the `tlon` CLI for reading data, administration, management, and proactive posts.

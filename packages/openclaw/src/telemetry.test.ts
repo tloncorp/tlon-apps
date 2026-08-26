@@ -1800,6 +1800,38 @@ describe('telemetry tool tracking', () => {
     });
   });
 
+  it('captures terminal failure notices with kind and delivery outcome', () => {
+    const telemetry = createEnabledTelemetry()!;
+
+    telemetry.captureFailureNotice({
+      harness: 'openclaw',
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      runId: 'run-42',
+      noticeKind: 'tool_error',
+      destinationKind: 'group_channel',
+      suppressedByCooldown: false,
+      delivered: true,
+    });
+
+    expect(postHogMocks.capture).toHaveBeenLastCalledWith({
+      distinctId: '~zod',
+      event: 'TlonBot Failure Notice',
+      properties: expect.objectContaining({
+        harness: 'openclaw',
+        accountId: 'default',
+        ownerShip: '~zod',
+        botShip: '~nec',
+        runId: 'run-42',
+        noticeKind: 'tool_error',
+        destinationKind: 'group_channel',
+        suppressedByCooldown: false,
+        delivered: true,
+      }),
+    });
+  });
+
   it('captures telemetry observer failures', () => {
     const telemetry = createEnabledTelemetry()!;
     bindErrorReporter(telemetry);

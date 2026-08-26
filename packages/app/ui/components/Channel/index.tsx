@@ -59,10 +59,7 @@ import {
   DraftInputHandle,
   GalleryDraftType,
 } from '../draftInputs/shared';
-import {
-  ConnectedPostView,
-  PostCollectionHandle,
-} from '../postCollectionViews/shared';
+import { PostCollectionHandle } from '../postCollectionViews/shared';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { ContextLensPanel, useContextLensController } from './ContextLens';
 import { DmInviteOptions } from './DmInviteOptions';
@@ -938,7 +935,7 @@ export function Channel({
                                         selectedPostId,
                                         setEditingPost,
                                         LegacyPostView: PostView,
-                                        PostView: ConnectedPostView,
+                                        PostView,
                                       }}
                                     >
                                       <PostCollectionView

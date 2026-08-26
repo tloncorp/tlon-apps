@@ -78,7 +78,6 @@ export * from './components/Wayfinding/SplashSequence';
 export * from './components/WebAppSplashSheet';
 export * from './components/Wayfinding/TlonBotSetupPaneView';
 export * from './components/WidgetPane';
-export { ConnectedPostView } from './components/postCollectionViews/shared';
 export * from './contexts/groups';
 export * from './contexts/chatOptions';
 export * from './contexts/navigation';

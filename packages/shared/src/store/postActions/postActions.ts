@@ -142,7 +142,11 @@ export function finalizePostDraftUsingLocalAttachments(
 export type PostSendOptions = {
   /** Called after the optimistic post has been added to the session queue. */
   onEnqueued?: () => void;
-  /** Reject when a send is known not to have reached the backend. */
+  /**
+   * Reject after recording a definitive failed send. Interactive controls use
+   * this to restore themselves; ordinary composers retain legacy resolve-on-
+   * failure behavior and expose retry through the failed message row.
+   */
   rejectOnDefinitiveFailure?: boolean;
 };
 
@@ -195,7 +199,6 @@ async function _sendPost({
   existingPost?: db.Post;
   /** Called after the optimistic post has been added to the session queue. */
   onEnqueued?: () => void;
-  /** Reject when delivery is definitively failed rather than uncertain. */
   rejectOnDefinitiveFailure?: boolean;
 }) {
   const authorId = api.getCurrentUserId();
@@ -204,7 +207,7 @@ async function _sendPost({
   if (!channel) {
     logger.trackError('Failed to forward post, unable to find channel');
     if (rejectOnDefinitiveFailure) {
-      throw new Error(`Cannot send post: channel ${channelId} was not found`);
+      throw new Error(`Unable to send post: channel ${channelId} is missing`);
     }
     return;
   }
@@ -448,7 +451,9 @@ async function _sendPost({
       });
     } else {
       await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
-      if (rejectOnDefinitiveFailure) throw e;
+      if (rejectOnDefinitiveFailure) {
+        throw e;
+      }
     }
   }
 }
