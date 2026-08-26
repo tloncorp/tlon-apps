@@ -395,6 +395,7 @@ describe('Tlon agent turn classification', () => {
       durationMs: 1250,
       execution: 'completed',
       finalErrorReplyCount: 0,
+      lastToolError: null,
       reason: 'reply_and_action',
       result: 'reply_and_action',
       runId: 'run-1',
@@ -402,7 +403,86 @@ describe('Tlon agent turn classification', () => {
       ship: 'zod',
       sourceReplyCount: 2,
       toolCallCount: 3,
+      toolErrorCount: 0,
       trigger: 'dm',
+    });
+  });
+});
+
+describe('Tlon agent turn tool error recording', () => {
+  it('accumulates tool errors and retains the latest failing call', () => {
+    const turn = startTlonAgentTurn(
+      { ...baseTurn, runId: 'run-tool-errors' },
+      { observer: noOpObserver }
+    );
+    turn.run(() => {
+      recordActiveTlonTurnToolCall({ toolName: 'tlon' });
+      recordActiveTlonTurnToolCall({
+        toolName: 'tlon',
+        errorMessage: 'TimeoutError: active',
+      });
+      recordActiveTlonTurnToolCall({
+        toolName: 'web_search',
+        errorMessage: 'rate limited',
+      });
+    });
+
+    expect(turn.finalize({ durationMs: 10 })).toMatchObject({
+      toolCallCount: 3,
+      toolErrorCount: 2,
+      lastToolError: { toolName: 'web_search', message: 'rate limited' },
+    });
+  });
+
+  it('never clears a recorded tool error when later calls succeed', () => {
+    const turn = startTlonAgentTurn(
+      { ...baseTurn, runId: 'run-tool-error-retained' },
+      { observer: noOpObserver }
+    );
+    turn.run(() => {
+      recordActiveTlonTurnToolCall({
+        toolName: 'tlon',
+        errorMessage: 'TimeoutError: active',
+      });
+      recordActiveTlonTurnToolCall({ toolName: 'tlon' });
+      recordActiveTlonTurnToolCall();
+    });
+
+    expect(turn.finalize({ durationMs: 10 })).toMatchObject({
+      toolCallCount: 3,
+      toolErrorCount: 1,
+      lastToolError: { toolName: 'tlon', message: 'TimeoutError: active' },
+    });
+  });
+
+  it('keeps argument-less calls counting only tool calls', () => {
+    expect(recordTurn({ toolCount: 2 })).toMatchObject({
+      execution: 'completed',
+      result: 'action_only',
+      toolCallCount: 2,
+      toolErrorCount: 0,
+      lastToolError: null,
+    });
+  });
+
+  it('carries tool error fields into the summary', () => {
+    const turn = startTlonAgentTurn(
+      { ...baseTurn, runId: 'run-tool-error-summary' },
+      { observer: noOpObserver }
+    );
+    turn.run(() => {
+      recordActiveTlonTurnToolCall({
+        toolName: 'tlon',
+        errorMessage: 'TimeoutError: active',
+      });
+    });
+
+    const summary = turn.finalize({ durationMs: 10 });
+    expect(summary.toolCallCount).toBe(1);
+    expect(summary.toolErrorCount).toBe(1);
+    expect(summary.lastToolError).toEqual({
+      toolName: 'tlon',
+      message: 'TimeoutError: active',
     });
   });
 });
@@ -617,6 +697,7 @@ describe('Tlon agent turn OTEL observer', () => {
       'tlon.turn.ship': 'zod',
       'tlon.turn.source_reply_count': 1,
       'tlon.turn.tool_call_count': 0,
+      'tlon.turn.tool_error_count': 0,
       'tlon.turn.trigger': 'dm',
     });
   });
