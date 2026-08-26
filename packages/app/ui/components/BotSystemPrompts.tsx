@@ -130,11 +130,16 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
         size="$label/m"
         color="$secondaryText"
         paddingHorizontal="$l"
+        marginTop="$l"
         paddingBottom="$m"
       >
         System prompts
       </Text>
-      <YStack borderRadius="$2xl" backgroundColor="$background">
+      <YStack
+        borderRadius="$2xl"
+        backgroundColor="$background"
+        paddingVertical="$m"
+      >
         {prompts.map((prompt) => (
           <Pressable
             key={prompt.name}
