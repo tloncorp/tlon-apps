@@ -379,8 +379,18 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         await completeBucketUpload(brokerReservationId);
         brokerCompleted = true;
         updateLocalUpload(id, { progress: 100 });
-        await refresh();
-        retireUpload(id, 'completed');
+        // Nothing further here on purpose. The host broadcasts the published
+        // entry and reconcileUploads retires this row once it arrives, with
+        // the revision-gap path covering a fact we miss.
+        //
+        // Refreshing was the one thing that could throw after the upload had
+        // genuinely succeeded, and the catch then marked the row failed while
+        // it still held serverEntryId -- which arms Retry to delete the real
+        // manifest entry and orphan its object. Retiring the row here instead
+        // would leave a moment showing neither the row nor the entry, and if
+        // the fact never came, the file would simply be missing; leaving the
+        // row until the manifest has it makes that case a visible stuck
+        // upload rather than a vanished file.
       } catch (cause) {
         tasksRef.current.delete(id);
         const cancelled = cancelledRef.current.has(id);
@@ -414,7 +424,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         }
       }
     },
-    [flag, flagKey, refresh, retireUpload, updateLocalUpload]
+    [flag, flagKey, refresh, updateLocalUpload]
   );
 
   const addUploads = useCallback(
