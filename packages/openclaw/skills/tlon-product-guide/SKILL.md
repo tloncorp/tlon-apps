@@ -131,7 +131,7 @@ A group is a social space with members, roles, and channels. There are four chan
 
 Bulletin is the older of the two writing channels, and it used to be called Notebook. A node that hasn't picked up the notebooks update yet still shows it under the old name and doesn't offer the new one.
 
-Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can read and work with them (where you've given it access). Bulletins are half-supported: a bot can still reply in one when it's spoken to, but the tooling it uses to go read a channel or manage it treats them as deprecated. So expect conversation to work and "catch me up on that Bulletin" not to. Migrating it to a Notebook closes the gap.
+Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can read and work with them (where you've given it access). Bulletins are half-supported: a bot can still reply in one when it's spoken to, but the tooling it uses to go read a channel or manage it treats them as deprecated. So expect conversation to work and "catch me up on that Bulletin" not to. Migrating it to a Notebook closes the gap, but read the warning under `/migrate` first — it copies less than you'd expect.
 
 ### Make a group
 
@@ -238,7 +238,7 @@ You control who it listens to — tell it in a DM which members it may respond t
 
 ### Slash commands
 
-These are all owner-only, and approving a member to talk to the bot doesn't hand them the commands.
+The access and moderation commands below are owner-only, and approving a member to talk to the bot doesn't hand them those. The last few — `/model`, `/new` and the other built-ins — are a different layer: they belong to the bot's harness rather than to Tlon, and some deployments let an admin or an allowlisted member use them. So don't promise an owner that nobody else can ever reset their session; if that matters to them, it's a question about their bot's configuration.
 
 Treat the forms below as the baseline rather than the complete list. Bots run on more than one setup, and some accept extra forms of the same command. If a user reports one that isn't here, don't tell them it doesn't exist — have them try it, or check with `/help`. What another member sees when they try one varies: sometimes an owner-only message, sometimes nothing at all, because the gateway drops unauthorized commands before the bot answers. Don't promise them an explanation — say it won't work for them.
 
@@ -263,7 +263,7 @@ Bot behavior:
 - `/model` — show or change the AI model  
 - `/new` — clear context and start a fresh session  
 - `/tlon version` — show which harness and plugin build is running. Bare `/tlon` just prints usage. Note for support conversations: it reports the code, not this guide. Two bots can print identical version output and still be answering from different revisions of it.  
-- `/migrate diary/~host/name` — migrate a legacy Bulletin to a Notebook (owner only). It needs the channel's full nest, starting with `diary/`; a title or short name just prints usage. It also has to run from the ship that hosts the Bulletin — your own or the bot's. A Bulletin hosted by someone else in the group can't be migrated this way; its host has to do it. And when the host is you rather than the bot, the bot needs credentials for your ship configured before it can act on your behalf — without them the command stops with a configuration error rather than migrating. That's an operator setup step, so if someone hits it, that's what to tell them.
+- `/migrate diary/~host/name` — migrate a legacy Bulletin to a Notebook (owner only). **Say what this costs before anyone runs it.** It copies the posts and little else: comments, reactions, post references, link blocks, descriptions, covers and attachments all stay behind on the archive. Every migrated note is authored by the ship that ran the command, whoever wrote the original, and dated at import time, ordered by import rather than by when things were posted. Group mentions flatten to plain text. Some permission layouts can't be carried over without turning every reader into an editor. Nothing is destroyed — the original stays put, writable, renamed with `-ARCHIVE` — but the result is a fresh notebook holding the text, not a converted channel. The command prints this too, only after it has already started. It needs the channel's full nest, starting with `diary/`; a title or short name just prints usage. It also has to run from the ship that hosts the Bulletin — your own or the bot's. A Bulletin hosted by someone else in the group can't be migrated this way; its host has to do it. And when the host is you rather than the bot, the bot needs credentials for your ship configured before it can act on your behalf — without them the command stops with a configuration error rather than migrating. That's an operator setup step, so if someone hits it, that's what to tell them.
 
 ### Models and API keys
 
@@ -317,7 +317,9 @@ If you don't want Tlon to host you, you can self-host on Native Planet hardware,
 
 ### What if Tlon disappears?
 
-You won't lose your apps or your messages. Tlon Messenger is open source and peer-to-peer; the software keeps working even if the company doesn't. Export your node and run it yourself.
+The software survives: Tlon Messenger is open source and peer-to-peer, so it keeps working even if the company doesn't, and a node you already hold runs anywhere.
+
+Your data survives if you've kept a copy. This is the honest version, and it's worth saying plainly rather than reassuring someone into skipping it: on a hosted account your node runs on Tlon's hardware, and the dashboard you'd export it from is Tlon's too. Open source doesn't reconstitute a node nobody has. Export your node archive and master ticket now, keep them somewhere you control, and refresh them from time to time — then the promise is real. Anyone asking this question is asking the right one, and the useful answer is to go do the export today.
 
 Pictures and large files are the exception, and it's worth being straight about it. Nodes can't store them yet, so they live in S3-compatible storage and your messages hold links. Export the node and you export the links, not the files. If that storage is Tlon's, those links are what you'd lose — so anyone who cares about keeping their media should point their node at storage they control, and can do that today in their storage settings.
 
@@ -387,7 +389,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **Does Tlon read my bot's conversations?** No. Your bot's memory lives on your bot's node, and model requests go straight to the provider rather than through a Tlon service that logs them. On a hosted account that node is Tlon-run, so this rests on policy the same way your hosted messages do — see "Does Tlon read my conversations?" above.
 
-**What happens if Tlon disappears?** You won't lose your apps or your messages. The software is open source and peer-to-peer, so it keeps running. Export your node and run it yourself. Pictures and large files are the exception — they live in S3-compatible storage with only links on your node, so if that storage is Tlon's, that's what you'd lose. Point your node at storage you control and it isn't a question.
+**What happens if Tlon disappears?** The software keeps running — it's open source and peer-to-peer — and a node you hold runs anywhere. Your data comes through if you've kept an export: a hosted node lives on Tlon's hardware, so download your node archive and master ticket and keep them somewhere you control rather than counting on doing it later. Pictures and large files are the exception — they live in S3-compatible storage with only links on your node, so if that storage is Tlon's, that's what you'd lose. Point your node at storage you control and it isn't a question.
 
 ---
 
