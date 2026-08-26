@@ -708,6 +708,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // publish, or a key cleared while this process stayed alive, would
           // otherwise persist until a restart. Fire-and-forget and non-fatal.
           void publishBotInfoNow('reconnect');
+          if (event.rebuilt && promptSync) {
+            // A reaped channel was rebuilt: a resume replays the facts Eyre
+            // retained, but a rebuild cannot — an owner %set facted into the
+            // dead channel is gone. connect() re-created the prompt watch
+            // before this fires, so the reconcile's scry can't race it.
+            runtime.log?.(
+              '[tlon] SSE channel rebuilt; re-running prompt reconcile'
+            );
+            promptSync.startup().catch((error) => {
+              runtime.error?.(
+                `[tlon] Prompt reconcile after channel rebuild failed: ${String(error)}`
+              );
+            });
+          }
           if (event.attempt > 0 || (event.downtimeMs ?? 0) > 0) {
             capturePluginError(
               'sse_stream',
@@ -4824,7 +4838,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // (ownerShip, falling back to contextLens.owner), so every
           // configure path agrees on the one core owner.
           owner: resolveLensOwner(cfg, account.accountId),
-          scry: (path) => api!.scry(path),
+          // Forward the teardown signal so an in-flight scry (30s default
+          // timeout) aborts promptly instead of stalling monitor teardown.
+          scry: (path) =>
+            api!.scry(
+              path,
+              opts.abortSignal ? { signal: opts.abortSignal } : {}
+            ),
           poke: (params) => api!.poke(params),
           logger: {
             log: (message) => runtime.log?.(message),

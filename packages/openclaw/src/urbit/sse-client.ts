@@ -40,6 +40,14 @@ export type StreamRecoveryEvent = {
   idleMs?: number;
   /** reconnected: how long the stream was down. */
   downtimeMs?: number;
+  /**
+   * reconnected: true when the channel was rebuilt from scratch (reaped on
+   * the ship) rather than resumed. A resume replays the events Eyre
+   * retained while the stream was down; a rebuild cannot — facts emitted
+   * into the dead channel are gone, so consumers with a scryable source of
+   * truth should reconcile from it.
+   */
+  rebuilt?: boolean;
   error?: unknown;
 };
 
@@ -1225,6 +1233,7 @@ export class UrbitSSEClient {
         phase: 'reconnected',
         attempt,
         downtimeMs,
+        rebuilt: rebuild,
       });
     } catch (error) {
       // An abort-induced fetch rejection must not emit reconnect_failed after
