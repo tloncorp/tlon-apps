@@ -1,5 +1,6 @@
 import { useBranch, useSignupParams } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { useAgentGroupOnboardingNavGate } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
 import {
   getTopLevelTabRoute,
   useTypedReset,
@@ -16,9 +17,20 @@ export const useDeepLinkListener = () => {
   const signupParams = useSignupParams();
   const { clearLure, lure } = useBranch();
   const reset = useTypedReset();
+  const {
+    locked: agentOnboardingLocked,
+    isLoading: agentOnboardingLockLoading,
+    runWhenUnlocked,
+  } = useAgentGroupOnboardingNavGate();
 
   useEffect(() => {
-    if (ship && lure && !isHandlingLinkRef.current) {
+    if (
+      ship &&
+      lure &&
+      !agentOnboardingLocked &&
+      !agentOnboardingLockLoading &&
+      !isHandlingLinkRef.current
+    ) {
       (async () => {
         isHandlingLinkRef.current = true;
         logger.log(`handling deep link`, lure, signupParams);
@@ -29,11 +41,14 @@ export const useDeepLinkListener = () => {
         if (!lure.inviteOpenedTracked) {
           trackEvent(AnalyticsEvent.InviteOpened);
         }
+        let deferredForOnboarding = false;
         try {
-          if (lure.shouldAutoJoin || !ship) {
-            // if the lure was clicked prior to authenticating, no-op for now.
-            // Hosting will handle once the user signs up.
-          } else {
+          const { ran } = await runWhenUnlocked(async () => {
+            if (lure.shouldAutoJoin || !ship) {
+              // if the lure was clicked prior to authenticating, no-op for now.
+              // Hosting will handle once the user signs up.
+              return;
+            }
             // otherwise, treat it as a deeplink and navigate
             if (lure.inviteType === 'user') {
               const inviter = lure.inviterUserId;
@@ -64,14 +79,26 @@ export const useDeepLinkListener = () => {
                 reset([getTopLevelTabRoute('ChatList', { previewGroupId })]);
               }
             }
-          }
+          });
+          deferredForOnboarding = !ran;
         } catch (e) {
           logger.error('Failed to handle deep link', lure, e);
         } finally {
-          clearLure({ preserveFetching: true });
+          if (!deferredForOnboarding) {
+            clearLure({ preserveFetching: true });
+          }
           isHandlingLinkRef.current = false;
         }
       })();
     }
-  }, [ship, signupParams, clearLure, lure, reset]);
+  }, [
+    agentOnboardingLocked,
+    agentOnboardingLockLoading,
+    runWhenUnlocked,
+    ship,
+    signupParams,
+    clearLure,
+    lure,
+    reset,
+  ]);
 };

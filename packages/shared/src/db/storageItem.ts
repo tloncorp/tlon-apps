@@ -144,12 +144,18 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   }
 
   function useStorageItem() {
-    const { data: value, isLoading: queryIsLoading } = useQuery({
+    const {
+      data: value,
+      isError,
+      isLoading: queryIsLoading,
+    } = useQuery({
       queryKey: [key],
       queryFn: () => getValue(),
     });
     // Treat undefined data as still loading to prevent brief flashes of default value
-    const isLoading = queryIsLoading || value === undefined;
+    // during a normal read. On failure, expose the default instead of leaving
+    // consumers behind a permanent loading gate with no recovery path.
+    const isLoading = !isError && (queryIsLoading || value === undefined);
     return {
       value: value === undefined ? defaultValue : value,
       isLoading,
