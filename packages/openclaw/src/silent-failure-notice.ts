@@ -45,19 +45,28 @@ export function resolveSilentFailureNotice(input: {
   if (summary.execution === 'failed') {
     return `⚠️ ${request} failed before I could reply. You may want to retry.`;
   }
-  if (summary.toolErrorCount <= 0) {
-    return null;
+  if (summary.toolErrorCount > 0) {
+    const lastToolError = summary.lastToolError;
+    const toolName = lastToolError?.toolName || 'unknown';
+    const errorText = lastToolError
+      ? formatErrorText(lastToolError.message)
+      : 'unknown error';
+    return (
+      `⚠️ I didn't reply to a request from ${requester} in ${conversation} ` +
+      'and may not have completed it — my last failing tool call was ' +
+      `\`${toolName}\`: ${errorText}. You may want to check or retry.`
+    );
   }
-  const lastToolError = summary.lastToolError;
-  const toolName = lastToolError?.toolName || 'unknown';
-  const errorText = lastToolError
-    ? formatErrorText(lastToolError.message)
-    : 'unknown error';
-  return (
-    `⚠️ I didn't reply to a request from ${requester} in ${conversation} ` +
-    'and may not have completed it — my last failing tool call was ' +
-    `\`${toolName}\`: ${errorText}. You may want to check or retry.`
-  );
+  // DM silence is never legitimate (core's own silent-reply policy), so a
+  // completed DM turn that produced nothing is a dropped answer. Group
+  // silence stays sanctioned — mention-gating depends on it.
+  if (
+    summary.destinationKind === 'dm' &&
+    (summary.result === 'empty' || summary.result === 'intentional_silence')
+  ) {
+    return `⚠️ ${request} ended with no reply — I didn't produce anything to send. You may want to retry.`;
+  }
+  return null;
 }
 
 const NOTICE_COOLDOWN_MS = 15 * 60_000;

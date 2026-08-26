@@ -127,6 +127,61 @@ describe('resolveSilentFailureNotice', () => {
     ).toBeNull();
   });
 
+  it('fires when a DM turn ends empty with nothing to send', () => {
+    expect(
+      resolveSilentFailureNotice({
+        summary: makeSummary({
+          trigger: 'dm',
+          destinationKind: 'dm',
+          result: 'empty',
+          reason: 'empty',
+          toolCallCount: 0,
+          toolErrorCount: 0,
+          lastToolError: null,
+        }),
+        deliveredCount: 0,
+        requester: '~sipnup-litnux',
+        conversation: 'our DM with ~sipnup-litnux',
+      })
+    ).toContain('ended with no reply');
+  });
+
+  it('fires when a DM turn ends in intentional silence', () => {
+    expect(
+      resolveSilentFailureNotice({
+        summary: makeSummary({
+          trigger: 'dm',
+          destinationKind: 'dm',
+          result: 'intentional_silence',
+          reason: 'silent',
+          toolCallCount: 0,
+          toolErrorCount: 0,
+          lastToolError: null,
+        }),
+        deliveredCount: 0,
+        requester: '~sipnup-litnux',
+        conversation: 'our DM with ~sipnup-litnux',
+      })
+    ).not.toBeNull();
+  });
+
+  it('stays silent for empty or intentionally silent group turns', () => {
+    for (const result of ['empty', 'intentional_silence'] as const) {
+      expect(
+        resolveSilentFailureNotice({
+          ...incidentInput,
+          summary: makeSummary({
+            result,
+            reason: result === 'empty' ? 'empty' : 'silent',
+            toolCallCount: 0,
+            toolErrorCount: 0,
+            lastToolError: null,
+          }),
+        })
+      ).toBeNull();
+    }
+  });
+
   it('stays silent when no tool call errored', () => {
     expect(
       resolveSilentFailureNotice({
