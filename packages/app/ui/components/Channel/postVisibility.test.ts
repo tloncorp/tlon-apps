@@ -216,5 +216,13 @@ describe('agent group setup state markers', () => {
         false
       )
     ).toBe(false);
+    expect(
+      isAgentGroupSetupActive(
+        [{ ...request, deliveryStatus: 'failed' }],
+        '~ten',
+        '~bot',
+        false
+      )
+    ).toBe(false);
   });
 });

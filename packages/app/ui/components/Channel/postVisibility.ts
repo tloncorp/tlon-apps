@@ -80,7 +80,14 @@ export function isAgentGroupSetupCompletePost(
 }
 
 export function isAgentGroupSetupActive(
-  posts: Array<Pick<db.Post, 'authorId' | 'blob'>> | null | undefined,
+  posts:
+    | Array<
+        Pick<db.Post, 'authorId' | 'blob'> & {
+          deliveryStatus?: db.Post['deliveryStatus'];
+        }
+      >
+    | null
+    | undefined,
   currentUserId: string,
   agentShipId: string | undefined,
   hasLocalMarker: boolean
@@ -89,7 +96,9 @@ export function isAgentGroupSetupActive(
   if (
     !posts?.some(
       (post) =>
-        post.authorId === currentUserId && isAgentGroupSetupRequestPost(post)
+        post.authorId === currentUserId &&
+        post.deliveryStatus !== 'failed' &&
+        isAgentGroupSetupRequestPost(post)
     )
   ) {
     return false;

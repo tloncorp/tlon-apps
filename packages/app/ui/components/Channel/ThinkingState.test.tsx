@@ -137,6 +137,49 @@ describe('ThinkingState', () => {
     act(() => renderer!.unmount());
   });
 
+  it('uses the preceding idle post when thinking and its response render together', async () => {
+    let renderer: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-0"
+          latestPostAuthorId="~ten"
+        />
+      );
+    });
+
+    mocks.computing = computing();
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-1"
+          latestPostAuthorId="~bot"
+        />
+      );
+    });
+    mocks.computing = null;
+    await act(async () => {
+      renderer!.update(
+        <ThinkingState
+          conversationId="chat"
+          channelType="chat"
+          latestPostId="post-1"
+          latestPostAuthorId="~bot"
+        />
+      );
+    });
+
+    expect(
+      renderer!.root.find((node) => (node.type as unknown) === 'View').props
+        .height
+    ).toBe(0);
+    act(() => renderer!.unmount());
+  });
+
   it('remembers a response when a later member post becomes latest', async () => {
     let renderer: ReactTestRenderer;
     mocks.computing = computing();

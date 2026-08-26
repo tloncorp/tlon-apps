@@ -25,6 +25,7 @@ export function ThinkingState({
   const [holdUntilResponse, setHoldUntilResponse] = useState(false);
   const [responseObserved, setResponseObserved] = useState(false);
   const postIdWhenThinkingStarted = useRef<string | undefined>(latestPostId);
+  const latestPostIdWhileIdle = useRef<string | undefined>(latestPostId);
   const expectedResponders = useRef<Set<string>>(new Set());
   const wasComputing = useRef(false);
   const collapseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -35,8 +36,13 @@ export function ThinkingState({
         computingState.ships.map((state) => state.ship)
       );
       if (!wasComputing.current) {
-        postIdWhenThinkingStarted.current = latestPostId;
-        setResponseObserved(false);
+        postIdWhenThinkingStarted.current = latestPostIdWhileIdle.current;
+        setResponseObserved(
+          latestPostId !== latestPostIdWhileIdle.current &&
+            (expectedResponders.current.size === 0 ||
+              (latestPostAuthorId != null &&
+                expectedResponders.current.has(latestPostAuthorId)))
+        );
         setHoldUntilResponse(true);
       } else if (
         latestPostId !== postIdWhenThinkingStarted.current &&
@@ -62,6 +68,7 @@ export function ThinkingState({
           (expectedResponders.current.size === 0 ||
             (latestPostAuthorId != null &&
               expectedResponders.current.has(latestPostAuthorId)))));
+    latestPostIdWhileIdle.current = latestPostId;
     if (responseHasArrived) {
       if (collapseTimeout.current) {
         clearTimeout(collapseTimeout.current);
