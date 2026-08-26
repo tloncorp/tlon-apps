@@ -778,6 +778,15 @@
       ::
       ?>  (lte (met 3 text.action) max-prompt-bytes)
       ?:  =(bot.action our.bowl)
+        ::  an empty canonical set means prompt sync is not active here —
+        ::  pre-first-seed, or %clear after the gateway's account lost
+        ::  syncing authority. reject the edit (a late %set racing a %clear
+        ::  on its own ames flow would otherwise recreate the mirror and
+        ::  store text no gateway will ever apply); the editor UI is
+        ::  data-gated on the mirror, so it never sends edits in either
+        ::  state
+        ::
+        ?<  =(~ own.prompts.state)
         (pr-handle-set name.action text.action)
       ::  local request for one of our remote bots: relay to its steward
       %-  emit

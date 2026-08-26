@@ -878,6 +878,10 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~bus)
+  ::  a seed activates prompt sync; %set is rejected on an empty set
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'seeded']])])
   =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.y]])
   ;<  caz=(list card)  bind:m
     %+  do-poke  %steward-prompts-action-1
@@ -932,6 +936,9 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'seeded']])])
   ;<  *  bind:m
     %-  (do-as ~bus)
     %+  do-poke  %steward-prompts-action-1
@@ -1013,6 +1020,9 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~dev)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'seeded']])])
   =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.y]])
   ;<  caz=(list card)  bind:m
     %+  do-poke  %steward-prompts-action-1
@@ -1078,6 +1088,9 @@
   ;<  ~  bind:m  setup
   ;<  *  bind:m
     %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'v1']])])
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
     !>(`action:v1:p`[%set ~dev 'SOUL.md' 'owner edit'])
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
   ;<  *  bind:m
@@ -1101,6 +1114,9 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'v1']])])
   ;<  *  bind:m
     %+  do-poke  %steward-prompts-action-1
     !>(`action:v1:p`[%set ~dev 'SOUL.md' 'owner edit'])
@@ -1369,6 +1385,9 @@
     !>(`action:v1:p`[%set ~dev n (cat 3 (fil 3 65.000 'a') n)])
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['S.md' 'x']])])
   ;<  *  bind:m  (set-big 'P1.md')
   ;<  *  bind:m  (set-big 'P2.md')
   ;<  *  bind:m  (set-big 'P3.md')
@@ -1378,6 +1397,25 @@
   ;<  *  bind:m  (set-big 'P7.md')
   ;<  *  bind:m  (set-big 'P8.md')
   (ex-fail (set-big 'P9.md'))
+::
+::  after a %clear, a late owner %set (racing on its own ames flow) is
+::  rejected instead of recreating the mirror with text nothing applies
+::
+++  test-pr-set-after-clear-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  *  bind:m
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%clear ~]))
+  %-  ex-fail
+  %-  (do-as ~bus)
+  %+  do-poke  %steward-prompts-action-1
+  !>(`action:v1:p`[%set ~dev 'SOUL.md' 'late edit'])
 ::
 ::  %clear is local-only and a no-op when nothing is stored
 ::

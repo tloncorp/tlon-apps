@@ -332,8 +332,11 @@ describe('createPromptSync.startup', () => {
     });
   });
 
-  it('still reconciles and seeds when the owner configure poke fails', async () => {
+  it('aborts reconciliation when the owner configure fails', async () => {
+    // Seeding under an unconfirmed ownership state could fan the prompt
+    // set to a former owner, so a failed configure stops the whole pass.
     fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'from archive');
+    const scry = vi.fn(async () => ({}));
     const poke = vi.fn(async (params: { mark: string }) => {
       if (params.mark === 'steward-action-1') {
         throw new Error('nacked');
@@ -347,13 +350,14 @@ describe('createPromptSync.startup', () => {
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: '~ten',
-      scry: async () => ({}),
+      scry,
       poke,
       logger,
       retryDelaysMs: [],
     });
     await sync.startup();
-    expect(poke).toHaveBeenCalledWith(
+    expect(scry).not.toHaveBeenCalled();
+    expect(poke).not.toHaveBeenCalledWith(
       expect.objectContaining({ mark: 'steward-prompts-action-1' })
     );
   });
@@ -745,13 +749,18 @@ describe('createPromptSync abort after in-flight apply', () => {
           prompt: { text: 'mid-flight', updated: '~x' },
         },
       });
-      // The edit reached the file (harmless — the next boot reconciles
-      // from ship state), but no config write or restart happened for the
-      // torn-down monitor.
+      // The edit reached the file, and its provenance was recorded BEFORE
+      // the apply (so a later authority can recognize the leftover as this
+      // ship's) — but no restart write happened for the torn-down monitor.
       expect(fs.readFileSync(path.join(tmpDir, 'SOUL.md'), 'utf8')).toBe(
         'mid-flight'
       );
-      expect(core.config.mutateConfigFile).not.toHaveBeenCalled();
+      expect(core.config.mutateConfigFile).toHaveBeenCalledTimes(1);
+      expect(core.config.mutateConfigFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          afterWrite: expect.objectContaining({ mode: 'none' }),
+        })
+      );
     } finally {
       writeFileSpy.mockRestore();
     }
@@ -841,7 +850,7 @@ describe('collectForeignPromptCaches', () => {
 });
 
 describe('createPromptSync foreign-prompt seed filter', () => {
-  it('never seeds workspace text matching another account cache', async () => {
+  it('removes and never seeds workspace text matching another account cache', async () => {
     // The shared workspace still holds the former syncing account's edit.
     fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'hosted owner notes');
     fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'shared baseline');
@@ -866,6 +875,11 @@ describe('createPromptSync foreign-prompt seed filter', () => {
       mark: 'steward-prompts-action-1',
       json: { seed: { 'AGENTS.md': 'shared baseline' } },
     });
+    // Not just excluded from the seed: the file itself is removed, or the
+    // agent (which re-reads bootstrap files every turn) would keep running
+    // the former owner's private prompt.
+    expect(fs.existsSync(path.join(tmpDir, 'USER.md'))).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(true);
   });
 
   it('seeds the file again once its text no longer matches', async () => {

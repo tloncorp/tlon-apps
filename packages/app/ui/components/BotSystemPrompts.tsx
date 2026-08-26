@@ -139,6 +139,19 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
               attempt = 0;
               retryTimer = setTimeout(start, 0);
             },
+            onError: () => {
+              if (cancelled) {
+                return;
+              }
+              // A gall nack delivered after the subscribe promise resolved
+              // (e.g. the desk restarted between probe and registration):
+              // the watch never went live, so retry with the same capped
+              // backoff as a rejected subscribe.
+              subscriptionId = null;
+              const delayMs = Math.min(30_000, 2_000 * 2 ** attempt);
+              attempt += 1;
+              retryTimer = setTimeout(start, delayMs);
+            },
           }
         )
         .then((id) => {

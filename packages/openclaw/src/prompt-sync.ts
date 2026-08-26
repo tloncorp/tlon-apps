@@ -525,11 +525,14 @@ export function createPromptSync(opts: {
         })
       );
     } catch (error) {
-      // Keep reconciling: the seed still stores the canonical set on the
-      // ship, and the fan-out happens once a later configure succeeds.
+      // Stop here: seeding under an unconfirmed ownership state could fan
+      // the prompt set to a FORMER owner (a replace/remove that never
+      // landed leaves the old owner.state authorized). The next boot or
+      // resubscribe-triggered reconcile retries the whole sequence.
       logger.warn(
-        `[tlon] Failed to configure %steward owner for prompt sync: ${error}`
+        `[tlon] Aborting prompt reconcile: %steward owner configure failed: ${error}`
       );
+      return;
     }
     let stored: Record<string, string>;
     try {
@@ -550,6 +553,22 @@ export function createPromptSync(opts: {
     if (aborted()) {
       // Torn down mid-startup (config reload): this monitor's account
       // snapshot is obsolete, so stop before writing anything.
+      return;
+    }
+    // Record provenance in the ship-keyed ledger BEFORE touching the
+    // shared workspace: if teardown or a crash lands between the file
+    // writes and the config write, a later syncing authority must still be
+    // able to recognize the leftover text as this ship's. Proceed even if
+    // the write is refused (untrusted deployments never persist config).
+    if (promptsDiffer(opts.configPrompts, stored)) {
+      // Cache write only — the file applies below take effect without a
+      // restart (bootstrap files are re-read every turn).
+      await persistToConfig(stored, {
+        mode: 'none',
+        reason: 'tlon prompt sync boot reconcile',
+      });
+    }
+    if (aborted()) {
       return;
     }
     // Ship-stored prompts win over the config cache: the config is only a
@@ -574,17 +593,9 @@ export function createPromptSync(opts: {
       return;
     }
     if (aborted()) {
-      // Torn down while the apply was in flight — don't persist a config
-      // cache on behalf of an obsolete account snapshot.
+      // Torn down while the apply was in flight — stop before seeding on
+      // behalf of an obsolete account snapshot.
       return;
-    }
-    if (promptsDiffer(opts.configPrompts, stored)) {
-      // Catch-up cache write only; the files above are already effective
-      // (bootstrap files are re-read every turn), so no restart at boot.
-      await persistToConfig(stored, {
-        mode: 'none',
-        reason: 'tlon prompt sync boot reconcile',
-      });
     }
     const effective = await readEffectivePrompts(workspaceDir, logger);
     if (aborted()) {
@@ -592,14 +603,23 @@ export function createPromptSync(opts: {
     }
     for (const [name, text] of Object.entries(effective)) {
       if (opts.foreignPrompts?.[name]?.includes(text)) {
-        // The shared workspace still holds another account's owner-edited
+        // The shared workspace still holds another ship's owner-edited
         // text (the syncing authority changed without a workspace
-        // rebuild). Seeding it would hand that owner's private prompt to
-        // this account's ship and owner — leave it out until it changes.
+        // rebuild). Excluding it from the seed isn't enough — the agent
+        // re-reads these files every turn, so the replacement bot would
+        // keep RUNNING the former owner's private prompt. Remove the file;
+        // openclaw regenerates bootstrap defaults as needed.
         delete effective[name];
-        logger.warn(
-          `[tlon] Not seeding ${name}: workspace text matches another account's stored edit`
-        );
+        try {
+          await fs.unlink(path.join(workspaceDir, name));
+          logger.warn(
+            `[tlon] Removed foreign prompt ${name} from the workspace (text belongs to another ship's owner); not seeding it`
+          );
+        } catch (error) {
+          logger.warn(
+            `[tlon] Failed to remove foreign prompt ${name}: ${error}`
+          );
+        }
       }
     }
     if (Object.keys(effective).length === 0) {
@@ -640,6 +660,21 @@ export function createPromptSync(opts: {
     if (!edit) {
       return;
     }
+    // Record provenance in the ship-keyed ledger BEFORE touching the
+    // shared workspace: if teardown or a crash lands between the file
+    // write and the config write, a later syncing authority must still be
+    // able to recognize the leftover text as this ship's. The cache
+    // mirrors the SHIP's stored edits (which already include this one), so
+    // writing it ahead of the file is consistent even if the apply fails.
+    // Proceed when the write is refused (untrusted deployments never
+    // persist config).
+    await persistToConfig(
+      { [edit.name]: edit.text },
+      { mode: 'none', reason: `tlon system prompt ${edit.name} provenance` }
+    );
+    if (aborted()) {
+      return;
+    }
     const { ok } = await applyPromptsToWorkspace({
       workspaceDir,
       prompts: { [edit.name]: edit.text },
@@ -651,9 +686,10 @@ export function createPromptSync(opts: {
       return;
     }
     if (aborted()) {
-      // Torn down while the apply was in flight: the file write is
-      // harmless (ship state wins on the next boot's reconcile), but a
-      // config write + restart on behalf of an obsolete monitor is not.
+      // Torn down while the apply was in flight: the file write is safe
+      // (its provenance is already in the ledger, and ship state wins on
+      // the next boot's reconcile), but a restart on behalf of an obsolete
+      // monitor is not.
       return;
     }
     logger.log(

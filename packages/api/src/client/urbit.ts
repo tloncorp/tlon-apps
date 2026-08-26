@@ -342,6 +342,15 @@ export async function subscribe<T>(
      * job: re-subscribe and re-fetch backing state here.
      */
     onQuit?: () => void;
+    /**
+     * Called on a non-auth subscription error delivered AFTER registration
+     * (the subscribe promise resolves when the channel PUT completes; a
+     * gall nack arrives later on the event stream). The subscription is
+     * dead at that point — re-subscribe if the watch must stay live. Auth
+     * errors are excluded: the wrapper already re-authenticates and
+     * re-subscribes on those itself.
+     */
+    onError?: (error: unknown) => void;
   }
 ): Promise<number> {
   const doSub = async (err?: (error: any, id: string) => void) => {
@@ -405,6 +414,9 @@ export async function subscribe<T>(
             printEndpoint(endpoint)
           );
           err(error, id);
+        }
+        if (!(error instanceof AuthError)) {
+          opts?.onError?.(error);
         }
       },
     });

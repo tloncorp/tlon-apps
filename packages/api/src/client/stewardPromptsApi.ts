@@ -104,6 +104,12 @@ export const subscribeToBotSystemPrompts = async (
      * re-subscribe and re-fetch, since facts emitted in the gap are lost.
      */
     onQuit?: () => void;
+    /**
+     * The watch was nacked AFTER registration (the subscribe promise had
+     * already resolved) — the subscription never went live. Re-subscribe
+     * with backoff if the watch must stay live.
+     */
+    onError?: (error: unknown) => void;
   }
 ) => {
   // Probe with a scry so a ship without the prompts module skips the

@@ -131,15 +131,20 @@ test('subscribeToBotSystemPrompts forwards the authoritative set (null when empt
   ]);
 });
 
-test('subscribeToBotSystemPrompts forwards the onQuit handler', async () => {
+test('subscribeToBotSystemPrompts forwards the onQuit and onError handlers', async () => {
   vi.mocked(scry).mockResolvedValue({ prompts: { bot: '~zod', prompts: {} } });
-  let seenOpts: { onQuit?: () => void } | undefined;
+  let seenOpts:
+    | { onQuit?: () => void; onError?: (error: unknown) => void }
+    | undefined;
   vi.mocked(subscribe).mockImplementation(async (_spec, _handler, opts) => {
     seenOpts = opts;
     return 1;
   });
   const onQuit = vi.fn();
-  await subscribeToBotSystemPrompts(() => {}, { onQuit });
+  const onError = vi.fn();
+  await subscribeToBotSystemPrompts(() => {}, { onQuit, onError });
   seenOpts?.onQuit?.();
+  seenOpts?.onError?.(new Error('nacked after registration'));
   expect(onQuit).toHaveBeenCalledTimes(1);
+  expect(onError).toHaveBeenCalledTimes(1);
 });
