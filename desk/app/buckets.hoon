@@ -669,7 +669,7 @@
     %set-writers    (set-writers flag writers.act actor)
     %create-folder  (create-folder flag parent.act name.act actor)
     %begin-upload   (begin-upload flag parent.act name.act mime.act size.act checksum.act actor)
-    %fail-upload    (fail-upload flag session.act reason.act actor)
+    %cancel-upload  (cancel-upload flag session.act reason.act actor)
     %issue-bucket-read  (issue-read-token flag actor `rid)
     %issue-delete       (issue-delete-capability flag id.act actor)
     %entry          (apply-entry flag id.act a-entry.act actor)
@@ -785,7 +785,15 @@
   =.  entries.st  (~(put by entries.st) id.ent ent)
   (commit-update flag.ses st [%entry id.ent [%create ent]] actor)
 ::
-++  fail-upload
+::  +cancel-upload: the uploader is withdrawing from a session it opened.
+::
+::  Withdrawing is all it can report. Whether the bytes reached storage is the
+::  broker's to say, and the client asks that question and can lose the
+::  answer -- so this does not settle the upload, it only stops a new upload
+::  URL being issued against the session. A completion that arrives afterwards
+::  is still honoured, because the broker knows something we do not.
+::
+++  cancel-upload
   |=  [=flag:b sid=@uv reason=@t actor=ship]
   ^+  cor
   ?~  got=(~(get by sessions) sid)
@@ -797,9 +805,8 @@
     (answer [%error %invalid-input 'upload session is not pending'])
   ?.  =(requested-by.ses actor)
     (answer [%error %not-authorized 'not the uploader'])
-  ::  Nothing was published, so there is nothing to broadcast — the session
-  ::  is kept briefly so the uploader can read the reason back.
-  =.  sessions  (~(put by sessions) sid ses(status %failed, error `reason))
+  ::  Nothing was published, so there is nothing to broadcast.
+  =.  sessions  (~(put by sessions) sid ses(status %cancelled, error `reason))
   cor
 ::
 ::  +held-read-token: a live token we have already minted for this reader.
@@ -1540,7 +1547,13 @@
   =/  ses=upload-session:b  u.got
   ::  Already published: the broker retried, which is fine.
   ?:  =(%complete status.ses)  cor
-  ?.  =(%pending status.ses)  (drop-completion %session-not-pending)
+  ::  A cancelled session still publishes. The uploader withdrew because its
+  ::  own completion call failed, which does not mean the broker did not take
+  ::  the bytes -- and if it did, refusing here leaves the object stored and
+  ::  paid for with nothing in the manifest pointing at it. Every other check
+  ::  below still has to pass, including the receipt matching this entry.
+  ?.  ?=(?(%pending %cancelled) status.ses)
+    (drop-completion %session-not-pending)
   ?.  (gth expires-at.ses now.bowl)  (drop-completion %session-expired)
   ?~  sp=(~(get by spaces) flag.ses)  (drop-completion %no-such-bucket)
   ?~  st-unit=state.u.sp  (drop-completion %bucket-state-missing)
@@ -1774,7 +1787,7 @@
     %issue-bucket-read  (group-can-read group.st flag who)
     %create-folder  (group-can-write group.st flag writers.st who)
     %begin-upload   (group-can-write group.st flag writers.st who)
-    %fail-upload    (group-can-write group.st flag writers.st who)
+    %cancel-upload  (group-can-write group.st flag writers.st who)
     %issue-delete   (group-can-write group.st flag writers.st who)
     %entry          (group-can-write group.st flag writers.st who)
   ==

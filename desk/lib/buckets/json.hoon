@@ -294,8 +294,8 @@
           (maybe 'checksum' jon so)
       ==
     ::
-        %'fail-upload'
-      :*  %fail-upload
+        %'cancel-upload'
+      :*  %cancel-upload
           ((se %uv) (get 'sessionId' jon))
           (so (get 'reason' jon))
       ==

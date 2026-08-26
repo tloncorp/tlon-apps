@@ -410,6 +410,47 @@
 ::  The session id is the broker token. Memex's reservation binds once, and
 ::  the file only becomes visible after a verified receipt.
 ::
+::  Cancelling says the uploader gave up, not that the bytes did not land --
+::  it cannot know that. Its own completion call is what failed, and losing
+::  that answer says nothing about whether the broker took the object. So a
+::  completion arriving afterwards still publishes; refusing it would leave
+::  the object stored and paid for with nothing in the manifest for it.
+::
+++  test-a-cancelled-session-still-publishes-a-completion
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  rid=@t  '00000000-0000-0000-0000-000000000009'
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (ask 0v1 [%bucket flag [%begin-upload ~ 'private.pdf' 'application/pdf' 42 ~]])
+  ;<  *  b
+    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload seed-token rid]))
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  ses=upload-session:bu  (only-session st)
+  =/  bs=bucket-state:bu  (state-for st flag)
+  =/  fil=file:bu  (file-of entry.ses)
+  ::  the uploader's completion call fails, so it withdraws
+  ;<  *  b  (ask 0v2 [%bucket flag [%cancel-upload id.ses 'connection lost']])
+  ;<  mid=vase  b  get-save
+  =/  cancelled=upload-session:bu  (only-session !<(state-0:bu mid))
+  ;<  ~  b  (ex-equal !>(status.cancelled) !>(%cancelled))
+  ::  but the broker did take the bytes, and says so
+  =/  receipt=broker-receipt:bu
+    [rid object-key.fil 'sampel-palnet' (scot %ud id.bucket.bs) 42 'application/pdf']
+  ;<  *  b
+    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
+  ;<  after=vase  b  get-save
+  =/  st2=state-0:bu  !<(state-0:bu after)
+  =/  bs2=bucket-state:bu  (state-for st2 flag)
+  =/  published=upload-session:bu  (only-session st2)
+  ::  the entry is in the manifest and the session settled as complete
+  %+  ex-equal
+    !>([~(wyt by entries.bs2) status.published])
+  !>([1 %complete])
+::
 ++  test-broker-upload-lifecycle
   %-  eval-mare
   =/  m  (mare ,~)

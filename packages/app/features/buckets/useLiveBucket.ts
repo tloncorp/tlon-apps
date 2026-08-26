@@ -386,7 +386,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         const cancelled = cancelledRef.current.has(id);
         if (sessionId && !brokerCompleted) {
           await sendBucketsAction({
-            type: 'fail-upload',
+            type: 'cancel-upload',
             flag,
             reason: errorMessage(cause),
             sessionId,
@@ -475,7 +475,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
 
       if (sessionId) {
         await sendBucketsAction({
-          type: 'fail-upload',
+          type: 'cancel-upload',
           flag,
           reason: 'Cancelled',
           sessionId,

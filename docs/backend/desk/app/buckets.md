@@ -49,7 +49,7 @@ The outer type carries identity, the inner one carries only the verb: `%create` 
 | `%set-writers`       | Replace the group-role writer set                                                                     |
 | `%create-folder`     | Add a folder beneath an existing folder or the root                                                   |
 | `%begin-upload`      | Validate the request, reserve an entry id and object key, and answer with a host-minted upload token  |
-| `%fail-upload`       | Mark the requester's pending upload failed                                                            |
+| `%cancel-upload`       | Withdraw from the requester's own pending upload; the broker still decides whether the bytes landed   |
 | `%issue-bucket-read` | Answer with a read token covering every ready object in the Bucket, for the requesting ship           |
 | `%issue-delete`      | Answer with a short-lived delete token bound to one ready file                                        |
 | `%entry`             | `%rename`, `%move` (cycle-checked), or `%delete` (recursive for a folder tree) one entry              |

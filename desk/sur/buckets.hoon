@@ -101,7 +101,11 @@
 ::  everyone but its uploader.
 ::  .reservation is the broker reservation id bound on first exchange.
 ::
-+$  session-status  ?(%pending %complete %failed)
+::  .cancelled is the uploader withdrawing, which is all it can report: only
+::  the broker knows whether the bytes landed, so a cancelled session still
+::  accepts a completion. It stops a new upload URL being issued against it.
+::
++$  session-status  ?(%pending %complete %cancelled)
 +$  upload-session
   $:  id=@uv
       =flag
@@ -244,7 +248,7 @@
       [%set-writers writers=(set @tas)]
       [%create-folder parent=(unit @ud) name=@t]
       [%begin-upload parent=(unit @ud) name=@t mime=@t size=@ud checksum=(unit @t)]
-      [%fail-upload session=@uv reason=@t]
+      [%cancel-upload session=@uv reason=@t]
       [%issue-bucket-read ~]
       [%issue-delete id=@ud]
       [%entry id=@ud =a-entry]

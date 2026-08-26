@@ -117,7 +117,7 @@ export type BucketsAction =
       checksum: string | null;
     }
   | {
-      type: 'fail-upload';
+      type: 'cancel-upload';
       flag: BucketsFlag;
       sessionId: string;
       reason: string;
