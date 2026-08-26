@@ -646,7 +646,9 @@ export function StaticChatMessage({
               draftInputContext &&
               draftInputContext.canStartDraft !== false
             )}
-            areA2UISelectionsPending={a2uiSelections.isPending}
+            areA2UISelectionsPending={
+              a2uiSelections.isPending || agentProtocolReceipts.isPending
+            }
             a2uiSourcePostId={post.id}
             canUseAgentProviderControls={canUseAgentProviderControls}
             getConsumedA2UISelection={
