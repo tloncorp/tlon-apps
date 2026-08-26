@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import create from 'zustand';
 
+import { channelHasPosts } from '../../../utils/channelUtils';
 import {
   type ContextLensGatewayConfig,
   fetchRecentContextLensEvents,
@@ -193,9 +194,9 @@ export function useContextLensAvailable(channel?: db.Channel | null) {
   if (!channel) {
     return true;
   }
-  // Notes channels have no per-post surface for a run to attach to, so the
-  // header toggle would open a panel with nothing to show.
-  if (channel.type === 'notes') {
+  // Notes and Buckets render no posts, so a run has no per-post surface to
+  // attach to and the header toggle would open a panel with nothing in it.
+  if (!channelHasPosts(channel)) {
     return false;
   }
   if (isDm) {

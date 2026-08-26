@@ -1,6 +1,7 @@
 import * as db from '@tloncorp/shared/db';
-import { ComponentProps } from 'react';
+import { ComponentProps, useMemo } from 'react';
 
+import { channelHasPosts } from '../utils/channelUtils';
 import { ActionSheet } from './ActionSheet';
 import { ForwardChannelSelector } from './ForwardChannelSelector';
 import {
@@ -14,8 +15,9 @@ type ForwardToChannelSheetProps = {
   title: string;
   subtitle?: string;
   onChannelSelected: (channel: db.Channel) => void;
-  // Temporary escape hatch for share-target filtering. Should probably push it
-  // down into the underlying query.
+  // Narrows the targets further. Postless channels are already excluded for
+  // every caller -- see below -- so this is only for rules specific to what is
+  // being forwarded.
   channelFilter?: (channel: db.Channel) => boolean;
   footerComponent?: ComponentProps<typeof ActionSheet>['footerComponent'];
 };
@@ -30,6 +32,15 @@ export function ForwardToChannelSheet({
   footerComponent,
 }: ForwardToChannelSheetProps) {
   const showSelector = useDelayedClose(open);
+  // Every target here receives what it is given as a post, so a channel that
+  // renders no posts can never be one. Left to the callers this was missed
+  // twice over: both Forward sheets passed no filter at all, and the share
+  // intent excluded only notebooks.
+  const targetFilter = useMemo(
+    () => (channel: db.Channel) =>
+      channelHasPosts(channel) && (channelFilter?.(channel) ?? true),
+    [channelFilter]
+  );
 
   // Unmount after the close window; otherwise the empty sheet shell can
   // visually resurface during later navigation.
@@ -55,7 +66,7 @@ export function ForwardToChannelSheet({
           <ForwardChannelSelector
             isOpen={showSelector}
             onChannelSelected={onChannelSelected}
-            channelFilter={channelFilter}
+            channelFilter={targetFilter}
           />
         ) : null}
       </ActionSheet.Content>

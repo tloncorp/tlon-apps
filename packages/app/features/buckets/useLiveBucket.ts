@@ -241,7 +241,10 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           if (!active || !matchesFlag(response.flag, flag)) return;
           if (bucketResponseHasRevisionGap(snapshotRef.current, response)) {
             void refresh()
-              .then(reconcileUploads)
+              .then((next) => {
+                if (active) setError(null);
+                reconcileUploads(next);
+              })
               .catch((cause) => {
                 if (active) setError(errorMessage(cause));
               });
@@ -250,6 +253,10 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           const next = reduceBucketResponse(snapshotRef.current, response);
           commitSnapshot(next);
           reconcileUploads(next);
+          // A gap refresh that failed once left its message up for the rest of
+          // the mount. Taking a response for this Bucket is proof we are
+          // synchronized again, so the banner should go with it.
+          setError(null);
           setLoading(false);
         });
         if (!active) {

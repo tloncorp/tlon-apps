@@ -224,6 +224,7 @@ export function BucketsPane({
   onCancelUpload,
   onFilesDropped,
   onMoveItem,
+  onNavigateUp,
   onOpenItem,
   onRenameItem,
   onRetryUpload,
@@ -242,6 +243,7 @@ export function BucketsPane({
   onCancelUpload?: (item: BucketItem) => void;
   onFilesDropped?: (files: BucketUploadCandidate[]) => void;
   onMoveItem?: (item: BucketItem) => void;
+  onNavigateUp?: () => void;
   onOpenItem: (item: BucketItem) => void;
   onRenameItem?: (item: BucketItem) => void;
   onRetryUpload?: (item: BucketItem) => void;
@@ -279,7 +281,11 @@ export function BucketsPane({
     >
       <YStack flex={1} minHeight={0} backgroundColor="$background">
         {currentFolder ? (
-          <BucketBreadcrumb rootLabel={rootLabel} folderLabel={currentFolder} />
+          <BucketBreadcrumb
+            rootLabel={rootLabel}
+            folderLabel={currentFolder}
+            onNavigateUp={onNavigateUp}
+          />
         ) : null}
         {populated ? (
           <FlashList
@@ -794,9 +800,11 @@ function BucketItemMetadata({ item }: { item: BucketItem }) {
 function BucketBreadcrumb({
   folderLabel,
   rootLabel,
+  onNavigateUp,
 }: {
   folderLabel: string;
   rootLabel: string;
+  onNavigateUp?: () => void;
 }) {
   return (
     <XStack
@@ -809,9 +817,17 @@ function BucketBreadcrumb({
       paddingTop="$l"
       paddingBottom="$s"
     >
-      <Text color="$secondaryText" size="$label/l">
-        {rootLabel}
-      </Text>
+      {onNavigateUp ? (
+        <Pressable onPress={onNavigateUp} hitSlop={8}>
+          <Text color="$secondaryText" size="$label/l">
+            {rootLabel}
+          </Text>
+        </Pressable>
+      ) : (
+        <Text color="$secondaryText" size="$label/l">
+          {rootLabel}
+        </Text>
+      )}
       <Text color="$tertiaryText" size="$label/l">
         /
       </Text>

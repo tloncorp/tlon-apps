@@ -3,7 +3,14 @@ import * as db from '@tloncorp/shared/db';
 import { ConfirmDialog, Text } from '@tloncorp/ui';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { ReactElement, useCallback, useMemo, useRef, useState } from 'react';
+import {
+  ReactElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Linking, useWindowDimensions } from 'react-native';
 
 import {
@@ -169,6 +176,15 @@ export function BucketsLiveChannel({
     activeFolderCandidate?.kind === 'folder'
       ? activeFolderCandidate
       : undefined;
+  // Someone else can delete the folder we are standing in. Without this the
+  // pane keeps filtering on an id nothing has, so it shows an empty list that
+  // goBack cannot leave -- it reads the parent off the folder that is gone.
+  useEffect(() => {
+    if (activeFolderId === null || activeFolder) return;
+    if (live.loading || !live.snapshot) return;
+    setActiveFolderId(null);
+    setSelectedItemId(null);
+  }, [activeFolder, activeFolderId, live.loading, live.snapshot]);
   const rootFolders = serverEntries.filter(
     (entry) => entry.kind === 'folder' && entry.parentId === null
   );
@@ -289,7 +305,11 @@ export function BucketsLiveChannel({
       type: '*/*',
     });
     if (!result.assets?.length) return;
+    // On web the picker hands back the real File. Dropping it would make the
+    // upload task fetch(uri).blob() first, buffering the whole file in memory
+    // before the PUT can start -- drag-and-drop already streams the File.
     const candidates: BucketUploadCandidate[] = result.assets.map((asset) => ({
+      file: typeof File === 'undefined' ? undefined : asset.file,
       mimeType: asset.mimeType ?? undefined,
       name: asset.name,
       size: asset.size ?? -1,
@@ -361,7 +381,9 @@ export function BucketsLiveChannel({
       setActiveFolderId(
         result.parentFolderId === null ? null : Number(result.parentFolderId)
       );
-      setSelectedItemId(result.id);
+      // The row is labelled Open, so open it. Selecting alone dropped the user
+      // back on the list to find the same file a second time.
+      openItem(result);
     }
     setSearchOpen(false);
   };
@@ -379,7 +401,10 @@ export function BucketsLiveChannel({
 
   const paneProps = {
     canEdit,
-    currentFolder: isMobileLayout ? undefined : activeFolder?.name,
+    // Suppressed only where the ChannelHeader below already names the folder
+    // and carries its own back button. Embedded is the production channel
+    // flow, which hides that header, so the breadcrumb is the only way up.
+    currentFolder: isMobileLayout && !embedded ? undefined : activeFolder?.name,
     items: visibleItems,
     rootLabel,
     selectedItemId,
@@ -387,6 +412,7 @@ export function BucketsLiveChannel({
     uploadAggregateProgress: live.uploadAggregateProgress,
     uploadItems: live.localItems,
     onCancelUpload: (item: BucketItem) => void live.cancelUpload(item.id),
+    onNavigateUp: goBack,
     onDeleteItem: (item: BucketItem) => {
       if (item.kind === 'folder') {
         setFolderPendingDeletion(item);
