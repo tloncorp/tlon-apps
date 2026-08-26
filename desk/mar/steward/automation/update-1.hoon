@@ -1,4 +1,4 @@
-::  %steward-automation-update-1: a projection-feed automation update
+::  %steward-automation-update-1: an automation feed and scry update
 ::
 /-  a=steward-automation
 /+  aj=steward-automation-json

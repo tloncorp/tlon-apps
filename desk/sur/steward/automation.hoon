@@ -38,12 +38,14 @@
   $:  id=@t
       =task
   ==
-::  $state: per-ship task projections, each an ID-keyed task map: the
-::  local projection lives under the local ship's key, mirrored remote
-::  bots under theirs
+::  $tasks: one ship's task map, keyed by OpenClaw task ID
+::
++$  tasks  (map @t task)
+::  $state: per-ship task state: the local projection lives under the
+::  local ship's key, mirrored remote bots under theirs
 ::
 +$  state
-  $:  mirror=(map ship (map @t task))
+  $:  tasks=(map ship tasks)
   ==
 ::  $action: inbound automation actions from the local harness
 ::
@@ -52,29 +54,16 @@
 +$  action
   $%  [%project tasks=(list identified-task)]
   ==
-::  $update: projection-feed facts; attribution is the subscription
-::  source, never a payload field
+::  $update: the single automation feed; every variant names the ship
+::  whose entry it touches, and %tasks is always the complete
+::  ship-keyed state. %gone: entry removed (distinct from an empty
+::  entry, which means synced with zero tasks)
 ::
 +$  update
-  $%  [%tasks tasks=(map @t task)]
-      [%set id=@t =task]
-      [%del id=@t]
+  $%  [%tasks tasks=(map ship tasks)]
+      [%set =ship id=@t =task]
+      [%del =ship id=@t]
+      [%gone =ship]
   ==
-::  $mirror-update: client-feed facts; one feed carries many bots, so
-::  each update names its bot. %gone: entry removed on untrust
-::  (distinct from an empty %tasks snapshot)
-::
-+$  mirror-update
-  $%  [%tasks bot=ship tasks=(map @t task)]
-      [%set bot=ship id=@t =task]
-      [%del bot=ship id=@t]
-      [%gone bot=ship]
-  ==
-::  $task-map: the ID-keyed task map returned by the automation scry
-::
-+$  task-map  (map @t task)
-::  $mirror-map: the ship-keyed mirror returned by the mirror scry
-::
-+$  mirror-map  (map ship task-map)
 ++  v1  .
 --
