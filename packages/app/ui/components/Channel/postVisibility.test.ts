@@ -44,6 +44,23 @@ describe('isVisibleChannelPost', () => {
     ).toBe(true);
   });
 
+  it('keeps a failed intro request visible so it can be retried', () => {
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~ten',
+          deliveryStatus: 'failed',
+          blob: appendToPostBlob(undefined, {
+            type: 'tlon-agent-intro-request',
+            version: 1,
+            groupId: '~ten/group',
+          }),
+        },
+        '~ten'
+      )
+    ).toBe(true);
+  });
+
   it('keeps ordinary and unrelated typed posts visible', () => {
     expect(isVisibleChannelPost({ authorId: '~ten', blob: null }, '~ten')).toBe(
       true

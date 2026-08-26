@@ -11,11 +11,14 @@ import {
  * from the presented timeline.
  */
 export function isVisibleChannelPost(
-  post: Pick<db.Post, 'blob' | 'authorId'>,
+  post: Pick<db.Post, 'blob' | 'authorId'> & {
+    deliveryStatus?: db.Post['deliveryStatus'];
+  },
   currentUserId: string
 ): boolean {
   if (!post.blob) return true;
   if (post.authorId !== currentUserId) return true;
+  if (post.deliveryStatus === 'failed') return true;
 
   return !postHasBlobEntry(post.blob, 'tlon-agent-intro-request');
 }
