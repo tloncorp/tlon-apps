@@ -1305,6 +1305,29 @@
     !>([before ~(wyt by readers.st) revision.sync synced.sync])
   !>([1 1 1 0])
 ::
+::  Both entry points keep the one-answer contract. The poke path used to
+::  dispatch straight through, so a Gall caller retrying a lost answer ran the
+::  action a second time and was answered twice.
+::
+++  test-a-repeated-poke-request-id-does-not-run-twice
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (ask 0v11 [%bucket flag [%create-folder ~ 'notes']])
+  ;<  sv=vase  b  get-save
+  =/  first=@ud  ~(wyt by entries:(state-for !<(state-0:bu sv) flag))
+  ::  the same id again, as a caller that lost our answer would send it
+  ;<  again=(list card)  b  (ask 0v11 [%bucket flag [%create-folder ~ 'notes']])
+  ;<  after=vase  b  get-save
+  =/  second=@ud  ~(wyt by entries:(state-for !<(state-0:bu after) flag))
+  ::  no second folder, and the stored result is replayed rather than remade
+  %+  ex-equal
+    !>([first second (lent (answers again))])
+  !>([1 1 1])
+::
 ::  The %groups subscription is the only thing that calls +recheck-host-subs,
 ::  which is the only thing that revokes. A refusal loses it exactly as a kick
 ::  does, so it has to be recovered the same way -- otherwise a reader who

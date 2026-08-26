@@ -174,6 +174,15 @@
       %buckets-action-1
     ?>  =(src.bowl our.bowl)
     =+  cmd=!<(command:b vase)
+    ::  The same one-answer contract the HTTP surface keeps: a caller that
+    ::  lost our answer retries with the id it already used, and running the
+    ::  action again would duplicate a folder or a session and answer twice.
+    ::  A settled request replays its result; one still in flight is left to
+    ::  finish, since its answer goes to the same subscription either way.
+    ?^  seen=(~(get by requests) request-id.cmd)
+      ?~  result.u.seen  cor
+      (respond request-id.cmd ~[/v1/requests] u.result.u.seen)
+    =.  cor  (track-request request-id.cmd ~)
     (dispatch-local request-id.cmd act.cmd)
   ::
       %buckets-command-1
@@ -999,7 +1008,12 @@
     ^-  [reader-key:b reader-sync:b]
     ::  Nothing to re-send for a pair whose token could not be used anyway.
     ?:  ?=(%lapsed (reader-status sync))  [key sync]
-    [key sync(synced 0, failed |)]
+    ::  A new revision rather than the same one resent, because a request to
+    ::  the broker we just left may still be in flight and its wire carries
+    ::  the revision. Reusing it would let that broker's late 2xx confirm
+    ::  state the new broker has never been told, and +owed would then stop
+    ::  retrying it -- clients failing against the new broker until renewal.
+    [key sync(revision +(revision.sync), synced 0, failed |)]
   retry-readers
 ::
 ::  +genuine-secret: this ship's shared secret with the broker.
