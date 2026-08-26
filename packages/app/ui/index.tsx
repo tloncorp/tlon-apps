@@ -67,6 +67,7 @@ export * from './components/ScreenHeader';
 export * from './components/ScreenScrollView';
 export * from './components/SearchBar';
 export * from './components/SettingsContentScrollView';
+export * from './components/SettingsSection';
 export * from './components/SettingsScreenView';
 export * from './components/ShipPickerSheet';
 export * from './components/StoppedNodePushSheet';

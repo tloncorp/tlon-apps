@@ -43,12 +43,12 @@ function getErrorMessage(error: unknown): string {
 function isNotFound(error: unknown): boolean {
   return Boolean(
     error &&
-      typeof error === 'object' &&
-      'details' in error &&
-      error.details &&
-      typeof error.details === 'object' &&
-      'status' in error.details &&
-      error.details.status === 404
+    typeof error === 'object' &&
+    'details' in error &&
+    error.details &&
+    typeof error.details === 'object' &&
+    'status' in error.details &&
+    error.details.status === 404
   );
 }
 

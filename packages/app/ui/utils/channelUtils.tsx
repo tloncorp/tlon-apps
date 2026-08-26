@@ -54,9 +54,9 @@ export function getChannelTitle({
     // (There should be no path to titling a 1:1 DM in-app.)
     return channelTitle
       ? channelTitle
-      : members
+      : (members
           ?.map((member) => getChannelMemberName(member, disableNicknames))
-          .join(', ') ?? 'No title';
+          .join(', ') ?? 'No title');
   } else {
     return channelTitle ?? 'Untitled channel';
   }

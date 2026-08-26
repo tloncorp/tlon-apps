@@ -50,7 +50,9 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     const anchorToEnd = collectionLayout.scrollDirection === 'bottom-to-top';
     const renderOrderedPosts = useMemo(
       () =>
-        ctx.posts && anchorToEnd ? [...ctx.posts].reverse() : ctx.posts ?? null,
+        ctx.posts && anchorToEnd
+          ? [...ctx.posts].reverse()
+          : (ctx.posts ?? null),
       [anchorToEnd, ctx.posts]
     );
     const listBottomComponent = useMemo(
@@ -176,7 +178,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         channel={ctx.channel}
         collectionLayoutType={collectionLayoutType}
         firstUnreadId={
-          ctx.initialChannelUnread?.countWithoutThreads ?? 0 > 0
+          (ctx.initialChannelUnread?.countWithoutThreads ?? 0 > 0)
             ? ctx.initialChannelUnread?.firstUnreadPostId
             : null
         }

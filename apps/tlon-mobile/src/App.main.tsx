@@ -43,6 +43,7 @@ import AuthenticatedApp from './components/AuthenticatedApp';
 import { useTopLevelRouting } from './hooks/useTopLevelRouting';
 import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
+import { setActiveNotificationRoute } from './lib/notificationPresentation';
 import { SignupProvider } from './lib/signupContext';
 
 const splashscreenLogger = createDevLogger('splashscreen', false);
@@ -118,6 +119,8 @@ const MainApp = () => {
     hostingBotEnabled,
     handleClearSplash,
   } = useTopLevelRouting();
+  const authenticatedNavigatorVisible =
+    connected && !isLoading && !showSplashSequence && showAuthenticatedApp;
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const handleSplashLogout = useCallback(async () => {
@@ -130,6 +133,14 @@ const MainApp = () => {
   useEffect(() => {
     registerBackgroundSyncTask();
   }, []);
+
+  useEffect(() => {
+    if (!authenticatedNavigatorVisible) {
+      setActiveNotificationRoute(undefined);
+    }
+  }, [authenticatedNavigatorVisible]);
+
+  useEffect(() => () => setActiveNotificationRoute(undefined), []);
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
@@ -202,8 +213,9 @@ function ConnectedNavigationContent({
   const navigationLogging = useNavigationLogging();
 
   const onReady = () => {
-    routeNameRef.current =
-      navigationContainerRef.current?.getCurrentRoute()?.name;
+    const route = navigationContainerRef.current?.getCurrentRoute();
+    routeNameRef.current = route?.name;
+    setActiveNotificationRoute(route);
 
     const state = navigationContainerRef.current?.getState();
     navigationLogging.onReady(state);
@@ -211,14 +223,15 @@ function ConnectedNavigationContent({
 
   const onStateChange = (state: NavigationState | undefined) => {
     const previousRouteName = routeNameRef.current;
-    const currentRouteName =
-      navigationContainerRef.current?.getCurrentRoute()?.name;
+    const route = navigationContainerRef.current?.getCurrentRoute();
+    const currentRouteName = route?.name;
 
     if (currentRouteName != null && previousRouteName !== currentRouteName) {
       posthog?.screen(currentRouteName);
     }
 
     routeNameRef.current = currentRouteName;
+    setActiveNotificationRoute(route);
 
     navigationLogging.onStateChange(state);
   };

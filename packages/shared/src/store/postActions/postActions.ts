@@ -142,6 +142,8 @@ export function finalizePostDraftUsingLocalAttachments(
 export type PostSendOptions = {
   /** Called after the optimistic post has been added to the session queue. */
   onEnqueued?: () => void;
+  /** Reject when a send is known not to have reached the backend. */
+  rejectOnDefinitiveFailure?: boolean;
 };
 
 export async function finalizeAndSendPost(
@@ -161,6 +163,7 @@ export async function finalizeAndSendPost(
       buildFinalizedPostData: () => finalizePostDraft(draft),
       draft: serializedDraft,
       onEnqueued: options?.onEnqueued,
+      rejectOnDefinitiveFailure: options?.rejectOnDefinitiveFailure,
     });
   }
 }
@@ -181,6 +184,7 @@ async function _sendPost({
   draft,
   existingPost,
   onEnqueued,
+  rejectOnDefinitiveFailure,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
   buildOptimisticPostData?: () => domain.PostDataFinalizedParent;
@@ -191,12 +195,17 @@ async function _sendPost({
   existingPost?: db.Post;
   /** Called after the optimistic post has been added to the session queue. */
   onEnqueued?: () => void;
+  /** Reject when delivery is definitively failed rather than uncertain. */
+  rejectOnDefinitiveFailure?: boolean;
 }) {
   const authorId = api.getCurrentUserId();
 
   const channel = await db.getChannel({ id: channelId });
   if (!channel) {
     logger.trackError('Failed to forward post, unable to find channel');
+    if (rejectOnDefinitiveFailure) {
+      throw new Error(`Cannot send post: channel ${channelId} was not found`);
+    }
     return;
   }
 
@@ -278,6 +287,7 @@ async function _sendPost({
   }
 
   logger.crumb('done optimistic update');
+  let backendDeliveryCompleted = false;
   try {
     logger.crumb('enqueuing sending post to backend');
     const debug = {
@@ -355,6 +365,7 @@ async function _sendPost({
     );
     onEnqueued?.();
     await sendPromise;
+    backendDeliveryCompleted = true;
     logger.crumb('sent post to backend, syncing channel message delivery');
     sync.syncChannelMessageDelivery({ channelId: channel.id });
 
@@ -384,6 +395,19 @@ async function _sendPost({
       }
     }
   } catch (e) {
+    if (backendDeliveryCompleted) {
+      // Delivery is authoritative once the API call resolves. A later local
+      // cleanup failure must not make a one-shot control retryable and send a
+      // duplicate message.
+      logger.error('Post sent but local cleanup failed', {
+        message: e.message,
+        type: e.constructor?.name,
+        stack: e.stack,
+        fullError: e,
+      });
+      return;
+    }
+
     logger.trackEvent(
       cachePost.parentId == null
         ? AnalyticsEvent.ErrorSendPost
@@ -424,6 +448,7 @@ async function _sendPost({
       });
     } else {
       await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+      if (rejectOnDefinitiveFailure) throw e;
     }
   }
 }

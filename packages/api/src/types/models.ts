@@ -326,6 +326,7 @@ export interface Settings {
   webAppSplashDismissed?: boolean;
   mobileAppPromoDismissed?: boolean;
   contextLensEnabled?: boolean;
+  showDeleteMarkers?: boolean;
 }
 
 export interface VolumeSettings {

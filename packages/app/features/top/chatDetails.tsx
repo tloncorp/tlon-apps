@@ -566,7 +566,7 @@ export function LeaveActionsSection({
   const isHost =
     entityType === 'group'
       ? group?.currentUserIsHost
-      : channel?.currentUserIsHost ?? false;
+      : (channel?.currentUserIsHost ?? false);
   const channelActionCapabilities = getChannelActionCapabilities(channel);
   const canLeave =
     !isHost && (entityType !== 'channel' || channelActionCapabilities.canLeave);
@@ -576,8 +576,8 @@ export function LeaveActionsSection({
 
   const chatTitle =
     entityType === 'group'
-      ? groupTitle ?? 'group'
-      : channel?.title ?? 'channel';
+      ? (groupTitle ?? 'group')
+      : (channel?.title ?? 'channel');
 
   const handleLeaveWithConfirm = useCallback(async () => {
     if (entityType === 'group') {

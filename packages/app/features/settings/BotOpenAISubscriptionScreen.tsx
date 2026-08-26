@@ -94,11 +94,11 @@ export function BotOpenAISubscriptionScreen(props: Props) {
   }, [auth, disconnectOpenAISubscription]);
 
   const mutationError = deleteProviderKey.error
-    ? getErrorMessage(deleteProviderKey.error) ??
-      'Failed to remove the OpenAI API key.'
+    ? (getErrorMessage(deleteProviderKey.error) ??
+      'Failed to remove the OpenAI API key.')
     : disconnectOpenAISubscription.error
-      ? getErrorMessage(disconnectOpenAISubscription.error) ??
-        'Failed to disconnect the ChatGPT subscription.'
+      ? (getErrorMessage(disconnectOpenAISubscription.error) ??
+        'Failed to disconnect the ChatGPT subscription.')
       : null;
 
   return (

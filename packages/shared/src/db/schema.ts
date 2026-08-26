@@ -79,6 +79,7 @@ export const settings = sqliteTable('settings', {
   webAppSplashDismissed: boolean('web_app_splash_dismissed'),
   mobileAppPromoDismissed: boolean('mobile_app_promo_dismissed'),
   contextLensEnabled: boolean('context_lens_enabled'),
+  showDeleteMarkers: boolean('show_delete_markers'),
 });
 
 export const systemContacts = sqliteTable(

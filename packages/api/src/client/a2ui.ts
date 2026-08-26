@@ -1,136 +1,377 @@
 import { z } from 'zod';
 
+import {
+  AGENT_PROTOCOL_LIMITS,
+  AgentProviderConfigContextSchema,
+  AgentProvisionActionContextSchema,
+  agentProtocolString,
+} from './agentProtocol';
+
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
 const ACTION_NAVIGATE = 'tlon.navigate';
+const ACTION_PROVISION_AGENT = 'tlon.provisionAgent';
+const ACTION_CONFIGURE_AGENT_PROVIDERS = 'tlon.configureAgentProviders';
 
-type ComponentBase = {
-  id: string;
-  weight?: number;
+const LIMITS = {
+  maxBytes: 32 * 1024,
+  maxComponents: 50,
+  maxDepth: 8,
+  maxChildren: 12,
+  maxChoiceOptions: 6,
+  maxSmallChoiceOptions: 12,
+  maxIdLength: 512,
+  /** pills hold a word or two; a paragraph in one would break the layout */
+  maxPillLabelLength: 64,
+  maxTextNodeLength: 1000,
+  maxButtonMessageLength: 1000,
+  maxNavigationTargetIdLength: 500,
+  maxTotalTextLength: 8000,
+} as const;
+
+const choiceIconSchema = z.enum([
+  'ChannelNotebooks',
+  'ChannelTalk',
+  'ChannelGalleries',
+  'Clock',
+  'Search',
+  'Face',
+  'Link',
+]);
+const choiceAccentSchema = z.enum(['blue', 'green', 'indigo', 'neutral']);
+const containerJustifySchema = z.enum([
+  'start',
+  'center',
+  'end',
+  'spaceBetween',
+  'spaceAround',
+]);
+const containerAlignSchema = z.enum(['start', 'center', 'end', 'stretch']);
+const textVariantSchema = z.enum([
+  'body',
+  'caption',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+]);
+const buttonVariantSchema = z.enum([
+  'default',
+  'primary',
+  'secondary',
+  'borderless',
+]);
+const screenNameSchema = z.enum(['botMcpSettings']);
+
+const nonEmptyString = (max?: number) => {
+  const schema = max === undefined ? z.string() : z.string().max(max);
+  return schema.refine((value) => value.trim().length > 0);
 };
 
+const uniqueBy = <T>(values: T[], select: (value: T) => unknown) =>
+  new Set(values.map(select)).size === values.length;
+
+const targetIdSchema = nonEmptyString(LIMITS.maxNavigationTargetIdLength);
+const componentBaseShape = {
+  id: nonEmptyString(LIMITS.maxIdLength),
+  weight: z.number().min(0).max(12).optional(),
+};
+
+const messageNavigationTargetSchema = z.object({
+  type: z.literal('message'),
+  channelId: targetIdSchema,
+  postId: targetIdSchema,
+  parentId: targetIdSchema.optional(),
+  parentAuthorId: targetIdSchema.optional(),
+  authorId: targetIdSchema.optional(),
+  groupId: targetIdSchema.optional(),
+});
+const channelNavigationTargetSchema = z.object({
+  type: z.literal('channel'),
+  channelId: targetIdSchema,
+  groupId: targetIdSchema.optional(),
+  selectedPostId: targetIdSchema.optional(),
+});
+const groupNavigationTargetSchema = z.object({
+  type: z.literal('group'),
+  groupId: targetIdSchema,
+});
+const profileNavigationTargetSchema = z.object({
+  type: z.literal('profile'),
+  userId: targetIdSchema,
+  groupId: targetIdSchema.optional(),
+  channelId: targetIdSchema.optional(),
+});
+const chatDetailsNavigationTargetSchema = z.object({
+  type: z.literal('chatDetails'),
+  chatType: z.enum(['group', 'channel']),
+  chatId: targetIdSchema,
+  groupId: targetIdSchema.optional(),
+});
+const chatVolumeNavigationTargetSchema = z.object({
+  type: z.literal('chatVolume'),
+  chatType: z.enum(['group', 'channel']),
+  chatId: targetIdSchema,
+  groupId: targetIdSchema.optional(),
+});
+const screenNavigationTargetSchema = z.object({
+  type: z.literal('screen'),
+  screen: screenNameSchema,
+  providerId: targetIdSchema.optional(),
+});
+const navigationTargetSchema = z.discriminatedUnion('type', [
+  messageNavigationTargetSchema,
+  channelNavigationTargetSchema,
+  groupNavigationTargetSchema,
+  profileNavigationTargetSchema,
+  chatDetailsNavigationTargetSchema,
+  chatVolumeNavigationTargetSchema,
+  screenNavigationTargetSchema,
+]);
+
+const sendMessageEventSchema = z.object({
+  name: z.literal(ACTION_SEND_MESSAGE),
+  context: z.object({
+    text: nonEmptyString(LIMITS.maxButtonMessageLength),
+  }),
+});
+const smallChoiceSendMessageEventSchema = z.object({
+  name: z.literal(ACTION_SEND_MESSAGE),
+  context: z.object({
+    text: z.string().max(LIMITS.maxButtonMessageLength),
+  }),
+});
+const navigateEventSchema = z.object({
+  name: z.literal(ACTION_NAVIGATE),
+  context: z.object({ target: navigationTargetSchema }),
+});
+const provisionAgentEventSchema = z.object({
+  name: z.literal(ACTION_PROVISION_AGENT),
+  context: AgentProvisionActionContextSchema,
+});
+const configureAgentProvidersEventSchema = z.object({
+  name: z.literal(ACTION_CONFIGURE_AGENT_PROVIDERS),
+  context: AgentProviderConfigContextSchema,
+});
+const buttonEventSchema = z.discriminatedUnion('name', [
+  sendMessageEventSchema,
+  navigateEventSchema,
+  provisionAgentEventSchema,
+]);
+const buttonActionSchema = z.object({ event: buttonEventSchema });
+const sendMessageActionSchema = z.object({ event: sendMessageEventSchema });
+const navigateActionSchema = z.object({ event: navigateEventSchema });
+const provisionAgentActionSchema = z.object({
+  event: provisionAgentEventSchema,
+});
+const smallChoiceProvisionAgentEventSchema = z.object({
+  name: z.literal(ACTION_PROVISION_AGENT),
+  context: AgentProvisionActionContextSchema.omit({ topics: true }).extend({
+    // This action is a template. The control replaces this list with the
+    // owner's selection and enforces a non-empty result before dispatch.
+    topics: z
+      .array(agentProtocolString(AGENT_PROTOCOL_LIMITS.topicLength))
+      .max(AGENT_PROTOCOL_LIMITS.topicCount),
+  }),
+});
+const configureAgentProvidersActionSchema = z.object({
+  event: configureAgentProvidersEventSchema,
+});
+const smallChoiceActionSchema = z.union([
+  z.object({ event: smallChoiceSendMessageEventSchema }),
+  z.object({ event: smallChoiceProvisionAgentEventSchema }),
+]);
+
+const textSchema = z.object({
+  ...componentBaseShape,
+  component: z.literal('Text'),
+  text: z.string().max(LIMITS.maxTextNodeLength),
+  variant: textVariantSchema.optional(),
+});
+const containerSchema = z.object({
+  ...componentBaseShape,
+  component: z.enum(['Row', 'Column']),
+  children: z
+    .array(nonEmptyString())
+    .max(LIMITS.maxChildren)
+    .refine((children) => uniqueBy(children, (child) => child)),
+  justify: containerJustifySchema.optional(),
+  align: containerAlignSchema.optional(),
+});
+const rowSchema = containerSchema.extend({ component: z.literal('Row') });
+const columnSchema = containerSchema.extend({ component: z.literal('Column') });
+const cardSchema = z.object({
+  ...componentBaseShape,
+  component: z.literal('Card'),
+  child: nonEmptyString(),
+});
+const dividerSchema = z.object({
+  ...componentBaseShape,
+  component: z.literal('Divider'),
+});
+const buttonSchema = z.object({
+  ...componentBaseShape,
+  component: z.literal('Button'),
+  child: nonEmptyString(),
+  disabled: z.boolean().optional(),
+  variant: buttonVariantSchema.optional(),
+  action: buttonActionSchema,
+});
+const choiceOptionSchema = z.object({
+  id: nonEmptyString(LIMITS.maxIdLength),
+  label: nonEmptyString(LIMITS.maxTextNodeLength),
+  description: z.string().max(LIMITS.maxTextNodeLength).optional(),
+  icon: choiceIconSchema.optional(),
+  accent: choiceAccentSchema.optional(),
+  action: buttonActionSchema,
+});
+const choiceSchema = z.object({
+  ...componentBaseShape,
+  component: z.literal('Choice'),
+  options: z
+    .array(choiceOptionSchema)
+    .min(1)
+    .max(LIMITS.maxChoiceOptions)
+    .refine((options) => uniqueBy(options, (option) => option.id)),
+});
+const smallChoiceOptionSchema = z.object({
+  id: nonEmptyString(),
+  label: nonEmptyString(LIMITS.maxPillLabelLength),
+});
+const smallChoiceSchema = z.object({
+  ...componentBaseShape,
+  component: z.literal('SmallChoice'),
+  options: z
+    .array(smallChoiceOptionSchema)
+    .min(1)
+    .max(LIMITS.maxSmallChoiceOptions)
+    .refine((options) => uniqueBy(options, (option) => option.id))
+    .refine((options) => uniqueBy(options, (option) => option.label)),
+  submitLabel: nonEmptyString(LIMITS.maxPillLabelLength),
+  freeTextPlaceholder: nonEmptyString(LIMITS.maxPillLabelLength).optional(),
+  action: smallChoiceActionSchema,
+});
+const mcpSettingsNavigateActionSchema = z.object({
+  event: z.object({
+    name: z.literal(ACTION_NAVIGATE),
+    context: z.object({
+      target: screenNavigationTargetSchema.extend({
+        screen: z.literal('botMcpSettings'),
+      }),
+    }),
+  }),
+});
+const mcpConnectSchema = z.object({
+  ...componentBaseShape,
+  component: z.literal('McpConnect'),
+  maxVisible: z.number().int().min(1).max(LIMITS.maxSmallChoiceOptions),
+  seeAllLabel: nonEmptyString(LIMITS.maxPillLabelLength),
+  submitLabel: nonEmptyString(LIMITS.maxPillLabelLength),
+  action: mcpSettingsNavigateActionSchema,
+  configureAction: configureAgentProvidersActionSchema,
+  completionLabel: nonEmptyString(LIMITS.maxPillLabelLength).optional(),
+  completionAction: sendMessageActionSchema.optional(),
+});
+const componentSchema = z
+  .discriminatedUnion('component', [
+    textSchema,
+    rowSchema,
+    columnSchema,
+    cardSchema,
+    dividerSchema,
+    buttonSchema,
+    choiceSchema,
+    smallChoiceSchema,
+    mcpConnectSchema,
+  ])
+  .refine(
+    (component) =>
+      component.component !== 'McpConnect' ||
+      (component.completionLabel === undefined) ===
+        (component.completionAction === undefined)
+  );
+const createSurfaceMessageSchema = z.object({
+  version: z.literal('v0.9'),
+  createSurface: z.object({
+    surfaceId: nonEmptyString(LIMITS.maxIdLength),
+    catalogId: nonEmptyString(),
+  }),
+});
+const updateComponentsMessageSchema = z.object({
+  version: z.literal('v0.9'),
+  updateComponents: z.object({
+    surfaceId: nonEmptyString(LIMITS.maxIdLength),
+    components: z.array(componentSchema).min(1).max(LIMITS.maxComponents),
+    root: z.string().optional(),
+  }),
+});
 export namespace A2UI {
-  export type Text = ComponentBase & {
-    component: 'Text';
-    text: string;
-    variant?: 'body' | 'caption' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5';
-  };
-
-  export type Container = ComponentBase & {
-    component: 'Row' | 'Column';
-    children: string[];
-    justify?: 'start' | 'center' | 'end' | 'spaceBetween' | 'spaceAround';
-    align?: 'start' | 'center' | 'end' | 'stretch';
-  };
-
-  export type Card = ComponentBase & {
-    component: 'Card';
-    child: string;
-  };
-
-  export type Divider = ComponentBase & {
-    component: 'Divider';
-  };
-
-  export type SendMessageEvent = {
-    name: typeof ACTION_SEND_MESSAGE;
-    context: {
-      text: string;
-    };
-  };
-
-  export type MessageNavigationTarget = {
-    type: 'message';
-    channelId: string;
-    postId: string;
-    parentId?: string;
-    parentAuthorId?: string;
-    authorId?: string;
-    groupId?: string;
-  };
-
-  export type ChannelNavigationTarget = {
-    type: 'channel';
-    channelId: string;
-    groupId?: string;
-    selectedPostId?: string;
-  };
-
-  export type GroupNavigationTarget = {
-    type: 'group';
-    groupId: string;
-  };
-
-  export type ProfileNavigationTarget = {
-    type: 'profile';
-    userId: string;
-    groupId?: string;
-    channelId?: string;
-  };
-
-  export type ChatDetailsNavigationTarget = {
-    type: 'chatDetails';
-    chatType: 'group' | 'channel';
-    chatId: string;
-    groupId?: string;
-  };
-
-  export type ChatVolumeNavigationTarget = {
-    type: 'chatVolume';
-    chatType: 'group' | 'channel';
-    chatId: string;
-    groupId?: string;
-  };
-
-  export type NavigationTarget =
-    | MessageNavigationTarget
-    | ChannelNavigationTarget
-    | GroupNavigationTarget
-    | ProfileNavigationTarget
-    | ChatDetailsNavigationTarget
-    | ChatVolumeNavigationTarget;
-
-  export type NavigateEvent = {
-    name: typeof ACTION_NAVIGATE;
-    context: {
-      target: NavigationTarget;
-    };
-  };
-
-  export type EventAction = {
-    event: SendMessageEvent | NavigateEvent;
-  };
-
+  export type Text = z.infer<typeof textSchema>;
+  export type Container = z.infer<typeof containerSchema>;
+  export type Card = z.infer<typeof cardSchema>;
+  export type Divider = z.infer<typeof dividerSchema>;
+  export type SendMessageEvent = z.infer<typeof sendMessageEventSchema>;
+  export type MessageNavigationTarget = z.infer<
+    typeof messageNavigationTargetSchema
+  >;
+  export type ChannelNavigationTarget = z.infer<
+    typeof channelNavigationTargetSchema
+  >;
+  export type GroupNavigationTarget = z.infer<
+    typeof groupNavigationTargetSchema
+  >;
+  export type ProfileNavigationTarget = z.infer<
+    typeof profileNavigationTargetSchema
+  >;
+  export type ChatDetailsNavigationTarget = z.infer<
+    typeof chatDetailsNavigationTargetSchema
+  >;
+  export type ChatVolumeNavigationTarget = z.infer<
+    typeof chatVolumeNavigationTargetSchema
+  >;
+  /**
+   * App screens a blob may navigate to. Unknown names fail validation so a
+   * newer card safely degrades to fallback text on an older client.
+   */
+  export type ScreenName = z.infer<typeof screenNameSchema>;
+  export type ScreenNavigationTarget = z.infer<
+    typeof screenNavigationTargetSchema
+  >;
+  export type NavigationTarget = z.infer<typeof navigationTargetSchema>;
+  export type NavigateEvent = z.infer<typeof navigateEventSchema>;
+  /** Finish the durable, client-bound agent onboarding setup. */
+  export type ProvisionAgentEvent = z.infer<typeof provisionAgentEventSchema>;
+  /** Bind already-connected Hosting providers to a recurring agent job. */
+  export type ConfigureAgentProvidersEvent = z.infer<
+    typeof configureAgentProvidersEventSchema
+  >;
+  export type EventAction = z.infer<typeof buttonActionSchema>;
   export type ButtonAction = EventAction;
-
-  export type Button = ComponentBase & {
-    component: 'Button';
-    child: string;
-    disabled?: boolean;
-    variant?: 'default' | 'primary' | 'secondary' | 'borderless';
-    action: ButtonAction;
-  };
-
-  export type Component = Text | Container | Card | Divider | Button;
-
-  export type CreateSurfaceMessage = {
-    version: 'v0.9';
-    createSurface: {
-      surfaceId: string;
-      catalogId: string;
-    };
-  };
-
-  export type UpdateComponentsMessage = {
-    version: 'v0.9';
-    updateComponents: {
-      surfaceId: string;
-      components: Component[];
-      root?: string;
-    };
-  };
-
+  export type SendMessageAction = z.infer<typeof sendMessageActionSchema>;
+  export type NavigateAction = z.infer<typeof navigateActionSchema>;
+  export type ConfigureAgentProvidersAction = z.infer<
+    typeof configureAgentProvidersActionSchema
+  >;
+  /** Every action the renderer may dispatch; provider config is McpConnect-only. */
+  export type Action = ButtonAction | ConfigureAgentProvidersAction;
+  export type Button = z.infer<typeof buttonSchema>;
+  /** Allowlisted assets a Choice option may render. */
+  export type ChoiceIcon = z.infer<typeof choiceIconSchema>;
+  export type ChoiceAccent = z.infer<typeof choiceAccentSchema>;
+  export type ChoiceOption = z.infer<typeof choiceOptionSchema>;
+  /** A group of full-row option cards where the whole card is tappable. */
+  export type Choice = z.infer<typeof choiceSchema>;
+  export type SmallChoiceOption = z.infer<typeof smallChoiceOptionSchema>;
+  /** A client-owned multi-select whose selection is posted only on submit. */
+  export type SmallChoice = z.infer<typeof smallChoiceSchema>;
+  /** A client-owned menu populated from the viewer's live MCP providers. */
+  export type McpConnect = z.infer<typeof mcpConnectSchema>;
+  export type Component = z.infer<typeof componentSchema>;
+  export type CreateSurfaceMessage = z.infer<typeof createSurfaceMessageSchema>;
+  export type UpdateComponentsMessage = z.infer<
+    typeof updateComponentsMessageSchema
+  >;
   export type Message = CreateSurfaceMessage | UpdateComponentsMessage;
-
   export type BlobEntry = {
     type: 'a2ui';
     version: 1;
@@ -139,219 +380,8 @@ export namespace A2UI {
   };
 }
 
-const LIMITS = {
-  maxBytes: 32 * 1024,
-  maxComponents: 50,
-  maxDepth: 8,
-  maxChildren: 12,
-  maxTextNodeLength: 1000,
-  maxButtonMessageLength: 1000,
-  maxNavigationTargetIdLength: 500,
-  maxTotalTextLength: 8000,
-} as const;
-
-const CONTAINER_JUSTIFY_VALUES = [
-  'start',
-  'center',
-  'end',
-  'spaceBetween',
-  'spaceAround',
-] as const;
-
-const CONTAINER_ALIGN_VALUES = ['start', 'center', 'end', 'stretch'] as const;
-
-const TEXT_VARIANT_VALUES = [
-  'body',
-  'caption',
-  'h1',
-  'h2',
-  'h3',
-  'h4',
-  'h5',
-] as const;
-
-const BUTTON_VARIANT_VALUES = [
-  'default',
-  'primary',
-  'secondary',
-  'borderless',
-] as const;
-
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-function isValidTargetId(value: unknown): value is string {
-  return (
-    isNonEmptyString(value) &&
-    value.length <= LIMITS.maxNavigationTargetIdLength
-  );
-}
-
-function isValidWeight(value: unknown): boolean {
-  return (
-    value === undefined ||
-    (typeof value === 'number' &&
-      Number.isFinite(value) &&
-      value >= 0 &&
-      value <= 12)
-  );
-}
-
-function isValidContainerJustify(value: unknown): boolean {
-  return (
-    value === undefined ||
-    CONTAINER_JUSTIFY_VALUES.includes(
-      value as (typeof CONTAINER_JUSTIFY_VALUES)[number]
-    )
-  );
-}
-
-function isValidContainerAlign(value: unknown): boolean {
-  return (
-    value === undefined ||
-    CONTAINER_ALIGN_VALUES.includes(
-      value as (typeof CONTAINER_ALIGN_VALUES)[number]
-    )
-  );
-}
-
-function isValidTextVariant(value: unknown): boolean {
-  return (
-    value === undefined ||
-    TEXT_VARIANT_VALUES.includes(value as (typeof TEXT_VARIANT_VALUES)[number])
-  );
-}
-
-function isValidButtonVariant(value: unknown): boolean {
-  return (
-    value === undefined ||
-    BUTTON_VARIANT_VALUES.includes(
-      value as (typeof BUTTON_VARIANT_VALUES)[number]
-    )
-  );
-}
-
-function isValidChatType(value: unknown): value is 'group' | 'channel' {
-  return value === 'group' || value === 'channel';
-}
-
-function isValidOptionalTargetId(value: unknown): boolean {
-  return value === undefined || isValidTargetId(value);
-}
-
-function validateNavigationTarget(
-  target: unknown
-): target is A2UI.NavigationTarget {
-  if (!isPlainObject(target)) {
-    return false;
-  }
-
-  switch (target.type) {
-    case 'message':
-      return (
-        isValidTargetId(target.channelId) &&
-        isValidTargetId(target.postId) &&
-        isValidOptionalTargetId(target.parentId) &&
-        isValidOptionalTargetId(target.parentAuthorId) &&
-        isValidOptionalTargetId(target.authorId) &&
-        isValidOptionalTargetId(target.groupId)
-      );
-    case 'channel':
-      return (
-        isValidTargetId(target.channelId) &&
-        isValidOptionalTargetId(target.groupId) &&
-        isValidOptionalTargetId(target.selectedPostId)
-      );
-    case 'group':
-      return isValidTargetId(target.groupId);
-    case 'profile':
-      return (
-        isValidTargetId(target.userId) &&
-        isValidOptionalTargetId(target.groupId) &&
-        isValidOptionalTargetId(target.channelId)
-      );
-    case 'chatDetails':
-    case 'chatVolume':
-      return (
-        isValidChatType(target.chatType) &&
-        isValidTargetId(target.chatId) &&
-        isValidOptionalTargetId(target.groupId)
-      );
-    default:
-      return false;
-  }
-}
-
-function validateButtonAction(action: unknown): action is A2UI.ButtonAction {
-  if (!isPlainObject(action) || !isPlainObject(action.event)) {
-    return false;
-  }
-
-  const { event } = action;
-  const context = event.context;
-
-  if (event.name === ACTION_SEND_MESSAGE) {
-    return (
-      isPlainObject(context) &&
-      isNonEmptyString(context.text) &&
-      context.text.length <= LIMITS.maxButtonMessageLength
-    );
-  }
-
-  if (event.name === ACTION_NAVIGATE) {
-    return isPlainObject(context) && validateNavigationTarget(context.target);
-  }
-
-  return false;
-}
-
-function validateComponent(component: unknown): component is A2UI.Component {
-  if (!isPlainObject(component) || !isNonEmptyString(component.id)) {
-    return false;
-  }
-  if (!isValidWeight(component.weight)) {
-    return false;
-  }
-
-  switch (component.component) {
-    case 'Text':
-      return (
-        typeof component.text === 'string' &&
-        component.text.length <= LIMITS.maxTextNodeLength &&
-        isValidTextVariant(component.variant)
-      );
-    case 'Row':
-    case 'Column':
-      return (
-        Array.isArray(component.children) &&
-        component.children.length <= LIMITS.maxChildren &&
-        component.children.every((child) => isNonEmptyString(child)) &&
-        new Set(component.children).size === component.children.length &&
-        isValidContainerJustify(component.justify) &&
-        isValidContainerAlign(component.align)
-      );
-    case 'Card':
-      return isNonEmptyString(component.child);
-    case 'Divider':
-      return true;
-    case 'Button': {
-      const action = component.action;
-      return (
-        isNonEmptyString(component.child) &&
-        (component.disabled === undefined ||
-          typeof component.disabled === 'boolean') &&
-        isValidButtonVariant(component.variant) &&
-        validateButtonAction(action)
-      );
-    }
-    default:
-      return false;
-  }
 }
 
 type ValidatedEnvelope = {
@@ -360,56 +390,83 @@ type ValidatedEnvelope = {
   components: A2UI.Component[];
 };
 
-function validateEnvelope(entry: unknown): ValidatedEnvelope | null {
-  if (!isPlainObject(entry) || entry.type !== 'a2ui' || entry.version !== 1) {
+function addParseIssues(
+  context: z.RefinementCtx,
+  error: z.ZodError,
+  prefix: (string | number)[]
+) {
+  for (const issue of error.issues) {
+    context.addIssue({ ...issue, path: [...prefix, ...issue.path] });
+  }
+}
+
+function validateEnvelope(
+  entry: unknown,
+  context: z.RefinementCtx
+): ValidatedEnvelope | null {
+  if (
+    !isPlainObject(entry) ||
+    entry.type !== 'a2ui' ||
+    entry.version !== 1 ||
+    !Array.isArray(entry.messages)
+  ) {
     return null;
   }
 
   if (JSON.stringify(entry).length > LIMITS.maxBytes) {
+    context.addIssue({
+      code: z.ZodIssueCode.too_big,
+      type: 'string',
+      maximum: LIMITS.maxBytes,
+      inclusive: true,
+      path: [],
+      message: 'A2UI blob exceeds the wire-size limit',
+    });
     return null;
   }
 
-  if (!Array.isArray(entry.messages)) {
-    return null;
-  }
-
-  const createMessage = entry.messages.find(
-    (message): message is A2UI.CreateSurfaceMessage =>
-      isPlainObject(message) && 'createSurface' in message
+  const createIndex = entry.messages.findIndex(
+    (message) => isPlainObject(message) && 'createSurface' in message
   );
-  const updateMessage = entry.messages.find(
-    (message): message is A2UI.UpdateComponentsMessage =>
-      isPlainObject(message) && 'updateComponents' in message
+  const updateIndex = entry.messages.findIndex(
+    (message) => isPlainObject(message) && 'updateComponents' in message
   );
-
-  if (
-    !createMessage ||
-    !updateMessage ||
-    createMessage.version !== 'v0.9' ||
-    updateMessage.version !== 'v0.9' ||
-    !isPlainObject(createMessage.createSurface) ||
-    !isPlainObject(updateMessage.updateComponents)
-  ) {
+  const createCandidate = entry.messages[createIndex];
+  const updateCandidate = entry.messages[updateIndex];
+  const createResult = createSurfaceMessageSchema.safeParse(createCandidate);
+  const updateResult = updateComponentsMessageSchema.safeParse(updateCandidate);
+  if (!createResult.success) {
+    addParseIssues(
+      context,
+      createResult.error,
+      createIndex < 0 ? ['messages'] : ['messages', createIndex]
+    );
+  }
+  if (!updateResult.success) {
+    addParseIssues(
+      context,
+      updateResult.error,
+      updateIndex < 0 ? ['messages'] : ['messages', updateIndex]
+    );
+  }
+  if (!createResult.success || !updateResult.success) {
     return null;
   }
+
+  const createMessage = createResult.data;
+  const updateMessage = updateResult.data;
 
   const surfaceId = createMessage.createSurface.surfaceId;
   const updateSurfaceId = updateMessage.updateComponents.surfaceId;
   const catalogId = createMessage.createSurface.catalogId;
   const components = updateMessage.updateComponents.components;
 
-  if (
-    !isNonEmptyString(surfaceId) ||
-    surfaceId !== updateSurfaceId ||
-    !isNonEmptyString(catalogId) ||
-    !Array.isArray(components) ||
-    components.length === 0 ||
-    components.length > LIMITS.maxComponents
-  ) {
-    return null;
-  }
-
-  if (!components.every(validateComponent)) {
+  if (surfaceId !== updateSurfaceId || !catalogId) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['messages', updateIndex, 'updateComponents', 'surfaceId'],
+      message: 'Surface ids must match',
+    });
     return null;
   }
 
@@ -433,6 +490,30 @@ function indexComponents(
       }
     } else if (component.component === 'Text') {
       totalTextLength += component.text.length;
+    } else if (component.component === 'Choice') {
+      // Choice carries its own copy — count it, or it bypasses the budget.
+      for (const option of component.options) {
+        totalTextLength += option.label.length;
+        totalTextLength += option.description?.length ?? 0;
+        if (option.action.event.name === ACTION_SEND_MESSAGE) {
+          totalTextLength += option.action.event.context.text.length;
+        }
+      }
+    } else if (component.component === 'SmallChoice') {
+      for (const option of component.options) {
+        totalTextLength += option.label.length;
+      }
+      totalTextLength += component.submitLabel.length;
+      totalTextLength += component.freeTextPlaceholder?.length ?? 0;
+      if (component.action.event.name === ACTION_SEND_MESSAGE) {
+        totalTextLength += component.action.event.context.text.length;
+      }
+    } else if (component.component === 'McpConnect') {
+      totalTextLength +=
+        component.seeAllLabel.length + component.submitLabel.length;
+      totalTextLength += component.completionLabel?.length ?? 0;
+      totalTextLength +=
+        component.completionAction?.event.context.text.length ?? 0;
     }
   }
 
@@ -447,7 +528,7 @@ function validateReachableTree(
   root: string,
   components: Map<string, A2UI.Component>
 ): boolean {
-  if (!isNonEmptyString(root) || !components.has(root)) {
+  if (!root.trim() || !components.has(root)) {
     return false;
   }
 
@@ -500,6 +581,17 @@ export function getUpdateMessage(
   );
 }
 
+export function getCreateMessage(
+  entry: A2UI.BlobEntry
+): A2UI.CreateSurfaceMessage | null {
+  return (
+    entry.messages.find(
+      (message): message is A2UI.CreateSurfaceMessage =>
+        isPlainObject(message) && 'createSurface' in message
+    ) ?? null
+  );
+}
+
 export function getRootComponentId(entry: A2UI.BlobEntry): string | null {
   const update = getUpdateMessage(entry);
   if (!update) {
@@ -513,30 +605,98 @@ export function getRootComponentId(entry: A2UI.BlobEntry): string | null {
 }
 
 export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
-  const envelope = validateEnvelope(entry);
+  return blobEntrySchema.safeParse(entry).success;
+}
+
+function validateParsedBlobEntry(
+  entry: A2UI.BlobEntry,
+  context: z.RefinementCtx
+): void {
+  const envelope = validateEnvelope(entry, context);
   if (!envelope) {
-    return false;
+    return;
   }
 
   const components = indexComponents(envelope.components);
   if (!components) {
-    return false;
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['messages'],
+      message: 'Components exceed uniqueness or text limits',
+    });
+    return;
   }
 
   const root =
     envelope.updateMessage.updateComponents.root ?? envelope.components[0]?.id;
-  return validateReachableTree(root, components);
+  if (!validateReachableTree(root, components)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['messages'],
+      message: 'Component tree is invalid or exceeds render limits',
+    });
+  }
 }
 
-export const blobEntrySchema = z.custom<A2UI.BlobEntry>(validateBlobEntry);
+const blobEntryShapeSchema: z.ZodType<A2UI.BlobEntry> = z
+  .object({
+    type: z.literal('a2ui'),
+    version: z.literal(1),
+    messages: z.array(z.any()),
+    recipe: z.any().optional(),
+  })
+  .passthrough();
+
+export const blobEntrySchema = blobEntryShapeSchema.superRefine(
+  validateParsedBlobEntry
+);
+
+/**
+ * The message a SmallChoice posts for a given selection: the action's text as a
+ * prefix, then the selected labels comma-joined in declaration order. The
+ * durable selection lives in a typed post-blob entry, so this string is only
+ * presentation for the owner and bot.
+ */
+export function buildSmallChoiceMessage(
+  component: A2UI.SmallChoice,
+  selectedIds: Iterable<string>,
+  /** free-text entries; each value remains a separate durable selection */
+  freeText?: string | readonly string[]
+): string {
+  const selected = new Set(selectedIds);
+  const labels = component.options
+    .filter((option) => selected.has(option.id))
+    .map((option) => option.label);
+  const typed = (typeof freeText === 'string' ? [freeText] : (freeText ?? []))
+    .map((value) => value.trim())
+    .filter(Boolean);
+  labels.push(...typed);
+  if (!labels.length) {
+    return '';
+  }
+  const selection = labels.join(', ');
+  const prefix =
+    component.action.event.name === ACTION_SEND_MESSAGE
+      ? component.action.event.context.text.trim()
+      : '';
+  return [prefix, selection]
+    .filter(Boolean)
+    .join(' ')
+    .slice(0, LIMITS.maxButtonMessageLength)
+    .trim();
+}
 
 export const A2UI = {
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
     navigate: ACTION_NAVIGATE,
+    provisionAgent: ACTION_PROVISION_AGENT,
+    configureAgentProviders: ACTION_CONFIGURE_AGENT_PROVIDERS,
   },
+  getCreateMessage,
   getUpdateMessage,
   getRootComponentId,
   validateBlobEntry,
   blobEntrySchema,
+  buildSmallChoiceMessage,
 } as const;
