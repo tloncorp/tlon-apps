@@ -54,7 +54,7 @@ Tlon Messenger works differently. When you sign up, you get your own server on a
 - **Urbit.** The open-source network and operating system Tlon Messenger is built on. Urbit is the computer; Tlon Messenger is the app. Tlon is the company that builds Tlon Messenger and offers Urbit hosting.  
 - **Username.** Your Urbit ID (also called an identity or @p). It works like a unique address or phone number. Your node is the device behind it.  
 - **Master ticket.** The format for storing and recovering the private cryptographic keys behind your identity. Keep it safe — it proves the identity is yours.  
-- **Hosted account.** Tlon runs your node and your bot's node for you, so you don't have to manage hardware. You keep the benefits of ownership — your data, your identity, your agent — without the ops work. You can export everything and self-host anytime.  
+- **Hosted account.** Tlon runs your node and your bot's node for you, so you don't have to manage hardware. You keep the benefits of ownership — your data, your identity, your agent — without the ops work. Your node exports and self-hosts whenever you want. Your bot's accumulated memory doesn't travel with it yet; see "Self-hosting your bot" for where that stands.  
 - **Tlonbot.** Your personal AI agent. It runs with an OpenClaw harness on its own node, linked to yours.  
 - **OpenClaw.** The open-source agent framework that powers Tlonbot. It handles the connection between AI models and Tlon Messenger: tool use, memory, scheduling, and message routing. Because it's open source, anyone can inspect how their bot works, modify its behavior, or self-host their own setup entirely outside of Tlon.
 
@@ -168,7 +168,7 @@ To send one: tap the plus button, tap `New direct message`, and select who it's 
 
 ### What it is
 
-Tlonbot is a personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. Hosted accounts get one provisioned for them, waiting in their DMs — nothing to set up. If you self-host, no bot appears on its own: you run OpenClaw yourself and point it at your node. That's a supported path, just a hands-on one.
+Tlonbot is a personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. Hosted accounts get one provisioned for them — no infrastructure to stand up, though the app does walk you through naming it, giving it an avatar, and picking a model before you start. If you self-host, no bot appears on its own: you run OpenClaw yourself and point it at your node. That's a supported path, just a hands-on one.
 
 Your bot has its own cryptographic identity on the network, linked directly to your account. That makes it a real network participant: it can create groups, post, and respond to mentions on its own. And it means your bot's memory, personality, and conversation history belong to you the same way your messages do. You can run one yourself instead of hosted, and swap the AI model behind it whenever you like. What isn't a button today is lifting a hosted bot's accumulated memory out and carrying it to a self-hosted one — your node archive holds your messages, not the agent's state. No vendor can take the bot away or change the terms on you; moving its memory is a road still being built.
 
@@ -271,7 +271,7 @@ Hosted accounts include an AI model for free — basic usage costs nothing. Want
 
 ### Guardrails
 
-Hosted Tlonbots ship with guardrails: external integrations are limited to approved connected services, the system prompt can't be modified, and the bot has no shell and can't write to the filesystem — the only thing it writes is Tlon Messenger content. It can read files, which is how it works with anything you send it, and that's restricted to you rather than to anyone in a channel. These limits keep hosted bots safe by default.
+Hosted Tlonbots ship with guardrails: external integrations are limited to approved connected services, the system prompt can't be modified, and the bot has no shell and can't write to the filesystem — the only thing it writes is Tlon Messenger content. It can read files, which is how it works with anything you send it. Don't read that as a privacy boundary: reaching into the filesystem is something only you can ask for, but a file posted in a channel the bot watches goes to the model like any other message, whoever sent it. If that matters, it's channel access you want to think about, not this. These limits keep hosted bots safe by default.
 
 ### Self-hosting your bot
 
@@ -334,7 +334,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 **For anyone:**
 
 - Make a group for your family or closest friends, with a Chat for talking and a Gallery for photos.  
-- Sync contacts and send your personal invite link to the people you message most.  
+- Sync contacts and send your personal invite link to the people you message most (hosted accounts — self-hosters have group invite links instead).  
 - Ask your Tlonbot for a morning cron: weather, headlines, and your reminders in one daily DM.  
 - Add your bot to a group chat for instant settle-the-debate web searches and trivia nights.  
 - Ask your bot to catch you up on a channel after a day away.
