@@ -109,15 +109,25 @@ export const syncInitData = async (
       .insertChannelPerms(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel perms'));
     if (bucketSnapshots.length > 0) {
-      await db.insertChannelPerms(
-        bucketSnapshots.map((snapshot) => ({
-          channelId: api.formatBucketsChannelId(snapshot.flag),
-          readers: snapshot.state.readers,
-          writers: snapshot.state.writers,
-        })),
-        queryCtx
-      );
-      logger.crumb('inserted Bucket channel perms');
+      // Writers only. %groups does not model a channel's writer roles, so a
+      // bucket keeps its own and this is the only place they come from --
+      // but readability is %groups' alone, and insertGroups above has
+      // already written those. updateChannel preserves them; passing them
+      // here as [] would wipe every reader role off the channel.
+      for (const snapshot of bucketSnapshots) {
+        const channelId = api.formatBucketsChannelId(snapshot.flag);
+        await db.updateChannel(
+          {
+            id: channelId,
+            writerRoles: snapshot.state.writers.map((roleId) => ({
+              channelId,
+              roleId,
+            })),
+          },
+          queryCtx
+        );
+      }
+      logger.crumb('inserted Bucket channel writers');
     }
     await db
       .insertChannelOrder(initData.channelPerms, queryCtx)

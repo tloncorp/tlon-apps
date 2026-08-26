@@ -70,7 +70,7 @@ export const useBucketsDeskAvailable = () => {
     queryKey: ['bucketsDeskAvailable'],
     queryFn: async () => {
       try {
-        await api.getBuckets();
+        await api.getBucketsReady();
         return true;
       } catch (e) {
         return false;

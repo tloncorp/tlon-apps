@@ -26,12 +26,52 @@ const BUCKETS_CHANNEL_LISTING_DELAY_MS = 250;
 class NotesChannelListingUnverifiedError extends Error {}
 class BucketsChannelListingUnverifiedError extends Error {}
 
-export const BUCKETS_PLANET_HOST_REQUIRED_MESSAGE =
-  'Buckets are currently available only in groups hosted by a planet.';
+export const BUCKETS_HOSTED_SHIP_REQUIRED_MESSAGE =
+  'Buckets are currently available only in groups hosted on Tlon.';
 
+/**
+ * Whether `ship` could hold buckets at all.
+ *
+ * The storage broker authenticates a bucket host through that ship's hosting
+ * sidecar, so a self-hosted ship cannot hold one however willing it is -- its
+ * token push has nothing to verify against and is refused. Ship class is only
+ * a proxy for that, and a poor one: a self-hosted planet passes here and
+ * still cannot host. It is also stricter than the broker, which supports a
+ * moon of a hosted ship via its parent's sidecar -- left excluded because
+ * that is a product decision, not an accident.
+ *
+ * So this stays a coarse pre-filter. Use `canCurrentUserHostBuckets` wherever
+ * the ship in question is our own, which is the case that can be answered.
+ */
 export function canShipHostBuckets(ship: string) {
   try {
     return p.kind(ship) === 'planet';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether a group hosted by `hostUserId` can hold buckets, answered as well as
+ * this client can answer it.
+ *
+ * When we host the group we know outright, because whether our own node is
+ * hosted is observable. For a group hosted elsewhere there is nothing to read,
+ * so the ship class is all we have and the host's own sync is the real check.
+ */
+export function canGroupHostBuckets(hostUserId: string) {
+  if (!canShipHostBuckets(hostUserId)) return false;
+  let hostIsUs = false;
+  try {
+    hostIsUs = api.getCurrentUserId() === hostUserId;
+  } catch {
+    // No client yet, so we cannot tell whose ship this is; the class filter
+    // above is the only answer available.
+    return true;
+  }
+  if (!hostIsUs) return true;
+  try {
+    return api.getCurrentUserIsHosted();
   } catch {
     return false;
   }
@@ -158,8 +198,8 @@ async function createBucketsChannel({
   if (!groupHost || !groupName || rest.length > 0) {
     throw new Error(`Invalid group id: ${groupId}`);
   }
-  if (!canShipHostBuckets(groupHost)) {
-    throw new Error(BUCKETS_PLANET_HOST_REQUIRED_MESSAGE);
+  if (!canGroupHostBuckets(groupHost)) {
+    throw new Error(BUCKETS_HOSTED_SHIP_REQUIRED_MESSAGE);
   }
 
   const name = customSlug || getRandomId();
@@ -566,11 +606,8 @@ export async function updateChannel({
         flag: bucketFlag,
         title: channel.title ?? '',
       });
-      await api.sendBucketsAction({
-        type: 'set-readers',
-        flag: bucketFlag,
-        readers,
-      });
+      // No set-readers: api.updateChannel above already sent `readers` to
+      // %groups, which is the only place a bucket's readability lives.
       await api.sendBucketsAction({
         type: 'set-writers',
         flag: bucketFlag,

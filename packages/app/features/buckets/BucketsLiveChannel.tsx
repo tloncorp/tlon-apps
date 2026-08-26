@@ -62,10 +62,9 @@ function toItem(
     mimeType: entry.file.mime,
     modifiedLabel: formatBucketTimestamp(entry.updatedAt),
     name: entry.name,
-    previewUri:
-      entry.file.status === 'ready'
-        ? entry.file.objectUrl ?? undefined
-        : undefined,
+    // Files are always fetched through a short-lived read grant, so there is
+    // no URL to show until one is issued.
+    previewUri: undefined,
     sizeLabel: formatFileSize(entry.file.size),
     uploadSize: entry.file.status === 'pending' ? entry.file.size : undefined,
     uploadError:
@@ -155,8 +154,8 @@ export function BucketsLiveChannel({
     return counts;
   }, [entries]);
   const suppressedIds = useMemo(
-    () => findUploadShadowEntryIds(live.uploads, live.snapshot, currentUserId),
-    [currentUserId, live.snapshot, live.uploads]
+    () => findUploadShadowEntryIds(live.uploads),
+    [live.uploads]
   );
   const serverEntries = useMemo(
     () => entries.filter((entry) => !suppressedIds.has(entry.id)),
@@ -233,12 +232,7 @@ export function BucketsLiveChannel({
     setPreviewError(null);
 
     try {
-      const entry = entriesById.get(Number(item.id));
-      const isPrivateFile =
-        entry?.kind === 'file' && entry.file.objectUrl === null;
-      const previewUri = isPrivateFile
-        ? await live.readUrl(Number(item.id))
-        : item.previewUri ?? (await live.readUrl(Number(item.id)));
+      const previewUri = await live.readUrl(Number(item.id));
       if (previewRequestId.current !== requestId) return;
 
       const readableItem = { ...item, previewUri };

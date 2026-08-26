@@ -11,126 +11,20 @@ export function bucketResponseHasRevisionGap(
   );
 }
 
-type ReconcileableUpload = {
-  allowMetadataFallback?: boolean;
-  brokerObjectId?: string;
-  candidate: {
-    mimeType?: string;
-    name: string;
-    size: number;
-  };
-  parentId: number | null;
-  priorSessionIds?: readonly string[];
-  serverEntryId?: number;
-  sessionId?: string;
-};
-
-export function includePendingUploadForReconciliation<
-  T extends { id: string; priorSessionIds?: readonly string[] },
->(uploads: T[], pending: T, priorSessionIds: readonly string[]): T[] {
-  const withPriorSessions = { ...pending, priorSessionIds };
-  const index = uploads.findIndex((upload) => upload.id === pending.id);
-  if (index === -1) return [...uploads, withPriorSessions];
-  return uploads.map((upload, candidateIndex) =>
-    candidateIndex === index ? { ...upload, priorSessionIds } : upload
-  );
-}
-
-export function reconcileUploadsWithSnapshot<T extends ReconcileableUpload>(
-  uploads: T[],
-  snapshot: BucketsSnapshot,
-  requestedBy: string,
-  alreadyClaimedEntryIds: ReadonlySet<number> = new Set()
-): T[] {
-  const usedEntryIds = new Set(alreadyClaimedEntryIds);
-  uploads
-    .map((upload) => upload.serverEntryId)
-    .filter((id): id is number => id !== undefined)
-    .forEach((id) => usedEntryIds.add(id));
-  let changed = false;
-
-  const reconciled = uploads.map((upload) => {
-    if (
-      upload.serverEntryId !== undefined ||
-      !upload.priorSessionIds ||
-      (!upload.brokerObjectId && !upload.allowMetadataFallback)
-    ) {
-      return upload;
-    }
-
-    const priorSessionIds = new Set(upload.priorSessionIds);
-    const entries = snapshot.state.entries.filter(
-      (candidate) =>
-        candidate.kind === 'file' &&
-        !usedEntryIds.has(candidate.id) &&
-        (!upload.brokerObjectId ||
-          candidate.file.objectKey === upload.brokerObjectId) &&
-        candidate.parentId === upload.parentId &&
-        candidate.name === upload.candidate.name &&
-        candidate.file.mime ===
-          (upload.candidate.mimeType ?? 'application/octet-stream') &&
-        candidate.file.size === upload.candidate.size &&
-        snapshot.state.sessions.some(
-          (session) =>
-            session.fileId === candidate.id &&
-            session.requestedBy === requestedBy &&
-            !priorSessionIds.has(session.id)
-        )
-    );
-    // The broker object ID is the Gall object's opaque key and is the only
-    // safe discriminator for normal uploads. The metadata-only path is
-    // opt-in for cleanup after a failed grant and only succeeds when it
-    // identifies exactly one entry.
-    const entry =
-      entries.length === 1 || upload.brokerObjectId ? entries[0] : undefined;
-    if (!entry) return upload;
-
-    const session = snapshot.state.sessions.find(
-      (candidate) =>
-        candidate.fileId === entry.id &&
-        candidate.requestedBy === requestedBy &&
-        !priorSessionIds.has(candidate.id)
-    );
-    if (!session) return upload;
-
-    changed = true;
-    usedEntryIds.add(entry.id);
-    return {
-      ...upload,
-      serverEntryId: entry.id,
-      sessionId: session.id,
-    };
-  });
-
-  return changed ? reconciled : uploads;
-}
-
 /**
- * Finds server entries that are already represented by optimistic upload rows.
- * Before Memex returns an object ID, a unique metadata/session match is safe for
- * display deduplication only; permanent reconciliation still requires the
- * broker object ID.
+ * Server entries that an optimistic upload row is already standing in for.
+ *
+ * A pending upload is invisible to the manifest until its object lands, so the
+ * only overlap is the moment between the entry being published and the local
+ * row being cleared. The upload knows its own entry id — the host returns it
+ * when granting the upload — so no matching against snapshot metadata is
+ * needed to find it.
  */
-export function findUploadShadowEntryIds<T extends ReconcileableUpload>(
-  uploads: T[],
-  snapshot: BucketsSnapshot | null,
-  requestedBy: string
+export function findUploadShadowEntryIds(
+  uploads: readonly { serverEntryId?: number }[]
 ): Set<number> {
-  if (!snapshot) {
-    return new Set(
-      uploads
-        .map((upload) => upload.serverEntryId)
-        .filter((id): id is number => id !== undefined)
-    );
-  }
-
-  const displayUploads = uploads.map((upload) =>
-    upload.serverEntryId === undefined && !upload.brokerObjectId
-      ? { ...upload, allowMetadataFallback: true }
-      : upload
-  );
   return new Set(
-    reconcileUploadsWithSnapshot(displayUploads, snapshot, requestedBy)
+    uploads
       .map((upload) => upload.serverEntryId)
       .filter((id): id is number => id !== undefined)
   );
@@ -145,9 +39,6 @@ export function removeEntryFromBucketSnapshot(
     state: {
       ...snapshot.state,
       entries: snapshot.state.entries.filter((entry) => entry.id !== entryId),
-      sessions: snapshot.state.sessions.filter(
-        (session) => session.fileId !== entryId
-      ),
     },
   };
 }

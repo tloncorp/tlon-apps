@@ -1,7 +1,6 @@
 import type { BucketsFileEntry, BucketsFlag } from '@tloncorp/api';
 
 export type PrivateFileDeletionOperations = {
-  createCapability: () => string;
   deleteManifestEntry: (id: number) => Promise<unknown>;
   deleteObject: (
     capability: string,
@@ -9,7 +8,8 @@ export type PrivateFileDeletionOperations = {
     objectId: string
   ) => Promise<unknown>;
   isAlreadyDeleted: (cause: unknown) => boolean;
-  issueDelete: (capability: string, id: number) => Promise<unknown>;
+  /** Asks the host for a delete grant and returns its bearer token. */
+  issueDelete: (id: number) => Promise<string>;
   onManifestDelete?: (id: number) => void;
 };
 
@@ -19,8 +19,7 @@ export async function deletePrivateBucketFiles(
   operations: PrivateFileDeletionOperations
 ) {
   for (const entry of entries) {
-    const capability = operations.createCapability();
-    await operations.issueDelete(capability, entry.id);
+    const capability = await operations.issueDelete(entry.id);
     try {
       await operations.deleteObject(
         capability,

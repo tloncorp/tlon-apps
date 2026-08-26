@@ -1,6 +1,34 @@
-import { v4 as uuidv4 } from 'uuid';
+const DEFAULT_MEMEX_BASE_URL = 'https://memex.tlon.network';
 
-const BUCKETS_BROKER_URL = 'https://memex.tlon.network/v2/buckets';
+/**
+ * Where the storage broker lives, for clients.
+ *
+ * The broker is one service seen from two directions: the bucket host pushes
+ * read grants to it, and clients upload and read through it. Pointing one at a
+ * test deployment and not the other is broken in both, so this is the client
+ * half of the %buckets `%set-broker-base` poke — set TLON_MEMEX_URL and poke
+ * the host to match.
+ *
+ * `process.env.TLON_MEMEX_URL` is written out in full, and not behind optional
+ * chaining, because Vite's `define` substitutes the literal expression: written
+ * as `process.env?.TLON_MEMEX_URL` it does not match and the browser silently
+ * keeps the production default. The try/catch is what makes a bare `process`
+ * reference safe in a runtime where nothing substituted it.
+ *
+ * Mirrors memexBaseUrl() in packages/api/src/client/storageApi.ts, rather than
+ * importing it, because shared/ does not depend on api/.
+ */
+function memexBaseUrl(): string {
+  try {
+    return process.env.TLON_MEMEX_URL?.trim() || DEFAULT_MEMEX_BASE_URL;
+  } catch {
+    return DEFAULT_MEMEX_BASE_URL;
+  }
+}
+
+function bucketsBrokerUrl(): string {
+  return `${memexBaseUrl().replace(/\/+$/, '')}/v2/buckets`;
+}
 
 type BrokerErrorBody = {
   code?: string;
@@ -46,16 +74,12 @@ export type BucketReadGrant = {
   acceptRanges: boolean;
 };
 
-export function createBucketCapability() {
-  return uuidv4().replaceAll('-', '');
-}
-
 function hostName(host: string) {
   return host.replace(/^~/, '');
 }
 
 async function brokerRequest<T>(path: string, init: RequestInit): Promise<T> {
-  const response = await fetch(`${BUCKETS_BROKER_URL}${path}`, {
+  const response = await fetch(`${bucketsBrokerUrl()}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -78,6 +102,13 @@ async function brokerRequest<T>(path: string, init: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * Exchange an upload token for a signed PUT.
+ *
+ * The token is minted by the bucket's host and handed back when it grants the
+ * upload — the client never invents one, and the broker verifies it with that
+ * host before issuing anything.
+ */
 export function grantBucketUpload(
   capability: string,
   host: string
@@ -116,15 +147,25 @@ export function cancelBucketUpload(reservationId: string) {
   );
 }
 
+/**
+ * Exchange a bucket read token for a signed URL for one object.
+ *
+ * displayFilename is what the download is saved as. The token covers the whole
+ * bucket so it cannot carry a per-file name, and the broker has never stored
+ * one -- omitting it makes every download arrive called "download", which is
+ * what the broker falls back to. It is sanitized there before it reaches
+ * Content-Disposition, and only affects our own download.
+ */
 export function grantBucketRead(
   capability: string,
   host: string,
-  objectId: string
+  objectId: string,
+  displayFilename?: string
 ): Promise<BucketReadGrant> {
   return brokerRequest(`/objects/${encodeURIComponent(objectId)}/read-grant`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${capability}` },
-    body: JSON.stringify({ host: hostName(host) }),
+    body: JSON.stringify({ host: hostName(host), displayFilename }),
   });
 }
 

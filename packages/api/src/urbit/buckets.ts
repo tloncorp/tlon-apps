@@ -17,7 +17,6 @@ export type BucketsFile = {
   size: number;
   checksum: string | null;
   objectKey: string;
-  objectUrl: string | null;
   status: 'pending' | 'ready' | 'failed';
 };
 
@@ -42,23 +41,16 @@ export type BucketsFileEntry = BucketsEntryBase & {
 
 export type BucketsEntry = BucketsFolderEntry | BucketsFileEntry;
 
-export type BucketsUploadSession = {
-  id: string;
-  fileId: number;
-  requestedBy: string;
-  createdAt: number;
-  expiresAt: number;
-  status: 'pending' | 'complete' | 'failed';
-  error: string | null;
-};
-
 export type BucketsState = {
   bucket: BucketsBucket;
   group: BucketsFlag;
-  readers: string[];
+  /**
+   * Bucket writers only. Readability belongs to %groups: the roles named at
+   * creation are handed to it with the channel, and the channel record is
+   * where they live from then on.
+   */
   writers: string[];
   entries: BucketsEntry[];
-  sessions: BucketsUploadSession[];
   revision: number;
 };
 
@@ -71,26 +63,21 @@ export type BucketsUpdate =
   | { type: 'bucket-created'; bucket: BucketsBucket }
   | { type: 'bucket-deleted' }
   | { type: 'bucket-updated'; bucket: BucketsBucket }
-  | { type: 'readers-updated'; readers: string[] }
   | { type: 'writers-updated'; writers: string[] }
-  | { type: 'folder-created'; entry: BucketsFolderEntry }
-  | {
-      type: 'upload-begun';
-      session: BucketsUploadSession;
-      entry: BucketsFileEntry;
-    }
-  | {
-      type: 'upload-ready';
-      session: BucketsUploadSession;
-      entry: BucketsFileEntry;
-    }
-  | {
-      type: 'upload-failed';
-      session: BucketsUploadSession;
-      entry: BucketsFileEntry;
-    }
-  | { type: 'entry-updated'; entry: BucketsEntry }
+  | { type: 'entry-created'; id: number; entry: BucketsEntry }
+  | { type: 'entry-updated'; id: number; entry: BucketsEntry }
   | { type: 'entries-deleted'; ids: number[] };
+
+/**
+ * A bucket without its entries.
+ *
+ * Shares field positions with BucketsSnapshot so code reading the metadata
+ * finds it in the same place either way; `state.entries` is simply absent.
+ */
+export type BucketsSummary = {
+  flag: BucketsFlag;
+  state: Omit<BucketsState, 'entries'>;
+};
 
 export type BucketsResponse =
   | { type: 'snapshot'; flag: BucketsFlag; state: BucketsState }
@@ -98,7 +85,6 @@ export type BucketsResponse =
       type: 'update';
       flag: BucketsFlag;
       revision: number;
-      actor: string;
       update: BucketsUpdate;
     };
 
@@ -108,12 +94,12 @@ export type BucketsAction =
       name: string;
       title: string;
       group: BucketsFlag;
+      /** Passed straight to %groups as the new channel's reader roles. */
       readers: string[];
       writers: string[];
     }
   | { type: 'delete-bucket'; flag: BucketsFlag }
   | { type: 'set-title'; flag: BucketsFlag; title: string }
-  | { type: 'set-readers'; flag: BucketsFlag; readers: string[] }
   | { type: 'set-writers'; flag: BucketsFlag; writers: string[] }
   | {
       type: 'create-folder';
@@ -129,13 +115,6 @@ export type BucketsAction =
       mime: string;
       size: number;
       checksum: string | null;
-      capability: string;
-    }
-  | {
-      type: 'finish-upload';
-      flag: BucketsFlag;
-      sessionId: string;
-      objectUrl: string;
     }
   | {
       type: 'fail-upload';
@@ -143,17 +122,11 @@ export type BucketsAction =
       sessionId: string;
       reason: string;
     }
-  | {
-      type: 'issue-read';
-      flag: BucketsFlag;
-      id: number;
-      capability: string;
-    }
+  | { type: 'issue-bucket-read'; flag: BucketsFlag }
   | {
       type: 'issue-delete';
       flag: BucketsFlag;
       id: number;
-      capability: string;
     }
   | { type: 'rename-entry'; flag: BucketsFlag; id: number; name: string }
   | {
@@ -168,3 +141,53 @@ export type BucketsAction =
       id: number;
       recursive: boolean;
     };
+
+/**
+ * A host-minted bearer token, returned only to the ship that asked for it.
+ *
+ * For an upload the token is the session id; for a read or delete it is a
+ * freshly minted capability. Either way it is what gets presented to the
+ * storage broker — the client never invents one.
+ */
+export type BucketsGrant = {
+  token: string;
+  entryId: number;
+  expiresAt: string;
+};
+
+export type BucketsActionError =
+  | 'not-authorized'
+  | 'not-found'
+  | 'invalid-input'
+  | 'unknown';
+
+/**
+ * The terminal answer to one submitted action.
+ *
+ * `pending` is emitted by our own ship once it has forwarded the action to the
+ * bucket's host and is waiting; the host's real answer replaces it.
+ */
+/**
+ * A bucket-wide read capability.
+ *
+ * Read access is uniform across a bucket, so one token covers every ready
+ * object in it. Each ship holds its own, refreshed by its own timer, and
+ * serves it to local clients over a scry — so a read costs no round trip to
+ * the bucket's host.
+ */
+export type BucketsReadToken = {
+  token: string;
+  expiresAt: string;
+};
+
+export type BucketsResponseBody =
+  | { ok: null }
+  | { grant: BucketsGrant }
+  | { token: BucketsReadToken }
+  | { pending: null }
+  | { error: { type: BucketsActionError; message: string } };
+
+export type BucketsRequestResponse = {
+  requestId: string;
+  body: BucketsResponseBody;
+};
