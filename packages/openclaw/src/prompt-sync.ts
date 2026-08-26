@@ -25,6 +25,7 @@ import {
   type PluginRuntime,
 } from 'openclaw/plugin-sdk/core';
 
+import { normalizeShip } from './targets.js';
 import { resolveTlonAccount } from './types.js';
 
 /**
@@ -149,50 +150,59 @@ export function shouldRunPromptSync(
 }
 
 /**
- * Prompt texts cached by every OTHER account, name -> texts. All accounts
- * share one default-agent workspace, so when the prompt-syncing authority
- * changes (e.g. a default account joins a formerly sole named account),
- * the workspace can still hold the previous account's owner-edited text on
- * disk; seeding it would hand that owner's private prompts (USER.md etc.)
- * to the new account's ship and owner. The caches are the durable record
- * of which on-disk text is another owner's edit, so the seed filters
- * against them. Deliberately includes disabled and de-configured accounts —
- * their leftover caches mark foreign text all the same.
+ * Prompt texts belonging to every ship OTHER than this account's bot,
+ * name -> texts. All accounts share one default-agent workspace, so when
+ * the prompt-syncing authority changes (a default account joins a formerly
+ * sole named account, an account is deleted, or a slot is repointed at a
+ * different bot ship), the workspace can still hold a previous bot's
+ * owner-edited text on disk; seeding it would hand that owner's private
+ * prompts (USER.md etc.) to a different ship and owner. Sources: every
+ * other account's cache (including disabled/de-configured leftovers), any
+ * cache stamped for a different ship than its account now names, and the
+ * ship-keyed shadow ledger — which survives account deletion and
+ * repointing (see writePromptsIntoConfigDraft).
  */
 export function collectForeignPromptCaches(
   cfg: OpenClawConfig,
   accountId: string
 ): Record<string, string[]> {
-  const accounts = (
-    cfg.channels?.tlon as { accounts?: Record<string, unknown> } | undefined
-  )?.accounts;
-  const ids = new Set<string>([
-    DEFAULT_ACCOUNT_ID,
-    ...Object.keys(accounts ?? {}),
-  ]);
-  ids.delete(accountId || DEFAULT_ACCOUNT_ID);
+  const tlon = cfg.channels?.tlon as
+    | {
+        accounts?: Record<string, unknown>;
+        promptSync?: { ships?: Record<string, Record<string, unknown>> };
+      }
+    | undefined;
+  const myId = accountId || DEFAULT_ACCOUNT_ID;
+  const myShipRaw = resolveTlonAccount(cfg, myId).ship;
+  const myShip = myShipRaw ? normalizeShip(myShipRaw) : null;
   const out: Record<string, string[]> = {};
   const add = (name: string, text: unknown) => {
     if (typeof text === 'string' && !(out[name] ?? []).includes(text)) {
       (out[name] ??= []).push(text);
     }
   };
+  const ids = new Set<string>([
+    DEFAULT_ACCOUNT_ID,
+    ...Object.keys(tlon?.accounts ?? {}),
+  ]);
   for (const id of ids) {
-    const prompts = resolveTlonAccount(cfg, id).prompts;
-    for (const [name, text] of Object.entries(prompts)) {
+    const account = resolveTlonAccount(cfg, id);
+    // Another slot pointing at OUR ship isn't foreign; our own slot's
+    // cache isn't either (and its raw cache is already ship-gated by
+    // resolveTlonAccount, so a repointed slot resolves it as empty —
+    // the old text is picked up from the ledger below instead).
+    if (id === myId) {
+      continue;
+    }
+    if (account.ship && myShip && normalizeShip(account.ship) === myShip) {
+      continue;
+    }
+    for (const [name, text] of Object.entries(account.prompts)) {
       add(name, text);
     }
   }
-  // The shadow ledger covers accounts DELETED from the config entirely —
-  // their per-account cache went with them, but their edited text can
-  // still sit on the shared workspace (see writePromptsIntoConfigDraft).
-  const ledgerAccounts = (
-    cfg.channels?.tlon as
-      | { promptSync?: { accounts?: Record<string, Record<string, unknown>> } }
-      | undefined
-  )?.promptSync?.accounts;
-  for (const [id, prompts] of Object.entries(ledgerAccounts ?? {})) {
-    if (id === (accountId || DEFAULT_ACCOUNT_ID)) {
+  for (const [ship, prompts] of Object.entries(tlon?.promptSync?.ships ?? {})) {
+    if (myShip && normalizeShip(ship) === myShip) {
       continue;
     }
     for (const [name, text] of Object.entries(prompts ?? {})) {
@@ -347,16 +357,19 @@ export async function applyPromptsToWorkspace(opts: {
 /**
  * Merge prompt entries into the tlon channel section of a config draft.
  * Non-default accounts get their own `accounts[id].prompts`; the default
- * account uses the top-level `channels.tlon.prompts`. Every write is
- * shadowed into `channels.tlon.promptSync.accounts[id]`, which lives
- * OUTSIDE the account blocks: deleting an account from the config deletes
- * its cache, but its owner-edited text can still sit on the shared
- * workspace files — the shadow ledger is what lets the next syncing
- * authority recognize that text as foreign (collectForeignPromptCaches).
+ * account uses the top-level `channels.tlon.prompts`. The cache is stamped
+ * with the bot ship it was generated for (`promptsShip`) so repointing the
+ * account slot at a different ship invalidates it (resolveTlonAccount),
+ * and every write is shadowed into `channels.tlon.promptSync.ships[ship]`,
+ * which lives OUTSIDE the account blocks and is keyed by SHIP: deleting or
+ * repointing an account keeps a record of the prompt text its owner edited
+ * onto the shared workspace, letting the next syncing authority recognize
+ * that text as foreign (collectForeignPromptCaches).
  */
 export function writePromptsIntoConfigDraft(
   draft: Record<string, unknown>,
   accountId: string | null | undefined,
+  botShip: string,
   prompts: Record<string, string>
 ): void {
   const channels = ((draft.channels as Record<string, unknown>) ??= {});
@@ -370,13 +383,20 @@ export function writePromptsIntoConfigDraft(
           unknown
         >
       )[accountId] as Record<string, unknown>) ??= {});
-  const existing = (target.prompts as Record<string, string>) ?? {};
+  const ship = normalizeShip(botShip);
+  const stale =
+    target.promptsShip !== undefined
+      ? normalizeShip(String(target.promptsShip)) !== ship
+      : false;
+  const existing = stale
+    ? {}
+    : ((target.prompts as Record<string, string>) ?? {});
   target.prompts = { ...existing, ...prompts };
-  const id = useDefault ? DEFAULT_ACCOUNT_ID : accountId;
+  target.promptsShip = ship;
   const ledger = ((tlon.promptSync as Record<string, unknown>) ??= {});
-  const ledgerAccounts = ((ledger.accounts as Record<string, unknown>) ??= {});
-  const entry = (ledgerAccounts[id] as Record<string, string>) ?? {};
-  ledgerAccounts[id] = { ...entry, ...prompts };
+  const ledgerShips = ((ledger.ships as Record<string, unknown>) ??= {});
+  const entry = (ledgerShips[ship] as Record<string, string>) ?? {};
+  ledgerShips[ship] = { ...entry, ...prompts };
 }
 
 /** True when `next` adds or changes any entry relative to `current`. */
@@ -401,6 +421,9 @@ export type PromptSync = {
 export function createPromptSync(opts: {
   core: Pick<PluginRuntime, 'config'>;
   accountId?: string | null;
+  /** Normalized @p of the bot ship this monitor serves; cache writes are
+   * stamped with it so a repointed account slot invalidates them. */
+  botShip: string;
   workspaceDir: string;
   configPrompts: Record<string, string>;
   /**
@@ -437,7 +460,8 @@ export function createPromptSync(opts: {
   /** Test hook: startup retry backoff schedule. */
   retryDelaysMs?: number[];
 }): PromptSync {
-  const { core, accountId, workspaceDir, owner, scry, poke, logger } = opts;
+  const { core, accountId, botShip, workspaceDir, owner, scry, poke, logger } =
+    opts;
 
   const aborted = () => opts.abortSignal?.aborted === true;
 
@@ -468,6 +492,7 @@ export function createPromptSync(opts: {
           writePromptsIntoConfigDraft(
             draft as unknown as Record<string, unknown>,
             accountId,
+            botShip,
             prompts
           );
         },

@@ -143,6 +143,9 @@ export const TlonAccountSchema = z.object({
   ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
   // Ship-managed system prompt overrides (see TlonPromptsSchema).
   prompts: TlonPromptsSchema.optional(),
+  // Bot ship the prompts cache was generated for; a repointed account slot
+  // invalidates a cache stamped for a different ship.
+  promptsShip: z.string().optional(),
 });
 
 export const TlonConfigSchema = z.object({
@@ -189,14 +192,18 @@ export const TlonConfigSchema = z.object({
   ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
   // Ship-managed system prompt overrides (see TlonPromptsSchema).
   prompts: TlonPromptsSchema.optional(),
+  // Bot ship the prompts cache was generated for; a repointed account slot
+  // invalidates a cache stamped for a different ship.
+  promptsShip: z.string().optional(),
   // Prompt-sync shadow ledger, written by prompt sync alongside the
-  // per-account caches. Lives OUTSIDE the account blocks so deleting an
-  // account keeps a record of the prompt text its owner edited onto the
-  // shared agent workspace — the next syncing authority filters those
-  // texts out of its seed instead of leaking them to a different ship.
+  // per-account caches. Keyed by SHIP and living OUTSIDE the account
+  // blocks, so deleting or repointing an account keeps a record of the
+  // prompt text its owner edited onto the shared agent workspace — the
+  // next syncing authority filters those texts out of its seed instead of
+  // leaking them to a different ship.
   promptSync: z
     .object({
-      accounts: z.record(z.string().min(1), TlonPromptsSchema),
+      ships: z.record(z.string().min(1), TlonPromptsSchema),
     })
     .optional(),
 });

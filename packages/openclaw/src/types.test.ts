@@ -323,3 +323,39 @@ describe('resolveTlonAccount prompts', () => {
     expect(resolveTlonAccount(cfg, 'bare').prompts).toEqual({});
   });
 });
+
+describe('resolveTlonAccount prompts ship binding', () => {
+  it('serves a cache stamped for the account ship, drops a mismatched one', () => {
+    const make = (promptsShip: string) =>
+      ({
+        channels: {
+          tlon: {
+            ship: '~zod',
+            url: 'https://example.com',
+            code: 'code-123',
+            prompts: { 'USER.md': 'private notes' },
+            promptsShip,
+          },
+        },
+      }) as OpenClawConfig;
+    expect(resolveTlonAccount(make('~zod')).prompts).toEqual({
+      'USER.md': 'private notes',
+    });
+    // Repointed slot: the cache belongs to the previous ship.
+    expect(resolveTlonAccount(make('~bus')).prompts).toEqual({});
+  });
+
+  it('takes an unstamped cache at face value (hand-written overrides)', () => {
+    const account = resolveTlonAccount({
+      channels: {
+        tlon: {
+          ship: '~zod',
+          url: 'https://example.com',
+          code: 'code-123',
+          prompts: { 'SOUL.md': 'manual override' },
+        },
+      },
+    } as OpenClawConfig);
+    expect(account.prompts).toEqual({ 'SOUL.md': 'manual override' });
+  });
+});

@@ -184,12 +184,15 @@ describe('writePromptsIntoConfigDraft', () => {
     const draft: Record<string, unknown> = {
       channels: { tlon: { prompts: { 'BOOT.md': 'old' } } },
     };
-    writePromptsIntoConfigDraft(draft, 'default', { 'SOUL.md': 'be kind' });
+    writePromptsIntoConfigDraft(draft, 'default', '~zod', {
+      'SOUL.md': 'be kind',
+    });
     expect(draft).toEqual({
       channels: {
         tlon: {
           prompts: { 'BOOT.md': 'old', 'SOUL.md': 'be kind' },
-          promptSync: { accounts: { default: { 'SOUL.md': 'be kind' } } },
+          promptsShip: '~zod',
+          promptSync: { ships: { '~zod': { 'SOUL.md': 'be kind' } } },
         },
       },
     });
@@ -197,31 +200,58 @@ describe('writePromptsIntoConfigDraft', () => {
 
   it('targets accounts[id].prompts for non-default accounts', () => {
     const draft: Record<string, unknown> = {};
-    writePromptsIntoConfigDraft(draft, 'alt', { 'SOUL.md': 'be kind' });
+    writePromptsIntoConfigDraft(draft, 'alt', '~bus', {
+      'SOUL.md': 'be kind',
+    });
     expect(draft).toEqual({
       channels: {
         tlon: {
-          accounts: { alt: { prompts: { 'SOUL.md': 'be kind' } } },
-          promptSync: { accounts: { alt: { 'SOUL.md': 'be kind' } } },
+          accounts: {
+            alt: { prompts: { 'SOUL.md': 'be kind' }, promptsShip: '~bus' },
+          },
+          promptSync: { ships: { '~bus': { 'SOUL.md': 'be kind' } } },
         },
       },
     });
   });
 
-  it('merges the shadow ledger without dropping other accounts', () => {
+  it('merges the shadow ledger without dropping other ships', () => {
     const draft: Record<string, unknown> = {
       channels: {
         tlon: {
           promptSync: {
-            accounts: { gone: { 'USER.md': 'deleted account edit' } },
+            ships: { '~fed': { 'USER.md': 'deleted account edit' } },
           },
         },
       },
     };
-    writePromptsIntoConfigDraft(draft, 'default', { 'SOUL.md': 'be kind' });
-    expect((draft as any).channels.tlon.promptSync.accounts).toEqual({
-      gone: { 'USER.md': 'deleted account edit' },
-      default: { 'SOUL.md': 'be kind' },
+    writePromptsIntoConfigDraft(draft, 'default', '~zod', {
+      'SOUL.md': 'be kind',
+    });
+    expect((draft as any).channels.tlon.promptSync.ships).toEqual({
+      '~fed': { 'USER.md': 'deleted account edit' },
+      '~zod': { 'SOUL.md': 'be kind' },
+    });
+  });
+
+  it('drops a cache stamped for a different ship on repoint', () => {
+    const draft: Record<string, unknown> = {
+      channels: {
+        tlon: {
+          prompts: { 'USER.md': 'old ship private notes' },
+          promptsShip: '~zod',
+        },
+      },
+    };
+    writePromptsIntoConfigDraft(draft, 'default', '~bus', {
+      'SOUL.md': 'new ship edit',
+    });
+    const tlon = (draft as any).channels.tlon;
+    // The old ship's cache is not merged into the new ship's.
+    expect(tlon.prompts).toEqual({ 'SOUL.md': 'new ship edit' });
+    expect(tlon.promptsShip).toBe('~bus');
+    expect(tlon.promptSync.ships).toEqual({
+      '~bus': { 'SOUL.md': 'new ship edit' },
     });
   });
 });
@@ -259,6 +289,7 @@ describe('createPromptSync.startup', () => {
     const sync = createPromptSync({
       core,
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: '~ten',
@@ -312,6 +343,7 @@ describe('createPromptSync.startup', () => {
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: '~ten',
@@ -339,6 +371,7 @@ describe('createPromptSync.startup', () => {
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: '~ten',
@@ -370,6 +403,7 @@ describe('createPromptSync.startup', () => {
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: null,
@@ -392,6 +426,7 @@ describe('createPromptSync.startup', () => {
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: null,
@@ -414,6 +449,7 @@ describe('createPromptSync.startup', () => {
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: null,
@@ -443,6 +479,7 @@ describe('createPromptSync.startup', () => {
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: null,
@@ -519,6 +556,7 @@ describe('createPromptSync serialization', () => {
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: null,
@@ -551,6 +589,7 @@ describe('createPromptSync.handleFact', () => {
     const sync = createPromptSync({
       core,
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: null,
@@ -576,6 +615,7 @@ describe('createPromptSync.handleFact', () => {
     const sync = createPromptSync({
       core,
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: null,
@@ -602,6 +642,7 @@ describe('createPromptSync retries and teardown', () => {
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: '~ten',
@@ -627,6 +668,7 @@ describe('createPromptSync retries and teardown', () => {
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: '~ten',
@@ -652,6 +694,7 @@ describe('createPromptSync retries and teardown', () => {
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       owner: null,
@@ -729,7 +772,7 @@ describe('collectForeignPromptCaches', () => {
         prompts: { 'USER.md': 'hosted owner notes', 'SOUL.md': 'hosted soul' },
       },
       // De-configured (no creds) — its leftover cache still counts.
-      stale: { prompts: { 'SOUL.md': 'stale soul' } },
+      stale: { ship: '~fed', prompts: { 'SOUL.md': 'stale soul' } },
     },
   }) as never;
 
@@ -746,24 +789,54 @@ describe('collectForeignPromptCaches', () => {
     expect(foreign['SOUL.md']).toEqual(['stale soul']);
   });
 
-  it('covers accounts deleted from the config via the shadow ledger', () => {
-    // The 'gone' account was removed entirely — no account block, no
-    // per-account cache — but its edits can still sit on the workspace.
+  it('covers ships deleted from the config via the shadow ledger', () => {
+    // The account that synced for ~fed was removed entirely — no account
+    // block, no cache — but its edits can still sit on the workspace.
     const withLedger = makeAccountsConfig({
       ship: '~zod',
       url: 'http://x',
       code: 'c',
       promptSync: {
-        accounts: {
-          gone: { 'USER.md': 'deleted account private notes' },
-          default: { 'SOUL.md': 'my own edit' },
+        ships: {
+          '~fed': { 'USER.md': 'deleted account private notes' },
+          '~zod': { 'SOUL.md': 'my own edit' },
         },
       },
     }) as never;
     const foreign = collectForeignPromptCaches(withLedger, 'default');
     expect(foreign['USER.md']).toEqual(['deleted account private notes']);
-    // Its own ledger entry is not foreign.
+    // Its own ship's ledger entry is not foreign.
     expect(foreign['SOUL.md']).toBeUndefined();
+  });
+
+  it('treats a repointed slot’s former ship as foreign', () => {
+    // The default slot used to run ~zod (whose owner edited USER.md) and
+    // was repointed at ~bus. The stamped cache no longer resolves as the
+    // slot's own prompts, and the ship-keyed ledger marks it foreign.
+    const repointed = makeAccountsConfig({
+      ship: '~bus',
+      url: 'http://x',
+      code: 'c',
+      prompts: { 'USER.md': 'old ship private notes' },
+      promptsShip: '~zod',
+      promptSync: {
+        ships: { '~zod': { 'USER.md': 'old ship private notes' } },
+      },
+    }) as never;
+    const foreign = collectForeignPromptCaches(repointed, 'default');
+    expect(foreign['USER.md']).toEqual(['old ship private notes']);
+  });
+
+  it('does not treat another slot pointing at the same ship as foreign', () => {
+    const sameShip = makeAccountsConfig({
+      ship: '~zod',
+      url: 'http://x',
+      code: 'c',
+      accounts: {
+        alias: { ship: '~zod', prompts: { 'SOUL.md': 'same ship text' } },
+      },
+    }) as never;
+    expect(collectForeignPromptCaches(sameShip, 'default')).toEqual({});
   });
 });
 
@@ -778,6 +851,7 @@ describe('createPromptSync foreign-prompt seed filter', () => {
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       foreignPrompts: { 'USER.md': ['hosted owner notes'] },
@@ -802,6 +876,7 @@ describe('createPromptSync foreign-prompt seed filter', () => {
     const sync = createPromptSync({
       core: makeCore(),
       accountId: 'default',
+      botShip: '~zod',
       workspaceDir: tmpDir,
       configPrompts: {},
       foreignPrompts: { 'USER.md': ['hosted owner notes'] },

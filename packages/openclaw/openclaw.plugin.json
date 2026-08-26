@@ -322,6 +322,9 @@
                   "additionalProperties": {
                     "type": "string"
                   }
+                },
+                "promptsShip": {
+                  "type": "string"
                 }
               },
               "additionalProperties": false
@@ -496,10 +499,13 @@
               "type": "string"
             }
           },
+          "promptsShip": {
+            "type": "string"
+          },
           "promptSync": {
             "type": "object",
             "properties": {
-              "accounts": {
+              "ships": {
                 "type": "object",
                 "propertyNames": {
                   "type": "string",
@@ -518,7 +524,7 @@
               }
             },
             "required": [
-              "accounts"
+              "ships"
             ],
             "additionalProperties": false
           }

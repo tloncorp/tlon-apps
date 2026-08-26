@@ -4832,6 +4832,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         promptSync = createPromptSync({
           core,
           accountId: account.accountId,
+          botShip: botShipName,
           workspaceDir: core.agent.resolveAgentWorkspaceDir(
             cfg,
             resolveDefaultAgentId(cfg)

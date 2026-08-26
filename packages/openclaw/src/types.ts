@@ -1,5 +1,7 @@
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
+import { normalizeShip } from './targets.js';
+
 export type TlonTelemetryConfig = {
   enabled: boolean;
   apiKey: string | null;
@@ -306,9 +308,20 @@ export function resolveTlonAccount(
   // writePromptsIntoConfigDraft). A named account inheriting the top-level
   // cache would seed another bot's prompts (USER.md, AGENTS.md) onto its
   // own ship. `account` IS `base` for the default account, so the default
-  // still reads the top-level cache.
-  const prompts = ((account as Record<string, unknown>)?.prompts ??
+  // still reads the top-level cache. The cache is also bound to the SHIP
+  // it was generated for (promptsShip, stamped by prompt sync): repointing
+  // an account slot at a different bot ship must not carry the former
+  // ship's cache along. An unstamped cache (hand-written config overrides)
+  // is taken at face value for whatever ship the account names now.
+  const rawPrompts = ((account as Record<string, unknown>)?.prompts ??
     {}) as Record<string, string>;
+  const promptsShip = (account as Record<string, unknown>)?.promptsShip as
+    | string
+    | undefined;
+  const prompts =
+    promptsShip && (!ship || normalizeShip(promptsShip) !== normalizeShip(ship))
+      ? {}
+      : rawPrompts;
   const configured = Boolean(ship && url && code);
 
   return {
