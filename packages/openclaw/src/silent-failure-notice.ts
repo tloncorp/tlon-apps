@@ -60,6 +60,34 @@ export function resolveSilentFailureNotice(input: {
   );
 }
 
+const NOTICE_COOLDOWN_MS = 15 * 60_000;
+const COOLDOWN_PRUNE_THRESHOLD = 64;
+
+// A provider outage fails every turn in a burst; one notice per conversation
+// per window keeps the owner informed without flooding their DM.
+export function createSilentFailureNoticeCooldown(
+  windowMs: number = NOTICE_COOLDOWN_MS
+) {
+  const lastSentAt = new Map<string, number>();
+  return {
+    shouldSend(conversation: string, now: number): boolean {
+      if (lastSentAt.size > COOLDOWN_PRUNE_THRESHOLD) {
+        for (const [key, sentAt] of lastSentAt) {
+          if (now - sentAt >= windowMs) {
+            lastSentAt.delete(key);
+          }
+        }
+      }
+      const sentAt = lastSentAt.get(conversation);
+      if (sentAt !== undefined && now - sentAt < windowMs) {
+        return false;
+      }
+      lastSentAt.set(conversation, now);
+      return true;
+    },
+  };
+}
+
 const GENERIC_LLM_FAILURE = 'LLM request failed.';
 
 export function rewriteGenericTerminalErrorReply(input: {

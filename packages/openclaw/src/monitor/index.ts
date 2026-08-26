@@ -66,6 +66,7 @@ import {
 } from '../settings.js';
 import { sharedSlot } from '../shared-state.js';
 import {
+  createSilentFailureNoticeCooldown,
   resolveSilentFailureNotice,
   resolveTurnTerminalLensStatus,
   rewriteGenericTerminalErrorReply,
@@ -1017,6 +1018,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     // Track threads we've participated in (by parentId) - respond without mention requirement
     const participatedThreads = new Set<string>();
+    const failureNoticeCooldown = createSilentFailureNoticeCooldown();
 
     // Track consecutive bot responses per channel/DM for rate limiting
     // Key: channel nest or dm partner ship, Value: count of consecutive bot messages
@@ -3690,19 +3692,28 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (finalLens) {
           logContextLens(lens.lensId, 'final');
         }
+        const noticeConversation = isGroup
+          ? (channelNest ?? _channelName ?? 'a group channel')
+          : `our DM with ${senderShip}`;
         const notice = resolveSilentFailureNotice({
           summary: turnSummary,
           deliveredCount: effectiveDeliveredCount,
           requester: senderShip,
-          conversation: isGroup
-            ? (channelNest ?? _channelName ?? 'a group channel')
-            : `our DM with ${senderShip}`,
+          conversation: noticeConversation,
         });
         if (notice) {
-          runtime.log?.(
-            `[tlon] Terminal no-reply turn ${turnSummary.runId}; notifying owner`
-          );
-          await sendOwnerNotification(notice);
+          if (
+            failureNoticeCooldown.shouldSend(noticeConversation, Date.now())
+          ) {
+            runtime.log?.(
+              `[tlon] Terminal no-reply turn ${turnSummary.runId}; notifying owner`
+            );
+            await sendOwnerNotification(notice);
+          } else {
+            runtime.log?.(
+              `[tlon] Terminal no-reply turn ${turnSummary.runId}; owner notice suppressed by cooldown`
+            );
+          }
         }
       }
     };

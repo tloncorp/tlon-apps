@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  createSilentFailureNoticeCooldown,
   resolveSilentFailureNotice,
   resolveTurnTerminalLensStatus,
   rewriteGenericTerminalErrorReply,
@@ -267,5 +268,30 @@ describe('terminal failure presentation', () => {
         timedOut: false,
       })
     ).toBe('completed');
+  });
+});
+
+describe('createSilentFailureNoticeCooldown', () => {
+  it('allows the first notice and suppresses repeats inside the window', () => {
+    const cooldown = createSilentFailureNoticeCooldown(15 * 60_000);
+    expect(cooldown.shouldSend('chat/~host/lobby', 0)).toBe(true);
+    expect(cooldown.shouldSend('chat/~host/lobby', 60_000)).toBe(false);
+    expect(cooldown.shouldSend('chat/~host/lobby', 14 * 60_000)).toBe(false);
+  });
+
+  it('allows again after the window elapses', () => {
+    const cooldown = createSilentFailureNoticeCooldown(15 * 60_000);
+    expect(cooldown.shouldSend('chat/~host/lobby', 0)).toBe(true);
+    expect(cooldown.shouldSend('chat/~host/lobby', 15 * 60_000)).toBe(true);
+  });
+
+  it('tracks conversations independently', () => {
+    const cooldown = createSilentFailureNoticeCooldown(15 * 60_000);
+    expect(cooldown.shouldSend('chat/~host/lobby', 0)).toBe(true);
+    expect(cooldown.shouldSend('our DM with ~ravmel-ropdyl', 0)).toBe(true);
+    expect(cooldown.shouldSend('chat/~host/lobby', 1_000)).toBe(false);
+    expect(cooldown.shouldSend('our DM with ~ravmel-ropdyl', 1_000)).toBe(
+      false
+    );
   });
 });
