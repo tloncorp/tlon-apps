@@ -159,6 +159,7 @@ export interface Group extends WithId {
   iconImageColor?: string | null;
   coverImage?: string | null;
   coverImageColor?: string | null;
+  blob?: string | null;
   privacy?: GroupPrivacy | null;
   haveInvite?: boolean | null;
   haveRequestedInvite?: boolean | null;

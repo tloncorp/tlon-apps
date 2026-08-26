@@ -188,6 +188,7 @@
 ::    organization, and its own metadata to represent the group
 ::
 ::  .meta: group metadata
+::  .blob: custom payload
 ::  .admissions: entry policy
 ::  .seats: members
 ::  .roles: member roles
@@ -200,6 +201,7 @@
 ::
 +$  group
   $:  meta=data:meta
+      blob=(unit @t)
     ::
       =admissions
       seats=(map ship seat)
@@ -322,6 +324,7 @@
   ==
 +$  a-group
   $%  [%meta meta=data:meta]
+      [%blob blob=(unit @t)]
       [%entry =a-entry]
       [%seat ships=(set ship) =a-seat]
       [%role roles=(set role-id) =a-role]
@@ -375,6 +378,7 @@
 ::  $c-group: group command
 ::
 ::  %meta: update the metadata
+::  %blob: update the custom payload
 ::  %entry: update the entry policy
 ::  %seat: update seats
 ::  %role: update roles
@@ -385,6 +389,7 @@
 ::
 +$  c-group
   $%  [%meta meta=data:meta]
+      [%blob blob=(unit @t)]
       [%entry =c-entry]
       [%seat ships=(set ship) =c-seat]
       [%role roles=(set role-id) =c-role]
@@ -495,6 +500,7 @@
 +$  u-group
   $%  [%create =group]
       [%meta =data:meta]
+      [%blob blob=(unit @t)]
       [%entry =u-entry]
       [%seat ships=(set ship) =u-seat]
       [%role roles=(set role-id) =u-role]
@@ -567,6 +573,7 @@
 +$  r-group
   $%  [%create =group]
       [%meta meta=data:meta]
+      [%blob blob=(unit @t)]
       [%entry =r-entry]
       [%seat ships=(set ship) =r-seat]
       [%role roles=(set role-id) =r-role]

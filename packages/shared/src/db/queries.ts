@@ -1412,6 +1412,9 @@ export const insertGroups = createWriteQuery(
                 $groups.coverImage,
                 $groups.title,
                 $groups.description,
+                // only overwrite when the source carried a blob; omitting
+                // the key must not clear a stored one
+                ...(group.blob !== undefined ? [$groups.blob] : []),
                 $groups.privacy,
                 $groups.joinStatus,
                 $groups.currentUserIsMember,
