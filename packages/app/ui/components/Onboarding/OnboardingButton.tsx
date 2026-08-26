@@ -15,7 +15,7 @@ export function OnboardingButton({
   label,
   ...props
 }: OnboardingButtonProps) {
-  const color = secondary ? '$secondaryText' : '$primaryText';
+  const color = secondary ? '$secondaryText' : '$orange';
   return (
     <Button
       {...props}
