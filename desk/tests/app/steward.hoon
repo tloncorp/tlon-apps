@@ -1110,6 +1110,15 @@
 ::  a delta for a bot with no mirror entry (no snapshot yet) is ignored
 ::  rather than creating one
 ::
+++  test-automation-unexpected-mark-fact-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  %-  ex-fail
+  (do-moon-tasks-sign %fact %steward-gateway-update-1 !>(0))
+::
 ++  test-automation-delta-before-snapshot-ignored
   %-  eval-mare
   =/  m  (mare ,~)

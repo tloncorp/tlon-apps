@@ -172,7 +172,9 @@ subscription.
 
 The owner-side `%steward` SHALL apply only content attributed to the
 bot whose subscription delivered it: entries and deltas naming any
-other ship SHALL be ignored. On receiving a snapshot fact from a
+other ship SHALL be ignored. A fact carrying an unexpected mark on
+an automation subscription SHALL crash rather than be silently
+dropped. On receiving a snapshot fact from a
 bot, it SHALL replace that bot's entry with the bot's entry in the
 snapshot, deleting the entry when the snapshot lacks it. On
 receiving delta facts it SHALL upsert the carried task for an
@@ -212,6 +214,12 @@ entry for that bot SHALL equal the bot's stored projection.
 - **WHEN** a fact delivered on one bot's subscription names a
     different ship
 - **THEN** that content is not applied to the store
+
+#### Scenario: Unexpected mark crashes
+
+- **WHEN** a fact with a mark other than the automation update mark
+    arrives on an automation subscription
+- **THEN** processing crashes rather than silently dropping the fact
 
 ### Requirement: Owner subscription self-heals
 

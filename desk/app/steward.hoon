@@ -781,7 +781,10 @@
     ^+  cor
     ?+  -.sign  cor
         %fact
-      ?.  ?=(%steward-automation-update-1 p.cage.sign)  cor
+      ::  an unexpected mark on this wire is protocol drift: crash
+      ::  loudly rather than drop the fact
+      ::
+      ?>  ?=(%steward-automation-update-1 p.cage.sign)
       (au-apply-bot-update bot !<(update:v1:sa q.cage.sign))
     ::
     ::  the fresh subscription's snapshot repairs anything missed
