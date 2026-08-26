@@ -60,12 +60,18 @@ export const syncInitData = async (
   // the init endpoint version is capability-picked and this can run before
   // syncAppInfo on a fresh boot — apply the persisted capabilities first
   await syncReactionSupport();
-  // Buckets is optional on desk-less ships. Fetch it beside init so a slow or
-  // failing Bucket scry never extends the cold-start critical path.
-  const [initData, bucketSnapshots] = await Promise.all([
-    syncQueue.add('init', syncCtx, () => api.getInitData()),
-    api.getBuckets().catch(() => []),
-  ]);
+  // Buckets is optional on desk-less ships, so this starts alongside init but
+  // is not awaited with it. Promise.all waits for the slowest of its
+  // arguments, and catching a rejection does not change that -- so with the
+  // scry's own one-minute timeout, a wedged %buckets held the cold-start gate
+  // for a minute on behalf of a feature the ship may not even have. It is
+  // awaited below instead, where the data is first needed and init is already
+  // done. (Better still would be for the init scry to carry this, the way it
+  // carries %channels and %chat; that is a separate change.)
+  const bucketSnapshots = api.getBuckets().catch(() => []);
+  const initData = await syncQueue.add('init', syncCtx, () =>
+    api.getInitData()
+  );
   logger.crumb('got init data from api');
   initializeJoinedSet(initData.unreads);
   useLureState.getState().start();
@@ -108,13 +114,14 @@ export const syncInitData = async (
     await db
       .insertChannelPerms(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel perms'));
-    if (bucketSnapshots.length > 0) {
+    const buckets = await bucketSnapshots;
+    if (buckets.length > 0) {
       // Writers only. %groups does not model a channel's writer roles, so a
       // bucket keeps its own and this is the only place they come from --
       // but readability is %groups' alone, and insertGroups above has
       // already written those. updateChannel preserves them; passing them
       // here as [] would wipe every reader role off the channel.
-      for (const snapshot of bucketSnapshots) {
+      for (const snapshot of buckets) {
         const channelId = api.formatBucketsChannelId(snapshot.flag);
         await db.updateChannel(
           {
