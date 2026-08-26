@@ -18,6 +18,29 @@
     background: var(--primaryText);
     border-radius: 4px;
   }
+
+  textarea[data-testid='BotSystemPromptEditor']::-webkit-scrollbar,
+  [data-testid='BotSystemPromptPreview']::-webkit-scrollbar {
+    width: revert;
+    height: revert;
+  }
+
+  textarea[data-testid='BotSystemPromptEditor']::-webkit-scrollbar-track,
+  [data-testid='BotSystemPromptPreview']::-webkit-scrollbar-track {
+    background: revert;
+  }
+
+  textarea[data-testid='BotSystemPromptEditor']::-webkit-scrollbar-thumb,
+  [data-testid='BotSystemPromptPreview']::-webkit-scrollbar-thumb {
+    background: revert;
+    border-radius: revert;
+  }
+}
+
+textarea[data-testid='BotSystemPromptEditor'],
+[data-testid='BotSystemPromptPreview'] {
+  scrollbar-color: auto;
+  scrollbar-width: auto;
 }
 
 * {

@@ -1,15 +1,18 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
-import { Button, Text, useToast } from '@tloncorp/ui';
+import { convertContent, markdownToStory } from '@tloncorp/shared';
+import { Button, Icon, Text, useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
-import { View, YStack } from 'tamagui';
+import { ScrollView, View, XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from './ActionSheet';
 import { ControlledTextareaField } from './Form';
 import { ListItem } from './ListItem';
+import { NotebookContentRenderer } from './NotebookPost/NotebookPost';
+import { SettingsDivider, SettingsSection } from './SettingsSection';
 
 const promptsQueryKey = (botShip: string) => ['botSystemPrompts', botShip];
 
@@ -72,20 +75,18 @@ const PROMPT_DESCRIPTIONS: Record<string, string> = {
   'BOOTSTRAP.md': 'First-run setup instructions for your bot.',
 };
 
-/**
- * One legible line for the row preview: managed prompt files start with
- * HTML marker comments and markdown headings that read as noise in a
- * single-line preview.
- */
-function promptPreview(text: string): string {
-  const cleaned = text
-    .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/^#+\s*/gm, '')
-    .replace(/\*\*/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return cleaned || 'Empty';
-}
+const PROMPT_ORDER = [
+  'AGENTS.md',
+  'SOUL.md',
+  'IDENTITY.md',
+  'USER.md',
+  'TOOLS.md',
+  'BOOTSTRAP.md',
+];
+
+const promptOrder = new Map(
+  PROMPT_ORDER.map((name, index) => [name, index] as const)
+);
 
 /**
  * System prompt list + editor for an owned bot's profile screen. Reads the
@@ -204,56 +205,55 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
     return null;
   }
 
+  const orderedPrompts = [...prompts].sort((a, b) => {
+    const aOrder = promptOrder.get(a.name) ?? Number.MAX_SAFE_INTEGER;
+    const bOrder = promptOrder.get(b.name) ?? Number.MAX_SAFE_INTEGER;
+    return aOrder - bOrder || a.name.localeCompare(b.name);
+  });
+
   return (
     <View paddingHorizontal="$xl" width="100%">
-      <Text
-        size="$label/m"
-        color="$secondaryText"
-        paddingHorizontal="$l"
-        marginTop="$l"
-        paddingBottom="$m"
+      <SettingsSection
+        title="Bot behavior"
+        description="Saving a prompt briefly restarts your bot."
       >
-        System prompts
-      </Text>
-      <YStack
-        borderRadius="$2xl"
-        backgroundColor="$background"
-        paddingVertical="$m"
-      >
-        {prompts.map((prompt) => (
-          <Pressable
-            key={prompt.name}
-            borderRadius="$2xl"
-            onPress={() => setEditing(prompt)}
-            pressStyle={{ backgroundColor: '$secondaryBackground' }}
-          >
-            <ListItem
-              alignItems="center"
-              backgroundColor="$transparent"
-              paddingHorizontal="$l"
-              paddingVertical="$s"
+        {orderedPrompts.map((prompt, index) => (
+          <Fragment key={prompt.name}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${PROMPT_LABELS[prompt.name] ?? prompt.name} prompt`}
+              onPress={() => setEditing(prompt)}
+              pressStyle={{ backgroundColor: '$secondaryBackground' }}
             >
-              <ListItem.SystemIcon icon="Settings" rounded />
-              <ListItem.MainContent>
-                <ListItem.Title>
-                  {PROMPT_LABELS[prompt.name] ?? prompt.name}
-                </ListItem.Title>
-                <ListItem.Subtitle numberOfLines={1}>
-                  {prompt.edited
-                    ? `Customized · ${promptPreview(prompt.text)}`
-                    : promptPreview(prompt.text)}
-                </ListItem.Subtitle>
-              </ListItem.MainContent>
-              <ListItem.EndContent>
-                <ListItem.SystemIcon
-                  icon="ChevronRight"
-                  backgroundColor="$transparent"
-                />
-              </ListItem.EndContent>
-            </ListItem>
-          </Pressable>
+              <ListItem
+                alignItems="center"
+                backgroundColor="$transparent"
+                paddingHorizontal="$xl"
+                paddingVertical="$m"
+              >
+                <ListItem.MainContent>
+                  <ListItem.Title>
+                    {PROMPT_LABELS[prompt.name] ?? prompt.name}
+                  </ListItem.Title>
+                  <ListItem.Subtitle numberOfLines={1}>
+                    {PROMPT_DESCRIPTIONS[prompt.name] ??
+                      'Additional instructions for your bot.'}
+                  </ListItem.Subtitle>
+                </ListItem.MainContent>
+                <XStack alignItems="center" gap="$m" flexShrink={0}>
+                  {prompt.edited ? (
+                    <Text size="$label/s" color="$secondaryText">
+                      Customized
+                    </Text>
+                  ) : null}
+                  <Icon type="ChevronRight" size="$m" color="$tertiaryText" />
+                </XStack>
+              </ListItem>
+            </Pressable>
+            {index < orderedPrompts.length - 1 ? <SettingsDivider /> : null}
+          </Fragment>
         ))}
-      </YStack>
+      </SettingsSection>
       {editing ? (
         <BotSystemPromptEditorSheet
           botShip={botShip}
@@ -278,9 +278,16 @@ function BotSystemPromptEditorSheet({
   onSaved: (name: string, text: string) => void;
 }) {
   const showToast = useToast();
+  const isWindowNarrow = useIsWindowNarrow();
   const [saving, setSaving] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewState, setPreviewState] = useState<{
+    content: ReturnType<typeof convertContent>;
+    error: string | null;
+  }>({ content: [], error: null });
   const {
     control,
+    getValues,
     handleSubmit,
     formState: { isDirty },
   } = useForm({
@@ -298,9 +305,29 @@ function BotSystemPromptEditorSheet({
     [onClose]
   );
 
+  const handleTogglePreview = useCallback(() => {
+    if (isPreviewing) {
+      setIsPreviewing(false);
+      return;
+    }
+
+    Keyboard.dismiss();
+    try {
+      setPreviewState({
+        content: convertContent(markdownToStory(getValues('text')), null),
+        error: null,
+      });
+    } catch {
+      setPreviewState({
+        content: [],
+        error: 'Unable to render this prompt as Markdown.',
+      });
+    }
+    setIsPreviewing(true);
+  }, [getValues, isPreviewing]);
+
   const handleSave = useCallback(() => {
     if (!isDirty || saving) {
-      handleOpenChange(false);
       return;
     }
     handleSubmit(async ({ text }) => {
@@ -308,7 +335,7 @@ function BotSystemPromptEditorSheet({
       // message instead of a failed poke.
       if (promptTextByteLength(text) > api.MAX_PROMPT_TEXT_BYTES) {
         showToast({
-          message: 'Prompt is too long — the limit is 64KB.',
+          message: 'Prompt is too long. The limit is 64 KB.',
           duration: 3000,
         });
         return;
@@ -318,7 +345,7 @@ function BotSystemPromptEditorSheet({
         await api.setBotSystemPrompt({ botShip, name: prompt.name, text });
         onSaved(prompt.name, text);
         showToast({
-          message: 'Saved. Tlonbot is restarting to apply it.',
+          message: 'Changes saved. Tlonbot restarting to apply them',
           duration: 3000,
         });
         setSaving(false);
@@ -339,40 +366,213 @@ function BotSystemPromptEditorSheet({
     showToast,
   ]);
 
+  const title = PROMPT_LABELS[prompt.name] ?? prompt.name;
+  const editorHeight = isWindowNarrow ? 200 : 280;
+  const statusMessage = saving
+    ? 'Saving and restarting your bot…'
+    : isDirty
+      ? 'Unsaved changes'
+      : 'Saving briefly restarts your bot.';
+
+  const saveButton = (
+    <Button
+      preset="primary"
+      size={isWindowNarrow ? 'medium' : 'small'}
+      label="Save changes"
+      loading={saving}
+      disabled={!isDirty || saving}
+      onPress={handleSave}
+      centered
+      width={isWindowNarrow ? '100%' : 'auto'}
+      minWidth={isWindowNarrow ? undefined : 128}
+      testID="BotSystemPromptSave"
+    />
+  );
+
   return (
-    <ActionSheet open onOpenChange={handleOpenChange} modal>
-      <ActionSheet.SimpleHeader
-        title={PROMPT_LABELS[prompt.name] ?? prompt.name}
-        subtitle={prompt.name}
-      />
-      <ActionSheet.ScrollableContent>
-        <ActionSheet.ContentBlock>
-          <YStack gap="$l">
-            {PROMPT_DESCRIPTIONS[prompt.name] ? (
+    <ActionSheet
+      open
+      onOpenChange={handleOpenChange}
+      title={`Edit ${title}`}
+      modal
+      closeButton
+      keyboardBehavior="interactive"
+      dialogContentProps={{ width: 576, minWidth: 520, maxWidth: 576 }}
+    >
+      <ActionSheet.ScrollableContent
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
+      >
+        <ActionSheet.FormBlock
+          paddingHorizontal={isWindowNarrow ? '$2xl' : '$3xl'}
+          paddingTop={isWindowNarrow ? '$xl' : '$3xl'}
+          paddingBottom={isWindowNarrow ? 0 : '$m'}
+        >
+          <YStack gap={isWindowNarrow ? '$xl' : '$2xl'}>
+            <YStack
+              gap="$xs"
+              paddingLeft="$xl"
+              paddingRight={isWindowNarrow ? '$xl' : '$4xl'}
+            >
+              <XStack alignItems="baseline" gap="$l">
+                <Text
+                  size="$label/xl"
+                  fontWeight="600"
+                  color="$primaryText"
+                  flex={1}
+                  minWidth={0}
+                  numberOfLines={1}
+                >
+                  {title}
+                </Text>
+                <Text
+                  size="$label/s"
+                  color="$tertiaryText"
+                  flexShrink={0}
+                  numberOfLines={1}
+                >
+                  {prompt.name}
+                </Text>
+              </XStack>
               <Text size="$label/m" color="$secondaryText">
-                {PROMPT_DESCRIPTIONS[prompt.name]}
+                {PROMPT_DESCRIPTIONS[prompt.name] ??
+                  'Additional instructions for your bot.'}
               </Text>
-            ) : null}
-            <ControlledTextareaField
-              name="text"
-              control={control}
-              inputProps={{
-                placeholder: 'Write the prompt…',
-                multiline: true,
-                minHeight: 280,
-                textAlignVertical: 'top',
-                autoFocus: true,
-              }}
-            />
-            <Button
-              preset="primary"
-              label={saving ? 'Saving…' : 'Save'}
-              disabled={saving}
-              onPress={handleSave}
-              centered
-            />
+            </YStack>
+
+            <YStack>
+              <XStack
+                minHeight="$4xl"
+                alignItems="center"
+                justifyContent="space-between"
+                paddingLeft="$xl"
+                gap="$l"
+              >
+                <Text size="$label/m" color="$tertiaryText">
+                  Prompt
+                </Text>
+                <Button
+                  preset="secondary"
+                  size="small"
+                  label={isPreviewing ? 'Edit' : 'Preview'}
+                  disabled={saving}
+                  onPress={handleTogglePreview}
+                  centered
+                  accessibilityLabel={
+                    isPreviewing
+                      ? 'Edit prompt'
+                      : 'Preview rendered Markdown prompt'
+                  }
+                  testID="BotSystemPromptPreviewToggle"
+                />
+              </XStack>
+
+              {isPreviewing ? (
+                <ScrollView
+                  height={editorHeight}
+                  maxHeight={editorHeight}
+                  borderWidth={1}
+                  borderColor="$border"
+                  borderRadius="$l"
+                  backgroundColor="$background"
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator
+                  testID="BotSystemPromptPreview"
+                >
+                  <YStack
+                    minHeight="100%"
+                    paddingHorizontal="$xl"
+                    paddingVertical="$l"
+                  >
+                    {previewState.error ? (
+                      <YStack gap="$xs">
+                        <Text
+                          size="$label/l"
+                          fontWeight="500"
+                          color="$primaryText"
+                        >
+                          Preview unavailable
+                        </Text>
+                        <Text size="$label/m" color="$secondaryText">
+                          {previewState.error}
+                        </Text>
+                      </YStack>
+                    ) : previewState.content.length > 0 ? (
+                      <NotebookContentRenderer
+                        content={previewState.content}
+                        marginHorizontal="$-l"
+                        testID="BotSystemPromptPreviewContent"
+                      />
+                    ) : (
+                      <Text size="$body" color="$tertiaryText">
+                        Nothing to preview yet.
+                      </Text>
+                    )}
+                  </YStack>
+                </ScrollView>
+              ) : (
+                <ControlledTextareaField
+                  name="text"
+                  control={control}
+                  inputProps={{
+                    accessibilityLabel: `${title} prompt`,
+                    placeholder: 'Write the prompt…',
+                    multiline: true,
+                    minHeight: editorHeight,
+                    textAlignVertical: 'top',
+                    autoFocus: true,
+                    testID: 'BotSystemPromptEditor',
+                  }}
+                />
+              )}
+            </YStack>
+
+            {isWindowNarrow ? (
+              <YStack gap="$m">
+                <Text
+                  size="$label/s"
+                  color={isDirty ? '$primaryText' : '$secondaryText'}
+                  accessibilityLiveRegion="polite"
+                >
+                  {statusMessage}
+                </Text>
+                {saveButton}
+                <Button
+                  preset="minimal"
+                  label="Cancel"
+                  disabled={saving}
+                  onPress={() => handleOpenChange(false)}
+                  centered
+                />
+              </YStack>
+            ) : (
+              <XStack
+                alignItems="center"
+                justifyContent="space-between"
+                gap="$2xl"
+              >
+                <Text
+                  size="$label/s"
+                  color={isDirty ? '$primaryText' : '$secondaryText'}
+                  accessibilityLiveRegion="polite"
+                  flex={1}
+                >
+                  {statusMessage}
+                </Text>
+                <XStack alignItems="center" gap="$m">
+                  <Button
+                    preset="minimal"
+                    size="small"
+                    label="Cancel"
+                    disabled={saving}
+                    onPress={() => handleOpenChange(false)}
+                  />
+                  {saveButton}
+                </XStack>
+              </XStack>
+            )}
           </YStack>
-        </ActionSheet.ContentBlock>
+        </ActionSheet.FormBlock>
       </ActionSheet.ScrollableContent>
     </ActionSheet>
   );

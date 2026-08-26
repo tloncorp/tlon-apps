@@ -132,14 +132,6 @@ export function UserProfileScreenView(props: Props) {
           <BotSettingsListItem onPress={props.onPressBotSettings} />
         ) : null}
 
-        {/* Data-gated rather than riding the hosted-bot check: our steward
-            only serves prompt sets for bots that configured us as their
-            owner (including a self-owned bot on this very ship, so no
-            own-profile guard here). Presence of prompt data is itself the
-            ownership signal — the section renders nothing for everyone
-            else. */}
-        <BotSystemPromptsSection botShip={props.userId} />
-
         {userContact?.status && (
           <StatusDisplay status={userContact?.status ?? ''} />
         )}
@@ -166,6 +158,15 @@ export function UserProfileScreenView(props: Props) {
             <StatusBlock status={sponsorStatus} label="Sponsor" />
           </View>
         </XStack>
+
+        {/* Data-gated rather than riding the hosted-bot check: our steward
+            only serves prompt sets for bots that configured us as their
+            owner (including a self-owned bot on this very ship, so no
+            own-profile guard here). Presence of prompt data is itself the
+            ownership signal — the section renders nothing for everyone
+            else. */}
+        <BotSystemPromptsSection botShip={props.userId} />
+
         <PinnedGroupsDisplay
           groups={pinnedGroups}
           onPressGroup={onPressGroup}
