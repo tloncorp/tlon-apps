@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createSilentFailureNoticeCooldown,
+  recordFailureNoticeMetric,
   resolveSilentFailureNotice,
   resolveTurnTerminalLensStatus,
   rewriteGenericTerminalErrorReply,
@@ -47,11 +48,13 @@ const incidentInput = {
 
 describe('resolveSilentFailureNotice', () => {
   it('fires on the incident shape: mention, completed, errors, zero delivery', () => {
-    expect(resolveSilentFailureNotice(incidentInput)).toBe(
-      "⚠️ I didn't reply to a request from ~ravmel-ropdyl in chat/~host/lobby " +
+    expect(resolveSilentFailureNotice(incidentInput)).toEqual({
+      kind: 'tool_error',
+      text:
+        "⚠️ I didn't reply to a request from ~ravmel-ropdyl in chat/~host/lobby " +
         'and may not have completed it — my last failing tool call was ' +
-        '`tlon`: TimeoutError: active. You may want to check or retry.'
-    );
+        '`tlon`: TimeoutError: active. You may want to check or retry.',
+    });
   });
 
   it('fires for an attempted but undelivered reply', () => {
@@ -87,7 +90,7 @@ describe('resolveSilentFailureNotice', () => {
         deliveredCount: 0,
         requester: '~ravmel-ropdyl',
         conversation: 'our DM with ~ravmel-ropdyl',
-      })
+      })?.text
     ).toContain('in our DM with ~ravmel-ropdyl');
   });
 
@@ -143,7 +146,10 @@ describe('resolveSilentFailureNotice', () => {
         requester: '~sipnup-litnux',
         conversation: 'our DM with ~sipnup-litnux',
       })
-    ).toContain('ended with no reply');
+    ).toMatchObject({
+      kind: 'dm_empty',
+      text: expect.stringContaining('ended with no reply'),
+    });
   });
 
   it('fires when a DM turn ends in intentional silence', () => {
@@ -209,7 +215,10 @@ describe('resolveSilentFailureNotice', () => {
           reason: 'timed_out',
         }),
       })
-    ).toContain('timed out before I could reply');
+    ).toMatchObject({
+      kind: 'timeout',
+      text: expect.stringContaining('timed out before I could reply'),
+    });
     expect(
       resolveSilentFailureNotice({
         ...incidentInput,
@@ -218,7 +227,10 @@ describe('resolveSilentFailureNotice', () => {
           reason: 'dispatch_failed',
         }),
       })
-    ).toContain('failed before I could reply');
+    ).toMatchObject({
+      kind: 'run_failure',
+      text: expect.stringContaining('failed before I could reply'),
+    });
     expect(
       resolveSilentFailureNotice({
         ...incidentInput,
@@ -229,7 +241,10 @@ describe('resolveSilentFailureNotice', () => {
           lastToolError: null,
         }),
       })
-    ).toContain("couldn't deliver it");
+    ).toMatchObject({
+      kind: 'delivery_failure',
+      text: expect.stringContaining("couldn't deliver it"),
+    });
   });
 
   it('collapses newlines and trims the error text', () => {
@@ -243,8 +258,8 @@ describe('resolveSilentFailureNotice', () => {
       }),
     });
 
-    expect(notice).toContain('`tlon`: TimeoutError: active (poke hung).');
-    expect(notice).not.toContain('\n');
+    expect(notice?.text).toContain('`tlon`: TimeoutError: active (poke hung).');
+    expect(notice?.text).not.toContain('\n');
   });
 
   it('caps very long error text', () => {
@@ -256,8 +271,8 @@ describe('resolveSilentFailureNotice', () => {
       }),
     });
 
-    expect(notice).toContain(`${collapsed.slice(0, 199)}…`);
-    expect(notice).not.toContain(collapsed);
+    expect(notice?.text).toContain(`${collapsed.slice(0, 199)}…`);
+    expect(notice?.text).not.toContain(collapsed);
   });
 });
 
@@ -355,5 +370,54 @@ describe('createSilentFailureNoticeCooldown', () => {
       false
     );
     expect(cooldown.isCoolingDown('chat/~host/lobby', 1_000)).toBe(true);
+  });
+});
+
+describe('recordFailureNoticeMetric', () => {
+  it('counts notices with kind, destination, and suppression attributes', () => {
+    const added: Array<{ value: number; attributes: Record<string, string> }> =
+      [];
+    recordFailureNoticeMetric(
+      { kind: 'timeout', destinationKind: 'dm', suppressed: false },
+      {
+        getMeterProvider: () => ({
+          getMeter: () => ({
+            createCounter: () => ({
+              add: (value: number, attributes: Record<string, string>) => {
+                added.push({ value, attributes });
+              },
+            }),
+          }),
+        }),
+      }
+    );
+
+    expect(added).toEqual([
+      {
+        value: 1,
+        attributes: {
+          kind: 'timeout',
+          destination_kind: 'dm',
+          suppressed: 'false',
+        },
+      },
+    ]);
+  });
+
+  it('never throws when the meter provider is broken', () => {
+    expect(() =>
+      recordFailureNoticeMetric(
+        {
+          kind: 'tool_error',
+          destinationKind: 'group_channel',
+          suppressed: true,
+        },
+        {
+          getMeterProvider: () => {
+            throw new Error('no provider');
+          },
+        }
+      )
+    ).not.toThrow();
   });
 });

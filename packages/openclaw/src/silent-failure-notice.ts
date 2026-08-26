@@ -1,5 +1,19 @@
+import { metrics } from '@opentelemetry/api';
+
 import type { ContextLensStatus } from './context-lens.js';
 import type { TlonAgentTurnSummary } from './turn-recorder.js';
+
+export type SilentFailureNoticeKind =
+  | 'timeout'
+  | 'delivery_failure'
+  | 'run_failure'
+  | 'tool_error'
+  | 'dm_empty';
+
+export type SilentFailureNotice = {
+  kind: SilentFailureNoticeKind;
+  text: string;
+};
 
 const USER_FACING_TRIGGERS: ReadonlySet<TlonAgentTurnSummary['trigger']> =
   new Set(['dm', 'mention', 'summarization']);
@@ -19,7 +33,7 @@ export function resolveSilentFailureNotice(input: {
   deliveredCount: number;
   requester: string;
   conversation: string;
-}): string | null {
+}): SilentFailureNotice | null {
   const { summary, deliveredCount, requester, conversation } = input;
   if (!USER_FACING_TRIGGERS.has(summary.trigger)) {
     return null;
@@ -37,13 +51,22 @@ export function resolveSilentFailureNotice(input: {
   }
   const request = `a request from ${requester} in ${conversation}`;
   if (summary.execution === 'timed_out') {
-    return `⚠️ ${request} timed out before I could reply. You may want to retry.`;
+    return {
+      kind: 'timeout',
+      text: `⚠️ ${request} timed out before I could reply. You may want to retry.`,
+    };
   }
   if (summary.deliveryFailureCount > 0 || summary.delivery === 'failed') {
-    return `⚠️ I produced a reply to ${request}, but couldn't deliver it. You may want to retry.`;
+    return {
+      kind: 'delivery_failure',
+      text: `⚠️ I produced a reply to ${request}, but couldn't deliver it. You may want to retry.`,
+    };
   }
   if (summary.execution === 'failed') {
-    return `⚠️ ${request} failed before I could reply. You may want to retry.`;
+    return {
+      kind: 'run_failure',
+      text: `⚠️ ${request} failed before I could reply. You may want to retry.`,
+    };
   }
   if (summary.toolErrorCount > 0) {
     const lastToolError = summary.lastToolError;
@@ -51,11 +74,13 @@ export function resolveSilentFailureNotice(input: {
     const errorText = lastToolError
       ? formatErrorText(lastToolError.message)
       : 'unknown error';
-    return (
-      `⚠️ I didn't reply to a request from ${requester} in ${conversation} ` +
-      'and may not have completed it — my last failing tool call was ' +
-      `\`${toolName}\`: ${errorText}. You may want to check or retry.`
-    );
+    return {
+      kind: 'tool_error',
+      text:
+        `⚠️ I didn't reply to a request from ${requester} in ${conversation} ` +
+        'and may not have completed it — my last failing tool call was ' +
+        `\`${toolName}\`: ${errorText}. You may want to check or retry.`,
+    };
   }
   // DM silence is never legitimate (core's own silent-reply policy), so a
   // completed DM turn that produced nothing is a dropped answer. Group
@@ -64,9 +89,51 @@ export function resolveSilentFailureNotice(input: {
     summary.destinationKind === 'dm' &&
     (summary.result === 'empty' || summary.result === 'intentional_silence')
   ) {
-    return `⚠️ ${request} ended with no reply — I didn't produce anything to send. You may want to retry.`;
+    return {
+      kind: 'dm_empty',
+      text: `⚠️ ${request} ended with no reply — I didn't produce anything to send. You may want to retry.`,
+    };
   }
   return null;
+}
+
+type FailureNoticeMeterProviderLike = {
+  getMeter(name: string): {
+    createCounter(
+      name: string,
+      options?: { description?: string; unit?: string }
+    ): { add(value: number, attributes: Record<string, string>): void };
+  };
+};
+
+// Rare events, so creating the counter per call keeps this robust across
+// meter-provider swaps without the caching dance the turn recorder needs.
+export function recordFailureNoticeMetric(
+  input: {
+    kind: SilentFailureNoticeKind;
+    destinationKind: TlonAgentTurnSummary['destinationKind'];
+    suppressed: boolean;
+  },
+  options?: { getMeterProvider?: () => FailureNoticeMeterProviderLike }
+): void {
+  try {
+    const provider =
+      options?.getMeterProvider?.() ??
+      (metrics.getMeterProvider() as FailureNoticeMeterProviderLike);
+    provider
+      .getMeter('tlon.openclaw')
+      .createCounter('tlon.agent.failure_notice', {
+        description: 'Owner-facing terminal no-reply failure notices',
+        unit: '1',
+      })
+      .add(1, {
+        kind: input.kind,
+        destination_kind: input.destinationKind,
+        suppressed: String(input.suppressed),
+      });
+  } catch {
+    // Observability must never alter dispatch or delivery behavior.
+  }
 }
 
 const NOTICE_COOLDOWN_MS = 15 * 60_000;

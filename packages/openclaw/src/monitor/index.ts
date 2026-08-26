@@ -67,6 +67,7 @@ import {
 import { sharedSlot } from '../shared-state.js';
 import {
   createSilentFailureNoticeCooldown,
+  recordFailureNoticeMetric,
   resolveSilentFailureNotice,
   resolveTurnTerminalLensStatus,
   rewriteGenericTerminalErrorReply,
@@ -3702,21 +3703,40 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           conversation: noticeConversation,
         });
         if (notice) {
-          if (
-            failureNoticeCooldown.isCoolingDown(noticeConversation, Date.now())
-          ) {
+          const suppressedByCooldown = failureNoticeCooldown.isCoolingDown(
+            noticeConversation,
+            Date.now()
+          );
+          let noticeMessageId: string | undefined;
+          if (suppressedByCooldown) {
             runtime.log?.(
-              `[tlon] Terminal no-reply turn ${turnSummary.runId}; owner notice suppressed by cooldown`
+              `[tlon] Terminal no-reply turn ${turnSummary.runId} (${notice.kind}); owner notice suppressed by cooldown`
             );
           } else {
             runtime.log?.(
-              `[tlon] Terminal no-reply turn ${turnSummary.runId}; notifying owner`
+              `[tlon] Terminal no-reply turn ${turnSummary.runId} (${notice.kind}); notifying owner`
             );
-            const noticeMessageId = await sendOwnerNotification(notice);
+            noticeMessageId = await sendOwnerNotification(notice.text);
             if (noticeMessageId) {
               failureNoticeCooldown.recordSent(noticeConversation, Date.now());
             }
           }
+          recordFailureNoticeMetric({
+            kind: notice.kind,
+            destinationKind: turnSummary.destinationKind,
+            suppressed: suppressedByCooldown,
+          });
+          telemetry?.captureFailureNotice({
+            harness: 'openclaw',
+            accountId: account.accountId ?? null,
+            ownerShip: effectiveOwnerShip,
+            botShip: botShipName,
+            runId: turnSummary.runId,
+            noticeKind: notice.kind,
+            destinationKind: turnSummary.destinationKind,
+            suppressedByCooldown,
+            delivered: Boolean(noticeMessageId),
+          });
         }
       }
     };
