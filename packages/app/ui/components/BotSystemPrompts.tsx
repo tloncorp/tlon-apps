@@ -131,7 +131,11 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
         .then((id) => {
           if (id === null) {
             // Ship lacks the prompts module — permanent for this session,
-            // so no retry.
+            // so no retry. Authoritative either way: if a downgraded /
+            // replaced desk removed the module after we cached a prompt
+            // set, that cache would otherwise stay fresh (and the editor
+            // visible) for the rest of the session.
+            queryClient.setQueryData(promptsQueryKey(botShip), null);
             return;
           }
           if (cancelled) {
