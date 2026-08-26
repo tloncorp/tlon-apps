@@ -315,3 +315,6 @@ render.experimental.xml
 
 # Sentry
 **/sentry.properties
+
+# rn-iso agent workspace (logs, supervisor state, device assignment)
+.rn-iso/
