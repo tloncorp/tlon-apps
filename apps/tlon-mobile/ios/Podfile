@@ -131,4 +131,23 @@ post_install do |installer|
       end
     end
   end
+
+  # Share compiled output between worktrees (Xcode 26+). The default CAS path is
+  # inside DerivedData, which is per-worktree, and cache keys embed absolute
+  # source paths, so pin the CAS outside it and map the monorepo root -- four
+  # levels up from Pods, standardized, since an unnormalized path matches
+  # nothing -- to a fixed prefix. Swift stays unmapped: SWIFT_OTHER_PREFIX_MAPPINGS
+  # crashes swift-frontend when a batch mixes mapped and unmapped sources.
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['COMPILATION_CACHE_ENABLE_CACHING'] = 'YES'
+      config.build_settings['COMPILATION_CACHE_CAS_PATH'] =
+        File.expand_path('~/.rn-iso/compilation-cache')
+      config.build_settings['REPO_ROOT'] = '$(PODS_ROOT)/../../../..'
+      config.build_settings['CLANG_ENABLE_PREFIX_MAPPING'] = 'YES'
+      config.build_settings['CLANG_OTHER_PREFIX_MAPPINGS'] =
+        '$(REPO_ROOT:standardizepath)=/^src $(DERIVED_DATA_DIR)=/^build'
+      config.build_settings['SWIFT_ENABLE_COMPILE_CACHE'] = 'NO'
+    end
+  end
 end

@@ -444,6 +444,9 @@ importers:
       '@react-native/metro-config':
         specifier: 0.86.0
         version: 0.86.0
+      '@rn-iso/metro':
+        specifier: ^1.0.0
+        version: 1.0.0(metro-cache@0.84.4)
       '@tamagui/babel-plugin':
         specifier: 2.4.2
         version: 2.4.2(encoding@0.1.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -4531,6 +4534,11 @@ packages:
   '@resvg/resvg-js@2.6.2':
     resolution: {integrity: sha512-xBaJish5OeGmniDj9cW5PRa/PtmuVU3ziqrbr5xJj901ZDN4TosrVaNZpEiLZAxdfnhAe7uQ7QFWfjPe9d9K2Q==}
     engines: {node: '>= 10'}
+
+  '@rn-iso/metro@1.0.0':
+    resolution: {integrity: sha512-Vr47OThBnzT9ZcZGRjAtWT2ZhgEPjvf5mwYprCcGb9MQT8dBzqM5qe3XT+/6uaJHWAqKLAR4vC00qGLzE/JZbA==}
+    peerDependencies:
+      metro-cache: '*'
 
   '@rolldown/binding-android-arm64@1.0.1':
     resolution: {integrity: sha512-fJI3I0r3C3Oj/zdBCpaCmBRZYf07xpaq4yCfDDoSFm+beWNzbIl26puW8RraUdugoJw/95zerNOn6jasAhzSmg==}
@@ -17339,6 +17347,10 @@ snapshots:
       '@resvg/resvg-js-win32-arm64-msvc': 2.6.2
       '@resvg/resvg-js-win32-ia32-msvc': 2.6.2
       '@resvg/resvg-js-win32-x64-msvc': 2.6.2
+
+  '@rn-iso/metro@1.0.0(metro-cache@0.84.4)':
+    dependencies:
+      metro-cache: 0.84.4
 
   '@rolldown/binding-android-arm64@1.0.1':
     optional: true
