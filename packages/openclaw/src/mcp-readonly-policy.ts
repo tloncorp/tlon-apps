@@ -1,28 +1,25 @@
 import { sharedMap } from './shared-state.js';
 
 const MCP_TOOL_NAMES = {
-  listUpstreams: ['mcp__list_upstreams', 'mcp_list_upstreams'],
-  search: ['mcp__search', 'mcp_search'],
-  describe: ['mcp__describe', 'mcp_describe'],
-  call: ['mcp__call', 'mcp_call'],
+  listUpstreams: 'mcp__list_upstreams',
+  search: 'mcp__search',
+  describe: 'mcp__describe',
+  call: 'mcp__call',
 } as const;
 
-// OpenClaw 2026.7.1 names MCP tools as `${server}__${tool}`. Keep the former
-// single-underscore aliases because the plugin still supports older OpenClaw
-// releases.
 export const MCP_READ_TOOL_NAMES = [
-  ...MCP_TOOL_NAMES.listUpstreams,
-  ...MCP_TOOL_NAMES.search,
-  ...MCP_TOOL_NAMES.describe,
-  ...MCP_TOOL_NAMES.call,
+  MCP_TOOL_NAMES.listUpstreams,
+  MCP_TOOL_NAMES.search,
+  MCP_TOOL_NAMES.describe,
+  MCP_TOOL_NAMES.call,
 ] as const;
 
 export function isMcpDescribeToolName(name: string) {
-  return MCP_TOOL_NAMES.describe.some((candidate) => candidate === name);
+  return name === MCP_TOOL_NAMES.describe;
 }
 
 export function isMcpCallToolName(name: string) {
-  return MCP_TOOL_NAMES.call.some((candidate) => candidate === name);
+  return name === MCP_TOOL_NAMES.call;
 }
 
 const describedReadOnlyTools = sharedMap<string, { providerId: string | null }>(
@@ -106,7 +103,7 @@ function providerForTool(
       const lowerProviderId = providerId.toLowerCase();
       return (
         lowerName === lowerProviderId ||
-        ['.', ':', '/', '__'].some((delimiter) =>
+        ['_', '.', ':', '/'].some((delimiter) =>
           lowerName.startsWith(`${lowerProviderId}${delimiter}`)
         )
       );
@@ -163,7 +160,7 @@ export function mayCallDescribedReadOnlyMcpTool(
   allowedProviderIds: readonly string[]
 ) {
   // Scheduled onboarding runs fail closed: prose is not a permission boundary,
-  // so mcp_call is available only after the broker describes that exact tool
+  // so mcp__call is available only after the broker describes that exact tool
   // with the MCP readOnlyHint in this same session.
   const name = toolName(params);
   const requestedProviderId = providerForTool(params, null, allowedProviderIds);
