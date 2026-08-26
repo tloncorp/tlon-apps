@@ -13,7 +13,7 @@ import { join } from 'node:path';
 const root = process.cwd();
 const outDir = join(root, '.publish');
 
-const copyEntries = ['dist', 'openclaw.plugin.json', 'README.md'];
+const copyEntries = ['dist', 'skills', 'openclaw.plugin.json', 'README.md'];
 const publishOnlyScripts = new Set([
   'prepublishOnly',
   'prepare:publish',
