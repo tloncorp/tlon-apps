@@ -64,6 +64,7 @@ import {
   activityEvents as $activityEvents,
   attestations as $attestations,
   baseUnreads as $baseUnreads,
+  botReplyFeedback as $botReplyFeedback,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
   channelWriters as $channelWriters,
@@ -104,6 +105,7 @@ import {
   ActivityEvent,
   Attestation,
   BaseUnread,
+  BotReplyFeedback,
   ChangesResult,
   Channel,
   ChannelUnread,
@@ -211,6 +213,85 @@ export const getSettings = createReadQuery(
     });
   },
   ['settings']
+);
+
+export const getBotReplyFeedback = createReadQuery(
+  'getBotReplyFeedback',
+  async (messageId: string, ctx: QueryCtx) => {
+    return (
+      (await ctx.db.query.botReplyFeedback.findFirst({
+        where: eq($botReplyFeedback.messageId, messageId),
+      })) ?? null
+    );
+  },
+  ['botReplyFeedback']
+);
+
+export const upsertBotReplyFeedback = createWriteQuery(
+  'upsertBotReplyFeedback',
+  async (entry: BotReplyFeedback, ctx: QueryCtx) => {
+    return ctx.db.insert($botReplyFeedback).values(entry).onConflictDoUpdate({
+      target: $botReplyFeedback.messageId,
+      set: entry,
+    });
+  },
+  ['botReplyFeedback']
+);
+
+export const deleteBotReplyFeedback = createWriteQuery(
+  'deleteBotReplyFeedback',
+  async (messageId: string, ctx: QueryCtx) => {
+    return ctx.db
+      .delete($botReplyFeedback)
+      .where(eq($botReplyFeedback.messageId, messageId));
+  },
+  ['botReplyFeedback']
+);
+
+export const replaceBotReplyFeedback = createWriteQuery(
+  'replaceBotReplyFeedback',
+  async (entries: BotReplyFeedback[], ctx: QueryCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db.delete($botReplyFeedback);
+      if (entries.length > 0) {
+        await txCtx.db.insert($botReplyFeedback).values(entries);
+      }
+    });
+  },
+  ['botReplyFeedback']
+);
+
+export const getBotReplyConversationExcerptPosts = createReadQuery(
+  'getBotReplyConversationExcerptPosts',
+  async (
+    {
+      channelId,
+      parentId,
+      sentAt,
+      limit,
+    }: {
+      channelId: string;
+      parentId: string | null;
+      sentAt: number;
+      limit: number;
+    },
+    ctx: QueryCtx
+  ) => {
+    const conversationCondition = parentId
+      ? or(eq($posts.id, parentId), eq($posts.parentId, parentId))
+      : isNull($posts.parentId);
+    const rows = await ctx.db.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        lt($posts.sentAt, sentAt),
+        conversationCondition
+      ),
+      orderBy: desc($posts.sentAt),
+      limit,
+    });
+    return rows.reverse();
+  },
+  ['posts']
 );
 
 export const getGroupPreviews = createReadQuery(

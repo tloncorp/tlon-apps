@@ -358,7 +358,11 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         }
         return {
           content: [{ type: 'text' as const, text: blocked.message }],
-          details: { blocked: true, reason: blocked.reason },
+          details: {
+            status: 'blocked',
+            blocked: true,
+            reason: blocked.reason,
+          },
         };
       }
 

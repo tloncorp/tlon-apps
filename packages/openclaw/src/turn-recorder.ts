@@ -2,6 +2,8 @@ import { metrics } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
+import { sharedMap } from './shared-state.js';
+
 export type TlonAgentTurnExecution =
   | 'completed'
   | 'failed'
@@ -102,6 +104,7 @@ type TlonAgentTurnState = TlonAgentTurnStart & {
   finalErrorReplyCount: number;
   finalNonErrorReplyCount: number;
   finalized: boolean;
+  outputCount: number;
   sourceReplyCount: number;
   summary: TlonAgentTurnSummary | null;
   toolCallCount: number;
@@ -141,6 +144,10 @@ type TurnInstruments = {
 };
 
 const turnStorage = new AsyncLocalStorage<TlonAgentTurnState>();
+const traceIdsByRunId = sharedMap<string, string>(
+  'turnRecorder.traceIdsByRunId'
+);
+const MAX_TRACKED_TRACE_IDS = 1_024;
 const terminalLogger = createSubsystemLogger('tlon/agent-turn');
 
 function normalizeShip(ship: string): string {
@@ -420,6 +427,7 @@ export function startTlonAgentTurn(
     finalErrorReplyCount: 0,
     finalNonErrorReplyCount: 0,
     finalized: false,
+    outputCount: 0,
     sourceReplyCount: 0,
     summary: null,
     toolCallCount: 0,
@@ -437,6 +445,7 @@ export function startTlonAgentTurn(
       }
       state.finalized = true;
       state.summary = buildSummary(state, terminal);
+      traceIdsByRunId.delete(state.runId);
       safeObserve(() => observer.recordTerminal(state.summary!));
       return state.summary;
     },
@@ -474,6 +483,27 @@ export function recordActiveTlonTurnToolCall(): void {
   });
 }
 
+export function recordTlonAgentRunTrace(
+  runId?: string,
+  traceId?: string
+): void {
+  const normalizedRunId = runId?.trim();
+  const normalized = traceId?.trim();
+  if (!normalizedRunId || !normalized) {
+    return;
+  }
+  if (
+    !traceIdsByRunId.has(normalizedRunId) &&
+    traceIdsByRunId.size >= MAX_TRACKED_TRACE_IDS
+  ) {
+    const oldestRunId = traceIdsByRunId.keys().next().value;
+    if (oldestRunId) {
+      traceIdsByRunId.delete(oldestRunId);
+    }
+  }
+  traceIdsByRunId.set(normalizedRunId, normalized);
+}
+
 export function recordActiveTlonTurnDelivery(success: boolean): void {
   updateActiveTurn((state) => {
     if (success) {
@@ -482,6 +512,24 @@ export function recordActiveTlonTurnDelivery(success: boolean): void {
       state.deliveryFailureCount += 1;
     }
   });
+}
+
+export function claimActiveTlonTurnOutput(): {
+  runId: string | null;
+  outputIndex: number;
+  traceId: string | null;
+} {
+  const state = turnStorage.getStore();
+  if (!state || state.finalized) {
+    return { runId: null, outputIndex: 0, traceId: null };
+  }
+  const outputIndex = state.outputCount;
+  state.outputCount += 1;
+  return {
+    runId: state.runId,
+    outputIndex,
+    traceId: traceIdsByRunId.get(state.runId) ?? null,
+  };
 }
 
 export async function observeActiveTlonTurnDelivery<T>(

@@ -13,6 +13,7 @@ import { useEffect, useMemo } from 'react';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
 import * as logic from '../logic';
+import { getBotReplyFeedbackQueryKey } from './botReplyFeedback';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import { syncChannelPreivews, syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
@@ -932,6 +933,14 @@ export const useTelemetrySettings = () => {
         logActivity: settings?.logActivity,
       };
     },
+  });
+};
+
+export const useBotReplyFeedback = (messageId: string) => {
+  return useQuery({
+    queryKey: getBotReplyFeedbackQueryKey(messageId),
+    queryFn: () => db.getBotReplyFeedback(messageId),
+    enabled: Boolean(messageId),
   });
 };
 
