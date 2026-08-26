@@ -99,8 +99,9 @@ export const subscribeToBotSystemPrompts = async (
   handler: (botShip: string, prompts: BotSystemPrompt[] | null) => void,
   opts?: {
     /**
-     * The watch died (desk restart/upgrade quits it; no replacement is
-     * created) and facts may have been lost — re-subscribe and re-fetch.
+     * The watch died (desk restart/upgrade). Providing this disables the
+     * client's automatic resubscription — recovery is the caller's job:
+     * re-subscribe and re-fetch, since facts emitted in the gap are lost.
      */
     onQuit?: () => void;
   }

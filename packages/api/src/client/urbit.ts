@@ -335,10 +335,11 @@ export async function subscribe<T>(
   handler: (update: T, id?: number) => void,
   opts?: {
     /**
-     * Called when the agent quits the watch (desk restart/upgrade). The
-     * subscription is dead at that point — no replacement is created — so
-     * callers that must not go deaf should re-subscribe and re-fetch their
-     * backing state here.
+     * Called when the agent quits the watch (desk restart/upgrade).
+     * Providing this DISABLES the client's automatic resubscription —
+     * which would otherwise create a replacement whose new id the caller
+     * can't track or unsubscribe — so quit recovery becomes the caller's
+     * job: re-subscribe and re-fetch backing state here.
      */
     onQuit?: () => void;
   }
@@ -354,6 +355,11 @@ export async function subscribe<T>(
     return config.client.subscribe({
       app: endpoint.app,
       path: endpoint.path,
+      // resubOnQuit defaults ON in Urbit.subscribe. With a caller-owned
+      // quit handler both recoveries would run: the auto-replacement (whose
+      // new id nobody tracks or can unsubscribe) plus the caller's own —
+      // duplicating the watch and every fact on each quit.
+      ...(opts?.onQuit ? { resubOnQuit: false } : {}),
       event: (event: any, mark: string, id?: number) => {
         logger.debug(
           `got subscription event on ${printEndpoint(endpoint)}:`,

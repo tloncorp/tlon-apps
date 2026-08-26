@@ -39,7 +39,15 @@ export function useBotSystemPrompts(botShip: string) {
  */
 export function useIsOwnedBot(botShip: string) {
   const promptsQuery = useBotSystemPrompts(botShip);
-  return Boolean(promptsQuery.data?.length);
+  return {
+    isOwnedBot: Boolean(promptsQuery.data?.length),
+    /**
+     * True while the first fetch is still deciding. Callers gating a
+     * destructive action (e.g. Block) should treat ownership as unknown
+     * rather than "not owned" until this settles.
+     */
+    isPending: promptsQuery.isPending,
+  };
 }
 
 /**
@@ -118,10 +126,11 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
               if (cancelled) {
                 return;
               }
-              // The agent quit the watch (desk restart/upgrade) and no
-              // replacement exists; facts in the gap are lost. Re-run the
-              // mount flow: subscribe fresh, then the post-subscribe
-              // invalidation below re-scries past whatever was missed.
+              // The agent quit the watch (desk restart/upgrade). Passing
+              // onQuit disabled the client's auto-resubscribe, so recovery
+              // is ours: re-run the mount flow — subscribe fresh, then the
+              // post-subscribe invalidation below re-scries past whatever
+              // the gap dropped.
               subscriptionId = null;
               attempt = 0;
               retryTimer = setTimeout(start, 0);
