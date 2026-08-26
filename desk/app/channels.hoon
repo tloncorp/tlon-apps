@@ -160,7 +160,7 @@
     :+  notify=&
       [~.channels^%4 ~ ~]
     %-  my
-    :~  %groups^[~.groups^%2 ~ ~]
+    :~  %groups^[~.groups^%3 ~ ~]
         %channels-server^[~.channels^%4 ~ ~]
     ==
 %-  agent:dbug
