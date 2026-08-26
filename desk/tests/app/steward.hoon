@@ -1214,8 +1214,10 @@
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
   %+  ex-cards  caz
+  ::  the revoke rides the sync wire so it shares the sync ames flow and
+  ::  can't be overtaken by an in-flight pre-transition %sync
   :~  %-  ex-poke
-      :*  /prompts/revoke/(scot %p ~bus)
+      :*  /prompts/sync/(scot %p ~bus)
           [~bus %steward]
           %steward-prompts-action-1
           !>(`action:v1:p`[%revoke ~])

@@ -270,6 +270,16 @@ export function createPromptSync(opts: {
   accountId?: string | null;
   workspaceDir: string;
   configPrompts: Record<string, string>;
+  /**
+   * The ship whose mirror receives the fan-out and whose %set edits the bot
+   * accepts (normalized @p, null when no owner is configured). %steward's
+   * core owner gates both, so startup configures it here — the other two
+   * configure paths don't cover every prompt-syncing monitor: gateway-status
+   * activation only runs with exactly one Tlon account, and the context-lens
+   * sync only configures when the lens is enabled (and then lazily, before
+   * its first run poke).
+   */
+  owner: string | null;
   scry: (path: string) => Promise<unknown>;
   poke: (params: {
     app: string;
@@ -278,7 +288,7 @@ export function createPromptSync(opts: {
   }) => Promise<unknown>;
   logger: PromptSyncLogger;
 }): PromptSync {
-  const { core, accountId, workspaceDir, scry, poke, logger } = opts;
+  const { core, accountId, workspaceDir, owner, scry, poke, logger } = opts;
 
   const persistToConfig = async (
     prompts: Record<string, string>,
@@ -307,6 +317,26 @@ export function createPromptSync(opts: {
   };
 
   const startup = async () => {
+    // Configure the core owner before touching prompts so the %seed below
+    // fans the canonical set to the owner's mirror (and owner %sets pass
+    // the ship's auth gate). Idempotent: %steward no-ops a same-owner
+    // reconfigure, so overlapping with gateway-status / lens configures of
+    // the same resolved owner is harmless.
+    if (owner) {
+      try {
+        await poke({
+          app: 'steward',
+          mark: 'steward-action-1',
+          json: { configure: { owner } },
+        });
+      } catch (error) {
+        // Keep reconciling: the seed still stores the canonical set on the
+        // ship, and the fan-out happens once a later configure succeeds.
+        logger.warn(
+          `[tlon] Failed to configure %steward owner for prompt sync: ${error}`
+        );
+      }
+    }
     let stored: Record<string, string>;
     try {
       stored = parseStoredPromptsScry(await scry('/steward/v1/prompts.json'));

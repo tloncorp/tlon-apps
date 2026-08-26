@@ -134,9 +134,13 @@
       =?  cor  ?=(^ old)
         ?:  =(u.old our.bowl)
           (pr-drop-mirror:pr-core u.old)
+        ::  the revoke must ride the same wire as our %syncs to this ship:
+        ::  same wire, same ames flow, so it's delivered after any %sync
+        ::  still in flight (a delayed pre-transition sync arriving after a
+        ::  separate-flow revoke would recreate the stale mirror)
         %-  emit
         :^    %pass
-            /prompts/revoke/(scot %p u.old)
+            /prompts/sync/(scot %p u.old)
           %agent
         :+  [u.old %steward]
           %poke
@@ -231,6 +235,8 @@
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
+      ::  %syncs and owner-change %revokes share this wire (see %configure);
+      ::  a revoke nack is expected when the former owner held no mirror
       ((slog 'steward: prompts owner sync nacked' u.p.sign) cor)
     ==
   ::
@@ -240,14 +246,6 @@
       ?~  p.sign  cor
       ::  expected when trusting a ship that doesn't consider us its owner
       ((slog 'steward: prompts resync request nacked' u.p.sign) cor)
-    ==
-  ::
-      [%prompts %revoke *]
-    ?+  -.sign  cor
-        %poke-ack
-      ?~  p.sign  cor
-      ::  expected when the former owner never held a mirror
-      ((slog 'steward: prompts revoke nacked' u.p.sign) cor)
     ==
   ::
       [%activity ~]

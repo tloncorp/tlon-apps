@@ -4797,6 +4797,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             resolveDefaultAgentId(cfg)
           ),
           configPrompts: account.prompts,
+          // Same resolution the rest of the steward-owner surface uses
+          // (ownerShip, falling back to contextLens.owner), so every
+          // configure path agrees on the one core owner.
+          owner: resolveLensOwner(cfg, account.accountId),
           scry: (path) => api!.scry(path),
           poke: (params) => api!.poke(params),
           logger: {

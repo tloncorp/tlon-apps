@@ -229,12 +229,15 @@ describe('createPromptSync.startup', () => {
   it('applies stored prompts, persists the cache, and seeds effective files', async () => {
     fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'from archive');
     const core = makeCore();
-    const poke = vi.fn(async () => ({}));
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
     const sync = createPromptSync({
       core,
       accountId: 'default',
       workspaceDir: tmpDir,
       configPrompts: {},
+      owner: '~ten',
       scry: async () => ({
         prompts: {
           bot: '~zod',
@@ -256,13 +259,46 @@ describe('createPromptSync.startup', () => {
         afterWrite: expect.objectContaining({ mode: 'none' }),
       })
     );
-    expect(poke).toHaveBeenCalledWith({
+    // The owner configure precedes the seed so the seed's fan-out reaches
+    // the owner's mirror. Prompt sync does this itself: gateway-status
+    // activation is gated to single-account configs and the lens configure
+    // is gated on the lens being enabled.
+    expect(poke).toHaveBeenNthCalledWith(1, {
+      app: 'steward',
+      mark: 'steward-action-1',
+      json: { configure: { owner: '~ten' } },
+    });
+    expect(poke).toHaveBeenNthCalledWith(2, {
       app: 'steward',
       mark: 'steward-prompts-action-1',
       json: {
         seed: { 'AGENTS.md': 'from archive', 'SOUL.md': 'stored edit' },
       },
     });
+  });
+
+  it('still reconciles and seeds when the owner configure poke fails', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'from archive');
+    const poke = vi.fn(async (params: { mark: string }) => {
+      if (params.mark === 'steward-action-1') {
+        throw new Error('nacked');
+      }
+      return {};
+    });
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      owner: '~ten',
+      scry: async () => ({}),
+      poke,
+      logger,
+    });
+    await sync.startup();
+    expect(poke).toHaveBeenCalledWith(
+      expect.objectContaining({ mark: 'steward-prompts-action-1' })
+    );
   });
 
   it('does not seed when the scry fails (older ships)', async () => {
@@ -272,6 +308,7 @@ describe('createPromptSync.startup', () => {
       accountId: 'default',
       workspaceDir: tmpDir,
       configPrompts: {},
+      owner: null,
       scry: async () => {
         throw new Error('404');
       },
@@ -279,6 +316,7 @@ describe('createPromptSync.startup', () => {
       logger,
     });
     await sync.startup();
+    // owner=null also means no configure poke was attempted
     expect(poke).not.toHaveBeenCalled();
   });
 
@@ -291,6 +329,7 @@ describe('createPromptSync.startup', () => {
       accountId: 'default',
       workspaceDir: tmpDir,
       configPrompts: {},
+      owner: null,
       scry: async () => ({
         prompts: {
           bot: '~zod',
@@ -364,6 +403,7 @@ describe('createPromptSync serialization', () => {
       accountId: 'default',
       workspaceDir: tmpDir,
       configPrompts: {},
+      owner: null,
       scry: async () => {
         order.push('scry');
         await scryGate;
@@ -395,6 +435,7 @@ describe('createPromptSync.handleFact', () => {
       accountId: 'default',
       workspaceDir: tmpDir,
       configPrompts: {},
+      owner: null,
       scry: async () => ({}),
       poke: async () => ({}),
       logger,
@@ -419,6 +460,7 @@ describe('createPromptSync.handleFact', () => {
       accountId: 'default',
       workspaceDir: tmpDir,
       configPrompts: {},
+      owner: null,
       scry: async () => ({}),
       poke: async () => ({}),
       logger,
