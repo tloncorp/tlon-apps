@@ -38,6 +38,9 @@
     ::
         %request
       (frond 'request' ~)
+    ::
+        %revoke
+      (frond 'revoke' ~)
     ==
   --
 ++  grab
@@ -50,6 +53,7 @@
         [%seed (om so)]
         [%sync (om (ot ~[text+so updated+(se %da) edited+bo]))]
         [%request ul]
+        [%revoke ul]
     ==
   --
 --

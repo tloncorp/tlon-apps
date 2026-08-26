@@ -28,11 +28,10 @@ import {
 import { resolveTlonAccount } from './types.js';
 
 /**
- * The workspace bootstrap files exposed as editable system prompts. These
- * are the files openclaw injects into the agent's system prompt (plus
- * BOOT.md, injected by the boot-md hook). MEMORY.md is deliberately
- * excluded — the agent writes it at runtime, so a ship-stored copy would
- * immediately go stale and clobber real memory on re-apply.
+ * The workspace bootstrap files exposed as editable system prompts —
+ * the files openclaw injects into the agent's system prompt. MEMORY.md is
+ * deliberately excluded: the agent writes it at runtime, so a ship-stored
+ * copy would immediately go stale and clobber real memory on re-apply.
  */
 export const PROMPT_FILE_NAMES = [
   'AGENTS.md',
@@ -40,7 +39,7 @@ export const PROMPT_FILE_NAMES = [
   'TOOLS.md',
   'IDENTITY.md',
   'USER.md',
-  'BOOT.md',
+  'BOOTSTRAP.md',
 ] as const;
 
 export type PromptFileName = (typeof PROMPT_FILE_NAMES)[number];

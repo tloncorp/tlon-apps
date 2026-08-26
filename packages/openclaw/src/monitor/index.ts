@@ -48,7 +48,11 @@ import {
   getGatewayStatusCoordinator,
 } from '../gateway-status.js';
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
-import { createPromptSync, shouldRunPromptSync } from '../prompt-sync.js';
+import {
+  type PromptSync,
+  createPromptSync,
+  shouldRunPromptSync,
+} from '../prompt-sync.js';
 import {
   type PendingNudge,
   clearPendingNudge,
@@ -4769,20 +4773,23 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
       }
 
-      // Ship-durable system prompts: subscribe first so an owner edit that
-      // lands mid-reconcile isn't missed, then reconcile ship state into the
-      // workspace and seed the effective prompt set back. Ships without the
+      // Ship-durable system prompts: register the subscription now (it only
+      // goes live at api.connect(), so the fact watch is active before the
+      // post-connect reconcile scries — an owner %set can't slip between
+      // them), then reconcile ship state into the workspace and seed the
+      // effective prompt set back after connecting. Ships without the
       // %steward prompts module nack/404; prompt sync is simply unavailable.
       // Gated to one syncing account per gateway (see shouldRunPromptSync):
       // every account resolves the same default-agent workspace, so a second
       // account's sync would overwrite the first account's files and
       // cross-seed its ship.
+      let promptSync: PromptSync | null = null;
       if (!shouldRunPromptSync(cfg, account.accountId)) {
         runtime.log?.(
           `[tlon] Prompt sync disabled for account ${account.accountId}: accounts share one agent workspace`
         );
       } else {
-        const promptSync = createPromptSync({
+        promptSync = createPromptSync({
           core,
           accountId: account.accountId,
           workspaceDir: core.agent.resolveAgentWorkspaceDir(
@@ -4797,12 +4804,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             warn: (message) => runtime.error?.(message),
           },
         });
+        const sync = promptSync;
         try {
           await api.subscribe({
             app: 'steward',
             path: '/v1/prompts',
             event: (data) => {
-              promptSync.handleFact(data).catch((error: any) => {
+              sync.handleFact(data).catch((error: any) => {
                 capturePluginError('steward_subscription', error);
                 runtime.error?.(
                   `[tlon] Prompt sync fact handler error: ${error?.message ?? String(error)}`
@@ -4824,8 +4832,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           runtime.log?.(
             '[tlon] Subscribed to steward prompts facts (/v1/prompts)'
           );
-          await promptSync.startup();
         } catch (error: any) {
+          promptSync = null;
           runtime.log?.(
             `[tlon] Steward prompts sync unavailable: ${error?.message ?? String(error)}`
           );
@@ -5431,6 +5439,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+
+      // Reconcile ship-stored prompts only now that the /v1/prompts watch is
+      // actually live (subscribe() merely queues until connect), so an owner
+      // %set landing after the reconcile scry is guaranteed to reach the
+      // fact handler instead of being emitted with no subscriber.
+      if (promptSync) {
+        try {
+          await promptSync.startup();
+        } catch (error: any) {
+          runtime.error?.(
+            `[tlon] Prompt sync reconcile failed: ${error?.message ?? String(error)}`
+          );
+        }
+      }
       const webSearchRuntime = core.webSearch;
       const webSearchStatus = probeWebSearchBootStatus({
         searchConfig: cfg.tools?.web?.search,

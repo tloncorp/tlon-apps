@@ -47,12 +47,16 @@
 ::          automatically on %trust-bot, since a %sync delivered before
 ::          trust was granted has already been nacked and won't retry).
 ::          accepted from the configured owner.
+::    %revoke: a bot tells a former owner to drop its mirror (sent when the
+::          bot's configured owner changes). accepted from any ship that
+::          has a mirror entry with us — a ship can only drop its own.
 ::
 +$  action
   $%  [%set bot=ship =name text=@t]
       [%seed prompts=(map name @t)]
       [%sync =prompts]
       [%request ~]
+      [%revoke ~]
   ==
 ::  $update: prompts subscription / scry update.
 ::

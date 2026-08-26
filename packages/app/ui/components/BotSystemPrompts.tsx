@@ -52,7 +52,7 @@ const PROMPT_LABELS: Record<string, string> = {
   'TOOLS.md': 'Tools',
   'IDENTITY.md': 'Identity',
   'USER.md': 'About you',
-  'BOOT.md': 'Boot',
+  'BOOTSTRAP.md': 'Bootstrap',
 };
 
 const PROMPT_DESCRIPTIONS: Record<string, string> = {
@@ -61,7 +61,7 @@ const PROMPT_DESCRIPTIONS: Record<string, string> = {
   'TOOLS.md': 'Guidance for the tools your bot can use.',
   'IDENTITY.md': 'How your bot identifies itself.',
   'USER.md': 'What your bot knows about you.',
-  'BOOT.md': 'Run once when your bot starts up.',
+  'BOOTSTRAP.md': 'First-run setup instructions for your bot.',
 };
 
 /**
@@ -116,6 +116,10 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
           return;
         }
         subscriptionId = id;
+        // Close the backfill-to-watch gap: a %sync that landed after the
+        // initial scry but before this subscription registered would
+        // otherwise stay invisible forever (staleTime is Infinity).
+        queryClient.invalidateQueries({ queryKey: promptsQueryKey(botShip) });
       })
       .catch(() => {
         // No live updates; the scry on mount still shows current state.

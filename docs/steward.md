@@ -95,9 +95,10 @@ The prompts action is a tagged union of three shapes:
 Each stored prompt carries an `edited` flag: `&` for text that came from an owner `%set` (pinned intent the gateway re-applies on boot), `|` for entries that merely mirror the gateway's effective files (so upstream prompt-set updates keep flowing through them).
 
 - **`%set`** `[%set bot=ship name=@t text=@t]` — an owner edit, stored with `edited=&`. Carries `.bot` for routing: a local poke targeting a remote bot is relayed to that bot's steward (owner → bot, like lens `%retry`); a poke targeting `bot == our` (locally, or cross-ship from the configured owner) stores the prompt, facts `[%set name prompt]` on `/v1/prompts` for the gateway, and re-syncs the owner mirror. Only local pokes relay outward — a cross-ship `%set` must target us, so the agent never proxies a non-local edit to a third ship. Ames retries the relay until ack, so an edit made while the gateway is down is stored and applied on the gateway's next boot.
-- **`%seed`** `[%seed prompts=(map @t @t)]` — the local gateway reports the full effective prompt set (`src == our` only). Un-edited entries adopt it wholesale; edited entries are pinned — a seed with different text never overwrites one (that race is a `%set` landing between the gateway's scry and its seed), and an edited entry missing from the seed is kept rather than dropped. Entries with unchanged text keep their stored timestamp, and an identical re-seed (every gateway boot) is a no-op. Synced to the owner on change, and re-synced whenever the core `%configure` (re)points the owner so a new owner's mirror doesn't stay empty.
+- **`%seed`** `[%seed prompts=(map @t @t)]` — the local gateway reports the full effective prompt set (`src == our` only). Un-edited entries adopt it wholesale; edited entries are pinned — a seed with different text never overwrites one (that race is a `%set` landing between the gateway's scry and its seed), and an edited entry missing from the seed is kept rather than dropped. Entries with unchanged text keep their stored timestamp, and an identical re-seed (every gateway boot) is a no-op. Synced to the owner on change. When the core `%configure` points the owner at a **new** ship, the set is re-fanned to it and the previous owner is sent a `%revoke`; re-configuring the same owner is a no-op.
 - **`%sync`** `[%sync prompts=(map @t [text=@t updated=@da edited=?])]` — bot → owner fan-out of the canonical set, stored in `mirror` keyed by `src` and facted on `/v1/prompts`.
 - **`%request`** `[%request ~]` — ask the bot to re-fan its canonical set. Sent automatically by `%trust-bot`; accepted from the configured owner (or locally).
+- **`%revoke`** `[%revoke ~]` — a bot tells a former owner to drop its mirror. Sent automatically when the bot's configured owner changes; accepted from any ship holding a mirror entry with us (a ship can only drop its own).
 
 Size caps: a `%set` over 64KB nacks at the first hop (so the editing client sees the failure); seed/sync maps are capped at 512KB jammed, mirroring the lens payload ceiling.
 
@@ -158,6 +159,7 @@ Auth is **per-variant**, since each shape expects a different `src`:
 - `%seed` — `src == our` only (the local gateway).
 - `%sync` — accepted iff `src` is `our` (a self-owned bot storing directly) or a ship in the owner-side trusted-bots set.
 - `%request` — accepted iff `src` is `our` or the configured `owner`.
+- `%revoke` — accepted iff `src` holds a mirror entry with us.
 
 ```json
 { "set": { "bot": "~sampel-palnet", "name": "SOUL.md", "text": "..." } }

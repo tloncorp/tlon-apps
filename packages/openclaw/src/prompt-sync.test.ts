@@ -74,11 +74,15 @@ describe('parseStoredPromptsScry', () => {
         prompts: {
           'SOUL.md': { text: 'seeded', updated: '~2026.8.26', edited: false },
           'TOOLS.md': { text: 'no flag', updated: '~2026.8.26' },
-          'BOOT.md': { text: 'pinned', updated: '~2026.8.26', edited: true },
+          'BOOTSTRAP.md': {
+            text: 'pinned',
+            updated: '~2026.8.26',
+            edited: true,
+          },
         },
       },
     });
-    expect(result).toEqual({ 'BOOT.md': 'pinned' });
+    expect(result).toEqual({ 'BOOTSTRAP.md': 'pinned' });
   });
 
   it('drops unknown names, oversized texts, and malformed entries', () => {
@@ -89,11 +93,11 @@ describe('parseStoredPromptsScry', () => {
           '../evil.md': { text: 'x', edited: true },
           'SOUL.md': { text: 'a'.repeat(MAX_PROMPT_BYTES + 1), edited: true },
           'USER.md': { text: 7, edited: true },
-          'BOOT.md': { text: 'ok', edited: true },
+          'BOOTSTRAP.md': { text: 'ok', edited: true },
         },
       },
     });
-    expect(result).toEqual({ 'BOOT.md': 'ok' });
+    expect(result).toEqual({ 'BOOTSTRAP.md': 'ok' });
   });
 
   it('returns empty for junk payloads', () => {

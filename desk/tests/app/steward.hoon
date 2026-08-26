@@ -1199,6 +1199,88 @@
   ;<  res=(unit (unit cage))  bind:m  (get-peek /x/v1/prompts/(scot %p moon))
   (ex-equal !>(=(res `(unit (unit cage))`[~ ~])) !>(&))
 ::
+::  changing the configured owner revokes the previous owner's mirror and
+::  re-fans the set to the new one
+::
+++  test-pr-owner-change-revokes-previous
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/revoke/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%revoke ~])
+      ==
+      %-  ex-poke
+      :*  /prompts/sync/(scot %p ~fed)
+          [~fed %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%sync (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.n]])])
+      ==
+  ==
+::
+::  re-configuring the same owner is a no-op (gateways re-configure on
+::  every reconnect)
+::
+++  test-pr-reconfigure-same-owner-noop
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
+  (ex-cards caz ~)
+::
+::  a %revoke from a ship with a mirror entry drops that entry
+::
+++  test-pr-revoke-drops-callers-mirror
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m
+    %-  (do-as moon)
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%sync (my ~[['SOUL.md' 'be kind' ~2023.12.31 %.n]])])
+  ;<  caz=(list card)  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%revoke ~]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-fact
+        :*  ~[/v1/prompts]
+            %steward-prompts-update-1
+            !>(`update:v1:p`[%prompts moon *prompts:v1:p])
+        ==
+    ==
+  ;<  res=(unit (unit cage))  bind:m  (get-peek /x/v1/prompts/(scot %p moon))
+  (ex-equal !>(=(res `(unit (unit cage))`[~ ~])) !>(&))
+::
+::  a %revoke from a ship without a mirror entry is rejected
+::
+++  test-pr-revoke-without-mirror-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as moon)
+  (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%revoke ~]))
+::
 ::  configuring a (new) owner re-fans the canonical set so the new owner's
 ::  mirror doesn't stay empty until some prompt text changes
 ::

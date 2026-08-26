@@ -122,9 +122,25 @@
     ?-  -.action
         %configure
       ::  re-fan the canonical prompt set so a newly configured owner's
-      ::  mirror doesn't stay empty until some prompt text happens to change
+      ::  mirror doesn't stay empty until some prompt text happens to
+      ::  change, and tell a replaced owner to drop its mirror so the bot
+      ::  doesn't keep appearing owned/editable there
       ::
+      =/  old  owner.state
       =.  owner.state  `owner.action
+      ::  the gateway re-configures the same owner on every (re)connect;
+      ::  don't re-fan or revoke on a no-op
+      ?:  =(old `owner.action)  cor
+      =?  cor  ?=(^ old)
+        ?:  =(u.old our.bowl)
+          (pr-drop-mirror:pr-core u.old)
+        %-  emit
+        :^    %pass
+            /prompts/revoke/(scot %p u.old)
+          %agent
+        :+  [u.old %steward]
+          %poke
+        [%steward-prompts-action-1 !>(`action:v1:sp`[%revoke ~])]
       ?:  =(~ own.prompts.state)  cor
       pr-sync-owner:pr-core
     ::
@@ -224,6 +240,14 @@
       ?~  p.sign  cor
       ::  expected when trusting a ship that doesn't consider us its owner
       ((slog 'steward: prompts resync request nacked' u.p.sign) cor)
+    ==
+  ::
+      [%prompts %revoke *]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ::  expected when the former owner never held a mirror
+      ((slog 'steward: prompts revoke nacked' u.p.sign) cor)
     ==
   ::
       [%activity ~]
@@ -763,6 +787,11 @@
               ==
           ==
       pr-sync-owner
+    ::
+        %revoke
+      ::  a ship may only drop its own mirror entry
+      ?>  (~(has by mirror.prompts.state) src.bowl)
+      (pr-drop-mirror src.bowl)
     ==
   ::
   ::  store one edit (pinned owner intent, edited=&), notify the local
