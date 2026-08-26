@@ -252,6 +252,19 @@ this branch:
 3. Rollback: standard desk rollback. The mirror is derived state —
    losing it costs nothing; it repopulates on the next subscribe.
 
+## Review notes (non-blocking, deliberately not addressed)
+
+- An applied `%set` whose task equals the stored value re-writes and
+  re-emits (no equality suppression, unlike snapshots/projections).
+  Unreachable from an honest in-order bot — the bot never emits
+  no-op deltas; a buggy bot causes redundant facts, never
+  divergence. An equality guard is optional hardening.
+- `au-peek` answers unknown automation subpaths with `[~ ~]`
+  ("bound, no data") rather than `~` ("unbound"), so a scry at a
+  retired path succeeds empty instead of crashing. Matches the
+  file's existing peek style; pinned by the
+  `mirror-surface-gone` test.
+
 ## Open Questions
 
 None — remaining unknowns (exact wire spellings, fixture shapes) are
