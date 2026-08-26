@@ -20,7 +20,11 @@ import { A2UIMenuRow } from './A2UIMenuRow';
 import { useOneShotAction } from './useOneShotAction';
 
 const MAX_PROVIDER_SELECTIONS = api.AGENT_PROTOCOL_LIMITS.providerCount;
-const pendingProviderSelections = new Map<string, string[]>();
+type PendingProviderSelection = {
+  providerIds: string[];
+  configuredKey: string | null;
+};
+const pendingProviderSelections = new Map<string, PendingProviderSelection>();
 const pendingProviderAuthorizations = new Map<
   string,
   {
@@ -36,6 +40,8 @@ const clampProviderIds = (providerIds: string[]) =>
 export function McpConnectControl({
   component,
   selectionsPending,
+  surfaceId,
+  configuredProviderIds,
   completionConsumed,
   completionSelection,
   onConfigure,
@@ -45,6 +51,8 @@ export function McpConnectControl({
   component: A2UI.McpConnect;
   /** True until durable completion receipts have finished loading. */
   selectionsPending?: boolean;
+  surfaceId: string;
+  configuredProviderIds?: string[];
   /** True when a durable post already answered the completion action. */
   completionConsumed?: boolean;
   /** Durable record to attach to the post the completion action creates. */
@@ -108,6 +116,8 @@ export function McpConnectControl({
     <McpConnectMenu
       component={component}
       selectionsPending={selectionsPending}
+      surfaceId={surfaceId}
+      configuredProviderIds={configuredProviderIds}
       failed={failed}
       loading={!failed && (!hasProviderData || !hasStatusData)}
       providersLoaded={hasProviderData && hasStatusData}
@@ -125,6 +135,8 @@ export function McpConnectControl({
 export function McpConnectMenu({
   component,
   selectionsPending = false,
+  surfaceId,
+  configuredProviderIds,
   completionConsumed = false,
   completionSelection,
   failed = false,
@@ -138,6 +150,8 @@ export function McpConnectMenu({
 }: {
   component: A2UI.McpConnect;
   selectionsPending?: boolean;
+  surfaceId: string;
+  configuredProviderIds?: string[];
   completionConsumed?: boolean;
   completionSelection?: api.PostBlobDataEntryA2UISelection;
   failed?: boolean;
@@ -154,9 +168,12 @@ export function McpConnectMenu({
   onRefreshProviders?: () => Promise<boolean>;
   providers: McpProviderRow[];
 }) {
-  const selectionKey = `${component.configureAction.event.context.groupId}\u0000${component.configureAction.event.context.provisionId}\u0000${component.id}`;
+  const selectionKey = `${component.configureAction.event.context.groupId}\u0000${component.configureAction.event.context.provisionId}\u0000${surfaceId}\u0000${component.id}`;
+  const storedSelection = pendingProviderSelections.get(selectionKey);
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>(
-    () => pendingProviderSelections.get(selectionKey) ?? []
+    () =>
+      storedSelection?.providerIds ??
+      clampProviderIds(configuredProviderIds ?? [])
   );
   const [submitting, setSubmitting] = useState(false);
   const [authorizationReturnVersion, setAuthorizationReturnVersion] =
@@ -169,10 +186,9 @@ export function McpConnectMenu({
     useState(authorizationIsReconciling);
   const authorizationRefreshPendingRef = useRef(authorizationIsReconciling());
   const configuringRef = useRef(false);
-  const hadStoredSelectionRef = useRef(
-    pendingProviderSelections.has(selectionKey)
-  );
+  const storedSelectionRef = useRef(storedSelection);
   const initializedRef = useRef(false);
+  const configuredKeyRef = useRef<string | null>(null);
   const completionAction = useOneShotAction(completionConsumed);
   const connectedProviderIds = useMemo(
     () =>
@@ -246,12 +262,22 @@ export function McpConnectMenu({
   useEffect(() => {
     const connected = new Set(connectedProviderIds);
     if (!initializedRef.current) {
-      if (loading || !providersLoaded) return;
+      if (loading || !providersLoaded || selectionsPending) return;
       initializedRef.current = true;
-      setSelectedProviderIds((current) =>
-        hadStoredSelectionRef.current
-          ? current.filter((id) => connected.has(id))
-          : clampProviderIds(connectedProviderIds)
+      const configuredKey =
+        configuredProviderIds === undefined
+          ? null
+          : configuredProviderIds.join('\u0000');
+      configuredKeyRef.current = configuredKey;
+      const stored = storedSelectionRef.current;
+      setSelectedProviderIds(
+        stored?.configuredKey === configuredKey
+          ? stored.providerIds.filter((id) => connected.has(id))
+          : clampProviderIds(
+              configuredProviderIds === undefined
+                ? connectedProviderIds
+                : configuredProviderIds.filter((id) => connected.has(id))
+            )
       );
       return;
     }
@@ -261,6 +287,12 @@ export function McpConnectMenu({
     // settings or another group must not silently change this group's config.
     const pendingAuthorization =
       pendingProviderAuthorizations.get(selectionKey);
+    const configuredKey =
+      configuredProviderIds === undefined
+        ? null
+        : configuredProviderIds.join('\u0000');
+    const configurationChanged = configuredKey !== configuredKeyRef.current;
+    configuredKeyRef.current = configuredKey;
     const authorizedProviderId = pendingAuthorization?.providerId;
     const newlyConnected =
       pendingAuthorization?.returned === true &&
@@ -275,9 +307,14 @@ export function McpConnectMenu({
       pendingProviderAuthorizations.delete(selectionKey);
     }
     setSelectedProviderIds((current) => {
+      const configuredConnected = (configuredProviderIds ?? []).filter((id) =>
+        connected.has(id)
+      );
       const next = clampProviderIds([
         ...new Set([
-          ...current.filter((id) => connected.has(id)),
+          ...(configurationChanged
+            ? configuredConnected
+            : current.filter((id) => connected.has(id))),
           ...newlyConnected,
         ]),
       ]);
@@ -295,14 +332,20 @@ export function McpConnectMenu({
     }
   }, [
     authorizationReturnVersion,
+    configuredProviderIds,
     connectedProviderIds,
     loading,
     providersLoaded,
+    selectionsPending,
     selectionKey,
   ]);
 
   useEffect(() => {
-    pendingProviderSelections.set(selectionKey, selectedProviderIds);
+    if (!initializedRef.current) return;
+    pendingProviderSelections.set(selectionKey, {
+      providerIds: selectedProviderIds,
+      configuredKey: configuredKeyRef.current,
+    });
   }, [selectedProviderIds, selectionKey]);
 
   useEffect(() => {

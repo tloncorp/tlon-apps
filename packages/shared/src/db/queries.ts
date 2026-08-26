@@ -6,6 +6,8 @@ import {
 import { parseGroupId } from '@tloncorp/api';
 import {
   type PostBlobDataEntryA2UISelection,
+  type PostBlobDataEntryAgentProviderConfig,
+  type PostBlobDataEntryAgentProvision,
   parsePostBlob,
 } from '@tloncorp/api';
 import {
@@ -4571,13 +4573,12 @@ export const getA2UISelections = createReadQuery(
           isNotNull($posts.blob),
           // Cheap prefilter; parsePostBlob below is the real check.
           like($posts.blob, '%tlon-a2ui-selection%'),
-          or(isNull($posts.isDeleted), eq($posts.isDeleted, false)),
-          or(
-            isNull($posts.deliveryStatus),
-            not(eq($posts.deliveryStatus, 'failed'))
-          )
+          or(isNull($posts.isDeleted), eq($posts.isDeleted, false))
         )
-      );
+      )
+      // Controls use the first matching entry, so a successful retry must
+      // supersede an older failed attempt for the same component.
+      .orderBy(desc($posts.receivedAt), desc($posts.id));
     return rows.flatMap((row) =>
       row.blob
         ? parsePostBlob(row.blob).filter(
@@ -4586,6 +4587,117 @@ export const getA2UISelections = createReadQuery(
           )
         : []
     );
+  },
+  ['posts']
+);
+
+type AgentProtocolReceipt<T> = {
+  entry: T;
+  postId: string;
+  receivedAt: number;
+  sequenceNum: number | null;
+  selection?: PostBlobDataEntryA2UISelection;
+};
+
+export type AgentA2UIProtocolReceipts = {
+  provision?: AgentProtocolReceipt<PostBlobDataEntryAgentProvision>;
+  provisions: AgentProtocolReceipt<PostBlobDataEntryAgentProvision>[];
+  providerConfig?: AgentProtocolReceipt<PostBlobDataEntryAgentProviderConfig>;
+  providerConfigs: AgentProtocolReceipt<PostBlobDataEntryAgentProviderConfig>[];
+};
+
+/**
+ * Latest owner-authored agent protocol receipts across the whole channel.
+ *
+ * These actions can sit beyond the currently rendered post page. Returning
+ * their post position lets a surface count only receipts that followed it.
+ */
+export const getAgentA2UIProtocolReceipts = createReadQuery(
+  'getAgentA2UIProtocolReceipts',
+  async (
+    params: { channelId: string; authorId: string },
+    ctx: QueryCtx
+  ): Promise<AgentA2UIProtocolReceipts> => {
+    const rows = await ctx.db
+      .select({
+        id: $posts.id,
+        receivedAt: $posts.receivedAt,
+        sequenceNum: $posts.sequenceNum,
+        blob: $posts.blob,
+      })
+      .from($posts)
+      .where(
+        and(
+          eq($posts.channelId, params.channelId),
+          eq($posts.authorId, params.authorId),
+          isNotNull($posts.blob),
+          or(
+            like($posts.blob, '%tlon-agent-provision%'),
+            like($posts.blob, '%tlon-agent-provider-config%')
+          ),
+          or(isNull($posts.isDeleted), eq($posts.isDeleted, false)),
+          or(
+            isNull($posts.deliveryStatus),
+            not(eq($posts.deliveryStatus, 'failed'))
+          )
+        )
+      );
+
+    rows.sort((a, b) => {
+      const aSequence =
+        typeof a.sequenceNum === 'number' && a.sequenceNum > 0
+          ? a.sequenceNum
+          : null;
+      const bSequence =
+        typeof b.sequenceNum === 'number' && b.sequenceNum > 0
+          ? b.sequenceNum
+          : null;
+      if (aSequence !== null && bSequence !== null) {
+        return aSequence - bSequence || a.id.localeCompare(b.id);
+      }
+      // Optimistic/unsequenced receipts follow server-ordered history and use
+      // local receipt time only among themselves until the host sequences them.
+      if (aSequence !== null) return -1;
+      if (bSequence !== null) return 1;
+      return a.receivedAt - b.receivedAt || a.id.localeCompare(b.id);
+    });
+
+    const receipts: AgentA2UIProtocolReceipts = {
+      provisions: [],
+      providerConfigs: [],
+    };
+    for (const row of rows) {
+      if (!row.blob) continue;
+      const entries = parsePostBlob(row.blob);
+      const selection = entries.find(
+        (entry): entry is PostBlobDataEntryA2UISelection =>
+          entry.type === 'tlon-a2ui-selection'
+      );
+      for (const entry of entries) {
+        if (entry.type === 'tlon-agent-provision') {
+          const receipt = {
+            entry,
+            postId: row.id,
+            receivedAt: row.receivedAt,
+            sequenceNum: row.sequenceNum,
+            selection,
+          };
+          receipts.provision = receipt;
+          receipts.provisions.push(receipt);
+        } else if (entry.type === 'tlon-agent-provider-config') {
+          const receipt = {
+            entry,
+            postId: row.id,
+            receivedAt: row.receivedAt,
+            sequenceNum: row.sequenceNum,
+            selection,
+          };
+          receipts.providerConfig = receipt;
+          receipts.providerConfigs.push(receipt);
+        }
+      }
+    }
+    return receipts;
   },
   ['posts']
 );
