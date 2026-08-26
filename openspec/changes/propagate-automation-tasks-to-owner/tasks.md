@@ -103,3 +103,32 @@
       now-stale "automation has no subscription" statements
 - [x] 6.2 Run the agent test suite and `openspec validate --strict`
       for this change
+
+## 7. Unified automation surface
+
+- [x] 7.1 sur: add `+$ tasks (map @t task)`; state becomes
+      `tasks=(map ship tasks)`; single attributed `update` union
+      (`%tasks` full ship-keyed map, `%set`/`%del`/`%gone` naming
+      `ship`); retire `task-map`, `mirror-map`, and `mirror-update`
+- [x] 7.2 app: single `/v1/automation/tasks` watch (local +
+      configured owner) giving exactly one full-map `%tasks` initial
+      fact (empty included); all deltas emitted there
+      ship-attributed; an entry appearing empty emits a fresh full
+      snapshot; equal `%project` silent; remove
+      `/v1/automation/mirror`; owner apply becomes wire-ship-scoped —
+      apply only wire-ship-attributed content, snapshot replaces that
+      ship's entry (deleting it when the snapshot lacks it), deltas
+      ignored for absent entries
+- [x] 7.3 marks/lib: reshape `update-1` codecs to the new union
+      (ships as object keys in `%tasks`, `ship` field in deltas);
+      scry `/x/v1/automation/tasks` returns the mark's `%tasks`
+      variant; delete `/x/v1/automation/mirror` and marks
+      `task-map-1`, `mirror-1`, `mirror-map-1`
+- [x] 7.4 tests: rework the suite to the unified surface; add
+      wiped-entry repair (snapshot lacking the entry clears it) and
+      foreign-attributed-content-ignored coverage; update mark
+      round-trip fixtures
+- [x] 7.5 docs: update `docs/backend/desk/app/steward.md` automation
+      sections to the single feed/scry/mark
+- [x] 7.6 Revalidate: agent suite on the ship, `openspec validate
+      --strict`, owner-first deploy
