@@ -14,6 +14,7 @@ import {
   reportMigration,
   reportOutboundRoute,
   reportPluginError,
+  reportReplyOutput,
   reportSessionDiagnostic,
   reportSessionLifecycle,
   reportSessionTurnCreated,
@@ -23,6 +24,7 @@ import {
   setErrorTelemetryReporter,
   setMigrationTelemetryReporter,
   setOutboundRouteReporter,
+  setReplyOutputReporter,
   setSessionTelemetryReporter,
 } from './telemetry.js';
 import { summarizeTlonCommand } from './tlon-tool-command.js';
@@ -1905,6 +1907,62 @@ describe('outbound route telemetry', () => {
       routedToTlon: true,
       targetKind: 'dm',
     });
+    expect(reporter).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('reply output telemetry', () => {
+  beforeEach(() => {
+    postHogMocks.identify.mockClear();
+    postHogMocks.capture.mockClear();
+    setReplyOutputReporter(null);
+  });
+
+  it('captures a scalar output event with the full message id', () => {
+    const telemetry = createTlonTelemetry({
+      config: { enabled: true, apiKey: 'phc_test', host: null },
+    });
+    telemetry?.captureReplyOutputSent({
+      ownerShip: '~zod',
+      botShip: '~nec',
+      messageId: '~nec/170.141.184.507',
+      sentAt: 1_700_000_000_000,
+      runId: 'run-1',
+      traceId: '0123456789abcdef0123456789abcdef',
+      outputIndex: 2,
+      chatType: 'dm',
+      isThreadReply: true,
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Reply Output Sent');
+    expect(call.properties).toMatchObject({
+      messageId: '~nec/170.141.184.507',
+      runId: 'run-1',
+      traceId: '0123456789abcdef0123456789abcdef',
+      outputIndex: 2,
+      chatType: 'dm',
+      isThreadReply: true,
+    });
+  });
+
+  it('forwards output events through the shared reporter slot', () => {
+    const reporter = vi.fn();
+    const event = {
+      messageId: '~nec/170.141.184.507',
+      sentAt: 1_700_000_000_000,
+      runId: null,
+      traceId: null,
+      outputIndex: 0,
+      chatType: 'groupChannel' as const,
+      isThreadReply: false,
+    };
+    setReplyOutputReporter(reporter);
+    reportReplyOutput(event);
+    expect(reporter).toHaveBeenCalledWith(event);
+
+    setReplyOutputReporter(null);
+    reportReplyOutput(event);
     expect(reporter).toHaveBeenCalledTimes(1);
   });
 });

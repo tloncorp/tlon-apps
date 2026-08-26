@@ -9,7 +9,7 @@ export interface TelemetryClient {
   setDisabled: (disabled: boolean, updateSettings?: boolean) => Promise<void>;
   captureMandatoryEvent: (event: {
     eventId: string;
-    properties?: Record<string, any>;
-  }) => void;
+    properties?: Record<string, unknown>;
+  }) => Promise<void>;
   captureAppActive: (platform?: 'web' | 'mobile' | 'electron') => void;
 }

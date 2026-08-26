@@ -10,7 +10,9 @@ vi.mock('@urbit/aura', () => ({
 }));
 
 describe('sendDm', () => {
-  afterEach(() => {
+  afterEach(async () => {
+    const { setReplyOutputReporter } = await import('../telemetry.js');
+    setReplyOutputReporter(null);
     vi.restoreAllMocks();
     vi.resetModules();
   });
@@ -29,6 +31,9 @@ describe('sendDm', () => {
     }));
 
     const { sendDm } = await import('./send.js');
+    const { setReplyOutputReporter } = await import('../telemetry.js');
+    const outputReporter = vi.fn();
+    setReplyOutputReporter(outputReporter);
     const aura = await import('@urbit/aura');
     const scot = vi.mocked(aura.scot);
     const fromUnix = vi.mocked(aura.da.fromUnix);
@@ -58,6 +63,16 @@ describe('sendDm', () => {
     // telemetry event's `nudgeSentAtMs`) agree on a single timestamp.
     expect(result.sentAt).toBe(sentAt);
     expect(result.channel).toBe('tlon');
+    expect(outputReporter).toHaveBeenCalledWith({
+      messageId: '~zod/mocked-ud',
+      sentAt,
+      runId: null,
+      traceId: null,
+      outputIndex: 0,
+      chatType: 'dm',
+      isThreadReply: false,
+    });
+    setReplyOutputReporter(null);
   });
 
   it('uses aura v3 helpers for channel post ids', async () => {
@@ -73,6 +88,9 @@ describe('sendDm', () => {
     }));
 
     const { sendChannelPost } = await import('./send.js');
+    const { setReplyOutputReporter } = await import('../telemetry.js');
+    const outputReporter = vi.fn();
+    setReplyOutputReporter(outputReporter);
     const sentAt = 1_700_000_000_000;
     vi.spyOn(Date, 'now').mockReturnValue(sentAt);
 
@@ -92,6 +110,14 @@ describe('sendDm', () => {
       })
     );
     expect(result.messageId).toBe('~zod/mocked-ud');
+    expect(outputReporter).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageId: '~zod/mocked-ud',
+        chatType: 'groupChannel',
+        isThreadReply: false,
+      })
+    );
+    setReplyOutputReporter(null);
   });
 
   it.each([

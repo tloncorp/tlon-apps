@@ -81,6 +81,7 @@ import {
   setErrorTelemetryReporter,
   setMigrationTelemetryReporter,
   setOutboundRouteReporter,
+  setReplyOutputReporter,
   setSessionTelemetryReporter,
 } from '../telemetry.js';
 import {
@@ -898,6 +899,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // we can measure how often a reply lands on webchat instead of Tlon.
     setOutboundRouteReporter((event) =>
       telemetry?.captureOutboundRoute({
+        ...event,
+        ownerShip:
+          getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip,
+        botShip: botShipName,
+      })
+    );
+    setReplyOutputReporter((event) =>
+      telemetry?.captureReplyOutputSent({
         ...event,
         ownerShip:
           getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip,
@@ -5442,6 +5451,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       await pendingNudgePersistence.flush();
       clearShadowsForAccount(account.accountId);
       setOutboundRouteReporter(null);
+      setReplyOutputReporter(null);
       setSessionTelemetryReporter(null);
       setDebugTelemetryReporter(null);
       setErrorTelemetryReporter(null);

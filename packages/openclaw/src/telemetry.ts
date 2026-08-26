@@ -269,6 +269,16 @@ export type TlonOutboundRouteEvent = {
   targetKind: 'dm' | 'group' | 'unknown';
 };
 
+export type TlonReplyOutputSentEvent = {
+  messageId: string;
+  sentAt: number;
+  runId: string | null;
+  traceId: string | null;
+  outputIndex: number;
+  chatType: 'dm' | 'groupChannel';
+  isThreadReply: boolean;
+};
+
 export type TlonSessionLifecycleEvent = {
   lifecycleEvent: 'session_start' | 'session_end';
   sessionKey: string;
@@ -621,12 +631,19 @@ export interface TlonTelemetryClient {
       botShip: string;
     }
   ): void;
+  captureReplyOutputSent(
+    event: TlonReplyOutputSentEvent & {
+      ownerShip?: string | null;
+      botShip: string;
+    }
+  ): void;
   close(): Promise<void>;
 }
 
 const TLON_TELEMETRY_EVENT_NAME = 'TlonBot Reply Handled';
 const TLON_GATEWAY_CONNECTED_EVENT = 'TlonBot Gateway Connected';
 const TLON_OUTBOUND_ROUTED_EVENT = 'TlonBot Outbound Routed';
+const TLON_REPLY_OUTPUT_SENT_EVENT = 'TlonBot Reply Output Sent';
 const TLON_SESSION_LIFECYCLE_EVENT = 'TlonBot Session Lifecycle';
 const TLON_SESSION_WATCHDOG_EVENT = 'TlonBot Session Watchdog';
 const TLON_SESSION_RECOVERY_EVENT = 'TlonBot Session Recovery';
@@ -1904,6 +1921,34 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     });
   }
 
+  captureReplyOutputSent(
+    event: TlonReplyOutputSentEvent & {
+      ownerShip?: string | null;
+      botShip: string;
+    }
+  ): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_REPLY_OUTPUT_SENT_EVENT,
+      properties: this.properties({
+        botShip: event.botShip,
+        ownerShip: event.ownerShip,
+        messageId: event.messageId,
+        sentAt: event.sentAt,
+        runId: event.runId,
+        traceId: event.traceId,
+        outputIndex: event.outputIndex,
+        chatType: event.chatType,
+        isThreadReply: event.isThreadReply,
+      }),
+    });
+  }
+
   captureHarnessError(event: TlonHarnessErrorEvent): void {
     const ownerShip = event.ownerShip ?? '';
     if (!this.ensureIdentified(ownerShip, event.botShip)) {
@@ -2236,6 +2281,7 @@ export function createTlonTelemetry(params: {
  * client + owner/bot ships; the hook calls `reportOutboundRoute`.
  */
 export type OutboundRouteReporter = (event: TlonOutboundRouteEvent) => void;
+export type ReplyOutputReporter = (event: TlonReplyOutputSentEvent) => void;
 export type SessionTelemetryReporter = (
   report: TlonSessionTelemetryReport
 ) => void;
@@ -2435,6 +2481,9 @@ export type TlonTelemetryErrorReportInput = {
 const outboundRouteReporterSlot = sharedSlot<OutboundRouteReporter>(
   'telemetry.outboundRouteReporter'
 );
+const replyOutputReporterSlot = sharedSlot<ReplyOutputReporter>(
+  'telemetry.replyOutputReporter'
+);
 const sessionTelemetryReporterSlot = sharedSlot<SessionTelemetryReporter>(
   'telemetry.sessionTelemetryReporter'
 );
@@ -2459,6 +2508,16 @@ export function setOutboundRouteReporter(
 
 export function reportOutboundRoute(event: TlonOutboundRouteEvent): void {
   outboundRouteReporterSlot.get()?.(event);
+}
+
+export function setReplyOutputReporter(
+  reporter: ReplyOutputReporter | null
+): void {
+  replyOutputReporterSlot.set(reporter);
+}
+
+export function reportReplyOutput(event: TlonReplyOutputSentEvent): void {
+  replyOutputReporterSlot.get()?.(event);
 }
 
 export function setSessionTelemetryReporter(
