@@ -88,14 +88,13 @@ export default function ChannelScreen(props: Props) {
     agentOnboarding,
     agentShipId,
     navigationLocked: agentOnboardingNavigationLocked,
-  } =
-    useAgentOnboardingChannel({
-      navigation: props.navigation,
-      channelId,
-      currentChannelId,
-      groupId,
-      routeGroupId,
-    });
+  } = useAgentOnboardingChannel({
+    navigation: props.navigation,
+    channelId,
+    currentChannelId,
+    groupId,
+    routeGroupId,
+  });
   const currentUserId = api.getCurrentUserId();
 
   const channelIsPending = !channel || channel.isPendingChannel;
