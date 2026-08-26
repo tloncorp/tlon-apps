@@ -991,7 +991,7 @@ export async function reportPost(
 
   const action = {
     app: 'groups',
-    mark: 'group-action-4',
+    mark: 'group-action-5',
     json: {
       group: {
         flag: groupId,

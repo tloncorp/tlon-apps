@@ -1,6 +1,6 @@
 import { QueryObserver } from '@tanstack/react-query';
 import { v0PeersToClientProfiles } from '@tloncorp/api';
-import { toClientGroupsV7 } from '@tloncorp/api';
+import { toClientGroups } from '@tloncorp/api';
 import type * as ub from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -23,8 +23,8 @@ import * as queries from './queries';
 import { queryClient } from './reactQuery';
 import { ChannelUnread, GroupUnread, Post, ThreadUnreadState } from './types';
 
-const groupsData = toClientGroupsV7(
-  groupsResponse as unknown as Record<string, ub.GroupV7>,
+const groupsData = toClientGroups(
+  groupsResponse as unknown as Record<string, ub.GroupV11>,
   true
 );
 
