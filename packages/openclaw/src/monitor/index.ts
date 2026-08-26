@@ -68,6 +68,13 @@ import {
 } from '../settings.js';
 import { sharedSlot } from '../shared-state.js';
 import {
+  createSilentFailureNoticeCooldown,
+  recordFailureNoticeMetric,
+  resolveSilentFailureNotice,
+  resolveTurnTerminalLensStatus,
+  rewriteGenericTerminalErrorReply,
+} from '../silent-failure-notice.js';
+import {
   canonicalizeNest,
   normalizeShip,
   parseChannelNest,
@@ -1014,6 +1021,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     // Track threads we've participated in (by parentId) - respond without mention requirement
     const participatedThreads = new Set<string>();
+    const failureNoticeCooldown = createSilentFailureNoticeCooldown();
 
     // Track consecutive bot responses per channel/DM for rate limiting
     // Key: channel nest or dm partner ship, Value: count of consecutive bot messages
@@ -3394,6 +3402,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                           contextLenses.setStatus(lens.lensId, 'delivering');
                           const blob = getReplyBlob(payload);
                           let replyText = payload.text ?? '';
+                          replyText = rewriteGenericTerminalErrorReply({
+                            text: replyText,
+                            isError: payload.isError === true,
+                            timedOut: dispatchTimedOut,
+                            durationMs: Date.now() - dispatchStartTime,
+                            timeoutMs: dispatchTimeoutMs,
+                          });
                           if (!replyText && !blob) {
                             const hasMedia = Array.isArray(payload.mediaUrls)
                               ? payload.mediaUrls.length > 0
@@ -3575,6 +3590,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   activeDispatchError = error;
                   throw error;
                 } finally {
+                  // Yield once so fire-and-forget after_tool_call hooks for the
+                  // final tool call reach the turn recorder before the summary
+                  // freezes (mirrors replyTelemetry.capture).
+                  await new Promise<void>((resolve) => setTimeout(resolve, 0));
                   turnSummary = turnRecorder.finalize({
                     cancelled:
                       !dispatchTimedOut && Boolean(opts.abortSignal?.aborted),
@@ -3662,17 +3681,68 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           turnSummary,
           dispatchError,
         });
-        if (dispatchTimedOut) {
-          contextLenses.setStatus(lens.lensId, 'timed_out', dispatchError);
-        } else if (!dispatchError) {
-          contextLenses.setStatus(
-            lens.lensId,
-            effectiveDeliveredCount > 0 ? 'completed' : 'no_reply'
-          );
-        }
+        contextLenses.setStatus(
+          lens.lensId,
+          resolveTurnTerminalLensStatus({
+            summary: turnSummary,
+            deliveredCount: effectiveDeliveredCount,
+            dispatchError,
+            timedOut: dispatchTimedOut,
+          }),
+          dispatchError
+        );
         const finalLens = contextLenses.get(lens.lensId);
         if (finalLens) {
           logContextLens(lens.lensId, 'final');
+        }
+        const noticeConversation = isGroup
+          ? (channelNest ?? _channelName ?? 'a group channel')
+          : `our DM with ${senderShip}`;
+        const notice = resolveSilentFailureNotice({
+          summary: turnSummary,
+          deliveredCount: effectiveDeliveredCount,
+          requester: senderShip,
+          conversation: noticeConversation,
+        });
+        if (notice) {
+          const noticeNow = Date.now();
+          const suppressedByCooldown = failureNoticeCooldown.isCoolingDown(
+            noticeConversation,
+            noticeNow
+          );
+          let noticeMessageId: string | undefined;
+          if (suppressedByCooldown) {
+            runtime.log?.(
+              `[tlon] Terminal no-reply turn ${turnSummary.runId} (${notice.kind}); owner notice suppressed by cooldown`
+            );
+          } else {
+            // Reserve before the await so a concurrent turn for the same
+            // conversation can't double-notify; release if the DM failed.
+            failureNoticeCooldown.recordSent(noticeConversation, noticeNow);
+            runtime.log?.(
+              `[tlon] Terminal no-reply turn ${turnSummary.runId} (${notice.kind}); notifying owner`
+            );
+            noticeMessageId = await sendOwnerNotification(notice.text);
+            if (!noticeMessageId) {
+              failureNoticeCooldown.release(noticeConversation, noticeNow);
+            }
+          }
+          recordFailureNoticeMetric({
+            kind: notice.kind,
+            destinationKind: turnSummary.destinationKind,
+            suppressed: suppressedByCooldown,
+          });
+          telemetry?.captureFailureNotice({
+            harness: 'openclaw',
+            accountId: account.accountId ?? null,
+            ownerShip: effectiveOwnerShip,
+            botShip: botShipName,
+            runId: turnSummary.runId,
+            noticeKind: notice.kind,
+            destinationKind: turnSummary.destinationKind,
+            suppressedByCooldown,
+            delivered: Boolean(noticeMessageId),
+          });
         }
       }
     };

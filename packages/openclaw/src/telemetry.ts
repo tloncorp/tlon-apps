@@ -580,6 +580,18 @@ export type TlonPluginErrorEvent = {
   downMs: number | null;
 };
 
+export type TlonFailureNoticeEvent = {
+  harness: TlonHarnessName;
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  runId: string;
+  noticeKind: string;
+  destinationKind: string;
+  suppressedByCooldown: boolean;
+  delivered: boolean;
+};
+
 export type TlonAuthAttemptFailedEvent = {
   harness: TlonHarnessName;
   pluginErrorSource: 'auth' | 're_auth';
@@ -619,6 +631,7 @@ export interface TlonTelemetryClient {
   captureHarnessError(event: TlonHarnessErrorEvent): void;
   captureHarnessDebug(event: TlonHarnessDebugEvent): void;
   captureAuthAttemptFailed(event: TlonAuthAttemptFailedEvent): void;
+  captureFailureNotice(event: TlonFailureNoticeEvent): void;
   capturePluginError(event: TlonPluginErrorEvent): void;
   captureTelemetryError(event: TlonTelemetryErrorEvent): void;
   captureCronJobChanged(event: TlonCronJobChangedEvent): void;
@@ -640,6 +653,7 @@ export interface TlonTelemetryClient {
   close(): Promise<void>;
 }
 
+const TLON_FAILURE_NOTICE_EVENT = 'TlonBot Failure Notice';
 const TLON_TELEMETRY_EVENT_NAME = 'TlonBot Reply Handled';
 const TLON_GATEWAY_CONNECTED_EVENT = 'TlonBot Gateway Connected';
 const TLON_OUTBOUND_ROUTED_EVENT = 'TlonBot Outbound Routed';
@@ -2122,6 +2136,29 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         errorText: event.errorText,
         attempt: event.attempt,
         downMs: event.downMs,
+      }),
+    });
+  }
+
+  captureFailureNotice(event: TlonFailureNoticeEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_FAILURE_NOTICE_EVENT,
+      properties: this.properties({
+        harness: event.harness,
+        accountId: event.accountId,
+        ownerShip: event.ownerShip,
+        botShip: event.botShip,
+        runId: event.runId,
+        noticeKind: event.noticeKind,
+        destinationKind: event.destinationKind,
+        suppressedByCooldown: event.suppressedByCooldown,
+        delivered: event.delivered,
       }),
     });
   }

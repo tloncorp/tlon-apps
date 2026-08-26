@@ -614,7 +614,7 @@ function getRangedPosts(channelId: string, start: number, end: number): Post[] {
   return posts;
 }
 
-test('getA2UISelections: only the author’s live selection entries count', async () => {
+test('getA2UISelections: returns the author’s live selections newest first', async () => {
   const channelId = '~zod/dm';
   const selectionBlob = (surfaceId: string) =>
     JSON.stringify([
@@ -631,19 +631,26 @@ test('getA2UISelections: only the author’s live selection entries count', asyn
   const base = {
     type: 'chat' as const,
     channelId,
-    receivedAt: refDate,
-    sentAt: refDate,
     syncedAt: 0,
   };
   await queries.insertChannelPosts({
     posts: [
-      { ...base, id: 'mine', authorId: '~zod', blob: selectionBlob('s-mine') },
+      {
+        ...base,
+        id: 'mine',
+        authorId: '~zod',
+        receivedAt: refDate + 1,
+        sentAt: refDate + 1,
+        blob: selectionBlob('s-mine'),
+      },
       // Another member posting a matching blob must not consume the
       // viewer's control (or fake their answer).
       {
         ...base,
         id: 'theirs',
         authorId: '~ten',
+        receivedAt: refDate + 2,
+        sentAt: refDate + 2,
         blob: selectionBlob('s-theirs'),
       },
       // Deleting the reply un-consumes the control.
@@ -651,6 +658,8 @@ test('getA2UISelections: only the author’s live selection entries count', asyn
         ...base,
         id: 'mine-deleted',
         authorId: '~zod',
+        receivedAt: refDate + 3,
+        sentAt: refDate + 3,
         isDeleted: true,
         blob: selectionBlob('s-deleted'),
       },
@@ -658,10 +667,18 @@ test('getA2UISelections: only the author’s live selection entries count', asyn
         ...base,
         id: 'mine-failed',
         authorId: '~zod',
+        receivedAt: refDate + 4,
+        sentAt: refDate + 4,
         deliveryStatus: 'failed' as const,
         blob: selectionBlob('s-failed'),
       },
-      { ...base, id: 'mine-no-blob', authorId: '~zod' },
+      {
+        ...base,
+        id: 'mine-no-blob',
+        authorId: '~zod',
+        receivedAt: refDate + 5,
+        sentAt: refDate + 5,
+      },
     ],
   });
 
@@ -673,9 +690,171 @@ test('getA2UISelections: only the author’s live selection entries count', asyn
     {
       type: 'tlon-a2ui-selection',
       version: 1,
+      surfaceId: 's-failed',
+      componentId: 'topics',
+      values: ['Weather'],
+    },
+    {
+      type: 'tlon-a2ui-selection',
+      version: 1,
       surfaceId: 's-mine',
       componentId: 'topics',
       values: ['Weather'],
+    },
+  ]);
+});
+
+test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', async () => {
+  const channelId = '~zod/dm';
+  const blob = (entry: Record<string, unknown>) => JSON.stringify([entry]);
+  await queries.insertChannels([{ id: channelId, type: 'dm' }]);
+  const base = {
+    type: 'chat' as const,
+    channelId,
+    authorId: '~zod',
+    sentAt: refDate,
+    syncedAt: 0,
+  };
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        ...base,
+        id: 'provision-old',
+        receivedAt: refDate + 30,
+        sequenceNum: 1,
+        blob: blob({
+          type: 'tlon-agent-provision',
+          version: 1,
+          provisionId: 'provision-old',
+          groupId: '~zod/group',
+          purposeId: 'agent-daily-digest',
+          purpose: 'Daily digest',
+          topics: ['Weather'],
+          timezone: 'UTC',
+          scheduleHour: 8,
+          scheduleMinute: 0,
+          notebookNest: '~zod/notebook',
+        }),
+      },
+      {
+        ...base,
+        id: 'provider-old-cycle',
+        receivedAt: refDate + 20,
+        sequenceNum: 2,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-old',
+          groupId: '~zod/group',
+          providerIds: ['calendar'],
+        }),
+      },
+      {
+        ...base,
+        id: 'provider-live',
+        receivedAt: refDate + 2,
+        sequenceNum: 3,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-new',
+          groupId: '~zod/group',
+          providerIds: ['gmail'],
+        }),
+      },
+      {
+        ...base,
+        id: 'provision-new',
+        receivedAt: refDate + 3,
+        sequenceNum: 4,
+        blob: JSON.stringify([
+          {
+            type: 'tlon-agent-provision',
+            version: 1,
+            provisionId: 'provision-new',
+            groupId: '~zod/group',
+            purposeId: 'agent-research',
+            purpose: 'Research',
+            topics: ['Robotics'],
+            timezone: 'UTC',
+            scheduleHour: 9,
+            scheduleMinute: 30,
+            notebookNest: '~zod/notebook',
+          },
+          {
+            type: 'tlon-a2ui-selection',
+            version: 1,
+            sourcePostId: 'source-post',
+            surfaceId: 'topics-surface',
+            componentId: 'topics',
+            values: ['Robotics'],
+          },
+        ]),
+      },
+      {
+        ...base,
+        id: 'provider-deleted',
+        receivedAt: refDate + 4,
+        isDeleted: true,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-new',
+          groupId: '~zod/group',
+          providerIds: ['github'],
+        }),
+      },
+      {
+        ...base,
+        id: 'provider-other-author',
+        authorId: '~ten',
+        receivedAt: refDate + 5,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-new',
+          groupId: '~zod/group',
+          providerIds: ['notion'],
+        }),
+      },
+    ],
+  });
+
+  const receipts = await queries.getAgentA2UIProtocolReceipts({
+    channelId,
+    authorId: '~zod',
+  });
+  expect(receipts.provision).toMatchObject({
+    postId: 'provision-new',
+    receivedAt: refDate + 3,
+    entry: { topics: ['Robotics'] },
+    selection: {
+      sourcePostId: 'source-post',
+      surfaceId: 'topics-surface',
+      componentId: 'topics',
+    },
+  });
+  expect(receipts.provisions).toMatchObject([
+    { postId: 'provision-old', entry: { topics: ['Weather'] } },
+    {
+      postId: 'provision-new',
+      entry: { topics: ['Robotics'] },
+      selection: { sourcePostId: 'source-post' },
+    },
+  ]);
+  expect(receipts.providerConfig).toMatchObject({
+    postId: 'provider-live',
+    receivedAt: refDate + 2,
+    entry: { providerIds: ['gmail'] },
+  });
+  expect(receipts.providerConfigs).toMatchObject([
+    {
+      postId: 'provider-old-cycle',
+      entry: { provisionId: 'provision-old', providerIds: ['calendar'] },
+    },
+    {
+      postId: 'provider-live',
+      entry: { provisionId: 'provision-new', providerIds: ['gmail'] },
     },
   ]);
 });
