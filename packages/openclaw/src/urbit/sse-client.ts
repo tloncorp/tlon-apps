@@ -974,7 +974,13 @@ export class UrbitSSEClient {
     this.generationZeroEligibleActionIds.add(id);
   }
 
-  async poke(params: { app: string; mark: string; json: unknown }) {
+  async poke(params: {
+    app: string;
+    mark: string;
+    json: unknown;
+    /** Aborts the HTTP PUT (30s default timeout) — e.g. monitor teardown. */
+    signal?: AbortSignal;
+  }) {
     // After close() the channel is unsubscribed/DELETEd on the ship. A stale
     // poke from an old monitor (e.g. across a config-reload restart) would
     // otherwise recreate that channel as a side effect, so reject once closed.

@@ -4838,14 +4838,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // (ownerShip, falling back to contextLens.owner), so every
           // configure path agrees on the one core owner.
           owner: resolveLensOwner(cfg, account.accountId),
-          // Forward the teardown signal so an in-flight scry (30s default
-          // timeout) aborts promptly instead of stalling monitor teardown.
+          // Forward the teardown signal so an in-flight scry or poke (30s
+          // default timeout) aborts promptly instead of stalling teardown.
           scry: (path) =>
             api!.scry(
               path,
               opts.abortSignal ? { signal: opts.abortSignal } : {}
             ),
-          poke: (params) => api!.poke(params),
+          poke: (params) =>
+            api!.poke(
+              opts.abortSignal
+                ? { ...params, signal: opts.abortSignal }
+                : params
+            ),
           logger: {
             log: (message) => runtime.log?.(message),
             warn: (message) => runtime.error?.(message),

@@ -129,6 +129,13 @@ export function resolveLensOwner(
   if (owner.length > 0) {
     return owner;
   }
+  // The fallback only applies while the lens feature is actually on: a
+  // leftover contextLens.owner in a disabled config must not become the
+  // shared core owner (which would hand that ship the bot's prompts and
+  // edit rights via prompt sync).
+  if (!account.contextLens.enabled) {
+    return null;
+  }
   const configured = account.contextLens.owner
     ? normalizeShip(account.contextLens.owner)
     : '';

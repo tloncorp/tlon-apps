@@ -332,7 +332,16 @@ function printEndpoint(endpoint: UrbitEndpoint) {
 
 export async function subscribe<T>(
   endpoint: UrbitEndpoint,
-  handler: (update: T, id?: number) => void
+  handler: (update: T, id?: number) => void,
+  opts?: {
+    /**
+     * Called when the agent quits the watch (desk restart/upgrade). The
+     * subscription is dead at that point — no replacement is created — so
+     * callers that must not go deaf should re-subscribe and re-fetch their
+     * backing state here.
+     */
+    onQuit?: () => void;
+  }
 ): Promise<number> {
   const doSub = async (err?: (error: any, id: string) => void) => {
     if (!config.client) {
@@ -377,6 +386,7 @@ export async function subscribe<T>(
       quit: () => {
         logger.log('subscription quit on', printEndpoint(endpoint));
         config.onQuitOrReset?.('subscriptionQuit', printEndpoint(endpoint));
+        opts?.onQuit?.();
       },
       err: (error, id) => {
         logger.trackError(`subscribe error on ${printEndpoint(endpoint)}`, {

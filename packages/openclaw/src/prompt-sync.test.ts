@@ -645,3 +645,48 @@ describe('createPromptSync retries and teardown', () => {
     expect(scry).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('createPromptSync abort after in-flight apply', () => {
+  it('handleFact applies the file but never persists once torn down', async () => {
+    const controller = new AbortController();
+    const core = makeCore();
+    // prompt-sync and this test share the node:fs promises singleton, so
+    // aborting from inside the apply's writeFile deterministically lands
+    // the teardown between the workspace apply and the config write —
+    // exercising the post-apply guard.
+    const writeFileSpy = vi
+      .spyOn(fs.promises, 'writeFile')
+      .mockImplementation(async (file, data) => {
+        controller.abort();
+        fs.writeFileSync(file as fs.PathLike, data as string);
+      });
+    try {
+      const sync = createPromptSync({
+        core,
+        accountId: 'default',
+        workspaceDir: tmpDir,
+        configPrompts: {},
+        owner: null,
+        scry: async () => ({}),
+        poke: async () => ({}),
+        logger,
+        abortSignal: controller.signal,
+      });
+      await sync.handleFact({
+        set: {
+          name: 'SOUL.md',
+          prompt: { text: 'mid-flight', updated: '~x' },
+        },
+      });
+      // The edit reached the file (harmless — the next boot reconciles
+      // from ship state), but no config write or restart happened for the
+      // torn-down monitor.
+      expect(fs.readFileSync(path.join(tmpDir, 'SOUL.md'), 'utf8')).toBe(
+        'mid-flight'
+      );
+      expect(core.config.mutateConfigFile).not.toHaveBeenCalled();
+    } finally {
+      writeFileSpy.mockRestore();
+    }
+  });
+});

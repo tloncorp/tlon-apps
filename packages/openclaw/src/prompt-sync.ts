@@ -457,6 +457,11 @@ export function createPromptSync(opts: {
       logger.warn('[tlon] Skipping prompt seed: workspace apply failed');
       return;
     }
+    if (aborted()) {
+      // Torn down while the apply was in flight — don't persist a config
+      // cache on behalf of an obsolete account snapshot.
+      return;
+    }
     if (promptsDiffer(opts.configPrompts, stored)) {
       // Catch-up cache write only; the files above are already effective
       // (bootstrap files are re-read every turn), so no restart at boot.
@@ -515,6 +520,12 @@ export function createPromptSync(opts: {
     if (!ok) {
       // Nothing applied; the stored edit remains on the ship and the next
       // gateway boot retries.
+      return;
+    }
+    if (aborted()) {
+      // Torn down while the apply was in flight: the file write is
+      // harmless (ship state wins on the next boot's reconcile), but a
+      // config write + restart on behalf of an obsolete monitor is not.
       return;
     }
     logger.log(

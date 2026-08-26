@@ -103,15 +103,31 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
     let attempt = 0;
     const start = () => {
       api
-        .subscribeToBotSystemPrompts((changedBot, prompts) => {
-          if (changedBot === botShip) {
-            // The fact carries the authoritative set, so write it into the
-            // cache directly instead of refetching — an emptied mirror
-            // (untrust / owner revocation) must clear the editor even when
-            // a follow-up scry would fail.
-            queryClient.setQueryData(promptsQueryKey(botShip), prompts);
+        .subscribeToBotSystemPrompts(
+          (changedBot, prompts) => {
+            if (changedBot === botShip) {
+              // The fact carries the authoritative set, so write it into
+              // the cache directly instead of refetching — an emptied
+              // mirror (untrust / owner revocation) must clear the editor
+              // even when a follow-up scry would fail.
+              queryClient.setQueryData(promptsQueryKey(botShip), prompts);
+            }
+          },
+          {
+            onQuit: () => {
+              if (cancelled) {
+                return;
+              }
+              // The agent quit the watch (desk restart/upgrade) and no
+              // replacement exists; facts in the gap are lost. Re-run the
+              // mount flow: subscribe fresh, then the post-subscribe
+              // invalidation below re-scries past whatever was missed.
+              subscriptionId = null;
+              attempt = 0;
+              retryTimer = setTimeout(start, 0);
+            },
           }
-        })
+        )
         .then((id) => {
           if (id === null) {
             // Ship lacks the prompts module — permanent for this session,

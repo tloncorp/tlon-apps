@@ -130,3 +130,16 @@ test('subscribeToBotSystemPrompts forwards the authoritative set (null when empt
     ['~zod', null],
   ]);
 });
+
+test('subscribeToBotSystemPrompts forwards the onQuit handler', async () => {
+  vi.mocked(scry).mockResolvedValue({ prompts: { bot: '~zod', prompts: {} } });
+  let seenOpts: { onQuit?: () => void } | undefined;
+  vi.mocked(subscribe).mockImplementation(async (_spec, _handler, opts) => {
+    seenOpts = opts;
+    return 1;
+  });
+  const onQuit = vi.fn();
+  await subscribeToBotSystemPrompts(() => {}, { onQuit });
+  seenOpts?.onQuit?.();
+  expect(onQuit).toHaveBeenCalledTimes(1);
+});

@@ -96,7 +96,14 @@ export const setBotSystemPrompt = ({
  * when the ship lacks the module.
  */
 export const subscribeToBotSystemPrompts = async (
-  handler: (botShip: string, prompts: BotSystemPrompt[] | null) => void
+  handler: (botShip: string, prompts: BotSystemPrompt[] | null) => void,
+  opts?: {
+    /**
+     * The watch died (desk restart/upgrade quits it; no replacement is
+     * created) and facts may have been lost — re-subscribe and re-fetch.
+     */
+    onQuit?: () => void;
+  }
 ) => {
   // Probe with a scry so a ship without the prompts module skips the
   // subscription instead of wedging sync (mirrors subscribeToLensUpdates).
@@ -127,7 +134,8 @@ export const subscribeToBotSystemPrompts = async (
         const prompts = toBotSystemPrompts(event.prompts.prompts);
         handler(event.prompts.bot, prompts.length > 0 ? prompts : null);
       }
-    }
+    },
+    opts
   );
 };
 

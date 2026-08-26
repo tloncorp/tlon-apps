@@ -58,14 +58,19 @@ describe('resolveLensOwner', () => {
 
   it('normalizes the configured owner', () => {
     expect(
-      resolveLensOwner(makeConfig({ contextLens: { owner: 'bus' } }))
+      resolveLensOwner(
+        makeConfig({ contextLens: { enabled: true, owner: 'bus' } })
+      )
     ).toEqual('~bus');
   });
 
   it('prefers ownerShip: the shared core owner also gates prompt edits', () => {
     expect(
       resolveLensOwner(
-        makeConfig({ ownerShip: 'dev', contextLens: { owner: 'bus' } })
+        makeConfig({
+          ownerShip: 'dev',
+          contextLens: { enabled: true, owner: 'bus' },
+        })
       )
     ).toEqual('~dev');
   });
@@ -75,6 +80,26 @@ describe('resolveLensOwner', () => {
       resolveLensOwner(makeConfig({ ownerShip: 'dev', contextLens: {} }))
     ).toEqual('~dev');
     expect(resolveLensOwner(makeConfig({ contextLens: {} }))).toBeNull();
+  });
+
+  it('ignores contextLens.owner while the lens is disabled', () => {
+    // A leftover lens recipient in a switched-off config must not become
+    // the shared core owner — that would hand it the bot's prompts and
+    // edit rights via prompt sync.
+    expect(
+      resolveLensOwner(makeConfig({ contextLens: { owner: 'bus' } }))
+    ).toBeNull();
+    expect(
+      resolveLensOwner(
+        makeConfig({ contextLens: { enabled: false, owner: 'bus' } })
+      )
+    ).toBeNull();
+    // ownerShip is not lens-scoped: it still resolves with the lens off.
+    expect(
+      resolveLensOwner(
+        makeConfig({ ownerShip: 'dev', contextLens: { owner: 'bus' } })
+      )
+    ).toEqual('~dev');
   });
 });
 
