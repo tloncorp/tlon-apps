@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { defineBundledChannelEntry } from 'openclaw/plugin-sdk/channel-entry-contract';
 import { type OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 import {
+  emitDiagnosticEvent,
   onDiagnosticEvent,
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
@@ -64,6 +65,7 @@ import {
   createTlonToolExecutor,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
+import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
 import {
   formatToolTraceEvent,
   liveToolTraceContentsEnabled,
@@ -1079,6 +1081,10 @@ export default defineBundledChannelEntry({
 
     api.on('after_tool_call', (event, ctx) => {
       const toolCallId = readToolCallId(event);
+      const tlonCommandContext =
+        event.toolName === 'tlon' && typeof event.params.command === 'string'
+          ? summarizeTlonCommand(event.params.command)
+          : undefined;
       recordActiveTlonTurnToolCall();
       if (logToolTraceContents && shouldLogAfterToolTrace(event)) {
         api.logger.info(
@@ -1102,16 +1108,23 @@ export default defineBundledChannelEntry({
         sourceEventName: event.toolName,
         sessionKey: ctx.sessionKey,
         run: () => {
+          if (tlonCommandContext) {
+            emitDiagnosticEvent({
+              type: 'log.record',
+              ...buildTlonToolDiagnosticRecord(tlonCommandContext, {
+                ...event,
+                toolCallId,
+                runId: ctx.runId,
+                sessionId: ctx.sessionId,
+              }),
+            });
+          }
           recordToolCall({
             sessionKey: ctx.sessionKey,
             toolName: event.toolName,
             durationMs: event.durationMs,
             error: event.error,
-            context:
-              event.toolName === 'tlon' &&
-              typeof event.params.command === 'string'
-                ? summarizeTlonCommand(event.params.command)
-                : undefined,
+            context: tlonCommandContext,
           });
         },
       });
