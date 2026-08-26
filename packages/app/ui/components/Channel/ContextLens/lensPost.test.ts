@@ -1,7 +1,11 @@
 import { da, scot } from '@urbit/aura';
 import { describe, expect, it } from 'vitest';
 
-import { getOwnContextLensStamp, parseLensMessageId } from './lensPost';
+import {
+  getContextLensStamp,
+  getOwnContextLensStamp,
+  parseLensMessageId,
+} from './lensPost';
 
 // mirrors the gateway's formatSentAt (src/urbit/send.ts)
 function gatewayMessageId(ship: string, sentAt: number) {
@@ -47,7 +51,36 @@ describe('getOwnContextLensStamp', () => {
         >[0],
         ['~zod']
       )
-    ).toEqual({ lensId: 'lens-123', botShip: '~zod' });
+    ).toEqual({
+      lensId: 'lens-123',
+      botShip: '~zod',
+      delivery: null,
+      outcome: null,
+    });
+  });
+
+  it('preserves an explicit final-delivery marker', () => {
+    const finalBlob = JSON.stringify([
+      {
+        type: 'tlon-context-lens',
+        version: 1,
+        lensId: 'lens-123',
+        botShip: '~zod',
+        delivery: 'final',
+        outcome: 'completed',
+      },
+    ]);
+
+    expect(
+      getContextLensStamp({ authorId: '~zod', blob: finalBlob } as Parameters<
+        typeof getContextLensStamp
+      >[0])
+    ).toEqual({
+      lensId: 'lens-123',
+      botShip: '~zod',
+      delivery: 'final',
+      outcome: 'completed',
+    });
   });
 
   it('rejects lens metadata from a bot the user does not own', () => {

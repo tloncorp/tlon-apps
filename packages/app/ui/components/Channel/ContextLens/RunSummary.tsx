@@ -5,6 +5,7 @@ import { SizableText, View, XStack, YStack } from 'tamagui';
 import {
   TONE_COLORS,
   canRetryLens,
+  effectiveLensStatus,
   formatDuration,
   formatWallTime,
   runKindLabel,
@@ -28,6 +29,7 @@ export function RunSummary({
   onRetry?: () => Promise<void> | void;
 }) {
   const [retrying, setRetrying] = useState(false);
+  const status = effectiveLensStatus(lens);
   const showRetry = Boolean(onRetry) && canRetryLens(lens);
   const handleRetry = () => {
     if (retrying || !onRetry) {
@@ -52,10 +54,10 @@ export function RunSummary({
             width={9}
             height={9}
             borderRadius={999}
-            backgroundColor={TONE_COLORS[statusTone(lens.status)]}
+            backgroundColor={TONE_COLORS[statusTone(status)]}
           />
           <SizableText size="$l" color="$primaryText">
-            {statusLabel(lens.status)}
+            {statusLabel(status)}
           </SizableText>
           {showRetry ? (
             <Pressable

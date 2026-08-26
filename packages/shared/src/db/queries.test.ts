@@ -22,7 +22,13 @@ import initResponse from '../test/init.json';
 import suggestedContactsResponse from '../test/suggestedContacts.json';
 import * as queries from './queries';
 import { queryClient } from './reactQuery';
-import { ChannelUnread, GroupUnread, Post, ThreadUnreadState } from './types';
+import {
+  ChannelUnread,
+  ContextLensRun,
+  GroupUnread,
+  Post,
+  ThreadUnreadState,
+} from './types';
 
 const groupsData = toClientGroupsV7(
   groupsResponse as unknown as Record<string, ub.GroupV7>,
@@ -46,6 +52,140 @@ test('inserts all groups', async () => {
   await queries.insertGroups({ groups: groupsData });
   const groups = await queries.getGroups({});
   expect(groups.length).toEqual(groupsData.length);
+});
+
+test('context lens run upserts preserve newer and terminal snapshots', async () => {
+  const snapshot = (
+    receivedAt: number,
+    complete: boolean,
+    marker: string
+  ): ContextLensRun => ({
+    botShip: '~lens-monotonic',
+    lensId: 'run-1',
+    complete,
+    receivedAt,
+    payload: { marker },
+  });
+  const read = () =>
+    queries.getContextLensRun({
+      botShip: '~lens-monotonic',
+      lensId: 'run-1',
+    });
+
+  await queries.insertContextLensRuns([snapshot(100, false, 'partial')]);
+  await queries.insertContextLensRuns([snapshot(90, false, 'older-partial')]);
+  expect(await read()).toMatchObject({
+    receivedAt: 100,
+    complete: false,
+    payload: { marker: 'partial' },
+  });
+
+  await queries.insertContextLensRuns([snapshot(110, false, 'newer-partial')]);
+  expect(await read()).toMatchObject({
+    receivedAt: 110,
+    complete: false,
+    payload: { marker: 'newer-partial' },
+  });
+
+  // A terminal snapshot may replace a partial snapshot at the same timestamp.
+  await queries.insertContextLensRuns([snapshot(110, true, 'terminal')]);
+  expect(await read()).toMatchObject({
+    receivedAt: 110,
+    complete: true,
+    payload: { marker: 'terminal' },
+  });
+
+  // Once terminal, neither a newer partial nor an older terminal may regress it.
+  await queries.insertContextLensRuns([
+    snapshot(120, false, 'newer-partial-after-terminal'),
+  ]);
+  await queries.insertContextLensRuns([snapshot(105, true, 'older-terminal')]);
+  expect(await read()).toMatchObject({
+    receivedAt: 110,
+    complete: true,
+    payload: { marker: 'terminal' },
+  });
+
+  await queries.insertContextLensRuns([snapshot(130, true, 'newer-terminal')]);
+  expect(await read()).toMatchObject({
+    receivedAt: 130,
+    complete: true,
+    payload: { marker: 'newer-terminal' },
+  });
+});
+
+test('context lens keyed lookup returns only exact bot and run pairs', async () => {
+  const rows: ContextLensRun[] = [
+    ['~lens-a', 'run-1'],
+    ['~lens-a', 'run-2'],
+    ['~lens-b', 'run-1'],
+    ['~lens-b', 'run-2'],
+  ].map(([botShip, lensId], index) => ({
+    botShip,
+    lensId,
+    complete: true,
+    receivedAt: 200 + index,
+    payload: { botShip, lensId },
+  }));
+
+  await queries.insertContextLensRuns(rows);
+
+  const matches = await queries.getContextLensRunsByKeys({
+    keys: [
+      { botShip: 'lens-a', lensId: 'run-1' },
+      { botShip: '~lens-b', lensId: 'run-2' },
+    ],
+  });
+
+  expect(
+    matches.map(({ botShip, lensId }) => `${botShip}/${lensId}`).sort()
+  ).toEqual(['~lens-a/run-1', '~lens-b/run-2']);
+  expect(
+    await queries.getContextLensRun({
+      botShip: 'lens-a',
+      lensId: 'run-2',
+    })
+  ).toMatchObject({ botShip: '~lens-a', lensId: 'run-2' });
+  expect(await queries.getContextLensRunsByKeys({ keys: [] })).toEqual([]);
+});
+
+test('context lens writes normalize bot ships before conflict resolution', async () => {
+  await queries.insertContextLensRuns([
+    {
+      botShip: 'lens-normalized',
+      lensId: 'run-1',
+      complete: false,
+      receivedAt: 100,
+      payload: { marker: 'unsigged' },
+    },
+  ]);
+  await queries.insertContextLensRuns([
+    {
+      botShip: '~lens-normalized',
+      lensId: 'run-1',
+      complete: true,
+      receivedAt: 110,
+      payload: { marker: 'sigged' },
+    },
+  ]);
+
+  expect(
+    await queries.getContextLensRunsByKeys({
+      keys: [{ botShip: 'lens-normalized', lensId: 'run-1' }],
+    })
+  ).toMatchObject([
+    {
+      botShip: '~lens-normalized',
+      lensId: 'run-1',
+      complete: true,
+      payload: { marker: 'sigged' },
+    },
+  ]);
+  expect(
+    (await queries.getRecentContextLensRuns({ count: 100 })).filter(
+      (run) => run.lensId === 'run-1' && run.botShip.includes('lens-normalized')
+    )
+  ).toHaveLength(1);
 });
 
 test('insertGroups only invalidates posts when payloads include channels', () => {

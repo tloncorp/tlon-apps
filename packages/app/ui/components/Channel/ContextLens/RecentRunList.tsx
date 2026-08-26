@@ -3,6 +3,7 @@ import { SizableText, View, XStack, YStack } from 'tamagui';
 
 import {
   TONE_COLORS,
+  effectiveLensStatus,
   formatWallDateTime,
   pluralize,
   runMeta,
@@ -105,7 +106,8 @@ export function RecentRunList({
           {visibleRuns.map((event) => {
             const selected =
               !followLatest && activeLensId === event.lens.lensId;
-            const tone = TONE_COLORS[statusTone(event.lens.status)];
+            const status = effectiveLensStatus(event.lens);
+            const tone = TONE_COLORS[statusTone(status)];
             return (
               <Pressable
                 key={event.lens.lensId}
@@ -143,7 +145,7 @@ export function RecentRunList({
                       minWidth={0}
                       numberOfLines={1}
                     >
-                      {statusLabel(event.lens.status)}
+                      {statusLabel(status)}
                     </SizableText>
                   </XStack>
                   <SizableText size="$s" color="$tertiaryText" flexShrink={0}>

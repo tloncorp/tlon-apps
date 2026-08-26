@@ -5,6 +5,10 @@ import { useMemo, useState } from 'react';
 import { SizableText, XStack, YStack } from 'tamagui';
 
 import {
+  AgentTaskRows,
+  buildAgentTaskRowsFromActivity,
+} from '../../AgentTaskRows';
+import {
   TONE_COLORS,
   formatDuration,
   formatToolName,
@@ -27,6 +31,7 @@ import {
 } from './primitives';
 import type {
   ContextLens,
+  ContextLensActivityEvent,
   ContextLensOutput,
   ContextLensToolRun,
 } from './types';
@@ -40,9 +45,11 @@ export type LensMessageTarget = {
 
 export function RunInspector({
   lens,
+  activityEvents = [],
   onPressMessage,
 }: {
   lens: ContextLens;
+  activityEvents?: readonly ContextLensActivityEvent[];
   onPressMessage?: (target: LensMessageTarget) => void;
 }) {
   const sources = lens.context.sources ?? [];
@@ -51,6 +58,14 @@ export function RunInspector({
   const toolRuns = lens.tools.runs ?? [];
   const outputs = lens.outputs ?? [];
   const persistenceEvents = lens.persistence.events ?? [];
+  const activityRows = useMemo(
+    () =>
+      buildAgentTaskRowsFromActivity(lens.activity, activityEvents, {
+        toolRuns: lens.tools.runs,
+        includeToolArguments: lens.visibility === 'owner',
+      }),
+    [activityEvents, lens.activity, lens.tools.runs, lens.visibility]
+  );
 
   const triggerMessageId = lens.triggerDetails?.messageId ?? lens.messageId;
   const triggerChannelId = lens.triggerDetails?.conversationId;
@@ -119,6 +134,20 @@ export function RunInspector({
           <MutedLine value={summarizeContext(lens)} />
         )}
       </InspectorSection>
+
+      {activityRows.rows.length ? (
+        <InspectorSection title="Activity">
+          <AgentTaskRows
+            rows={activityRows.rows}
+            autoExpandedId={activityRows.autoExpandedId}
+            density="comfortable"
+            testID="ContextLensActivityRows"
+          />
+          {lens.activity?.truncated ? (
+            <MutedLine value="Showing the most recent activity from this run" />
+          ) : null}
+        </InspectorSection>
+      ) : null}
 
       <InspectorSection title="Tools">
         {toolRuns.length ? (

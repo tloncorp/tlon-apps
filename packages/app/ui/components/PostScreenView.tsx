@@ -11,7 +11,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
-import { Carousel, ForwardingProps } from '@tloncorp/ui';
+import { Carousel, ForwardingProps, Pressable } from '@tloncorp/ui';
 import {
   createContext,
   memo,
@@ -35,6 +35,7 @@ import { ChannelProvider } from '../contexts/channel';
 import { NavigationProvider } from '../contexts/navigation';
 import { ScrollContextProvider } from '../contexts/scroll';
 import * as utils from '../utils';
+import { activateAgentControlFromKeyboard } from './AgentTaskRows/keyboardControl';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
 import {
@@ -42,8 +43,10 @@ import {
   ChannelHeaderItemsProvider,
 } from './Channel/ChannelHeader';
 import {
+  type ContextLensEvent,
   ContextLensPanel,
   useContextLensController,
+  useContextLensPanelPlacement,
 } from './Channel/ContextLens';
 import {
   ConversationComposerPlacement,
@@ -61,6 +64,7 @@ import {
 } from './draftInputs/shared';
 
 const noop = async () => {};
+const EMPTY_CONTEXT_LENS_EVENTS: ContextLensEvent[] = [];
 
 const HIGHLIGHT_DURATION_MS = 5000;
 
@@ -202,6 +206,7 @@ export function PostScreenView({
   selectedPostId?: string | null;
 } & ChannelContext) {
   const isWindowNarrow = utils.useIsWindowNarrow();
+  const contextLensPlacement = useContextLensPanelPlacement();
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(group?.id ?? '', currentUserId);
   const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
@@ -220,7 +225,15 @@ export function PostScreenView({
     clearSelectedContextLensMessage,
     inspectContextLensPost,
     openContextLensForPost,
+    openContextLensForEvent,
   } = useContextLensController({ channel });
+  const agentChatEvents = useMemo(
+    () =>
+      contextLensAvailable
+        ? contextLensStream.events
+        : EMPTY_CONTEXT_LENS_EVENTS,
+    [contextLensAvailable, contextLensStream.events]
+  );
 
   const [galleryEditShouldBlur, setGalleryEditShouldBlur] = useState(false);
 
@@ -395,7 +408,12 @@ export function PostScreenView({
                     contextLensOpen={contextLensAvailable && contextLensOpen}
                     contextLensActive={contextLensActive}
                   />
-                  <XStack alignItems="stretch" flex={1} position="relative">
+                  <XStack
+                    alignItems="stretch"
+                    flex={1}
+                    onLayout={contextLensPlacement.onLayout}
+                    position="relative"
+                  >
                     <YStack flex={1} minWidth={0}>
                       {parentPost &&
                         (isEditingParent && channel.type === 'gallery' ? (
@@ -443,10 +461,15 @@ export function PostScreenView({
                                   contextLensAvailable && !isWindowNarrow
                                     ? openContextLensForPost
                                     : undefined,
+                                openContextLensForEvent:
+                                  contextLensAvailable && !isWindowNarrow
+                                    ? openContextLensForEvent
+                                    : undefined,
                                 onGoToBotRun:
                                   contextLensAvailable && isWindowNarrow
                                     ? goToContextLensRun
                                     : undefined,
+                                contextLensEvents: agentChatEvents,
                                 negotiationMatch,
                                 onPressDelete,
                                 onPressRetry,
@@ -478,15 +501,41 @@ export function PostScreenView({
                     {contextLensAvailable &&
                       contextLensOpen &&
                       !isWindowNarrow && (
-                        <ContextLensPanel
-                          events={contextLensStream.events}
-                          streamStatus={contextLensStream.status}
-                          selectedMessage={selectedContextLensMessage}
-                          onClearSelectedMessage={
-                            clearSelectedContextLensMessage
-                          }
-                          channelId={channel.id}
-                        />
+                        <>
+                          {contextLensPlacement.overlay ? (
+                            <Pressable
+                              testID="ContextLensBackdrop"
+                              position="absolute"
+                              top={0}
+                              right={0}
+                              bottom={0}
+                              left={0}
+                              zIndex={1}
+                              backgroundColor="$mediaScrim"
+                              role="button"
+                              tabIndex={0}
+                              aria-label="Close Context Lens"
+                              onPress={toggleContextLens}
+                              onKeyDown={(event) =>
+                                activateAgentControlFromKeyboard(
+                                  event,
+                                  toggleContextLens
+                                )
+                              }
+                            />
+                          ) : null}
+                          <ContextLensPanel
+                            events={contextLensStream.events}
+                            rawEvents={contextLensStream.rawEvents}
+                            streamStatus={contextLensStream.status}
+                            selectedMessage={selectedContextLensMessage}
+                            onClearSelectedMessage={
+                              clearSelectedContextLensMessage
+                            }
+                            channelId={channel.id}
+                            overlay={contextLensPlacement.overlay}
+                          />
+                        </>
                       )}
                   </XStack>
                   <GroupPreviewSheet
@@ -595,7 +644,9 @@ function SinglePostView({
   handleGoToImage,
   inspectContextLensPost,
   openContextLensForPost,
+  openContextLensForEvent,
   onGoToBotRun,
+  contextLensEvents,
   negotiationMatch,
   onPressDelete,
   onPressRetry,
@@ -612,7 +663,9 @@ function SinglePostView({
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   inspectContextLensPost?: (post: db.Post) => void;
   openContextLensForPost?: (post: db.Post) => void;
+  openContextLensForEvent?: (event: ContextLensEvent) => void;
   onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
+  contextLensEvents?: ContextLensEvent[];
   negotiationMatch: boolean;
   onPressDelete: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
@@ -897,7 +950,9 @@ function SinglePostView({
             scrollerRef={scrollerRef}
             inspectContextLensPost={inspectContextLensPost}
             onOpenContextLens={openContextLensForPost}
+            onOpenContextLensEvent={openContextLensForEvent}
             onGoToBotRun={onGoToBotRun}
+            contextLensEvents={contextLensEvents}
             contentInsets={contentInsets}
             isLoading={isLoadingThreadPosts}
           />

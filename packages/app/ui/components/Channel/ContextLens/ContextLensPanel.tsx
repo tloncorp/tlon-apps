@@ -12,17 +12,22 @@ import { RunTimeline, buildRunTimeline } from './RunTimeline';
 import { TONE_COLORS } from './format';
 import { fetchContextLensRun } from './gatewayClient';
 import {
-  type ContextLens,
+  type ContextLensRawEventSource,
+  contextLensSourceFromLookup,
+  contextLensSourceFromStewardRun,
+  contextLensSourcesFromLiveEvents,
+  mergeContextLensRunSources,
+  preferredContextLensSource,
+} from './rawEventSources';
+import {
   type ContextLensEvent,
   type ContextLensSelectedMessage,
   FINAL_STATUSES,
   type LensStreamState,
-  lensFromRunPayload,
 } from './types';
 import {
   liveEventMatchesChannel,
   useContextLensGatewayConfig,
-  useContextLensRuns,
 } from './useContextLensStore';
 
 // Channel filtering happens in JS against synced payloads, so widen the fetch
@@ -31,38 +36,19 @@ import {
 // ContextLensRuns screen.
 const CHANNEL_FILTER_RUN_LIMIT = 500;
 
-// When a run appears in both the live gateway stream and the synced ship
-// table, keep the more authoritative record: a finalized run beats an
-// in-flight one (SSE can miss the terminal event), otherwise the newest.
-function prefersEvent(candidate: ContextLensEvent, existing: ContextLensEvent) {
-  const candidateFinal = FINAL_STATUSES.has(candidate.lens.status);
-  const existingFinal = FINAL_STATUSES.has(existing.lens.status);
-  if (candidateFinal !== existingFinal) {
-    return candidateFinal;
-  }
-  return candidate.at >= existing.at;
+function findSourceForLensId(
+  sources: readonly ContextLensRawEventSource[],
+  lensId: string
+) {
+  return sources.find((source) => source.event.lens.lensId === lensId);
 }
 
-// Keep `fallback` unless the (optional) live `candidate` is more authoritative
-// (final beats in-flight, newer beats older). Prevents a stale in-flight live
-// gateway event from overriding a finalized synced record.
-function preferred(
-  candidate: ContextLensEvent | undefined,
-  fallback: ContextLensEvent
-): ContextLensEvent {
-  return candidate && prefersEvent(candidate, fallback) ? candidate : fallback;
-}
-
-function findEventForLensId(events: ContextLensEvent[], lensId: string) {
-  return [...events].reverse().find((event) => event.lens.lensId === lensId);
-}
-
-function findEventForMessage(
-  events: ContextLensEvent[],
+function findSourceForMessage(
+  sources: readonly ContextLensRawEventSource[],
   selected: ContextLensSelectedMessage
 ) {
   if (selected.lensId) {
-    return findEventForLensId(events, selected.lensId);
+    return findSourceForLensId(sources, selected.lensId);
   }
   return undefined;
 }
@@ -154,28 +140,36 @@ function InspectingBanner({
 
 export function ContextLensPanel({
   events,
+  rawEvents,
   streamStatus,
   selectedMessage,
   onClearSelectedMessage,
   channelId,
+  overlay = false,
 }: {
   events: ContextLensEvent[];
+  rawEvents: ContextLensEvent[];
   streamStatus: LensStreamState['status'];
   selectedMessage?: ContextLensSelectedMessage | null;
   onClearSelectedMessage?: () => void;
   channelId?: string;
+  overlay?: boolean;
 }) {
   const gatewayConfig = useContextLensGatewayConfig();
-  const [selectedRun, setSelectedRun] = useState<ContextLensEvent | null>(null);
+  const [selectedRun, setSelectedRun] =
+    useState<ContextLensRawEventSource | null>(null);
   const [runHistoryOpen, setRunHistoryOpen] = useState(false);
   const [visibleRunCount, setVisibleRunCount] = useState(8);
   const [lookupResult, setLookupResult] = useState<{
     key: string;
-    lens: ContextLens;
+    source: ContextLensRawEventSource;
   } | null>(null);
   const [lookupStatus, setLookupStatus] = useState<LookupStatus>('idle');
-  const allLiveRuns = useContextLensRuns(events);
-  // synced %context-lens records back the list when the gateway stream is absent
+  const allLiveSources = useMemo(
+    () => contextLensSourcesFromLiveEvents(events, rawEvents),
+    [events, rawEvents]
+  );
+  // Synced %steward lens records back the list when the gateway stream is absent
   // (mobile, remote) and keep history across gateway restarts. widen the fetch
   // when scoped so channel filtering (JS, against payloads) has enough to work
   // with.
@@ -191,39 +185,29 @@ export function ContextLensPanel({
   }, [recentRunsQuery.data]);
   // both sources are global; when the panel is scoped to a channel, filter to
   // runs belonging to it so an unrelated DM/group run can't take over the view
-  const liveRuns = useMemo(
+  const liveSources = useMemo(
     () =>
       channelId
-        ? allLiveRuns.filter((event) =>
-            liveEventMatchesChannel(event, channelId, botShipByLensId)
+        ? allLiveSources.filter((source) =>
+            liveEventMatchesChannel(source.event, channelId, botShipByLensId)
           )
-        : allLiveRuns,
-    [allLiveRuns, channelId, botShipByLensId]
+        : allLiveSources,
+    [allLiveSources, channelId, botShipByLensId]
   );
-  const runs = useMemo(() => {
-    const synced: ContextLensEvent[] = (recentRunsQuery.data ?? []).flatMap(
-      (row) => {
-        if (channelId && !lensRunMatchesChannel(row, channelId)) {
-          return [];
-        }
-        const lens = lensFromRunPayload(row.payload);
-        return lens
-          ? [{ seq: 0, at: lens.updatedAt, phase: 'sync', lens }]
-          : [];
+  const runSources = useMemo(() => {
+    const synced = (recentRunsQuery.data ?? []).flatMap((row) => {
+      if (channelId && !lensRunMatchesChannel(row, channelId)) {
+        return [];
       }
-    );
-    // merge both sources by lensId, keeping the more authoritative record
-    const byLensId = new Map<string, ContextLensEvent>();
-    const consider = (event: ContextLensEvent) => {
-      const existing = byLensId.get(event.lens.lensId);
-      if (!existing || prefersEvent(event, existing)) {
-        byLensId.set(event.lens.lensId, event);
-      }
-    };
-    liveRuns.forEach(consider);
-    synced.forEach(consider);
-    return [...byLensId.values()].sort((left, right) => right.at - left.at);
-  }, [liveRuns, recentRunsQuery.data, channelId]);
+      const source = contextLensSourceFromStewardRun(row);
+      return source ? [source] : [];
+    });
+    return mergeContextLensRunSources(liveSources, synced);
+  }, [liveSources, recentRunsQuery.data, channelId]);
+  const runs = useMemo(
+    () => runSources.map((source) => source.event),
+    [runSources]
+  );
   const selectedMessageKey = selectedMessage
     ? `${selectedMessage.lensId ?? ''}/${selectedMessage.authorId ?? ''}/${selectedMessage.id}`
     : null;
@@ -234,39 +218,35 @@ export function ContextLensPanel({
     }
   }, [selectedMessageKey]);
 
-  const selectedEvent = selectedMessage
-    ? findEventForMessage(events, selectedMessage)
+  const selectedSource = selectedMessage
+    ? findSourceForMessage(runSources, selectedMessage)
     : undefined;
-  const selectedLookupEvent =
+  const selectedLookupSource =
     selectedMessage && lookupResult?.key === selectedMessageKey
-      ? ({
-          seq: 0,
-          at: lookupResult.lens.updatedAt,
-          phase: 'lookup',
-          lens: lookupResult.lens,
-        } satisfies ContextLensEvent)
+      ? lookupResult.source
       : undefined;
   // Read the selected run from the merged history (live + synced, final
   // preferred) so the inspector tracks a finalized synced row instead of
   // staying pinned to the stale snapshot captured at selection time. Fall back
   // to the frozen selection if it has aged out of the list.
-  const selectedRunEvent = selectedRun
-    ? runs.find((event) => event.lens.lensId === selectedRun.lens.lensId) ??
+  const selectedRunSource = selectedRun
+    ? findSourceForLensId(runSources, selectedRun.event.lens.lensId) ??
       selectedRun
     : undefined;
   // prefer the more authoritative of the live event and the synced lookup so a
   // stale in-flight live snapshot can't mask a finalized synced row
-  const selectedDetail =
-    selectedEvent && selectedLookupEvent
-      ? preferred(selectedEvent, selectedLookupEvent)
-      : selectedEvent ?? selectedLookupEvent;
+  const selectedDetailSource =
+    selectedSource && selectedLookupSource
+      ? preferredContextLensSource(selectedSource, selectedLookupSource)
+      : selectedSource ?? selectedLookupSource;
   const panelMode = selectedRun ? 'run' : selectedMessage ? 'selected' : 'live';
-  const latest =
+  const latestSource =
     panelMode === 'run'
-      ? selectedRunEvent
+      ? selectedRunSource
       : panelMode === 'selected'
-        ? selectedDetail
-        : runs[0];
+        ? selectedDetailSource
+        : runSources[0];
+  const latest = latestSource?.event;
   const eventTrail = latest
     ? events.filter((event) => event.lens.lensId === latest.lens.lensId)
     : [];
@@ -294,7 +274,11 @@ export function ContextLensPanel({
   };
 
   const selectRun = (event: ContextLensEvent) => {
-    setSelectedRun(event);
+    const source = findSourceForLensId(runSources, event.lens.lensId);
+    if (!source) {
+      return;
+    }
+    setSelectedRun(source);
     setRunHistoryOpen(false);
     onClearSelectedMessage?.();
   };
@@ -306,7 +290,7 @@ export function ContextLensPanel({
     // to a stale in-flight snapshot instead of the finalized synced row.
     if (
       !selectedMessage ||
-      (selectedEvent && FINAL_STATUSES.has(selectedEvent.lens.status))
+      (selectedSource && FINAL_STATUSES.has(selectedSource.event.lens.status))
     ) {
       setLookupResult(null);
       setLookupStatus('idle');
@@ -322,7 +306,7 @@ export function ContextLensPanel({
 
     setLookupStatus('loading');
     const controller = new AbortController();
-    const resolve = async (): Promise<ContextLens | null> => {
+    const resolve = async (): Promise<ContextLensRawEventSource | null> => {
       // synced %context-lens record first (works on every platform), then the
       // gateway's full run record as a live-gateway enhancement
       if (botShip) {
@@ -332,24 +316,31 @@ export function ContextLensPanel({
         if (controller.signal.aborted) {
           return null;
         }
-        const lens = run ? lensFromRunPayload(run.payload) : null;
-        if (lens) {
-          return lens;
+        const source = run ? contextLensSourceFromStewardRun(run) : null;
+        if (source) {
+          return source;
         }
       }
       if (gatewayConfig) {
-        return fetchContextLensRun(gatewayConfig, lensId, controller.signal);
+        const lookup = await fetchContextLensRun(
+          gatewayConfig,
+          lensId,
+          controller.signal
+        );
+        return lookup
+          ? contextLensSourceFromLookup(lookup.lens, lookup.rawEnvelope)
+          : null;
       }
       return null;
     };
 
     resolve()
-      .then((lens) => {
+      .then((source) => {
         if (controller.signal.aborted) {
           return;
         }
-        if (lens) {
-          setLookupResult({ key: selectedMessageKey ?? '', lens });
+        if (source) {
+          setLookupResult({ key: selectedMessageKey ?? '', source });
           setLookupStatus('idle');
           return;
         }
@@ -364,16 +355,27 @@ export function ContextLensPanel({
     return () => {
       controller.abort();
     };
-  }, [gatewayConfig, selectedEvent, selectedMessage, selectedMessageKey]);
+  }, [gatewayConfig, selectedSource, selectedMessage, selectedMessageKey]);
 
   return (
     <YStack
       testID="ContextLensPanel"
       width={360}
+      maxWidth="100%"
       height="100%"
+      position={overlay ? 'absolute' : 'relative'}
+      top={overlay ? 0 : undefined}
+      right={overlay ? 0 : undefined}
+      bottom={overlay ? 0 : undefined}
+      zIndex={overlay ? 2 : undefined}
+      flexShrink={0}
       borderLeftWidth={1}
       borderColor="$border"
       backgroundColor="$background"
+      shadowColor={overlay ? '$shadow' : undefined}
+      shadowOffset={overlay ? { width: -4, height: 0 } : undefined}
+      shadowOpacity={overlay ? 0.12 : undefined}
+      shadowRadius={overlay ? 12 : undefined}
       padding="$l"
       gap="$l"
     >
@@ -424,7 +426,7 @@ export function ContextLensPanel({
               </SizableText>
             </XStack>
           ) : null}
-          <CopyRawPayloadButton payload={latest} />
+          <CopyRawPayloadButton payload={latestSource?.rawEnvelope} />
         </XStack>
       </XStack>
 
@@ -439,7 +441,7 @@ export function ContextLensPanel({
       {panelMode === 'run' ? (
         <InspectingBanner
           label="Inspecting run"
-          value={selectedRun?.lens.lensId ?? ''}
+          value={selectedRun?.event.lens.lensId ?? ''}
           onClear={followLatestRun}
         />
       ) : null}
@@ -495,7 +497,14 @@ export function ContextLensPanel({
             </YStack>
           )}
 
-          {latest ? <RunInspector lens={latest.lens} /> : null}
+          {latest ? (
+            <RunInspector
+              lens={latest.lens}
+              activityEvents={eventTrail.flatMap((event) =>
+                event.detail?.activity ? [event.detail.activity] : []
+              )}
+            />
+          ) : null}
 
           <RunTimeline rows={runTimeline} />
         </YStack>

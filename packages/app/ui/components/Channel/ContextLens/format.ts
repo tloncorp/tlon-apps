@@ -16,6 +16,11 @@ export const TONE_COLORS: Record<LensTone, string> = {
   neutral: '$secondaryText',
 };
 
+/** Lifecycle truth wins for records written during the timeout finalization race. */
+export function effectiveLensStatus(lens: ContextLens): ContextLensStatus {
+  return lens.lifecycle.timedOut ? 'timed_out' : lens.status;
+}
+
 export function statusTone(status: ContextLensStatus): LensTone {
   if (status === 'completed') {
     return 'positive';
@@ -216,7 +221,7 @@ const RETRYABLE_STATUSES = new Set<ContextLensStatus>([
  */
 export function canRetryLens(lens: ContextLens) {
   return (
-    RETRYABLE_STATUSES.has(lens.status) &&
+    RETRYABLE_STATUSES.has(effectiveLensStatus(lens)) &&
     lens.chatType !== 'internal' &&
     lens.runKind !== 'internal'
   );

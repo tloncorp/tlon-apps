@@ -6,6 +6,34 @@ import { createDevLogger } from '../debug';
 const logger = createDevLogger('lensActions', false);
 
 /**
+ * Scry one exact lens run from the owner ship's %steward agent and cache the
+ * result, even when a local snapshot already exists. This is intentionally a
+ * targeted refresh rather than a recent-runs poll so callers can recover a
+ * terminal snapshot that is still propagating through ship sync.
+ */
+export async function refreshContextLensRun({
+  botShip,
+  lensId,
+}: {
+  botShip: string;
+  lensId: string;
+}): Promise<db.ContextLensRun | null> {
+  try {
+    const run = await api.getLensRun(botShip, lensId);
+    if (!run) {
+      return null;
+    }
+    await db.insertContextLensRuns([run]);
+    return run;
+  } catch (error) {
+    // covers ships without the %steward agent as well as transient failures;
+    // callers treat null as "run unavailable"
+    logger.log('lens run scry failed', botShip, lensId, error);
+    return null;
+  }
+}
+
+/**
  * Resolve a lens run db-first: return the locally synced row if present,
  * otherwise scry the owner ship's %steward agent (lens module) and cache the result.
  */
@@ -21,19 +49,7 @@ export async function ensureContextLensRun({
     return existing;
   }
 
-  try {
-    const run = await api.getLensRun(botShip, lensId);
-    if (!run) {
-      return null;
-    }
-    await db.insertContextLensRuns([run]);
-    return run;
-  } catch (error) {
-    // covers ships without the %steward agent as well as transient failures;
-    // callers treat null as "run unavailable"
-    logger.log('lens run scry failed', botShip, lensId, error);
-    return null;
-  }
+  return refreshContextLensRun({ botShip, lensId });
 }
 
 /**
