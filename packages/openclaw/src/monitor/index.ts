@@ -65,6 +65,7 @@ import {
   createSettingsManager,
 } from '../settings.js';
 import { sharedSlot } from '../shared-state.js';
+import { resolveSilentFailureNotice } from '../silent-failure-notice.js';
 import {
   canonicalizeNest,
   normalizeShip,
@@ -3549,6 +3550,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   activeDispatchError = error;
                   throw error;
                 } finally {
+                  // Yield once so fire-and-forget after_tool_call hooks for the
+                  // final tool call reach the turn recorder before the summary
+                  // freezes (mirrors replyTelemetry.capture).
+                  await new Promise<void>((resolve) => setTimeout(resolve, 0));
                   turnSummary = turnRecorder.finalize({
                     cancelled:
                       !dispatchTimedOut && Boolean(opts.abortSignal?.aborted),
@@ -3647,6 +3652,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         const finalLens = contextLenses.get(lens.lensId);
         if (finalLens) {
           logContextLens(lens.lensId, 'final');
+        }
+        const notice = resolveSilentFailureNotice({
+          summary: turnSummary,
+          deliveredCount: effectiveDeliveredCount,
+          requester: senderShip,
+          conversation: isGroup
+            ? (channelNest ?? _channelName ?? 'a group channel')
+            : `our DM with ${senderShip}`,
+        });
+        if (notice) {
+          runtime.log?.(
+            `[tlon] Silent tool-failure turn ${turnSummary.runId}; notifying owner`
+          );
+          await sendOwnerNotification(notice);
         }
       }
     };

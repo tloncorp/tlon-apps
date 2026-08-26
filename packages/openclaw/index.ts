@@ -942,7 +942,8 @@ export default defineBundledChannelEntry({
         '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
         'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
         'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
-        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'",
+        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'. " +
+        'If a command fails and you cannot complete what the user asked, tell them what failed before ending your turn — never end the turn silently after a failure.',
       parameters: {
         type: 'object',
         properties: {
@@ -1076,7 +1077,13 @@ export default defineBundledChannelEntry({
 
     api.on('after_tool_call', (event, ctx) => {
       const toolCallId = readToolCallId(event);
-      recordActiveTlonTurnToolCall();
+      recordActiveTlonTurnToolCall({
+        toolName: event.toolName,
+        errorMessage:
+          typeof event.error === 'string' && event.error.trim()
+            ? event.error
+            : undefined,
+      });
       if (logToolTraceContents && shouldLogAfterToolTrace(event)) {
         api.logger.info(
           formatToolTraceEvent({
