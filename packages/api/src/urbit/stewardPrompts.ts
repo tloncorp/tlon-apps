@@ -9,6 +9,11 @@ export interface StewardPromptEntry {
   text: string;
   /** @da string of when this text was stored on the ship */
   updated: string;
+  /**
+   * true when the text came from an owner edit (pinned intent the gateway
+   * re-applies); false for entries merely mirroring the gateway's files
+   */
+  edited: boolean;
 }
 
 /** prompt file name (e.g. "SOUL.md") -> stored prompt */

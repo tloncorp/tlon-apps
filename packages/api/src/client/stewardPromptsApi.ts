@@ -16,7 +16,15 @@ export interface BotSystemPrompt {
   /** full file contents */
   text: string;
   updatedAt: number;
+  /** true when the current text is a pinned owner edit */
+  edited: boolean;
 }
+
+/**
+ * Per-prompt byte cap enforced by %steward (an oversized %set nacks).
+ * Clients should validate before poking so the user gets a real error.
+ */
+export const MAX_PROMPT_TEXT_BYTES = 65_536;
 
 export const toBotSystemPrompts = (
   prompts: ub.StewardPromptsMap
@@ -26,6 +34,7 @@ export const toBotSystemPrompts = (
       name,
       text: entry.text,
       updatedAt: parseUpdated(entry.updated),
+      edited: entry.edited === true,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 };
@@ -95,7 +104,9 @@ export const subscribeToBotSystemPrompts = async (
     });
   } catch (error) {
     if (error instanceof BadResponseError && error.status === 404) {
-      logger.trackEvent('%steward prompts module missing');
+      // Fires on every profile view against a ship without the module, so
+      // keep it out of tracked telemetry.
+      logger.log('%steward prompts module missing, skipping subscription');
       return null;
     }
     throw error;

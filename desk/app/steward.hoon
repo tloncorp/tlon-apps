@@ -120,9 +120,19 @@
     ?>  =(src.bowl our.bowl)
     =+  !<(=action:v1:s vase)
     ?-  -.action
-      %configure    cor(owner.state `owner.action)
-      %trust-bot    cor(bots.state (~(put in bots.state) ship.action))
-      %untrust-bot  cor(bots.state (~(del in bots.state) ship.action))
+        %configure
+      ::  re-fan the canonical prompt set so a newly configured owner's
+      ::  mirror doesn't stay empty until some prompt text happens to change
+      ::
+      =.  owner.state  `owner.action
+      ?:  =(~ own.prompts.state)  cor
+      pr-sync-owner:pr-core
+    ::
+        %trust-bot
+      cor(bots.state (~(put in bots.state) ship.action))
+    ::
+        %untrust-bot
+      cor(bots.state (~(del in bots.state) ship.action))
     ==
   ::
   ::  lens module actions. auth is per-variant (each shape expects a
@@ -698,6 +708,10 @@
                   =(bot.action our.bowl)
               ==
           ==
+      ::  reject oversized text at the first hop so the editing client's
+      ::  poke nacks instead of a silent drop reading as success
+      ::
+      ?>  (lte (met 3 text.action) max-prompt-bytes)
       ?:  =(bot.action our.bowl)
         (pr-handle-set name.action text.action)
       ::  local request for one of our remote bots: relay to its steward
@@ -720,25 +734,27 @@
       (pr-store-mirror src.bowl prompts.action)
     ==
   ::
-  ::  store one edit, notify the local gateway (which applies it to the
-  ::  workspace and restarts), and refresh the owner's mirror.
+  ::  store one edit (pinned owner intent, edited=&), notify the local
+  ::  gateway (which applies it to the workspace and restarts), and refresh
+  ::  the owner's mirror.
   ::
   ++  pr-handle-set
     |=  [=name:v1:sp text=@t]
     ^+  cor
-    ?:  (gth (met 3 text) max-prompt-bytes)
-      %-  (slog leaf+"steward: prompt text oversized, dropping" ~)
-      cor
-    =/  =prompt:v1:sp  [text now.bowl]
+    =/  =prompt:v1:sp  [text now.bowl &]
     =.  own.prompts.state  (~(put by own.prompts.state) name prompt)
     =.  cor
       %^  give  %fact  ~[/v1/prompts]
       steward-prompts-update-1+!>(`update:v1:sp`[%set name prompt])
     pr-sync-owner
   ::
-  ::  the gateway reports the full effective prompt set (file contents) after
-  ::  applying any stored edits, so the seed is the effective truth: adopt it
-  ::  wholesale. entries whose text is unchanged keep their prior timestamp.
+  ::  the gateway reports the full effective prompt set (file contents).
+  ::  un-edited entries adopt it wholesale — they merely mirror the files, so
+  ::  upstream prompt-set updates flow through. edited entries are pinned
+  ::  owner intent: a seed with different text never overwrites one (the
+  ::  gateway hasn't applied that edit yet — the race is a %set landing
+  ::  between the gateway's scry and its seed), and an edited entry missing
+  ::  from the seed entirely is kept rather than dropped.
   ::
   ++  pr-handle-seed
     |=  seed=(map name:v1:sp @t)
@@ -751,9 +767,16 @@
       %+  turn  ~(tap by seed)
       |=  [n=name:v1:sp t=@t]
       =/  prev  (~(get by own.prompts.state) n)
-      ?:  &(?=(^ prev) =(text.u.prev t))
-        [n u.prev]
-      [n `prompt:v1:sp`[t now.bowl]]
+      ?~  prev  [n `prompt:v1:sp`[t now.bowl |]]
+      ?:  =(text.u.prev t)  [n u.prev]
+      ?:  edited.u.prev  [n u.prev]
+      [n `prompt:v1:sp`[t now.bowl |]]
+    ::  keep pinned edits the seed doesn't mention
+    =.  new
+      %-  ~(gas by new)
+      %+  skim  ~(tap by own.prompts.state)
+      |=  [n=name:v1:sp p=prompt:v1:sp]
+      &(edited.p !(~(has by new) n))
     ::  gateways re-seed on every boot; don't re-fact or re-sync a no-op
     ?:  =(new own.prompts.state)  cor
     =.  own.prompts.state  new

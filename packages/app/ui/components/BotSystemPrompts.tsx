@@ -13,6 +13,13 @@ import { ListItem } from './ListItem';
 
 const promptsQueryKey = (botShip: string) => ['botSystemPrompts', botShip];
 
+// Hermes and browsers both provide TextEncoder; the char-count fallback
+// undercounts multibyte text but the ship still enforces the real cap.
+const promptTextByteLength = (text: string) =>
+  typeof TextEncoder !== 'undefined'
+    ? new TextEncoder().encode(text).length
+    : text.length;
+
 /**
  * The prompt set mirrored into our own ship's %steward for this bot, or
  * null when there is none. Shared (and cached) between the profile's
@@ -48,6 +55,30 @@ const PROMPT_LABELS: Record<string, string> = {
   'BOOT.md': 'Boot',
 };
 
+const PROMPT_DESCRIPTIONS: Record<string, string> = {
+  'AGENTS.md': 'Core instructions for how your bot behaves.',
+  'SOUL.md': "Your bot's personality and tone.",
+  'TOOLS.md': 'Guidance for the tools your bot can use.',
+  'IDENTITY.md': 'How your bot identifies itself.',
+  'USER.md': 'What your bot knows about you.',
+  'BOOT.md': 'Run once when your bot starts up.',
+};
+
+/**
+ * One legible line for the row preview: managed prompt files start with
+ * HTML marker comments and markdown headings that read as noise in a
+ * single-line preview.
+ */
+function promptPreview(text: string): string {
+  const cleaned = text
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/^#+\s*/gm, '')
+    .replace(/\*\*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned || 'Empty';
+}
+
 /**
  * System prompt list + editor for an owned bot's profile screen. Reads the
  * prompt set mirrored into our own ship's %steward and edits via the
@@ -62,15 +93,10 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
 
   // Refresh when the bot's canonical set fans back into our mirror (a seed
   // after gateway restart, or an edit confirmation). staleTime is Infinity
-  // repo-wide, so explicit invalidation is the only refresh path. Gated on
-  // data presence: this section mounts on every profile view, and most
-  // profiles are not our bot — skip the subscription (and its probe scry)
-  // unless there are prompts to keep fresh.
-  const hasPrompts = Boolean(promptsQuery.data?.length);
+  // repo-wide, so explicit invalidation is the only refresh path — the
+  // subscription must be live even before the first seed exists, or a bot's
+  // very first seed would stay invisible for the rest of the session.
   useEffect(() => {
-    if (!hasPrompts) {
-      return;
-    }
     let subscriptionId: number | null = null;
     let cancelled = false;
     api
@@ -100,7 +126,7 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
         api.unsubscribe(subscriptionId);
       }
     };
-  }, [botShip, hasPrompts, queryClient]);
+  }, [botShip, queryClient]);
 
   const handleSaved = useCallback(
     (name: string, text: string) => {
@@ -111,7 +137,7 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
         (current: api.BotSystemPrompt[] | null | undefined) =>
           current?.map((prompt) =>
             prompt.name === name
-              ? { ...prompt, text, updatedAt: Date.now() }
+              ? { ...prompt, text, updatedAt: Date.now(), edited: true }
               : prompt
           ) ?? current
       );
@@ -159,7 +185,9 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
                   {PROMPT_LABELS[prompt.name] ?? prompt.name}
                 </ListItem.Title>
                 <ListItem.Subtitle numberOfLines={1}>
-                  {prompt.text.trim().replace(/\s+/g, ' ') || 'Empty'}
+                  {prompt.edited
+                    ? `Customized · ${promptPreview(prompt.text)}`
+                    : promptPreview(prompt.text)}
                 </ListItem.Subtitle>
               </ListItem.MainContent>
               <ListItem.EndContent>
@@ -222,6 +250,15 @@ function BotSystemPromptEditorSheet({
       return;
     }
     handleSubmit(async ({ text }) => {
+      // %steward nacks oversized text; check up front for a real error
+      // message instead of a failed poke.
+      if (promptTextByteLength(text) > api.MAX_PROMPT_TEXT_BYTES) {
+        showToast({
+          message: 'Prompt is too long — the limit is 64KB.',
+          duration: 3000,
+        });
+        return;
+      }
       setSaving(true);
       try {
         await api.setBotSystemPrompt({ botShip, name: prompt.name, text });
@@ -257,6 +294,11 @@ function BotSystemPromptEditorSheet({
       <ActionSheet.ScrollableContent>
         <ActionSheet.ContentBlock>
           <YStack gap="$l">
+            {PROMPT_DESCRIPTIONS[prompt.name] ? (
+              <Text size="$label/m" color="$secondaryText">
+                {PROMPT_DESCRIPTIONS[prompt.name]}
+              </Text>
+            ) : null}
             <ControlledTextareaField
               name="text"
               control={control}

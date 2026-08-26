@@ -37,6 +37,7 @@
     %-  pairs
     :~  ['text' s+text.prompt]
         ['updated' s+(scot %da updated.prompt)]
+        ['edited' b+edited.prompt]
     ==
   --
 ++  grab

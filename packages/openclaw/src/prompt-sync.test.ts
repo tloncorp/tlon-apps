@@ -45,17 +45,35 @@ describe('isAllowedPromptName', () => {
 });
 
 describe('parseStoredPromptsScry', () => {
-  it('extracts allowlisted name -> text pairs', () => {
+  it('extracts allowlisted owner-edited name -> text pairs', () => {
     const result = parseStoredPromptsScry({
       prompts: {
         bot: '~zod',
         prompts: {
-          'SOUL.md': { text: 'be kind', updated: '~2026.8.26' },
-          'AGENTS.md': { text: 'do things', updated: '~2026.8.26' },
+          'SOUL.md': { text: 'be kind', updated: '~2026.8.26', edited: true },
+          'AGENTS.md': {
+            text: 'do things',
+            updated: '~2026.8.26',
+            edited: true,
+          },
         },
       },
     });
     expect(result).toEqual({ 'SOUL.md': 'be kind', 'AGENTS.md': 'do things' });
+  });
+
+  it('skips un-edited entries (they only mirror our own files)', () => {
+    const result = parseStoredPromptsScry({
+      prompts: {
+        bot: '~zod',
+        prompts: {
+          'SOUL.md': { text: 'seeded', updated: '~2026.8.26', edited: false },
+          'TOOLS.md': { text: 'no flag', updated: '~2026.8.26' },
+          'BOOT.md': { text: 'pinned', updated: '~2026.8.26', edited: true },
+        },
+      },
+    });
+    expect(result).toEqual({ 'BOOT.md': 'pinned' });
   });
 
   it('drops unknown names, oversized texts, and malformed entries', () => {
@@ -63,10 +81,10 @@ describe('parseStoredPromptsScry', () => {
       prompts: {
         bot: '~zod',
         prompts: {
-          '../evil.md': { text: 'x' },
-          'SOUL.md': { text: 'a'.repeat(MAX_PROMPT_BYTES + 1) },
-          'USER.md': { text: 7 },
-          'BOOT.md': { text: 'ok' },
+          '../evil.md': { text: 'x', edited: true },
+          'SOUL.md': { text: 'a'.repeat(MAX_PROMPT_BYTES + 1), edited: true },
+          'USER.md': { text: 7, edited: true },
+          'BOOT.md': { text: 'ok', edited: true },
         },
       },
     });
@@ -211,7 +229,9 @@ describe('createPromptSync.startup', () => {
       scry: async () => ({
         prompts: {
           bot: '~zod',
-          prompts: { 'SOUL.md': { text: 'stored edit', updated: '~x' } },
+          prompts: {
+            'SOUL.md': { text: 'stored edit', updated: '~x', edited: true },
+          },
         },
       }),
       poke,
@@ -265,7 +285,9 @@ describe('createPromptSync.startup', () => {
       scry: async () => ({
         prompts: {
           bot: '~zod',
-          prompts: { 'SOUL.md': { text: 'stored edit', updated: '~x' } },
+          prompts: {
+            'SOUL.md': { text: 'stored edit', updated: '~x', edited: true },
+          },
         },
       }),
       poke,
@@ -273,6 +295,41 @@ describe('createPromptSync.startup', () => {
     });
     await sync.startup();
     expect(poke).not.toHaveBeenCalled();
+  });
+});
+
+describe('createPromptSync serialization', () => {
+  it('runs a fact received mid-startup only after startup finishes', async () => {
+    const order: string[] = [];
+    let releaseScry!: () => void;
+    const scryGate = new Promise<void>((resolve) => {
+      releaseScry = resolve;
+    });
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      scry: async () => {
+        order.push('scry');
+        await scryGate;
+        return {};
+      },
+      poke: async () => ({}),
+      logger,
+    });
+    const startupDone = sync.startup().then(() => order.push('startup-done'));
+    const factDone = sync
+      .handleFact({
+        set: { name: 'SOUL.md', prompt: { text: 'mid-flight', updated: '~x' } },
+      })
+      .then(() => order.push('fact-done'));
+    releaseScry();
+    await Promise.all([startupDone, factDone]);
+    expect(order).toEqual(['scry', 'startup-done', 'fact-done']);
+    expect(fs.readFileSync(path.join(tmpDir, 'SOUL.md'), 'utf8')).toBe(
+      'mid-flight'
+    );
   });
 });
 

@@ -92,11 +92,13 @@ One agent, two roles, same as lens:
 
 The prompts action is a tagged union of three shapes:
 
-- **`%set`** `[%set bot=ship name=@t text=@t]` — an owner edit. Carries `.bot` for routing: a local poke targeting a remote bot is relayed to that bot's steward (owner → bot, like lens `%retry`); a poke targeting `bot == our` (locally, or cross-ship from the configured owner) stores the prompt, facts `[%set name prompt]` on `/v1/prompts` for the gateway, and re-syncs the owner mirror. Only local pokes relay outward — a cross-ship `%set` must target us, so the agent never proxies a non-local edit to a third ship. Ames retries the relay until ack, so an edit made while the gateway is down is stored and applied on the gateway's next boot.
-- **`%seed`** `[%seed prompts=(map @t @t)]` — the local gateway reports the full effective prompt set (`src == our` only). Adopted wholesale (the gateway seeds only after applying stored edits, so the seed is the effective truth); entries with unchanged text keep their stored timestamp, and an identical re-seed (every gateway boot) is a no-op. Synced to the owner on change.
-- **`%sync`** `[%sync prompts=(map @t [text=@t updated=@da])]` — bot → owner fan-out of the canonical set, stored in `mirror` keyed by `src` and facted on `/v1/prompts`.
+Each stored prompt carries an `edited` flag: `&` for text that came from an owner `%set` (pinned intent the gateway re-applies on boot), `|` for entries that merely mirror the gateway's effective files (so upstream prompt-set updates keep flowing through them).
 
-Size caps: a single prompt over 64KB is dropped (`%set`); seed/sync maps are capped at 512KB jammed, mirroring the lens payload ceiling.
+- **`%set`** `[%set bot=ship name=@t text=@t]` — an owner edit, stored with `edited=&`. Carries `.bot` for routing: a local poke targeting a remote bot is relayed to that bot's steward (owner → bot, like lens `%retry`); a poke targeting `bot == our` (locally, or cross-ship from the configured owner) stores the prompt, facts `[%set name prompt]` on `/v1/prompts` for the gateway, and re-syncs the owner mirror. Only local pokes relay outward — a cross-ship `%set` must target us, so the agent never proxies a non-local edit to a third ship. Ames retries the relay until ack, so an edit made while the gateway is down is stored and applied on the gateway's next boot.
+- **`%seed`** `[%seed prompts=(map @t @t)]` — the local gateway reports the full effective prompt set (`src == our` only). Un-edited entries adopt it wholesale; edited entries are pinned — a seed with different text never overwrites one (that race is a `%set` landing between the gateway's scry and its seed), and an edited entry missing from the seed is kept rather than dropped. Entries with unchanged text keep their stored timestamp, and an identical re-seed (every gateway boot) is a no-op. Synced to the owner on change, and re-synced whenever the core `%configure` (re)points the owner so a new owner's mirror doesn't stay empty.
+- **`%sync`** `[%sync prompts=(map @t [text=@t updated=@da edited=?])]` — bot → owner fan-out of the canonical set, stored in `mirror` keyed by `src` and facted on `/v1/prompts`.
+
+Size caps: a `%set` over 64KB nacks at the first hop (so the editing client sees the failure); seed/sync maps are capped at 512KB jammed, mirroring the lens payload ceiling.
 
 ## poke surface
 
@@ -158,13 +160,13 @@ Auth is **per-variant**, since each shape expects a different `src`:
 ```json
 { "set": { "bot": "~sampel-palnet", "name": "SOUL.md", "text": "..." } }
 { "seed": { "SOUL.md": "...", "AGENTS.md": "..." } }
-{ "sync": { "SOUL.md": { "text": "...", "updated": "~2026.8.26..12.00.00..0000" } } }
+{ "sync": { "SOUL.md": { "text": "...", "updated": "~2026.8.26..12.00.00..0000", "edited": true } } }
 ```
 
 ```
-[%set bot=ship name=@t text=@t]                     owner edit (relayed owner -> bot when bot != our)
-[%seed prompts=(map @t @t)]                          gateway reports the effective prompt set
-[%sync prompts=(map @t [text=@t updated=@da])]       bot -> owner fan-out of the canonical set
+[%set bot=ship name=@t text=@t]                          owner edit (relayed owner -> bot when bot != our)
+[%seed prompts=(map @t @t)]                               gateway reports the effective prompt set
+[%sync prompts=(map @t [text=@t updated=@da edited=?])]   bot -> owner fan-out of the canonical set
 ```
 
 ## subscription surface

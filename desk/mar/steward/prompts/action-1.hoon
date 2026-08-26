@@ -33,6 +33,7 @@
       %-  pairs
       :~  ['text' s+text.prompt]
           ['updated' s+(scot %da updated.prompt)]
+          ['edited' b+edited.prompt]
       ==
     ==
   --
@@ -44,7 +45,7 @@
     %-  of
     :~  [%set (ot ~[bot+(se %p) name+so text+so])]
         [%seed (om so)]
-        [%sync (om (ot ~[text+so updated+(se %da)]))]
+        [%sync (om (ot ~[text+so updated+(se %da) edited+bo]))]
     ==
   --
 --

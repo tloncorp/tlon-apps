@@ -14,8 +14,13 @@
 ::
 ::    .text: full file contents
 ::    .updated: when this text was last stored here
+::    .edited: true when the text came from an owner %set. edited entries
+::            are pinned owner intent: the gateway re-applies them to the
+::            workspace on boot and a %seed never overwrites them. un-edited
+::            entries just mirror the gateway's effective files, so upstream
+::            prompt-set updates keep flowing through.
 ::
-+$  prompt  [text=@t updated=@da]
++$  prompt  [text=@t updated=@da edited=?]
 +$  prompts  (map name prompt)
 ::  $state: prompts module state.
 ::

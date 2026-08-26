@@ -133,14 +133,12 @@ export function UserProfileScreenView(props: Props) {
         ) : null}
 
         {/* Data-gated rather than riding the hosted-bot check: our steward
-            only mirrors prompt sets for bots that configured us as their
-            owner and that we explicitly trusted, so presence of mirror data
-            is itself the ownership signal — and it covers self-hosted bots
-            that aren't hosted moons. The section renders nothing for
-            everyone else. */}
-        {currentUserId !== props.userId ? (
-          <BotSystemPromptsSection botShip={props.userId} />
-        ) : null}
+            only serves prompt sets for bots that configured us as their
+            owner (including a self-owned bot on this very ship, so no
+            own-profile guard here). Presence of prompt data is itself the
+            ownership signal — the section renders nothing for everyone
+            else. */}
+        <BotSystemPromptsSection botShip={props.userId} />
 
         {userContact?.status && (
           <StatusDisplay status={userContact?.status ?? ''} />

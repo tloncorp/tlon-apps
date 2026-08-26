@@ -6,10 +6,12 @@
  * its workspace is rebuilt from archives on every boot. The sync has two
  * halves:
  *
- * - startup: scry the ship's stored prompt set, re-apply it to the
- *   workspace files (and cache it in `channels.tlon.prompts`), then %seed
- *   the ship with the full effective file contents so clients always show
- *   what the gateway is actually running.
+ * - startup: scry the ship's stored prompt set, re-apply the owner-edited
+ *   entries to the workspace files (and cache them in
+ *   `channels.tlon.prompts`), then %seed the ship with the full effective
+ *   file contents so clients always show what the gateway is actually
+ *   running. Un-edited entries only mirror the files, so upstream
+ *   prompt-set updates keep flowing through them.
  * - live: `%set` facts on /v1/prompts (an owner edit relayed to the bot's
  *   steward) are applied to the workspace file and persisted to the
  *   openclaw config with an explicit gateway restart, so the edit takes
@@ -58,14 +60,18 @@ function isPromptTextWithinCap(text: string): boolean {
 
 /**
  * Parse the /x/v1/prompts scry result ({ prompts: { bot, prompts: { name:
- * { text, updated } } } }) into name -> text. Unknown names and oversized
- * texts are dropped — the ship enforces its own caps, but the scry payload
- * is still remote input to this process.
+ * { text, updated, edited } } } }) into name -> text, keeping only
+ * owner-edited entries — those are pinned intent the gateway must re-apply;
+ * un-edited entries just mirror our own files back at us. Unknown names and
+ * oversized texts are dropped — the ship enforces its own caps, but the
+ * scry payload is still remote input to this process.
  */
 export function parseStoredPromptsScry(data: unknown): Record<string, string> {
   const prompts = (
     data as {
-      prompts?: { prompts?: Record<string, { text?: unknown }> };
+      prompts?: {
+        prompts?: Record<string, { text?: unknown; edited?: unknown }>;
+      };
     } | null
   )?.prompts?.prompts;
   if (!prompts || typeof prompts !== 'object') {
@@ -76,6 +82,7 @@ export function parseStoredPromptsScry(data: unknown): Record<string, string> {
     const text = entry?.text;
     if (
       isAllowedPromptName(name) &&
+      entry?.edited === true &&
       typeof text === 'string' &&
       isPromptTextWithinCap(text)
     ) {
@@ -351,5 +358,18 @@ export function createPromptSync(opts: {
     );
   };
 
-  return { startup, handleFact };
+  // Serialize reconciliation and fact handling on one chain: a fact that
+  // arrives mid-startup (or a burst of facts) must not interleave its file
+  // and config writes with the reconcile's, or an older scry result could
+  // overwrite a newer accepted edit.
+  let chain: Promise<void> = Promise.resolve();
+  const enqueue = (task: () => Promise<void>) => {
+    chain = chain.then(task, task);
+    return chain;
+  };
+
+  return {
+    startup: () => enqueue(startup),
+    handleFact: (data) => enqueue(() => handleFact(data)),
+  };
 }

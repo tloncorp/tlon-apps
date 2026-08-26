@@ -38,11 +38,17 @@ test('setBotSystemPrompt pokes the %set action', async () => {
 
 test('toBotSystemPrompts maps and sorts the wire shape', () => {
   const prompts = toBotSystemPrompts({
-    'SOUL.md': { text: 'be kind', updated: '~2026.8.26..12.00.00..0000' },
-    'AGENTS.md': { text: 'do things', updated: 'not-a-da' },
+    'SOUL.md': {
+      text: 'be kind',
+      updated: '~2026.8.26..12.00.00..0000',
+      edited: true,
+    },
+    'AGENTS.md': { text: 'do things', updated: 'not-a-da', edited: false },
   });
   expect(prompts.map((p) => p.name)).toEqual(['AGENTS.md', 'SOUL.md']);
   expect(prompts[1].text).toBe('be kind');
+  expect(prompts[1].edited).toBe(true);
+  expect(prompts[0].edited).toBe(false);
   expect(prompts[1].updatedAt).toBeGreaterThan(0);
   // unparseable @da degrades to 0 rather than throwing
   expect(prompts[0].updatedAt).toBe(0);
@@ -53,7 +59,11 @@ test('getBotSystemPrompts scries the mirror and maps entries', async () => {
     prompts: {
       bot: '~zod',
       prompts: {
-        'SOUL.md': { text: 'be kind', updated: '~2026.8.26..12.00.00..0000' },
+        'SOUL.md': {
+          text: 'be kind',
+          updated: '~2026.8.26..12.00.00..0000',
+          edited: true,
+        },
       },
     },
   });

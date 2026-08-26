@@ -796,8 +796,8 @@
     (my ~[['SOUL.md' 'be kind'] ['AGENTS.md' 'do agent things']])
   =/  expect=prompts:v1:p
     %-  my
-    :~  ['SOUL.md' 'be kind' ~2024.1.1]
-        ['AGENTS.md' 'do agent things' ~2024.1.1]
+    :~  ['SOUL.md' 'be kind' ~2024.1.1 %.n]
+        ['AGENTS.md' 'do agent things' ~2024.1.1 %.n]
     ==
   ;<  caz=(list card)  bind:m
     (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%seed seed]))
@@ -852,8 +852,8 @@
   =+  !<(=update:v1:p q.res)
   =/  expect=prompts:v1:p
     %-  my
-    :~  ['SOUL.md' 'be kind' ~2024.1.1]
-        ['USER.md' 'james' ~2024.1.2]
+    :~  ['SOUL.md' 'be kind' ~2024.1.1 %.n]
+        ['USER.md' 'james' ~2024.1.2 %.n]
     ==
   (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev expect]))
 ::
@@ -878,7 +878,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~bus)
-  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2024.1.1]])
+  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.y]])
   ;<  caz=(list card)  bind:m
     %+  do-poke  %steward-prompts-action-1
     !>(`action:v1:p`[%set ~dev 'SOUL.md' 'be kind'])
@@ -887,7 +887,7 @@
     :~  %-  ex-fact
         :*  ~[/v1/prompts]
             %steward-prompts-update-1
-            !>(`update:v1:p`[%set 'SOUL.md' ['be kind' ~2024.1.1]])
+            !>(`update:v1:p`[%set 'SOUL.md' ['be kind' ~2024.1.1 %.y]])
         ==
         %-  ex-poke
         :*  /prompts/sync/(scot %p ~bus)
@@ -938,7 +938,7 @@
     !>(`action:v1:p`[%set ~dev 'SOUL.md' 'from owner'])
   ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
   =+  !<(=update:v1:p q.res)
-  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'from owner' ~2024.1.1]])
+  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'from owner' ~2024.1.1 %.y]])
   (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev expect]))
 ::
 ::  a non-owner ship must not be able to edit prompts
@@ -976,7 +976,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  trust-moon
-  =/  synced=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2023.12.31]])
+  =/  synced=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2023.12.31 %.y]])
   ;<  caz=(list card)  bind:m
     %-  (do-as moon)
     (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%sync synced]))
@@ -1003,7 +1003,7 @@
   %-  ex-fail
   %-  (do-as moon)
   %+  do-poke  %steward-prompts-action-1
-  !>(`action:v1:p`[%sync (my ~[['SOUL.md' 'sneaky' ~2024.1.1]])])
+  !>(`action:v1:p`[%sync (my ~[['SOUL.md' 'sneaky' ~2024.1.1 %.y]])])
 ::
 ::  a self-owned bot stores its owner mirror directly, no network hop
 ::
@@ -1013,7 +1013,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~dev)
-  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2024.1.1]])
+  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.y]])
   ;<  caz=(list card)  bind:m
     %+  do-poke  %steward-prompts-action-1
     !>(`action:v1:p`[%set ~dev 'SOUL.md' 'be kind'])
@@ -1022,7 +1022,7 @@
     :~  %-  ex-fact
         :*  ~[/v1/prompts]
             %steward-prompts-update-1
-            !>(`update:v1:p`[%set 'SOUL.md' ['be kind' ~2024.1.1]])
+            !>(`update:v1:p`[%set 'SOUL.md' ['be kind' ~2024.1.1 %.y]])
         ==
         %-  ex-fact
         :*  ~[/v1/prompts]
@@ -1034,20 +1034,110 @@
   =+  !<(=update:v1:p q.res)
   (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev expect]))
 ::
-::  an oversized prompt is dropped without storing or emitting anything
+::  an oversized prompt nacks at the first hop so the editing client sees
+::  the failure instead of a silent drop reading as success
 ::
-++  test-pr-oversized-set-dropped
+++  test-pr-oversized-set-crashes
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~bus)
   =/  big=@t  (fil 3 65.537 'a')
-  ;<  caz=(list card)  bind:m
+  %-  ex-fail
+  %+  do-poke  %steward-prompts-action-1
+  !>(`action:v1:p`[%set ~dev 'SOUL.md' big])
+::
+::  a re-seed with changed text updates an un-edited entry (upstream
+::  prompt-set updates flow through)
+::
+++  test-pr-seed-updates-unedited-entry
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
     %+  do-poke  %steward-prompts-action-1
-    !>(`action:v1:p`[%set ~dev 'SOUL.md' big])
-  ;<  ~  bind:m  (ex-cards caz ~)
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'v1']])])
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'v2 from upstream']])])
   ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
   =+  !<(=update:v1:p q.res)
-  (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev *prompts:v1:p]))
+  %+  ex-equal  !>(update)
+  !>(`update:v1:p`[%prompts ~dev (my ~[['SOUL.md' 'v2 from upstream' ~2024.1.2 %.n]])])
+::
+::  a seed with different text never overwrites a pinned owner edit (the
+::  gateway simply hasn't applied it yet)
+::
+++  test-pr-seed-preserves-pinned-edit
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%set ~dev 'SOUL.md' 'owner edit'])
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'stale file text'] ['TOOLS.md' 'tools']])])
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
+  =+  !<(=update:v1:p q.res)
+  %+  ex-equal  !>(update)
+  !>
+  ^-  update:v1:p
+  :+  %prompts  ~dev
+  %-  my
+  :~  ['SOUL.md' 'owner edit' ~2024.1.1 %.y]
+      ['TOOLS.md' 'tools' ~2024.1.2 %.n]
+  ==
+::
+::  a pinned edit missing from the seed entirely is kept, not dropped
+::
+++  test-pr-seed-keeps-missing-pinned-edit
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%set ~dev 'SOUL.md' 'owner edit'])
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['TOOLS.md' 'tools']])])
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
+  =+  !<(=update:v1:p q.res)
+  %+  ex-equal  !>(update)
+  !>
+  ^-  update:v1:p
+  :+  %prompts  ~dev
+  %-  my
+  :~  ['SOUL.md' 'owner edit' ~2024.1.1 %.y]
+      ['TOOLS.md' 'tools' ~2024.1.2 %.n]
+  ==
+::
+::  configuring a (new) owner re-fans the canonical set so the new owner's
+::  mirror doesn't stay empty until some prompt text changes
+::
+++  test-pr-configure-owner-resyncs
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%sync (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.n]])])
+      ==
+  ==
 --
