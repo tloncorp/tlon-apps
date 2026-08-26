@@ -95,7 +95,7 @@ afterAll(() => {
 });
 
 describe('AgentChatActivityReceipt', () => {
-  it('unfurls tool-only completed work into a real task row', async () => {
+  it('unfurls tool-only completed work into a non-task action summary', async () => {
     const event = completedEvent([
       {
         id: 'fetch-1',
@@ -104,6 +104,15 @@ describe('AgentChatActivityReceipt', () => {
         status: 'completed',
         startedAt: 1_100,
         completedAt: 1_200,
+        durationMs: 100,
+      },
+      {
+        id: 'fetch-2',
+        callIndex: 2,
+        name: 'web_fetch',
+        status: 'completed',
+        startedAt: 1_300,
+        completedAt: 1_400,
         durationMs: 100,
       },
     ]);
@@ -115,22 +124,113 @@ describe('AgentChatActivityReceipt', () => {
     });
 
     const disclosure = renderer!.root.findByProps({
-      'aria-label': 'bearclawd · Completed · 1 task · 2:45. View activity',
+      'aria-label': 'bearclawd · Completed · 2 actions · 2:45. View activity',
     });
     expect(disclosure.props.role).toBe('button');
+    expect(disclosure.props.tabIndex).toBe(0);
+    expect(disclosure.props['aria-expanded']).toBe(false);
+    expect(disclosure.props['aria-label']).not.toContain('task');
 
+    const preventDefault = vi.fn();
+    await act(async () =>
+      disclosure.props.onKeyDown({ key: 'Enter', preventDefault })
+    );
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(disclosure.props['aria-expanded']).toBe(true);
+    expect(disclosure.props['aria-label']).toBe(
+      'bearclawd · Completed · 2 actions · 2:45. Hide activity'
+    );
+    expect(disclosure.props['aria-label']).not.toContain('task');
+
+    const actionSummary = renderer!.root.findByProps({
+      testID: 'agent-chat-actions-summary',
+    });
+    expect(
+      actionSummary.findAll(
+        (node) => node.props.children === 'Actions performed'
+      )
+    ).not.toHaveLength(0);
+    expect(
+      actionSummary.findAll(
+        (node) => node.props.children === '2 web fetch actions completed'
+      )
+    ).not.toHaveLength(0);
+    expect(
+      actionSummary.findAll((node) => node.props.children === 'Task 1')
+    ).toHaveLength(0);
+    expect(
+      actionSummary.findAll((node) => node.props.type === 'Checkmark')
+    ).toHaveLength(0);
+    expect(
+      renderer!.root.findAllByProps({ testID: 'agent-chat-completed-tasks' })
+    ).toHaveLength(0);
+    expect(JSON.stringify(renderer!.toJSON())).toContain('Hide');
+
+    act(() => renderer!.unmount());
+  });
+
+  it('preserves structured plan rows as tasks', async () => {
+    const event = completedEvent([
+      {
+        id: 'fetch-1',
+        callIndex: 1,
+        name: 'web_fetch',
+        status: 'completed',
+        startedAt: 1_100,
+        completedAt: 1_200,
+        durationMs: 100,
+      },
+    ]);
+    event.lens.activity = {
+      schemaVersion: 1,
+      eventCount: 1,
+      lastEventAt: 1_200,
+      truncated: false,
+      plan: {
+        updatedAt: 1_100,
+        steps: [
+          {
+            id: 'research',
+            title: 'Research sources',
+            status: 'completed',
+          },
+        ],
+      },
+      items: [
+        {
+          id: 'fetch-1',
+          kind: 'tool',
+          title: 'web_fetch',
+          name: 'web_fetch',
+          planStepId: 'research',
+          status: 'completed',
+          startedAt: 1_100,
+          updatedAt: 1_200,
+          completedAt: 1_200,
+        },
+      ],
+    };
+    let renderer: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <AgentChatActivityReceipt event={event} events={[event]} />
+      );
+    });
+
+    const disclosure = renderer!.root.findByProps({
+      'aria-label': 'bearclawd · Completed · 1 task · 2:45. View activity',
+    });
     await act(async () => disclosure.props.onPress());
 
     const taskRows = renderer!.root.findByProps({
       testID: 'agent-chat-completed-tasks',
     });
-    expect(taskRows.props.rows[0]).toMatchObject({
-      title: 'Completed agent work',
-      subtitle: '1 web fetch action completed',
-      status: 'completed',
-      details: [{ label: 'Actions', value: '1 web fetch action completed' }],
-    });
-    expect(JSON.stringify(renderer!.toJSON())).toContain('Hide');
+    expect(taskRows.props.rows).toMatchObject([
+      { id: 'research', title: 'Research sources', status: 'completed' },
+    ]);
+    expect(
+      renderer!.root.findAllByProps({ testID: 'agent-chat-actions-summary' })
+    ).toHaveLength(0);
 
     act(() => renderer!.unmount());
   });

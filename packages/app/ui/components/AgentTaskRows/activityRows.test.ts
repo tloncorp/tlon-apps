@@ -20,6 +20,45 @@ function activity(
   };
 }
 
+function chatModelWithToolError(error: string) {
+  return buildAgentTaskRowsFromActivity(
+    activity({
+      plan: {
+        updatedAt: 1_000,
+        steps: [{ id: 'fetch', title: 'Fetch sources', status: 'running' }],
+      },
+      items: [
+        {
+          id: 'fetch-1',
+          kind: 'tool',
+          title: 'web_fetch',
+          name: 'web_fetch',
+          status: 'error',
+          planStepId: 'fetch',
+          startedAt: 1_100,
+          updatedAt: 1_200,
+          completedAt: 1_200,
+        },
+      ],
+    }),
+    [],
+    {
+      presentation: 'chat',
+      toolRuns: [
+        {
+          id: 'fetch-1',
+          name: 'web_fetch',
+          status: 'error',
+          startedAt: 1_100,
+          completedAt: 1_200,
+          durationMs: 100,
+          error,
+        },
+      ],
+    }
+  );
+}
+
 describe('Context Lens activity task rows', () => {
   it('projects a waiting plan as one gate while retaining the queued count', () => {
     const projection = compactWaitingTaskRows([
@@ -132,7 +171,48 @@ describe('Context Lens activity task rows', () => {
     });
   });
 
-  it('reconstructs completed tool-only work when durable activity is missing', () => {
+  it('never promotes a streamed commentary fragment into task identity', () => {
+    const model = buildAgentTaskRowsFromActivity(
+      activity({
+        items: [
+          {
+            id: 'commentary-1',
+            kind: 'commentary',
+            title: 'Preamble',
+            progressText: 'I',
+            status: 'running',
+            startedAt: 1_000,
+            updatedAt: 1_000,
+            completedAt: null,
+          },
+        ],
+      }),
+      [],
+      {
+        presentation: 'chat',
+        runOutcome: 'active',
+        toolRuns: [
+          {
+            id: 'fetch-1',
+            name: 'web_fetch',
+            status: 'running',
+            startedAt: 1_100,
+            completedAt: null,
+            durationMs: null,
+          },
+        ],
+      }
+    );
+
+    expect(model.rows[0]).toMatchObject({
+      id: 'unplanned-work',
+      title: 'Working on this request',
+      status: 'running',
+    });
+    expect(JSON.stringify(model)).not.toContain('"I"');
+  });
+
+  it('projects terminal tool-ledger-only work as a non-task action summary', () => {
     const model = buildAgentTaskRowsFromActivity(undefined, [], {
       presentation: 'chat',
       runOutcome: 'completed',
@@ -173,20 +253,168 @@ describe('Context Lens activity task rows', () => {
     });
 
     expect(model.autoExpandedId).toBeUndefined();
-    expect(model.rows).toHaveLength(1);
-    expect(model.rows[0]).toMatchObject({
-      id: 'unplanned-work',
-      title: 'Completed agent work',
-      subtitle: '2 web fetch actions completed · 1 exec action completed',
-      status: 'completed',
-      meta: '3 actions',
+    expect(model.rows).toEqual([]);
+    expect(model.actionSummary).toEqual({
+      title: 'Actions performed',
+      summary: '2 web fetch actions completed · 1 exec action completed',
+      actionCount: 3,
     });
-    expect(model.rows[0].details).toEqual([
-      {
-        label: 'Actions',
-        value: '2 web fetch actions completed · 1 exec action completed',
+  });
+
+  it('projects durable tool-only activity as an action summary without inventing a task', () => {
+    const model = buildAgentTaskRowsFromActivity(
+      activity({
+        items: [
+          {
+            id: 'fetch-1',
+            kind: 'tool',
+            title: 'web_fetch',
+            name: 'web_fetch',
+            status: 'completed',
+            startedAt: 1_000,
+            updatedAt: 1_100,
+            completedAt: 1_100,
+          },
+          {
+            id: 'plan-1',
+            kind: 'tool',
+            title: 'update_plan',
+            name: 'update_plan',
+            status: 'completed',
+            startedAt: 1_100,
+            updatedAt: 1_200,
+            completedAt: 1_200,
+          },
+        ],
+      }),
+      [],
+      { presentation: 'chat', runOutcome: 'completed' }
+    );
+
+    expect(model).toEqual({
+      rows: [],
+      actionSummary: {
+        title: 'Actions performed',
+        summary: '1 web fetch action completed',
+        actionCount: 1,
       },
-    ]);
+    });
+    expect(JSON.stringify(model)).not.toMatch(/agent work|task/i);
+  });
+
+  it('keeps terminal commentary outside task identity when no plan exists', () => {
+    const model = buildAgentTaskRowsFromActivity(
+      activity({
+        items: [
+          {
+            id: 'commentary-1',
+            kind: 'commentary',
+            title: 'Preamble',
+            progressText: 'Checking current conditions.',
+            status: 'completed',
+            startedAt: 1_000,
+            updatedAt: 1_100,
+            completedAt: 1_100,
+          },
+          {
+            id: 'fetch-1',
+            kind: 'tool',
+            title: 'web_fetch',
+            name: 'web_fetch',
+            status: 'completed',
+            startedAt: 1_200,
+            updatedAt: 1_300,
+            completedAt: 1_300,
+          },
+        ],
+      }),
+      [],
+      { presentation: 'chat', runOutcome: 'completed' }
+    );
+
+    expect(model).toEqual({
+      rows: [],
+      actionSummary: {
+        title: 'Actions performed',
+        summary: '1 web fetch action completed',
+        actionCount: 1,
+      },
+    });
+  });
+
+  it('uses grammatical copy for participant-safe generic actions', () => {
+    const model = buildAgentTaskRowsFromActivity(
+      activity({
+        items: [1, 2].map((index) => ({
+          id: `participant-action-${index}`,
+          kind: 'item' as const,
+          title: 'Action',
+          status: 'completed' as const,
+          startedAt: index,
+          updatedAt: index,
+          completedAt: index,
+        })),
+      }),
+      [],
+      { presentation: 'chat', runOutcome: 'completed' }
+    );
+
+    expect(model).toEqual({
+      rows: [],
+      actionSummary: {
+        title: 'Actions performed',
+        summary: '2 actions completed',
+        actionCount: 2,
+      },
+    });
+  });
+
+  it('keeps distinct action kinds that share one tool call id', () => {
+    const model = buildAgentTaskRowsFromActivity(
+      activity({
+        items: [
+          {
+            id: 'tool-1',
+            toolCallId: 'call-1',
+            kind: 'tool',
+            title: 'bash',
+            name: 'bash',
+            status: 'completed',
+            startedAt: 1,
+            updatedAt: 2,
+            completedAt: 2,
+          },
+          {
+            id: 'patch-1',
+            toolCallId: 'call-1',
+            kind: 'patch',
+            title: 'Apply patch',
+            status: 'completed',
+            startedAt: 1,
+            updatedAt: 2,
+            completedAt: 2,
+          },
+        ],
+      }),
+      [],
+      { presentation: 'chat', runOutcome: 'completed' }
+    );
+
+    expect(model.actionSummary).toEqual({
+      title: 'Actions performed',
+      summary: '1 bash action completed · 1 apply patch action completed',
+      actionCount: 2,
+    });
+  });
+
+  it('does not invent a task when a terminal failure has no activity evidence', () => {
+    const model = buildAgentTaskRowsFromActivity(activity(), [], {
+      presentation: 'chat',
+      runOutcome: 'failed',
+      failureMessage: 'Provider stopped.',
+    });
+
+    expect(model).toEqual({ rows: [] });
   });
 
   it('does not turn planning metadata into a completed task row', () => {
@@ -224,12 +452,13 @@ describe('Context Lens activity task rows', () => {
       ],
     });
 
-    expect(model.rows[0]).toMatchObject({
-      id: 'unplanned-work',
-      title: 'Completed agent work',
-      subtitle: '1 web fetch action completed',
-      status: 'completed',
-      meta: '1 action',
+    expect(model).toEqual({
+      rows: [],
+      actionSummary: {
+        title: 'Actions performed',
+        summary: '1 web fetch action completed',
+        actionCount: 1,
+      },
     });
   });
 
@@ -251,17 +480,324 @@ describe('Context Lens activity task rows', () => {
       ],
     });
 
-    expect(model.rows[0]).toMatchObject({
-      id: 'unplanned-work',
-      title: 'Agent work',
-      subtitle: '1 web fetch action failed',
-      status: 'failed',
-      meta: '1 action',
+    expect(model).toEqual({
+      rows: [],
+      actionSummary: {
+        title: 'Actions performed',
+        summary: '1 web fetch action failed',
+        actionCount: 1,
+      },
     });
-    expect(model.rows[0].details).toEqual([
-      { label: 'Actions', value: '1 web fetch action failed' },
-      { label: 'Error', value: 'Upstream unavailable' },
-    ]);
+  });
+
+  it.each([
+    [
+      'Web fetch failed (403): SECURITY NOTICE: The following content is from an EXTERNAL, UNTRUSTED source. <<<EXTERNAL_UNTRUSTED_CONTENT>>>',
+      'Request blocked by source (403)',
+    ],
+    ['HTTP 429: too many requests', 'Source rate limit reached (429)'],
+    ['connect ETIMEDOUT after 30000ms', 'Request timed out'],
+    ['HTTP 502 Bad Gateway', 'Source temporarily unavailable (502)'],
+    ['getaddrinfo ENOTFOUND api.example.test', 'Network request failed'],
+  ])(
+    'canonicalizes chat tool errors without raw payloads: %s',
+    (error, copy) => {
+      const model = chatModelWithToolError(error);
+
+      expect(model.rows[0].subtitle).toBe(copy);
+      expect(model.rows[0].details).toContainEqual({
+        label: 'Error',
+        value: copy,
+      });
+      expect(JSON.stringify(model)).not.toMatch(
+        /SECURITY NOTICE|EXTERNAL_UNTRUSTED_CONTENT/
+      );
+    }
+  );
+
+  it('does not classify status or keywords found only in untrusted content', () => {
+    const model = chatModelWithToolError(
+      'Web fetch failed: SECURITY NOTICE: EXTERNAL, UNTRUSTED source says HTTP 429 and timeout'
+    );
+
+    expect(model.rows[0].subtitle).toBe('Web fetch failed');
+    expect(model.rows[0].details).toContainEqual({
+      label: 'Error',
+      value: 'Web fetch failed',
+    });
+  });
+
+  it.each(['Agent stopped after 162s', 'Command failed with exit code 137'])(
+    'does not mistake an unrelated number for an HTTP status: %s',
+    (error) => {
+      const model = chatModelWithToolError(error);
+
+      expect(model.rows[0].subtitle).toBe(error);
+    }
+  );
+
+  it('bounds unknown chat errors to one concise line', () => {
+    const model = chatModelWithToolError(
+      `Unexpected provider response\n${'diagnostic '.repeat(40)}`
+    );
+    const error = model.rows[0].details?.find(
+      (detail) => detail.label === 'Error'
+    )?.value;
+
+    expect(error).toBeDefined();
+    expect(error).not.toContain('\n');
+    expect(error!.length).toBeLessThanOrEqual(160);
+    expect(error).toMatch(/…$/);
+  });
+
+  it('sanitizes a raw terminal failure message in chat', () => {
+    const model = buildAgentTaskRowsFromActivity(
+      activity({
+        plan: {
+          updatedAt: 1_000,
+          steps: [{ id: 'fetch', title: 'Fetch sources', status: 'running' }],
+        },
+      }),
+      [],
+      {
+        presentation: 'chat',
+        runOutcome: 'failed',
+        failureMessage:
+          'Web fetch failed (403): SECURITY NOTICE: external tool payload',
+      }
+    );
+
+    expect(model.rows[0]).toMatchObject({
+      status: 'failed',
+      subtitle: 'Request blocked by source (403)',
+      details: [{ label: 'Error', value: 'Request blocked by source (403)' }],
+    });
+  });
+
+  it('retains the raw tool error in inspector diagnostics', () => {
+    const rawError =
+      'Web fetch failed (403): SECURITY NOTICE: external tool payload';
+    const model = buildAgentTaskRowsFromActivity(
+      activity({
+        items: [
+          {
+            id: 'fetch-1',
+            kind: 'tool',
+            title: 'web_fetch',
+            name: 'web_fetch',
+            status: 'error',
+            startedAt: 1_100,
+            updatedAt: 1_200,
+            completedAt: 1_200,
+          },
+        ],
+      }),
+      [],
+      {
+        presentation: 'inspector',
+        toolRuns: [
+          {
+            id: 'fetch-1',
+            name: 'web_fetch',
+            status: 'error',
+            startedAt: 1_100,
+            completedAt: 1_200,
+            durationMs: 100,
+            error: rawError,
+          },
+        ],
+      }
+    );
+
+    expect(model.rows[0].details).toContainEqual({
+      label: 'Error',
+      value: rawError,
+    });
+  });
+
+  it('keeps a completed unplanned run completed when one child action fails', () => {
+    const rawError =
+      'Web fetch failed (403): SECURITY NOTICE: external tool payload';
+    const model = buildAgentTaskRowsFromActivity(
+      activity({
+        items: [
+          {
+            id: 'commentary-1',
+            kind: 'commentary',
+            title: 'Preamble',
+            progressText: 'Checked the available sources.',
+            status: 'completed',
+            startedAt: 1_000,
+            updatedAt: 1_100,
+            completedAt: 1_100,
+          },
+          {
+            id: 'fetch-1',
+            kind: 'tool',
+            title: 'web_fetch',
+            name: 'web_fetch',
+            status: 'error',
+            startedAt: 1_200,
+            updatedAt: 1_300,
+            completedAt: 1_300,
+          },
+        ],
+      }),
+      [],
+      {
+        presentation: 'chat',
+        runOutcome: 'completed',
+        toolRuns: [
+          {
+            id: 'fetch-1',
+            name: 'web_fetch',
+            status: 'error',
+            startedAt: 1_200,
+            completedAt: 1_300,
+            durationMs: 100,
+            error: rawError,
+          },
+        ],
+      }
+    );
+
+    expect(model).toEqual({
+      rows: [],
+      actionSummary: {
+        title: 'Actions performed',
+        summary: '1 web fetch action failed',
+        actionCount: 1,
+      },
+    });
+    expect(JSON.stringify(model)).not.toContain('SECURITY NOTICE');
+  });
+
+  it('does not invent a task from commentary when the run fails', () => {
+    const model = buildAgentTaskRowsFromActivity(
+      activity({
+        items: [
+          {
+            id: 'commentary-1',
+            kind: 'commentary',
+            title: 'Preamble',
+            progressText: 'Fetching current conditions.',
+            status: 'completed',
+            startedAt: 1_000,
+            updatedAt: 1_100,
+            completedAt: 1_100,
+          },
+        ],
+      }),
+      [],
+      {
+        presentation: 'chat',
+        runOutcome: 'failed',
+        failureMessage: 'HTTP 504 Gateway Timeout',
+      }
+    );
+
+    expect(model).toEqual({ rows: [] });
+  });
+
+  it('does not promote a terminal streaming commentary fragment into a task', () => {
+    const model = buildAgentTaskRowsFromActivity(
+      activity({
+        items: [
+          {
+            id: 'commentary-1',
+            kind: 'commentary',
+            title: 'Preamble',
+            progressText: 'I',
+            status: 'running',
+            startedAt: 1_000,
+            updatedAt: 1_001,
+            completedAt: null,
+          },
+        ],
+      }),
+      [],
+      { presentation: 'chat', runOutcome: 'completed' }
+    );
+
+    expect(model).toEqual({ rows: [] });
+  });
+
+  it('settles commentary-backed incomplete work without leaving a spinner', () => {
+    const model = buildAgentTaskRowsFromActivity(
+      activity({
+        items: [
+          {
+            id: 'commentary-1',
+            kind: 'commentary',
+            title: 'Preamble',
+            progressText: 'Checking archive coverage.',
+            status: 'completed',
+            startedAt: 1_000,
+            updatedAt: 1_100,
+            completedAt: 1_100,
+          },
+        ],
+      }),
+      [],
+      { presentation: 'chat', runOutcome: 'incomplete' }
+    );
+
+    expect(model).toEqual({ rows: [] });
+    expect(model.autoExpandedId).toBeUndefined();
+  });
+
+  it.each([
+    ['incomplete', '1 web fetch action not finished'],
+    ['unavailable', '1 web fetch action status unavailable'],
+  ] as const)(
+    'uses truthful terminal action copy for %s work',
+    (runOutcome, summary) => {
+      const model = buildAgentTaskRowsFromActivity(activity(), [], {
+        presentation: 'chat',
+        runOutcome,
+        toolRuns: [
+          {
+            id: 'fetch-1',
+            name: 'web_fetch',
+            status: 'running',
+            startedAt: 1_000,
+            completedAt: null,
+            durationMs: null,
+          },
+        ],
+      });
+
+      expect(model).toEqual({
+        rows: [],
+        actionSummary: {
+          title: 'Actions performed',
+          summary,
+          actionCount: 1,
+        },
+      });
+    }
+  );
+
+  it('does not count an error event as an action', () => {
+    const model = buildAgentTaskRowsFromActivity(
+      activity({
+        items: [
+          {
+            id: 'error-1',
+            kind: 'error',
+            title: 'Provider error',
+            status: 'error',
+            startedAt: 1_000,
+            updatedAt: 1_100,
+            completedAt: 1_100,
+          },
+        ],
+      }),
+      [],
+      { presentation: 'chat', runOutcome: 'failed' }
+    );
+
+    expect(model).toEqual({ rows: [] });
   });
 
   it('keeps plan steps stable and nests commentary and tools as details', () => {
@@ -607,6 +1143,7 @@ describe('Context Lens activity task rows', () => {
       'pending',
     ]);
     expect(model.rows[2].subtitle).toBe('Not started');
+    expect(model.autoExpandedId).toBeUndefined();
   });
 
   it('keeps unfinished work open when a completed turn is waiting on the user', () => {

@@ -226,41 +226,174 @@ function hasRestorableStructuredActivity(
   activity: ContextLensEvent['lens']['activity']
 ) {
   return Boolean(
-    activity?.plan != null || hasStructuredAgentChatActivity(activity)
+    activity?.plan?.steps.length || hasStructuredAgentChatActivity(activity)
   );
+}
+
+type AgentChatActivity = NonNullable<ContextLensEvent['lens']['activity']>;
+
+/**
+ * Activity snapshots are cumulative in the normal case, but terminal payload
+ * compaction can omit older items. Preserve their original order while letting
+ * the newest representation of a stable item win.
+ */
+function mergeActivityItems(
+  older: AgentChatActivity['items'],
+  newer: AgentChatActivity['items']
+) {
+  const claimedNewerIndexes = new Set<number>();
+  const merged = older.map((olderItem) => {
+    let newerIndex = newer.findIndex(
+      (candidate, index) =>
+        !claimedNewerIndexes.has(index) && candidate.id === olderItem.id
+    );
+    if (newerIndex < 0 && olderItem.toolCallId != null) {
+      newerIndex = newer.findIndex(
+        (candidate, index) =>
+          !claimedNewerIndexes.has(index) &&
+          candidate.kind === olderItem.kind &&
+          candidate.toolCallId === olderItem.toolCallId
+      );
+    }
+    if (newerIndex < 0) return olderItem;
+    claimedNewerIndexes.add(newerIndex);
+    const newerItem = newer[newerIndex]!;
+    return newerItem.updatedAt >= olderItem.updatedAt ? newerItem : olderItem;
+  });
+  for (const [index, newerItem] of newer.entries()) {
+    if (!claimedNewerIndexes.has(index)) merged.push(newerItem);
+  }
+  return merged;
+}
+
+function mergeTerminalPlan(
+  prior: AgentChatActivity['plan'] | undefined,
+  current: AgentChatActivity['plan']
+) {
+  if (prior == null) return current;
+  if (current === prior) return prior;
+  // A live empty-plan revision is an explicit identity tombstone. Terminal
+  // compaction must not resurrect a task set the user already saw disappear.
+  if (!prior.steps.length) return prior;
+  if (!current?.steps.length) return prior;
+  // Lifecycle snapshots can arrive later while carrying older embedded plan
+  // data. Only a plan revision at least as fresh may update task statuses.
+  if (current.updatedAt < prior.updatedAt) return prior;
+
+  const currentById = new Map(current.steps.map((step) => [step.id, step]));
+  return {
+    ...prior,
+    updatedAt: Math.max(prior.updatedAt, current.updatedAt),
+    // A terminal update may carry fresher statuses, but task identity belongs
+    // to the plan the user already saw while the run was live.
+    steps: prior.steps.map((step) => ({
+      ...step,
+      status: currentById.get(step.id)?.status ?? step.status,
+    })),
+  };
 }
 
 function preserveStructuredEvidence(
   latest: ContextLensEvent,
-  history: readonly ContextLensEvent[]
+  history: readonly ContextLensEvent[],
+  options: {
+    currentPlanIsAuthoritative?: boolean;
+    previousEvidence?: ContextLensEvent;
+  } = {}
 ): ContextLensEvent {
-  const newestFirst = [...history].sort(compareRunEvents).reverse();
   const currentActivity = latest.lens.activity;
-  const currentActivityIsStructurallyEmpty =
-    currentActivity != null &&
-    currentActivity.plan == null &&
-    currentActivity.items.length === 0;
-  const mayRecoverEmptyActivity =
-    currentActivity == null ||
+  const mayRecoverTerminalActivity =
     !isContextLensEventActive(latest) ||
     latest.phase === 'final-reply-delivered';
-  if (
-    (!currentActivityIsStructurallyEmpty && currentActivity != null) ||
-    !mayRecoverEmptyActivity
-  ) {
+  if (!mayRecoverTerminalActivity) {
     return latest;
   }
-  const activitySource = newestFirst.find((event) =>
-    hasRestorableStructuredActivity(event.lens.activity)
-  )?.lens.activity;
+
+  const priorEntries = history
+    .filter((event) => event !== latest && compareRunEvents(event, latest) <= 0)
+    .sort(compareRunEvents)
+    .flatMap((event) =>
+      event.lens.activity ? [{ event, activity: event.lens.activity }] : []
+    );
+  const priorActivities = priorEntries.map((entry) => entry.activity);
+  const newestPriorFirst = [...priorActivities].reverse();
+  const activitySource =
+    (hasRestorableStructuredActivity(currentActivity)
+      ? currentActivity
+      : undefined) ?? newestPriorFirst.find(hasRestorableStructuredActivity);
   if (!activitySource) {
     return latest;
   }
+
+  const currentHasPlanSteps = Boolean(currentActivity?.plan?.steps.length);
+  const currentHasItems = Boolean(currentActivity?.items.length);
+  if (
+    !currentHasPlanSteps &&
+    !currentHasItems &&
+    !(options.currentPlanIsAuthoritative && currentActivity?.plan != null) &&
+    priorActivities.length === 1
+  ) {
+    return {
+      ...latest,
+      lens: {
+        ...latest.lens,
+        activity: priorActivities[0],
+      },
+    };
+  }
+
+  const freshestPlan = (
+    plans: readonly (AgentChatActivity['plan'] | undefined)[]
+  ) =>
+    plans.reduce<NonNullable<AgentChatActivity['plan']> | undefined>(
+      (freshest, candidate) => {
+        if (!candidate) return freshest;
+        return !freshest || candidate.updatedAt >= freshest.updatedAt
+          ? candidate
+          : freshest;
+      },
+      undefined
+    );
+  const activeIdentityPlan = freshestPlan(
+    priorEntries
+      .filter(({ event }) => isContextLensEventActive(event))
+      .map(({ activity }) => activity.plan ?? undefined)
+  );
+  const previousIdentityPlan = options.previousEvidence?.lens.activity?.plan;
+  const terminalFallbackPlan = freshestPlan(
+    priorEntries.map(({ activity }) => activity.plan ?? undefined)
+  );
+  const identityPlan =
+    options.currentPlanIsAuthoritative && currentActivity?.plan != null
+      ? currentActivity.plan
+      : activeIdentityPlan ??
+        previousIdentityPlan ??
+        terminalFallbackPlan ??
+        currentActivity?.plan ??
+        undefined;
+  const statusPlan = freshestPlan([
+    ...priorEntries.map(({ activity }) => activity.plan ?? undefined),
+    options.previousEvidence?.lens.activity?.plan ?? undefined,
+    currentActivity?.plan ?? undefined,
+  ]);
+  const mergedPlan = mergeTerminalPlan(identityPlan, statusPlan ?? null);
+  const mergedItems = [
+    ...priorActivities,
+    currentActivity ?? activitySource,
+  ].reduce<AgentChatActivity['items']>(
+    (items, activity) => mergeActivityItems(items, activity.items),
+    []
+  );
+  const mergedActivity: AgentChatActivity = {
+    ...(currentActivity ?? activitySource),
+    plan: mergedPlan,
+    items: mergedItems,
+  };
   return {
     ...latest,
     lens: {
       ...latest.lens,
-      activity: activitySource,
+      activity: mergedActivity,
     },
   };
 }
@@ -356,6 +489,7 @@ export function buildAgentChatRunAssignments(
 
   const latestByLensId = new Map<string, ContextLensEvent>();
   const evidenceHistoryByLensId = new Map<string, ContextLensEvent[]>();
+  const previousEvidenceByLensId = new Map<string, ContextLensEvent>();
   for (const [lensId, lensEvents] of eventsByLensId) {
     const currentLatest = [...lensEvents].sort(compareRunEvents).at(-1)!;
     const previousEvent = latestAssignedEvent(previous, lensId);
@@ -367,8 +501,14 @@ export function buildAgentChatRunAssignments(
     if (!history.some(shouldShowAgentChatRun) && !previousEvent) {
       continue;
     }
+    if (previousEvent) previousEvidenceByLensId.set(lensId, previousEvent);
     evidenceHistoryByLensId.set(lensId, history);
-    latestByLensId.set(lensId, preserveStructuredEvidence(latest, history));
+    latestByLensId.set(
+      lensId,
+      preserveStructuredEvidence(latest, history, {
+        previousEvidence: previousEvent,
+      })
+    );
   }
 
   const postIds = new Set(posts.map((post) => post.id));
@@ -546,10 +686,32 @@ export function buildAgentChatRunAssignments(
         retryAnchor ??
         triggerPostId,
       finalReplyDelivered
-        ? preserveStructuredEvidence(
-            finalChatProjection(event, stampedOutput?.outcome ?? 'completed'),
-            evidenceHistoryByLensId.get(event.lens.lensId) ?? [event]
-          )
+        ? (() => {
+            const projected = finalChatProjection(
+              event,
+              stampedOutput?.outcome ?? 'completed'
+            );
+            // Terminal events were already reconciled above. Reprocessing the
+            // cloned final projection would admit its equal-version raw event
+            // as "prior" evidence and could replace live task identity. An
+            // active, structurally empty snapshot is the one exception: a
+            // final post can race ahead of its folded activity, so recover from
+            // strictly earlier evidence while retaining the delivered state.
+            return isContextLensEventActive(event)
+              ? preserveStructuredEvidence(
+                  projected,
+                  (
+                    evidenceHistoryByLensId.get(event.lens.lensId) ?? [event]
+                  ).filter((candidate) => candidate !== event),
+                  {
+                    currentPlanIsAuthoritative: true,
+                    previousEvidence: previousEvidenceByLensId.get(
+                      event.lens.lensId
+                    ),
+                  }
+                )
+              : projected;
+          })()
         : event
     );
   }

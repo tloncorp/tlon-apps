@@ -18,7 +18,7 @@ import {
   buildAgentTaskRowsFromActivity,
   compactWaitingTaskRows,
 } from './activityRows';
-import { agentChatWaitingLabel } from './activitySemantics';
+import { agentChatWaitingLabel, isPlanningToolName } from './activitySemantics';
 import { activateAgentControlFromKeyboard } from './keyboardControl';
 import { agentChatRunOutcome } from './runOutcome';
 import {
@@ -260,15 +260,17 @@ export function AgentChatActivityReceipt({
     outcome === 'waiting' && !showQueuedSteps
       ? waitingProjection.rows
       : model.rows;
-  const expandable = visibleRows.length > 0;
+  const expandable = visibleRows.length > 0 || model.actionSummary != null;
   const succeeded = finalRunSucceeded(event);
   const count = model.rows.length;
+  const actionCount = model.actionSummary?.actionCount ?? 0;
   const incompleteCount = model.rows.filter(
     (row) => row.status !== 'completed'
   ).length;
   const completedActions =
-    event.lens.tools.runs?.filter((run) => run.status === 'completed').length ??
-    0;
+    event.lens.tools.runs?.filter(
+      (run) => run.status === 'completed' && !isPlanningToolName(run.name)
+    ).length ?? 0;
   const duration =
     event.lens.lifecycle.durationMs == null
       ? null
@@ -287,11 +289,13 @@ export function AgentChatActivityReceipt({
       ? queuedCount
         ? `${queuedCount} queued`
         : '1 response'
-      : outcome === 'incomplete'
+      : outcome === 'incomplete' && count
         ? `${incompleteCount} incomplete`
         : count
           ? `${count} ${count === 1 ? 'task' : 'tasks'}`
-          : null,
+          : actionCount
+            ? `${actionCount} ${actionCount === 1 ? 'action' : 'actions'}`
+            : null,
     duration,
   ]
     .filter(Boolean)
@@ -446,12 +450,28 @@ export function AgentChatActivityReceipt({
               Activity details unavailable
             </SizableText>
           ) : null}
-          <AgentTaskRows
-            rows={visibleRows}
-            variant="list"
-            autoExpandedId={model.autoExpandedId}
-            testID="agent-chat-completed-tasks"
-          />
+          {model.actionSummary ? (
+            <YStack
+              gap="$2xs"
+              paddingHorizontal="$m"
+              paddingVertical="$s"
+              testID="agent-chat-actions-summary"
+            >
+              <SizableText size="$s" color="$primaryText">
+                {model.actionSummary.title}
+              </SizableText>
+              <SizableText size="$xs" color="$secondaryText">
+                {model.actionSummary.summary}
+              </SizableText>
+            </YStack>
+          ) : (
+            <AgentTaskRows
+              rows={visibleRows}
+              variant="list"
+              autoExpandedId={model.autoExpandedId}
+              testID="agent-chat-completed-tasks"
+            />
+          )}
           {outcome === 'waiting' && model.rows.length > 1 ? (
             <XStack
               minHeight={44}

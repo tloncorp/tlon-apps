@@ -17,6 +17,12 @@ import {
 
 export type AgentTaskRowsModel = {
   rows: AgentTaskRow[];
+  /** Terminal tool-ledger evidence shown without inventing a task or plan. */
+  actionSummary?: {
+    title: 'Actions performed';
+    summary: string;
+    actionCount: number;
+  };
   autoExpandedId?: string;
 };
 
@@ -135,6 +141,78 @@ function durationText(durationMs: number) {
 function itemDuration(item: ContextLensActivityItem) {
   if (item.completedAt == null) return null;
   return durationText(Math.max(0, item.completedAt - item.startedAt));
+}
+
+const MAX_CHAT_ERROR_LENGTH = 160;
+
+/**
+ * Tool/provider errors can contain multiline debug payloads, including the
+ * external-content safety wrapper used by web tools. Chat only needs a stable,
+ * user-facing reason; the inspector retains the original diagnostic string.
+ */
+function chatErrorText(value: string) {
+  const singleLine = Array.from(value)
+    .map((character) => {
+      const codePoint = character.charCodeAt(0);
+      return codePoint < 32 || codePoint === 127 ? ' ' : character;
+    })
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const wrapperIndex = singleLine.search(
+    /\bsecurity notice\b|<<<\s*external_untrusted_content\b|\bexternal,\s*untrusted\b|\bdo not treat any part of this content\b/i
+  );
+  const safePrefix = (
+    wrapperIndex >= 0 ? singleLine.slice(0, wrapperIndex) : singleLine
+  )
+    .replace(/[\s:;,\-–—]+$/g, '')
+    .trim();
+  const lower = safePrefix.toLowerCase();
+  const statusCode =
+    safePrefix.match(
+      /\b(?:web\s+fetch|fetch|request|http)\b[^()]{0,80}\(([1-5]\d{2})\)/i
+    )?.[1] ??
+    safePrefix.match(
+      /\b(?:http(?:\s+status)?|status(?:\s+code)?|response\s+status)\s*[:=]?\s*([1-5]\d{2})\b/i
+    )?.[1];
+
+  if (statusCode === '400') return 'Source rejected the request (400)';
+  if (statusCode === '401') return 'Source authentication required (401)';
+  if (statusCode === '403') return 'Request blocked by source (403)';
+  if (statusCode === '404') return 'Requested source not found (404)';
+  if (statusCode === '408') return 'Request timed out (408)';
+  if (statusCode === '409') return 'Request conflicted with source state (409)';
+  if (statusCode === '410') {
+    return 'Requested source is no longer available (410)';
+  }
+  if (statusCode === '413') return 'Request was too large (413)';
+  if (statusCode === '422') return 'Source could not process the request (422)';
+  if (statusCode === '429') return 'Source rate limit reached (429)';
+  if (statusCode?.startsWith('5')) {
+    return `Source temporarily unavailable (${statusCode})`;
+  }
+  if (statusCode) return `Request failed (${statusCode})`;
+
+  if (/\b(?:timed?\s*out|timeout|etimedout)\b/.test(lower)) {
+    return 'Request timed out';
+  }
+  if (/\b(?:rate[ -]?limit(?:ed)?|too many requests)\b/.test(lower)) {
+    return 'Source rate limit reached';
+  }
+  if (/\b(?:forbidden|access denied|permission denied)\b/.test(lower)) {
+    return 'Request blocked by source';
+  }
+  if (
+    /\b(?:network error|network request failed|econnreset|econnrefused|enotfound|dns)\b/.test(
+      lower
+    )
+  ) {
+    return 'Network request failed';
+  }
+
+  const safeText = safePrefix || 'External source request failed';
+  if (safeText.length <= MAX_CHAT_ERROR_LENGTH) return safeText;
+  return `${safeText.slice(0, MAX_CHAT_ERROR_LENGTH - 1).trimEnd()}…`;
 }
 
 function compactValue(value: unknown): string {
@@ -429,14 +507,18 @@ function fallbackTitle(item: ContextLensActivityItem) {
 function uniqueActionItems(items: readonly ContextLensActivityItem[]) {
   const byIdentity = new Map<string, ContextLensActivityItem>();
   for (const item of items) {
+    const isParticipantSafeAction =
+      item.kind === 'item' && /^actions?$/i.test(item.title.trim());
     if (
-      item.kind === 'commentary' ||
+      (!['tool', 'command', 'patch'].includes(item.kind) &&
+        !isParticipantSafeAction) ||
       isGenericReasoning(item) ||
-      isContextCompaction(item)
+      isContextCompaction(item) ||
+      isPlanningToolName(item.name ?? item.title)
     ) {
       continue;
     }
-    const identity = item.toolCallId ?? item.id;
+    const identity = `${item.kind}:${item.toolCallId ?? item.id}`;
     const existing = byIdentity.get(identity);
     if (!existing || item.updatedAt >= existing.updatedAt) {
       byIdentity.set(identity, item);
@@ -456,9 +538,21 @@ function latestCommentaryText(items: readonly ContextLensActivityItem[]) {
   return value === 'Preamble' || value === 'Progress' ? null : value;
 }
 
+function hasStableCommentaryIdentity(
+  items: readonly ContextLensActivityItem[]
+) {
+  return items.some(
+    (item) =>
+      item.kind === 'commentary' &&
+      item.status === 'completed' &&
+      latestCommentaryText([item]) != null
+  );
+}
+
 function actionGroupSummary(
   items: readonly ContextLensActivityItem[],
-  waitingLabel: AgentTaskRow['waitingLabel'] = 'Waiting on you'
+  waitingLabel: AgentTaskRow['waitingLabel'] = 'Waiting on you',
+  labels: { running?: string; pending?: string } = {}
 ) {
   const groups = new Map<
     string,
@@ -493,22 +587,30 @@ function actionGroupSummary(
 
   const summaries = [...groups.entries()].map(([label, group]) => {
     const actionLabel = `${label.charAt(0).toLowerCase()}${label.slice(1)}`;
-    const prefix = `${group.count} ${actionLabel} ${group.count === 1 ? 'action' : 'actions'}`;
+    const prefix = /^(?:an?\s+)?actions?$/i.test(label.trim())
+      ? `${group.count} ${group.count === 1 ? 'action' : 'actions'}`
+      : `${group.count} ${actionLabel} ${group.count === 1 ? 'action' : 'actions'}`;
     const states = [
       group.completed ? `${group.completed} done` : null,
-      group.running ? `${group.running} running` : null,
+      group.running ? `${group.running} ${labels.running ?? 'running'}` : null,
       group.waiting ? `${group.waiting} ${waitingLabel.toLowerCase()}` : null,
       group.failed ? `${group.failed} failed` : null,
-      group.pending ? `${group.pending} not started` : null,
+      group.pending
+        ? `${group.pending} ${labels.pending ?? 'not started'}`
+        : null,
     ].filter(Boolean);
     if (states.length === 1) {
       if (group.completed === group.count) return `${prefix} completed`;
-      if (group.running === group.count) return `${prefix} running`;
+      if (group.running === group.count) {
+        return `${prefix} ${labels.running ?? 'running'}`;
+      }
       if (group.waiting === group.count) {
         return `${prefix} ${waitingLabel.toLowerCase()}`;
       }
       if (group.failed === group.count) return `${prefix} failed`;
-      if (group.pending === group.count) return `${prefix} not started`;
+      if (group.pending === group.count) {
+        return `${prefix} ${labels.pending ?? 'not started'}`;
+      }
     }
     return `${prefix}: ${states.join(' · ')}`;
   });
@@ -541,17 +643,18 @@ function latestErrorText(
     .filter(
       (item) =>
         item.kind === 'error' ||
-        item.status === 'error' ||
-        item.status === 'blocked' ||
-        item.status === 'cancelled'
+        (['tool', 'command', 'patch'].includes(item.kind) &&
+          (item.status === 'error' ||
+            item.status === 'blocked' ||
+            item.status === 'cancelled'))
     )
     .sort((left, right) => right.updatedAt - left.updatedAt)[0];
   if (!errorItem) return null;
-  return (
+  const error =
     toolRunForItem(errorItem, toolRuns)?.error ??
     errorItem.progressText ??
-    (errorItem.kind === 'tool' ? null : itemValue(errorItem))
-  );
+    (errorItem.kind === 'tool' ? null : itemValue(errorItem));
+  return error ? chatErrorText(error) : null;
 }
 
 function chatSubtitle(
@@ -565,7 +668,9 @@ function chatSubtitle(
   if (error) return error;
   if (status === 'completed') return completedWorkSummary(items);
   if (status === 'failed') {
-    return failureMessage ?? 'Stopped before completion';
+    return failureMessage
+      ? chatErrorText(failureMessage)
+      : 'Stopped before completion';
   }
   if (status === 'waiting') return waitingLabel;
   if (status === 'pending') return 'Not started';
@@ -612,7 +717,7 @@ function chatDetailsForItems(
   if (ownsRunFailure && !error) {
     details.push(
       failureMessage
-        ? { label: 'Error', value: failureMessage }
+        ? { label: 'Error', value: chatErrorText(failureMessage) }
         : {
             label: 'Outcome',
             value: 'The run ended before this task produced a reply.',
@@ -728,6 +833,8 @@ export function buildAgentTaskRowsFromActivity(
     else liveItems.push(item);
   }
 
+  const hasNarrativeTaskIdentity = hasStableCommentaryIdentity(liveItems);
+
   // Some durable terminal snapshots predate folded activity but still retain
   // the authoritative tool ledger. Rebuild only the missing action items so a
   // completed receipt can disclose real work without inventing a plan.
@@ -760,6 +867,36 @@ export function buildAgentTaskRowsFromActivity(
   const effectiveActivity = { ...sourceActivity, items: effectiveItems };
 
   const plan = effectiveActivity.plan;
+  const isUnplannedTerminalChat =
+    presentation === 'chat' &&
+    runOutcome !== 'active' &&
+    runOutcome !== 'waiting' &&
+    !plan?.steps.length;
+  if (isUnplannedTerminalChat) {
+    const summaryItems =
+      runOutcome === 'incomplete' ? reconciledItems : effectiveItems;
+    const actionItems = summaryItems.filter(
+      (item) => !isGenericReasoning(item) && !isContextCompaction(item)
+    );
+    const actionCount = uniqueActionItems(actionItems).length;
+    const summary = actionGroupSummary(actionItems, waitingLabel, {
+      ...(runOutcome === 'incomplete' ? { running: 'not finished' } : {}),
+      ...(runOutcome === 'unavailable'
+        ? { running: 'status unavailable', pending: 'status unavailable' }
+        : {}),
+    });
+    if (actionCount && summary) {
+      return {
+        rows: [],
+        actionSummary: {
+          title: 'Actions performed',
+          summary,
+          actionCount,
+        },
+      };
+    }
+    return { rows: [] };
+  }
   if (
     activityWasMissing &&
     !plan?.steps.length &&
@@ -923,27 +1060,28 @@ export function buildAgentTaskRowsFromActivity(
       (item) => taskStatus(item.status) === 'running'
     );
     const status: AgentTaskStatus =
-      runOutcome === 'failed' || failedItem
+      runOutcome === 'failed'
         ? 'failed'
-        : runOutcome === 'waiting'
-          ? 'waiting'
-          : runOutcome === 'unavailable'
-            ? 'pending'
-            : runOutcome === 'completed'
-              ? 'completed'
-              : runningItem || items.length
-                ? 'running'
-                : 'pending';
+        : runOutcome === 'completed'
+          ? 'completed'
+          : runOutcome === 'waiting'
+            ? 'waiting'
+            : runOutcome === 'incomplete' || runOutcome === 'unavailable'
+              ? 'pending'
+              : failedItem
+                ? 'failed'
+                : runningItem || items.length
+                  ? 'running'
+                  : 'pending';
     const title =
-      latestCommentaryText(items) ??
-      (status === 'completed'
-        ? 'Completed agent work'
-        : status === 'failed'
-          ? 'Agent work'
-          : status === 'pending'
-            ? 'Preparing this request'
-            : 'Working on this request');
+      (hasNarrativeTaskIdentity ? latestCommentaryText(items) : null) ??
+      (status === 'pending'
+        ? 'Preparing this request'
+        : 'Working on this request');
     const actionCount = uniqueActionItems(items).length;
+    const detailItems = hasNarrativeTaskIdentity
+      ? items
+      : items.filter((item) => item.kind !== 'commentary');
     rows = [
       {
         id: 'unplanned-work',
@@ -952,16 +1090,18 @@ export function buildAgentTaskRowsFromActivity(
         subtitle:
           runOutcome === 'unavailable'
             ? 'Status unavailable'
-            : actionGroupSummary(items, waitingLabel) ||
-              (status === 'running'
-                ? 'Waiting for a task plan'
-                : chatSubtitle(
-                    items,
-                    status,
-                    toolRuns,
-                    options.failureMessage,
-                    waitingLabel
-                  )),
+            : runOutcome === 'incomplete'
+              ? 'Not finished'
+              : actionGroupSummary(items, waitingLabel) ||
+                (status === 'running'
+                  ? 'Waiting for a task plan'
+                  : chatSubtitle(
+                      items,
+                      status,
+                      toolRuns,
+                      options.failureMessage,
+                      waitingLabel
+                    )),
         status,
         ...(status === 'waiting' ? { waitingLabel } : {}),
         ...(actionCount
@@ -970,7 +1110,7 @@ export function buildAgentTaskRowsFromActivity(
             }
           : {}),
         details: chatDetailsForItems(
-          items,
+          detailItems,
           status,
           toolRuns,
           undefined,
@@ -1066,12 +1206,14 @@ export function buildAgentTaskRowsFromActivity(
     }));
   }
 
-  const autoExpandedId = [...rows]
-    .reverse()
-    .find((row) =>
-      runOutcome === 'failed'
-        ? row.status === 'failed'
-        : row.status === 'running' || row.status === 'waiting'
-    )?.id;
+  const autoExpandedId = [...rows].reverse().find((row) => {
+    if (presentation === 'inspector' && runOutcome === 'failed') {
+      return row.status === 'failed';
+    }
+    return (
+      (runOutcome === 'active' || runOutcome === 'waiting') &&
+      (row.status === 'running' || row.status === 'waiting')
+    );
+  })?.id;
   return { rows, ...(autoExpandedId ? { autoExpandedId } : {}) };
 }

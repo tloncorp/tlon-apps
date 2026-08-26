@@ -261,7 +261,7 @@ function participantActivity(
       items.push({
         id: `${step.id}:participant-action:${index + 1}`,
         kind: 'item',
-        title: 'Agent work',
+        title: 'Action',
         status,
         planStepId: step.id,
         startedAt: projection.createdAt,
