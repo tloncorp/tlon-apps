@@ -686,7 +686,7 @@ export function ChannelOptionsSheetContent({
       createActionGroups(
         [
           'neutral',
-          {
+          utils.channelSupportsNotifications(channel) && {
             title: group ? 'Channel notifications' : 'Chat notifications',
             description: notificationTitle,
             endIcon: 'ChevronRight',

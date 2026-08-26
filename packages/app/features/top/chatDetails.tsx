@@ -33,7 +33,11 @@ import {
   useIsAdmin,
 } from '../../ui';
 import { ConnectionIndicatorAction } from '../../ui/components/ConnectionStatus';
-import { getChannelActionCapabilities, getChannelHost } from '../../ui/utils';
+import {
+  channelSupportsNotifications,
+  getChannelActionCapabilities,
+  getChannelHost,
+} from '../../ui/utils';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 // Utility functions
@@ -427,7 +431,7 @@ export function SettingsSection({
   }, [entityType, group, channel, onPressChatVolume]);
 
   const actions = useMemo(() => {
-    const supportsNotifications = channel?.type !== 'buckets';
+    const supportsNotifications = channelSupportsNotifications(channel);
     const notificationAction: SettingsActionProps = {
       title: 'Notifications',
       description: notificationTitle,

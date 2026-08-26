@@ -115,9 +115,14 @@ export default function ChannelScreen(props: Props) {
   const notesActivityCapabilitiesEpoch =
     channel?.type === 'notes' ? activityCapabilitiesEpoch : 0;
 
+  // Buckets keep no unread state: nothing posts to them and nothing marks
+  // them read, so each piece of unread work below is inapplicable rather
+  // than merely unnecessary. Asked once, since it was three spellings of
+  // the same question and one of them was missed on the first pass.
+  const channelTracksUnreads = channel?.type !== 'buckets';
+
   useEffect(() => {
-    // A Bucket has no posts, so it has no thread unreads to sync.
-    if (channelIsPending || channel?.type === 'buckets') {
+    if (channelIsPending || !channelTracksUnreads) {
       return;
     }
 
@@ -135,7 +140,7 @@ export default function ChannelScreen(props: Props) {
 
     return () => abortController.abort();
   }, [
-    channel?.type,
+    channelTracksUnreads,
     channelIsPending,
     channelId,
     notesActivityCapabilitiesEpoch,
@@ -285,7 +290,7 @@ export default function ChannelScreen(props: Props) {
       unreadDidInitialize &&
       !!channel &&
       !channel.isPendingChannel &&
-      channel.type !== 'buckets',
+      channelTracksUnreads,
     channelId: currentChannelId,
     count: 30,
     filterDeleted: !includeDeletedPosts,
@@ -463,7 +468,7 @@ export default function ChannelScreen(props: Props) {
       unreadDidInitialize &&
       channel &&
       !channel.isPendingChannel &&
-      channel.type !== 'buckets'
+      channelTracksUnreads
     ) {
       store.markChannelRead({
         id: channel.id,

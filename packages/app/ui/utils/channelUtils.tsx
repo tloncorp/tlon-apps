@@ -95,6 +95,19 @@ export function useChatDescription(
   return null;
 }
 
+/**
+ * Whether a channel's notification volume means anything.
+ *
+ * Volume settings route through %activity, and a Bucket has no activity or
+ * unread protocol for them to act on — offering the setting presents a
+ * control that cannot do anything.
+ */
+export function channelSupportsNotifications(
+  channel?: db.Channel | null
+): boolean {
+  return channel?.type !== 'buckets';
+}
+
 export function getChannelActionCapabilities(channel?: db.Channel | null): {
   canDelete: boolean;
   canLeave: boolean;
