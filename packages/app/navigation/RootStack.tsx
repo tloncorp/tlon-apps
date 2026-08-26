@@ -1,9 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import {
-  type NativeStackScreenProps,
-  createNativeStackNavigator,
-} from '@react-navigation/native-stack';
-import { useLayoutEffect } from 'react';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Platform, StatusBar } from 'react-native';
 
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
@@ -49,6 +45,7 @@ import { useAgentGroupOnboardingStartupRoute } from '../hooks/useAgentGroupOnboa
 import { useFeatureFlag } from '../lib/featureFlags';
 import { useTheme } from '../ui';
 import { GroupSettingsStack } from './GroupSettingsStack';
+import { OnboardingStartupScreen } from './OnboardingStartupScreen';
 import { TopLevelTabNavigator } from './TopLevelTabNavigator';
 import { nativeHeaderPresentationOptions } from './nativeHeaderOptions';
 import type { RootStackParamList } from './types';
@@ -60,26 +57,6 @@ const Root = createNativeStackNavigator<RootStackParamList>();
 const nativeHeaderScreenOptions = {
   headerShown: Platform.OS !== 'web',
 } as const;
-
-function OnboardingStartupScreen({
-  navigation,
-  route,
-}: NativeStackScreenProps<RootStackParamList, 'OnboardingStartup'>) {
-  useLayoutEffect(() => {
-    navigation.reset({
-      index: 1,
-      routes: [
-        { name: 'MainTabs' },
-        {
-          name: 'Channel',
-          params: { ...route.params, disableTransition: true },
-        },
-      ],
-    });
-  }, [navigation, route.params]);
-
-  return null;
-}
 
 export function RootStack() {
   const isDarkMode = useIsDarkMode();

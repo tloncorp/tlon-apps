@@ -18,19 +18,13 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react';
-import { BackHandler } from 'react-native';
 
-import { useAgentGroupOnboardingLock } from '../../hooks/useAgentGroupOnboardingLock';
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { usePushNotifTapTelemetry } from '../../hooks/usePushNotifTapTelemetry';
 import type { RootStackParamList } from '../../navigation/types';
-import {
-  createTypedReset,
-  getTopLevelTabRoute,
-  useRootNavigation,
-} from '../../navigation/utils';
+import { useRootNavigation } from '../../navigation/utils';
 import {
   AttachmentProvider,
   Channel,
@@ -38,10 +32,7 @@ import {
   InviteUsersSheet,
   useIsWindowNarrow,
 } from '../../ui';
-import {
-  shouldAcknowledgeAgentOnboardingLanding,
-  shouldRestoreAgentOnboardingFallback,
-} from './agentOnboardingLanding';
+import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
 
 const logger = createDevLogger('ChannelScreen', false);
 
@@ -60,41 +51,6 @@ export default function ChannelScreen(props: Props) {
     groupId: undefined,
   };
 
-  const onboardingLanding = db.agentOnboardingLanding.useValue();
-  const resetNavigation = useMemo(
-    () => createTypedReset(props.navigation),
-    [props.navigation]
-  );
-  useEffect(() => {
-    if (!shouldRestoreAgentOnboardingFallback(onboardingLanding, channelId)) {
-      return;
-    }
-    // The legacy splash is still covering the navigator. Restore its normal
-    // Home destination underneath before the fallback can be completed.
-    resetNavigation([getTopLevelTabRoute('ChatList')]);
-    void db.agentOnboardingLanding.resetValue().catch((error) => {
-      logger.trackError('Failed to clear agent onboarding fallback route', {
-        error,
-        ...onboardingLanding,
-      });
-    });
-  }, [channelId, onboardingLanding, resetNavigation]);
-  useEffect(() => {
-    if (
-      !shouldAcknowledgeAgentOnboardingLanding(onboardingLanding, channelId)
-    ) {
-      return;
-    }
-
-    // The destination is mounted, so the full-screen onboarding cover can
-    // disappear without waiting for the bounded handoff timeout.
-    void db.agentOnboardingLanding.resetValue().catch((error) => {
-      logger.trackError('Failed to acknowledge agent onboarding landing', {
-        error,
-        ...onboardingLanding,
-      });
-    });
-  }, [channelId, onboardingLanding]);
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {
@@ -117,72 +73,14 @@ export default function ChannelScreen(props: Props) {
   });
 
   const groupId = channel?.groupId ?? group?.id;
-  const agentOnboardingGroupId = routeGroupId ?? groupId;
-  const agentOnboarding = useAgentGroupOnboardingLock(agentOnboardingGroupId);
-  const agentOnboardingNavigationLocked =
-    agentOnboarding.locked ||
-    Boolean(agentOnboardingGroupId && agentOnboarding.isLoading);
-  const agentGroupAgents = db.agentGroupAgents.useValue();
-  const agentShipId = groupId ? agentGroupAgents[groupId] : undefined;
-  const latestChannelSequenceNum =
-    store.useChannelLatestSequenceNum(currentChannelId);
-
-  useEffect(() => {
-    const provision = agentOnboarding.marker?.provision;
-    if (
-      !groupId ||
-      !agentShipId ||
-      !provision ||
-      latestChannelSequenceNum == null ||
-      agentOnboarding.marker?.provisionAcknowledgedAt
-    ) {
-      return;
-    }
-    let cancelled = false;
-    void db
-      .getChanPosts({ channelId: currentChannelId })
-      .then((channelPosts) => {
-        if (cancelled) return;
-        const acknowledged = channelPosts.some(
-          (post) =>
-            post.authorId === agentShipId &&
-            api.findPostBlobEntry(post.blob, 'tlon-agent-provision-ack')
-              ?.provisionId === provision.provisionId
-        );
-        if (!acknowledged) return;
-        return db.agentGroupOnboardingLocks.setValue((current) => {
-          const lock = current[groupId];
-          if (
-            !lock ||
-            lock.provisionAcknowledgedAt ||
-            lock.provision?.provisionId !== provision.provisionId
-          ) {
-            return current;
-          }
-          return {
-            ...current,
-            [groupId]: { ...lock, provisionAcknowledgedAt: Date.now() },
-          };
-        });
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          logger.trackError('Failed to reconcile agent provision receipt', {
-            error,
-            groupId,
-          });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    agentOnboarding.marker,
-    agentShipId,
-    currentChannelId,
-    groupId,
-    latestChannelSequenceNum,
-  ]);
+  const { navigationLocked: agentOnboardingNavigationLocked } =
+    useAgentOnboardingChannel({
+      navigation: props.navigation,
+      channelId,
+      currentChannelId,
+      groupId,
+      routeGroupId,
+    });
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
@@ -320,23 +218,6 @@ export default function ChannelScreen(props: Props) {
   const navigationRef = useRef(props.navigation);
   const isWindowNarrow = useIsWindowNarrow();
   const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
-
-  useEffect(() => {
-    navigationRef.current.setOptions({
-      gestureEnabled: !agentOnboardingNavigationLocked,
-    });
-  }, [agentOnboardingNavigationLocked]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!agentOnboardingNavigationLocked) return;
-      const subscription = BackHandler.addEventListener(
-        'hardwareBackPress',
-        () => true
-      );
-      return () => subscription.remove();
-    }, [agentOnboardingNavigationLocked])
-  );
 
   const { performGroupAction } = useGroupActions();
 
