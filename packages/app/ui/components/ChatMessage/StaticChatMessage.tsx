@@ -8,7 +8,7 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
-import { shouldSuppressParticipantActivityEditedIndicator } from '../AgentTaskRows/participantActivity';
+import { shouldSuppressParticipantActivityEditedIndicatorForExperiment } from '../AgentTaskRows/participantActivity';
 import AuthorRow from '../AuthorRow';
 import { ContextLensBadge } from '../Channel/ContextLens/ContextLensBadge';
 import { A2UIBlock } from '../PostContent/A2UIBlock';
@@ -33,6 +33,7 @@ import { ReactionsDisplay } from './ReactionsDisplay';
 export function StaticChatMessage({
   displayDebugMode = false,
   hideContextLensBadge,
+  participantActivityEnabled = false,
   hideProfilePreview,
   hideSentAtTimestamp,
   isHighlighted,
@@ -50,6 +51,7 @@ export function StaticChatMessage({
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
   displayDebugMode?: boolean;
   hideContextLensBadge?: boolean;
+  participantActivityEnabled?: boolean;
   hideProfilePreview?: boolean;
   hideSentAtTimestamp?: boolean;
   isHighlighted?: boolean;
@@ -78,7 +80,11 @@ export function StaticChatMessage({
     post.editStatus === 'failed' ||
     post.deleteStatus === 'failed';
   const showEditedIndicator = Boolean(
-    post.isEdited && !shouldSuppressParticipantActivityEditedIndicator(post)
+    post.isEdited &&
+      !shouldSuppressParticipantActivityEditedIndicatorForExperiment(
+        post,
+        participantActivityEnabled
+      )
   );
 
   const handleRepliesPressed = useCallback(() => {

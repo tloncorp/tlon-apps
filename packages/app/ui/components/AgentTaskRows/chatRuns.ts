@@ -400,7 +400,7 @@ function preserveStructuredEvidence(
 
 function finalChatProjection(
   event: ContextLensEvent,
-  outcome: 'completed' | 'failed'
+  outcome: 'completed' | 'failed' | null
 ): ContextLensEvent {
   if (isParticipantContextLensEvent(event)) {
     // The participant projection is the bounded, lifecycle-aware source of
@@ -416,12 +416,7 @@ function finalChatProjection(
       ...event.lens,
       // A final stamp proves reply delivery, not that a still-active run has
       // finished its provider lifecycle or published its terminal plan.
-      status:
-        outcome === 'failed'
-          ? 'error'
-          : isContextLensEventActive(event)
-            ? event.lens.status
-            : 'completed',
+      status: outcome === 'failed' ? 'error' : event.lens.status,
     },
   };
 }
@@ -447,7 +442,7 @@ function stampedFinalOutput(
   const stamp = getContextLensStamp(post)!;
   return {
     id: post.id,
-    outcome: stamp.outcome ?? ('completed' as const),
+    outcome: stamp.outcome,
   };
 }
 
@@ -689,7 +684,7 @@ export function buildAgentChatRunAssignments(
         ? (() => {
             const projected = finalChatProjection(
               event,
-              stampedOutput?.outcome ?? 'completed'
+              stampedOutput?.outcome ?? null
             );
             // Terminal events were already reconciled above. Reprocessing the
             // cloned final projection would admit its equal-version raw event

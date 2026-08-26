@@ -57,7 +57,7 @@ import {
   isParticipantContextLensEvent,
   mergeOwnerAndParticipantEvents,
   orderAgentChatRunCards,
-  participantActivityRecordsForPosts,
+  participantActivityRecordsForExperiment,
   participantCarrierPostIdsForExperiment,
   participantContextLensEventAtTime,
   participantContextLensEvents,
@@ -303,8 +303,13 @@ const Scroller = forwardRef(
       [contextLensEvents, loadedPostContextLensEvents]
     );
     const participantActivityRecords = useMemo(
-      () => participantActivityRecordsForPosts(posts ?? [], channel.id),
-      [channel.id, posts]
+      () =>
+        participantActivityRecordsForExperiment(
+          posts ?? [],
+          channel.id,
+          contextLensEnabled
+        ),
+      [channel.id, contextLensEnabled, posts]
     );
     const participantCarrierIds = useMemo(
       () =>
@@ -341,7 +346,7 @@ const Scroller = forwardRef(
 
     const theme = useTheme();
     const previousAgentChatRunsRef = useRef<
-      AgentChatRunAssignments | undefined
+      { channelId: string; assignments: AgentChatRunAssignments } | undefined
     >(undefined);
     const agentChatRuns = useMemo(
       () =>
@@ -349,14 +354,19 @@ const Scroller = forwardRef(
           stableContextLensEvents,
           posts ?? [],
           channel.id,
-          previousAgentChatRunsRef.current,
+          previousAgentChatRunsRef.current?.channelId === channel.id
+            ? previousAgentChatRunsRef.current.assignments
+            : undefined,
           participantCarrierIds
         ),
       [channel.id, participantCarrierIds, posts, stableContextLensEvents]
     );
     useEffect(() => {
-      previousAgentChatRunsRef.current = agentChatRuns;
-    }, [agentChatRuns]);
+      previousAgentChatRunsRef.current = {
+        channelId: channel.id,
+        assignments: agentChatRuns,
+      };
+    }, [agentChatRuns, channel.id]);
     const renderablePosts = useMemo(
       () =>
         posts ? filterRenderableAgentChatPosts(posts, agentChatRuns) : posts,
@@ -442,6 +452,11 @@ const Scroller = forwardRef(
             showAuthor={showAuthor}
             isLastPostOfBlock={isLastPostOfBlock}
             displayDebugMode={debugMessageJson}
+            participantActivityEnabled={contextLensEnabled}
+            showContextLensBadge={
+              contextLensEnabled &&
+              collectionLayoutType === 'compact-list-bottom-to-top'
+            }
             Component={renderItem}
             unreadCount={unreadCount}
             setViewReactionsPost={setViewReactionsPost}
@@ -510,6 +525,8 @@ const Scroller = forwardRef(
         setActiveMessage,
         setEditingPost,
         debugMessageJson,
+        contextLensEnabled,
+        collectionLayoutType,
       ]
     );
 
@@ -908,6 +925,8 @@ const BaseScrollerItem = ({
   messageRef,
   isSelected,
   displayDebugMode,
+  participantActivityEnabled,
+  showContextLensBadge,
   isLastPostOfBlock,
   dividersEnabled,
   itemAspectRatio,
@@ -943,6 +962,8 @@ const BaseScrollerItem = ({
   messageRef: RefObject<RNView | null>;
   isSelected: boolean;
   displayDebugMode?: boolean;
+  participantActivityEnabled: boolean;
+  showContextLensBadge: boolean;
   isLastPostOfBlock: boolean;
   dividersEnabled: boolean;
   itemAspectRatio?: number;
@@ -1051,6 +1072,7 @@ const BaseScrollerItem = ({
             isHighlighted={isSelected}
             displayDebugMode={displayDebugMode}
             hideContextLensBadge
+            participantActivityEnabled={participantActivityEnabled}
             post={post}
             setViewReactionsPost={setViewReactionsPost}
             onPressBotRun={onPressBotRun}
@@ -1113,7 +1135,7 @@ const BaseScrollerItem = ({
           />
         )
       )}
-      {!hidePostContent ? (
+      {!hidePostContent && showContextLensBadge ? (
         <ContextLensBadge post={post} onPress={onPressBotRun} />
       ) : null}
       {!hidePostContent && isLastPostOfBlock ? <PostBlockSeparator /> : null}
@@ -1148,6 +1170,8 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.activeMessage === next.activeMessage &&
     prev.itemWidth === next.itemWidth &&
     prev.displayDebugMode === next.displayDebugMode &&
+    prev.participantActivityEnabled === next.participantActivityEnabled &&
+    prev.showContextLensBadge === next.showContextLensBadge &&
     prev.agentRunEvents === next.agentRunEvents &&
     prev.agentReceiptEvents === next.agentReceiptEvents &&
     prev.agentEventsByLensId === next.agentEventsByLensId &&

@@ -26,6 +26,7 @@ const ChatMessage = ({
   showAuthor,
   hideProfilePreview,
   hideContextLensBadge,
+  participantActivityEnabled,
   onPressReplies,
   onPressImage,
   onPress,
@@ -45,6 +46,7 @@ const ChatMessage = ({
   showAuthor?: boolean;
   hideProfilePreview?: boolean;
   hideContextLensBadge?: boolean;
+  participantActivityEnabled?: boolean;
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
   showReplies?: boolean;
   onPressReplies?: (post: db.Post) => void;
@@ -119,6 +121,7 @@ const ChatMessage = ({
           displayDebugMode,
           searchQuery,
           hideContextLensBadge,
+          participantActivityEnabled,
         ])}
         post={post}
         postActionIds={postActionIds}
@@ -148,6 +151,7 @@ const ChatMessage = ({
               {...{
                 displayDebugMode,
                 hideContextLensBadge,
+                participantActivityEnabled,
                 hideProfilePreview,
                 hideSentAtTimestamp: hideOverflowMenu || !isHovered,
                 isHighlighted,
@@ -200,6 +204,7 @@ export default memo(ChatMessage, (prev, next) => {
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
     prev.hideContextLensBadge === next.hideContextLensBadge &&
+    prev.participantActivityEnabled === next.participantActivityEnabled &&
     prev.onPressReplies === next.onPressReplies &&
     prev.onPressImage === next.onPressImage &&
     prev.onLongPress === next.onLongPress &&

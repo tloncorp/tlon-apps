@@ -64,6 +64,7 @@ import {
 } from './draftInputs/shared';
 
 const noop = async () => {};
+const EMPTY_CONTEXT_LENS_EVENTS: ContextLensEvent[] = [];
 
 const HIGHLIGHT_DURATION_MS = 5000;
 
@@ -226,6 +227,13 @@ export function PostScreenView({
     openContextLensForPost,
     openContextLensForEvent,
   } = useContextLensController({ channel });
+  const agentChatEvents = useMemo(
+    () =>
+      contextLensAvailable
+        ? contextLensStream.events
+        : EMPTY_CONTEXT_LENS_EVENTS,
+    [contextLensAvailable, contextLensStream.events]
+  );
 
   const [galleryEditShouldBlur, setGalleryEditShouldBlur] = useState(false);
 
@@ -461,7 +469,7 @@ export function PostScreenView({
                                   contextLensAvailable && isWindowNarrow
                                     ? goToContextLensRun
                                     : undefined,
-                                contextLensEvents: contextLensStream.events,
+                                contextLensEvents: agentChatEvents,
                                 negotiationMatch,
                                 onPressDelete,
                                 onPressRetry,

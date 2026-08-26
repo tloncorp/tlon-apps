@@ -144,6 +144,7 @@ function itemDuration(item: ContextLensActivityItem) {
 }
 
 const MAX_CHAT_ERROR_LENGTH = 160;
+const MAX_CHAT_ERROR_SCAN_LENGTH = 4_096;
 
 /**
  * Tool/provider errors can contain multiline debug payloads, including the
@@ -151,7 +152,7 @@ const MAX_CHAT_ERROR_LENGTH = 160;
  * user-facing reason; the inspector retains the original diagnostic string.
  */
 function chatErrorText(value: string) {
-  const singleLine = Array.from(value)
+  const singleLine = Array.from(value.slice(0, MAX_CHAT_ERROR_SCAN_LENGTH))
     .map((character) => {
       const codePoint = character.charCodeAt(0);
       return codePoint < 32 || codePoint === 127 ? ' ' : character;

@@ -1774,9 +1774,13 @@ export const insertContextLensRuns = createWriteQuery(
   'insertContextLensRuns',
   async (runs: ContextLensRun[], ctx: QueryCtx) => {
     if (runs.length === 0) return;
+    const normalizedRuns = runs.map((run) => ({
+      ...run,
+      botShip: preSig(run.botShip),
+    }));
     return ctx.db
       .insert($contextLensRuns)
-      .values(runs)
+      .values(normalizedRuns)
       .onConflictDoUpdate({
         target: [$contextLensRuns.botShip, $contextLensRuns.lensId],
         set: conflictUpdateSetAll($contextLensRuns, ['botShip', 'lensId']),

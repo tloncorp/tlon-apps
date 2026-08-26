@@ -149,6 +149,45 @@ test('context lens keyed lookup returns only exact bot and run pairs', async () 
   expect(await queries.getContextLensRunsByKeys({ keys: [] })).toEqual([]);
 });
 
+test('context lens writes normalize bot ships before conflict resolution', async () => {
+  await queries.insertContextLensRuns([
+    {
+      botShip: 'lens-normalized',
+      lensId: 'run-1',
+      complete: false,
+      receivedAt: 100,
+      payload: { marker: 'unsigged' },
+    },
+  ]);
+  await queries.insertContextLensRuns([
+    {
+      botShip: '~lens-normalized',
+      lensId: 'run-1',
+      complete: true,
+      receivedAt: 110,
+      payload: { marker: 'sigged' },
+    },
+  ]);
+
+  expect(
+    await queries.getContextLensRunsByKeys({
+      keys: [{ botShip: 'lens-normalized', lensId: 'run-1' }],
+    })
+  ).toMatchObject([
+    {
+      botShip: '~lens-normalized',
+      lensId: 'run-1',
+      complete: true,
+      payload: { marker: 'sigged' },
+    },
+  ]);
+  expect(
+    (await queries.getRecentContextLensRuns({ count: 100 })).filter(
+      (run) => run.lensId === 'run-1' && run.botShip.includes('lens-normalized')
+    )
+  ).toHaveLength(1);
+});
+
 test('insertGroups only invalidates posts when payloads include channels', () => {
   const tableEffects = queries.insertGroups.meta.tableEffects;
   if (typeof tableEffects !== 'function') {

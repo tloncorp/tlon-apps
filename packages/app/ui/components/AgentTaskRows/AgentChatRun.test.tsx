@@ -267,4 +267,59 @@ describe('AgentChatActivityReceipt', () => {
 
     act(() => renderer!.unmount());
   });
+
+  it('keeps a started continuation when its request rejects late', async () => {
+    const event = completedEvent([]);
+    event.lens.status = 'error';
+    event.lens.error = 'The agent could not finish.';
+    let rejectContinue!: (error: Error) => void;
+    const onContinue = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectContinue = reject;
+        })
+    );
+    let renderer: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <AgentChatActivityReceipt
+          event={event}
+          events={[event]}
+          onContinue={onContinue}
+        />
+      );
+    });
+
+    const continueButton = renderer!.root.findByProps({
+      'aria-label': 'Continue this agent request',
+    });
+    act(() => {
+      void continueButton.props.onPress();
+    });
+    expect(onContinue).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      renderer!.update(
+        <AgentChatActivityReceipt
+          event={event}
+          events={[event]}
+          onContinue={onContinue}
+          continuationStarted
+        />
+      );
+    });
+    expect(JSON.stringify(renderer!.toJSON())).toContain(
+      'Continuation started'
+    );
+
+    await act(async () => {
+      rejectContinue(new Error('late transport failure'));
+      await Promise.resolve();
+    });
+    const rendered = JSON.stringify(renderer!.toJSON());
+    expect(rendered).toContain('Continuation started');
+    expect(rendered).not.toContain('Couldn’t reach the agent');
+
+    act(() => renderer!.unmount());
+  });
 });

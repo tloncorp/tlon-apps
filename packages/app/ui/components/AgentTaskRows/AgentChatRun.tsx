@@ -329,7 +329,10 @@ export function AgentChatActivityReceipt({
         state === 'started' || continuationStarted ? 'started' : 'requested'
       );
     } catch {
-      setContinueState('error');
+      // A child run can arrive while the retry request is still awaiting its
+      // response. Once that continuation exists, a late transport rejection
+      // must not regress the receipt back to a retryable error.
+      setContinueState((state) => (state === 'started' ? 'started' : 'error'));
     }
   };
 

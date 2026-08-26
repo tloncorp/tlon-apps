@@ -165,6 +165,13 @@ export function shouldSuppressParticipantActivityEditedIndicator(
   return Boolean(authenticatedParticipantEntryForPost(post, post.channelId));
 }
 
+export function shouldSuppressParticipantActivityEditedIndicatorForExperiment(
+  post: db.Post,
+  enabled: boolean
+) {
+  return enabled && shouldSuppressParticipantActivityEditedIndicator(post);
+}
+
 /**
  * Read participant-safe run data only from authenticated chat envelopes. The
  * projection never supplies bot, requester, channel, output, or thread
@@ -208,6 +215,14 @@ export function participantActivityRecordsForPosts(
     });
   }
   return records;
+}
+
+export function participantActivityRecordsForExperiment(
+  posts: readonly db.Post[],
+  channelId: string,
+  enabled: boolean
+) {
+  return enabled ? participantActivityRecordsForPosts(posts, channelId) : [];
 }
 
 function activityStatus(

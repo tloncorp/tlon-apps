@@ -550,6 +550,16 @@ describe('Context Lens activity task rows', () => {
     expect(error).toMatch(/…$/);
   });
 
+  it('bounds raw error scanning before sanitizing chat copy', () => {
+    const model = chatModelWithToolError('x'.repeat(100_000));
+    const error = model.rows[0].details?.find(
+      (detail) => detail.label === 'Error'
+    )?.value;
+
+    expect(error?.length).toBeLessThanOrEqual(160);
+    expect(error).toMatch(/…$/);
+  });
+
   it('sanitizes a raw terminal failure message in chat', () => {
     const model = buildAgentTaskRowsFromActivity(
       activity({

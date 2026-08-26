@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import type { ContextLensEvent } from './types';
+import { type ContextLensEvent, FINAL_STATUSES } from './types';
 
 /**
  * Return the next active run expiry after `now`. Terminal snapshots never need
@@ -16,11 +16,7 @@ export function nextContextLensExpiry(
     if (
       typeof expiresAt !== 'number' ||
       expiresAt <= now ||
-      event.lens.status === 'completed' ||
-      event.lens.status === 'no_reply' ||
-      event.lens.status === 'timed_out' ||
-      event.lens.status === 'aborted' ||
-      event.lens.status === 'error'
+      FINAL_STATUSES.has(event.lens.status)
     ) {
       continue;
     }

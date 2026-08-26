@@ -30,7 +30,7 @@ function stampedPost(
   id: string,
   delivery: 'final' | 'intermediate',
   lensId = 'run-1',
-  outcome: 'completed' | 'failed' = 'completed'
+  outcome: 'completed' | 'failed' | null = 'completed'
 ) {
   return post(id, {
     authorId: '~bus',
@@ -41,7 +41,7 @@ function stampedPost(
         lensId,
         botShip: '~bus',
         delivery,
-        ...(delivery === 'final' ? { outcome } : {}),
+        ...(delivery === 'final' && outcome ? { outcome } : {}),
       },
     ]),
   });
@@ -1951,6 +1951,34 @@ describe('agent chat run assignments', () => {
       },
     ]);
   });
+
+  it.each(['error', 'aborted', 'timed_out'] as const)(
+    'preserves terminal %s when a legacy final stamp has no outcome',
+    (status) => {
+      const terminal = event({ at: 120_000, status });
+      terminal.lens.activity!.plan!.steps =
+        terminal.lens.activity!.plan!.steps.map((step) => ({
+          ...step,
+          status: 'completed',
+        }));
+      terminal.lens.activity!.items = terminal.lens.activity!.items.map(
+        (item) => ({ ...item, status: 'completed', completedAt: 120_000 })
+      );
+
+      const assignments = buildAgentChatRunAssignments(
+        [terminal],
+        [stampedPost('reply-1', 'final', 'run-1', null), post('request-1')],
+        'chat/channel'
+      );
+      const receipt = assignments.receiptByPostId.get('reply-1')?.[0];
+
+      expect(receipt).toMatchObject({
+        phase: 'final-reply-delivered',
+        lens: { lensId: 'run-1', status },
+      });
+      expect(agentChatRunOutcome(receipt!)).toBe('failed');
+    }
+  );
 
   it('keeps non-final delivered blocks live until a final reply arrives', () => {
     const delivering = event({

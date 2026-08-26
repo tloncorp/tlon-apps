@@ -7,12 +7,14 @@ import {
   type ParticipantTaskProjection,
   authenticatedParticipantCarrierPostIds,
   mergeOwnerAndParticipantEvents,
+  participantActivityRecordsForExperiment,
   participantActivityRecordsForPosts,
   participantCarrierPostIds,
   participantCarrierPostIdsForExperiment,
   participantContextLensEventAtTime,
   participantContextLensEvents,
   shouldSuppressParticipantActivityEditedIndicator,
+  shouldSuppressParticipantActivityEditedIndicatorForExperiment,
 } from './participantActivity';
 
 const CHANNEL_ID = 'chat/~host/group-channel';
@@ -201,12 +203,34 @@ describe('participant agent activity', () => {
     expect(shouldSuppressParticipantActivityEditedIndicator(validFinal)).toBe(
       true
     );
+    expect(
+      shouldSuppressParticipantActivityEditedIndicatorForExperiment(
+        validFinal,
+        false
+      )
+    ).toBe(false);
     expect(shouldSuppressParticipantActivityEditedIndicator(nonBot)).toBe(
       false
     );
     expect(shouldSuppressParticipantActivityEditedIndicator(malformed)).toBe(
       false
     );
+  });
+
+  it('skips participant projection parsing when the experiment is disabled', () => {
+    const trigger = post('trigger-1');
+    const carrier = activityPost(
+      'carrier-1',
+      projection({ triggerPostId: trigger.id })
+    );
+
+    expect(
+      participantActivityRecordsForExperiment(
+        [trigger, carrier],
+        CHANNEL_ID,
+        false
+      )
+    ).toEqual([]);
   });
 
   it('derives a root-channel participant event from authenticated posts', () => {
