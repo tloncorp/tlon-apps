@@ -624,12 +624,26 @@
   ^+  cor
   ?>  =(ship.group our.bowl)
   =/  =flag:b  [our.bowl name]
+  ::  A create naming a bucket we already have is either the same create
+  ::  arriving twice -- a retry, a forward that raced its own answer -- or a
+  ::  real collision on the name. The first re-registers, which is what makes
+  ::  create idempotent; the second is bad input from a client, and crashing
+  ::  the event on ?> made it a nack or a timeout rather than the typed error
+  ::  the contract promises. .actor is deliberately not compared: an
+  ::  otherwise identical create from a different admin is still the same
+  ::  create, and demanding the original creator only turned a retry into a
+  ::  crash.
   ?:  (~(has by spaces) flag)
-    =/  st=bucket-state:b  (need-state flag)
-    ?>  =(group group.st)
-    ?>  =(title title.bucket.st)
-    ?>  =(writers writers.st)
-    ?>  =(actor created-by.bucket.st)
+    =/  taken=_cor  (answer [%error %invalid-input 'that bucket name is taken'])
+    =/  sp=space:b  (~(got by spaces) flag)
+    ?.  =(%pub net.sp)  taken
+    ?~  state.sp  taken
+    =/  st=bucket-state:b  u.state.sp
+    ?.  ?&  =(group group.st)
+            =(title title.bucket.st)
+            =(writers writers.st)
+        ==
+      taken
     =.  cor  (register-bucket flag st readers)
     (give [%fact ~[/v1] buckets-response-1+!>(`response:b`[%snapshot flag st])])
   =/  id=@ud  +(next-id)
@@ -1978,6 +1992,14 @@
   ?.  =(%sub net.u.sp)  cor
   =.  cor  (drop-read-token flag)
   =.  cor  (emil (drop (report-active flag u.sp |)))
+  ::  Local clients watch our /v1, not the host's, so leaving the host says
+  ::  nothing to them. Without this a still-mounted client keeps showing the
+  ::  manifest of a replica this ship no longer has -- it refreshes on mount,
+  ::  on an operation, or on a revision gap, and none of those arrive on
+  ::  their own.
+  =/  rev=@ud  ?~(state.u.sp 0 +(revision.u.state.u.sp))
+  =/  res=response:b  [%update flag rev [%delete ~]]
+  =.  cor  (give [%fact ~[/v1 (updates-path flag)] buckets-response-1+!>(res)])
   =.  spaces  (~(del by spaces) flag)
   %-  emit
   [%pass (sub-wire flag) %agent [ship.flag %buckets] %leave ~]

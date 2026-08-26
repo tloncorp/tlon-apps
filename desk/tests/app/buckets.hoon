@@ -1896,6 +1896,71 @@
   !>([created-by.bucket.bs updated-by.bucket.bs group.bs])
   !>([~bus ~bus group])
 ::
+::  A create that collides on the name is bad client input, not a broken
+::  invariant. It used to crash the event, which reaches the caller as a nack
+::  or a timeout rather than as the error the contract promises. An otherwise
+::  identical create from a second admin is still the same create.
+::
+++  test-a-conflicting-create-is-an-error-not-a-crash
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate allow-admin-create-scries)
+  ::  Same name, different title -- a real collision.
+  ;<  caz=(list card)  b
+    (ask 0v1 [%create %project-files 'Something Else' group ~ ~])
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  %+  grant-fact  0v1
+        [%error %invalid-input 'that bucket name is taken']
+    ==
+  ::  Identical, but from another admin. .actor is not part of the comparison,
+  ::  so this is the idempotent path and re-registers rather than erroring.
+  ;<  caz2=(list card)  b
+    %-  (do-as ~bus)
+    %+  do-poke  %buckets-command-1
+    !>(`command:bu`[0v2 [%create %project-files 'Project Files' group ~ ~]])
+  ::  A re-register republishes the snapshot; an error would not.
+  ;<  ~  b
+    %+  ex-cards
+      %+  skim  caz2
+      |=(=card ?=([%give %fact * %buckets-response-1 *] card))
+    :~  (ex-fact-paths ~[/v1])
+    ==
+  ;<  sv=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu sv)
+  =/  bs=bucket-state:bu  (state-for st flag)
+  ::  One Bucket, and the collision did not overwrite its title.
+  %+  ex-equal
+  !>([~(wyt by spaces.st) next-id.st title.bucket.bs])
+  !>([1 1 'Project Files'])
+::
+::  Local clients watch our /v1, not the host's, so dropping a replica has to
+::  say so here or a mounted client keeps rendering a manifest this ship no
+::  longer holds.
+::
+++  test-dropping-a-replica-tells-local-watchers
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  nes=nest:bu  [%buckets ~sampel-palnet %project-files]
+  ;<  ~  b  (setup-as ~bus)
+  ;<  *  b  (do-poke %group-channel-join !>(`channel-join:bu`[nes group]))
+  ;<  caz=(list card)  b
+    (do-poke %group-channel-leave !>(`channel-leave:bu`[nes]))
+  %+  ex-cards
+    %+  skim  caz
+    |=(=card ?=([%give %fact * %buckets-response-1 *] card))
+  :~  %^    ex-fact
+          ~[/v1 /v1/buckets/~sampel-palnet/project-files/updates]
+        %buckets-response-1
+      !>(`response:bu`[%update flag 0 [%delete ~]])
+  ==
+::
 ::  Gall retries reuse the caller-selected random name. An identical retry
 ::  must not allocate a second Bucket.
 ::
