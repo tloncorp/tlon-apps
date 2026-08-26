@@ -14,6 +14,28 @@ import { ListItem } from './ListItem';
 const promptsQueryKey = (botShip: string) => ['botSystemPrompts', botShip];
 
 /**
+ * The prompt set mirrored into our own ship's %steward for this bot, or
+ * null when there is none. Shared (and cached) between the profile's
+ * prompts section and anything else that needs the ownership signal.
+ */
+export function useBotSystemPrompts(botShip: string) {
+  return useQuery({
+    queryKey: promptsQueryKey(botShip),
+    queryFn: () => api.getBotSystemPrompts(botShip),
+  });
+}
+
+/**
+ * True when this ship is a bot we own: our steward only mirrors prompt
+ * sets for bots that configured us as their owner and that we explicitly
+ * trusted, so mirror presence is itself the ownership signal.
+ */
+export function useIsOwnedBot(botShip: string) {
+  const promptsQuery = useBotSystemPrompts(botShip);
+  return Boolean(promptsQuery.data?.length);
+}
+
+/**
  * A short human label for the known prompt files; unknown names fall back
  * to the raw file name so new gateway-exposed prompts still render.
  */
@@ -35,10 +57,7 @@ const PROMPT_LABELS: Record<string, string> = {
  */
 export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
   const queryClient = useQueryClient();
-  const promptsQuery = useQuery({
-    queryKey: promptsQueryKey(botShip),
-    queryFn: () => api.getBotSystemPrompts(botShip),
-  });
+  const promptsQuery = useBotSystemPrompts(botShip);
   const [editing, setEditing] = useState<api.BotSystemPrompt | null>(null);
 
   // Refresh when the bot's canonical set fans back into our mirror (a seed

@@ -27,7 +27,7 @@ import { useNavigation as useContextNavigation } from '../contexts/navigation';
 import { useGroupTitle } from '../utils';
 import { ContactAvatar } from './Avatar';
 import { BotBadge } from './BotBadge';
-import { BotSystemPromptsSection } from './BotSystemPrompts';
+import { BotSystemPromptsSection, useIsOwnedBot } from './BotSystemPrompts';
 import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
 import { ListItem } from './ListItem';
@@ -473,6 +473,13 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useContextNavigation();
   const queryClient = db.queryClient;
+  const currentUserId = useCurrentUserId();
+  // Blocking your own bot makes no sense; hide the button on an owned
+  // bot's profile. Unblock stays reachable so an already-blocked bot
+  // can't get stranded.
+  const isOwnedBot =
+    useIsOwnedBot(props.userId) ||
+    api.isBotUserIdForUser(props.userId, currentUserId);
 
   const handleMessageUser = useCallback(() => {
     if (!navContext.onPressGoToDm) {
@@ -538,10 +545,12 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
             onPress={handleRemoveContactSuggestion}
           />
         ) : null}
-        <ProfileButton
-          title={isBlocked ? 'Unblock' : 'Block'}
-          onPress={handleBlock}
-        />
+        {isBlocked || !isOwnedBot ? (
+          <ProfileButton
+            title={isBlocked ? 'Unblock' : 'Block'}
+            onPress={handleBlock}
+          />
+        ) : null}
       </ScrollView>
     </View>
   );
