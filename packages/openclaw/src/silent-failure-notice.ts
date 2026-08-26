@@ -70,7 +70,13 @@ export function createSilentFailureNoticeCooldown(
 ) {
   const lastSentAt = new Map<string, number>();
   return {
-    shouldSend(conversation: string, now: number): boolean {
+    isCoolingDown(conversation: string, now: number): boolean {
+      const sentAt = lastSentAt.get(conversation);
+      return sentAt !== undefined && now - sentAt < windowMs;
+    },
+    // Call only after the notice was actually delivered — a failed owner DM
+    // must not burn the window.
+    recordSent(conversation: string, now: number): void {
       if (lastSentAt.size > COOLDOWN_PRUNE_THRESHOLD) {
         for (const [key, sentAt] of lastSentAt) {
           if (now - sentAt >= windowMs) {
@@ -78,12 +84,7 @@ export function createSilentFailureNoticeCooldown(
           }
         }
       }
-      const sentAt = lastSentAt.get(conversation);
-      if (sentAt !== undefined && now - sentAt < windowMs) {
-        return false;
-      }
       lastSentAt.set(conversation, now);
-      return true;
     },
   };
 }

@@ -3703,16 +3703,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         });
         if (notice) {
           if (
-            failureNoticeCooldown.shouldSend(noticeConversation, Date.now())
+            failureNoticeCooldown.isCoolingDown(noticeConversation, Date.now())
           ) {
-            runtime.log?.(
-              `[tlon] Terminal no-reply turn ${turnSummary.runId}; notifying owner`
-            );
-            await sendOwnerNotification(notice);
-          } else {
             runtime.log?.(
               `[tlon] Terminal no-reply turn ${turnSummary.runId}; owner notice suppressed by cooldown`
             );
+          } else {
+            runtime.log?.(
+              `[tlon] Terminal no-reply turn ${turnSummary.runId}; notifying owner`
+            );
+            const noticeMessageId = await sendOwnerNotification(notice);
+            if (noticeMessageId) {
+              failureNoticeCooldown.recordSent(noticeConversation, Date.now());
+            }
           }
         }
       }

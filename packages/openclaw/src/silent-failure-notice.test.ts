@@ -272,26 +272,33 @@ describe('terminal failure presentation', () => {
 });
 
 describe('createSilentFailureNoticeCooldown', () => {
-  it('allows the first notice and suppresses repeats inside the window', () => {
+  it('suppresses repeats inside the window only after a recorded send', () => {
     const cooldown = createSilentFailureNoticeCooldown(15 * 60_000);
-    expect(cooldown.shouldSend('chat/~host/lobby', 0)).toBe(true);
-    expect(cooldown.shouldSend('chat/~host/lobby', 60_000)).toBe(false);
-    expect(cooldown.shouldSend('chat/~host/lobby', 14 * 60_000)).toBe(false);
+    expect(cooldown.isCoolingDown('chat/~host/lobby', 0)).toBe(false);
+    cooldown.recordSent('chat/~host/lobby', 0);
+    expect(cooldown.isCoolingDown('chat/~host/lobby', 60_000)).toBe(true);
+    expect(cooldown.isCoolingDown('chat/~host/lobby', 14 * 60_000)).toBe(true);
+  });
+
+  it('does not start the window when no send was recorded', () => {
+    const cooldown = createSilentFailureNoticeCooldown(15 * 60_000);
+    expect(cooldown.isCoolingDown('chat/~host/lobby', 0)).toBe(false);
+    // A failed owner DM records nothing, so the next attempt is not suppressed.
+    expect(cooldown.isCoolingDown('chat/~host/lobby', 1_000)).toBe(false);
   });
 
   it('allows again after the window elapses', () => {
     const cooldown = createSilentFailureNoticeCooldown(15 * 60_000);
-    expect(cooldown.shouldSend('chat/~host/lobby', 0)).toBe(true);
-    expect(cooldown.shouldSend('chat/~host/lobby', 15 * 60_000)).toBe(true);
+    cooldown.recordSent('chat/~host/lobby', 0);
+    expect(cooldown.isCoolingDown('chat/~host/lobby', 15 * 60_000)).toBe(false);
   });
 
   it('tracks conversations independently', () => {
     const cooldown = createSilentFailureNoticeCooldown(15 * 60_000);
-    expect(cooldown.shouldSend('chat/~host/lobby', 0)).toBe(true);
-    expect(cooldown.shouldSend('our DM with ~ravmel-ropdyl', 0)).toBe(true);
-    expect(cooldown.shouldSend('chat/~host/lobby', 1_000)).toBe(false);
-    expect(cooldown.shouldSend('our DM with ~ravmel-ropdyl', 1_000)).toBe(
+    cooldown.recordSent('chat/~host/lobby', 0);
+    expect(cooldown.isCoolingDown('our DM with ~ravmel-ropdyl', 1_000)).toBe(
       false
     );
+    expect(cooldown.isCoolingDown('chat/~host/lobby', 1_000)).toBe(true);
   });
 });
