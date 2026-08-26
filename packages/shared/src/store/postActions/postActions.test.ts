@@ -165,6 +165,32 @@ describe('sendPost', () => {
     expect(mockedPoke).toHaveBeenCalledTimes(0);
   });
 
+  test('interactive sends reject after recording a definitive failure', async () => {
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    const sendError = new Error('definitive send failure');
+    vi.mocked(poke).mockRejectedValueOnce(sendError);
+
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft(), {
+      rejectOnDefinitiveFailure: true,
+    });
+    const rejection = expect(sendPostPromise).rejects.toBe(sendError);
+    await vi.runOnlyPendingTimersAsync();
+    await rejection;
+
+    expect(await fetchLatestPostFromDb()).toMatchObject({
+      deliveryStatus: 'failed',
+    });
+  });
+
+  test('interactive sends reject when the channel is missing', async () => {
+    await expect(
+      finalizeAndSendPost(buildTestDraft({ channelId: 'missing-channel' }), {
+        rejectOnDefinitiveFailure: true,
+      })
+    ).rejects.toThrow('channel missing-channel is missing');
+  });
+
   test('tracks whether a sent post is going to a bot DM', async () => {
     const botDmId = '~pinser-botter-sampel';
     const capture = vi.fn();
@@ -357,16 +383,6 @@ describe('finalizeAndSendPost', () => {
       deliveryStatus: 'pending',
     });
     cleanup.mockRestore();
-  });
-
-  test('rejects a missing channel for one-shot controls', async () => {
-    const missingChannel = '~zod/missing';
-
-    await expect(
-      finalizeAndSendPost(buildTestDraft({ channelId: missingChannel }), {
-        rejectOnDefinitiveFailure: true,
-      })
-    ).rejects.toThrow(`channel ${missingChannel} was not found`);
   });
 
   test('tracks completion when a failed send succeeds on retry', async () => {
