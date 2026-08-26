@@ -45,11 +45,14 @@ export function useIsOwnedBot(botShip: string) {
   return {
     isOwnedBot: Boolean(promptsQuery.data?.length),
     /**
-     * True while the first fetch is still deciding. Callers gating a
-     * destructive action (e.g. Block) should treat ownership as unknown
-     * rather than "not owned" until this settles.
+     * True while a fetch is deciding — the first load OR a background
+     * refetch (staleTime is Infinity, so a refetch only follows an
+     * explicit invalidation and genuinely may change the answer: a cached
+     * "not owned" can be about to flip after the bot was trusted while
+     * the profile was unmounted). Callers gating a destructive action
+     * (e.g. Block) should treat ownership as unknown until this settles.
      */
-    isPending: promptsQuery.isPending,
+    isPending: promptsQuery.isPending || promptsQuery.isFetching,
   };
 }
 

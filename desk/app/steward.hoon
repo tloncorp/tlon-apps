@@ -810,6 +810,21 @@
       ::  a ship may only drop its own mirror entry
       ?>  (~(has by mirror.prompts.state) src.bowl)
       (pr-drop-mirror src.bowl)
+    ::
+        %clear
+      ::  the local gateway declares prompt sync inactive for this account
+      ::  (it lost syncing authority without an owner change): wipe the
+      ::  canonical set and fan the empty set so the owner's mirror — and
+      ::  with it the editor UI — goes away rather than accepting edits
+      ::  nothing applies
+      ::
+      ?>  =(src.bowl our.bowl)
+      ?:  =(~ own.prompts.state)  cor
+      =.  own.prompts.state  *prompts:v1:sp
+      =.  cor
+        %^  give  %fact  ~[/v1/prompts]
+        steward-prompts-update-1+!>(`update:v1:sp`[%prompts our.bowl *prompts:v1:sp])
+      pr-sync-owner
     ==
   ::
   ::  store one edit (pinned owner intent, edited=&), notify the local

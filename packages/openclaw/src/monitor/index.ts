@@ -4822,7 +4822,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // account's sync would overwrite the first account's files and
       // cross-seed its ship. (promptSync itself is declared above the SSE
       // client so onSubscriptionRecovery can reach it.)
-      if (!shouldRunPromptSync(cfg, account.accountId)) {
+      const promptSyncGatedOff = !shouldRunPromptSync(cfg, account.accountId);
+      if (promptSyncGatedOff) {
         runtime.log?.(
           `[tlon] Prompt sync disabled for account ${account.accountId}: accounts share one agent workspace`
         );
@@ -5509,6 +5510,28 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         } catch (error: any) {
           runtime.error?.(
             `[tlon] Prompt sync reconcile failed: ${error?.message ?? String(error)}`
+          );
+        }
+      } else if (promptSyncGatedOff) {
+        // This account lost (or never had) prompt-syncing authority, but
+        // its ship may still hold a canonical set seeded by an earlier
+        // config — which keeps mirroring prompts to the owner and offering
+        // an editor whose edits no fact handler applies. %clear wipes it
+        // and empties the owner's mirror; idempotent, and older desks
+        // without %clear just nack.
+        try {
+          await api.poke({
+            app: 'steward',
+            mark: 'steward-prompts-action-1',
+            json: { clear: null },
+            ...(opts.abortSignal ? { signal: opts.abortSignal } : {}),
+          });
+          runtime.log?.(
+            '[tlon] Prompt sync inactive for this account; cleared ship prompt state'
+          );
+        } catch (error: any) {
+          runtime.log?.(
+            `[tlon] Prompt clear skipped: ${error?.message ?? String(error)}`
           );
         }
       }

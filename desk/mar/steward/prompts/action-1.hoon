@@ -41,6 +41,9 @@
     ::
         %revoke
       (frond 'revoke' ~)
+    ::
+        %clear
+      (frond 'clear' ~)
     ==
   --
 ++  grab
@@ -54,6 +57,7 @@
         [%sync (om (ot ~[text+so updated+(se %da) edited+bo]))]
         [%request ul]
         [%revoke ul]
+        [%clear ul]
     ==
   --
 --

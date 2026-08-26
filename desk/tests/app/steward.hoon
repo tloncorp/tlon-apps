@@ -1322,6 +1322,52 @@
   %-  (do-as moon)
   (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%revoke ~]))
 ::
+::  %clear (gateway lost prompt-syncing authority) wipes the canonical set
+::  and fans the empty set to the owner so its mirror stops offering edits
+::
+++  test-pr-clear-wipes-own-and-fans-empty
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%clear ~]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-fact
+        :*  ~[/v1/prompts]
+            %steward-prompts-update-1
+            !>(`update:v1:p`[%prompts ~dev *prompts:v1:p])
+        ==
+        %-  ex-poke
+        :*  /prompts/sync/(scot %p ~bus)
+            [~bus %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%sync *prompts:v1:p])
+        ==
+    ==
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
+  =+  !<(=update:v1:p q.res)
+  (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev *prompts:v1:p]))
+::
+::  %clear is local-only and a no-op when nothing is stored
+::
+++  test-pr-clear-auth-and-noop
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%clear ~]))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  %-  ex-fail
+  %-  (do-as moon)
+  (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%clear ~]))
+::
 ::  configuring a (new) owner re-fans the canonical set so the new owner's
 ::  mirror doesn't stay empty until some prompt text changes
 ::

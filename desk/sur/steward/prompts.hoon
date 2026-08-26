@@ -50,6 +50,11 @@
 ::    %revoke: a bot tells a former owner to drop its mirror (sent when the
 ::          bot's configured owner changes). accepted from any ship that
 ::          has a mirror entry with us — a ship can only drop its own.
+::    %clear: the local gateway declares prompt sync inactive for this ship
+::          (its account lost prompt-syncing authority): wipe the canonical
+::          set and fan the now-empty set to the owner, so the owner's
+::          client stops offering an editor whose edits nothing applies.
+::          src=our only.
 ::
 +$  action
   $%  [%set bot=ship =name text=@t]
@@ -57,6 +62,7 @@
       [%sync =prompts]
       [%request ~]
       [%revoke ~]
+      [%clear ~]
   ==
 ::  $update: prompts subscription / scry update.
 ::
