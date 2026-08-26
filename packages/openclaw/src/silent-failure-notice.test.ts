@@ -291,6 +291,30 @@ describe('terminal failure presentation', () => {
     );
   });
 
+  it('formats sub-minute timeouts in seconds and ignores early failures', () => {
+    expect(
+      rewriteGenericTerminalErrorReply({
+        text: 'LLM request failed.',
+        isError: true,
+        timedOut: false,
+        durationMs: 29_950,
+        timeoutMs: 30_000,
+      })
+    ).toBe(
+      'The model request timed out after 30 seconds before it could finish. Please try again.'
+    );
+    // An immediate failure under a short configured timeout is not a timeout.
+    expect(
+      rewriteGenericTerminalErrorReply({
+        text: 'LLM request failed.',
+        isError: true,
+        timedOut: false,
+        durationMs: 5,
+        timeoutMs: 1_000,
+      })
+    ).toBe('LLM request failed.');
+  });
+
   it('leaves non-error, specific, and early generic replies unchanged', () => {
     expect(
       rewriteGenericTerminalErrorReply({
@@ -350,11 +374,24 @@ describe('createSilentFailureNoticeCooldown', () => {
     expect(cooldown.isCoolingDown('chat/~host/lobby', 14 * 60_000)).toBe(true);
   });
 
-  it('does not start the window when no send was recorded', () => {
+  it('releasing a failed send frees the window without clobbering newer reservations', () => {
+    const cooldown = createSilentFailureNoticeCooldown(15 * 60_000);
+    cooldown.recordSent('chat/~host/lobby', 0);
+    // A failed owner DM releases its own reservation…
+    cooldown.release('chat/~host/lobby', 0);
+    expect(cooldown.isCoolingDown('chat/~host/lobby', 1_000)).toBe(false);
+    // …but a stale release must not clear a newer reservation.
+    cooldown.recordSent('chat/~host/lobby', 2_000);
+    cooldown.release('chat/~host/lobby', 0);
+    expect(cooldown.isCoolingDown('chat/~host/lobby', 3_000)).toBe(true);
+  });
+
+  it('a reservation blocks concurrent notices while a send is in flight', () => {
     const cooldown = createSilentFailureNoticeCooldown(15 * 60_000);
     expect(cooldown.isCoolingDown('chat/~host/lobby', 0)).toBe(false);
-    // A failed owner DM records nothing, so the next attempt is not suppressed.
-    expect(cooldown.isCoolingDown('chat/~host/lobby', 1_000)).toBe(false);
+    cooldown.recordSent('chat/~host/lobby', 0);
+    // A second turn finishing before the first DM resolves is suppressed.
+    expect(cooldown.isCoolingDown('chat/~host/lobby', 50)).toBe(true);
   });
 
   it('allows again after the window elapses', () => {

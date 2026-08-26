@@ -150,8 +150,8 @@ export function createSilentFailureNoticeCooldown(
       const sentAt = lastSentAt.get(conversation);
       return sentAt !== undefined && now - sentAt < windowMs;
     },
-    // Call only after the notice was actually delivered — a failed owner DM
-    // must not burn the window.
+    // Reserve the window before sending so concurrent turns for the same
+    // conversation can't double-notify while the first DM is in flight.
     recordSent(conversation: string, now: number): void {
       if (lastSentAt.size > COOLDOWN_PRUNE_THRESHOLD) {
         for (const [key, sentAt] of lastSentAt) {
@@ -161,6 +161,13 @@ export function createSilentFailureNoticeCooldown(
         }
       }
       lastSentAt.set(conversation, now);
+    },
+    // A failed owner DM must not burn the window. Releases only the caller's
+    // own reservation so a newer one is never clobbered.
+    release(conversation: string, reservedAt: number): void {
+      if (lastSentAt.get(conversation) === reservedAt) {
+        lastSentAt.delete(conversation);
+      }
     },
   };
 }
@@ -177,17 +184,20 @@ export function rewriteGenericTerminalErrorReply(input: {
   if (!input.isError || input.text.trim() !== GENERIC_LLM_FAILURE) {
     return input.text;
   }
+  // Tolerance scales down with short configured timeouts so an immediate
+  // generic failure is never misread as reaching the deadline.
+  const toleranceMs = Math.min(1_000, Math.floor(input.timeoutMs / 10));
   const reachedDeadline =
     input.timedOut ||
-    (input.timeoutMs > 0 && input.durationMs >= input.timeoutMs - 1_000);
+    (input.timeoutMs > 0 && input.durationMs >= input.timeoutMs - toleranceMs);
   if (!reachedDeadline) {
     return input.text;
   }
-  const timeoutMinutes = Math.max(1, Math.round(input.timeoutMs / 60_000));
-  return (
-    `The model request timed out after ${timeoutMinutes} ` +
-    `minute${timeoutMinutes === 1 ? '' : 's'} before it could finish. Please try again.`
-  );
+  const duration =
+    input.timeoutMs < 60_000
+      ? `${Math.max(1, Math.round(input.timeoutMs / 1_000))} second${Math.round(input.timeoutMs / 1_000) === 1 ? '' : 's'}`
+      : `${Math.max(1, Math.round(input.timeoutMs / 60_000))} minute${Math.round(input.timeoutMs / 60_000) === 1 ? '' : 's'}`;
+  return `The model request timed out after ${duration} before it could finish. Please try again.`;
 }
 
 export function resolveTurnTerminalLensStatus(input: {

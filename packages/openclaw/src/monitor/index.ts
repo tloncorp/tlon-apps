@@ -3703,9 +3703,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           conversation: noticeConversation,
         });
         if (notice) {
+          const noticeNow = Date.now();
           const suppressedByCooldown = failureNoticeCooldown.isCoolingDown(
             noticeConversation,
-            Date.now()
+            noticeNow
           );
           let noticeMessageId: string | undefined;
           if (suppressedByCooldown) {
@@ -3713,12 +3714,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               `[tlon] Terminal no-reply turn ${turnSummary.runId} (${notice.kind}); owner notice suppressed by cooldown`
             );
           } else {
+            // Reserve before the await so a concurrent turn for the same
+            // conversation can't double-notify; release if the DM failed.
+            failureNoticeCooldown.recordSent(noticeConversation, noticeNow);
             runtime.log?.(
               `[tlon] Terminal no-reply turn ${turnSummary.runId} (${notice.kind}); notifying owner`
             );
             noticeMessageId = await sendOwnerNotification(notice.text);
-            if (noticeMessageId) {
-              failureNoticeCooldown.recordSent(noticeConversation, Date.now());
+            if (!noticeMessageId) {
+              failureNoticeCooldown.release(noticeConversation, noticeNow);
             }
           }
           recordFailureNoticeMetric({
