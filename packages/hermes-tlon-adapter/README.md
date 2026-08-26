@@ -296,7 +296,7 @@ The seven keys above are the full "dashboard edit works" set. Everything else Tl
 `/tlon` is the owner-only debug namespace (intercepted deterministically, like `/owner-listen`):
 
 -   `/tlon version` — what's running (below). `/tlon-version` is a legacy alias for the same output.
--   `/tlon status storage` — image-upload diagnostic: node URL, whether it looks hosted, the `TLON_HOSTING` override, storage service, S3 credentials, `%genuine` reachability, and the resolved upload path. (Mirrors the decision in `@tloncorp/api`'s `uploadFile`.)
+-   `/tlon status storage` — image-upload diagnostic: node URL, whether it looks hosted, the `TLON_HOSTING` override, storage service, S3 credentials, the current bucket, `%genuine` reachability, and the resolved upload path. (Mirrors the decision in `@tloncorp/api`'s `uploadFile`, and the `tlon` CLI's upload pre-flight.)
 -   `/tlon status binary` — identifies the exact `tlon` CLI the adapter runs: version, a sha256 content hash (two builds of the same version are distinguishable), size, and build time. Use it to confirm a deploy actually shipped a fresh binary.
 -   `/tlon status telemetry [test]` — telemetry status; `test` sends and flushes a probe event (see [Telemetry](#telemetry)).
 
@@ -361,6 +361,16 @@ When a deployment shows nothing in PostHog, work through the built-in diagnostic
 4. **`TLON_TELEMETRY_DEBUG=true`** — logs every capture/identify enqueue at info level plus the posthog SDK's internal debug output, and elevates repeated delivery failures from debug to warning.
 
 Delivery failures are also surfaced without debug mode: the adapter hooks the SDK's `on_error` callback and warns on the first failed batch (`[tlon] telemetry delivery to PostHog failed …`).
+
+## Outbound Media
+
+Hermes has no in-process outbound-media path: `TlonAdapter.send()` is text-only, so the only way a bot emits an image is the model running two CLI commands — `tlon upload <direct-image-url>`, then `tlon posts send <target> [caption] --image <uploaded-url>` (group DMs: `tlon dms send <club-id> ... --image <url>`). The fail-loud contract lives in the CLI (`@tloncorp/tlon-skill`); this package contributes:
+
+-   **Timeouts.** `tlon_tool.media_command_timeout` raises the per-call CLI timeout for media commands (`upload` → 300s, an `--image` send → 75s) so the CLI's own 120s/30s fetch budgets expire first and the model sees the contract error instead of `tlon CLI timed out`.
+-   **Guidance.** Never claim an image was delivered unless the upload (when used) and the send both returned success; if `tlon upload` reports the ship cannot store uploads (self-hosted moons have no storage), pass the direct https URL to `--image` instead of retrying.
+-   **No silent drops.** The standalone/cron send path refuses a call carrying `media_files` instead of delivering the text and discarding the media.
+
+Image URLs must be public https end to end. `/tlon status storage` reports the resolved upload path, including the `Current bucket` the S3 leg needs.
 
 ## Reactions
 

@@ -14,6 +14,7 @@ import { useCallback, useEffect } from 'react';
 import { isWeb } from 'tamagui';
 
 import { TelemetryClient } from '../types/telemetry';
+import { captureMandatoryEventWithClient } from './mandatoryTelemetry';
 import { useCurrentUserId } from './useCurrentUser';
 import { usePosthog } from './usePosthog';
 
@@ -116,21 +117,18 @@ export function useTelemetry(): TelemetryClient {
       properties,
     }: {
       eventId: string;
-      properties?: Record<string, any>;
+      properties?: Record<string, unknown>;
     }) => {
       logger.log(
         `Capturing mandatory event ${eventId} with properties:`,
         properties
       );
-      const optedOut = getIsOptedOut();
-      if (optedOut) {
-        posthog?.optIn();
-        posthog?.capture(eventId, properties);
-        await posthog?.flush();
-        posthog?.optOut();
-      } else {
-        posthog?.capture(eventId, properties);
-      }
+      await captureMandatoryEventWithClient({
+        posthog,
+        getIsOptedOut,
+        eventId,
+        properties,
+      });
     },
     [posthog, getIsOptedOut]
   );

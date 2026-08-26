@@ -345,6 +345,40 @@ class TlonToolGuardTests(unittest.TestCase):
         self.assertIn("--parent <post-id>", platform_hint)
         self.assertIn("posts delete heap/~host/name <post-id>", platform_hint)
 
+    def test_media_guidance_carries_the_delivery_claim_and_fallback_rules(self):
+        # TLON_TOOL_DESCRIPTION is the authoritative rule set; the platform
+        # hint only has to carry the two rules a wrong answer is costly on —
+        # never claiming an undelivered image, and the storage-less fallback.
+        description = tlon_tool.TLON_TOOL_DESCRIPTION
+        self.assertIn("public https", description)
+        self.assertIn(
+            "never claim an image was delivered unless the upload", description
+        )
+        self.assertIn("cannot store uploads", description)
+        self.assertIn("posts without uploading", description)
+
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, *_args, **_kwargs):
+                pass
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        context = RecordingContext()
+        adapter_mod.register(context)
+        platform_hint = context.platform["platform_hint"]
+        self.assertIn("never claim an image was posted unless", platform_hint)
+        self.assertIn("cannot store uploads", platform_hint)
+
     def test_tool_description_includes_latex_guidance(self):
         description = tlon_tool.TLON_TOOL_DESCRIPTION
 
@@ -1639,6 +1673,79 @@ class ReactionToolGateTests(unittest.TestCase):
                 TLON_REACTION_LEVEL="off",
             )
         )
+
+
+
+class MediaCommandTimeoutTests(unittest.TestCase):
+    def test_upload_and_image_sends_get_budgets_above_the_cli_fetch_deadlines(self):
+        timeout = tlon_tool.media_command_timeout
+        self.assertEqual(
+            timeout(["upload", "https://x.example/a.png"]),
+            tlon_tool.UPLOAD_CLI_TIMEOUT_SECONDS,
+        )
+        self.assertEqual(
+            timeout(["--config", "/tmp/c.json", "upload", "https://x.example/a.png"]),
+            tlon_tool.UPLOAD_CLI_TIMEOUT_SECONDS,
+        )
+        for args in (
+            ["posts", "send", "chat/~pen/general", "hi", "--image", "https://x/y.png"],
+            ["posts", "send", "chat/~pen/general", "--image=https://x/y.png"],
+            ["dms", "send", "0v5.abcde", "hi", "--image", "https://x/y.png"],
+        ):
+            self.assertEqual(
+                timeout(args), tlon_tool.IMAGE_SEND_CLI_TIMEOUT_SECONDS, args
+            )
+
+        # The override must clear the CLI's own inner budgets, or the model
+        # sees "tlon CLI timed out" instead of the contract error.
+        self.assertGreater(tlon_tool.UPLOAD_CLI_TIMEOUT_SECONDS, 120.0)
+        self.assertGreater(tlon_tool.IMAGE_SEND_CLI_TIMEOUT_SECONDS, 30.0)
+
+    def test_non_media_commands_keep_the_default_timeout(self):
+        timeout = tlon_tool.media_command_timeout
+        for args in (
+            ["posts", "send", "chat/~pen/general", "hi"],
+            ["dms", "send", "0v5.abcde", "hi"],
+            ["posts", "react", "chat/~pen/general", "170.141", "\u2764\ufe0f"],
+            ["activity", "mentions"],
+            ["contacts", "self"],
+            [],
+        ):
+            self.assertIsNone(timeout(args), args)
+
+    def test_execute_passes_the_override_to_the_cli(self):
+        recorded = {}
+
+        class RecordingCLI:
+            def __init__(self, *_args, **_kwargs):
+                pass
+
+            async def run_command(self, args, *, timeout=None, on_deadline=None):
+                recorded[tuple(args)] = timeout
+                return tlon_api.TlonSendResult(success=True, command=tuple(args))
+
+        config = tlon_api.TlonConfig(
+            ship_url="https://pen.tlon.network",
+            ship_name="~pen",
+            ship_code="code",
+        )
+        with patch.object(tlon_tool, "TlonCLI", RecordingCLI):
+            asyncio.run(
+                tlon_tool.execute_tlon_tool(
+                    {"command": "upload https://x.example/a.png"}, config=config
+                )
+            )
+            asyncio.run(
+                tlon_tool.execute_tlon_tool(
+                    {"command": "activity mentions"}, config=config
+                )
+            )
+
+        self.assertEqual(
+            recorded[("upload", "https://x.example/a.png")],
+            tlon_tool.UPLOAD_CLI_TIMEOUT_SECONDS,
+        )
+        self.assertIsNone(recorded[("activity", "mentions")])
 
 
 if __name__ == "__main__":

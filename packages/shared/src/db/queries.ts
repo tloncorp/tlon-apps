@@ -5,6 +5,10 @@ import {
 } from '@tloncorp/api';
 import { parseGroupId } from '@tloncorp/api';
 import {
+  type PostBlobDataEntryA2UISelection,
+  parsePostBlob,
+} from '@tloncorp/api';
+import {
   SourceActivityEvents,
   interleaveActivityEvents,
   toSourceActivityEvents,
@@ -29,6 +33,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  like,
   lt,
   lte,
   max,
@@ -59,6 +64,7 @@ import {
   activityEvents as $activityEvents,
   attestations as $attestations,
   baseUnreads as $baseUnreads,
+  botReplyFeedback as $botReplyFeedback,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
   channelWriters as $channelWriters,
@@ -99,6 +105,7 @@ import {
   ActivityEvent,
   Attestation,
   BaseUnread,
+  BotReplyFeedback,
   ChangesResult,
   Channel,
   ChannelUnread,
@@ -206,6 +213,85 @@ export const getSettings = createReadQuery(
     });
   },
   ['settings']
+);
+
+export const getBotReplyFeedback = createReadQuery(
+  'getBotReplyFeedback',
+  async (messageId: string, ctx: QueryCtx) => {
+    return (
+      (await ctx.db.query.botReplyFeedback.findFirst({
+        where: eq($botReplyFeedback.messageId, messageId),
+      })) ?? null
+    );
+  },
+  ['botReplyFeedback']
+);
+
+export const upsertBotReplyFeedback = createWriteQuery(
+  'upsertBotReplyFeedback',
+  async (entry: BotReplyFeedback, ctx: QueryCtx) => {
+    return ctx.db.insert($botReplyFeedback).values(entry).onConflictDoUpdate({
+      target: $botReplyFeedback.messageId,
+      set: entry,
+    });
+  },
+  ['botReplyFeedback']
+);
+
+export const deleteBotReplyFeedback = createWriteQuery(
+  'deleteBotReplyFeedback',
+  async (messageId: string, ctx: QueryCtx) => {
+    return ctx.db
+      .delete($botReplyFeedback)
+      .where(eq($botReplyFeedback.messageId, messageId));
+  },
+  ['botReplyFeedback']
+);
+
+export const replaceBotReplyFeedback = createWriteQuery(
+  'replaceBotReplyFeedback',
+  async (entries: BotReplyFeedback[], ctx: QueryCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db.delete($botReplyFeedback);
+      if (entries.length > 0) {
+        await txCtx.db.insert($botReplyFeedback).values(entries);
+      }
+    });
+  },
+  ['botReplyFeedback']
+);
+
+export const getBotReplyConversationExcerptPosts = createReadQuery(
+  'getBotReplyConversationExcerptPosts',
+  async (
+    {
+      channelId,
+      parentId,
+      sentAt,
+      limit,
+    }: {
+      channelId: string;
+      parentId: string | null;
+      sentAt: number;
+      limit: number;
+    },
+    ctx: QueryCtx
+  ) => {
+    const conversationCondition = parentId
+      ? or(eq($posts.id, parentId), eq($posts.parentId, parentId))
+      : isNull($posts.parentId);
+    const rows = await ctx.db.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        lt($posts.sentAt, sentAt),
+        conversationCondition
+      ),
+      orderBy: desc($posts.sentAt),
+      limit,
+    });
+    return rows.reverse();
+  },
+  ['posts']
 );
 
 export const getGroupPreviews = createReadQuery(
@@ -4456,6 +4542,50 @@ export const getChanPosts = createReadQuery(
       .select()
       .from($posts)
       .where(eq($posts.channelId, params.channelId));
+  },
+  ['posts']
+);
+
+/**
+ * Durable A2UI selection entries in a channel, scoped to one author.
+ *
+ * A one-shot A2UI control is consumed iff a live post by the viewer carries a
+ * `tlon-a2ui-selection` entry matching the source post, surface, and component
+ * ids, so consumption survives remount, restart, and other devices. The
+ * author scope is load-bearing: without it, any channel member could post a
+ * matching blob to lock or fake-answer someone else's control.
+ */
+export const getA2UISelections = createReadQuery(
+  'getA2UISelections',
+  async (
+    params: { channelId: string; authorId: string },
+    ctx: QueryCtx
+  ): Promise<PostBlobDataEntryA2UISelection[]> => {
+    const rows = await ctx.db
+      .select({ blob: $posts.blob })
+      .from($posts)
+      .where(
+        and(
+          eq($posts.channelId, params.channelId),
+          eq($posts.authorId, params.authorId),
+          isNotNull($posts.blob),
+          // Cheap prefilter; parsePostBlob below is the real check.
+          like($posts.blob, '%tlon-a2ui-selection%'),
+          or(isNull($posts.isDeleted), eq($posts.isDeleted, false)),
+          or(
+            isNull($posts.deliveryStatus),
+            not(eq($posts.deliveryStatus, 'failed'))
+          )
+        )
+      );
+    return rows.flatMap((row) =>
+      row.blob
+        ? parsePostBlob(row.blob).filter(
+            (entry): entry is PostBlobDataEntryA2UISelection =>
+              entry.type === 'tlon-a2ui-selection'
+          )
+        : []
+    );
   },
   ['posts']
 );

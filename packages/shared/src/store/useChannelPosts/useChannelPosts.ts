@@ -17,6 +17,7 @@ import { SyncPriority } from '../syncQueue';
 import { useDetectSequenceRegression } from '../useDetectSequenceRegression';
 import { mergePendingPosts } from '../useMergePendingPosts';
 import { getLatestChannelPostsInitialPage, queryKeyPrefix } from './queries';
+import { refreshStaleChannelPosts } from './refresh';
 import { useDeletedPosts, useNewPostListener } from './subscriptions';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
@@ -509,41 +510,17 @@ function useRefreshPosts(channelId: string, posts: db.Post[] | null) {
 
   const pendingStalePosts = useRef(new Set<string>());
   useEffect(() => {
-    const toSync =
-      posts?.filter(
-        (post) =>
-          session &&
-          (post.syncedAt == null ||
-            post.syncedAt < (session?.startTime ?? 0)) &&
-          !pendingStalePosts.current.has(post.id)
-      ) || [];
-
-    postsLogger.log('stale posts to sync', toSync.length);
-
-    const chunked = [];
-    const chunkSize = 50;
-    for (let i = 0; i < toSync.length; i += chunkSize) {
-      chunked.push(toSync.slice(i, i + chunkSize));
-    }
-
-    postsLogger.log('chunked', chunked.length);
-    chunked.forEach((chunk, i) => {
-      const startCursor = chunk[chunk.length - 1].id;
-      const endCursor = chunk[0].id;
-      postsLogger.log('syncing chunk', startCursor, 'through', endCursor);
-      sync.syncUpdatedPosts(
-        {
-          channelId,
-          startCursor,
-          endCursor,
-          afterTime: new Date(session?.startTime ?? 0),
-        },
-        { priority: 4 }
-      );
-      pendingStalePosts.current = new Set<string>([
-        ...chunk.map((p) => p.id),
-        ...pendingStalePosts.current,
-      ]);
+    refreshStaleChannelPosts({
+      channelId,
+      posts,
+      session,
+      pendingPostIds: pendingStalePosts.current,
+      refreshPosts: sync.syncUpdatedPosts,
+      onError: (error) =>
+        postsLogger.trackError(
+          'failed to refresh stale posts',
+          error instanceof Error ? error : { error }
+        ),
     });
   }, [channelId, posts, session]);
 }

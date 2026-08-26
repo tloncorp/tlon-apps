@@ -21,7 +21,14 @@ import {
   pathToCite,
 } from '../urbit';
 import { A2UI } from './a2ui';
+import {
+  AGENT_PROTOCOL_LIMITS,
+  AgentProviderConfigContextSchema,
+  AgentProvisionActionContextSchema,
+  agentProtocolString,
+} from './agentProtocol';
 
+export * from './agentProtocol';
 export * from './a2ui';
 
 const logger = createDevLogger('content-helpers', false);
@@ -692,11 +699,98 @@ export type PostBlobDataEntryContextLens = z.infer<
   typeof PostBlobDataEntryContextLensSchema
 >;
 
+export const PostBlobDataEntryAgentIntroRequestSchema =
+  definePostBlobDataEntrySchema('tlon-agent-intro-request', 1, {
+    groupId: z.string().min(1).max(512),
+    isFirstGroup: z.boolean().optional(),
+  });
+
+export type PostBlobDataEntryAgentIntroRequest = z.infer<
+  typeof PostBlobDataEntryAgentIntroRequestSchema
+>;
+
+export const PostBlobDataEntryAgentProvisionSchema =
+  definePostBlobDataEntrySchema('tlon-agent-provision', 1, {
+    provisionId: agentProtocolString(AGENT_PROTOCOL_LIMITS.identifierLength),
+    ...AgentProvisionActionContextSchema.shape,
+    timezone: agentProtocolString(AGENT_PROTOCOL_LIMITS.timezoneLength),
+    notebookNest: agentProtocolString(AGENT_PROTOCOL_LIMITS.notebookNestLength),
+    notebookTitle: agentProtocolString(
+      AGENT_PROTOCOL_LIMITS.notebookTitleLength
+    ).optional(),
+  });
+
+export type PostBlobDataEntryAgentProvision = z.infer<
+  typeof PostBlobDataEntryAgentProvisionSchema
+>;
+
+export const PostBlobDataEntryAgentProviderConfigSchema =
+  definePostBlobDataEntrySchema(
+    'tlon-agent-provider-config',
+    1,
+    AgentProviderConfigContextSchema.shape
+  );
+
+export type PostBlobDataEntryAgentProviderConfig = z.infer<
+  typeof PostBlobDataEntryAgentProviderConfigSchema
+>;
+
+export const PostBlobDataEntryAgentProvisionAckSchema =
+  definePostBlobDataEntrySchema('tlon-agent-provision-ack', 1, {
+    provisionId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
+    cronJobId: z.string().min(1).max(AGENT_PROTOCOL_LIMITS.identifierLength),
+  });
+
+export type PostBlobDataEntryAgentProvisionAck = z.infer<
+  typeof PostBlobDataEntryAgentProvisionAckSchema
+>;
+
+export const PostBlobDataEntryAgentPostMarkerSchema =
+  definePostBlobDataEntrySchema('tlon-agent-post-marker', 1, {
+    key: z.string().min(1).max(256),
+  });
+
+export type PostBlobDataEntryAgentPostMarker = z.infer<
+  typeof PostBlobDataEntryAgentPostMarkerSchema
+>;
+
+/**
+ * Durable record of an answered A2UI control, attached to the reply post it
+ * produced; prose remains presentation only. Its presence — matched on
+ * sourcePostId + surfaceId + componentId in posts authored by the viewer — is
+ * what marks a one-shot control consumed across remounts and devices.
+ */
+export const PostBlobDataEntryA2UISelectionSchema =
+  definePostBlobDataEntrySchema('tlon-a2ui-selection', 1, {
+    surfaceId: agentProtocolString(512),
+    componentId: agentProtocolString(512),
+    /** The bot post containing the answered surface. */
+    sourcePostId: agentProtocolString(512).optional(),
+    /** For a Choice, the id of the tapped option, so restore can mark it. */
+    optionId: agentProtocolString(512).optional(),
+    // Entries are bounded by the A2UI send-message limit, not topicLength: a
+    // one-shot Button records the full message text it posted.
+    values: z
+      .array(agentProtocolString(1000))
+      .min(1)
+      .max(AGENT_PROTOCOL_LIMITS.topicCount),
+  });
+
+export type PostBlobDataEntryA2UISelection = z.infer<
+  typeof PostBlobDataEntryA2UISelectionSchema
+>;
+
 const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
   PostBlobDataEntryVideoSchema,
   PostBlobDataEntryContextLensSchema,
+  PostBlobDataEntryAgentIntroRequestSchema,
+  PostBlobDataEntryAgentProvisionSchema,
+  PostBlobDataEntryAgentProviderConfigSchema,
+  PostBlobDataEntryAgentProvisionAckSchema,
+  PostBlobDataEntryAgentPostMarkerSchema,
+  PostBlobDataEntryA2UISelectionSchema,
   A2UI.blobEntrySchema,
 ] as const;
 
@@ -827,8 +921,31 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
   );
 }
 
+/** Find the first validated entry of a given type in a post blob. */
+export function findPostBlobEntry<
+  Type extends PostBlobDataEntry['type'],
+  Entry extends Extract<PostBlobDataEntry, { type: Type }> = Extract<
+    PostBlobDataEntry,
+    { type: Type }
+  >,
+>(blob: string | null | undefined, type: Type): Entry | undefined {
+  if (!blob) return undefined;
+  return parsePostBlob(blob).find(
+    (entry): entry is Entry => entry.type === type
+  );
+}
+
+/** Whether a post blob contains a validated entry of a given type. */
+export function postHasBlobEntry<Type extends PostBlobDataEntry['type']>(
+  blob: string | null | undefined,
+  type: Type
+): boolean {
+  return findPostBlobEntry(blob, type) !== undefined;
+}
+
 export function toPostData({
   attachments,
+  blob: initialBlob,
   content,
   image,
   channelType,
@@ -836,12 +953,13 @@ export function toPostData({
 }: {
   content: (Inline | Block)[];
   attachments: FinalizedAttachment[];
+  blob?: string;
   channelType: ChannelType;
   title?: string;
   image?: string;
 }): { story: Story; metadata: PostMetadata; blob?: string } {
   const blocks: Block[] = [];
-  let blob: string | undefined = undefined;
+  let blob = initialBlob;
 
   attachments
     // For notebooks, skip header image - it goes in metadata only, not content

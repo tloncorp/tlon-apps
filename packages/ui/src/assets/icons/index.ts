@@ -81,6 +81,8 @@ export { default as Sorter } from './Sorter.svg';
 export { default as Stop } from './Stop.svg';
 export { default as Strikethrough } from './Strikethrough.svg';
 export { default as TBlock } from './TBlock.svg';
+export { default as ThumbsDown } from './ThumbsDown.svg';
+export { default as ThumbsUp } from './ThumbsUp.svg';
 export { default as Trash } from './Trash.svg';
 export { default as Underline } from './Underline.svg';
 export { default as Undo } from './Undo.svg';
