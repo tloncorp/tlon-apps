@@ -15,7 +15,6 @@ import type {
   PluginHookMessageSentEvent,
 } from 'openclaw/plugin-sdk/types';
 
-import { authRetryDelayMs } from '../auth-retry-state.js';
 import { type TlonCronService, getTlonCronService } from '../cron-telemetry.js';
 import { noteIdFromDeliveryMessageId } from '../notes-delivery-state.js';
 import { sharedMap } from '../shared-state.js';
@@ -289,13 +288,6 @@ const firstRunCorrelations = sharedMap<string, FirstRunCorrelation>(
 );
 const firstRunCompletionFlights = sharedMap<string, Promise<void>>(
   'agentOnboarding.firstRunCompletionFlights'
-);
-const firstRunCompletionRetryTimers = sharedMap<
-  string,
-  ReturnType<typeof setTimeout>
->('agentOnboarding.firstRunCompletionRetryTimers');
-const firstRunCompletionRetryAttempts = sharedMap<string, number>(
-  'agentOnboarding.firstRunCompletionRetryAttempts'
 );
 const primaryJobFlights = sharedMap<
   string,
@@ -1423,31 +1415,6 @@ async function failFirstRun(
   });
 }
 
-function scheduleFirstRunRetry(
-  correlationRunId: string,
-  retry: () => Promise<unknown>
-) {
-  if (
-    !firstRunCorrelations.has(correlationRunId) ||
-    firstRunCompletionRetryTimers.has(correlationRunId)
-  ) {
-    return;
-  }
-  const attempt =
-    (firstRunCompletionRetryAttempts.get(correlationRunId) ?? 0) + 1;
-  firstRunCompletionRetryAttempts.set(correlationRunId, attempt);
-  const delay = authRetryDelayMs(attempt);
-  const timer = setTimeout(() => {
-    firstRunCompletionRetryTimers.delete(correlationRunId);
-    void retry().catch(() => {
-      // The retried settlement schedules the next backoff attempt while its
-      // retained correlation remains nonterminal.
-    });
-  }, delay);
-  timer.unref?.();
-  firstRunCompletionRetryTimers.set(correlationRunId, timer);
-}
-
 async function failFirstRunCorrelation(
   correlationRunId: string,
   correlation: FirstRunCorrelation,
@@ -1616,32 +1583,7 @@ async function settleFirstRun({
           )
   );
   if (!started) return flight;
-  try {
-    await flight;
-    clearFirstRunCompletionRetry(correlationRunId);
-  } catch (error) {
-    scheduleFirstRunRetry(correlationRunId, () =>
-      failureEvent
-        ? failFirstRun(correlationRunId, failureEvent, deps)
-        : completeFirstRun(correlationRunId, undefined, deliveryMessageId, deps)
-    );
-    throw error;
-  }
-}
-
-function clearFirstRunCompletionRetry(correlationRunId: string) {
-  const timer = firstRunCompletionRetryTimers.get(correlationRunId);
-  if (timer) clearTimeout(timer);
-  firstRunCompletionRetryTimers.delete(correlationRunId);
-  firstRunCompletionRetryAttempts.delete(correlationRunId);
-}
-
-function clearAllFirstRunCompletionRetries() {
-  for (const timer of firstRunCompletionRetryTimers.values()) {
-    clearTimeout(timer);
-  }
-  firstRunCompletionRetryTimers.clear();
-  firstRunCompletionRetryAttempts.clear();
+  await flight;
 }
 
 async function retireSupersededFirstRun(
@@ -2142,7 +2084,6 @@ export function clearAgentOnboardingRuntime(
     .filter(([, correlation]) => !api || correlation.context.api === api)
     .map(([key]) => key);
   for (const key of ownedKeys) {
-    clearFirstRunCompletionRetry(key);
     firstRunCompletionFlights.delete(key);
     firstRunCorrelations.delete(key);
   }
@@ -2154,7 +2095,6 @@ export async function drainAgentOnboardingRuntime(
   const ownedKeys = [...firstRunCorrelations]
     .filter(([, correlation]) => correlation.context.api === api)
     .map(([key]) => key);
-  for (const key of ownedKeys) clearFirstRunCompletionRetry(key);
   // Stop lifecycle hooks from installing a new completion flight after the
   // drain snapshot. Already-running flights retain their captured correlation.
   for (const key of ownedKeys) firstRunCorrelations.delete(key);
@@ -3025,7 +2965,6 @@ export const agentOnboardingTesting = {
   buildTourChoiceSurface,
   buildRecurringPrompt,
   buildServicesSurface,
-  clearAllFirstRunCompletionRetries,
   ensureFirstRunEnqueued,
   fetchOnboardingGroup,
   findFirstRunCorrelation,
