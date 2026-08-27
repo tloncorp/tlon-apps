@@ -833,6 +833,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // at this point, so re-run the boot reconcile: the scry picks up
           // any edit the gap dropped, and the re-seed no-ops when nothing
           // changed.
+          //
+          // This also fires when a watch we had written off as unsupported
+          // is finally accepted (updated desk, or a restart that outlasted
+          // the nack budget), so clear that state first — otherwise the
+          // reconcile below returns early and edits stored during the
+          // abandoned window are never applied.
+          if (promptWatchUnavailable) {
+            runtime.log?.(
+              '[tlon] /v1/prompts accepted after being written off; re-enabling prompt sync'
+            );
+            promptWatchUnavailable = false;
+          }
           runtime.log?.(
             '[tlon] Steward prompts subscription recovered; re-running prompt reconcile'
           );

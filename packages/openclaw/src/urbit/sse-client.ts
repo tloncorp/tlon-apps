@@ -1007,8 +1007,25 @@ export class UrbitSSEClient {
             const key = `${sub.app}${sub.path}`;
             this.ackedSubscriptionKeys.add(key);
             this.subscriptionNackCounts.delete(key);
-            this.abandonedSubscriptionKeys.delete(key);
+            const wasAbandoned = this.abandonedSubscriptionKeys.delete(key);
             this.flushSubscriptionKeyAckWaiters(key);
+            if (wasAbandoned) {
+              // A rebuild re-sent this watch and the ship accepted it after
+              // all (the desk finished restarting, or was updated). Tell the
+              // consumer, or it stays in its own "unavailable" state: facts
+              // would flow again while anything stored during the abandoned
+              // window is never backfilled until the process restarts.
+              this.logger.log?.(
+                `[SSE] Previously abandoned watch ${sub.app}${sub.path} was accepted; recovered`
+              );
+              this.onSubscriptionRecovery?.({
+                app: sub.app,
+                path: sub.path,
+                phase: 'recovered',
+                attempt: 0,
+                downMs: 0,
+              });
+            }
           }
         }
         // A subscribe nack after the channel PUT means the watch never went

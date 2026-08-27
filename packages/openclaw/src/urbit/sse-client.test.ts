@@ -170,6 +170,54 @@ describe('UrbitSSEClient', () => {
       vi.useRealTimers();
     });
 
+    it('emits a recovery when an abandoned watch is later accepted', async () => {
+      vi.useFakeTimers();
+      const { urbitFetch } = await import('./fetch.js');
+      vi.mocked(urbitFetch).mockResolvedValue(okFetch());
+      const recovery: string[] = [];
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: (e) => recovery.push(e.phase) }
+      );
+      (client as unknown as { isConnected: boolean }).isConnected = true;
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/prompts',
+        event: vi.fn(),
+        quit: vi.fn(),
+        optional: true,
+      });
+      const priv = client as unknown as {
+        subscriptions: { id: number }[];
+        eventHandlers: Map<number, unknown>;
+      };
+      const liveId = () =>
+        priv.subscriptions.filter((sub) => priv.eventHandlers.has(sub.id))[0]
+          ?.id;
+      for (let i = 0; i < 6; i += 1) {
+        const id = liveId();
+        if (id === undefined) break;
+        client.processEvent(
+          `id: ${i + 1}\ndata: {"id":${id},"response":"subscribe","err":"nope"}`
+        );
+        await vi.advanceTimersByTimeAsync(3_000);
+      }
+      expect(recovery).toContain('abandoned');
+      // The desk finishes restarting (or is updated) and a rebuild's
+      // re-send is accepted: consumers must hear about it, or they stay in
+      // their own unavailable state and never backfill.
+      recovery.length = 0;
+      client.processEvent(
+        `id: 99\ndata: {"id":${liveId()},"response":"subscribe","ok":"ok"}`
+      );
+      expect(recovery).toEqual(['recovered']);
+      await expect(
+        client.waitForSubscriptionAck('steward', '/v1/prompts', 1_000)
+      ).resolves.toBe('acked');
+      vi.useRealTimers();
+    });
+
     it('never abandons a required watch, however many nacks', async () => {
       vi.useFakeTimers();
       const { urbitFetch } = await import('./fetch.js');
