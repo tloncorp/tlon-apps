@@ -165,7 +165,11 @@ describe('tlon tool guard', () => {
         'channels create ~host/group-slug "Title" --kind notes'
       );
       expect(result).toContain('conversation where it was requested');
-      expect(result).toContain('find an existing `notes/...` Notebook');
+      expect(result).toContain('Do not infer a Notebook destination');
+      expect(result).toContain('explicitly asks to save it in a Notebook');
+      expect(result).toContain(
+        'find the named or relevant `notes/...` channel'
+      );
       expect(result).toContain('verify the owner is a member');
       expect(result).toContain('groups info <group-id>');
       expect(result).toContain('only when the owner explicitly asks');

@@ -135,7 +135,7 @@ Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can re
 
 There is no global `Notes` or `Notebooks` dashboard in Tlon Messenger. A backend path such as `notes/~host/name/3` identifies note `3` inside a `%notes` notebook; it is not an app-navigation path. The app exposes a notebook when it is a **Notebook channel inside a group**: open that group, then its Notebook channel, and select the note there.
 
-Normal replies and recurring alerts belong in the conversation where the owner requested them unless the owner names another destination. For durable material, reuse the existing Notebook in the relevant agent group when one is available; agent groups are set up with a group-backed Notebook for this purpose. Create another Notebook only when the owner explicitly asks for one.
+Normal replies, recurring alerts, reports, and other generated material belong in the conversation where the owner requested them unless the owner names another destination. Do not infer that material belongs in a Notebook merely because it is long-lived or document-like; the conversation is still the default. When the owner explicitly asks to save material in a Notebook, reuse the Notebook they named or an existing Notebook in the relevant agent group after confirming the destination. Create another Notebook only when the owner explicitly asks for one.
 
 If a bot created a standalone backend notebook rather than a group-backed channel, the owner cannot find it by opening an invented Notes tab. Say that plainly. Offer to copy the content into an existing Notebook channel in a group they can reach, paste it into the current chat, or post it to another visible destination.
 

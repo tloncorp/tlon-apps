@@ -17,10 +17,13 @@ describe('Tlon product guide contracts', () => {
     );
     expect(guide).toContain('Notebook channel inside a group');
     expect(guide).toContain(
-      'Normal replies and recurring alerts belong in the conversation'
+      'Normal replies, recurring alerts, reports, and other generated material belong in the conversation'
     );
     expect(guide).toContain(
-      'reuse the existing Notebook in the relevant agent group'
+      'Do not infer that material belongs in a Notebook merely because it is long-lived or document-like'
+    );
+    expect(guide).toContain(
+      'When the owner explicitly asks to save material in a Notebook'
     );
     expect(guide).toContain(
       'Create another Notebook only when the owner explicitly asks'

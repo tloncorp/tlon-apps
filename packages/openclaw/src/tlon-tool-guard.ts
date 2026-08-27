@@ -366,8 +366,8 @@ export function checkBlockedMigrationOperation(args: string[]): string | null {
  * Keep app-invisible standalone notebooks out of model-issued writes.
  *
  * The CLI remains available to an operator who deliberately needs a raw
- * `%notes` notebook. Tlonbot should create a group-backed Notebook channel so
- * the owner can reach the result in Tlon Messenger.
+ * `%notes` notebook. Tlonbot should keep output in the requesting conversation
+ * unless the owner explicitly chooses a reachable Notebook channel.
  */
 export function checkBlockedStandaloneNotebookCreation(
   args: string[]
@@ -382,14 +382,16 @@ export function checkBlockedStandaloneNotebookCreation(
 
   return (
     'Blocked: `notes create` makes a standalone backend notebook that is not ' +
-    'listed in Tlon Messenger. Send ordinary and recurring output to the ' +
-    'conversation where it was requested. For a durable artifact, first use ' +
-    '`channels groups` to find an existing `notes/...` Notebook channel, then ' +
-    '`groups info <group-id>` to verify the owner is a member. Create a new ' +
-    'group-backed Notebook with ' +
+    'listed in Tlon Messenger. Send replies, recurring output, reports, and ' +
+    'other generated material to the conversation where it was requested ' +
+    'unless the owner chose another destination. Do not infer a Notebook ' +
+    'destination merely because the material is long-lived or document-like. ' +
+    'If the owner explicitly asks to save it in a Notebook, use `channels ' +
+    'groups` to find the named or relevant `notes/...` channel, confirm an ' +
+    'ambiguous destination, then use `groups info <group-id>` to verify the ' +
+    'owner is a member. Create a new group-backed Notebook with ' +
     '`channels create ~host/group-slug "Title" --kind notes` only when the ' +
-    'owner explicitly asks for a new Notebook; otherwise ask where the content ' +
-    'should be delivered.'
+    'owner explicitly asks for a new Notebook.'
   );
 }
 
