@@ -1,6 +1,6 @@
 ---
 name: tlon-product-guide
-description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups, channels (Chat/Notebook/Bulletin/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app.
+description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups, channels (Chat/Notebook/Bulletin/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. A backend notes/~host/name path is not a global Notes screen; Tlon Messenger exposes group-backed Notebook channels through their group. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app.
 ---
 
 # Tlon Messenger: Product Guide
@@ -132,6 +132,10 @@ A group is a social space with members, roles, and channels. There are four chan
 Bulletin is the older of the two writing channels, and it used to be called Notebook. A node that hasn't picked up the notebooks update yet still shows it under the old name and doesn't offer the new one.
 
 Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can read and work with them (where you've given it access). Bulletins are half-supported: a bot can still reply in one when it's spoken to, but the tooling it uses to go read a channel or manage it treats them as deprecated. So expect conversation to work and "catch me up on that Bulletin" not to. Migrating it to a Notebook closes the gap, but read the warning under `/migrate` first — it copies less than you'd expect.
+
+There is no global `Notes` or `Notebooks` dashboard in Tlon Messenger. A backend path such as `notes/~host/name/3` identifies note `3` inside a `%notes` notebook; it is not an app-navigation path. The app exposes a notebook when it is a **Notebook channel inside a group**: open that group, then its Notebook channel, and select the note there.
+
+If a bot created a standalone backend notebook rather than a group-backed channel, the owner cannot find it by opening an invented Notes tab. Say that plainly. Offer to copy the content into a Notebook channel in a group they can reach, paste it into the current chat, or post it to another visible destination. Before setting up recurring output, confirm the destination is visible to the owner.
 
 ### Make a group
 

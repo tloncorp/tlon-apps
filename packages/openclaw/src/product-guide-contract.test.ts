@@ -1,0 +1,22 @@
+import { readFileSync } from 'node:fs';
+
+import { describe, expect, it } from 'vitest';
+
+const guide = readFileSync(
+  new URL('../skills/tlon-product-guide/SKILL.md', import.meta.url),
+  'utf8'
+);
+
+describe('Tlon product guide contracts', () => {
+  it('does not map backend notes paths to an invented global screen', () => {
+    const frontmatter = guide.match(/^---\n([\s\S]*?)\n---/)?.[1];
+    expect(frontmatter).toContain(
+      'A backend notes/~host/name path is not a global Notes screen'
+    );
+    expect(guide).toContain(
+      'There is no global `Notes` or `Notebooks` dashboard in Tlon Messenger'
+    );
+    expect(guide).toContain('Notebook channel inside a group');
+    expect(guide).toContain('paste it into the current chat');
+  });
+});
