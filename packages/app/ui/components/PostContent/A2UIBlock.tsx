@@ -334,6 +334,26 @@ function SmallChoiceControl({
     setCustomInputVisibility(true);
   }, [oneShot, setCustomInputVisibility]);
 
+  const closeSavedCustomInput = useCallback(() => {
+    customInputOpenRef.current = false;
+    void KeyboardController.dismiss().finally(() => {
+      if (!customInputMountedRef.current || customInputOpenRef.current) {
+        return;
+      }
+
+      // Keep the sheet over the conversation until its keyboard has fully
+      // settled. Closing it first exposes the floating composer's native
+      // bottom-edge effect while it still has keyboard-sized geometry, and a
+      // scroll-to-end during that transition anchors against the wrong inset.
+      conversationScrollEndAnchor?.restore();
+      requestAnimationFrame(() => {
+        if (customInputMountedRef.current && !customInputOpenRef.current) {
+          setCustomInputOpen(false);
+        }
+      });
+    });
+  }, [conversationScrollEndAnchor]);
+
   const saveCustomInput = useCallback(() => {
     if (oneShot.isLocked()) {
       return;
@@ -368,14 +388,14 @@ function SmallChoiceControl({
           : [...previous, topic];
       });
     }
-    setCustomInputVisibility(false);
+    closeSavedCustomInput();
   }, [
+    closeSavedCustomInput,
     component.options,
     customDraft,
     customTopics.length,
     oneShot,
     selectedIds.length,
-    setCustomInputVisibility,
   ]);
 
   const removeCustomTopic = useCallback(
