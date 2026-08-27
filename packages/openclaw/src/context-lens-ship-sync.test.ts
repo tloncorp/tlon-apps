@@ -394,6 +394,59 @@ describe('createContextLensShipSync', () => {
 
 // Keep this block last: initContextLensShipSync subscribes to the global lens
 // event stream, and the final subscription persists for the rest of the file.
+describe('createContextLensShipSync retirement ordering', () => {
+  it('orders a replacement after a retired sync in-flight configure', async () => {
+    const order: string[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const oldParams: SharedApiClientParams = {
+      poke: async (params) => {
+        order.push(`old:${params.mark}`);
+        await gate;
+        return undefined;
+      },
+    };
+    const oldSync = createContextLensShipSync({
+      owner: '~bus',
+      logger: silentLogger,
+      getParams: () => oldParams,
+    });
+    // Enqueue work, then let its %configure block mid-flight.
+    oldSync.handleEvent(makeEvent(makeLens({ status: 'completed' })));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(order).toEqual(['old:steward-action-1']);
+
+    // A reload retires it and starts a replacement with a different owner.
+    oldSync.cancel();
+    const newParams: SharedApiClientParams = {
+      poke: async (params) => {
+        order.push(`new:${params.mark}`);
+        return undefined;
+      },
+    };
+    const newSync = createContextLensShipSync({
+      owner: '~dev',
+      logger: silentLogger,
+      getParams: () => newParams,
+      after: oldSync.flush(),
+    });
+    newSync.handleEvent(makeEvent(makeLens({ status: 'completed' })));
+    release();
+    await newSync.flush();
+
+    // The retired sync's run poke is skipped (cancellation is rechecked
+    // after its configure), and every replacement poke lands after the
+    // in-flight one — so ~dev, not ~bus, is the owner %steward ends on.
+    expect(order).toEqual([
+      'old:steward-action-1',
+      'new:steward-action-1',
+      'new:steward-lens-action-1',
+    ]);
+  });
+});
+
 describe('initContextLensShipSync', () => {
   it('replaces the event subscription on re-init instead of stacking pokes', async () => {
     const pokes: RecordedPoke[] = [];

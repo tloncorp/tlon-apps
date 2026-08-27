@@ -787,6 +787,37 @@ export function createPromptSync(opts: {
       // A failed write means the file content does not match the stored
       // edit; seeding now would overwrite the stored edit with stale file
       // content. Leave the ship untouched and retry next boot.
+      //
+      // But the loop is not atomic: files written before the failure are
+      // already on the shared workspace, so stamp that subset before
+      // bailing. Without this they sit unattributed, and an entrypoint
+      // rewrite plus a repoint would leave the next authority unable to
+      // recognize them as this ship's (exact-text history alone no longer
+      // matches once the file is rewritten).
+      if (applied.length > 0) {
+        const partial: Record<string, string> = {};
+        for (const name of applied) {
+          const text = desired[name];
+          if (text !== undefined) {
+            partial[name] = text;
+          }
+        }
+        const stamped = await persistToConfig(
+          partial,
+          { mode: 'none', reason: 'tlon prompt sync partial apply stamps' },
+          { markApplied: true }
+        );
+        if (stamped) {
+          for (const [name, text] of Object.entries(partial)) {
+            fileStamps[name] = normalizeShip(botShip);
+            currentApplied[name] = text;
+          }
+        } else {
+          logger.warn(
+            `[tlon] Applied ${applied.join(', ')} but could not stamp ownership; next boot retries`
+          );
+        }
+      }
       logger.warn('[tlon] Skipping prompt seed: workspace apply failed');
       return;
     }

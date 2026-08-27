@@ -1409,3 +1409,34 @@ describe('ownership stamp write failure', () => {
     );
   });
 });
+
+describe('partial apply stamping', () => {
+  it('stamps the files that were written before a mid-loop failure', async () => {
+    // A directory at one target makes that write fail; the other succeeds.
+    fs.mkdirSync(path.join(tmpDir, 'SOUL.md'));
+    const core = makeCore();
+    const sync = createPromptSync({
+      core,
+      accountId: 'default',
+      botShip: '~zod',
+      workspaceDir: tmpDir,
+      configPrompts: { 'AGENTS.md': 'written ok', 'SOUL.md': 'cannot write' },
+      currentApplied: {},
+      fileStamps: {},
+      owner: null,
+      scry: async () => ({}),
+      poke: async () => ({}),
+      logger,
+    });
+    await sync.startup();
+    // AGENTS.md reached the workspace, so its ownership must be recorded
+    // even though the pass aborted before the normal marker write.
+    expect(fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf8')).toBe(
+      'written ok'
+    );
+    const reasons = core.config.mutateConfigFile.mock.calls.map(
+      (c: any) => c[0].afterWrite.reason
+    );
+    expect(reasons).toContain('tlon prompt sync partial apply stamps');
+  });
+});
