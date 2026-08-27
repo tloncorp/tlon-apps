@@ -8,7 +8,10 @@ import type {
   MigrationOptions,
 } from './notes-migrate';
 import { executeApply, verifyTargetContents } from './notes-migrate-apply';
-import { NotesChannelPreflightError } from './notes-channel';
+import {
+  NotesChannelPreflightError,
+  NotesChannelRolledBackError,
+} from './notes-channel';
 
 const SOURCE = 'diary/~zod/blog';
 const GROUP = '~zod/group';
@@ -456,6 +459,23 @@ describe('executeApply', () => {
     );
     expect(context.calls.batch).toEqual([]);
     expect(context.calls.updateChannel).toEqual([]);
+  });
+
+  it('does not claim a successfully rolled-back notebook still exists', async () => {
+    const context = makeHarness({
+      create: async (input) => {
+        input.onCreated(TARGET);
+        throw new NotesChannelRolledBackError(
+          'Rolled back the standalone notebook; no Notebook channel was created.'
+        );
+      },
+    });
+    const error = await captureError(
+      executeApply(applyOptions(), context.deps)
+    );
+    expect(error.message).toContain('Rolled back the standalone notebook');
+    expect(error.message).not.toContain('target notebook exists');
+    expect(error.message).not.toContain('notebook-delete');
   });
 
   it('uses the runtime-injected recovery instruction', async () => {

@@ -51,6 +51,11 @@ export class NotesChannelPreflightError extends Error {
   override name = 'NotesChannelPreflightError';
 }
 
+/** The created backend notebook was definitely removed before this error. */
+export class NotesChannelRolledBackError extends Error {
+  override name = 'NotesChannelRolledBackError';
+}
+
 export type GroupListingGoal = 'present-in-all' | 'absent-from-all';
 export type GroupListingVerdict =
   | 'confirmed'
@@ -190,7 +195,7 @@ export async function createNotesChannelInGroup(
           `\`tlon notes notebook-delete ${nest} --yes\`.`
       );
     }
-    throw commandError(
+    throw new NotesChannelRolledBackError(
       `%notes created ${nest} but it did not register as a channel in ${input.groupId} — ` +
         `the host may not support group-mode notes, or the listing poke has not arrived. ` +
         `Rolled back the standalone notebook; no Notebook channel was created.`

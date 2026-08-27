@@ -452,6 +452,73 @@ function roleIds(value: unknown): string[] | null {
   return roles;
 }
 
+function groupForNotebook(
+  groups: unknown[],
+  nest: string
+): Record<string, unknown> | null {
+  for (const rawGroup of groups) {
+    if (!rawGroup || typeof rawGroup !== 'object') continue;
+    const group = rawGroup as { channels?: unknown };
+    if (!Array.isArray(group.channels)) continue;
+    const registered = group.channels.some(
+      (candidate) =>
+        candidate &&
+        typeof candidate === 'object' &&
+        ((candidate as { nest?: unknown }).nest === nest ||
+          (candidate as { id?: unknown }).id === nest)
+    );
+    if (registered) return rawGroup as Record<string, unknown>;
+  }
+  return null;
+}
+
+export function notebookWriteRegistrationGroup(
+  groupsJson: string,
+  nest: string
+): string | null {
+  try {
+    const parsed = JSON.parse(groupsJson);
+    if (!Array.isArray(parsed)) return null;
+    const group = groupForNotebook(parsed, nest);
+    return typeof group?.id === 'string' ? group.id : null;
+  } catch {
+    return null;
+  }
+}
+
+function ownerRolesFromGroupInfo(
+  groupInfo: string | undefined,
+  owner: string
+): string[] | null {
+  if (!groupInfo) return null;
+  const escapedOwner = owner.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = groupInfo.match(
+    new RegExp(
+      `^\\s*${escapedOwner}(?:\\s+\\([^\\n)]*\\))?(?:\\s+\\[([^\\]]*)\\])?\\s*$`,
+      'im'
+    )
+  );
+  if (!match) return null;
+  return match[1]
+    ? match[1]
+        .split(',')
+        .map((role) => role.trim())
+        .filter(Boolean)
+    : [];
+}
+
+function readersFromChannelInfo(
+  channelInfo: string | undefined
+): string[] | null {
+  const match = channelInfo?.match(/^Readers:\s*(.+?)\s*$/im);
+  if (!match) return null;
+  if (match[1].toLowerCase() === '(all members)') return [];
+  return match[1]
+    .split(',')
+    .map((role) => role.trim())
+    .filter(Boolean);
+}
+
 /**
  * Validate a model-selected destination against the fresh `channels groups`
  * response. Registration alone is insufficient: the configured owner must be
@@ -461,7 +528,8 @@ function roleIds(value: unknown): string[] | null {
 export function notebookWriteDestinationError(
   groupsJson: string,
   nest: string,
-  ownerShip: string | null | undefined
+  ownerShip: string | null | undefined,
+  evidence?: { groupInfo?: string; channelInfo?: string }
 ): string | null {
   if (!ownerShip) {
     return (
@@ -487,56 +555,53 @@ export function notebookWriteDestinationError(
   }
 
   const owner = normalizeShipForComparison(ownerShip);
-  let registered = false;
-  for (const rawGroup of parsed) {
-    if (!rawGroup || typeof rawGroup !== 'object') continue;
-    const group = rawGroup as {
-      id?: unknown;
-      channels?: unknown;
-      members?: unknown;
-    };
-    if (!Array.isArray(group.channels)) continue;
-    const channel = group.channels.find(
-      (candidate) =>
-        candidate &&
-        typeof candidate === 'object' &&
-        (candidate as { id?: unknown }).id === nest
-    ) as { readerRoles?: unknown } | undefined;
-    if (!channel) continue;
-    registered = true;
+  const group = groupForNotebook(parsed, nest) as {
+    id?: unknown;
+    channels?: unknown;
+    members?: unknown;
+  } | null;
+  if (!group) {
+    return `Blocked: ${nest} is a standalone or stale backend notebook, not a currently registered Notebook channel. Choose a Notebook from \`channels groups\` first.`;
+  }
 
-    const groupId = typeof group.id === 'string' ? group.id : '';
-    const host = groupId.split('/')[0];
-    const ownerIsHost = !!host && normalizeShipForComparison(host) === owner;
-    const members = Array.isArray(group.members) ? group.members : [];
-    const ownerMember = members.find((candidate) => {
-      if (!candidate || typeof candidate !== 'object') return false;
-      const member = candidate as { contactId?: unknown; status?: unknown };
-      return (
-        typeof member.contactId === 'string' &&
-        normalizeShipForComparison(member.contactId) === owner &&
-        member.status !== 'invited'
-      );
-    }) as { roles?: unknown } | undefined;
-    if (!ownerIsHost && !ownerMember) continue;
+  const groupId = typeof group.id === 'string' ? group.id : '';
+  const host = groupId.split('/')[0];
+  const ownerIsHost = !!host && normalizeShipForComparison(host) === owner;
+  if (ownerIsHost) return null;
 
-    const readers = roleIds(channel.readerRoles);
-    if (readers === null) continue;
-    if (readers.length === 0 || ownerIsHost || readers.includes('members')) {
-      return null;
-    }
-    const ownerRoles = roleIds(ownerMember?.roles);
-    if (
-      ownerRoles &&
-      readers.some((readerRole) => ownerRoles.includes(readerRole))
-    ) {
+  const channels = Array.isArray(group.channels) ? group.channels : [];
+  const channel = channels.find(
+    (candidate) =>
+      candidate &&
+      typeof candidate === 'object' &&
+      ((candidate as { nest?: unknown }).nest === nest ||
+        (candidate as { id?: unknown }).id === nest)
+  ) as { readerRoles?: unknown } | undefined;
+  const members = Array.isArray(group.members) ? group.members : [];
+  const ownerMember = members.find((candidate) => {
+    if (!candidate || typeof candidate !== 'object') return false;
+    const member = candidate as { contactId?: unknown; status?: unknown };
+    return (
+      typeof member.contactId === 'string' &&
+      normalizeShipForComparison(member.contactId) === owner &&
+      member.status !== 'invited'
+    );
+  }) as { roles?: unknown } | undefined;
+
+  const ownerRoles = ownerMember
+    ? roleIds(ownerMember.roles)
+    : ownerRolesFromGroupInfo(evidence?.groupInfo, owner);
+  const readers =
+    roleIds(channel?.readerRoles) ??
+    readersFromChannelInfo(evidence?.channelInfo);
+  if (ownerRoles && readers) {
+    if (readers.length === 0 || readers.includes('members')) return null;
+    if (readers.some((readerRole) => ownerRoles.includes(readerRole))) {
       return null;
     }
   }
 
-  return registered
-    ? `Blocked: ${nest} is registered as a Notebook channel, but the configured owner ${owner} could not be verified as a reader. Choose an owner-visible Notebook or fix its reader roles first.`
-    : `Blocked: ${nest} is a standalone or stale backend notebook, not a currently registered Notebook channel. Choose a Notebook from \`channels groups\` first.`;
+  return `Blocked: ${nest} is registered as a Notebook channel, but the configured owner ${owner} could not be verified as a reader. Choose an owner-visible Notebook or fix its reader roles first.`;
 }
 
 /**

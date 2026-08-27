@@ -10,6 +10,7 @@ import {
   modelNotebookContentWriteTarget,
   notebookNavigationNotice,
   notebookWriteDestinationError,
+  notebookWriteRegistrationGroup,
   refusedDiaryNest,
 } from './tlon-tool-guard.js';
 
@@ -392,11 +393,32 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
             'channels',
             'groups',
           ]);
+          const groupId = notebookWriteRegistrationGroup(
+            groupsJson,
+            notebookWriteTarget
+          );
+          const groupInfo = groupId
+            ? await deps.runCommand([
+                ...credentialPrefix,
+                'groups',
+                'info',
+                groupId,
+              ])
+            : undefined;
+          const channelInfo = groupId
+            ? await deps.runCommand([
+                ...credentialPrefix,
+                'channels',
+                'info',
+                notebookWriteTarget,
+              ])
+            : undefined;
           destinationError =
             notebookWriteDestinationError(
               groupsJson,
               notebookWriteTarget,
-              deps.ownerShip
+              deps.ownerShip,
+              { groupInfo, channelInfo }
             ) ?? '';
         } catch (error) {
           destinationError =

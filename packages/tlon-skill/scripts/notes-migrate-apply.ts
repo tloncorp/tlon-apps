@@ -16,7 +16,10 @@ import {
   PREFLIGHT_ENVELOPE_CONTEXT,
   prepareMigration,
 } from './notes-migrate-plan';
-import { NotesChannelPreflightError } from './notes-channel';
+import {
+  NotesChannelPreflightError,
+  NotesChannelRolledBackError,
+} from './notes-channel';
 
 export interface ApplySummary {
   notesImported: number;
@@ -274,6 +277,9 @@ export async function executeApply(
       throw commandError(
         `${errorMessage(error)}\nNothing was created; fix the group access and retry.`
       );
+    }
+    if (error instanceof NotesChannelRolledBackError) {
+      throw commandError(errorMessage(error));
     }
     if (!targetNest) {
       throw commandError(

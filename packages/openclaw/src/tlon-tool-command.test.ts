@@ -295,22 +295,18 @@ describe('tlon tool execution', () => {
         JSON.stringify([
           {
             id: '~bot/home',
-            members: [
-              {
-                contactId: '~owner',
-                status: 'joined',
-                roles: [{ roleId: 'members' }],
-              },
-            ],
             channels: [
               {
-                id: 'notes/~bot/updates',
-                readerRoles: [{ roleId: 'members' }],
+                nest: 'notes/~bot/updates',
+                title: 'Updates',
+                zone: 'default',
               },
             ],
           },
         ])
       )
+      .mockResolvedValueOnce('--- Members ---\n  ~owner [members]\n')
+      .mockResolvedValueOnce('Readers: members\n')
       .mockResolvedValueOnce('Created note 7');
     const execute = createTlonToolExecutor({
       runCommand,
@@ -325,6 +321,16 @@ describe('tlon tool execution', () => {
 
     expect(runCommand).toHaveBeenNthCalledWith(1, ['channels', 'groups']);
     expect(runCommand).toHaveBeenNthCalledWith(2, [
+      'groups',
+      'info',
+      '~bot/home',
+    ]);
+    expect(runCommand).toHaveBeenNthCalledWith(3, [
+      'channels',
+      'info',
+      'notes/~bot/updates',
+    ]);
+    expect(runCommand).toHaveBeenNthCalledWith(4, [
       'notes',
       'note-create',
       'notes/~bot/updates',
@@ -337,20 +343,22 @@ describe('tlon tool execution', () => {
   });
 
   it('blocks model note writes to standalone or owner-hidden notebooks', async () => {
-    const runCommand = vi.fn(async () =>
-      JSON.stringify([
+    const runCommand = vi.fn(async (args: string[]) => {
+      if (args[0] === 'groups') return '--- Members ---\n  ~owner\n';
+      if (args[1] === 'info') return 'Readers: staff\n';
+      return JSON.stringify([
         {
           id: '~bot/home',
-          members: [{ contactId: '~owner', status: 'joined', roles: [] }],
           channels: [
             {
-              id: 'notes/~bot/hidden',
-              readerRoles: [{ roleId: 'staff' }],
+              nest: 'notes/~bot/hidden',
+              title: 'Hidden',
+              zone: 'default',
             },
           ],
         },
-      ])
-    );
+      ]);
+    });
     const execute = createTlonToolExecutor({
       runCommand,
       ownerShip: '~owner',
@@ -364,7 +372,7 @@ describe('tlon tool execution', () => {
       command: 'notes note-update notes/~bot/hidden 7 --stdin',
     });
 
-    expect(runCommand).toHaveBeenCalledTimes(2);
+    expect(runCommand).toHaveBeenCalledTimes(4);
     expect(standalone.details).toEqual({
       status: 'blocked',
       blocked: true,

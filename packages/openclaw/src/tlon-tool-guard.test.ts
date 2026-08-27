@@ -10,6 +10,7 @@ import {
   modelNotebookContentWriteTarget,
   notebookNavigationNotice,
   notebookWriteDestinationError,
+  notebookWriteRegistrationGroup,
   refusedDiaryNest,
 } from './tlon-tool-guard.js';
 
@@ -260,6 +261,31 @@ describe('tlon tool guard', () => {
       ).toBeNull();
       expect(
         notebookWriteDestinationError(groups, 'notes/~bot/restricted', '~owner')
+      ).toBeNull();
+    });
+
+    it('verifies the real channels-groups schema with fresh info output', () => {
+      const actualListing = JSON.stringify([
+        {
+          id: '~bot/home',
+          channels: [
+            { nest: 'notes/~bot/updates', title: 'Updates', zone: 'default' },
+          ],
+        },
+      ]);
+      expect(
+        notebookWriteRegistrationGroup(actualListing, 'notes/~bot/updates')
+      ).toBe('~bot/home');
+      expect(
+        notebookWriteDestinationError(
+          actualListing,
+          'notes/~bot/updates',
+          '~owner',
+          {
+            groupInfo: '--- Members ---\n  ~owner (Owner) [vip]\n',
+            channelInfo: 'Group: Home (~bot/home)\nReaders: vip\n',
+          }
+        )
       ).toBeNull();
     });
 
