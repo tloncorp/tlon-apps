@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4f27b209-f6e1-4b9e-90a6-5bf685afcdf2",
+  "id": "b06b522e-7780-49ea-a3b7-f9bf8c206fee",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2093,6 +2093,13 @@
         },
         "description": {
           "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "blob": {
+          "name": "blob",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
