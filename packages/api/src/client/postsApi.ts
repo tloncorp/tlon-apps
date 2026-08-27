@@ -44,6 +44,7 @@ import {
 } from './apiUtils';
 import { PlaintextPreviewConfig, getTextContent } from './postContent';
 import { referenceLookupId } from './references';
+import { SurfacePostKindTail } from './surface/kinds';
 import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
@@ -155,6 +156,7 @@ export const sendPost = async ({
   blob,
   metadata,
   botProfile,
+  kindTail,
 }: {
   channelId: string;
   authorId: string;
@@ -163,6 +165,7 @@ export const sendPost = async ({
   blob?: string;
   metadata?: db.PostMetadata;
   botProfile?: AuthorProfile;
+  kindTail?: SurfacePostKindTail;
 }) => {
   logger.log('sending post', { channelId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
@@ -170,6 +173,9 @@ export const sendPost = async ({
   const author = toAuthor(authorId, botProfile);
 
   if (channelType === 'dm' || channelType === 'groupDm') {
+    if (kindTail != null) {
+      throw new Error('post kind tails are not supported in DMs');
+    }
     const delta: WritDeltaAdd = {
       add: {
         essay: {
@@ -208,6 +214,7 @@ export const sendPost = async ({
         }
       : undefined,
     botProfile,
+    kindTail,
   });
 
   const action = channelPostAction(channelId, {
@@ -228,6 +235,7 @@ export const editPost = async ({
   metadata,
   blob,
   botProfile,
+  kindTail,
 }: {
   channelId: string;
   postId: string;
@@ -241,6 +249,10 @@ export const editPost = async ({
   // this would rewrite a bot-authored post to a bare ship author and drop its
   // Bot tag. Callers pass the existing post's authorship shape back in.
   botProfile?: AuthorProfile;
+  // Like botProfile: the %edit arm replaces the essay wholesale, so editing a
+  // surface post without its original kind tail would silently rewrite its
+  // kind to the bare channel kind.
+  kindTail?: SurfacePostKindTail;
 }) => {
   logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
@@ -250,6 +262,11 @@ export const editPost = async ({
   }
 
   if (parentId) {
+    if (kindTail != null) {
+      // Replies carry no kind on the wire; surface records are top-level
+      // posts only.
+      throw new Error('post kind tails are not supported on replies');
+    }
     logger.log('editing a reply');
     const replyEssay: ub.ReplyEssay = {
       author: toAuthor(authorId, botProfile),
@@ -295,6 +312,7 @@ export const editPost = async ({
         }
       : undefined,
     botProfile,
+    kindTail,
   });
 
   const action = channelPostAction(channelId, {

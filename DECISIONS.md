@@ -74,3 +74,25 @@ STOP condition hit.
   prompt and plan stay untracked.
 - **D2: Commit cadence.** Local commits per handoff step, as instructed; no
   pushes, no PR — those remain Patrick's.
+- **D3: Kind-tail allowlist is the exact three tails** (`surface/spec`,
+  `surface/event`, `surface/snapshot`), not a `surface/*` pattern — the most
+  constrained reading of "allowlist: surface tails only", and the plan
+  defines exactly three post kinds (§4.2–4.4). Extending the const list is
+  trivial if a fourth kind appears.
+- **D4: Kind tails are chat-only and top-level-only.** `toPostEssay` throws
+  on a tail outside `channelType === 'chat'` (surface channels are `%chat`
+  channels, §3); reply writers reject tails (replies carry no kind on the
+  wire). DM `sendPost` rejects tails before poking.
+- **D5: `editPost` also takes `kindTail`.** The Hoon `%edit` arm replaces
+  the essay wholesale and does _not_ re-assert the kind head (only `%add`
+  does — see ground-truthing #1), so an edit without the original tail would
+  silently rewrite a surface post's kind to `/chat`. Callers editing a
+  surface post pass the tail back in, mirroring the existing `botProfile`
+  convention. (Reducer-side, edited surface posts are retracted regardless.)
+- **D6: Live-ship round-trip deferred.** The repo's rube/playwright harness
+  exists but boots a 3-ship environment (pier downloads, 5–10 min desk
+  updates) — attempted only if time remains at the end of the session;
+  otherwise the documented gap is: post a `/chat/surface/event`-kind post to
+  a live `%chat` channel via HTTP API, confirm the server accepts it
+  (`ca-c-post` kind-head assert), old clients render it as an inert chat
+  message, and sync delivers `seal.seq` + `revision` as ground-truthed.

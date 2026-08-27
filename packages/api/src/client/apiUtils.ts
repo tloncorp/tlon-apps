@@ -5,6 +5,7 @@ import { desig } from '../lib/urbit';
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
 import { parseIdNumber } from '../urbit';
+import { SurfacePostKindTail, isSurfacePostKindTail } from './surface/kinds';
 import { BadResponseError } from './urbit';
 
 export function formatScryPath(
@@ -234,6 +235,7 @@ export function toPostEssay({
   blob,
   metadata,
   botProfile,
+  kindTail,
 }: {
   content: ub.Story;
   authorId: string;
@@ -242,16 +244,36 @@ export function toPostEssay({
   blob?: string;
   metadata?: ub.Metadata;
   botProfile?: AuthorProfile;
+  kindTail?: SurfacePostKindTail;
 }): ub.PostEssay {
+  const baseKind =
+    channelType === 'notebook'
+      ? '/diary'
+      : channelType === 'gallery'
+        ? '/heap'
+        : '/chat';
+
+  let kind = baseKind;
+  if (kindTail != null) {
+    // The backend asserts each post's kind head equals the channel's nest
+    // kind, so tails ride under the base kind. Only allowlisted surface
+    // tails are accepted, and only in chat channels (surface channels are
+    // %chat channels).
+    if (!isSurfacePostKindTail(kindTail)) {
+      throw new Error(`invalid post kind tail: ${String(kindTail)}`);
+    }
+    if (channelType !== 'chat') {
+      throw new Error(
+        `post kind tails are only supported in chat channels, got: ${channelType}`
+      );
+    }
+    kind = `${baseKind}/${kindTail}`;
+  }
+
   const essay: ub.PostEssay = {
     content,
     sent: sentAt,
-    kind:
-      channelType === 'notebook'
-        ? '/diary'
-        : channelType === 'gallery'
-          ? '/heap'
-          : '/chat',
+    kind,
     author: toAuthor(authorId, botProfile),
     blob: blob || null,
     meta: metadata || null,
