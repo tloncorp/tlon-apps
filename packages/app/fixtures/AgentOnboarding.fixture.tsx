@@ -249,7 +249,7 @@ const acknowledgement =
   'digest in Updates, this group’s notebook. After this first entry, new ones ' +
   'arrive at 8:00 AM.';
 const firstEntryPending =
-  'I’m writing the first entry now. You’re all set—feel free to explore while I work.';
+  'I’ll be back in a few seconds with your tailored post.';
 const firstEntryReady =
   'Your first entry is ready in Updates, this group’s notebook. That notebook ' +
   'is where everything I write for you lands; this chat is for talking to me.';

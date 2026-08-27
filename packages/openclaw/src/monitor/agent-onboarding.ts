@@ -1111,9 +1111,7 @@ async function provision(
       history,
       'first-entry-pending',
       async () => ({
-        text:
-          'I’m writing the first entry now. You’re all set—feel free to ' +
-          'explore while I work.',
+        text: 'I’ll be back in a few seconds with your tailored post.',
         shouldSend: async () => {
           const latest = await lookupAgentOnboardingRun(
             onboardingAccountId(context),

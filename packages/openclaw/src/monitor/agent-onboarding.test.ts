@@ -2585,6 +2585,7 @@ describe('provision coordinator ordering', () => {
 
   it('keeps an early first-run result behind the ordered setup messages', async () => {
     const events: string[] = [];
+    const stories: unknown[] = [];
     const history: Array<{
       author: string;
       content: string;
@@ -2634,7 +2635,8 @@ describe('provision coordinator ordering', () => {
       {
         fetchHistory: vi.fn(async () => history),
         getCron: () => cron,
-        sendPost: vi.fn(async ({ blob }) => {
+        sendPost: vi.fn(async ({ blob, story }) => {
+          stories.push(story);
           const entries = parsePostBlob(blob);
           const marker =
             entries.find(
@@ -2667,6 +2669,9 @@ describe('provision coordinator ordering', () => {
       'post:ack:provision-1',
       'post:first-entry-pending',
     ]);
+    expect(JSON.stringify(stories[1])).toContain(
+      'I’ll be back in a few seconds with your tailored post.'
+    );
     expect(events.indexOf('post:first-entry-ping')).toBeGreaterThan(3);
     expect(
       parsePostBlob(history[0]?.blob).filter(
