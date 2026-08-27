@@ -959,8 +959,6 @@ export default defineBundledChannelEntry({
               'To send messages, use the `message` tool, not this tool. ' +
               'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
               'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
-              'A `notes/~host/name` path is a backend identifier, never an app-navigation path; only a Notebook channel registered inside a group is app-visible. ' +
-              'Send replies, recurring output, reports, and other generated material to the conversation where it was requested unless the owner chose another destination. Do not infer a Notebook destination from the material being long-lived or document-like. Use a named or relevant group-backed Notebook only when the owner explicitly asks to save the material in a Notebook, confirming an ambiguous destination and verifying membership before writing; create a new Notebook channel only when explicitly requested. ' +
               "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
           },
         },

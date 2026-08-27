@@ -27,6 +27,17 @@ import { listTlonAccountIds, resolveTlonAccount } from './types.js';
 
 const TLON_CHANNEL_ID = 'tlon' as const;
 
+export const TLON_NOTEBOOK_DESTINATION_HINTS = [
+  '',
+  'Tlon artifact destinations:',
+  '- Reply in the conversation where the owner asked. Scheduled alerts and status updates also deliver there unless the owner chooses another destination.',
+  '- When the owner explicitly asks to save a durable report or other reference material, prefer an existing Notebook channel in the relevant Tlonbot group. Tlonbot groups normally include an `Updates` Notebook for this purpose.',
+  "- If the request comes from a group, prefer that group's existing Notebook. From a DM, confirm the group or Notebook when more than one owner-visible destination could fit.",
+  '- A `notes/~host/name` path is a backend identifier, not an app route. Only a Notebook channel registered inside a group is visible in Tlon Messenger; never invent a global Notes or Notebooks screen.',
+  '- When the owner only asks how to open a `notes/~host/name/...` path, answer from this navigation rule without tools. Inspect its content or group registration only when the owner asks you to check it.',
+  '- Never create or choose a standalone backend notebook for owner-facing output. Create another group-backed Notebook only when the owner explicitly asks for a new one.',
+];
+
 const loadTlonChannelRuntime = createLazyRuntimeModule(
   () => import('./channel.runtime.js')
 );
@@ -150,6 +161,7 @@ export const tlonPlugin = createChatChannelPlugin({
         const hints: string[] = [];
 
         hints.push(
+          ...TLON_NOTEBOOK_DESTINATION_HINTS,
           '',
           'Tlon gallery channels (heap/~host/name) are for collecting images, links, and media.',
           '- When you were triggered from a gallery post, your normal reply is posted as a comment on that post. Use action=send only when you intend to create a separate NEW top-level gallery item.',

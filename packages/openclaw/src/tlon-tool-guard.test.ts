@@ -164,15 +164,15 @@ describe('tlon tool guard', () => {
       expect(result).toContain(
         'channels create ~host/group-slug "Title" --kind notes'
       );
-      expect(result).toContain('conversation where it was requested');
-      expect(result).toContain('Do not infer a Notebook destination');
-      expect(result).toContain('explicitly asks to save it in a Notebook');
-      expect(result).toContain(
-        'find the named or relevant `notes/...` channel'
-      );
+      expect(result).toContain('requesting conversation');
+      expect(result).toContain('explicitly asked to save durable');
+      expect(result).toContain('existing `Updates` Notebook');
+      expect(result).toContain('Prefer the current group');
+      expect(result).toContain('from a DM, confirm the destination');
       expect(result).toContain('verify the owner is a member');
       expect(result).toContain('groups info <group-id>');
       expect(result).toContain('only when the owner explicitly asks');
+      expect(result).toContain('Never silently choose an ambiguous group');
     });
 
     it('allows help, malformed calls, and non-create notes operations', () => {

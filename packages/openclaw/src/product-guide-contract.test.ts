@@ -16,15 +16,17 @@ describe('Tlon product guide contracts', () => {
       'There is no global `Notes` or `Notebooks` dashboard in Tlon Messenger'
     );
     expect(guide).toContain('Notebook channel inside a group');
+    expect(guide).toContain('Use the destination that matches the job');
     expect(guide).toContain(
-      'Normal replies, recurring alerts, reports, and other generated material belong in the conversation'
+      'Normal replies, scheduled alerts, and status updates belong in the conversation'
     );
     expect(guide).toContain(
-      'Do not infer that material belongs in a Notebook merely because it is long-lived or document-like'
+      'Tlonbot groups are provisioned with an **Updates** Notebook'
     );
     expect(guide).toContain(
-      'When the owner explicitly asks to save material in a Notebook'
+      'A recurring workflow can keep its durable record in that Notebook while delivering new alerts or short summaries to the requesting conversation'
     );
+    expect(guide).toContain('do not silently choose among ambiguous groups');
     expect(guide).toContain(
       'Create another Notebook only when the owner explicitly asks'
     );
