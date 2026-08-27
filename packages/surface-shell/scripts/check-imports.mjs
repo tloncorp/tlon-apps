@@ -84,12 +84,19 @@ for (const file of walk(srcRoot)) {
           `${relativePath}: node builtin '${specifier}' outside src/node/`
         );
       }
+      // Sandbox code may reach protocol/types and protocol/guards only:
+      // the barrel index and schemas.ts pull zod, which must never reach
+      // the artifact.
+      const reachesZodBearingProtocol =
+        specifier.includes('protocol/schemas') ||
+        /\/protocol(\/index)?$/.test(specifier) ||
+        specifier === './protocol';
       if (
-        specifier.includes('protocol/schemas') &&
+        reachesZodBearingProtocol &&
         SCHEMA_FREE_DIRS.some((dir) => relativePath.startsWith(`${dir}/`))
       ) {
         violations.push(
-          `${relativePath}: sandbox code must not import protocol/schemas (zod stays out of the artifact)`
+          `${relativePath}: sandbox code must import protocol/types or protocol/guards, never '${specifier}' (zod stays out of the artifact)`
         );
       }
       continue;
