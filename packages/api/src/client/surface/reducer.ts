@@ -61,6 +61,15 @@ export interface SurfaceReductionReduced {
    * from `initialState` over the full post set.
    */
   baseSnapshotSeq: number | null;
+  /**
+   * The state's coverage watermark: the greatest `sequenceNum` that
+   * contributed to `state` — the snapshot boundary or the last folded
+   * event, whichever is greater. Null when the state is exactly
+   * `initialState` with nothing folded. Hydration loops (§6) reason from
+   * this rather than recomputing it from the post set; note that skipped
+   * events never advance it.
+   */
+  newestFoldedSeq: number | null;
   /** true when at least one op was refused for exceeding the state cap */
   stateFull: boolean;
   foldedEventCount: number;
@@ -175,6 +184,9 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
   let stateFull = false;
   let foldedEventCount = 0;
   let skippedEventCount = 0;
+  let newestFoldedSeq: number | null = snapshot
+    ? snapshot.upToSequenceNum
+    : null;
 
   for (const { sequenceNum, authorId, entry } of events) {
     // Snapshots finalize (§6): events at or below the boundary are frozen
@@ -241,12 +253,15 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
       state = result.state;
     }
     foldedEventCount++;
+    // events are sorted ascending, so the last folded one is the greatest
+    newestFoldedSeq = sequenceNum;
   }
 
   return {
     status: 'reduced',
     state,
     baseSnapshotSeq: snapshot ? snapshot.upToSequenceNum : null,
+    newestFoldedSeq,
     stateFull,
     foldedEventCount,
     skippedEventCount,

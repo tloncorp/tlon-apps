@@ -431,6 +431,46 @@ describe('migration gate (§6)', () => {
   });
 });
 
+describe('newestFoldedSeq watermark', () => {
+  test('null with nothing folded; snapshot boundary counts as folded', () => {
+    nextSeq = 1;
+    expect(expectReduced(reduce([])).newestFoldedSeq).toBeNull();
+
+    nextSeq = 1;
+    const snapOnly = expectReduced(
+      reduce([post(HOST, [snapshot({ s: 1 }, 7)])])
+    );
+    expect(snapOnly.newestFoldedSeq).toBe(7);
+  });
+
+  test('advances to the last folded event, not past skipped events', () => {
+    nextSeq = 1;
+    const posts = [
+      post(MEMBER, [invoke('vote')]), // seq 1, folds
+      post(MEMBER, [invoke('vote', 99)]), // seq 2, skipped (future revision)
+    ];
+    const result = expectReduced(reduce(posts));
+    expect(result.newestFoldedSeq).toBe(1);
+    expect(result.skippedEventCount).toBe(1);
+  });
+
+  test('takes the greater of snapshot boundary and folded events', () => {
+    nextSeq = 1;
+    const posts = [
+      post(HOST, [snapshot({ votes: {}, log: [] }, 5)]), // seq 1
+      post(MEMBER, [invoke('vote')]), // seq 2, below boundary: frozen
+    ];
+    const result = expectReduced(reduce(posts));
+    expect(result.baseSnapshotSeq).toBe(5);
+    expect(result.newestFoldedSeq).toBe(5);
+
+    nextSeq = 6;
+    const above = post(MEMBER, [invoke('vote')]); // seq 6, above boundary
+    const result2 = expectReduced(reduce([...posts, above]));
+    expect(result2.newestFoldedSeq).toBe(6);
+  });
+});
+
 describe('state cap', () => {
   test('ops pushing state over the cap are refused and flagged', () => {
     nextSeq = 1;
