@@ -92,6 +92,26 @@ describe('fake model server', () => {
     });
   });
 
+  test('returns and records a scripted provider HTTP error', async () => {
+    const key = 'provider-auth-error';
+    await fakeModel.script(key, [
+      { kind: 'http_error', status: 401, message: 'User not found' },
+    ]);
+
+    const response = await postChat(server.baseUrl, key);
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        message: 'User not found',
+        type: 'authentication_error',
+        code: 'invalid_api_key',
+      },
+    });
+    const calls = await fakeModel.received(key);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.responseStatus).toBe(401);
+  });
+
   test('streams a scripted text completion', async () => {
     const key = 'streaming-text';
     await fakeModel.script(key, [

@@ -102,6 +102,7 @@ import { resolveTlonAccount } from '../types.js';
 import {
   runWithTlonApiScope,
   setScopedTlonApiWithPoke,
+  withTlonApiPoke,
 } from '../urbit/api-client.js';
 import {
   authenticate,
@@ -967,7 +968,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     });
     cleanupCronAuthQuarantineNotifier = setCronAuthQuarantineNotifier(
-      async (message) => Boolean(await sendOwnerNotification(message))
+      account.accountId,
+      async (message) =>
+        withTlonApiPoke(api.poke.bind(api), async () =>
+          Boolean(await sendOwnerNotification(message))
+        )
     );
     // Bridge diary migration lifecycle events from the `/migrate` command
     // handler (a separate plugin module context) to this account's client.

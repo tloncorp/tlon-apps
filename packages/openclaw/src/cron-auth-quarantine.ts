@@ -12,7 +12,7 @@ import type {
   PluginHookGatewayCronJob,
 } from 'openclaw/plugin-sdk/types';
 
-import { sharedMap, sharedSlot } from './shared-state.js';
+import { sharedMap } from './shared-state.js';
 
 export const CRON_AUTH_QUARANTINE_THRESHOLD = 3;
 
@@ -26,6 +26,7 @@ export type CronAuthQuarantineResult =
       status: 'notification-failed';
       jobId: string;
       consecutiveErrors: number;
+      restored: boolean;
     }
   | {
       status: 'quarantined';
@@ -40,25 +41,38 @@ type ForwardCompatibleCronJobState = NonNullable<
   lastErrorReason?: string;
 };
 
+type ForwardCompatibleCronJob = PluginHookGatewayCronJob & {
+  delivery?: { accountId?: string };
+};
+
 type ForwardCompatibleCronEvent = PluginHookCronChangedEvent & {
   errorReason?: string;
 };
 
-const notifierSlot = sharedSlot<CronAuthQuarantineNotifier>(
-  'cronAuthQuarantine.ownerNotifier'
+interface AuthFailureStreak {
+  count: number;
+  lastEventId: string | null;
+}
+
+const notifierMap = sharedMap<string, CronAuthQuarantineNotifier>(
+  'cronAuthQuarantine.ownerNotifiers'
 );
 const activeClaims = sharedMap<string, true>('cronAuthQuarantine.activeClaims');
+const authFailureStreaks = sharedMap<string, AuthFailureStreak>(
+  'cronAuthQuarantine.authFailureStreaks'
+);
 
 export function setCronAuthQuarantineNotifier(
+  accountId: string,
   notifier: CronAuthQuarantineNotifier
 ): () => void {
-  notifierSlot.set(notifier);
+  notifierMap.set(accountId, notifier);
   return () => {
     // Config reloads can start a replacement monitor before the old monitor's
     // finally block runs. Only the monitor that installed this exact callback
     // may clear it; otherwise stale teardown disconnects the new notifier.
-    if (notifierSlot.get() === notifier) {
-      notifierSlot.set(null);
+    if (notifierMap.get(accountId) === notifier) {
+      notifierMap.delete(accountId);
     }
   };
 }
@@ -75,6 +89,43 @@ function normalizedReason(value: unknown): string | null {
   }
   const normalized = value.trim().toLowerCase();
   return normalized || null;
+}
+
+function eventIdentity(event: PluginHookCronChangedEvent): string | null {
+  if (event.runId?.trim()) return `run:${event.runId.trim()}`;
+  if (event.sessionId?.trim()) return `session:${event.sessionId.trim()}`;
+  if (typeof event.runAtMs === 'number' && Number.isFinite(event.runAtMs)) {
+    return `at:${event.runAtMs}`;
+  }
+  return null;
+}
+
+function resetAuthenticationStreak(jobId: string): void {
+  authFailureStreaks.delete(jobId);
+}
+
+function recordAuthenticationFailure(
+  jobId: string,
+  event: PluginHookCronChangedEvent
+): number {
+  const previous = authFailureStreaks.get(jobId);
+  const identity = eventIdentity(event);
+  if (identity && previous?.lastEventId === identity) {
+    return previous.count;
+  }
+  const count = (previous?.count ?? 0) + 1;
+  authFailureStreaks.set(jobId, { count, lastEventId: identity });
+  return count;
+}
+
+function hasModelProviderContext(
+  event: PluginHookCronChangedEvent,
+  error: string
+): boolean {
+  if (event.provider?.trim() || event.model?.trim()) return true;
+  return /\b(?:model provider|openrouter|openai|anthropic|claude|gemini|bedrock|ollama)\b/i.test(
+    error
+  );
 }
 
 function isAuthenticationFailure(
@@ -95,21 +146,40 @@ function isAuthenticationFailure(
   }
 
   // Older hosts may not project the structured reason through plugin hook
-  // types. Limit the fallback to well-known provider-authentication errors.
+  // types. Generic HTTP 401s are not enough: require model/provider context so
+  // an unrelated API failure cannot disable the schedule.
   const error = event.error?.trim() ?? cronJobState(job)?.lastError?.trim();
   return Boolean(
     error &&
+    hasModelProviderContext(event, error) &&
     /(?:\b401\b|unauthori[sz]ed|authentication failed|invalid api[- ]?key|user not found)/i.test(
       error
     )
   );
 }
 
-function consecutiveErrors(job: PluginHookGatewayCronJob | undefined): number {
-  const value = cronJobState(job)?.consecutiveErrors;
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.max(0, Math.floor(value))
-    : 0;
+function notifierForJob(
+  job: PluginHookGatewayCronJob
+): CronAuthQuarantineNotifier | null {
+  const accountId = (job as ForwardCompatibleCronJob).delivery?.accountId;
+  if (accountId?.trim()) {
+    return notifierMap.get(accountId.trim()) ?? null;
+  }
+  if (notifierMap.size !== 1) {
+    // Current SDK cron projections omit delivery.accountId. A single active
+    // account is unambiguous; multiple accounts must fail closed rather than
+    // disclose a job name to the last monitor that started.
+    return null;
+  }
+  return notifierMap.values().next().value ?? null;
+}
+
+function revision(value: unknown): number | null {
+  if (!value || typeof value !== 'object') return null;
+  const updatedAtMs = (value as { updatedAtMs?: unknown }).updatedAtMs;
+  return typeof updatedAtMs === 'number' && Number.isFinite(updatedAtMs)
+    ? updatedAtMs
+    : null;
 }
 
 export function formatCronAuthQuarantineNotice(
@@ -134,7 +204,11 @@ export async function handleCronAuthQuarantine(
   event: PluginHookCronChangedEvent,
   ctx: Pick<PluginHookGatewayContext, 'getCron'>
 ): Promise<CronAuthQuarantineResult> {
-  if (event.action !== 'finished' || event.status !== 'error') {
+  if (event.action === 'removed') {
+    resetAuthenticationStreak(event.jobId);
+    return { status: 'ignored', reason: 'not-finished-auth-error' };
+  }
+  if (event.action !== 'finished') {
     return { status: 'ignored', reason: 'not-finished-auth-error' };
   }
 
@@ -142,28 +216,33 @@ export async function handleCronAuthQuarantine(
   if (!service) {
     return { status: 'ignored', reason: 'cron-service-unavailable' };
   }
-  const notifier = notifierSlot.get();
-  if (!notifier) {
-    // Do not silently disable work before the Tlon monitor is able to tell its
-    // owner. A later failed run will retry once the notifier is connected.
-    return { status: 'ignored', reason: 'owner-notifier-unavailable' };
-  }
-
   const jobs = await service.list({ includeDisabled: true });
   const job = jobs.find((candidate) => candidate.id === event.jobId);
   if (!job) {
+    resetAuthenticationStreak(event.jobId);
     return { status: 'ignored', reason: 'job-not-found' };
+  }
+  if (event.status !== 'error') {
+    resetAuthenticationStreak(job.id);
+    return { status: 'ignored', reason: 'not-finished-auth-error' };
   }
   if (job.enabled === false) {
     return { status: 'ignored', reason: 'already-disabled' };
   }
   if (!isAuthenticationFailure(event, job)) {
+    resetAuthenticationStreak(job.id);
     return { status: 'ignored', reason: 'not-authentication-failure' };
   }
 
-  const failures = consecutiveErrors(job);
+  const failures = recordAuthenticationFailure(job.id, event);
   if (failures < CRON_AUTH_QUARANTINE_THRESHOLD) {
     return { status: 'ignored', reason: 'below-threshold' };
+  }
+  const notifier = notifierForJob(job);
+  if (!notifier) {
+    // Do not silently disable work before the correct Tlon account can be
+    // selected. A later failed run will retry once routing is unambiguous.
+    return { status: 'ignored', reason: 'owner-notifier-unavailable' };
   }
   if (activeClaims.has(job.id)) {
     return { status: 'ignored', reason: 'already-processing' };
@@ -171,18 +250,29 @@ export async function handleCronAuthQuarantine(
 
   activeClaims.set(job.id, true);
   try {
-    await service.update(job.id, { enabled: false });
+    const quarantined = await service.update(job.id, { enabled: false });
+    const quarantineRevision = revision(quarantined);
     const ownerNotified = await notifier(
       formatCronAuthQuarantineNotice(job, failures)
     );
     if (!ownerNotified) {
       // A silent pause would strand the owner. Restore the schedule so a later
       // run can retry the quarantine once Tlon delivery is available again.
-      await service.update(job.id, { enabled: true });
+      const current = (await service.list({ includeDisabled: true })).find(
+        (candidate) => candidate.id === job.id
+      );
+      const canRestore =
+        current?.enabled === false &&
+        quarantineRevision !== null &&
+        revision(current) === quarantineRevision;
+      if (canRestore) {
+        await service.update(job.id, { enabled: true });
+      }
       return {
         status: 'notification-failed',
         jobId: job.id,
         consecutiveErrors: failures,
+        restored: canRestore,
       };
     }
     return {
@@ -198,6 +288,7 @@ export async function handleCronAuthQuarantine(
 export const _testing = {
   clear: () => {
     activeClaims.clear();
-    notifierSlot.set(null);
+    authFailureStreaks.clear();
+    notifierMap.clear();
   },
 };

@@ -15,6 +15,7 @@ import {
 } from './cron-auth-quarantine.js';
 
 type ForwardCompatibleJob = PluginHookGatewayCronJob & {
+  delivery?: { accountId?: string };
   state: NonNullable<PluginHookGatewayCronJob['state']> & {
     consecutiveErrors?: number;
     lastErrorReason?: string;
@@ -32,6 +33,7 @@ function makeJob(
     sessionTarget: 'isolated',
     wakeMode: 'now',
     payload: { kind: 'agentTurn', text: 'run the update' },
+    updatedAtMs: 1,
     state: {
       consecutiveErrors: CRON_AUTH_QUARANTINE_THRESHOLD,
       lastError: '401 User not found',
@@ -63,6 +65,7 @@ function makeCronService(job = makeJob()): {
     if (typeof patch.enabled === 'boolean') {
       job.enabled = patch.enabled;
     }
+    job.updatedAtMs = (job.updatedAtMs ?? 0) + 1;
     return job;
   });
   return {
@@ -89,8 +92,10 @@ describe('cron auth quarantine', () => {
   it('pauses the job at the threshold and sends one actionable notice', async () => {
     const { service, update } = makeCronService();
     const notify = vi.fn(async () => true);
-    setCronAuthQuarantineNotifier(notify);
+    setCronAuthQuarantineNotifier('default', notify);
 
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
     const result = await handleCronAuthQuarantine(makeEvent(), {
       getCron: () => service,
     });
@@ -114,7 +119,7 @@ describe('cron auth quarantine', () => {
     });
     const { service, update } = makeCronService(job);
     const notify = vi.fn(async () => true);
-    setCronAuthQuarantineNotifier(notify);
+    setCronAuthQuarantineNotifier('default', notify);
 
     await expect(
       handleCronAuthQuarantine(makeEvent(), { getCron: () => service })
@@ -133,7 +138,7 @@ describe('cron auth quarantine', () => {
     });
     const { service, update } = makeCronService(job);
     const notify = vi.fn(async () => true);
-    setCronAuthQuarantineNotifier(notify);
+    setCronAuthQuarantineNotifier('default', notify);
 
     await expect(
       handleCronAuthQuarantine(makeEvent({ error: 'upstream timed out' }), {
@@ -150,6 +155,8 @@ describe('cron auth quarantine', () => {
   it('does not quarantine before an owner notifier is connected', async () => {
     const { service, update } = makeCronService();
 
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
     await expect(
       handleCronAuthQuarantine(makeEvent(), { getCron: () => service })
     ).resolves.toEqual({
@@ -162,9 +169,11 @@ describe('cron auth quarantine', () => {
   it('does not notify again for a duplicate event after disabling', async () => {
     const { service, update } = makeCronService();
     const notify = vi.fn(async () => true);
-    setCronAuthQuarantineNotifier(notify);
+    setCronAuthQuarantineNotifier('default', notify);
     const ctx = { getCron: () => service };
 
+    await handleCronAuthQuarantine(makeEvent(), ctx);
+    await handleCronAuthQuarantine(makeEvent(), ctx);
     await handleCronAuthQuarantine(makeEvent(), ctx);
     await expect(handleCronAuthQuarantine(makeEvent(), ctx)).resolves.toEqual({
       status: 'ignored',
@@ -178,14 +187,17 @@ describe('cron auth quarantine', () => {
     const job = makeJob();
     const { service, update } = makeCronService(job);
     const notify = vi.fn(async () => false);
-    setCronAuthQuarantineNotifier(notify);
+    setCronAuthQuarantineNotifier('default', notify);
 
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
     await expect(
       handleCronAuthQuarantine(makeEvent(), { getCron: () => service })
     ).resolves.toEqual({
       status: 'notification-failed',
       jobId: 'job-1',
       consecutiveErrors: 3,
+      restored: true,
     });
     expect(update.mock.calls).toEqual([
       ['job-1', { enabled: false }],
@@ -194,19 +206,22 @@ describe('cron auth quarantine', () => {
     expect(job.enabled).toBe(true);
   });
 
-  it('falls back to known 401 text on hosts without structured reasons', async () => {
+  it('uses a local auth streak on hosts without structured counters', async () => {
     const job = makeJob({
       state: {
-        consecutiveErrors: 3,
         lastError: '401 User not found',
       },
     });
     const { service, update } = makeCronService(job);
-    setCronAuthQuarantineNotifier(async () => true);
+    setCronAuthQuarantineNotifier('default', async () => true);
 
-    await handleCronAuthQuarantine(makeEvent({ error: '401 User not found' }), {
-      getCron: () => service,
+    const event = makeEvent({
+      error: '401 User not found',
+      provider: 'openrouter',
     });
+    await handleCronAuthQuarantine(event, { getCron: () => service });
+    await handleCronAuthQuarantine(event, { getCron: () => service });
+    await handleCronAuthQuarantine(event, { getCron: () => service });
     expect(update).toHaveBeenCalledWith('job-1', { enabled: false });
   });
 
@@ -219,14 +234,139 @@ describe('cron auth quarantine', () => {
   it('does not let stale monitor cleanup clear a replacement notifier', async () => {
     const first = vi.fn(async () => true);
     const second = vi.fn(async () => true);
-    const clearFirst = setCronAuthQuarantineNotifier(first);
-    setCronAuthQuarantineNotifier(second);
+    const clearFirst = setCronAuthQuarantineNotifier('default', first);
+    setCronAuthQuarantineNotifier('default', second);
 
     clearFirst();
     const { service } = makeCronService();
     await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledOnce();
+  });
+
+  it('counts consecutive auth failures instead of generic cron errors', async () => {
+    const job = makeJob();
+    const { service, update } = makeCronService(job);
+    const notify = vi.fn(async () => true);
+    setCronAuthQuarantineNotifier('default', notify);
+
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    job.state = {
+      consecutiveErrors: 3,
+      lastError: 'upstream timed out',
+      lastErrorReason: 'timeout',
+    };
+    await handleCronAuthQuarantine(makeEvent({ error: 'upstream timed out' }), {
+      getCron: () => service,
+    });
+    job.state = {
+      consecutiveErrors: 4,
+      lastError: '401 User not found',
+      lastErrorReason: 'auth',
+    };
+
+    await expect(
+      handleCronAuthQuarantine(makeEvent(), { getCron: () => service })
+    ).resolves.toEqual({ status: 'ignored', reason: 'below-threshold' });
+    expect(update).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it('resets the auth streak after a successful run', async () => {
+    const { service, update } = makeCronService();
+    setCronAuthQuarantineNotifier('default', async () => true);
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await handleCronAuthQuarantine(
+      makeEvent({ status: 'ok', error: undefined }),
+      { getCron: () => service }
+    );
+
+    await expect(
+      handleCronAuthQuarantine(makeEvent(), { getCron: () => service })
+    ).resolves.toEqual({ status: 'ignored', reason: 'below-threshold' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('does not treat an unrelated API 401 as model authentication', async () => {
+    const job = makeJob({
+      state: { lastError: '401 Unauthorized from calendar API' },
+    });
+    const { service, update } = makeCronService(job);
+    setCronAuthQuarantineNotifier('default', async () => true);
+
+    await expect(
+      handleCronAuthQuarantine(
+        makeEvent({ error: '401 Unauthorized from calendar API' }),
+        { getCron: () => service }
+      )
+    ).resolves.toEqual({
+      status: 'ignored',
+      reason: 'not-authentication-failure',
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('routes a projected delivery account to its matching notifier', async () => {
+    const job = makeJob({ delivery: { accountId: 'second' } });
+    const { service } = makeCronService(job);
+    const first = vi.fn(async () => true);
+    const second = vi.fn(async () => true);
+    setCronAuthQuarantineNotifier('first', first);
+    setCronAuthQuarantineNotifier('second', second);
+
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledOnce();
+  });
+
+  it('fails closed when multiple account notifiers cannot be routed', async () => {
+    const { service, update } = makeCronService();
+    const first = vi.fn(async () => true);
+    const second = vi.fn(async () => true);
+    setCronAuthQuarantineNotifier('first', first);
+    setCronAuthQuarantineNotifier('second', second);
+
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await expect(
+      handleCronAuthQuarantine(makeEvent(), { getCron: () => service })
+    ).resolves.toEqual({
+      status: 'ignored',
+      reason: 'owner-notifier-unavailable',
+    });
+    expect(update).not.toHaveBeenCalled();
+    expect(first).not.toHaveBeenCalled();
+    expect(second).not.toHaveBeenCalled();
+  });
+
+  it('does not re-enable a job changed while notification is in flight', async () => {
+    const job = makeJob();
+    const { service, update } = makeCronService(job);
+    setCronAuthQuarantineNotifier('default', async () => {
+      job.enabled = false;
+      job.updatedAtMs = (job.updatedAtMs ?? 0) + 1;
+      return false;
+    });
+
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await handleCronAuthQuarantine(makeEvent(), { getCron: () => service });
+    await expect(
+      handleCronAuthQuarantine(makeEvent(), { getCron: () => service })
+    ).resolves.toEqual({
+      status: 'notification-failed',
+      jobId: 'job-1',
+      consecutiveErrors: 3,
+      restored: false,
+    });
+    expect(update.mock.calls).toEqual([['job-1', { enabled: false }]]);
+    expect(job.enabled).toBe(false);
   });
 });

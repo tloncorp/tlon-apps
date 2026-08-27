@@ -1236,7 +1236,7 @@ export default defineBundledChannelEntry({
           );
         } else if (result.status === 'notification-failed') {
           api.logger.warn(
-            `[tlon] Could not notify the owner after ${result.consecutiveErrors} authentication failures for cron job ${result.jobId}; restored the schedule so notification can retry`
+            `[tlon] Could not notify the owner after ${result.consecutiveErrors} authentication failures for cron job ${result.jobId}; ${result.restored ? 'restored the unchanged schedule so notification can retry' : 'left the schedule disabled because it changed concurrently or lacked a safe revision'}`
           );
         }
       } catch (error) {
