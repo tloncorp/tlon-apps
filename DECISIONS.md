@@ -343,3 +343,71 @@ JSON.stringify([entry]), ... })` where `entry` is a `surface-event`
 - Multiple surface entries per post are folded in blob order (D19). If one
   entry per post should be the rule, enforce it at the writers, not the
   reducer.
+
+## Notes for Session 3+ (`packages/surface-shell` and the renderer)
+
+What Session 2 built in `packages/shared` (all exported from the store
+barrel via `store/surface/`), and the exact shapes the shell/renderer
+sessions consume:
+
+### Read APIs
+
+- **Spec:** `db.Channel.surfaceSpec` is raw JSON text; read it ONLY through
+  `readSurfaceSpec(raw)` (from `@tloncorp/api`), which returns
+  `{status:'absent'} | {status:'invalid'} | {status:'version-too-new',
+  version} | {status:'valid', spec}`. Renderer mapping: `invalid` → the
+  "invalid definition" screen, `version-too-new` → spec-level "update to
+  view". Never fall back to the chat renderer for either (§6 step 1). The
+  bundle's `shellVersion` gate is separate and renderer-side, against
+  `spec.bundle.shellVersion` vs the shell's `SHELL_VERSION`.
+- **Hydration:** `useSurfaceHydration({ channelId, enabled?, pageSize?,
+  maxPages? })` → a react-query result whose `data` is
+  `SurfaceHydrationState`:
+  `{ status: 'absent'|'invalid'|'version-too-new'|'migration-pending'|
+  'partial'|'hydrated', spec?, specVersion?, state?, stateFull?,
+  reduction?, oldestLoadedSeq?, newestLoadedSeq? }`.
+  `state` exists only when `hydrated`; `partial` is the loading screen and
+  deliberately carries no state; `stateFull` drives "dashboard full".
+  Live posts/deletions/spec changes re-run the fold automatically
+  (posts+channels table invalidation). Non-React consumers (tlon-skill's
+  `surface state`) can call `hydrateSurface(...)` or drop to
+  `reduceSurfaceChannel({channelId, spec, posts})` with their own post
+  source.
+- **Ship comparisons:** any surface-related identity comparison in the
+  renderer (e.g. "is the viewer the host") must go through
+  `canonicalShipId` so it can't diverge from the reducer's fold.
+
+### Bundle cache
+
+- `getOrFetchBundle(spec.bundle, fetcher)` →
+  `{status:'ok', content, fromCache} | {status:'unavailable', reason:
+  'fetch-failed'|'oversize'|'hash-mismatch'}` — `unavailable` is the
+  renderer's "bundle unavailable" state with a retry affordance. The
+  `fetcher: (ref: SurfaceBundleRef) => Promise<string>` is supplied by
+  `packages/app` (assetRef → bundle text over whatever transport);
+  the cache verifies hashes on both paths, so the caller never needs to.
+  Budget constant: `SURFACE_BUNDLE_CACHE_MAX_BYTES` (16 MB).
+
+### Writer expectations (for the invoke path and tlon-skill)
+
+- Invokes: `sendPost({ channelId, kindTail: 'surface/event', blob:
+  JSON.stringify([entry]), content: <fallback Story> })` with the entry
+  tagged with the RENDERED `specRevision`. One surface entry per post
+  (writer rule); fallback text is the writer's responsibility; success is
+  confirmed by observing the post, never the poke ack.
+
+### Least sure about (flag for review)
+
+- `useSurfaceHydration` exposes the raw react-query result; if the
+  renderer wants a flattened `{status, state}` selector, add it over this.
+- `partial` withholds state entirely. If UX wants labeled-stale content
+  during backfill, that is a deliberate semantics change to request, not a
+  bug fix.
+- Table-level invalidation re-runs active folds on ANY posts-table write
+  (not just this channel's). Fine at current scale; if it ever shows up in
+  profiles, per-channel keys need a new invalidation channel.
+- The §8 unread/activity exclusion for surface channels is NOT built here
+  — it keys off the channel's content configuration and belongs with the
+  renderer wiring.
+- The migration baseline was regenerated twice this session (renamed
+  `0000_*.sql` is the expected diff shape per the repo's reset pattern).
