@@ -679,7 +679,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         }
         const outcome = await client.waitForSubscriptionAck(
           'steward',
-          '/v1/prompts'
+          '/v1/prompts',
+          undefined,
+          opts.abortSignal
         );
         if (outcome === 'acked') {
           return true;
@@ -703,7 +705,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // stale prompts), then keep waiting in the background and reconcile
     // again once the watch is confirmed — the reconcile is idempotent, so
     // the extra pass costs a scry and a no-op re-seed.
-    const first = await client.waitForSubscriptionAck('steward', '/v1/prompts');
+    const first = await client.waitForSubscriptionAck(
+      'steward',
+      '/v1/prompts',
+      undefined,
+      opts.abortSignal
+    );
     if (first === 'acked') {
       await runStartup();
       return;

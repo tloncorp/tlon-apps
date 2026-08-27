@@ -99,6 +99,35 @@ describe('UrbitSSEClient', () => {
       await expect(pending).resolves.toBe('superseded');
     });
 
+    it('resolves closed when the caller aborts mid-wait', async () => {
+      const client = await makeClient();
+      const controller = new AbortController();
+      const pending = client.waitForSubscriptionAck(
+        'steward',
+        '/v1/prompts',
+        30_000,
+        controller.signal
+      );
+      // Teardown fires long before close(); the wait must not sit out its
+      // timer or it delays monitor retirement.
+      controller.abort();
+      await expect(pending).resolves.toBe('closed');
+    });
+
+    it('settles pending waits when the client closes', async () => {
+      const client = await makeClient();
+      const pending = client.waitForSubscriptionAck('steward', '/v1/prompts');
+      (client as unknown as { aborted: boolean }).aborted = true;
+      (
+        client as unknown as {
+          subscriptionKeyAckWaiters: Map<string, Set<() => void>>;
+        }
+      ).subscriptionKeyAckWaiters
+        .get('steward/v1/prompts')
+        ?.forEach((w) => w());
+      await expect(pending).resolves.toBe('closed');
+    });
+
     it('reports closed after the client shuts down', async () => {
       const client = await makeClient();
       (client as unknown as { aborted: boolean }).aborted = true;

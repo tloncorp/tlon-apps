@@ -1208,13 +1208,14 @@ export class UrbitSSEClient {
   async waitForSubscriptionAck(
     app: string,
     path: string,
-    timeoutMs = 30_000
+    timeoutMs = 30_000,
+    signal?: AbortSignal
   ): Promise<'acked' | 'timeout' | 'superseded' | 'closed'> {
     const key = `${app}${path}`;
     if (this.ackedSubscriptionKeys.has(key)) {
       return 'acked';
     }
-    if (this.aborted) {
+    if (this.aborted || signal?.aborted) {
       return 'closed';
     }
     const epochAtWait = this.channelEpoch;
@@ -1227,11 +1228,25 @@ export class UrbitSSEClient {
           if (settled) return;
           settled = true;
           clearTimeout(timer);
+          signal?.removeEventListener('abort', onAbort);
           this.subscriptionKeyAckWaiters.get(key)?.delete(onAck);
           resolve(outcome);
         };
+        // Waiters are called with no argument, so each computes its own
+        // outcome — that lets close() settle every pending wait by simply
+        // flushing them (aborted is already true by then).
         const onAck = () =>
-          finish(this.channelEpoch === epochAtWait ? 'acked' : 'superseded');
+          finish(
+            this.aborted
+              ? 'closed'
+              : this.channelEpoch === epochAtWait
+                ? 'acked'
+                : 'superseded'
+          );
+        // The caller's teardown signal fires well before close(), and
+        // callers await this — without the listener a retiring monitor
+        // would sit out the full timeout before noticing.
+        const onAbort = () => finish('closed');
         const timer = setTimeout(
           () =>
             finish(
@@ -1244,6 +1259,7 @@ export class UrbitSSEClient {
           timeoutMs
         );
         timer.unref?.();
+        signal?.addEventListener('abort', onAbort, { once: true });
         const waiters =
           this.subscriptionKeyAckWaiters.get(key) ?? new Set<() => void>();
         waiters.add(onAck);
@@ -1767,6 +1783,15 @@ export class UrbitSSEClient {
     this.aborted = true;
     this.isConnected = false;
     this.rejectPendingPokeAcks('SSE client closed before poke ack');
+    // No ack can arrive after this, so release anyone waiting on one
+    // rather than leaving them on their timers. `aborted` is already set,
+    // so each waiter resolves 'closed'.
+    for (const waiters of this.subscriptionKeyAckWaiters.values()) {
+      for (const waiter of [...waiters]) {
+        waiter();
+      }
+    }
+    this.subscriptionKeyAckWaiters.clear();
     this.stopStreamWatchdog();
     this.streamController?.abort();
     this.stopSubscriptionRetryTimer();
