@@ -1,7 +1,11 @@
 import fc from 'fast-check';
 import { describe, expect, test } from 'vitest';
 
-import { StructuredChannelDescriptionPayload } from '../client/channelContentConfig';
+import {
+  CollectionRendererId,
+  DraftInputId,
+  StructuredChannelDescriptionPayload,
+} from '../client/channelContentConfig';
 import type { Json } from '../client/surface/json';
 import { validSpec } from './surfaceSchemas.test';
 
@@ -155,9 +159,7 @@ describe('surfaceSpec accessor', () => {
 });
 
 describe('surface registry ids', () => {
-  test('the surface collection renderer and none input are registered', async () => {
-    const { CollectionRendererId, DraftInputId } =
-      await import('../client/channelContentConfig');
+  test('the surface collection renderer and none input are registered', () => {
     expect(CollectionRendererId.surface).toBe('tlon.r0.collection.surface');
     expect(DraftInputId.none).toBe('tlon.r0.input.none');
   });
