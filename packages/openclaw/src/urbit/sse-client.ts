@@ -166,6 +166,16 @@ export class UrbitSSEClient {
   private actionFloors = new Map<number, number>();
   private pendingSubscriptionIds = new Set<number>();
   private lastPokeId = 0;
+  // Pokes sent with awaitAck: settled by the matching gall poke response on
+  // the event stream, rejected on nack/timeout/close/channel-rebuild.
+  private pendingPokeAcks = new Map<
+    number,
+    {
+      resolve: () => void;
+      reject: (err: Error) => void;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
 
   private subscriptionRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private subscriptionRetryDelayMs = SUBSCRIPTION_RETRY_FLOOR_MS;
@@ -915,10 +925,43 @@ export class UrbitSSEClient {
       // Successful poke acknowledgements are routine stream traffic. Keep failures
       // observable without emitting an info log for every successful poke.
       if (parsed.response === 'poke') {
+        const pending =
+          typeof parsed.id === 'number'
+            ? this.pendingPokeAcks.get(parsed.id)
+            : undefined;
+        if (pending && typeof parsed.id === 'number') {
+          this.pendingPokeAcks.delete(parsed.id);
+          clearTimeout(pending.timer);
+          if (parsed.err) {
+            pending.reject(
+              new Error(`Poke nacked: ${JSON.stringify(parsed.err)}`)
+            );
+          } else {
+            pending.resolve();
+          }
+        }
         if (parsed.err) {
           this.logger.error?.(
             `[SSE] Poke NACK id=${parsed.id}: ${JSON.stringify(parsed.err)}`
           );
+        }
+        return;
+      }
+
+      // A subscribe nack after the channel PUT means the watch never went
+      // live (e.g. the agent was restarting). Run the same recovery as a
+      // quit: transfer the handlers to a fresh id and retry with backoff —
+      // onSubscriptionRecovery fires when it lands, which dependent
+      // consumers (prompt sync) use to re-run their reconcile.
+      if (parsed.response === 'subscribe' && parsed.err) {
+        if (
+          typeof parsed.id === 'number' &&
+          this.eventHandlers.has(parsed.id)
+        ) {
+          this.logger.error?.(
+            `[SSE] Subscribe NACK id=${parsed.id}: ${JSON.stringify(parsed.err)} — resubscribing`
+          );
+          void this.resubscribeAfterQuit(parsed.id);
         }
         return;
       }
@@ -980,6 +1023,15 @@ export class UrbitSSEClient {
     json: unknown;
     /** Aborts the HTTP PUT (30s default timeout) — e.g. monitor teardown. */
     signal?: AbortSignal;
+    /**
+     * Resolve only once gall ACKS the poke (the HTTP 2xx merely means Eyre
+     * queued it; the ack/nack arrives later on the event stream). A nack
+     * rejects, as does a 30s ack timeout, close(), or a channel rebuild —
+     * so callers gating on ship state (e.g. prompt-sync's owner configure)
+     * actually observe failures. Requires a live event stream.
+     */
+    awaitAck?: boolean;
+    ackTimeoutMs?: number;
   }) {
     // After close() the channel is unsubscribed/DELETEd on the ship. A stale
     // poke from an old monitor (e.g. across a config-reload restart) would
@@ -1008,7 +1060,7 @@ export class UrbitSSEClient {
     // A rejection is delivery-ambiguous (pokeUrbitChannel can get an OK response
     // then reject from release() in its finally). A stale entry blocks nothing:
     // it resolves via ack-match, rebuild clear, or never (bounded by the cap).
-    return await pokeUrbitChannel(
+    const sentId = await pokeUrbitChannel(
       {
         baseUrl: this.url,
         cookie: this.cookie,
@@ -1019,11 +1071,36 @@ export class UrbitSSEClient {
         fetchImpl: this.fetchImpl,
       },
       {
-        ...params,
+        app: params.app,
+        mark: params.mark,
+        json: params.json,
+        ...(params.signal ? { signal: params.signal } : {}),
         pokeId,
         auditContext: 'tlon-urbit-poke',
       }
     );
+    if (!params.awaitAck) {
+      return sentId;
+    }
+    const timeoutMs = params.ackTimeoutMs ?? 30_000;
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingPokeAcks.delete(pokeId);
+        reject(new Error(`Poke ack timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+      timer.unref?.();
+      this.pendingPokeAcks.set(pokeId, { resolve, reject, timer });
+    });
+    return sentId;
+  }
+
+  /** Rejects every awaitAck poke — their acks can no longer arrive. */
+  private rejectPendingPokeAcks(reason: string) {
+    for (const [id, pending] of this.pendingPokeAcks) {
+      this.pendingPokeAcks.delete(id);
+      clearTimeout(pending.timer);
+      pending.reject(new Error(reason));
+    }
   }
 
   async scry(
@@ -1158,6 +1235,8 @@ export class UrbitSSEClient {
         );
         // Mint a fresh channel and reset both cursors — per-channel event ids
         // restart at 0, so a stale Last-Event-ID would drop the first N events.
+        // Acks pending on the old channel can never arrive on the new one.
+        this.rejectPendingPokeAcks('SSE channel rebuilt before poke ack');
         this.channelId = `${Math.floor(Date.now() / 1000)}-${randomUUID().slice(0, 8)}`;
         this.channelUrl = new URL(
           `/~/channel/${this.channelId}`,
@@ -1437,6 +1516,7 @@ export class UrbitSSEClient {
   async close() {
     this.aborted = true;
     this.isConnected = false;
+    this.rejectPendingPokeAcks('SSE client closed before poke ack');
     this.stopStreamWatchdog();
     this.streamController?.abort();
     this.stopSubscriptionRetryTimer();

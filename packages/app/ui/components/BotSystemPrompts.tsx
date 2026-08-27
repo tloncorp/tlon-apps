@@ -42,19 +42,28 @@ export function useBotSystemPrompts(botShip: string) {
  */
 export function useIsOwnedBot(botShip: string) {
   const promptsQuery = useBotSystemPrompts(botShip);
+  // A cached answer only counts once it has been reconfirmed after this
+  // mount (staleTime is Infinity, so the cache can be a whole session
+  // old): dataUpdatedAt advances on every successful fetch AND on the
+  // authoritative fact writes, covering the window before the mount-time
+  // subscription registers and triggers its invalidation.
+  const [mountedAt] = useState(() => Date.now());
+  const resolvedSinceMount = promptsQuery.dataUpdatedAt >= mountedAt;
   return {
     isOwnedBot: Boolean(promptsQuery.data?.length),
     /**
-     * True while ownership is UNRESOLVED: a fetch is deciding (first load
-     * or a background refetch — staleTime is Infinity, so a refetch only
-     * follows an explicit invalidation and genuinely may change the
-     * answer), or the last fetch errored (a scry that exhausted its
-     * retries determined nothing — only a successful null is an
-     * authoritative "not owned"). Callers gating a destructive action
-     * (e.g. Block) should treat ownership as unknown until this settles.
+     * True while ownership is UNRESOLVED: no fetch or fact has confirmed
+     * the answer since mount, a fetch is deciding, or the last fetch
+     * errored (a scry that exhausted its retries determined nothing —
+     * only a successful null is an authoritative "not owned"). Callers
+     * gating a destructive action (e.g. Block) should treat ownership as
+     * unknown until this settles.
      */
     isPending:
-      promptsQuery.isPending || promptsQuery.isFetching || promptsQuery.isError,
+      promptsQuery.isPending ||
+      promptsQuery.isFetching ||
+      promptsQuery.isError ||
+      !resolvedSinceMount,
   };
 }
 
@@ -104,6 +113,7 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
   const queryClient = useQueryClient();
   const promptsQuery = useBotSystemPrompts(botShip);
   const [editing, setEditing] = useState<api.BotSystemPrompt | null>(null);
+  const [mountedAt] = useState(() => Date.now());
 
   // Refresh when the bot's canonical set fans back into our mirror (a seed
   // after gateway restart, or an edit confirmation). staleTime is Infinity
@@ -115,6 +125,18 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let attempt = 0;
+    // Facts are authoritative, but a scry that started BEFORE a fact can
+    // resolve after it and restore an obsolete set (staleTime is Infinity;
+    // no later fact is guaranteed). Cancel any in-flight fetch before each
+    // write, serialized so bursts apply in arrival order.
+    let factChain: Promise<void> = Promise.resolve();
+    const writeAuthoritative = (value: api.BotSystemPrompt[] | null) => {
+      const task = async () => {
+        await queryClient.cancelQueries({ queryKey: promptsQueryKey(botShip) });
+        queryClient.setQueryData(promptsQueryKey(botShip), value);
+      };
+      factChain = factChain.then(task, task);
+    };
     const start = () => {
       api
         .subscribeToBotSystemPrompts(
@@ -124,7 +146,7 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
               // the cache directly instead of refetching — an emptied
               // mirror (untrust / owner revocation) must clear the editor
               // even when a follow-up scry would fail.
-              queryClient.setQueryData(promptsQueryKey(botShip), prompts);
+              writeAuthoritative(prompts);
             }
           },
           {
@@ -163,7 +185,7 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
             // replaced desk removed the module after we cached a prompt
             // set, that cache would otherwise stay fresh (and the editor
             // visible) for the rest of the session.
-            queryClient.setQueryData(promptsQueryKey(botShip), null);
+            writeAuthoritative(null);
             return;
           }
           if (cancelled) {
@@ -230,10 +252,13 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
     // doesn't require a current mirror).
     return null;
   }
-  // While a reconciling refetch is in flight, keep rendering the cached
-  // rows (hiding them would blink the section on every mount) but don't
-  // open the editor until the refetch confirms the set is current.
-  const reconciling = promptsQuery.isFetching;
+  // While the cached set awaits post-mount confirmation (the mount-time
+  // subscription hasn't registered/invalidated yet, or the refetch is in
+  // flight), keep rendering the cached rows (hiding them would blink the
+  // section on every mount) but don't open the editor until a fetch or
+  // fact confirms the set is current.
+  const reconciling =
+    promptsQuery.isFetching || promptsQuery.dataUpdatedAt < mountedAt;
 
   const orderedPrompts = [...prompts].sort((a, b) => {
     const aOrder = promptOrder.get(a.name) ?? Number.MAX_SAFE_INTEGER;

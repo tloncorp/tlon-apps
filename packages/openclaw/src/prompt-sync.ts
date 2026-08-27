@@ -167,10 +167,17 @@ export function shipHasPromptSyncAuthority(
   )?.accounts;
   const ids = [DEFAULT_ACCOUNT_ID, ...Object.keys(accounts ?? {})];
   return ids.some((id) => {
+    const account = resolveTlonAccount(cfg, id);
+    // An authority must actually RUN: shouldRunPromptSync returns true for
+    // the default slot unconditionally, but a disabled or unconfigured
+    // default has no monitor — treating it as an authority would leave the
+    // ship's stale canonical set uncleared forever.
+    if (!account.configured || !account.enabled) {
+      return false;
+    }
     if (!shouldRunPromptSync(cfg, id)) {
       return false;
     }
-    const account = resolveTlonAccount(cfg, id);
     return Boolean(account.ship) && normalizeShip(account.ship!) === ship;
   });
 }
@@ -311,12 +318,19 @@ export function parsePromptSetFact(
   return { name, text };
 }
 
-/** Read the effective contents of every allowlisted prompt file. */
+/**
+ * Read the effective contents of every allowlisted prompt file. ok=false
+ * when any file failed to read for a reason other than not existing —
+ * seeding such a partial set would make %steward drop the unreadable
+ * file's un-edited entry (and the owner's view of it) even though the
+ * gateway still runs it.
+ */
 export async function readEffectivePrompts(
   workspaceDir: string,
   logger?: PromptSyncLogger
-): Promise<Record<string, string>> {
+): Promise<{ prompts: Record<string, string>; ok: boolean }> {
   const out: Record<string, string> = {};
+  let ok = true;
   for (const name of PROMPT_FILE_NAMES) {
     try {
       const text = await fs.readFile(path.join(workspaceDir, name), 'utf8');
@@ -330,11 +344,12 @@ export async function readEffectivePrompts(
     } catch (error) {
       const code = (error as NodeJS.ErrnoException)?.code;
       if (code !== 'ENOENT') {
+        ok = false;
         logger?.warn(`[tlon] Failed to read prompt file ${name}: ${error}`);
       }
     }
   }
-  return out;
+  return { prompts: out, ok };
 }
 
 /**
@@ -584,12 +599,12 @@ export function createPromptSync(opts: {
     // Record provenance in the ship-keyed ledger BEFORE touching the
     // shared workspace: if teardown or a crash lands between the file
     // writes and the config write, a later syncing authority must still be
-    // able to recognize the leftover text as this ship's. Proceed even if
-    // the write is refused (untrusted deployments never persist config).
+    // able to recognize the leftover text as this ship's.
+    let recorded = true;
     if (promptsDiffer(opts.configPrompts, stored)) {
       // Cache write only — the file applies below take effect without a
       // restart (bootstrap files are re-read every turn).
-      await persistToConfig(stored, {
+      recorded = await persistToConfig(stored, {
         mode: 'none',
         reason: 'tlon prompt sync boot reconcile',
       });
@@ -597,10 +612,22 @@ export function createPromptSync(opts: {
     if (aborted()) {
       return;
     }
+    if (!recorded) {
+      // A refused config write (e.g. an untrusted-plugin deployment) means
+      // provenance can't be recorded — applying the ship-stored edits would
+      // leave private text on the shared workspace that a later authority
+      // couldn't recognize as foreign. Defer them; the previously recorded
+      // cache below is still safe to apply.
+      logger.warn(
+        '[tlon] Provenance write refused; deferring ship-stored prompt edits this boot'
+      );
+    }
     // Ship-stored prompts win over the config cache: the config is only a
     // local mirror written by this sync, but a hosted entrypoint can
     // regenerate openclaw.json and drop it.
-    const desired = { ...opts.configPrompts, ...stored };
+    const desired = recorded
+      ? { ...opts.configPrompts, ...stored }
+      : { ...opts.configPrompts };
     const { applied, ok } = await applyPromptsToWorkspace({
       workspaceDir,
       prompts: desired,
@@ -623,7 +650,17 @@ export function createPromptSync(opts: {
       // behalf of an obsolete account snapshot.
       return;
     }
-    const effective = await readEffectivePrompts(workspaceDir, logger);
+    const { prompts: effective, ok: readOk } = await readEffectivePrompts(
+      workspaceDir,
+      logger
+    );
+    if (!readOk) {
+      // A partial read would seed an incomplete set, and %steward would
+      // drop the unreadable file's un-edited entry even though the gateway
+      // still runs it. Retry next boot.
+      logger.warn('[tlon] Skipping prompt seed: workspace read failed');
+      return;
+    }
     if (aborted()) {
       return;
     }
@@ -696,12 +733,19 @@ export function createPromptSync(opts: {
     // able to recognize the leftover text as this ship's. The cache
     // mirrors the SHIP's stored edits (which already include this one), so
     // writing it ahead of the file is consistent even if the apply fails.
-    // Proceed when the write is refused (untrusted deployments never
-    // persist config).
-    await persistToConfig(
+    // A refused write (untrusted deployment) means the edit can't be
+    // applied safely at all — the ship keeps it durably, and a future boot
+    // with working config writes applies it.
+    const recorded = await persistToConfig(
       { [edit.name]: edit.text },
       { mode: 'none', reason: `tlon system prompt ${edit.name} provenance` }
     );
+    if (!recorded) {
+      logger.warn(
+        `[tlon] Provenance write refused; not applying prompt edit ${edit.name}`
+      );
+      return;
+    }
     if (aborted()) {
       return;
     }

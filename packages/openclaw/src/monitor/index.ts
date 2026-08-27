@@ -4848,17 +4848,19 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           owner: resolveLensOwner(cfg, account.accountId),
           // Forward the teardown signal so an in-flight scry or poke (30s
           // default timeout) aborts promptly instead of stalling teardown.
+          // awaitAck: HTTP 2xx only means Eyre queued the poke; prompt
+          // sync's ownership gate must observe the actual gall ack/nack.
           scry: (path) =>
             api!.scry(
               path,
               opts.abortSignal ? { signal: opts.abortSignal } : {}
             ),
           poke: (params) =>
-            api!.poke(
-              opts.abortSignal
-                ? { ...params, signal: opts.abortSignal }
-                : params
-            ),
+            api!.poke({
+              ...params,
+              awaitAck: true,
+              ...(opts.abortSignal ? { signal: opts.abortSignal } : {}),
+            }),
           logger: {
             log: (message) => runtime.log?.(message),
             warn: (message) => runtime.error?.(message),
@@ -5543,6 +5545,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 app: 'steward',
                 mark: 'steward-prompts-action-1',
                 json: { clear: null },
+                awaitAck: true,
                 ...(opts.abortSignal ? { signal: opts.abortSignal } : {}),
               }),
             logger: {

@@ -153,10 +153,35 @@ describe('applyPromptsToWorkspace / readEffectivePrompts', () => {
     expect(again.applied).toEqual([]);
 
     const effective = await readEffectivePrompts(tmpDir, logger);
-    expect(effective).toEqual({
+    expect(effective.ok).toBe(true);
+    expect(effective.prompts).toEqual({
       'SOUL.md': 'be kind',
       'AGENTS.md': 'unchanged',
     });
+  });
+
+  it('reports ok=false when a prompt file read fails (non-ENOENT)', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'readable');
+    fs.writeFileSync(path.join(tmpDir, 'SOUL.md'), 'unreadable');
+    const realReadFile = fs.promises.readFile.bind(fs.promises);
+    const readSpy = vi
+      .spyOn(fs.promises, 'readFile')
+      .mockImplementation(async (file, ...rest) => {
+        if (String(file).endsWith('SOUL.md')) {
+          throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+        }
+        return realReadFile(file as never, ...(rest as never[]));
+      });
+    try {
+      const effective = await readEffectivePrompts(tmpDir, logger);
+      // The partial map must not be seeded as authoritative — %steward
+      // would drop the unreadable file's un-edited entry even though the
+      // gateway still runs it.
+      expect(effective.ok).toBe(false);
+      expect(effective.prompts).toEqual({ 'AGENTS.md': 'readable' });
+    } finally {
+      readSpy.mockRestore();
+    }
   });
 
   it('never writes disallowed names', async () => {
@@ -736,6 +761,7 @@ describe('createPromptSync abort after in-flight apply', () => {
       const sync = createPromptSync({
         core,
         accountId: 'default',
+        botShip: '~zod',
         workspaceDir: tmpDir,
         configPrompts: {},
         owner: null,
@@ -964,5 +990,118 @@ describe('createPromptSync foreign-file removal failure', () => {
     } finally {
       unlinkSpy.mockRestore();
     }
+  });
+});
+
+describe('shipHasPromptSyncAuthority with a disabled default', () => {
+  it('does not treat a disabled default account as an authority', () => {
+    // shouldRunPromptSync('default') is unconditionally true, but a
+    // disabled default has no running monitor — an alias slot must still
+    // send its %clear or the ship keeps a stale editable set forever.
+    const cfg = makeAccountsConfig({
+      ship: '~zod',
+      url: 'http://x',
+      code: 'c',
+      enabled: false,
+      accounts: {
+        alias: { ship: '~zod', url: 'http://x', code: 'c' },
+        other: { ship: '~bus', url: 'http://y', code: 'c' },
+      },
+    }) as never;
+    expect(shipHasPromptSyncAuthority(cfg, '~zod')).toBe(false);
+  });
+});
+
+describe('createPromptSync startup with unreadable workspace', () => {
+  it('skips the seed when a prompt file read fails', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'readable');
+    fs.writeFileSync(path.join(tmpDir, 'SOUL.md'), 'unreadable');
+    const realReadFile = fs.promises.readFile.bind(fs.promises);
+    const readSpy = vi
+      .spyOn(fs.promises, 'readFile')
+      .mockImplementation(async (file, ...rest) => {
+        if (String(file).endsWith('SOUL.md')) {
+          throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+        }
+        return realReadFile(file as never, ...(rest as never[]));
+      });
+    try {
+      const poke = vi.fn(
+        async (_params: { app: string; mark: string; json: unknown }) => ({})
+      );
+      const sync = createPromptSync({
+        core: makeCore(),
+        accountId: 'default',
+        botShip: '~zod',
+        workspaceDir: tmpDir,
+        configPrompts: {},
+        owner: '~ten',
+        scry: async () => ({}),
+        poke,
+        logger,
+      });
+      await sync.startup();
+      expect(poke).not.toHaveBeenCalledWith(
+        expect.objectContaining({ mark: 'steward-prompts-action-1' })
+      );
+    } finally {
+      readSpy.mockRestore();
+    }
+  });
+});
+
+describe('createPromptSync refused provenance writes', () => {
+  it('handleFact does not apply an edit whose provenance was refused', async () => {
+    const core = makeCore();
+    core.config.mutateConfigFile.mockRejectedValue(
+      new Error('config writes disabled')
+    );
+    const sync = createPromptSync({
+      core,
+      accountId: 'default',
+      botShip: '~zod',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      owner: null,
+      scry: async () => ({}),
+      poke: async () => ({}),
+      logger,
+    });
+    await sync.handleFact({
+      set: { name: 'SOUL.md', prompt: { text: 'untracked', updated: '~x' } },
+    });
+    // Applying without a ledger record would leave private text a later
+    // authority couldn't recognize as foreign.
+    expect(fs.existsSync(path.join(tmpDir, 'SOUL.md'))).toBe(false);
+  });
+
+  it('startup defers ship-stored edits when provenance is refused', async () => {
+    const core = makeCore();
+    core.config.mutateConfigFile.mockRejectedValue(
+      new Error('config writes disabled')
+    );
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
+    const sync = createPromptSync({
+      core,
+      accountId: 'default',
+      botShip: '~zod',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      owner: '~ten',
+      scry: async () => ({
+        prompts: {
+          bot: '~zod',
+          prompts: {
+            'SOUL.md': { text: 'stored edit', updated: '~x', edited: true },
+          },
+        },
+      }),
+      poke,
+      logger,
+    });
+    await sync.startup();
+    expect(fs.existsSync(path.join(tmpDir, 'SOUL.md'))).toBe(false);
   });
 });
