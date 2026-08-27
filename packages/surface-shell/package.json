@@ -1,0 +1,44 @@
+{
+  "name": "@tloncorp/surface-shell",
+  "version": "0.0.1",
+  "type": "module",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./protocol": "./src/protocol/index.ts",
+    "./node": "./src/node/index.ts",
+    "./artifact/surface-shell.js": "./dist/surface-shell.js",
+    "./artifact/surface-shell.css": "./dist/surface-shell.css",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "vite build",
+    "tsc": "tsc --noEmit",
+    "test": "vitest",
+    "lint": "oxlint src/",
+    "lint:fix": "oxlint src/ --fix --quiet",
+    "lint:format": "oxfmt ./",
+    "generate:tokens": "node scripts/generate-tokens.mjs",
+    "check:deps": "node scripts/check-imports.mjs",
+    "check:tokens": "node scripts/check-token-drift.mjs",
+    "check:styles": "node scripts/check-styles.mjs",
+    "check:determinism": "node scripts/check-deterministic-build.mjs",
+    "check:all": "pnpm check:deps && pnpm check:styles && pnpm check:tokens && pnpm check:determinism"
+  },
+  "dependencies": {
+    "chart.js": "4.5.1",
+    "htm": "3.1.1",
+    "preact": "10.29.8"
+  },
+  "devDependencies": {
+    "@tloncorp/ui": "workspace:*",
+    "happy-dom": "^20.11.10",
+    "typescript": "^5.1.3",
+    "vite": "^5.1.6",
+    "vitest": "^1.0.4",
+    "zod": "^3.25.76"
+  }
+}
