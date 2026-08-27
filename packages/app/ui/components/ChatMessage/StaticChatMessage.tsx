@@ -330,6 +330,7 @@ export function StaticChatMessage({
       if (action.event.name === A2UI.action.navigate) {
         await navigateToA2UITarget(action.event.context.target, {
           allowBotMcpSettings: canUseAgentProviderControls,
+          allowBrowserCredentialHandoff: canUseAgentProviderControls,
         });
         return;
       }
@@ -389,11 +390,8 @@ export function StaticChatMessage({
     (action: A2UI.Action) => {
       if (action.event.name === A2UI.action.navigate) {
         const target = action.event.context.target;
-        return (
-          target.type !== 'screen' ||
-          target.screen !== 'botMcpSettings' ||
-          canUseAgentProviderControls
-        );
+        if (target.type !== 'screen') return true;
+        return canUseAgentProviderControls;
       }
 
       if (action.event.name === A2UI.action.sendMessage) {

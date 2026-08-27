@@ -2,17 +2,22 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { memo, useMemo } from 'react';
 
+import { BrowserCredentialHandoffScreen } from '../features/browser/BrowserCredentialHandoffScreen';
 import { useRenderCount } from '../hooks/useRenderCount';
 import { RootStack } from './RootStack';
 import { TopLevelDrawer } from './desktop/TopLevelDrawer';
 import { RootDrawerParamList, RootStackParamList } from './types';
 
+export type BrowserCredentialHandoffParams = { viewerUrl: string };
+
 export type MobileBasePathStackParamList = {
   Root: NavigatorScreenParams<RootStackParamList>;
+  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
 };
 
 export type DesktopBasePathStackParamList = {
   Root: NavigatorScreenParams<RootDrawerParamList>;
+  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
 };
 
 const MobileBasePathStackNavigator =
@@ -41,6 +46,11 @@ export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
   return (
     <Navigator.Navigator screenOptions={{ headerShown: false }}>
       <Navigator.Screen name="Root" component={component} />
+      <Navigator.Screen
+        name="BrowserCredentialHandoff"
+        component={BrowserCredentialHandoffScreen}
+        options={{ presentation: 'modal' }}
+      />
     </Navigator.Navigator>
   );
 });

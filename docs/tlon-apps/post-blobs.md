@@ -102,7 +102,7 @@ The supported v1 client subset is intentionally small:
   `SmallChoice`, and `McpConnect`
 - button actions:
   - `tlon.sendMessage`, which sends explicit action text in the current DM
-  - `tlon.navigate`, which can navigate to a message, channel, group, profile, chat details, or chat volume screen
+  - `tlon.navigate`, which can navigate to a message, channel, group, profile, chat details, chat volume, MCP settings, or a browser credential handoff screen
     - message reply targets should include `parentAuthorId` when `parentId` is not already prefixed as `~author/id`
 - rendering policy: A2UI blocks render only in direct messages for now
 - validation limits: component count, tree depth, text length, and expanded render size
@@ -120,6 +120,46 @@ provider row either opens the normal authorization flow or toggles an already
 connected provider for the group; configuration is applied only when the owner
 submits it. The completion action is one-shot and remains disabled when a live
 `tlon-a2ui-selection` receipt exists for that surface and component.
+
+### Browser credential handoff
+
+A trusted bot can offer a standard A2UI `Button` that opens a native Tlon
+credential form for an existing hosted-browser session. The button carries the
+session's signed viewer URL, not credentials:
+
+```json
+{
+  "id": "login",
+  "component": "Button",
+  "variant": "primary",
+  "child": "login-label",
+  "action": {
+    "event": {
+      "name": "tlon.navigate",
+      "context": {
+        "target": {
+          "type": "screen",
+          "screen": "browserCredentialHandoff",
+          "viewerUrl": "https://browser-session-ovh1.tlon.network/s/<signed-capability>"
+        }
+      }
+    }
+  }
+}
+```
+
+The screen accepts signed viewer URLs from
+`browser-session-*.tlon.network` and
+`browser-session-*.test.tlon.systems`. It exchanges that capability directly
+with the viewer gateway for a one-use, short-lived fill handle, displays the
+origin of the login form discovered in the live browser, and posts the user's
+values directly to the gateway. Passwords and usernames are never written to
+the post blob, chat, bot context, or fill response.
+
+The bot should keep the browser session live while the card is usable. It may
+also put a separate `tlon.sendMessage` button in the card with fixed text such
+as “I signed in; continue” so the person can explicitly resume the run without
+sending any credential value through chat.
 
 ## Read/write behavior
 

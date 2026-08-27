@@ -524,6 +524,18 @@ export function useRootNavigation() {
     [navigationRef]
   );
 
+  const navigateToBrowserCredentialHandoff = useCallback(
+    (viewerUrl: string) => {
+      const parent = navigationRef.current.getParent() as
+        | NavigationProp<
+            MobileBasePathStackParamList & DesktopBasePathStackParamList
+          >
+        | undefined;
+      parent?.navigate('BrowserCredentialHandoff', { viewerUrl });
+    },
+    [navigationRef]
+  );
+
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
   const navigateToChatDetails = useNavigateToChatDetails();
@@ -552,6 +564,7 @@ export function useRootNavigation() {
       navigateBack,
       navigateToBotSettings,
       navigateToBotMcpSettings,
+      navigateToBrowserCredentialHandoff,
     }),
     [
       navigation,
@@ -561,6 +574,7 @@ export function useRootNavigation() {
       navigateToChatVolume,
       navigateToBotSettings,
       navigateToBotMcpSettings,
+      navigateToBrowserCredentialHandoff,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,

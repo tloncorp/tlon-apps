@@ -116,7 +116,10 @@ export function useA2UINavigation() {
   return useCallback(
     async (
       target: A2UI.NavigationTarget,
-      options?: { allowBotMcpSettings?: boolean }
+      options?: {
+        allowBotMcpSettings?: boolean;
+        allowBrowserCredentialHandoff?: boolean;
+      }
     ) => {
       switch (target.type) {
         case 'message':
@@ -168,6 +171,15 @@ export function useA2UINavigation() {
                 return;
               }
               rootNavigation.navigateToBotMcpSettings(target.providerId);
+              return;
+            case 'browserCredentialHandoff':
+              if (!options?.allowBrowserCredentialHandoff) {
+                logger.log('blocked untrusted browser login target', target);
+                return;
+              }
+              rootNavigation.navigateToBrowserCredentialHandoff(
+                target.viewerUrl
+              );
               return;
           }
       }
