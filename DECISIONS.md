@@ -134,3 +134,53 @@ STOP condition hit.
   (`{next}`/`{error}`) so state containing a literal `error` key can't be
   misread as failure (caught by tsc during implementation; regression
   test added).
+- **D14: Caps interpretation.** KB = 1024 bytes; sizes measure the UTF-8
+  JSON serialization of the _validated_ (unknown-keys-stripped) value — the
+  raw blob string is independently bounded by `%channels-server`'s per-post
+  `size-limit`. "Spec metadata total 32 KB" is enforced as the whole
+  serialized spec (slightly stricter than the itemized list; simpler).
+- **D15: Enforcement split for entry validity.** Caps and shape violations
+  fail schema validation → the whole blob entry degrades to
+  `{type:'unknown'}` (per the §7 caps table: "violations skip the entry").
+  Pointer path grammar violations and `$actor` misuse are checked per-op at
+  reduce time → only that op is skipped, remaining ops apply (per §7's
+  Paths paragraph). Schemas therefore validate `path` only as a string.
+- **D16: Invoke entries cannot smuggle ops** — zod parsing strips unknown
+  fields, so a crafted invoke carrying an `ops` array validates but loses
+  the ops; the reducer resolves ops exclusively from the current spec.
+- **D17: Payload decode split.** `decode` is now lossless (no defaults
+  injection, unknown keys preserved) so `encode(decode(x))` is
+  byte-equivalent; the legacy hydrating behavior moved verbatim to
+  `decodeWithDefaults`, used by the three in-package rendering call sites.
+  Two deliberate behavior changes in `decode` for non-object JSON: a
+  description that parses to a scalar ("5", "true") or an array is now kept
+  as a plain-text description (legacy dropped scalars to `{}` and returned
+  arrays as the payload). The legacy quirk where showAuthors/showReplies
+  defaults stick only to object-form collection renderers is preserved in
+  `decodeWithDefaults` and pinned by test.
+- **D18: Validated-spec views strip unknown spec keys.** `SurfaceSpecSchema`
+  accepts unknown keys but its parsed output drops them (zod default).
+  Consumers that persist or re-encode the spec must carry the RAW value
+  from the decoded payload, not the validated view — flagged for the
+  packages/shared persistence work.
+- **D19: Reducer input contract.** Only posts with a numeric `sequenceNum`
+  fold (unsynced optimistic posts and replies never do, so every client
+  folds the same server-sequenced set). A post may carry multiple surface
+  entries; they process in blob order within the post's sequence slot.
+  `hostShip` is a caller-supplied parameter derived from the channel id,
+  never from post/blob content. The reducer consumes the shared
+  `parsePostBlob` union parser (playbook rule 2), filtering to entries
+  whose `surfaceId` matches the spec.
+- **D20: State cap enforcement is op-granular and uniform.** §7 says
+  "further `append`s refused" at 128 KB; sets can grow state the same way,
+  so ANY op whose result exceeds the cap is refused (op skipped, state
+  unchanged, `stateFull` flag set for the "dashboard full" UI), and later
+  shrinking ops still apply. Uniform across clients ⇒ still convergent.
+  Size is re-measured per applied op (O(state) per op) — fine at these
+  caps; optimize only if profiling ever says so.
+- **D21: packages/shared suite is not runnable in this environment** —
+  `better-sqlite3`'s native binding was built for a different Node ABI
+  (`ERR_DLOPEN_FAILED`, NODE_MODULE_VERSION 132 vs 127) and `pnpm rebuild`
+  didn't repair it. The failure predates and is untouched by this session's
+  changes (it occurs at module load). Consumer-side verification of the
+  decode change (`sync.test.ts`) needs CI or a fixed local env.
