@@ -34,6 +34,7 @@ export type TlonCommandDeadlineOutput = {
 export type TlonCommandRunnerOptions = {
   timeoutMs?: number;
   onDeadline?: (output: TlonCommandDeadlineOutput) => void;
+  environment?: Record<string, string | undefined>;
 };
 
 /**
@@ -47,6 +48,13 @@ export function runTlonCommand(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const env = { ...process.env };
+    for (const [key, value] of Object.entries(options?.environment ?? {})) {
+      if (value === undefined) {
+        delete env[key];
+      } else {
+        env[key] = value;
+      }
+    }
     if (credentials) {
       for (const key of EXPLICIT_CREDENTIAL_ENV_KEYS_TO_CLEAR) {
         delete env[key];

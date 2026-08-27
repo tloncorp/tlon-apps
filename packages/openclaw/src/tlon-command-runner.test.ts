@@ -217,6 +217,19 @@ describe('runTlonCommand timeout output capture', () => {
 });
 
 describe('runTlonCommand credential environment', () => {
+  it('adds command-scoped environment without mutating the parent', async () => {
+    const key = 'TLON_BROWSER_HANDOFF_TARGET';
+    vi.stubEnv(key, '~ambient-owner');
+    const script = `process.stdout.write(process.env.${key} ?? 'missing')`;
+
+    await expect(
+      runTlonCommand(process.execPath, ['-e', script], undefined, {
+        environment: { [key]: '~selected-owner' },
+      })
+    ).resolves.toBe('~selected-owner');
+    expect(process.env[key]).toBe('~ambient-owner');
+  });
+
   it('scrubs ambient credential selectors when credentials are supplied', async () => {
     const childEnv = await captureChildCredentialEnv({
       url: 'https://selected.example',

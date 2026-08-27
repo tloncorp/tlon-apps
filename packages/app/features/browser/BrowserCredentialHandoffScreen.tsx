@@ -26,6 +26,14 @@ function errorMessage(error: unknown): string {
     : 'Could not connect to the browser login form.';
 }
 
+function originHost(origin: string): string {
+  try {
+    return new URL(origin).hostname;
+  } catch {
+    return origin;
+  }
+}
+
 export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const [handoff, setHandoff] = useState<BrowserCredentialHandoff>();
   const [username, setUsername] = useState('');
@@ -98,12 +106,44 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       >
         <YStack gap="$xl" maxWidth={560} width="100%" alignSelf="center">
           {loading ? (
-            <Text color="$secondaryText">Finding the login form…</Text>
-          ) : submitted ? (
-            <YStack gap="$l">
+            <YStack
+              backgroundColor="$background"
+              borderColor="$border"
+              borderWidth={1}
+              borderRadius="$l"
+              padding="$xl"
+              gap="$m"
+            >
               <Text size="$label/l" fontWeight="600">
-                Login submitted
+                Connecting to the browser
               </Text>
+              <Text color="$secondaryText">Finding the login form…</Text>
+            </YStack>
+          ) : submitted ? (
+            <YStack
+              backgroundColor="$background"
+              borderColor="$border"
+              borderWidth={1}
+              borderRadius="$l"
+              padding="$xl"
+              gap="$l"
+            >
+              <XStack alignItems="center" gap="$m">
+                <View
+                  backgroundColor="$positiveBackground"
+                  borderRadius={100}
+                  padding="$m"
+                >
+                  <Icon
+                    type="Checkmark"
+                    size="$m"
+                    color="$positiveActionText"
+                  />
+                </View>
+                <Text size="$label/l" fontWeight="600">
+                  Login submitted
+                </Text>
+              </XStack>
               <Text color="$secondaryText">
                 Your credentials were sent directly to the hosted browser. They
                 were not added to this conversation.
@@ -116,19 +156,48 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
               />
             </YStack>
           ) : handoff ? (
-            <YStack gap="$xl">
-              <YStack gap="$xs">
-                <Text size="$label/l" fontWeight="600">
-                  Sign in to {handoff.origin}
+            <YStack
+              backgroundColor="$background"
+              borderColor="$border"
+              borderWidth={1}
+              borderRadius="$l"
+              padding="$xl"
+              gap="$xl"
+            >
+              <XStack alignItems="center" gap="$m">
+                <View
+                  backgroundColor="$secondaryBackground"
+                  borderRadius={100}
+                  padding="$m"
+                >
+                  <Icon type="Lock" size="$m" color="$primaryText" />
+                </View>
+                <YStack flex={1} gap="$xs">
+                  <Text size="$label/l" fontWeight="600">
+                    Sign in to {originHost(handoff.origin)}
+                  </Text>
+                  <Text color="$secondaryText" numberOfLines={1}>
+                    {handoff.origin}
+                  </Text>
+                </YStack>
+              </XStack>
+
+              <YStack
+                backgroundColor="$secondaryBackground"
+                borderRadius="$m"
+                padding="$l"
+                gap="$xs"
+              >
+                <Text color="$secondaryText">
+                  Your credentials go directly to the live browser.
                 </Text>
                 <Text color="$secondaryText">
-                  These values go directly to the live browser and are never
-                  posted to chat or returned to the bot.
+                  They are never posted to chat or returned to the bot.
                 </Text>
               </YStack>
 
               {handoff.hasUsername ? (
-                <Field label="Username or email">
+                <Field label="Email or username">
                   <TextInput
                     value={username}
                     autoCapitalize="none"
@@ -187,7 +256,14 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
               />
             </YStack>
           ) : (
-            <YStack gap="$l">
+            <YStack
+              backgroundColor="$background"
+              borderColor="$border"
+              borderWidth={1}
+              borderRadius="$l"
+              padding="$xl"
+              gap="$l"
+            >
               <Text color="$negativeActionText">
                 {error ?? 'Could not find the browser login form.'}
               </Text>

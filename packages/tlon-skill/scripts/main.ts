@@ -8,6 +8,7 @@
  *
  * Commands:
  *   activity     Activity/notifications (mentions, replies, all, unreads)
+ *   browser      Hosted browser handoff operations
  *   channels     Channel listing and management
  *   contacts     Contact/profile management
  *   dms          Direct message operations
@@ -21,6 +22,7 @@ import { createActivityDeps } from './activity-runtime';
 import { setCliCredentialOverrides } from './api-client';
 import { DIARY_REMOVED } from './cli-utils';
 import { run as runActivityCommand } from './commands/activity';
+import { run as runBrowserCommand } from './commands/browser';
 import { formatUnexpectedError } from './commands/command';
 import { run as runNotesCommand } from './commands/notes';
 import { run as runPostsCommand } from './commands/posts';
@@ -43,6 +45,7 @@ Usage:
 
 Commands:
   activity     Activity/notifications (mentions, replies, all, unreads)
+  browser      Hosted browser login handoff (handoff)
   channels     Channel listing and management (dms, groups, info, update, delete, add/del-writers, add/del-readers)
   contacts     Contact/profile management (list, get, self, sync, add, remove, update-profile)
   dms          Direct message operations (send, reply, react, unreact, delete, accept, decline)
@@ -90,6 +93,7 @@ Cache writes:
 
 Examples:
   tlon contacts list
+  tlon browser handoff https://browser-session-ovh1.tlon.network/s/<capability>
   tlon messages dm ~sampel-palnet --limit 10
   tlon groups create "My Group" --description "A cool group"
   tlon groups create-owned "My Group" --owner ~zod
@@ -159,6 +163,14 @@ async function main() {
           scriptArgs,
           createActivityDeps()
         );
+        process.exit(exitCode);
+        break;
+      }
+      case 'browser': {
+        const exitCode = await runBrowserCommand(scriptArgs, {
+          ...createPostsDeps(),
+          env: process.env,
+        });
         process.exit(exitCode);
         break;
       }

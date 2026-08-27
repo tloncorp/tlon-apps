@@ -123,29 +123,103 @@ submits it. The completion action is one-shot and remains disabled when a live
 
 ### Browser credential handoff
 
-A trusted bot can offer a standard A2UI `Button` that opens a native Tlon
-credential form for an existing hosted-browser session. The button carries the
-session's signed viewer URL, not credentials:
+A trusted bot can offer a standard A2UI card that opens a native Tlon
+credential form for an existing hosted-browser session. Keep the hierarchy
+quiet: one clear title, a short explanation, two short privacy lines, and two
+explicit actions. The card carries the session's signed viewer URL, not
+credentials. Bots should create this card with
+`tlon browser handoff <signed-viewer-url>` instead of constructing the blob:
 
 ```json
-{
-  "id": "login",
-  "component": "Button",
-  "variant": "primary",
-  "child": "login-label",
-  "action": {
-    "event": {
-      "name": "tlon.navigate",
-      "context": {
-        "target": {
-          "type": "screen",
-          "screen": "browserCredentialHandoff",
-          "viewerUrl": "https://browser-session-ovh1.tlon.network/s/<signed-capability>"
+[
+  { "id": "root", "component": "Card", "child": "body" },
+  {
+    "id": "body",
+    "component": "Column",
+    "children": [
+      "title",
+      "title-divider",
+      "explanation",
+      "privacy-direct",
+      "privacy-context",
+      "action-divider",
+      "actions"
+    ]
+  },
+  {
+    "id": "title",
+    "component": "Text",
+    "variant": "h3",
+    "text": "Sign in to continue"
+  },
+  { "id": "title-divider", "component": "Divider" },
+  {
+    "id": "explanation",
+    "component": "Text",
+    "text": "The browser reached a login screen that needs your input."
+  },
+  {
+    "id": "privacy-direct",
+    "component": "Text",
+    "variant": "caption",
+    "text": "Your credentials go directly to the live browser."
+  },
+  {
+    "id": "privacy-context",
+    "component": "Text",
+    "variant": "caption",
+    "text": "They are never posted to chat or returned to the bot."
+  },
+  { "id": "action-divider", "component": "Divider" },
+  {
+    "id": "actions",
+    "component": "Row",
+    "children": ["open-login", "continue"],
+    "align": "center"
+  },
+  {
+    "id": "open-login",
+    "component": "Button",
+    "weight": 1,
+    "variant": "primary",
+    "child": "open-login-label",
+    "action": {
+      "event": {
+        "name": "tlon.navigate",
+        "context": {
+          "target": {
+            "type": "screen",
+            "screen": "browserCredentialHandoff",
+            "viewerUrl": "https://browser-session-ovh1.tlon.network/s/<signed-capability>"
+          }
         }
       }
     }
+  },
+  {
+    "id": "open-login-label",
+    "component": "Text",
+    "text": "Open secure login"
+  },
+  {
+    "id": "continue",
+    "component": "Button",
+    "weight": 1,
+    "variant": "secondary",
+    "child": "continue-label",
+    "action": {
+      "event": {
+        "name": "tlon.sendMessage",
+        "context": { "text": "I signed in; continue the browser task." }
+      }
+    }
+  },
+  {
+    "id": "continue-label",
+    "component": "Text",
+    "text": "I’m signed in"
   }
-}
+]
 ```
 
 The screen accepts signed viewer URLs from
