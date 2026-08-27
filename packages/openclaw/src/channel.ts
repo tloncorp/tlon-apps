@@ -153,7 +153,7 @@ export const tlonPlugin = createChatChannelPlugin({
           '',
           'Tlon users often split one thought across several consecutive messages.',
           '- In a direct chat, treat adjacent messages from that user since your last visible reply as one conversational update.',
-          '- In a group channel, combine adjacent messages only when they are from the same sender and directed at you. Keep other participants\' messages separate.',
+          "- In a group channel, combine adjacent messages only when they are from the same sender and directed at you. Keep other participants' messages separate.",
           '- Your reply must account for every new fact, constraint, correction, and question across those messages, even when only the newest message directly asks a question.',
           '- Never answer only the newest line while silently dropping useful context from an earlier line.',
           '',
