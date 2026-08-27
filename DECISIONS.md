@@ -253,6 +253,24 @@ install-app-deps` — under `nodeLinker: hoisted` that clobbers the single
   restored from HEAD, and the new tests were merged in following that
   file's own conventions — the restored originals also now exercise the
   rewritten `updateChannel`, all green.
+- **D26: Hydration folds by re-reduction, not patching.** The data layer
+  (`hydrateSurface` + `useSurfaceHydration`) re-runs the full fold whenever
+  the `posts`/`channels` tables invalidate the query. §6's mutation
+  semantics make true incremental patching unsound without change
+  detection (a deletion above the boundary, a snapshot retraction, or a
+  revision transition each require refolding), and the fold is cheap at
+  the §7 caps because compaction bounds the window. The batch reducer's
+  determinism is what makes this convergent. A patch-based fast path
+  remains a later optimization, behind the same result shape.
+- **D27: Coverage rule for the backward-paging loop.** With the loaded
+  window contiguous `[oldest..newest]`, the fold is presentable iff
+  `oldest === 1` or the reduction's `baseSnapshotSeq >= oldest - 1` (all
+  events above the effective snapshot boundary are inside the window). A
+  preserving spec that pages to sequence 1 without a current-revision
+  snapshot is `migration-pending`; anything short of coverage is
+  `partial`, which carries no state (a partial fold is never presented as
+  current). Remote backfill is an injected function (the loop knows
+  paging, not the network) with a `maxPages` budget (default 40 pages of 50) as a runaway bound.
 
 ## Notes for M1's remaining consumers
 
