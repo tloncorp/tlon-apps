@@ -38,6 +38,7 @@ import {
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
+import { createFileReadCompletionGuard } from './src/file-read-completion.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
 import {
   clearCronJobForSession,
@@ -976,6 +977,7 @@ export default defineBundledChannelEntry({
         notifyDiaryMigrationDiscovery(nest, api.config),
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
     });
+    const fileReadCompletion = createFileReadCompletionGuard();
 
     api.registerTool({
       name: 'tlon',
@@ -1157,6 +1159,13 @@ export default defineBundledChannelEntry({
     });
 
     api.on('after_tool_call', async (event, ctx) => {
+      fileReadCompletion.recordToolResult({
+        runId: event.runId ?? ctx.runId,
+        toolName: event.toolName,
+        params: event.params,
+        result: event.result,
+        error: event.error,
+      });
       const toolCallId = readToolCallId(event);
       const tlonCommandContext =
         event.toolName === 'tlon' && typeof event.params.command === 'string'
@@ -1528,12 +1537,26 @@ export default defineBundledChannelEntry({
     });
     api.on('model_call_started', async (_event, ctx) => onCronAgentHook(ctx));
 
+    api.on('before_agent_finalize', (event, ctx) => {
+      const revision = fileReadCompletion.beforeFinalize({
+        runId: event.runId ?? ctx.runId,
+        lastAssistantMessage: event.lastAssistantMessage,
+      });
+      if (revision) {
+        api.logger.warn(
+          `[tlon] Revising incomplete file-read reply for run ${event.runId ?? ctx.runId ?? 'unknown'}`
+        );
+      }
+      return revision ?? undefined;
+    });
+
     // Background lenses normally finalize on tool-result idle; agent_end
     // re-arms the window so runs that end with model output (no trailing
     // tool call) still finalize, while leaving time for the gateway to
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (_event, ctx) => {
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
+      fileReadCompletion.clear(_event.runId ?? ctx.runId);
       if (!contextLensEnabled) {
         return;
       }
