@@ -213,6 +213,8 @@ Tlonbots excel at recurring tasks, called crons. Set one once, then forget about
 - "Remind me every Friday at 4 to submit my timesheet."  
 - "Send me the weather each day before I leave for work."
 
+For conditional alerts, a correction such as “that is known information” or “only tell me when my funds are at risk” must become durable job criteria. Make the change as a lossless edit: copy the existing payload message verbatim, then append an `Owner correction (higher priority):` block that restates the owner's exact negative criteria and overrides conflicting delivery instructions. Do not summarize or replace the old declaration. Preserve the monitor's existing subject, sources, and input scope; never broaden a narrow monitor or fixed scenario into a search for anything that sounds urgent. An announce-mode job should return exactly `NO_REPLY` when the criteria are not met and alert text only when they are met—never a heartbeat or “nothing urgent” update. After editing, read the job back and verify the original scope, corrected threshold, and silent negative path.
+
 ### Connected services (MCP)
 
 Extend your bot by connecting outside services under `Bot Settings` → `Connected Services`. (Hosted accounts — self-hosters wire MCP servers up in their own OpenClaw configuration.) With services connected, crons and requests get more powerful:

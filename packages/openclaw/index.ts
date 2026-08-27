@@ -27,6 +27,11 @@ import {
   resetTlonCronObservability,
 } from './src/cron-observability.js';
 import {
+  preserveConditionalCronUpdate,
+  recordCronGetResult,
+  rememberCronOwnerPrompt,
+} from './src/conditional-cron-update.js';
+import {
   clearCronServiceAccessor,
   handleCronChangedEvent,
   setCronServiceAccessor,
@@ -846,6 +851,14 @@ export default defineBundledChannelEntry({
     exportName: 'setTlonRuntime',
   },
   registerFull(api) {
+    api.on('before_agent_run', (event, ctx) => {
+      rememberCronOwnerPrompt(
+        ctx.sessionKey,
+        event.prompt,
+        event.senderIsOwner
+      );
+    });
+
     // ── Gateway-status liveness integration ───────────────────
     //
     // registerFull is NOT a once-per-process call: OpenClaw invokes it once
@@ -976,6 +989,10 @@ export default defineBundledChannelEntry({
       const role = getSessionRole(ctx.sessionKey ?? '');
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
       const isBlocked = isOwnerOnlyTool && role === 'user';
+      const adjustedCronParams =
+        event.toolName === 'cron' && role === 'owner'
+          ? preserveConditionalCronUpdate(ctx.sessionKey, event.params)
+          : undefined;
       const blockReason = isBlocked
         ? `The ${event.toolName} tool is not available.`
         : undefined;
@@ -1033,7 +1050,7 @@ export default defineBundledChannelEntry({
       }
 
       if (!isOwnerOnlyTool) {
-        return undefined;
+        return adjustedCronParams ? { params: adjustedCronParams } : undefined;
       }
 
       // Allow owner sessions and internal sessions (heartbeat, cron, etc.).
@@ -1077,10 +1094,13 @@ export default defineBundledChannelEntry({
       api.logger.info(
         `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
       );
-      return undefined;
+      return adjustedCronParams ? { params: adjustedCronParams } : undefined;
     });
 
     api.on('after_tool_call', (event, ctx) => {
+      if (event.toolName === 'cron') {
+        recordCronGetResult(ctx.sessionKey, event.params, event.result);
+      }
       const toolCallId = readToolCallId(event);
       const tlonCommandContext =
         event.toolName === 'tlon' && typeof event.params.command === 'string'

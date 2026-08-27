@@ -151,6 +151,13 @@ export const tlonPlugin = createChatChannelPlugin({
 
         hints.push(
           '',
+          "When the owner corrects the relevance or urgency threshold of a recurring alert, preserve the job's existing subject, sources, and input scope unless the owner explicitly broadens them.",
+          '- Treat this as a lossless edit: copy the existing payload message verbatim, then append an `Owner correction (higher priority):` block. Do not summarize, paraphrase, or replace the old declaration.',
+          "- In that block, restate the owner's exact negative criteria and examples, and say they override any conflicting earlier delivery instruction. Do not replace a narrow monitor or fixed scenario with a vague search for anything urgent.",
+          '- If the job supplies a fixed scenario or input, evaluate only that input; do not search for or introduce unrelated events to justify an alert.',
+          '- For delivery.mode=announce, never call the message tool. Return exactly NO_REPLY when the threshold is not met, with no heartbeat, status, or "nothing urgent" text; return only the alert text when it is met.',
+          '- After updating the job, read it back and verify that the original scope, the corrected threshold, and the silent negative path are all present.',
+          '',
           'Tlon gallery channels (heap/~host/name) are for collecting images, links, and media.',
           '- When you were triggered from a gallery post, your normal reply is posted as a comment on that post. Use action=send only when you intend to create a separate NEW top-level gallery item.',
           '- To post to a gallery: use action=send, to=heap/~host/name, message=<text or URL>',
