@@ -541,3 +541,151 @@ sessions consume:
   default.
 - happy-dom v20 with vitest 1.x works in this package; the workspace
   otherwise has no happy-dom pin to conflict with.
+
+## Session 4 decisions (packages/app renderer + sandbox hosts)
+
+- **D35: Artifact embedding is a generated JSON-literal module.** surface-shell's
+  build now emits `dist/artifactStrings.{js,d.ts}` (`shellArtifactJs`,
+  `shellArtifactCss`, `shellArtifactVersion`) via `JSON.stringify` string
+  literals — byte-exact by construction, verified against the dist files.
+  Exported as `@tloncorp/surface-shell/artifact-strings`; wired into root
+  `build:packages` and a CI build step (mirroring the editor's). The
+  embedded artifact is the ONLY shell delivery path — the shell is never
+  fetched. (Template-literal embedding was tried first and corrupted
+  bytes through escape processing; JSON literals are the fix, not a
+  preference.)
+- **D36: Web sandbox posture.** `sandbox="allow-scripts"` only (opaque
+  origin; no same-origin, forms, popups, downloads, top-nav) + a
+  host-injected CSP meta (`default-src 'none'; script-src 'unsafe-inline';
+  style-src 'unsafe-inline'`) as the resource gate. Outbound
+  `postMessage(…, '*')` is deliberate and recorded in-code: no concrete
+  targetOrigin can match an opaque origin, so `'*'` is the only working
+  value; mitigations are that the host owns the iframe element (srcDoc),
+  checks `event.source` against its own `contentWindow` on every inbound
+  message, and sends nothing the sandbox doesn't already hold (spec,
+  state, theme, permission). `</script` is escaped (`<\/script`) during
+  document assembly. Proven by a browser-level posture test
+  (`pnpm e2e:sandbox`, no ships): a hostile bundle's
+  fetch/XHR/WebSocket/image/sendBeacon/window.top/storage attempts all
+  fail, with the authoritative signal being network-level (Playwright
+  `response`/`requestfinished` listeners — `request` fires even for
+  CSP-blocked attempts, and `sendBeacon` returns true on queueing).
+- **D37: One message discipline for both hosts.** `createSandboxSession`
+  (platform-agnostic, unit-tested) validates EVERY inbound message
+  against the canonical strict schemas (widened invokes rejected, not
+  stripped), folds pre-ready updates into the eventual init, re-inits on
+  a second `ready` (iframe reload), and cross-checks an invoke's
+  `specRevision` against the spec the host initialized the sandbox with —
+  mismatch means a stale sandbox, drop and log. Only the actionId crosses
+  the boundary outward.
+- **D38: The invoke writer lives in `packages/shared`'s store, not api.**
+  (The session rule limits api changes to the registry addition; the
+  writer is new store surface, not ratified-semantics change.)
+  `sendSurfaceInvoke` builds the one-entry `mode: 'invoke'` blob against
+  the ratified `SurfaceEventEntrySchema` — stamping `specRevision` from
+  the host's own spec, never a message — refuses to post anything that
+  fails validation, posts under kind tail `surface/event` with fallback
+  Story text ("Used X. Update Tlon to view this dashboard."), and treats
+  the poke ack as fire-and-forget: success is the post being observed
+  back through the subscription and refolded (§4.3 semantics).
+- **D39: Registry additions only.** `tlon.r0.collection.surface`
+  (CollectionRendererId.surface) and `tlon.r0.input.none`
+  (DraftInputId.none). The none-input maps to the existing
+  EmptyNotesRenderer null composer — no new composer surface. The
+  renderer dispatches through the existing exhaustive
+  BUILTIN_COLLECTION_RENDERERS record.
+- **D40: Theme mapping.** The shell knows light/dark only. Host maps the
+  tamagui theme name: {dark, dracula, gruvbox} plus a name-contains-
+  "dark" heuristic → dark; everything else light. Exotic themes get the
+  nearer of the two until shell tokens grow variants.
+- **D41: Native hosts are written but UNVERIFIED, and say so.** The RN
+  WebView host mirrors the web host through the shared session; every
+  device-only behavior carries a greppable `SURFACE-NATIVE-VERIFY`
+  marker (transport: inbound delivered by dispatching a window
+  MessageEvent via injectJavaScript, because RN postMessage historically
+  targets document on iOS vs window on Android; srcdoc/baseUrl: CSP meta
+  application under `source={{html}}`; egress:
+  `onShouldStartLoadWithRequest` vetoes NAVIGATIONS only — real deny-all
+  needs WKContentRuleList / shouldInterceptRequest native modules that
+  react-native-webview props cannot express; capabilities: storage/file/
+  media props). No native sandbox verification is claimed anywhere.
+- **D42: §8 exclusion is a paired predicate.** `isSurfaceChannel` (JS)
+  and a `NOT LIKE '%tlon.r0.collection.surface%'` fragment over the JSON
+  config text column (SQL) are defined side by side so they can't drift.
+  Application: getChats zeroes surface channels' unread rows and
+  subtracts the surface contribution from the backend-precomputed group
+  counts at read time (floored at zero); getNotifyingUnreadSourceCount
+  excludes surface channel/thread rows; SQL-shaped activity queries
+  filter via a channels join; relational-API activity queries post-filter
+  (their pages can come back shorter than the limit); ChannelListItem
+  guards the badge for models from any query. Channel-less events
+  (contact, group-level) always pass. Deps arrays gain `channels`
+  wherever the exclusion reads channel config. Accepted §8 boundaries,
+  recorded not hidden: the group-level `notify` flag stays
+  backend-authored (its cause is unknowable client-side), so a group
+  whose only notifying child is a surface channel can still light the
+  app-badge count; and the LIKE match is substring-based over the config
+  JSON — the renderer-id namespace makes false positives implausible,
+  but it is a textual, not structural, match. Server-side kind-aware
+  activity remains the v1 fix.
+
+### Found, flagged, not fixed (out of scope)
+
+- `activity_event_contact_group_pins`' foreign key targets
+  `activity_events(id)`, but that table's real primary key is
+  `(id, bucketId)`. Under an enforcing `foreign_keys` pragma (as in the
+  shared test db), any statement that makes SQLite resolve that FK —
+  `insertActivityEvents`' upsert arm, multi-row inserts — fails with
+  "foreign key mismatch". Production connections appear not to enforce
+  the pragma, which is why this has never bitten. The §8 tests seed with
+  plain per-row inserts to sidestep it; the schema defect itself is
+  session-1-through-3-independent and predates this branch.
+
+### Least sure about (flag for review)
+
+- The posture test proves what a browser can observe from inside and
+  beside the sandbox; it cannot prove the absence of channels the
+  browser doesn't expose. The CSP-meta + opaque-origin design is belt
+  and suspenders, not a formal proof.
+- Group-count subtraction happens in getChats only; group models reaching
+  GroupListItem from other queries would show the backend count. The
+  sidebar (the group badge's home) reads getChats, so this is currently
+  moot — but a future group-badge surface needs the same subtraction.
+- `checkActivityEmpty` now means "no non-surface activity", which is the
+  §8-correct reading of "empty" for the activity screen.
+
+## Notes for Session 5+ (tlon-skill, templates, publish gate)
+
+- **Serving fixture bundles:** the host fetches `spec.bundle.assetRef`
+  with a plain `fetch()` OUTSIDE the sandbox and hash-verifies through
+  `getOrFetchBundle` before anything executes. Any HTTP URL the client
+  can reach works — a local static server is fine for development; the
+  256 KB size cap is enforced pre-fetch (spec sanity) and the sha256
+  post-fetch (authority).
+- **What the bot must write for a channel to render as a surface:** the
+  channel's content configuration must set collection renderer
+  `tlon.r0.collection.surface` AND draft input `tlon.r0.input.none`, and
+  the description payload must carry the `surfaceSpec` subtree. The
+  renderer keys §6 states off `surfaceSpec` (readSurfaceSpec at every
+  read) and §8 exclusion off the content configuration — set both.
+- **Invoke expectations for `surface event` tooling:** client invokes
+  arrive as one-entry `mode: 'invoke'` blobs under kind tail
+  `surface/event` with fallback Story text; `specRevision` is stamped by
+  the posting client from the spec it rendered. Stale-revision invokes
+  are the bot's to resolve per the ratified reducer rules (§4.3) —
+  clients already drop stale invokes that never left the sandbox, but a
+  revision can flip mid-flight.
+- **Web demonstration path:** `pnpm build:surface-shell` at root, then
+  `pnpm e2e:sandbox` in apps/tlon-web (no ships) runs the hostile-bundle
+  posture test AND the poll fixture end-to-end through the real host
+  document (render → state re-render → tap → invoke → permission-off
+  disables). Extend that spec when templates need browser-level checks.
+- **Native work is a device checklist, not a code task:** grep
+  `SURFACE-NATIVE-VERIFY` for the four marker sites; none can be cleared
+  from a laptop. The egress marker in particular needs a native-module
+  decision (WKContentRuleList / shouldInterceptRequest) before any
+  native ship.
+- **Cosmos fixtures** exist for every §6 state
+  (`packages/app/fixtures/SurfaceChannel.fixture.tsx`) and render the
+  real state components; the ready-state fixture documents the shared
+  rendered-state scenarios in comments.
