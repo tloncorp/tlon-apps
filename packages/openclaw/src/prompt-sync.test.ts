@@ -1324,3 +1324,43 @@ describe('per-file ownership stamps', () => {
     });
   });
 });
+
+describe('reused-instance stamp freshness', () => {
+  it('does not re-remove a regenerated default after clearing a stamp', async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'USER.md'),
+      'former owner private notes'
+    );
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      botShip: '~zod',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      fileStamps: { 'USER.md': '~bus' },
+      owner: '~ten',
+      scry: async () => ({}),
+      poke,
+      logger,
+    });
+    // First reconcile: the stamped-foreign file is removed and its stamp
+    // cleared (in config AND in this instance's live state).
+    await sync.startup();
+    expect(fs.existsSync(path.join(tmpDir, 'USER.md'))).toBe(false);
+    // OpenClaw regenerates a default before a recovery-triggered
+    // reconcile reuses the same instance — it must survive.
+    fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'regenerated default');
+    await sync.startup();
+    expect(fs.readFileSync(path.join(tmpDir, 'USER.md'), 'utf8')).toBe(
+      'regenerated default'
+    );
+    expect(poke).toHaveBeenCalledWith({
+      app: 'steward',
+      mark: 'steward-prompts-action-1',
+      json: { seed: { 'USER.md': 'regenerated default' } },
+    });
+  });
+});

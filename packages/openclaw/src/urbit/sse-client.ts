@@ -1135,16 +1135,26 @@ export class UrbitSSEClient {
         timer,
       });
     });
+    // Observe the waiter IMMEDIATELY: a nack/abort/timeout/close/rebuild
+    // can reject it while the PUT below is still in flight, and a rejection
+    // with no handler attached yet surfaces as an unhandled rejection —
+    // which can terminate the process instead of reaching the caller's
+    // retry path. ackOutcome never rejects; the error is re-thrown after
+    // the send settles.
+    const ackOutcome: Promise<Error | null> = ackPromise.then(
+      () => null,
+      (error: Error) => error
+    );
     try {
       await pokeUrbitChannel(deps, sendParams);
     } catch (error) {
       dropPending();
-      // The waiter may already be settled (an ack racing release()); keep a
-      // late rejection from becoming unhandled either way.
-      ackPromise.catch(() => {});
       throw error;
     }
-    await ackPromise;
+    const outcome = await ackOutcome;
+    if (outcome) {
+      throw outcome;
+    }
     return pokeId;
   }
 

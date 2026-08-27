@@ -630,6 +630,16 @@ export function createPromptSync(opts: {
 
   const aborted = () => opts.abortSignal?.aborted === true;
 
+  // Live copies of the creation-time ledger snapshots: subscription and
+  // channel-recovery reconciliations reuse this instance, so they must
+  // observe the stamp clears and marker writes earlier reconciles
+  // persisted — or a regenerated default file would be re-removed under a
+  // stamp that was already cleared on disk.
+  const fileStamps: Record<string, string> = { ...(opts.fileStamps ?? {}) };
+  const currentApplied: Record<string, string> = {
+    ...(opts.currentApplied ?? {}),
+  };
+
   const retry = <T>(
     label: string,
     run: () => Promise<T>,
@@ -790,9 +800,9 @@ export function createPromptSync(opts: {
     // a stamp disagrees with what is now verifiably on disk.
     const myShipNorm = normalizeShip(botShip);
     const markerStale = Object.entries(desired).some(([name, text]) => {
-      const stamp = opts.fileStamps?.[name];
+      const stamp = fileStamps[name];
       return (
-        opts.currentApplied?.[name] !== text ||
+        currentApplied[name] !== text ||
         stamp === undefined ||
         normalizeShip(stamp) !== myShipNorm
       );
@@ -801,11 +811,17 @@ export function createPromptSync(opts: {
       (applied.length > 0 || markerStale) &&
       Object.keys(desired).length > 0
     ) {
-      await persistToConfig(
+      const marked = await persistToConfig(
         desired,
         { mode: 'none', reason: 'tlon prompt sync applied marker' },
         { markApplied: true }
       );
+      if (marked) {
+        for (const [name, text] of Object.entries(desired)) {
+          fileStamps[name] = myShipNorm;
+          currentApplied[name] = text;
+        }
+      }
     }
     if (aborted()) {
       // Torn down while the apply was in flight — stop before seeding on
@@ -840,7 +856,7 @@ export function createPromptSync(opts: {
       // marked blocks) so that foreign content stops matching any recorded
       // text. Text matching remains as a fallback for files that predate
       // stamping.
-      const stamp = opts.fileStamps?.[name];
+      const stamp = fileStamps[name];
       const stampForeign =
         stamp !== undefined && normalizeShip(stamp) !== myShipNorm;
       const textForeign = opts.foreignPrompts?.[name]?.includes(text) === true;
@@ -884,12 +900,18 @@ export function createPromptSync(opts: {
       // Drop the removed files' ownership stamps, or the regenerated
       // bootstrap defaults would be re-removed on every boot. A failed
       // write is safe: the next boot unlinks again (ENOENT-tolerant) and
-      // retries the clear.
-      await persistToConfig(
+      // retries the clear. The in-memory copy only advances with the
+      // persisted state so later reconciles stay consistent with disk.
+      const cleared = await persistToConfig(
         {},
         { mode: 'none', reason: 'tlon prompt sync stamp clear' },
         { clearFileStamps: removedStamps }
       );
+      if (cleared) {
+        for (const name of removedStamps) {
+          delete fileStamps[name];
+        }
+      }
     }
     if (Object.keys(effective).length === 0) {
       // Deliberately NOT seeding an empty set. openclaw bootstraps these
@@ -976,11 +998,15 @@ export function createPromptSync(opts: {
     // refused (e.g. an untrusted-plugin deployment), the file edit above
     // still takes effect on the next turn — bootstrap files are re-read
     // per turn.
-    await persistToConfig(
+    const marked = await persistToConfig(
       { [edit.name]: edit.text },
       { mode: 'restart', reason: `tlon system prompt ${edit.name} updated` },
       { markApplied: true }
     );
+    if (marked) {
+      fileStamps[edit.name] = normalizeShip(botShip);
+      currentApplied[edit.name] = edit.text;
+    }
   };
 
   // Serialize reconciliation and fact handling on one chain: a fact that
