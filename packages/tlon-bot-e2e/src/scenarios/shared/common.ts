@@ -1296,6 +1296,44 @@ export const commonScenarios: readonly SharedScenario[] = [
       expect(persistedMessage).toContain('return exactly NO_REPLY');
       expect(persistedMessage).toContain('never call or use the message tool');
       expect(persistedMessage).not.toContain('Alert on anything urgent.');
+
+      // Remove the fixture through the same already-authorized owner route.
+      // A standalone OpenClaw CLI process may require a new WRITE-scope
+      // pairing approval, so it is only a fallback in scenario teardown.
+      const removeKey = `${key}-remove`;
+      const removeReply = `Removed urgent-only fixture ${key}`;
+      const removeScript: ModelScript = {
+        steps: [
+          {
+            kind: 'tool_call',
+            name: 'cron',
+            args: { action: 'remove', jobId: createdJob.id },
+          },
+          { kind: 'text', content: removeReply },
+        ],
+        expectations: {
+          advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+          expectedCallCount: 2,
+          toolEffectOnly: true,
+        },
+      };
+      const removeTag = await registerModelScript(
+        ctx.fakeModel,
+        removeKey,
+        removeScript
+      );
+      const removeResult = await actors.owner.prompt(
+        `${removeTag} Remove the scripted cron fixture, then reply with the scripted result.`,
+        { timeoutMs: CRON_CREATE_PROMPT_WAIT_MS }
+      );
+      expectPromptSuccess(removeResult, removeReply);
+      await expectModelExpectations(ctx.fakeModel, removeKey, removeScript);
+      await waitForCronJobRemoved(
+        ctx,
+        driver.name,
+        createdJob.id,
+        CRON_JOB_REMOVAL_WAIT_MS
+      );
     }
   ),
 
