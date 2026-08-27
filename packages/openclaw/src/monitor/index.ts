@@ -17,6 +17,7 @@ import {
   buildBotInfoJson,
   syncBotInfo,
 } from '../bot-info.js';
+import { engagementTokens } from '../commands-registry.js';
 import {
   findRecentContextLensById,
   publishContextLensEvent,
@@ -65,6 +66,13 @@ import {
 } from '../settings.js';
 import { sharedSlot } from '../shared-state.js';
 import {
+  createSilentFailureNoticeCooldown,
+  recordFailureNoticeMetric,
+  resolveSilentFailureNotice,
+  resolveTurnTerminalLensStatus,
+  rewriteGenericTerminalErrorReply,
+} from '../silent-failure-notice.js';
+import {
   canonicalizeNest,
   normalizeShip,
   parseChannelNest,
@@ -80,6 +88,7 @@ import {
   setErrorTelemetryReporter,
   setMigrationTelemetryReporter,
   setOutboundRouteReporter,
+  setReplyOutputReporter,
   setSessionTelemetryReporter,
 } from '../telemetry.js';
 import {
@@ -139,6 +148,7 @@ import {
   setBridge,
 } from './command-bridge.js';
 import { createComputingPresenceTracker } from './computing-presence.js';
+import { resolveDeliverParentId } from './deliver-parent.js';
 import { fetchAllChannels, fetchInitData } from './discovery.js';
 import {
   createCompactionTimeoutObserver,
@@ -196,6 +206,7 @@ import {
   isChannelRestricted,
   isDmAllowed,
   isOwnerListenSlashCommand,
+  isRegisteredCommandText,
   isSummarizationRequest,
   parseBlockedShips,
   prepareInboundText,
@@ -902,6 +913,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         botShip: botShipName,
       })
     );
+    setReplyOutputReporter((event) =>
+      telemetry?.captureReplyOutputSent({
+        ...event,
+        ownerShip:
+          getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip,
+        botShip: botShipName,
+      })
+    );
     setSessionTelemetryReporter((report) => {
       switch (report.kind) {
         case 'lifecycle':
@@ -1000,6 +1019,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     // Track threads we've participated in (by parentId) - respond without mention requirement
     const participatedThreads = new Set<string>();
+    const failureNoticeCooldown = createSilentFailureNoticeCooldown();
 
     // Track consecutive bot responses per channel/DM for rate limiting
     // Key: channel nest or dm partner ship, Value: count of consecutive bot messages
@@ -2340,6 +2360,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       parentId?: string | null;
       isThreadReply?: boolean;
       replyParentId?: string | null; // Override parentId for delivery only (not in ctx payload)
+      degraded?: boolean;
       retryOf?: string; // lensId of the failed run this dispatch retries
     }) => {
       const {
@@ -2357,8 +2378,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // replyParentId overrides parentId for the deliver callback (thread reply routing)
       // but doesn't affect the ctx payload (MessageThreadId/ReplyToId).
       // Used for reactions: agent sees no thread context (so it responds), but
-      // the reply is still delivered as a thread reply.
-      const deliverParentId = params.replyParentId ?? parentId;
+      // the reply is still delivered as a thread reply. Top-level heap triggers
+      // fall back to the triggering post itself so gallery replies land as
+      // comments, not new items.
+      const deliverParentId = resolveDeliverParentId({
+        isGroup,
+        channelNest,
+        messageId,
+        parentId,
+        isThreadReply,
+        replyParentId: params.replyParentId,
+        degraded: params.degraded,
+      });
       const groupChannel = channelNest; // For compatibility
       const rawMessageText = sanitizeMessageText(params.messageText);
       let currentMessageText = rawMessageText;
@@ -2383,7 +2414,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         isGroup && Boolean(groupChannel) && isSummarizationRequest(gateText);
       const trigger: ContextLensTrigger = isChannelSummaryRequest
         ? 'summarization'
-        : params.trigger ?? 'unknown';
+        : (params.trigger ?? 'unknown');
       const citedContent = sanitizeMessageText(params.citedContent ?? '');
       let messageText = citedContent
         ? `${citedContent}\n\n${currentMessageText}`
@@ -2395,7 +2426,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         accountId: opts.accountId ?? undefined,
         peer: {
           kind: isGroup ? 'group' : 'direct',
-          id: isGroup ? groupChannel ?? senderShip : senderShip,
+          id: isGroup ? (groupChannel ?? senderShip) : senderShip,
         },
       });
 
@@ -2430,7 +2461,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         trigger,
         sessionKey: route.sessionKey,
         senderShip,
-        conversationId: isGroup ? groupChannel ?? '' : senderShip,
+        conversationId: isGroup ? (groupChannel ?? '') : senderShip,
         receivedAt: timestamp,
         preview: previewText(messageText),
         ...(params.retryOf ? { retryOf: params.retryOf } : {}),
@@ -2442,6 +2473,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           isThreadReply: Boolean(isThreadReply),
           replyParentId: params.replyParentId ?? null,
           cachesHistory: Boolean(params.cachesHistory),
+          degraded: Boolean(params.degraded),
         },
       });
       contextLenses.recordPersistence(lens.lensId, {
@@ -2811,6 +2843,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 fromShip: botShipName,
                 nest: groupChannel,
                 story: markdownToStory(noHistoryMsg),
+                replyToId: deliverParentId ?? undefined,
                 blob: contextLensBlob,
               });
               outputMessageId = result.messageId;
@@ -2828,7 +2861,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             if (outputMessageId) {
               contextLenses.recordOutput(lens.lensId, {
                 messageId: outputMessageId,
-                conversationId: isGroup ? groupChannel ?? '' : senderShip,
+                conversationId: isGroup ? (groupChannel ?? '') : senderShip,
                 kind: isGroup ? 'channel' : 'dm',
                 sentAt: Date.now(),
                 preview: previewText(noHistoryMsg),
@@ -2879,6 +2912,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               fromShip: botShipName,
               nest: groupChannel,
               story: markdownToStory(errorMsg),
+              replyToId: deliverParentId ?? undefined,
               blob: contextLensBlob,
             });
             outputMessageId = result.messageId;
@@ -2896,7 +2930,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           if (outputMessageId) {
             contextLenses.recordOutput(lens.lensId, {
               messageId: outputMessageId,
-              conversationId: isGroup ? groupChannel ?? '' : senderShip,
+              conversationId: isGroup ? (groupChannel ?? '') : senderShip,
               kind: isGroup ? 'channel' : 'dm',
               sentAt: Date.now(),
               preview: previewText(errorMsg),
@@ -2989,9 +3023,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         : `${senderDisplay} [${senderRole}]`;
       const attachmentCount = attachments.length;
 
-      // Compute command authorization for slash commands (owner-only)
+      // Compute command authorization for slash commands (owner-only).
+      // Gate on the same raw text CommandBody is built from below: by this
+      // point messageText may carry prepended channel/thread context or blob
+      // annotations, which hide the leading slash — the gate would then skip
+      // authorization while CommandBody still carries the command, and the
+      // gateway silently drops it as unauthorized.
+      const commandBody = isGroup
+        ? stripBotMentionOutsidePlaceholders(rawMessageText, botShipName)
+        : rawMessageText;
       const shouldComputeAuth =
-        core.channel.commands.shouldComputeCommandAuthorized(messageText, cfg);
+        core.channel.commands.shouldComputeCommandAuthorized(commandBody, cfg);
       let commandAuthorized = false;
 
       if (shouldComputeAuth) {
@@ -3051,11 +3093,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         body: bodyWithAttachments,
       });
 
-      // Use raw text (no thread context) for command detection so "/status" is recognized
-      const commandBody = isGroup
-        ? stripBotMentionOutsidePlaceholders(rawMessageText, botShipName)
-        : rawMessageText;
-
+      // commandBody was computed above (raw text, no thread/channel context)
+      // so command detection and authorization gate on the same string.
       const ctxPayload = core.channel.reply.finalizeInboundContext({
         Body: body,
         BodyForAgent: bodyWithAttachments,
@@ -3205,7 +3244,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         route.agentId
       );
       const presenceConversationId = isGroup
-        ? groupChannel ?? null
+        ? (groupChannel ?? null)
         : senderShip;
       const presenceRunId = String(messageId);
 
@@ -3228,14 +3267,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             onStartError: (err: unknown) => {
               runtime.error?.(
                 `[tlon] Failed to enqueue computing presence for ${presenceConversationId}: ${
-                  err instanceof Error ? err.stack ?? err.message : String(err)
+                  err instanceof Error
+                    ? (err.stack ?? err.message)
+                    : String(err)
                 }`
               );
             },
             onStopError: (err: unknown) => {
               runtime.error?.(
                 `[tlon] Failed to enqueue computing presence stop for ${presenceConversationId}: ${
-                  err instanceof Error ? err.stack ?? err.message : String(err)
+                  err instanceof Error
+                    ? (err.stack ?? err.message)
+                    : String(err)
                 }`
               );
             },
@@ -3357,6 +3400,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                           contextLenses.setStatus(lens.lensId, 'delivering');
                           const blob = getReplyBlob(payload);
                           let replyText = payload.text ?? '';
+                          replyText = rewriteGenericTerminalErrorReply({
+                            text: replyText,
+                            isError: payload.isError === true,
+                            timedOut: dispatchTimedOut,
+                            durationMs: Date.now() - dispatchStartTime,
+                            timeoutMs: dispatchTimeoutMs,
+                          });
                           if (!replyText && !blob) {
                             const hasMedia = Array.isArray(payload.mediaUrls)
                               ? payload.mediaUrls.length > 0
@@ -3425,7 +3475,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                                 messageId,
                                 isGroup,
                                 destination: isGroup
-                                  ? groupChannel ?? null
+                                  ? (groupChannel ?? null)
                                   : senderShip,
                                 deliverParentId: deliverParentId ?? null,
                               })}`
@@ -3538,6 +3588,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   activeDispatchError = error;
                   throw error;
                 } finally {
+                  // Yield once so fire-and-forget after_tool_call hooks for the
+                  // final tool call reach the turn recorder before the summary
+                  // freezes (mirrors replyTelemetry.capture).
+                  await new Promise<void>((resolve) => setTimeout(resolve, 0));
                   turnSummary = turnRecorder.finalize({
                     cancelled:
                       !dispatchTimedOut && Boolean(opts.abortSignal?.aborted),
@@ -3625,17 +3679,68 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           turnSummary,
           dispatchError,
         });
-        if (dispatchTimedOut) {
-          contextLenses.setStatus(lens.lensId, 'timed_out', dispatchError);
-        } else if (!dispatchError) {
-          contextLenses.setStatus(
-            lens.lensId,
-            effectiveDeliveredCount > 0 ? 'completed' : 'no_reply'
-          );
-        }
+        contextLenses.setStatus(
+          lens.lensId,
+          resolveTurnTerminalLensStatus({
+            summary: turnSummary,
+            deliveredCount: effectiveDeliveredCount,
+            dispatchError,
+            timedOut: dispatchTimedOut,
+          }),
+          dispatchError
+        );
         const finalLens = contextLenses.get(lens.lensId);
         if (finalLens) {
           logContextLens(lens.lensId, 'final');
+        }
+        const noticeConversation = isGroup
+          ? (channelNest ?? _channelName ?? 'a group channel')
+          : `our DM with ${senderShip}`;
+        const notice = resolveSilentFailureNotice({
+          summary: turnSummary,
+          deliveredCount: effectiveDeliveredCount,
+          requester: senderShip,
+          conversation: noticeConversation,
+        });
+        if (notice) {
+          const noticeNow = Date.now();
+          const suppressedByCooldown = failureNoticeCooldown.isCoolingDown(
+            noticeConversation,
+            noticeNow
+          );
+          let noticeMessageId: string | undefined;
+          if (suppressedByCooldown) {
+            runtime.log?.(
+              `[tlon] Terminal no-reply turn ${turnSummary.runId} (${notice.kind}); owner notice suppressed by cooldown`
+            );
+          } else {
+            // Reserve before the await so a concurrent turn for the same
+            // conversation can't double-notify; release if the DM failed.
+            failureNoticeCooldown.recordSent(noticeConversation, noticeNow);
+            runtime.log?.(
+              `[tlon] Terminal no-reply turn ${turnSummary.runId} (${notice.kind}); notifying owner`
+            );
+            noticeMessageId = await sendOwnerNotification(notice.text);
+            if (!noticeMessageId) {
+              failureNoticeCooldown.release(noticeConversation, noticeNow);
+            }
+          }
+          recordFailureNoticeMetric({
+            kind: notice.kind,
+            destinationKind: turnSummary.destinationKind,
+            suppressed: suppressedByCooldown,
+          });
+          telemetry?.captureFailureNotice({
+            harness: 'openclaw',
+            accountId: account.accountId ?? null,
+            ownerShip: effectiveOwnerShip,
+            botShip: botShipName,
+            runId: turnSummary.runId,
+            noticeKind: notice.kind,
+            destinationKind: turnSummary.destinationKind,
+            suppressedByCooldown,
+            delivered: Boolean(noticeMessageId),
+          });
         }
       }
     };
@@ -3684,10 +3789,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (effectiveReacts && typeof effectiveReacts === 'object') {
           const rootPostId = replyReacts ? response?.post?.id : undefined;
           const postId = replyReacts
-            ? response?.post?.['r-post']?.reply?.id ??
+            ? (response?.post?.['r-post']?.reply?.id ??
               response?.post?.id ??
-              'unknown'
-            : response?.post?.id ?? 'unknown';
+              'unknown')
+            : (response?.post?.id ?? 'unknown');
           await processChannelReactionSnapshot({
             botShip: botShipName,
             reactions: effectiveReacts as Record<string, string>,
@@ -3867,7 +3972,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             fromShip: botShipName,
             nest,
             story: markdownToStory(replyText),
-            replyToId: parentId ?? undefined,
+            replyToId:
+              resolveDeliverParentId({
+                isGroup: true,
+                channelNest: nest,
+                messageId: messageId ?? '',
+                parentId,
+                isThreadReply,
+              }) ?? undefined,
           });
           return;
         }
@@ -3876,16 +3988,23 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // 1. Direct mention always triggers response
         // 2. Thread replies where we've participated - respond if relevant (let agent decide)
         // 3. Owner blob-only message (image/file with no text from owner)
-        // 4. Owner-listen: owner posts in an owner/bot-hosted channel and the
+        // 4. Owner command: owner's bare registered/core slash command in any
+        //    watched chat channel (escape hatch; the popup inserts these bare).
+        //    The chat/ constraint keeps heap/diary behavior unchanged.
+        // 5. Owner-listen: owner posts in an owner/bot-hosted channel and the
         //    channel is not in the per-channel disabled list
         const inParticipatedThread = Boolean(
           isThreadReply && parentId && participatedThreads.has(parentId)
         );
         const isOwnerBlob = hasBlob && isOwner(senderShip);
+        const isOwnerCommand =
+          nest.startsWith('chat/') &&
+          isRegisteredCommandText(rawText, engagementTokens());
         const engageDecision = shouldEngageInGroup({
           mentioned,
           inParticipatedThread,
           isOwnerBlob,
+          isOwnerCommand,
           senderShip,
           ownerShip: effectiveOwnerShip,
           botShipName,
@@ -3898,13 +4017,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           return;
         }
 
+        // 'owner-command' maps onto the existing 'owner-listen' trigger: both
+        // are owner-initiated no-mention engagement, and both trigger unions
+        // (ContextLensTrigger, TlonAgentTurnTrigger) plus the run-kind mapping
+        // already accept it without parallel edits.
         const trigger: ContextLensTrigger = mentioned
           ? 'mention'
           : inParticipatedThread
             ? 'thread'
             : isOwnerBlob
               ? 'owner-blob'
-              : engageDecision.reason === 'owner-owned'
+              : engageDecision.reason === 'owner-owned' ||
+                  engageDecision.reason === 'owner-command'
                 ? 'owner-listen'
                 : 'unknown';
 
@@ -4596,6 +4720,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             parentId: dispatch.parentId,
             isThreadReply: dispatch.isThreadReply,
             replyParentId: dispatch.replyParentId,
+            degraded: dispatch.degraded,
             cachesHistory: dispatch.cachesHistory,
             trigger: 'retry',
             retryOf: lensId,
@@ -5419,6 +5544,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       await pendingNudgePersistence.flush();
       clearShadowsForAccount(account.accountId);
       setOutboundRouteReporter(null);
+      setReplyOutputReporter(null);
       setSessionTelemetryReporter(null);
       setDebugTelemetryReporter(null);
       setErrorTelemetryReporter(null);

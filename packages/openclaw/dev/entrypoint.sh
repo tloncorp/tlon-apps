@@ -47,8 +47,8 @@ minimumReleaseAge: 0
 verifyDepsBeforeRun: false
 PNPM_EOF
 pnpm install
-pnpm build
 ./dev/build-local-api-override.sh
+pnpm build
 ./dev/build-local-skill-override.sh
 
 # Expose tlon CLI to PATH

@@ -65,7 +65,6 @@ export const PostView: RenderItemType = (props) => {
     ).configuration;
   }, [channel.contentConfiguration]);
 
-  // this code is duplicated in packages/ui/components/postCollectionViews/shared.tsx
   const standardConfig = useMemo(() => {
     if (channel.contentConfiguration == null) {
       return null;

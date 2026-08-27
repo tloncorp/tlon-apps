@@ -65,6 +65,9 @@ export type ContextLensRetrySeed = {
   isThreadReply?: boolean;
   replyParentId?: string | null;
   cachesHistory?: boolean;
+  // Degraded provenance survives retry chains: a retry of a degraded run
+  // seeds a new lens, but its threading metadata is still untrustworthy.
+  degraded?: boolean;
 };
 
 export type ContextLensSourceKind =
@@ -321,7 +324,8 @@ export type RetryDispatch = {
   isThreadReply?: boolean;
   replyParentId?: string | null;
   cachesHistory?: boolean;
-  /** True when dispatching from the truncated preview because the run predates retrySeed. */
+  /** True when threading metadata is untrustworthy: the run predates
+   *  retrySeed, or it retries a run that was itself degraded. */
   degraded: boolean;
 };
 
@@ -380,7 +384,7 @@ export function buildRetryDispatch(lens: ContextLens): RetryDispatchResult {
       isThreadReply: seed?.isThreadReply ?? false,
       replyParentId: seed?.replyParentId ?? null,
       cachesHistory: seed?.cachesHistory ?? true,
-      degraded: !seed,
+      degraded: seed?.degraded ?? !seed,
     },
   };
 }
@@ -843,7 +847,7 @@ export type ContextLensSessionKeys =
 
 function normalizeSessionKeys(sessionKeys: ContextLensSessionKeys): string[] {
   const list =
-    typeof sessionKeys === 'string' ? [sessionKeys] : sessionKeys ?? [];
+    typeof sessionKeys === 'string' ? [sessionKeys] : (sessionKeys ?? []);
   return [
     ...new Set(list.map((key) => key.trim()).filter((key) => key.length > 0)),
   ];

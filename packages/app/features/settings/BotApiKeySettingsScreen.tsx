@@ -164,15 +164,15 @@ export function BotApiKeySettingsScreen(props: Props) {
   const errorMessage =
     validationError ??
     (saveProviderKey.error
-      ? getErrorMessage(saveProviderKey.error) ?? 'Failed to save API key.'
+      ? (getErrorMessage(saveProviderKey.error) ?? 'Failed to save API key.')
       : null) ??
     (deleteProviderKey.error
-      ? getErrorMessage(deleteProviderKey.error) ??
-        'Failed to delete provider key.'
+      ? (getErrorMessage(deleteProviderKey.error) ??
+        'Failed to delete provider key.')
       : null) ??
     (disconnectOpenAISubscription.error
-      ? getErrorMessage(disconnectOpenAISubscription.error) ??
-        'Failed to disconnect the ChatGPT subscription.'
+      ? (getErrorMessage(disconnectOpenAISubscription.error) ??
+        'Failed to disconnect the ChatGPT subscription.')
       : null);
 
   return (
@@ -236,8 +236,8 @@ export function BotApiKeySettingsScreen(props: Props) {
                 }
               >
                 {openAIStatusError
-                  ? getErrorMessage(queries.llmAuthStatusQuery.error) ??
-                    'Could not check your ChatGPT subscription.'
+                  ? (getErrorMessage(queries.llmAuthStatusQuery.error) ??
+                    'Could not check your ChatGPT subscription.')
                   : 'Checking your ChatGPT subscription…'}
               </Text>
               {openAIStatusError ? (

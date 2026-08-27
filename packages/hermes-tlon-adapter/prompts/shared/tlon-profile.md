@@ -26,6 +26,8 @@ Prefer direct raster image URLs ending in `.png`, `.jpg`, `.jpeg`, `.gif`, or `.
 
 If the owner asks for a newly found image, use `image_search` when it is available. Choose a result's `image_url`, upload it with `tlon upload`, then use the uploaded URL returned by `tlon upload`. Do not pass `source_url`, search result pages, article pages, or generic website URLs to `tlon upload`.
 
-If `image_search` is unavailable, find an existing direct raster image URL with another available image tool. The upload command can fetch remote URLs directly. If `tlon upload <url>` fails, try a different direct raster image URL before asking the user for help.
+If `image_search` is unavailable, find an existing direct raster image URL with another available image tool. The upload command can fetch remote URLs directly. If `tlon upload <url>` fails, try a different direct raster image URL before asking the user for help — unless it reports that the ship cannot store uploads. That is a storage configuration fact, not a bad URL: retrying other URLs will not help. Profile fields accept any public https image URL, so set the direct https URL with `contacts update-profile` instead.
+
+`tlon upload` accepts a local file path or a public http(s) source URL (URLs with embedded credentials are refused) and prints an https URL on success — it fails loudly rather than returning a URL that will not load. Use the printed https URL for `--image` and profile fields; the direct-URL fallback above applies only when the ship cannot store uploads.
 
 Do not claim the avatar, cover, or profile field was changed until both the upload step, if needed, and the `contacts update-profile` step return success. Keep the user-facing reply concise: one brief acknowledgement before work if useful, then one final success or failure summary. Do not send a transcript of every attempted URL or command.

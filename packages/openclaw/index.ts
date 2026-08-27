@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { defineBundledChannelEntry } from 'openclaw/plugin-sdk/channel-entry-contract';
 import { type OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 import {
+  emitDiagnosticEvent,
   onDiagnosticEvent,
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
@@ -64,12 +65,16 @@ import {
   createTlonToolExecutor,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
+import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
 import {
   formatToolTraceEvent,
   liveToolTraceContentsEnabled,
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
-import { recordActiveTlonTurnToolCall } from './src/turn-recorder.js';
+import {
+  recordActiveTlonTurnToolCall,
+  recordTlonAgentRunTrace,
+} from './src/turn-recorder.js';
 import { resolveTlonAccount } from './src/types.js';
 import {
   formatTlonVersionIdentity,
@@ -337,7 +342,7 @@ function shouldReportHarnessDebug(event: DiagnosticCandidate, type: string) {
   return (
     Boolean(
       stringField(event, 'sessionKey') ??
-        stringAttribute(attributes, 'sessionKey')
+      stringAttribute(attributes, 'sessionKey')
     ) &&
     (level === 'warn' || level === 'warning' || level === 'error')
   );
@@ -942,7 +947,8 @@ export default defineBundledChannelEntry({
         '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
         'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
         'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
-        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'",
+        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'. " +
+        'If a command fails and you cannot complete what the user asked, tell them what failed before ending your turn — never end the turn silently after a failure.',
       parameters: {
         type: 'object',
         properties: {
@@ -1076,7 +1082,17 @@ export default defineBundledChannelEntry({
 
     api.on('after_tool_call', (event, ctx) => {
       const toolCallId = readToolCallId(event);
-      recordActiveTlonTurnToolCall();
+      const tlonCommandContext =
+        event.toolName === 'tlon' && typeof event.params.command === 'string'
+          ? summarizeTlonCommand(event.params.command)
+          : undefined;
+      recordActiveTlonTurnToolCall({
+        toolName: event.toolName,
+        errorMessage:
+          typeof event.error === 'string' && event.error.trim()
+            ? event.error
+            : undefined,
+      });
       if (logToolTraceContents && shouldLogAfterToolTrace(event)) {
         api.logger.info(
           formatToolTraceEvent({
@@ -1099,16 +1115,23 @@ export default defineBundledChannelEntry({
         sourceEventName: event.toolName,
         sessionKey: ctx.sessionKey,
         run: () => {
+          if (tlonCommandContext) {
+            emitDiagnosticEvent({
+              type: 'log.record',
+              ...buildTlonToolDiagnosticRecord(tlonCommandContext, {
+                ...event,
+                toolCallId,
+                runId: ctx.runId,
+                sessionId: ctx.sessionId,
+              }),
+            });
+          }
           recordToolCall({
             sessionKey: ctx.sessionKey,
             toolName: event.toolName,
             durationMs: event.durationMs,
             error: event.error,
-            context:
-              event.toolName === 'tlon' &&
-              typeof event.params.command === 'string'
-                ? summarizeTlonCommand(event.params.command)
-                : undefined,
+            context: tlonCommandContext,
           });
         },
       });
@@ -1359,7 +1382,13 @@ export default defineBundledChannelEntry({
       }
       ensureCronContextLens(ctx);
     };
-    api.on('agent_turn_prepare', (_event, ctx) => onCronAgentHook(ctx));
+    api.on('agent_turn_prepare', (_event, ctx) => {
+      // Cron has no active Tlon turn recorder, so its output trace stays nullable.
+      if (ctx.trigger !== 'cron') {
+        recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
+      }
+      onCronAgentHook(ctx);
+    });
     api.on('model_call_started', (_event, ctx) => onCronAgentHook(ctx));
 
     // Background lenses normally finalize on tool-result idle; agent_end

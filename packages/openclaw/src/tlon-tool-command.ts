@@ -325,14 +325,10 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       const subIdx = findTlonSubcommandIndex(args);
       const subcommand = subIdx >= 0 ? args[subIdx] : undefined;
       if (!isAllowedTlonSubcommand(subcommand)) {
+        const message = `Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${formatAllowedTlonSubcommands()}`;
         return {
-          content: [
-            {
-              type: 'text' as const,
-              text: `Error: Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${formatAllowedTlonSubcommands()}`,
-            },
-          ],
-          details: { error: true },
+          content: [{ type: 'text' as const, text: `Error: ${message}` }],
+          details: { status: 'error', error: message },
         };
       }
 
@@ -358,7 +354,11 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         }
         return {
           content: [{ type: 'text' as const, text: blocked.message }],
-          details: { blocked: true, reason: blocked.reason },
+          details: {
+            status: 'blocked',
+            blocked: true,
+            reason: blocked.reason,
+          },
         };
       }
 
@@ -371,7 +371,7 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
       const message = error instanceof Error ? error.message : String(error);
       return {
         content: [{ type: 'text' as const, text: `Error: ${message}` }],
-        details: { error: true },
+        details: { status: 'error', error: message },
       };
     }
   };

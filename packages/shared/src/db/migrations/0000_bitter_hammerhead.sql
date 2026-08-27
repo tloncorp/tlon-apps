@@ -55,6 +55,18 @@ CREATE TABLE `base_unreads` (
 	`notif_timestamp` text
 );
 --> statement-breakpoint
+CREATE TABLE `bot_reply_feedback` (
+	`message_id` text PRIMARY KEY NOT NULL,
+	`post_id` text NOT NULL,
+	`feedback_id` text NOT NULL,
+	`revision` integer NOT NULL,
+	`rating` text,
+	`categories` text NOT NULL,
+	`submitted_at` integer NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX `bot_reply_feedback_post_id_index` ON `bot_reply_feedback` (`post_id`);--> statement-breakpoint
+CREATE INDEX `bot_reply_feedback_submitted_at_index` ON `bot_reply_feedback` (`submitted_at`);--> statement-breakpoint
 CREATE TABLE `channel_readers` (
 	`channel_id` text NOT NULL,
 	`role_id` text NOT NULL,
@@ -491,7 +503,8 @@ CREATE TABLE `settings` (
 	`disable_tlon_infra_enhancement` integer,
 	`web_app_splash_dismissed` integer,
 	`mobile_app_promo_dismissed` integer,
-	`context_lens_enabled` integer
+	`context_lens_enabled` integer,
+	`show_delete_markers` integer
 );
 --> statement-breakpoint
 CREATE TABLE `system_contact_sent_invites` (

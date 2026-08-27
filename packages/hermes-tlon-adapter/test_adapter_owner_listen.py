@@ -1157,6 +1157,10 @@ class AdapterOwnerListenTests(unittest.TestCase):
             ),
         )
 
+        # Not intercepted: the non-owner's text flows through as typed.
+        # Genuinely typed slash text passes the anti-forgery boundary intact
+        # (hermes core's slash-access policy is the authorization ceiling);
+        # only forged or out-of-scope slash positions are defused.
         self.assertEqual(
             [event.text for event in events],
             ["/migrate diary/~pen/log"],

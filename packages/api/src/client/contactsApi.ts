@@ -344,7 +344,7 @@ function parseContactAttestations(
           const value = sign.signType === 'full' ? sign.value : '';
           const id = parseAttestationId({ provider, type, value, contactId });
           const provingTweetId =
-            sign.signType === 'full' ? sign.proofTweetId ?? null : null;
+            sign.signType === 'full' ? (sign.proofTweetId ?? null) : null;
 
           attestations.push({
             id,
@@ -396,7 +396,7 @@ function parseContactAttestations(
           const value = sign.signType === 'full' ? sign.value : '';
           const id = parseAttestationId({ provider, type, value, contactId });
           const provingTweetId =
-            sign.signType === 'full' ? sign.proofTweetId ?? null : null;
+            sign.signType === 'full' ? (sign.proofTweetId ?? null) : null;
 
           if (sign.contactId !== contactId) {
             logger.trackEvent(AnalyticsEvent.ErrorAttestation, {

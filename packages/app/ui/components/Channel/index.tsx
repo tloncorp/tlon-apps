@@ -59,10 +59,7 @@ import {
   DraftInputHandle,
   GalleryDraftType,
 } from '../draftInputs/shared';
-import {
-  ConnectedPostView,
-  PostCollectionHandle,
-} from '../postCollectionViews/shared';
+import { PostCollectionHandle } from '../postCollectionViews/shared';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { ContextLensPanel, useContextLensController } from './ContextLens';
 import { DmInviteOptions } from './DmInviteOptions';
@@ -271,6 +268,7 @@ interface ChannelProps {
   group: db.Group | null;
   groupIsLoading?: boolean;
   goBack: () => void;
+  disableBackButton?: boolean;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
@@ -313,6 +311,7 @@ export function Channel({
   group,
   groupIsLoading,
   goBack,
+  disableBackButton,
   goToChatDetails,
   goToSearch,
   goToContextLensRuns,
@@ -433,7 +432,7 @@ export function Channel({
       channel.unread.countWithoutThreads === 0);
   const { data: threadUnreads, isFetched: threadUnreadActivityFetched } =
     useLiveThreadUnreadsByChannel(
-      shouldCheckThreadUnreadActivity ? channel?.id ?? null : null
+      shouldCheckThreadUnreadActivity ? (channel?.id ?? null) : null
     );
   const hasChildThreadUnreadActivity =
     shouldCheckThreadUnreadActivity && (threadUnreads?.length ?? 0) > 0;
@@ -648,6 +647,7 @@ export function Channel({
   );
 
   const handleGoBack = useCallback(() => {
+    if (disableBackButton) return;
     if (
       draftInputPresentationMode === 'fullscreen' &&
       draftInputRef.current != null
@@ -658,7 +658,13 @@ export function Channel({
     } else {
       goBack();
     }
-  }, [goBack, draftInputPresentationMode, draftInputRef, setEditingPost]);
+  }, [
+    disableBackButton,
+    goBack,
+    draftInputPresentationMode,
+    draftInputRef,
+    setEditingPost,
+  ]);
 
   useEffect(() => {
     if (startDraft) {
@@ -792,11 +798,17 @@ export function Channel({
           >
             <DraftInputContextProvider value={draftInputContext}>
               <NavigationProvider
-                onPressRef={handleRefPress}
-                onPressGroupRef={onPressGroupRef}
-                onPressGoToDm={goToDm}
-                onGoToUserProfile={goToUserProfile}
-                onGoToGroupSettings={goToGroupSettings}
+                onPressRef={disableBackButton ? undefined : handleRefPress}
+                onPressGroupRef={
+                  disableBackButton ? undefined : onPressGroupRef
+                }
+                onPressGoToDm={disableBackButton ? undefined : goToDm}
+                onGoToUserProfile={
+                  disableBackButton ? undefined : goToUserProfile
+                }
+                onGoToGroupSettings={
+                  disableBackButton ? undefined : goToGroupSettings
+                }
               >
                 <View backgroundColor={backgroundColor} flex={1}>
                   <FileDrop
@@ -813,15 +825,22 @@ export function Channel({
                           group={group}
                           title={title ?? ''}
                           description={''}
+                          backDisabled={disableBackButton}
                           goBack={
                             isNarrow ||
                             draftInputPresentationMode === 'fullscreen'
                               ? handleGoBack
                               : undefined
                           }
-                          goToChatDetails={goToChatDetails}
-                          goToProfile={handleGoToProfile}
-                          goToSearch={goToSearch}
+                          goToChatDetails={
+                            disableBackButton ? undefined : goToChatDetails
+                          }
+                          goToProfile={
+                            disableBackButton ? undefined : handleGoToProfile
+                          }
+                          goToSearch={
+                            disableBackButton ? undefined : goToSearch
+                          }
                           onToggleContextLens={
                             contextLensAvailable
                               ? isNarrow && goToContextLensRuns
@@ -894,8 +913,8 @@ export function Channel({
                                           contextLensAvailable &&
                                           contextLensOpen &&
                                           !isNarrow
-                                            ? selectedContextLensMessage?.id ??
-                                              null
+                                            ? (selectedContextLensMessage?.id ??
+                                              null)
                                             : null,
                                         goToBotRun:
                                           contextLensAvailable && isNarrow
@@ -916,7 +935,7 @@ export function Channel({
                                         selectedPostId,
                                         setEditingPost,
                                         LegacyPostView: PostView,
-                                        PostView: ConnectedPostView,
+                                        PostView,
                                       }}
                                     >
                                       <PostCollectionView
