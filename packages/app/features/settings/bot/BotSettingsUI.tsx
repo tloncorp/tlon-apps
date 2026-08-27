@@ -25,6 +25,7 @@ export const BotSettingsDivider = SettingsDivider;
 export function BotSettingsRow({
   label,
   value,
+  valueColor = '$tertiaryText',
   description,
   icon,
   pending,
@@ -34,6 +35,7 @@ export function BotSettingsRow({
 }: PropsWithChildren<{
   label: string;
   value?: string;
+  valueColor?: '$primaryText' | '$secondaryText' | '$tertiaryText';
   description?: string;
   icon?: IconType;
   pending?: boolean;
@@ -54,7 +56,7 @@ export function BotSettingsRow({
         {value ? (
           <Text
             size="$label/m"
-            color="$tertiaryText"
+            color={valueColor}
             numberOfLines={1}
             maxWidth={160}
           >

@@ -1016,12 +1016,14 @@ export class Urbit {
   async requestJson<T = any>(
     path: string,
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
-    body?: unknown
+    body?: unknown,
+    options?: { signal?: AbortSignal }
   ): Promise<T> {
     const response = await this.fetchFn(`${this.url}${path}`, {
       ...this.fetchOptions,
       method,
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: options?.signal,
     });
     if (!response.ok) {
       return Promise.reject(response);

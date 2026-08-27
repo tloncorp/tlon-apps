@@ -54,7 +54,7 @@ export * from './components/MetaEditorScreenView';
 export * from './components/MobileAppPromoBanner';
 export * from './components/NavBar';
 export * from './components/NotificationLevelSelector';
-export * from './components/OpenAISubscriptionAuthView';
+export * from './components/LLMSubscriptionAuthView';
 export * from './components/Onboarding';
 export * from './components/PersonalInviteSheet';
 export * from './components/PhoneAttestationPane';

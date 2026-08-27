@@ -38,6 +38,25 @@ import {
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
+import {
+  clearCronJobForSession,
+  cronJobForSession,
+  isMcpCallToolName,
+  isMcpDescribeToolName,
+  isMcpListUpstreamsToolName,
+  mayCallDescribedReadOnlyMcpTool,
+  mayDescribeMcpTool,
+  rememberCronJobForSession,
+  rememberDescribedReadOnlyMcpTool,
+  rememberMcpUpstreams,
+} from './src/mcp-readonly-policy.js';
+import { setAgentOnboardingRunStore } from './src/monitor/agent-onboarding-run-store.js';
+import {
+  agentOnboardingCronProviderIds,
+  handleAgentOnboardingCronChanged,
+  handleAgentOnboardingMessageSent,
+  isAgentOnboardingCronJob,
+} from './src/monitor/agent-onboarding.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
@@ -846,6 +865,24 @@ export default defineBundledChannelEntry({
     exportName: 'setTlonRuntime',
   },
   registerFull(api) {
+    // The forced first run crosses process restarts, so its dedupe claim must
+    // live in OpenClaw's plugin state rather than only in module memory.
+    try {
+      setAgentOnboardingRunStore(
+        api.runtime.state.openKeyedStore({
+          namespace: 'agent-onboarding-first-runs',
+          maxEntries: 500,
+        })
+      );
+    } catch (error) {
+      // Older compatible hosts may not expose durable plugin state. Preserve
+      // the existing in-memory behavior instead of preventing plugin startup.
+      setAgentOnboardingRunStore(null);
+      api.logger.warn(
+        `[tlon] durable onboarding run state unavailable: ${String(error)}`
+      );
+    }
+
     // ── Gateway-status liveness integration ───────────────────
     //
     // registerFull is NOT a once-per-process call: OpenClaw invokes it once
@@ -971,14 +1008,42 @@ export default defineBundledChannelEntry({
     const ownerOnlyTools = new Set(['tlon', 'cron', 'read']);
     const logToolTraceContents = liveToolTraceContentsEnabled();
 
-    api.on('before_tool_call', (event, ctx) => {
+    api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
       const role = getSessionRole(ctx.sessionKey ?? '');
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
-      const isBlocked = isOwnerOnlyTool && role === 'user';
-      const blockReason = isBlocked
-        ? `The ${event.toolName} tool is not available.`
+      const blocksNonOwner = isOwnerOnlyTool && role === 'user';
+      const isMcpDescribe = isMcpDescribeToolName(event.toolName);
+      const isMcpCall = isMcpCallToolName(event.toolName);
+      const isMcpTool = isMcpDescribe || isMcpCall;
+      const cronJobId = isMcpTool
+        ? cronJobForSession(ctx.sessionKey)
         : undefined;
+      const isOnboardingCron =
+        isMcpTool && (await isAgentOnboardingCronJob(cronJobId));
+      const allowedProviderIds = isOnboardingCron
+        ? await agentOnboardingCronProviderIds(cronJobId)
+        : [];
+      const blocksOnboardingMcp =
+        isOnboardingCron &&
+        ((isMcpDescribe &&
+          !mayDescribeMcpTool(
+            ctx.sessionKey,
+            event.params,
+            allowedProviderIds
+          )) ||
+          (isMcpCall &&
+            !mayCallDescribedReadOnlyMcpTool(
+              ctx.sessionKey,
+              event.params,
+              allowedProviderIds
+            )));
+      const isBlocked = blocksNonOwner || blocksOnboardingMcp;
+      const blockReason = blocksOnboardingMcp
+        ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
+        : blocksNonOwner
+          ? `The ${event.toolName} tool is not available.`
+          : undefined;
       if (contextLensEnabled) {
         // Capture tool activity even when no conversation run owns this
         // session (cron wakes — including jobs that reuse the main session
@@ -1032,7 +1097,7 @@ export default defineBundledChannelEntry({
         );
       }
 
-      if (!isOwnerOnlyTool) {
+      if (!isOwnerOnlyTool && !blocksOnboardingMcp) {
         return undefined;
       }
 
@@ -1080,12 +1145,33 @@ export default defineBundledChannelEntry({
       return undefined;
     });
 
-    api.on('after_tool_call', (event, ctx) => {
+    api.on('after_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
       const tlonCommandContext =
         event.toolName === 'tlon' && typeof event.params.command === 'string'
           ? summarizeTlonCommand(event.params.command)
           : undefined;
+      const observesMcpCatalog =
+        isMcpListUpstreamsToolName(event.toolName) ||
+        isMcpDescribeToolName(event.toolName);
+      if (
+        observesMcpCatalog &&
+        (await isAgentOnboardingCronJob(cronJobForSession(ctx.sessionKey)))
+      ) {
+        const allowedProviderIds = await agentOnboardingCronProviderIds(
+          cronJobForSession(ctx.sessionKey)
+        );
+        if (isMcpListUpstreamsToolName(event.toolName)) {
+          rememberMcpUpstreams(ctx.sessionKey, event.result);
+        } else {
+          rememberDescribedReadOnlyMcpTool(
+            ctx.sessionKey,
+            event.params,
+            event.result,
+            allowedProviderIds
+          );
+        }
+      }
       recordActiveTlonTurnToolCall({
         toolName: event.toolName,
         errorMessage:
@@ -1246,6 +1332,13 @@ export default defineBundledChannelEntry({
           );
         }
       }
+      try {
+        await handleAgentOnboardingCronChanged(event);
+      } catch (error) {
+        api.logger.warn(
+          `[tlon] Agent onboarding observer failed (cron_changed:${event.action}): ${String(error)}`
+        );
+      }
     });
 
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
@@ -1281,7 +1374,8 @@ export default defineBundledChannelEntry({
           const targetKind =
             parsedTarget?.kind === 'dm'
               ? 'dm'
-              : parsedTarget?.kind === 'channel'
+              : parsedTarget?.kind === 'channel' ||
+                  parsedTarget?.kind === 'notebook'
                 ? 'group'
                 : 'unknown';
 
@@ -1306,6 +1400,16 @@ export default defineBundledChannelEntry({
     });
 
     api.on('message_sent', (event, ctx) => {
+      void handleAgentOnboardingMessageSent(
+        event,
+        {},
+        ctx.runId,
+        ctx.accountId
+      ).catch((error) => {
+        api.logger.error(
+          `[tlon] agent onboarding delivery completion failed: ${String(error)}`
+        );
+      });
       safeTelemetryObserver({
         logger: api.logger,
         telemetrySource: 'message_sent',
@@ -1361,6 +1465,7 @@ export default defineBundledChannelEntry({
       runId?: string;
     }) => {
       if (ctx.trigger === 'cron') {
+        rememberCronJobForSession(ctx.sessionKey, ctx.jobId);
         recordTlonCronAgentContext({
           jobId: ctx.jobId,
           runId: ctx.runId,
@@ -1379,6 +1484,11 @@ export default defineBundledChannelEntry({
               jobId: ctx.jobId,
             }),
         });
+      } else if (ctx.trigger) {
+        // Main-session cron runs share a session key with later owner turns.
+        // An explicit non-cron boundary must drop the old job attribution
+        // before any interactive MCP tool call is checked against it.
+        clearCronJobForSession(ctx.sessionKey);
       }
       ensureCronContextLens(ctx);
     };
@@ -1396,6 +1506,7 @@ export default defineBundledChannelEntry({
     // tool call) still finalize, while leaving time for the gateway to
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (_event, ctx) => {
+      clearCronJobForSession(ctx.sessionKey, ctx.jobId);
       if (!contextLensEnabled) {
         return;
       }

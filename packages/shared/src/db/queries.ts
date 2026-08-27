@@ -674,6 +674,28 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
   ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
 );
 
+/** Persist one authoritative note without replacing concurrent notebook data. */
+export const upsertNotesNote = createWriteQuery(
+  'upsertNotesNote',
+  async (note: NotesNote, ctx: QueryCtx) => {
+    await ctx.db
+      .insert($notesNotes)
+      .values(note)
+      .onConflictDoUpdate({
+        target: $notesNotes.id,
+        set: conflictUpdateSetAll($notesNotes),
+        setWhere: or(
+          lt($notesNotes.revision, note.revision),
+          and(
+            eq($notesNotes.revision, note.revision),
+            lte(sql`coalesce(${$notesNotes.updatedAt}, 0)`, note.updatedAt ?? 0)
+          )
+        ),
+      });
+  },
+  ['notesNotes']
+);
+
 // Revision-monotonic note write. When the update carries a `revision`, the
 // row is only written if it hasn't already advanced past it (equal revisions
 // break ties on `updatedAt` when the update carries one, mirroring the
@@ -1500,6 +1522,9 @@ export const insertGroups = createWriteQuery(
                 $groups.coverImage,
                 $groups.title,
                 $groups.description,
+                // only overwrite when the source carried a blob; omitting
+                // the key must not clear a stored one
+                ...(group.blob !== undefined ? [$groups.blob] : []),
                 $groups.privacy,
                 $groups.joinStatus,
                 $groups.currentUserIsMember,

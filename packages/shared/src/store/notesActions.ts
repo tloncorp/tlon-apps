@@ -343,19 +343,46 @@ export async function createNotebookNote({
   title: string;
   body?: string;
 }) {
-  const note = await createAndFindNewItem({
-    notebookFlag,
-    getItems: (snapshot) => snapshot.notes,
-    getId: (note) => note.noteId,
-    create: () =>
-      api.notes.createNote({
-        flag: notebookFlag,
-        folder: folderId,
-        title,
-        body,
-      }),
-    findFallback: (notes) => notes.find((note) => note.title === title),
+  const { snapshot: baseline } = await fetchNotesNotebookSnapshot(notebookFlag);
+  await db.saveNotesNotebookSnapshot(baseline);
+
+  const created = await api.notes.createNote({
+    flag: notebookFlag,
+    folder: folderId,
+    title,
+    body,
   });
+  if (created) {
+    // The write response comes from the notebook host and is authoritative.
+    // Do not immediately confirm it through getNote: for remote notebooks that
+    // read hits the local replica, which can legitimately lag the response.
+    const note = {
+      ...api.toClientNotesNote(notebookFlag, created),
+      notebookId: created.notebookId ?? baseline.notebook.notebookId,
+      folderId: created.folderId ?? folderId,
+      bodyMd: created.bodyMd ?? body,
+      revision: created.revision ?? 0,
+    };
+    await db.upsertNotesNote(note);
+    return note;
+  }
+
+  // Older hosts return no applied note. Only that compatibility path needs to
+  // discover the new id by comparing a fresh list against the baseline.
+  const beforeIds = new Set(baseline.notes.map((note) => note.noteId));
+  const note = await syncNotesNotebookUntil<db.NotesNote>(
+    notebookFlag,
+    (snapshot) => {
+      const newNotes = snapshot.notes.filter(
+        (candidate) => !beforeIds.has(candidate.noteId)
+      );
+      return (
+        newNotes.find((candidate) => candidate.title === title) ??
+        newNotes[0] ??
+        null
+      );
+    }
+  );
 
   if (!note) {
     return null;
@@ -998,7 +1025,7 @@ async function syncNotesNotebookUntil<T>(
     snapshot: NotesNotebookSnapshot
   ) => ReadyValue<T> | Promise<ReadyValue<T>>,
   options?: SyncNotesNotebookOptions
-) {
+): Promise<T | null> {
   let readySnapshot: NotesNotebookSnapshot | null = null;
   let readyValue: T | null = null;
   try {
