@@ -80,6 +80,19 @@ const ChatMessage = ({
   const showBotFeedback =
     (post.type === 'chat' || post.type === 'reply') &&
     api.isBotUserIdForUser(post.authorId, currentUserId);
+  const deliveryFailed =
+    post.deliveryStatus === 'failed' ||
+    post.editStatus === 'failed' ||
+    post.deleteStatus === 'failed';
+  const hasAuxiliaryRow = Boolean(
+    post.reactions?.length ||
+      (showReplies &&
+        post.replyCount &&
+        post.replyTime &&
+        post.replyContactIds) ||
+      (!showAuthor && post.isEdited) ||
+      deliveryFailed
+  );
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
@@ -173,6 +186,7 @@ const ChatMessage = ({
                     post={post}
                     currentUserId={currentUserId}
                     onPressBotRun={onPressBotRun}
+                    inline={isWeb && hasAuxiliaryRow}
                     visible={isHovered}
                   />
                 ) : undefined,

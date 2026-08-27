@@ -33,14 +33,15 @@ export function ContextLensButton({
       }}
       accessibilityLabel="View bot run"
       accessibilityRole="button"
+      cursor="pointer"
       width={Platform.OS === 'web' ? 20 : 24}
       height={Platform.OS === 'web' ? 20 : 24}
       hitSlop={6}
       alignItems="center"
       justifyContent="center"
-      borderRadius="$m"
-      pressStyle={{ backgroundColor: '$secondaryBackground' }}
-      hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+      borderRadius="$xs"
+      pressStyle={{ backgroundColor: '$activeBorder' }}
+      hoverStyle={{ backgroundColor: '$activeBorder' }}
       testID="ContextLensPostButton"
     >
       <Icon

@@ -569,6 +569,10 @@ export function StaticChatMessage({
 
   const shouldRenderReplySummary =
     shouldRenderReplies || (!showAuthor && post.isEdited);
+  const hasReactions = Boolean(post.reactions && post.reactions.length > 0);
+  const hasLowerAuxiliaryRow = Boolean(
+    shouldRenderReplySummary || deliveryFailed
+  );
 
   return (
     <YStack key={post.id}>
@@ -662,19 +666,25 @@ export function StaticChatMessage({
             searchQuery={searchQuery}
           />
         )}
+        {isWeb && !hasReactions && !hasLowerAuxiliaryRow && feedbackRow}
       </View>
 
-      {post.reactions && post.reactions.length > 0 && (
-        <View paddingBottom="$l" paddingLeft="$4xl">
+      {hasReactions && (
+        <XStack
+          alignItems="center"
+          paddingBottom="$l"
+          paddingLeft="$4xl"
+        >
           <ReactionsDisplay
             post={post}
             onViewPostReactions={setViewReactionsPost}
           />
-        </View>
+          {isWeb && !hasLowerAuxiliaryRow && feedbackRow}
+        </XStack>
       )}
 
-      {shouldRenderReplySummary || deliveryFailed ? (
-        <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
+      {hasLowerAuxiliaryRow ? (
+        <XStack alignItems="center" paddingLeft="$4xl" paddingBottom="$l">
           <ChatMessageReplySummary
             post={post}
             onPress={shouldRenderReplies ? handleRepliesPressed : undefined}
@@ -682,10 +692,13 @@ export function StaticChatMessage({
             deliveryFailed={deliveryFailed}
             onPressRetry={handleRetryPressed}
           />
+          {isWeb && feedbackRow}
         </XStack>
       ) : null}
 
-      {feedbackRow}
+      {!isWeb && (
+        <View paddingLeft={!isNotice ? '$4xl' : undefined}>{feedbackRow}</View>
+      )}
     </YStack>
   );
 }
