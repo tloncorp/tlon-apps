@@ -45,24 +45,29 @@ Pass that printed URL as `media=`. On Tlon-hosted deployments (where `TLON_HOSTI
 
 ### Hosted-browser login handoff
 
-When a hosted browser reaches a visible login form and its browser tool returns
-a signed viewer URL, do not ask the user to type credentials into chat and do
-not attempt to read, store, or relay credential values yourself. Run exactly:
+When a hosted browser reaches a visible password or one-time-code form and its
+browser tool returns a signed viewer URL, do not ask the user to type the
+password or code into chat and do not attempt to read, store, or relay those
+values yourself. Run exactly:
 
 ```bash
 tlon browser handoff <signed-viewer-url>
 ```
 
 This is the one exception to the rule against sending with the model-facing
-`tlon` tool. OpenClaw directs the card to the configured owner automatically.
-Outside OpenClaw, use `--to ~ship` or set `TLON_BROWSER_HANDOFF_TARGET`.
+`tlon` tool. The command always sends the card to the owner configured for the
+active bot account. There is no recipient argument or recipient override; if
+the account has no configured owner, the command fails.
 
-The card opens a native Tlon login form. It does not embed the remote page. The
-browser service re-inspects the live page, tells Tlon which standard credential
-fields are present, and receives the submitted values directly. The values are
-never posted to chat or returned to the bot. Wait for the user to press the
-card's “I’m signed in” action, then inspect the same browser session and
-continue. Never claim the handoff was sent unless the command returned success.
+The card opens a native Tlon password or verification-code form. It does not
+embed the remote page. The browser service re-inspects the live page, tells
+Tlon which standard fields are present, and receives the submitted values
+directly. The values are never posted to chat or returned to the bot. If login
+advances to a separate OTP page, run the same command again with the same live
+session's signed viewer URL to send the owner the OTP form. Wait for the user
+to press the card's “I’m signed in” action, then inspect the same browser
+session and continue. Never claim the handoff was sent unless the command
+returned success.
 
 > **Deprecated: diary channels.** `%diary` is not managed by the CLI: `tlon notebook`, `--kind diary`, and `diary/...` targets fail with guidance toward `%notes`. Use the `tlon notes` family for Markdown notebooks. An owner can preview a legacy diary with `tlon notes migrate-plan <diary-nest>` and migrate it with `tlon notes migrate-apply <diary-nest> --yes`.
 

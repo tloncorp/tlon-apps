@@ -18,6 +18,7 @@ describe('browser credential handoff', () => {
           JSON.stringify({
             handoffId: 'a'.repeat(43),
             origin: 'https://www.are.na',
+            kind: 'password',
             hasUsername: true,
             expiresAt: Date.now() + 60_000,
           }),
@@ -75,6 +76,7 @@ describe('browser credential handoff', () => {
         JSON.stringify({
           handoffId: 'a'.repeat(43),
           origin: 'https://example.com',
+          kind: 'password',
           hasUsername: true,
           expiresAt: Date.now() + 60_000,
         }),
@@ -98,5 +100,43 @@ describe('browser credential handoff', () => {
       )
     ).rejects.toThrow('not from a trusted Tlon host');
     expect(request).not.toHaveBeenCalled();
+  });
+
+  it('submits a one-time code without exposing password fields', async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            handoffId: 'b'.repeat(43),
+            origin: 'https://accounts.example',
+            kind: 'otp',
+            codeLength: 6,
+            expiresAt: Date.now() + 60_000,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ok: true, submitted: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      );
+    vi.stubGlobal('fetch', request);
+
+    const handoff = await beginBrowserCredentialHandoff(
+      'https://browser-session-ovh1.tlon.network/s/payload.signature'
+    );
+    expect(handoff).toMatchObject({ kind: 'otp', codeLength: 6 });
+
+    await submitBrowserCredentials(handoff, {
+      code: '123456',
+      submit: true,
+    });
+    expect(JSON.parse(request.mock.calls[1][1].body)).toEqual({
+      code: '123456',
+      submit: true,
+    });
   });
 });

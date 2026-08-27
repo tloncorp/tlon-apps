@@ -9,33 +9,30 @@ import {
   writeLine,
 } from './command';
 
-export const BROWSER_HELP = `Usage: tlon browser handoff <signed-viewer-url> [--to ~ship]
+export const BROWSER_HELP = `Usage: tlon browser handoff <signed-viewer-url>
 
-Send the owner a native credential form for the login page open in a hosted
-browser session. The form submits directly to the browser service; credential
-values are never posted to chat or returned to the bot.
-
-The target defaults to TLON_BROWSER_HANDOFF_TARGET. OpenClaw sets that to the
-configured owner ship. Use --to only when running the CLI outside OpenClaw.
+Send the owner a native password or one-time-code form for the login or
+verification page open in a hosted browser session. The form submits directly
+to the browser service; credential values are never posted to chat or returned
+to the bot. The recipient is always the owner configured for the active bot
+account and cannot be overridden.
 
 Example:
   tlon browser handoff https://browser-session-ovh1.tlon.network/s/<capability>`;
 
 export const BROWSER_HANDOFF_HELP =
-  'Usage: tlon browser handoff <signed-viewer-url> [--to ~ship]';
+  'Usage: tlon browser handoff <signed-viewer-url>';
 
 const VIEWER_LABEL = 'browser-session-[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
 const PRODUCTION_VIEWER_HOST = new RegExp(`^${VIEWER_LABEL}\\.tlon\\.network$`);
 const TEST_VIEWER_HOST = new RegExp(
   `^${VIEWER_LABEL}\\.test\\.tlon\\.systems$`
 );
-const SHIP = /^~[a-z]+(?:-[a-z]+)*$/;
-
 export interface BrowserDeps extends Pick<
   PostsDeps,
   'stdout' | 'stderr' | 'authenticate' | 'getCurrentUserId' | 'now' | 'postsApi'
 > {
-  env: Record<string, string | undefined>;
+  getOwnerShip: () => string;
 }
 
 function validateViewerUrl(raw: string): string {
@@ -61,33 +58,6 @@ function validateViewerUrl(raw: string): string {
   }
 
   return url.toString();
-}
-
-function parseTarget(args: string[], env: BrowserDeps['env']): string {
-  const toIndexes = args.flatMap((arg, index) =>
-    arg === '--to' ? [index] : []
-  );
-  if (toIndexes.length > 1) throw usageError(BROWSER_HANDOFF_HELP);
-
-  const toIndex = toIndexes[0];
-  const explicitTarget = toIndex === undefined ? undefined : args[toIndex + 1];
-  if (
-    toIndex !== undefined &&
-    (!explicitTarget || explicitTarget.startsWith('--'))
-  ) {
-    throw usageError(BROWSER_HANDOFF_HELP);
-  }
-
-  const target = explicitTarget ?? env.TLON_BROWSER_HANDOFF_TARGET;
-  if (!target) {
-    throw commandError(
-      'no handoff recipient is configured; set TLON_BROWSER_HANDOFF_TARGET or pass --to ~ship'
-    );
-  }
-  if (!SHIP.test(target)) {
-    throw commandError(`invalid handoff recipient: ${target}`);
-  }
-  return target;
 }
 
 function browserCredentialHandoffBlob(
@@ -119,7 +89,7 @@ function browserCredentialHandoffBlob(
     {
       id: 'explanation',
       component: 'Text',
-      text: 'The browser reached a login screen that needs your input.',
+      text: 'The browser reached a login or verification screen that needs your input.',
     },
     {
       id: 'privacy-direct',
@@ -217,16 +187,12 @@ export async function run(args: string[], deps: BrowserDeps): Promise<number> {
       throw usageError(BROWSER_HELP);
     }
 
-    const allowedArgs = args.filter((_, index) => {
-      const toIndex = args.indexOf('--to');
-      return index < 2 || index === toIndex || index === toIndex + 1;
-    });
-    if (allowedArgs.length !== args.length) {
+    if (args.length !== 2) {
       throw usageError(BROWSER_HANDOFF_HELP);
     }
 
     const viewerUrl = validateViewerUrl(args[1]);
-    const target = parseTarget(args, deps.env);
+    const target = deps.getOwnerShip();
 
     await deps.authenticate(['chat']);
     const sentAt = deps.now();

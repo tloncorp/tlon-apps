@@ -6,12 +6,21 @@ const TEST_VIEWER_HOST = new RegExp(
   `^(?:${VIEWER_LABEL}|browser-session|session-viewer)\\.test\\.tlon\\.systems$`
 );
 
-export type BrowserCredentialHandoff = {
+type BrowserCredentialHandoffBase = {
   fillUrl: string;
   origin: string;
-  hasUsername: boolean;
   expiresAt: number;
 };
+
+export type BrowserCredentialHandoff = BrowserCredentialHandoffBase &
+  (
+    | { kind: 'password'; hasUsername: boolean }
+    | { kind: 'otp'; codeLength?: number }
+  );
+
+export type BrowserCredentialValues =
+  | { username?: string; password: string; submit?: boolean }
+  | { code: string; submit?: boolean };
 
 function isLocalViewer(url: URL): boolean {
   return (
@@ -72,7 +81,14 @@ export async function beginBrowserCredentialHandoff(
     typeof body.handoffId !== 'string' ||
     !/^[A-Za-z0-9_-]{40,64}$/.test(body.handoffId) ||
     typeof body.origin !== 'string' ||
-    typeof body.hasUsername !== 'boolean' ||
+    (body.kind !== 'password' && body.kind !== 'otp') ||
+    (body.kind === 'password' && typeof body.hasUsername !== 'boolean') ||
+    (body.kind === 'otp' &&
+      body.codeLength !== undefined &&
+      (typeof body.codeLength !== 'number' ||
+        !Number.isSafeInteger(body.codeLength) ||
+        body.codeLength < 1 ||
+        body.codeLength > 12)) ||
     typeof body.expiresAt !== 'number'
   ) {
     throw new Error('The browser returned an invalid login handoff.');
@@ -84,20 +100,28 @@ export async function beginBrowserCredentialHandoff(
   ) {
     throw new Error('The browser returned an invalid login origin.');
   }
-  return {
+  const base = {
     fillUrl: new URL(
       `/credential-fills/${body.handoffId}`,
       url.origin
     ).toString(),
     origin: body.origin,
-    hasUsername: body.hasUsername,
     expiresAt: body.expiresAt,
   };
+  return body.kind === 'password'
+    ? { ...base, kind: 'password', hasUsername: body.hasUsername as boolean }
+    : {
+        ...base,
+        kind: 'otp',
+        ...(body.codeLength === undefined
+          ? {}
+          : { codeLength: body.codeLength as number }),
+      };
 }
 
 export async function submitBrowserCredentials(
   handoff: BrowserCredentialHandoff,
-  values: { username?: string; password: string; submit?: boolean },
+  values: BrowserCredentialValues,
   signal?: AbortSignal
 ): Promise<{ submitted: boolean }> {
   if (Date.now() >= handoff.expiresAt) {

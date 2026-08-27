@@ -38,6 +38,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const [handoff, setHandoff] = useState<BrowserCredentialHandoff>();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -65,26 +66,40 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   }, [load]);
 
   const fillAndSubmit = useCallback(async () => {
-    if (!handoff || !password || (handoff.hasUsername && !username.trim())) {
+    if (!handoff) return;
+    if (
+      (handoff.kind === 'password' &&
+        (!password || (handoff.hasUsername && !username.trim()))) ||
+      (handoff.kind === 'otp' &&
+        (!code.trim() ||
+          (handoff.codeLength !== undefined &&
+            code.trim().length !== handoff.codeLength)))
+    ) {
       return;
     }
     setSubmitting(true);
     setError(undefined);
     try {
-      await submitBrowserCredentials(handoff, {
-        ...(handoff.hasUsername ? { username: username.trim() } : {}),
-        password,
-        submit: true,
-      });
+      await submitBrowserCredentials(
+        handoff,
+        handoff.kind === 'password'
+          ? {
+              ...(handoff.hasUsername ? { username: username.trim() } : {}),
+              password,
+              submit: true,
+            }
+          : { code: code.trim(), submit: true }
+      );
       setUsername('');
       setPassword('');
+      setCode('');
       setShowPassword(false);
       setSubmitted(true);
     } catch (nextError) {
       setError(errorMessage(nextError));
     }
     setSubmitting(false);
-  }, [handoff, password, username]);
+  }, [code, handoff, password, username]);
 
   const retry = useCallback(() => {
     setLoading(true);
@@ -97,7 +112,9 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
       <ScreenHeader
         borderBottom
         backAction={navigation.goBack}
-        title="Browser login"
+        title={
+          handoff?.kind === 'otp' ? 'Browser verification' : 'Browser login'
+        }
       />
       <SettingsContentScrollView
         paddingHorizontal="$l"
@@ -141,12 +158,15 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   />
                 </View>
                 <Text size="$label/l" fontWeight="600">
-                  Login submitted
+                  {handoff?.kind === 'otp'
+                    ? 'Verification submitted'
+                    : 'Login submitted'}
                 </Text>
               </XStack>
               <Text color="$secondaryText">
-                Your credentials were sent directly to the hosted browser. They
-                were not added to this conversation.
+                {handoff?.kind === 'otp'
+                  ? 'Your code was sent directly to the hosted browser. It was not added to this conversation.'
+                  : 'Your credentials were sent directly to the hosted browser. They were not added to this conversation.'}
               </Text>
               <Button
                 preset="primary"
@@ -174,7 +194,8 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                 </View>
                 <YStack flex={1} gap="$xs">
                   <Text size="$label/l" fontWeight="600">
-                    Sign in to {originHost(handoff.origin)}
+                    {handoff.kind === 'otp' ? 'Verify' : 'Sign in to'}{' '}
+                    {originHost(handoff.origin)}
                   </Text>
                   <Text color="$secondaryText" numberOfLines={1}>
                     {handoff.origin}
@@ -189,14 +210,17 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                 gap="$xs"
               >
                 <Text color="$secondaryText">
-                  Your credentials go directly to the live browser.
+                  {handoff.kind === 'otp'
+                    ? 'Your code goes directly to the live browser.'
+                    : 'Your credentials go directly to the live browser.'}
                 </Text>
                 <Text color="$secondaryText">
-                  They are never posted to chat or returned to the bot.
+                  {handoff.kind === 'otp' ? 'It is' : 'They are'} never posted
+                  to chat or returned to the bot.
                 </Text>
               </YStack>
 
-              {handoff.hasUsername ? (
+              {handoff.kind === 'password' && handoff.hasUsername ? (
                 <Field label="Email or username">
                   <TextInput
                     value={username}
@@ -211,46 +235,75 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                 </Field>
               ) : null}
 
-              <Field label="Password" error={error}>
-                <XStack alignItems="center" gap="$m">
-                  <View flex={1}>
+              {handoff.kind === 'password' ? (
+                <Field label="Password" error={error}>
+                  <XStack alignItems="center" gap="$m">
+                    <View flex={1}>
+                      <TextInput
+                        value={password}
+                        secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        autoComplete="current-password"
+                        importantForAutofill="yes"
+                        textContentType="password"
+                        editable={!submitting}
+                        onChangeText={setPassword}
+                        onSubmitEditing={() => void fillAndSubmit()}
+                      />
+                    </View>
+                    <Pressable
+                      accessibilityLabel={
+                        showPassword ? 'Hide password' : 'Show password'
+                      }
+                      onPress={() => setShowPassword((value) => !value)}
+                    >
+                      <Icon
+                        type={showPassword ? 'EyeClosed' : 'EyeOpen'}
+                        size="$m"
+                        color="$secondaryText"
+                      />
+                    </Pressable>
+                  </XStack>
+                </Field>
+              ) : (
+                <Field label="Verification code" error={error}>
+                  <YStack gap="$s">
+                    <Text color="$secondaryText" paddingHorizontal="$xl">
+                      {handoff.codeLength
+                        ? `Enter the ${handoff.codeLength}-character code.`
+                        : 'Enter the code you received.'}
+                    </Text>
                     <TextInput
-                      value={password}
-                      secureTextEntry={!showPassword}
-                      autoCapitalize="none"
+                      value={code}
+                      autoCapitalize="characters"
                       autoCorrect={false}
-                      autoComplete="current-password"
+                      autoComplete="one-time-code"
                       importantForAutofill="yes"
-                      textContentType="password"
+                      textContentType="oneTimeCode"
+                      maxLength={handoff.codeLength}
                       editable={!submitting}
-                      onChangeText={setPassword}
+                      onChangeText={setCode}
                       onSubmitEditing={() => void fillAndSubmit()}
                     />
-                  </View>
-                  <Pressable
-                    accessibilityLabel={
-                      showPassword ? 'Hide password' : 'Show password'
-                    }
-                    onPress={() => setShowPassword((value) => !value)}
-                  >
-                    <Icon
-                      type={showPassword ? 'EyeClosed' : 'EyeOpen'}
-                      size="$m"
-                      color="$secondaryText"
-                    />
-                  </Pressable>
-                </XStack>
-              </Field>
+                  </YStack>
+                </Field>
+              )}
 
               <Button
                 preset="primary"
-                label="Fill and sign in"
+                label={
+                  handoff.kind === 'otp' ? 'Submit code' : 'Fill and sign in'
+                }
                 centered
                 loading={submitting}
                 disabled={
                   submitting ||
-                  !password ||
-                  (handoff.hasUsername && !username.trim())
+                  (handoff.kind === 'password'
+                    ? !password || (handoff.hasUsername && !username.trim())
+                    : !code.trim() ||
+                      (handoff.codeLength !== undefined &&
+                        code.trim().length !== handoff.codeLength))
                 }
                 onPress={fillAndSubmit}
               />

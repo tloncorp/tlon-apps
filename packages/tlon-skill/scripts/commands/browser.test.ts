@@ -3,7 +3,7 @@ import { describe, expect, it } from 'bun:test';
 import type { PostSendInput, PostsApi } from './posts';
 import { type BrowserDeps, run } from './browser';
 
-function makeDeps(env: Record<string, string | undefined> = {}) {
+function makeDeps(ownerShip = '~owner') {
   const stdout: string[] = [];
   const stderr: string[] = [];
   const sent: PostSendInput[] = [];
@@ -25,14 +25,14 @@ function makeDeps(env: Record<string, string | undefined> = {}) {
     getCurrentUserId: () => '~bot',
     now: () => 1234,
     postsApi,
-    env,
+    getOwnerShip: () => ownerShip,
   };
   return { deps, stdout, stderr, sent };
 }
 
 describe('browser handoff', () => {
   it('sends a native credential card to the configured owner', async () => {
-    const context = makeDeps({ TLON_BROWSER_HANDOFF_TARGET: '~owner' });
+    const context = makeDeps();
     const viewerUrl =
       'https://browser-session-ovh1.tlon.network/s/payload.signature';
 
@@ -75,7 +75,7 @@ describe('browser handoff', () => {
 
   it('refuses untrusted viewer URLs before authenticating', async () => {
     let authenticated = false;
-    const context = makeDeps({ TLON_BROWSER_HANDOFF_TARGET: '~owner' });
+    const context = makeDeps();
     context.deps.authenticate = async () => {
       authenticated = true;
     };
@@ -90,17 +90,19 @@ describe('browser handoff', () => {
     expect(context.sent).toEqual([]);
   });
 
-  it('supports an explicit recipient outside OpenClaw', async () => {
+  it('refuses any attempt to override the owner recipient', async () => {
     const context = makeDeps();
-    await run(
-      [
-        'handoff',
-        'https://browser-session-east5.tlon.network/s/payload.signature',
-        '--to',
-        '~requester',
-      ],
-      context.deps
-    );
-    expect(context.sent[0]?.channelId).toBe('~requester');
+    expect(
+      await run(
+        [
+          'handoff',
+          'https://browser-session-east5.tlon.network/s/payload.signature',
+          '--to',
+          '~requester',
+        ],
+        context.deps
+      )
+    ).toBe(1);
+    expect(context.sent).toEqual([]);
   });
 });

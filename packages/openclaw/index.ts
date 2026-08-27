@@ -969,9 +969,6 @@ export default defineBundledChannelEntry({
       runCommand: (args) =>
         runTlonCommand(tlonBinary, args, credentials, {
           timeoutMs: toolTimeoutMs,
-          environment: {
-            TLON_BROWSER_HANDOFF_TARGET: account.ownerShip ?? undefined,
-          },
         }),
       notifyDiaryMigrationDiscovery: (nest) =>
         notifyDiaryMigrationDiscovery(nest, api.config),

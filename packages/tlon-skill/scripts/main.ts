@@ -19,7 +19,8 @@
  *   settings     OpenClaw settings management
  */
 import { createActivityDeps } from './activity-runtime';
-import { setCliCredentialOverrides } from './api-client';
+import { getConfig, setCliCredentialOverrides } from './api-client';
+import { resolveBrowserOwnerShip } from './browser-owner';
 import { DIARY_REMOVED } from './cli-utils';
 import { run as runActivityCommand } from './commands/activity';
 import { run as runBrowserCommand } from './commands/browser';
@@ -169,7 +170,8 @@ async function main() {
       case 'browser': {
         const exitCode = await runBrowserCommand(scriptArgs, {
           ...createPostsDeps(),
-          env: process.env,
+          getOwnerShip: () =>
+            resolveBrowserOwnerShip({ activeShip: getConfig().ship }),
         });
         process.exit(exitCode);
         break;
