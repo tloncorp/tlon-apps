@@ -19,7 +19,7 @@
     "build:mobile": "pnpm --filter 'tlon-mobile' build",
     "build:desktop": "pnpm run build:packages && pnpm --filter 'tlon-desktop' build:prepare",
     "build:apps": "pnpm run build:mobile && pnpm run build:web",
-    "build:packages": "pnpm run build:api && pnpm run build:shared && pnpm run build:ui && pnpm run build:editor",
+    "build:packages": "pnpm run build:api && pnpm run build:shared && pnpm run build:ui && pnpm run build:editor && pnpm run build:surface-shell",
     "build:mobile-release": "pnpm run build:packages && pnpm run build:mobile",
     "build:all": "pnpm run build:packages && pnpm run build:apps",
     "clean:all": "rm -rf apps/tlon-web/node_modules && rm -rf apps/tlon-mobile/node_modules && rm -rf packages/shared/dist && rm -rf packages/shared/node_modules && rm -rf packages/ui/dist && rm -rf packages/ui/node_modules && rm -rf node_modules && rm -rf packages/editor/dist && rm -rf apps/tlon-web-new/node_modules && rm -rf packages/api/node_modules && rm -rf packages/api/dist",
@@ -42,7 +42,8 @@
     "check:native-navigation-icons": "node scripts/sync-native-navigation-icons.mjs --check",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "lint": "oxlint"
+    "lint": "oxlint",
+    "build:surface-shell": "pnpm --filter '@tloncorp/surface-shell' build"
   },
   "dependencies": {
     "@tloncorp/ui": "workspace:*"

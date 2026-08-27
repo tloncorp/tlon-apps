@@ -1022,6 +1022,9 @@ importers:
       '@tloncorp/shared':
         specifier: workspace:*
         version: link:../shared
+      '@tloncorp/surface-shell':
+        specifier: workspace:*
+        version: link:../surface-shell
       '@tloncorp/ui':
         specifier: workspace:*
         version: link:../ui

@@ -12,10 +12,11 @@
     "./node": "./src/node/index.ts",
     "./artifact/surface-shell.js": "./dist/surface-shell.js",
     "./artifact/surface-shell.css": "./dist/surface-shell.css",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./artifact-strings": "./dist/artifactStrings.js"
   },
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && node scripts/emit-artifact-module.mjs",
     "tsc": "tsc --noEmit",
     "test": "vitest",
     "lint": "oxlint src/",

@@ -94,6 +94,9 @@ jobs:
       - name: Build editor package (allows us to run type checks)
         run: pnpm build:editor
 
+      - name: Build surface-shell package (allows us to run type checks)
+        run: pnpm build:surface-shell
+
       - name: Check Types
         run: pnpm -r tsc
 
