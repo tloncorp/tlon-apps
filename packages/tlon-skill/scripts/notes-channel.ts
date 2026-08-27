@@ -27,6 +27,9 @@ export interface NotesChannelDeps extends GroupListingPollDeps {
     group: { host: string; flagName: string };
     readers: string[];
   }) => Promise<NotesV1NotebookSummary>;
+  // Remove the backend notebook when successful group reads prove that the
+  // requested group registration never appeared.
+  deleteStandaloneNotebook: (nest: string) => Promise<void>;
   // Read the reader roles for a channel in a group (used for post-create
   // reader verification). Returns null if the channel is not found.
   getChannelReaders: (
@@ -177,10 +180,20 @@ export async function createNotesChannelInGroup(
     return nest;
   }
   if (verdict === 'not-confirmed') {
+    try {
+      await deps.deleteStandaloneNotebook(nest);
+    } catch (error) {
+      throw commandError(
+        `%notes created ${nest} but it did not register as a channel in ${input.groupId}, ` +
+          `and rollback failed: ${errorMessage(error)}. ` +
+          `Do not write to this notebook; remove it with ` +
+          `\`tlon notes notebook-delete ${nest} --yes\`.`
+      );
+    }
     throw commandError(
       `%notes created ${nest} but it did not register as a channel in ${input.groupId} — ` +
         `the host may not support group-mode notes, or the listing poke has not arrived. ` +
-        `Left the notebook in place — verify it manually and remove it if it is a stray solo notebook.`
+        `Rolled back the standalone notebook; no Notebook channel was created.`
     );
   }
   throw commandError(

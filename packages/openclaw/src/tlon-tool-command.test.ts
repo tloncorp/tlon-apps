@@ -287,6 +287,99 @@ describe('tlon tool execution', () => {
       error: 'HTTP 404: notebook not found',
     });
   });
+
+  it('allows model note writes only after fresh registration and owner-reader verification', async () => {
+    const runCommand = vi
+      .fn()
+      .mockResolvedValueOnce(
+        JSON.stringify([
+          {
+            id: '~bot/home',
+            members: [
+              {
+                contactId: '~owner',
+                status: 'joined',
+                roles: [{ roleId: 'members' }],
+              },
+            ],
+            channels: [
+              {
+                id: 'notes/~bot/updates',
+                readerRoles: [{ roleId: 'members' }],
+              },
+            ],
+          },
+        ])
+      )
+      .mockResolvedValueOnce('Created note 7');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      ownerShip: '~owner',
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+    });
+
+    const result = await execute('visible-note-write', {
+      command:
+        'notes note-create notes/~bot/updates root Report --markdown report.md',
+    });
+
+    expect(runCommand).toHaveBeenNthCalledWith(1, ['channels', 'groups']);
+    expect(runCommand).toHaveBeenNthCalledWith(2, [
+      'notes',
+      'note-create',
+      'notes/~bot/updates',
+      'root',
+      'Report',
+      '--markdown',
+      'report.md',
+    ]);
+    expect(result.content[0]?.text).toBe('Created note 7');
+  });
+
+  it('blocks model note writes to standalone or owner-hidden notebooks', async () => {
+    const runCommand = vi.fn(async () =>
+      JSON.stringify([
+        {
+          id: '~bot/home',
+          members: [{ contactId: '~owner', status: 'joined', roles: [] }],
+          channels: [
+            {
+              id: 'notes/~bot/hidden',
+              readerRoles: [{ roleId: 'staff' }],
+            },
+          ],
+        },
+      ])
+    );
+    const execute = createTlonToolExecutor({
+      runCommand,
+      ownerShip: '~owner',
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+    });
+
+    const standalone = await execute('standalone-note-write', {
+      command: 'notes note-update notes/~bot/standalone 7 --stdin',
+    });
+    const hidden = await execute('hidden-note-write', {
+      command: 'notes note-update notes/~bot/hidden 7 --stdin',
+    });
+
+    expect(runCommand).toHaveBeenCalledTimes(2);
+    expect(standalone.details).toEqual({
+      status: 'blocked',
+      blocked: true,
+      reason: 'unverified_notebook_write',
+    });
+    expect(standalone.content[0]?.text).toContain('standalone or stale');
+    expect(hidden.details).toEqual({
+      status: 'blocked',
+      blocked: true,
+      reason: 'unverified_notebook_write',
+    });
+    expect(hidden.content[0]?.text).toContain(
+      'could not be verified as a reader'
+    );
+  });
 });
 
 describe('checkBlockedTlonOperation', () => {

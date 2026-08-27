@@ -32,8 +32,8 @@ function makeDeps(
 }
 
 describe('group admin runtime guard', () => {
-  it('allows the group host without reading subscriber state', async () => {
-    const context = makeDeps({ actingShip: '~zod' });
+  it('allows the group host after confirming the group exists', async () => {
+    const context = makeDeps({ actingShip: '~zod', groups: [{}] });
 
     await expect(
       assertGroupAdminAccess(
@@ -42,7 +42,23 @@ describe('group admin runtime guard', () => {
         context.deps
       )
     ).resolves.toBeUndefined();
-    expect(context.reads()).toBe(0);
+    expect(context.reads()).toBe(1);
+  });
+
+  it('fails closed when the host-named group cannot be read', async () => {
+    const context = makeDeps({
+      actingShip: '~zod',
+      errors: Array.from({ length: 5 }, () => new Error('group not found')),
+    });
+
+    await expect(
+      assertGroupAdminAccess(
+        '~zod/missing',
+        'create a Notebook channel',
+        context.deps
+      )
+    ).rejects.toThrow('could not read group state');
+    expect(context.reads()).toBe(5);
   });
 
   it('accepts a custom admin role on the first fresh read', async () => {

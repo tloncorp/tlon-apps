@@ -1,4 +1,9 @@
-import { NotesV1PendingWriteError, getGroup, notesV1 } from '@tloncorp/api';
+import {
+  NotesV1PendingWriteError,
+  deleteNotesNotebookStrict,
+  getGroup,
+  notesV1,
+} from '@tloncorp/api';
 
 import { commandError, errorMessage } from './commands/command';
 import { assertGroupAdminAccess } from './group-admin-runtime';
@@ -63,6 +68,13 @@ export function createNotesChannelDeps(): NotesChannelDeps {
         if (error instanceof NotesV1PendingWriteError) {
           throw commandError(pendingWriteCommandErrorMessage(error));
         }
+        throw commandError(errorMessage(error));
+      }
+    },
+    deleteStandaloneNotebook: async (nest: string) => {
+      try {
+        await deleteNotesNotebookStrict(nest);
+      } catch (error) {
         throw commandError(errorMessage(error));
       }
     },

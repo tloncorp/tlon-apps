@@ -935,6 +935,7 @@ export default defineBundledChannelEntry({
         }),
       notifyDiaryMigrationDiscovery: (nest) =>
         notifyDiaryMigrationDiscovery(nest, api.config),
+      ownerShip: account.ownerShip,
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
     });
 
@@ -946,6 +947,7 @@ export default defineBundledChannelEntry({
         'DO NOT use this tool to send messages — use the `message` tool instead. ' +
         '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
         'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
+        'For durable notes, only write to a Notebook nest returned inside a group by `channels groups`; the tool verifies that the configured owner can read it. Backend notes paths are not app routes. ' +
         'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
         "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'. " +
         'If a command fails and you cannot complete what the user asked, tell them what failed before ending your turn — never end the turn silently after a failure.',
@@ -959,6 +961,7 @@ export default defineBundledChannelEntry({
               'To send messages, use the `message` tool, not this tool. ' +
               'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
               'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
+              'Only write note content to an owner-visible Notebook channel returned by `channels groups`; standalone backend notebooks are blocked. ' +
               "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
           },
         },

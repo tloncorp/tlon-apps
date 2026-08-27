@@ -28,8 +28,9 @@ const runtimeDeps: GroupAdminRuntimeDeps = {
 /**
  * Fail closed before a group mutation when the acting ship is neither the host
  * nor an admin. Foreign group snapshots can lag a newly granted admin role, so
- * rejection is retried before it becomes final. Hosts bypass the remote read:
- * the backend always treats the group host as an admin.
+ * rejection is retried before it becomes final. Hosts bypass the role check,
+ * but still require one successful group read so a typo or stale group id
+ * cannot reach a create endpoint that would produce an orphan resource.
  */
 export async function assertGroupAdminAccess(
   groupId: string,
@@ -38,7 +39,7 @@ export async function assertGroupAdminAccess(
 ): Promise<void> {
   const actingShip = normalizeShip(deps.getActingShip());
   const hostShip = normalizeShip(groupId.split('/')[0] ?? '');
-  if (actingShip === hostShip) return;
+  const actingShipIsHost = actingShip === hostShip;
 
   let lastReason: string | null = null;
   let lastError: unknown;
@@ -46,6 +47,7 @@ export async function assertGroupAdminAccess(
   for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
     try {
       const rawGroup = await deps.getRawGroup(groupId);
+      if (actingShipIsHost) return;
       const result = actingShipCanAdminister(
         rawGroup,
         actingShip,

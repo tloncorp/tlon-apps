@@ -17,6 +17,7 @@ const READERS = ['members'];
 interface MakeDepsOptions {
   administer?: NotesChannelDeps['assertCanAdministerGroup'];
   create?: NotesChannelDeps['createGroupNotesNotebook'];
+  delete?: NotesChannelDeps['deleteStandaloneNotebook'];
   channelIds?: NotesChannelDeps['getGroupChannelIds'];
   readers?: NotesChannelDeps['getChannelReaders'];
 }
@@ -27,6 +28,7 @@ function makeDeps(options: MakeDepsOptions = {}) {
     create: [] as Array<
       Parameters<NotesChannelDeps['createGroupNotesNotebook']>[0]
     >,
+    delete: [] as string[],
     channelIds: [] as string[],
     readers: [] as [string, string][],
     sleep: [] as number[],
@@ -39,6 +41,10 @@ function makeDeps(options: MakeDepsOptions = {}) {
     createGroupNotesNotebook: async (input) => {
       calls.create.push(input);
       return options.create ? options.create(input) : SUMMARY;
+    },
+    deleteStandaloneNotebook: async (nest) => {
+      calls.delete.push(nest);
+      await options.delete?.(nest);
     },
     getGroupChannelIds: async (groupId) => {
       calls.channelIds.push(groupId);
@@ -165,7 +171,7 @@ describe('createNotesChannelInGroup', () => {
     expect(calls.sleep).toEqual([500, 500]);
   });
 
-  it('leaves an unverified notebook in place when listing stays absent', async () => {
+  it('rolls back a standalone notebook when listing stays absent', async () => {
     const created: string[] = [];
     const { calls, deps } = makeDeps({ channelIds: async () => [] });
     try {
@@ -182,10 +188,28 @@ describe('createNotesChannelInGroup', () => {
     } catch (error) {
       expect(String(error)).toContain('host may not support group-mode notes');
       expect(String(error)).not.toContain('PR 7');
-      expect(String(error)).toContain('Left the notebook in place');
+      expect(String(error)).toContain('Rolled back the standalone notebook');
     }
     expect(created).toEqual([NEW_NEST]);
     expect(calls.channelIds).toHaveLength(5);
+    expect(calls.delete).toEqual([NEW_NEST]);
+  });
+
+  it('reports a failed standalone notebook rollback', async () => {
+    const { calls, deps } = makeDeps({
+      channelIds: async () => [],
+      delete: async () => {
+        throw new Error('delete denied');
+      },
+    });
+
+    await expect(
+      createNotesChannelInGroup(
+        { groupId: '~zod/group', title: 'New', readers: READERS },
+        deps
+      )
+    ).rejects.toThrow('rollback failed: delete denied');
+    expect(calls.delete).toEqual([NEW_NEST]);
   });
 
   it('fails as unverifiable when the final group read fails', async () => {

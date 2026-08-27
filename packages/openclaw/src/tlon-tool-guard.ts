@@ -388,15 +388,156 @@ export function checkBlockedStandaloneNotebookCreation(
     '`channels groups` to find the named Notebook or the existing `Updates` ' +
     'Notebook in the relevant Tlonbot group. Prefer the current group; from ' +
     'a DM, confirm the destination when more than one owner-visible Notebook ' +
-    'could fit. Then use `groups info <group-id>` to verify the owner is a ' +
-    'member. Create a new group-backed Notebook with ' +
+    'could fit. Then use `channels groups` to verify the Notebook is registered ' +
+    'and its reader roles include the owner (group membership alone is not ' +
+    'enough). Create a new group-backed Notebook with ' +
     '`channels create ~host/group-slug "Title" --kind notes` only when the ' +
     'owner explicitly asks for a new Notebook. Never silently choose an ' +
     'ambiguous group.'
   );
 }
 
-const NOTE_PATH_READ_OPERATIONS = new Set(['show', 'notes', 'note']);
+const NOTE_PATH_READ_OPERATIONS = new Set([
+  'show',
+  'notes',
+  'note',
+  'folders',
+  'folder',
+  'history',
+  'members',
+]);
+const NOTEBOOK_CONTENT_WRITE_OPERATIONS = new Set([
+  'note-create',
+  'note-update',
+  'note-rename',
+  'note-move',
+  'note-delete',
+  'folder-create',
+  'folder-rename',
+  'folder-move',
+  'folder-delete',
+]);
+
+export function modelNotebookContentWriteTarget(args: string[]): string | null {
+  if (args[0]?.toLowerCase() !== 'notes' || wantsHelp(args.slice(1))) {
+    return null;
+  }
+  if (!NOTEBOOK_CONTENT_WRITE_OPERATIONS.has(args[1]?.toLowerCase() ?? '')) {
+    return null;
+  }
+  return canonicalNotesNest(args[2]);
+}
+
+function normalizeShipForComparison(value: string): string {
+  const trimmed = value.trim().toLowerCase();
+  return trimmed.startsWith('~') ? trimmed : `~${trimmed}`;
+}
+
+function roleIds(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const roles: string[] = [];
+  for (const entry of value) {
+    if (typeof entry === 'string') {
+      roles.push(entry);
+    } else if (
+      entry &&
+      typeof entry === 'object' &&
+      typeof (entry as { roleId?: unknown }).roleId === 'string'
+    ) {
+      roles.push((entry as { roleId: string }).roleId);
+    } else {
+      return null;
+    }
+  }
+  return roles;
+}
+
+/**
+ * Validate a model-selected destination against the fresh `channels groups`
+ * response. Registration alone is insufficient: the configured owner must be
+ * a joined member (or host), and restricted channels must include one of the
+ * owner's roles. Missing or malformed permission data fails closed.
+ */
+export function notebookWriteDestinationError(
+  groupsJson: string,
+  nest: string,
+  ownerShip: string | null | undefined
+): string | null {
+  if (!ownerShip) {
+    return (
+      `Blocked: cannot write to ${nest} because no owner ship is configured ` +
+      'for visibility verification.'
+    );
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(groupsJson);
+  } catch {
+    return (
+      `Blocked: cannot write to ${nest} because the current group/channel ` +
+      'listing could not be parsed for visibility verification.'
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    return (
+      `Blocked: cannot write to ${nest} because the current group/channel ` +
+      'listing is malformed.'
+    );
+  }
+
+  const owner = normalizeShipForComparison(ownerShip);
+  let registered = false;
+  for (const rawGroup of parsed) {
+    if (!rawGroup || typeof rawGroup !== 'object') continue;
+    const group = rawGroup as {
+      id?: unknown;
+      channels?: unknown;
+      members?: unknown;
+    };
+    if (!Array.isArray(group.channels)) continue;
+    const channel = group.channels.find(
+      (candidate) =>
+        candidate &&
+        typeof candidate === 'object' &&
+        (candidate as { id?: unknown }).id === nest
+    ) as { readerRoles?: unknown } | undefined;
+    if (!channel) continue;
+    registered = true;
+
+    const groupId = typeof group.id === 'string' ? group.id : '';
+    const host = groupId.split('/')[0];
+    const ownerIsHost = !!host && normalizeShipForComparison(host) === owner;
+    const members = Array.isArray(group.members) ? group.members : [];
+    const ownerMember = members.find((candidate) => {
+      if (!candidate || typeof candidate !== 'object') return false;
+      const member = candidate as { contactId?: unknown; status?: unknown };
+      return (
+        typeof member.contactId === 'string' &&
+        normalizeShipForComparison(member.contactId) === owner &&
+        member.status !== 'invited'
+      );
+    }) as { roles?: unknown } | undefined;
+    if (!ownerIsHost && !ownerMember) continue;
+
+    const readers = roleIds(channel.readerRoles);
+    if (readers === null) continue;
+    if (readers.length === 0 || ownerIsHost || readers.includes('members')) {
+      return null;
+    }
+    const ownerRoles = roleIds(ownerMember?.roles);
+    if (
+      ownerRoles &&
+      readers.some((readerRole) => ownerRoles.includes(readerRole))
+    ) {
+      return null;
+    }
+  }
+
+  return registered
+    ? `Blocked: ${nest} is registered as a Notebook channel, but the configured owner ${owner} could not be verified as a reader. Choose an owner-visible Notebook or fix its reader roles first.`
+    : `Blocked: ${nest} is a standalone or stale backend notebook, not a currently registered Notebook channel. Choose a Notebook from \`channels groups\` first.`;
+}
 
 /**
  * Add navigation semantics to model-facing reads of a `%notes` path. A nest is
@@ -405,7 +546,16 @@ const NOTE_PATH_READ_OPERATIONS = new Set(['show', 'notes', 'note']);
  */
 export function notebookNavigationNotice(args: string[]): string | null {
   if (args[0]?.toLowerCase() !== 'notes') return null;
-  if (!NOTE_PATH_READ_OPERATIONS.has(args[1]?.toLowerCase() ?? '')) {
+  const operation = args[1]?.toLowerCase() ?? '';
+  if (operation === 'list') {
+    return (
+      'Navigation: `%notes` lists backend notebooks, including standalone ' +
+      'notebooks that have no Tlon Messenger screen. A notebook is app-visible ' +
+      'only when its nest is registered as a Notebook channel inside a group; ' +
+      'verify with `channels info <notes-nest>`.'
+    );
+  }
+  if (!NOTE_PATH_READ_OPERATIONS.has(operation)) {
     return null;
   }
   if (!canonicalizeNest(args[2], 'notes')) return null;

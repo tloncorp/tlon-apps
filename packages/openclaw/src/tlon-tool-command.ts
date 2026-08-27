@@ -7,7 +7,9 @@ import {
   findFirstPositionalArgumentIndex,
   formatAllowedTlonSubcommands,
   isAllowedTlonSubcommand,
+  modelNotebookContentWriteTarget,
   notebookNavigationNotice,
+  notebookWriteDestinationError,
   refusedDiaryNest,
 } from './tlon-tool-guard.js';
 
@@ -283,7 +285,8 @@ export type BlockedTlonOperation = {
     | 'diary_operation'
     | 'migration_operation'
     | 'send_operation'
-    | 'standalone_notebook_creation';
+    | 'standalone_notebook_creation'
+    | 'unverified_notebook_write';
   diaryNest?: string;
 };
 
@@ -328,6 +331,7 @@ export function checkBlockedTlonOperation(
 export type TlonToolExecutorDeps = {
   runCommand: (args: string[]) => Promise<string>;
   notifyDiaryMigrationDiscovery: (nest: string) => Promise<boolean>;
+  ownerShip?: string | null;
   logError?: (message: string) => void;
 };
 
@@ -375,6 +379,45 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
             reason: blocked.reason,
           },
         };
+      }
+
+      const commandArgs = subIdx >= 0 ? args.slice(subIdx) : [];
+      const notebookWriteTarget = modelNotebookContentWriteTarget(commandArgs);
+      if (notebookWriteTarget) {
+        let destinationError: string;
+        try {
+          const credentialPrefix = subIdx > 0 ? args.slice(0, subIdx) : [];
+          const groupsJson = await deps.runCommand([
+            ...credentialPrefix,
+            'channels',
+            'groups',
+          ]);
+          destinationError =
+            notebookWriteDestinationError(
+              groupsJson,
+              notebookWriteTarget,
+              deps.ownerShip
+            ) ?? '';
+        } catch (error) {
+          destinationError =
+            `Blocked: cannot write to ${notebookWriteTarget} because its current ` +
+            `group registration and owner visibility could not be verified: ${
+              error instanceof Error ? error.message : String(error)
+            }`;
+        }
+        if (destinationError) {
+          deps.logError?.(
+            `Blocked tlon tool operation: reason=unverified_notebook_write subcommand=notes nest=${notebookWriteTarget}`
+          );
+          return {
+            content: [{ type: 'text' as const, text: destinationError }],
+            details: {
+              status: 'blocked',
+              blocked: true,
+              reason: 'unverified_notebook_write',
+            },
+          };
+        }
       }
 
       const subIdxForNotice = findTlonSubcommandIndex(args);

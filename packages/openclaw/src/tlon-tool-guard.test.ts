@@ -7,7 +7,9 @@ import {
   checkBlockedStandaloneNotebookCreation,
   formatAllowedTlonSubcommands,
   isAllowedTlonSubcommand,
+  modelNotebookContentWriteTarget,
   notebookNavigationNotice,
+  notebookWriteDestinationError,
   refusedDiaryNest,
 } from './tlon-tool-guard.js';
 
@@ -169,8 +171,8 @@ describe('tlon tool guard', () => {
       expect(result).toContain('existing `Updates` Notebook');
       expect(result).toContain('Prefer the current group');
       expect(result).toContain('from a DM, confirm the destination');
-      expect(result).toContain('verify the owner is a member');
-      expect(result).toContain('groups info <group-id>');
+      expect(result).toContain('reader roles include the owner');
+      expect(result).toContain('group membership alone is not enough');
       expect(result).toContain('only when the owner explicitly asks');
       expect(result).toContain('Never silently choose an ambiguous group');
     });
@@ -190,24 +192,119 @@ describe('tlon tool guard', () => {
 
   describe('annotates backend notebook path reads with app navigation truth', () => {
     it.each([
+      ['notes', 'list'],
       ['notes', 'show', 'notes/~zod/private'],
       ['notes', 'notes', 'notes/zod/private'],
       ['notes', 'note', 'notes/~zod/private', '3'],
+      ['notes', 'folders', 'notes/~zod/private'],
+      ['notes', 'folder', 'notes/~zod/private', '2'],
+      ['notes', 'history', 'notes/~zod/private', '3'],
+      ['notes', 'members', 'notes/~zod/private'],
     ])('recognizes %j', (...args) => {
       const result = notebookNavigationNotice(args);
-      expect(result).toContain('backend identifier');
-      expect(result).toContain('not a Tlon Messenger route');
+      expect(result).toMatch(/backend (identifier|notebooks)/);
       expect(result).toContain('Notebook channel inside a group');
       expect(result).toContain('channels info <notes-nest>');
     });
 
     it('ignores unrelated and malformed commands', () => {
-      expect(notebookNavigationNotice(['notes', 'list'])).toBeNull();
       expect(
         notebookNavigationNotice(['notes', 'note', 'bad', '3'])
       ).toBeNull();
       expect(
         notebookNavigationNotice(['channels', 'info', 'notes/~zod/private'])
+      ).toBeNull();
+    });
+  });
+
+  describe('verifies model notebook write destinations', () => {
+    const groups = JSON.stringify([
+      {
+        id: '~bot/home',
+        members: [
+          { contactId: '~owner', status: 'joined', roles: [{ roleId: 'vip' }] },
+        ],
+        channels: [
+          { id: 'notes/~bot/open', readerRoles: [] },
+          {
+            id: 'notes/~bot/restricted',
+            readerRoles: [{ roleId: 'vip' }],
+          },
+          {
+            id: 'notes/~bot/hidden',
+            readerRoles: [{ roleId: 'staff' }],
+          },
+        ],
+      },
+    ]);
+
+    it.each([
+      ['note-create', 'notes/~bot/open'],
+      ['note-update', 'notes/~bot/open'],
+      ['note-rename', 'notes/~bot/open'],
+      ['note-move', 'notes/~bot/open'],
+      ['note-delete', 'notes/~bot/open'],
+      ['folder-create', 'notes/~bot/open'],
+      ['folder-rename', 'notes/~bot/open'],
+      ['folder-move', 'notes/~bot/open'],
+      ['folder-delete', 'notes/~bot/open'],
+    ])('extracts %s targets', (operation, nest) => {
+      expect(modelNotebookContentWriteTarget(['notes', operation, nest])).toBe(
+        nest
+      );
+    });
+
+    it('accepts open and role-readable registered channels', () => {
+      expect(
+        notebookWriteDestinationError(groups, 'notes/~bot/open', '~owner')
+      ).toBeNull();
+      expect(
+        notebookWriteDestinationError(groups, 'notes/~bot/restricted', '~owner')
+      ).toBeNull();
+    });
+
+    it('rejects standalone, unreadable, invited-owner, and malformed listings', () => {
+      expect(
+        notebookWriteDestinationError(groups, 'notes/~bot/standalone', '~owner')
+      ).toContain('standalone or stale');
+      expect(
+        notebookWriteDestinationError(groups, 'notes/~bot/hidden', '~owner')
+      ).toContain('could not be verified as a reader');
+      expect(
+        notebookWriteDestinationError(
+          JSON.stringify([
+            {
+              id: '~bot/home',
+              members: [{ contactId: '~owner', status: 'invited' }],
+              channels: [{ id: 'notes/~bot/open', readerRoles: [] }],
+            },
+          ]),
+          'notes/~bot/open',
+          '~owner'
+        )
+      ).toContain('could not be verified as a reader');
+      expect(
+        notebookWriteDestinationError('not json', 'notes/~bot/open', '~owner')
+      ).toContain('could not be parsed');
+    });
+
+    it('allows the group host even when hosts are omitted from members', () => {
+      expect(
+        notebookWriteDestinationError(
+          JSON.stringify([
+            {
+              id: '~owner/home',
+              channels: [
+                {
+                  id: 'notes/~owner/restricted',
+                  readerRoles: [{ roleId: 'staff' }],
+                },
+              ],
+            },
+          ]),
+          'notes/~owner/restricted',
+          '~owner'
+        )
       ).toBeNull();
     });
   });
