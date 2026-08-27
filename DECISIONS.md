@@ -411,3 +411,133 @@ sessions consume:
   renderer wiring.
 - The migration baseline was regenerated twice this session (renamed
   `0000_*.sql` is the expected diff shape per the repo's reset pattern).
+
+## Session 3 decisions (packages/surface-shell)
+
+- **D29: zod placement.** The prompt requires zod protocol schemas AND a
+  runtime dependency set of exactly preact/htm/chart.js. Resolution: zod is
+  a devDependency confined to `src/protocol/schemas.ts` (the canonical
+  host-side validators, exported via `@tloncorp/surface-shell/protocol`);
+  the in-sandbox shell validates its inbound direction with the
+  dependency-free guards in `protocol/guards.ts`, held in agreement with
+  the schemas by test. Enforcement is mechanical: `check:deps` allows zod
+  only in schemas.ts and forbids artifact code from importing the protocol
+  barrel or schemas; the build check additionally asserts the artifact
+  contains no zod markers.
+- **D30: Token mapping choices.** Codegen evaluates
+  `@tloncorp/ui/config` (TS source importing react-native/tamagui) via
+  vite SSR with tiny shims aliased in (`ssr.noExternal` so aliases apply).
+  Mapped: 15 theme color roles (bg/bg-secondary, text ×3, border ×3,
+  positive ×3, negative ×3, shadow) for **light and dark only**; spacing
+  2xs–4xl; radius xs–2xl; system font family (already a system stack — no
+  font-file delivery, that's the M0 native spike) plus text sizes xs–xl,
+  line heights xs–l, weights 400/500. Deliberately unmapped: dracula and
+  gruvbox themes, app-specific roles (unread dots, system notices,
+  overlays, media scrim), zIndex, negative-space tokens. Additions are
+  additive within a shell major. Light doubles as the `:root` default;
+  the harness switches themes via `data-theme` on the document element.
+- **D31: Entry-point binding (templates inherit this).** The shell loads
+  FIRST in the sandbox document and exposes `globalThis.surface`; the app
+  bundle is a plain script (no imports/exports) that calls
+  `surface.register({ render })`. Registration is order-tolerant: init
+  before bundle or bundle before init both work. The app-facing API is
+  `html` (htm bound to preact h), `h`, `primitives`, `Chart` (vendored,
+  artifact-only), `register`, `invoke(actionId) → boolean`, and
+  `canInvoke()` — read state (render arg) and invoke declared actions are
+  the only capabilities; the rest is presentation tooling.
+- **D32: Bundler and determinism.** vite lib-mode IIFE (the workspace's
+  bundler; packages/editor is the precedent for a self-contained webview
+  artifact), one `surface-shell.js` + one `surface-shell.css`, no
+  sourcemaps, no name hashes, `minify: false` for auditability (the
+  artifact is injected locally; flip to esbuild minify later if size ever
+  matters — it stays deterministic). `check:determinism` builds twice into
+  temp dirs and compares sha256s: **byte-identical, no documented gap**.
+  It also asserts no dynamic imports and no zod in the artifact. Exact
+  pins: preact 10.29.8, htm 3.1.1, chart.js 4.5.1 ("vendored" = pinned
+  exact + inlined into the artifact; no copied-source vendor/ dir).
+  `dist/` is gitignored (editor convention); consumers build it.
+- **D33: Mirrored-type tracking.** `protocol/types.ts` structurally mirrors
+  the api's `Json`/`JsonObject`, the SurfaceSpec subset the shell reads
+  (surfaceId, specRevision, title, actions map), and the ActionId
+  constraints (≤64, /^[a-z0-9-]+$/). These MUST track
+  `packages/api/src/client/surface/{json,schemas}.ts` by hand — any api
+  change to those shapes requires a matching shell change (and a shell
+  major if behavior shifts). Cross-references sit in both files.
+- **D34: Harness semantics.** `invoke` sends only spec-declared actionIds
+  (own-property lookup — inherited names refuse) and is permission-gated
+  live; permission changes re-render so apps using `canInvoke()` refresh.
+  App exceptions render the BrokenState primitive and report a
+  length-bounded (1024) error over the bridge, edge-triggered (one report
+  per failure streak); invalid host messages report `phase: 'bridge'`
+  errors and never throw; a throwing transport is swallowed. Chart.js in
+  happy-dom: no canvas 2d context — Chart constructs inert (ctx null)
+  without throwing; documented limitation, real draw checks belong to the
+  webview sessions.
+- **Process correction:** `check:deps` was failing on test files' `vitest`
+  import during steps 4–5 and the failure hid behind a piped `tail`; fixed
+  by allowing `vitest` in `*.test.*` files only (all other rules still
+  apply to tests) and committed as its own fix. Checks are now run
+  unpiped before each commit.
+
+## Notes for Session 4+ (sandbox hosts + renderer, and the authoring session)
+
+### Consuming the artifact (packages/app)
+
+- Build: `pnpm build` in `packages/surface-shell` → `dist/surface-shell.js`
+  (IIFE, self-contained) + `dist/surface-shell.css`. Export paths:
+  `@tloncorp/surface-shell/artifact/surface-shell.js` and `.css`. `dist/`
+  is NOT committed — wire the build into the workspace build order (e.g.
+  root `build:packages`) when packages/app starts embedding it.
+- Sandbox document shape: `<style>{css}</style><script>{shell js}</script>
+  <script>{app bundle}</script>` inside the CSP'd srcdoc/webview. The
+  shell creates its own `.tsh-root` container in `<body>`, sets
+  `data-theme` on the document element, installs its message listener,
+  and posts `ready` immediately — the host may send `init` any time after
+  injection (before or after the bundle script runs).
+- Init contract (host→shell): `{type:'init', protocolVersion: 1, spec,
+  state, theme: 'light'|'dark', canInvoke}` — `spec` may be the full raw
+  spec (unknown fields pass through; the shell reads
+  surfaceId/specRevision/title/actions). Then `{type:'state'}` per
+  reduction update, `{type:'theme'}`, `{type:'permission'}`.
+- Host inbound validation: run EVERY message from the sandbox through
+  `ShellToHostMessageSchema` (`@tloncorp/surface-shell/protocol`) — it is
+  strict by design; reject, don't strip. `invoke.specRevision` is the
+  revision the shell rendered — pass it into the surface-event entry.
+- Transport: the shell posts JSON **strings** (parent.postMessage or
+  ReactNativeWebView.postMessage) and accepts strings or structured data
+  inbound. Open question for the host session: on some RN platforms the
+  webview delivers inbound messages via a `document` event rather than
+  `window` — verify per platform and adjust `detectTransport` (shell
+  change) if needed.
+- Theme: only light/dark exist in the shell. The host maps exotic app
+  themes (dracula, gruvbox) to the nearer of the two until shell tokens
+  grow variants.
+
+### tlon-skill (authoring session)
+
+- Node entry: `@tloncorp/surface-shell/node` →
+  `runShellFixture({window, bundleSource, spec, state, theme?, canInvoke?,
+  chart?})` returning `{root, api, messages, errors(), invokes(), html(),
+  sendState(), setPermission(), setTheme(), click()}`. The DOM window is
+  injected — bring your own happy-dom (`new Window()`); the shell package
+  keeps happy-dom dev-only. This runs the REAL harness source; use it for
+  the publish gate's smoke render.
+- Template/bundle convention (inherited from D31): a single plain script,
+  no imports/exports, that calls `surface.register({ render })`; compose
+  `surface.primitives` via `surface.html`; call `surface.invoke(actionId)`
+  from handlers and `surface.canInvoke()` for disabled states. The poll
+  fixture (`fixtures/poll/`) is the canonical exemplar; the fixture
+  runner accepts any `app.js + spec.json + state.json` directory — the CI
+  template-render job is "add template directories to that sweep".
+
+### Least sure about (flag for review)
+
+- RN webview inbound event target (window vs document) — see above; may
+  need a shell-side transport tweak once the native host exists.
+- `surface.Chart` is typed `unknown` (boundary honesty); the templates
+  session should decide the ergonomics story before generating chart code.
+- The artifact is ~500 KB unminified (~110 KB gzip). If embedding budgets
+  care, `minify: 'esbuild'` stays deterministic — a deliberate flip, not a
+  default.
+- happy-dom v20 with vitest 1.x works in this package; the workspace
+  otherwise has no happy-dom pin to conflict with.
