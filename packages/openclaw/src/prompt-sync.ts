@@ -17,6 +17,7 @@
  *   openclaw config with an explicit gateway restart, so the edit takes
  *   effect everywhere immediately.
  */
+import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import {
@@ -450,9 +451,14 @@ export async function applyPromptsToWorkspace(opts: {
       // left unstamped while the agent kept reading it every turn. rename
       // is atomic within the directory, so the target is either the old
       // content or the complete new content.
-      const tmpPath = `${filePath}.tlon-tmp`;
+      //
+      // The temp name is randomized and created with 'wx' (O_CREAT|O_EXCL,
+      // which also refuses to follow a symlink): a predictable name that a
+      // prepared workspace archive could plant as a symlink would otherwise
+      // turn an owner's prompt edit into an arbitrary-file overwrite.
+      const tmpPath = `${filePath}.${randomUUID()}.tmp`;
       try {
-        await fs.writeFile(tmpPath, text, 'utf8');
+        await fs.writeFile(tmpPath, text, { encoding: 'utf8', flag: 'wx' });
         await fs.rename(tmpPath, filePath);
       } catch (error) {
         await fs.unlink(tmpPath).catch(() => {});

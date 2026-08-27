@@ -1558,3 +1558,23 @@ describe('stamp clears do not erase a fresh restamp', () => {
     expect(last.channels.tlon.promptSync.files['USER.md']).toBe('~zod');
   });
 });
+
+describe('temp-file hardening', () => {
+  it('does not write through a planted temp-name symlink', async () => {
+    // A prepared workspace could ship a symlink at a predictable temp name;
+    // following it would turn a prompt edit into an arbitrary overwrite.
+    const outside = path.join(tmpDir, 'outside-target');
+    fs.writeFileSync(outside, 'must not be touched');
+    fs.symlinkSync(outside, path.join(tmpDir, 'SOUL.md.tlon-tmp'));
+    const result = await applyPromptsToWorkspace({
+      workspaceDir: tmpDir,
+      prompts: { 'SOUL.md': 'be kind' },
+      logger,
+    });
+    expect(result.ok).toBe(true);
+    expect(fs.readFileSync(outside, 'utf8')).toBe('must not be touched');
+    expect(fs.readFileSync(path.join(tmpDir, 'SOUL.md'), 'utf8')).toBe(
+      'be kind'
+    );
+  });
+});

@@ -791,6 +791,24 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           }
           return;
         }
+        if (event.phase === 'abandoned') {
+          // The ship keeps refusing this (optional) watch. It is NOT a
+          // recovery: no fact handler will ever be live, so disable
+          // reconciliation here rather than letting the block below scry
+          // and seed — a %steward that finishes restarting mid-retry could
+          // otherwise expose the owner editor with nothing to apply edits.
+          runtime.error?.(
+            `[tlon] Subscription ${event.app}${event.path} abandoned after ${event.attempt} nack(s); treating it as unsupported`
+          );
+          capturePluginError(source, 'subscription abandoned as unsupported', {
+            errorKind: 'subscribe_abandoned',
+            attempt: event.attempt,
+          });
+          if (event.app === 'steward' && event.path === '/v1/prompts') {
+            promptWatchUnavailable = true;
+          }
+          return;
+        }
         runtime.log?.(
           `[tlon] Subscription ${event.app}${event.path} ${event.phase} after ${event.attempt} failed attempt(s), down ${event.downMs}ms`
         );
