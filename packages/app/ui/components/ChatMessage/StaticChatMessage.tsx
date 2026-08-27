@@ -673,8 +673,6 @@ export function StaticChatMessage({
         </View>
       )}
 
-      {feedbackRow}
-
       {shouldRenderReplySummary || deliveryFailed ? (
         <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
           <ChatMessageReplySummary
@@ -686,6 +684,8 @@ export function StaticChatMessage({
           />
         </XStack>
       ) : null}
+
+      {feedbackRow}
     </YStack>
   );
 }
