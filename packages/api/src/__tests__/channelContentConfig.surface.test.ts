@@ -154,6 +154,15 @@ describe('surfaceSpec accessor', () => {
   });
 });
 
+describe('surface registry ids', () => {
+  test('the surface collection renderer and none input are registered', async () => {
+    const { CollectionRendererId, DraftInputId } =
+      await import('../client/channelContentConfig');
+    expect(CollectionRendererId.surface).toBe('tlon.r0.collection.surface');
+    expect(DraftInputId.none).toBe('tlon.r0.input.none');
+  });
+});
+
 describe('applyMetadataEdit', () => {
   const payload = JSON.stringify({
     description: 'desc',

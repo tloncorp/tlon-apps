@@ -63,6 +63,10 @@ export const allCollectionRenderers = {
     displayName: 'Notes',
     enumTag: 'notes',
   },
+  'tlon.r0.collection.surface': {
+    displayName: 'Surface',
+    enumTag: 'surface',
+  },
 } as const satisfies Record<string, ComponentSpec>;
 
 export const allDraftInputs = {
@@ -81,6 +85,11 @@ export const allDraftInputs = {
   'tlon.r0.input.notes': {
     displayName: 'Notes',
     enumTag: 'notes',
+  },
+  /** no composer at all — surface channels have no free-form input */
+  'tlon.r0.input.none': {
+    displayName: 'None',
+    enumTag: 'none',
   },
 } as const satisfies Record<string, ComponentSpec>;
 
