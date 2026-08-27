@@ -271,6 +271,21 @@ install-app-deps` — under `nodeLinker: hoisted` that clobbers the single
   `partial`, which carries no state (a partial fold is never presented as
   current). Remote backfill is an injected function (the loop knows
   paging, not the network) with a `maxPages` budget (default 40 pages of 50) as a runaway bound.
+- **D28: Bundle cache substrate is a SQLite table** (`surface_bundles`).
+  The repo's media caching is platform-level (expo-image on native, the
+  browser cache on web) — nothing `packages/shared` can drive on all three
+  platforms — while the shared SQLite database already exists everywhere,
+  and bundles are small text (≤ 256 KB). Byte budget:
+  `SURFACE_BUNDLE_CACHE_MAX_BYTES = 16 MB` (64 max-size bundles). LRU
+  eviction runs inside the insert transaction, ordered by `lastAccessedAt`
+  (ties broken by sha256), never evicting the row just written;
+  access-time touches declare no table effects so cache reads don't
+  invalidate subscribers. Hashing uses `@aws-crypto/sha256-js` (new direct
+  dep of shared: pure JS, RN-safe; already in the lockfile transitively
+  via the api package's S3 client). Verify-on-read makes a corrupt entry a
+  miss (delete + refetch); fetched bytes are hash-verified BEFORE
+  store-or-return, and fetch is injected — the cache knows hashes and
+  budgets, never URLs or HTTP.
 
 ## Notes for M1's remaining consumers
 

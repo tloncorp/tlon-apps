@@ -95,6 +95,7 @@ import {
   postReactions as $postReactions,
   posts as $posts,
   settings as $settings,
+  surfaceBundles as $surfaceBundles,
   systemContactSentInvites as $systemContactSentInvites,
   systemContacts as $systemContacts,
   threadUnreads as $threadUnreads,
@@ -1923,6 +1924,111 @@ export const getRecentContextLensRuns = createReadQuery(
     });
   },
   ['contextLensRuns']
+);
+
+export const getSurfaceBundle = createReadQuery(
+  'getSurfaceBundle',
+  async ({ sha256 }: { sha256: string }, ctx: QueryCtx) => {
+    const row = await ctx.db.query.surfaceBundles.findFirst({
+      where: eq($surfaceBundles.sha256, sha256),
+    });
+    return row ?? null;
+  },
+  ['surfaceBundles']
+);
+
+export const touchSurfaceBundle = createWriteQuery(
+  'touchSurfaceBundle',
+  async ({ sha256, at }: { sha256: string; at: number }, ctx: QueryCtx) => {
+    await ctx.db
+      .update($surfaceBundles)
+      .set({ lastAccessedAt: at })
+      .where(eq($surfaceBundles.sha256, sha256));
+  },
+  // access-time bumps never change what readers would see
+  []
+);
+
+export const insertSurfaceBundle = createWriteQuery(
+  'insertSurfaceBundle',
+  async (
+    {
+      sha256,
+      content,
+      byteLength,
+      at,
+      maxTotalBytes,
+    }: {
+      sha256: string;
+      content: string;
+      byteLength: number;
+      at: number;
+      maxTotalBytes: number;
+    },
+    ctx: QueryCtx
+  ) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .insert($surfaceBundles)
+        .values({
+          sha256,
+          content,
+          byteLength,
+          cachedAt: at,
+          lastAccessedAt: at,
+        })
+        .onConflictDoUpdate({
+          target: $surfaceBundles.sha256,
+          set: { content, byteLength, lastAccessedAt: at },
+        });
+
+      // LRU eviction under the byte budget. The just-written row has the
+      // newest lastAccessedAt, so it is walked first and never evicted
+      // (single bundles are capped far below any sane budget).
+      const rows = await txCtx.db
+        .select({
+          sha256: $surfaceBundles.sha256,
+          byteLength: $surfaceBundles.byteLength,
+        })
+        .from($surfaceBundles)
+        .orderBy(desc($surfaceBundles.lastAccessedAt), $surfaceBundles.sha256);
+      let total = 0;
+      const evict: string[] = [];
+      for (const row of rows) {
+        total += row.byteLength;
+        if (total > maxTotalBytes && row.sha256 !== sha256) {
+          evict.push(row.sha256);
+        }
+      }
+      if (evict.length > 0) {
+        await txCtx.db
+          .delete($surfaceBundles)
+          .where(inArray($surfaceBundles.sha256, evict));
+      }
+    });
+  },
+  ['surfaceBundles']
+);
+
+export const deleteSurfaceBundle = createWriteQuery(
+  'deleteSurfaceBundle',
+  async ({ sha256 }: { sha256: string }, ctx: QueryCtx) => {
+    await ctx.db
+      .delete($surfaceBundles)
+      .where(eq($surfaceBundles.sha256, sha256));
+  },
+  ['surfaceBundles']
+);
+
+export const getSurfaceBundleCacheTotalBytes = createReadQuery(
+  'getSurfaceBundleCacheTotalBytes',
+  async (ctx: QueryCtx) => {
+    const rows = await ctx.db
+      .select({ byteLength: $surfaceBundles.byteLength })
+      .from($surfaceBundles);
+    return rows.reduce((sum, row) => sum + row.byteLength, 0);
+  },
+  ['surfaceBundles']
 );
 
 export const getContextLensBotShips = createReadQuery(

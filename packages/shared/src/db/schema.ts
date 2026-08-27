@@ -1492,3 +1492,26 @@ export const contextLensRuns = sqliteTable(
     ),
   })
 );
+
+/**
+ * Content-addressed cache of surface app bundles, keyed by the sha256 that
+ * the channel's surfaceSpec pins. Entries are verified against their key on
+ * every read (a corrupt entry is a cache miss, not an error) and evicted
+ * LRU under a byte budget. See store/surface/bundleCache.ts.
+ */
+export const surfaceBundles = sqliteTable(
+  'surface_bundles',
+  {
+    sha256: text('sha256').primaryKey(),
+    /** the bundle text; sha256 is computed over its UTF-8 bytes */
+    content: text('content').notNull(),
+    byteLength: integer('byte_length').notNull(),
+    cachedAt: timestamp('cached_at').notNull(),
+    lastAccessedAt: timestamp('last_accessed_at').notNull(),
+  },
+  (table) => ({
+    lastAccessedAtIndex: index('surface_bundles_last_accessed_at_index').on(
+      table.lastAccessedAt
+    ),
+  })
+);

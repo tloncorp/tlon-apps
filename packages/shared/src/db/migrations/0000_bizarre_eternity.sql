@@ -509,6 +509,15 @@ CREATE TABLE `settings` (
 	`show_delete_markers` integer
 );
 --> statement-breakpoint
+CREATE TABLE `surface_bundles` (
+	`sha256` text PRIMARY KEY NOT NULL,
+	`content` text NOT NULL,
+	`byte_length` integer NOT NULL,
+	`cached_at` integer NOT NULL,
+	`last_accessed_at` integer NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX `surface_bundles_last_accessed_at_index` ON `surface_bundles` (`last_accessed_at`);--> statement-breakpoint
 CREATE TABLE `system_contact_sent_invites` (
 	`invited_to` text,
 	`system_contact_id` text,
