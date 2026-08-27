@@ -170,7 +170,12 @@ const READ_MS_PER_CHARACTER = 10;
 const READ_DELAY_CAP_MS = 1_500;
 const JITTER_RATIO = 0.2;
 const LEGACY_GROUP_INTRO_PREFIX = "I'm your Tlonbot.";
+const TLAWN_HOME_GROUP_WELCOME_MESSAGE =
+  'Welcome! This is your private group with me, your Tlonbot. You can @ me ' +
+  'here anytime and I will respond. Invite some friends, and they can @ me ' +
+  'too—we can all chat together.';
 const AGENT_ONBOARDING_GROUP_INTRO =
+  `${TLAWN_HOME_GROUP_WELCOME_MESSAGE}\n\n` +
   'I can keep you informed, help you learn, or follow a ' +
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
@@ -632,45 +637,42 @@ async function postIntro(
   presentation: OnboardingPresentation,
   isFirstGroup: boolean
 ) {
-  if (isFirstGroup) {
-    const hadIntro = hasPostMarker(history, context.botShip, 'intro');
-    const posted = await postOnce(
-      context,
-      history,
-      'intro',
-      async () => ({ text: AGENT_ONBOARDING_GROUP_INTRO }),
-      deps,
-      presentation
-    );
-    // Only on the post that actually lands, so a re-entered opening doesn't
-    // inflate the top of the funnel.
-    if (!hadIntro && posted) {
-      context.trackStep?.({ step: 'intro_posted' });
-    }
-  }
+  const needsIntro =
+    isFirstGroup && !hasPostMarker(history, context.botShip, 'intro');
   const hadPicker = hasPostMarker(history, context.botShip, 'purpose-picker');
   const pickerPosted = await postOnce(
     context,
     history,
     'purpose-picker',
-    async () => ({
-      text: purposePickerFallbackText(AGENT_ONBOARDING_PURPOSE_PROMPT),
-      blob: appendToPostBlob(
-        undefined,
-        buildPurposePickerSurface(
-          context.groupId!,
-          AGENT_ONBOARDING_PURPOSE_PROMPT
-        )
-      ),
-    }),
+    async () => {
+      const prompt = needsIntro
+        ? `${AGENT_ONBOARDING_GROUP_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
+        : AGENT_ONBOARDING_PURPOSE_PROMPT;
+      return {
+        text: purposePickerFallbackText(prompt),
+        blob: appendToPostBlob(
+          undefined,
+          buildPurposePickerSurface(context.groupId!, prompt)
+        ),
+        entries: needsIntro
+          ? [
+              {
+                type: 'tlon-agent-post-marker' as const,
+                version: 1 as const,
+                key: 'intro',
+              },
+            ]
+          : undefined,
+      };
+    },
     deps,
     presentation
   );
   if (!hadPicker && pickerPosted) {
-    if (!isFirstGroup) {
+    if (needsIntro || !isFirstGroup) {
       // Additional groups share the same ordered funnel vocabulary; their
-      // purpose picker is the first setup surface even though no intro post is
-      // needed.
+      // purpose picker is the first setup surface even though no welcome copy
+      // is needed. First groups carry both markers on the combined opening.
       context.trackStep?.({ step: 'intro_posted' });
     }
     context.trackStep?.({ step: 'purpose_picker_posted' });

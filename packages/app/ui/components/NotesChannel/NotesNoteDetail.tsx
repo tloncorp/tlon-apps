@@ -29,7 +29,6 @@ import {
   NativeSyntheticEvent,
 } from 'react-native';
 import {
-  Input,
   ScrollView,
   TextArea,
   XStack,
@@ -1675,24 +1674,18 @@ export function NotesNoteDetail({
             ) : null}
             <XStack alignItems="center" gap="$s">
               {isPreviewing ? (
-                <Input
+                <Text
                   flex={1}
-                  width="100%"
-                  value={titleDraft}
-                  placeholder="Untitled"
-                  placeholderTextColor="$tertiaryText"
+                  minWidth={0}
                   fontSize={24}
-                  height={34}
                   minHeight={34}
+                  lineHeight={34}
                   fontWeight="400"
-                  borderColor="transparent"
-                  borderWidth={0}
-                  backgroundColor="transparent"
-                  paddingHorizontal={0}
-                  paddingVertical={0}
-                  disabled
+                  color={titleDraft ? '$primaryText' : '$tertiaryText'}
                   testID="NotesTitleDisplay"
-                />
+                >
+                  {titleDraft || 'Untitled'}
+                </Text>
               ) : (
                 <TextInput
                   ref={titleInputRef}

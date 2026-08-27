@@ -17,6 +17,8 @@ import {
   DraftInputContextProvider,
 } from '../ui/components/draftInputs/shared';
 import { ChannelProvider } from '../ui/contexts/channel';
+import { TLAWN_HOME_GROUP_WELCOME_MESSAGE } from '../ui/components/Channel/postVisibility';
+import { ChannelFixture } from './Channel.fixture';
 import { FixtureWrapper } from './FixtureWrapper';
 import { makePost, verse } from './contentHelpers';
 import {
@@ -29,6 +31,7 @@ import {
 // making product copy part of the generic API package. The coordinator tests
 // are authoritative for the actual emitted surfaces.
 const AGENT_ONBOARDING_GROUP_INTRO =
+  `${TLAWN_HOME_GROUP_WELCOME_MESSAGE}\n\n` +
   'I can keep you informed, help you learn, or follow a ' +
   'question over time.';
 const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
@@ -184,7 +187,7 @@ const purposePicker = makeA2UI('onboarding-purpose-fixture', [
   {
     id: 'prompt',
     component: 'Text',
-    text: AGENT_ONBOARDING_PURPOSE_PROMPT,
+    text: `${AGENT_ONBOARDING_GROUP_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`,
   },
   {
     id: 'choices',
@@ -363,17 +366,13 @@ function transcriptPost({
 
 const transcript = [
   transcriptPost({
-    id: 'onboarding-01-intro',
+    id: 'onboarding-01-purpose',
     author: tlonbot,
-    text: AGENT_ONBOARDING_GROUP_INTRO,
-    minute: 1,
-  }),
-  transcriptPost({
-    id: 'onboarding-02-purpose',
-    author: tlonbot,
-    text: `${AGENT_ONBOARDING_PURPOSE_PROMPT} Reply “A daily digest”, “Learn something”, or “Research”.`,
+    text:
+      `${AGENT_ONBOARDING_GROUP_INTRO}\n\n` +
+      `${AGENT_ONBOARDING_PURPOSE_PROMPT} Reply “A daily digest”, “Learn something”, or “Research”.`,
     a2ui: purposePicker,
-    minute: 2,
+    minute: 1,
   }),
   transcriptPost({
     id: 'onboarding-03-purpose-reply',
@@ -452,6 +451,13 @@ const transcript = [
     minute: 14,
   }),
 ];
+
+const provisionedWelcomePost = transcriptPost({
+  id: 'provisioned-tlawn-welcome',
+  author: tlonbot,
+  text: TLAWN_HOME_GROUP_WELCOME_MESSAGE,
+  minute: 0,
+});
 
 function OnboardingDraftProvider({ children }: PropsWithChildren) {
   const [shouldBlur, setShouldBlur] = useState(false);
@@ -567,6 +573,23 @@ function OnboardingTranscript({
   );
 }
 
+function OnboardingConversation({ through = 3 }: { through?: number }) {
+  return (
+    <ChannelFixture
+      theme="light"
+      passedProps={() => ({
+        channel: homeChannel,
+        group: homeGroup,
+        posts: [
+          provisionedWelcomePost,
+          ...transcript.slice(0, through),
+        ].reverse(),
+        suppressAnimatedSendScroll: true,
+      })}
+    />
+  );
+}
+
 function McpServicesPreview() {
   return (
     <FixtureWrapper fillHeight fillWidth safeArea verticalAlign="top">
@@ -597,9 +620,11 @@ function McpServicesPreview() {
 }
 
 export default {
-  'Durable purpose selection': <OnboardingTranscript through={2} />,
-  'Durable topic selection': <OnboardingTranscript through={4} />,
-  'Completed topic selection': <OnboardingTranscript through={5} />,
+  'Durable purpose selection': <OnboardingTranscript through={1} />,
+  'Durable topic selection': <OnboardingTranscript through={3} />,
+  'Conversation combined opening': <OnboardingConversation through={1} />,
+  'Conversation topic selection': <OnboardingConversation />,
+  'Completed topic selection': <OnboardingTranscript through={4} />,
   'Durable completed conversation': <OnboardingTranscript />,
   'MCP services menu': <McpServicesPreview />,
 };

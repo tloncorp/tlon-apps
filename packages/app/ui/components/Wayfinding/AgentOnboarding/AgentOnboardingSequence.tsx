@@ -189,14 +189,20 @@ export function AgentOnboardingSequence(props: {
             throw error;
           }
           landedInAgentChat = true;
-          // Do not permanently dismiss the first-run bridge while the agent
-          // still lacks the standing required to accept provisioning. A
-          // failed tail returns to the outer idempotent retry loop.
+          // Keep the cover until the bot is visibly joined and the admin grant
+          // request has been accepted. Its read-back verification can continue
+          // after the already-mounted conversation becomes visible.
           await withTimeout(
-            furnished.tail,
+            furnished.readyToReveal,
             Math.max(1, deadline - Date.now()),
-            'Agent group standing did not become ready before the deadline'
+            'Agent group did not become ready to reveal before the deadline'
           );
+          void furnished.tail.catch((error) => {
+            logger.trackError(
+              'Agent group admin verification failed after handoff',
+              { error, groupId: activeGroupId }
+            );
+          });
           completedRef.current = true;
           logger.trackEvent('Agent Onboarding V2 In-Channel Handoff', {
             groupId: activeGroupId,

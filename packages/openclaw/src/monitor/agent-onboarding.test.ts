@@ -1180,7 +1180,7 @@ describe('agent onboarding requests', () => {
         }
       )
     ).resolves.toBe(true);
-    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(sendPost).toHaveBeenCalledOnce();
   });
 
   it('describes only the provisioned home group as the first group', async () => {
@@ -1225,12 +1225,27 @@ describe('agent onboarding requests', () => {
     };
 
     const firstGroup = await promptFor(true);
-    expect(firstGroup).toHaveLength(2);
+    expect(firstGroup).toHaveLength(1);
+    expect(JSON.stringify(firstGroup[0]?.story)).toContain(
+      'Welcome! This is your private group with me, your Tlonbot.'
+    );
     expect(JSON.stringify(firstGroup[0]?.story)).toContain(
       'I can keep you informed, help you learn, or follow a question over time.'
     );
-    expect(JSON.stringify(parsePostBlob(firstGroup[1]?.blob))).toContain(
+    expect(JSON.stringify(firstGroup[0]?.story)).toContain(
       'What can I help you with?'
+    );
+    expect(parsePostBlob(firstGroup[0]?.blob)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'tlon-agent-post-marker',
+          key: 'intro',
+        }),
+        expect.objectContaining({
+          type: 'tlon-agent-post-marker',
+          key: 'purpose-picker',
+        }),
+      ])
     );
 
     const additionalGroup = await promptFor();
@@ -1299,27 +1314,21 @@ describe('agent onboarding requests', () => {
       { ...base, blob: history[0].blob },
       { fetchHistory: vi.fn(async () => history), sendPost }
     );
-    expect(sent).toHaveLength(2);
-    expect(JSON.stringify(parsePostBlob(sent[1].blob))).not.toContain(
+    expect(sent).toHaveLength(1);
+    expect(JSON.stringify(parsePostBlob(sent[0].blob))).not.toContain(
       'the cards are only starts'
     );
     history.push(
       {
         author: '~bot',
-        content: 'intro',
+        content: 'intro and purpose',
         timestamp: 2,
         blob: sent[0].blob,
       },
       {
-        author: '~bot',
-        content: 'purpose',
-        timestamp: 3,
-        blob: sent[1].blob,
-      },
-      {
         author: '~ten',
         content: 'A daily digest',
-        timestamp: 4,
+        timestamp: 3,
       }
     );
 
@@ -1327,8 +1336,8 @@ describe('agent onboarding requests', () => {
       { ...base, rawText: 'A daily digest', blob: undefined },
       { fetchHistory: vi.fn(async () => history), sendPost }
     );
-    expect(sent).toHaveLength(3);
-    const topicsA2UI = parsePostBlob(sent[2].blob).find(
+    expect(sent).toHaveLength(2);
+    const topicsA2UI = parsePostBlob(sent[1].blob).find(
       (entry) => entry.type === 'a2ui'
     );
     expect(topicsA2UI).toMatchObject({ storyMode: 'fallback' });
@@ -1343,13 +1352,13 @@ describe('agent onboarding requests', () => {
       {
         author: '~bot',
         content: 'topics',
-        timestamp: 5,
-        blob: sent[2].blob,
+        timestamp: 4,
+        blob: sent[1].blob,
       },
       {
         author: '~ten',
         content: 'Open hardware, Space weather',
-        timestamp: 6,
+        timestamp: 5,
       }
     );
 
@@ -1364,13 +1373,13 @@ describe('agent onboarding requests', () => {
     // Topic confirmation is a client-owned provision action because only the
     // client knows the device timezone. A raw-text recovery must never revive
     // the retired timezone prompt or button.
-    expect(sent).toHaveLength(3);
+    expect(sent).toHaveLength(2);
     expect(JSON.stringify(sent)).not.toContain('timezone-picker');
     expect(JSON.stringify(sent)).not.toContain('Use my current timezone');
     expect(JSON.stringify(sent)).not.toContain('One last detail');
   });
 
-  it('shows thinking and paces consecutive onboarding messages', async () => {
+  it('shows thinking and paces the combined onboarding opening', async () => {
     let now = 0;
     const events: string[] = [];
     const abortController = new AbortController();
@@ -1381,12 +1390,10 @@ describe('agent onboarding requests', () => {
       isFirstGroup: true,
     });
     const sendPost = vi.fn(async ({ blob }: { blob?: string }) => {
-      const marker = parsePostBlob(blob).find(
-        (entry) => entry.type === 'tlon-agent-post-marker'
-      );
-      events.push(
-        `post:${marker?.type === 'tlon-agent-post-marker' ? marker.key : 'unknown'}`
-      );
+      const markers = parsePostBlob(blob)
+        .filter((entry) => entry.type === 'tlon-agent-post-marker')
+        .map((entry) => entry.key);
+      events.push(`post:${markers.join('+') || 'unknown'}`);
       return { channel: 'tlon' as const, messageId: 'post', sentAt: now };
     });
 
@@ -1432,8 +1439,7 @@ describe('agent onboarding requests', () => {
     expect(events[0]).toBe('thinking:start');
     expect(events.at(-1)).toBe('thinking:stop');
     expect(events.filter((e) => e.startsWith('post:'))).toEqual([
-      'post:intro',
-      'post:purpose-picker',
+      'post:intro+purpose-picker',
     ]);
 
     // Every post is preceded by a pause, and the pause is composed rather than
@@ -1441,14 +1447,12 @@ describe('agent onboarding requests', () => {
     const sleeps = events
       .filter((e) => e.startsWith('sleep:'))
       .map((e) => Number(e.slice('sleep:'.length)));
-    expect(sleeps).toHaveLength(2);
+    expect(sleeps).toHaveLength(1);
     expect(sleeps[0]).toBeGreaterThanOrEqual(2_000);
-    expect(sleeps[1]).toBeGreaterThanOrEqual(1_750);
     for (const ms of sleeps) {
       expect(ms).toBeGreaterThanOrEqual(800);
       expect(ms).toBeLessThanOrEqual(3500);
     }
-    expect(new Set(sleeps).size).toBeGreaterThan(1);
   });
 
   it('jitters pacing so the rhythm is not metronomic', async () => {
@@ -1460,7 +1464,6 @@ describe('agent onboarding requests', () => {
         type: 'tlon-agent-intro-request',
         version: 1,
         groupId: '~ten/group',
-        isFirstGroup: true,
       });
       await handleAgentOnboardingRequest(
         {
@@ -1644,24 +1647,11 @@ describe('agent onboarding requests', () => {
             blob: sent[0].blob,
           },
         },
-        purpose: {
-          seal: { id: 'purpose' },
-          essay: {
-            author: {
-              ship: '~bot',
-              nickname: "Napdet's Tlonbot",
-              avatar: '',
-            },
-            sent: 3,
-            content: [{ inline: ['What would be useful for this group?'] }],
-            blob: sent[1].blob,
-          },
-        },
         reply: {
           seal: { id: 'reply' },
           essay: {
             author: '~ten',
-            sent: 4,
+            sent: 3,
             content: [{ inline: ['A daily digest'] }],
           },
         },
@@ -1678,8 +1668,8 @@ describe('agent onboarding requests', () => {
         { sendPost }
       )
     ).resolves.toBe(true);
-    expect(sent).toHaveLength(3);
-    expect(JSON.stringify(parsePostBlob(sent[2].blob))).toContain(
+    expect(sent).toHaveLength(2);
+    expect(JSON.stringify(parsePostBlob(sent[1].blob))).toContain(
       'tlon.provisionAgent'
     );
   });

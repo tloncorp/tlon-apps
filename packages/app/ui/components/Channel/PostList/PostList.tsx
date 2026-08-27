@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  useConversationScrollEndAnchor,
   useConversationScrollViewNativeID,
   useScrollDirectionTracker,
 } from '../../../contexts/scroll';
@@ -482,6 +483,32 @@ const ConversationPostListAttempt = React.forwardRef<
     // change. React Native onScroll can retain an intermediate value while the
     // initial anchor settles, briefly showing the scroll-to-bottom control.
     const isNearEnd = useLegendListIsNearEnd(listRef);
+    const conversationScrollEndAnchor = useConversationScrollEndAnchor();
+    const shouldRestoreEndAnchorRef = React.useRef(false);
+    const endAnchorHandler = React.useMemo(
+      () => ({
+        capture: () => {
+          shouldRestoreEndAnchorRef.current =
+            listRef.current?.getState().isNearEnd ?? false;
+        },
+        restore: () => {
+          if (!shouldRestoreEndAnchorRef.current) {
+            return;
+          }
+          shouldRestoreEndAnchorRef.current = false;
+          runImperativeScroll(() =>
+            listRef.current?.scrollToEnd({ animated: false })
+          );
+        },
+      }),
+      []
+    );
+    React.useLayoutEffect(() => {
+      if (!conversationScrollEndAnchor) {
+        return;
+      }
+      return conversationScrollEndAnchor.register(endAnchorHandler);
+    }, [conversationScrollEndAnchor, endAnchorHandler]);
     // The list is hidden while its initial anchor settles, so do not publish
     // transient geometry that could show external scroll chrome first. Until
     // the first user-driven navigation, LegendList's settled state also guards
