@@ -385,7 +385,7 @@ export function checkBlockedStandaloneNotebookCreation(
     'listed in Tlon Messenger. Send ordinary and recurring output to the ' +
     'conversation where it was requested. For a durable artifact, first use ' +
     '`channels groups` to find an existing `notes/...` Notebook channel, then ' +
-    '`groups get <group-id>` to verify the owner is a member. Create a new ' +
+    '`groups info <group-id>` to verify the owner is a member. Create a new ' +
     'group-backed Notebook with ' +
     '`channels create ~host/group-slug "Title" --kind notes` only when the ' +
     'owner explicitly asks for a new Notebook; otherwise ask where the content ' +

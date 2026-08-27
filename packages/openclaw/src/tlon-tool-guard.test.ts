@@ -167,6 +167,7 @@ describe('tlon tool guard', () => {
       expect(result).toContain('conversation where it was requested');
       expect(result).toContain('find an existing `notes/...` Notebook');
       expect(result).toContain('verify the owner is a member');
+      expect(result).toContain('groups info <group-id>');
       expect(result).toContain('only when the owner explicitly asks');
     });
 
