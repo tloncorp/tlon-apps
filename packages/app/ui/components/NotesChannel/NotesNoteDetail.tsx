@@ -219,11 +219,11 @@ function rebaseNotesNoteDraftSnapshot(
     result.titleIntent === 'preserve' &&
     normalizeNotebookNoteTitle(snapshot.title) ===
       normalizeNotebookNoteTitle(result.effectiveTitle)
-      ? result.updated?.title ?? snapshot.title
+      ? (result.updated?.title ?? snapshot.title)
       : snapshot.title;
   const nextBody =
     result.bodyIntent === 'preserve' && snapshot.body === result.effectiveBody
-      ? result.updated?.bodyMd ?? snapshot.body
+      ? (result.updated?.bodyMd ?? snapshot.body)
       : snapshot.body;
   const nextSnapshot = {
     ...snapshot,
@@ -234,8 +234,8 @@ function rebaseNotesNoteDraftSnapshot(
     body: nextBody,
     isDirty: Boolean(
       result.updated &&
-        (normalizeNotebookNoteTitle(nextTitle) !== result.updated.title ||
-          nextBody !== result.updated.bodyMd)
+      (normalizeNotebookNoteTitle(nextTitle) !== result.updated.title ||
+        nextBody !== result.updated.bodyMd)
     ),
     updatedAt: Date.now(),
   };
@@ -498,8 +498,8 @@ export function NotesNoteDetail({
   const selectedNoteRowId = selectedNote?.id ?? null;
   const selectedNoteSavePending = Boolean(
     notebookFlag &&
-      selectedNote &&
-      hasPendingNotesNoteSave(notebookFlag, selectedNote.noteId)
+    selectedNote &&
+    hasPendingNotesNoteSave(notebookFlag, selectedNote.noteId)
   );
   const isCurrentNote = useCallback(
     (flag: string, targetNoteId: number) =>
@@ -692,9 +692,9 @@ export function NotesNoteDetail({
       selectedNote.revision < draftBase.revision;
     const draftsMatchSelectedRow = Boolean(
       sameNote &&
-        selectedNote &&
-        normalizeNotebookNoteTitle(titleDraft) === selectedNote.title &&
-        bodyDraft === selectedNote.bodyMd
+      selectedNote &&
+      normalizeNotebookNoteTitle(titleDraft) === selectedNote.title &&
+      bodyDraft === selectedNote.bodyMd
     );
     if (
       sameNote &&
@@ -741,9 +741,9 @@ export function NotesNoteDetail({
         : null;
     const restoreSnapshot = Boolean(
       snapshot &&
-        selectedNote &&
-        (snapshot.baseRevision === selectedNote.revision ||
-          selectedNoteSavePending)
+      selectedNote &&
+      (snapshot.baseRevision === selectedNote.revision ||
+        selectedNoteSavePending)
     );
     const restoredBase =
       restoreSnapshot &&
@@ -759,10 +759,10 @@ export function NotesNoteDetail({
         : selectedNote;
     setDraftBase(restoredBase ?? null);
     setTitleDraft(
-      restoreSnapshot && snapshot ? snapshot.title : selectedNote?.title ?? ''
+      restoreSnapshot && snapshot ? snapshot.title : (selectedNote?.title ?? '')
     );
     setBodyDraft(
-      restoreSnapshot && snapshot ? snapshot.body : selectedNote?.bodyMd ?? ''
+      restoreSnapshot && snapshot ? snapshot.body : (selectedNote?.bodyMd ?? '')
     );
     if (restoreSnapshot && snapshot && notebookFlag && selectedNote) {
       claimNotesNoteDraftRecovery(
@@ -840,8 +840,8 @@ export function NotesNoteDetail({
         hasPredecessor: predecessor !== null,
         matchesPredecessorRequest: Boolean(
           predecessor &&
-            normalizeNotebookNoteTitle(title) ===
-              normalizeNotebookNoteTitle(predecessor.requestedTitle)
+          normalizeNotebookNoteTitle(title) ===
+            normalizeNotebookNoteTitle(predecessor.requestedTitle)
         ),
         differsFromBase: normalizeNotebookNoteTitle(title) !== base.title,
       });
