@@ -638,6 +638,60 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // re-run the prompt reconcile after a quit→resubscribe; assigned much
   // later, once this account is known to run prompt sync.
   let promptSync: PromptSync | null = null;
+  /**
+   * Reconcile ship-stored prompts, but only once gall has ACKED the
+   * /v1/prompts watch. Neither connect() nor the channel PUT proves the
+   * watch is live, so a scry before the ack can miss an owner %set: the
+   * fact is emitted with no listener and the edit sits unapplied until some
+   * later recovery.
+   *
+   * `wait: 'until-live'` keeps waiting across ack timeouts (used after a
+   * channel rebuild, where facts were already lost and there is no other
+   * pass coming). `wait: 'best-effort'` reconciles anyway after one timeout
+   * (used at boot, where nothing has been lost yet and applying stored
+   * prompts still beats running stale ones).
+   */
+  const reconcilePromptsWhenWatchLive = async (
+    reason: string,
+    wait: 'until-live' | 'best-effort'
+  ): Promise<void> => {
+    const sync = promptSync;
+    if (!sync || !api) {
+      return;
+    }
+    for (;;) {
+      if (opts.abortSignal?.aborted) {
+        return;
+      }
+      const outcome = await api.waitForSubscriptionAck(
+        'steward',
+        '/v1/prompts'
+      );
+      if (outcome === 'acked') {
+        break;
+      }
+      if (outcome !== 'timeout') {
+        // superseded (a newer generation's recovery owns this) or closed.
+        return;
+      }
+      if (wait === 'best-effort') {
+        runtime.error?.(
+          `[tlon] /v1/prompts watch not confirmed live (${reason}); reconciling best-effort`
+        );
+        break;
+      }
+      runtime.log?.(
+        `[tlon] Still waiting for the /v1/prompts watch ack (${reason})`
+      );
+    }
+    try {
+      await sync.startup();
+    } catch (error: any) {
+      runtime.error?.(
+        `[tlon] Prompt sync reconcile failed (${reason}): ${error?.message ?? String(error)}`
+      );
+    }
+  };
   try {
     cookie = await authenticateWithRetry();
     api = new UrbitSSEClient(account.url, cookie, {
@@ -729,29 +783,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             // the scry and the watch going live is stored on the ship and
             // never applied. A false result means the ack never came (or the
             // channel changed again) — leave it to the next recovery pass.
-            const sync = promptSync;
-            void (async () => {
-              try {
-                const live = await api!.waitForSubscriptionAck(
-                  'steward',
-                  '/v1/prompts'
-                );
-                if (!live) {
-                  runtime.log?.(
-                    '[tlon] Skipping post-rebuild prompt reconcile: /v1/prompts watch not confirmed live'
-                  );
-                  return;
-                }
-                runtime.log?.(
-                  '[tlon] SSE channel rebuilt; re-running prompt reconcile'
-                );
-                await sync.startup();
-              } catch (error) {
-                runtime.error?.(
-                  `[tlon] Prompt reconcile after channel rebuild failed: ${String(error)}`
-                );
-              }
-            })();
+            runtime.log?.(
+              '[tlon] SSE channel rebuilt; re-running prompt reconcile once the watch is live'
+            );
+            void reconcilePromptsWhenWatchLive('channel rebuild', 'until-live');
           }
           if (event.attempt > 0 || (event.downtimeMs ?? 0) > 0) {
             capturePluginError(
@@ -5778,13 +5813,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // %set landing after the reconcile scry is guaranteed to reach the
       // fact handler instead of being emitted with no subscriber.
       if (promptSync) {
-        try {
-          await promptSync.startup();
-        } catch (error: any) {
-          runtime.error?.(
-            `[tlon] Prompt sync reconcile failed: ${error?.message ?? String(error)}`
-          );
-        }
+        await reconcilePromptsWhenWatchLive('boot', 'best-effort');
       } else if (
         promptSyncGatedOff &&
         shipHasPromptSyncAuthority(cfg, botShipName)
@@ -6057,20 +6086,41 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         try {
           const freshCfg = core.config.loadConfig();
           if (!shipHasPromptSyncAuthority(freshCfg, botShipName)) {
-            await api.poke({
-              app: 'steward',
-              mark: 'steward-prompts-action-1',
-              json: { clear: null },
-              awaitAck: true,
-              ackTimeoutMs: 5_000,
+            const retiringApi = api;
+            // No replacement monitor will run for this ship, so this is the
+            // only chance to clear: retry transient failures instead of
+            // leaving the canonical set and the former owner's editable
+            // mirror in place indefinitely. The monitor's own abort signal
+            // is already fired here (that is why we are tearing down), so
+            // bound the work with its own deadline rather than that signal —
+            // teardown must not hang, but it can wait a few seconds. A gall
+            // nack is permanent (e.g. a desk with no %clear), so it stops
+            // immediately rather than burning the budget.
+            await withStartupRetries({
+              label: '%steward prompt clear on retirement',
+              run: () =>
+                retiringApi.poke({
+                  app: 'steward',
+                  mark: 'steward-prompts-action-1',
+                  json: { clear: null },
+                  awaitAck: true,
+                  ackTimeoutMs: 3_000,
+                }),
+              logger: {
+                log: (m) => runtime.log?.(m),
+                warn: (m) => runtime.error?.(m),
+              },
+              isPermanent: (error) => /Poke nacked/.test(String(error)),
+              retryDelaysMs: [500, 1_500],
+              abortSignal: AbortSignal.timeout(8_000),
             });
             runtime.log?.(
               '[tlon] Prompt sync retired for this ship; cleared ship prompt state'
             );
           }
         } catch (error: any) {
-          runtime.log?.(
-            `[tlon] Prompt clear on retirement skipped: ${error?.message ?? String(error)}`
+          runtime.error?.(
+            `[tlon] Prompt clear on retirement failed: ${error?.message ?? String(error)}`
           );
         }
       }

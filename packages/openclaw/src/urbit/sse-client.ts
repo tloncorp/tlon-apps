@@ -1194,41 +1194,62 @@ export class UrbitSSEClient {
 
   /**
    * Resolve once gall has acked the subscribe for `app`+`path` on the
-   * current channel generation (immediately if it already has). Returns
-   * false on timeout, on close, or if the channel is rebuilt while waiting
-   * — the caller should then defer its work to the next recovery pass
-   * rather than reading state the watch cannot yet report changes to.
+   * current channel generation (immediately if it already has).
+   *
+   * The outcome is discriminated because callers act differently on each:
+   * - `acked`: the watch is live; safe to read state it will report changes to
+   * - `timeout`: nothing is known yet. An ack landing later is recorded, so
+   *   simply calling again returns `acked` immediately — callers that must
+   *   not miss facts should keep waiting rather than give up.
+   * - `superseded`: the channel was rebuilt while waiting; the recovery pass
+   *   for that new generation owns the work now.
+   * - `closed`: the client is shutting down.
    */
   async waitForSubscriptionAck(
     app: string,
     path: string,
     timeoutMs = 30_000
-  ): Promise<boolean> {
+  ): Promise<'acked' | 'timeout' | 'superseded' | 'closed'> {
     const key = `${app}${path}`;
     if (this.ackedSubscriptionKeys.has(key)) {
-      return true;
+      return 'acked';
     }
     if (this.aborted) {
-      return false;
+      return 'closed';
     }
     const epochAtWait = this.channelEpoch;
-    return await new Promise<boolean>((resolve) => {
-      let settled = false;
-      const finish = (ok: boolean) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        this.subscriptionKeyAckWaiters.get(key)?.delete(onAck);
-        resolve(ok);
-      };
-      const onAck = () => finish(this.channelEpoch === epochAtWait);
-      const timer = setTimeout(() => finish(false), timeoutMs);
-      timer.unref?.();
-      const waiters =
-        this.subscriptionKeyAckWaiters.get(key) ?? new Set<() => void>();
-      waiters.add(onAck);
-      this.subscriptionKeyAckWaiters.set(key, waiters);
-    });
+    return await new Promise<'acked' | 'timeout' | 'superseded' | 'closed'>(
+      (resolve) => {
+        let settled = false;
+        const finish = (
+          outcome: 'acked' | 'timeout' | 'superseded' | 'closed'
+        ) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          this.subscriptionKeyAckWaiters.get(key)?.delete(onAck);
+          resolve(outcome);
+        };
+        const onAck = () =>
+          finish(this.channelEpoch === epochAtWait ? 'acked' : 'superseded');
+        const timer = setTimeout(
+          () =>
+            finish(
+              this.aborted
+                ? 'closed'
+                : this.channelEpoch === epochAtWait
+                  ? 'timeout'
+                  : 'superseded'
+            ),
+          timeoutMs
+        );
+        timer.unref?.();
+        const waiters =
+          this.subscriptionKeyAckWaiters.get(key) ?? new Set<() => void>();
+        waiters.add(onAck);
+        this.subscriptionKeyAckWaiters.set(key, waiters);
+      }
+    );
   }
 
   /** Rejects every awaitAck poke — their acks can no longer arrive. */

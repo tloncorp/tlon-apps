@@ -27,6 +27,87 @@ describe('UrbitSSEClient', () => {
     vi.restoreAllMocks();
   });
 
+  describe('waitForSubscriptionAck', () => {
+    const okFetch = () => ({
+      response: { ok: true, status: 200 },
+      finalUrl: 'https://example.com',
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const makeClient = async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      vi.mocked(urbitFetch).mockResolvedValue(okFetch());
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      (client as unknown as { isConnected: boolean }).isConnected = true;
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/prompts',
+        event: vi.fn(),
+        quit: vi.fn(),
+      });
+      return client;
+    };
+
+    const ackSubscribe = (client: UrbitSSEClient, id: number) =>
+      client.processEvent(
+        `id: 1\ndata: {"id":${id},"response":"subscribe","ok":"ok"}`
+      );
+
+    it('resolves acked once gall acks, and immediately thereafter', async () => {
+      const client = await makeClient();
+      ackSubscribe(client, 1);
+      // Recorded for the generation, so later callers do not wait at all —
+      // this is what lets a caller that timed out simply ask again.
+      await expect(
+        client.waitForSubscriptionAck('steward', '/v1/prompts')
+      ).resolves.toBe('acked');
+    });
+
+    it('resolves acked when the ack arrives while waiting', async () => {
+      const client = await makeClient();
+      const pending = client.waitForSubscriptionAck('steward', '/v1/prompts');
+      ackSubscribe(client, 1);
+      await expect(pending).resolves.toBe('acked');
+    });
+
+    it('reports timeout without recording an ack', async () => {
+      vi.useFakeTimers();
+      try {
+        const client = await makeClient();
+        const pending = client.waitForSubscriptionAck(
+          'steward',
+          '/v1/prompts',
+          1_000
+        );
+        await vi.advanceTimersByTimeAsync(1_100);
+        await expect(pending).resolves.toBe('timeout');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('reports superseded when the channel is rebuilt while waiting', async () => {
+      const client = await makeClient();
+      const pending = client.waitForSubscriptionAck('steward', '/v1/prompts');
+      // A rebuild bumps the epoch and clears acked keys; the waiter must not
+      // report a watch on the OLD generation as live.
+      (client as unknown as { channelEpoch: number }).channelEpoch += 1;
+      ackSubscribe(client, 1);
+      await expect(pending).resolves.toBe('superseded');
+    });
+
+    it('reports closed after the client shuts down', async () => {
+      const client = await makeClient();
+      (client as unknown as { aborted: boolean }).aborted = true;
+      await expect(
+        client.waitForSubscriptionAck('steward', '/v1/prompts')
+      ).resolves.toBe('closed');
+    });
+  });
+
   describe('subscribe', () => {
     it('sends subscriptions added after connect', async () => {
       const { urbitFetch } = await import('./fetch.js');
