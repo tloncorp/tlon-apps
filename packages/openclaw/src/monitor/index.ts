@@ -845,14 +845,18 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             );
             promptWatchUnavailable = false;
           }
+          // Through the ack gate, not a direct startup(): this fires for
+          // `recovered_via_reconnect` as soon as connect() recreates the
+          // channel, which is before gall has necessarily accepted the
+          // replacement watch. Scrying then could seed and expose the
+          // editor with no live fact handler behind it.
           runtime.log?.(
-            '[tlon] Steward prompts subscription recovered; re-running prompt reconcile'
+            '[tlon] Steward prompts subscription recovered; reconciling once the watch is live'
           );
-          promptSync.startup().catch((error) => {
-            runtime.error?.(
-              `[tlon] Prompt reconcile after resubscribe failed: ${String(error)}`
-            );
-          });
+          void reconcilePromptsWhenWatchLive(
+            'subscription recovery',
+            'until-live'
+          );
         }
       },
       // Stream-level drops/stalls/reconnects. Distinct from per-subscription

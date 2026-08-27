@@ -218,6 +218,49 @@ describe('UrbitSSEClient', () => {
       vi.useRealTimers();
     });
 
+    it('never abandons a watch that has already been live', async () => {
+      vi.useFakeTimers();
+      const { urbitFetch } = await import('./fetch.js');
+      vi.mocked(urbitFetch).mockResolvedValue(okFetch());
+      const recovery: string[] = [];
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: (e) => recovery.push(e.phase) }
+      );
+      (client as unknown as { isConnected: boolean }).isConnected = true;
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/prompts',
+        event: vi.fn(),
+        quit: vi.fn(),
+        optional: true,
+      });
+      const priv = client as unknown as {
+        subscriptions: { id: number }[];
+        eventHandlers: Map<number, unknown>;
+      };
+      const liveId = () =>
+        priv.subscriptions.filter((sub) => priv.eventHandlers.has(sub.id))[0]
+          ?.id;
+      // Proven supported once...
+      client.processEvent(
+        `id: 1\ndata: {"id":${liveId()},"response":"subscribe","ok":"ok"}`
+      );
+      // ...so a later restart nacking repeatedly is transient, not a
+      // missing capability: abandoning would silence its facts for good.
+      for (let i = 0; i < 6; i += 1) {
+        const id = liveId();
+        if (id === undefined) break;
+        client.processEvent(
+          `id: ${i + 2}\ndata: {"id":${id},"response":"subscribe","err":"restarting"}`
+        );
+        await vi.advanceTimersByTimeAsync(3_000);
+      }
+      expect(recovery).not.toContain('abandoned');
+      vi.useRealTimers();
+    });
+
     it('never abandons a required watch, however many nacks', async () => {
       vi.useFakeTimers();
       const { urbitFetch } = await import('./fetch.js');

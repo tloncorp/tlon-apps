@@ -559,7 +559,18 @@ describe('initContextLensShipSync retirement', () => {
       expect(initContextLensShipSync(disabledApi)).toBe(false);
       publishContextLensEvent('final', makeLens({ status: 'completed' }));
       await new Promise((resolve) => setTimeout(resolve, 20));
-      expect(pokes).toEqual([]);
+      // No lens run reaches the ship. The one poke is the ownership
+      // re-assertion the retirement performs once the retired sync's
+      // in-flight work settles: a late %configure from that sync must not
+      // get the last word and restore its captured owner. With the lens
+      // off and no ownerShip, the correct state is no owner at all.
+      expect(pokes).toEqual([
+        {
+          app: 'steward',
+          mark: 'steward-action-1',
+          json: { unconfigure: null },
+        },
+      ]);
     } finally {
       slot.set(previousParams);
     }

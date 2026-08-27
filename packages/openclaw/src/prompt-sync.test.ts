@@ -1578,3 +1578,42 @@ describe('temp-file hardening', () => {
     );
   });
 });
+
+describe('round-36 hardening', () => {
+  it('removes a text-inferred foreign file even when the apply fails', async () => {
+    // Unstamped (predates stamping) former-owner content, plus a write
+    // failure for a different name: cleanup must still happen or every
+    // reconcile repeats the failure while the agent loads that prompt.
+    fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'former owner notes');
+    fs.mkdirSync(path.join(tmpDir, 'SOUL.md'));
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      botShip: '~zod',
+      workspaceDir: tmpDir,
+      configPrompts: { 'SOUL.md': 'our edit that cannot be written' },
+      foreignPrompts: { 'USER.md': ['former owner notes'] },
+      owner: null,
+      scry: async () => ({}),
+      poke: async () => ({}),
+      logger,
+    });
+    await sync.startup();
+    expect(fs.existsSync(path.join(tmpDir, 'USER.md'))).toBe(false);
+  });
+
+  it('never reads through a symlinked prompt file', async () => {
+    const secret = path.join(tmpDir, 'secret');
+    fs.writeFileSync(secret, 'private contents that must not be seeded');
+    fs.symlinkSync(secret, path.join(tmpDir, 'USER.md'));
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'real prompt');
+    const effective = await readEffectivePrompts(tmpDir, logger);
+    expect(effective.prompts['USER.md']).toBeUndefined();
+    expect(effective.prompts['AGENTS.md']).toBe('real prompt');
+    // The link is removed rather than followed; the target is untouched.
+    expect(fs.existsSync(path.join(tmpDir, 'USER.md'))).toBe(false);
+    expect(fs.readFileSync(secret, 'utf8')).toBe(
+      'private contents that must not be seeded'
+    );
+  });
+});

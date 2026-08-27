@@ -378,6 +378,31 @@ export function parsePromptSetFact(
 }
 
 /**
+ * Read one prompt file's contents, or null when it is absent, unreadable,
+ * or not a regular file (a symlink is never followed — see
+ * readEffectivePrompts).
+ */
+async function readPromptFileIfRegular(
+  workspaceDir: string,
+  name: string,
+  logger?: PromptSyncLogger
+): Promise<string | null> {
+  const filePath = path.join(workspaceDir, name);
+  try {
+    const info = await fs.lstat(filePath);
+    if (!info.isFile()) {
+      return null;
+    }
+    return await fs.readFile(filePath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      logger?.warn(`[tlon] Failed to read prompt file ${name}: ${error}`);
+    }
+    return null;
+  }
+}
+
+/**
  * Read the effective contents of every allowlisted prompt file. ok=false
  * when any file failed to read for a reason other than not existing —
  * seeding such a partial set would make %steward drop the unreadable
@@ -391,8 +416,37 @@ export async function readEffectivePrompts(
   const out: Record<string, string> = {};
   let ok = true;
   for (const name of PROMPT_FILE_NAMES) {
+    const filePath = path.join(workspaceDir, name);
     try {
-      const text = await fs.readFile(path.join(workspaceDir, name), 'utf8');
+      // Never follow a symlinked prompt source: a prepared workspace could
+      // point USER.md at any process-readable file, and its contents would
+      // be seeded to %steward and mirrored to the owner. openclaw writes
+      // these as regular files, so a link here is not legitimate content —
+      // remove it and let the bootstrap default be regenerated.
+      const info = await fs.lstat(filePath).catch((error) => {
+        if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
+          return null;
+        }
+        throw error;
+      });
+      if (info === null) {
+        continue;
+      }
+      if (info.isSymbolicLink()) {
+        logger?.warn(
+          `[tlon] Prompt file ${name} is a symlink; removing it instead of reading through it`
+        );
+        try {
+          await fs.unlink(filePath);
+        } catch (error) {
+          ok = false;
+          logger?.warn(
+            `[tlon] Failed to remove symlinked prompt ${name}: ${error}`
+          );
+        }
+        continue;
+      }
+      const text = await fs.readFile(filePath, 'utf8');
       if (!isPromptTextWithinCap(text)) {
         // Same policy as a failed read: an omitted-but-running file must
         // not be dropped from the ship's canonical set by a partial seed.
@@ -806,6 +860,12 @@ export function createPromptSync(opts: {
         '[tlon] Provenance write refused; deferring ship-stored prompt edits this boot'
       );
     }
+    // Ship-stored prompts win over the config cache: the config is only a
+    // local mirror written by this sync, but a hosted entrypoint can
+    // regenerate openclaw.json and drop it.
+    const desired = recorded
+      ? { ...opts.configPrompts, ...stored }
+      : { ...opts.configPrompts };
     const myShipNorm = normalizeShip(botShip);
     const removedStamps: string[] = [];
     // Stamp-based cleanup runs BEFORE any write or read, and needs no file
@@ -817,8 +877,33 @@ export function createPromptSync(opts: {
     // later reconcile bailing at the same place.
     for (const name of PROMPT_FILE_NAMES) {
       const stamp = fileStamps[name];
-      if (stamp === undefined || normalizeShip(stamp) === myShipNorm) {
-        continue;
+      const stampForeign =
+        stamp !== undefined && normalizeShip(stamp) !== myShipNorm;
+      let reason = stampForeign ? `file is stamped for ${stamp}` : '';
+      if (!stampForeign) {
+        // Files predating ownership stamps are identifiable only by their
+        // contents. This has to happen here too, not after the apply: an
+        // unstamped foreign file plus a failed write for some other name
+        // would otherwise never be cleaned, and every reconcile would
+        // repeat the same failure while the agent kept loading it.
+        const candidates = opts.foreignPrompts?.[name];
+        if (!candidates || candidates.length === 0) {
+          continue;
+        }
+        const current = await readPromptFileIfRegular(
+          workspaceDir,
+          name,
+          logger
+        );
+        if (current === null || current === desired[name]) {
+          // Unreadable/absent, or verifiably our own content — identical
+          // boilerplate cached for another ship must not out-claim it.
+          continue;
+        }
+        if (!candidates.includes(current)) {
+          continue;
+        }
+        reason = "text matches another ship's stored edit";
       }
       // A foreign stamp cannot coexist with our own content: applying an
       // edit stamps the file for us, and handleFact refuses to write over
@@ -826,7 +911,7 @@ export function createPromptSync(opts: {
       try {
         await fs.unlink(path.join(workspaceDir, name));
         logger.warn(
-          `[tlon] Removed foreign prompt ${name} from the workspace (file is stamped for ${stamp})`
+          `[tlon] Removed foreign prompt ${name} from the workspace (${reason})`
         );
         removedStamps.push(name);
       } catch (error) {
@@ -851,12 +936,6 @@ export function createPromptSync(opts: {
       await clearRemovedStamps(removedStamps);
       removedStamps.length = 0;
     }
-    // Ship-stored prompts win over the config cache: the config is only a
-    // local mirror written by this sync, but a hosted entrypoint can
-    // regenerate openclaw.json and drop it.
-    const desired = recorded
-      ? { ...opts.configPrompts, ...stored }
-      : { ...opts.configPrompts };
     const { applied, ok } = await applyPromptsToWorkspace({
       workspaceDir,
       prompts: desired,
@@ -969,52 +1048,6 @@ export function createPromptSync(opts: {
     }
     if (aborted()) {
       return;
-    }
-    for (const [name, text] of Object.entries(effective)) {
-      if (desired[name] === text) {
-        // Verifiably our own content (matches this ship's stored edit /
-        // cache): identical boilerplate cached for another ship must not
-        // out-claim it, and even a foreign file stamp is moot — the bytes
-        // are ones this ship already holds.
-        continue;
-      }
-      // Stamped-foreign files are already gone (handled above, without
-      // needing their contents). This is the text fallback, for files that
-      // predate stamping.
-      if (opts.foreignPrompts?.[name]?.includes(text) === true) {
-        // The shared workspace still holds another ship's owner-edited
-        // content (the syncing authority changed without a workspace
-        // rebuild). Excluding it from the seed isn't enough — the agent
-        // re-reads these files every turn, so the replacement bot would
-        // keep RUNNING the former owner's private prompt. Remove the file;
-        // openclaw regenerates bootstrap defaults as needed.
-        delete effective[name];
-        try {
-          await fs.unlink(path.join(workspaceDir, name));
-          logger.warn(
-            `[tlon] Removed foreign prompt ${name} from the workspace (text matches another ship's stored edit); not seeding it`
-          );
-          removedStamps.push(name);
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
-            // Already gone (e.g. a previous boot removed it but crashed
-            // before clearing the stamp) — clearing the stamp is all
-            // that's left to do.
-            removedStamps.push(name);
-          } else {
-            // The foreign text is still on disk and the agent re-reads it
-            // every turn — do not proceed as if cleanup succeeded. The
-            // next boot (or resubscribe reconcile) retries the removal.
-            logger.warn(
-              `[tlon] Aborting prompt reconcile: failed to remove foreign prompt ${name}: ${error}`
-            );
-            return;
-          }
-        }
-      }
-    }
-    if (removedStamps.length > 0) {
-      await clearRemovedStamps(removedStamps);
     }
     if (Object.keys(effective).length === 0) {
       // Deliberately NOT seeding an empty set. openclaw bootstraps these

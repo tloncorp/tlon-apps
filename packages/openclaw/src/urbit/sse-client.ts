@@ -206,6 +206,11 @@ export class UrbitSSEClient {
   // rebuild. Capability-style abandonment is for watches the ship may
   // legitimately not implement, like /v1/prompts on an older desk.
   private optionalSubscriptionKeys = new Set<string>();
+  // Keys gall has acked at least once, ever (unlike ackedSubscriptionKeys,
+  // which is per channel generation). A watch that has been live is
+  // demonstrably supported, so later nacks are a restarting desk, not a
+  // missing capability — abandoning it would leave its facts unheard.
+  private everLiveSubscriptionKeys = new Set<string>();
 
   private subscriptionRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private subscriptionRetryDelayMs = SUBSCRIPTION_RETRY_FLOOR_MS;
@@ -1006,6 +1011,7 @@ export class UrbitSSEClient {
           if (sub) {
             const key = `${sub.app}${sub.path}`;
             this.ackedSubscriptionKeys.add(key);
+            this.everLiveSubscriptionKeys.add(key);
             this.subscriptionNackCounts.delete(key);
             const wasAbandoned = this.abandonedSubscriptionKeys.delete(key);
             this.flushSubscriptionKeyAckWaiters(key);
@@ -1050,6 +1056,7 @@ export class UrbitSSEClient {
               key &&
               sub &&
               this.optionalSubscriptionKeys.has(key) &&
+              !this.everLiveSubscriptionKeys.has(key) &&
               nacks > MAX_CONSECUTIVE_SUBSCRIBE_NACKS
             ) {
               // Treated as unsupported rather than transient: keep the
