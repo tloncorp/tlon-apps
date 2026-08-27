@@ -129,6 +129,14 @@
       ::
       =/  old  owner.state
       =.  owner.state  `owner.action
+      ::  a former owner can be configured back before its revoke was ever
+      ::  confirmed. drop it from .stale FIRST: that retry rides the
+      ::  dedicated revoke wire while the re-fan below rides the sync wire,
+      ::  so a queued revoke could land after the sync and delete the
+      ::  restored owner's freshly valid mirror
+      ::
+      =.  stale.prompts.state
+        (~(del in stale.prompts.state) owner.action)
       =.  cor  pr-retry-revokes:pr-core
       ::  the gateway re-configures the same owner on every (re)connect;
       ::  don't re-fan or revoke on a no-op
@@ -325,13 +333,15 @@
     ?.  ?=([%behn %wake *] sign)  cor
     ga-lease-check:ga-core
   ::
-      [%prompts %request-retry ~]
+      [%prompts %request-retry @ @ ~]
     ?.  ?=([%behn %wake *] sign)  cor
-    pr-retry-requests:pr-core
+    %+  pr-retry-request:pr-core
+      (slav %p i.t.t.wire)
+    (slav %ud i.t.t.t.wire)
   ::
-      [%prompts %sync-retry ~]
+      [%prompts %sync-retry @ ~]
     ?.  ?=([%behn %wake *] sign)  cor
-    pr-retry-sync:pr-core
+    (pr-retry-sync:pr-core (slav %ud i.t.t.wire))
   ==
 ::
 ++  watch-activity
@@ -992,8 +1002,15 @@
       %-  (slog leaf+"steward: giving up on prompts resync request" ~)
       cor(pending.prompts.state (~(del by pending.prompts.state) bot))
     =.  pending.prompts.state  (~(put by pending.prompts.state) bot tries)
+    ::  per-bot wire, with the attempt count in it: one bot's nack must not
+    ::  re-poke every other pending bot, and a duplicate timer from an
+    ::  earlier attempt is a no-op on wake instead of multiplying pokes and
+    ::  spending the budget faster than the retry delay
+    ::
     %-  emit
-    :^  %pass  /prompts/request-retry  %arvo
+    :^  %pass
+        /prompts/request-retry/(scot %p bot)/(scot %ud tries)
+      %arvo
     [%b %wait (add now.bowl retry-delay)]
   ::
   ::  our fan-out to the owner was rejected — its desk restarting, or it
@@ -1007,22 +1024,30 @@
       %-  (slog leaf+"steward: giving up on prompts owner sync" ~)
       cor(resync.prompts.state 0)
     =.  resync.prompts.state  tries
+    ::  attempt count in the wire, so a duplicate timer armed by a second
+    ::  concurrent nack is a no-op on wake rather than an extra fan-out
+    ::
     %-  emit
-    :^  %pass  /prompts/sync-retry  %arvo
+    :^  %pass
+        /prompts/sync-retry/(scot %ud tries)
+      %arvo
     [%b %wait (add now.bowl retry-delay)]
   ::
   ++  pr-retry-sync
+    |=  tries=@ud
     ^+  cor
-    ?:  =(0 resync.prompts.state)  cor
+    ::  a stale timer (the count moved on: acked, retried, or spent) is a
+    ::  no-op
+    ?.  =(tries resync.prompts.state)  cor
     pr-sync-owner
   ::
-  ++  pr-retry-requests
+  ++  pr-retry-request
+    |=  [bot=ship tries=@ud]
     ^+  cor
-    =/  whos  ~(tap by pending.prompts.state)
-    |-  ^+  cor
-    ?~  whos  cor
-    =.  cor  (pr-emit-request -.i.whos)
-    $(whos t.whos)
+    ::  a stale timer (entry acked, retried since, untrusted, or budget
+    ::  spent) is a no-op
+    ?.  =(tries (~(gut by pending.prompts.state) bot 0))  cor
+    (pr-emit-request bot)
   ::
   ::  a replaced or removed owner must drop its mirror. the initial %revoke
   ::  rides the sync wire (same ames flow as the %syncs, so it can't be

@@ -1380,6 +1380,87 @@
     (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%revoke ~]))
   (ex-cards caz ~)
 ::
+::  restoring a former owner whose revoke was never confirmed must NOT
+::  re-issue that revoke — it rides a different flow than the re-fan and
+::  could land after it, deleting the restored owner's fresh mirror
+::
+++  test-pr-reconfigure-former-owner-skips-revoke
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.n]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ::  ~bus is replaced (its revoke goes unconfirmed, so it sits in .stale)
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  ::  ...then restored. only the re-fan to ~bus and the revoke of ~fed may
+  ::  be emitted — no revoke to ~bus on the dedicated wire
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~fed)
+          [~fed %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%revoke ~])
+      ==
+      %-  ex-poke
+      :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%sync expect])
+      ==
+  ==
+::
+::  one bot's nacked request must not re-poke another pending bot, and a
+::  stale timer (attempt count moved on) is a no-op
+::
+++  test-pr-request-retry-is-per-bot
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  other  (add ~fed (bex 32))
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (trust moon)
+  ;<  ~  bind:m  (trust other)
+  ::  both bots nack, each arming its own wire
+  ;<  *  bind:m
+    %-  do-agent
+    :*  /prompts/request/(scot %p moon)
+        [moon %steward]
+        [%poke-ack `~[[%leaf "boom"]]]
+    ==
+  ;<  *  bind:m
+    %-  do-agent
+    :*  /prompts/request/(scot %p other)
+        [other %steward]
+        [%poke-ack `~[[%leaf "boom"]]]
+    ==
+  ::  moon's wake re-issues for moon ONLY
+  ;<  caz=(list card)  bind:m
+    %-  do-arvo
+    :-  /prompts/request-retry/(scot %p moon)/(scot %ud 1)
+    [%behn %wake ~]
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  /prompts/request/(scot %p moon)
+            [moon %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%request ~])
+        ==
+    ==
+  ::  a duplicate timer from an earlier attempt count is ignored
+  ;<  caz=(list card)  bind:m
+    %-  do-arvo
+    :-  /prompts/request-retry/(scot %p moon)/(scot %ud 9)
+    [%behn %wake ~]
+  (ex-cards caz ~)
+::
 ::  a nacked fan-out to the owner is retried on a behn timer; an ack stops
 ::  the retries, and the budget is bounded
 ::
@@ -1399,11 +1480,11 @@
     (do-agent [sync-wire [~bus %steward] [%poke-ack `~[[%leaf "boom"]]]])
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-arvo /prompts/sync-retry [%b %wait (add ~2024.1.1 ~m5)])
+    :~  (ex-arvo /prompts/sync-retry/(scot %ud 1) [%b %wait (add ~2024.1.1 ~m5)])
     ==
   ::  the wake re-fans the canonical set
   ;<  caz=(list card)  bind:m
-    (do-arvo /prompts/sync-retry [%behn %wake ~])
+    (do-arvo /prompts/sync-retry/(scot %ud 1) [%behn %wake ~])
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  %-  ex-poke
@@ -1416,7 +1497,7 @@
   ::  an ack stops the retries: a later wake emits nothing
   ;<  *  bind:m  (do-agent [sync-wire [~bus %steward] [%poke-ack ~]])
   ;<  caz=(list card)  bind:m
-    (do-arvo /prompts/sync-retry [%behn %wake ~])
+    (do-arvo /prompts/sync-retry/(scot %ud 1) [%behn %wake ~])
   (ex-cards caz ~)
 ::
 ::  a revoke nacked on the shared sync wire is NOT treated as a failed
@@ -1459,12 +1540,12 @@
   ;<  caz=(list card)  bind:m  nack
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  %+  ex-arvo  /prompts/request-retry
+    :~  %+  ex-arvo  /prompts/request-retry/(scot %p moon)/(scot %ud 1)
         [%b %wait (add ~2024.1.1 ~m5)]
     ==
   ::  the wake re-issues the request
   ;<  caz=(list card)  bind:m
-    (do-arvo /prompts/request-retry [%behn %wake ~])
+    (do-arvo /prompts/request-retry/(scot %p moon)/(scot %ud 1) [%behn %wake ~])
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  %-  ex-poke
@@ -1477,7 +1558,7 @@
   ::  an ack clears the pending entry: the next wake emits nothing
   ;<  *  bind:m  (do-agent [req-wire [moon %steward] [%poke-ack ~]])
   ;<  caz=(list card)  bind:m
-    (do-arvo /prompts/request-retry [%behn %wake ~])
+    (do-arvo /prompts/request-retry/(scot %p moon)/(scot %ud 1) [%behn %wake ~])
   (ex-cards caz ~)
 ::
 ::  the retry budget is bounded — after max-request-tries nacks the bot is
@@ -1501,7 +1582,7 @@
   ;<  ~  bind:m  (ex-cards caz ~)
   ::  and nothing is left pending for a stray wake to re-issue
   ;<  caz=(list card)  bind:m
-    (do-arvo /prompts/request-retry [%behn %wake ~])
+    (do-arvo /prompts/request-retry/(scot %p moon)/(scot %ud 1) [%behn %wake ~])
   (ex-cards caz ~)
 ::
 ::  untrusting a bot stops its pending request retries
@@ -1518,7 +1599,7 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
   ;<  caz=(list card)  bind:m
-    (do-arvo /prompts/request-retry [%behn %wake ~])
+    (do-arvo /prompts/request-retry/(scot %p moon)/(scot %ud 1) [%behn %wake ~])
   (ex-cards caz ~)
 ::
 ::  a nacked owner-change revoke is retried on the next boot-shaped moment
