@@ -1983,7 +1983,9 @@ function toClientChannel({
   currentUserId?: string;
 }): db.Channel {
   const { description, channelContentConfiguration } =
-    StructuredChannelDescriptionPayload.decode(channel.meta.description);
+    StructuredChannelDescriptionPayload.decodeWithDefaults(
+      channel.meta.description
+    );
 
   const readerRoles = (channel.readers ?? []).map((roleId) => ({
     channelId: id,
@@ -2027,7 +2029,9 @@ function toClientChannelFromPreview({
   groupId: string;
 }): db.Channel {
   const { description, channelContentConfiguration } =
-    StructuredChannelDescriptionPayload.decode(channel.meta.description);
+    StructuredChannelDescriptionPayload.decodeWithDefaults(
+      channel.meta.description
+    );
 
   const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupChannelId(id);
