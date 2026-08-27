@@ -228,6 +228,31 @@ install-app-deps` — under `nodeLinker: hoisted` that clobbers the single
   everything else that fails `SurfaceSpecSchema` is `invalid` (non-integer
   or non-numeric declared versions included). The `valid` arm returns the
   validated (stripped) view — fine for behavior, never for persistence.
+- **D24: `applyMetadataEdit` semantics** (edit reconstruction, in the SCDP
+  namespace): start from the decoded stored payload, overlay `description`
+  always and `channelContentConfiguration` only when it _semantically
+  differs_ from the stored payload's hydrated view — extracted configs are
+  defaults-hydrated, and overlaying an unchanged one would materialize
+  defaults into the cell on every title edit. Serialization is minimal: an
+  empty payload is `''`; a payload holding only a plain description is the
+  bare string (no spuriously grown structure) unless that string would
+  itself parse as a payload object, in which case it's wrapped. This also
+  quietly fixes the legacy behavior where every edit converted plain
+  descriptions into `{"description": ...}` JSON.
+- **D25: Ship canonicalization boundary** (`canonicalShipId` in
+  `packages/shared/src/store/surface/adapter.ts`): leading `~`, lowercase,
+  trimmed (`preSig(desig(s).toLowerCase())`), applied to BOTH the channel
+  host (from the channel id) and every post author before the reducer sees
+  them, so host checks and `$actor` keys cannot diverge on sig/case. The
+  reducer itself stays verbatim-compare (ratified Session 1 semantics);
+  this boundary is part of the security invariant. Non-string authors pass
+  through untouched and are skipped by the reducer's own guards.
+- **Correction during step 3:** my first draft of the edit-losslessness
+  tests accidentally overwrote the pre-existing
+  `channelActions.test.ts` (17 tests). Caught via the suite-count drop,
+  restored from HEAD, and the new tests were merged in following that
+  file's own conventions — the restored originals also now exercise the
+  rewritten `updateChannel`, all green.
 
 ## Notes for M1's remaining consumers
 

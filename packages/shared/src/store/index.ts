@@ -1,4 +1,5 @@
 export * from './dbHooks';
+export * from './surface';
 export * from './sync';
 export * from './useChannelPosts';
 export * from './useChannelSearch';
