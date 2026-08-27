@@ -9,7 +9,10 @@ describe('Tlon channel prompt guidance', () => {
     });
 
     expect(hints?.join('\n')).toContain(
-      'Treat adjacent user messages received since your last visible reply as one conversational update.'
+      'In a direct chat, treat adjacent messages from that user since your last visible reply as one conversational update.'
+    );
+    expect(hints?.join('\n')).toContain(
+      "In a group channel, combine adjacent messages only when they are from the same sender and directed at you. Keep other participants' messages separate."
     );
     expect(hints?.join('\n')).toContain(
       'Never answer only the newest line while silently dropping useful context from an earlier line.'
