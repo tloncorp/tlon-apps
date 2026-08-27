@@ -428,4 +428,36 @@ describe('initContextLensShipSync', () => {
       slot.set(previousParams);
     }
   });
+
+  it('resolves the sole runnable named account, not the default fallback', () => {
+    // The top-level lens fallback names ~bus, but the only account that
+    // actually runs names ~dev — configuring ~bus as %steward's shared
+    // owner would re-fan that account's prompts (and edit rights) to a
+    // ship it never chose.
+    const infos: string[] = [];
+    const api = {
+      config: {
+        channels: {
+          tlon: {
+            contextLens: {
+              enabled: true,
+              authToken: 'a-token-of-sufficient-length',
+              owner: '~bus',
+            },
+            accounts: {
+              hosted: {
+                ship: '~zod',
+                url: 'https://example.com',
+                code: 'code-123',
+                ownerShip: '~dev',
+              },
+            },
+          },
+        },
+      } as OpenClawConfig,
+      logger: { info: (m: string) => infos.push(m), warn: () => {} },
+    };
+    expect(initContextLensShipSync(api)).toBe(true);
+    expect(infos.join('\n')).toContain('fanning out to ~dev');
+  });
 });

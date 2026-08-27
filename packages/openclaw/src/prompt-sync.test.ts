@@ -1169,3 +1169,40 @@ describe('round-18 regressions', () => {
     });
   });
 });
+
+describe('applied-text marker', () => {
+  it('survives history eviction and stays visible to the foreign filter', () => {
+    const draft: Record<string, unknown> = {};
+    writePromptsIntoConfigDraft(
+      draft,
+      'default',
+      '~zod',
+      { 'USER.md': 'applied A' },
+      { markApplied: true }
+    );
+    // Eight later edits whose applies never succeeded evict A from the
+    // bounded history…
+    for (let i = 0; i < 8; i += 1) {
+      writePromptsIntoConfigDraft(draft, 'default', '~zod', {
+        'USER.md': `unapplied ${i}`,
+      });
+    }
+    const tlon = (draft as any).channels.tlon;
+    expect(tlon.promptSync.ships['~zod']['USER.md']).not.toContain('applied A');
+    // …but A is what is still ON DISK, and the applied marker keeps it
+    // recognizable as foreign for a replacement authority.
+    const cfg = {
+      channels: {
+        tlon: {
+          ship: '~bus',
+          url: 'http://x',
+          code: 'c',
+          promptSync: tlon.promptSync,
+        },
+      },
+    } as never;
+    expect(collectForeignPromptCaches(cfg, 'default')['USER.md']).toContain(
+      'applied A'
+    );
+  });
+});

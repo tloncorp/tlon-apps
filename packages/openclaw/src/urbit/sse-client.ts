@@ -1537,22 +1537,32 @@ export class UrbitSSEClient {
         continue;
       }
 
+      // The PUT only queues the subscribe — gall's ack decides whether the
+      // watch is live. Emitting `recovered` before it would let dependent
+      // reconciles scry while facts can still be dropped. The waiter is
+      // registered BEFORE the send: gall can ack while sendSubscription is
+      // still awaiting its release(), and a discarded ack would stall this
+      // loop into its timeout with no recovery event at all.
+      let cancelAckWait = () => {};
+      const ackPromise = new Promise<boolean | null>((resolve) => {
+        const timer = setTimeout(() => {
+          this.pendingSubscribeAcks.delete(newSubId);
+          resolve(null);
+        }, 30_000);
+        timer.unref?.();
+        this.pendingSubscribeAcks.set(newSubId, (ok) => {
+          clearTimeout(timer);
+          resolve(ok);
+        });
+        cancelAckWait = () => {
+          clearTimeout(timer);
+          this.pendingSubscribeAcks.delete(newSubId);
+          resolve(null);
+        };
+      });
       try {
         await this.sendSubscription(newSub);
-        // The PUT only queues the subscribe — gall's ack decides whether
-        // the watch is live. Emitting `recovered` before it would let
-        // dependent reconciles scry while facts can still be dropped.
-        const acked = await new Promise<boolean | null>((resolve) => {
-          const timer = setTimeout(() => {
-            this.pendingSubscribeAcks.delete(newSubId);
-            resolve(null);
-          }, 30_000);
-          timer.unref?.();
-          this.pendingSubscribeAcks.set(newSubId, (ok) => {
-            clearTimeout(timer);
-            resolve(ok);
-          });
-        });
+        const acked = await ackPromise;
         if (acked === null) {
           // Ack never arrived: the channel is wedged or rebuilding — the
           // stream machinery (watchdog/reconnect, epoch check above on the
@@ -1579,6 +1589,8 @@ export class UrbitSSEClient {
         });
         return;
       } catch (error) {
+        // The PUT never reached Eyre — no ack is coming for this attempt.
+        cancelAckWait();
         failedAttempts += 1;
         this.logger.error?.(
           `[SSE] Resubscribe failed for ${oldSub.app}${oldSub.path} (attempt ${failedAttempts}): ${String(error)}`

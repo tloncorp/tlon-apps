@@ -202,7 +202,10 @@ export function collectForeignPromptCaches(
   const tlon = cfg.channels?.tlon as
     | {
         accounts?: Record<string, unknown>;
-        promptSync?: { ships?: Record<string, Record<string, unknown>> };
+        promptSync?: {
+          ships?: Record<string, Record<string, unknown>>;
+          applied?: Record<string, Record<string, unknown>>;
+        };
       }
     | undefined;
   const myId = accountId || DEFAULT_ACCOUNT_ID;
@@ -246,6 +249,18 @@ export function collectForeignPromptCaches(
       } else {
         add(name, texts);
       }
+    }
+  }
+  // The applied marker survives history eviction: it records the text that
+  // actually reached the shared workspace files.
+  for (const [ship, prompts] of Object.entries(
+    tlon?.promptSync?.applied ?? {}
+  )) {
+    if (myShip && normalizeShip(ship) === myShip) {
+      continue;
+    }
+    for (const [name, text] of Object.entries(prompts ?? {})) {
+      add(name, text);
     }
   }
   return out;
@@ -420,7 +435,16 @@ export function writePromptsIntoConfigDraft(
   draft: Record<string, unknown>,
   accountId: string | null | undefined,
   botShip: string,
-  prompts: Record<string, string>
+  prompts: Record<string, string>,
+  writeOpts?: {
+    /**
+     * These texts were successfully APPLIED to the workspace files. Kept in
+     * a separate per-ship marker (promptSync.applied) that the bounded
+     * history can never evict — the applied text is by definition what may
+     * still sit on disk, so the foreign filter must always recognize it.
+     */
+    markApplied?: boolean;
+  }
 ): void {
   const channels = ((draft.channels as Record<string, unknown>) ??= {});
   const tlon = ((channels.tlon as Record<string, unknown>) ??= {});
@@ -464,6 +488,11 @@ export function writePromptsIntoConfigDraft(
     }
   }
   ledgerShips[ship] = nextEntry;
+  if (writeOpts?.markApplied) {
+    const appliedLedger = ((ledger.applied as Record<string, unknown>) ??= {});
+    const appliedEntry = (appliedLedger[ship] as Record<string, string>) ?? {};
+    appliedLedger[ship] = { ...appliedEntry, ...prompts };
+  }
 }
 
 /** True when `next` adds or changes any entry relative to `current`. */
@@ -550,7 +579,8 @@ export function createPromptSync(opts: {
     prompts: Record<string, string>,
     afterWrite:
       | { mode: 'none'; reason: string }
-      | { mode: 'restart'; reason: string }
+      | { mode: 'restart'; reason: string },
+    writeOpts?: { markApplied?: boolean }
   ) => {
     try {
       await core.config.mutateConfigFile({
@@ -560,7 +590,8 @@ export function createPromptSync(opts: {
             draft as unknown as Record<string, unknown>,
             accountId,
             botShip,
-            prompts
+            prompts,
+            writeOpts
           );
         },
       });
@@ -670,6 +701,17 @@ export function createPromptSync(opts: {
       // content. Leave the ship untouched and retry next boot.
       logger.warn('[tlon] Skipping prompt seed: workspace apply failed');
       return;
+    }
+    if (applied.length > 0 && Object.keys(desired).length > 0) {
+      // Record what actually reached the files: after a clean apply, every
+      // desired name matches disk. The applied marker is what the foreign
+      // filter falls back to once the bounded edit history evicts a text
+      // that never got re-applied.
+      await persistToConfig(
+        desired,
+        { mode: 'none', reason: 'tlon prompt sync applied marker' },
+        { markApplied: true }
+      );
     }
     if (aborted()) {
       // Torn down while the apply was in flight — stop before seeding on
@@ -801,12 +843,15 @@ export function createPromptSync(opts: {
     logger.log(
       `[tlon] Applied prompt edit to ${edit.name}; restarting gateway to pick it up`
     );
-    // The restart rides the config write. If the write is refused (e.g. an
-    // untrusted-plugin deployment), the file edit above still takes effect
-    // on the next turn — bootstrap files are re-read per turn.
+    // The restart rides the config write, which also stamps the applied
+    // marker — this text just reached the workspace file. If the write is
+    // refused (e.g. an untrusted-plugin deployment), the file edit above
+    // still takes effect on the next turn — bootstrap files are re-read
+    // per turn.
     await persistToConfig(
       { [edit.name]: edit.text },
-      { mode: 'restart', reason: `tlon system prompt ${edit.name} updated` }
+      { mode: 'restart', reason: `tlon system prompt ${edit.name} updated` },
+      { markApplied: true }
     );
   };
 

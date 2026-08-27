@@ -11,7 +11,7 @@ import {
 } from './gateway-status.js';
 import { sharedSlot } from './shared-state.js';
 import { normalizeShip } from './targets.js';
-import { resolveTlonAccount } from './types.js';
+import { listRunnableTlonAccountIds, resolveTlonAccount } from './types.js';
 
 const PAYLOAD_SCHEMA_VERSION = 1;
 const MAX_SUMMARY_CHARS = 4_096;
@@ -277,10 +277,19 @@ export function initContextLensShipSync(api: {
   config: OpenClawConfig;
   logger: SyncLogger;
 }): boolean {
-  if (!resolveTlonAccount(api.config).contextLens.enabled) {
+  // Resolve the account the process actually runs: with a sole runnable
+  // NAMED account, resolving the default slot here could capture a
+  // top-level contextLens.owner fallback and later reconfigure %steward's
+  // SHARED owner to a ship that account never named — re-fanning its
+  // prompts (and edit rights) there. With several runnable accounts the
+  // default slot remains the shared-transport owner, matching the other
+  // single-transport gates.
+  const runnable = listRunnableTlonAccountIds(api.config);
+  const accountId = runnable.length === 1 ? runnable[0] : undefined;
+  if (!resolveTlonAccount(api.config, accountId).contextLens.enabled) {
     return false;
   }
-  const owner = resolveLensOwner(api.config);
+  const owner = resolveLensOwner(api.config, accountId);
   if (owner === null) {
     api.logger.info(
       '[tlon] Context lens ship sync disabled: no owner configured (set contextLens.owner or ownerShip)'

@@ -231,11 +231,20 @@
       ((slog 'steward: lens retry relay nacked' u.p.sign) cor)
     ==
   ::
-      [%prompts %set *]
+      [%prompts %set @ @ ~]
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
-      ((slog 'steward: prompts set relay nacked' u.p.sign) cor)
+      ::  the relayed edit was rejected (bot desk restarting, size cap,
+      ::  prompt sync inactive there): re-fact the bot's current mirror so
+      ::  the editing client's optimistic state reverts to what the bot
+      ::  actually holds instead of reading as saved forever
+      ::
+      %-  (slog 'steward: prompts set relay nacked' u.p.sign)
+      =/  bot  (slav %p i.t.t.wire)
+      =/  cur  (~(gut by mirror.prompts.state) bot *prompts:v1:sp)
+      %^  give  %fact  ~[/v1/prompts]
+      steward-prompts-update-1+!>(`update:v1:sp`[%prompts bot cur])
     ==
   ::
       [%prompts %sync *]

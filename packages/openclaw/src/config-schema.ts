@@ -209,6 +209,10 @@ export const TlonConfigSchema = z.object({
         z.string().min(1),
         z.record(z.string().min(1), z.array(z.string()))
       ),
+      // Per-ship, per-name text last successfully APPLIED to the workspace
+      // files. Never evicted — it is by definition what may still be on
+      // disk, so the foreign filter must always recognize it.
+      applied: z.record(z.string().min(1), TlonPromptsSchema).optional(),
     })
     .optional(),
 });

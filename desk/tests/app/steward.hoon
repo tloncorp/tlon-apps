@@ -984,6 +984,36 @@
   %+  do-poke  %steward-prompts-action-1
   !>(`action:v1:p`[%set moon 'SOUL.md' 'proxy attempt'])
 ::
+::  a nacked %set relay re-facts the bot's current mirror so the editing
+::  client's optimistic state reverts to what the bot actually holds
+::
+++  test-pr-set-relay-nack-refacts-mirror
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  =/  cur=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2023.12.31 %.n]])
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%sync cur]))
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%set moon 'SOUL.md' 'new text'])
+  ;<  caz=(list card)  bind:m
+    %-  do-agent
+    :*  /prompts/set/(scot %p moon)/(scot %t 'SOUL.md')
+        [moon %steward]
+        [%poke-ack `~[[%leaf "boom"]]]
+    ==
+  %+  ex-cards  caz
+  :~  %-  ex-fact
+      :*  ~[/v1/prompts]
+          %steward-prompts-update-1
+          !>(`update:v1:p`[%prompts moon cur])
+      ==
+  ==
+::
 ::  a trusted bot's %sync is stored in the mirror keyed by src
 ::
 ++  test-pr-sync-from-trusted-bot-stores-mirror
