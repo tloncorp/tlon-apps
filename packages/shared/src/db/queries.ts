@@ -51,7 +51,12 @@ import { alias } from 'drizzle-orm/sqlite-core';
 import { trackEvent } from '../analytics';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
-import { appendContactIdToReplies, getCompositeGroups } from '../logic';
+import {
+  SURFACE_CHANNEL_CONFIG_LIKE_PATTERN,
+  appendContactIdToReplies,
+  getCompositeGroups,
+  isSurfaceChannel,
+} from '../logic';
 import { perfTime } from '../perfLog';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
@@ -143,6 +148,16 @@ import {
 import { ObservableField, notifyWriteObservers } from './writeObservers';
 
 const logger = createDevLogger('queries', false);
+
+/**
+ * SQL-side arm of the §8 exclusion (see `isSurfaceChannel`): true for rows
+ * that are NOT surface channels. Matches the JSON text config column as a
+ * substring; a missing channel row (outer join) or missing config counts as
+ * non-surface, so events without a channel (contact, group-level) pass.
+ */
+function notSurfaceChannel(channelsTable: typeof $channels = $channels) {
+  return sql`(${channelsTable.contentConfiguration} IS NULL OR ${channelsTable.contentConfiguration} NOT LIKE ${SURFACE_CHANNEL_CONFIG_LIKE_PATTERN})`;
+}
 
 const GROUP_META_COLUMNS = {
   id: true,
@@ -1394,6 +1409,40 @@ export const getChats = createReadQuery(
       },
     });
 
+    // §8: surface channels never badge. Their own unread rows zero out
+    // here; group counts are backend-precomputed sums over all child
+    // channels (the client can't change what the backend counts), so the
+    // surface contribution is subtracted at read time instead, floored at
+    // zero. The group-level `notify` flag stays backend-authored: we can't
+    // tell whether a surface channel was its sole cause.
+    const surfaceUnreadByGroup = new Map<string, number>();
+    for (const c of channels) {
+      if (!isSurfaceChannel(c) || !c.unread) {
+        continue;
+      }
+      if (c.groupId) {
+        surfaceUnreadByGroup.set(
+          c.groupId,
+          (surfaceUnreadByGroup.get(c.groupId) ?? 0) + (c.unread.count ?? 0)
+        );
+      }
+      c.unread = {
+        ...c.unread,
+        count: 0,
+        countWithoutThreads: 0,
+        notify: false,
+      };
+    }
+    for (const g of groups) {
+      const surfaceCount = surfaceUnreadByGroup.get(g.id) ?? 0;
+      if (g.unread && surfaceCount > 0) {
+        g.unread = {
+          ...g.unread,
+          count: Math.max(0, (g.unread.count ?? 0) - surfaceCount),
+        };
+      }
+    }
+
     const groupChats: Chat[] = groups.map((g) => ({
       id: g.id,
       type: 'group',
@@ -2570,10 +2619,18 @@ export const removeChatMembers = createWriteQuery(
 export const getNotifyingUnreadSourceCount = createReadQuery(
   'getNotifyingUnreadSourceCount',
   async (ctx: QueryCtx) => {
+    // §8: surface channels don't count toward the notifying-source badge.
+    // Left joins keep unread rows whose channel row hasn't synced yet (a
+    // missing config reads as non-surface). The group arm stays as the
+    // backend computed it: a group's notify flag doesn't say which child
+    // caused it, so a group whose only notifying child is a surface channel
+    // still counts here — accepted §8 boundary, server-side kind-aware
+    // activity is the v1 fix.
     const channelCountResult = await ctx.db
       .select({ count: count() })
       .from($channelUnreads)
-      .where(eq($channelUnreads.notify, true));
+      .leftJoin($channels, eq($channelUnreads.channelId, $channels.id))
+      .where(and(eq($channelUnreads.notify, true), notSurfaceChannel()));
 
     const groupCountResult = await ctx.db
       .select({ count: count() })
@@ -2582,7 +2639,8 @@ export const getNotifyingUnreadSourceCount = createReadQuery(
     const threadCountResult = await ctx.db
       .select({ count: count() })
       .from($threadUnreads)
-      .where(eq($threadUnreads.notify, true));
+      .leftJoin($channels, eq($threadUnreads.channelId, $channels.id))
+      .where(and(eq($threadUnreads.notify, true), notSurfaceChannel()));
 
     // Each query returns one aggregate row; sum the row counts.
     return (
@@ -2591,7 +2649,7 @@ export const getNotifyingUnreadSourceCount = createReadQuery(
       (threadCountResult[0]?.count ?? 0)
     );
   },
-  ['channelUnreads', 'groupUnreads', 'threadUnreads']
+  ['channelUnreads', 'groupUnreads', 'threadUnreads', 'channels']
 );
 
 function threadUnreadActivityPredicate() {
@@ -6150,93 +6208,108 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
     // note events carry their per-note unread as a thread row keyed by the
     // note id (postId), not parentId, so they need their own join
     const $noteThreadUnreads = alias($threadUnreads, 'noteThreadUnreads');
-    return ctx.db
-      .select()
-      .from($activityEvents)
-      .leftJoin(
-        $channelUnreads,
-        eq($activityEvents.channelId, $channelUnreads.channelId)
-      )
-      .leftJoin(
-        $threadUnreads,
-        eq($threadUnreads.threadId, $activityEvents.parentId)
-      )
-      .leftJoin(
-        $noteThreadUnreads,
-        and(
-          eq($noteThreadUnreads.channelId, $activityEvents.channelId),
-          eq($noteThreadUnreads.threadId, $activityEvents.postId)
+    return (
+      ctx.db
+        .select()
+        .from($activityEvents)
+        .leftJoin(
+          $channelUnreads,
+          eq($activityEvents.channelId, $channelUnreads.channelId)
         )
-      )
-      .leftJoin(
-        $groupUnreads,
-        eq($activityEvents.groupId, $groupUnreads.groupId)
-      )
-      .where(
-        and(
-          gt($activityEvents.timestamp, seenMarker),
-          or(
-            eq($activityEvents.type, 'contact'),
-            and(
-              eq($activityEvents.shouldNotify, true),
-              or(
-                and(
-                  eq($activityEvents.type, 'reply'),
-                  gt($threadUnreads.count, 0)
-                ),
-                and(
-                  eq($activityEvents.type, 'post'),
-                  gt($channelUnreads.count, 0)
-                ),
-                and(
-                  or(
-                    eq($activityEvents.type, 'note-create'),
-                    eq($activityEvents.type, 'note-edit')
+        .leftJoin(
+          $threadUnreads,
+          eq($threadUnreads.threadId, $activityEvents.parentId)
+        )
+        .leftJoin(
+          $noteThreadUnreads,
+          and(
+            eq($noteThreadUnreads.channelId, $activityEvents.channelId),
+            eq($noteThreadUnreads.threadId, $activityEvents.postId)
+          )
+        )
+        .leftJoin(
+          $groupUnreads,
+          eq($activityEvents.groupId, $groupUnreads.groupId)
+        )
+        // §8: events from surface channels never surface as unseen activity;
+        // events with no channel (contact, group-level) pass through
+        .leftJoin($channels, eq($activityEvents.channelId, $channels.id))
+        .where(
+          and(
+            gt($activityEvents.timestamp, seenMarker),
+            notSurfaceChannel(),
+            or(
+              eq($activityEvents.type, 'contact'),
+              and(
+                eq($activityEvents.shouldNotify, true),
+                or(
+                  and(
+                    eq($activityEvents.type, 'reply'),
+                    gt($threadUnreads.count, 0)
                   ),
-                  gt($noteThreadUnreads.count, 0)
-                ),
-                // reacts don't bump an unread count (unreads=|), so gate on the
-                // source's notify flag instead: a notified react lights the bell
-                // and clears once the source is read (notify -> false), mirroring
-                // how posts clear via channelUnreads.count. reply reacts carry the
-                // notify bit on the thread, top-level reacts on the channel/dm.
-                and(
-                  eq($activityEvents.type, 'react'),
-                  or(
-                    eq($channelUnreads.notify, true),
-                    eq($threadUnreads.notify, true)
-                  )
-                ),
-                and(
-                  gt($groupUnreads.notifyCount, 0),
-                  or(
-                    eq($activityEvents.type, 'group-ask'),
-                    eq($activityEvents.type, 'flag-post'),
-                    eq($activityEvents.type, 'flag-reply')
+                  and(
+                    eq($activityEvents.type, 'post'),
+                    gt($channelUnreads.count, 0)
+                  ),
+                  and(
+                    or(
+                      eq($activityEvents.type, 'note-create'),
+                      eq($activityEvents.type, 'note-edit')
+                    ),
+                    gt($noteThreadUnreads.count, 0)
+                  ),
+                  // reacts don't bump an unread count (unreads=|), so gate on the
+                  // source's notify flag instead: a notified react lights the bell
+                  // and clears once the source is read (notify -> false), mirroring
+                  // how posts clear via channelUnreads.count. reply reacts carry the
+                  // notify bit on the thread, top-level reacts on the channel/dm.
+                  and(
+                    eq($activityEvents.type, 'react'),
+                    or(
+                      eq($channelUnreads.notify, true),
+                      eq($threadUnreads.notify, true)
+                    )
+                  ),
+                  and(
+                    gt($groupUnreads.notifyCount, 0),
+                    or(
+                      eq($activityEvents.type, 'group-ask'),
+                      eq($activityEvents.type, 'flag-post'),
+                      eq($activityEvents.type, 'flag-reply')
+                    )
                   )
                 )
               )
             )
           )
         )
-      );
+    );
   },
   // the predicate reads all three unread tables, so clearing an unread
   // (e.g. reading a note) must re-run this even when no activity event
-  // row changed
-  ['activityEvents', 'channelUnreads', 'threadUnreads', 'groupUnreads']
+  // row changed; channels feed the §8 surface exclusion
+  [
+    'activityEvents',
+    'channelUnreads',
+    'threadUnreads',
+    'groupUnreads',
+    'channels',
+  ]
 );
 
 export const checkActivityEmpty = createReadQuery(
   'checkActivityEmpty',
   async (ctx: QueryCtx) => {
+    // §8: an activity feed holding only surface-channel events is empty
     const countResult = await ctx.db
       .select({ count: count() })
-      .from($activityEvents);
+      .from($activityEvents)
+      .leftJoin($channels, eq($activityEvents.channelId, $channels.id))
+      .where(notSurfaceChannel());
     const countValue = countResult[0]?.count ?? 0;
     return countValue === 0;
   },
-  ['activityEvents']
+  ['activityEvents', 'channels']
 );
 
 export type BucketedActivity = {
@@ -6278,9 +6351,12 @@ export const getMentionEvents = createReadQuery(
       },
       limit: !stopCursor ? ACTIVITY_SOURCE_PAGESIZE : undefined,
     });
-    return events;
+    // §8: mentions inside surface channels never reach the activity feed.
+    // Filtered after the fetch (the relational API can't filter on a
+    // relation's column), so a page may come back shorter than the limit.
+    return events.filter((event) => !isSurfaceChannel(event.channel));
   },
-  ['activityEvents']
+  ['activityEvents', 'channels']
 );
 
 export const getBucketedMentionsPage = async ({
@@ -6336,9 +6412,14 @@ export const getAllOrRepliesPage = createReadQuery(
       const sources = ctx.db
         .selectDistinct({ sourceId: $activityEvents.sourceId })
         .from($activityEvents)
+        // §8: surface-channel sources never enter the activity feed; the
+        // downstream event queries join against these sources, so
+        // excluding them here excludes their events too
+        .leftJoin($channels, eq($activityEvents.channelId, $channels.id))
         .where(
           and(
             eq($activityEvents.bucketId, bucket),
+            notSurfaceChannel(),
             or(
               eq($activityEvents.shouldNotify, true),
               eq($activityEvents.type, 'contact')
@@ -6455,7 +6536,7 @@ export const getAllOrRepliesPage = createReadQuery(
       return [];
     }
   },
-  ['activityEvents']
+  ['activityEvents', 'channels']
 );
 
 export const getBucketedActivity = createReadQuery(
@@ -6505,9 +6586,18 @@ export const getBucketedActivity = createReadQuery(
       threadsQuery,
       mentionsQuery,
     ]);
-    return { all, threads, mentions };
+    // §8: surface-channel events are excluded from every bucket; filtered
+    // after the fetch (the relational API can't filter on a relation's
+    // column). Events with no channel (contact, group-level) stay.
+    const excludeSurface = (events: ActivityEvent[]) =>
+      events.filter((event) => !isSurfaceChannel(event.channel));
+    return {
+      all: excludeSurface(all),
+      threads: excludeSurface(threads),
+      mentions: excludeSurface(mentions),
+    };
   },
-  ['activityEvents']
+  ['activityEvents', 'channels']
 );
 
 export const insertPinnedItems = createWriteQuery(
