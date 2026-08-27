@@ -686,6 +686,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         if (outcome === 'acked') {
           return true;
         }
+        if (outcome === 'unavailable') {
+          // The ship keeps refusing this watch (an older desk without the
+          // prompts module). Stop reconciling: without a live watch we
+          // cannot apply owner edits, and the scry would 404 anyway.
+          runtime.log?.(
+            `[tlon] /v1/prompts unsupported by this ship; prompt sync inactive (${reason})`
+          );
+          promptSync = null;
+          return false;
+        }
         if (outcome !== 'timeout') {
           return false;
         }
@@ -713,6 +723,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     );
     if (first === 'acked') {
       await runStartup();
+      return;
+    }
+    if (first === 'unavailable') {
+      runtime.log?.(
+        `[tlon] /v1/prompts unsupported by this ship; prompt sync inactive (${reason})`
+      );
+      promptSync = null;
       return;
     }
     if (first !== 'timeout') {

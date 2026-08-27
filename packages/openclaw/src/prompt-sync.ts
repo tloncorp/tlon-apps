@@ -692,6 +692,26 @@ export function createPromptSync(opts: {
     }
   };
 
+  /**
+   * Drop the removed files' ownership stamps, or the regenerated bootstrap
+   * defaults would be re-removed on every boot. A failed write is safe:
+   * the next boot unlinks again (ENOENT-tolerant) and retries the clear.
+   * The in-memory copy only advances with the persisted state, so later
+   * reconciles on this instance stay consistent with disk.
+   */
+  const clearRemovedStamps = async (names: string[]): Promise<void> => {
+    const cleared = await persistToConfig(
+      {},
+      { mode: 'none', reason: 'tlon prompt sync stamp clear' },
+      { clearFileStamps: names }
+    );
+    if (cleared) {
+      for (const name of names) {
+        delete fileStamps[name];
+      }
+    }
+  };
+
   const startup = async () => {
     if (aborted()) {
       return;
@@ -869,6 +889,40 @@ export function createPromptSync(opts: {
       // behalf of an obsolete account snapshot.
       return;
     }
+    const removedStamps: string[] = [];
+    // Stamp-based cleanup runs BEFORE the read, and needs no file content:
+    // an entrypoint rewrite can push a former owner's file past the byte
+    // cap (or make it unreadable), and gating removal behind a successful
+    // read would leave that private prompt on disk — loaded by the agent
+    // every turn — with every later reconcile bailing at the same place.
+    for (const name of PROMPT_FILE_NAMES) {
+      const stamp = fileStamps[name];
+      if (stamp === undefined || normalizeShip(stamp) === myShipNorm) {
+        continue;
+      }
+      // A foreign stamp cannot coexist with our own content: applying an
+      // edit stamps the file for us, and handleFact refuses to write over
+      // a file stamped for another ship.
+      try {
+        await fs.unlink(path.join(workspaceDir, name));
+        logger.warn(
+          `[tlon] Removed foreign prompt ${name} from the workspace (file is stamped for ${stamp})`
+        );
+        removedStamps.push(name);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
+          // Already gone (e.g. a previous boot removed it but crashed
+          // before clearing the stamp) — clearing the stamp is all that
+          // is left to do.
+          removedStamps.push(name);
+        } else {
+          logger.warn(
+            `[tlon] Aborting prompt reconcile: failed to remove foreign prompt ${name}: ${error}`
+          );
+          return;
+        }
+      }
+    }
     const { prompts: effective, ok: readOk } = await readEffectivePrompts(
       workspaceDir,
       logger
@@ -876,14 +930,17 @@ export function createPromptSync(opts: {
     if (!readOk) {
       // A partial read would seed an incomplete set, and %steward would
       // drop the unreadable file's un-edited entry even though the gateway
-      // still runs it. Retry next boot.
+      // still runs it. Retry next boot — but persist any stamp clears from
+      // the cleanup above first, so the removals are not repeated forever.
+      if (removedStamps.length > 0) {
+        await clearRemovedStamps(removedStamps);
+      }
       logger.warn('[tlon] Skipping prompt seed: workspace read failed');
       return;
     }
     if (aborted()) {
       return;
     }
-    const removedStamps: string[] = [];
     for (const [name, text] of Object.entries(effective)) {
       if (desired[name] === text) {
         // Verifiably our own content (matches this ship's stored edit /
@@ -892,16 +949,10 @@ export function createPromptSync(opts: {
         // are ones this ship already holds.
         continue;
       }
-      // Ownership stamp first — provenance by which ship last WROTE the
-      // file, immune to entrypoints rewriting prompt files (re-appending
-      // marked blocks) so that foreign content stops matching any recorded
-      // text. Text matching remains as a fallback for files that predate
-      // stamping.
-      const stamp = fileStamps[name];
-      const stampForeign =
-        stamp !== undefined && normalizeShip(stamp) !== myShipNorm;
-      const textForeign = opts.foreignPrompts?.[name]?.includes(text) === true;
-      if (stampForeign || textForeign) {
+      // Stamped-foreign files are already gone (handled above, without
+      // needing their contents). This is the text fallback, for files that
+      // predate stamping.
+      if (opts.foreignPrompts?.[name]?.includes(text) === true) {
         // The shared workspace still holds another ship's owner-edited
         // content (the syncing authority changed without a workspace
         // rebuild). Excluding it from the seed isn't enough — the agent
@@ -912,11 +963,7 @@ export function createPromptSync(opts: {
         try {
           await fs.unlink(path.join(workspaceDir, name));
           logger.warn(
-            `[tlon] Removed foreign prompt ${name} from the workspace (${
-              stampForeign
-                ? `file is stamped for ${stamp}`
-                : "text matches another ship's stored edit"
-            }); not seeding it`
+            `[tlon] Removed foreign prompt ${name} from the workspace (text matches another ship's stored edit); not seeding it`
           );
           removedStamps.push(name);
         } catch (error) {
@@ -938,21 +985,7 @@ export function createPromptSync(opts: {
       }
     }
     if (removedStamps.length > 0) {
-      // Drop the removed files' ownership stamps, or the regenerated
-      // bootstrap defaults would be re-removed on every boot. A failed
-      // write is safe: the next boot unlinks again (ENOENT-tolerant) and
-      // retries the clear. The in-memory copy only advances with the
-      // persisted state so later reconciles stay consistent with disk.
-      const cleared = await persistToConfig(
-        {},
-        { mode: 'none', reason: 'tlon prompt sync stamp clear' },
-        { clearFileStamps: removedStamps }
-      );
-      if (cleared) {
-        for (const name of removedStamps) {
-          delete fileStamps[name];
-        }
-      }
+      await clearRemovedStamps(removedStamps);
     }
     if (Object.keys(effective).length === 0) {
       // Deliberately NOT seeding an empty set. openclaw bootstraps these

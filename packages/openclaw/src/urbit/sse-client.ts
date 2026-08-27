@@ -12,6 +12,10 @@ import { getUrbitContext, normalizeUrbitCookie } from './context.js';
 import { UrbitHttpError } from './errors.js';
 import { urbitFetch } from './fetch.js';
 
+// Consecutive subscribe nacks after which a watch is treated as
+// unsupported by this ship rather than transiently unavailable.
+const MAX_CONSECUTIVE_SUBSCRIBE_NACKS = 3;
+
 const SUBSCRIPTION_RETRY_FLOOR_MS = 2_000;
 const SUBSCRIPTION_RETRY_CAP_MS = 30_000;
 const SUBSCRIPTION_RETRY_LOG_SAMPLE = 5;
@@ -24,7 +28,7 @@ export type UrbitSseLogger = {
 export type SubscriptionRecoveryEvent = {
   app: string;
   path: string;
-  phase: 'retrying' | 'recovered' | 'recovered_via_reconnect';
+  phase: 'retrying' | 'recovered' | 'recovered_via_reconnect' | 'abandoned';
   /** Failed resubscribe attempts so far (0 on a clean first-try recovery). */
   attempt: number;
   /** Elapsed ms since the quit that killed the subscription. */
@@ -186,6 +190,15 @@ export class UrbitSSEClient {
   // facts emitted between their scry and the watch going live.
   private ackedSubscriptionKeys = new Set<string>();
   private subscriptionKeyAckWaiters = new Map<string, Set<() => void>>();
+  // Consecutive subscribe NACKs per `app+path`, and the keys we have given
+  // up on. A quit means the watch was live, so quit-driven recovery is
+  // unbounded (losing an inbound subscription is silent data loss); a nack
+  // means it was refused, and some refusals are permanent — an older ship
+  // without the prompts module nacks /v1/prompts forever. Retrying that
+  // mints a fresh subscription id every time, so the retry budget resets
+  // and `subscriptions` grows without bound.
+  private subscriptionNackCounts = new Map<string, number>();
+  private abandonedSubscriptionKeys = new Set<string>();
 
   private subscriptionRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private subscriptionRetryDelayMs = SUBSCRIPTION_RETRY_FLOOR_MS;
@@ -975,13 +988,9 @@ export class UrbitSSEClient {
           if (sub) {
             const key = `${sub.app}${sub.path}`;
             this.ackedSubscriptionKeys.add(key);
-            const waiters = this.subscriptionKeyAckWaiters.get(key);
-            if (waiters) {
-              this.subscriptionKeyAckWaiters.delete(key);
-              for (const resolve of waiters) {
-                resolve();
-              }
-            }
+            this.subscriptionNackCounts.delete(key);
+            this.abandonedSubscriptionKeys.delete(key);
+            this.flushSubscriptionKeyAckWaiters(key);
           }
         }
         // A subscribe nack after the channel PUT means the watch never went
@@ -994,6 +1003,35 @@ export class UrbitSSEClient {
             typeof parsed.id === 'number' &&
             this.eventHandlers.has(parsed.id)
           ) {
+            const sub = this.subscriptions.find((s) => s.id === parsed.id);
+            const key = sub ? `${sub.app}${sub.path}` : null;
+            const nacks = key
+              ? (this.subscriptionNackCounts.get(key) ?? 0) + 1
+              : 1;
+            if (key) {
+              this.subscriptionNackCounts.set(key, nacks);
+            }
+            if (nacks > MAX_CONSECUTIVE_SUBSCRIBE_NACKS && key && sub) {
+              // Treated as unsupported rather than transient: keep the
+              // handlers (a channel rebuild re-sends and may succeed on a
+              // ship that has since updated) but stop the recovery loop,
+              // and release anyone waiting on the ack.
+              this.abandonedSubscriptionKeys.add(key);
+              this.subscriptionNackCounts.delete(key);
+              this.logger.error?.(
+                `[SSE] Subscribe to ${sub.app}${sub.path} nacked ${nacks} times; treating it as unsupported and stopping recovery`
+              );
+              this.onSubscriptionRecovery?.({
+                app: sub.app,
+                path: sub.path,
+                phase: 'abandoned',
+                attempt: nacks,
+                downMs: 0,
+                error: parsed.err,
+              });
+              this.flushSubscriptionKeyAckWaiters(key);
+              return;
+            }
             this.logger.error?.(
               `[SSE] Subscribe NACK id=${parsed.id}: ${JSON.stringify(parsed.err)} — resubscribing`
             );
@@ -1210,62 +1248,77 @@ export class UrbitSSEClient {
     path: string,
     timeoutMs = 30_000,
     signal?: AbortSignal
-  ): Promise<'acked' | 'timeout' | 'superseded' | 'closed'> {
+  ): Promise<'acked' | 'timeout' | 'superseded' | 'closed' | 'unavailable'> {
     const key = `${app}${path}`;
     if (this.ackedSubscriptionKeys.has(key)) {
       return 'acked';
+    }
+    if (this.abandonedSubscriptionKeys.has(key)) {
+      return 'unavailable';
     }
     if (this.aborted || signal?.aborted) {
       return 'closed';
     }
     const epochAtWait = this.channelEpoch;
-    return await new Promise<'acked' | 'timeout' | 'superseded' | 'closed'>(
-      (resolve) => {
-        let settled = false;
-        const finish = (
-          outcome: 'acked' | 'timeout' | 'superseded' | 'closed'
-        ) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          signal?.removeEventListener('abort', onAbort);
-          this.subscriptionKeyAckWaiters.get(key)?.delete(onAck);
-          resolve(outcome);
-        };
-        // Waiters are called with no argument, so each computes its own
-        // outcome — that lets close() settle every pending wait by simply
-        // flushing them (aborted is already true by then).
-        const onAck = () =>
+    return await new Promise<
+      'acked' | 'timeout' | 'superseded' | 'closed' | 'unavailable'
+    >((resolve) => {
+      let settled = false;
+      const finish = (
+        outcome: 'acked' | 'timeout' | 'superseded' | 'closed' | 'unavailable'
+      ) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', onAbort);
+        this.subscriptionKeyAckWaiters.get(key)?.delete(onAck);
+        resolve(outcome);
+      };
+      // Waiters are called with no argument, so each computes its own
+      // outcome — that lets close() settle every pending wait by simply
+      // flushing them (aborted is already true by then).
+      const onAck = () =>
+        finish(
+          this.aborted
+            ? 'closed'
+            : this.channelEpoch === epochAtWait
+              ? 'acked'
+              : 'superseded'
+        );
+      // The caller's teardown signal fires well before close(), and
+      // callers await this — without the listener a retiring monitor
+      // would sit out the full timeout before noticing.
+      const onAbort = () => finish('closed');
+      const timer = setTimeout(
+        () =>
           finish(
             this.aborted
               ? 'closed'
               : this.channelEpoch === epochAtWait
-                ? 'acked'
+                ? 'timeout'
                 : 'superseded'
-          );
-        // The caller's teardown signal fires well before close(), and
-        // callers await this — without the listener a retiring monitor
-        // would sit out the full timeout before noticing.
-        const onAbort = () => finish('closed');
-        const timer = setTimeout(
-          () =>
-            finish(
-              this.aborted
-                ? 'closed'
-                : this.channelEpoch === epochAtWait
-                  ? 'timeout'
-                  : 'superseded'
-            ),
-          timeoutMs
-        );
-        timer.unref?.();
-        signal?.addEventListener('abort', onAbort, { once: true });
-        const waiters =
-          this.subscriptionKeyAckWaiters.get(key) ?? new Set<() => void>();
-        waiters.add(onAck);
-        this.subscriptionKeyAckWaiters.set(key, waiters);
-      }
-    );
+          ),
+        timeoutMs
+      );
+      timer.unref?.();
+      signal?.addEventListener('abort', onAbort, { once: true });
+      const waiters =
+        this.subscriptionKeyAckWaiters.get(key) ?? new Set<() => void>();
+      waiters.add(onAck);
+      this.subscriptionKeyAckWaiters.set(key, waiters);
+    });
+  }
+
+  /** Wake everyone waiting on this key; each computes its own outcome. */
+  private flushSubscriptionKeyAckWaiters(key: string) {
+    const waiters = this.subscriptionKeyAckWaiters.get(key);
+    if (!waiters) {
+      return;
+    }
+    this.subscriptionKeyAckWaiters.delete(key);
+    for (const resolve of [...waiters]) {
+      resolve();
+    }
   }
 
   /** Rejects every awaitAck poke — their acks can no longer arrive. */

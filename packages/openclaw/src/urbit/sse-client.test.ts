@@ -128,6 +128,47 @@ describe('UrbitSSEClient', () => {
       await expect(pending).resolves.toBe('closed');
     });
 
+    it('reports unavailable once repeated nacks abandon the watch', async () => {
+      vi.useFakeTimers();
+      const { urbitFetch } = await import('./fetch.js');
+      vi.mocked(urbitFetch).mockResolvedValue(okFetch());
+      const recovery: string[] = [];
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: (e) => recovery.push(e.phase) }
+      );
+      (client as unknown as { isConnected: boolean }).isConnected = true;
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/prompts',
+        event: vi.fn(),
+        quit: vi.fn(),
+      });
+      // An older ship without the module nacks every attempt. Each nack
+      // mints a fresh subscription id, so without a cap this loops forever
+      // and grows `subscriptions` unboundedly.
+      const priv = client as unknown as {
+        subscriptions: { id: number }[];
+        eventHandlers: Map<number, unknown>;
+      };
+      for (let i = 0; i < 6; i += 1) {
+        const id = priv.subscriptions.filter((sub) =>
+          priv.eventHandlers.has(sub.id)
+        )[0]?.id;
+        if (id === undefined) break;
+        client.processEvent(
+          `id: ${i + 1}\ndata: {"id":${id},"response":"subscribe","err":"no-such-path"}`
+        );
+        await vi.advanceTimersByTimeAsync(3_000);
+      }
+      expect(recovery).toContain('abandoned');
+      await expect(
+        client.waitForSubscriptionAck('steward', '/v1/prompts', 1_000)
+      ).resolves.toBe('unavailable');
+      vi.useRealTimers();
+    });
+
     it('reports closed after the client shuts down', async () => {
       const client = await makeClient();
       (client as unknown as { aborted: boolean }).aborted = true;

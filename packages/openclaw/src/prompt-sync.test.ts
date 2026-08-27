@@ -1440,3 +1440,42 @@ describe('partial apply stamping', () => {
     expect(reasons).toContain('tlon prompt sync partial apply stamps');
   });
 });
+
+describe('stamp cleanup independent of the read gate', () => {
+  it('removes a foreign-stamped file even when it is oversized', async () => {
+    // An entrypoint rewrite pushed a former owner's file past the cap, so
+    // readEffectivePrompts reports ok=false. Cleanup must not be gated on
+    // that: the agent re-reads this file every turn.
+    fs.writeFileSync(
+      path.join(tmpDir, 'USER.md'),
+      'x'.repeat(MAX_PROMPT_BYTES + 1)
+    );
+    const core = makeCore();
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
+    const sync = createPromptSync({
+      core,
+      accountId: 'default',
+      botShip: '~zod',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      fileStamps: { 'USER.md': '~bus' },
+      owner: null,
+      scry: async () => ({}),
+      poke,
+      logger,
+    });
+    await sync.startup();
+    expect(fs.existsSync(path.join(tmpDir, 'USER.md'))).toBe(false);
+    // The oversized read still blocks the seed, but the stamp clear is
+    // persisted so the removal is not retried forever.
+    expect(poke).not.toHaveBeenCalledWith(
+      expect.objectContaining({ mark: 'steward-prompts-action-1' })
+    );
+    const reasons = core.config.mutateConfigFile.mock.calls.map(
+      (c: any) => c[0].afterWrite.reason
+    );
+    expect(reasons).toContain('tlon prompt sync stamp clear');
+  });
+});
