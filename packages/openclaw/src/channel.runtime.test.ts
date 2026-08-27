@@ -17,6 +17,7 @@ const resolveTlonAccount = vi.fn(() => ({
 }));
 
 vi.mock('@tloncorp/api', () => ({
+  A2UI: { action: { sendMessage: 'sendMessage' } },
   notes: { getNotebook, createNote, listNotes },
   scry: vi.fn(),
 }));
@@ -27,6 +28,7 @@ vi.mock('./urbit/upload.js', () => ({
 
 vi.mock('./urbit/send.js', () => ({
   buildMediaStory: vi.fn(() => [{ inline: ['mock'] }]),
+  buildMediaText: vi.fn((text: string) => text),
   sendChannelPost: vi.fn(async () => ({
     channel: 'tlon',
     messageId: '~zod/123',
@@ -99,6 +101,12 @@ vi.mock('./setup-surface.js', () => ({
 }));
 
 vi.mock('./urbit/blob.js', () => ({
+  combineBlobFields: vi.fn(
+    (...fields: Array<string | undefined>) =>
+      fields.filter(Boolean).join('|') || undefined
+  ),
+  makeA2UIBlob: vi.fn(() => ({ type: 'a2ui' })),
+  serializeBlobField: vi.fn(() => '[{"type":"a2ui"}]'),
   serializeContextLensReferenceBlob: vi.fn(),
 }));
 
@@ -220,6 +228,45 @@ describe('sendMedia', () => {
       deliveryFailureCount: 0,
       deliverySuccessCount: 1,
     });
+  });
+});
+
+describe('sendPayload presentation', () => {
+  it('sends portable approval controls as an A2UI blob', async () => {
+    const { tlonRuntimeOutbound } = await import('./channel.runtime.js');
+    const { sendDm } = await import('./urbit/send.js');
+
+    await tlonRuntimeOutbound.sendPayload!({
+      cfg: {} as never,
+      to: '~nec',
+      text: 'Approval required.',
+      accountId: null,
+      replyToId: null,
+      threadId: null,
+      payload: {
+        text: 'Approval required.',
+        presentation: {
+          blocks: [
+            {
+              type: 'buttons',
+              buttons: [
+                {
+                  label: 'Allow Once',
+                  action: {
+                    type: 'command',
+                    command: '/approve abc allow-once',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+    expect(sendDm).toHaveBeenCalledWith(
+      expect.objectContaining({ blob: '[{"type":"a2ui"}]' })
+    );
   });
 });
 

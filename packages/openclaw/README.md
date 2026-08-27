@@ -121,6 +121,13 @@ Reply "approve", "deny", or "block" (ID: dm-1234567890-abc)
 -   **deny**: Reject silently. Ship can try again later.
 -   **block**: Permanently block using Tlon's native blocking.
 
+### OpenClaw Tool Approvals
+
+For Tlon-originated exec and plugin-tool approvals, the plugin sends the
+configured `ownerShip` an A2UI card whose buttons submit OpenClaw's exact
+`/approve` command. OpenClaw still owns approval policy, expiry, decisions, and
+resuming the waiting turn; the plugin only presents and transports the request.
+
 ### Admin Commands
 
 The owner can send these commands via DM:
@@ -137,7 +144,7 @@ The owner can send these commands via DM:
 
 ```
 Harness: OpenClaw
-Harness Version: 2026.5.28
+Harness Version: 2026.7.1
 Adapter Version: 0.4.3
 Tlon Skill: 0.3.2
 Fingerprint: fp1:8aa23ca2bc8d

@@ -14,6 +14,7 @@ import {
 } from 'openclaw/plugin-sdk/status-helpers';
 
 import { tlonMessageActions } from './actions.js';
+import { tlonApprovalCapability } from './approval-native.js';
 import { tlonChannelConfigSchema } from './config-schema.js';
 import { resolveTlonOutboundSessionRoute } from './session-route.js';
 import {
@@ -144,6 +145,7 @@ export const tlonPlugin = createChatChannelPlugin({
         resolveTlonOutboundSessionRoute(params),
     },
     actions: tlonMessageActions,
+    approvalCapability: tlonApprovalCapability,
     agentPrompt: {
       messageToolHints: ({ cfg, accountId }) => {
         const account = resolveTlonAccount(cfg, accountId ?? undefined);
@@ -261,6 +263,42 @@ export const tlonPlugin = createChatChannelPlugin({
   outbound: {
     deliveryMode: 'direct',
     textChunkLimit: 10000,
+    presentationCapabilities: {
+      supported: true,
+      buttons: true,
+      context: true,
+      divider: true,
+      limits: {
+        actions: {
+          maxActions: 3,
+          maxActionsPerRow: 3,
+          maxRows: 1,
+          maxLabelLength: 40,
+          maxValueBytes: 512,
+          supportsStyles: true,
+          supportsDisabled: false,
+        },
+        text: {
+          maxLength: 10000,
+          encoding: 'characters',
+          markdownDialect: 'markdown',
+          supportsEdit: false,
+        },
+      },
+    },
+    deliveryCapabilities: {
+      durableFinal: {
+        text: true,
+        media: true,
+        payload: true,
+        replyTo: true,
+        thread: true,
+      },
+    },
+    shouldSuppressLocalPayloadPrompt: ({ hint }) =>
+      hint?.kind === 'approval-pending' &&
+      hint.approvalKind === 'exec' &&
+      hint.nativeRouteActive === true,
     resolveTarget: ({ to }) => {
       const parsed = parseTlonTarget(to ?? '');
       if (!parsed) {
@@ -276,6 +314,9 @@ export const tlonPlugin = createChatChannelPlugin({
     },
     ...createRuntimeOutboundDelegates({
       getRuntime: loadTlonChannelRuntime,
+      renderPresentation: {
+        resolve: (runtime) => runtime.tlonRuntimeOutbound.renderPresentation,
+      },
       sendPayload: {
         resolve: (runtime) => runtime.tlonRuntimeOutbound.sendPayload,
       },

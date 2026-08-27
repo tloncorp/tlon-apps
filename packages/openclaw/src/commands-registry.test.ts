@@ -5,6 +5,7 @@ import type { PluginCommandContext } from 'openclaw/plugin-sdk/core';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  APPROVAL_COMMAND_TOKENS,
   CORE_COMMAND_TOKENS,
   TLON_COMMAND_REGISTRY,
   type TlonCommandDeps,
@@ -149,6 +150,11 @@ describe('core command tokens', () => {
       expect(commandTokens()).not.toContain(token);
     }
   });
+
+  it('engages approval card commands without advertising them', () => {
+    expect(APPROVAL_COMMAND_TOKENS).toEqual(['/approve']);
+    expect(commandTokens()).not.toContain('/approve');
+  });
 });
 
 describe('buildEngagementTokensJson', () => {
@@ -160,10 +166,11 @@ describe('buildEngagementTokensJson', () => {
     expect(buildEngagementTokensJson()).toBe(buildEngagementTokensJson());
   });
 
-  it('is the registry tokens followed by the core trio', () => {
+  it('includes registry, core, and approval commands', () => {
     expect(engagementTokens()).toEqual([
       ...commandTokens(),
       ...CORE_COMMAND_TOKENS,
+      ...APPROVAL_COMMAND_TOKENS,
     ]);
   });
 });

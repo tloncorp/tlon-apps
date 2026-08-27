@@ -13,6 +13,11 @@ import {
   recordAuthRetryFailure,
 } from '../auth-retry-state.js';
 import {
+  approvalSurfaceId,
+  buildTlonPresentationBlobField,
+  readTlonReplyBlob,
+} from '../approval-presentation.js';
+import {
   type SelfContactRead,
   buildBotInfoJson,
   syncBotInfo,
@@ -107,6 +112,7 @@ import {
   isPermanentAuthenticationFailure,
 } from '../urbit/auth.js';
 import {
+  combineBlobFields,
   serializeBlobField,
   serializeContextLensReferenceBlob,
 } from '../urbit/blob.js';
@@ -419,7 +425,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     throw new Error('Tlon account ship is empty after normalization');
   }
   const tlonSkillVersion = await resolveTlonSkillVersion();
-  const effectiveOwnerShip: string | null = account.ownerShip
+  let effectiveOwnerShip: string | null = account.ownerShip
     ? normalizeShip(account.ownerShip)
     : null;
   setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
@@ -1239,6 +1245,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           fileValue: account.showModelSignature,
           settingsValue: currentSettings.showModelSig,
         },
+        {
+          key: 'ownerShip',
+          fileValue: account.ownerShip,
+          settingsValue: currentSettings.ownerShip,
+        },
       ];
 
       for (const { key, fileValue, settingsValue } of migrations) {
@@ -1322,6 +1333,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
       if (currentSettings.showModelSig !== undefined) {
         effectiveShowModelSig = currentSettings.showModelSig;
+      }
+      if (currentSettings.ownerShip !== undefined) {
+        effectiveOwnerShip = normalizeShip(currentSettings.ownerShip);
+        setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
       }
       if (currentSettings.autoAcceptDmInvites !== undefined) {
         effectiveAutoAcceptDmInvites = currentSettings.autoAcceptDmInvites;
@@ -1838,34 +1853,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         );
         return undefined;
       }
-    }
-
-    function getReplyBlob(payload: ReplyPayload): string | undefined {
-      const blob = (payload.channelData?.tlon as { blob?: unknown } | undefined)
-        ?.blob;
-      return typeof blob === 'string' ? blob : undefined;
-    }
-
-    // Merge serialized post-blob fields (each a JSON array of entries) into one,
-    // so a reply can carry both an a2ui card and a context-lens reference.
-    function combineBlobFields(
-      ...fields: Array<string | undefined>
-    ): string | undefined {
-      const entries: unknown[] = [];
-      for (const field of fields) {
-        if (!field) {
-          continue;
-        }
-        try {
-          const parsed = JSON.parse(field);
-          if (Array.isArray(parsed)) {
-            entries.push(...parsed);
-          }
-        } catch {
-          // Skip a malformed blob field rather than dropping the whole message.
-        }
-      }
-      return entries.length > 0 ? JSON.stringify(entries) : undefined;
     }
 
     // Regex to match block directives in agent responses
@@ -3414,7 +3401,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                         },
                         deliver: async (payload: ReplyPayload, info) => {
                           contextLenses.setStatus(lens.lensId, 'delivering');
-                          const blob = getReplyBlob(payload);
+                          const blob = combineBlobFields(
+                            readTlonReplyBlob(payload),
+                            buildTlonPresentationBlobField({
+                              presentation: payload.presentation,
+                              fallbackText: payload.text,
+                              surfaceId: approvalSurfaceId(payload),
+                            })
+                          );
                           let replyText = payload.text ?? '';
                           replyText = rewriteGenericTerminalErrorReply({
                             text: replyText,
@@ -5016,6 +5010,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         snapshotOpts: { fresh?: boolean } = {}
       ) => {
         const prevSettings = currentSettings;
+
+        const nextOwnerShip = normalizeShip(
+          newSettings.ownerShip ?? account.ownerShip ?? ''
+        );
+        if (nextOwnerShip !== effectiveOwnerShip) {
+          effectiveOwnerShip = nextOwnerShip;
+          setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
+          runtime.log?.(
+            `[tlon] Settings: ownerShip updated to ${effectiveOwnerShip ?? '(unset)'}`
+          );
+        }
 
         // If pendingNudge has been rehydrated (startup succeeded or monitor has locally
         // set/cleared it), the in-memory state is authoritative — refreshes cannot clobber
