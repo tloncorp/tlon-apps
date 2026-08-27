@@ -142,3 +142,25 @@ export const JsonObjectSchema: z.ZodType<JsonObject> = z
 export function jsonByteLength(value: Json): number {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength;
 }
+
+/**
+ * Container nesting depth: 0 for scalars, 1 + deepest child for
+ * arrays/objects. `isJson` admits values with depth ≤ SURFACE_JSON_MAX_DEPTH.
+ */
+export function jsonContainerDepth(value: Json): number {
+  if (Array.isArray(value)) {
+    let max = 0;
+    for (const item of value) {
+      max = Math.max(max, jsonContainerDepth(item));
+    }
+    return 1 + max;
+  }
+  if (typeof value === 'object' && value !== null) {
+    let max = 0;
+    for (const key of Object.keys(value)) {
+      max = Math.max(max, jsonContainerDepth(value[key]));
+    }
+    return 1 + max;
+  }
+  return 0;
+}

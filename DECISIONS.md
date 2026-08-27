@@ -96,3 +96,41 @@ STOP condition hit.
   a live `%chat` channel via HTTP API, confirm the server accepts it
   (`ca-c-post` kind-head assert), old clients render it as an inert chat
   message, and sync delivers `seal.seq` + `revision` as ground-truthed.
+- **D7: Forbidden keys are rejected in surface JSON values too, not just
+  pointer segments.** §7 forbids `__proto__`/`constructor`/`prototype` only
+  as path segments; `Json` validation also rejects them as object keys
+  anywhere. No reducer-reachable state can contain them anyway (ops can't
+  name them), so this only rejects hostile hand-crafted snapshots/specs —
+  and keeps prototype-polluting keys out of any code that indexes state.
+- **D8: Depth-cap semantics.** "JSON depth 16" = container nesting: a value
+  inside more than 16 nested arrays/objects is invalid; tested at 16 vs 17.
+  `applyOp` additionally refuses any write whose path depth + value depth
+  would nest state beyond 16, so reduced state always remains valid — and
+  therefore snapshottable — under the same cap.
+- **D9: The `Op` wire shape** (the plan uses `Op[]` without defining it) is
+  `{ op: 'set'|'del'|'append', path, value? }` with `value` required for
+  set/append. Recorded as an interface consumers must follow.
+- **D10: `$actor` substitution semantics.** Segment position: only a segment
+  that is _exactly_ `$actor` substitutes (with the plain ship string; RFC
+  escaping applies only when formatting back to path text); a segment merely
+  containing `$actor` invalidates the op — treating it literally could
+  silently collapse per-user state into shared state. Value position: any
+  string _exactly_ `$actor` anywhere in the value tree substitutes (needed
+  for `append`-keyed records per §4.3's replay guidance); substrings stay
+  literal. Host ops (no actor): any `$actor` occurrence in path or value
+  invalidates the op, per §7.
+- **D11: Pointer write semantics details.** Writes never index into arrays
+  (any array hit during traversal invalidates the op; `append`'s final
+  target must be an existing array). `del` through a scalar is a no-op
+  ("missing path"), `del`/`set` through an array is an invalid op. Numeric
+  segments are ordinary object keys when the container is an object.
+  Property reads are own-property only (`toString` et al. read as absent).
+  The 200-char path cap applies to the declared path text, pre-substitution.
+- **D12: `fast-check` added as a packages/api devDependency** — the handoff
+  requires property tests and the workspace had no property-testing library.
+- **D13: `applyOp` validates op values itself** (`isJson`) even though
+  schemas validate them upstream, so the pointer layer is total against
+  hostile values on its own. Internal write results are wrapped
+  (`{next}`/`{error}`) so state containing a literal `error` key can't be
+  misread as failure (caught by tsc during implementation; regression
+  test added).
