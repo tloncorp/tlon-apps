@@ -44,6 +44,11 @@
 ::          fan-out has already acked, so nothing else would retry it —
 ::          without this the owner's mirror stays stale until the gateway
 ::          happens to re-seed. bounded, like .pending.
+::    .sync-tag: id of the newest armed %sync retry timer, carried on its
+::          wire and checked on wake. monotonic across owner eras, which
+::          .resync is not — it restarts at 0 for a new owner, so an
+::          attempt count alone can match a timer armed two nacks earlier
+::          for a different owner and fan out ahead of the retry delay.
 ::
 +$  state
   $:  own=prompts
@@ -51,6 +56,7 @@
       stale=(set ship)
       pending=(map bot=ship tries=@ud)
       resync=@ud
+      sync-tag=@ud
   ==
 ::  $action: prompts module inbound actions.
 ::

@@ -11,6 +11,7 @@ import { ScrollView, View, XStack, YStack } from 'tamagui';
 import { ActionSheet } from './ActionSheet';
 import {
   type PromptsModuleState,
+  classifyProbeFailure,
   resolveBotOwnership,
 } from './BotSystemPrompts.helpers';
 import { ControlledTextareaField } from './Form';
@@ -47,23 +48,46 @@ export function useBotSystemPrompts(botShip: string) {
 }
 
 /**
+ * Probe our ship for the prompts module, absorbing the 404's ambiguity: it
+ * means either no module or %steward mid-restart, so it is retried before
+ * absence is believed. Both verdicts RESOLVE (staleTime is Infinity, so
+ * they then hold for the session and no later mount re-burns the budget).
+ * A transport failure resolves nothing and is rethrown, leaving the query
+ * in an error state that a later mount retries — treating it like absence
+ * would strand ownership as unresolved, hiding Block on every profile
+ * until the app restarted.
+ */
+async function probePromptsModule(): Promise<'present' | 'absent'> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await api.probeBotSystemPromptsModule();
+      return 'present';
+    } catch (error) {
+      const next = classifyProbeFailure({
+        unavailable: error instanceof api.PromptsModuleUnavailableError,
+        attempt,
+        maxRetries: UNSUPPORTED_PROBE_RETRIES,
+      });
+      if (next === 'rethrow') {
+        throw error;
+      }
+      if (next === 'absent') {
+        return 'absent';
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1_000 * 2 ** attempt));
+    }
+  }
+}
+
+/**
  * Whether our ship serves the prompts module at all. Kept separate from the
  * per-bot mirror query because that one's 404 is ambiguous — see
- * probeBotSystemPromptsModule. A 404 here rejects, so react-query's own
- * bounded retry covers a %steward restart; the module is only believed
- * absent once those retries are spent.
+ * probeBotSystemPromptsModule.
  */
 function usePromptsModule() {
   return useQuery({
     queryKey: promptsModuleQueryKey,
-    queryFn: () => api.probeBotSystemPromptsModule(),
-    retry: UNSUPPORTED_PROBE_RETRIES,
-    retryDelay: (attempt) => 1_000 * 2 ** attempt,
-    // The verdict holds for the session: without this every profile view
-    // would re-burn the retry budget on a ship that has no module, keeping
-    // Block hidden for seconds each time. A ship that gains the module
-    // mid-session still surfaces it through the subscription's fact.
-    retryOnMount: false,
+    queryFn: probePromptsModule,
   });
 }
 
@@ -82,13 +106,9 @@ export function useIsOwnedBot(botShip: string) {
   // subscription registers and triggers its invalidation.
   const [mountedAt] = useState(() => Date.now());
   const resolvedSinceMount = promptsQuery.dataUpdatedAt >= mountedAt;
-  const module: PromptsModuleState = moduleQuery.data
-    ? 'present'
-    : // Only the module's own 404 is evidence of absence; a transport
-      // error determined nothing and leaves ownership unresolved.
-      moduleQuery.error instanceof api.PromptsModuleUnavailableError
-      ? 'absent'
-      : 'unresolved';
+  // Only a resolved probe decides; a pending or errored one determined
+  // nothing and leaves ownership unresolved.
+  const module: PromptsModuleState = moduleQuery.data ?? 'unresolved';
   return resolveBotOwnership({
     prompts: promptsQuery.data,
     // A fetch still deciding, or one that errored (a scry that exhausted

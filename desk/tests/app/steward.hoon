@@ -1480,11 +1480,15 @@
     (do-agent [sync-wire [~bus %steward] [%poke-ack `~[[%leaf "boom"]]]])
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-arvo /prompts/sync-retry/(scot %ud 1) [%b %wait (add ~2024.1.1 ~m5)])
+    :~  %+  ex-arvo
+          /prompts/sync-retry/(scot %ud 1)/(scot %ud 1)
+        [%b %wait (add ~2024.1.1 ~m5)]
     ==
   ::  the wake re-fans the canonical set
   ;<  caz=(list card)  bind:m
-    (do-arvo /prompts/sync-retry/(scot %ud 1) [%behn %wake ~])
+    %+  do-arvo
+      /prompts/sync-retry/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  %-  ex-poke
@@ -1497,7 +1501,9 @@
   ::  an ack stops the retries: a later wake emits nothing
   ;<  *  bind:m  (do-agent [sync-wire [~bus %steward] [%poke-ack ~]])
   ;<  caz=(list card)  bind:m
-    (do-arvo /prompts/sync-retry/(scot %ud 1) [%behn %wake ~])
+    %+  do-arvo
+      /prompts/sync-retry/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
   (ex-cards caz ~)
 ::
 ::  a revoke nacked on the shared sync wire is NOT treated as a failed
@@ -1601,6 +1607,91 @@
   ;<  caz=(list card)  bind:m
     (do-arvo /prompts/request-retry/(scot %p moon)/(scot %ud 1) [%behn %wake ~])
   (ex-cards caz ~)
+::
+::  a timer armed in a previous owner's era must not fan out to the new
+::  owner: the attempt count restarts at 0 for a new owner, so an older
+::  era's SECOND attempt collides with the new era's first and would fire
+::  ahead of the retry delay, eating a budget meant to be spread over it
+::
+++  test-pr-sync-retry-retired-by-owner-change
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  bus-nack
+    %-  do-agent
+    :*  /prompts/sync/(scot %p ~bus)
+        [~bus %steward]
+        [%poke-ack `~[[%leaf "boom"]]]
+    ==
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ::  two nacked fan-outs to ~bus arm two timers in that era
+  ;<  caz=(list card)  bind:m  bus-nack
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo
+          /prompts/sync-retry/(scot %ud 1)/(scot %ud 1)
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ;<  caz=(list card)  bind:m  bus-nack
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo
+          /prompts/sync-retry/(scot %ud 2)/(scot %ud 2)
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ::  the owner changes, and the new owner's first fan-out is nacked too:
+  ::  its attempt count is back to 1, matching ~bus's first timer
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  ;<  caz=(list card)  bind:m
+    %-  do-agent
+    :*  /prompts/sync/(scot %p ~fed)
+        [~fed %steward]
+        [%poke-ack `~[[%leaf "boom"]]]
+    ==
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo
+          /prompts/sync-retry/(scot %ud 3)/(scot %ud 1)
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ::  ~bus's timer wakes: the tag retired it, so nothing is emitted
+  ;<  caz=(list card)  bind:m
+    %+  do-arvo
+      /prompts/sync-retry/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
+  (ex-cards caz ~)
+::
+::  the initial owner-change revoke rides the sync wire; its ack must clear
+::  the ship from .stale, or every later boot-shaped moment re-revokes every
+::  historical owner and the set grows without bound
+::
+++  test-pr-revoke-ack-on-sync-wire-clears-stale
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ::  ~bus becomes a former owner: revoked on the shared sync wire
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  ;<  *  bind:m
+    (do-agent [/prompts/sync/(scot %p ~bus) [~bus %steward] [%poke-ack ~]])
+  ::  a later boot-shaped moment revokes only the CURRENT owner's mirror
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%unconfigure ~]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~fed)
+          [~fed %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%revoke ~])
+      ==
+  ==
 ::
 ::  a nacked owner-change revoke is retried on the next boot-shaped moment
 ::  (on the dedicated revoke wire), and a confirming ack stops the retries

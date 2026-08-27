@@ -141,7 +141,10 @@
       ::  the gateway re-configures the same owner on every (re)connect;
       ::  don't re-fan or revoke on a no-op
       ?:  =(old `owner.action)  cor
-      ::  a different owner starts with a fresh fan-out budget
+      ::  a different owner starts with a fresh fan-out budget; timers
+      ::  armed for the previous one are retired by .sync-tag (see
+      ::  pr-sync-nacked)
+      ::
       =.  resync.prompts.state  0
       =?  cor  ?=(^ old)
         ?:  =(u.old our.bowl)
@@ -264,7 +267,13 @@
       ::  wire was a revoke to a former owner — those retry via .stale.
       =/  who  (slav %p i.t.t.wire)
       ?.  =(`who owner.state)
-        ?~  p.sign  cor
+        ?~  p.sign
+          ::  the initial revoke landed. pr-revoke-former put this ship in
+          ::  .stale before sending it, so without dropping it here every
+          ::  later configure/unconfigure/clear re-revokes every historical
+          ::  owner and the set grows without bound
+          ::
+          cor(stale.prompts.state (~(del in stale.prompts.state) who))
         ((slog 'steward: prompts revoke nacked' u.p.sign) cor)
       ?~  p.sign
         ::  the owner holds our canonical set; stop retrying
@@ -339,9 +348,11 @@
       (slav %p i.t.t.wire)
     (slav %ud i.t.t.t.wire)
   ::
-      [%prompts %sync-retry @ ~]
+      [%prompts %sync-retry @ @ ~]
     ?.  ?=([%behn %wake *] sign)  cor
-    (pr-retry-sync:pr-core (slav %ud i.t.t.wire))
+    %+  pr-retry-sync:pr-core
+      (slav %ud i.t.t.wire)
+    (slav %ud i.t.t.t.wire)
   ==
 ::
 ++  watch-activity
@@ -1024,20 +1035,29 @@
       %-  (slog leaf+"steward: giving up on prompts owner sync" ~)
       cor(resync.prompts.state 0)
     =.  resync.prompts.state  tries
-    ::  attempt count in the wire, so a duplicate timer armed by a second
-    ::  concurrent nack is a no-op on wake rather than an extra fan-out
+    ::  the wire carries .sync-tag as well as the attempt count. the count
+    ::  alone can't tell a wake armed in a previous owner's era from this
+    ::  one's: it restarts at 0 for a new owner, so a timer armed two
+    ::  nacks ago can match the new owner's first attempt and fan out
+    ::  ahead of the retry delay, eating a budget meant to be spread over
+    ::  it. the tag never resets, so only the newest armed timer matches;
+    ::  the count then rules out one whose sync has since acked.
     ::
+    =.  sync-tag.prompts.state  +(sync-tag.prompts.state)
     %-  emit
     :^  %pass
-        /prompts/sync-retry/(scot %ud tries)
+        /prompts/sync-retry/(scot %ud sync-tag.prompts.state)/(scot %ud tries)
       %arvo
     [%b %wait (add now.bowl retry-delay)]
   ::
   ++  pr-retry-sync
-    |=  tries=@ud
+    |=  [tag=@ud tries=@ud]
     ^+  cor
-    ::  a stale timer (the count moved on: acked, retried, or spent) is a
-    ::  no-op
+    ::  stale timers are no-ops: a different tag means an ownership change
+    ::  (or a later arm) retired this era, and a different attempt count
+    ::  means the sync it was waiting on has since acked or been retried
+    ::
+    ?.  =(tag sync-tag.prompts.state)  cor
     ?.  =(tries resync.prompts.state)  cor
     pr-sync-owner
   ::

@@ -48,3 +48,25 @@ export function resolveBotOwnership(inputs: BotOwnershipInputs): {
     isPending: inputs.module === 'unresolved' || inputs.mirrorUnresolved,
   };
 }
+
+/**
+ * What to do with a failed module probe.
+ *
+ * The two failure modes must not be conflated: only the module path's own
+ * 404 is (eventually) evidence that the ship has no module, and it needs a
+ * few tries first because %steward 404s the same way while restarting. A
+ * transport failure determined nothing at all — reporting it as absence
+ * would let Block appear beside an owned bot, and caching it as a verdict
+ * would strand ownership unresolved for the session, hiding Block on every
+ * ordinary profile. So it is rethrown for the caller to retry later.
+ */
+export function classifyProbeFailure(opts: {
+  unavailable: boolean;
+  attempt: number;
+  maxRetries: number;
+}): 'retry' | 'absent' | 'rethrow' {
+  if (!opts.unavailable) {
+    return 'rethrow';
+  }
+  return opts.attempt >= opts.maxRetries ? 'absent' : 'retry';
+}
