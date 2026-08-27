@@ -2,6 +2,7 @@ import fc from 'fast-check';
 import { describe, expect, test } from 'vitest';
 
 import type { JsonObject } from '../client/surface/json';
+import { isJson } from '../client/surface/json';
 import {
   POINTER_MAX_LENGTH,
   POINTER_MAX_SEGMENTS,
@@ -413,6 +414,10 @@ describe('applyOp property tests', () => {
         fc.constantFrom('~zod', '~ten', '~sampel-palnet'),
         fc.jsonValue({ maxDepth: 2 }) as fc.Arbitrary<any>,
         (actor, value) => {
+          // jsonValue occasionally generates forbidden object keys
+          // (__proto__ et al.), which applyOp rightly rejects; idempotence
+          // is a property of valid values only.
+          fc.pre(isJson(value));
           const op: SurfaceOp = {
             op: 'set',
             path: '/votes/$actor',
