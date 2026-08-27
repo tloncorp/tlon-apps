@@ -723,16 +723,35 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           if (event.rebuilt && promptSync) {
             // A reaped channel was rebuilt: a resume replays the facts Eyre
             // retained, but a rebuild cannot — an owner %set facted into the
-            // dead channel is gone. connect() re-created the prompt watch
-            // before this fires, so the reconcile's scry can't race it.
-            runtime.log?.(
-              '[tlon] SSE channel rebuilt; re-running prompt reconcile'
-            );
-            promptSync.startup().catch((error) => {
-              runtime.error?.(
-                `[tlon] Prompt reconcile after channel rebuild failed: ${String(error)}`
-              );
-            });
+            // dead channel is gone. connect() re-sends the watches but only
+            // awaits the channel PUT, so wait for gall's subscribe ack
+            // before the reconcile scry; otherwise a %set landing between
+            // the scry and the watch going live is stored on the ship and
+            // never applied. A false result means the ack never came (or the
+            // channel changed again) — leave it to the next recovery pass.
+            const sync = promptSync;
+            void (async () => {
+              try {
+                const live = await api!.waitForSubscriptionAck(
+                  'steward',
+                  '/v1/prompts'
+                );
+                if (!live) {
+                  runtime.log?.(
+                    '[tlon] Skipping post-rebuild prompt reconcile: /v1/prompts watch not confirmed live'
+                  );
+                  return;
+                }
+                runtime.log?.(
+                  '[tlon] SSE channel rebuilt; re-running prompt reconcile'
+                );
+                await sync.startup();
+              } catch (error) {
+                runtime.error?.(
+                  `[tlon] Prompt reconcile after channel rebuild failed: ${String(error)}`
+                );
+              }
+            })();
           }
           if (event.attempt > 0 || (event.downtimeMs ?? 0) > 0) {
             capturePluginError(
@@ -6025,6 +6044,36 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       setCronTelemetryReporter(null);
       setMigrationTelemetryReporter(null);
       await telemetry?.close();
+      // A config reload that disables or removes the sole syncing account
+      // aborts this monitor and starts no replacement, so the post-connect
+      // %clear branch never runs for it: the bot ship would keep its
+      // canonical set and the owner would keep a mirror (and editor) that
+      // nothing applies edits from. This is the last point that still holds
+      // credentials, so re-read the config and clear if the ship has no
+      // running prompt-sync authority left. A plain process restart leaves
+      // the config unchanged, so the authority is still found and nothing
+      // is cleared.
+      if (promptSync && api) {
+        try {
+          const freshCfg = core.config.loadConfig();
+          if (!shipHasPromptSyncAuthority(freshCfg, botShipName)) {
+            await api.poke({
+              app: 'steward',
+              mark: 'steward-prompts-action-1',
+              json: { clear: null },
+              awaitAck: true,
+              ackTimeoutMs: 5_000,
+            });
+            runtime.log?.(
+              '[tlon] Prompt sync retired for this ship; cleared ship prompt state'
+            );
+          }
+        } catch (error: any) {
+          runtime.log?.(
+            `[tlon] Prompt clear on retirement skipped: ${error?.message ?? String(error)}`
+          );
+        }
+      }
       try {
         await api?.close();
       } catch (error: any) {

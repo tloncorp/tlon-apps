@@ -161,19 +161,18 @@
       ::
       =.  bots.state  (~(put in bots.state) ship.action)
       ?:  =(ship.action our.bowl)  cor
-      %-  emit
-      :^    %pass
-          /prompts/request/(scot %p ship.action)
-        %agent
-      :+  [ship.action %steward]
-        %poke
-      [%steward-prompts-action-1 !>(`action:v1:sp`[%request ~])]
+      ::  a fresh grant restarts the retry budget
+      =.  pending.prompts.state
+        (~(del by pending.prompts.state) ship.action)
+      (pr-emit-request:pr-core ship.action)
     ::
         %untrust-bot
       ::  the prompt mirror doubles as the client's ownership signal, so a
       ::  revoked bot must not keep serving (or appearing to accept) edits
       ::
       =.  bots.state  (~(del in bots.state) ship.action)
+      =.  pending.prompts.state
+        (~(del by pending.prompts.state) ship.action)
       (pr-drop-mirror:pr-core ship.action)
     ==
   ::
@@ -256,12 +255,18 @@
       ((slog 'steward: prompts owner sync nacked' u.p.sign) cor)
     ==
   ::
-      [%prompts %request *]
+      [%prompts %request @ ~]
     ?+  -.sign  cor
         %poke-ack
-      ?~  p.sign  cor
-      ::  expected when trusting a ship that doesn't consider us its owner
-      ((slog 'steward: prompts resync request nacked' u.p.sign) cor)
+      =/  who  (slav %p i.t.t.wire)
+      ?~  p.sign
+        ::  acked: the bot is re-fanning, so stop retrying
+        cor(pending.prompts.state (~(del by pending.prompts.state) who))
+      ::  nacked — the bot's steward was mid-restart, or it doesn't consider
+      ::  us its owner. retry on a timer, bounded, since nothing else makes
+      ::  that bot re-fan until its gateway next boots
+      %-  (slog 'steward: prompts resync request nacked' u.p.sign)
+      (pr-request-nacked:pr-core who)
     ==
   ::
       [%prompts %revoke @ ~]
@@ -309,6 +314,10 @@
       [%gateway %lease-check ~]
     ?.  ?=([%behn %wake *] sign)  cor
     ga-lease-check:ga-core
+  ::
+      [%prompts %request-retry ~]
+    ?.  ?=([%behn %wake *] sign)  cor
+    pr-retry-requests:pr-core
   ==
 ::
 ++  watch-activity
@@ -936,6 +945,49 @@
     =.  mirror.prompts.state  (~(put by mirror.prompts.state) bot new)
     %^  give  %fact  ~[/v1/prompts]
     steward-prompts-update-1+!>(`update:v1:sp`[%prompts bot new])
+  ::
+  ::  bounded retry budget for a nacked %request, and the delay between
+  ::  attempts. a nack is either transient (the bot's steward mid-restart)
+  ::  or permanent (it doesn't consider us its owner), and we can't tell
+  ::  them apart — so retry a few times, then stop rather than poke a
+  ::  ship forever.
+  ::
+  ++  max-request-tries  5
+  ++  request-retry-delay  ~m5
+  ::
+  ++  pr-emit-request
+    |=  bot=ship
+    ^+  cor
+    %-  emit
+    :^    %pass
+        /prompts/request/(scot %p bot)
+      %agent
+    :+  [bot %steward]
+      %poke
+    [%steward-prompts-action-1 !>(`action:v1:sp`[%request ~])]
+  ::
+  ::  a %request was nacked: bump the attempt count and arm a retry, or
+  ::  give up once the budget is spent
+  ::
+  ++  pr-request-nacked
+    |=  bot=ship
+    ^+  cor
+    =/  tries  +((~(gut by pending.prompts.state) bot 0))
+    ?:  (gte tries max-request-tries)
+      %-  (slog leaf+"steward: giving up on prompts resync request" ~)
+      cor(pending.prompts.state (~(del by pending.prompts.state) bot))
+    =.  pending.prompts.state  (~(put by pending.prompts.state) bot tries)
+    %-  emit
+    :^  %pass  /prompts/request-retry  %arvo
+    [%b %wait (add now.bowl request-retry-delay)]
+  ::
+  ++  pr-retry-requests
+    ^+  cor
+    =/  whos  ~(tap by pending.prompts.state)
+    |-  ^+  cor
+    ?~  whos  cor
+    =.  cor  (pr-emit-request -.i.whos)
+    $(whos t.whos)
   ::
   ::  a replaced or removed owner must drop its mirror. the initial %revoke
   ::  rides the sync wire (same ames flow as the %syncs, so it can't be

@@ -1380,6 +1380,84 @@
     (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%revoke ~]))
   (ex-cards caz ~)
 ::
+::  a nacked %request is retried on a behn timer, an ack stops the retries,
+::  and the budget is bounded so a ship that never accepts is dropped
+::
+++  test-pr-request-retry-until-acked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  req-wire  /prompts/request/(scot %p moon)
+  =/  nack
+    (do-agent [req-wire [moon %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ::  first nack schedules a retry
+  ;<  caz=(list card)  bind:m  nack
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo  /prompts/request-retry
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ::  the wake re-issues the request
+  ;<  caz=(list card)  bind:m
+    (do-arvo /prompts/request-retry [%behn %wake ~])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  req-wire
+            [moon %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%request ~])
+        ==
+    ==
+  ::  an ack clears the pending entry: the next wake emits nothing
+  ;<  *  bind:m  (do-agent [req-wire [moon %steward] [%poke-ack ~]])
+  ;<  caz=(list card)  bind:m
+    (do-arvo /prompts/request-retry [%behn %wake ~])
+  (ex-cards caz ~)
+::
+::  the retry budget is bounded — after max-request-tries nacks the bot is
+::  dropped and no further timer is armed
+::
+++  test-pr-request-retry-budget-exhausts
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  req-wire  /prompts/request/(scot %p moon)
+  =/  nack
+    (do-agent [req-wire [moon %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m  nack
+  ;<  *  bind:m  nack
+  ;<  *  bind:m  nack
+  ;<  *  bind:m  nack
+  ::  fifth nack spends the budget: no retry armed
+  ;<  caz=(list card)  bind:m  nack
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ::  and nothing is left pending for a stray wake to re-issue
+  ;<  caz=(list card)  bind:m
+    (do-arvo /prompts/request-retry [%behn %wake ~])
+  (ex-cards caz ~)
+::
+::  untrusting a bot stops its pending request retries
+::
+++  test-pr-untrust-clears-pending-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  req-wire  /prompts/request/(scot %p moon)
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m
+    (do-agent [req-wire [moon %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+  ;<  caz=(list card)  bind:m
+    (do-arvo /prompts/request-retry [%behn %wake ~])
+  (ex-cards caz ~)
+::
 ::  a nacked owner-change revoke is retried on the next boot-shaped moment
 ::  (on the dedicated revoke wire), and a confirming ack stops the retries
 ::

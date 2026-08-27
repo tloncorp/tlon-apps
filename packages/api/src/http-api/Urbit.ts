@@ -645,7 +645,11 @@ export class Urbit {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to PUT channel');
+      // Known NOT accepted by the ship: safe for callers to roll back any
+      // local registration they made for this message (see subscribe()).
+      throw Object.assign(new Error('Failed to PUT channel'), {
+        channelPutRejected: true,
+      });
     }
     if (!this.sseClientInitialized) {
       if (this.verbose) {
@@ -863,16 +867,25 @@ export class Urbit {
     try {
       await this.sendJSONtoChannel(message);
     } catch (error) {
-      // The send never reached the channel, so no subscription exists on
-      // the ship. Drop the registration — a ghost entry would accumulate
-      // per failed retry and a later channel reset would fire quit
-      // handlers (spawning overlapping resubscribes) for watches that
-      // never lived.
-      this.outstandingSubscriptions.delete(message.id);
-      this.emit('subscription', {
-        id: message.id,
-        status: 'close',
-      });
+      // Only roll back when the ship is KNOWN to have rejected the PUT: a
+      // ghost entry would otherwise accumulate per failed retry, and a
+      // later channel reset would fire quit handlers (spawning overlapping
+      // resubscribes) for watches that never lived.
+      //
+      // Everything else is delivery-ambiguous or known-accepted —
+      // sendJSONtoChannel also performs first-time stream setup
+      // (getOurName/getShipName/eventSource) *after* the PUT succeeds, so
+      // those failures mean the subscription DOES exist on the ship.
+      // Deleting it there would orphan a live watch that no handler serves
+      // and that can no longer be unsubscribed individually; keep the
+      // registration so reset/cleanup still covers it.
+      if ((error as { channelPutRejected?: boolean })?.channelPutRejected) {
+        this.outstandingSubscriptions.delete(message.id);
+        this.emit('subscription', {
+          id: message.id,
+          status: 'close',
+        });
+      }
       throw error;
     }
 

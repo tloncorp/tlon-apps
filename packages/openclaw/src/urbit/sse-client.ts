@@ -179,6 +179,13 @@ export class UrbitSSEClient {
   // resubscribeAfterQuit waits here for gall's subscribe ack before
   // declaring the watch recovered (true = acked, false = nacked).
   private pendingSubscribeAcks = new Map<number, (ok: boolean) => void>();
+  // `app+path` keys gall has acked on the CURRENT channel generation, plus
+  // waiters for keys not acked yet. connect() only awaits the channel PUT,
+  // so a rebuilt channel's watches are not live when it resolves; consumers
+  // that backfill by scry (prompt sync) must await the ack or they can miss
+  // facts emitted between their scry and the watch going live.
+  private ackedSubscriptionKeys = new Set<string>();
+  private subscriptionKeyAckWaiters = new Map<string, Set<() => void>>();
 
   private subscriptionRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private subscriptionRetryDelayMs = SUBSCRIPTION_RETRY_FLOOR_MS;
@@ -532,6 +539,8 @@ export class UrbitSSEClient {
     // its sub was recreated even if the stream GET then fails.
     this.channelReaped = false;
     this.channelEpoch += 1;
+    // A fresh channel means none of the re-sent watches are acked yet.
+    this.ackedSubscriptionKeys.clear();
     // Only the ids in the create snapshot were sent; a subscribe() landing
     // during the create await stays pending for the resume flush / next rebuild.
     for (const id of sentSubIds) {
@@ -961,6 +970,20 @@ export class UrbitSSEClient {
           this.pendingSubscribeAcks.delete(parsed.id);
           waiter(!parsed.err);
         }
+        if (!parsed.err && typeof parsed.id === 'number') {
+          const sub = this.subscriptions.find((s) => s.id === parsed.id);
+          if (sub) {
+            const key = `${sub.app}${sub.path}`;
+            this.ackedSubscriptionKeys.add(key);
+            const waiters = this.subscriptionKeyAckWaiters.get(key);
+            if (waiters) {
+              this.subscriptionKeyAckWaiters.delete(key);
+              for (const resolve of waiters) {
+                resolve();
+              }
+            }
+          }
+        }
         // A subscribe nack after the channel PUT means the watch never went
         // live (e.g. the agent was restarting). Run the same recovery as a
         // quit: transfer the handlers to a fresh id and retry with backoff —
@@ -1167,6 +1190,45 @@ export class UrbitSSEClient {
       throw outcome;
     }
     return pokeId;
+  }
+
+  /**
+   * Resolve once gall has acked the subscribe for `app`+`path` on the
+   * current channel generation (immediately if it already has). Returns
+   * false on timeout, on close, or if the channel is rebuilt while waiting
+   * — the caller should then defer its work to the next recovery pass
+   * rather than reading state the watch cannot yet report changes to.
+   */
+  async waitForSubscriptionAck(
+    app: string,
+    path: string,
+    timeoutMs = 30_000
+  ): Promise<boolean> {
+    const key = `${app}${path}`;
+    if (this.ackedSubscriptionKeys.has(key)) {
+      return true;
+    }
+    if (this.aborted) {
+      return false;
+    }
+    const epochAtWait = this.channelEpoch;
+    return await new Promise<boolean>((resolve) => {
+      let settled = false;
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        this.subscriptionKeyAckWaiters.get(key)?.delete(onAck);
+        resolve(ok);
+      };
+      const onAck = () => finish(this.channelEpoch === epochAtWait);
+      const timer = setTimeout(() => finish(false), timeoutMs);
+      timer.unref?.();
+      const waiters =
+        this.subscriptionKeyAckWaiters.get(key) ?? new Set<() => void>();
+      waiters.add(onAck);
+      this.subscriptionKeyAckWaiters.set(key, waiters);
+    });
   }
 
   /** Rejects every awaitAck poke — their acks can no longer arrive. */

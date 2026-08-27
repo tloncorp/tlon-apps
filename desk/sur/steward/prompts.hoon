@@ -34,11 +34,17 @@
 ::          restarting). re-issued once per gateway boot until one acks;
 ::          a redundant %revoke is a no-op at the receiver, so retries
 ::          converge.
+::    .pending: bots whose %request (sent on %trust-bot) was nacked, with
+::          the attempt count. a nack means the bot's steward ran and
+::          refused — mid-restart, or it does not consider us its owner —
+::          and nothing else would make it re-fan until its gateway next
+::          boots, so the request is retried on a behn timer, bounded.
 ::
 +$  state
   $:  own=prompts
       mirror=(map bot=ship prompts)
       stale=(set ship)
+      pending=(map bot=ship tries=@ud)
   ==
 ::  $action: prompts module inbound actions.
 ::

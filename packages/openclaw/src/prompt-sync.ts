@@ -961,18 +961,36 @@ export function createPromptSync(opts: {
     if (!edit) {
       return;
     }
-    // Record provenance in the ship-keyed ledger BEFORE touching the
-    // shared workspace: if teardown or a crash lands between the file
-    // write and the config write, a later syncing authority must still be
-    // able to recognize the leftover text as this ship's. The cache
-    // mirrors the SHIP's stored edits (which already include this one), so
-    // writing it ahead of the file is consistent even if the apply fails.
-    // A refused write (untrusted deployment) means the edit can't be
-    // applied safely at all — the ship keeps it durably, and a future boot
-    // with working config writes applies it.
+    const myShip = normalizeShip(botShip);
+    const existingStamp = fileStamps[edit.name];
+    if (
+      existingStamp !== undefined &&
+      normalizeShip(existingStamp) !== myShip
+    ) {
+      // The workspace copy belongs to another ship's owner and has not been
+      // cleaned up yet (a reconcile whose removal failed). Applying over it
+      // would claim their file as ours; leave it for the boot/recovery
+      // reconcile, which removes foreign files before applying anything.
+      logger.warn(
+        `[tlon] Not applying prompt edit ${edit.name}: workspace file is stamped for ${existingStamp}`
+      );
+      return;
+    }
+    // Record provenance AND the per-file ownership stamp in the ship-keyed
+    // ledger BEFORE touching the shared workspace. The file write is
+    // uncancellable while the config write can fail, so this is the only
+    // ordering under which an owner-edited file can never exist on the
+    // shared workspace unattributed — text history alone is not enough,
+    // since entrypoints rewrite these files (see the startup cleanup).
+    // The cache mirrors the SHIP's stored edits (which already include this
+    // one), so writing it ahead of the file is consistent even if the apply
+    // then fails. A refused write (untrusted deployment) means the edit
+    // can't be applied safely at all — the ship keeps it durably, and a
+    // future boot with working config writes applies it.
     const recorded = await persistToConfig(
       { [edit.name]: edit.text },
-      { mode: 'none', reason: `tlon system prompt ${edit.name} provenance` }
+      { mode: 'none', reason: `tlon system prompt ${edit.name} provenance` },
+      { markApplied: true }
     );
     if (!recorded) {
       logger.warn(
@@ -980,6 +998,8 @@ export function createPromptSync(opts: {
       );
       return;
     }
+    fileStamps[edit.name] = myShip;
+    currentApplied[edit.name] = edit.text;
     if (aborted()) {
       return;
     }
@@ -1003,20 +1023,15 @@ export function createPromptSync(opts: {
     logger.log(
       `[tlon] Applied prompt edit to ${edit.name}; restarting gateway to pick it up`
     );
-    // The restart rides the config write, which also stamps the applied
-    // marker — this text just reached the workspace file. If the write is
-    // refused (e.g. an untrusted-plugin deployment), the file edit above
-    // still takes effect on the next turn — bootstrap files are re-read
-    // per turn.
-    const marked = await persistToConfig(
+    // This write exists only to trigger the restart; provenance and the
+    // ownership stamp already landed before the file was touched, so a
+    // refusal here is not a correctness problem — the file edit still takes
+    // effect on the next turn (bootstrap files are re-read per turn).
+    await persistToConfig(
       { [edit.name]: edit.text },
       { mode: 'restart', reason: `tlon system prompt ${edit.name} updated` },
       { markApplied: true }
     );
-    if (marked) {
-      fileStamps[edit.name] = normalizeShip(botShip);
-      currentApplied[edit.name] = edit.text;
-    }
   };
 
   // Serialize reconciliation and fact handling on one chain: a fact that
