@@ -188,12 +188,22 @@ STOP condition hit.
   shrinking ops still apply. Uniform across clients ⇒ still convergent.
   Size is re-measured per applied op (O(state) per op) — fine at these
   caps; optimize only if profiling ever says so.
-- **D21: packages/shared suite is not runnable in this environment** —
-  `better-sqlite3`'s native binding was built for a different Node ABI
-  (`ERR_DLOPEN_FAILED`, NODE_MODULE_VERSION 132 vs 127) and `pnpm rebuild`
-  didn't repair it. The failure predates and is untouched by this session's
-  changes (it occurs at module load). Consumer-side verification of the
-  decode change (`sync.test.ts`) needs CI or a fixed local env.
+- **D21: packages/shared suite RESOLVED and green** (initially failed with
+  `ERR_DLOPEN_FAILED`, NODE_MODULE_VERSION 132 vs 127). Root cause, from a
+  dedicated investigation: this worktree's hoisted
+  `node_modules/better-sqlite3` binary had been rebuilt for **Electron's
+  ABI (132)** by `apps/tlon-desktop`'s `postinstall: electron-builder
+install-app-deps` — under `nodeLinker: hoisted` that clobbers the single
+  shared copy every package uses, and `pnpm rebuild better-sqlite3` is a
+  no-op on it (not a direct root dep). Fix: `npm rebuild better-sqlite3`
+  from the worktree root — exactly what the repo's own root `test`/
+  `test:ci` scripts already run first, so this is the sanctioned recovery,
+  and running tests via the root scripts self-heals it. After the fix:
+  `sync.test.ts` 18/18, full packages/shared suite **43 files / 550 tests,
+  all green** — consumer-side verification of the lossless `decode` change
+  passes (`sync.test.ts` exercises `encode` plus the `toClientChannel`
+  path). Standing gotcha for any worktree: every `pnpm install` re-breaks
+  the binary for plain-Node runs via the desktop postinstall.
 
 ## Notes for M1's remaining consumers
 
