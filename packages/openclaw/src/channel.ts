@@ -151,6 +151,11 @@ export const tlonPlugin = createChatChannelPlugin({
 
         hints.push(
           '',
+          'Tlon users often split one thought across several consecutive messages.',
+          '- Treat adjacent user messages received since your last visible reply as one conversational update.',
+          '- Your reply must account for every new fact, constraint, correction, and question across those messages, even when only the newest message directly asks a question.',
+          '- Never answer only the newest line while silently dropping useful context from an earlier line.',
+          '',
           'Tlon gallery channels (heap/~host/name) are for collecting images, links, and media.',
           '- When you were triggered from a gallery post, your normal reply is posted as a comment on that post. Use action=send only when you intend to create a separate NEW top-level gallery item.',
           '- To post to a gallery: use action=send, to=heap/~host/name, message=<text or URL>',
