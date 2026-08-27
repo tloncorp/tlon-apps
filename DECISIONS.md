@@ -89,13 +89,23 @@ STOP condition hit.
   silently rewrite a surface post's kind to `/chat`. Callers editing a
   surface post pass the tail back in, mirroring the existing `botProfile`
   convention. (Reducer-side, edited surface posts are retracted regardless.)
-- **D6: Live-ship round-trip deferred.** The repo's rube/playwright harness
-  exists but boots a 3-ship environment (pier downloads, 5–10 min desk
-  updates) — attempted only if time remains at the end of the session;
-  otherwise the documented gap is: post a `/chat/surface/event`-kind post to
-  a live `%chat` channel via HTTP API, confirm the server accepts it
-  (`ca-c-post` kind-head assert), old clients render it as an inert chat
-  message, and sync delivers `seal.seq` + `revision` as ground-truthed.
+- **D6: Live-ship round-trip VERIFIED** (end of session, local rube
+  fakeships via `./start-playwright-dev.sh`, then torn down). On a fresh
+  `chat/~zod/surface-rt` channel: a post with kind `/chat/surface/event`
+  and a `surface-event` blob was accepted — the scry returns it with
+  `seal.seq = 1`, `revision = 0`, and the blob byte-identical. A control
+  post with bare kind `/surface/event` never materialized (rejected by the
+  server; the channel still held exactly one post). Nuance worth keeping:
+  the eyre poke ack only means the local `%channels` agent accepted the
+  action — the kind-head assert fires in `%channels-server` on the
+  forwarded poke, so acceptance must be judged by whether the post
+  appears, not by the eyre ack (the bad-kind poke was eyre-acked and then
+  dropped). The wire shape poked is exactly what `channelPostAction`
+  produces from `sendPost({kindTail})` (asserted in the kind-tail unit
+  tests), so the TS-layer construction and the server acceptance compose.
+  Remaining for a human: none for spike 4; old-client visual degradation
+  (fallback text as inert chat message) is covered by the blob registry's
+  unknown-entry tests rather than a rendered check.
 - **D7: Forbidden keys are rejected in surface JSON values too, not just
   pointer segments.** §7 forbids `__proto__`/`constructor`/`prototype` only
   as path segments; `Json` validation also rejects them as object keys
