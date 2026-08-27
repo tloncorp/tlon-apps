@@ -586,6 +586,15 @@ export function createPromptSync(opts: {
       await core.config.mutateConfigFile({
         afterWrite,
         mutate: (draft) => {
+          if (aborted()) {
+            // The teardown can land after persistToConfig's callers checked
+            // the signal but while this (uncancellable) mutation is still
+            // queued. Writing then would resurrect state for an obsolete
+            // account snapshot — e.g. recreating a deleted accounts[id]
+            // block, which inherited top-level credentials could make
+            // runnable again.
+            throw new Error('monitor torn down before config write');
+          }
           writePromptsIntoConfigDraft(
             draft as unknown as Record<string, unknown>,
             accountId,

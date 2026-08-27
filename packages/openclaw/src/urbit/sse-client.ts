@@ -1564,13 +1564,27 @@ export class UrbitSSEClient {
         await this.sendSubscription(newSub);
         const acked = await ackPromise;
         if (acked === null) {
-          // Ack never arrived: the channel is wedged or rebuilding — the
-          // stream machinery (watchdog/reconnect, epoch check above on the
-          // next pass) owns recovery from here.
+          // Ack never arrived — the stream likely dropped after the PUT.
+          // Stay in the loop: a rebuild resolves through the epoch check
+          // above (recovered_via_reconnect), a still-down stream just
+          // keeps waiting, and a resumed channel gets a re-send (should
+          // the original subscribe have secretly landed, the duplicate
+          // nacks and the nack handler spawns a fresh recovery — noisy but
+          // convergent). Exiting here instead would leave the watch dead
+          // forever on a plain resume, which bumps nothing the monitor's
+          // rebuild-only reconcile hook can see.
+          failedAttempts += 1;
           this.logger.error?.(
-            `[SSE] Resubscribe ack for ${oldSub.app}${oldSub.path} timed out (id=${newSubId})`
+            `[SSE] Resubscribe ack for ${oldSub.app}${oldSub.path} timed out (id=${newSubId}, attempt ${failedAttempts})`
           );
-          return;
+          this.onSubscriptionRecovery?.({
+            app: oldSub.app,
+            path: oldSub.path,
+            phase: 'retrying',
+            attempt: failedAttempts,
+            downMs: Date.now() - downSince,
+          });
+          continue;
         }
         if (!acked) {
           // Nacked: the subscribe-nack handler already spawned a fresh
