@@ -382,10 +382,14 @@ export function checkBlockedStandaloneNotebookCreation(
 
   return (
     'Blocked: `notes create` makes a standalone backend notebook that is not ' +
-    'listed in Tlon Messenger. To create an app-visible Notebook, first choose ' +
-    'a group this bot hosts or administers, then use ' +
-    '`channels create ~host/group-slug "Title" --kind notes`. If no such ' +
-    'group is available, ask the owner where the content should be delivered.'
+    'listed in Tlon Messenger. Send ordinary and recurring output to the ' +
+    'conversation where it was requested. For a durable artifact, first use ' +
+    '`channels groups` to find an existing `notes/...` Notebook channel, then ' +
+    '`groups get <group-id>` to verify the owner is a member. Create a new ' +
+    'group-backed Notebook with ' +
+    '`channels create ~host/group-slug "Title" --kind notes` only when the ' +
+    'owner explicitly asks for a new Notebook; otherwise ask where the content ' +
+    'should be delivered.'
   );
 }
 

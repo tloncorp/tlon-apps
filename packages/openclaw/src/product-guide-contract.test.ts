@@ -16,6 +16,15 @@ describe('Tlon product guide contracts', () => {
       'There is no global `Notes` or `Notebooks` dashboard in Tlon Messenger'
     );
     expect(guide).toContain('Notebook channel inside a group');
+    expect(guide).toContain(
+      'Normal replies and recurring alerts belong in the conversation'
+    );
+    expect(guide).toContain(
+      'reuse the existing Notebook in the relevant agent group'
+    );
+    expect(guide).toContain(
+      'Create another Notebook only when the owner explicitly asks'
+    );
     expect(guide).toContain('paste it into the current chat');
   });
 });
