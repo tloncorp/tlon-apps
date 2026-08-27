@@ -1,6 +1,6 @@
 ---
 name: tlon-product-guide
-description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups, channels (Chat/Notebook/Bulletin/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app.
+description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups, channels (Chat/Notebook/Bulletin/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. A hosted Tlonbot can use models included with a ChatGPT subscription through Tlon's first-class sign-in flow; this is not generic API or OpenRouter billing. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app.
 ---
 
 # Tlon Messenger: Product Guide
@@ -267,7 +267,11 @@ Bot behavior:
 
 ### Models and API keys
 
-Hosted accounts include an AI model for free — basic usage costs nothing. Want Claude, ChatGPT, or something else? Add your own Anthropic, OpenAI, or OpenRouter key under `Bot Settings` to switch models anytime, or use `/model` to check and change what's running. Self-hosting means no included model and no `Bot Settings` screen: you configure the provider in your own OpenClaw setup and pay whoever you point it at. Either way there's no lock-in — everything you build with your bot stays with you.
+Hosted accounts include an AI model for free — basic usage costs nothing. They also have a first-class **ChatGPT subscription** option: under `Bot Settings` → `ChatGPT subscription`, the owner signs in to authorize their ChatGPT account, then chooses one of the models included with that subscription for Tlonbot. When someone asks what it means to "use a ChatGPT subscription for this," answer this Tlon-specific flow directly; don't substitute generic OpenClaw or OpenRouter billing advice.
+
+ChatGPT subscription access and an OpenAI API key are alternatives, not the same credential. Connecting the subscription removes a saved OpenAI API key, and saving an OpenAI API key disconnects the subscription. Other model providers still use their own API keys under `Bot Settings`. Use `/model` to check or change what's running after the provider is connected.
+
+Self-hosting means no included model, ChatGPT-subscription screen, or `Bot Settings` screen: configure the provider in your own OpenClaw setup and pay whoever you point it at. Either way there's no lock-in — everything you build with your bot stays with you.
 
 ### Guardrails
 
