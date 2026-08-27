@@ -362,6 +362,57 @@ export function checkBlockedMigrationOperation(args: string[]): string | null {
   return subcommand === 'migrate-plan' ? null : migrationBlockedMessage(nest);
 }
 
+/**
+ * Keep app-invisible standalone notebooks out of model-issued writes.
+ *
+ * The CLI remains available to an operator who deliberately needs a raw
+ * `%notes` notebook. Tlonbot should create a group-backed Notebook channel so
+ * the owner can reach the result in Tlon Messenger.
+ */
+export function checkBlockedStandaloneNotebookCreation(
+  args: string[]
+): string | null {
+  const command = args[0]?.toLowerCase();
+  const subcommand = args[1]?.toLowerCase();
+  if (command !== 'notes' || subcommand !== 'create') return null;
+
+  // Let the packaged CLI answer help and malformed invocations. Only block an
+  // actual create attempt with a title.
+  if (args.slice(2).some((arg) => HELP_ARGS.has(arg)) || !args[2]) return null;
+
+  return (
+    'Blocked: `notes create` makes a standalone backend notebook that is not ' +
+    'listed in Tlon Messenger. To create an app-visible Notebook, first choose ' +
+    'a group this bot hosts or administers, then use ' +
+    '`channels create ~host/group-slug "Title" --kind notes`. If no such ' +
+    'group is available, ask the owner where the content should be delivered.'
+  );
+}
+
+const NOTE_PATH_READ_OPERATIONS = new Set(['show', 'notes', 'note']);
+
+/**
+ * Add navigation semantics to model-facing reads of a `%notes` path. A nest is
+ * a backend identifier whether or not the notebook is registered in a group;
+ * it must never be presented as a route to a global app screen.
+ */
+export function notebookNavigationNotice(args: string[]): string | null {
+  if (args[0]?.toLowerCase() !== 'notes') return null;
+  if (!NOTE_PATH_READ_OPERATIONS.has(args[1]?.toLowerCase() ?? '')) {
+    return null;
+  }
+  if (!canonicalizeNest(args[2], 'notes')) return null;
+
+  return (
+    'Navigation: a `notes/~host/name` nest is a backend identifier, not a ' +
+    'Tlon Messenger route, and it does not imply a global Notes or Notebooks ' +
+    'screen. An owner can open it in the app only when it is registered as a ' +
+    'Notebook channel inside a group; verify with `channels info <notes-nest>`. ' +
+    'Otherwise offer to copy or paste the content into a group channel or chat ' +
+    'the owner can reach.'
+  );
+}
+
 export function refusedDiaryNest(args: string[]): string | null {
   const migration = checkBlockedMigrationOperation(args);
   if (migration) {

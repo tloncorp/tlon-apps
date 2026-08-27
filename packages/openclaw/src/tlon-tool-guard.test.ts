@@ -4,8 +4,10 @@ import {
   checkBlockedDiaryOperation,
   checkBlockedMigrationOperation,
   checkBlockedSendOperation,
+  checkBlockedStandaloneNotebookCreation,
   formatAllowedTlonSubcommands,
   isAllowedTlonSubcommand,
+  notebookNavigationNotice,
   refusedDiaryNest,
 } from './tlon-tool-guard.js';
 
@@ -147,6 +149,58 @@ describe('tlon tool guard', () => {
       expect(checkBlockedMigrationOperation(['posts', 'migrate-apply'])).toBe(
         null
       );
+    });
+  });
+
+  describe('blocks app-invisible standalone notebook creation', () => {
+    it('blocks an actual standalone create and points to a visible channel', () => {
+      const result = checkBlockedStandaloneNotebookCreation([
+        'notes',
+        'create',
+        'Weekly Report',
+      ]);
+
+      expect(result).toContain('not listed in Tlon Messenger');
+      expect(result).toContain(
+        'channels create ~host/group-slug "Title" --kind notes'
+      );
+      expect(result).toContain('hosts or administers');
+    });
+
+    it('allows help, malformed calls, and non-create notes operations', () => {
+      expect(
+        checkBlockedStandaloneNotebookCreation(['notes', 'create', '--help'])
+      ).toBeNull();
+      expect(
+        checkBlockedStandaloneNotebookCreation(['notes', 'create'])
+      ).toBeNull();
+      expect(
+        checkBlockedStandaloneNotebookCreation(['notes', 'note-create'])
+      ).toBeNull();
+    });
+  });
+
+  describe('annotates backend notebook path reads with app navigation truth', () => {
+    it.each([
+      ['notes', 'show', 'notes/~zod/private'],
+      ['notes', 'notes', 'notes/zod/private'],
+      ['notes', 'note', 'notes/~zod/private', '3'],
+    ])('recognizes %j', (...args) => {
+      const result = notebookNavigationNotice(args);
+      expect(result).toContain('backend identifier');
+      expect(result).toContain('not a Tlon Messenger route');
+      expect(result).toContain('Notebook channel inside a group');
+      expect(result).toContain('channels info <notes-nest>');
+    });
+
+    it('ignores unrelated and malformed commands', () => {
+      expect(notebookNavigationNotice(['notes', 'list'])).toBeNull();
+      expect(
+        notebookNavigationNotice(['notes', 'note', 'bad', '3'])
+      ).toBeNull();
+      expect(
+        notebookNavigationNotice(['channels', 'info', 'notes/~zod/private'])
+      ).toBeNull();
     });
   });
 

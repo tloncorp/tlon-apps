@@ -1,6 +1,17 @@
-import { NotesV1PendingWriteError, getGroup, notesV1 } from '@tloncorp/api';
+import {
+  NotesV1PendingWriteError,
+  getCurrentUserId,
+  getGroup,
+  notesV1,
+  scry,
+} from '@tloncorp/api';
 
+import { normalizeShip } from './api-client';
 import { commandError, errorMessage } from './commands/command';
+import {
+  type RawGroupForAdminVerification,
+  actingShipCanAdminister,
+} from './commands/groups-verification';
 import type { NotesChannelDeps } from './notes-channel';
 import { pendingWriteCommandErrorMessage } from './notes-pending-write';
 
@@ -53,6 +64,33 @@ export function mapChannelReaders(
 
 export function createNotesChannelDeps(): NotesChannelDeps {
   return {
+    assertCanAdministerGroup: async (groupId: string) => {
+      let rawGroup: RawGroupForAdminVerification;
+      try {
+        rawGroup = await scry<RawGroupForAdminVerification>({
+          app: 'groups',
+          path: `/v2/ui/groups/${groupId}`,
+        });
+      } catch (error) {
+        throw commandError(
+          `Can't create a Notebook channel in ${groupId}: could not verify admin access: ${errorMessage(error)}`
+        );
+      }
+
+      const actingShip = normalizeShip(getCurrentUserId());
+      const hostShip = normalizeShip(groupId.split('/')[0] ?? '');
+      const result = actingShipCanAdminister(
+        rawGroup,
+        actingShip,
+        hostShip,
+        normalizeShip
+      );
+      if (!result.ok) {
+        throw commandError(
+          `Can't create a Notebook channel in ${groupId}: ${result.reason}`
+        );
+      }
+    },
     createGroupNotesNotebook: async (input) => {
       try {
         return await notesV1.createGroupNotebook(input);

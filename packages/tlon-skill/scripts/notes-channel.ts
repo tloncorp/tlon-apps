@@ -17,6 +17,9 @@ export interface GroupListingPollDeps {
 }
 
 export interface NotesChannelDeps extends GroupListingPollDeps {
+  // Fail closed before `%notes` creates anything unless the acting ship can
+  // administer the target group.
+  assertCanAdministerGroup: (groupId: string) => Promise<void>;
   // POST the group-bound notebook via `@tloncorp/api` notesV1 and return its
   // summary (the API unwraps the envelope / rejects errors).
   createGroupNotesNotebook: (input: {
@@ -114,6 +117,8 @@ export async function createNotesChannelInGroup(
   }
   const [groupHost, groupName] = groupParts;
   const readers = input.readers;
+
+  await deps.assertCanAdministerGroup(input.groupId);
 
   deps.log(`Creating %notes channel "${input.title}" in ${input.groupId}...`);
 

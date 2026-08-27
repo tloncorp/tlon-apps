@@ -502,7 +502,9 @@ tlon notes notebook-delete notes/~host/name --yes        # Owner-gated migration
 
 Note bodies come from exactly one content source. `note-create` accepts `--body <file>`, `--markdown <file>` (alias), or `--stdin`. `note-update` accepts `--body <file>` or `--stdin`; use `--body`, not `--markdown`, for file-backed updates. `note-create` places the note in a folder id, or `root` (resolved to the notebook's root folder). `--expected-revision` on `note-update` is optional (last-write-wins by default).
 
-To create a **group-backed** notes channel for the Tlon app, use `tlon channels create ~host/slug "Title" --kind notes` — %notes owns the listing, so `--description` and writer roles aren't accepted there. Do not use `tlon notes create` for app/group channels; it creates a standalone %notes notebook only.
+To create a **group-backed** notes channel for the Tlon app, choose a group the acting ship hosts or administers, then use `tlon channels create ~host/slug "Title" --kind notes` — %notes owns the listing, so `--description` and writer roles aren't accepted there. Do not use `tlon notes create` for app/group channels; it creates a standalone %notes notebook only.
+
+A backend path such as `notes/~host/name/3` is an identifier for note `3`, not a route in Tlon Messenger, and it never implies a global Notes or Notebooks screen. The app exposes a `%notes` notebook only when it is registered as a Notebook channel inside a group. Check `tlon channels info notes/~host/name`: if it reports a group, direct the owner to that group's Notebook channel; otherwise offer to copy or paste the content into a group channel or chat they can reach.
 
 ### Upload
 

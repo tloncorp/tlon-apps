@@ -8,6 +8,7 @@ import {
   mockedGetGroup,
   mockedGetGroups,
   mockedNotesV1,
+  mockedScry,
 } from './tloncorp-api-mock';
 
 let runtimeModule: Promise<typeof import('./notes-runtime')> | null = null;
@@ -139,6 +140,37 @@ describe('notes runtime wrapper', () => {
 });
 
 describe('notes channel runtime wrapper', () => {
+  it('verifies group admin access before channel creation', async () => {
+    const original = mockedScry.impl;
+    try {
+      const { createNotesChannelDeps } = await loadChannelRuntime();
+      const deps = createNotesChannelDeps();
+
+      mockedScry.impl = async () => ({ admins: [], seats: {} });
+      await expect(
+        deps.assertCanAdministerGroup('~zod/hosted')
+      ).resolves.toBeUndefined();
+
+      mockedScry.impl = async () => ({
+        admins: ['moderator'],
+        seats: { '~zod': { roles: ['moderator'] } },
+      });
+      await expect(
+        deps.assertCanAdministerGroup('~bus/administered')
+      ).resolves.toBeUndefined();
+
+      mockedScry.impl = async () => ({
+        admins: ['moderator'],
+        seats: { '~zod': { roles: ['member'] } },
+      });
+      await expect(
+        deps.assertCanAdministerGroup('~bus/member-only')
+      ).rejects.toThrow('not an admin');
+    } finally {
+      mockedScry.impl = original;
+    }
+  });
+
   it('formats pending createGroupNotebook errors with request guidance', async () => {
     const pending = new MockNotesV1PendingWriteError({
       requestId: '0vbook',

@@ -3,9 +3,11 @@ import {
   checkBlockedDiaryOperation,
   checkBlockedMigrationOperation,
   checkBlockedSendOperation,
+  checkBlockedStandaloneNotebookCreation,
   findFirstPositionalArgumentIndex,
   formatAllowedTlonSubcommands,
   isAllowedTlonSubcommand,
+  notebookNavigationNotice,
   refusedDiaryNest,
 } from './tlon-tool-guard.js';
 
@@ -277,7 +279,11 @@ export function findTlonSubcommandIndex(args: string[]): number {
 
 export type BlockedTlonOperation = {
   message: string;
-  reason: 'diary_operation' | 'migration_operation' | 'send_operation';
+  reason:
+    | 'diary_operation'
+    | 'migration_operation'
+    | 'send_operation'
+    | 'standalone_notebook_creation';
   diaryNest?: string;
 };
 
@@ -307,6 +313,14 @@ export function checkBlockedTlonOperation(
       diaryNest: diary.nest,
     };
   }
+  const standaloneNotebook =
+    checkBlockedStandaloneNotebookCreation(commandArgs);
+  if (standaloneNotebook) {
+    return {
+      message: standaloneNotebook,
+      reason: 'standalone_notebook_creation',
+    };
+  }
   const send = checkBlockedSendOperation(commandArgs);
   return send ? { message: send, reason: 'send_operation' } : null;
 }
@@ -319,6 +333,7 @@ export type TlonToolExecutorDeps = {
 
 export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
   return async function execute(_id: string, params: { command: string }) {
+    let navigationNotice: string | null = null;
     try {
       const args = shellSplitCommand(params.command);
 
@@ -362,15 +377,33 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         };
       }
 
+      const subIdxForNotice = findTlonSubcommandIndex(args);
+      navigationNotice = notebookNavigationNotice(
+        subIdxForNotice >= 0 ? args.slice(subIdxForNotice) : []
+      );
       const output = await deps.runCommand(args);
       return {
-        content: [{ type: 'text' as const, text: output }],
+        content: [
+          {
+            type: 'text' as const,
+            text: navigationNotice
+              ? `${output.trimEnd()}\n\n${navigationNotice}`
+              : output,
+          },
+        ],
         details: undefined,
       };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       return {
-        content: [{ type: 'text' as const, text: `Error: ${message}` }],
+        content: [
+          {
+            type: 'text' as const,
+            text: navigationNotice
+              ? `Error: ${message}\n\n${navigationNotice}`
+              : `Error: ${message}`,
+          },
+        ],
         details: { status: 'error', error: message },
       };
     }

@@ -219,6 +219,74 @@ describe('tlon tool execution', () => {
       reason: 'migration_operation',
     });
   });
+
+  it('blocks standalone notebook creation before invoking the CLI', async () => {
+    const runCommand = vi.fn(async () => 'unexpected CLI invocation');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+    });
+
+    const result = await execute('standalone-notebook', {
+      command: 'notes create "Weekly Report"',
+    });
+
+    expect(runCommand).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      content: [
+        {
+          type: 'text',
+          text: expect.stringContaining('not listed in Tlon Messenger'),
+        },
+      ],
+      details: {
+        status: 'blocked',
+        blocked: true,
+        reason: 'standalone_notebook_creation',
+      },
+    });
+  });
+
+  it('annotates successful backend note reads with app navigation truth', async () => {
+    const execute = createTlonToolExecutor({
+      runCommand: vi.fn(async () => '# Weekly Report'),
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+    });
+
+    const result = await execute('note-read', {
+      command: 'notes note notes/~ten/private 3',
+    });
+
+    expect(result.content[0]?.text).toContain('# Weekly Report');
+    expect(result.content[0]?.text).toContain(
+      'backend identifier, not a Tlon Messenger route'
+    );
+    expect(result.content[0]?.text).toContain(
+      'Notebook channel inside a group'
+    );
+  });
+
+  it('annotates failed backend note reads before the model answers', async () => {
+    const execute = createTlonToolExecutor({
+      runCommand: vi.fn(async () => {
+        throw new Error('HTTP 404: notebook not found');
+      }),
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+    });
+
+    const result = await execute('missing-note', {
+      command: 'notes note notes/~ten/private 3',
+    });
+
+    expect(result.content[0]?.text).toContain('HTTP 404: notebook not found');
+    expect(result.content[0]?.text).toContain(
+      'does not imply a global Notes or Notebooks screen'
+    );
+    expect(result.details).toEqual({
+      status: 'error',
+      error: 'HTTP 404: notebook not found',
+    });
+  });
 });
 
 describe('checkBlockedTlonOperation', () => {

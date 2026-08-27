@@ -15,6 +15,7 @@ const NEW_NEST = 'notes/~zod/newbook';
 const READERS = ['members'];
 
 interface MakeDepsOptions {
+  administer?: NotesChannelDeps['assertCanAdministerGroup'];
   create?: NotesChannelDeps['createGroupNotesNotebook'];
   channelIds?: NotesChannelDeps['getGroupChannelIds'];
   readers?: NotesChannelDeps['getChannelReaders'];
@@ -22,6 +23,7 @@ interface MakeDepsOptions {
 
 function makeDeps(options: MakeDepsOptions = {}) {
   const calls = {
+    administer: [] as string[],
     create: [] as Array<
       Parameters<NotesChannelDeps['createGroupNotesNotebook']>[0]
     >,
@@ -30,6 +32,10 @@ function makeDeps(options: MakeDepsOptions = {}) {
     sleep: [] as number[],
   };
   const deps: NotesChannelDeps = {
+    assertCanAdministerGroup: async (groupId) => {
+      calls.administer.push(groupId);
+      await options.administer?.(groupId);
+    },
     createGroupNotesNotebook: async (input) => {
       calls.create.push(input);
       return options.create ? options.create(input) : SUMMARY;
@@ -66,6 +72,7 @@ describe('createNotesChannelInGroup', () => {
         readers: READERS,
       },
     ]);
+    expect(calls.administer).toEqual(['~zod/group']);
     expect(calls.readers).toEqual([['~zod/group', NEW_NEST]]);
   });
 
@@ -207,6 +214,23 @@ describe('createNotesChannelInGroup', () => {
         deps
       )
     ).rejects.toThrow('denied');
+    expect(calls.channelIds).toEqual([]);
+  });
+
+  it('refuses before creating when the acting ship cannot administer the group', async () => {
+    const { calls, deps } = makeDeps({
+      administer: async () => {
+        throw new Error('not an admin');
+      },
+    });
+
+    await expect(
+      createNotesChannelInGroup(
+        { groupId: '~bus/group', title: 'New', readers: READERS },
+        deps
+      )
+    ).rejects.toThrow('not an admin');
+    expect(calls.create).toEqual([]);
     expect(calls.channelIds).toEqual([]);
   });
 
