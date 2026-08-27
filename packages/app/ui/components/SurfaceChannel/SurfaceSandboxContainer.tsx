@@ -6,7 +6,8 @@ import {
   shellArtifactCss,
   shellArtifactJs,
 } from '@tloncorp/surface-shell/artifact-strings';
-import { useMemo } from 'react';
+import * as store from '@tloncorp/shared';
+import { useCallback, useMemo } from 'react';
 import { useThemeName } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -37,8 +38,20 @@ export function SurfaceSandboxContainer({
   const canInvoke = useCanWrite(channel, currentUserId);
   const themeName = useThemeName();
   const theme = shellThemeFromThemeName(themeName);
-  // wired to the posting path in the invoke-path step
-  const sendInvoke = (_actionId: string) => {};
+
+  const sendInvoke = useCallback(
+    (actionId: string) => {
+      // success is observed via the refold, not this promise; the host has
+      // already validated + revision-checked the invoke by the time it
+      // reaches here, and the writer stamps its own specRevision from spec
+      void store
+        .sendSurfaceInvoke({ channelId: channel.id, spec, actionId })
+        .catch(() => {
+          // failures surface as the post never appearing; nothing to do here
+        });
+    },
+    [channel.id, spec]
+  );
 
   const sandboxDocument = useMemo(
     () =>
