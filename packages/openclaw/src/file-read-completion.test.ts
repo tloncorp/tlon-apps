@@ -23,12 +23,15 @@ describe('file read completion guard', () => {
     "I'll read the current CSV and paste its contents.",
     "I'm opening the pollen log now.",
     'That’s the complete revised v0.1.1 text displayed inline.',
+    'Here are the requested contents:',
+    'The file contents are below.',
   ])('recognizes an incomplete delivery draft: %s', (reply) => {
     expect(isIncompleteFileDeliveryReply(reply)).toBe(true);
   });
 
   it.each([
     'The CSV contains 31 daily rows and peaks on August 20.',
+    'Reading the file, I found 31 rows and a peak on August 20.',
     `${CSV}\n`,
     'I could not read the file because permission was denied.',
   ])('does not flag a substantive final reply: %s', (reply) => {
@@ -51,6 +54,9 @@ describe('file read completion guard', () => {
       },
     });
     expect(first?.retry.instruction).toContain('existing read result');
+    expect(first?.retry.instruction).toContain(
+      'summary, transformation, or inspection'
+    );
     const second = guard.beforeFinalize({
       runId: 'run-1',
       lastAssistantMessage: 'Opening the CSV now.',
@@ -114,7 +120,69 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
-  it('ignores failed, empty, non-read, and unkeyed tool results', () => {
+  it('tracks a successful empty read and asks for an honest empty-file answer', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult({
+      runId: 'empty',
+      toolName: 'read',
+      result: { content: [] },
+    });
+
+    const revision = guard.beforeFinalize({
+      runId: 'empty',
+      lastAssistantMessage: 'Opening the file now.',
+    });
+    expect(revision?.retry.instruction).toContain('file is empty');
+    expect(
+      guard.beforeFinalize({
+        runId: 'empty',
+        lastAssistantMessage: 'The file is empty.',
+      })
+    ).toBeNull();
+  });
+
+  it('recognizes delivered files whose lines are all short', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('short', 'a\nb\nc'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'short',
+        lastAssistantMessage: 'Here it is:\n\na\nb\nc',
+      })
+    ).toBeNull();
+  });
+
+  it('allows another read when the successful result was truncated', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead('truncated', 'first chunk\n[Showing lines 1-20 of 40]')
+    );
+
+    const revision = guard.beforeFinalize({
+      runId: 'truncated',
+      lastAssistantMessage: 'Reading the rest now.',
+    });
+    expect(revision?.retry.instruction).toContain('Continue reading');
+    expect(revision?.retry.instruction).not.toContain('Do not call read again');
+  });
+
+  it('preserves summaries and transformations instead of demanding a dump', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('summary-progress'));
+
+    const revision = guard.beforeFinalize({
+      runId: 'summary-progress',
+      lastAssistantMessage: 'Checking the file now.',
+    });
+    expect(revision?.retry.instruction).toContain("user's original request");
+    expect(revision?.retry.instruction).toContain(
+      'summary, transformation, or inspection'
+    );
+    expect(revision?.retry.instruction).toContain('perform that instead');
+  });
+
+  it('ignores failed, non-read, and unkeyed tool results', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult({
       ...successfulRead('failed'),
@@ -129,11 +197,6 @@ describe('file read completion guard', () => {
       },
     });
     guard.recordToolResult({
-      runId: 'empty',
-      toolName: 'read',
-      result: { content: [] },
-    });
-    guard.recordToolResult({
       runId: 'other',
       toolName: 'memory_search',
       result: { content: [{ type: 'text', text: CSV }] },
@@ -143,7 +206,7 @@ describe('file read completion guard', () => {
       result: { content: [{ type: 'text', text: CSV }] },
     });
 
-    for (const runId of ['failed', 'details-error', 'empty', 'other']) {
+    for (const runId of ['failed', 'details-error', 'other']) {
       expect(
         guard.beforeFinalize({
           runId,

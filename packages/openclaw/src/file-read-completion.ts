@@ -22,7 +22,9 @@ export type FileReadRevision = {
 
 type RunState = {
   anchors: string[];
+  empty: boolean;
   revisionAttempts: number;
+  truncated: boolean;
 };
 
 const DEFAULT_MAX_TRACKED_RUNS = 128;
@@ -34,11 +36,14 @@ const MAX_REVISION_ATTEMPTS = 2;
 const PROGRESS_VERBS =
   '(?:open(?:ing)?|read(?:ing)?|load(?:ing)?|check(?:ing)?|inspect(?:ing)?|fetch(?:ing)?|pull(?:ing)?\\s+up|paste|display|show|print)';
 const PROGRESS_ONLY = new RegExp(
-  `^(?:(?:okay|sure)[,!.]?\\s*)?(?:(?:i(?:'ll| will|'m| am)|let me)\\s+)?${PROGRESS_VERBS}\\b[\\s\\S]*[.!…]*$`,
+  `^(?:(?:okay|sure)[,!.]?\\s*)?(?:(?:i(?:'ll| will|'m| am)|let me)\\s+)?${PROGRESS_VERBS}\\b[^,;:\\n]{0,220}[.!…]*$`,
   'i'
 );
 const EMPTY_DELIVERY_CLAIM =
-  /\b(?:displayed|shown|pasted|printed)\s+(?:inline|below|above)\b/i;
+  /(?:\b(?:displayed|shown|pasted|printed)\s+(?:inline|below|above)\b|\b(?:here\s+(?:are|is)\s+(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?|(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?\s+(?:are|is)\s+(?:below|above|here))\b)/i;
+const SUBSTANTIVE_PROGRESS_TAIL =
+  /\b(?:found|contains?|had|has|showed|shows|revealed|reveals|indicated|indicates|rows?|records?|result|summary|peak(?:ed|s)?|average[ds]?)\b/i;
+const TRUNCATION_MARKER = /^\s*\[(?:showing|reading|truncated)\b/im;
 
 function nonEmptyError(error: string | undefined): boolean {
   return typeof error === 'string' && error.trim().length > 0;
@@ -78,10 +83,7 @@ function contentAnchors(text: string): string[] {
   const candidates = text
     .split(/\r?\n/)
     .map((line) => line.replace(/^\s*\d+[→|:]\s?/, '').trim())
-    .filter(
-      (line) =>
-        line.length >= 8 && !/^\[(?:showing|reading|truncated)\b/i.test(line)
-    );
+    .filter((line) => line.length > 0 && !TRUNCATION_MARKER.test(line));
   const selected = [
     candidates[0],
     candidates[1],
@@ -101,7 +103,17 @@ function contentAnchors(text: string): string[] {
 
 function containsReadContent(reply: string, anchors: string[]): boolean {
   const normalizedReply = normalizeForComparison(reply);
-  return anchors.some((anchor) => normalizedReply.includes(anchor));
+  const replyLines = new Set(
+    reply
+      .split(/\r?\n/)
+      .map((line) => normalizeForComparison(line))
+      .filter(Boolean)
+  );
+  return anchors.some((anchor) =>
+    anchor.length < 8
+      ? replyLines.has(anchor)
+      : normalizedReply.includes(anchor)
+  );
 }
 
 export function isIncompleteFileDeliveryReply(reply: string): boolean {
@@ -109,8 +121,24 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
   if (!trimmed || trimmed.length > MAX_SUSPICIOUS_REPLY_LENGTH) return false;
   const normalized = trimmed.replace(/[’‘]/g, "'");
   return (
-    PROGRESS_ONLY.test(normalized) || EMPTY_DELIVERY_CLAIM.test(normalized)
+    (PROGRESS_ONLY.test(normalized) &&
+      !SUBSTANTIVE_PROGRESS_TAIL.test(normalized)) ||
+    EMPTY_DELIVERY_CLAIM.test(normalized)
   );
+}
+
+function revisionInstruction(state: RunState, attempt: number): string {
+  const finalAttempt =
+    attempt === MAX_REVISION_ATTEMPTS
+      ? ' This is the final correction attempt.'
+      : '';
+  if (state.truncated) {
+    return `A read tool returned only part of the requested file, and your draft did not complete the original request.${finalAttempt} Continue reading from the appropriate offset as needed, then answer the user's original request using the complete result. Preserve any requested summary, transformation, or privacy constraint; do not dump raw contents unless the user asked for them. Do not send another progress-only update or claim delivery without visible output.`;
+  }
+  if (state.empty) {
+    return `A read tool successfully returned an empty file, but your draft only announces work or claims delivery.${finalAttempt} Replace it with a final answer that plainly says the file is empty and responds to the user's original request. Do not call read again or send another progress update.`;
+  }
+  return `A read tool already succeeded in this turn, but your draft only announces work or claims delivery without completing the user's original request.${finalAttempt} Replace the draft with a final answer based on the existing read result. If the user asked to see the contents, include them; if they asked for a summary, transformation, or inspection, perform that instead. Preserve any privacy or formatting constraint. Do not call read again, send another progress update, or claim output is visible when it is not. If the request truly cannot be completed, state the concrete limitation.`;
 }
 
 export function createFileReadCompletionGuard(options?: {
@@ -140,7 +168,6 @@ export function createFileReadCompletionGuard(options?: {
       }
       if (toolResultIsError(input.result)) return;
       const text = resultText(input.result);
-      if (!text.trim()) return;
 
       const existing = runs.get(runId);
       const anchors = Array.from(
@@ -148,7 +175,9 @@ export function createFileReadCompletionGuard(options?: {
       ).slice(0, MAX_ANCHORS_PER_RUN);
       touch(runId, {
         anchors,
+        empty: anchors.length === 0 && !text.trim(),
         revisionAttempts: existing?.revisionAttempts ?? 0,
+        truncated: TRUNCATION_MARKER.test(text),
       });
     },
 
@@ -172,10 +201,7 @@ export function createFileReadCompletionGuard(options?: {
         action: 'revise',
         reason: 'successful file read was not delivered in the draft reply',
         retry: {
-          instruction:
-            attempt === 1
-              ? 'A read tool already succeeded in this turn, but your draft only announces or claims delivery without including the requested file contents. Replace the draft with a final answer that actually contains the requested contents from the existing read result. Do not call read again and do not send another progress update. If the contents truly cannot be delivered, state the concrete limitation instead of claiming they were shown.'
-              : 'Your correction was still only a progress update or an empty delivery claim. This is the final correction attempt: answer with the requested contents already present in the successful read result. Do not repeat the progress sentence, do not call read again, and do not claim the contents are shown unless they are visibly included. If delivery is impossible, state the concrete limitation.',
+          instruction: revisionInstruction(state, attempt),
           idempotencyKey: `tlon:file-read-completion:${runId}:${attempt}`,
           maxAttempts: MAX_REVISION_ATTEMPTS,
         },
