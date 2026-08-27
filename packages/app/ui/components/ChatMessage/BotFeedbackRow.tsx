@@ -23,6 +23,9 @@ export function BotFeedbackRow({
   visible?: boolean;
 }) {
   const isWeb = Platform.OS === 'web';
+  // Rating feedback only applies to the user's Tlon-hosted bot; other owned
+  // bots mount this row solely for the Context Lens action.
+  const canRate = api.isBotUserIdForUser(post.authorId, currentUserId);
   const telemetry = useTelemetry();
   const messageId = store.getBotReplyMessageId(post);
   const { data: feedback } = store.useBotReplyFeedback(messageId);
@@ -108,6 +111,7 @@ export function BotFeedbackRow({
       >
         {visible && <ContextLensButton post={post} onPress={onPressBotRun} />}
         {visible &&
+          canRate &&
           (['up', 'down'] as const).map((rating) => {
             const selected = feedback?.rating === rating;
             return (

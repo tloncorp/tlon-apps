@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/api';
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Pressable } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
@@ -11,6 +12,7 @@ import { useChannelContext } from '../../contexts/channel';
 import type { A2UIActionCompletion } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
+import { getOwnContextLensStamp } from '../Channel/ContextLens/lensPost';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { MaskedChatMessage } from '../PostModeration';
 import { BotFeedbackRow } from './BotFeedbackRow';
@@ -74,9 +76,19 @@ const ChatMessage = ({
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
   );
-  const showBotFeedback =
+  // Rating feedback is only supported for the user's Tlon-hosted bot, but
+  // lens-stamped posts from any owned bot ship (e.g. self-hosted bots) still
+  // get the row for the Context Lens action.
+  const isOwnTlonBotReply =
     (post.type === 'chat' || post.type === 'reply') &&
     api.isBotUserIdForUser(post.authorId, currentUserId);
+  const { data: ownedBotShips } = store.useContextLensBotShips();
+  const hasOwnLensStamp = useMemo(
+    () => Boolean(getOwnContextLensStamp(post, ownedBotShips ?? [])),
+    [post, ownedBotShips]
+  );
+  const showBotFeedback =
+    isOwnTlonBotReply || (hasOwnLensStamp && !!onPressBotRun);
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
   }, [onPressReplies, post]);
