@@ -17,6 +17,13 @@ const PAYLOAD_SCHEMA_VERSION = 1;
 const MAX_SUMMARY_CHARS = 4_096;
 const MAX_PAYLOAD_CHARS = 50 * 1_024;
 const MAX_TRACKED_RUNS = 1_000;
+/**
+ * Bounded backoff for the post-retirement ownership re-assertion. It is the
+ * only thing standing between a retired sync's in-flight %configure and the
+ * former owner keeping the bot's prompt mirror, so a transient transport
+ * failure must not end it.
+ */
+const OWNERSHIP_ASSERT_RETRY_DELAYS_MS = [1_000, 5_000, 15_000];
 
 const TERMINAL_STATUSES: ReadonlySet<ContextLensStatus> = new Set([
   'completed',
@@ -336,39 +343,6 @@ export function initContextLensShipSync(api: {
   // prompt mirror and edit rights again.
   // Returns the retired sync's flush so a replacement can order its own
   // pokes after any request that was already in flight.
-  /**
-   * After a retired sync's in-flight work settles, re-assert whatever
-   * ownership the CURRENT config implies. Cancellation cannot recall a
-   * %configure already sent, so on a path that installs no replacement
-   * (lens disabled, or no owner resolves) a late configure would otherwise
-   * be the last word — restoring the captured former owner and handing it
-   * the bot's prompt mirror and edit rights again.
-   */
-  const assertOwnershipAfterRetirement = async (
-    settled: Promise<void>
-  ): Promise<void> => {
-    await settled;
-    const params = apiClientParamsSlot.get();
-    if (!params) {
-      return;
-    }
-    const current = resolveLensOwner(api.config, accountId);
-    try {
-      await params.poke({
-        app: 'steward',
-        mark: 'steward-action-1',
-        json: current
-          ? { configure: { owner: current } }
-          : { unconfigure: null },
-      });
-    } catch (error) {
-      // Prompt sync re-asserts the same state on its next reconcile.
-      api.logger.warn(
-        `[tlon] Could not re-assert %steward ownership after retiring the lens sync: ${String(error)}`
-      );
-    }
-  };
-
   const retirePrevious = (): Promise<void> => {
     const previous = shipSyncUnsubscribeSlot.get();
     shipSyncUnsubscribeSlot.set(null);
@@ -378,16 +352,91 @@ export function initContextLensShipSync(api: {
     previous.retire();
     return previous.flush().catch(() => {});
   };
+
+  /**
+   * Retire the previous sync and, once its in-flight work settles,
+   * re-assert whatever ownership the CURRENT config implies. Cancellation
+   * cannot recall a %configure already sent, so on a path that installs no
+   * replacement (lens disabled, or no owner resolves) a late configure
+   * would otherwise be the last word — restoring the captured former owner
+   * and handing it the bot's prompt mirror and edit rights again.
+   *
+   * The pending assertion takes the retirement slot the sync would have
+   * held, so it stays part of the shared ordering chain: a later reload
+   * retires it (it then stops before poking) and chains its own pokes after
+   * it, instead of racing an assertion that resolved its owner from a
+   * since-replaced config.
+   */
+  const retireAndAssertOwnership = (): void => {
+    const settled = retirePrevious();
+    let superseded = false;
+    let wake: (() => void) | null = null;
+    const pause = (ms: number) =>
+      new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, ms);
+        // A pending retry must never hold the process open at shutdown.
+        timer.unref?.();
+        wake = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+      });
+    const assertion = (async () => {
+      await settled;
+      const current = resolveLensOwner(api.config, accountId);
+      const json = current
+        ? { configure: { owner: current } }
+        : { unconfigure: null };
+      let failure: unknown = 'no monitor transport available';
+      for (let attempt = 0; !superseded; attempt += 1) {
+        const params = apiClientParamsSlot.get();
+        if (params) {
+          try {
+            await params.poke({
+              app: 'steward',
+              mark: 'steward-action-1',
+              json,
+            });
+            return;
+          } catch (error) {
+            failure = error;
+          }
+        }
+        // The retired sync's %configure may still land, so one swallowed
+        // transport failure would leave the former owner configured until
+        // some unrelated reconcile. Retry on a bounded backoff instead.
+        if (attempt >= OWNERSHIP_ASSERT_RETRY_DELAYS_MS.length) {
+          break;
+        }
+        await pause(OWNERSHIP_ASSERT_RETRY_DELAYS_MS[attempt]);
+      }
+      if (superseded) {
+        // A newer init owns the ordering chain now and asserts its own state.
+        return;
+      }
+      // Prompt sync re-asserts the same state on its next reconcile.
+      api.logger.warn(
+        `[tlon] Could not re-assert %steward ownership after retiring the lens sync: ${String(failure)}`
+      );
+    })();
+    shipSyncUnsubscribeSlot.set({
+      retire: () => {
+        superseded = true;
+        wake?.();
+      },
+      flush: () => assertion,
+    });
+  };
   if (!resolveTlonAccount(api.config, accountId).contextLens.enabled) {
     // Nothing replaces this sync, so nothing would otherwise order itself
     // after its in-flight poke — re-assert the current ownership once that
     // settles.
-    void assertOwnershipAfterRetirement(retirePrevious());
+    retireAndAssertOwnership();
     return false;
   }
   const owner = resolveLensOwner(api.config, accountId);
   if (owner === null) {
-    void assertOwnershipAfterRetirement(retirePrevious());
+    retireAndAssertOwnership();
     api.logger.info(
       '[tlon] Context lens ship sync disabled: no owner configured (set contextLens.owner or ownerShip)'
     );

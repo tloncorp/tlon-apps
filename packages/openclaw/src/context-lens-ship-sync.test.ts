@@ -1,5 +1,5 @@
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   type ContextLensEvent,
@@ -573,6 +573,129 @@ describe('initContextLensShipSync retirement', () => {
       ]);
     } finally {
       slot.set(previousParams);
+    }
+  });
+
+  it('discards a pending ownership assertion once a newer reload lands', async () => {
+    const pokes: RecordedPoke[] = [];
+    const slot = sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT);
+    const previousParams = slot.get();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    slot.set({
+      poke: async (params) => {
+        pokes.push(params as RecordedPoke);
+        // Only the first sync's %configure hangs: it is the in-flight
+        // request the retirement assertion has to order itself behind.
+        if (pokes.length === 1) {
+          await gate;
+        }
+        return undefined;
+      },
+    });
+    const apiFor = (contextLens: Record<string, unknown>) => ({
+      config: {
+        channels: { tlon: { ship: '~zod', contextLens } },
+      } as OpenClawConfig,
+      logger: silentLogger,
+    });
+    try {
+      expect(
+        initContextLensShipSync(
+          apiFor({
+            enabled: true,
+            authToken: 'a-token-of-sufficient-length',
+            owner: '~bus',
+          })
+        )
+      ).toBe(true);
+      publishContextLensEvent('final', makeLens({ status: 'completed' }));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(pokes.map(pokeKind)).toEqual(['configure']);
+
+      // Reload A -> disabled: the retirement assertion cannot poke until
+      // the hung %configure settles. Reload disabled -> B lands first, so
+      // the assertion is holding an owner from a since-replaced config.
+      expect(
+        initContextLensShipSync(apiFor({ enabled: false, owner: '~bus' }))
+      ).toBe(false);
+      expect(
+        initContextLensShipSync(
+          apiFor({
+            enabled: true,
+            authToken: 'a-token-of-sufficient-length',
+            owner: '~dev',
+          })
+        )
+      ).toBe(true);
+
+      release();
+      publishContextLensEvent('final', makeLens({ status: 'completed' }));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      // The stale assertion must not get the last word: %steward ends
+      // owned by ~dev, with no %unconfigure landing after B installed.
+      expect(
+        pokes
+          .filter((poke) => poke.mark === 'steward-action-1')
+          .map((poke) => JSON.stringify(poke.json))
+      ).toEqual([
+        JSON.stringify({ configure: { owner: '~bus' } }),
+        JSON.stringify({ configure: { owner: '~dev' } }),
+      ]);
+    } finally {
+      slot.set(previousParams);
+    }
+  });
+
+  it('retries the ownership re-assertion after a transport failure', async () => {
+    vi.useFakeTimers();
+    const pokes: RecordedPoke[] = [];
+    const slot = sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT);
+    const previousParams = slot.get();
+    slot.set({
+      poke: async (params) => {
+        pokes.push(params as RecordedPoke);
+        if (pokes.length === 1) {
+          throw new Error('transport offline');
+        }
+        return undefined;
+      },
+    });
+    const apiFor = (contextLens: Record<string, unknown>) => ({
+      config: {
+        channels: { tlon: { ship: '~zod', contextLens } },
+      } as OpenClawConfig,
+      logger: silentLogger,
+    });
+    try {
+      expect(
+        initContextLensShipSync(
+          apiFor({
+            enabled: true,
+            authToken: 'a-token-of-sufficient-length',
+            owner: '~bus',
+          })
+        )
+      ).toBe(true);
+      expect(
+        initContextLensShipSync(apiFor({ enabled: false, owner: '~bus' }))
+      ).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(0);
+      expect(pokes).toHaveLength(1);
+      // A single swallowed failure would leave the retired sync's captured
+      // owner configured, so the assertion retries on a backoff.
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(pokes.map((poke) => poke.json)).toEqual([
+        { unconfigure: null },
+        { unconfigure: null },
+      ]);
+    } finally {
+      slot.set(previousParams);
+      vi.useRealTimers();
     }
   });
 });
