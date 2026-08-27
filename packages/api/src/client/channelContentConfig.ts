@@ -326,6 +326,118 @@ export namespace StructuredChannelDescriptionPayload {
       surfaceSpec: raw == null ? null : JSON.stringify(raw),
     };
   }
+
+  /** Whether a plain string would decode as a structured payload. */
+  function readsAsStructuredPayload(value: string): boolean {
+    try {
+      const parsed = JSON.parse(value);
+      return (
+        typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Rebuilds the encoded description for a channel-metadata edit: start
+   * from the CURRENT stored payload (every key preserved), overlay only the
+   * fields the edit owns, and serialize minimally.
+   *
+   * - `surfaceSpec` and unknown payload keys always ride through
+   *   byte-identically — an edit path must never reconstruct the payload
+   *   from known fields.
+   * - The configuration is only overlaid when it *differs* from the stored
+   *   payload's hydrated view, so a title-only edit leaves the stored
+   *   configuration bytes untouched (extracted configurations are
+   *   defaults-hydrated and would otherwise be materialized back).
+   * - A payload holding nothing but a plain description serializes as the
+   *   bare string (no spurious structured payload), unless that string
+   *   would itself parse as a payload; nothing at all serializes as ''.
+   */
+  export function applyMetadataEdit(
+    currentPayload: Encoded,
+    edits: {
+      description?: string | null;
+      channelContentConfiguration?: ChannelContentConfiguration | null;
+    }
+  ): string {
+    const next: Decoded = { ...decode(currentPayload) };
+
+    if ('description' in edits) {
+      if (edits.description == null || edits.description === '') {
+        delete next.description;
+      } else {
+        next.description = edits.description;
+      }
+    }
+
+    if ('channelContentConfiguration' in edits) {
+      const edited = edits.channelContentConfiguration;
+      if (edited == null) {
+        if ('channelContentConfiguration' in next) {
+          delete next.channelContentConfiguration;
+        }
+      } else {
+        const storedView =
+          decodeWithDefaults(currentPayload).channelContentConfiguration;
+        if (!deepEqualJson(edited, storedView)) {
+          next.channelContentConfiguration = edited;
+        }
+      }
+    }
+
+    // undefined-valued keys would be dropped by JSON.stringify anyway;
+    // drop them first so the minimal-serialization checks see the truth
+    for (const key of Object.keys(next)) {
+      if (next[key] === undefined) {
+        delete next[key];
+      }
+    }
+
+    const keys = Object.keys(next);
+    if (keys.length === 0) {
+      return '';
+    }
+    if (
+      keys.length === 1 &&
+      keys[0] === 'description' &&
+      typeof next.description === 'string' &&
+      !readsAsStructuredPayload(next.description)
+    ) {
+      return next.description;
+    }
+    return encode(next) ?? '';
+  }
+}
+
+/** Structural equality over JSON-serializable values. */
+function deepEqualJson(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (
+    typeof a !== 'object' ||
+    typeof b !== 'object' ||
+    a == null ||
+    b == null
+  ) {
+    return false;
+  }
+  if (Array.isArray(a) !== Array.isArray(b)) {
+    return false;
+  }
+  const aKeys = Object.keys(a as object);
+  const bKeys = Object.keys(b as object);
+  if (aKeys.length !== bKeys.length) {
+    return false;
+  }
+  return aKeys.every((key) =>
+    deepEqualJson(
+      (a as Record<string, unknown>)[key],
+      (b as Record<string, unknown>)[key]
+    )
+  );
 }
 
 /**

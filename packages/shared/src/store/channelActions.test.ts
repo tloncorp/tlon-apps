@@ -1,7 +1,7 @@
 import * as api from '@tloncorp/api';
-import { poke } from '@tloncorp/api';
+import { StructuredChannelDescriptionPayload, poke } from '@tloncorp/api';
 import * as $ from 'drizzle-orm';
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import * as db from '../db';
 import * as schema from '../db/schema';
@@ -575,5 +575,163 @@ test('markChannelRead decrements group count and notify count for notifying mess
     notify: true,
     notifyCount: 1,
     updatedAt: 100,
+  });
+});
+
+describe('updateChannel description-payload losslessness', () => {
+  const SCDP = StructuredChannelDescriptionPayload;
+  const surfaceGroupId = '~zod/surface-group';
+  const surfaceChannelId = 'chat/~zod/dashboard';
+
+  // A spec with an unknown key inside it — the byte-identity target.
+  const SPEC = {
+    version: 1,
+    surfaceId: 'srf-dash',
+    specRevision: 4,
+    bundle: {
+      assetRef: 'https://storage.example/b',
+      sha256: 'a'.repeat(64),
+      size: 512,
+      shellVersion: 1,
+    },
+    initialState: { votes: {} },
+    actions: { vote: { ops: [] } },
+    futureSpecKey: { keep: ['me'] },
+  };
+
+  // Sparse configuration (no defaults materialized) plus a payload-level
+  // unknown key: the whole payload must ride through edits untouched.
+  const PAYLOAD = JSON.stringify({
+    description: 'the description',
+    channelContentConfiguration: { draftInput: 'tlon.r0.input.chat' },
+    surfaceSpec: SPEC,
+    unknownPayloadKey: { keep: true },
+  });
+
+  async function insertSurfaceChannel(
+    id = surfaceChannelId,
+    payload = PAYLOAD
+  ) {
+    const view = SCDP.decodeWithDefaults(payload);
+    await insertGroup(surfaceGroupId);
+    await db.insertChannels([
+      {
+        id,
+        type: 'chat',
+        groupId: surfaceGroupId,
+        title: 'Old title',
+        description: view.description ?? null,
+        contentConfiguration: view.channelContentConfiguration ?? null,
+        ...SCDP.rawPersistenceFields(payload),
+      },
+    ]);
+    const stored = await db.getChannel({ id });
+    expect(stored?.descriptionPayload).toBe(payload);
+    return stored!;
+  }
+
+  function mockUpdateChannelPoke() {
+    return vi.spyOn(api, 'updateChannel').mockResolvedValue(1);
+  }
+
+  function sentDescription(spy: ReturnType<typeof mockUpdateChannelPoke>) {
+    expect(spy).toHaveBeenCalledTimes(1);
+    return spy.mock.calls[0][0].channel.meta.description;
+  }
+
+  async function edit(channel: db.Channel, readers: string[] = []) {
+    await updateChannel({
+      groupId: surfaceGroupId,
+      sectionId: 'default',
+      readers,
+      writers: [],
+      join: false,
+      channel,
+    });
+  }
+
+  test('a title edit leaves the whole stored payload byte-identical', async () => {
+    const stored = await insertSurfaceChannel();
+    const spy = mockUpdateChannelPoke();
+    await edit({ ...stored, title: 'New title' });
+    expect(sentDescription(spy)).toBe(PAYLOAD);
+
+    // the local row stays coherent too
+    const after = await db.getChannel({ id: surfaceChannelId });
+    expect(after?.descriptionPayload).toBe(PAYLOAD);
+    expect(after?.surfaceSpec).toBe(JSON.stringify(SPEC));
+    expect(after?.title).toBe('New title');
+  });
+
+  test('a privacy (readers) edit leaves the whole payload byte-identical', async () => {
+    const stored = await insertSurfaceChannel();
+    const spy = mockUpdateChannelPoke();
+    await edit({ ...stored }, ['admin']);
+    expect(sentDescription(spy)).toBe(PAYLOAD);
+  });
+
+  test('a content-config edit rewrites only the configuration', async () => {
+    const stored = await insertSurfaceChannel();
+    const spy = mockUpdateChannelPoke();
+    const newConfig = {
+      ...stored.contentConfiguration!,
+      defaultPostContentRenderer: 'tlon.r0.content.gallery',
+    };
+    await edit({ ...stored, contentConfiguration: newConfig as never });
+
+    const sent = sentDescription(spy);
+    expect(sent).not.toBe(PAYLOAD);
+    const decoded = SCDP.decode(sent);
+    // surfaceSpec and unknown keys byte-identical; config updated
+    expect(JSON.stringify(decoded.surfaceSpec)).toBe(JSON.stringify(SPEC));
+    expect(decoded.unknownPayloadKey).toEqual({ keep: true });
+    expect(decoded.description).toBe('the description');
+    expect(decoded.channelContentConfiguration).toEqual(newConfig);
+
+    // the local row's raw fields track the new payload
+    const after = await db.getChannel({ id: surfaceChannelId });
+    expect(after?.descriptionPayload).toBe(sent);
+    expect(after?.surfaceSpec).toBe(JSON.stringify(SPEC));
+  });
+
+  test('a description edit preserves the spec and unknown keys', async () => {
+    const stored = await insertSurfaceChannel();
+    const spy = mockUpdateChannelPoke();
+    await edit({ ...stored, description: 'brand new description' });
+    const decoded = SCDP.decode(sentDescription(spy));
+    expect(decoded.description).toBe('brand new description');
+    expect(JSON.stringify(decoded.surfaceSpec)).toBe(JSON.stringify(SPEC));
+    expect(decoded.unknownPayloadKey).toEqual({ keep: true });
+  });
+
+  test('editing a plain-description channel does not grow a structured payload', async () => {
+    const id = 'chat/~zod/plain';
+    await insertGroup(surfaceGroupId);
+    await db.insertChannels([
+      {
+        id,
+        type: 'chat',
+        groupId: surfaceGroupId,
+        title: 'Plain',
+        description: 'hello there',
+        ...SCDP.rawPersistenceFields('hello there'),
+      },
+    ]);
+    const stored = await db.getChannel({ id });
+    const spy = mockUpdateChannelPoke();
+    await edit({ ...stored!, title: 'Renamed' });
+    expect(sentDescription(spy)).toBe('hello there');
+  });
+
+  test('editing a channel with no description at all sends an empty string', async () => {
+    const id = 'chat/~zod/empty';
+    await insertGroup(surfaceGroupId);
+    await db.insertChannels([
+      { id, type: 'chat', groupId: surfaceGroupId, title: 'Empty' },
+    ]);
+    const stored = await db.getChannel({ id });
+    const spy = mockUpdateChannelPoke();
+    await edit({ ...stored!, title: 'Renamed' });
+    expect(sentDescription(spy)).toBe('');
   });
 });

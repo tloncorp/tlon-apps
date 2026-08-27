@@ -153,3 +153,94 @@ describe('surfaceSpec accessor', () => {
     expect(SCDP.encode(decoded)).toBe(encoded);
   });
 });
+
+describe('applyMetadataEdit', () => {
+  const payload = JSON.stringify({
+    description: 'desc',
+    channelContentConfiguration: { draftInput: 'tlon.r0.input.chat' },
+    surfaceSpec: validSpec(),
+    unknownKey: [1, 2],
+  });
+
+  test('no-op edits return the payload byte-identical', () => {
+    const view = SCDP.decodeWithDefaults(payload);
+    expect(
+      SCDP.applyMetadataEdit(payload, {
+        description: 'desc',
+        channelContentConfiguration: view.channelContentConfiguration,
+      })
+    ).toBe(payload);
+  });
+
+  test('unchanged hydrated configuration is not materialized back', () => {
+    // the hydrated view differs from the sparse stored config, but since it
+    // is semantically the stored config, the stored bytes win
+    const view = SCDP.decodeWithDefaults(payload);
+    const out = SCDP.applyMetadataEdit(payload, {
+      channelContentConfiguration: view.channelContentConfiguration,
+    });
+    expect(out).toBe(payload);
+  });
+
+  test('a changed configuration is overlaid; the rest rides through', () => {
+    const view = SCDP.decodeWithDefaults(payload);
+    const changed = {
+      ...view.channelContentConfiguration!,
+      defaultPostContentRenderer: 'tlon.r0.content.gallery',
+    };
+    const out = SCDP.applyMetadataEdit(payload, {
+      channelContentConfiguration: changed as never,
+    });
+    const decoded = SCDP.decode(out);
+    expect(decoded.channelContentConfiguration).toEqual(changed);
+    expect(JSON.stringify(decoded.surfaceSpec)).toBe(
+      JSON.stringify(validSpec())
+    );
+    expect(decoded.unknownKey).toEqual([1, 2]);
+    expect(decoded.description).toBe('desc');
+  });
+
+  test('plain descriptions stay plain; empty stays empty', () => {
+    expect(SCDP.applyMetadataEdit('hello', { description: 'goodbye' })).toBe(
+      'goodbye'
+    );
+    expect(SCDP.applyMetadataEdit(null, { description: null })).toBe('');
+    expect(SCDP.applyMetadataEdit('', {})).toBe('');
+  });
+
+  test('a description that would read as a payload gets wrapped', () => {
+    const out = SCDP.applyMetadataEdit(null, {
+      description: '{"sneaky": true}',
+    });
+    expect(out).toBe(JSON.stringify({ description: '{"sneaky": true}' }));
+    expect(SCDP.decode(out)).toEqual({ description: '{"sneaky": true}' });
+    // scalars and arrays decode back as plain text already, so stay bare
+    expect(SCDP.applyMetadataEdit(null, { description: '5' })).toBe('5');
+    expect(SCDP.applyMetadataEdit(null, { description: '[1]' })).toBe('[1]');
+  });
+
+  test('removing the configuration keeps the rest of the payload', () => {
+    const out = SCDP.applyMetadataEdit(payload, {
+      channelContentConfiguration: null,
+    });
+    const decoded = SCDP.decode(out);
+    expect('channelContentConfiguration' in decoded).toBe(false);
+    expect(JSON.stringify(decoded.surfaceSpec)).toBe(
+      JSON.stringify(validSpec())
+    );
+    expect(decoded.unknownKey).toEqual([1, 2]);
+  });
+
+  test('adding a configuration to a plain channel structures the payload', () => {
+    const out = SCDP.applyMetadataEdit('just text', {
+      description: 'just text',
+      channelContentConfiguration: {
+        draftInput: 'tlon.r0.input.chat',
+      } as never,
+    });
+    expect(SCDP.decode(out)).toEqual({
+      description: 'just text',
+      channelContentConfiguration: { draftInput: 'tlon.r0.input.chat' },
+    });
+  });
+});
