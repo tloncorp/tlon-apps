@@ -957,9 +957,17 @@ async function createGroupNotebookV1({
 
 // --- note helpers ----------------------------------------------------------
 
-async function listNotesV1(target: NotesTarget): Promise<NotesV1Note[]> {
+async function listNotesV1(
+  target: NotesTarget,
+  options?: RequestJsonOptions
+): Promise<NotesV1Note[]> {
   const flag = normalizeNotesTarget(target);
-  const res = await requestJson<unknown>(notesV1Path(flag), 'GET');
+  const res = await requestJson<unknown>(
+    notesV1Path(flag),
+    'GET',
+    undefined,
+    options
+  );
   return parseNotesResponseList(notesV1NoteSchema, res, 'note');
 }
 
@@ -1305,8 +1313,11 @@ async function createGroupNotebook(input: {
   return toClientNotesNotebook(summary);
 }
 
-async function listNotes(target: NotesTarget): Promise<NotesNote[]> {
-  const rawNotes = await listNotesV1(target);
+async function listNotes(
+  target: NotesTarget,
+  options?: RequestJsonOptions
+): Promise<NotesNote[]> {
+  const rawNotes = await listNotesV1(target, options);
   return rawNotes.map((note) => toClientNotesNote(target, note));
 }
 

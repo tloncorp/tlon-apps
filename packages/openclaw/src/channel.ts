@@ -276,6 +276,9 @@ export const tlonPlugin = createChatChannelPlugin({
     },
     ...createRuntimeOutboundDelegates({
       getRuntime: loadTlonChannelRuntime,
+      sendPayload: {
+        resolve: (runtime) => runtime.tlonRuntimeOutbound.sendPayload,
+      },
       sendText: { resolve: (runtime) => runtime.tlonRuntimeOutbound.sendText },
       sendMedia: {
         resolve: (runtime) => runtime.tlonRuntimeOutbound.sendMedia,
