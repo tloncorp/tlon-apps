@@ -837,6 +837,9 @@ function openClawToolsForCapability(
   if (capability === 'image_search') {
     return ['image_search'];
   }
+  if (capability === 'read') {
+    return ['read'];
+  }
   return [];
 }
 

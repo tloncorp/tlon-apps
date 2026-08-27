@@ -63,6 +63,7 @@ Current common scenarios are:
 -   `bot-info` identity publication on the bot profile and its replication to the owner's peer contact
 -   owner DM text reply
 -   owner DM `tlon` tool call followed by final assistant text
+-   TLON-6388 successful file read followed by a forced progress-only draft, proving OpenClaw revises it and delivers the actual first and last rows
 -   unauthorized third-party DM produces no fake-model call and no direct reply
 -   allowlisted third-party DM receives a reply
 -   owner DM still works when channel owner-listen is disabled

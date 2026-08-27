@@ -2,7 +2,11 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect } from 'vitest';
 
-import type { DriverName, RuntimeContext } from '../../drivers/types.js';
+import type {
+  DriverName,
+  ModelScript,
+  RuntimeContext,
+} from '../../drivers/types.js';
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import {
   connectComposeNetwork,
@@ -93,6 +97,51 @@ export const commonScenarios: readonly SharedScenario[] = [
       benignModelCallPredicate(driver)
     );
   }),
+
+  testScenario(
+    'tlon-6388-successful-file-read-cannot-end-as-progress-only',
+    { drivers: ['openclaw'], capabilities: ['read'], timeoutMs: 180_000 },
+    async ({ ctx, actors }) => {
+      const key = scenarioKey('tlon-6388-file-read');
+      const firstRow = '2026-08-01,moderate,keep-windows-closed';
+      const lastRow = '2026-08-03,very-high,use-air-filter';
+      const finalReply = [
+        'Here are the requested file contents:',
+        'date,risk,action',
+        firstRow,
+        '2026-08-02,high,limit-outdoor-time',
+        lastRow,
+      ].join('\n');
+      const script: ModelScript = {
+        steps: [
+          {
+            kind: 'tool_call',
+            name: 'read',
+            args: {
+              path: '/workspace/tlon/test-fixtures/tlon-6388-ragweed.csv',
+            },
+          },
+          { kind: 'text', content: 'Opening the CSV now.' },
+          { kind: 'text', content: finalReply },
+        ],
+        expectations: {
+          advertisedTools: { include: ['read', 'message', 'tlon'] },
+          expectedCallCount: 3,
+          toolEffectOnly: true,
+        },
+      };
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
+      const result = await actors.owner.prompt(
+        `${tag} Read tlon-6388-ragweed.csv and show me its complete contents.`,
+        { timeoutMs: BOT_REPLY_WAIT_MS }
+      );
+
+      expectPromptSuccess(result, firstRow);
+      expect(result.text).toContain(lastRow);
+      expect(result.text).not.toContain('Opening the CSV now.');
+      await expectModelExpectations(ctx.fakeModel, key, script);
+    }
+  ),
 
   testScenario(
     'bot-info-publishes-and-replicates',

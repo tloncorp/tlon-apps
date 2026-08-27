@@ -11,6 +11,7 @@ export type DriverName = 'hermes' | 'openclaw';
 export type RuntimeCapability =
   | 'cron'
   | 'image_search'
+  | 'read'
   | 'upload_storage'
   | 'media_blob'
   | 'external_credentials';
