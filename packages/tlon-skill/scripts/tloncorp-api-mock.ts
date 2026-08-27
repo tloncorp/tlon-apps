@@ -117,6 +117,22 @@ export const mockedGetBuckets = {
   impl: async (..._args: unknown[]): Promise<unknown> => [],
 };
 
+export const mockedGetBucket = {
+  impl: async (..._args: unknown[]): Promise<unknown> => null,
+};
+
+export const mockedGetBucketReadToken = {
+  impl: async (..._args: unknown[]): Promise<unknown> => null,
+};
+
+export const mockedRequestBucketReadToken = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedRequestBucketsGrant = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
 export const mockedSendBucketsAction = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
@@ -156,6 +172,13 @@ mock.module('@tloncorp/api', () => ({
   getGroups: (...args: unknown[]) => mockedGetGroups.impl(...args),
   getGroup: (...args: unknown[]) => mockedGetGroup.impl(...args),
   getBuckets: (...args: unknown[]) => mockedGetBuckets.impl(...args),
+  getBucket: (...args: unknown[]) => mockedGetBucket.impl(...args),
+  getBucketReadToken: (...args: unknown[]) =>
+    mockedGetBucketReadToken.impl(...args),
+  requestBucketReadToken: (...args: unknown[]) =>
+    mockedRequestBucketReadToken.impl(...args),
+  requestBucketsGrant: (...args: unknown[]) =>
+    mockedRequestBucketsGrant.impl(...args),
   sendBucketsAction: (...args: unknown[]) =>
     mockedSendBucketsAction.impl(...args),
   deleteNotesNotebookStrict: async () => undefined,

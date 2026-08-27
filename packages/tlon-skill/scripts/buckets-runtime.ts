@@ -3,7 +3,12 @@ import {
   type BucketsFileEntry,
   type BucketsFlag,
   type BucketsSnapshot,
+  type BucketsSummary,
+  getBucket,
+  getBucketReadToken,
   getBuckets,
+  requestBucketReadToken,
+  requestBucketsGrant,
   sendBucketsAction,
 } from '@tloncorp/api';
 import { randomBytes } from 'node:crypto';
@@ -19,10 +24,10 @@ import type {
 import { commandError, errorMessage } from './commands/command';
 
 const DEFAULT_BROKER_URL = 'https://memex.tlon.network/v2/buckets';
-const CAPABILITY_ATTEMPTS = 40;
 const STATE_ATTEMPTS = 40;
 const POLL_DELAY_MS = 250;
 const MAX_TEXT_READ_BYTES = 2 * 1024 * 1024;
+const BROKER_AUTH_FAILURE_STATUSES = new Set([401, 403]);
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   '.avif': 'image/avif',
@@ -100,10 +105,6 @@ function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-function retryDelay(attempt: number) {
-  return Math.min(POLL_DELAY_MS * 2 ** Math.min(attempt, 2), 1_000);
-}
-
 function normalizeHost(host: string) {
   const normalized = host.toLowerCase();
   return normalized.startsWith('~') ? normalized : `~${normalized}`;
@@ -120,15 +121,13 @@ function bucketNest(flag: BucketsFlag) {
   return `buckets/${normalizeHost(flag.host)}/${flag.name}`;
 }
 
-function serializeSnapshot(snapshot: BucketsSnapshot) {
+function serializeSnapshot(snapshot: BucketsSummary) {
   return {
     nest: bucketNest(snapshot.flag),
     title: snapshot.state.bucket.title,
     group: `${normalizeHost(snapshot.state.group.host)}/${snapshot.state.group.name}`,
-    readers: snapshot.state.readers,
     writers: snapshot.state.writers,
     revision: snapshot.state.revision,
-    entries: snapshot.state.entries.length,
   };
 }
 
@@ -156,9 +155,7 @@ function serializeEntry(entry: BucketsEntry) {
 }
 
 async function getSnapshot(target: BucketTarget): Promise<BucketsSnapshot> {
-  const snapshot = (await getBuckets()).find((candidate) =>
-    flagsMatch(candidate.flag, target.flag)
-  );
+  const snapshot = await getBucket(target.flag);
   if (!snapshot) {
     throw commandError(
       `Bucket ${target.nest} was not found or is not readable`
@@ -180,10 +177,6 @@ function requireReadyFile(snapshot: BucketsSnapshot, id: number) {
     throw commandError(`File ${id} is not ready`);
   }
   return entry;
-}
-
-function createCapability() {
-  return randomBytes(32).toString('hex');
 }
 
 function defaultBucketName() {
@@ -269,28 +262,6 @@ function grantRead(capability: string, host: string, objectId: string) {
   );
 }
 
-async function waitForCapability<T>(operation: () => Promise<T>): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < CAPABILITY_ATTEMPTS; attempt += 1) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
-      const retryable =
-        error instanceof BucketsBrokerError &&
-        (error.retryable ||
-          (error.status === 403 && error.code === 'capability_denied'));
-      if (!retryable) {
-        throw error;
-      }
-      if (attempt + 1 < CAPABILITY_ATTEMPTS) {
-        await delay(retryDelay(attempt));
-      }
-    }
-  }
-  throw lastError;
-}
-
 async function waitForBucketUpdate<T>(
   target: BucketTarget,
   priorRevision: number,
@@ -315,38 +286,6 @@ function sameStrings(left: string[], right: string[]) {
   return (
     normalizedLeft.length === normalizedRight.length &&
     normalizedLeft.every((value, index) => value === normalizedRight[index])
-  );
-}
-
-async function waitForUploadSession(
-  target: BucketTarget,
-  priorSessionIds: Set<string>,
-  objectId: string,
-  parentId: number | null,
-  name: string
-) {
-  for (let attempt = 0; attempt < STATE_ATTEMPTS; attempt += 1) {
-    const snapshot = await getSnapshot(target);
-    const entry = snapshot.state.entries.find(
-      (candidate): candidate is BucketsFileEntry =>
-        candidate.kind === 'file' &&
-        candidate.file.objectKey === objectId &&
-        candidate.parentId === parentId &&
-        candidate.name === name &&
-        snapshot.state.sessions.some(
-          (session) =>
-            session.fileId === candidate.id && !priorSessionIds.has(session.id)
-        )
-    );
-    const session = snapshot.state.sessions.find(
-      (candidate) =>
-        candidate.fileId === entry?.id && !priorSessionIds.has(candidate.id)
-    );
-    if (entry && session) return { entry, session };
-    await delay(POLL_DELAY_MS);
-  }
-  throw commandError(
-    "The Bucket host authorized the upload, but this ship's Bucket replica did not receive the upload session in time"
   );
 }
 
@@ -438,22 +377,24 @@ function isTextMime(mime: string) {
 }
 
 async function privateReadUrl(target: BucketTarget, entry: BucketsFileEntry) {
-  if (entry.file.objectUrl) {
-    throw commandError(
-      `File ${entry.id} uses a legacy external object URL. Bot reads require broker-managed Bucket storage.`
-    );
+  const readToken =
+    (await getBucketReadToken(target.flag)) ??
+    (await requestBucketReadToken(target.flag));
+  const open = (token: string) =>
+    grantRead(token, target.flag.host, entry.file.objectKey);
+  try {
+    return (await open(readToken.token)).readUrl;
+  } catch (cause) {
+    // A host rotation can invalidate the locally held token between the scry
+    // and broker request. Mint once more before treating it as a real failure.
+    if (
+      !(cause instanceof BucketsBrokerError) ||
+      !BROKER_AUTH_FAILURE_STATUSES.has(cause.status)
+    ) {
+      throw cause;
+    }
+    return (await open((await requestBucketReadToken(target.flag)).token)).readUrl;
   }
-  const capability = createCapability();
-  await sendBucketsAction({
-    type: 'issue-read',
-    capability,
-    flag: target.flag,
-    id: entry.id,
-  });
-  const grant = await waitForCapability(() =>
-    grantRead(capability, target.flag.host, entry.file.objectKey)
-  );
-  return grant.readUrl;
 }
 
 function createBucketsOperations(): BucketsOperations {
@@ -521,13 +462,14 @@ function createBucketsOperations(): BucketsOperations {
         writers: [],
       });
       for (let attempt = 0; attempt < STATE_ATTEMPTS; attempt += 1) {
-        const found = (await getBuckets()).find(
-          (snapshot) =>
-            flagsMatch(snapshot.flag, flag) &&
-            flagsMatch(snapshot.state.group, normalizedGroup) &&
-            snapshot.state.bucket.title === bucketTitle
-        );
-        if (found) return { nest };
+        const found = await getBucket(flag);
+        if (
+          found &&
+          flagsMatch(found.state.group, normalizedGroup) &&
+          found.state.bucket.title === bucketTitle
+        ) {
+          return { nest };
+        }
         await delay(POLL_DELAY_MS);
       }
       throw commandError(
@@ -578,40 +520,22 @@ function createBucketsOperations(): BucketsOperations {
         'File name'
       );
       const contentType = mime ?? mimeFromPath(resolvedPath);
-      const current = await getSnapshot(target);
-      const priorSessionIds = new Set(
-        current.state.sessions.map((session) => session.id)
-      );
-      const capability = createCapability();
-
-      await sendBucketsAction({
-        type: 'begin-upload',
-        capability,
-        checksum: null,
-        flag: target.flag,
-        mime: contentType,
-        name: displayName,
-        parentId,
-        size: stat.size,
-      });
-
       let completionAttempted = false;
-      let hostAuthorized = false;
-      let begun: Awaited<ReturnType<typeof waitForUploadSession>> | undefined;
+      let grant: Awaited<ReturnType<typeof requestBucketsGrant>> | undefined;
       try {
-        const grant = await waitForCapability(() =>
-          grantUpload(capability, target.flag.host)
-        );
-        hostAuthorized = true;
-        begun = await waitForUploadSession(
-          target,
-          priorSessionIds,
-          grant.objectId,
+        await getSnapshot(target);
+        grant = await requestBucketsGrant({
+          type: 'begin-upload',
+          checksum: null,
+          flag: target.flag,
+          mime: contentType,
+          name: displayName,
           parentId,
-          displayName
-        );
-        const requiredHeaders = Object.fromEntries(grant.requiredHeaders);
-        const uploadResponse = await fetch(grant.uploadUrl, {
+          size: stat.size,
+        });
+        const brokerGrant = await grantUpload(grant.token, target.flag.host);
+        const requiredHeaders = Object.fromEntries(brokerGrant.requiredHeaders);
+        const uploadResponse = await fetch(brokerGrant.uploadUrl, {
           method: 'PUT',
           // These headers are part of the GCS signature. Do not add a second
           // Content-Type with different casing: Fetch coalesces duplicate
@@ -632,8 +556,8 @@ function createBucketsOperations(): BucketsOperations {
           );
         }
         completionAttempted = true;
-        await completeUpload(grant.reservationId);
-        const ready = await waitForReadyFile(target, begun.entry.id);
+        await completeUpload(brokerGrant.reservationId);
+        const ready = await waitForReadyFile(target, grant.entryId);
         return {
           id: ready.id,
           mime: ready.file.mime,
@@ -644,22 +568,16 @@ function createBucketsOperations(): BucketsOperations {
           status: ready.file.status,
         };
       } catch (error) {
-        if (!completionAttempted && begun) {
+        if (!completionAttempted && grant) {
           await sendBucketsAction({
-            type: 'fail-upload',
+            type: 'cancel-upload',
             flag: target.flag,
-            sessionId: begun.session.id,
+            sessionId: grant.token,
             reason: errorMessage(error).slice(0, 500),
-          }).catch(() => undefined);
-          await sendBucketsAction({
-            type: 'delete-entry',
-            flag: target.flag,
-            id: begun.entry.id,
-            recursive: false,
           }).catch(() => undefined);
         }
         throw commandError(
-          hostAuthorized
+          grant
             ? `Bucket upload failed after the host authorized ${displayName}: ${errorMessage(error)}`
             : `Bucket host did not authorize ${displayName}: ${errorMessage(error)}`
         );

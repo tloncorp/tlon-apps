@@ -3,7 +3,6 @@ import type {
   BucketsEntry,
   BucketsFileEntry,
   BucketsSnapshot,
-  BucketsUploadSession,
 } from '@tloncorp/api';
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -11,7 +10,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { createBucketsDeps } from './buckets-runtime';
-import { mockedGetBuckets, mockedSendBucketsAction } from './tloncorp-api-mock';
+import {
+  mockedGetBucket,
+  mockedGetBuckets,
+  mockedGetBucketReadToken,
+  mockedRequestBucketsGrant,
+  mockedSendBucketsAction,
+} from './tloncorp-api-mock';
 
 const TARGET = {
   flag: { host: '~zod', name: 'project-files' },
@@ -24,12 +29,10 @@ const MAX_TEXT_READ_BYTES = 2 * 1024 * 1024;
 
 function snapshot({
   entries = [],
-  sessions = [],
   revision = 1,
   title = 'Project Files',
 }: {
   entries?: BucketsEntry[];
-  sessions?: BucketsUploadSession[];
   revision?: number;
   title?: string;
 } = {}): BucketsSnapshot {
@@ -45,10 +48,8 @@ function snapshot({
         updatedAt: 1,
       },
       group: GROUP,
-      readers: [],
       writers: [],
       entries,
-      sessions,
       revision,
     },
   };
@@ -69,27 +70,17 @@ function pendingFile(id: number, objectKey: string): BucketsFileEntry {
       size: 12,
       checksum: null,
       objectKey,
-      objectUrl: null,
       status: 'pending',
     },
-  };
-}
-
-function session(id: string, fileId: number): BucketsUploadSession {
-  return {
-    id,
-    fileId,
-    requestedBy: '~zod',
-    createdAt: 1,
-    expiresAt: 2,
-    status: 'pending',
-    error: null,
   };
 }
 
 beforeEach(() => {
   process.env.BUCKETS_BROKER_URL = 'https://broker.test/v2/buckets';
   mockedGetBuckets.impl = async () => [];
+  mockedGetBucket.impl = async () => null;
+  mockedGetBucketReadToken.impl = async () => null;
+  mockedRequestBucketsGrant.impl = async () => undefined;
   mockedSendBucketsAction.impl = async () => undefined;
 });
 
@@ -120,21 +111,16 @@ describe('Buckets runtime hardening', () => {
     expect(actions).toEqual([]);
   });
 
-  it('correlates a same-name upload by broker object id and streams the file', async () => {
+  it('uses the host-minted upload grant and streams the file', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'tlon-buckets-upload-'));
     const filePath = path.join(directory, 'plan.md');
     const contents = '# Project\n';
     writeFileSync(filePath, contents);
 
     let phase: 'initial' | 'pending' | 'ready' = 'initial';
-    const actions: BucketsAction[] = [];
     const other = pendingFile(10, 'object-other');
     const ours = pendingFile(11, 'object-mine');
-    const pending = snapshot({
-      entries: [other, ours],
-      sessions: [session('session-other', 10), session('session-mine', 11)],
-      revision: 2,
-    });
+    const pending = snapshot({ entries: [other, ours], revision: 2 });
     const ready = snapshot({
       entries: [
         other,
@@ -143,27 +129,23 @@ describe('Buckets runtime hardening', () => {
           file: { ...ours.file, status: 'ready' },
         },
       ],
-      sessions: [
-        session('session-other', 10),
-        { ...session('session-mine', 11), status: 'complete' },
-      ],
       revision: 3,
     });
 
-    mockedGetBuckets.impl = async () => [
-      phase === 'initial' ? snapshot() : phase === 'pending' ? pending : ready,
-    ];
-    mockedSendBucketsAction.impl = async (action: unknown) => {
-      const typed = action as BucketsAction;
-      actions.push(typed);
+    mockedGetBucket.impl = async () =>
+      phase === 'initial' ? snapshot() : phase === 'pending' ? pending : ready;
+    mockedRequestBucketsGrant.impl = async (action: unknown) => {
+      expect(action).toMatchObject({
+        type: 'begin-upload',
+        name: 'plan.md',
+        size: Buffer.byteLength(contents),
+      });
+      phase = 'pending';
+      return { token: 'upload-token', entryId: 11, expiresAt: '~2026.1.1' };
     };
     globalThis.fetch = (async (input, init) => {
       const url = String(input);
       if (url.endsWith('/uploads/grant')) {
-        // Broker authorization is the authoritative acknowledgement from the
-        // host. Only expose the replicated session after that acknowledgement
-        // so this test fails if the CLI regresses to scry-first polling.
-        phase = 'pending';
         return Response.json({
           reservationId: 'reservation-mine',
           objectId: 'object-mine',
@@ -191,12 +173,6 @@ describe('Buckets runtime hardening', () => {
           parentId: null,
         })
       ).resolves.toMatchObject({ id: 11, status: 'ready' });
-      expect(actions).toHaveLength(1);
-      expect(actions[0]).toMatchObject({
-        type: 'begin-upload',
-        name: 'plan.md',
-        size: Buffer.byteLength(contents),
-      });
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
@@ -206,7 +182,12 @@ describe('Buckets runtime hardening', () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'tlon-buckets-upload-'));
     const filePath = path.join(directory, 'plan.md');
     writeFileSync(filePath, '# Project\n');
-    mockedGetBuckets.impl = async () => [snapshot()];
+    mockedGetBucket.impl = async () => snapshot();
+    mockedRequestBucketsGrant.impl = async () => ({
+      token: 'upload-token',
+      entryId: 12,
+      expiresAt: '~2026.1.1',
+    });
     globalThis.fetch = (async (input) => {
       const url = String(input);
       if (url.endsWith('/uploads/grant')) {
@@ -230,7 +211,7 @@ describe('Buckets runtime hardening', () => {
           parentId: null,
         })
       ).rejects.toThrow(
-        'Bucket host did not authorize plan.md: The Bucket host rejected this actor'
+        'Bucket upload failed after the host authorized plan.md: The Bucket host rejected this actor'
       );
     } finally {
       rmSync(directory, { recursive: true, force: true });
@@ -246,7 +227,11 @@ describe('Buckets runtime hardening', () => {
         status: 'ready',
       },
     };
-    mockedGetBuckets.impl = async () => [snapshot({ entries: [entry] })];
+    mockedGetBucket.impl = async () => snapshot({ entries: [entry] });
+    mockedGetBucketReadToken.impl = async () => ({
+      token: 'read-token',
+      expiresAt: '~2026.1.1',
+    });
 
     let canceled = false;
     globalThis.fetch = (async (input) => {
