@@ -817,9 +817,17 @@ async function runNote(
 
 async function runCreate(title: string, deps: NotesDeps): Promise<number> {
   const summary = await deps.notesV1.createNotebook({ title });
-  writeLine(deps.stdout, '✓ Notebook created');
+  writeLine(deps.stdout, '✓ Standalone notebook created');
   writeLine(deps.stdout, `  Nest: ${notebookNest(summary)}`);
   writeLine(deps.stdout, `  ID: ${summary.notebook.id}`);
+  writeLine(
+    deps.stdout,
+    '  Visibility: standalone backend notebook; not listed as a Tlon Messenger group channel.'
+  );
+  writeLine(
+    deps.stdout,
+    '  For an app-visible Notebook, use: tlon channels create ~host/group-slug "Title" --kind notes'
+  );
   return 0;
 }
 

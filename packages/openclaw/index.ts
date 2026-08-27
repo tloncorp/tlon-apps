@@ -959,6 +959,7 @@ export default defineBundledChannelEntry({
               'To send messages, use the `message` tool, not this tool. ' +
               'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
               'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
+              'Use `notes create` only for an explicitly requested standalone backend notebook. For a Notebook the owner can open in Tlon Messenger, use `channels create ~host/group-slug "Title" --kind notes` in a group they can reach. ' +
               "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
           },
         },

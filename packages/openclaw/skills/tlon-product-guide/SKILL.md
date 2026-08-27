@@ -1,6 +1,6 @@
 ---
 name: tlon-product-guide
-description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups, channels (Chat/Notebook/Bulletin/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. A backend notes/~host/name path is not a global Notes screen; Tlon Messenger exposes group-backed Notebook channels through their group. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app.
+description: Answer questions about Tlon, Urbit, Tlon Messenger, Tlonbot, and OpenClaw — what they are, how they work, and how to use them. Covers signup and onboarding, contacts and invites, groups, channels (Chat/Notebook/Bulletin/Gallery), roles and permissions, DMs, bot setup, crons, connected services (MCP), slash commands, models and API keys, privacy and encryption, hosting, exporting, self-hosting, and support. Covers where bot-created notes and reports appear, including the difference between backend notes paths and group-backed Notebook channels. Use whenever someone asks what Tlon is, how a product feature works, what they can do with their node or bot, or asks to be walked through a task in the app.
 ---
 
 # Tlon Messenger: Product Guide
@@ -135,7 +135,7 @@ Chats, Notebooks and Galleries are all legible to Tlonbots, so your agent can re
 
 There is no global `Notes` or `Notebooks` dashboard in Tlon Messenger. A backend path such as `notes/~host/name/3` identifies note `3` inside a `%notes` notebook; it is not an app-navigation path. The app exposes a notebook when it is a **Notebook channel inside a group**: open that group, then its Notebook channel, and select the note there.
 
-If a bot created a standalone backend notebook rather than a group-backed channel, the owner cannot find it by opening an invented Notes tab. Say that plainly. Offer to copy the content into a Notebook channel in a group they can reach, paste it into the current chat, or post it to another visible destination. Before setting up recurring output, confirm the destination is visible to the owner.
+If a bot created a standalone backend notebook rather than a group-backed channel, the owner cannot find it by opening an invented Notes tab. Say that plainly. Offer to copy the content into a Notebook channel in a group they can reach, paste it into the current chat, or post it to another visible destination.
 
 ### Make a group
 
