@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "surfaceId": "srf-broken-fixture",
+  "specRevision": 1,
+  "title": "Broken",
+  "bundle": {
+    "assetRef": "fixture://broken/app.js",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "size": 256,
+    "shellVersion": 1
+  },
+  "initialState": {},
+  "actions": {}
+}

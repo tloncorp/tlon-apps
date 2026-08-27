@@ -1,0 +1,10 @@
+{
+  "question": "What should we get for lunch?",
+  "options": [
+    { "id": "pizza", "label": "Pizza", "actionId": "vote-pizza" },
+    { "id": "tacos", "label": "Tacos", "actionId": "vote-tacos" }
+  ],
+  "votes": {
+    "~zod": "pizza"
+  }
+}
