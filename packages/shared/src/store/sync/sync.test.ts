@@ -19,6 +19,7 @@ import {
   ContactsDirectoryScryResult1,
 } from '@tloncorp/api/urbit/contact';
 import { GroupV11 as UrbitGroup } from '@tloncorp/api/urbit/groups';
+import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
 import * as $ from 'drizzle-orm';
 import { pick } from 'lodash';
 import { expect, test, vi } from 'vitest';
@@ -41,10 +42,12 @@ import {
 import rawGroupsInit2 from '../../test/init.json';
 import {
   ensureDmInviteChannel,
+  recoverMissingDmChannels,
   syncChannelWithBackoff,
   syncDms,
   syncGroups,
   syncInitData,
+  syncLatestChanges,
   syncLatestPosts,
   syncPinnedItems,
   syncPosts,
@@ -72,6 +75,10 @@ const inputData = [
   '~solfer-magfed',
   '~nibset-napwyn/tlon',
 ];
+
+vi.mock('@tloncorp/api/client/changesApi', () => ({
+  fetchChangesSince: vi.fn(),
+}));
 
 vi.mock('../lure', () => ({
   useLureState: {
@@ -490,6 +497,114 @@ test('ensureDmInviteChannel returns missing without deleting a non-invite local 
   expect(result).toEqual({ found: false, state: 'missing' });
   const channel = await db.getChannel({ id: '~sampel-palnet' });
   expect(channel?.isDmInvite).toBe(false);
+});
+
+// TLON-6403: the changes feed carries posts but no channels, and a DM has no
+// group blob to ride in on — so the reciprocal DM created when someone redeems
+// a personal invite arrives as a post for a channel the local DB has never
+// seen, and the chat list (built from the channels table) can't show it until
+// the next init sync at app start.
+const noticePost = (channelId: string, id: string): db.Post =>
+  ({
+    id,
+    type: 'chat',
+    channelId,
+    authorId: '~sampel-palnet',
+    sentAt: 1700000000000,
+    receivedAt: 1700000000000,
+    sequenceNum: 1,
+    content: JSON.stringify([{ inline: ['has joined the network'] }]),
+    syncedAt: 1700000000000,
+  }) as unknown as db.Post;
+
+test('recoverMissingDmChannels creates the channel row for a DM that arrived as posts only', async () => {
+  const posts = [noticePost('~sampel-palnet', 'invite-notice')];
+  await db.insertChannelPosts({ posts });
+  expect(await db.getChannel({ id: '~sampel-palnet' })).toBeNull();
+
+  setScryOutputs([['~sampel-palnet'], []]);
+  const result = await recoverMissingDmChannels({ posts });
+
+  expect(result).toEqual({
+    missingChannelIds: ['~sampel-palnet'],
+    strategy: 'ensureDmInvite',
+  });
+  const channel = await db.getChannel({ id: '~sampel-palnet' });
+  expect(channel?.type).toBe('dm');
+  expect(channel?.isDmInvite).toBe(false);
+  // the recovered row has to carry the post forward or the chat list still
+  // has nothing to sort or preview
+  expect(channel?.lastPostId).toBe('invite-notice');
+  expect(channel?.lastPostAt).toBe(1700000000000);
+});
+
+test('recoverMissingDmChannels falls back to a full DM sync for group DMs', async () => {
+  const groupDmId = '0v4.00000.qcr0l.r1r6c.pj6cp.j6cpj';
+  const posts = [noticePost(groupDmId, 'group-dm-post')];
+  await db.insertChannelPosts({ posts });
+
+  setScryOutputs([
+    [],
+    {
+      [groupDmId]: {
+        net: 'done',
+        hive: [],
+        team: ['~solfer-magfed', '~sampel-palnet'],
+        meta: { image: '', title: 'club', cover: '', description: '' },
+      },
+    },
+    [],
+  ]);
+  const result = await recoverMissingDmChannels({ posts });
+
+  expect(result).toEqual({
+    missingChannelIds: [groupDmId],
+    strategy: 'syncDms',
+  });
+  const channel = await db.getChannel({ id: groupDmId });
+  expect(channel?.type).toBe('groupDm');
+  expect(channel?.lastPostId).toBe('group-dm-post');
+});
+
+test('syncLatestChanges surfaces a DM that arrives as posts with no channel row', async () => {
+  const posts = [noticePost('~sampel-palnet', 'invite-notice')];
+  vi.mocked(fetchChangesSince).mockResolvedValueOnce({
+    groups: [],
+    posts,
+    contacts: [],
+    unreads: {
+      channelUnreads: [],
+      groupUnreads: [],
+      threadActivity: [],
+      baseUnread: undefined,
+    },
+    deletedChannelIds: [],
+    nodeBusyStatus: 'available',
+  });
+  setScryOutputs([['~sampel-palnet'], []]);
+
+  await syncLatestChanges({});
+
+  const channel = await db.getChannel({ id: '~sampel-palnet' });
+  expect(channel?.type).toBe('dm');
+  expect(channel?.lastPostId).toBe('invite-notice');
+});
+
+test('recoverMissingDmChannels leaves known channels and group channels alone', async () => {
+  await db.insertChannels([dmChannel('~sampel-palnet', false)]);
+  // No scry outputs queued: a fetch here would resolve to undefined and throw.
+  setScryOutputs([]);
+
+  const result = await recoverMissingDmChannels({
+    posts: [
+      noticePost('~sampel-palnet', 'known-dm-post'),
+      // group channels ride in on the group blob, so a missing row here is
+      // not ours to repair
+      noticePost('chat/~solfer-magfed/unknown', 'group-channel-post'),
+    ],
+  });
+
+  expect(result).toEqual({ missingChannelIds: [], strategy: 'none' });
 });
 
 const groupId = '~solfer-magfed/test-group';

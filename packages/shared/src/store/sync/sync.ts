@@ -1,5 +1,6 @@
 import * as api from '@tloncorp/api';
 import { GetChangedPostsOptions } from '@tloncorp/api';
+import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
 import { extractClientVolumes } from '@tloncorp/api/client/activity';
 import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
 import { isLanyardMockEnabled } from '@tloncorp/api/dev/lanyardMock';
@@ -390,6 +391,16 @@ export const syncLatestChanges = async ({
   const msToWrite = Date.now() - doneFetching;
   await db.changesSyncedAt.setValue(start);
   updateLastActivityTime();
+  // after the watermark, so a failure here can't cost us the posts we just
+  // wrote — the next sync will find the same missing rows and retry
+  try {
+    await recoverMissingDmChannels({ posts: result.posts, syncCtx, queryCtx });
+  } catch (e) {
+    logger.trackError('failed to recover missing dm channels', {
+      error: e,
+      ...callCtx,
+    });
+  }
   logger.trackEvent('sync changes debug', {
     context: 'updated timestamp',
     ...callCtx,
@@ -824,6 +835,84 @@ export const ensureDmInviteChannel = async ({
   return queryCtx
     ? write(queryCtx)
     : batchEffects('ensureDmInviteChannel', write);
+};
+
+export type RecoverMissingDmChannelsResult = {
+  missingChannelIds: string[];
+  strategy: 'none' | 'ensureDmInvite' | 'syncDms';
+};
+
+/**
+ * The changes feed carries posts but never channels. Group channels still
+ * arrive, because they ride along in the group blob, but a DM has no group —
+ * so a conversation created while we weren't subscribed (the reciprocal DM
+ * from a redeemed personal invite, a re-invite after leaving) shows up as
+ * posts for a channel the local DB has never seen, and the chat list, which
+ * is built from the channels table, can't render it until the next init sync.
+ * Fetch the missing rows instead of waiting for an app relaunch.
+ */
+export const recoverMissingDmChannels = async ({
+  posts,
+  syncCtx,
+  queryCtx,
+}: {
+  posts: db.Post[];
+  syncCtx?: SyncCtx;
+  queryCtx?: QueryCtx;
+}): Promise<RecoverMissingDmChannelsResult> => {
+  const none: RecoverMissingDmChannelsResult = {
+    missingChannelIds: [],
+    strategy: 'none',
+  };
+
+  const channelIds = [
+    ...new Set(
+      posts
+        .map((post) => post.channelId)
+        .filter(
+          (channelId): channelId is string =>
+            !!channelId &&
+            (isDmChannelId(channelId) || isGroupDmChannelId(channelId))
+        )
+    ),
+  ];
+  if (!channelIds.length) {
+    return none;
+  }
+
+  const existing = new Set(
+    await db.getExistingChannelIds({ channelIds }, queryCtx)
+  );
+  const missingChannelIds = channelIds.filter((id) => !existing.has(id));
+  if (!missingChannelIds.length) {
+    return none;
+  }
+
+  // One `ensureDmInviteChannel` costs two scries and resolves a single DM
+  // exactly (regular DM, pending invite, or a stale local invite to clear).
+  // Past one target `syncDms` is both cheaper and broader, and it's the only
+  // thing that can describe a group DM.
+  const strategy =
+    missingChannelIds.length === 1 && isDmChannelId(missingChannelIds[0])
+      ? 'ensureDmInvite'
+      : 'syncDms';
+
+  logger.trackEvent('recovering missing dm channels', {
+    count: missingChannelIds.length,
+    strategy,
+  });
+
+  if (strategy === 'ensureDmInvite') {
+    await ensureDmInviteChannel({
+      channelId: missingChannelIds[0],
+      syncCtx,
+      queryCtx,
+    });
+  } else {
+    await syncDms(syncCtx);
+  }
+
+  return { missingChannelIds, strategy };
 };
 
 export const syncUnreads = async (ctx?: SyncCtx, queryCtx?: QueryCtx) => {
