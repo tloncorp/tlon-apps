@@ -15,17 +15,14 @@ export function BotFeedbackRow({
   post,
   currentUserId,
   onPressBotRun,
-  inline = false,
   visible = true,
 }: {
   post: db.Post;
   currentUserId: string;
   onPressBotRun?: (post: db.Post) => void;
-  inline?: boolean;
   visible?: boolean;
 }) {
   const isWeb = Platform.OS === 'web';
-  const showControls = !isWeb || !inline || visible;
   const telemetry = useTelemetry();
   const messageId = store.getBotReplyMessageId(post);
   const { data: feedback } = store.useBotReplyFeedback(messageId);
@@ -104,24 +101,14 @@ export function BotFeedbackRow({
   return (
     <>
       <XStack
-        flex={isWeb && inline ? 1 : undefined}
-        justifyContent={isWeb && inline ? 'flex-end' : undefined}
+        gap={isWeb ? '$2xs' : '$s'}
         alignItems="center"
-        paddingRight={isWeb && inline ? '$l' : undefined}
         height={isWeb ? 20 : undefined}
-        marginBottom={isWeb && !inline ? '$xs' : undefined}
         paddingBottom={isWeb ? undefined : '$m'}
       >
-        <XStack
-          gap={isWeb ? '$2xs' : '$s'}
-          alignItems="center"
-          width={isWeb && inline ? 64 : undefined}
-          height={isWeb ? 20 : undefined}
-        >
-          {showControls && (
-            <ContextLensButton post={post} onPress={onPressBotRun} />
-          )}
-          {showControls && (['up', 'down'] as const).map((rating) => {
+        {visible && <ContextLensButton post={post} onPress={onPressBotRun} />}
+        {visible &&
+          (['up', 'down'] as const).map((rating) => {
             const selected = feedback?.rating === rating;
             return (
               <Pressable
@@ -165,7 +152,6 @@ export function BotFeedbackRow({
               </Pressable>
             );
           })}
-        </XStack>
       </XStack>
       <BotFeedbackSheet
         open={sheetOpen}

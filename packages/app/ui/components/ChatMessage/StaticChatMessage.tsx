@@ -119,7 +119,7 @@ export function StaticChatMessage({
   setViewReactionsPost?: (post: db.Post) => void;
   showAuthor?: boolean;
   showReplies?: boolean;
-  feedbackRow?: ReactNode;
+  feedbackRow?: (opts: { inline: boolean }) => ReactNode;
 }) {
   const isNotice = post.type === 'notice';
   const draftInputContext = useDraftInputContext();
@@ -574,6 +574,14 @@ export function StaticChatMessage({
     shouldRenderReplySummary || deliveryFailed
   );
 
+  // On web the feedback controls share a row with reactions or the reply
+  // summary when one exists, right-aligned in the remaining space.
+  const inlineFeedbackRow = feedbackRow ? (
+    <XStack flex={1} justifyContent="flex-end" paddingRight="$l">
+      {feedbackRow({ inline: true })}
+    </XStack>
+  ) : null;
+
   return (
     <YStack key={post.id}>
       {isHighlighted && <ChatMessageHighlight active={isHighlighted} />}
@@ -666,20 +674,18 @@ export function StaticChatMessage({
             searchQuery={searchQuery}
           />
         )}
-        {isWeb && !hasReactions && !hasLowerAuxiliaryRow && feedbackRow}
+        {isWeb && !hasReactions && !hasLowerAuxiliaryRow && feedbackRow && (
+          <View marginBottom="$xs">{feedbackRow({ inline: false })}</View>
+        )}
       </View>
 
       {hasReactions && (
-        <XStack
-          alignItems="center"
-          paddingBottom="$l"
-          paddingLeft="$4xl"
-        >
+        <XStack alignItems="center" paddingBottom="$l" paddingLeft="$4xl">
           <ReactionsDisplay
             post={post}
             onViewPostReactions={setViewReactionsPost}
           />
-          {isWeb && !hasLowerAuxiliaryRow && feedbackRow}
+          {isWeb && !hasLowerAuxiliaryRow && inlineFeedbackRow}
         </XStack>
       )}
 
@@ -692,12 +698,14 @@ export function StaticChatMessage({
             deliveryFailed={deliveryFailed}
             onPressRetry={handleRetryPressed}
           />
-          {isWeb && feedbackRow}
+          {isWeb && inlineFeedbackRow}
         </XStack>
       ) : null}
 
-      {!isWeb && (
-        <View paddingLeft={!isNotice ? '$4xl' : undefined}>{feedbackRow}</View>
+      {!isWeb && feedbackRow && (
+        <View paddingLeft={!isNotice ? '$4xl' : undefined}>
+          {feedbackRow({ inline: false })}
+        </View>
       )}
     </YStack>
   );
