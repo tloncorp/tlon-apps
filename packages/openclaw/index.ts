@@ -26,6 +26,7 @@ import {
   recordTlonCronAgentContext,
   resetTlonCronObservability,
 } from './src/cron-observability.js';
+import { handleCronAuthQuarantine } from './src/cron-auth-quarantine.js';
 import {
   clearCronServiceAccessor,
   handleCronChangedEvent,
@@ -1227,6 +1228,23 @@ export default defineBundledChannelEntry({
     });
 
     api.on('cron_changed', async (event, ctx) => {
+      try {
+        const result = await handleCronAuthQuarantine(event, ctx);
+        if (result.status === 'quarantined') {
+          api.logger.warn(
+            `[tlon] Paused cron job ${result.jobId} after ${result.consecutiveErrors} authentication failures (owner notified)`
+          );
+        } else if (result.status === 'notification-failed') {
+          api.logger.warn(
+            `[tlon] Could not notify the owner after ${result.consecutiveErrors} authentication failures for cron job ${result.jobId}; restored the schedule so notification can retry`
+          );
+        }
+      } catch (error) {
+        api.logger.warn(
+          `[tlon] Cron authentication quarantine failed (${event.action}:${event.jobId}): ${String(error)}`
+        );
+      }
+
       try {
         await handleCronChangedEvent(event, ctx);
       } catch (error) {
