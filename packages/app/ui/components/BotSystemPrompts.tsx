@@ -125,6 +125,11 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
     let cancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let attempt = 0;
+    // Once a watch has been live, this ship demonstrably has the module.
+    // A later probe 404 is then a desk restart in progress, not an old
+    // ship — treating it as the latter would clear the cache and stop
+    // retrying, hiding the editor until the profile is reopened.
+    let everSubscribed = false;
     // Facts are authoritative, but a scry that started BEFORE a fact can
     // resolve after it and restore an obsolete set (staleTime is Infinity;
     // no later fact is guaranteed). Cancel any in-flight fetch before each
@@ -150,6 +155,7 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
             }
           },
           {
+            assumeSupported: everSubscribed,
             onQuit: () => {
               if (cancelled) {
                 return;
@@ -193,6 +199,7 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
             return;
           }
           subscriptionId = id;
+          everSubscribed = true;
           // Close the backfill-to-watch gap: a %sync that landed after the
           // initial scry but before this subscription registered would
           // otherwise stay invisible forever (staleTime is Infinity).

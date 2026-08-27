@@ -867,24 +867,33 @@ export class Urbit {
     try {
       await this.sendJSONtoChannel(message);
     } catch (error) {
-      // Only roll back when the ship is KNOWN to have rejected the PUT: a
-      // ghost entry would otherwise accumulate per failed retry, and a
-      // later channel reset would fire quit handlers (spawning overlapping
-      // resubscribes) for watches that never lived.
+      // The ship KNOWN to have rejected the PUT: nothing exists there, so
+      // just drop the local registration. A ghost entry would otherwise
+      // accumulate per failed retry, and a later channel reset would fire
+      // quit handlers (spawning overlapping resubscribes) for watches that
+      // never lived.
       //
-      // Everything else is delivery-ambiguous or known-accepted —
-      // sendJSONtoChannel also performs first-time stream setup
-      // (getOurName/getShipName/eventSource) *after* the PUT succeeds, so
-      // those failures mean the subscription DOES exist on the ship.
-      // Deleting it there would orphan a live watch that no handler serves
-      // and that can no longer be unsubscribed individually; keep the
-      // registration so reset/cleanup still covers it.
-      if ((error as { channelPutRejected?: boolean })?.channelPutRejected) {
-        this.outstandingSubscriptions.delete(message.id);
-        this.emit('subscription', {
-          id: message.id,
-          status: 'close',
-        });
+      // Otherwise the PUT was accepted — sendJSONtoChannel also performs
+      // first-time stream setup (getOurName/getShipName/eventSource)
+      // *after* the PUT succeeds — so the subscription DOES exist on the
+      // ship. Callers retry by subscribing again, which would stack another
+      // live watch on top of this one and leave only the newest id
+      // unsubscribable, so actively close this one before rethrowing.
+      // Best-effort: if the channel itself is broken the unsubscribe fails
+      // too, but then the channel is being reset/reaped anyway.
+      const putRejected = (error as { channelPutRejected?: boolean })
+        ?.channelPutRejected;
+      this.outstandingSubscriptions.delete(message.id);
+      this.emit('subscription', {
+        id: message.id,
+        status: 'close',
+      });
+      if (!putRejected) {
+        try {
+          await this.unsubscribe(message.id);
+        } catch {
+          // Channel is unusable; the ship reaps the orphan with it.
+        }
       }
       throw error;
     }

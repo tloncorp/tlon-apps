@@ -110,6 +110,13 @@ export const subscribeToBotSystemPrompts = async (
      * with backoff if the watch must stay live.
      */
     onError?: (error: unknown) => void;
+    /**
+     * The module was already known to work on this ship (a previous watch
+     * was live). A probe 404 is then a momentary desk restart, not an old
+     * ship, so it rejects for the caller's retry path instead of resolving
+     * null — which would clear the cache and stop retrying for good.
+     */
+    assumeSupported?: boolean;
   }
 ) => {
   // Probe with a scry so a ship without the prompts module skips the
@@ -120,7 +127,11 @@ export const subscribeToBotSystemPrompts = async (
       path: '/v1/prompts',
     });
   } catch (error) {
-    if (error instanceof BadResponseError && error.status === 404) {
+    if (
+      error instanceof BadResponseError &&
+      error.status === 404 &&
+      !opts?.assumeSupported
+    ) {
       // Fires on every profile view against a ship without the module, so
       // keep it out of tracked telemetry.
       logger.log('%steward prompts module missing, skipping subscription');

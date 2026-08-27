@@ -1479,3 +1479,42 @@ describe('stamp cleanup independent of the read gate', () => {
     expect(reasons).toContain('tlon prompt sync stamp clear');
   });
 });
+
+describe('cleanup precedes the current-authority apply', () => {
+  it('removes a foreign-stamped file even when the apply then fails', async () => {
+    // A read-only target makes our own write fail; cleanup of the OTHER
+    // ship's file must already have happened, or the agent keeps loading
+    // that private prompt every turn while each reconcile bails here.
+    fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'former owner notes');
+    fs.mkdirSync(path.join(tmpDir, 'SOUL.md'));
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      botShip: '~zod',
+      workspaceDir: tmpDir,
+      configPrompts: { 'SOUL.md': 'our edit that cannot be written' },
+      fileStamps: { 'USER.md': '~bus' },
+      owner: null,
+      scry: async () => ({}),
+      poke,
+      logger,
+    });
+    await sync.startup();
+    expect(fs.existsSync(path.join(tmpDir, 'USER.md'))).toBe(false);
+  });
+
+  it('leaves no temp file behind when a write fails', async () => {
+    fs.mkdirSync(path.join(tmpDir, 'SOUL.md'));
+    await applyPromptsToWorkspace({
+      workspaceDir: tmpDir,
+      prompts: { 'SOUL.md': 'be kind' },
+      logger,
+    });
+    expect(
+      fs.readdirSync(tmpDir).filter((f) => f.includes('tlon-tmp'))
+    ).toEqual([]);
+  });
+});

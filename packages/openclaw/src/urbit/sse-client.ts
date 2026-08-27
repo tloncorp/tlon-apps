@@ -1281,9 +1281,15 @@ export class UrbitSSEClient {
         finish(
           this.aborted
             ? 'closed'
-            : this.channelEpoch === epochAtWait
-              ? 'acked'
-              : 'superseded'
+            : // Abandonment flushes these waiters too, so check it before
+              // concluding the watch went live — otherwise a caller that was
+              // already waiting sees 'acked' for a refused watch and keeps
+              // prompt sync enabled with no live fact handler.
+              this.abandonedSubscriptionKeys.has(key)
+              ? 'unavailable'
+              : this.channelEpoch === epochAtWait
+                ? 'acked'
+                : 'superseded'
         );
       // The caller's teardown signal fires well before close(), and
       // callers await this — without the listener a retiring monitor

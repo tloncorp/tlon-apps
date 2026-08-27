@@ -444,7 +444,20 @@ export async function applyPromptsToWorkspace(opts: {
         continue;
       }
       await fs.mkdir(opts.workspaceDir, { recursive: true });
-      await fs.writeFile(filePath, text, 'utf8');
+      // Write-then-rename: a direct write that fails partway (ENOSPC, I/O
+      // error) can leave the target truncated or half-written, and since
+      // `applied` only records full successes that corrupted file would be
+      // left unstamped while the agent kept reading it every turn. rename
+      // is atomic within the directory, so the target is either the old
+      // content or the complete new content.
+      const tmpPath = `${filePath}.tlon-tmp`;
+      try {
+        await fs.writeFile(tmpPath, text, 'utf8');
+        await fs.rename(tmpPath, filePath);
+      } catch (error) {
+        await fs.unlink(tmpPath).catch(() => {});
+        throw error;
+      }
       applied.push(name);
     } catch (error) {
       ok = false;
@@ -787,6 +800,43 @@ export function createPromptSync(opts: {
         '[tlon] Provenance write refused; deferring ship-stored prompt edits this boot'
       );
     }
+    const myShipNorm = normalizeShip(botShip);
+    const removedStamps: string[] = [];
+    // Stamp-based cleanup runs BEFORE any write or read, and needs no file
+    // content:
+    // an entrypoint rewrite can push a former owner's file past the byte
+    // cap (or make it unreadable), and a write failure for an unrelated
+    // file aborts the pass — gating removal behind either would leave that
+    // private prompt on disk, loaded by the agent every turn, with every
+    // later reconcile bailing at the same place.
+    for (const name of PROMPT_FILE_NAMES) {
+      const stamp = fileStamps[name];
+      if (stamp === undefined || normalizeShip(stamp) === myShipNorm) {
+        continue;
+      }
+      // A foreign stamp cannot coexist with our own content: applying an
+      // edit stamps the file for us, and handleFact refuses to write over
+      // a file stamped for another ship.
+      try {
+        await fs.unlink(path.join(workspaceDir, name));
+        logger.warn(
+          `[tlon] Removed foreign prompt ${name} from the workspace (file is stamped for ${stamp})`
+        );
+        removedStamps.push(name);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
+          // Already gone (e.g. a previous boot removed it but crashed
+          // before clearing the stamp) — clearing the stamp is all that
+          // is left to do.
+          removedStamps.push(name);
+        } else {
+          logger.warn(
+            `[tlon] Aborting prompt reconcile: failed to remove foreign prompt ${name}: ${error}`
+          );
+          return;
+        }
+      }
+    }
     // Ship-stored prompts win over the config cache: the config is only a
     // local mirror written by this sync, but a hosted entrypoint can
     // regenerate openclaw.json and drop it.
@@ -849,7 +899,6 @@ export function createPromptSync(opts: {
     // changed this boot: an earlier marker write may have failed or
     // crashed after the apply, so repair whenever the recorded marker or
     // a stamp disagrees with what is now verifiably on disk.
-    const myShipNorm = normalizeShip(botShip);
     const markerStale = Object.entries(desired).some(([name, text]) => {
       const stamp = fileStamps[name];
       return (
@@ -888,40 +937,6 @@ export function createPromptSync(opts: {
       // Torn down while the apply was in flight — stop before seeding on
       // behalf of an obsolete account snapshot.
       return;
-    }
-    const removedStamps: string[] = [];
-    // Stamp-based cleanup runs BEFORE the read, and needs no file content:
-    // an entrypoint rewrite can push a former owner's file past the byte
-    // cap (or make it unreadable), and gating removal behind a successful
-    // read would leave that private prompt on disk — loaded by the agent
-    // every turn — with every later reconcile bailing at the same place.
-    for (const name of PROMPT_FILE_NAMES) {
-      const stamp = fileStamps[name];
-      if (stamp === undefined || normalizeShip(stamp) === myShipNorm) {
-        continue;
-      }
-      // A foreign stamp cannot coexist with our own content: applying an
-      // edit stamps the file for us, and handleFact refuses to write over
-      // a file stamped for another ship.
-      try {
-        await fs.unlink(path.join(workspaceDir, name));
-        logger.warn(
-          `[tlon] Removed foreign prompt ${name} from the workspace (file is stamped for ${stamp})`
-        );
-        removedStamps.push(name);
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
-          // Already gone (e.g. a previous boot removed it but crashed
-          // before clearing the stamp) — clearing the stamp is all that
-          // is left to do.
-          removedStamps.push(name);
-        } else {
-          logger.warn(
-            `[tlon] Aborting prompt reconcile: failed to remove foreign prompt ${name}: ${error}`
-          );
-          return;
-        }
-      }
     }
     const { prompts: effective, ok: readOk } = await readEffectivePrompts(
       workspaceDir,
