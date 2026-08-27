@@ -14,6 +14,7 @@ import {
   GalleryInput,
   NotebookInput,
 } from '../../components/draftInputs';
+import { SurfacePostCollection } from '../../components/SurfaceChannel/SurfacePostCollection';
 import { ListPostCollection } from '../../components/postCollectionViews/ListPostCollectionView';
 import { IPostCollectionView } from '../../components/postCollectionViews/shared';
 import {
@@ -36,6 +37,8 @@ const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.gallery]: GalleryInput,
   [DraftInputId.notebook]: NotebookInput,
   [DraftInputId.notes]: EmptyNotesRenderer,
+  // no composer at all: surface channels take input through their app
+  [DraftInputId.none]: EmptyNotesRenderer,
 };
 const BUILTIN_COLLECTION_RENDERERS: {
   [id in CollectionRendererId]: IPostCollectionView;
@@ -44,6 +47,7 @@ const BUILTIN_COLLECTION_RENDERERS: {
   [CollectionRendererId.gallery]: ListPostCollection,
   [CollectionRendererId.notebook]: ListPostCollection,
   [CollectionRendererId.notes]: NotesPostCollection,
+  [CollectionRendererId.surface]: SurfacePostCollection,
 };
 
 export function ComponentsKitProvider({
