@@ -16,6 +16,10 @@ import { SettingsDivider, SettingsSection } from './SettingsSection';
 
 const promptsQueryKey = (botShip: string) => ['botSystemPrompts', botShip];
 
+// How many times a "module missing" probe result is retried before the
+// ship is taken at its word (see the first-mount ambiguity below).
+const UNSUPPORTED_PROBE_RETRIES = 3;
+
 // Hermes and browsers both provide TextEncoder; the char-count fallback
 // undercounts multibyte text but the ship still enforces the real cap.
 const promptTextByteLength = (text: string) =>
@@ -130,6 +134,12 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
     // ship — treating it as the latter would clear the cache and stop
     // retrying, hiding the editor until the profile is reopened.
     let everSubscribed = false;
+    // A probe 404 on the very first mount is ambiguous: an old ship
+    // without the module, or %steward mid-restart. Retry a bounded number
+    // of times before concluding it is unsupported — otherwise a profile
+    // opened during a restart hides the editor until it is reopened (the
+    // query is fresh forever, so nothing else would refetch).
+    let unsupportedProbes = 0;
     // Facts are authoritative, but a scry that started BEFORE a fact can
     // resolve after it and restore an obsolete set (staleTime is Infinity;
     // no later fact is guaranteed). Cancel any in-flight fetch before each
@@ -186,12 +196,17 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
         )
         .then((id) => {
           if (id === null) {
-            // Ship lacks the prompts module — permanent for this session,
-            // so no retry. Authoritative either way: if a downgraded /
-            // replaced desk removed the module after we cached a prompt
-            // set, that cache would otherwise stay fresh (and the editor
-            // visible) for the rest of the session.
+            // The ship reports no prompts module. Authoritative for now: if
+            // a downgraded / replaced desk removed the module after we
+            // cached a prompt set, that cache would otherwise stay fresh
+            // (and the editor visible) for the rest of the session.
             writeAuthoritative(null);
+            unsupportedProbes += 1;
+            if (unsupportedProbes <= UNSUPPORTED_PROBE_RETRIES) {
+              // Might be a desk restart rather than an old ship; a genuine
+              // old ship simply 404s again and we stop after the budget.
+              retryTimer = setTimeout(start, 2_000 * unsupportedProbes);
+            }
             return;
           }
           if (cancelled) {

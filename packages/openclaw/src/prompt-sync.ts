@@ -837,6 +837,14 @@ export function createPromptSync(opts: {
         }
       }
     }
+    if (removedStamps.length > 0) {
+      // Clear the removed files' stamps HERE, before the apply below can
+      // recreate and restamp any of these names for this ship. Deferring
+      // to the end would delete that fresh stamp and leave our own
+      // owner-edited content unowned.
+      await clearRemovedStamps(removedStamps);
+      removedStamps.length = 0;
+    }
     // Ship-stored prompts win over the config cache: the config is only a
     // local mirror written by this sync, but a hosted entrypoint can
     // regenerate openclaw.json and drop it.

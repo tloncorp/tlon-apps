@@ -638,6 +638,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // re-run the prompt reconcile after a quit→resubscribe; assigned much
   // later, once this account is known to run prompt sync.
   let promptSync: PromptSync | null = null;
+  // Set when the ship repeatedly refuses the /v1/prompts watch. Kept
+  // separate from nulling `promptSync`: reconciliation must stop (there is
+  // no live fact handler), but teardown still needs the handle to decide
+  // whether to %clear this ship's prompt state on retirement.
+  let promptWatchUnavailable = false;
   /**
    * Reconcile ship-stored prompts, but only once gall has ACKED the
    * /v1/prompts watch. Neither connect() nor the channel PUT proves the
@@ -656,7 +661,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     wait: 'until-live' | 'best-effort'
   ): Promise<void> => {
     const sync = promptSync;
-    if (!sync || !api) {
+    if (!sync || !api || promptWatchUnavailable) {
       return;
     }
     const client = api;
@@ -693,7 +698,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           runtime.log?.(
             `[tlon] /v1/prompts unsupported by this ship; prompt sync inactive (${reason})`
           );
-          promptSync = null;
+          promptWatchUnavailable = true;
           return false;
         }
         if (outcome !== 'timeout') {
@@ -729,7 +734,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       runtime.log?.(
         `[tlon] /v1/prompts unsupported by this ship; prompt sync inactive (${reason})`
       );
-      promptSync = null;
+      promptWatchUnavailable = true;
       return;
     }
     if (first !== 'timeout') {
@@ -5230,6 +5235,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           await api.subscribe({
             app: 'steward',
             path: '/v1/prompts',
+            // A capability, not a firehose: older desks have no prompts
+            // module and nack this forever, so repeated nacks should stop
+            // recovery rather than retry indefinitely.
+            optional: true,
             event: (data) => {
               sync.handleFact(data).catch((error: any) => {
                 capturePluginError('steward_subscription', error);

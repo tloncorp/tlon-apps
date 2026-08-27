@@ -1518,3 +1518,43 @@ describe('cleanup precedes the current-authority apply', () => {
     ).toEqual([]);
   });
 });
+
+describe('stamp clears do not erase a fresh restamp', () => {
+  it('keeps the new ship stamp when it re-creates a removed foreign file', async () => {
+    // The former owner's USER.md is stamped for ~bus; this ship has its own
+    // stored edit for the same name, so the file is removed and rewritten.
+    fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'former owner notes');
+    const core = makeCore();
+    const drafts: Record<string, unknown>[] = [];
+    core.config.mutateConfigFile.mockImplementation(
+      async (params: { mutate: (draft: unknown) => unknown }) => {
+        const draft: Record<string, unknown> = {
+          channels: { tlon: { promptSync: { files: { 'USER.md': '~bus' } } } },
+        };
+        await params.mutate(draft);
+        drafts.push(draft);
+        return { draft } as never;
+      }
+    );
+    const sync = createPromptSync({
+      core,
+      accountId: 'default',
+      botShip: '~zod',
+      workspaceDir: tmpDir,
+      configPrompts: { 'USER.md': 'our own edit' },
+      fileStamps: { 'USER.md': '~bus' },
+      owner: null,
+      scry: async () => ({}),
+      poke: async () => ({}),
+      logger,
+    });
+    await sync.startup();
+    expect(fs.readFileSync(path.join(tmpDir, 'USER.md'), 'utf8')).toBe(
+      'our own edit'
+    );
+    // The LAST write must leave USER.md stamped for us, not cleared: the
+    // clear has to happen before the apply restamps it.
+    const last = drafts[drafts.length - 1] as any;
+    expect(last.channels.tlon.promptSync.files['USER.md']).toBe('~zod');
+  });
+});

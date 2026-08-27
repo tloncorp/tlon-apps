@@ -144,6 +144,7 @@ describe('UrbitSSEClient', () => {
         path: '/v1/prompts',
         event: vi.fn(),
         quit: vi.fn(),
+        optional: true,
       });
       // An older ship without the module nacks every attempt. Each nack
       // mints a fresh subscription id, so without a cap this loops forever
@@ -166,6 +167,44 @@ describe('UrbitSSEClient', () => {
       await expect(
         client.waitForSubscriptionAck('steward', '/v1/prompts', 1_000)
       ).resolves.toBe('unavailable');
+      vi.useRealTimers();
+    });
+
+    it('never abandons a required watch, however many nacks', async () => {
+      vi.useFakeTimers();
+      const { urbitFetch } = await import('./fetch.js');
+      vi.mocked(urbitFetch).mockResolvedValue(okFetch());
+      const recovery: string[] = [];
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: (e) => recovery.push(e.phase) }
+      );
+      (client as unknown as { isConnected: boolean }).isConnected = true;
+      // No `optional` marker: this is a firehose. A long desk restart can
+      // nack replacements repeatedly, and giving up would silently stop
+      // the bot receiving messages.
+      await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        quit: vi.fn(),
+      });
+      const priv = client as unknown as {
+        subscriptions: { id: number }[];
+        eventHandlers: Map<number, unknown>;
+      };
+      for (let i = 0; i < 6; i += 1) {
+        const id = priv.subscriptions.filter((sub) =>
+          priv.eventHandlers.has(sub.id)
+        )[0]?.id;
+        if (id === undefined) break;
+        client.processEvent(
+          `id: ${i + 1}\ndata: {"id":${id},"response":"subscribe","err":"boom"}`
+        );
+        await vi.advanceTimersByTimeAsync(3_000);
+      }
+      expect(recovery).not.toContain('abandoned');
       vi.useRealTimers();
     });
 

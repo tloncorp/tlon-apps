@@ -199,6 +199,13 @@ export class UrbitSSEClient {
   // and `subscriptions` grows without bound.
   private subscriptionNackCounts = new Map<string, number>();
   private abandonedSubscriptionKeys = new Set<string>();
+  // Only watches the caller marked optional may be abandoned. The message
+  // firehoses (%chat, %channels, …) are required: a long desk restart can
+  // nack their replacements too, and giving up there would silently stop
+  // the bot receiving DMs and channel messages until a full channel
+  // rebuild. Capability-style abandonment is for watches the ship may
+  // legitimately not implement, like /v1/prompts on an older desk.
+  private optionalSubscriptionKeys = new Set<string>();
 
   private subscriptionRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private subscriptionRetryDelayMs = SUBSCRIPTION_RETRY_FLOOR_MS;
@@ -282,7 +289,18 @@ export class UrbitSSEClient {
     event?: (data: unknown) => void;
     err?: (error: unknown) => void;
     quit?: () => void;
+    /**
+     * This watch is a capability the ship may not have. Repeated subscribe
+     * NACKs then mean "unsupported" rather than "transiently refused", so
+     * recovery stops instead of retrying forever (see
+     * MAX_CONSECUTIVE_SUBSCRIBE_NACKS). Required watches must leave this
+     * unset — abandoning one silently drops inbound traffic.
+     */
+    optional?: boolean;
   }) {
+    if (params.optional) {
+      this.optionalSubscriptionKeys.add(`${params.app}${params.path}`);
+    }
     const subId = this.subscriptions.length + 1;
     const subscription = {
       id: subId,
@@ -1011,7 +1029,12 @@ export class UrbitSSEClient {
             if (key) {
               this.subscriptionNackCounts.set(key, nacks);
             }
-            if (nacks > MAX_CONSECUTIVE_SUBSCRIBE_NACKS && key && sub) {
+            if (
+              key &&
+              sub &&
+              this.optionalSubscriptionKeys.has(key) &&
+              nacks > MAX_CONSECUTIVE_SUBSCRIBE_NACKS
+            ) {
               // Treated as unsupported rather than transient: keep the
               // handlers (a channel rebuild re-sends and may succeed on a
               // ship that has since updated) but stop the recovery loop,
