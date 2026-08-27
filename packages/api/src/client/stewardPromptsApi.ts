@@ -65,6 +65,47 @@ export const getBotSystemPrompts = async (
 };
 
 /**
+ * Our ship serves no prompts module — either it predates %steward's prompts
+ * module, or %steward is mid-restart. The two are indistinguishable from a
+ * single probe, so callers retry a bounded number of times before treating
+ * this as absence.
+ */
+export class PromptsModuleUnavailableError extends Error {
+  constructor() {
+    super('steward prompts module unavailable');
+    this.name = 'PromptsModuleUnavailableError';
+  }
+}
+
+/**
+ * Probe our own ship for the prompts module.
+ *
+ * The per-bot mirror scry cannot carry this signal: %steward 404s that path
+ * both when a bot simply has no mirror (an ordinary ship — not an owned
+ * bot) and when the agent is restarting, so a null from it is not evidence
+ * that a bot is unowned. The module path is served whenever the module
+ * exists at all, so its 404 isolates "no module (yet)" from "no mirror".
+ *
+ * Throws PromptsModuleUnavailableError rather than returning false so the
+ * ambiguity is explicit: callers put it through a bounded retry and only
+ * an exhausted probe means the module is really absent.
+ */
+export const probeBotSystemPromptsModule = async (): Promise<true> => {
+  try {
+    await scry<ub.StewardPromptsScry>({
+      app: 'steward',
+      path: '/v1/prompts',
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof BadResponseError && error.status === 404) {
+      throw new PromptsModuleUnavailableError();
+    }
+    throw error;
+  }
+};
+
+/**
  * Edit one of the bot's system prompts. Pokes our own %steward, which
  * relays the edit to the bot ship; the bot's gateway applies the new text
  * to its workspace and restarts. Ames retries the relay until ack, so the

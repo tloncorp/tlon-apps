@@ -1,7 +1,9 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 
 import {
+  PromptsModuleUnavailableError,
   getBotSystemPrompts,
+  probeBotSystemPromptsModule,
   setBotSystemPrompt,
   subscribeToBotSystemPrompts,
   toBotSystemPrompts,
@@ -147,4 +149,26 @@ test('subscribeToBotSystemPrompts forwards the onQuit and onError handlers', asy
   seenOpts?.onError?.(new Error('nacked after registration'));
   expect(onQuit).toHaveBeenCalledTimes(1);
   expect(onError).toHaveBeenCalledTimes(1);
+});
+
+test('probeBotSystemPromptsModule resolves when the module answers', async () => {
+  vi.mocked(scry).mockResolvedValue({ prompts: { bot: '~zod', prompts: {} } });
+  await expect(probeBotSystemPromptsModule()).resolves.toBe(true);
+  expect(scry).toHaveBeenCalledWith({ app: 'steward', path: '/v1/prompts' });
+});
+
+test('probeBotSystemPromptsModule rejects distinguishably on a 404', async () => {
+  // The 404 is ambiguous (no module, or %steward restarting), so it must
+  // reject rather than resolve false: callers retry it a bounded number of
+  // times and only an exhausted probe means the module is really absent.
+  vi.mocked(scry).mockRejectedValue(new BadResponseError(404, 'nope'));
+  await expect(probeBotSystemPromptsModule()).rejects.toBeInstanceOf(
+    PromptsModuleUnavailableError
+  );
+});
+
+test('probeBotSystemPromptsModule passes other failures through', async () => {
+  const failure = new Error('offline');
+  vi.mocked(scry).mockRejectedValue(failure);
+  await expect(probeBotSystemPromptsModule()).rejects.toBe(failure);
 });

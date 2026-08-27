@@ -446,6 +446,17 @@ export async function readEffectivePrompts(
         }
         continue;
       }
+      if (!info.isFile()) {
+        // A FIFO or device node would hang (or endlessly feed) this read.
+        // Unlike a symlink it is not removed — a directory can't be, and
+        // deleting an unexpected node is worse than refusing to read it —
+        // so fail closed and skip the seed rather than dropping the name.
+        ok = false;
+        logger?.warn(
+          `[tlon] Prompt file ${name} is not a regular file; skipping the seed`
+        );
+        continue;
+      }
       const text = await fs.readFile(filePath, 'utf8');
       if (!isPromptTextWithinCap(text)) {
         // Same policy as a failed read: an omitted-but-running file must
@@ -489,7 +500,16 @@ export async function applyPromptsToWorkspace(opts: {
     try {
       let current: string | null = null;
       try {
-        current = await fs.readFile(filePath, 'utf8');
+        // lstat before reading: a prepared workspace can plant an
+        // allowlisted name as a symlink or a FIFO, and reading one would
+        // either compare against an arbitrary file or (a FIFO, /dev/zero)
+        // block or balloon this reconcile forever. Anything but a regular
+        // file goes uncompared — the rename below replaces the node
+        // itself, since rename does not follow the final component.
+        const info = await fs.lstat(filePath);
+        if (info.isFile()) {
+          current = await fs.readFile(filePath, 'utf8');
+        }
       } catch (error) {
         if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
           throw error;

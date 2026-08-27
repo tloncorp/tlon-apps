@@ -9,12 +9,19 @@ import { Keyboard } from 'react-native';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from './ActionSheet';
+import {
+  type PromptsModuleState,
+  resolveBotOwnership,
+} from './BotSystemPrompts.helpers';
 import { ControlledTextareaField } from './Form';
 import { ListItem } from './ListItem';
 import { NotebookContentRenderer } from './NotebookPost/NotebookPost';
 import { SettingsDivider, SettingsSection } from './SettingsSection';
 
 const promptsQueryKey = (botShip: string) => ['botSystemPrompts', botShip];
+// Not per-bot: the module either exists on our ship or it doesn't, so one
+// probe serves every profile in the session.
+const promptsModuleQueryKey = ['botSystemPromptsModule'];
 
 // How many times a "module missing" probe result is retried before the
 // ship is taken at its word (see the first-mount ambiguity below).
@@ -40,12 +47,34 @@ export function useBotSystemPrompts(botShip: string) {
 }
 
 /**
+ * Whether our ship serves the prompts module at all. Kept separate from the
+ * per-bot mirror query because that one's 404 is ambiguous — see
+ * probeBotSystemPromptsModule. A 404 here rejects, so react-query's own
+ * bounded retry covers a %steward restart; the module is only believed
+ * absent once those retries are spent.
+ */
+function usePromptsModule() {
+  return useQuery({
+    queryKey: promptsModuleQueryKey,
+    queryFn: () => api.probeBotSystemPromptsModule(),
+    retry: UNSUPPORTED_PROBE_RETRIES,
+    retryDelay: (attempt) => 1_000 * 2 ** attempt,
+    // The verdict holds for the session: without this every profile view
+    // would re-burn the retry budget on a ship that has no module, keeping
+    // Block hidden for seconds each time. A ship that gains the module
+    // mid-session still surfaces it through the subscription's fact.
+    retryOnMount: false,
+  });
+}
+
+/**
  * True when this ship is a bot we own: our steward only mirrors prompt
  * sets for bots that configured us as their owner and that we explicitly
  * trusted, so mirror presence is itself the ownership signal.
  */
 export function useIsOwnedBot(botShip: string) {
   const promptsQuery = useBotSystemPrompts(botShip);
+  const moduleQuery = usePromptsModule();
   // A cached answer only counts once it has been reconfirmed after this
   // mount (staleTime is Infinity, so the cache can be a whole session
   // old): dataUpdatedAt advances on every successful fetch AND on the
@@ -53,22 +82,24 @@ export function useIsOwnedBot(botShip: string) {
   // subscription registers and triggers its invalidation.
   const [mountedAt] = useState(() => Date.now());
   const resolvedSinceMount = promptsQuery.dataUpdatedAt >= mountedAt;
-  return {
-    isOwnedBot: Boolean(promptsQuery.data?.length),
-    /**
-     * True while ownership is UNRESOLVED: no fetch or fact has confirmed
-     * the answer since mount, a fetch is deciding, or the last fetch
-     * errored (a scry that exhausted its retries determined nothing —
-     * only a successful null is an authoritative "not owned"). Callers
-     * gating a destructive action (e.g. Block) should treat ownership as
-     * unknown until this settles.
-     */
-    isPending:
+  const module: PromptsModuleState = moduleQuery.data
+    ? 'present'
+    : // Only the module's own 404 is evidence of absence; a transport
+      // error determined nothing and leaves ownership unresolved.
+      moduleQuery.error instanceof api.PromptsModuleUnavailableError
+      ? 'absent'
+      : 'unresolved';
+  return resolveBotOwnership({
+    prompts: promptsQuery.data,
+    // A fetch still deciding, or one that errored (a scry that exhausted
+    // its retries determined nothing), leaves the mirror unresolved.
+    mirrorUnresolved:
       promptsQuery.isPending ||
       promptsQuery.isFetching ||
       promptsQuery.isError ||
       !resolvedSinceMount,
-  };
+    module,
+  });
 }
 
 /**

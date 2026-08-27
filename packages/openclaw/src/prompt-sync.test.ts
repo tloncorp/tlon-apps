@@ -1602,6 +1602,55 @@ describe('round-36 hardening', () => {
     expect(fs.existsSync(path.join(tmpDir, 'USER.md'))).toBe(false);
   });
 
+  it('does not compare through a symlinked destination', async () => {
+    // The apply's freshness check ran before the symlink guard, so a
+    // planted link was read through: matching content made it `continue`
+    // and left the link in place for the agent to keep loading (and a FIFO
+    // or /dev/zero there would have blocked the reconcile outright).
+    const outside = path.join(tmpDir, 'outside-target');
+    fs.writeFileSync(outside, 'be kind');
+    fs.symlinkSync(outside, path.join(tmpDir, 'SOUL.md'));
+    const result = await applyPromptsToWorkspace({
+      workspaceDir: tmpDir,
+      prompts: { 'SOUL.md': 'be kind' },
+      logger,
+    });
+    expect(result.ok).toBe(true);
+    // rename does not follow the final component, so the link itself is
+    // replaced and the target it pointed at is untouched.
+    expect(fs.lstatSync(path.join(tmpDir, 'SOUL.md')).isSymbolicLink()).toBe(
+      false
+    );
+    expect(fs.readFileSync(path.join(tmpDir, 'SOUL.md'), 'utf8')).toBe(
+      'be kind'
+    );
+    expect(fs.readFileSync(outside, 'utf8')).toBe('be kind');
+  });
+
+  it('refuses to open a prompt path that is not a regular file', async () => {
+    // A FIFO or device node would hang or endlessly feed the read, so the
+    // seed must reject it on the stat rather than by failing the open.
+    const readFile = vi.spyOn(fs.promises, 'readFile');
+    fs.mkdirSync(path.join(tmpDir, 'USER.md'));
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'real prompt');
+    try {
+      const effective = await readEffectivePrompts(tmpDir, logger);
+      expect(effective.prompts['USER.md']).toBeUndefined();
+      expect(effective.prompts['AGENTS.md']).toBe('real prompt');
+      // Fail closed: seeding without it would drop the name from the
+      // ship's canonical set.
+      expect(effective.ok).toBe(false);
+      expect(
+        readFile.mock.calls.some((call) => String(call[0]).endsWith('USER.md'))
+      ).toBe(false);
+      // Unlike a symlink it is left alone — a directory cannot be unlinked,
+      // and deleting an unexpected node is worse than refusing to read it.
+      expect(fs.existsSync(path.join(tmpDir, 'USER.md'))).toBe(true);
+    } finally {
+      readFile.mockRestore();
+    }
+  });
+
   it('never reads through a symlinked prompt file', async () => {
     const secret = path.join(tmpDir, 'secret');
     fs.writeFileSync(secret, 'private contents that must not be seeded');
