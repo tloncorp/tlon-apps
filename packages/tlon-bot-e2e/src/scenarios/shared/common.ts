@@ -2,7 +2,11 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect } from 'vitest';
 
-import type { DriverName, RuntimeContext } from '../../drivers/types.js';
+import type {
+  DriverName,
+  ModelScript,
+  RuntimeContext,
+} from '../../drivers/types.js';
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import {
   connectComposeNetwork,
@@ -1164,6 +1168,134 @@ export const commonScenarios: readonly SharedScenario[] = [
         isBenign,
         modelBaseline
       );
+    }
+  ),
+
+  testScenario(
+    'tlon-6387-urgent-only-cron-update-preserves-threshold',
+    { drivers: ['openclaw'], capabilities: ['cron'], timeoutMs: 300_000 },
+    async ({ ctx, driver, actors }) => {
+      const key = scenarioKey('tlon-6387-urgent-only');
+      const jobName = `urgent-only-${key}`;
+      const original =
+        'Monitor the fixed Bitcoin scenario from Reuters. Send a status update every run.';
+      const correction =
+        "This is known routine information. My keys and coins aren't at risk, so only alert me when there is a genuinely urgent security risk.";
+      const cleanupTarget: CronCleanupTarget = {
+        name: jobName,
+        creationSettled: Promise.resolve(),
+      };
+      actors.bot.teardown(
+        () => cleanupCronJobAndArtifacts(ctx, driver.name, cleanupTarget),
+        { label: `remove TLON-6387 cron job ${jobName}` }
+      );
+
+      const createKey = `${key}-create`;
+      const createReply = `Created urgent-only fixture ${key}`;
+      const createScript: ModelScript = {
+        steps: [
+          {
+            kind: 'tool_call',
+            name: 'cron',
+            args: {
+              action: 'add',
+              job: {
+                name: jobName,
+                schedule: {
+                  kind: 'at',
+                  at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+                },
+                payload: { kind: 'agentTurn', message: original },
+                delivery: { mode: 'announce' },
+                sessionTarget: 'isolated',
+              },
+            },
+          },
+          { kind: 'text', content: createReply },
+        ],
+        expectations: {
+          advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+          expectedCallCount: 2,
+          toolEffectOnly: true,
+        },
+      };
+      const createTag = await registerModelScript(
+        ctx.fakeModel,
+        createKey,
+        createScript
+      );
+      const createResultPromise = actors.owner.prompt(
+        `${createTag} Create the scripted future cron fixture.`,
+        { timeoutMs: CRON_CREATE_PROMPT_WAIT_MS }
+      );
+      const createdJobPromise = waitForCronJobCreated(
+        ctx,
+        driver.name,
+        jobName,
+        CRON_CREATE_PROMPT_WAIT_MS
+      ).then((job) => {
+        cleanupTarget.id = job.id;
+        return job;
+      });
+      const [createResult, createdJob] = await settleCronJobCreation(
+        cleanupTarget,
+        createResultPromise,
+        createdJobPromise
+      );
+      expectPromptSuccess(createResult, createReply);
+      await expectModelExpectations(ctx.fakeModel, createKey, createScript);
+
+      const updateKey = `${key}-update`;
+      const updateReply = `Updated urgent-only fixture ${key}`;
+      const incompleteProposal = `${original}\nAlert on anything urgent.`;
+      const updateScript: ModelScript = {
+        steps: [
+          {
+            kind: 'tool_call',
+            name: 'cron',
+            args: { action: 'get', jobId: createdJob.id },
+          },
+          {
+            kind: 'tool_call',
+            name: 'cron',
+            args: {
+              action: 'update',
+              jobId: createdJob.id,
+              patch: {
+                payload: { kind: 'agentTurn', message: incompleteProposal },
+              },
+            },
+          },
+          { kind: 'text', content: updateReply },
+        ],
+        expectations: {
+          advertisedTools: { exact: ['message', 'tlon', 'cron'] },
+          expectedCallCount: 3,
+          toolEffectOnly: true,
+        },
+      };
+      const updateTag = await registerModelScript(
+        ctx.fakeModel,
+        updateKey,
+        updateScript
+      );
+      const updateResult = await actors.owner.prompt(
+        `${updateTag} ${correction} Read the exact job, apply the scripted update, then reply with the scripted result.`,
+        { timeoutMs: CRON_CREATE_PROMPT_WAIT_MS }
+      );
+      expectPromptSuccess(updateResult, updateReply);
+      await expectModelExpectations(ctx.fakeModel, updateKey, updateScript);
+
+      const persisted = await readOpenClawCronJob(ctx, createdJob.id);
+      const persistedMessage = (
+        persisted.payload as Record<string, unknown> | undefined
+      )?.message;
+      expect(persistedMessage).toEqual(expect.any(String));
+      expect(persistedMessage).toContain(original);
+      expect(persistedMessage).toContain(correction);
+      expect(persistedMessage).toContain('return exactly NO_REPLY');
+      expect(persistedMessage).toContain('never call or use the message tool');
+      expect(persistedMessage).not.toContain('Alert on anything urgent.');
     }
   ),
 
@@ -2490,6 +2622,40 @@ function assertExecOk(
         `${(result.stderr || result.stdout).trim()}`
     );
   }
+}
+
+async function readOpenClawCronJob(
+  ctx: RuntimeContext,
+  jobId: string
+): Promise<Record<string, unknown>> {
+  const result = await execInComposeService(ctx, ctx.services.bot, [
+    'openclaw',
+    'cron',
+    'list',
+    '--all',
+    '--json',
+    '--timeout',
+    '10000',
+  ]);
+  assertExecOk(result, `read OpenClaw cron job ${jobId}`);
+  const parsed: unknown = JSON.parse(result.stdout);
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('OpenClaw cron list did not return an object.');
+  }
+  const jobs = (parsed as { jobs?: unknown }).jobs;
+  if (!Array.isArray(jobs)) {
+    throw new Error('OpenClaw cron list did not include jobs.');
+  }
+  const job = jobs.find(
+    (candidate) =>
+      candidate &&
+      typeof candidate === 'object' &&
+      (candidate as { id?: unknown }).id === jobId
+  );
+  if (!job || typeof job !== 'object') {
+    throw new Error(`OpenClaw cron job ${jobId} was not found.`);
+  }
+  return job as Record<string, unknown>;
 }
 
 async function botNickname(actor: ScenarioActor): Promise<string> {

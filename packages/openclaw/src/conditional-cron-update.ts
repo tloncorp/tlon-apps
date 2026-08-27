@@ -8,6 +8,7 @@ interface TimedValue<T> {
 interface CronSnapshot {
   id: string;
   message: string;
+  deliveryMode: string | null;
 }
 
 const STATE_TTL_MS = 60 * 60 * 1000;
@@ -83,6 +84,48 @@ function cronMessage(job: Record<string, unknown>): string | null {
   return typeof message === 'string' && message.trim() ? message : null;
 }
 
+function cronDeliveryMode(job: Record<string, unknown>): string | null {
+  const delivery = isRecord(job.delivery) ? job.delivery : null;
+  const mode = delivery?.mode;
+  return typeof mode === 'string' && mode.trim()
+    ? mode.trim().toLowerCase()
+    : null;
+}
+
+function explicitlyChangesMonitorScope(prompt: string): boolean {
+  return (
+    /\b(?:replace|switch|broaden|all sources|any source|stop monitoring|change (?:the )?(?:subject|source|scope|topic))\b/i.test(
+      prompt
+    ) ||
+    /\b(?:source|sources|feed|feeds|site|sites|website|websites)\b/i.test(
+      prompt
+    ) ||
+    /\b(?:only|now)\s+(?:monitor|check|watch|use|search)\b/i.test(prompt) ||
+    /\b(?:monitor|check|watch|use|search)\b[^.!?\n]*(?:\binstead\b|\bnow\b)/i.test(
+      prompt
+    )
+  );
+}
+
+function hasUnrelatedSideEffect(prompt: string): boolean {
+  const clauses = prompt
+    .split(/(?<=[.!?])\s+|\n+|;\s*|,\s+and\s+/i)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+  return clauses.some((clause) => {
+    if (
+      !/\b(?:delete|remove|create|rename|move|edit|write|save|post|upload|download|invite|leave|join|archive|install|buy|pay|book|call|email)\b/i.test(
+        clause
+      )
+    ) {
+      return false;
+    }
+    return !/\b(?:alert|notify|notification|monitor|update|bother|message|tell|send|urgent|risk|routine|threshold|relevant)\b/i.test(
+      clause
+    );
+  });
+}
+
 function isThresholdCorrection(prompt: string): boolean {
   const hasThresholdLanguage =
     /\b(?:not|don't|do not|only|unless|ignore|suppress|routine|known|safe|risk|urgent|important|relevant)\b/i.test(
@@ -92,11 +135,12 @@ function isThresholdCorrection(prompt: string): boolean {
     /\b(?:alert|notify|notification|monitor|update|bother|message|tell|send|urgent|risk)\b/i.test(
       prompt
     );
-  const explicitlyChangesScope =
-    /\b(?:replace|switch|broaden|all sources|any source|stop monitoring|change (?:the )?(?:subject|source|scope|topic))\b/i.test(
-      prompt
-    );
-  return hasThresholdLanguage && concernsDelivery && !explicitlyChangesScope;
+  return (
+    hasThresholdLanguage &&
+    concernsDelivery &&
+    !explicitlyChangesMonitorScope(prompt) &&
+    !hasUnrelatedSideEffect(prompt)
+  );
 }
 
 export function rememberCronOwnerPrompt(
@@ -116,9 +160,25 @@ export function recordCronGetResult(
   params: Record<string, unknown>,
   result: unknown
 ): void {
-  if (!sessionKey || params.action !== 'get') {
+  if (!sessionKey) {
     return;
   }
+  const requestedJobId =
+    typeof params.jobId === 'string'
+      ? params.jobId
+      : typeof params.id === 'string'
+        ? params.id
+        : null;
+  if (params.action === 'update') {
+    if (requestedJobId) {
+      // The after-tool hook cannot reliably recover the effective params after
+      // a before-tool rewrite. Force a fresh exact-job read before another
+      // correction rather than rebuilding from stale pre-update content.
+      cronSnapshots.delete(snapshotKey(sessionKey, requestedJobId));
+    }
+    return;
+  }
+  if (params.action !== 'get') return;
   const job = cronResultObject(result);
   if (!job) {
     return;
@@ -131,7 +191,7 @@ export function recordCronGetResult(
   cleanup();
   cronSnapshots.set(snapshotKey(sessionKey, id), {
     timestamp: Date.now(),
-    value: { id, message },
+    value: { id, message, deliveryMode: cronDeliveryMode(job) },
   });
 }
 
@@ -168,11 +228,30 @@ export function preserveConditionalCronUpdate(
   if (typeof proposedMessage !== 'string' || !proposedMessage.trim()) {
     return undefined;
   }
-  if (proposedMessage.includes(previous.message)) {
+  const correction = prompt.trim();
+  const alreadyPreservesOriginal = proposedMessage.includes(previous.message);
+  const alreadyHasExactCorrection = proposedMessage.includes(correction);
+  const alreadyHasSilentNegativePath =
+    /return exactly [`'\"]?NO_REPLY[`'\"]?/i.test(proposedMessage);
+  const alreadyProhibitsMessageTool =
+    previous.deliveryMode !== 'announce' ||
+    /(?:do not|don't|never)\s+(?:call|use)\s+(?:the\s+)?message\s+tool/i.test(
+      proposedMessage
+    );
+  if (
+    alreadyPreservesOriginal &&
+    alreadyHasExactCorrection &&
+    alreadyHasSilentNegativePath &&
+    alreadyProhibitsMessageTool
+  ) {
     return undefined;
   }
 
-  const correctedMessage = `${previous.message}\n\nOwner correction (higher priority):\n${prompt}\nThis correction overrides any conflicting earlier delivery instruction. Preserve the original subject, sources, and input scope; do not introduce unrelated events. When the corrected alert criteria are not met, return exactly NO_REPLY with no heartbeat, status update, or explanation.`;
+  const announceRule =
+    previous.deliveryMode === 'announce'
+      ? '\nThis job uses delivery.mode=announce: never call or use the message tool for delivery. Return alert text only through announce delivery.'
+      : '';
+  const correctedMessage = `${previous.message}\n\nOwner correction (higher priority):\n${correction}\nThis correction overrides any conflicting earlier delivery instruction. Preserve the original subject, sources, and input scope; do not introduce unrelated events.${announceRule}\nWhen the corrected alert criteria are not met, return exactly NO_REPLY with no heartbeat, status update, or explanation.`;
 
   return {
     ...params,
