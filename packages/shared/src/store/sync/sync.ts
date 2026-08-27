@@ -392,15 +392,11 @@ export const syncLatestChanges = async ({
   await db.changesSyncedAt.setValue(start);
   updateLastActivityTime();
   // after the watermark, so a failure here can't cost us the posts we just
-  // wrote — the next sync will find the same missing rows and retry
-  try {
-    await recoverMissingDmChannels({ posts: result.posts, syncCtx, queryCtx });
-  } catch (e) {
-    logger.trackError('failed to recover missing dm channels', {
-      error: e,
-      ...callCtx,
-    });
-  }
+  // wrote
+  await tryRecoverMissingDmChannels(
+    { posts: result.posts, syncCtx, queryCtx },
+    callCtx.cause
+  );
   logger.trackEvent('sync changes debug', {
     context: 'updated timestamp',
     ...callCtx,
@@ -480,6 +476,13 @@ export const syncCachedChanges = async (input: {
     await db.insertChanges(input.changes);
     notifyChannelPostListenersFromLatestChanges(input.changes.posts);
     await db.changesSyncedAt.setValue(input.end);
+    // this path advances the watermark past the cached window, so the
+    // foreground sync that follows will never see these posts again — a DM
+    // created inside the window has to be recovered here or not at all
+    await tryRecoverMissingDmChannels(
+      { posts: input.changes.posts },
+      'cached-changes'
+    );
     return true;
   }
   return false;
@@ -842,6 +845,12 @@ export type RecoverMissingDmChannelsResult = {
   strategy: 'none' | 'ensureDmInvite' | 'syncDms';
 };
 
+// Channels we know are missing locally but whose recovery fetch failed. The
+// changes feed never replays posts we've already consumed, so without this the
+// ids are gone and the conversation stays invisible until another post arrives
+// in it or the app is relaunched.
+const unresolvedDmChannelIds = new Set<string>();
+
 /**
  * The changes feed carries posts but never channels. Group channels still
  * arrive, because they ride along in the group blob, but a DM has no group —
@@ -866,15 +875,16 @@ export const recoverMissingDmChannels = async ({
   };
 
   const channelIds = [
-    ...new Set(
-      posts
+    ...new Set([
+      ...posts
         .map((post) => post.channelId)
         .filter(
           (channelId): channelId is string =>
             !!channelId &&
             (isDmChannelId(channelId) || isGroupDmChannelId(channelId))
-        )
-    ),
+        ),
+      ...unresolvedDmChannelIds,
+    ]),
   ];
   if (!channelIds.length) {
     return none;
@@ -883,6 +893,7 @@ export const recoverMissingDmChannels = async ({
   const existing = new Set(
     await db.getExistingChannelIds({ channelIds }, queryCtx)
   );
+  existing.forEach((id) => unresolvedDmChannelIds.delete(id));
   const missingChannelIds = channelIds.filter((id) => !existing.has(id));
   if (!missingChannelIds.length) {
     return none;
@@ -902,17 +913,44 @@ export const recoverMissingDmChannels = async ({
     strategy,
   });
 
-  if (strategy === 'ensureDmInvite') {
-    await ensureDmInviteChannel({
-      channelId: missingChannelIds[0],
-      syncCtx,
-      queryCtx,
-    });
-  } else {
-    await syncDms(syncCtx);
+  try {
+    if (strategy === 'ensureDmInvite') {
+      await ensureDmInviteChannel({
+        channelId: missingChannelIds[0],
+        syncCtx,
+        queryCtx,
+      });
+    } else {
+      await syncDms(syncCtx);
+    }
+  } catch (e) {
+    // queue for the next sync. A completed attempt clears the id even when the
+    // backend doesn't know the channel either — that answer won't change on a
+    // retry, and re-scrying it forever would be pure waste.
+    missingChannelIds.forEach((id) => unresolvedDmChannelIds.add(id));
+    throw e;
   }
+  missingChannelIds.forEach((id) => unresolvedDmChannelIds.delete(id));
 
   return { missingChannelIds, strategy };
+};
+
+/**
+ * Recovery is a repair, not part of the sync contract: a failure here must not
+ * fail the sync that carried the posts, since those are already written.
+ */
+const tryRecoverMissingDmChannels = async (
+  args: Parameters<typeof recoverMissingDmChannels>[0],
+  cause?: string
+) => {
+  try {
+    await recoverMissingDmChannels(args);
+  } catch (e) {
+    logger.trackError('failed to recover missing dm channels', {
+      error: e,
+      cause,
+    });
+  }
 };
 
 export const syncUnreads = async (ctx?: SyncCtx, queryCtx?: QueryCtx) => {

@@ -46,6 +46,7 @@ import {
   syncChannelWithBackoff,
   syncDms,
   syncGroups,
+  syncCachedChanges,
   syncInitData,
   syncLatestChanges,
   syncLatestPosts,
@@ -566,19 +567,23 @@ test('recoverMissingDmChannels falls back to a full DM sync for group DMs', asyn
   expect(channel?.lastPostId).toBe('group-dm-post');
 });
 
+const changesWithPosts = (posts: db.Post[]) => ({
+  groups: [],
+  posts,
+  contacts: [],
+  unreads: {
+    channelUnreads: [],
+    groupUnreads: [],
+    threadActivity: [],
+    baseUnread: undefined,
+  },
+  deletedChannelIds: [],
+});
+
 test('syncLatestChanges surfaces a DM that arrives as posts with no channel row', async () => {
   const posts = [noticePost('~sampel-palnet', 'invite-notice')];
   vi.mocked(fetchChangesSince).mockResolvedValueOnce({
-    groups: [],
-    posts,
-    contacts: [],
-    unreads: {
-      channelUnreads: [],
-      groupUnreads: [],
-      threadActivity: [],
-      baseUnread: undefined,
-    },
-    deletedChannelIds: [],
+    ...changesWithPosts(posts),
     nodeBusyStatus: 'available',
   });
   setScryOutputs([['~sampel-palnet'], []]);
@@ -588,6 +593,53 @@ test('syncLatestChanges surfaces a DM that arrives as posts with no channel row'
   const channel = await db.getChannel({ id: '~sampel-palnet' });
   expect(channel?.type).toBe('dm');
   expect(channel?.lastPostId).toBe('invite-notice');
+});
+
+// syncCachedChanges advances the watermark past the cached window, so the
+// foreground sync that follows never sees these posts again — recovery has to
+// happen here or the DM stays invisible for the whole session.
+test('syncCachedChanges surfaces a DM that only appears in the cached window', async () => {
+  const posts = [noticePost('~sampel-palnet', 'cached-notice')];
+  const syncedAt = vi
+    .spyOn(db.changesSyncedAt, 'getValue')
+    .mockResolvedValue(1000);
+  setScryOutputs([['~sampel-palnet'], []]);
+
+  try {
+    const applied = await syncCachedChanges({
+      begin: 500,
+      end: 2000,
+      changes: changesWithPosts(posts),
+    });
+    expect(applied).toBe(true);
+  } finally {
+    syncedAt.mockRestore();
+  }
+
+  const channel = await db.getChannel({ id: '~sampel-palnet' });
+  expect(channel?.type).toBe('dm');
+  expect(channel?.lastPostId).toBe('cached-notice');
+});
+
+test('recoverMissingDmChannels retries a channel whose recovery failed', async () => {
+  const posts = [noticePost('~sampel-palnet', 'invite-notice')];
+  await db.insertChannelPosts({ posts });
+
+  // no scry outputs queued: the fetch resolves to undefined and throws
+  setScryOutputs([]);
+  await expect(recoverMissingDmChannels({ posts })).rejects.toThrow();
+  expect(await db.getChannel({ id: '~sampel-palnet' })).toBeNull();
+
+  // the next sync window carries no posts for that DM at all — the queued id
+  // is the only thing keeping it recoverable
+  setScryOutputs([['~sampel-palnet'], []]);
+  const result = await recoverMissingDmChannels({ posts: [] });
+
+  expect(result).toEqual({
+    missingChannelIds: ['~sampel-palnet'],
+    strategy: 'ensureDmInvite',
+  });
+  expect((await db.getChannel({ id: '~sampel-palnet' }))?.type).toBe('dm');
 });
 
 test('recoverMissingDmChannels leaves known channels and group channels alone', async () => {
