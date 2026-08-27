@@ -35,8 +35,9 @@ const MAX_REVISION_ATTEMPTS = 2;
 
 const PROGRESS_VERBS =
   '(?:open(?:ing)?|read(?:ing)?|load(?:ing)?|check(?:ing)?|inspect(?:ing)?|fetch(?:ing)?|pull(?:ing)?\\s+up|paste|display|show|print)';
+const PROGRESS_MODIFIERS = '(?:(?:going\\s+to|now|go\\s+ahead\\s+and)\\s+)?';
 const PROGRESS_ONLY = new RegExp(
-  `^(?:(?:okay|sure)[,!.]?\\s*)?(?:(?:i(?:'ll| will|'m| am)|let me)\\s+)?${PROGRESS_VERBS}\\b[^,;:\\n]{0,220}[.!…]*$`,
+  `^(?:(?:okay|sure)[,!.]?\\s*)?(?:(?:i(?:'ll| will|'m| am)|let me)\\s+)?${PROGRESS_MODIFIERS}${PROGRESS_VERBS}\\b[^,;:\\n]{0,220}[.!…]*$`,
   'i'
 );
 const EMPTY_DELIVERY_CLAIM =
@@ -101,7 +102,11 @@ function contentAnchors(text: string): string[] {
   ).slice(0, MAX_ANCHORS_PER_RUN);
 }
 
-function containsReadContent(reply: string, anchors: string[]): boolean {
+function containsRepresentativeReadContent(
+  reply: string,
+  anchors: string[]
+): boolean {
+  if (anchors.length === 0) return false;
   const normalizedReply = normalizeForComparison(reply);
   const replyLines = new Set(
     reply
@@ -109,10 +114,27 @@ function containsReadContent(reply: string, anchors: string[]): boolean {
       .map((line) => normalizeForComparison(line))
       .filter(Boolean)
   );
-  return anchors.some((anchor) =>
+  const matched = anchors.filter((anchor) =>
     anchor.length < 8
       ? replyLines.has(anchor)
       : normalizedReply.includes(anchor)
+  ).length;
+  return matched >= Math.min(3, anchors.length);
+}
+
+function isEmptyDeliveryClaim(reply: string): boolean {
+  if (!EMPTY_DELIVERY_CLAIM.test(reply)) return false;
+
+  const nonEmptyLines = reply
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (nonEmptyLines.length <= 1) return true;
+
+  // A claim used as a heading is fine when visible output follows it. This is
+  // important for transformed output, which need not contain source anchors.
+  return nonEmptyLines.every(
+    (line) => EMPTY_DELIVERY_CLAIM.test(line) || /^```/.test(line)
   );
 }
 
@@ -123,7 +145,7 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
   return (
     (PROGRESS_ONLY.test(normalized) &&
       !SUBSTANTIVE_PROGRESS_TAIL.test(normalized)) ||
-    EMPTY_DELIVERY_CLAIM.test(normalized)
+    isEmptyDeliveryClaim(normalized)
   );
 }
 
@@ -177,7 +199,7 @@ export function createFileReadCompletionGuard(options?: {
         anchors,
         empty: anchors.length === 0 && !text.trim(),
         revisionAttempts: existing?.revisionAttempts ?? 0,
-        truncated: TRUNCATION_MARKER.test(text),
+        truncated: Boolean(existing?.truncated) || TRUNCATION_MARKER.test(text),
       });
     },
 
@@ -189,7 +211,7 @@ export function createFileReadCompletionGuard(options?: {
       if (!state || state.revisionAttempts >= MAX_REVISION_ATTEMPTS)
         return null;
       if (
-        containsReadContent(reply, state.anchors) ||
+        containsRepresentativeReadContent(reply, state.anchors) ||
         !isIncompleteFileDeliveryReply(reply)
       ) {
         return null;

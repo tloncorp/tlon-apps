@@ -22,6 +22,9 @@ describe('file read completion guard', () => {
     'Opening the CSV now.',
     "I'll read the current CSV and paste its contents.",
     "I'm opening the pollen log now.",
+    "I'm going to read the pollen log now.",
+    "I'll now open the pollen log.",
+    'Let me go ahead and check the pollen log.',
     'That’s the complete revised v0.1.1 text displayed inline.',
     'Here are the requested contents:',
     'The file contents are below.',
@@ -87,6 +90,31 @@ describe('file read completion guard', () => {
         lastAssistantMessage: `Here it is:\n\n${CSV}`,
       })
     ).toBeNull();
+  });
+
+  it('does not revise a delivery heading followed by transformed output', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('run-translated'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'run-translated',
+        lastAssistantMessage:
+          'Here are the requested contents:\n\nDate, compte de pollen, notes\n1 août 2026, 42, faible',
+      })
+    ).toBeNull();
+  });
+
+  it('does not accept one source anchor as complete raw-file delivery', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('run-partial'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'run-partial',
+        lastAssistantMessage: `Here are the requested contents: ${CSV.split('\n')[0]}`,
+      })
+    ).not.toBeNull();
   });
 
   it('accepts delivered content after requesting a correction', () => {
@@ -165,6 +193,22 @@ describe('file read completion guard', () => {
     });
     expect(revision?.retry.instruction).toContain('Continue reading');
     expect(revision?.retry.instruction).not.toContain('Do not call read again');
+  });
+
+  it('preserves truncation when a later read result has no marker', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead('multi-read', 'first chunk\n[Showing lines 1-20 of 40]')
+    );
+    guard.recordToolResult(
+      successfulRead('multi-read', 'unrelated short file')
+    );
+
+    const revision = guard.beforeFinalize({
+      runId: 'multi-read',
+      lastAssistantMessage: 'Reading the rest now.',
+    });
+    expect(revision?.retry.instruction).toContain('Continue reading');
   });
 
   it('preserves summaries and transformations instead of demanding a dump', () => {
