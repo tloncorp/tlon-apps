@@ -27,6 +27,11 @@ import {
   AgentProvisionActionContextSchema,
   agentProtocolString,
 } from './agentProtocol';
+import {
+  SurfaceEventEntrySchema,
+  SurfaceSnapshotEntrySchema,
+  SurfaceSpecMirrorEntrySchema,
+} from './surface/schemas';
 
 export * from './agentProtocol';
 export * from './a2ui';
@@ -792,6 +797,9 @@ const postBlobDataEntryDefinitions = [
   PostBlobDataEntryAgentPostMarkerSchema,
   PostBlobDataEntryA2UISelectionSchema,
   A2UI.blobEntrySchema,
+  SurfaceEventEntrySchema,
+  SurfaceSnapshotEntrySchema,
+  SurfaceSpecMirrorEntrySchema,
 ] as const;
 
 export const PostBlobDataEntrySchema = z.union(postBlobDataEntryDefinitions);
