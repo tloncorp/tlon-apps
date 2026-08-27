@@ -27,6 +27,7 @@ import {
   resetTlonCronObservability,
 } from './src/cron-observability.js';
 import {
+  hasTrustedCronOwnerPrompt,
   preserveConditionalCronUpdate,
   recordCronGetResult,
   rememberCronOwnerPrompt,
@@ -990,7 +991,8 @@ export default defineBundledChannelEntry({
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
       const isBlocked = isOwnerOnlyTool && role === 'user';
       const adjustedCronParams =
-        event.toolName === 'cron' && role === 'owner'
+        event.toolName === 'cron' &&
+        (role === 'owner' || hasTrustedCronOwnerPrompt(ctx.sessionKey))
           ? preserveConditionalCronUpdate(ctx.sessionKey, event.params)
           : undefined;
       const blockReason = isBlocked
@@ -1099,7 +1101,12 @@ export default defineBundledChannelEntry({
 
     api.on('after_tool_call', (event, ctx) => {
       if (event.toolName === 'cron') {
-        recordCronGetResult(ctx.sessionKey, event.params, event.result);
+        recordCronGetResult(
+          ctx.sessionKey,
+          event.params,
+          event.result,
+          event.error
+        );
       }
       const toolCallId = readToolCallId(event);
       const tlonCommandContext =

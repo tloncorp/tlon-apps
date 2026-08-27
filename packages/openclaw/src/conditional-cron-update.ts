@@ -5,14 +5,22 @@ interface TimedValue<T> {
   value: T;
 }
 
+interface OwnerPromptState {
+  generation: number;
+  prompt: string;
+  timestamp: number;
+  trusted: boolean;
+}
+
 interface CronSnapshot {
   id: string;
   message: string;
   deliveryMode: string | null;
+  promptGeneration: number;
 }
 
 const STATE_TTL_MS = 60 * 60 * 1000;
-const ownerPrompts = sharedMap<string, TimedValue<string>>(
+const ownerPrompts = sharedMap<string, OwnerPromptState>(
   'conditionalCronUpdate.ownerPrompts'
 );
 const cronSnapshots = sharedMap<string, TimedValue<CronSnapshot>>(
@@ -36,8 +44,13 @@ function cleanup(now = Date.now()): void {
   }
 }
 
+function parentSessionKey(sessionKey: string): string {
+  const threadIndex = sessionKey.indexOf(':thread:');
+  return threadIndex > 0 ? sessionKey.slice(0, threadIndex) : sessionKey;
+}
+
 function snapshotKey(sessionKey: string, jobId: string): string {
-  return `${sessionKey}\u0000${jobId}`;
+  return `${parentSessionKey(sessionKey)}\u0000${jobId}`;
 }
 
 function parseJsonObject(value: unknown): Record<string, unknown> | null {
@@ -93,23 +106,27 @@ function cronDeliveryMode(job: Record<string, unknown>): string | null {
 }
 
 function explicitlyChangesMonitorScope(prompt: string): boolean {
+  const normalized = prompt.replace(/[’‘]/g, "'");
   return (
     /\b(?:replace|switch|broaden|all sources|any source|stop monitoring|change (?:the )?(?:subject|source|scope|topic))\b/i.test(
-      prompt
+      normalized
     ) ||
-    /\b(?:source|sources|feed|feeds|site|sites|website|websites)\b/i.test(
-      prompt
-    ) ||
-    /\b(?:only|now)\s+(?:monitor|check|watch|use|search)\b/i.test(prompt) ||
+    /\b(?:only|now)\s+(?:monitor|check|watch|use|search)\b/i.test(normalized) ||
     /\b(?:monitor|check|watch|use|search)\b[^.!?\n]*(?:\binstead\b|\bnow\b)/i.test(
-      prompt
+      normalized
+    ) ||
+    /\bonly\s+(?:alert|notify|message|tell)(?:\s+me)?\s+about\b[^.!?\n]*(?:\bnow\b|\binstead\b|\bnot\b)/i.test(
+      normalized
+    ) ||
+    /\b(?:switch|replace|change)\b[^.!?\n]*\b(?:source|sources|feed|feeds|site|sites|website|websites)\b/i.test(
+      normalized
     )
   );
 }
 
 function hasUnrelatedSideEffect(prompt: string): boolean {
   const clauses = prompt
-    .split(/(?<=[.!?])\s+|\n+|;\s*|,\s+and\s+/i)
+    .split(/(?<=[.!?])\s+|\n+|;\s*|,?\s+and\s+/i)
     .map((clause) => clause.trim())
     .filter(Boolean);
   return clauses.some((clause) => {
@@ -127,19 +144,20 @@ function hasUnrelatedSideEffect(prompt: string): boolean {
 }
 
 function isThresholdCorrection(prompt: string): boolean {
+  const normalized = prompt.replace(/[’‘]/g, "'");
   const hasThresholdLanguage =
     /\b(?:not|don't|do not|only|unless|ignore|suppress|routine|known|safe|risk|urgent|important|relevant)\b/i.test(
-      prompt
+      normalized
     );
   const concernsDelivery =
     /\b(?:alert|notify|notification|monitor|update|bother|message|tell|send|urgent|risk)\b/i.test(
-      prompt
+      normalized
     );
   return (
     hasThresholdLanguage &&
     concernsDelivery &&
-    !explicitlyChangesMonitorScope(prompt) &&
-    !hasUnrelatedSideEffect(prompt)
+    !explicitlyChangesMonitorScope(normalized) &&
+    !hasUnrelatedSideEffect(normalized)
   );
 }
 
@@ -148,17 +166,58 @@ export function rememberCronOwnerPrompt(
   prompt: string,
   senderIsOwner: boolean | undefined
 ): void {
-  if (!sessionKey || senderIsOwner === false || !prompt.trim()) {
+  const value = prompt.trim();
+  if (!sessionKey || !value) {
     return;
   }
   cleanup();
-  ownerPrompts.set(sessionKey, { timestamp: Date.now(), value: prompt.trim() });
+  const key = parentSessionKey(sessionKey);
+  const existing = ownerPrompts.get(key);
+  if (senderIsOwner === true) {
+    ownerPrompts.set(key, {
+      generation:
+        existing?.trusted && existing.prompt === value
+          ? existing.generation
+          : (existing?.generation ?? 0) + 1,
+      prompt: value,
+      timestamp: Date.now(),
+      trusted: true,
+    });
+    return;
+  }
+
+  // A Tlon inbound message records trusted ownership before this generic hook.
+  // Preserve that record when both hooks saw the same text. A different
+  // ownerless/internal prompt deactivates it without treating the background
+  // text as an owner correction.
+  if (
+    senderIsOwner === undefined &&
+    existing?.trusted &&
+    existing.prompt === value
+  ) {
+    return;
+  }
+  ownerPrompts.set(key, {
+    generation: (existing?.generation ?? 0) + 1,
+    prompt: existing?.prompt ?? '',
+    timestamp: Date.now(),
+    trusted: false,
+  });
+}
+
+export function hasTrustedCronOwnerPrompt(
+  sessionKey: string | undefined
+): boolean {
+  if (!sessionKey) return false;
+  cleanup();
+  return ownerPrompts.get(parentSessionKey(sessionKey))?.trusted === true;
 }
 
 export function recordCronGetResult(
   sessionKey: string | undefined,
   params: Record<string, unknown>,
-  result: unknown
+  result: unknown,
+  error?: unknown
 ): void {
   if (!sessionKey) {
     return;
@@ -170,7 +229,10 @@ export function recordCronGetResult(
         ? params.id
         : null;
   if (params.action === 'update') {
-    if (requestedJobId) {
+    const failed =
+      (typeof error === 'string' && error.trim().length > 0) ||
+      (error !== null && error !== undefined && typeof error !== 'string');
+    if (requestedJobId && !failed) {
       // The after-tool hook cannot reliably recover the effective params after
       // a before-tool rewrite. Force a fresh exact-job read before another
       // correction rather than rebuilding from stale pre-update content.
@@ -179,6 +241,8 @@ export function recordCronGetResult(
     return;
   }
   if (params.action !== 'get') return;
+  const promptState = ownerPrompts.get(parentSessionKey(sessionKey));
+  if (!promptState?.trusted) return;
   const job = cronResultObject(result);
   if (!job) {
     return;
@@ -191,7 +255,12 @@ export function recordCronGetResult(
   cleanup();
   cronSnapshots.set(snapshotKey(sessionKey, id), {
     timestamp: Date.now(),
-    value: { id, message, deliveryMode: cronDeliveryMode(job) },
+    value: {
+      id,
+      message,
+      deliveryMode: cronDeliveryMode(job),
+      promptGeneration: promptState.generation,
+    },
   });
 }
 
@@ -203,8 +272,10 @@ export function preserveConditionalCronUpdate(
     return undefined;
   }
   cleanup();
-  const prompt = ownerPrompts.get(sessionKey)?.value;
-  if (!prompt || !isThresholdCorrection(prompt)) {
+  const canonicalSessionKey = parentSessionKey(sessionKey);
+  const promptState = ownerPrompts.get(canonicalSessionKey);
+  const prompt = promptState?.prompt;
+  if (!promptState?.trusted || !prompt || !isThresholdCorrection(prompt)) {
     return undefined;
   }
 
@@ -217,8 +288,16 @@ export function preserveConditionalCronUpdate(
   if (!jobId) {
     return undefined;
   }
+  const currentSnapshots = Array.from(cronSnapshots.entries()).filter(
+    ([key, entry]) =>
+      key.startsWith(`${canonicalSessionKey}\u0000`) &&
+      entry.value.promptGeneration === promptState.generation
+  );
+  if (currentSnapshots.length !== 1) {
+    return undefined;
+  }
   const previous = cronSnapshots.get(snapshotKey(sessionKey, jobId))?.value;
-  if (!previous) {
+  if (!previous || previous.promptGeneration !== promptState.generation) {
     return undefined;
   }
 
@@ -229,29 +308,18 @@ export function preserveConditionalCronUpdate(
     return undefined;
   }
   const correction = prompt.trim();
-  const alreadyPreservesOriginal = proposedMessage.includes(previous.message);
-  const alreadyHasExactCorrection = proposedMessage.includes(correction);
-  const alreadyHasSilentNegativePath =
-    /return exactly [`'\"]?NO_REPLY[`'\"]?/i.test(proposedMessage);
-  const alreadyProhibitsMessageTool =
-    previous.deliveryMode !== 'announce' ||
-    /(?:do not|don't|never)\s+(?:call|use)\s+(?:the\s+)?message\s+tool/i.test(
-      proposedMessage
-    );
-  if (
-    alreadyPreservesOriginal &&
-    alreadyHasExactCorrection &&
-    alreadyHasSilentNegativePath &&
-    alreadyProhibitsMessageTool
-  ) {
-    return undefined;
-  }
-
   const announceRule =
     previous.deliveryMode === 'announce'
       ? '\nThis job uses delivery.mode=announce: never call or use the message tool for delivery. Return alert text only through announce delivery.'
       : '';
   const correctedMessage = `${previous.message}\n\nOwner correction (higher priority):\n${correction}\nThis correction overrides any conflicting earlier delivery instruction. Preserve the original subject, sources, and input scope; do not introduce unrelated events.${announceRule}\nWhen the corrected alert criteria are not met, return exactly NO_REPLY with no heartbeat, status update, or explanation.`;
+
+  // Presence checks are insufficient: a proposal can contain every required
+  // sentence and append a conflicting broad alert criterion. Only the exact
+  // canonical form is accepted unchanged.
+  if (proposedMessage === correctedMessage) {
+    return undefined;
+  }
 
   return {
     ...params,
