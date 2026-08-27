@@ -8,6 +8,7 @@ import type {
   MigrationOptions,
 } from './notes-migrate';
 import { executeApply, verifyTargetContents } from './notes-migrate-apply';
+import { NotesChannelPreflightError } from './notes-channel';
 
 const SOURCE = 'diary/~zod/blog';
 const GROUP = '~zod/group';
@@ -419,6 +420,24 @@ describe('executeApply', () => {
     );
     expect(context.calls.batch).toEqual([]);
     expect(context.calls.updateChannel).toEqual([]);
+  });
+
+  it('preserves a definite preflight denial without orphan cleanup guidance', async () => {
+    const context = makeHarness({
+      create: async () => {
+        throw new NotesChannelPreflightError(
+          "Can't create a Notebook channel in ~zod/group: not an admin"
+        );
+      },
+    });
+    const error = await captureError(
+      executeApply(applyOptions(), context.deps)
+    );
+    expect(error.message).toContain('not an admin');
+    expect(error.message).toContain('Nothing was created');
+    expect(error.message).not.toContain('may or may not have landed');
+    expect(error.message).not.toContain('Notes app');
+    expect(context.calls.batch).toEqual([]);
   });
 
   it('adds recovery guidance when post-create reader verification fails', async () => {

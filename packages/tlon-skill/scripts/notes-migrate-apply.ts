@@ -16,6 +16,7 @@ import {
   PREFLIGHT_ENVELOPE_CONTEXT,
   prepareMigration,
 } from './notes-migrate-plan';
+import { NotesChannelPreflightError } from './notes-channel';
 
 export interface ApplySummary {
   notesImported: number;
@@ -269,6 +270,11 @@ export async function executeApply(
       },
     });
   } catch (error) {
+    if (error instanceof NotesChannelPreflightError) {
+      throw commandError(
+        `${errorMessage(error)}\nNothing was created; fix the group access and retry.`
+      );
+    }
     if (!targetNest) {
       throw commandError(
         `${errorMessage(

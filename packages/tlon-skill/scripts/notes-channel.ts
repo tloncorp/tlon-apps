@@ -43,6 +43,11 @@ export interface NotesChannelInput {
   onCreated?: (nest: string) => void;
 }
 
+/** A definite pre-write rejection; callers must not offer orphan cleanup. */
+export class NotesChannelPreflightError extends Error {
+  override name = 'NotesChannelPreflightError';
+}
+
 export type GroupListingGoal = 'present-in-all' | 'absent-from-all';
 export type GroupListingVerdict =
   | 'confirmed'
@@ -118,7 +123,11 @@ export async function createNotesChannelInGroup(
   const [groupHost, groupName] = groupParts;
   const readers = input.readers;
 
-  await deps.assertCanAdministerGroup(input.groupId);
+  try {
+    await deps.assertCanAdministerGroup(input.groupId);
+  } catch (error) {
+    throw new NotesChannelPreflightError(errorMessage(error));
+  }
 
   deps.log(`Creating %notes channel "${input.title}" in ${input.groupId}...`);
 
