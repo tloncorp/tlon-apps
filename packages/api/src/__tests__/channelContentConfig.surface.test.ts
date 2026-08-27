@@ -2,6 +2,7 @@ import fc from 'fast-check';
 import { describe, expect, test } from 'vitest';
 
 import { StructuredChannelDescriptionPayload } from '../client/channelContentConfig';
+import type { Json } from '../client/surface/json';
 import { validSpec } from './surfaceSchemas.test';
 
 const SCDP = StructuredChannelDescriptionPayload;
@@ -25,7 +26,7 @@ describe('decode losslessness', () => {
       fc.property(
         fc.dictionary(
           fc.string({ maxLength: 8 }),
-          fc.jsonValue({ maxDepth: 3 }) as fc.Arbitrary<any>,
+          fc.jsonValue({ maxDepth: 3 }) as fc.Arbitrary<Json>,
           { maxKeys: 6 }
         ),
         (payload) => {

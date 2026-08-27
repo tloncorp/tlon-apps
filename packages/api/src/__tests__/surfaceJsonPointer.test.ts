@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, test } from 'vitest';
 
-import type { JsonObject } from '../client/surface/json';
+import type { Json, JsonObject } from '../client/surface/json';
 import { isJson } from '../client/surface/json';
 import {
   POINTER_MAX_LENGTH,
@@ -326,9 +326,9 @@ describe('applyOp with reserved-looking state keys', () => {
 describe('applyOp value hardening', () => {
   test('rejects non-JSON and prototype-polluting op values', () => {
     expect(
-      applyOp({}, { op: 'set', path: '/a', value: undefined as any }).ok
+      applyOp({}, { op: 'set', path: '/a', value: undefined as never }).ok
     ).toBe(false);
-    expect(applyOp({}, { op: 'set', path: '/a', value: NaN as any }).ok).toBe(
+    expect(applyOp({}, { op: 'set', path: '/a', value: NaN as never }).ok).toBe(
       false
     );
     expect(
@@ -345,7 +345,7 @@ describe('applyOp value hardening', () => {
 
   test('keeps state within the depth cap', () => {
     // value depth 14 at 2 path segments = 16: allowed
-    let deep: any = 'leaf';
+    let deep: Json = 'leaf';
     for (let i = 0; i < 14; i++) deep = { k: deep };
     expect(applyOp({}, { op: 'set', path: '/a/b', value: deep }).ok).toBe(true);
     // one more level of value depth would exceed the cap
@@ -364,7 +364,7 @@ describe('applyOp property tests', () => {
     fc.record({
       op: fc.constant('set' as const),
       path: fc.constantFrom('/a', '/a/b', '/votes/$actor', '/x/y/z', '/list'),
-      value: fc.jsonValue({ maxDepth: 3 }) as fc.Arbitrary<any>,
+      value: fc.jsonValue({ maxDepth: 3 }) as fc.Arbitrary<Json>,
     }),
     fc.record({
       op: fc.constant('del' as const),
@@ -373,7 +373,7 @@ describe('applyOp property tests', () => {
     fc.record({
       op: fc.constant('append' as const),
       path: fc.constantFrom('/list', '/a', '/missing'),
-      value: fc.jsonValue({ maxDepth: 2 }) as fc.Arbitrary<any>,
+      value: fc.jsonValue({ maxDepth: 2 }) as fc.Arbitrary<Json>,
     })
   );
 
@@ -412,7 +412,7 @@ describe('applyOp property tests', () => {
     fc.assert(
       fc.property(
         fc.constantFrom('~zod', '~ten', '~sampel-palnet'),
-        fc.jsonValue({ maxDepth: 2 }) as fc.Arbitrary<any>,
+        fc.jsonValue({ maxDepth: 2 }) as fc.Arbitrary<Json>,
         (actor, value) => {
           // jsonValue occasionally generates forbidden object keys
           // (__proto__ et al.), which applyOp rightly rejects; idempotence

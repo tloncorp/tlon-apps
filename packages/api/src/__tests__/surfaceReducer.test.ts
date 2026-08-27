@@ -1,7 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, test } from 'vitest';
 
-import type { JsonObject } from '../client/surface/json';
+import type { Json, JsonObject } from '../client/surface/json';
 import { jsonByteLength } from '../client/surface/json';
 import {
   ReduceSurfaceInput,
@@ -462,7 +462,7 @@ describe('totality and determinism', () => {
           fc.oneof(
             fc.string(),
             fc
-              .array(fc.jsonValue({ maxDepth: 3 }) as fc.Arbitrary<any>, {
+              .array(fc.jsonValue({ maxDepth: 3 }) as fc.Arbitrary<Json>, {
                 maxLength: 3,
               })
               .map((arr) => JSON.stringify(arr)),

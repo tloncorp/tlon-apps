@@ -98,11 +98,11 @@ describe('SurfaceSpecSchema', () => {
           shellVersion: 1,
         },
       },
-      { initialState: [1, 2] as any },
-      { initialState: 'nope' as any },
-      { actions: { 'Bad Id!': { ops: [] } } as any },
-      { actions: { ['a'.repeat(65)]: { ops: [] } } as any },
-      { actions: { constructor: { ops: [] } } as any },
+      { initialState: [1, 2] as never },
+      { initialState: 'nope' as never },
+      { actions: { 'Bad Id!': { ops: [] } } as never },
+      { actions: { ['a'.repeat(65)]: { ops: [] } } as never },
+      { actions: { constructor: { ops: [] } } as never },
     ];
     for (const override of cases) {
       const spec = { ...validSpec(), ...override };
@@ -137,10 +137,8 @@ describe('SurfaceEventEntrySchema', () => {
 
   test('requires specRevision on both arms', () => {
     for (const base of [validHostEvent(), validInvokeEvent()]) {
-      const { specRevision: _dropped, ...rest } = base as Record<
-        string,
-        unknown
-      >;
+      const rest: Record<string, unknown> = { ...base };
+      delete rest.specRevision;
       expect(SurfaceEventEntrySchema.safeParse(rest).success).toBe(false);
     }
   });
@@ -234,7 +232,8 @@ describe('SurfaceSnapshotEntrySchema', () => {
       { ...validSnapshot(), version: 2 },
       { ...validSnapshot(), surfaceId: '' },
       (() => {
-        const { specRevision: _dropped, ...rest } = validSnapshot();
+        const rest: Record<string, unknown> = { ...validSnapshot() };
+        delete rest.specRevision;
         return rest;
       })(),
     ];
