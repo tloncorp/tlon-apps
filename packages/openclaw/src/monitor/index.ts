@@ -18,6 +18,7 @@ import {
   syncBotInfo,
 } from '../bot-info.js';
 import { engagementTokens } from '../commands-registry.js';
+import { rememberCronOwnerPrompt } from '../conditional-cron-update.js';
 import {
   findRecentContextLensById,
   publishContextLensEvent,
@@ -3012,6 +3013,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // Store role for before_tool_call hook (tool access control)
       for (const sessionKey of lensSessionKeys) {
         setSessionRole(sessionKey, senderRole);
+        // Keep the exact trusted inbound text next to every session-key form
+        // the tool hooks may receive. The generic before_agent_run hook is a
+        // useful fallback for non-Tlon entry points, but it can be unavailable
+        // when conversation-access hooks are restricted by the host.
+        rememberCronOwnerPrompt(
+          sessionKey,
+          currentMessageText,
+          senderRole === 'owner'
+        );
       }
       runtime.log?.(
         `[tlon] Stored session role: sessionKeys=${lensSessionKeys.join(', ')}, role=${senderRole}`
