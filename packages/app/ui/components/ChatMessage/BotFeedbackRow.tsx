@@ -3,19 +3,27 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Icon, Pressable } from '@tloncorp/ui';
 import { useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { XStack } from 'tamagui';
 
 import { useTelemetry } from '../../../hooks/useTelemetry';
+import { ContextLensButton } from '../Channel/ContextLens/ContextLensButton';
 import { triggerHaptic } from '../../utils';
 import { BotFeedbackSheet } from './BotFeedbackSheet';
 
 export function BotFeedbackRow({
   post,
   currentUserId,
+  onPressBotRun,
+  visible = true,
 }: {
   post: db.Post;
   currentUserId: string;
+  onPressBotRun?: (post: db.Post) => void;
+  visible?: boolean;
 }) {
+  const isWeb = Platform.OS === 'web';
+  const showControls = !isWeb || visible;
   const telemetry = useTelemetry();
   const messageId = store.getBotReplyMessageId(post);
   const { data: feedback } = store.useBotReplyFeedback(messageId);
@@ -93,8 +101,17 @@ export function BotFeedbackRow({
 
   return (
     <>
-      <XStack gap="$2xs" paddingLeft="$4xl" paddingBottom="$m">
-        {(['up', 'down'] as const).map((rating) => {
+      <XStack
+        gap={isWeb ? '$2xs' : '$s'}
+        paddingLeft="$4xl"
+        height={isWeb ? 20 : undefined}
+        marginBottom={isWeb ? '$xs' : undefined}
+        paddingBottom={isWeb ? undefined : '$m'}
+      >
+        {showControls && (
+          <ContextLensButton post={post} onPress={onPressBotRun} />
+        )}
+        {showControls && (['up', 'down'] as const).map((rating) => {
           const selected = feedback?.rating === rating;
           return (
             <Pressable
@@ -104,8 +121,14 @@ export function BotFeedbackRow({
                 void handleRating(rating);
               }}
               disabled={changing}
-              width={24}
-              height={24}
+              accessibilityLabel={
+                rating === 'up'
+                  ? 'Rate bot reply positively'
+                  : 'Rate bot reply negatively'
+              }
+              accessibilityRole="button"
+              width={isWeb ? 20 : 24}
+              height={isWeb ? 20 : 24}
               hitSlop={6}
               alignItems="center"
               justifyContent="center"
@@ -117,7 +140,7 @@ export function BotFeedbackRow({
             >
               <Icon
                 type={rating === 'up' ? 'ThumbsUp' : 'ThumbsDown'}
-                customSize={[18, 18]}
+                customSize={isWeb ? [14, 14] : [18, 18]}
                 color={selected ? '$positiveActionText' : '$tertiaryText'}
               />
             </Pressable>

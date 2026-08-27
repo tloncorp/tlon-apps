@@ -4,7 +4,8 @@ import * as db from '@tloncorp/shared/db';
 import { Pressable } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
-import { View, isWeb } from 'tamagui';
+import { Platform } from 'react-native';
+import { View } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
@@ -17,6 +18,8 @@ import { BotFeedbackRow } from './BotFeedbackRow';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { MessageContextMenu } from './MessageContextMenu';
 import { StaticChatMessage } from './StaticChatMessage';
+
+const isWeb = Platform.OS === 'web';
 
 /**
  * Wraps
@@ -156,7 +159,6 @@ const ChatMessage = ({
                 hideSentAtTimestamp: hideOverflowMenu || !isHovered,
                 isHighlighted,
                 onLongPress: usesNativeContextMenu ? undefined : onLongPress,
-                onPressBotRun,
                 onPressImage,
                 onPressReplies,
                 onPressRetry,
@@ -167,7 +169,12 @@ const ChatMessage = ({
                 showAuthor,
                 showReplies,
                 feedbackRow: showBotFeedback ? (
-                  <BotFeedbackRow post={post} currentUserId={currentUserId} />
+                  <BotFeedbackRow
+                    post={post}
+                    currentUserId={currentUserId}
+                    onPressBotRun={onPressBotRun}
+                    visible={isHovered}
+                  />
                 ) : undefined,
               }}
             />

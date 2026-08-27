@@ -51,6 +51,7 @@ export { default as IndentDecrease } from './IndentDecrease.svg';
 export { default as IndentIncrease } from './IndentIncrease.svg';
 export { default as Italic } from './Italic.svg';
 export { default as Info } from './Info.svg';
+export { default as InfoCircle } from './InfoCircle.svg';
 export { default as Keyboard } from './Keyboard.svg';
 export { default as Label } from './Label.svg';
 export { default as LeftSidebar } from './LeftSidebar.svg';

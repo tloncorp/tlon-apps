@@ -241,6 +241,8 @@ export async function updateEnableTelemetry(value: boolean) {
   }
 }
 
+// Legacy setting retained for compatibility with older clients. Current
+// clients no longer use it as an availability gate.
 export async function updateContextLensEnabled(value: boolean) {
   const existing = await db.getSettings();
   const oldValue = existing?.contextLensEnabled;
