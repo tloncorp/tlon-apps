@@ -266,6 +266,43 @@ export function collectForeignPromptCaches(
   return out;
 }
 
+/** Per-file ownership stamps (name -> ship) from the config ledger. */
+export function collectPromptFileStamps(
+  cfg: OpenClawConfig
+): Record<string, string> {
+  const files = (
+    cfg.channels?.tlon as
+      | { promptSync?: { files?: Record<string, unknown> } }
+      | undefined
+  )?.promptSync?.files;
+  const out: Record<string, string> = {};
+  for (const [name, ship] of Object.entries(files ?? {})) {
+    if (typeof ship === 'string') {
+      out[name] = ship;
+    }
+  }
+  return out;
+}
+
+/** This ship's applied-text marker (name -> text) from the config ledger. */
+export function collectAppliedPromptMarker(
+  cfg: OpenClawConfig,
+  botShip: string
+): Record<string, string> {
+  const applied = (
+    cfg.channels?.tlon as
+      | { promptSync?: { applied?: Record<string, Record<string, unknown>> } }
+      | undefined
+  )?.promptSync?.applied?.[normalizeShip(botShip)];
+  const out: Record<string, string> = {};
+  for (const [name, text] of Object.entries(applied ?? {})) {
+    if (typeof text === 'string') {
+      out[name] = text;
+    }
+  }
+  return out;
+}
+
 export function isAllowedPromptName(name: unknown): name is PromptFileName {
   return (
     typeof name === 'string' &&
@@ -442,8 +479,15 @@ export function writePromptsIntoConfigDraft(
      * a separate per-ship marker (promptSync.applied) that the bounded
      * history can never evict — the applied text is by definition what may
      * still sit on disk, so the foreign filter must always recognize it.
+     * Also stamps promptSync.files[name] = ship: per-file ownership, which
+     * the startup cleanup trusts over text inference (entrypoints rewrite
+     * prompt files, so foreign content can stop matching any recorded
+     * text).
      */
     markApplied?: boolean;
+    /** Workspace files just removed by the foreign cleanup: drop their
+     * ownership stamps so the regenerated defaults aren't re-removed. */
+    clearFileStamps?: string[];
   }
 ): void {
   const channels = ((draft.channels as Record<string, unknown>) ??= {});
@@ -492,6 +536,17 @@ export function writePromptsIntoConfigDraft(
     const appliedLedger = ((ledger.applied as Record<string, unknown>) ??= {});
     const appliedEntry = (appliedLedger[ship] as Record<string, string>) ?? {};
     appliedLedger[ship] = { ...appliedEntry, ...prompts };
+    const files = ((ledger.files as Record<string, unknown>) ??= {});
+    for (const name of Object.keys(prompts)) {
+      files[name] = ship;
+    }
+  }
+  if (writeOpts?.clearFileStamps?.length) {
+    const files = (ledger.files as Record<string, unknown>) ?? {};
+    for (const name of writeOpts.clearFileStamps) {
+      delete files[name];
+    }
+    ledger.files = files;
   }
 }
 
@@ -548,6 +603,20 @@ export function createPromptSync(opts: {
    */
   foreignPrompts?: Record<string, string[]>;
   /**
+   * Per-file ownership stamps (see collectPromptFileStamps). A file
+   * stamped for a different ship is foreign REGARDLESS of its current
+   * text — entrypoints rewrite prompt files, so foreign content can stop
+   * matching any recorded text.
+   */
+  fileStamps?: Record<string, string>;
+  /**
+   * This ship's current applied-text marker (see
+   * collectAppliedPromptMarker), used to repair a marker/stamp write that
+   * failed or crashed on an earlier boot even when today's apply changes
+   * no files.
+   */
+  currentApplied?: Record<string, string>;
+  /**
    * Monitor teardown signal (config reload / shutdown). Aborting stops
    * retry backoff promptly and keeps a stale monitor from applying or
    * persisting prompts from an obsolete account configuration.
@@ -580,7 +649,7 @@ export function createPromptSync(opts: {
     afterWrite:
       | { mode: 'none'; reason: string }
       | { mode: 'restart'; reason: string },
-    writeOpts?: { markApplied?: boolean }
+    writeOpts?: { markApplied?: boolean; clearFileStamps?: string[] }
   ) => {
     try {
       await core.config.mutateConfigFile({
@@ -711,11 +780,27 @@ export function createPromptSync(opts: {
       logger.warn('[tlon] Skipping prompt seed: workspace apply failed');
       return;
     }
-    if (applied.length > 0 && Object.keys(desired).length > 0) {
-      // Record what actually reached the files: after a clean apply, every
-      // desired name matches disk. The applied marker is what the foreign
-      // filter falls back to once the bounded edit history evicts a text
-      // that never got re-applied.
+    // Record what actually reached the files: after a clean apply, every
+    // desired name matches disk. The applied marker is what the foreign
+    // filter falls back to once the bounded edit history evicts a text
+    // that never got re-applied, and the file stamps are what the cleanup
+    // below trusts over text inference. Written not only when files
+    // changed this boot: an earlier marker write may have failed or
+    // crashed after the apply, so repair whenever the recorded marker or
+    // a stamp disagrees with what is now verifiably on disk.
+    const myShipNorm = normalizeShip(botShip);
+    const markerStale = Object.entries(desired).some(([name, text]) => {
+      const stamp = opts.fileStamps?.[name];
+      return (
+        opts.currentApplied?.[name] !== text ||
+        stamp === undefined ||
+        normalizeShip(stamp) !== myShipNorm
+      );
+    });
+    if (
+      (applied.length > 0 || markerStale) &&
+      Object.keys(desired).length > 0
+    ) {
       await persistToConfig(
         desired,
         { mode: 'none', reason: 'tlon prompt sync applied marker' },
@@ -741,16 +826,27 @@ export function createPromptSync(opts: {
     if (aborted()) {
       return;
     }
+    const removedStamps: string[] = [];
     for (const [name, text] of Object.entries(effective)) {
       if (desired[name] === text) {
-        // Our own applied text: identical boilerplate cached for another
-        // ship must not out-claim the current authority's legitimate edit
-        // (it would be unlinked and re-applied on every boot).
+        // Verifiably our own content (matches this ship's stored edit /
+        // cache): identical boilerplate cached for another ship must not
+        // out-claim it, and even a foreign file stamp is moot — the bytes
+        // are ones this ship already holds.
         continue;
       }
-      if (opts.foreignPrompts?.[name]?.includes(text)) {
+      // Ownership stamp first — provenance by which ship last WROTE the
+      // file, immune to entrypoints rewriting prompt files (re-appending
+      // marked blocks) so that foreign content stops matching any recorded
+      // text. Text matching remains as a fallback for files that predate
+      // stamping.
+      const stamp = opts.fileStamps?.[name];
+      const stampForeign =
+        stamp !== undefined && normalizeShip(stamp) !== myShipNorm;
+      const textForeign = opts.foreignPrompts?.[name]?.includes(text) === true;
+      if (stampForeign || textForeign) {
         // The shared workspace still holds another ship's owner-edited
-        // text (the syncing authority changed without a workspace
+        // content (the syncing authority changed without a workspace
         // rebuild). Excluding it from the seed isn't enough — the agent
         // re-reads these files every turn, so the replacement bot would
         // keep RUNNING the former owner's private prompt. Remove the file;
@@ -759,18 +855,41 @@ export function createPromptSync(opts: {
         try {
           await fs.unlink(path.join(workspaceDir, name));
           logger.warn(
-            `[tlon] Removed foreign prompt ${name} from the workspace (text belongs to another ship's owner); not seeding it`
+            `[tlon] Removed foreign prompt ${name} from the workspace (${
+              stampForeign
+                ? `file is stamped for ${stamp}`
+                : "text matches another ship's stored edit"
+            }); not seeding it`
           );
+          removedStamps.push(name);
         } catch (error) {
-          // The foreign text is still on disk and the agent re-reads it
-          // every turn — do not proceed as if cleanup succeeded. The next
-          // boot (or resubscribe reconcile) retries the removal.
-          logger.warn(
-            `[tlon] Aborting prompt reconcile: failed to remove foreign prompt ${name}: ${error}`
-          );
-          return;
+          if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
+            // Already gone (e.g. a previous boot removed it but crashed
+            // before clearing the stamp) — clearing the stamp is all
+            // that's left to do.
+            removedStamps.push(name);
+          } else {
+            // The foreign text is still on disk and the agent re-reads it
+            // every turn — do not proceed as if cleanup succeeded. The
+            // next boot (or resubscribe reconcile) retries the removal.
+            logger.warn(
+              `[tlon] Aborting prompt reconcile: failed to remove foreign prompt ${name}: ${error}`
+            );
+            return;
+          }
         }
       }
+    }
+    if (removedStamps.length > 0) {
+      // Drop the removed files' ownership stamps, or the regenerated
+      // bootstrap defaults would be re-removed on every boot. A failed
+      // write is safe: the next boot unlinks again (ENOENT-tolerant) and
+      // retries the clear.
+      await persistToConfig(
+        {},
+        { mode: 'none', reason: 'tlon prompt sync stamp clear' },
+        { clearFileStamps: removedStamps }
+      );
     }
     if (Object.keys(effective).length === 0) {
       // Deliberately NOT seeding an empty set. openclaw bootstraps these

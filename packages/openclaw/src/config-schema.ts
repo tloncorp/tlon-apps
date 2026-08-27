@@ -213,6 +213,12 @@ export const TlonConfigSchema = z.object({
       // files. Never evicted — it is by definition what may still be on
       // disk, so the foreign filter must always recognize it.
       applied: z.record(z.string().min(1), TlonPromptsSchema).optional(),
+      // Per-FILE owner stamp: which ship's stored edits last wrote this
+      // workspace file. Provenance by ownership, not text inference —
+      // entrypoints legitimately rewrite prompt files (re-appending marked
+      // blocks), so a former owner's file can differ from every recorded
+      // text while still carrying their content.
+      files: z.record(z.string().min(1), z.string()).optional(),
     })
     .optional(),
 });

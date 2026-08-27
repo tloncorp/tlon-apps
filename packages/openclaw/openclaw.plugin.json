@@ -541,6 +541,16 @@
                     "type": "string"
                   }
                 }
+              },
+              "files": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
               }
             },
             "required": [

@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   MAX_PROMPT_BYTES,
+  collectAppliedPromptMarker,
+  collectPromptFileStamps,
   shipHasPromptSyncAuthority,
   PROMPT_FILE_NAMES,
   applyPromptsToWorkspace,
@@ -1204,5 +1206,121 @@ describe('applied-text marker', () => {
     expect(collectForeignPromptCaches(cfg, 'default')['USER.md']).toContain(
       'applied A'
     );
+  });
+});
+
+describe('per-file ownership stamps', () => {
+  it('markApplied stamps files and clearFileStamps drops them', () => {
+    const draft: Record<string, unknown> = {};
+    writePromptsIntoConfigDraft(
+      draft,
+      'default',
+      '~zod',
+      { 'USER.md': 'mine' },
+      { markApplied: true }
+    );
+    expect((draft as any).channels.tlon.promptSync.files).toEqual({
+      'USER.md': '~zod',
+    });
+    writePromptsIntoConfigDraft(
+      draft,
+      'default',
+      '~bus',
+      {},
+      { clearFileStamps: ['USER.md'] }
+    );
+    expect((draft as any).channels.tlon.promptSync.files).toEqual({});
+  });
+
+  it('removes a stamped-foreign file even when its text matches nothing', async () => {
+    // The dev entrypoint rewrites prompt files (re-appending marked
+    // blocks), so a former owner's file can differ from every recorded
+    // text while still carrying their content. The ownership stamp is
+    // what catches it.
+    fs.writeFileSync(
+      path.join(tmpDir, 'USER.md'),
+      'rewritten: private former-owner notes + appended block'
+    );
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'shared baseline');
+    const core = makeCore();
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
+    const sync = createPromptSync({
+      core,
+      accountId: 'default',
+      botShip: '~zod',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      foreignPrompts: {},
+      fileStamps: { 'USER.md': '~bus' },
+      owner: '~ten',
+      scry: async () => ({}),
+      poke,
+      logger,
+    });
+    await sync.startup();
+    expect(fs.existsSync(path.join(tmpDir, 'USER.md'))).toBe(false);
+    expect(poke).toHaveBeenCalledWith({
+      app: 'steward',
+      mark: 'steward-prompts-action-1',
+      json: { seed: { 'AGENTS.md': 'shared baseline' } },
+    });
+    // The stamp-clear write ran so the regenerated default isn't
+    // re-removed forever.
+    const reasons = core.config.mutateConfigFile.mock.calls.map(
+      (c: any) => c[0].afterWrite.reason
+    );
+    expect(reasons).toContain('tlon prompt sync stamp clear');
+  });
+
+  it('repairs a missing applied marker even when no file changed', async () => {
+    // The stored edit already matches disk (a previous boot applied it but
+    // crashed before the marker write): applied.length === 0, yet the
+    // marker must still be written or later history eviction loses the
+    // on-disk text's provenance.
+    fs.writeFileSync(path.join(tmpDir, 'SOUL.md'), 'stored edit');
+    const core = makeCore();
+    const sync = createPromptSync({
+      core,
+      accountId: 'default',
+      botShip: '~zod',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      currentApplied: {},
+      fileStamps: {},
+      owner: null,
+      scry: async () => ({
+        prompts: {
+          bot: '~zod',
+          prompts: {
+            'SOUL.md': { text: 'stored edit', updated: '~x', edited: true },
+          },
+        },
+      }),
+      poke: async () => ({}),
+      logger,
+    });
+    await sync.startup();
+    const reasons = core.config.mutateConfigFile.mock.calls.map(
+      (c: any) => c[0].afterWrite.reason
+    );
+    expect(reasons).toContain('tlon prompt sync applied marker');
+  });
+
+  it('collect helpers read the ledger shapes', () => {
+    const cfg = makeAccountsConfig({
+      ship: '~zod',
+      url: 'http://x',
+      code: 'c',
+      promptSync: {
+        files: { 'USER.md': '~bus', broken: 42 },
+        applied: { '~zod': { 'SOUL.md': 'mine' }, '~bus': { 'USER.md': 'x' } },
+      },
+    }) as never;
+    expect(collectPromptFileStamps(cfg)).toEqual({ 'USER.md': '~bus' });
+    expect(collectAppliedPromptMarker(cfg, 'zod')).toEqual({
+      'SOUL.md': 'mine',
+    });
   });
 });

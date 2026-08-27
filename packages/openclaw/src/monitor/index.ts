@@ -50,7 +50,9 @@ import {
 import { handleOwnerListenCommand } from '../owner-listen-command.js';
 import {
   type PromptSync,
+  collectAppliedPromptMarker,
   collectForeignPromptCaches,
+  collectPromptFileStamps,
   createPromptSync,
   shipHasPromptSyncAuthority,
   shouldRunPromptSync,
@@ -4842,6 +4844,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // Never seed another account's owner-edited text left on the
           // shared workspace by a previous syncing authority.
           foreignPrompts: collectForeignPromptCaches(cfg, account.accountId),
+          fileStamps: collectPromptFileStamps(cfg),
+          currentApplied: collectAppliedPromptMarker(cfg, botShipName),
           // Same resolution the rest of the steward-owner surface uses
           // (ownerShip, falling back to contextLens.owner), so every
           // configure path agrees on the one core owner.
