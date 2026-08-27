@@ -218,7 +218,7 @@ describe('writePromptsIntoConfigDraft', () => {
         tlon: {
           prompts: { 'BOOT.md': 'old', 'SOUL.md': 'be kind' },
           promptsShip: '~zod',
-          promptSync: { ships: { '~zod': { 'SOUL.md': 'be kind' } } },
+          promptSync: { ships: { '~zod': { 'SOUL.md': ['be kind'] } } },
         },
       },
     });
@@ -235,7 +235,7 @@ describe('writePromptsIntoConfigDraft', () => {
           accounts: {
             alt: { prompts: { 'SOUL.md': 'be kind' }, promptsShip: '~bus' },
           },
-          promptSync: { ships: { '~bus': { 'SOUL.md': 'be kind' } } },
+          promptSync: { ships: { '~bus': { 'SOUL.md': ['be kind'] } } },
         },
       },
     });
@@ -256,7 +256,7 @@ describe('writePromptsIntoConfigDraft', () => {
     });
     expect((draft as any).channels.tlon.promptSync.ships).toEqual({
       '~fed': { 'USER.md': 'deleted account edit' },
-      '~zod': { 'SOUL.md': 'be kind' },
+      '~zod': { 'SOUL.md': ['be kind'] },
     });
   });
 
@@ -277,7 +277,7 @@ describe('writePromptsIntoConfigDraft', () => {
     expect(tlon.prompts).toEqual({ 'SOUL.md': 'new ship edit' });
     expect(tlon.promptsShip).toBe('~bus');
     expect(tlon.promptSync.ships).toEqual({
-      '~bus': { 'SOUL.md': 'new ship edit' },
+      '~bus': { 'SOUL.md': ['new ship edit'] },
     });
   });
 });
@@ -834,8 +834,8 @@ describe('collectForeignPromptCaches', () => {
       code: 'c',
       promptSync: {
         ships: {
-          '~fed': { 'USER.md': 'deleted account private notes' },
-          '~zod': { 'SOUL.md': 'my own edit' },
+          '~fed': { 'USER.md': ['deleted account private notes'] },
+          '~zod': { 'SOUL.md': ['my own edit'] },
         },
       },
     }) as never;
@@ -856,7 +856,7 @@ describe('collectForeignPromptCaches', () => {
       prompts: { 'USER.md': 'old ship private notes' },
       promptsShip: '~zod',
       promptSync: {
-        ships: { '~zod': { 'USER.md': 'old ship private notes' } },
+        ships: { '~zod': { 'USER.md': ['old ship private notes'] } },
       },
     }) as never;
     const foreign = collectForeignPromptCaches(repointed, 'default');
@@ -1103,5 +1103,69 @@ describe('createPromptSync refused provenance writes', () => {
     });
     await sync.startup();
     expect(fs.existsSync(path.join(tmpDir, 'SOUL.md'))).toBe(false);
+  });
+});
+
+describe('round-18 regressions', () => {
+  it('ledger keeps history when an edit replaces earlier text', async () => {
+    const draft: Record<string, unknown> = {};
+    writePromptsIntoConfigDraft(draft, 'default', '~zod', {
+      'USER.md': 'text A',
+    });
+    // Edit B lands before A's workspace apply ever succeeded — A may still
+    // be on disk, so its provenance must survive.
+    writePromptsIntoConfigDraft(draft, 'default', '~zod', {
+      'USER.md': 'text B',
+    });
+    expect((draft as any).channels.tlon.promptSync.ships['~zod']).toEqual({
+      'USER.md': ['text A', 'text B'],
+    });
+  });
+
+  it('reports ok=false when a prompt file exceeds the byte cap', async () => {
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'fine');
+    fs.writeFileSync(
+      path.join(tmpDir, 'SOUL.md'),
+      'a'.repeat(MAX_PROMPT_BYTES + 1)
+    );
+    const effective = await readEffectivePrompts(tmpDir, logger);
+    expect(effective.ok).toBe(false);
+    expect(effective.prompts).toEqual({ 'AGENTS.md': 'fine' });
+  });
+
+  it('never unlinks text the current authority itself claims', async () => {
+    // Shared boilerplate: our stored edit is byte-identical to another
+    // ship's cached prompt under the same name.
+    const shared = 'be helpful and concise';
+    fs.writeFileSync(path.join(tmpDir, 'SOUL.md'), 'stale');
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
+    const sync = createPromptSync({
+      core: makeCore(),
+      accountId: 'default',
+      botShip: '~zod',
+      workspaceDir: tmpDir,
+      configPrompts: {},
+      foreignPrompts: { 'SOUL.md': [shared] },
+      owner: '~ten',
+      scry: async () => ({
+        prompts: {
+          bot: '~zod',
+          prompts: {
+            'SOUL.md': { text: shared, updated: '~x', edited: true },
+          },
+        },
+      }),
+      poke,
+      logger,
+    });
+    await sync.startup();
+    expect(fs.readFileSync(path.join(tmpDir, 'SOUL.md'), 'utf8')).toBe(shared);
+    expect(poke).toHaveBeenCalledWith({
+      app: 'steward',
+      mark: 'steward-prompts-action-1',
+      json: { seed: { 'SOUL.md': shared } },
+    });
   });
 });

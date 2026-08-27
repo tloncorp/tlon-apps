@@ -29,10 +29,16 @@
 ::          it to the workspace on every boot.
 ::    .mirror: per-bot mirror of each bot's canonical set (owner role),
 ::          fanned in via %sync so clients can scry it locally.
+::    .stale: former owners whose %revoke has not been confirmed (the
+::          initial revoke can be nacked while the former owner's agent is
+::          restarting). re-issued once per gateway boot until one acks;
+::          a redundant %revoke is a no-op at the receiver, so retries
+::          converge.
 ::
 +$  state
   $:  own=prompts
       mirror=(map bot=ship prompts)
+      stale=(set ship)
   ==
 ::  $action: prompts module inbound actions.
 ::

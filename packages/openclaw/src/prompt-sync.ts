@@ -238,8 +238,14 @@ export function collectForeignPromptCaches(
     if (myShip && normalizeShip(ship) === myShip) {
       continue;
     }
-    for (const [name, text] of Object.entries(prompts ?? {})) {
-      add(name, text);
+    for (const [name, texts] of Object.entries(prompts ?? {})) {
+      if (Array.isArray(texts)) {
+        for (const text of texts) {
+          add(name, text);
+        }
+      } else {
+        add(name, texts);
+      }
     }
   }
   return out;
@@ -335,8 +341,11 @@ export async function readEffectivePrompts(
     try {
       const text = await fs.readFile(path.join(workspaceDir, name), 'utf8');
       if (!isPromptTextWithinCap(text)) {
+        // Same policy as a failed read: an omitted-but-running file must
+        // not be dropped from the ship's canonical set by a partial seed.
+        ok = false;
         logger?.warn(
-          `[tlon] Prompt file ${name} exceeds ${MAX_PROMPT_BYTES} bytes; not seeding it`
+          `[tlon] Prompt file ${name} exceeds ${MAX_PROMPT_BYTES} bytes; skipping the seed`
         );
         continue;
       }
@@ -436,8 +445,25 @@ export function writePromptsIntoConfigDraft(
   target.promptsShip = ship;
   const ledger = ((tlon.promptSync as Record<string, unknown>) ??= {});
   const ledgerShips = ((ledger.ships as Record<string, unknown>) ??= {});
-  const entry = (ledgerShips[ship] as Record<string, string>) ?? {};
-  ledgerShips[ship] = { ...entry, ...prompts };
+  const entry = (ledgerShips[ship] as Record<string, unknown>) ?? {};
+  // The ledger keeps per-name HISTORY (bounded), not just the latest text:
+  // an earlier edit may still sit on the shared workspace if its apply
+  // failed, and replacing it here would blind the foreign filter to it.
+  const nextEntry: Record<string, string[]> = {};
+  for (const [name, value] of Object.entries(entry)) {
+    nextEntry[name] = Array.isArray(value)
+      ? (value as string[])
+      : typeof value === 'string'
+        ? [value]
+        : [];
+  }
+  for (const [name, text] of Object.entries(prompts)) {
+    const history = nextEntry[name] ?? [];
+    if (!history.includes(text)) {
+      nextEntry[name] = [...history, text].slice(-8);
+    }
+  }
+  ledgerShips[ship] = nextEntry;
 }
 
 /** True when `next` adds or changes any entry relative to `current`. */
@@ -665,6 +691,12 @@ export function createPromptSync(opts: {
       return;
     }
     for (const [name, text] of Object.entries(effective)) {
+      if (desired[name] === text) {
+        // Our own applied text: identical boilerplate cached for another
+        // ship must not out-claim the current authority's legitimate edit
+        // (it would be unlinked and re-applied on every boot).
+        continue;
+      }
       if (opts.foreignPrompts?.[name]?.includes(text)) {
         // The shared workspace still holds another ship's owner-edited
         // text (the syncing authority changed without a workspace

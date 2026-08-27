@@ -203,7 +203,12 @@ export const TlonConfigSchema = z.object({
   // leaking them to a different ship.
   promptSync: z
     .object({
-      ships: z.record(z.string().min(1), TlonPromptsSchema),
+      // Per-ship, per-name HISTORY of edited texts (bounded) — older texts
+      // may still sit on the shared workspace if an apply failed.
+      ships: z.record(
+        z.string().min(1),
+        z.record(z.string().min(1), z.array(z.string()))
+      ),
     })
     .optional(),
 });

@@ -1336,16 +1336,74 @@
   ;<  res=(unit (unit cage))  bind:m  (get-peek /x/v1/prompts/(scot %p moon))
   (ex-equal !>(=(res `(unit (unit cage))`[~ ~])) !>(&))
 ::
-::  a %revoke from a ship without a mirror entry is rejected
+::  a %revoke from a ship without a mirror entry acks as a no-op (boot-time
+::  revoke retries must converge, not nack-loop); it still only ever drops
+::  the sender's own entry
 ::
-++  test-pr-revoke-without-mirror-crashes
+++  test-pr-revoke-without-mirror-noop
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  %-  ex-fail
-  %-  (do-as moon)
-  (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%revoke ~]))
+  ;<  caz=(list card)  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%revoke ~]))
+  (ex-cards caz ~)
+::
+::  a nacked owner-change revoke is retried on the next boot-shaped moment
+::  (on the dedicated revoke wire), and a confirming ack stops the retries
+::
+++  test-pr-revoke-retry-until-acked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%unconfigure ~]))
+  ::  the initial revoke is unconfirmed: a second unconfigure re-issues it
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%unconfigure ~]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  /prompts/revoke/(scot %p ~bus)
+            [~bus %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%revoke ~])
+        ==
+    ==
+  ::  the retry acks: the former owner dropped its mirror — stop retrying
+  ;<  *  bind:m
+    (do-agent [/prompts/revoke/(scot %p ~bus) [~bus %steward] [%poke-ack ~]])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%unconfigure ~]))
+  (ex-cards caz ~)
+::
+::  a repeated %clear still re-fans the empty set (a previous empty fan may
+::  have been nacked while the owner's agent restarted)
+::
+++  test-pr-clear-repeat-refans-empty
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  *  bind:m
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%clear ~]))
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%clear ~]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%sync *prompts:v1:p])
+      ==
+  ==
 ::
 ::  %clear (gateway lost prompt-syncing authority) wipes the canonical set
 ::  and fans the empty set to the owner so its mirror stops offering edits

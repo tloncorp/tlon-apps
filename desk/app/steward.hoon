@@ -124,49 +124,36 @@
       ::  re-fan the canonical prompt set so a newly configured owner's
       ::  mirror doesn't stay empty until some prompt text happens to
       ::  change, and tell a replaced owner to drop its mirror so the bot
-      ::  doesn't keep appearing owned/editable there
+      ::  doesn't keep appearing owned/editable there. every configure is
+      ::  also a boot-shaped moment: retry unconfirmed revokes
       ::
       =/  old  owner.state
       =.  owner.state  `owner.action
+      =.  cor  pr-retry-revokes:pr-core
       ::  the gateway re-configures the same owner on every (re)connect;
       ::  don't re-fan or revoke on a no-op
       ?:  =(old `owner.action)  cor
       =?  cor  ?=(^ old)
         ?:  =(u.old our.bowl)
           (pr-drop-mirror:pr-core u.old)
-        ::  the revoke must ride the same wire as our %syncs to this ship:
-        ::  same wire, same ames flow, so it's delivered after any %sync
-        ::  still in flight (a delayed pre-transition sync arriving after a
-        ::  separate-flow revoke would recreate the stale mirror)
-        %-  emit
-        :^    %pass
-            /prompts/sync/(scot %p u.old)
-          %agent
-        :+  [u.old %steward]
-          %poke
-        [%steward-prompts-action-1 !>(`action:v1:sp`[%revoke ~])]
+        (pr-revoke-former:pr-core u.old)
       ?:  =(~ own.prompts.state)  cor
       pr-sync-owner:pr-core
     ::
         %unconfigure
       ::  the gateway's config no longer names an owner: clear it and
       ::  revoke the former owner's mirror, or that ship keeps receiving
-      ::  syncs and stays authorized to %set edits indefinitely
+      ::  syncs and stays authorized to %set edits indefinitely. also a
+      ::  boot-shaped moment: retry unconfirmed revokes from earlier
+      ::  transitions
       ::
       =/  old  owner.state
       =.  owner.state  ~
+      =.  cor  pr-retry-revokes:pr-core
       ?~  old  cor
       ?:  =(u.old our.bowl)
         (pr-drop-mirror:pr-core u.old)
-      ::  same wire as %syncs to this ship — shares their ames flow, so it
-      ::  can't be overtaken by an in-flight %sync (see %configure)
-      %-  emit
-      :^    %pass
-          /prompts/sync/(scot %p u.old)
-        %agent
-      :+  [u.old %steward]
-        %poke
-      [%steward-prompts-action-1 !>(`action:v1:sp`[%revoke ~])]
+      (pr-revoke-former:pr-core u.old)
     ::
         %trust-bot
       ::  ask the bot to re-fan its prompt set: a %sync it sent before
@@ -266,6 +253,18 @@
       ?~  p.sign  cor
       ::  expected when trusting a ship that doesn't consider us its owner
       ((slog 'steward: prompts resync request nacked' u.p.sign) cor)
+    ==
+  ::
+      [%prompts %revoke @ ~]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign
+        ::  confirmed: the former owner dropped its mirror; stop retrying
+        =/  who  (slav %p i.t.t.wire)
+        =.  stale.prompts.state  (~(del in stale.prompts.state) who)
+        cor
+      ::  keep the ship in .stale; the next boot-shaped moment retries
+      ((slog 'steward: prompts revoke retry nacked' u.p.sign) cor)
     ==
   ::
       [%activity ~]
@@ -816,8 +815,9 @@
       pr-sync-owner
     ::
         %revoke
-      ::  a ship may only drop its own mirror entry
-      ?>  (~(has by mirror.prompts.state) src.bowl)
+      ::  a ship may only drop its own mirror entry; a redundant revoke
+      ::  (no entry held) acks as a no-op so boot-time revoke retries
+      ::  converge instead of nack-looping
       (pr-drop-mirror src.bowl)
     ::
         %clear
@@ -825,10 +825,14 @@
       ::  (it lost syncing authority without an owner change): wipe the
       ::  canonical set and fan the empty set so the owner's mirror — and
       ::  with it the editor UI — goes away rather than accepting edits
-      ::  nothing applies
+      ::  nothing applies. clears fire once per non-syncing boot, so they
+      ::  double as the retry moment for unconfirmed revokes and for an
+      ::  empty fan that was nacked while the owner's agent restarted
       ::
       ?>  =(src.bowl our.bowl)
-      ?:  =(~ own.prompts.state)  cor
+      =.  cor  pr-retry-revokes
+      ?:  =(~ own.prompts.state)
+        pr-sync-owner
       =.  own.prompts.state  *prompts:v1:sp
       =.  cor
         %^  give  %fact  ~[/v1/prompts]
@@ -923,6 +927,43 @@
     =.  mirror.prompts.state  (~(put by mirror.prompts.state) bot new)
     %^  give  %fact  ~[/v1/prompts]
     steward-prompts-update-1+!>(`update:v1:sp`[%prompts bot new])
+  ::
+  ::  a replaced or removed owner must drop its mirror. the initial %revoke
+  ::  rides the sync wire (same ames flow as the %syncs, so it can't be
+  ::  overtaken by one still in flight) and the ship is remembered in
+  ::  .stale until a revoke acks — the initial one can be nacked while the
+  ::  former owner's agent restarts.
+  ::
+  ++  pr-revoke-former
+    |=  =ship
+    ^+  cor
+    =.  stale.prompts.state  (~(put in stale.prompts.state) ship)
+    (pr-emit-revoke ship /prompts/sync/(scot %p ship))
+  ::
+  ::  re-issue unconfirmed revokes, once per boot-shaped moment (configure,
+  ::  unconfigure, clear). retries ride the dedicated revoke wire: by now
+  ::  the transition-era sync flow has drained, so there is no in-flight
+  ::  %sync to be ordered against, and the per-ship wire lets the ack
+  ::  delete the right .stale entry. receivers no-op redundant revokes.
+  ::
+  ++  pr-retry-revokes
+    ^+  cor
+    =/  ships  ~(tap in stale.prompts.state)
+    |-  ^+  cor
+    ?~  ships  cor
+    =.  cor  (pr-emit-revoke i.ships /prompts/revoke/(scot %p i.ships))
+    $(ships t.ships)
+  ::
+  ++  pr-emit-revoke
+    |=  [=ship =wire]
+    ^+  cor
+    %-  emit
+    :^    %pass
+        wire
+      %agent
+    :+  [ship %steward]
+      %poke
+    [%steward-prompts-action-1 !>(`action:v1:sp`[%revoke ~])]
   ::
   ::  drop a bot's mirror (trust revoked) and fact the now-empty set so
   ::  clients stop treating the bot as owned/editable

@@ -482,10 +482,15 @@ describe('UrbitSSEClient', () => {
         expect.objectContaining({ phase: 'retrying', attempt: 5 })
       );
 
-      // Node comes back: the next attempt succeeds and reports recovery
-      // with the total downtime so PostHog can aggregate outage duration.
+      // Node comes back: the next attempt succeeds, gall acks the
+      // replacement subscribe, and recovery reports the total downtime so
+      // PostHog can aggregate outage duration.
       mockUrbitFetch.mockResolvedValue(okFetchResult());
       await vi.advanceTimersByTimeAsync(31_000);
+      client.processEvent(
+        'id: 9\ndata: {"id":2,"response":"subscribe","ok":"ok"}'
+      );
+      await vi.advanceTimersByTimeAsync(0);
       const recovered = recoverySpy.mock.calls
         .map((call) => call[0])
         .find((event) => event.phase === 'recovered');
@@ -1160,8 +1165,13 @@ describe('UrbitSSEClient', () => {
       client.processEvent('id: 1\ndata: {"id":1,"response":"quit"}');
 
       // Resume keeps the epoch unchanged, so the loop sends the replacement
-      // PUT itself rather than concluding recovered_via_reconnect.
+      // PUT itself rather than concluding recovered_via_reconnect; gall's
+      // subscribe ack then confirms the watch is live.
       await vi.advanceTimersByTimeAsync(2_500);
+      client.processEvent(
+        'id: 2\ndata: {"id":2,"response":"subscribe","ok":"ok"}'
+      );
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(recoverySpy).toHaveBeenCalledWith(
         expect.objectContaining({ phase: 'recovered' })

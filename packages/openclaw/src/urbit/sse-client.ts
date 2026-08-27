@@ -176,6 +176,9 @@ export class UrbitSSEClient {
       timer: ReturnType<typeof setTimeout>;
     }
   >();
+  // resubscribeAfterQuit waits here for gall's subscribe ack before
+  // declaring the watch recovered (true = acked, false = nacked).
+  private pendingSubscribeAcks = new Map<number, (ok: boolean) => void>();
 
   private subscriptionRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private subscriptionRetryDelayMs = SUBSCRIPTION_RETRY_FLOOR_MS;
@@ -948,20 +951,32 @@ export class UrbitSSEClient {
         return;
       }
 
-      // A subscribe nack after the channel PUT means the watch never went
-      // live (e.g. the agent was restarting). Run the same recovery as a
-      // quit: transfer the handlers to a fresh id and retry with backoff —
-      // onSubscriptionRecovery fires when it lands, which dependent
-      // consumers (prompt sync) use to re-run their reconcile.
-      if (parsed.response === 'subscribe' && parsed.err) {
-        if (
-          typeof parsed.id === 'number' &&
-          this.eventHandlers.has(parsed.id)
-        ) {
-          this.logger.error?.(
-            `[SSE] Subscribe NACK id=${parsed.id}: ${JSON.stringify(parsed.err)} — resubscribing`
-          );
-          void this.resubscribeAfterQuit(parsed.id);
+      if (parsed.response === 'subscribe') {
+        // Settle a recovery loop waiting on this subscribe's ack.
+        const waiter =
+          typeof parsed.id === 'number'
+            ? this.pendingSubscribeAcks.get(parsed.id)
+            : undefined;
+        if (waiter && typeof parsed.id === 'number') {
+          this.pendingSubscribeAcks.delete(parsed.id);
+          waiter(!parsed.err);
+        }
+        // A subscribe nack after the channel PUT means the watch never went
+        // live (e.g. the agent was restarting). Run the same recovery as a
+        // quit: transfer the handlers to a fresh id and retry with backoff —
+        // onSubscriptionRecovery fires when it lands, which dependent
+        // consumers (prompt sync) use to re-run their reconcile.
+        if (parsed.err) {
+          if (
+            typeof parsed.id === 'number' &&
+            this.eventHandlers.has(parsed.id)
+          ) {
+            this.logger.error?.(
+              `[SSE] Subscribe NACK id=${parsed.id}: ${JSON.stringify(parsed.err)} — resubscribing`
+            );
+            void this.resubscribeAfterQuit(parsed.id);
+          }
+          return;
         }
         return;
       }
@@ -1060,38 +1075,77 @@ export class UrbitSSEClient {
     // A rejection is delivery-ambiguous (pokeUrbitChannel can get an OK response
     // then reject from release() in its finally). A stale entry blocks nothing:
     // it resolves via ack-match, rebuild clear, or never (bounded by the cap).
-    const sentId = await pokeUrbitChannel(
-      {
-        baseUrl: this.url,
-        cookie: this.cookie,
-        ship: this.ship,
-        channelId: this.channelId,
-        ssrfPolicy: this.ssrfPolicy,
-        lookupFn: this.lookupFn,
-        fetchImpl: this.fetchImpl,
-      },
-      {
-        app: params.app,
-        mark: params.mark,
-        json: params.json,
-        ...(params.signal ? { signal: params.signal } : {}),
-        pokeId,
-        auditContext: 'tlon-urbit-poke',
-      }
-    );
+    const deps = {
+      baseUrl: this.url,
+      cookie: this.cookie,
+      ship: this.ship,
+      channelId: this.channelId,
+      ssrfPolicy: this.ssrfPolicy,
+      lookupFn: this.lookupFn,
+      fetchImpl: this.fetchImpl,
+    };
+    const sendParams = {
+      app: params.app,
+      mark: params.mark,
+      json: params.json,
+      ...(params.signal ? { signal: params.signal } : {}),
+      pokeId,
+      auditContext: 'tlon-urbit-poke',
+    };
     if (!params.awaitAck) {
-      return sentId;
+      return await pokeUrbitChannel(deps, sendParams);
     }
+    // Register the ack waiter BEFORE the PUT: gall can respond while
+    // pokeUrbitChannel is still awaiting its release(), and an ack that
+    // finds no waiter would be discarded — stalling the caller into its
+    // timeout and a redundant retry of an already-applied poke.
     const timeoutMs = params.ackTimeoutMs ?? 30_000;
-    await new Promise<void>((resolve, reject) => {
+    const dropPending = () => {
+      const pending = this.pendingPokeAcks.get(pokeId);
+      if (pending) {
+        this.pendingPokeAcks.delete(pokeId);
+        clearTimeout(pending.timer);
+      }
+    };
+    const ackPromise = new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pendingPokeAcks.delete(pokeId);
+        cleanupAbort();
         reject(new Error(`Poke ack timed out after ${timeoutMs}ms`));
       }, timeoutMs);
       timer.unref?.();
-      this.pendingPokeAcks.set(pokeId, { resolve, reject, timer });
+      // Honor the caller's teardown signal while waiting for the ack —
+      // otherwise a config reload could sit out the full timeout.
+      const onAbort = () => {
+        dropPending();
+        reject(new Error('Aborted while awaiting poke ack'));
+      };
+      const cleanupAbort = () =>
+        params.signal?.removeEventListener('abort', onAbort);
+      params.signal?.addEventListener('abort', onAbort, { once: true });
+      this.pendingPokeAcks.set(pokeId, {
+        resolve: () => {
+          cleanupAbort();
+          resolve();
+        },
+        reject: (err: Error) => {
+          cleanupAbort();
+          reject(err);
+        },
+        timer,
+      });
     });
-    return sentId;
+    try {
+      await pokeUrbitChannel(deps, sendParams);
+    } catch (error) {
+      dropPending();
+      // The waiter may already be settled (an ack racing release()); keep a
+      // late rejection from becoming unhandled either way.
+      ackPromise.catch(() => {});
+      throw error;
+    }
+    await ackPromise;
+    return pokeId;
   }
 
   /** Rejects every awaitAck poke — their acks can no longer arrive. */
@@ -1485,6 +1539,34 @@ export class UrbitSSEClient {
 
       try {
         await this.sendSubscription(newSub);
+        // The PUT only queues the subscribe — gall's ack decides whether
+        // the watch is live. Emitting `recovered` before it would let
+        // dependent reconciles scry while facts can still be dropped.
+        const acked = await new Promise<boolean | null>((resolve) => {
+          const timer = setTimeout(() => {
+            this.pendingSubscribeAcks.delete(newSubId);
+            resolve(null);
+          }, 30_000);
+          timer.unref?.();
+          this.pendingSubscribeAcks.set(newSubId, (ok) => {
+            clearTimeout(timer);
+            resolve(ok);
+          });
+        });
+        if (acked === null) {
+          // Ack never arrived: the channel is wedged or rebuilding — the
+          // stream machinery (watchdog/reconnect, epoch check above on the
+          // next pass) owns recovery from here.
+          this.logger.error?.(
+            `[SSE] Resubscribe ack for ${oldSub.app}${oldSub.path} timed out (id=${newSubId})`
+          );
+          return;
+        }
+        if (!acked) {
+          // Nacked: the subscribe-nack handler already spawned a fresh
+          // recovery loop for the replacement id.
+          return;
+        }
         this.logger.log?.(
           `[SSE] Resubscribed to ${oldSub.app}${oldSub.path} successfully (new id=${newSubId})`
         );
