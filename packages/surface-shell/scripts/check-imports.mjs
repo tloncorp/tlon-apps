@@ -109,6 +109,12 @@ for (const file of walk(srcRoot)) {
       }
       continue;
     }
+    // test files may import the test runner; every other rule still
+    // applies to them (a test importing @tloncorp/api would let the
+    // mirrored types drift unnoticed)
+    if (specifier === 'vitest' && /\.test\.(ts|tsx)$/.test(relativePath)) {
+      continue;
+    }
     if (isAllowedExternal(specifier)) {
       continue;
     }
