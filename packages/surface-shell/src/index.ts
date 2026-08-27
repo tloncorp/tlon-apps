@@ -1,1 +1,1 @@
-export { SHELL_VERSION } from "./version";
+export { SHELL_VERSION } from './version';

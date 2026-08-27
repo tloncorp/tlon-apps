@@ -12,31 +12,31 @@
  * never part of the sandbox artifact. Everything the in-sandbox shell
  * itself uses lives in dependency-free modules.
  */
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const packageRoot = join(fileURLToPath(import.meta.url), "..", "..");
-const srcRoot = join(packageRoot, "src");
+const packageRoot = join(fileURLToPath(import.meta.url), '..', '..');
+const srcRoot = join(packageRoot, 'src');
 
-const ALLOWED_EXTERNALS = ["preact", "htm", "chart.js"];
-const ZOD_ALLOWED_IN = ["protocol/schemas.ts"];
+const ALLOWED_EXTERNALS = ['preact', 'htm', 'chart.js'];
+const ZOD_ALLOWED_IN = ['protocol/schemas.ts'];
 // Modules that must never let the protocol's zod schemas leak into the
 // sandbox artifact: everything reachable from the artifact entry.
-const SCHEMA_FREE_DIRS = ["artifact", "harness", "primitives", "tokens"];
+const SCHEMA_FREE_DIRS = ['artifact', 'harness', 'primitives', 'tokens'];
 
 const FORBIDDEN_HINTS = [
-  "@tloncorp/shared",
-  "@tloncorp/app",
-  "@tloncorp/api",
-  "@tloncorp/ui",
-  "react-native",
-  "expo",
-  "tamagui",
-  "@tamagui/",
-  "react",
-  "react-dom",
-  "@tanstack/",
+  '@tloncorp/shared',
+  '@tloncorp/app',
+  '@tloncorp/api',
+  '@tloncorp/ui',
+  'react-native',
+  'expo',
+  'tamagui',
+  '@tamagui/',
+  'react',
+  'react-dom',
+  '@tanstack/',
 ];
 
 function* walk(dir) {
@@ -66,38 +66,38 @@ function specifiersOf(source) {
 
 function isAllowedExternal(specifier) {
   return ALLOWED_EXTERNALS.some(
-    (allowed) => specifier === allowed || specifier.startsWith(`${allowed}/`),
+    (allowed) => specifier === allowed || specifier.startsWith(`${allowed}/`)
   );
 }
 
 const violations = [];
 
 for (const file of walk(srcRoot)) {
-  const relativePath = relative(srcRoot, file).replaceAll("\\", "/");
-  const source = readFileSync(file, "utf8");
+  const relativePath = relative(srcRoot, file).replaceAll('\\', '/');
+  const source = readFileSync(file, 'utf8');
   for (const specifier of specifiersOf(source)) {
-    if (specifier.startsWith(".") || specifier.startsWith("node:")) {
+    if (specifier.startsWith('.') || specifier.startsWith('node:')) {
       // node: builtins only appear in the node/ tooling entry; the sandbox
       // artifact bundle would fail to build if they leaked into it.
-      if (specifier.startsWith("node:") && !relativePath.startsWith("node/")) {
+      if (specifier.startsWith('node:') && !relativePath.startsWith('node/')) {
         violations.push(
-          `${relativePath}: node builtin '${specifier}' outside src/node/`,
+          `${relativePath}: node builtin '${specifier}' outside src/node/`
         );
       }
       if (
-        specifier.includes("protocol/schemas") &&
+        specifier.includes('protocol/schemas') &&
         SCHEMA_FREE_DIRS.some((dir) => relativePath.startsWith(`${dir}/`))
       ) {
         violations.push(
-          `${relativePath}: sandbox code must not import protocol/schemas (zod stays out of the artifact)`,
+          `${relativePath}: sandbox code must not import protocol/schemas (zod stays out of the artifact)`
         );
       }
       continue;
     }
-    if (specifier === "zod") {
+    if (specifier === 'zod') {
       if (!ZOD_ALLOWED_IN.includes(relativePath)) {
         violations.push(
-          `${relativePath}: 'zod' is only permitted in ${ZOD_ALLOWED_IN.join(", ")}`,
+          `${relativePath}: 'zod' is only permitted in ${ZOD_ALLOWED_IN.join(', ')}`
         );
       }
       continue;
@@ -106,21 +106,21 @@ for (const file of walk(srcRoot)) {
       continue;
     }
     const forbidden = FORBIDDEN_HINTS.find(
-      (hint) => specifier === hint || specifier.startsWith(hint),
+      (hint) => specifier === hint || specifier.startsWith(hint)
     );
     violations.push(
       forbidden
         ? `${relativePath}: FORBIDDEN import '${specifier}' crosses the sandbox boundary`
-        : `${relativePath}: import '${specifier}' is not in the allowlist (${ALLOWED_EXTERNALS.join(", ")})`,
+        : `${relativePath}: import '${specifier}' is not in the allowlist (${ALLOWED_EXTERNALS.join(', ')})`
     );
   }
 }
 
 if (violations.length > 0) {
-  console.error("surface-shell dependency check failed:");
+  console.error('surface-shell dependency check failed:');
   for (const violation of violations) {
     console.error(`  ${violation}`);
   }
   process.exit(1);
 }
-console.log("surface-shell dependency check passed");
+console.log('surface-shell dependency check passed');

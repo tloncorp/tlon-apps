@@ -1,7 +1,7 @@
 // Codegen-only shim: the config only uses Platform.select; resolve as web.
 export const Platform = {
-  OS: "web",
+  OS: 'web',
   select(options) {
-    return "web" in options ? options.web : options.default;
+    return 'web' in options ? options.web : options.default;
   },
 };
