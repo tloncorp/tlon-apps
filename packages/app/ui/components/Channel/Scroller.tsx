@@ -65,6 +65,7 @@ import {
   PostWithNeighbors,
 } from './PostList';
 import { getPostListScopeKey } from './PostList/postListInitialization';
+import { isVisibleChannelPost } from './postVisibility';
 import type { ScrollAnchor } from './scrollerTypes';
 
 const logger = createDevLogger('scroller', false);
@@ -161,13 +162,13 @@ const Scroller = forwardRef(
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
     );
+    const currentUserId = useCurrentUserId();
     const collectionConfig = useMemo(
       () => configurationFromChannel(channel),
       [channel]
     );
     const { width } = useWindowDimensions();
     const isWindowNarrow = useIsWindowNarrow();
-    const currentUserId = useCurrentUserId();
     const setScrollToBottomControl = useSetConversationScrollToBottomControl();
     const availableSpace = useMemo(() => {
       const sidebarsTotalWidth = isWindowNarrow
@@ -255,20 +256,30 @@ const Scroller = forwardRef(
 
     const theme = useTheme();
 
+    const visiblePosts = useMemo(
+      () => posts?.filter((post) => isVisibleChannelPost(post, currentUserId)),
+      [currentUserId, posts]
+    );
+
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
       () =>
-        posts?.map((post, postIndex, posts) => {
+        visiblePosts?.map((post, postIndex, posts) => {
           return {
             post,
             previous: postIndex > 0 ? posts[postIndex - 1] : null,
             next: postIndex + 1 < posts.length ? posts[postIndex + 1] : null,
           };
         }),
-      [posts]
+      [visiblePosts]
     );
     const a2uiActionCompletions = useMemo(
-      () => getA2UIActionCompletions(posts ?? [], currentUserId, !anchorToEnd),
-      [anchorToEnd, currentUserId, posts]
+      () =>
+        getA2UIActionCompletions(
+          visiblePosts ?? [],
+          currentUserId,
+          !anchorToEnd
+        ),
+      [anchorToEnd, currentUserId, visiblePosts]
     );
 
     const style = useMemo(() => {
@@ -386,7 +397,7 @@ const Scroller = forwardRef(
         : getTokens().space.m.val;
     const contentContainerStyle = useStyle(
       useMemo(() => {
-        if (!posts?.length) {
+        if (!visiblePosts?.length) {
           if (
             collectionLayoutType === 'comfy-list-top-to-bottom' ||
             collectionLayoutType === 'grid'
@@ -442,7 +453,7 @@ const Scroller = forwardRef(
         }
       }, [
         standaloneBottomSafeArea,
-        posts?.length,
+        visiblePosts?.length,
         collectionLayoutType,
         contentInsets.bottom,
         contentInsets.top,
@@ -936,7 +947,8 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.showUnreadDivider === next.showUnreadDivider &&
     prev.unreadCount === next.unreadCount &&
     prev.isLastPostOfBlock === next.isLastPostOfBlock &&
-    isEqual(prev.a2uiActionCompletion, next.a2uiActionCompletion) &&
+    prev.a2uiActionCompletion?.sentMessageText ===
+      next.a2uiActionCompletion?.sentMessageText &&
     prev.previousPost?.id === next.previousPost?.id &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&

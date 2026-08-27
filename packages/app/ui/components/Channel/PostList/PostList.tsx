@@ -490,6 +490,14 @@ const ConversationPostListAttempt = React.forwardRef<
       !didFinishInitialScroll ||
       (!hasUserScrolled && isNearEnd) ||
       isWithinBottomThreshold;
+    // Data anchoring and end anchoring choose different items to preserve.
+    // Let end anchoring own updates while the conversation is being followed;
+    // retain data anchoring only after the user has moved away from the end.
+    const maintainVisibleContentPosition =
+      collectionLayout.shouldMaintainVisibleContentPosition &&
+      !(anchorToEnd && !hasNewerPosts && isNearEnd)
+        ? true
+        : undefined;
     usePostListBottomCallbacks(isAtBottom, {
       onScrolledToBottom,
       onScrolledAwayFromBottom,
@@ -553,12 +561,14 @@ const ConversationPostListAttempt = React.forwardRef<
         }
         initialScrollIndex={initialScrollIndex}
         maintainScrollAtEnd={anchorToEnd && !hasNewerPosts}
+        // A2UI rows can change by more than a small fraction of the viewport.
+        // Keep the normal chat end anchor across those remeasurements whenever
+        // the list was within one viewport of the latest message. Far-away
+        // history remains unaffected by the threshold.
         maintainScrollAtEndThreshold={
-          anchorToEnd && !hasNewerPosts ? 0.1 : undefined
+          anchorToEnd && !hasNewerPosts ? 1 : undefined
         }
-        maintainVisibleContentPosition={
-          collectionLayout.shouldMaintainVisibleContentPosition || undefined
-        }
+        maintainVisibleContentPosition={maintainVisibleContentPosition}
         ListEmptyComponent={renderEmptyComponent}
         ListHeaderComponent={listHeaderComponent}
         ListFooterComponent={listBottomComponent}

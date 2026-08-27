@@ -9,6 +9,7 @@ import {
   normalizeNotebookNoteTitle,
   saveNotebookNote,
   trackEvent,
+  withRetry,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
@@ -37,6 +38,7 @@ import {
   isWeb,
 } from 'tamagui';
 
+import { matchAgentOnboardingFirstEntryNote } from '../../../features/top/agentOnboardingFirstEntry';
 import {
   useRegisterChannelHeaderItem,
   useRegisterChannelHeaderLoadingSubtitle,
@@ -506,12 +508,96 @@ export function NotesNoteDetail({
       selectedNoteKeyRef.current === draftSnapshotKey(flag, targetNoteId),
     []
   );
+  const selectedNoteCreatedBy = selectedNote?.createdBy ?? null;
 
   useEffect(() => {
-    if (selectedNoteRowId !== null) {
-      trackEvent(AnalyticsEvent.NoteOpened);
+    if (selectedNoteRowId === null) {
+      return;
     }
+    trackEvent(AnalyticsEvent.NoteOpened);
   }, [selectedNoteRowId]);
+
+  useEffect(() => {
+    if (selectedNoteRowId === null || !notebookFlag || noteId === null) {
+      return;
+    }
+    // Activation for agent onboarding. The plugin reports that it posted the
+    // first entry; only the client knows whether the owner opened one. Counted
+    // once per group and persisted, so it survives a restart and doesn't
+    // re-fire on every note view.
+    let cancelled = false;
+    void (async () => {
+      try {
+        const currentUserId = api.getCurrentUserId();
+        const channel = await db.getChannel({ id: `notes/${notebookFlag}` });
+        const groupId = channel?.groupId;
+        if (!groupId) return;
+        const group = await db.getGroup({ id: groupId });
+        if (group?.hostUserId !== currentUserId) return;
+        const agents = await db.agentGroupAgents.getValue(true);
+        const agentShip = agents[groupId];
+        if (
+          !agentShip ||
+          !selectedNoteCreatedBy ||
+          selectedNoteCreatedBy.replace(/^~/, '') !==
+            agentShip.replace(/^~/, '')
+        ) {
+          return;
+        }
+        const claimKey = `${currentUserId}:${groupId}`;
+        const existingClaims = await db.agentEntryFirstOpened.getValue(true);
+        if (existingClaims[claimKey]) return;
+        const matched = await withRetry(
+          async () => {
+            if (cancelled) throw new Error('Note closed');
+            const chatPosts = (
+              await Promise.all(
+                group.channels
+                  .filter((candidate) => candidate.type === 'chat')
+                  .map((candidate) =>
+                    db.getChanPosts({ channelId: candidate.id })
+                  )
+              )
+            ).flat();
+            const match = matchAgentOnboardingFirstEntryNote(
+              chatPosts,
+              agentShip,
+              notebookFlag,
+              noteId
+            );
+            if (match === 'absent') {
+              throw new Error('First-entry marker not synced');
+            }
+            return match === 'match';
+          },
+          {
+            numOfAttempts: 10,
+            startingDelay: 500,
+            timeMultiple: 1.7,
+            maxDelay: 5_000,
+            retry: () => !cancelled,
+          }
+        );
+        if (cancelled || !matched) return;
+        let claimed = false;
+        await db.agentEntryFirstOpened.setValue((current) => {
+          if (current[claimKey]) return current;
+          claimed = true;
+          return {
+            ...current,
+            [claimKey]: true,
+          };
+        });
+        if (!claimed) return;
+        trackEvent(AnalyticsEvent.AgentEntryFirstOpened, { groupId });
+      } catch {
+        // Never let activation reporting interfere with reading a note.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [noteId, selectedNoteRowId, selectedNoteCreatedBy, notebookFlag]);
 
   const draftsMatchSelectedNote = draftBase?.id === selectedNote?.id;
   const isDirty = Boolean(
