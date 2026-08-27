@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4f27b209-f6e1-4b9e-90a6-5bf685afcdf2",
+  "id": "015e732a-7ebf-4d31-8620-025644d1068e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -800,6 +800,20 @@
         },
         "content_configuration": {
           "name": "content_configuration",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "surface_spec": {
+          "name": "surface_spec",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "description_payload": {
+          "name": "description_payload",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

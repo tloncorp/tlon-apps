@@ -2013,6 +2013,9 @@ function toClientChannel({
     title: omitEmpty(channel.meta.title),
     description,
     contentConfiguration: channelContentConfiguration,
+    ...StructuredChannelDescriptionPayload.rawPersistenceFields(
+      channel.meta.description
+    ),
     currentUserIsHost: hostUserId === currentUserId,
     readerRoles,
     currentUserIsMember,
@@ -2048,6 +2051,9 @@ function toClientChannelFromPreview({
     title: omitEmpty(channel.meta.title),
     description,
     contentConfiguration: channelContentConfiguration,
+    ...StructuredChannelDescriptionPayload.rawPersistenceFields(
+      channel.meta.description
+    ),
     currentUserIsHost: hostUserId === currentUserId,
   };
 }

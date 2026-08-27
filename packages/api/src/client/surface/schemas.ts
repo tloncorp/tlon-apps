@@ -151,6 +151,56 @@ export const SurfaceSpecSchema = z
 
 export type SurfaceSpec = z.infer<typeof SurfaceSpecSchema>;
 
+/** The spec protocol version this client understands. */
+export const SUPPORTED_SURFACE_SPEC_VERSION = 1;
+
+export type SurfaceSpecReadResult =
+  | { status: 'absent' }
+  | { status: 'invalid' }
+  | { status: 'version-too-new'; version: number }
+  | { status: 'valid'; spec: SurfaceSpec };
+
+/**
+ * Reads a raw persisted `surfaceSpec` (JSON text) into the four-way result
+ * the renderer maps to distinct states (§6 step 1): absent (not a surface
+ * channel), invalid ("invalid definition" — never a chat fallback),
+ * version-too-new ("update to view"), or valid. The stored value is never
+ * trusted: it is re-validated on every read. A declared integer `version`
+ * newer than this client understands wins over other validation failures —
+ * a future-version spec is not "invalid", it's from the future.
+ */
+export function readSurfaceSpec(
+  raw: string | null | undefined
+): SurfaceSpecReadResult {
+  if (raw == null || raw.length === 0) {
+    return { status: 'absent' };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { status: 'invalid' };
+  }
+  if (parsed === null) {
+    return { status: 'absent' };
+  }
+  if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { status: 'invalid' };
+  }
+  const version = (parsed as Record<string, unknown>).version;
+  if (
+    typeof version === 'number' &&
+    Number.isInteger(version) &&
+    version > SUPPORTED_SURFACE_SPEC_VERSION
+  ) {
+    return { status: 'version-too-new', version };
+  }
+  const result = SurfaceSpecSchema.safeParse(parsed);
+  return result.success
+    ? { status: 'valid', spec: result.data }
+    : { status: 'invalid' };
+}
+
 const surfaceEntryBase = {
   version: z.literal(1),
   surfaceId: z.string().min(1),

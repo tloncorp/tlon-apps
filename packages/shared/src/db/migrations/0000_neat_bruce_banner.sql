@@ -122,6 +122,8 @@ CREATE TABLE `channels` (
 	`remote_updated_at` integer,
 	`last_viewed_at` integer,
 	`content_configuration` text,
+	`surface_spec` text,
+	`description_payload` text,
 	`posts_order` text,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );

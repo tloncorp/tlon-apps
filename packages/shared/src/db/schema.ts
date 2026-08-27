@@ -1051,6 +1051,23 @@ export const channels = sqliteTable(
       mode: 'json',
     }).$type<ChannelContentConfiguration>(),
 
+    /**
+     * The raw `surfaceSpec` subtree of the structured description payload,
+     * as JSON text, exactly as decoded from sync. Deliberately not a
+     * validated view — validation strips unknown keys, so persisting one
+     * would defeat forward compatibility. Validate at every read (e.g.
+     * `readSurfaceSpec`); never trust this from storage.
+     */
+    surfaceSpec: text('surface_spec'),
+
+    /**
+     * The channel's `meta.description` string verbatim as last received —
+     * the encoded StructuredChannelDescriptionPayload when structured,
+     * plain text otherwise. Metadata-edit paths decode→modify→encode THIS
+     * string so payload keys this client doesn't know survive edits.
+     */
+    descriptionPayload: text('description_payload'),
+
     order: text('posts_order', {
       mode: 'json',
     }).$type<string[]>(),

@@ -305,6 +305,8 @@ export function buildChannel(
     | 'addedToGroupAt'
     | 'contactId'
     | 'contentConfiguration'
+    | 'surfaceSpec'
+    | 'descriptionPayload'
     | 'coverImage'
     | 'coverImageColor'
     | 'currentUserIsMember'
@@ -331,6 +333,8 @@ export function buildChannel(
     addedToGroupAt: null,
     contactId: null,
     contentConfiguration: null,
+    surfaceSpec: null,
+    descriptionPayload: null,
     coverImage: null,
     coverImageColor: null,
     currentUserIsMember: null,

@@ -217,6 +217,16 @@ export interface Channel extends WithId {
   remoteUpdatedAt?: number | null;
   lastViewedAt?: number | null;
   contentConfiguration?: ChannelContentConfiguration | null;
+  /**
+   * Raw `surfaceSpec` subtree of the structured description payload as JSON
+   * text — never a validated view. Validate at read (`readSurfaceSpec`).
+   */
+  surfaceSpec?: string | null;
+  /**
+   * The channel's `meta.description` verbatim as last received. Edit paths
+   * decode→modify→encode this so unknown payload keys survive edits.
+   */
+  descriptionPayload?: string | null;
   order?: string[] | null;
   members?: any[] | null;
   writerRoles?: Array<{ channelId: string; roleId: string }> | null;

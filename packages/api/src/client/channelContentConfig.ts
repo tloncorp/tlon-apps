@@ -306,6 +306,26 @@ export namespace StructuredChannelDescriptionPayload {
     const parsed = SurfaceSpecSchema.safeParse(decoded.surfaceSpec);
     return parsed.success ? parsed.data : undefined;
   }
+
+  /**
+   * The fields the client persists raw for lossless behavior: the payload
+   * string verbatim (edit paths decode→modify→encode it, so unknown
+   * payload keys survive) and the `surfaceSpec` subtree as JSON text
+   * (validated at every read, never persisted as a validated view).
+   * Extracted with the lossless `decode`, independent of the legacy
+   * rendering fallbacks in `decodeWithDefaults`.
+   */
+  export function rawPersistenceFields(encoded: Encoded): {
+    descriptionPayload: string | null;
+    surfaceSpec: string | null;
+  } {
+    const raw = decode(encoded).surfaceSpec;
+    return {
+      descriptionPayload:
+        encoded == null || encoded.length === 0 ? null : encoded,
+      surfaceSpec: raw == null ? null : JSON.stringify(raw),
+    };
+  }
 }
 
 /**

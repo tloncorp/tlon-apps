@@ -205,6 +205,30 @@ install-app-deps` — under `nodeLinker: hoisted` that clobbers the single
   path). Standing gotcha for any worktree: every `pnpm install` re-breaks
   the binary for plain-Node runs via the desktop postinstall.
 
+## Session 2 decisions (packages/shared)
+
+- **D22: Two persisted columns, not one.** `surface_spec` (raw JSON text of
+  the spec subtree — the plan's first-class field, what `readSurfaceSpec`
+  and the hydration layer read) AND `description_payload` (the channel's
+  `meta.description` verbatim). The second is required by the plan's "edit
+  paths reconstruct from the full decoded payload": `description` and
+  `contentConfiguration` are lossy extractions, so payload-level unknown
+  keys can only survive edits if the verbatim payload string is available
+  locally to decode→modify→encode. Both are extracted in one place
+  (`StructuredChannelDescriptionPayload.rawPersistenceFields`, used by
+  `toClientChannel` and `toClientChannelFromPreview`); they cannot drift
+  because both derive from the same `meta.description` in the same call.
+  DM/club channels are out of scope (no groups description payload; they
+  cannot be surface channels).
+- **D23: `readSurfaceSpec` semantics** (in `packages/api` surface module so
+  client and tlon-skill share it): `absent` for null/empty/stored-`null`;
+  `version-too-new` iff the declared `version` is a finite _integer_ >
+  `SUPPORTED_SURFACE_SPEC_VERSION` — checked BEFORE schema validation, so a
+  future-version spec reads "update to view", never "invalid definition";
+  everything else that fails `SurfaceSpecSchema` is `invalid` (non-integer
+  or non-numeric declared versions included). The `valid` arm returns the
+  validated (stripped) view — fine for behavior, never for persistence.
+
 ## Notes for M1's remaining consumers
 
 Everything below consumes `packages/api/src/client/surface/` (exported from
