@@ -184,3 +184,60 @@ STOP condition hit.
   didn't repair it. The failure predates and is untouched by this session's
   changes (it occurs at module load). Consumer-side verification of the
   decode change (`sync.test.ts`) needs CI or a fixed local env.
+
+## Notes for M1's remaining consumers
+
+Everything below consumes `packages/api/src/client/surface/` (exported from
+`@tloncorp/api`'s client barrel) and
+`StructuredChannelDescriptionPayload` in `channelContentConfig.ts`.
+
+### packages/shared (persistence + sync)
+
+- **Persist the RAW spec, validate at read.** `decode(description)` returns
+  the payload with `surfaceSpec` untouched; `SurfaceSpecSchema.parse`
+  strips unknown keys (D18), so the persisted channel field should carry
+  the raw value (e.g. as JSON text) and readers validate through
+  `StructuredChannelDescriptionPayload.surfaceSpec(decoded)`.
+- **Edit paths become decode→modify→encode.** `updateChannel`
+  (`packages/shared/src/store/channelActions.ts:407`) must decode the
+  _current on-ship description_ with the now-lossless `decode`, overwrite
+  only the fields being edited, and re-encode — never rebuild from known
+  fields. The required integration test: title/privacy/content-config edits
+  each leave `surfaceSpec` byte-identical.
+- **Reducer wiring.** `reduceSurface({ spec, hostShip, posts })`; `posts`
+  needs only `{ authorId, sequenceNum, isEdited, isDeleted, blob }` —
+  `db.Post` satisfies this structurally. `hostShip` comes from
+  `parseGroupChannelId(channelId).host`, never from post content.
+- **Bundle cache** keys off `spec.bundle.sha256`
+  (`SurfaceBundleRefSchema`); verify-on-read, LRU.
+
+### packages/surface-shell + renderer (packages/app)
+
+- Renderer states map from reducer output: `status: 'migration-pending'` →
+  the migration-pending screen; `stateFull: true` → "dashboard full";
+  bundle fetch/verify and `shellVersion` gating happen host-side around
+  `spec.bundle` before any sandbox involvement.
+- Invokes post via
+  `sendPost({ channelId, kindTail: 'surface/event', blob:
+JSON.stringify([entry]), ... })` where `entry` is a `surface-event`
+  invoke arm tagged with the **rendered** `specRevision`. Writers are
+  responsible for including fallback Story content so pre-surface clients
+  degrade to inert chat messages (plan §4) — the entry schemas don't
+  enforce that.
+- `reduceSurface` is a batch fold; re-running on each post-set change is
+  cheap at the §7 caps. An incremental fold API is a deliberate seam for
+  later, not built now.
+
+### Interfaces I'm least sure about (flag for review)
+
+- The `Op` wire shape (D9) — the plan never pins it; `tlon-skill` and
+  templates must adopt this shape or change it _here_ first.
+- `reduceSurface`'s result carries `baseSnapshotSeq` and fold counters; the
+  §6 hydration loop may want more (e.g. newest folded seq for the
+  watermark). Extend the result type rather than recomputing outside.
+- Author identity is compared verbatim (`authorId === hostShip`); callers
+  must pass canonical `~ship` strings. No desig/case normalization happens
+  in the reducer.
+- Multiple surface entries per post are folded in blob order (D19). If one
+  entry per post should be the rule, enforce it at the writers, not the
+  reducer.
