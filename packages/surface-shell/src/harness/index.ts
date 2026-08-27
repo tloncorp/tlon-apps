@@ -41,6 +41,12 @@ export interface SurfaceApi {
   html: (strings: TemplateStringsArray, ...values: unknown[]) => ComponentChild;
   h: typeof h;
   primitives: typeof primitives;
+  /**
+   * The vendored Chart.js constructor, when the environment ships it (the
+   * artifact does; harness unit tests run chart-free). Presentation
+   * tooling, not a capability.
+   */
+  Chart?: unknown;
   register(app: SurfaceApp): void;
   invoke(actionId: string): boolean;
   canInvoke(): boolean;
@@ -65,6 +71,8 @@ export function createSurfaceShell(options: {
   window: Window;
   transport?: BridgeTransport;
   root?: HTMLElement;
+  /** vendored Chart.js constructor, injected by the artifact entry */
+  chart?: unknown;
 }): SurfaceShellHandle {
   const win = options.window;
   const doc = win.document;
@@ -161,6 +169,7 @@ export function createSurfaceShell(options: {
     html,
     h,
     primitives,
+    Chart: options.chart,
     register(nextApp: SurfaceApp) {
       if (
         typeof nextApp !== 'object' ||
