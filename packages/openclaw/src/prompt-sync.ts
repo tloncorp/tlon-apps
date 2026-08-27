@@ -816,11 +816,21 @@ export function createPromptSync(opts: {
         { mode: 'none', reason: 'tlon prompt sync applied marker' },
         { markApplied: true }
       );
-      if (marked) {
-        for (const [name, text] of Object.entries(desired)) {
-          fileStamps[name] = myShipNorm;
-          currentApplied[name] = text;
-        }
+      if (!marked) {
+        // Owner-edited text is on the shared workspace with no persisted
+        // ownership stamp. If this authority is repointed before a
+        // successful retry — and the entrypoint rewrites the file so its
+        // text matches nothing recorded — the replacement couldn't
+        // recognize it as foreign. Fail closed; the next boot retries the
+        // whole reconcile.
+        logger.warn(
+          '[tlon] Aborting prompt reconcile: ownership stamp write failed'
+        );
+        return;
+      }
+      for (const [name, text] of Object.entries(desired)) {
+        fileStamps[name] = myShipNorm;
+        currentApplied[name] = text;
       }
     }
     if (aborted()) {

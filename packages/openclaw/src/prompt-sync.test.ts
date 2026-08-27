@@ -1364,3 +1364,48 @@ describe('reused-instance stamp freshness', () => {
     });
   });
 });
+
+describe('ownership stamp write failure', () => {
+  it('aborts the reconcile when the marker write fails after an apply', async () => {
+    // Owner-edited text is on disk but the ownership stamp could not be
+    // persisted — seeding as if healthy would leave text a replacement
+    // authority couldn't recognize as foreign after a repoint + rewrite.
+    const core = makeCore();
+    core.config.mutateConfigFile.mockImplementation(
+      async (params: {
+        afterWrite: { reason: string };
+        mutate: (draft: unknown) => unknown;
+      }) => {
+        if (params.afterWrite.reason === 'tlon prompt sync applied marker') {
+          throw new Error('write refused');
+        }
+        const draft: Record<string, unknown> = {};
+        await params.mutate(draft);
+        return { draft } as never;
+      }
+    );
+    const poke = vi.fn(
+      async (_params: { app: string; mark: string; json: unknown }) => ({})
+    );
+    const sync = createPromptSync({
+      core,
+      accountId: 'default',
+      botShip: '~zod',
+      workspaceDir: tmpDir,
+      configPrompts: { 'SOUL.md': 'cached edit' },
+      currentApplied: {},
+      fileStamps: {},
+      owner: '~ten',
+      scry: async () => ({}),
+      poke,
+      logger,
+    });
+    await sync.startup();
+    expect(fs.readFileSync(path.join(tmpDir, 'SOUL.md'), 'utf8')).toBe(
+      'cached edit'
+    );
+    expect(poke).not.toHaveBeenCalledWith(
+      expect.objectContaining({ mark: 'steward-prompts-action-1' })
+    );
+  });
+});

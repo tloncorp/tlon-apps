@@ -286,11 +286,22 @@ export function initContextLensShipSync(api: {
   // single-transport gates.
   const runnable = listRunnableTlonAccountIds(api.config);
   const accountId = runnable.length === 1 ? runnable[0] : undefined;
+  // Retire any previous listener BEFORE a disabled/no-owner return: a
+  // reload that turns the lens off must not leave the old closure
+  // subscribed — a later lens event would %configure %steward's SHARED
+  // owner with its captured former owner, handing that ship the bot's
+  // prompt mirror and edit rights again.
+  const retirePrevious = () => {
+    shipSyncUnsubscribeSlot.get()?.();
+    shipSyncUnsubscribeSlot.set(null);
+  };
   if (!resolveTlonAccount(api.config, accountId).contextLens.enabled) {
+    retirePrevious();
     return false;
   }
   const owner = resolveLensOwner(api.config, accountId);
   if (owner === null) {
+    retirePrevious();
     api.logger.info(
       '[tlon] Context lens ship sync disabled: no owner configured (set contextLens.owner or ownerShip)'
     );

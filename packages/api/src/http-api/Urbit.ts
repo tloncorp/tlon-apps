@@ -860,7 +860,21 @@ export class Urbit {
       status: 'open',
     });
 
-    await this.sendJSONtoChannel(message);
+    try {
+      await this.sendJSONtoChannel(message);
+    } catch (error) {
+      // The send never reached the channel, so no subscription exists on
+      // the ship. Drop the registration — a ghost entry would accumulate
+      // per failed retry and a later channel reset would fire quit
+      // handlers (spawning overlapping resubscribes) for watches that
+      // never lived.
+      this.outstandingSubscriptions.delete(message.id);
+      this.emit('subscription', {
+        id: message.id,
+        status: 'close',
+      });
+      throw error;
+    }
 
     return message.id;
   }

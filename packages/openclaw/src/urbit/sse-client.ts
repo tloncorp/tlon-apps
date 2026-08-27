@@ -1107,6 +1107,17 @@ export class UrbitSSEClient {
         clearTimeout(pending.timer);
       }
     };
+    // Settle-and-clean for the send-failure path: the entry's reject also
+    // detaches the caller's abort listener — dropping only the map entry
+    // would leak one listener (and its closure) per failed retry.
+    const failPending = (err: Error) => {
+      const pending = this.pendingPokeAcks.get(pokeId);
+      if (pending) {
+        this.pendingPokeAcks.delete(pokeId);
+        clearTimeout(pending.timer);
+        pending.reject(err);
+      }
+    };
     const ackPromise = new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pendingPokeAcks.delete(pokeId);
@@ -1148,7 +1159,7 @@ export class UrbitSSEClient {
     try {
       await pokeUrbitChannel(deps, sendParams);
     } catch (error) {
-      dropPending();
+      failPending(new Error('Poke send failed before ack'));
       throw error;
     }
     const outcome = await ackOutcome;

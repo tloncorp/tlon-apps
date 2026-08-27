@@ -461,3 +461,54 @@ describe('initContextLensShipSync', () => {
     expect(infos.join('\n')).toContain('fanning out to ~dev');
   });
 });
+
+// Depends on the module-level lens event bus like the block above.
+describe('initContextLensShipSync retirement', () => {
+  it('unsubscribes the previous listener when a reload disables the lens', async () => {
+    const pokes: RecordedPoke[] = [];
+    const slot = sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT);
+    const previousParams = slot.get();
+    slot.set(makeParams(pokes));
+    const enabledApi = {
+      config: {
+        channels: {
+          tlon: {
+            ship: '~zod',
+            contextLens: {
+              enabled: true,
+              authToken: 'a-token-of-sufficient-length',
+              owner: '~bus',
+            },
+          },
+        },
+      } as OpenClawConfig,
+      logger: silentLogger,
+    };
+    const disabledApi = {
+      config: {
+        channels: {
+          tlon: {
+            ship: '~zod',
+            contextLens: {
+              enabled: false,
+              owner: '~bus',
+            },
+          },
+        },
+      } as OpenClawConfig,
+      logger: silentLogger,
+    };
+    try {
+      expect(initContextLensShipSync(enabledApi)).toBe(true);
+      // Reload disables the lens: the old closure must be gone, or a
+      // later lens event would %configure %steward with the captured
+      // former owner through the replacement transport.
+      expect(initContextLensShipSync(disabledApi)).toBe(false);
+      publishContextLensEvent('final', makeLens({ status: 'completed' }));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(pokes).toEqual([]);
+    } finally {
+      slot.set(previousParams);
+    }
+  });
+});
