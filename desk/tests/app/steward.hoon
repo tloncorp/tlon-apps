@@ -1380,6 +1380,69 @@
     (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%revoke ~]))
   (ex-cards caz ~)
 ::
+::  a nacked fan-out to the owner is retried on a behn timer; an ack stops
+::  the retries, and the budget is bounded
+::
+++  test-pr-owner-sync-retry-until-acked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  sync-wire  /prompts/sync/(scot %p ~bus)
+  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.n]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ::  the owner rejected our fan-out: a retry is armed
+  ;<  caz=(list card)  bind:m
+    (do-agent [sync-wire [~bus %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-arvo /prompts/sync-retry [%b %wait (add ~2024.1.1 ~m5)])
+    ==
+  ::  the wake re-fans the canonical set
+  ;<  caz=(list card)  bind:m
+    (do-arvo /prompts/sync-retry [%behn %wake ~])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  sync-wire
+            [~bus %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%sync expect])
+        ==
+    ==
+  ::  an ack stops the retries: a later wake emits nothing
+  ;<  *  bind:m  (do-agent [sync-wire [~bus %steward] [%poke-ack ~]])
+  ;<  caz=(list card)  bind:m
+    (do-arvo /prompts/sync-retry [%behn %wake ~])
+  (ex-cards caz ~)
+::
+::  a revoke nacked on the shared sync wire is NOT treated as a failed
+::  owner sync — those retry via .stale on boot-shaped moments instead
+::
+++  test-pr-revoke-nack-on-sync-wire-arms-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ::  owner changes: ~bus is now a FORMER owner, revoked on the sync wire
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  ;<  caz=(list card)  bind:m
+    %-  do-agent
+    :*  /prompts/sync/(scot %p ~bus)
+        [~bus %steward]
+        [%poke-ack `~[[%leaf "boom"]]]
+    ==
+  ::  no sync-retry timer: this was a revoke, not a fan-out to our owner
+  (ex-cards caz ~)
+::
 ::  a nacked %request is retried on a behn timer, an ack stops the retries,
 ::  and the budget is bounded so a ship that never accepts is dropped
 ::

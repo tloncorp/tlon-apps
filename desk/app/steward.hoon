@@ -133,6 +133,8 @@
       ::  the gateway re-configures the same owner on every (re)connect;
       ::  don't re-fan or revoke on a no-op
       ?:  =(old `owner.action)  cor
+      ::  a different owner starts with a fresh fan-out budget
+      =.  resync.prompts.state  0
       =?  cor  ?=(^ old)
         ?:  =(u.old our.bowl)
           (pr-drop-mirror:pr-core u.old)
@@ -246,13 +248,21 @@
       steward-prompts-update-1+!>(`update:v1:sp`[%prompts bot cur])
     ==
   ::
-      [%prompts %sync *]
+      [%prompts %sync @ ~]
     ?+  -.sign  cor
         %poke-ack
-      ?~  p.sign  cor
-      ::  %syncs and owner-change %revokes share this wire (see %configure);
-      ::  a revoke nack is expected when the former owner held no mirror
-      ((slog 'steward: prompts owner sync nacked' u.p.sign) cor)
+      ::  %syncs and owner-change %revokes share this wire (see %configure).
+      ::  only the CURRENT owner is ever synced, so anything else on this
+      ::  wire was a revoke to a former owner — those retry via .stale.
+      =/  who  (slav %p i.t.t.wire)
+      ?.  =(`who owner.state)
+        ?~  p.sign  cor
+        ((slog 'steward: prompts revoke nacked' u.p.sign) cor)
+      ?~  p.sign
+        ::  the owner holds our canonical set; stop retrying
+        cor(resync.prompts.state 0)
+      %-  (slog 'steward: prompts owner sync nacked' u.p.sign)
+      pr-sync-nacked:pr-core
     ==
   ::
       [%prompts %request @ ~]
@@ -318,6 +328,10 @@
       [%prompts %request-retry ~]
     ?.  ?=([%behn %wake *] sign)  cor
     pr-retry-requests:pr-core
+  ::
+      [%prompts %sync-retry ~]
+    ?.  ?=([%behn %wake *] sign)  cor
+    pr-retry-sync:pr-core
   ==
 ::
 ++  watch-activity
@@ -946,14 +960,15 @@
     %^  give  %fact  ~[/v1/prompts]
     steward-prompts-update-1+!>(`update:v1:sp`[%prompts bot new])
   ::
-  ::  bounded retry budget for a nacked %request, and the delay between
-  ::  attempts. a nack is either transient (the bot's steward mid-restart)
-  ::  or permanent (it doesn't consider us its owner), and we can't tell
-  ::  them apart — so retry a few times, then stop rather than poke a
-  ::  ship forever.
+  ::  bounded retry budget for a nacked cross-ship poke (%request to a bot,
+  ::  %sync to the owner) and the delay between attempts. a nack is either
+  ::  transient (the peer's steward mid-restart) or permanent (it doesn't
+  ::  consider us its owner / doesn't trust us), and we can't tell them
+  ::  apart — so retry a few times, then stop rather than poke a ship
+  ::  forever.
   ::
-  ++  max-request-tries  5
-  ++  request-retry-delay  ~m5
+  ++  max-retry-tries  5
+  ++  retry-delay  ~m5
   ::
   ++  pr-emit-request
     |=  bot=ship
@@ -973,13 +988,33 @@
     |=  bot=ship
     ^+  cor
     =/  tries  +((~(gut by pending.prompts.state) bot 0))
-    ?:  (gte tries max-request-tries)
+    ?:  (gte tries max-retry-tries)
       %-  (slog leaf+"steward: giving up on prompts resync request" ~)
       cor(pending.prompts.state (~(del by pending.prompts.state) bot))
     =.  pending.prompts.state  (~(put by pending.prompts.state) bot tries)
     %-  emit
     :^  %pass  /prompts/request-retry  %arvo
-    [%b %wait (add now.bowl request-retry-delay)]
+    [%b %wait (add now.bowl retry-delay)]
+  ::
+  ::  our fan-out to the owner was rejected — its desk restarting, or it
+  ::  doesn't trust us. the %set/%request that triggered the sync has
+  ::  already acked, so nothing else would retry it: re-fan on a timer.
+  ::
+  ++  pr-sync-nacked
+    ^+  cor
+    =/  tries  +(resync.prompts.state)
+    ?:  (gte tries max-retry-tries)
+      %-  (slog leaf+"steward: giving up on prompts owner sync" ~)
+      cor(resync.prompts.state 0)
+    =.  resync.prompts.state  tries
+    %-  emit
+    :^  %pass  /prompts/sync-retry  %arvo
+    [%b %wait (add now.bowl retry-delay)]
+  ::
+  ++  pr-retry-sync
+    ^+  cor
+    ?:  =(0 resync.prompts.state)  cor
+    pr-sync-owner
   ::
   ++  pr-retry-requests
     ^+  cor

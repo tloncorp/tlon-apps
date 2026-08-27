@@ -659,38 +659,70 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     if (!sync || !api) {
       return;
     }
-    for (;;) {
-      if (opts.abortSignal?.aborted) {
-        return;
-      }
-      const outcome = await api.waitForSubscriptionAck(
-        'steward',
-        '/v1/prompts'
-      );
-      if (outcome === 'acked') {
-        break;
-      }
-      if (outcome !== 'timeout') {
-        // superseded (a newer generation's recovery owns this) or closed.
-        return;
-      }
-      if (wait === 'best-effort') {
+    const client = api;
+    const runStartup = async () => {
+      try {
+        await sync.startup();
+      } catch (error: any) {
         runtime.error?.(
-          `[tlon] /v1/prompts watch not confirmed live (${reason}); reconciling best-effort`
+          `[tlon] Prompt sync reconcile failed (${reason}): ${error?.message ?? String(error)}`
         );
-        break;
       }
-      runtime.log?.(
-        `[tlon] Still waiting for the /v1/prompts watch ack (${reason})`
-      );
+    };
+    // Keep waiting across ack timeouts: a late ack is recorded for the
+    // generation, so asking again returns it immediately. Stops only when a
+    // newer generation owns the work, or we are shutting down.
+    const waitUntilLive = async (): Promise<boolean> => {
+      for (;;) {
+        if (opts.abortSignal?.aborted) {
+          return false;
+        }
+        const outcome = await client.waitForSubscriptionAck(
+          'steward',
+          '/v1/prompts'
+        );
+        if (outcome === 'acked') {
+          return true;
+        }
+        if (outcome !== 'timeout') {
+          return false;
+        }
+        runtime.log?.(
+          `[tlon] Still waiting for the /v1/prompts watch ack (${reason})`
+        );
+      }
+    };
+    if (wait === 'until-live') {
+      if (await waitUntilLive()) {
+        await runStartup();
+      }
+      return;
     }
-    try {
-      await sync.startup();
-    } catch (error: any) {
-      runtime.error?.(
-        `[tlon] Prompt sync reconcile failed (${reason}): ${error?.message ?? String(error)}`
-      );
+    // Boot: don't hold startup behind a pathological ack, but don't leave a
+    // loss window either. Apply what the ship has now (better than running
+    // stale prompts), then keep waiting in the background and reconcile
+    // again once the watch is confirmed — the reconcile is idempotent, so
+    // the extra pass costs a scry and a no-op re-seed.
+    const first = await client.waitForSubscriptionAck('steward', '/v1/prompts');
+    if (first === 'acked') {
+      await runStartup();
+      return;
     }
+    if (first !== 'timeout') {
+      return;
+    }
+    runtime.error?.(
+      `[tlon] /v1/prompts watch not confirmed live (${reason}); reconciling best-effort and still waiting for the ack`
+    );
+    await runStartup();
+    void (async () => {
+      if (await waitUntilLive()) {
+        runtime.log?.(
+          `[tlon] /v1/prompts watch confirmed live; re-reconciling after the best-effort ${reason} pass`
+        );
+        await runStartup();
+      }
+    })();
   };
   try {
     cookie = await authenticateWithRetry();

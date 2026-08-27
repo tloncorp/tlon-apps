@@ -166,6 +166,13 @@ export type ContextLensShipSync = {
   handleEvent: (event: ContextLensEvent) => void;
   /** Resolves when all pokes enqueued so far have settled. */
   flush: () => Promise<void>;
+  /**
+   * Retire this sync: stop accepting events and neutralize work already on
+   * the internal queue. Required because the queued tasks capture `owner`
+   * and would otherwise be free to %configure %steward's SHARED owner with
+   * it after a reload disabled the lens or pointed it at a different ship.
+   */
+  cancel: () => void;
 };
 
 /**
@@ -191,10 +198,17 @@ export function createContextLensShipSync(opts: {
   const lastStatusByLensId = new Map<string, ContextLensStatus>();
   let configuredFor: SharedApiClientParams | null = null;
   let queue: Promise<void> = Promise.resolve();
+  let cancelled = false;
 
   const enqueuePoke = (label: string, json: unknown) => {
     queue = queue
       .then(async () => {
+        if (cancelled) {
+          // Retired while this task sat on the queue. Its captured owner may
+          // no longer be the configured one, and the transport it would read
+          // now belongs to a replacement monitor.
+          return;
+        }
         const params = getParams();
         if (!params) {
           // Monitor not connected yet (or shut down); drop rather than
@@ -226,6 +240,9 @@ export function createContextLensShipSync(opts: {
   };
 
   const handleEvent = (event: ContextLensEvent) => {
+    if (cancelled) {
+      return;
+    }
     const lens = event.lens;
     if (lens.visibility === 'internal') {
       return;
@@ -265,6 +282,9 @@ export function createContextLensShipSync(opts: {
   return {
     handleEvent,
     flush: () => queue,
+    cancel: () => {
+      cancelled = true;
+    },
   };
 }
 
@@ -308,8 +328,15 @@ export function initContextLensShipSync(api: {
     return false;
   }
   const sync = createContextLensShipSync({ owner, logger: api.logger });
-  shipSyncUnsubscribeSlot.get()?.();
-  shipSyncUnsubscribeSlot.set(subscribeToContextLensEvents(sync.handleEvent));
+  retirePrevious();
+  const unsubscribe = subscribeToContextLensEvents(sync.handleEvent);
+  // The slot holds a full teardown, not just the unsubscribe: dropping the
+  // event handler alone leaves already-queued pokes free to run with this
+  // sync's captured owner.
+  shipSyncUnsubscribeSlot.set(() => {
+    sync.cancel();
+    unsubscribe();
+  });
   api.logger.info(
     `[tlon] Context lens ship sync enabled, fanning out to ${owner}`
   );

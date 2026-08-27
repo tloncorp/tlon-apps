@@ -39,12 +39,18 @@
 ::          refused — mid-restart, or it does not consider us its owner —
 ::          and nothing else would make it re-fan until its gateway next
 ::          boots, so the request is retried on a behn timer, bounded.
+::    .resync: attempts so far at re-fanning our canonical set to the owner
+::          after a nacked %sync. the %set or %request that triggered the
+::          fan-out has already acked, so nothing else would retry it —
+::          without this the owner's mirror stays stale until the gateway
+::          happens to re-seed. bounded, like .pending.
 ::
 +$  state
   $:  own=prompts
       mirror=(map bot=ship prompts)
       stale=(set ship)
       pending=(map bot=ship tries=@ud)
+      resync=@ud
   ==
 ::  $action: prompts module inbound actions.
 ::
