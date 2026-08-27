@@ -6119,6 +6119,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           const freshCfg = core.config.loadConfig();
           if (!shipHasPromptSyncAuthority(freshCfg, botShipName)) {
             const retiringApi = api;
+            // One deadline for the whole attempt sequence, handed to BOTH
+            // the retry helper and each poke: without it on the poke, a
+            // stalled channel PUT would sit on the 30s request timeout and
+            // overrun the teardown budget before the helper regained
+            // control. On the poke it also bounds the ack wait.
+            const clearDeadline = AbortSignal.timeout(8_000);
             // No replacement monitor will run for this ship, so this is the
             // only chance to clear: retry transient failures instead of
             // leaving the canonical set and the former owner's editable
@@ -6137,6 +6143,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   json: { clear: null },
                   awaitAck: true,
                   ackTimeoutMs: 3_000,
+                  signal: clearDeadline,
                 }),
               logger: {
                 log: (m) => runtime.log?.(m),
@@ -6144,7 +6151,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
               },
               isPermanent: (error) => /Poke nacked/.test(String(error)),
               retryDelaysMs: [500, 1_500],
-              abortSignal: AbortSignal.timeout(8_000),
+              abortSignal: clearDeadline,
             });
             runtime.log?.(
               '[tlon] Prompt sync retired for this ship; cleared ship prompt state'
