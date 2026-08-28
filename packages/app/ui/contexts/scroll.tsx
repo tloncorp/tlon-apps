@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Dimensions, Platform } from 'react-native';
@@ -36,6 +37,15 @@ const defaultConversationScrollViewNativeID =
 const ConversationScrollViewNativeIDContext = createContext(
   defaultConversationScrollViewNativeID
 );
+export type ConversationScrollEndAnchorHandler = {
+  capture: () => void;
+  restore: () => void;
+};
+const ConversationScrollEndAnchorContext = createContext<{
+  capture: () => void;
+  register: (handler: ConversationScrollEndAnchorHandler) => () => void;
+  restore: () => void;
+} | null>(null);
 // Scroller owns the scroll-position state, while the composer renders the
 // control so all iOS actions can share one native GlassContainer. This small
 // cross-tree channel keeps that presentation detail out of both components.
@@ -49,6 +59,8 @@ const ConversationScrollToBottomContext = createContext<{
 export const useScrollContext = () => useContext(ScrollContext);
 export const useConversationScrollViewNativeID = () =>
   useContext(ConversationScrollViewNativeIDContext);
+export const useConversationScrollEndAnchor = () =>
+  useContext(ConversationScrollEndAnchorContext);
 export const useConversationScrollToBottomControl = () =>
   useContext(ConversationScrollToBottomContext).control;
 export const useSetConversationScrollToBottomControl = () =>
@@ -141,6 +153,8 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
   children,
 }) => {
   const scrollValue = useSharedValue(0);
+  const conversationScrollEndAnchor =
+    useRef<ConversationScrollEndAnchorHandler | null>(null);
   const scrollViewNativeID = `${defaultConversationScrollViewNativeID}-${useId()}`;
   const [scrollToBottomControl, setScrollToBottomControl] =
     useState<ConversationScrollToBottomControl | null>(null);
@@ -163,18 +177,37 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
     }),
     [scrollToBottomControl]
   );
+  const scrollEndAnchorContextValue = useMemo(
+    () => ({
+      capture: () => conversationScrollEndAnchor.current?.capture(),
+      register: (handler: ConversationScrollEndAnchorHandler) => {
+        conversationScrollEndAnchor.current = handler;
+        return () => {
+          if (conversationScrollEndAnchor.current === handler) {
+            conversationScrollEndAnchor.current = null;
+          }
+        };
+      },
+      restore: () => conversationScrollEndAnchor.current?.restore(),
+    }),
+    []
+  );
 
   return (
-    <ConversationScrollToBottomContext.Provider
-      value={scrollToBottomContextValue}
+    <ConversationScrollEndAnchorContext.Provider
+      value={scrollEndAnchorContextValue}
     >
-      <ConversationScrollViewNativeIDContext.Provider
-        value={scrollViewNativeID}
+      <ConversationScrollToBottomContext.Provider
+        value={scrollToBottomContextValue}
       >
-        <ScrollContext.Provider value={contextValue}>
-          {children}
-        </ScrollContext.Provider>
-      </ConversationScrollViewNativeIDContext.Provider>
-    </ConversationScrollToBottomContext.Provider>
+        <ConversationScrollViewNativeIDContext.Provider
+          value={scrollViewNativeID}
+        >
+          <ScrollContext.Provider value={contextValue}>
+            {children}
+          </ScrollContext.Provider>
+        </ConversationScrollViewNativeIDContext.Provider>
+      </ConversationScrollToBottomContext.Provider>
+    </ConversationScrollEndAnchorContext.Provider>
   );
 };

@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  useConversationScrollEndAnchor,
   useConversationScrollViewNativeID,
   useScrollDirectionTracker,
 } from '../../../contexts/scroll';
@@ -482,6 +483,32 @@ const ConversationPostListAttempt = React.forwardRef<
     // change. React Native onScroll can retain an intermediate value while the
     // initial anchor settles, briefly showing the scroll-to-bottom control.
     const isNearEnd = useLegendListIsNearEnd(listRef);
+    const conversationScrollEndAnchor = useConversationScrollEndAnchor();
+    const shouldRestoreEndAnchorRef = React.useRef(false);
+    const endAnchorHandler = React.useMemo(
+      () => ({
+        capture: () => {
+          shouldRestoreEndAnchorRef.current =
+            listRef.current?.getState().isNearEnd ?? false;
+        },
+        restore: () => {
+          if (!shouldRestoreEndAnchorRef.current) {
+            return;
+          }
+          shouldRestoreEndAnchorRef.current = false;
+          runImperativeScroll(() =>
+            listRef.current?.scrollToEnd({ animated: false })
+          );
+        },
+      }),
+      []
+    );
+    React.useLayoutEffect(() => {
+      if (!conversationScrollEndAnchor) {
+        return;
+      }
+      return conversationScrollEndAnchor.register(endAnchorHandler);
+    }, [conversationScrollEndAnchor, endAnchorHandler]);
     // The list is hidden while its initial anchor settles, so do not publish
     // transient geometry that could show external scroll chrome first. Until
     // the first user-driven navigation, LegendList's settled state also guards
@@ -490,6 +517,14 @@ const ConversationPostListAttempt = React.forwardRef<
       !didFinishInitialScroll ||
       (!hasUserScrolled && isNearEnd) ||
       isWithinBottomThreshold;
+    // Data anchoring and end anchoring choose different items to preserve.
+    // Let end anchoring own updates while the conversation is being followed;
+    // retain data anchoring only after the user has moved away from the end.
+    const maintainVisibleContentPosition =
+      collectionLayout.shouldMaintainVisibleContentPosition &&
+      !(anchorToEnd && !hasNewerPosts && isNearEnd)
+        ? true
+        : undefined;
     usePostListBottomCallbacks(isAtBottom, {
       onScrolledToBottom,
       onScrolledAwayFromBottom,
@@ -553,12 +588,14 @@ const ConversationPostListAttempt = React.forwardRef<
         }
         initialScrollIndex={initialScrollIndex}
         maintainScrollAtEnd={anchorToEnd && !hasNewerPosts}
+        // A2UI rows can change by more than a small fraction of the viewport.
+        // Keep the normal chat end anchor across those remeasurements whenever
+        // the list was within one viewport of the latest message. Far-away
+        // history remains unaffected by the threshold.
         maintainScrollAtEndThreshold={
-          anchorToEnd && !hasNewerPosts ? 0.1 : undefined
+          anchorToEnd && !hasNewerPosts ? 1 : undefined
         }
-        maintainVisibleContentPosition={
-          collectionLayout.shouldMaintainVisibleContentPosition || undefined
-        }
+        maintainVisibleContentPosition={maintainVisibleContentPosition}
         ListEmptyComponent={renderEmptyComponent}
         ListHeaderComponent={listHeaderComponent}
         ListFooterComponent={listBottomComponent}
@@ -567,6 +604,10 @@ const ConversationPostListAttempt = React.forwardRef<
           Platform.OS === 'ios' ? 'never' : undefined
         }
         keyboardLiftBehavior="always"
+        // Android already resizes the window for the keyboard. Applying the
+        // list's keyboard lift as well double-counts that height and makes an
+        // end-anchor land below the last message when a post is sent.
+        freeze={Platform.OS === 'android'}
         keyboardOffset={insets.bottom}
         scrollIndicatorInsets={{ top: 0, bottom: insets.bottom }}
         automaticallyAdjustsScrollIndicatorInsets={false}

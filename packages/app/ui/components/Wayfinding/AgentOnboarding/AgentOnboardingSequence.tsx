@@ -61,6 +61,32 @@ async function clearNavigationLock(groupId: string) {
   });
 }
 
+async function retryLaterAgentGroupFurnishing({
+  agentShipId,
+  groupId,
+  ownerId,
+}: {
+  agentShipId?: string;
+  groupId: string;
+  ownerId: string;
+}) {
+  for (const delayMs of [30_000, 60_000]) {
+    await wait(delayMs);
+    try {
+      if (api.getCurrentUserId() !== ownerId) return;
+      const repaired = await store.ensureAgentGroupFurnished({
+        agentShipId,
+        groupId,
+        isFirstGroup: true,
+      });
+      await repaired.tail;
+      return;
+    } catch (error) {
+      logger.trackError('Agent group furnishing retry failed', error);
+    }
+  }
+}
+
 /**
  * Bridges the post-readiness splash into the real, provisioned home group.
  * The splash is outside the authenticated navigator, so the destination is
@@ -92,7 +118,8 @@ export function AgentOnboardingSequence(props: {
 
       // Hosting provisions the deterministic home group. The local override
       // has no Hosting automation, so let furnishing create a real group.
-      const hostedHomeGroupId = `${api.getCurrentUserId()}/${BotHomeGroupSlugs.slug}`;
+      const ownerId = api.getCurrentUserId();
+      const hostedHomeGroupId = `${ownerId}/${BotHomeGroupSlugs.slug}`;
       let activeGroupId = AGENT_SHIP_OVERRIDE ? undefined : hostedHomeGroupId;
       let activeChannelId: string | undefined;
       let landedInAgentChat = false;
@@ -189,14 +216,25 @@ export function AgentOnboardingSequence(props: {
             throw error;
           }
           landedInAgentChat = true;
-          // Do not permanently dismiss the first-run bridge while the agent
-          // still lacks the standing required to accept provisioning. A
-          // failed tail returns to the outer idempotent retry loop.
+          // Keep the cover until the bot is visibly joined and the admin grant
+          // request has been accepted. Its read-back verification can continue
+          // after the already-mounted conversation becomes visible.
           await withTimeout(
-            furnished.tail,
+            furnished.readyToReveal,
             Math.max(1, deadline - Date.now()),
-            'Agent group standing did not become ready before the deadline'
+            'Agent group did not become ready to reveal before the deadline'
           );
+          void furnished.tail.catch((error) => {
+            logger.trackError(
+              'Agent group admin verification failed; scheduling retry',
+              { error, groupId: activeGroupId }
+            );
+            void retryLaterAgentGroupFurnishing({
+              agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+              groupId: furnished.group.id,
+              ownerId,
+            });
+          });
           completedRef.current = true;
           logger.trackEvent('Agent Onboarding V2 In-Channel Handoff', {
             groupId: activeGroupId,

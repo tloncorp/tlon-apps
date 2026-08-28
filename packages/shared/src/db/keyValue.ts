@@ -208,8 +208,18 @@ export const agentEntryFirstOpened = createStorageItem<Record<string, boolean>>(
   {
     key: 'agentEntryFirstOpened',
     defaultValue: {},
+    persistAfterLogout: true,
   }
 );
+
+/** Orientation markers whose one-time back-navigation hint was displayed. */
+export const agentOnboardingBackTooltipShown = createStorageItem<
+  Record<string, boolean>
+>({
+  key: 'agentOnboardingBackTooltipShown',
+  defaultValue: {},
+  persistAfterLogout: true,
+});
 
 /** One-way onboarding navigation locks, keyed by group id. */
 export const agentGroupOnboardingLocks = createStorageItem<

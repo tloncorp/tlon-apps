@@ -36,6 +36,7 @@ import {
   shouldInstallTlonDiagnosticSubscriptions,
 } from './src/diagnostic-subscriptions.js';
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
+import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
 import { createMigrateCommandHandler } from './src/migrate-command.js';
 import {
@@ -1346,6 +1347,13 @@ export default defineBundledChannelEntry({
         installTelemetryDiagnosticObservers(api);
       api.on('gateway_stop', unsubscribeDiagnosticEvents);
     }
+
+    // OpenClaw records fallback transitions as lifecycle diagnostics and also
+    // emits a separate user-facing status payload. Keep the diagnostics, but
+    // hide that operational payload on Tlon when the fallback produced a real
+    // answer. Terminal provider failures are not marked as fallback notices
+    // and continue through the normal delivery path.
+    api.on('reply_payload_sending', suppressTlonFallbackNotice);
 
     // ── Route diagnostics ───────────────────────────────────────────────
     // Fires for every outbound send OpenClaw routes — the primary streamed
