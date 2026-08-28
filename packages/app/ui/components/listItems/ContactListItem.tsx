@@ -88,7 +88,7 @@ export const ContactListItem = ({
             justifyContent="flex-end"
           >
             <XStack alignItems="center" gap="$s">
-              <BotBadge contactId={contactId} />
+              <BotBadge contactId={contactId} size="default" />
               {showEndContent ? endContent : null}
             </XStack>
           </ListItem.EndContent>
