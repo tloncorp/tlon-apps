@@ -813,3 +813,55 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   F4 does not depend on that local row being correct — the actual
   suppression is the ship-side volume map, and F4's marker correctly
   stays unset on a failed poke so the next discovery retries.
+
+- **D44: Host-page CSP — Report-Only has no production delivery.
+  (Supersedes D43's flip criteria.)** A STOP finding, reported rather than
+  worked around.
+
+  `tlon-web` ships as a **glob served by `%docket`**, whose
+  `+payload-from-glob` returns `index.html` with exactly one header
+  (`content-type`); the runtime-cache path hardcodes the same. `%docket`
+  is **not in this repo** — `peru.yaml` vendors only docket's
+  `lib`/`mar`/`sur`, never `app/docket.hoon` — so no repo-local change can
+  add a response header. And CSP3 §3.3 excludes
+  `Content-Security-Policy-Report-Only` from `<meta>` delivery (along with
+  `report-uri` and `frame-ancestors`).
+
+  Therefore: **the enforcing `<meta>` is the only production mechanism
+  that exists.** It is written and gated off behind `ENFORCE_HOST_CSP`
+  (a one-line flip, proven through the real build path), and deliberately
+  NOT shipped this session. Report-Only runs on the Vite dev and preview
+  servers, which is a genuine validation surface — the e2e suite runs
+  against `dev-no-ssl` and the production-build smoke path against
+  `vite preview`.
+
+  **The allowlist is `frame-src 'self' https://tlon.network`** — one
+  entry, exhaustively enumerated: `ManageAccountScreen`'s iframe (a
+  hardcoded constant, no per-environment variation). The mini-app sandbox
+  is `srcdoc` and measured exempt; the composer's webview shim renders
+  `srcDoc` and never `src`; every `window.open` site opens a top-level
+  context, which `frame-src` does not govern and for which the policy must
+  NOT be widened.
+
+  **Amended flip criteria** (D43's criterion 1 assumed production
+  Report-Only telemetry that cannot exist):
+  1. Clean Report-Only runs across the dev/e2e surface — **but note this
+     is only evidence if something observes violations. Nothing collects
+     them today; a violation listener must be wired before a clean run
+     may be cited.** Otherwise "no reports" means "nobody looked."
+  2. The D43 redirect residual measured (an allowlisted origin
+     redirecting to an attacker origin).
+  3. Accept that **production enforcement failures are silent**: with no
+     `report-uri` available in `<meta>`, an allowlist gap surfaces as a
+     broken feature, not a report. This is the strongest argument for
+     gathering evidence before the flip, and it replaces D43's
+     "verified against real-usage reports," which is unachievable.
+  4. Rollback is a glob redeploy, not a client release — faster than an
+     app-store cycle, but not instant. State it accurately when planning.
+
+  **Chromium consequence of flipping** (measured, `navigation.spec.ts`):
+  a refused navigation commits an error page *into* the sandbox frame,
+  destroying the running mini-app; firefox and webkit leave it on
+  `about:srcdoc`. Nothing leaks either way — a hostile bundle can only
+  self-destruct its own surface — but it is a real behavioral consequence
+  of enforcement, not a reason against it.
