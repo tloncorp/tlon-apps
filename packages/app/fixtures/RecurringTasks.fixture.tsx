@@ -9,6 +9,7 @@ import { Image } from 'react-native';
 import { View, useTheme } from 'tamagui';
 
 import { ShipProvider } from '../contexts/ship';
+import botAvatarPng from '../ui/assets/raster/bot.png';
 import { nativeHeaderPresentationOptions } from '../navigation/nativeHeaderOptions';
 import {
   AppDataContextProvider,
@@ -44,8 +45,7 @@ const botContact = {
   ...hostedBotContact,
   id: '~pinser-botter-solfer-magfed',
   nickname: '🌱 News reader',
-  avatarImage: Image.resolveAssetSource(require('../ui/assets/raster/bot.png'))
-    .uri,
+  avatarImage: Image.resolveAssetSource(botAvatarPng).uri,
   isContact: false,
   isContactSuggestion: true,
   isBlocked: false,

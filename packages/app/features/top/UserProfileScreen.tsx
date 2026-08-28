@@ -118,8 +118,15 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const scheduledTasks = tasksForShip(automationQuery.data, userId);
 
   const handlePressScheduledTasks = useCallback(() => {
-    navigation.push('ScheduledTasks', { botShip: userId });
-  }, [navigation, userId]);
+    // Desktop registers these screens in a Drawer, which cannot handle the
+    // stack-only PUSH action -- mirror the handlePressEdit branching above.
+    if (isWindowNarrow) {
+      navigation.push('ScheduledTasks', { botShip: userId });
+      return;
+    }
+
+    navigation.navigate('ScheduledTasks', { botShip: userId });
+  }, [isWindowNarrow, navigation, userId]);
 
   const isHostedUser = isWeb ? getCurrentUserIsHostedSafely() : false;
   const hasExpectedBotDm = useHasExpectedBotDm(
