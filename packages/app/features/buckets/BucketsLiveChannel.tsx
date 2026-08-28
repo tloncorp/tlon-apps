@@ -1,4 +1,8 @@
-import type { BucketsEntry, BucketsFlag } from '@tloncorp/api';
+import {
+  type BucketsEntry,
+  type BucketsFlag,
+  isBotUserId,
+} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { ConfirmDialog, Text } from '@tloncorp/ui';
 import * as DocumentPicker from 'expo-document-picker';
@@ -19,7 +23,9 @@ import {
   BucketSearchResult,
   BucketUploadCandidate,
   BucketsHeaderActions,
+  BucketsMoveSheet,
   BucketsNewSheet,
+  BucketsRenameSheet,
   BucketsPane,
   BucketsSearchScreen,
   ChannelHeader,
@@ -55,6 +61,7 @@ function toItem(
     return {
       author: entry.updatedBy,
       id: String(entry.id),
+      isBot: isBotUserId(entry.updatedBy),
       itemCount: childCounts.get(entry.id) ?? 0,
       kind: 'folder',
       modifiedLabel: formatBucketTimestamp(entry.updatedAt),
@@ -64,6 +71,7 @@ function toItem(
 
   return {
     author: entry.updatedBy,
+    isBot: isBotUserId(entry.updatedBy),
     id: String(entry.id),
     kind: 'file',
     mimeType: entry.file.mime,
@@ -140,8 +148,17 @@ export function BucketsLiveChannel({
   const [operationError, setOperationError] = useState<string | null>(null);
   const [folderPendingDeletion, setFolderPendingDeletion] =
     useState<BucketItem | null>(null);
+  const [itemPendingRename, setItemPendingRename] = useState<BucketItem | null>(
+    null
+  );
+  const [itemPendingMove, setItemPendingMove] = useState<BucketItem | null>(
+    null
+  );
   const currentUserId = useCurrentUserId();
-  useHideChannelHeader(embedded && previewItem !== null);
+  // Search and preview both replace the pane with a screen that draws its own
+  // header. Leaving the channel header mounted stacks two of them, with two
+  // competing back controls.
+  useHideChannelHeader(embedded && (previewItem !== null || searchOpen));
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
   const entries = useMemo(
@@ -233,12 +250,21 @@ export function BucketsLiveChannel({
   const canEdit = useCanWrite(channel, currentUserId);
 
   const reportOperation = async (operation: Promise<unknown>) => {
+    setOperationError(null);
     try {
-      setOperationError(null);
       await operation;
-      await live.refresh();
     } catch (cause) {
       setOperationError(cause instanceof Error ? cause.message : String(cause));
+      return;
+    }
+    // The write landed. A failed re-read afterwards is a stale view, not a
+    // failed operation, and reporting it as one invites a retry -- which for
+    // folder creation makes a second folder of the same name, since the host
+    // permits duplicates. The subscription reconciles us either way.
+    try {
+      await live.refresh();
+    } catch {
+      // Deliberately silent.
     }
   };
 
@@ -399,6 +425,27 @@ export function BucketsLiveChannel({
     }
   };
 
+  // A folder cannot move into itself or into anything beneath it, and the
+  // moving entry's own parent is where it already is.
+  const moveDestinations = useMemo(() => {
+    if (!itemPendingMove) return [];
+    const movingId = Number(itemPendingMove.id);
+    const barred = new Set<number>([movingId]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      entries.forEach((entry) => {
+        if (entry.parentId !== null && barred.has(entry.parentId)) {
+          if (!barred.has(entry.id)) grew = true;
+          barred.add(entry.id);
+        }
+      });
+    }
+    return entries
+      .filter((entry) => entry.kind === 'folder' && !barred.has(entry.id))
+      .map((entry) => ({ id: entry.id, name: entry.name }));
+  }, [entries, itemPendingMove]);
+
   const paneProps = {
     canEdit,
     // Suppressed only where the ChannelHeader below already names the folder
@@ -412,7 +459,12 @@ export function BucketsLiveChannel({
     uploadAggregateProgress: live.uploadAggregateProgress,
     uploadItems: live.localItems,
     onCancelUpload: (item: BucketItem) => void live.cancelUpload(item.id),
-    onNavigateUp: goBack,
+    onNavigateRoot: () => {
+      setActiveFolderId(null);
+      setSelectedItemId(null);
+    },
+    onRenameItem: (item: BucketItem) => setItemPendingRename(item),
+    onMoveItem: (item: BucketItem) => setItemPendingMove(item),
     onDeleteItem: (item: BucketItem) => {
       if (item.kind === 'folder') {
         setFolderPendingDeletion(item);
@@ -471,7 +523,21 @@ export function BucketsLiveChannel({
             onClose={closePreview}
             onOpenExternally={
               previewItem.previewUri
-                ? () => void Linking.openURL(previewItem.previewUri!)
+                ? () => {
+                    // Freshly signed rather than the URL captured when the
+                    // preview loaded: a grant lasts minutes, a preview left
+                    // open lasts as long as the user leaves it, and handing
+                    // an expired URL to another app looks like lost access.
+                    const item = previewItem;
+                    void live
+                      .readUrl(Number(item.id))
+                      .then((url) => Linking.openURL(url))
+                      .catch((cause) =>
+                        setPreviewError(
+                          cause instanceof Error ? cause.message : String(cause)
+                        )
+                      );
+                  }
                 : undefined
             }
             onRetry={() => void loadPreview(previewItem)}
@@ -555,6 +621,34 @@ export function BucketsLiveChannel({
           </XStack>
         )}
       </MaybeChannelHeaderItemsProvider>
+      <BucketsRenameSheet
+        item={itemPendingRename}
+        onOpenChange={(open) => {
+          if (!open) setItemPendingRename(null);
+        }}
+        onRename={(name) => {
+          const item = itemPendingRename;
+          setItemPendingRename(null);
+          if (item) {
+            void reportOperation(live.renameEntry(Number(item.id), name));
+          }
+        }}
+      />
+      <BucketsMoveSheet
+        destinations={moveDestinations}
+        item={itemPendingMove}
+        rootLabel={rootLabel}
+        onOpenChange={(open) => {
+          if (!open) setItemPendingMove(null);
+        }}
+        onMove={(parentId) => {
+          const item = itemPendingMove;
+          setItemPendingMove(null);
+          if (item) {
+            void reportOperation(live.moveEntry(Number(item.id), parentId));
+          }
+        }}
+      />
       <ConfirmDialog
         open={folderPendingDeletion !== null}
         onOpenChange={(open) => {

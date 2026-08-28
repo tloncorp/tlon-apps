@@ -224,7 +224,7 @@ export function BucketsPane({
   onCancelUpload,
   onFilesDropped,
   onMoveItem,
-  onNavigateUp,
+  onNavigateRoot,
   onOpenItem,
   onRenameItem,
   onRetryUpload,
@@ -243,7 +243,7 @@ export function BucketsPane({
   onCancelUpload?: (item: BucketItem) => void;
   onFilesDropped?: (files: BucketUploadCandidate[]) => void;
   onMoveItem?: (item: BucketItem) => void;
-  onNavigateUp?: () => void;
+  onNavigateRoot?: () => void;
   onOpenItem: (item: BucketItem) => void;
   onRenameItem?: (item: BucketItem) => void;
   onRetryUpload?: (item: BucketItem) => void;
@@ -284,7 +284,7 @@ export function BucketsPane({
           <BucketBreadcrumb
             rootLabel={rootLabel}
             folderLabel={currentFolder}
-            onNavigateUp={onNavigateUp}
+            onNavigateRoot={onNavigateRoot}
           />
         ) : null}
         {populated ? (
@@ -374,10 +374,14 @@ function BucketRow({
   onRetryUpload?: (item: BucketItem) => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [open, setOpen] = useState(false);
   const isWindowNarrow = useIsWindowNarrow();
+  // Focus counts as well as hover. Keeping the trigger out of the DOM until
+  // a pointer arrives put every action behind it -- delete included -- out of
+  // reach of the keyboard and of anything driving the page through one.
   const showOverflow =
-    Platform.OS !== 'web' || isWindowNarrow || isHovered || open;
+    Platform.OS !== 'web' || isWindowNarrow || isHovered || isFocused || open;
   const uploadState = uploadStateFor(item);
   const groups = createActionGroups(
     [
@@ -420,6 +424,8 @@ function BucketRow({
   const trigger = showOverflow ? (
     <OverflowTriggerButton
       aria-label={`Actions for ${item.name}`}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
       onPress={(event) => {
         event.stopPropagation();
         if (isWindowNarrow) {
@@ -440,6 +446,10 @@ function BucketRow({
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      // The row takes focus before the trigger does, so revealing it only on
+      // the trigger's own focus would mean tab could never reach it.
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
       onPress={() => {
         if (!uploadState) onOpenItem(item);
       }}
@@ -564,6 +574,155 @@ function BucketSearchRow({
         </ListItem.EndContent>
       </ListItem>
     </Pressable>
+  );
+}
+
+/** Rename one entry. Mirrors the new-folder form. */
+export function BucketsRenameSheet({
+  item,
+  onOpenChange,
+  onRename,
+}: {
+  item: BucketItem | null;
+  onOpenChange: (open: boolean) => void;
+  onRename: (name: string) => void;
+}) {
+  const [name, setName] = useState('');
+  const isWeb = Platform.OS === 'web';
+  const trimmed = name.trim();
+
+  useEffect(() => {
+    if (item) setName(item.name);
+  }, [item]);
+
+  const submit = () => {
+    if (!trimmed || trimmed === item?.name) return;
+    onRename(trimmed);
+    onOpenChange(false);
+  };
+
+  return (
+    <ActionSheet
+      closeButton={isWeb}
+      dialogContentProps={{ width: 420, maxWidth: '90%', minWidth: 320 }}
+      keyboardBehavior="interactive"
+      moveOnKeyboardChange
+      open={item !== null}
+      onOpenChange={onOpenChange}
+      modal
+      snapPointsMode="fit"
+      title="Rename"
+      unmountOnClose
+    >
+      <ActionSheet.SimpleHeader
+        title="Rename"
+        subtitle={
+          item?.kind === 'folder' ? 'Rename this folder' : 'Rename this file'
+        }
+      />
+      <ActionSheet.Content testID="BucketsRenameForm">
+        <ActionSheet.FormBlock>
+          <YStack gap="$s">
+            <Text color="$secondaryText" size="$label/s">
+              Name
+            </Text>
+            <TextInput
+              autoFocus
+              maxLength={120}
+              onChangeText={setName}
+              onSubmitEditing={submit}
+              placeholder="Name"
+              returnKeyType="done"
+              testID="BucketsRenameNameInput"
+              value={name}
+            />
+          </YStack>
+        </ActionSheet.FormBlock>
+        <ActionSheet.FormBlock>
+          <XStack alignItems="center" gap="$m" justifyContent="flex-end">
+            <Button
+              label="Cancel"
+              onPress={() => onOpenChange(false)}
+              preset="minimal"
+            />
+            <Button
+              centered
+              disabled={!trimmed || trimmed === item?.name}
+              label="Rename"
+              onPress={submit}
+              preset="primary"
+            />
+          </XStack>
+        </ActionSheet.FormBlock>
+      </ActionSheet.Content>
+    </ActionSheet>
+  );
+}
+
+/**
+ * Move one entry into another folder.
+ *
+ * Destinations exclude the entry itself and everything under it -- the host
+ * refuses both, and offering them would only produce an error.
+ */
+export function BucketsMoveSheet({
+  destinations,
+  item,
+  rootLabel,
+  onMove,
+  onOpenChange,
+}: {
+  destinations: { id: number; name: string }[];
+  item: BucketItem | null;
+  rootLabel: string;
+  onMove: (parentId: number | null) => void;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const isWeb = Platform.OS === 'web';
+  const choose = (parentId: number | null) => {
+    onMove(parentId);
+    onOpenChange(false);
+  };
+
+  return (
+    <ActionSheet
+      closeButton={isWeb}
+      dialogContentProps={{ width: 420, maxWidth: '90%', minWidth: 320 }}
+      open={item !== null}
+      onOpenChange={onOpenChange}
+      modal
+      snapPointsMode="fit"
+      title="Move"
+      unmountOnClose
+    >
+      <ActionSheet.SimpleHeader
+        title="Move"
+        subtitle={item ? `Choose where to put ${item.name}` : 'Choose a folder'}
+      />
+      <ActionSheet.Content testID="BucketsMoveForm">
+        <ActionSheet.ActionGroup accent="neutral">
+          <ActionSheet.Action
+            action={{
+              title: rootLabel,
+              startIcon: 'Home',
+              action: () => choose(null),
+            }}
+            testID="BucketsMoveToRoot"
+          />
+          {destinations.map((folder) => (
+            <ActionSheet.Action
+              key={folder.id}
+              action={{
+                title: folder.name,
+                startIcon: 'Folder',
+                action: () => choose(folder.id),
+              }}
+              testID={`BucketsMoveTo-${folder.id}`}
+            />
+          ))}
+        </ActionSheet.ActionGroup>
+      </ActionSheet.Content>
+    </ActionSheet>
   );
 }
 
@@ -797,14 +956,17 @@ function BucketItemMetadata({ item }: { item: BucketItem }) {
   );
 }
 
+// The root segment navigates to the root, not up one level. The crumb is
+// abbreviated to "Root / <current>", so from Root/A/B it reads as though it
+// would land at the root -- going to A instead is the label lying.
 function BucketBreadcrumb({
   folderLabel,
   rootLabel,
-  onNavigateUp,
+  onNavigateRoot,
 }: {
   folderLabel: string;
   rootLabel: string;
-  onNavigateUp?: () => void;
+  onNavigateRoot?: () => void;
 }) {
   return (
     <XStack
@@ -817,8 +979,8 @@ function BucketBreadcrumb({
       paddingTop="$l"
       paddingBottom="$s"
     >
-      {onNavigateUp ? (
-        <Pressable onPress={onNavigateUp} hitSlop={8}>
+      {onNavigateRoot ? (
+        <Pressable onPress={onNavigateRoot} hitSlop={8}>
           <Text color="$secondaryText" size="$label/l">
             {rootLabel}
           </Text>

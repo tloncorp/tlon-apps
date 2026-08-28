@@ -1162,6 +1162,39 @@
 ::  Expired grants and pending sessions are swept the next time authority is
 ::  touched, and their reservation bindings go with them.
 ::
+::  A pending session that ran out of time may have bytes behind it: the
+::  uploader held a signed PUT, and a large file on a slow link outlasts our
+::  window. Dropping our record alone leaves the broker holding a reservation,
+::  its quota, and possibly a stored object nothing will publish.
+::
+++  test-a-lapsed-upload-is-given-up-at-the-broker
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'huge.iso' 42)
+  ;<  sv=vase  b  get-save
+  =/  ses=upload-session:bu  (only-session !<(state-0:bu sv))
+  ;<  ~  b  (ex-equal !>(reservation.ses) !>(`'res-1'))
+  ::  Past the session window, with something else driving a prune.
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now ~2026.1.2, eny 0v9999)))
+  ;<  caz=(list card)  b
+    (ask 0v2 [%bucket flag [%begin-upload ~ 'later.pdf' 'application/pdf' 7 ~]])
+  =/  cancels=(list [=wire =request:http])
+    %+  murn  caz
+    |=  =card
+    ^-  (unit [wire request:http])
+    ?.  ?=([%pass * %arvo %i %request * *] card)  ~
+    ?.  =(/buckets/upload/(scot %uv id.ses)/cancel p.card)  ~
+    `[p.card request.q.card]
+  ;<  ~  b  (ex-equal !>((lent cancels)) !>(1))
+  ::  And the lapsed session is gone from our own state either way.
+  ;<  after=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu after)
+  (ex-equal !>((~(has by sessions.st) id.ses)) !>(|))
+::
 ++  test-expired-authority-is-pruned
   %-  eval-mare
   =/  m  (mare ,~)
@@ -1809,6 +1842,44 @@
 ::  A kick is not a revocation. The replica survives and the subscription is
 ::  re-established; only a nack from the host drops the bucket.
 ::
+::  A host we subscribe to publishes facts about its own bucket and no other.
+::  The wire says which bucket the subscription is for; the fact says which it
+::  is about, and only an honest host makes those agree. Applying the fact's
+::  own claim would let a host we joined rewrite a replica of someone else's
+::  bucket -- an empty writer set being the payload that matters, since
+::  clients mirror writers and an admin saving that bucket's settings would
+::  carry the emptiness to its real host.
+::
+++  test-a-host-cannot-publish-about-another-bucket
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  theirs=flag:bu  [~bus %their-files]
+  ;<  ~  b  (setup-as ~rus)
+  ::  We hold replicas of two buckets, hosted by different ships.
+  ;<  *  b
+    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
+  ;<  *  b
+    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~bus %their-files] group]))
+  =/  bare=bucket:bu  [1 'Theirs' ~bus ~2026.1.1 ~bus ~2026.1.1]
+  =/  st=bucket-state:bu  [bare group (silt `(list @tas)`~[%admin]) ~ 1]
+  ::  ~bus, whose subscription this is, publishes a snapshot claiming to be
+  ::  about ~sampel-palnet's bucket, with nobody able to write.
+  =/  lie=response:bu
+    [%snapshot flag st(writers *(set @tas))]
+  ;<  caz=(list card)  b
+    %^    do-agent
+        /buckets/sub/(scot %p ~bus)/their-files
+      [~bus %buckets]
+    [%fact %buckets-response-1 !>(lie)]
+  ::  Nothing is applied and nothing is forwarded to our own clients.
+  ;<  ~  b  (ex-cards caz ~)
+  ;<  sv=vase  b  get-save
+  =/  saved=state-0:bu  !<(state-0:bu sv)
+  =/  sp=space:bu  (~(got by spaces.saved) flag)
+  %+  ex-equal  !>(state.sp)  !>(~)
+::
 ++  test-kick-resubscribes
   %-  eval-mare
   =/  m  (mare ,~)
@@ -2077,6 +2148,45 @@
 ::  An action submitted over HTTP is answered on that same request, so a
 ::  client needs no correlation of its own. A refusal comes back as a typed
 ::  error with a 200, not as a crash.
+::
+::  Every verb a client can send has to survive the JSON decoder, and only
+::  the HTTP path goes through it -- poking a typed vase, as most of these
+::  examples do, skips it entirely. %finish-upload and %retry-upload shipped
+::  decoded by nothing and failed as malformed against a live client while
+::  the whole typed suite stayed green.
+::
+++  test-http-decodes-every-session-verb
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'private.pdf' 42)
+  ;<  sv=vase  b  get-save
+  =/  ses=upload-session:bu  (only-session !<(state-0:bu sv))
+  =/  sid=@t  (scot %uv id.ses)
+  =/  verb
+    |=  [rid=@t type=@t]
+    ^-  @t
+    %+  rap  3
+    :~  '{"requestId":"'  rid
+        '","action":{"type":"'  type
+        '","flag":{"host":"~sampel-palnet","name":"project-files"}'
+        ',"sessionId":"'  sid  '"}}'
+    ==
+  ::  Reaching the arm is the whole point: a verb the decoder does not know
+  ::  answers %invalid-input and makes no broker call at all, so the call's
+  ::  wire is what pins the decode.
+  ;<  fin=(list card)  b  (http-post & (verb '0v2' 'finish-upload'))
+  ;<  ~  b
+    %+  ex-equal
+      !>(wire:(only-iris fin))
+    !>(/buckets/upload/[sid]/complete)
+  ;<  ret=(list card)  b  (http-post & (verb '0v3' 'retry-upload'))
+  %+  ex-equal
+    !>(wire:(only-iris ret))
+  !>(/buckets/upload/[sid]/retry)
 ::
 ++  test-http-post-answers-inline
   %-  eval-mare

@@ -313,6 +313,12 @@
           (maybe 'checksum' jon so)
       ==
     ::
+        %'finish-upload'
+      [%finish-upload ((se %uv) (get 'sessionId' jon))]
+    ::
+        %'retry-upload'
+      [%retry-upload ((se %uv) (get 'sessionId' jon))]
+    ::
         %'cancel-upload'
       :*  %cancel-upload
           ((se %uv) (get 'sessionId' jon))

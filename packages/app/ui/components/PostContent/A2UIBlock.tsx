@@ -12,8 +12,10 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { KeyboardController } from 'react-native-keyboard-controller';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
+import { useConversationScrollEndAnchor } from '../../contexts/scroll';
 import { ActionSheet } from '../ActionSheet';
 import { TextInput } from '../Form';
 import { A2UIMenuRow } from './A2UIMenuRow';
@@ -184,7 +186,38 @@ function SmallChoiceControl({
   const [customTopics, setCustomTopics] = useState<string[]>([]);
   const [customDraft, setCustomDraft] = useState('');
   const [customInputOpen, setCustomInputOpen] = useState(false);
+  const customInputMountedRef = useRef(true);
+  const customInputOpenRef = useRef(false);
+  const conversationScrollEndAnchor = useConversationScrollEndAnchor();
   const oneShot = useOneShotAction(Boolean(consumedSelection));
+
+  const setCustomInputVisibility = useCallback(
+    (open: boolean) => {
+      customInputOpenRef.current = open;
+      if (open) {
+        conversationScrollEndAnchor?.capture();
+        setCustomInputOpen(true);
+        return;
+      }
+
+      setCustomInputOpen(false);
+      void KeyboardController.dismiss().finally(() => {
+        if (customInputMountedRef.current && !customInputOpenRef.current) {
+          requestAnimationFrame(() => {
+            conversationScrollEndAnchor?.restore();
+          });
+        }
+      });
+    },
+    [conversationScrollEndAnchor]
+  );
+
+  useEffect(
+    () => () => {
+      customInputMountedRef.current = false;
+    },
+    []
+  );
 
   const toggle = useCallback(
     (id: string) => {
@@ -298,8 +331,28 @@ function SmallChoiceControl({
       return;
     }
     setCustomDraft('');
-    setCustomInputOpen(true);
-  }, [oneShot]);
+    setCustomInputVisibility(true);
+  }, [oneShot, setCustomInputVisibility]);
+
+  const closeSavedCustomInput = useCallback(() => {
+    customInputOpenRef.current = false;
+    void KeyboardController.dismiss().finally(() => {
+      if (!customInputMountedRef.current || customInputOpenRef.current) {
+        return;
+      }
+
+      // Keep the sheet over the conversation until its keyboard has fully
+      // settled. Closing it first exposes the floating composer's native
+      // bottom-edge effect while it still has keyboard-sized geometry, and a
+      // scroll-to-end during that transition anchors against the wrong inset.
+      conversationScrollEndAnchor?.restore();
+      requestAnimationFrame(() => {
+        if (customInputMountedRef.current && !customInputOpenRef.current) {
+          setCustomInputOpen(false);
+        }
+      });
+    });
+  }, [conversationScrollEndAnchor]);
 
   const saveCustomInput = useCallback(() => {
     if (oneShot.isLocked()) {
@@ -335,8 +388,9 @@ function SmallChoiceControl({
           : [...previous, topic];
       });
     }
-    setCustomInputOpen(false);
+    closeSavedCustomInput();
   }, [
+    closeSavedCustomInput,
     component.options,
     customDraft,
     customTopics.length,
@@ -474,7 +528,7 @@ function SmallChoiceControl({
           moveOnKeyboardChange
           modal
           open={customInputOpen}
-          onOpenChange={setCustomInputOpen}
+          onOpenChange={setCustomInputVisibility}
           unmountOnClose
         >
           <ActionSheet.SimpleHeader title="Add your own" />
@@ -685,9 +739,13 @@ export function A2UIBlock({
     areA2UISelectionsPending,
     canSendA2UIResponse,
     canUseAgentProviderControls,
+    consumedA2UIMessageText,
+    getConfiguredAgentProviderIds,
     getConsumedA2UISelection,
     isA2UIActionAvailable,
+    isA2UIActionConsumed,
     onA2UIAction,
+    provisionedAgentTopics,
   } = useContentContext();
   const [locallyConsumedComponentIds, setLocallyConsumedComponentIds] =
     useState<string[]>([]);
@@ -980,7 +1038,8 @@ export function A2UIBlock({
           const actionConsumed =
             actionCanBeConsumed &&
             (locallyConsumedComponentIds.includes(component.id) ||
-              Boolean(getConsumedA2UISelection?.(surfaceId, component.id)));
+              Boolean(getConsumedA2UISelection?.(surfaceId, component.id)) ||
+              isA2UIActionConsumed?.(component.action) === true);
           const disabled =
             actionConsumed ||
             consumptionPending ||
@@ -1036,7 +1095,13 @@ export function A2UIBlock({
               ? component.options.find(
                   (option) => option.id === durableSelection.optionId
                 )
-              : undefined);
+              : undefined) ??
+            component.options.find(
+              (option) =>
+                option.action.event.name === A2UI.action.sendMessage &&
+                option.action.event.context.text.trim() ===
+                  consumedA2UIMessageText?.trim()
+            );
           const choiceConsumed =
             Boolean(selectedOption) || Boolean(durableSelection);
           const grouped = component.options.length > 1;
@@ -1182,6 +1247,22 @@ export function A2UIBlock({
           );
         }
         case 'SmallChoice': {
+          const durableSelection = getConsumedA2UISelection?.(
+            surfaceId,
+            component.id
+          );
+          const provisionSelection =
+            component.action.event.name === A2UI.action.provisionAgent &&
+            isA2UIActionConsumed?.(component.action) === true &&
+            provisionedAgentTopics?.length
+              ? {
+                  type: 'tlon-a2ui-selection' as const,
+                  version: 1 as const,
+                  surfaceId,
+                  componentId: component.id,
+                  values: provisionedAgentTopics,
+                }
+              : undefined;
           return (
             <YStack
               key={component.id}
@@ -1200,10 +1281,7 @@ export function A2UIBlock({
                   (component.action.event.name !== A2UI.action.provisionAgent ||
                     isA2UIActionAvailable?.(component.action) !== false)
                 }
-                consumedSelection={getConsumedA2UISelection?.(
-                  surfaceId,
-                  component.id
-                )}
+                consumedSelection={durableSelection ?? provisionSelection}
                 onSubmit={handleSmallChoiceSubmit}
                 sourcePostId={a2uiSourcePostId}
                 surfaceId={surfaceId}
@@ -1222,9 +1300,14 @@ export function A2UIBlock({
               <McpConnectControl
                 component={component}
                 selectionsPending={areA2UISelectionsPending}
+                surfaceId={surfaceId}
+                configuredProviderIds={getConfiguredAgentProviderIds?.(
+                  component.configureAction
+                )}
                 completionConsumed={Boolean(
                   component.completionAction &&
-                  getConsumedA2UISelection?.(surfaceId, component.id)
+                  (getConsumedA2UISelection?.(surfaceId, component.id) ||
+                    isA2UIActionConsumed?.(component.completionAction))
                 )}
                 completionSelection={
                   component.completionAction
@@ -1258,14 +1341,18 @@ export function A2UIBlock({
       areA2UISelectionsPending,
       canSendA2UIResponse,
       components,
+      consumedA2UIMessageText,
+      getConfiguredAgentProviderIds,
       getConsumedA2UISelection,
       handleButtonPress,
       handleChoicePress,
       handleSmallChoiceSubmit,
       isA2UIActionAvailable,
+      isA2UIActionConsumed,
       locallyConsumedComponentIds,
       locallyConsumedChoices,
       onA2UIAction,
+      provisionedAgentTopics,
       surfaceId,
     ]
   );

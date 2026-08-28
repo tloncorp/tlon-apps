@@ -1,13 +1,14 @@
 import type {
   TlawnLLMAuthFlow,
   TlawnLLMAuthFlowResponse,
+  TlawnLLMAuthProvider,
   TlawnLLMAuthStatus,
   TlawnSubscriptionModel,
 } from '@tloncorp/api';
 
 import {
   OpenAIAuthState,
-  getOpenAISubscriptionModels,
+  getLLMAuthSubscriptionModels,
   reduceOpenAIAuthState,
 } from './openAiSubscription';
 
@@ -16,10 +17,15 @@ const POLL_INTERVAL_MS = 1_500;
 type TimerHandle = ReturnType<typeof setTimeout>;
 
 type OpenAIAuthControllerDeps = {
+  provider: TlawnLLMAuthProvider;
   now: () => number;
   schedule: (callback: () => void, delayMs: number) => TimerHandle;
   cancel: (timer: TimerHandle) => void;
   start: () => Promise<TlawnLLMAuthFlowResponse>;
+  complete: (
+    flowId: string,
+    token: string
+  ) => Promise<TlawnLLMAuthFlowResponse>;
   poll: (flowId: string) => Promise<TlawnLLMAuthFlowResponse>;
   loadStatus: () => Promise<TlawnLLMAuthStatus>;
   onComplete: (
@@ -28,7 +34,10 @@ type OpenAIAuthControllerDeps = {
   ) => void | Promise<void>;
 };
 
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(
+  error: unknown,
+  provider: TlawnLLMAuthProvider
+): string {
   if (
     error &&
     typeof error === 'object' &&
@@ -37,7 +46,13 @@ function getErrorMessage(error: unknown): string {
   ) {
     return error.message;
   }
-  return 'Could not connect your ChatGPT subscription.';
+  const subscription =
+    provider === 'xai'
+      ? 'Grok subscription'
+      : provider === 'anthropic'
+        ? 'Claude subscription'
+        : 'ChatGPT subscription';
+  return `Could not connect your ${subscription}.`;
 }
 
 function isNotFound(error: unknown): boolean {
@@ -85,7 +100,7 @@ export class OpenAIAuthController {
       if (!this.canPublish(generation)) return;
       this.transition({
         type: 'failure',
-        message: getErrorMessage(error),
+        message: getErrorMessage(error, this.deps.provider),
         notFound: isNotFound(error),
       });
     }
@@ -104,6 +119,36 @@ export class OpenAIAuthController {
       return;
     }
     await this.start();
+  }
+
+  async complete(token: string): Promise<boolean> {
+    if (
+      this.state.phase !== 'active' ||
+      this.state.flow.provider !== 'anthropic' ||
+      this.state.flow.status !== 'awaiting_token'
+    ) {
+      return false;
+    }
+    const trimmedToken = token.trim();
+    if (!trimmedToken) return false;
+
+    this.cancelTimer();
+    const generation = this.generation;
+    const flow = this.state.flow;
+    try {
+      const response = await this.deps.complete(flow.id, trimmedToken);
+      if (!this.canPublish(generation)) return false;
+      await this.acceptFlow(response.flow, generation);
+      return true;
+    } catch (error) {
+      if (!this.canPublish(generation)) return false;
+      this.transition({
+        type: 'tokenFailure',
+        message: getErrorMessage(error, this.deps.provider),
+      });
+      this.schedulePoll();
+      return false;
+    }
   }
 
   pause(): void {
@@ -161,7 +206,7 @@ export class OpenAIAuthController {
     try {
       const status = await this.deps.loadStatus();
       if (!this.canPublish(generation)) return;
-      const models = getOpenAISubscriptionModels(status);
+      const models = getLLMAuthSubscriptionModels(status, this.deps.provider);
       if (models.length === 0) {
         throw new Error('No subscription models are available yet.');
       }
@@ -172,7 +217,7 @@ export class OpenAIAuthController {
       if (!this.canPublish(generation)) return;
       this.transition({
         type: 'failure',
-        message: `Subscription connected, but setup could not be finished: ${getErrorMessage(error)}`,
+        message: `Subscription connected, but setup could not be finished: ${getErrorMessage(error, this.deps.provider)}`,
       });
     }
   }
@@ -209,7 +254,7 @@ export class OpenAIAuthController {
       if (isNotFound(error)) {
         this.transition({
           type: 'failure',
-          message: getErrorMessage(error),
+          message: getErrorMessage(error, this.deps.provider),
           notFound: true,
         });
       } else if (flow.expiresAt <= this.deps.now()) {

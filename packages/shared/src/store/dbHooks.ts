@@ -13,6 +13,7 @@ import { useEffect, useMemo } from 'react';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
 import * as logic from '../logic';
+import { getBotReplyFeedbackQueryKey } from './botReplyFeedback';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import { syncChannelPreivews, syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
@@ -51,6 +52,23 @@ export const useA2UISelections = ({
   return useQuery({
     queryKey: ['a2uiSelections', deps, channelId, authorId],
     queryFn: () => db.getA2UISelections({ channelId, authorId }),
+    enabled,
+  });
+};
+
+export const useAgentA2UIProtocolReceipts = ({
+  channelId,
+  authorId,
+  enabled,
+}: {
+  channelId: string;
+  authorId: string;
+  enabled?: boolean;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getAgentA2UIProtocolReceipts);
+  return useQuery({
+    queryKey: ['agentA2UIProtocolReceipts', deps, channelId, authorId],
+    queryFn: () => db.getAgentA2UIProtocolReceipts({ channelId, authorId }),
     enabled,
   });
 };
@@ -917,6 +935,8 @@ export const useTelemetryEnabled = () => {
   });
 };
 
+// Legacy setting retained for older clients. Current clients make Context Lens
+// available by default and do not use this value as an availability gate.
 export const useContextLensEnabled = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
@@ -950,6 +970,14 @@ export const useTelemetrySettings = () => {
         logActivity: settings?.logActivity,
       };
     },
+  });
+};
+
+export const useBotReplyFeedback = (messageId: string) => {
+  return useQuery({
+    queryKey: getBotReplyFeedbackQueryKey(messageId),
+    queryFn: () => db.getBotReplyFeedback(messageId),
+    enabled: Boolean(messageId),
   });
 };
 

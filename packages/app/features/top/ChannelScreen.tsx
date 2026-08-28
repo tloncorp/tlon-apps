@@ -32,6 +32,9 @@ import {
   InviteUsersSheet,
   useIsWindowNarrow,
 } from '../../ui';
+import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibility';
+import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
+import { useAgentOnboardingFirstEntry } from './useAgentOnboardingFirstEntry';
 
 const logger = createDevLogger('ChannelScreen', false);
 
@@ -40,6 +43,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 export default function ChannelScreen(props: Props) {
   const {
     channelId,
+    disableTransition,
     selectedPostId,
     startDraft,
     groupId: routeGroupId,
@@ -49,6 +53,15 @@ export default function ChannelScreen(props: Props) {
     startDraft: false,
     groupId: undefined,
   };
+
+  useEffect(() => {
+    if (!disableTransition) return;
+
+    const frame = requestAnimationFrame(() => {
+      props.navigation.setParams({ disableTransition: undefined });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [disableTransition, props.navigation]);
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {
@@ -71,6 +84,18 @@ export default function ChannelScreen(props: Props) {
   });
 
   const groupId = channel?.groupId ?? group?.id;
+  const {
+    agentOnboarding,
+    agentShipId,
+    navigationLocked: agentOnboardingNavigationLocked,
+  } = useAgentOnboardingChannel({
+    navigation: props.navigation,
+    channelId,
+    currentChannelId,
+    groupId,
+    routeGroupId,
+  });
+  const currentUserId = api.getCurrentUserId();
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
@@ -366,6 +391,26 @@ export default function ChannelScreen(props: Props) {
     () => (includeDeletedPosts ? posts : posts?.filter((p) => !p.isDeleted)),
     [posts, includeDeletedPosts]
   );
+  const agentGroupSetupActive = useMemo(() => {
+    return isAgentGroupSetupActive(
+      filteredPosts,
+      currentUserId,
+      agentShipId,
+      Boolean(agentOnboarding.marker)
+    );
+  }, [agentOnboarding.marker, agentShipId, currentUserId, filteredPosts]);
+
+  const pendingThinkingLabel = useAgentOnboardingFirstEntry({
+    agentShipId,
+    awaitingFirstEntry: agentOnboarding.awaitingFirstEntry,
+    channelId: currentChannelId,
+    groupId,
+    isFocused,
+    posts: filteredPosts,
+    provisionId: agentOnboarding.marker?.provision?.provisionId,
+    provisionAcknowledgedAt: agentOnboarding.marker?.provisionAcknowledgedAt,
+  });
+
   usePushNotifTapTelemetry({
     channelId: currentChannelId,
     posts: filteredPosts,
@@ -559,6 +604,10 @@ export default function ChannelScreen(props: Props) {
             clearedCursor || cursorPostIsHidden ? undefined : selectedPostId
           }
           goBack={navigationRef.current.goBack}
+          disableBackButton={agentOnboardingNavigationLocked}
+          suppressEmptyState={agentGroupSetupActive}
+          suppressAnimatedSendScroll={agentGroupSetupActive}
+          pendingThinkingLabel={pendingThinkingLabel}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}

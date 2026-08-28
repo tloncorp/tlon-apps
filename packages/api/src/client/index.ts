@@ -67,6 +67,7 @@ export {
   getTlawnLLMAuthStatus,
   startTlawnLLMAuth,
   getTlawnLLMAuthFlow,
+  completeTlawnLLMAuth,
   disconnectTlawnLLMAuth,
   startTlawnOAuth,
   deleteTlawnOAuthGrant,

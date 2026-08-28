@@ -2,7 +2,7 @@ import * as api from '@tloncorp/api';
 import {
   StructuredChannelDescriptionPayload,
   scry,
-  toClientGroupV7,
+  toClientGroup,
 } from '@tloncorp/api';
 import '@tloncorp/api';
 import {
@@ -12,7 +12,7 @@ import {
 } from '@tloncorp/api';
 import {
   CombinedHeads,
-  GroupsInit6,
+  GroupsInit10,
   PagedPosts,
   PostDataResponse,
 } from '@tloncorp/api/urbit';
@@ -20,7 +20,7 @@ import {
   ContactBookScryResult1,
   ContactsDirectoryScryResult1,
 } from '@tloncorp/api/urbit/contact';
-import { GroupV7 as UrbitGroup } from '@tloncorp/api/urbit/groups';
+import { GroupV11 as UrbitGroup } from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
 import { pick } from 'lodash';
 import { expect, test, vi } from 'vitest';
@@ -40,6 +40,7 @@ import {
   setScryOutputs,
   setupDatabaseTestSuite,
 } from '../../test/helpers';
+import { batchEffects } from '../../db/query';
 import rawGroupsInit2 from '../../test/init.json';
 import {
   ensureDmInviteChannel,
@@ -47,6 +48,7 @@ import {
   syncChannelWithBackoff,
   syncDms,
   syncGroups,
+  handleBucketsUpdate,
   syncInitData,
   syncLatestPosts,
   syncPinnedItems,
@@ -64,8 +66,8 @@ const contactsData = rawContactsData as unknown as ContactsDirectoryScryResult1;
 const contactBookData = rawContactsData2 as unknown as ContactBookScryResult1;
 const suggestionsData = rawContactSuggestionsData as unknown as string[];
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
-const groupsInitData = rawGroupsInitData as unknown as GroupsInit6;
-const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit6;
+const groupsInitData = rawGroupsInitData as unknown as GroupsInit10;
+const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit10;
 const headsData = rawHeadsData as unknown as CombinedHeads;
 
 function setInitSyncScryOutputs({
@@ -73,12 +75,9 @@ function setInitSyncScryOutputs({
   init,
 }: {
   heads?: CombinedHeads;
-  init: GroupsInit6;
+  init: GroupsInit10;
 }) {
   vi.mocked(scry).mockImplementation(async ({ app, path }) => {
-    if (app === 'buckets' && path === '/v1/buckets') {
-      return [];
-    }
     if (app === 'groups-ui' && /^\/v\d+\/init$/.test(path)) {
       return init;
     }
@@ -105,6 +104,63 @@ test('does not sync thread unreads for Buckets', async () => {
 
   expect(getThreadUnreads).not.toHaveBeenCalled();
   getThreadUnreads.mockRestore();
+});
+
+// A Bucket's writers live in %buckets alone, so nothing else can supply
+// them. Init covers startup; this covers a Bucket created or edited while
+// the app is running. Without it the settings form cannot tell "no writers"
+// from "not yet known" and saving unrelated metadata submits set-writers [],
+// which opens a restricted Bucket to every reader.
+test('hydrates Bucket writers from a live subscription update', async () => {
+  const channelId = 'buckets/~zod/live-added';
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+
+  const before = await db.getChannel({ id: channelId, includeWriters: true });
+  expect(before?.writerRoles ?? []).toEqual([]);
+
+  // A Bucket arriving whole, as one created while we are running does.
+  await batchEffects('test:bucketSnapshot', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'snapshot',
+        flag: { host: '~zod', name: 'live-added' },
+        state: {
+          bucket: {
+            id: 1,
+            title: 'Live',
+            createdBy: '~zod',
+            createdAt: 0,
+            updatedBy: '~zod',
+            updatedAt: 0,
+          },
+          group: { host: '~zod', name: 'group' },
+          writers: ['admin'],
+          entries: [],
+          revision: 1,
+        },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const hydrated = await db.getChannel({ id: channelId, includeWriters: true });
+  expect(hydrated?.writerRoles?.map((r) => r.roleId)).toEqual(['admin']);
+
+  // And an edit afterwards replaces the set rather than adding to it.
+  await batchEffects('test:bucketWriters', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'update',
+        flag: { host: '~zod', name: 'live-added' },
+        revision: 2,
+        update: { type: 'writers-updated', writers: ['editor'] },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const edited = await db.getChannel({ id: channelId, includeWriters: true });
+  expect(edited?.writerRoles?.map((r) => r.roleId)).toEqual(['editor']);
 });
 
 const inputData = [
@@ -536,7 +592,7 @@ const groupId = '~solfer-magfed/test-group';
 const channelId = 'chat/~solfer-magfed/test-channel';
 
 const testGroupData: db.Group = {
-  ...toClientGroupV7(
+  ...toClientGroup(
     groupId,
     Object.values(rawGroupsData)[0] as unknown as UrbitGroup,
     true

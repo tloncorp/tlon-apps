@@ -11,6 +11,8 @@ import {
   getBucketReadToken,
   getCurrentUserId,
   requestBucketReadToken,
+  BucketsActionFailed,
+  mintRequestId,
   requestBucketsGrant,
   requestBucketsUpload,
   sendBucketsAction,
@@ -331,14 +333,32 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         // itself, and answers with the signed URL. Nothing has to be matched
         // against the replica afterwards, and nothing is broadcast until the
         // object lands.
-        const grant = await requestBucketsUpload({
-          type: 'begin-upload',
-          checksum: null,
-          flag,
-          mime: mimeType,
-          name: candidate.name,
-          parentId,
-          size: candidate.size,
+        // The request id is minted here rather than inside, and kept, so an
+        // ambiguous transport failure is recoverable. The host holds a
+        // request open across its own call to storage, so a lost response is
+        // a real possibility -- and without the id there is no way to ask
+        // what happened: retrying would mint a new one and open a second
+        // session, leaving the first holding a reservation and its quota.
+        // The host answers a repeated id with the answer it already gave.
+        const openRequestId = mintRequestId();
+        const openUpload = () =>
+          requestBucketsUpload(
+            {
+              type: 'begin-upload',
+              checksum: null,
+              flag,
+              mime: mimeType,
+              name: candidate.name,
+              parentId,
+              size: candidate.size,
+            },
+            openRequestId
+          );
+        const grant = await openUpload().catch((cause) => {
+          // A typed refusal is the host's answer and stands. Anything else
+          // never reached it, or its answer never reached us.
+          if (cause instanceof BucketsActionFailed) throw cause;
+          return openUpload();
         });
         sessionId = grant.session;
         serverEntryId = grant.entryId;
@@ -545,7 +565,10 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   const localItems = useMemo<BucketItem[]>(
     () =>
       uploads.map((upload) => ({
-        author: snapshot?.state.bucket.updatedBy ?? '',
+        // Whoever is uploading, which is us. bucket.updatedBy is the last
+        // person to change the Bucket, so a collaborator's edit would put
+        // their name on our own in-flight rows.
+        author: getCurrentUserId(),
         id: upload.id,
         kind: 'file',
         mimeType: upload.candidate.mimeType,
@@ -572,6 +595,13 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     cancelUpload,
     createFolder: (parentId: number | null, name: string) =>
       sendBucketsAction({ type: 'create-folder', flag, name, parentId }),
+    // Both verbs existed in the protocol and in the row's action menu, but
+    // nothing outside the fixture supplied the callbacks, so neither was
+    // reachable from a real Bucket.
+    renameEntry: (id: number, name: string) =>
+      sendBucketsAction({ type: 'rename-entry', flag, id, name }),
+    moveEntry: (id: number, parentId: number | null) =>
+      sendBucketsAction({ type: 'move-entry', flag, id, parentId }),
     deleteEntry: async (id: number, recursive: boolean) => {
       const current = snapshotRef.current;
       const root = current?.state.entries.find((entry) => entry.id === id);
@@ -588,6 +618,18 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           });
         }
       }
+      // Local rows are not in the snapshot, so the traversal above cannot see
+      // them. The host drops their sessions with the folder, so left alone
+      // each keeps transferring, fails, and settles as a row under a folder
+      // that no longer exists -- unreachable from the pane, and stuck in the
+      // batch's aggregate progress for as long as the Bucket is open.
+      const doomedUploads = uploads.filter(
+        (upload) =>
+          (upload.parentId !== null && ids.has(upload.parentId)) ||
+          (upload.serverEntryId !== undefined && ids.has(upload.serverEntryId))
+      );
+      await Promise.all(doomedUploads.map((upload) => cancelUpload(upload.id)));
+
       const privateFiles = current?.state.entries.filter(
         (entry): entry is BucketsFileEntry =>
           ids.has(entry.id) &&

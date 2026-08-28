@@ -97,17 +97,21 @@ Bucket snapshots are replica observations, not command acknowledgements: an acti
 
 ## Uploads
 
-1. The client sends `%begin-upload`. The host validates size, content type and parent, reserves an entry id and object key, opens a host-private session, and answers _that requester_ with a token minted from its own entropy. Nothing is broadcast and nothing enters the manifest.
-2. The client presents that token and the Bucket host to Memex `POST /v2/buckets/uploads/grant`.
-3. Memex asks the host's Pioneer sidecar to run `%pioneer-buckets-authorize-upload`. The host binds Memex's reservation id on first exchange and returns authoritative Bucket metadata. Pioneer stamps the host from its own ship identity.
-4. Memex returns a short-lived PUT grant bound to the host, Bucket, object id, caller, size, content type, and expiry.
-5. The client uploads bytes directly to object storage, with progress, cancel and retry.
-6. The client calls Memex's completion endpoint. Memex HEAD-verifies the object and sends its receipt through `%pioneer-buckets-complete-upload`.
-7. The host validates the reservation, object id, host, Bucket id, size and MIME type, then publishes the entry and emits a revisioned update.
+The Bucket's host is the only party that talks to Memex about an upload. It already decided everything Memex needs to know -- it allocated the entry and object ids and checked the size and MIME type against its own manifest -- so it says so directly rather than issuing a token for the client to carry and then being asked to vouch for it.
 
-Completion is idempotent, and so is re-exchanging the upload token: the host echoes the reservation it bound first and ignores the one Memex proposes, because Memex mints a fresh id per grant call and denying the second would make a retried upload unrecoverable. Every refusal on this path names its condition in the log -- the wire vocabulary is only `authorized` / `denied` / `expired`, so a dozen conditions share one value and the log is the only way to tell them apart.
+1. The client sends `%begin-upload`. The host validates size, content type and parent, reserves an entry id and object key, and opens a host-private session. Nothing is broadcast and nothing enters the manifest.
+2. The host calls Memex `POST /v2/buckets/uploads/grant`, authenticated with its `%genuine` secret -- the same credential the read-token sync presents -- carrying that authority in the request body. The client's request is held open as `%pending` meanwhile.
+3. Memex returns a short-lived PUT grant bound to the host, Bucket, object id, caller, size, content type, and expiry. The host answers the requester with the URL, the headers the signature covers, and the expiry.
+4. The client PUTs the bytes straight to object storage. Neither ship sees them.
+5. The client sends `%finish-upload`. The host calls Memex's completion endpoint, Memex HEAD-verifies the object, and the receipt is the answer to that call. The host publishes the entry and emits a revisioned update in the same event.
 
-Broker unavailability fails the upload cleanly and marks the session failed. Settled sessions are retained briefly, for idempotent re-completion and so the uploader can read the reason, then swept.
+`%retry-upload` asks Memex for another URL against the same reservation, which is what its retry budget is for; opening a fresh session instead would strand the first reservation holding quota. `%cancel-upload` cancels at Memex as well as locally, because quota is reserved before the first byte moves and would otherwise stay held until the reservation lapsed. Both are the uploader's to send and neither is the client's to make directly.
+
+The headers must reach the PUT exactly as given. They are part of what the URL is signed over, so a dropped one -- or the same one under different capitalisation -- fails as a signature mismatch rather than as anything legible.
+
+Nothing about an upload is retried in the background. A client is sitting in front of a progress bar, so a failure it can act on beats a silent retry it cannot see; a broker call that fails settles the session and tells the uploader why. Replay is keyed on the host's own session id, so a host that retries its own grant call gets the reservation it already has rather than a second one.
+
+**Every verb a client can send has to be in the JSON decoder.** The typed examples poke a vase straight into the agent and skip it entirely, so a verb wired everywhere except `lib/buckets/json.hoon` passes the whole suite and fails against a real client. `+test-http-decodes-every-session-verb` is the guard.
 
 ## Reads
 
@@ -174,12 +178,12 @@ Deletes stay per-object, because they are destructive: `%issue-delete` binds a s
 
 ## Pioneer thread contract
 
-All four threads live under `desk/ted/pioneer/buckets/` and are invoked by Pioneer as `%pioneer-buckets-*`. They accept `(unit json)` and return JSON.
+The remaining threads live under `desk/ted/pioneer/buckets/` and are invoked by Pioneer as `%pioneer-buckets-*`. They accept `(unit json)` and return JSON.
+
+Uploads are deliberately absent. The host calls Memex directly and authenticates as itself, so there is no capability for Memex to hand back here to be vouched for, and no receipt to push into the ship -- the receipt is the answer to the host's own completion call. `%pioneer-buckets-authorize-upload` and `%pioneer-buckets-complete-upload` were deleted on both sides along with Memex's calls into them.
 
 | Thread                              | Input                               | Successful result                                                                                                                                        |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `%pioneer-buckets-authorize-upload` | `{capability, brokerReservationId}` | `{result: "authorized", upload: {bucketName, bucketId, sessionId, objectId, actorShip, size, mimeType, checksum, expiresAtMillis, brokerReservationId}}` |
-| `%pioneer-buckets-complete-upload`  | `{brokerReservationId, receipt}`    | `{result: "completed"}`                                                                                                                                  |
 | `%pioneer-buckets-authorize-read`   | `{capability, objectId}`            | `{result: "authorized", read: {bucketId, objectId, displayFilename}}`                                                                                    |
 | `%pioneer-buckets-authorize-delete` | `{capability, objectId}`            | `{result: "authorized", delete: {bucketId, objectId}}`                                                                                                   |
 

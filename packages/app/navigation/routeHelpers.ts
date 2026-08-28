@@ -90,6 +90,28 @@ type NestedRouteLike = {
   };
 };
 
+/** Read the active desktop navigation branch and return its group id. */
+export function getActiveNestedGroupId(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const candidate = value as {
+    groupId?: unknown;
+    params?: unknown;
+    index?: number;
+    routes?: unknown[];
+    state?: unknown;
+  };
+  if (typeof candidate.groupId === 'string') return candidate.groupId;
+
+  const stateMatch = getActiveNestedGroupId(candidate.state);
+  if (stateMatch) return stateMatch;
+  if (candidate.routes?.length) {
+    const activeRoute = candidate.routes[candidate.index ?? 0];
+    const routeMatch = getActiveNestedGroupId(activeRoute);
+    if (routeMatch) return routeMatch;
+  }
+  return getActiveNestedGroupId(candidate.params);
+}
+
 /**
  * Return whether a Post's preceding root route represents Activity.
  *

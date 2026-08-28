@@ -1770,6 +1770,24 @@
   ::  and keeping them forever meant routine upload failures grew persisted
   ::  state without bound -- their entries were never published, so no
   ::  delete-entry could reach them either.
+  ::  A pending session that ran out of time may still have bytes behind it:
+  ::  the uploader had a signed PUT and a large file on a slow link can
+  ::  outlast our window. Dropping the session alone would leave the broker
+  ::  holding a reservation, its quota, and possibly a stored object that
+  ::  nothing will ever publish -- so tell the broker we are giving up, which
+  ::  releases the quota and hands the object to its orphan cleanup.
+  =/  lapsed=(list upload-session:b)
+    %+  murn  ~(tap by sessions)
+    |=  [sid=@uv ses=upload-session:b]
+    ^-  (unit upload-session:b)
+    ?.  =(%pending status.ses)  ~
+    ?:  (gth expires-at.ses now.bowl)  ~
+    ?~  reservation.ses  ~
+    `ses
+  =.  cor
+    %+  roll  lapsed
+    |=  [ses=upload-session:b acc=_cor]
+    (reservation-call:acc ses(awaiting ~) %cancel ~)
   =.  sessions
     %-  malt
     %+  skim  ~(tap by sessions)
@@ -1943,22 +1961,31 @@
   ?~  ent=(~(get by entries.st) u.cur)  |
   $(cur parent.u.ent)
 ::
+::  +descendants: an entry and everything beneath it.
+::
+::  The parent-to-children index is built once rather than per node. Walking
+::  the whole entry map to find one node's children made a recursive delete
+::  quadratic in the manifest, and the client deletes each ready file on its
+::  own before the folder, so every one of those paid for a full scan too --
+::  enough for a large bucket to hold the agent through a routine delete.
+::
 ++  descendants
   |=  [st=bucket-state:b root=@ud]
   ^-  (set @ud)
   ?>  (~(has by entries.st) root)
+  =/  kids=(jug @ud @ud)
+    %-  ~(rep by entries.st)
+    |=  [[id=@ud ent=entry:b] acc=(jug @ud @ud)]
+    ?~  parent.ent  acc
+    (~(put ju acc) u.parent.ent id)
   =/  acc=(set @ud)  (silt ~[root])
   =/  queue=(list @ud)  ~[root]
   |-
   ?~  queue  acc
-  =/  kids=(list @ud)
-    %+  murn  ~(tap by entries.st)
-    |=  [id=@ud ent=entry:b]
-    ?~  parent.ent  ~
-    ?:  =(u.parent.ent i.queue)  `id  ~
+  =/  next=(list @ud)  ~(tap in (~(get ju kids) i.queue))
   %=  $
-    queue  (weld t.queue kids)
-    acc    (~(gas in acc) kids)
+    queue  (weld t.queue next)
+    acc    (~(gas in acc) next)
   ==
 ::
 ::  +group-exists: does %groups still hold this group?
@@ -2350,7 +2377,22 @@
     ?+  -.sign  cor
         %fact
       ?.  =(%buckets-response-1 p.cage.sign)  cor
-      (apply-response !<(response:b q.cage.sign))
+      =/  res=response:b  !<(response:b q.cage.sign)
+      ::  The wire says which bucket this subscription is for; the fact says
+      ::  which bucket it is about. They are only the same if the host is
+      ::  honest, so a host we subscribe to could otherwise publish a fact
+      ::  naming a different bucket -- one we hold a replica of and it does
+      ::  not host -- and we would apply it. An empty writer set is the
+      ::  payload that matters: clients mirror writers into the channel row,
+      ::  and an admin later saving that bucket's settings would send the
+      ::  emptiness on to its real host, where it opens the bucket to every
+      ::  reader.
+      ?.  =(flag flag.res)
+        %-  %+  slog
+              leaf+"buckets: {<flag>} published a fact about {<flag.res>}"
+            ~
+        cor
+      (apply-response res)
     ::
     ::  A kick is not a revocation, so re-watch rather than dropping the
     ::  replica. The host's nack below is what tells us access is gone.

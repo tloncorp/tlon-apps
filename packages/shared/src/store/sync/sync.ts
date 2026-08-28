@@ -23,6 +23,11 @@ import {
   resetActivityFetchers,
 } from '../../store/useActivityFetchers';
 import { persistUnreads } from '../activityActions';
+import {
+  getPostIdFromBotReplyMessageId,
+  setCachedBotReplyFeedback,
+  toCachedBotReplyFeedback,
+} from '../botReplyFeedback';
 import { createBatchHandler, createHandler } from '../bufferedSubscription';
 import * as LocalCache from '../cachedData';
 import { addContacts, updateContactMetadata } from '../contactActions';
@@ -60,15 +65,6 @@ export const syncInitData = async (
   // the init endpoint version is capability-picked and this can run before
   // syncAppInfo on a fresh boot — apply the persisted capabilities first
   await syncReactionSupport();
-  // Buckets is optional on desk-less ships, so this starts alongside init but
-  // is not awaited with it. Promise.all waits for the slowest of its
-  // arguments, and catching a rejection does not change that -- so with the
-  // scry's own one-minute timeout, a wedged %buckets held the cold-start gate
-  // for a minute on behalf of a feature the ship may not even have. It is
-  // awaited below instead, where the data is first needed and init is already
-  // done. (Better still would be for the init scry to carry this, the way it
-  // carries %channels and %chat; that is a separate change.)
-  const bucketSnapshots = api.getBuckets().catch(() => []);
   const initData = await syncQueue.add('init', syncCtx, () =>
     api.getInitData()
   );
@@ -114,7 +110,10 @@ export const syncInitData = async (
     await db
       .insertChannelPerms(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel perms'));
-    const buckets = await bucketSnapshots;
+    // Straight from init now, alongside the channels whose writers arrive the
+    // same way. Reading them separately meant a Bucket that appeared after
+    // startup never got its writer roles at all.
+    const buckets = initData.buckets;
     if (buckets.length > 0) {
       // Writers only. %groups does not model a channel's writer roles, so a
       // bucket keeps its own and this is the only place they come from --
@@ -542,6 +541,10 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   await db.dismissedPinnedPostBannerIds.setValue(
     result.dismissedPinnedPostBannerIds
   );
+  await db.replaceBotReplyFeedback(
+    result.botReplyFeedback.map(toCachedBotReplyFeedback)
+  );
+  await queryClient.invalidateQueries({ queryKey: ['botReplyFeedback'] });
 
   if (result.pendingMemberDismissals?.length) {
     await db.insertPendingMemberDismissals({
@@ -1110,6 +1113,9 @@ export async function handleGroupUpdate(
     case 'editGroup':
       await db.updateGroup({ id: update.groupId, ...update.meta }, ctx);
       break;
+    case 'editGroupBlob':
+      await db.updateGroup({ id: update.groupId, blob: update.blob }, ctx);
+      break;
     case 'deleteGroup':
       await db.deletePinnedItem({ itemId: update.groupId }, ctx);
       await db.deleteGroup(update.groupId, ctx);
@@ -1664,7 +1670,58 @@ export const handleSettingsUpdate = async (
         return current.filter((postId) => postId !== update.postId);
       });
       break;
+    case 'botReplyFeedback':
+      if (update.entry) {
+        const cachedEntry = {
+          messageId: update.messageId,
+          postId: getPostIdFromBotReplyMessageId(update.messageId),
+          ...update.entry,
+        };
+        await db.upsertBotReplyFeedback(cachedEntry, ctx);
+        setCachedBotReplyFeedback(update.messageId, cachedEntry);
+      } else {
+        await db.deleteBotReplyFeedback(update.messageId, ctx);
+        setCachedBotReplyFeedback(update.messageId, null);
+      }
+      break;
   }
+};
+
+/**
+ * Keep a Bucket's writer roles current, the way %channels does its own.
+ *
+ * A Bucket's writers live in %buckets, not %groups, so nothing else can
+ * supply them. Init carries them at startup; this carries them afterwards --
+ * for a Bucket created while the app is running, and for one whose writers
+ * are edited. Without it a live-added Bucket sits with no writer roles at
+ * all, and the settings form cannot tell that from "no writers", so saving
+ * unrelated metadata submits set-writers [] and opens the Bucket to every
+ * reader.
+ *
+ * A snapshot and a %writers update both carry the whole set, so both are
+ * simply written through.
+ */
+export const handleBucketsUpdate = async (
+  response: api.BucketsResponse,
+  ctx: QueryCtx
+) => {
+  const channelId = api.formatBucketsChannelId(response.flag);
+  const writers =
+    response.type === 'snapshot'
+      ? response.state.writers
+      : response.update.type === 'writers-updated'
+        ? response.update.writers
+        : null;
+  if (writers === null) {
+    return;
+  }
+  await db.updateChannel(
+    {
+      id: channelId,
+      writerRoles: writers.map((roleId) => ({ channelId, roleId })),
+    },
+    ctx
+  );
 };
 
 export const handleChannelsUpdate = async (
@@ -2466,6 +2523,7 @@ export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
   return syncQueue.add('setupHighPrioritySubscriptions', ctx, () => {
     return Promise.all([
       api.subscribeToChannelsUpdates(createHandler(handleChannelsUpdate)),
+      api.subscribeToBuckets(createHandler(handleBucketsUpdate)),
       api.subscribeToChatUpdates(createHandler(handleChatUpdate)),
       api.subscribeGroups(createHandler(handleGroupUpdate)),
       api.subscribeToPresenceUpdates(handlePresenceEvent),

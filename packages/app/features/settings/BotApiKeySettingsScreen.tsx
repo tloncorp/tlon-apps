@@ -18,14 +18,18 @@ import {
   TextInput,
 } from '../../ui';
 import { BotSettingsSection } from './bot/BotSettingsUI';
-import { PROVIDER_OPTIONS } from './bot/constants';
+import {
+  PROVIDER_OPTIONS,
+  isSubscriptionProvider,
+  subscriptionLabel,
+} from './bot/constants';
 import {
   getErrorMessage,
   safeKeySummary,
   validateProviderKey,
 } from './bot/helpers';
 import {
-  getOpenAIAuthStatus,
+  getLLMAuthProviderStatus,
   getOpenAICredentialSwitch,
   isLLMAuthProviderConnected,
 } from './bot/openAiSubscription';
@@ -40,7 +44,7 @@ export function BotApiKeySettingsScreen(props: Props) {
   const { provider: providerId } = props.route.params;
   const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
-  const { saveProviderKey, deleteProviderKey, disconnectOpenAISubscription } =
+  const { saveProviderKey, deleteProviderKey, disconnectLLMSubscription } =
     useBotSettingsMutations();
   const [key, setKey] = useState('');
   const [showKey, setShowKey] = useState(false);
@@ -67,19 +71,26 @@ export function BotApiKeySettingsScreen(props: Props) {
     [providerId]
   );
   const isConfigured = Boolean(queries.providerConfig.keys?.[providerId]);
-  const subscriptionConnected = isLLMAuthProviderConnected(
-    getOpenAIAuthStatus(queries.llmAuthStatusQuery.data)?.status
-  );
-  const openAIStatusKnown =
-    providerId !== 'openai' || queries.llmAuthStatusQuery.data !== undefined;
-  const openAIStatusError =
-    providerId === 'openai' &&
-    !openAIStatusKnown &&
+  const supportsSubscription = isSubscriptionProvider(providerId);
+  const subscriptionName = supportsSubscription
+    ? subscriptionLabel(providerId)
+    : null;
+  const subscriptionConnected =
+    supportsSubscription &&
+    isLLMAuthProviderConnected(
+      getLLMAuthProviderStatus(queries.llmAuthStatusQuery.data, providerId)
+        ?.status
+    );
+  const subscriptionStatusKnown =
+    !supportsSubscription || queries.llmAuthStatusQuery.data !== undefined;
+  const subscriptionStatusError =
+    supportsSubscription &&
+    !subscriptionStatusKnown &&
     queries.llmAuthStatusQuery.isError;
   const busy =
     saveProviderKey.isPending ||
     deleteProviderKey.isPending ||
-    disconnectOpenAISubscription.isPending;
+    disconnectLLMSubscription.isPending;
 
   const handleBack = useCallback(() => {
     props.navigation.goBack();
@@ -95,8 +106,8 @@ export function BotApiKeySettingsScreen(props: Props) {
   const handleSave = useCallback(async () => {
     // Do not infer that the subscription is disconnected while its status is
     // loading or unavailable. Otherwise this bypasses the replacement flow and
-    // can leave both OpenAI credential modes configured.
-    if (!openAIStatusKnown) {
+    // can leave both credential modes configured for the provider.
+    if (!subscriptionStatusKnown) {
       return;
     }
     const validation = validateProviderKey(providerId, key);
@@ -108,7 +119,7 @@ export function BotApiKeySettingsScreen(props: Props) {
     const credentialSwitch = getOpenAICredentialSwitch(
       {
         hasApiKey: isConfigured,
-        subscriptionConnected: providerId === 'openai' && subscriptionConnected,
+        subscriptionConnected,
       },
       'api-key'
     );
@@ -125,7 +136,7 @@ export function BotApiKeySettingsScreen(props: Props) {
   }, [
     isConfigured,
     key,
-    openAIStatusKnown,
+    subscriptionStatusKnown,
     providerId,
     saveKey,
     subscriptionConnected,
@@ -134,13 +145,15 @@ export function BotApiKeySettingsScreen(props: Props) {
   const handleSwitch = useCallback(async () => {
     try {
       await saveKey();
-      await disconnectOpenAISubscription.mutateAsync();
+      if (supportsSubscription) {
+        await disconnectLLMSubscription.mutateAsync(providerId);
+      }
       setKey('');
       setConfirmSwitch(false);
     } catch {
       // surfaced via mutation errors below
     }
-  }, [disconnectOpenAISubscription, saveKey]);
+  }, [disconnectLLMSubscription, providerId, saveKey, supportsSubscription]);
 
   const handleRemove = useCallback(async () => {
     try {
@@ -170,9 +183,9 @@ export function BotApiKeySettingsScreen(props: Props) {
       ? (getErrorMessage(deleteProviderKey.error) ??
         'Failed to delete provider key.')
       : null) ??
-    (disconnectOpenAISubscription.error
-      ? (getErrorMessage(disconnectOpenAISubscription.error) ??
-        'Failed to disconnect the ChatGPT subscription.')
+    (disconnectLLMSubscription.error
+      ? (getErrorMessage(disconnectLLMSubscription.error) ??
+        `Failed to disconnect the ${subscriptionName ?? 'subscription'}.`)
       : null);
 
   return (
@@ -181,7 +194,6 @@ export function BotApiKeySettingsScreen(props: Props) {
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title={`${provider.label} API key`}
-        placement="navigation"
       />
       <SettingsContentScrollView
         paddingHorizontal="$l"
@@ -227,20 +239,22 @@ export function BotApiKeySettingsScreen(props: Props) {
             </YStack>
           </BotSettingsSection>
 
-          {!openAIStatusKnown ? (
+          {!subscriptionStatusKnown ? (
             <YStack gap="$m">
               <Text
                 size="$label/s"
                 color={
-                  openAIStatusError ? '$negativeActionText' : '$secondaryText'
+                  subscriptionStatusError
+                    ? '$negativeActionText'
+                    : '$secondaryText'
                 }
               >
-                {openAIStatusError
+                {subscriptionStatusError
                   ? (getErrorMessage(queries.llmAuthStatusQuery.error) ??
-                    'Could not check your ChatGPT subscription.')
-                  : 'Checking your ChatGPT subscription…'}
+                    `Could not check your ${subscriptionName}.`)
+                  : `Checking your ${subscriptionName}…`}
               </Text>
-              {openAIStatusError ? (
+              {subscriptionStatusError ? (
                 <Button
                   preset="secondary"
                   label="Try again"
@@ -256,7 +270,7 @@ export function BotApiKeySettingsScreen(props: Props) {
             preset="primary"
             label="Save key"
             centered
-            disabled={busy || !key.trim() || !openAIStatusKnown}
+            disabled={busy || !key.trim() || !subscriptionStatusKnown}
             loading={saveProviderKey.isPending}
             onPress={handleSave}
           />
@@ -285,8 +299,8 @@ export function BotApiKeySettingsScreen(props: Props) {
         open={confirmSwitch}
         onOpenChange={setConfirmSwitch}
         destructive
-        title="Replace the ChatGPT subscription?"
-        description="ChatGPT subscription access and OpenAI API-key access are alternatives. Saving this key will disconnect the ChatGPT subscription."
+        title={`Replace the ${subscriptionName}?`}
+        description={`${subscriptionName} access and ${provider?.label ?? providerId} API-key access are alternatives. Saving this key will disconnect the ${subscriptionName}.`}
         confirmText="Replace and save"
         onConfirm={handleSwitch}
       />

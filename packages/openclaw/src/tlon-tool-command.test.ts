@@ -76,14 +76,22 @@ describe('tlon tool execution', () => {
           state: 'resolved',
           value: {
             content: [{ type: 'text', text: BLOCKED_MIGRATION_MESSAGE }],
-            details: { blocked: true, reason: 'migration_operation' },
+            details: {
+              status: 'blocked',
+              blocked: true,
+              reason: 'migration_operation',
+            },
           },
         },
         {
           state: 'resolved',
           value: {
             content: [{ type: 'text', text: BLOCKED_MIGRATION_MESSAGE }],
-            details: { blocked: true, reason: 'migration_operation' },
+            details: {
+              status: 'blocked',
+              blocked: true,
+              reason: 'migration_operation',
+            },
           },
         },
       ]);
@@ -140,13 +148,76 @@ describe('tlon tool execution', () => {
 
     expect(result).toEqual({
       content: [{ type: 'text', text: BLOCKED_MIGRATION_MESSAGE }],
-      details: { blocked: true, reason: 'migration_operation' },
+      details: {
+        status: 'blocked',
+        blocked: true,
+        reason: 'migration_operation',
+      },
     });
     await vi.waitFor(() =>
       expect(logError).toHaveBeenCalledWith(
         'Failed to notify owner about diary migration discovery for diary/~bot/detached-discovery: Error: unexpected bridge failure'
       )
     );
+  });
+
+  it('marks failed command results as tool errors for core classification', async () => {
+    const execute = createTlonToolExecutor({
+      runCommand: vi.fn(async () => {
+        throw new Error('TimeoutError: active');
+      }),
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+    });
+
+    const result = await execute('failed-command', {
+      command: 'groups update chat/~host/lobby --icon moon.png',
+    });
+
+    expect(result).toEqual({
+      content: [{ type: 'text', text: 'Error: TimeoutError: active' }],
+      details: { status: 'error', error: 'TimeoutError: active' },
+    });
+  });
+
+  it('marks unknown subcommand results as tool errors', async () => {
+    const execute = createTlonToolExecutor({
+      runCommand: vi.fn(async () => 'unexpected CLI invocation'),
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+    });
+
+    const result = await execute('unknown-subcommand', {
+      command: 'frobnicate now',
+    });
+
+    expect(result).toEqual({
+      content: [
+        {
+          type: 'text',
+          text: expect.stringContaining("Unknown tlon subcommand 'frobnicate'"),
+        },
+      ],
+      details: {
+        status: 'error',
+        error: expect.stringContaining("Unknown tlon subcommand 'frobnicate'"),
+      },
+    });
+  });
+
+  it('keeps blocked results distinct from tool errors', async () => {
+    const execute = createTlonToolExecutor({
+      runCommand: vi.fn(async () => 'unexpected CLI invocation'),
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+    });
+
+    const result = await execute('blocked-shape', {
+      command: 'notes migrate-apply diary/~bot/shape-check --yes',
+    });
+
+    expect(result.details).toEqual({
+      status: 'blocked',
+      blocked: true,
+      reason: 'migration_operation',
+    });
   });
 });
 
