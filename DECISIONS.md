@@ -967,3 +967,57 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   Recorded because a surviving mutation is evidence about what a test
   proves, and silently keeping it would be the failure mode
   `feedback_mutation_testing_limits` warns about.
+
+- **D49: Byte identity survives the real `%groups` round trip — verified
+  against Hoon for the first time.** Until now the guarantee had only been
+  proven against the TS encode/decode pair. The seed writes nine specs
+  through the production description path and compares them byte-for-byte
+  against what a raw `%groups` scry returns, with no client-side
+  transform in between. **No mutation of any kind.** One spec carries a
+  deliberate torture payload: NFD vs NFC of the same grapheme, a ZWJ emoji
+  with skin-tone modifier, CJK, RTL, leading/trailing whitespace,
+  tabs/CRLF, JSON escape characters, deliberately unsorted keys, varied
+  number formats, empty string/object/array, deep nesting. All survived.
+  NUL and lone surrogates were excluded on purpose — they are not
+  representable in a `@t` cord, so a "failure" there would say nothing
+  about the guarantee.
+
+- **D50: A deleted channel's name is burned on that ship (backend
+  finding, not ours to fix here).** `store.deleteChannel` pokes only
+  `%groups`. `%channels-server`'s `ca-create` opens with
+  `?: (~(has by v-channels) n)` → `(slog "create already exists")` → a
+  **silent no-op**. So re-creating a previously used name leaves the
+  channel half-created: `%channels` holds an entry with the bunt flag
+  `~zod/`, `%groups` never lists it — and **the client's tracked poke
+  still resolves successfully**, so the client believes it worked.
+  Reproduced in isolation. The app only dodges this because
+  `createChannel` uses random slugs unless `customSlug` is passed; the
+  seed was redesigned around it (reuse channels, clear posts). Worth
+  filing upstream — the silent success is the dangerous half.
+
+- **D51: `~` in a JSON Pointer segment must be escaped — an authoring
+  trap for the templates session.** A host op with path
+  `/entries/~sampel-palnet` was silently skipped: `~` is RFC 6901's escape
+  character, so a bare `~s` is an invalid escape. The correct segment is
+  `~0sampel-palnet`, which is exactly what `$actor` substitution already
+  produces (§7). The reducer behaved correctly — it skipped only the
+  offending op — but any hand-authored spec using a ship name as a
+  literal pointer segment will hit this. **The authoring skill's
+  action-design guidance and the publish gate should both cover it**;
+  prefer `$actor` over a literal ship wherever possible.
+
+- **D52: Hostile navigation measured on the shipping host page.** With
+  the dev server's Report-Only policy live: the shimmed vectors
+  (`location.replace`, `location.href`) do nothing; the unshimmed ones
+  (`window.location.replace`, anchor click, meta-refresh) **do navigate**,
+  the browser logs `…violates the following report-only CSP directive:
+  "frame-src 'self' https://tlon.network". The violation has been logged,
+  but no further action has been taken.`, and the host then tears the
+  iframe down. This is exactly D43+D44+D45 composing as recorded — and it
+  confirms concretely that under Report-Only the request still leaves the
+  device. Only the enforcing flip changes that.
+
+- **Also confirmed:** the `activity_event_contact_group_pins` composite-PK
+  foreign-key mismatch recorded in session 4 reproduces here on group
+  delete under an enforcing `foreign_keys` pragma. Independent
+  confirmation of a pre-existing defect, still not ours to fix.
