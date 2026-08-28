@@ -12,6 +12,10 @@ import { getUrbitContext, normalizeUrbitCookie } from './context.js';
 import { UrbitHttpError } from './errors.js';
 import { urbitFetch } from './fetch.js';
 
+// Consecutive subscribe nacks after which a watch is treated as
+// unsupported by this ship rather than transiently unavailable.
+const MAX_CONSECUTIVE_SUBSCRIBE_NACKS = 3;
+
 const SUBSCRIPTION_RETRY_FLOOR_MS = 2_000;
 const SUBSCRIPTION_RETRY_CAP_MS = 30_000;
 const SUBSCRIPTION_RETRY_LOG_SAMPLE = 5;
@@ -24,7 +28,7 @@ export type UrbitSseLogger = {
 export type SubscriptionRecoveryEvent = {
   app: string;
   path: string;
-  phase: 'retrying' | 'recovered' | 'recovered_via_reconnect';
+  phase: 'retrying' | 'recovered' | 'recovered_via_reconnect' | 'abandoned';
   /** Failed resubscribe attempts so far (0 on a clean first-try recovery). */
   attempt: number;
   /** Elapsed ms since the quit that killed the subscription. */
@@ -40,6 +44,14 @@ export type StreamRecoveryEvent = {
   idleMs?: number;
   /** reconnected: how long the stream was down. */
   downtimeMs?: number;
+  /**
+   * reconnected: true when the channel was rebuilt from scratch (reaped on
+   * the ship) rather than resumed. A resume replays the events Eyre
+   * retained while the stream was down; a rebuild cannot — facts emitted
+   * into the dead channel are gone, so consumers with a scryable source of
+   * truth should reconcile from it.
+   */
+  rebuilt?: boolean;
   error?: unknown;
 };
 
@@ -158,6 +170,47 @@ export class UrbitSSEClient {
   private actionFloors = new Map<number, number>();
   private pendingSubscriptionIds = new Set<number>();
   private lastPokeId = 0;
+  // Pokes sent with awaitAck: settled by the matching gall poke response on
+  // the event stream, rejected on nack/timeout/close/channel-rebuild.
+  private pendingPokeAcks = new Map<
+    number,
+    {
+      resolve: () => void;
+      reject: (err: Error) => void;
+      timer: ReturnType<typeof setTimeout>;
+    }
+  >();
+  // resubscribeAfterQuit waits here for gall's subscribe ack before
+  // declaring the watch recovered (true = acked, false = nacked).
+  private pendingSubscribeAcks = new Map<number, (ok: boolean) => void>();
+  // `app+path` keys gall has acked on the CURRENT channel generation, plus
+  // waiters for keys not acked yet. connect() only awaits the channel PUT,
+  // so a rebuilt channel's watches are not live when it resolves; consumers
+  // that backfill by scry (prompt sync) must await the ack or they can miss
+  // facts emitted between their scry and the watch going live.
+  private ackedSubscriptionKeys = new Set<string>();
+  private subscriptionKeyAckWaiters = new Map<string, Set<() => void>>();
+  // Consecutive subscribe NACKs per `app+path`, and the keys we have given
+  // up on. A quit means the watch was live, so quit-driven recovery is
+  // unbounded (losing an inbound subscription is silent data loss); a nack
+  // means it was refused, and some refusals are permanent — an older ship
+  // without the prompts module nacks /v1/prompts forever. Retrying that
+  // mints a fresh subscription id every time, so the retry budget resets
+  // and `subscriptions` grows without bound.
+  private subscriptionNackCounts = new Map<string, number>();
+  private abandonedSubscriptionKeys = new Set<string>();
+  // Only watches the caller marked optional may be abandoned. The message
+  // firehoses (%chat, %channels, …) are required: a long desk restart can
+  // nack their replacements too, and giving up there would silently stop
+  // the bot receiving DMs and channel messages until a full channel
+  // rebuild. Capability-style abandonment is for watches the ship may
+  // legitimately not implement, like /v1/prompts on an older desk.
+  private optionalSubscriptionKeys = new Set<string>();
+  // Keys gall has acked at least once, ever (unlike ackedSubscriptionKeys,
+  // which is per channel generation). A watch that has been live is
+  // demonstrably supported, so later nacks are a restarting desk, not a
+  // missing capability — abandoning it would leave its facts unheard.
+  private everLiveSubscriptionKeys = new Set<string>();
 
   private subscriptionRetryTimer: ReturnType<typeof setTimeout> | null = null;
   private subscriptionRetryDelayMs = SUBSCRIPTION_RETRY_FLOOR_MS;
@@ -241,7 +294,18 @@ export class UrbitSSEClient {
     event?: (data: unknown) => void;
     err?: (error: unknown) => void;
     quit?: () => void;
+    /**
+     * This watch is a capability the ship may not have. Repeated subscribe
+     * NACKs then mean "unsupported" rather than "transiently refused", so
+     * recovery stops instead of retrying forever (see
+     * MAX_CONSECUTIVE_SUBSCRIBE_NACKS). Required watches must leave this
+     * unset — abandoning one silently drops inbound traffic.
+     */
+    optional?: boolean;
   }) {
+    if (params.optional) {
+      this.optionalSubscriptionKeys.add(`${params.app}${params.path}`);
+    }
     const subId = this.subscriptions.length + 1;
     const subscription = {
       id: subId,
@@ -511,6 +575,8 @@ export class UrbitSSEClient {
     // its sub was recreated even if the stream GET then fails.
     this.channelReaped = false;
     this.channelEpoch += 1;
+    // A fresh channel means none of the re-sent watches are acked yet.
+    this.ackedSubscriptionKeys.clear();
     // Only the ids in the create snapshot were sent; a subscribe() landing
     // during the create await stays pending for the resume flush / next rebuild.
     for (const id of sentSubIds) {
@@ -907,10 +973,118 @@ export class UrbitSSEClient {
       // Successful poke acknowledgements are routine stream traffic. Keep failures
       // observable without emitting an info log for every successful poke.
       if (parsed.response === 'poke') {
+        const pending =
+          typeof parsed.id === 'number'
+            ? this.pendingPokeAcks.get(parsed.id)
+            : undefined;
+        if (pending && typeof parsed.id === 'number') {
+          this.pendingPokeAcks.delete(parsed.id);
+          clearTimeout(pending.timer);
+          if (parsed.err) {
+            pending.reject(
+              new Error(`Poke nacked: ${JSON.stringify(parsed.err)}`)
+            );
+          } else {
+            pending.resolve();
+          }
+        }
         if (parsed.err) {
           this.logger.error?.(
             `[SSE] Poke NACK id=${parsed.id}: ${JSON.stringify(parsed.err)}`
           );
+        }
+        return;
+      }
+
+      if (parsed.response === 'subscribe') {
+        // Settle a recovery loop waiting on this subscribe's ack.
+        const waiter =
+          typeof parsed.id === 'number'
+            ? this.pendingSubscribeAcks.get(parsed.id)
+            : undefined;
+        if (waiter && typeof parsed.id === 'number') {
+          this.pendingSubscribeAcks.delete(parsed.id);
+          waiter(!parsed.err);
+        }
+        if (!parsed.err && typeof parsed.id === 'number') {
+          const sub = this.subscriptions.find((s) => s.id === parsed.id);
+          if (sub) {
+            const key = `${sub.app}${sub.path}`;
+            this.ackedSubscriptionKeys.add(key);
+            this.everLiveSubscriptionKeys.add(key);
+            this.subscriptionNackCounts.delete(key);
+            const wasAbandoned = this.abandonedSubscriptionKeys.delete(key);
+            this.flushSubscriptionKeyAckWaiters(key);
+            if (wasAbandoned) {
+              // A rebuild re-sent this watch and the ship accepted it after
+              // all (the desk finished restarting, or was updated). Tell the
+              // consumer, or it stays in its own "unavailable" state: facts
+              // would flow again while anything stored during the abandoned
+              // window is never backfilled until the process restarts.
+              this.logger.log?.(
+                `[SSE] Previously abandoned watch ${sub.app}${sub.path} was accepted; recovered`
+              );
+              this.onSubscriptionRecovery?.({
+                app: sub.app,
+                path: sub.path,
+                phase: 'recovered',
+                attempt: 0,
+                downMs: 0,
+              });
+            }
+          }
+        }
+        // A subscribe nack after the channel PUT means the watch never went
+        // live (e.g. the agent was restarting). Run the same recovery as a
+        // quit: transfer the handlers to a fresh id and retry with backoff —
+        // onSubscriptionRecovery fires when it lands, which dependent
+        // consumers (prompt sync) use to re-run their reconcile.
+        if (parsed.err) {
+          if (
+            typeof parsed.id === 'number' &&
+            this.eventHandlers.has(parsed.id)
+          ) {
+            const sub = this.subscriptions.find((s) => s.id === parsed.id);
+            const key = sub ? `${sub.app}${sub.path}` : null;
+            const nacks = key
+              ? (this.subscriptionNackCounts.get(key) ?? 0) + 1
+              : 1;
+            if (key) {
+              this.subscriptionNackCounts.set(key, nacks);
+            }
+            if (
+              key &&
+              sub &&
+              this.optionalSubscriptionKeys.has(key) &&
+              !this.everLiveSubscriptionKeys.has(key) &&
+              nacks > MAX_CONSECUTIVE_SUBSCRIBE_NACKS
+            ) {
+              // Treated as unsupported rather than transient: keep the
+              // handlers (a channel rebuild re-sends and may succeed on a
+              // ship that has since updated) but stop the recovery loop,
+              // and release anyone waiting on the ack.
+              this.abandonedSubscriptionKeys.add(key);
+              this.subscriptionNackCounts.delete(key);
+              this.logger.error?.(
+                `[SSE] Subscribe to ${sub.app}${sub.path} nacked ${nacks} times; treating it as unsupported and stopping recovery`
+              );
+              this.onSubscriptionRecovery?.({
+                app: sub.app,
+                path: sub.path,
+                phase: 'abandoned',
+                attempt: nacks,
+                downMs: 0,
+                error: parsed.err,
+              });
+              this.flushSubscriptionKeyAckWaiters(key);
+              return;
+            }
+            this.logger.error?.(
+              `[SSE] Subscribe NACK id=${parsed.id}: ${JSON.stringify(parsed.err)} — resubscribing`
+            );
+            void this.resubscribeAfterQuit(parsed.id);
+          }
+          return;
         }
         return;
       }
@@ -966,7 +1140,22 @@ export class UrbitSSEClient {
     this.generationZeroEligibleActionIds.add(id);
   }
 
-  async poke(params: { app: string; mark: string; json: unknown }) {
+  async poke(params: {
+    app: string;
+    mark: string;
+    json: unknown;
+    /** Aborts the HTTP PUT (30s default timeout) — e.g. monitor teardown. */
+    signal?: AbortSignal;
+    /**
+     * Resolve only once gall ACKS the poke (the HTTP 2xx merely means Eyre
+     * queued it; the ack/nack arrives later on the event stream). A nack
+     * rejects, as does a 30s ack timeout, close(), or a channel rebuild —
+     * so callers gating on ship state (e.g. prompt-sync's owner configure)
+     * actually observe failures. Requires a live event stream.
+     */
+    awaitAck?: boolean;
+    ackTimeoutMs?: number;
+  }) {
     // After close() the channel is unsubscribed/DELETEd on the ship. A stale
     // poke from an old monitor (e.g. across a config-reload restart) would
     // otherwise recreate that channel as a side effect, so reject once closed.
@@ -994,22 +1183,204 @@ export class UrbitSSEClient {
     // A rejection is delivery-ambiguous (pokeUrbitChannel can get an OK response
     // then reject from release() in its finally). A stale entry blocks nothing:
     // it resolves via ack-match, rebuild clear, or never (bounded by the cap).
-    return await pokeUrbitChannel(
-      {
-        baseUrl: this.url,
-        cookie: this.cookie,
-        ship: this.ship,
-        channelId: this.channelId,
-        ssrfPolicy: this.ssrfPolicy,
-        lookupFn: this.lookupFn,
-        fetchImpl: this.fetchImpl,
-      },
-      {
-        ...params,
-        pokeId,
-        auditContext: 'tlon-urbit-poke',
+    const deps = {
+      baseUrl: this.url,
+      cookie: this.cookie,
+      ship: this.ship,
+      channelId: this.channelId,
+      ssrfPolicy: this.ssrfPolicy,
+      lookupFn: this.lookupFn,
+      fetchImpl: this.fetchImpl,
+    };
+    const sendParams = {
+      app: params.app,
+      mark: params.mark,
+      json: params.json,
+      ...(params.signal ? { signal: params.signal } : {}),
+      pokeId,
+      auditContext: 'tlon-urbit-poke',
+    };
+    if (!params.awaitAck) {
+      return await pokeUrbitChannel(deps, sendParams);
+    }
+    // Register the ack waiter BEFORE the PUT: gall can respond while
+    // pokeUrbitChannel is still awaiting its release(), and an ack that
+    // finds no waiter would be discarded — stalling the caller into its
+    // timeout and a redundant retry of an already-applied poke.
+    const timeoutMs = params.ackTimeoutMs ?? 30_000;
+    const dropPending = () => {
+      const pending = this.pendingPokeAcks.get(pokeId);
+      if (pending) {
+        this.pendingPokeAcks.delete(pokeId);
+        clearTimeout(pending.timer);
       }
+    };
+    // Settle-and-clean for the send-failure path: the entry's reject also
+    // detaches the caller's abort listener — dropping only the map entry
+    // would leak one listener (and its closure) per failed retry.
+    const failPending = (err: Error) => {
+      const pending = this.pendingPokeAcks.get(pokeId);
+      if (pending) {
+        this.pendingPokeAcks.delete(pokeId);
+        clearTimeout(pending.timer);
+        pending.reject(err);
+      }
+    };
+    const ackPromise = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingPokeAcks.delete(pokeId);
+        cleanupAbort();
+        reject(new Error(`Poke ack timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+      timer.unref?.();
+      // Honor the caller's teardown signal while waiting for the ack —
+      // otherwise a config reload could sit out the full timeout.
+      const onAbort = () => {
+        dropPending();
+        reject(new Error('Aborted while awaiting poke ack'));
+      };
+      const cleanupAbort = () =>
+        params.signal?.removeEventListener('abort', onAbort);
+      params.signal?.addEventListener('abort', onAbort, { once: true });
+      this.pendingPokeAcks.set(pokeId, {
+        resolve: () => {
+          cleanupAbort();
+          resolve();
+        },
+        reject: (err: Error) => {
+          cleanupAbort();
+          reject(err);
+        },
+        timer,
+      });
+    });
+    // Observe the waiter IMMEDIATELY: a nack/abort/timeout/close/rebuild
+    // can reject it while the PUT below is still in flight, and a rejection
+    // with no handler attached yet surfaces as an unhandled rejection —
+    // which can terminate the process instead of reaching the caller's
+    // retry path. ackOutcome never rejects; the error is re-thrown after
+    // the send settles.
+    const ackOutcome: Promise<Error | null> = ackPromise.then(
+      () => null,
+      (error: Error) => error
     );
+    try {
+      await pokeUrbitChannel(deps, sendParams);
+    } catch (error) {
+      failPending(new Error('Poke send failed before ack'));
+      throw error;
+    }
+    const outcome = await ackOutcome;
+    if (outcome) {
+      throw outcome;
+    }
+    return pokeId;
+  }
+
+  /**
+   * Resolve once gall has acked the subscribe for `app`+`path` on the
+   * current channel generation (immediately if it already has).
+   *
+   * The outcome is discriminated because callers act differently on each:
+   * - `acked`: the watch is live; safe to read state it will report changes to
+   * - `timeout`: nothing is known yet. An ack landing later is recorded, so
+   *   simply calling again returns `acked` immediately — callers that must
+   *   not miss facts should keep waiting rather than give up.
+   * - `superseded`: the channel was rebuilt while waiting; the recovery pass
+   *   for that new generation owns the work now.
+   * - `closed`: the client is shutting down.
+   */
+  async waitForSubscriptionAck(
+    app: string,
+    path: string,
+    timeoutMs = 30_000,
+    signal?: AbortSignal
+  ): Promise<'acked' | 'timeout' | 'superseded' | 'closed' | 'unavailable'> {
+    const key = `${app}${path}`;
+    if (this.ackedSubscriptionKeys.has(key)) {
+      return 'acked';
+    }
+    if (this.abandonedSubscriptionKeys.has(key)) {
+      return 'unavailable';
+    }
+    if (this.aborted || signal?.aborted) {
+      return 'closed';
+    }
+    const epochAtWait = this.channelEpoch;
+    return await new Promise<
+      'acked' | 'timeout' | 'superseded' | 'closed' | 'unavailable'
+    >((resolve) => {
+      let settled = false;
+      const finish = (
+        outcome: 'acked' | 'timeout' | 'superseded' | 'closed' | 'unavailable'
+      ) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', onAbort);
+        this.subscriptionKeyAckWaiters.get(key)?.delete(onAck);
+        resolve(outcome);
+      };
+      // Waiters are called with no argument, so each computes its own
+      // outcome — that lets close() settle every pending wait by simply
+      // flushing them (aborted is already true by then).
+      const onAck = () =>
+        finish(
+          this.aborted
+            ? 'closed'
+            : // Abandonment flushes these waiters too, so check it before
+              // concluding the watch went live — otherwise a caller that was
+              // already waiting sees 'acked' for a refused watch and keeps
+              // prompt sync enabled with no live fact handler.
+              this.abandonedSubscriptionKeys.has(key)
+              ? 'unavailable'
+              : this.channelEpoch === epochAtWait
+                ? 'acked'
+                : 'superseded'
+        );
+      // The caller's teardown signal fires well before close(), and
+      // callers await this — without the listener a retiring monitor
+      // would sit out the full timeout before noticing.
+      const onAbort = () => finish('closed');
+      const timer = setTimeout(
+        () =>
+          finish(
+            this.aborted
+              ? 'closed'
+              : this.channelEpoch === epochAtWait
+                ? 'timeout'
+                : 'superseded'
+          ),
+        timeoutMs
+      );
+      timer.unref?.();
+      signal?.addEventListener('abort', onAbort, { once: true });
+      const waiters =
+        this.subscriptionKeyAckWaiters.get(key) ?? new Set<() => void>();
+      waiters.add(onAck);
+      this.subscriptionKeyAckWaiters.set(key, waiters);
+    });
+  }
+
+  /** Wake everyone waiting on this key; each computes its own outcome. */
+  private flushSubscriptionKeyAckWaiters(key: string) {
+    const waiters = this.subscriptionKeyAckWaiters.get(key);
+    if (!waiters) {
+      return;
+    }
+    this.subscriptionKeyAckWaiters.delete(key);
+    for (const resolve of [...waiters]) {
+      resolve();
+    }
+  }
+
+  /** Rejects every awaitAck poke — their acks can no longer arrive. */
+  private rejectPendingPokeAcks(reason: string) {
+    for (const [id, pending] of this.pendingPokeAcks) {
+      this.pendingPokeAcks.delete(id);
+      clearTimeout(pending.timer);
+      pending.reject(new Error(reason));
+    }
   }
 
   async scry(
@@ -1182,6 +1553,8 @@ export class UrbitSSEClient {
         );
         // Mint a fresh channel and reset both cursors — per-channel event ids
         // restart at 0, so a stale Last-Event-ID would drop the first N events.
+        // Acks pending on the old channel can never arrive on the new one.
+        this.rejectPendingPokeAcks('SSE channel rebuilt before poke ack');
         this.channelId = `${Math.floor(Date.now() / 1000)}-${randomUUID().slice(0, 8)}`;
         this.channelUrl = new URL(
           `/~/channel/${this.channelId}`,
@@ -1263,6 +1636,7 @@ export class UrbitSSEClient {
         phase: 'reconnected',
         attempt,
         downtimeMs,
+        rebuilt: rebuild,
       });
     } catch (error) {
       // An abort-induced fetch rejection must not emit reconnect_failed after
@@ -1427,8 +1801,60 @@ export class UrbitSSEClient {
         continue;
       }
 
+      // The PUT only queues the subscribe — gall's ack decides whether the
+      // watch is live. Emitting `recovered` before it would let dependent
+      // reconciles scry while facts can still be dropped. The waiter is
+      // registered BEFORE the send: gall can ack while sendSubscription is
+      // still awaiting its release(), and a discarded ack would stall this
+      // loop into its timeout with no recovery event at all.
+      let cancelAckWait = () => {};
+      const ackPromise = new Promise<boolean | null>((resolve) => {
+        const timer = setTimeout(() => {
+          this.pendingSubscribeAcks.delete(newSubId);
+          resolve(null);
+        }, 30_000);
+        timer.unref?.();
+        this.pendingSubscribeAcks.set(newSubId, (ok) => {
+          clearTimeout(timer);
+          resolve(ok);
+        });
+        cancelAckWait = () => {
+          clearTimeout(timer);
+          this.pendingSubscribeAcks.delete(newSubId);
+          resolve(null);
+        };
+      });
       try {
         await this.sendSubscription(newSub);
+        const acked = await ackPromise;
+        if (acked === null) {
+          // Ack never arrived — the stream likely dropped after the PUT.
+          // Stay in the loop: a rebuild resolves through the epoch check
+          // above (recovered_via_reconnect), a still-down stream just
+          // keeps waiting, and a resumed channel gets a re-send (should
+          // the original subscribe have secretly landed, the duplicate
+          // nacks and the nack handler spawns a fresh recovery — noisy but
+          // convergent). Exiting here instead would leave the watch dead
+          // forever on a plain resume, which bumps nothing the monitor's
+          // rebuild-only reconcile hook can see.
+          failedAttempts += 1;
+          this.logger.error?.(
+            `[SSE] Resubscribe ack for ${oldSub.app}${oldSub.path} timed out (id=${newSubId}, attempt ${failedAttempts})`
+          );
+          this.onSubscriptionRecovery?.({
+            app: oldSub.app,
+            path: oldSub.path,
+            phase: 'retrying',
+            attempt: failedAttempts,
+            downMs: Date.now() - downSince,
+          });
+          continue;
+        }
+        if (!acked) {
+          // Nacked: the subscribe-nack handler already spawned a fresh
+          // recovery loop for the replacement id.
+          return;
+        }
         this.logger.log?.(
           `[SSE] Resubscribed to ${oldSub.app}${oldSub.path} successfully (new id=${newSubId})`
         );
@@ -1441,6 +1867,8 @@ export class UrbitSSEClient {
         });
         return;
       } catch (error) {
+        // The PUT never reached Eyre — no ack is coming for this attempt.
+        cancelAckWait();
         failedAttempts += 1;
         this.logger.error?.(
           `[SSE] Resubscribe failed for ${oldSub.app}${oldSub.path} (attempt ${failedAttempts}): ${String(error)}`
@@ -1460,6 +1888,16 @@ export class UrbitSSEClient {
   async close() {
     this.aborted = true;
     this.isConnected = false;
+    this.rejectPendingPokeAcks('SSE client closed before poke ack');
+    // No ack can arrive after this, so release anyone waiting on one
+    // rather than leaving them on their timers. `aborted` is already set,
+    // so each waiter resolves 'closed'.
+    for (const waiters of this.subscriptionKeyAckWaiters.values()) {
+      for (const waiter of [...waiters]) {
+        waiter();
+      }
+    }
+    this.subscriptionKeyAckWaiters.clear();
     this.stopStreamWatchdog();
     this.streamController?.abort();
     this.stopSubscriptionRetryTimer();

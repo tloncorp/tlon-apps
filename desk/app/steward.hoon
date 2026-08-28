@@ -11,24 +11,31 @@
 ::    only cross-cutting config (the shared owner).
 ::
 /-  s=steward, a=activity, av=activity-ver, cv=chat-ver, st=story
-/-  sl=steward-lens, sg=steward-gateway
+/-  sl=steward-lens, sg=steward-gateway, sp=steward-prompts
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
-::  %steward is greenfield (unreleased), so it has a single state version and
-::  no migration — an unreadable state just resets to bunt.
-::
 ::    .owner: shared owner ship (lens send target, gateway owner-DM tracking)
 ::    .bots:  owner-side trusted bots — ships allowed to send lens %entry
-::            pokes cross-ship. explicit and ship-class-agnostic; an empty
-::            set means only local pokes are accepted.
+::            and prompts %sync pokes cross-ship. explicit and
+::            ship-class-agnostic; an empty set means only local pokes are
+::            accepted.
 ::
++$  versioned-state  $%(state-0 state-1)
 +$  state-0
   $:  %0
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:sl
       gateway=state:v1:sg
+  ==
++$  state-1
+  $:  %1
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:v1:sl
+      gateway=state:v1:sg
+      prompts=state:v1:sp
   ==
 ::  default cap on first install. conservative against the per-run ceiling:
 ::  3.000 runs * 512KB worst-case = ~1.5GB per bot, while typical runs are far
@@ -37,7 +44,7 @@
 ::
 ++  default-max-runs-per-bot  3.000
 --
-=|  state-0
+=|  state-1
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -55,11 +62,14 @@
   ++  on-load
     |=  ole=vase
     ^-  (quip card _this)
-    ::  greenfield single state — load it directly. an incompatible state is
-    ::  only reachable pre-release; let it crash so we nuke rather than
-    ::  silently wipe.
+    ::  an incompatible state is only reachable pre-release; let it crash so
+    ::  we nuke rather than silently wipe.
     ::
-    `this(state !<(state-0 ole))
+    =/  old  !<(versioned-state ole)
+    ?-  -.old
+      %1  `this(state old)
+      %0  `this(state [%1 owner.old bots.old lens.old gateway.old *state:v1:sp])
+    ==
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -110,9 +120,73 @@
     ?>  =(src.bowl our.bowl)
     =+  !<(=action:v1:s vase)
     ?-  -.action
-      %configure    cor(owner.state `owner.action)
-      %trust-bot    cor(bots.state (~(put in bots.state) ship.action))
-      %untrust-bot  cor(bots.state (~(del in bots.state) ship.action))
+        %configure
+      ::  re-fan the canonical prompt set so a newly configured owner's
+      ::  mirror doesn't stay empty until some prompt text happens to
+      ::  change, and tell a replaced owner to drop its mirror so the bot
+      ::  doesn't keep appearing owned/editable there. every configure is
+      ::  also a boot-shaped moment: retry unconfirmed revokes
+      ::
+      =/  old  owner.state
+      =.  owner.state  `owner.action
+      ::  a former owner can be configured back before its revoke was ever
+      ::  confirmed. drop it from .stale FIRST: that retry rides the
+      ::  dedicated revoke wire while the re-fan below rides the sync wire,
+      ::  so a queued revoke could land after the sync and delete the
+      ::  restored owner's freshly valid mirror
+      ::
+      =.  stale.prompts.state
+        (~(del in stale.prompts.state) owner.action)
+      =.  cor  pr-retry-revokes:pr-core
+      ::  the gateway re-configures the same owner on every (re)connect;
+      ::  don't re-fan or revoke on a no-op
+      ?:  =(old `owner.action)  cor
+      ::  a different owner starts with a fresh fan-out budget; timers
+      ::  armed for the previous one are retired by .sync-tag (see
+      ::  pr-sync-nacked)
+      ::
+      =.  resync.prompts.state  0
+      =?  cor  ?=(^ old)
+        ?:  =(u.old our.bowl)
+          (pr-drop-mirror:pr-core u.old)
+        (pr-revoke-former:pr-core u.old)
+      ?:  =(~ own.prompts.state)  cor
+      pr-sync-owner:pr-core
+    ::
+        %unconfigure
+      ::  the gateway's config no longer names an owner: clear it and
+      ::  revoke the former owner's mirror, or that ship keeps receiving
+      ::  syncs and stays authorized to %set edits indefinitely. also a
+      ::  boot-shaped moment: retry unconfirmed revokes from earlier
+      ::  transitions
+      ::
+      =/  old  owner.state
+      =.  owner.state  ~
+      =.  cor  pr-retry-revokes:pr-core
+      ?~  old  cor
+      ?:  =(u.old our.bowl)
+        (pr-drop-mirror:pr-core u.old)
+      (pr-revoke-former:pr-core u.old)
+    ::
+        %trust-bot
+      ::  ask the bot to re-fan its prompt set: a %sync it sent before
+      ::  trust was granted was nacked and won't retry on its own
+      ::
+      =.  bots.state  (~(put in bots.state) ship.action)
+      ?:  =(ship.action our.bowl)  cor
+      ::  a fresh grant restarts the retry budget
+      =.  pending.prompts.state
+        (~(del by pending.prompts.state) ship.action)
+      (pr-emit-request:pr-core ship.action)
+    ::
+        %untrust-bot
+      ::  the prompt mirror doubles as the client's ownership signal, so a
+      ::  revoked bot must not keep serving (or appearing to accept) edits
+      ::
+      =.  bots.state  (~(del in bots.state) ship.action)
+      =.  pending.prompts.state
+        (~(del by pending.prompts.state) ship.action)
+      (pr-drop-mirror:pr-core ship.action)
     ==
   ::
   ::  lens module actions. auth is per-variant (each shape expects a
@@ -125,6 +199,12 @@
   ::
       %steward-gateway-action-1
     (ga-poke-action:ga-core !<(action:v1:sg vase))
+  ::
+  ::  prompts module actions. auth is per-variant (each shape expects a
+  ::  different src), so it's enforced inside pr-poke-action.
+  ::
+      %steward-prompts-action-1
+    (pr-poke-action:pr-core !<(action:v1:sp vase))
   ==
 ::
 ++  watch
@@ -133,6 +213,7 @@
   ?+  path  ~|(bad-watch-path+path !!)
     [%v1 %lens *]     (le-watch:le-core [%v1 t.t.path])
     [%v1 %gateway *]  (ga-watch:ga-core [%v1 t.t.path])
+    [%v1 %prompts *]  (pr-watch:pr-core [%v1 t.t.path])
   ==
 ::
 ++  peek
@@ -141,6 +222,7 @@
   ?+  path  [~ ~]
     [%x %v1 %lens *]     (le-peek:le-core [%v1 t.t.t.path])
     [%x %v1 %gateway *]  (ga-peek:ga-core [%v1 t.t.t.path])
+    [%x %v1 %prompts *]  (pr-peek:pr-core [%v1 t.t.t.path])
   ==
 ::
 ++  agent
@@ -159,6 +241,71 @@
         %poke-ack
       ?~  p.sign  cor
       ((slog 'steward: lens retry relay nacked' u.p.sign) cor)
+    ==
+  ::
+      [%prompts %set @ @ ~]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ::  the relayed edit was rejected (bot desk restarting, size cap,
+      ::  prompt sync inactive there): re-fact the bot's current mirror so
+      ::  the editing client's optimistic state reverts to what the bot
+      ::  actually holds instead of reading as saved forever
+      ::
+      %-  (slog 'steward: prompts set relay nacked' u.p.sign)
+      =/  bot  (slav %p i.t.t.wire)
+      =/  cur  (~(gut by mirror.prompts.state) bot *prompts:v1:sp)
+      %^  give  %fact  ~[/v1/prompts]
+      steward-prompts-update-1+!>(`update:v1:sp`[%prompts bot cur])
+    ==
+  ::
+      [%prompts %sync @ ~]
+    ?+  -.sign  cor
+        %poke-ack
+      ::  %syncs and owner-change %revokes share this wire (see %configure).
+      ::  only the CURRENT owner is ever synced, so anything else on this
+      ::  wire was a revoke to a former owner — those retry via .stale.
+      =/  who  (slav %p i.t.t.wire)
+      ?.  =(`who owner.state)
+        ?~  p.sign
+          ::  the initial revoke landed. pr-revoke-former put this ship in
+          ::  .stale before sending it, so without dropping it here every
+          ::  later configure/unconfigure/clear re-revokes every historical
+          ::  owner and the set grows without bound
+          ::
+          cor(stale.prompts.state (~(del in stale.prompts.state) who))
+        ((slog 'steward: prompts revoke nacked' u.p.sign) cor)
+      ?~  p.sign
+        ::  the owner holds our canonical set; stop retrying
+        cor(resync.prompts.state 0)
+      %-  (slog 'steward: prompts owner sync nacked' u.p.sign)
+      pr-sync-nacked:pr-core
+    ==
+  ::
+      [%prompts %request @ ~]
+    ?+  -.sign  cor
+        %poke-ack
+      =/  who  (slav %p i.t.t.wire)
+      ?~  p.sign
+        ::  acked: the bot is re-fanning, so stop retrying
+        cor(pending.prompts.state (~(del by pending.prompts.state) who))
+      ::  nacked — the bot's steward was mid-restart, or it doesn't consider
+      ::  us its owner. retry on a timer, bounded, since nothing else makes
+      ::  that bot re-fan until its gateway next boots
+      %-  (slog 'steward: prompts resync request nacked' u.p.sign)
+      (pr-request-nacked:pr-core who)
+    ==
+  ::
+      [%prompts %revoke @ ~]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign
+        ::  confirmed: the former owner dropped its mirror; stop retrying
+        =/  who  (slav %p i.t.t.wire)
+        =.  stale.prompts.state  (~(del in stale.prompts.state) who)
+        cor
+      ::  keep the ship in .stale; the next boot-shaped moment retries
+      ((slog 'steward: prompts revoke retry nacked' u.p.sign) cor)
     ==
   ::
       [%activity ~]
@@ -194,6 +341,18 @@
       [%gateway %lease-check ~]
     ?.  ?=([%behn %wake *] sign)  cor
     ga-lease-check:ga-core
+  ::
+      [%prompts %request-retry @ @ ~]
+    ?.  ?=([%behn %wake *] sign)  cor
+    %+  pr-retry-request:pr-core
+      (slav %p i.t.t.wire)
+    (slav %ud i.t.t.t.wire)
+  ::
+      [%prompts %sync-retry @ @ ~]
+    ?.  ?=([%behn %wake *] sign)  cor
+    %+  pr-retry-sync:pr-core
+      (slav %ud i.t.t.wire)
+    (slav %ud i.t.t.t.wire)
   ==
 ::
 ++  watch-activity
@@ -624,5 +783,364 @@
     =.  cor
       (ga-send-dm sender 'Your Tlon bot is offline right now, so replies are paused. I\'ll let you know when I\'m back. 🛰️')
     (ga-give-update [%auto-reply sender now.bowl])
+  --
+::  |pr-core: prompts module
+::
+::  ship-durable gateway system prompts. the bot ship stores the canonical
+::  set (.own), the gateway re-applies it to the workspace on boot, and the
+::  set is mirrored to the owner ship (.mirror) so clients can read and edit
+::  prompts without ever talking to the gateway.
+::
+++  pr-core
+  |%
+  ::  a single prompt is a whole workspace file; cap it well above real
+  ::  prompt sizes (~10KB) but low enough that a full-set %sync poke stays
+  ::  comfortably inside one ames message budget.
+  ::
+  ++  max-prompt-bytes  65.536
+  ::  hard ceiling on a full prompt map (jammed), mirroring the lens payload
+  ::  cap: a misbehaving or compromised gateway can't blow up loom with one
+  ::  poke.
+  ::
+  ++  max-payload-bytes  524.288
+  ::
+  ::  prompts-action auth is per-variant, since each shape expects a
+  ::  different src:
+  ::    %set: src=our (a local client editing, or the start of an owner-side
+  ::          relay) or the configured owner relaying an edit to us (which
+  ::          must target bot==our). only a local poke may relay outward, so
+  ::          we never proxy a non-local edit on to a third ship.
+  ::    %seed: src=our only (the local gateway reporting effective files).
+  ::    %sync: src=our (a self-owned bot storing directly) or a ship in the
+  ::          owner-side trusted-bots set fanning its canonical set in.
+  ::
+  ++  pr-poke-action
+    |=  =action:v1:sp
+    ^+  cor
+    ?-  -.action
+        %set
+      ?>  ?|  =(src.bowl our.bowl)
+              ?&  ?=(^ owner.state)
+                  =(src.bowl u.owner.state)
+                  =(bot.action our.bowl)
+              ==
+          ==
+      ::  reject oversized text at the first hop so the editing client's
+      ::  poke nacks instead of a silent drop reading as success
+      ::
+      ?>  (lte (met 3 text.action) max-prompt-bytes)
+      ?:  =(bot.action our.bowl)
+        ::  an empty canonical set means prompt sync is not active here —
+        ::  pre-first-seed, or %clear after the gateway's account lost
+        ::  syncing authority. reject the edit (a late %set racing a %clear
+        ::  on its own ames flow would otherwise recreate the mirror and
+        ::  store text no gateway will ever apply); the editor UI is
+        ::  data-gated on the mirror, so it never sends edits in either
+        ::  state
+        ::
+        ?<  =(~ own.prompts.state)
+        (pr-handle-set name.action text.action)
+      ::  local request for one of our remote bots: relay to its steward
+      %-  emit
+      :^    %pass
+          /prompts/set/(scot %p bot.action)/(scot %t name.action)
+        %agent
+      :+  [bot.action %steward]
+        %poke
+      [%steward-prompts-action-1 !>(`action:v1:sp`action)]
+    ::
+        %seed
+      ?>  =(src.bowl our.bowl)
+      (pr-handle-seed prompts.action)
+    ::
+        %sync
+      ?>  ?|  =(src.bowl our.bowl)
+              (~(has in bots.state) src.bowl)
+          ==
+      (pr-store-mirror src.bowl prompts.action)
+    ::
+        %request
+      ?>  ?|  =(src.bowl our.bowl)
+              ?&  ?=(^ owner.state)
+                  =(src.bowl u.owner.state)
+              ==
+          ==
+      pr-sync-owner
+    ::
+        %revoke
+      ::  a ship may only drop its own mirror entry; a redundant revoke
+      ::  (no entry held) acks as a no-op so boot-time revoke retries
+      ::  converge instead of nack-looping
+      (pr-drop-mirror src.bowl)
+    ::
+        %clear
+      ::  the local gateway declares prompt sync inactive for this account
+      ::  (it lost syncing authority without an owner change): wipe the
+      ::  canonical set and fan the empty set so the owner's mirror — and
+      ::  with it the editor UI — goes away rather than accepting edits
+      ::  nothing applies. clears fire once per non-syncing boot, so they
+      ::  double as the retry moment for unconfirmed revokes and for an
+      ::  empty fan that was nacked while the owner's agent restarted
+      ::
+      ?>  =(src.bowl our.bowl)
+      =.  cor  pr-retry-revokes
+      ?:  =(~ own.prompts.state)
+        pr-sync-owner
+      =.  own.prompts.state  *prompts:v1:sp
+      =.  cor
+        %^  give  %fact  ~[/v1/prompts]
+        steward-prompts-update-1+!>(`update:v1:sp`[%prompts our.bowl *prompts:v1:sp])
+      pr-sync-owner
+    ==
+  ::
+  ::  store one edit (pinned owner intent, edited=&), notify the local
+  ::  gateway (which applies it to the workspace and restarts), and refresh
+  ::  the owner's mirror.
+  ::
+  ++  pr-handle-set
+    |=  [=name:v1:sp text=@t]
+    ^+  cor
+    =/  =prompt:v1:sp  [text now.bowl &]
+    =/  new  (~(put by own.prompts.state) name prompt)
+    ::  reject an edit that would push the whole map past the sync payload
+    ::  cap: an oversized canonical set can never fan to the owner again
+    ::  (pr-store-mirror drops oversized %syncs), so the mirror would go
+    ::  permanently stale — nack the poke instead
+    ::
+    ~|  %prompts-set-overflows-payload-cap
+    ?>  (lte (met 3 (jam new)) max-payload-bytes)
+    =.  own.prompts.state  new
+    =.  cor
+      %^  give  %fact  ~[/v1/prompts]
+      steward-prompts-update-1+!>(`update:v1:sp`[%set name prompt])
+    pr-sync-owner
+  ::
+  ::  the gateway reports the full effective prompt set (file contents).
+  ::  un-edited entries adopt it wholesale — they merely mirror the files, so
+  ::  upstream prompt-set updates flow through. edited entries are pinned
+  ::  owner intent: a seed with different text never overwrites one (the
+  ::  gateway hasn't applied that edit yet — the race is a %set landing
+  ::  between the gateway's scry and its seed), and an edited entry missing
+  ::  from the seed entirely is kept rather than dropped.
+  ::
+  ++  pr-handle-seed
+    |=  seed=(map name:v1:sp @t)
+    ^+  cor
+    ?:  (gth (met 3 (jam seed)) max-payload-bytes)
+      %-  (slog leaf+"steward: prompts seed oversized, dropping" ~)
+      cor
+    =/  new=prompts:v1:sp
+      %-  ~(gas by *prompts:v1:sp)
+      %+  turn  ~(tap by seed)
+      |=  [n=name:v1:sp t=@t]
+      =/  prev  (~(get by own.prompts.state) n)
+      ?~  prev  [n `prompt:v1:sp`[t now.bowl |]]
+      ?:  =(text.u.prev t)  [n u.prev]
+      ?:  edited.u.prev  [n u.prev]
+      [n `prompt:v1:sp`[t now.bowl |]]
+    ::  keep pinned edits the seed doesn't mention
+    =.  new
+      %-  ~(gas by new)
+      %+  skim  ~(tap by own.prompts.state)
+      |=  [n=name:v1:sp p=prompt:v1:sp]
+      &(edited.p !(~(has by new) n))
+    ::  gateways re-seed on every boot: an identical re-seed skips the
+    ::  no-op fact, but still re-fans to the owner — a previous fan may
+    ::  have been nacked (owner agent restarting), and suppressing the
+    ::  sync too would leave the mirror stale until some text changed
+    ?:  =(new own.prompts.state)
+      pr-sync-owner
+    =.  own.prompts.state  new
+    =.  cor
+      %^  give  %fact  ~[/v1/prompts]
+      steward-prompts-update-1+!>(`update:v1:sp`[%prompts our.bowl new])
+    pr-sync-owner
+  ::
+  ++  pr-sync-owner
+    ^+  cor
+    ?~  owner.state  cor
+    ?:  =(u.owner.state our.bowl)
+      ::  self-owned bot: store the mirror directly, no network hop
+      (pr-store-mirror our.bowl own.prompts.state)
+    %-  emit
+    :^    %pass
+        /prompts/sync/(scot %p u.owner.state)
+      %agent
+    :+  [u.owner.state %steward]
+      %poke
+    [%steward-prompts-action-1 !>(`action:v1:sp`[%sync own.prompts.state])]
+  ::
+  ++  pr-store-mirror
+    |=  [bot=ship new=prompts:v1:sp]
+    ^+  cor
+    ::  cross-ship maps are size-gated like lens payloads
+    ?:  (gth (met 3 (jam new)) max-payload-bytes)
+      %-  (slog leaf+"steward: prompts sync oversized, dropping" ~)
+      cor
+    =.  mirror.prompts.state  (~(put by mirror.prompts.state) bot new)
+    %^  give  %fact  ~[/v1/prompts]
+    steward-prompts-update-1+!>(`update:v1:sp`[%prompts bot new])
+  ::
+  ::  bounded retry budget for a nacked cross-ship poke (%request to a bot,
+  ::  %sync to the owner) and the delay between attempts. a nack is either
+  ::  transient (the peer's steward mid-restart) or permanent (it doesn't
+  ::  consider us its owner / doesn't trust us), and we can't tell them
+  ::  apart — so retry a few times, then stop rather than poke a ship
+  ::  forever.
+  ::
+  ++  max-retry-tries  5
+  ++  retry-delay  ~m5
+  ::
+  ++  pr-emit-request
+    |=  bot=ship
+    ^+  cor
+    %-  emit
+    :^    %pass
+        /prompts/request/(scot %p bot)
+      %agent
+    :+  [bot %steward]
+      %poke
+    [%steward-prompts-action-1 !>(`action:v1:sp`[%request ~])]
+  ::
+  ::  a %request was nacked: bump the attempt count and arm a retry, or
+  ::  give up once the budget is spent
+  ::
+  ++  pr-request-nacked
+    |=  bot=ship
+    ^+  cor
+    =/  tries  +((~(gut by pending.prompts.state) bot 0))
+    ?:  (gte tries max-retry-tries)
+      %-  (slog leaf+"steward: giving up on prompts resync request" ~)
+      cor(pending.prompts.state (~(del by pending.prompts.state) bot))
+    =.  pending.prompts.state  (~(put by pending.prompts.state) bot tries)
+    ::  per-bot wire, with the attempt count in it: one bot's nack must not
+    ::  re-poke every other pending bot, and a duplicate timer from an
+    ::  earlier attempt is a no-op on wake instead of multiplying pokes and
+    ::  spending the budget faster than the retry delay
+    ::
+    %-  emit
+    :^  %pass
+        /prompts/request-retry/(scot %p bot)/(scot %ud tries)
+      %arvo
+    [%b %wait (add now.bowl retry-delay)]
+  ::
+  ::  our fan-out to the owner was rejected — its desk restarting, or it
+  ::  doesn't trust us. the %set/%request that triggered the sync has
+  ::  already acked, so nothing else would retry it: re-fan on a timer.
+  ::
+  ++  pr-sync-nacked
+    ^+  cor
+    =/  tries  +(resync.prompts.state)
+    ?:  (gte tries max-retry-tries)
+      %-  (slog leaf+"steward: giving up on prompts owner sync" ~)
+      cor(resync.prompts.state 0)
+    =.  resync.prompts.state  tries
+    ::  the wire carries .sync-tag as well as the attempt count. the count
+    ::  alone can't tell a wake armed in a previous owner's era from this
+    ::  one's: it restarts at 0 for a new owner, so a timer armed two
+    ::  nacks ago can match the new owner's first attempt and fan out
+    ::  ahead of the retry delay, eating a budget meant to be spread over
+    ::  it. the tag never resets, so only the newest armed timer matches;
+    ::  the count then rules out one whose sync has since acked.
+    ::
+    =.  sync-tag.prompts.state  +(sync-tag.prompts.state)
+    %-  emit
+    :^  %pass
+        /prompts/sync-retry/(scot %ud sync-tag.prompts.state)/(scot %ud tries)
+      %arvo
+    [%b %wait (add now.bowl retry-delay)]
+  ::
+  ++  pr-retry-sync
+    |=  [tag=@ud tries=@ud]
+    ^+  cor
+    ::  stale timers are no-ops: a different tag means an ownership change
+    ::  (or a later arm) retired this era, and a different attempt count
+    ::  means the sync it was waiting on has since acked or been retried
+    ::
+    ?.  =(tag sync-tag.prompts.state)  cor
+    ?.  =(tries resync.prompts.state)  cor
+    pr-sync-owner
+  ::
+  ++  pr-retry-request
+    |=  [bot=ship tries=@ud]
+    ^+  cor
+    ::  a stale timer (entry acked, retried since, untrusted, or budget
+    ::  spent) is a no-op
+    ?.  =(tries (~(gut by pending.prompts.state) bot 0))  cor
+    (pr-emit-request bot)
+  ::
+  ::  a replaced or removed owner must drop its mirror. the initial %revoke
+  ::  rides the sync wire (same ames flow as the %syncs, so it can't be
+  ::  overtaken by one still in flight) and the ship is remembered in
+  ::  .stale until a revoke acks — the initial one can be nacked while the
+  ::  former owner's agent restarts.
+  ::
+  ++  pr-revoke-former
+    |=  =ship
+    ^+  cor
+    =.  stale.prompts.state  (~(put in stale.prompts.state) ship)
+    (pr-emit-revoke ship /prompts/sync/(scot %p ship))
+  ::
+  ::  re-issue unconfirmed revokes, once per boot-shaped moment (configure,
+  ::  unconfigure, clear). retries ride the dedicated revoke wire: by now
+  ::  the transition-era sync flow has drained, so there is no in-flight
+  ::  %sync to be ordered against, and the per-ship wire lets the ack
+  ::  delete the right .stale entry. receivers no-op redundant revokes.
+  ::
+  ++  pr-retry-revokes
+    ^+  cor
+    =/  ships  ~(tap in stale.prompts.state)
+    |-  ^+  cor
+    ?~  ships  cor
+    =.  cor  (pr-emit-revoke i.ships /prompts/revoke/(scot %p i.ships))
+    $(ships t.ships)
+  ::
+  ++  pr-emit-revoke
+    |=  [=ship =wire]
+    ^+  cor
+    %-  emit
+    :^    %pass
+        wire
+      %agent
+    :+  [ship %steward]
+      %poke
+    [%steward-prompts-action-1 !>(`action:v1:sp`[%revoke ~])]
+  ::
+  ::  drop a bot's mirror (trust revoked) and fact the now-empty set so
+  ::  clients stop treating the bot as owned/editable
+  ::
+  ++  pr-drop-mirror
+    |=  bot=ship
+    ^+  cor
+    ?.  (~(has by mirror.prompts.state) bot)  cor
+    =.  mirror.prompts.state  (~(del by mirror.prompts.state) bot)
+    %^  give  %fact  ~[/v1/prompts]
+    steward-prompts-update-1+!>(`update:v1:sp`[%prompts bot *prompts:v1:sp])
+  ::
+  ++  pr-watch
+    |=  =path
+    ^+  cor
+    ?+  path  ~|(bad-prompts-watch-path+path !!)
+      ::  no initial fact — clients backfill via the /x/v1/prompts scries
+      [%v1 ~]  cor
+    ==
+  ::
+  ++  pr-peek
+    |=  =path
+    ^-  (unit (unit cage))
+    ?+  path  [~ ~]
+        [%v1 ~]
+      ::  bot role: the canonical set the local gateway applies
+      ``steward-prompts-update-1+!>(`update:v1:sp`[%prompts our.bowl own.prompts.state])
+    ::
+        [%v1 @ ~]
+      ::  owner role: a bot's mirrored set. our own ship serves the
+      ::  canonical set so self-owned bots read the same path.
+      =/  bot  (slav %p i.t.path)
+      ?:  =(bot our.bowl)
+        ``steward-prompts-update-1+!>(`update:v1:sp`[%prompts our.bowl own.prompts.state])
+      ?~  found=(~(get by mirror.prompts.state) bot)  [~ ~]
+      ``steward-prompts-update-1+!>(`update:v1:sp`[%prompts bot u.found])
+    ==
   --
 --

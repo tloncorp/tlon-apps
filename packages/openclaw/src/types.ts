@@ -1,5 +1,7 @@
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
+import { normalizeShip } from './targets.js';
+
 export type TlonTelemetryConfig = {
   enabled: boolean;
   apiKey: string | null;
@@ -63,6 +65,12 @@ export type TlonResolvedAccount = {
   ownerListenEnabled: boolean | null;
   /** Channels opted out of owner-listen even when the global toggle is on. */
   ownerListenDisabledChannels: string[];
+  /**
+   * Ship-managed system prompt overrides, keyed by workspace file name
+   * (e.g. "SOUL.md"). Written by prompt sync when the owner edits a prompt;
+   * the ship's %steward remains the store of record.
+   */
+  prompts: Record<string, string>;
 };
 
 type TlonTelemetryInput = {
@@ -217,6 +225,7 @@ export function resolveTlonAccount(
       },
       ownerListenEnabled: null,
       ownerListenDisabledChannels: [],
+      prompts: {},
     };
   }
 
@@ -293,6 +302,26 @@ export function resolveTlonAccount(
     ?.ownerListenDisabledChannels ??
     (base as Record<string, unknown>)?.ownerListenDisabledChannels ??
     []) as string[];
+  // Deliberately account-local, unlike the settings above: this is the
+  // per-bot prompt cache written by prompt sync (default account at the
+  // top level, named accounts under accounts[id].prompts — see
+  // writePromptsIntoConfigDraft). A named account inheriting the top-level
+  // cache would seed another bot's prompts (USER.md, AGENTS.md) onto its
+  // own ship. `account` IS `base` for the default account, so the default
+  // still reads the top-level cache. The cache is also bound to the SHIP
+  // it was generated for (promptsShip, stamped by prompt sync): repointing
+  // an account slot at a different bot ship must not carry the former
+  // ship's cache along. An unstamped cache (hand-written config overrides)
+  // is taken at face value for whatever ship the account names now.
+  const rawPrompts = ((account as Record<string, unknown>)?.prompts ??
+    {}) as Record<string, string>;
+  const promptsShip = (account as Record<string, unknown>)?.promptsShip as
+    | string
+    | undefined;
+  const prompts =
+    promptsShip && (!ship || normalizeShip(promptsShip) !== normalizeShip(ship))
+      ? {}
+      : rawPrompts;
   const configured = Boolean(ship && url && code);
 
   return {
@@ -320,6 +349,7 @@ export function resolveTlonAccount(
     contextLens,
     ownerListenEnabled,
     ownerListenDisabledChannels,
+    prompts,
   };
 }
 
