@@ -179,17 +179,18 @@ function isEmptyDeliveryClaim(reply: string): boolean {
     .trim();
   if (sameLineTail && !isDeferredSameLineTail(sameLineTail)) return false;
 
-  const nonEmptyLines = reply
+  const visiblePayloadLines = reply
+    .slice((claim.index ?? 0) + claim[0].length)
     .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  if (nonEmptyLines.length <= 1) return true;
+    .map((line) => line.replace(/^[\s:;,.!\-–—`]+/, '').trim())
+    .filter(
+      (line) =>
+        Boolean(line) && !/^```/.test(line) && !isDeferredSameLineTail(line)
+    );
 
-  // A claim used as a heading is fine when visible output follows it. This is
-  // important for transformed output, which need not contain source anchors.
-  return nonEmptyLines.every(
-    (line) => EMPTY_DELIVERY_CLAIM.test(line) || /^```/.test(line)
-  );
+  // Only content after the delivery claim can fulfill it. Introductory prose
+  // before an empty heading is not delivered output.
+  return visiblePayloadLines.length === 0;
 }
 
 export function isIncompleteFileDeliveryReply(reply: string): boolean {

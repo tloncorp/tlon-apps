@@ -135,6 +135,19 @@ describe('file read completion guard', () => {
     ).not.toBeNull();
   });
 
+  it('rejects an empty delivery heading after a preamble', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('preamble-empty-heading'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'preamble-empty-heading',
+        lastAssistantMessage:
+          'I finished reading it.\nHere are the requested contents:',
+      })
+    ).not.toBeNull();
+  });
+
   it.each([
     'Opening the summary now.',
     'Reading the records now.',
