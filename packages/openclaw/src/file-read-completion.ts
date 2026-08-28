@@ -1,6 +1,7 @@
 export type FileReadToolResult = {
   runId?: string;
   toolName: string;
+  params?: unknown;
   result?: unknown;
   error?: string;
 };
@@ -26,6 +27,8 @@ type RunState = {
   failed: boolean;
   revisionAttempts: number;
   truncated: boolean;
+  truncatedTargets: string[];
+  unknownTruncation: boolean;
 };
 
 const DEFAULT_MAX_TRACKED_RUNS = 128;
@@ -100,6 +103,9 @@ function contentAnchors(text: string): string[] {
     .filter((line) => line.length > 0 && !TRUNCATION_MARKER.test(line));
   const selected = [
     candidates[0],
+    candidates[0]?.length > MAX_ANCHOR_LENGTH
+      ? candidates[0].slice(-MAX_ANCHOR_LENGTH)
+      : undefined,
     candidates[1],
     candidates[Math.floor(candidates.length / 2)],
     candidates.at(-2),
@@ -113,6 +119,26 @@ function contentAnchors(text: string): string[] {
         .filter(Boolean)
     )
   ).slice(0, MAX_ANCHORS_PER_RUN);
+}
+
+function readTarget(params: unknown): string | null {
+  if (!params || typeof params !== 'object' || Array.isArray(params)) {
+    return null;
+  }
+  const record = params as { path?: unknown; file_path?: unknown };
+  const value =
+    typeof record.path === 'string'
+      ? record.path
+      : typeof record.file_path === 'string'
+        ? record.file_path
+        : null;
+  return value?.trim() || null;
+}
+
+function isDeferredSameLineTail(tail: string): boolean {
+  return /^(?:see|shown?|pasted?|printed?|displayed?)\b[^\n]{0,80}\b(?:below|above|next|soon)\b[.!…]*$|^(?:i(?:'ll| will)|let me)\b[^\n]{0,100}\b(?:below|above|next|soon)\b[.!…]*$/i.test(
+    tail
+  );
 }
 
 function matchedReadContentCount(reply: string, anchors: string[]): number {
@@ -150,7 +176,7 @@ function isEmptyDeliveryClaim(reply: string): boolean {
     .split(/\r?\n/, 1)[0]
     ?.replace(/^[\s:;,.!\-–—`]+/, '')
     .trim();
-  if (sameLineTail) return false;
+  if (sameLineTail && !isDeferredSameLineTail(sameLineTail)) return false;
 
   const nonEmptyLines = reply
     .split(/\r?\n/)
@@ -240,12 +266,26 @@ export function createFileReadCompletionGuard(options?: {
       const anchors = Array.from(
         new Set([...contentAnchors(text), ...(existing?.anchors ?? [])])
       ).slice(0, MAX_ANCHORS_PER_RUN);
+      const target = readTarget(input.params);
+      const resultWasTruncated = TRUNCATION_MARKER.test(text);
+      const truncatedTargets = new Set(existing?.truncatedTargets ?? []);
+      let unknownTruncation = existing?.unknownTruncation ?? false;
+      if (resultWasTruncated) {
+        if (target) truncatedTargets.add(target);
+        else unknownTruncation = true;
+      } else if (target) {
+        // A marker-free follow-up for the same path reached the remainder.
+        // Reads of another path do not clear this target's outstanding state.
+        truncatedTargets.delete(target);
+      }
       touch(runId, {
         anchors,
         empty: anchors.length === 0 && !text.trim(),
         failed: failedRuns.has(runId) || (existing?.failed ?? false),
         revisionAttempts: existing?.revisionAttempts ?? 0,
-        truncated: Boolean(existing?.truncated) || TRUNCATION_MARKER.test(text),
+        truncated: unknownTruncation || truncatedTargets.size > 0,
+        truncatedTargets: [...truncatedTargets],
+        unknownTruncation,
       });
     },
 

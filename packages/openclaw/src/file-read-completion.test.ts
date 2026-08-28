@@ -9,10 +9,11 @@ const CSV = `date,pollen_count,notes
 2026-08-01,42,low
 2026-08-02,117,high`;
 
-function successfulRead(runId: string, text: string = CSV) {
+function successfulRead(runId: string, text: string = CSV, path?: string) {
   return {
     runId,
     toolName: 'read',
+    ...(path ? { params: { path } } : {}),
     result: { content: [{ type: 'text', text }] },
   };
 }
@@ -122,6 +123,18 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
+  it('rejects a same-line promise without visible output', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('same-line-promise'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'same-line-promise',
+        lastAssistantMessage: 'Here are the requested contents: see below.',
+      })
+    ).not.toBeNull();
+  });
+
   it.each([
     'Opening the summary now.',
     'Reading the records now.',
@@ -151,6 +164,25 @@ describe('file read completion guard', () => {
         lastAssistantMessage: `Here are the requested contents: ${CSV.split('\n')[0]}`,
       })
     ).not.toBeNull();
+  });
+
+  it('requires both ends of a long single-line file', () => {
+    const guard = createFileReadCompletionGuard();
+    const longLine = `${'a'.repeat(220)}${'z'.repeat(220)}`;
+    guard.recordToolResult(successfulRead('long-line', longLine));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'long-line',
+        lastAssistantMessage: `Here are the requested contents: ${longLine.slice(0, 180)}`,
+      })
+    ).not.toBeNull();
+    expect(
+      guard.beforeFinalize({
+        runId: 'long-line',
+        lastAssistantMessage: `Here are the requested contents: ${longLine}`,
+      })
+    ).toBeNull();
   });
 
   it('accepts delivered content after requesting a correction', () => {
@@ -263,6 +295,28 @@ describe('file read completion guard', () => {
       lastAssistantMessage: 'Reading the rest now.',
     });
     expect(revision?.retry.instruction).toContain('Continue reading');
+  });
+
+  it('clears truncation when a continuation for the same path reaches EOF', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'continued',
+        'first chunk\n[Showing lines 1-20 of 40]',
+        '/tmp/report.txt'
+      )
+    );
+    guard.recordToolResult(
+      successfulRead('continued', 'final chunk', '/tmp/report.txt')
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'continued',
+        lastAssistantMessage:
+          'Here are the requested contents:\nfirst chunk\nfinal chunk',
+      })
+    ).toBeNull();
   });
 
   it('preserves summaries and transformations instead of demanding a dump', () => {
