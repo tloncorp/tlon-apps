@@ -42,6 +42,8 @@ interface Props {
   userId: string;
   connectionStatus: api.ConnectionStatus | null;
   onPressBotSettings?: () => void;
+  onPressScheduledTasks?: () => void;
+  scheduledTaskCount?: number;
   onPressGroup: (group: db.Group) => void;
 }
 
@@ -116,7 +118,7 @@ export function UserProfileScreenView(props: Props) {
           flexDirection: 'row',
         }}
       >
-        <View paddingHorizontal={'$l'}>
+        <View paddingHorizontal={'$l'} width="100%">
           <UserInfoRow
             userId={props.userId}
             hasNickname={!!userContact?.nickname?.length}
@@ -128,8 +130,12 @@ export function UserProfileScreenView(props: Props) {
           <ProfileButtons userId={props.userId} contact={userContact} />
         ) : null}
 
-        {props.onPressBotSettings ? (
-          <BotSettingsListItem onPress={props.onPressBotSettings} />
+        {props.onPressBotSettings || props.onPressScheduledTasks ? (
+          <BotManagementList
+            onPressBotSettings={props.onPressBotSettings}
+            onPressScheduledTasks={props.onPressScheduledTasks}
+            scheduledTaskCount={props.scheduledTaskCount}
+          />
         ) : null}
 
         {userContact?.status && (
@@ -176,38 +182,87 @@ export function UserProfileScreenView(props: Props) {
   );
 }
 
-function BotSettingsListItem({ onPress }: { onPress: () => void }) {
-  const handlePress = useCallback(() => {
-    onPress();
-    triggerHaptic('baseButtonClick');
-  }, [onPress]);
+function BotManagementList({
+  onPressBotSettings,
+  onPressScheduledTasks,
+  scheduledTaskCount,
+}: {
+  onPressBotSettings?: () => void;
+  onPressScheduledTasks?: () => void;
+  scheduledTaskCount?: number;
+}) {
+  const makePressHandler = useCallback((onPress: () => void) => {
+    return () => {
+      onPress();
+      triggerHaptic('baseButtonClick');
+    };
+  }, []);
 
   return (
-    <View paddingHorizontal="$xl" width="100%">
-      <Pressable
+    <View paddingHorizontal="$xl" width="100%" gap="$l">
+      {onPressScheduledTasks ? (
+        <BotManagementListItem
+          icon="Clock"
+          label="Scheduled tasks"
+          value={
+            scheduledTaskCount == null ? undefined : String(scheduledTaskCount)
+          }
+          onPress={makePressHandler(onPressScheduledTasks)}
+        />
+      ) : null}
+      {onPressBotSettings ? (
+        <BotManagementListItem
+          icon="Face"
+          label="Bot settings"
+          onPress={makePressHandler(onPressBotSettings)}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+function BotManagementListItem({
+  icon,
+  label,
+  value,
+  onPress,
+}: {
+  icon: 'Clock' | 'Face';
+  label: string;
+  value?: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      borderRadius="$2xl"
+      onPress={onPress}
+      pressStyle={{ backgroundColor: '$secondaryBackground' }}
+    >
+      <ListItem
+        alignItems="center"
+        backgroundColor="$background"
         borderRadius="$2xl"
-        onPress={handlePress}
-        pressStyle={{ backgroundColor: '$secondaryBackground' }}
+        padding="$l"
       >
-        <ListItem
-          alignItems="center"
-          backgroundColor="$background"
-          borderRadius="$2xl"
-          padding="$l"
-        >
-          <ListItem.SystemIcon icon="Face" rounded />
-          <ListItem.MainContent>
-            <ListItem.Title>Bot settings</ListItem.Title>
-          </ListItem.MainContent>
-          <ListItem.EndContent>
+        <ListItem.SystemIcon icon={icon} rounded />
+        <ListItem.MainContent>
+          <ListItem.Title>{label}</ListItem.Title>
+        </ListItem.MainContent>
+        <ListItem.EndContent>
+          <XStack alignItems="center" gap="$m">
+            {value ? (
+              <Text size="$label/m" color="$secondaryText">
+                {value}
+              </Text>
+            ) : null}
             <ListItem.SystemIcon
               icon="ChevronRight"
               backgroundColor="$transparent"
             />
-          </ListItem.EndContent>
-        </ListItem>
-      </Pressable>
-    </View>
+          </XStack>
+        </ListItem.EndContent>
+      </ListItem>
+    </Pressable>
   );
 }
 

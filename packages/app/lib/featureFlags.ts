@@ -21,6 +21,11 @@ export const featureMeta = {
     label: 'Enable Markdown mode for notebook posts',
     onlyTlon: true,
   },
+  scheduledTasks: {
+    default: false,
+    label: 'Enable scheduled task management',
+    onlyTlon: true,
+  },
 } satisfies Record<
   string,
   { default: boolean; label: string; onlyTlon: boolean }

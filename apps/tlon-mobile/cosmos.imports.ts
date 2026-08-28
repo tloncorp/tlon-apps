@@ -59,6 +59,7 @@ import * as fixture54 from './../../packages/app/fixtures/Pressable.fixture';
 import * as fixture55 from './../../packages/app/fixtures/ProfileBlock.fixture';
 import * as fixture56 from './../../packages/app/fixtures/ProfileSheet.fixture';
 import * as fixture57 from './../../packages/app/fixtures/ProfileStatusSheet.fixture';
+import * as fixture64 from './../../packages/app/fixtures/RecurringTasks.fixture';
 import * as fixture58 from './../../packages/app/fixtures/ReferenceSkeleton.fixture';
 import * as fixture59 from './../../packages/app/fixtures/ScreenHeader.fixture';
 import * as fixture60 from './../../packages/app/fixtures/SearchBar.fixture';
@@ -216,6 +217,9 @@ const fixtures = {
   '../../packages/app/fixtures/ProfileSheet.fixture.tsx': { module: fixture56 },
   '../../packages/app/fixtures/ProfileStatusSheet.fixture.tsx': {
     module: fixture57,
+  },
+  '../../packages/app/fixtures/RecurringTasks.fixture.tsx': {
+    module: fixture64,
   },
   '../../packages/app/fixtures/ReferenceSkeleton.fixture.tsx': {
     module: fixture58,
